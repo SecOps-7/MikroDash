@@ -130,7 +130,8 @@
     "aiSystemPrompt": "",
     "dbAiRetentionDays": 30,
     "aiOverviewPrompt": "",
-    "aiOverviewTextColor": "#38bdf8"
+    "aiOverviewTextColor": "#38bdf8",
+    "aiAllowRawCommands": false
   },
   "defaultsOrder": [
     "routerHost",
@@ -262,7 +263,8 @@
     "aiSystemPrompt",
     "dbAiRetentionDays",
     "aiOverviewPrompt",
-    "aiOverviewTextColor"
+    "aiOverviewTextColor",
+    "aiAllowRawCommands"
   ],
   "encrypted": [
     "routerPass",

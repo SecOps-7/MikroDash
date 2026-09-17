@@ -113,3 +113,25 @@ func AIConfirmWrites(s Settings) bool {
 	}
 	return v
 }
+
+// AIAllowRawCommands is whether the assistant's RAW command tools may run at
+// all: `run_command` and `bulk_execute`, which send a RouterOS command the model
+// composed rather than a row the registry describes.
+//
+// ── ABSENT MEANS FALSE, AND THAT IS THE OPPOSITE OF AIConfirmWrites ─────────
+//
+// Its sibling above defaults to TRUE because the safe answer there is "ask
+// first". Here the safe answer is "not at all": a raw command bypasses the
+// resource registry, so it reaches menus the page permission matrix never
+// mapped, with no guard to consult, no read-back to confirm it and no undo. The
+// zero value of a missing key is therefore the right one, and an install that
+// upgrades into this feature has it switched off.
+//
+// This is ONE of three gates. The others are checked per call and are not
+// settings: the caller must be a global administrator, and every command is put
+// to the operator with the router's name typed back, whatever `aiConfirmWrites`
+// says. See internal/server's raw command executor.
+func AIAllowRawCommands(s Settings) bool {
+	v, _ := s["aiAllowRawCommands"].(bool)
+	return v
+}

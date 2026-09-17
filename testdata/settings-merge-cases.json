@@ -135,7 +135,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -275,7 +276,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -415,7 +417,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -556,7 +559,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -697,7 +701,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -838,7 +843,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -979,7 +985,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1120,7 +1127,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1259,7 +1267,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1398,7 +1407,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1537,7 +1547,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1678,7 +1689,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1817,7 +1829,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -1956,7 +1969,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2095,7 +2109,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2234,7 +2249,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2374,7 +2390,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2514,7 +2531,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2653,7 +2671,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2792,7 +2811,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -2931,7 +2951,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     },
     {
@@ -3071,7 +3092,8 @@
         "aiSystemPrompt": "",
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
-        "aiOverviewTextColor": "#38bdf8"
+        "aiOverviewTextColor": "#38bdf8",
+        "aiAllowRawCommands": false
       }
     }
   ]

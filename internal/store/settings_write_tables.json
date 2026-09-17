@@ -234,7 +234,8 @@
     "aiEnabled",
     "aiTlsInsecure",
     "aiOverviewEnabled",
-    "aiConfirmWrites"
+    "aiConfirmWrites",
+    "aiAllowRawCommands"
   ],
   "credFields": [
     "telegramBotToken",

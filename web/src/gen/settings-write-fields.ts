@@ -74,6 +74,7 @@ export const STR_FIELDS: readonly string[] = [
 
 /** Only a real `true` or the string "true" counts as true. */
 export const BOOL_FIELDS: readonly string[] = [
+  "aiAllowRawCommands",
   "aiConfirmWrites",
   "aiEnabled",
   "aiOverviewEnabled",
