@@ -527,3 +527,39 @@ func TestCapRowsKeepsTheBudget(t *testing.T) {
 		t.Errorf("a small set was cut: %v %v", few, t3)
 	}
 }
+
+// TestRenderPackages. Versions, update and firmware state reach the model; the
+// serial and the package row ids do not; "on server" reads as not installed.
+func TestRenderPackages(t *testing.T) {
+	size := float64(12 * 1048576)
+	on := true
+	p := &collect.PackagesPayload{
+		TS: 1, PollMs: 30_000, Available: true, PendingReboot: true,
+		Packages: []collect.Package{
+			{ID: "*A1", Name: "routeros", Version: "7.24.3", Size: &size, State: "installed"},
+			{ID: "*A2", Name: "container", Version: "7.24.3", OnServer: true, ScheduledAction: "install"},
+		},
+		Firmware: collect.Firmware{IsRouterboard: true, BoardName: "hAP ax^3", Serial: "SERIAL-DO-NOT-SEND",
+			CurrentFirmware: "7.24.2", UpgradeFirmware: "7.24.3", UpgradeAvailable: true, AutoUpgrade: &on},
+		Update: collect.Update{Channel: "stable", InstalledVersion: "7.24.3", LatestVersion: "7.24.3"},
+		Counts: collect.PackageCounts{Total: 2, Installed: 1, Available: 1, Scheduled: 1},
+	}
+	b, _ := json.Marshal(renderPackages(p))
+	got := string(b)
+	for _, want := range []string{`"name":"routeros"`, `"sizeMB":12`, `"upgradeFirmware":"7.24.3"`,
+		`"autoUpgrade":true`, `"changesPendingReboot":true`, `"channel":"stable"`,
+		`"name":"container","version":"7.24.3","installed":false`, `"scheduledForNextReboot":"install"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"SERIAL-DO-NOT-SEND", "*A1", "*A2"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+	unread, _ := json.Marshal(renderPackages(&collect.PackagesPayload{TS: 1}))
+	if !strings.Contains(string(unread), "could not be read") {
+		t.Errorf("an unreadable package list does not say so: %s", unread)
+	}
+}

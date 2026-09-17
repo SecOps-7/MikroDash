@@ -135,6 +135,13 @@
       "page": "netwatch"
     },
     {
+      "name": "list_packages",
+      "access": "read",
+      "resource": "",
+      "collector": "packages",
+      "page": "packages"
+    },
+    {
       "name": "list_pppProfile",
       "access": "read",
       "resource": "pppProfile",

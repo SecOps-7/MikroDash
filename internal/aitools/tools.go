@@ -215,6 +215,20 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "wan",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "packages",
+		Description: "Read only. List the router's software, read from /system/package with " +
+			"/system/package/update and /system/routerboard: installed and disabled packages " +
+			"and the extra packages available but not installed, each with version, build " +
+			"time, size and any change scheduled for the next reboot; the RouterOS update " +
+			"channel, installed and latest version and whether an update is available; and the " +
+			"RouterBOARD firmware (current, upgrade, minimum, auto-upgrade). Use it for any " +
+			"question about versions, updates, firmware or which packages are present.",
+		Parameters: noArgs(),
+		Collector:  "packages",
+		Freshness:  FreshMetadata,
+		Page:       "packages",
+		Access:     AccessRead,
 	}}
 }
 

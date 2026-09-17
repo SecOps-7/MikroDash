@@ -47,6 +47,7 @@ const aiLiveMaxAge = 5 * time.Second
 var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"ifStatus": (*conn).liveInterfaceTraffic,
 	"wan":      (*conn).liveWanStatus,
+	"packages": (*conn).livePackages,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -278,4 +279,85 @@ func renderWanStatus(p *collect.WANPayload) any {
 		Truncated        bool         `json:"truncated"`
 	}{p.ActiveDefaultWan, p.PublicIP, p.DetectionEnabled, p.UplinkSource, note,
 		kept, len(p.Wans), truncated}
+}
+
+// ── list_packages ───────────────────────────────────────────────────────────
+
+func (cn *conn) livePackages(t aitools.Tool) string {
+	col := cn.rsession.Packages()
+	return liveAnswer(t, liveSource[collect.PackagesPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.PackagesPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/system/package",
+		absent:  "The package readings are not available from this router yet.",
+	}, renderPackages)
+}
+
+type livePackageRow struct {
+	Name      string   `json:"name"`
+	Version   string   `json:"version"`
+	BuildTime string   `json:"buildTime,omitempty"`
+	SizeMB    *float64 `json:"sizeMB,omitempty"`
+	// Installed is false for an extra package MikroTik offers that is not on
+	// the router, which the payload calls "on server".
+	Installed       bool   `json:"installed"`
+	Disabled        bool   `json:"disabled"`
+	State           string `json:"state,omitempty"`
+	ScheduledAction string `json:"scheduledForNextReboot,omitempty"`
+}
+
+type liveFirmware struct {
+	IsRouterboard    bool   `json:"isRouterboard"`
+	BoardName        string `json:"boardName,omitempty"`
+	Model            string `json:"model,omitempty"`
+	FirmwareType     string `json:"firmwareType,omitempty"`
+	CurrentFirmware  string `json:"currentFirmware,omitempty"`
+	UpgradeFirmware  string `json:"upgradeFirmware,omitempty"`
+	MinimumFirmware  string `json:"minimumFirmware,omitempty"`
+	UpgradeAvailable bool   `json:"upgradeAvailable"`
+	AutoUpgrade      *bool  `json:"autoUpgrade,omitempty"`
+}
+
+// renderPackages shapes the package payload for the model.
+//
+// ── NO SERIAL, NO ROW IDS ───────────────────────────────────────────────────
+//
+// The serial identifies the physical device and answers nothing about software;
+// a hosted endpoint would receive it on every such question. Package ids exist
+// so an action can target a row, and actions do not go through this tool.
+func renderPackages(p *collect.PackagesPayload) any {
+	rows := make([]livePackageRow, 0, len(p.Packages))
+	for _, pk := range p.Packages {
+		r := livePackageRow{Name: pk.Name, Version: pk.Version, BuildTime: pk.BuildTime,
+			Installed: !pk.OnServer, Disabled: pk.Disabled, State: pk.State,
+			ScheduledAction: pk.ScheduledAction}
+		if pk.Size != nil {
+			mb := math.Round(*pk.Size/1048576*10) / 10
+			r.SizeMB = &mb
+		}
+		rows = append(rows, r)
+	}
+	kept, truncated := capRows(rows)
+	note := ""
+	if !p.Available {
+		note = "The package list could not be read from this router, so the list below may be empty for that reason rather than because nothing is installed."
+	}
+	fw := p.Firmware
+	return struct {
+		Note          string                `json:"note,omitempty"`
+		Update        collect.Update        `json:"routerosUpdate"`
+		Firmware      liveFirmware          `json:"routerboardFirmware"`
+		PendingReboot bool                  `json:"changesPendingReboot"`
+		Counts        collect.PackageCounts `json:"counts"`
+		Packages      []livePackageRow      `json:"packages"`
+		Truncated     bool                  `json:"truncated"`
+	}{
+		Note: note, Update: p.Update,
+		Firmware: liveFirmware{IsRouterboard: fw.IsRouterboard, BoardName: fw.BoardName,
+			Model: fw.Model, FirmwareType: fw.FirmwareType, CurrentFirmware: fw.CurrentFirmware,
+			UpgradeFirmware: fw.UpgradeFirmware, MinimumFirmware: fw.MinimumFirmware,
+			UpgradeAvailable: fw.UpgradeAvailable, AutoUpgrade: fw.AutoUpgrade},
+		PendingReboot: p.PendingReboot, Counts: p.Counts, Packages: kept, Truncated: truncated,
+	}
 }
