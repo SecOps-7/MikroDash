@@ -51,6 +51,13 @@ export interface AgentOverview {
   color?: string;
 }
 
+/**
+ * The space between the ">" prompt and the text, present only when there IS text,
+ * so an idle card reads ">_" and a typed one "> Router ...". Non-breaking, so it
+ * survives at the start of an inline element.
+ */
+const GAP = '\u00a0';
+
 /** How long the empty prompt and cursor sit before typing starts. */
 export const TYPE_HOLD_MS = 1000;
 /** A character every 35ms, faster for a long line so none takes over ~4s. */
@@ -110,7 +117,7 @@ export function renderAgentCard(d: AgentOverview): void {
   if (d && d.error) {
     stopTyping();
     shownKey = '';
-    text.textContent = d.error;
+    text.textContent = GAP + d.error;
     text.style.color = 'var(--accent-red, #f87171)';
     if (cursor) cursor.style.display = 'none';
     writeMeta(null);
@@ -147,7 +154,7 @@ export function renderAgentCard(d: AgentOverview): void {
   let i = 0;
   const typeNext = (): void => {
     i++;
-    text.textContent = chars.slice(0, i).join('');
+    text.textContent = GAP + chars.slice(0, i).join('');
     if (i < chars.length) {
       // A little unevenness, so it reads as typing rather than as a ticker.
       // CENTRED on `step` (75% to 125% of it), so the line still takes the time

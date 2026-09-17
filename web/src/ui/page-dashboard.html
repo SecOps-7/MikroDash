@@ -355,11 +355,13 @@
           </div>
           <div class="card-body" style="padding:.75rem">
             <!-- A terminal: black, text in the operator's chosen colour (MikroDash blue
-                 by default), a "> " prompt and a blinking "_" the line types in front of.
+                 by default). Idle it reads ">_" with the "_" blinking; the text slot starts
+                 EMPTY (a placeholder dash read as ">-_") and the renderer puts the space
+                 after ">" only once there is text, so a line reads "> Router ..._".
                  The prompt is its own span, never joined to the model's text, which
                  is still set with textContent alone. See dashboard-grid.css. -->
             <div class="agent-term" id="dc-agentTerm">
-              <span class="agent-prompt" aria-hidden="true">&gt;&nbsp;</span><span id="dc-agentText">&mdash;</span><span class="agent-cursor" id="dc-agentCursor" aria-hidden="true">_</span>
+              <span class="agent-prompt" aria-hidden="true">&gt;</span><span id="dc-agentText"></span><span class="agent-cursor" id="dc-agentCursor" aria-hidden="true">_</span>
             </div>
             <div id="dc-agentMeta" style="font-size:.66rem;color:var(--text-muted);margin-top:.45rem"></div>
           </div>

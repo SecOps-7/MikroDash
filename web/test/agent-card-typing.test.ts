@@ -40,7 +40,10 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
   const doc = makeDoc(['dc-agentText', 'dc-agentCursor', 'dc-agentMeta', 'dc-agentRefresh', 'dc-agentTerm']);
   (global as any).document = doc;
   const { renderAgentCard, TYPE_HOLD_MS } = require(OUT);
-  const text = () => doc.getElementById('dc-agentText').textContent;
+  // The renderer puts one non-breaking space after the ">" prompt once there is
+  // text, so an idle card reads ">_". Checked here, then stripped for the rest.
+  const raw = () => doc.getElementById('dc-agentText').textContent;
+  const text = () => raw().replace(/^\u00a0/, '');
   const cursor = doc.getElementById('dc-agentCursor');
   const meta = () => doc.getElementById('dc-agentMeta').textContent;
 
@@ -50,7 +53,7 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
   renderAgentCard({ text: line, error: '', model: 'test-model', at: 1000, color: '#38bdf8' });
 
   // ── 1. the hold: prompt and cursor only ───────────────────────────────────
-  ok(text() === '', `the line appeared before the hold: ${JSON.stringify(text())}`);
+  ok(raw() === '', `the idle card is not ">_": the text slot holds ${JSON.stringify(raw())}`);
   ok(cursor.style.display !== 'none', 'the cursor is hidden during the hold');
   ok(meta() === '', 'the attribution appeared before the sentence it attributes');
   await sleep(TYPE_HOLD_MS - 200);
@@ -66,6 +69,7 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
   // ── 3. the end: whole line, attribution, blinking again ───────────────────
   await sleep(4500);
   ok(text() === line, `typing ended on ${JSON.stringify(text())}`);
+  ok(raw() === '\u00a0' + line, 'a typed line does not have exactly one space after the prompt');
   ok(!cursor.classList.contains('is-typing'), 'the cursor did not go back to blinking');
   ok(meta().startsWith('test-model'), `the attribution is ${JSON.stringify(meta())}`);
   ok(doc.getElementById('dc-agentTerm').style.color === '#38bdf8', 'the text colour was not applied');
