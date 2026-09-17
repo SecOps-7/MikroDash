@@ -234,7 +234,14 @@ func TestTheBackgroundCollectorCountIsRecorded(t *testing.T) {
 	// demand from there, so it reads only while somebody has its page open. It
 	// feeds no alert, so a background session would never need it; it is here
 	// because every page collector is.
-	const recorded = 17
+	// 17 -> 18 on 2026-09-17: `areas`, ONE collector for every generated page
+	// (internal/areas, slice 5 of the MikroMCP parity work). It is the reason
+	// this number will not climb with the next forty RouterOS menus: an area is a
+	// declaration, not a collector, so the pool sees one more member however many
+	// areas are declared. It starts at connect like every other page collector
+	// and is gated by demand from there — and within it, each area is read only
+	// while its own page is open.
+	const recorded = 18
 
 	body, err := os.ReadFile("session.go")
 	if err != nil {
@@ -350,6 +357,10 @@ func TestEveryCollectorHonoursTheResolvedConfig(t *testing.T) {
 	exempt := map[string]string{
 		"collect.NewLogs":    "streams /log/listen; no interval in its signature",
 		"collect.NewTraffic": "streams monitor-traffic; its trailing 5 is a sample window, not a poll",
+		// Each AREA declares its own interval, which is the point: no settings
+		// key, no slider, and therefore no resolved interval to take. See
+		// internal/areas.
+		"collect.NewAreas": "every area declares its own poll interval",
 	}
 	for _, m := range regexp.MustCompile(`s\.\w+ = (collect\.New\w+)\([^\n]*`).FindAllStringSubmatch(sess, -1) {
 		if _, ok := exempt[m[1]]; ok {

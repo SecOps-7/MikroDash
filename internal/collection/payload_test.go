@@ -82,9 +82,11 @@ func TestPayloadMatchesLive(t *testing.T) {
 				}
 			}
 			// AND NO EXTRA KEYS: a collector this side knows and the live registry
-			// does not would be offered a checkbox nothing serves.
+			// does not would be offered a checkbox nothing serves — unless it is
+			// one this port has and the live app never did, which is recorded in
+			// `goOnlyCollectors` and checked both ways by collection_test.go.
 			for k := range enabled {
-				if _, ok := c.Payload.Enabled[k]; !ok {
+				if _, ok := c.Payload.Enabled[k]; !ok && !goOnlyCollectors[k] {
 					t.Errorf("enabled carries %s, which the live payload does not", k)
 				}
 			}

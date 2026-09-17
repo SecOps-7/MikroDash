@@ -315,6 +315,18 @@
       "sessionProp": "dns"
     },
     {
+      "key": "areas",
+      "label": "Areas",
+      "pollKey": null,
+      "defaultPollMs": 60000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "areas"
+    },
+    {
       "key": "ipAddresses",
       "label": "IP Addresses",
       "pollKey": "pollIpAddresses",

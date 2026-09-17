@@ -21,25 +21,6 @@ import (
 // shows up as a compile error, and a generated page fails quietly: it renders,
 // with nothing in it.
 
-// TestNoAreaIsDeclaredYet.
-//
-// ── A RECORDED EMPTINESS, WHICH IS A LEDGER TOO ─────────────────────────────
-//
-// The mechanism lands before its first instance: the collector, the generator and
-// the generic renderer come next, and the IP Addresses migration is the proof.
-// Until then every ledger below iterates an empty list and measures nothing,
-// which is exactly the state that gets discovered six months later.
-//
-// So the emptiness is recorded, and this fails when the first area is declared.
-// Deleting it is part of declaring one — and the failure names what to re-read.
-func TestNoAreaIsDeclaredYet(t *testing.T) {
-	if len(areas.All()) != 0 {
-		t.Errorf("%d area(s) are declared. The ledgers in this file now measure something: "+
-			"read them, satisfy them, and delete this test — it exists to stop them passing "+
-			"vacuously while the mechanism has no instances", len(areas.All()))
-	}
-}
-
 // TestEveryAreaNamesARealPageKey, both ways: every area is a page, and no area
 // claims a page key that some hand-built page already owns.
 func TestEveryAreaNamesARealPageKey(t *testing.T) {

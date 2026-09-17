@@ -173,10 +173,14 @@ func TestBothTeardownPathsFlushHistory(t *testing.T) {
 //
 // 16 -> 17 on 2026-09-15: `ipAddresses`, for the IP Addresses page (#97),
 // started at connect like `dns` and gated by demand from there.
+//
+// 17 -> 18 on 2026-09-17: `areas`, one collector for every generated page. This
+// is the number that stops climbing: the next forty RouterOS menus are
+// declarations, not collectors.
 func TestTheConnectBlockCollectorCountIsPinned(t *testing.T) {
 	started := namesIn(blockBetween(t, sessionSource(t), "if first {", "\n\t\t}"), "Start")
-	if len(started) != 17 {
-		t.Errorf("the connect block starts %d collectors, not 17: %v\n"+
+	if len(started) != 18 {
+		t.Errorf("the connect block starts %d collectors, not 18: %v\n"+
 			"If that is deliberate, update this number and say why in the comment "+
 			"above — the count drifting unremarked is how it went from 11 to 14.",
 			len(started), started)

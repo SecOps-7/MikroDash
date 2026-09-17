@@ -225,6 +225,7 @@ surface stays complete.
 | `/interface/wireless/security-profiles` | wlSecProfile | wifi | add, set, remove |
 | `/ip/dhcp-server/lease` | dhcpLease | dhcp | add, set, remove, make-static |
 | `/ip/address` | ipAddress | ip-addresses | add, set, remove |
+| `/ip/pool` | ipPool | ip-pools | add, set, remove |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
 | `/ip/firewall/filter` | fwFilter | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/mangle` | fwMangle | firewall | add, set, remove, move, enable, disable |

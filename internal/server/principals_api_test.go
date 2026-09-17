@@ -131,8 +131,14 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// writing to `el('s_' + key)` across the whole document, so the Advanced
 	// preset would have found the enable toggle in the AI tab and switched the
 	// assistant on as a side effect of choosing a nav layout.
-	if noToggle != 4 {
-		t.Errorf("%d pages have no settings toggle, want 4 (dashboard, reports, settings, ai-agent)", noToggle)
+	// FIVE SINCE THE FIRST GENERATED PAGE (slice 5 of the MikroMCP parity work).
+	// An area's visibility is not a settings key of its own: one `hiddenAreas`
+	// list covers every area, which is the whole point — forty areas would
+	// otherwise be forty keys, forty corpus re-aims and forty rows in the
+	// Visible Pages grid. `ip-pools` is the first.
+	if noToggle != 5 {
+		t.Errorf("%d pages have no settings toggle, want 5 (dashboard, reports, settings, "+
+			"ai-agent, and the generated areas)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

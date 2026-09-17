@@ -165,12 +165,14 @@ type Session struct {
 
 	dns         *collect.DNS
 	ipAddresses *collect.IPAddresses
-	bridges     *collect.Bridges
-	vlans       *collect.Vlans
-	wan         *collect.Wan
-	packages    *collect.Packages
-	routing     *collect.Routing
-	ifStatus    *collect.IfStatus
+	// areas is ONE collector for every generated page: see internal/areas.
+	areas    *collect.Areas
+	bridges  *collect.Bridges
+	vlans    *collect.Vlans
+	wan      *collect.Wan
+	packages *collect.Packages
+	routing  *collect.Routing
+	ifStatus *collect.IfStatus
 
 	dhcpLeases   *collect.DHCPLeases
 	dhcpNetworks *collect.DHCPNetworks
@@ -277,6 +279,9 @@ func (s *Session) DNS() *collect.DNS { return s.dns }
 
 // IPAddresses is the IP Addresses page's collector (#97).
 func (s *Session) IPAddresses() *collect.IPAddresses { return s.ipAddresses }
+
+// Areas is the collector behind every generated page.
+func (s *Session) Areas() *collect.Areas { return s.areas }
 
 // Bridges is the collector behind the Bridges page.
 func (s *Session) Bridges() *collect.Bridges { return s.bridges }
@@ -889,6 +894,12 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	})
 	s.dns = collect.NewDNS(reader{s}, emit, s.conf().Poll["dns"])
 	s.ipAddresses = collect.NewIPAddresses(reader{s}, emit, s.conf().Poll["ipAddresses"])
+	// THE OCCUPANCY ORACLE IS A CLOSURE over this session, not a captured hub:
+	// within the collector, each area is read only while ITS page is open, and
+	// occupancy is a question only the session can answer.
+	s.areas = collect.NewAreas(reader{s}, emit).WithOccupancy(func(room string) bool {
+		return s.roomsOccupied(collect.Rooms{room})
+	})
 	// Built FIRST, because three other collectors take it as their RateSource.
 	// It is the only one they depend on, and it depends on none of them.
 	s.ifStatus = collect.NewIfStatus(reader{s}, emit, rec.ID, s.conf().Poll["ifStatus"])
@@ -1125,6 +1136,9 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// deliveries -- and `vlans` is mechanism A with a residual half that
 		// reads nothing at all. Every dormancy-eligible collector is now here.
 		s.bandwidth, s.vlans, s.ipAddresses,
+		// One collector, every generated page. It subscribes to no menu — see
+		// NewAreas — so it is here for the cache its shared reads go through.
+		s.areas,
 		// ── NOT SUBSCRIBED, AND HERE FOR THE CHANNEL ────────────────────────
 		//
 		// `traffic` schedules nothing: it is set B, an open channel with no
@@ -1603,6 +1617,7 @@ func (m *Manager) idleOut(routerID string, s *Session) {
 	// out of this file and fails if they ever diverge again.
 	s.dns.Stop()
 	s.ipAddresses.Stop()
+	s.areas.Stop()
 	s.bridges.Stop()
 	s.vlans.Stop()
 	s.wan.Stop()
@@ -1681,6 +1696,7 @@ func (m *Manager) Shutdown() {
 
 		s.dns.Stop()
 		s.ipAddresses.Stop()
+		s.areas.Stop()
 		s.bridges.Stop()
 		s.vlans.Stop()
 		s.wan.Stop()
@@ -1899,6 +1915,9 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["ipAddresses"] {
 				s.ipAddresses.Start()
 			}
+			if s.conf().Enabled["areas"] {
+				s.areas.Start()
+			}
 			if s.conf().Enabled["bridges"] {
 				s.bridges.Start()
 			}
@@ -2102,6 +2121,9 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["ipAddresses"] {
 				s.ipAddresses.Reconnected()
 			}
+			if s.conf().Enabled["areas"] {
+				s.areas.Reconnected()
+			}
 			if s.conf().Enabled["bridges"] {
 				s.bridges.Reconnected()
 			}
@@ -2280,6 +2302,7 @@ func (s *Session) connectLoop() {
 		_ = c.Close()
 		s.dns.Suspend()
 		s.ipAddresses.Suspend()
+		s.areas.Suspend()
 		s.bridges.Suspend()
 		s.vlans.Suspend()
 		s.wan.Suspend()

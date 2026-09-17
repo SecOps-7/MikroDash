@@ -26,6 +26,29 @@ export interface AlertRow {
   acknowledgedBy: string | null;
 }
 
+export interface AreaRow {
+  id: string;
+  identity: string;
+  values: Record<string, string> | null;
+}
+
+export interface AreaTable {
+  resource: string;
+  title: string;
+  columns: string[];
+  rows: AreaRow[];
+  unsupported: boolean;
+}
+
+export interface AreaPayload {
+  ts: number;
+  pollMs: number;
+  area: string;
+  title: string;
+  tables: AreaTable[];
+  denied: boolean;
+}
+
 export interface Settings {
   enabled: boolean;
   schedule: string;
@@ -1550,6 +1573,7 @@ export interface ConnsUpdate {
 // payload Go declared for it.
 export interface Events {
   'alert:acked': AlertRow;
+  'area:update': AreaPayload;
   'backups:state': StatePayload;
   'bandwidth:update': BandwidthPayload;
   'bridges:update': BridgesPayload;

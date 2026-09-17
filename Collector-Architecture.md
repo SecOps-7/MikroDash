@@ -127,12 +127,15 @@ shows. `internal/collect/table_test.go` fails if a table collector declares one 
 the core's methods itself; `System.Start`, which also starts the update check, is
 the one recorded override.
 
-**The other twelve keep their own mechanism, each for a stated reason:**
+**The other thirteen keep their own mechanism, each for a stated reason:**
 
 - derived from another collector's output: `vlans`, `bandwidth`;
 - a set B stream: `logs`, `ping`, `traffic`;
 - a non-plain command: `vpn`;
-- a menu chosen at runtime: `firewall`, `wifi`, `wireless`;
+- a menu chosen at runtime: `firewall`, `wifi`, `wireless`, and `areas` — which
+  is the case in its strongest form: `internal/areas` declares each generated
+  page, and which menus are read is the set of areas whose room is occupied, so
+  neither the menu nor the cadence can be a `tableSpec` field;
 - a residual loop beside the subscription: `ifStatus`;
 - two payloads with separate emit gates: `conns`;
 - a second loop pinging each neighbour: `topology`.
@@ -382,6 +385,7 @@ the rooms it emits to, and `—` means router-wide or nothing.
 
 | collector | acquisition | derivation | views |
 |---|---|---|---|
+| `areas` | the menus of the areas being looked at, `internal/areas` | `BuildAreaRows` | one `page-<area>` per declared area |
 | `arp` | `/ip/arp/print` | `BuildARP` | — (none at all) |
 | `bandwidth` | `/ip/firewall/connection/print` | `BuildBandwidth` | `page-bandwidth` |
 | `bridges` | `/interface/bridge/host/print` | `BuildBridgeRows` | `page-bridges` |
@@ -433,15 +437,15 @@ the document quietly lying.
 
 | fact | value |
 |---|---|
-| registry rows | 28 |
-| collectors with a Go implementation | 28 |
-| suspendable when idle (`disableable`) | 23 |
+| registry rows | 29 |
+| collectors with a Go implementation | 29 |
+| suspendable when idle (`disableable`) | 24 |
 | dormancy-eligible | 19 |
-| gated by demand (`session.TargetKeys`) | 26 |
+| gated by demand (`session.TargetKeys`) | 27 |
 | menus enabled for stream delivery | 8 |
 | collectors declaring rooms | 24 |
 | `keepAliveFor` entries | 3 |
-| collectors with an extracted derivation | 25 |
+| collectors with an extracted derivation | 26 |
 
 ---
 

@@ -22,6 +22,11 @@
       "settingsKey": "pageIpAddresses"
     },
     {
+      "key": "ip-pools",
+      "title": "IP Pools",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

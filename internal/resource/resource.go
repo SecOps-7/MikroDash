@@ -835,6 +835,38 @@ var PPPSecret = &Resource{
 //
 // NO GUARD, for the same reason as the secret: a profile is addressing and rate
 // policy for dial-in clients, not a path to the router.
+// ── Areas ───────────────────────────────────────────────────────────────────
+//
+// A resource whose page is a GENERATED one — see internal/areas. Nothing about
+// the resource is different; the page it belongs to is declared rather than
+// hand-built, and `Page` is that declaration's key.
+
+// IPPool is /ip/pool: the address ranges DHCP servers and PPP profiles hand out.
+//
+// Properties checked against the RouterOS 7 documentation for /ip/pool: name,
+// ranges, next-pool and comment, and no others.
+var IPPool = &Resource{
+	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
+	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true,
+			Placeholder: "dhcp-pool"},
+		{Name: "ranges", ROS: "ranges", Label: "Ranges", Type: TypeText, Required: true,
+			Placeholder: "10.0.0.50-10.0.0.254",
+			Help:        "One or more ranges or prefixes, comma separated."},
+		{Name: "nextPool", ROS: "next-pool", Label: "Next Pool", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/pool", Value: "name"},
+			Help:        "Where addresses come from once this pool is exhausted."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		// READ-ONLY, and SHOWN: the router reports how big a pool is and how much
+		// of it is handed out, which is the question a pools page exists to
+		// answer. Display fields are never sent, so they cannot be written back.
+		{Name: "used", ROS: "used", Label: "Used", Type: TypeText, Display: true},
+		{Name: "total", ROS: "total", Label: "Total", Type: TypeText, Display: true},
+		{Name: "available", ROS: "available", Label: "Available", Type: TypeText, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -1424,6 +1456,7 @@ var byKey = map[string]*Resource{
 	PPPProfile.Key:          PPPProfile,
 	SimpleQueue.Key:         SimpleQueue,
 	QueueTree.Key:           QueueTree,
+	IPPool.Key:              IPPool,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

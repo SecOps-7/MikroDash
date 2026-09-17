@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -69,6 +71,21 @@ func routerFor(c resolveCase) *Router {
 	return r
 }
 
+// goOnlyCollectors are in this registry and were never in the live Node module,
+// so no recorded corpus can carry them.
+//
+// ── A LEDGER, NOT AN EXEMPTION LIST ─────────────────────────────────────────
+//
+// The corpus is a RECORDING of what the live module resolved. A collector the
+// live app never had cannot appear in it, and pretending otherwise would mean
+// hand-editing a recording — which is how a corpus stops being evidence.
+//
+// So the divergence is named here and checked BOTH ways: an extra key that is
+// not named is a real drift, and a named key that Resolve does not produce is an
+// entry to delete. `areas` is the first: one collector for every generated page,
+// declared in internal/areas, with no live counterpart at all.
+var goOnlyCollectors = map[string]bool{"areas": true}
+
 func TestResolveMatchesTheLiveModule(t *testing.T) {
 	for _, c := range loadCases(t) {
 		t.Run(c.Name, func(t *testing.T) {
@@ -82,8 +99,20 @@ func TestResolveMatchesTheLiveModule(t *testing.T) {
 					t.Errorf("poll[%s] = %d, live says %d", k, got.Poll[k], want)
 				}
 			}
-			if len(got.Poll) != len(c.Want.Poll) {
-				t.Errorf("poll has %d keys, live has %d", len(got.Poll), len(c.Want.Poll))
+			extra := 0
+			for k := range got.Poll {
+				if _, recorded := c.Want.Poll[k]; recorded {
+					continue
+				}
+				extra++
+				if !goOnlyCollectors[k] {
+					t.Errorf("poll has %q, which the live module never resolved and which is "+
+						"not recorded as Go-only", k)
+				}
+			}
+			if len(got.Poll)-extra != len(c.Want.Poll) {
+				t.Errorf("poll has %d keys (%d of them Go-only), live has %d",
+					len(got.Poll), extra, len(c.Want.Poll))
 			}
 			for k, want := range c.Want.Stream {
 				if got.Stream[k] != want {
@@ -129,8 +158,19 @@ func TestTheEmbeddedRegistryMatchesTheCorpus(t *testing.T) {
 		}
 	}
 	for k := range got {
-		if !want[k] {
+		if !want[k] && !goOnlyCollectors[k] {
 			t.Errorf("the embedded registry holds %q, which the corpus never resolved", k)
+		}
+	}
+	// AND THE OTHER DIRECTION: a Go-only collector that has been removed, or
+	// that the live corpus has caught up with, leaves an entry claiming a
+	// divergence that no longer exists.
+	for k := range goOnlyCollectors {
+		if !got[k] {
+			t.Errorf("%q is recorded as Go-only but the registry no longer holds it", k)
+		}
+		if want[k] {
+			t.Errorf("%q is recorded as Go-only but the corpus resolved it — delete the entry", k)
 		}
 	}
 }
@@ -163,6 +203,30 @@ func TestTheRegistryStillDiscriminates(t *testing.T) {
 	}
 }
 
+// withoutGoOnly removes the Go-only collectors' entries from a fingerprint, so
+// what is compared with the recording is the part the recording could know about.
+func withoutGoOnly(fp string) string {
+	for key := range goOnlyCollectors {
+		// The poll value comes from the REGISTRY, not from a literal here: a
+		// default changed there and not here would leave the entry in and fail
+		// with a diff nobody can read.
+		forms := []string{key + "=false,", key + "=true,"}
+		for _, c := range Collectors() {
+			if c.Key == key {
+				forms = append(forms, key+"="+strconv.Itoa(c.DefaultPollMs)+",")
+			}
+		}
+		for _, form := range forms {
+			fp = strings.ReplaceAll(fp, form, "")
+		}
+		// A value this helper does not know about must not pass silently.
+		if strings.Contains(fp, key+"=") {
+			panic("a Go-only collector's fingerprint entry was not removed: " + key)
+		}
+	}
+	return fp
+}
+
 func TestFingerprintMatchesTheLiveModule(t *testing.T) {
 	seen := map[string]string{}
 	for _, c := range loadCases(t) {
@@ -171,7 +235,11 @@ func TestFingerprintMatchesTheLiveModule(t *testing.T) {
 			if c.Record != nil {
 				extras = RecordExtras{DefaultIf: c.Record.DefaultIf, PingTarget: c.Record.PingTarget}
 			}
-			got := Fingerprint(c.Settings, routerFor(c), extras)
+			// WITHOUT THE GO-ONLY COLLECTORS, and only those: the fingerprint
+			// names every collector, so one the live module never had shifts the
+			// whole string. Dropping exactly the recorded names keeps every live
+			// key compared, and `goOnlyCollectors` is held both ways above.
+			got := withoutGoOnly(Fingerprint(c.Settings, routerFor(c), extras))
 			if got != c.Fingerprint {
 				t.Errorf("fingerprint\n  got  %s\n  live %s", got, c.Fingerprint)
 			}

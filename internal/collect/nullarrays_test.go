@@ -2,6 +2,7 @@ package collect
 
 import (
 	"encoding/json"
+	"mikrodash/internal/areas"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -58,6 +59,22 @@ var extraBuilders = map[string]func(Reader) any{
 	// traffic:history: the page asks for an interface before any has arrived.
 	"traffic#history": func(r Reader) any {
 		return NewTraffic(r, Emit{}, "ether1", 60).Watch("ether1")
+	},
+	// A GENERATED page (internal/areas). The collector holds one payload per
+	// area, so the builder reads the first declared one back — and it is built
+	// with no occupancy oracle, which reads every area: exactly the case where a
+	// nil Tables or a nil Rows would reach the browser.
+	"areas": func(r Reader) any {
+		a := NewAreas(r, Emit{})
+		a.Tick()
+		for _, key := range areas.Keys() {
+			if p := a.Last(key); p != nil {
+				return p
+			}
+		}
+		// No area declared, or none read: the empty payload is still a payload,
+		// and its slices must not be nil either.
+		return &AreaPayload{Tables: []AreaTable{}}
 	},
 	// The IP Addresses page (#97). No capture holds these menus, so it is built
 	// from empty input only.

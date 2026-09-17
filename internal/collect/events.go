@@ -48,6 +48,7 @@ var (
 	EvTopologyUpdate    = hub.Declare[TopologyPayload]("topology:update")
 	EvTrafficHistory    = hub.Declare[TrafficHistory]("traffic:history")
 	EvTrafficUpdate     = hub.Declare[TrafficSample]("traffic:update")
+	EvAreaUpdate        = hub.Declare[AreaPayload]("area:update")
 	EvVlansUpdate       = hub.Declare[VlansPayload]("vlans:update")
 	EvVpnUpdate         = hub.Declare[VPNPayload]("vpn:update")
 	EvWanStatus         = hub.Declare[WanStatus]("wan:status")

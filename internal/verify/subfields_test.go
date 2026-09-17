@@ -96,10 +96,19 @@ func TestSubscriptionsDeclareTheirFields(t *testing.T) {
 		if isTestSource(name) {
 			continue
 		}
-		if strings.Contains(strings.Join(strings.Fields(mustRead(t, filepath.Join(dir, name))), " "),
-			"sched scheduled") {
-			want++
+		src := strings.Join(strings.Fields(mustRead(t, filepath.Join(dir, name))), " ")
+		if !strings.Contains(src, "sched scheduled") {
+			continue
 		}
+		// A COLLECTOR THAT SUBSCRIBES TO NO MENU HAS NO FIELDS TO DECLARE. The
+		// areas collector takes the helper for the cache and the lifecycle, and
+		// chooses its menus per tick from the declarations — `scheduled{loop:
+		// ...}` with no cmd. Counting it here would make this floor unreachable
+		// and the check would fail for ever on a file that has nothing to say.
+		if strings.Contains(src, "a.sched = scheduled{loop: a.poll}") {
+			continue
+		}
+		want++
 	}
 	if found < want {
 		t.Fatalf("%d collectors embed the helper but only %d subscriptions were read. This "+

@@ -158,6 +158,12 @@
       "page": "ip-addresses"
     },
     {
+      "name": "list_ipPool",
+      "access": "read",
+      "resource": "ipPool",
+      "page": "ip-pools"
+    },
+    {
       "name": "list_ipv6Address",
       "access": "read",
       "resource": "ipv6Address",

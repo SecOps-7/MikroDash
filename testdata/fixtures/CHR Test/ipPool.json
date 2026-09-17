@@ -1,0 +1,35 @@
+{
+ "collector": "areas",
+ "resource": "ipPool",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The pools were created FOR the capture, with documentation-range addresses (TEST-NET-2, RFC 5737), so nothing here describes a real network. What is real is the router's own reply: which fields /ip/pool returns, including the read-only total/used/available, and how it spells them. tools/capture-fixtures.js drives the Node collectors and cannot capture an area, so this was read through /ip/pool/print and written in the same shape.",
+ "exchanges": [
+  {
+   "cmd": "/ip/pool/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "name": "dhcp-pool",
+     "ranges": "198.51.100.50-198.51.100.254",
+     "total": "205",
+     "used": "0",
+     "available": "205",
+     "comment": "fixture capture"
+    },
+    {
+     ".id": "*2",
+     "name": "guest-pool",
+     "ranges": "198.51.100.10-198.51.100.49",
+     "next-pool": "dhcp-pool",
+     "total": "40",
+     "used": "0",
+     "available": "40"
+    }
+   ]
+  }
+ ]
+}

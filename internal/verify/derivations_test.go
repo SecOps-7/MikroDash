@@ -43,6 +43,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 	// Anything non-empty must name package-level functions in that file.
 	ledger := map[string]string{
 		// ── extracted ──
+		"areas.go":       "BuildAreaRows",
 		"bandwidth.go":   "BuildBandwidth",
 		"bridges.go":     "BuildBridgeRows",
 		"capsman.go":     "BuildCapsmanView, BuildCapsmanLegacyView",

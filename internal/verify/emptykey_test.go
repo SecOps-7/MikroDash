@@ -50,6 +50,13 @@ func TestCollectorsWithoutAnEmptyKeyHaveAMeasuredReason(t *testing.T) {
 			"own addresses, and every IPv6-capable interface carries a link-local one " +
 			"besides, so an emptyKey naming it would never fire. Added 2026-09-15 with " +
 			"the IP Addresses page (#97).",
+		"areas": "STRUCTURAL, twice over. `PayloadEmpty` reads ONE payload's array by its " +
+			"json tag, and this collector holds one payload PER AREA — so an emptyKey " +
+			"naming `tables` would judge every generated page by whichever area the " +
+			"dormancy target happened to return. And an area with no rows is the ordinary " +
+			"state, not an idle one: a router with no IP pools has none until somebody " +
+			"makes one, and a collector asleep on that would not notice when they did. " +
+			"Added 2026-09-17 with internal/areas.",
 	}
 
 	var tables struct {

@@ -1,5 +1,7 @@
 package collect
 
+import "mikrodash/internal/areas"
+
 // Where every collector's payload goes, declared once.
 //
 // ── WHY THIS FILE EXISTS ────────────────────────────────────────────────────
@@ -128,6 +130,12 @@ func RoomsOf(key string) Rooms {
 		return firewallRooms
 	case "ifStatus":
 		return ifStatusRooms
+	case "areas":
+		// GENERATED, from the declarations: one page room per area. A hand-typed
+		// list here would be a second place to add an area, and the one nobody
+		// remembers — the collector would keep reading a menu whose page nobody
+		// can demand, or worse, suspend itself while a page is open.
+		return areaRooms()
 	case "ipAddresses":
 		return ipAddressesRooms
 	case "logs":
@@ -283,6 +291,15 @@ func DemandRooms(key string) Rooms { return union(RoomsOf(key), keepAliveFor[key
 // page to subtract from anything -- demand asks whether ANY room is occupied,
 // which is `DemandRooms` above. Recorded rather than silently dropped, because
 // the function is named in the port record and in several comments.
+
+// areaRooms is one page room per declared area.
+func areaRooms() Rooms {
+	out := make(Rooms, 0, len(areas.Keys()))
+	for _, key := range areas.Keys() {
+		out = append(out, AreaRoomFor(key))
+	}
+	return out
+}
 
 func union(sets ...Rooms) Rooms {
 	seen := map[string]bool{}

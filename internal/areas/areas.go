@@ -72,14 +72,27 @@ type Area struct {
 
 // declared is the catalogue.
 //
-// ── EMPTY, AND THE EMPTINESS IS RECORDED ────────────────────────────────────
-//
-// The mechanism lands before its first instance: the collector, the generator and
-// the generic page come next, and the IP Addresses migration is the proof. The
-// ledgers below iterate this, so today they measure nothing — and
-// `TestNoAreaIsDeclaredYet` fails the moment one is added, which is the prompt to
-// read the ledgers rather than to discover them later.
-var declared []Area
+// Each entry is one generated page. The ledgers in internal/verify hold every
+// field of it to something real: the page key to `internal/pages`, the nav group
+// to the shell, the resources and columns to the registry, and each resource to a
+// fixture and a row in the frozen API surface.
+var declared = []Area{
+	// ── THE FIRST AREA ──────────────────────────────────────────────────────
+	//
+	// IP pools: one table, four fields, and a menu nothing else in this app
+	// reads. Chosen as the mechanism's first instance BECAUSE it is new — a
+	// migration of an existing page would have had two collectors reading one
+	// menu until the old one was deleted, and "does the generated page work"
+	// would have been asked of a page that was already working.
+	{
+		Key: "ip-pools", Title: "IP Pools", NavGroup: "ipsvc",
+		Tables: []Table{{Resource: "ipPool",
+			Columns: []string{"name", "ranges", "used", "total", "nextPool", "comment"}}},
+		// A pool changes when somebody edits it. Sixty seconds is the
+		// configuration cadence the bridges and VLAN collectors use.
+		Poll: 60 * time.Second,
+	},
+}
 
 // All returns the declared areas.
 func All() []Area { return append([]Area(nil), declared...) }

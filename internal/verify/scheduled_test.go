@@ -71,6 +71,14 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 		// `/ip/arp/print` on the scheduler like any other table, and four
 		// collectors read the index it builds. See internal/collect/arp.go.
 		"arp.go": "arp",
+		// ── EMBEDS THE HELPER AND SUBSCRIBES TO NOTHING ──────────────────────
+		//
+		// One collector for every generated page (internal/areas). Its menus are
+		// the areas whose rooms are occupied, chosen per tick, so there is no
+		// single menu to subscribe to and the loop IS the schedule — the
+		// `firewall` shape, in its strongest form. It takes `scheduled` for the
+		// cache and the start/stop lifecycle every collector shares.
+		"areas.go": "areas",
 	}
 
 	// ── EVERY UNSCHEDULED COLLECTOR, AND HOW STRONG THE REASON ACTUALLY IS ──

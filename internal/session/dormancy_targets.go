@@ -1,5 +1,7 @@
 package session
 
+import "mikrodash/internal/areas"
+
 // The one place a collector is suspended or resumed by NAME.
 //
 // ── WHY A TABLE AT ALL ──────────────────────────────────────────────────────
@@ -27,7 +29,7 @@ package session
 // needs the names without constructing a Session — and
 // `TestTargetKeysMatchesTheTable` fails the moment the two disagree.
 var targetKeys = []string{
-	"dns", "ipAddresses", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
+	"dns", "ipAddresses", "areas", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
 	"rosusers", "queues", "firewall", "wifi", "capsman", "netwatch", "ifStatus",
 	"topology", "wireless", "bandwidth", "talkers",
 	// NOT dormancy-eligible, but the page-focus path resumes them, and
@@ -121,6 +123,20 @@ func (s *Session) targets() map[string]collectorTarget {
 		}
 		return nil
 	}, func() { s.ipAddresses.Suspend() }, func() { s.ipAddresses.Resume() }, func() { s.ipAddresses.RefreshNow() })
+	// ── ONE TARGET, EVERY GENERATED PAGE ────────────────────────────────────
+	//
+	// `prime` wants the payload a page would replay. An area collector holds one
+	// per area, so it primes with the FIRST declared area's — enough to answer
+	// "has this collector anything", which is what the target is for — and the
+	// refresh re-reads every area that is being looked at.
+	add("areas", func() any {
+		for _, key := range areas.Keys() {
+			if p := s.areas.Last(key); p != nil {
+				return p
+			}
+		}
+		return nil
+	}, func() { s.areas.Suspend() }, func() { s.areas.Resume() }, func() { s.areas.Tick() })
 	add("bridges", func() any {
 		if p := s.bridges.Last(); p != nil {
 			return p
