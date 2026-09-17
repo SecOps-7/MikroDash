@@ -36,3 +36,34 @@ func TestTheAppShellAndBundleAreRevalidated(t *testing.T) {
 		}
 	}
 }
+
+// AND SO ARE THE SHARED ASSETS BESIDE IT.
+//
+// `/css/dashboard-grid.css` holds every Dashboard card's styles and is served by
+// `staticOrProxy`, not `spa`. It was missing the header, so after a deploy the
+// operator's browser rendered the new Agent Overview markup with the OLD
+// stylesheet: white text on the card background, and no blinking cursor.
+func TestTheSharedAssetsAreRevalidated(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "css"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"css/dashboard-grid.css", "logo.png", "login.html"} {
+		if err := os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv := &Server{standalone: true, staticDir: dir, proxy: deadProxy(t)}
+
+	for _, p := range []string{"/css/dashboard-grid.css", "/logo.png", "/login"} {
+		rec := httptest.NewRecorder()
+		srv.staticOrProxy().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s answered %d, want 200", p, rec.Code)
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "no-cache" {
+			t.Errorf("%s: Cache-Control = %q, want no-cache, or a browser keeps the old "+
+				"asset after a rebuild", p, got)
+		}
+	}
+}

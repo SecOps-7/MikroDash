@@ -253,6 +253,7 @@
     "sessionTimeoutMs",
     "aiHeaders",
     "aiSystemPrompt",
-    "aiOverviewPrompt"
+    "aiOverviewPrompt",
+    "aiOverviewTextColor"
   ]
 }

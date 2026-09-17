@@ -166,10 +166,20 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 	if raw, ok := body["aiSystemPrompt"]; ok {
 		updates["aiSystemPrompt"] = cut(strings.TrimSpace(asString(raw)), 8000)
 	}
-	// The Agent Overview card's prompt, for the same two reasons: 256 cuts it,
-	// and empty means the built-in prompt.
+	// The Agent Overview card's prompt. Empty means the built-in prompt, as for
+	// the chat prompt; capped at 500 because it describes one line on a card, and
+	// every character of it is sent with every refresh.
 	if raw, ok := body["aiOverviewPrompt"]; ok {
-		updates["aiOverviewPrompt"] = cut(strings.TrimSpace(asString(raw)), 8000)
+		updates["aiOverviewPrompt"] = cut(strings.TrimSpace(asString(raw)), 500)
+	}
+
+	// The card's text colour, `#rrggbb` only. It is written into an inline style,
+	// so anything else is ignored rather than stored: a value that is not a colour
+	// has no business reaching a style attribute.
+	if raw, ok := body["aiOverviewTextColor"]; ok {
+		if c := strings.ToLower(strings.TrimSpace(asString(raw))); IsHexColor(c) {
+			updates["aiOverviewTextColor"] = c
+		}
 	}
 
 	// customPollProfile is either cleared or a JSON OBJECT. `typeof
@@ -286,4 +296,18 @@ func cut(s string, n int) string {
 		return s
 	}
 	return string(utf16.Decode(u[:n]))
+}
+
+// IsHexColor reports whether s is a `#rrggbb` colour, the only form the colour
+// settings store.
+func IsHexColor(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for _, c := range s[1:] {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+			return false
+		}
+	}
+	return true
 }

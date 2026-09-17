@@ -1212,6 +1212,12 @@
                 <span>Accept a self-signed certificate &mdash; only for an endpoint on your own network</span>
               </label>
             </div>
+            <!-- Test Connection sits with the connection settings it tests, under the
+                 last of them, rather than at the foot of the card below unrelated ones. -->
+            <div style="display:flex;align-items:center;gap:.6rem;margin-top:.6rem">
+              <button id="btn-test-ai" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Test Connection</button>
+              <span id="test-ai-result" style="font-size:.75rem"></span>
+            </div>
             <div class="sform-group" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)">
               <label class="sform-label">Changing the router</label>
               <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
@@ -1235,15 +1241,29 @@
                 </label>
               </div>
               <div class="sform-group" style="flex:1">
-                <label class="sform-label">Refresh (seconds)</label>
-                <input type="number" id="s_aiOverviewIntervalSec" class="sform-input" min="60" max="86400" placeholder="10800" autocomplete="off">
+                <label class="sform-label">Refresh</label>
+                <!-- HOURS AND SECONDS ARE A VIEW OF ONE SETTING. The stored value is
+                     still aiOverviewIntervalSec, in seconds, carried by the hidden
+                     input the save reads; settings.ts combines the two boxes into it
+                     and splits it back out on load. 0 hours means seconds only. -->
+                <input type="hidden" id="s_aiOverviewIntervalSec">
+                <div style="display:flex;gap:.4rem;align-items:center">
+                  <input type="number" id="aiOverviewHours" class="sform-input" min="0" max="24" step="1"
+                         placeholder="3" autocomplete="off" aria-label="Refresh hours" style="min-width:0">
+                  <span style="font-size:.72rem;color:var(--text-muted)">h</span>
+                  <input type="number" id="aiOverviewSeconds" class="sform-input" min="0" max="86400" step="1"
+                         placeholder="0" autocomplete="off" aria-label="Refresh seconds" style="min-width:0">
+                  <span style="font-size:.72rem;color:var(--text-muted)">s</span>
+                </div>
               </div>
             </div>
             <p style="font-size:.7rem;color:var(--text-muted);margin:.4rem 0 0">
               Off by default. The card asks the model only while it is on your Dashboard and
               the Dashboard is open, and by default at most once every 3 hours (10800
-              seconds); coming back sooner shows the last line again rather than asking. On a
-              hosted endpoint every refresh is billable.
+              seconds); coming back sooner shows the last line again rather than asking. Set
+              0 hours to give the interval in seconds only; it must be between 1 minute and 24
+              hours. On a hosted endpoint every refresh is billable, including the refresh
+              icon on the card.
             </p>
             <div class="sform-group" style="margin-top:.6rem">
               <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
@@ -1251,7 +1271,7 @@
                 <button id="aiOverviewPromptReset" class="sbtn sbtn-ghost" type="button"
                         style="margin:0 0 0 auto;padding:.2rem .6rem;font-size:.68rem">Reset to Default</button>
               </div>
-              <textarea id="s_aiOverviewPrompt" class="sform-input" rows="9" maxlength="8000"
+              <textarea id="s_aiOverviewPrompt" class="sform-input" rows="7" maxlength="500"
                         autocomplete="off" spellcheck="false"
                         style="resize:vertical;width:100%;font-family:var(--font-mono);font-size:.71rem;line-height:1.45"></textarea>
               <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-top:.4rem">
@@ -1259,12 +1279,16 @@
                   What the card is asked to write. Leave it empty to use the built-in prompt;
                   MikroDash&rsquo;s safety rules are always applied on top.
                 </span>
-                <span id="aiOverviewPromptCount" style="font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap">0 / 8000</span>
+                <span id="aiOverviewPromptCount" style="font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap">0 / 500</span>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:.6rem;margin-top:.7rem">
-              <button id="btn-test-ai" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Test Connection</button>
-              <span id="test-ai-result" style="font-size:.75rem"></span>
+            <div class="sform-group" style="margin-top:.6rem">
+              <label class="sform-label" for="s_aiOverviewTextColor">Text Colour</label>
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <input type="color" id="s_aiOverviewTextColor" value="#38bdf8"
+                       style="width:2.6rem;height:1.8rem;padding:0;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer">
+                <span style="font-size:.7rem;color:var(--text-muted)">The card&rsquo;s terminal text. MikroDash blue by default.</span>
+              </div>
             </div>
           </div>
         </div>

@@ -276,8 +276,9 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		// BOTH PROBES MATTER. An empty prompt is not a rejected write: the
 		// server reads it as "use the built-in default", so it must reach the
 		// updates rather than being dropped as blank.
-		"aiSystemPrompt":   {"", "You are a network administrator."},
-		"aiOverviewPrompt": {"", "Write one line."},
+		"aiSystemPrompt":      {"", "You are a network administrator."},
+		"aiOverviewPrompt":    {"", "Write one line."},
+		"aiOverviewTextColor": {"#38bdf8"},
 	}
 
 	for _, key := range wtables.SpecialCases {
@@ -378,5 +379,23 @@ func TestTheSystemPromptIsTrimmedAndCappedAt8000(t *testing.T) {
 	up, _ = SettingsUpdate(map[string]any{"aiSystemPrompt": "   "})
 	if v, present := up["aiSystemPrompt"]; !present || v != "" {
 		t.Errorf("clearing the prompt did not reach the updates (present=%v value=%q)", present, v)
+	}
+}
+
+// TestTheOverviewColourIsHexOnly: the value lands in an inline style, so a
+// non-colour must never be stored, and the prompt cap is the 500 the box shows.
+func TestTheOverviewColourIsHexOnly(t *testing.T) {
+	for _, bad := range []string{"red", "#38bdf", "#38bdf8;background:url(x)", "38bdf8", ""} {
+		if up, _ := SettingsUpdate(map[string]any{"aiOverviewTextColor": bad}); up["aiOverviewTextColor"] != nil {
+			t.Errorf("%q was stored as a colour", bad)
+		}
+	}
+	if up, _ := SettingsUpdate(map[string]any{"aiOverviewTextColor": " #38BDF8 "}); up["aiOverviewTextColor"] != "#38bdf8" {
+		t.Errorf("a valid colour was stored as %#v, want #38bdf8", up["aiOverviewTextColor"])
+	}
+	long := strings.Repeat("a", 900)
+	up, _ := SettingsUpdate(map[string]any{"aiOverviewPrompt": long})
+	if got, _ := up["aiOverviewPrompt"].(string); len(got) != 500 {
+		t.Errorf("a 900-character overview prompt was stored as %d characters, want 500", len(got))
 	}
 }

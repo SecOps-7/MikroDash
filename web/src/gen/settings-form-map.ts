@@ -74,6 +74,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "aiModel",
     "aiOverviewIntervalSec",
     "aiOverviewPrompt",
+    "aiOverviewTextColor",
     "aiSystemPrompt",
     "aiTimeoutMs",
     "alertCpuThreshold",

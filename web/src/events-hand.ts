@@ -143,7 +143,7 @@ export interface HandEvents {
    * blank rather than looking merely quiet — the failure mode the diagnostics
    * card shipped with for the whole life of the port.
    */
-  'ai:overview': { text: string; error: string; model: string; at: number };
+  'ai:overview': { text: string; error: string; model: string; at: number; color: string };
   /**
    * A change the assistant wants to make, awaiting the operator's answer.
    *

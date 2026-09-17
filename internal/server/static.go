@@ -42,6 +42,7 @@ func (s *Server) staticOrProxy() http.Handler {
 		if r.URL.Path == "/login" {
 			if full, ok := s.staticPath("/login.html"); ok {
 				if st, err := os.Stat(full); err == nil && !st.IsDir() {
+					w.Header().Set("Cache-Control", "no-cache")
 					http.ServeFile(w, r, full)
 					return
 				}
@@ -49,6 +50,17 @@ func (s *Server) staticOrProxy() http.Handler {
 		}
 		if rel, ok := s.staticPath(r.URL.Path); ok {
 			if st, err := os.Stat(rel); err == nil && !st.IsDir() {
+				// ── REVALIDATED ON EVERY LOAD, LIKE THE SHELL ───────────────
+				//
+				// `spa()` sets this for index.html, app.js and app.css, and
+				// these assets were left out: `/css/dashboard-grid.css` kept its
+				// name across builds and carried only Last-Modified, so a browser
+				// kept its old copy after a deploy. The operator saw the new
+				// Agent Overview markup rendered with none of its new styles,
+				// because the markup is in the shell and the styles are here.
+				// `no-cache` still reuses the copy once the server confirms it is
+				// current, so an unchanged file costs a 304, not a download.
+				w.Header().Set("Cache-Control", "no-cache")
 				fileServer.ServeHTTP(w, r)
 				return
 			}

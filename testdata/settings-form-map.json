@@ -57,6 +57,7 @@
       "aiModel",
       "aiOverviewIntervalSec",
       "aiOverviewPrompt",
+      "aiOverviewTextColor",
       "aiSystemPrompt",
       "aiTimeoutMs",
       "alertCpuThreshold",

@@ -138,6 +138,9 @@ export function populateSettings(data: SettingsPayload): void {
   // THE DEFAULT IS CARRIED ON THE ELEMENT, not in a module variable, so Reset
   // needs no shared state and no import back into this half of the page. It
   // arrives as a derived key on the settings payload; see settings_api.go.
+  // The refresh interval is stored in seconds and shown as hours and seconds.
+  showOverviewInterval();
+
   // The Agent Overview card's prompt box works the same way.
   for (const p of AI_PROMPT_BOXES) {
     const promptBox = el<HTMLTextAreaElement>(p.box);
@@ -1077,9 +1080,9 @@ export function setViewPresetUI(name: string): void {
  */
 const AI_PROMPT_BOXES = [
   { key: 'aiSystemPrompt', box: 's_aiSystemPrompt', reset: 'aiPromptReset',
-    count: 'aiPromptCount', defaultKey: 'aiSystemPromptDefault' },
+    count: 'aiPromptCount', defaultKey: 'aiSystemPromptDefault', max: 8000 },
   { key: 'aiOverviewPrompt', box: 's_aiOverviewPrompt', reset: 'aiOverviewPromptReset',
-    count: 'aiOverviewPromptCount', defaultKey: 'aiOverviewPromptDefault' },
+    count: 'aiOverviewPromptCount', defaultKey: 'aiOverviewPromptDefault', max: 500 },
 ] as const;
 type AiPromptBox = (typeof AI_PROMPT_BOXES)[number];
 
@@ -1090,7 +1093,7 @@ function updateAiPromptCount(p: AiPromptBox): void {
   if (!box || !out) return;
   // `maxlength` counts UTF-16 units and so does `.length`, so this is the same
   // number the browser enforces rather than a second opinion about it.
-  out.textContent = box.value.length + ' / 8000';
+  out.textContent = box.value.length + ' / ' + p.max;
 }
 
 /**
@@ -1104,7 +1107,56 @@ function updateAiPromptCount(p: AiPromptBox): void {
  * through would be a destructive action behind a button labelled like a
  * convenience.
  */
+/** The refresh interval's bounds, matching `aiOverviewIntervalSec` in the write tables. */
+const OVERVIEW_MIN_SEC = 60;
+const OVERVIEW_MAX_SEC = 86400;
+
+/**
+ * Split the stored refresh interval into the hours and seconds boxes.
+ *
+ * Whole hours go in the first box and the remainder in the second, so 10800
+ * reads 3h 0s and 5400 reads 1h 1800s. The stored value stays in seconds.
+ */
+function showOverviewInterval(): void {
+  const hidden = el<HTMLInputElement>('s_aiOverviewIntervalSec');
+  const h = el<HTMLInputElement>('aiOverviewHours');
+  const sec = el<HTMLInputElement>('aiOverviewSeconds');
+  if (!hidden || !h || !sec) return;
+  const total = parseInt(hidden.value, 10);
+  if (!Number.isFinite(total) || total <= 0) { h.value = ''; sec.value = ''; return; }
+  const hours = Math.floor(total / 3600);
+  h.value = String(hours);
+  sec.value = String(total - hours * 3600);
+}
+
+/**
+ * Combine the two boxes into the stored value.
+ *
+ * 0 hours applies the seconds alone. CLAMPED HERE to 1 minute .. 24 hours,
+ * because the server IGNORES an out-of-range value rather than refusing it, so
+ * an unclamped 25h would save as "nothing changed" with no message. Both boxes
+ * empty leaves the setting untouched.
+ */
+function storeOverviewInterval(): void {
+  const hidden = el<HTMLInputElement>('s_aiOverviewIntervalSec');
+  const h = el<HTMLInputElement>('aiOverviewHours');
+  const sec = el<HTMLInputElement>('aiOverviewSeconds');
+  if (!hidden || !h || !sec) return;
+  if (h.value.trim() === '' && sec.value.trim() === '') return;
+  const hours = Math.max(0, parseInt(h.value, 10) || 0);
+  const seconds = Math.max(0, parseInt(sec.value, 10) || 0);
+  const total = Math.min(OVERVIEW_MAX_SEC, Math.max(OVERVIEW_MIN_SEC, hours * 3600 + seconds));
+  hidden.value = String(total);
+}
+
 export function initAiPromptControls(): void {
+  el('aiOverviewHours')?.addEventListener('input', storeOverviewInterval);
+  el('aiOverviewSeconds')?.addEventListener('input', storeOverviewInterval);
+  // Show the clamped result once the operator leaves a box, so what they read is
+  // what will be saved.
+  el('aiOverviewHours')?.addEventListener('change', showOverviewInterval);
+  el('aiOverviewSeconds')?.addEventListener('change', showOverviewInterval);
+
   for (const p of AI_PROMPT_BOXES) {
     el<HTMLTextAreaElement>(p.box)?.addEventListener('input', () => updateAiPromptCount(p));
     el<HTMLButtonElement>(p.reset)?.addEventListener('click', () => {

@@ -431,11 +431,11 @@ html[data-theme="light"] #dashAddPanel {
    field exists to prevent, one layer down. */
 /* ── AGENT OVERVIEW: A TERMINAL ───────────────────────────────────────────
    Black in both themes on purpose: it is a terminal, not a themed surface.
+   The text colour is the operator's (`aiOverviewTextColor`), set inline on
+   #dc-agentTerm by the renderer; this is the default, MikroDash blue. Prompt,
+   text and cursor inherit it, and the glow follows it via currentColor.
    The box fills the card body above the meta line, and scrolls rather than
-   clipping if a model ignores the one-line instruction. The cursor BLINKS here,
-   which it never did: the old block cursor had no rule at all, whatever its
-   comments said. `step-end` gives a hard on/off like a real terminal rather
-   than a fade. */
+   clipping if a model ignores the one-line instruction. */
 #dc-card-agent .card-body {
   display: flex;
   flex-direction: column;
@@ -445,21 +445,40 @@ html[data-theme="light"] #dashAddPanel {
   min-height: 0;
   overflow-y: auto;
   background: #000;
-  color: #39ff14;
-  border: 1px solid #1f3d1f;
+  color: #38bdf8;
+  border: 1px solid #1c2733;
   border-radius: 6px;
   padding: .55rem .7rem;
   font-family: var(--font-mono);
   font-size: .76rem;
   line-height: 1.5;
-  text-shadow: 0 0 4px rgba(57, 255, 20, .35);
+  text-shadow: 0 0 4px color-mix(in srgb, currentColor 35%, transparent);
 }
-#dc-card-agent .agent-prompt { color: #39ff14; opacity: .75; }
+#dc-card-agent .agent-prompt { opacity: .75; }
+/* BLINKS EVEN UNDER prefers-reduced-motion. The operator asked for a flashing
+   cursor, and a reduced-motion exemption stopped it on any system with
+   animation effects switched off, which reads as the change not having shipped.
+   A 1Hz on/off cursor is a terminal convention rather than motion across the
+   screen. `step-end` gives a hard on/off rather than a fade. */
 #dc-card-agent .agent-cursor { animation: agent-blink 1.06s step-end infinite; }
+/* Held solid while a line is being typed, as a real terminal's cursor is. */
+#dc-card-agent .agent-cursor.is-typing { animation: none; opacity: 1; }
 @keyframes agent-blink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  #dc-card-agent .agent-cursor { animation: none; }
+
+#dc-card-agent .agent-refresh {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem; padding: 0; flex: none;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  color: var(--text-muted); cursor: pointer;
 }
+#dc-card-agent .agent-refresh:hover { color: var(--text-main); border-color: var(--border); }
+#dc-card-agent .agent-refresh:disabled { cursor: default; opacity: .8; }
+#dc-card-agent .agent-refresh svg {
+  width: .85rem; height: .85rem; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+#dc-card-agent .agent-refresh.is-busy svg { animation: agent-spin .8s linear infinite; }
+@keyframes agent-spin { to { transform: rotate(360deg); } }
 
 #dc-card-diagnostics .card-body {
   display: flex;

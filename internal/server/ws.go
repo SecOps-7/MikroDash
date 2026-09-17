@@ -102,6 +102,9 @@ type conn struct {
 	agentMu   sync.Mutex
 	agentStop chan struct{}
 	agentKick chan struct{}
+	// agentForce makes the next overview tick skip the cached line: the
+	// operator pressed refresh. Read and cleared by that tick.
+	agentForce atomic.Bool
 	// proposals are the assistant's unanswered write proposals, PER SOCKET and
 	// deliberately so: a proposal is a question put to the person looking at
 	// this page, and a token minted for them must not be answerable from
@@ -412,6 +415,9 @@ func (cn *conn) dispatch(in inbound) {
 	case "ai:ask":
 		cn.aiAsk(in.Data)
 	// The saved conversation for this person on this router, and deleting it.
+	// The Agent Overview card's refresh icon: a fresh line now, skipping the cache.
+	case "ai:overview:refresh":
+		cn.agentRefresh(in.Data)
 	case "ai:history":
 		cn.aiHistoryLoad(in.Data)
 	case "ai:clear":

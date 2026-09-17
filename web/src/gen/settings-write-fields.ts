@@ -143,6 +143,7 @@ export const CRED_FIELDS: readonly string[] = [
 export const SPECIAL_CASES: readonly string[] = [
   "aiHeaders",
   "aiOverviewPrompt",
+  "aiOverviewTextColor",
   "aiSystemPrompt",
   "authMode",
   "customPollProfile",

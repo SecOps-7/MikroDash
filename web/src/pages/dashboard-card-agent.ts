@@ -21,11 +21,24 @@
 // state the diagnostics card sat in for the whole life of the port — so a
 // refusal from the endpoint is rendered as a refusal.
 //
-// ── THE CURSOR BLINKS ONLY WHILE THERE IS SOMETHING TO SAY ──────────────────
+// ── IT TYPES ────────────────────────────────────────────────────────────────
 //
-// It is decoration, and decoration beside an error reads as though the card were
-// still working.
+// A new line is not set in one go. The prompt and a blinking cursor sit alone for
+// TYPE_HOLD_MS, then the line is typed in front of the cursor a character at a
+// time, the cursor holding steady while it types and blinking again once done, as
+// a terminal's does. Every step still assigns `textContent`: the animation slices
+// the model's text, it never builds markup from it.
+//
+// A line already on screen is NOT retyped. The server re-sends the saved line
+// when the Dashboard is revisited, and retyping it every time would read as a new
+// answer when nothing changed. Identity is the text AND its timestamp, so a
+// refresh that happens to produce the same sentence still types.
+//
+// ── A FAILURE IS SHOWN AT ONCE, WITH NO CURSOR ─────────────────────────────
+//
+// A blinking caret beside an error reads as though the card were still working.
 
+import type { Socket } from '../socket';
 import { el } from '../dom';
 
 /** What the server sends. Mirrors the `ai:overview` declaration. */
@@ -34,6 +47,25 @@ export interface AgentOverview {
   error: string;
   model: string;
   at: number;
+  /** The operator's chosen text colour, `#rrggbb`. Validated server-side. */
+  color?: string;
+}
+
+/** How long the empty prompt and cursor sit before typing starts. */
+export const TYPE_HOLD_MS = 1000;
+/** A character every 35ms, faster for a long line so none takes over ~4s. */
+const TYPE_CHAR_MS = 35;
+const TYPE_MAX_MS = 4000;
+
+let typingTimer: ReturnType<typeof setTimeout> | undefined;
+/** The text and timestamp of the line on screen or being typed. */
+let shownKey = '';
+
+function stopTyping(): void {
+  if (typingTimer !== undefined) {
+    clearTimeout(typingTimer);
+    typingTimer = undefined;
+  }
 }
 
 /** `14:05` in the viewer's own zone; the card has no room for a date. */
@@ -44,35 +76,106 @@ function clock(at: number): string {
   return pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
+/** The model and the time, so a line that looks wrong can be attributed and aged. */
+function writeMeta(d: AgentOverview | null): void {
+  const meta = el('dc-agentMeta');
+  if (!meta) return;
+  const parts: string[] = [];
+  if (d && d.model) parts.push(d.model);
+  const t = clock(d ? d.at : 0);
+  if (t) parts.push(t);
+  meta.textContent = parts.join(' · ');
+}
+
+/** Spin the refresh icon while a requested line is outstanding. */
+export function setAgentRefreshing(on: boolean): void {
+  const b = el<HTMLButtonElement>('dc-agentRefresh');
+  if (!b) return;
+  b.classList.toggle('is-busy', on);
+  b.disabled = on;
+}
+
 export function renderAgentCard(d: AgentOverview): void {
+  // Any line, or any refusal, ends a refresh the operator asked for.
+  setAgentRefreshing(false);
   const text = el('dc-agentText');
   const cursor = el('dc-agentCursor');
-  const meta = el('dc-agentMeta');
   if (!text) return;
 
+  // THE COLOUR, applied to the whole terminal so prompt, text and cursor match.
+  // Anything but `#rrggbb` falls back to the stylesheet's default.
+  const term = el('dc-agentTerm');
+  if (term) term.style.color = d && typeof d.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(d.color) ? d.color : '';
+
   if (d && d.error) {
+    stopTyping();
+    shownKey = '';
     text.textContent = d.error;
     text.style.color = 'var(--accent-red, #f87171)';
-    // No cursor on a failure: a blinking caret beside an error reads as though
-    // the card were still thinking.
     if (cursor) cursor.style.display = 'none';
-    if (meta) meta.textContent = '';
+    writeMeta(null);
     return;
   }
 
   const line = (d && d.text) || '';
-  text.textContent = line;
-  // Cleared back to the terminal's green, which the stylesheet sets on the box.
+  const key = line + '\u0000' + (d ? d.at : 0);
+  if (key === shownKey) return; // on screen already, or still being typed
+  stopTyping();
+  shownKey = key;
   text.style.color = '';
-  if (cursor) cursor.style.display = line ? '' : 'none';
 
-  if (meta) {
-    // The model and the time, so a line that looks wrong can be attributed and
-    // aged. A stale-looking sentence with no timestamp is unarguable.
-    const parts: string[] = [];
-    if (d && d.model) parts.push(d.model);
-    const t = clock(d ? d.at : 0);
-    if (t) parts.push(t);
-    meta.textContent = parts.join(' · ');
+  if (!line) {
+    text.textContent = '';
+    if (cursor) cursor.style.display = 'none';
+    writeMeta(d);
+    return;
   }
+
+  // THE HOLD: an empty line and a blinking cursor. The attribution waits for the
+  // sentence it attributes.
+  text.textContent = '';
+  writeMeta(null);
+  if (cursor) {
+    cursor.style.display = '';
+    cursor.classList.remove('is-typing');
+  }
+
+  // Code points, not UTF-16 units, so an emoji or accented pair is never typed
+  // as half a character.
+  const chars = Array.from(line);
+  const step = Math.max(8, Math.min(TYPE_CHAR_MS, Math.floor(TYPE_MAX_MS / chars.length)));
+  let i = 0;
+  const typeNext = (): void => {
+    i++;
+    text.textContent = chars.slice(0, i).join('');
+    if (i < chars.length) {
+      // A little unevenness, so it reads as typing rather than as a ticker.
+      // CENTRED on `step` (75% to 125% of it), so the line still takes the time
+      // budgeted above: adding the jitter on top made a long line take ~5s.
+      typingTimer = setTimeout(typeNext, Math.round(step * (0.75 + Math.random() * 0.5)));
+      return;
+    }
+    typingTimer = undefined;
+    cursor?.classList.remove('is-typing');
+    writeMeta(d);
+  };
+  typingTimer = setTimeout(() => {
+    cursor?.classList.add('is-typing');
+    typeNext();
+  }, TYPE_HOLD_MS);
+}
+
+/**
+ * The refresh icon: a fresh line now, skipping the saved one.
+ *
+ * The server restarts the interval from this moment and bounds presses by the
+ * same per-minute limit as a chat question. A refusal comes back as an ordinary
+ * `ai:overview` error, and `renderAgentCard` stops the spinner on any payload,
+ * so it cannot spin for ever.
+ */
+export function initAgentRefresh(socket: Socket): void {
+  el('dc-agentRefresh')?.addEventListener('click', () => {
+    setAgentRefreshing(true);
+    socket.emit('ai:overview:refresh', {});
+  });
 }

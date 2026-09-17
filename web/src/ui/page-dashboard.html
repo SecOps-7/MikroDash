@@ -345,12 +345,20 @@
         <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
         <button class="dash-remove-btn" data-card="dc-card-agent" type="button" title="Remove card">&#x2715;</button>
         <div class="card">
-          <div class="card-header"><h3 class="card-title">Agent Overview</h3></div>
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h3 class="card-title mb-0">Agent Overview</h3>
+            <!-- Refresh on demand: skips the saved line and asks the model now. -->
+            <button id="dc-agentRefresh" class="agent-refresh" type="button"
+                    title="Refresh now" aria-label="Refresh the Agent Overview">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+            </button>
+          </div>
           <div class="card-body" style="padding:.75rem">
-            <!-- A terminal: black, green text, a "> " prompt and a blinking "_".
+            <!-- A terminal: black, text in the operator's chosen colour (MikroDash blue
+                 by default), a "> " prompt and a blinking "_" the line types in front of.
                  The prompt is its own span, never joined to the model's text, which
                  is still set with textContent alone. See dashboard-grid.css. -->
-            <div class="agent-term">
+            <div class="agent-term" id="dc-agentTerm">
               <span class="agent-prompt" aria-hidden="true">&gt;&nbsp;</span><span id="dc-agentText">&mdash;</span><span class="agent-cursor" id="dc-agentCursor" aria-hidden="true">_</span>
             </div>
             <div id="dc-agentMeta" style="font-size:.66rem;color:var(--text-muted);margin-top:.45rem"></div>

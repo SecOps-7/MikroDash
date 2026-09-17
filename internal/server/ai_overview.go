@@ -29,6 +29,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"strings"
 	"time"
@@ -95,6 +96,39 @@ func (cn *conn) agentBlur() {
 	cn.agentMu.Unlock()
 	if stop != nil {
 		close(stop)
+	}
+}
+
+// agentRefresh is the handler behind `ai:overview:refresh`.
+//
+// ── ONLY FOR A CARD THAT IS RUNNING ─────────────────────────────────────────
+//
+// A frame does not have to come from the Dashboard, so a refresh for a card this
+// socket has not focused does nothing: the focus path is where both permissions
+// are checked, and this must not become a way around them.
+//
+// ── RATE LIMITED LIKE A QUESTION ────────────────────────────────────────────
+//
+// Every press is a billable request that skips the cache. It shares `aiLimit`
+// with the chat page, so rapid clicking cannot run up a bill the interval exists
+// to prevent.
+func (cn *conn) agentRefresh(json.RawMessage) {
+	cn.agentMu.Lock()
+	kick := cn.agentKick
+	cn.agentMu.Unlock()
+	if kick == nil {
+		return
+	}
+	if cn.sess != nil {
+		if ok, _, _ := cn.srv.aiLimit.take(cn.sess.Username + "|" + cn.routerID); !ok {
+			cn.overviewFail("Too many requests in the last minute. Wait a moment and try again.")
+			return
+		}
+	}
+	cn.agentForce.Store(true)
+	select {
+	case kick <- struct{}{}:
+	default: // a wake is already pending; it will see the flag
 	}
 }
 
@@ -171,11 +205,22 @@ func (cn *conn) overviewTick() time.Duration {
 	prompt := overviewPrompt(settings)
 	cfg := aiConfigFor(nil, settings)
 	key := cn.aiHistoryUser()
+	// Swapped before any early return below it could be skipped by, and after the
+	// returns above, which are all reasons no request could be made anyway.
+	forced := cn.agentForce.Swap(false)
 	if key != "" {
 		key += "|" + cn.routerID
-		if e, ok := cn.srv.overviewCached(key); ok && e.prompt == prompt && e.model == cfg.Model {
+		if e, ok := cn.srv.overviewCached(key); ok && !forced && e.prompt == prompt && e.model == cfg.Model {
 			if age := time.Since(e.at); age < interval {
-				EvAIOverview.Send(cn.srv.hub, cn.c, e.payload)
+				// A COPY WITH TODAY'S COLOUR. The colour is not part of what the
+				// model wrote, so a change in Settings shows on the next visit
+				// rather than after the cached line expires.
+				out := make(map[string]any, len(e.payload)+1)
+				for k, v := range e.payload {
+					out[k] = v
+				}
+				out["color"] = overviewColorOf(settings)
+				EvAIOverview.Send(cn.srv.hub, cn.c, out)
 				return interval - age
 			}
 		}
@@ -211,8 +256,26 @@ func (cn *conn) overviewTick() time.Duration {
 	if key != "" {
 		cn.srv.overviewStore(key, overviewEntry{payload: payload, at: now, prompt: prompt, model: cfg.Model})
 	}
-	EvAIOverview.Send(cn.srv.hub, cn.c, payload)
+	sent := make(map[string]any, len(payload)+1)
+	for k, v := range payload {
+		sent[k] = v
+	}
+	sent["color"] = overviewColorOf(settings)
+	EvAIOverview.Send(cn.srv.hub, cn.c, sent)
 	return interval
+}
+
+// overviewDefaultColor is MikroDash blue, `--accent-rx` in the dark theme.
+const overviewDefaultColor = "#38bdf8"
+
+// overviewColorOf is the card's text colour: the operator's if it is a valid
+// `#rrggbb`, otherwise the default. The write path validates too; this guards a
+// hand-edited settings.json, since the value ends up in an inline style.
+func overviewColorOf(s store.Settings) string {
+	if c, _ := s["aiOverviewTextColor"].(string); store.IsHexColor(c) {
+		return c
+	}
+	return overviewDefaultColor
 }
 
 // overviewIntervalOf is the configured cadence, floored, defaulting to 3h.
@@ -247,11 +310,18 @@ func (s *Server) overviewStore(key string, e overviewEntry) {
 }
 
 func (cn *conn) overviewFail(msg string) {
+	color := overviewDefaultColor
+	if cn.srv.store != nil {
+		if s, err := cn.srv.mergedSettings(); err == nil {
+			color = overviewColorOf(s)
+		}
+	}
 	EvAIOverview.Send(cn.srv.hub, cn.c, map[string]any{
 		"text":  "",
 		"error": msg,
 		"model": "",
 		"at":    time.Now().UnixMilli(),
+		"color": color,
 	})
 }
 
@@ -279,16 +349,17 @@ NEVER USE EM DASHES. Use a comma, a colon, a semicolon or brackets instead.`
 // because it is what an operator is most likely to want to change: this must be
 // one line that fits a card, and a prompt that merely said "be brief" produced a
 // paragraph often enough to matter on a card with room for a sentence.
+//
+// THE OPERATOR'S OWN WORDING SINCE 2026-09-17: they edited the shipped prompt to
+// lead with what the router is doing rather than with what is wrong, and asked
+// for that to be the default.
 const AIDefaultOverviewPrompt = `Write a single status line for a router dashboard card.
 
 ONE SENTENCE, at most about 120 characters, in plain words. No greeting, no preamble,
 no Markdown, no bullet points. Do not end with a full stop.
 
-Lead with whatever is wrong. If nothing is wrong, say briefly that the router looks
-healthy and name the most useful fact you were given.
-
-An observation marked STALE is the last reading and may no longer be true; if the only
-thing worth reporting is stale, say so rather than stating it as current.`
+Lead with what the router is doing, say briefly that the router looks
+healthy and name the most useful fact you were given.`
 
 // overviewPrompt is the fixed rules plus the operator's prompt, or the default.
 // Empty means default, as it does for the chat prompt.
