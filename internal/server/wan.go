@@ -147,83 +147,88 @@ func wanRow(rows []routeros.Reply, id, expectedName string) routeros.Reply {
 	return nil
 }
 
-// wanLeaseAction renews or releases one lease.
-func (cn *conn) wanLeaseAction(verb string, raw json.RawMessage) {
+// runWanLease renews or releases one lease and REPORTS what happened, rather
+// than sending it.
+//
+// ── SPLIT SO A SECOND CALLER CAN HAVE IT ────────────────────────────────────
+//
+// Slice 3 of the MikroMCP parity work gives the assistant `run_action`, and an
+// action it can run has to be the same code the page runs, not a second copy of
+// it: two paths to one router command is two places for the guard, the audit row
+// and the refresh to drift. So the sequence lives here and returns a
+// `writeOutcome`, exactly as the resource writes do, and the socket handler
+// below is a thin adapter over it.
+//
+// `via` is the provenance the audit row carries: "" for a human at the page,
+// "agent" for the assistant.
+func (cn *conn) runWanLease(verb, id, expectedName, ack, via string) writeOutcome {
 	menu, known := wanVerbs[verb]
-	if !known {
-		cn.wanErr("bad-request", nil)
-		return
-	}
-	var req wanRequest
-	if json.Unmarshal(raw, &req) != nil {
-		cn.wanErr("bad-request", nil)
-		return
+	if !known || id == "" {
+		return writeOutcome{Code: "bad-request"}
 	}
 	if cn.routerID == "" || cn.rsession == nil {
-		cn.wanErr("unavailable", nil)
-		return
+		return writeOutcome{Code: "unavailable"}
 	}
 	action := "wan." + verb
 	if !cn.wanMayWrite() {
 		cn.recorder().Denied(audit.Event{
 			Action: action, TargetType: "wan", RouterID: cn.routerID,
-			TargetName: req.ExpectedName,
+			TargetName: expectedName,
 		})
-		cn.wanErr("denied", nil)
-		return
-	}
-	if req.ID == "" {
-		cn.wanErr("bad-request", nil)
-		return
+		return writeOutcome{Code: "denied"}
 	}
 
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
 		rows, path, activeDefault, rerr := cn.wanRead()
 		if rerr != nil {
 			return rerr
 		}
-		target := wanRow(rows, req.ID, req.ExpectedName)
+		target := wanRow(rows, id, expectedName)
 		if target == nil {
-			cn.wanErr("stale-row", nil)
+			out = writeOutcome{Code: "stale-row"}
 			return nil
 		}
+		name := target["interface"]
 
-		v := guard.CheckLeaseAction(&path, target["interface"], activeDefault)
+		v := guard.CheckLeaseAction(&path, name, activeDefault)
 		if v.Level == "warn" {
-			extra := map[string]any{
-				"warning": v.Detail, "fingerprint": v.Fingerprint,
-				"name": target["interface"], "verb": verb,
+			detail := map[string]any{
+				"warning": v.Detail, "fingerprint": v.Fingerprint, "verb": verb,
 			}
-			if req.Ack == "" {
+			if ack == "" {
 				// NOTHING WRITTEN, NOTHING AUDITED. A prompt is not a refusal,
 				// and a denied row here would misrepresent what was attempted.
-				cn.wanErr("self-cutoff", extra)
+				out = writeOutcome{Code: "self-cutoff", Name: name, Detail: detail}
 				return nil
 			}
-			if req.Ack != v.Fingerprint {
+			if ack != v.Fingerprint {
 				// Acknowledged against different values, or our own path moved
 				// between the prompt and the retry.
-				cn.wanErr("stale-warning", extra)
+				out = writeOutcome{Code: "stale-warning", Name: name, Detail: detail}
 				return nil
 			}
 		}
 
 		if _, werr := cn.rsession.Exec(routeros.Cmd{
-			Path: menu, Args: []string{"=.id=" + req.ID}}); werr != nil {
+			Path: menu, Args: []string{"=.id=" + id}}); werr != nil {
 			return werr
 		}
 
 		extra := []audit.KV{{Key: "status", Value: target["status"]}}
-		if req.Ack != "" {
+		if ack != "" {
 			extra = append(extra, audit.KV{Key: "selfCutoffAcknowledged", Value: true})
+		}
+		if via != "" {
+			extra = append(extra, audit.KV{Key: "via", Value: via})
 		}
 		note := "requested a DHCP lease renewal"
 		if verb == "release" {
 			note = "released the DHCP lease; the uplink is down until the client rebinds"
 		}
 		cn.recorder().Record(audit.Event{
-			Action: action, TargetType: "wan", TargetID: req.ID,
-			TargetName: target["interface"], RouterID: cn.routerID,
+			Action: action, TargetType: "wan", TargetID: id,
+			TargetName: name, RouterID: cn.routerID,
 			Extra: extra, Note: note,
 		})
 		// The lease state settles over the next second or two, so this re-read
@@ -232,10 +237,34 @@ func (cn *conn) wanLeaseAction(verb string, raw json.RawMessage) {
 		if cn.rsession.CollectorEnabled("wan") {
 			cn.rsession.Wan().RefreshNow()
 		}
-		EvWanOk.Send(cn.srv.hub, cn.c, map[string]any{"action": verb, "name": target["interface"]})
+		out = writeOutcome{Action: verb, Name: name}
 		return nil
 	})
 	if err != nil {
-		cn.wanErr(writeFailCode(err), map[string]any{"message": safe.Message(err.Error())})
+		return writeOutcome{Code: writeFailCode(err),
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
+	return out
+}
+
+// wanLeaseAction is the socket handler: decode, run, tell the browser.
+func (cn *conn) wanLeaseAction(verb string, raw json.RawMessage) {
+	var req wanRequest
+	if json.Unmarshal(raw, &req) != nil {
+		cn.wanErr("bad-request", nil)
+		return
+	}
+	out := cn.runWanLease(verb, req.ID, req.ExpectedName, req.Ack, "")
+	if out.Code == "" {
+		EvWanOk.Send(cn.srv.hub, cn.c, map[string]any{"action": out.Action, "name": out.Name})
+		return
+	}
+	extra := map[string]any{}
+	for k, v := range out.Detail {
+		extra[k] = v
+	}
+	if out.Name != "" {
+		extra["name"] = out.Name
+	}
+	cn.wanErr(out.Code, extra)
 }
