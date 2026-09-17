@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"mikrodash/internal/aicontext"
@@ -59,6 +60,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"bandwidth": (*conn).liveBandwidth,
 	"topology":  (*conn).liveTopology,
 	"vpn":       (*conn).liveWireguardStatus,
+	"ppp":       (*conn).livePPPSessions,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -1203,4 +1205,67 @@ func renderWireguardStatus(p *collect.VPNPayload) any {
 		Ipsec           []collect.IpsecTunnel `json:"activeIpsecPeers"`
 		Truncated       bool                  `json:"truncated"`
 	}{active, len(p.Tunnels), keptW, keptI, tW || tI}
+}
+
+// ── list_ppp_sessions ───────────────────────────────────────────────────────
+
+// livePPPSessions carries no rates. The collector derives them from /ppp/active's
+// bytes-in and bytes-out, which RouterOS 7.24 does not return (measured on the
+// hAP AC2 with a live L2TP session: the counters are on the dynamic
+// <service-user> interface instead), so every rate it holds is 0 or null. A 0
+// handed to the model reads as "idle"; the answer says where the traffic is.
+func (cn *conn) livePPPSessions(t aitools.Tool) string {
+	col := cn.rsession.PPP()
+	return liveAnswer(t, liveSource[collect.PPPPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.PPPPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/ppp/active",
+		absent:  "The PPP readings are not available from this router yet.",
+	}, renderPPPSessions)
+}
+
+type livePPPSession struct {
+	User      string `json:"user"`
+	Service   string `json:"service,omitempty"`
+	Address   string `json:"address,omitempty"`
+	CallerID  string `json:"callerId,omitempty"`
+	Uptime    string `json:"uptime,omitempty"`
+	Encoding  string `json:"encoding,omitempty"`
+	LimitIn   *int   `json:"limitInBps,omitempty"`
+	LimitOut  *int   `json:"limitOutBps,omitempty"`
+	Interface string `json:"interface"`
+}
+
+// pppTrafficNote tells the model where a session's traffic can be read.
+const pppTrafficNote = "Per-session traffic is not in this reading. Each session has a dynamic interface, " +
+	"named in 'interface'; list_interface_traffic reports its rates."
+
+func renderPPPSessions(p *collect.PPPPayload) any {
+	rows := make([]livePPPSession, 0, len(p.Sessions))
+	for _, x := range p.Sessions {
+		rows = append(rows, livePPPSession{User: x.Name, Service: x.Service, Address: x.Address,
+			CallerID: x.CallerID, Uptime: x.Uptime, Encoding: x.Encoding, LimitIn: x.LimitIn,
+			LimitOut: x.LimitOut, Interface: pppInterfaceName(x.Service, x.Name)})
+	}
+	kept, truncated := capRows(rows)
+	by := p.ByService
+	if by == nil {
+		by = map[string]int{}
+	}
+	return struct {
+		Sessions  []livePPPSession `json:"activeSessions"`
+		ByService map[string]int   `json:"sessionsByService"`
+		Traffic   string           `json:"traffic"`
+		Truncated bool             `json:"truncated"`
+	}{kept, by, pppTrafficNote, truncated}
+}
+
+// pppInterfaceName is the dynamic interface RouterOS creates for a server-side
+// session: <l2tp-looptest> for user looptest on L2TP, as /interface printed it.
+func pppInterfaceName(service, user string) string {
+	if service == "" {
+		return ""
+	}
+	return "<" + strings.ToLower(service) + "-" + user + ">"
 }

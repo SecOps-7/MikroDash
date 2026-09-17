@@ -175,6 +175,13 @@
       "page": "ppp"
     },
     {
+      "name": "list_ppp_sessions",
+      "access": "read",
+      "resource": "",
+      "collector": "ppp",
+      "page": "ppp"
+    },
+    {
       "name": "list_queues",
       "access": "read",
       "resource": "",

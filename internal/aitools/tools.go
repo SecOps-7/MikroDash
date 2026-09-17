@@ -342,6 +342,19 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "vpn",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "ppp_sessions",
+		Description: "Read only. List the PPP sessions connected right now (PPPoE, L2TP, PPTP, " +
+			"SSTP, OpenVPN), read from /ppp/active: each session's user, service, assigned " +
+			"address, caller id, uptime, encoding, rate limits and dynamic interface; with a count " +
+			"per service. It has no traffic: call list_interface_traffic and read the session's " +
+			"interface for that. Use list_pppSecret and " +
+			"list_pppProfile for accounts and profiles; use this for who is connected now.",
+		Parameters: noArgs(),
+		Collector:  "ppp",
+		Freshness:  FreshLive,
+		Page:       "ppp",
+		Access:     AccessRead,
 	}}
 }
 

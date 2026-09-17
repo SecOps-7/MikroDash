@@ -849,3 +849,35 @@ func TestRenderWireguardStatus(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderPPPSessions. Sessions reach the model with their dynamic interface
+// and no rate: the collector's rates come from /ppp/active byte counters that
+// RouterOS 7.24 does not return, so any number here would be a fabricated 0.
+// Row and session ids do not appear.
+func TestRenderPPPSessions(t *testing.T) {
+	rate := 125_000.0
+	p := &collect.PPPPayload{TS: 1, PollMs: 5000, ByService: map[string]int{"pppoe": 1, "l2tp": 1},
+		Sessions: []collect.PPPSession{
+			{ID: "*P1", SessionID: "0x81F00001", Name: "alice", Service: "pppoe", Address: "10.9.0.2", Uptime: "1h2m", RXRate: &rate, TXRate: &rate},
+			{ID: "*P2", Name: "bob", Service: "l2tp", Address: "10.9.0.3"},
+		},
+		TotalRXRate: &rate,
+	}
+	b, _ := json.Marshal(renderPPPSessions(p))
+	got := string(b)
+	for _, want := range []string{`"user":"alice"`, `"interface":"\u003cpppoe-alice\u003e"`, `"sessionsByService":{"l2tp":1,"pppoe":1}`,
+		`"user":"bob","service":"l2tp","address":"10.9.0.3","interface":"\u003cl2tp-bob\u003e"`, `list_interface_traffic`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"*P1", "*P2", "0x81F00001", "Mbps", "Rate"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+	empty, _ := json.Marshal(renderPPPSessions(&collect.PPPPayload{TS: 1}))
+	if !strings.Contains(string(empty), `"activeSessions":[]`) || !strings.Contains(string(empty), `"sessionsByService":{}`) {
+		t.Errorf("no sessions does not read as an empty list: %s", empty)
+	}
+}
