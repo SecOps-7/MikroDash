@@ -11,7 +11,7 @@ package server
 //
 // ── AND IT REACHES THE ROUTER THROUGH THE FORM'S OWN PIPELINE ───────────────
 //
-// `writeRow` is what `res:save` uses. Permission, rate limit, fresh read,
+// `writeRow` is what `res:save` uses, and `removeRow` is what `res:remove` uses. Permission, rate limit, fresh read,
 // staleness, read-only rows, guards, the write, read-back confirmation, undo
 // history and the audit row — all of it, unchanged, because it is the same
 // function rather than a copy that agrees with it today.
@@ -29,6 +29,7 @@ import (
 
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/resource"
+	"mikrodash/internal/routeros"
 	"mikrodash/internal/store"
 )
 
@@ -49,10 +50,13 @@ const (
 // answered. It holds the INTENT, not a prepared write: approval re-runs the
 // whole pipeline rather than replaying a decision made minutes ago.
 type aiWriteProposal struct {
-	token    string
-	resKey   string
-	rowID    string
-	values   map[string]any
+	token  string
+	resKey string
+	rowID  string
+	values map[string]any
+	// remove marks a delete. Approval then runs `removeRow`, the form's own
+	// delete path, rather than `writeRow`.
+	remove   bool
 	ack      string
 	raisedAt time.Time
 }
@@ -66,10 +70,11 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 		Resource string         `json:"resource"`
 		ID       string         `json:"id"`
 		Values   map[string]any `json:"values"`
+		Delete   bool           `json:"delete"`
 	}
 	if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
-		return "Those arguments were not valid JSON. Send `resource`, `values`, and `id` only " +
-			"when editing an existing row."
+		return "Those arguments were not valid JSON. Send `resource`, then `values` to create, " +
+			"`id` and `values` to edit, or `id` and `delete: true` to delete."
 	}
 	res := resource.ByKey(args.Resource)
 	if res == nil {
@@ -85,6 +90,9 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	}
 	if cn.rsession == nil || cn.srv.store == nil {
 		return "No device is selected, so nothing was proposed."
+	}
+	if args.Delete {
+		return cn.proposeAIRemove(res, args.ID)
 	}
 	if len(args.Values) == 0 {
 		return "No field values were given, so there is nothing to change."
@@ -110,7 +118,7 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 				"reading it back.", res.Label, quoted(out.Name), out.Action)
 		}
 		if fp, gate := guardGate(out); gate {
-			return cn.raiseAIProposal(res, req, out.Name, fp, out)
+			return cn.raiseAIProposal(res, req, out.Name, fp, out, nil)
 		}
 		return aiRefusalText(res, out)
 	}
@@ -135,7 +143,42 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 		gate["warning"] = p.verdict.Detail
 		gate["code"] = p.verdict.Code
 	}
-	return cn.raiseAIProposal(res, req, p.name, ack, writeOutcome{Name: p.name, Detail: gate})
+	return cn.raiseAIProposal(res, req, p.name, ack, writeOutcome{Name: p.name, Detail: gate}, nil)
+}
+
+// proposeAIRemove puts a delete to the operator. ALWAYS, whatever
+// `aiConfirmWrites` says.
+//
+// ── WHY A DELETE IS NEVER APPLIED WITHOUT ASKING ────────────────────────────
+//
+// The setting lets the assistant apply ordinary edits unprompted. A delete is
+// not an ordinary edit: the row and every value in it are gone, and a model that
+// has misread which row it is looking at removes the wrong one with nothing on
+// screen until afterwards. Undo exists, but it is a repair, not a safeguard. So
+// the operator sees the row as the router holds it now and approves it.
+//
+// The dialog is built from `prepareRemove`, the same reading the delete itself
+// will make again at approval: the row's identity comes from the router, and a
+// guard warning (removing the address MikroDash reaches the router on, say)
+// shows in the dialog exactly as it would on the form.
+func (cn *conn) proposeAIRemove(res *resource.Resource, id string) string {
+	if id == "" {
+		return "A delete needs the `id` of the row, exactly as the list tool reported it. " +
+			"Nothing was proposed."
+	}
+	req := &resRequest{Resource: res.Key, ID: id}
+	p, refusal := cn.prepareRemove(res, req)
+	if p == nil {
+		return aiRefusalText(res, refusal)
+	}
+	ack := ""
+	gate := map[string]any{}
+	if p.verdict.Warned() {
+		ack = p.verdict.Fingerprint
+		gate["warning"] = p.verdict.Detail
+		gate["code"] = p.verdict.Code
+	}
+	return cn.raiseAIProposal(res, req, p.name, ack, writeOutcome{Name: p.name, Detail: gate}, p.row)
 }
 
 // raiseAIProposal stores the intent and puts it in front of the operator.
@@ -149,8 +192,13 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 //
 // So the model is told a proposal was raised and finishes its turn saying so.
 // The approval arrives later, on its own frame, and the write happens then.
+//
+// `removing` is the row a delete would remove, as the router holds it now, and
+// nil for a create or an edit. It is a parameter rather than a field on the
+// request, which is decoded from browser frames and has no business carrying
+// the assistant's state.
 func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
-	name, ack string, out writeOutcome) string {
+	name, ack string, out writeOutcome, removing routeros.Reply) string {
 
 	tok, err := aiProposalToken()
 	if err != nil {
@@ -174,7 +222,7 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 	}
 	cn.proposals[tok] = &aiWriteProposal{
 		token: tok, resKey: res.Key, rowID: req.ID, values: req.Values,
-		ack: ack, raisedAt: now,
+		remove: removing != nil, ack: ack, raisedAt: now,
 	}
 	cn.proposeMu.Unlock()
 
@@ -183,7 +231,12 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 	// pre-shared key on the screen.
 	command := ""
 	shown := map[string]string{}
-	if validated, errs := res.Validate(req.strValues(), req.ID != ""); len(errs) == 0 {
+	if removing != nil {
+		// The command the delete will send, and the row as the router holds it
+		// NOW, masked the same way, so the operator sees what will be gone.
+		command = res.Menu + "/remove =.id=" + req.ID
+		shown = histValues(auditValues(res, res.RowValues(removing)))
+	} else if validated, errs := res.Validate(req.strValues(), req.ID != ""); len(errs) == 0 {
 		command = res.PreviewCommand(validated, req.ID)
 		// MASKED BY THE RULE THE AUDIT TRAIL ALREADY USES, rather than a second
 		// one written here: `auditValues` substitutes «set»/«unset» for a
@@ -192,7 +245,10 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 		shown = histValues(auditValues(res, anyValues(validated.Values)))
 	}
 	action := "update"
-	if req.ID == "" {
+	switch {
+	case removing != nil:
+		action = "delete"
+	case req.ID == "":
 		action = "create"
 	}
 	warnCode, _ := out.Detail["code"].(string)
@@ -249,10 +305,19 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	// warning the operator was shown, so a guard whose verdict has CHANGED since
 	// then gates again rather than being waved through.
 	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack}
-	out := cn.writeRow(res, req, "agent")
+	var out writeOutcome
+	if p.remove {
+		out = cn.removeRow(res, req, "agent")
+	} else {
+		out = cn.writeRow(res, req, "agent")
+	}
 
 	text := fmt.Sprintf("Applied: the %s %s was %sd and confirmed by reading it back.",
 		res.Label, quoted(out.Name), out.Action)
+	if p.remove && out.Code == "" {
+		text = fmt.Sprintf("Applied: the %s %s was deleted, and reading the table back "+
+			"confirmed it is gone.", res.Label, quoted(out.Name))
+	}
 	if out.Code != "" {
 		text = aiRefusalText(res, out)
 	}
@@ -353,6 +418,8 @@ func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 		return "Not applied: that row cannot be edited here."
 	case "not-creatable":
 		return "Not applied: rows of that kind cannot be created."
+	case "not-removable":
+		return "Not applied: that row cannot be deleted, only edited."
 	case "invalid":
 		return "Not applied: " + invalidText(out) + " Check the field names and values against " +
 			"what the list tool reported."

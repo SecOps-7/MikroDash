@@ -508,116 +508,158 @@ func (cn *conn) resRemove(raw json.RawMessage) {
 	if res == nil {
 		return
 	}
-	if req.ID == "" {
-		cn.resErr(res.Key, "invalid", "", nil)
+	// A human at a form: no provenance to add.
+	out := cn.removeRow(res, req, "")
+	if out.Code == "" {
+		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
+			"resource": res.Key, "action": "delete", "name": out.Name})
 		return
 	}
-	// Only until the row is read. Everything after `find` uses the identity of
-	// the row the SERVER actually found — see below.
-	name := req.ExpectedIdentity
+	cn.resErr(res.Key, out.Code, out.Name, out.Detail)
+}
 
+// preparedRemove is a delete that has been CHECKED but not performed: the row
+// the router holds now, its identity, and the guard's verdict. The delete twin
+// of `preparedWrite`, and for the same reason — so the assistant's approval
+// dialog and the delete itself are built from one server-side reading.
+type preparedRemove struct {
+	res     *resource.Resource
+	req     *resRequest
+	row     routeros.Reply
+	name    string
+	verdict guard.Verdict
+}
+
+// removeRow is the delete path itself, shared by `res:remove` and the assistant.
+// Like `writeRow` it performs every side effect and RETURNS what happened; `via`
+// is the caller's provenance and never read off the request.
+func (cn *conn) removeRow(res *resource.Resource, req *resRequest, via string) writeOutcome {
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
-		rows, err := cn.readMenu(res)
-		if err != nil {
-			return err
-		}
-		row := find(res, rows, req.ID, req.ExpectedIdentity)
-		if row == nil {
-			cn.resErr(res.Key, "stale-row", name, nil)
+		p, refusal := cn.prepareRemove(res, req)
+		if p == nil {
+			out = refusal
 			return nil
 		}
-		// ── THE AUDIT NAME COMES FROM THE ROW, NOT FROM THE REQUEST ────────
-		//
-		// This used `req.ExpectedIdentity` throughout, which is CLIENT-SUPPLIED
-		// AND OPTIONAL. A `res:remove` that omits it — nothing requires it, and
-		// `find` accepts an empty one — produced an audit row saying a dnsStatic
-		// was deleted and not WHICH: `target_name` empty, on the one record that
-		// exists to answer exactly that question. Measured against hAP AC2 on
-		// 2026-08-29 by performing a real delete.
-		//
-		// The live app never had this: `const name = Resources.identityOf(
-		// resource, before)` (`src/index.js` res:remove), computed from the row
-		// it just read, and used for the success record and all three denials.
-		//
-		// It is also the right SOURCE and not merely a non-empty one. An audit
-		// trail records what the server observed; taking the name from the
-		// request records what the caller asserted. A mismatched identity is
-		// already refused as `stale-row`, so this changes no verdict — it
-		// changes what the record is a record OF.
-		if n := res.IdentityOf(row); n != "" {
-			name = n
-		}
-		if res.ReadOnlyWhen != nil && res.ReadOnlyWhen(row) {
-			cn.recorder().Denied(audit.Event{
-				Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
-				TargetID: req.ID, TargetName: name, Note: "read-only-row",
-			})
-			cn.resErr(res.Key, res.ReadOnlyReason, name, nil)
+		if gate := ackGate(p.verdict, req.Ack); gate != nil {
+			code, _ := gate["code"].(string)
+			delete(gate, "code")
+			out = writeOutcome{Code: code, Name: p.name, Detail: gate}
 			return nil
 		}
-		// EDITABLE BUT NOT REMOVABLE — a wireless radio is hardware, and its row
-		// exists whether or not anyone wants it to. ReadOnlyWhen cannot say this
-		// because it would block the edit too. Checked on the freshly-read row,
-		// for the same reason ReadOnlyWhen is.
-		if res.RemovableWhen != nil && !res.RemovableWhen(row) {
-			cn.recorder().Denied(audit.Event{
-				Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
-				TargetID: req.ID, TargetName: name, Note: "not-removable",
-			})
-			cn.resErr(res.Key, "not-removable", name, nil)
-			return nil
-		}
-		// A delete always counts for the guard: removing a port and disabling
-		// it cut the same link.
-		verdict, gerr := cn.verdictFor(res, "delete", nil, row)
-		if gerr != nil {
-			cn.recorder().Denied(audit.Event{
-				Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
-				TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
-			})
-			cn.resErr(res.Key, "guard-not-ported", name,
-				map[string]any{"message": safe.Message(gerr.Error())})
-			return nil
-		}
-		if gate := ackGate(verdict, req.Ack); gate != nil {
-			gate["resource"] = res.Key
-			gate["name"] = name
-			EvResError.Send(cn.srv.hub, cn.c, gate)
-			return nil
-		}
-		if _, err := cn.rsession.Exec(routeros.Cmd{
-			Path: res.Menu + "/remove", Args: []string{"=.id=" + req.ID}}); err != nil {
-			return err
-		}
-		// The row must be GONE before the delete is reported (#97).
-		if after, rerr := cn.readMenu(res); rerr != nil || !confirmRemoved(after, req.ID) {
-			return cn.outcomeUnknown(res, res.Key+".delete", req.ID, name, req.Ack)
-		}
-		// Recorded BEFORE the audit row and from the row as it was, because the
-		// row is gone now and its values are the only way back.
-		cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
-			req.ID, name, histValues(res.RowValues(row)), nil))
-
-		// after is `{}` for a delete: Diff walks the keys of `after`, so an empty
-		// one reports NOTHING changed, which is right — a delete is described by
-		// the row that went away, and the row itself is the target, not a diff.
-		// Matches index.js, which passes `after: {}` here for the same reason.
-		cn.recorder().Record(audit.Event{
-			Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
-			TargetID: req.ID, TargetName: name,
-			Before: auditValues(res, res.RowValues(row)),
-			After:  map[string]any{},
-			Extra:  ackExtra(req.Ack),
-		})
-
-		cn.refreshFor(res)
-		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
-			"resource": res.Key, "action": "delete", "name": name})
+		out = cn.commitRemove(p, via)
 		return nil
 	})
 	if err != nil {
-		cn.resErr(res.Key, writeFailCode(err), name, map[string]any{"message": safe.Message(err.Error())})
+		return writeOutcome{Code: writeFailCode(err), Name: req.ExpectedIdentity,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
+	return out
+}
+
+// prepareRemove reads the row fresh and decides whether it may go. It changes
+// nothing on the router; a refused delete is audited as the denial it is.
+func (cn *conn) prepareRemove(res *resource.Resource, req *resRequest) (*preparedRemove, writeOutcome) {
+	// Only until the row is read. Everything after `find` uses the identity of
+	// the row the SERVER actually found — see below.
+	name := req.ExpectedIdentity
+	if req.ID == "" {
+		return nil, writeOutcome{Code: "invalid", Name: name}
+	}
+
+	rows, err := cn.readMenu(res)
+	if err != nil {
+		return nil, writeOutcome{Code: writeFailCode(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	row := find(res, rows, req.ID, req.ExpectedIdentity)
+	if row == nil {
+		return nil, writeOutcome{Code: "stale-row", Name: name}
+	}
+	// ── THE AUDIT NAME COMES FROM THE ROW, NOT FROM THE REQUEST ────────────
+	//
+	// This used `req.ExpectedIdentity` throughout, which is CLIENT-SUPPLIED
+	// AND OPTIONAL. A `res:remove` that omits it — nothing requires it, and
+	// `find` accepts an empty one — produced an audit row saying a dnsStatic
+	// was deleted and not WHICH: `target_name` empty, on the one record that
+	// exists to answer exactly that question. Measured against hAP AC2 on
+	// 2026-08-29 by performing a real delete.
+	//
+	// The live app never had this: `const name = Resources.identityOf(
+	// resource, before)` (`src/index.js` res:remove), computed from the row
+	// it just read, and used for the success record and all three denials.
+	//
+	// It is also the right SOURCE and not merely a non-empty one. An audit
+	// trail records what the server observed; taking the name from the
+	// request records what the caller asserted. A mismatched identity is
+	// already refused as `stale-row`, so this changes no verdict — it
+	// changes what the record is a record OF.
+	if n := res.IdentityOf(row); n != "" {
+		name = n
+	}
+	if res.ReadOnlyWhen != nil && res.ReadOnlyWhen(row) {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, TargetName: name, Note: "read-only-row",
+		})
+		return nil, writeOutcome{Code: res.ReadOnlyReason, Name: name}
+	}
+	// EDITABLE BUT NOT REMOVABLE — a wireless radio is hardware, and its row
+	// exists whether or not anyone wants it to. ReadOnlyWhen cannot say this
+	// because it would block the edit too. Checked on the freshly-read row,
+	// for the same reason ReadOnlyWhen is.
+	if res.RemovableWhen != nil && !res.RemovableWhen(row) {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, TargetName: name, Note: "not-removable",
+		})
+		return nil, writeOutcome{Code: "not-removable", Name: name}
+	}
+	// A delete always counts for the guard: removing a port and disabling
+	// it cut the same link.
+	verdict, gerr := cn.verdictFor(res, "delete", nil, row)
+	if gerr != nil {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
+		})
+		return nil, writeOutcome{Code: "guard-not-ported", Name: name,
+			Detail: map[string]any{"message": safe.Message(gerr.Error())}}
+	}
+	return &preparedRemove{res: res, req: req, row: row, name: name, verdict: verdict}, writeOutcome{}
+}
+
+// commitRemove performs a checked delete and confirms the row is gone.
+func (cn *conn) commitRemove(p *preparedRemove, via string) writeOutcome {
+	res, req, name, row := p.res, p.req, p.name, p.row
+	if _, err := cn.rsession.Exec(routeros.Cmd{
+		Path: res.Menu + "/remove", Args: []string{"=.id=" + req.ID}}); err != nil {
+		return writeOutcome{Code: writeFailCode(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	// The row must be GONE before the delete is reported (#97).
+	if after, rerr := cn.readMenu(res); rerr != nil || !confirmRemoved(after, req.ID) {
+		return cn.unknownOutcome(res, res.Key+".delete", req.ID, name, req.Ack, via)
+	}
+	// Recorded BEFORE the audit row and from the row as it was, because the
+	// row is gone now and its values are the only way back.
+	cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
+		req.ID, name, histValues(res.RowValues(row)), nil))
+
+	// after is `{}` for a delete: Diff walks the keys of `after`, so an empty
+	// one reports NOTHING changed, which is right — a delete is described by
+	// the row that went away, and the row itself is the target, not a diff.
+	// Matches index.js, which passes `after: {}` here for the same reason.
+	cn.recorder().Record(audit.Event{
+		Action: res.Key + ".delete", TargetType: res.Key, RouterID: cn.routerID,
+		TargetID: req.ID, TargetName: name,
+		Before: auditValues(res, res.RowValues(row)),
+		After:  map[string]any{},
+		Extra:  writeExtra(req.Ack, via),
+	})
+
+	cn.refreshFor(res)
+	return writeOutcome{Action: "delete", Name: name}
 }
 
 // ackExtra records that an operator confirmed a warned-about write, which is

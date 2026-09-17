@@ -252,12 +252,17 @@ func TestEveryReadToolTakesNoArguments(t *testing.T) {
 	}
 }
 
-// TestTheWriteToolTakesExactlyResourceIdAndValues.
+// TestTheWriteToolTakesExactlyResourceIdValuesAndDelete.
 //
 // Pinned because the argument list is the model's whole reach into the write
-// path. A fourth argument — a menu, a command, a router id — would be the model
+// path. An argument naming a menu, a command or a router id would be the model
 // choosing something the registry is supposed to decide.
-func TestTheWriteToolTakesExactlyResourceIdAndValues(t *testing.T) {
+//
+// RE-AIMED FOR `delete`, deliberately. The operator asked the assistant to delete
+// a row and it said it had no delete action. `delete` is a boolean that routes
+// the same `resource` and `id` to `removeRow`, the form's own delete path; it
+// names nothing the registry decides, and a delete is always put to the operator.
+func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 	tool, ok := ByName(WriteToolName)
 	if !ok {
 		t.Fatalf("%q is not in the catalogue", WriteToolName)
@@ -266,7 +271,7 @@ func TestTheWriteToolTakesExactlyResourceIdAndValues(t *testing.T) {
 		t.Errorf("%q declares access %q", WriteToolName, tool.Access)
 	}
 	props, _ := tool.Parameters["properties"].(map[string]any)
-	want := map[string]bool{"resource": true, "id": true, "values": true}
+	want := map[string]bool{"resource": true, "id": true, "values": true, "delete": true}
 	for name := range props {
 		if !want[name] {
 			t.Errorf("the write tool accepts %q, which the write path never asked for", name)

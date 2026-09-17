@@ -200,9 +200,8 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       // TEXT, NEVER MARKUP. `name` is a row identity the router supplied and
       // `label` comes from the registry, but this whole panel exists because a
       // model chose what goes in it.
-      what.textContent =
-        (d.action === 'create' ? 'Create a ' : 'Change the ') + d.label +
-        (d.name ? ' \u201c' + d.name + '\u201d' : '');
+      const verb = d.action === 'create' ? 'Create a ' : d.action === 'delete' ? 'Delete the ' : 'Change the ';
+      what.textContent = verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
     }
     const cmd = el('aiProposeCmd');
     if (cmd) cmd.textContent = d.command || '(no command could be built)';
@@ -236,6 +235,10 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
         warn.hidden = true;
       }
     }
+
+    // A delete says so on the button too: "Apply this change" undersells it.
+    const approve = el('aiProposeApprove');
+    if (approve) approve.textContent = d.action === 'delete' ? 'Delete it' : 'Apply this change';
 
     const box = el('aiProposeBox');
     if (box) box.hidden = false;

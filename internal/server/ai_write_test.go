@@ -94,6 +94,8 @@ func TestEveryRefusalTheWritePathCanProduceHasASentence(t *testing.T) {
 		"denied", "unavailable", "stale-row", "read-only-row", "not-creatable",
 		"invalid", "router-denied", "write-failed", "guard-not-ported",
 		"rate-limited", "outcome-unknown",
+		// The delete path's own refusal (removeRow).
+		"not-removable",
 	}
 	for _, code := range codes {
 		got := aiRefusalText(res, writeOutcome{Code: code})
@@ -245,5 +247,49 @@ func TestTheWriteToolRefusesBeforeItTouchesAnything(t *testing.T) {
 	got = cn.runAIWriteTool(writeCall(`{"resource":"dnsStatic","values":{"name":"x"}}`))
 	if !strings.Contains(got, "permission") {
 		t.Errorf("a viewer with no write permission produced %q", got)
+	}
+}
+
+// TestADeleteNeedsAnIDAndPermission. The delete branch refuses before it reads
+// anything, in the same order as an edit: permission first, then a device, then
+// the row id. The control is an edit on the same resource, refused the same way.
+func TestADeleteNeedsAnIDAndPermission(t *testing.T) {
+	cn := &conn{}
+	got := cn.runAIWriteTool(writeCall(`{"resource":"dnsStatic","id":"*1","delete":true}`))
+	if !strings.Contains(got, "permission") {
+		t.Errorf("a delete by a viewer with no write permission produced %q", got)
+	}
+	if strings.Contains(got, "Applied") {
+		t.Errorf("a refused delete claims it happened: %q", got)
+	}
+}
+
+// TestTheWriteToolAdvertisesDelete. The operator asked the assistant to delete a
+// row and it answered that it had no delete action, because the schema offered
+// create and edit only. A tool the model cannot see is a tool it will say does
+// not exist, so the schema is what is asserted.
+func TestTheWriteToolAdvertisesDelete(t *testing.T) {
+	var write *aitools.Tool
+	for _, tl := range aitools.Permitted(func(string, string) bool { return true }) {
+		if tl.Name == aitools.WriteToolName {
+			tl := tl
+			write = &tl
+		}
+	}
+	if write == nil {
+		t.Fatal("no write tool is advertised to a viewer who may write everything")
+	}
+	props, _ := write.Parameters["properties"].(map[string]any)
+	if _, ok := props["delete"]; !ok {
+		t.Error("change_row has no `delete` parameter, so the assistant cannot delete a row")
+	}
+	req, _ := write.Parameters["required"].([]string)
+	for _, r := range req {
+		if r == "values" {
+			t.Error("`values` is required, so a delete (which has none) cannot be called")
+		}
+	}
+	if !strings.Contains(write.Description, "DELETE") {
+		t.Error("the description does not tell the model how to delete")
 	}
 }

@@ -172,10 +172,13 @@ func listTool(r *resource.Resource) Tool {
 func writeTool(resources []string) Tool {
 	return Tool{
 		Name: WriteToolName,
-		Description: "Propose a change to ONE row on the router the operator has selected. " +
-			"Set `resource` to one of the listed names and `values` to the fields you want. " +
-			"Call that resource's list_ tool first to see its field names and current rows. " +
-			"Omit `id` to create a row; pass the `id` from a list_ result to edit that row. " +
+		Description: "Propose a change to ONE row on the router the operator has selected: " +
+			"create it, edit it, or delete it. " +
+			"Set `resource` to one of the listed names. Call that resource's list_ tool first " +
+			"to see its field names, current rows and their ids. " +
+			"To CREATE, omit `id` and give `values`. To EDIT, pass the row's `id` and the " +
+			"`values` to change. To DELETE, pass the row's `id` and `delete: true`; `values` " +
+			"is not needed, and a delete is always put to the operator to approve. " +
 			"Depending on how the operator configured MikroDash this either applies straight " +
 			"away or is put to them for approval, and a change that could cut MikroDash off " +
 			"from the router is ALWAYS put to them. Say what you proposed; never claim it was " +
@@ -194,11 +197,15 @@ func writeTool(resources []string) Tool {
 				},
 				"values": map[string]any{
 					"type": "object",
-					"description": "Field name to value. Use the field names the resource's " +
-						"list_ tool describes, not RouterOS property names.",
+					"description": "Field name to value, for a create or an edit. Use the field " +
+						"names the resource's list_ tool describes, not RouterOS property names.",
+				},
+				"delete": map[string]any{
+					"type":        "boolean",
+					"description": "Set true, with `id`, to delete that row.",
 				},
 			},
-			"required":             []string{"resource", "values"},
+			"required":             []string{"resource"},
 			"additionalProperties": false,
 		},
 		Access: AccessWrite,
