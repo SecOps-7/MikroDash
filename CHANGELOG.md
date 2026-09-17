@@ -2,6 +2,69 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.59] - AI Agent, RouterBOARD firmware upgrades, and no more downgrade offers
+
+Adds an AI Agent that reads and changes the selected router through MikroDash's own
+permissions, checks and audit trail
+([#98](https://github.com/SecOps-7/MikroDash/issues/98)). It ships switched off.
+
+### New
+
+- **AI Agent page.** Chat about the selected router using any OpenAI-compatible
+  endpoint: a hosted provider, a gateway, or a local model such as Ollama or LM Studio.
+  Turn it on in Settings → AI Agent, set the endpoint and model, and press Test Connection.
+- **It sees live data.** Readings are refreshed when you ask, and it can look up any
+  table your role lets you see, including interface traffic.
+- **It can make changes.** Create, edit or delete one row at a time, through the same
+  checks, audit trail and undo as the forms. It asks you first unless you untick "Ask me
+  before the assistant changes anything"; deletes and anything that could cut MikroDash
+  off from the router always ask.
+- **It remembers the conversation.** The last ten exchanges per router are kept so
+  follow-ups work. Clear deletes them, and they expire after Settings → Data Retention →
+  Chat history (default 30 days).
+- **Editable system prompt** in Settings → AI Agent, with Reset to Default. MikroDash's
+  safety rules always apply on top and cannot be edited away.
+- **Answers stream in** as they are written, with formatted tables, code blocks and
+  colour-highlighted RouterOS commands.
+- **Agent Overview dashboard card.** A one-line status written by the model, typed into
+  a terminal-style box, with a refresh icon. Enable it under Settings → AI Agent → Agent
+  Overview card, then add it from the Dashboard's Add Card panel. It refreshes every 3
+  hours by default and only while it is on your Dashboard; its prompt and text colour
+  are editable.
+- **RouterBOARD firmware on the Packages page**, with Upgrade & Reboot (the router's name
+  typed back to confirm) and an "Upgrade automatically" toggle.
+- **An Update button for RouterOS** on the Packages page.
+
+### Changed
+
+- **Ping can no longer be switched off.** It was the last collector with an off switch,
+  so no collector can be disabled now.
+- **Read-only and Operator roles can open the AI Agent page.** Making a change still
+  needs write access to the page that change belongs to.
+- **Firmware & Update and RouterBOARD Firmware sit side by side** on the Packages page.
+- **The IP Addresses interval can be set up to 10 minutes**, up from 1 minute.
+
+### Fixed
+
+- **An older "latest version" is no longer offered as an update.** A router reporting a
+  latest version older than its installed one showed an Update button that would have
+  downgraded it.
+- **"Up to date" names the installed version** on the system card, and the Packages card
+  no longer says a new version is available when none is.
+- **Six cards no longer go stale on a router that is answering**: Packages, DNS, Bridges,
+  CAPsMAN, VLANs and VPN.
+- **AI Agent, IP Addresses, Wifi Map and NetWatch now hide from the sidebar** when their
+  page is switched off or unavailable.
+- **A new version's styles load after an update.** Browsers could keep an old copy of the
+  dashboard stylesheet and show new cards unstyled.
+
+### Internal
+
+- Database schema version 18 adds `ai_messages` for conversation history.
+- The Dashboard's card table is generated from a Go source by `cmd/gridgen`, and the AI
+  tool catalogue by `cmd/toolgen`, both checked by `tools/verify.sh`.
+- Shared static assets are served with `Cache-Control: no-cache`.
+
 ## [0.8.58] - Collectors are no longer switched off per device, and Edit Device is regrouped
 
 The per-device collector switches are gone. They existed to spare small routers
