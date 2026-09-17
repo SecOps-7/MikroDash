@@ -124,7 +124,7 @@ func TestStalenessUsesTheSameArithmeticAsTheUI(t *testing.T) {
 		// A reading with no time on it is UNKNOWN, not old.
 		{"no timestamp", 0, 5000, false},
 	} {
-		if got := isStale(now, tc.ts, tc.pollMs); got != tc.want {
+		if got := IsStale(now, tc.ts, tc.pollMs); got != tc.want {
 			t.Errorf("%s: isStale = %v, want %v", tc.name, got, tc.want)
 		}
 	}
@@ -459,5 +459,62 @@ func TestTheTrafficItemsAreGatedLikeEverythingElse(t *testing.T) {
 		if len(got) != 2 {
 			t.Errorf("denying %q left %d items, expected the other two", deny, len(got))
 		}
+	}
+}
+
+// TestPagesCoversEveryItemBuildCanEmit, and nothing more.
+//
+// The caller resolves permissions from this list before handing Build a lookup.
+// A page Build can emit that is missing here would be resolved as DENIED and the
+// item would silently vanish; a page listed here that Build never emits is a
+// permission query asked for nothing, and on a fleet that is a real cost.
+func TestPagesCoversEveryItemBuildCanEmit(t *testing.T) {
+	rx, tx := 1.0, 2.0
+	full := Snapshot{
+		System:   &collect.SystemPayload{TS: 1000},
+		IfStatus: &collect.IfStatusPayload{TS: 1000, Interfaces: []collect.Interface{{Name: "ether1", Running: true}}},
+		// EACH CARRIES THE MINIMUM THAT MAKES ITS LINE SPEAK. `add` drops an
+		// empty summary, so a payload with nothing in it emits no item and the
+		// reverse-direction assertion below would report a false gap.
+		Firewall: &collect.FirewallPayload{TS: 1000, Filter: []collect.FirewallRule{{}}},
+		VPN:      &collect.VPNPayload{TS: 1000, Tunnels: []collect.Tunnel{{}}},
+		Netwatch: &collect.NetwatchPayload{TS: 1000, Hosts: []collect.NetwatchHost{{Host: "1.1.1.1", Status: "up"}}},
+		Routing:  &collect.RoutingPayload{TS: 1000, Routes: []collect.Route{{}}},
+		DNS:      &collect.DNSPayload{TS: 1000, Available: true},
+		Lan:      &collect.LanPayload{TS: 1000, Networks: []collect.Network{{}}},
+		Wireless: &collect.WirelessPayload{TS: 1000, SSIDs: []collect.WirelessSSID{{}}},
+		WAN: &collect.WANPayload{TS: 1000, DetectionEnabled: true,
+			Wans: []collect.WAN{{Name: "ether1", RxMbps: &rx, TxMbps: &tx}}},
+		Bandwidth: &collect.BandwidthPayload{TS: 1000,
+			Devices: []collect.BandwidthDevice{{SrcIP: "10.0.0.5", TotalMbps: 1}}},
+		Conns: &collect.ConnsPayload{TS: 1000, Total: 5,
+			ProtoCounts: collect.ConnProtoCounts{TCP: 5}},
+	}
+
+	listed := map[string]bool{}
+	for _, p := range Pages() {
+		if listed[p] {
+			t.Errorf("Pages() lists %q twice", p)
+		}
+		listed[p] = true
+	}
+
+	emitted := map[string]bool{}
+	for _, it := range Build(full, 1000, func(string) bool { return true }) {
+		emitted[it.Page] = true
+		if !listed[it.Page] {
+			t.Errorf("Build emits an item on page %q, which Pages() does not list — the "+
+				"caller would resolve it as denied and the item would vanish", it.Page)
+		}
+	}
+	for p := range listed {
+		if !emitted[p] {
+			t.Errorf("Pages() lists %q but a full snapshot emits no item for it — that is a "+
+				"permission query asked for nothing", p)
+		}
+	}
+	if len(emitted) < 10 {
+		t.Fatalf("only %d items from a full snapshot; the fixture stopped exercising Build",
+			len(emitted))
 	}
 }

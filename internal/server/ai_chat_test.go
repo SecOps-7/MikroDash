@@ -300,3 +300,53 @@ func TestNoEmDashes(t *testing.T) {
 		t.Error("the assembled prompt drops the rule when the operator has written their own")
 	}
 }
+
+// TestOnlyStaleOrMissingReadingsAreRefreshed.
+//
+// ── THE POINT OF THIS PATH IS WHAT IT DOES NOT READ ─────────────────────────
+//
+// With the Dashboard open, `system` and `ifStatus` are already current, and
+// re-reading them spends the one resource this app is organised around
+// conserving to learn what it already knows. A version that refreshed
+// everything would look identical from outside and cost a burst per question.
+//
+// The thresholds are aicontext's: a reading outlives its own interval plus a
+// 20s grace, or 90s when the interval is unknown.
+func TestOnlyStaleOrMissingReadingsAreRefreshed(t *testing.T) {
+	const now = int64(1_000_000)
+
+	got := refreshDue([]refreshCandidate{
+		{key: "fresh", present: true, ts: now - 1_000, pollMs: 5_000},
+		{key: "stale", present: true, ts: now - 90_000, pollMs: 5_000},
+		{key: "missing", present: false},
+		// No interval declared, and inside the 90s unknown threshold.
+		{key: "youngUnknown", present: true, ts: now - 30_000, pollMs: 0},
+		// No interval declared, and past it.
+		{key: "oldUnknown", present: true, ts: now - 120_000, pollMs: 0},
+	}, now)
+
+	want := []string{"missing", "oldUnknown", "stale"}
+	if len(got) != len(want) {
+		t.Fatalf("refreshed %v, expected %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("refreshed %v, expected %v", got, want)
+		}
+	}
+
+	// THE CONTROL. Everything current must refresh NOTHING, or the assertion
+	// above would pass just as well against a function that returns every key.
+	if none := refreshDue([]refreshCandidate{
+		{key: "a", present: true, ts: now - 100, pollMs: 5_000},
+		{key: "b", present: true, ts: now - 200, pollMs: 10_000},
+	}, now); len(none) != 0 {
+		t.Errorf("a fully current set still refreshed %v", none)
+	}
+
+	// And a nil session is not a panic: the router can go while a question is
+	// in flight.
+	if got := freshenFor(nil, now); got != nil {
+		t.Errorf("a nil session returned %v", got)
+	}
+}

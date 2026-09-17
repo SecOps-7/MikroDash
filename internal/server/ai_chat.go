@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/safe"
+	"mikrodash/internal/session"
 	"mikrodash/internal/store"
 )
 
@@ -110,17 +112,24 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 	}
 
 	cfg := aiConfigFor(nil, settings)
-	// BUILT ON THIS GOROUTINE, deliberately: it reads the collectors' current
-	// payloads and asks the permission resolver, and both belong to the moment
-	// the question was asked rather than to whenever the model answers.
-	items := aicontext.Build(cn.snapshot(), time.Now().UnixMilli(), func(page string) bool {
-		return cn.canPage(page, "read")
-	})
-	msgs := []aiprovider.ChatMessage{
-		{Role: "system", Content: aiSystemPrompt(settings)},
-		{Role: "system", Content: aicontext.Render(items)},
-		{Role: "user", Content: question},
+
+	// ── PERMISSIONS RESOLVE HERE; THE READING HALF NO LONGER CAN ────────────
+	//
+	// Both used to happen on this goroutine, because both belong to the moment
+	// the question was asked. The snapshot must now wait for a refresh, and a
+	// refresh reads the router SYNCHRONOUSLY, so leaving it here would stall
+	// every frame this browser sends behind a slow device.
+	//
+	// So the permission half stays, materialised as a set. A role edited while
+	// an answer is being composed cannot retroactively widen what this question
+	// was allowed to see, which is the property the old arrangement had for free.
+	allowedPages := make(map[string]bool, len(aicontext.Pages()))
+	for _, page := range aicontext.Pages() {
+		allowedPages[page] = cn.canPage(page, "read")
 	}
+	// AND THE ROUTER IS PINNED for the same reason: a `router:select` landing
+	// mid-answer must not redirect the refresh at another device.
+	rs := cn.rsession
 
 	// ADVERTISED ONCE, FROM THIS VIEWER'S PERMISSIONS. `Permitted` decides what
 	// the model is told exists; the executor re-checks before reading or writing
@@ -137,6 +146,22 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 		// reset each time would bound nothing an operator can feel.
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout())
 		defer cancel()
+
+		// FRESH BEFORE ANSWERING, and only what is out of date. The operator
+		// reported the assistant describing firewall, DNS, DHCP and wireless
+		// readings as STALE: collectors are demand-driven, the AI page serves
+		// none of them, so it was reading whatever other open pages had left
+		// behind.
+		if got := freshenFor(rs, time.Now().UnixMilli()); len(got) > 0 {
+			log.Printf("[ai] refreshed before answering: %s", strings.Join(got, ", "))
+		}
+		items := aicontext.Build(snapshotOf(rs), time.Now().UnixMilli(),
+			func(page string) bool { return allowedPages[page] })
+		msgs := []aiprovider.ChatMessage{
+			{Role: "system", Content: aiSystemPrompt(settings)},
+			{Role: "system", Content: aicontext.Render(items)},
+			{Role: "user", Content: question},
+		}
 
 		text, err := aiChatLoop(msgs, tools,
 			func(m []aiprovider.ChatMessage, tl []any) (aiprovider.Reply, error) {
@@ -234,8 +259,17 @@ func (cn *conn) aiFail(msg string) {
 // no tap on the emit relay, no cache of this package's own, and NOT ONE EXTRA
 // ROUTER READ. A collector that is dormant or has never run returns nil, and
 // `aicontext` turns that into no item rather than into a claim about zero.
-func (cn *conn) snapshot() aicontext.Snapshot {
-	s := cn.rsession
+func (cn *conn) snapshot() aicontext.Snapshot { return snapshotOf(cn.rsession) }
+
+// snapshotOf reads one session's held payloads.
+//
+// TAKES THE SESSION RATHER THAN READING cn.rsession, so a caller that pinned the
+// router when the question arrived cannot be handed a different device's data by
+// a `router:select` that lands while the answer is being composed.
+func snapshotOf(s *session.Session) aicontext.Snapshot {
+	if s == nil {
+		return aicontext.Snapshot{}
+	}
 	return aicontext.Snapshot{
 		System:   s.System().Last(),
 		IfStatus: s.IfStatus().Last(),
@@ -255,6 +289,156 @@ func (cn *conn) snapshot() aicontext.Snapshot {
 		Bandwidth: s.Bandwidth().Last(),
 		Conns:     s.Conns().Last(),
 	}
+}
+
+// aiRefreshBudget bounds the freshening burst before an answer.
+//
+// The reads are issued together and `roslimit` caps what actually reaches the
+// router, so this is a ceiling on the whole burst rather than on each read. Past
+// it the question is answered with what arrived and the rest stay marked STALE:
+// a late answer is worse than an answer that says one of its readings is old.
+const aiRefreshBudget = 6 * time.Second
+
+// freshenFor forces a read of the collectors whose held reading is missing or
+// out of date, and of nothing else.
+//
+// ── ONLY WHAT IS NEEDED ─────────────────────────────────────────────────────
+//
+// With the Dashboard open, `system` and `ifStatus` are already current and
+// re-reading them would spend the one resource this app is organised around
+// conserving to learn what it already knows. In the common case this refreshes
+// nothing at all.
+//
+// Staleness is `aicontext.IsStale`, the same rule the summary uses to LABEL a
+// reading. A second copy here would drift, and the pair would disagree about
+// which readings are old while each looked right alone.
+//
+// ── THREE COLLECTORS CANNOT BE FORCED, AND KEEP SAYING SO ───────────────────
+//
+// `wireless`, `bandwidth` and `conns` expose no RefreshNow, only the scheduler's
+// own Tick, and driving that from a request would run a read outside the
+// scheduler that owns it. They keep whatever the scheduler last produced and
+// stay marked STALE. That is the honest outcome: the marking is what let the
+// operator notice this in the first place, and silencing it would make the next
+// occurrence invisible.
+//
+// Nothing here consults `CollectorEnabled`: a collector can no longer be
+// switched off. `ping` is the one install-wide switch that remains and is not in
+// this set.
+// refreshCandidate is one collector's held reading, as the decision sees it.
+type refreshCandidate struct {
+	key     string
+	present bool
+	ts      int64
+	pollMs  int
+}
+
+// refreshDue picks the readings that are missing or out of date, and no others.
+//
+// ── SEPARATED FROM THE READING SO IT CAN BE TESTED ──────────────────────────
+//
+// "Only refresh what is needed" is the whole point of this path, and as nine
+// inline conditions over a live session it could not be exercised at all. A
+// later change that refreshed everything would look identical from outside and
+// cost a burst of router reads per question.
+func refreshDue(cands []refreshCandidate, now int64) []string {
+	var out []string
+	for _, c := range cands {
+		if !c.present || aicontext.IsStale(now, c.ts, c.pollMs) {
+			out = append(out, c.key)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func freshenFor(rs *session.Session, now int64) []string {
+	if rs == nil {
+		return nil
+	}
+	var cands []refreshCandidate
+	runners := map[string]func(){}
+	note := func(key string, present bool, ts int64, pollMs int, run func()) {
+		cands = append(cands, refreshCandidate{key: key, present: present, ts: ts, pollMs: pollMs})
+		runners[key] = run
+	}
+
+	// The pollMs each reading is judged by is the one `aicontext.Build` passes
+	// for it, so a collector is refreshed exactly when the summary would have
+	// labelled it stale. A payload that is absent entirely counts as due.
+	if p := rs.System().Last(); p != nil {
+		note("system", true, p.TS, p.PollMs, func() { rs.System().RefreshNow() })
+	} else {
+		note("system", false, 0, 0, func() { rs.System().RefreshNow() })
+	}
+	if p := rs.IfStatus().Last(); p != nil {
+		note("ifStatus", true, p.TS, 0, func() { rs.IfStatus().RefreshNow() })
+	} else {
+		note("ifStatus", false, 0, 0, func() { rs.IfStatus().RefreshNow() })
+	}
+	if p := rs.Firewall().Last(); p != nil {
+		note("firewall", true, p.TS, 0, func() { rs.Firewall().RefreshNow() })
+	} else {
+		note("firewall", false, 0, 0, func() { rs.Firewall().RefreshNow() })
+	}
+	if p := rs.VPN().Last(); p != nil {
+		note("vpn", true, p.TS, p.PollMs, func() { rs.VPN().RefreshNow() })
+	} else {
+		note("vpn", false, 0, 0, func() { rs.VPN().RefreshNow() })
+	}
+	if p := rs.Netwatch().Last(); p != nil {
+		note("netwatch", true, p.TS, 0, func() { rs.Netwatch().RefreshNow() })
+	} else {
+		note("netwatch", false, 0, 0, func() { rs.Netwatch().RefreshNow() })
+	}
+	if p := rs.Routing().Last(); p != nil {
+		note("routing", true, p.TS, p.PollMs, func() { rs.Routing().RefreshNow() })
+	} else {
+		note("routing", false, 0, 0, func() { rs.Routing().RefreshNow() })
+	}
+	if p := rs.DNS().Last(); p != nil {
+		note("dns", true, p.TS, p.PollMs, func() { rs.DNS().RefreshNow() })
+	} else {
+		note("dns", false, 0, 0, func() { rs.DNS().RefreshNow() })
+	}
+	if p := rs.DHCPNetworks().Last(); p != nil {
+		note("dhcpNetworks", true, p.TS, p.PollMs, func() { rs.DHCPNetworks().RefreshNow() })
+	} else {
+		note("dhcpNetworks", false, 0, 0, func() { rs.DHCPNetworks().RefreshNow() })
+	}
+	if p := rs.Wan().Last(); p != nil {
+		note("wan", true, p.TS, p.PollMs, func() { rs.Wan().RefreshNow() })
+	} else {
+		note("wan", false, 0, 0, func() { rs.Wan().RefreshNow() })
+	}
+
+	due := refreshDue(cands, now)
+	if len(due) == 0 {
+		return nil
+	}
+
+	// CONCURRENTLY, because each read blocks and `roslimit` is what decides how
+	// many actually reach the router. Serialising them would simply add their
+	// latencies together in front of the operator.
+	done := make(chan string, len(due))
+	for _, key := range due {
+		key, run := key, runners[key]
+		go func() { run(); done <- key }()
+	}
+	out := make([]string, 0, len(due))
+	budget := time.NewTimer(aiRefreshBudget)
+	defer budget.Stop()
+	for range due {
+		select {
+		case k := <-done:
+			out = append(out, k)
+		case <-budget.C:
+			sort.Strings(out)
+			return out
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // aiSafetyPreamble is fixed and cannot be edited by an operator.

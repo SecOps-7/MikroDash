@@ -107,6 +107,29 @@ type Snapshot struct {
 	Conns     *collect.ConnsPayload
 }
 
+// Pages is every page an item can be gated on, in the order Build considers them.
+//
+// ── IT EXISTS SO THE PERMISSION CHECK CAN BE MATERIALISED ───────────────────
+//
+// `Build` asks `can(page)` as it goes, which is fine when it runs on the
+// goroutine that received the question. It no longer does: the snapshot has to
+// wait for a refresh, and a refresh reads the router. So the caller resolves
+// every page UP FRONT, at the moment the question was asked, and hands Build a
+// lookup over the answers.
+//
+// That keeps the property the old arrangement had for free: a role edited while
+// an answer is being composed cannot retroactively widen what that question was
+// allowed to see.
+//
+// `TestPagesCoversEveryItemBuildCanEmit` fails in both directions, so a new item
+// with a page missing from here is caught rather than silently unresolvable.
+func Pages() []string {
+	return []string{
+		"dashboard", "interfaces", "firewall", "vpn", "netwatch", "routing",
+		"dns", "dhcp", "wifi-clients", "wan", "bandwidth", "connections",
+	}
+}
+
 // Build assembles the items this viewer may see.
 //
 // `can` answers "may this viewer READ that page, on the selected router", and
@@ -126,7 +149,7 @@ func Build(s Snapshot, now int64, can func(page string) bool) []Item {
 			Collector:  collector,
 			Page:       page,
 			ObservedAt: ts,
-			Stale:      isStale(now, ts, pollMs),
+			Stale:      IsStale(now, ts, pollMs),
 			Summary:    clean(summary),
 		})
 	}
@@ -170,12 +193,19 @@ func Build(s Snapshot, now int64, can func(page string) bool) []Item {
 	return out
 }
 
-// isStale applies the UI's rule: a reading is old once it has outlived its own
+// IsStale applies the UI's rule: a reading is old once it has outlived its own
 // interval plus the grace.
+//
+// ── EXPORTED SO THERE IS ONE RULE, NOT TWO ──────────────────────────────────
+//
+// The server asks this same question before a question is answered, to decide
+// which collectors to force a fresh read of. A second copy of the arithmetic
+// there would drift from this one, and the pair would disagree about which
+// readings are old while both looked right on their own.
 //
 // A ZERO TIMESTAMP IS NOT STALE, it is unknown, and saying "old" about a reading
 // with no time on it would be a claim the payload does not support.
-func isStale(now, ts int64, pollMs int) bool {
+func IsStale(now, ts int64, pollMs int) bool {
 	if ts <= 0 {
 		return false
 	}
