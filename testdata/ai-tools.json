@@ -154,6 +154,13 @@
       "page": "ppp"
     },
     {
+      "name": "list_queues",
+      "access": "read",
+      "resource": "",
+      "collector": "queues",
+      "page": "queues"
+    },
+    {
       "name": "list_route",
       "access": "read",
       "resource": "route",

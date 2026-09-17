@@ -26,6 +26,7 @@ import (
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/collect"
+	"mikrodash/internal/guard"
 )
 
 // aiLiveMaxAge is how old a FreshLive reading may be before a tool re-reads it.
@@ -49,6 +50,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"wan":      (*conn).liveWanStatus,
 	"packages": (*conn).livePackages,
 	"rosusers": (*conn).liveRouterUsers,
+	"queues":   (*conn).liveQueues,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -457,4 +459,120 @@ func nonNil(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+// ── list_queues ─────────────────────────────────────────────────────────────
+
+// liveQueues forgets the rate baselines before a refresh it has to force.
+//
+// ── A SUSPENDED COLLECTOR KEEPS AN OLD BASELINE ─────────────────────────────
+//
+// Queue rates are byte-counter deltas. `Suspend` does not clear the previous
+// sample, so a queue collector idle for an hour would measure its next rate over
+// the whole hour and report a long average as "now". Forgetting first makes the
+// refreshed reading use RouterOS's own current `rate`, labelled `router`, which
+// is an honest first sample. With the page open no refresh is forced and the
+// measured deltas pass through untouched.
+func (cn *conn) liveQueues(t aitools.Tool) string {
+	col := cn.rsession.Queues()
+	return liveAnswer(t, liveSource[collect.QueuesPayload]{
+		last:  col.Last,
+		stamp: func(p *collect.QueuesPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: func() {
+			col.ForgetRates()
+			col.RefreshNow()
+		},
+		menu:   "/queue/simple",
+		absent: "The queue readings are not available from this router yet.",
+	}, renderQueues)
+}
+
+type liveSimpleQueue struct {
+	Order       int              `json:"order"`
+	Name        string           `json:"name"`
+	Target      string           `json:"target,omitempty"`
+	Parent      string           `json:"parent,omitempty"`
+	PacketMarks string           `json:"packetMarks,omitempty"`
+	Priority    string           `json:"priority,omitempty"`
+	QueueType   string           `json:"queueType,omitempty"`
+	LimitAt     guard.Pair       `json:"limitAtBps"`
+	MaxLimit    guard.Pair       `json:"maxLimitBps"`
+	BurstLimit  guard.Pair       `json:"burstLimitBps"`
+	RateBps     collect.RatePair `json:"rateBps"`
+	RateSource  string           `json:"rateSource,omitempty"`
+	Dropped     collect.IntPair  `json:"droppedPackets"`
+	Disabled    bool             `json:"disabled"`
+	Invalid     bool             `json:"invalid,omitempty"`
+	Dynamic     bool             `json:"dynamic,omitempty"`
+	Comment     string           `json:"comment,omitempty"`
+}
+
+type liveTreeQueue struct {
+	Order               int        `json:"order"`
+	Name                string     `json:"name"`
+	Parent              string     `json:"parent,omitempty"`
+	PacketMark          string     `json:"packetMark,omitempty"`
+	Priority            string     `json:"priority,omitempty"`
+	QueueType           string     `json:"queueType,omitempty"`
+	LimitAt             guard.Rate `json:"limitAtBps"`
+	MaxLimit            guard.Rate `json:"maxLimitBps"`
+	BurstLimit          guard.Rate `json:"burstLimitBps"`
+	RateBps             *float64   `json:"rateBps"`
+	RateSource          string     `json:"rateSource,omitempty"`
+	Dropped             *int       `json:"droppedPackets"`
+	Disabled            bool       `json:"disabled"`
+	Invalid             bool       `json:"invalid,omitempty"`
+	Comment             string     `json:"comment,omitempty"`
+	FasttrackBypassable bool       `json:"bypassedByFasttrack,omitempty"`
+}
+
+// rateSourceText says where a rate came from in words: a measured delta, or
+// RouterOS's own average on a first reading.
+func rateSourceText(s *string) string {
+	if s == nil {
+		return ""
+	}
+	switch *s {
+	case "delta":
+		return "measured"
+	case "router":
+		return "router average, first reading"
+	}
+	return *s
+}
+
+func renderQueues(p *collect.QueuesPayload) any {
+	simple := make([]liveSimpleQueue, 0, len(p.Simple))
+	for _, q := range p.Simple {
+		simple = append(simple, liveSimpleQueue{Order: q.Order, Name: q.Name, Target: q.Target,
+			Parent: q.Parent, PacketMarks: q.PacketMarks, Priority: q.Priority, QueueType: q.QueueType,
+			LimitAt: q.LimitAt, MaxLimit: q.MaxLimit, BurstLimit: q.BurstLimit, RateBps: q.RateBps,
+			RateSource: rateSourceText(q.RateSource), Dropped: q.Dropped, Disabled: q.Disabled,
+			Invalid: q.Invalid, Dynamic: q.Dynamic, Comment: q.Comment})
+	}
+	tree := make([]liveTreeQueue, 0, len(p.Tree))
+	for _, q := range p.Tree {
+		tree = append(tree, liveTreeQueue{Order: q.Order, Name: q.Name, Parent: q.Parent,
+			PacketMark: q.PacketMark, Priority: q.Priority, QueueType: q.QueueType,
+			LimitAt: q.LimitAt, MaxLimit: q.MaxLimit, BurstLimit: q.BurstLimit, RateBps: q.RateBps,
+			RateSource: rateSourceText(q.RateSource), Dropped: q.Dropped, Disabled: q.Disabled,
+			Invalid: q.Invalid, Comment: q.Comment, FasttrackBypassable: q.FasttrackBypassable})
+	}
+	keptS, tS := capRows(simple)
+	keptT, tT := capRows(tree)
+	note := ""
+	switch {
+	case p.Denied:
+		note = "The router refused to list its queues to MikroDash's API user; this is a permission on the router."
+	case !p.Available:
+		note = "The queue tables could not be read, so empty lists below do not mean there are no queues."
+	}
+	return struct {
+		Note      string            `json:"note,omitempty"`
+		Fasttrack collect.Fasttrack `json:"fasttrack"`
+		Stats     string            `json:"statisticsReported,omitempty"`
+		Simple    []liveSimpleQueue `json:"simpleQueues"`
+		Tree      []liveTreeQueue   `json:"queueTree"`
+		Truncated bool              `json:"truncated"`
+	}{note, p.Fasttrack, p.Stats, keptS, keptT, tS || tT}
 }

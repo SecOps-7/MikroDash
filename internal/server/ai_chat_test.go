@@ -5,6 +5,7 @@ import (
 	"errors"
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/collect"
+	"mikrodash/internal/guard"
 	"strings"
 	"testing"
 	"time"
@@ -596,5 +597,36 @@ func TestRenderRouterUsers(t *testing.T) {
 	}
 	if b, _ := json.Marshal(renderRouterUsers(&collect.RosUsersPayload{TS: 1})); !strings.Contains(string(b), "could not be read") {
 		t.Errorf("an unreadable list does not say so: %s", b)
+	}
+}
+
+// TestRenderQueues. Limits, order, rates with their source and FastTrack reach
+// the model; row ids do not; a refused read says why.
+func TestRenderQueues(t *testing.T) {
+	rate, delta := 2_000_000.0, "delta"
+	up := 150
+	p := &collect.QueuesPayload{TS: 1, PollMs: 5_000, Available: true, Stats: "full",
+		Fasttrack: collect.Fasttrack{State: "active", Count: 1},
+		Simple: []collect.SimpleQueue{{ID: "*Q1", Order: 0, Name: "guest-cap", Target: "192.0.2.0/24",
+			MaxLimit: guard.Pair{Up: guard.Rate{Bps: 5_000_000, Set: true}, Down: guard.Rate{Bps: 20_000_000, Set: true}},
+			RateBps:  collect.RatePair{Up: &rate}, RateSource: &delta, Dropped: collect.IntPair{Up: &up}}},
+		Tree: []collect.TreeQueue{{ID: "*T1", Name: "downloads", Parent: "global", FasttrackBypassable: true}},
+	}
+	b, _ := json.Marshal(renderQueues(p))
+	got := string(b)
+	for _, want := range []string{`"name":"guest-cap"`, `"target":"192.0.2.0/24"`,
+		`"maxLimitBps":{"up":5000000,"down":20000000}`, `"rateSource":"measured"`,
+		`"droppedPackets":{"up":150`, `"state":"active"`, `"bypassedByFasttrack":true`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"*Q1", "*T1"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+	if b, _ := json.Marshal(renderQueues(&collect.QueuesPayload{TS: 1, Denied: true})); !strings.Contains(string(b), "permission on the router") {
+		t.Errorf("a refused read does not say so: %s", b)
 	}
 }

@@ -243,6 +243,20 @@ func liveTools() []Tool {
 		Freshness:  FreshMetadata,
 		Page:       "users",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "queues",
+		Description: "Read only. List the router's traffic shaping, read from /queue/simple and " +
+			"/queue/tree in the router's own order (simple queues are first match wins, so " +
+			"order matters): each queue's target or parent, packet marks, priority, queue type, " +
+			"limit-at, max-limit and burst limits in bits per second, live upload and download " +
+			"rate with where the rate came from, dropped packets, and disabled, invalid or " +
+			"dynamic state; plus whether a FastTrack rule is active, which bypasses simple " +
+			"queues. Use it for any bandwidth limit or shaping question.",
+		Parameters: noArgs(),
+		Collector:  "queues",
+		Freshness:  FreshLive,
+		Page:       "queues",
+		Access:     AccessRead,
 	}}
 }
 
