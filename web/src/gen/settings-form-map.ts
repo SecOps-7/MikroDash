@@ -69,14 +69,15 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "aiConfirmWrites"
   ],
   "value": [
-    "alertCpuThreshold",
     "aiBaseUrl",
-    "aiOverviewIntervalSec",
     "aiHeaders",
     "aiModel",
+    "aiOverviewIntervalSec",
     "aiSystemPrompt",
     "aiTimeoutMs",
+    "alertCpuThreshold",
     "alertPingLoss",
+    "dbAiRetentionDays",
     "dbAlertRetentionDays",
     "dbRetentionDays",
     "defaultIf",
@@ -131,6 +132,10 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
   "alertPingLoss": {
     "kind": "bare",
     "expr": "data.alertPingLoss"
+  },
+  "dbAiRetentionDays": {
+    "kind": "undefinedToEmpty",
+    "expr": "data[f] !== undefined ? data[f] : ''"
   },
   "dbAlertRetentionDays": {
     "kind": "undefinedToEmpty",

@@ -126,7 +126,9 @@
     "aiHeaders": "",
     "aiOverviewEnabled": false,
     "aiOverviewIntervalSec": 300,
-    "aiConfirmWrites": true
+    "aiConfirmWrites": true,
+    "aiSystemPrompt": "",
+    "dbAiRetentionDays": 30
   },
   "defaultsOrder": [
     "routerHost",
@@ -254,7 +256,9 @@
     "aiHeaders",
     "aiOverviewEnabled",
     "aiOverviewIntervalSec",
-    "aiConfirmWrites"
+    "aiConfirmWrites",
+    "aiSystemPrompt",
+    "dbAiRetentionDays"
   ],
   "encrypted": [
     "routerPass",

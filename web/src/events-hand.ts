@@ -131,6 +131,11 @@ export interface HandEvents {
   /** A refusal, already sanitised: it can carry the endpoint's host. */
   'ai:error': { error: string };
   /**
+   * The saved conversation for this person on the selected router, oldest first:
+   * the last ten exchanges, which is exactly what the assistant is replayed.
+   */
+  'ai:history': { routerId: string; turns: { role: string; text: string }[] };
+  /**
    * One line for the Agent Overview card, on a cadence.
    *
    * `text` is MODEL OUTPUT and is set with textContent, never as markup.

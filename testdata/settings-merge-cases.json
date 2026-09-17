@@ -131,7 +131,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -267,7 +269,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -403,7 +407,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -540,7 +546,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -677,7 +685,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -814,7 +824,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -951,7 +963,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1088,7 +1102,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1223,7 +1239,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1358,7 +1376,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1493,7 +1513,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1630,7 +1652,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1765,7 +1789,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -1900,7 +1926,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2035,7 +2063,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2170,7 +2200,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2306,7 +2338,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2442,7 +2476,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2577,7 +2613,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2712,7 +2750,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2847,7 +2887,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     },
     {
@@ -2983,7 +3025,9 @@
         "aiHeaders": "",
         "aiOverviewEnabled": false,
         "aiOverviewIntervalSec": 300,
-        "aiConfirmWrites": true
+        "aiConfirmWrites": true,
+        "aiSystemPrompt": "",
+        "dbAiRetentionDays": 30
       }
     }
   ]

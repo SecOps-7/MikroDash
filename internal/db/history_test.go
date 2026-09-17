@@ -9,7 +9,10 @@ import (
 	"testing"
 )
 
-// The three sample tables, copied from the src/db.js migrations. The audit
+// The sample tables, copied from the src/db.js migrations — plus `ai_messages`,
+// which this port added and live never had. It is here because `Prune` DELETEs
+// from every rule's table: a fixture missing one makes every prune test fail as
+// "no such table" rather than measure anything. The audit
 // helper in db_test.go creates its own table and not these, because a helper
 // that created every table would let a test pass while naming none of them.
 const historyDDL = `
@@ -92,6 +95,15 @@ CREATE TABLE report_runs (
   error        TEXT
 );
 CREATE INDEX idx_report_runs_sched ON report_runs (schedule_id, ran_at DESC);
+CREATE TABLE ai_messages (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts        INTEGER NOT NULL,
+  user_id   TEXT    NOT NULL,
+  router_id TEXT    NOT NULL,
+  role      TEXT    NOT NULL CHECK (role IN ('user','assistant')),
+  text      TEXT    NOT NULL
+);
+CREATE INDEX idx_ai_messages_thread ON ai_messages(user_id, router_id, ts);
 `
 
 type historyCases struct {

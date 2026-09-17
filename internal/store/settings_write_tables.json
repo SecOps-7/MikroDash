@@ -113,6 +113,10 @@
       1,
       3650
     ],
+    "dbAiRetentionDays": [
+      1,
+      3650
+    ],
     "pollTopology": [
       5000,
       600000

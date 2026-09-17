@@ -48,8 +48,23 @@ func loadPruneCorpus(t *testing.T) pruneCorpus {
 func TestThePruneMappingMatchesLive(t *testing.T) {
 	c := loadPruneCorpus(t)
 
-	if len(pruneRules) != len(c.Tables) {
-		t.Fatalf("the port prunes %d tables, live prunes %d", len(pruneRules), len(c.Tables))
+	// ── ONLY THE LIFTED RULES ARE COMPARED ──────────────────────────────────
+	//
+	// This corpus is a RECORDING of an app that no longer exists, and it is
+	// compared positionally. A rule this port added has nothing in it to compare
+	// against, so appending one would fail the length check below before a single
+	// table was examined — and widening the corpus to accommodate it would stop
+	// it answering "does the port prune what live pruned", which is the only
+	// question it can answer. Port-added rules are held by
+	// TestPortAddedPruneRulesAreRecorded instead.
+	lifted := []pruneRule{}
+	for _, r := range pruneRules {
+		if !r.portAdded {
+			lifted = append(lifted, r)
+		}
+	}
+	if len(lifted) != len(c.Tables) {
+		t.Fatalf("the port prunes %d lifted tables, live prunes %d", len(lifted), len(c.Tables))
 	}
 	// The cutoff each lifted name resolves to, so "which policy" is compared
 	// rather than just "which table".
@@ -69,7 +84,7 @@ func TestThePruneMappingMatchesLive(t *testing.T) {
 	}
 
 	for i, want := range c.Tables {
-		got := pruneRules[i]
+		got := lifted[i]
 		if got.table != want.Table {
 			t.Errorf("rule %d prunes %q, live prunes %q", i, got.table, want.Table)
 			continue
@@ -108,15 +123,73 @@ func TestThePruneMappingMatchesLive(t *testing.T) {
 	}
 }
 
+// portAddedPrunes: every rule this port added, with why live has no counterpart.
+//
+// Named here rather than derived from the `portAdded` flag, so the flag alone
+// cannot admit a rule. Marking one `portAdded` excuses it from the parity
+// comparison above — and a flag that excused a rule from scrutiny AND recorded
+// it would be a way to add a DELETE that nothing checks.
+var portAddedPrunes = map[string]string{
+	"ai_messages": "the assistant's conversation history (#98). Live had no assistant, so the " +
+		"recording holds nothing to compare against. It ages faster than everything else here " +
+		"because a transcript is personal rather than operational: it is what somebody asked " +
+		"about their own network, and it earns its keep only while it is still that conversation",
+}
+
+// TestPortAddedPruneRulesAreRecorded — BOTH DIRECTIONS.
+//
+// An unrecorded port-added rule is a DELETE nobody reviewed. A recorded one that
+// has gone is a note describing a table that is no longer touched. And a rule
+// recorded here that is ALSO in the lifted corpus would mean the same table was
+// being checked two ways, one of which excuses it from the parity comparison.
+func TestPortAddedPruneRulesAreRecorded(t *testing.T) {
+	c := loadPruneCorpus(t)
+	inCorpus := map[string]bool{}
+	for _, tb := range c.Tables {
+		inCorpus[tb.Table] = true
+	}
+
+	added := map[string]bool{}
+	for _, r := range pruneRules {
+		if !r.portAdded {
+			continue
+		}
+		added[r.table] = true
+		if _, ok := portAddedPrunes[r.table]; !ok {
+			t.Errorf("%s is pruned by a port-added rule that nothing records — it is exempt "+
+				"from the parity comparison, so this ledger is the only thing that reviews it",
+				r.table)
+		}
+		if inCorpus[r.table] {
+			t.Errorf("%s is marked portAdded but the live recording prunes it too; it should be "+
+				"compared against the recording, not excused from it", r.table)
+		}
+	}
+	for table := range portAddedPrunes {
+		if !added[table] {
+			t.Errorf("%s is recorded as a port-added prune rule, and no such rule exists — "+
+				"either it was removed, or it lost its portAdded flag and is now being "+
+				"compared positionally against a recording that does not contain it", table)
+		}
+	}
+	if len(added) == 0 {
+		t.Error("no port-added rules found; this ledger is measuring nothing")
+	}
+}
+
 // ZERO IS NOT "KEEP NOTHING". The live expression is `x || 90`, so a settings
 // file that has never had the field written keeps ninety days rather than
 // deleting the entire history. On a delete path this is the difference between
 // a no-op and an unrecoverable one.
 func TestZeroAndNegativeRetentionTakeTheDefault(t *testing.T) {
-	for _, p := range []PruneDays{{}, {Metric: 0, Alert: 0, Audit: 0}, {Metric: -1, Alert: -7, Audit: -365}} {
-		if p.MetricDays() != 90 || p.AlertDays() != 365 || p.AuditDays() != 365 {
-			t.Errorf("%+v resolved to %d/%d/%d, want 90/365/365",
-				p, p.MetricDays(), p.AlertDays(), p.AuditDays())
+	for _, p := range []PruneDays{
+		{},
+		{Metric: 0, Alert: 0, Audit: 0, AI: 0},
+		{Metric: -1, Alert: -7, Audit: -365, AI: -30},
+	} {
+		if p.MetricDays() != 90 || p.AlertDays() != 365 || p.AuditDays() != 365 || p.AIDays() != 30 {
+			t.Errorf("%+v resolved to %d/%d/%d/%d, want 90/365/365/30",
+				p, p.MetricDays(), p.AlertDays(), p.AuditDays(), p.AIDays())
 		}
 	}
 	if (PruneDays{Metric: 7}).MetricDays() != 7 {
@@ -136,7 +209,7 @@ func TestPruneDeletesOnlyWhatIsOlderThanItsOwnPolicy(t *testing.T) {
 	d := openTestDB(t)
 	const now int64 = 1_800_000_000_000
 	day := int64(msPerDay)
-	p := PruneDays{Metric: 10, Alert: 100, Audit: 200}
+	p := PruneDays{Metric: 10, Alert: 100, Audit: 200, AI: 300}
 
 	// Each table with the column the sweep ages it on, the policy that governs
 	// it, and a full INSERT — the real schema has NOT NULL columns, so a
@@ -160,6 +233,9 @@ func TestPruneDeletesOnlyWhatIsOlderThanItsOwnPolicy(t *testing.T) {
 		{"audit_events", 200,
 			`INSERT INTO audit_events (ts, actor_id, actor_name, action, scope, outcome)
 			 VALUES (?, 'u1', 'someone', 'test.action', 'app', 'ok')`, nil},
+		{"ai_messages", 300,
+			`INSERT INTO ai_messages (ts, user_id, router_id, role, text)
+			 VALUES (?, 'u1', 'r1', 'user', 'which interface is my WAN?')`, nil},
 	}
 
 	for _, s := range seeds {

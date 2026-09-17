@@ -19,6 +19,7 @@ export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
   "aiTimeoutMs": [1000, 600000],
   "alertCpuThreshold": [1, 100],
   "alertPingLoss": [1, 100],
+  "dbAiRetentionDays": [1, 3650],
   "dbAlertRetentionDays": [1, 3650],
   "dbRetentionDays": [1, 3650],
   "firewallTopN": [1, 50],

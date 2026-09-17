@@ -8,12 +8,14 @@
  * is the rule rather than a habit: the text arrives from a model that has been
  * reading device-supplied names, so it is untrusted twice over.
  *
- * ── THE CONVERSATION IS NOT SAVED ───────────────────────────────────────────
+ * ── THE CONVERSATION IS SAVED, PER PERSON PER ROUTER ────────────────────────
  *
- * It lives in this array and nowhere else. No localStorage, no database, no
- * replay on reconnect. A transcript contains host names, addresses and the shape
- * of somebody's network, and the decision recorded in the design was that none
- * of it should accumulate anywhere for the sake of scrollback.
+ * It used not to be, and every question was a first question: the assistant
+ * could not be asked a follow-up. The server now keeps the visible turns (never
+ * tool calls or their results) in the database and replays the last ten
+ * exchanges with each question. This page shows the same ten, loaded whenever a
+ * router becomes active, so what is on screen is what the assistant remembers.
+ * Clear deletes the thread on the server, not just this copy of it.
  *
  * ── ONE QUESTION AT A TIME ──────────────────────────────────────────────────
  *
@@ -60,7 +62,7 @@ const PUNS: readonly string[] = [
 
 
 export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boolean): void {
-  /** Kept so a page change can redraw what is on screen. Never persisted. */
+  /** What is on screen. The saved copy is the server's; see `ai:history`. */
   const turns: { role: Role; text: string }[] = [];
   let waiting = false;
 
@@ -290,7 +292,37 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     turns.length = 0;
     setWaiting(false);
     redraw();
+    // THE SERVER'S COPY TOO. Emptying only this array would leave the assistant
+    // remembering a conversation the operator has just watched disappear.
+    socket.emit('ai:clear', {});
   });
+
+  // ── THE SAVED THREAD ──────────────────────────────────────────────────────
+  //
+  // Asked for on `router:active` rather than on connect, because the server
+  // sends that only once it has processed the select: asking earlier would
+  // fetch the thread for no router, or for the previous one.
+  socket.on('ai:history', (d) => {
+    // AN ANSWER IN FLIGHT KEEPS THE SCREEN. Replacing it would drop the question
+    // bubble that answer belongs under; the reply arrives and is appended.
+    if (waiting) return;
+    turns.length = 0;
+    for (const t of d.turns) {
+      turns.push({ role: t.role === 'user' ? 'you' : 'assistant', text: t.text });
+    }
+    redraw();
+  });
+  let historyRouter = '';
+  socket.on('router:active', (d) => {
+    const id = (d && d.activeId) || '';
+    if (!id || id === historyRouter) return;
+    historyRouter = id;
+    // ANOTHER ROUTER, ANOTHER CONVERSATION. An answer still outstanding belongs
+    // to the device it was asked about and is saved there by the server.
+    setWaiting(false);
+    socket.emit('ai:history', {});
+  });
+  socket.on('disconnect', () => { historyRouter = ''; });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail === 'ai-agent') redraw();

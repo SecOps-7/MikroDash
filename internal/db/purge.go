@@ -49,6 +49,10 @@ var routerPurgeExcluded = map[string]string{
 	"audit_events": "the trail is absent from every purge path by design, so a row cannot be " +
 		"withdrawn short of age-based retention. Removing a router must not erase the record " +
 		"of who removed it",
+	"ai_messages": "a conversation belongs to the person who had it, not to the router it was " +
+		"about. Removing a router from the fleet is maintenance, and it must not delete " +
+		"somebody's transcript as a side effect. Age (prune.go, the only port-added rule) and " +
+		"the operator clearing their own thread are the two things that remove one",
 }
 
 // DeleteRouterData clears every time-series table for one router, in ONE

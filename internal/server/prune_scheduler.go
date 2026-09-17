@@ -153,6 +153,7 @@ func (s *Server) runPrune() {
 			{Key: "metricsDays", Value: p.MetricDays()},
 			{Key: "eventsDays", Value: p.AlertDays()},
 			{Key: "auditDays", Value: p.AuditDays()},
+			{Key: "aiDays", Value: p.AIDays()},
 		},
 	})
 }
@@ -188,5 +189,6 @@ func (s *Server) retentionPolicy() db.PruneDays {
 		Metric: get("dbRetentionDays"),
 		Alert:  get("dbAlertRetentionDays"),
 		Audit:  get("dbAuditRetentionDays"),
+		AI:     get("dbAiRetentionDays"),
 	}
 }

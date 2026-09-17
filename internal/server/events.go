@@ -34,6 +34,7 @@ var (
 // Map payloads, whose browser types are hand-written in web/src/events-hand.ts.
 var (
 	EvAIError            = hub.Declare[map[string]any]("ai:error")
+	EvAIHistory          = hub.Declare[map[string]any]("ai:history")
 	EvAIOverview         = hub.Declare[map[string]any]("ai:overview")
 	EvAIPropose          = hub.Declare[map[string]any]("ai:propose")
 	EvAIReply            = hub.Declare[map[string]any]("ai:reply")

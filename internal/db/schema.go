@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 17
+const schemaVersion = 18
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -73,6 +73,22 @@ var portMigrations = map[int][]string{
 		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
 		 VALUES ('operator', 'ai-agent', 'read')`,
 	},
+	// 18: the assistant's conversation history, per person per router.
+	//
+	// Scoped to BOTH because a thread that followed a router switch would hand
+	// the model one device's discussion while it answered about another, and it
+	// would do so confidently. Scoped to the person because a transcript is
+	// theirs: it holds the questions they asked about their network.
+	18: {`CREATE TABLE IF NOT EXISTS ai_messages (
+          id        INTEGER PRIMARY KEY AUTOINCREMENT,
+          ts        INTEGER NOT NULL,
+          user_id   TEXT    NOT NULL,
+          router_id TEXT    NOT NULL,
+          role      TEXT    NOT NULL CHECK (role IN ('user','assistant')),
+          text      TEXT    NOT NULL
+        )`,
+		`CREATE INDEX IF NOT EXISTS idx_ai_messages_thread
+         ON ai_messages(user_id, router_id, ts)`},
 }
 
 // createSchema builds a new database at `path`.

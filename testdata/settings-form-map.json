@@ -52,14 +52,15 @@
       "aiConfirmWrites"
     ],
     "value": [
-      "alertCpuThreshold",
       "aiBaseUrl",
-      "aiOverviewIntervalSec",
       "aiHeaders",
       "aiModel",
+      "aiOverviewIntervalSec",
       "aiSystemPrompt",
       "aiTimeoutMs",
+      "alertCpuThreshold",
       "alertPingLoss",
+      "dbAiRetentionDays",
       "dbAlertRetentionDays",
       "dbRetentionDays",
       "defaultIf",
@@ -112,6 +113,10 @@
     "alertPingLoss": {
       "kind": "bare",
       "expr": "data.alertPingLoss"
+    },
+    "dbAiRetentionDays": {
+      "kind": "undefinedToEmpty",
+      "expr": "data[f] !== undefined ? data[f] : ''"
     },
     "dbAlertRetentionDays": {
       "kind": "undefinedToEmpty",

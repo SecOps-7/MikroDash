@@ -408,6 +408,11 @@ func (cn *conn) dispatch(in inbound) {
 	// changes a router. See internal/aitools.
 	case "ai:ask":
 		cn.aiAsk(in.Data)
+	// The saved conversation for this person on this router, and deleting it.
+	case "ai:history":
+		cn.aiHistoryLoad(in.Data)
+	case "ai:clear":
+		cn.aiClear(in.Data)
 	// The operator's answer to a change the assistant proposed. The token is
 	// single use and belongs to this socket; everything else about the write is
 	// re-derived server-side, so neither frame carries values to be trusted.

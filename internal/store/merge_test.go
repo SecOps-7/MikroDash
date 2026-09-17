@@ -96,6 +96,26 @@ func TestMergeMatchesTheLiveLoad(t *testing.T) {
 	t.Logf("%d merge cases, %d keys each", len(f.Cases), len(f.Cases[0].Merged))
 }
 
+// TestPortAddedKeysSurviveTheMerge.
+//
+// ── A KEY WITH NO DEFAULT IS DROPPED ON READ ────────────────────────────────
+//
+// `aiSystemPrompt` shipped writable and was never registered as a default, so
+// Merge discarded it and the operator's custom prompt never reached the model:
+// saved, reloaded as empty, and the built-in prompt used every time. Every test
+// at the time checked the write path or `aiSystemPrompt()` given a hand-built
+// map, and none crossed Merge. The merge corpus cannot catch the next one either,
+// because it only knows the keys it was recorded with.
+func TestPortAddedKeysSurviveTheMerge(t *testing.T) {
+	stored := Settings{"aiSystemPrompt": "You are MikroDash.", "dbAiRetentionDays": float64(7)}
+	got, _ := Merge(stored, func(string) (string, bool) { return "", false }, nil)
+	for k, want := range stored {
+		if got[k] != want {
+			t.Errorf("%s was stored as %#v and merged as %#v", k, want, got[k])
+		}
+	}
+}
+
 // TestTheTablesAreThePortsOnlyCopy — a floor under the generated asset, so a
 // truncated or half-written file fails loudly instead of merging almost nothing.
 func TestTheTablesAreThePortsOnlyCopy(t *testing.T) {

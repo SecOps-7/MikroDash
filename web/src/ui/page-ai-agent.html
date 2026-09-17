@@ -9,7 +9,7 @@
           <div class="hdr-actions">
             <button id="aiAgentClear" class="sbtn sbtn-ghost" type="button"
                     style="padding:.3rem .8rem;font-size:.72rem"
-                    title="Clear this conversation. It is never saved, and reloading the page clears it too.">
+                    title="Delete this conversation. The assistant forgets it too.">
               Clear
             </button>
           </div>
@@ -87,8 +87,9 @@
            question and the router summary went to the configured endpoint. -->
       <p style="font-size:.71rem;color:var(--text-muted);margin:.7rem .2rem 0">
         Questions and a summary of this router are sent to the endpoint configured in
-        Settings &rarr; AI Agent. Conversations are never saved: they are held in this page
-        only, and reloading clears them.
+        Settings &rarr; AI Agent. Your conversation about each router is saved so the
+        assistant can follow up; Clear deletes it, and it expires after the chat history
+        retention set in Settings &rarr; Data Retention (30 days by default).
       </p>
     </div>
   </div>

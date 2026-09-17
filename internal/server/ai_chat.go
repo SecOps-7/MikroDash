@@ -11,6 +11,7 @@ import (
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/db"
 	"mikrodash/internal/safe"
 	"mikrodash/internal/session"
 	"mikrodash/internal/store"
@@ -130,6 +131,9 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 	// AND THE ROUTER IS PINNED for the same reason: a `router:select` landing
 	// mid-answer must not redirect the refresh at another device.
 	rs := cn.rsession
+	// THE THREAD IS PINNED WITH IT. The question is saved under the router it was
+	// asked about, even if the operator has switched away by the time it lands.
+	histUser, histRouter := cn.aiHistoryUser(), cn.routerID
 
 	// ADVERTISED ONCE, FROM THIS VIEWER'S PERMISSIONS. `Permitted` decides what
 	// the model is told exists; the executor re-checks before reading or writing
@@ -160,8 +164,16 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 		msgs := []aiprovider.ChatMessage{
 			{Role: "system", Content: aiSystemPrompt(settings)},
 			{Role: "system", Content: aicontext.Render(items)},
-			{Role: "user", Content: question},
 		}
+		// ── THE CONVERSATION SO FAR, BETWEEN THE CONTEXT AND THE QUESTION ────
+		//
+		// After both system messages rather than between them, so every endpoint
+		// sees one system block followed by an ordinary alternating exchange;
+		// some OpenAI-compatible servers merge or reject a system message that
+		// arrives mid-conversation. The fresh readings still precede everything
+		// said about them, which is the order a person would read them in.
+		msgs = append(msgs, cn.srv.aiHistory(histUser, histRouter)...)
+		msgs = append(msgs, aiprovider.ChatMessage{Role: "user", Content: question})
 
 		text, err := aiChatLoop(msgs, tools,
 			func(m []aiprovider.ChatMessage, tl []any) (aiprovider.Reply, error) {
@@ -176,11 +188,116 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 			cn.aiFail(msg)
 			return
 		}
+		// SAVED ONLY ONCE ANSWERED. A question that failed is not part of the
+		// conversation: replaying it would leave the model a turn it never
+		// answered, and the operator will usually ask it again anyway.
+		cn.srv.aiRemember(histUser, histRouter, question, text)
 		EvAIReply.Send(cn.srv.hub, cn.c, map[string]any{
 			"text":  text,
 			"model": cfg.Model,
 		})
 	}()
+}
+
+// aiHistoryTurns is how many question-and-answer pairs are replayed.
+//
+// Ten, with no size cap, as the operator chose. A pair is two rows, so the query
+// asks for twenty.
+const aiHistoryTurns = 10
+
+// aiHistoryUser is the identity a conversation is filed under, or "" for none.
+//
+// ── THE ID, NOT THE USERNAME ────────────────────────────────────────────────
+//
+// `user_layouts.user_id` holds the id, and this is the same kind of row: the
+// operator's own data. A renamed account keeps its conversations.
+//
+// ── NO RECORD MEANS NO HISTORY, NOT THE SHARED IDENTITY ─────────────────────
+//
+// `layoutUser` falls back to `_shared` for a username with no record, which is
+// right for a preference and wrong here: a shared transcript would hand one
+// person's questions to whoever asked next. The one exception is authMode
+// "none", where there IS only one identity and nobody else to hand it to.
+func (cn *conn) aiHistoryUser() string {
+	if cn.sess == nil {
+		return ""
+	}
+	if cn.sess.AuthMode == "none" {
+		return db.SharedLayoutUser
+	}
+	return cn.srv.userIDFor(cn.sess.Username)
+}
+
+// aiHistory is the saved thread as chat messages, oldest first.
+//
+// A read failure costs the memory and not the answer: it is logged and the
+// question goes out on its own, as every question did before history existed.
+func (s *Server) aiHistory(user, routerID string) []aiprovider.ChatMessage {
+	out := []aiprovider.ChatMessage{}
+	if user == "" || routerID == "" || s.auditDB == nil {
+		return out
+	}
+	rows, err := s.auditDB.RecentAIMessages(user, routerID, aiHistoryTurns*2)
+	if err != nil {
+		log.Printf("[ai] history unreadable, answering without it: %v", err)
+		return out
+	}
+	for _, m := range rows {
+		out = append(out, aiprovider.ChatMessage{Role: m.Role, Content: m.Text})
+	}
+	return out
+}
+
+// aiRemember saves one answered exchange. Failures are logged, never shown: the
+// operator already has the answer, which is the part they asked for.
+func (s *Server) aiRemember(user, routerID, question, answer string) {
+	if user == "" || routerID == "" || s.auditDB == nil {
+		return
+	}
+	if err := s.auditDB.AppendAIMessage(user, routerID, db.AIRoleUser, question); err != nil {
+		log.Printf("[ai] question not saved: %v", err)
+		return // never an answer without the question it answers
+	}
+	if err := s.auditDB.AppendAIMessage(user, routerID, db.AIRoleAssistant, answer); err != nil {
+		log.Printf("[ai] answer not saved: %v", err)
+	}
+}
+
+// aiHistoryLoad is the handler behind `ai:history`: the saved thread for this
+// person on the selected router, so the page shows what the assistant remembers.
+func (cn *conn) aiHistoryLoad(json.RawMessage) {
+	if !cn.canPage("ai-agent", "read") {
+		return
+	}
+	cn.aiSendHistory()
+}
+
+// aiClear is the handler behind `ai:clear`: it deletes the thread, not just the
+// page's copy of it. Scoped by `DeleteAIThread` to this person and this router.
+func (cn *conn) aiClear(json.RawMessage) {
+	if !cn.canPage("ai-agent", "read") {
+		return
+	}
+	if user := cn.aiHistoryUser(); user != "" && cn.routerID != "" && cn.srv.auditDB != nil {
+		if _, err := cn.srv.auditDB.DeleteAIThread(user, cn.routerID); err != nil {
+			log.Printf("[ai] clear failed: %v", err)
+			cn.aiFail("The conversation could not be cleared.")
+			return
+		}
+	}
+	cn.aiSendHistory()
+}
+
+func (cn *conn) aiSendHistory() {
+	user := cn.aiHistoryUser()
+	turns := []map[string]any{}
+	for _, m := range cn.srv.aiHistory(user, cn.routerID) {
+		turns = append(turns, map[string]any{"role": m.Role, "text": m.Content})
+	}
+	EvAIHistory.Send(cn.srv.hub, cn.c, map[string]any{
+		"routerId": cn.routerID,
+		"turns":    turns,
+	})
 }
 
 // aiMaxToolIterations caps how many rounds of tool calls one question may drive.
