@@ -216,6 +216,18 @@
       "page": "queues"
     },
     {
+      "name": "list_rosGroup",
+      "access": "read",
+      "resource": "rosGroup",
+      "page": "users"
+    },
+    {
+      "name": "list_rosUser",
+      "access": "read",
+      "resource": "rosUser",
+      "page": "users"
+    },
+    {
       "name": "list_route",
       "access": "read",
       "resource": "route",

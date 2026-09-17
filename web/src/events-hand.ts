@@ -237,7 +237,6 @@ export interface HandEvents {
     actions: string[]; values: Record<string, unknown>; options: Record<string, string[]>;
   };
   'res:schema': ResSchema;
-  'rosusers:caps': { permitted: boolean; routerName: string };
   'rosusers:error': { code: string; name?: string; message?: string; minLength?: number };
   'rosusers:ok': { action: string; name: string };
   'router:active': { activeId: string };

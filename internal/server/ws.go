@@ -439,14 +439,6 @@ func (cn *conn) dispatch(in inbound) {
 		cn.resMove(in.Data)
 	// Router Users is six handlers of its own rather than registry resources:
 	// see internal/server/rosusers.go for why.
-	case "rosuser:save":
-		cn.ruUserSave(in.Data)
-	case "rosuser:remove":
-		cn.ruUserRemove(in.Data)
-	case "rosgroup:save":
-		cn.ruGroupSave(in.Data)
-	case "rosgroup:remove":
-		cn.ruGroupRemove(in.Data)
 	case "rossession:remove":
 		cn.ruSessionRemove(in.Data)
 	// Queues is five handlers of its own, for the same reason Router Users is:
@@ -1023,13 +1015,6 @@ func (cn *conn) resumePage(page string) {
 			collect.EvVpnUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
 	case "users":
-		// The caps go FIRST. The page draws its buttons from `permitted`, and a
-		// payload arriving before them renders a read-only table that then has to
-		// be redrawn — visible as a flicker on every visit.
-		EvRosusersCaps.Send(cn.srv.hub, cn.c, map[string]any{
-			"permitted":  cn.canPage("users", "write"),
-			"routerName": cn.rsession.Label,
-		})
 		if last := cn.rsession.RosUsers().Last(); last != nil {
 			replay := *last
 			replay.TS = time.Now().UnixMilli()

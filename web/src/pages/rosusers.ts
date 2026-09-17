@@ -16,6 +16,13 @@
 // which re-reads from the router rather than trusting anything on this page —
 // because a page can be stale, and a request can be crafted.
 //
+// ── USERS AND GROUPS ARE RESOURCES ─────────────────────────────────────────
+//
+// `rosUser` and `rosGroup` are written through the resource engine: a row opens
+// the engine's dialog, the Add slot is the engine's, and the lockout guard is
+// `selfAccount`, which REFUSES rather than warns. Ending a session is not a row
+// write and stays here (`rossession:remove`).
+//
 // ── THE STATUS LINE ─────────────────────────────────────────────────────────
 //
 // `setStatus` writes `ruActionNote`, and so does `render()` — which runs again
@@ -30,10 +37,10 @@
 // success, and reported that as ToDo item 5. `7e5ac8e` fixed it on all three
 // pages, and this follows. Reproduce, report, follow — three rounds of it.
 
-import { esc, el, renderSortHeader, sortMul, type SortCol, type SortState } from '../dom';
+import { esc, el, renderSortHeader, sortMul, resRow, type SortCol, type SortState } from '../dom';
+import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
-import type { RosUser, RosGroup, RosUsersPayload } from '../gen/payloads';
-import type { HandEvents } from '../events-hand';
+import type { RosUsersPayload } from '../gen/payloads';
 
 // A KEYLESS COLUMN IS NOT SORTABLE — see renderSortHeader. The action column is
 // the only one here that must never be.
@@ -64,7 +71,9 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
   const sessTb: HTMLElement = sessTbEl;
 
   let data: RosUsersPayload | null = null;
-  let caps: HandEvents['rosusers:caps'] = { permitted: false, routerName: '' };
+  // Whether this viewer may write, from the engine's schema answer. Ending a
+  // session needs the same page-write permission as editing a user.
+  const writable: Record<string, boolean> = {};
   let tab = 'users';
   // The id of the row with an action in flight. Cleared by the next payload or
   // by any answer from the server, so a failed action never leaves a button
@@ -153,8 +162,6 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
    */
   const PENDING: Record<string, string> = {
     'session-remove': 'Closing\u2026',
-    'user-remove': 'Removing\u2026',
-    'group-remove': 'Removing\u2026',
   };
 
   function btn(act: string, id: string, name: string, label: string, cls?: string): string {
@@ -180,17 +187,13 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       const status = u.disabled ? '<span class="wl-band wl-band-24">disabled</span>'
         : u.expired ? '<span style="color:var(--text-muted)">expired</span>'
         : '<span class="wl-band wl-band-6">enabled</span>';
-      return '<tr>' +
+      return '<tr' + (u.protected ? '' : resRow(u.id, u.name, 'rosUser')) + '>' +
         '<td>' + esc(u.name) + (u.comment ? '<div class="muted-note">' + esc(u.comment) + '</div>' : '') + '</td>' +
         '<td>' + esc(u.group) + '</td>' +
         '<td>' + (u.address ? esc(u.address) : dash()) + '</td>' +
         '<td style="color:var(--text-muted)">' + (u.lastLogin ? esc(u.lastLogin) : dash()) + '</td>' +
         '<td>' + status + '</td>' +
-        '<td>' + (u.protected ? lockCell('account')
-          : !caps.permitted ? ''
-          : btn('user-edit', u.id, u.name, 'Edit') + ' ' +
-            btn('user-toggle', u.id, u.name, u.disabled ? 'Enable' : 'Disable') + ' ' +
-            btn('user-remove', u.id, u.name, 'Remove', 'danger')) + '</td>' +
+        '<td>' + (u.protected ? lockCell('account') : '') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" class="empty-state">' +
       (term ? 'No users match that search.' : 'Waiting for user data&hellip;') + '</td></tr>';
@@ -213,14 +216,11 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       const pol = g.granted.length
         ? g.granted.map((p) => '<span class="wl-band wl-band-5" style="margin:0 .15rem .15rem 0">' + esc(p) + '</span>').join('')
         : '<span class="muted-note">no permissions</span>';
-      return '<tr>' +
+      return '<tr' + (g.protected ? '' : resRow(g.id, g.name, 'rosGroup')) + '>' +
         '<td>' + esc(g.name) + (g.comment ? '<div class="muted-note">' + esc(g.comment) + '</div>' : '') + '</td>' +
         '<td>' + pol + '</td>' +
         '<td>' + g.members + '</td>' +
-        '<td>' + (g.protected ? lockCell('group')
-          : !caps.permitted ? ''
-          : btn('group-edit', g.id, g.name, 'Edit') + ' ' +
-            btn('group-remove', g.id, g.name, 'Remove', 'danger')) + '</td>' +
+        '<td>' + (g.protected ? lockCell('group') : '') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="4" class="empty-state">' +
       (term ? 'No groups match that search.' : 'Waiting for group data&hellip;') + '</td></tr>';
@@ -245,7 +245,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       '<td>' + esc(x.group || '—') + '</td>' +
       '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : dash()) + '</td>' +
       '<td>' + (x.protected ? lockCell('session')
-        : !caps.permitted ? ''
+        : !writable.rosUser ? ''
         : btn('session-remove', x.id, x.name, 'End Session', 'danger')) + '</td>' +
       '</tr>').join('') : '<tr><td colspan="6" class="empty-state">' +
       (term ? 'No sessions match that search.' : 'Nobody is logged in.') + '</td></tr>';
@@ -301,15 +301,12 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     if (tab !== 'groups') renderGroups();
     if (tab !== 'sessions') renderSessions();
 
-    const add = el('ruAddBtn');
-    if (add) {
-      add.textContent = tab === 'groups' ? '+ Add Group' : '+ Add User';
-      add.style.display = (caps.permitted && tab !== 'sessions') ? '' : 'none';
-    }
+    const slot = el('ruAddSlot');
+    if (slot) slot.style.display = tab === 'sessions' ? 'none' : '';
     const note = el('ruActionNote');
     // Never clears a message it did not write — see setStatus.
     if (note && !note.dataset.status) {
-      note.textContent = caps.permitted ? '' : 'read-only — you do not have write access to this router';
+      note.textContent = writable.rosUser ? '' : 'read-only — you do not have write access to this router';
     }
     renderNotice();
     renderSummary();
@@ -335,77 +332,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     }
   }
 
-  // ── Dialogs ───────────────────────────────────────────────────────────────
-
-  function formError(id: string, msg: string): void {
-    const e = el(id);
-    if (!e) return;
-    e.textContent = msg;
-    e.style.display = '';
-  }
-
-  function setVal(id: string, v: string): void {
-    const e = el<HTMLInputElement>(id);
-    if (e) e.value = v;
-  }
-
-  function openUserForm(u: RosUser | null): void {
-    const title = el('ruf_title');
-    // 'Device User', not 'Router User': #117's rename reached this dialog too.
-    if (title) title.textContent = u ? 'Edit Device User' : 'Add Device User';
-    setVal('ruf_id', u ? u.id : '');
-    setVal('ruf_expectedName', u ? u.name : '');
-    setVal('ruf_name', u ? u.name : '');
-    setVal('ruf_address', u ? u.address : '');
-    setVal('ruf_comment', u ? u.comment : '');
-    const dis = el<HTMLInputElement>('ruf_disabled');
-    if (dis) dis.checked = u ? !!u.disabled : false;
-    setVal('ruf_password', '');
-
-    const pol = (data && data.passwordPolicy) || { minLength: 0, minCategories: 0 };
-    const hint = el('ruf_passHint');
-    if (hint) {
-      hint.textContent = u ? '(leave blank to keep)'
-        : (pol.minLength ? '(at least ' + pol.minLength + ' characters)' : '(required)');
-    }
-
-    // Groups the guard would refuse are not offered. The server refuses them
-    // anyway; leaving them in the list only invites the refusal.
-    const sel = el<HTMLSelectElement>('ruf_group');
-    if (sel) {
-      sel.innerHTML = ((data && data.groups) || []).filter((g) => !g.protected)
-        .map((g) => '<option value="' + esc(g.name) + '"' +
-          (u && u.group === g.name ? ' selected' : '') + '>' + esc(g.name) + '</option>').join('');
-    }
-    const err = el('ruf_error');
-    if (err) err.style.display = 'none';
-    el('ruUserFormWrap')?.classList.add('open');
-  }
-
-  function openGroupForm(g: RosGroup | null): void {
-    const title = el('rgf_title');
-    if (title) title.textContent = g ? 'Edit Group' : 'Add Group';
-    setVal('rgf_id', g ? g.id : '');
-    setVal('rgf_expectedName', g ? g.name : '');
-    setVal('rgf_name', g ? g.name : '');
-    setVal('rgf_comment', g ? g.comment : '');
-
-    const granted = g ? g.granted : [];
-    // From the PAYLOAD, so a RouterOS that grows an eighteenth policy shows it
-    // here without a frontend release.
-    const box = el('rgf_policies');
-    if (box) {
-      box.innerHTML = ((data && data.policies) || []).map((pName) =>
-        '<label style="display:flex;align-items:center;gap:.35rem;cursor:pointer">' +
-        '<input type="checkbox" class="rgf-pol" value="' + esc(pName) + '"' +
-        (granted.indexOf(pName) !== -1 ? ' checked' : '') + '>' + esc(pName) + '</label>').join('');
-    }
-    const err = el('rgf_error');
-    if (err) err.style.display = 'none';
-    el('ruGroupFormWrap')?.classList.add('open');
-  }
-
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Ending a session ──────────────────────────────────────────────────────
 
   document.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement | null)?.closest?.('.ru-act');
@@ -413,98 +340,34 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const act = b.getAttribute('data-act') || '';
     const id = b.getAttribute('data-id') || '';
     const name = b.getAttribute('data-name') || '';
-
-    if (act === 'user-edit') {
-      openUserForm(((data && data.users) || []).find((u) => u.id === id) || null);
-      return;
-    }
-    if (act === 'group-edit') {
-      openGroupForm(((data && data.groups) || []).find((g) => g.id === id) || null);
-      return;
-    }
-    if (act === 'user-toggle') {
-      const u = ((data && data.users) || []).find((x) => x.id === id);
-      if (!u) return;
-      busy = busyKey(act, id);
-      render();
-      // A FULL SAVE, not a disable-only action: one write path is one place for
-      // the guard to be called from.
-      socket.emit('rosuser:save', {
-        id: u.id, expectedName: u.name, name: u.name, group: u.group,
-        address: u.address, comment: u.comment, disabled: !u.disabled,
-      });
-      return;
-    }
-
-    const prompts: Record<string, string> = {
-      'user-remove': 'Remove the router user "' + name +
-        '"?\n\nThey will no longer be able to log in to this router.',
-      'group-remove': 'Remove the group "' + name +
-        '"?\n\nRouterOS refuses this if any user is still in it.',
-      'session-remove': 'End "' + name +
-        '"\u2019s session?\n\nThey will be disconnected from the router immediately.',
-    };
-    if (!prompts[act]) return;
-    if (!window.confirm(prompts[act])) return;
+    if (act !== 'session-remove') return;
+    if (!window.confirm('End "' + name +
+        '"\u2019s session?\n\nThey will be disconnected from the router immediately.')) return;
     busy = busyKey(act, id);
     render();
-    const ev = act === 'user-remove' ? 'rosuser:remove'
-      : act === 'group-remove' ? 'rosgroup:remove' : 'rossession:remove';
-    socket.emit(ev, { id, expectedName: name });
+    socket.emit('rossession:remove', { id, expectedName: name });
   });
 
-  el('ruAddBtn')?.addEventListener('click', () => {
-    if (!caps.permitted) return;
-    if (tab === 'groups') openGroupForm(null); else openUserForm(null);
-  });
+  /** Point the Add slot at the table now on screen. */
+  function syncAddSlot(): void {
+    const slot = el('ruAddSlot');
+    if (!slot || tab === 'sessions') return;
+    slot.setAttribute('data-res-add', tab === 'groups' ? 'rosGroup' : 'rosUser');
+    document.dispatchEvent(new CustomEvent('mikrodash:resmount'));
+  }
 
-  el('ruf_save')?.addEventListener('click', () => {
-    const name = (el<HTMLInputElement>('ruf_name')?.value || '').trim();
-    const group = el<HTMLSelectElement>('ruf_group')?.value || '';
-    if (!name) return formError('ruf_error', 'A username is required');
-    if (!group) return formError('ruf_error', 'Pick a group');
-    const id = el<HTMLInputElement>('ruf_id')?.value || '';
-    busy = busyKey('user-save', id);
-    // `undefined` rather than '' for the three optional fields: the server reads
-    // `id` to decide create-or-edit and `password` to decide whether one was
-    // set, and JSON.stringify drops an undefined key entirely — which is what
-    // the live app's `|| undefined` achieves and what the Go side expects.
-    socket.emit('rosuser:save', {
-      id: id || undefined,
-      expectedName: el<HTMLInputElement>('ruf_expectedName')?.value || undefined,
-      name, group,
-      address: (el<HTMLInputElement>('ruf_address')?.value || '').trim(),
-      comment: (el<HTMLInputElement>('ruf_comment')?.value || '').trim(),
-      disabled: !!el<HTMLInputElement>('ruf_disabled')?.checked,
-      password: el<HTMLInputElement>('ruf_password')?.value || undefined,
-    });
-  });
+  mountAdds(socket);
+  mountRows(socket);
 
-  el('rgf_save')?.addEventListener('click', () => {
-    const name = (el<HTMLInputElement>('rgf_name')?.value || '').trim();
-    if (!name) return formError('rgf_error', 'A group name is required');
-    const policy = Array.from(
-      document.querySelectorAll<HTMLInputElement>('#rgf_policies .rgf-pol:checked'),
-      (c) => c.value);
-    const id = el<HTMLInputElement>('rgf_id')?.value || '';
-    busy = busyKey('group-save', id);
-    socket.emit('rosgroup:save', {
-      id: id || undefined,
-      expectedName: el<HTMLInputElement>('rgf_expectedName')?.value || undefined,
-      name,
-      comment: (el<HTMLInputElement>('rgf_comment')?.value || '').trim(),
-      policy,
-    });
+  socket.on('res:schema', (d) => {
+    if (!d || (d.key !== 'rosUser' && d.key !== 'rosGroup')) return;
+    writable[d.key] = !!d.permitted;
+    if (isVisible('users')) render();
   });
 
   socket.on('rosusers:ok', (d) => {
     busy = '';
-    el('ruUserFormWrap')?.classList.remove('open');
-    el('ruGroupFormWrap')?.classList.remove('open');
     const what: Record<string, string> = {
-      create: 'Created ', update: 'Updated ', delete: 'Removed ',
-      'group-create': 'Created group ', 'group-update': 'Updated group ',
-      'group-delete': 'Removed group ',
       'session-remove': 'Ended the session for ',
     };
     // NO `render()` here, and that is the original's. It is the only reason this
@@ -521,14 +384,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       unavailable: 'Router user collection is not running for this router',
       'bad-request': 'Invalid request',
       'stale-row': 'That row changed on the router \u2014 the page has been refreshed',
-      'no-such-group': 'That group no longer exists on the router',
-      'group-in-use': 'That group still has users in it \u2014 move them first',
-      'weak-password': 'The router requires a password of at least ' +
-        ((d && d.minLength) || 8) + ' characters',
       'protected-account': 'That is the account MikroDash signs in with \u2014 manage it in WinBox',
-      'protected-group': 'That is the group MikroDash signs in with \u2014 manage it in WinBox',
-      'protected-name-value': 'That name belongs to the account MikroDash signs in with',
-      'protected-group-value': 'Users cannot be placed in the group MikroDash signs in with',
       'self-unresolved':
         'MikroDash cannot identify its own account on this router, so changes are refused',
       'router-write-policy': 'The RouterOS user needs the "policy" permission for this',
@@ -548,13 +404,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
         'and they have to be cleared from the router itself.',
     };
     const text = (code && msg[code]) || (d && d.message) || 'Action failed';
-    // A refusal belongs in the dialog that caused it; everything else is a row
-    // action and belongs in the status line. The `render()` below then wipes
-    // that status line — see the header. Order preserved from the original,
-    // because the order IS the behaviour.
-    const open = el('ruUserFormWrap')?.classList.contains('open') ? 'ruf_error'
-      : el('ruGroupFormWrap')?.classList.contains('open') ? 'rgf_error' : '';
-    if (open) formError(open, text); else setStatus(text);
+    setStatus(text);
     if (isVisible('users')) render();
   });
 
@@ -565,12 +415,6 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     // The summary updates whether or not the page is showing; the tables only
     // when it is. The asymmetry is the original's.
     renderSummary();
-    if (isVisible('users')) render();
-  });
-
-  socket.on('rosusers:caps', (d) => {
-    if (!d) return;
-    caps = d;
     if (isVisible('users')) render();
   });
 
@@ -605,6 +449,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       document.querySelectorAll('#rosusersCard .brtab-panel').forEach((pnl) => {
         pnl.classList.toggle('active', (pnl as HTMLElement).id === 'rutab-' + tab);
       });
+      syncAddSlot();
       render();
     });
   });

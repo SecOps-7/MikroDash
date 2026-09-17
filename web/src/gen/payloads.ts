@@ -1627,7 +1627,6 @@ export type HandEventName =
   | 'res:preview'
   | 'res:row'
   | 'res:schema'
-  | 'rosusers:caps'
   | 'rosusers:error'
   | 'rosusers:ok'
   | 'router:active'

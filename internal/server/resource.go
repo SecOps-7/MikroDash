@@ -1565,6 +1565,10 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 		if cn.rsession.CollectorEnabled("ifStatus") {
 			cn.rsession.IfStatus().RefreshNow()
 		}
+	case "users":
+		if cn.rsession.CollectorEnabled("rosusers") {
+			cn.rsession.RosUsers().RefreshNow()
+		}
 	case "queues":
 		// Rates are counter deltas, and a set or a reset-counters can zero a
 		// counter: the next window would be measured against a baseline the

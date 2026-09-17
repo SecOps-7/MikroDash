@@ -54,6 +54,9 @@ const (
 	TypeInt    Type = "int"
 	TypeBool   Type = "bool"
 	TypeSelect Type = "select"
+	// TypeMulti is a set chosen from Options, carried as a comma list in the
+	// Options' own order ("read,write,api"). See Field.NegateUnset.
+	TypeMulti Type = "multi"
 )
 
 // OptionsFrom is where a field's picker list comes from.
@@ -102,6 +105,15 @@ type Field struct {
 	// are keyed on, so renaming one would orphan all three.
 	Display bool
 
+	// NegateUnset makes a TypeMulti write name every option, the unchosen ones
+	// prefixed `!`. RouterOS needs it where a positive list only ADDS: measured
+	// on /user/group, `set policy=read` against a group holding `read,test,api`
+	// changes nothing, and a policy is removed only when it is named with a `!`.
+	// The cleaned value stays the positive list, so history and diffs compare
+	// what was chosen rather than seventeen words; RowValues drops the negations
+	// the router answers with.
+	NegateUnset bool
+
 	Required bool
 	// Clearable means "send this even when empty, so the operator can empty it".
 	Clearable   bool
@@ -126,6 +138,8 @@ func (f Field) input() string {
 		return "checkbox"
 	case TypeSelect:
 		return "select"
+	case TypeMulti:
+		return "multi"
 	default:
 		return "text"
 	}
@@ -404,6 +418,31 @@ func (f Field) check(raw string) (string, string) {
 			}
 		}
 		return "", "is not one of the allowed values"
+	case TypeMulti:
+		chosen := map[string]bool{}
+		for _, part := range strings.Split(s, ",") {
+			if part = strings.TrimSpace(part); part == "" {
+				continue
+			}
+			known := false
+			for _, o := range f.Options {
+				if o == part {
+					known = true
+					break
+				}
+			}
+			if !known {
+				return "", fmt.Sprintf("names %q, which is not one of the allowed values", part)
+			}
+			chosen[part] = true
+		}
+		out := make([]string, 0, len(chosen))
+		for _, o := range f.Options {
+			if chosen[o] {
+				out = append(out, o)
+			}
+		}
+		return strings.Join(out, ","), ""
 	}
 	return "", "has an unknown type"
 }
@@ -442,8 +481,9 @@ func (r *Resource) Validate(values map[string]string, editing bool) (Validated, 
 		blank := !present || strings.TrimSpace(raw) == ""
 
 		if blank {
-			// A checkbox that is off is a value, not an omission.
-			if f.Type == TypeBool {
+			// A checkbox that is off is a value, not an omission; so is an empty
+			// set whose unchosen options are written as negations.
+			if f.Type == TypeBool || (f.Type == TypeMulti && f.NegateUnset) {
 				v, _ := f.check(raw)
 				clean[f.Name] = v
 				continue
@@ -477,6 +517,10 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		if f.Type == TypeSecret && (!has || val == "") {
 			continue // blank secret means "leave it alone"
 		}
+		if has && f.Type == TypeMulti && f.NegateUnset {
+			args = append(args, "="+f.ROS+"="+negateUnset(f.Options, val))
+			continue
+		}
 		if has {
 			args = append(args, "="+f.ROS+"="+val)
 			continue
@@ -488,6 +532,23 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		}
 	}
 	return args
+}
+
+// negateUnset writes every option, the ones not in `chosen` prefixed `!`.
+func negateUnset(options []string, chosen string) string {
+	set := map[string]bool{}
+	for _, c := range strings.Split(chosen, ",") {
+		set[strings.TrimSpace(c)] = true
+	}
+	out := make([]string, 0, len(options))
+	for _, o := range options {
+		if set[o] {
+			out = append(out, o)
+		} else {
+			out = append(out, "!"+o)
+		}
+	}
+	return strings.Join(out, ",")
 }
 
 // PreviewCommand is the RouterOS command this submission WOULD issue, for the
@@ -774,6 +835,60 @@ var PPPSecret = &Resource{
 //
 // NO GUARD, for the same reason as the secret: a profile is addressing and rate
 // policy for dial-in clients, not a path to the router.
+// ── Router users ────────────────────────────────────────────────────────────
+//
+// /user and /user/group. Both carry the selfAccount guard, which REFUSES any
+// write that could break the login MikroDash signs in with (see
+// guard/selfguard.go): unlike every other guard here, that one is unrecoverable
+// from inside the app. Ending an active session is not a row write and stays a
+// page action (rossession:remove).
+
+// UserPolicies is the RouterOS policy vocabulary, in the order WinBox shows it,
+// as documented for /user/group on RouterOS 7. The group form renders exactly
+// this list, and a write names every one of them (NegateUnset), so a policy
+// missing here is one an edit would silently leave as it was.
+var UserPolicies = []string{
+	"local", "telnet", "ssh", "ftp", "reboot", "read", "write", "policy", "test",
+	"winbox", "password", "web", "sniff", "sensitive", "api", "romon", "rest-api",
+}
+
+var RosUser = &Resource{
+	Key: "rosUser", Page: "users", Label: "Router User",
+	Title: "Router User", Menu: "/user", Identity: []string{"name"},
+	Guard: []string{"selfAccount"},
+	Actions: []Action{
+		{Key: "enable", Verb: "enable", Label: "Enable",
+			When: func(r map[string]string) bool { return r["disabled"] == "true" },
+			Note: "enabled a RouterOS user"},
+		{Key: "disable", Verb: "disable", Label: "Disable",
+			When: func(r map[string]string) bool { return r["disabled"] != "true" },
+			Note: "disabled a RouterOS user"},
+	},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "username"},
+		{Name: "group", ROS: "group", Label: "Group", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/user/group", Value: "name"}},
+		{Name: "password", ROS: "password", Label: "Password", Type: TypeSecret,
+			Help: "Leave blank to keep the current password. The router enforces its own minimum length."},
+		{Name: "address", ROS: "address", Label: "Allowed Address", Type: TypeText, Clearable: true,
+			Placeholder: "10.0.0.0/24", Help: "Only log in from these addresses. Empty allows any."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
+var RosGroup = &Resource{
+	Key: "rosGroup", Page: "users", Label: "User Group",
+	Title: "User Group", Menu: "/user/group", Identity: []string{"name"},
+	Guard: []string{"selfAccount"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "group-name"},
+		{Name: "policy", ROS: "policy", Label: "Permissions", Type: TypeMulti, Options: UserPolicies,
+			NegateUnset: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+	},
+}
+
 // ── Queues ──────────────────────────────────────────────────────────────────
 //
 // Two menus with different row shapes, measured on RouterOS 7.24 (CHR): a simple
@@ -1309,6 +1424,8 @@ var byKey = map[string]*Resource{
 	PPPProfile.Key:          PPPProfile,
 	SimpleQueue.Key:         SimpleQueue,
 	QueueTree.Key:           QueueTree,
+	RosUser.Key:             RosUser,
+	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,
 	BridgePort.Key:          BridgePort,
 	Vlan.Key:                Vlan,
@@ -1418,6 +1535,16 @@ func (r *Resource) RowValues(row map[string]string) map[string]any {
 		}
 		if f.Type == TypeBool {
 			out[f.Name] = raw == "true" || raw == "yes"
+		} else if f.Type == TypeMulti {
+			// The router lists every option with the denied ones negated; the
+			// form's value is what is granted.
+			granted := []string{}
+			for _, part := range strings.Split(raw, ",") {
+				if part = strings.TrimSpace(part); part != "" && !strings.HasPrefix(part, "!") {
+					granted = append(granted, part)
+				}
+			}
+			out[f.Name] = strings.Join(granted, ",")
 		} else {
 			out[f.Name] = raw
 		}

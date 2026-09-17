@@ -65,7 +65,6 @@ var (
 	EvResPreview         = hub.Declare[map[string]any]("res:preview")
 	EvResRow             = hub.Declare[map[string]any]("res:row")
 	EvResSchema          = hub.Declare[map[string]any]("res:schema")
-	EvRosusersCaps       = hub.Declare[map[string]any]("rosusers:caps")
 	EvRosusersError      = hub.Declare[map[string]any]("rosusers:error")
 	EvRosusersOk         = hub.Declare[map[string]any]("rosusers:ok")
 	EvRouterActive       = hub.Declare[map[string]any]("router:active")

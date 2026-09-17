@@ -171,7 +171,7 @@ One socket per browser. Frames are `{"event": "...", "data": ...}`.
 Inbound events are page subscriptions (`dashboard`, `dns`, `firewall`, `queues`,
 `wireless`, …), lifecycle (`router:select`, `page:focus`, `page:blur`,
 `dashcard:focus`, `dashcard:blur`), and the write verbs above plus per-page ones
-(`wan:renew`, `wan:release`, `rosuser:save`, `packages:schedule`,
+(`wan:renew`, `wan:release`, `rossession:remove`, `packages:schedule`,
 `backups:run`, `wifiscan:start`, …).
 
 **Rooms carry the fan-out.** `router-<id>` is router-wide; `router-<id>-<page>` is
@@ -294,9 +294,9 @@ group holds read,test,api
 ```
 
 A quiet failure, not an error: a permissions editor built on `add` behaviour
-appears to work while never removing anything. `collect.BuildPolicy` therefore
-always emits the full 17-policy vocabulary with explicit negations, correct for
-both verbs. Verified on RouterOS 7.24.
+appears to work while never removing anything. The `rosGroup` resource's policy
+field is therefore `NegateUnset`: every write names all 17 policies, the unchosen
+ones negated, correct for both verbs. Verified on RouterOS 7.24.
 
 ### A reply that arrives before its tag is registered: patched in the library
 

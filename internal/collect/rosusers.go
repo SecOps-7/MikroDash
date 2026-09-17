@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"mikrodash/internal/guard"
+	"mikrodash/internal/resource"
 	"mikrodash/internal/routeros"
 )
 
@@ -61,10 +62,8 @@ const rosConfigEvery = 6
 //
 // Exported because the group editor renders exactly this list: a policy the UI
 // does not know about is one an operator cannot see they are removing.
-var Policies = []string{
-	"local", "telnet", "ssh", "ftp", "reboot", "read", "write", "policy", "test",
-	"winbox", "password", "web", "sniff", "sensitive", "api", "romon", "rest-api",
-}
+// The list itself is resource.UserPolicies, which the group resource writes.
+var Policies = resource.UserPolicies
 
 // ParsePolicy splits a stored policy string into what is granted and what is
 // denied.
@@ -88,52 +87,6 @@ func ParsePolicy(raw string) (granted, denied []string) {
 		}
 	}
 	return granted, denied
-}
-
-// BuildPolicy is the inverse: the string to SEND, with every ungranted policy
-// explicitly negated.
-//
-// THE NEGATIONS ARE LOAD-BEARING, and only on `set`. Verified against a live
-// router: `/user/group/set =policy=read` against a group holding `read,test,api`
-// changes NOTHING — a positive-only list is purely additive, and RouterOS
-// removes a policy only when it is named with a `!`.
-//
-//	set =policy=read                      -> read,test,api   (silently unchanged)
-//	set =policy=!local,...,read,...,!api  -> read
-//
-// `add` is the misleading case: there RouterOS fills the negations in itself, so
-// a positive-only list works and the create path looks fine while every EDIT
-// quietly fails to remove anything. One form is correct for both, so this always
-// emits the full seventeen.
-//
-// A policy outside the vocabulary is dropped rather than relayed: the editor
-// renders exactly Policies, so anything else is a newer RouterOS or a crafted
-// request.
-func BuildPolicy(granted []string) string {
-	set := map[string]bool{}
-	for _, p := range granted {
-		if containsStr(Policies, p) {
-			set[p] = true
-		}
-	}
-	out := make([]string, 0, len(Policies))
-	for _, p := range Policies {
-		if set[p] {
-			out = append(out, p)
-		} else {
-			out = append(out, "!"+p)
-		}
-	}
-	return strings.Join(out, ",")
-}
-
-func containsStr(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
 
 type RosUser struct {

@@ -159,6 +159,22 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
       '<span class="stoggle-thumb"></span></span></label>';
   }
 
+  if (f.input === 'multi') {
+    // A set chosen from the declared options, one checkbox each, read back as a
+    // comma list. The value is what is GRANTED; the server writes the rest.
+    const chosen = new Set(String(value ?? '').split(',').map((x) => x.trim()).filter(Boolean));
+    const boxes = (f.options || []).map((o, i) =>
+      '<label style="display:flex;align-items:center;gap:.35rem;font-size:.78rem">' +
+      '<input type="checkbox" id="' + id + '__' + i + '" data-res-multi="' + esc(f.name) + '" value="' + esc(o) + '"' +
+      (chosen.has(o) ? ' checked' : '') + '>' + esc(o) + '</label>').join('');
+    return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
+      '<div class="sform-label">' + esc(f.label) + '</div>' +
+      '<div id="' + id + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));' +
+      'gap:.3rem .6rem;padding:.5rem;border:1px solid var(--border);border-radius:6px">' + boxes + '</div>' +
+      (f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' + esc(f.help) + '</div>' : '') +
+      '</div>';
+  }
+
   const lbl = '<label class="sform-label" for="' + id + '">' + esc(f.label) +
     (f.required ? ' <span style="color:var(--accent-err)">*</span>' : '') + '</label>';
   const help = f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' +
@@ -234,6 +250,11 @@ function readValues(schema: Schema): Record<string, string> {
     if (f.display) continue;
     const node = el<HTMLInputElement | HTMLSelectElement>('resf_' + f.name);
     if (!node) continue;
+    if (f.input === 'multi') {
+      out[f.name] = Array.from(node.querySelectorAll<HTMLInputElement>('input[data-res-multi]'))
+        .filter((b) => b.checked).map((b) => b.value).join(',');
+      continue;
+    }
     out[f.name] = f.input === 'checkbox'
       ? String((node as HTMLInputElement).checked)
       : node.value;
