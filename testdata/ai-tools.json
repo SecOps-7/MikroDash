@@ -165,6 +165,13 @@
       "page": "vlans"
     },
     {
+      "name": "list_wan_status",
+      "access": "read",
+      "resource": "",
+      "collector": "wan",
+      "page": "wan"
+    },
+    {
       "name": "list_wgPeer",
       "access": "read",
       "resource": "wgPeer",

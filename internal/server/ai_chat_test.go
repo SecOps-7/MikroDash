@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/collect"
 	"strings"
 	"testing"
 	"time"
@@ -461,5 +463,67 @@ func TestLiveReadingDue(t *testing.T) {
 		if got := liveReadingDue(c.freshness, c.present, now, c.ts, c.pollMs); got != c.want {
 			t.Errorf("%s: due = %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+// TestRenderWanStatus. The facts the summary line does not carry (gateway, route
+// distance, DHCP lease) reach the model, and the two empty cases explain
+// themselves instead of reading as an outage.
+func TestRenderWanStatus(t *testing.T) {
+	yes := true
+	rx, tx := 12.5, 1.25
+	p := &collect.WANPayload{
+		TS: 1, PollMs: 10_000, ActiveDefaultWan: "ether1", PublicIP: "198.51.100.7",
+		DetectionEnabled: true, UplinkSource: "detect",
+		Wans: []collect.WAN{
+			{Name: "ether1", Type: "ether", State: "internet", Running: &yes,
+				Address: "198.51.100.7/24", IsPublic: &yes, Gateway: "198.51.100.1",
+				RouteDistance: "1", RouteActive: true, HasDefaultRoute: true, RxMbps: &rx, TxMbps: &tx,
+				Dhcp: &collect.WANDhcp{ID: "*1", Status: "bound", Server: "198.51.100.1", ExpiresAfter: "23h59m"}},
+			{Name: "lte1", Type: "lte", State: "wan", RouteDistance: "2", HasDefaultRoute: true},
+		},
+	}
+	b, _ := json.Marshal(renderWanStatus(p))
+	got := string(b)
+	for _, want := range []string{`"activeDefaultUplink":"ether1"`, `"gateway":"198.51.100.1"`,
+		`"defaultRouteDistance":"2"`, `"expiresAfter":"23h59m"`, `"carriesDefaultRoute":true`,
+		`"totalUplinks":2`, `"truncated":false`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	if strings.Contains(got, `"*1"`) {
+		t.Errorf("the DHCP client's RouterOS id leaked into the model's view: %s", got)
+	}
+
+	off, _ := json.Marshal(renderWanStatus(&collect.WANPayload{TS: 1}))
+	if !strings.Contains(string(off), "internet detection is switched off") {
+		t.Errorf("no uplinks with detection off does not say why: %s", off)
+	}
+	denied, _ := json.Marshal(renderWanStatus(&collect.WANPayload{TS: 1, Denied: true}))
+	if !strings.Contains(string(denied), "permission on the router") {
+		t.Errorf("a denied read does not say why: %s", denied)
+	}
+}
+
+// TestCapRowsKeepsTheBudget. The shared cap every live tool relies on: at most
+// aiToolMaxRows rows and aiToolMaxBytes of encoded JSON, reporting truncation.
+func TestCapRowsKeepsTheBudget(t *testing.T) {
+	many := make([]int, aiToolMaxRows+50)
+	kept, truncated := capRows(many)
+	if len(kept) != aiToolMaxRows || !truncated {
+		t.Errorf("row cap: kept %d truncated %v, want %d true", len(kept), truncated, aiToolMaxRows)
+	}
+	big := make([]string, 50)
+	for i := range big {
+		big[i] = strings.Repeat("x", aiToolMaxBytes/10)
+	}
+	kept2, truncated2 := capRows(big)
+	if !truncated2 || len(kept2) >= len(big) {
+		t.Errorf("byte cap: kept %d of %d, truncated %v", len(kept2), len(big), truncated2)
+	}
+	few, t3 := capRows([]int{1, 2, 3})
+	if len(few) != 3 || t3 {
+		t.Errorf("a small set was cut: %v %v", few, t3)
 	}
 }

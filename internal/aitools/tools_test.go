@@ -1,6 +1,7 @@
 package aitools
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -175,7 +176,7 @@ func TestEveryDescriptionNamesItsMenu(t *testing.T) {
 		// instead. Re-aimed for `list_interface_traffic`: the rule was always
 		// "name the RouterOS path and say it cannot write", and that still holds.
 		if tool.Collector != "" {
-			if !strings.Contains(tool.Description, "/interface") || !strings.Contains(tool.Description, "Read only") {
+			if !liveMenuPath.MatchString(tool.Description) || !strings.Contains(tool.Description, "Read only") {
 				t.Errorf("live tool %q does not name the menu it reads or say it cannot write: %s",
 					tool.Name, tool.Description)
 			}
@@ -198,6 +199,10 @@ func TestEveryDescriptionNamesItsMenu(t *testing.T) {
 		t.Error("no read tools were checked")
 	}
 }
+
+// liveMenuPath is a RouterOS menu path as a live tool's description names it,
+// such as /interface/monitor-traffic or /system/package.
+var liveMenuPath = regexp.MustCompile(`(^|\s)/[a-z][a-z0-9-]*(/[a-z0-9-]+)*`)
 
 // TestNoSecretFieldIsAdvertised.
 //
@@ -364,5 +369,37 @@ func TestEveryLiveToolDeclaresItsFreshness(t *testing.T) {
 	}
 	if live == 0 {
 		t.Error("no live tools found; this check measured nothing")
+	}
+}
+
+// TestEveryLiveToolIsOfferedOnlyByItsPage. Every live tool, present and future,
+// is advertised to a viewer who may read its page and to nobody who may read
+// only a different one. Written over the whole catalogue so a new live tool is
+// covered without anyone remembering to add a case.
+func TestEveryLiveToolIsOfferedOnlyByItsPage(t *testing.T) {
+	has := func(tools []Tool, name string) bool {
+		for _, tl := range tools {
+			if tl.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	checked := 0
+	for _, lt := range All() {
+		if lt.Collector == "" {
+			continue
+		}
+		checked++
+		page := lt.Page
+		if !has(Permitted(func(p, a string) bool { return p == page && a == AccessRead }), lt.Name) {
+			t.Errorf("%s is not offered to a viewer who may read %q", lt.Name, page)
+		}
+		if has(Permitted(func(p, a string) bool { return p != page }), lt.Name) {
+			t.Errorf("%s is offered to a viewer who may read every page except %q", lt.Name, page)
+		}
+	}
+	if checked < 2 {
+		t.Errorf("only %d live tools checked; the catalogue is not being read", checked)
 	}
 }

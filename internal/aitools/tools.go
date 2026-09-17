@@ -202,6 +202,19 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "interfaces",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "wan_status",
+		Description: "Read only. List the router's WAN uplinks, read from " +
+			"/interface/detect-internet/state with the default routes and DHCP clients: " +
+			"which uplink carries the default route, each uplink's state and how long it has " +
+			"held it, address and whether it is public, gateway, default route distance, " +
+			"live rxMbps and txMbps, and its DHCP lease status and expiry. Use it for any " +
+			"question about internet connectivity, failover or which WAN is active.",
+		Parameters: noArgs(),
+		Collector:  "wan",
+		Freshness:  FreshLive,
+		Page:       "wan",
+		Access:     AccessRead,
 	}}
 }
 
