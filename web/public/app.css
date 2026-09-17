@@ -1906,16 +1906,20 @@
     #page-ai-agent>.container-fluid{flex:1;display:flex;flex-direction:column;min-height:0}
     #aiAgentCard{flex:1;display:flex;flex-direction:column;min-height:0}
     #aiAgentCard>.card-body{flex:1;display:flex;flex-direction:column;min-height:0}
-    #aiAgentLog{flex:1;min-height:0}
+    /* The window does not scroll; the transcript inside it does. */
+    #aiAgentWindow{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+    /* Bottom padding so the last line of an answer can scroll clear of the
+       indicator rather than ending underneath it. */
+    #aiAgentLog{flex:1;min-height:0;padding-bottom:3rem!important}
 
-    /* The thinking indicator, inside the transcript at the bottom left. */
-    /* STICKY, NOT ABSOLUTE. The log is the scroll container, so an absolutely
-       positioned child scrolls away with the content and only looks pinned
-       until you scroll. Sticky keeps it in flow and holds it against the bottom
-       edge of what is visible, which is what "in the corner" has to mean in a
-       box you can scroll. */
-    .ai-thinking{position:sticky;bottom:0;z-index:2;
-      display:flex;align-items:center;gap:.5rem;align-self:flex-start;
+    /* ── THE THINKING INDICATOR, PINNED TO THE WINDOW'S BOTTOM-LEFT CORNER ──
+       Absolute against #aiAgentWindow, which does not scroll. It used to be
+       sticky inside the transcript, and sticky only pins once the content
+       overflows: in a short conversation it sat under the last message, part
+       way up the window. Absolute inside the SCROLLING box would scroll away
+       with the content instead, which is why the wrapper exists. */
+    .ai-thinking{position:absolute;left:1rem;bottom:.75rem;z-index:2;
+      display:flex;align-items:center;gap:.5rem;
       font-size:.74rem;color:var(--accent-rx);font-family:var(--font-ui);
       padding:.25rem .6rem;border-radius:999px;
       background:var(--bg-card);border:1px solid var(--border)}

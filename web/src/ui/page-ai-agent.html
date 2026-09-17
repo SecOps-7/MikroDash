@@ -19,23 +19,28 @@
                Filled by web/src/pages/ai-agent.ts, which builds DOM nodes
                rather than assigning innerHTML: model output is untrusted and
                must never be parsed as markup. -->
-          <div id="aiAgentLog" class="data-scroll"
-               style="overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.9rem">
-            <div id="aiAgentEmpty" style="margin:auto;text-align:center;max-width:34rem;color:var(--text-muted)">
-              <div style="font-size:.86rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem">
-                Ask about this router
-              </div>
-              <div style="font-size:.76rem;line-height:1.5">
-                The assistant can see what this device is reporting right now, and can change
-                only what you are allowed to change yourself. Every change goes through the same
-                checks and audit trail as the forms, and unless you have turned that off in
-                Settings it asks you first.
+          <!-- ── THE WINDOW, WHICH DOES NOT SCROLL ─────────────────────────
+               The transcript scrolls inside it; the thinking indicator is its
+               child, pinned to the bottom-left corner. It used to live inside the
+               transcript, where "sticky" only pins once the content overflows, so
+               a short conversation left it floating under the last message. -->
+          <div id="aiAgentWindow">
+            <div id="aiAgentLog" class="data-scroll"
+                 style="overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.9rem">
+              <div id="aiAgentEmpty" style="margin:auto;text-align:center;max-width:34rem;color:var(--text-muted)">
+                <div style="font-size:.86rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem">
+                  Ask about this router
+                </div>
+                <div style="font-size:.76rem;line-height:1.5">
+                  The assistant can see what this device is reporting right now, and can change
+                  only what you are allowed to change yourself. Every change goes through the same
+                  checks and audit trail as the forms, and unless you have turned that off in
+                  Settings it asks you first.
+                </div>
               </div>
             </div>
             <!-- ── WAITING ────────────────────────────────────────────────
-                 Inside the transcript rather than under the composer, so it
-                 appears where the answer will, and moves to the end after every
-                 redraw. The label is one of a rotating set; see ai-agent.ts. -->
+                 The label is one of a rotating set; see ai-agent.ts. -->
             <div id="aiAgentThinking" class="ai-thinking" hidden>
               <span class="ai-thinking-spin" aria-hidden="true"></span>
               <span class="ai-thinking-label" id="aiAgentThinkingLabel">Wiring bits</span>

@@ -91,14 +91,10 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
 
     const box = thinking();
     if (box) {
+      // SHOWN, NEVER MOVED. It lives outside the transcript, pinned to the
+      // window's corner by CSS, so nothing redraw does can displace it.
       box.hidden = !on;
-      // MOVED TO THE END, not just shown. `redraw` appends turns after it, so
-      // without this the indicator would sit above the conversation it belongs
-      // under.
-      if (on) {
-        rollPun();
-        log()?.appendChild(box);
-      }
+      if (on) rollPun();
     }
     if (punTimer !== undefined) { clearInterval(punTimer); punTimer = undefined; }
     if (on) punTimer = setInterval(rollPun, 2400);
@@ -149,11 +145,6 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     // Remove previous turns, leaving the empty-state node in place.
     box.querySelectorAll('.ai-turn').forEach((n) => n.remove());
     for (const t of turns) box.appendChild(bubble(t.role, t.text));
-    // LAST, ALWAYS. The turns are appended after it was shown, so it has to be
-    // put back at the end or an answer renders underneath the spinner that is
-    // waiting for it.
-    const busy = thinking();
-    if (busy && !busy.hidden) box.appendChild(busy);
     box.scrollTop = box.scrollHeight;
   }
 
