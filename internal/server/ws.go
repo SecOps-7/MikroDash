@@ -100,8 +100,8 @@ type conn struct {
 	// also what makes "generates nothing while unwatched" structural rather
 	// than a condition somebody has to remember to check.
 	agentMu   sync.Mutex
-	agentTick *time.Ticker
 	agentStop chan struct{}
+	agentKick chan struct{}
 	// proposals are the assistant's unanswered write proposals, PER SOCKET and
 	// deliberately so: a proposal is a question put to the person looking at
 	// this page, and a token minted for them must not be answerable from
@@ -227,6 +227,9 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	// The diagnostics ticker too: it is per socket, so a closing connection that
 	// left it running would repaint a card nobody has, for ever.
 	cn.diagBlur()
+	// AND THE OVERVIEW CARD'S LOOP, which was missing here: a closed tab sends no
+	// blur, so it ran on for a card nobody could see.
+	cn.agentBlur()
 	cn.releaseRouter()
 	s.hub.Remove(cn.c)
 	_ = ws.Close(websocket.StatusNormalClosure, "")

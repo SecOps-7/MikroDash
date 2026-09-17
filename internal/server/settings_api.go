@@ -70,6 +70,9 @@ func (s *Server) settingsGet(w http.ResponseWriter, r *http.Request) {
 // than a setting, so it lives with the payload rather than in the tables.
 const aiSystemPromptDefaultKey = "aiSystemPromptDefault"
 
+// aiOverviewPromptDefaultKey does the same for the Agent Overview card's box.
+const aiOverviewPromptDefaultKey = "aiOverviewPromptDefault"
+
 func (s *Server) settingsPayload(sess *Session) store.Settings {
 	raw, err := s.store.Settings()
 	if err != nil {
@@ -102,6 +105,7 @@ func (s *Server) settingsPayload(sess *Session) store.Settings {
 		// ADMINISTRATORS ONLY, by falling on this side of the branch: a viewer
 		// has no Settings page to render it into.
 		out[aiSystemPromptDefaultKey] = AIDefaultSystemPrompt
+		out[aiOverviewPromptDefaultKey] = AIDefaultOverviewPrompt
 		return out
 	}
 	return merged.ViewerPublic()

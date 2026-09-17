@@ -166,6 +166,11 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 	if raw, ok := body["aiSystemPrompt"]; ok {
 		updates["aiSystemPrompt"] = cut(strings.TrimSpace(asString(raw)), 8000)
 	}
+	// The Agent Overview card's prompt, for the same two reasons: 256 cuts it,
+	// and empty means the built-in prompt.
+	if raw, ok := body["aiOverviewPrompt"]; ok {
+		updates["aiOverviewPrompt"] = cut(strings.TrimSpace(asString(raw)), 8000)
+	}
 
 	// customPollProfile is either cleared or a JSON OBJECT. `typeof
 	// JSON.parse(v) === 'object'` — which in JavaScript is also true of an

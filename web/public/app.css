@@ -484,6 +484,15 @@
        lets a later card move up visually while tab order follows the DOM, which
        is acceptable here only because settings cards are self-contained and
        carry no meaningful sequence. */
+    /* ── THE SYSTEM PROMPT BOX FILLS ITS CARD ───────────────────────────────
+       The card shares a grid row with the AI Agent card and stretches to its
+       height; without this the textarea stopped at 20 rows and left the rest of
+       the card blank. A column flex chain down to the textarea, with a floor so
+       it never collapses when the tab is one column wide. Not resizable: its
+       height is the card's, and a drag handle would fight that. */
+    #aiPromptCard{display:flex;flex-direction:column}
+    #aiPromptCard>.scard-body{flex:1;display:flex;flex-direction:column;min-height:0}
+    #aiPromptCard #s_aiSystemPrompt{flex:1;min-height:20rem;resize:none}
     .stab-panel.active{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;grid-auto-flow:row dense}
     @media (min-width:1100px){.stab-panel.active{grid-template-columns:repeat(2,minmax(0,1fr))}}
     /* margin-bottom on .scard would double up the grid gap. */

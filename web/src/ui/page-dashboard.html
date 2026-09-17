@@ -336,8 +336,8 @@
       </div>
 
       <!-- dc-card-agent: Agent Overview (#98) ──────────────────────────────
-           A one-line status written by the configured model, on a cadence, with
-           a blinking cursor. The text is MODEL OUTPUT and is set with
+           A one-line status written by the configured model, on a cadence, styled
+           as a terminal with a blinking cursor. The text is MODEL OUTPUT and is set with
            textContent by the renderer, never as markup. -->
       <div id="dc-card-agent" class="dash-card">
         <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
@@ -347,8 +347,11 @@
         <div class="card">
           <div class="card-header"><h3 class="card-title">Agent Overview</h3></div>
           <div class="card-body" style="padding:.75rem">
-            <div class="agent-line" style="font-family:var(--font-mono);font-size:.76rem;line-height:1.5;color:var(--text-main)">
-              <span id="dc-agentText">&mdash;</span><span class="agent-cursor" id="dc-agentCursor">&#x2588;</span>
+            <!-- A terminal: black, green text, a "> " prompt and a blinking "_".
+                 The prompt is its own span, never joined to the model's text, which
+                 is still set with textContent alone. See dashboard-grid.css. -->
+            <div class="agent-term">
+              <span class="agent-prompt" aria-hidden="true">&gt;&nbsp;</span><span id="dc-agentText">&mdash;</span><span class="agent-cursor" id="dc-agentCursor" aria-hidden="true">_</span>
             </div>
             <div id="dc-agentMeta" style="font-size:.66rem;color:var(--text-muted);margin-top:.45rem"></div>
           </div>

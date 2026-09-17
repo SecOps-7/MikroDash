@@ -1236,13 +1236,32 @@
               </div>
               <div class="sform-group" style="flex:1">
                 <label class="sform-label">Refresh (seconds)</label>
-                <input type="number" id="s_aiOverviewIntervalSec" class="sform-input" min="60" max="86400" placeholder="300" autocomplete="off">
+                <input type="number" id="s_aiOverviewIntervalSec" class="sform-input" min="60" max="86400" placeholder="10800" autocomplete="off">
               </div>
             </div>
             <p style="font-size:.7rem;color:var(--text-muted);margin:.4rem 0 0">
-              The card asks the model only while it is on your Dashboard, so a card nobody
-              is watching costs nothing. On a hosted endpoint every refresh is billable.
+              Off by default. The card asks the model only while it is on your Dashboard and
+              the Dashboard is open, and by default at most once every 3 hours (10800
+              seconds); coming back sooner shows the last line again rather than asking. On a
+              hosted endpoint every refresh is billable.
             </p>
+            <div class="sform-group" style="margin-top:.6rem">
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+                <label class="sform-label" style="margin:0">Overview prompt</label>
+                <button id="aiOverviewPromptReset" class="sbtn sbtn-ghost" type="button"
+                        style="margin:0 0 0 auto;padding:.2rem .6rem;font-size:.68rem">Reset to Default</button>
+              </div>
+              <textarea id="s_aiOverviewPrompt" class="sform-input" rows="9" maxlength="8000"
+                        autocomplete="off" spellcheck="false"
+                        style="resize:vertical;width:100%;font-family:var(--font-mono);font-size:.71rem;line-height:1.45"></textarea>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-top:.4rem">
+                <span style="font-size:.7rem;color:var(--text-muted)">
+                  What the card is asked to write. Leave it empty to use the built-in prompt;
+                  MikroDash&rsquo;s safety rules are always applied on top.
+                </span>
+                <span id="aiOverviewPromptCount" style="font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap">0 / 8000</span>
+              </div>
+            </div>
             <div style="display:flex;align-items:center;gap:.6rem;margin-top:.7rem">
               <button id="btn-test-ai" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Test Connection</button>
               <span id="test-ai-result" style="font-size:.75rem"></span>
@@ -1256,7 +1275,7 @@
              card rather than a section inside the first: the grid pairs cards by
              height, and a long prompt box belongs beside the short settings
              rather than below them. -->
-        <div class="scard">
+        <div class="scard" id="aiPromptCard">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
             <span class="scard-title">System Prompt</span>
@@ -1274,7 +1293,7 @@
             </p>
             <textarea id="s_aiSystemPrompt" class="sform-input" rows="20" maxlength="8000"
                       autocomplete="off" spellcheck="false"
-                      style="resize:vertical;width:100%;font-family:var(--font-mono);font-size:.71rem;line-height:1.45"></textarea>
+                      style="width:100%;font-family:var(--font-mono);font-size:.71rem;line-height:1.45"></textarea>
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-top:.4rem">
               <span style="font-size:.7rem;color:var(--text-muted)">
                 Leave it empty to use the built-in prompt.

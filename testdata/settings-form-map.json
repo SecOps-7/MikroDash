@@ -56,6 +56,7 @@
       "aiHeaders",
       "aiModel",
       "aiOverviewIntervalSec",
+      "aiOverviewPrompt",
       "aiSystemPrompt",
       "aiTimeoutMs",
       "alertCpuThreshold",

@@ -179,6 +179,11 @@ type Server struct {
 	// frame is cheaper to send than an HTTP request, so the need is greater
 	// here, not smaller.
 	aiLimit *rateLimiter
+	// overviewLines is the last Agent Overview line per user per router, so a
+	// return to the Dashboard within the interval re-shows it rather than paying
+	// for another. See `overviewTick`.
+	overviewMu    sync.Mutex
+	overviewLines map[string]overviewEntry
 	// idleGrace is how long a page-level suspend waits after the last viewer
 	// leaves a collector's rooms. Zero means session.DefaultIdleGrace; only
 	// tests set it, because two minutes is not a thing a test can wait for.

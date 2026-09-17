@@ -429,6 +429,38 @@ html[data-theme="light"] #dashAddPanel {
    list is cut off mid-row with no scrollbar and no tell — the operator reads a
    shorter list and has no way to know it. Same failure the payload's `more`
    field exists to prevent, one layer down. */
+/* ── AGENT OVERVIEW: A TERMINAL ───────────────────────────────────────────
+   Black in both themes on purpose: it is a terminal, not a themed surface.
+   The box fills the card body above the meta line, and scrolls rather than
+   clipping if a model ignores the one-line instruction. The cursor BLINKS here,
+   which it never did: the old block cursor had no rule at all, whatever its
+   comments said. `step-end` gives a hard on/off like a real terminal rather
+   than a fade. */
+#dc-card-agent .card-body {
+  display: flex;
+  flex-direction: column;
+}
+#dc-card-agent .agent-term {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #000;
+  color: #39ff14;
+  border: 1px solid #1f3d1f;
+  border-radius: 6px;
+  padding: .55rem .7rem;
+  font-family: var(--font-mono);
+  font-size: .76rem;
+  line-height: 1.5;
+  text-shadow: 0 0 4px rgba(57, 255, 20, .35);
+}
+#dc-card-agent .agent-prompt { color: #39ff14; opacity: .75; }
+#dc-card-agent .agent-cursor { animation: agent-blink 1.06s step-end infinite; }
+@keyframes agent-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #dc-card-agent .agent-cursor { animation: none; }
+}
+
 #dc-card-diagnostics .card-body {
   display: flex;
   flex-direction: column;

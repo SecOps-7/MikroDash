@@ -276,7 +276,8 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		// BOTH PROBES MATTER. An empty prompt is not a rejected write: the
 		// server reads it as "use the built-in default", so it must reach the
 		// updates rather than being dropped as blank.
-		"aiSystemPrompt": {"", "You are a network administrator."},
+		"aiSystemPrompt":   {"", "You are a network administrator."},
+		"aiOverviewPrompt": {"", "Write one line."},
 	}
 
 	for _, key := range wtables.SpecialCases {

@@ -130,10 +130,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -268,10 +269,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -406,10 +408,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -545,10 +548,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -684,10 +688,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -823,10 +828,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -962,10 +968,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1101,10 +1108,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1238,10 +1246,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1375,10 +1384,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1512,10 +1522,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1651,10 +1662,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1788,10 +1800,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -1925,10 +1938,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2062,10 +2076,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2199,10 +2214,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2337,10 +2353,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2475,10 +2492,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2612,10 +2630,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2749,10 +2768,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -2886,10 +2906,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     },
     {
@@ -3024,10 +3045,11 @@
         "aiTlsInsecure": false,
         "aiHeaders": "",
         "aiOverviewEnabled": false,
-        "aiOverviewIntervalSec": 300,
+        "aiOverviewIntervalSec": 10800,
         "aiConfirmWrites": true,
         "aiSystemPrompt": "",
-        "dbAiRetentionDays": 30
+        "dbAiRetentionDays": 30,
+        "aiOverviewPrompt": ""
       }
     }
   ]

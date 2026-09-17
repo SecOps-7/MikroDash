@@ -62,6 +62,7 @@ export function renderAgentCard(d: AgentOverview): void {
 
   const line = (d && d.text) || '';
   text.textContent = line;
+  // Cleared back to the terminal's green, which the stylesheet sets on the box.
   text.style.color = '';
   if (cursor) cursor.style.display = line ? '' : 'none';
 

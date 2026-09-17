@@ -138,13 +138,17 @@ export function populateSettings(data: SettingsPayload): void {
   // THE DEFAULT IS CARRIED ON THE ELEMENT, not in a module variable, so Reset
   // needs no shared state and no import back into this half of the page. It
   // arrives as a derived key on the settings payload; see settings_api.go.
-  const promptBox = el<HTMLTextAreaElement>('s_aiSystemPrompt');
-  if (promptBox) {
-    const fallback = typeof data.aiSystemPromptDefault === 'string' ? data.aiSystemPromptDefault : '';
+  // The Agent Overview card's prompt box works the same way.
+  for (const p of AI_PROMPT_BOXES) {
+    const promptBox = el<HTMLTextAreaElement>(p.box);
+    if (!promptBox) continue;
+    const def = data[p.defaultKey];
+    const fallback = typeof def === 'string' ? def : '';
     promptBox.dataset.default = fallback;
-    const stored = typeof data.aiSystemPrompt === 'string' ? data.aiSystemPrompt : '';
+    const raw = data[p.key];
+    const stored = typeof raw === 'string' ? raw : '';
     promptBox.value = stored.trim() === '' ? fallback : stored;
-    updateAiPromptCount();
+    updateAiPromptCount(p);
   }
 
   // THREE SLIDERS, TWO SUFFIXES. The two thresholds read as a percentage and the
@@ -1067,10 +1071,22 @@ export function setViewPresetUI(name: string): void {
   try { localStorage.setItem(VIEW_PRESET_KEY, name); } catch { /* site data blocked */ }
 }
 
-/** The live character count beside the prompt box. */
-function updateAiPromptCount(): void {
-  const box = el<HTMLTextAreaElement>('s_aiSystemPrompt');
-  const out = el('aiPromptCount');
+/**
+ * The two editable prompts: the chat assistant's and the Agent Overview card's.
+ * Same behaviour, so one table rather than two copies of the wiring.
+ */
+const AI_PROMPT_BOXES = [
+  { key: 'aiSystemPrompt', box: 's_aiSystemPrompt', reset: 'aiPromptReset',
+    count: 'aiPromptCount', defaultKey: 'aiSystemPromptDefault' },
+  { key: 'aiOverviewPrompt', box: 's_aiOverviewPrompt', reset: 'aiOverviewPromptReset',
+    count: 'aiOverviewPromptCount', defaultKey: 'aiOverviewPromptDefault' },
+] as const;
+type AiPromptBox = (typeof AI_PROMPT_BOXES)[number];
+
+/** The live character count beside a prompt box. */
+function updateAiPromptCount(p: AiPromptBox): void {
+  const box = el<HTMLTextAreaElement>(p.box);
+  const out = el(p.count);
   if (!box || !out) return;
   // `maxlength` counts UTF-16 units and so does `.length`, so this is the same
   // number the browser enforces rather than a second opinion about it.
@@ -1078,7 +1094,7 @@ function updateAiPromptCount(): void {
 }
 
 /**
- * Reset to Default, and the character counter.
+ * Reset to Default, and the character counter, for each prompt box.
  *
  * ── RESET WRITES THE BOX, IT DOES NOT SAVE ───────────────────────────────────
  *
@@ -1089,14 +1105,13 @@ function updateAiPromptCount(): void {
  * convenience.
  */
 export function initAiPromptControls(): void {
-  const box = el<HTMLTextAreaElement>('s_aiSystemPrompt');
-  if (box) box.addEventListener('input', updateAiPromptCount);
-
-  const reset = el<HTMLButtonElement>('aiPromptReset');
-  reset?.addEventListener('click', () => {
-    const target = el<HTMLTextAreaElement>('s_aiSystemPrompt');
-    if (!target) return;
-    target.value = target.dataset.default || '';
-    updateAiPromptCount();
-  });
+  for (const p of AI_PROMPT_BOXES) {
+    el<HTMLTextAreaElement>(p.box)?.addEventListener('input', () => updateAiPromptCount(p));
+    el<HTMLButtonElement>(p.reset)?.addEventListener('click', () => {
+      const target = el<HTMLTextAreaElement>(p.box);
+      if (!target) return;
+      target.value = target.dataset.default || '';
+      updateAiPromptCount(p);
+    });
+  }
 }
