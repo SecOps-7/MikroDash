@@ -365,8 +365,17 @@ Three, layered rather than competing:
 | gate | asks | where |
 |---|---|---|
 | **demand** | is anybody in a room it feeds, or does a hold need it | `Session.Wants`, applied from `internal/server/demand.go` and `Session.applyDemand` |
-| **enablement** | has the install-wide ping switch (Settings, Ping / Latency) turned ping off; no other collector can be switched off | `Session.CollectorEnabled` |
+| **enablement** | is this collector switched off in the resolved collection config | `Session.CollectorEnabled` |
 | **dormancy** | has it reported nothing for long enough to back off | `internal/dormancy` |
+
+**NOTHING CAN BE SWITCHED OFF TODAY, AND THE GATE IS STILL THERE.** The row
+above described the install-wide Ping / Latency toggle until `71d4c5a` removed
+it: ping was the last collector an operator could disable, so `Enabled` is now
+true for every key on every router. The gate is not dead code — `CollectorEnabled`
+is checked on the connect path and on the page-focus RESUME path, which is what
+stops a switched-off collector coming back the moment somebody opens its page,
+and an unknown key reads as ENABLED so a new collector runs rather than silently
+never starting. What changed is that the answer is currently always yes.
 
 `ResumeCollector` is the only place a collector starts, precisely so that a gate
 which knows nothing about dormancy cannot undo it. **`roslimit`** sits underneath
@@ -375,6 +384,39 @@ all three, capping commands in flight per router.
 The session's idle grace is separate from all three: it closes the router
 *connection* when nothing holds the session, which is a different question from
 whether a collector runs.
+
+---
+
+## Generated pages: one collector, many areas
+
+`internal/areas` declares a RouterOS menu as a page — its key, title, nav group,
+the resources its tables show and how often to read them — and everything else is
+generated from that: the page, the nav entry, the permission key, the visibility
+toggle, the `list_` tool and `change_row`'s coverage.
+
+**It exists because the alternative does not scale.** MikroMCP reaches perhaps
+sixty menus this app does not. As hand-built pages that is sixty passes through
+"Adding a collector" below, sixty registry rows, sixty session fields. As areas it
+is one collector, already in the registry as `areas`, and a declaration each.
+
+| what it does | how |
+|---|---|
+| chooses its menus | per tick, from the declarations and which page rooms are occupied |
+| declares its rooms | one `page-<key>` per area, generated — so the demand rule applies unchanged |
+| reads | poll only, each area on its own declared interval; configuration never streams |
+| derives | `BuildAreaRows`: rows to id, identity and values, keyed by the resource's FIELD names |
+| sends | `area:update`, to that area's room alone |
+| writes | nothing of its own: the resource engine's pipeline, guards, audit and undo |
+
+**Two things stay per area and neither can be generated:** a captured fixture to
+replay, and a row in `docs/routeros-api-surface.md` for each menu. Both are held
+by ledgers in `internal/verify/areas_test.go`, along with the page key, the nav
+group, the resources and the columns.
+
+**It is not a second registry and not a second permission model.** An area POINTS
+at resources, and `internal/resource` keeps saying what a row is; an area's `Key`
+IS a page key, so the per-user, per-router matrix gates it exactly as it gates a
+hand-built page.
 
 ---
 
