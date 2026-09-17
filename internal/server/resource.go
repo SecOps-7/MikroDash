@@ -1073,7 +1073,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 // declaring anything else cannot be written through here — see verdictFor.
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
-	"routePath": true, "addressPath": true,
+	"routePath": true, "addressPath": true, "queueThrottle": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1134,6 +1134,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "addressPath":
 			if v := cn.addressVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "queueThrottle":
+			if v := cn.queueVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		}
@@ -1289,6 +1293,67 @@ func (cn *conn) addressVerdict(res *resource.Resource, action string,
 		now = addressChangeOf(values, was)
 	}
 	return guard.CheckAddressEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// queueVerdict asks the self-throttle guard about one simple queue write.
+//
+// Where the router sees us from is read FRESH from /user/active, as the other
+// guards read it, and a router that denies it yields no addresses: this guard
+// FAILS OPEN (see guard/queueguard.go), unlike the lockout guards.
+func (cn *conn) queueVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var active []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	self, _ := guard.SelfAddresses(active, []string{cn.rsession.Username()})
+	var was map[string]string
+	if before != nil {
+		was = histValues(res.RowValues(before))
+	}
+	return queueThrottleVerdict(self, action, values, was)
+}
+
+// queueThrottleVerdict is the pure half of queueVerdict, in the registry's field
+// names (target, maxLimit, disabled).
+//
+//   - create and update are checked as the values that will be in force, an
+//     update laid over the row it edits, and an update is only a warning when it
+//     makes things worse than that row;
+//   - enable is the moment a throttle takes effect: the row's values, checked as
+//     enabled and with no "before", since a disabled queue was not in force;
+//   - delete, disable and move cannot tighten anything.
+func queueThrottleVerdict(self []string, action string, values, before map[string]string) guard.Verdict {
+	none := guard.Verdict{Level: "none"}
+	of := func(v map[string]string, base guard.SimpleQueueValues) guard.SimpleQueueValues {
+		q := base
+		if x, ok := v["target"]; ok && x != "" {
+			q.Target = x
+		}
+		if x, ok := v["maxLimit"]; ok {
+			q.MaxLimit = guard.ParsePair(x)
+		}
+		if d, ok := v["disabled"]; ok {
+			q.Disabled = d == "true" || d == "yes"
+		}
+		return q
+	}
+	switch action {
+	case "create":
+		return guard.CheckSimpleQueue(self, of(values, guard.SimpleQueueValues{}), nil, guard.SelfThrottleFloorBps)
+	case "update":
+		if before == nil {
+			return guard.CheckSimpleQueue(self, of(values, guard.SimpleQueueValues{}), nil, guard.SelfThrottleFloorBps)
+		}
+		was := of(before, guard.SimpleQueueValues{})
+		return guard.CheckSimpleQueue(self, of(values, was), &was, guard.SelfThrottleFloorBps)
+	case "enable":
+		q := of(values, guard.SimpleQueueValues{})
+		q.Disabled = false
+		return guard.CheckSimpleQueue(self, q, nil, guard.SelfThrottleFloorBps)
+	}
+	return none
 }
 
 // addressChangeOf reads an address in the registry's field names, laid over base.

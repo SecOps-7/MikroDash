@@ -208,7 +208,7 @@ the cheapest code here to test. A guard is reached one of two ways:
 
 - **Declared by a resource**, and run by the generic resource write path (`verdictFor` in
   `internal/server/resource.go`). Only names in `portedGuards` in that file can be evaluated:
-  `selfPath`, `fwGuard`, `wifiInherit`, `capsmanPush`, `routePath`, `addressPath`. **A resource declaring any other guard has
+  `selfPath`, `fwGuard`, `wifiInherit`, `capsmanPush`, `routePath`, `addressPath`, `queueThrottle`. **A resource declaring any other guard has
   its writes refused**, not logged and allowed — pinned by `internal/server/guard_test.go`. Adding a
   guard to that path means adding it to the map, deliberately.
 - **Called directly by a page handler**: the queue, user and WAN pages call their guards' `Check…`

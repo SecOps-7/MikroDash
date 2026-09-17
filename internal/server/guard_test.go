@@ -14,7 +14,7 @@ import (
 // the entry to be added deliberately rather than discovered later.
 func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 	want := map[string]bool{"selfPath": true, "fwGuard": true, "wifiInherit": true,
-		"capsmanPush": true, "routePath": true, "addressPath": true}
+		"capsmanPush": true, "routePath": true, "addressPath": true, "queueThrottle": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}
@@ -60,6 +60,45 @@ func TestEveryDeclaredGuardIsPortedOrRefuses(t *testing.T) {
 			if !portedGuards[kind] {
 				t.Errorf("%s declares %q — this page's write path is live and needs it", res.Key, kind)
 			}
+		}
+	}
+}
+
+// TestQueueThrottleVerdict drives the queueThrottle guard through every action
+// the resource write path hands it, in registry field names. The self-throttle
+// arithmetic itself is guard/queueguard_test.go's; this pins which values each
+// action checks.
+func TestQueueThrottleVerdict(t *testing.T) {
+	self := []string{"10.0.0.5"}
+	tight := map[string]string{"target": "10.0.0.0/24", "maxLimit": "512k/512k", "disabled": "false"}
+	loose := map[string]string{"target": "10.0.0.0/24", "maxLimit": "50M/50M", "disabled": "false"}
+	elsewhere := map[string]string{"target": "192.168.9.0/24", "maxLimit": "512k/512k"}
+	for _, tc := range []struct {
+		name           string
+		action         string
+		values, before map[string]string
+		self           []string
+		warn           bool
+	}{
+		{"a tight queue over us warns on create", "create", tight, nil, self, true},
+		{"a loose queue over us does not", "create", loose, nil, self, false},
+		{"a tight queue elsewhere does not", "create", elsewhere, nil, self, false},
+		{"no known address fails open", "create", tight, nil, nil, false},
+		{"a disabled tight queue is not in force", "create",
+			map[string]string{"target": "10.0.0.0/24", "maxLimit": "512k/512k", "disabled": "true"}, nil, self, false},
+		{"tightening an edit warns", "update", map[string]string{"maxLimit": "512k/512k"}, loose, self, true},
+		{"a comment-only edit of a tight queue does not", "update", map[string]string{"comment": "x"}, tight, self, false},
+		{"enabling a tight queue warns", "enable",
+			map[string]string{"target": "10.0.0.0/24", "maxLimit": "512k/512k", "disabled": "true"}, nil, self, true},
+		{"disabling never warns", "disable", tight, tight, self, false},
+		{"deleting never warns", "delete", nil, tight, self, false},
+	} {
+		v := queueThrottleVerdict(tc.self, tc.action, tc.values, tc.before)
+		if v.Warned() != tc.warn {
+			t.Errorf("%s: warned=%v, want %v (%+v)", tc.name, v.Warned(), tc.warn, v)
+		}
+		if tc.warn && (v.Code != "self-throttle" || v.Fingerprint == "") {
+			t.Errorf("%s: a warning without its code or fingerprint: %+v", tc.name, v)
 		}
 	}
 }
