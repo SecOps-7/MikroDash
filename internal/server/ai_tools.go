@@ -30,6 +30,8 @@ package server
 
 import (
 	"encoding/json"
+	"math"
+	"time"
 
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
@@ -73,6 +75,11 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	}
 	if t.Page != "" && !cn.canPage(t.Page, "read") {
 		return "You do not have access to that data, so it was not read."
+	}
+	// A LIVE TOOL reads a collector's measurements rather than a menu's rows.
+	// Checked after the permission, which applies to both kinds identically.
+	if t.Collector != "" {
+		return cn.runLiveTool(t)
 	}
 	res := resource.ByKey(t.Resource)
 	if res == nil {
@@ -133,5 +140,107 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	// WRAPPED IN THE SAME UNTRUSTED BLOCK AS THE INITIAL CONTEXT. These rows are
 	// exactly the kind of text the block exists for: comments, device names and
 	// DHCP host names chosen by whoever controls those devices.
+	return aicontext.Wrap(string(body))
+}
+
+// aiLiveMaxAge is how old a live reading may be before a tool re-reads it.
+//
+// ── SECONDS, NOT THE STALENESS RULE ─────────────────────────────────────────
+//
+// The context summary calls a reading stale only after its interval plus a grace,
+// which suits "is this still roughly true". A throughput question is "what is it
+// doing NOW", and a rate from a minute ago answers a different one. With the
+// Interfaces page open the collector reads every second, so this almost never
+// costs a read; with nothing open it costs one refresh per question.
+const aiLiveMaxAge = 5 * time.Second
+
+// liveToolReaders answers each live tool, keyed by the collector it names.
+//
+// A LEDGER IN BOTH DIRECTIONS (`TestEveryLiveToolHasAReader`): a live tool with
+// no reader would be advertised and then answer "not available", and a reader no
+// tool names is code nothing can reach.
+var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
+	"ifStatus": (*conn).liveInterfaceTraffic,
+}
+
+func (cn *conn) runLiveTool(t aitools.Tool) string {
+	read, ok := liveToolReaders[t.Collector]
+	if !ok {
+		return "That tool is not available on this build."
+	}
+	if cn.rsession == nil {
+		return "No device is selected, so nothing was read."
+	}
+	return read(cn, t)
+}
+
+// liveInterfaceTraffic is `list_interface_traffic`: every interface with its live
+// rates, from the payload the Interfaces page draws.
+func (cn *conn) liveInterfaceTraffic(t aitools.Tool) string {
+	col := cn.rsession.IfStatus()
+	p := col.Last()
+	if p == nil || time.Since(time.UnixMilli(p.TS)) > aiLiveMaxAge {
+		col.RefreshNow()
+		p = col.Last()
+	}
+	if p == nil {
+		return "The interface readings are not available from this router yet."
+	}
+
+	type ifRow struct {
+		Name        string   `json:"name"`
+		Type        string   `json:"type"`
+		Comment     string   `json:"comment,omitempty"`
+		Running     bool     `json:"running"`
+		Disabled    bool     `json:"disabled"`
+		RxMbps      float64  `json:"rxMbps"`
+		TxMbps      float64  `json:"txMbps"`
+		IPs         []string `json:"addresses,omitempty"`
+		RxBytes     *float64 `json:"rxBytes,omitempty"`
+		TxBytes     *float64 `json:"txBytes,omitempty"`
+		ErrorsDelta *float64 `json:"errorsSinceLastReading,omitempty"`
+		DropsDelta  *float64 `json:"dropsSinceLastReading,omitempty"`
+	}
+	out := make([]ifRow, 0, len(p.Interfaces))
+	bytesUsed, truncated := 0, false
+	for _, i := range p.Interfaces {
+		if len(out) >= aiToolMaxRows {
+			truncated = true
+			break
+		}
+		row := ifRow{Name: i.Name, Type: i.Type, Comment: i.Comment, Running: i.Running,
+			Disabled: i.Disabled, RxMbps: i.RxMbps, TxMbps: i.TxMbps, IPs: i.IPs,
+			RxBytes: i.RxBytes, TxBytes: i.TxBytes, ErrorsDelta: i.ErrorsDelta, DropsDelta: i.DropsDelta}
+		b, err := json.Marshal(row)
+		if err != nil {
+			continue
+		}
+		// The same row-by-row budget as a resource tool, so a router with
+		// hundreds of VLAN interfaces cannot blow the model's context.
+		if bytesUsed+len(b) > aiToolMaxBytes {
+			truncated = true
+			break
+		}
+		bytesUsed += len(b)
+		out = append(out, row)
+	}
+
+	body, err := json.Marshal(struct {
+		Tool       string  `json:"tool"`
+		Menu       string  `json:"menu"`
+		AgeSeconds float64 `json:"readingAgeSeconds"`
+		Interfaces []ifRow `json:"interfaces"`
+		Total      int     `json:"totalInterfaces"`
+		Truncated  bool    `json:"truncated"`
+	}{
+		Tool: t.Name, Menu: "/interface/monitor-traffic",
+		AgeSeconds: math.Round(time.Since(time.UnixMilli(p.TS)).Seconds()*10) / 10,
+		Interfaces: out, Total: len(p.Interfaces), Truncated: truncated,
+	})
+	if err != nil {
+		return "That data could not be encoded."
+	}
+	// UNTRUSTED like every tool result: interface names and comments are chosen by
+	// whoever configured the router.
 	return aicontext.Wrap(string(body))
 }

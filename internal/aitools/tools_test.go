@@ -171,6 +171,16 @@ func TestEveryDescriptionNamesItsMenu(t *testing.T) {
 			continue
 		}
 		checked++
+		// A LIVE TOOL has no resource, and names the menu its collector reads
+		// instead. Re-aimed for `list_interface_traffic`: the rule was always
+		// "name the RouterOS path and say it cannot write", and that still holds.
+		if tool.Collector != "" {
+			if !strings.Contains(tool.Description, "/interface") || !strings.Contains(tool.Description, "Read only") {
+				t.Errorf("live tool %q does not name the menu it reads or say it cannot write: %s",
+					tool.Name, tool.Description)
+			}
+			continue
+		}
 		res := resource.ByKey(tool.Resource)
 		if res == nil {
 			t.Errorf("tool %q names no live resource", tool.Name)
@@ -307,5 +317,30 @@ func TestTheReadCatalogueIsOrderedAndTheWriteToolIsLast(t *testing.T) {
 	}
 	if last := all[len(all)-1]; last.Name != WriteToolName {
 		t.Errorf("the catalogue ends with %q, not the write tool", last.Name)
+	}
+}
+
+// TestTheInterfaceTrafficToolIsOfferedByTheInterfacesPage. The operator's report
+// was that the assistant had no way to see every interface's throughput. It must
+// be advertised to a viewer who may read Interfaces, and to nobody else.
+func TestTheInterfaceTrafficToolIsOfferedByTheInterfacesPage(t *testing.T) {
+	const name = "list_interface_traffic"
+	has := func(tools []Tool) bool {
+		for _, tl := range tools {
+			if tl.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(Permitted(func(page, access string) bool { return page == "interfaces" && access == AccessRead })) {
+		t.Errorf("%s is not offered to a viewer who may read Interfaces", name)
+	}
+	if has(Permitted(func(page, access string) bool { return page == "firewall" })) {
+		t.Errorf("%s is offered to a viewer who may not read Interfaces", name)
+	}
+	tool, ok := ByName(name)
+	if !ok || tool.Collector != "ifStatus" || tool.Access != AccessRead {
+		t.Errorf("%s resolves to %+v", name, tool)
 	}
 }

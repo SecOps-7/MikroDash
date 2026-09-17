@@ -80,6 +80,10 @@ type Tool struct {
 	// resources it will accept are filtered per viewer before it is advertised,
 	// and the page is checked again per call against whichever one is named.
 	Page string `json:"-"`
+	// Collector is the live collector a LIVE tool reads, instead of a resource's
+	// menu. Not sent to the model. Empty on every resource tool and on the write
+	// tool; see liveTools.
+	Collector string `json:"-"`
 	// Access is "read" or "write". It decides which permission `Permitted`
 	// consults, and it is what a gate checks rather than inferring intent from
 	// a tool's name.
@@ -136,12 +140,49 @@ func All() []Tool {
 		out = append(out, listTool(r))
 		keys = append(keys, r.Key)
 	}
+	out = append(out, liveTools()...)
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	sort.Strings(keys)
 	// LAST, and after the sort, so the read catalogue keeps its stable order and
 	// the one tool that changes anything is not buried alphabetically among
 	// thirty that cannot.
 	return append(out, writeTool(keys))
+}
+
+// liveTools read what a COLLECTOR measures rather than what a menu holds.
+//
+// ── WHY A SECOND KIND OF TOOL ───────────────────────────────────────────────
+//
+// Every resource tool reads configuration: the rows of a menu, which is what
+// the registry declares. Some questions are about what the router is DOING, and
+// that is not a row in any menu this registry can list. Asked for per-interface
+// throughput, the assistant had only `list_iface` (name, comment, disabled) and
+// a summary naming the busiest few, and said so, correctly.
+//
+// The data was already in memory: the interface collector carries every
+// interface's live rate, read from `/interface/monitor-traffic`, for the
+// Interfaces page. A live tool hands that payload over, re-read only when it is
+// more than a few seconds old, so a router whose Interfaces page is open pays
+// nothing extra for the question.
+//
+// DECLARED, NOT GENERATED. Each collector's payload has its own shape and needs
+// its own rendering, so there is no registry to derive these from. A ledger in
+// internal/server holds every entry here to a reader there, in both directions.
+func liveTools() []Tool {
+	return []Tool{{
+		Name: namePrefix + "interface_traffic",
+		Description: "Read only. List EVERY interface with its live throughput, read from " +
+			"/interface/monitor-traffic: rxMbps and txMbps now, plus running and disabled " +
+			"state, type, comment, addresses, cumulative rx/tx bytes, and errors and drops " +
+			"since the previous reading. Use it for any question about how much traffic an " +
+			"interface, WAN or VLAN is carrying, or which one is busiest. The result says " +
+			"how old the reading is; rates are refreshed if they are more than a few " +
+			"seconds old.",
+		Parameters: noArgs(),
+		Collector:  "ifStatus",
+		Page:       "interfaces",
+		Access:     AccessRead,
+	}}
 }
 
 // listTool is one resource's read tool.
@@ -287,6 +328,11 @@ func Permitted(can func(page, access string) bool) []Tool {
 		}
 		if can(r.Page, AccessWrite) {
 			writable = append(writable, r.Key)
+		}
+	}
+	for _, lt := range liveTools() {
+		if can(lt.Page, AccessRead) {
+			out = append(out, lt)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })

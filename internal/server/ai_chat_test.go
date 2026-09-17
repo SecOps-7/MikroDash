@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"mikrodash/internal/aitools"
 	"strings"
 	"testing"
 	"time"
@@ -406,5 +407,30 @@ func TestThePreambleDescribesTheToolsItIsGiven(t *testing.T) {
 	}
 	if !strings.Contains(AIDefaultSystemPrompt, "delete") {
 		t.Error("the default prompt does not say the assistant can delete")
+	}
+}
+
+// TestEveryLiveToolHasAReader, in both directions. A live tool advertised with no
+// reader would answer "not available" to the one question it exists for, and a
+// reader no tool names is dead code that still looks load-bearing.
+func TestEveryLiveToolHasAReader(t *testing.T) {
+	named := map[string]bool{}
+	for _, tl := range aitools.All() {
+		if tl.Collector == "" {
+			continue
+		}
+		named[tl.Collector] = true
+		if _, ok := liveToolReaders[tl.Collector]; !ok {
+			t.Errorf("live tool %q reads collector %q and nothing on the server answers it",
+				tl.Name, tl.Collector)
+		}
+	}
+	for key := range liveToolReaders {
+		if !named[key] {
+			t.Errorf("a reader exists for collector %q but no tool names it", key)
+		}
+	}
+	if len(named) == 0 {
+		t.Error("no live tools found; this ledger is measuring nothing")
 	}
 }

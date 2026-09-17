@@ -28,10 +28,11 @@ import (
 // mismatch rather than as nothing at all.
 
 type toolRecord struct {
-	Name     string `json:"name"`
-	Access   string `json:"access"`
-	Resource string `json:"resource"`
-	Page     string `json:"page"`
+	Name      string `json:"name"`
+	Access    string `json:"access"`
+	Resource  string `json:"resource"`
+	Collector string `json:"collector"`
+	Page      string `json:"page"`
 }
 
 // writeTool is the ONE tool allowed to change anything. Named here rather than
@@ -71,7 +72,26 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}
 	unbound := 0
+	liveTools := 0
 	for _, r := range loadToolArtefact(t) {
+		// ── A LIVE TOOL NAMES A COLLECTOR INSTEAD OF A RESOURCE ─────────────
+		//
+		// It reads measurements (per-interface throughput) that are not rows of
+		// any menu the registry declares. It is not an unbound tool: it has a
+		// source, just a different kind, and it must be a READ tool gated on a
+		// page. internal/server's TestEveryLiveToolHasAReader holds each one to
+		// the code that answers it, in both directions.
+		if r.Collector != "" {
+			liveTools++
+			if r.Resource != "" {
+				t.Errorf("tool %q names both a resource and a collector", r.Name)
+			}
+			if r.Access != "read" || r.Page == "" {
+				t.Errorf("live tool %q must be a read tool gated on a page, got access %q page %q",
+					r.Name, r.Access, r.Page)
+			}
+			continue
+		}
 		if r.Resource == "" {
 			unbound++
 			if r.Name != writeTool {
@@ -86,6 +106,10 @@ func TestEveryResourceHasATool(t *testing.T) {
 	}
 	if unbound != 1 {
 		t.Errorf("%d tools carry no resource; exactly one (%q) should", unbound, writeTool)
+	}
+	if liveTools == 0 {
+		t.Error("no live tools are recorded; list_interface_traffic has gone, or the record " +
+			"no longer carries `collector`")
 	}
 
 	live := map[string]*resource.Resource{}
