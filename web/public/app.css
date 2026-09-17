@@ -1912,6 +1912,19 @@
        indicator rather than ending underneath it. */
     #aiAgentLog{flex:1;min-height:0;padding-bottom:3rem!important}
 
+    /* ── ONE CENTERED READING COLUMN ────────────────────────────────────────
+       Turns span the window's width no longer: each is a row of the same
+       centered column, so a line of an answer stays a comfortable length on a
+       wide screen. Your turns right-align WITHIN the column and the assistant's
+       fill it, which is the shape of a conversation without the text running
+       from one edge of the window to the other. The composer shares the width
+       so the box you type in sits under what you are reading. */
+    .ai-column,.ai-turn{width:100%;max-width:48rem;margin-left:auto;margin-right:auto}
+    .ai-turn{display:flex;flex-direction:column;align-items:flex-start;flex:none}
+    .ai-turn-you{align-items:flex-end}
+    .ai-turn-you>.ai-turn-body{max-width:85%}
+    .ai-turn-assistant>.ai-turn-body,.ai-turn-error>.ai-turn-body{width:100%;box-sizing:border-box}
+
     /* ── THE THINKING INDICATOR, PINNED TO THE WINDOW'S BOTTOM-LEFT CORNER ──
        Absolute against #aiAgentWindow, which does not scroll. It used to be
        sticky inside the transcript, and sticky only pins once the content

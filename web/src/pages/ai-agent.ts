@@ -106,9 +106,9 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   /** One bubble. Built as nodes; the only text assignment is `textContent`. */
   function bubble(role: Role, text: string): HTMLElement {
     const wrap = document.createElement('div');
+    // LAYOUT IS THE STYLESHEET'S. Every turn spans one centered reading column,
+    // and `.ai-turn-you` right-aligns within it; see `.ai-turn` in app.css.
     wrap.className = 'ai-turn ai-turn-' + role;
-    wrap.style.maxWidth = '92%';
-    wrap.style.alignSelf = role === 'you' ? 'flex-end' : 'flex-start';
 
     const who = document.createElement('div');
     who.style.fontSize = '.68rem';
@@ -118,6 +118,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     wrap.appendChild(who);
 
     const body = document.createElement('div');
+    body.className = 'ai-turn-body';
     body.style.fontSize = '.8rem';
     body.style.lineHeight = '1.5';
     body.style.padding = '.55rem .75rem';
