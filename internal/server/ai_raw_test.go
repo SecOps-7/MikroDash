@@ -1,14 +1,25 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/db"
+	"mikrodash/internal/hub"
+	"mikrodash/internal/pages"
 	"mikrodash/internal/rawcmd"
+	"mikrodash/internal/rbac"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/store"
+
+	_ "modernc.org/sqlite"
 )
 
 func rawCall(args string) aiprovider.ToolCall {
@@ -216,5 +227,153 @@ func TestAPlanIsBounded(t *testing.T) {
 	cn := &conn{srv: &Server{}}
 	if got := cn.runAIBulkTool(bulkCall(string(b))); !strings.Contains(got, "not available") {
 		t.Errorf("an over-long plan from a caller with no permission produced %q", got)
+	}
+}
+
+// rawAdminDDL is a grant graph with ONE global administrator: the only shape
+// that reaches the raw command gate's second question.
+const rawAdminDDL = `
+CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL);
+INSERT INTO schema_version (version, applied_at) VALUES (14, 0);
+CREATE TABLE audit_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL,
+  actor_id TEXT, actor_name TEXT NOT NULL, actor_ip TEXT, action TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('app','router')), router_id TEXT,
+  target_type TEXT, target_id TEXT, target_name TEXT,
+  outcome TEXT NOT NULL CHECK (outcome IN ('ok','denied','error')), detail TEXT);
+CREATE TABLE roles (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+  builtin INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE role_pages (role_id TEXT NOT NULL, page TEXT NOT NULL, access TEXT NOT NULL);
+CREATE TABLE grants (
+  id             TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
+  principal_type TEXT NOT NULL, principal_id TEXT NOT NULL,
+  role_id        TEXT NOT NULL REFERENCES roles(id) ON DELETE RESTRICT, role TEXT,
+  scope_type     TEXT NOT NULL, scope_id TEXT NOT NULL DEFAULT '',
+  created_at     INTEGER NOT NULL DEFAULT 0, created_by TEXT,
+  UNIQUE (principal_type, principal_id, scope_type, scope_id));
+CREATE TABLE group_members (group_id TEXT NOT NULL, user_id TEXT NOT NULL);
+CREATE TABLE principal_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL,
+  description TEXT, created_at INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE sites (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0);
+INSERT INTO roles (id, name, builtin) VALUES ('administrator','Administrator',1);
+`
+
+// rawAdminConn builds the connection the gate's later questions need: a
+// signed-in GLOBAL ADMINISTRATOR, a store whose settings say whether raw
+// commands are allowed, and no router selected — so the test can see which gate
+// answered without a router being involved.
+func rawAdminConn(t *testing.T, allow bool) *conn {
+	t.Helper()
+	dir := t.TempDir()
+
+	h, err := sql.Open("sqlite", filepath.Join(dir, "mikrodash.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Exec(rawAdminDDL); err != nil {
+		t.Fatal(err)
+	}
+	h.Close()
+	database, err := db.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { database.Close() })
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"),
+		[]byte(fmt.Sprintf(`{"aiAllowRawCommands": %v}`, allow)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	user, err := st.CreateUser(store.NewUser{Username: "boss", Password: "a-long-enough-password", Role: "admin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := user["id"].(string)
+	if id == "" {
+		t.Fatal("the created user has no id")
+	}
+	if err := database.UpsertGrant(db.GrantSpec{
+		PrincipalType: "user", PrincipalID: id, ScopeType: "global", RoleID: "administrator",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	s := &Server{store: st, auditDB: database, hub: hub.New()}
+	s.rbac = rbac.New(database, func() []rbac.Router { return nil })
+	if !s.isGlobalAdmin(&Session{Username: "boss", AuthMode: "modern"}) {
+		t.Fatal("the fixture's administrator is not one — this test would pass for the wrong reason")
+	}
+	return &conn{srv: s, sess: &Session{Username: "boss", AuthMode: "modern"}}
+}
+
+// TestAnAdministratorWithTheSettingOffIsRefusedBeforeParsing.
+//
+// The second gate, exercised against a REAL global administrator rather than a
+// connection that fails the first one — otherwise this would pass whatever the
+// setting said. With the setting off, a hostile command is refused by the gate
+// and never reaches the parser; with it on, the same command reaches the parser
+// and is refused there, which is the control that proves the gate is what
+// answered in the first case.
+func TestAnAdministratorWithTheSettingOffIsRefusedBeforeParsing(t *testing.T) {
+	const hostile = `{"command":"/ip/address/print; /user/remove .id=*1"}`
+
+	off := rawAdminConn(t, false)
+	got := off.runAIRawCommandTool(rawCall(hostile))
+	if !strings.Contains(got, "not available") {
+		t.Errorf("an administrator with the setting off produced %q", got)
+	}
+	if strings.Contains(got, "refused before it was sent") {
+		t.Errorf("the command reached the parser with the setting off: %q", got)
+	}
+	// And a plan is refused by the same gate, before any step is parsed.
+	if got := off.runAIBulkTool(bulkCall(`{"commands":["/ip/address/print","nonsense"]}`)); !strings.Contains(got, "not available") {
+		t.Errorf("a plan with the setting off produced %q", got)
+	}
+
+	// THE CONTROL. The same administrator with the setting ON is not refused by
+	// the gate: the call gets past it and stops at the next thing missing, which
+	// on this connection is a selected router. Without this, the assertions
+	// above would pass against a build that refused everything.
+	on := rawAdminConn(t, true)
+	for _, got := range []string{
+		on.runAIRawCommandTool(rawCall(hostile)),
+		on.runAIRawCommandTool(rawCall(`{"command":"/ip/address/print"}`)),
+		on.runAIBulkTool(bulkCall(`{"commands":["/ip/address/print"]}`)),
+	} {
+		if strings.Contains(got, "not available") {
+			t.Errorf("with the setting on, the gate still refused: %q", got)
+		}
+		if !strings.Contains(got, "No device is selected") {
+			t.Errorf("with the setting on, the call stopped somewhere unexpected: %q", got)
+		}
+	}
+}
+
+// TestNeitherRawToolIsOfferedToAnyViewerOfAnyShape.
+//
+// `Permitted` is asked as every shape of viewer there can be — nobody, every
+// page read-only, every page writable, and each page on its own — because the
+// tool list is what a model is TOLD exists, and a tool nobody may run is still a
+// tool a model will try.
+func TestNeitherRawToolIsOfferedToAnyViewerOfAnyShape(t *testing.T) {
+	viewers := map[string]func(page, access string) bool{
+		"nobody":     func(string, string) bool { return false },
+		"read-only":  func(_, access string) bool { return access == aitools.AccessRead },
+		"everything": func(string, string) bool { return true },
+	}
+	for _, p := range pages.All {
+		page := p.Key
+		viewers["only "+page] = func(got, _ string) bool { return got == page }
+	}
+	for name, can := range viewers {
+		for _, tool := range aitools.Permitted(can) {
+			if tool.Name == aitools.RawCommandToolName || tool.Name == aitools.BulkToolName {
+				t.Errorf("%q was offered to the viewer %q", tool.Name, name)
+			}
+		}
 	}
 }
