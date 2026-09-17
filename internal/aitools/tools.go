@@ -368,6 +368,21 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "routing",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "capsman_caps",
+		Description: "Read only. Describe CAPsMAN on this router, read from /interface/wifi/capsman " +
+			"and the legacy /caps-man: whether it is a manager, a " +
+			"CAP or neither; the manager's interfaces and upgrade policy; when it is a CAP, the " +
+			"manager it is attached to; and each managed access point with identity, address, " +
+			"board, RouterOS version, state, connected time, uptime, its radios and how many " +
+			"clients it has; with totals. Clients themselves are in list_wifi_clients, and the " +
+			"configuration, security, channel and datapath profiles in list_capsConfig, " +
+			"list_capsSecurity, list_capsChannel and list_capsDatapath.",
+		Parameters: noArgs(),
+		Collector:  "capsman",
+		Freshness:  FreshMetadata,
+		Page:       "capsman",
+		Access:     AccessRead,
 	}}
 }
 

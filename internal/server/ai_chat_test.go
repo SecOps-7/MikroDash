@@ -915,3 +915,36 @@ func TestRenderBGPSessions(t *testing.T) {
 		t.Errorf("no sessions does not read as an empty list: %s", empty)
 	}
 }
+
+// TestRenderCapsman. CAPs reach the model with state, radios and a client count;
+// serials, certificates and per-client rows do not.
+func TestRenderCapsman(t *testing.T) {
+	p := &collect.CapsmanPayload{TS: 1, PollMs: 10000, Role: "manager", Available: true,
+		Manager: collect.CapsManager{Enabled: true, Interfaces: []string{"bridge"}, CaCertificate: "ca-secret-name",
+			Certificate: "cert-name", UpgradePolicy: "require-same-version"},
+		Caps: []collect.Cap{{Identity: "cap-hall", Address: "192.0.2.7", BoardName: "cAP ax", Serial: "HD0SERIAL1",
+			Version: "7.24", State: "Ok", Uptime: "3d2h", ClientCount: 5,
+			Radios:  []collect.CapsRadio{{RadioMac: "02:00:00:00:00:01", Interface: "cap-hall-5g"}},
+			Clients: []collect.CapsClient{{Mac: "02:00:00:00:00:99", Interface: "cap-hall-5g"}}}},
+		Totals: collect.CapsTotals{Caps: 1, CapsOk: 1, Radios: 1, Clients: 5, ClientsOnCaps: 5},
+	}
+	b, _ := json.Marshal(renderCapsman(p))
+	got := string(b)
+	for _, want := range []string{`"role":"manager"`, `"interfaces":["bridge"]`, `"identity":"cap-hall"`,
+		`"board":"cAP ax"`, `"state":"Ok"`, `"interface":"cap-hall-5g"`, `"clients":5`, `"capsOk":1`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"HD0SERIAL1", "ca-secret-name", "cert-name", "02:00:00:00:00:99"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+	empty, _ := json.Marshal(renderCapsman(&collect.CapsmanPayload{TS: 1}))
+	for _, want := range []string{`"caps":[]`, `"localRadios":[]`, `"interfaces":[]`} {
+		if !strings.Contains(string(empty), want) {
+			t.Errorf("an empty payload is missing %s: %s", want, empty)
+		}
+	}
+}

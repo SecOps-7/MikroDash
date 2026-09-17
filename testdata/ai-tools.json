@@ -58,6 +58,13 @@
       "page": "capsman"
     },
     {
+      "name": "list_capsman_caps",
+      "access": "read",
+      "resource": "",
+      "collector": "capsman",
+      "page": "capsman"
+    },
+    {
       "name": "list_connections",
       "access": "read",
       "resource": "",

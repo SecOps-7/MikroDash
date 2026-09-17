@@ -62,6 +62,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"vpn":       (*conn).liveWireguardStatus,
 	"ppp":       (*conn).livePPPSessions,
 	"routing":   (*conn).liveBGPSessions,
+	"capsman":   (*conn).liveCapsman,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -1323,4 +1324,89 @@ func renderBGPSessions(p *collect.RoutingPayload) any {
 		Down        int           `json:"down"`
 		Truncated   bool          `json:"truncated"`
 	}{kept, p.Summary.Total, p.Summary.Established, p.Summary.Down, truncated}
+}
+
+// ── list_capsman_caps ───────────────────────────────────────────────────────
+
+// liveCapsman is metadata: which CAPs are attached changes on the scale of
+// reboots, and a forced refresh re-reads the manager, CAP and profile menus as
+// well as the registration table.
+func (cn *conn) liveCapsman(t aitools.Tool) string {
+	col := cn.rsession.Capsman()
+	return liveAnswer(t, liveSource[collect.CapsmanPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.CapsmanPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/interface/wifi/capsman",
+		absent:  "The CAPsMAN readings are not available from this router yet.",
+	}, renderCapsman)
+}
+
+type liveCapsRadio struct {
+	Interface string `json:"interface"`
+	RadioMac  string `json:"radioMac,omitempty"`
+	Disabled  bool   `json:"disabled,omitempty"`
+}
+
+type liveCap struct {
+	Identity      string          `json:"identity"`
+	Address       string          `json:"address,omitempty"`
+	Board         string          `json:"board,omitempty"`
+	Version       string          `json:"version,omitempty"`
+	BaseMac       string          `json:"baseMac,omitempty"`
+	State         string          `json:"state,omitempty"`
+	ConnectedTime string          `json:"connectedTime,omitempty"`
+	Uptime        string          `json:"uptime,omitempty"`
+	Radios        []liveCapsRadio `json:"radios"`
+	Clients       int             `json:"clients"`
+	Legacy        bool            `json:"legacyCapsman,omitempty"`
+}
+
+func capsRadios(in []collect.CapsRadio) []liveCapsRadio {
+	out := make([]liveCapsRadio, 0, len(in))
+	for _, r := range in {
+		out = append(out, liveCapsRadio{Interface: r.Interface, RadioMac: r.RadioMac, Disabled: r.Disabled})
+	}
+	return out
+}
+
+// renderCapsman leaves out the certificates, serials and per-CAP client rows
+// (list_wifi_clients has the clients), and the profiles, which have their own
+// tools.
+func renderCapsman(p *collect.CapsmanPayload) any {
+	caps := make([]liveCap, 0, len(p.Caps))
+	for _, c := range p.Caps {
+		caps = append(caps, liveCap{Identity: c.Identity, Address: c.Address, Board: c.BoardName,
+			Version: c.Version, BaseMac: c.BaseMac, State: c.State, ConnectedTime: c.ConnectedTime,
+			Uptime: c.Uptime, Radios: capsRadios(c.Radios), Clients: c.ClientCount, Legacy: c.Legacy})
+	}
+	kept, truncated := capRows(caps)
+	type manager struct {
+		Enabled       bool     `json:"enabled"`
+		Interfaces    []string `json:"interfaces"`
+		UpgradePolicy string   `json:"upgradePolicy,omitempty"`
+	}
+	type capMode struct {
+		Enabled         bool   `json:"enabled"`
+		ManagerAddress  string `json:"managerAddress,omitempty"`
+		ManagerIdentity string `json:"managerIdentity,omitempty"`
+	}
+	ifaces := p.Manager.Interfaces
+	if ifaces == nil {
+		ifaces = []string{}
+	}
+	return struct {
+		Available     bool               `json:"wifiCapsmanAvailable"`
+		LegacyManager bool               `json:"legacyCapsmanEnabled"`
+		Role          string             `json:"role"`
+		Manager       manager            `json:"manager"`
+		Cap           capMode            `json:"capMode"`
+		Caps          []liveCap          `json:"caps"`
+		LocalRadios   []liveCapsRadio    `json:"localRadios"`
+		Totals        collect.CapsTotals `json:"totals"`
+		Truncated     bool               `json:"truncated"`
+	}{p.Available, p.LegacyManager, p.Role,
+		manager{p.Manager.Enabled, ifaces, p.Manager.UpgradePolicy},
+		capMode{p.Cap.Enabled, p.Cap.CurrentAddress, p.Cap.CurrentIdentity},
+		kept, capsRadios(p.LocalRadios), p.Totals, truncated}
 }
