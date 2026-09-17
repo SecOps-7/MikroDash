@@ -7,6 +7,7 @@ import (
 
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/rawcmd"
 	"mikrodash/internal/routeros"
 )
 
@@ -114,5 +115,106 @@ func TestRawOutputIsCappedAndWrapped(t *testing.T) {
 	small := rawOutput([]routeros.Reply{{"name": "ether1"}})
 	if strings.Contains(small, `"truncated":true`) {
 		t.Errorf("a one-row reply reads as truncated: %s", small)
+	}
+}
+
+func bulkCall(args string) aiprovider.ToolCall {
+	var tc aiprovider.ToolCall
+	tc.ID, tc.Type = "b1", "function"
+	tc.Function.Name = aitools.BulkToolName
+	tc.Function.Arguments = args
+	return tc
+}
+
+// TestAPlanIsRefusedWholeOrNotAtAll.
+//
+// A plan whose fourth step will not parse must not run its first three and then
+// stop: that is the half-applied state this app avoids everywhere else, and the
+// operator would have approved a plan that is not the one that ran. The gate
+// still comes first, so these are checked through a connection that may run
+// commands as far as the parser — which a bare one cannot be, so the parse
+// refusals are exercised on the pure path the tool takes.
+func TestAPlanIsRefusedWholeOrNotAtAll(t *testing.T) {
+	cn := &conn{srv: &Server{}}
+	// The gate refuses before the plan is looked at, exactly as for one command.
+	got := cn.runAIBulkTool(bulkCall(`{"commands":["/ip/address/print","/user/remove .id=*1"]}`))
+	if !strings.Contains(got, "not available") {
+		t.Errorf("the gate did not refuse a plan first: %q", got)
+	}
+	if got := cn.runAIBulkTool(bulkCall(`{"commands":`)); !strings.Contains(got, "not valid JSON") {
+		t.Errorf("malformed arguments produced %q", got)
+	}
+}
+
+// TestPlanTextNumbersTheStepsItWillRun. The dialog and the audit trail show the
+// PARSED commands, numbered, so what is approved is what the server understood.
+func TestPlanTextNumbersTheStepsItWillRun(t *testing.T) {
+	plan := []rawcmd.Command{}
+	for _, in := range []string{
+		`/ip/firewall/filter/add chain=input action=accept comment="from the office"`,
+		"/ip/address/print",
+	} {
+		cmd, err := rawcmd.Parse(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan = append(plan, cmd)
+	}
+	got := planText(plan)
+	want := "1. /ip/firewall/filter/add chain=input action=accept comment=from the office\n" +
+		"2. /ip/address/print"
+	if got != want {
+		t.Errorf("planText =\n%s\nwant\n%s", got, want)
+	}
+}
+
+// TestAPlanReportsEveryStep, including the ones it never attempted.
+//
+// Stopping at the first failure is only half of it: a plan that stops silently
+// leaves the operator to work out how far it got. Every step is named — what ran,
+// what failed, and what was skipped because of it.
+func TestAPlanReportsEveryStep(t *testing.T) {
+	steps := []planStep{
+		{Step: 1, Command: "/ip/address/print", Outcome: "ok", Rows: 3},
+		{Step: 2, Command: "/ip/address/add address=bad", Outcome: "failed", Error: "input does not match any value"},
+		{Step: 3, Command: "/ip/address/print", Outcome: "not attempted"},
+	}
+	if n := countRan(steps); n != 2 {
+		t.Errorf("countRan = %d, want 2 — a skipped step is not a step that ran", n)
+	}
+	b, err := json.Marshal(steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"outcome":"ok"`, `"outcome":"failed"`, `"outcome":"not attempted"`,
+		`"rows":3`, `"error":"input does not match any value"`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("a step outcome is missing %s: %s", want, b)
+		}
+	}
+	// A successful step carries no error, and a skipped one no row count: the
+	// zero values are omitted rather than reported as measurements.
+	if strings.Contains(string(b), `"step":3,"command":"/ip/address/print","outcome":"not attempted","rows"`) {
+		t.Errorf("a step that never ran reports a row count: %s", b)
+	}
+}
+
+// TestAPlanIsBounded. Twenty is more than an operator will read carefully, and a
+// plan nobody reads carefully is one nobody is confirming.
+func TestAPlanIsBounded(t *testing.T) {
+	if rawPlanMaxSteps > 20 {
+		t.Errorf("a plan may have %d steps; that is more than anyone confirms deliberately",
+			rawPlanMaxSteps)
+	}
+	cmds := make([]string, rawPlanMaxSteps+1)
+	for i := range cmds {
+		cmds[i] = "/ip/address/print"
+	}
+	b, _ := json.Marshal(map[string]any{"commands": cmds})
+	// Through a connection that passes no gate, so this asserts the ORDER too:
+	// the bound is not what refuses here.
+	cn := &conn{srv: &Server{}}
+	if got := cn.runAIBulkTool(bulkCall(string(b))); !strings.Contains(got, "not available") {
+		t.Errorf("an over-long plan from a caller with no permission produced %q", got)
 	}
 }

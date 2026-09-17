@@ -64,9 +64,11 @@ type aiWriteProposal struct {
 	actionKey string
 	target    string
 	mode      string
-	// raw is a `run_command` proposal: one parsed RouterOS command. Set on
-	// neither of the other two kinds.
+	// raw is a `run_command` proposal: one parsed RouterOS command. plan is a
+	// `bulk_execute` one: the whole ordered list, parsed. Set on neither of the
+	// other kinds.
 	raw      *rawcmd.Command
+	plan     []rawcmd.Command
 	raisedAt time.Time
 }
 
@@ -299,6 +301,14 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 // aiWriteApprove performs a proposal the operator accepted.
 func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	p := cn.takeAIProposal(raw)
+	if p != nil && len(p.plan) > 0 {
+		var in struct {
+			Confirm string `json:"confirm"`
+		}
+		_ = json.Unmarshal(raw, &in)
+		cn.approveAIPlan(p, in.Confirm)
+		return
+	}
 	if p != nil && p.raw != nil {
 		var in struct {
 			Confirm string `json:"confirm"`

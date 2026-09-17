@@ -31,6 +31,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -228,4 +229,199 @@ func rawOutput(rows []routeros.Reply) string {
 		Truncated bool                `json:"truncated"`
 	}{kept, len(kept), len(rows), truncated})
 	return aicontext.Wrap(string(body))
+}
+
+// ── bulk_execute: an ordered plan of raw commands ───────────────────────────
+//
+// ── ONE CONFIRMATION, AND WHY THAT IS NOT A WEAKENING ───────────────────────
+//
+// Six commands confirmed one at a time is six dialogs, and the sixth is answered
+// without being read — which is how a confirmation becomes furniture. The plan is
+// shown WHOLE, in order, and answered once: the operator reads six lines instead
+// of six dialogs, and the gates are otherwise the raw command's own, including
+// the router's name typed back.
+//
+// ── PARSED WHOLE, BEFORE ANYTHING RUNS ──────────────────────────────────────
+//
+// If any step will not parse, the plan is refused and NOTHING is proposed. A plan
+// whose fourth step is malformed must not run its first three and then stop: that
+// is the half-applied state this app avoids everywhere else.
+//
+// ── IT STOPS AT THE FIRST FAILURE ───────────────────────────────────────────
+//
+// A later step usually assumes the earlier ones took. Continuing past a refusal
+// would apply a plan the operator never approved — the one that happens to skip
+// step three — so execution stops, and every step is reported: what ran, what
+// failed, and what was never attempted.
+
+// rawPlanMaxSteps bounds a plan. Twenty is more than an operator will read
+// carefully, and a plan nobody reads carefully is one nobody is confirming.
+const rawPlanMaxSteps = 20
+
+// runAIBulkTool is `bulk_execute`.
+func (cn *conn) runAIBulkTool(tc aiprovider.ToolCall) string {
+	var args struct {
+		Commands []string `json:"commands"`
+	}
+	if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
+		return "Those arguments were not valid JSON. Send `commands` as a list of RouterOS commands."
+	}
+	if _, refusal := cn.rawCommandGate("raw.plan"); refusal != "" {
+		return refusal
+	}
+	if len(args.Commands) == 0 {
+		return "That plan has no commands in it, so nothing was proposed."
+	}
+	if len(args.Commands) > rawPlanMaxSteps {
+		return fmt.Sprintf("A plan may have at most %d commands; that one has %d. Nothing was "+
+			"proposed: split it, so the operator can read what they are approving.",
+			rawPlanMaxSteps, len(args.Commands))
+	}
+	plan := make([]rawcmd.Command, 0, len(args.Commands))
+	for i, raw := range args.Commands {
+		cmd, err := rawcmd.Parse(raw)
+		if err != nil {
+			// THE WHOLE PLAN IS REFUSED. Proposing the steps that did parse
+			// would put a plan in front of the operator that is not the one the
+			// model asked for.
+			return fmt.Sprintf("Step %d was refused before anything was proposed: %s. "+
+				"Nothing in the plan was proposed.", i+1, err.Error())
+		}
+		plan = append(plan, cmd)
+	}
+	return cn.raiseAIPlan(plan)
+}
+
+// raiseAIPlan puts the whole plan to the operator, once.
+func (cn *conn) raiseAIPlan(plan []rawcmd.Command) string {
+	tok, err := aiProposalToken()
+	if err != nil {
+		return "That plan could not be put to the operator, so nothing was run."
+	}
+	cn.proposeMu.Lock()
+	if cn.proposals == nil {
+		cn.proposals = map[string]*aiWriteProposal{}
+	}
+	now := time.Now()
+	for k, v := range cn.proposals {
+		if now.Sub(v.raisedAt) > aiProposalTTL {
+			delete(cn.proposals, k)
+		}
+	}
+	if len(cn.proposals) >= aiMaxProposals {
+		cn.proposeMu.Unlock()
+		return "There are already several things waiting for the operator to answer."
+	}
+	cn.proposals[tok] = &aiWriteProposal{token: tok, plan: plan, raisedAt: now}
+	cn.proposeMu.Unlock()
+
+	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
+		"token": tok, "kind": "command", "action": "plan",
+		"label": fmt.Sprintf("RouterOS plan, %d commands", len(plan)),
+		"name":  "", "command": planText(plan), "routerName": cn.rsession.Label,
+		"typedName": true, "warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
+	})
+	return fmt.Sprintf("Waiting for confirmation. MikroDash is showing the operator all %d "+
+		"commands as one plan, to confirm by typing the router's name. They run in order and stop "+
+		"at the first failure. Nothing has run yet: tell them what the plan does.", len(plan))
+}
+
+// planText is the plan as the dialog and the audit trail show it: the parsed
+// commands, numbered, one per line.
+func planText(plan []rawcmd.Command) string {
+	var b strings.Builder
+	for i, c := range plan {
+		fmt.Fprintf(&b, "%d. %s\n", i+1, c.Text)
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// planStep is one step's outcome, for the model and the transcript.
+type planStep struct {
+	Step    int    `json:"step"`
+	Command string `json:"command"`
+	// Outcome is "ok", "failed", or "not attempted" for a step after a failure.
+	Outcome string `json:"outcome"`
+	Rows    int    `json:"rows,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// approveAIPlan runs a plan the operator accepted.
+func (cn *conn) approveAIPlan(p *aiWriteProposal, confirm string) {
+	plan := p.plan
+	done := func(applied bool, text string) {
+		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+			"applied": applied, "resource": "bulk_execute", "name": "", "text": text,
+		})
+	}
+	if _, refusal := cn.rawCommandGate("raw.plan"); refusal != "" {
+		done(false, refusal)
+		return
+	}
+	name := cn.rsession.Label
+	if name == "" || !strings.EqualFold(strings.TrimSpace(confirm), name) {
+		done(false, "Not run: the router's name was not typed back correctly.")
+		return
+	}
+
+	steps := make([]planStep, 0, len(plan))
+	failed := false
+	for i, cmd := range plan {
+		if failed {
+			steps = append(steps, planStep{Step: i + 1, Command: cmd.Text, Outcome: "not attempted"})
+			continue
+		}
+		var rows []routeros.Reply
+		// EACH STEP TAKES THE RATE LIMIT, as a single raw command does. A plan
+		// is not a way to spend twenty writes on one permit.
+		err := cn.inWriteQueue(func() error {
+			out, e := cn.rsession.Exec(routeros.Cmd{Path: cmd.APIPath(), Args: cmd.Words})
+			rows = out
+			return e
+		})
+		outcome := "ok"
+		if err != nil {
+			outcome = "error"
+			failed = true
+		}
+		// EVERY STEP IS AUDITED WITH ITS OWN TEXT, as a single command is: a
+		// plan that half ran must leave a row per command that reached the
+		// router, not one row saying "a plan ran".
+		cn.recorder().Record(audit.Event{
+			Action: "raw.command", TargetType: "router", TargetID: cn.routerID,
+			TargetName: name, RouterID: cn.routerID, Outcome: outcome,
+			Note: fmt.Sprintf("ran step %d of %d of a raw command plan", i+1, len(plan)),
+			Extra: []audit.KV{
+				{Key: "command", Value: cmd.Text},
+				{Key: "via", Value: "agent"},
+			},
+		})
+		step := planStep{Step: i + 1, Command: cmd.Text, Outcome: "ok", Rows: len(rows)}
+		if err != nil {
+			step.Outcome, step.Error = "failed", safe.Message(err.Error())
+		}
+		steps = append(steps, step)
+	}
+
+	body, _ := json.Marshal(struct {
+		Steps  []planStep `json:"steps"`
+		Ran    int        `json:"ran"`
+		Failed bool       `json:"stoppedAtAFailure"`
+	}{steps, countRan(steps), failed})
+	head := fmt.Sprintf("Ran the plan on %s: %d of %d commands.", quoted(name), countRan(steps), len(plan))
+	if failed {
+		head = fmt.Sprintf("Stopped at a failure on %s: %d of %d commands ran, the rest were not "+
+			"attempted.", quoted(name), countRan(steps), len(plan))
+	}
+	done(!failed, head+"\n\n"+aicontext.Wrap(string(body)))
+}
+
+func countRan(steps []planStep) int {
+	n := 0
+	for _, s := range steps {
+		if s.Outcome != "not attempted" {
+			n++
+		}
+	}
+	return n
 }
