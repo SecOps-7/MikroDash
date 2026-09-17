@@ -757,3 +757,34 @@ func TestRenderConnectionsIsASummary(t *testing.T) {
 		t.Errorf("a drill-down index reached the model's view: %s", got)
 	}
 }
+
+// TestRenderBandwidthIsBusiestFirst. Active connections lead by total rate; idle
+// ones are counted, not listed; a LAN device missing its MAC while ARP knows it
+// triggers a re-derive, with a control.
+func TestRenderBandwidthIsBusiestFirst(t *testing.T) {
+	org := "Example CDN"
+	p := &collect.BandwidthPayload{TS: 1000, PollMs: 3000, Devices: []collect.BandwidthDevice{
+		{SrcIP: "192.0.2.10", Name: "tv", DstIP: "198.51.100.9", TotalMbps: 1.5, RxMbps: 1.4, TxMbps: 0.1, IsLan: true, MAC: "02:00:00:00:00:10"},
+		{SrcIP: "192.0.2.11", Name: "laptop", DstIP: "198.51.100.5", TotalMbps: 24.0, RxMbps: 23.5, TxMbps: 0.5, Org: &org, IsLan: true},
+		{SrcIP: "192.0.2.12", DstIP: "198.51.100.7", TotalMbps: 0, IsLan: true},
+	}}
+	b, _ := json.Marshal(renderBandwidth(p))
+	got := string(b)
+	if i, j := strings.Index(got, `"laptop"`), strings.Index(got, `"tv"`); i < 0 || j < 0 || i > j {
+		t.Errorf("not busiest first: %s", got)
+	}
+	for _, want := range []string{`"idleConnections":1`, `"organisation":"Example CDN"`, `"downloadMbps":23.5`, `"totalMbpsAcrossConnections":25.5`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "198.51.100.7") {
+		t.Errorf("an idle connection was listed: %s", got)
+	}
+	if !bandwidthJoinOutOfDate(p, nil, fakeARPByIP{"192.0.2.11": "02:00:00:00:00:11"}, 0) {
+		t.Error("ARP able to fill a LAN device's MAC did not trigger a re-derive")
+	}
+	if bandwidthJoinOutOfDate(p, fakeLeases{&collect.LeasesPayload{TS: 500}}, fakeARPByIP{}, 500) {
+		t.Error("nothing newer and no fillable MAC triggered a re-derive (control)")
+	}
+}

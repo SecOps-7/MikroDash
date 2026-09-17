@@ -301,6 +301,19 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "connections",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "bandwidth",
+		Description: "Read only. List which connections are using bandwidth right now, busiest " +
+			"first, measured from /ip/firewall/connection byte counters: for each, the local " +
+			"device's name, IP and MAC, the remote address with country and owning organisation, " +
+			"protocol, interface, and download, upload and total Mbps. Idle connections are " +
+			"counted but not listed. Use it for questions about what is using the internet " +
+			"connection, who is downloading, or why the link is slow.",
+		Parameters: noArgs(),
+		Collector:  "bandwidth",
+		Freshness:  FreshLive,
+		Page:       "bandwidth",
+		Access:     AccessRead,
 	}}
 }
 

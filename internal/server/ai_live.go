@@ -48,14 +48,15 @@ const aiLiveMaxAge = 5 * time.Second
 // no reader would be advertised and then answer "not available", and a reader no
 // tool names is code nothing can reach.
 var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
-	"ifStatus": (*conn).liveInterfaceTraffic,
-	"wan":      (*conn).liveWanStatus,
-	"packages": (*conn).livePackages,
-	"rosusers": (*conn).liveRouterUsers,
-	"queues":   (*conn).liveQueues,
-	"logs":     (*conn).liveLogs,
-	"wireless": (*conn).liveWifiClients,
-	"conns":    (*conn).liveConnections,
+	"ifStatus":  (*conn).liveInterfaceTraffic,
+	"wan":       (*conn).liveWanStatus,
+	"packages":  (*conn).livePackages,
+	"rosusers":  (*conn).liveRouterUsers,
+	"queues":    (*conn).liveQueues,
+	"logs":      (*conn).liveLogs,
+	"wireless":  (*conn).liveWifiClients,
+	"conns":     (*conn).liveConnections,
+	"bandwidth": (*conn).liveBandwidth,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -893,4 +894,128 @@ func renderConnections(p *collect.ConnsPayload) any {
 		Ports        []collect.ConnPort      `json:"topPorts"`
 		Truncated    bool                    `json:"truncated"`
 	}{note, p.Total, p.ProtoCounts, sources, destKept, countries, ports, tS || tD}
+}
+
+// ── list_bandwidth ──────────────────────────────────────────────────────────
+
+// bandwidthSampleGap is the window a forced bandwidth reading measures over.
+//
+// ── TWO READINGS, BECAUSE A RATE IS A DIFFERENCE ────────────────────────────
+//
+// Per-connection rates are byte-counter deltas against the previous reading.
+// With the Bandwidth page closed the previous reading is old or absent: a
+// connection that existed then is averaged over the whole gap, and a new one has
+// nothing to difference against and reads 0. Either way the answer to "what is
+// using bandwidth now" would be wrong in the most misleading direction, idle. Two
+// readings two seconds apart give every connection present in both a real
+// two-second rate. It costs one extra connection-table read, only when the page
+// is not already measuring.
+const bandwidthSampleGap = 2 * time.Second
+
+func (cn *conn) liveBandwidth(t aitools.Tool) string {
+	col := cn.rsession.Bandwidth()
+	leases, arp, nets := cn.rsession.DHCPLeases(), cn.rsession.ARP(), cn.rsession.DHCPNetworks()
+	loaded := false
+	if leases != nil && leases.Last() == nil {
+		leases.RefreshNow()
+		loaded = true
+	}
+	if arp != nil && arp.Last() == nil {
+		arp.RefreshNow()
+		loaded = true
+	}
+	if nets != nil && nets.Last() == nil {
+		nets.RefreshNow()
+		loaded = true
+	}
+	sample := func() {
+		col.Tick()
+		time.Sleep(bandwidthSampleGap)
+		col.Tick()
+	}
+	// FRESH, SO THE PAGE IS MEASURING: one tick against its recent previous reading
+	// re-derives the names, with no second sample. Done when a join was just
+	// loaded or is newer than the reading. A DUE reading needs no such step: the
+	// two-sample refresh below derives against the joins as they now are.
+	if p := col.Last(); p != nil && !liveReadingDue(t.Freshness, true, time.Now().UnixMilli(), p.TS, p.PollMs) {
+		var netTS int64
+		if nets != nil {
+			if n := nets.Last(); n != nil {
+				netTS = n.TS
+			}
+		}
+		if loaded || bandwidthJoinOutOfDate(p, leases, arp, netTS) {
+			col.Tick()
+		}
+	}
+	return liveAnswer(t, liveSource[collect.BandwidthPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.BandwidthPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: sample,
+		menu:    "/ip/firewall/connection",
+		absent:  "The bandwidth readings are not available from this router yet.",
+	}, renderBandwidth)
+}
+
+// bandwidthJoinOutOfDate is connsJoinOutOfDate over the bandwidth rows.
+func bandwidthJoinOutOfDate(p *collect.BandwidthPayload, leases interface {
+	Last() *collect.LeasesPayload
+}, arp interface{ MACForIP(string) (string, string) }, networksTS int64) bool {
+	if networksTS > p.TS {
+		return true
+	}
+	if leases != nil {
+		if l := leases.Last(); l != nil && l.TS > p.TS {
+			return true
+		}
+	}
+	if arp != nil {
+		for _, d := range p.Devices {
+			if d.IsLan && d.MAC == "" {
+				if mac, _ := arp.MACForIP(d.SrcIP); mac != "" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+type liveBandwidthRow struct {
+	Name      string  `json:"device,omitempty"`
+	SrcIP     string  `json:"localIp"`
+	MAC       string  `json:"mac,omitempty"`
+	DstIP     string  `json:"remoteIp"`
+	Country   string  `json:"country,omitempty"`
+	Org       string  `json:"organisation,omitempty"`
+	Proto     string  `json:"protocol,omitempty"`
+	Iface     string  `json:"interface,omitempty"`
+	RxMbps    float64 `json:"downloadMbps"`
+	TxMbps    float64 `json:"uploadMbps"`
+	TotalMbps float64 `json:"totalMbps"`
+}
+
+// renderBandwidth lists the connections actually moving data, busiest first.
+func renderBandwidth(p *collect.BandwidthPayload) any {
+	rows := make([]liveBandwidthRow, 0, len(p.Devices))
+	idle := 0
+	var total float64
+	for _, d := range p.Devices {
+		total += d.TotalMbps
+		if d.TotalMbps <= 0 {
+			idle++
+			continue
+		}
+		rows = append(rows, liveBandwidthRow{Name: d.Name, SrcIP: d.SrcIP, MAC: d.MAC, DstIP: d.DstIP,
+			Country: d.Country, Org: strOf(d.Org), Proto: d.Proto, Iface: d.Iface,
+			RxMbps: d.RxMbps, TxMbps: d.TxMbps, TotalMbps: d.TotalMbps})
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].TotalMbps > rows[j].TotalMbps })
+	kept, truncated := capRows(rows)
+	return struct {
+		TotalMbps float64            `json:"totalMbpsAcrossConnections"`
+		Active    []liveBandwidthRow `json:"activeConnectionsBusiestFirst"`
+		Idle      int                `json:"idleConnections"`
+		Truncated bool               `json:"truncated"`
+	}{math.Round(total*1000) / 1000, kept, idle, truncated}
 }
