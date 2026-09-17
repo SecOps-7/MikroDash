@@ -58,8 +58,6 @@ var expectedAbsent = map[string]string{
 	// notes/loop.md name the files that slice creates, which is what a plan
 	// does. Each entry must be deleted the moment its file exists, or this
 	// check fails on an entry that has stopped being true.
-	"web/src/gen/areas.ts": "slice 5 of MikroMCP parity adds it: the generated area " +
-		"declaration table, written by cmd/areagen",
 	"web/src/pages/area.ts": "slice 5 of MikroMCP parity adds it: the one module that " +
 		"renders every generated area page",
 }
