@@ -165,7 +165,7 @@ func All() []Tool {
 	// LAST, and after the sort, so the read catalogue keeps its stable order and
 	// the one tool that changes anything is not buried alphabetically among
 	// thirty that cannot.
-	return append(out, writeTool(keys))
+	return append(out, writeTool(keys), actionTool(Actions()))
 }
 
 // liveTools read what a COLLECTOR measures rather than what a menu holds.
@@ -557,6 +557,17 @@ func Permitted(can func(page, access string) bool) []Tool {
 	// do.
 	if len(writable) > 0 {
 		out = append(out, writeTool(writable))
+	}
+	// THE SECOND WRITER, filtered the same way: the actions whose page this
+	// viewer may write. See actions.go.
+	var actions []ActionSpec
+	for _, a := range Actions() {
+		if can(a.Page, AccessWrite) {
+			actions = append(actions, a)
+		}
+	}
+	if len(actions) > 0 {
+		out = append(out, actionTool(actions))
 	}
 	return out
 }

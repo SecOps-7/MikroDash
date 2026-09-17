@@ -56,9 +56,14 @@ type aiWriteProposal struct {
 	values map[string]any
 	// remove marks a delete. Approval then runs `removeRow`, the form's own
 	// delete path, rather than `writeRow`.
-	remove   bool
-	ack      string
-	raisedAt time.Time
+	remove bool
+	ack    string
+	// actionKey, target and mode describe a `run_action` proposal instead of a
+	// row write: resKey is empty on one and actionKey is empty on the other.
+	actionKey string
+	target    string
+	mode      string
+	raisedAt  time.Time
 }
 
 // runAIWriteTool is `change_row`.
@@ -290,6 +295,16 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 // aiWriteApprove performs a proposal the operator accepted.
 func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	p := cn.takeAIProposal(raw)
+	if p != nil && p.actionKey != "" {
+		// The operator's typed-back router name travels on THIS frame, never on
+		// the tool call: see aitools/actions.go.
+		var in struct {
+			Confirm string `json:"confirm"`
+		}
+		_ = json.Unmarshal(raw, &in)
+		cn.approveAIAction(p, in.Confirm)
+		return
+	}
 	if p == nil {
 		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
 			"applied": false, "resource": "", "name": "",
@@ -349,6 +364,9 @@ func (cn *conn) aiWriteReject(raw json.RawMessage) {
 	name := ""
 	if p != nil {
 		name = p.resKey
+		if name == "" {
+			name = p.actionKey
+		}
 	}
 	EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
 		"applied": false, "resource": name, "name": "",

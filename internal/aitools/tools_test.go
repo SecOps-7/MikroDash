@@ -301,17 +301,23 @@ func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 	}
 }
 
-// TestTheReadCatalogueIsOrderedAndTheWriteToolIsLast.
+// TestTheReadCatalogueIsOrderedAndTheWritersAreLast.
 //
 // The read tools are generated into a committed file and sent on every request:
 // an unstable order produces a diff on every regeneration and defeats any prompt
-// caching the endpoint does. The write tool is appended AFTER that sort, so the
-// one tool that changes anything is not buried alphabetically among thirty that
+// caching the endpoint does. The writers are appended AFTER that sort, so the
+// tools that change anything are not buried alphabetically among fifty that
 // cannot.
-func TestTheReadCatalogueIsOrderedAndTheWriteToolIsLast(t *testing.T) {
+//
+// RE-AIMED for `run_action` (slice 3): there are now TWO writers, `change_row`
+// for rows and `run_action` for the pages' own verbs, and they are the last two
+// entries in that order.
+func TestTheReadCatalogueIsOrderedAndTheWritersAreLast(t *testing.T) {
 	all := All()
+	writers := []string{WriteToolName, ActionToolName}
+	body := all[:len(all)-len(writers)]
 	prev := ""
-	for _, tool := range all[:len(all)-1] {
+	for _, tool := range body {
 		if tool.Name <= prev {
 			t.Errorf("%q follows %q", tool.Name, prev)
 		}
@@ -320,8 +326,14 @@ func TestTheReadCatalogueIsOrderedAndTheWriteToolIsLast(t *testing.T) {
 			t.Errorf("tool %q is not a read tool but sits in the read catalogue", tool.Name)
 		}
 	}
-	if last := all[len(all)-1]; last.Name != WriteToolName {
-		t.Errorf("the catalogue ends with %q, not the write tool", last.Name)
+	for i, want := range writers {
+		got := all[len(body)+i]
+		if got.Name != want {
+			t.Errorf("writer %d is %q, want %q", i, got.Name, want)
+		}
+		if got.Access != AccessWrite {
+			t.Errorf("%q is not declared a write tool", got.Name)
+		}
 	}
 }
 

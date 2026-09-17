@@ -39,7 +39,10 @@ type toolRecord struct {
 // imported so this ledger does not agree with the package it checks by
 // construction: if `aitools` renames its write tool, this fails and somebody
 // decides, which is the entire point of recording it.
-const writeTool = "change_row"
+const (
+	writeTool  = "change_row"
+	actionTool = "run_action"
+)
 
 func loadToolArtefact(t *testing.T) []toolRecord {
 	t.Helper()
@@ -62,13 +65,14 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 
 // TestEveryResourceHasATool, and every recorded tool names a live resource.
 //
-// ── THE WRITE TOOL IS EXEMPT, AND THE EXEMPTION IS COUNTED ──────────────────
+// ── THE WRITERS ARE EXEMPT, AND THE EXEMPTION IS COUNTED ────────────────────
 //
 // `change_row` is not bound to one menu: the model names the resource in its
-// arguments. So it carries no `resource` and cannot be matched against the
-// registry here. An unbounded "skip anything with no resource" would quietly
-// absorb a read tool that had lost its key, so exactly one such tool is allowed
-// and its name is checked.
+// arguments. `run_action` names a declared ACTION rather than a menu at all. So
+// neither carries a `resource` and neither can be matched against the registry
+// here. An unbounded "skip anything with no resource" would quietly absorb a
+// read tool that had lost its key, so exactly these two are allowed and their
+// names are checked.
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}
 	unbound := 0
@@ -94,8 +98,9 @@ func TestEveryResourceHasATool(t *testing.T) {
 		}
 		if r.Resource == "" {
 			unbound++
-			if r.Name != writeTool {
-				t.Errorf("tool %q names no resource; only %q may", r.Name, writeTool)
+			if r.Name != writeTool && r.Name != actionTool {
+				t.Errorf("tool %q names no resource; only %q and %q may",
+					r.Name, writeTool, actionTool)
 			}
 			continue
 		}
@@ -104,8 +109,9 @@ func TestEveryResourceHasATool(t *testing.T) {
 		}
 		recorded[r.Resource] = r
 	}
-	if unbound != 1 {
-		t.Errorf("%d tools carry no resource; exactly one (%q) should", unbound, writeTool)
+	if unbound != 2 {
+		t.Errorf("%d tools carry no resource; exactly two (%q and %q) should",
+			unbound, writeTool, actionTool)
 	}
 	if liveTools == 0 {
 		t.Error("no live tools are recorded; list_interface_traffic has gone, or the record " +
@@ -173,12 +179,16 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 			// from this viewer's write permissions, plus a per-call check of
 			// whichever resource the model actually named.
 			//
+			// `run_action` is the same shape: its ACTION enum is built from the
+			// pages this viewer may write, and the named action's page is
+			// checked again per call and again at approval.
+			//
 			// That reasoning is only safe for a tool that declares itself a
 			// writer and is the one this ledger knows about. Anything else with
 			// no page is the original failure: advertised to every viewer,
 			// including one denied the page whose menu it reads.
 			ungated++
-			if r.Name != writeTool || r.Access != "write" {
+			if (r.Name != writeTool && r.Name != actionTool) || r.Access != "write" {
 				t.Errorf("tool %q has no owning page — it would be advertised to every viewer, "+
 					"including one denied the page whose menu it reads", r.Name)
 			}
@@ -189,35 +199,48 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 				"for everybody, so the tool is invisible to every viewer", r.Name, r.Page)
 		}
 	}
-	if ungated != 1 {
-		t.Errorf("%d tools carry no page; exactly one (%q) should", ungated, writeTool)
+	if ungated != 2 {
+		t.Errorf("%d tools carry no page; exactly two (%q and %q) should",
+			ungated, writeTool, actionTool)
 	}
 }
 
-// TestExactlyOneToolCanChangeAnything.
+// TestExactlyTwoToolsCanChangeAnything.
 //
-// ── THIS TEST USED TO SAY "NONE" ────────────────────────────────────────────
+// ── IT SAID "NONE", THEN "ONE", AND NOW SAYS "TWO" ──────────────────────────
 //
 // It required every name to start `list_` and forbade a set of mutating verbs,
-// because slice 3 advertised nothing that could write. Re-aimed deliberately for
-// the write tool rather than deleted: the question it answers is still the one
-// that matters, and it is now "how many, and which", not "none".
+// because nothing advertised could write. It was re-aimed for `change_row`, and
+// is re-aimed again for `run_action` (slice 3 of the MikroMCP parity work): the
+// pages' own verbs — renew a lease, take a backup, schedule a package change,
+// apply and reboot — are not rows, so `change_row` cannot express them.
 //
-// A SECOND writer appearing — or a verb-shaped name, which is what an action
-// tool would look like — is the feature changing character, and it must not be
-// possible to do that without this failing.
-func TestExactlyOneToolCanChangeAnything(t *testing.T) {
+// The question it answers is unchanged and is still the one that matters: how
+// many tools can change a router, and WHICH. A third writer appearing, or a
+// verb-shaped name other than the one declared here, is the feature changing
+// character, and it must not be possible without this failing.
+func TestExactlyTwoToolsCanChangeAnything(t *testing.T) {
 	// Named rather than pattern-matched, so adding one is deliberate. These are
-	// the shapes a RouterOS ACTION tool would take, which is the thing
-	// `internal/aitools` excludes by name: a verb the model chooses.
+	// the shapes a per-verb tool would take — the thing `internal/aitools`
+	// excludes: a RouterOS verb the model picks, rather than an action this app
+	// declared and gated.
 	forbidden := []string{"create_", "add_", "set_", "update_", "remove_", "delete_",
-		"move_", "enable_", "disable_", "apply_", "run_", "exec_"}
+		"move_", "enable_", "disable_", "apply_", "exec_"}
 	writers := []string{}
 	for _, r := range loadToolArtefact(t) {
+		if r.Name == actionTool {
+			// The one exception to the verb rule, by name: it runs a DECLARED
+			// action from a per-viewer enum, not a verb the model composes.
+			writers = append(writers, r.Name)
+			if r.Access != "write" {
+				t.Errorf("%q does not declare write access", r.Name)
+			}
+			continue
+		}
 		for _, bad := range forbidden {
 			if strings.HasPrefix(r.Name, bad) {
-				t.Errorf("tool %q is shaped like a RouterOS action. Writes go through one "+
-					"declared tool and the resource pipeline, never a verb the model picks", r.Name)
+				t.Errorf("tool %q is shaped like a RouterOS action. Writes go through the two "+
+					"declared tools, never a verb the model picks", r.Name)
 			}
 		}
 		switch r.Access {
@@ -231,8 +254,11 @@ func TestExactlyOneToolCanChangeAnything(t *testing.T) {
 			t.Errorf("tool %q declares access %q, which is neither read nor write", r.Name, r.Access)
 		}
 	}
-	if len(writers) != 1 || writers[0] != writeTool {
-		t.Errorf("the tools that can change a router are %v; exactly one (%q) should be able to",
-			writers, writeTool)
+	sort.Strings(writers)
+	want := []string{writeTool, actionTool}
+	sort.Strings(want)
+	if len(writers) != len(want) || writers[0] != want[0] || writers[1] != want[1] {
+		t.Errorf("the tools that can change a router are %v; exactly two (%v) should be able to",
+			writers, want)
 	}
 }

@@ -64,6 +64,11 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	if tc.Function.Name == aitools.WriteToolName {
 		return cn.runAIWriteTool(tc)
 	}
+	// THE ACTION TOOL IS ITS OWN PATH TOO, and for the same reason: it names a
+	// declared action rather than a menu. See ai_action.go.
+	if tc.Function.Name == aitools.ActionToolName {
+		return cn.runAIActionTool(tc)
+	}
 	t, ok := aitools.ByName(tc.Function.Name)
 	if !ok {
 		// THE NAME IS NOT ECHOED. It was chosen by the model, and repeating it

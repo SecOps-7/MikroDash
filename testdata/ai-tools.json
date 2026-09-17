@@ -315,6 +315,12 @@
       "access": "write",
       "resource": "",
       "page": ""
+    },
+    {
+      "name": "run_action",
+      "access": "write",
+      "resource": "",
+      "page": ""
     }
   ]
 }
