@@ -1242,6 +1242,74 @@ var Clock = &Resource{
 	},
 }
 
+// LogRule and LogAction are /system/logging and its actions (slice 7). From the
+// Log documentation ("Actions") and the command tree for /system/logging/add.
+//
+// A rule sends topics to an action; an action is where they go. An action with
+// target=script RUNS a script for every matching line, so which script it names
+// is code and is held to codeGate, as a scheduler's on-event is. A row another
+// feature manages (`managed`) opens read-only, and RouterOS's default actions
+// cannot be removed.
+//
+// Known and recorded, not guarded: MikroDash's own Logs page reads the router's
+// `memory` buffer, so disabling every rule that logs to memory blanks it. That
+// is not a lockout, and the operator can see it happen.
+var LogRule = &Resource{
+	Key: "logRule", Page: "logging", Label: "Logging Rule",
+	Title: "Logging Rule", Menu: "/system/logging", Identity: []string{"topics"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["managed"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Fields: []Field{
+		// Plain text: a comma list over a topic set that grows with each version,
+		// and a topic may be negated with `!`.
+		{Name: "topics", ROS: "topics", Label: "Topics", Type: TypeText, Required: true,
+			Placeholder: "info,!debug", Help: "Topics, comma separated; ! excludes one."},
+		{Name: "action", ROS: "action", Label: "Action", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/system/logging/action", Value: "name"}},
+		{Name: "prefix", ROS: "prefix", Label: "Prefix", Type: TypeText, Clearable: true},
+		{Name: "regex", ROS: "regex", Label: "Regex", Type: TypeText, Clearable: true,
+			Help: "Only lines whose message matches."},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "isDefault", ROS: "default", Label: "Default", Type: TypeBool, Display: true},
+	},
+}
+
+func logTarget(t ...string) *ShowIf { return &ShowIf{Field: "target", In: t} }
+
+var LogAction = &Resource{
+	Key: "logAction", Page: "logging", Label: "Logging Action",
+	Title: "Logging Action", Menu: "/system/logging/action", Identity: []string{"name"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["managed"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	RemovableWhen:  func(r map[string]string) bool { return r["default"] != "true" && r["managed"] != "true" },
+	Guard:          []string{"codeGate"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true},
+		// The documented set, complete.
+		{Name: "target", ROS: "target", Label: "Target", Type: TypeSelect, Required: true,
+			Options: []string{"memory", "disk", "echo", "remote", "email", "script"}},
+		{Name: "memoryLines", ROS: "memory-lines", Label: "Memory Lines", Type: TypeInt, Min: intp(1), Max: intp(65535), ShowIf: logTarget("memory")},
+		{Name: "memoryStopOnFull", ROS: "memory-stop-on-full", Label: "Stop When Full", Type: TypeBool, Clearable: true, ShowIf: logTarget("memory")},
+		{Name: "diskFileName", ROS: "disk-file-name", Label: "File Name", Type: TypeText, ShowIf: logTarget("disk")},
+		{Name: "diskLinesPerFile", ROS: "disk-lines-per-file", Label: "Lines Per File", Type: TypeInt, Min: intp(1), Max: intp(65535), ShowIf: logTarget("disk")},
+		{Name: "diskFileCount", ROS: "disk-file-count", Label: "File Count", Type: TypeInt, Min: intp(1), Max: intp(65535), ShowIf: logTarget("disk")},
+		{Name: "diskStopOnFull", ROS: "disk-stop-on-full", Label: "Stop When Full", Type: TypeBool, Clearable: true, ShowIf: logTarget("disk")},
+		{Name: "remote", ROS: "remote", Label: "Remote Address", Type: TypeText, ShowIf: logTarget("remote")},
+		{Name: "remotePort", ROS: "remote-port", Label: "Remote Port", Type: TypeInt, Min: intp(1), Max: intp(65535), ShowIf: logTarget("remote")},
+		{Name: "remoteProtocol", ROS: "remote-protocol", Label: "Protocol", Type: TypeSelect,
+			Options: []string{"udp", "tcp", "tls"}, ShowIf: logTarget("remote")},
+		{Name: "remoteLogFormat", ROS: "remote-log-format", Label: "Format", Type: TypeSelect,
+			Options: []string{"default", "syslog", "cef"}, ShowIf: logTarget("remote")},
+		{Name: "srcAddress", ROS: "src-address", Label: "Source Address", Type: TypeText, ShowIf: logTarget("remote")},
+		{Name: "emailTo", ROS: "email-to", Label: "Email To", Type: TypeText, ShowIf: logTarget("email")},
+		// Which script runs for every matching line: code, as an on-event is.
+		{Name: "script", ROS: "script", Label: "Script", Type: TypeText, Code: true, ShowIf: logTarget("script"),
+			Help: "The script to run for each matching line. Changing it is limited to global administrators."},
+		{Name: "isDefault", ROS: "default", Label: "Default", Type: TypeBool, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1914,6 +1982,8 @@ var byKey = map[string]*Resource{
 	NTPClient.Key:           NTPClient,
 	NTPServer.Key:           NTPServer,
 	Clock.Key:               Clock,
+	LogRule.Key:             LogRule,
+	LogAction.Key:           LogAction,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

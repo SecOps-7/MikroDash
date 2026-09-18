@@ -1,0 +1,61 @@
+{
+ "collector": "areas",
+ "resource": "logRule",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands: RouterOS's four default rules, each flagged default. Nothing was created for it. Each carries a managed flag (false here). Read through /system/logging/print.",
+ "exchanges": [
+  {
+   "cmd": "/system/logging/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "action": "memory",
+     "default": "true",
+     "disabled": "false",
+     "invalid": "false",
+     "managed": "false",
+     "prefix": "",
+     "regex": "",
+     "topics": "info"
+    },
+    {
+     ".id": "*2",
+     "action": "memory",
+     "default": "true",
+     "disabled": "false",
+     "invalid": "false",
+     "managed": "false",
+     "prefix": "",
+     "regex": "",
+     "topics": "error"
+    },
+    {
+     ".id": "*3",
+     "action": "memory",
+     "default": "true",
+     "disabled": "false",
+     "invalid": "false",
+     "managed": "false",
+     "prefix": "",
+     "regex": "",
+     "topics": "warning"
+    },
+    {
+     ".id": "*4",
+     "action": "echo",
+     "default": "true",
+     "disabled": "false",
+     "invalid": "false",
+     "managed": "false",
+     "prefix": "",
+     "regex": "",
+     "topics": "critical"
+    }
+   ]
+  }
+ ]
+}

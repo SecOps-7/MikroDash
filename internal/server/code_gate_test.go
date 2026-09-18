@@ -131,3 +131,21 @@ func TestSchedulerCodeIsGatedAndTimingIsNot(t *testing.T) {
 		}
 	}
 }
+
+// A LOGGING ACTION with target=script runs a script for every matching line, so
+// which script it names is code; its other settings are ordinary.
+func TestALoggingActionsScriptIsGated(t *testing.T) {
+	stored := map[string]string{".id": "*9", "name": "on-login", "target": "script", "script": "notify"}
+	if v := codeDecision(resource.LogAction, "update", map[string]string{"script": "wipe-config"}, stored, false); !v.Refused() {
+		t.Errorf("pointing a log action at another script without admin: %+v", v)
+	}
+	mem := map[string]string{".id": "*0", "name": "memory", "target": "memory", "memory-lines": "1000"}
+	for name, values := range map[string]map[string]string{
+		"memory lines": {"memoryLines": "5000"},
+		"a rename":     {"name": "mem2"},
+	} {
+		if v := codeDecision(resource.LogAction, "update", values, mem, false); v.Level != "none" {
+			t.Errorf("%s was held to the code gate: %+v", name, v)
+		}
+	}
+}

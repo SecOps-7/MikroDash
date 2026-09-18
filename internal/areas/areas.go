@@ -166,6 +166,17 @@ var declared = []Area{
 			Columns: []string{"time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"}}},
 		Poll: 60 * time.Second,
 	},
+	// Logging: rules (which topics go where) and actions (where "where" is).
+	{
+		Key: "logging", Title: "Logging", NavGroup: "system",
+		Tables: []Table{
+			{Resource: "logRule", Title: "Rules",
+				Columns: []string{"topics", "action", "prefix", "disabled", "isDefault", "comment"}},
+			{Resource: "logAction", Title: "Actions",
+				Columns: []string{"name", "target", "memoryLines", "remote", "isDefault"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

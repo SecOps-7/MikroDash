@@ -1,0 +1,58 @@
+{
+ "collector": "areas",
+ "resource": "logAction",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands: RouterOS's four default actions, one per target type, each flagged default. Nothing was created for it. Each carries a managed flag (false here). Read through /system/logging/action/print.",
+ "exchanges": [
+  {
+   "cmd": "/system/logging/action/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*0",
+     "default": "true",
+     "managed": "false",
+     "memory-lines": "1000",
+     "memory-stop-on-full": "false",
+     "name": "memory",
+     "target": "memory"
+    },
+    {
+     ".id": "*1",
+     "default": "true",
+     "disk-file-count": "2",
+     "disk-file-name": "log",
+     "disk-lines-per-file": "1000",
+     "disk-stop-on-full": "false",
+     "managed": "false",
+     "name": "disk",
+     "target": "disk"
+    },
+    {
+     ".id": "*2",
+     "default": "true",
+     "managed": "false",
+     "name": "echo",
+     "remember": "true",
+     "target": "echo"
+    },
+    {
+     ".id": "*3",
+     "default": "true",
+     "managed": "false",
+     "name": "remote",
+     "remote": "0.0.0.0",
+     "remote-log-format": "default",
+     "remote-port": "514",
+     "remote-protocol": "udp",
+     "src-address": "0.0.0.0",
+     "target": "remote",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}

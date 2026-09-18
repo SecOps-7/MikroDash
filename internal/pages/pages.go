@@ -120,6 +120,7 @@ var All = []Page{
 	{Key: "scheduler", Title: "Scheduler", Collector: "areas"},
 	{Key: "ntp-client", Title: "NTP Client", Collector: "areas"},
 	{Key: "clock", Title: "Clock", Collector: "areas"},
+	{Key: "logging", Title: "Logging", Collector: "areas"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},

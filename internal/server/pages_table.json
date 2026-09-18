@@ -67,6 +67,11 @@
       "settingsKey": null
     },
     {
+      "key": "logging",
+      "title": "Logging",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

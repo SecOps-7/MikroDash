@@ -82,6 +82,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "logging", title: "Logging", navGroup: "system",
+    tables: [
+      { resource: "logRule", title: "Rules", columns: ["topics", "action", "prefix", "disabled", "isDefault", "comment"] },
+      { resource: "logAction", title: "Actions", columns: ["name", "target", "memoryLines", "remote", "isDefault"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

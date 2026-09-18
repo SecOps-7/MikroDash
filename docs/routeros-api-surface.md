@@ -211,6 +211,8 @@ surface stays complete.
 |---|---|---|---|
 | `/certificate` | certificate | certificates | set, remove |
 | `/system/clock` | clock | clock | set |
+| `/system/logging` | logRule | logging | add, set, remove |
+| `/system/logging/action` | logAction | logging | add, set, remove |
 | `/system/ntp/client` | ntpClient | ntp-client | set |
 | `/system/ntp/client/servers` | ntpServer | ntp-client | add, set, remove |
 | `/system/scheduler` | scheduler | scheduler | add, set, remove |
