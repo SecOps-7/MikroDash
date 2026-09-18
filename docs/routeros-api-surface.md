@@ -210,6 +210,7 @@ surface stays complete.
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
 | `/certificate` | certificate | certificates | set, remove |
+| `/system/clock` | clock | clock | set |
 | `/system/ntp/client` | ntpClient | ntp-client | set |
 | `/system/ntp/client/servers` | ntpServer | ntp-client | add, set, remove |
 | `/system/scheduler` | scheduler | scheduler | add, set, remove |

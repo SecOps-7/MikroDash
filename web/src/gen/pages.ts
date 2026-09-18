@@ -44,6 +44,7 @@ export const PAGES: readonly Page[] = [
   { key: "scripts", title: "Scripts", path: "scripts" },
   { key: "scheduler", title: "Scheduler", path: "scheduler" },
   { key: "ntp-client", title: "NTP Client", path: "ntp-client" },
+  { key: "clock", title: "Clock", path: "clock" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },
   { key: "wifi-clients", title: "Wifi Clients", path: "wifi-clients" },

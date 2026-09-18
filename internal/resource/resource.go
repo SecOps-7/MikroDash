@@ -1216,6 +1216,32 @@ var NTPServer = &Resource{
 	},
 }
 
+// Clock is /system/clock (slice 7), a singleton. From the command tree for
+// /system/clock/set.
+//
+// ── THE TIME AND DATE ARE SHOWN, NEVER SENT ─────────────────────────────────
+//
+// They change every second. As editable fields, every save of the time zone
+// would re-send the time the form was OPENED with and set the clock back by
+// however long the dialog stood open. So they are Display: the time zone and
+// its autodetection are what this page changes, and NTP sets the clock.
+var Clock = &Resource{
+	Key: "clock", Page: "clock", Label: "Clock",
+	Title: "Clock", Menu: "/system/clock", Singleton: true,
+	NoCreate:      true,
+	RemovableWhen: func(map[string]string) bool { return false },
+	Fields: []Field{
+		{Name: "timeZoneAutodetect", ROS: "time-zone-autodetect", Label: "Detect Time Zone", Type: TypeBool, Clearable: true},
+		// Plain text: the IANA list, several hundred names long and growing.
+		{Name: "timeZoneName", ROS: "time-zone-name", Label: "Time Zone", Type: TypeText,
+			Placeholder: "Europe/Berlin", Help: "An IANA time zone name, or manual."},
+		{Name: "time", ROS: "time", Label: "Time", Type: TypeText, Display: true},
+		{Name: "date", ROS: "date", Label: "Date", Type: TypeText, Display: true},
+		{Name: "gmtOffset", ROS: "gmt-offset", Label: "GMT Offset", Type: TypeText, Display: true},
+		{Name: "dstActive", ROS: "dst-active", Label: "Daylight Saving", Type: TypeBool, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1887,6 +1913,7 @@ var byKey = map[string]*Resource{
 	Scheduler.Key:           Scheduler,
 	NTPClient.Key:           NTPClient,
 	NTPServer.Key:           NTPServer,
+	Clock.Key:               Clock,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

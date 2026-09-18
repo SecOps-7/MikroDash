@@ -1,0 +1,25 @@
+{
+ "collector": "areas",
+ "resource": "clock",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands. A singleton: one row, no .id. time and date are the moment of capture; the time zone is autodetected and reports manual. Read through /system/clock/print.",
+ "exchanges": [
+  {
+   "cmd": "/system/clock/print",
+   "params": [],
+   "rows": [
+    {
+     "date": "2026-09-18",
+     "dst-active": "false",
+     "gmt-offset": "+00:00",
+     "time": "10:06:20",
+     "time-zone-autodetect": "true",
+     "time-zone-name": "manual"
+    }
+   ]
+  }
+ ]
+}

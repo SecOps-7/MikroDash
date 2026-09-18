@@ -77,6 +77,12 @@
       "page": "certificates"
     },
     {
+      "name": "list_clock",
+      "access": "read",
+      "resource": "clock",
+      "page": "clock"
+    },
+    {
       "name": "list_connections",
       "access": "read",
       "resource": "",

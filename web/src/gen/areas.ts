@@ -76,6 +76,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "clock", title: "Clock", navGroup: "system",
+    tables: [
+      { resource: "clock", title: "Clock", columns: ["time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

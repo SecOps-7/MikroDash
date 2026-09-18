@@ -66,3 +66,22 @@ func TestEverySingletonIsFixed(t *testing.T) {
 		t.Fatal("no singleton resource is declared, so this check asks nothing")
 	}
 }
+
+// THE CLOCK NEVER SENDS THE TIME. Its time and date change every second, so a
+// save of the time zone that carried them would set the clock back to the moment
+// the form was opened. They must not survive validation; the time zone must.
+func TestTheClockNeverSendsTheTime(t *testing.T) {
+	v, errs := Clock.Validate(map[string]string{"time": "00:00:01", "date": "2000-01-01",
+		"timeZoneName": "Europe/Berlin", "timeZoneAutodetect": "false"}, true)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	for _, k := range []string{"time", "date"} {
+		if _, sent := v.Values[k]; sent {
+			t.Errorf("a clock save would send %s, setting the clock back to when the form was opened", k)
+		}
+	}
+	if v.Values["timeZoneName"] != "Europe/Berlin" {
+		t.Errorf("the time zone was dropped: %v", v.Values)
+	}
+}

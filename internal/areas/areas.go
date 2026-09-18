@@ -159,6 +159,13 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// Clock: the time zone. The time itself is shown and set by NTP.
+	{
+		Key: "clock", Title: "Clock", NavGroup: "system",
+		Tables: []Table{{Resource: "clock",
+			Columns: []string{"time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,
