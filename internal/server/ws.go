@@ -116,6 +116,11 @@ type conn struct {
 	// toolBusy is set while this connection has a diagnostic running on the
 	// router: one at a time, see internal/server/tools.go.
 	toolBusy atomic.Bool
+	// toolQuit closes to end the page's run in flight: see startTool and
+	// stopTool. Under toolMu, because releaseRouter runs on the revalidator's
+	// goroutine as well as the read loop.
+	toolMu   sync.Mutex
+	toolQuit chan struct{}
 	// mu guards `cards`. The grid can send dashcard:focus while another
 	// goroutine is selecting a router, and the map is written by both.
 	mu sync.Mutex
@@ -1389,6 +1394,10 @@ func (cn *conn) releaseRouter() {
 		return
 	}
 	cn.dropTraffic()
+	// A Tools run in flight is about the router being left, and the page drops
+	// its result anyway: stopped here, it stops holding a channel on that router
+	// instead of running on to its timeout for nobody.
+	cn.stopTool()
 	// ── THE ROOMS GO FIRST, AND THE ORDER IS THE WHOLE POINT ──────────────
 	//
 	// Both switch call sites already left every room immediately after calling

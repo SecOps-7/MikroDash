@@ -31,7 +31,7 @@ func Cmd(ifaceID string, durationSec int, withDuration bool) routeros.Cmd {
 
 // Conn is the part of a router connection a scan needs.
 type Conn interface {
-	StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func()) (func(), error)
+	StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error)) (func(), error)
 	Connected() bool
 }
 
@@ -79,7 +79,9 @@ func Run(g *Registry, s *Scan, conn Conn, em Emitter) {
 					g.Add(s, r)
 				}
 			},
-			func() {
+			// How it ended is not read: a scan has always treated every end
+			// it did not cause as complete, and that is unchanged here.
+			func(error) {
 				select {
 				case natural <- struct{}{}:
 				default:

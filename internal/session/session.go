@@ -499,14 +499,23 @@ func (r reader) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), er
 	}, nil
 }
 
-// StreamUntilDone is Stream plus notification that the stream ENDED BY ITSELF.
+// StreamUntilDone is Stream plus notification that the stream ENDED BY ITSELF,
+// and how: see (*routeros.Client).StreamUntilDone.
 //
-// The frequency scan is the only caller: it is a BOUNDED command, unlike the
-// /listen channels Stream serves, and the difference between "it ended" and "we
-// stopped it" decides whether a /cancel is written to a device that has already
-// finished scanning.
+// The frequency scan and the Tools page's diagnostics are its callers: BOUNDED
+// commands, unlike the /listen channels Stream serves, and the difference
+// between "it ended" and "we stopped it" decides whether a /cancel is written to
+// a device that has already finished.
+//
+// ── COUNTED AS A HELD CHANNEL, AS Stream IS ────────────────────────────────
+//
+// Not gated on the command budget, for Stream's reason: a channel held for a
+// scan or a ten-second torch is not an outstanding command, and taking one of
+// the eight slots for it would let a diagnostic hold a collector's read back.
+// The level is released exactly once, when the stream ends by itself or when
+// stop() returns — whichever comes first.
 func (s *Session) StreamUntilDone(
-	cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(),
+	cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error),
 ) (func(), error) {
 	s.mu.Lock()
 	c := s.client
@@ -514,7 +523,21 @@ func (s *Session) StreamUntilDone(
 	if c == nil {
 		return nil, errNotConnected
 	}
-	return c.StreamUntilDone(cmd, onRow, onDone)
+	opened := roslimit.StreamOpened(s.RouterID)
+	stop, err := c.StreamUntilDone(cmd, onRow, func(err error) {
+		opened()
+		if onDone != nil {
+			onDone(err)
+		}
+	})
+	if err != nil {
+		opened()
+		return nil, err
+	}
+	return func() {
+		stop()
+		opened()
+	}, nil
 }
 
 func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {

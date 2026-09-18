@@ -522,18 +522,36 @@ func (c *Client) Stream(cmd Cmd, onRow func(Reply)) (stop func(), err error) {
 	return c.StreamUntilDone(cmd, onRow, nil)
 }
 
-// StreamUntilDone is Stream, plus notification that the stream ENDED BY ITSELF.
+// StreamUntilDone is Stream, plus notification that the stream ENDED BY ITSELF,
+// and how.
 //
-// Stream's four callers are all `/listen` subscriptions, which run until they
-// are stopped — for them there is no such event and `onDone` would never fire.
-// The frequency scan is different: it is a bounded command that finishes, and
-// the difference between "it ended" and "we stopped it" decides whether a
-// `/cancel` is written to a device that has already finished scanning.
+// Stream's callers are `/listen` subscriptions, which run until they are
+// stopped — for them there is no such event and `onDone` would never fire. The
+// frequency scan and the Tools page's diagnostics are different: each is a
+// bounded command that finishes, and the difference between "it ended" and "we
+// stopped it" decides whether a `/cancel` is written to a device that has
+// already finished.
 //
-// `onDone` fires exactly once, and NOT when stop() is what ended the stream:
-// the flag is set inside the same Once that performs the cancel, so a caller
-// cannot see both.
-func (c *Client) StreamUntilDone(cmd Cmd, onRow func(Reply), onDone func()) (stop func(), err error) {
+// `onDone` fires exactly once, and NOT when stop() is what ended the stream: the
+// flag is set inside the same Once that performs the cancel, so a caller cannot
+// see both. Its error is nil for a command that ended on `!done`; the router's
+// `*Trap` for one it refused ("failure: resolve failed"); a DeadlineExceeded
+// timeout for one past cmd.Timeout; and the connection's failure for one whose
+// connection went first.
+//
+// ── cmd.Timeout BOUNDS A STREAM AS IT BOUNDS Do ─────────────────────────────
+//
+// Zero is no bound, which every `/listen` wants. Past a non-zero one the command
+// is cancelled on the router, exactly as Do's is, and onDone reports the timeout.
+//
+// ── stop() DOES NOT WAIT ON THE ROUTER FOR EVER ─────────────────────────────
+//
+// It waits for the cancelled command to end, because a caller that stops a
+// stream and then reads its accumulator must not race a late row into it. A
+// router that never ends it is treated as Do's abandon treats one: after
+// cancelGrace the connection is marked failed, the connect loops redial, and
+// closing the old client is what ends the stream and releases stop().
+func (c *Client) StreamUntilDone(cmd Cmd, onRow func(Reply), onDone func(error)) (stop func(), err error) {
 	if err := c.err(); err != nil {
 		return nil, err
 	}
@@ -547,8 +565,45 @@ func (c *Client) StreamUntilDone(cmd Cmd, onRow func(Reply), onDone func()) (sto
 		return nil, c.wrap(err)
 	}
 
-	var stopped atomic.Bool
+	var stopped, expired atomic.Bool
 	done := make(chan struct{})
+
+	var once sync.Once
+	cancel := func() {
+		once.Do(func() {
+			// The cancel's own reply is discarded. It can legitimately fail —
+			// the connection may already be gone — and a stop that reported that
+			// would make every teardown path handle an error it can do nothing
+			// about. Sent from a goroutine of its own, as abandon's is: a
+			// connection whose writes are stuck must still reach the grace timer.
+			go c.send(func() <-chan struct{} {
+				cancelled := make(chan struct{})
+				go func() {
+					defer close(cancelled)
+					_, _ = lr.Cancel()
+				}()
+				return cancelled
+			})
+			grace := time.NewTimer(cancelGrace)
+			defer grace.Stop()
+			select {
+			case <-done:
+			case <-grace.C:
+				c.record(fmt.Errorf("%s did not end within %s of being cancelled", cmd.Path, cancelGrace))
+				<-done
+			}
+		})
+	}
+
+	// No timeout, no timer.
+	var timer *time.Timer
+	if cmd.Timeout > 0 {
+		timer = time.AfterFunc(cmd.Timeout, func() {
+			expired.Store(true)
+			cancel()
+		})
+	}
+
 	go func() {
 		defer close(done)
 		for sen := range lr.Chan() {
@@ -557,33 +612,43 @@ func (c *Client) StreamUntilDone(cmd Cmd, onRow func(Reply), onDone func()) (sto
 			}
 			onRow(Reply(sen.Map))
 		}
+		if timer != nil {
+			timer.Stop()
+		}
 		if onDone != nil && !stopped.Load() {
-			onDone()
+			onDone(c.streamEnd(lr, expired.Load()))
 		}
 	}()
 
-	var once sync.Once
 	return func() {
-		once.Do(func() {
-			// BEFORE the cancel, so the delivery goroutine cannot observe the
-			// channel closing and call onDone for a stream the caller stopped.
-			stopped.Store(true)
-			// The cancel's own reply is discarded. It can legitimately fail —
-			// the connection may already be gone — and a stop that reported that
-			// would make every teardown path handle an error it can do nothing
-			// about.
-			cancelled := make(chan struct{})
-			c.send(func() <-chan struct{} {
-				go func() {
-					defer close(cancelled)
-					_, _ = lr.Cancel()
-				}()
-				return cancelled
-			})
-			<-cancelled
-			<-done
-		})
+		// BEFORE the cancel, so the delivery goroutine cannot observe the
+		// channel closing and call onDone for a stream the caller stopped.
+		stopped.Store(true)
+		cancel()
 	}, nil
+}
+
+// streamEnd is how a stream that was not stopped by its caller ended. Read after
+// its channel has closed, which orders it after the library's writes.
+func (c *Client) streamEnd(lr *ros.ListenReply, expired bool) error {
+	if err := lr.Err(); err != nil {
+		return c.wrap(err)
+	}
+	if lr.Done != nil && lr.Done.Word == "!done" {
+		return nil // finished, even if the timer fired as it did
+	}
+	if expired {
+		return fmt.Errorf("routeros: timed out: %w", context.DeadlineExceeded)
+	}
+	if lr.Done != nil {
+		// Interrupted by something other than this stream's own stop or timer.
+		return &Trap{Message: lr.Done.Map["message"], Category: lr.Done.Map["category"]}
+	}
+	// The channel closed with no ending sentence: the connection went.
+	if err := c.err(); err != nil {
+		return err
+	}
+	return errors.New("routeros: the connection closed before the command ended")
 }
 
 // wrap turns a library error into this package's vocabulary.

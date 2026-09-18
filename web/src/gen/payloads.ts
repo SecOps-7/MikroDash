@@ -1052,6 +1052,7 @@ export interface ToolsBtestPayload {
   result: BtestResult | null;
   code: string;
   message: string;
+  done: boolean;
 }
 
 export interface ToolsCapsPayload {
@@ -1083,6 +1084,7 @@ export interface ToolsPingPayload {
   result: PingResult | null;
   code: string;
   message: string;
+  done: boolean;
 }
 
 export interface Flow {
@@ -1109,6 +1111,7 @@ export interface ToolsTorchPayload {
   result: TorchResult | null;
   code: string;
   message: string;
+  done: boolean;
 }
 
 export interface Hop {
@@ -1132,6 +1135,7 @@ export interface ToolsTraceroutePayload {
   result: TracerouteResult | null;
   code: string;
   message: string;
+  done: boolean;
 }
 
 export interface TopoDiscovery {

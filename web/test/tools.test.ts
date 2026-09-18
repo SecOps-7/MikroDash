@@ -9,6 +9,9 @@
  * - Text from the network (a reply host) is escaped.
  * - A result nobody is waiting for — the operator switched router mid-run — is
  *   dropped, while the same payload arriving for a pending run is drawn.
+ * - The output is live: progress frames (`done: false`) are drawn as they come
+ *   and leave the run pending; the `done: true` frame settles it. Progress after
+ *   a router switch, or for a tool that is not pending, is dropped.
  */
 
 import fs from 'node:fs';
@@ -42,7 +45,7 @@ mod.initToolsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => sen
 const n = doc.nodes;
 const rows = () => String(n.pingRows.innerHTML);
 const result = {
-  code: '', message: '',
+  code: '', message: '', done: true,
   result: {
     address: '198.51.100.1', sent: 2, received: 1, lossPct: 50, minMs: 0.114, avgMs: 0.114, maxMs: 0.114,
     replies: [
@@ -74,7 +77,7 @@ assert.strictEqual(n.pingRun.disabled, false, 'Run stays disabled after the resu
 // previous address's replies.
 n.pingForm.fire('submit', { preventDefault: () => {} });
 assert.ok(/Not run yet/.test(rows()), 'a new run left the previous result standing');
-handlers['tools:ping']({ result: null, code: 'failed', message: 'the router said: failure: resolve failed' });
+handlers['tools:ping']({ done: true, result: null, code: 'failed', message: 'the router said: failure: resolve failed' });
 assert.ok(/resolve failed/.test(String(n.pingStatus.textContent)) && /Not run yet/.test(rows()),
   'a failed run did not show its reason alone');
 
@@ -91,6 +94,35 @@ handlers['router:switched']({ activeId: 'r3' });
 handlers['tools:ping'](result);
 assert.ok(/Not run yet/.test(rows()), 'a result for the old router was drawn after the switch');
 
+// LIVE OUTPUT. Progress frames arrive while the run is going: each is drawn,
+// the run stays pending (Run stays disabled, the status still says running), and
+// the done frame settles it.
+const replies = result.result.replies;
+const frame = (k: number, done: boolean) => ({ code: '', message: '', done,
+  result: { ...result.result, sent: k, replies: replies.slice(0, k) } });
+n.pingForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:ping'](frame(1, false));
+assert.ok(/0\.114 ms/.test(rows()) && !/timeout/.test(rows()), 'the first progress frame was not drawn:\n' + rows());
+assert.strictEqual(n.pingRun.disabled, true, 'a progress frame settled the run');
+assert.ok(/Running/.test(String(n.pingStatus.textContent)), 'a progress frame cleared the running status');
+handlers['tools:ping'](frame(2, false));
+assert.ok(/<span class="wg-down">timeout<\/span>/.test(rows()), 'the second progress frame was not drawn:\n' + rows());
+assert.strictEqual(n.pingRun.disabled, true, 'the second progress frame settled the run');
+handlers['tools:ping'](frame(2, true));
+assert.strictEqual(n.pingRun.disabled, false, 'the done frame did not settle the run');
+assert.strictEqual(String(n.pingStatus.textContent), '', 'the running status outlived the done frame');
+assert.ok(/2 sent/.test(String(n.pingSummary.textContent)), 'the done frame was not drawn');
+// Progress for a tool that is not pending is dropped (the control is above)...
+n.traceForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:ping'](frame(1, false));
+assert.ok(/timeout/.test(rows()), 'a ping progress frame was drawn while a traceroute was pending:\n' + rows());
+handlers['tools:traceroute']({ code: '', message: '', done: true, result: { address: 'x', error: '', hops: [] } });
+// ...and so is progress that lands after a router switch.
+n.pingForm.fire('submit', { preventDefault: () => {} });
+handlers['router:switched']({ activeId: 'r3b' });
+handlers['tools:ping'](frame(1, false));
+assert.ok(/Not run yet/.test(rows()), 'a progress frame for the old router was drawn after the switch');
+
 // TRACEROUTE. A ping result while a traceroute is pending is not the answer it
 // is waiting for, and is dropped; the traceroute's own result is drawn.
 sent.length = 0;
@@ -101,7 +133,7 @@ assert.deepStrictEqual(sent, [['tools:traceroute', { address: '198.51.100.1', ma
 assert.strictEqual(n.pingRun.disabled, true, 'Ping stays enabled while a traceroute runs');
 handlers['tools:ping'](result);
 assert.ok(/Not run yet/.test(rows()), 'a ping result was drawn while a traceroute was pending');
-handlers['tools:traceroute']({ code: '', message: '', result: { address: '198.51.100.1', error: 'Too many hops', hops: [
+handlers['tools:traceroute']({ code: '', message: '', done: true, result: { address: '198.51.100.1', error: 'Too many hops', hops: [
   { hop: 1, address: '<i>h</i>', timedOut: false, lossPct: 0, lastMs: 1.5, bestMs: 1.5, worstMs: 1.5, status: '' },
   { hop: 2, address: '', timedOut: true, lossPct: 100, lastMs: null, bestMs: null, worstMs: null, status: '' },
 ] } });
@@ -127,7 +159,7 @@ n.torchInterface.value = 'ether1';
 n.torchSeconds.value = '3';
 n.torchForm.fire('submit', { preventDefault: () => {} });
 assert.deepStrictEqual(sent, [['tools:torch', { interface: 'ether1', seconds: 3 }]], 'the torch form did not ask for one run');
-handlers['tools:torch']({ code: '', message: '', result: { interface: 'ether1', seconds: 3, reports: 2, omitted: 2, totalRxBps: 2000000, totalTxBps: 0,
+handlers['tools:torch']({ code: '', message: '', done: true, result: { interface: 'ether1', seconds: 3, reports: 2, omitted: 2, totalRxBps: 2000000, totalTxBps: 0,
   flows: [{ protocol: 'tcp', srcAddress: '198.51.100.1', srcPort: '443', dstAddress: '198.51.100.2', dstPort: '50000', rxBps: 2000000, txBps: 0 }] } });
 assert.ok(/2\.00 Mbps/.test(String(n.torchRows.innerHTML)) && /198\.51\.100\.1:443/.test(String(n.torchRows.innerHTML)),
   'the flow was not drawn:\n' + n.torchRows.innerHTML);
@@ -146,10 +178,10 @@ n.btestForm.fire('submit', { preventDefault: () => {} });
 assert.deepStrictEqual(sent, [['tools:btest', { address: '198.51.100.53', user: 'md-btest', password: 'hunter2',
   seconds: 3, protocol: 'tcp', direction: 'both' }]], 'the test form did not ask for one run with its login');
 assert.strictEqual(n.btestPassword.value, '', 'the password was left in the page after the run was sent');
-handlers['tools:btest']({ code: 'failed', message: 'the test did not run: authentication failed', result: null });
+handlers['tools:btest']({ done: true, code: 'failed', message: 'the test did not run: authentication failed', result: null });
 assert.ok(/authentication failed/.test(String(n.btestStatus.textContent)), 'a failed test did not say why');
 n.btestForm.fire('submit', { preventDefault: () => {} });
-handlers['tools:btest']({ code: '', message: '', result: { address: '198.51.100.53', done: true, status: 'done testing',
+handlers['tools:btest']({ code: '', message: '', done: true, result: { address: '198.51.100.53', done: true, status: 'done testing',
   direction: 'both', duration: '3s', rxBps: 4612040, txBps: 1702032, lostPackets: 0, localCpu: 0, remoteCpu: 3 } });
 assert.ok(/4\.61 Mbps/.test(String(n.btestRows.innerHTML)) && /far one 3%/.test(String(n.btestRows.innerHTML)),
   'the result was not drawn:\n' + n.btestRows.innerHTML);

@@ -46,7 +46,7 @@ func TestTorchsSummaryListsTheBusiestTen(t *testing.T) {
 func TestADiagnosticNeedsARouterAndThePagesPermission(t *testing.T) {
 	cn := &conn{}
 	var got []string
-	cn.startTool("write", func(code string) { got = append(got, code) }, func(*session.Session) {
+	cn.startTool("write", func(code string) { got = append(got, code) }, func(*session.Session, <-chan struct{}) {
 		t.Error("a run started on a connection with no router")
 	})
 	if len(got) != 1 || got[0] != "unavailable" {

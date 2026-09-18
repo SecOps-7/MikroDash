@@ -265,7 +265,7 @@ func (s *Server) runScan(scan *wifiscan.Scan, cn *conn) {
 // scanConn adapts a router session to what the runner needs.
 type scanConn struct{ rs *session.Session }
 
-func (c scanConn) StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func()) (func(), error) {
+func (c scanConn) StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error)) (func(), error) {
 	return c.rs.StreamUntilDone(cmd, onRow, onDone)
 }
 func (c scanConn) Connected() bool { return c.rs != nil && c.rs.Connected() }

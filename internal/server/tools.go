@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
@@ -38,8 +40,20 @@ import (
 // A ping or a traceroute changes nothing, and the audit trail records changes
 // and refusals to change. Torch and bandwidth test load the router or a link,
 // need write access, and are audited — the run and a refusal both.
+//
+// ── LIVE: EACH ROW AS IT ARRIVES, THEN THE RESULT ───────────────────────────
+//
+// A run is streamed rather than sent with Exec, so the page shows each ping
+// reply, the traceroute's table growing, each second of torch and of a
+// bandwidth test while the run is still going. Every row is folded with the
+// rows before it by the same pure Fold* the finished run uses, and sent on the
+// tool's own event with Done false, at most every progressEvery. The last frame
+// has Done true, and is exactly what the page drew before this was live. The
+// bounds are unchanged: the same command, and its Timeout stops it on the
+// router (see (*routeros.Client).StreamUntilDone).
 
-// ToolsPingPayload is `tools:ping`: a finished run, or why there is none.
+// ToolsPingPayload is `tools:ping`: a run in progress, a finished run, or why
+// there is none.
 type ToolsPingPayload struct {
 	// Result is nil when Code is set.
 	Result *diag.PingResult `json:"result"`
@@ -48,6 +62,9 @@ type ToolsPingPayload struct {
 	Code string `json:"code"`
 	// Message is the router's own words for a failed run, sanitised.
 	Message string `json:"message"`
+	// Done is false on a progress frame — Result is the run so far and Code is
+	// empty — and true on the one frame that ends the run.
+	Done bool `json:"done"`
 }
 
 // ToolsTraceroutePayload is `tools:traceroute`, shaped as ToolsPingPayload is.
@@ -55,6 +72,7 @@ type ToolsTraceroutePayload struct {
 	Result  *diag.TracerouteResult `json:"result"`
 	Code    string                 `json:"code"`
 	Message string                 `json:"message"`
+	Done    bool                   `json:"done"`
 }
 
 type toolsPingReq struct {
@@ -76,9 +94,13 @@ type toolsTracerouteReq struct {
 // drops a result that lands after a router switch; the goroutine does not read
 // `cn.rsession` again, which the read loop writes.
 //
+// `quit` closes when the run is no longer wanted: the operator switched router
+// or the socket closed (releaseRouter runs on both). The run then stops its
+// stream, which cancels the command on the router, and sends nothing more.
+//
 // OFF THE READ LOOP because a run lasts up to thirty-five seconds, and this
 // socket's page focus, blur and every other message would wait behind it.
-func (cn *conn) startTool(access string, refuse func(code string), work func(rs *session.Session)) {
+func (cn *conn) startTool(access string, refuse func(code string), work func(rs *session.Session, quit <-chan struct{})) {
 	if cn.routerID == "" || cn.rsession == nil {
 		refuse("unavailable")
 		return
@@ -92,10 +114,25 @@ func (cn *conn) startTool(access string, refuse func(code string), work func(rs 
 		return
 	}
 	rs := cn.rsession
+	quit := make(chan struct{})
+	cn.toolMu.Lock()
+	cn.toolQuit = quit
+	cn.toolMu.Unlock()
 	go func() {
 		defer cn.toolBusy.Store(false)
-		work(rs)
+		work(rs, quit)
 	}()
+}
+
+// stopTool ends this connection's page run, if one is going: releaseRouter
+// calls it on a router switch, a revoked grant and the socket closing.
+func (cn *conn) stopTool() {
+	cn.toolMu.Lock()
+	defer cn.toolMu.Unlock()
+	if cn.toolQuit != nil {
+		close(cn.toolQuit)
+		cn.toolQuit = nil
+	}
 }
 
 // toolsPing answers `tools:ping` from the Tools page.
@@ -103,10 +140,14 @@ func (cn *conn) toolsPing(raw json.RawMessage) {
 	var req toolsPingReq
 	_ = json.Unmarshal(raw, &req)
 	cn.startTool("read",
-		func(code string) { EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: code}) },
-		func(rs *session.Session) {
-			res, code, msg := runPing(rs, req.Address, req.Count)
-			EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: res, Code: code, Message: msg})
+		func(code string) { EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: code, Done: true}) },
+		func(rs *session.Session, quit <-chan struct{}) {
+			res, code, msg := runPing(rs, req.Address, req.Count, quit, func(p *diag.PingResult) {
+				EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: p})
+			})
+			if code != codeStopped {
+				EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: res, Code: code, Message: msg, Done: true})
+			}
 		})
 }
 
@@ -115,10 +156,16 @@ func (cn *conn) toolsTraceroute(raw json.RawMessage) {
 	var req toolsTracerouteReq
 	_ = json.Unmarshal(raw, &req)
 	cn.startTool("read",
-		func(code string) { EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Code: code}) },
-		func(rs *session.Session) {
-			res, code, msg := runTraceroute(rs, req.Address, req.MaxHops)
-			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: res, Code: code, Message: msg})
+		func(code string) {
+			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Code: code, Done: true})
+		},
+		func(rs *session.Session, quit <-chan struct{}) {
+			res, code, msg := runTraceroute(rs, req.Address, req.MaxHops, quit, func(r *diag.TracerouteResult) {
+				EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: r})
+			})
+			if code != codeStopped {
+				EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: res, Code: code, Message: msg, Done: true})
+			}
 		})
 }
 
@@ -126,51 +173,162 @@ func (cn *conn) toolsTraceroute(raw json.RawMessage) {
 //
 // Returns the result, or a code and the router's own message. The caller has
 // already checked permission; this checks only what the request itself can get
-// wrong.
-func runPing(rs *session.Session, address string, count int) (*diag.PingResult, string, string) {
+// wrong. `progress`, when not nil, is handed the run so far as replies arrive;
+// `quit`, when not nil, ends the run early (see streamDiag).
+func runPing(rs diagStream, address string, count int, quit <-chan struct{}, progress func(*diag.PingResult)) (*diag.PingResult, string, string) {
 	cmd, err := diag.PingCommand(address, count)
 	if err != nil {
 		return nil, "address", err.Error()
 	}
-	rows, code, msg := runDiag(rs, cmd)
+	fold := func(rows []routeros.Reply) *diag.PingResult {
+		r := diag.FoldPing(address, rows)
+		return &r
+	}
+	rows, code, msg := streamDiag(rs, cmd, quit, nil, report(progress, fold))
 	if code != "" {
 		return nil, code, msg
 	}
-	r := diag.FoldPing(address, rows)
-	return &r, "", ""
+	return fold(rows), "", ""
 }
 
 // runTraceroute runs one bounded traceroute on a router and folds its reply.
-func runTraceroute(rs *session.Session, address string, maxHops int) (*diag.TracerouteResult, string, string) {
+// Progress is the table as of the last section complete, so a half-arrived
+// section is never drawn.
+func runTraceroute(rs diagStream, address string, maxHops int, quit <-chan struct{}, progress func(*diag.TracerouteResult)) (*diag.TracerouteResult, string, string) {
 	cmd, err := diag.TracerouteCommand(address, maxHops)
 	if err != nil {
 		return nil, "address", err.Error()
 	}
-	rows, code, msg := runDiag(rs, cmd)
+	fold := func(rows []routeros.Reply) *diag.TracerouteResult {
+		r := diag.FoldTraceroute(address, rows)
+		return &r
+	}
+	rows, code, msg := streamDiag(rs, cmd, quit, diag.CompleteSections, report(progress, fold))
 	if code != "" {
 		return nil, code, msg
 	}
-	r := diag.FoldTraceroute(address, rows)
-	return &r, "", ""
+	return fold(rows), "", ""
 }
 
-// runDiag sends one diagnostic command and returns its rows, or "failed" with
-// the reason.
+// report adapts a tool's progress callback to the rows streamDiag hands out,
+// through the same fold as the finished run. Nil stays nil: the assistant's
+// tools ask for no progress.
+func report[T any](progress func(*T), fold func([]routeros.Reply) *T) func([]routeros.Reply) {
+	if progress == nil {
+		return nil
+	}
+	return func(rows []routeros.Reply) { progress(fold(rows)) }
+}
+
+// diagStream is the part of a router connection a diagnostic needs:
+// *session.Session, or a test's fake.
+type diagStream interface {
+	StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error)) (func(), error)
+}
+
+// codeStopped is a run ended by `quit`. Never sent: nobody is waiting for it.
+const codeStopped = "stopped"
+
+// progressEvery is the most often a run's progress is sent. Four frames a second
+// is as fast as a person reads a table changing, and a ping's one reply a second
+// still lands on its own. A variable so a test need not wait it out.
+var progressEvery = 250 * time.Millisecond
+
+// streamDiag sends one diagnostic command and returns its rows, or "failed" with
+// the reason, or codeStopped when `quit` closed first.
+//
+// ── PROGRESS ────────────────────────────────────────────────────────────────
+//
+// `progress`, when not nil, is called from this goroutine with the rows so far —
+// cut by `complete`, when not nil, to the part that can be folded — at most once
+// per progressEvery, and only when that part has grown. The final rows are
+// returned, never handed to `progress`: the caller sends them as the result.
+//
+// ── HOW THE STREAM ENDS, AND THAT IT DOES ───────────────────────────────────
+//
+//   - By itself, at `!done` or a trap: onDone reports it, and no /cancel is
+//     written to a command that has already finished.
+//   - Past cmd.Timeout: the client cancels it on the router and onDone reports a
+//     timeout. The bound is the client's, the same one Exec had.
+//   - `quit`: stop() cancels it on the router and returns once it has ended —
+//     or, if the router will not end it, once the connection it was on has been
+//     given up (see (*routeros.Client).StreamUntilDone).
+//
+// Every path returns, so the caller's run slot and this goroutine go with it.
 //
 // A name that does not resolve, or an API user without the `test` policy, is a
 // trap with the router's own words in it — which is what the operator needs to
 // read, without this client's prefix on it. SANITISED, as every outbound error
 // is: a transport failure carries the router's address.
-func runDiag(rs *session.Session, cmd routeros.Cmd) ([]routeros.Reply, string, string) {
-	rows, err := rs.Exec(cmd)
-	if err == nil {
-		return rows, "", ""
+func streamDiag(rs diagStream, cmd routeros.Cmd, quit <-chan struct{}, complete func([]routeros.Reply) []routeros.Reply,
+	progress func([]routeros.Reply)) ([]routeros.Reply, string, string) {
+	var mu sync.Mutex
+	var rows []routeros.Reply
+	grew := make(chan struct{}, 1)
+	ended := make(chan error, 1)
+	stop, err := rs.StreamUntilDone(cmd,
+		func(r routeros.Reply) {
+			mu.Lock()
+			rows = append(rows, r)
+			mu.Unlock()
+			select {
+			case grew <- struct{}{}:
+			default:
+			}
+		},
+		func(err error) { ended <- err })
+	if err != nil {
+		code, msg := diagFailure(err)
+		return nil, code, msg
 	}
+	// A full-slice expression, so a later append cannot write under a frame
+	// still being folded.
+	snapshot := func() []routeros.Reply {
+		mu.Lock()
+		defer mu.Unlock()
+		return rows[:len(rows):len(rows)]
+	}
+
+	tick := time.NewTicker(progressEvery)
+	defer tick.Stop()
+	dirty, reported := false, 0
+	for {
+		select {
+		case err := <-ended:
+			if err != nil {
+				code, msg := diagFailure(err)
+				return nil, code, msg
+			}
+			return snapshot(), "", ""
+		case <-quit:
+			stop()
+			return nil, codeStopped, ""
+		case <-grew:
+			dirty = true
+		case <-tick.C:
+			if !dirty || progress == nil {
+				continue
+			}
+			dirty = false
+			part := snapshot()
+			if complete != nil {
+				part = complete(part)
+			}
+			if len(part) > reported {
+				reported = len(part)
+				progress(part)
+			}
+		}
+	}
+}
+
+// diagFailure is the page's words for a run that did not finish.
+func diagFailure(err error) (string, string) {
 	var trap *routeros.Trap
 	if errors.As(err, &trap) {
-		return nil, "failed", "the router said: " + safe.Message(trap.Message)
+		return "failed", "the router said: " + safe.Message(trap.Message)
 	}
-	return nil, "failed", safe.Message(err.Error())
+	return "failed", safe.Message(err.Error())
 }
 
 // diagRunners answers each diagnostic tool, keyed by its `Diagnostic` name.
@@ -183,7 +341,7 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		if json.Unmarshal(args, &req) != nil {
 			return nil, "The arguments could not be read. Pass an object with `address`, and optionally `count`."
 		}
-		res, code, msg := runPing(rs, req.Address, req.Count)
+		res, code, msg := runPing(rs, req.Address, req.Count, nil, nil)
 		if code != "" {
 			return nil, "The ping did not run: " + msg
 		}
@@ -194,7 +352,7 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		if json.Unmarshal(args, &req) != nil {
 			return nil, "The arguments could not be read. Pass an object with `address`, and optionally `maxHops`."
 		}
-		res, code, msg := runTraceroute(rs, req.Address, req.MaxHops)
+		res, code, msg := runTraceroute(rs, req.Address, req.MaxHops, nil, nil)
 		if code != "" {
 			return nil, "The traceroute did not run: " + msg
 		}
@@ -258,6 +416,7 @@ type ToolsTorchPayload struct {
 	Result  *diag.TorchResult `json:"result"`
 	Code    string            `json:"code"`
 	Message string            `json:"message"`
+	Done    bool              `json:"done"`
 }
 
 type toolsTorchReq struct {
@@ -308,11 +467,15 @@ func (cn *conn) toolsTorch(raw json.RawMessage) {
 				cn.recorder().Denied(audit.Event{Action: "tools.torch", TargetType: "interface",
 					TargetName: req.Interface, RouterID: cn.routerID})
 			}
-			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Code: code})
+			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Code: code, Done: true})
 		},
-		func(rs *session.Session) {
-			res, code, msg := cn.runTorch(rs, req.Interface, req.Seconds, "")
-			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: res, Code: code, Message: msg})
+		func(rs *session.Session, quit <-chan struct{}) {
+			res, code, msg := cn.runTorch(rs, req.Interface, req.Seconds, "", quit, func(r *diag.TorchResult) {
+				EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: r})
+			})
+			if code != codeStopped {
+				EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: res, Code: code, Message: msg, Done: true})
+			}
 		})
 }
 
@@ -323,7 +486,10 @@ func (cn *conn) toolsTorch(raw json.RawMessage) {
 // and a name read fresh here makes the refusal say what was wrong. The audit
 // row is written BEFORE the command is sent, as the wifi scan's is: a run that
 // starts and then fails to be recorded still loaded the router.
-func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, via string) (*diag.TorchResult, string, string) {
+//
+// Progress is each complete second's flows, averaged over the seconds so far.
+func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, via string,
+	quit <-chan struct{}, progress func(*diag.TorchResult)) (*diag.TorchResult, string, string) {
 	cmd, err := diag.TorchCommand(iface, seconds)
 	if err != nil {
 		return nil, "interface", err.Error()
@@ -348,13 +514,16 @@ func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, via str
 		ev.Extra = []audit.KV{{Key: "via", Value: via}}
 	}
 	cn.recorder().Record(ev)
-	rows, code, msg := runDiag(rs, cmd)
+	fold := func(rows []routeros.Reply) *diag.TorchResult {
+		r := diag.FoldTorch(iface, rows)
+		r.Seconds = diag.TorchSeconds(seconds)
+		return &r
+	}
+	rows, code, msg := streamDiag(rs, cmd, quit, diag.CompleteSections, report(progress, fold))
 	if code != "" {
 		return nil, code, msg
 	}
-	r := diag.FoldTorch(iface, rows)
-	r.Seconds = diag.TorchSeconds(seconds)
-	return &r, "", ""
+	return fold(rows), "", ""
 }
 
 // runTorchAction is the approved `torch` action: the page's run, for the
@@ -364,7 +533,7 @@ func (cn *conn) runTorchAction(iface string) writeOutcome {
 		return writeOutcome{Code: "busy"}
 	}
 	defer cn.toolBusy.Store(false)
-	res, code, msg := cn.runTorch(cn.rsession, iface, diag.TorchDefaultSeconds, "agent")
+	res, code, msg := cn.runTorch(cn.rsession, iface, diag.TorchDefaultSeconds, "agent", nil, nil)
 	if code != "" {
 		return writeOutcome{Code: code, Detail: map[string]any{"message": msg}}
 	}
@@ -412,6 +581,7 @@ type ToolsBtestPayload struct {
 	Result  *diag.BtestResult `json:"result"`
 	Code    string            `json:"code"`
 	Message string            `json:"message"`
+	Done    bool              `json:"done"`
 }
 
 // toolsBtestReq is the page's request. The PASSWORD is in it, and goes from here
@@ -435,11 +605,15 @@ func (cn *conn) toolsBtest(raw json.RawMessage) {
 			if code == "denied" {
 				cn.recorder().Denied(btestAudit(cn.routerID, req, ""))
 			}
-			EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Code: code})
+			EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Code: code, Done: true})
 		},
-		func(rs *session.Session) {
-			res, code, msg := cn.runBtest(rs, req, "")
-			EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: res, Code: code, Message: msg})
+		func(rs *session.Session, quit <-chan struct{}) {
+			res, code, msg := cn.runBtest(rs, req, "", quit, func(r *diag.BtestResult) {
+				EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: r})
+			})
+			if code != codeStopped {
+				EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: res, Code: code, Message: msg, Done: true})
+			}
 		})
 }
 
@@ -459,21 +633,34 @@ func btestAudit(routerID string, req toolsBtestReq, via string) audit.Event {
 
 // runBtest runs one bounded bandwidth test and folds its reports. The audit row
 // is written before the command is sent.
-func (cn *conn) runBtest(rs *session.Session, req toolsBtestReq, via string) (*diag.BtestResult, string, string) {
+func (cn *conn) runBtest(rs *session.Session, req toolsBtestReq, via string,
+	quit <-chan struct{}, progress func(*diag.BtestResult)) (*diag.BtestResult, string, string) {
 	cmd, err := diag.BandwidthTestCommand(req.Address, req.User, req.Password, req.Seconds, req.Protocol, req.Direction)
 	if err != nil {
 		return nil, "request", err.Error()
 	}
 	cn.recorder().Record(btestAudit(cn.routerID, req, via))
-	rows, code, msg := runDiag(rs, cmd)
+	return streamBtest(rs, cmd, req.Address, quit, progress)
+}
+
+// streamBtest runs a built bandwidth-test command. Each report is complete —
+// one row per second, carrying the running totals — so progress is every row.
+// A test that ends on any status but "done testing" failed, and says why.
+func streamBtest(rs diagStream, cmd routeros.Cmd, address string,
+	quit <-chan struct{}, progress func(*diag.BtestResult)) (*diag.BtestResult, string, string) {
+	fold := func(rows []routeros.Reply) *diag.BtestResult {
+		r := diag.FoldBandwidthTest(address, rows)
+		return &r
+	}
+	rows, code, msg := streamDiag(rs, cmd, quit, nil, report(progress, fold))
 	if code != "" {
 		return nil, code, msg
 	}
-	r := diag.FoldBandwidthTest(req.Address, rows)
+	r := fold(rows)
 	if !r.Done {
-		return &r, "failed", "the test did not run: " + safe.Message(r.Status)
+		return r, "failed", "the test did not run: " + safe.Message(r.Status)
 	}
-	return &r, "", ""
+	return r, "", ""
 }
 
 // runBtestAction is the approved `bandwidth_test` action: the page's run with
@@ -484,7 +671,7 @@ func (cn *conn) runBtestAction(address, user, password string) writeOutcome {
 	}
 	defer cn.toolBusy.Store(false)
 	res, code, msg := cn.runBtest(cn.rsession, toolsBtestReq{Address: address, User: user, Password: password,
-		Protocol: diag.BtestProtocols[0], Direction: diag.BtestDirections[0]}, "agent")
+		Protocol: diag.BtestProtocols[0], Direction: diag.BtestDirections[0]}, "agent", nil, nil)
 	if code != "" {
 		return writeOutcome{Code: code, Detail: map[string]any{"message": msg}}
 	}

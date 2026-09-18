@@ -61,14 +61,14 @@ type fakeConn struct {
 	mu        sync.Mutex
 	rows      []routeros.Reply
 	onRow     func(routeros.Reply)
-	onDone    func()
+	onDone    func(error)
 	connected atomic.Bool
 	stops     int32
 	openErr   error
 	lastCmd   routeros.Cmd
 }
 
-func (f *fakeConn) StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func()) (func(), error) {
+func (f *fakeConn) StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error)) (func(), error) {
 	f.mu.Lock()
 	f.lastCmd = cmd
 	f.onRow, f.onDone = onRow, onDone
@@ -95,7 +95,7 @@ func (f *fakeConn) endNaturally() {
 	f.mu.Lock()
 	fn := f.onDone
 	f.mu.Unlock()
-	fn()
+	fn(nil)
 }
 
 type capture struct {

@@ -11,6 +11,14 @@
 // disabled while any tool is running, and a result is accepted only by the
 // tool that is waiting for one.
 //
+// ── LIVE: PROGRESS, THEN THE RESULT, ON ONE EVENT ───────────────────────────
+//
+// The server streams each run: its event arrives with `done: false` as rows come
+// in — the run so far, folded exactly as the finished one is — and once with
+// `done: true` to end it. Both are drawn by the tool's one renderer, so the last
+// progress frame and the result cannot disagree about what a row looks like. A
+// progress frame leaves the run pending; only the done one settles it.
+//
 // ── A RESULT BELONGS TO THE ROUTER IT WAS ASKED OF ──────────────────────────
 //
 // A run takes seconds. If the operator switches router meanwhile, the result
@@ -178,7 +186,11 @@ function renderTorch(r: TorchResult): void {
 
 function renderBtest(r: BtestResult): void {
   const summary = el('btestSummary');
-  if (summary) summary.textContent = 'Tested to ' + r.address + ' for ' + r.duration + ', ' + r.direction;
+  // A report still connecting has no duration or direction yet.
+  if (summary) {
+    summary.textContent = 'Tested to ' + r.address + (r.duration ? ' for ' + r.duration : '') +
+      (r.direction ? ', ' + r.direction : '');
+  }
   const rows = el('btestRows');
   if (!rows) return;
   const line = (k: string, v: string): string => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
@@ -205,8 +217,13 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     }
   }
 
-  function settle(t: Tool, d: { code: string; message: string }, draw: () => void): void {
+  function settle(t: Tool, d: { code: string; message: string; done: boolean }, draw: () => void): void {
     if (pending !== t) return;
+    if (!d.done) {
+      // The run so far. Still pending: the status keeps saying it is running.
+      draw();
+      return;
+    }
     setRunning(null, '');
     const status = el(t.status);
     if (status) status.textContent = '';
