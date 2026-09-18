@@ -230,121 +230,106 @@ func TestActivateLeavesOtherSettingsAlone(t *testing.T) {
 	_ = s
 }
 
-// ── moveFollowers ───────────────────────────────────────────────────────────
+// ── tellFollowers ───────────────────────────────────────────────────────────
+//
+// RE-AIMED DELIBERATELY on 2026-09-19. These pinned `moveFollowers`, which
+// re-roomed each follower from the HTTP handler without asking whether it could
+// read the new router and without moving its session: a viewer with no grant on
+// the new router received its broadcasts, and one with write there and read on
+// the old router wrote to the old one. The server now TELLS followers, and each
+// browser selects through `router:select`, which checks. What is pinned here:
+// who is told, what they are told, and that nobody's fields or rooms change.
 
-// TestOnlyTheOldDefaultsFollowersMove.
-//
-// ── THIS IS THE BUG THE PARAMETER EXISTS FOR ───────────────────────────────
-//
-// `moveFollowers` was first extracted from the DELETE route as
-// `moveDefaultFollowers(next)`, moving every connection whose router was not the
-// target. That is a much wider move than either caller wants, and it survived
-// the whole suite because nothing here drives a WebSocket connection — it was
-// caught by reading the diff, not by a test. This is that test.
-//
-// Three connections: one on the old default, one PINNED to a third router by
-// `router:switch`, and one already on the target. Only the first may move.
-func TestOnlyTheOldDefaultsFollowersMove(t *testing.T) {
+// followFrames is the `router:follow` targets a client was sent.
+func followFrames(c *hub.Client) []string {
+	var out []string
+	for {
+		select {
+		case b := <-c.Send:
+			var env struct {
+				Event string `json:"event"`
+				Data  struct {
+					ActiveID string `json:"activeId"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(b, &env) == nil && env.Event == "router:follow" {
+				out = append(out, env.Data.ActiveID)
+			}
+		default:
+			return out
+		}
+	}
+}
+
+func TestOnlyTheOldDefaultsPermittedFollowersAreTold(t *testing.T) {
 	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
 
-	mk := func(name, router string) *conn {
+	mk := func(name, router string, readable ...string) *conn {
 		c := hub.NewClient(name, 8)
 		s.hub.Add(c)
 		s.hub.Join(c, "router-"+router)
 		s.hub.Join(c, "router-"+router+"-page-dashboard")
-		cn := &conn{srv: s, c: c, sess: &Session{AuthMode: "none"}, routerID: router}
+		cn := &conn{srv: s, c: c, sess: &Session{AuthMode: "modern", Readable: readable}, routerID: router}
 		s.connsMu.Lock()
 		s.conns[c] = cn
 		s.connsMu.Unlock()
 		return cn
 	}
-	follower := mk("follower", "r-one") // on the old default
-	pinned := mk("pinned", "r-three")   // switched to a third router by hand
-	already := mk("already", "r-two")   // already where we are going
+	follower := mk("follower", "r-one", "r-one", "r-two") // on the old default, may read the new one
+	barred := mk("barred", "r-one", "r-one")              // on the old default, NO grant on r-two
+	pinned := mk("pinned", "r-three", "r-three", "r-two") // switched to a third router by hand
+	already := mk("already", "r-two", "r-two")            // already where we are going
 
 	if w := doJSON(mux, "POST", "/api/routers/r-two/activate", "", authed); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
 
-	if follower.routerID != "r-two" {
-		t.Errorf("the follower is still on %q — it now sits in a room nothing broadcasts to",
-			follower.routerID)
+	if got := followFrames(follower.c); len(got) != 1 || got[0] != "r-two" {
+		t.Errorf("the permitted follower was told %v, want one router:follow to r-two", got)
 	}
-	// THE ONE THAT MATTERS. A session pinned elsewhere keeps its own view; the
-	// live comment on this route says a global emit "would wrongly flip their
-	// selector to a router whose data they aren't receiving", and moving their
-	// rooms is worse — it changes what they receive.
-	if pinned.routerID != "r-three" {
-		t.Errorf("a session PINNED to r-three was dragged to %q by an activation it "+
-			"had nothing to do with", pinned.routerID)
+	// THE SECURITY HALF. A viewer who may not read the new router is not asked
+	// to follow it, and nothing moves it there.
+	if got := followFrames(barred.c); len(got) != 0 {
+		t.Errorf("a follower with no grant on r-two was told to follow it: %v", got)
 	}
-	if already.routerID != "r-two" {
-		t.Errorf("a connection already on the target moved to %q", already.routerID)
+	// A session pinned elsewhere keeps its own view.
+	if got := followFrames(pinned.c); len(got) != 0 {
+		t.Errorf("a session PINNED to r-three was told to follow: %v", got)
 	}
-
-	// AND THE ROOMS FOLLOWED, not just the field. A connection whose id changed
-	// while its rooms did not is subscribed to a router it is no longer showing.
-	rooms := map[string]bool{}
-	for _, r := range follower.c.Rooms() {
-		rooms[r] = true
+	if got := followFrames(already.c); len(got) != 0 {
+		t.Errorf("a connection already on r-two was told to follow: %v", got)
 	}
-	if !rooms["router-r-two"] {
-		t.Errorf("the follower's rooms are %v — it did not join the new router", follower.c.Rooms())
-	}
-	for r := range rooms {
-		if strings.HasPrefix(r, "router-r-one") {
-			t.Errorf("the follower is still in %q, so it keeps receiving the old router", r)
+	// AND NOTHING WAS MOVED FROM HERE: no field and no room changes on the HTTP
+	// goroutine. The browser's own router:select does that, on its own goroutine.
+	for _, cn := range []*conn{follower, barred} {
+		if cn.routerID != "r-one" {
+			t.Errorf("%s was moved to %q by the activation itself", cn.c.ID, cn.routerID)
 		}
-	}
-	// The pinned session's rooms are untouched.
-	for _, r := range pinned.c.Rooms() {
-		if strings.HasPrefix(r, "router-r-two") {
-			t.Errorf("the pinned session was joined to %q", r)
+		for _, r := range cn.c.Rooms() {
+			if strings.HasPrefix(r, "router-r-two") {
+				t.Errorf("%s was joined to %q by the activation itself", cn.c.ID, r)
+			}
 		}
 	}
 }
 
-// AN EMPTY `from` MOVES NOTHING.
+// AN EMPTY `from` TELLS NOBODY.
 //
 // A first-run install has no active router, so `wasActive` is "" — and a loop
-// that treated that as a wildcard would re-room every connection on the very
-// first activation.
-func TestAnEmptyFromMovesNothing(t *testing.T) {
+// that treated that as a wildcard would reach every connection that has not
+// picked a router yet, whose routerID is "" too.
+func TestAnEmptyFromTellsNobody(t *testing.T) {
 	s, _, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
-	c := hub.NewClient("someone", 8)
-	s.hub.Add(c)
-	s.hub.Join(c, "router-r-three")
-	cn := &conn{srv: s, c: c, sess: &Session{AuthMode: "none"}, routerID: "r-three"}
-	s.connsMu.Lock()
-	s.conns[c] = cn
-	s.connsMu.Unlock()
-
-	// A CONNECTION THAT HAS NOT PICKED A ROUTER YET. Its `routerID` is "", which
-	// MATCHES an empty `from` — so without the guard this one is swept up and
-	// joined to the new router's rooms.
-	//
-	// That is the whole reason the guard exists, and it is the only case that
-	// distinguishes it: every other connection is excluded by `!= from` anyway.
-	// Whether such a socket "should" follow the new default is arguable; what is
-	// not arguable is that it should not happen as a side effect of an empty
-	// string matching an empty string.
 	fresh := hub.NewClient("fresh", 8)
 	s.hub.Add(fresh)
-	blank := &conn{srv: s, c: fresh, sess: &Session{AuthMode: "none"}, routerID: ""}
+	blank := &conn{srv: s, c: fresh, sess: &Session{AuthMode: "modern", Readable: []string{"r-one"}}, routerID: ""}
 	s.connsMu.Lock()
 	s.conns[fresh] = blank
 	s.connsMu.Unlock()
 
-	s.moveFollowers("", "r-one")
+	s.tellFollowers("", "r-one")
 
-	if cn.routerID != "r-three" {
-		t.Errorf("an empty `from` moved a connection to %q", cn.routerID)
-	}
-	if blank.routerID != "" {
-		t.Errorf("a connection with no router yet was swept onto %q by an empty `from`",
-			blank.routerID)
-	}
-	if len(blank.c.Rooms()) != 0 {
-		t.Errorf("a connection with no router yet was joined to %v", blank.c.Rooms())
+	if got := followFrames(fresh); len(got) != 0 {
+		t.Errorf("a connection with no router yet was told to follow by an empty `from`: %v", got)
 	}
 }

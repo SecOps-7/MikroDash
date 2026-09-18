@@ -728,8 +728,11 @@ func TestRemovingARouterDoesNotStripTheOthers(t *testing.T) {
 
 // TestRemovingTheACTIVERouterPromotesAnother.
 //
-// And relocates every socket watching it: they are in rooms nothing will
-// broadcast to again, so leaving them there is a page that silently stops.
+// And asks every socket watching it to follow the survivor: they are in rooms
+// nothing will broadcast to again, so leaving them there is a page that silently
+// stops. RE-AIMED 2026-09-19: the server used to re-room them itself, with no
+// check that the watcher may read the survivor; now it tells a permitted watcher,
+// whose own router:select does the move (see tellFollowers).
 func TestRemovingTheActiveRouterPromotesAnother(t *testing.T) {
 	s, mux, dir := routersServer(t, &Session{AuthMode: "none", Username: "admin"},
 		`{"activeRouterId":"r1"}`)
@@ -737,7 +740,7 @@ func TestRemovingTheActiveRouterPromotesAnother(t *testing.T) {
 	watcher := hub.NewClient("w", 8)
 	s.hub.Add(watcher)
 	s.hub.Join(watcher, "router-r1")
-	cn := &conn{srv: s, c: watcher, sess: &Session{AuthMode: "none"}, routerID: "r1"}
+	cn := &conn{srv: s, c: watcher, sess: &Session{AuthMode: "modern", Readable: []string{"r1", "r2"}}, routerID: "r1"}
 	s.connsMu.Lock()
 	s.conns[watcher] = cn
 	s.connsMu.Unlock()
@@ -746,21 +749,9 @@ func TestRemovingTheActiveRouterPromotesAnother(t *testing.T) {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
 
-	if cn.routerID != "r2" {
-		t.Errorf("the watching connection is still on %q -- it would sit in a room "+
-			"nothing broadcasts to again", cn.routerID)
-	}
-	var inNew bool
-	for _, room := range watcher.Rooms() {
-		if room == "router-r2" {
-			inNew = true
-		}
-		if strings.HasPrefix(room, "router-r1") {
-			t.Errorf("still in %q, a room for a router that no longer exists", room)
-		}
-	}
-	if !inNew {
-		t.Error("the connection did not join the promoted router's room")
+	if got := followFrames(watcher); len(got) != 1 || got[0] != "r2" {
+		t.Errorf("the watching connection was told %v, want one router:follow to r2 -- "+
+			"without it the page sits in a room nothing broadcasts to again", got)
 	}
 
 	// The promotion is PERSISTED, or a restart goes back to the removed router.

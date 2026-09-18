@@ -493,6 +493,15 @@ async function main(): Promise<void> {
     const next = routers.find((r) => !r.disabled && r.id !== d.routerId);
     if (next) switchRouter(socket, next.id);
   });
+  // THE DEFAULT MOVED, AND THIS BROWSER WAS FOLLOWING IT: an administrator
+  // activated another router, or removed the one this browser was showing. The
+  // server no longer re-rooms the socket itself (it did so without checking this
+  // viewer's grant on the new router); it asks, and only a viewer who may read
+  // the new router is asked. Selecting through switchRouter resets every
+  // per-router cache and sends `router:select`, which checks the grant again.
+  socket.on('router:follow', (d) => {
+    if (d && d.activeId && d.activeId !== activeRouterId) switchRouter(socket, d.activeId);
+  });
   // The account modal — opened by the chip, which `wireNav` deliberately skips.
   wireAccount();
   // A nudge, never the caps themselves: re-asking re-resolves them server-side,

@@ -921,6 +921,10 @@ export interface RosUsersPayload {
   denied: boolean;
 }
 
+export interface RouterFollowPayload {
+  activeId: string;
+}
+
 export interface RouterStatsRow {
   id: string;
   label: string;
@@ -1698,6 +1702,7 @@ export interface Events {
   'ppp:update': PPPPayload;
   'queues:update': QueuesPayload;
   'rosusers:update': RosUsersPayload;
+  'router:follow': RouterFollowPayload;
   'routers:stats': RouterStatsRow[];
   'routing:update': RoutingPayload;
   'sites:update': Site[];

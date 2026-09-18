@@ -543,9 +543,9 @@ func (s *Server) promoteAfterRemoval(removedID string) {
 		log.Printf("[routers] promote %s: %v", next, err)
 	}
 	// FROM the removed router, TO the survivor. Shared with the activate route
-	// via `moveFollowers`, which takes both ids precisely because the two callers
+	// via `tellFollowers`, which takes both ids precisely because the two callers
 	// select different connections — see its header.
-	s.moveFollowers(removedID, next)
+	s.tellFollowers(removedID, next)
 	EvRouterActive.Broadcast(s.hub, "router-"+next, map[string]any{"activeId": next})
 }
 

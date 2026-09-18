@@ -3,7 +3,6 @@ package server
 import (
 	"log"
 	"net/http"
-	"strings"
 
 	"mikrodash/internal/audit"
 )
@@ -127,7 +126,7 @@ func (s *Server) routerActivate(w http.ResponseWriter, r *http.Request) {
 	// pinned to another router by `router:switch` keeps its own view — the live
 	// comment says why a global emit would be wrong here: it "would wrongly flip
 	// their selector to a router whose data they aren't receiving".
-	s.moveFollowers(wasActive, id)
+	s.tellFollowers(wasActive, id)
 	// The pool's history pair follows the active router. Without this the port
 	// would keep recording the OLD router's traffic and ping after a switch, and
 	// write nothing for the new one until a restart.
@@ -139,41 +138,52 @@ func (s *Server) routerActivate(w http.ResponseWriter, r *http.Request) {
 	EvRouterActive.Broadcast(s.hub, "router-"+id, map[string]any{"activeId": id})
 }
 
-// moveFollowers re-rooms the connections sitting on `from` onto `to`.
+// RouterFollowPayload tells a browser that was following the default router
+// which router is the default now. The browser then selects it itself.
+type RouterFollowPayload struct {
+	ActiveID string `json:"activeId"`
+}
+
+// tellFollowers asks every connection sitting on `from` to follow the default
+// to `to`. It does NOT move them.
 //
-// ── IT TAKES `from`, AND THE FIRST VERSION DID NOT ─────────────────────────
+// ── THE BROWSER SELECTS, BECAUSE A SELECT IS WHAT CHECKS ────────────────────
 //
-// This was extracted from the DELETE route's promote-a-survivor path, and the
-// first extraction moved every connection whose router was not the target —
-// which is a DIFFERENT and much wider move. Those two callers ask related but
-// distinct questions:
+// This was `moveFollowers`, and it re-roomed each follower from the HTTP
+// handler: `cn.routerID = to`, the new router's room joined. It never asked
+// whether the follower may read `to`, never moved the session reference, and
+// left `cn.rsession` on the old router (or on a session the DELETE path had
+// just closed). A viewer with no grant on the new router received its
+// broadcasts; one with write on the new router and read on the old wrote to the
+// old while permission was checked against the new (review 2026-09-19). And it
+// wrote `conn` fields from a goroutine that does not own them.
 //
-//	DELETE    move the sockets that were on the router just removed
-//	ACTIVATE  move the sockets that were following the OLD DEFAULT
+// `router:select` already does all of it on the connection's own goroutine:
+// the grant, the release and acquire, the rooms, the pages and the cards. So a
+// follower is TOLD, and one that may not read `to` is not told at all: it stays
+// on the router it was showing.
+//
+// ── IT TAKES `from` ─────────────────────────────────────────────────────────
+//
+// The two callers ask related but distinct questions:
+//
+//	DELETE    the sockets that were on the router just removed
+//	ACTIVATE  the sockets that were following the OLD DEFAULT
 //
 // and neither means "everyone not already here". A session pinned to a third
-// router by `router:switch` matches that wider test and must not move: the live
-// comment on the activate route says a global emit "would wrongly flip their
-// selector to a router whose data they aren't receiving", and dragging their
-// rooms across does worse — it changes what they receive.
-//
-// The de-duplication was still worth doing; the parameter is what makes it
-// honest. Two copies of "which rooms does this connection leave" is one prefix
-// away from a socket still receiving a router it is no longer looking at.
-func (s *Server) moveFollowers(from, to string) {
+// router by `router:switch` keeps its own view: the live comment on the
+// activate route says a global emit "would wrongly flip their selector to a
+// router whose data they aren't receiving". An empty `from` (a first
+// activation) tells nobody, or every socket that has not picked a router yet
+// would be swept up by "" matching "".
+func (s *Server) tellFollowers(from, to string) {
 	if from == "" || from == to {
 		return
 	}
 	for _, cn := range s.connections() {
-		if cn.routerID != from {
+		if cn.routerID != from || cn.sess == nil || !cn.sess.CanReadRouter(to) {
 			continue
 		}
-		for _, room := range cn.c.Rooms() {
-			if strings.HasPrefix(room, "router-"+from) {
-				s.hub.Leave(cn.c, room)
-			}
-		}
-		cn.routerID = to
-		s.hub.Join(cn.c, "router-"+to)
+		EvRouterFollow.Send(s.hub, cn.c, RouterFollowPayload{ActiveID: to})
 	}
 }
