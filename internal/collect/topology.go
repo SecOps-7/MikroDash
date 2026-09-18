@@ -1782,7 +1782,14 @@ func (t *Topology) apply(rows []routeros.Reply, err error) {
 	}
 	pinned, pinsOn := t.pins()
 	in.Pins = pinned
+	// UNDER THE LOCK: BuildTopology writes and deletes in the live seen and
+	// ping maps, which the ping loop (republish, recordPing) also writes.
+	// Built outside it, two goroutines wrote one map: a fatal error that ends
+	// the process, not a recoverable panic (review 2026-09-19). The build does
+	// no I/O, so holding the lock across it costs nothing a caller would notice.
+	t.mu.Lock()
 	payload := BuildTopology(in)
+	t.mu.Unlock()
 	payload.PinsEnabled = pinsOn
 
 	// KEPT SO THE PING LOOP CAN REBUILD WITHOUT ASKING THE ROUTER AGAIN.
@@ -1855,7 +1862,10 @@ func (t *Topology) republish() {
 	pinned, pinsOn := t.pins()
 	in.Pins = pinned
 
+	// Under the lock, for the reason apply gives.
+	t.mu.Lock()
 	payload := BuildTopology(in)
+	t.mu.Unlock()
 	payload.RouterID = t.routerID
 	payload.PinsEnabled = pinsOn
 
