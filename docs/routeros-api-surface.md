@@ -210,6 +210,7 @@ surface stays complete.
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
 | `/certificate` | certificate | certificates | set, remove |
+| `/system/script` | script | scripts | add, set, remove, run |
 | `/interface` | iface | interfaces | set (comment, disabled) |
 | `/interface/bridge` | bridge | bridges | add, set, remove |
 | `/interface/bridge/port` | bridgePort | bridges | add, set, remove |

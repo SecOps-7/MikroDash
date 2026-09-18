@@ -283,6 +283,12 @@
       "page": "users"
     },
     {
+      "name": "list_script",
+      "access": "read",
+      "resource": "script",
+      "page": "scripts"
+    },
+    {
       "name": "list_simpleQueue",
       "access": "read",
       "resource": "simpleQueue",

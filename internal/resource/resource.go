@@ -57,6 +57,11 @@ const (
 	// TypeMulti is a set chosen from Options, carried as a comma list in the
 	// Options' own order ("read,write,api"). See Field.NegateUnset.
 	TypeMulti Type = "multi"
+	// TypeCode is multi-line RouterOS code — a script's source, a scheduler's
+	// on-event. Newlines and tabs are its content, so unlike TypeText it allows
+	// them (a CRLF is stored as LF) and is not trimmed; every other control
+	// character is still refused. Always paired with Field.Code.
+	TypeCode Type = "code"
 )
 
 // OptionsFrom is where a field's picker list comes from.
@@ -105,6 +110,14 @@ type Field struct {
 	// are keyed on, so renaming one would orphan all three.
 	Display bool
 
+	// Code marks a field whose value is RouterOS CODE: a script's source, a
+	// scheduler's on-event. Writing one is running a command by another route,
+	// so a write that CHANGES it is held to the raw-command gate (the operator's
+	// choice, 2026-09-18): a signed-in global administrator on every path, and
+	// for the assistant also `aiAllowRawCommands` and the router's name typed
+	// back. The `codeGate` guard and change_row enforce it; CodeChange decides.
+	Code bool
+
 	// NegateUnset makes a TypeMulti write name every option, the unchosen ones
 	// prefixed `!`. RouterOS needs it where a positive list only ADDS: measured
 	// on /user/group, `set policy=read` against a group holding `read,test,api`
@@ -149,6 +162,8 @@ func (f Field) input() string {
 		return "select"
 	case TypeMulti:
 		return "multi"
+	case TypeCode:
+		return "code"
 	default:
 		return "text"
 	}
@@ -352,6 +367,22 @@ var ctrl = func(s string) bool {
 }
 
 func (f Field) check(raw string) (string, string) {
+	if f.Type == TypeCode {
+		code := strings.ReplaceAll(raw, "\r\n", "\n")
+		for _, r := range code {
+			if (r < 0x20 && r != '\n' && r != '\t') || r == 0x7f {
+				return "", "contains a control character"
+			}
+		}
+		max := 65535
+		if f.Max != nil {
+			max = *f.Max
+		}
+		if len(code) > max {
+			return "", fmt.Sprintf("is longer than %d characters", max)
+		}
+		return code, ""
+	}
 	s := strings.TrimSpace(raw)
 	switch f.Type {
 	case TypeText, TypeSecret:
@@ -1032,6 +1063,43 @@ var Certificate = &Resource{
 	},
 }
 
+// Script is /system/script (slice 7). From the RouterOS command tree for
+// /system/script/add.
+//
+// ── CODE IS HELD TO THE RAW-COMMAND GATE ────────────────────────────────────
+//
+// The source is RouterOS code, run later; the policy and the permission switch
+// decide what that code may do. Changing any of them, or running a script, is
+// running a command by another route, so all of it is behind `codeGate` (a
+// signed-in global administrator) and, for the assistant, the raw-command gate
+// with a typed confirmation — the operator's choice, 2026-09-18. Renaming a
+// script or editing its comment is an ordinary write.
+var Script = &Resource{
+	Key: "script", Page: "scripts", Label: "Script",
+	Title: "Script", Menu: "/system/script", Identity: []string{"name"},
+	Guard:   []string{"codeGate"},
+	Actions: []Action{{Key: "run", Verb: "run", Label: "Run", Note: "ran a script", RunsCode: true}},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true},
+		{Name: "source", ROS: "source", Label: "Source", Type: TypeCode, Code: true,
+			Help: "RouterOS script. Changing it is limited to global administrators."},
+		// Plain text, not a TypeMulti: whether a script's policy list replaces or
+		// adds is not measured, and a picker that silently only ADDED would leave
+		// a policy granted that the operator believes removed.
+		{Name: "policy", ROS: "policy", Label: "Policy", Type: TypeText, Code: true, Clearable: true,
+			Placeholder: "read,write,test",
+			Help:        "What the script may do, comma separated: ftp, reboot, read, write, policy, test, password, sniff, sensitive, romon."},
+		{Name: "dontRequirePermissions", ROS: "dont-require-permissions", Label: "Don't Require Permissions",
+			Type: TypeBool, Code: true, Clearable: true,
+			Help: "Run with the script's own policy even when started by a user or scheduler that lacks it."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "owner", ROS: "owner", Label: "Owner", Type: TypeText, Display: true},
+		{Name: "runCount", ROS: "run-count", Label: "Runs", Type: TypeText, Display: true},
+		{Name: "lastStarted", ROS: "last-started", Label: "Last Started", Type: TypeText, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1641,6 +1709,46 @@ type Action struct {
 	// When decides whether this row offers the action at all, judged on a
 	// freshly-read row like every other decision here.
 	When func(row map[string]string) bool
+	// RunsCode marks an action that executes RouterOS code, such as running a
+	// script: held to the same gate as a Code field (see Field.Code).
+	RunsCode bool
+}
+
+// CodeChange reports whether a write CHANGES a Code field. `values` are keyed by
+// field name, as a write carries them; `before` is the stored row by RouterOS
+// name, or nil on a create, where any non-empty code counts. A write that leaves
+// the code as it is — renaming a script, changing a comment — is not a code
+// change, and is not held to the gate.
+func (r *Resource) CodeChange(values, before map[string]string) bool {
+	for _, f := range r.Fields {
+		if !f.Code {
+			continue
+		}
+		v, ok := values[f.Name]
+		if !ok {
+			continue
+		}
+		if before == nil {
+			if strings.TrimSpace(v) != "" {
+				return true
+			}
+			continue
+		}
+		if v != before[f.ROS] {
+			return true
+		}
+	}
+	return false
+}
+
+// RunsCode reports whether the named row action executes code.
+func (r *Resource) RunsCode(action string) bool {
+	for _, a := range r.Actions {
+		if a.Key == action {
+			return a.RunsCode
+		}
+	}
+	return false
 }
 
 var byKey = map[string]*Resource{
@@ -1659,6 +1767,7 @@ var byKey = map[string]*Resource{
 	IfListMember.Key:        IfListMember,
 	IPService.Key:           IPService,
 	Certificate.Key:         Certificate,
+	Script.Key:              Script,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

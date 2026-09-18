@@ -174,6 +174,7 @@ export interface HandEvents {
     kind?: string;
     /** A reboot-class action: the router's name must be typed to confirm it. */
     typedName?: boolean;
+    typedReason?: string;
     /** The router's own label, which the typed name is compared with. */
     routerName?: string;
     /** Present only when a guard warned. The dialog must then always be shown. */

@@ -1,0 +1,28 @@
+{
+ "collector": "areas",
+ "resource": "script",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The script was created FOR the capture (it only logs a line and was never run here) and removed afterwards. What is real is the reply's shape: which fields /system/script returns, that a never-run script carries no last-started, and that a multi-line source arrives with its newline intact. The owner is MikroDash's generic API account name. Read through /system/script/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/system/script/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "comment": "fixture capture",
+     "dont-require-permissions": "false",
+     "invalid": "false",
+     "name": "md-fixture",
+     "owner": "mikrodash",
+     "policy": "read,write,test",
+     "run-count": "0",
+     "source": ":log info \"md fixture\"\n:put done"
+    }
+   ]
+  }
+ ]
+}

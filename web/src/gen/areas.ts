@@ -57,6 +57,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "scripts", title: "Scripts", navGroup: "system",
+    tables: [
+      { resource: "script", title: "Script", columns: ["name", "owner", "policy", "runCount", "lastStarted", "comment"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

@@ -1146,7 +1146,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
-	"listLockout": true, "serviceLockout": true, "certLockout": true,
+	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1223,6 +1223,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "certLockout":
 			if v := cn.certVerdict(action, before); v.Refused() {
+				return v, nil
+			}
+		case "codeGate":
+			if v := codeDecision(res, action, values, before, cn.codeAllowed()); v.Refused() {
 				return v, nil
 			}
 		case "selfAccount":
@@ -1480,6 +1484,33 @@ func serviceDecision(tls bool, self []string, resolved bool, action string,
 		now = row(values, was, "availableFrom")
 	}
 	return guard.CheckServiceEdit(ours, self, resolved, was, now)
+}
+
+// codeAllowed is whether this session may change RouterOS code or run it: a
+// SIGNED-IN global administrator, the raw-command gate's first condition.
+// `isGlobalAdmin` answers true with sign-in switched off, which is right for
+// reading the principal graph and wrong here, as rawCommandGate says.
+func (cn *conn) codeAllowed() bool {
+	return cn.sess != nil && cn.sess.AuthMode != "none" && cn.srv.isGlobalAdmin(cn.sess)
+}
+
+// codeDecision is the codeGate verdict: a write that CHANGES a Code field, or
+// a row action that runs code, is refused unless `allowed`. Every write path
+// reaches it through verdictFor — a save, an undo or redo, a row action — so
+// no route around it exists. A rename or a comment is not a code change.
+func codeDecision(res *resource.Resource, action string, values, before map[string]string, allowed bool) guard.Verdict {
+	if allowed {
+		return guard.Verdict{Level: "none"}
+	}
+	changes := res.RunsCode(action)
+	if (action == "create" || action == "update") && res.CodeChange(values, before) {
+		changes = true
+	}
+	if !changes {
+		return guard.Verdict{Level: "none"}
+	}
+	return guard.Verdict{Level: "refuse", Code: "code-requires-admin",
+		Detail: map[string]any{"value": res.Label}}
 }
 
 // certVerdict asks the certificate guard about one certificate write. Only a

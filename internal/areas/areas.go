@@ -131,6 +131,15 @@ var declared = []Area{
 			Columns: []string{"name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"}}},
 		Poll: 60 * time.Second,
 	},
+	// ── SLICE 7: SYSTEM AND AUTOMATION ──────────────────────────────────────
+	//
+	// Scripts. Their code, their policy and running them are behind codeGate.
+	{
+		Key: "scripts", Title: "Scripts", NavGroup: "system",
+		Tables: []Table{{Resource: "script",
+			Columns: []string{"name", "owner", "policy", "runCount", "lastStarted", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

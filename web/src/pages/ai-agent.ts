@@ -342,6 +342,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     const approve = el('aiProposeApprove');
     if (approve) {
       approve.textContent = d.action === 'delete' ? 'Delete it'
+        : d.typedReason === 'code' ? 'Apply this code change'
         : d.typedName ? 'Run it and reboot'
         : isAction ? 'Run it' : 'Apply this change';
     }
@@ -357,8 +358,11 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     if (typed) typed.hidden = !proposalTyped;
     const label = el('aiProposeTypedLabel');
     if (label && proposalTyped) {
-      label.textContent = 'This reboots the router. Type its name \u2014 ' + proposalTyped +
-        ' \u2014 to confirm.';
+      // WHY a name is asked for is part of the prompt: a code change does not
+      // reboot anything, and saying it does would train people to skim both.
+      label.textContent = (d.typedReason === 'code'
+        ? 'This changes code the router runs. Type its name \u2014 '
+        : 'This reboots the router. Type its name \u2014 ') + proposalTyped + ' \u2014 to confirm.';
     }
     syncApprove();
 

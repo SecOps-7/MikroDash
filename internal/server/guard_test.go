@@ -26,7 +26,9 @@ func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 		// 2026-09-18: the /ip/service row MikroDash connects through.
 		"serviceLockout": true,
 		// 2026-09-18: the certificate api-ssl presents.
-		"certLockout": true}
+		"certLockout": true,
+		// 2026-09-18: RouterOS code (script source, scheduler on-event, running a script).
+		"codeGate": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}

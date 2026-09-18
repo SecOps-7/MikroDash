@@ -159,6 +159,20 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
       '<span class="stoggle-thumb"></span></span></label>';
   }
 
+  if (f.input === 'code') {
+    // RouterOS CODE: multi-line, monospace, and set as the textarea's content
+    // (escaped), never as an attribute. Writing it is held to the raw-command
+    // gate server-side; the form only has to show it faithfully.
+    const code = value === undefined || value === null ? '' : String(value);
+    return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
+      '<label class="sform-label" for="' + id + '">' + esc(f.label) + '</label>' +
+      '<textarea class="sform-input" id="' + id + '" rows="12" spellcheck="false" ' +
+      'style="font-family:var(--font-mono,monospace);font-size:.74rem;white-space:pre;resize:vertical">' +
+      esc(code) + '</textarea>' +
+      (f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' + esc(f.help) + '</div>' : '') +
+      '</div>';
+  }
+
   if (f.input === 'multi') {
     // A set chosen from the declared options, one checkbox each, read back as a
     // comma list. The value is what is GRANTED; the server writes the rest.
@@ -408,6 +422,7 @@ export function guardRefusedText(rule: unknown): string {
     case 'service-port': return 'That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.';
     case 'service-vrf': return 'That is the API service MikroDash connects through. Moving it to another VRF would cut MikroDash off; change it in WinBox.';
     case 'service-address': return 'That address list would not admit the address the router sees MikroDash connecting from.';
+    case 'code-requires-admin': return 'Changing or running RouterOS code is limited to global administrators, as raw commands are.';
     case 'certificate-in-use': return 'That is the certificate the API service MikroDash connects through presents. Removing it would cut MikroDash off; change it in WinBox.';
     case 'certificate-unknown': return 'MikroDash cannot read which certificate its API service presents, so removing certificates is refused.';
     case 'service-address-unknown': return 'MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.';
