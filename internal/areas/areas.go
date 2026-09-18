@@ -116,6 +116,11 @@ type Area struct {
 	Icon string
 	// Tables are the area's tabs, in order. One table renders without tabs.
 	Tables []Table
+	// Tier is the smallest of the Visible Pages and Roles presets (Home,
+	// Standard, Advanced) that includes this page: "standard" or "advanced".
+	// A preset includes every page of its tier and the tiers below it. Declared
+	// here, beside the page, so a new area is placed the moment it exists.
+	Tier string
 	// Poll is how often the areas collector re-reads this area's menus while
 	// somebody is looking at it. Configuration, so it is always a poll and never
 	// a stream: a stream holds an API channel, and these menus change when
@@ -138,7 +143,7 @@ var declared = []Area{
 	// menu until the old one was deleted, and "does the generated page work"
 	// would have been asked of a page that was already working.
 	{
-		Key: "ip-pools", Title: "IP Pools", NavGroup: "ipsvc",
+		Key: "ip-pools", Title: "IP Pools", NavGroup: "ipsvc", Tier: "standard",
 		Icon: `<path d="M8 4H5v16h3"/><path d="M16 4h3v16h-3"/><circle cx="9" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>`,
 		Tables: []Table{{Resource: "ipPool",
 			Columns: []string{"name", "ranges", "used", "total", "nextPool", "comment"}}},
@@ -151,7 +156,7 @@ var declared = []Area{
 	// Address lists: the entries firewall rules match against, static ones and
 	// the dynamic ones rules add with a timeout. Nothing else reads the menu.
 	{
-		Key: "address-lists", Title: "Address Lists", NavGroup: "security",
+		Key: "address-lists", Title: "Address Lists", NavGroup: "security", Tier: "standard",
 		Icon: `<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>`,
 		Tables: []Table{{Resource: "addressList",
 			Columns: []string{"list", "address", "timeout", "dynamic", "comment"},
@@ -163,7 +168,7 @@ var declared = []Area{
 	// matches on. Members first, because changing who is in a list is the
 	// common task. Both resources carry the list-membership lockout guard.
 	{
-		Key: "interface-lists", Title: "Interface Lists", NavGroup: "network",
+		Key: "interface-lists", Title: "Interface Lists", NavGroup: "network", Tier: "standard",
 		Icon: `<rect x="2" y="6" width="20" height="12" rx="2"/><rect x="5" y="9.5" width="3.5" height="5"/><rect x="10.25" y="9.5" width="3.5" height="5"/><rect x="15.5" y="9.5" width="3.5" height="5"/>`,
 		Tables: []Table{
 			{Resource: "ifListMember", Title: "Members",
@@ -176,7 +181,7 @@ var declared = []Area{
 	// IP services: the router's own services, and the live connections RouterOS
 	// 7.24 lists beside them. The one MikroDash connects through is guarded.
 	{
-		Key: "ip-services", Title: "Services", NavGroup: "system",
+		Key: "ip-services", Title: "Services", NavGroup: "system", Tier: "advanced",
 		Icon: `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/>`,
 		Tables: []Table{{Resource: "ipService",
 			Columns: []string{"name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"}}},
@@ -185,7 +190,7 @@ var declared = []Area{
 	// Certificates: what the router holds, and until when. Removing the one
 	// api-ssl presents is refused while MikroDash speaks TLS.
 	{
-		Key: "certificates", Title: "Certificates", NavGroup: "security",
+		Key: "certificates", Title: "Certificates", NavGroup: "security", Tier: "advanced",
 		Icon: `<path d="M14 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5"/><path d="M7 9h8"/><path d="M7 13h4"/><circle cx="18" cy="15" r="3"/><path d="M16.5 17.6L16 22l2-1 2 1-.5-4.4"/>`,
 		Tables: []Table{{Resource: "certificate",
 			Columns: []string{"name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"}}},
@@ -195,7 +200,7 @@ var declared = []Area{
 	//
 	// Scripts. Their code, their policy and running them are behind codeGate.
 	{
-		Key: "scripts", Title: "Scripts", NavGroup: "system",
+		Key: "scripts", Title: "Scripts", NavGroup: "system", Tier: "advanced",
 		Icon: `<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/><path d="M14 4l-4 16"/>`,
 		Tables: []Table{{Resource: "script",
 			Columns: []string{"name", "owner", "policy", "runCount", "lastStarted", "comment"}}},
@@ -204,7 +209,7 @@ var declared = []Area{
 	// Scheduler. Its on-event and policy are behind codeGate; its timing and
 	// enabling are not.
 	{
-		Key: "scheduler", Title: "Scheduler", NavGroup: "system",
+		Key: "scheduler", Title: "Scheduler", NavGroup: "system", Tier: "advanced",
 		Icon: `<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>`,
 		Tables: []Table{{Resource: "scheduler",
 			Columns: []string{"name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"}}},
@@ -212,7 +217,7 @@ var declared = []Area{
 	},
 	// NTP client: its settings (the first singleton) and its server list.
 	{
-		Key: "ntp-client", Title: "NTP Client", NavGroup: "system",
+		Key: "ntp-client", Title: "NTP Client", NavGroup: "system", Tier: "advanced",
 		Icon: `<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/><path d="M12 7v5l3 2"/>`,
 		Tables: []Table{
 			{Resource: "ntpClient", Title: "Settings",
@@ -225,7 +230,7 @@ var declared = []Area{
 	},
 	// Clock: the time zone. The time itself is shown and set by NTP.
 	{
-		Key: "clock", Title: "Clock", NavGroup: "system",
+		Key: "clock", Title: "Clock", NavGroup: "system", Tier: "advanced",
 		Icon: `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
 		Tables: []Table{{Resource: "clock",
 			Columns: []string{"time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"}}},
@@ -233,7 +238,7 @@ var declared = []Area{
 	},
 	// Logging: rules (which topics go where) and actions (where "where" is).
 	{
-		Key: "logging", Title: "Logging", NavGroup: "system",
+		Key: "logging", Title: "Logging", NavGroup: "system", Tier: "advanced",
 		Icon: `<path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M4 7h4M4 12h4M4 17h4"/><path d="M11 8h5"/><path d="M11 12h5"/>`,
 		Tables: []Table{
 			{Resource: "logRule", Title: "Rules",
@@ -245,7 +250,7 @@ var declared = []Area{
 	},
 	// SNMP: its settings (a singleton) and its communities. No password is read.
 	{
-		Key: "snmp", Title: "SNMP", NavGroup: "system",
+		Key: "snmp", Title: "SNMP", NavGroup: "system", Tier: "advanced",
 		Icon: `<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1"/><path d="M12 10v1M7.5 12.5l.7.7M16.5 12.5l-.7.7"/>`,
 		Tables: []Table{
 			{Resource: "snmp", Title: "Settings",
@@ -257,7 +262,7 @@ var declared = []Area{
 	},
 	// Files: see and remove, nothing else. Contents are never read.
 	{
-		Key: "files", Title: "Files", NavGroup: "system",
+		Key: "files", Title: "Files", NavGroup: "system", Tier: "advanced",
 		Icon: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`,
 		Tables: []Table{{Resource: "file",
 			Columns: []string{"name", "type", "size", "lastModified"}}},
@@ -268,7 +273,7 @@ var declared = []Area{
 	// Routing tables: the tables policy routing looks routes up in. `main` is
 	// dynamic and read-only. The table's routes stay on the Routing page.
 	{
-		Key: "routing-tables", Title: "Routing Tables", NavGroup: "ipsvc",
+		Key: "routing-tables", Title: "Routing Tables", NavGroup: "ipsvc", Tier: "advanced",
 		Icon: `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M3 14.5h18"/><path d="M9 4v16"/>`,
 		Tables: []Table{{Resource: "routingTable",
 			Columns: []string{"name", "fib", "disabled", "dynamic", "invalid", "comment"}}},
@@ -277,7 +282,7 @@ var declared = []Area{
 	// Routing rules: policy routing, first match wins, so the page draws the
 	// reorder arrows. Guarded by rulePath.
 	{
-		Key: "routing-rules", Title: "Routing Rules", NavGroup: "ipsvc",
+		Key: "routing-rules", Title: "Routing Rules", NavGroup: "ipsvc", Tier: "advanced",
 		Icon: `<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.2-2.9L3 3"/><path d="M15 9l6-6"/>`,
 		Tables: []Table{{Resource: "routingRule",
 			Columns: []string{"srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"},
@@ -287,7 +292,7 @@ var declared = []Area{
 	// OSPF: neighbours first, because "is it up" is the common question; then
 	// the instances, areas and interface templates that make it so.
 	{
-		Key: "ospf", Title: "OSPF", NavGroup: "ipsvc",
+		Key: "ospf", Title: "OSPF", NavGroup: "ipsvc", Tier: "advanced",
 		Icon: `<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2L6.2 15.8"/><path d="M13.2 7.2l4.6 8.6"/><path d="M7.5 18h9"/>`,
 		Tables: []Table{
 			{Resource: "ospfNeighbor", Title: "Neighbors",
@@ -305,7 +310,7 @@ var declared = []Area{
 	// IPsec: peers, their identities, and the policies that decide what is
 	// encrypted, the policies showing their phase-2 state. Guarded by ipsecPath.
 	{
-		Key: "ipsec", Title: "IPsec", NavGroup: "tunnels",
+		Key: "ipsec", Title: "IPsec", NavGroup: "tunnels", Tier: "advanced",
 		Icon: `<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><path d="M12 15v2"/>`,
 		Tables: []Table{
 			{Resource: "ipsecPolicy", Title: "Policies",
@@ -321,7 +326,7 @@ var declared = []Area{
 	// OpenVPN: the servers this router runs and the clients it dials out with.
 	// The accounts a server admits are the PPP page's secrets.
 	{
-		Key: "openvpn", Title: "OpenVPN", NavGroup: "tunnels",
+		Key: "openvpn", Title: "OpenVPN", NavGroup: "tunnels", Tier: "advanced",
 		Icon: `<path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>`,
 		Tables: []Table{
 			{Resource: "ovpnServer", Title: "Servers",
@@ -334,7 +339,7 @@ var declared = []Area{
 	// VRRP: virtual router addresses shared between routers, and which one
 	// holds each. Its scripts are behind codeGate.
 	{
-		Key: "vrrp", Title: "VRRP", NavGroup: "network",
+		Key: "vrrp", Title: "VRRP", NavGroup: "network", Tier: "advanced",
 		Icon: `<rect x="3" y="14" width="7" height="6" rx="1"/><rect x="14" y="14" width="7" height="6" rx="1"/><circle cx="12" cy="5" r="2.5"/><path d="M6.5 14v-3h11v3"/><path d="M12 7.5V11"/>`,
 		Tables: []Table{{Resource: "vrrp",
 			Columns: []string{"name", "interface", "vrid", "priority", "version", "running", "invalid", "disabled", "comment"}}},
@@ -343,7 +348,7 @@ var declared = []Area{
 	// PPPoE clients: the uplinks this router dials. Their sessions show on the
 	// PPP page; the WAN page shows the uplink they make.
 	{
-		Key: "pppoe-clients", Title: "PPPoE Clients", NavGroup: "tunnels",
+		Key: "pppoe-clients", Title: "PPPoE Clients", NavGroup: "tunnels", Tier: "advanced",
 		Icon: `<path d="M4 12h5"/><path d="M15 12h5"/><rect x="9" y="8" width="6" height="8" rx="1.5"/><path d="M17 9l3 3-3 3"/>`,
 		Tables: []Table{{Resource: "pppoeClient",
 			Columns: []string{"name", "interface", "user", "serviceName", "addDefaultRoute", "running", "invalid", "disabled", "comment"}}},
@@ -352,7 +357,7 @@ var declared = []Area{
 	// DHCP clients: how this router takes its uplink addresses. Renew and release
 	// stay on the WAN page.
 	{
-		Key: "dhcp-clients", Title: "DHCP Clients", NavGroup: "ipsvc",
+		Key: "dhcp-clients", Title: "DHCP Clients", NavGroup: "ipsvc", Tier: "advanced",
 		Icon: `<rect x="3" y="15" width="18" height="6" rx="1.5"/><path d="M12 3v9"/><path d="M8 8l4 4 4-4"/><path d="M7 18h2"/>`,
 		Tables: []Table{{Resource: "dhcpClient",
 			Columns: []string{"interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"},
@@ -362,7 +367,7 @@ var declared = []Area{
 	// DHCP servers: the servers this router runs and what each network hands
 	// out. The leases stay on the DHCP page.
 	{
-		Key: "dhcp-servers", Title: "DHCP Servers", NavGroup: "ipsvc",
+		Key: "dhcp-servers", Title: "DHCP Servers", NavGroup: "ipsvc", Tier: "standard",
 		Icon: `<rect x="3" y="3" width="18" height="6" rx="1.5"/><path d="M12 9v5"/><path d="M5 20v-3h14v3"/><path d="M12 14v3"/><path d="M7 6h2"/>`,
 		Tables: []Table{
 			{Resource: "dhcpServer", Title: "Servers",
@@ -375,7 +380,7 @@ var declared = []Area{
 	// Containers: what runs, what it is given (envs, mounts), where it talks
 	// (veth) and the settings pulls use. Start and Stop are row actions.
 	{
-		Key: "containers", Title: "Containers", NavGroup: "system",
+		Key: "containers", Title: "Containers", NavGroup: "system", Tier: "advanced",
 		Icon: `<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>`,
 		Tables: []Table{
 			{Resource: "container", Title: "Containers",
@@ -396,7 +401,7 @@ var declared = []Area{
 	// rather than one table with a Family column, visibility is the shared
 	// `hiddenAreas` list, and the interval is this one rather than a setting.
 	{
-		Key: "ip-addresses", Title: "IP Addresses", NavGroup: "network",
+		Key: "ip-addresses", Title: "IP Addresses", NavGroup: "network", Tier: "standard",
 		Icon: `<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 7v10"/><path d="M12 17V7h3.5a3 3 0 0 1 0 6H12"/>`,
 		Tables: []Table{
 			{Resource: "ipAddress", Title: "IPv4",

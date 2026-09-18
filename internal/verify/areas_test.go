@@ -372,3 +372,28 @@ func TestEveryAreaGroupByNamesAShownField(t *testing.T) {
 		t.Error("no area table declares GroupBy: a mechanism with no instance is deleted, not kept")
 	}
 }
+
+// TestEveryAreaHasAPresetTier: each area names the Visible Pages and Roles tier
+// it joins, so a new page is placed in a preset the moment it is declared rather
+// than being left out of every preset, as all 23 were until 2026-09-18.
+func TestEveryAreaHasAPresetTier(t *testing.T) {
+	tiers := map[string]int{}
+	for _, a := range areas.All() {
+		switch a.Tier {
+		case "home", "standard", "advanced":
+			tiers[a.Tier]++
+		default:
+			t.Errorf("area %q has tier %q; want home, standard or advanced", a.Key, a.Tier)
+		}
+	}
+	// The operator's placement (2026-09-18): these five in Standard, the rest
+	// in Advanced. A change to it is a change to this line, deliberately.
+	for _, key := range []string{"ip-addresses", "address-lists", "interface-lists", "ip-pools", "dhcp-servers"} {
+		if a, ok := areas.ByKey(key); !ok || a.Tier != "standard" {
+			t.Errorf("area %q is not in Standard, where the operator placed it", key)
+		}
+	}
+	if tiers["standard"] != 5 {
+		t.Errorf("%d areas in Standard; the operator placed 5 there", tiers["standard"])
+	}
+}

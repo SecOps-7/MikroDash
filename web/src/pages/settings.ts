@@ -33,7 +33,8 @@ import { el, esc } from '../dom';
 // sites", so falling through to the `siteId` mirror resurrects a membership
 // just cleared.
 import { siteIdsOf } from './routers';
-import { PAGE_NAV_MAP, VIEW_PRESETS, VIEW_PRESET_KEY } from '../gen/view-presets';
+import { PAGE_NAV_MAP, VIEW_PRESET_KEY } from '../gen/view-presets';
+import { presetTiers, presetToggles } from '../presets';
 import { AREAS } from '../gen/areas';
 import {
   FORM_FIELDS, VALUE_DEFAULTS, PLACEHOLDER_CREDENTIALS,
@@ -84,9 +85,10 @@ function valueFor(raw: unknown, rule: ValueDefault | undefined): string {
  *
  * Each of these is an entry in `hiddenAreas`, not a `pageX` boolean of its own:
  * forty areas would otherwise be forty settings keys. They are also kept OUT of
- * `PAGE_NAV_MAP`, which the view presets walk writing to `el('s_' + settingsKey)`
- * across the whole document — an area in that map would be switched by choosing
- * a nav preset, which is the trap the AI Agent page's note records.
+ * `PAGE_NAV_MAP`, which is walked writing to `el('s_' + settingsKey)` across the
+ * whole document — the trap the AI Agent page's note records. The presets reach
+ * these boxes by their own `data-area-toggle` instead (presetToggles in
+ * web/src/presets.ts), each by the tier its area declares.
  *
  * Rendered rather than written into the markup, because the markup is a fixed
  * document and the areas are a declaration.
@@ -351,12 +353,7 @@ export function mountViewPresets(): void {
   const wrap = el('viewPresetWrap');
   if (!wrap) return;
 
-  const advanced = Object.keys(PAGE_NAV_MAP).map((k) => PAGE_NAV_MAP[k] as string);
-  const named: Record<string, string[]> = {
-    home: VIEW_PRESETS.home as string[],
-    standard: VIEW_PRESETS.standard as string[],
-    advanced,
-  };
+  const named: Record<string, string[]> = presetTiers();
 
   wrap.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement | null)?.closest?.('[data-view-preset]') as HTMLElement | null;
@@ -366,13 +363,10 @@ export function mountViewPresets(): void {
     if (pages) {
       const on: Record<string, boolean> = {};
       pages.forEach((pg) => { on[pg] = true; });
-      for (const sKey of Object.keys(PAGE_NAV_MAP)) {
-        const box = el<HTMLInputElement>('s_' + sKey);
-        // A page whose checkbox is not rendered is SKIPPED, not forced off —
-        // the same rule `detectViewPreset` applies when it compares.
-        if (!box) continue;
-        box.checked = !!on[PAGE_NAV_MAP[sKey] as string];
-      }
+      // The generated pages' toggles too (presetToggles). A page whose
+      // checkbox is not rendered is SKIPPED, not forced off — the same rule
+      // `detectViewPreset` applies when it compares.
+      for (const { page, box } of presetToggles()) box.checked = !!on[page];
     }
     setViewPresetUI(pages ? name : 'custom');
   });
@@ -383,6 +377,11 @@ export function mountViewPresets(): void {
     el<HTMLInputElement>('s_' + sKey)
       ?.addEventListener('change', () => setViewPresetUI(detectViewPreset()));
   }
+  // The generated pages' toggles are rendered later, with the settings, so
+  // their changes are caught by delegation rather than bound here.
+  document.addEventListener('change', (e) => {
+    if ((e.target as HTMLElement | null)?.matches?.('input[data-area-toggle]')) setViewPresetUI(detectViewPreset());
+  });
 }
 
 // ── the principals card ─────────────────────────────────────────────────────
@@ -1062,12 +1061,8 @@ export function grantEditorHtml(
  * a form that is simply showing fewer rows.
  */
 export function detectViewPreset(): string {
-  const advanced = Object.keys(PAGE_NAV_MAP).map((k) => PAGE_NAV_MAP[k] as string);
-  const named: Record<string, string[]> = {
-    home: VIEW_PRESETS.home as string[],
-    standard: VIEW_PRESETS.standard as string[],
-    advanced,
-  };
+  const named: Record<string, string[]> = presetTiers();
+  const toggles = presetToggles();
 
   // ── THE ORDER IS NOT LOAD-BEARING, AND I FIRST WROTE THAT IT WAS ────────
   //
@@ -1087,10 +1082,8 @@ export function detectViewPreset(): string {
     (named[name] as string[]).forEach((pg) => { on[pg] = true; });
 
     let match = true;
-    for (const sKey of Object.keys(PAGE_NAV_MAP)) {
-      const el = document.getElementById('s_' + sKey) as HTMLInputElement | null;
-      if (!el) continue;
-      if (el.checked !== !!on[PAGE_NAV_MAP[sKey] as string]) { match = false; break; }
+    for (const { page, box } of toggles) {
+      if (box.checked !== !!on[page]) { match = false; break; }
     }
     if (match) return name;
   }

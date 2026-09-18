@@ -186,6 +186,8 @@ export interface Area {
    *  reaches innerHTML, which is safe only because it is a build-time constant
    *  and never router data. */
   icon: string;
+  /** The smallest Visible Pages and Roles preset that includes this page. */
+  tier: 'home' | 'standard' | 'advanced';
   tables: readonly AreaTable[];
 }
 
@@ -199,8 +201,8 @@ export interface Area {
 	fmt.Fprintf(&b, "/** How a column's values are drawn as pills: internal/areas.PillKinds. */\nexport type PillKind = %s;\n\nexport const AREAS: readonly Area[] = [\n",
 		strings.Join(kinds, " | "))
 	for _, a := range areas.All() {
-		fmt.Fprintf(&b, "  {\n    key: %s, title: %s, navGroup: %s,\n    icon: %s,\n    tables: [\n",
-			strconv.Quote(a.Key), strconv.Quote(a.Title), strconv.Quote(a.NavGroup), strconv.Quote(a.Icon))
+		fmt.Fprintf(&b, "  {\n    key: %s, title: %s, navGroup: %s, tier: %s,\n    icon: %s,\n    tables: [\n",
+			strconv.Quote(a.Key), strconv.Quote(a.Title), strconv.Quote(a.NavGroup), strconv.Quote(a.Tier), strconv.Quote(a.Icon))
 		for _, t := range a.Tables {
 			// THE TITLE IS RESOLVED HERE, not left for the browser: an empty one
 			// in the declaration means "the resource's own label", and the

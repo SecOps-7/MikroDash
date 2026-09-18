@@ -34,7 +34,7 @@ import {
   type EditableGrant, type GrantView,
 } from './settings';
 import { sitesById } from './settings-sites';
-import { PAGE_NAV_MAP, VIEW_PRESETS } from '../gen/view-presets';
+import { presetTiers } from '../presets';
 import {
   userSavePlan, userSaveOutcome, groupSavePlan, groupSaveOutcome,
   roleSavePlan, roleSaveOutcome, groupMembersHtml, rolePagesFrom,
@@ -327,20 +327,17 @@ function setRoleRowLevel(row: Element, level: string): void {
  * that list in the same change, because a note that has stopped being true is
  * worse than no note.
  *
- * The tiers are the SAME lists the Appearance presets use, so "Standard" means
- * one thing in this app. `advanced` is derived from PAGE_NAV_MAP rather than
- * frozen, so a page added to the nav joins it by existing.
+ * The tiers are the SAME lists the Visible Pages presets use, so "Standard"
+ * means one thing in this app: presetTiers() in web/src/presets.ts, where a
+ * generated page joins by its declared tier and Advanced takes every page.
  *
  * READ, not write, on the chosen tier — which is what the markup beside the
  * buttons has always promised: "sets read on that tier and clears the rest".
  */
 function mountRolePresets(): void {
-  const advanced = Object.keys(PAGE_NAV_MAP).map((k) => PAGE_NAV_MAP[k] as string);
-  const tiers: Record<string, string[]> = {
-    home: VIEW_PRESETS.home as string[],
-    standard: VIEW_PRESETS.standard as string[],
-    advanced,
-  };
+  // The same tiers Visible Pages uses, from one place (web/src/presets.ts),
+  // which is what puts the generated pages, Tools and the AI Agent in them.
+  const tiers: Record<string, string[]> = presetTiers();
 
   // Delegated on document, like the segmented control above: `#rf_pages` is
   // rebuilt on every open, and the buttons live outside it anyway.
