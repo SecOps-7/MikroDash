@@ -102,8 +102,8 @@ jobs:
       - name: Build frontend
         run: go run ./cmd/webbuild -dir web
 
-      # --no-docker skips the twelve generators that need a container, and says
-      # so loudly rather than counting them as passed.
+      # --no-docker skips the Go half this job already ran above, and says so.
+      # The Go generators' -checks still run (tools/gencheck.sh, on this Go).
       - name: Gate sweep
         run: sh tools/verify.sh --no-docker
 

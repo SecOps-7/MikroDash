@@ -42,24 +42,33 @@ fail=0
 skipped=0
 note() { printf '%s\n' "$*"; }
 
-# ── Go: format, vet, tests, and the one generator that still runs ───────────
+# ── Go: format, vet, tests, and the generators' -checks ────────────────────
 #
 # `go test ./...` covers internal/verify automatically -- see the note above.
 #
-# TWO GENERATORS STILL CHECK. All 105 corpus generators read the deleted Node
-# source and reported a permanent skip; these read `internal/`, so they check on
-# any clone with nothing mounted. `tsgen` fails when a payload struct changes
-# without `web/src/gen/payloads.ts` being regenerated; `pagesgen` fails when the
-# page list changes without `web/src/gen/pages.ts` following it.
+# THE GO GENERATORS' `-check`s run from tools/gencheck.sh, which finds them. They
+# read `internal/`, so they check on any clone with nothing mounted: `tsgen` fails
+# when a payload struct changes without `web/src/gen/payloads.ts` following, and
+# so on for each. Under --no-docker they run on the host's Go when there is one,
+# which is how CI (Go installed, no container) checks them at all.
 note '== go =='
 if [ ! -f go.mod ]; then
   note '  no go.mod — nothing to check'
-elif [ "${1:-}" = '--no-docker' ]; then
+elif [ "${1:-}" = '--no-docker' ] || ! command -v docker >/dev/null 2>&1; then
   skipped=$((skipped + 1))
-  note '  SKIPPED by request, NOT checked: gofmt, go vet, go test, tsgen'
-elif ! command -v docker >/dev/null 2>&1; then
-  skipped=$((skipped + 1))
-  note '  NO DOCKER, NOT checked: gofmt, go vet, go test, tsgen'
+  note '  NOT checked here: gofmt, go vet, go test (--no-docker, or no docker)'
+  if command -v go >/dev/null 2>&1; then
+    if out=$(sh tools/gencheck.sh 2>&1); then
+      note "  $(printf '%s\n' "$out" | tail -1)"
+    else
+      fail=$((fail + 1))
+      note '  FAIL generated code is stale'
+      printf '%s\n' "$out" | tail -4 | sed 's/^/        /'
+    fi
+  else
+    skipped=$((skipped + 1))
+    note '  NO GO, NOT checked: the generators (tools/gencheck.sh)'
+  fi
 else
   # ── THE BUILD CACHE IS MOUNTED, AND IT IS THE DIFFERENCE BETWEEN 110s AND 1s
   #
@@ -81,18 +90,13 @@ else
       if [ -n "$unformatted" ]; then echo "gofmt: $unformatted"; exit 1; fi
       go vet ./...
       go test ./...
-      go run ./cmd/tsgen -check
-      go run ./cmd/pagesgen -check
-      go run ./cmd/settingswritegen -check
-      go run ./cmd/gridgen -check
-      go run ./cmd/toolgen -check
-      go run ./cmd/areagen -check' 2>&1)
+      sh tools/gencheck.sh' 2>&1)
   if [ $? -eq 0 ]; then
-    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); tsgen + pagesgen + settingswritegen + gridgen + toolgen + areagen current"
+    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); $(printf '%s\n' "$out" | tail -1)"
   else
     fail=$((fail + 1))
     note '  FAIL go'
-    printf '%s\n' "$out" | grep -E 'gofmt:|^(FAIL|---|# )|\.go:' | head -8 | sed 's/^/        /'
+    printf '%s\n' "$out" | grep -E 'gofmt:|STALE|^Run:|^(FAIL|---|# )|\.go:' | head -8 | sed 's/^/        /'
   fi
 fi
 
