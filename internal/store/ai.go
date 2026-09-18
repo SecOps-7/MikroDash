@@ -77,7 +77,7 @@ func AIReady(s Settings) bool {
 // first leaves those cases untouched, so the only recorded expectation this
 // feature re-aims is the embedded key list itself.
 func WithAIReady(s Settings) Settings {
-	out := make(Settings, len(s)+1)
+	out := make(Settings, len(s))
 	for k, v := range s {
 		out[k] = v
 	}

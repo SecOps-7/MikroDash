@@ -169,8 +169,11 @@ check('a link is shown as text rather than made clickable', () => {
   // the operator's own dashboard.
   const out = renderMarkdown('See [the docs](https://example.invalid/x) for more');
   assert.strictEqual(byTag(out, 'a').length, 0, 'an anchor was created');
-  assert.ok(out.textContent.includes('https://example.invalid/x'),
-    'the URL should still be readable, so the operator can judge it');
+  // THE WHOLE TEXT, EXACTLY: the URL is readable so the operator can judge it,
+  // and it is the markdown as written, not something rebuilt around it. (An
+  // `includes` here read to code scanning as a URL check, #160, and was the
+  // weaker assertion anyway.)
+  assert.strictEqual(out.textContent, 'See [the docs](https://example.invalid/x) for more');
 });
 
 check('the code block records its language as data, not as a class', () => {

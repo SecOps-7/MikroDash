@@ -99,7 +99,10 @@ function payload() {
 
 /** The opening `<tr …>` tag of the row with this id. */
 function rowTag(html, id) {
-  const m = html.match(new RegExp('<tr[^>]*data-id="' + id.replace('*', '\\*') + '"[^>]*>'));
+  // EVERY metacharacter escaped, not just the first `*` (code scanning #163):
+  // a RouterOS id is `*1A`, but a helper that escapes one character is a regex
+  // built from data waiting for the id that has two.
+  const m = html.match(new RegExp('<tr[^>]*data-id="' + id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*>'));
   return m ? m[0] : '';
 }
 
