@@ -259,7 +259,7 @@ surface stays complete.
 | `/ip/pool` | ipPool | ip-pools | add, set, remove |
 | `/ip/service` | ipService | ip-services | set |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
-| `/ip/firewall/address-list` | addressList | address-lists | add, set, remove |
+| `/ip/firewall/address-list` | addressList | address-lists | add, set, remove; the page polls `print =.proplist=list,dynamic,disabled` for its per-list summary and reads one list with `print ?list=<name>` when it is opened |
 | `/ip/firewall/filter` | fwFilter | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/mangle` | fwMangle | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/nat` | fwNat | firewall | add, set, remove, move, enable, disable |

@@ -267,6 +267,16 @@ type Resource struct {
 	Check func(clean map[string]string) []Error
 }
 
+// FieldByName is the declared field with this form name, or nil.
+func (r *Resource) FieldByName(name string) *Field {
+	for i := range r.Fields {
+		if r.Fields[i].Name == name {
+			return &r.Fields[i]
+		}
+	}
+	return nil
+}
+
 // isDisplay reports whether the named field is shown and never sent.
 func (r *Resource) isDisplay(name string) bool {
 	for _, f := range r.Fields {

@@ -262,6 +262,18 @@ func TestEveryAreaReadNamesItsFields(t *testing.T) {
 			t.Errorf("%s: read by the areas collector and no area's resource", cmd.Path)
 			continue
 		}
+		// A GROUPED TABLE'S POLL IS ITS SUMMARY, re-aimed deliberately on
+		// 2026-09-18: it asks for the grouping field and the flags it counts and
+		// nothing more, which is the point. Opening a group is the full read, and
+		// is held to every rule below by TestAGroupsRowsAreTheFullReadFilteredOnTheRouter.
+		if groupBy := groupByFor(res.Key); groupBy != "" {
+			fields, ok := cacheableFields(cmd)
+			want := []string{res.FieldByName(groupBy).ROS, "dynamic", "disabled"}
+			if !ok || strings.Join(fields, ",") != strings.Join(want, ",") {
+				t.Errorf("%s: the summary read asks for %v, want exactly %v", cmd.Path, fields, want)
+			}
+			continue
+		}
 		fields, ok := cacheableFields(cmd)
 		if !ok || len(fields) == 0 {
 			t.Errorf("%s %v: not a proplist read, so it widens the shared cache entry to every field", cmd.Path, cmd.Args)
@@ -641,5 +653,67 @@ func TestNoAreaReadNamesASecret(t *testing.T) {
 	}
 	if secrets < 4 {
 		t.Errorf("only %d secret fields across the areas; the IPsec identity alone declares two", secrets)
+	}
+}
+
+// groupByFor is the GroupBy a resource's area table declares, or "".
+func groupByFor(key string) string {
+	for _, a := range areas.All() {
+		for _, t := range a.Tables {
+			if t.Resource == key {
+				return t.GroupBy
+			}
+		}
+	}
+	return ""
+}
+
+// TestAGroupsRowsAreTheFullReadFilteredOnTheRouter: opening a group reads every
+// field a row needs, as any area read does, plus ONE query word, so the router
+// returns that group and not the other tens of thousands of entries.
+func TestAGroupsRowsAreTheFullReadFilteredOnTheRouter(t *testing.T) {
+	res := resource.ByKey("addressList")
+	cmd := AreaGroupRowsCmd(res, "list", "blocklist")
+	full := areaReadCmd(res)
+	if cmd.Path != full.Path || len(cmd.Args) != len(full.Args)+1 || cmd.Args[0] != full.Args[0] {
+		t.Fatalf("group read %v, want the full read %v plus one query word", cmd.Args, full.Args)
+	}
+	if q := cmd.Args[len(cmd.Args)-1]; q != "?list=blocklist" {
+		t.Errorf("the query word is %q, want ?list=blocklist", q)
+	}
+}
+
+// TestBuildAreaGroupsCountsEachList, from rows shaped as the summary read returns
+// them: only the list and the two flags, and the id-less row of an empty menu.
+func TestBuildAreaGroupsCountsEachList(t *testing.T) {
+	res := resource.ByKey("addressList")
+	rows := []routeros.Reply{
+		{"list": "blocklist", "dynamic": "false", "disabled": "false"},
+		{"list": "blocklist", "dynamic": "true", "disabled": "false"},
+		{"list": "blocklist", "dynamic": "true", "disabled": "true"},
+		{"list": "admins", "dynamic": "false", "disabled": "true"},
+		{},
+	}
+	tb := BuildAreaGroups(res, "", []string{"list", "address"}, "list", rows)
+	if tb.GroupBy != "list" || len(tb.Rows) != 0 {
+		t.Fatalf("groupBy %q, %d rows; want list and no rows", tb.GroupBy, len(tb.Rows))
+	}
+	want := []AreaGroup{{"admins", 1, 0, 1}, {"blocklist", 3, 2, 1}}
+	if len(tb.Groups) != 2 || tb.Groups[0] != want[0] || tb.Groups[1] != want[1] {
+		t.Errorf("groups %+v, want %+v (sorted by name, the empty row skipped)", tb.Groups, want)
+	}
+	if empty := BuildAreaGroups(res, "", nil, "list", nil); empty.Groups == nil || empty.Rows == nil {
+		t.Error("an empty grouped table carries a nil slice; Go never sends a null array")
+	}
+}
+
+// And the fingerprint: a count that changes is a page that changes.
+func TestTheAreaFingerprintCoversGroups(t *testing.T) {
+	p := AreaPayload{Area: "address-lists", Tables: []AreaTable{{Resource: "addressList", GroupBy: "list",
+		Groups: []AreaGroup{{"blocklist", 3, 2, 1}}}}}
+	fp := areaFingerprint(p)
+	p.Tables[0].Groups[0].Count = 4
+	if areaFingerprint(p) == fp {
+		t.Error("a group's count changed and the fingerprint did not, so the page would never hear of it")
 	}
 }

@@ -69,6 +69,19 @@ type AreaTable struct {
 	// Singleton is a settings menu's one row, which the page draws as a card of
 	// label and value rather than as a one-row table.
 	Singleton bool `json:"singleton"`
+	// GroupBy is set for a table declared with areas.Table.GroupBy: Rows is then
+	// empty and Groups holds one entry per value of that field. The page fetches
+	// a group's rows only when it is opened (the server's `area:group`).
+	GroupBy string      `json:"groupBy"`
+	Groups  []AreaGroup `json:"groups"`
+}
+
+// AreaGroup is one group of a grouped table: its value and what it holds.
+type AreaGroup struct {
+	Name     string `json:"name"`
+	Count    int    `json:"count"`
+	Dynamic  int    `json:"dynamic"`
+	Disabled int    `json:"disabled"`
 }
 
 // AreaPayload is one generated page's state.
@@ -104,7 +117,8 @@ func BuildAreaRows(res *resource.Resource, title string, columns []string, rows 
 	if title == "" {
 		title = res.Label
 	}
-	out := AreaTable{Resource: res.Key, Title: title, Columns: cols, Rows: []AreaRow{}, Singleton: res.Singleton}
+	out := AreaTable{Resource: res.Key, Title: title, Columns: cols, Rows: []AreaRow{}, Singleton: res.Singleton,
+		Groups: []AreaGroup{}}
 	for _, r := range rows {
 		// A settings menu's one row has no `.id`: StampID gives it SingletonID,
 		// as the write path does, so the row the page clicks is the row it edits.
@@ -286,8 +300,21 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 		}
 		// THROUGH THE CACHE. These menus are shared: /ip/pool is read by
 		// dhcpNetworks too, and whichever asks first should pay for both.
-		rows, err := readVia(a.cache, a.ros, areaReadCmd(res), area.Poll)
-		table := BuildAreaRows(res, t.Title, t.Columns, rows)
+		var table AreaTable
+		var rows []routeros.Reply
+		var err error
+		if t.GroupBy != "" {
+			// A GROUPED TABLE READS ONLY WHAT ITS SUMMARY SHOWS: the grouping
+			// field and the two flags it counts, for every row. 37,111 address-
+			// list entries read this way are a fraction of reading every field,
+			// and the summary changes only when a count does, so a dynamic
+			// entry's ticking `timeout` no longer resends the table each minute.
+			rows, err = readVia(a.cache, a.ros, areaGroupCmd(res, t.GroupBy), area.Poll)
+			table = BuildAreaGroups(res, t.Title, t.Columns, t.GroupBy, rows)
+		} else {
+			rows, err = readVia(a.cache, a.ros, areaReadCmd(res), area.Poll)
+			table = BuildAreaRows(res, t.Title, t.Columns, rows)
+		}
 		// FOUR ANSWERS, FOUR MEANINGS (#97, carried over from the IP Addresses
 		// collector this replaced). Rows are the router's rows. A refusal and a
 		// menu this build lacks are different sentences, and the page says which.
@@ -358,6 +385,73 @@ func areaReadCmd(res *resource.Resource) routeros.Cmd {
 	return routeros.Cmd{Path: res.Menu + "/print", Args: []string{"=.proplist=" + strings.Join(props, ",")}}
 }
 
+// areaGroupCmd is a grouped table's summary read: the grouping field and the
+// flags BuildAreaGroups counts, and nothing else — not even `.id`, since no row
+// of the summary is addressed.
+func areaGroupCmd(res *resource.Resource, groupBy string) routeros.Cmd {
+	props := []string{}
+	for _, name := range []string{groupBy, "dynamic", "disabled"} {
+		if f := res.FieldByName(name); f != nil && f.ROS != "" {
+			props = append(props, f.ROS)
+		}
+	}
+	return routeros.Cmd{Path: res.Menu + "/print", Args: []string{"=.proplist=" + strings.Join(props, ",")}}
+}
+
+// AreaGroupRowsCmd is one group's rows: the table's usual read, filtered ON THE
+// ROUTER to the rows whose grouping field holds `value`, so opening one list
+// reads that list and not the other 37,000 entries.
+func AreaGroupRowsCmd(res *resource.Resource, groupBy, value string) routeros.Cmd {
+	cmd := areaReadCmd(res)
+	if f := res.FieldByName(groupBy); f != nil && f.ROS != "" {
+		cmd.Args = append(cmd.Args, "?"+f.ROS+"="+value)
+	}
+	return cmd
+}
+
+// BuildAreaGroups turns a grouped table's summary read into its groups, sorted
+// by name. Pure, like BuildAreaRows; Rows is always empty.
+func BuildAreaGroups(res *resource.Resource, title string, columns []string, groupBy string,
+	rows []routeros.Reply) AreaTable {
+
+	out := BuildAreaRows(res, title, columns, nil)
+	out.GroupBy = groupBy
+	if res == nil {
+		return out
+	}
+	ros := func(name string) string {
+		if f := res.FieldByName(name); f != nil {
+			return f.ROS
+		}
+		return ""
+	}
+	key, dyn, dis := ros(groupBy), ros("dynamic"), ros("disabled")
+	byName := map[string]*AreaGroup{}
+	for _, r := range rows {
+		name, ok := r[key]
+		if !ok {
+			continue // the empty row RouterOS returns for an empty menu
+		}
+		g := byName[name]
+		if g == nil {
+			g = &AreaGroup{Name: name}
+			byName[name] = g
+		}
+		g.Count++
+		if dyn != "" && r[dyn] == "true" {
+			g.Dynamic++
+		}
+		if dis != "" && r[dis] == "true" {
+			g.Disabled++
+		}
+	}
+	for _, g := range byName {
+		out.Groups = append(out.Groups, *g)
+	}
+	sort.Slice(out.Groups, func(i, j int) bool { return out.Groups[i].Name < out.Groups[j].Name })
+	return out
+}
+
 // lastTable is the table this area last sent for one resource, or nil.
 func (a *Areas) lastTable(key, res string) *AreaTable {
 	a.mu.Lock()
@@ -386,7 +480,10 @@ func areaFingerprint(p AreaPayload) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s|%s|%v|", p.Area, p.Title, p.Denied)
 	for _, t := range p.Tables {
-		fmt.Fprintf(&b, "%s:%s:%v:%s;", t.Resource, t.Title, t.Unsupported, strings.Join(t.Columns, ","))
+		fmt.Fprintf(&b, "%s:%s:%v:%s:%s;", t.Resource, t.Title, t.Unsupported, strings.Join(t.Columns, ","), t.GroupBy)
+		for _, g := range t.Groups {
+			fmt.Fprintf(&b, "g%s=%d/%d/%d;", g.Name, g.Count, g.Dynamic, g.Disabled)
+		}
 		for _, r := range t.Rows {
 			keys := make([]string, 0, len(r.Values))
 			for k := range r.Values {

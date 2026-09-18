@@ -52,6 +52,13 @@ type Table struct {
 	// PillKinds. The flag columns every menu shares are in CommonPills and need
 	// not be repeated here; an entry here overrides one there.
 	Pills map[string]string
+	// GroupBy is a field whose values split a very large table into groups: the
+	// page shows one row per group with its counts, and a group's own rows only
+	// when it is opened, capped and searchable on the server. For a menu that can
+	// hold tens of thousands of rows, such as a synced blocklist in
+	// /ip/firewall/address-list (37,111 on the operator's router, 2026-09-18),
+	// where every row on every poll was several MB to the browser each minute.
+	GroupBy string
 }
 
 // PillKinds are the kinds of pill a column can be drawn as. A KIND, not a
@@ -147,7 +154,9 @@ var declared = []Area{
 		Key: "address-lists", Title: "Address Lists", NavGroup: "security",
 		Icon: `<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>`,
 		Tables: []Table{{Resource: "addressList",
-			Columns: []string{"list", "address", "timeout", "dynamic", "comment"}}},
+			Columns: []string{"list", "address", "timeout", "dynamic", "comment"},
+			// A blocklist can put tens of thousands of entries in one list.
+			GroupBy: "list"}},
 		Poll: 60 * time.Second,
 	},
 	// Interface lists: who is in LAN, WAN and the rest, which the firewall

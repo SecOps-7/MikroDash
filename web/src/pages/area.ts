@@ -38,12 +38,12 @@
 // styles. `PillKind` is generated from Go's list, so `PILLS` below missing a
 // kind, or naming one Go does not have, fails tsc.
 
-import { el, esc, resRow, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { el, esc, resRow, renderSortHeader, sortRows, debounce, type SortCol, type SortState } from '../dom';
 import { mountAdds, mountRows } from '../resource';
 import { AREAS, type Area, type PillKind } from '../gen/areas';
 import { actionBadge } from './firewall';
 import type { Socket } from '../socket';
-import type { AreaPayload } from '../gen/payloads';
+import type { AreaPayload, AreaTable, AreaGroupRowsPayload } from '../gen/payloads';
 
 /** The tab showing on each area, by page key. Reset when an area first renders. */
 const activeTab: Record<string, number> = {};
@@ -69,6 +69,30 @@ function sortFor(area: Area, at: number): SortState {
 function sortKey(v: string | undefined): string | number | undefined {
   if (v === undefined || v === '') return undefined;
   return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
+}
+
+// ── A GROUPED TABLE: A SUMMARY, AND ONE GROUP AT A TIME ────────────────────
+//
+// A table declared with GroupBy (Address Lists, by list) arrives as one row per
+// group with its counts; a group's rows are asked for with `area:group` when it
+// is opened, read filtered on the router, searched and capped on the server.
+// Per area and tab: which group is open ('' for the summary), its search, and
+// the last answer for it.
+let sock: Socket | null = null;
+const openGroup: Record<string, string> = {};
+const groupSearch: Record<string, string> = {};
+const groupRows: Record<string, AreaGroupRowsPayload> = {};
+const groupSorts: Record<string, SortState> = {};
+const groupDrawn: Record<string, SortState> = {};
+
+/** Ask for the open group. `refresh` is a fresh router read; without it (a
+ *  search) the server filters the rows it read last, because each read of a
+ *  large list is seconds of router time. */
+function requestGroup(area: Area, at: number, refresh: boolean): void {
+  const k = area.key + '#' + at;
+  if (!openGroup[k] || !sock) return;
+  sock.emit('area:group', { area: area.key, resource: area.tables[at]!.resource,
+    group: openGroup[k], search: groupSearch[k] || '', refresh });
 }
 
 /** Whether this viewer may write each resource, from the engine's schema answer. */
@@ -159,12 +183,17 @@ function render(area: Area): void {
   // is (`active-blue`), and the plain pill for a zero.
   const badge = el('areaBadge-' + area.key);
   if (badge) {
-    const n = table?.rows?.length ?? 0;
+    // A grouped table counts its entries, not its groups: the pill says how
+    // much the page holds, as it does on every other page.
+    const n = table?.groupBy ? (table.groups || []).reduce((sum, g) => sum + g.count, 0) : table?.rows?.length ?? 0;
     badge.textContent = String(n);
     badge.className = 'card-badge' + (n > 0 ? ' active-blue' : '');
   }
 
   renderTabs(area);
+  // The open group's bar (back, search) is kept across redraws so the search box
+  // keeps its focus; anything else drawn here replaces it.
+  if (!(table?.groupBy && openGroup[area.key + '#' + at])) body.removeAttribute('data-open-group');
 
   if (!payload) {
     body.innerHTML = '<div class="empty-state">Waiting&hellip;</div>';
@@ -202,6 +231,92 @@ function render(area: Area): void {
     return;
   }
 
+  if (table?.groupBy) {
+    renderGrouped(area, at, table, body);
+    syncAddSlot(area);
+    return;
+  }
+
+  drawRows(area, at, table?.rows || [], body);
+  syncAddSlot(area);
+}
+
+/** A grouped table: its summary, or the one group that is open. */
+function renderGrouped(area: Area, at: number, table: AreaTable, body: HTMLElement): void {
+  const k = area.key + '#' + at;
+  const g = openGroup[k];
+  const noun = columnLabel(table.groupBy);
+  if (!g) {
+    const sort = (groupSorts[k] = groupSorts[k] || { col: '', dir: 'asc' });
+    const list = (table.groups || []).map((grp, pos) => ({ grp, pos }));
+    const shown = sort.col
+      ? sortRows(list.map((x) => ({ ...x, k: sort.col === 'name' ? x.grp.name
+        : (x.grp as unknown as Record<string, number>)[sort.col] })), 'k', sort.dir)
+      : list;
+    const rows = shown.map(({ grp }) =>
+      '<tr data-areagroup="' + esc(grp.name) + '" data-areagroupof="' + esc(area.key) + '" style="cursor:pointer"' +
+      ' title="Show the entries in ' + esc(grp.name) + '">' +
+      '<td>' + pill('hs-info', grp.name) + '</td><td>' + grp.count.toLocaleString() + '</td>' +
+      '<td>' + grp.dynamic.toLocaleString() + '</td><td>' + grp.disabled.toLocaleString() + '</td></tr>').join('');
+    const declared = area.tables[at]!;
+    body.innerHTML = '<table class="table table-vcenter mb-0">' +
+      '<thead><tr id="areaThead-' + esc(area.key) + '"></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="4" class="empty-state">Nothing here yet.' +
+        (writable[declared.resource] && creatable[declared.resource] !== false ? ' Use <strong>Add</strong> to create one.' : '') +
+        '</td></tr>') + '</tbody></table>';
+    groupDrawn[k] = { col: sort.col, dir: sort.dir };
+    renderSortHeader('areaThead-' + area.key, [
+      { key: 'name', label: esc(noun) }, { key: 'count', label: 'Entries' },
+      { key: 'dynamic', label: 'Dynamic' }, { key: 'disabled', label: 'Disabled' },
+    ], sort, () => {
+      const was = groupDrawn[k];
+      if (was && was.col === sort.col && was.dir === 'desc') sort.col = '';
+      render(area);
+    });
+    return;
+  }
+  // ONE GROUP. The bar is drawn once per group, so typing in its search box is
+  // not interrupted by the answer to what was typed.
+  if (body.getAttribute('data-open-group') !== k + '|' + g) {
+    body.setAttribute('data-open-group', k + '|' + g);
+    body.innerHTML = '<div class="d-flex align-items-center flex-wrap gap-2 px-3 py-2" style="border-bottom:1px solid var(--border)">' +
+      '<button class="sbtn sbtn-outline" type="button" data-areagroupback="' + esc(area.key) + '">&larr; All ' +
+      esc(noun.toLowerCase()) + 's</button>' + pill('hs-info', g) +
+      '<input type="search" class="sform-input" style="max-width:260px;margin-left:auto" id="areaGroupSearch-' +
+      esc(area.key) + '" data-areagroupsearch="' + esc(area.key) + '" placeholder="Search" autocomplete="off" value="' +
+      esc(groupSearch[k] || '') + '">' +
+      '<span id="areaGroupNote-' + esc(area.key) + '" style="color:var(--text-muted);font-size:.75rem"></span></div>' +
+      '<div id="areaGroupTable-' + esc(area.key) + '"><div class="empty-state">Loading&hellip;</div></div>';
+  }
+  const host = el('areaGroupTable-' + area.key);
+  const note = el('areaGroupNote-' + area.key);
+  const reply = groupRows[k];
+  if (!host) return;
+  if (!reply || reply.group !== g) {
+    host.innerHTML = '<div class="empty-state">Loading&hellip;</div>';
+    if (note) note.textContent = '';
+    return;
+  }
+  if (reply.error) {
+    host.innerHTML = '<div class="empty-state">The router did not return this ' + esc(noun.toLowerCase()) +
+      ': ' + esc(reply.error) + '</div>';
+    if (note) note.textContent = '';
+    return;
+  }
+  // THE COUNT IS THE TRUTH, the rows a window on it: 500 of 37,111 says so.
+  if (note) {
+    note.textContent = reply.total > reply.rows.length
+      ? 'Showing ' + reply.rows.length.toLocaleString() + ' of ' + reply.total.toLocaleString() +
+        (reply.search ? ' matches' : '') + '. Search to narrow.'
+      : reply.total.toLocaleString() + (reply.search ? ' matching' : '') + (reply.total === 1 ? ' entry' : ' entries');
+  }
+  drawRows(area, at, reply.rows, host);
+}
+
+/** A table of rows with the engine's attributes: sortable headers, pills, the
+ *  dimmed disabled rows and, for an ordered resource, the move arrows. */
+function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['rows'], host: HTMLElement): void {
+  const declared = area.tables[at]!;
   // AN ORDERED RESOURCE (routing rules) gets the reorder arrows the Firewall page
   // draws, named `data-res-move` so the resource engine owns the move: the first
   // rule that matches decides, so position is part of what a row does. A viewer
@@ -216,7 +331,6 @@ function render(area: Area): void {
       ? { label: esc(columnLabel(c)) }
       : { key: c, label: esc(columnLabel(c)) }),
   ];
-  const list = table?.rows || [];
   const last = list.length - 1;
   const move = (pos: number): string => '<td style="white-space:nowrap">' +
     '<button class="fw-move" data-res-move="up" title="Move up"' + (pos === 0 ? ' disabled' : '') + '>&#9650;</button>' +
@@ -233,7 +347,7 @@ function render(area: Area): void {
     declared.columns.map((c) => '<td>' + valueCell(declared.pills[c], r.values?.[c]) + '</td>').join('') +
     '</tr>').join('');
 
-  body.innerHTML = '<table class="table table-vcenter mb-0">' +
+  host.innerHTML = '<table class="table table-vcenter mb-0">' +
     '<thead><tr id="areaThead-' + esc(area.key) + '"></tr></thead>' +
     '<tbody data-res-rows="' + esc(declared.resource) + '">' +
     (rows || '<tr><td colspan="' + (declared.columns.length + (arrows ? 1 : 0)) + '" class="empty-state">' +
@@ -249,7 +363,6 @@ function render(area: Area): void {
     if (was && was.col === sort.col && was.dir === 'desc') sort.col = '';
     render(area);
   });
-  syncAddSlot(area);
 }
 
 /**
@@ -304,6 +417,7 @@ export function mountAreaNav(): void {
 
 export function initAreaPages(socket: Socket, isVisible: (page: string) => boolean): void {
   if (AREAS.length === 0) return;
+  sock = socket;
   mountAdds(socket);
   mountRows(socket);
 
@@ -317,12 +431,64 @@ export function initAreaPages(socket: Socket, isVisible: (page: string) => boole
     render(area);
   });
 
+  // A GROUP OPENED, OR THE SUMMARY BACK.
+  document.addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    const row = t?.closest?.('[data-areagroup]');
+    const back = t?.closest?.('[data-areagroupback]');
+    const key = row?.getAttribute('data-areagroupof') || back?.getAttribute('data-areagroupback') || '';
+    const area = AREAS.find((a) => a.key === key);
+    if (!area) return;
+    const k = area.key + '#' + tabIndex(area);
+    openGroup[k] = row ? row.getAttribute('data-areagroup') || '' : '';
+    groupSearch[k] = '';
+    delete groupRows[k];
+    render(area);
+    requestGroup(area, tabIndex(area), true);
+  });
+
+  // THE SEARCH RUNS ON THE SERVER, a moment after typing stops.
+  const searchFor: Record<string, () => void> = {};
+  document.addEventListener('input', (ev) => {
+    const box = ev.target as HTMLInputElement | null;
+    const key = box?.getAttribute?.('data-areagroupsearch');
+    const area = key ? AREAS.find((a) => a.key === key) : undefined;
+    if (!area || !box) return;
+    groupSearch[area.key + '#' + tabIndex(area)] = box.value;
+    (searchFor[area.key] = searchFor[area.key] || debounce(() => requestGroup(area, tabIndex(area), false), 300))();
+  });
+
+  // AN ANSWER COUNTS ONLY FOR THE GROUP AND SEARCH ON SCREEN: a slow answer to
+  // an earlier keystroke must not overwrite the one after it.
+  socket.on('area:grouprows', (d) => {
+    const area = AREAS.find((a) => a.key === d.area);
+    if (!area) return;
+    const at = area.tables.findIndex((t) => t.resource === d.resource);
+    const k = area.key + '#' + at;
+    if (at < 0 || openGroup[k] !== d.group || (groupSearch[k] || '') !== d.search) return;
+    groupRows[k] = d;
+    if (isVisible(area.key) && tabIndex(area) === at) render(area);
+  });
+
+  // AFTER A WRITE, the open group is read again: an edited comment changes no
+  // count, so no area:update would come to refresh it.
+  socket.on('res:ok', (d) => {
+    for (const area of AREAS) {
+      const at = tabIndex(area);
+      if (area.tables[at]?.resource === d?.resource && isVisible(area.key)) requestGroup(area, at, true);
+    }
+  });
+
   socket.on('area:update', (d) => {
     if (!d || !d.area) return;
     const area = AREAS.find((a) => a.key === d.area);
     if (!area) return;
     latest[d.area] = d;
-    if (isVisible(d.area)) render(area);
+    if (isVisible(d.area)) {
+      render(area);
+      // The summary moved, so the open group may have too.
+      requestGroup(area, tabIndex(area), true);
+    }
   });
 
   // The page draws its empty state from `permitted`; every gate is re-checked

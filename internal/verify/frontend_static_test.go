@@ -105,10 +105,13 @@ var templateIDsUnbound = map[string]string{
 	// that opens the SAME dialog: matching on an id would have meant two elements
 	// sharing one id, or two dialogs. The id stays because it is the slot
 	// button's handle in the markup and in web/test/update-seam.test.ts.
-	"sysUpdateBtn": "found by [data-upgrade-open], which two buttons carry",
-	"s_":           "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
-	"sv_":          "constructed: `sv_<pollKey>` per slider label, written by the same loop",
-	"areaThead-":   "constructed: `areaThead-<area key>` per generated table, bound by renderSortHeader('areaThead-' + area.key, …) in area.ts",
+	"sysUpdateBtn":     "found by [data-upgrade-open], which two buttons carry",
+	"s_":               "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
+	"sv_":              "constructed: `sv_<pollKey>` per slider label, written by the same loop",
+	"areaThead-":       "constructed: `areaThead-<area key>` per generated table, bound by renderSortHeader('areaThead-' + area.key, …) in area.ts",
+	"areaGroupTable-":  "constructed: `areaGroupTable-<area key>` in an open group, bound by el('areaGroupTable-' + area.key) in area.ts",
+	"areaGroupNote-":   "constructed: `areaGroupNote-<area key>` in an open group, bound by el('areaGroupNote-' + area.key) in area.ts",
+	"areaGroupSearch-": "constructed: `areaGroupSearch-<area key>`; found by its data-areagroupsearch attribute through one delegated input listener in area.ts, not by id",
 }
 
 // TestTemplateIDsAreBound: every id the port's markup creates is looked up

@@ -32,6 +32,24 @@ export interface AreaRow {
   values: Record<string, string> | null;
 }
 
+export interface AreaGroupRowsPayload {
+  area: string;
+  resource: string;
+  group: string;
+  search: string;
+  total: number;
+  rows: AreaRow[];
+  columns: string[];
+  error: string;
+}
+
+export interface AreaGroup {
+  name: string;
+  count: number;
+  dynamic: number;
+  disabled: number;
+}
+
 export interface AreaTable {
   resource: string;
   title: string;
@@ -39,6 +57,8 @@ export interface AreaTable {
   rows: AreaRow[];
   unsupported: boolean;
   singleton: boolean;
+  groupBy: string;
+  groups: AreaGroup[];
 }
 
 export interface AreaPayload {
@@ -1656,6 +1676,7 @@ export interface ConnsUpdate {
 // payload Go declared for it.
 export interface Events {
   'alert:acked': AlertRow;
+  'area:grouprows': AreaGroupRowsPayload;
   'area:update': AreaPayload;
   'backups:state': StatePayload;
   'bandwidth:update': BandwidthPayload;

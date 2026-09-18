@@ -1,6 +1,7 @@
 package server
 
 import (
+	"mikrodash/internal/collect"
 	"reflect"
 	"strings"
 	"testing"
@@ -50,6 +51,9 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			return ToolsPingPayload{Result: &r}
 		},
 		"tools:caps": func() any { return ToolsCapsPayload{Interfaces: []string{}} },
+		"area:grouprows": func() any {
+			return areaGroupPayload(areaGroupRequest{}, collect.AreaTable{}, nil)
+		},
 		"tools:torch": func() any {
 			r := diag.FoldTorch("ether1", nil)
 			return ToolsTorchPayload{Result: &r}

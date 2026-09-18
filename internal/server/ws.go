@@ -121,6 +121,9 @@ type conn struct {
 	// goroutine as well as the read loop.
 	toolMu   sync.Mutex
 	toolQuit chan struct{}
+	// groups keeps this browser's last grouped-table read, so a search filters
+	// it rather than reading a large list again (area_group.go).
+	groups groupMemo
 	// mu guards `cards`. The grid can send dashcard:focus while another
 	// goroutine is selecting a router, and the map is written by both.
 	mu sync.Mutex
@@ -374,6 +377,10 @@ func (cn *conn) dispatch(in inbound) {
 	// radios exist — while `start` and `stop` need the scan capability. The
 	// handlers gate themselves; the dispatch does not, so the gate has exactly
 	// one place to be wrong.
+	// One group of a grouped generated table (Address Lists, by list), read
+	// filtered on the router when the page opens it. See area_group.go.
+	case "area:group":
+		cn.areaGroup(in.Data)
 	case "wifiscan:interfaces":
 		cn.wifiscanInterfaces()
 	case "wifiscan:start":

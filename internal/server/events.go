@@ -34,6 +34,7 @@ var (
 	EvToolsTorch        = hub.Declare[ToolsTorchPayload]("tools:torch")
 	EvToolsBtest        = hub.Declare[ToolsBtestPayload]("tools:btest")
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
+	EvAreaGroupRows     = hub.Declare[AreaGroupRowsPayload]("area:grouprows")
 )
 
 // Map payloads, whose browser types are hand-written in web/src/events-hand.ts.

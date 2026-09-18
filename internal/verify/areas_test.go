@@ -335,3 +335,40 @@ func TestEveryAreaPillNamesARealColumnAndKind(t *testing.T) {
 		t.Errorf("only %d area columns are drawn as pills; the declaration has far more", pillCols)
 	}
 }
+
+// TestEveryAreaGroupByNamesAShownField, both ways: a GroupBy naming a field the
+// resource does not have groups every row under "" and the page offers one
+// group of everything; and at least one table declares it, or the mechanism has
+// no instance and is deleted rather than kept.
+func TestEveryAreaGroupByNamesAShownField(t *testing.T) {
+	grouped := 0
+	for _, a := range areas.All() {
+		for _, tbl := range a.Tables {
+			if tbl.GroupBy == "" {
+				continue
+			}
+			grouped++
+			res := resource.ByKey(tbl.Resource)
+			found := false
+			for _, f := range res.Fields {
+				if f.Name == tbl.GroupBy && f.ROS != "" && f.Type != resource.TypeSecret {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("area %q table %q groups by %q, which is not a readable field of that resource",
+					a.Key, tbl.Resource, tbl.GroupBy)
+			}
+			shown := false
+			for _, c := range tbl.Columns {
+				shown = shown || c == tbl.GroupBy
+			}
+			if !shown {
+				t.Errorf("area %q table %q groups by %q but does not show it as a column", a.Key, tbl.Resource, tbl.GroupBy)
+			}
+		}
+	}
+	if grouped == 0 {
+		t.Error("no area table declares GroupBy: a mechanism with no instance is deleted, not kept")
+	}
+}
