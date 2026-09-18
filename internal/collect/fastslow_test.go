@@ -445,7 +445,7 @@ func TestScheduledBeginIsIdempotent(t *testing.T) {
 // this app, and a second release must not disturb anything.
 func TestScheduledEndIsIdempotent(t *testing.T) {
 	c := roscache.New(&schedReader{})
-	other := c.Subscribe("/ip/dns/print", nil, time.Second, nil)
+	other := c.Subscribe("/ip/dns/print", nil, roscache.Every(time.Second), nil)
 	defer other()
 
 	s := scheduled{cache: c, menu: "/ip/dns/print",
@@ -623,16 +623,18 @@ type streamReader struct {
 	schedReader
 	mu     sync.Mutex
 	opens  int
+	args   []string // each opened channel's arguments, in order
 	refuse bool
 }
 
-func (r *streamReader) Stream(_ routeros.Cmd, _ func(routeros.Reply)) (func(), error) {
+func (r *streamReader) Stream(cmd routeros.Cmd, _ func(routeros.Reply)) (func(), error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.refuse {
 		return nil, errors.New("this router will not stream that")
 	}
 	r.opens++
+	r.args = append(r.args, strings.Join(cmd.Args, " "))
 	return func() {}, nil
 }
 
@@ -699,6 +701,48 @@ func TestStreamModeOpensOneChannelAndKeepsTheSubscription(t *testing.T) {
 	s.end()
 	if got := streamed(t, c); len(got) != 0 {
 		t.Errorf("still streaming %v after end()", got)
+	}
+}
+
+// TestARetuneReopensTheStreamAtTheNewInterval. A streamed menu carries its
+// interval in the command (`=interval=`), so a cadence the scheduler asks
+// live is not enough: the channel must be closed and reopened. It was left
+// open at the old interval until the collector was suspended (review loop,
+// item 9).
+func TestARetuneReopensTheStreamAtTheNewInterval(t *testing.T) {
+	r := &streamReader{}
+	c := roscache.New(r)
+	c.StreamWhen(func(string) bool { return true })
+	every := time.Second
+	s := scheduled{cache: c, menu: "/ip/dns/print",
+		cadence:   func() time.Duration { return every },
+		fields:    []string{".id", "name"},
+		streamKey: func(row routeros.Reply) string { return row[".id"] },
+	}
+	s.begin()
+	defer s.end()
+
+	every = 7 * time.Second
+	s.retune()
+
+	if n := r.count(); n != 2 {
+		t.Fatalf("%d channel(s) opened across a retune, want 2 (the old one closed, a new one opened)", n)
+	}
+	r.mu.Lock()
+	last := r.args[len(r.args)-1]
+	r.mu.Unlock()
+	if !strings.Contains(last, "=interval=7") {
+		t.Errorf("the reopened stream's arguments are %q; it is still at the old interval", last)
+	}
+	if got := streamed(t, c); len(got) != 1 {
+		t.Errorf("streamed menus after a retune = %v, want exactly the one", got)
+	}
+
+	// A retune of a suspended collector opens nothing.
+	s.end()
+	s.retune()
+	if n := r.count(); n != 2 {
+		t.Errorf("a retune after end() opened a channel (%d opens)", n)
 	}
 }
 

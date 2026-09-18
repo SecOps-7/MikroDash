@@ -137,14 +137,14 @@ func (s *scheduled) begin() {
 		return
 	}
 
-	d := time.Duration(0)
-	if cadence != nil {
-		d = cadence()
-	}
 	// NOT UNDER s.mu. Subscribe takes the cache's own lock, and the scheduler
 	// takes that lock before calling `apply`, which takes the collector's. Doing
 	// both here in the other order is how a deadlock gets built.
-	rel := s.cache.Subscribe(menu, fields, d, apply)
+	//
+	// THE FUNCTION, NOT ITS VALUE: the scheduler asks it on every pass, so a
+	// re-tune changes how often the router is read (review 2026-09-19). It reads
+	// an atomic, so asking it under the cache's lock takes no other lock.
+	rel := s.cache.Subscribe(menu, fields, cadence, apply)
 
 	s.mu.Lock()
 	if s.release != nil || s.menu != menu {
@@ -281,15 +281,40 @@ func (s *scheduled) fillIfStreaming(menu string) {
 	}
 
 	s.mu.Lock()
-	if s.unfill != nil || s.menu != menu {
-		// Raced with another begin, or a resubscribe moved the menu. Give this
-		// one up rather than leaking a channel the collector cannot reach.
+	if s.unfill != nil || s.menu != menu || s.release == nil {
+		// Raced with another begin, or a resubscribe moved the menu, or the
+		// subscription ended while the channel opened (a retune racing a
+		// Suspend). Give this one up rather than leaking a channel the
+		// collector cannot reach.
 		s.mu.Unlock()
 		stop()
 		return
 	}
 	s.unfill = stop
 	s.mu.Unlock()
+}
+
+// retune applies a new interval to a live subscription. A polled menu needs
+// nothing, because the scheduler asks the cadence on every pass. A STREAMED one
+// carries the interval in the command it opened (`=interval=`), so its channel
+// is closed and reopened at the new one. Called by each collector's SetPollMs.
+//
+// A Suspend that lands mid-way wins: it finds no channel to close (this took
+// it), and fillIfStreaming then refuses to keep the one it opens, because the
+// subscription it belonged to is gone.
+func (s *scheduled) retune() {
+	if s.cache == nil {
+		return
+	}
+	s.mu.Lock()
+	fill, menu := s.unfill, s.menu
+	s.unfill = nil
+	s.mu.Unlock()
+	if fill == nil {
+		return
+	}
+	fill()
+	s.fillIfStreaming(menu)
 }
 
 // resubscribe points the collector at a different menu, with the callback that
@@ -363,11 +388,7 @@ func (s *scheduled) resubscribe(menu string, apply func([]routeros.Reply, error)
 		return
 	}
 
-	d := time.Duration(0)
-	if cadence != nil {
-		d = cadence()
-	}
-	rel := s.cache.Subscribe(menu, fields, d, apply)
+	rel := s.cache.Subscribe(menu, fields, cadence, apply)
 
 	s.mu.Lock()
 	if s.release != nil || s.menu != menu {

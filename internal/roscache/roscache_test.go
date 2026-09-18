@@ -298,7 +298,7 @@ func TestOnDeliverFiresForEveryRefresh(t *testing.T) {
 	// A subscriber with NO callback of its own. The hook must still fire: a
 	// collector that only declares demand still proves the router answered, and
 	// dormancy judges payloads rather than the rows this delivery carried.
-	rel := c.Subscribe("/ip/dns/print", nil, time.Millisecond, nil)
+	rel := c.Subscribe("/ip/dns/print", nil, Every(time.Millisecond), nil)
 	defer rel()
 
 	s := NewScheduler(c, time.Millisecond)
@@ -329,7 +329,7 @@ func TestOnDeliverIsCalledWithoutTheDemandLock(t *testing.T) {
 	done := make(chan struct{})
 	c.OnDeliver(func(string) {
 		// Would block for ever if deliver still held demandMu.
-		c.Subscribe("/other/print", nil, time.Second, nil)()
+		c.Subscribe("/other/print", nil, Every(time.Second), nil)()
 		close(done)
 	})
 	c.deliver("/ip/dns/print", nil, nil)

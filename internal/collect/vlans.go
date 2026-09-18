@@ -655,6 +655,8 @@ func (v *Vlans) Stop() {
 func (v *Vlans) SetPollMs(ms int) {
 	v.pollMs.set(ms)
 	v.poll.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	v.sched.retune()
 }
 
 // UseCache routes this collector's shareable reads through a per-router cache.

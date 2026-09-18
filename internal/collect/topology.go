@@ -2151,4 +2151,6 @@ func containsInt(hay []int, n int) bool {
 func (t *Topology) SetPollMs(ms int) {
 	t.pollMs.set(ms)
 	t.loop.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	t.sched.retune()
 }

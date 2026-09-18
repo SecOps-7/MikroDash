@@ -24,7 +24,7 @@ func TestSchedulerFetchesOnlyWhatIsWanted(t *testing.T) {
 		t.Fatalf("a pass with nothing subscribed fetched %d times", f.n())
 	}
 
-	release := c.Subscribe("/interface/print", []string{"name"}, 10*time.Second, nil)
+	release := c.Subscribe("/interface/print", []string{"name"}, Every(10*time.Second), nil)
 	s.run(t0)
 	if f.n() != 1 {
 		t.Fatalf("a subscribed menu was fetched %d times on the first pass, want 1", f.n())
@@ -57,7 +57,7 @@ func TestSchedulerDeliversToSubscribers(t *testing.T) {
 
 	var mu sync.Mutex
 	var got [][]routeros.Reply
-	defer c.Subscribe("/tool/netwatch/print", nil, time.Second, func(rows []routeros.Reply, err error) {
+	defer c.Subscribe("/tool/netwatch/print", nil, Every(time.Second), func(rows []routeros.Reply, err error) {
 		mu.Lock()
 		defer mu.Unlock()
 		if err == nil {
@@ -80,7 +80,7 @@ func TestSchedulerSkipsZeroCadence(t *testing.T) {
 	f := &fake{}
 	c := New(f)
 	s := NewScheduler(c, time.Millisecond)
-	defer c.Subscribe("/ip/dhcp-server/lease/print", nil, 0, nil)()
+	defer c.Subscribe("/ip/dhcp-server/lease/print", nil, nil, nil)()
 
 	s.run(time.Now())
 	if f.n() != 0 {
@@ -94,7 +94,7 @@ func TestSchedulerForgetsMenusNobodyWants(t *testing.T) {
 	c := New(&fake{})
 	s := NewScheduler(c, time.Millisecond)
 
-	release := c.Subscribe("/ip/dns/print", nil, time.Second, nil)
+	release := c.Subscribe("/ip/dns/print", nil, Every(time.Second), nil)
 	s.run(time.Now())
 	if len(s.lastRun) != 1 {
 		t.Fatalf("scheduler tracked %d menus, want 1", len(s.lastRun))
@@ -131,7 +131,7 @@ func TestSchedulerIsOneGoroutinePerRouter(t *testing.T) {
 		// Several menus each, to prove the count follows the ROUTER and not the
 		// number of things it is watching.
 		for _, m := range []string{"/interface/print", "/ip/address/print", "/ip/dns/print"} {
-			defer c.Subscribe(m, nil, time.Hour, nil)()
+			defer c.Subscribe(m, nil, Every(time.Hour), nil)()
 		}
 		s := NewScheduler(c, 50*time.Millisecond)
 		s.Start()
@@ -182,7 +182,7 @@ func TestSchedulerReleaseFromInsideCallback(t *testing.T) {
 
 	var release func()
 	var fired int32
-	release = c.Subscribe("/ip/route/print", nil, time.Second, func([]routeros.Reply, error) {
+	release = c.Subscribe("/ip/route/print", nil, Every(time.Second), func([]routeros.Reply, error) {
 		atomic.AddInt32(&fired, 1)
 		release()
 	})

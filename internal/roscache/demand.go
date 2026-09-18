@@ -63,7 +63,11 @@ type Demand struct {
 type subscription struct {
 	fields   []string
 	allField bool
-	cadence  time.Duration
+	// cadence is asked every time Demand runs, so a re-tuned collector is read
+	// at its new interval from the next pass. It was a number taken at
+	// Subscribe, and a slider moved on a live session changed what the page
+	// reported and not how often the router was read (review 2026-09-19).
+	cadence func() time.Duration
 	// onRows is fired by the scheduler after it refreshes this menu. Nil for a
 	// subscriber that only wants to keep the menu in the active set -- declaring
 	// demand and consuming a result are separate things, and a view that renders
@@ -77,11 +81,14 @@ type subscription struct {
 // both a blur and a disconnect, which this app does routinely -- must not remove
 // a second, still-live subscriber's demand.
 //
-// An empty field list means "every field", and a zero cadence means "no cadence
-// of my own": it never shortens the menu's cadence, so a consumer that just wants
-// whatever others keep fresh can say so. That mirrors the zero TTL rule at
-// `dhcpLeases`' call site in internal/collect.
-func (c *Cache) Subscribe(menu string, fields []string, cadence time.Duration,
+// An empty field list means "every field", and a nil cadence (or one answering
+// zero) means "no cadence of my own": it never shortens the menu's cadence, so a
+// consumer that just wants whatever others keep fresh can say so. That mirrors
+// the zero TTL rule at `dhcpLeases`' call site in internal/collect.
+//
+// THE CADENCE IS A FUNCTION, asked on every Demand, so a collector's live
+// interval is what the scheduler reads. Every(d) is a fixed one.
+func (c *Cache) Subscribe(menu string, fields []string, cadence func() time.Duration,
 	onRows func([]routeros.Reply, error)) (release func()) {
 	c.demandMu.Lock()
 	defer c.demandMu.Unlock()
@@ -138,8 +145,12 @@ func (c *Cache) Demand() []Demand {
 			for _, f := range s.fields {
 				union[f] = true
 			}
-			if s.cadence > 0 && (d.Cadence <= 0 || s.cadence < d.Cadence) {
-				d.Cadence = s.cadence
+			cad := time.Duration(0)
+			if s.cadence != nil {
+				cad = s.cadence()
+			}
+			if cad > 0 && (d.Cadence <= 0 || cad < d.Cadence) {
+				d.Cadence = cad
 			}
 		}
 		if !all {
@@ -154,3 +165,6 @@ func (c *Cache) Demand() []Demand {
 	sort.Slice(out, func(i, j int) bool { return out[i].Menu < out[j].Menu })
 	return out
 }
+
+// Every is a fixed cadence for Subscribe.
+func Every(d time.Duration) func() time.Duration { return func() time.Duration { return d } }

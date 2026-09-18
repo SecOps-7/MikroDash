@@ -684,4 +684,6 @@ func boolStr(b bool) string {
 func (f *Firewall) SetPollMs(ms int) {
 	f.pollMs.set(ms)
 	f.poll.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	f.sched.retune()
 }

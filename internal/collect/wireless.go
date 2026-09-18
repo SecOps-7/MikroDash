@@ -919,6 +919,8 @@ func (w *Wireless) ScanCatalogue() ([]wifiscan.Catalogue, []string) {
 func (w *Wireless) SetPollMs(ms int) {
 	w.pollMs.set(ms)
 	w.loop.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	w.sched.retune()
 }
 
 // UseCache routes this collector's shareable reads through a per-router cache.

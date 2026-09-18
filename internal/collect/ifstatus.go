@@ -861,6 +861,8 @@ func ifStatusFingerprint(interfaces []Interface) string {
 func (i *IfStatus) SetPollMs(ms int) {
 	i.pollMs.set(ms)
 	i.poll.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	i.sched.retune()
 }
 
 // UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.

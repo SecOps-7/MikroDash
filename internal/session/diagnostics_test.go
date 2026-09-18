@@ -37,9 +37,9 @@ func TestDiagnosticsCountsTheAcquisitionLayer(t *testing.T) {
 	// had two. An earlier version of this test subscribed several collectors to
 	// one menu to exercise a "shared reads" section, and passed — against a
 	// section that could not occur in production.
-	s.roscache.Subscribe("/ip/dhcp-server/lease/print", nil, 0, func([]routeros.Reply, error) {})
-	s.roscache.Subscribe("/ip/arp/print", nil, 0, func([]routeros.Reply, error) {})
-	s.roscache.Subscribe("/system/resource/print", nil, 0, func([]routeros.Reply, error) {})
+	s.roscache.Subscribe("/ip/dhcp-server/lease/print", nil, nil, func([]routeros.Reply, error) {})
+	s.roscache.Subscribe("/ip/arp/print", nil, nil, func([]routeros.Reply, error) {})
+	s.roscache.Subscribe("/system/resource/print", nil, nil, func([]routeros.Reply, error) {})
 
 	d := s.Diagnostics(0)
 	a := d.Acquisition
@@ -84,7 +84,7 @@ func TestDiagnosticsCapsTheMenuList(t *testing.T) {
 	s := NewForTest(hub.New(), "r1")
 	s.roscache = roscache.New(diagReader{})
 	for i := 0; i < diagMenus+5; i++ {
-		s.roscache.Subscribe(string(rune('a'+i))+"/print", nil, 0, func([]routeros.Reply, error) {})
+		s.roscache.Subscribe(string(rune('a'+i))+"/print", nil, nil, func([]routeros.Reply, error) {})
 	}
 
 	d := s.Diagnostics(0)

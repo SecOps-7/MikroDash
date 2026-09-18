@@ -923,4 +923,6 @@ func connsDetailFingerprint(p *ConnsPayload) string {
 func (c *Connections) SetPollMs(ms int) {
 	c.pollMs.set(ms)
 	c.loop.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	c.sched.retune()
 }

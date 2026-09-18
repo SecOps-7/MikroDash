@@ -255,6 +255,8 @@ func (c *tableCore[P]) forget() {
 func (c *tableCore[P]) SetPollMs(ms int) {
 	c.pollMs.set(c.clamp(ms))
 	c.poll.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	c.sched.retune()
 }
 
 func (c *tableCore[P]) PollMs() int { return c.pollMs.ms() }

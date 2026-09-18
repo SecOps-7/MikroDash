@@ -563,4 +563,6 @@ func (w *Wifi) Stop() {
 func (w *Wifi) SetPollMs(ms int) {
 	w.pollMs.set(ms)
 	w.poll.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	w.sched.retune()
 }

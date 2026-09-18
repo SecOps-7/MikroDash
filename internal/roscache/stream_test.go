@@ -466,7 +466,7 @@ func TestAStreamedMenuStillFiresOnDeliver(t *testing.T) {
 	})
 
 	var got [][]routeros.Reply
-	release := c.Subscribe("/interface/monitor-traffic", nil, 5*time.Millisecond,
+	release := c.Subscribe("/interface/monitor-traffic", nil, Every(5*time.Millisecond),
 		func(rows []routeros.Reply, _ error) {
 			mu.Lock()
 			got = append(got, rows)

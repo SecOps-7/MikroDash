@@ -637,6 +637,8 @@ func bandwidthFingerprint(p *BandwidthPayload) string {
 func (b *Bandwidth) SetPollMs(ms int) {
 	b.pollMs.set(ms)
 	b.loop.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	b.sched.retune()
 }
 
 // UseCache routes this collector's shareable reads through a per-router cache.

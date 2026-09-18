@@ -12,8 +12,8 @@ import (
 func TestDemandSurvivesUntilTheLastSubscriberLeaves(t *testing.T) {
 	c := New(nil)
 
-	a := c.Subscribe("/ip/address/print", []string{"address"}, time.Second, nil)
-	b := c.Subscribe("/ip/address/print", []string{"interface"}, 5*time.Second, nil)
+	a := c.Subscribe("/ip/address/print", []string{"address"}, Every(time.Second), nil)
+	b := c.Subscribe("/ip/address/print", []string{"interface"}, Every(5*time.Second), nil)
 
 	if got := c.Demand(); len(got) != 1 {
 		t.Fatalf("two subscribers to one menu gave %d demands, want 1: %+v", len(got), got)
@@ -44,9 +44,9 @@ func TestDemandSurvivesUntilTheLastSubscriberLeaves(t *testing.T) {
 // not be paced by one that would tolerate a minute. Same rule as the TTL.
 func TestDemandTakesTheShortestCadence(t *testing.T) {
 	c := New(nil)
-	defer c.Subscribe("/interface/print", []string{"name"}, time.Minute, nil)()
-	defer c.Subscribe("/interface/print", []string{"name"}, time.Second, nil)()
-	defer c.Subscribe("/interface/print", []string{"name"}, 30*time.Second, nil)()
+	defer c.Subscribe("/interface/print", []string{"name"}, Every(time.Minute), nil)()
+	defer c.Subscribe("/interface/print", []string{"name"}, Every(time.Second), nil)()
+	defer c.Subscribe("/interface/print", []string{"name"}, Every(30*time.Second), nil)()
 
 	got := c.Demand()
 	if len(got) != 1 || got[0].Cadence != time.Second {
@@ -58,8 +58,8 @@ func TestDemandTakesTheShortestCadence(t *testing.T) {
 // A slow consumer saying zero must not make the menu unpaced for the fast one.
 func TestDemandZeroCadenceImposesNothing(t *testing.T) {
 	c := New(nil)
-	defer c.Subscribe("/ip/route/print", []string{"dst-address"}, 0, nil)()
-	defer c.Subscribe("/ip/route/print", []string{"dst-address"}, 10*time.Second, nil)()
+	defer c.Subscribe("/ip/route/print", []string{"dst-address"}, nil, nil)()
+	defer c.Subscribe("/ip/route/print", []string{"dst-address"}, Every(10*time.Second), nil)()
 
 	if got := c.Demand(); got[0].Cadence != 10*time.Second {
 		t.Errorf("a zero cadence changed the menu's cadence: %v", got[0].Cadence)
@@ -71,8 +71,8 @@ func TestDemandZeroCadenceImposesNothing(t *testing.T) {
 // shrink it back while that subscriber is live.
 func TestDemandEmptyFieldsMeansEveryField(t *testing.T) {
 	c := New(nil)
-	narrow := c.Subscribe("/interface/wifi/print", []string{"name"}, time.Second, nil)
-	wide := c.Subscribe("/interface/wifi/print", nil, time.Second, nil)
+	narrow := c.Subscribe("/interface/wifi/print", []string{"name"}, Every(time.Second), nil)
+	wide := c.Subscribe("/interface/wifi/print", nil, Every(time.Second), nil)
 
 	if got := c.Demand(); got[0].Fields != nil {
 		t.Errorf("an all-fields subscriber did not widen the union: %v", got[0].Fields)
@@ -89,8 +89,8 @@ func TestDemandEmptyFieldsMeansEveryField(t *testing.T) {
 // call that removed a still-live subscriber's demand would starve it.
 func TestReleaseIsIdempotent(t *testing.T) {
 	c := New(nil)
-	first := c.Subscribe("/ip/dns/print", []string{"servers"}, time.Second, nil)
-	defer c.Subscribe("/ip/dns/print", []string{"servers"}, time.Second, nil)()
+	first := c.Subscribe("/ip/dns/print", []string{"servers"}, Every(time.Second), nil)
+	defer c.Subscribe("/ip/dns/print", []string{"servers"}, Every(time.Second), nil)()
 
 	first()
 	first()
@@ -108,7 +108,7 @@ func TestDemandIsSeparateFromGet(t *testing.T) {
 	r := &fake{}
 	c := New(r)
 
-	release := c.Subscribe("/interface/print", []string{"name"}, time.Millisecond, nil)
+	release := c.Subscribe("/interface/print", []string{"name"}, Every(time.Millisecond), nil)
 	defer release()
 	time.Sleep(20 * time.Millisecond)
 
@@ -134,7 +134,7 @@ func TestDemandIsRaceFree(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 50; j++ {
-				rel := c.Subscribe("/interface/print", []string{"name"}, time.Second, nil)
+				rel := c.Subscribe("/interface/print", []string{"name"}, Every(time.Second), nil)
 				_ = c.Demand()
 				rel()
 			}

@@ -712,6 +712,8 @@ func (v *VPN) Stop()    { v.sched.end() }
 func (v *VPN) SetPollMs(ms int) {
 	v.pollMs.set(ms)
 	v.poll.retime()
+	// And the scheduler: a streamed menu reopens at the new interval.
+	v.sched.retune()
 }
 
 // UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.

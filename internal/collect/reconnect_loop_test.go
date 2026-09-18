@@ -2,6 +2,7 @@ package collect
 
 import (
 	"testing"
+	"time"
 
 	"mikrodash/internal/roscache"
 )
@@ -44,5 +45,58 @@ func TestAReconnectLeavesNoOrphanLoop(t *testing.T) {
 				"for ever regardless of demand", tc.name)
 		}
 		loop.stop()
+	}
+}
+
+// A RE-TUNE REACHES THE SCHEDULER, NOT JUST THE PAYLOAD (review 2026-09-19).
+//
+// scheduled.begin evaluated the cadence once and handed Subscribe a number, so
+// the demand the scheduler reads kept the interval the collector was started
+// with: move a slider from 60 s to 5 s and the payload said 5 s while the
+// router was read every 60. TestEveryTableCollectorsCadenceFollowsARetune read
+// the collector's cadence FUNCTION, which does follow, so it passed while the
+// scheduler did not. This asks the scheduler.
+func TestARetuneReachesTheSchedulersDemand(t *testing.T) {
+	type target struct {
+		name  string
+		start func(*roscache.Cache) (setPoll func(int), stop func())
+		ms    int
+		every time.Duration // the subscription's cadence as a multiple of the poll
+	}
+	for _, tc := range []target{
+		{"dns (table)", func(c *roscache.Cache) (func(int), func()) {
+			d := NewDNS(emptyReader{}, Emit{}, 30000)
+			d.UseCache(c)
+			d.Start()
+			return d.SetPollMs, d.Stop
+		}, 45000, 1},
+		{"firewall", func(c *roscache.Cache) (func(int), func()) {
+			f := NewFirewall(emptyReader{}, Emit{}, 5000)
+			f.UseCache(c)
+			f.Resume() // Start only reads once; the subscription is Resume's
+			return f.SetPollMs, f.Stop
+		}, 7000, 1},
+		{"vlans", func(c *roscache.Cache) (func(int), func()) {
+			v := NewVlans(emptyReader{}, Emit{}, nil, nil, 5000)
+			v.UseCache(c)
+			v.Start()
+			return v.SetPollMs, v.Stop
+		}, 9000, vlanConfigEvery}, // config menus ride a multiple of the rate poll
+	} {
+		c := roscache.New(emptyReader{})
+		set, stop := tc.start(c)
+		set(tc.ms)
+		want := time.Duration(tc.ms) * time.Millisecond * tc.every
+		found := false
+		for _, d := range c.Demand() {
+			if d.Cadence == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: after SetPollMs(%d) the scheduler's demand is %+v; no menu carries %s, "+
+				"so the router is still read at the old interval", tc.name, tc.ms, c.Demand(), want)
+		}
+		stop()
 	}
 }
