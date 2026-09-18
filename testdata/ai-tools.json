@@ -182,6 +182,12 @@
       "page": "ip-pools"
     },
     {
+      "name": "list_ipService",
+      "access": "read",
+      "resource": "ipService",
+      "page": "ip-services"
+    },
+    {
       "name": "list_ipv6Address",
       "access": "read",
       "resource": "ipv6Address",

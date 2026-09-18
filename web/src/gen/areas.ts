@@ -45,6 +45,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "ip-services", title: "IP Services", navGroup: "ipsvc",
+    tables: [
+      { resource: "ipService", title: "IP Service", columns: ["name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

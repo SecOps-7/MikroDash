@@ -228,6 +228,7 @@ surface stays complete.
 | `/ip/dhcp-server/lease` | dhcpLease | dhcp | add, set, remove, make-static |
 | `/ip/address` | ipAddress | ip-addresses | add, set, remove |
 | `/ip/pool` | ipPool | ip-pools | add, set, remove |
+| `/ip/service` | ipService | ip-services | set |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
 | `/ip/firewall/address-list` | addressList | address-lists | add, set, remove |
 | `/ip/firewall/filter` | fwFilter | firewall | add, set, remove, move, enable, disable |

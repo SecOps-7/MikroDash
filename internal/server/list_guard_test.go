@@ -118,7 +118,40 @@ func TestServiceWritesReachTheGuard(t *testing.T) {
 	if v := serviceDecision(false, self, true, "update", map[string]string{"port": "9000"}, apiSSL); v.Level != "none" {
 		t.Errorf("re-porting api-ssl while MikroDash uses plain api: %+v", v)
 	}
-	if v := serviceDecision(true, self, true, "update", map[string]string{"address": "198.51.100.0/24"}, apiSSL); v.Level != "none" {
+	if v := serviceDecision(true, self, true, "update", map[string]string{"availableFrom": "198.51.100.0/24"}, apiSSL); v.Level != "none" {
 		t.Errorf("an address list that admits us: %+v", v)
+	}
+	if v := serviceDecision(true, self, true, "update", map[string]string{"availableFrom": "192.0.2.0/24"}, apiSSL); !v.Refused() || v.Code != "service-address" {
+		t.Errorf("an address list that shuts us out: %+v", v)
+	}
+	// A row from a router older than 7.24 names the restriction `address`: an
+	// unchanged restriction is not a change, whichever name it arrived under.
+	old := map[string]string{".id": "*6", "name": "api-ssl", "port": "8729", "address": "192.0.2.0/24", "disabled": "false"}
+	if v := serviceDecision(true, self, true, "update", map[string]string{"maxSessions": "10"}, old); v.Level != "none" {
+		t.Errorf("an unrelated edit of an older router's restricted row: %+v", v)
+	}
+}
+
+// serviceDecision reads the write's values by these FIELD names and the stored
+// row by these RouterOS names. Renaming either in the resource would silently
+// blind the guard to that change, so the pairs are pinned here.
+func TestServiceGuardReadsTheResourcesOwnNames(t *testing.T) {
+	want := map[string]string{"name": "name", "port": "port", "availableFrom": "available-from",
+		"vrf": "vrf", "disabled": "disabled"}
+	got := map[string]string{}
+	for _, f := range resource.IPService.Fields {
+		got[f.Name] = f.ROS
+	}
+	for field, ros := range want {
+		if got[field] != ros {
+			t.Errorf("ipService field %q maps to %q, want %q: serviceDecision reads it by that name", field, got[field], ros)
+		}
+	}
+	found := false
+	for _, g := range resource.IPService.Guard {
+		found = found || g == "serviceLockout"
+	}
+	if !found {
+		t.Error("ipService does not declare serviceLockout, so its writes are unguarded")
 	}
 }

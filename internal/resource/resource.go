@@ -947,6 +947,51 @@ var IfListMember = &Resource{
 	},
 }
 
+// IPService is /ip/service (slice 6): the router's own services, which exist
+// already and are edited, never created or removed. From the RouterOS command
+// tree for /ip/service/set, and a 7.24 capture.
+//
+// ── TWO THINGS 7.24 CHANGED ─────────────────────────────────────────────────
+//
+// The access restriction is `available-from`, renamed from `address` in 7.24
+// ("backwards compatible via deprecation"); 7.24 prints only the new name, so
+// that is the field. A router older than 7.24 shows it empty here and refuses a
+// write of it, which is loud rather than wrong. And the menu now lists live
+// CONNECTIONS as dynamic rows (connection=true, local, remote), one of them
+// MikroDash's own session: dynamic rows open read-only.
+//
+// ── GUARDED: THE SERVICE MIKRODASH CONNECTS THROUGH ─────────────────────────
+//
+// `serviceLockout` REFUSES disabling, re-porting, re-VRFing or address-
+// restricting api or api-ssl, whichever this session uses: guard/serviceguard.go.
+var IPService = &Resource{
+	Key: "ipService", Page: "ip-services", Label: "IP Service",
+	Title: "IP Service", Menu: "/ip/service", Identity: []string{"name"},
+	NoCreate:       true,
+	RemovableWhen:  func(map[string]string) bool { return false },
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Guard:          []string{"serviceLockout"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Service", Type: TypeText, Display: true},
+		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Required: true, Min: intp(1), Max: intp(65535)},
+		{Name: "availableFrom", ROS: "available-from", Label: "Available From", Type: TypeText, Clearable: true,
+			Placeholder: "192.0.2.0/24",
+			Help:        "Addresses or prefixes allowed to connect, comma separated. Empty admits every address."},
+		{Name: "certificate", ROS: "certificate", Label: "Certificate", Type: TypeText, Clearable: true, ClearAs: "none",
+			Help: "The certificate a TLS service presents. Empty means none."},
+		// Plain text, not a select: the documented values are any and only-1.2,
+		// and a strict select would rewrite any other value a newer RouterOS holds.
+		{Name: "tlsVersion", ROS: "tls-version", Label: "TLS Version", Type: TypeText, Placeholder: "any"},
+		{Name: "maxSessions", ROS: "max-sessions", Label: "Max Sessions", Type: TypeInt, Min: intp(1), Max: intp(1000)},
+		{Name: "vrf", ROS: "vrf", Label: "VRF", Type: TypeText, Placeholder: "main"},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "proto", ROS: "proto", Label: "Protocol", Type: TypeText, Display: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+		{Name: "remote", ROS: "remote", Label: "Remote", Type: TypeText, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1572,6 +1617,7 @@ var byKey = map[string]*Resource{
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,
+	IPService.Key:           IPService,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

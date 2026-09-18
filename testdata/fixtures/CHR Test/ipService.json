@@ -1,0 +1,182 @@
+{
+ "collector": "areas",
+ "resource": "ipService",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands; nothing was created for it. RouterOS 7.24 prints the access restriction as `available-from` (renamed from `address` in 7.24, which older versions print instead) and lists live CONNECTIONS as dynamic rows (connection=true, with local and remote), alongside a dynamic dhcpclient service. Those connection addresses are scrubbed into TEST-NET-2; one of them is MikroDash's own API session. Read through /ip/service/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/ip/service/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "available-from": "",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "ftp",
+     "port": "21",
+     "proto": "tcp",
+     "vrf": "main"
+    },
+    {
+     ".id": "*4",
+     "available-from": "",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "ssh",
+     "port": "22",
+     "proto": "tcp",
+     "vrf": "main"
+    },
+    {
+     ".id": "*0",
+     "available-from": "",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "telnet",
+     "port": "23",
+     "proto": "tcp",
+     "vrf": "main"
+    },
+    {
+     ".id": "*F",
+     "disabled": "false",
+     "dynamic": "true",
+     "invalid": "false",
+     "name": "dhcpclient",
+     "port": "68",
+     "proto": "udp"
+    },
+    {
+     ".id": "*2",
+     "available-from": "",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "www",
+     "port": "80",
+     "proto": "tcp",
+     "vrf": "main"
+    },
+    {
+     ".id": "*6",
+     "available-from": "",
+     "certificate": "none",
+     "disabled": "true",
+     "dynamic": "false",
+     "invalid": "true",
+     "max-sessions": "20",
+     "name": "www-ssl",
+     "port": "443",
+     "proto": "tcp",
+     "tls-version": "any",
+     "vrf": "main"
+    },
+    {
+     ".id": "*A",
+     "available-from": "",
+     "certificate": "none",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "reverse-proxy",
+     "port": "443",
+     "proto": "tcp",
+     "tls-version": "any",
+     "vrf": "main"
+    },
+    {
+     ".id": "*B",
+     "disabled": "false",
+     "dynamic": "true",
+     "invalid": "false",
+     "name": "btest",
+     "port": "2000",
+     "proto": "tcp"
+    },
+    {
+     ".id": "*E",
+     "disabled": "false",
+     "dynamic": "true",
+     "invalid": "false",
+     "name": "discover",
+     "port": "5678",
+     "proto": "udp"
+    },
+    {
+     ".id": "*8",
+     "available-from": "",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "winbox",
+     "port": "8291",
+     "proto": "tcp",
+     "vrf": "main"
+    },
+    {
+     ".id": "*7",
+     "available-from": "",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "api",
+     "port": "8728",
+     "proto": "tcp",
+     "vrf": "main"
+    },
+    {
+     ".id": "*11",
+     "connection": "true",
+     "disabled": "false",
+     "dynamic": "true",
+     "invalid": "false",
+     "local": "198.51.100.21",
+     "name": "api",
+     "port": "8728",
+     "proto": "tcp",
+     "remote": "198.51.100.22:43788"
+    },
+    {
+     ".id": "*9",
+     "available-from": "",
+     "certificate": "chr-api",
+     "disabled": "false",
+     "dynamic": "false",
+     "invalid": "false",
+     "max-sessions": "20",
+     "name": "api-ssl",
+     "port": "8729",
+     "proto": "tcp",
+     "tls-version": "any",
+     "vrf": "main"
+    },
+    {
+     ".id": "*D",
+     "connection": "true",
+     "disabled": "false",
+     "dynamic": "true",
+     "invalid": "false",
+     "local": "198.51.100.21",
+     "name": "api-ssl",
+     "port": "8729",
+     "proto": "tcp",
+     "remote": "198.51.100.23:34410"
+    }
+   ]
+  }
+ ]
+}

@@ -37,6 +37,11 @@
       "settingsKey": null
     },
     {
+      "key": "ip-services",
+      "title": "IP Services",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"
