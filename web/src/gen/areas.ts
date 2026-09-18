@@ -32,6 +32,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "address-lists", title: "Address Lists", navGroup: "security",
+    tables: [
+      { resource: "addressList", title: "Address List Entry", columns: ["list", "address", "timeout", "dynamic", "comment"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

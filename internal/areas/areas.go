@@ -92,6 +92,16 @@ var declared = []Area{
 		// configuration cadence the bridges and VLAN collectors use.
 		Poll: 60 * time.Second,
 	},
+	// ── SLICE 6: FIREWALL AND SERVICES ──────────────────────────────────────
+	//
+	// Address lists: the entries firewall rules match against, static ones and
+	// the dynamic ones rules add with a timeout. Nothing else reads the menu.
+	{
+		Key: "address-lists", Title: "Address Lists", NavGroup: "security",
+		Tables: []Table{{Resource: "addressList",
+			Columns: []string{"list", "address", "timeout", "dynamic", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

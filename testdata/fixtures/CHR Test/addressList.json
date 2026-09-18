@@ -1,0 +1,51 @@
+{
+ "collector": "areas",
+ "resource": "addressList",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The entries were created FOR the capture, in the documentation range (TEST-NET-2, RFC 5737), and removed afterwards: one with a comment, a disabled subnet, a range in a second list, and one added with timeout=1d, which RouterOS makes DYNAMIC and reports with its remaining time. creation-time is replaced by a fixed value, since it is the moment of capture. What is real is the reply's shape: which fields /ip/firewall/address-list returns and how it spells them, and that an address may be a host, a subnet or a range. Read through /ip/firewall/address-list/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/ip/firewall/address-list/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "address": "198.51.100.23",
+     "comment": "fixture capture",
+     "creation-time": "2026-01-01 00:00:00",
+     "disabled": "false",
+     "dynamic": "false",
+     "list": "blocklist"
+    },
+    {
+     ".id": "*2",
+     "address": "198.51.100.0/28",
+     "creation-time": "2026-01-01 00:00:00",
+     "disabled": "true",
+     "dynamic": "false",
+     "list": "blocklist"
+    },
+    {
+     ".id": "*3",
+     "address": "198.51.100.40-198.51.100.50",
+     "creation-time": "2026-01-01 00:00:00",
+     "disabled": "false",
+     "dynamic": "false",
+     "list": "allow"
+    },
+    {
+     ".id": "*4",
+     "address": "198.51.100.99",
+     "creation-time": "2026-01-01 00:00:00",
+     "disabled": "false",
+     "dynamic": "true",
+     "list": "blocklist",
+     "timeout": "1d"
+    }
+   ]
+  }
+ ]
+}

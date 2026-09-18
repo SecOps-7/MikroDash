@@ -855,6 +855,47 @@ var PPPSecret = &Resource{
 //
 // Properties checked against the RouterOS 7 documentation for /ip/pool: name,
 // ranges, next-pool and comment, and no others.
+// AddressList is one entry in a firewall address list (slice 6). Documented at
+// help.mikrotik.com, Firewall > Address-lists; properties from the command tree.
+//
+// ── IDENTIFIED BY ADDRESS ALONE ─────────────────────────────────────────────
+//
+// One address may sit in several lists, so the ROW is not unique by address —
+// but a row is ADDRESSED by its `.id`, and identity only confirms it is still
+// the row that was clicked. A composite list+address identity would say more,
+// and it would also make every audit row and proposal title the two joined by
+// U+0001, and empty on a create, as firewall rules are. Readable wins here.
+//
+// ── A DYNAMIC ENTRY STAYS EDITABLE ──────────────────────────────────────────
+//
+// Unlike a dynamic IP address, which belongs to whatever created it, a dynamic
+// address-list entry is usually one a firewall rule added with a timeout, and
+// removing it is the commonest thing an operator comes here to do: unblocking a
+// host. So there is no ReadOnlyWhen.
+var AddressList = &Resource{
+	Key: "addressList", Page: "address-lists", Label: "Address List Entry",
+	Title: "Address List Entry", Menu: "/ip/firewall/address-list", Identity: []string{"address"},
+	Fields: []Field{
+		// PLAIN TEXT, NOT A PICKER. OptionsFrom renders a strict select, and a new
+		// list is created by naming it here.
+		{Name: "list", ROS: "list", Label: "List", Type: TypeText, Required: true,
+			Placeholder: "blocklist"},
+		// Not TypeCidr: RouterOS takes a host, a prefix, a range or a DNS name.
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Required: true,
+			Placeholder: "192.0.2.10",
+			Help:        "A host, a prefix (192.0.2.0/24), a range (192.0.2.10-192.0.2.20) or a DNS name."},
+		// NOT CLEARABLE: there is no documented way to unset a timeout, and
+		// an entry that has one is dynamic and will expire anyway.
+		{Name: "timeout", ROS: "timeout", Label: "Timeout", Type: TypeText, Placeholder: "1d",
+			Help: "Leave empty for a permanent entry. An entry with a timeout is dynamic: it is removed when the timeout runs out and is not saved in the configuration."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		// Shown, never sent.
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+		{Name: "creationTime", ROS: "creation-time", Label: "Created", Type: TypeText, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1477,6 +1518,7 @@ var byKey = map[string]*Resource{
 	SimpleQueue.Key:         SimpleQueue,
 	QueueTree.Key:           QueueTree,
 	IPPool.Key:              IPPool,
+	AddressList.Key:         AddressList,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

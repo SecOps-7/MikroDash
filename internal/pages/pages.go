@@ -112,6 +112,7 @@ var All = []Page{
 	// A GENERATED page: internal/areas declares it, and the shared `areas`
 	// collector fills it. Its Collector is that one, not a collector of its own.
 	{Key: "ip-pools", Title: "IP Pools", Collector: "areas"},
+	{Key: "address-lists", Title: "Address Lists", Collector: "areas"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},

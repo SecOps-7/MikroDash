@@ -227,6 +227,7 @@ surface stays complete.
 | `/ip/address` | ipAddress | ip-addresses | add, set, remove |
 | `/ip/pool` | ipPool | ip-pools | add, set, remove |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
+| `/ip/firewall/address-list` | addressList | address-lists | add, set, remove |
 | `/ip/firewall/filter` | fwFilter | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/mangle` | fwMangle | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/nat` | fwNat | firewall | add, set, remove, move, enable, disable |
