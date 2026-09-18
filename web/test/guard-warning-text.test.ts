@@ -66,6 +66,13 @@ assert.ok(addrOut.why.includes('out of the list') && addrOut.why.includes('stop 
   'list-cutoff, address leaving an accept list: ' + addrOut.why);
 say('ok  list-cutoff says which way MikroDash moved, which list, which rule, and what the rule then does');
 
+const redefine = warningText('list-redefine', { list: 'LAN', change: 'delete', ruleMatch: '!LAN' });
+assert.ok(redefine.headline.includes('cut MikroDash off') && redefine.why.includes('deletes the list <code>LAN</code>') &&
+  redefine.why.includes('<code>!LAN</code>'), 'list-redefine: ' + redefine.why);
+const renamed = warningText('list-redefine', { list: 'LAN', change: 'rename', ruleMatch: '!LAN' });
+assert.ok(renamed.why.includes('renames the list'), 'list-redefine, rename: ' + renamed.why);
+say('ok  list-redefine names the list, what the change does to it, and the rule that matches it');
+
 for (const [code, words] of [['self-lockout', 'firewall rule'], ['wifi-inherit', 'inherits'], ['capsman-push', 'pushed']]) {
   const t = warningText(code, {});
   assert.ok(t.why.includes(words), code + ' has its own sentence, not the fallback: ' + t.why);

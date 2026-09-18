@@ -38,6 +38,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "interface-lists", title: "Interface Lists", navGroup: "network",
+    tables: [
+      { resource: "ifListMember", title: "Members", columns: ["list", "interface", "disabled", "dynamic", "comment"] },
+      { resource: "ifList", title: "Lists", columns: ["name", "include", "exclude", "builtin", "comment"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

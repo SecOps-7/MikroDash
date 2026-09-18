@@ -122,3 +122,34 @@ func TestTheListFingerprintIsBoundToItsInputs(t *testing.T) {
 		t.Error("a different rule gave the same fingerprint, so one acknowledgement would carry to another")
 	}
 }
+
+// A LIST'S DEFINITION: deleting, renaming or re-including `LAN` moves members as
+// surely as removing one, so each warns while `!LAN drop` matches us; a comment,
+// a list no rule names, and a new list do not.
+func TestRedefiningAListARuleMatchesWarns(t *testing.T) {
+	lan := ListDef{Present: true, Name: "LAN"}
+	rules := []ListRule{defconfDrop}
+	for name, after := range map[string]ListDef{
+		"delete":   {},
+		"rename":   {Present: true, Name: "LAN-old"},
+		"redefine": {Present: true, Name: "LAN", Exclude: "dynamic"},
+	} {
+		v := CheckListDefinition(ifCtx(), rules, "update", lan, after)
+		if !v.Warned() || v.Code != "list-redefine" || v.Detail["change"] != name {
+			t.Errorf("%s LAN: %+v", name, v)
+		}
+	}
+	for name, c := range map[string]struct {
+		before, after ListDef
+		ctx           FWContext
+	}{
+		"comment only":         {lan, lan, ifCtx()},
+		"a list no rule names": {ListDef{Present: true, Name: "IOT"}, ListDef{}, ifCtx()},
+		"a new list":           {ListDef{}, ListDef{Present: true, Name: "LAN"}, ifCtx()},
+		"path unresolved":      {lan, ListDef{}, FWContext{}},
+	} {
+		if v := CheckListDefinition(c.ctx, rules, "update", c.before, c.after); v.Level != "none" {
+			t.Errorf("%s: %+v", name, v)
+		}
+	}
+}

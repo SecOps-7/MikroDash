@@ -899,6 +899,54 @@ var AddressList = &Resource{
 	},
 }
 
+// IfList and IfListMember are interface lists and who is in them (slice 6).
+// From the RouterOS command tree for /interface/list and /interface/list/member.
+//
+// ── BOTH ARE GUARDED ────────────────────────────────────────────────────────
+//
+// The default configuration's last input rule drops `in-interface-list=!LAN`,
+// so taking the port MikroDash arrives on out of `LAN` locks it out, and so does
+// deleting, renaming or re-including `LAN` itself. `listLockout` warns on both:
+// guard/listguard.go.
+var IfList = &Resource{
+	Key: "ifList", Page: "interface-lists", Label: "Interface List",
+	Title: "Interface List", Menu: "/interface/list", Identity: []string{"name"},
+	// all, none, dynamic and static are RouterOS's own, and cannot be changed.
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["builtin"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Guard:          []string{"listLockout"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "LAN"},
+		{Name: "include", ROS: "include", Label: "Include", Type: TypeText, Clearable: true,
+			Placeholder: "dynamic",
+			Help:        "Other lists whose interfaces are also members, comma separated: all, dynamic, static, none, or a list of your own."},
+		{Name: "exclude", ROS: "exclude", Label: "Exclude", Type: TypeText, Clearable: true,
+			Help: "Lists whose interfaces are never members, comma separated."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "builtin", ROS: "builtin", Label: "Built-in", Type: TypeBool, Display: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+	},
+}
+var IfListMember = &Resource{
+	Key: "ifListMember", Page: "interface-lists", Label: "Interface List Member",
+	Title: "Interface List Member", Menu: "/interface/list/member", Identity: []string{"interface"},
+	// A dynamic member belongs to whatever added it (a PPP profile's
+	// interface-list, for one), as a dynamic address does.
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Guard:          []string{"listLockout"},
+	Fields: []Field{
+		// PICKERS: a member must name a list and an interface that exist.
+		{Name: "list", ROS: "list", Label: "List", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface/list", Value: "name"}},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1522,6 +1570,8 @@ var byKey = map[string]*Resource{
 	QueueTree.Key:           QueueTree,
 	IPPool.Key:              IPPool,
 	AddressList.Key:         AddressList,
+	IfList.Key:              IfList,
+	IfListMember.Key:        IfListMember,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

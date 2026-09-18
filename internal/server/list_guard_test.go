@@ -71,3 +71,33 @@ func TestAddressListDeclaresTheListGuard(t *testing.T) {
 	}
 	t.Fatalf("addressList declares %v; without listLockout its writes are unguarded", resource.AddressList.Guard)
 }
+
+// Interface lists: the default `!LAN drop`, reached by a member and by the list.
+func TestInterfaceListWritesReachTheGuard(t *testing.T) {
+	rules := []routeros.Reply{filterRow("*5", "input", "drop", "in-interface-list", "!LAN")}
+	member := map[string]string{".id": "*1", "list": "LAN", "interface": "ether2", "disabled": "false"}
+	if v := listDecision(resource.IfListMember, "update", map[string]string{"disabled": "yes"}, member, listPath, 8729, rules); !v.Warned() || v.Code != "list-cutoff" {
+		t.Errorf("disabling the management port's LAN membership: %+v", v)
+	}
+	lan := map[string]string{".id": "*2", "name": "LAN", "include": "", "exclude": ""}
+	if v := listDecision(resource.IfList, "delete", nil, lan, listPath, 8729, rules); !v.Warned() || v.Code != "list-redefine" {
+		t.Errorf("deleting LAN: %+v", v)
+	}
+	// Controls: a comment on either, and the same member on another port.
+	if v := listDecision(resource.IfList, "update", map[string]string{"comment": "x"}, lan, listPath, 8729, rules); v.Level != "none" {
+		t.Errorf("a comment on LAN warned: %+v", v)
+	}
+	other := map[string]string{".id": "*3", "list": "LAN", "interface": "ether5", "disabled": "false"}
+	if v := listDecision(resource.IfListMember, "delete", nil, other, listPath, 8729, rules); v.Level != "none" {
+		t.Errorf("removing another port from LAN warned: %+v", v)
+	}
+	for _, r := range []*resource.Resource{resource.IfList, resource.IfListMember} {
+		found := false
+		for _, g := range r.Guard {
+			found = found || g == "listLockout"
+		}
+		if !found {
+			t.Errorf("%s does not declare listLockout", r.Key)
+		}
+	}
+}

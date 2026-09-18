@@ -102,6 +102,19 @@ var declared = []Area{
 			Columns: []string{"list", "address", "timeout", "dynamic", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// Interface lists: who is in LAN, WAN and the rest, which the firewall
+	// matches on. Members first, because changing who is in a list is the
+	// common task. Both resources carry the list-membership lockout guard.
+	{
+		Key: "interface-lists", Title: "Interface Lists", NavGroup: "network",
+		Tables: []Table{
+			{Resource: "ifListMember", Title: "Members",
+				Columns: []string{"list", "interface", "disabled", "dynamic", "comment"}},
+			{Resource: "ifList", Title: "Lists",
+				Columns: []string{"name", "include", "exclude", "builtin", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

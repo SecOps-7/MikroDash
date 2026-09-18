@@ -38,6 +38,7 @@ export const PAGES: readonly Page[] = [
   { key: "ip-addresses", title: "IP Addresses", path: "ip-addresses" },
   { key: "ip-pools", title: "IP Pools", path: "ip-pools" },
   { key: "address-lists", title: "Address Lists", path: "address-lists" },
+  { key: "interface-lists", title: "Interface Lists", path: "interface-lists" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },
   { key: "wifi-clients", title: "Wifi Clients", path: "wifi-clients" },

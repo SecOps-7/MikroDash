@@ -1405,7 +1405,7 @@ func (cn *conn) listVerdict(res *resource.Resource, action string,
 // (`/ip/firewall/address-list`), so only the IPv4 filter matches them; an
 // interface list is matched by both families' filters.
 func listClause(res *resource.Resource) (string, []string) {
-	if res.Key == "ifListMember" {
+	if res.Key == "ifListMember" || res.Key == "ifList" {
 		return "in-interface-list", []string{"/ip/firewall/filter/print", "/ipv6/firewall/filter/print"}
 	}
 	return "src-address-list", []string{"/ip/firewall/filter/print"}
@@ -1423,6 +1423,34 @@ func listDecision(res *resource.Resource, action string, values, before map[stri
 		kind, field = "interface", "interface"
 	}
 	clause, _ := listClause(res)
+	ctx := guard.FWContext{Resolved: path.Resolved, Addresses: path.Addresses,
+		Interfaces: path.Interfaces, APIPort: apiPort}
+	rules := listRules(filterRows, clause)
+	if res.Key == "ifList" {
+		// A list's DEFINITION: its name, and what it includes and excludes.
+		def := func(v map[string]string, base guard.ListDef) guard.ListDef {
+			d := base
+			d.Present = true
+			if x, ok := v["name"]; ok {
+				d.Name = x
+			}
+			if x, ok := v["include"]; ok {
+				d.Include = x
+			}
+			if x, ok := v["exclude"]; ok {
+				d.Exclude = x
+			}
+			return d
+		}
+		var was, now guard.ListDef
+		if before != nil {
+			was = def(histValues(res.RowValues(before)), guard.ListDef{})
+		}
+		if action != "delete" && values != nil {
+			now = def(values, was)
+		}
+		return guard.CheckListDefinition(ctx, rules, action, was, now)
+	}
 	of := func(v map[string]string, base guard.ListMember) guard.ListMember {
 		m := base
 		m.Present = true
@@ -1445,6 +1473,11 @@ func listDecision(res *resource.Resource, action string, values, before map[stri
 		// Laid over the stored row: a partial edit leaves the rest as it was.
 		now = of(values, was)
 	}
+	return guard.CheckListMember(ctx, kind, rules, action, was, now)
+}
+
+// listRules is the input-chain filter rows that carry this list clause.
+func listRules(filterRows []routeros.Reply, clause string) []guard.ListRule {
 	var rules []guard.ListRule
 	for _, r := range filterRows {
 		if r[clause] == "" || r["chain"] != "input" {
@@ -1456,9 +1489,7 @@ func listDecision(res *resource.Resource, action string, values, before map[stri
 			Disabled: r["disabled"] == "true",
 		}})
 	}
-	ctx := guard.FWContext{Resolved: path.Resolved, Addresses: path.Addresses,
-		Interfaces: path.Interfaces, APIPort: apiPort}
-	return guard.CheckListMember(ctx, kind, rules, action, was, now)
+	return rules
 }
 
 // queueVerdict asks the self-throttle guard about one simple queue write.

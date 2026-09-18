@@ -212,6 +212,8 @@ surface stays complete.
 | `/interface` | iface | interfaces | set (comment, disabled) |
 | `/interface/bridge` | bridge | bridges | add, set, remove |
 | `/interface/bridge/port` | bridgePort | bridges | add, set, remove |
+| `/interface/list` | ifList | interface-lists | add, set, remove |
+| `/interface/list/member` | ifListMember | interface-lists | add, set, remove |
 | `/interface/veth` | veth | interfaces | add, set, remove |
 | `/interface/vlan` | vlan | vlans | add, set, remove |
 | `/interface/wifi` | wifiNet | wifi | add, set, remove, enable, disable |

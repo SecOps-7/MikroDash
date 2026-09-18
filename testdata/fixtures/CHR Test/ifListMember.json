@@ -1,0 +1,39 @@
+{
+ "collector": "areas",
+ "resource": "ifListMember",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The three members (one commented, one disabled) were created FOR the capture and removed afterwards; nothing here describes a real network. What is real is the reply's shape: which fields RouterOS returns and how it spells them. Read through /interface/list/member/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/interface/list/member/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "comment": "fixture capture",
+     "disabled": "false",
+     "dynamic": "false",
+     "interface": "ether1",
+     "list": "LAN"
+    },
+    {
+     ".id": "*2",
+     "disabled": "true",
+     "dynamic": "false",
+     "interface": "ether1",
+     "list": "WAN"
+    },
+    {
+     ".id": "*3",
+     "disabled": "false",
+     "dynamic": "false",
+     "interface": "lo",
+     "list": "LAN"
+    }
+   ]
+  }
+ ]
+}

@@ -181,3 +181,63 @@ func listFingerprint(kind, action, list, value, rule string, addrs, ifaces []str
 	b, _ := json.Marshal([]any{"list-cutoff", kind, action, list, strings.TrimSpace(value), rule, a, i})
 	return string(b)
 }
+
+// ── A LIST'S DEFINITION MOVES ITS MEMBERS TOO ───────────────────────────────
+//
+// Deleting `LAN`, renaming it, or changing what it includes or excludes changes
+// who is in it as surely as removing a member does, and the rules that match on
+// it follow the new membership. Computing the new membership would mean
+// modelling `include=all,dynamic` against every interface's state, which is a
+// source of confident wrong answers. So this asks the narrower question fwGuard
+// asks of a rule: COULD it matter — is the list's current name matched by an
+// enabled input-chain rule whose other clauses match our traffic? Then a change
+// to its definition warns.
+
+// ListDef is one side of a list-definition write.
+type ListDef struct {
+	Present          bool
+	Name             string
+	Include, Exclude string
+}
+
+// CheckListDefinition judges one interface-list write.
+func CheckListDefinition(ctx FWContext, rules []ListRule, action string, before, after ListDef) Verdict {
+	if !ctx.Resolved || !before.Present {
+		return Verdict{Level: "none"} // fail open; a new list is in no rule yet
+	}
+	change := ""
+	switch {
+	case !after.Present:
+		change = "delete"
+	case strings.TrimSpace(after.Name) != strings.TrimSpace(before.Name):
+		change = "rename"
+	case strings.TrimSpace(after.Include) != strings.TrimSpace(before.Include) ||
+		strings.TrimSpace(after.Exclude) != strings.TrimSpace(before.Exclude):
+		change = "redefine"
+	default:
+		return Verdict{Level: "none"} // a comment moves nobody
+	}
+	name := strings.TrimSpace(before.Name)
+	for _, r := range rules {
+		if r.Rule.Disabled || !strings.EqualFold(strings.TrimSpace(r.Rule.Chain), "input") {
+			continue
+		}
+		probe := r.Rule
+		probe.InInterface = ""
+		if !MatchesUs(probe, ctx) {
+			continue
+		}
+		match, _ := strings.CutPrefix(strings.TrimSpace(r.Match), "!")
+		act := strings.ToLower(strings.TrimSpace(r.Rule.Action))
+		if strings.TrimSpace(match) != name || !(act == "accept" || act == "drop" || act == "reject" || act == "tarpit") {
+			continue
+		}
+		return Verdict{
+			Level: "warn", Code: "list-redefine",
+			Detail: map[string]any{"list": name, "change": change, "action": action,
+				"rule": r.ID, "ruleMatch": r.Match, "ruleAction": act},
+			Fingerprint: listFingerprint("definition", action, name, change, r.ID, ctx.Addresses, ctx.Interfaces),
+		}
+	}
+	return Verdict{Level: "none"}
+}

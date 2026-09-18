@@ -32,6 +32,11 @@
       "settingsKey": null
     },
     {
+      "key": "interface-lists",
+      "title": "Interface Lists",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

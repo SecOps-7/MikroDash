@@ -1,0 +1,70 @@
+{
+ "collector": "areas",
+ "resource": "ifList",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. LAN and WAN (WAN including the built-in dynamic list) were created FOR the capture and removed afterwards; nothing here describes a real network. What is real is the reply's shape: which fields RouterOS returns and how it spells them. Read through /interface/list/print; tools/capture-fixtures.js cannot capture an area. The four built-in lists (all, none, dynamic, static) are RouterOS's own, reported builtin=true, and cannot be changed.",
+ "exchanges": [
+  {
+   "cmd": "/interface/list/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*2000000",
+     "builtin": "true",
+     "comment": "contains all interfaces",
+     "dynamic": "false",
+     "exclude": "",
+     "include": "",
+     "name": "all"
+    },
+    {
+     ".id": "*2000001",
+     "builtin": "true",
+     "comment": "contains no interfaces",
+     "dynamic": "false",
+     "exclude": "",
+     "include": "",
+     "name": "none"
+    },
+    {
+     ".id": "*2000002",
+     "builtin": "true",
+     "comment": "contains dynamic interfaces",
+     "dynamic": "false",
+     "exclude": "",
+     "include": "",
+     "name": "dynamic"
+    },
+    {
+     ".id": "*2000003",
+     "builtin": "true",
+     "comment": "contains static interfaces",
+     "dynamic": "false",
+     "exclude": "",
+     "include": "",
+     "name": "static"
+    },
+    {
+     ".id": "*2000010",
+     "builtin": "false",
+     "comment": "fixture capture",
+     "dynamic": "false",
+     "exclude": "",
+     "include": "",
+     "name": "LAN"
+    },
+    {
+     ".id": "*2000011",
+     "builtin": "false",
+     "dynamic": "false",
+     "exclude": "",
+     "include": "dynamic",
+     "name": "WAN"
+    }
+   ]
+  }
+ ]
+}

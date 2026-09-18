@@ -145,6 +145,18 @@
       "page": "firewall"
     },
     {
+      "name": "list_ifList",
+      "access": "read",
+      "resource": "ifList",
+      "page": "interface-lists"
+    },
+    {
+      "name": "list_ifListMember",
+      "access": "read",
+      "resource": "ifListMember",
+      "page": "interface-lists"
+    },
+    {
       "name": "list_iface",
       "access": "read",
       "resource": "iface",

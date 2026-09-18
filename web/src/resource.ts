@@ -353,6 +353,14 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
           (str(w.effect) === 'loses-accept' ? 'stop accepting' : 'drop') + ' its traffic.',
       };
     }
+    case 'list-redefine': {
+      const verb = str(w.change) === 'delete' ? 'deletes' : str(w.change) === 'rename' ? 'renames' : 'changes what is in';
+      return {
+        headline: cut,
+        why: 'This ' + verb + ' the list <code>' + esc(str(w.list) || '?') + '</code>, which the input rule matching <code>' +
+          esc(str(w.ruleMatch) || '?') + '</code> uses to decide on MikroDash\'s own traffic.',
+      };
+    }
     case 'self-lockout':
       return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
     case 'self-throttle': {
