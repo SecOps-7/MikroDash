@@ -93,6 +93,22 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 		// model invented becomes established by repetition.
 		return "There is no such resource. Use one of the names the tool lists."
 	}
+	// ── A FIELD THE RESOURCE DOES NOT HAVE IS REFUSED, NOT DROPPED ──────────
+	//
+	// Validate walks the resource's fields and ignores every other key, which is
+	// right for a form that can only send its own fields and wrong for a model
+	// that can send anything. Measured on the hAP AC2 on 2026-09-18: asked for an
+	// input accept rule matching `src-address-list`, which fwFilter does not
+	// declare, the assistant sent it, the key was dropped, and the router got an
+	// UNCONDITIONAL input accept. A write must be what was asked or nothing.
+	// Display fields are refused too: they are never sent, so naming one is the
+	// same silent drop. The invented name is not echoed, as a resource's is not.
+	if !args.Delete {
+		if bad := undeclaredFields(res, args.Values); bad > 0 {
+			return fmt.Sprintf("%d of those field names are not fields %s can set, so nothing was changed. "+
+				"Its settable fields are: %s.", bad, res.Label, strings.Join(settableFields(res), ", "))
+		}
+	}
 	// RE-CHECKED, though `Permitted` already filtered the enum. The enum was
 	// built when the question was asked and a role can be edited while an answer
 	// is being composed.
@@ -573,4 +589,31 @@ func quoted(name string) string {
 		return "row"
 	}
 	return "\"" + name + "\""
+}
+
+// undeclaredFields counts the keys in `values` that are not settable fields of
+// the resource: unknown names, and Display fields, which are never sent.
+func undeclaredFields(res *resource.Resource, values map[string]any) int {
+	ok := map[string]bool{}
+	for _, f := range settableFields(res) {
+		ok[f] = true
+	}
+	bad := 0
+	for k := range values {
+		if !ok[k] {
+			bad++
+		}
+	}
+	return bad
+}
+
+// settableFields is every field a write may name, in declaration order.
+func settableFields(res *resource.Resource) []string {
+	var out []string
+	for _, f := range res.Fields {
+		if !f.Display {
+			out = append(out, f.Name)
+		}
+	}
+	return out
 }

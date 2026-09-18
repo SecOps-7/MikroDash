@@ -250,6 +250,37 @@ func TestTheWriteToolRefusesBeforeItTouchesAnything(t *testing.T) {
 	}
 }
 
+// TestAFieldTheResourceDoesNotHaveIsRefused. Validate ignores keys it does not
+// know, so a field the model invented used to vanish and the REST was written:
+// asked for an input accept on `src-address-list`, which fwFilter does not
+// declare, the hAP AC2 received an unconditional input accept. Refused before
+// permission or any read, and the invented name is not echoed.
+func TestAFieldTheResourceDoesNotHaveIsRefused(t *testing.T) {
+	cn := &conn{}
+	got := cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","values":{"chain":"input","action":"accept","srcAddressList":"mgmt"}}`))
+	if !strings.Contains(got, "nothing was changed") || !strings.Contains(got, "srcAddress") {
+		t.Errorf("an undeclared field produced %q", got)
+	}
+	if strings.Contains(got, "srcAddressList") {
+		t.Errorf("the invented field name was echoed back: %q", got)
+	}
+	// A Display field is never sent, so naming one is the same silent drop.
+	got = cn.runAIWriteTool(writeCall(`{"resource":"ipPool","values":{"name":"p","ranges":"198.51.100.1-198.51.100.9","used":"3"}}`))
+	if !strings.Contains(got, "nothing was changed") {
+		t.Errorf("a Display field produced %q", got)
+	}
+	// CONTROL: only declared fields get past this check, to the permission one.
+	got = cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","values":{"chain":"input","action":"accept"}}`))
+	if !strings.Contains(got, "permission") {
+		t.Errorf("declared fields alone produced %q", got)
+	}
+	// A delete names no values, so it is not held to this.
+	got = cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","id":"*1","delete":true,"values":{"bogus":"x"}}`))
+	if strings.Contains(got, "nothing was changed") && !strings.Contains(got, "permission") {
+		t.Errorf("a delete was refused on its values: %q", got)
+	}
+}
+
 // TestADeleteNeedsAnIDAndPermission. The delete branch refuses before it reads
 // anything, in the same order as an edit: permission first, then a device, then
 // the row id. The control is an edit on the same resource, refused the same way.
