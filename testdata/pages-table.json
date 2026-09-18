@@ -209,6 +209,7 @@
     "users",
     "logs",
     "packages",
+    "tools",
     "devices",
     "ai-agent",
     "reports",

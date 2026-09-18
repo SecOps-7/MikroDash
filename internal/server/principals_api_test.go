@@ -145,10 +145,15 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	//
 	// COUNTED APART SINCE 2026-09-18, when IP Addresses became the second area and
 	// this number would have moved again — as it would for every area after it.
-	// Areas are held to "no toggle" one by one above; the four are counted here.
-	if noToggle != 4 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 4 (dashboard, reports, "+
-			"settings, ai-agent)", noToggle)
+	// Areas are held to "no toggle" one by one above; the rest are counted here.
+	//
+	// FIVE SINCE THE TOOLS PAGE (slice 8), by the operator's choice on 2026-09-18.
+	// It runs nothing until somebody starts a tool, so hiding it is a question of
+	// who may run diagnostics — the permission matrix — and not of router load,
+	// which is what the Visible Pages toggles exist to answer.
+	if noToggle != 5 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 5 (dashboard, reports, "+
+			"settings, ai-agent, tools)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

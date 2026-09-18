@@ -82,6 +82,11 @@
       "settingsKey": null
     },
     {
+      "key": "tools",
+      "title": "Tools",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"
