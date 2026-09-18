@@ -175,6 +175,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "dhcp-clients", title: "DHCP Clients", navGroup: "ipsvc",
+    icon: "<rect x=\"3\" y=\"15\" width=\"18\" height=\"6\" rx=\"1.5\"/><path d=\"M12 3v9\"/><path d=\"M8 8l4 4 4-4\"/><path d=\"M7 18h2\"/>",
+    tables: [
+      { resource: "dhcpClient", title: "DHCP Client", columns: ["interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

@@ -1,0 +1,58 @@
+{
+ "collector": "areas",
+ "resource": "dhcpClient",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router: its own DHCP client on ether1 (bound: the address MikroDash's lab reaches it through) and a disabled one created FOR the capture on a spare bridge, with a script. 7.24 names clients (client1, client2). A bound client reports the address it holds, which is what the dhcpClientPath guard compares with the address MikroDash dials. Addresses mapped into TEST-NET-2. Read through /ip/dhcp-client/print.",
+ "exchanges": [
+  {
+   "cmd": "/ip/dhcp-client/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "add-default-route": "yes",
+     "address": "198.51.100.15/24",
+     "allow-reconfigure": "false",
+     "check-gateway": "none",
+     "default-route-distance": "1",
+     "default-route-tables": "default",
+     "dhcp-options": "hostname,clientid",
+     "dhcp-server": "198.51.100.2",
+     "disabled": "false",
+     "dynamic": "false",
+     "expires-after": "18h32m42s",
+     "gateway": "198.51.100.2",
+     "interface": "ether1",
+     "invalid": "false",
+     "name": "client1",
+     "primary-dns": "198.51.100.3",
+     "status": "bound",
+     "use-broadcast": "both",
+     "use-peer-dns": "true",
+     "use-peer-ntp": "true"
+    },
+    {
+     ".id": "*2",
+     "add-default-route": "no",
+     "allow-reconfigure": "false",
+     "check-gateway": "none",
+     "comment": "md-dhcpc-test",
+     "default-route-tables": "default",
+     "dhcp-options": "hostname,clientid",
+     "disabled": "true",
+     "dynamic": "false",
+     "interface": "md-dhcpc",
+     "name": "client2",
+     "script": ":log info dhcp-bound",
+     "status": "stopped",
+     "use-broadcast": "both",
+     "use-peer-dns": "false",
+     "use-peer-ntp": "true"
+    }
+   ]
+  }
+ ]
+}

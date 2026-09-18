@@ -243,6 +243,7 @@ surface stays complete.
 | `/interface/wireguard/peers` | wgPeer | vpn | add, set, remove |
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |
 | `/interface/wireless/security-profiles` | wlSecProfile | wifi | add, set, remove |
+| `/ip/dhcp-client` | dhcpClient | dhcp-clients | add, set, remove (dhcpClientPath, tunnelDefault, codeGate on the script) |
 | `/ip/dhcp-server/lease` | dhcpLease | dhcp | add, set, remove, make-static |
 | `/ip/address` | ipAddress | ip-addresses | add, set, remove |
 | `/ip/ipsec/peer` | ipsecPeer | ipsec | add, set, remove (guarded by ipsecPath; ppk-secret never read) |

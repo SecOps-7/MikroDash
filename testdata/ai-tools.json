@@ -90,6 +90,12 @@
       "page": "connections"
     },
     {
+      "name": "list_dhcpClient",
+      "access": "read",
+      "resource": "dhcpClient",
+      "page": "dhcp-clients"
+    },
+    {
       "name": "list_dhcpLease",
       "access": "read",
       "resource": "dhcpLease",

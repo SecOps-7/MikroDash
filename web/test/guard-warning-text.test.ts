@@ -126,3 +126,9 @@ assert.strictEqual(showIfValue({ type: 'checkbox', value: 'on', checked: true })
 assert.strictEqual(showIfValue({ type: 'checkbox', value: 'on', checked: false }), 'false');
 assert.strictEqual(showIfValue({ type: 'select-one', value: 'nssa' }), 'nssa');
 say('ok  showIf reads a checkbox by its state and a select by its value');
+
+// THE DHCP CLIENT GUARD names the dialled address and the client's interface.
+const dhcpc = warningText('dhcp-client-cutoff', { address: '10.0.0.53', interface: 'ether1', action: 'delete' });
+assert.ok(dhcpc.headline.includes('cut MikroDash off') && dhcpc.why.includes('10.0.0.53') && dhcpc.why.includes('ether1') &&
+  dhcpc.why.includes('removes'), 'dhcp-client-cutoff: ' + dhcpc.why);
+say('ok  dhcp-client-cutoff names the address MikroDash dials and the client that holds it');

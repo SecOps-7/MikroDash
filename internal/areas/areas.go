@@ -299,6 +299,15 @@ var declared = []Area{
 			Columns: []string{"name", "interface", "user", "serviceName", "addDefaultRoute", "running", "invalid", "disabled", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// DHCP clients: how this router takes its uplink addresses. Renew and release
+	// stay on the WAN page.
+	{
+		Key: "dhcp-clients", Title: "DHCP Clients", NavGroup: "ipsvc",
+		Icon: `<rect x="3" y="15" width="18" height="6" rx="1.5"/><path d="M12 3v9"/><path d="M8 8l4 4 4-4"/><path d="M7 18h2"/>`,
+		Tables: []Table{{Resource: "dhcpClient",
+			Columns: []string{"interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

@@ -89,6 +89,9 @@ func TestATunnelsDefaultRouteIsTheRouteItInstalls(t *testing.T) {
 	if r := tunnelDefaultRoute(map[string]string{"name": "pppoe-out1", "addDefaultRoute": "yes", "defaultRouteDistance": "5"}); r.Distance != "5" {
 		t.Errorf("a PPPoE client's route distance is %q, want its own 5", r.Distance)
 	}
+	if r := tunnelDefaultRoute(map[string]string{"interface": "ether1", "addDefaultRoute": "special-classless"}); !r.Present || r.Gateway != "ether1" {
+		t.Errorf("a DHCP client's special-classless installs no route through its interface: %+v", r)
+	}
 	for name, v := range map[string]map[string]string{
 		"off":      {"name": "c", "addDefaultRoute": "no"},
 		"disabled": {"name": "c", "addDefaultRoute": "yes", "disabled": "true"},

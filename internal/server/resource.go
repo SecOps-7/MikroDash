@@ -35,6 +35,8 @@ import (
 	"errors"
 	"log"
 	"mikrodash/internal/areas"
+	"net"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -1167,7 +1169,7 @@ var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
-	"rulePath": true, "ipsecPath": true, "tunnelDefault": true,
+	"rulePath": true, "ipsecPath": true, "tunnelDefault": true, "dhcpClientPath": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1236,6 +1238,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "tunnelDefault":
 			if v := cn.tunnelDefaultVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "dhcpClientPath":
+			if v := cn.dhcpClientVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		case "addressPath":
@@ -1453,7 +1459,9 @@ func (cn *conn) tunnelDefaultVerdict(res *resource.Resource, action string,
 // checkbox.
 func tunnelDefaultRoute(v map[string]string) guard.RouteChange {
 	yes := func(k string) bool { return v[k] == "true" || v[k] == "yes" }
-	if v == nil || !yes("addDefaultRoute") || yes("disabled") {
+	// A DHCP client's `special-classless` installs the default route too.
+	on := yes("addDefaultRoute") || v["addDefaultRoute"] == "special-classless"
+	if v == nil || !on || yes("disabled") {
 		return guard.RouteChange{}
 	}
 	// PPPoE installs it at its own default-route-distance; OpenVPN has none, so 1.
@@ -1461,7 +1469,44 @@ func tunnelDefaultRoute(v map[string]string) guard.RouteChange {
 	if distance == "" {
 		distance = "1"
 	}
-	return guard.RouteChange{Present: true, Dst: "0.0.0.0/0", Gateway: v["name"], Distance: distance, Table: "main"}
+	via := v["name"]
+	if via == "" {
+		via = v["interface"] // a DHCP client is not named after its interface
+	}
+	return guard.RouteChange{Present: true, Dst: "0.0.0.0/0", Gateway: via, Distance: distance, Table: "main"}
+}
+
+// dhcpClientVerdict asks whether a DHCP client write takes away the address
+// MikroDash dials. The dialled host is this session's own, resolved when it is a
+// name; the address the client holds comes from the stored row.
+func (cn *conn) dhcpClientVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var was, now guard.DHCPClientChange
+	if before != nil {
+		b := histValues(res.RowValues(before))
+		was = guard.DHCPClientChange{Present: true, Disabled: b["disabled"] == "true",
+			Interface: b["interface"], Address: b["address"]}
+	}
+	if action != "delete" && values != nil {
+		d := values["disabled"]
+		now = guard.DHCPClientChange{Present: true, Disabled: d == "true" || d == "yes", Interface: values["interface"]}
+	}
+	return guard.CheckDHCPClientEdit(dialledAddresses(cn.rsession.Host()), action, was, now)
+}
+
+// dialledAddresses is the address MikroDash reaches a router at: the host as
+// configured, or what a name resolves to here. A name that does not resolve
+// gives nothing, and the DHCP client guard then fails open.
+func dialledAddresses(host string) []string {
+	if _, err := netip.ParseAddr(host); err == nil {
+		return []string{host}
+	}
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return nil
+	}
+	return addrs
 }
 
 // ipsecVerdict asks the IPsec guard about a policy, peer or identity write.

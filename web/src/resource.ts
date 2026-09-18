@@ -387,6 +387,15 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
         why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether peer <code>' +
           esc(str(w.peer) || '?') + '</code> carries its own connection.',
       };
+    case 'dhcp-client-cutoff': {
+      const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
+      return {
+        headline: cut,
+        why: 'MikroDash reaches this router at <code>' + esc(str(w.address) || '?') + '</code>, the address the DHCP ' +
+          'client on <code>' + esc(str(w.interface) || '?') + '</code> holds, and this change ' + verb +
+          ' that client, which takes the address away.',
+      };
+    }
     case 'rule-cutoff-unknown':
       return {
         headline: cut,

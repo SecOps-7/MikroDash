@@ -1896,6 +1896,39 @@ var PPPoEClient = &Resource{
 	},
 }
 
+// DHCPClient is /ip/dhcp-client: how a router takes its uplink address. Checked
+// against rosetta and both test routers (7.24.3), whose uplinks are both DHCP
+// clients. Guarded by dhcpClientPath (removing, disabling or moving the client
+// that holds the address MikroDash dials) and tunnelDefault (the default route
+// it installs, `yes` or `special-classless`). Its script is RouterOS code, behind
+// codeGate. Renew and release stay on the WAN page, which has its own guard.
+var DHCPClient = &Resource{
+	Key: "dhcpClient", Page: "dhcp-clients", Label: "DHCP Client",
+	Title: "DHCP Client", Menu: "/ip/dhcp-client", Identity: []string{"interface"},
+	Guard:          []string{"dhcpClientPath", "tunnelDefault", "codeGate"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "dynamic",
+	Fields: []Field{
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "addDefaultRoute", ROS: "add-default-route", Label: "Add Default Route", Type: TypeSelect,
+			Options: []string{"yes", "no", "special-classless"}},
+		{Name: "defaultRouteDistance", ROS: "default-route-distance", Label: "Default Route Distance", Type: TypeInt,
+			Min: intp(0), Max: intp(255), ShowIf: &ShowIf{Field: "addDefaultRoute", In: []string{"yes", "special-classless"}}},
+		{Name: "usePeerDns", ROS: "use-peer-dns", Label: "Use Peer DNS", Type: TypeBool, Clearable: true},
+		{Name: "usePeerNtp", ROS: "use-peer-ntp", Label: "Use Peer NTP", Type: TypeBool, Clearable: true},
+		{Name: "checkGateway", ROS: "check-gateway", Label: "Check Gateway", Type: TypeSelect,
+			Options: []string{"none", "arp", "ping", "bfd"}},
+		{Name: "script", ROS: "script", Label: "Script", Type: TypeCode, Code: true, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "status", ROS: "status", Label: "Status", Type: TypeText, Display: true},
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Display: true},
+		{Name: "gateway", ROS: "gateway", Label: "Gateway", Type: TypeText, Display: true},
+		{Name: "expiresAfter", ROS: "expires-after", Label: "Expires After", Type: TypeText, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2548,6 +2581,7 @@ var byKey = map[string]*Resource{
 	OVPNClient.Key:          OVPNClient,
 	VRRP.Key:                VRRP,
 	PPPoEClient.Key:         PPPoEClient,
+	DHCPClient.Key:          DHCPClient,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,
