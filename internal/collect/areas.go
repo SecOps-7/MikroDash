@@ -238,7 +238,7 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 		}
 		// THROUGH THE CACHE. These menus are shared: /ip/pool is read by
 		// dhcpNetworks too, and whichever asks first should pay for both.
-		rows, err := readVia(a.cache, a.ros, routeros.Cmd{Path: res.Menu + "/print"}, area.Poll)
+		rows, err := readVia(a.cache, a.ros, areaReadCmd(res), area.Poll)
 		table := BuildAreaRows(res, t.Title, t.Columns, rows)
 		// FOUR ANSWERS, FOUR MEANINGS (#97, carried over from the IP Addresses
 		// collector this replaced). Rows are the router's rows. A refusal and a
@@ -279,6 +279,35 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 	if changed {
 		EvAreaUpdate.Emit(a.emit, AreaRoomFor(area.Key), payload)
 	}
+}
+
+// areaReadCmd is one resource's read: its menu, and ONLY the fields it declares.
+//
+// ── A PROPLIST, BECAUSE THE CACHE ENTRY IS SHARED ───────────────────────────
+//
+// The cache keeps one entry per menu, holding the UNION of every consumer's
+// fields, and a read with no proplist means "all of them" — which drops the
+// entry's proplist for good (`roscache` widen). Read that way, opening IP
+// Addresses made every later `/ip/address` read by Interfaces, WAN and DHCP
+// Networks fetch every property too, and IP Pools did the same to DHCP
+// Networks' `/ip/pool`. No extra channel, but every one of those reads carried
+// what nobody renders. Found on 2026-09-18, after the IP Addresses migration.
+//
+// The fields are the resource's: `.id` to address a row, and every field's
+// RouterOS name, identity and Display fields included. A secret is never ASKED
+// for — not merely dropped afterwards by BuildAreaRows — so none can reach this
+// process, let alone the cache another collector reads.
+func areaReadCmd(res *resource.Resource) routeros.Cmd {
+	props := []string{".id"}
+	seen := map[string]bool{".id": true}
+	for _, f := range res.Fields {
+		if f.Type == resource.TypeSecret || f.ROS == "" || seen[f.ROS] {
+			continue
+		}
+		seen[f.ROS] = true
+		props = append(props, f.ROS)
+	}
+	return routeros.Cmd{Path: res.Menu + "/print", Args: []string{"=.proplist=" + strings.Join(props, ",")}}
 }
 
 // lastTable is the table this area last sent for one resource, or nil.

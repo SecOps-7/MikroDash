@@ -403,7 +403,7 @@ is one collector, already in the registry as `areas`, and a declaration each.
 |---|---|
 | chooses its menus | per tick, from the declarations and which page rooms are occupied |
 | declares its rooms | one `page-<key>` per area, generated — so the demand rule applies unchanged |
-| reads | poll only, each area on its own declared interval; configuration never streams |
+| reads | poll only, each area on its own declared interval; configuration never streams. Through the per-router cache but NOT the scheduler: its menus are chosen per tick, so the loop is the schedule (`firewall` is the precedent). Every read names its fields, `.id` plus the resource's declared fields, never a secret: a read with no proplist would widen the shared cache entry to every field for every other consumer of that menu |
 | derives | `BuildAreaRows`: rows to id, identity and values, keyed by the resource's FIELD names |
 | sends | `area:update`, to that area's room alone; the last one is replayed on `page:focus` |
 | fails | a refusal says so, a menu the build lacks says so, and anything else keeps the last rows and re-reads at the next tick |

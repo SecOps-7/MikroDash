@@ -240,6 +240,63 @@ func TestAFirstReadThatFailsSendsNothing(t *testing.T) {
 	}
 }
 
+// TestEveryAreaReadNamesItsFields. A read with no proplist asks for every field,
+// and in the shared cache that WIDENS the menu's entry for every other consumer,
+// permanently (roscache widen). So every area read must name its fields: `.id`
+// and every field the resource declares, never a secret — and in the one shape
+// the cache can share. Measured from what a real tick sends, for every area.
+func TestEveryAreaReadNamesItsFields(t *testing.T) {
+	r := &cmdRecorder{}
+	NewAreas(r, Emit{}).WithOccupancy(func(string) bool { return true }).Tick()
+	if want := len(areas.Resources()); len(r.cmds) != want || want == 0 {
+		t.Fatalf("a tick over every area sent %d reads for %d declared resources", len(r.cmds), want)
+	}
+	for _, cmd := range r.cmds {
+		var res *resource.Resource
+		for _, key := range areas.Resources() {
+			if c := resource.ByKey(key); c != nil && c.Menu+"/print" == cmd.Path {
+				res = c
+			}
+		}
+		if res == nil {
+			t.Errorf("%s: read by the areas collector and no area's resource", cmd.Path)
+			continue
+		}
+		fields, ok := cacheableFields(cmd)
+		if !ok || len(fields) == 0 {
+			t.Errorf("%s %v: not a proplist read, so it widens the shared cache entry to every field", cmd.Path, cmd.Args)
+			continue
+		}
+		asked := map[string]bool{}
+		for _, f := range fields {
+			asked[f] = true
+		}
+		if !asked[".id"] {
+			t.Errorf("%s: no .id, so no row could be addressed", cmd.Path)
+		}
+		for _, f := range res.Fields {
+			switch {
+			case f.Type == resource.TypeSecret && asked[f.ROS]:
+				t.Errorf("%s asks the router for secret %q", cmd.Path, f.ROS)
+			case f.Type != resource.TypeSecret && !asked[f.ROS]:
+				t.Errorf("%s does not ask for %q, which %s declares, so its column would be blank", cmd.Path, f.ROS, res.Key)
+			}
+		}
+		if len(fields) != len(asked) {
+			t.Errorf("%s asks for a field twice: %v", cmd.Path, fields)
+		}
+	}
+}
+
+// cmdRecorder answers nothing and remembers every command.
+type cmdRecorder struct{ cmds []routeros.Cmd }
+
+func (c *cmdRecorder) Connected() bool { return true }
+func (c *cmdRecorder) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
+	c.cmds = append(c.cmds, cmd)
+	return nil, nil
+}
+
 // menuScript answers each menu from a table, or with that menu's error.
 type menuScript struct {
 	rows map[string][]routeros.Reply
