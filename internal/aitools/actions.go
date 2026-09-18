@@ -105,6 +105,15 @@ func Actions() []ActionSpec {
 			Summary: "Watch one interface's traffic for 5 seconds with /tool/torch and report the " +
 				"busiest flows by protocol, address and port, with their average rates. It loads " +
 				"the router's CPU while it runs."},
+		// CONTAINERS, the operator's choice: the Containers page's row actions and
+		// its delete, by container NAME. Starting one runs its image; changing
+		// what an image or command is stays behind codeGate on change_row.
+		{Key: "container_start", Page: "containers", Target: "container",
+			Summary: "Start a stopped container."},
+		{Key: "container_stop", Page: "containers", Target: "container",
+			Summary: "Stop a running container."},
+		{Key: "container_remove", Page: "containers", Target: "container",
+			Summary: "Remove a container. Its image layers go with it; its mounts and env lists stay."},
 		{Key: "bandwidth_test", Page: "tools", Target: "address", Credentials: true,
 			Summary: "Run a 5-second TCP bandwidth test, both directions, from the router to another " +
 				"MikroTik router's bandwidth server, and report the average throughput each way. It " +

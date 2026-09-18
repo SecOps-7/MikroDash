@@ -873,13 +873,29 @@ func (cn *conn) resAction(raw json.RawMessage) {
 	if res == nil {
 		return
 	}
+	// A human at a form: no provenance to add.
+	out := cn.runRowAction(res, req, "")
+	if out.Code == "" {
+		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
+			"resource": res.Key, "action": out.Action, "name": out.Name})
+		return
+	}
+	cn.resErr(res.Key, out.Code, out.Name, out.Detail)
+}
+
+// runRowAction is the row-action path itself, shared by `res:action` and the
+// assistant's run_action. Like `writeRow` and `removeRow` it performs every side
+// effect — the fresh read, the row's own When, the guard, the command, the
+// read-back, history, audit and refresh — and RETURNS what happened; `via` is
+// the caller's provenance, recorded on the audit row.
+func (cn *conn) runRowAction(res *resource.Resource, req *resRequest, via string) writeOutcome {
 	def := res.ActionByKey(req.Action)
 	if def == nil || req.ID == "" {
-		cn.resErr(res.Key, "bad-request", "", nil)
-		return
+		return writeOutcome{Code: "bad-request"}
 	}
 	action := res.Key + "." + def.Key
 
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
 		rows, err := cn.readMenu(res)
 		if err != nil {
@@ -887,7 +903,7 @@ func (cn *conn) resAction(raw json.RawMessage) {
 		}
 		row := find(res, rows, req.ID, req.ExpectedIdentity)
 		if row == nil {
-			cn.resErr(res.Key, "stale-row", "", nil)
+			out = writeOutcome{Code: "stale-row"}
 			return nil
 		}
 		name := res.IdentityOf(row)
@@ -899,7 +915,7 @@ func (cn *conn) resAction(raw json.RawMessage) {
 				Action: action, TargetType: res.Key, RouterID: cn.routerID,
 				TargetID: req.ID, TargetName: name, Note: "not-applicable",
 			})
-			cn.resErr(res.Key, "not-applicable", name, nil)
+			out = writeOutcome{Code: "not-applicable", Name: name}
 			return nil
 		}
 
@@ -909,18 +925,18 @@ func (cn *conn) resAction(raw json.RawMessage) {
 				Action: action, TargetType: res.Key, RouterID: cn.routerID,
 				TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
 			})
-			cn.resErr(res.Key, "guard-not-ported", name,
-				map[string]any{"message": safe.Message(gerr.Error())})
+			out = writeOutcome{Code: "guard-not-ported", Name: name,
+				Detail: map[string]any{"message": safe.Message(gerr.Error())}}
 			return nil
 		}
 		if r := cn.guardRefusal(res, def.Key, req.ID, name, verdict); r != nil {
-			cn.resErr(res.Key, r.Code, name, r.Detail)
+			out = writeOutcome{Code: r.Code, Name: name, Detail: r.Detail}
 			return nil
 		}
 		if gate := ackGate(verdict, req.Ack); gate != nil {
-			gate["resource"] = res.Key
-			gate["name"] = name
-			EvResError.Send(cn.srv.hub, cn.c, gate)
+			code, _ := gate["code"].(string)
+			delete(gate, "code")
+			out = writeOutcome{Code: code, Name: name, Detail: gate}
 			return nil
 		}
 
@@ -931,10 +947,12 @@ func (cn *conn) resAction(raw json.RawMessage) {
 		// The row must show the verb took before it is reported (#97).
 		after, rerr := cn.readMenu(res)
 		if rerr != nil {
-			return cn.outcomeUnknown(res, action, req.ID, name, req.Ack)
+			out = cn.unknownOutcome(res, action, req.ID, name, req.Ack, via)
+			return nil
 		}
 		if _, ok := confirmAction(after, req.ID, def.Verb); !ok {
-			return cn.outcomeUnknown(res, action, req.ID, name, req.Ack)
+			out = cn.unknownOutcome(res, action, req.ID, name, req.Ack, via)
+			return nil
 		}
 
 		// enable and disable invert each other, so they are recorded. A verb
@@ -942,19 +960,23 @@ func (cn *conn) resAction(raw json.RawMessage) {
 		// so by returning nil.
 		cn.histPush(res.Key, history.Build(res.Key, res.Label, def.Key, req.ID, name, nil, nil))
 
-		cn.recorder().Record(audit.Event{
+		ev := audit.Event{
 			Action: action, TargetType: res.Key, RouterID: cn.routerID,
 			TargetID: req.ID, TargetName: name, Note: def.Note,
-		})
+		}
+		if via != "" {
+			ev.Extra = []audit.KV{{Key: "via", Value: via}}
+		}
+		cn.recorder().Record(ev)
 
 		cn.refreshFor(res)
-		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
-			"resource": res.Key, "action": def.Key, "name": name})
+		out = writeOutcome{Action: def.Key, Name: name}
 		return nil
 	})
 	if err != nil {
-		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
+		return writeOutcome{Code: writeFailCode(err), Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
+	return out
 }
 
 // resNew opens a blank Add form.

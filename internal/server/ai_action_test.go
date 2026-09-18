@@ -229,3 +229,31 @@ func TestThePackageActionsReadBeforeTheyDecide(t *testing.T) {
 		}
 	}
 }
+
+// TestTheContainerActionsNameTheirCommand. The operator's choice: start, stop
+// and remove a container through run_action, each needing the container's name
+// and each shown in the dialog as the command it runs. The command comes from
+// the server, never from the model.
+func TestTheContainerActionsNameTheirCommand(t *testing.T) {
+	want := map[string]string{
+		"container_start":  "/container/start (md-alpine)",
+		"container_stop":   "/container/stop (md-alpine)",
+		"container_remove": "/container/remove (md-alpine)",
+	}
+	for key, cmd := range want {
+		spec, ok := aitools.ActionByKey(key)
+		if !ok {
+			t.Errorf("%s is not declared", key)
+			continue
+		}
+		if spec.Page != "containers" || spec.Target != "container" {
+			t.Errorf("%s: page %q target %q, want containers and container", key, spec.Page, spec.Target)
+		}
+		if got := aiActionCommand(spec, "md-alpine", ""); got != cmd {
+			t.Errorf("%s shows %q, want %q", key, got, cmd)
+		}
+		if _, _, refusal := actionArgs(spec, "", ""); refusal == "" {
+			t.Errorf("%s was accepted without a container name", key)
+		}
+	}
+}

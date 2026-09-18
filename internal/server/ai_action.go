@@ -27,6 +27,7 @@ import (
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/diag"
+	"mikrodash/internal/resource"
 )
 
 // runAIActionTool is `run_action`. Like every tool it returns an ANSWER rather
@@ -159,6 +160,12 @@ func aiActionLabel(spec aitools.ActionSpec, mode string) string {
 		return "Watch an interface's traffic"
 	case "bandwidth_test":
 		return "Bandwidth test"
+	case "container_start":
+		return "Start a container"
+	case "container_stop":
+		return "Stop a container"
+	case "container_remove":
+		return "Remove a container"
 	}
 	return spec.Key
 }
@@ -181,6 +188,10 @@ func aiActionCommand(spec aitools.ActionSpec, target, mode string) string {
 		return "/system/routerboard/upgrade, then /system/reboot"
 	case "torch":
 		return fmt.Sprintf("/tool/torch interface=%s duration=%ds", target, diag.TorchDefaultSeconds)
+	case "container_start", "container_stop":
+		return "/container/" + strings.TrimPrefix(spec.Key, "container_") + " (" + target + ")"
+	case "container_remove":
+		return "/container/remove (" + target + ")"
 	case "bandwidth_test":
 		// The login is typed at approval and is not part of what is shown here.
 		return fmt.Sprintf("/tool/bandwidth-test address=%s duration=%ds protocol=%s direction=%s",
@@ -237,6 +248,10 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, in actionApproval) {
 		out = cn.runTorchAction(p.target)
 	case "bandwidth_test":
 		out = cn.runBtestAction(p.target, in.User, in.Password)
+	case "container_start", "container_stop":
+		out = cn.runContainerAction(p.target, strings.TrimPrefix(spec.Key, "container_"))
+	case "container_remove":
+		out = cn.runContainerRemove(p.target)
 	}
 
 	if out.Code != "" {
@@ -300,6 +315,8 @@ func aiActionRefusal(spec aitools.ActionSpec, out writeOutcome) string {
 		return "Not run: another diagnostic is still running for this operator."
 	case "interface":
 		return "Not run: this router has no interface of that name."
+	case "not-applicable":
+		return "Not run: it is already in that state."
 	case "address", "request":
 		if msg, _ := out.Detail["message"].(string); msg != "" {
 			return "Not run: " + msg + "."
@@ -347,6 +364,12 @@ func aiActionApplied(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutco
 		if r, ok := out.Detail["btest"].(*diag.BtestResult); ok {
 			return btestSummary(r)
 		}
+	case "container_start":
+		return fmt.Sprintf("Done: %s was started. It may take a few seconds to show as running.", quoted(p.target))
+	case "container_stop":
+		return fmt.Sprintf("Done: %s was stopped.", quoted(p.target))
+	case "container_remove":
+		return fmt.Sprintf("Done: %s was removed.", quoted(p.target))
 	}
 	return "Done."
 }
@@ -357,4 +380,39 @@ func (cn *conn) aiActionDone(key string, applied bool, text string) {
 	EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
 		"applied": applied, "resource": key, "name": "", "text": text,
 	})
+}
+
+// containerID resolves a container NAME to its id from a fresh read. The model
+// names a container as list_container reported it, never by id.
+func (cn *conn) containerID(name string) string {
+	rows, err := cn.readMenu(resource.Container)
+	if err != nil {
+		return ""
+	}
+	for _, r := range rows {
+		if r["name"] == name {
+			return r[".id"]
+		}
+	}
+	return ""
+}
+
+// runContainerAction is an approved container_start or container_stop: the
+// Containers page's own row action, through the same path, with the agent's
+// provenance.
+func (cn *conn) runContainerAction(name, verb string) writeOutcome {
+	id := cn.containerID(name)
+	if id == "" {
+		return writeOutcome{Code: "bad-request"}
+	}
+	return cn.runRowAction(resource.Container, &resRequest{ID: id, ExpectedIdentity: name, Action: verb}, "agent")
+}
+
+// runContainerRemove is an approved container_remove: the page's delete.
+func (cn *conn) runContainerRemove(name string) writeOutcome {
+	id := cn.containerID(name)
+	if id == "" {
+		return writeOutcome{Code: "bad-request"}
+	}
+	return cn.removeRow(resource.Container, &resRequest{ID: id, ExpectedIdentity: name}, "agent")
 }
