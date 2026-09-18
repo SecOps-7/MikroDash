@@ -118,7 +118,7 @@ var declared = []Area{
 	// IP services: the router's own services, and the live connections RouterOS
 	// 7.24 lists beside them. The one MikroDash connects through is guarded.
 	{
-		Key: "ip-services", Title: "IP Services", NavGroup: "ipsvc",
+		Key: "ip-services", Title: "Services", NavGroup: "system",
 		Tables: []Table{{Resource: "ipService",
 			Columns: []string{"name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"}}},
 		Poll: 60 * time.Second,
