@@ -42,10 +42,14 @@ same permissions, checks and audit trail as the forms.
   client holding the address MikroDash connects to.
 - **Code the router runs** (scripts, scheduler, VRRP scripts, container images) can only
   be changed by a global administrator.
+- **Removing, disabling or unsetting FIB on a routing table that rules use asks first**,
+  naming how many rules would stop working.
 
 ### Fixed
 
 - **An approved assistant edit no longer clears fields it did not name.**
+- **A WiFi frequency scan the router refuses now says so**, instead of finishing as a scan
+  that found nothing.
 - **New pages' menu entries open when clicked.** They were reachable only by URL.
 - **BGP sessions on RouterOS 7 are read correctly** by the routing collector.
 - **A saved poll interval is the one used**, rather than being clamped to a narrower range.
