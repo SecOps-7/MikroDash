@@ -2,6 +2,7 @@ package aitools
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -175,7 +176,9 @@ func TestEveryDescriptionNamesItsMenu(t *testing.T) {
 		// A LIVE TOOL has no resource, and names the menu its collector reads
 		// instead. Re-aimed for `list_interface_traffic`: the rule was always
 		// "name the RouterOS path and say it cannot write", and that still holds.
-		if tool.Collector != "" {
+		// A DIAGNOSTIC TOOL has no resource either, and names the command it runs.
+		// Re-aimed for `ping` (slice 8) under the same rule.
+		if tool.Collector != "" || tool.Diagnostic != "" {
 			if !liveMenuPath.MatchString(tool.Description) || !strings.Contains(tool.Description, "Read only") {
 				t.Errorf("live tool %q does not name the menu it reads or say it cannot write: %s",
 					tool.Name, tool.Description)
@@ -247,9 +250,13 @@ func TestNoSecretFieldIsAdvertised(t *testing.T) {
 // id and a set of values — and what bounds it is not the absence of arguments
 // but the enum, the validator and the write pipeline. Its own shape is pinned
 // below rather than waved through.
+//
+// DIAGNOSTIC TOOLS ARE THE SECOND EXCEPTION, since slice 8: a ping needs a
+// target. What they take is pinned exactly by TestADiagnosticTakesOnlyItsTarget,
+// and none of it names a menu or a command.
 func TestEveryReadToolTakesNoArguments(t *testing.T) {
 	for _, tool := range All() {
-		if tool.Access != AccessRead {
+		if tool.Access != AccessRead || tool.Diagnostic != "" {
 			continue
 		}
 		props, ok := tool.Parameters["properties"].(map[string]any)
@@ -264,6 +271,40 @@ func TestEveryReadToolTakesNoArguments(t *testing.T) {
 		if extra, _ := tool.Parameters["additionalProperties"].(bool); extra {
 			t.Errorf("tool %q permits additional properties", tool.Name)
 		}
+	}
+}
+
+// TestADiagnosticTakesOnlyItsTarget pins every diagnostic tool's arguments, both
+// ways: an argument added to a tool fails here until it is named, and a tool
+// added without an entry fails too.
+func TestADiagnosticTakesOnlyItsTarget(t *testing.T) {
+	want := map[string][]string{"ping": {"address", "count"}}
+	seen := 0
+	for _, tool := range All() {
+		if tool.Diagnostic == "" {
+			continue
+		}
+		seen++
+		args, ok := want[tool.Name]
+		if !ok {
+			t.Errorf("diagnostic tool %q has no pinned argument list here", tool.Name)
+			continue
+		}
+		props, _ := tool.Parameters["properties"].(map[string]any)
+		got := make([]string, 0, len(props))
+		for k := range props {
+			got = append(got, k)
+		}
+		sort.Strings(got)
+		if strings.Join(got, ",") != strings.Join(args, ",") {
+			t.Errorf("tool %q takes %v, want exactly %v", tool.Name, got, args)
+		}
+		if extra, _ := tool.Parameters["additionalProperties"].(bool); extra {
+			t.Errorf("tool %q permits additional properties", tool.Name)
+		}
+	}
+	if seen != len(want) {
+		t.Errorf("%d diagnostic tools, %d pinned here", seen, len(want))
 	}
 }
 

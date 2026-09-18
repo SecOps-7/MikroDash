@@ -1035,6 +1035,32 @@ export interface TalkersPayload {
   available: boolean;
 }
 
+export interface PingReply {
+  seq: number;
+  host: string;
+  status: string;
+  rttMs: number | null;
+  ttl: number;
+  size: number;
+}
+
+export interface PingResult {
+  address: string;
+  replies: PingReply[];
+  sent: number;
+  received: number;
+  lossPct: number;
+  minMs: number | null;
+  avgMs: number | null;
+  maxMs: number | null;
+}
+
+export interface ToolsPingPayload {
+  result: PingResult | null;
+  code: string;
+  message: string;
+}
+
 export interface TopoDiscovery {
   protocol: string[];
   mode: string;
@@ -1579,6 +1605,7 @@ export interface Events {
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
+  'tools:ping': ToolsPingPayload;
   'topology:update': TopologyPayload;
   'traffic:history': TrafficHistory;
   'traffic:update': TrafficSample;

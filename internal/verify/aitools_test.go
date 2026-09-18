@@ -28,11 +28,12 @@ import (
 // mismatch rather than as nothing at all.
 
 type toolRecord struct {
-	Name      string `json:"name"`
-	Access    string `json:"access"`
-	Resource  string `json:"resource"`
-	Collector string `json:"collector"`
-	Page      string `json:"page"`
+	Name       string `json:"name"`
+	Access     string `json:"access"`
+	Resource   string `json:"resource"`
+	Collector  string `json:"collector"`
+	Diagnostic string `json:"diagnostic"`
+	Page       string `json:"page"`
 }
 
 // writeTool is the ONE tool allowed to change anything. Named here rather than
@@ -76,7 +77,7 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}
 	unbound := 0
-	liveTools := 0
+	liveTools, diagTools := 0, 0
 	for _, r := range loadToolArtefact(t) {
 		// ── A LIVE TOOL NAMES A COLLECTOR INSTEAD OF A RESOURCE ─────────────
 		//
@@ -93,6 +94,21 @@ func TestEveryResourceHasATool(t *testing.T) {
 			if r.Access != "read" || r.Page == "" {
 				t.Errorf("live tool %q must be a read tool gated on a page, got access %q page %q",
 					r.Name, r.Access, r.Page)
+			}
+			continue
+		}
+		// ── A DIAGNOSTIC TOOL RUNS A TOOLS PAGE DIAGNOSTIC ──────────────────
+		//
+		// Slice 8. It reads no menu: it probes from the router, gated on the
+		// Tools page with the access the page itself needs. internal/server's
+		// TestEveryDiagnosticToolHasARunner holds each one to its runner.
+		if r.Diagnostic != "" {
+			diagTools++
+			if r.Resource != "" || r.Collector != "" {
+				t.Errorf("diagnostic tool %q also names a resource or a collector", r.Name)
+			}
+			if r.Page != "tools" {
+				t.Errorf("diagnostic tool %q is gated on page %q, not tools", r.Name, r.Page)
 			}
 			continue
 		}
@@ -116,6 +132,10 @@ func TestEveryResourceHasATool(t *testing.T) {
 	if liveTools == 0 {
 		t.Error("no live tools are recorded; list_interface_traffic has gone, or the record " +
 			"no longer carries `collector`")
+	}
+	if diagTools == 0 {
+		t.Error("no diagnostic tools are recorded; ping has gone, or the record no longer " +
+			"carries `diagnostic`")
 	}
 
 	live := map[string]*resource.Resource{}
@@ -245,7 +265,8 @@ func TestExactlyTwoToolsCanChangeAnything(t *testing.T) {
 		}
 		switch r.Access {
 		case "read":
-			if !strings.HasPrefix(r.Name, "list_") {
+			// A diagnostic is named for what it runs (`ping`), as RouterOS names it.
+			if !strings.HasPrefix(r.Name, "list_") && r.Diagnostic == "" {
 				t.Errorf("tool %q declares read access but is not a list", r.Name)
 			}
 		case "write":

@@ -91,6 +91,11 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	if t.Collector != "" {
 		return cn.runLiveTool(t)
 	}
+	// A DIAGNOSTIC runs on the router, with the model's arguments, through the
+	// same code the Tools page does. See tools.go.
+	if t.Diagnostic != "" {
+		return cn.runDiagTool(t, tc)
+	}
 	res := resource.ByKey(t.Resource)
 	if res == nil {
 		return "That tool is not available on this build."

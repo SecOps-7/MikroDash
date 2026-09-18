@@ -441,6 +441,29 @@ func TestEveryLiveToolHasAReader(t *testing.T) {
 	}
 }
 
+// TestEveryDiagnosticToolHasARunner: every diagnostic tool in the catalogue is
+// answered by diagRunners, and every runner by a tool. Both directions.
+func TestEveryDiagnosticToolHasARunner(t *testing.T) {
+	named := map[string]bool{}
+	for _, tl := range aitools.All() {
+		if tl.Diagnostic == "" {
+			continue
+		}
+		named[tl.Diagnostic] = true
+		if _, ok := diagRunners[tl.Diagnostic]; !ok {
+			t.Errorf("diagnostic tool %q runs %q and nothing on the server answers it", tl.Name, tl.Diagnostic)
+		}
+	}
+	for key := range diagRunners {
+		if !named[key] {
+			t.Errorf("a runner exists for diagnostic %q but no tool names it", key)
+		}
+	}
+	if len(named) == 0 {
+		t.Error("no diagnostic tools found; this ledger is measuring nothing")
+	}
+}
+
 // TestLiveReadingDue: the per-tool freshness rule. Live data is re-read after 5s;
 // metadata only once the collector's own staleness rule calls it old; a missing
 // reading, or one with no timestamp, is always re-read.

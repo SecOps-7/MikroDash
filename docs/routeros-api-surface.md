@@ -142,7 +142,7 @@ for what a ported collector has to cover.
 | `/system/reboot` | internal/server/packages.go |
 | `/system/routerboard/upgrade` | internal/server/packages.go |
 | `/tool/fetch` | src/index.js |
-| `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js |
+| `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js, internal/diag/ping.go (Tools page) |
 
 ## Writes issued from a literal path
 

@@ -1,18 +1,43 @@
   <!-- The Tools page: diagnostics run on the selected router, each within fixed
-       bounds. -->
+       bounds. Rendered by web/src/pages/tools.ts; the bounds are internal/diag's. -->
   <div class="page-view" id="page-tools">
     <div class="container-fluid px-0" style="width:100%">
       <div class="card" id="toolsCard">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
-            <h3 class="card-title mb-0">Tools</h3>
+            <h3 class="card-title mb-0">Ping</h3>
           </div>
           <div class="hdr-actions d-flex align-items-center gap-2">
             <span id="toolsTabs" class="stab-bar brtab-bar" role="tablist"></span>
           </div>
         </div>
         <div class="card-body" id="toolsBody">
-          <div class="empty-state">No tools yet</div>
+          <div class="tool-panel" id="toolPanel-ping">
+            <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="pingForm">
+              <div>
+                <label class="form-label" for="pingAddress">Address</label>
+                <input class="form-control form-control-sm" id="pingAddress" type="text" maxlength="253"
+                  placeholder="IP address, host name or MAC" autocomplete="off" spellcheck="false" required>
+              </div>
+              <div>
+                <label class="form-label" for="pingCount">Packets</label>
+                <select class="form-select form-select-sm" id="pingCount">
+                  <option>1</option><option>2</option><option>3</option><option selected>4</option>
+                  <option>5</option><option>6</option><option>7</option><option>8</option>
+                  <option>9</option><option>10</option>
+                </select>
+              </div>
+              <button class="sbtn sbtn-primary" id="pingRun" type="submit">Ping</button>
+              <span class="muted-note" id="pingStatus"></span>
+            </form>
+            <div id="pingSummary" class="muted-note mb-2"></div>
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Seq</th><th>Host</th><th>Time</th><th>TTL</th><th>Size</th><th>Status</th></tr></thead>
+                <tbody id="pingRows"><tr><td colspan="6" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

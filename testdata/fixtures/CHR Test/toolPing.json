@@ -1,0 +1,83 @@
+{
+ "collector": "tools",
+ "note": "Captured from the CHR test router through the API, as the Tools page runs ping: one reply per packet, each carrying the running sent, received and packet-loss, and the min, avg and max RTT once anything has replied. Two runs: the router's loopback, which answers, and a TEST-NET-2 address, which does not; a lost packet is a row with status=timeout and no time. A name that cannot be resolved is not a row at all but a trap, 'resolve failed'. RouterOS 7.24.3.",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "exchanges": [
+  {
+   "cmd": "/tool/ping",
+   "params": [
+    "=address=127.0.0.1",
+    "=count=3"
+   ],
+   "rows": [
+    {
+     "avg-rtt": "114us",
+     "host": "127.0.0.1",
+     "max-rtt": "114us",
+     "min-rtt": "114us",
+     "packet-loss": "0",
+     "received": "1",
+     "sent": "1",
+     "seq": "0",
+     "size": "56",
+     "time": "114us",
+     "ttl": "64"
+    },
+    {
+     "avg-rtt": "117us",
+     "host": "127.0.0.1",
+     "max-rtt": "120us",
+     "min-rtt": "114us",
+     "packet-loss": "0",
+     "received": "2",
+     "sent": "2",
+     "seq": "1",
+     "size": "56",
+     "time": "120us",
+     "ttl": "64"
+    },
+    {
+     "avg-rtt": "137us",
+     "host": "127.0.0.1",
+     "max-rtt": "179us",
+     "min-rtt": "114us",
+     "packet-loss": "0",
+     "received": "3",
+     "sent": "3",
+     "seq": "2",
+     "size": "56",
+     "time": "179us",
+     "ttl": "64"
+    }
+   ]
+  },
+  {
+   "cmd": "/tool/ping",
+   "params": [
+    "=address=198.51.100.1",
+    "=count=2"
+   ],
+   "rows": [
+    {
+     "host": "198.51.100.1",
+     "packet-loss": "100",
+     "received": "0",
+     "sent": "1",
+     "seq": "0",
+     "status": "timeout"
+    },
+    {
+     "host": "198.51.100.1",
+     "packet-loss": "100",
+     "received": "0",
+     "sent": "2",
+     "seq": "1",
+     "status": "timeout"
+    }
+   ]
+  }
+ ]
+}

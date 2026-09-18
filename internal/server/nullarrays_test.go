@@ -7,6 +7,7 @@ import (
 
 	"mikrodash/internal/backups"
 	"mikrodash/internal/db"
+	"mikrodash/internal/diag"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/session"
@@ -44,6 +45,10 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 		"diagnostics:update": func() any { return session.NewForTest(hub.New(), "r1").Diagnostics(0) },
 		"routers:stats":      func() any { return routers.BuildStats(routers.StatsSources{}) },
 		"sites:update":       func() any { return sites },
+		"tools:ping": func() any {
+			r := diag.FoldPing("198.51.100.1", nil)
+			return ToolsPingPayload{Result: &r}
+		},
 	}
 
 	used := map[string]bool{}

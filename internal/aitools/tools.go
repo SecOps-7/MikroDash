@@ -88,6 +88,9 @@ type Tool struct {
 	// FreshLive or FreshMetadata. Empty on resource tools, which always read
 	// the menu fresh.
 	Freshness string `json:"-"`
+	// Diagnostic names the Tools page diagnostic a DIAGNOSTIC tool runs, instead
+	// of reading a menu or a collector. Not sent to the model. See diagTools.
+	Diagnostic string `json:"-"`
 	// Access is "read" or "write". It decides which permission `Permitted`
 	// consults, and it is what a gate checks rather than inferring intent from
 	// a tool's name.
@@ -160,6 +163,7 @@ func All() []Tool {
 		keys = append(keys, r.Key)
 	}
 	out = append(out, liveTools()...)
+	out = append(out, diagTools()...)
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	sort.Strings(keys)
 	// LAST, and after the sort, so the read catalogue keeps its stable order and
@@ -399,6 +403,53 @@ func liveTools() []Tool {
 	}}
 }
 
+// diagTools run a Tools page diagnostic on the router, with arguments.
+//
+// ── THE ONE KIND OF TOOL THAT TAKES ARGUMENTS AND IS NOT A WRITER ───────────
+//
+// Every list tool takes nothing, because a model that could pass a menu could
+// pass one this app never declared. A diagnostic needs a target, and the target
+// is not a menu: it is one token, checked by internal/diag, sent as the value of
+// one declared property of one declared command, with the count clamped there
+// too. What the model chooses is where to probe, never what to run.
+//
+// ── THE PAGE'S PERMISSION, AS THE OPERATOR DECIDED ──────────────────────────
+//
+// Ping sends a few probes and changes nothing, so it is a READ of the Tools
+// page, offered and run without a proposal, exactly as the page runs it for a
+// viewer who may read Tools. Torch and bandwidth test, which load the router or
+// a link, are actions instead: always proposed.
+func diagTools() []Tool {
+	return []Tool{{
+		Name: "ping",
+		Description: "Read only: sends a few probes and changes nothing. Ping an address " +
+			"FROM THE ROUTER the operator has selected, with " +
+			"/tool/ping: up to 10 packets, one a second. Returns each packet's reply time, " +
+			"TTL and status (timeout, or an ICMP error such as host unreachable), and the " +
+			"sent, received, loss and min, avg and max round-trip time. Use it to check " +
+			"whether the router can reach a host, a gateway or the internet, and how fast. " +
+			"A host name is resolved by the router's own DNS.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"address": map[string]any{
+					"type":        "string",
+					"description": "One IPv4 or IPv6 address, host name or MAC address.",
+				},
+				"count": map[string]any{
+					"type": "integer", "minimum": 1, "maximum": 10,
+					"description": "How many packets. 4 if omitted.",
+				},
+			},
+			"required":             []string{"address"},
+			"additionalProperties": false,
+		},
+		Diagnostic: "ping",
+		Page:       "tools",
+		Access:     AccessRead,
+	}}
+}
+
 // listTool is one resource's read tool.
 func listTool(r *resource.Resource) Tool {
 	return Tool{
@@ -547,6 +598,11 @@ func Permitted(can func(page, access string) bool) []Tool {
 	for _, lt := range liveTools() {
 		if can(lt.Page, AccessRead) {
 			out = append(out, lt)
+		}
+	}
+	for _, dt := range diagTools() {
+		if can(dt.Page, dt.Access) {
+			out = append(out, dt)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })

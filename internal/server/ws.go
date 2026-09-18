@@ -113,6 +113,9 @@ type conn struct {
 	// socket, which is the right lifetime for a question nobody answered.
 	proposeMu sync.Mutex
 	proposals map[string]*aiWriteProposal
+	// toolBusy is set while this connection has a diagnostic running on the
+	// router: one at a time, see internal/server/tools.go.
+	toolBusy atomic.Bool
 	// mu guards `cards`. The grid can send dashcard:focus while another
 	// goroutine is selecting a router, and the map is written by both.
 	mu sync.Mutex
@@ -456,6 +459,9 @@ func (cn *conn) dispatch(in inbound) {
 		cn.wanLeaseAction("release", in.Data)
 	case "firewall:tab":
 		cn.fwTab(in.Data)
+	// The Tools page: see internal/server/tools.go.
+	case "tools:ping":
+		cn.toolsPing(in.Data)
 	// Registered as its own literal beside firewall:tab rather than folded into
 	// it, for the reason wan:renew and wan:release are separate: the next person
 	// greps for the event name, and these two carry DIFFERENT PERMISSION GATES
