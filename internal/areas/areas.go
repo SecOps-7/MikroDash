@@ -148,6 +148,17 @@ var declared = []Area{
 			Columns: []string{"name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// NTP client: its settings (the first singleton) and its server list.
+	{
+		Key: "ntp-client", Title: "NTP Client", NavGroup: "system",
+		Tables: []Table{
+			{Resource: "ntpClient", Title: "Settings",
+				Columns: []string{"enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"}},
+			{Resource: "ntpServer", Title: "Servers",
+				Columns: []string{"address", "iburst", "minPoll", "maxPoll", "disabled", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

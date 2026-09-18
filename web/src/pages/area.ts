@@ -98,6 +98,24 @@ function render(area: Area): void {
     return;
   }
 
+  // A SETTINGS MENU (a singleton) is one row with no id of its own, so it is
+  // drawn as a card — a label and a value per field — rather than as a one-row
+  // table. Every line carries the row's engine attributes, so clicking any of
+  // them opens the one form, which edits the one row.
+  if (table?.singleton) {
+    const r = table.rows?.[0];
+    body.innerHTML = r
+      ? '<table class="table table-vcenter mb-0"><tbody data-res-rows="' + esc(declared.resource) + '">' +
+        declared.columns.map((c) =>
+          '<tr' + resRow(r.id, r.identity, declared.resource) + '>' +
+          '<th style="width:34%;font-weight:500;color:var(--text-muted)">' + esc(columnLabel(c)) + '</th>' +
+          '<td>' + cell(r.values?.[c]) + '</td></tr>').join('') +
+        '</tbody></table>'
+      : '<div class="empty-state">The router did not return these settings.</div>';
+    syncAddSlot(area);
+    return;
+  }
+
   const head = declared.columns.map((c) => '<th>' + esc(columnLabel(c)) + '</th>').join('');
   // A DISABLED OR INVALID ROW IS DIMMED, as the hand-built pages dim theirs:
   // almost every RouterOS menu has `disabled`, and `invalid` is the router saying

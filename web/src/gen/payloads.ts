@@ -38,6 +38,7 @@ export interface AreaTable {
   columns: string[];
   rows: AreaRow[];
   unsupported: boolean;
+  singleton: boolean;
 }
 
 export interface AreaPayload {

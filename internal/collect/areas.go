@@ -63,6 +63,9 @@ type AreaTable struct {
 	// installed, or a build without it. The page says so rather than rendering
 	// an empty table, which reads as "you have none of these".
 	Unsupported bool `json:"unsupported"`
+	// Singleton is a settings menu's one row, which the page draws as a card of
+	// label and value rather than as a one-row table.
+	Singleton bool `json:"singleton"`
 }
 
 // AreaPayload is one generated page's state.
@@ -98,8 +101,11 @@ func BuildAreaRows(res *resource.Resource, title string, columns []string, rows 
 	if title == "" {
 		title = res.Label
 	}
-	out := AreaTable{Resource: res.Key, Title: title, Columns: cols, Rows: []AreaRow{}}
+	out := AreaTable{Resource: res.Key, Title: title, Columns: cols, Rows: []AreaRow{}, Singleton: res.Singleton}
 	for _, r := range rows {
+		// A settings menu's one row has no `.id`: StampID gives it SingletonID,
+		// as the write path does, so the row the page clicks is the row it edits.
+		r = routeros.Reply(res.StampID(r))
 		// The empty row RouterOS returns for an empty menu carries no id.
 		if r[".id"] == "" {
 			continue

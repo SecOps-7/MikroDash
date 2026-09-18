@@ -1,0 +1,38 @@
+{
+ "collector": "areas",
+ "resource": "ntpServer",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. Both servers were created FOR the capture, a documentation address (TEST-NET-1) and a reserved .invalid name, and removed afterwards. RouterOS fills min-poll, max-poll and auth-key with defaults and reports a dynamic flag. Read through /system/ntp/client/servers/print.",
+ "exchanges": [
+  {
+   "cmd": "/system/ntp/client/servers/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "address": "192.0.2.123",
+     "auth-key": "none",
+     "comment": "fixture capture",
+     "disabled": "false",
+     "dynamic": "false",
+     "iburst": "true",
+     "max-poll": "10",
+     "min-poll": "6"
+    },
+    {
+     ".id": "*2",
+     "address": "time.example.invalid",
+     "auth-key": "none",
+     "disabled": "true",
+     "dynamic": "false",
+     "iburst": "true",
+     "max-poll": "10",
+     "min-poll": "6"
+    }
+   ]
+  }
+ ]
+}

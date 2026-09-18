@@ -429,10 +429,11 @@ func TestEveryAreaRendersItsCapture(t *testing.T) {
 			checked++
 
 			// EVERY CAPTURED ROW IS RENDERED, except the id-less one RouterOS
-			// returns for an empty menu.
+			// returns for an empty menu. A SINGLETON's one row has no id either,
+			// and is the whole point of the capture, so there it counts.
 			want := 0
 			for _, r := range rows {
-				if r[".id"] != "" {
+				if r[".id"] != "" || res.Singleton {
 					want++
 				}
 			}

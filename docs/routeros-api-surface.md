@@ -210,6 +210,8 @@ surface stays complete.
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
 | `/certificate` | certificate | certificates | set, remove |
+| `/system/ntp/client` | ntpClient | ntp-client | set |
+| `/system/ntp/client/servers` | ntpServer | ntp-client | add, set, remove |
 | `/system/scheduler` | scheduler | scheduler | add, set, remove |
 | `/system/script` | script | scripts | add, set, remove, run |
 | `/interface` | iface | interfaces | set (comment, disabled) |

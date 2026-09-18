@@ -69,6 +69,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "ntp-client", title: "NTP Client", navGroup: "system",
+    tables: [
+      { resource: "ntpClient", title: "Settings", columns: ["enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"] },
+      { resource: "ntpServer", title: "Servers", columns: ["address", "iburst", "minPoll", "maxPoll", "disabled", "comment"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

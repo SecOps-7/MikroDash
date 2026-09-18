@@ -186,6 +186,9 @@ func (cn *conn) readMenu(res *resource.Resource) ([]routeros.Reply, error) {
 	}
 	out := make([]routeros.Reply, 0, len(rows))
 	for _, r := range rows {
+		// A singleton's one row has no `.id`; StampID gives it SingletonID, so
+		// every id-based path below treats it as the row it is.
+		r = routeros.Reply(res.StampID(r))
 		if r[".id"] != "" {
 			out = append(out, r)
 		}
@@ -445,7 +448,7 @@ func (cn *conn) commitWrite(p *preparedWrite, via string) writeOutcome {
 	verb := "/add"
 	if p.editing {
 		verb = "/set"
-		args = append([]string{"=.id=" + req.ID}, args...)
+		args = append(res.IDWords(req.ID), args...)
 	}
 	if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + verb, Args: args}); err != nil {
 		return writeOutcome{Code: writeFailCode(err), Name: p.name,
@@ -686,7 +689,7 @@ func (cn *conn) prepareRemove(res *resource.Resource, req *resRequest) (*prepare
 func (cn *conn) commitRemove(p *preparedRemove, via string) writeOutcome {
 	res, req, name, row := p.res, p.req, p.name, p.row
 	if _, err := cn.rsession.Exec(routeros.Cmd{
-		Path: res.Menu + "/remove", Args: []string{"=.id=" + req.ID}}); err != nil {
+		Path: res.Menu + "/remove", Args: res.IDWords(req.ID)}); err != nil {
 		return writeOutcome{Code: writeFailCode(err), Name: name,
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
@@ -903,7 +906,7 @@ func (cn *conn) resAction(raw json.RawMessage) {
 		}
 
 		if _, err := cn.rsession.Exec(routeros.Cmd{
-			Path: res.Menu + "/" + def.Verb, Args: []string{"=.id=" + req.ID}}); err != nil {
+			Path: res.Menu + "/" + def.Verb, Args: res.IDWords(req.ID)}); err != nil {
 			return err
 		}
 		// The row must show the verb took before it is reported (#97).

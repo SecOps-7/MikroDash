@@ -159,7 +159,7 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 		if len(errs) > 0 {
 			return "", errs, nil
 		}
-		args := append([]string{"=.id=" + op.ID}, res.BuildArgs(validated)...)
+		args := append(res.IDWords(op.ID), res.BuildArgs(validated)...)
 		if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/set", Args: args}); err != nil {
 			return "", nil, err
 		}
@@ -170,7 +170,7 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 
 	default: // remove
 		if _, err := cn.rsession.Exec(routeros.Cmd{
-			Path: res.Menu + "/remove", Args: []string{"=.id=" + op.ID}}); err != nil {
+			Path: res.Menu + "/remove", Args: res.IDWords(op.ID)}); err != nil {
 			return "", nil, err
 		}
 		if after, err := cn.readMenu(res); err != nil || !confirmRemoved(after, op.ID) {

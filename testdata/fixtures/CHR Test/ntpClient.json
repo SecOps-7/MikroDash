@@ -1,0 +1,25 @@
+{
+ "collector": "areas",
+ "resource": "ntpClient",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands. A SINGLETON: /system/ntp/client/print answers one row with NO .id, which is the shape the singleton resource kind exists for. The client is disabled here, so status is stopped and no synced-server or system-offset is reported. Read through /system/ntp/client/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/system/ntp/client/print",
+   "params": [],
+   "rows": [
+    {
+     "enabled": "false",
+     "freq-drift": "0",
+     "mode": "unicast",
+     "servers": "",
+     "status": "stopped",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}

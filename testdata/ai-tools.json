@@ -213,6 +213,18 @@
       "page": "netwatch"
     },
     {
+      "name": "list_ntpClient",
+      "access": "read",
+      "resource": "ntpClient",
+      "page": "ntp-client"
+    },
+    {
+      "name": "list_ntpServer",
+      "access": "read",
+      "resource": "ntpServer",
+      "page": "ntp-client"
+    },
+    {
       "name": "list_packages",
       "access": "read",
       "resource": "",

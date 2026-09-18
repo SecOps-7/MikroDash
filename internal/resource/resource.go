@@ -197,6 +197,15 @@ type Resource struct {
 	// ported before wifiNet.
 	RemovableWhen func(row map[string]string) bool
 
+	// Singleton marks a SETTINGS menu: one row, no `.id`, changed with a plain
+	// `set` — /system/ntp/client, /system/clock, /snmp (the operator's choice,
+	// 2026-09-18, over a hand-built page each). Its row is given SingletonID
+	// wherever a menu is read (StampID), so every id-based path — finding the
+	// row, staleness, read-back, history, change_row's `id` — works unchanged,
+	// and IDWords leaves the id OUT of the command RouterOS receives. A singleton
+	// is NoCreate and never removable; TestEverySingletonIsFixed holds that.
+	Singleton bool
+
 	// NoCreate refuses a create. An interface exists because hardware or another
 	// menu made it; `/interface` has no `add`, so offering one would be a form
 	// that can only fail at the router.
@@ -612,6 +621,34 @@ func negateUnset(options []string, chosen string) string {
 // `/set` with the row's `.id` when editing, `/add` without one when creating —
 // the same split BuildArgs already encodes through `Editing`, expressed here as
 // the verb.
+// SingletonID is the id a singleton's one row is given. Not a RouterOS id
+// (those are `*N`), so it can never collide with one.
+const SingletonID = "singleton"
+
+// StampID returns the row with its `.id`: unchanged for an ordinary menu, and a
+// COPY carrying SingletonID for a singleton, so a row shared through the read
+// cache is never mutated.
+func (r *Resource) StampID(row map[string]string) map[string]string {
+	if !r.Singleton || row == nil || row[".id"] != "" {
+		return row
+	}
+	out := make(map[string]string, len(row)+1)
+	for k, v := range row {
+		out[k] = v
+	}
+	out[".id"] = SingletonID
+	return out
+}
+
+// IDWords is how a command addresses one row: `=.id=` for an ordinary menu,
+// nothing for a singleton, whose `set` names no row.
+func (r *Resource) IDWords(id string) []string {
+	if r.Singleton || id == "" {
+		return nil
+	}
+	return []string{"=.id=" + id}
+}
+
 func (r *Resource) PreviewCommand(v Validated, id string) string {
 	secret := map[string]bool{}
 	for _, f := range r.Fields {
@@ -631,12 +668,10 @@ func (r *Resource) PreviewCommand(v Validated, id string) string {
 		}
 	}
 	verb := "/add"
-	var idWord []string
-	if id != "" {
+	if id != "" || r.Singleton {
 		verb = "/set"
-		idWord = []string{"=.id=" + id}
 	}
-	return strings.Join(append([]string{r.Menu + verb}, append(idWord, words...)...), " ")
+	return strings.Join(append([]string{r.Menu + verb}, append(r.IDWords(id), words...)...), " ")
 }
 
 // IdentityOf is the identity value carried by a freshly-read row. It is not a
@@ -646,6 +681,11 @@ func (r *Resource) PreviewCommand(v Validated, id string) string {
 func (r *Resource) IdentityOf(row map[string]string) string {
 	if row == nil {
 		return ""
+	}
+	// A settings menu's one row is identified by what it IS: its label, which is
+	// also what its audit rows should name.
+	if r.Singleton {
+		return r.Label
 	}
 	parts := make([]string, 0, len(r.Identity))
 	for _, name := range r.Identity {
@@ -1129,6 +1169,50 @@ var Scheduler = &Resource{
 		{Name: "owner", ROS: "owner", Label: "Owner", Type: TypeText, Display: true},
 		{Name: "runCount", ROS: "run-count", Label: "Runs", Type: TypeText, Display: true},
 		{Name: "nextRun", ROS: "next-run", Label: "Next Run", Type: TypeText, Display: true},
+	},
+}
+
+// NTPClient and NTPServer are the NTP client's settings and its server list
+// (slice 7). From the NTP documentation ("NTP Client properties") and the
+// command tree for /system/ntp/client/servers/add. The client is the first
+// SINGLETON: one row, changed with a plain set.
+var NTPClient = &Resource{
+	Key: "ntpClient", Page: "ntp-client", Label: "NTP Client",
+	Title: "NTP Client", Menu: "/system/ntp/client", Singleton: true,
+	NoCreate:      true,
+	RemovableWhen: func(map[string]string) bool { return false },
+	Fields: []Field{
+		{Name: "enabled", ROS: "enabled", Label: "Enabled", Type: TypeBool, Clearable: true},
+		// The documented set, complete: a select is safe here, unlike an open list.
+		{Name: "mode", ROS: "mode", Label: "Mode", Type: TypeSelect,
+			Options: []string{"unicast", "broadcast", "multicast", "manycast"}},
+		{Name: "servers", ROS: "servers", Label: "Servers", Type: TypeText, Clearable: true,
+			Placeholder: "pool.ntp.org",
+			Help:        "Addresses or host names, comma separated. Per-server options are on the Servers tab."},
+		{Name: "vrf", ROS: "vrf", Label: "VRF", Type: TypeText, Placeholder: "main"},
+		{Name: "status", ROS: "status", Label: "Status", Type: TypeText, Display: true},
+		{Name: "syncedServer", ROS: "synced-server", Label: "Synced Server", Type: TypeText, Display: true},
+		{Name: "systemOffset", ROS: "system-offset", Label: "System Offset", Type: TypeText, Display: true},
+		{Name: "freqDrift", ROS: "freq-drift", Label: "Frequency Drift", Type: TypeText, Display: true},
+	},
+}
+var NTPServer = &Resource{
+	Key: "ntpServer", Page: "ntp-client", Label: "NTP Server",
+	Title: "NTP Server", Menu: "/system/ntp/client/servers", Identity: []string{"address"},
+	// A dynamic row is one RouterOS made from somewhere else, most likely the
+	// client's own `servers` list (reported dynamic on 7.24): edited there.
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Fields: []Field{
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Required: true,
+			Placeholder: "pool.ntp.org", Help: "An address or a host name."},
+		{Name: "iburst", ROS: "iburst", Label: "Initial Burst", Type: TypeBool, Clearable: true},
+		{Name: "minPoll", ROS: "min-poll", Label: "Min Poll", Type: TypeText, Placeholder: "6"},
+		{Name: "maxPoll", ROS: "max-poll", Label: "Max Poll", Type: TypeText, Placeholder: "10"},
+		{Name: "authKey", ROS: "auth-key", Label: "Auth Key", Type: TypeText, Clearable: true, ClearAs: "none"},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
 	},
 }
 
@@ -1801,6 +1885,8 @@ var byKey = map[string]*Resource{
 	Certificate.Key:         Certificate,
 	Script.Key:              Script,
 	Scheduler.Key:           Scheduler,
+	NTPClient.Key:           NTPClient,
+	NTPServer.Key:           NTPServer,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,
