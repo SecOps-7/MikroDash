@@ -1,0 +1,37 @@
+{
+ "collector": "areas",
+ "resource": "ospfArea",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. Two areas created FOR the capture: the backbone, and a disabled stub with no-summaries, which is a PRESENCE flag (no-summaries=\"\") like a routing table's fib. Tunnel addresses and router ids scrubbed into TEST-NET-2. Read through /routing/ospf/area/print.",
+ "exchanges": [
+  {
+   "cmd": "/routing/ospf/area/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "area-id": "0.0.0.0",
+     "comment": "md-ospf-test",
+     "inactive": "false",
+     "instance": "md-v2",
+     "name": "md-backbone",
+     "type": "default"
+    },
+    {
+     ".id": "*2",
+     "area-id": "0.0.0.9",
+     "comment": "md-ospf-test",
+     "disabled": "true",
+     "inactive": "true",
+     "instance": "md-v2",
+     "name": "md-stub",
+     "no-summaries": "",
+     "type": "stub"
+    }
+   ]
+  }
+ ]
+}

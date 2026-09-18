@@ -69,4 +69,16 @@ send(pools, [row('*1'), row('*2')]);
 assert.ok(!/data-res-move/.test(body('ip-pools')), 'an unordered area was drawn arrows');
 say('ok  an unordered area has none');
 
+// AN EMPTY TABLE INVITES Add ONLY WHERE THERE IS ONE. The OSPF neighbour list
+// cannot be added to; the control is IP pools, which can.
+const ospf = mod.AREAS.find((a) => a.key === 'ospf');
+shown.push('ospf');
+handlers['res:schema']({ key: 'ospfNeighbor', permitted: true, creatable: false });
+send(ospf, []);
+assert.ok(/Nothing here yet/.test(body('ospf')) && !/Use <strong>Add/.test(body('ospf')),
+  'the neighbour list tells the viewer to Add one: ' + body('ospf'));
+send(pools, []);
+assert.ok(/Use <strong>Add<\/strong>/.test(body('ip-pools')), 'a creatable empty table no longer offers Add: ' + body('ip-pools'));
+say('ok  an empty table offers Add only for a resource that can be created');
+
 fs.rmSync(OUT, { force: true });

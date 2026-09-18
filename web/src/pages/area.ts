@@ -32,6 +32,9 @@ const latest: Record<string, AreaPayload> = {};
 
 /** Whether this viewer may write each resource, from the engine's schema answer. */
 const writable: Record<string, boolean> = {};
+/** Whether a row can be ADDED to each resource: an OSPF neighbour cannot, so its
+ *  empty table must not tell the viewer to use an Add button that is not there. */
+const creatable: Record<string, boolean> = {};
 
 function tabIndex(area: Area): number {
   const at = activeTab[area.key] || 0;
@@ -141,7 +144,8 @@ function render(area: Area): void {
     '<thead><tr>' + head + '</tr></thead>' +
     '<tbody data-res-rows="' + esc(declared.resource) + '">' +
     (rows || '<tr><td colspan="' + (declared.columns.length + (arrows ? 1 : 0)) + '" class="empty-state">' +
-      'Nothing here yet.' + (writable[declared.resource] ? ' Use <strong>Add</strong> to create one.' : '') +
+      'Nothing here yet.' + (writable[declared.resource] && creatable[declared.resource] !== false
+        ? ' Use <strong>Add</strong> to create one.' : '') +
       '</td></tr>') +
     '</tbody></table>';
   syncAddSlot(area);
@@ -224,6 +228,7 @@ export function initAreaPages(socket: Socket, isVisible: (page: string) => boole
     const owns = AREAS.some((a) => a.tables.some((t) => t.resource === d.key));
     if (!owns) return;
     writable[d.key] = !!d.permitted;
+    creatable[d.key] = d.creatable !== false;
     for (const area of AREAS) {
       if (isVisible(area.key)) render(area);
     }

@@ -1497,6 +1497,119 @@ var RoutingRule = &Resource{
 	},
 }
 
+// ── OSPF ────────────────────────────────────────────────────────────────────
+//
+// /routing/ospf: instances, their areas, the interface templates that decide
+// where OSPF speaks, and the neighbours it has found. Checked against rosetta and
+// a live adjacency between the CHR and the hAP AC2 (RouterOS 7.24.3). Three
+// properties are PRESENCE flags (TypeFlag): an area's no-summaries and a
+// template's passive, as a routing table's fib is.
+//
+// NO GUARD, deliberately. OSPF routes are installed at distance 110, behind
+// every connected and static route, so they cannot take MikroDash's own path
+// away from a directly connected management address; what OSPF changes is what
+// the NEIGHBOURS learn, which no guard here can see.
+
+// OSPFRedistribute is what an instance can redistribute, as RouterOS 7.24 lists it.
+var OSPFRedistribute = []string{"connected", "static", "rip", "ospf", "isis", "bgp", "vpn", "dhcp",
+	"fantasy", "modem", "bgp-mpls-vpn", "slaac"}
+
+var OSPFInstance = &Resource{
+	Key: "ospfInstance", Page: "ospf", Label: "OSPF Instance",
+	Title: "OSPF Instance", Menu: "/routing/ospf/instance", Identity: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "default-v2"},
+		{Name: "version", ROS: "version", Label: "Version", Type: TypeSelect, Options: []string{"2", "3"},
+			Help: "2 for IPv4, 3 for IPv6."},
+		{Name: "routerId", ROS: "router-id", Label: "Router ID", Type: TypeText, Clearable: true,
+			Placeholder: "10.0.0.1", Help: "An address, or the name of a /routing/id entry. Empty picks one."},
+		{Name: "originateDefault", ROS: "originate-default", Label: "Originate Default", Type: TypeSelect,
+			Options: []string{"never", "if-installed", "always"}},
+		{Name: "redistribute", ROS: "redistribute", Label: "Redistribute", Type: TypeMulti,
+			Options: OSPFRedistribute, Clearable: true},
+		{Name: "inFilterChain", ROS: "in-filter-chain", Label: "In Filter Chain", Type: TypeText, Clearable: true},
+		{Name: "outFilterChain", ROS: "out-filter-chain", Label: "Out Filter Chain", Type: TypeText, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "inactive", ROS: "inactive", Label: "Inactive", Type: TypeBool, Display: true},
+	},
+}
+
+var OSPFArea = &Resource{
+	Key: "ospfArea", Page: "ospf", Label: "OSPF Area",
+	Title: "OSPF Area", Menu: "/routing/ospf/area", Identity: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "backbone"},
+		{Name: "instance", ROS: "instance", Label: "Instance", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/routing/ospf/instance", Value: "name"}},
+		{Name: "areaId", ROS: "area-id", Label: "Area ID", Type: TypeText, Placeholder: "0.0.0.0",
+			Help: "Dotted form. 0.0.0.0 is the backbone."},
+		{Name: "type", ROS: "type", Label: "Type", Type: TypeSelect, Options: []string{"default", "stub", "nssa"}},
+		{Name: "noSummaries", ROS: "no-summaries", Label: "No Summaries", Type: TypeFlag,
+			ShowIf: &ShowIf{Field: "type", In: []string{"stub", "nssa"}}},
+		{Name: "nssaTranslator", ROS: "nssa-translator", Label: "NSSA Translator", Type: TypeSelect,
+			Options: []string{"candidate", "yes", "no"}, ShowIf: &ShowIf{Field: "type", In: []string{"nssa"}}},
+		{Name: "defaultCost", ROS: "default-cost", Label: "Default Cost", Type: TypeInt, Clearable: true, Min: intp(0)},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "inactive", ROS: "inactive", Label: "Inactive", Type: TypeBool, Display: true},
+	},
+}
+
+// OSPFTemplate is /routing/ospf/interface-template. ORDERED: the first template
+// that matches an interface is the one it takes.
+var OSPFTemplate = &Resource{
+	Key: "ospfTemplate", Page: "ospf", Label: "OSPF Interface Template",
+	Title: "OSPF Interface Template", Menu: "/routing/ospf/interface-template",
+	Identity: []string{"area", "interfaces", "networks"},
+	Ordered:  true,
+	Fields: []Field{
+		{Name: "area", ROS: "area", Label: "Area", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/routing/ospf/area", Value: "name"}},
+		{Name: "interfaces", ROS: "interfaces", Label: "Interfaces", Type: TypeText, Clearable: true,
+			Placeholder: "ether1,bridge", Help: "Comma separated, or all, static or dynamic."},
+		{Name: "networks", ROS: "networks", Label: "Networks", Type: TypeText, Clearable: true,
+			Placeholder: "192.168.88.0/24", Help: "Interfaces holding an address in these networks."},
+		{Name: "type", ROS: "type", Label: "Network Type", Type: TypeSelect,
+			Options: []string{"broadcast", "nbma", "ptmp", "ptmp-broadcast", "ptp", "ptp-unnumbered"}},
+		{Name: "cost", ROS: "cost", Label: "Cost", Type: TypeInt, Min: intp(1), Max: intp(65535)},
+		{Name: "priority", ROS: "priority", Label: "Priority", Type: TypeInt, Min: intp(0), Max: intp(255)},
+		{Name: "passive", ROS: "passive", Label: "Passive", Type: TypeFlag,
+			Help: "Advertise the interface's network without speaking OSPF on it."},
+		{Name: "auth", ROS: "auth", Label: "Authentication", Type: TypeSelect, Clearable: true,
+			Options: []string{"simple", "md5", "sha1", "sha256", "sha384", "sha512"}},
+		{Name: "authKey", ROS: "auth-key", Label: "Authentication Key", Type: TypeSecret,
+			ShowIf: &ShowIf{Field: "auth", In: []string{"simple", "md5", "sha1", "sha256", "sha384", "sha512"}}},
+		{Name: "authId", ROS: "auth-id", Label: "Key ID", Type: TypeInt, Clearable: true, Min: intp(0), Max: intp(255),
+			ShowIf: &ShowIf{Field: "auth", In: []string{"md5", "sha1", "sha256", "sha384", "sha512"}}},
+		{Name: "helloInterval", ROS: "hello-interval", Label: "Hello Interval", Type: TypeText, Placeholder: "10s"},
+		{Name: "deadInterval", ROS: "dead-interval", Label: "Dead Interval", Type: TypeText, Placeholder: "40s"},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "inactive", ROS: "inactive", Label: "Inactive", Type: TypeBool, Display: true},
+	},
+}
+
+// OSPFNeighbor is /routing/ospf/neighbor: what OSPF has found. Dynamic, so it
+// can be seen and nothing else.
+var OSPFNeighbor = &Resource{
+	Key: "ospfNeighbor", Page: "ospf", Label: "OSPF Neighbor",
+	Title: "OSPF Neighbor", Menu: "/routing/ospf/neighbor", Identity: []string{"routerId", "address"},
+	NoCreate:      true,
+	NoEdit:        true,
+	RemovableWhen: func(map[string]string) bool { return false },
+	Fields: []Field{
+		{Name: "routerId", ROS: "router-id", Label: "Router ID", Type: TypeText, Display: true},
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Display: true},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Display: true},
+		{Name: "instance", ROS: "instance", Label: "Instance", Type: TypeText, Display: true},
+		{Name: "area", ROS: "area", Label: "Area", Type: TypeText, Display: true},
+		{Name: "state", ROS: "state", Label: "State", Type: TypeText, Display: true},
+		{Name: "adjacency", ROS: "adjacency", Label: "Adjacent For", Type: TypeText, Display: true},
+		{Name: "stateChanges", ROS: "state-changes", Label: "State Changes", Type: TypeText, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2138,6 +2251,10 @@ var byKey = map[string]*Resource{
 	IPPool.Key:              IPPool,
 	RoutingTable.Key:        RoutingTable,
 	RoutingRule.Key:         RoutingRule,
+	OSPFInstance.Key:        OSPFInstance,
+	OSPFArea.Key:            OSPFArea,
+	OSPFTemplate.Key:        OSPFTemplate,
+	OSPFNeighbor.Key:        OSPFNeighbor,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

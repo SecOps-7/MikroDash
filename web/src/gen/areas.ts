@@ -116,6 +116,15 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "ospf", title: "OSPF", navGroup: "ipsvc",
+    tables: [
+      { resource: "ospfNeighbor", title: "Neighbors", columns: ["routerId", "address", "interface", "area", "state", "adjacency", "stateChanges"], ordered: false },
+      { resource: "ospfInstance", title: "Instances", columns: ["name", "version", "routerId", "originateDefault", "redistribute", "inactive", "disabled", "comment"], ordered: false },
+      { resource: "ospfArea", title: "Areas", columns: ["name", "instance", "areaId", "type", "inactive", "disabled", "comment"], ordered: false },
+      { resource: "ospfTemplate", title: "Interface Templates", columns: ["area", "interfaces", "networks", "type", "cost", "passive", "inactive", "disabled", "comment"], ordered: true },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"], ordered: false },

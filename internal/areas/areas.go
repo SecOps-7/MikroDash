@@ -213,6 +213,22 @@ var declared = []Area{
 			Columns: []string{"srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// OSPF: neighbours first, because "is it up" is the common question; then
+	// the instances, areas and interface templates that make it so.
+	{
+		Key: "ospf", Title: "OSPF", NavGroup: "ipsvc",
+		Tables: []Table{
+			{Resource: "ospfNeighbor", Title: "Neighbors",
+				Columns: []string{"routerId", "address", "interface", "area", "state", "adjacency", "stateChanges"}},
+			{Resource: "ospfInstance", Title: "Instances",
+				Columns: []string{"name", "version", "routerId", "originateDefault", "redistribute", "inactive", "disabled", "comment"}},
+			{Resource: "ospfArea", Title: "Areas",
+				Columns: []string{"name", "instance", "areaId", "type", "inactive", "disabled", "comment"}},
+			{Resource: "ospfTemplate", Title: "Interface Templates",
+				Columns: []string{"area", "interfaces", "networks", "type", "cost", "passive", "inactive", "disabled", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

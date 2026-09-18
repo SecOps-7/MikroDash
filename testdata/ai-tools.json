@@ -249,6 +249,30 @@
       "page": "ntp-client"
     },
     {
+      "name": "list_ospfArea",
+      "access": "read",
+      "resource": "ospfArea",
+      "page": "ospf"
+    },
+    {
+      "name": "list_ospfInstance",
+      "access": "read",
+      "resource": "ospfInstance",
+      "page": "ospf"
+    },
+    {
+      "name": "list_ospfNeighbor",
+      "access": "read",
+      "resource": "ospfNeighbor",
+      "page": "ospf"
+    },
+    {
+      "name": "list_ospfTemplate",
+      "access": "read",
+      "resource": "ospfTemplate",
+      "page": "ospf"
+    },
+    {
       "name": "list_packages",
       "access": "read",
       "resource": "",

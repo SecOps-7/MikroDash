@@ -1,0 +1,30 @@
+{
+ "collector": "areas",
+ "resource": "ospfNeighbor",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The live adjacency with the hAP AC2 over the tunnel, state Full. Dynamic and read-only. Tunnel addresses and router ids scrubbed into TEST-NET-2. Read through /routing/ospf/neighbor/print.",
+ "exchanges": [
+  {
+   "cmd": "/routing/ospf/neighbor/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*F3FDDC00",
+     "address": "198.51.100.2",
+     "adjacency": "36s",
+     "area": "md-backbone",
+     "dynamic": "true",
+     "instance": "md-v2",
+     "interface": "wg-md",
+     "router-id": "198.51.100.2",
+     "state": "Full",
+     "state-changes": "6",
+     "timeout": "34s"
+    }
+   ]
+  }
+ ]
+}

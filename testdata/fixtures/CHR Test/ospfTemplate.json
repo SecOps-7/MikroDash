@@ -1,0 +1,50 @@
+{
+ "collector": "areas",
+ "resource": "ospfTemplate",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. Two templates created FOR the capture: point-to-point on the tunnel, and a disabled passive one by network. `passive` is a presence flag; templates are ordered (.nextid). Tunnel addresses and router ids scrubbed into TEST-NET-2. Read through /routing/ospf/interface-template/print.",
+ "exchanges": [
+  {
+   "cmd": "/routing/ospf/interface-template/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     ".nextid": "*2",
+     "area": "md-backbone",
+     "comment": "md-ospf-test",
+     "cost": "10",
+     "dead-interval": "40s",
+     "hello-interval": "10s",
+     "inactive": "false",
+     "instance-id": "0",
+     "interfaces": "wg-md",
+     "priority": "128",
+     "retransmit-interval": "5s",
+     "transmit-delay": "1s",
+     "type": "ptp"
+    },
+    {
+     ".id": "*2",
+     "area": "md-stub",
+     "comment": "md-ospf-test",
+     "cost": "1",
+     "dead-interval": "40s",
+     "disabled": "true",
+     "hello-interval": "10s",
+     "inactive": "true",
+     "instance-id": "0",
+     "networks": "198.51.100.0/24",
+     "passive": "",
+     "priority": "128",
+     "retransmit-interval": "5s",
+     "transmit-delay": "1s",
+     "type": "broadcast"
+    }
+   ]
+  }
+ ]
+}

@@ -250,6 +250,10 @@ surface stays complete.
 | `/ip/firewall/nat` | fwNat | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/raw` | fwRaw | firewall | add, set, remove, move, enable, disable |
 | `/ip/route` | route | routing | add, set, remove |
+| `/routing/ospf/instance` | ospfInstance | ospf | add, set, remove |
+| `/routing/ospf/area` | ospfArea | ospf | add, set, remove (no-summaries is a presence flag) |
+| `/routing/ospf/interface-template` | ospfTemplate | ospf | add, set, remove, move (passive is a presence flag; auth-key never read) |
+| `/routing/ospf/neighbor` | ospfNeighbor | ospf | read only |
 | `/routing/rule` | routingRule | routing-rules | add, set, remove, move (guarded by rulePath) |
 | `/routing/table` | routingTable | routing-tables | add, set, remove (fib is a presence flag, cleared with `!fib`) |
 | `/tool/netwatch` | netwatch | netwatch | add, set, remove (no scripts, no DNS record type) |

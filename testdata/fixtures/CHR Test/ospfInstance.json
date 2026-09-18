@@ -1,0 +1,26 @@
+{
+ "collector": "areas",
+ "resource": "ospfInstance",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The instance was created FOR the capture on a WireGuard tunnel to the hAP AC2. `redistribute` and `originate-default` are absent when unset; `vrf` is always reported. Tunnel addresses and router ids scrubbed into TEST-NET-2. Read through /routing/ospf/instance/print.",
+ "exchanges": [
+  {
+   "cmd": "/routing/ospf/instance/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*0",
+     "comment": "md-ospf-test",
+     "inactive": "false",
+     "name": "md-v2",
+     "router-id": "198.51.100.1",
+     "version": "2",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}

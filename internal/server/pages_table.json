@@ -92,6 +92,11 @@
       "settingsKey": null
     },
     {
+      "key": "ospf",
+      "title": "OSPF",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null
