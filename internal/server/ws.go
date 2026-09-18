@@ -462,6 +462,8 @@ func (cn *conn) dispatch(in inbound) {
 	// The Tools page: see internal/server/tools.go.
 	case "tools:ping":
 		cn.toolsPing(in.Data)
+	case "tools:traceroute":
+		cn.toolsTraceroute(in.Data)
 	// Registered as its own literal beside firewall:tab rather than folded into
 	// it, for the reason wan:renew and wan:release are separate: the next person
 	// greps for the event name, and these two carry DIFFERENT PERMISSION GATES

@@ -49,6 +49,10 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			r := diag.FoldPing("198.51.100.1", nil)
 			return ToolsPingPayload{Result: &r}
 		},
+		"tools:traceroute": func() any {
+			r := diag.FoldTraceroute("198.51.100.1", nil)
+			return ToolsTraceroutePayload{Result: &r}
+		},
 	}
 
 	used := map[string]bool{}

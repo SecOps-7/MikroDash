@@ -1,8 +1,15 @@
 // The Tools page: diagnostics run on the selected router (slice 8).
 //
 // Each tool is a form, a Run button and a result. The bounds — how many packets,
-// how long — are the server's (internal/diag), so the form offers only what the
-// server would run anyway, and a value edited past them is clamped there.
+// how many hops, how long — are the server's (internal/diag), so the form offers
+// only what the server would run anyway, and a value edited past them is clamped
+// there.
+//
+// ── ONE RUN AT A TIME ───────────────────────────────────────────────────────
+//
+// The server runs one diagnostic per connection, so every Run button is
+// disabled while any tool is running, and a result is accepted only by the
+// tool that is waiting for one.
 //
 // ── A RESULT BELONGS TO THE ROUTER IT WAS ASKED OF ──────────────────────────
 //
@@ -13,18 +20,58 @@
 
 import type { Socket } from '../socket';
 import { esc, el } from '../dom';
-import type { ToolsPingPayload, PingResult } from '../gen/payloads';
+import type { PingResult, TracerouteResult } from '../gen/payloads';
 
 const REFUSED: Record<string, string> = {
-  denied: 'You may not run tools on this router.',
+  denied: 'You may not run this tool on this router.',
   unavailable: 'No router is connected.',
   busy: 'Another tool is still running.',
 };
 
-const NOT_RUN = '<tr><td colspan="6" class="empty-state">Not run yet</td></tr>';
+/** One tool: the ids its markup uses, spelled out so each can be found, and
+ *  what its form asks the server for. */
+interface Tool {
+  key: 'ping' | 'traceroute';
+  form: string;
+  run: string;
+  status: string;
+  summary: string;
+  rows: string;
+  cols: number;
+  request(): Record<string, unknown> | null;
+}
+
+const TOOLS: Tool[] = [
+  {
+    key: 'ping', form: 'pingForm', run: 'pingRun', status: 'pingStatus', summary: 'pingSummary', rows: 'pingRows', cols: 6,
+    request: () => {
+      const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
+      return address ? { address, count: Number(el<HTMLSelectElement>('pingCount')?.value || 4) } : null;
+    },
+  },
+  {
+    key: 'traceroute', form: 'traceForm', run: 'traceRun', status: 'traceStatus', summary: 'traceSummary',
+    rows: 'traceRows', cols: 7,
+    request: () => {
+      const address = (el<HTMLInputElement>('traceAddress')?.value || '').trim();
+      return address ? { address, maxHops: Number(el<HTMLSelectElement>('traceHops')?.value || 15) } : null;
+    },
+  },
+];
 
 function ms(v: number | null | undefined): string {
   return v == null ? '—' : (v < 1 ? v.toFixed(3) : v.toFixed(1)) + ' ms';
+}
+
+function notRun(t: Tool): string {
+  return '<tr><td colspan="' + t.cols + '" class="empty-state">Not run yet</td></tr>';
+}
+
+function clearResult(t: Tool): void {
+  const summary = el(t.summary);
+  if (summary) summary.textContent = '';
+  const rows = el(t.rows);
+  if (rows) rows.innerHTML = notRun(t);
 }
 
 function renderPing(r: PingResult): void {
@@ -52,50 +99,93 @@ function renderPing(r: PingResult): void {
   }).join('');
 }
 
-function clearResult(): void {
-  const summary = el('pingSummary');
-  if (summary) summary.textContent = '';
-  const rows = el('pingRows');
-  if (rows) rows.innerHTML = NOT_RUN;
+function renderTraceroute(r: TracerouteResult): void {
+  const summary = el('traceSummary');
+  if (summary) summary.textContent = r.hops.length + (r.hops.length === 1 ? ' hop' : ' hops') + (r.error ? ' · ' + r.error : '');
+  const rows = el('traceRows');
+  if (!rows) return;
+  if (!r.hops.length) {
+    rows.innerHTML = '<tr><td colspan="7" class="empty-state">No hops</td></tr>';
+    return;
+  }
+  rows.innerHTML = r.hops.map((h) =>
+    '<tr>' +
+    '<td>' + h.hop + '</td>' +
+    '<td>' + (h.address ? esc(h.address) : '—') + '</td>' +
+    '<td>' + h.lossPct + '%</td>' +
+    '<td>' + (h.timedOut ? '<span class="wg-down">timeout</span>' : ms(h.lastMs)) + '</td>' +
+    '<td>' + ms(h.bestMs) + '</td>' +
+    '<td>' + ms(h.worstMs) + '</td>' +
+    '<td>' + esc(h.status) + '</td>' +
+    '</tr>').join('');
 }
 
 export function initToolsPage(socket: Socket): void {
-  let pending = false;
+  let pending: Tool | null = null;
 
-  function setRunning(on: boolean, note: string): void {
-    pending = on;
-    const btn = el<HTMLButtonElement>('pingRun');
-    if (btn) btn.disabled = on;
-    const status = el('pingStatus');
-    if (status) status.textContent = note;
+  function setRunning(t: Tool | null, note: string): void {
+    pending = t;
+    for (const x of TOOLS) {
+      const btn = el<HTMLButtonElement>(x.run);
+      if (btn) btn.disabled = t !== null;
+    }
+    if (t) {
+      const status = el(t.status);
+      if (status) status.textContent = note;
+    }
   }
 
-  el('pingForm')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (pending) return;
-    const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
-    const count = Number(el<HTMLSelectElement>('pingCount')?.value || 4);
-    if (!address) return;
-    // THE LAST RESULT GOES AT ONCE, so a run that fails does not leave the
-    // previous address's replies standing under its error.
-    clearResult();
-    setRunning(true, 'Running…');
-    socket.emit('tools:ping', { address, count });
-  });
-
-  socket.on('tools:ping', (d: ToolsPingPayload) => {
-    if (!pending) return;
-    setRunning(false, '');
-    if (d.result) {
-      renderPing(d.result);
+  function settle(t: Tool, d: { code: string; message: string }, draw: () => void): void {
+    if (pending !== t) return;
+    setRunning(null, '');
+    const status = el(t.status);
+    if (status) status.textContent = '';
+    if (!d.code) {
+      draw();
       return;
     }
-    const status = el('pingStatus');
-    if (status) status.textContent = REFUSED[d.code] || d.message || 'The ping did not run.';
-  });
+    if (status) status.textContent = REFUSED[d.code] || d.message || 'The tool did not run.';
+  }
+
+  for (const t of TOOLS) {
+    el(t.form)?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (pending) return;
+      const req = t.request();
+      if (!req) return;
+      // THE LAST RESULT GOES AT ONCE, so a run that fails does not leave the
+      // previous address's result standing under its error.
+      clearResult(t);
+      setRunning(t, 'Running…');
+      socket.emit('tools:' + t.key, req);
+    });
+  }
+  const [ping, trace] = TOOLS as [Tool, Tool];
+  socket.on('tools:ping', (d) => settle(ping, d, () => { if (d.result) renderPing(d.result); }));
+  socket.on('tools:traceroute', (d) => settle(trace, d, () => { if (d.result) renderTraceroute(d.result); }));
 
   socket.on('router:switched', () => {
-    setRunning(false, '');
-    clearResult();
+    if (pending) {
+      const status = el(pending.status);
+      if (status) status.textContent = '';
+    }
+    setRunning(null, '');
+    for (const t of TOOLS) clearResult(t);
+  });
+
+  // The tab strip: one panel shown at a time.
+  el('toolsTabs')?.addEventListener('click', (e) => {
+    const tab = (e.target as HTMLElement | null)?.closest?.('[data-tooltab]');
+    const key = tab?.getAttribute('data-tooltab');
+    if (!key) return;
+    for (const t of TOOLS) {
+      const panel = el('toolPanel-' + t.key);
+      if (panel) panel.style.display = t.key === key ? '' : 'none';
+    }
+    document.querySelectorAll('#toolsTabs [data-tooltab]').forEach((b) => {
+      const on = b.getAttribute('data-tooltab') === key;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
   });
 }

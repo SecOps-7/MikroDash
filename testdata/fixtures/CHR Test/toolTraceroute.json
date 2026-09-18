@@ -1,0 +1,119 @@
+{
+ "collector": "tools",
+ "note": "Captured from the CHR test router through the API, as the Tools page runs traceroute (count=1, timeout=1s). The reply is a series of snapshots of the hop table, one per .section, each holding every hop found so far; the last section is the whole table. Two runs: 1.1.1.1, which the CHR's QEMU NAT reaches in one hop, and a TEST-NET-2 address that never answers, where every hop times out ('last' is the word 'timeout') and the final section carries error 'Too many hops' once max-hops is reached. A hop still being probed is a row with an empty address, last 0 and loss 0. A name that cannot be resolved is a trap, 'failure: resolve failed'. RouterOS 7.24.3.",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "exchanges": [
+  {
+   "cmd": "/tool/traceroute",
+   "params": [
+    "=address=1.1.1.1",
+    "=count=1",
+    "=max-hops=4",
+    "=timeout=1s"
+   ],
+   "rows": [
+    {
+     ".section": "0",
+     "address": "1.1.1.1",
+     "avg": "15.4",
+     "best": "15.4",
+     "last": "15.4",
+     "loss": "0",
+     "sent": "1",
+     "status": "",
+     "std-dev": "0",
+     "worst": "15.4"
+    }
+   ]
+  },
+  {
+   "cmd": "/tool/traceroute",
+   "params": [
+    "=address=198.51.100.1",
+    "=count=1",
+    "=max-hops=3",
+    "=timeout=1s"
+   ],
+   "rows": [
+    {
+     ".section": "0",
+     "address": "",
+     "last": "0",
+     "loss": "0",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "1",
+     "address": "",
+     "last": "timeout",
+     "loss": "100",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "1",
+     "address": "",
+     "last": "0",
+     "loss": "0",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "2",
+     "address": "",
+     "last": "timeout",
+     "loss": "100",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "2",
+     "address": "",
+     "last": "timeout",
+     "loss": "100",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "2",
+     "address": "",
+     "last": "0",
+     "loss": "0",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "3",
+     "address": "",
+     "error": "Too many hops",
+     "last": "timeout",
+     "loss": "100",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "3",
+     "address": "",
+     "error": "Too many hops",
+     "last": "timeout",
+     "loss": "100",
+     "sent": "1",
+     "status": ""
+    },
+    {
+     ".section": "3",
+     "address": "",
+     "error": "Too many hops",
+     "last": "timeout",
+     "loss": "100",
+     "sent": "1",
+     "status": ""
+    }
+   ]
+  }
+ ]
+}

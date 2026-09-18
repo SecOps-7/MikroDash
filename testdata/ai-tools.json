@@ -414,6 +414,13 @@
       "page": "tools"
     },
     {
+      "name": "traceroute",
+      "access": "read",
+      "resource": "",
+      "diagnostic": "traceroute",
+      "page": "tools"
+    },
+    {
       "name": "change_row",
       "access": "write",
       "resource": "",

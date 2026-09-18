@@ -1061,6 +1061,29 @@ export interface ToolsPingPayload {
   message: string;
 }
 
+export interface Hop {
+  hop: number;
+  address: string;
+  timedOut: boolean;
+  lossPct: number;
+  lastMs: number | null;
+  bestMs: number | null;
+  worstMs: number | null;
+  status: string;
+}
+
+export interface TracerouteResult {
+  address: string;
+  hops: Hop[];
+  error: string;
+}
+
+export interface ToolsTraceroutePayload {
+  result: TracerouteResult | null;
+  code: string;
+  message: string;
+}
+
 export interface TopoDiscovery {
   protocol: string[];
   mode: string;
@@ -1606,6 +1629,7 @@ export interface Events {
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
   'tools:ping': ToolsPingPayload;
+  'tools:traceroute': ToolsTraceroutePayload;
   'topology:update': TopologyPayload;
   'traffic:history': TrafficHistory;
   'traffic:update': TrafficSample;

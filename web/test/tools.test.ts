@@ -1,5 +1,5 @@
 /**
- * THE TOOLS PAGE'S PING (slice 8, 2026-09-18).
+ * THE TOOLS PAGE'S PING AND TRACEROUTE (slice 8, 2026-09-18).
  *
  * Submitting the form asks the server for one bounded run; the answer is drawn
  * as one line per packet with the router's summary above. Three things are
@@ -19,16 +19,17 @@ import { makeDoc } from './dom-shim.js';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
-const ENTRY = path.join(ROOT, 'testdata', '.tools-ping-entry.ts');
+const ENTRY = path.join(ROOT, 'testdata', '.tools-entry.ts');
 fs.writeFileSync(ENTRY, "export { initToolsPage } from '../web/src/pages/tools.js';\n");
-const OUT = path.join(ROOT, 'testdata', '.tools-ping.cjs');
+const OUT = path.join(ROOT, 'testdata', '.tools.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
   { stdio: 'inherit' });
 fs.rmSync(ENTRY, { force: true });
 
 const mod = require(OUT);
-const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingStatus', 'pingSummary', 'pingRows']);
+const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingStatus', 'pingSummary', 'pingRows',
+  'traceForm', 'traceAddress', 'traceHops', 'traceRun', 'traceStatus', 'traceSummary', 'traceRows']);
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
@@ -87,5 +88,25 @@ handlers['router:switched']({ activeId: 'r3' });
 handlers['tools:ping'](result);
 assert.ok(/Not run yet/.test(rows()), 'a result for the old router was drawn after the switch');
 
+// TRACEROUTE. A ping result while a traceroute is pending is not the answer it
+// is waiting for, and is dropped; the traceroute's own result is drawn.
+sent.length = 0;
+n.traceAddress.value = '198.51.100.1';
+n.traceHops.value = '3';
+n.traceForm.fire('submit', { preventDefault: () => {} });
+assert.deepStrictEqual(sent, [['tools:traceroute', { address: '198.51.100.1', maxHops: 3 }]], 'the trace form did not ask for one run');
+assert.strictEqual(n.pingRun.disabled, true, 'Ping stays enabled while a traceroute runs');
+handlers['tools:ping'](result);
+assert.ok(/Not run yet/.test(rows()), 'a ping result was drawn while a traceroute was pending');
+handlers['tools:traceroute']({ code: '', message: '', result: { address: '198.51.100.1', error: 'Too many hops', hops: [
+  { hop: 1, address: '<i>h</i>', timedOut: false, lossPct: 0, lastMs: 1.5, bestMs: 1.5, worstMs: 1.5, status: '' },
+  { hop: 2, address: '', timedOut: true, lossPct: 100, lastMs: null, bestMs: null, worstMs: null, status: '' },
+] } });
+const trace = String(n.traceRows.innerHTML);
+assert.ok(/1\.5 ms/.test(trace) && /<span class="wg-down">timeout<\/span>/.test(trace), 'hops not drawn:\n' + trace);
+assert.ok(!/<i>h<\/i>/.test(trace), 'a hop address was not escaped:\n' + trace);
+assert.ok(/2 hops · Too many hops/.test(String(n.traceSummary.textContent)), 'the router\'s note on the run is missing');
+assert.strictEqual(n.pingRun.disabled, false, 'Ping stays disabled after the traceroute');
+
 fs.rmSync(OUT, { force: true });
-say('tools-ping: ok');
+say('tools: ok');

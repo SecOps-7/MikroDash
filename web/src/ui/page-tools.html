@@ -5,10 +5,13 @@
       <div class="card" id="toolsCard">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
-            <h3 class="card-title mb-0">Ping</h3>
+            <h3 class="card-title mb-0">Tools</h3>
           </div>
           <div class="hdr-actions d-flex align-items-center gap-2">
-            <span id="toolsTabs" class="stab-bar brtab-bar" role="tablist"></span>
+            <span id="toolsTabs" class="stab-bar brtab-bar" role="tablist">
+              <button class="stab active" type="button" role="tab" aria-selected="true" data-tooltab="ping">Ping</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-tooltab="traceroute">Traceroute</button>
+            </span>
           </div>
         </div>
         <div class="card-body" id="toolsBody">
@@ -35,6 +38,31 @@
               <table class="table table-vcenter mb-0">
                 <thead><tr><th>Seq</th><th>Host</th><th>Time</th><th>TTL</th><th>Size</th><th>Status</th></tr></thead>
                 <tbody id="pingRows"><tr><td colspan="6" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tool-panel" id="toolPanel-traceroute" style="display:none">
+            <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="traceForm">
+              <div>
+                <label class="form-label" for="traceAddress">Address</label>
+                <input class="form-control form-control-sm" id="traceAddress" type="text" maxlength="253"
+                  placeholder="IP address or host name" autocomplete="off" spellcheck="false" required>
+              </div>
+              <div>
+                <label class="form-label" for="traceHops">Max hops</label>
+                <select class="form-select form-select-sm" id="traceHops">
+                  <option>5</option><option>10</option><option selected>15</option>
+                  <option>20</option><option>25</option><option>30</option>
+                </select>
+              </div>
+              <button class="sbtn sbtn-primary" id="traceRun" type="submit">Trace</button>
+              <span class="muted-note" id="traceStatus"></span>
+            </form>
+            <div id="traceSummary" class="muted-note mb-2"></div>
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Hop</th><th>Address</th><th>Loss</th><th>Last</th><th>Best</th><th>Worst</th><th>Status</th></tr></thead>
+                <tbody id="traceRows"><tr><td colspan="7" class="empty-state">Not run yet</td></tr></tbody>
               </table>
             </div>
           </div>

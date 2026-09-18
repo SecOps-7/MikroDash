@@ -30,6 +30,7 @@ var (
 	EvRoutersStats      = hub.Declare[[]routers.Row]("routers:stats")
 	EvSitesUpdate       = hub.Declare[[]db.Site]("sites:update")
 	EvToolsPing         = hub.Declare[ToolsPingPayload]("tools:ping")
+	EvToolsTraceroute   = hub.Declare[ToolsTraceroutePayload]("tools:traceroute")
 )
 
 // Map payloads, whose browser types are hand-written in web/src/events-hand.ts.

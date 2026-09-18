@@ -47,38 +47,76 @@ type ToolsPingPayload struct {
 	Message string `json:"message"`
 }
 
+// ToolsTraceroutePayload is `tools:traceroute`, shaped as ToolsPingPayload is.
+type ToolsTraceroutePayload struct {
+	Result  *diag.TracerouteResult `json:"result"`
+	Code    string                 `json:"code"`
+	Message string                 `json:"message"`
+}
+
 type toolsPingReq struct {
 	Address string `json:"address"`
 	Count   int    `json:"count"`
+}
+
+type toolsTracerouteReq struct {
+	Address string `json:"address"`
+	MaxHops int    `json:"maxHops"`
+}
+
+// startTool is what every diagnostic handler does before its run: a router, the
+// page permission the tool needs, and this connection's one run slot. It
+// answers `refuse` with the code when any of them is missing, and otherwise
+// runs `work` off the read loop, freeing the slot when it returns.
+//
+// PINNED: `work` gets the router selected when the run was asked for. The page
+// drops a result that lands after a router switch; the goroutine does not read
+// `cn.rsession` again, which the read loop writes.
+//
+// OFF THE READ LOOP because a run lasts up to thirty-five seconds, and this
+// socket's page focus, blur and every other message would wait behind it.
+func (cn *conn) startTool(access string, refuse func(code string), work func(rs *session.Session)) {
+	if cn.routerID == "" || cn.rsession == nil {
+		refuse("unavailable")
+		return
+	}
+	if !cn.canPage("tools", access) {
+		refuse("denied")
+		return
+	}
+	if !cn.toolBusy.CompareAndSwap(false, true) {
+		refuse("busy")
+		return
+	}
+	rs := cn.rsession
+	go func() {
+		defer cn.toolBusy.Store(false)
+		work(rs)
+	}()
 }
 
 // toolsPing answers `tools:ping` from the Tools page.
 func (cn *conn) toolsPing(raw json.RawMessage) {
 	var req toolsPingReq
 	_ = json.Unmarshal(raw, &req)
-	if cn.routerID == "" || cn.rsession == nil {
-		EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: "unavailable"})
-		return
-	}
-	if !cn.canPage("tools", "read") {
-		EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: "denied"})
-		return
-	}
-	if !cn.toolBusy.CompareAndSwap(false, true) {
-		EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: "busy"})
-		return
-	}
-	// PINNED: the run goes to the router selected when it was asked for. The
-	// page drops a result that lands after a router switch; this goroutine does
-	// not read `cn.rsession` again, which the read loop writes.
-	rs := cn.rsession
-	// OFF THE READ LOOP. A run lasts up to fifteen seconds, and this socket's
-	// page focus, blur and every other message would wait behind it.
-	go func() {
-		defer cn.toolBusy.Store(false)
-		res, code, msg := runPing(rs, req.Address, req.Count)
-		EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: res, Code: code, Message: msg})
-	}()
+	cn.startTool("read",
+		func(code string) { EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: code}) },
+		func(rs *session.Session) {
+			res, code, msg := runPing(rs, req.Address, req.Count)
+			EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: res, Code: code, Message: msg})
+		})
+}
+
+// toolsTraceroute answers `tools:traceroute` from the Tools page.
+func (cn *conn) toolsTraceroute(raw json.RawMessage) {
+	var req toolsTracerouteReq
+	_ = json.Unmarshal(raw, &req)
+	cn.startTool("read",
+		func(code string) { EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Code: code}) },
+		func(rs *session.Session) {
+			res, code, msg := runTraceroute(rs, req.Address, req.MaxHops)
+			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: res, Code: code, Message: msg})
+		})
 }
 
 // runPing runs one bounded ping on a router and folds its reply.
@@ -91,21 +129,45 @@ func runPing(rs *session.Session, address string, count int) (*diag.PingResult, 
 	if err != nil {
 		return nil, "address", err.Error()
 	}
-	rows, err := rs.Exec(cmd)
-	if err != nil {
-		// A name that does not resolve, or an API user without the `test`
-		// policy, is a trap with the router's own words in it — which is what
-		// the operator needs to read, without this client's prefix on it.
-		// SANITISED, as every outbound error is: a transport failure carries the
-		// router's address.
-		var trap *routeros.Trap
-		if errors.As(err, &trap) {
-			return nil, "failed", "the router said: " + safe.Message(trap.Message)
-		}
-		return nil, "failed", safe.Message(err.Error())
+	rows, code, msg := runDiag(rs, cmd)
+	if code != "" {
+		return nil, code, msg
 	}
 	r := diag.FoldPing(address, rows)
 	return &r, "", ""
+}
+
+// runTraceroute runs one bounded traceroute on a router and folds its reply.
+func runTraceroute(rs *session.Session, address string, maxHops int) (*diag.TracerouteResult, string, string) {
+	cmd, err := diag.TracerouteCommand(address, maxHops)
+	if err != nil {
+		return nil, "address", err.Error()
+	}
+	rows, code, msg := runDiag(rs, cmd)
+	if code != "" {
+		return nil, code, msg
+	}
+	r := diag.FoldTraceroute(address, rows)
+	return &r, "", ""
+}
+
+// runDiag sends one diagnostic command and returns its rows, or "failed" with
+// the reason.
+//
+// A name that does not resolve, or an API user without the `test` policy, is a
+// trap with the router's own words in it — which is what the operator needs to
+// read, without this client's prefix on it. SANITISED, as every outbound error
+// is: a transport failure carries the router's address.
+func runDiag(rs *session.Session, cmd routeros.Cmd) ([]routeros.Reply, string, string) {
+	rows, err := rs.Exec(cmd)
+	if err == nil {
+		return rows, "", ""
+	}
+	var trap *routeros.Trap
+	if errors.As(err, &trap) {
+		return nil, "failed", "the router said: " + safe.Message(trap.Message)
+	}
+	return nil, "failed", safe.Message(err.Error())
 }
 
 // diagRunners answers each diagnostic tool, keyed by its `Diagnostic` name.
@@ -121,6 +183,17 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		res, code, msg := runPing(rs, req.Address, req.Count)
 		if code != "" {
 			return nil, "The ping did not run: " + msg
+		}
+		return res, ""
+	},
+	"traceroute": func(rs *session.Session, args []byte) (any, string) {
+		var req toolsTracerouteReq
+		if json.Unmarshal(args, &req) != nil {
+			return nil, "The arguments could not be read. Pass an object with `address`, and optionally `maxHops`."
+		}
+		res, code, msg := runTraceroute(rs, req.Address, req.MaxHops)
+		if code != "" {
+			return nil, "The traceroute did not run: " + msg
 		}
 		return res, ""
 	},

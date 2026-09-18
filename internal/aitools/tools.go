@@ -415,9 +415,9 @@ func liveTools() []Tool {
 //
 // ── THE PAGE'S PERMISSION, AS THE OPERATOR DECIDED ──────────────────────────
 //
-// Ping sends a few probes and changes nothing, so it is a READ of the Tools
-// page, offered and run without a proposal, exactly as the page runs it for a
-// viewer who may read Tools. Torch and bandwidth test, which load the router or
+// Ping and traceroute send a few probes and change nothing, so each is a READ
+// of the Tools page, offered and run without a proposal, exactly as the page
+// runs them for a viewer who may read Tools. Torch and bandwidth test, which load the router or
 // a link, are actions instead: always proposed.
 func diagTools() []Tool {
 	return []Tool{{
@@ -445,6 +445,32 @@ func diagTools() []Tool {
 			"additionalProperties": false,
 		},
 		Diagnostic: "ping",
+		Page:       "tools",
+		Access:     AccessRead,
+	}, {
+		Name: "traceroute",
+		Description: "Read only: sends a few probes and changes nothing. Trace the route " +
+			"FROM THE ROUTER the operator has selected to an address, with /tool/traceroute: " +
+			"one probe per hop, up to 30 hops, each waiting at most a second. Returns every hop " +
+			"in order with its address, whether it timed out, its loss and reply time, and the " +
+			"router's note on the run such as \"Too many hops\" when the address was not " +
+			"reached. Use it to find where on the path traffic stops or slows down.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"address": map[string]any{
+					"type":        "string",
+					"description": "One IPv4 or IPv6 address or host name.",
+				},
+				"maxHops": map[string]any{
+					"type": "integer", "minimum": 1, "maximum": 30,
+					"description": "How many hops to try at most. 15 if omitted.",
+				},
+			},
+			"required":             []string{"address"},
+			"additionalProperties": false,
+		},
+		Diagnostic: "traceroute",
 		Page:       "tools",
 		Access:     AccessRead,
 	}}
