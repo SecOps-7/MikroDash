@@ -1,0 +1,30 @@
+{
+ "collector": "areas",
+ "resource": "file",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router: its skins directory and a small text file created FOR the capture and removed afterwards. Read with a proplist that never names contents, as the areas collector reads it. Two 7.24 facts: file ids are **-prefixed tokens rather than *N, and a file reports last-modified but no creation-time. Read through /file/print.",
+ "exchanges": [
+  {
+   "cmd": "/file/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "**YHreAtZptBR6ICKypgCrTh0ZY",
+     "last-modified": "2026-09-18 10:37:24",
+     "name": "md-fixture.txt",
+     "size": "15",
+     "type": ".txt file"
+    },
+    {
+     ".id": "**NQMkAHLmXTJHX",
+     "last-modified": "2026-09-07 13:24:48",
+     "name": "skins",
+     "type": "directory"
+    }
+   ]
+  }
+ ]
+}

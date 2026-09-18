@@ -500,10 +500,13 @@ function show(schema: Schema, values: Record<string, unknown> | null,
     slot.style.display = html ? '' : 'none';
     if (html) extra!.wire?.();
   }
-  if (readOnly) {
+  // FROZEN is read-only for editing but not for deleting: an existing row of a
+  // resource that can be viewed and removed and nothing else (/file).
+  const frozen = readOnly || (!!row && schema.editable === false);
+  if (frozen) {
     // Shown, not hidden: the operator clicked the row to see it, and the values
     // are the answer to that even when they cannot be changed.
-    el('res_fields')?.querySelectorAll<HTMLInputElement>('input,select')
+    el('res_fields')?.querySelectorAll<HTMLInputElement>('input,select,textarea')
       .forEach((n) => { n.disabled = true; });
   }
   setError('');
@@ -514,10 +517,10 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   // may write to. On a new form it would copy a blank, and on a read-only one it
   // would offer a write the server refuses.
   // And never on a resource that cannot be created: the copy could only be refused.
-  const dup = el('res_dup'); if (dup) dup.style.display = (row && !readOnly && schema.creatable !== false) ? '' : 'none';
+  const dup = el('res_dup'); if (dup) dup.style.display = (row && !frozen && schema.creatable !== false) ? '' : 'none';
   const save = el('res_save');
   if (save) {
-    save.style.display = readOnly ? 'none' : '';
+    save.style.display = frozen ? 'none' : '';
     save.textContent = row ? 'Save' : 'Add ' + schema.label;
   }
   // THE PREVIEW BUTTON, shown on a writable form and hidden on a read-only one.
@@ -528,7 +531,7 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   // `app.js:14657`, `ro ? 'none' : ''`. A user-visible control was missing from
   // every resource page as a result, found by `inbound-audit` noticing that the
   // live app answers `res:preview` and ws.go did not.
-  const pbtn = el('res_previewBtn'); if (pbtn) pbtn.style.display = readOnly ? 'none' : '';
+  const pbtn = el('res_previewBtn'); if (pbtn) pbtn.style.display = frozen ? 'none' : '';
   el('resModal')?.classList.add('open');
 }
 
@@ -1110,6 +1113,7 @@ function wire(socket: Socket): void {
       'stale-row': 'That row changed on the router. Close and reopen it.',
       'read-only-row': 'This entry cannot be edited here.',
       'not-creatable': 'This cannot be added here.',
+      'not-editable': 'This can be viewed and deleted here, not edited.',
       'not-removable': 'This entry cannot be removed here.',
       'router-denied': 'The router refused the change: the API user lacks permission.',
       'write-failed': 'The router refused the change.',

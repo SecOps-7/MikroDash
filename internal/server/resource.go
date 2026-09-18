@@ -319,6 +319,15 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		})
 		return nil, writeOutcome{Code: "not-creatable"}
 	}
+	// And one that cannot be edited refuses an update the same way: the form
+	// draws no Save for it, so this is a hand-built request or the assistant.
+	if editing && res.NoEdit {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".update", TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, Note: "not-editable",
+		})
+		return nil, writeOutcome{Code: "not-editable"}
+	}
 
 	// READ FIRST WHEN THE VALUES ARE PARTIAL, because what is being validated is
 	// then the stored row with the caller's changes laid over it.
@@ -699,8 +708,16 @@ func (cn *conn) commitRemove(p *preparedRemove, via string) writeOutcome {
 	}
 	// Recorded BEFORE the audit row and from the row as it was, because the
 	// row is gone now and its values are the only way back.
-	cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
-		req.ID, name, histValues(res.RowValues(row)), nil))
+	//
+	// NOT for a resource that cannot be created. Undoing a delete is an `add`,
+	// and for a NoCreate resource that add would not restore the row — undoing a
+	// certificate's removal would have made an unsigned TEMPLATE with its name,
+	// and a file's would have made an empty file. A delete that cannot be undone
+	// offers no undo (found building Files, 2026-09-18).
+	if !res.NoCreate {
+		cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
+			req.ID, name, histValues(res.RowValues(row)), nil))
+	}
 
 	// after is `{}` for a delete: Diff walks the keys of `after`, so an empty
 	// one reports NOTHING changed, which is right — a delete is described by

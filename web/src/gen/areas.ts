@@ -96,6 +96,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "files", title: "Files", navGroup: "system",
+    tables: [
+      { resource: "file", title: "File", columns: ["name", "type", "size", "lastModified"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

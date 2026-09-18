@@ -77,6 +77,11 @@
       "settingsKey": null
     },
     {
+      "key": "files",
+      "title": "Files",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

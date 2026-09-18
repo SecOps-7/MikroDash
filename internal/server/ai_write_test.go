@@ -93,7 +93,7 @@ func TestEveryRefusalTheWritePathCanProduceHasASentence(t *testing.T) {
 		t.Fatal("dnsStatic is not in the registry")
 	}
 	codes := []string{
-		"denied", "unavailable", "stale-row", "read-only-row", "not-creatable",
+		"denied", "unavailable", "stale-row", "read-only-row", "not-creatable", "not-editable",
 		"invalid", "router-denied", "write-failed", "guard-not-ported",
 		"rate-limited", "outcome-unknown",
 		// The delete path's own refusal (removeRow).

@@ -219,6 +219,7 @@ surface stays complete.
 | `/system/ntp/client/servers` | ntpServer | ntp-client | add, set, remove |
 | `/system/scheduler` | scheduler | scheduler | add, set, remove |
 | `/system/script` | script | scripts | add, set, remove, run |
+| `/file` | file | files | remove |
 | `/interface` | iface | interfaces | set (comment, disabled) |
 | `/interface/bridge` | bridge | bridges | add, set, remove |
 | `/interface/bridge/port` | bridgePort | bridges | add, set, remove |

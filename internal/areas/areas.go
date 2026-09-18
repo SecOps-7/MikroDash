@@ -188,6 +188,13 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// Files: see and remove, nothing else. Contents are never read.
+	{
+		Key: "files", Title: "Files", NavGroup: "system",
+		Tables: []Table{{Resource: "file",
+			Columns: []string{"name", "type", "size", "lastModified"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

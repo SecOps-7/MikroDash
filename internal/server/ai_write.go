@@ -579,6 +579,8 @@ func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 		return "Not applied: that row cannot be edited here."
 	case "not-creatable":
 		return "Not applied: rows of that kind cannot be created."
+	case "not-editable":
+		return "Not applied: rows of that kind can be viewed and deleted, not edited."
 	case "not-removable":
 		return "Not applied: that row cannot be deleted, only edited."
 	case "invalid":

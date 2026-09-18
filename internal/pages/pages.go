@@ -122,6 +122,7 @@ var All = []Page{
 	{Key: "clock", Title: "Clock", Collector: "areas"},
 	{Key: "logging", Title: "Logging", Collector: "areas"},
 	{Key: "snmp", Title: "SNMP", Collector: "areas"},
+	{Key: "files", Title: "Files", Collector: "areas"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},

@@ -206,6 +206,11 @@ type Resource struct {
 	// is NoCreate and never removable; TestEverySingletonIsFixed holds that.
 	Singleton bool
 
+	// NoEdit refuses an update: the row can be seen and removed and nothing
+	// else. /file is the case — `set contents=` would let anyone write a file,
+	// and a page that can delete files has no business writing them.
+	NoEdit bool
+
 	// NoCreate refuses a create. An interface exists because hardware or another
 	// menu made it; `/interface` has no `add`, so offering one would be a form
 	// that can only fail at the router.
@@ -761,7 +766,7 @@ func (r *Resource) Describe() map[string]any {
 	return map[string]any{
 		"key": r.Key, "label": r.Label, "title": r.Title, "page": r.Page,
 		"identity": r.IdentityJSON(), "actions": actions, "fields": fields,
-		"creatable": !r.NoCreate,
+		"creatable": !r.NoCreate, "editable": !r.NoEdit,
 	}
 }
 
@@ -1362,6 +1367,33 @@ var SNMPCommunity = &Resource{
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "isDefault", ROS: "default", Label: "Default", Type: TypeBool, Display: true},
+	},
+}
+
+// File is /file (slice 7): read and delete, no upload, never edited. From the
+// command tree for /file.
+//
+// ── NOTHING HERE WRITES A FILE ──────────────────────────────────────────────
+//
+// `/file set contents=` and `/file add` write file contents, so the resource is
+// NoCreate and NoEdit, and every field is Display: the table is for seeing what
+// is there and removing what should not be. Nor are contents ever READ — the
+// areas proplist names only the declared fields, and `contents` is not one — so
+// a file holding a key or a config export never reaches the browser. A disk
+// listed here is storage, not a file, and cannot be removed from this page.
+// MikroDash's own backups make and remove temporary files of their own; deleting
+// one mid-backup fails that backup, which says so.
+var File = &Resource{
+	Key: "file", Page: "files", Label: "File",
+	Title: "File", Menu: "/file", Identity: []string{"name"},
+	NoCreate:      true,
+	NoEdit:        true,
+	RemovableWhen: func(r map[string]string) bool { return r["type"] != "disk" },
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Display: true},
+		{Name: "type", ROS: "type", Label: "Type", Type: TypeText, Display: true},
+		{Name: "size", ROS: "size", Label: "Size", Type: TypeText, Display: true},
+		{Name: "lastModified", ROS: "last-modified", Label: "Last Modified", Type: TypeText, Display: true},
 	},
 }
 
@@ -2041,6 +2073,7 @@ var byKey = map[string]*Resource{
 	LogAction.Key:           LogAction,
 	SNMP.Key:                SNMP,
 	SNMPCommunity.Key:       SNMPCommunity,
+	File.Key:                File,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

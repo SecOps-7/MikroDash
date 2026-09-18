@@ -109,6 +109,12 @@
       "page": "dns"
     },
     {
+      "name": "list_file",
+      "access": "read",
+      "resource": "file",
+      "page": "files"
+    },
+    {
       "name": "list_fwFilter",
       "access": "read",
       "resource": "fwFilter",

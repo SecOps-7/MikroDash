@@ -85,3 +85,26 @@ func TestTheClockNeverSendsTheTime(t *testing.T) {
 		t.Errorf("the time zone was dropped: %v", v.Values)
 	}
 }
+
+// A FILE IS SEEN AND REMOVED, NEVER WRITTEN, AND ITS CONTENTS ARE NEVER READ.
+// NoCreate and NoEdit refuse the writes; no field may name `contents`, because
+// the areas read asks for exactly the declared fields.
+func TestAFileIsNeverWrittenNorItsContentsRead(t *testing.T) {
+	if !File.NoCreate || !File.NoEdit {
+		t.Error("files can be created or edited from this page")
+	}
+	for _, f := range File.Fields {
+		if f.ROS == "contents" {
+			t.Errorf("the file resource declares %q, so its contents would be read", f.Name)
+		}
+		if !f.Display {
+			t.Errorf("file field %q is writable", f.Name)
+		}
+	}
+	if File.RemovableWhen(map[string]string{"type": "disk"}) {
+		t.Error("a disk could be removed from the Files page")
+	}
+	if !File.RemovableWhen(map[string]string{"type": ".txt file"}) {
+		t.Error("an ordinary file could not be removed")
+	}
+}

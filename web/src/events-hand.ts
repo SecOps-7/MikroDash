@@ -74,6 +74,8 @@ export interface ResSchema {
   fields: ResSchemaField[];
   /** False for a resource the router only lets you edit, never add. */
   creatable: boolean;
+  /** False for a resource that can be viewed and removed, never edited (/file). */
+  editable: boolean;
   permitted: boolean;
   unsupported: boolean;
   ordered: boolean;
