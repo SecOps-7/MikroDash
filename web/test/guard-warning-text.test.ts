@@ -15,7 +15,7 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.gw-entry.ts');
-fs.writeFileSync(ENTRY, "export { warningText } from '../web/src/resource.js';\n");
+fs.writeFileSync(ENTRY, "export { warningText, guardRefusedText } from '../web/src/resource.js';\n");
 const OUT = path.join(ROOT, 'web', 'dist', '_compare', 'guard-warning-text.cjs');
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -25,7 +25,7 @@ fs.rmSync(ENTRY, { force: true });
 
 global.document = { getElementById: () => null, querySelectorAll: () => [], querySelector: () => null, addEventListener: () => {} };
 global.window = { addEventListener: () => {} };
-const { warningText } = require(OUT);
+const { warningText, guardRefusedText } = require(OUT);
 const say = console.log.bind(console);
 
 const route = warningText('route-cutoff', { address: '203.0.113.50', destination: '0.0.0.0/0', action: 'delete' });
@@ -82,3 +82,11 @@ say('ok  the formerly unacknowledgeable warnings each explain themselves');
 const other = warningText('<b>odd</b>', {});
 assert.ok(other.why.includes('&lt;b&gt;') && !other.why.includes('<b>'), 'an unknown code is escaped: ' + other.why);
 say('ok  an unknown code falls back, escaped');
+
+// THE IP-SERVICE REFUSALS each say what the change would do, not the fallback.
+for (const [code, words] of [['service-disable', 'Disabling it'], ['service-port', 'port'], ['service-vrf', 'VRF'],
+  ['service-address', 'would not admit'], ['service-address-unknown', 'cannot read']]) {
+  const t = guardRefusedText(code);
+  assert.ok(t.includes(words) && !t.includes('A safety rule refused'), code + ': ' + t);
+}
+say('ok  each IP-service refusal explains itself');

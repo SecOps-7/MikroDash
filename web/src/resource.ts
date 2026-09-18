@@ -404,6 +404,11 @@ export function guardRefusedText(rule: unknown): string {
     case 'protected-name-value': return 'That name belongs to the account MikroDash signs in with.';
     case 'protected-group-value': return 'Users cannot be placed in, or edited while in, the group MikroDash signs in with.';
     case 'self-unresolved': return 'MikroDash cannot identify its own account on this router, so changes are refused.';
+    case 'service-disable': return 'That is the API service MikroDash connects through. Disabling it would cut MikroDash off; change it in WinBox.';
+    case 'service-port': return 'That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.';
+    case 'service-vrf': return 'That is the API service MikroDash connects through. Moving it to another VRF would cut MikroDash off; change it in WinBox.';
+    case 'service-address': return 'That address list would not admit the address the router sees MikroDash connecting from.';
+    case 'service-address-unknown': return 'MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.';
     default: return 'A safety rule refused this change.';
   }
 }

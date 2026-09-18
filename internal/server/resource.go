@@ -1138,7 +1138,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
-	"listLockout": true,
+	"listLockout": true, "serviceLockout": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1207,6 +1207,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "listLockout":
 			if v := cn.listVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "serviceLockout":
+			if v := cn.serviceVerdict(action, values, before); v.Refused() {
 				return v, nil
 			}
 		case "selfAccount":
@@ -1398,6 +1402,60 @@ func (cn *conn) listVerdict(res *resource.Resource, action string,
 		}
 	}
 	return listDecision(res, action, values, before, path, cn.rsession.APIPort(), rules)
+}
+
+// serviceVerdict asks the IP-services guard about one /ip/service write. Which
+// service is ours comes from the session's TLS setting; where the router sees us
+// from is read FRESH from /user/active, and a denied read leaves it unresolved,
+// which the guard treats as "cannot show an address restriction admits us".
+func (cn *conn) serviceVerdict(action string, values, before map[string]string) guard.Verdict {
+	var active []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	self, resolved := guard.SelfAddresses(active, []string{cn.rsession.Username()})
+	return serviceDecision(cn.rsession.UsesTLS(), self, resolved, action, values, before)
+}
+
+// serviceDecision is serviceVerdict without the reads. `before` is the row as
+// RouterOS returned it; `values` are the write's, keyed by field name, and the
+// ipService fields are named exactly as RouterOS spells them, so one key reads
+// both (pinned where the resource is declared).
+func serviceDecision(tls bool, self []string, resolved bool, action string,
+	values, before map[string]string) guard.Verdict {
+
+	ours := "api"
+	if tls {
+		ours = "api-ssl"
+	}
+	if before == nil {
+		return guard.Verdict{Level: "none"} // /ip/service rows are fixed: nothing is created
+	}
+	row := func(v map[string]string, base guard.ServiceRow) guard.ServiceRow {
+		r := base
+		for k, dst := range map[string]*string{"name": &r.Name, "port": &r.Port, "address": &r.Address, "vrf": &r.VRF} {
+			if x, ok := v[k]; ok {
+				*dst = x
+			}
+		}
+		if x, ok := v["disabled"]; ok {
+			r.Disabled = x == "yes" || x == "true"
+		}
+		return r
+	}
+	was := row(before, guard.ServiceRow{})
+	now := was
+	switch {
+	case action == "delete":
+		now.Disabled = true // not possible on /ip/service, and refused as the same cut
+	case action == "disable":
+		now.Disabled = true
+	case action == "enable":
+		now.Disabled = false
+	case values != nil:
+		now = row(values, was)
+	}
+	return guard.CheckServiceEdit(ours, self, resolved, was, now)
 }
 
 // listClause is which firewall clause matches this resource's lists, and which

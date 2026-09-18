@@ -101,3 +101,24 @@ func TestInterfaceListWritesReachTheGuard(t *testing.T) {
 		}
 	}
 }
+
+// THE SERVICE ADAPTER: which row is ours follows TLS, a partial edit is laid
+// over the stored row, and the row actions count as the edits they are.
+func TestServiceWritesReachTheGuard(t *testing.T) {
+	self := []string{"198.51.100.5"}
+	apiSSL := map[string]string{".id": "*6", "name": "api-ssl", "port": "8729", "address": "", "disabled": "false"}
+	if v := serviceDecision(true, self, true, "update", map[string]string{"port": "9000"}, apiSSL); !v.Refused() || v.Code != "service-port" {
+		t.Errorf("re-porting api-ssl over TLS: %+v", v)
+	}
+	if v := serviceDecision(true, self, true, "disable", nil, apiSSL); !v.Refused() || v.Code != "service-disable" {
+		t.Errorf("the disable action on api-ssl: %+v", v)
+	}
+	// Controls: the same edit when MikroDash speaks plain api, and a comment-free
+	// no-op on our own row.
+	if v := serviceDecision(false, self, true, "update", map[string]string{"port": "9000"}, apiSSL); v.Level != "none" {
+		t.Errorf("re-porting api-ssl while MikroDash uses plain api: %+v", v)
+	}
+	if v := serviceDecision(true, self, true, "update", map[string]string{"address": "198.51.100.0/24"}, apiSSL); v.Level != "none" {
+		t.Errorf("an address list that admits us: %+v", v)
+	}
+}

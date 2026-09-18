@@ -417,6 +417,14 @@ func (s *Session) APIPort() int {
 	return s.cfg.Port
 }
 
+// UsesTLS is whether this session speaks api-ssl rather than api, which is
+// what names the /ip/service row a write must not cut (guard/serviceguard.go).
+func (s *Session) UsesTLS() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.TLS
+}
+
 // reader adapts the session to collect.Reader. The indirection matters: the
 // client is REPLACED on a reconnect, and a collector holding the old pointer
 // would read from a closed connection for ever.
