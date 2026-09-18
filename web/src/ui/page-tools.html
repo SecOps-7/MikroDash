@@ -12,6 +12,7 @@
               <button class="stab active" type="button" role="tab" aria-selected="true" data-tooltab="ping">Ping</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-tooltab="traceroute">Traceroute</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-tooltab="torch">Torch</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-tooltab="btest">Bandwidth test</button>
             </span>
           </div>
         </div>
@@ -88,6 +89,53 @@
               <table class="table table-vcenter mb-0">
                 <thead><tr><th>Protocol</th><th>Source</th><th>Destination</th><th>Rx</th><th>Tx</th></tr></thead>
                 <tbody id="torchRows"><tr><td colspan="5" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- The password is typed for each run and cleared when the run is
+               sent: it is never stored, and nothing on this page echoes it. -->
+          <div class="tool-panel" id="toolPanel-btest" style="display:none">
+            <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="btestForm" autocomplete="off">
+              <div>
+                <label class="form-label" for="btestAddress">Server</label>
+                <input class="form-control form-control-sm" id="btestAddress" type="text" maxlength="253"
+                  placeholder="Another MikroTik's address" autocomplete="off" spellcheck="false" required>
+              </div>
+              <div>
+                <label class="form-label" for="btestUser">User</label>
+                <input class="form-control form-control-sm" id="btestUser" type="text" maxlength="64"
+                  autocomplete="off" spellcheck="false">
+              </div>
+              <div>
+                <label class="form-label" for="btestPassword">Password</label>
+                <input class="form-control form-control-sm" id="btestPassword" type="password" autocomplete="new-password">
+              </div>
+              <div>
+                <label class="form-label" for="btestSeconds">Seconds</label>
+                <select class="form-select form-select-sm" id="btestSeconds">
+                  <option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option>
+                  <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label" for="btestProtocol">Protocol</label>
+                <select class="form-select form-select-sm" id="btestProtocol">
+                  <option selected>tcp</option><option>udp</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label" for="btestDirection">Direction</label>
+                <select class="form-select form-select-sm" id="btestDirection">
+                  <option selected>both</option><option>receive</option><option>transmit</option>
+                </select>
+              </div>
+              <button class="sbtn sbtn-primary" id="btestRun" type="submit">Test</button>
+              <span class="muted-note" id="btestStatus"></span>
+            </form>
+            <div id="btestSummary" class="muted-note mb-2"></div>
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0">
+                <tbody id="btestRows"><tr><td colspan="2" class="empty-state">Not run yet</td></tr></tbody>
               </table>
             </div>
           </div>

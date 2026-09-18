@@ -1,0 +1,168 @@
+{
+ "collector": "tools",
+ "note": "Captured from the CHR test router through the API, as the Tools page runs a bandwidth test: TCP, both directions, against the hAP AC2's bandwidth server. One report per second under its own .section, each carrying the running totals; the last row's status is 'done testing' for a run that finished, and a failed run ends on a status saying why ('authentication failed', 'can not connect') rather than a trap. Rates are bits per second. THE PASSWORD WORD IS NOT RECORDED: the command carried =password=, which is dropped here as every credential is, and the test compares the command without it. The server's address is scrubbed into TEST-NET-2. RouterOS 7.24.3 (client) against 7.x on the hAP AC2.",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "exchanges": [
+  {
+   "cmd": "/tool/bandwidth-test",
+   "params": [
+    "=address=198.51.100.53",
+    "=user=md-btest",
+    "=duration=3s",
+    "=protocol=tcp",
+    "=direction=both"
+   ],
+   "rows": [
+    {
+     ".section": "0",
+     "connection-count": "20",
+     "direction": "both",
+     "random-data": "false",
+     "rx-10-second-average": "0",
+     "rx-current": "0",
+     "rx-total-average": "0",
+     "status": "connecting",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    },
+    {
+     ".section": "1",
+     "connection-count": "20",
+     "direction": "both",
+     "duration": "1s",
+     "random-data": "false",
+     "rx-10-second-average": "0",
+     "rx-current": "0",
+     "rx-total-average": "0",
+     "status": "running",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    },
+    {
+     ".section": "2",
+     "connection-count": "20",
+     "direction": "both",
+     "duration": "2s",
+     "random-data": "false",
+     "rx-10-second-average": "2168960",
+     "rx-current": "2168960",
+     "rx-total-average": "2168960",
+     "status": "running",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    },
+    {
+     ".section": "3",
+     "connection-count": "20",
+     "direction": "both",
+     "duration": "3s",
+     "random-data": "false",
+     "rx-10-second-average": "3479680",
+     "rx-current": "4790400",
+     "rx-total-average": "3479680",
+     "status": "running",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    },
+    {
+     ".section": "4",
+     "connection-count": "20",
+     "direction": "both",
+     "duration": "4s",
+     "local-cpu-load": "0",
+     "random-data": "false",
+     "remote-cpu-load": "3",
+     "rx-10-second-average": "4612040",
+     "rx-current": "6876768",
+     "rx-total-average": "4612040",
+     "status": "done testing",
+     "tx-10-second-average": "1702032",
+     "tx-current": "969440",
+     "tx-total-average": "1702032"
+    }
+   ]
+  },
+  {
+   "cmd": "/tool/bandwidth-test",
+   "params": [
+    "=address=198.51.100.53",
+    "=user=md-btest",
+    "=duration=2s",
+    "=protocol=tcp",
+    "=direction=both"
+   ],
+   "rows": [
+    {
+     ".section": "0",
+     "connection-count": "20",
+     "direction": "both",
+     "random-data": "false",
+     "rx-10-second-average": "0",
+     "rx-current": "0",
+     "rx-total-average": "0",
+     "status": "connecting",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    },
+    {
+     ".section": "1",
+     "connection-count": "20",
+     "direction": "both",
+     "random-data": "false",
+     "rx-10-second-average": "0",
+     "rx-current": "0",
+     "rx-total-average": "0",
+     "status": "authentication failed",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    }
+   ]
+  },
+  {
+   "cmd": "/tool/bandwidth-test",
+   "params": [
+    "=address=198.51.100.53",
+    "=duration=2s",
+    "=protocol=tcp",
+    "=direction=both"
+   ],
+   "rows": [
+    {
+     ".section": "0",
+     "connection-count": "20",
+     "direction": "both",
+     "random-data": "false",
+     "rx-10-second-average": "0",
+     "rx-current": "0",
+     "rx-total-average": "0",
+     "status": "connecting",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    },
+    {
+     ".section": "1",
+     "connection-count": "20",
+     "direction": "both",
+     "random-data": "false",
+     "rx-10-second-average": "0",
+     "rx-current": "0",
+     "rx-total-average": "0",
+     "status": "can not connect",
+     "tx-10-second-average": "0",
+     "tx-current": "0",
+     "tx-total-average": "0"
+    }
+   ]
+  }
+ ]
+}

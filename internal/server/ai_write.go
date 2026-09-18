@@ -364,13 +364,11 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 		return
 	}
 	if p != nil && p.actionKey != "" {
-		// The operator's typed-back router name travels on THIS frame, never on
-		// the tool call: see aitools/actions.go.
-		var in struct {
-			Confirm string `json:"confirm"`
-		}
+		// The operator's typed-back router name, and a login the action needs,
+		// travel on THIS frame, never on the tool call: see aitools/actions.go.
+		var in actionApproval
 		_ = json.Unmarshal(raw, &in)
-		cn.approveAIAction(p, in.Confirm)
+		cn.approveAIAction(p, in)
 		return
 	}
 	if p == nil {

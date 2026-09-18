@@ -274,6 +274,13 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     if (typed) typed.hidden = true;
     const confirm = el<HTMLInputElement>('aiProposeConfirm');
     if (confirm) confirm.value = '';
+    // THE LOGIN GOES WITH THE DIALOG, answered or not.
+    const creds = el('aiProposeCreds');
+    if (creds) creds.hidden = true;
+    const user = el<HTMLInputElement>('aiProposeUser');
+    if (user) user.value = '';
+    const pass = el<HTMLInputElement>('aiProposePass');
+    if (pass) pass.value = '';
   }
 
   /** The approve button is live only once a typed name, if one is wanted, matches. */
@@ -366,6 +373,10 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     }
     syncApprove();
 
+    // A login the action needs, typed here by the operator: see aitools/actions.go.
+    const creds = el('aiProposeCreds');
+    if (creds) creds.hidden = !d.credentials;
+
     const box = el('aiProposeBox');
     if (box) box.hidden = false;
   });
@@ -381,10 +392,16 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     if (!proposal) return;
     const token = proposal;
     const confirm = (el<HTMLInputElement>('aiProposeConfirm')?.value || '').trim();
+    const frame: Record<string, string> = { token };
+    if (confirm) frame.confirm = confirm;
+    if (!el('aiProposeCreds')?.hidden) {
+      frame.user = (el<HTMLInputElement>('aiProposeUser')?.value || '').trim();
+      frame.password = el<HTMLInputElement>('aiProposePass')?.value || '';
+    }
     // CLOSED FIRST. The token is single use server-side, but a second press
     // before the reply lands should not send a second frame at all.
     closeProposal();
-    socket.emit('ai:write:approve', confirm ? { token, confirm } : { token });
+    socket.emit('ai:write:approve', frame);
   });
 
   el<HTMLButtonElement>('aiProposeReject')?.addEventListener('click', () => {

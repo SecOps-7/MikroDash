@@ -179,6 +179,8 @@ export interface HandEvents {
     typedReason?: string;
     /** The router's own label, which the typed name is compared with. */
     routerName?: string;
+    /** The action logs in elsewhere: the operator types the user and password. */
+    credentials?: boolean;
     /** Present only when a guard warned. The dialog must then always be shown. */
     warnCode: string;
     warning: Record<string, unknown>;

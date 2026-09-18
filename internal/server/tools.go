@@ -404,3 +404,99 @@ func flowEnd(addr, port string) string {
 	}
 	return addr + ":" + port
 }
+
+// ToolsBtestPayload is `tools:btest`, shaped as ToolsPingPayload is. A test that
+// ran and failed (a refused login, an unreachable server) carries its Result as
+// well as the "failed" code, so the page can say what RouterOS said.
+type ToolsBtestPayload struct {
+	Result  *diag.BtestResult `json:"result"`
+	Code    string            `json:"code"`
+	Message string            `json:"message"`
+}
+
+// toolsBtestReq is the page's request. The PASSWORD is in it, and goes from here
+// into one sentence and nowhere else.
+type toolsBtestReq struct {
+	Address   string `json:"address"`
+	User      string `json:"user"`
+	Password  string `json:"password"`
+	Seconds   int    `json:"seconds"`
+	Protocol  string `json:"protocol"`
+	Direction string `json:"direction"`
+}
+
+// toolsBtest answers `tools:btest` from the Tools page: write access, audited,
+// as torch is.
+func (cn *conn) toolsBtest(raw json.RawMessage) {
+	var req toolsBtestReq
+	_ = json.Unmarshal(raw, &req)
+	cn.startTool("write",
+		func(code string) {
+			if code == "denied" {
+				cn.recorder().Denied(btestAudit(cn.routerID, req, ""))
+			}
+			EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Code: code})
+		},
+		func(rs *session.Session) {
+			res, code, msg := cn.runBtest(rs, req, "")
+			EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: res, Code: code, Message: msg})
+		})
+}
+
+// btestAudit is a bandwidth test's audit row. The user is recorded — who the far
+// server was asked to let in is part of what happened — and the password never
+// is: it is not a parameter here, so it cannot be.
+func btestAudit(routerID string, req toolsBtestReq, via string) audit.Event {
+	ev := audit.Event{Action: "tools.bandwidth-test", TargetType: "host", TargetName: req.Address,
+		RouterID: routerID, Note: "saturates the link and loads both routers while it runs"}
+	ev.Extra = []audit.KV{{Key: "user", Value: req.User}, {Key: "protocol", Value: req.Protocol},
+		{Key: "direction", Value: req.Direction}}
+	if via != "" {
+		ev.Extra = append(ev.Extra, audit.KV{Key: "via", Value: via})
+	}
+	return ev
+}
+
+// runBtest runs one bounded bandwidth test and folds its reports. The audit row
+// is written before the command is sent.
+func (cn *conn) runBtest(rs *session.Session, req toolsBtestReq, via string) (*diag.BtestResult, string, string) {
+	cmd, err := diag.BandwidthTestCommand(req.Address, req.User, req.Password, req.Seconds, req.Protocol, req.Direction)
+	if err != nil {
+		return nil, "request", err.Error()
+	}
+	cn.recorder().Record(btestAudit(cn.routerID, req, via))
+	rows, code, msg := runDiag(rs, cmd)
+	if code != "" {
+		return nil, code, msg
+	}
+	r := diag.FoldBandwidthTest(req.Address, rows)
+	if !r.Done {
+		return &r, "failed", "the test did not run: " + safe.Message(r.Status)
+	}
+	return &r, "", ""
+}
+
+// runBtestAction is the approved `bandwidth_test` action: the page's run with
+// the page's defaults, and the login the approver typed.
+func (cn *conn) runBtestAction(address, user, password string) writeOutcome {
+	if !cn.toolBusy.CompareAndSwap(false, true) {
+		return writeOutcome{Code: "busy"}
+	}
+	defer cn.toolBusy.Store(false)
+	res, code, msg := cn.runBtest(cn.rsession, toolsBtestReq{Address: address, User: user, Password: password,
+		Protocol: diag.BtestProtocols[0], Direction: diag.BtestDirections[0]}, "agent")
+	if code != "" {
+		return writeOutcome{Code: code, Detail: map[string]any{"message": msg}}
+	}
+	return writeOutcome{Name: address, Detail: map[string]any{"btest": res}}
+}
+
+// btestSummary is what the operator reads of an approved test.
+func btestSummary(r *diag.BtestResult) string {
+	s := fmt.Sprintf("Done: tested to %s for %s. Average receive %d bit/s, transmit %d bit/s.",
+		r.Address, r.Duration, r.RxBps, r.TxBps)
+	if r.LostPackets > 0 {
+		s += fmt.Sprintf(" %d packets lost.", r.LostPackets)
+	}
+	return s + fmt.Sprintf(" CPU load: this router %d%%, the far one %d%%.", r.LocalCPU, r.RemoteCPU)
+}

@@ -41,7 +41,7 @@ const doc = makeDoc([
   'aiAgentClear', 'aiAgentEmpty', 'aiAgentModel',
   'aiProposeBox', 'aiProposeWhat', 'aiProposeCmd', 'aiProposeValues', 'aiProposeWarn',
   'aiProposeApprove', 'aiProposeReject', 'aiProposeTyped', 'aiProposeTypedLabel',
-  'aiProposeConfirm',
+  'aiProposeConfirm', 'aiProposeCreds', 'aiProposeUser', 'aiProposePass',
 ]);
 (global as never as { document: unknown }).document = doc;
 
@@ -114,6 +114,32 @@ propose({
 });
 ok(el('aiProposeApprove').disabled === true,
   'the previous proposal’s typed name carried over, so a reboot was one press away');
+
+// ── 4. an action that logs in elsewhere asks the OPERATOR for the login ──────
+//
+// The bandwidth test: the model named only the server. The dialog shows a user
+// and a password field, the approval frame carries what was typed, and closing
+// the dialog empties both. The control is proposal 2, a row change, whose frame
+// carried neither.
+ok(rowApprove && rowApprove.data.password === undefined && rowApprove.data.user === undefined,
+  `a row approval carried a login: ${JSON.stringify(rowApprove?.data)}`);
+el('aiProposeReject').fire('click');
+sent.length = 0;
+propose({
+  token: 't4', kind: 'action', action: 'bandwidth_test', label: 'Bandwidth test', name: '198.51.100.53',
+  command: '/tool/bandwidth-test address=198.51.100.53 duration=5s protocol=tcp direction=both',
+  credentials: true, routerName: 'CHR Test', warnCode: '', warning: {}, values: {},
+});
+ok(el('aiProposeCreds').hidden === false, 'a bandwidth test did not ask for the far login');
+ok(!/password|hunter/i.test(el('aiProposeCmd').textContent || ''), 'the command shown carries a password');
+el('aiProposeUser').value = ' md-btest ';
+el('aiProposePass').value = 'hunter2';
+el('aiProposeApprove').fire('click');
+const credApprove = sent.find((s) => s.event === 'ai:write:approve');
+ok(credApprove && credApprove.data.user === 'md-btest' && credApprove.data.password === 'hunter2',
+  `the typed login did not reach the frame: ${JSON.stringify(credApprove?.data)}`);
+ok(el('aiProposePass').value === '' && el('aiProposeUser').value === '' && el('aiProposeCreds').hidden === true,
+  'the login was left in the dialog after approving');
 
 fs.rmSync(OUT, { force: true });
 say(`ai-propose-typed-name: ${checks} checks passed`);

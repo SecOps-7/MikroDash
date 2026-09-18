@@ -466,6 +466,8 @@ func (cn *conn) dispatch(in inbound) {
 		cn.toolsTraceroute(in.Data)
 	case "tools:torch":
 		cn.toolsTorch(in.Data)
+	case "tools:btest":
+		cn.toolsBtest(in.Data)
 	case "tools:caps":
 		cn.toolsCaps()
 	// Registered as its own literal beside firewall:tab rather than folded into

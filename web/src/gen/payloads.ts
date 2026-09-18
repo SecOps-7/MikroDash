@@ -1035,6 +1035,25 @@ export interface TalkersPayload {
   available: boolean;
 }
 
+export interface BtestResult {
+  address: string;
+  done: boolean;
+  status: string;
+  direction: string;
+  duration: string;
+  rxBps: number;
+  txBps: number;
+  lostPackets: number;
+  localCpu: number;
+  remoteCpu: number;
+}
+
+export interface ToolsBtestPayload {
+  result: BtestResult | null;
+  code: string;
+  message: string;
+}
+
 export interface ToolsCapsPayload {
   mayWrite: boolean;
   interfaces: string[];
@@ -1659,6 +1678,7 @@ export interface Events {
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
+  'tools:btest': ToolsBtestPayload;
   'tools:caps': ToolsCapsPayload;
   'tools:ping': ToolsPingPayload;
   'tools:torch': ToolsTorchPayload;

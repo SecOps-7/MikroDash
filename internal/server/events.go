@@ -32,6 +32,7 @@ var (
 	EvToolsPing         = hub.Declare[ToolsPingPayload]("tools:ping")
 	EvToolsTraceroute   = hub.Declare[ToolsTraceroutePayload]("tools:traceroute")
 	EvToolsTorch        = hub.Declare[ToolsTorchPayload]("tools:torch")
+	EvToolsBtest        = hub.Declare[ToolsBtestPayload]("tools:btest")
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
 )
 

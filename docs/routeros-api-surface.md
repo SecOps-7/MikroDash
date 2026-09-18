@@ -19,7 +19,7 @@ for what a ported collector has to cover.
 | read | 76 |
 | stream | 16 |
 | write | 12 |
-| action | 15 |
+| action | 16 |
 | menu | 34 |
 | distinct proplists | 70 |
 
@@ -141,6 +141,7 @@ for what a ported collector has to cover.
 | `/system/package/update/install` | src/index.js |
 | `/system/reboot` | internal/server/packages.go |
 | `/system/routerboard/upgrade` | internal/server/packages.go |
+| `/tool/bandwidth-test` | internal/diag/btest.go (Tools page) |
 | `/tool/fetch` | src/index.js |
 | `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js, internal/diag/ping.go (Tools page) |
 | `/tool/torch` | internal/diag/torch.go (Tools page) |

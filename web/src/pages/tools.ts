@@ -20,7 +20,7 @@
 
 import type { Socket } from '../socket';
 import { esc, el, fmtMbps } from '../dom';
-import type { PingResult, TracerouteResult, TorchResult } from '../gen/payloads';
+import type { PingResult, TracerouteResult, TorchResult, BtestResult } from '../gen/payloads';
 
 const REFUSED: Record<string, string> = {
   denied: 'You may not run this tool on this router.',
@@ -31,7 +31,7 @@ const REFUSED: Record<string, string> = {
 /** One tool: the ids its markup uses, spelled out so each can be found, and
  *  what its form asks the server for. */
 interface Tool {
-  key: 'ping' | 'traceroute' | 'torch';
+  key: 'ping' | 'traceroute' | 'torch' | 'btest';
   /** Needs write access to Tools: loads the router or a link. */
   write: boolean;
   form: string;
@@ -65,6 +65,27 @@ const TOOLS: Tool[] = [
     request: () => {
       const iface = el<HTMLSelectElement>('torchInterface')?.value || '';
       return iface ? { interface: iface, seconds: Number(el<HTMLSelectElement>('torchSeconds')?.value || 5) } : null;
+    },
+  },
+  {
+    key: 'btest', write: true, form: 'btestForm', run: 'btestRun', status: 'btestStatus', summary: 'btestSummary',
+    rows: 'btestRows', cols: 2,
+    request: () => {
+      const address = (el<HTMLInputElement>('btestAddress')?.value || '').trim();
+      if (!address) return null;
+      const pass = el<HTMLInputElement>('btestPassword');
+      const req = {
+        address,
+        user: (el<HTMLInputElement>('btestUser')?.value || '').trim(),
+        password: pass?.value || '',
+        seconds: Number(el<HTMLSelectElement>('btestSeconds')?.value || 5),
+        protocol: el<HTMLSelectElement>('btestProtocol')?.value || 'tcp',
+        direction: el<HTMLSelectElement>('btestDirection')?.value || 'both',
+      };
+      // TYPED PER RUN: the field is emptied the moment the run is sent, so the
+      // password is not sitting in the page for the next person at the screen.
+      if (pass) pass.value = '';
+      return req;
     },
   },
 ];
@@ -155,6 +176,17 @@ function renderTorch(r: TorchResult): void {
     '</tr>').join('');
 }
 
+function renderBtest(r: BtestResult): void {
+  const summary = el('btestSummary');
+  if (summary) summary.textContent = 'Tested to ' + r.address + ' for ' + r.duration + ', ' + r.direction;
+  const rows = el('btestRows');
+  if (!rows) return;
+  const line = (k: string, v: string): string => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
+  rows.innerHTML = line('Receive (average)', bps(r.rxBps)) + line('Transmit (average)', bps(r.txBps)) +
+    line('Lost packets', String(r.lostPackets)) +
+    line('CPU load', 'this router ' + r.localCpu + '%, the far one ' + r.remoteCpu + '%');
+}
+
 export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let pending: Tool | null = null;
   // WHETHER THIS VIEWER MAY RUN THE WRITE TOOLS, from `tools:caps`. False until
@@ -198,18 +230,23 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       socket.emit('tools:' + t.key, req);
     });
   }
-  const [ping, trace, torch] = TOOLS as [Tool, Tool, Tool];
+  const [ping, trace, torch, btest] = TOOLS as [Tool, Tool, Tool, Tool];
   socket.on('tools:ping', (d) => settle(ping, d, () => { if (d.result) renderPing(d.result); }));
   socket.on('tools:traceroute', (d) => settle(trace, d, () => { if (d.result) renderTraceroute(d.result); }));
   socket.on('tools:torch', (d) => settle(torch, d, () => { if (d.result) renderTorch(d.result); }));
+  socket.on('tools:btest', (d) => settle(btest, d, () => { if (d.result) renderBtest(d.result); }));
 
   socket.on('tools:caps', (d) => {
     mayWrite = d.mayWrite;
     const sel = el<HTMLSelectElement>('torchInterface');
     if (sel) sel.innerHTML = d.interfaces.map((n) => '<option>' + esc(n) + '</option>').join('');
     setRunning(pending, '');
-    const status = el('torchStatus');
-    if (status && !pending) status.textContent = mayWrite ? '' : 'Needs write access to Tools.';
+    if (!pending) {
+      for (const t of TOOLS) {
+        const status = el(t.status);
+        if (t.write && status) status.textContent = mayWrite ? '' : 'Needs write access to Tools.';
+      }
+    }
   });
   // ASKED FOR WHEN THE PAGE OPENS, and again on a router switch while it is
   // open: the permission and the interfaces are both per router.

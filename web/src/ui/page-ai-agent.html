@@ -83,6 +83,14 @@
               <input id="aiProposeConfirm" class="sform-input" type="text" autocomplete="off"
                      spellcheck="false" style="font-size:.75rem"/>
             </div>
+            <!-- A LOGIN THE ACTION NEEDS, typed by the operator here and sent on
+                 the approval frame only. The model never supplies or sees it. -->
+            <div id="aiProposeCreds" hidden style="margin-top:.55rem;display:flex;gap:.45rem">
+              <input id="aiProposeUser" class="sform-input" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="User on the far router" style="font-size:.75rem"/>
+              <input id="aiProposePass" class="sform-input" type="password" autocomplete="new-password"
+                     placeholder="Password" style="font-size:.75rem"/>
+            </div>
             <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
               <button id="aiProposeReject" class="sbtn sbtn-outline" type="button"
                       style="padding:.32rem .8rem;font-size:.73rem">Don&rsquo;t change it</button>

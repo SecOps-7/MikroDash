@@ -74,6 +74,10 @@ type ActionSpec struct {
 	// TypedName marks a reboot-class action: the operator must type the router's
 	// name into the confirmation before it runs.
 	TypedName bool
+	// Credentials marks an action that logs in somewhere else — the bandwidth
+	// test's far server — for which the APPROVER types the user and password in
+	// the dialog. The model never supplies, sees or is told them.
+	Credentials bool
 }
 
 // Actions is the catalogue, in the order the enum lists them.
@@ -101,6 +105,11 @@ func Actions() []ActionSpec {
 			Summary: "Watch one interface's traffic for 5 seconds with /tool/torch and report the " +
 				"busiest flows by protocol, address and port, with their average rates. It loads " +
 				"the router's CPU while it runs."},
+		{Key: "bandwidth_test", Page: "tools", Target: "address", Credentials: true,
+			Summary: "Run a 5-second TCP bandwidth test, both directions, from the router to another " +
+				"MikroTik router's bandwidth server, and report the average throughput each way. It " +
+				"saturates the link and loads both routers while it runs. The operator types the " +
+				"far server's user and password when they confirm it; never ask for them."},
 	}
 }
 
@@ -141,6 +150,9 @@ func actionTool(specs []ActionSpec) Tool {
 		}
 		if a.TypedName {
 			b.WriteString(" The operator has to type the router's name to confirm it.")
+		}
+		if a.Credentials {
+			b.WriteString(" The operator types any login it needs in the confirmation.")
 		}
 		for _, m := range a.Modes {
 			modes[m] = true

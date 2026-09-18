@@ -6,7 +6,7 @@ package server
 //
 // Each action here calls the same `run*` function the socket handler calls —
 // `runWanLease`, `runBackupNow`, `runPackageSchedule`, `runPackageApply`,
-// `runFirmwareUpgrade`, and the Tools page's `runTorch` — which is why those
+// `runFirmwareUpgrade`, and the Tools page's `runTorch` and `runBtest` — which is why those
 // were extracted first. Two paths to
 // one router command would be two places for the guard, the audit row and the
 // refresh to drift apart.
@@ -123,7 +123,7 @@ func (cn *conn) raiseAIAction(spec aitools.ActionSpec, target, mode string) stri
 	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
 		"token": tok, "kind": "action", "action": spec.Key, "label": aiActionLabel(spec, mode),
 		"name": target, "command": aiActionCommand(spec, target, mode),
-		"routerName": cn.rsession.Label, "typedName": spec.TypedName,
+		"routerName": cn.rsession.Label, "typedName": spec.TypedName, "credentials": spec.Credentials,
 		"warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
 	})
 
@@ -157,6 +157,8 @@ func aiActionLabel(spec aitools.ActionSpec, mode string) string {
 		return "Upgrade RouterBOOT firmware and reboot"
 	case "torch":
 		return "Watch an interface's traffic"
+	case "bandwidth_test":
+		return "Bandwidth test"
 	}
 	return spec.Key
 }
@@ -179,14 +181,28 @@ func aiActionCommand(spec aitools.ActionSpec, target, mode string) string {
 		return "/system/routerboard/upgrade, then /system/reboot"
 	case "torch":
 		return fmt.Sprintf("/tool/torch interface=%s duration=%ds", target, diag.TorchDefaultSeconds)
+	case "bandwidth_test":
+		// The login is typed at approval and is not part of what is shown here.
+		return fmt.Sprintf("/tool/bandwidth-test address=%s duration=%ds protocol=%s direction=%s",
+			target, diag.BtestDefaultSeconds, diag.BtestProtocols[0], diag.BtestDirections[0])
 	}
 	return ""
 }
 
-// approveAIAction runs an action the operator accepted. `confirm` is the router
-// name they typed, which only the reboot-class actions read — and they check it
-// themselves, against the router's own label.
-func (cn *conn) approveAIAction(p *aiWriteProposal, confirm string) {
+// actionApproval is what the operator's approval frame carries besides the
+// token: the router name they typed back, and a login an action needs. None of
+// it ever came from the model.
+type actionApproval struct {
+	Confirm  string `json:"confirm"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+}
+
+// approveAIAction runs an action the operator accepted. `in.Confirm` is the
+// router name they typed, which only the reboot-class actions read — and they
+// check it themselves, against the router's own label.
+func (cn *conn) approveAIAction(p *aiWriteProposal, in actionApproval) {
+	confirm := in.Confirm
 	spec, ok := aitools.ActionByKey(p.actionKey)
 	if !ok {
 		cn.aiActionDone(p.actionKey, false, "That action is not available on this build.")
@@ -219,6 +235,8 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, confirm string) {
 		out = cn.runFirmwareUpgrade(confirm, "agent")
 	case "torch":
 		out = cn.runTorchAction(p.target)
+	case "bandwidth_test":
+		out = cn.runBtestAction(p.target, in.User, in.Password)
 	}
 
 	if out.Code != "" {
@@ -282,6 +300,10 @@ func aiActionRefusal(spec aitools.ActionSpec, out writeOutcome) string {
 		return "Not run: another diagnostic is still running for this operator."
 	case "interface":
 		return "Not run: this router has no interface of that name."
+	case "address", "request":
+		if msg, _ := out.Detail["message"].(string); msg != "" {
+			return "Not run: " + msg + "."
+		}
 	}
 	if msg, _ := out.Detail["message"].(string); msg != "" {
 		return "Not run: the router refused it: " + msg
@@ -320,6 +342,10 @@ func aiActionApplied(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutco
 	case "torch":
 		if r, ok := out.Detail["torch"].(*diag.TorchResult); ok {
 			return torchSummary(r)
+		}
+	case "bandwidth_test":
+		if r, ok := out.Detail["btest"].(*diag.BtestResult); ok {
+			return btestSummary(r)
 		}
 	}
 	return "Done."

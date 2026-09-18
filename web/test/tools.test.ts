@@ -30,7 +30,9 @@ fs.rmSync(ENTRY, { force: true });
 const mod = require(OUT);
 const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingStatus', 'pingSummary', 'pingRows',
   'traceForm', 'traceAddress', 'traceHops', 'traceRun', 'traceStatus', 'traceSummary', 'traceRows',
-  'torchForm', 'torchInterface', 'torchSeconds', 'torchRun', 'torchStatus', 'torchSummary', 'torchRows']);
+  'torchForm', 'torchInterface', 'torchSeconds', 'torchRun', 'torchStatus', 'torchSummary', 'torchRows',
+  'btestForm', 'btestAddress', 'btestUser', 'btestPassword', 'btestSeconds', 'btestProtocol', 'btestDirection',
+  'btestRun', 'btestStatus', 'btestSummary', 'btestRows']);
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
@@ -130,6 +132,27 @@ handlers['tools:torch']({ code: '', message: '', result: { interface: 'ether1', 
 assert.ok(/2\.00 Mbps/.test(String(n.torchRows.innerHTML)) && /198\.51\.100\.1:443/.test(String(n.torchRows.innerHTML)),
   'the flow was not drawn:\n' + n.torchRows.innerHTML);
 assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 'omitted flows are not admitted to');
+
+// THE BANDWIDTH TEST sends the password once, then empties its field; a failed
+// test says what RouterOS said.
+sent.length = 0;
+n.btestAddress.value = '198.51.100.53';
+n.btestUser.value = 'md-btest';
+n.btestPassword.value = 'hunter2';
+n.btestSeconds.value = '3';
+n.btestProtocol.value = 'tcp';
+n.btestDirection.value = 'both';
+n.btestForm.fire('submit', { preventDefault: () => {} });
+assert.deepStrictEqual(sent, [['tools:btest', { address: '198.51.100.53', user: 'md-btest', password: 'hunter2',
+  seconds: 3, protocol: 'tcp', direction: 'both' }]], 'the test form did not ask for one run with its login');
+assert.strictEqual(n.btestPassword.value, '', 'the password was left in the page after the run was sent');
+handlers['tools:btest']({ code: 'failed', message: 'the test did not run: authentication failed', result: null });
+assert.ok(/authentication failed/.test(String(n.btestStatus.textContent)), 'a failed test did not say why');
+n.btestForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:btest']({ code: '', message: '', result: { address: '198.51.100.53', done: true, status: 'done testing',
+  direction: 'both', duration: '3s', rxBps: 4612040, txBps: 1702032, lostPackets: 0, localCpu: 0, remoteCpu: 3 } });
+assert.ok(/4\.61 Mbps/.test(String(n.btestRows.innerHTML)) && /far one 3%/.test(String(n.btestRows.innerHTML)),
+  'the result was not drawn:\n' + n.btestRows.innerHTML);
 
 // A router switch forgets the permission until the new router's caps arrive.
 handlers['router:switched']({ activeId: 'r4' });

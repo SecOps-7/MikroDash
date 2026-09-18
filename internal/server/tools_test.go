@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -53,5 +54,24 @@ func TestADiagnosticNeedsARouterAndThePagesPermission(t *testing.T) {
 	}
 	if cn.toolBusy.Load() {
 		t.Error("a refused run took the connection's run slot")
+	}
+}
+
+// TestABandwidthTestsAuditRowHasNoPassword. The request carries the far server's
+// password; the audit row is built from the same request, and must hold the
+// user — the control, which shows the row is built from it at all — and not the
+// password, in any field.
+func TestABandwidthTestsAuditRowHasNoPassword(t *testing.T) {
+	req := toolsBtestReq{Address: "198.51.100.53", User: "md-btest", Password: "hunter2-not-for-the-log",
+		Protocol: "tcp", Direction: "both"}
+	b, err := json.Marshal(btestAudit("r1", req, "agent"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "md-btest") {
+		t.Fatalf("the audit row does not carry the user, so this check proves nothing: %s", b)
+	}
+	if strings.Contains(string(b), "hunter2") {
+		t.Errorf("the audit row carries the password: %s", b)
 	}
 }
