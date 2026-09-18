@@ -329,6 +329,12 @@
       "page": "ppp"
     },
     {
+      "name": "list_pppoeClient",
+      "access": "read",
+      "resource": "pppoeClient",
+      "page": "pppoe-clients"
+    },
+    {
       "name": "list_queueTree",
       "access": "read",
       "resource": "queueTree",

@@ -1861,6 +1861,41 @@ var VRRP = &Resource{
 	},
 }
 
+// PPPoEClient is /interface/pppoe-client: the usual way a router dials its ISP.
+// Checked against rosetta and the CHR (7.24.3). Named after itself, so it
+// carries selfPath (a router managed over its PPPoE uplink is cut by disabling
+// it or changing its login), and tunnelDefault: add-default-route installs
+// 0.0.0.0/0 at default-route-distance through it. The password, which RouterOS
+// returns on print, is a secret, never read.
+var PPPoEClient = &Resource{
+	Key: "pppoeClient", Page: "pppoe-clients", Label: "PPPoE Client",
+	Title: "PPPoE Client", Menu: "/interface/pppoe-client", Identity: []string{"name"},
+	Guard:                 []string{"selfPath", "tunnelDefault"},
+	GuardInterfaceFields:  []string{"name"},
+	GuardDisruptiveFields: []string{"interface", "user", "password", "serviceName", "acName", "allow"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "pppoe-out1"},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "user", ROS: "user", Label: "User", Type: TypeText, Clearable: true},
+		{Name: "password", ROS: "password", Label: "Password", Type: TypeSecret},
+		{Name: "serviceName", ROS: "service-name", Label: "Service Name", Type: TypeText, Clearable: true},
+		{Name: "acName", ROS: "ac-name", Label: "AC Name", Type: TypeText, Clearable: true},
+		{Name: "allow", ROS: "allow", Label: "Allow", Type: TypeMulti, Options: []string{"pap", "chap", "mschap1", "mschap2"}},
+		{Name: "profile", ROS: "profile", Label: "Profile", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ppp/profile", Value: "name"}},
+		{Name: "addDefaultRoute", ROS: "add-default-route", Label: "Add Default Route", Type: TypeBool, Clearable: true},
+		{Name: "defaultRouteDistance", ROS: "default-route-distance", Label: "Default Route Distance", Type: TypeInt,
+			Min: intp(0), Max: intp(255), ShowIf: &ShowIf{Field: "addDefaultRoute", In: []string{"true", "yes"}}},
+		{Name: "usePeerDns", ROS: "use-peer-dns", Label: "Use Peer DNS", Type: TypeBool, Clearable: true},
+		{Name: "dialOnDemand", ROS: "dial-on-demand", Label: "Dial On Demand", Type: TypeBool, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "running", ROS: "running", Label: "Running", Type: TypeBool, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2512,6 +2547,7 @@ var byKey = map[string]*Resource{
 	OVPNServer.Key:          OVPNServer,
 	OVPNClient.Key:          OVPNClient,
 	VRRP.Key:                VRRP,
+	PPPoEClient.Key:         PPPoEClient,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

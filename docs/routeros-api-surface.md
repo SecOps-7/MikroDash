@@ -238,6 +238,7 @@ surface stays complete.
 | `/interface/wifi/security` | capsSecurity | capsman | add, set, remove |
 | `/interface/ovpn-server/server` | ovpnServer | openvpn | add, set, remove |
 | `/interface/ovpn-client` | ovpnClient | openvpn | add, set, remove (selfPath, tunnelDefault; password never read) |
+| `/interface/pppoe-client` | pppoeClient | pppoe-clients | add, set, remove (selfPath, tunnelDefault; password never read) |
 | `/interface/vrrp` | vrrp | vrrp | add, set, remove (selfPath, codeGate on the scripts; password never read) |
 | `/interface/wireguard/peers` | wgPeer | vpn | add, set, remove |
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |

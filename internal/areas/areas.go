@@ -290,6 +290,15 @@ var declared = []Area{
 			Columns: []string{"name", "interface", "vrid", "priority", "version", "running", "invalid", "disabled", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// PPPoE clients: the uplinks this router dials. Their sessions show on the
+	// PPP page; the WAN page shows the uplink they make.
+	{
+		Key: "pppoe-clients", Title: "PPPoE Clients", NavGroup: "tunnels",
+		Icon: `<path d="M4 12h5"/><path d="M15 12h5"/><rect x="9" y="8" width="6" height="8" rx="1.5"/><path d="M17 9l3 3-3 3"/>`,
+		Tables: []Table{{Resource: "pppoeClient",
+			Columns: []string{"name", "interface", "user", "serviceName", "addDefaultRoute", "running", "invalid", "disabled", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

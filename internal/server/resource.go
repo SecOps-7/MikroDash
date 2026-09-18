@@ -1456,7 +1456,12 @@ func tunnelDefaultRoute(v map[string]string) guard.RouteChange {
 	if v == nil || !yes("addDefaultRoute") || yes("disabled") {
 		return guard.RouteChange{}
 	}
-	return guard.RouteChange{Present: true, Dst: "0.0.0.0/0", Gateway: v["name"], Distance: "1", Table: "main"}
+	// PPPoE installs it at its own default-route-distance; OpenVPN has none, so 1.
+	distance := v["defaultRouteDistance"]
+	if distance == "" {
+		distance = "1"
+	}
+	return guard.RouteChange{Present: true, Dst: "0.0.0.0/0", Gateway: v["name"], Distance: distance, Table: "main"}
 }
 
 // ipsecVerdict asks the IPsec guard about a policy, peer or identity write.

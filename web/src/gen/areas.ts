@@ -168,6 +168,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "pppoe-clients", title: "PPPoE Clients", navGroup: "tunnels",
+    icon: "<path d=\"M4 12h5\"/><path d=\"M15 12h5\"/><rect x=\"9\" y=\"8\" width=\"6\" height=\"8\" rx=\"1.5\"/><path d=\"M17 9l3 3-3 3\"/>",
+    tables: [
+      { resource: "pppoeClient", title: "PPPoE Client", columns: ["name", "interface", "user", "serviceName", "addDefaultRoute", "running", "invalid", "disabled", "comment"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

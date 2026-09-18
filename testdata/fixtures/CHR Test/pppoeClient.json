@@ -1,0 +1,60 @@
+{
+ "collector": "areas",
+ "resource": "pppoeClient",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. Two PPPoE clients created FOR the capture on ether1, where no PPPoE server answers, so neither is running. `allow` is a comma list; RouterOS returns the client `password` on print, dropped here as every credential is. Read through /interface/pppoe-client/print.",
+ "exchanges": [
+  {
+   "cmd": "/interface/pppoe-client/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*8",
+     "ac-name": "",
+     "add-default-route": "true",
+     "allow": "pap,chap,mschap1,mschap2",
+     "comment": "md-pppoe-test",
+     "default-route-distance": "5",
+     "dial-on-demand": "false",
+     "disabled": "true",
+     "interface": "ether1",
+     "invalid": "false",
+     "keepalive-timeout": "10",
+     "max-mru": "auto",
+     "max-mtu": "auto",
+     "mrru": "disabled",
+     "name": "md-pppoe",
+     "profile": "default",
+     "running": "false",
+     "service-name": "",
+     "use-peer-dns": "false",
+     "user": "md-test"
+    },
+    {
+     ".id": "*9",
+     "ac-name": "",
+     "add-default-route": "false",
+     "allow": "chap,mschap2",
+     "comment": "md-pppoe-test",
+     "dial-on-demand": "false",
+     "disabled": "true",
+     "interface": "ether1",
+     "invalid": "false",
+     "keepalive-timeout": "10",
+     "max-mru": "auto",
+     "max-mtu": "auto",
+     "mrru": "disabled",
+     "name": "md-pppoe2",
+     "profile": "default",
+     "running": "false",
+     "service-name": "isp",
+     "use-peer-dns": "true",
+     "user": "md-test2"
+    }
+   ]
+  }
+ ]
+}

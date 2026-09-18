@@ -86,6 +86,9 @@ func TestATunnelsDefaultRouteIsTheRouteItInstalls(t *testing.T) {
 			t.Errorf("add-default-route=%s gave %+v, want 0.0.0.0/0 through ovpn-out1", on, r)
 		}
 	}
+	if r := tunnelDefaultRoute(map[string]string{"name": "pppoe-out1", "addDefaultRoute": "yes", "defaultRouteDistance": "5"}); r.Distance != "5" {
+		t.Errorf("a PPPoE client's route distance is %q, want its own 5", r.Distance)
+	}
 	for name, v := range map[string]map[string]string{
 		"off":      {"name": "c", "addDefaultRoute": "no"},
 		"disabled": {"name": "c", "addDefaultRoute": "yes", "disabled": "true"},

@@ -112,6 +112,11 @@
       "settingsKey": null
     },
     {
+      "key": "pppoe-clients",
+      "title": "PPPoE Clients",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null

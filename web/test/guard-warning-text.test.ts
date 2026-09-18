@@ -15,7 +15,7 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.gw-entry.ts');
-fs.writeFileSync(ENTRY, "export { warningText, guardRefusedText } from '../web/src/resource.js';\n");
+fs.writeFileSync(ENTRY, "export { warningText, guardRefusedText, showIfValue } from '../web/src/resource.js';\n");
 const OUT = path.join(ROOT, 'web', 'dist', '_compare', 'guard-warning-text.cjs');
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -25,7 +25,7 @@ fs.rmSync(ENTRY, { force: true });
 
 global.document = { getElementById: () => null, querySelectorAll: () => [], querySelector: () => null, addEventListener: () => {} };
 global.window = { addEventListener: () => {} };
-const { warningText, guardRefusedText } = require(OUT);
+const { warningText, guardRefusedText, showIfValue } = require(OUT);
 const say = console.log.bind(console);
 
 const route = warningText('route-cutoff', { address: '203.0.113.50', destination: '0.0.0.0/0', action: 'delete' });
@@ -118,3 +118,11 @@ for (const [code, w, words] of [
   assert.ok(t.headline.includes('cut MikroDash off') && words.every((x) => t.why.includes(x)), code + ': ' + t.why);
 }
 say('ok  the IPsec warnings name the address, the policy or peer, and what it does');
+
+// A FIELD SHOWN WHILE A CHECKBOX IS ON (PPPoE's default-route distance) compares
+// the checkbox's STATE, not its `.value`, which is "on" either way. The select is
+// the control: its value is what it compares.
+assert.strictEqual(showIfValue({ type: 'checkbox', value: 'on', checked: true }), 'true');
+assert.strictEqual(showIfValue({ type: 'checkbox', value: 'on', checked: false }), 'false');
+assert.strictEqual(showIfValue({ type: 'select-one', value: 'nssa' }), 'nssa');
+say('ok  showIf reads a checkbox by its state and a select by its value');

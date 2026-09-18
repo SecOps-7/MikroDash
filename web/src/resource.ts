@@ -228,6 +228,16 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
   return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' + lbl + body + help + '</div>';
 }
 
+/**
+ * The value a `showIf` compares against. A CHECKBOX's `.value` is the string
+ * "on" whether it is ticked or not, so a field shown only while a checkbox is on
+ * (a PPPoE client's default-route distance) never appeared; a checkbox answers
+ * with its state, "true" or "false", as the form's own values do.
+ */
+export function showIfValue(ctl: { type?: string; value: string; checked?: boolean }): string {
+  return ctl.type === 'checkbox' ? String(!!ctl.checked) : String(ctl.value);
+}
+
 function applyShowIf(schema: Schema): void {
   const host = el('res_fields');
   if (!host) return;
@@ -236,7 +246,7 @@ function applyShowIf(schema: Schema): void {
     const ctl = el<HTMLInputElement | HTMLSelectElement>('resf_' + f.showIf.field);
     const wrap = host.querySelector<HTMLElement>('[data-res-field="' + f.name + '"]');
     if (!ctl || !wrap) continue;
-    wrap.style.display = f.showIf.in.indexOf(String(ctl.value)) !== -1 ? '' : 'none';
+    wrap.style.display = f.showIf.in.indexOf(showIfValue(ctl as HTMLInputElement)) !== -1 ? '' : 'none';
   }
 }
 
