@@ -1,6 +1,6 @@
 # MikroMCP tool parity
 
-The wrap-up audit of the MikroMCP parity work (spec: `docs/superpowers/specs/2026-09-17-mikromcp-parity-design.md`).
+The wrap-up audit of the MikroMCP parity work.
 Every MikroMCP tool, as its server advertised them on 2026-09-18, mapped to what the MikroDash assistant offers:
 a read tool (`list_…`, `ping`, `traceroute`), `change_row` on a resource, a `run_action` entry, or a reason it is not offered.
 
