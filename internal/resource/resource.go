@@ -1310,6 +1310,61 @@ var LogAction = &Resource{
 	},
 }
 
+// SNMP and SNMPCommunity are /snmp (a singleton) and its communities (slice 7).
+// From the command tree for /snmp/set and /snmp/community/add.
+//
+// The community passwords are secrets: never read (the areas proplist skips
+// them), never shown, never in a fixture. A v1/v2c community NAME is a shared
+// credential too; it is shown to whoever may read this page, as WinBox shows
+// it, because a community cannot be managed without being named. The protocols
+// are plain text rather than selects: the documented pair grows with RouterOS,
+// and a select rewrites a value it does not list.
+var SNMP = &Resource{
+	Key: "snmp", Page: "snmp", Label: "SNMP",
+	Title: "SNMP", Menu: "/snmp", Singleton: true,
+	NoCreate:      true,
+	RemovableWhen: func(map[string]string) bool { return false },
+	Fields: []Field{
+		{Name: "enabled", ROS: "enabled", Label: "Enabled", Type: TypeBool, Clearable: true},
+		{Name: "contact", ROS: "contact", Label: "Contact", Type: TypeText, Clearable: true},
+		{Name: "location", ROS: "location", Label: "Location", Type: TypeText, Clearable: true},
+		{Name: "trapTarget", ROS: "trap-target", Label: "Trap Target", Type: TypeText, Clearable: true,
+			Help: "Addresses traps are sent to, comma separated."},
+		{Name: "trapCommunity", ROS: "trap-community", Label: "Trap Community", Type: TypeText},
+		{Name: "trapVersion", ROS: "trap-version", Label: "Trap Version", Type: TypeSelect, Options: []string{"1", "2", "3"}},
+		{Name: "trapGenerators", ROS: "trap-generators", Label: "Trap Generators", Type: TypeText, Clearable: true,
+			Placeholder: "interfaces,start-trap,temp-exception"},
+		{Name: "trapInterfaces", ROS: "trap-interfaces", Label: "Trap Interfaces", Type: TypeText, Clearable: true},
+		{Name: "srcAddress", ROS: "src-address", Label: "Source Address", Type: TypeText},
+		{Name: "engineIdSuffix", ROS: "engine-id-suffix", Label: "Engine ID Suffix", Type: TypeText, Clearable: true},
+		{Name: "vrf", ROS: "vrf", Label: "VRF", Type: TypeText, Placeholder: "main"},
+		{Name: "engineId", ROS: "engine-id", Label: "Engine ID", Type: TypeText, Display: true},
+	},
+}
+var SNMPCommunity = &Resource{
+	Key: "snmpCommunity", Page: "snmp", Label: "SNMP Community",
+	Title: "SNMP Community", Menu: "/snmp/community", Identity: []string{"name"},
+	// The default community is RouterOS's own.
+	RemovableWhen: func(r map[string]string) bool { return r["default"] != "true" },
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true},
+		{Name: "addresses", ROS: "addresses", Label: "Addresses", Type: TypeText,
+			Placeholder: "192.0.2.0/24", Help: "Where requests are accepted from, comma separated."},
+		{Name: "security", ROS: "security", Label: "Security", Type: TypeSelect,
+			Options: []string{"none", "authorized", "private"}},
+		{Name: "readAccess", ROS: "read-access", Label: "Read Access", Type: TypeBool, Clearable: true},
+		{Name: "writeAccess", ROS: "write-access", Label: "Write Access", Type: TypeBool, Clearable: true,
+			Help: "Write access lets SNMP change this router's configuration."},
+		{Name: "authenticationProtocol", ROS: "authentication-protocol", Label: "Auth Protocol", Type: TypeText, Placeholder: "SHA1"},
+		{Name: "authenticationPassword", ROS: "authentication-password", Label: "Auth Password", Type: TypeSecret},
+		{Name: "encryptionProtocol", ROS: "encryption-protocol", Label: "Encryption Protocol", Type: TypeText, Placeholder: "AES"},
+		{Name: "encryptionPassword", ROS: "encryption-password", Label: "Encryption Password", Type: TypeSecret},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "isDefault", ROS: "default", Label: "Default", Type: TypeBool, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1984,6 +2039,8 @@ var byKey = map[string]*Resource{
 	Clock.Key:               Clock,
 	LogRule.Key:             LogRule,
 	LogAction.Key:           LogAction,
+	SNMP.Key:                SNMP,
+	SNMPCommunity.Key:       SNMPCommunity,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,

@@ -210,6 +210,8 @@ surface stays complete.
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
 | `/certificate` | certificate | certificates | set, remove |
+| `/snmp` | snmp | snmp | set |
+| `/snmp/community` | snmpCommunity | snmp | add, set, remove |
 | `/system/clock` | clock | clock | set |
 | `/system/logging` | logRule | logging | add, set, remove |
 | `/system/logging/action` | logAction | logging | add, set, remove |

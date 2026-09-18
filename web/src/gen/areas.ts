@@ -89,6 +89,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "snmp", title: "SNMP", navGroup: "system",
+    tables: [
+      { resource: "snmp", title: "Settings", columns: ["enabled", "contact", "location", "trapTarget", "trapVersion", "engineId"] },
+      { resource: "snmpCommunity", title: "Communities", columns: ["name", "addresses", "security", "readAccess", "writeAccess", "disabled"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

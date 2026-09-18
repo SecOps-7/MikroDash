@@ -331,6 +331,18 @@
       "page": "queues"
     },
     {
+      "name": "list_snmp",
+      "access": "read",
+      "resource": "snmp",
+      "page": "snmp"
+    },
+    {
+      "name": "list_snmpCommunity",
+      "access": "read",
+      "resource": "snmpCommunity",
+      "page": "snmp"
+    },
+    {
       "name": "list_topology",
       "access": "read",
       "resource": "",

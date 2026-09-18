@@ -177,6 +177,17 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// SNMP: its settings (a singleton) and its communities. No password is read.
+	{
+		Key: "snmp", Title: "SNMP", NavGroup: "system",
+		Tables: []Table{
+			{Resource: "snmp", Title: "Settings",
+				Columns: []string{"enabled", "contact", "location", "trapTarget", "trapVersion", "engineId"}},
+			{Resource: "snmpCommunity", Title: "Communities",
+				Columns: []string{"name", "addresses", "security", "readAccess", "writeAccess", "disabled"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

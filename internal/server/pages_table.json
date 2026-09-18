@@ -72,6 +72,11 @@
       "settingsKey": null
     },
     {
+      "key": "snmp",
+      "title": "SNMP",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

@@ -1,0 +1,29 @@
+{
+ "collector": "areas",
+ "resource": "snmpCommunity",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands: RouterOS's default community, public, read-only from anywhere. The router returns authentication-password and encryption-password (empty here); both keys are DROPPED from this fixture, as every credential key is. Read through /snmp/community/print.",
+ "exchanges": [
+  {
+   "cmd": "/snmp/community/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*0",
+     "addresses": "::/0",
+     "authentication-protocol": "MD5",
+     "default": "true",
+     "disabled": "false",
+     "encryption-protocol": "DES",
+     "name": "public",
+     "read-access": "true",
+     "security": "none",
+     "write-access": "false"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "collector": "areas",
+ "resource": "snmp",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands: SNMP disabled, the defaults. A singleton, one row with no .id. The engine id is RouterOS's generic prefix, not an identifying value. Read through /snmp/print.",
+ "exchanges": [
+  {
+   "cmd": "/snmp/print",
+   "params": [],
+   "rows": [
+    {
+     "contact": "",
+     "enabled": "false",
+     "engine-id": "80003a8c04",
+     "engine-id-suffix": "",
+     "location": "",
+     "src-address": "::",
+     "trap-community": "public",
+     "trap-generators": "temp-exception",
+     "trap-target": "",
+     "trap-version": "1",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}
