@@ -1709,8 +1709,13 @@
        the rule. There is no rule in a card header, so that nudge only pushes the
        tabs out of line with the title beside them. */
     .rttab-bar .stab{padding:.3rem .75rem;font-size:.74rem;margin-bottom:0}
-    /* Clear of the tabs, and centred against them rather than sitting low. */
-    #rtCardTitle{margin-left:.85rem;line-height:1;align-self:center}
+    /* Clear of the tabs, and centred against them rather than sitting low. A
+       class rule, not #rtCardTitle's, because every generated page (cmd/areagen)
+       and the Tools page lay out their header the same way. */
+    .rttab-bar:not(:empty) + .card-title{margin-left:.85rem;line-height:1;align-self:center}
+    /* A one-table generated page has no tabs, and an empty strip would still
+       take a flex gap in front of the title. */
+    .rttab-bar:empty{display:none}
     /* routingRoutesCard and routingPeersCard stay .card so the stale and
        collector-off overlays keep working unchanged — staleConfig names them —
        but nested inside the outer frame they must not draw a second one. */

@@ -61,7 +61,10 @@ assert.strictEqual(ups.length, 3, 'up arrows: ' + ups.length);
 assert.strictEqual(downs.length, 3, 'down arrows: ' + downs.length);
 assert.ok(/disabled/.test(ups[0]) && !/disabled/.test(ups[1]), 'the first row can move up, or the second cannot');
 assert.ok(/disabled/.test(downs[2]) && !/disabled/.test(downs[1]), 'the last row can move down, or the one before cannot');
-assert.ok((html.match(/<th[\s>]/g) || []).length === rules.tables[0].columns.length + 1, 'the arrow column has no header cell');
+// The header is written into its own row by the shared sort helper, so it is
+// read from that node rather than from the body's markup.
+const head = String(doc.nodes['areaThead-routing-rules'].innerHTML);
+assert.ok((head.match(/<th[\s>]/g) || []).length === rules.tables[0].columns.length + 1, 'the arrow column has no header cell');
 say('ok  an ordered area draws arrows for a writer, ends disabled, none for a reader');
 
 // CONTROL: an unordered area, for the same writer, has none.

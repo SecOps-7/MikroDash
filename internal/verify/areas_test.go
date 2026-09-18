@@ -214,3 +214,58 @@ func TestEveryAreaHasItsOwnIcon(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryAreaShellHasItsTabsOnTheLeft: every generated page's header, and the
+// Tools page's, is laid out as the hand-built Routing page's is — the tab strip
+// first, at top left, then the title, then the count pill, with only the actions
+// (the Add slot) in the right-hand `.hdr-actions` corner. The shells are
+// cmd/areagen's, so this holds the TEMPLATE: a new area inherits the layout, and
+// a template that moves the tabs back to the right fails here for every area.
+//
+// The pill's colour is not in the markup — area.ts sets `active-blue` when it
+// counts something — so web/test/area-sort.test.ts holds that, and sorting.
+func TestEveryAreaShellHasItsTabsOnTheLeft(t *testing.T) {
+	root := repoRoot(t)
+	type shell struct{ file, tabs, badge string }
+	var shells []shell
+	for _, a := range areas.All() {
+		shells = append(shells, shell{"page-" + a.Key + ".html", `id="areaTabs-` + a.Key + `"`, `id="areaBadge-` + a.Key + `"`})
+	}
+	shells = append(shells, shell{"page-tools.html", `id="toolsTabs"`, ""})
+	for _, s := range shells {
+		b, err := os.ReadFile(filepath.Join(root, "web", "src", "ui", s.file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		html := string(b)
+		body := strings.Index(html, `class="card-body`)
+		if body < 0 {
+			t.Errorf("%s: no card body; the header cannot be found", s.file)
+			continue
+		}
+		header := html[:body]
+		tabs := strings.Index(header, s.tabs)
+		title := strings.Index(header, `<h3 class="card-title`)
+		actions := strings.Index(header, `hdr-actions`)
+		if tabs < 0 || title < 0 {
+			t.Errorf("%s: the header has no tab strip or no title", s.file)
+			continue
+		}
+		if tabs > title {
+			t.Errorf("%s: the tab strip comes after the title; the Routing page puts it first, at top left", s.file)
+		}
+		if actions >= 0 && tabs > actions {
+			t.Errorf("%s: the tab strip is in the right-hand .hdr-actions corner, which holds actions only", s.file)
+		}
+		if !regexp.MustCompile(regexp.QuoteMeta(s.tabs) + ` class="stab-bar rttab-bar"`).MatchString(header) {
+			t.Errorf("%s: the tab strip is not `stab-bar rttab-bar`, the header strip that centres on its title", s.file)
+		}
+		if s.badge == "" {
+			continue
+		}
+		badge := strings.Index(header, s.badge+` class="card-badge"`)
+		if badge < title || (actions >= 0 && badge > actions) {
+			t.Errorf("%s: the count pill is not a card-badge beside the title, on the left", s.file)
+		}
+	}
+}

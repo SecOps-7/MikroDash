@@ -108,6 +108,7 @@ var templateIDsUnbound = map[string]string{
 	"sysUpdateBtn": "found by [data-upgrade-open], which two buttons carry",
 	"s_":           "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
 	"sv_":          "constructed: `sv_<pollKey>` per slider label, written by the same loop",
+	"areaThead-":   "constructed: `areaThead-<area key>` per generated table, bound by renderSortHeader('areaThead-' + area.key, …) in area.ts",
 }
 
 // TestTemplateIDsAreBound: every id the port's markup creates is looked up

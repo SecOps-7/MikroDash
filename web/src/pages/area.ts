@@ -17,8 +17,20 @@
 // The header is the declared column order; each cell is that field's value as the
 // collector sent it, and a field the router did not answer renders as a dash
 // rather than as an empty cell, which reads as a value of "".
+//
+// ── EVERY HEADER SORTS, AND UNSORTED IS THE ROUTER'S ORDER ──────────────────
+//
+// A click on a column sorts it ascending, a second descending, and a third
+// returns to the order the router sent, which is where every table starts. The
+// state is per area and per tab, and lives here rather than in the render, so
+// the periodic `area:update` redraws keep it.
+//
+// An ORDERED resource's arrows move a row in the ROUTER's order, and in a sorted
+// view "up" would not mean the row above. So while a column sort is on, the
+// arrow cells are empty — the Firewall page does the same to its arrows while a
+// search is filtering the view — and the third click brings them back.
 
-import { el, esc, resRow } from '../dom';
+import { el, esc, resRow, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
 import { mountAdds, mountRows } from '../resource';
 import { AREAS, type Area } from '../gen/areas';
 import type { Socket } from '../socket';
@@ -29,6 +41,26 @@ const activeTab: Record<string, number> = {};
 
 /** The last payload per area, so a tab switch redraws without waiting for a tick. */
 const latest: Record<string, AreaPayload> = {};
+
+/** The sort on each area's each tab, by `key#tab`. `col: ''` is the router's order. */
+const sorts: Record<string, SortState> = {};
+/** The sort each table was last DRAWN with. `renderSortHeader` flips the state
+ *  before calling back, so this is how a click on a column already sorted
+ *  descending is told apart from a first click, and becomes "unsorted". */
+const drawn: Record<string, SortState> = {};
+
+function sortFor(area: Area, at: number): SortState {
+  const k = area.key + '#' + at;
+  return (sorts[k] = sorts[k] || { col: '', dir: 'asc' });
+}
+
+/** A value to sort by: a number when the router sent one ("1500", "-3"), so 10
+ *  follows 9; the string otherwise; undefined when the router sent nothing, and
+ *  `sortRows` puts those first ascending and last descending. */
+function sortKey(v: string | undefined): string | number | undefined {
+  if (v === undefined || v === '') return undefined;
+  return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
+}
 
 /** Whether this viewer may write each resource, from the engine's schema answer. */
 const writable: Record<string, boolean> = {};
@@ -78,8 +110,14 @@ function render(area: Area): void {
   const payload = latest[area.key];
   const table = payload?.tables?.[at];
 
+  // BLUE WHEN THERE IS SOMETHING TO COUNT, as every hand-built page's count pill
+  // is (`active-blue`), and the plain pill for a zero.
   const badge = el('areaBadge-' + area.key);
-  if (badge) badge.textContent = String(table?.rows?.length ?? 0);
+  if (badge) {
+    const n = table?.rows?.length ?? 0;
+    badge.textContent = String(n);
+    badge.className = 'card-badge' + (n > 0 ? ' active-blue' : '');
+  }
 
   renderTabs(area);
 
@@ -123,31 +161,52 @@ function render(area: Area): void {
   // draws, named `data-res-move` so the resource engine owns the move: the first
   // rule that matches decides, so position is part of what a row does. A viewer
   // who may not write gets none.
+  //
+  // The column stays while a sort is on and only its buttons go, as the
+  // Firewall page keeps its arrow column through a search, so the table does
+  // not reflow when the sort is cleared.
   const arrows = declared.ordered && writable[declared.resource];
-  const head = (arrows ? '<th style="width:1%"></th>' : '') +
-    declared.columns.map((c) => '<th>' + esc(columnLabel(c)) + '</th>').join('');
+  const sort = sortFor(area, at);
+  const sorted = sort.col !== '';
+  const cols: SortCol[] = [
+    ...(arrows ? [{ label: '', style: 'width:1%' }] : []),
+    ...declared.columns.map((c) => ({ key: c, label: esc(columnLabel(c)) })),
+  ];
   const list = table?.rows || [];
   const last = list.length - 1;
-  const move = (at: number): string => '<td style="white-space:nowrap">' +
-    '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-    '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button></td>';
+  // The position is the row's index in the ROUTER's list, which is what the
+  // engine moves; with a sort on there are no buttons to carry it.
+  const move = (pos: number): string => '<td style="white-space:nowrap">' + (sorted ? '' :
+    '<button class="fw-move" data-res-move="up" title="Move up"' + (pos === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+    '<button class="fw-move" data-res-move="down" title="Move down"' + (pos === last ? ' disabled' : '') + '>&#9660;</button>') + '</td>';
+  const shown = sorted
+    ? sortRows(list.map((r, pos) => ({ k: sortKey(r.values?.[sort.col]), r, pos })), 'k', sort.dir)
+    : list.map((r, pos) => ({ r, pos }));
   // A DISABLED OR INVALID ROW IS DIMMED, as the hand-built pages dim theirs:
   // almost every RouterOS menu has `disabled`, and `invalid` is the router saying
   // a row refers to something that is gone. The column still says which.
-  const rows = list.map((r, at) =>
+  const rows = shown.map(({ r, pos }) =>
     '<tr' + (r.values?.disabled === 'true' || r.values?.invalid === 'true' ? ' style="opacity:.55"' : '') +
-    resRow(r.id, r.identity, declared.resource) + '>' + (arrows ? move(at) : '') +
+    resRow(r.id, r.identity, declared.resource) + '>' + (arrows ? move(pos) : '') +
     declared.columns.map((c) => '<td>' + cell(r.values?.[c]) + '</td>').join('') +
     '</tr>').join('');
 
   body.innerHTML = '<table class="table table-vcenter mb-0">' +
-    '<thead><tr>' + head + '</tr></thead>' +
+    '<thead><tr id="areaThead-' + esc(area.key) + '"></tr></thead>' +
     '<tbody data-res-rows="' + esc(declared.resource) + '">' +
     (rows || '<tr><td colspan="' + (declared.columns.length + (arrows ? 1 : 0)) + '" class="empty-state">' +
       'Nothing here yet.' + (writable[declared.resource] && creatable[declared.resource] !== false
         ? ' Use <strong>Add</strong> to create one.' : '') +
       '</td></tr>') +
     '</tbody></table>';
+  drawn[area.key + '#' + at] = { col: sort.col, dir: sort.dir };
+  renderSortHeader('areaThead-' + area.key, cols, sort, () => {
+    // The helper has already moved the state: a click on the column that was
+    // drawn descending has just flipped it to ascending, and means "unsorted".
+    const was = drawn[area.key + '#' + at];
+    if (was && was.col === sort.col && was.dir === 'desc') sort.col = '';
+    render(area);
+  });
   syncAddSlot(area);
 }
 
