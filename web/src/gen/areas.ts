@@ -63,6 +63,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "scheduler", title: "Scheduler", navGroup: "system",
+    tables: [
+      { resource: "scheduler", title: "Scheduled Task", columns: ["name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

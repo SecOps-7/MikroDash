@@ -140,6 +140,14 @@ var declared = []Area{
 			Columns: []string{"name", "owner", "policy", "runCount", "lastStarted", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// Scheduler. Its on-event and policy are behind codeGate; its timing and
+	// enabling are not.
+	{
+		Key: "scheduler", Title: "Scheduler", NavGroup: "system",
+		Tables: []Table{{Resource: "scheduler",
+			Columns: []string{"name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

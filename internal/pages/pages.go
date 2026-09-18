@@ -117,6 +117,7 @@ var All = []Page{
 	{Key: "ip-services", Title: "IP Services", Collector: "areas"},
 	{Key: "certificates", Title: "Certificates", Collector: "areas"},
 	{Key: "scripts", Title: "Scripts", Collector: "areas"},
+	{Key: "scheduler", Title: "Scheduler", Collector: "areas"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},

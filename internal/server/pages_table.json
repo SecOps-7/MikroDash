@@ -52,6 +52,11 @@
       "settingsKey": null
     },
     {
+      "key": "scheduler",
+      "title": "Scheduler",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

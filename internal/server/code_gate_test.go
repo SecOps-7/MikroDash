@@ -101,3 +101,33 @@ func TestEveryCodeFieldIsGuarded(t *testing.T) {
 		t.Fatal("no resource has a Code field, so this check asks nothing")
 	}
 }
+
+// THE SCHEDULER: on-event and policy are code; timing and enabling are not,
+// because the operator's choice named "intervals, enable and disable" as working
+// as normal.
+func TestSchedulerCodeIsGatedAndTimingIsNot(t *testing.T) {
+	stored := map[string]string{".id": "*0", "name": "nightly", "on-event": ":log info x", "interval": "1d",
+		"policy": "read", "disabled": "true"}
+	for name, values := range map[string]map[string]string{
+		"new on-event": {"onEvent": "/system reboot"},
+		"wider policy": {"policy": "read,write,policy"},
+	} {
+		if v := codeDecision(resource.Scheduler, "update", values, stored, false); !v.Refused() {
+			t.Errorf("%s without admin: %+v", name, v)
+		}
+	}
+	// A new task with code is gated even though nothing existed before.
+	if v := codeDecision(resource.Scheduler, "create", map[string]string{"name": "n", "onEvent": ":log info y"}, nil, false); !v.Refused() {
+		t.Errorf("a new task with an on-event, without admin: %+v", v)
+	}
+	for name, values := range map[string]map[string]string{
+		"a new interval": {"interval": "1h"},
+		"enabling it":    {"disabled": "false"},
+		"a start time":   {"startTime": "04:00:00"},
+		"a rename":       {"name": "nightly-2"},
+	} {
+		if v := codeDecision(resource.Scheduler, "update", values, stored, false); v.Level != "none" {
+			t.Errorf("%s was held to the code gate: %+v", name, v)
+		}
+	}
+}

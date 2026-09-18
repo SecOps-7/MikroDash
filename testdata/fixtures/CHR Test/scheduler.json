@@ -1,0 +1,41 @@
+{
+ "collector": "areas",
+ "resource": "scheduler",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. Both tasks were created FOR the capture, DISABLED so neither ran, and removed afterwards: one daily at a time of day, one at startup. What is real is the reply's shape, and one fact worth keeping: a task added without a policy is given EVERY policy (policy and sensitive included), which is why a non-empty on-event is held to the code gate even on a create. A disabled task carries no next-run. Read through /system/scheduler/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/system/scheduler/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*0",
+     "comment": "fixture capture",
+     "disabled": "true",
+     "interval": "1d",
+     "name": "md-fixture",
+     "on-event": ":log info \"md fixture\"",
+     "owner": "mikrodash",
+     "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+     "run-count": "0",
+     "start-date": "2026-09-18",
+     "start-time": "03:00:00"
+    },
+    {
+     ".id": "*1",
+     "disabled": "true",
+     "interval": "0s",
+     "name": "md-startup",
+     "on-event": ":log info \"md startup\"",
+     "owner": "mikrodash",
+     "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+     "run-count": "0",
+     "start-time": "startup"
+    }
+   ]
+  }
+ ]
+}

@@ -283,6 +283,12 @@
       "page": "users"
     },
     {
+      "name": "list_scheduler",
+      "access": "read",
+      "resource": "scheduler",
+      "page": "scheduler"
+    },
+    {
       "name": "list_script",
       "access": "read",
       "resource": "script",

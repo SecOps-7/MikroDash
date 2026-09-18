@@ -1100,6 +1100,38 @@ var Script = &Resource{
 	},
 }
 
+// Scheduler is /system/scheduler (slice 7). From the RouterOS command tree for
+// /system/scheduler/add.
+//
+// Its on-event is RouterOS CODE and its policy decides what that code may do,
+// so both are held to the code gate, as a script's are. Everything else —
+// the name, when and how often it runs, enabling and disabling it — is an
+// ordinary write: the operator's choice named "intervals, enable and disable"
+// as working as normal (2026-09-18).
+var Scheduler = &Resource{
+	Key: "scheduler", Page: "scheduler", Label: "Scheduled Task",
+	Title: "Scheduled Task", Menu: "/system/scheduler", Identity: []string{"name"},
+	Guard: []string{"codeGate"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true},
+		{Name: "onEvent", ROS: "on-event", Label: "On Event", Type: TypeCode, Code: true,
+			Help: "RouterOS script, or the name of a script, to run. Changing it is limited to global administrators."},
+		{Name: "startDate", ROS: "start-date", Label: "Start Date", Type: TypeText, Placeholder: "2026-01-01"},
+		{Name: "startTime", ROS: "start-time", Label: "Start Time", Type: TypeText, Placeholder: "03:00:00",
+			Help: "A time of day, or startup to run once at boot."},
+		{Name: "interval", ROS: "interval", Label: "Interval", Type: TypeText, Placeholder: "1d",
+			Help: "How often it repeats. 0s runs it once."},
+		{Name: "policy", ROS: "policy", Label: "Policy", Type: TypeText, Code: true, Clearable: true,
+			Placeholder: "read,write,test",
+			Help:        "What the task's code may do, comma separated."},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "owner", ROS: "owner", Label: "Owner", Type: TypeText, Display: true},
+		{Name: "runCount", ROS: "run-count", Label: "Runs", Type: TypeText, Display: true},
+		{Name: "nextRun", ROS: "next-run", Label: "Next Run", Type: TypeText, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1768,6 +1800,7 @@ var byKey = map[string]*Resource{
 	IPService.Key:           IPService,
 	Certificate.Key:         Certificate,
 	Script.Key:              Script,
+	Scheduler.Key:           Scheduler,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,
