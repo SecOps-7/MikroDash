@@ -35,11 +35,17 @@ same permissions, checks and audit trail as the forms.
 
 ### Changed
 
-- **IP Addresses, Queues and Router Users** now edit through the same form engine as the
-  new pages, with undo and read-back checks.
+- **IP Addresses is now two tabs, IPv4 and IPv6**, with sorting and coloured labels like
+  the new pages. Its own poll-interval setting is gone (it reads every 60 s), and so is its
+  old show/hide setting: if you had hidden it, hide it again in Settings → Visible Pages.
+- **Queues and Router Users** now edit through the same form engine as the new pages, with
+  undo and read-back checks.
+- **New pages open with data**, read once when a router connects, like the older pages.
+- **Every new page has its own sidebar icon.**
 - **Changes that could cut MikroDash off warn first**: disabling the API service or its
-  certificate, list memberships, routing rules, IPsec, tunnel default routes and the DHCP
-  client holding the address MikroDash connects to.
+  certificate, list memberships, routing rules, IPsec, tunnel default routes, interfaces
+  MikroDash connects through (VETH, VRRP, tunnels) and the DHCP client holding the address
+  MikroDash connects to.
 - **Code the router runs** (scripts, scheduler, VRRP scripts, container images) can only
   be changed by a global administrator.
 - **Removing, disabling or unsetting FIB on a routing table that rules use asks first**,
@@ -47,7 +53,17 @@ same permissions, checks and audit trail as the forms.
 
 ### Fixed
 
-- **An approved assistant edit no longer clears fields it did not name.**
+- **An approved assistant edit no longer clears fields it did not name**, and an edit it
+  makes directly keeps the rest of the row instead of being refused by the router.
+- **The assistant can no longer drop a condition it invented.** A field the page does not
+  have is refused rather than silently left out, which could turn a narrow firewall rule
+  into a broad one.
+- **An assistant proposal that trips a safety check shows the warning** in the dialog.
+- **Package actions read the router again before acting**, so a schedule after an update
+  no longer targets the wrong package or reboots for nothing.
+- **Audit entries for refused edits name the row** instead of leaving it blank.
+- **Undo is not offered for a removal that cannot be re-created.**
+- **Form fields shown by a checkbox now appear** when it is ticked.
 - **A WiFi frequency scan the router refuses now says so**, instead of finishing as a scan
   that found nothing.
 - **New pages' menu entries open when clicked.** They were reachable only by URL.
