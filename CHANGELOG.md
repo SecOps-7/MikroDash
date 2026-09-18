@@ -15,7 +15,7 @@ same permissions, checks and audit trail as the forms.
   Rules, OSPF, IPsec, OpenVPN, VRRP, PPPoE Clients, DHCP Clients, DHCP Servers and
   Containers. Each lists its rows and, where RouterOS allows, adds, edits and removes
   them with undo. Each has its own toggle in Settings → Visible Pages.
-- **Tools page** (System): Ping, Traceroute, Torch and Bandwidth Test run from the
+- **Tools page** (in the sidebar below Devices): Ping, Traceroute, Torch and Bandwidth Test run from the
   selected router, with output shown as it arrives. Torch and Bandwidth Test need write
   access and are recorded in the audit trail.
 - **Containers** can be started, stopped and removed from their page. Needs the RouterOS
