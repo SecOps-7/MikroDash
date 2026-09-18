@@ -1,6 +1,8 @@
 package server
 
 import (
+	"mikrodash/internal/history"
+	"mikrodash/internal/resource"
 	"os"
 	"regexp"
 	"strings"
@@ -105,5 +107,31 @@ func TestAnEditsRefusalNamesTheRow(t *testing.T) {
 		if assign[0] > at {
 			t.Errorf("the name is taken from the row AFTER %s, so that audit row still has none", anchor)
 		}
+	}
+}
+
+// A DELETE THAT CANNOT BE UNDONE OFFERS NO UNDO. Undoing a delete is an add, and
+// for a NoCreate resource (a certificate, a file) the add would not restore the
+// row: it would make an unsigned certificate template, or an empty file, with
+// the old name. The history refuses it before any read, and the delete path
+// records nothing to undo.
+func TestADeleteOfSomethingThatCannotBeCreatedCannotBeUndone(t *testing.T) {
+	cn := &conn{} // no session: reaching the router would panic, so a refusal is early
+	if _, _, err := cn.applyOp(resource.Certificate, history.Op{Op: "add",
+		Values: map[string]string{"name": "chr-api"}}); err == nil {
+		t.Fatal("undoing a certificate's removal was attempted as an add")
+	}
+	b, err := os.ReadFile("resource.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	at := strings.Index(src, `history.Build(res.Key, res.Label, "delete",`)
+	if at < 0 {
+		t.Fatal("the delete history push has moved; this test has lost its anchor")
+	}
+	guard := strings.LastIndex(src[:at], "if !res.NoCreate {")
+	if guard < 0 || at-guard > 200 {
+		t.Error("the delete path records an undo for a resource that cannot be created")
 	}
 }

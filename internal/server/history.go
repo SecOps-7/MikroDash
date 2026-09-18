@@ -123,9 +123,18 @@ func histValues(v map[string]any) map[string]string {
 // An `add` is the awkward one: RouterOS assigns the id, so the new row is found
 // by diffing the table against itself rather than by assuming it is last. It
 // usually IS last. "Usually" is not a thing to build an undo on.
+// errNotRecreatable is an undo that would have to create a NoCreate resource.
+var errNotRecreatable = errors.New("this cannot be re-created, so its removal cannot be undone")
+
 func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resource.Error, error) {
 	switch op.Op {
 	case "add":
+		// A resource that cannot be created cannot be re-created either: the
+		// delete path records no undo for one, and this refuses it anyway, before
+		// anything reaches the router.
+		if res.NoCreate {
+			return "", nil, errNotRecreatable
+		}
 		validated, errs := res.Validate(op.Values, false)
 		if len(errs) > 0 {
 			return "", errs, nil
