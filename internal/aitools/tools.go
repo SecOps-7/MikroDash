@@ -45,6 +45,7 @@ package aitools
 
 import (
 	"fmt"
+	"mikrodash/internal/areas"
 	"sort"
 	"strings"
 
@@ -91,6 +92,10 @@ type Tool struct {
 	// Diagnostic names the Tools page diagnostic a DIAGNOSTIC tool runs, instead
 	// of reading a menu or a collector. Not sent to the model. See diagTools.
 	Diagnostic string `json:"-"`
+	// GroupBy is set on the list tool of a resource read a group at a time
+	// (areas.Table.GroupBy): the tool takes that one argument, a VALUE to
+	// filter by, never a menu. Without it the tool answers each group's counts.
+	GroupBy string `json:"-"`
 	// Access is "read" or "write". It decides which permission `Permitted`
 	// consults, and it is what a gate checks rather than inferring intent from
 	// a tool's name.
@@ -478,7 +483,7 @@ func diagTools() []Tool {
 
 // listTool is one resource's read tool.
 func listTool(r *resource.Resource) Tool {
-	return Tool{
+	t := Tool{
 		Name:        namePrefix + r.Key,
 		Description: describe(r),
 		Parameters:  noArgs(),
@@ -486,6 +491,24 @@ func listTool(r *resource.Resource) Tool {
 		Page:        r.Page,
 		Access:      AccessRead,
 	}
+	// A MENU TOO LARGE TO READ WHOLE is read a group at a time, as its page is:
+	// an address list holding a synced blocklist is tens of thousands of rows,
+	// and the tool read them all to hand the model 200.
+	if g := areas.GroupByFor(r.Key); g != "" {
+		t.GroupBy = g
+		t.Description += " This menu can be very large, so it is read one " + g + " at a time. " +
+			"Called without `" + g + "`, it returns each " + g + " with how many entries it holds. " +
+			"Pass `" + g + "` to read that " + g + "'s entries."
+		t.Parameters = map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				g: map[string]any{"type": "string",
+					"description": "The " + g + " to read, as the call without it named it."},
+			},
+			"additionalProperties": false,
+		}
+	}
+	return t
 }
 
 // writeTool builds the write tool over exactly the resources the caller says

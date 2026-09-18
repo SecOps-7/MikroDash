@@ -139,29 +139,23 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 		if len(errs) > 0 {
 			return "", errs, nil
 		}
-		rows, err := cn.readMenu(res)
-		if err != nil {
-			return "", nil, err
-		}
-		seen := make(map[string]bool, len(rows))
-		for _, r := range rows {
-			seen[r[".id"]] = true
-		}
+		// The add names its new row, which is the one read back: nothing is
+		// read first (see readRow).
+		var ret string
 		if _, err := cn.rsession.Exec(routeros.Cmd{
-			Path: res.Menu + "/add", Args: res.BuildArgs(validated)}); err != nil {
+			Path: res.Menu + "/add", Args: res.BuildArgs(validated), Ret: &ret}); err != nil {
 			return "", nil, err
 		}
-		// CONFIRMED, as every write is (#97): exactly one new row, read back. An add
-		// that left none, or a table another add changed at the same moment, is an
-		// unknown outcome.
-		after, err := cn.readMenu(res)
-		if err != nil {
+		// CONFIRMED, as every write is (#97): the row the add named, read back. An
+		// add that named none, or whose row is not there, is an unknown outcome.
+		if ret == "" {
 			return "", nil, errOutcomeUnknown
 		}
-		if r, ok := confirmCreated(seen, after); ok {
-			return r[".id"], nil, nil
+		after, err := cn.readRow(res, ret)
+		if err != nil || rowByID(after, ret) == nil {
+			return "", nil, errOutcomeUnknown
 		}
-		return "", nil, errOutcomeUnknown
+		return ret, nil, nil
 
 	case "set":
 		validated, errs := res.Validate(op.Values, true)
@@ -172,7 +166,7 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 		if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/set", Args: args}); err != nil {
 			return "", nil, err
 		}
-		if after, err := cn.readMenu(res); err != nil || rowByID(after, op.ID) == nil {
+		if after, err := cn.readRow(res, op.ID); err != nil || rowByID(after, op.ID) == nil {
 			return "", nil, errOutcomeUnknown
 		}
 		return op.ID, nil, nil
@@ -182,7 +176,7 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 			Path: res.Menu + "/remove", Args: res.IDWords(op.ID)}); err != nil {
 			return "", nil, err
 		}
-		if after, err := cn.readMenu(res); err != nil || !confirmRemoved(after, op.ID) {
+		if after, err := cn.readRow(res, op.ID); err != nil || !confirmRemoved(after, op.ID) {
 			return "", nil, errOutcomeUnknown
 		}
 		return "", nil, nil
@@ -217,10 +211,15 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 		op = entry.Forward
 	}
 
-	rows, err := cn.readMenu(res)
-	if err != nil {
-		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
-		return
+	// The row this entry is about, read by its id; an add is about a row that
+	// is not there, so it reads nothing.
+	var rows []routeros.Reply
+	if op.Op != "add" {
+		var err error
+		if rows, err = cn.readRow(res, op.ID); err != nil {
+			cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
+			return
+		}
 	}
 
 	// The row this entry is about must still BE the row it was about. If it is
@@ -293,7 +292,7 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 	// looks like, so the opposite direction can check it in turn.
 	history.Rebind(entry, newID)
 	if newID != "" {
-		if after, err := cn.readMenu(res); err == nil {
+		if after, err := cn.readRow(res, newID); err == nil {
 			for _, r := range after {
 				if r[".id"] == newID {
 					entry.Identity = res.IdentityOf(r)

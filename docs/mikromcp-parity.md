@@ -30,7 +30,7 @@ and the declared actions, so a renamed or removed tool fails the build rather th
 | `get_system_clock` | `list_clock` | covered |  |
 | `get_system_status` | — | context | As check_router_health. |
 | `get_upgrade_status` | `list_packages` | covered | Installed and latest version, channel and RouterBOARD firmware. |
-| `list_address_list_entries` | `list_addressList` | covered |  |
+| `list_address_list_entries` | `list_addressList` | covered | Read a list at a time: without `list` it returns each list and its counts. |
 | `list_arp_entries` | — | gap | ARP is read for topology and bandwidth, but there is no ARP page or tool. |
 | `list_bgp_peers` | `list_bgp_sessions` | covered |  |
 | `list_bridges` | `list_bridge`, `list_bridgePort` | covered |  |

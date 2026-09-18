@@ -30,11 +30,14 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
 
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/collect"
 	"mikrodash/internal/resource"
+	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
 )
 
@@ -104,13 +107,22 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 		return "No device is selected, so nothing was read."
 	}
 
+	// A GROUPED MENU is read a group at a time: see runGroupedListTool.
+	if t.GroupBy != "" {
+		return cn.runGroupedListTool(t, res, tc)
+	}
 	rows, err := cn.readMenu(res)
 	if err != nil {
 		// SANITISED, like every other outbound error here: a transport failure
 		// carries the router's address.
 		return "The device could not be read: " + safe.Message(err.Error())
 	}
+	return shapeToolRows(t, res, rows)
+}
 
+// shapeToolRows is a list tool's answer: the rows, capped by count and size,
+// with the true total, inside the untrusted block.
+func shapeToolRows(t aitools.Tool, res *resource.Resource, rows []routeros.Reply) string {
 	type outRow struct {
 		ID       string         `json:"id"`
 		Identity string         `json:"identity"`
@@ -156,4 +168,65 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	// exactly the kind of text the block exists for: comments, device names and
 	// DHCP host names chosen by whoever controls those devices.
 	return aicontext.Wrap(string(body))
+}
+
+// aiGroupArgMax bounds the group name the model may pass.
+const aiGroupArgMax = 200
+
+// runGroupedListTool reads a grouped menu (Address Lists, by list) as its page
+// does. Without the grouping argument it answers each group and its counts,
+// from a read of three small fields; with it, that group's rows, filtered ON
+// THE ROUTER (`?list=<name>`), then capped as any list tool's are.
+//
+// ── NOT THE WHOLE MENU ──────────────────────────────────────────────────────
+//
+// It read every row: 37,111 address-list entries, 6 s and 4.4 MB on the
+// operator's router (2026-09-18), to hand the model the first 200, which were
+// whichever list came first.
+func (cn *conn) runGroupedListTool(t aitools.Tool, res *resource.Resource, tc aiprovider.ToolCall) string {
+	var args map[string]any
+	if raw := strings.TrimSpace(tc.Function.Arguments); raw != "" {
+		if json.Unmarshal([]byte(raw), &args) != nil {
+			return "The arguments were not valid JSON."
+		}
+	}
+	group, _ := args[t.GroupBy].(string)
+	if len(group) > aiGroupArgMax {
+		return "That " + t.GroupBy + " name is too long."
+	}
+	if group == "" {
+		rows, err := cn.rsession.Exec(collect.AreaGroupCmd(res, t.GroupBy))
+		if err != nil {
+			return "The device could not be read: " + safe.Message(err.Error())
+		}
+		table := collect.BuildAreaGroups(res, "", nil, t.GroupBy, rows)
+		total := 0
+		for _, g := range table.Groups {
+			total += g.Count
+		}
+		body, err := json.Marshal(struct {
+			Tool    string              `json:"tool"`
+			Menu    string              `json:"menu"`
+			GroupBy string              `json:"groupBy"`
+			Groups  []collect.AreaGroup `json:"groups"`
+			Total   int                 `json:"totalRows"`
+			Next    string              `json:"next"`
+		}{Tool: t.Name, Menu: res.Menu, GroupBy: t.GroupBy, Groups: table.Groups, Total: total,
+			Next: "Call " + t.Name + " again with `" + t.GroupBy + "` set to one of these names to read its entries."})
+		if err != nil {
+			return "That data could not be encoded."
+		}
+		return aicontext.Wrap(string(body))
+	}
+	rows, err := cn.rsession.Exec(collect.AreaGroupRowsCmd(res, t.GroupBy, group))
+	if err != nil {
+		return "The device could not be read: " + safe.Message(err.Error())
+	}
+	out := make([]routeros.Reply, 0, len(rows))
+	for _, r := range rows {
+		if r[".id"] != "" {
+			out = append(out, r)
+		}
+	}
+	return shapeToolRows(t, res, out)
 }

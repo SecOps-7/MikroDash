@@ -15,19 +15,6 @@ func rows(ids ...string) []routeros.Reply {
 	return out
 }
 
-func TestConfirmCreatedNeedsExactlyOneNewRow(t *testing.T) {
-	before := map[string]bool{"*1": true, "*2": true}
-	if r, ok := confirmCreated(before, rows("*1", "*2", "*3")); !ok || r[".id"] != "*3" {
-		t.Errorf("one new row: got %v, %v", r, ok)
-	}
-	if _, ok := confirmCreated(before, rows("*1", "*2")); ok {
-		t.Error("an add that left no new row was confirmed")
-	}
-	if _, ok := confirmCreated(before, rows("*1", "*2", "*3", "*4")); ok {
-		t.Error("two new rows were confirmed as ours; which one is ours cannot be told")
-	}
-}
-
 func TestConfirmRemoved(t *testing.T) {
 	if !confirmRemoved(rows("*1", "*3"), "*2") {
 		t.Error("a row that is gone was not confirmed removed")

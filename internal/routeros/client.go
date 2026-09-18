@@ -178,6 +178,10 @@ type Cmd struct {
 	// is later than Do returning. A router slot is released here. Chain onto it
 	// with OnFinished rather than assigning, so an earlier hook is kept.
 	Finished func()
+	// Ret, if set, receives the `ret` word of the reply's `!done`: the id of the
+	// row an `add` made. A write reads back that one row rather than the whole
+	// menu before and after to find it by difference.
+	Ret *string
 }
 
 // OnFinished returns the command with f added to what runs when it is over.
@@ -390,6 +394,9 @@ func (c *Client) Do(cmd Cmd) ([]Reply, error) {
 	case r := <-out:
 		if r.err != nil {
 			return nil, r.err
+		}
+		if cmd.Ret != nil && r.reply != nil && r.reply.Done != nil {
+			*cmd.Ret = r.reply.Done.Map["ret"]
 		}
 		return rowsOf(r.reply), nil
 	case <-expired:

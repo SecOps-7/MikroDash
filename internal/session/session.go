@@ -543,7 +543,21 @@ func (s *Session) StreamUntilDone(
 func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	if r.s.execForTest != nil {
 		cmd.Finish()
-		return r.s.execForTest(cmd)
+		rows, err := r.s.execForTest(cmd)
+		// A scripted `add` answers its new id as a row holding only `ret`, which
+		// becomes Ret, as a router's `!done =ret=` does through Client.Do.
+		if cmd.Ret != nil && err == nil {
+			kept := rows[:0:0]
+			for _, row := range rows {
+				if id, ok := row["ret"]; ok && len(row) == 1 {
+					*cmd.Ret = id
+					continue
+				}
+				kept = append(kept, row)
+			}
+			rows = kept
+		}
+		return rows, err
 	}
 	r.s.mu.Lock()
 	c := r.s.client

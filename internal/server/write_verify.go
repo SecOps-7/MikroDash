@@ -34,23 +34,6 @@ func rowByID(rows []routeros.Reply, id string) routeros.Reply {
 	return nil
 }
 
-// confirmCreated is the ONE row that was not there before. None means the add left
-// nothing to find; more than one means something else added a row at the same
-// moment, and which is ours cannot be told. Both are unknown outcomes.
-func confirmCreated(before map[string]bool, after []routeros.Reply) (routeros.Reply, bool) {
-	var found routeros.Reply
-	for _, r := range after {
-		if before[r[".id"]] {
-			continue
-		}
-		if found != nil {
-			return nil, false
-		}
-		found = r
-	}
-	return found, found != nil
-}
-
 // confirmRemoved: the row is gone.
 func confirmRemoved(after []routeros.Reply, id string) bool {
 	return rowByID(after, id) == nil

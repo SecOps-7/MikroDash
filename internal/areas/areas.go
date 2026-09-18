@@ -416,6 +416,19 @@ var declared = []Area{
 // All returns the declared areas.
 func All() []Area { return append([]Area(nil), declared...) }
 
+// GroupByFor is the GroupBy a resource's area table declares, or "": the one
+// fact the assistant's list tool needs to read a large menu a group at a time.
+func GroupByFor(resourceKey string) string {
+	for _, a := range declared {
+		for _, t := range a.Tables {
+			if t.Resource == resourceKey {
+				return t.GroupBy
+			}
+		}
+	}
+	return ""
+}
+
 // ByKey resolves one area, or false.
 func ByKey(key string) (Area, bool) {
 	for _, a := range declared {

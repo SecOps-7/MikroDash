@@ -1,6 +1,7 @@
 package aitools
 
 import (
+	"mikrodash/internal/areas"
 	"regexp"
 	"sort"
 	"strings"
@@ -254,9 +255,13 @@ func TestNoSecretFieldIsAdvertised(t *testing.T) {
 // DIAGNOSTIC TOOLS ARE THE SECOND EXCEPTION, since slice 8: a ping needs a
 // target. What they take is pinned exactly by TestADiagnosticTakesOnlyItsTarget,
 // and none of it names a menu or a command.
+//
+// A GROUPED LIST TOOL IS THE THIRD (2026-09-18): Address Lists takes `list`, a
+// value to filter the declared menu by, never a menu. Pinned exactly by
+// TestAGroupedListToolTakesOnlyItsGroup.
 func TestEveryReadToolTakesNoArguments(t *testing.T) {
 	for _, tool := range All() {
-		if tool.Access != AccessRead || tool.Diagnostic != "" {
+		if tool.Access != AccessRead || tool.Diagnostic != "" || tool.GroupBy != "" {
 			continue
 		}
 		props, ok := tool.Parameters["properties"].(map[string]any)
@@ -454,5 +459,31 @@ func TestEveryLiveToolIsOfferedOnlyByItsPage(t *testing.T) {
 	}
 	if checked < 2 {
 		t.Errorf("only %d live tools checked; the catalogue is not being read", checked)
+	}
+}
+
+// TestAGroupedListToolTakesOnlyItsGroup, both ways: a grouped resource's tool
+// takes exactly its grouping field and nothing else, and every grouped area
+// table has such a tool.
+func TestAGroupedListToolTakesOnlyItsGroup(t *testing.T) {
+	seen := 0
+	for _, tool := range All() {
+		if tool.GroupBy == "" {
+			continue
+		}
+		seen++
+		props, _ := tool.Parameters["properties"].(map[string]any)
+		if len(props) != 1 || props[tool.GroupBy] == nil {
+			t.Errorf("tool %q takes %v, want exactly %q", tool.Name, props, tool.GroupBy)
+		}
+		if extra, _ := tool.Parameters["additionalProperties"].(bool); extra {
+			t.Errorf("tool %q permits additional properties", tool.Name)
+		}
+		if tool.GroupBy != areas.GroupByFor(tool.Resource) {
+			t.Errorf("tool %q groups by %q, its area by %q", tool.Name, tool.GroupBy, areas.GroupByFor(tool.Resource))
+		}
+	}
+	if seen == 0 {
+		t.Error("no list tool is grouped, though Address Lists declares GroupBy")
 	}
 }

@@ -210,6 +210,12 @@ These menus never appear as a complete command in the source: `res:save` and fri
 build `<menu>/<verb>` from the registry. Listed from `src/routeros/resources.js` so the
 surface stays complete.
 
+Every write reads the one row it is about, by id, before and after it (`<menu>/print
+?.id=<id>`, `readRow` in `internal/server/resource.go`); a create learns its row's id
+from the add's `!done =ret=`. Only a settings menu (no id), a reorder and the Wi-Fi
+inherit guard read the whole menu. Before 2026-09-18 every write read the whole menu
+twice, 37,111 rows each way for one address-list entry on a synced blocklist.
+
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
 | `/certificate` | certificate | certificates | set, remove |
@@ -259,7 +265,7 @@ surface stays complete.
 | `/ip/pool` | ipPool | ip-pools | add, set, remove |
 | `/ip/service` | ipService | ip-services | set |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
-| `/ip/firewall/address-list` | addressList | address-lists | add, set, remove; the page polls `print =.proplist=list,dynamic,disabled` for its per-list summary and reads one list with `print ?list=<name>` when it is opened |
+| `/ip/firewall/address-list` | addressList | address-lists | add, set, remove; the page polls `print =.proplist=list,dynamic,disabled` for its per-list summary and reads one list with `print ?list=<name>` when it is opened; the assistant's `list_addressList` reads the same two ways |
 | `/ip/firewall/filter` | fwFilter | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/mangle` | fwMangle | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/nat` | fwNat | firewall | add, set, remove, move, enable, disable |

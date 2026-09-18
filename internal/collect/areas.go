@@ -309,7 +309,7 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 			// list entries read this way are a fraction of reading every field,
 			// and the summary changes only when a count does, so a dynamic
 			// entry's ticking `timeout` no longer resends the table each minute.
-			rows, err = readVia(a.cache, a.ros, areaGroupCmd(res, t.GroupBy), area.Poll)
+			rows, err = readVia(a.cache, a.ros, AreaGroupCmd(res, t.GroupBy), area.Poll)
 			table = BuildAreaGroups(res, t.Title, t.Columns, t.GroupBy, rows)
 		} else {
 			rows, err = readVia(a.cache, a.ros, areaReadCmd(res), area.Poll)
@@ -385,10 +385,10 @@ func areaReadCmd(res *resource.Resource) routeros.Cmd {
 	return routeros.Cmd{Path: res.Menu + "/print", Args: []string{"=.proplist=" + strings.Join(props, ",")}}
 }
 
-// areaGroupCmd is a grouped table's summary read: the grouping field and the
+// AreaGroupCmd is a grouped table's summary read: the grouping field and the
 // flags BuildAreaGroups counts, and nothing else — not even `.id`, since no row
 // of the summary is addressed.
-func areaGroupCmd(res *resource.Resource, groupBy string) routeros.Cmd {
+func AreaGroupCmd(res *resource.Resource, groupBy string) routeros.Cmd {
 	props := []string{}
 	for _, name := range []string{groupBy, "dynamic", "disabled"} {
 		if f := res.FieldByName(name); f != nil && f.ROS != "" {

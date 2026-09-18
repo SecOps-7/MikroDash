@@ -182,7 +182,32 @@ func (cn *conn) resolve(raw json.RawMessage, auditDenied bool) (*resource.Resour
 // readMenu reads every row, with NO proplist: readOnlyWhen needs fields no page
 // asked for, and this runs once per write rather than once per tick.
 func (cn *conn) readMenu(res *resource.Resource) ([]routeros.Reply, error) {
-	rows, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/print"})
+	return cn.readMenuWhere(res)
+}
+
+// readRow is the one row a write is about, read by its id on the router
+// (`print ?.id=<id>`), shaped as readMenu shapes it.
+//
+// ── ONE ROW, NOT THE MENU ───────────────────────────────────────────────────
+//
+// Every write read the whole menu to find its row, before and after. On the
+// operator's router that is 37,111 address-list entries, 6 s each way, to edit
+// one (2026-09-18). A write addresses its row by id — and a create learns its
+// new id from the add's `ret` (Cmd.Ret) — so it reads that row. A settings
+// menu's one row has no id to ask for, and is read whole, as before.
+func (cn *conn) readRow(res *resource.Resource, id string) ([]routeros.Reply, error) {
+	if res.Singleton || id == "" {
+		return cn.readMenu(res)
+	}
+	return cn.readMenuWhere(res, "?.id="+id)
+}
+
+// errNoRet is a create whose add named no new row, so there is nothing to read
+// back: the outcome is unknown rather than guessed.
+var errNoRet = errors.New("the router did not name the row it created")
+
+func (cn *conn) readMenuWhere(res *resource.Resource, query ...string) ([]routeros.Reply, error) {
+	rows, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/print", Args: query})
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +320,6 @@ type preparedWrite struct {
 	req       *resRequest
 	validated resource.Validated
 	before    routeros.Reply
-	seenIDs   map[string]bool
 	editing   bool
 	action    string
 	name      string
@@ -336,7 +360,7 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 	var rows []routeros.Reply
 	var readErr error
 	if editing && req.Partial {
-		rows, readErr = cn.readMenu(res)
+		rows, readErr = cn.readRow(res, req.ID)
 	}
 	submitted := req.strValues()
 	if editing && req.Partial && readErr == nil {
@@ -360,18 +384,15 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		name = req.ExpectedIdentity
 	}
 
+	// A CREATE READS NOTHING FIRST: it used to read the whole menu only to know
+	// which ids already existed, and now learns its new row's id from the add.
 	err := readErr
-	if rows == nil && err == nil {
-		rows, err = cn.readMenu(res)
+	if editing && rows == nil && err == nil {
+		rows, err = cn.readRow(res, req.ID)
 	}
 	if err != nil {
 		return nil, writeOutcome{Code: writeFailCode(err), Name: name,
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
-	}
-	// The ids present BEFORE the write, so a create can find the row it made.
-	seenIDs := make(map[string]bool, len(rows))
-	for _, r := range rows {
-		seenIDs[r[".id"]] = true
 	}
 	var before routeros.Reply
 	if editing {
@@ -425,7 +446,7 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 	}
 
 	return &preparedWrite{
-		res: res, req: req, validated: validated, before: before, seenIDs: seenIDs,
+		res: res, req: req, validated: validated, before: before,
 		editing: editing, action: action, name: name, verdict: verdict,
 	}, writeOutcome{}
 }
@@ -461,7 +482,8 @@ func (cn *conn) commitWrite(p *preparedWrite, via string) writeOutcome {
 		verb = "/set"
 		args = append(res.IDWords(req.ID), args...)
 	}
-	if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + verb, Args: args}); err != nil {
+	var ret string
+	if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + verb, Args: args, Ret: &ret}); err != nil {
 		return writeOutcome{Code: writeFailCode(err), Name: p.name,
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
@@ -492,16 +514,20 @@ func (cn *conn) commitWrite(p *preparedWrite, via string) writeOutcome {
 	// holds, so the menu is read again before anything reports success: an
 	// edited row must still be there, and a create must have produced exactly
 	// one new row. Otherwise the outcome is unknown. See write_verify.go.
-	after, rerr := cn.readMenu(res)
+	readID := req.ID
+	if !p.editing {
+		readID = ret
+	}
+	var after []routeros.Reply
+	rerr := errNoRet
+	if readID != "" {
+		after, rerr = cn.readRow(res, readID)
+	}
 	var observed routeros.Reply
 	confirmed := false
 	if rerr == nil {
-		if p.editing {
-			observed = rowByID(after, req.ID)
-			confirmed = observed != nil
-		} else {
-			observed, confirmed = confirmCreated(p.seenIDs, after)
-		}
+		observed = rowByID(after, readID)
+		confirmed = observed != nil
 	}
 	if !confirmed {
 		return cn.unknownOutcome(res, res.Key+"."+p.action, req.ID, p.name, req.Ack, via)
@@ -631,7 +657,7 @@ func (cn *conn) prepareRemove(res *resource.Resource, req *resRequest) (*prepare
 		return nil, writeOutcome{Code: "invalid", Name: name}
 	}
 
-	rows, err := cn.readMenu(res)
+	rows, err := cn.readRow(res, req.ID)
 	if err != nil {
 		return nil, writeOutcome{Code: writeFailCode(err), Name: name,
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
@@ -705,7 +731,7 @@ func (cn *conn) commitRemove(p *preparedRemove, via string) writeOutcome {
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
 	// The row must be GONE before the delete is reported (#97).
-	if after, rerr := cn.readMenu(res); rerr != nil || !confirmRemoved(after, req.ID) {
+	if after, rerr := cn.readRow(res, req.ID); rerr != nil || !confirmRemoved(after, req.ID) {
 		return cn.unknownOutcome(res, res.Key+".delete", req.ID, name, req.Ack, via)
 	}
 	// Recorded BEFORE the audit row and from the row as it was, because the
@@ -897,7 +923,7 @@ func (cn *conn) runRowAction(res *resource.Resource, req *resRequest, via string
 
 	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
-		rows, err := cn.readMenu(res)
+		rows, err := cn.readRow(res, req.ID)
 		if err != nil {
 			return err
 		}
@@ -945,7 +971,7 @@ func (cn *conn) runRowAction(res *resource.Resource, req *resRequest, via string
 			return err
 		}
 		// The row must show the verb took before it is reported (#97).
-		after, rerr := cn.readMenu(res)
+		after, rerr := cn.readRow(res, req.ID)
 		if rerr != nil {
 			out = cn.unknownOutcome(res, action, req.ID, name, req.Ack, via)
 			return nil
@@ -1048,7 +1074,7 @@ func (cn *conn) resRow(raw json.RawMessage) {
 		cn.resErr(res.Key, "bad-request", "", nil)
 		return
 	}
-	rows, err := cn.readMenu(res)
+	rows, err := cn.readRow(res, req.ID)
 	if err != nil {
 		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
 		return
