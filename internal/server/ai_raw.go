@@ -31,9 +31,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
@@ -111,26 +111,13 @@ func (cn *conn) runAIRawCommandTool(tc aiprovider.ToolCall) string {
 
 // raiseAIRawCommand puts one parsed command to the operator. Always.
 func (cn *conn) raiseAIRawCommand(cmd rawcmd.Command) string {
-	tok, err := aiProposalToken()
+	tok, err := cn.addProposal(&aiWriteProposal{raw: &cmd})
+	if errors.Is(err, errProposalsFull) {
+		return "There are already several things waiting for the operator to answer."
+	}
 	if err != nil {
 		return "That command could not be put to the operator, so nothing was run."
 	}
-	cn.proposeMu.Lock()
-	if cn.proposals == nil {
-		cn.proposals = map[string]*aiWriteProposal{}
-	}
-	now := time.Now()
-	for k, v := range cn.proposals {
-		if now.Sub(v.raisedAt) > aiProposalTTL {
-			delete(cn.proposals, k)
-		}
-	}
-	if len(cn.proposals) >= aiMaxProposals {
-		cn.proposeMu.Unlock()
-		return "There are already several things waiting for the operator to answer."
-	}
-	cn.proposals[tok] = &aiWriteProposal{token: tok, raw: &cmd, raisedAt: now}
-	cn.proposeMu.Unlock()
 
 	kind := "change"
 	if rawcmd.IsReadVerb(cmd.Verb) {
@@ -294,26 +281,13 @@ func (cn *conn) runAIBulkTool(tc aiprovider.ToolCall) string {
 
 // raiseAIPlan puts the whole plan to the operator, once.
 func (cn *conn) raiseAIPlan(plan []rawcmd.Command) string {
-	tok, err := aiProposalToken()
+	tok, err := cn.addProposal(&aiWriteProposal{plan: plan})
+	if errors.Is(err, errProposalsFull) {
+		return "There are already several things waiting for the operator to answer."
+	}
 	if err != nil {
 		return "That plan could not be put to the operator, so nothing was run."
 	}
-	cn.proposeMu.Lock()
-	if cn.proposals == nil {
-		cn.proposals = map[string]*aiWriteProposal{}
-	}
-	now := time.Now()
-	for k, v := range cn.proposals {
-		if now.Sub(v.raisedAt) > aiProposalTTL {
-			delete(cn.proposals, k)
-		}
-	}
-	if len(cn.proposals) >= aiMaxProposals {
-		cn.proposeMu.Unlock()
-		return "There are already several things waiting for the operator to answer."
-	}
-	cn.proposals[tok] = &aiWriteProposal{token: tok, plan: plan, raisedAt: now}
-	cn.proposeMu.Unlock()
 
 	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
 		"token": tok, "kind": "command", "action": "plan",

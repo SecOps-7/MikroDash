@@ -20,9 +20,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
@@ -96,30 +96,14 @@ func actionArgs(spec aitools.ActionSpec, rawTarget, rawMode string) (target, mod
 // returns at once, for the reason raiseAIProposal does: a human takes longer
 // than the model request this runs inside.
 func (cn *conn) raiseAIAction(spec aitools.ActionSpec, target, mode string) string {
-	tok, err := aiProposalToken()
-	if err != nil {
-		return "That action could not be put to the operator, so nothing was run."
-	}
-
-	cn.proposeMu.Lock()
-	if cn.proposals == nil {
-		cn.proposals = map[string]*aiWriteProposal{}
-	}
-	now := time.Now()
-	for k, v := range cn.proposals {
-		if now.Sub(v.raisedAt) > aiProposalTTL {
-			delete(cn.proposals, k)
-		}
-	}
-	if len(cn.proposals) >= aiMaxProposals {
-		cn.proposeMu.Unlock()
+	tok, err := cn.addProposal(&aiWriteProposal{actionKey: spec.Key, target: target, mode: mode})
+	if errors.Is(err, errProposalsFull) {
 		return "There are already several things waiting for the operator to answer. " +
 			"Ask them to deal with those before proposing another."
 	}
-	cn.proposals[tok] = &aiWriteProposal{
-		token: tok, actionKey: spec.Key, target: target, mode: mode, raisedAt: now,
+	if err != nil {
+		return "That action could not be put to the operator, so nothing was run."
 	}
-	cn.proposeMu.Unlock()
 
 	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
 		"token": tok, "kind": "action", "action": spec.Key, "label": aiActionLabel(spec, mode),

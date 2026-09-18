@@ -23,6 +23,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -249,32 +250,18 @@ func (cn *conn) proposeAIRemove(res *resource.Resource, id string) string {
 func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 	name, ack string, out writeOutcome, removing routeros.Reply) string {
 
-	tok, err := aiProposalToken()
-	if err != nil {
-		return "That change could not be put to the operator, so nothing was changed."
-	}
-
-	cn.proposeMu.Lock()
-	if cn.proposals == nil {
-		cn.proposals = map[string]*aiWriteProposal{}
-	}
-	now := time.Now()
-	for k, v := range cn.proposals {
-		if now.Sub(v.raisedAt) > aiProposalTTL {
-			delete(cn.proposals, k)
-		}
-	}
-	if len(cn.proposals) >= aiMaxProposals {
-		cn.proposeMu.Unlock()
+	code := removing == nil && namesCode(res, req.Values)
+	tok, err := cn.addProposal(&aiWriteProposal{
+		resKey: res.Key, rowID: req.ID, values: req.Values,
+		remove: removing != nil, ack: ack, code: code,
+	})
+	if errors.Is(err, errProposalsFull) {
 		return "There are already several changes waiting for the operator to answer. " +
 			"Ask them to deal with those before proposing another."
 	}
-	code := removing == nil && namesCode(res, req.Values)
-	cn.proposals[tok] = &aiWriteProposal{
-		token: tok, resKey: res.Key, rowID: req.ID, values: req.Values,
-		remove: removing != nil, ack: ack, raisedAt: now, code: code,
+	if err != nil {
+		return "That change could not be put to the operator, so nothing was changed."
 	}
-	cn.proposeMu.Unlock()
 
 	// THE COMMAND IS BUILT SERVER-SIDE, and `PreviewCommand` masks secrets as
 	// «set», so a proposal can show exactly what would be sent without putting a
@@ -489,6 +476,36 @@ func (cn *conn) takeAIProposal(raw json.RawMessage) *aiWriteProposal {
 		return nil
 	}
 	return p
+}
+
+// errProposalsFull is addProposal refusing a proposal past aiMaxProposals.
+var errProposalsFull = errors.New("too many proposals waiting")
+
+// addProposal mints a token for p, sweeps the expired proposals, refuses past
+// aiMaxProposals, and stores it. The ONE place a proposal is raised, whatever
+// its kind: the four raise functions each carried their own copy of this.
+func (cn *conn) addProposal(p *aiWriteProposal) (string, error) {
+	tok, err := aiProposalToken()
+	if err != nil {
+		return "", err
+	}
+	cn.proposeMu.Lock()
+	defer cn.proposeMu.Unlock()
+	if cn.proposals == nil {
+		cn.proposals = map[string]*aiWriteProposal{}
+	}
+	now := time.Now()
+	for k, v := range cn.proposals {
+		if now.Sub(v.raisedAt) > aiProposalTTL {
+			delete(cn.proposals, k)
+		}
+	}
+	if len(cn.proposals) >= aiMaxProposals {
+		return "", errProposalsFull
+	}
+	p.token, p.raisedAt = tok, now
+	cn.proposals[tok] = p
+	return tok, nil
 }
 
 func aiProposalToken() (string, error) {
