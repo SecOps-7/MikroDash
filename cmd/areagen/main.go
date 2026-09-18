@@ -169,14 +169,18 @@ export interface Area {
   title: string;
   /** One of the shell's nav groups. */
   navGroup: string;
+  /** The nav entry's icon: inner markup of a 24×24 SVG, declared in Go. It
+   *  reaches innerHTML, which is safe only because it is a build-time constant
+   *  and never router data. */
+  icon: string;
   tables: readonly AreaTable[];
 }
 
 export const AREAS: readonly Area[] = [
 `)
 	for _, a := range areas.All() {
-		fmt.Fprintf(&b, "  {\n    key: %s, title: %s, navGroup: %s,\n    tables: [\n",
-			strconv.Quote(a.Key), strconv.Quote(a.Title), strconv.Quote(a.NavGroup))
+		fmt.Fprintf(&b, "  {\n    key: %s, title: %s, navGroup: %s,\n    icon: %s,\n    tables: [\n",
+			strconv.Quote(a.Key), strconv.Quote(a.Title), strconv.Quote(a.NavGroup), strconv.Quote(a.Icon))
 		for _, t := range a.Tables {
 			// THE TITLE IS RESOLVED HERE, not left for the browser: an empty one
 			// in the declaration means "the resource's own label", and the

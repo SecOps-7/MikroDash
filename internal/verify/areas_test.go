@@ -170,3 +170,47 @@ func TestEveryAreaResourceHasAFixtureAndAnAPISurfaceRow(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryAreaHasItsOwnIcon, both ways: every area declares an icon, no two
+// areas share one, and none repeats a hand-built nav entry's icon — so every
+// generated page is recognisable in the collapsed nav, rather than all of them
+// wearing the one placeholder they wore until 2026-09-18.
+//
+// The icon reaches innerHTML, so it is also held to plain SVG shapes with plain
+// attributes: no element that runs or loads anything, no event handler, no
+// quote that could close the markup it is dropped into.
+func TestEveryAreaHasItsOwnIcon(t *testing.T) {
+	root := repoRoot(t)
+	shell, err := os.ReadFile(filepath.Join(root, "web", "src", "ui", "shell.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	handBuilt := map[string]bool{}
+	for _, m := range regexp.MustCompile(`<span class="nav-icon"><svg viewBox="0 0 24 24"[^>]*>(.*?)</svg></span>`).
+		FindAllStringSubmatch(string(shell), -1) {
+		handBuilt[m[1]] = true
+	}
+	if len(handBuilt) < 10 {
+		t.Fatalf("read %d hand-built nav icons from shell.html; the parse broke", len(handBuilt))
+	}
+	shape := regexp.MustCompile(`^(<(path|circle|rect|line|polyline|polygon|ellipse)` +
+		`( (d|cx|cy|r|rx|ry|x|y|x1|y1|x2|y2|width|height|points)="[0-9A-Za-z .,-]*")+/>)+$`)
+	owner := map[string]string{}
+	for _, a := range areas.All() {
+		if a.Icon == "" {
+			t.Errorf("area %q declares no icon, so its nav entry is a label with a gap beside it", a.Key)
+			continue
+		}
+		if !shape.MatchString(a.Icon) {
+			t.Errorf("area %q's icon is not plain SVG shapes (path, circle, rect, line, polyline, "+
+				"polygon, ellipse, with geometry attributes only): %s", a.Key, a.Icon)
+		}
+		if other, dup := owner[a.Icon]; dup {
+			t.Errorf("areas %q and %q share an icon; each page needs its own", other, a.Key)
+		}
+		owner[a.Icon] = a.Key
+		if handBuilt[a.Icon] {
+			t.Errorf("area %q's icon is a hand-built nav entry's icon in shell.html", a.Key)
+		}
+	}
+}

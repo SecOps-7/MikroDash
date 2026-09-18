@@ -191,8 +191,11 @@ export function mountAreaNav(): void {
     a.setAttribute('data-page', area.key);
     a.setAttribute('data-cat', area.navGroup);
     a.setAttribute('href', '#');
-    a.innerHTML = '<span class="nav-icon"><svg viewBox="0 0 24 24">' +
-      '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M9 10v10"/>' +
+    // THE ICON IS THE AREA'S OWN, declared beside it in internal/areas and
+    // generated into gen/areas.ts. It is written unescaped because it is markup,
+    // and that is safe only because it is a build-time constant: nothing a
+    // router sends ever reaches it. The title is data-shaped, so it is escaped.
+    a.innerHTML = '<span class="nav-icon"><svg viewBox="0 0 24 24">' + area.icon +
       '</svg></span><span class="nav-label">' + esc(area.title) + '</span>';
     group.appendChild(a);
   }

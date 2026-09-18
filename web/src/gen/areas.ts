@@ -23,24 +23,31 @@ export interface Area {
   title: string;
   /** One of the shell's nav groups. */
   navGroup: string;
+  /** The nav entry's icon: inner markup of a 24×24 SVG, declared in Go. It
+   *  reaches innerHTML, which is safe only because it is a build-time constant
+   *  and never router data. */
+  icon: string;
   tables: readonly AreaTable[];
 }
 
 export const AREAS: readonly Area[] = [
   {
     key: "ip-pools", title: "IP Pools", navGroup: "ipsvc",
+    icon: "<path d=\"M8 4H5v16h3\"/><path d=\"M16 4h3v16h-3\"/><circle cx=\"9\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"15\" cy=\"12\" r=\"1\"/>",
     tables: [
       { resource: "ipPool", title: "IP Pool", columns: ["name", "ranges", "used", "total", "nextPool", "comment"], ordered: false },
     ],
   },
   {
     key: "address-lists", title: "Address Lists", navGroup: "security",
+    icon: "<path d=\"M9 6h11\"/><path d=\"M9 12h11\"/><path d=\"M9 18h11\"/><circle cx=\"4.5\" cy=\"6\" r=\"1.2\"/><circle cx=\"4.5\" cy=\"12\" r=\"1.2\"/><circle cx=\"4.5\" cy=\"18\" r=\"1.2\"/>",
     tables: [
       { resource: "addressList", title: "Address List Entry", columns: ["list", "address", "timeout", "dynamic", "comment"], ordered: false },
     ],
   },
   {
     key: "interface-lists", title: "Interface Lists", navGroup: "network",
+    icon: "<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2\"/><rect x=\"5\" y=\"9.5\" width=\"3.5\" height=\"5\"/><rect x=\"10.25\" y=\"9.5\" width=\"3.5\" height=\"5\"/><rect x=\"15.5\" y=\"9.5\" width=\"3.5\" height=\"5\"/>",
     tables: [
       { resource: "ifListMember", title: "Members", columns: ["list", "interface", "disabled", "dynamic", "comment"], ordered: false },
       { resource: "ifList", title: "Lists", columns: ["name", "include", "exclude", "builtin", "comment"], ordered: false },
@@ -48,30 +55,35 @@ export const AREAS: readonly Area[] = [
   },
   {
     key: "ip-services", title: "Services", navGroup: "system",
+    icon: "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M7 9l3 3-3 3\"/><path d=\"M13 15h4\"/>",
     tables: [
       { resource: "ipService", title: "IP Service", columns: ["name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"], ordered: false },
     ],
   },
   {
     key: "certificates", title: "Certificates", navGroup: "security",
+    icon: "<path d=\"M14 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5\"/><path d=\"M7 9h8\"/><path d=\"M7 13h4\"/><circle cx=\"18\" cy=\"15\" r=\"3\"/><path d=\"M16.5 17.6L16 22l2-1 2 1-.5-4.4\"/>",
     tables: [
       { resource: "certificate", title: "Certificate", columns: ["name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"], ordered: false },
     ],
   },
   {
     key: "scripts", title: "Scripts", navGroup: "system",
+    icon: "<polyline points=\"8 7 3 12 8 17\"/><polyline points=\"16 7 21 12 16 17\"/><path d=\"M14 4l-4 16\"/>",
     tables: [
       { resource: "script", title: "Script", columns: ["name", "owner", "policy", "runCount", "lastStarted", "comment"], ordered: false },
     ],
   },
   {
     key: "scheduler", title: "Scheduler", navGroup: "system",
+    icon: "<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 3v4\"/><path d=\"M16 3v4\"/><path d=\"M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01\"/>",
     tables: [
       { resource: "scheduler", title: "Scheduled Task", columns: ["name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"], ordered: false },
     ],
   },
   {
     key: "ntp-client", title: "NTP Client", navGroup: "system",
+    icon: "<path d=\"M21 12a9 9 0 1 1-3-6.7\"/><path d=\"M21 3v6h-6\"/><path d=\"M12 7v5l3 2\"/>",
     tables: [
       { resource: "ntpClient", title: "Settings", columns: ["enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"], ordered: false },
       { resource: "ntpServer", title: "Servers", columns: ["address", "iburst", "minPoll", "maxPoll", "disabled", "comment"], ordered: false },
@@ -79,12 +91,14 @@ export const AREAS: readonly Area[] = [
   },
   {
     key: "clock", title: "Clock", navGroup: "system",
+    icon: "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>",
     tables: [
       { resource: "clock", title: "Clock", columns: ["time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"], ordered: false },
     ],
   },
   {
     key: "logging", title: "Logging", navGroup: "system",
+    icon: "<path d=\"M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z\"/><path d=\"M4 7h4M4 12h4M4 17h4\"/><path d=\"M11 8h5\"/><path d=\"M11 12h5\"/>",
     tables: [
       { resource: "logRule", title: "Rules", columns: ["topics", "action", "prefix", "disabled", "isDefault", "comment"], ordered: false },
       { resource: "logAction", title: "Actions", columns: ["name", "target", "memoryLines", "remote", "isDefault"], ordered: false },
@@ -92,6 +106,7 @@ export const AREAS: readonly Area[] = [
   },
   {
     key: "snmp", title: "SNMP", navGroup: "system",
+    icon: "<path d=\"M4 18a8 8 0 1 1 16 0\"/><path d=\"M12 18l4-5\"/><circle cx=\"12\" cy=\"18\" r=\"1\"/><path d=\"M12 10v1M7.5 12.5l.7.7M16.5 12.5l-.7.7\"/>",
     tables: [
       { resource: "snmp", title: "Settings", columns: ["enabled", "contact", "location", "trapTarget", "trapVersion", "engineId"], ordered: false },
       { resource: "snmpCommunity", title: "Communities", columns: ["name", "addresses", "security", "readAccess", "writeAccess", "disabled"], ordered: false },
@@ -99,24 +114,28 @@ export const AREAS: readonly Area[] = [
   },
   {
     key: "files", title: "Files", navGroup: "system",
+    icon: "<path d=\"M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
     tables: [
       { resource: "file", title: "File", columns: ["name", "type", "size", "lastModified"], ordered: false },
     ],
   },
   {
     key: "routing-tables", title: "Routing Tables", navGroup: "ipsvc",
+    icon: "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 14.5h18\"/><path d=\"M9 4v16\"/>",
     tables: [
       { resource: "routingTable", title: "Routing Table", columns: ["name", "fib", "disabled", "dynamic", "invalid", "comment"], ordered: false },
     ],
   },
   {
     key: "routing-rules", title: "Routing Rules", navGroup: "ipsvc",
+    icon: "<path d=\"M16 3h5v5\"/><path d=\"M8 3H3v5\"/><path d=\"M12 22v-8.3a4 4 0 0 0-1.2-2.9L3 3\"/><path d=\"M15 9l6-6\"/>",
     tables: [
       { resource: "routingRule", title: "Routing Rule", columns: ["srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"], ordered: true },
     ],
   },
   {
     key: "ospf", title: "OSPF", navGroup: "ipsvc",
+    icon: "<circle cx=\"12\" cy=\"5\" r=\"2.5\"/><circle cx=\"5\" cy=\"18\" r=\"2.5\"/><circle cx=\"19\" cy=\"18\" r=\"2.5\"/><path d=\"M10.8 7.2L6.2 15.8\"/><path d=\"M13.2 7.2l4.6 8.6\"/><path d=\"M7.5 18h9\"/>",
     tables: [
       { resource: "ospfNeighbor", title: "Neighbors", columns: ["routerId", "address", "interface", "area", "state", "adjacency", "stateChanges"], ordered: false },
       { resource: "ospfInstance", title: "Instances", columns: ["name", "version", "routerId", "originateDefault", "redistribute", "inactive", "disabled", "comment"], ordered: false },
@@ -126,6 +145,7 @@ export const AREAS: readonly Area[] = [
   },
   {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
+    icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"], ordered: false },
       { resource: "ipv6Address", title: "IPv6", columns: ["address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"], ordered: false },
