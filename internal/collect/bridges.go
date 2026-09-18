@@ -255,7 +255,7 @@ func NewBridges(ros Reader, emit Emit, rates RateSource, pollMs int) *Bridges {
 	// with no configuration change behind it. The bridge and port config are the
 	// slow lane, and a write's RefreshNow re-reads them at once.
 	b.setup(b, ros, pollMs, tableSpec{
-		cmd: bridgeHostCmd, poll: [3]int{5000, 2000, 60000}, slowEvery: bridgeConfigEvery, heartbeat: bridgesHeartbeat,
+		cmd: bridgeHostCmd, poll: [3]int{5000, 1000, 60000}, slowEvery: bridgeConfigEvery, heartbeat: bridgesHeartbeat,
 	})
 	return b
 }

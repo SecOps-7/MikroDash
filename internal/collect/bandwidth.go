@@ -396,7 +396,7 @@ func NewBandwidth(ros Reader, emit Emit, rates RateSource, leases LeaseSource,
 	nets NetworkSource, pollMs int) *Bandwidth {
 	b := &Bandwidth{
 		ros: ros, emit: emit, rates: rates, leases: leases, nets: nets,
-		pollMs: newPollInterval(clampPoll(pollMs, 5000, 3000, 60000)),
+		pollMs: newPollInterval(clampPoll(pollMs, 5000, 1000, 60000)),
 		prev:   map[string]bwPrev{},
 	}
 	b.loop = newPollLoop(func() { b.Tick() }, func() time.Duration {

@@ -381,7 +381,7 @@ func NewRouting(ros Reader, emit Emit, pollMs int) *Routing {
 	// Subscribed to the BGP session menu for its CADENCE: `derive` reads the BGP
 	// menus itself, and the route tables are the slow lane.
 	r.setup(r, ros, pollMs, tableSpec{
-		cmd: routingBgpCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: routeConfigEvery,
+		cmd: routingBgpCmd, poll: [3]int{10000, 500, 300000}, slowEvery: routeConfigEvery,
 	})
 	return r
 }

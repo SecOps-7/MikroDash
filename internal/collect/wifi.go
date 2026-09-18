@@ -168,9 +168,10 @@ type Wifi struct {
 }
 
 func NewWifi(ros Reader, emit Emit, pollMs int) *Wifi {
-	// The Node signature is clampPoll(raw, def, hi, lo) and the call is
-	// (pollMs, 10000, 600000, 30000). Reordered for this side's (raw, def, lo, hi).
-	ms := clampPoll(pollMs, 10000, 30000, 600000)
+	// The Node call was clampPoll(pollMs, 10000, 600000, 30000) in its (raw,
+	// def, hi, lo) order: a 30 s floor, above both the default and the store's
+	// 10 s minimum. The floor is now the store's (2026-09-18; pollbounds_test.go).
+	ms := clampPoll(pollMs, 10000, 10000, 600000)
 	w := &Wifi{ros: ros, emit: emit, pollMs: newPollInterval(ms), dirty: true}
 	w.poll = newPollLoop(func() { w.Tick() }, w.pollMs.duration)
 	// THE SUBSCRIPTION'S CADENCE IS THE LOAD'S, NOT THE TICK'S. The polled path

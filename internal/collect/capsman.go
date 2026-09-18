@@ -926,7 +926,7 @@ func NewCapsman(ros Reader, emit Emit, pollMs int) *Capsman {
 	// here that changes on its own. The manager, CAP, provisioning and profiles
 	// are the slow lane, and a write's RefreshNow re-reads them at once.
 	c.setup(c, ros, pollMs, tableSpec{
-		cmd: capsRegCmd, poll: [3]int{10000, 30000, 600000}, slowEvery: capsConfigEvery, heartbeat: capsmanHeartbeat,
+		cmd: capsRegCmd, poll: [3]int{10000, 1000, 600000}, slowEvery: capsConfigEvery, heartbeat: capsmanHeartbeat,
 	})
 	return c
 }

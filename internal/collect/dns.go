@@ -192,7 +192,7 @@ func NewDNS(ros Reader, emit Emit, pollMs int) *DNS {
 	// The settings row carries cache-used, which is live, so it is read every
 	// reading; the static entries only every dnsConfigEvery.
 	d.setup(d, ros, pollMs, tableSpec{
-		cmd: dnsSettingsCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: dnsConfigEvery, heartbeat: dnsHeartbeat,
+		cmd: dnsSettingsCmd, poll: [3]int{10000, 1000, 60000}, slowEvery: dnsConfigEvery, heartbeat: dnsHeartbeat,
 	})
 	return d
 }

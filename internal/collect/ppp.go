@@ -116,13 +116,13 @@ const pppConfigEvery = 12
 //
 // FIFTEEN SECONDS IS NOT ARBITRARY. `web/src/stale.ts` retunes each card's
 // threshold to `pollMs + STALE_GRACE`, and STALE_GRACE is 20 s, so the smallest
-// threshold this collector can face is its 2 s poll floor plus 20 s. A heartbeat
+// threshold this collector can face is its 1 s poll floor plus 20 s. A heartbeat
 // below that is safe at every interval `clampPoll` allows, and 15 s clears the
 // tightest case with room to spare. A slower poll simply emits on every tick,
 // which is what it did before the dirty check existed.
 //
 // This does NOT make the fingerprint pointless: between heartbeats an unchanged
-// tick still sends nothing, which on a 2 s poll is seven frames saved in eight.
+// tick still sends nothing, which on a 1 s poll is fourteen frames saved in fifteen.
 const pppHeartbeat = 15 * time.Second
 
 // Bytes unchanged for longer than this means idle, not "still at the last rate".
@@ -236,12 +236,13 @@ type PPP struct {
 
 func NewPPP(ros Reader, emit Emit, pollMs int) *PPP {
 	p := &PPP{emit: emit, prev: map[string]pppSample{}}
-	// The Node signature is clampPoll(raw, def, hi, lo) and the call is
-	// (pollMs, 5000, 60000, 2000). Reordered for this side's (raw, def, lo, hi).
+	// Node's call was (pollMs, 5000, 60000, 2000) in (raw, def, hi, lo) order. The
+	// floor is now the store's 1 s, so a saved interval is the one used
+	// (2026-09-18; pollbounds_test.go).
 	// Subscribed to /ppp/active, the live sessions; the config tables are the
 	// slow lane.
 	p.setup(p, ros, pollMs, tableSpec{
-		cmd: pppActiveCmd, poll: [3]int{5000, 2000, 60000},
+		cmd: pppActiveCmd, poll: [3]int{5000, 1000, 60000},
 		slowEvery: pppConfigEvery, heartbeat: pppHeartbeat,
 	})
 	return p

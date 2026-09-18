@@ -185,10 +185,10 @@ type Firewall struct {
 const firewallHeartbeat = 10 * time.Second
 
 func NewFirewall(ros Reader, emit Emit, pollMs int) *Firewall {
-	// The Node signature is clampPoll(raw, def, hi) with no lower bound in this
-	// caller: clampPoll(pollMs, 10000, 30000). Reordered for this side's
-	// (raw, def, lo, hi), with the same effective floor and ceiling.
-	ms := clampPoll(pollMs, 10000, 10000, 30000)
+	// The Node call was clampPoll(pollMs, 10000, 30000), which floored at the
+	// default. The floor is now the store's minimum, so a saved interval is the
+	// one used (2026-09-18; pollbounds_test.go).
+	ms := clampPoll(pollMs, 10000, 1000, 30000)
 	f := &Firewall{
 		ros: ros, emit: emit, pollMs: newPollInterval(ms),
 		tables:      map[string][]FirewallRule{},

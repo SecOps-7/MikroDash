@@ -445,7 +445,7 @@ func NewWan(ros Reader, emit Emit, rates RateSource, pollMs int) *Wan {
 	// whether an uplink is actually carrying traffic. The routes are read with
 	// it, and the interface, DHCP and address config are the slow lane.
 	w.setup(w, ros, pollMs, tableSpec{
-		cmd: wanDetectCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: wanConfigEvery,
+		cmd: wanDetectCmd, poll: [3]int{10000, 1000, 60000}, slowEvery: wanConfigEvery,
 	})
 	return w
 }

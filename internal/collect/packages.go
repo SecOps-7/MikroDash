@@ -305,9 +305,9 @@ type Packages struct {
 // (web/src/stale.ts), so any heartbeat at or under the poll keeps it fresh.
 const packagesHeartbeat = 10 * time.Second
 
-// NewPackages builds the collector. The bounds are Node's —
-// clampPoll(pollMs, 30000, 300000, 5000), which is (raw, def, HI, LO) there and
-// (raw, def, LO, HI) here: five minutes at the top, five seconds at the bottom.
+// NewPackages builds the collector. The bounds were Node's — five minutes at the
+// top, five seconds at the bottom — and the top is now the store's ten minutes,
+// so a saved interval is the one used (2026-09-18; pollbounds_test.go).
 // Package state changes on human action, so polling it hard buys nothing and
 // costs a router channel.
 func NewPackages(ros Reader, emit Emit, pollMs int) *Packages {
@@ -317,7 +317,7 @@ func NewPackages(ros Reader, emit Emit, pollMs int) *Packages {
 	// every time would triple this collector's channel use for data that has not
 	// moved.
 	p.setup(p, ros, pollMs, tableSpec{
-		cmd: packageCmd, poll: [3]int{30000, 5000, 300000}, slowEvery: configEvery, heartbeat: packagesHeartbeat,
+		cmd: packageCmd, poll: [3]int{30000, 5000, 600000}, slowEvery: configEvery, heartbeat: packagesHeartbeat,
 	})
 	return p
 }

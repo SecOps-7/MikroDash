@@ -457,7 +457,7 @@ type Vlans struct {
 // which is why src/collection.js declares no `requires` for this collector.
 func NewVlans(ros Reader, emit Emit, rates RateSource, leases LeaseCounts, pollMs int) *Vlans {
 	v := &Vlans{ros: ros, emit: emit, rates: rates, leases: leases,
-		pollMs: newPollInterval(clampPoll(pollMs, 5000, 2000, 60000)), dirty: true}
+		pollMs: newPollInterval(clampPoll(pollMs, 5000, 1000, 60000)), dirty: true}
 	v.poll = newPollLoop(func() {
 		// THE LOOP IS TWO DIFFERENT JOBS, and which one it is depends on whether
 		// this collector got a cache. Polled, it is the whole collector: read the

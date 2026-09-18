@@ -1404,7 +1404,7 @@ const topoMaxPingTargets = 24
 func NewTopology(ros Reader, emit Emit, rates RateSource, routerID, label string, pollMs int) *Topology {
 	t := &Topology{
 		ros: ros, emit: emit, rates: rates, routerID: routerID, label: label,
-		pollMs:    newPollInterval(clampPoll(pollMs, 30000, 5000, 300000)),
+		pollMs:    newPollInterval(clampPoll(pollMs, 30000, 5000, 600000)),
 		vlanNames: map[int]string{},
 		seen:      map[string]*TopoSeen{},
 		ping:      map[string]*TopoPing{},

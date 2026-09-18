@@ -432,7 +432,7 @@ const wlNoStack = "-"
 func NewWireless(ros Reader, emit Emit, leases LeaseSource, pollMs int) *Wireless {
 	w := &Wireless{
 		ros: ros, emit: emit, leases: leases,
-		pollMs: newPollInterval(clampPoll(pollMs, 5000, 2000, 60000)),
+		pollMs: newPollInterval(clampPoll(pollMs, 5000, 2000, 600000)),
 		ssids:  []WirelessSSID{},
 	}
 	w.loop = newPollLoop(func() { w.Tick() }, func() time.Duration {
