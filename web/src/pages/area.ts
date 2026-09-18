@@ -25,14 +25,23 @@
 // state is per area and per tab, and lives here rather than in the render, so
 // the periodic `area:update` redraws keep it.
 //
-// An ORDERED resource's arrows move a row in the ROUTER's order, and in a sorted
-// view "up" would not mean the row above. So while a column sort is on, the
-// arrow cells are empty — the Firewall page does the same to its arrows while a
-// search is filtering the view — and the third click brings them back.
+// EXCEPT AN ORDERED RESOURCE (routing rules, IPsec policies, OSPF interface
+// templates): the first row that matches decides, so the router's order IS what
+// the table means, and a sorted view of it reads as a different rule set. It
+// does not sort at all, as the Queues page's first-match tables do not — the
+// operator's choice on 2026-09-18.
+//
+// ── KEY COLUMNS ARE PILLS, BY KIND ──────────────────────────────────────────
+//
+// `internal/areas` names a KIND per column (Table.Pills and CommonPills); the
+// colours for each kind are here, once, in the hand-built pages' own pill
+// styles. `PillKind` is generated from Go's list, so `PILLS` below missing a
+// kind, or naming one Go does not have, fails tsc.
 
 import { el, esc, resRow, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
 import { mountAdds, mountRows } from '../resource';
-import { AREAS, type Area } from '../gen/areas';
+import { AREAS, type Area, type PillKind } from '../gen/areas';
+import { actionBadge } from './firewall';
 import type { Socket } from '../socket';
 import type { AreaPayload } from '../gen/payloads';
 
@@ -76,6 +85,42 @@ function tabIndex(area: Area): number {
 /** A dash, not an empty cell: "the router said nothing" is not "the value is ''". */
 function cell(v: string | undefined): string {
   return v === undefined || v === '' ? '<span style="color:var(--text-muted)">&mdash;</span>' : esc(v);
+}
+
+/** A status word's colour, by the vocabulary the router reports. Lower-cased and
+ *  without RouterOS's trailing "..." ("searching..."), so both spellings match.
+ *  A word not listed is a neutral pill: it is still a state, just not one this
+ *  table knows the meaning of. */
+const STATE_OK = new Set(['bound', 'full', 'established', 'running', 'synchronized', 'connected']);
+const STATE_WARN = new Set(['searching', 'requesting', 'rebinding', 'renewing', 'stopping', 'connecting',
+  'init', 'attempt', '2-way', 'exstart', 'exchange', 'loading', 'waiting', 'starting']);
+const STATE_BAD = new Set(['error', 'down', 'expired', 'timeout']);
+
+function pill(cls: string, text: string): string {
+  return '<span class="vpn-hs-badge ' + cls + '">' + esc(text) + '</span>';
+}
+
+/** A flag pill: "yes" in the kind's colour, "no" neutral. RouterOS says yes and
+ *  no; the payload carries true and false. */
+const flag = (cls: string) => (v: string): string => (v === 'true' ? pill(cls, 'yes') : v === 'false' ? pill('hs-never', 'no') : esc(v));
+
+const PILLS: Record<PillKind, (v: string) => string> = {
+  state: (v) => {
+    const w = v.toLowerCase().replace(/\.+$/, '');
+    return pill(STATE_OK.has(w) ? 'hs-ok' : STATE_WARN.has(w) ? 'hs-warn' : STATE_BAD.has(w) ? 'hs-stale' : 'hs-never', v);
+  },
+  action: (v) => actionBadge(v),
+  good: flag('hs-ok'),
+  warn: flag('hs-warn'),
+  bad: flag('hs-stale'),
+  info: flag('hs-info'),
+};
+
+/** One cell: a pill when the declaration names a kind for the column, the plain
+ *  value otherwise, and the dash either way when the router sent nothing. */
+function valueCell(kind: PillKind | undefined, v: string | undefined): string {
+  if (v === undefined || v === '' || !kind) return cell(v);
+  return PILLS[kind](v);
 }
 
 function renderTabs(area: Area): void {
@@ -150,7 +195,7 @@ function render(area: Area): void {
         declared.columns.map((c) =>
           '<tr' + resRow(r.id, r.identity, declared.resource) + '>' +
           '<th style="width:34%;font-weight:500;color:var(--text-muted)">' + esc(columnLabel(c)) + '</th>' +
-          '<td>' + cell(r.values?.[c]) + '</td></tr>').join('') +
+          '<td>' + valueCell(declared.pills[c], r.values?.[c]) + '</td></tr>').join('') +
         '</tbody></table>'
       : '<div class="empty-state">The router did not return these settings.</div>';
     syncAddSlot(area);
@@ -160,25 +205,22 @@ function render(area: Area): void {
   // AN ORDERED RESOURCE (routing rules) gets the reorder arrows the Firewall page
   // draws, named `data-res-move` so the resource engine owns the move: the first
   // rule that matches decides, so position is part of what a row does. A viewer
-  // who may not write gets none.
-  //
-  // The column stays while a sort is on and only its buttons go, as the
-  // Firewall page keeps its arrow column through a search, so the table does
-  // not reflow when the sort is cleared.
+  // who may not write gets none. Its headers carry no sort key, so they do not
+  // sort, and the table is always in the router's order.
   const arrows = declared.ordered && writable[declared.resource];
   const sort = sortFor(area, at);
-  const sorted = sort.col !== '';
+  const sorted = !declared.ordered && sort.col !== '';
   const cols: SortCol[] = [
     ...(arrows ? [{ label: '', style: 'width:1%' }] : []),
-    ...declared.columns.map((c) => ({ key: c, label: esc(columnLabel(c)) })),
+    ...declared.columns.map((c) => declared.ordered
+      ? { label: esc(columnLabel(c)) }
+      : { key: c, label: esc(columnLabel(c)) }),
   ];
   const list = table?.rows || [];
   const last = list.length - 1;
-  // The position is the row's index in the ROUTER's list, which is what the
-  // engine moves; with a sort on there are no buttons to carry it.
-  const move = (pos: number): string => '<td style="white-space:nowrap">' + (sorted ? '' :
+  const move = (pos: number): string => '<td style="white-space:nowrap">' +
     '<button class="fw-move" data-res-move="up" title="Move up"' + (pos === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-    '<button class="fw-move" data-res-move="down" title="Move down"' + (pos === last ? ' disabled' : '') + '>&#9660;</button>') + '</td>';
+    '<button class="fw-move" data-res-move="down" title="Move down"' + (pos === last ? ' disabled' : '') + '>&#9660;</button></td>';
   const shown = sorted
     ? sortRows(list.map((r, pos) => ({ k: sortKey(r.values?.[sort.col]), r, pos })), 'k', sort.dir)
     : list.map((r, pos) => ({ r, pos }));
@@ -188,7 +230,7 @@ function render(area: Area): void {
   const rows = shown.map(({ r, pos }) =>
     '<tr' + (r.values?.disabled === 'true' || r.values?.invalid === 'true' ? ' style="opacity:.55"' : '') +
     resRow(r.id, r.identity, declared.resource) + '>' + (arrows ? move(pos) : '') +
-    declared.columns.map((c) => '<td>' + cell(r.values?.[c]) + '</td>').join('') +
+    declared.columns.map((c) => '<td>' + valueCell(declared.pills[c], r.values?.[c]) + '</td>').join('') +
     '</tr>').join('');
 
   body.innerHTML = '<table class="table table-vcenter mb-0">' +

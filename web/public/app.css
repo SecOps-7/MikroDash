@@ -1653,6 +1653,7 @@
     .vpn-hs-badge.hs-warn  {background:rgba(245,159,0,.1);  color:rgba(245,159,0,.95); border:1px solid rgba(245,159,0,.25)}
     .vpn-hs-badge.hs-stale {background:rgba(248,113,113,.1);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
     .vpn-hs-badge.hs-never {background:rgba(99,130,190,.07);color:var(--text-muted);   border:1px solid var(--border)}
+    .vpn-hs-badge.hs-info  {background:rgba(56,189,248,.1); color:rgba(56,189,248,.95); border:1px solid rgba(56,189,248,.25)}
     .vpn-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.45rem}
     .vpn-tile{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s}
     .vpn-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}

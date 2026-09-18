@@ -168,8 +168,12 @@ export interface AreaTable {
   title: string;
   /** Field names, in the order the table shows them. */
   columns: readonly string[];
-  /** Row order is meaningful (the resource is Ordered): the page draws reorder arrows. */
+  /** Row order is meaningful (the resource is Ordered): the page draws reorder
+   *  arrows, and the table does not sort, because the first match decides. */
   ordered: boolean;
+  /** The columns drawn as coloured pill labels, by kind (internal/areas'
+   *  Pills, with its CommonPills applied). A column absent is plain text. */
+  pills: Readonly<Record<string, PillKind>>;
 }
 
 export interface Area {
@@ -185,8 +189,15 @@ export interface Area {
   tables: readonly AreaTable[];
 }
 
-export const AREAS: readonly Area[] = [
 `)
+	// THE KINDS ARE GO'S LIST, emitted as a union: area.ts keys its colours by
+	// this type, so a kind added on one side and not the other fails tsc.
+	kinds := make([]string, 0, len(areas.PillKinds))
+	for _, k := range areas.PillKinds {
+		kinds = append(kinds, strconv.Quote(k))
+	}
+	fmt.Fprintf(&b, "/** How a column's values are drawn as pills: internal/areas.PillKinds. */\nexport type PillKind = %s;\n\nexport const AREAS: readonly Area[] = [\n",
+		strings.Join(kinds, " | "))
 	for _, a := range areas.All() {
 		fmt.Fprintf(&b, "  {\n    key: %s, title: %s, navGroup: %s,\n    icon: %s,\n    tables: [\n",
 			strconv.Quote(a.Key), strconv.Quote(a.Title), strconv.Quote(a.NavGroup), strconv.Quote(a.Icon))
@@ -210,8 +221,18 @@ export const AREAS: readonly Area[] = [
 			for _, c := range t.Columns {
 				cols = append(cols, strconv.Quote(c))
 			}
-			fmt.Fprintf(&b, "      { resource: %s, title: %s, columns: [%s], ordered: %t },\n",
-				strconv.Quote(t.Resource), strconv.Quote(title), strings.Join(cols, ", "), ordered)
+			pills := []string{}
+			for _, c := range t.Columns {
+				if k := t.PillFor(c); k != "" {
+					pills = append(pills, strconv.Quote(c)+": "+strconv.Quote(k))
+				}
+			}
+			pillMap := "{}"
+			if len(pills) > 0 {
+				pillMap = "{ " + strings.Join(pills, ", ") + " }"
+			}
+			fmt.Fprintf(&b, "      { resource: %s, title: %s, columns: [%s], ordered: %t, pills: %s },\n",
+				strconv.Quote(t.Resource), strconv.Quote(title), strings.Join(cols, ", "), ordered, pillMap)
 		}
 		b.WriteString("    ],\n  },\n")
 	}

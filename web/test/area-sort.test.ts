@@ -7,9 +7,10 @@
  * per tab, and outlives the periodic `area:update` redraw. Each row keeps its
  * engine attributes, so a click on a sorted row still opens that row's form.
  *
- * An ORDERED resource's arrows move a row in the ROUTER's order, so they are
- * gone while a column sort is on and back, with the right ends disabled, once it
- * is cleared.
+ * An ORDERED resource does not sort at all: the first row that matches decides,
+ * so the router's order is what the table means. Its headers carry no sort, a
+ * click on one changes nothing, and its arrows stay, with the right ends
+ * disabled — the Queues page's rule for its first-match tables.
  *
  * The count pill beside the title is blue (`active-blue`) when it counts
  * something, as every hand-built page's is, and plain at zero.
@@ -128,26 +129,23 @@ assert.deepStrictEqual(order('ospf'), ['*A', '*B', '*C'], 'the templates tab inh
 const moves = () => (body('ospf').match(/data-res-move=/g) || []).length;
 assert.strictEqual(moves(), 6, 'an unsorted ordered table lost its arrows');
 
-clickHeader('ospf', 'cost', true);
-assert.deepStrictEqual(order('ospf'), ['*B', '*C', '*A'], 'the ordered table did not sort by cost');
-assert.strictEqual(moves(), 0, 'the arrows are still live on a sorted view, where "up" is not the router\'s up');
+// A HEADER CLICK ON AN ORDERED TABLE CHANGES NOTHING. The control is the
+// neighbour tab above, whose header click did sort.
 const head = String(doc.nodes['areaThead-ospf'].innerHTML);
-assert.strictEqual((head.match(/<th[\s>]/g) || []).length, ospf.tables[TPL].columns.length + 1,
-  'the arrow column went with its buttons, so clearing the sort reflows the table');
+assert.ok(!/cursor:pointer/.test(head), 'an ordered table\'s header offers a sort: ' + head);
+clickHeader('ospf', 'cost', true);
+clickHeader('ospf', 'area', true);
+assert.deepStrictEqual(order('ospf'), ['*A', '*B', '*C'], 'an ordered table sorted, so it no longer shows the order the router applies');
+assert.ok(!/sort-(asc|desc)/.test(String(doc.nodes['areaThead-ospf'].innerHTML)), 'an ordered table\'s header shows a direction');
 sendTables(ospf, tables);
-assert.strictEqual(moves(), 0, 'an area:update brought the arrows back while still sorted');
-say('ok  an ordered table has no live arrows while sorted, through a redraw');
-
-clickHeader('ospf', 'cost', true);   // descending
-clickHeader('ospf', 'cost', true);   // cleared
-assert.deepStrictEqual(order('ospf'), ['*A', '*B', '*C'], 'clearing did not restore the router\'s order');
+assert.deepStrictEqual(order('ospf'), ['*A', '*B', '*C'], 'an area:update drew the ordered table out of the router\'s order');
 const html = body('ospf');
 const ups = html.match(/<button[^>]*data-res-move="up"[^>]*>/g) || [];
 const downs = html.match(/<button[^>]*data-res-move="down"[^>]*>/g) || [];
-assert.strictEqual(ups.length, 3, 'the arrows did not come back');
+assert.strictEqual(ups.length, 3, 'the arrows went');
 assert.ok(/disabled/.test(ups[0]) && !/disabled/.test(ups[1]) && /disabled/.test(downs[2]) && !/disabled/.test(downs[1]),
-  'the restored arrows disable the wrong ends');
-say('ok  clearing the sort restores the arrows, in the router\'s order');
+  'the arrows disable the wrong ends');
+say('ok  an ordered table does not sort, and keeps its arrows in the router\'s order');
 
 // Back on the first tab, its own sort is still there.
 currentTab = 0;

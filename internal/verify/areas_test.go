@@ -269,3 +269,66 @@ func TestEveryAreaShellHasItsTabsOnTheLeft(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryAreaPillNamesARealColumnAndKind, both ways.
+//
+// One way: a Pills entry naming a column the table does not show is a pill that
+// never draws, and one naming a kind outside PillKinds has no colour in
+// web/src/pages/area.ts — tsc catches the second only once it is generated, so
+// it is caught here first, with the area's name on it.
+//
+// The other way: a kind no column uses, or a CommonPills flag no table shows,
+// is a mechanism with no instances, and is deleted rather than kept for later.
+func TestEveryAreaPillNamesARealColumnAndKind(t *testing.T) {
+	kinds := map[string]bool{}
+	for _, k := range areas.PillKinds {
+		kinds[k] = true
+	}
+	for col, k := range areas.CommonPills {
+		if !kinds[k] {
+			t.Errorf("CommonPills draws %q as %q, which is not one of PillKinds", col, k)
+		}
+	}
+	usedKinds := map[string]bool{}
+	shownCommon := map[string]bool{}
+	pillCols := 0
+	for _, a := range areas.All() {
+		for _, tbl := range a.Tables {
+			cols := map[string]bool{}
+			for _, c := range tbl.Columns {
+				cols[c] = true
+				if k := tbl.PillFor(c); k != "" {
+					usedKinds[k] = true
+					pillCols++
+				}
+				if _, ok := areas.CommonPills[c]; ok {
+					shownCommon[c] = true
+				}
+			}
+			for col, k := range tbl.Pills {
+				if !cols[col] {
+					t.Errorf("area %q table %q draws %q as a pill, but the table does not show that column",
+						a.Key, tbl.Resource, col)
+				}
+				if !kinds[k] {
+					t.Errorf("area %q table %q draws %q as %q, which is not one of PillKinds",
+						a.Key, tbl.Resource, col, k)
+				}
+			}
+		}
+	}
+	for _, k := range areas.PillKinds {
+		if !usedKinds[k] {
+			t.Errorf("no column is drawn as a %q pill: a kind with no instances is deleted, not kept", k)
+		}
+	}
+	for col := range areas.CommonPills {
+		if !shownCommon[col] {
+			t.Errorf("CommonPills names %q, which no area's table shows", col)
+		}
+	}
+	// A floor, so a PillFor that stopped answering cannot pass by finding nothing.
+	if pillCols < 40 {
+		t.Errorf("only %d area columns are drawn as pills; the declaration has far more", pillCols)
+	}
+}

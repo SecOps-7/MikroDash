@@ -73,8 +73,11 @@ export function fwIdentity(r: FirewallRule): string {
 }
 
 export function actionBadge(a: string): string {
-  const col = a === 'accept' || a === 'passthrough' ? 'rgba(52,211,153,.9)'
-    : a === 'drop' || a === 'reject' || a === 'tarpit' ? 'rgba(248,113,113,.9)'
+  // `encrypt`, `discard` and `unreachable` are no firewall action: they are the
+  // IPsec policy's and the routing rule's, which the generated pages draw with
+  // this same badge.
+  const col = a === 'accept' || a === 'passthrough' || a === 'encrypt' ? 'rgba(52,211,153,.9)'
+    : a === 'drop' || a === 'reject' || a === 'tarpit' || a === 'discard' || a === 'unreachable' ? 'rgba(248,113,113,.9)'
       : a === 'log' || a === 'add-src-to-address-list' ? 'rgba(167,139,250,.9)'
         : a === 'masquerade' ? 'rgba(56,189,248,.9)'
           : a === 'dst-nat' || a === 'src-nat' ? 'rgba(251,191,36,.9)'

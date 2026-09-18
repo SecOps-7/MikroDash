@@ -225,15 +225,22 @@ any summary of it.
 Every page, generated or hand-built, has its **tabs at top left** with the title beside them (the
 Routing page's `stab-bar rttab-bar`), actions alone in the right-hand `.hdr-actions` corner, a
 **blue count pill** beside its title (`card-badge`, plus `active-blue` when it counts something),
-**sortable table headers** (`renderSortHeader`/`sortRows` in `web/src/dom.ts`), and **its own nav
-icon that suits the page**.
+**sortable table headers** (`renderSortHeader`/`sortRows` in `web/src/dom.ts`), **its own nav
+icon that suits the page**, and **key columns as coloured pill labels** (a state, an action, a flag)
+rather than plain text.
 
 - **Generated pages get all of it for free**: the layout from `cmd/areagen`'s shell template, the pill
   and the sort from `web/src/pages/area.ts`. Held by `TestEveryAreaShellHasItsTabsOnTheLeft`,
   `web/test/area-sort.test.ts` and, for icons, `TestEveryAreaHasItsOwnIcon`.
+- **Pills are declared by kind, never by colour**: `Table.Pills` in `internal/areas` maps a column
+  to one of `PillKinds`, and `CommonPills` covers the shared flags (`disabled`, `invalid`,
+  `inactive`, `dynamic`, `running`). The colours per kind live once in `area.ts`, in the hand-built
+  pages' `vpn-hs-badge` styles and the Firewall page's `actionBadge`; `PillKind` is generated, so a
+  kind on one side only fails tsc. Held by `TestEveryAreaPillNamesARealColumnAndKind` and
+  `web/test/area-pills.test.ts`.
 - **A hand-built page must copy the same markup and helpers**; nothing generates them for it.
-- **An ordered table** (router order is semantics) starts in router order; a third header click
-  returns there, and its move arrows are blank while a column sort is on.
+- **An ordered table** (routing rules, IPsec policies, OSPF templates: the first match decides) does
+  **not** sort. It is always in the router's order, with its move arrows — the Queues page's rule.
 
 ## Page keys — one word, six meanings
 
@@ -292,8 +299,8 @@ move together:
 
 | | |
 |---|---|
-| `internal/verify/` | 72 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 54 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `internal/verify/` | 73 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
+| `web/test/` | 55 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

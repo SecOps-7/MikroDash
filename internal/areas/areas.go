@@ -47,6 +47,43 @@ type Table struct {
 	// Title names the tab when an area has more than one table. Empty takes the
 	// resource's own label.
 	Title string
+	// Pills draws a column's values as coloured pill labels, as the hand-built
+	// pages draw a lease status or a firewall action: column name to one of
+	// PillKinds. The flag columns every menu shares are in CommonPills and need
+	// not be repeated here; an entry here overrides one there.
+	Pills map[string]string
+}
+
+// PillKinds are the kinds of pill a column can be drawn as. A KIND, not a
+// colour: the colours for each are written once, in web/src/pages/area.ts,
+// reusing the hand-built pages' pill styles, and cmd/areagen emits this list as
+// a TypeScript union so the compiler fails if the two disagree either way.
+//
+//	state   a status word the router reports (bound, Full, established…),
+//	        coloured by a vocabulary; an unknown word is a neutral pill
+//	action  what a rule does, coloured as the Firewall page colours its actions
+//	good    a flag whose "true" is healthy (running)
+//	warn    a flag whose "true" wants attention (disabled, inactive)
+//	bad     a flag whose "true" is a fault (invalid)
+//	info    a flag whose "true" is merely informative (dynamic)
+var PillKinds = []string{"state", "action", "good", "warn", "bad", "info"}
+
+// CommonPills are the flag columns almost every RouterOS menu has, drawn the same
+// way on every generated page that shows them.
+var CommonPills = map[string]string{
+	"disabled": "warn",
+	"inactive": "warn",
+	"invalid":  "bad",
+	"dynamic":  "info",
+	"running":  "good",
+}
+
+// PillFor is the pill kind of one of this table's columns, "" for plain text.
+func (t Table) PillFor(column string) string {
+	if k, ok := t.Pills[column]; ok {
+		return k
+	}
+	return CommonPills[column]
 }
 
 // Area is one generated page.
@@ -170,7 +207,8 @@ var declared = []Area{
 		Icon: `<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/><path d="M12 7v5l3 2"/>`,
 		Tables: []Table{
 			{Resource: "ntpClient", Title: "Settings",
-				Columns: []string{"enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"}},
+				Columns: []string{"enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"},
+				Pills:   map[string]string{"status": "state"}},
 			{Resource: "ntpServer", Title: "Servers",
 				Columns: []string{"address", "iburst", "minPoll", "maxPoll", "disabled", "comment"}},
 		},
@@ -233,7 +271,8 @@ var declared = []Area{
 		Key: "routing-rules", Title: "Routing Rules", NavGroup: "ipsvc",
 		Icon: `<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.2-2.9L3 3"/><path d="M15 9l6-6"/>`,
 		Tables: []Table{{Resource: "routingRule",
-			Columns: []string{"srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"}}},
+			Columns: []string{"srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"},
+			Pills:   map[string]string{"action": "action"}}},
 		Poll: 60 * time.Second,
 	},
 	// OSPF: neighbours first, because "is it up" is the common question; then
@@ -243,7 +282,8 @@ var declared = []Area{
 		Icon: `<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M10.8 7.2L6.2 15.8"/><path d="M13.2 7.2l4.6 8.6"/><path d="M7.5 18h9"/>`,
 		Tables: []Table{
 			{Resource: "ospfNeighbor", Title: "Neighbors",
-				Columns: []string{"routerId", "address", "interface", "area", "state", "adjacency", "stateChanges"}},
+				Columns: []string{"routerId", "address", "interface", "area", "state", "adjacency", "stateChanges"},
+				Pills:   map[string]string{"state": "state"}},
 			{Resource: "ospfInstance", Title: "Instances",
 				Columns: []string{"name", "version", "routerId", "originateDefault", "redistribute", "inactive", "disabled", "comment"}},
 			{Resource: "ospfArea", Title: "Areas",
@@ -260,7 +300,8 @@ var declared = []Area{
 		Icon: `<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><path d="M12 15v2"/>`,
 		Tables: []Table{
 			{Resource: "ipsecPolicy", Title: "Policies",
-				Columns: []string{"srcAddress", "dstAddress", "protocol", "action", "peer", "tunnel", "ph2State", "disabled", "comment"}},
+				Columns: []string{"srcAddress", "dstAddress", "protocol", "action", "peer", "tunnel", "ph2State", "disabled", "comment"},
+				Pills:   map[string]string{"action": "action", "ph2State": "state"}},
 			{Resource: "ipsecPeer", Title: "Peers",
 				Columns: []string{"name", "address", "exchangeMode", "profile", "passive", "responder", "disabled", "comment"}},
 			{Resource: "ipsecIdentity", Title: "Identities",
@@ -305,7 +346,8 @@ var declared = []Area{
 		Key: "dhcp-clients", Title: "DHCP Clients", NavGroup: "ipsvc",
 		Icon: `<rect x="3" y="15" width="18" height="6" rx="1.5"/><path d="M12 3v9"/><path d="M8 8l4 4 4-4"/><path d="M7 18h2"/>`,
 		Tables: []Table{{Resource: "dhcpClient",
-			Columns: []string{"interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"}}},
+			Columns: []string{"interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"},
+			Pills:   map[string]string{"status": "state"}}},
 		Poll: 60 * time.Second,
 	},
 	// DHCP servers: the servers this router runs and what each network hands
