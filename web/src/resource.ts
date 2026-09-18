@@ -802,7 +802,13 @@ function mountAddSlots(): void {
     host.innerHTML = (target
       ? histButton('undo', target, !!h?.canUndo, h?.undoLabel || '') +
         histButton('redo', target, !!h?.canRedo, h?.redoLabel || '')
-      : '') + ready.map((s) =>
+      : '') +
+      // NO ADD FOR A RESOURCE THAT CANNOT BE CREATED. A hand-built page simply
+      // has no slot for one, so this never came up until the generated pages,
+      // whose shell always has a slot: Certificates and IP Services offered an
+      // Add the server would refuse (found on the CHR, 2026-09-18). Undo and redo
+      // still belong: those rows can be edited.
+      ready.filter((s) => s.creatable !== false).map((s) =>
       '<button class="sbtn sbtn-primary" data-res-addbtn="' + esc(s.key) + '"' +
       ' style="padding:.28rem .65rem;font-size:.72rem">' + esc('+ Add ' + s.label) +
       '</button>').join('');

@@ -112,6 +112,19 @@ const labels = (html) => [...html.matchAll(/data-res-addbtn="([^"]*)"/g)].map((m
   assert.match(r.before, /\+ Add filter rule/, 'the button lost its label');
 }
 
+// ── A RESOURCE THAT CANNOT BE CREATED GETS NO ADD ───────────────────────────
+//
+// A generated page's shell always has a slot, so a resource declared NoCreate
+// (Certificates, IP Services) offered an Add the server refused. The schema says
+// `creatable: false`; the slot must honour it. The control is the same slot with
+// a creatable schema, which must still offer the button.
+{
+  const r = run('certificate', undefined, [Object.assign(SCHEMA('certificate', 'certificate'), { creatable: false })]);
+  assert.deepEqual(labels(r.before), [], 'a resource that cannot be created was offered an Add button');
+  const c = run('certificate', undefined, [Object.assign(SCHEMA('certificate', 'certificate'), { creatable: true })]);
+  assert.deepEqual(labels(c.before), ['certificate'], 'a creatable resource lost its Add button');
+}
+
 // ── THE TAB SWAPS ───────────────────────────────────────────────────────────
 {
   // NO REPLAY: both schemas are already known, so the listener alone must
