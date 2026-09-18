@@ -15,14 +15,14 @@ same permissions, checks and audit trail as the forms.
   Rules, OSPF, IPsec, OpenVPN, VRRP, PPPoE Clients, DHCP Clients, DHCP Servers and
   Containers. Each lists its rows and, where RouterOS allows, adds, edits and removes
   them with undo. Each has its own toggle in Settings → Visible Pages.
-- **Tools page** (in the sidebar below Devices): Ping, Traceroute, Torch and Bandwidth Test run from the
-  selected router, with output shown as it arrives. Torch and Bandwidth Test need write
-  access and are recorded in the audit trail.
+- **Tools page** (in the sidebar below Devices): Ping, Traceroute, Torch and Bandwidth
+  Test run from the selected router, with output shown as it arrives. Torch and Bandwidth
+  Test need write access and are recorded in the audit trail.
 - **Containers** can be started, stopped and removed from their page. Needs the RouterOS
   container package.
-- **Tables on the new pages, and IP Addresses, sort** by clicking a header: ascending, descending, then back
-  to the router's order. Rule lists where the first match wins keep the router's order
-  and their reorder arrows instead.
+- **Tables on the new pages, and IP Addresses, sort** by clicking a header: ascending,
+  descending, then back to the router's order. Rule lists where the first match wins keep
+  the router's order and their reorder arrows instead.
 - **Key columns are coloured labels** on the new pages: states such as bound or Full,
   rule actions, and yes/no flags such as disabled, dynamic and running.
 - **The AI Agent reaches every new page**, can ping and traceroute from the router, and
