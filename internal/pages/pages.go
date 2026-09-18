@@ -131,6 +131,7 @@ var All = []Page{
 	{Key: "vrrp", Title: "VRRP", Collector: "areas"},
 	{Key: "pppoe-clients", Title: "PPPoE Clients", Collector: "areas"},
 	{Key: "dhcp-clients", Title: "DHCP Clients", Collector: "areas"},
+	{Key: "dhcp-servers", Title: "DHCP Servers", Collector: "areas"},
 	// The Tools page: diagnostics run on the selected router when somebody asks.
 	// NO COLLECTOR: nothing runs until a tool is started, so there is nothing to
 	// switch off, and hiding the page is a permission rather than a load question.

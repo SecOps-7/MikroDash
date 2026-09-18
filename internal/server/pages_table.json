@@ -122,6 +122,11 @@
       "settingsKey": null
     },
     {
+      "key": "dhcp-servers",
+      "title": "DHCP Servers",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null

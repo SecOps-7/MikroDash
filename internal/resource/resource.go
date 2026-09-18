@@ -134,6 +134,13 @@ type Field struct {
 	NegateUnset bool
 
 	Required bool
+	// Default is the value RouterOS holds when it does not REPORT the property:
+	// some menus omit a property that is at its default. Measured on
+	// /ip/dhcp-server: `conflict-detection` (default yes) is absent from print
+	// until it is set, and a checkbox reading "absent" as off wrote `no` on the
+	// next save — silently turning conflict detection off. A field whose property
+	// can be omitted declares the documented default, and RowValues reads it.
+	Default string
 	// ClearAs is what CLEARING this field sends, when the empty string is not
 	// what RouterOS means by "nothing".
 	//
@@ -1929,6 +1936,58 @@ var DHCPClient = &Resource{
 	},
 }
 
+// DHCPServer is /ip/dhcp-server and DHCPNetwork /ip/dhcp-server/network: the
+// servers this router runs and what each hands out beyond an address. Checked
+// against rosetta and the CHR (7.24.3). No lockout guard: a server going away
+// leaves every client its lease until it expires. A server's lease-script is
+// RouterOS code, behind codeGate. Properties at their default are not reported,
+// so the ones that can be omitted declare their documented Default, and an
+// unreported value opens as the default and a save writes back what the router
+// already uses. The leases themselves are the DHCP page's.
+var DHCPServer = &Resource{
+	Key: "dhcpServer", Page: "dhcp-servers", Label: "DHCP Server",
+	Title: "DHCP Server", Menu: "/ip/dhcp-server", Identity: []string{"name"},
+	Guard:          []string{"codeGate"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "dynamic",
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "dhcp1"},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "addressPool", ROS: "address-pool", Label: "Address Pool", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/pool", Value: "name"},
+			Help:        "A pool from IP Pools, or static-only to hand out only static leases."},
+		{Name: "leaseTime", ROS: "lease-time", Label: "Lease Time", Type: TypeText, Placeholder: "30m"},
+		{Name: "authoritative", ROS: "authoritative", Label: "Authoritative", Type: TypeSelect,
+			Options: []string{"yes", "no", "after-2sec-delay", "after-10sec-delay"}, Default: "yes"},
+		{Name: "addArp", ROS: "add-arp", Label: "Add ARP For Leases", Type: TypeBool, Clearable: true, Default: "no"},
+		{Name: "conflictDetection", ROS: "conflict-detection", Label: "Conflict Detection", Type: TypeBool, Clearable: true,
+			Default: "yes"},
+		{Name: "leaseScript", ROS: "lease-script", Label: "Lease Script", Type: TypeCode, Code: true, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
+	},
+}
+
+var DHCPNetwork = &Resource{
+	Key: "dhcpNetwork", Page: "dhcp-servers", Label: "DHCP Network",
+	Title: "DHCP Network", Menu: "/ip/dhcp-server/network", Identity: []string{"address"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "dynamic",
+	Fields: []Field{
+		{Name: "address", ROS: "address", Label: "Network", Type: TypeCidr, Required: true, Placeholder: "192.168.88.0/24"},
+		{Name: "gateway", ROS: "gateway", Label: "Gateway", Type: TypeText, Clearable: true, Placeholder: "192.168.88.1"},
+		{Name: "dnsServer", ROS: "dns-server", Label: "DNS Servers", Type: TypeText, Clearable: true,
+			Placeholder: "192.168.88.1", Help: "Comma separated."},
+		{Name: "domain", ROS: "domain", Label: "Domain", Type: TypeText, Clearable: true},
+		{Name: "ntpServer", ROS: "ntp-server", Label: "NTP Servers", Type: TypeText, Clearable: true},
+		{Name: "netmask", ROS: "netmask", Label: "Netmask", Type: TypeInt, Clearable: true, Min: intp(0), Max: intp(32),
+			Help: "Empty takes the network's own."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2582,6 +2641,8 @@ var byKey = map[string]*Resource{
 	VRRP.Key:                VRRP,
 	PPPoEClient.Key:         PPPoEClient,
 	DHCPClient.Key:          DHCPClient,
+	DHCPServer.Key:          DHCPServer,
+	DHCPNetwork.Key:         DHCPNetwork,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,
@@ -2703,6 +2764,9 @@ func (r *Resource) RowValues(row map[string]string) map[string]any {
 			continue
 		}
 		raw, ok := row[f.ROS]
+		if !ok && f.Default != "" {
+			raw, ok = f.Default, true
+		}
 		// A PRESENCE FLAG'S ABSENCE IS ITS VALUE: no key is false.
 		if f.Type == TypeFlag {
 			out[f.Name] = ok

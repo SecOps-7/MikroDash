@@ -1,0 +1,35 @@
+{
+ "collector": "areas",
+ "resource": "dhcpServer",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. A server created FOR the capture on a spare bridge, with a pool and a lease script. Properties at their default (authoritative, add-arp) are not reported at all. Addresses mapped into TEST-NET-2. Read through /ip/dhcp-server/print.",
+ "exchanges": [
+  {
+   "cmd": "/ip/dhcp-server/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "add-dns-entries-suffix": "lan",
+     "address-lists": "",
+     "address-pool": "md-dhcps-pool",
+     "comment": "md-dhcps-test",
+     "disabled": "false",
+     "dynamic": "false",
+     "dynamic-lease-identifiers": "client-mac,client-id",
+     "interface": "md-dhcps",
+     "invalid": "false",
+     "lease-script": ":log info lease",
+     "lease-time": "1h",
+     "name": "md-dhcps",
+     "support-broadband-tr101": "false",
+     "use-radius": "no",
+     "use-reconfigure": "false"
+    }
+   ]
+  }
+ ]
+}

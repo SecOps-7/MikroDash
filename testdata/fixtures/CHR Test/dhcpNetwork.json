@@ -1,0 +1,30 @@
+{
+ "collector": "areas",
+ "resource": "dhcpNetwork",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The network created FOR the capture with that server: gateway, DNS server and domain. Addresses mapped into TEST-NET-2. Read through /ip/dhcp-server/network/print.",
+ "exchanges": [
+  {
+   "cmd": "/ip/dhcp-server/network/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "address": "198.51.100.0/24",
+     "caps-manager": "",
+     "comment": "md-dhcps-test",
+     "dhcp-option": "",
+     "dns-server": "198.51.100.1",
+     "domain": "lab.example",
+     "dynamic": "false",
+     "gateway": "198.51.100.1",
+     "ntp-server": "",
+     "wins-server": ""
+    }
+   ]
+  }
+ ]
+}

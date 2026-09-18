@@ -182,6 +182,14 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "dhcp-servers", title: "DHCP Servers", navGroup: "ipsvc",
+    icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v5\"/><path d=\"M5 20v-3h14v3\"/><path d=\"M12 14v3\"/><path d=\"M7 6h2\"/>",
+    tables: [
+      { resource: "dhcpServer", title: "Servers", columns: ["name", "interface", "addressPool", "leaseTime", "authoritative", "invalid", "disabled", "comment"], ordered: false },
+      { resource: "dhcpNetwork", title: "Networks", columns: ["address", "gateway", "dnsServer", "domain", "comment"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

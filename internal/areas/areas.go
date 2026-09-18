@@ -308,6 +308,19 @@ var declared = []Area{
 			Columns: []string{"interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// DHCP servers: the servers this router runs and what each network hands
+	// out. The leases stay on the DHCP page.
+	{
+		Key: "dhcp-servers", Title: "DHCP Servers", NavGroup: "ipsvc",
+		Icon: `<rect x="3" y="3" width="18" height="6" rx="1.5"/><path d="M12 9v5"/><path d="M5 20v-3h14v3"/><path d="M12 14v3"/><path d="M7 6h2"/>`,
+		Tables: []Table{
+			{Resource: "dhcpServer", Title: "Servers",
+				Columns: []string{"name", "interface", "addressPool", "leaseTime", "authoritative", "invalid", "disabled", "comment"}},
+			{Resource: "dhcpNetwork", Title: "Networks",
+				Columns: []string{"address", "gateway", "dnsServer", "domain", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

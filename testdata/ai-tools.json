@@ -102,6 +102,18 @@
       "page": "dhcp"
     },
     {
+      "name": "list_dhcpNetwork",
+      "access": "read",
+      "resource": "dhcpNetwork",
+      "page": "dhcp-servers"
+    },
+    {
+      "name": "list_dhcpServer",
+      "access": "read",
+      "resource": "dhcpServer",
+      "page": "dhcp-servers"
+    },
+    {
       "name": "list_dhcp_networks",
       "access": "read",
       "resource": "",
