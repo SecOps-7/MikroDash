@@ -32,7 +32,9 @@ func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 		// 2026-09-18: a routing rule that could reroute the router's replies to MikroDash.
 		"rulePath": true,
 		// 2026-09-18: an IPsec policy, peer or identity MikroDash's path depends on.
-		"ipsecPath": true}
+		"ipsecPath": true,
+		// 2026-09-18: a tunnel client's add-default-route, judged as the route it installs.
+		"tunnelDefault": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}

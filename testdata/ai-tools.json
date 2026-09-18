@@ -291,6 +291,18 @@
       "page": "ospf"
     },
     {
+      "name": "list_ovpnClient",
+      "access": "read",
+      "resource": "ovpnClient",
+      "page": "openvpn"
+    },
+    {
+      "name": "list_ovpnServer",
+      "access": "read",
+      "resource": "ovpnServer",
+      "page": "openvpn"
+    },
+    {
       "name": "list_packages",
       "access": "read",
       "resource": "",

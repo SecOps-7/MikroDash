@@ -268,6 +268,19 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// OpenVPN: the servers this router runs and the clients it dials out with.
+	// The accounts a server admits are the PPP page's secrets.
+	{
+		Key: "openvpn", Title: "OpenVPN", NavGroup: "tunnels",
+		Icon: `<path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>`,
+		Tables: []Table{
+			{Resource: "ovpnServer", Title: "Servers",
+				Columns: []string{"name", "port", "protocol", "certificate", "auth", "cipher", "inactive", "disabled", "comment"}},
+			{Resource: "ovpnClient", Title: "Clients",
+				Columns: []string{"name", "connectTo", "port", "protocol", "user", "addDefaultRoute", "running", "disabled", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

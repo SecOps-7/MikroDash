@@ -127,6 +127,7 @@ var All = []Page{
 	{Key: "routing-rules", Title: "Routing Rules", Collector: "areas"},
 	{Key: "ospf", Title: "OSPF", Collector: "areas"},
 	{Key: "ipsec", Title: "IPsec", Collector: "areas"},
+	{Key: "openvpn", Title: "OpenVPN", Collector: "areas"},
 	// The Tools page: diagnostics run on the selected router when somebody asks.
 	// NO COLLECTOR: nothing runs until a tool is started, so there is nothing to
 	// switch off, and hiding the page is a permission rather than a load question.

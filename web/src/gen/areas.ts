@@ -153,6 +153,14 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "openvpn", title: "OpenVPN", navGroup: "tunnels",
+    icon: "<path d=\"M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z\"/><path d=\"M9 12l2 2 4-4\"/>",
+    tables: [
+      { resource: "ovpnServer", title: "Servers", columns: ["name", "port", "protocol", "certificate", "auth", "cipher", "inactive", "disabled", "comment"], ordered: false },
+      { resource: "ovpnClient", title: "Clients", columns: ["name", "connectTo", "port", "protocol", "user", "addDefaultRoute", "running", "disabled", "comment"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

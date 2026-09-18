@@ -102,6 +102,11 @@
       "settingsKey": null
     },
     {
+      "key": "openvpn",
+      "title": "OpenVPN",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null

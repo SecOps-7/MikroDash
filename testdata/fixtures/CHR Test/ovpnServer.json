@@ -1,0 +1,46 @@
+{
+ "collector": "areas",
+ "resource": "ovpnServer",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. A server created FOR the capture (disabled, as RouterOS creates one) beside any the CHR ships. `auth` and `cipher` are comma lists. New in the 7.x server list: each server is its own row with a name. MAC addresses replaced with locally administered ones; the peer address mapped into TEST-NET-2. Read through /interface/ovpn-server/server/print.",
+ "exchanges": [
+  {
+   "cmd": "/interface/ovpn-server/server/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "auth": "sha256,sha512",
+     "certificate": "*0",
+     "cipher": "aes256-gcm",
+     "comment": "md-ovpn-test",
+     "default-profile": "default",
+     "disabled": "true",
+     "enable-tun-ipv6": "false",
+     "inactive": "false",
+     "ipv6-prefix-len": "64",
+     "keepalive-timeout": "60",
+     "mac-address": "02:00:00:00:01:01",
+     "max-mtu": "1500",
+     "mode": "ip",
+     "name": "md-ovpn-srv",
+     "netmask": "24",
+     "port": "1195",
+     "protocol": "udp",
+     "push-routes": "",
+     "push-routes-ipv6": "",
+     "redirect-gateway": "disabled",
+     "reneg-sec": "3600",
+     "require-client-certificate": "false",
+     "tls-version": "any",
+     "tun-server-ipv6": "::",
+     "user-auth-method": "pap",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}

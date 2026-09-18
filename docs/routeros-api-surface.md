@@ -236,6 +236,8 @@ surface stays complete.
 | `/interface/wifi/datapath` | capsDatapath | capsman | add, set, remove |
 | `/interface/wifi/provisioning` | capsProvisioning | capsman | add, set, remove, move, enable, disable |
 | `/interface/wifi/security` | capsSecurity | capsman | add, set, remove |
+| `/interface/ovpn-server/server` | ovpnServer | openvpn | add, set, remove |
+| `/interface/ovpn-client` | ovpnClient | openvpn | add, set, remove (selfPath, tunnelDefault; password never read) |
 | `/interface/wireguard/peers` | wgPeer | vpn | add, set, remove |
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |
 | `/interface/wireless/security-profiles` | wlSecProfile | wifi | add, set, remove |

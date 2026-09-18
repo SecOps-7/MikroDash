@@ -1,0 +1,41 @@
+{
+ "collector": "areas",
+ "resource": "ovpnClient",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. A client created FOR the capture, connected at capture time to an OpenVPN server on the hAP AC2. RouterOS returns the client `password` on print; it is dropped here, and the app never names it in a read. MAC addresses replaced with locally administered ones; the peer address mapped into TEST-NET-2. Read through /interface/ovpn-client/print.",
+ "exchanges": [
+  {
+   "cmd": "/interface/ovpn-client/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*5",
+     "add-default-route": "false",
+     "auth": "sha1",
+     "certificate": "none",
+     "cipher": "blowfish128",
+     "comment": "md-ovpn-test",
+     "connect-to": "198.51.100.53",
+     "disabled": "false",
+     "hw-crypto": "false",
+     "mac-address": "02:00:00:00:02:01",
+     "max-mtu": "1500",
+     "mode": "ip",
+     "name": "md-ovpn",
+     "port": "1194",
+     "profile": "default",
+     "protocol": "tcp",
+     "route-nopull": "false",
+     "running": "true",
+     "tls-version": "any",
+     "use-peer-dns": "yes",
+     "user": "md-ovpn",
+     "verify-server-certificate": "false"
+    }
+   ]
+  }
+ ]
+}

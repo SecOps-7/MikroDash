@@ -1167,7 +1167,7 @@ var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
-	"rulePath": true, "ipsecPath": true,
+	"rulePath": true, "ipsecPath": true, "tunnelDefault": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1232,6 +1232,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "ipsecPath":
 			if v := cn.ipsecVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "tunnelDefault":
+			if v := cn.tunnelDefaultVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		case "addressPath":
@@ -1413,6 +1417,46 @@ func (cn *conn) ruleVerdict(res *resource.Resource, action string,
 		now = ruleChangeOf(values)
 	}
 	return guard.CheckRuleEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// tunnelDefaultVerdict judges a tunnel client's `add-default-route` as the route
+// it installs: 0.0.0.0/0 through the client's own interface, present while the
+// client is enabled with the option on. The route guard then answers exactly as
+// it would for the same static route — including leaving a management address on
+// a connected subnet alone, which does not depend on the default route.
+func (cn *conn) tunnelDefaultVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	defaultRoute := tunnelDefaultRoute
+	var was, now guard.RouteChange
+	if before != nil {
+		was = defaultRoute(histValues(res.RowValues(before)))
+	}
+	if action != "delete" {
+		now = defaultRoute(values)
+	}
+	var active, addrs []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	for _, menu := range []string{"/ip/address/print", "/ipv6/address/print"} {
+		if rows, err := cn.rsession.Exec(routeros.Cmd{Path: menu}); err == nil {
+			addrs = append(addrs, rows...)
+		}
+	}
+	return guard.CheckRouteEdit(active, addrs, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// tunnelDefaultRoute is the default route a tunnel client installs: present while
+// the client is enabled with add-default-route on, and absent otherwise. `v` is
+// in the registry's field names, with RouterOS's or the form's spelling of a
+// checkbox.
+func tunnelDefaultRoute(v map[string]string) guard.RouteChange {
+	yes := func(k string) bool { return v[k] == "true" || v[k] == "yes" }
+	if v == nil || !yes("addDefaultRoute") || yes("disabled") {
+		return guard.RouteChange{}
+	}
+	return guard.RouteChange{Present: true, Dst: "0.0.0.0/0", Gateway: v["name"], Distance: "1", Table: "main"}
 }
 
 // ipsecVerdict asks the IPsec guard about a policy, peer or identity write.

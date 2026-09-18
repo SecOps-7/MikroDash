@@ -1733,6 +1733,93 @@ var IPsecPolicy = &Resource{
 	},
 }
 
+// ── OpenVPN ─────────────────────────────────────────────────────────────────
+//
+// /interface/ovpn-server/server (a LIST of named servers on 7.24, not the single
+// settings menu older releases had) and /interface/ovpn-client. Checked against
+// rosetta and a live tunnel from the CHR to a server on the hAP AC2 (7.24.3).
+// The accounts a server admits are the PPP page's secrets.
+//
+// A CLIENT is an interface named after itself, so it carries selfPath: disabling
+// or removing the client MikroDash arrives through, or changing where it
+// connects, cuts the session. It also carries tunnelDefault: `add-default-route`
+// installs 0.0.0.0/0 through the tunnel, which the route guard judges exactly as
+// it would the same static route. RouterOS returns the client's `password` on
+// print; it is a secret, never read.
+
+// OVPNAuths and OVPNCiphers are the values RouterOS 7.24 lists. A server takes
+// a comma list of each; a client takes one.
+var (
+	OVPNAuths   = []string{"sha1", "md5", "sha256", "sha384", "sha512", "null"}
+	OVPNCiphers = []string{"blowfish128", "aes128-cbc", "aes192-cbc", "aes256-cbc", "aes128-gcm",
+		"aes192-gcm", "aes256-gcm", "null"}
+)
+
+var OVPNServer = &Resource{
+	Key: "ovpnServer", Page: "openvpn", Label: "OpenVPN Server",
+	Title: "OpenVPN Server", Menu: "/interface/ovpn-server/server", Identity: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "ovpn-server1"},
+		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Min: intp(1), Max: intp(65535), Placeholder: "1194"},
+		{Name: "protocol", ROS: "protocol", Label: "Protocol", Type: TypeSelect, Options: []string{"tcp", "udp"}},
+		{Name: "mode", ROS: "mode", Label: "Mode", Type: TypeSelect, Options: []string{"ip", "ethernet"}},
+		{Name: "certificate", ROS: "certificate", Label: "Certificate", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/certificate", Value: "name"}},
+		{Name: "requireClientCertificate", ROS: "require-client-certificate", Label: "Require Client Certificate",
+			Type: TypeBool, Clearable: true},
+		{Name: "auth", ROS: "auth", Label: "Auth", Type: TypeMulti, Options: OVPNAuths},
+		{Name: "cipher", ROS: "cipher", Label: "Cipher", Type: TypeMulti, Options: OVPNCiphers},
+		{Name: "defaultProfile", ROS: "default-profile", Label: "Default Profile", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ppp/profile", Value: "name"}},
+		{Name: "userAuthMethod", ROS: "user-auth-method", Label: "User Auth Method", Type: TypeSelect,
+			Options: []string{"pap", "mschap2"}},
+		{Name: "tlsVersion", ROS: "tls-version", Label: "TLS Version", Type: TypeSelect, Options: []string{"any", "only-1.2"}},
+		{Name: "redirectGateway", ROS: "redirect-gateway", Label: "Redirect Gateway", Type: TypeMulti,
+			Options: []string{"disabled", "def1", "ipv6"}},
+		{Name: "pushRoutes", ROS: "push-routes", Label: "Push Routes", Type: TypeText, Clearable: true,
+			Placeholder: "192.168.88.0 255.255.255.0"},
+		{Name: "netmask", ROS: "netmask", Label: "Netmask", Type: TypeInt, Min: intp(0), Max: intp(32)},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "inactive", ROS: "inactive", Label: "Inactive", Type: TypeBool, Display: true},
+	},
+}
+
+var OVPNClient = &Resource{
+	Key: "ovpnClient", Page: "openvpn", Label: "OpenVPN Client",
+	Title: "OpenVPN Client", Menu: "/interface/ovpn-client", Identity: []string{"name"},
+	Guard:                 []string{"selfPath", "tunnelDefault"},
+	GuardInterfaceFields:  []string{"name"},
+	GuardDisruptiveFields: []string{"connectTo", "port", "protocol", "user", "password", "certificate"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "ovpn-out1"},
+		{Name: "connectTo", ROS: "connect-to", Label: "Connect To", Type: TypeText, Required: true,
+			Placeholder: "vpn.example.com"},
+		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Min: intp(1), Max: intp(65535), Placeholder: "1194"},
+		{Name: "protocol", ROS: "protocol", Label: "Protocol", Type: TypeSelect, Options: []string{"tcp", "udp"}},
+		{Name: "mode", ROS: "mode", Label: "Mode", Type: TypeSelect, Options: []string{"ip", "ethernet"}},
+		{Name: "user", ROS: "user", Label: "User", Type: TypeText, Clearable: true},
+		{Name: "password", ROS: "password", Label: "Password", Type: TypeSecret},
+		{Name: "certificate", ROS: "certificate", Label: "Certificate", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/certificate", Value: "name"}, Placeholder: "none"},
+		{Name: "verifyServerCertificate", ROS: "verify-server-certificate", Label: "Verify Server Certificate",
+			Type: TypeBool, Clearable: true},
+		{Name: "auth", ROS: "auth", Label: "Auth", Type: TypeSelect, Options: OVPNAuths},
+		{Name: "cipher", ROS: "cipher", Label: "Cipher", Type: TypeSelect, Options: OVPNCiphers},
+		{Name: "tlsVersion", ROS: "tls-version", Label: "TLS Version", Type: TypeSelect, Options: []string{"any", "only-1.2"}},
+		{Name: "profile", ROS: "profile", Label: "Profile", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ppp/profile", Value: "name"}},
+		{Name: "addDefaultRoute", ROS: "add-default-route", Label: "Add Default Route", Type: TypeBool, Clearable: true,
+			Help: "Send all traffic through the tunnel."},
+		{Name: "routeNopull", ROS: "route-nopull", Label: "Ignore Pushed Routes", Type: TypeBool, Clearable: true},
+		{Name: "usePeerDns", ROS: "use-peer-dns", Label: "Use Peer DNS", Type: TypeSelect,
+			Options: []string{"yes", "no", "exclusively"}},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "running", ROS: "running", Label: "Running", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2381,6 +2468,8 @@ var byKey = map[string]*Resource{
 	IPsecPeer.Key:           IPsecPeer,
 	IPsecIdentity.Key:       IPsecIdentity,
 	IPsecPolicy.Key:         IPsecPolicy,
+	OVPNServer.Key:          OVPNServer,
+	OVPNClient.Key:          OVPNClient,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

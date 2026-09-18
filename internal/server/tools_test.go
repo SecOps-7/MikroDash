@@ -75,3 +75,24 @@ func TestABandwidthTestsAuditRowHasNoPassword(t *testing.T) {
 		t.Errorf("the audit row carries the password: %s", b)
 	}
 }
+
+// TestATunnelsDefaultRouteIsTheRouteItInstalls. tunnelDefault hands the route
+// guard 0.0.0.0/0 exactly while the client is enabled with add-default-route on,
+// in either spelling of a checkbox; off, or disabled, there is no route.
+func TestATunnelsDefaultRouteIsTheRouteItInstalls(t *testing.T) {
+	for _, on := range []string{"yes", "true"} {
+		r := tunnelDefaultRoute(map[string]string{"name": "ovpn-out1", "addDefaultRoute": on, "disabled": "no"})
+		if !r.Present || r.Dst != "0.0.0.0/0" || r.Gateway != "ovpn-out1" {
+			t.Errorf("add-default-route=%s gave %+v, want 0.0.0.0/0 through ovpn-out1", on, r)
+		}
+	}
+	for name, v := range map[string]map[string]string{
+		"off":      {"name": "c", "addDefaultRoute": "no"},
+		"disabled": {"name": "c", "addDefaultRoute": "yes", "disabled": "true"},
+		"absent":   {"name": "c"},
+	} {
+		if r := tunnelDefaultRoute(v); r.Present {
+			t.Errorf("%s client installs a route: %+v", name, r)
+		}
+	}
+}
