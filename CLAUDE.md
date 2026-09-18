@@ -222,15 +222,15 @@ any summary of it.
 
 ## A new page's furniture
 
-Every page, generated or hand-built, has its **tabs at top left** with the title beside them (the
-Routing page's `stab-bar rttab-bar`), actions alone in the right-hand `.hdr-actions` corner, a
-**blue count pill** beside its title (`card-badge`, plus `active-blue` when it counts something),
+Every page, generated or hand-built, has its **title at the far left**, a **blue count pill** beside
+it (`card-badge`, plus `active-blue` when it counts something), then **its tabs to the right of the
+title** (`stab-bar rttab-bar`), with actions alone in the right-hand `.hdr-actions` corner,
 **sortable table headers** (`renderSortHeader`/`sortRows` in `web/src/dom.ts`), **its own nav
 icon that suits the page**, and **key columns as coloured pill labels** (a state, an action, a flag)
 rather than plain text.
 
 - **Generated pages get all of it for free**: the layout from `cmd/areagen`'s shell template, the pill
-  and the sort from `web/src/pages/area.ts`. Held by `TestEveryAreaShellHasItsTabsOnTheLeft`,
+  and the sort from `web/src/pages/area.ts`. Held by `TestEveryAreaShellHasItsTitleFirstThenItsTabs`,
   `web/test/area-sort.test.ts` and, for icons, `TestEveryAreaHasItsOwnIcon`.
 - **Pills are declared by kind, never by colour**: `Table.Pills` in `internal/areas` maps a column
   to one of `PillKinds`, and `CommonPills` covers the shared flags (`disabled`, `invalid`,

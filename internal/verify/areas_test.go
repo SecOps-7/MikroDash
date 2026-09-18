@@ -215,16 +215,16 @@ func TestEveryAreaHasItsOwnIcon(t *testing.T) {
 	}
 }
 
-// TestEveryAreaShellHasItsTabsOnTheLeft: every generated page's header, and the
-// Tools page's, is laid out as the hand-built Routing page's is — the tab strip
-// first, at top left, then the title, then the count pill, with only the actions
-// (the Add slot) in the right-hand `.hdr-actions` corner. The shells are
+// TestEveryAreaShellHasItsTitleFirstThenItsTabs: every generated page's header,
+// and the Tools page's, reads left to right as the title at the far left, the
+// count pill beside it, then the tab strip, with only the actions (the Add slot)
+// in the right-hand `.hdr-actions` corner. The shells are
 // cmd/areagen's, so this holds the TEMPLATE: a new area inherits the layout, and
 // a template that moves the tabs back to the right fails here for every area.
 //
 // The pill's colour is not in the markup — area.ts sets `active-blue` when it
 // counts something — so web/test/area-sort.test.ts holds that, and sorting.
-func TestEveryAreaShellHasItsTabsOnTheLeft(t *testing.T) {
+func TestEveryAreaShellHasItsTitleFirstThenItsTabs(t *testing.T) {
 	root := repoRoot(t)
 	type shell struct{ file, tabs, badge string }
 	var shells []shell
@@ -251,8 +251,11 @@ func TestEveryAreaShellHasItsTabsOnTheLeft(t *testing.T) {
 			t.Errorf("%s: the header has no tab strip or no title", s.file)
 			continue
 		}
-		if tabs > title {
-			t.Errorf("%s: the tab strip comes after the title; the Routing page puts it first, at top left", s.file)
+		// THE TITLE IS AT THE FAR LEFT and the tabs follow it (the operator,
+		// 2026-09-18). Tabs first, as the Routing page has them, pushed the
+		// page's own name into the middle of the header.
+		if title > tabs {
+			t.Errorf("%s: the tab strip comes before the title; the title is at the far left, the tabs after it", s.file)
 		}
 		if actions >= 0 && tabs > actions {
 			t.Errorf("%s: the tab strip is in the right-hand .hdr-actions corner, which holds actions only", s.file)
@@ -264,8 +267,8 @@ func TestEveryAreaShellHasItsTabsOnTheLeft(t *testing.T) {
 			continue
 		}
 		badge := strings.Index(header, s.badge+` class="card-badge"`)
-		if badge < title || (actions >= 0 && badge > actions) {
-			t.Errorf("%s: the count pill is not a card-badge beside the title, on the left", s.file)
+		if badge < title || badge > tabs {
+			t.Errorf("%s: the count pill is not a card-badge beside the title, between it and the tabs", s.file)
 		}
 	}
 }

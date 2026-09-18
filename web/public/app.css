@@ -1710,10 +1710,14 @@
        the rule. There is no rule in a card header, so that nudge only pushes the
        tabs out of line with the title beside them. */
     .rttab-bar .stab{padding:.3rem .75rem;font-size:.74rem;margin-bottom:0}
-    /* Clear of the tabs, and centred against them rather than sitting low. A
-       class rule, not #rtCardTitle's, because every generated page (cmd/areagen)
-       and the Tools page lay out their header the same way. */
+    /* Clear of the tabs, and centred against them rather than sitting low: the
+       Routing page, whose tabs come before its title. */
     .rttab-bar:not(:empty) + .card-title{margin-left:.85rem;line-height:1;align-self:center}
+    /* The generated pages and Tools put the title first and the tabs after it
+       (and after the count pill, when there is one): the same clearance, on the
+       other side, and the title centred on the tabs. */
+    .card-title ~ .rttab-bar:not(:empty){margin-left:.85rem}
+    .card-header .card-title:has(~ .rttab-bar){line-height:1;align-self:center}
     /* A one-table generated page has no tabs, and an empty strip would still
        take a flex gap in front of the title. */
     .rttab-bar:empty{display:none}

@@ -94,14 +94,14 @@ type page struct {
 // renderMarkup writes each area's page shell: a card with a header, a badge, the
 // Add slot and an empty body the renderer fills.
 //
-// ── THE HEADER IS THE ROUTING PAGE'S ────────────────────────────────────────
+// ── THE HEADER: TITLE, PILL, THEN TABS ──────────────────────────────────────
 //
-// Tabs at top left with the title beside them, as the hand-built Routing page
-// lays out its protocol tabs and table name (`.rttab-bar`, which drops the
-// standalone bar's rule and centres its buttons on the title), and the Add
-// button alone in the right-hand corner where every older page keeps its
-// actions. A one-table area's strip is empty and `.rttab-bar:empty` hides it,
-// so the title does not sit indented behind a tab bar that is not there.
+// The title at the far left, the count pill beside it, then the tab strip
+// (`.rttab-bar`, which drops the standalone bar's rule and centres its buttons
+// on the title), and the Add button alone in the right-hand corner where every
+// older page keeps its actions. The operator's order (2026-09-18): tabs first
+// pushed the page's own name into the middle of the header. A one-table area's
+// strip is empty and `.rttab-bar:empty` hides it.
 //
 // ── A SHELL, NOT A TABLE ────────────────────────────────────────────────────
 //
@@ -120,9 +120,9 @@ func renderMarkup() []page {
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
-            <span id="areaTabs-%s" class="stab-bar rttab-bar" role="tablist"></span>
             <h3 class="card-title mb-0">%s</h3>
             <span id="areaBadge-%s" class="card-badge">0</span>
+            <span id="areaTabs-%s" class="stab-bar rttab-bar" role="tablist"></span>
           </div>
           <div class="hdr-actions d-flex align-items-center gap-2">
             <span id="areaAdd-%s"></span>
@@ -136,7 +136,7 @@ func renderMarkup() []page {
       </div>
     </div>
   </div>
-`, a.Key, a.Key, a.Key, a.Key, htmlEscape(a.Title), a.Key, a.Key, a.Key)
+`, a.Key, a.Key, a.Key, htmlEscape(a.Title), a.Key, a.Key, a.Key, a.Key)
 		out = append(out, page{path: uiDir + "/page-" + a.Key + ".html", body: []byte(b.String())})
 	}
 	return out
