@@ -11,6 +11,7 @@
             <span id="toolsTabs" class="stab-bar brtab-bar" role="tablist">
               <button class="stab active" type="button" role="tab" aria-selected="true" data-tooltab="ping">Ping</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-tooltab="traceroute">Traceroute</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-tooltab="torch">Torch</button>
             </span>
           </div>
         </div>
@@ -63,6 +64,30 @@
               <table class="table table-vcenter mb-0">
                 <thead><tr><th>Hop</th><th>Address</th><th>Loss</th><th>Last</th><th>Best</th><th>Worst</th><th>Status</th></tr></thead>
                 <tbody id="traceRows"><tr><td colspan="7" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tool-panel" id="toolPanel-torch" style="display:none">
+            <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="torchForm">
+              <div>
+                <label class="form-label" for="torchInterface">Interface</label>
+                <select class="form-select form-select-sm" id="torchInterface" required></select>
+              </div>
+              <div>
+                <label class="form-label" for="torchSeconds">Seconds</label>
+                <select class="form-select form-select-sm" id="torchSeconds">
+                  <option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option>
+                  <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+                </select>
+              </div>
+              <button class="sbtn sbtn-primary" id="torchRun" type="submit">Watch</button>
+              <span class="muted-note" id="torchStatus"></span>
+            </form>
+            <div id="torchSummary" class="muted-note mb-2"></div>
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Protocol</th><th>Source</th><th>Destination</th><th>Rx</th><th>Tx</th></tr></thead>
+                <tbody id="torchRows"><tr><td colspan="5" class="empty-state">Not run yet</td></tr></tbody>
               </table>
             </div>
           </div>

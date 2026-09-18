@@ -29,12 +29,13 @@ fs.rmSync(ENTRY, { force: true });
 
 const mod = require(OUT);
 const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingStatus', 'pingSummary', 'pingRows',
-  'traceForm', 'traceAddress', 'traceHops', 'traceRun', 'traceStatus', 'traceSummary', 'traceRows']);
+  'traceForm', 'traceAddress', 'traceHops', 'traceRun', 'traceStatus', 'traceSummary', 'traceRows',
+  'torchForm', 'torchInterface', 'torchSeconds', 'torchRun', 'torchStatus', 'torchSummary', 'torchRows']);
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
 const sent = [];
-mod.initToolsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => sent.push([ev, d]) });
+mod.initToolsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => sent.push([ev, d]) }, () => true);
 
 const n = doc.nodes;
 const rows = () => String(n.pingRows.innerHTML);
@@ -107,6 +108,33 @@ assert.ok(/1\.5 ms/.test(trace) && /<span class="wg-down">timeout<\/span>/.test(
 assert.ok(!/<i>h<\/i>/.test(trace), 'a hop address was not escaped:\n' + trace);
 assert.ok(/2 hops · Too many hops/.test(String(n.traceSummary.textContent)), 'the router\'s note on the run is missing');
 assert.strictEqual(n.pingRun.disabled, false, 'Ping stays disabled after the traceroute');
+
+// TORCH needs write access. Until `tools:caps` says this viewer has it, its
+// button is disabled; a reader is told why; a writer can run it.
+assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered before the permission is known');
+handlers['tools:caps']({ mayWrite: false, interfaces: ['ether1', '<b>w</b>'] });
+assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered to a viewer who may not write Tools');
+assert.ok(/write access/.test(String(n.torchStatus.textContent)), 'a reader is not told why Watch is off');
+assert.ok(/<option>ether1<\/option>/.test(String(n.torchInterface.innerHTML)) && !/<b>w<\/b>/.test(String(n.torchInterface.innerHTML)),
+  'the interface list is missing or unescaped:\n' + n.torchInterface.innerHTML);
+assert.strictEqual(n.pingRun.disabled, false, 'a read tool was disabled for a reader');
+handlers['tools:caps']({ mayWrite: true, interfaces: ['ether1'] });
+assert.strictEqual(n.torchRun.disabled, false, 'Watch stays disabled for a viewer who may write Tools');
+sent.length = 0;
+n.torchInterface.value = 'ether1';
+n.torchSeconds.value = '3';
+n.torchForm.fire('submit', { preventDefault: () => {} });
+assert.deepStrictEqual(sent, [['tools:torch', { interface: 'ether1', seconds: 3 }]], 'the torch form did not ask for one run');
+handlers['tools:torch']({ code: '', message: '', result: { interface: 'ether1', seconds: 3, reports: 2, omitted: 2, totalRxBps: 2000000, totalTxBps: 0,
+  flows: [{ protocol: 'tcp', srcAddress: '198.51.100.1', srcPort: '443', dstAddress: '198.51.100.2', dstPort: '50000', rxBps: 2000000, txBps: 0 }] } });
+assert.ok(/2\.00 Mbps/.test(String(n.torchRows.innerHTML)) && /198\.51\.100\.1:443/.test(String(n.torchRows.innerHTML)),
+  'the flow was not drawn:\n' + n.torchRows.innerHTML);
+assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 'omitted flows are not admitted to');
+
+// A router switch forgets the permission until the new router's caps arrive.
+handlers['router:switched']({ activeId: 'r4' });
+assert.strictEqual(n.torchRun.disabled, true, 'a router switch kept the old router\'s write permission');
+assert.ok(sent.some(([ev]) => ev === 'tools:caps'), 'a router switch on the open page did not ask for the new caps');
 
 fs.rmSync(OUT, { force: true });
 say('tools: ok');

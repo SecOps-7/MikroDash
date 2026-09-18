@@ -1,0 +1,75 @@
+{
+ "collector": "tools",
+ "note": "Captured from the CHR test router through the API, as the Tools page runs torch (interface and duration only). One snapshot of per-flow rates each second, each under its own .section; the first second has none. rx and tx are bits per second, relative to the interface. The flows are MikroDash's own API connections; addresses scrubbed into TEST-NET-2, ports kept. An interface that does not exist is a trap. RouterOS 7.24.3.",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "exchanges": [
+  {
+   "cmd": "/tool/torch",
+   "params": [
+    "=interface=ether1",
+    "=duration=3s"
+   ],
+   "rows": [
+    {
+     ".section": "1",
+     "dscp": "0",
+     "dst-address": "198.51.100.11",
+     "dst-port": "8728",
+     "ip-protocol": "tcp",
+     "mac-protocol": "ip",
+     "rx": "480",
+     "rx-packets": "1",
+     "src-address": "198.51.100.10",
+     "src-port": "33994",
+     "tx": "560",
+     "tx-packets": "1"
+    },
+    {
+     ".section": "1",
+     "dscp": "0",
+     "dst-address": "198.51.100.11",
+     "dst-port": "8729",
+     "ip-protocol": "tcp",
+     "mac-protocol": "ip",
+     "rx": "960",
+     "rx-packets": "2",
+     "src-address": "198.51.100.12",
+     "src-port": "43202",
+     "tx": "3200",
+     "tx-packets": "2"
+    },
+    {
+     ".section": "2",
+     "dscp": "0",
+     "dst-address": "198.51.100.11",
+     "dst-port": "8728",
+     "ip-protocol": "tcp",
+     "mac-protocol": "ip",
+     "rx": "480",
+     "rx-packets": "1",
+     "src-address": "198.51.100.10",
+     "src-port": "33994",
+     "tx": "3464",
+     "tx-packets": "1"
+    },
+    {
+     ".section": "2",
+     "dscp": "0",
+     "dst-address": "198.51.100.11",
+     "dst-port": "8729",
+     "ip-protocol": "tcp",
+     "mac-protocol": "ip",
+     "rx": "1440",
+     "rx-packets": "3",
+     "src-address": "198.51.100.12",
+     "src-port": "43202",
+     "tx": "6368",
+     "tx-packets": "3"
+    }
+   ]
+  }
+ ]
+}

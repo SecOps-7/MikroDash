@@ -3,10 +3,13 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/audit"
 	"mikrodash/internal/diag"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
@@ -30,11 +33,11 @@ import (
 // click while one is running is answered "busy" rather than queued: a queue
 // would run probes the operator has stopped waiting for.
 //
-// ── NOT AUDITED ─────────────────────────────────────────────────────────────
+// ── AUDITED WHEN IT NEEDS WRITE ACCESS ──────────────────────────────────────
 //
-// A ping changes nothing, and the audit trail records changes and refusals to
-// change. Torch and bandwidth test, which need write access, are the ones that
-// will be.
+// A ping or a traceroute changes nothing, and the audit trail records changes
+// and refusals to change. Torch and bandwidth test load the router or a link,
+// need write access, and are audited — the run and a refusal both.
 
 // ToolsPingPayload is `tools:ping`: a finished run, or why there is none.
 type ToolsPingPayload struct {
@@ -237,4 +240,167 @@ func (cn *conn) runDiagTool(t aitools.Tool, tc aiprovider.ToolCall) string {
 	// WRAPPED like every tool result: reply hosts and the router's error words
 	// are text from the network.
 	return aicontext.Wrap(string(body))
+}
+
+// ToolsCapsPayload is `tools:caps`: what this viewer may run on the selected
+// router, and the interfaces torch can watch.
+//
+// MayWrite is a SEPARATE field from the list, as the wifi scan's `permitted`
+// is, and the write tools' Run buttons are drawn from it: a reader of the page
+// still sees the interfaces, and no button that would only be refused.
+type ToolsCapsPayload struct {
+	MayWrite   bool     `json:"mayWrite"`
+	Interfaces []string `json:"interfaces"`
+}
+
+// ToolsTorchPayload is `tools:torch`, shaped as ToolsPingPayload is.
+type ToolsTorchPayload struct {
+	Result  *diag.TorchResult `json:"result"`
+	Code    string            `json:"code"`
+	Message string            `json:"message"`
+}
+
+type toolsTorchReq struct {
+	Interface string `json:"interface"`
+	Seconds   int    `json:"seconds"`
+}
+
+// toolsCaps answers `tools:caps`.
+func (cn *conn) toolsCaps() {
+	out := ToolsCapsPayload{Interfaces: []string{}}
+	if cn.routerID == "" || cn.rsession == nil || !cn.canPage("tools", "read") {
+		EvToolsCaps.Send(cn.srv.hub, cn.c, out)
+		return
+	}
+	out.MayWrite = cn.canPage("tools", "write")
+	if names, err := interfaceNames(cn.rsession); err == nil {
+		out.Interfaces = names
+	}
+	EvToolsCaps.Send(cn.srv.hub, cn.c, out)
+}
+
+// interfaceNames reads the router's interface names, and only those.
+func interfaceNames(rs *session.Session) ([]string, error) {
+	rows, err := rs.Exec(routeros.Cmd{Path: "/interface/print", Args: []string{"=.proplist=name"}})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if r["name"] != "" {
+			out = append(out, r["name"])
+		}
+	}
+	return out, nil
+}
+
+// toolsTorch answers `tools:torch` from the Tools page.
+//
+// WRITE ACCESS, and AUDITED — both the run and a refusal — because torch loads
+// the router's CPU for as long as it watches, and who did that when is what an
+// audit trail is for.
+func (cn *conn) toolsTorch(raw json.RawMessage) {
+	var req toolsTorchReq
+	_ = json.Unmarshal(raw, &req)
+	cn.startTool("write",
+		func(code string) {
+			if code == "denied" {
+				cn.recorder().Denied(audit.Event{Action: "tools.torch", TargetType: "interface",
+					TargetName: req.Interface, RouterID: cn.routerID})
+			}
+			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Code: code})
+		},
+		func(rs *session.Session) {
+			res, code, msg := cn.runTorch(rs, req.Interface, req.Seconds, "")
+			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: res, Code: code, Message: msg})
+		})
+}
+
+// runTorch watches one interface for a bounded time and folds what it saw.
+//
+// The interface must be one the router has: RouterOS answers a wrong name with
+// "input does not match any value of interface", which is true and unhelpful,
+// and a name read fresh here makes the refusal say what was wrong. The audit
+// row is written BEFORE the command is sent, as the wifi scan's is: a run that
+// starts and then fails to be recorded still loaded the router.
+func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, via string) (*diag.TorchResult, string, string) {
+	cmd, err := diag.TorchCommand(iface, seconds)
+	if err != nil {
+		return nil, "interface", err.Error()
+	}
+	names, err := interfaceNames(rs)
+	if err != nil {
+		return nil, "failed", safe.Message(err.Error())
+	}
+	known := false
+	for _, n := range names {
+		if n == iface {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return nil, "interface", "this router has no interface of that name"
+	}
+	ev := audit.Event{Action: "tools.torch", TargetType: "interface", TargetName: iface,
+		RouterID: cn.routerID, Note: "watches the interface's traffic; loads the router's CPU while it runs"}
+	if via != "" {
+		ev.Extra = []audit.KV{{Key: "via", Value: via}}
+	}
+	cn.recorder().Record(ev)
+	rows, code, msg := runDiag(rs, cmd)
+	if code != "" {
+		return nil, code, msg
+	}
+	r := diag.FoldTorch(iface, rows)
+	r.Seconds = diag.TorchSeconds(seconds)
+	return &r, "", ""
+}
+
+// runTorchAction is the approved `torch` action: the page's run, for the
+// page's fixed default duration, on the page's one run slot.
+func (cn *conn) runTorchAction(iface string) writeOutcome {
+	if !cn.toolBusy.CompareAndSwap(false, true) {
+		return writeOutcome{Code: "busy"}
+	}
+	defer cn.toolBusy.Store(false)
+	res, code, msg := cn.runTorch(cn.rsession, iface, diag.TorchDefaultSeconds, "agent")
+	if code != "" {
+		return writeOutcome{Code: code, Detail: map[string]any{"message": msg}}
+	}
+	return writeOutcome{Name: iface, Detail: map[string]any{"torch": res}}
+}
+
+// torchSummary is what the operator reads of an approved run, in the chat as the
+// action's outcome: the totals, and the busiest flows one to a line.
+//
+// NOT WRAPPED in the untrusted block. This text is drawn for the operator — by
+// the Markdown renderer, which builds text nodes and never parses HTML — and is
+// not handed back to the model, so the block's preamble would be addressed to
+// nobody and read by the one person it is not for.
+func torchSummary(r *diag.TorchResult) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Done: watched %s for %d s. Average rx %d bit/s, tx %d bit/s.",
+		r.Interface, r.Seconds, r.TotalRxBps, r.TotalTxBps)
+	if len(r.Flows) == 0 {
+		b.WriteString(" No traffic was seen.")
+		return b.String()
+	}
+	b.WriteString(" Busiest flows:\n")
+	for i, f := range r.Flows {
+		if i == 10 {
+			break
+		}
+		fmt.Fprintf(&b, "\n- %s %s -> %s: rx %d bit/s, tx %d bit/s",
+			f.Protocol, flowEnd(f.SrcAddr, f.SrcPort), flowEnd(f.DstAddr, f.DstPort), f.RxBps, f.TxBps)
+	}
+	return b.String()
+}
+
+// flowEnd is one end of a flow: an address, with its port when it has one.
+func flowEnd(addr, port string) string {
+	if port == "" {
+		return addr
+	}
+	return addr + ":" + port
 }

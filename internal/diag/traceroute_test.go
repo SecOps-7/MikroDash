@@ -7,7 +7,7 @@ import (
 )
 
 func TestTracerouteSendsWhatTheCaptureWasTakenWith(t *testing.T) {
-	c := readCapture(t, "toolTraceroute.json")
+	c := readCapture(t, "toolTraceroute.json", 2)
 	for _, ex := range c.Exchanges {
 		addr := strings.TrimPrefix(ex.Params[0], "=address=")
 		hops, _ := strconv.Atoi(strings.TrimPrefix(ex.Params[2], "=max-hops="))
@@ -25,7 +25,7 @@ func TestTracerouteSendsWhatTheCaptureWasTakenWith(t *testing.T) {
 }
 
 func TestATracerouteThatArrivesIsOneHop(t *testing.T) {
-	c := readCapture(t, "toolTraceroute.json")
+	c := readCapture(t, "toolTraceroute.json", 2)
 	r := FoldTraceroute("1.1.1.1", c.Exchanges[0].Rows)
 	if len(r.Hops) != 1 || r.Error != "" {
 		t.Fatalf("got %d hops and error %q, want 1 and none", len(r.Hops), r.Error)
@@ -40,7 +40,7 @@ func TestATracerouteThatArrivesIsOneHop(t *testing.T) {
 // holding the hop still being probed as a row with no address and a time of 0;
 // folding all of them would report nine hops, some answering in 0 ms.
 func TestOnlyTheLastSectionIsTheRoute(t *testing.T) {
-	c := readCapture(t, "toolTraceroute.json")
+	c := readCapture(t, "toolTraceroute.json", 2)
 	rows := c.Exchanges[1].Rows
 	if len(rows) <= 3 {
 		t.Fatalf("the capture has %d rows; the control needs the earlier sections too", len(rows))

@@ -19,8 +19,8 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { esc, el } from '../dom';
-import type { PingResult, TracerouteResult } from '../gen/payloads';
+import { esc, el, fmtMbps } from '../dom';
+import type { PingResult, TracerouteResult, TorchResult } from '../gen/payloads';
 
 const REFUSED: Record<string, string> = {
   denied: 'You may not run this tool on this router.',
@@ -31,7 +31,9 @@ const REFUSED: Record<string, string> = {
 /** One tool: the ids its markup uses, spelled out so each can be found, and
  *  what its form asks the server for. */
 interface Tool {
-  key: 'ping' | 'traceroute';
+  key: 'ping' | 'traceroute' | 'torch';
+  /** Needs write access to Tools: loads the router or a link. */
+  write: boolean;
   form: string;
   run: string;
   status: string;
@@ -43,21 +45,31 @@ interface Tool {
 
 const TOOLS: Tool[] = [
   {
-    key: 'ping', form: 'pingForm', run: 'pingRun', status: 'pingStatus', summary: 'pingSummary', rows: 'pingRows', cols: 6,
+    key: 'ping', write: false, form: 'pingForm', run: 'pingRun', status: 'pingStatus', summary: 'pingSummary', rows: 'pingRows', cols: 6,
     request: () => {
       const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
       return address ? { address, count: Number(el<HTMLSelectElement>('pingCount')?.value || 4) } : null;
     },
   },
   {
-    key: 'traceroute', form: 'traceForm', run: 'traceRun', status: 'traceStatus', summary: 'traceSummary',
+    key: 'traceroute', write: false, form: 'traceForm', run: 'traceRun', status: 'traceStatus', summary: 'traceSummary',
     rows: 'traceRows', cols: 7,
     request: () => {
       const address = (el<HTMLInputElement>('traceAddress')?.value || '').trim();
       return address ? { address, maxHops: Number(el<HTMLSelectElement>('traceHops')?.value || 15) } : null;
     },
   },
+  {
+    key: 'torch', write: true, form: 'torchForm', run: 'torchRun', status: 'torchStatus', summary: 'torchSummary',
+    rows: 'torchRows', cols: 5,
+    request: () => {
+      const iface = el<HTMLSelectElement>('torchInterface')?.value || '';
+      return iface ? { interface: iface, seconds: Number(el<HTMLSelectElement>('torchSeconds')?.value || 5) } : null;
+    },
+  },
 ];
+
+const bps = (v: number): string => fmtMbps(v / 1e6);
 
 function ms(v: number | null | undefined): string {
   return v == null ? '—' : (v < 1 ? v.toFixed(3) : v.toFixed(1)) + ' ms';
@@ -120,14 +132,40 @@ function renderTraceroute(r: TracerouteResult): void {
     '</tr>').join('');
 }
 
-export function initToolsPage(socket: Socket): void {
+function renderTorch(r: TorchResult): void {
+  const summary = el('torchSummary');
+  if (summary) {
+    summary.textContent = 'Watched ' + r.interface + ' for ' + r.seconds + ' s · average rx ' + bps(r.totalRxBps) +
+      ', tx ' + bps(r.totalTxBps) + (r.omitted ? ' · ' + r.omitted + ' quieter flows not shown' : '');
+  }
+  const rows = el('torchRows');
+  if (!rows) return;
+  if (!r.flows.length) {
+    rows.innerHTML = '<tr><td colspan="5" class="empty-state">No traffic seen</td></tr>';
+    return;
+  }
+  const end = (a: string, p: string): string => esc(a) + (p ? ':' + esc(p) : '');
+  rows.innerHTML = r.flows.map((f) =>
+    '<tr>' +
+    '<td>' + esc(f.protocol) + '</td>' +
+    '<td>' + end(f.srcAddress, f.srcPort) + '</td>' +
+    '<td>' + end(f.dstAddress, f.dstPort) + '</td>' +
+    '<td>' + bps(f.rxBps) + '</td>' +
+    '<td>' + bps(f.txBps) + '</td>' +
+    '</tr>').join('');
+}
+
+export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let pending: Tool | null = null;
+  // WHETHER THIS VIEWER MAY RUN THE WRITE TOOLS, from `tools:caps`. False until
+  // it arrives, so a Run button that would only be refused is never offered.
+  let mayWrite = false;
 
   function setRunning(t: Tool | null, note: string): void {
     pending = t;
     for (const x of TOOLS) {
       const btn = el<HTMLButtonElement>(x.run);
-      if (btn) btn.disabled = t !== null;
+      if (btn) btn.disabled = t !== null || (x.write && !mayWrite);
     }
     if (t) {
       const status = el(t.status);
@@ -160,17 +198,35 @@ export function initToolsPage(socket: Socket): void {
       socket.emit('tools:' + t.key, req);
     });
   }
-  const [ping, trace] = TOOLS as [Tool, Tool];
+  const [ping, trace, torch] = TOOLS as [Tool, Tool, Tool];
   socket.on('tools:ping', (d) => settle(ping, d, () => { if (d.result) renderPing(d.result); }));
   socket.on('tools:traceroute', (d) => settle(trace, d, () => { if (d.result) renderTraceroute(d.result); }));
+  socket.on('tools:torch', (d) => settle(torch, d, () => { if (d.result) renderTorch(d.result); }));
+
+  socket.on('tools:caps', (d) => {
+    mayWrite = d.mayWrite;
+    const sel = el<HTMLSelectElement>('torchInterface');
+    if (sel) sel.innerHTML = d.interfaces.map((n) => '<option>' + esc(n) + '</option>').join('');
+    setRunning(pending, '');
+    const status = el('torchStatus');
+    if (status && !pending) status.textContent = mayWrite ? '' : 'Needs write access to Tools.';
+  });
+  // ASKED FOR WHEN THE PAGE OPENS, and again on a router switch while it is
+  // open: the permission and the interfaces are both per router.
+  const askCaps = (): void => socket.emit('tools:caps', {});
+  document.addEventListener('mikrodash:pagechange', (e) => {
+    if ((e as CustomEvent).detail === 'tools') askCaps();
+  });
 
   socket.on('router:switched', () => {
     if (pending) {
       const status = el(pending.status);
       if (status) status.textContent = '';
     }
+    mayWrite = false;
     setRunning(null, '');
     for (const t of TOOLS) clearResult(t);
+    if (isVisible('tools')) askCaps();
   });
 
   // The tab strip: one panel shown at a time.

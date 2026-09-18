@@ -94,6 +94,13 @@ func Actions() []ActionSpec {
 			Summary: "Apply the scheduled package changes. THIS REBOOTS THE ROUTER."},
 		{Key: "firmware_upgrade_and_reboot", Page: "packages", TypedName: true,
 			Summary: "Upgrade the RouterBOOT firmware. THIS REBOOTS THE ROUTER."},
+		// A DIAGNOSTIC, and an action rather than a read tool because it loads
+		// the router's CPU while it runs: the operator decided torch needs write
+		// access to Tools, and so it is always proposed. The duration is fixed.
+		{Key: "torch", Page: "tools", Target: "interface",
+			Summary: "Watch one interface's traffic for 5 seconds with /tool/torch and report the " +
+				"busiest flows by protocol, address and port, with their average rates. It loads " +
+				"the router's CPU while it runs."},
 	}
 }
 

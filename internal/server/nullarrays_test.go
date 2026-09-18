@@ -49,6 +49,11 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			r := diag.FoldPing("198.51.100.1", nil)
 			return ToolsPingPayload{Result: &r}
 		},
+		"tools:caps": func() any { return ToolsCapsPayload{Interfaces: []string{}} },
+		"tools:torch": func() any {
+			r := diag.FoldTorch("ether1", nil)
+			return ToolsTorchPayload{Result: &r}
+		},
 		"tools:traceroute": func() any {
 			r := diag.FoldTraceroute("198.51.100.1", nil)
 			return ToolsTraceroutePayload{Result: &r}

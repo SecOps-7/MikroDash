@@ -20,7 +20,9 @@ type capture struct {
 	} `json:"exchanges"`
 }
 
-func readCapture(t *testing.T, name string) capture {
+// readCapture reads a fixture and insists on at least `min` exchanges, so a
+// capture that lost a run fails here rather than indexing past its end.
+func readCapture(t *testing.T, name string, min int) capture {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "fixtures", "CHR Test", name))
 	if err != nil {
@@ -30,8 +32,8 @@ func readCapture(t *testing.T, name string) capture {
 	if err := json.Unmarshal(raw, &c); err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Exchanges) < 2 {
-		t.Fatalf("%s holds %d exchanges, want the replying run and the lost one", name, len(c.Exchanges))
+	if len(c.Exchanges) < min {
+		t.Fatalf("%s holds %d exchanges, want at least %d", name, len(c.Exchanges), min)
 	}
 	return c
 }
@@ -40,7 +42,7 @@ func readCapture(t *testing.T, name string) capture {
 // these words, so a command built differently would be replaying rows the router
 // was never asked for.
 func TestPingSendsWhatTheCaptureWasTakenWith(t *testing.T) {
-	c := readCapture(t, "toolPing.json")
+	c := readCapture(t, "toolPing.json", 2)
 	for _, ex := range c.Exchanges {
 		addr := strings.TrimPrefix(ex.Params[0], "=address=")
 		cmd, err := PingCommand(addr, len(ex.Rows))
@@ -57,7 +59,7 @@ func TestPingSendsWhatTheCaptureWasTakenWith(t *testing.T) {
 }
 
 func TestAPingThatRepliesIsSummarisedFromTheLastRow(t *testing.T) {
-	c := readCapture(t, "toolPing.json")
+	c := readCapture(t, "toolPing.json", 2)
 	r := FoldPing("127.0.0.1", c.Exchanges[0].Rows)
 	if len(r.Replies) != 3 || r.Sent != 3 || r.Received != 3 || r.LossPct != 0 {
 		t.Fatalf("got %d replies, sent %d, received %d, loss %d%%; want 3, 3, 3, 0",
@@ -77,7 +79,7 @@ func TestAPingThatRepliesIsSummarisedFromTheLastRow(t *testing.T) {
 // A LOST PACKET IS A ROW, and says so: status timeout and no time. Folding it as
 // a reply with an unknown time would report a host that answered.
 func TestALostPingIsAReplyThatSaysTimeout(t *testing.T) {
-	c := readCapture(t, "toolPing.json")
+	c := readCapture(t, "toolPing.json", 2)
 	r := FoldPing("198.51.100.1", c.Exchanges[1].Rows)
 	if len(r.Replies) != 2 || r.Sent != 2 || r.Received != 0 || r.LossPct != 100 {
 		t.Fatalf("got %d replies, sent %d, received %d, loss %d%%; want 2, 2, 0, 100",
@@ -130,4 +132,13 @@ func TestPingAddressesAreOneToken(t *testing.T) {
 			t.Errorf("%q accepted", bad)
 		}
 	}
+}
+
+// toReplies converts plain maps, which are easier to build in a table.
+func toReplies(rows []map[string]string) []routeros.Reply {
+	out := make([]routeros.Reply, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, routeros.Reply(r))
+	}
+	return out
 }

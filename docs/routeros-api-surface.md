@@ -19,7 +19,7 @@ for what a ported collector has to cover.
 | read | 76 |
 | stream | 16 |
 | write | 12 |
-| action | 14 |
+| action | 15 |
 | menu | 34 |
 | distinct proplists | 70 |
 
@@ -143,6 +143,7 @@ for what a ported collector has to cover.
 | `/system/routerboard/upgrade` | internal/server/packages.go |
 | `/tool/fetch` | src/index.js |
 | `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js, internal/diag/ping.go (Tools page) |
+| `/tool/torch` | internal/diag/torch.go (Tools page) |
 | `/tool/traceroute` | internal/diag/traceroute.go (Tools page) |
 
 ## Writes issued from a literal path

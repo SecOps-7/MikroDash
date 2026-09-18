@@ -1035,6 +1035,11 @@ export interface TalkersPayload {
   available: boolean;
 }
 
+export interface ToolsCapsPayload {
+  mayWrite: boolean;
+  interfaces: string[];
+}
+
 export interface PingReply {
   seq: number;
   host: string;
@@ -1057,6 +1062,32 @@ export interface PingResult {
 
 export interface ToolsPingPayload {
   result: PingResult | null;
+  code: string;
+  message: string;
+}
+
+export interface Flow {
+  protocol: string;
+  srcAddress: string;
+  srcPort: string;
+  dstAddress: string;
+  dstPort: string;
+  rxBps: number;
+  txBps: number;
+}
+
+export interface TorchResult {
+  interface: string;
+  seconds: number;
+  reports: number;
+  flows: Flow[];
+  omitted: number;
+  totalRxBps: number;
+  totalTxBps: number;
+}
+
+export interface ToolsTorchPayload {
+  result: TorchResult | null;
   code: string;
   message: string;
 }
@@ -1628,7 +1659,9 @@ export interface Events {
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
+  'tools:caps': ToolsCapsPayload;
   'tools:ping': ToolsPingPayload;
+  'tools:torch': ToolsTorchPayload;
   'tools:traceroute': ToolsTraceroutePayload;
   'topology:update': TopologyPayload;
   'traffic:history': TrafficHistory;

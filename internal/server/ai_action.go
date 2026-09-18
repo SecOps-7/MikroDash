@@ -6,7 +6,8 @@ package server
 //
 // Each action here calls the same `run*` function the socket handler calls —
 // `runWanLease`, `runBackupNow`, `runPackageSchedule`, `runPackageApply`,
-// `runFirmwareUpgrade` — which is why those were extracted first. Two paths to
+// `runFirmwareUpgrade`, and the Tools page's `runTorch` — which is why those
+// were extracted first. Two paths to
 // one router command would be two places for the guard, the audit row and the
 // refresh to drift apart.
 //
@@ -25,6 +26,7 @@ import (
 
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/diag"
 )
 
 // runAIActionTool is `run_action`. Like every tool it returns an ANSWER rather
@@ -153,6 +155,8 @@ func aiActionLabel(spec aitools.ActionSpec, mode string) string {
 		return "Apply package changes and reboot"
 	case "firmware_upgrade_and_reboot":
 		return "Upgrade RouterBOOT firmware and reboot"
+	case "torch":
+		return "Watch an interface's traffic"
 	}
 	return spec.Key
 }
@@ -173,6 +177,8 @@ func aiActionCommand(spec aitools.ActionSpec, target, mode string) string {
 		return "/system/package/apply-changes"
 	case "firmware_upgrade_and_reboot":
 		return "/system/routerboard/upgrade, then /system/reboot"
+	case "torch":
+		return fmt.Sprintf("/tool/torch interface=%s duration=%ds", target, diag.TorchDefaultSeconds)
 	}
 	return ""
 }
@@ -211,6 +217,8 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, confirm string) {
 		out = cn.runPackageApply(confirm, "agent")
 	case "firmware_upgrade_and_reboot":
 		out = cn.runFirmwareUpgrade(confirm, "agent")
+	case "torch":
+		out = cn.runTorchAction(p.target)
 	}
 
 	if out.Code != "" {
@@ -270,6 +278,10 @@ func aiActionRefusal(spec aitools.ActionSpec, out writeOutcome) string {
 		return "Not run: the RouterBOOT firmware is already current."
 	case "rate-limited":
 		return "Not run: too many changes to this router in the last minute."
+	case "busy":
+		return "Not run: another diagnostic is still running for this operator."
+	case "interface":
+		return "Not run: this router has no interface of that name."
 	}
 	if msg, _ := out.Detail["message"].(string); msg != "" {
 		return "Not run: the router refused it: " + msg
@@ -305,6 +317,10 @@ func aiActionApplied(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutco
 			"will be unreachable for a minute or two."
 	case "firmware_upgrade_and_reboot":
 		return "Done: the RouterBOOT firmware upgrade was started and the router is rebooting."
+	case "torch":
+		if r, ok := out.Detail["torch"].(*diag.TorchResult); ok {
+			return torchSummary(r)
+		}
 	}
 	return "Done."
 }
