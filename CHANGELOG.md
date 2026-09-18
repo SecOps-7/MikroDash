@@ -2,6 +2,43 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.61] - AI Agent answers big questions, and Address Lists handles large blocklists
+
+### New
+
+- **Token budget** in Settings → AI Agent, beside Timeout. How much the model may write
+  in one reply, its reasoning included. Default 8,192; raise it if answers come back cut
+  off.
+- **Address Lists opens as one row per list**, with its entry, dynamic and disabled
+  counts. Click a list to see its entries: up to 500 at a time, with a search that runs
+  on the server. A synced blocklist of tens of thousands of entries no longer resends
+  every entry to the browser each minute.
+
+### Changed
+
+- **The Home, Standard and Advanced presets include the new pages**, in Settings →
+  Visible Pages and in a role's page access. Standard now adds Tools, IP Addresses,
+  Address Lists, Interface Lists, IP Pools and DHCP Servers; Advanced includes every page.
+- **The assistant reads address lists one list at a time**: it sees each list and its
+  counts, then asks for the list it needs.
+
+### Fixed
+
+- **The AI Agent no longer gives a blank answer.** A reasoning model could spend its
+  whole reply budget thinking and write nothing; the budget is larger now, a reply that
+  still runs out says so, and one cut short is marked as cut off.
+- **Unanswered questions are no longer replayed** to the model with later ones.
+- **A role given the Advanced preset can see the new pages**, Tools and the AI Agent. It
+  gave them no access before.
+- **Saving, deleting or undoing a row reads only that row** from the router, not the
+  whole table. Editing one address-list entry among 37,000 took about 12 seconds of
+  router reads; it now takes a fraction of a second.
+
+### Internal
+
+- A generated table can declare `GroupBy`; each generated page declares its preset tier.
+- The router adapter passes back the id an `add` reports (`Cmd.Ret`).
+
 ## [0.8.60] - 22 new RouterOS pages, a Tools page, and an assistant that reaches them
 
 Twenty-two new pages for RouterOS menus MikroDash did not cover, a Tools page for
