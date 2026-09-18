@@ -138,8 +138,17 @@ function columnLabel(name: string): string {
  * document and an area is not: forty areas would be forty hand-edits of one file,
  * and the entry would be the half somebody forgets. `applyPageVisibility` then
  * hides or shows it exactly as it does a hand-built page's.
+ *
+ * ── CALLED BY main.ts BEFORE wireNav, AND ONLY THERE ────────────────────────
+ *
+ * `wireNav` binds a click listener to each `.nav-item` that exists when it runs.
+ * This was called from `initAreaPages`, two hundred lines later, so every
+ * generated entry appeared in the nav and did nothing when clicked: the pages
+ * were reachable only by URL, which is how every check had opened them. Found
+ * on 2026-09-18 clicking Address Lists. `web/test/area-nav-wired.test.ts` pins
+ * the order.
  */
-function mountNav(): void {
+export function mountAreaNav(): void {
   for (const area of AREAS) {
     if (document.querySelector('.nav-item[data-page="' + area.key + '"]')) continue;
     const group = document.querySelector('#navgrp-' + area.navGroup);
@@ -158,7 +167,6 @@ function mountNav(): void {
 
 export function initAreaPages(socket: Socket, isVisible: (page: string) => boolean): void {
   if (AREAS.length === 0) return;
-  mountNav();
   mountAdds(socket);
   mountRows(socket);
 

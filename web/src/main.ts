@@ -49,7 +49,7 @@ import { initFirewallPage } from './pages/firewall';
 import { initWifiPage } from './pages/wifi';
 import { initCapsmanPage } from './pages/capsman';
 import { initInterfacesPage } from './pages/interfaces';
-import { initAreaPages } from './pages/area';
+import { initAreaPages, mountAreaNav } from './pages/area';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -393,6 +393,9 @@ async function main(): Promise<void> {
   // favicon (issue #131). Fetched, so the markup's MikroDash shows until it lands.
   void loadBranding();
 
+  // The generated pages' nav entries, BEFORE wireNav binds a click to each entry
+  // that exists: mounted after it, they rendered and went nowhere.
+  mountAreaNav();
   wireNav(socket);
   initNav();
   // The Dashboard's cards. Subscribed once at boot rather than on navigation:
