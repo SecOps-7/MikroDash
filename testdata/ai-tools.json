@@ -71,6 +71,12 @@
       "page": "capsman"
     },
     {
+      "name": "list_certificate",
+      "access": "read",
+      "resource": "certificate",
+      "page": "certificates"
+    },
+    {
       "name": "list_connections",
       "access": "read",
       "resource": "",

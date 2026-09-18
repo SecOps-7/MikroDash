@@ -123,6 +123,14 @@ var declared = []Area{
 			Columns: []string{"name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"}}},
 		Poll: 60 * time.Second,
 	},
+	// Certificates: what the router holds, and until when. Removing the one
+	// api-ssl presents is refused while MikroDash speaks TLS.
+	{
+		Key: "certificates", Title: "Certificates", NavGroup: "security",
+		Tables: []Table{{Resource: "certificate",
+			Columns: []string{"name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

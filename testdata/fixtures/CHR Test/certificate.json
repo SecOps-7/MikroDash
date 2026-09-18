@@ -1,0 +1,66 @@
+{
+ "collector": "areas",
+ "resource": "certificate",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router as it stands: its own test CA and the api-ssl certificate it signed, both lab-made. The serial numbers, fingerprints and key identifiers are replaced with synthetic values; nothing else identifies anything. What is real is the reply's shape. No private key is ever returned by /certificate/print, only the private-key flag. Read through /certificate/print; tools/capture-fixtures.js cannot capture an area.",
+ "exchanges": [
+  {
+   "cmd": "/certificate/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "akid": "",
+     "authority": "true",
+     "common-name": "chr-test-ca",
+     "crl": "false",
+     "days-valid": "365",
+     "digest-algorithm": "sha256",
+     "expires-after": "50w4d4h58m15s",
+     "fingerprint": "0000000000000000000000000000000000000000000000000000000000000001",
+     "invalid-after": "2027-09-07 13:29:17",
+     "invalid-before": "2026-09-07 13:29:17",
+     "issued": "false",
+     "key-size": "2048",
+     "key-type": "rsa",
+     "key-usage": "key-cert-sign,crl-sign",
+     "name": "chr-ca",
+     "private-key": "true",
+     "serial-number": "0000000000000001",
+     "skid": "0000000000000000000000000000000000000001",
+     "subject-alt-name": "",
+     "trust-store": "all",
+     "trusted": "true"
+    },
+    {
+     ".id": "*2",
+     "akid": "0000000000000000000000000000000000000002",
+     "authority": "true",
+     "ca": "chr-ca",
+     "common-name": "chr-test",
+     "crl": "false",
+     "days-valid": "365",
+     "digest-algorithm": "sha256",
+     "expires-after": "50w4d4h59m",
+     "fingerprint": "0000000000000000000000000000000000000000000000000000000000000002",
+     "invalid-after": "2027-09-07 13:30:02",
+     "invalid-before": "2026-09-07 13:30:02",
+     "issued": "true",
+     "key-size": "2048",
+     "key-type": "rsa",
+     "key-usage": "digital-signature,key-encipherment,data-encipherment,key-cert-sign,crl-sign,tls-server,tls-client",
+     "name": "chr-api",
+     "private-key": "true",
+     "serial-number": "0000000000000002",
+     "skid": "0000000000000000000000000000000000000002",
+     "subject-alt-name": "",
+     "trust-store": "all",
+     "trusted": "false"
+    }
+   ]
+  }
+ ]
+}

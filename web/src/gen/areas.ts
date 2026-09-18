@@ -51,6 +51,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "certificates", title: "Certificates", navGroup: "security",
+    tables: [
+      { resource: "certificate", title: "Certificate", columns: ["name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

@@ -42,6 +42,11 @@
       "settingsKey": null
     },
     {
+      "key": "certificates",
+      "title": "Certificates",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

@@ -992,6 +992,46 @@ var IPService = &Resource{
 	},
 }
 
+// Certificate is /certificate (slice 6). From the RouterOS command tree for
+// /certificate/set and a 7.24 capture.
+//
+// ── WHAT IS OFFERED, AND WHY NOT MORE ───────────────────────────────────────
+//
+// Creating a certificate is a template followed by a signing, which is a flow
+// rather than a row, so there is no Add. Most of /certificate/set applies only
+// to an unsigned template, so on this page a certificate's name, whether it is
+// trusted and its trust stores are what can change. RENAMING IS SAFE: measured
+// on the CHR on 2026-09-18, a service's reference follows the rename.
+//
+// ── GUARDED, BECAUSE ROUTEROS IS NOT ────────────────────────────────────────
+//
+// Measured the same day: removing a certificate a service uses is ACCEPTED, and
+// the service is left pointing at a dangling id. `certLockout` refuses removing
+// the one api-ssl presents while MikroDash speaks TLS (guard/serviceguard.go).
+// No private key is ever read: /certificate/print carries only a flag.
+var Certificate = &Resource{
+	Key: "certificate", Page: "certificates", Label: "Certificate",
+	Title: "Certificate", Menu: "/certificate", Identity: []string{"name"},
+	NoCreate: true,
+	Guard:    []string{"certLockout"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true},
+		{Name: "trusted", ROS: "trusted", Label: "Trusted", Type: TypeBool, Clearable: true},
+		// Plain text: a comma-separated list of stores whose set grows with each
+		// RouterOS version (twenty-three in 7.23), so a picker would go stale.
+		{Name: "trustStore", ROS: "trust-store", Label: "Trust Store", Type: TypeText, Placeholder: "all",
+			Help: "Which features may trust this certificate, comma separated: all, or e.g. ipsec, fetch, dns."},
+		{Name: "commonName", ROS: "common-name", Label: "Common Name", Type: TypeText, Display: true},
+		{Name: "privateKey", ROS: "private-key", Label: "Private Key", Type: TypeBool, Display: true},
+		{Name: "authority", ROS: "authority", Label: "Authority", Type: TypeBool, Display: true},
+		{Name: "keyType", ROS: "key-type", Label: "Key Type", Type: TypeText, Display: true},
+		{Name: "keySize", ROS: "key-size", Label: "Key Size", Type: TypeText, Display: true},
+		{Name: "invalidAfter", ROS: "invalid-after", Label: "Invalid After", Type: TypeText, Display: true},
+		{Name: "expiresAfter", ROS: "expires-after", Label: "Expires In", Type: TypeText, Display: true},
+		{Name: "fingerprint", ROS: "fingerprint", Label: "Fingerprint", Type: TypeText, Display: true},
+	},
+}
+
 var IPPool = &Resource{
 	Key: "ipPool", Page: "ip-pools", Label: "IP Pool",
 	Title: "IP Pool", Menu: "/ip/pool", Identity: []string{"name"},
@@ -1618,6 +1658,7 @@ var byKey = map[string]*Resource{
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,
 	IPService.Key:           IPService,
+	Certificate.Key:         Certificate,
 	RosUser.Key:             RosUser,
 	RosGroup.Key:            RosGroup,
 	Bridge.Key:              Bridge,
