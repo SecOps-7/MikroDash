@@ -365,17 +365,17 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 // The arguments are the page's own request, bounded by internal/diag exactly as
 // the page's are, so the model can ask for nothing a viewer of the page could
 // not.
-func (cn *conn) runDiagTool(t aitools.Tool, tc aiprovider.ToolCall) string {
+func (cn *conn) runDiagTool(sc connScope, t aitools.Tool, tc aiprovider.ToolCall) string {
 	run, ok := diagRunners[t.Diagnostic]
 	if !ok {
 		return "That tool is not available on this build."
 	}
 	// THE TOOL'S OWN ACCESS, which for a diagnostic is not always read: the
 	// caller checked read, and torch and bandwidth test will need write.
-	if !cn.canPage(t.Page, t.Access) {
+	if !cn.canPageIn(sc, t.Page, t.Access) {
 		return "You do not have access to that tool, so nothing was run."
 	}
-	if cn.rsession == nil {
+	if sc.rs == nil {
 		return "No device is selected, so nothing was run."
 	}
 	// THE SAME ONE-AT-A-TIME RULE as the page, and on the same flag: the page
@@ -384,7 +384,7 @@ func (cn *conn) runDiagTool(t aitools.Tool, tc aiprovider.ToolCall) string {
 		return "Another diagnostic is still running for this operator; try again when it has finished."
 	}
 	defer cn.toolBusy.Store(false)
-	res, why := run(cn.rsession, []byte(tc.Function.Arguments))
+	res, why := run(sc.rs, []byte(tc.Function.Arguments))
 	if why != "" {
 		return why
 	}

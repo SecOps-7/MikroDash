@@ -35,6 +35,7 @@ import (
 	"errors"
 	"log"
 	"mikrodash/internal/areas"
+	"mikrodash/internal/session"
 	"net"
 	"net/netip"
 	"sort"
@@ -207,7 +208,13 @@ func (cn *conn) readRow(res *resource.Resource, id string) ([]routeros.Reply, er
 var errNoRet = errors.New("the router did not name the row it created")
 
 func (cn *conn) readMenuWhere(res *resource.Resource, query ...string) ([]routeros.Reply, error) {
-	rows, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/print", Args: query})
+	return readMenuOn(cn.rsession, res, query...)
+}
+
+// readMenuOn is readMenu against a given session: the assistant's snapshot,
+// which is not the connection's live field (see conn).
+func readMenuOn(rs *session.Session, res *resource.Resource, query ...string) ([]routeros.Reply, error) {
+	rows, err := rs.Exec(routeros.Cmd{Path: res.Menu + "/print", Args: query})
 	if err != nil {
 		return nil, err
 	}

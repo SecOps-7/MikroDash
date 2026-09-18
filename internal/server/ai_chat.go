@@ -168,6 +168,9 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 	// AND THE ROUTER IS PINNED for the same reason: a `router:select` landing
 	// mid-answer must not redirect the refresh at another device.
 	rs := cn.rsession
+	// THE WHOLE EXCHANGE IS ABOUT THIS ROUTER: its tools read this snapshot, and
+	// its writes refuse if the connection has moved on (see runAITool).
+	sc := cn.scope()
 	// THE THREAD IS PINNED WITH IT. The question is saved under the router it was
 	// asked about, even if the operator has switched away by the time it lands.
 	histUser, histRouter := cn.aiHistoryUser(), cn.routerID
@@ -230,7 +233,7 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 				return aiprovider.Stream(ctx, cfg.Client(), cfg, m, cfg.ReplyTokens(),
 					func(piece string) { chunk(piece, false) }, tl...)
 			},
-			cn.runAITool)
+			func(tc aiprovider.ToolCall) string { return cn.runAITool(sc, tc) })
 		if err != nil {
 			// SANITISED. A transport error carries the endpoint's host and port,
 			// and an authentication failure can echo part of the key back.

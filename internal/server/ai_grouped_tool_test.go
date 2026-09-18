@@ -36,7 +36,7 @@ func TestTheAddressListToolAnswersEachListWithoutReadingEveryField(t *testing.T)
 			{"list": "prod_blocklist", "dynamic": "false", "disabled": "false"},
 			{"list": "Trusted IPs", "dynamic": "false", "disabled": "true"}}
 	})
-	out := cn.runAITool(callTool("list_addressList", `{}`))
+	out := cn.runAITool(cn.scope(), callTool("list_addressList", `{}`))
 	if len(*sent) != 1 || strings.Join((*sent)[0].Args, " ") != "=.proplist=list,dynamic,disabled" {
 		t.Fatalf("sent %v; want one print of list, dynamic and disabled only", *sent)
 	}
@@ -52,7 +52,7 @@ func TestTheAddressListToolReadsOneListOnTheRouter(t *testing.T) {
 	cn, sent := groupedToolConn(t, func(routeros.Cmd) []routeros.Reply {
 		return []routeros.Reply{{".id": "*A", "list": "Trusted IPs", "address": "198.51.100.7"}}
 	})
-	out := cn.runAITool(callTool("list_addressList", `{"list":"Trusted IPs"}`))
+	out := cn.runAITool(cn.scope(), callTool("list_addressList", `{"list":"Trusted IPs"}`))
 	if len(*sent) != 1 {
 		t.Fatalf("%d commands; want one read", len(*sent))
 	}
@@ -67,7 +67,7 @@ func TestTheAddressListToolReadsOneListOnTheRouter(t *testing.T) {
 // A name longer than any list is refused without reading anything.
 func TestTheAddressListToolRefusesAnAbsurdName(t *testing.T) {
 	cn, sent := groupedToolConn(t, func(routeros.Cmd) []routeros.Reply { return nil })
-	out := cn.runAITool(callTool("list_addressList", `{"list":"`+strings.Repeat("x", aiGroupArgMax+1)+`"}`))
+	out := cn.runAITool(cn.scope(), callTool("list_addressList", `{"list":"`+strings.Repeat("x", aiGroupArgMax+1)+`"}`))
 	if len(*sent) != 0 || !strings.Contains(out, "too long") {
 		t.Errorf("sent %d commands, answered %q; want a refusal and no read", len(*sent), out)
 	}
@@ -78,7 +78,7 @@ func TestAnUngroupedListToolStillReadsItsMenu(t *testing.T) {
 	cn, sent := groupedToolConn(t, func(routeros.Cmd) []routeros.Reply {
 		return []routeros.Reply{{".id": "*1", "name": "lan", "ranges": "198.51.100.10-198.51.100.20"}}
 	})
-	out := cn.runAITool(callTool("list_ipPool", `{}`))
+	out := cn.runAITool(cn.scope(), callTool("list_ipPool", `{}`))
 	if len(*sent) != 1 || len((*sent)[0].Args) != 0 || (*sent)[0].Path != "/ip/pool/print" {
 		t.Errorf("sent %v; want one unfiltered print of /ip/pool", *sent)
 	}

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"mikrodash/internal/session"
 	"net"
 	"sort"
 	"strings"
@@ -49,33 +50,35 @@ const aiLiveMaxAge = 5 * time.Second
 // A LEDGER IN BOTH DIRECTIONS (`TestEveryLiveToolHasAReader`): a live tool with
 // no reader would be advertised and then answer "not available", and a reader no
 // tool names is code nothing can reach.
-var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
-	"ifStatus":     (*conn).liveInterfaceTraffic,
-	"wan":          (*conn).liveWanStatus,
-	"packages":     (*conn).livePackages,
-	"rosusers":     (*conn).liveRouterUsers,
-	"queues":       (*conn).liveQueues,
-	"logs":         (*conn).liveLogs,
-	"wireless":     (*conn).liveWifiClients,
-	"conns":        (*conn).liveConnections,
-	"bandwidth":    (*conn).liveBandwidth,
-	"topology":     (*conn).liveTopology,
-	"vpn":          (*conn).liveWireguardStatus,
-	"ppp":          (*conn).livePPPSessions,
-	"routing":      (*conn).liveBGPSessions,
-	"capsman":      (*conn).liveCapsman,
-	"dhcpNetworks": (*conn).liveDHCPNetworks,
+var liveToolReaders = map[string]func(rs *session.Session, t aitools.Tool) string{
+	"ifStatus":     liveInterfaceTraffic,
+	"wan":          liveWanStatus,
+	"packages":     livePackages,
+	"rosusers":     liveRouterUsers,
+	"queues":       liveQueues,
+	"logs":         liveLogs,
+	"wireless":     liveWifiClients,
+	"conns":        liveConnections,
+	"bandwidth":    liveBandwidth,
+	"topology":     liveTopology,
+	"vpn":          liveWireguardStatus,
+	"ppp":          livePPPSessions,
+	"routing":      liveBGPSessions,
+	"capsman":      liveCapsman,
+	"dhcpNetworks": liveDHCPNetworks,
 }
 
-func (cn *conn) runLiveTool(t aitools.Tool) string {
+// runLiveTool reads the collector on the session the question was asked about:
+// the exchange's snapshot, never the connection's live field (see conn).
+func runLiveTool(rs *session.Session, t aitools.Tool) string {
 	read, ok := liveToolReaders[t.Collector]
 	if !ok {
 		return "That tool is not available on this build."
 	}
-	if cn.rsession == nil {
+	if rs == nil {
 		return "No device is selected, so nothing was read."
 	}
-	return read(cn, t)
+	return read(rs, t)
 }
 
 // liveReadingDue decides whether a live tool must re-read its collector before
@@ -174,8 +177,8 @@ func capRows[T any](rows []T) (kept []T, truncated bool) {
 
 // ── list_interface_traffic ──────────────────────────────────────────────────
 
-func (cn *conn) liveInterfaceTraffic(t aitools.Tool) string {
-	col := cn.rsession.IfStatus()
+func liveInterfaceTraffic(rs *session.Session, t aitools.Tool) string {
+	col := rs.IfStatus()
 	return liveAnswer(t, liveSource[collect.IfStatusPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.IfStatusPayload) (int64, int) { return p.TS, 0 },
@@ -218,8 +221,8 @@ func renderInterfaceTraffic(p *collect.IfStatusPayload) any {
 
 // ── list_wan_status ─────────────────────────────────────────────────────────
 
-func (cn *conn) liveWanStatus(t aitools.Tool) string {
-	col := cn.rsession.Wan()
+func liveWanStatus(rs *session.Session, t aitools.Tool) string {
+	col := rs.Wan()
 	return liveAnswer(t, liveSource[collect.WANPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.WANPayload) (int64, int) { return p.TS, p.PollMs },
@@ -300,8 +303,8 @@ func renderWanStatus(p *collect.WANPayload) any {
 
 // ── list_packages ───────────────────────────────────────────────────────────
 
-func (cn *conn) livePackages(t aitools.Tool) string {
-	col := cn.rsession.Packages()
+func livePackages(rs *session.Session, t aitools.Tool) string {
+	col := rs.Packages()
 	return liveAnswer(t, liveSource[collect.PackagesPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.PackagesPayload) (int64, int) { return p.TS, p.PollMs },
@@ -381,8 +384,8 @@ func renderPackages(p *collect.PackagesPayload) any {
 
 // ── list_router_users ───────────────────────────────────────────────────────
 
-func (cn *conn) liveRouterUsers(t aitools.Tool) string {
-	col := cn.rsession.RosUsers()
+func liveRouterUsers(rs *session.Session, t aitools.Tool) string {
+	col := rs.RosUsers()
 	return liveAnswer(t, liveSource[collect.RosUsersPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.RosUsersPayload) (int64, int) { return p.TS, p.PollMs },
@@ -487,8 +490,8 @@ func nonNil(s []string) []string {
 // refreshed reading use RouterOS's own current `rate`, labelled `router`, which
 // is an honest first sample. With the page open no refresh is forced and the
 // measured deltas pass through untouched.
-func (cn *conn) liveQueues(t aitools.Tool) string {
-	col := cn.rsession.Queues()
+func liveQueues(rs *session.Session, t aitools.Tool) string {
+	col := rs.Queues()
 	return liveAnswer(t, liveSource[collect.QueuesPayload]{
 		last:  col.Last,
 		stamp: func(p *collect.QueuesPayload) (int64, int) { return p.TS, p.PollMs },
@@ -601,8 +604,8 @@ type logsReading struct {
 	ts      int64
 }
 
-func (cn *conn) liveLogs(t aitools.Tool) string {
-	col := cn.rsession.Logs()
+func liveLogs(rs *session.Session, t aitools.Tool) string {
+	col := rs.Logs()
 	return liveAnswer(t, liveSource[logsReading]{
 		last: func() *logsReading {
 			h := col.Last()
@@ -669,9 +672,9 @@ func renderLogs(r *logsReading) any {
 // never loaded is loaded first; the lease table being newer than the list, or
 // ARP knowing an address for a client the list shows without one, re-derives it.
 // Both checks read memory, so a list that is already joined costs nothing.
-func (cn *conn) liveWifiClients(t aitools.Tool) string {
-	col := cn.rsession.Wireless()
-	leases, arp := cn.rsession.DHCPLeases(), cn.rsession.ARP()
+func liveWifiClients(rs *session.Session, t aitools.Tool) string {
+	col := rs.Wireless()
+	leases, arp := rs.DHCPLeases(), rs.ARP()
 	rederive := false
 	if leases != nil && leases.Last() == nil {
 		leases.RefreshNow()
@@ -776,9 +779,9 @@ func renderWifiClients(p *collect.WirelessPayload) any {
 // on list_wifi_clients, and applied here from the start: load a join that has
 // never loaded, and re-derive the summary when a join is newer than it or ARP can
 // now name a source it lists without a MAC.
-func (cn *conn) liveConnections(t aitools.Tool) string {
-	col := cn.rsession.Conns()
-	leases, arp, nets := cn.rsession.DHCPLeases(), cn.rsession.ARP(), cn.rsession.DHCPNetworks()
+func liveConnections(rs *session.Session, t aitools.Tool) string {
+	col := rs.Conns()
+	leases, arp, nets := rs.DHCPLeases(), rs.ARP(), rs.DHCPNetworks()
 	rederive := false
 	if leases != nil && leases.Last() == nil {
 		leases.RefreshNow()
@@ -920,9 +923,9 @@ func renderConnections(p *collect.ConnsPayload) any {
 // is not already measuring.
 const bandwidthSampleGap = 2 * time.Second
 
-func (cn *conn) liveBandwidth(t aitools.Tool) string {
-	col := cn.rsession.Bandwidth()
-	leases, arp, nets := cn.rsession.DHCPLeases(), cn.rsession.ARP(), cn.rsession.DHCPNetworks()
+func liveBandwidth(rs *session.Session, t aitools.Tool) string {
+	col := rs.Bandwidth()
+	leases, arp, nets := rs.DHCPLeases(), rs.ARP(), rs.DHCPNetworks()
 	loaded := false
 	if leases != nil && leases.Last() == nil {
 		leases.RefreshNow()
@@ -1030,8 +1033,8 @@ func renderBandwidth(p *collect.BandwidthPayload) any {
 
 // ── list_topology ───────────────────────────────────────────────────────────
 
-func (cn *conn) liveTopology(t aitools.Tool) string {
-	col := cn.rsession.Topology()
+func liveTopology(rs *session.Session, t aitools.Tool) string {
+	col := rs.Topology()
 	return liveAnswer(t, liveSource[collect.TopologyPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.TopologyPayload) (int64, int) { return p.TS, p.PollMs },
@@ -1143,8 +1146,8 @@ func topoNeighbourRow(v collect.TopoNeighbor) liveTopoDevice {
 // liveWireguardStatus samples twice when the VPN page is not measuring, for the
 // reason list_bandwidth does: peer rates are byte-counter deltas against the
 // previous reading, which after a suspend is old, and a first reading is 0.
-func (cn *conn) liveWireguardStatus(t aitools.Tool) string {
-	col := cn.rsession.VPN()
+func liveWireguardStatus(rs *session.Session, t aitools.Tool) string {
+	col := rs.VPN()
 	return liveAnswer(t, liveSource[collect.VPNPayload]{
 		last:  col.Last,
 		stamp: func(p *collect.VPNPayload) (int64, int) { return p.TS, p.PollMs },
@@ -1218,8 +1221,8 @@ func renderWireguardStatus(p *collect.VPNPayload) any {
 // hAP AC2 with a live L2TP session: the counters are on the dynamic
 // <service-user> interface instead), so every rate it holds is 0 or null. A 0
 // handed to the model reads as "idle"; the answer says where the traffic is.
-func (cn *conn) livePPPSessions(t aitools.Tool) string {
-	col := cn.rsession.PPP()
+func livePPPSessions(rs *session.Session, t aitools.Tool) string {
+	col := rs.PPP()
 	return liveAnswer(t, liveSource[collect.PPPPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.PPPPayload) (int64, int) { return p.TS, p.PollMs },
@@ -1280,8 +1283,8 @@ func pppInterfaceName(service, user string) string {
 // session menu. A forced refresh also re-reads the route tables (RefreshNow
 // resets the slow-lane count), which costs more than the question needs but keeps
 // one refresh path for the collector.
-func (cn *conn) liveBGPSessions(t aitools.Tool) string {
-	col := cn.rsession.Routing()
+func liveBGPSessions(rs *session.Session, t aitools.Tool) string {
+	col := rs.Routing()
 	return liveAnswer(t, liveSource[collect.RoutingPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.RoutingPayload) (int64, int) { return p.TS, p.PollMs },
@@ -1333,8 +1336,8 @@ func renderBGPSessions(p *collect.RoutingPayload) any {
 // liveCapsman is metadata: which CAPs are attached changes on the scale of
 // reboots, and a forced refresh re-reads the manager, CAP and profile menus as
 // well as the registration table.
-func (cn *conn) liveCapsman(t aitools.Tool) string {
-	col := cn.rsession.Capsman()
+func liveCapsman(rs *session.Session, t aitools.Tool) string {
+	col := rs.Capsman()
 	return liveAnswer(t, liveSource[collect.CapsmanPayload]{
 		last:    col.Last,
 		stamp:   func(p *collect.CapsmanPayload) (int64, int) { return p.TS, p.PollMs },
@@ -1419,9 +1422,9 @@ func renderCapsman(p *collect.CapsmanPayload) any {
 // table as it stands. The counts are a join against the leases collector, so a
 // payload derived before the leases loaded says 0 leased while it is still fresh
 // (the list_wifi_clients trap). Checked in memory, so it costs no router read.
-func (cn *conn) liveDHCPNetworks(t aitools.Tool) string {
-	col := cn.rsession.DHCPNetworks()
-	leases := cn.rsession.DHCPLeases()
+func liveDHCPNetworks(rs *session.Session, t aitools.Tool) string {
+	col := rs.DHCPNetworks()
+	leases := rs.DHCPLeases()
 	if leases != nil && leases.Last() == nil {
 		leases.RefreshNow()
 	}
