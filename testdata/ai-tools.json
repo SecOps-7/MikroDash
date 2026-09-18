@@ -428,6 +428,12 @@
       "page": "vlans"
     },
     {
+      "name": "list_vrrp",
+      "access": "read",
+      "resource": "vrrp",
+      "page": "vrrp"
+    },
+    {
       "name": "list_wan_status",
       "access": "read",
       "resource": "",

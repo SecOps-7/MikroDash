@@ -161,6 +161,13 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "vrrp", title: "VRRP", navGroup: "network",
+    icon: "<rect x=\"3\" y=\"14\" width=\"7\" height=\"6\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"6\" rx=\"1\"/><circle cx=\"12\" cy=\"5\" r=\"2.5\"/><path d=\"M6.5 14v-3h11v3\"/><path d=\"M12 7.5V11\"/>",
+    tables: [
+      { resource: "vrrp", title: "VRRP Interface", columns: ["name", "interface", "vrid", "priority", "version", "running", "invalid", "disabled", "comment"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

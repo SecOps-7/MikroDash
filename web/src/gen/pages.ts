@@ -53,6 +53,7 @@ export const PAGES: readonly Page[] = [
   { key: "ospf", title: "OSPF", path: "ospf" },
   { key: "ipsec", title: "IPsec", path: "ipsec" },
   { key: "openvpn", title: "OpenVPN", path: "openvpn" },
+  { key: "vrrp", title: "VRRP", path: "vrrp" },
   { key: "tools", title: "Tools", path: "tools" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },

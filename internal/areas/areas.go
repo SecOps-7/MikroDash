@@ -281,6 +281,15 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// VRRP: virtual router addresses shared between routers, and which one
+	// holds each. Its scripts are behind codeGate.
+	{
+		Key: "vrrp", Title: "VRRP", NavGroup: "network",
+		Icon: `<rect x="3" y="14" width="7" height="6" rx="1"/><rect x="14" y="14" width="7" height="6" rx="1"/><circle cx="12" cy="5" r="2.5"/><path d="M6.5 14v-3h11v3"/><path d="M12 7.5V11"/>`,
+		Tables: []Table{{Resource: "vrrp",
+			Columns: []string{"name", "interface", "vrid", "priority", "version", "running", "invalid", "disabled", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

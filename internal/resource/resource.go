@@ -1820,6 +1820,47 @@ var OVPNClient = &Resource{
 	},
 }
 
+// VRRP is /interface/vrrp: a virtual router address shared between routers.
+// Checked against rosetta and the CHR (7.24.3). A VRRP interface is an interface
+// named after itself, so it carries selfPath: MikroDash may be managing the
+// router through the virtual address, and disabling the interface, or changing
+// what decides who holds it, moves that address. Its on-master, on-backup and
+// on-fail are RouterOS code, behind codeGate as a scheduler's on-event is; the
+// authentication password is a secret, never read.
+var VRRP = &Resource{
+	Key: "vrrp", Page: "vrrp", Label: "VRRP Interface",
+	Title: "VRRP Interface", Menu: "/interface/vrrp", Identity: []string{"name"},
+	Guard:                 []string{"selfPath", "codeGate"},
+	GuardInterfaceFields:  []string{"name"},
+	GuardDisruptiveFields: []string{"interface", "vrid", "priority", "version", "authentication", "password"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "vrrp1"},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "vrid", ROS: "vrid", Label: "VRID", Type: TypeInt, Min: intp(1), Max: intp(255)},
+		{Name: "priority", ROS: "priority", Label: "Priority", Type: TypeInt, Min: intp(1), Max: intp(254),
+			Help: "The highest priority holds the address."},
+		{Name: "interval", ROS: "interval", Label: "Interval", Type: TypeText, Placeholder: "1s"},
+		{Name: "version", ROS: "version", Label: "Version", Type: TypeSelect, Options: []string{"3", "2"}},
+		{Name: "v3Protocol", ROS: "v3-protocol", Label: "v3 Protocol", Type: TypeSelect, Options: []string{"ipv4", "ipv6"},
+			ShowIf: &ShowIf{Field: "version", In: []string{"3"}}},
+		{Name: "preemptionMode", ROS: "preemption-mode", Label: "Preemption", Type: TypeBool, Clearable: true},
+		{Name: "authentication", ROS: "authentication", Label: "Authentication", Type: TypeSelect,
+			Options: []string{"none", "simple", "ah"}, ShowIf: &ShowIf{Field: "version", In: []string{"2"}}},
+		{Name: "password", ROS: "password", Label: "Password", Type: TypeSecret,
+			ShowIf: &ShowIf{Field: "authentication", In: []string{"simple", "ah"}}},
+		{Name: "syncConnectionTracking", ROS: "sync-connection-tracking", Label: "Sync Connection Tracking",
+			Type: TypeBool, Clearable: true},
+		{Name: "onMaster", ROS: "on-master", Label: "On Master", Type: TypeCode, Code: true, Clearable: true},
+		{Name: "onBackup", ROS: "on-backup", Label: "On Backup", Type: TypeCode, Code: true, Clearable: true},
+		{Name: "onFail", ROS: "on-fail", Label: "On Fail", Type: TypeCode, Code: true, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "running", ROS: "running", Label: "Running", Type: TypeBool, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2470,6 +2511,7 @@ var byKey = map[string]*Resource{
 	IPsecPolicy.Key:         IPsecPolicy,
 	OVPNServer.Key:          OVPNServer,
 	OVPNClient.Key:          OVPNClient,
+	VRRP.Key:                VRRP,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

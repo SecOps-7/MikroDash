@@ -1,0 +1,71 @@
+{
+ "collector": "areas",
+ "resource": "vrrp",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. Two VRRP interfaces created FOR the capture: one with an address and one disabled, simple authentication and an on-master script. The MAC addresses are VRRP's own virtual ones (00:00:5E:00:01:<vrid>), standard and not identifying. `password` is dropped as every credential is. Without an IPv4 address an interface is invalid with .about \"No IPv4 address!\". Read through /interface/vrrp/print.",
+ "exchanges": [
+  {
+   "cmd": "/interface/vrrp/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*6",
+     "arp": "enabled",
+     "arp-timeout": "auto",
+     "authentication": "none",
+     "backup": "true",
+     "comment": "md-vrrp-test",
+     "connection-tracking-mode": "passive-active",
+     "disabled": "false",
+     "group-authority": "",
+     "interface": "ether1",
+     "interval": "1s",
+     "invalid": "false",
+     "mac-address": "00:00:5E:00:01:2A",
+     "mtu": "1500",
+     "name": "md-vrrp",
+     "on-backup": "",
+     "on-fail": "",
+     "on-master": "",
+     "preemption-mode": "true",
+     "priority": "150",
+     "running": "false",
+     "sync-connection-tracking": "false",
+     "v3-checksum-as-v2": "false",
+     "v3-protocol": "ipv4",
+     "version": "3",
+     "vrid": "42"
+    },
+    {
+     ".id": "*7",
+     "arp": "enabled",
+     "arp-timeout": "auto",
+     "authentication": "simple",
+     "comment": "md-vrrp-test",
+     "connection-tracking-mode": "passive-active",
+     "disabled": "true",
+     "group-authority": "",
+     "interface": "ether1",
+     "interval": "1s",
+     "mac-address": "00:00:5E:00:01:2B",
+     "mtu": "1500",
+     "name": "md-vrrp3",
+     "on-backup": "",
+     "on-fail": "",
+     "on-master": ":log info vrrp-master",
+     "preemption-mode": "true",
+     "priority": "100",
+     "running": "false",
+     "sync-connection-tracking": "false",
+     "v3-checksum-as-v2": "false",
+     "v3-protocol": "ipv4",
+     "version": "2",
+     "vrid": "43"
+    }
+   ]
+  }
+ ]
+}
