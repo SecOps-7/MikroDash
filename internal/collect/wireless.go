@@ -512,7 +512,12 @@ func (w *Wireless) Reconnected() {
 		}
 	}
 	w.Tick()
-	w.loop.start()
+	// sched.begin, NOT the raw loop: this collector is scheduled, and
+	// scheduled.end stops the loop only when there is no cache. Started
+	// directly, the loop outlived every Suspend and Stop after a reconnect and
+	// polled for the life of the process (review 2026-09-19). begin starts the
+	// loop itself when there is no cache, so the polled path is unchanged.
+	w.sched.begin()
 }
 
 func (w *Wireless) Last() *WirelessPayload {

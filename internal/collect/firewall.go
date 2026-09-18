@@ -614,7 +614,12 @@ func (f *Firewall) Reconnected() {
 	f.wantV6, f.v6Probed, f.ipv6Disabled = false, false, nil
 	f.mu.Unlock()
 	f.Tick()
-	f.poll.start()
+	// sched.begin, NOT the raw loop: this collector is scheduled, and
+	// scheduled.end stops the loop only when there is no cache. Started
+	// directly, the loop outlived every Suspend and Stop after a reconnect and
+	// polled for the life of the process (review 2026-09-19). begin starts the
+	// loop itself when there is no cache, so the polled path is unchanged.
+	f.sched.begin()
 }
 
 // Suspend releases the IPv6 want as well as stopping the poll.
