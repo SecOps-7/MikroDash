@@ -55,6 +55,10 @@ type aiWriteProposal struct {
 	resKey string
 	rowID  string
 	values map[string]any
+	// code marks a write naming a Code field (a script's source, a scheduler's
+	// on-event). Approving it needs the router's name typed back and the
+	// raw-command gate passed again, as run_command does.
+	code bool
 	// remove marks a delete. Approval then runs `removeRow`, the form's own
 	// delete path, rather than `writeRow`.
 	remove bool
@@ -133,7 +137,21 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	// edit that names three fields must leave the rest as the router holds them.
 	req := &resRequest{Resource: res.Key, ID: args.ID, Values: args.Values, Partial: args.ID != ""}
 
-	if !store.AIConfirmWrites(settings) {
+	// ── CODE IS HELD TO THE RAW-COMMAND GATE (operator's choice, 2026-09-18) ──
+	//
+	// A script's source or a scheduler's on-event IS a command, run later. So a
+	// write naming one needs what run_command needs: a signed-in global
+	// administrator, `aiAllowRawCommands` on, and the router's name typed back.
+	// It is ALWAYS proposed, whatever aiConfirmWrites says; raiseAIProposal marks
+	// it, and approval checks the name and the gate again.
+	code := namesCode(res, args.Values)
+	if code {
+		if _, refusal := cn.rawCommandGate("raw.code"); refusal != "" {
+			return refusal
+		}
+	}
+
+	if !store.AIConfirmWrites(settings) && !code {
 		// ── PROMPTS ARE OFF, SO THE WRITE IS ATTEMPTED ──────────────────────
 		//
 		// And the guards still prompt, with no special casing: a warning makes
@@ -250,9 +268,10 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 		return "There are already several changes waiting for the operator to answer. " +
 			"Ask them to deal with those before proposing another."
 	}
+	code := removing == nil && namesCode(res, req.Values)
 	cn.proposals[tok] = &aiWriteProposal{
 		token: tok, resKey: res.Key, rowID: req.ID, values: req.Values,
-		remove: removing != nil, ack: ack, raisedAt: now,
+		remove: removing != nil, ack: ack, raisedAt: now, code: code,
 	}
 	cn.proposeMu.Unlock()
 
@@ -286,11 +305,22 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 	if warning == nil {
 		warning = map[string]any{}
 	}
-	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
+	propose := map[string]any{
 		"token": tok, "resource": res.Key, "label": res.Label,
 		"action": action, "name": name, "command": command,
 		"warnCode": warnCode, "warning": warning, "values": shown,
-	})
+	}
+	if code {
+		propose["typedName"] = true
+		propose["typedReason"] = "code"
+		propose["routerName"] = cn.rsession.Label
+	}
+	EvAIPropose.Send(cn.srv.hub, cn.c, propose)
+	if code {
+		return "Waiting for confirmation. This changes code the router runs, so MikroDash is " +
+			"asking the operator to type the router's name to confirm it. It has not been " +
+			"applied yet: tell them what the code does."
+	}
 
 	// ── WORDED AS A CHANGE IN PROGRESS, NOT A SUGGESTION ────────────────────
 	//
@@ -373,7 +403,32 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	// router as it is at this moment. `ack` carries the fingerprint of the
 	// warning the operator was shown, so a guard whose verdict has CHANGED since
 	// then gates again rather than being waved through.
-	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack}
+	// A CODE CHANGE needs the gate passed again and the router's name typed back,
+	// on THIS frame, as run_command's approval does.
+	if p.code {
+		var in struct {
+			Confirm string `json:"confirm"`
+		}
+		_ = json.Unmarshal(raw, &in)
+		if _, refusal := cn.rawCommandGate("raw.code"); refusal != "" {
+			EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+				"applied": false, "resource": res.Key, "name": "", "text": refusal,
+			})
+			return
+		}
+		if name := cn.rsession.Label; name == "" || !strings.EqualFold(strings.TrimSpace(in.Confirm), name) {
+			EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+				"applied": false, "resource": res.Key, "name": "",
+				"text": "Not applied: the router's name was not typed back correctly.",
+			})
+			return
+		}
+	}
+	// PARTIAL ON AN EDIT, as change_row built it. Without it the approved write
+	// CLEARED every clearable field the edit did not name: measured on the CHR on
+	// 2026-09-18, an approved change to a script's source also emptied its policy
+	// and its comment. Every dialog-approved partial edit had done this.
+	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack, Partial: p.rowID != ""}
 	var out writeOutcome
 	if p.remove {
 		out = cn.removeRow(res, req, "agent")
@@ -616,4 +671,16 @@ func settableFields(res *resource.Resource) []string {
 		}
 	}
 	return out
+}
+
+// namesCode reports whether a change_row names a Code field at all. Deliberately
+// wider than CodeChange: the stored row is not read yet, and a proposal that
+// asks for a typed name it did not strictly need is the safe way to be wrong.
+func namesCode(res *resource.Resource, values map[string]any) bool {
+	for _, f := range res.Fields {
+		if _, ok := values[f.Name]; ok && f.Code {
+			return true
+		}
+	}
+	return false
 }

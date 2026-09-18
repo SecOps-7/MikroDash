@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -322,5 +324,38 @@ func TestTheWriteToolAdvertisesDelete(t *testing.T) {
 	}
 	if !strings.Contains(write.Description, "DELETE") {
 		t.Error("the description does not tell the model how to delete")
+	}
+}
+
+// TestAnApprovedEditIsPartial. change_row builds an edit as Partial, because the
+// tool is "the values to change": the rest must stay as the router holds them.
+// The approval rebuilt the request WITHOUT it, so every clearable field the edit
+// did not name was cleared — measured on the CHR on 2026-09-18, where approving
+// a script's new source also emptied its policy and comment. Both places that
+// build a change_row request for an existing row must set Partial.
+func TestAnApprovedEditIsPartial(t *testing.T) {
+	b, err := os.ReadFile("ai_write.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	re := regexp.MustCompile(`&resRequest\{[^}]*\}`)
+	built := re.FindAllString(src, -1)
+	if len(built) < 2 {
+		t.Fatalf("found %d resRequest literals in ai_write.go; the proposal and the approval both build one", len(built))
+	}
+	writes := 0
+	for _, lit := range built {
+		// A delete carries no values, so it has nothing to clear.
+		if !strings.Contains(lit, "Values:") {
+			continue
+		}
+		writes++
+		if !strings.Contains(lit, "Partial:") {
+			t.Errorf("%s is built without Partial, so an edit clears every clearable field it does not name", lit)
+		}
+	}
+	if writes < 2 {
+		t.Fatalf("found %d value-carrying resRequest literals; the proposal and the approval both build one", writes)
 	}
 }
