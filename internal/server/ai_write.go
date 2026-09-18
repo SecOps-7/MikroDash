@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -639,11 +640,15 @@ func anyValues(v map[string]string) map[string]any {
 // quoted names a row without pretending an unnamed one has a name. A firewall
 // rule has a composite identity and no single name, and "the Firewall Rule ”
 // was updated" reads as a bug.
+//
+// The name is the router's, and the sentence goes back to the model as well as
+// into the transcript, so it is Go-quoted: a `"` or a line break inside it is
+// escaped rather than closing the quotes and writing text that reads as ours.
 func quoted(name string) string {
 	if strings.TrimSpace(name) == "" {
 		return "row"
 	}
-	return "\"" + name + "\""
+	return strconv.Quote(name)
 }
 
 // undeclaredFields counts the keys in `values` that are not settable fields of
