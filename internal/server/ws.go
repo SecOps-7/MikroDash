@@ -1433,6 +1433,11 @@ func (cn *conn) releaseRouter() {
 	cn.srv.sessions.Release(cn.routerID)
 	cn.routerID = ""
 	cn.rsession = nil
+	// The assistant's open proposals were raised on the router being left, and
+	// must not be approved on the next one (takeAIProposal refuses them too).
+	cn.proposeMu.Lock()
+	cn.proposals = nil
+	cn.proposeMu.Unlock()
 	// AND THE POOL RECLAIMS IT. The other half of the exclusion: `Acquire` makes
 	// the pool let go, so `Release` has to make it pick the router back up.
 	// Without this the last browser closing would leave that router covered by

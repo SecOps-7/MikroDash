@@ -384,3 +384,35 @@ func TestAnApprovedEditIsPartial(t *testing.T) {
 		t.Fatalf("found %d value-carrying resRequest literals; the proposal and the approval both build one", writes)
 	}
 }
+
+// A PROPOSAL BELONGS TO THE ROUTER IT WAS RAISED ON (review 2026-09-19).
+//
+// It stored the resource, the row id and the values, but not the router, and
+// approval ran against whatever router the socket was on at that moment:
+// propose a firewall rule on A, switch to B, press Approve, and the rule landed
+// on B; an edit's `.id` addressed a different row there. addProposal now stamps
+// the router, and a proposal is only answerable on that router.
+func TestAProposalIsOnlyAnswerableOnItsRouter(t *testing.T) {
+	cn := &conn{routerID: "r-A"}
+	tok, err := cn.addProposal(&aiWriteProposal{resKey: "fwFilter"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cn.proposals[tok].routerID; got != "r-A" {
+		t.Fatalf("the proposal was stamped with router %q, want r-A", got)
+	}
+	cn.routerID = "r-B"
+	if got := cn.takeAIProposal(proposalFrame(tok)); got != nil {
+		t.Error("a proposal raised on r-A was answerable on r-B")
+	}
+	if len(cn.proposals) != 0 {
+		t.Error("the refused proposal was left in the map")
+	}
+
+	// The control: on its own router it is answerable.
+	cn.routerID = "r-A"
+	tok, _ = cn.addProposal(&aiWriteProposal{resKey: "fwFilter"})
+	if got := cn.takeAIProposal(proposalFrame(tok)); got == nil {
+		t.Error("a proposal was refused on the router it was raised on")
+	}
+}

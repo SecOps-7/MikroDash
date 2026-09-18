@@ -466,6 +466,10 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     // to the device it was asked about and is saved there by the server.
     endStream();
     setWaiting(false);
+    // A PROPOSAL IS ABOUT THE ROUTER IT WAS RAISED ON. The server refuses to
+    // approve it anywhere else; closing it here means Approve is never offered
+    // against a router the change was not written for.
+    closeProposal();
     socket.emit('ai:history', {});
   });
   socket.on('disconnect', () => { historyRouter = ''; });

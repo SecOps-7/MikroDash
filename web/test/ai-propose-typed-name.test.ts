@@ -141,5 +141,24 @@ ok(credApprove && credApprove.data.user === 'md-btest' && credApprove.data.passw
 ok(el('aiProposePass').value === '' && el('aiProposeUser').value === '' && el('aiProposeCreds').hidden === true,
   'the login was left in the dialog after approving');
 
+// ── 5. a router change closes the proposal (review 2026-09-19) ───────────────
+//
+// A proposal is about the router it was raised on; the server refuses it on any
+// other, and the page must not offer Approve against the next router either.
+// The control is section 2: the same row proposal, approved while no router
+// change came between, did send its frame.
+el('aiProposeReject').fire('click');
+sent.length = 0;
+propose({
+  token: 't5', kind: 'row', resource: 'fwFilter', action: 'create', label: 'Firewall Rule',
+  name: 'accept ssh', command: '/ip/firewall/filter/add', warnCode: '', warning: {}, values: {},
+});
+ok(el('aiProposeBox').hidden === false, 'the proposal did not open');
+handlers['router:active']!({ activeId: 'r-B' });
+ok(el('aiProposeBox').hidden === true, 'the proposal stayed open after the router changed');
+el('aiProposeApprove').fire('click');
+ok(!sent.some((s) => s.event === 'ai:write:approve'),
+  'Approve still sent a proposal raised on the previous router');
+
 fs.rmSync(OUT, { force: true });
 say(`ai-propose-typed-name: ${checks} checks passed`);

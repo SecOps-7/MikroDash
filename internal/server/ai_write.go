@@ -76,6 +76,11 @@ type aiWriteProposal struct {
 	raw      *rawcmd.Command
 	plan     []rawcmd.Command
 	raisedAt time.Time
+	// routerID is the router the proposal was raised on, stamped by
+	// addProposal. It is only answerable there: approval runs against the
+	// socket's router at that moment, and a `.id` from one router addresses a
+	// different row, or nothing, on another.
+	routerID string
 }
 
 // runAIWriteTool is `change_row`.
@@ -475,6 +480,12 @@ func (cn *conn) takeAIProposal(raw json.RawMessage) *aiWriteProposal {
 	if time.Since(p.raisedAt) > aiProposalTTL {
 		return nil
 	}
+	// RAISED ON ANOTHER ROUTER: refused, and answered as "no longer available",
+	// which is what it is. releaseRouter drops them anyway; this is the check
+	// that does not depend on the switch path remembering to.
+	if p.routerID != cn.routerID {
+		return nil
+	}
 	return p
 }
 
@@ -503,7 +514,7 @@ func (cn *conn) addProposal(p *aiWriteProposal) (string, error) {
 	if len(cn.proposals) >= aiMaxProposals {
 		return "", errProposalsFull
 	}
-	p.token, p.raisedAt = tok, now
+	p.token, p.raisedAt, p.routerID = tok, now, cn.routerID
 	cn.proposals[tok] = p
 	return tok, nil
 }
