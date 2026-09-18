@@ -875,6 +875,9 @@ var PPPSecret = &Resource{
 var AddressList = &Resource{
 	Key: "addressList", Page: "address-lists", Label: "Address List Entry",
 	Title: "Address List Entry", Menu: "/ip/firewall/address-list", Identity: []string{"address"},
+	// Putting MikroDash's own address on a list an input drop matches, or
+	// taking it off one an input accept matches, locks it out: guard/listguard.go.
+	Guard: []string{"listLockout"},
 	Fields: []Field{
 		// PLAIN TEXT, NOT A PICKER. OptionsFrom renders a strict select, and a new
 		// list is created by naming it here.

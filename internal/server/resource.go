@@ -1138,6 +1138,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
+	"listLockout": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1202,6 +1203,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "queueThrottle":
 			if v := cn.queueVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "listLockout":
+			if v := cn.listVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		case "selfAccount":
@@ -1361,6 +1366,99 @@ func (cn *conn) addressVerdict(res *resource.Resource, action string,
 		now = addressChangeOf(values, was)
 	}
 	return guard.CheckAddressEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// listVerdict asks the list-membership guard about one address-list entry or
+// interface-list member write.
+//
+// ── WHAT IT READS, AND WHEN ─────────────────────────────────────────────────
+//
+// The management path and the input-chain rules, FRESH, in the same tick as the
+// write, as fwVerdict does: a rule enabled since the Firewall page last read the
+// table is exactly the one that matters. The filter is read through a
+// proplist of the clauses the guard compares, so the read is small; rules
+// without a list clause are dropped in listDecision. Both reads FAIL SOFT:
+// a menu this account cannot read costs the warning, never the write.
+//
+// Which clause and which field depend on the list kind, and nothing else does.
+func (cn *conn) listVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	path := cn.managementPath()
+	if !path.Resolved {
+		return guard.Verdict{Level: "none"} // no rule read for a guard that cannot speak
+	}
+	clause, menus := listClause(res)
+	var rules []routeros.Reply
+	for _, menu := range menus {
+		rows, err := cn.rsession.Exec(routeros.Cmd{Path: menu, Args: []string{
+			"=.proplist=.id,chain,action,disabled,src-address,protocol,dst-port,in-interface," + clause}})
+		if err == nil {
+			rules = append(rules, rows...)
+		}
+	}
+	return listDecision(res, action, values, before, path, cn.rsession.APIPort(), rules)
+}
+
+// listClause is which firewall clause matches this resource's lists, and which
+// filter menus to read for it. Address lists are IPv4
+// (`/ip/firewall/address-list`), so only the IPv4 filter matches them; an
+// interface list is matched by both families' filters.
+func listClause(res *resource.Resource) (string, []string) {
+	if res.Key == "ifListMember" {
+		return "in-interface-list", []string{"/ip/firewall/filter/print", "/ipv6/firewall/filter/print"}
+	}
+	return "src-address-list", []string{"/ip/firewall/filter/print"}
+}
+
+// listDecision is listVerdict without the reads: the row before, the values
+// after, the management path and the filter rows in, the verdict out. Split so
+// the mapping — field names, the overlay of a partial edit, which rows count —
+// is testable without a router.
+func listDecision(res *resource.Resource, action string, values, before map[string]string,
+	path guard.ManagementPath, apiPort int, filterRows []routeros.Reply) guard.Verdict {
+
+	kind, field := "address", "address"
+	if res.Key == "ifListMember" {
+		kind, field = "interface", "interface"
+	}
+	clause, _ := listClause(res)
+	of := func(v map[string]string, base guard.ListMember) guard.ListMember {
+		m := base
+		m.Present = true
+		if x, ok := v["list"]; ok {
+			m.List = x
+		}
+		if x, ok := v[field]; ok {
+			m.Value = x
+		}
+		if x, ok := v["disabled"]; ok {
+			m.Disabled = x == "yes" || x == "true"
+		}
+		return m
+	}
+	var was, now guard.ListMember
+	if before != nil {
+		was = of(histValues(res.RowValues(before)), guard.ListMember{})
+	}
+	if action != "delete" && values != nil {
+		// Laid over the stored row: a partial edit leaves the rest as it was.
+		now = of(values, was)
+	}
+	var rules []guard.ListRule
+	for _, r := range filterRows {
+		if r[clause] == "" || r["chain"] != "input" {
+			continue
+		}
+		rules = append(rules, guard.ListRule{ID: r[".id"], Match: r[clause], Rule: guard.FWRule{
+			Chain: r["chain"], Action: r["action"], SrcAddress: r["src-address"],
+			Protocol: r["protocol"], DstPort: r["dst-port"], InInterface: r["in-interface"],
+			Disabled: r["disabled"] == "true",
+		}})
+	}
+	ctx := guard.FWContext{Resolved: path.Resolved, Addresses: path.Addresses,
+		Interfaces: path.Interfaces, APIPort: apiPort}
+	return guard.CheckListMember(ctx, kind, rules, action, was, now)
 }
 
 // queueVerdict asks the self-throttle guard about one simple queue write.

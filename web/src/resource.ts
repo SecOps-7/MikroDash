@@ -337,6 +337,22 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
         why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
           'whether changing the address <code>' + esc(str(w.prefix) || '?') + '</code> cuts its own connection.',
       };
+    case 'list-cutoff': {
+      // The RULE is untouched; who is IN the list moved, and the rule's verdict on
+      // MikroDash's own traffic moved with it. An interface-list member IS the
+      // interface MikroDash arrives on; an address-list entry COVERS its address.
+      const v = '<code>' + esc(str(w.value) || '?') + '</code>';
+      const who = str(w.kind) === 'interface'
+        ? 'the interface MikroDash arrives on, ' + v + ','
+        : v + ', which covers the address the router sees MikroDash at,';
+      return {
+        headline: cut,
+        why: 'This ' + (str(w.move) === 'joins' ? 'puts ' : 'takes ') + who + ' ' +
+          (str(w.move) === 'joins' ? 'into' : 'out of') + ' the list <code>' + esc(str(w.list) || '?') +
+          '</code>, and the input rule matching <code>' + esc(str(w.ruleMatch) || '?') + '</code> would then ' +
+          (str(w.effect) === 'loses-accept' ? 'stop accepting' : 'drop') + ' its traffic.',
+      };
+    }
     case 'self-lockout':
       return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
     case 'self-throttle': {

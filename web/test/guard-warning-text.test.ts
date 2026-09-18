@@ -50,6 +50,22 @@ assert.ok(addressUnknown.why.includes('could not read') && addressUnknown.why.in
   'address-cutoff-unknown says it cannot tell: ' + addressUnknown.why);
 say('ok  address-cutoff-unknown says the guard cannot tell');
 
+// list-cutoff: the default config's `!LAN drop`, reached by taking the port out
+// of LAN, and a blocklist drop reached by putting our address into it. The two
+// directions and the two effects are independent, so each sentence is checked.
+const ifOut = warningText('list-cutoff', { kind: 'interface', value: 'ether2', list: 'LAN', move: 'leaves', effect: 'starts-drop', ruleMatch: '!LAN' });
+assert.ok(ifOut.headline.includes('cut MikroDash off') && ifOut.why.includes('takes the interface MikroDash arrives on, <code>ether2</code>') &&
+  ifOut.why.includes('out of the list <code>LAN</code>') && ifOut.why.includes('<code>!LAN</code>') && ifOut.why.includes('would then drop'),
+  'list-cutoff, interface leaving LAN: ' + ifOut.why);
+const addrIn = warningText('list-cutoff', { kind: 'address', value: '198.51.100.5', list: 'blocklist', move: 'joins', effect: 'starts-drop', ruleMatch: 'blocklist' });
+// An address-list entry COVERS MikroDash's address; it is not the address itself.
+assert.ok(addrIn.why.includes('puts <code>198.51.100.5</code>, which covers the address the router sees MikroDash at,') && addrIn.why.includes('into the list'),
+  'list-cutoff, address joining a blocklist: ' + addrIn.why);
+const addrOut = warningText('list-cutoff', { kind: 'address', value: '198.51.100.0/24', list: 'mgmt', move: 'leaves', effect: 'loses-accept', ruleMatch: 'mgmt' });
+assert.ok(addrOut.why.includes('out of the list') && addrOut.why.includes('stop accepting'),
+  'list-cutoff, address leaving an accept list: ' + addrOut.why);
+say('ok  list-cutoff says which way MikroDash moved, which list, which rule, and what the rule then does');
+
 for (const [code, words] of [['self-lockout', 'firewall rule'], ['wifi-inherit', 'inherits'], ['capsman-push', 'pushed']]) {
   const t = warningText(code, {});
   assert.ok(t.why.includes(words), code + ' has its own sentence, not the fallback: ' + t.why);

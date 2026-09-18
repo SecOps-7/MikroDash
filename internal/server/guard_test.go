@@ -20,7 +20,9 @@ import (
 // the entry to be added deliberately rather than discovered later.
 func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 	want := map[string]bool{"selfPath": true, "fwGuard": true, "wifiInherit": true,
-		"capsmanPush": true, "routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true}
+		"capsmanPush": true, "routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
+		// 2026-09-18: list membership, for address lists and interface lists.
+		"listLockout": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}
