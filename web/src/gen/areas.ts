@@ -144,6 +144,15 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "ipsec", title: "IPsec", navGroup: "tunnels",
+    icon: "<rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/><path d=\"M12 15v2\"/>",
+    tables: [
+      { resource: "ipsecPolicy", title: "Policies", columns: ["srcAddress", "dstAddress", "protocol", "action", "peer", "tunnel", "ph2State", "disabled", "comment"], ordered: true },
+      { resource: "ipsecPeer", title: "Peers", columns: ["name", "address", "exchangeMode", "profile", "passive", "responder", "disabled", "comment"], ordered: false },
+      { resource: "ipsecIdentity", title: "Identities", columns: ["peer", "authMethod", "myId", "remoteId", "generatePolicy", "disabled", "comment"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

@@ -609,3 +609,37 @@ func TestPrimedMeansEveryArea(t *testing.T) {
 		t.Error("every area read and the collector still reports itself unprimed, so every connect re-reads them all")
 	}
 }
+
+// TestNoAreaReadNamesASecret. RouterOS returns an IPsec identity's `secret` IN
+// CLEAR TEXT on print (measured on the CHR, 7.24.3), so the only thing keeping it
+// off the wire to the browser is that the area read never asks for it. Every
+// area's read carries a proplist, and no proplist names a secret field. The floor
+// is the IPsec identity itself: if it ever stops declaring a secret, this checks
+// nothing and says so.
+func TestNoAreaReadNamesASecret(t *testing.T) {
+	secrets := 0
+	for _, key := range areas.Resources() {
+		res := resource.ByKey(key)
+		cmd := areaReadCmd(res)
+		if len(cmd.Args) != 1 || !strings.HasPrefix(cmd.Args[0], "=.proplist=") {
+			t.Errorf("%s is read without a proplist: %v", key, cmd.Args)
+			continue
+		}
+		named := map[string]bool{}
+		for _, p := range strings.Split(strings.TrimPrefix(cmd.Args[0], "=.proplist="), ",") {
+			named[p] = true
+		}
+		for _, f := range res.Fields {
+			if f.Type != resource.TypeSecret {
+				continue
+			}
+			secrets++
+			if named[f.ROS] {
+				t.Errorf("%s's read names the secret %s", key, f.ROS)
+			}
+		}
+	}
+	if secrets < 4 {
+		t.Errorf("only %d secret fields across the areas; the IPsec identity alone declares two", secrets)
+	}
+}

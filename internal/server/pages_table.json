@@ -97,6 +97,11 @@
       "settingsKey": null
     },
     {
+      "key": "ipsec",
+      "title": "IPsec",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null

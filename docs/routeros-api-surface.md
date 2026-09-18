@@ -241,6 +241,9 @@ surface stays complete.
 | `/interface/wireless/security-profiles` | wlSecProfile | wifi | add, set, remove |
 | `/ip/dhcp-server/lease` | dhcpLease | dhcp | add, set, remove, make-static |
 | `/ip/address` | ipAddress | ip-addresses | add, set, remove |
+| `/ip/ipsec/peer` | ipsecPeer | ipsec | add, set, remove (guarded by ipsecPath; ppk-secret never read) |
+| `/ip/ipsec/identity` | ipsecIdentity | ipsec | add, set, remove (guarded by ipsecPath; secret and password never read) |
+| `/ip/ipsec/policy` | ipsecPolicy | ipsec | add, set, remove, move (guarded by ipsecPath) |
 | `/ip/pool` | ipPool | ip-pools | add, set, remove |
 | `/ip/service` | ipService | ip-services | set |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |

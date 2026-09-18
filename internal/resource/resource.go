@@ -1610,6 +1610,129 @@ var OSPFNeighbor = &Resource{
 	},
 }
 
+// ── IPsec ───────────────────────────────────────────────────────────────────
+//
+// /ip/ipsec: peers, their identities and the policies that decide what is
+// encrypted. Checked against rosetta and a live IKEv2 tunnel between the CHR and
+// the hAP AC2 (RouterOS 7.24.3). Guarded by ipsecPath: a policy applies to the
+// router's own traffic, so one covering MikroDash's address can take its path
+// away, and so can removing the policy, peer or identity MikroDash arrives
+// through.
+//
+// THE CREDENTIALS ARE NEVER READ. RouterOS returns an identity's `secret` in
+// clear text on print (measured), and a peer's `ppk-secret`; both are secrets
+// here, which the area read leaves out of its proplist and a form never shows.
+// Certificate-based identities name certificates by name; `key`, `remote-key`,
+// `eap-methods` and `notrack-chain` are left as they are.
+
+var IPsecPeer = &Resource{
+	Key: "ipsecPeer", Page: "ipsec", Label: "IPsec Peer",
+	Title: "IPsec Peer", Menu: "/ip/ipsec/peer", Identity: []string{"name"},
+	Guard:          []string{"ipsecPath"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "dynamic",
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "branch-office"},
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Clearable: true,
+			Placeholder: "203.0.113.10", Help: "The remote end: an address, a prefix, or a name to resolve."},
+		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Clearable: true, Min: intp(1), Max: intp(65535)},
+		{Name: "localAddress", ROS: "local-address", Label: "Local Address", Type: TypeText, Clearable: true},
+		{Name: "profile", ROS: "profile", Label: "Profile", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/profile", Value: "name"}},
+		{Name: "exchangeMode", ROS: "exchange-mode", Label: "Exchange Mode", Type: TypeSelect,
+			Options: []string{"ike2", "main", "aggressive"}},
+		{Name: "passive", ROS: "passive", Label: "Passive", Type: TypeBool, Clearable: true,
+			Help: "Wait for the remote end to connect rather than initiating."},
+		{Name: "sendInitialContact", ROS: "send-initial-contact", Label: "Send Initial Contact", Type: TypeBool, Clearable: true},
+		{Name: "ppkSecret", ROS: "ppk-secret", Label: "PPK Secret", Type: TypeSecret},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "responder", ROS: "responder", Label: "Responder", Type: TypeBool, Display: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+	},
+}
+
+// IPsecAuthMethods are the identity authentication methods RouterOS 7.24 lists.
+var IPsecAuthMethods = []string{"pre-shared-key", "digital-signature", "eap", "eap-radius",
+	"pre-shared-key-xauth", "rsa-key", "rsa-signature-hybrid"}
+
+var IPsecIdentity = &Resource{
+	Key: "ipsecIdentity", Page: "ipsec", Label: "IPsec Identity",
+	Title: "IPsec Identity", Menu: "/ip/ipsec/identity", Identity: []string{"peer", "authMethod"},
+	Guard:          []string{"ipsecPath"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "dynamic",
+	Fields: []Field{
+		{Name: "peer", ROS: "peer", Label: "Peer", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/peer", Value: "name"}},
+		{Name: "authMethod", ROS: "auth-method", Label: "Authentication", Type: TypeSelect, Required: true,
+			Options: IPsecAuthMethods},
+		{Name: "secret", ROS: "secret", Label: "Pre-shared Key", Type: TypeSecret,
+			ShowIf: &ShowIf{Field: "authMethod", In: []string{"pre-shared-key", "pre-shared-key-xauth"}}},
+		{Name: "certificate", ROS: "certificate", Label: "Certificate", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/certificate", Value: "name"},
+			ShowIf:      &ShowIf{Field: "authMethod", In: []string{"digital-signature", "rsa-signature-hybrid", "eap"}}},
+		{Name: "remoteCertificate", ROS: "remote-certificate", Label: "Remote Certificate", Type: TypeText,
+			Clearable: true, ShowIf: &ShowIf{Field: "authMethod", In: []string{"digital-signature"}}},
+		{Name: "username", ROS: "username", Label: "Username", Type: TypeText, Clearable: true,
+			ShowIf: &ShowIf{Field: "authMethod", In: []string{"pre-shared-key-xauth", "eap"}}},
+		{Name: "password", ROS: "password", Label: "Password", Type: TypeSecret,
+			ShowIf: &ShowIf{Field: "authMethod", In: []string{"pre-shared-key-xauth", "eap"}}},
+		{Name: "myId", ROS: "my-id", Label: "My ID", Type: TypeText, Placeholder: "auto",
+			Help: "auto, address:…, fqdn:…, user-fqdn:…, key-id:… or dn"},
+		{Name: "remoteId", ROS: "remote-id", Label: "Remote ID", Type: TypeText, Placeholder: "auto"},
+		{Name: "matchBy", ROS: "match-by", Label: "Match By", Type: TypeSelect, Options: []string{"remote-id", "certificate"}},
+		{Name: "generatePolicy", ROS: "generate-policy", Label: "Generate Policy", Type: TypeSelect,
+			Options: []string{"no", "port-override", "port-strict"}},
+		{Name: "modeConfig", ROS: "mode-config", Label: "Mode Config", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/mode-config", Value: "name"}},
+		{Name: "policyTemplateGroup", ROS: "policy-template-group", Label: "Policy Template Group", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/policy/group", Value: "name"}},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+	},
+}
+
+// IPsecPolicy is /ip/ipsec/policy. ORDERED: the first matching policy decides.
+// The built-in default template (default=true) and dynamic policies are read-only.
+// `protocol` is free text rather than a select, because RouterOS accepts forty
+// protocol names and a select missing the one a policy holds would rewrite it.
+var IPsecPolicy = &Resource{
+	Key: "ipsecPolicy", Page: "ipsec", Label: "IPsec Policy",
+	Title: "IPsec Policy", Menu: "/ip/ipsec/policy",
+	Identity: []string{"srcAddress", "dstAddress", "peer"},
+	Ordered:  true,
+	Guard:    []string{"ipsecPath"},
+	ReadOnlyWhen: func(r map[string]string) bool {
+		return r["dynamic"] == "true" || r["default"] == "true"
+	},
+	ReadOnlyReason: "read-only-row",
+	Fields: []Field{
+		{Name: "srcAddress", ROS: "src-address", Label: "Source", Type: TypeCidr, Placeholder: "192.168.88.0/24"},
+		{Name: "dstAddress", ROS: "dst-address", Label: "Destination", Type: TypeCidr, Placeholder: "192.168.99.0/24"},
+		{Name: "protocol", ROS: "protocol", Label: "Protocol", Type: TypeText, Placeholder: "all"},
+		{Name: "srcPort", ROS: "src-port", Label: "Source Port", Type: TypeText, Placeholder: "any"},
+		{Name: "dstPort", ROS: "dst-port", Label: "Destination Port", Type: TypeText, Placeholder: "any"},
+		{Name: "action", ROS: "action", Label: "Action", Type: TypeSelect, Options: []string{"encrypt", "discard", "none"}},
+		{Name: "level", ROS: "level", Label: "Level", Type: TypeSelect, Options: []string{"require", "unique", "use"},
+			ShowIf: &ShowIf{Field: "action", In: []string{"encrypt"}}},
+		{Name: "ipsecProtocols", ROS: "ipsec-protocols", Label: "IPsec Protocols", Type: TypeText, Placeholder: "esp",
+			ShowIf: &ShowIf{Field: "action", In: []string{"encrypt"}}},
+		{Name: "tunnel", ROS: "tunnel", Label: "Tunnel", Type: TypeBool, Clearable: true},
+		{Name: "peer", ROS: "peer", Label: "Peer", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/peer", Value: "name"}},
+		{Name: "proposal", ROS: "proposal", Label: "Proposal", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/proposal", Value: "name"}},
+		{Name: "template", ROS: "template", Label: "Template", Type: TypeBool, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "ph2State", ROS: "ph2-state", Label: "Phase 2", Type: TypeText, Display: true},
+		{Name: "active", ROS: "active", Label: "Active", Type: TypeBool, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2255,6 +2378,9 @@ var byKey = map[string]*Resource{
 	OSPFArea.Key:            OSPFArea,
 	OSPFTemplate.Key:        OSPFTemplate,
 	OSPFNeighbor.Key:        OSPFNeighbor,
+	IPsecPeer.Key:           IPsecPeer,
+	IPsecIdentity.Key:       IPsecIdentity,
+	IPsecPolicy.Key:         IPsecPolicy,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

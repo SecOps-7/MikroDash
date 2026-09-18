@@ -106,3 +106,15 @@ const unknownRule = warningText('rule-cutoff-unknown', { destination: '198.51.10
 assert.ok(unknownRule.why.includes('could not read') && unknownRule.why.includes('198.51.100.0/24'),
   'rule-cutoff-unknown says it cannot tell: ' + unknownRule.why);
 say('ok  rule-cutoff names the address, the rule and what it does with the reply');
+
+// THE IPSEC GUARD names where MikroDash is and what would carry or drop it.
+for (const [code, w, words] of [
+  ['ipsec-cutoff', { address: '10.0.0.5', destination: '0.0.0.0/0', ipsecAction: 'encrypt', action: 'create' }, ['10.0.0.5', '0.0.0.0/0', 'encrypt', 'adds']],
+  ['ipsec-cutoff-unknown', { destination: '0.0.0.0/0', action: 'create' }, ['could not read', '0.0.0.0/0']],
+  ['ipsec-peer-cutoff', { address: '10.0.0.5', peer: 'hq', action: 'delete' }, ['10.0.0.5', 'hq', 'removes']],
+  ['ipsec-peer-cutoff-unknown', { peer: 'hq', action: 'update' }, ['could not read', 'hq']],
+]) {
+  const t = warningText(code, w);
+  assert.ok(t.headline.includes('cut MikroDash off') && words.every((x) => t.why.includes(x)), code + ': ' + t.why);
+}
+say('ok  the IPsec warnings name the address, the policy or peer, and what it does');

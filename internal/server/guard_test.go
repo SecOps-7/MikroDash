@@ -30,7 +30,9 @@ func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 		// 2026-09-18: RouterOS code (script source, scheduler on-event, running a script).
 		"codeGate": true,
 		// 2026-09-18: a routing rule that could reroute the router's replies to MikroDash.
-		"rulePath": true}
+		"rulePath": true,
+		// 2026-09-18: an IPsec policy, peer or identity MikroDash's path depends on.
+		"ipsecPath": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}

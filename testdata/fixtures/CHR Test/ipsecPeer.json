@@ -1,0 +1,29 @@
+{
+ "collector": "areas",
+ "resource": "ipsecPeer",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The peer was created FOR the capture: IKEv2 to the hAP AC2 over the lab NAT. `ppk-secret` is reported even when empty; it is dropped here as every credential is, and never read by the app. Addresses mapped into documentation ranges. Read through /ip/ipsec/peer/print.",
+ "exchanges": [
+  {
+   "cmd": "/ip/ipsec/peer/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "address": "198.51.100.53/32",
+     "comment": "md-ipsec-test",
+     "disabled": "false",
+     "dynamic": "false",
+     "exchange-mode": "ike2",
+     "name": "md-hap",
+     "profile": "default",
+     "responder": "false",
+     "send-initial-contact": "true"
+    }
+   ]
+  }
+ ]
+}

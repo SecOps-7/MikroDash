@@ -1,0 +1,52 @@
+{
+ "collector": "areas",
+ "resource": "ipsecPolicy",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The default template policy (default=true, template=true, ::/0) and a tunnel policy created FOR the capture, with phase 2 established (ph2-state) at capture time. Policies are ordered. Addresses mapped into documentation ranges. Read through /ip/ipsec/policy/print.",
+ "exchanges": [
+  {
+   "cmd": "/ip/ipsec/policy/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*FFFFFF",
+     "default": "true",
+     "disabled": "false",
+     "dst-address": "::/0",
+     "dynamic": "false",
+     "group": "default",
+     "proposal": "default",
+     "protocol": "all",
+     "src-address": "::/0",
+     "template": "true"
+    },
+    {
+     ".id": "*1000000",
+     "action": "encrypt",
+     "active": "true",
+     "comment": "md-ipsec-test",
+     "disabled": "false",
+     "dst-address": "203.0.113.0/24",
+     "dst-port": "any",
+     "dynamic": "false",
+     "invalid": "false",
+     "ipsec-protocols": "esp",
+     "level": "require",
+     "peer": "md-hap",
+     "ph2-count": "1",
+     "ph2-state": "established",
+     "proposal": "default",
+     "protocol": "all",
+     "sa-dst-address": "198.51.100.53",
+     "sa-src-address": "198.51.100.15",
+     "src-address": "192.0.2.0/24",
+     "src-port": "any",
+     "tunnel": "true"
+    }
+   ]
+  }
+ ]
+}

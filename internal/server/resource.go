@@ -1167,7 +1167,7 @@ var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
-	"rulePath": true,
+	"rulePath": true, "ipsecPath": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1228,6 +1228,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "rulePath":
 			if v := cn.ruleVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "ipsecPath":
+			if v := cn.ipsecVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		case "addressPath":
@@ -1409,6 +1413,78 @@ func (cn *conn) ruleVerdict(res *resource.Resource, action string,
 		now = ruleChangeOf(values)
 	}
 	return guard.CheckRuleEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// ipsecVerdict asks the IPsec guard about a policy, peer or identity write.
+// /user/active is read fresh; for a peer or identity so are the policies, which
+// decide whether that peer carries MikroDash.
+func (cn *conn) ipsecVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var active []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	users := []string{cn.rsession.Username()}
+	var was map[string]string
+	if before != nil {
+		was = histValues(res.RowValues(before))
+	}
+	if res.Key == "ipsecPolicy" {
+		var b, a guard.IPsecPolicy
+		if was != nil {
+			b = ipsecPolicyChangeOf(was)
+		}
+		if action != "delete" && values != nil {
+			a = ipsecPolicyChangeOf(values)
+		}
+		return guard.CheckIPsecPolicyEdit(active, users, action, b, a)
+	}
+	// A peer or an identity: which peer it belongs to BEFORE the change, and
+	// whether anything but the comment moves.
+	peer := ""
+	if was != nil {
+		peer = was["peer"]
+		if res.Key == "ipsecPeer" {
+			peer = was["name"]
+		}
+	}
+	changed := action == "delete" || ipsecChanged(was, values)
+	policies, err := cn.rsession.Exec(routeros.Cmd{Path: "/ip/ipsec/policy/print",
+		Args: []string{"=.proplist=dst-address,protocol,action,peer,disabled,template"}})
+	if err != nil {
+		policies = nil
+	}
+	return guard.CheckIPsecPeerEdit(active, users, policies, action, peer, changed)
+}
+
+// ipsecPolicyChangeOf reads a policy in the registry's field names. A missing key
+// is a cleared one, as for routing rules: a form sends every field, and a partial
+// edit has been merged with the stored row before it gets here.
+func ipsecPolicyChangeOf(v map[string]string) guard.IPsecPolicy {
+	yes := func(k string) bool { return v[k] == "true" || v[k] == "yes" }
+	return guard.IPsecPolicy{Present: true, Disabled: yes("disabled"), Template: yes("template"),
+		Dst: v["dstAddress"], Protocol: v["protocol"], Action: v["action"], Peer: v["peer"]}
+}
+
+// ipsecChanged reports whether an edit moves anything but the comment. A secret
+// left blank keeps its stored value, so a blank secret is no change.
+func ipsecChanged(was, now map[string]string) bool {
+	if was == nil || now == nil {
+		return true
+	}
+	for k, v := range now {
+		if k == "comment" || ((k == "secret" || k == "password" || k == "ppkSecret") && v == "") {
+			continue
+		}
+		if was[k] != v {
+			if (v == "yes" && was[k] == "true") || (v == "no" && was[k] == "false") {
+				continue
+			}
+			return true
+		}
+	}
+	return false
 }
 
 // ruleChangeOf reads a rule in the registry's field names.

@@ -206,6 +206,24 @@
       "page": "ip-services"
     },
     {
+      "name": "list_ipsecIdentity",
+      "access": "read",
+      "resource": "ipsecIdentity",
+      "page": "ipsec"
+    },
+    {
+      "name": "list_ipsecPeer",
+      "access": "read",
+      "resource": "ipsecPeer",
+      "page": "ipsec"
+    },
+    {
+      "name": "list_ipsecPolicy",
+      "access": "read",
+      "resource": "ipsecPolicy",
+      "page": "ipsec"
+    },
+    {
       "name": "list_ipv6Address",
       "access": "read",
       "resource": "ipv6Address",

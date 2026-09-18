@@ -253,6 +253,21 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// IPsec: peers, their identities, and the policies that decide what is
+	// encrypted, the policies showing their phase-2 state. Guarded by ipsecPath.
+	{
+		Key: "ipsec", Title: "IPsec", NavGroup: "tunnels",
+		Icon: `<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><path d="M12 15v2"/>`,
+		Tables: []Table{
+			{Resource: "ipsecPolicy", Title: "Policies",
+				Columns: []string{"srcAddress", "dstAddress", "protocol", "action", "peer", "tunnel", "ph2State", "disabled", "comment"}},
+			{Resource: "ipsecPeer", Title: "Peers",
+				Columns: []string{"name", "address", "exchangeMode", "profile", "passive", "responder", "disabled", "comment"}},
+			{Resource: "ipsecIdentity", Title: "Identities",
+				Columns: []string{"peer", "authMethod", "myId", "remoteId", "generatePolicy", "disabled", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

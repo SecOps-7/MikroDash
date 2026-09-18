@@ -51,6 +51,7 @@ export const PAGES: readonly Page[] = [
   { key: "routing-tables", title: "Routing Tables", path: "routing-tables" },
   { key: "routing-rules", title: "Routing Rules", path: "routing-rules" },
   { key: "ospf", title: "OSPF", path: "ospf" },
+  { key: "ipsec", title: "IPsec", path: "ipsec" },
   { key: "tools", title: "Tools", path: "tools" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },

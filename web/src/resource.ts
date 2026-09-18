@@ -347,6 +347,36 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
           ' before the main table is consulted, which can send the router\'s replies somewhere they never arrive.',
       };
     }
+    case 'ipsec-cutoff': {
+      const verb = str(w.action) === 'delete' ? 'removes' : str(w.action) === 'create' ? 'adds' : 'changes';
+      return {
+        headline: cut,
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, and this change ' + verb +
+          ' an IPsec policy for <code>' + esc(str(w.destination) || '?') + '</code> that would <code>' +
+          esc(str(w.ipsecAction) || '?') + '</code> the router\'s replies to it, or that MikroDash arrives through.',
+      };
+    }
+    case 'ipsec-cutoff-unknown':
+      return {
+        headline: cut,
+        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether this ' +
+          'IPsec policy for <code>' + esc(str(w.destination) || '?') + '</code> carries its own connection.',
+      };
+    case 'ipsec-peer-cutoff': {
+      const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
+      return {
+        headline: cut,
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, inside a policy that ' +
+          'encrypts through peer <code>' + esc(str(w.peer) || '?') + '</code>, and this change ' + verb +
+          ' that peer or its identity, which can drop the tunnel MikroDash arrives over.',
+      };
+    }
+    case 'ipsec-peer-cutoff-unknown':
+      return {
+        headline: cut,
+        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether peer <code>' +
+          esc(str(w.peer) || '?') + '</code> carries its own connection.',
+      };
     case 'rule-cutoff-unknown':
       return {
         headline: cut,

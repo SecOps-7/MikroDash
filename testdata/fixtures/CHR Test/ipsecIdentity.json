@@ -1,0 +1,26 @@
+{
+ "collector": "areas",
+ "resource": "ipsecIdentity",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. A pre-shared-key identity created FOR the capture. RouterOS returns `secret` IN CLEAR TEXT on print; it is dropped here, and the app never names it in a read. Addresses mapped into documentation ranges. Read through /ip/ipsec/identity/print.",
+ "exchanges": [
+  {
+   "cmd": "/ip/ipsec/identity/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*A",
+     "auth-method": "pre-shared-key",
+     "comment": "md-ipsec-test",
+     "disabled": "false",
+     "dynamic": "false",
+     "generate-policy": "no",
+     "peer": "md-hap"
+    }
+   ]
+  }
+ ]
+}
