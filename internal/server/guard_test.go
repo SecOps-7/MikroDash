@@ -222,3 +222,35 @@ func TestEveryGuardedWritePathHonoursARefusal(t *testing.T) {
 		t.Fatalf("found %d functions calling verdictFor, expected at least 5: this test is measuring nothing", callers)
 	}
 }
+
+// A REFUSAL IS NEVER HIDDEN BEHIND A WARNING (review 2026-09-19).
+//
+// verdictFor returned on the first warning, in declared order, so a refusing
+// guard declared after a warning one never ran: VRRP (selfPath, codeGate) and
+// DHCP client (dhcpClientPath, tunnelDefault, codeGate) let a non-admin who
+// acknowledged a cut-off warning write code the router runs. Every declared
+// guard is now evaluated, and a refusal wins over any warning; among warnings
+// the first still wins, so one dialog at a time is unchanged.
+func TestARefusalOutranksAWarningWhateverTheOrder(t *testing.T) {
+	warn := func(code string) guard.Verdict { return guard.Verdict{Level: "warn", Code: code, Fingerprint: code} }
+	refuse := guard.Verdict{Level: "refuse", Code: "code-requires-admin"}
+	for _, tc := range []struct {
+		name string
+		in   []guard.Verdict
+		want string
+	}{
+		{"refusal after a warning", []guard.Verdict{warn("self-cutoff"), refuse}, "code-requires-admin"},
+		{"refusal after two warnings", []guard.Verdict{warn("dhcp-client-cutoff"), warn("route-cutoff"), refuse}, "code-requires-admin"},
+		{"refusal first", []guard.Verdict{refuse, warn("self-cutoff")}, "code-requires-admin"},
+		{"two warnings: the first", []guard.Verdict{warn("a"), warn("b")}, "a"},
+		{"nothing", nil, ""},
+	} {
+		got := strongestVerdict(tc.in)
+		if got.Code != tc.want {
+			t.Errorf("%s: got %q (%s), want %q", tc.name, got.Code, got.Level, tc.want)
+		}
+		if tc.want == "" && got.Level != "none" {
+			t.Errorf("%s: level %q, want none", tc.name, got.Level)
+		}
+	}
+}

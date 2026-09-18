@@ -1227,9 +1227,18 @@ type errUnportedGuard struct{ kind string }
 
 func (e errUnportedGuard) Error() string { return "guard not ported: " + e.kind }
 
-// verdictFor runs whichever guards the resource declares. The first warn wins,
-// because a second dialog after the first is answered is how somebody learns to
-// click both without reading either.
+// verdictFor runs whichever guards the resource declares.
+//
+// ── EVERY GUARD RUNS, AND A REFUSAL OUTRANKS ANY WARNING ────────────────────
+//
+// It returned on the first warning, in declared order, so a refusing guard
+// declared after a warning one never ran: VRRP (selfPath, codeGate) and DHCP
+// client (dhcpClientPath, tunnelDefault, codeGate) let a non-admin who
+// acknowledged a cut-off warning write code the router runs (review
+// 2026-09-19). Now each declared guard is evaluated and strongestVerdict picks:
+// a refusal first, else the FIRST warning, because a second dialog after the
+// first is answered is how somebody learns to click both without reading
+// either.
 //
 // AN UNPORTED GUARD REFUSES THE WRITE. It would be easy to log and proceed, and
 // that is exactly wrong: guards are ported just-in-time with the page that needs
@@ -1244,90 +1253,94 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			return guard.Verdict{}, errUnportedGuard{kind}
 		}
 	}
-	// EACH GUARD DECIDES WHAT IT NEEDS. The interface-target shortcut below is
-	// selfPath's alone: it asks which interface carries us, so an edit naming no
-	// interface cannot concern it. fwGuard asks whether a RULE could match our
-	// traffic, and a rule that names no interface is the loudest case there —
-	// `chain=input action=drop` matches everything. Returning early on empty
-	// targets for both would have silenced the guard on exactly the write it
-	// exists for.
+	var counted []guard.Verdict
 	for _, kind := range res.Guard {
-		switch kind {
-		case "selfPath":
-			targets := res.GuardTargets(action, values, before)
-			if len(targets) == 0 {
-				continue
-			}
-			if v := guard.CheckInterfaceEdit(cn.managementPath(), targets, action); v.Warned() {
-				return v, nil
-			}
-		case "fwGuard":
-			if v := cn.fwVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "wifiInherit":
-			if v := cn.wifiVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "capsmanPush":
-			if v := cn.capsVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "routePath":
-			if v := cn.routeVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "rulePath":
-			if v := cn.ruleVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "tableInUse":
-			if v := cn.tableVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "ipsecPath":
-			if v := cn.ipsecVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "tunnelDefault":
-			if v := cn.tunnelDefaultVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "dhcpClientPath":
-			if v := cn.dhcpClientVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "addressPath":
-			if v := cn.addressVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "queueThrottle":
-			if v := cn.queueVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "listLockout":
-			if v := cn.listVerdict(res, action, values, before); v.Warned() {
-				return v, nil
-			}
-		case "serviceLockout":
-			if v := cn.serviceVerdict(action, values, before); v.Refused() {
-				return v, nil
-			}
-		case "certLockout":
-			if v := cn.certVerdict(action, before); v.Refused() {
-				return v, nil
-			}
-		case "codeGate":
-			if v := codeDecision(res, action, values, before, cn.codeAllowed()); v.Refused() {
-				return v, nil
-			}
-		case "selfAccount":
-			if v := cn.selfAccountVerdict(res, action, values, before); v.Warned() || v.Refused() {
-				return v, nil
-			}
+		if v, ok := cn.guardVerdict(kind, res, action, values, before); ok {
+			counted = append(counted, v)
 		}
 	}
-	return guard.Verdict{Level: "none"}, nil
+	return strongestVerdict(counted), nil
+}
+
+// strongestVerdict is the verdict a write answers to: any refusal, else the
+// first warning, else none.
+func strongestVerdict(vs []guard.Verdict) guard.Verdict {
+	for _, v := range vs {
+		if v.Refused() {
+			return v
+		}
+	}
+	for _, v := range vs {
+		if v.Warned() {
+			return v
+		}
+	}
+	return guard.Verdict{Level: "none"}
+}
+
+// guardVerdict is one guard's verdict, and whether it counts. Each guard keeps
+// the level it has always spoken at: the lockout guards that warn count only
+// when they warn, the ones that refuse (serviceLockout, certLockout, codeGate)
+// only when they refuse, and selfAccount either way.
+//
+// EACH GUARD DECIDES WHAT IT NEEDS. The interface-target shortcut below is
+// selfPath's alone: it asks which interface carries us, so an edit naming no
+// interface cannot concern it. fwGuard asks whether a RULE could match our
+// traffic, and a rule that names no interface is the loudest case there —
+// `chain=input action=drop` matches everything. Returning early on empty
+// targets for both would have silenced the guard on exactly the write it
+// exists for.
+func (cn *conn) guardVerdict(kind string, res *resource.Resource, action string,
+	values, before map[string]string) (guard.Verdict, bool) {
+
+	var v guard.Verdict
+	switch kind {
+	case "selfPath":
+		targets := res.GuardTargets(action, values, before)
+		if len(targets) == 0 {
+			return v, false
+		}
+		v = guard.CheckInterfaceEdit(cn.managementPath(), targets, action)
+	case "fwGuard":
+		v = cn.fwVerdict(res, action, values, before)
+	case "wifiInherit":
+		v = cn.wifiVerdict(res, action, values, before)
+	case "capsmanPush":
+		v = cn.capsVerdict(res, action, values, before)
+	case "routePath":
+		v = cn.routeVerdict(res, action, values, before)
+	case "rulePath":
+		v = cn.ruleVerdict(res, action, values, before)
+	case "tableInUse":
+		v = cn.tableVerdict(res, action, values, before)
+	case "ipsecPath":
+		v = cn.ipsecVerdict(res, action, values, before)
+	case "tunnelDefault":
+		v = cn.tunnelDefaultVerdict(res, action, values, before)
+	case "dhcpClientPath":
+		v = cn.dhcpClientVerdict(res, action, values, before)
+	case "addressPath":
+		v = cn.addressVerdict(res, action, values, before)
+	case "queueThrottle":
+		v = cn.queueVerdict(res, action, values, before)
+	case "listLockout":
+		v = cn.listVerdict(res, action, values, before)
+	case "serviceLockout":
+		v = cn.serviceVerdict(action, values, before)
+		return v, v.Refused()
+	case "certLockout":
+		v = cn.certVerdict(action, before)
+		return v, v.Refused()
+	case "codeGate":
+		v = codeDecision(res, action, values, before, cn.codeAllowed())
+		return v, v.Refused()
+	case "selfAccount":
+		v = cn.selfAccountVerdict(res, action, values, before)
+		return v, v.Warned() || v.Refused()
+	default:
+		return v, false
+	}
+	return v, v.Warned()
 }
 
 // fwVerdict asks the lockout guard about one firewall write.
