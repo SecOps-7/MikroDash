@@ -115,14 +115,18 @@ func (cn *conn) areaGroup(raw json.RawMessage) {
 	if res == nil || !cn.canPage(req.Area, "read") || cn.rsession == nil {
 		return
 	}
-	// OFF THE READER GOROUTINE: a large list takes seconds to read, and dispatch
-	// must go on reading this browser's frames meanwhile.
+	// OFF THE LOOP: a large list takes seconds to read, and the loop must go
+	// on handling this browser's frames meanwhile. The router and its session
+	// are CAPTURED here, on the loop: the worker read cn.rsession after the
+	// fact, and a router switch in between left it nil (a panic that took the
+	// server down; review 2026-09-19).
+	sc := cn.scope()
 	go func() {
 		// The router is part of the key: a switch must not serve the last
 		// router's list.
-		key := cn.routerID + "\x00" + req.Area + "\x00" + req.Resource + "\x00" + req.Group
+		key := sc.routerID + "\x00" + req.Area + "\x00" + req.Resource + "\x00" + req.Group
 		rows, err := cn.groups.rowsFor(key, req.Refresh, func() ([]routeros.Reply, error) {
-			return cn.rsession.Exec(collect.AreaGroupRowsCmd(res, table.GroupBy, req.Group))
+			return sc.rs.Exec(collect.AreaGroupRowsCmd(res, table.GroupBy, req.Group))
 		})
 		var built collect.AreaTable
 		if err == nil {

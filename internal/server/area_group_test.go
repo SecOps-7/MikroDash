@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,7 +9,9 @@ import (
 	"time"
 
 	"mikrodash/internal/collect"
+	"mikrodash/internal/hub"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/session"
 )
 
 func addrRow(i int, addr, comment string) collect.AreaRow {
@@ -127,5 +130,50 @@ func TestAGroupSearchReusesTheLastReadAndARefreshDoesNot(t *testing.T) {
 	m.rowsFor("r2|x", false, read)
 	if reads != 6 {
 		t.Errorf("a failed read was kept and served to the next search")
+	}
+}
+
+// A ROUTER SWITCH DURING A GROUP READ DOES NOT TAKE THE SERVER DOWN (review
+// 2026-09-19).
+//
+// The worker looked cn.rsession up when it got round to the read, not when the
+// read was asked for. A switch in between left the field nil, and Exec on it
+// panicked on a goroutine with no recover: the whole process exited. The worker
+// now uses the session captured on the loop.
+func TestARouterSwitchDuringAGroupReadIsSurvived(t *testing.T) {
+	h := hub.New()
+	me := hub.NewClient("me", 8)
+	h.Add(me)
+	release := make(chan struct{})
+	asked := make(chan struct{}, 1)
+	rs := session.NewForTestWithExec(h, "r-A", func(cmd routeros.Cmd) ([]routeros.Reply, error) {
+		asked <- struct{}{}
+		<-release
+		return []routeros.Reply{{".id": "*1", "list": "blocklist", "address": "198.51.100.7"}}, nil
+	})
+	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{AuthMode: "none"}, routerID: "r-A", rsession: rs}
+
+	// THE WINDOW: the worker has started but not yet asked the router. It is
+	// held there on the group cache's lock (taken before the read), the switch
+	// lands, and only then does it read. A worker that looks the session up at
+	// that moment finds nil.
+	cn.groups.mu.Lock()
+	cn.areaGroup(json.RawMessage(`{"area":"address-lists","resource":"addressList","group":"blocklist","refresh":true}`))
+	cn.setRouter("", nil)
+	cn.groups.mu.Unlock()
+	select {
+	case <-asked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the group read never reached the router")
+	}
+	close(release)
+
+	select {
+	case b := <-me.Send:
+		if !strings.Contains(string(b), `"area:grouprows"`) || !strings.Contains(string(b), "198.51.100.7") {
+			t.Errorf("the answer was not the list read: %s", b)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no answer: the worker died")
 	}
 }

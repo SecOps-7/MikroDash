@@ -178,7 +178,11 @@ type overviewEntry struct {
 // card off or changing the interval is obeyed at the next tick, not the next
 // restart.
 func (cn *conn) overviewTick() time.Duration {
-	if cn.srv.store == nil || cn.rsession == nil || cn.routerID == "" {
+	// A SNAPSHOT, TAKEN ONCE: this runs on the card's own goroutine, not the
+	// connection's loop, so it reads the router and session as they were when
+	// the tick began (see conn).
+	sc := cn.scope()
+	if cn.srv.store == nil || sc.rs == nil || sc.routerID == "" {
 		return overviewDefaultInterval
 	}
 	settings, err := cn.srv.mergedSettings()
@@ -197,19 +201,19 @@ func (cn *conn) overviewTick() time.Duration {
 	// added; a role can be edited while somebody is watching, and `perms:changed`
 	// does not reach into a running loop. The cache is checked after this, so a
 	// revoked viewer is not shown a line they were allowed to see earlier.
-	if !cn.canPage("ai-agent", "read") {
+	if !cn.canPageIn(sc, "ai-agent", "read") {
 		cn.agentBlur()
 		return interval
 	}
 
 	prompt := overviewPrompt(settings)
 	cfg := aiConfigFor(nil, settings)
-	key := cn.aiHistoryUser()
+	key := cn.aiHistoryUserFor(sc.sess)
 	// Swapped before any early return below it could be skipped by, and after the
 	// returns above, which are all reasons no request could be made anyway.
 	forced := cn.agentForce.Swap(false)
 	if key != "" {
-		key += "|" + cn.routerID
+		key += "|" + sc.routerID
 		if e, ok := cn.srv.overviewCached(key); ok && !forced && e.prompt == prompt && e.model == cfg.Model {
 			if age := time.Since(e.at); age < interval {
 				// A COPY WITH TODAY'S COLOUR. The colour is not part of what the
@@ -226,8 +230,8 @@ func (cn *conn) overviewTick() time.Duration {
 		}
 	}
 
-	items := aicontext.Build(cn.snapshot(), time.Now().UnixMilli(), func(page string) bool {
-		return cn.canPage(page, "read")
+	items := aicontext.Build(snapshotOf(sc.rs), time.Now().UnixMilli(), func(page string) bool {
+		return cn.canPageIn(sc, page, "read")
 	})
 	msgs := []aiprovider.ChatMessage{
 		{Role: "system", Content: prompt},

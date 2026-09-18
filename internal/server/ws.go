@@ -56,13 +56,35 @@ var connSeq atomic.Uint64
 // conn is one browser, with the state a socket carries in Node: which router it
 // watches, and who is holding it.
 type conn struct {
-	c    *hub.Client
-	ws   *websocket.Conn
-	srv  *Server
-	sess *Session
+	c   *hub.Client
+	ws  *websocket.Conn
+	srv *Server
 
+	// ── ONE GOROUTINE OWNS sess, routerID AND rsession ──────────────────────
+	//
+	// They were plain fields written by the reader goroutine (router:select),
+	// the 60 s revalidator (a revoked grant) and, until 2026-09-19, an HTTP
+	// handler (router activation), and read by background work the reader had
+	// started. Opening a 37,000-entry address list and switching router before
+	// it came back made the worker call Exec on the nil session the switch had
+	// left: a panic with no recover, and the whole server gone (review
+	// 2026-09-19).
+	//
+	// So: every frame and every change of router state runs on ONE loop
+	// goroutine (see serve). Code there reads the fields directly. The loop
+	// writes them under scopeMu, and any OTHER goroutine reads them through
+	// scope(), a snapshot taken under that lock, captured when its work starts.
+	sess     *Session
 	routerID string
 	rsession *session.Session
+	scopeMu  sync.RWMutex
+	// inbox is the loop's queue: each frame from the reader, and each change
+	// posted from elsewhere (the revalidator; the assistant's writes). nil when
+	// no loop runs, as in tests, and then post runs the function inline.
+	inbox    chan func()
+	postMu   sync.Mutex
+	inboxOff bool
+	loopDone chan struct{}
 	// trafficIf is the interface this viewer's chart is watching, if any. Held
 	// here rather than in the collector because it is a property of the VIEWER;
 	// the collector keeps only the refcount per interface.
@@ -226,7 +248,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	go cn.revalidator(ctx)
 
-	cn.reader(ctx)
+	cn.serve(ctx)
 
 	s.connsMu.Lock()
 	delete(s.conns, cn.c)
@@ -297,14 +319,39 @@ func (cn *conn) revalidator(ctx context.Context) {
 				_ = cn.ws.Close(websocket.StatusPolicyViolation, "session expired")
 				return
 			}
-			cn.sess = live
-			if cn.routerID != "" && !live.CanReadRouter(cn.routerID) {
-				// `releaseRouter` leaves every room this connection is in.
-				cn.releaseRouter()
-				EvAccessRevoked.Send(cn.srv.hub, cn.c, map[string]any{})
-			}
+			// ON THE LOOP, not here: the revoke releases the router, and a
+			// release on this goroutine raced a router:select on the loop (two
+			// Releases for one Acquire, and a torn view of cn.sess).
+			cn.post(func() {
+				cn.setSession(live)
+				if cn.routerID != "" && !live.CanReadRouter(cn.routerID) {
+					// `releaseRouter` leaves every room this connection is in.
+					cn.releaseRouter()
+					EvAccessRevoked.Send(cn.srv.hub, cn.c, map[string]any{})
+				}
+			})
 		}
 	}
+}
+
+// serve runs the connection: the reader hands each frame to the loop, and
+// returns when the socket does, after the loop has drained. Everything that
+// changes this connection's router state happens on the loop (see conn).
+func (cn *conn) serve(ctx context.Context) {
+	cn.inbox = make(chan func(), 64)
+	cn.loopDone = make(chan struct{})
+	go func() {
+		defer close(cn.loopDone)
+		for f := range cn.inbox {
+			f()
+		}
+	}()
+	cn.reader(ctx)
+	cn.postMu.Lock()
+	cn.inboxOff = true
+	close(cn.inbox)
+	cn.postMu.Unlock()
+	<-cn.loopDone
 }
 
 func (cn *conn) reader(ctx context.Context) {
@@ -320,8 +367,70 @@ func (cn *conn) reader(ctx context.Context) {
 		if err := json.Unmarshal(b, &in); err != nil {
 			continue // a frame we cannot parse is not a reason to hang up
 		}
-		cn.dispatch(in)
+		cn.post(func() { cn.dispatch(in) })
 	}
+}
+
+// post queues f to run on the loop, and reports false when the loop has
+// stopped. With no loop (tests), f runs at once on the caller.
+func (cn *conn) post(f func()) bool {
+	if cn.inbox == nil {
+		f()
+		return true
+	}
+	cn.postMu.Lock()
+	defer cn.postMu.Unlock()
+	if cn.inboxOff {
+		return false
+	}
+	cn.inbox <- f
+	return true
+}
+
+// onLoop runs f on the loop and waits for it. For work started elsewhere that
+// must see and change this connection as the loop does: the assistant's writes.
+// Never call it from the loop itself, which would wait on itself.
+func (cn *conn) onLoop(f func()) bool {
+	if cn.inbox == nil {
+		f()
+		return true
+	}
+	done := make(chan struct{})
+	if !cn.post(func() { defer close(done); f() }) {
+		return false
+	}
+	<-done
+	return true
+}
+
+// connScope is a snapshot of the router state a piece of background work was
+// started for, captured with scope() when that work starts.
+type connScope struct {
+	sess     *Session
+	routerID string
+	rs       *session.Session
+}
+
+// scope is the connection's router state, read under the lock, for a goroutine
+// that is not the loop.
+func (cn *conn) scope() connScope {
+	cn.scopeMu.RLock()
+	defer cn.scopeMu.RUnlock()
+	return connScope{sess: cn.sess, routerID: cn.routerID, rs: cn.rsession}
+}
+
+// setRouter and setSession are the only writes of the router state, made on the
+// loop under the lock so scope() never reads a torn value.
+func (cn *conn) setRouter(id string, rs *session.Session) {
+	cn.scopeMu.Lock()
+	cn.routerID, cn.rsession = id, rs
+	cn.scopeMu.Unlock()
+}
+
+func (cn *conn) setSession(s *Session) {
+	cn.scopeMu.Lock()
+	cn.sess = s
+	cn.scopeMu.Unlock()
 }
 
 func (cn *conn) dispatch(in inbound) {
@@ -637,8 +746,7 @@ func (cn *conn) selectRouter(id string) {
 	// The stacks describe rows on the router being LEFT, and a `.id` from one
 	// router addresses something entirely different on another.
 	cn.histDropAll()
-	cn.routerID = id
-	cn.rsession = rs
+	cn.setRouter(id, rs)
 	cn.srv.hub.Join(cn.c, "router-"+id)
 	EvRouterActive.Send(cn.srv.hub, cn.c, map[string]any{"activeId": id})
 	session.EvRouterStatus.Send(cn.srv.hub, cn.c, map[string]any{
@@ -1431,8 +1539,7 @@ func (cn *conn) releaseRouter() {
 	}
 	cn.srv.applyDemand(cn.rsession, cn.routerID)
 	cn.srv.sessions.Release(cn.routerID)
-	cn.routerID = ""
-	cn.rsession = nil
+	cn.setRouter("", nil)
 	// The assistant's open proposals were raised on the router being left, and
 	// must not be approved on the next one (takeAIProposal refuses them too).
 	cn.proposeMu.Lock()
@@ -1511,7 +1618,7 @@ func (cn *conn) sendPooledStatus() {
 func (s *Server) sendFleetStatus(frame map[string]any) {
 	id, _ := frame["routerId"].(string)
 	for _, cn := range s.connections() {
-		if visible := s.visibleRouters(cn.sess); visible != nil && !visible[id] {
+		if visible := s.visibleRouters(cn.scope().sess); visible != nil && !visible[id] {
 			continue
 		}
 		session.EvRouterStatus.Send(s.hub, cn.c, frame)

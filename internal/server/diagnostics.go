@@ -56,7 +56,8 @@ func (cn *conn) diagFocus() {
 			case <-stop:
 				return
 			case <-t.C:
-				cn.sendDiagnostics()
+				// On the connection's loop, which owns its router state.
+				cn.post(cn.sendDiagnostics)
 			}
 		}
 	}()

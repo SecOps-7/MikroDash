@@ -191,7 +191,14 @@ func auditValues(res *resource.Resource, values map[string]any) map[string]any {
 // again. That is a real degradation and it is logged once at startup rather
 // than silently tolerated.
 func (cn *conn) canPage(page, access string) bool {
-	if cn.sess == nil {
+	return cn.canPageIn(connScope{sess: cn.sess, routerID: cn.routerID, rs: cn.rsession}, page, access)
+}
+
+// canPageIn is canPage for a snapshot: the answer for the router and session a
+// piece of background work was started with, read on whatever goroutine runs
+// it (see conn: only the loop may read the live fields).
+func (cn *conn) canPageIn(sc connScope, page, access string) bool {
+	if sc.sess == nil {
 		return false
 	}
 	// 'none' auth mode has no identity and every request is implicitly admin.
@@ -202,10 +209,10 @@ func (cn *conn) canPage(page, access string) bool {
 	// With sign-in off, anyone who can reach the page would change the router
 	// with no identity to audit. Viewing stays open, as the setting promises;
 	// changing router configuration needs an account.
-	if cn.sess.AuthMode == "none" {
+	if sc.sess.AuthMode == "none" {
 		return access != "write"
 	}
-	if !cn.sess.CanPage(page, access, cn.routerID) {
+	if !sc.sess.CanPage(page, access, sc.routerID) {
 		return false
 	}
 	if !cn.srv.rbac.Available() {
@@ -219,12 +226,12 @@ func (cn *conn) canPage(page, access string) bool {
 	if access == "write" && cn.srv.auditDB == nil {
 		return false
 	}
-	ok, err := cn.srv.rbac.CanPage(cn.userID, page, access, cn.routerID)
+	ok, err := cn.srv.rbac.CanPage(cn.userID, page, access, sc.routerID)
 	if err != nil {
 		// An authorization question that cannot be answered is refused. A read
 		// blanking is recoverable and visible; a write allowed by a failed
 		// lookup is neither.
-		log.Printf("[rbac] %s %s on %s: %v", access, page, cn.routerID, err)
+		log.Printf("[rbac] %s %s on %s: %v", access, page, sc.routerID, err)
 		return false
 	}
 	return ok

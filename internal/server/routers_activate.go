@@ -181,7 +181,9 @@ func (s *Server) tellFollowers(from, to string) {
 		return
 	}
 	for _, cn := range s.connections() {
-		if cn.routerID != from || cn.sess == nil || !cn.sess.CanReadRouter(to) {
+		// A snapshot: this runs on an HTTP handler, not the connection's loop.
+		sc := cn.scope()
+		if sc.routerID != from || sc.sess == nil || !sc.sess.CanReadRouter(to) {
 			continue
 		}
 		EvRouterFollow.Send(s.hub, cn.c, RouterFollowPayload{ActiveID: to})

@@ -415,7 +415,7 @@ func stripWanIP(r map[string]any) map[string]any {
 // whole fleet's addresses because somebody else's edit triggered the send.
 func (s *Server) broadcastRouterList() {
 	for _, cn := range s.connections() {
-		EvRoutersUpdate.Send(s.hub, cn.c, s.routerListForSocket(cn.sess))
+		EvRoutersUpdate.Send(s.hub, cn.c, s.routerListForSocket(cn.scope().sess))
 	}
 }
 
@@ -772,7 +772,8 @@ func (cn *conn) startDevicesTick() {
 				if cn.srv.sessions != nil {
 					cn.srv.sessions.PrimeUnread()
 				}
-				cn.sendRoutersStats()
+				// On the connection's loop, which owns its session.
+				cn.post(cn.sendRoutersStats)
 			}
 		}
 	}()
