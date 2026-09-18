@@ -1490,7 +1490,7 @@ func (cn *conn) certVerdict(action string, before map[string]string) guard.Verdi
 		return guard.Verdict{Level: "none"}
 	}
 	rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/ip/service/print",
-		Args: []string{"?name=api-ssl", "=.proplist=name,certificate"}})
+		Args: []string{"?name=api-ssl", "=.proplist=name,certificate,dynamic,connection"}})
 	return certDecision(cn.rsession.UsesTLS(), rows, err, before)
 }
 
@@ -1506,9 +1506,14 @@ func certDecision(tls bool, serviceRows []routeros.Reply, readErr error, before 
 		return guard.Verdict{Level: "refuse", Code: "certificate-unknown",
 			Detail: map[string]any{"value": before["name"]}}
 	}
+	// THE SERVICE ROW, NOT A CONNECTION. RouterOS 7.24 lists live connections in
+	// /ip/service as dynamic rows with the service's name and no certificate, so
+	// `?name=api-ssl` answers with the service AND MikroDash's own session. This
+	// took the last match, the connection, read "no certificate", and let the
+	// CHR's api-ssl certificate be deleted (2026-09-18, restored the same hour).
 	used := ""
 	for _, r := range serviceRows {
-		if r["name"] == "api-ssl" {
+		if r["name"] == "api-ssl" && r["dynamic"] != "true" && r["connection"] != "true" {
 			used = r["certificate"]
 		}
 	}

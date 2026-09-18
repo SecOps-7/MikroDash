@@ -1,7 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"mikrodash/internal/guard"
@@ -174,5 +177,46 @@ func TestCertificateRemovalsReachTheGuard(t *testing.T) {
 	}
 	if v := certDecision(false, svc, nil, cert); v.Level != "none" {
 		t.Errorf("removing it while MikroDash speaks plain api: %+v", v)
+	}
+}
+
+// THE 7.24 SHAPE, REPLAYED FROM THE CAPTURE. /ip/service lists MikroDash's own
+// live session as a dynamic row named api-ssl with no certificate, after the
+// service row. A guard that took the last api-ssl row read "no certificate" and
+// let the certificate be deleted on the CHR (2026-09-18). This uses the real
+// capture rather than a hand-made row, which is how the first test missed it.
+func TestTheCertificateGuardReadsTheServiceRowNotAConnection(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "fixtures", "CHR Test", "ipService.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Exchanges []struct {
+			Rows []routeros.Reply `json:"rows"`
+		} `json:"exchanges"`
+	}
+	if err := json.Unmarshal(raw, &f); err != nil || len(f.Exchanges) == 0 {
+		t.Fatalf("reading the ipService capture: %v", err)
+	}
+	var apiSSL []routeros.Reply
+	for _, r := range f.Exchanges[0].Rows {
+		if r["name"] == "api-ssl" {
+			apiSSL = append(apiSSL, r)
+		}
+	}
+	if len(apiSSL) < 2 {
+		t.Fatalf("the capture holds %d api-ssl rows; this test needs the service AND a connection", len(apiSSL))
+	}
+	used := ""
+	for _, r := range apiSSL {
+		if r["certificate"] != "" {
+			used = r["certificate"]
+		}
+	}
+	if used == "" {
+		t.Fatal("no api-ssl row in the capture names a certificate")
+	}
+	if v := certDecision(true, apiSSL, nil, map[string]string{"name": used}); !v.Refused() || v.Code != "certificate-in-use" {
+		t.Errorf("removing %q with the capture's two api-ssl rows: %+v", used, v)
 	}
 }
