@@ -50,3 +50,24 @@ func TestWhatLeavesUsConnectedIsAllowed(t *testing.T) {
 		t.Errorf("disabling api while MikroDash uses it: %+v", v)
 	}
 }
+
+func TestTheCertificateApiSSLPresentsCannotBeRemoved(t *testing.T) {
+	v := CheckCertificateRemove(true, "chr-api", "chr-api")
+	if !v.Refused() || v.Code != "certificate-in-use" || v.Detail["value"] != "chr-api" {
+		t.Fatalf("removing api-ssl's certificate over TLS: %+v", v)
+	}
+	// CONTROLS: another certificate; plain api; api-ssl presenting none.
+	for name, c := range map[string]struct {
+		tls        bool
+		used, name string
+	}{
+		"another certificate":        {true, "chr-api", "old-ca"},
+		"MikroDash speaks plain api": {false, "chr-api", "chr-api"},
+		"api-ssl names none":         {true, "none", "none"},
+		"api-ssl names nothing":      {true, "", "chr-api"},
+	} {
+		if v := CheckCertificateRemove(c.tls, c.used, c.name); v.Level != "none" {
+			t.Errorf("%s: %+v", name, v)
+		}
+	}
+}

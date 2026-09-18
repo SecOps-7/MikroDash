@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"testing"
 
 	"mikrodash/internal/guard"
@@ -153,5 +154,25 @@ func TestServiceGuardReadsTheResourcesOwnNames(t *testing.T) {
 	}
 	if !found {
 		t.Error("ipService does not declare serviceLockout, so its writes are unguarded")
+	}
+}
+
+// THE CERTIFICATE ADAPTER: the service row decides which certificate is ours,
+// and an unreadable service row refuses while MikroDash speaks TLS.
+func TestCertificateRemovalsReachTheGuard(t *testing.T) {
+	svc := []routeros.Reply{{"name": "api-ssl", "certificate": "chr-api"}}
+	cert := map[string]string{".id": "*1", "name": "chr-api"}
+	if v := certDecision(true, svc, nil, cert); !v.Refused() || v.Code != "certificate-in-use" {
+		t.Errorf("removing api-ssl's certificate: %+v", v)
+	}
+	if v := certDecision(true, nil, errors.New("not enough permissions"), cert); !v.Refused() || v.Code != "certificate-unknown" {
+		t.Errorf("an unreadable service row while on TLS: %+v", v)
+	}
+	// Controls: another certificate, and plain api.
+	if v := certDecision(true, svc, nil, map[string]string{"name": "old-ca"}); v.Level != "none" {
+		t.Errorf("removing another certificate: %+v", v)
+	}
+	if v := certDecision(false, svc, nil, cert); v.Level != "none" {
+		t.Errorf("removing it while MikroDash speaks plain api: %+v", v)
 	}
 }

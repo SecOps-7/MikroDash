@@ -85,7 +85,8 @@ say('ok  an unknown code falls back, escaped');
 
 // THE IP-SERVICE REFUSALS each say what the change would do, not the fallback.
 for (const [code, words] of [['service-disable', 'Disabling it'], ['service-port', 'port'], ['service-vrf', 'VRF'],
-  ['service-address', 'would not admit'], ['service-address-unknown', 'cannot read']]) {
+  ['service-address', 'would not admit'], ['service-address-unknown', 'cannot read'],
+  ['certificate-in-use', 'Removing it'], ['certificate-unknown', 'cannot read which certificate']]) {
   const t = guardRefusedText(code);
   assert.ok(t.includes(words) && !t.includes('A safety rule refused'), code + ': ' + t);
 }

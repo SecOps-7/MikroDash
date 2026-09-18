@@ -408,6 +408,8 @@ export function guardRefusedText(rule: unknown): string {
     case 'service-port': return 'That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.';
     case 'service-vrf': return 'That is the API service MikroDash connects through. Moving it to another VRF would cut MikroDash off; change it in WinBox.';
     case 'service-address': return 'That address list would not admit the address the router sees MikroDash connecting from.';
+    case 'certificate-in-use': return 'That is the certificate the API service MikroDash connects through presents. Removing it would cut MikroDash off; change it in WinBox.';
+    case 'certificate-unknown': return 'MikroDash cannot read which certificate its API service presents, so removing certificates is refused.';
     case 'service-address-unknown': return 'MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.';
     default: return 'A safety rule refused this change.';
   }

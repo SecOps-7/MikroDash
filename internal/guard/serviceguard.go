@@ -87,3 +87,27 @@ func serviceAdmits(list, address string) bool {
 	}
 	return false
 }
+
+// ── THE CERTIFICATE api-ssl PRESENTS ────────────────────────────────────────
+//
+// MikroDash speaking api-ssl needs a certificate on the other end: remove the
+// one the service names, and the service has nothing to present, the TLS
+// handshake fails, and the fix is WinBox. MikroDash accepts a self-signed
+// certificate, so which one is presented does not matter — only that it still
+// exists. So removing it is refused; nothing else about a certificate is.
+//
+// Not ours when this session speaks plain api, and not ours when api-ssl names
+// no certificate at all (`none`, or empty): there is nothing of ours to remove.
+
+// CheckCertificateRemove judges removing the certificate `name`.
+func CheckCertificateRemove(tls bool, apiSSLCert, name string) Verdict {
+	used := strings.TrimSpace(apiSSLCert)
+	if !tls || used == "" || strings.EqualFold(used, "none") {
+		return Verdict{Level: "none"}
+	}
+	if strings.TrimSpace(name) != used {
+		return Verdict{Level: "none"}
+	}
+	return Verdict{Level: "refuse", Code: "certificate-in-use",
+		Detail: map[string]any{"service": "api-ssl", "value": used}}
+}

@@ -1146,7 +1146,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
-	"listLockout": true, "serviceLockout": true,
+	"listLockout": true, "serviceLockout": true, "certLockout": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1219,6 +1219,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "serviceLockout":
 			if v := cn.serviceVerdict(action, values, before); v.Refused() {
+				return v, nil
+			}
+		case "certLockout":
+			if v := cn.certVerdict(action, before); v.Refused() {
 				return v, nil
 			}
 		case "selfAccount":
@@ -1476,6 +1480,39 @@ func serviceDecision(tls bool, self []string, resolved bool, action string,
 		now = row(values, was, "availableFrom")
 	}
 	return guard.CheckServiceEdit(ours, self, resolved, was, now)
+}
+
+// certVerdict asks the certificate guard about one certificate write. Only a
+// delete can take away the certificate api-ssl presents; the service row is read
+// FRESH, because which certificate it names is the whole question.
+func (cn *conn) certVerdict(action string, before map[string]string) guard.Verdict {
+	if action != "delete" || before == nil {
+		return guard.Verdict{Level: "none"}
+	}
+	rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/ip/service/print",
+		Args: []string{"?name=api-ssl", "=.proplist=name,certificate"}})
+	return certDecision(cn.rsession.UsesTLS(), rows, err, before)
+}
+
+// certDecision is certVerdict without the read. When MikroDash speaks api-ssl
+// and the service row cannot be read, the removal is REFUSED: the guard cannot
+// show the certificate is not the one it depends on, and the cost of being wrong
+// is a site visit, as for the service guard.
+func certDecision(tls bool, serviceRows []routeros.Reply, readErr error, before map[string]string) guard.Verdict {
+	if !tls {
+		return guard.Verdict{Level: "none"}
+	}
+	if readErr != nil {
+		return guard.Verdict{Level: "refuse", Code: "certificate-unknown",
+			Detail: map[string]any{"value": before["name"]}}
+	}
+	used := ""
+	for _, r := range serviceRows {
+		if r["name"] == "api-ssl" {
+			used = r["certificate"]
+		}
+	}
+	return guard.CheckCertificateRemove(tls, used, before["name"])
 }
 
 // listClause is which firewall clause matches this resource's lists, and which
