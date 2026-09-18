@@ -1,0 +1,31 @@
+{
+ "collector": "areas",
+ "resource": "veth",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router (container package and device-mode enabled for these tests). A veth created FOR the capture, the container\u2019s interface. Addresses mapped into documentation ranges. Read through /interface/veth/print.",
+ "exchanges": [
+  {
+   "cmd": "/interface/veth/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*3",
+     "address": "192.0.2.2/24",
+     "comment": "md-container-test",
+     "container-mac-address": "02:00:00:00:03:02",
+     "dhcp": "false",
+     "dhcp-address": "",
+     "disabled": "false",
+     "gateway": "192.0.2.1",
+     "gateway6": "",
+     "mac-address": "02:00:00:00:03:01",
+     "name": "md-veth",
+     "running": "true"
+    }
+   ]
+  }
+ ]
+}

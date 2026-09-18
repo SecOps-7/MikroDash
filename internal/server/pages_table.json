@@ -127,6 +127,11 @@
       "settingsKey": null
     },
     {
+      "key": "containers",
+      "title": "Containers",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null

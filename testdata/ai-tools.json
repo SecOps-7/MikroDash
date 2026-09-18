@@ -90,6 +90,30 @@
       "page": "connections"
     },
     {
+      "name": "list_container",
+      "access": "read",
+      "resource": "container",
+      "page": "containers"
+    },
+    {
+      "name": "list_containerConfig",
+      "access": "read",
+      "resource": "containerConfig",
+      "page": "containers"
+    },
+    {
+      "name": "list_containerEnv",
+      "access": "read",
+      "resource": "containerEnv",
+      "page": "containers"
+    },
+    {
+      "name": "list_containerMount",
+      "access": "read",
+      "resource": "containerMount",
+      "page": "containers"
+    },
+    {
       "name": "list_dhcpClient",
       "access": "read",
       "resource": "dhcpClient",
@@ -444,6 +468,12 @@
       "resource": "",
       "collector": "topology",
       "page": "network-topology"
+    },
+    {
+      "name": "list_veth",
+      "access": "read",
+      "resource": "veth",
+      "page": "containers"
     },
     {
       "name": "list_vlan",

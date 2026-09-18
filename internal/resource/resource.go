@@ -1988,6 +1988,122 @@ var DHCPNetwork = &Resource{
 	},
 }
 
+// ── Containers ──────────────────────────────────────────────────────────────
+//
+// /container and its envs, mounts, config and veth interfaces, as a generated
+// page (the operator's choice over a hand-built one). Checked against rosetta
+// and the CHR with the container package and device-mode on (7.24.3).
+//
+// WHAT A CONTAINER RUNS IS CODE. Its image, command and entrypoint decide what
+// executes on the router, so they are Code fields behind codeGate, as a
+// script's source is; starting and stopping are row actions, and the assistant
+// reaches them through run_action. An env VALUE is a secret: containers take
+// their passwords and tokens from env, so a value is written and never read. The
+// registry password is a secret too. `config-json` (the image's own config, often
+// kilobytes) is not a field, so the area's proplist never asks for it.
+
+var Container = &Resource{
+	Key: "container", Page: "containers", Label: "Container",
+	Title: "Container", Menu: "/container", Identity: []string{"name"},
+	Guard: []string{"codeGate"},
+	Actions: []Action{
+		{Key: "start", Verb: "start", Label: "Start", Note: "started a container",
+			When: func(r map[string]string) bool { return r["running"] != "true" }},
+		{Key: "stop", Verb: "stop", Label: "Stop", Note: "stopped a container",
+			When: func(r map[string]string) bool { return r["running"] == "true" }},
+	},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "pihole"},
+		{Name: "remoteImage", ROS: "remote-image", Label: "Image", Type: TypeText, Code: true,
+			Placeholder: "library/alpine:latest"},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface/veth", Value: "name"}},
+		{Name: "rootDir", ROS: "root-dir", Label: "Root Directory", Type: TypeText, Placeholder: "disk1/pihole"},
+		{Name: "cmd", ROS: "cmd", Label: "Command", Type: TypeText, Code: true, Clearable: true},
+		{Name: "entrypoint", ROS: "entrypoint", Label: "Entrypoint", Type: TypeText, Code: true, Clearable: true},
+		{Name: "envlists", ROS: "envlists", Label: "Env Lists", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/container/envs", Value: "list"}},
+		{Name: "mountlists", ROS: "mountlists", Label: "Mount Lists", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/container/mounts", Value: "list"}},
+		{Name: "hostname", ROS: "hostname", Label: "Hostname", Type: TypeText, Clearable: true},
+		{Name: "dns", ROS: "dns", Label: "DNS", Type: TypeText, Clearable: true},
+		{Name: "startOnBoot", ROS: "start-on-boot", Label: "Start On Boot", Type: TypeBool, Clearable: true},
+		{Name: "restartPolicy", ROS: "restart-policy", Label: "Restart Policy", Type: TypeSelect,
+			Options: []string{"no", "always", "on-failure"}},
+		{Name: "logging", ROS: "logging", Label: "Logging", Type: TypeBool, Clearable: true},
+		{Name: "memoryHigh", ROS: "memory-high", Label: "Memory High", Type: TypeText, Placeholder: "unlimited"},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		// RouterOS drops `running` from a stopped container (it reports
+		// `stopped` instead), so the column reads it as false. A container that
+		// is still starting reports neither; the next read shows it running.
+		{Name: "running", ROS: "running", Label: "Running", Type: TypeBool, Display: true, Default: "false"},
+		{Name: "tag", ROS: "tag", Label: "Tag", Type: TypeText, Display: true},
+		{Name: "restartCount", ROS: "restart-count", Label: "Restarts", Type: TypeText, Display: true},
+	},
+}
+
+var ContainerEnv = &Resource{
+	Key: "containerEnv", Page: "containers", Label: "Container Env",
+	Title: "Container Env", Menu: "/container/envs", Identity: []string{"list", "key"},
+	Fields: []Field{
+		{Name: "list", ROS: "list", Label: "List", Type: TypeText, Required: true, Placeholder: "pihole-env"},
+		{Name: "key", ROS: "key", Label: "Key", Type: TypeText, Required: true, Placeholder: "TZ"},
+		{Name: "value", ROS: "value", Label: "Value", Type: TypeSecret,
+			Help: "Never shown once saved: env values commonly carry passwords. Leave blank to keep it."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
+var ContainerMount = &Resource{
+	Key: "containerMount", Page: "containers", Label: "Container Mount",
+	Title: "Container Mount", Menu: "/container/mounts", Identity: []string{"list", "dst"},
+	Fields: []Field{
+		{Name: "list", ROS: "list", Label: "List", Type: TypeText, Required: true, Placeholder: "pihole-mounts"},
+		{Name: "src", ROS: "src", Label: "Source", Type: TypeText, Required: true, Placeholder: "disk1/pihole-data"},
+		{Name: "dst", ROS: "dst", Label: "Destination", Type: TypeText, Required: true, Placeholder: "/etc/pihole"},
+		{Name: "mode", ROS: "mode", Label: "Mode", Type: TypeSelect, Options: []string{"rw", "ro", "rw,noexec", "ro,noexec"}},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
+var ContainerConfig = &Resource{
+	Key: "containerConfig", Page: "containers", Label: "Container Settings",
+	Title: "Container Settings", Menu: "/container/config", Singleton: true,
+	NoCreate:      true,
+	RemovableWhen: func(map[string]string) bool { return false },
+	Fields: []Field{
+		{Name: "registryUrl", ROS: "registry-url", Label: "Registry", Type: TypeText, Clearable: true,
+			Placeholder: "https://registry-1.docker.io"},
+		{Name: "username", ROS: "username", Label: "Registry User", Type: TypeText, Clearable: true},
+		{Name: "password", ROS: "password", Label: "Registry Password", Type: TypeSecret},
+		{Name: "tmpdir", ROS: "tmpdir", Label: "Pull Directory", Type: TypeText, Clearable: true, Placeholder: "disk1/pull"},
+		{Name: "layerDir", ROS: "layer-dir", Label: "Layer Directory", Type: TypeText, Clearable: true},
+		{Name: "memoryHigh", ROS: "memory-high", Label: "Memory High", Type: TypeText, Placeholder: "unlimited"},
+		{Name: "memoryCurrent", ROS: "memory-current", Label: "Memory In Use", Type: TypeText, Display: true},
+	},
+}
+
+// Veth is /interface/veth: the interface a container talks through. Named after
+// itself, so it carries selfPath.
+var Veth = &Resource{
+	Key: "veth", Page: "containers", Label: "VETH",
+	Title: "VETH Interface", Menu: "/interface/veth", Identity: []string{"name"},
+	Guard:                []string{"selfPath"},
+	GuardInterfaceFields: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "veth1"},
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Clearable: true,
+			Placeholder: "172.17.0.2/24", Help: "Comma separated."},
+		{Name: "gateway", ROS: "gateway", Label: "Gateway", Type: TypeText, Clearable: true, Placeholder: "172.17.0.1"},
+		{Name: "gateway6", ROS: "gateway6", Label: "IPv6 Gateway", Type: TypeText, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "running", ROS: "running", Label: "Running", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2643,6 +2759,11 @@ var byKey = map[string]*Resource{
 	DHCPClient.Key:          DHCPClient,
 	DHCPServer.Key:          DHCPServer,
 	DHCPNetwork.Key:         DHCPNetwork,
+	Container.Key:           Container,
+	ContainerEnv.Key:        ContainerEnv,
+	ContainerMount.Key:      ContainerMount,
+	ContainerConfig.Key:     ContainerConfig,
+	Veth.Key:                Veth,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

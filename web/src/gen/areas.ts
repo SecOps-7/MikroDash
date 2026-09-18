@@ -190,6 +190,17 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "containers", title: "Containers", navGroup: "system",
+    icon: "<path d=\"M3 8l9-5 9 5v8l-9 5-9-5z\"/><path d=\"M3 8l9 5 9-5\"/><path d=\"M12 13v8\"/>",
+    tables: [
+      { resource: "container", title: "Containers", columns: ["name", "remoteImage", "interface", "running", "restartCount", "startOnBoot", "comment"], ordered: false },
+      { resource: "containerEnv", title: "Envs", columns: ["list", "key", "disabled", "comment"], ordered: false },
+      { resource: "containerMount", title: "Mounts", columns: ["list", "src", "dst", "mode", "disabled", "comment"], ordered: false },
+      { resource: "veth", title: "VETH", columns: ["name", "address", "gateway", "running", "disabled", "comment"], ordered: false },
+      { resource: "containerConfig", title: "Settings", columns: ["registryUrl", "username", "tmpdir", "layerDir", "memoryHigh", "memoryCurrent"], ordered: false },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     icon: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"3\"/><path d=\"M8 7v10\"/><path d=\"M12 17V7h3.5a3 3 0 0 1 0 6H12\"/>",
     tables: [

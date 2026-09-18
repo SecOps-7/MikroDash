@@ -57,6 +57,7 @@ export const PAGES: readonly Page[] = [
   { key: "pppoe-clients", title: "PPPoE Clients", path: "pppoe-clients" },
   { key: "dhcp-clients", title: "DHCP Clients", path: "dhcp-clients" },
   { key: "dhcp-servers", title: "DHCP Servers", path: "dhcp-servers" },
+  { key: "containers", title: "Containers", path: "containers" },
   { key: "tools", title: "Tools", path: "tools" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },

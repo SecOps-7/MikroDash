@@ -1,0 +1,24 @@
+{
+ "collector": "areas",
+ "resource": "containerEnv",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router (container package and device-mode enabled for these tests). An env list created FOR the capture. The VALUE is dropped here: env values commonly carry secrets, and the app treats them as secrets. Addresses mapped into documentation ranges. Read through /container/envs/print.",
+ "exchanges": [
+  {
+   "cmd": "/container/envs/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "comment": "md-container-test",
+     "disabled": "false",
+     "key": "GREETING",
+     "list": "md-env"
+    }
+   ]
+  }
+ ]
+}

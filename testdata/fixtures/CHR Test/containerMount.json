@@ -1,0 +1,26 @@
+{
+ "collector": "areas",
+ "resource": "containerMount",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router (container package and device-mode enabled for these tests). A mount list created FOR the capture. Addresses mapped into documentation ranges. Read through /container/mounts/print.",
+ "exchanges": [
+  {
+   "cmd": "/container/mounts/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "comment": "md-container-test",
+     "disabled": "false",
+     "dst": "/data",
+     "list": "md-mnt",
+     "mode": "rw",
+     "src": "/md-data"
+    }
+   ]
+  }
+ ]
+}

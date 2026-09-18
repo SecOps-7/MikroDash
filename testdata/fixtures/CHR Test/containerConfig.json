@@ -1,0 +1,28 @@
+{
+ "collector": "areas",
+ "resource": "containerConfig",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router (container package and device-mode enabled for these tests). The container settings (a singleton): registry and pull directory. `password` is dropped as every credential is. Addresses mapped into documentation ranges. Read through /container/config/print.",
+ "exchanges": [
+  {
+   "cmd": "/container/config/print",
+   "params": [],
+   "rows": [
+    {
+     "layer-dir": "",
+     "memory-current": "413696",
+     "memory-high": "unlimited",
+     "memory-max": "unlimited",
+     "registry-url": "https://registry-1.docker.io",
+     "swap-current": "0",
+     "swap-max": "unlimited",
+     "tmpdir": "/md-pull",
+     "username": ""
+    }
+   ]
+  }
+ ]
+}

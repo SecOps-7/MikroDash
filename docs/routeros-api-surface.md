@@ -239,6 +239,11 @@ surface stays complete.
 | `/interface/ovpn-server/server` | ovpnServer | openvpn | add, set, remove |
 | `/interface/ovpn-client` | ovpnClient | openvpn | add, set, remove (selfPath, tunnelDefault; password never read) |
 | `/interface/pppoe-client` | pppoeClient | pppoe-clients | add, set, remove (selfPath, tunnelDefault; password never read) |
+| `/container` | container | containers | add, set, remove, start, stop (codeGate on image, cmd, entrypoint) |
+| `/container/envs` | containerEnv | containers | add, set, remove (value never read) |
+| `/container/mounts` | containerMount | containers | add, set, remove |
+| `/container/config` | containerConfig | containers | set (singleton; password never read) |
+| `/interface/veth` | veth | containers | add, set, remove (selfPath) |
 | `/interface/vrrp` | vrrp | vrrp | add, set, remove (selfPath, codeGate on the scripts; password never read) |
 | `/interface/wireguard/peers` | wgPeer | vpn | add, set, remove |
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |

@@ -321,6 +321,22 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// Containers: what runs, what it is given (envs, mounts), where it talks
+	// (veth) and the settings pulls use. Start and Stop are row actions.
+	{
+		Key: "containers", Title: "Containers", NavGroup: "system",
+		Icon: `<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>`,
+		Tables: []Table{
+			{Resource: "container", Title: "Containers",
+				Columns: []string{"name", "remoteImage", "interface", "running", "restartCount", "startOnBoot", "comment"}},
+			{Resource: "containerEnv", Title: "Envs", Columns: []string{"list", "key", "disabled", "comment"}},
+			{Resource: "containerMount", Title: "Mounts", Columns: []string{"list", "src", "dst", "mode", "disabled", "comment"}},
+			{Resource: "veth", Title: "VETH", Columns: []string{"name", "address", "gateway", "running", "disabled", "comment"}},
+			{Resource: "containerConfig", Title: "Settings",
+				Columns: []string{"registryUrl", "username", "tmpdir", "layerDir", "memoryHigh", "memoryCurrent"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,
