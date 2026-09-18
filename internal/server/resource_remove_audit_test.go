@@ -73,3 +73,37 @@ func TestTheDeleteAuditNamesTheRowNotTheRequest(t *testing.T) {
 			"so that row still carries the request's name")
 	}
 }
+
+// TestAnEditsRefusalNamesTheRow is the same rule for an edit, found the same way:
+// the assistant's partial change_row sends no identity, and `ipService` never
+// sends its Display name, so a guard refusal was audited with target_name EMPTY
+// (measured on the CHR, 2026-09-18). In prepareWrite, once the row is found and
+// while the name is still empty, it must be taken from that row, before the
+// read-only denial and the guard refusal that audit it.
+func TestAnEditsRefusalNamesTheRow(t *testing.T) {
+	b, err := os.ReadFile("resource.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	start := strings.Index(src, "func (cn *conn) prepareWrite(")
+	if start < 0 {
+		t.Fatal("prepareWrite has moved; this test is measuring nothing")
+	}
+	body := src[start:]
+	body = body[:strings.Index(body, "\n}\n")]
+	assign := regexp.MustCompile(`\bname\s*=\s*res\.IdentityOf\(before\)`).FindStringIndex(body)
+	if assign == nil {
+		t.Fatal("prepareWrite never assigns res.IdentityOf(before) to name: an edit sent without its " +
+			"identity is audited with an empty target_name")
+	}
+	for _, anchor := range []string{`Note: "read-only-row"`, "cn.guardRefusal("} {
+		at := strings.Index(body, anchor)
+		if at < 0 {
+			t.Fatalf("%s is no longer in prepareWrite; this test has lost its anchor", anchor)
+		}
+		if assign[0] > at {
+			t.Errorf("the name is taken from the row AFTER %s, so that audit row still has none", anchor)
+		}
+	}
+}

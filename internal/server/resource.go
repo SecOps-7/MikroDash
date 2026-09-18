@@ -365,6 +365,14 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		if before == nil {
 			return nil, writeOutcome{Code: "stale-row", Name: name}
 		}
+		// THE AUDIT NAME COMES FROM THE ROW, as it does for a delete. An edit
+		// that does not send the identity field — the assistant's partial
+		// change_row sends only what changes, and a Display name is never sent
+		// at all — otherwise audited its refusals with an EMPTY target_name.
+		// Measured on the CHR on 2026-09-18: `ipService.update | | denied`.
+		if name == "" {
+			name = res.IdentityOf(before)
+		}
 	}
 	if before != nil && res.ReadOnlyWhen != nil && res.ReadOnlyWhen(before) {
 		cn.recorder().Denied(audit.Event{
@@ -1418,9 +1426,15 @@ func (cn *conn) serviceVerdict(action string, values, before map[string]string) 
 }
 
 // serviceDecision is serviceVerdict without the reads. `before` is the row as
-// RouterOS returned it; `values` are the write's, keyed by field name, and the
-// ipService fields are named exactly as RouterOS spells them, so one key reads
-// both (pinned where the resource is declared).
+// RouterOS returned it, keyed by RouterOS names; `values` are the write's, keyed
+// by the ipService FIELD names.
+//
+// ── THE ADDRESS RESTRICTION HAS TWO NAMES ───────────────────────────────────
+//
+// RouterOS 7.24 renamed `address` to `available-from` on /ip/service ("backwards
+// compatible via deprecation", changelog 7.24), and prints only the new name. A
+// row from an older router carries `address`. The stored restriction is read
+// under either, so the guard judges an older router's row correctly too.
 func serviceDecision(tls bool, self []string, resolved bool, action string,
 	values, before map[string]string) guard.Verdict {
 
@@ -1431,11 +1445,16 @@ func serviceDecision(tls bool, self []string, resolved bool, action string,
 	if before == nil {
 		return guard.Verdict{Level: "none"} // /ip/service rows are fixed: nothing is created
 	}
-	row := func(v map[string]string, base guard.ServiceRow) guard.ServiceRow {
+	row := func(v map[string]string, base guard.ServiceRow, addrKeys ...string) guard.ServiceRow {
 		r := base
-		for k, dst := range map[string]*string{"name": &r.Name, "port": &r.Port, "address": &r.Address, "vrf": &r.VRF} {
+		for k, dst := range map[string]*string{"name": &r.Name, "port": &r.Port, "vrf": &r.VRF} {
 			if x, ok := v[k]; ok {
 				*dst = x
+			}
+		}
+		for _, k := range addrKeys {
+			if x, ok := v[k]; ok {
+				r.Address = x
 			}
 		}
 		if x, ok := v["disabled"]; ok {
@@ -1443,7 +1462,8 @@ func serviceDecision(tls bool, self []string, resolved bool, action string,
 		}
 		return r
 	}
-	was := row(before, guard.ServiceRow{})
+	// The older name first, so a row carrying both reads the current one.
+	was := row(before, guard.ServiceRow{}, "address", "available-from")
 	now := was
 	switch {
 	case action == "delete":
@@ -1453,7 +1473,7 @@ func serviceDecision(tls bool, self []string, resolved bool, action string,
 	case action == "enable":
 		now.Disabled = false
 	case values != nil:
-		now = row(values, was)
+		now = row(values, was, "availableFrom")
 	}
 	return guard.CheckServiceEdit(ours, self, resolved, was, now)
 }
