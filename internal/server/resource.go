@@ -1167,6 +1167,7 @@ var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
+	"rulePath": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1223,6 +1224,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "routePath":
 			if v := cn.routeVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "rulePath":
+			if v := cn.ruleVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		case "addressPath":
@@ -1384,6 +1389,39 @@ func (cn *conn) routeVerdict(res *resource.Resource, action string,
 		now = routeChangeOf(values, was)
 	}
 	return guard.CheckRouteEdit(active, addrs, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// ruleVerdict asks the routing-rule guard about one /routing/rule write.
+// /user/active is read fresh, in the same tick as the write, as the route
+// guard reads it.
+func (cn *conn) ruleVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var active []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	var was, now guard.RuleChange
+	if before != nil {
+		was = ruleChangeOf(histValues(res.RowValues(before)))
+	}
+	if action != "delete" && values != nil {
+		now = ruleChangeOf(values)
+	}
+	return guard.CheckRuleEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// ruleChangeOf reads a rule in the registry's field names.
+//
+// NOT LAID OVER THE STORED ROW, unlike routeChangeOf: a form sends every field,
+// and a partial edit has already been merged with the stored row before it gets
+// here, so a missing key is a cleared one — and a cleared destination is the
+// widest rule there is, which is exactly the change this guard must not miss.
+func ruleChangeOf(v map[string]string) guard.RuleChange {
+	d := v["disabled"]
+	return guard.RuleChange{Present: true, Disabled: d == "true" || d == "yes",
+		Dst: v["dstAddress"], Src: v["srcAddress"], Mark: v["routingMark"],
+		Interface: v["interface"], Action: v["action"], Table: v["table"]}
 }
 
 // addressVerdict asks the address lockout guard about one IP address write, of

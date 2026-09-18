@@ -335,6 +335,24 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
         why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
           'whether changing the route <code>' + esc(str(w.destination) || '?') + '</code> cuts its own connection.',
       };
+    case 'rule-cutoff': {
+      const verb = str(w.action) === 'delete' ? 'removes' : str(w.action) === 'create' ? 'adds' : 'changes';
+      const where = str(w.ruleAction) === 'drop' || str(w.ruleAction) === 'unreachable'
+        ? 'answers <code>' + esc(str(w.ruleAction)) + '</code>'
+        : 'looks the route up in table <code>' + esc(str(w.table) || '?') + '</code>';
+      return {
+        headline: cut,
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, and this change ' +
+          verb + ' a routing rule for <code>' + esc(str(w.destination) || '?') + '</code> that ' + where +
+          ' before the main table is consulted, which can send the router\'s replies somewhere they never arrive.',
+      };
+    }
+    case 'rule-cutoff-unknown':
+      return {
+        headline: cut,
+        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether ' +
+          'this routing rule for <code>' + esc(str(w.destination) || '?') + '</code> reroutes its own connection.',
+      };
     case 'address-cutoff': {
       const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
       return {

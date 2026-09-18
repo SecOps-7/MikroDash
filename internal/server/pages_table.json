@@ -87,6 +87,11 @@
       "settingsKey": null
     },
     {
+      "key": "routing-rules",
+      "title": "Routing Rules",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null

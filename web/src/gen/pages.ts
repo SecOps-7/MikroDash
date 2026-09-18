@@ -49,6 +49,7 @@ export const PAGES: readonly Page[] = [
   { key: "snmp", title: "SNMP", path: "snmp" },
   { key: "files", title: "Files", path: "files" },
   { key: "routing-tables", title: "Routing Tables", path: "routing-tables" },
+  { key: "routing-rules", title: "Routing Rules", path: "routing-rules" },
   { key: "tools", title: "Tools", path: "tools" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },

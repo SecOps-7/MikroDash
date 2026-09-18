@@ -159,6 +159,8 @@ export interface AreaTable {
   title: string;
   /** Field names, in the order the table shows them. */
   columns: readonly string[];
+  /** Row order is meaningful (the resource is Ordered): the page draws reorder arrows. */
+  ordered: boolean;
 }
 
 export interface Area {
@@ -182,17 +184,21 @@ export const AREAS: readonly Area[] = [
 			// generation time keeps the fallback in one place — Go's — rather
 			// than shipping a second copy of the labels.
 			title := t.Title
-			if title == "" {
-				if res := resource.ByKey(t.Resource); res != nil {
+			ordered := false
+			if res := resource.ByKey(t.Resource); res != nil {
+				if title == "" {
 					title = res.Label
 				}
+				// ORDER IS THE RESOURCE'S FACT, carried here for the same reason
+				// the title is: the browser has no registry to ask.
+				ordered = res.Ordered
 			}
 			cols := make([]string, 0, len(t.Columns))
 			for _, c := range t.Columns {
 				cols = append(cols, strconv.Quote(c))
 			}
-			fmt.Fprintf(&b, "      { resource: %s, title: %s, columns: [%s] },\n",
-				strconv.Quote(t.Resource), strconv.Quote(title), strings.Join(cols, ", "))
+			fmt.Fprintf(&b, "      { resource: %s, title: %s, columns: [%s], ordered: %t },\n",
+				strconv.Quote(t.Resource), strconv.Quote(title), strings.Join(cols, ", "), ordered)
 		}
 		b.WriteString("    ],\n  },\n")
 	}

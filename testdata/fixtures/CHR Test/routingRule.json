@@ -1,0 +1,33 @@
+{
+ "collector": "areas",
+ "resource": "routingRule",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The two rules were created FOR the capture with documentation-range addresses (TEST-NET-2 and TEST-NET-3). What is real is the router's reply: rules in the default `user` chain do not report `chain`; `.nextid` links each rule to the next; `disabled` is absent when false; a disabled rule is `inactive`. Read through /routing/rule/print.",
+ "exchanges": [
+  {
+   "cmd": "/routing/rule/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     ".nextid": "*2",
+     "action": "lookup-only-in-table",
+     "comment": "fixture policy",
+     "inactive": "false",
+     "src-address": "198.51.100.0/24",
+     "table": "md-isp2"
+    },
+    {
+     ".id": "*2",
+     "action": "unreachable",
+     "disabled": "true",
+     "dst-address": "203.0.113.0/24",
+     "inactive": "true"
+    }
+   ]
+  }
+ ]
+}

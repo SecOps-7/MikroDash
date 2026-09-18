@@ -319,6 +319,12 @@
       "page": "users"
     },
     {
+      "name": "list_routingRule",
+      "access": "read",
+      "resource": "routingRule",
+      "page": "routing-rules"
+    },
+    {
       "name": "list_routingTable",
       "access": "read",
       "resource": "routingTable",

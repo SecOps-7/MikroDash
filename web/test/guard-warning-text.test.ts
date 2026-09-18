@@ -91,3 +91,18 @@ for (const [code, words] of [['service-disable', 'Disabling it'], ['service-port
   assert.ok(t.includes(words) && !t.includes('A safety rule refused'), code + ': ' + t);
 }
 say('ok  each IP-service refusal explains itself');
+
+// THE ROUTING-RULE GUARD names where MikroDash is, the rule's destination and
+// what it does with the reply: a table lookup and a drop read differently.
+const lookupRule = warningText('rule-cutoff', { address: '10.0.0.5', destination: 'any destination',
+  ruleAction: 'lookup-only-in-table', table: 'isp2', action: 'create' });
+assert.ok(lookupRule.headline.includes('cut MikroDash off') && lookupRule.why.includes('10.0.0.5') &&
+  lookupRule.why.includes('isp2') && lookupRule.why.includes('adds'), 'rule-cutoff (lookup): ' + lookupRule.why);
+const dropRule = warningText('rule-cutoff', { address: '10.0.0.5', destination: '10.0.0.0/24',
+  ruleAction: 'unreachable', table: '', action: 'update' });
+assert.ok(dropRule.why.includes('unreachable') && !dropRule.why.includes('table <code>'),
+  'rule-cutoff (unreachable) reads as a table lookup: ' + dropRule.why);
+const unknownRule = warningText('rule-cutoff-unknown', { destination: '198.51.100.0/24', action: 'create' });
+assert.ok(unknownRule.why.includes('could not read') && unknownRule.why.includes('198.51.100.0/24'),
+  'rule-cutoff-unknown says it cannot tell: ' + unknownRule.why);
+say('ok  rule-cutoff names the address, the rule and what it does with the reply');

@@ -205,6 +205,14 @@ var declared = []Area{
 			Columns: []string{"name", "fib", "disabled", "dynamic", "invalid", "comment"}}},
 		Poll: 60 * time.Second,
 	},
+	// Routing rules: policy routing, first match wins, so the page draws the
+	// reorder arrows. Guarded by rulePath.
+	{
+		Key: "routing-rules", Title: "Routing Rules", NavGroup: "ipsvc",
+		Tables: []Table{{Resource: "routingRule",
+			Columns: []string{"srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

@@ -1453,6 +1453,50 @@ var RoutingTable = &Resource{
 	},
 }
 
+// RoutingRuleActions are the actions /routing/rule accepts on RouterOS 7.24, as
+// the router lists them. `mangle` is on that list and not in the manual; it is
+// offered so a rule holding it opens as what it is rather than as the first
+// option, which a save would then write back.
+var RoutingRuleActions = []string{"lookup", "lookup-only-in-table", "drop", "unreachable", "mangle"}
+
+// RoutingRule is /routing/rule: policy routing, consulted before the main
+// table in the default policy-rules order. ORDERED, because the first rule
+// that matches decides. Guarded by rulePath: a rule can send the router's own
+// replies to MikroDash to `unreachable` or into a table with no way back.
+//
+// `chain`, `realm` and `vrf` are not fields: rules live in the `user` chain
+// unless somebody moved them, and an undeclared property is left as it is by
+// every write here.
+var RoutingRule = &Resource{
+	Key: "routingRule", Page: "routing-rules", Label: "Routing Rule",
+	Title: "Routing Rule", Menu: "/routing/rule",
+	Identity: []string{"srcAddress", "dstAddress", "action", "table"},
+	Ordered:  true,
+	Guard:    []string{"rulePath"},
+	Fields: []Field{
+		{Name: "srcAddress", ROS: "src-address", Label: "Source", Type: TypeCidr, Clearable: true,
+			Placeholder: "192.168.88.0/24"},
+		{Name: "dstAddress", ROS: "dst-address", Label: "Destination", Type: TypeCidr, Clearable: true,
+			Placeholder: "0.0.0.0/0"},
+		{Name: "routingMark", ROS: "routing-mark", Label: "Routing Mark", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/routing/table", Value: "name"}},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Clearable: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"},
+			Help:        "The interface a packet arrived on. The router's own traffic has none."},
+		{Name: "action", ROS: "action", Label: "Action", Type: TypeSelect, Required: true,
+			Options: RoutingRuleActions},
+		{Name: "table", ROS: "table", Label: "Table", Type: TypeText,
+			OptionsFrom: &OptionsFrom{Menu: "/routing/table", Value: "name"},
+			ShowIf:      &ShowIf{Field: "action", In: []string{"lookup", "lookup-only-in-table"}}},
+		{Name: "minPrefix", ROS: "min-prefix", Label: "Min Prefix", Type: TypeInt, Clearable: true,
+			Min: intp(0), Max: intp(128),
+			Help: "Ignore routes in the table shorter than this prefix length."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "inactive", ROS: "inactive", Label: "Inactive", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2093,6 +2137,7 @@ var byKey = map[string]*Resource{
 	QueueTree.Key:           QueueTree,
 	IPPool.Key:              IPPool,
 	RoutingTable.Key:        RoutingTable,
+	RoutingRule.Key:         RoutingRule,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,

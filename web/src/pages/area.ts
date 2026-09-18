@@ -116,20 +116,31 @@ function render(area: Area): void {
     return;
   }
 
-  const head = declared.columns.map((c) => '<th>' + esc(columnLabel(c)) + '</th>').join('');
+  // AN ORDERED RESOURCE (routing rules) gets the reorder arrows the Firewall page
+  // draws, named `data-res-move` so the resource engine owns the move: the first
+  // rule that matches decides, so position is part of what a row does. A viewer
+  // who may not write gets none.
+  const arrows = declared.ordered && writable[declared.resource];
+  const head = (arrows ? '<th style="width:1%"></th>' : '') +
+    declared.columns.map((c) => '<th>' + esc(columnLabel(c)) + '</th>').join('');
+  const list = table?.rows || [];
+  const last = list.length - 1;
+  const move = (at: number): string => '<td style="white-space:nowrap">' +
+    '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+    '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button></td>';
   // A DISABLED OR INVALID ROW IS DIMMED, as the hand-built pages dim theirs:
   // almost every RouterOS menu has `disabled`, and `invalid` is the router saying
   // a row refers to something that is gone. The column still says which.
-  const rows = (table?.rows || []).map((r) =>
+  const rows = list.map((r, at) =>
     '<tr' + (r.values?.disabled === 'true' || r.values?.invalid === 'true' ? ' style="opacity:.55"' : '') +
-    resRow(r.id, r.identity, declared.resource) + '>' +
+    resRow(r.id, r.identity, declared.resource) + '>' + (arrows ? move(at) : '') +
     declared.columns.map((c) => '<td>' + cell(r.values?.[c]) + '</td>').join('') +
     '</tr>').join('');
 
   body.innerHTML = '<table class="table table-vcenter mb-0">' +
     '<thead><tr>' + head + '</tr></thead>' +
     '<tbody data-res-rows="' + esc(declared.resource) + '">' +
-    (rows || '<tr><td colspan="' + declared.columns.length + '" class="empty-state">' +
+    (rows || '<tr><td colspan="' + (declared.columns.length + (arrows ? 1 : 0)) + '" class="empty-state">' +
       'Nothing here yet.' + (writable[declared.resource] ? ' Use <strong>Add</strong> to create one.' : '') +
       '</td></tr>') +
     '</tbody></table>';

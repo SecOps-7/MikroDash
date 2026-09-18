@@ -13,6 +13,8 @@ export interface AreaTable {
   title: string;
   /** Field names, in the order the table shows them. */
   columns: readonly string[];
+  /** Row order is meaningful (the resource is Ordered): the page draws reorder arrows. */
+  ordered: boolean;
 }
 
 export interface Area {
@@ -28,90 +30,96 @@ export const AREAS: readonly Area[] = [
   {
     key: "ip-pools", title: "IP Pools", navGroup: "ipsvc",
     tables: [
-      { resource: "ipPool", title: "IP Pool", columns: ["name", "ranges", "used", "total", "nextPool", "comment"] },
+      { resource: "ipPool", title: "IP Pool", columns: ["name", "ranges", "used", "total", "nextPool", "comment"], ordered: false },
     ],
   },
   {
     key: "address-lists", title: "Address Lists", navGroup: "security",
     tables: [
-      { resource: "addressList", title: "Address List Entry", columns: ["list", "address", "timeout", "dynamic", "comment"] },
+      { resource: "addressList", title: "Address List Entry", columns: ["list", "address", "timeout", "dynamic", "comment"], ordered: false },
     ],
   },
   {
     key: "interface-lists", title: "Interface Lists", navGroup: "network",
     tables: [
-      { resource: "ifListMember", title: "Members", columns: ["list", "interface", "disabled", "dynamic", "comment"] },
-      { resource: "ifList", title: "Lists", columns: ["name", "include", "exclude", "builtin", "comment"] },
+      { resource: "ifListMember", title: "Members", columns: ["list", "interface", "disabled", "dynamic", "comment"], ordered: false },
+      { resource: "ifList", title: "Lists", columns: ["name", "include", "exclude", "builtin", "comment"], ordered: false },
     ],
   },
   {
     key: "ip-services", title: "IP Services", navGroup: "ipsvc",
     tables: [
-      { resource: "ipService", title: "IP Service", columns: ["name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"] },
+      { resource: "ipService", title: "IP Service", columns: ["name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"], ordered: false },
     ],
   },
   {
     key: "certificates", title: "Certificates", navGroup: "security",
     tables: [
-      { resource: "certificate", title: "Certificate", columns: ["name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"] },
+      { resource: "certificate", title: "Certificate", columns: ["name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"], ordered: false },
     ],
   },
   {
     key: "scripts", title: "Scripts", navGroup: "system",
     tables: [
-      { resource: "script", title: "Script", columns: ["name", "owner", "policy", "runCount", "lastStarted", "comment"] },
+      { resource: "script", title: "Script", columns: ["name", "owner", "policy", "runCount", "lastStarted", "comment"], ordered: false },
     ],
   },
   {
     key: "scheduler", title: "Scheduler", navGroup: "system",
     tables: [
-      { resource: "scheduler", title: "Scheduled Task", columns: ["name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"] },
+      { resource: "scheduler", title: "Scheduled Task", columns: ["name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"], ordered: false },
     ],
   },
   {
     key: "ntp-client", title: "NTP Client", navGroup: "system",
     tables: [
-      { resource: "ntpClient", title: "Settings", columns: ["enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"] },
-      { resource: "ntpServer", title: "Servers", columns: ["address", "iburst", "minPoll", "maxPoll", "disabled", "comment"] },
+      { resource: "ntpClient", title: "Settings", columns: ["enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"], ordered: false },
+      { resource: "ntpServer", title: "Servers", columns: ["address", "iburst", "minPoll", "maxPoll", "disabled", "comment"], ordered: false },
     ],
   },
   {
     key: "clock", title: "Clock", navGroup: "system",
     tables: [
-      { resource: "clock", title: "Clock", columns: ["time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"] },
+      { resource: "clock", title: "Clock", columns: ["time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"], ordered: false },
     ],
   },
   {
     key: "logging", title: "Logging", navGroup: "system",
     tables: [
-      { resource: "logRule", title: "Rules", columns: ["topics", "action", "prefix", "disabled", "isDefault", "comment"] },
-      { resource: "logAction", title: "Actions", columns: ["name", "target", "memoryLines", "remote", "isDefault"] },
+      { resource: "logRule", title: "Rules", columns: ["topics", "action", "prefix", "disabled", "isDefault", "comment"], ordered: false },
+      { resource: "logAction", title: "Actions", columns: ["name", "target", "memoryLines", "remote", "isDefault"], ordered: false },
     ],
   },
   {
     key: "snmp", title: "SNMP", navGroup: "system",
     tables: [
-      { resource: "snmp", title: "Settings", columns: ["enabled", "contact", "location", "trapTarget", "trapVersion", "engineId"] },
-      { resource: "snmpCommunity", title: "Communities", columns: ["name", "addresses", "security", "readAccess", "writeAccess", "disabled"] },
+      { resource: "snmp", title: "Settings", columns: ["enabled", "contact", "location", "trapTarget", "trapVersion", "engineId"], ordered: false },
+      { resource: "snmpCommunity", title: "Communities", columns: ["name", "addresses", "security", "readAccess", "writeAccess", "disabled"], ordered: false },
     ],
   },
   {
     key: "files", title: "Files", navGroup: "system",
     tables: [
-      { resource: "file", title: "File", columns: ["name", "type", "size", "lastModified"] },
+      { resource: "file", title: "File", columns: ["name", "type", "size", "lastModified"], ordered: false },
     ],
   },
   {
     key: "routing-tables", title: "Routing Tables", navGroup: "ipsvc",
     tables: [
-      { resource: "routingTable", title: "Routing Table", columns: ["name", "fib", "disabled", "dynamic", "invalid", "comment"] },
+      { resource: "routingTable", title: "Routing Table", columns: ["name", "fib", "disabled", "dynamic", "invalid", "comment"], ordered: false },
+    ],
+  },
+  {
+    key: "routing-rules", title: "Routing Rules", navGroup: "ipsvc",
+    tables: [
+      { resource: "routingRule", title: "Routing Rule", columns: ["srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"], ordered: true },
     ],
   },
   {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
-      { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },
-      { resource: "ipv6Address", title: "IPv6", columns: ["address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"] },
+      { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"], ordered: false },
+      { resource: "ipv6Address", title: "IPv6", columns: ["address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"], ordered: false },
     ],
   },
 ];

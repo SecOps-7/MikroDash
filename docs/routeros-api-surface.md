@@ -250,6 +250,7 @@ surface stays complete.
 | `/ip/firewall/nat` | fwNat | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/raw` | fwRaw | firewall | add, set, remove, move, enable, disable |
 | `/ip/route` | route | routing | add, set, remove |
+| `/routing/rule` | routingRule | routing-rules | add, set, remove, move (guarded by rulePath) |
 | `/routing/table` | routingTable | routing-tables | add, set, remove (fib is a presence flag, cleared with `!fib`) |
 | `/tool/netwatch` | netwatch | netwatch | add, set, remove (no scripts, no DNS record type) |
 | `/ipv6/address` | ipv6Address | ip-addresses | add, set, remove |
