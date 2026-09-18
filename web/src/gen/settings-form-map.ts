@@ -70,6 +70,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   "value": [
     "aiBaseUrl",
     "aiHeaders",
+    "aiMaxTokens",
     "aiModel",
     "aiOverviewIntervalSec",
     "aiOverviewPrompt",

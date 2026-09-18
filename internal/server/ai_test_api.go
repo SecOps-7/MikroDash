@@ -148,5 +148,6 @@ func aiConfigFor(body map[string]any, stored store.Settings) aiprovider.Config {
 		Headers:     text("aiHeaders"),
 		TimeoutMs:   number("aiTimeoutMs"),
 		TLSInsecure: boolean("aiTlsInsecure"),
+		MaxTokens:   number("aiMaxTokens"),
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"mikrodash/internal/aiprovider"
+	"mikrodash/internal/db"
 	"mikrodash/internal/store"
 )
 
@@ -1067,5 +1068,122 @@ func TestGateDetailCarriesTheGuardCode(t *testing.T) {
 	// And it does not mutate the outcome it was built from.
 	if _, ok := out.Detail["code"]; ok {
 		t.Errorf("gateDetail wrote back into the outcome: %v", out.Detail)
+	}
+}
+
+// ── AN ANSWER IS NEVER EMPTY ────────────────────────────────────────────────
+//
+// Found live on 2026-09-18: a security question made a reasoning model spend its
+// whole reply budget thinking, and the round came back `finish: length` with no
+// text. The loop returned "", `ai:reply` carried it, and the page drew a blank
+// bubble with no error — which the operator read as a timeout.
+
+func TestAReplyThatRanOutOfBudgetWithNoTextIsAnError(t *testing.T) {
+	c := &callOf{replies: []aiprovider.Reply{{Finish: "length"}}}
+	got, err := aiChatLoop(nil, nil, c.call, func(aiprovider.ToolCall) string { return "" })
+	if err == nil || got != "" {
+		t.Fatalf("got %q, err %v; want no text and an error", got, err)
+	}
+	if !strings.Contains(err.Error(), "reply limit") {
+		t.Errorf("error %q does not say the model reached its reply limit", err)
+	}
+}
+
+func TestAnEmptyReplyForAnyOtherReasonIsAnError(t *testing.T) {
+	c := &callOf{replies: []aiprovider.Reply{{Finish: "stop"}}}
+	if got, err := aiChatLoop(nil, nil, c.call, func(aiprovider.ToolCall) string { return "" }); err == nil {
+		t.Fatalf("an empty answer was delivered as %q with no error", got)
+	}
+}
+
+func TestAReplyCutOffByTheLimitSaysSo(t *testing.T) {
+	c := &callOf{replies: []aiprovider.Reply{{Text: "1. **api-", Finish: "length"}}}
+	got, err := aiChatLoop(nil, nil, c.call, func(aiprovider.ToolCall) string { return "" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got, "1. **api-") || !strings.Contains(got, "cut off") {
+		t.Errorf("got %q; a truncated answer must keep its text and say it was cut off", got)
+	}
+}
+
+// The control: a finished answer is delivered exactly as written.
+func TestAFinishedReplyIsUntouched(t *testing.T) {
+	c := &callOf{replies: []aiprovider.Reply{{Text: "All clear.", Finish: "stop"}}}
+	got, err := aiChatLoop(nil, nil, c.call, func(aiprovider.ToolCall) string { return "" })
+	if err != nil || got != "All clear." {
+		t.Errorf("got %q, err %v; want the answer unchanged", got, err)
+	}
+}
+
+// ── A QUESTION THAT WAS NEVER ANSWERED IS NOT REPLAYED ──────────────────────
+//
+// Before the fix above, an empty answer was not saved but its question was, so
+// the thread held user turns with no reply, and every later question replayed
+// them to the model. History now carries only answered pairs, which also cleans
+// up threads saved before the fix without deleting anything.
+func TestHistoryReplaysOnlyAnsweredQuestions(t *testing.T) {
+	u, a := "user", "assistant"
+	rows := []aiprovider.ChatMessage{
+		{Role: u, Content: "q1"}, {Role: a, Content: "a1"},
+		{Role: u, Content: "lost"},
+		{Role: u, Content: "lost again"},
+		{Role: u, Content: "q2"}, {Role: a, Content: "a2"},
+		{Role: u, Content: "trailing"},
+	}
+	got := answeredOnly(rows)
+	var seen []string
+	for _, m := range got {
+		seen = append(seen, m.Content)
+	}
+	if strings.Join(seen, ",") != "q1,a1,q2,a2" {
+		t.Errorf("replayed %v, want only the answered pairs q1,a1,q2,a2", seen)
+	}
+	if answeredOnly(nil) == nil {
+		t.Error("an empty history is nil; Go never sends a null array")
+	}
+}
+
+// And through the real database, so aiHistory is held to using the filter: a
+// thread with a question saved and never answered replays without it.
+func TestAiHistoryDropsTheUnansweredQuestionItStored(t *testing.T) {
+	d, err := db.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	for _, m := range []struct{ role, text string }{
+		{db.AIRoleUser, "q1"}, {db.AIRoleAssistant, "a1"},
+		{db.AIRoleUser, "Are there any security concerns on my router?"},
+		{db.AIRoleUser, "q2"}, {db.AIRoleAssistant, "a2"},
+	} {
+		if err := d.AppendAIMessage("u1", "r1", m.role, m.text); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := &Server{auditDB: d}
+	var seen []string
+	for _, m := range s.aiHistory("u1", "r1") {
+		seen = append(seen, m.Content)
+	}
+	if strings.Join(seen, "|") != "q1|a1|q2|a2" {
+		t.Errorf("replayed %v; the unanswered question is still in it", seen)
+	}
+}
+
+// The Token budget setting reaches the chat's config: stored, it is the reply
+// budget; absent, the default; out of range, the default, never the typed value.
+func TestTheTokenBudgetSettingReachesTheChat(t *testing.T) {
+	for _, tc := range []struct {
+		stored store.Settings
+		want   int
+	}{
+		{store.Settings{"aiMaxTokens": float64(16384)}, 16384},
+		{store.Settings{}, aiprovider.DefaultReplyTokens},
+		{store.Settings{"aiMaxTokens": float64(100)}, aiprovider.DefaultReplyTokens},
+	} {
+		if got := aiConfigFor(nil, tc.stored).ReplyTokens(); got != tc.want {
+			t.Errorf("stored %v -> budget %d, want %d", tc.stored, got, tc.want)
+		}
 	}
 }

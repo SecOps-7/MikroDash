@@ -72,6 +72,28 @@ type Config struct {
 	Headers     string
 	TimeoutMs   int
 	TLSInsecure bool
+	// MaxTokens is the chat's reply budget (aiMaxTokens). See ReplyTokens.
+	MaxTokens int
+}
+
+// The chat's reply budget: the default and the range the setting accepts.
+//
+// 8192 BY DEFAULT, because a reasoning model thinks inside this budget: at 1024
+// a security question to one spent all of it thinking and wrote nothing
+// (2026-09-18). The operator can raise it for a model that thinks longer.
+const (
+	DefaultReplyTokens = 8192
+	MinReplyTokens     = 1024
+	MaxReplyTokens     = 65536
+)
+
+// ReplyTokens is the configured budget, or DefaultReplyTokens when it is unset
+// or out of range — as Timeout treats an unusable timeout.
+func (c Config) ReplyTokens() int {
+	if c.MaxTokens < MinReplyTokens || c.MaxTokens > MaxReplyTokens {
+		return DefaultReplyTokens
+	}
+	return c.MaxTokens
 }
 
 // Timeout is the configured bound, or DefaultTimeout when it is unusable.

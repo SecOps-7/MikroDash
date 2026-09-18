@@ -1196,9 +1196,17 @@
                 <label class="sform-label">API Key</label>
                 <input type="password" id="s_aiApiKey" class="sform-input" placeholder="paste key here, or leave blank for a local model" autocomplete="off">
               </div>
-              <div class="sform-group" style="flex:1">
-                <label class="sform-label">Timeout (ms)</label>
-                <input type="number" id="s_aiTimeoutMs" class="sform-input" min="1000" max="600000" placeholder="60000" autocomplete="off">
+              <!-- Timeout and Token budget share the column Timeout had alone:
+                   .sform-row is a two-column grid, so they sit in a nested one. -->
+              <div class="sform-row" style="gap:.5rem">
+                <div class="sform-group">
+                  <label class="sform-label">Timeout (ms)</label>
+                  <input type="number" id="s_aiTimeoutMs" class="sform-input" min="1000" max="600000" placeholder="60000" autocomplete="off">
+                </div>
+                <div class="sform-group">
+                  <label class="sform-label" title="The most the model may write in one reply, its reasoning included. A reasoning model that runs out writes nothing; raise it if answers come back cut off.">Token budget</label>
+                  <input type="number" id="s_aiMaxTokens" class="sform-input" min="1024" max="65536" step="1024" placeholder="8192" autocomplete="off">
+                </div>
               </div>
             </div>
             <div class="sform-group" style="margin-top:.5rem">

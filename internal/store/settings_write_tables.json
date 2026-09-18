@@ -161,6 +161,10 @@
       1000,
       600000
     ],
+    "aiMaxTokens": [
+      1024,
+      65536
+    ],
     "aiOverviewIntervalSec": [
       60,
       86400

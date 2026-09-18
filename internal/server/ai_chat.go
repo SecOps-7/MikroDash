@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"sort"
 	"strings"
@@ -42,7 +43,43 @@ import (
 // RouterOS command, that command is text on a page for a human to read. Nothing
 // reachable from here can change a router, which is why this slice still needs
 // no confirmation dialog and no write audit.
-const aiMaxReplyTokens = 1024
+//
+// ── THE REPLY BUDGET IS THE OPERATOR'S ──────────────────────────────────────
+//
+// Settings -> AI Agent -> Token budget (aiMaxTokens), read per question through
+// cfg.ReplyTokens(), which falls back to 8192. It was a fixed 1024, and a
+// reasoning model thinks inside it: on 2026-09-18 a security question spent the
+// whole 1024 thinking and wrote nothing. aiChatLoop refuses to deliver an empty
+// answer whatever the budget, so a model that exhausts it says so.
+
+// errNoAnswer is the error an exchange ends in when the model produced no text.
+var errNoAnswer = errors.New("the model returned no answer. Try asking again, or ask about one thing at a time")
+
+// errReplyLimit is errNoAnswer's case where the model ran out of room: it used
+// its whole reply limit, usually on reasoning, before writing anything.
+var errReplyLimit = errors.New("the model reached its reply limit before writing an answer. " +
+	"Try a narrower question, or raise the Token budget in Settings, AI Agent")
+
+// aiCutOff is appended to an answer the reply limit ended part-way through, so a
+// truncated list is not read as a complete one.
+const aiCutOff = "\n\n*(This answer was cut off: the model reached its reply limit.)*"
+
+// settle turns a final round into what the operator sees: the text, marked when
+// the limit cut it short, or an error when there is no text at all.
+func settle(reply aiprovider.Reply) (string, error) {
+	if reply.Finish == "length" {
+		log.Printf("[ai] reply ended at the token budget (%d characters written)", len(reply.Text))
+	}
+	switch {
+	case reply.Text == "" && reply.Finish == "length":
+		return "", errReplyLimit
+	case reply.Text == "":
+		return "", errNoAnswer
+	case reply.Finish == "length":
+		return reply.Text + aiCutOff, nil
+	}
+	return reply.Text, nil
+}
 
 // aiAsk is the handler behind `ai:ask`.
 //
@@ -190,7 +227,7 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 		text, err := aiChatLoop(msgs, tools,
 			func(m []aiprovider.ChatMessage, tl []any) (aiprovider.Reply, error) {
 				chunk("", true)
-				return aiprovider.Stream(ctx, cfg.Client(), cfg, m, aiMaxReplyTokens,
+				return aiprovider.Stream(ctx, cfg.Client(), cfg, m, cfg.ReplyTokens(),
 					func(piece string) { chunk(piece, false) }, tl...)
 			},
 			cn.runAITool)
@@ -258,6 +295,26 @@ func (s *Server) aiHistory(user, routerID string) []aiprovider.ChatMessage {
 	}
 	for _, m := range rows {
 		out = append(out, aiprovider.ChatMessage{Role: m.Role, Content: m.Text})
+	}
+	return answeredOnly(out)
+}
+
+// answeredOnly keeps the question-and-answer pairs, dropping any question no
+// answer follows. A thread saved before empty answers became errors holds such
+// questions; replaying them handed the model turns it never answered. Nothing is
+// deleted: the rows stay in the database and simply are not replayed or shown.
+func answeredOnly(rows []aiprovider.ChatMessage) []aiprovider.ChatMessage {
+	out := []aiprovider.ChatMessage{}
+	for i := 0; i < len(rows); i++ {
+		if rows[i].Role == db.AIRoleUser {
+			if i+1 < len(rows) && rows[i+1].Role == db.AIRoleAssistant {
+				out = append(out, rows[i], rows[i+1])
+				i++
+			}
+			continue
+		}
+		// An answer with no question before it (the window cut the question
+		// off) is not replayed either: the model would see a reply to nothing.
 	}
 	return out
 }
@@ -358,7 +415,7 @@ func aiChatLoop(msgs []aiprovider.ChatMessage, tools []any,
 		// servers ignore `tools` entirely and answer in prose; that is advisory
 		// chat, which is what this page was before this slice, not an error.
 		if len(reply.ToolCalls) == 0 {
-			return reply.Text, nil
+			return settle(reply)
 		}
 		msgs = append(msgs, aiprovider.ChatMessage{
 			Role: "assistant", Content: reply.Text, ToolCalls: reply.ToolCalls,
@@ -383,11 +440,11 @@ func aiChatLoop(msgs []aiprovider.ChatMessage, tools []any,
 	if err != nil {
 		return "", err
 	}
-	if reply.Text == "" {
+	if reply.Text == "" && reply.Finish != "length" {
 		return "I could not finish looking this up within the number of device reads " +
 			"MikroDash allows for one question. Try asking about one thing at a time.", nil
 	}
-	return reply.Text, nil
+	return settle(reply)
 }
 
 func (cn *conn) aiFail(msg string) {

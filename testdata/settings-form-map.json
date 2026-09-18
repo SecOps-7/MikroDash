@@ -53,6 +53,7 @@
     "value": [
       "aiBaseUrl",
       "aiHeaders",
+      "aiMaxTokens",
       "aiModel",
       "aiOverviewIntervalSec",
       "aiOverviewPrompt",

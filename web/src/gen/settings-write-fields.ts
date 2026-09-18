@@ -15,6 +15,7 @@
 
 /** Integer keys and their inclusive [min, max]. Out of range is IGNORED server-side. */
 export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
+  "aiMaxTokens": [1024, 65536],
   "aiOverviewIntervalSec": [60, 86400],
   "aiTimeoutMs": [1000, 600000],
   "alertCpuThreshold": [1, 100],

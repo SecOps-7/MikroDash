@@ -404,3 +404,21 @@ func TestAnEndpointThatIgnoresStreamStillAnswers(t *testing.T) {
 		t.Errorf("an HTTP 401 produced %v", err)
 	}
 }
+
+// The reply budget is the operator's (Settings -> AI Agent -> Token budget), and
+// an unset or out-of-range value falls back to 8192 rather than to something a
+// reasoning model can spend entirely on thinking (1024 did, 2026-09-18).
+func TestTheReplyBudgetIsBoundedAndFallsBackWhenUnusable(t *testing.T) {
+	for _, tc := range []struct{ in, want int }{
+		{0, DefaultReplyTokens}, {-5, DefaultReplyTokens},
+		{MinReplyTokens - 1, DefaultReplyTokens}, {MaxReplyTokens + 1, DefaultReplyTokens},
+		{MinReplyTokens, MinReplyTokens}, {16000, 16000}, {MaxReplyTokens, MaxReplyTokens},
+	} {
+		if got := (Config{MaxTokens: tc.in}).ReplyTokens(); got != tc.want {
+			t.Errorf("MaxTokens %d -> %d, want %d", tc.in, got, tc.want)
+		}
+	}
+	if DefaultReplyTokens != 8192 {
+		t.Errorf("the default budget is %d, want the operator's 8192", DefaultReplyTokens)
+	}
+}
