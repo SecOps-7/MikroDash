@@ -230,6 +230,7 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 		TS: now.UnixMilli(), PollMs: int(area.Poll / time.Millisecond),
 		Area: area.Key, Title: area.Title, Tables: []AreaTable{},
 	}
+	next := area.Poll
 	for _, t := range area.Tables {
 		res := resource.ByKey(t.Resource)
 		if res == nil {
@@ -239,19 +240,37 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 		// dhcpNetworks too, and whichever asks first should pay for both.
 		rows, err := readVia(a.cache, a.ros, routeros.Cmd{Path: res.Menu + "/print"}, area.Poll)
 		table := BuildAreaRows(res, t.Title, t.Columns, rows)
-		if err != nil {
-			// A MENU THIS BUILD LACKS AND ONE THIS ACCOUNT MAY NOT READ ARE
-			// DIFFERENT SENTENCES, and the page says which.
+		// FOUR ANSWERS, FOUR MEANINGS (#97, carried over from the IP Addresses
+		// collector this replaced). Rows are the router's rows. A refusal and a
+		// menu this build lacks are different sentences, and the page says which.
+		// Anything else — a timeout, a reset — taught nothing: the last rows stay
+		// on the page and the area is re-read at the next tick, because blanking
+		// it would say "you have none" and "no such menu" would be a lie.
+		switch {
+		case err == nil:
+		case isDenied(err):
 			table.Unsupported = true
-			if isDenied(err) {
-				payload.Denied = true
+			payload.Denied = true
+		case isAbsentMenu(err):
+			table.Unsupported = true
+		default:
+			prev := a.lastTable(area.Key, res.Key)
+			if prev == nil {
+				// Nothing to keep: send nothing, so the page goes on saying it is
+				// waiting rather than showing an empty table.
+				a.mu.Lock()
+				a.nextAt[area.Key] = now.Add(areasTick)
+				a.mu.Unlock()
+				return
 			}
+			table = *prev
+			next = areasTick
 		}
 		payload.Tables = append(payload.Tables, table)
 	}
 
 	a.mu.Lock()
-	a.nextAt[area.Key] = now.Add(area.Poll)
+	a.nextAt[area.Key] = now.Add(next)
 	fp := areaFingerprint(payload)
 	changed := a.lastFp[area.Key] != fp
 	a.lastFp[area.Key] = fp
@@ -260,6 +279,21 @@ func (a *Areas) readArea(area areas.Area, now time.Time) {
 	if changed {
 		EvAreaUpdate.Emit(a.emit, AreaRoomFor(area.Key), payload)
 	}
+}
+
+// lastTable is the table this area last sent for one resource, or nil.
+func (a *Areas) lastTable(key, res string) *AreaTable {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if p := a.last[key]; p != nil {
+		for i := range p.Tables {
+			if p.Tables[i].Resource == res {
+				t := p.Tables[i]
+				return &t
+			}
+		}
+	}
+	return nil
 }
 
 // isDenied separates "this account may not read that" from "this build has no

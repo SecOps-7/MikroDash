@@ -55,9 +55,6 @@ func (s *Session) pollTargets() map[string]interface{ SetPollMs(int) } {
 	if s.dns != nil {
 		add("dns", s.dns)
 	}
-	if s.ipAddresses != nil {
-		add("ipAddresses", s.ipAddresses)
-	}
 	if s.firewall != nil {
 		add("firewall", s.firewall)
 	}

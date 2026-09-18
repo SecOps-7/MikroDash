@@ -92,6 +92,23 @@ var declared = []Area{
 		// configuration cadence the bridges and VLAN collectors use.
 		Poll: 60 * time.Second,
 	},
+	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
+	//
+	// IP Addresses was a collector, a page module, markup, a nav entry, a room,
+	// a dormancy target, a poll key and a visibility key (#97). It is now this.
+	// What changed on the page, deliberately: the two families are two tabs
+	// rather than one table with a Family column, visibility is the shared
+	// `hiddenAreas` list, and the interval is this one rather than a setting.
+	{
+		Key: "ip-addresses", Title: "IP Addresses", NavGroup: "network",
+		Tables: []Table{
+			{Resource: "ipAddress", Title: "IPv4",
+				Columns: []string{"address", "network", "interface", "disabled", "dynamic", "invalid", "comment"}},
+			{Resource: "ipv6Address", Title: "IPv6",
+				Columns: []string{"address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 }
 
 // All returns the declared areas.

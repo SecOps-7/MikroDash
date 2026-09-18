@@ -1591,10 +1591,6 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 		if cn.rsession.CollectorEnabled("capsman") {
 			cn.rsession.Capsman().RefreshNow()
 		}
-	case "ip-addresses":
-		if cn.rsession.CollectorEnabled("ipAddresses") {
-			cn.rsession.IPAddresses().RefreshNow()
-		}
 	case "netwatch":
 		// RefreshNow re-reads past the cache, so the table shows the router's answer.
 		if cn.rsession.CollectorEnabled("netwatch") {

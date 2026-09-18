@@ -2,6 +2,7 @@ package collect
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -170,6 +171,87 @@ func TestAnUnreadableMenuIsSaidRatherThanShownEmpty(t *testing.T) {
 	if !p.Denied {
 		t.Error("a permission refusal is not reported as one, so the page cannot say which it was")
 	}
+}
+
+// TestATransientFailureKeepsTheLastRows (#97, carried over from the IP Addresses
+// collector the area replaced). Three answers from one menu mean three things:
+//
+//	rows              the router's rows
+//	a transient error  nothing learned: the last rows stay on the page
+//	no such command    the router has no such package: there is nothing to show
+//
+// Treating the second like the third blanked every IPv6 row for a poll on any
+// hiccup, and treating the third like the second would show addresses from a
+// package the router no longer has.
+func TestATransientFailureKeepsTheLastRows(t *testing.T) {
+	area, ok := areas.ByKey("ip-addresses")
+	if !ok || len(area.Tables) != 2 {
+		t.Fatal("the IP Addresses area, with its IPv4 and IPv6 tabs, is what this pins")
+	}
+	r := &menuScript{rows: map[string][]routeros.Reply{
+		"/ip/address/print":   {{".id": "*1", "address": "198.51.100.1/24", "interface": "bridge"}},
+		"/ipv6/address/print": {{".id": "*A", "address": "2001:db8::1/64", "interface": "bridge"}},
+	}, fail: map[string]error{}}
+	c := NewAreas(r, Emit{}).WithOccupancy(func(string) bool { return true })
+	now := time.Unix(1_000_000, 0)
+	c.now = func() time.Time { return now }
+	v6 := func() (int, bool) {
+		p := c.Last(area.Key)
+		if p == nil || len(p.Tables) != 2 {
+			t.Fatalf("payload %+v: want both tabs", p)
+		}
+		return len(p.Tables[1].Rows), p.Tables[1].Unsupported
+	}
+
+	c.Tick()
+	if n, _ := v6(); n != 1 {
+		t.Fatalf("first read: %d IPv6 rows, want 1", n)
+	}
+
+	r.fail["/ipv6/address/print"] = errors.New("connection reset by peer")
+	now = now.Add(area.Poll)
+	c.Tick()
+	if n, unsupported := v6(); n != 1 || unsupported {
+		t.Errorf("after a transient failure: %d IPv6 rows (unsupported %v), want the last 1 kept", n, unsupported)
+	}
+	// AND IT IS RE-READ AT THE NEXT TICK, not a whole interval later.
+	r.fail["/ipv6/address/print"] = errors.New("no such command prefix")
+	now = now.Add(areasTick)
+	c.Tick()
+	if n, unsupported := v6(); n != 0 || !unsupported {
+		t.Errorf("after the router said the menu is not there: %d IPv6 rows (unsupported %v), want 0 and unsupported", n, unsupported)
+	}
+}
+
+// TestAFirstReadThatFailsSendsNothing. With no rows to keep, a transient failure
+// must not become an empty table: that reads as "you have none of these".
+func TestAFirstReadThatFailsSendsNothing(t *testing.T) {
+	area, ok := areas.ByKey("ip-addresses")
+	if !ok {
+		t.Fatal("no ip-addresses area")
+	}
+	r := &menuScript{rows: map[string][]routeros.Reply{}, fail: map[string]error{
+		"/ip/address/print": errors.New("i/o timeout"),
+	}}
+	c := NewAreas(r, Emit{}).WithOccupancy(func(k string) bool { return k == AreaRoomFor(area.Key) })
+	c.Tick()
+	if p := c.Last(area.Key); p != nil {
+		t.Errorf("a failed first read produced a payload: %+v", p)
+	}
+}
+
+// menuScript answers each menu from a table, or with that menu's error.
+type menuScript struct {
+	rows map[string][]routeros.Reply
+	fail map[string]error
+}
+
+func (m *menuScript) Connected() bool { return true }
+func (m *menuScript) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
+	if err := m.fail[cmd.Path]; err != nil {
+		return nil, err
+	}
+	return m.rows[cmd.Path], nil
 }
 
 type errDenied struct{}

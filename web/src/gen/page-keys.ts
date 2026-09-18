@@ -50,7 +50,6 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "dashboard",
   "wan",
   "interfaces",
-  "ip-addresses",
   "vlans",
   "bridges",
   "network-topology",

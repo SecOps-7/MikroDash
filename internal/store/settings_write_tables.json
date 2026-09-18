@@ -137,10 +137,6 @@
       1000,
       60000
     ],
-    "pollIpAddresses": [
-      1000,
-      600000
-    ],
     "pollCapsman": [
       1000,
       60000
@@ -210,7 +206,6 @@
     "pageDns",
     "pageFirewall",
     "pageInterfaces",
-    "pageIpAddresses",
     "pageLogs",
     "pageNetwatch",
     "pagePackages",

@@ -172,7 +172,7 @@ func NewForTestWithExec(h *hub.Hub, routerID string,
 	// refresh reads as switched off, and nothing reaches a nil one.
 	s.eff.Store(&collection.Resolved{Enabled: map[string]bool{
 		"dns": false, "bridges": false, "vlans": false, "firewall": false,
-		"wifi": false, "capsman": false, "ppp": false, "ifStatus": false, "netwatch": false, "ipAddresses": false,
+		"wifi": false, "capsman": false, "ppp": false, "ifStatus": false, "netwatch": false,
 	}})
 	return s
 }

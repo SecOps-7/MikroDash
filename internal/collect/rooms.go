@@ -73,7 +73,6 @@ var (
 	// nobody reads.
 	connsDetailRooms = Rooms{"page-connections"}
 	dnsRooms         = Rooms{"page-dns"}
-	ipAddressesRooms = Rooms{"page-ip-addresses"}
 	netwatchRooms    = Rooms{"page-dashboard", "page-netwatch"}
 	firewallRooms    = Rooms{"page-firewall", "dash-card-firewall"}
 	ifStatusRooms    = Rooms{"page-interfaces", "page-network-topology", "dash-card-physports"}
@@ -136,8 +135,6 @@ func RoomsOf(key string) Rooms {
 		// remembers — the collector would keep reading a menu whose page nobody
 		// can demand, or worse, suspend itself while a page is open.
 		return areaRooms()
-	case "ipAddresses":
-		return ipAddressesRooms
 	case "logs":
 		return logsRooms
 	case "netwatch":
@@ -271,7 +268,7 @@ var keepAliveFor = map[string]Rooms{
 func DeclaredRoomKeys() []string {
 	return []string{
 		"bandwidth", "bridges", "capsman", "conns", "dhcpNetworks", "dns",
-		"firewall", "ifStatus", "ipAddresses", "logs", "netwatch", "packages", "ping", "ppp",
+		"firewall", "ifStatus", "logs", "netwatch", "packages", "ping", "ppp",
 		"queues", "rosusers", "routing", "talkers", "topology", "vlans", "vpn",
 		"wan", "wifi", "wireless",
 	}

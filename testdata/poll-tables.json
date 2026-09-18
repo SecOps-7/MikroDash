@@ -114,14 +114,6 @@
       "unit": "ms"
     },
     {
-      "key": "pollIpAddresses",
-      "label": "IP Addresses",
-      "min": 1000,
-      "max": 600000,
-      "step": 1000,
-      "unit": "ms"
-    },
-    {
       "key": "pollWireless",
       "label": "Wireless",
       "min": 10000,
@@ -181,7 +173,6 @@
       "pollPpp": 2000,
       "pollBridges": 2000,
       "pollDns": 5000,
-      "pollIpAddresses": 15000,
       "pollCapsman": 5000,
       "pollPackages": 30000,
       "pollWan": 2000
@@ -204,7 +195,6 @@
       "pollPpp": 10000,
       "pollBridges": 10000,
       "pollDns": 20000,
-      "pollIpAddresses": 60000,
       "pollCapsman": 20000,
       "pollPackages": 120000,
       "pollWan": 5000
@@ -227,7 +217,6 @@
       "pollPpp": 5000,
       "pollBridges": 5000,
       "pollDns": 10000,
-      "pollIpAddresses": 60000,
       "pollCapsman": 10000,
       "pollPackages": 60000,
       "pollWan": 10000
@@ -250,7 +239,6 @@
       "pollPpp": 20000,
       "pollBridges": 20000,
       "pollDns": 30000,
-      "pollIpAddresses": 60000,
       "pollCapsman": 30000,
       "pollPackages": 180000,
       "pollWan": 30000
@@ -273,7 +261,6 @@
       "pollPpp": 30000,
       "pollBridges": 30000,
       "pollDns": 30000,
-      "pollIpAddresses": 60000,
       "pollCapsman": 30000,
       "pollPackages": 300000,
       "pollWan": 30000

@@ -99,8 +99,12 @@ function render(area: Area): void {
   }
 
   const head = declared.columns.map((c) => '<th>' + esc(columnLabel(c)) + '</th>').join('');
+  // A DISABLED OR INVALID ROW IS DIMMED, as the hand-built pages dim theirs:
+  // almost every RouterOS menu has `disabled`, and `invalid` is the router saying
+  // a row refers to something that is gone. The column still says which.
   const rows = (table?.rows || []).map((r) =>
-    '<tr' + resRow(r.id, r.identity, declared.resource) + '>' +
+    '<tr' + (r.values?.disabled === 'true' || r.values?.invalid === 'true' ? ' style="opacity:.55"' : '') +
+    resRow(r.id, r.identity, declared.resource) + '>' +
     declared.columns.map((c) => '<td>' + cell(r.values?.[c]) + '</td>').join('') +
     '</tr>').join('');
 

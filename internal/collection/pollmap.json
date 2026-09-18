@@ -16,7 +16,6 @@
   "pollPpp": "ppp",
   "pollBridges": "bridges",
   "pollDns": "dns",
-  "pollIpAddresses": "ipAddresses",
   "pollCapsman": "capsman",
   "pollPackages": "packages",
   "pollRosusers": "rosusers",

@@ -25,6 +25,7 @@ import (
 	"github.com/coder/websocket"
 
 	"mikrodash/internal/alert"
+	"mikrodash/internal/areas"
 	"mikrodash/internal/db"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/session"
@@ -1026,14 +1027,6 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			collect.EvCapsmanUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
-	// The IP Addresses page (#97). Its collector runs only while somebody has
-	// the page open, so without the replay the table would sit empty for a poll.
-	case "ip-addresses":
-		if last := cn.rsession.IPAddresses().Last(); last != nil {
-			replay := *last
-			replay.TS = time.Now().UnixMilli()
-			collect.EvIPAddressesUpdate.Send(cn.srv.hub, cn.c, replay)
-		}
 	// The NetWatch page (#97). The same collector feeds the Dashboard card, so it
 	// is often running already; the replay saves an empty table for a poll
 	// interval that can be a minute long.
@@ -1172,6 +1165,21 @@ func (cn *conn) resumePage(page string) {
 			collect.EvLeasesList.Send(cn.srv.hub, cn.c, replay)
 		} else if cn.rsession.CollectorEnabled("dhcpLeases") {
 			cn.rsession.DHCPLeases().RefreshNow()
+		}
+	// ── Every generated page ─────────────────────────────────────────────────
+	//
+	// One case for every area, because the collector is one. Without it a
+	// viewer who opens an area another viewer is already reading gets NOTHING
+	// until a row changes: the collector sends only a payload that differs, and
+	// this viewer has never had the one it holds. Found migrating IP Addresses,
+	// whose own collector had this replay.
+	default:
+		if _, ok := areas.ByKey(page); ok {
+			if last := cn.rsession.Areas().Last(page); last != nil {
+				replay := *last
+				replay.TS = time.Now().UnixMilli()
+				collect.EvAreaUpdate.Send(cn.srv.hub, cn.c, replay)
+			}
 		}
 	}
 }

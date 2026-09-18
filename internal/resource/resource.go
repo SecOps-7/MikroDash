@@ -1151,6 +1151,12 @@ var IPAddress = &Resource{
 			Placeholder: "bridge", OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		// What the router derives, shown and never sent. The IP Addresses page has
+		// always shown them: the network an address sits in, whether something else
+		// (a DHCP client, a VPN) owns the row, and whether its interface is gone.
+		{Name: "network", ROS: "network", Label: "Network", Type: TypeText, Display: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
 	},
 	Check: addressFamily("ipv4"),
 }
@@ -1172,6 +1178,9 @@ var IPv6Address = &Resource{
 			Help: "Generate the last 64 bits from the interface identifier. Leave them zero in the address."},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		// Shown and never sent; see IPAddress.
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
 	},
 	Check: addressFamily("ipv6"),
 }

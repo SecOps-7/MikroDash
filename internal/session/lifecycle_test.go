@@ -241,7 +241,10 @@ func TestTheBackgroundCollectorCountIsRecorded(t *testing.T) {
 	// areas are declared. It starts at connect like every other page collector
 	// and is gated by demand from there — and within it, each area is read only
 	// while its own page is open.
-	const recorded = 18
+	// 18 -> 17 on 2026-09-18: `ipAddresses` deleted. The IP Addresses page is an
+	// area now, read by `areas`: the first time this number FELL because a page
+	// became a declaration, which is what the 17 -> 18 entry promised.
+	const recorded = 17
 
 	body, err := os.ReadFile("session.go")
 	if err != nil {

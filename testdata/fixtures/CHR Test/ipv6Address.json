@@ -1,0 +1,71 @@
+{
+ "collector": "areas",
+ "resource": "ipv6Address",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The static rows were created FOR the capture on a throwaway bridge, with documentation addresses (TEST-NET-2, RFC 5737; 2001:db8::/32, RFC 3849), and removed afterwards. The dynamic rows are the router's own: loopback and ether1's link-local address, whose interface identifier embeds the NIC's MAC and is re-derived here from a locally administered 02: MAC. What is real is the reply's shape: which fields /ipv6/address returns and how it spells them. Read through /ipv6/address/print, as ipAddress.json explains.",
+ "exchanges": [
+  {
+   "cmd": "/ipv6/address/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "actual-interface": "lo",
+     "address": "::1/128",
+     "advertise": "false",
+     "auto-link-local": "true",
+     "deprecated": "false",
+     "disabled": "false",
+     "dynamic": "true",
+     "eui-64": "false",
+     "from-pool": "",
+     "interface": "lo",
+     "invalid": "false",
+     "no-dad": "false",
+     "slave": "false",
+     "vrf": "main"
+    },
+    {
+     ".id": "*2",
+     "actual-interface": "ether1",
+     "address": "fe80::ff:fe00:1/64",
+     "advertise": "false",
+     "auto-link-local": "true",
+     "deprecated": "false",
+     "disabled": "false",
+     "dynamic": "true",
+     "eui-64": "false",
+     "from-pool": "",
+     "interface": "ether1",
+     "invalid": "false",
+     "link-local": "true",
+     "no-dad": "false",
+     "slave": "false",
+     "vrf": "main"
+    },
+    {
+     ".id": "*3",
+     "actual-interface": "fixture-br",
+     "address": "2001:db8:1::1/64",
+     "advertise": "false",
+     "auto-link-local": "true",
+     "comment": "fixture capture",
+     "deprecated": "false",
+     "disabled": "false",
+     "dynamic": "false",
+     "eui-64": "false",
+     "from-pool": "",
+     "global": "true",
+     "interface": "fixture-br",
+     "invalid": "false",
+     "no-dad": "false",
+     "slave": "false",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}

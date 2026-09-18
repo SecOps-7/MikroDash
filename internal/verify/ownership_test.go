@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"mikrodash/internal/areas"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/pages"
 )
@@ -62,6 +63,16 @@ func TestPageOwnershipIsReal(t *testing.T) {
 		// Ownership is "the collector this page exists to show", and two pages
 		// cannot both be that. `ifStatus` is the case it guards: it FEEDS
 		// `interfaces` and `network-topology` both, and owns only the first.
+		//
+		// `areas` IS THE ONE EXCEPTION, and it is exact rather than loose: it
+		// exists for every generated page, so it owns each declared area and
+		// nothing else. Held both ways below, after the loop.
+		if p.Collector == "areas" {
+			if _, ok := areas.ByKey(p.Key); !ok {
+				t.Errorf("%q is owned by `areas` and is not a declared area", p.Key)
+			}
+			continue
+		}
 		if other, dup := byCollector[p.Collector]; dup {
 			t.Errorf("%q owns both %q and %q. Feeding two pages is normal; OWNING two "+
 				"is not — ownership is the page a collector exists for.",
@@ -71,6 +82,15 @@ func TestPageOwnershipIsReal(t *testing.T) {
 	}
 	if owned == 0 {
 		t.Fatal("no page declares an owner — this check is reading nothing")
+	}
+	ownerOf := map[string]string{}
+	for _, p := range pages.All {
+		ownerOf[p.Key] = p.Collector
+	}
+	for _, a := range areas.All() {
+		if ownerOf[a.Key] != "areas" {
+			t.Errorf("area %q is not a page owned by `areas` (owner %q)", a.Key, ownerOf[a.Key])
+		}
 	}
 
 	// ── 3. THE OWNER DECLARES page-<key> ───────────────────────────────────

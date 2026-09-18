@@ -50,7 +50,6 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 		"connections.go": "BuildConns",
 		"dns.go":         "ParseDNSSettings,ParseStaticEntries",
 		"ifstatus.go":    "BuildIfStatus",
-		"ipaddresses.go": "BuildIPAddresses",
 		"queues.go":      "BuildQueueRows",
 		"rosusers.go":    "BuildUsersView",
 		"ppp.go":         "ParsePPPSessions",

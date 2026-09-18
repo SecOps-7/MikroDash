@@ -31,6 +31,13 @@ export const AREAS: readonly Area[] = [
       { resource: "ipPool", title: "IP Pool", columns: ["name", "ranges", "used", "total", "nextPool", "comment"] },
     ],
   },
+  {
+    key: "ip-addresses", title: "IP Addresses", navGroup: "network",
+    tables: [
+      { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },
+      { resource: "ipv6Address", title: "IPv6", columns: ["address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"] },
+    ],
+  },
 ];
 
 /** Every area's page key. */

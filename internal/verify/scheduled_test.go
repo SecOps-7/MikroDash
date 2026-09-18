@@ -59,7 +59,6 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 		"ppp.go":          "ppp",
 		"routing.go":      "routing",
 		"ifstatus.go":     "ifStatus",
-		"ipaddresses.go":  "ipAddresses",
 		"topology.go":     "topology",
 		"vpn.go":          "vpn",
 		"firewall.go":     "firewall",

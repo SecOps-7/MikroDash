@@ -19,7 +19,7 @@
     {
       "key": "ip-addresses",
       "title": "IP Addresses",
-      "settingsKey": "pageIpAddresses"
+      "settingsKey": null
     },
     {
       "key": "ip-pools",

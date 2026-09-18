@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"mikrodash/internal/areas"
 	"mikrodash/internal/rbac"
 )
 
@@ -111,7 +112,12 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 			t.Errorf("duplicate page key %q", p.Key)
 		}
 		seen[p.Key] = true
-		if p.SettingsKey == nil {
+		_, isArea := areas.ByKey(p.Key)
+		switch {
+		case isArea && p.SettingsKey != nil:
+			t.Errorf("area %q has settings toggle %q; every area's visibility is `hiddenAreas`",
+				p.Key, *p.SettingsKey)
+		case !isArea && p.SettingsKey == nil:
 			noToggle++
 		}
 	}
@@ -136,9 +142,13 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// list covers every area, which is the whole point — forty areas would
 	// otherwise be forty keys, forty corpus re-aims and forty rows in the
 	// Visible Pages grid. `ip-pools` is the first.
-	if noToggle != 5 {
-		t.Errorf("%d pages have no settings toggle, want 5 (dashboard, reports, settings, "+
-			"ai-agent, and the generated areas)", noToggle)
+	//
+	// COUNTED APART SINCE 2026-09-18, when IP Addresses became the second area and
+	// this number would have moved again — as it would for every area after it.
+	// Areas are held to "no toggle" one by one above; the four are counted here.
+	if noToggle != 4 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 4 (dashboard, reports, "+
+			"settings, ai-agent)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

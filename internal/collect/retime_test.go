@@ -281,9 +281,7 @@ func TestSetPollMsChangesWhatThePayloadReports(t *testing.T) {
 var retunable = map[string]string{
 	"bandwidth": "Bandwidth", "bridges": "Bridges", "capsman": "Capsman",
 	"conns": "Connections", "dhcpNetworks": "DHCPNetworks", "dns": "DNS",
-	// Added 2026-09-15 with the collector, for the IP Addresses page (#97).
-	"ipAddresses": "IPAddresses",
-	"firewall":    "Firewall", "ifStatus": "IfStatus", "packages": "Packages",
+	"firewall": "Firewall", "ifStatus": "IfStatus", "packages": "Packages",
 	"ping": "Ping", "ppp": "PPP", "queues": "Queues", "rosusers": "RosUsers",
 	"routing": "Routing", "system": "System", "talkers": "Talkers",
 	"topology": "Topology", "vlans": "Vlans", "vpn": "VPN", "wan": "Wan",

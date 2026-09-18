@@ -170,9 +170,14 @@ func TestEveryCollectorEntryPointIsGated(t *testing.T) {
 	// still catches is the thing it was written for: a pattern that has stopped
 	// matching reads as a package with no entry points, and every ungated call
 	// then passes by not being seen.
-	if checked < 18 {
-		t.Errorf("only %d collector entry points examined; 20 were counted on "+
-			"2026-09-10, so the pattern above has stopped matching", checked)
+	//
+	// 18 -> 17 on 2026-09-18, measured: the IP Addresses page's own
+	// `IPAddresses().RefreshNow()` went with its collector, and the page is
+	// refreshed by the one gated `Areas().RefreshNow(page)` every area shares.
+	// A page becoming an area removes an entry point; it never adds one.
+	if checked < 17 {
+		t.Errorf("only %d collector entry points examined; 17 were counted on "+
+			"2026-09-18, so the pattern above has stopped matching", checked)
 	}
 }
 

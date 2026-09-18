@@ -76,13 +76,6 @@ var extraBuilders = map[string]func(Reader) any{
 		// and its slices must not be nil either.
 		return &AreaPayload{Tables: []AreaTable{}}
 	},
-	// The IP Addresses page (#97). No capture holds these menus, so it is built
-	// from empty input only.
-	"ipAddresses": func(r Reader) any {
-		c := NewIPAddresses(r, Emit{}, 10000)
-		c.Tick()
-		return c.Last()
-	},
 }
 
 func TestNoPayloadSendsANullArray(t *testing.T) {

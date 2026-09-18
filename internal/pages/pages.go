@@ -108,7 +108,7 @@ var All = []Page{
 	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman"},
 	{Key: "interfaces", Title: "Interfaces", Collector: "ifStatus"},
 	// The IP Addresses page (#97): both families, fed by its own collector.
-	{Key: "ip-addresses", Title: "IP Addresses", Collector: "ipAddresses"},
+	{Key: "ip-addresses", Title: "IP Addresses", Collector: "areas"},
 	// A GENERATED page: internal/areas declares it, and the shared `areas`
 	// collector fills it. Its Collector is that one, not a collector of its own.
 	{Key: "ip-pools", Title: "IP Pools", Collector: "areas"},

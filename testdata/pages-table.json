@@ -189,7 +189,6 @@
     "dashboard",
     "wan",
     "interfaces",
-    "ip-addresses",
     "vlans",
     "bridges",
     "network-topology",

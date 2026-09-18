@@ -50,7 +50,7 @@ var ViewerFields = []string{
 	"topN", "topTalkersN", "firewallTopN", "vpnDashTopN", "maxConns", "historyMinutes",
 	"alertCpuThreshold", "alertPingLoss",
 	"activeRouterId",
-	"pageWifi", "pageWireless", "pageWifiMap", "pageNetwatch", "pageIpAddresses", "pageInterfaces", "pageDhcp", "pageVpn", "pageConnections",
+	"pageWifi", "pageWireless", "pageWifiMap", "pageNetwatch", "pageInterfaces", "pageDhcp", "pageVpn", "pageConnections",
 	"pageFirewall", "pageLogs", "pageBandwidth", "pageRouting", "pageTopology",
 	"pageVlans", "pagePpp", "pageBridges", "pageDns", "pageCapsman", "pagePackages",
 	"pageRosusers", "pageQueues", "pageWan", "pageDevices", "pageAudit", "pageBackups",

@@ -163,8 +163,7 @@ type Session struct {
 	observed bool
 	lastErr  string
 
-	dns         *collect.DNS
-	ipAddresses *collect.IPAddresses
+	dns *collect.DNS
 	// areas is ONE collector for every generated page: see internal/areas.
 	areas    *collect.Areas
 	bridges  *collect.Bridges
@@ -276,9 +275,6 @@ func (s *Session) LastError() string {
 // DNS is the collector, for the replay a page:focus does and for the
 // RefreshNow a write triggers.
 func (s *Session) DNS() *collect.DNS { return s.dns }
-
-// IPAddresses is the IP Addresses page's collector (#97).
-func (s *Session) IPAddresses() *collect.IPAddresses { return s.ipAddresses }
 
 // Areas is the collector behind every generated page.
 func (s *Session) Areas() *collect.Areas { return s.areas }
@@ -893,7 +889,6 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		m.h.Forward([]string{room + sub}, e, payload)
 	})
 	s.dns = collect.NewDNS(reader{s}, emit, s.conf().Poll["dns"])
-	s.ipAddresses = collect.NewIPAddresses(reader{s}, emit, s.conf().Poll["ipAddresses"])
 	// THE OCCUPANCY ORACLE IS A CLOSURE over this session, not a captured hub:
 	// within the collector, each area is read only while ITS page is open, and
 	// occupancy is a question only the session can answer.
@@ -1135,7 +1130,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// connection menu `conns` already subscribes to -- one read, two
 		// deliveries -- and `vlans` is mechanism A with a residual half that
 		// reads nothing at all. Every dormancy-eligible collector is now here.
-		s.bandwidth, s.vlans, s.ipAddresses,
+		s.bandwidth, s.vlans,
 		// One collector, every generated page. It subscribes to no menu — see
 		// NewAreas — so it is here for the cache its shared reads go through.
 		s.areas,
@@ -1616,7 +1611,6 @@ func (m *Manager) idleOut(routerID string, s *Session) {
 	// `TestReleaseStopsEveryCollectorTheConnectBlockStarted` counts both sides
 	// out of this file and fails if they ever diverge again.
 	s.dns.Stop()
-	s.ipAddresses.Stop()
 	s.areas.Stop()
 	s.bridges.Stop()
 	s.vlans.Stop()
@@ -1695,7 +1689,6 @@ func (m *Manager) Shutdown() {
 		m.history.Flush(s.RouterID)
 
 		s.dns.Stop()
-		s.ipAddresses.Stop()
 		s.areas.Stop()
 		s.bridges.Stop()
 		s.vlans.Stop()
@@ -1912,9 +1905,6 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["dns"] {
 				s.dns.Start()
 			}
-			if s.conf().Enabled["ipAddresses"] {
-				s.ipAddresses.Start()
-			}
 			if s.conf().Enabled["areas"] {
 				s.areas.Start()
 			}
@@ -2118,9 +2108,6 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["dns"] {
 				s.dns.Reconnected()
 			}
-			if s.conf().Enabled["ipAddresses"] {
-				s.ipAddresses.Reconnected()
-			}
 			if s.conf().Enabled["areas"] {
 				s.areas.Reconnected()
 			}
@@ -2301,7 +2288,6 @@ func (s *Session) connectLoop() {
 		reason := c.Err()
 		_ = c.Close()
 		s.dns.Suspend()
-		s.ipAddresses.Suspend()
 		s.areas.Suspend()
 		s.bridges.Suspend()
 		s.vlans.Suspend()

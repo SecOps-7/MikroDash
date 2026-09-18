@@ -1,0 +1,54 @@
+{
+ "collector": "areas",
+ "resource": "ipAddress",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The static rows were created FOR the capture on a throwaway bridge, with documentation addresses (TEST-NET-2, RFC 5737; 2001:db8::/32, RFC 3849), and removed afterwards. The dynamic rows are the router's own: ether1's DHCP-bound address, scrubbed into TEST-NET-2 like every captured address, which puts it in the same /24 as the created ones. What is real is the reply's shape: which fields /ip/address returns, including network, dynamic and invalid, and how it spells them. tools/capture-fixtures.js drives the Node collectors and cannot capture an area, so this was read through /ip/address/print and written in the same shape.",
+ "exchanges": [
+  {
+   "cmd": "/ip/address/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*1",
+     "actual-interface": "ether1",
+     "address": "198.51.100.15/24",
+     "disabled": "false",
+     "dynamic": "true",
+     "interface": "ether1",
+     "invalid": "false",
+     "network": "198.51.100.0",
+     "slave": "false",
+     "vrf": "main"
+    },
+    {
+     ".id": "*2",
+     "actual-interface": "fixture-br",
+     "address": "198.51.100.1/24",
+     "comment": "fixture capture",
+     "disabled": "false",
+     "dynamic": "false",
+     "interface": "fixture-br",
+     "invalid": "false",
+     "network": "198.51.100.0",
+     "slave": "false",
+     "vrf": "main"
+    },
+    {
+     ".id": "*3",
+     "actual-interface": "fixture-br",
+     "address": "198.51.100.200/24",
+     "disabled": "true",
+     "dynamic": "false",
+     "interface": "fixture-br",
+     "invalid": "false",
+     "network": "198.51.100.0",
+     "slave": "false",
+     "vrf": "main"
+    }
+   ]
+  }
+ ]
+}

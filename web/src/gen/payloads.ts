@@ -554,27 +554,6 @@ export interface IfStatusPayload {
   interfaces: Interface[];
 }
 
-export interface IPAddress {
-  id: string;
-  family: string;
-  address: string;
-  network: string;
-  interface: string;
-  actualInterface: string;
-  disabled: boolean;
-  dynamic: boolean;
-  invalid: boolean;
-  comment: string;
-  advertise: boolean;
-  eui64: boolean;
-  fromPool: string;
-}
-
-export interface IPAddressesPayload {
-  addresses: IPAddress[];
-  ts: number;
-}
-
 export interface Network {
   cidr: string;
   gateway: string;
@@ -1584,7 +1563,6 @@ export interface Events {
   'firewall:update': FirewallPayload;
   'ifstatus:names': IfNamesPayload;
   'ifstatus:update': IfStatusPayload;
-  'ipaddresses:update': IPAddressesPayload;
   'lan:overview': LanPayload;
   'leases:list': LeasesPayload;
   'logs:history': LogEntry[];

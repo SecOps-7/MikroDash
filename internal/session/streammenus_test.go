@@ -196,7 +196,6 @@ func TestNoMetadataCollectorStreams(t *testing.T) {
 		"dns":          "resolver settings and static entries",
 		"rosusers":     "RouterOS users, groups and sessions",
 		"packages":     "installed packages and firmware",
-		"ipAddresses":  "IPv4 and IPv6 addresses",
 		"topology":     "the neighbour discovery table",
 	}
 	keys := map[string]bool{}

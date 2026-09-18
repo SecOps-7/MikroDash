@@ -99,9 +99,9 @@ wanted at once; across seven pages on 2026-09-10 no menu had two.
 
 ### Table collectors: one lifecycle
 
-**Sixteen collectors are plain tables**: one subscription whose cadence is simply
+**Fifteen collectors are plain tables**: one subscription whose cadence is simply
 "this table was read". They are `arp`, `bridges`, `capsman`, `dhcpLeases`,
-`dhcpNetworks`, `dns`, `ipAddresses`, `netwatch`, `packages`, `ppp`, `queues`,
+`dhcpNetworks`, `dns`, `netwatch`, `packages`, `ppp`, `queues`,
 `rosusers`, `routing`, `system`, `talkers` and `wan`. Each embeds `tableCore`
 (`internal/collect/table.go`) and declares only what differs:
 
@@ -405,7 +405,8 @@ is one collector, already in the registry as `areas`, and a declaration each.
 | declares its rooms | one `page-<key>` per area, generated — so the demand rule applies unchanged |
 | reads | poll only, each area on its own declared interval; configuration never streams |
 | derives | `BuildAreaRows`: rows to id, identity and values, keyed by the resource's FIELD names |
-| sends | `area:update`, to that area's room alone |
+| sends | `area:update`, to that area's room alone; the last one is replayed on `page:focus` |
+| fails | a refusal says so, a menu the build lacks says so, and anything else keeps the last rows and re-reads at the next tick |
 | writes | nothing of its own: the resource engine's pipeline, guards, audit and undo |
 
 **Two things stay per area and neither can be generated:** a captured fixture to
@@ -417,6 +418,12 @@ group, the resources and the columns.
 at resources, and `internal/resource` keeps saying what a row is; an area's `Key`
 IS a page key, so the per-user, per-router matrix gates it exactly as it gates a
 hand-built page.
+
+**The proof is IP Addresses** (2026-09-18). It was a hand-built page with its own
+collector, module, markup, nav entry, room, dormancy target, poll key and
+visibility key; it is now a declaration with two tabs, and all of those are gone.
+Its collector's one behaviour worth keeping, that a transient failure is not an
+empty table, moved into `areas` for every area.
 
 ---
 
@@ -436,7 +443,6 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | `dhcpLeases` | `/ip/dhcp-server/lease/print` | `BuildLeases` | — (router-wide) |
 | `dhcpNetworks` | `/ip/dhcp-server/network/print` | `BuildLanOverview` | `page-dhcp`, `dash-card-network` |
 | `dns` | `/ip/dns/print` | `ParseDNSSettings`, `ParseStaticEntries` | `page-dns` |
-| `ipAddresses` | `/ip/address/print` | `BuildIPAddresses` | `page-ip-addresses` |
 | `firewall` | the table on screen | `BuildFirewallRule` | `page-firewall`, `dash-card-firewall` |
 | `ifStatus` | `/interface/print` | `BuildIfStatus` | `page-interfaces`, `page-network-topology`, `dash-card-physports` |
 | `logs` | — `/log/listen` | fold: `FoldLog` | `page-logs`, `dash-card-logs` |
@@ -479,15 +485,15 @@ the document quietly lying.
 
 | fact | value |
 |---|---|
-| registry rows | 29 |
-| collectors with a Go implementation | 29 |
-| suspendable when idle (`disableable`) | 24 |
+| registry rows | 28 |
+| collectors with a Go implementation | 28 |
+| suspendable when idle (`disableable`) | 23 |
 | dormancy-eligible | 19 |
-| gated by demand (`session.TargetKeys`) | 27 |
+| gated by demand (`session.TargetKeys`) | 26 |
 | menus enabled for stream delivery | 8 |
-| collectors declaring rooms | 24 |
+| collectors declaring rooms | 23 |
 | `keepAliveFor` entries | 3 |
-| collectors with an extracted derivation | 26 |
+| collectors with an extracted derivation | 25 |
 
 ---
 

@@ -49,7 +49,6 @@ import { initFirewallPage } from './pages/firewall';
 import { initWifiPage } from './pages/wifi';
 import { initCapsmanPage } from './pages/capsman';
 import { initInterfacesPage } from './pages/interfaces';
-import { initIpAddressesPage } from './pages/ip-addresses';
 import { initAreaPages } from './pages/area';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
@@ -597,7 +596,6 @@ async function main(): Promise<void> {
   initWifiPage(socket, pageVisible);
   initCapsmanPage(socket, pageVisible);
   initInterfacesPage(socket, pageVisible);
-  initIpAddressesPage(socket, pageVisible);
   // EVERY GENERATED PAGE, from one call: see internal/areas and web/src/pages/area.ts.
   initAreaPages(socket, pageVisible);
   initLogsPage(socket, pageVisible);

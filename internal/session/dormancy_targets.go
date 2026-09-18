@@ -29,7 +29,7 @@ import "mikrodash/internal/areas"
 // needs the names without constructing a Session — and
 // `TestTargetKeysMatchesTheTable` fails the moment the two disagree.
 var targetKeys = []string{
-	"dns", "ipAddresses", "areas", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
+	"dns", "areas", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
 	"rosusers", "queues", "firewall", "wifi", "capsman", "netwatch", "ifStatus",
 	"topology", "wireless", "bandwidth", "talkers",
 	// NOT dormancy-eligible, but the page-focus path resumes them, and
@@ -117,12 +117,6 @@ func (s *Session) targets() map[string]collectorTarget {
 		}
 		return nil
 	}, func() { s.dns.Suspend() }, func() { s.dns.Resume() }, func() { s.dns.RefreshNow() })
-	add("ipAddresses", func() any {
-		if p := s.ipAddresses.Last(); p != nil {
-			return p
-		}
-		return nil
-	}, func() { s.ipAddresses.Suspend() }, func() { s.ipAddresses.Resume() }, func() { s.ipAddresses.RefreshNow() })
 	// ── ONE TARGET, EVERY GENERATED PAGE ────────────────────────────────────
 	//
 	// `prime` wants the payload a page would replay. An area collector holds one

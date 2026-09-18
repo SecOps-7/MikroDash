@@ -64,7 +64,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "pageWifi",
     "pageWifiMap",
     "pageNetwatch",
-    "pageIpAddresses",
     "pageWireless",
     "aiConfirmWrites"
   ],

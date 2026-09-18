@@ -132,15 +132,12 @@ func TestDemandCoversEveryCollectorTheSwitchboardDid(t *testing.T) {
 	// it emits to no room at all, so it can only ever be wanted through
 	// `keepAliveFor` — the rooms of the four collectors that read its index.
 	//
-	// `ipAddresses` joined on 2026-09-15 with the IP Addresses page (#97). It is
-	// new rather than moved: the switchboard never had it, and it is gated like
-	// everything else from the start, reading only while somebody has the page
-	// open.
 	// `areas` joined on 2026-09-17 with the first generated page (internal/areas).
-	// Like `ipAddresses` it is new rather than moved, and it is the case demand
-	// was built for: one collector serving many pages, reading only the areas
-	// whose rooms are occupied.
-	want := "areas,arp,ifStatus,ipAddresses,logs,netwatch,ping,talkers"
+	// It is new rather than moved, and it is the case demand was built for: one
+	// collector serving many pages, reading only the areas whose rooms are
+	// occupied. `ipAddresses`, which joined on 2026-09-15, left on 2026-09-18:
+	// its page is an area now.
+	want := "areas,arp,ifStatus,logs,netwatch,ping,talkers"
 	if got := strings.Join(newlyGated, ","); got != want {
 		t.Errorf("collectors newly gated by demand = %q, want %q.\nIf that list has "+
 			"changed, a collector has gained or lost coverage and the behaviour change "+
