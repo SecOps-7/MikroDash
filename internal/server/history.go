@@ -211,6 +211,26 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 		op = entry.Forward
 	}
 
+	// ── A WRITE LIKE ANY OTHER ──────────────────────────────────────────────
+	//
+	// The read, the checks and the op run INSIDE the write queue, which takes
+	// the rate limit first. histRun did all of it directly: an undo took no
+	// write slot and no rate limit, so it could be sent as fast as the router
+	// answered and could interleave with another writer's read-check-write on
+	// the same menu (review 2026-09-19).
+	if err := cn.inWriteQueue(func() error {
+		cn.histApply(dir, action, res, req, h, entry, op)
+		return nil
+	}); err != nil {
+		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
+	}
+}
+
+// histApply is an undo or redo, run inside the write queue by histRun. It
+// answers the browser itself on every path.
+func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRequest,
+	h *histStack, entry *history.Entry, op history.Op) {
+
 	// The row this entry is about, read by its id; an add is about a row that
 	// is not there, so it reads nothing.
 	var rows []routeros.Reply
@@ -238,6 +258,20 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 			cn.resErr(res.Key, "stale-history", "", nil)
 			return
 		}
+	}
+
+	// THE ROW CHECKS A FORM WRITE MAKES, on the row as it is now. An update undone
+	// is a write to a row that may have become read-only (dynamic, a regexp DNS
+	// entry) since it was edited; a create undone is a removal, which the
+	// resource may not allow; and a resource whose rows cannot be edited is not
+	// edited by an undo either.
+	if refusal := histRowRefusal(res, op, beforeRow); refusal != "" {
+		cn.recorder().Denied(audit.Event{
+			Action: action, TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: op.ID, TargetName: entry.Identity, Note: refusal,
+		})
+		cn.resErr(res.Key, refusal, entry.Label, nil)
+		return
 	}
 
 	values := op.Values
@@ -336,4 +370,23 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 	}
 	EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
 		"resource": res.Key, "action": dir, "name": entry.Identity, "movedId": movedID})
+}
+
+// histRowRefusal is the refusal code a form write would give this op on this
+// row, or "" when it may proceed. An add (the undo of a delete) is refused for a
+// NoCreate resource in applyOp, as before.
+func histRowRefusal(res *resource.Resource, op history.Op, row routeros.Reply) string {
+	if row == nil {
+		return ""
+	}
+	if res.ReadOnlyWhen != nil && res.ReadOnlyWhen(row) {
+		return res.ReadOnlyReason
+	}
+	if op.Op == "set" && res.NoEdit {
+		return "not-editable"
+	}
+	if op.Op == "remove" && res.RemovableWhen != nil && !res.RemovableWhen(row) {
+		return "not-removable"
+	}
+	return ""
 }

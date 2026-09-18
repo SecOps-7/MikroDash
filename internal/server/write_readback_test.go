@@ -11,6 +11,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"mikrodash/internal/hub"
 	"mikrodash/internal/routeros"
@@ -167,5 +168,59 @@ func TestADeleteWhoseRowRemainsIsAnUnknownOutcome(t *testing.T) {
 	got := sentEvents(me)
 	if _, ok := got["res:ok"]; ok || got["res:error"] != "outcome-unknown" {
 		t.Errorf("a delete whose row is still there sent %v, want outcome-unknown and no res:ok", got)
+	}
+}
+
+// ── UNDO AND REDO ARE WRITES LIKE ANY OTHER (review 2026-09-19) ─────────────
+//
+// histRun read the row, ran the guard and applied the op directly: no write
+// queue, no rate limit, and none of the row checks a form write makes on the
+// freshly read row. So res:undo could be sent as fast as the router answered,
+// past the 30-a-minute cap, and could change a row that had since become
+// read-only.
+
+// editThenUndoConn edits probe (so there is something to undo) and returns the
+// connection with the undo's pre-read scripted as `undoRead`.
+func editThenUndoConn(t *testing.T, undoRead routeros.Reply) (*conn, *hub.Client) {
+	t.Helper()
+	edited := routeros.Reply{".id": "*1", "name": "probe.lan", "type": "A", "address": "192.0.2.12"}
+	cn, me := readbackConn(t, answer(probe), answer(edited), answer(undoRead), answer(probe), answer(probe))
+	cn.resSave(json.RawMessage(`{"resource":"dnsStatic","id":"*1","expectedIdentity":"probe.lan",` +
+		`"values":{"name":"probe.lan","type":"A","address":"192.0.2.12"}}`))
+	if _, ok := sentEvents(me)["res:ok"]; !ok {
+		t.Fatal("the edit that seeds the undo was not confirmed")
+	}
+	return cn, me
+}
+
+func TestAnUndoIsRateLimitedLikeAnyWrite(t *testing.T) {
+	cn, me := editThenUndoConn(t, routeros.Reply{".id": "*1", "name": "probe.lan", "type": "A", "address": "192.0.2.12"})
+	// The allowance is spent: the next router write of any kind is refused.
+	cn.srv.writeLimit = newRateLimiter(1, time.Minute)
+	cn.srv.writeLimit.take(writeLimitKey(cn.sess.Username, cn.routerID))
+
+	cn.resUndo(json.RawMessage(`{"resource":"dnsStatic"}`))
+	got := sentEvents(me)
+	if got["res:error"] != "rate-limited" {
+		t.Errorf("an undo past the rate limit sent %v, want res:error rate-limited", got)
+	}
+	if _, ok := got["res:ok"]; ok {
+		t.Error("an undo past the rate limit was applied")
+	}
+}
+
+func TestAnUndoOfARowThatBecameReadOnlyIsRefused(t *testing.T) {
+	// Between the edit and the undo the record became a regexp entry, which
+	// dnsStatic's ReadOnlyWhen refuses to write.
+	cn, me := editThenUndoConn(t, routeros.Reply{".id": "*1", "name": "probe.lan", "type": "A",
+		"address": "192.0.2.12", "regexp": ".*"})
+
+	cn.resUndo(json.RawMessage(`{"resource":"dnsStatic"}`))
+	got := sentEvents(me)
+	if got["res:error"] != "read-only-row" {
+		t.Errorf("an undo of a now read-only row sent %v, want res:error read-only-row", got)
+	}
+	if _, ok := got["res:ok"]; ok {
+		t.Error("an undo wrote a read-only row")
 	}
 }
