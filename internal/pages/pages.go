@@ -123,6 +123,7 @@ var All = []Page{
 	{Key: "logging", Title: "Logging", Collector: "areas"},
 	{Key: "snmp", Title: "SNMP", Collector: "areas"},
 	{Key: "files", Title: "Files", Collector: "areas"},
+	{Key: "routing-tables", Title: "Routing Tables", Collector: "areas"},
 	// The Tools page: diagnostics run on the selected router when somebody asks.
 	// NO COLLECTOR: nothing runs until a tool is started, so there is nothing to
 	// switch off, and hiding the page is a permission rather than a load question.

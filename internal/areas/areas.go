@@ -195,6 +195,16 @@ var declared = []Area{
 			Columns: []string{"name", "type", "size", "lastModified"}}},
 		Poll: 60 * time.Second,
 	},
+	// ── SLICE 9: ROUTING AND VPN ────────────────────────────────────────────
+	//
+	// Routing tables: the tables policy routing looks routes up in. `main` is
+	// dynamic and read-only. The table's routes stay on the Routing page.
+	{
+		Key: "routing-tables", Title: "Routing Tables", NavGroup: "ipsvc",
+		Tables: []Table{{Resource: "routingTable",
+			Columns: []string{"name", "fib", "disabled", "dynamic", "invalid", "comment"}}},
+		Poll: 60 * time.Second,
+	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//
 	// IP Addresses was a collector, a page module, markup, a nav entry, a room,

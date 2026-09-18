@@ -147,7 +147,7 @@ func auditValues(res *resource.Resource, values map[string]any) map[string]any {
 			}
 			continue
 		}
-		if f.Type == resource.TypeBool {
+		if f.Type == resource.TypeBool || f.Type == resource.TypeFlag {
 			// BOTH SIDES OF THE DIFF SAY THE SAME THING IN DIFFERENT WORDS.
 			// RowValues gives a real boolean and Validate gives "yes"/"no", so
 			// `false` against `"no"` read as a change and EVERY save of every

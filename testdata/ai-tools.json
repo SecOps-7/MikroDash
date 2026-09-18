@@ -319,6 +319,12 @@
       "page": "users"
     },
     {
+      "name": "list_routingTable",
+      "access": "read",
+      "resource": "routingTable",
+      "page": "routing-tables"
+    },
+    {
       "name": "list_scheduler",
       "access": "read",
       "resource": "scheduler",

@@ -50,9 +50,15 @@ const (
 	TypeMac Type = "mac"
 	// TypeCidr accepts an address OR a prefix — `0.0.0.0/0` and `198.51.100.1`
 	// are both valid destinations for a route.
-	TypeCidr   Type = "cidr"
-	TypeInt    Type = "int"
-	TypeBool   Type = "bool"
+	TypeCidr Type = "cidr"
+	TypeInt  Type = "int"
+	TypeBool Type = "bool"
+	// TypeFlag is a PRESENCE flag: RouterOS reports it by the key being there
+	// (`fib=""`) or not, and a `no` does not clear it — measured on
+	// /routing/table's fib, where `set fib=no` changes nothing. It renders as a
+	// checkbox; on it writes `=x=yes`, off on an edit writes `=!x=`, which
+	// clears it in the same command, and off on a create writes nothing.
+	TypeFlag   Type = "flag"
 	TypeSelect Type = "select"
 	// TypeMulti is a set chosen from Options, carried as a comma list in the
 	// Options' own order ("read,write,api"). See Field.NegateUnset.
@@ -156,7 +162,7 @@ func (f Field) input() string {
 		return "password"
 	case TypeInt:
 		return "number"
-	case TypeBool:
+	case TypeBool, TypeFlag:
 		return "checkbox"
 	case TypeSelect:
 		return "select"
@@ -460,7 +466,7 @@ func (f Field) check(raw string) (string, string) {
 			return "", fmt.Sprintf("is above %d", *f.Max)
 		}
 		return strconv.Itoa(n), ""
-	case TypeBool:
+	case TypeBool, TypeFlag:
 		if s == "true" || s == "yes" {
 			return "yes", ""
 		}
@@ -537,7 +543,7 @@ func (r *Resource) Validate(values map[string]string, editing bool) (Validated, 
 		if blank {
 			// A checkbox that is off is a value, not an omission; so is an empty
 			// set whose unchosen options are written as negations.
-			if f.Type == TypeBool || (f.Type == TypeMulti && f.NegateUnset) {
+			if f.Type == TypeBool || f.Type == TypeFlag || (f.Type == TypeMulti && f.NegateUnset) {
 				v, _ := f.check(raw)
 				clean[f.Name] = v
 				continue
@@ -573,6 +579,14 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		}
 		if has && f.Type == TypeMulti && f.NegateUnset {
 			args = append(args, "="+f.ROS+"="+negateUnset(f.Options, val))
+			continue
+		}
+		if f.Type == TypeFlag {
+			if has && val == "yes" {
+				args = append(args, "="+f.ROS+"=yes")
+			} else if has && v.Editing {
+				args = append(args, "=!"+f.ROS+"=")
+			}
 			continue
 		}
 		if has {
@@ -1420,6 +1434,25 @@ var IPPool = &Resource{
 	},
 }
 
+// RoutingTable is /routing/table: the tables policy routing looks routes up in.
+// `main` is dynamic and cannot be edited or removed. `fib` is what makes a table
+// usable for forwarding, and is a presence flag (TypeFlag).
+var RoutingTable = &Resource{
+	Key: "routingTable", Page: "routing-tables", Label: "Routing Table",
+	Title: "Routing Table", Menu: "/routing/table", Identity: []string{"name"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "dynamic",
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "isp2"},
+		{Name: "fib", ROS: "fib", Label: "FIB", Type: TypeFlag,
+			Help: "Install this table's routes for forwarding. Policy routing needs it."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+		{Name: "invalid", ROS: "invalid", Label: "Invalid", Type: TypeBool, Display: true},
+	},
+}
+
 // ── Router users ────────────────────────────────────────────────────────────
 //
 // /user and /user/group. Both carry the selfAccount guard, which REFUSES any
@@ -2059,6 +2092,7 @@ var byKey = map[string]*Resource{
 	SimpleQueue.Key:         SimpleQueue,
 	QueueTree.Key:           QueueTree,
 	IPPool.Key:              IPPool,
+	RoutingTable.Key:        RoutingTable,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,
@@ -2180,6 +2214,11 @@ func (r *Resource) RowValues(row map[string]string) map[string]any {
 			continue
 		}
 		raw, ok := row[f.ROS]
+		// A PRESENCE FLAG'S ABSENCE IS ITS VALUE: no key is false.
+		if f.Type == TypeFlag {
+			out[f.Name] = ok
+			continue
+		}
 		if !ok {
 			continue
 		}

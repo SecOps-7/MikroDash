@@ -1,0 +1,38 @@
+{
+ "collector": "areas",
+ "resource": "routingTable",
+ "router": {
+  "model": "CHR",
+  "osVersion": "7.24.3"
+ },
+ "note": "Captured from the CHR test router. The two custom tables were created FOR the capture. What is real is the router's reply: `main` is dynamic; `fib` is a PRESENCE flag, reported as fib=\"\" on a table that has it and absent on one that does not; `disabled` is absent when false; a disabled table is invalid. Read through /routing/table/print.",
+ "exchanges": [
+  {
+   "cmd": "/routing/table/print",
+   "params": [],
+   "rows": [
+    {
+     ".id": "*0",
+     "dynamic": "true",
+     "fib": "",
+     "invalid": "false",
+     "name": "main"
+    },
+    {
+     ".id": "*400",
+     "comment": "fixture",
+     "fib": "",
+     "invalid": "false",
+     "name": "md-fib"
+    },
+    {
+     ".id": "*401",
+     "comment": "a table without fib, disabled",
+     "disabled": "true",
+     "invalid": "true",
+     "name": "md-nofib"
+    }
+   ]
+  }
+ ]
+}

@@ -102,6 +102,12 @@ export const AREAS: readonly Area[] = [
     ],
   },
   {
+    key: "routing-tables", title: "Routing Tables", navGroup: "ipsvc",
+    tables: [
+      { resource: "routingTable", title: "Routing Table", columns: ["name", "fib", "disabled", "dynamic", "invalid", "comment"] },
+    ],
+  },
+  {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network",
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"] },

@@ -82,6 +82,11 @@
       "settingsKey": null
     },
     {
+      "key": "routing-tables",
+      "title": "Routing Tables",
+      "settingsKey": null
+    },
+    {
       "key": "tools",
       "title": "Tools",
       "settingsKey": null
