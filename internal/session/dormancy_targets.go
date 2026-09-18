@@ -119,18 +119,20 @@ func (s *Session) targets() map[string]collectorTarget {
 	}, func() { s.dns.Suspend() }, func() { s.dns.Resume() }, func() { s.dns.RefreshNow() })
 	// ── ONE TARGET, EVERY GENERATED PAGE ────────────────────────────────────
 	//
-	// `prime` wants the payload a page would replay. An area collector holds one
-	// per area, so it primes with the FIRST declared area's — enough to answer
-	// "has this collector anything", which is what the target is for — and the
-	// refresh re-reads every area that is being looked at.
+	// `prime` wants the payload a page would replay, and an area collector holds
+	// one per area. So `last` answers only once EVERY area has one — it used to
+	// answer once ANY did, and after one generated page had been read the prime
+	// skipped all the others. And `refresh` is `Prime`, not `Tick`: `Tick` reads
+	// only areas whose room is occupied, and at connect none is, so the prime
+	// read nothing. See Areas.Prime for the cost.
 	add("areas", func() any {
-		for _, key := range areas.Keys() {
-			if p := s.areas.Last(key); p != nil {
+		if keys := areas.Keys(); len(keys) > 0 && s.areas.Primed() {
+			if p := s.areas.Last(keys[0]); p != nil {
 				return p
 			}
 		}
 		return nil
-	}, func() { s.areas.Suspend() }, func() { s.areas.Resume() }, func() { s.areas.Tick() })
+	}, func() { s.areas.Suspend() }, func() { s.areas.Resume() }, func() { s.areas.Prime() })
 	add("bridges", func() any {
 		if p := s.bridges.Last(); p != nil {
 			return p

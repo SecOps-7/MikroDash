@@ -46,12 +46,12 @@ func TestEveryTargetCanBeRefreshed(t *testing.T) {
 	// A table collector's refresh is a closure, `func() { s.x.RefreshNow() }`: its
 	// method is promoted from the embedded core, and a promoted method value
 	// dereferences a collector the session did not build (dormancy_targets.go).
-	// `.Tick() })` is the areas collector's: its refresh takes no key and reads
-	// every area being looked at, which is what "read now" means for one
-	// collector serving many pages. Counted here rather than given a
+	// `.Prime() })` is the areas collector's: its refresh takes no key and reads
+	// every area that has no payload yet, which is what "take one reading" means
+	// for one collector serving many pages. Counted here rather than given a
 	// RefreshNow() alias, because an alias would be a second name for one thing.
 	refreshers := strings.Count(src, ".RefreshNow)") + strings.Count(src, ".Tick)") +
-		strings.Count(src, ".RefreshNow() })") + strings.Count(src, ".Tick() })")
+		strings.Count(src, ".RefreshNow() })") + strings.Count(src, ".Prime() })")
 	if want := len(targetKeys) - len(noPrimePath); refreshers != want {
 		t.Errorf("%d of %d targets have a refresh closure, expected %d (%d recorded in "+
 			"noPrimePath). A target without one is skipped by primeAll and by the "+

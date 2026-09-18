@@ -536,3 +536,76 @@ func captureFor(t *testing.T, key string) ([]routeros.Reply, string) {
 	t.Fatalf("no fixture for resource %q under testdata/fixtures", key)
 	return nil, ""
 }
+
+// TestPrimeReadsEveryAreaNobodyHasOpened is the seed every hand-built page gets
+// from `primeAll` at connect, given to the generated ones.
+//
+// At connect no browser is in any room yet, so an occupancy-gated read reads
+// NOTHING — which is what `Tick` did as the prime, and why every generated page
+// opened on "Waiting…" while the hand-built ones opened with data. The prime is
+// one reading per area, taken regardless of rooms; the ONGOING poll stays gated
+// (TestTheAreasCollectorReadsOnlyWhatIsBeingLookedAt).
+//
+// Both directions: an area left unread fails the first half, and a prime that
+// re-reads what it already holds — a poll, not a floor — fails the second.
+func TestPrimeReadsEveryAreaNobodyHasOpened(t *testing.T) {
+	if len(areas.All()) == 0 {
+		t.Skip("no areas declared")
+	}
+	r := &cmdRecorder{}
+	c := NewAreas(r, Emit{}).WithOccupancy(func(string) bool { return false })
+	c.Prime()
+	for _, area := range areas.All() {
+		if c.Last(area.Key) == nil {
+			t.Errorf("area %q holds no payload after the prime, so its page opens empty", area.Key)
+		}
+	}
+	tables := 0
+	for _, area := range areas.All() {
+		tables += len(area.Tables)
+	}
+	if len(r.cmds) != tables {
+		t.Errorf("the prime sent %d commands for %d declared tables: the documented cost is "+
+			"one print per menu table", len(r.cmds), tables)
+	}
+
+	// A FLOOR, NOT A POLL: a second prime reads nothing, and a prime after one
+	// area has been read reads only the others.
+	before := len(r.cmds)
+	c.Prime()
+	if len(r.cmds) != before {
+		t.Errorf("a second prime re-read %d menu(s) that already had a payload", len(r.cmds)-before)
+	}
+	first := areas.All()[0]
+	r2 := &cmdRecorder{}
+	part := NewAreas(r2, Emit{}).WithOccupancy(func(room string) bool { return room == AreaRoomFor(first.Key) })
+	part.Tick()
+	read := len(r2.cmds)
+	part.Prime()
+	if got, want := len(r2.cmds)-read, tables-len(first.Tables); got != want {
+		t.Errorf("a prime after %q was read sent %d commands, want %d (every OTHER area once)",
+			first.Key, got, want)
+	}
+}
+
+// TestPrimedMeansEveryArea. The prime pass skips a target that says it already
+// has something, so "has something" must mean EVERY area: reading one page must
+// not stop the others being seeded.
+func TestPrimedMeansEveryArea(t *testing.T) {
+	if len(areas.All()) < 2 {
+		t.Skip("needs two areas to tell one from all")
+	}
+	first := areas.All()[0]
+	c := NewAreas(&cmdRecorder{}, Emit{}).WithOccupancy(func(room string) bool { return room == AreaRoomFor(first.Key) })
+	if c.Primed() {
+		t.Fatal("a collector that has read nothing reports itself primed")
+	}
+	c.Tick()
+	if c.Primed() {
+		t.Error("one area read reports the whole collector primed, so the prime pass skips every other area")
+	}
+	c.Prime()
+	if !c.Primed() {
+		t.Error("every area read and the collector still reports itself unprimed, so every connect re-reads them all")
+	}
+}

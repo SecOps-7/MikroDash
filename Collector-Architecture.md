@@ -405,6 +405,7 @@ is one collector, already in the registry as `areas`, and a declaration each.
 | declares its rooms | one `page-<key>` per area, generated — so the demand rule applies unchanged |
 | reads | poll only, each area on its own declared interval; configuration never streams. Through the per-router cache but NOT the scheduler: its menus are chosen per tick, so the loop is the schedule (`firewall` is the precedent). Every read names its fields, `.id` plus the resource's declared fields, never a secret: a read with no proplist would widen the shared cache entry to every field for every other consumer of that menu |
 | derives | `BuildAreaRows`: rows to id, identity and values, keyed by the resource's FIELD names |
+| primes | at connect, `primeAll` calls `Areas.Prime`: ONE read of every area that holds no payload, whether or not its room is occupied, so a generated page opens with data as a hand-built one does. Router cost: one print per declared menu table per router per connect (24 today), nothing for an area already read, so a reconnect re-reads only what was never read. The target answers "has something" only once EVERY area has a payload. The ongoing poll stays room-gated |
 | sends | `area:update`, to that area's room alone; the last one is replayed on `page:focus` |
 | fails | a refusal says so, a menu the build lacks says so, and anything else keeps the last rows and re-reads at the next tick |
 | writes | nothing of its own: the resource engine's pipeline, guards, audit and undo |

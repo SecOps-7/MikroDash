@@ -29,6 +29,9 @@ package collect
 // same demand rule every collector gets. Within it, each area is read only while
 // ITS room is occupied — otherwise opening one generated page would poll the
 // menus of every other, which is the cost this mechanism exists to avoid.
+//
+// The one exception is `Prime`: ONE reading of each area that has none, at
+// connect, so a generated page opens with data exactly as a hand-built one does.
 
 import (
 	"fmt"
@@ -201,6 +204,45 @@ func (a *Areas) Tick() {
 		}
 		a.readArea(area, now)
 	}
+}
+
+// Prime reads every area that holds no payload yet, whether or not anybody is
+// on its page. It is the areas collector's half of `primeAll`, which seeds every
+// page at connect so that landing on one never waits for data.
+//
+// ── IT IGNORES OCCUPANCY, AND ONLY HERE ─────────────────────────────────────
+//
+// At connect no browser is in any room yet, so `Tick` — the prime this
+// replaced — read nothing, and every generated page opened on "Waiting…" while
+// the hand-built ones opened with data. The cost is bounded and paid once: one
+// print per declared menu table per router per connect, and nothing for an area
+// that already has a payload, so a reconnect re-reads only what was never read.
+// The ONGOING poll is still `Tick`, still gated on the rooms.
+func (a *Areas) Prime() {
+	if !a.ros.Connected() {
+		return
+	}
+	now := a.now()
+	for _, area := range areas.All() {
+		if a.Last(area.Key) != nil {
+			continue
+		}
+		a.readArea(area, now)
+	}
+}
+
+// Primed reports whether EVERY area holds a payload. The prime pass skips a
+// target that already has something, so "something" must mean all of them:
+// one page read must not stop the others being seeded.
+func (a *Areas) Primed() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, key := range areas.Keys() {
+		if a.last[key] == nil {
+			return false
+		}
+	}
+	return true
 }
 
 // RefreshNow re-reads one area at once, after a write.
