@@ -1447,6 +1447,9 @@ var IPPool = &Resource{
 var RoutingTable = &Resource{
 	Key: "routingTable", Page: "routing-tables", Label: "Routing Table",
 	Title: "Routing Table", Menu: "/routing/table", Identity: []string{"name"},
+	// A rule that looks routes up in a table goes inactive when the table is
+	// removed or disabled, and finds nothing once its FIB is unset.
+	Guard:          []string{"tableInUse"},
 	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
 	ReadOnlyReason: "dynamic",
 	Fields: []Field{

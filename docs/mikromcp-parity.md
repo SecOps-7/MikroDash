@@ -109,7 +109,7 @@ and the declared actions, so a renamed or removed tool fails the build rather th
 | `manage_queue` | `change_row:simpleQueue`, `change_row:queueTree` | covered | Guarded by queueThrottle. |
 | `manage_route` | `change_row:route`, `change_row:route6` | covered | Guarded by routePath. |
 | `manage_routing_rule` | `change_row:routingRule` | covered | Guarded by rulePath. |
-| `manage_routing_table` | `change_row:routingTable` | covered |  |
+| `manage_routing_table` | `change_row:routingTable` | covered | Guarded by tableInUse. |
 | `manage_scheduled_job` | `change_row:scheduler` | covered | On-event behind codeGate. |
 | `manage_script` | `change_row:script` | covered | Source behind codeGate. |
 | `manage_upgrade` | `run_action:firmware_upgrade_and_reboot` | partial | RouterBOOT firmware only; a RouterOS version upgrade is not offered as an action. |

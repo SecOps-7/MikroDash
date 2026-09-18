@@ -1192,6 +1192,7 @@ var portedGuards = map[string]bool{
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
 	"rulePath": true, "ipsecPath": true, "tunnelDefault": true, "dhcpClientPath": true,
+	"tableInUse": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1252,6 +1253,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "rulePath":
 			if v := cn.ruleVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "tableInUse":
+			if v := cn.tableVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		case "ipsecPath":
@@ -1445,6 +1450,54 @@ func (cn *conn) ruleVerdict(res *resource.Resource, action string,
 		now = ruleChangeOf(values)
 	}
 	return guard.CheckRuleEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// tableVerdict asks whether a routing-table write takes a table out of service
+// that enabled routing rules look routes up in. The rules are read FRESH; a read
+// that fails leaves the guard quiet, as listLockout's does, because this warning
+// is about a rule going inactive, not about MikroDash's own connection.
+func (cn *conn) tableVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	if before == nil {
+		return guard.Verdict{Level: "none"}
+	}
+	rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/routing/rule/print",
+		Args: []string{"=.proplist=.id,table,disabled"}})
+	if err != nil {
+		return guard.Verdict{Level: "none"}
+	}
+	return tableDecision(res, action, values, before, rows)
+}
+
+// tableDecision is tableVerdict without the read. `before` is the raw row;
+// `values` may be partial (the assistant sends only what changes), so a field it
+// does not carry is the row's own.
+func tableDecision(res *resource.Resource, action string, values, before map[string]string,
+	ruleRows []routeros.Reply) guard.Verdict {
+
+	was := histValues(res.RowValues(before))
+	// TWO SPELLINGS: the row reads "true"/"false" and validated form values
+	// "yes"/"no". Reading only "true" took every form save as unsetting FIB.
+	state := func(v map[string]string) guard.TableState {
+		return guard.TableState{Present: true, Disabled: isTruthy(v["disabled"]), FIB: isTruthy(v["fib"])}
+	}
+	after := guard.TableState{}
+	if action != "delete" {
+		merged := make(map[string]string, len(was))
+		for k, v := range was {
+			merged[k] = v
+		}
+		for k, v := range values {
+			merged[k] = v
+		}
+		after = state(merged)
+	}
+	rules := make([]guard.TableRule, 0, len(ruleRows))
+	for _, r := range ruleRows {
+		rules = append(rules, guard.TableRule{ID: r[".id"], Table: r["table"], Disabled: isTruthy(r["disabled"])})
+	}
+	return guard.CheckTableChange(action, was["name"], before[".id"], state(was), after, rules)
 }
 
 // tunnelDefaultVerdict judges a tunnel client's `add-default-route` as the route

@@ -132,3 +132,19 @@ const dhcpc = warningText('dhcp-client-cutoff', { address: '10.0.0.53', interfac
 assert.ok(dhcpc.headline.includes('cut MikroDash off') && dhcpc.why.includes('10.0.0.53') && dhcpc.why.includes('ether1') &&
   dhcpc.why.includes('removes'), 'dhcp-client-cutoff: ' + dhcpc.why);
 say('ok  dhcp-client-cutoff names the address MikroDash dials and the client that holds it');
+
+// ── table-in-use: the count, the change, and the name escaped ─────────────
+{
+  const rm = warningText('table-in-use', { table: '<b>isp2</b>', change: 'remove', rules: 2 });
+  assert.ok(rm.headline.includes('Routing rules use this table'), rm.headline);
+  assert.ok(rm.why.startsWith('2 routing rules look routes up in <code>&lt;b&gt;isp2&lt;/b&gt;</code>'),
+    'the count or the escaped table name is missing: ' + rm.why);
+  assert.ok(/Removing the table makes them inactive/.test(rm.why), rm.why);
+  const one = warningText('table-in-use', { table: 'isp2', change: 'disable', rules: 1 });
+  assert.ok(/^A routing rule looks/.test(one.why) && /makes it inactive, as if it were/.test(one.why), one.why);
+  const fib = warningText('table-in-use', { table: 'isp2', change: 'fib', rules: 1 });
+  assert.ok(/Without FIB/.test(fib.why) && /its lookups find nothing/.test(fib.why), fib.why);
+  // The control: an unknown code still gets the generic text, not this one.
+  assert.ok(!/Routing rules/.test(warningText('no-such-code', {}).headline));
+  console.log('ok  table-in-use names the count, the change and the escaped table');
+}

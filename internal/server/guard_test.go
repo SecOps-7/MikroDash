@@ -36,7 +36,9 @@ func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 		// 2026-09-18: a tunnel client's add-default-route, judged as the route it installs.
 		"tunnelDefault": true,
 		// 2026-09-18: the DHCP client holding the address MikroDash dials.
-		"dhcpClientPath": true}
+		"dhcpClientPath": true,
+		// 2026-09-18: a routing table enabled rules look routes up in.
+		"tableInUse": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}

@@ -91,11 +91,15 @@ func (f *fakeConn) send(rows ...routeros.Reply) {
 	}
 }
 
-func (f *fakeConn) endNaturally() {
+func (f *fakeConn) endNaturally() { f.endWith(nil) }
+
+// endWith ends the stream as the adapter does: nil for `!done`, the router's
+// trap for a command it refused, the connection's failure for a lost one.
+func (f *fakeConn) endWith(err error) {
 	f.mu.Lock()
 	fn := f.onDone
 	f.mu.Unlock()
-	fn(nil)
+	fn(err)
 }
 
 type capture struct {
@@ -177,6 +181,51 @@ func TestAStreamThatEndsByItselfCompletesAndIsNotCancelled(t *testing.T) {
 	if n := atomic.LoadInt32(&conn.stops); n != 0 {
 		t.Errorf("a stream that ended by itself was cancelled %d times -- that is one "+
 			"more write to a device that has just finished scanning", n)
+	}
+}
+
+// TestATrappedScanIsAnErrorNotComplete.
+//
+// The router can refuse a scan after the stream opens — the radio is disabled,
+// or the interface went away. That end arrives as a `!trap` on onDone, and it
+// was reported as "complete": a scan that never ran read as one that found an
+// empty spectrum. The runner had a `failed` channel for exactly this that
+// nothing wrote to.
+func TestATrappedScanIsAnErrorNotComplete(t *testing.T) {
+	d, cap, conn := runScan(t, 30, func(c *fakeConn) {
+		c.endWith(&routeros.Trap{Message: "no such item"})
+	})
+	if d.Reason != "error" {
+		t.Errorf("reason %q, want error: a refused scan reads as a finished one", d.Reason)
+	}
+	cap.mu.Lock()
+	defer cap.mu.Unlock()
+	if len(cap.errors) != 1 || cap.errors[0] != "no-such-interface" {
+		t.Errorf("errors emitted %v, want exactly one no-such-interface", cap.errors)
+	}
+	if n := atomic.LoadInt32(&conn.stops); n != 0 {
+		t.Errorf("a stream the router already ended was cancelled %d times", n)
+	}
+}
+
+// TestAConnectionThatFailsUnderTheScanIsDisconnectedNotAnError.
+//
+// The adapter reports a dropped connection through the same onDone. That is the
+// liveness probe's "disconnected", not a router refusal, and it must not put a
+// router error in front of the operator for a reboot.
+func TestAConnectionThatFailsUnderTheScanIsDisconnectedNotAnError(t *testing.T) {
+	d, cap, _ := runScan(t, 30, func(c *fakeConn) {
+		c.send(row("2412"))
+		c.connected.Store(false)
+		c.endWith(errStr("connection reset by peer"))
+	})
+	if d.Reason != "disconnected" {
+		t.Errorf("reason %q, want disconnected", d.Reason)
+	}
+	cap.mu.Lock()
+	defer cap.mu.Unlock()
+	if len(cap.errors) != 0 {
+		t.Errorf("a lost connection emitted router errors %v", cap.errors)
 	}
 }
 

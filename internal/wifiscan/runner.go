@@ -79,9 +79,18 @@ func Run(g *Registry, s *Scan, conn Conn, em Emitter) {
 					g.Add(s, r)
 				}
 			},
-			// How it ended is not read: a scan has always treated every end
-			// it did not cause as complete, and that is unchanged here.
-			func(error) {
+			// HOW IT ENDED DECIDES WHAT IT WAS. nil is `!done`, a scan that ran;
+			// anything else is the router refusing it (a trap) or the connection
+			// going under it, and reporting either as "complete" said a scan that
+			// never ran had found an empty spectrum.
+			func(err error) {
+				if err != nil {
+					select {
+					case failed <- err.Error():
+					default:
+					}
+					return
+				}
 				select {
 				case natural <- struct{}{}:
 				default:
@@ -111,6 +120,15 @@ func Run(g *Registry, s *Scan, conn Conn, em Emitter) {
 			return
 
 		case msg := <-failed:
+			// The stream is over either way, so no `/cancel` is written to it.
+			g.MarkNatural(s)
+			// A connection that failed is the liveness probe's case, not a
+			// router refusal: say "disconnected", and put no router error in
+			// front of the operator for a reboot.
+			if !conn.Connected() {
+				g.Finish(s, "disconnected")
+				return
+			}
 			em.Error(s.ID, ClassifyTrap(msg), msg)
 			g.Finish(s, "error")
 			return

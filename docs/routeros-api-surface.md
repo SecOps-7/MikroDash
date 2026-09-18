@@ -270,7 +270,7 @@ surface stays complete.
 | `/routing/ospf/interface-template` | ospfTemplate | ospf | add, set, remove, move (passive is a presence flag; auth-key never read) |
 | `/routing/ospf/neighbor` | ospfNeighbor | ospf | read only |
 | `/routing/rule` | routingRule | routing-rules | add, set, remove, move (guarded by rulePath) |
-| `/routing/table` | routingTable | routing-tables | add, set, remove (fib is a presence flag, cleared with `!fib`) |
+| `/routing/table` | routingTable | routing-tables | add, set, remove (fib is a presence flag, cleared with `!fib`; tableInUse reads `/routing/rule` before a remove, disable or FIB unset) |
 | `/tool/netwatch` | netwatch | netwatch | add, set, remove (no scripts, no DNS record type) |
 | `/ipv6/address` | ipv6Address | ip-addresses | add, set, remove |
 | `/ipv6/route` | route6 | routing | add, set, remove |

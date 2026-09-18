@@ -464,6 +464,23 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
           'can still be edited or removed from its row.',
       };
     }
+    case 'table-in-use': {
+      // Measured on the CHR (7.24.1): a removed or disabled table leaves its
+      // rules inactive; a table without FIB leaves them looking in an empty one.
+      const n = Number(w.rules) || 0;
+      const them = n === 1 ? 'it' : 'them';
+      const what = str(w.change) === 'remove' ? 'Removing the table makes ' + them + ' inactive, as if ' +
+          (n === 1 ? 'it were' : 'they were') + ' not there.'
+        : str(w.change) === 'disable' ? 'Disabling the table makes ' + them + ' inactive, as if ' +
+          (n === 1 ? 'it were' : 'they were') + ' not there.'
+          : 'Without FIB the table\'s routes are not installed, so ' + (n === 1 ? 'its' : 'their') +
+            ' lookups find nothing.';
+      return {
+        headline: 'Routing rules use this table.',
+        why: (n === 1 ? 'A routing rule looks' : n + ' routing rules look') + ' routes up in <code>' +
+          esc(str(w.table) || '?') + '</code>. ' + what,
+      };
+    }
     case 'wifi-inherit':
       return { headline: 'This change needs confirming.', why: 'It overrides a setting this network inherits from a shared configuration profile.' };
     case 'capsman-push':
