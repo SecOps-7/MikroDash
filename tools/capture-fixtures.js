@@ -57,7 +57,7 @@ const crypto = require('node:crypto');
 // means tools/../MikroDash — which does not exist, and every require() below
 // throws MODULE_NOT_FOUND. It works today only because this tool normally runs
 // inside the container with an absolute /app. This is the same trap that
-// silently broke nodecheck/helpers/fixture-replay.js and tools/api-surface.js.
+// silently broke the Node-era fixture replay and API-surface scripts, since deleted.
 const ROOT = path.resolve(process.env.MIKRODASH_SRC || path.join(__dirname, '..', '..', 'MikroDash'));
 const OUT  = process.env.FIXTURE_OUT || path.join(__dirname, '..', 'testdata', 'fixtures');
 

@@ -9,7 +9,7 @@
  * Generated rather than written, and regenerated rather than edited. `--check`
  * fails when a golden is stale, so a change to a Node collector cannot silently
  * drift away from the Go implementation that was diffed against it — the same
- * gate tools/api-surface.js applies to the RouterOS command surface.
+ * gate the (since deleted) API-surface script applied to the RouterOS command surface.
  *
  * WALL-CLOCK FIELDS ARE ZEROED. `ts` is taken at emit; `deltaWindowMs` is the
  * measured gap between two metadata commits. Neither can come from a fixture,

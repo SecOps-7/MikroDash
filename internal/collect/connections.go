@@ -841,7 +841,7 @@ func (c *Connections) apply(rows []routeros.Reply, err error) {
 		// payload has NO KEY AT ALL, because `delete` removes a key and a nil Go
 		// map marshals as null. That was the port's only conn:update key set
 		// where the live app has two, which is exactly what
-		// tools/live-socket-diff.js reported on 2026-08-28.
+		// a Node-era socket diff reported on 2026-08-28.
 		EvConnUpdate.Emit(c.emit, connsRooms.Join(), LightOf(*payload))
 	}
 	if detailChanged {

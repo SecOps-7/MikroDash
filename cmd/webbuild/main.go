@@ -90,17 +90,16 @@ const tail = `
 // composeHTML assembles index.html.
 //
 // index.html is ASSEMBLED rather than authored: the shell and each page body
-// come from tools/extract-ui.js, which lifts them verbatim out of the live app.
-// Writing them by hand here would reintroduce exactly the drift the extraction
-// exists to prevent.
+// are authored in web/src/ui/, one page-<key>.html per page, and composed here
+// so there is one copy of each.
 func composeHTML(ui string) (string, error) {
 	shellB, err := os.ReadFile(filepath.Join(ui, "shell.html"))
 	if err != nil {
-		return "", fmt.Errorf("reading the extracted shell: %w", err)
+		return "", fmt.Errorf("reading the shell: %w", err)
 	}
 	shell := string(shellB)
 	if !strings.Contains(shell, "<!--PAGES-->") {
-		return "", fmt.Errorf("the extracted shell has no <!--PAGES--> marker")
+		return "", fmt.Errorf("the shell has no <!--PAGES--> marker")
 	}
 
 	bodies := make([]string, 0, len(PAGES))
@@ -108,7 +107,7 @@ func composeHTML(ui string) (string, error) {
 		f := filepath.Join(ui, "page-"+p+".html")
 		b, err := os.ReadFile(f)
 		if err != nil {
-			return "", fmt.Errorf("no extracted markup for page %q — run tools/extract-ui.js", p)
+			return "", fmt.Errorf("no markup for page %q: web/src/ui/page-%s.html is missing", p, p)
 		}
 		bodies = append(bodies, string(b))
 	}
@@ -232,9 +231,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "webbuild: copying app.css:", err)
 		os.Exit(1)
 	}
-	// login.html is MARKUP and is extracted, not authored — same rule as the page
-	// bodies, and it comes from `src/ui` like every other extract. It ships to
-	// dist so the whole served document set comes from one directory.
+	// login.html is markup in web/src/ui like the page bodies. It ships to dist
+	// so the whole served document set comes from one directory.
 	if err := copyFile(filepath.Join(ui, "login.html"), filepath.Join(dist, "login.html")); err != nil {
 		fmt.Fprintln(os.Stderr, "webbuild: copying login.html:", err)
 		os.Exit(1)

@@ -407,7 +407,7 @@ export function ssidColours(names: string[]): Record<string, string> {
  * Publish both under the names the live app uses.
  *
  * Not for this app's own benefit — its pages import them directly. It is so a
- * renderer LIFTED by tools/live-renderer.js finds them: the lifted Wifi
+ * renderer a Node-era script LIFTED (since deleted) found them: the lifted Wifi
  * Networks code reads `window._bandBadge` and `window._ssidColours`, and
  * without them it silently takes its fallback path while the port takes the
  * real one, which would read as a rendering difference that does not exist.

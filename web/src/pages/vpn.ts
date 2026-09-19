@@ -38,7 +38,7 @@ function hsToSecs(s: string): number {
   // — a freshly connected peer rendered red. An unparseable string matches
   // nothing and also yields 0, which live treats as recent; reproduced rather
   // than corrected, because the badge is a live behaviour and not this port's to
-  // redesign. Caught by tools/vpn-page-check.js.
+  // redesign. Caught by a Node-era check, since deleted.
   return total;
 }
 

@@ -143,7 +143,7 @@ func CheckLeaseAction(path *WanPath, targetWan, activeDefaultWan string) Verdict
 // ActiveDefaultWan names the uplink carrying our return traffic — the input
 // CheckLeaseAction needs to tell "this WAN is the lifeline" from "some other
 // WAN is". Ported from the block inside `_wanRead` (src/index.js), and pinned by
-// tools/wan-default-cases.js, which LIFTS that block rather than retyping it.
+// a Node-era corpus (since deleted), which LIFTED that block rather than retyping it.
 //
 // ── ONLY WHEN THERE IS EXACTLY ONE ──────────────────────────────────────────
 //

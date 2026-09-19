@@ -567,7 +567,7 @@ func (cn *conn) dispatch(in inbound) {
 	case "rossession:remove":
 		cn.ruSessionRemove(in.Data)
 	// Queues is five handlers of its own, for the same reason Router Users is:
-	// see internal/server/queues.go.
+	// see the Queues page's handlers.
 	// WAN is two verbs over one body — see internal/server/wan.go. Registered
 	// separately rather than as a loop for the same reason the original gives:
 	// the next person looking for where this is handled will grep for the
@@ -768,7 +768,7 @@ func (cn *conn) selectRouter(id string) {
 	// the operator turned OFF on this router showed a stale dashboard card
 	// rather than `is-collector-off` — broken rather than off. Its consumer,
 	// `applyCollectionConfig` in web/src/stale.ts, was written and gated and
-	// called by nothing. Found 2026-08-28 by tools/live-socket-diff.js.
+	// called by nothing. Found 2026-08-28 by a Node-era socket diff, since deleted.
 	EvCollectionConfig.Send(cn.srv.hub, cn.c, collection.Payload(id, rs.Collection()))
 	// AND THE DORMANT SET, which the live app sends on the same handshake
 	// (`index.js:4209`, the line after its `collection:config`) and for the

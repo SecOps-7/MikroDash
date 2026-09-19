@@ -209,7 +209,7 @@ export function wireScheduleActions(): void {
       // then sends `?routerId=`, which the endpoint answers 400. This returns
       // first. Unreachable either way — the button is drawn from a list that
       // cannot load without a router — and pinned as a difference in
-      // tools/sched-remove-check.js rather than quietly diverging.
+      // a Node-era check (since deleted) rather than quietly diverging.
       if (!row || !router?.value) return;
       if (!window.confirm('Remove the scheduled report "' + row.name + '"?')) return;
       void fetch(API + '/' + encodeURIComponent(id) + '?routerId=' +

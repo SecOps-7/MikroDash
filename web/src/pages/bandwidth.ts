@@ -108,7 +108,7 @@ const SORT_COLS: Array<{ id: string; key: SortKey }> = [
  *
  * Pinned by `web/test/rate-and-spectrum-corpora.test.ts`, which replays the 30
  * recorded cases in `testdata/bandwidth-rate-cases.json`. The generator that
- * MADE that corpus (tools/bandwidth-rate-cases.js, deliberately un-backticked
+ * MADE that corpus (a Node-era script, deleted at the cutover; deliberately unnamed
  * because the citation check enforces that a quoted path exists) went with the
  * parity
  * harness on 2026-09-01, and this line went on citing it for five days while

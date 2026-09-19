@@ -43,6 +43,13 @@ var citePattern = regexp.MustCompile(
 	// reference to a file nobody wrote.
 	"`(?:[a-z]+ )*((?:web/src|web/test|internal|tools|cmd|testdata|docs)/[A-Za-z0-9_./-]+\\.(?:ts|go|js|mjs|json|md|sh|css|html))`")
 
+// barePattern is the same path OUTSIDE backticks. A runtime error message told
+// the operator to "run tools/extract-ui.js", a script deleted at the cutover,
+// and nothing read it because it was not in backticks (review loop). The
+// leading boundary keeps it from matching the tail of a longer path.
+var barePattern = regexp.MustCompile(
+	`(?:^|[\s("'\[])((?:web/src|web/test|internal|tools|cmd|testdata|docs)/[A-Za-z0-9_./-]+\.(?:ts|go|js|mjs|json|md|sh|css|html))\b`)
+
 // isIllustrative: a path written as a shape rather than a location, e.g.
 // `internal/.../thing.go`. Nothing is claimed to exist, so nothing is checked.
 func isIllustrative(p string) bool { return strings.Contains(p, "...") }
@@ -66,6 +73,11 @@ func TestCitedPathsExist(t *testing.T) {
 		if strings.HasPrefix(rel, "web/public/vendor/") || strings.HasPrefix(rel, "testdata/") {
 			return false
 		}
+		// `.serena/` is another tool's local cache, gitignored and absent on a
+		// clone: not text this repository authors or can be held to.
+		if strings.HasPrefix(rel, ".serena/") {
+			return false
+		}
 		// `Changes.md` IS EXCLUDED, and the JavaScript original excluded it for
 		// the same reason: it is GITIGNORED and transient, reset to a bare
 		// header after every push, and on a fresh clone it does not exist at
@@ -82,7 +94,10 @@ func TestCitedPathsExist(t *testing.T) {
 
 	cited := map[string]map[string]bool{}
 	for rel, body := range sources {
-		for _, m := range citePattern.FindAllStringSubmatch(body, -1) {
+		var found [][]string
+		found = append(found, citePattern.FindAllStringSubmatch(body, -1)...)
+		found = append(found, barePattern.FindAllStringSubmatch(body, -1)...)
+		for _, m := range found {
 			p := m[1]
 			if isIllustrative(p) {
 				continue

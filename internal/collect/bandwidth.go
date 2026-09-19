@@ -6,7 +6,7 @@ package collect
 // connection table the CONNECTIONS collector has already fetched and transforms
 // it; a capture run against real hardware reported "neither a read nor a stream
 // row", which is a shape rather than a gap. Its gate is therefore a generator
-// over the `conns` fixture — see tools/bandwidth-cases.js.
+// over the `conns` fixture, pinned then by a Node-era corpus since deleted.
 //
 // RATES ARE DELTAS BETWEEN TWO TICKS, which has two consequences worth stating:
 // the first tick after a start or a reconnect reports every rate as zero, and a

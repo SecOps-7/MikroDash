@@ -12,7 +12,7 @@
 //
 // So this reads `geoip-city.dat` and `geoip-city-names.dat` directly, with the
 // same binary search geoip-lite performs. Same bytes in, same answers out, and
-// tools/geo-cases.js is what proves it.
+// A Node-era case corpus proved it; it was deleted at the cutover.
 //
 // ── THE FORMAT IS UNDOCUMENTED, SO FAILURE IS A VALUE ───────────────────────
 //

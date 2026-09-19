@@ -564,7 +564,7 @@ export function bindMapFullscreen(
   if (!btn || !overlay) return;
   const placeholder = document.createComment('map-svg-placeholder');
   // TWO STATED DIFFERENCES from the original, both unreachable through the UI and
-  // both pinned in tools/map-fs-check.js. The live app has no such flag, so
+  // both pinned by a Node-era check, since deleted. The live app has no such flag, so
   // opening twice puts its placeholder inside the overlay beside the SVG already
   // there, and closing before opening dereferences a placeholder with no parent
   // and throws. The button that opens is hidden while the overlay is up and the

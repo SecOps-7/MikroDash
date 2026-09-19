@@ -8,10 +8,10 @@
 //
 // ── THE TABLE IS GENERATED, THE MATCHING IS PORTED ──────────────────────────
 //
-// `table.go` is produced by tools/asn-table.js from the live source and must not
+// `table.go` is produced by a Node-era script (since deleted) from the live source and must not
 // be edited; this file holds the part that has actual behaviour. The split
 // matters because the two fail differently: a stale table is caught by
-// `--check`, while a wrong match is caught only by tools/asn-cases.js, which
+// `--check`, while a wrong match is caught only by a Node-era case corpus (since deleted), which
 // replays the LIVE function's answers.
 //
 // ── NO CACHE HERE, DELIBERATELY ─────────────────────────────────────────────

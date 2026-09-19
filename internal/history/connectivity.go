@@ -4,7 +4,7 @@ package history
 //
 // `recordConnectivity` in the live app is three lines (src/db-writer.js:134).
 // Everything that matters is WHEN it is called, and that is this file. The
-// rules are pinned against the live module by tools/connectivity-cases.js,
+// rules are pinned against the live module by a Node-era case corpus (since deleted),
 // which drives the real alertSessions.js rather than re-deriving it.
 //
 // ── FOUR RULES, EACH FROM A DEFECT ─────────────────────────────────────────

@@ -16,7 +16,7 @@
 // shrinking window with every DOM gate green.
 //
 // The arithmetic is pinned against the live implementation by
-// tools/history-bucket-cases.js, which RUNS src/db-writer.js rather than
+// a Node-era corpus (since deleted), which RAN src/db-writer.js rather than
 // describing it.
 package history
 
