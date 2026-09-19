@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 	}
 	recipients := s.dispatch.Recipients(routerID, s.perUserRecipients)
 	if len(recipients) == 0 {
+		log.Printf("[alert] %d alert(s) on %s reached no recipient", len(fired), routerID)
 		return
 	}
 	stamp := s.alertTimestamp()

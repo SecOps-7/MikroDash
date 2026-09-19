@@ -152,7 +152,9 @@ func (d *Dispatcher) SetSettings(s notify.Settings) {
 }
 
 // Allow decides whether this recipient may be sent this subject now, and STAMPS
-// the cooldown if so.
+// the cooldown if so. `why` says which guard refused, for the log: a skipped
+// send wrote nothing at all, so "the alert fired and nothing arrived" could not
+// be told apart from a transport failure without a debugger (2026-09-20).
 //
 // Separated from the send because it is the whole decision and it is pure enough
 // to gate: the corpus in `testdata/alert-dispatch-cases.json` drives it as a
@@ -165,11 +167,16 @@ func (d *Dispatcher) SetSettings(s notify.Settings) {
 //     the property the live comment is about;
 //  3. the cooldown window.
 func (d *Dispatcher) Allow(r *Recipient, subjectKey string) bool {
+	ok, _ := d.allow(r, subjectKey)
+	return ok
+}
+
+func (d *Dispatcher) allow(r *Recipient, subjectKey string) (bool, string) {
 	if r == nil {
-		return false
+		return false, "no recipient"
 	}
 	if !notify.HasConfigured(r.Settings) {
-		return false
+		return false, "no channel is configured"
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -185,7 +192,7 @@ func (d *Dispatcher) Allow(r *Recipient, subjectKey string) bool {
 	key := r.ID + "|" + subjectKey
 	now := d.now()
 	if now-d.cooldowns[key] < int64(secs*1000) {
-		return false
+		return false, "within the cooldown"
 	}
 	// CLEARED WHOLESALE past the cap, matching the live map. It costs one early
 	// alert and bounds the memory; an LRU here would be a second implementation
@@ -194,7 +201,7 @@ func (d *Dispatcher) Allow(r *Recipient, subjectKey string) bool {
 		d.cooldowns = map[string]int64{}
 	}
 	d.cooldowns[key] = now
-	return true
+	return true, ""
 }
 
 // Deliver sends one message to one recipient, if the guards allow it.
@@ -207,7 +214,10 @@ func (d *Dispatcher) Deliver(ctx context.Context, r *Recipient, subjectKey strin
 		// finding every subject already warm.
 		return false
 	}
-	if !d.Allow(r, subjectKey) {
+	if ok, why := d.allow(r, subjectKey); !ok {
+		// SAID OUT LOUD. Silence here is what made "the alert fired and no
+		// notification arrived" undiagnosable.
+		log.Printf("[alert] not sent to %s (%s): %s", r.ID, subjectKey, why)
 		return false
 	}
 	if err := d.sendFn(ctx, r.Settings, m.Title, m.Body); err != nil {
@@ -217,6 +227,7 @@ func (d *Dispatcher) Deliver(ctx context.Context, r *Recipient, subjectKey strin
 		log.Printf("[alert] notify failed (%s): %v", r.ID, err)
 		return false
 	}
+	log.Printf("[alert] sent to %s: %s", r.ID, subjectKey)
 	return true
 }
 
