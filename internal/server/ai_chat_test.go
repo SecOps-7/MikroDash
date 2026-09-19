@@ -9,6 +9,8 @@ import (
 	"mikrodash/internal/guard"
 	"mikrodash/internal/resource"
 	"mikrodash/internal/routeros"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1204,6 +1206,47 @@ func TestThePromptsDescribeTheToolsTheModelHas(t *testing.T) {
 			if strings.Contains(text, lie) {
 				t.Errorf("%s still says %q", name, lie)
 			}
+		}
+	}
+}
+
+// aiNotForceable are the collectors the AI summary labels that freshenFor cannot
+// refresh: they have no RefreshNow, only their scheduler's Tick.
+var aiNotForceable = map[string]bool{"bandwidth": true, "conns": true}
+
+// TestFreshenForCoversEveryLabelledCollector. freshenFor's note said wireless
+// could not be forced while ai_live forced it, and the summary kept labelling
+// wireless STALE with no refresh behind it (review loop). Every collector the
+// summary labels is refreshed here or recorded as not forceable, in both
+// directions: a recorded one that gains a refresh is a failure too.
+func TestFreshenForCoversEveryLabelledCollector(t *testing.T) {
+	ctx, err := os.ReadFile("../aicontext/context.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat, err := os.ReadFile("ai_chat.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	labelled := map[string]bool{}
+	for _, m := range regexp.MustCompile(`add\("[\w-]+", "(\w+)"`).FindAllStringSubmatch(string(ctx), -1) {
+		labelled[m[1]] = true
+	}
+	noted := map[string]bool{}
+	for _, m := range regexp.MustCompile(`note\("(\w+)"`).FindAllStringSubmatch(string(chat), -1) {
+		noted[m[1]] = true
+	}
+	if len(labelled) < 10 || len(noted) < 8 {
+		t.Fatalf("read %d labelled and %d refreshed collectors; the scan stopped matching", len(labelled), len(noted))
+	}
+	for c := range labelled {
+		if !noted[c] && !aiNotForceable[c] {
+			t.Errorf("the summary labels %s and freshenFor neither refreshes it nor records why not", c)
+		}
+	}
+	for c := range aiNotForceable {
+		if noted[c] {
+			t.Errorf("%s is recorded as not forceable and freshenFor refreshes it; drop the entry", c)
 		}
 	}
 }

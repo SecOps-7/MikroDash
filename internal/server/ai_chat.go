@@ -518,10 +518,11 @@ const aiRefreshBudget = 6 * time.Second
 // reading. A second copy here would drift, and the pair would disagree about
 // which readings are old while each looked right alone.
 //
-// ── THREE COLLECTORS CANNOT BE FORCED, AND KEEP SAYING SO ───────────────────
+// ── TWO COLLECTORS CANNOT BE FORCED, AND KEEP SAYING SO ─────────────────────
 //
-// `wireless`, `bandwidth` and `conns` expose no RefreshNow, only the scheduler's
-// own Tick, and driving that from a request would run a read outside the
+// `bandwidth` and `conns` expose no RefreshNow, only the scheduler's own Tick
+// (`wireless` has had one since this note named it; ai_chat_test.go's ledger
+// holds the list), and driving that from a request would run a read outside the
 // scheduler that owns it. They keep whatever the scheduler last produced and
 // stay marked STALE. That is the honest outcome: the marking is what let the
 // operator notice this in the first place, and silencing it would make the next
@@ -610,6 +611,11 @@ func freshenFor(rs *session.Session, now int64) []string {
 		note("dhcpNetworks", true, p.TS, p.PollMs, func() { rs.DHCPNetworks().RefreshNow() })
 	} else {
 		note("dhcpNetworks", false, 0, 0, func() { rs.DHCPNetworks().RefreshNow() })
+	}
+	if p := rs.Wireless().Last(); p != nil {
+		note("wireless", true, p.TS, p.PollMs, func() { rs.Wireless().RefreshNow() })
+	} else {
+		note("wireless", false, 0, 0, func() { rs.Wireless().RefreshNow() })
 	}
 	if p := rs.Wan().Last(); p != nil {
 		note("wan", true, p.TS, p.PollMs, func() { rs.Wan().RefreshNow() })
