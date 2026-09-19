@@ -613,7 +613,11 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		// Only on an edit, and only when declared clearable: on a create an
 		// omitted property should keep RouterOS's own default. `ClearAs` is the
 		// value that means "nothing" where the empty string does not.
-		if v.Editing && f.Clearable {
+		//
+		// AND ONLY WHEN IT APPLIES. Validate drops a field whose ShowIf does not
+		// hold, so without this every such field was "cleared": a remote log
+		// action's rename also wrote an empty `memory-stop-on-full`.
+		if v.Editing && f.Clearable && f.Applies(v.Values) {
 			args = append(args, "="+f.ROS+"="+f.ClearAs)
 		}
 	}
