@@ -30,13 +30,6 @@ func (s auditSink) InsertAuditEvent(ev audit.DBEvent) error {
 	})
 }
 
-// recorder returns the audit recorder for this connection's user.
-//
-// A nil audit database yields a recorder that records nothing, which is the
-// right failure: the app has to be able to run against a /data whose database
-// this build cannot open, and refusing to serve pages because the trail is
-// unavailable would be worse than an incomplete trail. It is reported once at
-// startup rather than per event.
 // auditSystem records an event with no operator behind it.
 //
 // Two callers need it, and neither has an operator behind it: the `/raw` route,
@@ -52,6 +45,13 @@ func (s *Server) auditSystem(ev audit.Event) {
 	audit.New(sink, audit.System(), nowMillis).Record(ev)
 }
 
+// recorder returns the audit recorder for this connection's user.
+//
+// A nil audit database yields a recorder that records nothing, which is the
+// right failure: the app has to be able to run against a /data whose database
+// this build cannot open, and refusing to serve pages because the trail is
+// unavailable would be worse than an incomplete trail. It is reported once at
+// startup rather than per event.
 func (cn *conn) recorder() *audit.Recorder {
 	var sink audit.Sink
 	if cn.srv.auditDB != nil {
@@ -61,7 +61,10 @@ func (cn *conn) recorder() *audit.Recorder {
 	if cn.sess != nil {
 		name = cn.sess.Username
 	}
-	return audit.New(sink, audit.ForUser("", name, cn.clientIP), nowMillis)
+	// THE USER ID, as httpRecorder records it: audit_events.actor_id holds the
+	// id and actor_name the username. "" here left every write made from a page,
+	// which all go over the socket, with actor_id NULL.
+	return audit.New(sink, audit.ForUser(cn.userID, name, cn.clientIP), nowMillis)
 }
 
 // httpRecorder is the same recorder for an HTTP request rather than a socket.
