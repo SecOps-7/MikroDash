@@ -129,11 +129,12 @@ func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 	}
 }
 
-// TestCredentialReadLedgerIsNotEmpty records WHAT THE TWO ABOVE DO NOT COVER.
+// ── WHAT THE TWO ABOVE DO NOT COVER ─────────────────────────────────────────
 //
-// A ledger, in the sense the rest of this package uses the word: a gap written
-// down is a gap somebody can close, and a gap left to be discovered is how the
-// last one survived a whole port.
+// Written down because a gap written down is a gap somebody can close, and a gap
+// left to be discovered is how the last one survived a whole port. A comment,
+// not a test: it was `TestCredentialReadLedgerIsNotEmpty`, a single t.Log that
+// could not fail and was counted as a check (review loop, 2026-09-19).
 //
 //  1. COMMANDS WITH NO PROPLIST ARE NOT CHECKED. Most reads in
 //     `internal/collect` fetch a whole menu, which is correct — a menu holding
@@ -159,7 +160,3 @@ func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 //     password is ever read" would be false and this file does not claim it.
 //     Narrowing that read is a change to shared machinery and is not this
 //     feature's to make.
-func TestCredentialReadLedgerIsNotEmpty(t *testing.T) {
-	t.Log("three known gaps, documented above: unproplisted reads, payload " +
-		"struct tags, and internal/server.readMenu")
-}
