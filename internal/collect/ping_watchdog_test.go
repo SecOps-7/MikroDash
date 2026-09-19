@@ -158,3 +158,53 @@ func TestThePingWatchdogRunsOnlyWhileStreaming(t *testing.T) {
 		t.Error("a polling ping runs a stream watchdog; its poll loop already takes a fresh reading every tick")
 	}
 }
+
+// slowOpenStreamer takes a moment to open, which is what a router does and what
+// widens the window between "no stream is open" and "this one is".
+type slowOpenStreamer struct{ watchedStreamer }
+
+func (s *slowOpenStreamer) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), error) {
+	time.Sleep(time.Millisecond)
+	return s.watchedStreamer.Stream(cmd, onRow)
+}
+
+// TestOnePingChannelWhateverRacesToReopenIt. The watchdog, SetPollMs and
+// SetTarget each read "is a stream open" and then opened one, unserialised, so
+// two of them together left two `/tool/ping` channels on one target: results
+// counted twice, and one channel held until disconnect. It was also the flake
+// in TestASilentPingStreamIsReopened, whose watchdog's first tick races the
+// test's own (review loop).
+func TestOnePingChannelWhateverRacesToReopenIt(t *testing.T) {
+	s := &slowOpenStreamer{}
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+
+	var wg sync.WaitGroup
+	for g := 0; g < 6; g++ {
+		wg.Add(1)
+		go func(g int) {
+			defer wg.Done()
+			for i := 0; i < 20; i++ {
+				switch g % 3 {
+				case 0:
+					goQuiet(p)
+					p.watchdogTick()
+				case 1:
+					p.SetPollMs(4000 + 1000*(i%2))
+				case 2:
+					p.SetTarget([]string{"1.1.1.1", "9.9.9.9"}[i%2])
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+
+	opens, stops := s.counts()
+	if open := opens - stops; open != 1 {
+		t.Errorf("%d opens and %d stops leave %d channels open, want exactly 1", opens, stops, open)
+	}
+	p.Stop()
+	if opens, stops := s.counts(); opens != stops {
+		t.Errorf("after Stop, %d opens and %d stops: a channel outlived the collector", opens, stops)
+	}
+}

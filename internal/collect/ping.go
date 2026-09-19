@@ -121,6 +121,12 @@ type Ping struct {
 	target string
 	pollMs *pollInterval
 
+	// streamMu SERIALISES OPENING AND CLOSING THE STREAM. The watchdog, a
+	// re-tune, a retarget and a reconnect each read "is one open" and then
+	// opened one; two together left two /tool/ping channels on one target.
+	// Held across Stream and a stop, never while holding mu.
+	streamMu sync.Mutex
+
 	mu      sync.Mutex
 	history []PingPoint
 	window  []bool // true = replied
@@ -469,6 +475,13 @@ func (p *Ping) pollOnce() {
 }
 
 func (p *Ping) startStream() {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
+	p.openStreamLocked()
+}
+
+// openStreamLocked is startStream's work; the caller holds streamMu.
+func (p *Ping) openStreamLocked() {
 	p.mu.Lock()
 	if p.stop != nil || p.denied {
 		p.mu.Unlock()
@@ -523,6 +536,13 @@ func (p *Ping) startStream() {
 }
 
 func (p *Ping) stopStream() {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
+	p.closeStreamLocked()
+}
+
+// closeStreamLocked is stopStream's work; the caller holds streamMu.
+func (p *Ping) closeStreamLocked() {
 	p.mu.Lock()
 	stop := p.stop
 	p.stop = nil
@@ -598,6 +618,10 @@ func (p *Ping) watchdogTick() {
 	if c, ok := p.ros.(interface{ Connected() bool }); ok && !c.Connected() {
 		return
 	}
+	// JUDGED UNDER streamMu, so a stream a re-tune has just opened is seen as
+	// fresh rather than reopened a second time.
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
 	now := time.Now().UnixMilli()
 	p.mu.Lock()
 	streaming, running, denied := p.streaming, p.stop != nil, p.denied
@@ -610,9 +634,9 @@ func (p *Ping) watchdogTick() {
 	if running {
 		log.Printf("[ping] no reading from the stream to %s for %ds; reopening it",
 			p.currentTarget(), (now-last)/1000)
-		p.stopStream()
+		p.closeStreamLocked()
 	}
-	p.startStream()
+	p.openStreamLocked()
 }
 
 func (p *Ping) stopPolling() {
@@ -629,6 +653,8 @@ func (p *Ping) stopPolling() {
 // DOES have the test policy, and a permanent refusal earned on the last one
 // would keep the card dark for ever.
 func (p *Ping) Reconnected() {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
 	p.mu.Lock()
 	p.denied = false
 	p.lastFP = ""
@@ -638,7 +664,7 @@ func (p *Ping) Reconnected() {
 		p.streaming = true
 	}
 	p.mu.Unlock()
-	p.startStream()
+	p.openStreamLocked()
 	if streams {
 		p.wd.start()
 	}
@@ -680,13 +706,22 @@ func (p *Ping) SetTarget(target string) {
 	}
 	p.target = target
 	p.history, p.window, p.lastFP, p.last = nil, nil, "", nil
+	p.mu.Unlock()
+	p.restartRunning() // a polling ping reads the new target on its next tick
+}
+
+// restartRunning reopens the stream if one is open, deciding and acting under
+// streamMu so a stream opened meanwhile is not doubled.
+func (p *Ping) restartRunning() {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
+	p.mu.Lock()
 	running := p.stop != nil
 	p.mu.Unlock()
-	if !running {
-		return // a polling ping reads the new target on its next tick
+	if running {
+		p.closeStreamLocked()
+		p.openStreamLocked()
 	}
-	p.stopStream()
-	p.startStream()
 }
 
 // currentTarget is the host being pinged, read under the lock: SetTarget can
@@ -699,14 +734,7 @@ func (p *Ping) currentTarget() string {
 
 func (p *Ping) SetPollMs(ms int) {
 	p.pollMs.set(ms)
-	p.mu.Lock()
-	running := p.stop != nil
-	p.mu.Unlock()
-	if !running {
-		return
-	}
-	p.stopStream()
-	p.startStream()
+	p.restartRunning()
 }
 
 // Seed fills the RTT history from somewhere that already has it. See
