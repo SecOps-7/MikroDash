@@ -74,6 +74,12 @@ var identityColumns = []identityColumn{
 		why: "supplied by the caller rather than resolved here; the writer must not substitute.",
 	},
 	{
+		column: "report_schedules.created_by", kind: "id",
+		file: "internal/server/reports.go", site: "actor = s.userIDFor(q.Sess.Username)", sites: 1,
+		why: "the creator whose access decides whether the schedule keeps sending; " +
+			"creatorMayRead asks the grant graph with it, which is keyed by user id.",
+	},
+	{
 		column: "grants.created_by", kind: "caller",
 		file: "internal/db/grantwrite.go", site: "s.CreatedBy", sites: 2,
 		why: "as above, and distinct from principal_id — swapping them is silent.",

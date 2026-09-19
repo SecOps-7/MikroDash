@@ -345,23 +345,25 @@ func runSource(sess *Session) string {
 	return "schedule"
 }
 
-// creatorMayRead asks whether the NAMED user who created this schedule may still
-// read reports on this router — a different question from whether the caller
-// pressing "Send now" may, and the one that decides whether the schedule keeps
-// running unattended.
+// creatorMayRead asks whether the user who created this schedule may still read
+// reports on this router: a different question from whether the caller pressing
+// "Send now" may, and the one that decides whether the schedule keeps running
+// unattended. `creatorID` is `report_schedules.created_by`, the USER ID
+// (reportScheduleCreate stores `userIDFor`), as the grant graph is keyed; this
+// called it a username, which it never was.
 //
 // A resolver that is unavailable answers TRUE, matching the documented gap the
 // rest of this package takes: RBAC being absent is an install-wide condition
 // reported at startup, and turning it into a silent per-schedule refusal would
 // disable every schedule on an install whose RBAC tables have not been created.
-func (s *Server) creatorMayRead(username, routerID string) bool {
-	if username == "" {
+func (s *Server) creatorMayRead(creatorID, routerID string) bool {
+	if creatorID == "" {
 		return false
 	}
 	if s.rbac == nil || !s.rbac.Available() {
 		return true
 	}
-	ok, err := s.rbac.CanPage(username, "reports", "read", routerID)
+	ok, err := s.rbac.CanPage(creatorID, "reports", "read", routerID)
 	if err != nil {
 		// An error is not a permission. Refusing here disables the schedule and
 		// tells the operator why, which beats mailing on a check that did not run.
