@@ -17,7 +17,7 @@
 // regression dressed as progress; the live page keeps serving instead, which is
 // what the strangler-fig arrangement is for.
 
-import { esc, el, fmtMbps, debounce } from '../dom';
+import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag } from '../dom';
 import {
   RIGHT_BUFFER_MS, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
   pruneAndMax, smoothMax, type XYPoint,
@@ -34,20 +34,6 @@ interface BwChart {
 }
 type BwChartCtor = new (canvas: unknown, cfg: unknown) => BwChart;
 import type { Socket } from '../socket';
-
-/** A regional-indicator flag from an ISO-3166 alpha-2 code. */
-export function iso2Flag(cc: string): string {
-  if (!cc || cc.length !== 2) return '';
-  const base = 0x1F1E6;
-  return String.fromCodePoint(base + cc.charCodeAt(0) - 65) +
-         String.fromCodePoint(base + cc.charCodeAt(1) - 65);
-}
-
-/** The service badge, from app.js. `cat` is the ASN category, or `other`. */
-export function svcBadge(org: string, cat: string | null): string {
-  if (!org) return '';
-  return '<span class="svc-badge svc-' + (cat || 'other') + '">' + esc(org) + '</span>';
-}
 
 /**
  * A mini bar, normalised to the busiest row IN THE CURRENT VIEW.

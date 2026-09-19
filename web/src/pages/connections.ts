@@ -16,9 +16,9 @@
 // to Germany" — a question the payload cannot answer without the cross-matrix
 // nobody sends. So selecting one clears the other, in both directions.
 
-import { el } from '../dom';
+import { el, iso2Flag } from '../dom';
 import type { Socket } from '../socket';
-import { CC_NAMES, iso2Flag } from './connections-map';
+import { CC_NAMES } from './connections-map';
 import {
   createWorldMap, attachMapZoom, bindMapTooltip, bindMapFullscreen, type WorldMap,
 } from './connections-worldmap';

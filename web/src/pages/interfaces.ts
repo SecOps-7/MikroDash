@@ -21,7 +21,7 @@
 // the traffic chart's picker and the sidebar badge are chrome on every page.
 // See internal/collect/ifstatus.go and live issue #108.
 
-import { esc, el, fmtMbps, fmtBytes } from '../dom';
+import { esc, el, fmtMbps, fmtBytes, sparkPoints } from '../dom';
 import { mountRows } from '../resource';
 import type { Socket } from '../socket';
 import { portSvg } from './port-svg';
@@ -79,16 +79,10 @@ function ifTypePill(t: string): string {
 
 function ifaceSparkSvg(history: number[]): string {
   if (!history || history.length < 2) return '';
-  const w = 56, h = 18, pad = 1.5;
   // Always baseline at zero so rising traffic is visually obvious.
-  const max = Math.max.apply(null, history) || 1;
-  const pts = history.map((v, i) => {
-    const x = pad + (i / (history.length - 1)) * (w - pad * 2);
-    const y = h - pad - (v / max) * (h - pad * 2);
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  });
+  const w = 56, h = 18;
   return '<svg class="iface-spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
-    '<polyline points="' + pts.join(' ') + '" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<polyline points="' + sparkPoints(history, w, h, 1.5) + '" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>' +
     '</svg>';
 }
 

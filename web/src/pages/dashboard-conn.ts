@@ -29,8 +29,7 @@
 // would silently change what a malformed country renders as. The live formula is
 // reproduced instead, and the difference is pinned by a case.
 
-import { esc, el } from '../dom';
-import { svcBadge } from './connections-lists';
+import { esc, el, svcBadge } from '../dom';
 import type { ConnsUpdate } from '../gen/payloads';
 
 const MAX_CONN_HIST = 60;

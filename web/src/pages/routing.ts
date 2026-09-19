@@ -14,7 +14,7 @@
 // /vendor/chart.umd.min.js — the Go server proxies everything outside /next, so
 // it is the identical file rather than a second copy.
 
-import { esc, el, resRow } from '../dom';
+import { esc, el, resRow, sparkPoints } from '../dom';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { RoutingPayload, Peer, Route, RouteCounts, PeerSummary } from '../gen/payloads';
@@ -64,17 +64,9 @@ function stateBadge(state: string, flapping: boolean): string {
 // Inline SVG sparkline from the prefix-count history.
 function sparkSvg(history: number[] | undefined): string {
   if (!history || history.length < 2) return '<svg width="80" height="20"></svg>';
-  const min = Math.min.apply(null, history);
-  const max = Math.max.apply(null, history);
-  const range = max - min || 1;
-  const w = 80, h = 20, pad = 2;
-  const pts = history.map((v, i) => {
-    const x = pad + (i / (history.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((v - min) / range) * (h - pad * 2);
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  });
+  const w = 80, h = 20;
   return '<svg class="rt-spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
-    '<polyline points="' + pts.join(' ') + '" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<polyline points="' + sparkPoints(history, w, h, 2, true) + '" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
     '</svg>';
 }
 

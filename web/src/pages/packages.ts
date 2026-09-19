@@ -12,8 +12,7 @@
 // silent. It is what makes "the wrong router" a hard mistake rather than an easy
 // one.
 
-import { esc, el, renderSortHeader, sortMul, debounce, fmtBytes,
-         type SortCol, type SortState } from '../dom';
+import { esc, el, renderSortHeader, sortMul, debounce, fmtBytes, type SortCol, type SortState, kv } from '../dom';
 import type { Socket } from '../socket';
 import type { Package, Firmware, Update, PackagesPayload } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
@@ -169,9 +168,6 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     if (!body || !data) return;
     const f = data.firmware || ({} as Firmware);
     const u = data.update || ({} as Update);
-    const kv = (k: string, v: string, cls?: string): string =>
-      '<div class="kv-item"><div class="kv-key">' + esc(k) + '</div>' +
-      '<div class="kv-val' + (cls ? ' ' + cls : '') + '">' + v + '</div></div>';
 
     // The same dialog the System card opens, not a second one: the button
     // carries `data-upgrade-open` and `upgrade.ts` fills it from what the card

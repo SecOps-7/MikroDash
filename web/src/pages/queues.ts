@@ -33,7 +33,7 @@
 // slot and the move arrows are the engine's, and the self-throttle warning is the
 // `queueThrottle` guard answered in the engine's own prompt. This module renders.
 
-import { esc, el, renderSortHeader, fmtBytes, resRow, type SortCol } from '../dom';
+import { esc, el, renderSortHeader, fmtBytes, resRow, type SortCol, mutedDash, sparkPoints } from '../dom';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { QueuesPayload } from '../gen/payloads';
@@ -81,9 +81,6 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
 
   // The title is NOT escaped here, matching the original. Every caller passes a
   // literal, so nothing router-supplied reaches it.
-  function dash(t?: string): string {
-    return '<span style="color:var(--text-muted)"' + (t ? ' title="' + t + '"' : '') + '>&mdash;</span>';
-  }
 
   /** bits/sec to something readable. 0 is a real reading; null is not. */
   function fmtBps(bps: number | null | undefined): string | null {
@@ -130,15 +127,9 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   // from the value printed beside it.
   function spark(history: number[] | undefined, dir: string): string {
     if (!history || history.length < 2) return '<span class="q-spark-slot"></span>';
-    const w = 56, h = 14, pad = 1.5;
-    const max = Math.max.apply(null, history) || 1;
-    const pts = history.map((v, i) => {
-      const x = pad + (i / (history.length - 1)) * (w - pad * 2);
-      const y = h - pad - (v / max) * (h - pad * 2);
-      return x.toFixed(1) + ',' + y.toFixed(1);
-    });
+    const w = 56, h = 14;
     return '<svg class="q-spark ' + dir + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
-      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="currentColor"' +
+      '<polyline points="' + sparkPoints(history, w, h, 1.5) + '" fill="none" stroke="currentColor"' +
       ' stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   }
 
@@ -162,7 +153,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   function rateCell(key: string, up: number | null, down: number | null,
                     source: string | null, windowMs: number | null): string {
     if (up === null && down === null) {
-      return dash(source === null ? 'No measurement yet'
+      return mutedDash(source === null ? 'No measurement yet'
                                   : 'The router reported no rate for this queue');
     }
     const h = hist[key] || { up: [], down: [] };
@@ -227,7 +218,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
         (x.dynamic ? '' : resRow(x.id, x.name, 'simpleQueue')) + '>' +
         '<td class="q-order">' + (x.order + 1) + '</td>' +
         '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
-        '<td>' + (x.target ? esc(x.target) : dash()) + '</td>' +
+        '<td>' + (x.target ? esc(x.target) : mutedDash()) + '</td>' +
         '<td><div style="font-size:.72rem">&uarr; ' + fmtLimit(x.maxLimit.up) + '<br>&darr; ' + fmtLimit(x.maxLimit.down) + '</div></td>' +
         '<td>' + rateCell('s' + x.id, x.rateBps.up, x.rateBps.down, x.rateSource, x.rateWindowMs) + '</td>' +
         '<td>' + moveCell(x.order, last, x.dynamic) + lockNote(x.dynamic) + '</td>' +
@@ -254,7 +245,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
       return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + resRow(x.id, x.name, 'queueTree') + '>' +
         '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
         '<td>' + esc(x.parent || '—') + ft + '</td>' +
-        '<td>' + (x.packetMark ? esc(x.packetMark) : dash()) + '</td>' +
+        '<td>' + (x.packetMark ? esc(x.packetMark) : mutedDash()) + '</td>' +
         '<td style="font-size:.72rem">' + fmtLimit(x.maxLimit) + '</td>' +
         '<td>' + rateCell('t' + x.id, x.rateBps, null, x.rateSource, x.rateWindowMs) + '</td>' +
         '<td></td>' +

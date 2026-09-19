@@ -6,8 +6,7 @@
 // re-render, or sorting or typing in the search box would forge samples the
 // router never sent.
 
-import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps,
-         type SortCol, type SortState } from '../dom';
+import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps, type SortCol, type SortState, sparkPoints } from '../dom';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 import type { Vlan, VlansPayload } from '../gen/payloads';
@@ -45,16 +44,10 @@ function ports(list: string[]): string {
 // from the value above it.
 function spark(history: number[], dir: string): string {
   if (!history || history.length < 2) return '<span class="vlan-spark-slot"></span>';
-  const w = 56, h = 14, pad = 1.5;
-  const max = Math.max.apply(null, history) || 1;   // baseline always zero, so
-  const pts = history.map((v, i) => {               // a rise reads as a rise
-    const x = pad + (i / (history.length - 1)) * (w - pad * 2);
-    const y = h - pad - (v / max) * (h - pad * 2);
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  });
+  const w = 56, h = 14;
   return '<svg class="vlan-spark ' + dir + '" width="' + w + '" height="' + h +
     '" viewBox="0 0 ' + w + ' ' + h + '">' +
-    '<polyline points="' + pts.join(' ') + '" fill="none" stroke="currentColor"' +
+    '<polyline points="' + sparkPoints(history, w, h, 1.5) + '" fill="none" stroke="currentColor"' +
     ' stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 }
 

@@ -112,13 +112,6 @@
     887:'YE',894:'ZM',716:'ZW',70:'BA',807:'MK',499:'ME',688:'RS',51:'AM',31:'AZ',
     112:'BY',268:'GE',398:'KZ',417:'KG',498:'MD',496:'MN',795:'TM'};
 
-/** A regional-indicator flag from an ISO-3166 alpha-2 code. */
-export function iso2Flag(cc: string): string {
-  if (!cc || cc.length !== 2) return '';
-  return cc.split('').map((c) =>
-    String.fromCodePoint(0x1F1E6 - 65 + c.toUpperCase().charCodeAt(0))).join('');
-}
-
 /** The map's pixel size. Every geometry here is in these units. */
 export const MAP_W = 1000;
 export const MAP_H = 500;

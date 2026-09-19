@@ -420,3 +420,43 @@ export function installWifiGlobals(): void {
   w._bandBadge ??= bandBadge;
   w._ssidColours ??= ssidColours;
 }
+
+/**
+ * A sparkline's polyline points, `x,y` pairs in a `w`×`h` box inset by `pad`.
+ * Scaled from zero, so a rise reads as a rise, or from the series' minimum when
+ * `fromMin` (a value that only ever drifts, such as a route count). The five
+ * sparkline builders each drew this themselves; each keeps its own styling.
+ */
+export function sparkPoints(data: number[], w: number, h: number, pad: number, fromMin = false): string {
+  const lo = fromMin ? Math.min.apply(null, data) : 0;
+  const range = (Math.max.apply(null, data) - lo) || 1;
+  return data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((v - lo) / range) * (h - pad * 2);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+}
+
+/** The service badge beside an organisation. `cat` is the ASN category, or `other`. */
+export function svcBadge(org: string, cat: string | null): string {
+  if (!org) return '';
+  return '<span class="svc-badge svc-' + (cat || 'other') + '">' + esc(org) + '</span>';
+}
+
+/** A regional-indicator flag from an ISO-3166 alpha-2 code, either case. */
+export function iso2Flag(cc: string): string {
+  if (!cc || cc.length !== 2) return '';
+  return cc.split('').map((c) =>
+    String.fromCodePoint(0x1F1E6 - 65 + c.toUpperCase().charCodeAt(0))).join('');
+}
+
+/** One key/value cell of a detail grid. `val` is markup; `key` is escaped. */
+export function kv(key: string, val: string, cls?: string): string {
+  return '<div class="kv-item"><div class="kv-key">' + esc(key) + '</div>' +
+    '<div class="kv-val' + (cls ? ' ' + cls : '') + '">' + val + '</div></div>';
+}
+
+/** A muted dash for "no value", with an optional tooltip saying why. */
+export function mutedDash(title?: string): string {
+  return '<span style="color:var(--text-muted)"' + (title ? ' title="' + esc(title) + '"' : '') + '>&mdash;</span>';
+}

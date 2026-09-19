@@ -37,7 +37,7 @@
 // success, and reported that as ToDo item 5. `7e5ac8e` fixed it on all three
 // pages, and this follows. Reproduce, report, follow — three rounds of it.
 
-import { esc, el, renderSortHeader, sortMul, resRow, type SortCol, type SortState } from '../dom';
+import { esc, el, renderSortHeader, sortMul, resRow, type SortCol, type SortState, mutedDash } from '../dom';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { RosUsersPayload } from '../gen/payloads';
@@ -120,7 +120,6 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const e = el<HTMLInputElement>('ruSearch');
     return ((e && e.value) || '').toLowerCase().trim();
   }
-  function dash(): string { return '<span style="color:var(--text-muted)">&mdash;</span>'; }
 
   /**
    * The padlock cell. It says WHICH of the two reasons applies, because "you
@@ -190,8 +189,8 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       return '<tr' + (u.protected ? '' : resRow(u.id, u.name, 'rosUser')) + '>' +
         '<td>' + esc(u.name) + (u.comment ? '<div class="muted-note">' + esc(u.comment) + '</div>' : '') + '</td>' +
         '<td>' + esc(u.group) + '</td>' +
-        '<td>' + (u.address ? esc(u.address) : dash()) + '</td>' +
-        '<td style="color:var(--text-muted)">' + (u.lastLogin ? esc(u.lastLogin) : dash()) + '</td>' +
+        '<td>' + (u.address ? esc(u.address) : mutedDash()) + '</td>' +
+        '<td style="color:var(--text-muted)">' + (u.lastLogin ? esc(u.lastLogin) : mutedDash()) + '</td>' +
         '<td>' + status + '</td>' +
         '<td>' + (u.protected ? lockCell('account') : '') + '</td>' +
       '</tr>';
@@ -240,10 +239,10 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     sessTb.innerHTML = rows.length ? rows.map((x) =>
       '<tr>' +
       '<td>' + esc(x.name) + '</td>' +
-      '<td>' + (x.address ? esc(x.address) : dash()) + '</td>' +
+      '<td>' + (x.address ? esc(x.address) : mutedDash()) + '</td>' +
       '<td>' + esc(x.via || '—') + '</td>' +
       '<td>' + esc(x.group || '—') + '</td>' +
-      '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : dash()) + '</td>' +
+      '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : mutedDash()) + '</td>' +
       '<td>' + (x.protected ? lockCell('session')
         : !writable.rosUser ? ''
         : btn('session-remove', x.id, x.name, 'End Session', 'danger')) + '</td>' +

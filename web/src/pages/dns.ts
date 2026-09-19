@@ -5,8 +5,7 @@
 // acceptance criterion for this page is that it renders identically, not that
 // it renders correctly.
 
-import { esc, el, resRow, debounce, renderSortHeader, sortMul,
-         type SortCol, type SortState } from '../dom';
+import { esc, el, resRow, debounce, renderSortHeader, sortMul, type SortCol, type SortState, kv } from '../dom';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 import { initDnsFleet } from './dns-fleet';
@@ -19,11 +18,6 @@ const COLS_S: SortCol[] = [
   { key: 'ttl', label: 'TTL' },
   { key: 'comment', label: 'Comment' },
 ];
-
-function kv(key: string, val: string, cls?: string): string {
-  return '<div class="kv-item"><div class="kv-key">' + esc(key) + '</div>' +
-    '<div class="kv-val' + (cls ? ' ' + cls : '') + '">' + val + '</div></div>';
-}
 
 export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   const settingsBody = el('dnsSettingsBody');

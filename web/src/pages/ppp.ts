@@ -9,8 +9,7 @@
 // acceptance criterion is that it renders identically, not that it renders
 // correctly.
 
-import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps, fmtBytes,
-         parseUptime, type SortCol, type SortState } from '../dom';
+import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps, fmtBytes, parseUptime, type SortCol, type SortState, mutedDash } from '../dom';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 /*
@@ -202,7 +201,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
         : s.connected
           ? '<span class="lease-pill bound">online</span>'
           : '<span class="lease-pill">offline</span>';
-      const dash = '<span style="color:var(--text-muted)">&mdash;</span>';
+      const dash = mutedDash();
       const cell = (v: string): string => '<td>' + (v ? esc(v) : dash) + '</td>';
       return '<tr' + (s.disabled ? ' style="opacity:.55"' : '') + resRow(s.id, s.name) + '>' +
         '<td>' + pill + '</td>' +
@@ -223,7 +222,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
       badge.textContent = String(rows.length);
       badge.className = 'card-badge' + (rows.length ? ' active-blue' : '');
     }
-    const dash = '<span style="color:var(--text-muted)">&mdash;</span>';
+    const dash = mutedDash();
     const cell = (v: string): string => '<td>' + (v ? esc(v) : dash) + '</td>';
     tb.innerHTML = rows.length ? rows.map((p) =>
       '<tr' + resRow(p.id, p.name) + '>' +
@@ -237,7 +236,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
     const tb = el('pppServerTable');
     if (!tb || !data) return;
     const rows = data.servers || [];
-    const dash = '<span style="color:var(--text-muted)">&mdash;</span>';
+    const dash = mutedDash();
     const cell = (v: string): string => '<td>' + (v ? esc(v) : dash) + '</td>';
     tb.innerHTML = rows.length ? rows.map((s) =>
       '<tr>' +

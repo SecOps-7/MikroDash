@@ -26,7 +26,7 @@
 // unchanged. The router's own opinion is still shown on each row, so a declared
 // uplink RouterOS does not call `internet` is visible as exactly that.
 
-import { esc, el, renderSortHeader, type SortCol, type SortState } from '../dom';
+import { esc, el, renderSortHeader, type SortCol, type SortState, mutedDash } from '../dom';
 import type { Socket } from '../socket';
 import type { WAN, WANPayload } from '../gen/payloads';
 
@@ -36,9 +36,6 @@ const COLS: SortCol[] = [
   { key: '', label: '' },
 ];
 
-function dash(t?: string): string {
-  return '<span style="color:var(--text-muted)"' + (t ? ' title="' + t + '"' : '') + '>&mdash;</span>';
-}
 
 // This page's own rate format — 'Gb/s' and 'kb/s', not dom.ts's fmtMbps.
 function fmtMb(v: number): string {
@@ -62,7 +59,7 @@ function since(ts: string): string {
 function rateCell(w: WAN): string {
   if (w.rxMbps === null && w.txMbps === null) {
     // null is "Interface Rates is not collecting", which is not "idle".
-    return dash('Interface Rates collection is off for this router');
+    return mutedDash('Interface Rates collection is off for this router');
   }
   return '<div class="q-rate">' +
     '<div class="q-rate-line"><span class="q-rate-arrow ' + (w.rxMbps ? 'rx' : 'zero') + '">&#8595;</span>' +
@@ -221,16 +218,16 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
         '<div class="muted-note">' + esc(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
         (age ? ' · up ' + esc(age) : '') +
         (w.manual && w.state !== 'internet' ? ' · router does not agree' : '') + '</div></td>' +
-        '<td>' + (w.address ? esc(w.address) : dash()) +
+        '<td>' + (w.address ? esc(w.address) : mutedDash()) +
         (w.isPublic === true ? '<div class="muted-note" style="color:var(--accent-rx)">public</div>'
           : w.isPublic === false ? '<div class="muted-note">private</div>' : '') + '</td>' +
-        '<td>' + (w.gateway ? esc(w.gateway) : dash()) + '</td>' +
+        '<td>' + (w.gateway ? esc(w.gateway) : mutedDash()) + '</td>' +
         '<td>' + (w.hasDefaultRoute
           ? (w.routeActive
             ? '<span class="wl-band wl-band-6">active</span>'
             : '<span class="wl-band wl-band-24">standby</span>') +
           '<div class="muted-note">distance ' + esc(w.routeDistance || '?') + '</div>'
-          : dash('No default route via this uplink')) + '</td>' +
+          : mutedDash('No default route via this uplink')) + '</td>' +
         '<td>' + leaseCell(w) + '</td>' +
         '<td>' + rateCell(w) + '</td>' +
         '<td>' + actions(w) + '</td>' +

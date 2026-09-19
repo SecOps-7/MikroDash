@@ -5,20 +5,14 @@
 // would make both harder to read. These take what they need as arguments and
 // return markup, which also makes them testable without a page.
 
-import { esc } from '../dom';
-import { CC_NAMES, PORT_NAMES, iso2Flag } from './connections-map';
+import { esc, svcBadge, iso2Flag, sparkPoints } from '../dom';
+import { CC_NAMES, PORT_NAMES } from './connections-map';
 import type {
   ConnCountry, ConnCountryProto, ConnDestEntry, ConnPort, ConnSource, Lease,
 } from '../gen/payloads';
 
 /** How many readings a country's sparkline keeps. */
 export const SPARK_LEN = 20;
-
-/** The service badge, shared with the Bandwidth page's org column. */
-export function svcBadge(org: string, cat: string | null): string {
-  if (!org) return '';
-  return '<span class="svc-badge svc-' + (cat || 'other') + '">' + esc(org) + '</span>';
-}
 
 /**
  * A country's recent connection counts, as a 50x12 polyline.
@@ -29,11 +23,8 @@ export function svcBadge(org: string, cat: string | null): string {
  */
 export function drawSparkSVG(data: number[] | undefined): string {
   if (!data || data.length < 2) return '';
-  const max = Math.max.apply(null, data) || 1;
   const w = 50, h = 12;
-  const pts = data.map((v, i) =>
-    (i * (w / (data.length - 1))).toFixed(1) + ',' + (h - (v / max * (h - 2)) - 1).toFixed(1)
-  ).join(' ');
+  const pts = sparkPoints(data, w, h, 1);
   return '<svg class="conn-sparkline" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
     '<polyline points="' + pts + '" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.2" stroke-linejoin="round"/>' +
     '</svg>';

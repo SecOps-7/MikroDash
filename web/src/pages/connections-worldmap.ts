@@ -14,8 +14,8 @@
 // the Node app today and proxied, which is the strangler-fig arrangement doing
 // its job.
 
-import { CC_NAMES, NUM_TO_ISO2, centroidOf, coordsToD, iso2Flag, makeArcD } from './connections-map';
-import { esc } from '../dom';
+import { CC_NAMES, NUM_TO_ISO2, centroidOf, coordsToD, makeArcD } from './connections-map';
+import { esc, iso2Flag } from '../dom';
 import type { ConnCountryProto } from '../gen/payloads';
 
 const NS = 'http://www.w3.org/2000/svg';
