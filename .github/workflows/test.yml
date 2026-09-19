@@ -21,6 +21,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # docker-publish.yml calls this before it builds, so a tag cannot publish an
+  # image whose commit fails the suite.
+  workflow_call:
 
 jobs:
   test:

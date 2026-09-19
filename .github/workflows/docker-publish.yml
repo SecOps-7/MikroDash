@@ -14,7 +14,16 @@ env:
   IMAGE_NAME: secops-7/mikrodash
 
 jobs:
+  # THE SAME SUITE test.yml RUNS, as a prerequisite. A `v*.*.*` tag publishes the
+  # image people pull, and test.yml did not run on a tag: a tagged commit that
+  # failed its tests still shipped.
+  test:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
