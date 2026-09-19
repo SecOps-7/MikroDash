@@ -1,323 +1,51 @@
-# MikroDash
-### The Ultimate MikroTik RouterOS Dashboard.
+<p align="center">
+  <img src="web/public/logo.png" alt="MikroDash logo" width="96" height="96">
+</p>
 
-> Real-time MikroTik RouterOS v7 dashboard — streaming binary API, WebSocket, a single static binary.
+<h1 align="center">MikroDash</h1>
 
-MikroDash connects directly to the RouterOS API over a persistent binary TCP connection, streaming live data to the browser over a WebSocket. No page refreshes. No agents. Just plug in your router credentials and go.
+<p align="center">
+  <strong>A real-time, self-hosted dashboard for MikroTik RouterOS v7.</strong><br>
+  Live data over the RouterOS binary API, a single static binary, one Docker volume.
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/SecOps-7/MikroDash/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SecOps-7/MikroDash?style=flat-square&color=2563eb"></a>
+  <a href="https://github.com/SecOps-7/MikroDash/pkgs/container/mikrodash"><img alt="Docker image on GHCR" src="https://img.shields.io/badge/docker-ghcr.io%2Fsecops--7%2Fmikrodash-2496ED?style=flat-square&logo=docker&logoColor=white"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%7C%20arm64%20%7C%20arm%2Fv7-6b7280?style=flat-square">
+  <img alt="RouterOS v7" src="https://img.shields.io/badge/RouterOS-v7-e11d48?style=flat-square">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/SecOps-7/MikroDash?style=flat-square&color=16a34a"></a>
+</p>
 
----
+<p align="center">
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-features">Features</a> ·
+  <a href="#-screenshots">Screenshots</a> ·
+  <a href="#-routeros-setup">RouterOS setup</a> ·
+  <a href="#-configuration">Configuration</a> ·
+  <a href="#-security">Security</a> ·
+  <a href="#-development">Development</a>
+</p>
 
-> ### MikroDash is now Go + TypeScript
->
-> The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) landed on
-> **2026-08-30**. The Node implementation it replaced is preserved in the git history.
->
-> **Nothing user-visible changed, by design.** The frontend reuses the original stylesheet, class
-> names, element ids and DOM shape verbatim — only the logic producing the DOM was rewritten. That
-> was the acceptance criterion throughout, checked by gates that drive both implementations from one
-> payload and compare the rendered HTML.
->
-> What did change: a single static binary in a **180 MB image instead of 775 MB**, no Node runtime,
-> ARMv7 support back, and type checking over the frontend. The CHANGELOG records how it was
-> done and what it cost.
-
----
-
-## Screenshots
-
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
-
-### Connections
-![Connections](screenshots/connections.png)
-
-### Connections Map
-![Connections Map](screenshots/connections_map.png)
-
-### Wifi Clients
-![Wireless](screenshots/wireless.png)
-
-### Router Interfaces
-![Interfaces](screenshots/Interfaces.png)
-
-### DHCP Leases
-![DHCP](screenshots/dhcp.png)
-
-### VPN / WireGuard
-![VPN](screenshots/vpn.png)
-
-### Firewall
-![Firewall](screenshots/firewall.png)
-
-### Routing
-![Routing](screenshots/routing.png)
-
-### Bandwidth
-![Bandwidth](screenshots/bandwidth.png)
-
-### Logs
-![Logs](screenshots/logs.png)
+<p align="center">
+  <img src="screenshots/dashboard.png" alt="MikroDash dashboard" width="900">
+</p>
 
 ---
 
-## Features
+## ✨ Why MikroDash
 
-### Dashboard
-- **Configurable drag-and-drop grid** — 24 columns and at least 22 rows, growing downward when an added card needs room; drag cards to reposition, resize with 8 handles, or swap positions by hovering one card over another for 1.5 s; add/remove cards via the Add Card panel; layout synced server-side so all browsers and devices share the same arrangement
-- **Live traffic chart** — per-interface RX/TX Mbps with configurable history window
-- **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip. When a newer RouterOS is available it shows an update strip, and with Packages write access an **Update** button: the dialog carries that release's notes in a scrollable box so the decision to reboot is made against what actually changed, and asks for the router's name typed back before it acts
-- **RouterOS update indicator** — shows installed vs available version side by side
-- **Network card** — animated SVG topology diagram with live wired/wireless client counts, WAN IP, LAN subnets, and latency chart
-- **Connections card** — total connection count sparkline, protocol breakdown bars (TCP/UDP/ICMP), top sources with hostname resolution, top destinations with geo-IP country flags and click-to-filter
-- **Top Talkers** — top 5 devices by active traffic with RX/TX rates
-- **WireGuard card** — active peers sorted by most recent handshake, limited to a configurable Top N (default 5)
-- **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
-- **First-run setup wizard** — on a fresh install with no router configured, a guided setup overlay appears automatically; enter router details, test the connection, and connect — no `.env` file or container restart needed
-
-#### Optional dashboard cards (15, hidden by default)
-| Card | Description |
-|---|---|
-| Signal Health | Per-client RSSI bars for all wireless interfaces |
-| Band Split | 2.4 / 5 / 6 GHz client count breakdown |
-| Physical Ports | RJ-45 port visualiser colour-coded by link state |
-| IP Utilisation | DHCP pool gauge with live lease percentage |
-| Connections Map | World map with animated arcs — identical to the Connections page map |
-| Top Countries | Country list with connection counts and protocol breakdown |
-| Connection Flow | Source → destination Sankey diagram |
-| Top Ports | Top 10 destination ports with connection counts |
-| Routes | Routes-by-protocol doughnut with total in centre |
-| BGP Peers | BGP session state and prefix counts |
-| Firewall Actions | Action breakdown bars (accept / drop / reject / other) |
-| Logs | Live scrolling router log feed |
-| NetWatch | Live status table for RouterOS NetWatch monitored hosts (up/down state, last change) |
-| API Diagnostics | Router commands per minute, what is streamed versus polled, and which collectors are running, idle or asleep |
-| Agent Overview | A one-line router status written by the AI Agent, typed into a terminal-style box, with a refresh icon. Needs the AI Agent and the card enabled in Settings; refreshes every 3 hours by default, and only while it is on the Dashboard |
-
-### Pages
-| Page | Description |
-|---|---|
-| WAN | The uplinks RouterOS reports as internet-connected — the same set the Dashboard Network card shows, in detail. Summary cards for uplink count, which one is carrying traffic, the public address and aggregate throughput, then a table giving each uplink its type (physical or tunnel), how long it has held that state, its address marked public or private, gateway, default-route distance with the active one marked, live rates and DHCP lease status with the countdown to renewal. With write access, Renew and Release on any uplink that has a DHCP client. RouterOS decides what counts as a WAN, so a router with internet detection switched off is told how to enable it rather than shown an empty table |
-| Wifi Networks | The configuration side of wireless: every radio and SSID the router broadcasts, one row per interface grouped under the radio carrying it, with colour-coded SSID pills, band, security mode, VLAN and live client count. Works on both RouterOS wireless stacks — modern `/interface/wifi` and legacy `/interface/wireless` — and offers exactly the one the router has. Networks can be edited, enabled and disabled in place; an extra SSID (a virtual AP) can be added to an existing radio and removed again, while a physical radio is editable but never removable. A CAPsMAN-provisioned interface is shown read-only, because the edit that would work is on the provisioning profile rather than the interface. **Passphrases are never read back**: the collector's proplists do not request them, and the edit form leaves the box empty, where blank means "leave the current one alone". Changing an SSID, passphrase or band on the interface MikroDash is reached through raises a lockout warning first, and overriding a configuration profile that more than one radio shares asks before it splits them apart |
-| Wifi Clients | WiFi SSIDs, Signal Health and Band Split summary cards; clients grouped by interface with signal quality, band pill (2.4 / 5 / 6 GHz), IP, TX/RX rates, and sortable columns. The SSIDs card lists every network the router broadcasts, read from the interface table rather than from connected clients, so a network with nobody on it is still listed, with its bands and live client count. **Client names** are resolved from the DHCP lease table by MAC, falling back to a reverse DNS lookup of the client's IP. That IP comes only from the router's ARP table, so a router that bridges wireless clients at layer 2 — a CAP or access point whose gateway and DHCP live on another device — shows MAC addresses rather than names, however well reverse DNS is configured. The router needs an IP interface on the client subnet, or to be their DHCP server. It says so in the container log when this applies |
-| Wifi Map | A plan of your site: draw buildings, storeys and walls, set the scale by measuring something of known length, pin each access point where it physically stands, and watch its live clients around it, at a fixed radius or one estimated from signal strength. Saved per router. Hide it from Settings, Appearance, Visible Pages |
-| CAPsMAN | Manager status, the remote CAP table (identity, board, serial, RouterOS version, state, connected time) and the provisioning rules that configure them. Each CAP lists its own radios and client count, and expands to the clients on it with signal, SSID and uptime. Attribution comes from the `cap` field the router reports on each radio and interface, with virtual APs resolved up to their master, so a guest-SSID client is counted against the access point serving it rather than against the manager. On a router that is itself a CAP, a panel names its manager and discovery interfaces instead. Both CAPsMAN stacks: the new `wifi` one, and legacy `/caps-man`, whose CAPs, radios, provisioning and profiles show read-only and marked v1, with their clients reaching Wifi Clients, Wifi Networks and the topology |
-| Interfaces | Physical Ports card (RJ-45 port visualiser, colour-coded by state) and Interface Types card (count by type); all interfaces as tiles with status, IP, live rates and a traffic trend sparkline, in three card sizes, plus a List view adding cumulative RX/TX totals, error and drop counters, link flap count and time since last link-up. With write access, an interface can be commented, and enabled or disabled; disabling the interface MikroDash is reached through raises a lockout warning first |
-| IP Addresses | Every address on the router, on two tabs, IPv4 and IPv6: address, network, interface, state (disabled, dynamic, invalid) and comment, read every 60 seconds. With write access, static addresses can be added, edited, enabled, disabled and removed; an address a DHCP client or VPN created is shown read-only, because it belongs to whatever created it. Changing or removing the address MikroDash is reached through raises a lockout warning first |
-| DHCP | Subnet utilisation card with per-network lease counts, pool sizes, and colour-coded progress bars; IP Utilisation gauge driven live from the lease stream; active lease table with hostname, IP, MAC, and status; sortable columns; filter by DHCP server with its interface and VLAN shown as context (e.g. `IoT DHCP · IoT · VLAN 10`), composable with the text search |
-| NetWatch | Every host RouterOS NetWatch probes: status, name, host, probe type, interval and comment. With write access, hosts can be added, edited, enabled and disabled. A disabled host is not probed, so alerting treats it as unknown rather than down |
-| DNS | Resolver panel showing DNS over HTTPS with its certificate-verification state, servers, mDNS repeat interfaces, cache limits and query timeouts; a cache-usage gauge; and the static entry table, including regexp entries. The cache **contents** are deliberately not read — the used/size figures come from the resolver's own settings row, while the cache itself is a record of everywhere the network has been |
-| VLANs | Summary cards (VLAN count, tagged ports, untagged ports, total throughput) and a VLAN table joining three router tables into one view: the L3 VLAN interfaces, the bridge VLAN table's tagged and untagged ports, and each bridge port's `pvid`. Shows id, interface, parent, MTU, tagged and untagged ports, DHCP client count and live RX/TX per VLAN. A VLAN that exists only at layer 2, with no `/interface/vlan` entry, still appears. Below it the bridge VLAN table, with the rows RouterOS adds automatically folded behind a count so what an operator actually configured leads. Rates and client counts are reused from the interface and DHCP streams, so the page costs no extra router queries |
-| Bridges | Bridge list with STP mode, VLAN filtering, IGMP snooping, MAC, MTU and live throughput, then one tabbed card holding the port table (STP role, PVID, edge, horizon, state) and the learned MAC/host table with search, capped with its true total reported. A port on a bridge running no spanning tree says "no STP" rather than showing an invented role. VLAN membership lives on the VLANs page rather than being duplicated here |
-| VPN | Summary stats bar (Total / Active / Stale / Never Connected / Throughput); all WireGuard peers as tiles sorted active-first, with colour-coded handshake age badge, live RX/TX rates, allowed IPs, and endpoint; plus PPP sessions (session uptime, caller address) and IPsec peers (negotiated ciphers), each shown only when the router has them |
-| PPP | Summary cards (active sessions, count by service, aggregate throughput) and a session table of everyone connected — user, service (PPPoE / L2TP / PPTP / SSTP / OVPN), assigned address, caller id, uptime, live RX/TX rate and cumulative totals. Per-user rates are derived from byte counters between polls, since RouterOS reports only totals; a session's first reading shows no rate rather than a made-up one. Secrets, Profiles and PPPoE Servers as three tabs on one card above the sessions table — accounts can be added, edited, enabled, disabled and deleted, profiles edited, and servers are read-only. An account's pill separates "disabled" from "offline", which are different facts an operator acts on differently. **A password is never read.** The collector does not ask RouterOS for it, so no payload can carry one; setting a password writes it to the router and blank means keep the existing one. A router with no PPP says so |
-| Connections | World map with animated arcs to destination countries; per-country protocol breakdown and org breakdown; sparklines; top ports panel; click-to-filter by country or by individual LAN client |
-| Firewall | Rule Counts, Action Breakdown, and Chain Count summary cards; search bar; Filter, NAT, Mangle, and Raw rule tables (tab-gated — only the active tab streams); packet counts, byte totals, and live delta-pulse indicators |
-| Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
-| Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre) and a BGP session summary, both above the tabs since they describe the page rather than one protocol. Tabbed tables, opening on **Routes**: static and dynamic routes (event-driven via `/ip/route/listen`), and **BGP** — peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
-| Logs | Live router log stream with historical log import on connect, severity filter and text search |
-| Queues | Simple queues and queue trees on one tabbed card, in the router's own order — simple queues are first-match-wins, so position changes behaviour and the table never sorts that away. Limits, priority, live rates with sparklines, bytes shaped and drop counts; queues created by Kid Control or a DHCP lease are marked and left alone. With write access: create, edit, enable, disable, reorder, reset counters and remove. A queue that covers MikroDash's own address at a throttling limit prompts before it is written. A FastTrack banner appears when one is active and a queue is affected, because FastTracked connections bypass simple queues entirely — the usual reason a queue looks configured and does nothing |
-| Users | RouterOS's own accounts, not MikroDash's: users, groups with the full 17-permission matrix, and the sessions logged in right now. With write access, create, edit, enable, disable and remove users and groups, and end a session. The account MikroDash connects with, and its group, are structurally protected — they cannot be edited, moved, renamed or disconnected from this page, because that is the one change that could lock the dashboard out of the router with no way back |
-| Audit | Every write action, in one searchable trail: who did it, from where, what changed and whether it was allowed. Covers MikroDash's own configuration (routers, users, roles, grants, sites, settings, layouts) and every write reaching a router. Refusals are recorded as well as successes, so an attempt that was denied leaves a trace. Filterable by actor, action, router, outcome and date, with CSV export. Credential values are never stored — the field name and the fact it changed are, which is the useful part |
-| Packages | The package inventory — installed, disabled, and the extras MikroTik offers but that are not on the router — with versions, sizes and build dates, plus a firmware panel (current, upgrade, minimum) and the RouterOS update channel and status. With write access on the page it can also **schedule** changes: install, enable, disable or uninstall. RouterOS does not act on these immediately, it records them and applies them on the next reboot, so the page leads with a pending-changes banner, offers Undo on every scheduled row, and keeps "Apply changes & reboot" as a separate action that requires the router's name typed back. Account credentials and configuration are never touched |
-| Reports | Historical data viewer with configurable date range and aggregation. Six tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab, plus **Scheduled** — email a report daily, weekly or monthly to a list of addresses that need no MikroDash account. Periods are real calendar periods in your timezone, so a monthly report covers a month rather than a rolling thirty days; recipients go in Bcc so they cannot see each other. Reading the list needs read on Reports; creating a schedule needs **write**, because it mails router history to third parties indefinitely. Needs SMTP configured |
-| Devices | Fleet summary cards — Total Devices, Online, Offline, Alerting (devices with an unresolved alert) and Sites (how many distinct sites your devices are assigned to). Four views, remembered between visits: **Comfortable** and **Compact** card grids, **List** — a sortable table of status, name, host, model, RouterOS, alerts, CPU/RAM/Disk, clients, WAN Rx/Tx and uptime — and **Map**, plotting each router on a world map by its location, with co-located routers clustered into one dot and routers with no location kept in a tray rather than dropped. A **site filter** on the left of the toolbar narrows every view to one site, with an Unassigned option that appears only when such a device exists. One search box narrows any view by name, host, model, version or site name, and understands `online`, `offline` and `alerting`. Cards show connection status (WiFi icon), CPU / RAM / Disk usage bars, Uptime, DHCP client count, and live WAN RX/TX rates; board name, RouterOS version, architecture, serial number, and license level pills. Background sessions pre-load data at startup so cards are populated instantly on first visit. Hidden for single-device setups |
-| Backups | Scheduled configuration backups per router, stored as a pair: a gzipped `/export` for diffing and an encrypted `.backup` for restoring. A backup is kept **only when the configuration actually changed**, so a daily schedule costs a short check rather than disk. Drift is shown as a unified diff naming the exact lines that moved. Retention by count and by age, and the newest restore point is never pruned. Choose the **hour** a scheduled backup runs, in your display timezone, or clear it to keep the old any-time interval behaviour. Restore and Delete sit in the card header and act on a selection: Delete takes one or many and removes the files and their history rows (the Audit page keeps the record), Restore takes exactly one. Restore pushes the binary back and reboots, gated on a serial match, a typed router name, and a warning if the RouterOS version differs. Needs the `ftp` policy — see RouterOS Setup |
-| Tools | Diagnostics run from the selected router, each within fixed bounds, with output shown as it arrives: **Ping** (up to 10 packets), **Traceroute** (up to 30 hops), **Torch** (the busiest flows on one interface for up to 10 seconds) and **Bandwidth Test** to another MikroTik's bandwidth server (up to 10 seconds; the far login is typed for each run and never stored). Read access runs ping and traceroute; torch and the bandwidth test load the router or a link, so they need write access and are recorded in the audit trail |
-| Services | The router's own services (API, API-SSL, SSH, WinBox, web and the rest) with port, allowed addresses and state, under System. Disabling, moving or narrowing the service MikroDash itself connects through is refused, because nothing in the app could undo it |
-| IP Pools, Address Lists, Interface Lists | Address pools, firewall address-list entries, and interface lists with their members. Address Lists opens as one row per list with its entry counts; click a list to see its entries, up to 500 at a time with a server-side search, so a synced blocklist of tens of thousands of entries stays fast. Removing the address or interface MikroDash is reached through from a list a firewall rule depends on warns first |
-| Certificates | Certificates the router holds, with common name, key and trust state and expiry. Removing the certificate API-SSL presents while MikroDash connects over TLS is refused |
-| Scripts, Scheduler | Scripts and scheduled tasks. What a script or task RUNS is RouterOS code, so changing it, or running a script, needs a global administrator; timing and enabling are ordinary edits |
-| NTP Client, Clock, Logging, SNMP | Time sync (settings and servers), the time zone (the time itself is never sent: NTP sets it), logging rules and actions, and SNMP with its communities. SNMP passwords are never read |
-| Files | The router's files, to see and remove. Contents are never read and nothing is uploaded |
-| Routing Tables, Routing Rules | Routing tables (with the FIB flag) and policy-routing rules in the router's order, with reorder arrows. A rule that could send the router's replies to MikroDash somewhere else, such as `unreachable` on its address or a lookup in a table with no way back, warns first; so does removing, disabling or unsetting FIB on a table that enabled rules use |
-| OSPF | Neighbours (read-only), instances, areas and interface templates |
-| IPsec | Policies (in order, with their phase-2 state), peers and identities. Pre-shared keys and passwords are never read. A policy that would encrypt or drop the router's replies to MikroDash, or a change to the peer MikroDash is reached through, warns first |
-| OpenVPN | Servers and clients. A client's password is never read; switching on a client's default route, or changing the client MikroDash is reached through, warns first |
-| VRRP | Virtual router interfaces with priority, VRID and state. Their on-master, on-backup and on-fail scripts are code, for global administrators only |
-| PPPoE Clients, DHCP Clients | The uplinks this router dials or leases. Disabling or removing the client that holds the address MikroDash connects to, or switching on a default route that would carry MikroDash's traffic, warns first |
-| DHCP Servers | Servers and the networks they hand out (gateway, DNS, domain). A server's lease script is code |
-| Containers | Containers with their state, env lists, mounts, VETH interfaces and settings, with Start and Stop. The image, command and entrypoint are code, for global administrators only; env values and the registry password are never shown. Needs the RouterOS container package |
-| AI Agent | Chat about the selected router with an assistant that reads its live data and can create, edit or delete one row at a time through the same checks, audit trail and undo as the forms. Answers stream in, with tables, code blocks and highlighted RouterOS commands. Changes ask you first unless you turn that off; deletes and anything that could cut MikroDash off from the router always ask. The conversation is kept per router so follow-ups work, and Clear deletes it. Off by default and hidden until configured; see [AI Agent](#ai-agent) |
-| Settings | Persistent UI configuration — see below |
-
-### Notifications
-- Bell icon in topbar opens an alert history panel showing the last 50 alerts with timestamps
-- Browser push notifications (when permitted) for interface, VPN, CPU, ping, NetWatch, router online/offline, and RouterOS update events
-- **Push notification channels** — Telegram Bot, Pushbullet, SMTP email, and ntfy; all four can be active simultaneously; credentials stored AES-256-GCM encrypted
-- **Per-router alert monitoring** — lightweight background connection to non-active routers so alerts fire for any configured router, not just the one currently displayed; opt-in per router. A router with alerts enabled keeps its alert collectors running even when no browser is watching it
-- **Alert types** — Interface up/down (per interface type: ether/wlan/bridge/vlan), WireGuard peer state, CPU ≥ threshold, ping loss ≥ threshold, NetWatch host reachability, router online/offline, RouterOS update available
-- **Backup notifications** — configuration drift (a router's configuration changed since its last backup) and backup failure. A successful run that changed nothing is deliberately **not** notifiable: on a daily schedule that is a message every day that says nothing
-- **Scheduled report failures** — delivered over every configured channel rather than only email, since a broken mail server is the most likely reason a report failed to send
-- **Independent Up/Down templates** — separate `notifBody` (⚠️ alert) and `notifBodyUp` (✅ recovery) templates with `{{alertType}}`, `{{routerName}}`, `{{detail}}`, and more variables
-- Configurable cooldown (10 s – 60 min) prevents duplicate notifications per alert subject
-- **Per-user channels** (optional, off by default) — each user can add their own Telegram, Pushbullet, ntfy or email destination under **My Account**, delivered *in addition to* the install-wide channels. A user is only ever notified about routers their role lets them read, checked at the moment the alert is sent, so revoking access stops delivery immediately. Which alert types fire stays an administrator's decision; a user chooses only where their own alerts go. Email is an opt-in plus an address — the mail server stays admin-only. Enable with **Allow personal channels** in Settings → Notifications
-
-### AI Agent
-**Off by default.** Nothing is sent anywhere until you switch it on and configure an endpoint.
-
-- **Any OpenAI-compatible endpoint**: a hosted provider, a gateway, or a model on your own hardware (Ollama, LM Studio, vLLM, LiteLLM). Settings → AI Agent: switch it on, set the endpoint, model and key, then **Test Connection**. A hosted endpoint receives router names, addresses and network shape; a local one sends nothing outside your network
-- **Reads what you can read**: it answers from the router's current readings, refreshed when you ask, and can look up any table your role permits. It never sees a page your role denies
-- **Makes changes through the forms' own path**: create, edit or delete one row at a time, with the same permission checks, lockout guards, read-back confirmation, undo history and audit entry (marked as the assistant's). It cannot run arbitrary RouterOS commands or reach another router
-- **What it can reach**: a read tool for every page your role can read, and one write tool for every row a page can edit. Page actions are offered as proposals you confirm: renewing or releasing a WAN lease, taking a backup, scheduling package changes, applying them or upgrading RouterBOOT (both reboot the router and need its name typed back), starting, stopping or removing a container, and the Tools page's torch and bandwidth test (you type the far login). It can ping and traceroute from the router directly. Changing code the router runs (scripts, scheduler and VRRP scripts, container images) is refused unless a global administrator allows raw commands. [docs/mikromcp-parity.md](docs/mikromcp-parity.md) maps its coverage against the MikroMCP tool set
-- **Asks before changing anything** by default (**Ask me before the assistant changes anything**). Deletes, and changes that could cut MikroDash off from the router, always ask
-- **Keeps the conversation**: the last ten exchanges per user per router are replayed so follow-up questions work. **Clear** deletes them; they expire after **Chat history** in Settings → Data Retention (default 30 days)
-- **Editable system prompt** with Reset to Default; MikroDash's safety rules, including never acting on instructions found in router data, are always applied on top
-- **Agent Overview card**: see the optional dashboard cards above; its prompt, refresh interval (hours and seconds, default 3 hours) and text colour are set under Agent Overview card
+- **Live, not refreshed.** MikroDash holds one connection per router and pushes changes to the browser over a WebSocket the moment they happen.
+- **Kind to small routers.** Each RouterOS menu is read once however many pages want it, collectors sleep when nobody is looking, and every router can be switched between streaming and polling.
+- **One binary, one volume.** A Go server with the TypeScript frontend built in, shipped as a multi-arch image. No database server, no agents on the router, no CDN: every asset is self-hosted, so it works on an isolated network.
+- **Safe by design.** Credentials are encrypted at rest, every write is permission-checked and audited, and changes that could cut the dashboard off from the router are refused or warned about first.
 
 ---
 
-## ⚠️ Security Notice
-
-MikroDash is designed to run **on your local network only**. It has no built-in HTTPS (terminate TLS at a reverse proxy if you need it).
-
-MikroDash supports two authentication modes (**Settings → Authentication**): `none` (open access) and `modern` (cookie sessions with per-user accounts and role-based access control). **`none` mode serves the dashboard with no authentication, and the server logs a startup warning in that state. Router configuration cannot be changed in `none` mode: every write page is read-only until sign-in is turned on.**
-
-In `modern` mode, access is granted as **(role, scope)**: a role says *which pages* someone sees and whether they may act on them, and the scope says *which routers* — everything, one site, or a single router. Roles are editable rather than fixed: **Administrator** is built in and always sees everything, while **Read Only** and **Operator** are ordinary roles you can change, alongside any you create. A grant can go to a user or to a group, and a router can belong to a site so a whole location is granted at once. Managing users, groups, roles and sites is always Administrator-only, and only at global scope — an administrator of one site cannot grant themselves more.
-
-**Do not expose MikroDash directly to the internet.** Doing so would allow anyone (in an unauthenticated mode) to:
-- View live data from your router (traffic, clients, connections, firewall rules, logs)
-- Read your WAN IP, LAN topology, and connected device information
-- Monitor your network activity in real time
-
-If you need remote access, enable `modern` auth **and** place MikroDash behind an authenticating reverse proxy (such as Nginx, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
-
-### Behind a reverse proxy
-
-MikroDash refuses a WebSocket handshake whose `Origin` does not match the `Host`
-it sees. Behind a proxy those differ by definition — the browser says
-`dash.example.com`, the proxy forwards to `mikrodash:3081` — so the UI loads and
-then sits empty, with this in the log:
-
-```
-[ws] accept: failed to accept WebSocket connection: request Origin "dash.example.com" is not authorized for Host "10.0.0.5:3081"
-```
-
-Name the host **the browser** uses, comma separated, including the port when it
-is not the default:
+## 🚀 Quick start
 
 ```yaml
-environment:
-  - MIKRODASH_ORIGINS=dash.example.com
-```
-
-or `--origins dash.example.com` on the command line. Wildcards work
-(`*.example.com`).
-
-Leaving it empty keeps the default of same-origin only, which is what a direct
-LAN install wants: the check is what stops a hostile page opening an
-authenticated socket to a MikroDash you are signed in to. `X-Forwarded-Host` is
-deliberately **not** trusted, since any client can send one.
-
-The alternative, if you would rather not list origins, is to have the proxy
-preserve the original `Host` header — `proxy_set_header Host $host;` in Nginx —
-so the two match on their own.
-
-Set the proxy's address in `MIKRODASH_TRUSTED_PROXIES` (or `-trusted-proxies`), as IPs
-or CIDR ranges. `X-Forwarded-For` is believed only from an address listed there, so
-without it the login limit and the audit trail see the proxy for every visitor. List
-only your own proxies: an address in that list can claim to be any client.
-
-**Recommended local hardening:**
-- Enable authentication: switch to `modern` mode and create user accounts in **Settings → Authentication → Access Management**, granting each the narrowest role and scope that suits them
-- Run on a non-default port and bind to your LAN interface only
-- Use a dedicated read-only API user on the router (see RouterOS Setup below)
-- User passwords are scrypt-hashed in `/data/users.json` (mode 0600); the encryption key for stored router credentials is auto-generated and saved to `/data/.secret` (mode 0600) — keep your Docker volume secure
-
-### Remote access through a Cloudflare Tunnel
-
-MikroDash does not ship `cloudflared`. To reach it from outside your network without
-opening a port, run Cloudflare's own `cloudflared` container beside it. This puts the
-login page on the internet, so work through the checklist first.
-
-**Before you expose it**
-
-- Use `modern` authentication. With **Require sign-in** off, anyone who reaches the
-  page controls every router MikroDash manages.
-- Put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
-  in front of the hostname, so an unauthenticated request never reaches the login page.
-- Use strong passwords. Sign-in is limited to 10 attempts a minute per client.
-
-**1. Create the tunnel.** In the Cloudflare dashboard (Zero Trust, Networks, Tunnels),
-create a tunnel and copy its token. Add one public hostname, for example
-`dash.example.com`, with the service `http://mikrodash:3081`, and route nothing else
-through it.
-
-**2. Add the sidecar** to the compose file that runs MikroDash, and put the token in
-`.env` as `TUNNEL_TOKEN=...`:
-
-```yaml
-services:
-  mikrodash:
-    # ... your existing service ...
-    environment:
-      - MIKRODASH_ORIGINS=dash.example.com
-      - MIKRODASH_TRUSTED_PROXIES=172.18.0.0/16   # the network the two share; see step 3
-      - FORCE_HTTPS=true
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run
-    environment:
-      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
-    restart: unless-stopped
-    depends_on:
-      - mikrodash
-```
-
-The service name in the hostname's `http://mikrodash:3081` must match the MikroDash
-service. `--no-autoupdate` is there because a container updates by pulling:
-`docker compose pull cloudflared && docker compose up -d`.
-
-**3. Tell MikroDash about it.**
-
-- `MIKRODASH_ORIGINS` is the hostname the browser uses. Without it the page loads
-  and stays empty, because the WebSocket is refused (see
-  [Behind a reverse proxy](#behind-a-reverse-proxy)).
-- `FORCE_HTTPS=true` marks the session cookie Secure. A browser does not send a
-  Secure cookie over plain `http://`, so while it is set, signing in directly at
-  `http://<host>:3081` on the LAN no longer works. Use the tunnel hostname
-  everywhere, or leave it off if you need plain LAN access too.
-- `MIKRODASH_TRUSTED_PROXIES` is the Docker network the two containers share, so the
-  login limit and the audit trail see each visitor's address rather than the
-  `cloudflared` container's. MikroDash refuses to start if the value does not parse. For the compose file in this
-  repository that network is `mikrodash_default`:
-  `docker network inspect mikrodash_default --format '{{(index .IPAM.Config 0).Subnet}}'`
-
-The official `cloudflare/cloudflared` image is published for `linux/amd64` and
-`linux/arm64` only, so this does not cover the `linux/arm/v7` MikroDash image.
-
----
-
-## Quick Start
-
-### Option 1 — GHCR (recommended)
-
-Pull and run the pre-built image directly — no need to clone the repo or create a `.env` file:
-
-```bash
-docker pull ghcr.io/secops-7/mikrodash:latest
-```
-
-Images are published by GitHub Actions on version tags only, so `latest` always tracks the most
-recent release rather than unreleased work on `main`. Each release is a multi-arch manifest covering
-`linux/amd64`, `linux/arm64` and `linux/arm/v7`.
-
-> **ARMv7 is supported again.** It was dropped at 0.6.0 because Node 24 published no
-> 32-bit ARM build. Go has no such constraint — it cross-compiles to armv7 like any other target — so
-> the hEX S (2025), older Raspberry Pis and other 32-bit ARM hardware are back on `:latest`. If you
-> pinned to `0.5.54` to keep ARMv7, you can unpin.
-
-To pin to a specific release:
-
-```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.63
-```
-
-Run with Docker Compose — create a `docker-compose.yml`:
-
-```yaml
+# docker-compose.yml
 services:
   mikrodash:
     image: ghcr.io/secops-7/mikrodash:latest
@@ -335,13 +63,17 @@ volumes:
 docker compose up -d
 ```
 
-Open `http://localhost:3081` — the first-run setup wizard will guide you through adding your router.
-No `.env` file is required.
+Open **http://localhost:3081**. On first run MikroDash asks you to create an administrator account, then walks you through adding your first router and testing the connection. No `.env` file is needed.
 
-### Option 2 — On the router itself, as a RouterOS container
+> [!TIP]
+> Images are published for `linux/amd64`, `linux/arm64` and `linux/arm/v7` on every release tag, so `latest` always means the latest release, never unreleased work. Pin a version with `ghcr.io/secops-7/mikrodash:<version>`.
 
-MikroDash can run directly on the MikroTik it monitors, using RouterOS's own container
-support:
+<details>
+<summary><strong>Run it on the router itself (RouterOS container)</strong></summary>
+
+<br>
+
+MikroDash can run on the MikroTik it monitors, using RouterOS's own container support:
 
 ```routeros
 /container/add remote-image=ghcr.io/secops-7/mikrodash:latest \
@@ -349,15 +81,18 @@ support:
   mountlists=mikrodash_data start-on-boot=yes comment="MikroDash"
 ```
 
-**See [`docs/routeros-container-install.md`](docs/routeros-container-install.md) for the full
-walkthrough**, which covers enabling container mode, the veth and bridge setup, the `input`-chain
-firewall rule (its absence is the usual cause of a bare "timed out" when adding the router), and the
-`/data` mount, without which every `repull` silently discards your database.
+Follow [`docs/routeros-container-install.md`](docs/routeros-container-install.md) for the full walkthrough: enabling container mode, the veth and bridge, the `input` chain firewall rule (its absence is the usual cause of a bare "timed out" when adding the router) and the `/data` mount, without which every repull discards your database.
 
-Prefer this to the RouterOS **Apps** menu: MikroTik maintain that catalogue themselves, so the entry
-there can lag a long way behind the current release.
+The RouterOS **Apps** menu installs MikroDash from MikroTik's own copy of the catalogue, which they refresh on their own schedule and which can lag behind the current release. Adding it as an ordinary container, as above, always pulls the latest release.
 
-### Option 3 — Build from source
+</details>
+
+<details>
+<summary><strong>Build from source</strong></summary>
+
+<br>
+
+Only Docker is needed on the host:
 
 ```bash
 git clone https://github.com/SecOps-7/MikroDash.git
@@ -367,372 +102,358 @@ docker run -d --name mikrodash --restart unless-stopped \
   -p 3081:3081 -v mikrodash-data:/data mikrodash:local
 ```
 
-The `Dockerfile` is a multi-stage build needing nothing on the host but Docker: it builds the
-TypeScript frontend with esbuild through its Go API (`cmd/webbuild`, so no Node is
-involved), compiles the Go binary with
-`CGO_ENABLED=0`, and copies both into an Alpine runtime. The result is ~180 MB with `/data` as its
-only mount. There is no patch step and no native module to compile — the SQLite driver is pure Go,
-which is what lets the binary be static.
-
-To build a multi-arch image locally (requires Docker Buildx):
+The multi-stage build bundles the frontend with esbuild through its Go API (`cmd/webbuild`, so no Node runtime is involved), compiles a static Go binary with `CGO_ENABLED=0`, and copies both into an Alpine runtime with `/data` as its only mount. For a multi-arch build:
 
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t mikrodash:local --load .
 ```
 
-- Dashboard: `http://localhost:3081`
-- Health check: `http://localhost:3081/healthz` (`200` only after startup completes, RouterOS is
-  connected, and the critical collectors are delivering fresh data; a stalled traffic stream or an
-  unreachable `defaultIf` returns `503`)
+A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/deploy-r5s.md).
 
-For a production-style deployment on an external Docker host such as an R5S that connects to a
-MikroTik hEX S over the RouterOS API, see [`docs/deploy-r5s.md`](docs/deploy-r5s.md). To run MikroDash
-on the router itself, see [`docs/routeros-container-install.md`](docs/routeros-container-install.md).
+</details>
 
 ---
 
-## Settings
+## 🧭 Features
 
-Most configuration is managed through the **Settings page** in the UI (gear icon at the bottom of the sidebar). Settings are saved to `/data/settings.json` on the Docker volume and persist across container restarts.
+### At a glance
 
-| Section | What you can configure |
+| | |
 |---|---|
-| Devices | Add, edit, and delete device connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. The table also shows each router's model, serial number, and RouterOS version, learned from the device and stored against the entry so they stay visible while a router is offline or disabled. Test Connection validates credentials before saving; leaving the password blank on an edit keeps the stored one, and it is reused for the test itself as long as the host, port, username and TLS settings are unchanged. The active router is selected from the picker in the page header, which lists each router with its host and a live online/offline dot, and gains a search box once you have five or more Each router also carries its own collection settings — Stream or Poll, and interval overrides. **Primary site** picks which of the device's sites places it on the map; which sites it belongs to is set under Access Management, not here. **Location** is a city or town picker used by the Devices Map view: leave it empty and the location is derived automatically from the router's WAN IP, falling back to its primary site's location; set it and your choice wins. Nothing is sent anywhere to resolve it — the lookup uses the geo-IP data already bundled in the image. |
-| Authentication | Auth mode (`none` / `modern` cookie sessions) and session timeout. In `modern` mode, **Access Management** holds four tabs: **Users**, **Groups**, **Sites** and **Roles** — a role is a per-page read/write matrix, granted to a user or group over all devices, a site, or one device. A device may belong to **several sites at once**, and a grant on any of them reaches it. Membership is assigned on the Sites tab, since it decides who can reach a device; the device editor only chooses which of those sites is its primary, which is what the map uses to place it. Passwords are scrypt-hashed |
-| Poll Intervals | Per-collector update intervals with **Polling Profile** preset buttons (Fast / Faster / Standard / Slow / Slower / Custom). Drag any slider to enter Custom mode; **Save Custom Profile** persists your values as a reusable template. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider. Sliders sit on exactly two scales — **1s–30s** for live data (rates, sessions, uplinks) and **10s–10m** for things that change when somebody edits the router (packages, DHCP networks, topology) — laid out in two columns under Advanced and grouped under a heading for each scale. |
-| Collection Method | **Moved to each device** (Settings → Devices → edit): a per-router Stream/Poll switch and interval overrides. Poll replaces persistent API streams with periodic requests, which suits lower-end hardware where concurrent open channels — not data volume — are the constraint. Logs and the traffic graph always stream. Collectors cannot be switched off per device: one runs only while a page or card it feeds is open, or while alerts, history or the Devices page need it, and one that keeps reporting nothing backs off on its own. |
-| Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
-| Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
-| Notifications | Push notification channels — Telegram Bot, Pushbullet, SMTP email, and ntfy (all four can be active simultaneously); per-type toggles (interface up/down, WireGuard, CPU, ping, NetWatch, router status, RouterOS update); separate ⚠️ alert and ✅ recovery message templates with `{{variable}}` substitution; configurable cooldown (10 s – 60 min) per alert subject; test-send button per channel. **Allow personal channels** lets each user add their own destination under My Account — off by default, since a personal ntfy topic or SMTP recipient is an address the user chooses |
-| My Account | Not on this page — every signed-in user reaches it from their name in the sidebar. Change your own password (signs out your other sessions), see the roles and scopes you hold, review and revoke your active sessions, and manage your own notification channels |
-| Data Retention | Traffic/ping/bandwidth sample retention (1–3650 days, default 90), alert/connectivity event retention (1–3650 days, default 365) and AI Agent chat history (1–3650 days, default 30); pruning runs automatically |
-| Data Cleanup | Delete stored history on demand rather than waiting for retention. Scope by router (one or all), data type (traffic, ping, bandwidth, alerts & connectivity) and age (1 / 7 / 30 / 90 / 365 days, or everything). Shows database size, total rows and a per-router breakdown; **Preview** reports exactly how many rows the selection would remove before you confirm. The database is compacted afterwards so the space is returned to disk. Admin only |
-| AI Agent | Switch the assistant on, and set its endpoint, model, API key (encrypted), timeout, token budget (how much the model may write per reply, reasoning included; default 8,192), extra headers and self-signed certificate opt-in, with **Test Connection**. **Ask me before the assistant changes anything** (on by default). The editable **System Prompt**, with Reset to Default. **Agent Overview card**: on/off (off by default), refresh interval, its own prompt (500 characters) and text colour |
-| Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |
-| Appearance | 26 named palette swatches (dark and light variants) — applies instantly and persists via `localStorage`. Contrast, Text Brightness, and Background Brightness sliders (15 steps each) for fine-grained adjustment independent of palette. **Font Family** picker with 26 self-hosted options (Inter, IBM Plex Sans, Source Sans 3, Geist, JetBrains Mono, Oxanium, Orbitron, and 19 more — all served as local WOFF2 files, no CDN; all SIL Open Font License, see [web/public/fonts/OFL.txt](web/public/fonts/OFL.txt)). **Font Size** with six presets (Extra Small to Extra Large). A **Branding** card renames the install and gives it its own icon and name font: the name and icon replace MikroDash in the top left, the browser tab, the login page, PDF report headers and report emails (PNG or JPEG, square, 64 to 512 px, up to 512 KB; administrators only). Includes a **Visible Pages** card with three canned view presets — **Home** (Wireless, Interfaces, DHCP, Connections, Bandwidth), **Standard** (adds Topology, DNS, VLANs, VPN, Firewall, Logs, Tools, IP Addresses, Address Lists, Interface Lists, IP Pools and DHCP Servers) and **Advanced** (everything, including every page added for the AI Agent's reach, and the only tier showing Devices) — plus the individual page toggles they set. Picking a preset ticks a whole tier at once; editing any toggle afterwards shows Custom. Presets narrow what an install shows and can never widen it: each user still sees only the pages their role permits. The same three tiers appear in Access Management as a bulk-editor for a role's page matrix. A **Group the sidebar into categories** toggle collapses the nav's fifty-three pages into seven expandable groups — Network, Wireless, IP Services, Tunnels, Traffic, Security and System — with Dashboard, Devices, Tools, AI Agent, Reports, Audit and Settings always at the top level. Which groups are open is remembered against your account rather than the browser, and the same toggle appears in the account dialog so it is reachable without Settings access. |
+| 📊 **Dashboard** | A drag-and-drop grid of cards (traffic, system health, network topology, connections, top talkers, WireGuard, and optional cards such as a world connections map, BGP peers, NetWatch, logs and API diagnostics). Layouts are saved to your account, so every browser shows the same arrangement. |
+| 🛰️ **Multi-router fleet** | Manage many routers from one install. Switch from the header with no reload; the **Devices** page shows the whole fleet as cards, a sortable list or a world map, filterable by site. |
+| 🔐 **Users and access control** | Per-user accounts with editable roles (a read and write matrix per page), granted to users or groups over everything, a site, or a single router. |
+| 🔔 **Alerts and notifications** | Interface up/down, WireGuard peers, CPU, ping loss, NetWatch hosts, router online/offline, RouterOS updates, configuration drift and backup failures, delivered to Telegram, Pushbullet, ntfy and email, with cooldowns and editable templates. |
+| 📈 **History and reports** | Traffic, ping, bandwidth, alerts and connectivity recorded to SQLite, viewable by date range, exported to CSV or PDF, and emailed on a daily, weekly or monthly schedule. |
+| 💾 **Backups** | Scheduled configuration backups kept only when something changed, with a unified diff of what moved, retention rules, and a guarded restore. |
+| 🛠️ **Tools** | Ping, traceroute with an animated world map of the hops, torch and bandwidth test, run from the router with live output and a Stop button. |
+| 🛡️ **Security Scan** | Audits the router's configuration (management access, firewall, exposed services, accounts, system, wireless and certificates), scores it, and links each finding to the page where it is fixed. |
+| 🤖 **AI Agent** | An optional assistant that answers questions from live router data and proposes changes through the same checks, audit trail and undo as the forms. Works with any OpenAI-compatible endpoint, including local models. |
+| 📦 **Containers** | RouterOS containers with their env lists, mounts and interfaces, plus an **Apps** tab that browses RouterOS's app store and installs an app in one click. |
+| 🧾 **Audit trail** | Every write, allowed or refused, with who, where, what changed and the outcome. Filterable and exportable to CSV. Credential values are never stored. |
+| 🎨 **Make it yours** | 26 colour palettes, 26 self-hosted fonts, contrast and brightness controls, visible-page presets, a grouped sidebar, and custom branding (name and icon). |
 
-### Credential encryption
+### Pages
 
-Router and dashboard passwords are encrypted at rest using AES-256-GCM. On first start, MikroDash automatically generates a random 64-character key and saves it to `/data/.secret` on the Docker volume (mode 0600). This key is tied to your volume — as long as you keep the volume, your encrypted credentials are safe.
+MikroDash has more than fifty pages. Here they are by area (the sidebar can group them too, or you can hide the ones you do not use). Most read live data; with write access, the configuration pages edit the router directly.
 
-If you need to move credentials across volumes or manage the key yourself, set `DATA_SECRET` in a `.env` file and mount it:
+| Area | Pages |
+|---|---|
+| **Overview** | Dashboard, Devices, Network Topology, WAN |
+| **Wireless** | Wifi Networks, Wifi Clients, Wifi Map (draw your site and see clients around each access point), CAPsMAN (both the `wifi` and legacy stacks) |
+| **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, PPPoE Clients, DNS, IP Pools, Interface Lists |
+| **Routing** | Routing (routes and BGP), Routing Tables, Routing Rules, OSPF, VRRP |
+| **Tunnels** | VPN (WireGuard, PPP sessions, IPsec peers), PPP, IPsec, OpenVPN |
+| **Traffic** | Connections (with a world map), Bandwidth, Queues, Logs |
+| **Security** | Firewall (Filter, NAT, Mangle and Raw, with reorder, undo and redo), Address Lists, Certificates, Security Scan |
+| **System** | Users (RouterOS accounts and groups), Services, Packages, Scripts, Scheduler, NTP Client, Clock, Logging, SNMP, Files, Containers, NetWatch |
+| **MikroDash** | Tools, AI Agent, Reports, Backups, Audit Trail, Settings |
 
-```env
-DATA_SECRET=your-long-random-secret-here
-```
+Every table sorts by its headers, except the ones where order is meaning (firewall rules, queues, routing rules, IPsec policies): those always show the router's order, with move arrows.
 
-The `DATA_SECRET` env var always takes priority over the auto-generated `/data/.secret` file when set.
+<details>
+<summary><strong>How writes are kept safe</strong></summary>
+
+<br>
+
+- **Lockout guards.** Changing or removing the address, interface, service, route, firewall rule, certificate or account MikroDash itself connects through is refused or raises a warning first, because nothing in the app could undo it.
+- **Secrets are never read back.** WiFi passphrases, PPP and OpenVPN passwords, IPsec pre-shared keys and SNMP passwords are not requested from the router at all, so no page can display one. A blank password field means "keep the current one".
+- **Code is for global administrators.** What a script, scheduler task, VRRP script or container image runs is RouterOS code, so changing it needs a global administrator.
+- **Reboots ask for the router's name.** Applying package changes, upgrading RouterOS or restoring a backup requires the router's name typed back.
+- **No sign-in, no writes.** With sign-in turned off, every configuration page is read-only.
+
+</details>
+
+<details>
+<summary><strong>The AI Agent in detail</strong></summary>
+
+<br>
+
+**Off by default.** Nothing is sent anywhere until you switch it on and configure an endpoint.
+
+- **Any OpenAI-compatible endpoint:** a hosted provider, a gateway, or a model on your own hardware (Ollama, LM Studio, vLLM, LiteLLM). Configure it under Settings, AI Agent, and use **Test Connection**. A hosted endpoint receives router names, addresses and network shape; a local one sends nothing outside your network.
+- **Reads what you can read.** It answers from the router's current data and can look up any table your role permits, never a page your role denies.
+- **Changes go through the forms' own path:** one row at a time, with the same permission checks, lockout guards, undo history and audit entry. It cannot run arbitrary RouterOS commands or reach another router.
+- **Asks before changing anything** by default. Deletes, and changes that could cut MikroDash off from the router, always ask.
+- **Keeps the conversation** per user and per router, so follow-up questions work. **Clear** deletes it, and it expires after the retention period you set.
+- **Agent Overview card:** an optional dashboard card with a one-line router status written by the assistant.
+
+[`docs/mikromcp-parity.md`](docs/mikromcp-parity.md) maps what the assistant can reach.
+
+</details>
+
+<details>
+<summary><strong>Keyboard shortcuts</strong></summary>
+
+<br>
+
+| Key | Opens |
+|---|---|
+| `1` | Dashboard |
+| `2` | WAN |
+| `3` | Wifi Networks |
+| `4` | Wifi Clients |
+| `5` | CAPsMAN |
+| `6` | Interfaces |
+| `7` | DHCP |
+| `8` | DNS |
+| `9` | VLANs |
+| `/` | Logs, with the search box focused |
+
+</details>
 
 ---
 
-## RouterOS Setup
+## 📸 Screenshots
 
-Create a read-only API user (recommended):
+<table>
+  <tr>
+    <td width="50%"><img src="screenshots/connections_map.png" alt="Connections map"><p align="center"><sub>Connections map</sub></p></td>
+    <td width="50%"><img src="screenshots/connections.png" alt="Connections"><p align="center"><sub>Connections</sub></p></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/wireless.png" alt="Wifi clients"><p align="center"><sub>Wifi clients</sub></p></td>
+    <td><img src="screenshots/Interfaces.png" alt="Interfaces"><p align="center"><sub>Interfaces</sub></p></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/firewall.png" alt="Firewall"><p align="center"><sub>Firewall</sub></p></td>
+    <td><img src="screenshots/bandwidth.png" alt="Bandwidth"><p align="center"><sub>Bandwidth</sub></p></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/dhcp.png" alt="DHCP"><p align="center"><sub>DHCP</sub></p></td>
+    <td><img src="screenshots/vpn.png" alt="VPN and WireGuard"><p align="center"><sub>VPN and WireGuard</sub></p></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/routing.png" alt="Routing"><p align="center"><sub>Routing</sub></p></td>
+    <td><img src="screenshots/logs.png" alt="Logs"><p align="center"><sub>Logs</sub></p></td>
+  </tr>
+</table>
 
-```
+---
+
+## 🔌 RouterOS setup
+
+Create a dedicated, **read-only** API user. Every page, chart and alert works with it, and a compromised dashboard cannot change your router:
+
+```routeros
 /ip service set api port=8728 disabled=no
 /user group add name=mikrodash policy=read,api,test,!local,!telnet,!ssh,!ftp,!reboot,!write,!policy,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
-/user add name=mikrodash group=mikrodash password=your-secure-password
+/user add name=mikrodash group=mikrodash password=<a-strong-password>
 ```
 
-That group is read-only, which is the right default: every dashboard, chart and alert works with it,
-and a compromised MikroDash cannot change your router.
+<details>
+<summary><strong>Optional: enable the write features</strong></summary>
 
-#### Optional: the write features
+<br>
 
-Several pages can change router configuration, and each needs more than `read`:
+Pages that change the router need more than `read`:
 
-| Page | Needs | What it can do |
-|---|---|---|
-| **Routing, DNS, DHCP, VLANs, Bridges, Interfaces, VPN** | `write` | Add, edit and remove routes, static DNS entries, leases and networks, VLANs, bridges and bridge ports, VETH interfaces and WireGuard peers |
-| **Firewall** | `write` | Add, edit, remove, enable, disable and **reorder** rules across Filter, NAT, Mangle and Raw, with undo and redo |
-| **Packages** | `write` | Schedule a package enable/disable/uninstall, and reboot to apply |
-| **Queues** | `write` | Create, edit and remove simple queues and queue trees |
-| **Users** | `write` **and** `policy` | Create, edit and remove RouterOS users, groups and sessions |
-| **Backups** | `write` **and** `ftp` | Take configuration backups, and restore one (which reboots the router) |
+| Page | Needs |
+|---|---|
+| Configuration pages (Firewall, Routing, DNS, DHCP, VLANs, Bridges, Interfaces, VPN, Queues, Packages and the rest) | `write` |
+| Users (RouterOS accounts and groups) | `write` and `policy` |
+| Backups | `write` and `ftp` |
 
-`ftp` is the policy that governs writing and reading files on the router, which is what `/export file=`
-and `/system/backup/save` do. Without it a backup fails with `not enough permissions (9)`. It does not
-enable the FTP *service*; that is `/ip/service` and stays off.
+`ftp` governs reading and writing files on the router, which `/export file=` and `/system/backup/save` need; it does not enable the FTP service. **`policy` governs user management, so an account holding it can create router users.** Grant it deliberately, not by default.
 
-> **If a queue seems to do nothing, check FastTrack first.** RouterOS's default configuration includes
-> a `fasttrack-connection` firewall rule, and FastTracked connections bypass simple queues and any
-> queue tree parented to `global`. A queue only shapes the traffic FastTrack did not take. The Queues
-> page detects this and says so. To shape that traffic too, disable or narrow the FastTrack rule in
-> `/ip/firewall/filter`.
-
-Grant them only if you want those pages, and understand the trade: **`policy` is the permission that
-governs user management, so an account holding it can create router users.** That is a real increase
-in what a compromised MikroDash could do. It is your call to make deliberately, not a default.
-
-```
+```routeros
 /user group set [find name=mikrodash] policy=read,write,policy,api,test,!local,!telnet,!ssh,!ftp,!reboot,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
 ```
 
-Without them nothing breaks: both pages detect the refusal, drop to read-only and show the command
-above rather than failing silently. Each page also has an install-wide toggle under
-**Settings → Visible Pages**, and per-user access is controlled by roles.
+Without these nothing breaks: a page that is refused drops to read-only and shows the command it needs. MikroDash never lets you edit the account it signs in with, or that account's group.
 
-MikroDash will not let you edit the account it signs in with, or that account's group, from the
-Users page — that is the one change that could lock the dashboard out of the router with no
-way back. Use WinBox for those.
+> [!NOTE]
+> If a queue seems to do nothing, check FastTrack. FastTracked connections bypass simple queues, and the Queues page tells you when that is happening.
 
-### Enabling TLS (API-SSL)
+</details>
 
-MikroDash supports encrypted connections to the RouterOS API over `api-ssl` (default port 8729). You can use a self-signed certificate — no external CA or purchased certificate is required.
+<details>
+<summary><strong>Optional: encrypt the API connection (API-SSL)</strong></summary>
 
-**Step 1 — Enable the API-SSL service**
+<br>
 
-```
-/ip/service set api-ssl disabled=no port=8729
-```
+A self-signed certificate is enough:
 
-**Step 2 — Create and self-sign a local CA**
-
-```
+```routeros
 /certificate add name=local-ca common-name=local-ca days-valid=3650 key-size=2048 key-usage=key-cert-sign,crl-sign
 /certificate sign local-ca
-```
-
-**Step 3 — Create and sign the API-SSL certificate using that CA**
-
-```
 /certificate add name=api-ssl-cert common-name=mikrodash days-valid=3650 key-size=2048 key-usage=digital-signature,key-encipherment,tls-server
 /certificate sign api-ssl-cert ca=local-ca
-```
-
-**Step 4 — Apply the certificate to the service**
-
-```
 /ip/service set api-ssl certificate=api-ssl-cert disabled=no port=8729
 ```
 
-Once the certificate is applied, go to **Settings → Routers**, edit your router entry, enable **TLS**, enable **Allow self-signed cert**, set the port to `8729`, and save. MikroDash will reconnect over an encrypted channel immediately.
+Then edit the router in MikroDash, enable **TLS** and **Allow self-signed cert**, and set the port to `8729`.
+
+</details>
 
 ---
 
-## Configuration flags
+## 🔧 Configuration
 
-A `.env` file is **not required**, and there are no environment variables to set. All router
-configuration, dashboard auth and encryption keys are managed through the web UI and the Docker
-volume.
+Almost everything is configured in the web UI (**Settings**) and stored on the `/data` volume: routers, users and roles, notification channels, poll intervals, retention and appearance. `/data` is the only mount, and it holds encrypted settings, the user store, the SQLite history database and configuration backups.
 
-Infrastructure-level defaults are command-line flags on the binary, which the image supplies as its
-`CMD`. Override them by giving the container its own arguments:
+### Environment variables
+
+All optional.
+
+| Variable | Purpose |
+|---|---|
+| `MIKRODASH_ORIGINS` | Hostnames the browser uses to reach MikroDash, comma separated (wildcards like `*.example.com` work). Required behind a reverse proxy; see below. |
+| `MIKRODASH_TRUSTED_PROXIES` | IPs or CIDR ranges of your reverse proxies. Their `X-Forwarded-For` is believed, so the login limit and audit trail see real visitors. Empty trusts none. |
+| `FORCE_HTTPS` | `true` marks the session cookie Secure, for use behind a TLS-terminating proxy. Plain `http://` sign-in stops working while it is set. |
+| `DATA_SECRET` | The key for credentials at rest. Overrides the key generated on first run and saved to `/data/.secret`. |
+| `LOG_HISTORY_SIZE` | How many router log lines to keep in memory for the Logs page. |
+| `MIKRODASH_ROUTER_CONCURRENCY` | The cap on API commands in flight per router. |
+| `TZ` | The timezone of the container's log lines. Schedules follow the display timezone set in Settings instead. |
+
+<details>
+<summary><strong>Command-line flags</strong></summary>
+
+<br>
+
+The image passes these as its `CMD`; give the container its own `command:` to override them.
+
+| Flag | Image default | Purpose |
+|---|---|---|
+| `-listen` | `:3081` | Address to serve on |
+| `-data` | `/data` | Data directory |
+| `-history` | on | Record traffic, ping and connectivity history for Reports |
+| `-backup-scheduler` | on | Take scheduled configuration backups |
+| `-retention` | on | Run the daily sweep that ages old data out of the database |
+| `-alert-dispatch` | on | Send alert notifications and scheduled report emails |
+| `-no-pool` | off | Do not hold background connections to routers nobody is watching |
+| `-origins` | empty | Same as `MIKRODASH_ORIGINS` |
+| `-trusted-proxies` | empty | Same as `MIKRODASH_TRUSTED_PROXIES` |
+| `-geo` | `/app/geo` | Directory with the bundled geo-IP database and city list |
+
+The four feature switches are off in the bare binary and on in the image, because each is unsafe to run twice against the same routers: two instances would take every backup twice and send every alert twice. If you run a second instance against the same fleet, turn them off there.
+
+</details>
+
+`GET /healthz` reports startup and router connection state, and is what the container health check uses.
+
+---
+
+## 🔒 Security
+
+MikroDash is built for your **local network**. It serves plain HTTP; terminate TLS at a reverse proxy if you need it.
+
+- **Turn on sign-in.** Settings, Authentication, **Require sign-in**. With it off, anyone who reaches the page can see all of your routers' data (router configuration stays read-only). With it on, access is granted as a role (which pages, read or write) over a scope (everything, a site, or one router).
+- **Never expose it directly to the internet.** For remote access use a VPN, or an authenticating proxy such as Cloudflare Access or Authelia in front of MikroDash with sign-in enabled.
+- **Credentials at rest** are encrypted with AES-256-GCM; user passwords are hashed with scrypt. Keep the `/data` volume, and `/data/.secret` in particular, private.
+- **Sign-in is rate limited** per client, and every change is recorded in the audit trail.
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+<details>
+<summary><strong>Behind a reverse proxy</strong></summary>
+
+<br>
+
+MikroDash refuses a WebSocket whose `Origin` does not match the `Host` it sees, which is what stops a hostile page opening an authenticated socket to a MikroDash you are signed in to. Behind a proxy the two differ, so the UI loads and then stays empty, with this in the log:
+
+```
+[ws] accept: failed to accept WebSocket connection: request Origin "dash.example.com" is not authorized for Host "..."
+```
+
+Name the host the **browser** uses, including the port when it is not the default:
+
+```yaml
+environment:
+  - MIKRODASH_ORIGINS=dash.example.com
+  - MIKRODASH_TRUSTED_PROXIES=172.18.0.0/16   # your proxy's address or network
+```
+
+Alternatively, have the proxy preserve the original `Host` header (`proxy_set_header Host $host;` in Nginx). `X-Forwarded-Host` is deliberately not trusted, since any client can send one.
+
+</details>
+
+<details>
+<summary><strong>Remote access through a Cloudflare Tunnel</strong></summary>
+
+<br>
+
+MikroDash does not ship `cloudflared`, but it runs well beside Cloudflare's own container. This puts the login page on the internet, so first make sure sign-in is required, put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) in front of the hostname, and use strong passwords.
+
+1. In the Cloudflare dashboard (Zero Trust, Networks, Tunnels), create a tunnel and copy its token. Add one public hostname, for example `dash.example.com`, pointing at `http://mikrodash:3081`.
+2. Add the sidecar and put the token in `.env` as `TUNNEL_TOKEN=...`:
 
 ```yaml
 services:
   mikrodash:
-    image: ghcr.io/secops-7/mikrodash:latest
-    command: ["-listen", ":3081", "-data", "/data", "-history", "-backup-scheduler", "-retention"]
+    # ... your existing service ...
+    environment:
+      - MIKRODASH_ORIGINS=dash.example.com
+      - MIKRODASH_TRUSTED_PROXIES=172.18.0.0/16   # the network the two containers share
+      - FORCE_HTTPS=true
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - mikrodash
 ```
 
-| Flag | Default | What it does |
-|---|---|---|
-| `-listen` | `:3081` | address to serve on |
-| `-data` | `/data` | the data directory: settings, routers, users, the history database and config backups |
-| `-history` | off | record traffic, ping and connectivity history for the Reports page |
-| `-backup-scheduler` | off | take scheduled configuration backups |
-| `-retention` | off | run the daily retention sweep that ages data out of the database |
-| `-alert-dispatch` | off | actually SEND alert notifications and scheduled report emails. The alert evaluator and its database rows run either way |
-| `-no-pool` | off | do not hold background connections to routers nobody is watching |
-| `-geo` | `/app/geo` | directory holding `dbip-city-lite.mmdb` and `cities.json`, both baked into the image. Point it at a volume to supply your own |
-| `-node` | empty | retired: the Node coexistence mode was removed. Accepted when empty, so an older command line that passes `-node=` still starts; any value is refused |
-| `-trusted-proxies` | empty | IPs or CIDR ranges of reverse proxies whose `X-Forwarded-For` is believed. **Empty trusts none**, which is right when browsers connect directly. Also read from `MIKRODASH_TRUSTED_PROXIES` |
+3. Find the shared network's range with `docker network inspect <project>_default --format '{{(index .IPAM.Config 0).Subnet}}'`. MikroDash refuses to start if `MIKRODASH_TRUSTED_PROXIES` does not parse.
 
-**The four feature switches default OFF** because each one is unsafe to run twice against the same
-routers. Two schedulers mean two restore points; two history recorders write every minute twice; and
-two alert engines both send, with in-memory cooldowns neither can see — a duplicated Telegram message
-cannot be un-received. The image's `CMD` turns them on, because a normal install is the only
-MikroDash watching its fleet. If you run a second instance against the same routers, do not.
+`FORCE_HTTPS=true` means plain `http://` sign-in on the LAN stops working; use the tunnel hostname everywhere, or leave it off. The official `cloudflared` image covers `linux/amd64` and `linux/arm64` only.
 
-Credentials at rest are encrypted with a key derived from `/data/.secret`, generated on first run.
-
-### Installing from the RouterOS App section
-
-The **App** section of RouterOS installs MikroDash from MikroTik's own catalogue
-copy, not from this repository, and MikroTik decide when that copy is refreshed.
-If the version shown on the Settings page is behind the latest release, that is
-why, and `Update` will only fetch whatever they have published.
-
-To run the current release before their copy catches up, add it as an ordinary
-**Container** instead and pull `ghcr.io/secops-7/mikrodash:latest` directly, with
-a `/data` mount and a veth as usual.
-
-You do **not** need to set `ROUTER_USER` or `ROUTER_PASS`, whatever the App
-section's parameter list offers. Start the container, open it, create your admin
-account in the first-run wizard, then add the router from inside the app.
-
-### Environment variables
-
-**A new install needs none of these.** MikroDash is configured through its
-first-run wizard and its Settings page; every variable below is optional.
-
-Three are read directly by the server:
-
-| Variable | What it does |
-|---|---|
-| `DATA_SECRET` | the encryption key for credentials at rest. Takes priority over the auto-generated `/data/.secret` |
-| `FORCE_HTTPS` | `true` marks session cookies Secure, for running behind a TLS-terminating proxy |
-| `MIKRODASH_TRUSTED_PROXIES` | the same as `-trusted-proxies`, for installs where a command array is hard to reach |
-| `LOG_HISTORY_SIZE` | how many router log lines to retain in memory for the Logs page |
-
-A further set is still read into **settings** as startup defaults, carried over
-from the single-router era: `ROUTER_HOST`, `ROUTER_PORT`, `ROUTER_USER`,
-`ROUTER_PASS`, `ROUTER_TLS`, `ROUTER_TLS_INSECURE`, `DEFAULT_IF`, `PING_TARGET`
-and the `*_POLL_MS` intervals. They no longer create a router: on a new install
-the fleet is empty until you add one, so the `ROUTER_*` variables have no effect
-there and can be left unset.
-
-**Five that the Node version read are gone**, and they fail silently rather than
-loudly, so check your `.env` when upgrading:
-
-| Removed | Replacement |
-|---|---|
-| `PORT` | `-listen :3081` |
-| `ROS_DEBUG` | Settings → Diagnostics → RouterOS debug (it was already settable there) |
-| `MAX_SOCKETS` | none. The Go server does not cap browser connections; the limit existed to protect a single-threaded event loop |
-| `TRUSTED_PROXY` | `MIKRODASH_TRUSTED_PROXIES` or `-trusted-proxies`: IP addresses or CIDR ranges. A hop count is no longer accepted |
-| `ROS_WRITE_TIMEOUT_MS` | none currently; the write timeout is not configurable |
-
+</details>
 
 ---
 
-## Architecture
-
-### Implementation
+## 🧩 How it works
 
 ```
-RouterOS binary API (TCP/TLS)
-        |
-  internal/routeros/     an adapter over github.com/go-routeros/routeros/v3,
-                         a patched copy in third_party/go-routeros.
-                         Async mode is mandatory: it is what gives the client a
-                         tag map, and therefore somewhere to discard a sentence
-                         addressed to a cancelled tag.
-        |
-  internal/collect/      the collectors, one per RouterOS subsystem
-  internal/session/      one Session per watched router, owning the connection
-                         every collector shares
-  internal/alert/        the alert rules, pure: rows in, verdict out
-  internal/guard/        the write guards, also pure. A refusal is one function,
-                         testable without a router
-  internal/store/        /data as the app writes it: AES-256-GCM settings,
-                         scrypt users, routers.json
-  internal/db/           the SQLite history and audit database (modernc.org/sqlite,
-                         pure Go — which is what makes the binary static)
-  internal/server/       HTTP routes and the WebSocket protocol
-        |
-  web/src/               the TypeScript frontend
+RouterOS binary API (TCP / TLS)
+        │
+  internal/routeros   adapter over go-routeros (a patched copy in third_party/)
+  internal/roscache   one read per menu, shared by every page that wants it
+  internal/collect    collectors, one per RouterOS subsystem
+  internal/session    one session per router, owning its shared connection
+  internal/alert      alert rules          internal/guard   write guards
+  internal/store      /data: encrypted settings, users, routers
+  internal/db         SQLite history and audit (pure Go, so the binary is static)
+  internal/server     HTTP routes and the WebSocket protocol
+        │
+  web/src             the TypeScript frontend
 ```
 
-**IP geolocation** comes from [DB-IP City Lite](https://db-ip.com), fetched fresh at
-image build and read with `maxminddb-golang`. It is CC BY 4.0 — see
-[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md). Organisation attribution for
-connection destinations is a small curated range table (`internal/asn`), not a
-lookup service: no telemetry leaves the machine for either.
+Concurrent API channels, not data volume, are what strain a small router, so the collector layer is built to ask for less: live data streams, configuration is polled, and a collector runs only while a page, card, alert or report needs it. [Collector-Architecture.md](Collector-Architecture.md) describes it in full.
 
-Five dependencies, each with a reason beyond convenience: `golang.org/x/crypto`
-(scrypt, because the user store's key derivation demands it), `modernc.org/sqlite`
-(pure Go, no cgo, so the binary stays static), `github.com/coder/websocket`,
-`github.com/go-routeros/routeros/v3` (kept as a patched copy in `third_party/go-routeros`,
-see its `PATCHES.md`), and `github.com/go-pdf/fpdf` for the PDF reports.
-
-
-### Streamed (router pushes continuously — no poll overhead)
-| Data | RouterOS endpoint |
-|---|---|
-| System metrics (CPU, RAM, temp, uptime) | `/system/resource/print =interval=N` |
-| WAN Traffic RX/TX per interface | `/interface/monitor-traffic =interface=X =interval=1` |
-| Ping RTT + loss | `/tool/ping =address=X =interval=N` |
-| Interface byte counters (all interfaces) | `/interface/monitor-traffic =interface=all =interval=N` |
-| Firewall connection table, geo-IP | `/ip/firewall/connection/print =interval=N` |
-| WiFi clients | `/interface/wifi/registration-table/print =interval=N` |
-| PPP sessions | `/ppp/active/print =interval=N` |
-| Bridge host table | `/interface/bridge/host/print =interval=N` |
-| NetWatch host status | `/tool/netwatch/print =interval=N` |
-| WAN uplink state | `/interface/detect-internet/state/print =interval=N` |
-| Router Logs | `/log/listen` |
-| DHCP Lease changes | `/ip/dhcp-server/lease/listen` |
-| Firewall structural changes (rule add/remove/edit) | `/ip/firewall/filter\|nat\|mangle/listen` |
-| WireGuard peer handshakes & stats | `/interface/wireguard/peers/listen` |
-| ARP table (device join/leave) | `/ip/arp/listen` |
-| Route table (add/remove/change) | `/ip/route/listen` |
-| BGP session state changes | `/routing/bgp/session/listen` |
-
-### Polled (concurrent via tagged API multiplexing)
-
-**Only live data streams.** A stream holds a router channel open for as long as the
-subscription lasts, which pays for gauges, sessions, clients and state, and never for
-configuration that changes when somebody edits the router. So DNS, Packages, Router Users,
-IP Addresses, WiFi and VLAN configuration and DHCP networks are polled whatever the device's
-mode, while the menus above stream when the device is set to Stream and are polled when it is
-set to Poll — at the same interval either way.
-| Collector | Default interval | Data |
-|---|---|---|
-| Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (reads from the shared connection-table cache populated by the Connections stream) |
-| VPN counters | 5 s | WireGuard per-peer byte counter refresh for live rates |
-| Firewall counters | 5 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
-| Wireless | 30 s | Wireless client list |
-| VLANs | 5 s | VLAN interfaces, bridge VLAN table and bridge port PVIDs (the configuration tables are re-read every 12th tick; rates and client counts are reused from the interface and DHCP streams at no router cost) |
-| PPP | 5 s | Active PPP sessions, plus secrets, PPPoE servers and PPP profiles on a 60 s cadence; per-session rates derived from the byte counters, and connected status joined at emit time so a pill is never up to a minute stale |
-| Bridges | 5 s | Bridges, ports with STP roles and the learned host table (capped); rates reused from the interface stream |
-| CAPsMAN | 10 s | Manager and CAP state, remote CAPs, provisioning rules, radios and per-CAP client counts |
-| DNS | 10 s | Resolver settings and cache usage; static entries on a slower cadence. The cache contents are never enumerated |
-| Packages | 60 s | Package inventory, firmware versions and update status. Slow by design — an inventory changes on a reboot, not on a tick |
-| WAN | 10 s | Internet-connected uplinks, their addresses, default routes and DHCP leases; rates reused from the interface stream |
-| Queues | 5 s | Simple queues and queue trees with limits and counters; rates derived from the byte counters over the poll window |
-| Users | 60 s | RouterOS users, groups and active sessions. Slow by design — a user list changes when somebody edits it, not on a tick |
-| DHCP Networks | ~10 min | LAN subnets, pool sizes, WAN IP, internet-facing interfaces |
-
-All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
-
-**Idle gating** — three gates. Nothing polls or holds a channel when no browser has that router open. And a page-scoped collector runs only while somebody is actually on its page: leave the VLANs page and its poll stops and its `/listen` closes, return and it refreshes at once. Concurrent open channels, not data volume, are what strain small hardware, so a page nobody is looking at costs the router nothing. The third gate is **dormancy**: a collector whose data comes back empty, or whose menu the router does not have, suspends itself and its card says so instead of going stale. It re-probes on a backoff that grows to ten minutes, and wakes immediately when you open its page or the router reconnects.
-
-All collectors that support RouterOS `/listen` streams use event-driven delivery — RouterOS pushes only delta rows when data changes, producing zero API traffic when the network is idle. A 60-second heartbeat emit keeps the browser's stale-detection timers alive.
+Geo-IP data comes from [DB-IP City Lite](https://db-ip.com), bundled into the image at build time. Lookups happen locally; nothing leaves the machine.
 
 ---
 
-## Keyboard Shortcuts
+## 💻 Development
 
-| Key | Page |
-|---|---|
-| `1` | Dashboard |
-| `2` | Wireless |
-| `3` | Interfaces |
-| `4` | DHCP |
-| `5` | VPN |
-| `6` | Connections |
-| `7` | Routing |
-| `8` | Bandwidth |
-| `9` | Firewall |
-| `0` | Logs |
-| `/` | Focus log search |
+Go runs in a container, so Docker is the only hard requirement. Node is needed only to type-check and test the frontend.
+
+```bash
+(cd web && npm ci)          # once: TypeScript and esbuild for the frontend checks
+sh tools/verify.sh          # everything: gofmt, vet, go test, generated code, tsc, web tests
+sh tools/verify.sh --no-docker   # frontend half only
+```
+
+`tools/verify.sh` discovers what to check rather than working from a list, so a new Go test or `*.test.ts` file runs without being registered anywhere. You do not need a MikroTik to contribute: MikroDash starts without one and shows the setup wizard.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the local setup and the project's conventions, and [Collector-Architecture.md](Collector-Architecture.md) before changing how data is read from a router.
 
 ---
 
-## License
+## 🤝 Contributing
 
-MIT — see [LICENSE](LICENSE)
-
-Third-party attributions — see [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)
+Issues and pull requests are welcome, from typo fixes to new pages. Check the [open issues](https://github.com/SecOps-7/MikroDash/issues) first, and open one before a large change so the approach can be agreed. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## Disclaimer
+## 📄 License
 
-MikroDash is an independent, community-built project and is **not affiliated with, endorsed by, or associated with MikroTik SIA** in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
+MIT, see [LICENSE](LICENSE). Third-party attributions are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
----
+MikroDash is an independent community project and is **not affiliated with, endorsed by, or associated with MikroTik SIA**. MikroTik and RouterOS are trademarks of MikroTik SIA.
 
-## Built With AI
-
-The code for MikroDash was written with the assistance of [Claude](https://claude.ai) by [Anthropic](https://anthropic.com).
-
-The Go + TypeScript rewrite was carried out the same way, largely by an autonomous
-loop working against generated corpora: every gate compared this implementation
-against the Node one by RUNNING or LIFTING the original rather than by
-transcribing it, because a retyped table is a fork with no update path. Those
-That harness was retired on 2026-09-01, once the app was free to evolve: the
-checks worth keeping became Go tests in `internal/verify/` and TypeScript tests in
-`web/test/`, and 25 MB of recordings left with the rest.
+<p align="center"><sub>Built with the help of <a href="https://claude.ai">Claude</a> by Anthropic.</sub></p>
