@@ -2,6 +2,20 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.63] - Dependencies brought up to date
+
+### Internal
+
+- **Go 1.27 and Alpine 3.24.** Go 1.25 and Alpine 3.20 no longer get security fixes.
+- **Go modules on their latest releases:** x/crypto 0.57, sqlite 1.59, esbuild 0.28.2 and
+  the DB-IP geo reader moved to maxminddb-golang v2. Country flags and the city picker
+  give the same answers as before.
+- **TypeScript 7**, the new native compiler, for type checking and tests.
+- **CI actions** updated to their current versions, which clears the Node 20 deprecation
+  warnings.
+- A new check keeps the two copies of esbuild (the build and the tests) on the same
+  version.
+
 ## [0.8.62] - Scheduled reports send on their own, and times follow your timezone
 
 ### New
