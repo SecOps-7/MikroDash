@@ -28,13 +28,12 @@ package collect
 //     changes state keeps its position;
 //   - deleting and re-adding DOES move it to the end, because it is a new key.
 //
-// ── STREAMING IS NOT PORTED YET ──────────────────────────────────────────────
+// ── DELIVERY: STREAMED OR POLLED, ONE PARSE ────────────────────────────────
 //
-// The live collector prefers `/ip/dhcp-server/lease/listen` and falls back to
-// polling (issue #105 made that a setting). This side polls only. The parsing is
-// the same code either way — `_applyLease` there, applyLease here — so adding
-// the stream later changes delivery and not the payload. Recorded here
-// rather than left to be discovered.
+// The lease table streams as an `=interval=` print through the scheduler when
+// the router's collection mode says Stream (internal/session/streammenus.go),
+// and is polled otherwise. applyLease is the same code either way, so the mode
+// changes delivery and not the payload.
 
 import (
 	"log"

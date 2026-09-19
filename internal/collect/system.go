@@ -353,7 +353,7 @@ func NewSystem(ros Reader, emit Emit, pollMs int) *System {
 		cmd: systemResourceCmd, poll: [3]int{2000, 500, 60000},
 		// A SETTINGS MENU, NOT A TABLE. `/system/resource/print` returns one row
 		// and it carries no `.id`, so the default key would drop it into
-		// `FillFromStream`'s unkeyed counter and leave the entry empty -- which
+		// the fill's unkeyed counter and leave the entry empty -- which
 		// for this collector means the dashboard's gauges stop. See keySingleton.
 		streamKey: keySingleton,
 	})

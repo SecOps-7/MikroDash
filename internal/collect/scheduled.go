@@ -163,7 +163,7 @@ func (s *scheduled) begin() {
 
 // keyByID is the default row key: RouterOS `.id`, which every `/print` row of a
 // TABLE carries and which is stable across re-prints. A menu whose rows have no
-// `.id` must supply its own, and `FillFromStream` counts the rows it could not
+// `.id` must supply its own, and the stream fill counts the rows it could not
 // name so that is discoverable rather than silent.
 func keyByID(r routeros.Reply) string { return r[".id"] }
 
@@ -175,7 +175,7 @@ func keyByID(r routeros.Reply) string { return r[".id"] }
 // A rolling map keyed by a constant holds exactly one entry. For
 // `/system/resource/print` that is precisely right -- the menu returns one row
 // describing the router, and the next reading supersedes it entirely. Keying it
-// by `.id` would drop every row into `FillFromStream`'s unkeyed counter and
+// by `.id` would drop every row into the fill's unkeyed counter and
 // serve an EMPTY entry, which for `system` means the dashboard's gauges stop.
 //
 // It would be wrong on a table, where it would collapse every row into the last
@@ -243,7 +243,7 @@ func (s *scheduled) fillIfStreaming(menu string) {
 	if already || !s.cache.StreamsMenu(menu) {
 		return
 	}
-	// NO `keyOf == nil` CHECK, DELIBERATELY. `FillFromStream` refuses a nil key
+	// NO `keyOf == nil` CHECK, DELIBERATELY. `JoinStream` refuses a nil key
 	// and this falls back to polling on any refusal, so a check here would be
 	// the same rule in a second place -- what `rooms.go` exists to stop, after
 	// the room lists disagreed five times. `keyByID` is a DEFAULT rather than a
@@ -366,7 +366,7 @@ func (s *scheduled) resubscribe(menu string, apply func([]routeros.Reply, error)
 	old := s.release
 	// AND THE OLD MENU'S CHANNEL. A fill is per-MENU, so moving the menu without
 	// releasing it leaves a stream open on a menu this collector no longer reads
-	// -- and `FillFromStream` refuses a second fill of one menu, so the leak
+	// -- and `JoinStream` refuses a second owner of one menu, so the leak
 	// would also stop the collector ever streaming that menu again if it moved
 	// back. Mechanism B moves menus routinely: `firewall` follows the table the
 	// operator is looking at, and `wifi`/`wireless` follow whichever stack the

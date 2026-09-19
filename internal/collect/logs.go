@@ -5,12 +5,12 @@ package collect
 //	/log/print    the backlog, once, at connect
 //	/log/listen   a PUSH STREAM: RouterOS sends each entry as it is written
 //
-// THE ONLY STREAMING COLLECTOR IN THE PORT, and the one place where a stream is
-// clearly right. Everything else here polls, because a poll costs one channel
-// for a moment and a stream holds one open — but a log has no "current state" to
-// read: polling /log/print would mean re-reading the whole buffer every tick and
-// keeping a seen-set to work out what was new. The listen channel makes both
-// unnecessary, which is exactly what the Node original says it is for.
+// THE ONLY `/listen` IN THE APP. Other live menus can stream as `=interval=`
+// prints through the scheduler (internal/session/streammenus.go), and ping
+// streams its own; those re-send a table. A log has no "current state" to
+// re-send: polling /log/print would mean re-reading the whole buffer every tick
+// and keeping a seen-set to work out what was new. The listen channel makes both
+// unnecessary.
 //
 // The history is a RING BUFFER, not a growing slice. A busy router writes
 // continuously, and the page shows a window; keeping everything would be a leak

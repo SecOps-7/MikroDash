@@ -466,9 +466,8 @@ func (r reader) Connected() bool {
 	return r.s.client != nil && r.s.connected
 }
 
-// Stream is the half of the connection that keeps a channel open. Only the logs
-// collector uses it — /log/listen is a push channel, and polling /log/print
-// instead would mean re-reading the whole buffer and keeping a seen-set.
+// Stream is the half of the connection that keeps a channel open: the cache's
+// stream fills (`=interval=` prints), ping, and the log tail's /log/listen.
 func (r reader) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), error) {
 	r.s.mu.Lock()
 	c := r.s.client

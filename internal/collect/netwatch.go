@@ -9,13 +9,11 @@ package collect
 // The Dashboard's NetWatch card and, since #97, the NetWatch page, which draws and
 // edits every field. The alert rules read the same payload.
 //
-// ── EVENT-DRIVEN OVER THERE, POLLED HERE ─────────────────────────────────────
+// ── DELIVERY: STREAMED OR POLLED, ONE PARSE ────────────────────────────────
 //
-// The original prefers `/tool/netwatch/listen`, which pushes a state change the
-// moment it happens, and keeps a 60-second heartbeat so the browser's staleness
-// timer never fires while nothing is changing. This side polls. The parsing is
-// the same code either way — `_loadInitial` there, Tick here — so adding the
-// stream later changes delivery and not the payload.
+// The netwatch table streams as an `=interval=` print through the scheduler
+// when the router's collection mode says Stream (internal/session/
+// streammenus.go), and is polled otherwise. The parse is the same either way.
 
 import (
 	"encoding/json"

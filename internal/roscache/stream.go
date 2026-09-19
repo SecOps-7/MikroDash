@@ -160,11 +160,11 @@ type streamFill struct {
 	openedAt time.Time
 	// ── SHARING ─────────────────────────────────────────────────────────────
 	//
-	// `shared` is set by `JoinStream` and never by `FillFromStream`, so the two
-	// forms cannot be mixed on one menu by accident. That refusal is the guard
-	// `FillFromStream` has always had — two collectors silently fighting over
-	// one channel is a whole class of bug — and sharing has to be OPTED INTO at
-	// the call site rather than acquired by being second.
+	// `shared` is set when the first holder declares a Merge, and a Join without
+	// one on a shared fill (or with one on an unshared fill) is refused, so the
+	// two cannot be mixed on one menu by accident. Two collectors silently
+	// fighting over one channel is a whole class of bug, and sharing has to be
+	// OPTED INTO at the call site rather than acquired by being second.
 	shared  bool
 	nextID  int
 	holders map[int]Join
@@ -186,11 +186,11 @@ type streamFill struct {
 
 // Join is one holder's claim on a SHARED stream-filled menu.
 //
-// ── WHY SHARING NEEDED A SECOND ENTRY POINT ────────────────────────────────
+// ── WHY SHARING IS OPTED INTO ──────────────────────────────────────────────
 //
-// `FillFromStream` is single-owner and refuses a second caller, deliberately:
-// two collectors quietly fighting over one channel is a whole class of bug, and
-// seven of the eight streamed menus have exactly one consumer.
+// A Join with no Merge is single-owner and a second caller is refused,
+// deliberately: two collectors quietly fighting over one channel is a whole
+// class of bug, and seven of the eight streamed menus have exactly one consumer.
 //
 // `/interface/monitor-traffic` has two, and they want different things.
 // `ifStatus` wants every enabled interface at its own cadence and reads a
@@ -659,7 +659,7 @@ func (f *streamFill) finishRoundLocked() {
 //
 // ── A STREAM THAT HAS NOT WARMED UP IS A MISS, NOT AN EMPTY ANSWER ─────────
 //
-// `FillFromStream` returns as soon as the channel is OPEN, and the first row
+// `JoinStream` returns as soon as the channel is OPEN, and the first row
 // arrives some milliseconds later. The scheduler can deliver in that window, and
 // `Get` answering "no rows" there is not a cheap wrong answer -- it is published
 // to the collector, which builds an empty payload, and the next delivery is a
