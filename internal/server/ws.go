@@ -147,6 +147,10 @@ type conn struct {
 	// router switch or a closed socket: see secscan.go.
 	scanMu   sync.Mutex
 	scanQuit chan struct{}
+	// appsQuit closes to stop following an app install on a router switch or
+	// a closed socket: see apps.go.
+	appsMu   sync.Mutex
+	appsQuit chan struct{}
 	// groups keeps this browser's last grouped-table read, so a search filters
 	// it rather than reading a large list again (area_group.go).
 	groups groupMemo
@@ -603,6 +607,13 @@ func (cn *conn) dispatch(in inbound) {
 		cn.secScanGet()
 	case "secscan:run":
 		cn.secScanRun()
+	// The Containers page's Apps tab: see internal/server/apps.go.
+	case "apps:list":
+		cn.appsList()
+	case "apps:do":
+		cn.appsDo(in.Data)
+	case "apps:setup":
+		cn.appsSetup(in.Data)
 	// Registered as its own literal beside firewall:tab rather than folded into
 	// it, for the reason wan:renew and wan:release are separate: the next person
 	// greps for the event name, and these two carry DIFFERENT PERMISSION GATES
@@ -1526,6 +1537,7 @@ func (cn *conn) releaseRouter() {
 	// instead of running on to its timeout for nobody.
 	cn.stopTool()
 	cn.stopSecScan()
+	cn.stopApps()
 	// ── THE ROOMS GO FIRST, AND THE ORDER IS THE WHOLE POINT ──────────────
 	//
 	// Both switch call sites already left every room immediately after calling

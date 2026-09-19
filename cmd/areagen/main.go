@@ -132,14 +132,24 @@ func renderMarkup() []page {
           <div class="data-scroll" style="max-height:640px;overflow-y:auto" id="areaBody-%s">
             <div class="empty-state">Waiting&hellip;</div>
           </div>
-        </div>
+%s        </div>
       </div>
     </div>
   </div>
-`, a.Key, a.Key, a.Key, htmlEscape(a.Title), a.Key, a.Key, a.Key, a.Key)
+`, a.Key, a.Key, a.Key, htmlEscape(a.Title), a.Key, a.Key, a.Key, a.Key, panelSlots(a))
 		out = append(out, page{path: uiDir + "/page-" + a.Key + ".html", body: []byte(b.String())})
 	}
 	return out
+}
+
+// panelSlots is an empty, hidden slot per hand-built panel, which the panel's
+// module fills (area.ts shows it while its tab is active).
+func panelSlots(a areas.Area) string {
+	var b strings.Builder
+	for _, p := range a.Panels {
+		fmt.Fprintf(&b, "          <div class=\"area-panel\" id=\"areaPanel-%s-%s\" style=\"display:none\"></div>\n", a.Key, p.Key)
+	}
+	return b.String()
 }
 
 // htmlEscape is the four characters that matter in a title. Titles are declared
@@ -176,6 +186,12 @@ export interface AreaTable {
   pills: Readonly<Record<string, PillKind>>;
 }
 
+/** A hand-built tab after the tables: internal/areas' Panel. */
+export interface AreaPanel {
+  key: string;
+  title: string;
+}
+
 export interface Area {
   /** URL path, markup id and room name. */
   key: string;
@@ -189,6 +205,8 @@ export interface Area {
   /** The smallest Visible Pages and Roles preset that includes this page. */
   tier: 'home' | 'standard' | 'advanced';
   tables: readonly AreaTable[];
+  /** Hand-built tabs after the tables, drawn by a registered module. */
+  panels: readonly AreaPanel[];
 }
 
 `)
@@ -236,7 +254,14 @@ export interface Area {
 			fmt.Fprintf(&b, "      { resource: %s, title: %s, columns: [%s], ordered: %t, pills: %s },\n",
 				strconv.Quote(t.Resource), strconv.Quote(title), strings.Join(cols, ", "), ordered, pillMap)
 		}
-		b.WriteString("    ],\n  },\n")
+		b.WriteString("    ],\n    panels: [")
+		for i, p := range a.Panels {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "{ key: %s, title: %s }", strconv.Quote(p.Key), strconv.Quote(p.Title))
+		}
+		b.WriteString("],\n  },\n")
 	}
 	b.WriteString(`];
 

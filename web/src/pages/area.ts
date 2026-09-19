@@ -40,7 +40,7 @@
 
 import { el, esc, resRow, renderSortHeader, sortRows, debounce, type SortCol, type SortState } from '../dom';
 import { mountAdds, mountRows } from '../resource';
-import { AREAS, type Area, type PillKind } from '../gen/areas';
+import { AREAS, type Area, type AreaPanel, type PillKind } from '../gen/areas';
 import { actionBadge } from './firewall';
 import type { Socket } from '../socket';
 import type { AreaPayload, AreaTable, AreaGroupRowsPayload } from '../gen/payloads';
@@ -107,6 +107,63 @@ function tabIndex(area: Area): number {
   return at < area.tables.length ? at : 0;
 }
 
+// ── HAND-BUILT PANELS ───────────────────────────────────────────────────────
+//
+// An area can declare panels (internal/areas' Panel): tabs after its tables
+// that are not tables, drawn by a module of their own (the Containers page's
+// Apps store). A panel's tab index follows the tables', so the one click
+// handler serves both. The module registers here; a declared panel nobody
+// registered gets no tab, and TestEveryAreaPanelIsRegistered keeps the two
+// lists equal in both directions.
+
+/** What a panel's module does when its tab is shown and when it is left. */
+export interface AreaPanelHook {
+  show: (host: HTMLElement) => void;
+  hide?: () => void;
+}
+
+const panelHooks: Record<string, AreaPanelHook> = {};
+/** The panel each area is showing, so show() runs once per visit, not per tick. */
+const panelShown: Record<string, string> = {};
+
+/** Register the module that draws `panelKey` on the area `areaKey`. */
+export function registerAreaPanel(areaKey: string, panelKey: string, hook: AreaPanelHook): void {
+  panelHooks[areaKey + '#' + panelKey] = hook;
+}
+
+/** The area's panels that have a module, in declared order. */
+function panelsOf(area: Area): AreaPanel[] {
+  return (area.panels || []).filter((p) => panelHooks[area.key + '#' + p.key]);
+}
+
+/** The panel on screen, or null when a table is. */
+function activePanel(area: Area): AreaPanel | null {
+  const i = (activeTab[area.key] || 0) - area.tables.length;
+  const ps = panelsOf(area);
+  return i >= 0 && i < ps.length ? ps[i]! : null;
+}
+
+/** Show the active panel's slot (or the table body), and tell the modules. */
+function syncPanels(area: Area, panel: AreaPanel | null): void {
+  const body = el('areaBody-' + area.key);
+  if (body) body.style.display = panel ? 'none' : '';
+  const add = el('areaAdd-' + area.key);
+  if (add) add.style.display = panel ? 'none' : '';
+  // Only the registered panels: an unregistered one has no tab, and its slot
+  // is hidden in the markup already.
+  for (const p of panelsOf(area)) {
+    const host = el('areaPanel-' + area.key + '-' + p.key);
+    if (host) host.style.display = panel && p.key === panel.key ? '' : 'none';
+  }
+  const was = panelShown[area.key] || '';
+  const now = panel ? panel.key : '';
+  if (was === now) return;
+  if (was) panelHooks[area.key + '#' + was]?.hide?.();
+  panelShown[area.key] = now;
+  const host = panel ? el('areaPanel-' + area.key + '-' + panel.key) : null;
+  if (panel && host) panelHooks[area.key + '#' + panel.key]!.show(host);
+}
+
 /** A dash, not an empty cell: "the router said nothing" is not "the value is ''". */
 function cell(v: string | undefined): string {
   return v === undefined || v === '' ? '<span style="color:var(--text-muted)">&mdash;</span>' : esc(v);
@@ -152,16 +209,19 @@ function renderTabs(area: Area): void {
   const host = el('areaTabs-' + area.key);
   if (!host) return;
   // ONE TABLE IS NOT A TAB BAR. A single tab to click is furniture.
-  if (area.tables.length < 2) {
+  const panels = panelsOf(area);
+  if (area.tables.length + panels.length < 2) {
     host.innerHTML = '';
     return;
   }
-  const at = tabIndex(area);
-  host.innerHTML = area.tables.map((t, i) =>
+  const open = activePanel(area);
+  const at = open ? area.tables.length + panels.indexOf(open) : tabIndex(area);
+  const titles = [...area.tables.map((t) => t.title), ...panels.map((p) => p.title)];
+  host.innerHTML = titles.map((title, i) =>
     '<button class="stab' + (i === at ? ' active' : '') + '" type="button" role="tab"' +
     ' aria-selected="' + (i === at ? 'true' : 'false') + '"' +
     ' data-areatab="' + esc(area.key) + '" data-areatabindex="' + i + '">' +
-    esc(t.title) + '</button>').join('');
+    esc(title) + '</button>').join('');
 }
 
 /** Point the Add slot at the table on screen, and let the engine fill it. */
@@ -175,6 +235,13 @@ function syncAddSlot(area: Area): void {
 function render(area: Area): void {
   const body = el('areaBody-' + area.key);
   if (!body) return;
+  // A PANEL ON SCREEN: its module draws it; the table body and Add wait.
+  const panel = activePanel(area);
+  syncPanels(area, panel);
+  if (panel) {
+    renderTabs(area);
+    return;
+  }
   const at = tabIndex(area);
   const declared = area.tables[at]!;
   const payload = latest[area.key];

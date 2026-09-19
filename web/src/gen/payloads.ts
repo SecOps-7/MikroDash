@@ -26,6 +26,61 @@ export interface AlertRow {
   acknowledgedBy: string | null;
 }
 
+export interface AppsProgressPayload {
+  routerId: string;
+  name: string;
+  verb: string;
+  status: string;
+  running: boolean;
+  uiUrl: string;
+  done: boolean;
+  code: string;
+  message: string;
+}
+
+export interface AppDisk {
+  slot: string;
+  fs: string;
+  free: string;
+  size: string;
+}
+
+export interface AppRow {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  projectPage: string;
+  defaultCredentials: string;
+  defaultNetwork: string;
+  ports: string;
+  state: string;
+  status: string;
+  uiUrl: string;
+  appSize: string;
+  dataSize: string;
+  memory: string;
+  cpu: string;
+  custom: boolean;
+}
+
+export interface AppsPayload {
+  routerId: string;
+  supported: boolean;
+  reason: string;
+  ready: boolean;
+  disk: string;
+  lanBridge: string;
+  routerIp: string;
+  disks: AppDisk[];
+  bridges: string[];
+  apps: AppRow[];
+  httpsLinks: boolean;
+  mayManage: boolean;
+  code: string;
+  message: string;
+}
+
 export interface AreaRow {
   id: string;
   identity: string;
@@ -1755,6 +1810,8 @@ export interface ConnsUpdate {
 // payload Go declared for it.
 export interface Events {
   'alert:acked': AlertRow;
+  'apps:progress': AppsProgressPayload;
+  'apps:state': AppsPayload;
   'area:grouprows': AreaGroupRowsPayload;
   'area:update': AreaPayload;
   'backups:state': StatePayload;

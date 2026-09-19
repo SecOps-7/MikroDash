@@ -398,3 +398,42 @@ func TestEveryAreaHasAPresetTier(t *testing.T) {
 		t.Errorf("%d areas in Standard; the operator placed 5 there", tiers["standard"])
 	}
 }
+
+// TestEveryAreaPanelIsRegistered: a hand-built tab on a generated area
+// (areas.Area.Panels) is drawn only when a module registers it with
+// registerAreaPanel, and an unregistered panel simply has no tab, so a missing
+// module is silent. Both directions: every declared panel is registered, and
+// every registration names a declared panel (a stale one registers a hook
+// nothing will ever show).
+func TestEveryAreaPanelIsRegistered(t *testing.T) {
+	root := repoRoot(t)
+	declared := map[string]bool{}
+	for _, a := range areas.All() {
+		for _, p := range a.Panels {
+			declared[a.Key+"#"+p.Key] = true
+		}
+	}
+	if len(declared) == 0 {
+		t.Fatal("no area declares a panel; the Containers Apps tab should")
+	}
+	call := regexp.MustCompile(`registerAreaPanel\('([a-z0-9-]+)', '([a-z0-9-]+)'`)
+	registered := map[string]string{}
+	sources := readFiles(t, root, filepath.Join("web", "src"), func(rel string) bool {
+		return strings.HasSuffix(rel, ".ts") && !isTestSource(rel)
+	})
+	for rel, body := range sources {
+		for _, m := range call.FindAllStringSubmatch(body, -1) {
+			registered[m[1]+"#"+m[2]] = rel
+		}
+	}
+	for k := range declared {
+		if registered[k] == "" {
+			t.Errorf("panel %s is declared in internal/areas but no module calls registerAreaPanel for it, so it has no tab", k)
+		}
+	}
+	for k, rel := range registered {
+		if !declared[k] {
+			t.Errorf("%s registers panel %s, which internal/areas does not declare", rel, k)
+		}
+	}
+}

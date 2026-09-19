@@ -94,6 +94,13 @@ func (t Table) PillFor(column string) string {
 }
 
 // Area is one generated page.
+// Panel is one hand-built tab of an area: its key (the slot's id is
+// `areaPanel-<area>-<key>`) and its tab label.
+type Panel struct {
+	Key   string
+	Title string
+}
+
 type Area struct {
 	// Key is a page key: the URL, the room, the permission and the visibility
 	// guard, exactly as a hand-built page's key is. See CLAUDE.md's table of the
@@ -116,6 +123,13 @@ type Area struct {
 	Icon string
 	// Tables are the area's tabs, in order. One table renders without tabs.
 	Tables []Table
+	// Panels are hand-built tabs after the tables: a page of the area's own
+	// that is not a table of rows, drawn by a module that registers itself with
+	// area.ts (`registerAreaPanel`). The Containers page's Apps store is the
+	// first. The shell stays generated: areagen gives each panel an empty slot,
+	// and TestEveryAreaPanelIsRegistered holds declarations and modules to each
+	// other in both directions.
+	Panels []Panel
 	// Tier is the smallest of the Visible Pages and Roles presets (Home,
 	// Standard, Advanced) that includes this page: "standard" or "advanced".
 	// A preset includes every page of its tier and the tiers below it. Declared
@@ -391,7 +405,9 @@ var declared = []Area{
 			{Resource: "containerConfig", Title: "Settings",
 				Columns: []string{"registryUrl", "username", "tmpdir", "layerDir", "memoryHigh", "memoryCurrent"}},
 		},
-		Poll: 60 * time.Second,
+		// RouterOS's app store (/app, 7.21+): web/src/pages/containers-apps.ts.
+		Panels: []Panel{{Key: "apps", Title: "Apps"}},
+		Poll:   60 * time.Second,
 	},
 	// ── THE PROOF: A HAND-BUILT PAGE, MIGRATED ──────────────────────────────
 	//

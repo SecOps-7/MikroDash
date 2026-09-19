@@ -21,6 +21,12 @@ export interface AreaTable {
   pills: Readonly<Record<string, PillKind>>;
 }
 
+/** A hand-built tab after the tables: internal/areas' Panel. */
+export interface AreaPanel {
+  key: string;
+  title: string;
+}
+
 export interface Area {
   /** URL path, markup id and room name. */
   key: string;
@@ -34,6 +40,8 @@ export interface Area {
   /** The smallest Visible Pages and Roles preset that includes this page. */
   tier: 'home' | 'standard' | 'advanced';
   tables: readonly AreaTable[];
+  /** Hand-built tabs after the tables, drawn by a registered module. */
+  panels: readonly AreaPanel[];
 }
 
 /** How a column's values are drawn as pills: internal/areas.PillKinds. */
@@ -46,6 +54,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "ipPool", title: "IP Pool", columns: ["name", "ranges", "used", "total", "nextPool", "comment"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "address-lists", title: "Address Lists", navGroup: "security", tier: "standard",
@@ -53,6 +62,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "addressList", title: "Address List Entry", columns: ["list", "address", "timeout", "dynamic", "comment"], ordered: false, pills: { "dynamic": "info" } },
     ],
+    panels: [],
   },
   {
     key: "interface-lists", title: "Interface Lists", navGroup: "network", tier: "standard",
@@ -61,6 +71,7 @@ export const AREAS: readonly Area[] = [
       { resource: "ifListMember", title: "Members", columns: ["list", "interface", "disabled", "dynamic", "comment"], ordered: false, pills: { "disabled": "warn", "dynamic": "info" } },
       { resource: "ifList", title: "Lists", columns: ["name", "include", "exclude", "builtin", "comment"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "ip-services", title: "Services", navGroup: "system", tier: "advanced",
@@ -68,6 +79,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "ipService", title: "IP Service", columns: ["name", "port", "proto", "availableFrom", "disabled", "dynamic", "remote"], ordered: false, pills: { "disabled": "warn", "dynamic": "info" } },
     ],
+    panels: [],
   },
   {
     key: "certificates", title: "Certificates", navGroup: "security", tier: "advanced",
@@ -75,6 +87,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "certificate", title: "Certificate", columns: ["name", "commonName", "privateKey", "trusted", "invalidAfter", "expiresAfter"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "scripts", title: "Scripts", navGroup: "system", tier: "advanced",
@@ -82,6 +95,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "script", title: "Script", columns: ["name", "owner", "policy", "runCount", "lastStarted", "comment"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "scheduler", title: "Scheduler", navGroup: "system", tier: "advanced",
@@ -89,6 +103,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "scheduler", title: "Scheduled Task", columns: ["name", "startTime", "interval", "nextRun", "runCount", "disabled", "comment"], ordered: false, pills: { "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "ntp-client", title: "NTP Client", navGroup: "system", tier: "advanced",
@@ -97,6 +112,7 @@ export const AREAS: readonly Area[] = [
       { resource: "ntpClient", title: "Settings", columns: ["enabled", "mode", "servers", "vrf", "status", "syncedServer", "systemOffset"], ordered: false, pills: { "status": "state" } },
       { resource: "ntpServer", title: "Servers", columns: ["address", "iburst", "minPoll", "maxPoll", "disabled", "comment"], ordered: false, pills: { "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "clock", title: "Clock", navGroup: "system", tier: "advanced",
@@ -104,6 +120,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "clock", title: "Clock", columns: ["time", "date", "timeZoneName", "timeZoneAutodetect", "gmtOffset", "dstActive"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "logging", title: "Logging", navGroup: "system", tier: "advanced",
@@ -112,6 +129,7 @@ export const AREAS: readonly Area[] = [
       { resource: "logRule", title: "Rules", columns: ["topics", "action", "prefix", "disabled", "isDefault", "comment"], ordered: false, pills: { "disabled": "warn" } },
       { resource: "logAction", title: "Actions", columns: ["name", "target", "memoryLines", "remote", "isDefault"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "snmp", title: "SNMP", navGroup: "system", tier: "advanced",
@@ -120,6 +138,7 @@ export const AREAS: readonly Area[] = [
       { resource: "snmp", title: "Settings", columns: ["enabled", "contact", "location", "trapTarget", "trapVersion", "engineId"], ordered: false, pills: {} },
       { resource: "snmpCommunity", title: "Communities", columns: ["name", "addresses", "security", "readAccess", "writeAccess", "disabled"], ordered: false, pills: { "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "files", title: "Files", navGroup: "system", tier: "advanced",
@@ -127,6 +146,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "file", title: "File", columns: ["name", "type", "size", "lastModified"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "routing-tables", title: "Routing Tables", navGroup: "ipsvc", tier: "advanced",
@@ -134,6 +154,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "routingTable", title: "Routing Table", columns: ["name", "fib", "disabled", "dynamic", "invalid", "comment"], ordered: false, pills: { "disabled": "warn", "dynamic": "info", "invalid": "bad" } },
     ],
+    panels: [],
   },
   {
     key: "routing-rules", title: "Routing Rules", navGroup: "ipsvc", tier: "advanced",
@@ -141,6 +162,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "routingRule", title: "Routing Rule", columns: ["srcAddress", "dstAddress", "routingMark", "interface", "action", "table", "inactive", "disabled", "comment"], ordered: true, pills: { "action": "action", "inactive": "warn", "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "ospf", title: "OSPF", navGroup: "ipsvc", tier: "advanced",
@@ -151,6 +173,7 @@ export const AREAS: readonly Area[] = [
       { resource: "ospfArea", title: "Areas", columns: ["name", "instance", "areaId", "type", "inactive", "disabled", "comment"], ordered: false, pills: { "inactive": "warn", "disabled": "warn" } },
       { resource: "ospfTemplate", title: "Interface Templates", columns: ["area", "interfaces", "networks", "type", "cost", "passive", "inactive", "disabled", "comment"], ordered: true, pills: { "inactive": "warn", "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "ipsec", title: "IPsec", navGroup: "tunnels", tier: "advanced",
@@ -160,6 +183,7 @@ export const AREAS: readonly Area[] = [
       { resource: "ipsecPeer", title: "Peers", columns: ["name", "address", "exchangeMode", "profile", "passive", "responder", "disabled", "comment"], ordered: false, pills: { "disabled": "warn" } },
       { resource: "ipsecIdentity", title: "Identities", columns: ["peer", "authMethod", "myId", "remoteId", "generatePolicy", "disabled", "comment"], ordered: false, pills: { "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "openvpn", title: "OpenVPN", navGroup: "tunnels", tier: "advanced",
@@ -168,6 +192,7 @@ export const AREAS: readonly Area[] = [
       { resource: "ovpnServer", title: "Servers", columns: ["name", "port", "protocol", "certificate", "auth", "cipher", "inactive", "disabled", "comment"], ordered: false, pills: { "inactive": "warn", "disabled": "warn" } },
       { resource: "ovpnClient", title: "Clients", columns: ["name", "connectTo", "port", "protocol", "user", "addDefaultRoute", "running", "disabled", "comment"], ordered: false, pills: { "running": "good", "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "vrrp", title: "VRRP", navGroup: "network", tier: "advanced",
@@ -175,6 +200,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "vrrp", title: "VRRP Interface", columns: ["name", "interface", "vrid", "priority", "version", "running", "invalid", "disabled", "comment"], ordered: false, pills: { "running": "good", "invalid": "bad", "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "pppoe-clients", title: "PPPoE Clients", navGroup: "tunnels", tier: "advanced",
@@ -182,6 +208,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "pppoeClient", title: "PPPoE Client", columns: ["name", "interface", "user", "serviceName", "addDefaultRoute", "running", "invalid", "disabled", "comment"], ordered: false, pills: { "running": "good", "invalid": "bad", "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "dhcp-clients", title: "DHCP Clients", navGroup: "ipsvc", tier: "advanced",
@@ -189,6 +216,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "dhcpClient", title: "DHCP Client", columns: ["interface", "status", "address", "gateway", "addDefaultRoute", "expiresAfter", "disabled", "comment"], ordered: false, pills: { "status": "state", "disabled": "warn" } },
     ],
+    panels: [],
   },
   {
     key: "dhcp-servers", title: "DHCP Servers", navGroup: "ipsvc", tier: "standard",
@@ -197,6 +225,7 @@ export const AREAS: readonly Area[] = [
       { resource: "dhcpServer", title: "Servers", columns: ["name", "interface", "addressPool", "leaseTime", "authoritative", "invalid", "disabled", "comment"], ordered: false, pills: { "invalid": "bad", "disabled": "warn" } },
       { resource: "dhcpNetwork", title: "Networks", columns: ["address", "gateway", "dnsServer", "domain", "comment"], ordered: false, pills: {} },
     ],
+    panels: [],
   },
   {
     key: "containers", title: "Containers", navGroup: "system", tier: "advanced",
@@ -208,6 +237,7 @@ export const AREAS: readonly Area[] = [
       { resource: "veth", title: "VETH", columns: ["name", "address", "gateway", "running", "disabled", "comment"], ordered: false, pills: { "running": "good", "disabled": "warn" } },
       { resource: "containerConfig", title: "Settings", columns: ["registryUrl", "username", "tmpdir", "layerDir", "memoryHigh", "memoryCurrent"], ordered: false, pills: {} },
     ],
+    panels: [{ key: "apps", title: "Apps" }],
   },
   {
     key: "ip-addresses", title: "IP Addresses", navGroup: "network", tier: "standard",
@@ -216,6 +246,7 @@ export const AREAS: readonly Area[] = [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"], ordered: false, pills: { "disabled": "warn", "dynamic": "info", "invalid": "bad" } },
       { resource: "ipv6Address", title: "IPv6", columns: ["address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"], ordered: false, pills: { "disabled": "warn", "dynamic": "info", "invalid": "bad" } },
     ],
+    panels: [],
   },
 ];
 

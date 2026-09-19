@@ -52,6 +52,7 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			return ToolsPingPayload{Result: &r}
 		},
 		"tools:caps": func() any { return ToolsCapsPayload{Interfaces: []string{}} },
+		"apps:state": func() any { return emptyApps("", "", "") },
 		"secscan:result": func() any {
 			rep := secscan.Run(secscan.Inputs{Rows: map[string][]secscan.Row{}, Absent: map[string]bool{}})
 			return SecScanPayload{Report: &rep}

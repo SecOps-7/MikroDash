@@ -40,6 +40,7 @@ import { initWifiPage } from './pages/wifi';
 import { initCapsmanPage } from './pages/capsman';
 import { initInterfacesPage, resetInterfacesPage } from './pages/interfaces';
 import { initAreaPages, mountAreaNav, resetAreaPages } from './pages/area';
+import { initContainersApps } from './pages/containers-apps';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -596,6 +597,9 @@ async function main(): Promise<void> {
   initCapsmanPage(socket, pageVisible);
   initInterfacesPage(socket, pageVisible);
   // EVERY GENERATED PAGE, from one call: see internal/areas and web/src/pages/area.ts.
+  // Before the area pages, so the Containers page's Apps panel is registered
+  // when its tabs are first drawn.
+  initContainersApps(socket);
   initAreaPages(socket, pageVisible);
   initLogsPage(socket, pageVisible);
   initTopologyPage(socket, pageVisible);
