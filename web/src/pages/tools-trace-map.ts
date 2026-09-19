@@ -46,6 +46,14 @@ import type { TracerouteResult } from '../gen/payloads';
 const NS = 'http://www.w3.org/2000/svg';
 const WORLD = { x: 0, y: 0, w: 1000, h: 500 };
 
+// THE PACE, in one place. Slowed by about half on the operator's request
+// (2026-09-19): a hop's line took under a second and a burst of hops blurred.
+const LINE_MS_MIN = 1100;   // a short hop's flight
+const LINE_MS_PER = 8;      // plus this per map unit of line
+const LINE_MS_MAX = 3200;   // an ocean crossing
+const PAUSE_MS = 400;       // between one landing and the next flight
+const ZOOM_MS = 1000;       // the view easing to the route
+
 type Pt = [number, number];
 
 export interface TraceStep {
@@ -235,7 +243,7 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
     const t0 = performance.now();
     const step = (now: number): void => {
       if (g !== gen) return;
-      const k = Math.min(1, (now - t0) / 600);
+      const k = Math.min(1, (now - t0) / ZOOM_MS);
       const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
       setView({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e,
         w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e });
@@ -262,7 +270,7 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
     if (s.hop !== 0 && !reduced()) {
       const ripple = svgEl('circle', { cx: s.at[0], cy: s.at[1], class: 'trace-ripple' });
       marks.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 1700);
+      setTimeout(() => ripple.remove(), 2300);
     }
     landed.add(s.hop);
     renderList();
@@ -279,7 +287,7 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
     if (!s.from || reduced() || typeof requestAnimationFrame !== 'function') {
       if (s.from) lines.appendChild(svgEl('path', { d: arcD(s.from, s.at), class: 'trace-line' }));
       land(s);
-      setTimeout(next, reduced() ? 0 : 180);
+      setTimeout(next, reduced() ? 0 : PAUSE_MS);
       return;
     }
     const path = svgEl('path', { d: arcD(s.from, s.at), class: 'trace-line' }) as SVGPathElement;
@@ -289,7 +297,7 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
     path.style.strokeDashoffset = String(len);
     const comet = svgEl('circle', { class: 'trace-comet' });
     marks.appendChild(comet);
-    const dur = Math.min(1600, 450 + len * 4);
+    const dur = Math.min(LINE_MS_MAX, LINE_MS_MIN + len * LINE_MS_PER);
     const t0 = performance.now();
     const step = (now: number): void => {
       if (g !== gen) return;
@@ -304,7 +312,7 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
       path.style.strokeDashoffset = '';
       comet.remove();
       land(s);
-      setTimeout(next, 120);
+      setTimeout(next, PAUSE_MS);
     };
     requestAnimationFrame(step);
   }

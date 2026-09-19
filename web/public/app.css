@@ -2036,7 +2036,7 @@
     .trace-dot{r:calc(3.4px * var(--k));fill:var(--accent-rx);stroke:var(--bg-deep);stroke-width:calc(1px * var(--k))}
     .trace-home{r:calc(4.6px * var(--k));fill:var(--accent-tx);stroke:var(--bg-deep);stroke-width:calc(1.2px * var(--k))}
     .trace-ripple{r:calc(4px * var(--k));fill:none;stroke:var(--accent-rx);stroke-width:calc(1.4px * var(--k));
-      transform-box:fill-box;transform-origin:center;pointer-events:none;animation:rtrmap-ripple 1.6s cubic-bezier(.2,.6,.35,1) 1 forwards}
+      transform-box:fill-box;transform-origin:center;pointer-events:none;animation:rtrmap-ripple 2.2s cubic-bezier(.2,.6,.35,1) 1 forwards}
     .trace-label{font-family:var(--font-mono);font-size:calc(10px * var(--k));font-weight:700;fill:var(--text-main);
       transform:translate(calc(6px * var(--k)),calc(-6px * var(--k)));paint-order:stroke;stroke:var(--bg-deep);stroke-width:calc(2.5px * var(--k))}
     .trace-hops{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.35rem;overflow:auto;height:clamp(240px,46vh,460px);font-size:.72rem}
