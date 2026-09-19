@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/coder/websocket v1.8.15
-	github.com/evanw/esbuild v0.25.12
+	github.com/evanw/esbuild v0.28.2
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/go-routeros/routeros/v3 v3.0.1
 	github.com/oschwald/maxminddb-golang v1.13.1

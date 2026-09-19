@@ -12,9 +12,9 @@
 // emits nothing, so a contributor without Node can still produce a correct
 // build, which was not true before.
 //
-// The esbuild VERSION is pinned to the one `web/package-lock.json` holds
-// (0.25.12). A different version can bundle differently, and the point of this
-// change is that the output does not move.
+// The esbuild VERSION matches the one `web/package-lock.json` holds, so the web
+// tests bundle exactly as this build does; internal/verify's
+// TestBothEsbuildsAreTheSameVersion holds the two together.
 //
 //	go run ./cmd/webbuild            # build once
 //	go run ./cmd/webbuild -watch     # rebuild on change
