@@ -321,7 +321,11 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   }
   const svg = el('traceMap') as unknown as SVGSVGElement | null;
   const hops = el('traceHopList');
-  if (svg && hops) traceMap = createTraceMap(svg, hops, el('traceMapEmpty'));
+  const wrap = el('traceMapWrap');
+  if (svg && hops && wrap) {
+    traceMap = createTraceMap({ svg, wrap, list: hops, empty: el('traceMapEmpty'), tip: el('traceTip'),
+      zoomIn: el('traceZoomIn'), zoomOut: el('traceZoomOut'), fit: el('traceZoomFit') });
+  }
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => {
       for (const id of ['pingScroll', 'torchScroll']) {

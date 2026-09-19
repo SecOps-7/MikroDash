@@ -20,7 +20,7 @@ import { el, iso2Flag } from '../dom';
 import type { Socket } from '../socket';
 import { CC_NAMES } from './connections-map';
 import {
-  createWorldMap, attachMapZoom, bindMapTooltip, bindMapFullscreen, type WorldMap,
+  createWorldMap, attachMapZoom, bindZoomButtons, bindMapTooltip, bindMapFullscreen, type WorldMap,
 } from './connections-worldmap';
 import {
   SPARK_LEN, syncCountryList, portListHTML, portsFromDests,
@@ -69,12 +69,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     const wrap = el('worldMapWrap');
     if (wrap) {
       const zoom = attachMapZoom(wrap, mapSvg);
-      el('mapZoomIn')?.addEventListener('click', () => wrap.dispatchEvent(
-        new WheelEvent('wheel', { deltaY: -100, clientX: wrap.getBoundingClientRect().width / 2,
-          clientY: wrap.getBoundingClientRect().height / 2, bubbles: true, cancelable: true })));
-      el('mapZoomOut')?.addEventListener('click', () => wrap.dispatchEvent(
-        new WheelEvent('wheel', { deltaY: 100, clientX: wrap.getBoundingClientRect().width / 2,
-          clientY: wrap.getBoundingClientRect().height / 2, bubbles: true, cancelable: true })));
+      bindZoomButtons(wrap, el('mapZoomIn'), el('mapZoomOut'));
       el('mapZoomReset')?.addEventListener('click', zoom.reset);
       bindMapFullscreen(wrap, mapSvg, zoom, {
         btn: el('mapFullscreenBtn'), overlay: el('mapFsOverlay'), close: el('mapFsClose'),

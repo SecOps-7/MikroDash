@@ -86,9 +86,17 @@
             </form>
             <!-- The route on a map, drawn as it is found: tools-trace-map.ts. -->
             <div class="trace-card" id="traceMapCard">
-              <div class="trace-map-wrap">
+              <div class="trace-map-wrap" id="traceMapWrap">
                 <svg class="trace-map" id="traceMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-label="The route on a world map"></svg>
                 <div class="trace-map-empty" id="traceMapEmpty">Run a trace to draw its route</div>
+                <!-- Wheel, drag and these: the Connections map's zoom. Fit hands the
+                     view back to the route. -->
+                <div class="trace-map-ctrls">
+                  <button class="trace-map-btn" id="traceZoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+                  <button class="trace-map-btn" id="traceZoomOut" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+                  <button class="trace-map-btn" id="traceZoomFit" type="button" title="Fit the route" aria-label="Fit the route">⤢</button>
+                </div>
+                <div class="trace-tip" id="traceTip"></div>
               </div>
               <div class="trace-hops" id="traceHopList"></div>
             </div>

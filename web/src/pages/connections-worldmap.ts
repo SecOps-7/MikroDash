@@ -356,6 +356,25 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
 }
 
 /**
+ * The + and − buttons of a map zoomed by attachMapZoom: each is a wheel step
+ * at the map's centre, so buttons and wheel are one zoom.
+ *
+ * THE CENTRE IS IN PAGE COORDINATES. The wheel handler subtracts the wrapper's
+ * own left and top, and the Connections page's buttons passed half its width
+ * and height without adding them back, so a button zoomed towards a point off
+ * to the left of the centre by the wrapper's offset.
+ */
+export function bindZoomButtons(wrap: HTMLElement, zoomIn: HTMLElement | null, zoomOut: HTMLElement | null): void {
+  const step = (deltaY: number) => (): void => {
+    const r = wrap.getBoundingClientRect();
+    wrap.dispatchEvent(new WheelEvent('wheel', { deltaY, clientX: r.left + r.width / 2,
+      clientY: r.top + r.height / 2, bubbles: true, cancelable: true }));
+  };
+  zoomIn?.addEventListener('click', step(-100));
+  zoomOut?.addEventListener('click', step(100));
+}
+
+/**
  * Zoom and pan, as a CSS transform on the whole <svg>.
  *
  * Not an SVG viewBox: the transform is composited by the browser, so a drag

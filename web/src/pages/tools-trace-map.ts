@@ -26,8 +26,19 @@
 // far, padded, at least a region wide, and kept at the map's 2:1. Marks are
 // sized by `--k`, the view's scale, so they stay the same size on screen at any
 // zoom.
+//
+// ── AND THE OPERATOR CAN TAKE IT OVER ───────────────────────────────────────
+//
+// Wheel, the + and − buttons and dragging are the Connections map's own
+// (`attachMapZoom`, a CSS transform over the fitted view). Once the operator
+// zooms, the view stops following the route, which would otherwise pull the
+// map out from under them at the next hop; Fit hands it back. `--k` divides by
+// their zoom too, so the marks do not swell as they zoom in.
+//
+// Hovering a mark shows every hop at that point: a private hop has no place of
+// its own and sits on the one before it, so one dot can stand for several.
 
-import { loadCountries } from './connections-worldmap';
+import { loadCountries, attachMapZoom, bindZoomButtons } from './connections-worldmap';
 import { project } from './connections-map';
 import { esc, iso2Flag } from '../dom';
 import type { TracerouteResult } from '../gen/payloads';
@@ -121,7 +132,21 @@ export interface TraceMap {
   clear: () => void;
 }
 
-export function createTraceMap(svg: SVGSVGElement, list: HTMLElement, empty: HTMLElement | null): TraceMap {
+/** The card's elements: the map, its wrapper, the hop list, the empty note,
+ *  the hover tip and the zoom buttons. */
+export interface TraceMapEls {
+  svg: SVGSVGElement;
+  wrap: HTMLElement;
+  list: HTMLElement;
+  empty: HTMLElement | null;
+  tip: HTMLElement | null;
+  zoomIn: HTMLElement | null;
+  zoomOut: HTMLElement | null;
+  fit: HTMLElement | null;
+}
+
+export function createTraceMap(els: TraceMapEls): TraceMap {
+  const { svg, wrap, list, empty, tip } = els;
   const countries = svgEl('g', { class: 'trace-countries' });
   const lines = svgEl('g', {});
   const marks = svgEl('g', {});
@@ -144,15 +169,65 @@ export function createTraceMap(svg: SVGSVGElement, list: HTMLElement, empty: HTM
   let playing = false;
   const points: Pt[] = [];
   const landed = new Set<number>();
+  const drawn: TraceStep[] = [];
   let last: TracerouteResult | null = null;
   let view: Box = { ...WORLD };
+  let manual = false;        // the operator zoomed: stop following the route
+  let userScale = 1;         // their zoom, read back from attachMapZoom's transform
 
   function setView(b: Box): void {
     view = b;
     svg.setAttribute('viewBox', b.x.toFixed(2) + ' ' + b.y.toFixed(2) + ' ' + b.w.toFixed(2) + ' ' + b.h.toFixed(2));
-    svg.style.setProperty('--k', (b.w / WORLD.w).toFixed(4));
+    svg.style.setProperty('--k', (b.w / WORLD.w / userScale).toFixed(4));
   }
   setView(WORLD);
+
+  const zoom = attachMapZoom(wrap, svg);
+  bindZoomButtons(wrap, els.zoomIn, els.zoomOut);
+  // Registered after attachMapZoom's own, so it reads the zoom just applied.
+  wrap.addEventListener('wheel', () => {
+    manual = true;
+    const m = /scale\(([\d.]+)\)/.exec(svg.style.transform || '');
+    userScale = m ? Number(m[1]) : 1;
+    setView(view);
+  }, { passive: true });
+  const refit = (): void => {
+    manual = false;
+    userScale = 1;
+    zoom.reset();
+    setView(view);
+    zoomTo(fitBox(points));
+  };
+  els.fit?.addEventListener('click', refit);
+
+  // ── THE HOVER TIP ─────────────────────────────────────────────────────────
+  function tipFor(at: Pt): string {
+    const here = drawn.filter((d) => same(d.at, at));
+    return here.map((d) => {
+      if (d.hop === 0) return '<div class="trace-tip-row"><b>This router</b> · ' + esc(last?.origin?.label || '') + '</div>';
+      const h = last?.hops.find((x) => x.hop === d.hop);
+      if (!h) return '';
+      const where = h.city || h.country
+        ? (h.country ? iso2Flag(h.country) + ' ' : '') + esc([h.city, h.country].filter(Boolean).join(', '))
+        : 'private or unknown address';
+      return '<div class="trace-tip-row"><b>Hop ' + h.hop + '</b> · ' + where + '<br><span class="trace-tip-ip">' + esc(h.address) +
+        '</span> · ' + fmtMs(h.lastMs) + (h.bestMs != null && h.worstMs != null && h.bestMs !== h.worstMs
+          ? ' (best ' + fmtMs(h.bestMs) + ', worst ' + fmtMs(h.worstMs) + ')' : '') + ' · ' + h.lossPct + '% loss</div>';
+    }).join('');
+  }
+  svg.addEventListener('pointermove', (e) => {
+    if (!tip) return;
+    const mark = (e.target as Element | null)?.closest?.('[data-hop]');
+    const at = mark?.getAttribute('data-at');
+    if (!at) { tip.style.display = 'none'; return; }
+    const [x, y] = at.split(',').map(Number) as [number, number];
+    tip.innerHTML = tipFor([x, y]);
+    const r = wrap.getBoundingClientRect();
+    tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX - r.left + 14, r.width - tip.offsetWidth - 6) + 'px';
+    tip.style.top = Math.max(6, e.clientY - r.top - tip.offsetHeight - 10) + 'px';
+  });
+  svg.addEventListener('pointerleave', () => { if (tip) tip.style.display = 'none'; });
 
   function zoomTo(to: Box): void {
     const g = gen, from = { ...view };
@@ -171,8 +246,10 @@ export function createTraceMap(svg: SVGSVGElement, list: HTMLElement, empty: HTM
 
   function land(s: TraceStep): void {
     const hop = s.hop === 0 ? null : last?.hops.find((h) => h.hop === s.hop);
+    drawn.push(s);
     if (s.located) {
-      marks.appendChild(svgEl('circle', { cx: s.at[0], cy: s.at[1], class: s.hop === 0 ? 'trace-home' : 'trace-dot' }));
+      marks.appendChild(svgEl('circle', { cx: s.at[0], cy: s.at[1], class: s.hop === 0 ? 'trace-home' : 'trace-dot',
+        'data-hop': s.hop, 'data-at': s.at[0] + ',' + s.at[1] }));
       const text = svgEl('text', { x: s.at[0], y: s.at[1], class: 'trace-label' });
       text.textContent = s.hop === 0 ? (last?.origin?.label || 'This router') : String(s.hop);
       labels.appendChild(text);
@@ -189,7 +266,7 @@ export function createTraceMap(svg: SVGSVGElement, list: HTMLElement, empty: HTM
     }
     landed.add(s.hop);
     renderList();
-    if (s.located) zoomTo(fitBox(points));
+    if (s.located && !manual) zoomTo(fitBox(points));
   }
 
   function play(): void {
@@ -268,7 +345,12 @@ export function createTraceMap(svg: SVGSVGElement, list: HTMLElement, empty: HTM
       queue.length = 0;
       playing = false;
       points.length = 0;
+      drawn.length = 0;
       landed.clear();
+      manual = false;
+      userScale = 1;
+      zoom.reset();
+      if (tip) tip.style.display = 'none';
       for (const cc of lit) countryEls[cc]?.classList.remove('active');
       lit.clear();
       last = null;
