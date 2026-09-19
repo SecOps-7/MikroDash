@@ -171,8 +171,17 @@ type streamFill struct {
 	// quietSince is when the current run of silence began, reset by any row and
 	// by an intentional reopen. See the empty-table rule in watch.
 	quietSince time.Time
-	// done stops the watchdog. Owned by whichever entry point opened the fill.
+	// done stops the watchdog. Made with the fill, under the cache's lock, so a
+	// release can never find it nil.
 	done chan struct{}
+	// openMu SERIALISES CHANGING THE CHANNEL: a join's or release's reopen and
+	// the watchdog's restart. Each decided under f.mu and opened outside it, so
+	// two together opened two channels and the second overwrote the first's
+	// stop. Held across Stream; never taken while holding f.mu or c.mu.
+	openMu sync.Mutex
+	// gen counts successful opens, so the watchdog can tell whether the
+	// channel it judged dead is still the one open when it gets openMu.
+	gen int
 }
 
 // Join is one holder's claim on a SHARED stream-filled menu.
@@ -272,6 +281,7 @@ func (c *Cache) JoinStream(j Join) (func(), error) {
 		f = newFill(j.Cmd, j.KeyOf, j.Boundary, check, stale)
 		f.shared = j.Merge != nil
 		f.holders = map[int]Join{}
+		f.done = make(chan struct{})
 		c.fills[j.Menu] = f
 	}
 	f.mu.Lock()
@@ -302,7 +312,6 @@ func (c *Cache) JoinStream(j Join) (func(), error) {
 		return nil, err
 	}
 	if !existing {
-		f.done = make(chan struct{})
 		go f.watch(s, f.done)
 	}
 
@@ -387,6 +396,8 @@ func (f *streamFill) tightenBoundaryLocked(b time.Duration) {
 // A NO-OP WHEN IT HAS NOT, which is the common case: a second holder that wants
 // a subset of what is already open costs nothing at all.
 func (f *streamFill) reopenFor(s Streamer, cmd routeros.Cmd) error {
+	f.openMu.Lock()
+	defer f.openMu.Unlock()
 	f.mu.Lock()
 	if f.stop != nil && sameCmd(f.cmd, cmd) {
 		f.mu.Unlock()
@@ -527,6 +538,7 @@ func (f *streamFill) open(s Streamer) error {
 	}
 	f.stop, f.lastRow = stop, time.Now()
 	f.openedAt = f.lastRow
+	f.gen++
 	f.mu.Unlock()
 	return nil
 }
@@ -701,6 +713,8 @@ func (f *streamFill) snapshot() []routeros.Reply {
 }
 
 func (f *streamFill) close() {
+	f.openMu.Lock()
+	defer f.openMu.Unlock()
 	f.mu.Lock()
 	stop := f.stop
 	f.stop, f.closed = nil, true
@@ -766,14 +780,25 @@ func (f *streamFill) watch(s Streamer, done <-chan struct{}) {
 
 			quiet := time.Since(f.lastRow)
 			shut := f.closed
-			stop := f.stop
+			gen := f.gen
 			f.mu.Unlock()
 			if shut || quiet < f.stale {
 				continue
 			}
 
 			// STOPPED AND REOPENED, not closed: `close` sets `closed` and this
-			// fill must survive its own restart.
+			// fill must survive its own restart. Under openMu, and only if the
+			// channel is still the one judged dead: a join may have reopened it
+			// since, or a release closed the fill.
+			f.openMu.Lock()
+			f.mu.Lock()
+			if f.closed || f.gen != gen {
+				f.mu.Unlock()
+				f.openMu.Unlock()
+				continue
+			}
+			stop := f.stop
+			f.mu.Unlock()
 			if stop != nil {
 				stop()
 			}
@@ -799,6 +824,7 @@ func (f *streamFill) watch(s Streamer, done <-chan struct{}) {
 			f.lastRow = time.Now()
 			f.mu.Unlock()
 			_ = f.open(s)
+			f.openMu.Unlock()
 		}
 	}
 }
