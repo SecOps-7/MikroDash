@@ -60,3 +60,31 @@ func TestConcurrentJoinsOpenOneChannel(t *testing.T) {
 		}
 	}
 }
+
+// TestStreamSnapshotNeverReads. The rates path asked Streaming and then Get, and
+// a fill released between the two fell through to Get's read: a bare
+// /interface/monitor-traffic command. StreamSnapshot answers from a fill or not
+// at all (review loop).
+func TestStreamSnapshotNeverReads(t *testing.T) {
+	p := &pusher{}
+	c := New(p)
+	if rows, ok := c.StreamSnapshot("/interface/monitor-traffic"); ok || rows != nil {
+		t.Errorf("no fill answered %v, %v", rows, ok)
+	}
+	release, err := c.JoinStream(Join{Menu: "/interface/monitor-traffic",
+		Cmd: routeros.Cmd{Path: "/interface/monitor-traffic"}, KeyOf: byName, Merge: mergeIfaces})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.push(routeros.Reply{"name": "ether1"}, routeros.Reply{"name": "ether1"})
+	if rows, ok := c.StreamSnapshot("/interface/monitor-traffic"); !ok || len(rows) != 1 {
+		t.Errorf("a live fill answered %v, %v; want its one row", rows, ok)
+	}
+	release()
+	if _, ok := c.StreamSnapshot("/interface/monitor-traffic"); ok {
+		t.Error("a released fill still answers as streaming")
+	}
+	if _, _, reads := p.counts(); reads != 0 {
+		t.Errorf("%d read(s) were issued; StreamSnapshot must never read", reads)
+	}
+}

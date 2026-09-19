@@ -885,6 +885,21 @@ func (c *Cache) fillFor(menu string) *streamFill {
 // take its own measurement instead, and an open-but-unwarmed channel would send
 // it away with nothing -- the same race that emptied the DHCP page, arriving
 // from the other direction.
+// StreamSnapshot is a streamed menu's rows, or false when it is not streaming.
+//
+// ONE LOOKUP, for a caller that wants the channel's rows and never a read:
+// `Streaming` then `Get` let a fill released between the two calls fall through
+// to Get's READ, which for `/interface/monitor-traffic` is a bare command the
+// caller never meant to send. A fill released after this takes its pointer
+// still answers from its last rows.
+func (c *Cache) StreamSnapshot(menu string) ([]routeros.Reply, bool) {
+	f := c.fillFor(menu)
+	if f == nil || !f.authoritative() {
+		return nil, false
+	}
+	return f.snapshot(), true
+}
+
 func (c *Cache) Streaming(menu string) bool {
 	f := c.fillFor(menu)
 	return f != nil && f.authoritative()

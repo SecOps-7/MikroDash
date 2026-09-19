@@ -974,11 +974,13 @@ func (s *IfStatus) stopRateChannel() {
 // state: a partial answer is still an answer, because a missing interface costs
 // exactly its own rate rather than the whole reading.
 func (s *IfStatus) ratesFromChannel(names []string) (map[string]Rate, bool) {
-	if s.cache == nil || !s.cache.Streaming(monitorTrafficMenu) {
+	if s.cache == nil {
 		return nil, false
 	}
-	rows, err := s.cache.Get(monitorTrafficMenu, nil, 0)
-	if err != nil || len(rows) == 0 {
+	// ONE CALL: a Streaming check then a Get could fall through to a real
+	// read of this menu if the channel closed in between. See StreamSnapshot.
+	rows, ok := s.cache.StreamSnapshot(monitorTrafficMenu)
+	if !ok || len(rows) == 0 {
 		return nil, false
 	}
 	want := make(map[string]bool, len(names))
