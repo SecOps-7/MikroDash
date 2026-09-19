@@ -2,6 +2,33 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.64] - Security Scan, an app store for containers, and a Tools page that draws the route
+
+### New
+
+- **Security Scan** (Security, Security Scan): audits the router's management access,
+  firewall, services, accounts, updates, wireless and certificates, scores it out of 100,
+  and links every finding to the page that fixes it. Rescan anytime.
+- **Security Score card** on the Dashboard (Edit, add "Security Score"): the score, issues
+  by severity and a Rescan. It scans a router on its own only when it has no score yet.
+- **The AI Agent can check security:** ask "how secure is this router?" and it runs a
+  fresh scan and answers with the score, the worst issues and how to fix them.
+- **Apps tab** on System, Containers: browse RouterOS's app store (7.21+) and install an
+  app in one click, with live progress, Open, Start, Stop, Restart and Remove (the name
+  must be typed to remove). A setup card picks the disk. Global admins only.
+- **Tools:** a traceroute map with the path drawn hop by hop (zoom, drag, hover a hop for
+  details); live ping cards with a score out of 100; continuous ping and torch; a red Stop
+  on every run; bandwidth test gauges.
+- **API Diagnostics card** now counts every command sent to a router and shows who asked
+  (collectors, Security Scan, Apps, Tools, AI Agent, pages) and the busiest menus.
+- **README** rewritten.
+
+### Fixed
+
+- **Devices:** only the selected router shows "active"; every router did.
+- **Torch:** Rx and Tx in the app's blue and green, protocols as coloured pills.
+- **Long ping and torch runs** scroll inside their tables instead of past the page.
+
 ## [0.8.63] - Dependencies brought up to date
 
 ### Internal

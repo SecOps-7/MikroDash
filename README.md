@@ -120,14 +120,14 @@ A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/
 
 | | |
 |---|---|
-| 📊 **Dashboard** | A drag-and-drop grid of cards (traffic, system health, network topology, connections, top talkers, WireGuard, and optional cards such as a world connections map, BGP peers, NetWatch, logs and API diagnostics). Layouts are saved to your account, so every browser shows the same arrangement. |
+| 📊 **Dashboard** | A drag-and-drop grid of cards (traffic, system health, network topology, connections, top talkers, WireGuard, and optional cards such as a world connections map, BGP peers, NetWatch, logs, a Security Score, and API diagnostics that show every router command by who asked for it). Layouts are saved to your account, so every browser shows the same arrangement. |
 | 🛰️ **Multi-router fleet** | Manage many routers from one install. Switch from the header with no reload; the **Devices** page shows the whole fleet as cards, a sortable list or a world map, filterable by site. |
 | 🔐 **Users and access control** | Per-user accounts with editable roles (a read and write matrix per page), granted to users or groups over everything, a site, or a single router. |
 | 🔔 **Alerts and notifications** | Interface up/down, WireGuard peers, CPU, ping loss, NetWatch hosts, router online/offline, RouterOS updates, configuration drift and backup failures, delivered to Telegram, Pushbullet, ntfy and email, with cooldowns and editable templates. |
 | 📈 **History and reports** | Traffic, ping, bandwidth, alerts and connectivity recorded to SQLite, viewable by date range, exported to CSV or PDF, and emailed on a daily, weekly or monthly schedule. |
 | 💾 **Backups** | Scheduled configuration backups kept only when something changed, with a unified diff of what moved, retention rules, and a guarded restore. |
 | 🛠️ **Tools** | Ping, traceroute with an animated world map of the hops, torch and bandwidth test, run from the router with live output and a Stop button. |
-| 🛡️ **Security Scan** | Audits the router's configuration (management access, firewall, exposed services, accounts, system, wireless and certificates), scores it, and links each finding to the page where it is fixed. |
+| 🛡️ **Security Scan** | Audits the router's configuration (management access, firewall, exposed services, accounts, system, wireless and certificates), scores it, and links each finding to the page where it is fixed. The score is also a Dashboard card, and the AI Agent can run the scan when you ask how secure a router is. |
 | 🤖 **AI Agent** | An optional assistant that answers questions from live router data and proposes changes through the same checks, audit trail and undo as the forms. Works with any OpenAI-compatible endpoint, including local models. |
 | 📦 **Containers** | RouterOS containers with their env lists, mounts and interfaces, plus an **Apps** tab that browses RouterOS's app store and installs an app in one click. |
 | 🧾 **Audit trail** | Every write, allowed or refused, with who, where, what changed and the outcome. Filterable and exportable to CSV. Credential values are never stored. |
