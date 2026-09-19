@@ -70,7 +70,7 @@ var pruned = map[string]bool{
 //
 // The JavaScript original asked git for the tracked set, which was right for it:
 // it ran on the host, where git exists. These tests run inside
-// `golang:1.25-alpine`, which has NO git, while CI runs them on a runner that
+// `golang:1.27-alpine`, which has NO git, while CI runs them on a runner that
 // does. Asking git would mean the same check reading a different set of files in
 // the two places -- and a check that disagrees with CI about what it looked at is
 // worse than no check.

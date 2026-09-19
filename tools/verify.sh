@@ -85,7 +85,7 @@ else
     -v "$PWD":/src -w /src \
     -v mikrodash-gomod:/go/pkg/mod \
     -v mikrodash-gocache:/root/.cache/go-build \
-    golang:1.25-alpine \
+    golang:1.27-alpine \
     sh -c 'set -e
       unformatted=$(gofmt -l .)
       if [ -n "$unformatted" ]; then echo "gofmt: $unformatted"; exit 1; fi

@@ -23,8 +23,8 @@ Go files here are small and purposeful: read them whole.
 
 ## Commands
 
-Go runs in a container, so no local Go toolchain is needed. **Go 1.25 is required** —
-`golang.org/x/crypto` will not build on 1.23.
+Go runs in a container, so no local Go toolchain is needed. **Go 1.27 is required**: Go
+supports only its two newest releases, and `golang.org/x/crypto` follows them.
 
 ```bash
 # Everything the repo can check: gofmt, vet, `go test ./...`, the generated-code
@@ -35,7 +35,7 @@ sh tools/verify.sh
 sh tools/verify.sh --no-docker   # skip the Go half
 
 # The two halves on their own.
-docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine sh -c "go vet ./... && go test ./..."
+docker run --rm -v "$PWD":/src -w /src golang:1.27-alpine sh -c "go vet ./... && go test ./..."
 cd web && npm test
 
 # The production image: frontend, binary, geo tables, Alpine runtime. /data is its only mount.
@@ -69,16 +69,16 @@ green suite does not substitute for them.
 # Protocol conformance. -data decrypts the router's password out of the store, so
 # no credential is typed, printed or written down.
 docker run --rm --network host -v "$PWD":/src -w /src -v /path/to/data:/data:ro \
-  golang:1.25-alpine go run ./cmd/conformance -data /data -router "<label>"
+  golang:1.27-alpine go run ./cmd/conformance -data /data -router "<label>"
 
 # On-disk compatibility: the store can still read a real /data.
 docker run --rm -v mikrodash_data:/data:ro -v "$PWD":/src -w /src \
-  golang:1.25-alpine go run ./cmd/compat -data /data
+  golang:1.27-alpine go run ./cmd/compat -data /data
 
 # What streaming every interface would cost a router. Run it twice: the CPU delta
 # is noise, and one run reads as a number.
 docker run --rm --network host -v "$PWD":/src -w /src -v mikrodash_data:/data:ro \
-  golang:1.25-alpine go run ./cmd/streamcost -data /data -router "<label>"
+  golang:1.27-alpine go run ./cmd/streamcost -data /data -router "<label>"
 ```
 
 ---

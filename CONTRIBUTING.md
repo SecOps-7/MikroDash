@@ -16,7 +16,7 @@ git clone https://github.com/SecOps-7/MikroDash.git
 cd MikroDash
 ```
 
-You need **Go 1.25+**. **Node 20+** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
+You need **Go 1.27+**. **Node 20+** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
 
 ```sh
 go run ./cmd/webbuild -dir web                    # build the TypeScript frontend into web/dist
@@ -29,7 +29,7 @@ The dashboard is then at <http://localhost:3082> (`-listen` changes the address)
 If you would rather not install a Go toolchain, the Go commands also run in a container:
 
 ```sh
-docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine sh -c "go vet ./... && go build ./..."
+docker run --rm -v "$PWD":/src -w /src golang:1.27-alpine sh -c "go vet ./... && go build ./..."
 ```
 
 **You do not need a MikroTik router to contribute.** MikroDash starts without one and shows the setup wizard, so frontend, documentation and test work need nothing but the toolchain. A reachable RouterOS device is only required to see live data.

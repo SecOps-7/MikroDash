@@ -34,10 +34,10 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          # Must match the Dockerfile. golang.org/x/crypto will not build on 1.23.
-          go-version: '1.25'
+          # Must match the Dockerfile and go.mod.
+          go-version: '1.27'
           cache: true
 
       # gofmt is checked rather than applied: a formatting difference in a PR is
@@ -54,7 +54,7 @@ jobs:
         run: go test ./...
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 

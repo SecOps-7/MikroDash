@@ -3,7 +3,7 @@
 # MikroDash — the Go + TypeScript port, as a self-contained image.
 #
 # Built after cutover (2026-08-30), when the app was still being served by
-# mounting the repo into `golang:1.25-alpine` and running the binary from it.
+# mounting the repo into `golang:1.27-alpine` and running the binary from it.
 # That works and is exactly how the port was developed, but it is not a
 # deployment artifact: it depends on the repo staying at one path on one host,
 # and on a toolchain image that has no business being in production.
@@ -39,7 +39,7 @@
 # --platform=$BUILDPLATFORM: an .mmdb is the same file on every architecture,
 # so downloading it once natively beats downloading it three times, twice
 # under emulation.
-FROM --platform=$BUILDPLATFORM alpine:3.20 AS geodata
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS geodata
 RUN apk add --no-cache curl
 RUN set -eux; \
     this=$(date -u +%Y-%m); \
@@ -70,7 +70,7 @@ RUN set -eux; \
 # is no C toolchain to arrange, so emulating anything here buys nothing. The
 # binary is the ONLY per-architecture artefact; everything else this stage
 # produces is identical across all three.
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 # Supplied by buildx per target. GOARM wants the bare number, hence the ${..#v}.
 ARG TARGETOS TARGETARCH TARGETVARIANT
 WORKDIR /src
@@ -96,7 +96,7 @@ COPY --from=geodata /dbip.mmdb /geo/dbip-city-lite.mmdb
 RUN go run ./cmd/geogen -mmdb /geo/dbip-city-lite.mmdb -out /geo/cities.json
 
 # ── runtime ───────────────────────────────────────────────────────────────
-FROM alpine:3.20
+FROM alpine:3.24
 # ca-certificates: the notification transports talk TLS to Telegram, SMTP and
 # ntfy, and an image with no roots fails all three at the moment they matter.
 # tzdata: `alertTimestamp` calls time.LoadLocation with the install's display

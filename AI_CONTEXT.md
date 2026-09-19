@@ -27,7 +27,7 @@ them goes through a guard that can refuse it.
 
 | | |
 |---|---|
-| Backend | Go 1.25, standard library plus five dependencies |
+| Backend | Go 1.27, standard library plus five dependencies |
 | Frontend | TypeScript, bundled with esbuild, no framework |
 | Database | SQLite via `modernc.org/sqlite` — pure Go, no cgo, which is what keeps the binary static |
 | Transport | `github.com/coder/websocket` |
