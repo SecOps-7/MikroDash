@@ -188,6 +188,8 @@ type Server struct {
 	// backupSched takes scheduled backups. Nil unless `-backup-scheduler`.
 	// STARTED BY NOBODY even when built: `Scheduler.Start` is the cutover step.
 	backupSched *backups.Scheduler
+	// reportSched sends due report schedules. Nil unless `-alert-dispatch`.
+	reportSched *reportScheduler
 	// The daily retention sweep. Nil unless -retention was passed.
 	pruneSched *pruneScheduler
 	// historyWire is built early, because the always-on pool must be given it
@@ -461,6 +463,12 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// the guard is not decoration.
 	if srv.backupSched != nil {
 		srv.backupSched.Start(0)
+	}
+	// The report scheduler, behind the switch for sending messages. See
+	// report_scheduler.go.
+	srv.reportSched = srv.buildReportScheduler(opts.AlertDispatch)
+	if srv.reportSched != nil {
+		srv.reportSched.Start()
 	}
 	// ── THE DAILY RETENTION SWEEP ─────────────────────────────────────────
 	//
@@ -760,6 +768,9 @@ func (s *Server) Shutdown() {
 	}
 	if s.backupSched != nil {
 		s.backupSched.Stop()
+	}
+	if s.reportSched != nil {
+		s.reportSched.Stop()
 	}
 	// ── AND THE RETENTION SWEEP, WHICH NOTHING STOPPED ────────────────────
 	//

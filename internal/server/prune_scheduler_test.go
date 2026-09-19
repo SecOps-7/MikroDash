@@ -189,6 +189,8 @@ func TestEveryStartupActionIsGated(t *testing.T) {
 			"it writes files to routers"},
 		{"the alert dispatch", `buildAlertDispatch\(opts\.AlertDispatch\)`,
 			"it sends messages that cannot be un-received"},
+		{"the report scheduler", `buildReportScheduler\(opts\.AlertDispatch\)`,
+			"it emails reports, and two processes would each send them"},
 		{"the history recorder", `buildHistoryWire\(opts\.History\)`,
 			"it writes rows a second process would double"},
 	} {

@@ -95,7 +95,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 			_ = s.auditDB.RecordReportRun(db.ReportRun{
 				ScheduleID: row.ID, RanAt: started.UnixMilli(),
 				PeriodFrom: period.From, PeriodTo: period.To,
-				Outcome: res.Outcome, Source: "manual", Actor: actor,
+				Outcome: res.Outcome, Source: runSource(sess), Actor: actor,
 				Recipients: res.Recipients, Bytes: res.Bytes, Rows: res.Rows,
 				Ms: time.Since(started).Milliseconds(), Error: errp,
 			})
@@ -326,16 +326,23 @@ func (s *Server) routerExists(routerID string) (string, bool) {
 	return routerID, false
 }
 
-// isModern is the live `_authMode() === 'modern'`, read off the session because
-// that is where this port carries the install's auth mode.
+// isModernSession is the live `_authMode() === 'modern'`.
 //
-// A manual "Send now" always has one. The scheduled tick will not, and when it
-// is built it must get the mode from somewhere else rather than defaulting to
-// false here — false is the PERMISSIVE answer for a schedule with no creator,
-// so a tick that guessed would let pre-authentication schedules keep mailing on
-// an install that has since enabled authentication.
+// A manual "Send now" carries a session. The scheduled tick has none, and it
+// answers TRUE: every session this process mints is modern (localSession), so
+// the install is, and true is also the STRICT answer, the one that disables a
+// schedule with no creator rather than letting it keep mailing.
 func isModernSession(sess *Session) bool {
-	return sess != nil && sess.AuthMode == "modern"
+	return sess == nil || sess.AuthMode == "modern"
+}
+
+// runSource is how a run is recorded: "manual" for "Send now", the column's
+// default "schedule" for the tick.
+func runSource(sess *Session) string {
+	if sess != nil {
+		return "manual"
+	}
+	return "schedule"
 }
 
 // creatorMayRead asks whether the NAMED user who created this schedule may still
