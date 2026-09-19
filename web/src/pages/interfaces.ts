@@ -202,6 +202,18 @@ export function renderIfPorts(ifaces: Interface[]): void {
   }).join('');
 }
 
+/** Set by initInterfacesPage: forgets everything learned from the router being left. */
+let forgetRouter: () => void = () => {};
+
+/**
+ * A router switch. The peaks and the sparkline history are per interface NAME,
+ * and two routers share names: B's ether1 drew A's cliff and scaled its bar to
+ * A's peak until the history rolled over.
+ */
+export function resetInterfacesPage(): void {
+  forgetRouter();
+}
+
 export function initInterfacesPage(socket: Socket, isVisible: (page: string) => boolean): void {
   const ifaceGrid = el('ifaceGrid');
   // A tile or a list row opens the resource form: its comment, or enabling and
@@ -220,6 +232,11 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
   // Per-interface ring buffer of combined rx+tx Mbps samples for the sparkline.
   // 30 samples at ~5 s poll interval = ~2.5 min of trend history.
   const history: Record<string, number[]> = {};
+  forgetRouter = () => {
+    lastIfaces = [];
+    for (const k of Object.keys(peaks)) delete peaks[k];
+    for (const k of Object.keys(history)) delete history[k];
+  };
 
   // No sort until a header is clicked, so the default order stays the router's
   // own, matching the tile view.

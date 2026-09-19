@@ -468,9 +468,19 @@ const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
 
   if (!switchRouterBody) {
     problems.push('main.ts has no switchRouter function — this check no longer knows what to ask');
-  } else if (!callsIn(switchRouterBody).has('resetSysMeta')) {
-    problems.push('switchRouter does not call resetSysMeta — the new router would show the ' +
-      'PREVIOUS board name, version and CPU count under its own gauges');
+  } else {
+    if (!callsIn(switchRouterBody).has('resetSysMeta')) {
+      problems.push('switchRouter does not call resetSysMeta — the new router would show the ' +
+        'PREVIOUS board name, version and CPU count under its own gauges');
+    }
+    // The pages that accumulate per router (review loop): without these, B's
+    // ether1 sparkline drew A's history and a generated table showed A's rows.
+    for (const fn of ['resetInterfacesPage', 'resetVlansPage', 'resetAreaPages']) {
+      if (!callsIn(switchRouterBody).has(fn)) {
+        problems.push('switchRouter does not call ' + fn + ' — that page keeps the previous ' +
+          "router's data under the new router's name");
+      }
+    }
   }
   if (!callsIn(sf).has('initDashboard')) {
     problems.push('main.ts never calls initDashboard — nothing is wired at boot');

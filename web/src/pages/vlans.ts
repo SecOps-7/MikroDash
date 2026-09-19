@@ -69,6 +69,14 @@ function rateLine(dir: string, mbps: number | null, history: number[]): string {
     '</div>';
 }
 
+/** Set by initVlansPage: forgets everything learned from the router being left. */
+let forgetRouter: () => void = () => {};
+
+/** A router switch: VLAN ids repeat across routers, so the trend lines must not. */
+export function resetVlansPage(): void {
+  forgetRouter();
+}
+
 export function initVlansPage(socket: Socket, isVisible: (page: string) => boolean): void {
   const tbody = el('vlansTable');
   const theadRow = el('vlansThead');
@@ -78,6 +86,10 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
   const sort: SortState = { col: 'vlanId', dir: 'asc' };
   let showDynamic = false;
   const hist: Record<number, { rx: number[]; tx: number[] }> = {};
+  forgetRouter = () => {
+    data = null;
+    for (const k of Object.keys(hist)) delete hist[Number(k)];
+  };
 
   function pushHistory(d: VlansPayload): void {
     const live: Record<number, boolean> = {};

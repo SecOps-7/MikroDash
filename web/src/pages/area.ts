@@ -395,6 +395,20 @@ function columnLabel(name: string): string {
  * on 2026-09-18 clicking Address Lists. `web/test/area-nav-wired.test.ts` pins
  * the order.
  */
+/**
+ * A router switch. Every table here holds the LEFT router's rows, groups and
+ * permissions, and would draw them under the new router's name until its first
+ * payload. Forgotten, and each area redrawn as waiting; the permissions are
+ * asked again on `router:switched` (resource.ts), and until then nothing is
+ * writable.
+ */
+export function resetAreaPages(): void {
+  for (const m of [latest, openGroup, groupSearch, groupRows, writable, creatable] as Record<string, unknown>[]) {
+    for (const k of Object.keys(m)) delete m[k];
+  }
+  for (const area of AREAS) render(area);
+}
+
 export function mountAreaNav(): void {
   for (const area of AREAS) {
     if (document.querySelector('.nav-item[data-page="' + area.key + '"]')) continue;

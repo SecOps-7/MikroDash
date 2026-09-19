@@ -34,7 +34,7 @@ import { initialPage, initRouting, sync, type NavMode } from './routing';
 import { rejoinDecision, type RejoinState } from './rejoin';
 import { initDnsPage } from './pages/dns';
 import { initBridgesPage } from './pages/bridges';
-import { initVlansPage } from './pages/vlans';
+import { initVlansPage, resetVlansPage } from './pages/vlans';
 import { initWanPage } from './pages/wan';
 import { initPackagesPage } from './pages/packages';
 import { initRoutingPage } from './pages/routing';
@@ -48,8 +48,8 @@ import { initQueuesPage } from './pages/queues';
 import { initFirewallPage } from './pages/firewall';
 import { initWifiPage } from './pages/wifi';
 import { initCapsmanPage } from './pages/capsman';
-import { initInterfacesPage } from './pages/interfaces';
-import { initAreaPages, mountAreaNav } from './pages/area';
+import { initInterfacesPage, resetInterfacesPage } from './pages/interfaces';
+import { initAreaPages, mountAreaNav, resetAreaPages } from './pages/area';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -347,6 +347,11 @@ function switchRouter(socket: Socket, id: string): void {
   resetRoutingCards();
   resetBandwidthCard();
   resetLogsCard();
+  // The pages that accumulate per router: sparklines, trend lines, and the
+  // generated tables' rows and permissions.
+  resetInterfacesPage();
+  resetVlansPage();
+  resetAreaPages();
   socket.emit('router:select', id);
 }
 
