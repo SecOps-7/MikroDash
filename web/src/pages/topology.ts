@@ -27,6 +27,8 @@
 // `initTopologyPage`; the sentence that used to sit here saying it was not wired
 // yet outlived the slice it described.
 
+import { topoPanel } from './topology-panel';
+import { topoPersist } from './topology-persist';
 import { fmtTime } from '../timefmt';
 import { esc, el as byId, fmtMbps, svgEl, attr, text, lsGet, lsSet } from '../dom';
 import { mergePeers } from './topo-merge';
@@ -41,10 +43,37 @@ import type { TopoEdge, TopologyPayload, TopoClient } from '../gen/payloads';
 // fields only one kind carries do: `'attrib' in n` for a client, `'cpuLoad' in
 // n` for the core, `'clientCount' in n` for the core or a neighbour. Each sits
 // beside the `kind` test it narrows for, so the runtime test is still the kind.
-type TopoNode = TopologyPayload['nodes'][number];
+export type TopoNode = TopologyPayload['nodes'][number];
 
 /** A node position on the canvas. */
 export interface Pos { x: number; y: number }
+
+/** The state the page's parts share: topology.ts, topology-panel.ts, topology-persist.ts. */
+export interface TopoState {
+  data: TopologyPayload | null;
+  /** What the socket last sent, before the fleet merge. */
+  livePayload: TopologyPayload | null;
+  sel: string | null;
+  rid: string | null;
+  fleetRouters: RouterRecord[];
+  peers: TopoPeer[];
+  fleetOn: boolean;
+  fleetBusy: boolean;
+  fleetStat: { added: number; moved: number; answered: number; failed: number };
+  /** Which peer contributed or moved a node, by key — shown in its panel. */
+  fleetOwner: Record<string, string>;
+  /** The viewed router's own addresses, which only the endpoint can answer. */
+  selfMacs: string[];
+  /** Which request is current, so a slow answer for the router we have left
+   *  cannot paint over the one we are on. */
+  peersSeq: number;
+  pins: Record<string, string>;
+  pinsEnabled: boolean;
+  pinsLoadedFor: string;
+  /** Did the last read actually answer? "No pins" looks exactly like "could not
+   *  read the pins", and one save after that would store the empty set over them. */
+  pinsLoaded: boolean;
+}
 
 /** What the layout needs of a node: the collector sends much more. */
 export interface LayoutNode {
@@ -235,7 +264,7 @@ export type { TopoEdge };
 // ── the page ────────────────────────────────────────────────────────────────
 
 /** One interface's throughput, joined client-side from `ifstatus:update`. */
-interface Rate { rx: number; tx: number; running: boolean }
+export interface Rate { rx: number; tx: number; running: boolean }
 
 interface EdgeEls {
   g: SVGElement; path: SVGElement; load: SVGElement; hit: SVGElement;
@@ -263,14 +292,21 @@ export function fmtShort(mbps: number): string {
  * is by then.
  */
 export function initTopologyPage(socket: Socket, isVisible: (page: string) => boolean): void {
-  let data: TopologyPayload | null = null;
-  /** What the socket last sent, before the fleet merge. */
-  let livePayload: TopologyPayload | null = null;
+  // ── THE STATE THE PAGE'S PARTS SHARE ──────────────────────────────────────
+  //
+  // One object, so the detail panel (topology-panel.ts) and the fleet and pin
+  // persistence (topology-persist.ts) can live in their own files and still read
+  // and write the same fields as the rest of this page.
+  const st: TopoState = {
+    data: null, livePayload: null, sel: null, rid: null,
+    fleetRouters: [], peers: [], fleetOn: lsGet('mkd_topo_fleet', false), fleetBusy: false,
+    fleetStat: { added: 0, moved: 0, answered: 0, failed: 0 }, fleetOwner: {}, selfMacs: [],
+    peersSeq: 0, pins: {}, pinsEnabled: true, pinsLoadedFor: '', pinsLoaded: false,
+  };
   let rates: Record<string, Rate> = {};
   let pos: Record<string, Pos> = {};
   const saved: Record<string, Pos> = {};
   const placed: Record<string, Pos> = {};
-  let sel: string | null = null;
   let filter = '';
   let typeFilter = '';
   let vlanFilter = '';
@@ -283,7 +319,6 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   let pendingRender = false;
   let rafId: number | null = null;
   let saveTimer: number | undefined;
-  let rid: string | null = null;
   let view = { k: 1, x: 0, y: 0 };
   const gViewport = byId('topoViewport') as unknown as SVGElement | null;
   const svg = byId('topoSvg') as unknown as SVGSVGElement | null;
@@ -342,10 +377,10 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
    * out during a drag and when toggling Flow or Rates.
    */
   function visibleEdges(): TopoEdge[] {
-    if (!data) return [];
+    if (!st.data) return [];
     const shown: Record<string, boolean> = {};
-    visibleNodes(data.nodes).forEach((n) => { shown[n.key] = true; });
-    return data.edges.filter((e) => shown[e.from] && shown[e.to]);
+    visibleNodes(st.data.nodes).forEach((n) => { shown[n.key] = true; });
+    return st.data.edges.filter((e) => shown[e.from] && shown[e.to]);
   }
 
   function rateFor(iface: string): Rate | null {
@@ -454,7 +489,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
 
       if (n.kind === 'client' && 'attrib' in n) {
         let ccls = 'topo-node is-client ' + (n.type === 'wifi-client' ? 'is-wifi' : 'is-wired');
-        if (sel === n.key) ccls += ' is-sel';
+        if (st.sel === n.key) ccls += ' is-sel';
         if (isFiltered(n)) ccls += ' is-dim';
         attr(g, 'class', ccls);
         text(g.querySelector('.topo-clabel'), n.name || n.mac);
@@ -465,7 +500,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       let cls = 'topo-node st-' + (n.status || 'unknown');
       if (n.kind === 'core') cls += ' is-core';
       if (n.gone) cls += ' is-gone';
-      if (sel === n.key) cls += ' is-sel';
+      if (st.sel === n.key) cls += ' is-sel';
       if (isFiltered(n)) cls += ' is-dim';
       attr(g, 'class', cls);
 
@@ -498,7 +533,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       if (seen[k]) return;
       nodeEls[k]!.parentNode?.removeChild(nodeEls[k]!);
       delete nodeEls[k];
-      if (sel === k) sel = null;
+      if (st.sel === k) st.sel = null;
     });
   }
 
@@ -664,8 +699,8 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
    *  never offers an option that would match nothing. */
   function syncVlanOptions(): void {
     const elVlan = byId<HTMLSelectElement>('topoVlan');
-    if (!elVlan || !data) return;
-    const list = data.vlans || [];
+    if (!elVlan || !st.data) return;
+    const list = st.data.vlans || [];
     const sig = list.map((v) => v.vid + ':' + v.name).join(',');
     if (sig === vlanSig) return;
     vlanSig = sig;
@@ -681,18 +716,18 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   // ── stats, empty state, footer ────────────────────────────────────────────
 
   function renderStats(): void {
-    const infra = data ? data.nodes.filter((n) => n.kind !== 'core' && n.kind !== 'client') : [];
-    const clients = data ? data.clientCount || 0 : 0;
+    const infra = st.data ? st.data.nodes.filter((n) => n.kind !== 'core' && n.kind !== 'client') : [];
+    const clients = st.data ? st.data.clientCount || 0 : 0;
     // The INFRASTRUCTURE count stays the headline and clients ride along, so the
     // number does not silently jump when the client tier is expanded.
     text(byId('topoStatDevices'),
       infra.length ? String(infra.length) + (clients ? ' + ' + clients : '') : '—');
 
-    const links = data ? data.edges.filter((e) => !e.client).length : 0;
+    const links = st.data ? st.data.edges.filter((e) => !e.client).length : 0;
     text(byId('topoStatLinks'), links ? String(links) : '—');
 
     let thru = 0;
-    (data ? data.edges : []).forEach((e) => {
+    (st.data ? st.data.edges : []).forEach((e) => {
       const r = rateFor(e.iface);
       if (r) thru += r.rx + r.tx;
     });
@@ -704,7 +739,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     });
     // `n/a` and `—` say different things: the first is "this API user may not
     // measure it", the second is "nothing has answered yet".
-    if (data && data.pingDenied) text(byId('topoStatRtt'), 'n/a');
+    if (st.data && st.data.pingDenied) text(byId('topoStatRtt'), 'n/a');
     else if (worst === null) text(byId('topoStatRtt'), '—');
     else text(byId('topoStatRtt'), (worst as number).toFixed((worst as number) < 10 ? 1 : 0) + ' ms');
   }
@@ -719,8 +754,8 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   function renderEmpty(): void {
     const emptyEl = byId('topoEmpty');
     if (!emptyEl) return;
-    const count = data ? data.nodes.filter((n) => n.kind !== 'core').length : 0;
-    if (!data) {
+    const count = st.data ? st.data.nodes.filter((n) => n.kind !== 'core').length : 0;
+    if (!st.data) {
       emptyEl.className = 'topo-empty show';
       emptyEl.innerHTML = '<b>Waiting for the router…</b>';
       return;
@@ -732,8 +767,8 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     }
 
     let html = '<b>No neighbouring devices discovered</b>';
-    const d = data.discovery;
-    if (data.permissionDenied) {
+    const d = st.data.discovery;
+    if (st.data.permissionDenied) {
       html += '<div class="topo-empty-hint">This API user cannot read <code>/ip/neighbor</code>. ' +
         'Grant the <code>read</code> policy to see discovered devices.</div>';
     } else if (d && d.mode === 'tx-only') {
@@ -755,10 +790,10 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     const footEl = byId('topoFoot');
     if (!footEl) return;
     const parts: string[] = [];
-    const d = data && data.discovery;
+    const d = st.data && st.data.discovery;
     if (d && d.protocol && d.protocol.length) parts.push('Discovery: ' + esc(d.protocol.join(', ')));
     if (d && d.interfaceList) parts.push('on <code>' + esc(d.interfaceList) + '</code>');
-    if (data && data.pingDenied) {
+    if (st.data && st.data.pingDenied) {
       parts.push('<span style="color:var(--accent-warn)">latency needs the <code>test</code> policy</span>');
     }
     const legend = ([['up', '--accent-ok'], ['warn', '--accent-warn'], ['down', '--accent-err']] as const)
@@ -766,7 +801,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         '<span class="topo-swatch"></span>' + p[0] + '</span>').join('');
     // Say which links are OBSERVED and which are DEDUCED, rather than presenting
     // the whole map as equally certain.
-    const edges = (data && data.edges) || [];
+    const edges = (st.data && st.data.edges) || [];
     const pinnedN = edges.filter((e) => e.pinned).length;
     const inferred = edges.filter((e) => e.inferred).length;
     const bits: string[] = [];
@@ -777,12 +812,12 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     if (pinnedN) {
       bits.push('<span style="color:var(--accent-warn)">' + pinnedN + ' pinned</span>');
     }
-    if (fleetOn && fleetStat.answered) {
-      bits.push('<span style="color:var(--accent-rx)">merged from ' + fleetStat.answered +
-        ' router' + (fleetStat.answered === 1 ? '' : 's') +
-        (fleetStat.added ? ', +' + fleetStat.added : '') +
-        (fleetStat.moved ? ', ' + fleetStat.moved + ' moved' : '') +
-        (fleetStat.failed ? ', ' + fleetStat.failed + ' unreachable' : '') + '</span>');
+    if (st.fleetOn && st.fleetStat.answered) {
+      bits.push('<span style="color:var(--accent-rx)">merged from ' + st.fleetStat.answered +
+        ' router' + (st.fleetStat.answered === 1 ? '' : 's') +
+        (st.fleetStat.added ? ', +' + st.fleetStat.added : '') +
+        (st.fleetStat.moved ? ', ' + st.fleetStat.moved + ' moved' : '') +
+        (st.fleetStat.failed ? ', ' + st.fleetStat.failed + ' unreachable' : '') + '</span>');
     }
     bits.push('LLDP/CDP/MNDP');
     const note = bits.join(' &middot; ');
@@ -791,445 +826,15 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       (parts.length ? ' &middot; ' : '') + note + '</span>';
   }
 
-  // ── detail panel ──────────────────────────────────────────────────────────
-
-  function row(k: string, v: unknown): string {
-    if (v === undefined || v === null || v === '') return '';
-    return '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>';
-  }
-
-  /** The name of the device this one sits behind. */
-  function parentName(n: TopoNode): string {
-    if (!data) return '';
-    if (n.kind !== 'core' && n.parent === 'core') return data.nodes[0]?.name || '';
-    if (n.kind === 'core' || !n.parent) return '';
-    for (const m of data.nodes) if (m.key === n.parent) return m.name || n.parent;
-    return n.parent;
-  }
-
-  function statusVar(n: TopoNode): string {
-    if (n.kind === 'core') return '--accent-rx';
-    if (n.status === 'up') return '--accent-ok';
-    if (n.status === 'warn') return '--accent-warn';
-    if (n.status === 'down') return '--accent-err';
-    return '--text-muted';
-  }
+  // ── detail panel, fleet and pins: topology-panel.ts, topology-persist.ts ──
 
   function selectNode(key: string | null): void {
-    sel = key;
-    renderPanel();
-    if (data) renderNodes(visibleNodes(data.nodes));
+    st.sel = key;
+    panel.renderPanel();
+    if (st.data) renderNodes(visibleNodes(st.data.nodes));
   }
-
-  function renderClientPanel(panel: HTMLElement, n: TopoClient): void {
-    panel.innerHTML =
-      '<div class="topo-panel-hdr" style="color:var(' +
-        (n.type === 'wifi-client' ? '--accent-rx' : '--accent-tx') + ')">' +
-        '<svg viewBox="0 0 24 24">' + glyph(n.type === 'wifi-client' ? 'ap' : 'station') + '</svg>' +
-        '<span class="topo-panel-name">' + esc(n.name || n.mac) + '</span>' +
-        '<button class="topo-panel-close" id="topoPanelClose" aria-label="Close">&times;</button>' +
-      '</div>' +
-      '<div class="topo-badges"><span class="topo-badge">' +
-        (n.type === 'wifi-client' ? 'Wi-Fi client' : 'Wired client') + '</span>' +
-        (n.vlanNames || []).map((v) => '<span class="topo-badge is-vlan">' + esc(v) + '</span>').join('') +
-        // Say plainly when the attachment was DEDUCED from a shared port rather
-        // than observed, so a wrong guess is visible rather than silent.
-        (n.attrib === 'port'
-          ? '<span class="topo-badge is-guess" title="Deduced: this device shares a ' +
-            'port with that switch. The router cannot see which switch port.">inferred</span>'
-          : '') +
-      '</div>' +
-      '<dl class="topo-kv">' +
-        row('IPv4', n.ip) + row('MAC', n.mac) +
-        row('VLAN', (n.vlanNames || []).join(', ')) +
-        row('Connected to', parentName(n) || 'this router') +
-        row('Via', n.port) + row('SSID', n.ssid) +
-        row('Signal', n.signal ? n.signal + ' dBm' : '') +
-        row('Uptime', n.uptime) +
-      '</dl>';
-  }
-
-  // ── the rest of the fleet ────────────────────────────────────────────
-  //
-  // One router's graph is one router's horizon. With the switch on, every other
-  // router the operator added is read once and folded in — see pages/topo-merge.ts
-  // for the rule and for what it deliberately does not claim.
-  //
-  // READ ON DEMAND. The payload on the socket stays the live one; the merge is
-  // recomputed from it on every tick, against peer tables that are a snapshot.
-
-  let fleetRouters: RouterRecord[] = [];
-  let peers: TopoPeer[] = [];
-  let fleetOn = lsGet('mkd_topo_fleet', false);
-  let fleetBusy = false;
-  let fleetStat = { added: 0, moved: 0, answered: 0, failed: 0 };
-  /** Which peer contributed or moved a node, by key — shown in its panel. */
-  let fleetOwner: Record<string, string> = {};
-  /** The viewed router's own addresses, which only the endpoint can answer. */
-  let selfMacs: string[] = [];
-  /** Which request is current, so a slow answer for the router we have left
-   *  cannot paint over the one we are on. */
-  let peersSeq = 0;
-
-  function applyData(): void {
-    if (!livePayload || !fleetOn || !peers.length) {
-      data = livePayload;
-      fleetStat = { added: 0, moved: 0, answered: 0, failed: 0 };
-      fleetOwner = {};
-      return;
-    }
-    const m = mergePeers(livePayload, peers, selfMacs, Date.now());
-    data = { ...livePayload, nodes: m.nodes, edges: m.edges };
-    fleetStat = { added: m.added, moved: m.moved, answered: m.answered, failed: m.failed };
-    fleetOwner = m.owner;
-  }
-
-  /** The fleet, fetched. `routers:update` is a CHANGE notification and is not
-   *  sent on connect, so waiting for it leaves this with nothing to merge. */
-  function ensureFleet(): Promise<void> {
-    if (fleetRouters.length) return Promise.resolve();
-    return fetch('/api/routers', { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { fleetRouters = ((j && j.routers) || []) as RouterRecord[]; })
-      .catch(() => { /* nothing to merge is a working state */ });
-  }
-
-  function loadPeers(): void {
-    void ensureFleet().then(askPeers);
-  }
-
-  function askPeers(): void {
-    const ids = fleetRouters
-      .filter((r) => !r.disabled && String(r.id) !== rid)
-      .map((r) => String(r.id));
-    if (!ids.length) {
-      peers = [];
-      applyData(); syncFleetBtn(); render();
-      return;
-    }
-    fleetBusy = true;
-    syncFleetBtn();
-    const seq = ++peersSeq;
-    const forRouter = rid;
-    fetch('/api/topology/peers?self=' + encodeURIComponent(rid || '') +
-      '&routers=' + encodeURIComponent(ids.join(',')),
-      { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        // THE ANSWER TO AN OLDER QUESTION IS NOT AN ANSWER. Switching router
-        // with Fleet on leaves two reads in flight, and the slower one would
-        // otherwise merge one router's peers into another router's map.
-        if (seq !== peersSeq || forRouter !== rid) return;
-        peers = (d && d.peers) || [];
-        selfMacs = (d && d.self) || [];
-      })
-      .catch(() => {
-        if (seq !== peersSeq || forRouter !== rid) return;
-        peers = [];
-        selfMacs = [];
-      })
-      .then(() => {
-        if (seq !== peersSeq) return;
-        fleetBusy = false;
-        applyData(); syncFleetBtn(); render();
-      });
-  }
-
-  function syncFleetBtn(): void {
-    const b = byId('topoFleetBtn');
-    if (!b) return;
-    b.classList.toggle('is-on', fleetOn);
-    b.textContent = fleetBusy ? 'Fleet…'
-      : (fleetOn && fleetStat.answered ? 'Fleet ' + fleetStat.answered : 'Fleet');
-  }
-
-  // ── the operator's own cabling ────────────────────────────────────────────
-  //
-  // Stored per router through `/api/router-doc`, kind `topology-links`, and
-  // applied by the COLLECTOR rather than here: a pin changes which device hangs
-  // off which, and the layout, the edges and the client attribution all read
-  // that. Drawing it browser-side would mean re-deriving three things this page
-  // is handed.
-  //
-  // See internal/sitedoc.TopologyLinks for the shape, and `resolveParents` in
-  // internal/collect/topology.go for what a pin overrides.
-  let pins: Record<string, string> = {};
-  let pinsEnabled = true;
-  let pinsLoadedFor = '';
-  /** Did the last read actually answer? `routerDocGet` reports 500 when the
-   *  database cannot be asked, and "no pins" looks exactly like "could not read
-   *  the pins" — one save after that would store the empty set over them. */
-  let pinsLoaded = false;
-
-  function loadPins(): void {
-    if (!rid || pinsLoadedFor === rid) return;
-    // MARKED BEFORE THE REQUEST so a second call does not race it, and cleared
-    // again on failure so it is retried rather than leaving the PREVIOUS
-    // router's pins in place for the rest of the session.
-    const want = rid;
-    pinsLoadedFor = rid;
-    fetch('/api/router-doc?kind=topology-links&routerId=' + encodeURIComponent(rid),
-      { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('unreadable'))))
-      .then((d) => {
-        const doc = d && d.doc;
-        pins = (doc && doc.parents) || {};
-        pinsEnabled = !doc || doc.enabled !== false;
-        pinsLoaded = true;
-        syncPinsBtn();
-        renderPanel();
-      })
-      .catch(() => {
-        if (pinsLoadedFor === want) pinsLoadedFor = '';
-        pins = {};
-        pinsLoaded = false;
-        syncPinsBtn();
-      });
-  }
-
-  function savePins(): void {
-    if (!rid) return;
-    // NOT OVER A READ THAT FAILED. An empty `pins` after an unreadable document
-    // is indistinguishable from a router with none, and this would replace the
-    // operator's cabling with nothing.
-    if (!pinsLoaded) {
-      pinsLoadedFor = '';
-      loadPins();
-      return;
-    }
-    fetch('/api/router-doc', {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        routerId: rid, kind: 'topology-links',
-        doc: { enabled: pinsEnabled, parents: pins },
-      }),
-    })
-      // A REFUSAL IS NOT A SAVE. Without the `r.ok` test a 403 from a read-only
-      // grant left the new pin in this browser's map and on the Pins counter,
-      // while the store held nothing — so the panel's choice silently sprang
-      // back on the next tick and the button stayed toggled.
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('refused'))))
-      .then((d) => {
-        // The server's copy wins: `sitedoc.CleanTopologyLinks` drops a pin that
-        // names a loop or an empty half, and this browser must not go on drawing
-        // one the store does not hold.
-        const doc = d && d.doc;
-        if (doc) {
-          pins = doc.parents || {};
-          pinsEnabled = doc.enabled !== false;
-          pinsLoaded = true;
-        }
-        syncPinsBtn();
-        renderPanel();
-      })
-      .catch(() => {
-        // BACK TO WHAT THE STORE HOLDS, rather than leaving this browser drawing
-        // a pin nobody else has. The next load re-reads it.
-        pinsLoadedFor = '';
-        loadPins();
-      });
-  }
-
-  function syncPinsBtn(): void {
-    const b = byId('topoPinsBtn');
-    if (!b) return;
-    b.classList.toggle('is-on', pinsEnabled);
-    const n = Object.keys(pins).length;
-    b.textContent = n ? 'Pins ' + n : 'Pins';
-  }
-
-  /**
-   * The picker: every infrastructure node this one could hang off.
-   *
-   * CLIENTS ARE NOT OFFERED. A client is a leaf the graph attributes to whatever
-   * it is associated with; hanging a switch off a laptop is not a shape this
-   * models, and offering it would be offering a pin that reads as nonsense.
-   */
-  function pinPicker(key: string): string {
-    const rows = (data?.nodes || [])
-      .filter((m) => m.kind === 'neighbor' && m.key !== key)
-      .map((m) => ({ key: m.key, name: m.name || m.key }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const cur = pins[key] || '';
-    const opt = (v: string, label: string): string =>
-      '<option value="' + esc(v) + '"' + (cur === v ? ' selected' : '') + '>' +
-      esc(label) + '</option>';
-    return '<div class="topo-panel-sec">Cabling</div>' +
-      '<div class="topo-pin">' +
-        '<select class="rt-sel" id="topoPinSel" aria-label="What this device hangs off">' +
-          opt('', 'Work it out (' + esc(parentName(
-            (data?.nodes || []).find((m) => m.key === key)!) || 'directly attached') + ')') +
-          opt('core', 'Directly attached to this router') +
-          rows.map((r) => opt(r.key, 'Behind ' + r.name)).join('') +
-        '</select>' +
-        (pins[key]
-          ? '<div class="topo-pin-note">Pinned by hand.' +
-            (pinsEnabled ? '' : ' Pins are switched off, so it is not being applied.') +
-            '</div>'
-          : '<div class="topo-pin-note">Discovery cannot see through a switch that ' +
-            'forwards no LLDP. Set this when the graph puts a device in the wrong place.</div>') +
-        pinPortBtn(key) +
-      '</div>';
-  }
-
-  /**
-   * Everything sharing this device's port, which is the shape a dumb switch
-   * leaves behind.
-   *
-   * A SwOS box forwards the discovery protocols and answers no API, so the map
-   * gets one flat row of devices on one port with the switch among them, and
-   * nothing readable says which of them is behind it. Pinning them one at a
-   * time is the same knowledge typed six times.
-   */
-  function portSiblings(key: string): TopoNode[] {
-    const me = (data?.nodes || []).find((m) => m.key === key);
-    const port = (me && 'port' in me ? me.port : '') || '';
-    if (!port) return [];
-    return (data?.nodes || []).filter((m) =>
-      m.kind === 'neighbor' && m.key !== key && 'port' in m && m.port === port);
-  }
-
-  function pinPortBtn(key: string): string {
-    const sib = portSiblings(key);
-    if (!sib.length) return '';
-    const me = (data?.nodes || []).find((m) => m.key === key);
-    const port = (me && 'port' in me ? me.port : '') || '';
-    const allMine = sib.every((m) => pins[m.key] === key);
-    return '<button class="topo-btn topo-pin-port" id="topoPinPort" type="button">' +
-      (allMine
-        ? 'Put the ' + sib.length + ' back on the router'
-        : 'Everything else on ' + esc(port) + ' (' + sib.length + ') is behind this') +
-      '</button>';
-  }
-
-  function wirePinPortBtn(key: string): void {
-    byId('topoPinPort')?.addEventListener('click', () => {
-      const sib = portSiblings(key);
-      if (!sib.length) return;
-      const allMine = sib.every((m) => pins[m.key] === key);
-      sib.forEach((m) => {
-        if (allMine) delete pins[m.key];
-        else pins[m.key] = key;
-      });
-      savePins();
-    });
-  }
-
-  function wirePinPicker(key: string): void {
-    const selEl = byId<HTMLSelectElement>('topoPinSel');
-    if (!selEl) return;
-    selEl.addEventListener('change', () => {
-      const v = selEl.value;
-      if (v) pins[key] = v; else delete pins[key];
-      savePins();
-    });
-  }
-
-  function renderPanel(): void {
-    const panel = byId('topoPanel');
-    if (!panel) return;
-    // ── NEVER REBUILD A PANEL SOMEBODY IS USING ────────────────────────────
-    //
-    // The graph republishes between structure polls — the ping loop rebuilds and
-    // emits every few seconds — and a full render replaces this panel's markup.
-    // With the cabling picker open that destroys the `<select>` mid-choice, so
-    // the dropdown snapped shut every couple of seconds and the control was
-    // unusable. Reported, and it is the same hazard any future input here would
-    // have.
-    //
-    // Focus is the honest test for "in use": nothing else in the panel takes it,
-    // and the next render after the operator tabs or clicks away catches up.
-    if (panel.contains(document.activeElement)) return;
-    if (!sel || !data) { panel.className = 'topo-panel'; return; }
-    const n = data.nodes.find((m) => m.key === sel);
-    if (!n) { panel.className = 'topo-panel'; return; }
-
-    // The rate on the link INTO this device, so the panel shows the throughput
-    // of the cable it hangs off rather than the router's total.
-    let rate: Rate | null = null;
-    (data.edges || []).forEach((e) => {
-      if (e.to === n.key) {
-        const r = rateFor(e.iface);
-        if (r) rate = r;
-      }
-    });
-
-    const closeBtn = (): void => {
-      const c = byId('topoPanelClose');
-      if (c) c.addEventListener('click', () => selectNode(null));
-    };
-
-    if (n.kind === 'client' && 'attrib' in n) {
-      renderClientPanel(panel, n);
-      panel.className = 'topo-panel open';
-      closeBtn();
-      return;
-    }
-
-    let badges = '<span class="topo-badge">' + esc(TYPE_LABEL[n.type] || n.type) + '</span>';
-    // A GUESS IS LABELLED A GUESS. `caps` means the device advertised what it
-    // is; anything else means the type came from its board name or platform.
-    if (n.kind !== 'core' && n.typeSource !== 'caps') {
-      badges += '<span class="topo-badge is-guess" title="Inferred from the board or platform — this ' +
-        'device did not advertise LLDP capabilities">guessed</span>';
-    }
-    if (n.gone) {
-      badges += '<span class="topo-badge" style="border-color:var(--accent-err);color:var(--accent-err)">offline</span>';
-    }
-    (n.running || []).forEach((r) => { badges += '<span class="topo-badge">' + esc(r) + '</span>'; });
-
-    let live = '';
-    if (n.kind !== 'core') {
-      live += row('Latency', data.pingDenied ? 'unavailable (test policy)'
-        : (n.rtt !== null && isFinite(n.rtt) ? n.rtt.toFixed(1) + ' ms' : '—'));
-      live += row('Loss', n.loss !== null && isFinite(n.loss) ? n.loss + '%' : '—');
-    } else if ('cpuLoad' in n) {
-      live += row('CPU', n.cpuLoad !== null && isFinite(n.cpuLoad) ? n.cpuLoad + '%' : '');
-      live += row('Memory', n.memPct !== null && isFinite(n.memPct) ? n.memPct + '%' : '');
-    }
-    if (rate) {
-      live += row('Link down', fmtMbps((rate as Rate).rx));
-      live += row('Link up', fmtMbps((rate as Rate).tx));
-    }
-
-    // What the device ENABLES, falling back to what it merely supports — the
-    // same preference the collector applies when classifying it.
-    const caps = (n.capsEnabled && n.capsEnabled.length ? n.capsEnabled : (n.caps || [])).join(', ');
-
-    panel.innerHTML =
-      '<div class="topo-panel-hdr" style="color:var(' + statusVar(n) + ')">' +
-        '<svg viewBox="0 0 24 24">' + glyph(n.type) + '</svg>' +
-        '<span class="topo-panel-name">' + esc(n.name || n.key) + '</span>' +
-        '<button class="topo-panel-close" id="topoPanelClose" aria-label="Close">&times;</button>' +
-      '</div>' +
-      '<div class="topo-badges">' + badges + '</div>' +
-      '<dl class="topo-kv">' +
-        row('IPv4', n.ip) + row('IPv6', n.ip6) + row('MAC', n.mac) +
-        row('Board', n.board) + row('Platform', n.platform) + row('Version', n.version) +
-        row('Software ID', n.softwareId) + row('Uptime', n.uptime) +
-      '</dl>' +
-      (live ? '<div class="topo-panel-sec">Live</div><dl class="topo-kv">' + live + '</dl>' : '') +
-      '<div class="topo-panel-sec">Discovery</div>' +
-      '<dl class="topo-kv">' +
-        row('Behind', parentName(n) +
-          ('pinned' in n && n.pinned ? ' (pinned)' : '')) +
-        row('Router port', n.port || (n.ifaces || []).join(', ')) +
-        row('Remote port', n.remoteIface) +
-        row('Seen via', (n.via || []).join(', ')) +
-        row('Reported by', fleetOwner[n.key]) +
-        row('Age', n.ageSec !== null && isFinite(n.ageSec) ? n.ageSec + ' s'
-          : (n.gone ? 'no longer advertising' : '')) +
-        row('Capabilities', caps || (n.kind === 'core' ? '' : 'none advertised')) +
-        row('Description', n.description) +
-      '</dl>' +
-      // The core has nothing to hang off, so it gets no picker.
-      (n.kind === 'neighbor' ? pinPicker(n.key) : '');
-
-    panel.className = 'topo-panel open';
-    closeBtn();
-    if (n.kind === 'neighbor') { wirePinPicker(n.key); wirePinPortBtn(n.key); }
-  }
+  const persist = topoPersist(st, { render: () => render(), renderPanel: () => panel.renderPanel() });
+  const panel = topoPanel(st, { rateFor, selectNode, savePins: () => persist.savePins() });
 
   // ── viewport ──────────────────────────────────────────────────────────────
 
@@ -1239,7 +844,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   }
 
   function saveView(): void {
-    if (rid) lsSet('mikrodash.topo.view.' + rid, view);
+    if (st.rid) lsSet('mikrodash.topo.view.' + st.rid, view);
   }
 
   /** Frame every node, with padding, clamped so one distant orphan cannot zoom
@@ -1275,26 +880,26 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   // a failure is silent because the local copy is already applied.
 
   function loadSaved(): void {
-    if (!rid) return;
-    Object.assign(saved, lsGet<Record<string, Pos>>('mikrodash.topo.pos.' + rid, {}) || {});
-    const v = lsGet<{ k: number; x: number; y: number } | null>('mikrodash.topo.view.' + rid, null);
+    if (!st.rid) return;
+    Object.assign(saved, lsGet<Record<string, Pos>>('mikrodash.topo.pos.' + st.rid, {}) || {});
+    const v = lsGet<{ k: number; x: number; y: number } | null>('mikrodash.topo.view.' + st.rid, null);
     if (v && isFinite(v.k)) { view = v; applyView(); }
 
-    fetch('/api/topology-layout?routerId=' + encodeURIComponent(rid), { credentials: 'same-origin' })
+    fetch('/api/topology-layout?routerId=' + encodeURIComponent(st.rid), { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: { positions?: Record<string, Pos> } | null) => {
         if (!j || !j.positions) return;
         for (const k of Object.keys(saved)) delete saved[k];
         Object.assign(saved, j.positions);
-        lsSet('mikrodash.topo.pos.' + rid, saved);
+        lsSet('mikrodash.topo.pos.' + st.rid, saved);
         render();
       })
       .catch(() => { /* the localStorage copy is already applied */ });
   }
 
   function savePositions(): void {
-    if (!rid) return;
-    lsSet('mikrodash.topo.pos.' + rid, saved);
+    if (!st.rid) return;
+    lsSet('mikrodash.topo.pos.' + st.rid, saved);
     if (saveTimer !== undefined) clearTimeout(saveTimer);
     // Debounced: a drag emits a stream of positions and the server needs the
     // one the viewer stopped at, not every frame on the way there.
@@ -1302,7 +907,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       fetch('/api/topology-layout', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routerId: rid, positions: saved }),
+        body: JSON.stringify({ routerId: st.rid, positions: saved }),
       }).catch(() => { /* the local copy stands */ });
     }, 800) as unknown as number;
   }
@@ -1314,17 +919,17 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
 
   /** The ~5 s path: geometry is unchanged, only rates moved. */
   function renderLive(): void {
-    if (!data || draggingKey) return;
+    if (!st.data || draggingKey) return;
     renderEdges(visibleEdges());
     renderStats();
   }
 
   function render(): void {
-    if (!data) { renderEmpty(); return; }
+    if (!st.data) { renderEmpty(); return; }
     // NEVER re-render mid-drag: the node would be yanked back to its computed
     // position under the pointer. The frame is deferred instead.
     if (draggingKey) { pendingRender = true; return; }
-    const nodes = visibleNodes(data.nodes);
+    const nodes = visibleNodes(st.data.nodes);
     applyPositions(nodes);
     syncVlanOptions();
     renderEdges(visibleEdges());
@@ -1332,7 +937,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     renderStats();
     renderEmpty();
     renderFoot();
-    renderPanel();
+    panel.renderPanel();
   }
 
   /**
@@ -1341,8 +946,8 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
    * reappearing where the parent used to be.
    */
   function unpinClientsOf(parentKey: string | null): void {
-    if (!data) return;
-    data.nodes.forEach((n) => {
+    if (!st.data) return;
+    st.data.nodes.forEach((n) => {
       if (n.kind !== 'client') return;
       if (parentKey && n.parent !== parentKey) return;
       delete placed[n.key];
@@ -1415,7 +1020,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
           if (!g) return;
           const q = pos[draggingKey || '']!;
           attr(g, 'transform', 'translate(' + q.x.toFixed(1) + ',' + q.y.toFixed(1) + ')');
-          if (data) renderEdges(visibleEdges());
+          if (st.data) renderEdges(visibleEdges());
         });
       } else if (panStart) {
         moved = Math.max(moved, Math.abs(e.clientX - panStart.x) + Math.abs(e.clientY - panStart.y));
@@ -1434,7 +1039,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         // FOUR PIXELS SEPARATES A CLICK FROM A DRAG. Without a threshold every
         // selection nudged the node it selected.
         if (moved < 4) {
-          selectNode(key === sel ? null : key);
+          selectNode(key === st.sel ? null : key);
         } else {
           saved[key] = pos[key]!;
           savePositions();
@@ -1519,13 +1124,13 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       showFlow = !showFlow;
       elFlowBtn.classList.toggle('is-on', showFlow);
       if (!showFlow) clearFlow();
-      if (data) renderEdges(visibleEdges());
+      if (st.data) renderEdges(visibleEdges());
     });
     const elRateBtn = byId('topoRateBtn');
     elRateBtn?.addEventListener('click', () => {
       showRates = !showRates;
       elRateBtn.classList.toggle('is-on', showRates);
-      if (data) renderEdges(visibleEdges());
+      if (st.data) renderEdges(visibleEdges());
     });
     const elClientsBtn = byId('topoClientsBtn');
     elClientsBtn?.addEventListener('click', () => {
@@ -1542,30 +1147,30 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     });
 
     byId('topoFleetBtn')?.addEventListener('click', () => {
-      fleetOn = !fleetOn;
-      lsSet('mkd_topo_fleet', fleetOn);
-      if (fleetOn) {
-        loadPeers();
+      st.fleetOn = !st.fleetOn;
+      lsSet('mkd_topo_fleet', st.fleetOn);
+      if (st.fleetOn) {
+        persist.loadPeers();
         return;
       }
-      peers = [];
-      selfMacs = [];
-      applyData(); syncFleetBtn(); render();
+      st.peers = [];
+      st.selfMacs = [];
+      persist.applyData(); persist.syncFleetBtn(); render();
     });
 
     const elPinsBtn = byId('topoPinsBtn');
     elPinsBtn?.addEventListener('click', () => {
-      pinsEnabled = !pinsEnabled;
-      syncPinsBtn();
+      st.pinsEnabled = !st.pinsEnabled;
+      persist.syncPinsBtn();
       // SAVED, not kept in this browser: whether the pins apply is a property of
       // the site, and two operators looking at one graph must see one answer.
       // The collector re-reads the document on every build, so the map redraws
       // on the next tick without this page recomputing anything.
-      savePins();
+      persist.savePins();
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && sel && isVisible('network-topology')) selectNode(null);
+      if (e.key === 'Escape' && st.sel && isVisible('network-topology')) selectNode(null);
     });
   }
 
@@ -1596,24 +1201,24 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     if (!p) return;
     // A ROUTER SWITCH resets the layout, not just the data: positions are saved
     // per router, and keeping them would draw one network with another's map.
-    const firstForRouter = rid !== (p.routerId || null);
-    livePayload = p;
+    const firstForRouter = st.rid !== (p.routerId || null);
+    st.livePayload = p;
     if (firstForRouter) {
-      rid = p.routerId || null;
+      st.rid = p.routerId || null;
       // THE PEERS ARE PER ROUTER. The merge excludes whichever one is being
       // viewed, so the set to read changes with it.
-      peers = [];
-      selfMacs = [];
-      loadPins();
+      st.peers = [];
+      st.selfMacs = [];
+      persist.loadPins();
       pos = {};
       for (const k of Object.keys(saved)) delete saved[k];
       for (const k of Object.keys(placed)) delete placed[k];
       for (const k of Object.keys(expanded)) delete expanded[k];
       clearFlow();
       loadSaved();
-      if (fleetOn) loadPeers();
+      if (st.fleetOn) persist.loadPeers();
     }
-    applyData();
+    persist.applyData();
     if (isVisible('network-topology')) {
       render();
       if (firstForRouter) setTimeout(fitView, 40);
@@ -1636,15 +1241,15 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail === 'network-topology') {
       render();
-      if (data) setTimeout(fitView, 40);
+      if (st.data) setTimeout(fitView, 40);
     }
     syncAnimations();
   });
 
   document.addEventListener('visibilitychange', syncAnimations);
   socket.on('routers:update', (d) => {
-    fleetRouters = d || [];
-    if (fleetOn && !peers.length && rid) loadPeers();
+    st.fleetRouters = d || [];
+    if (st.fleetOn && !st.peers.length && st.rid) persist.loadPeers();
   });
 
   socket.on('disconnect', () => setAnimations(false));
