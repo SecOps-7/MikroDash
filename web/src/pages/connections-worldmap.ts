@@ -10,9 +10,8 @@
 //
 // `/vendor/world-atlas/countries-110m.json` is ~100 KB of TopoJSON that changes
 // when borders do, which is to say almost never. Bundling it would put it in
-// every page load of an app whose other pages never show a map. It is served by
-// the Node app today and proxied, which is the strangler-fig arrangement doing
-// its job.
+// every page load of an app whose other pages never show a map, so it is a
+// static file (web/public/vendor/world-atlas) fetched when the map opens.
 
 import { CC_NAMES, NUM_TO_ISO2, centroidOf, coordsToD, makeArcD } from './connections-map';
 import { esc, iso2Flag } from '../dom';

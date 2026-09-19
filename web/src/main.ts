@@ -1,14 +1,4 @@
-// Boot.
-//
-// The slice this file wires is deliberately narrow: one router, one page. What
-// it is NOT is a second copy of the live app's navigation — that would be
-// porting the shell before any page had proved the stack works, which is the
-// order PLAN.md B4 exists to prevent ("Nothing else moves until that slice is
-// green against live hardware").
-//
-// So every nav entry other than the ported one hands the browser back to the
-// Node app. Both are reachable in the same session on the same host, which is
-// what makes a side-by-side comparison of old page and new page possible at all.
+// Boot: the socket, the navigation, the chrome, and every page module.
 
 import { el } from './dom';
 import { installFetchGuard, verifySessionAfterFailure } from './fetch-guard';
@@ -183,14 +173,7 @@ interface RouterRow extends StoredRouter {
   disabled?: boolean;
 }
 
-/**
- * The router list comes from Node, through the proxy.
- *
- * Not reimplemented in Go on purpose: `/api/routers` already applies this
- * principal's grants, and a second implementation of that filter is a second
- * place for it to be wrong. This is what the strangler is for — take the page,
- * leave the endpoint.
- */
+/** The router list, already filtered to this principal's grants by `/api/routers`. */
 async function loadRouters(): Promise<RouterRow[]> {
   const res = await fetch('/api/routers', { credentials: 'same-origin' });
   if (!res.ok) throw new Error('cannot list routers: ' + res.status);
@@ -199,7 +182,7 @@ async function loadRouters(): Promise<RouterRow[]> {
 }
 
 /**
- * Where a page request goes during coexistence.
+ * Where a page request goes.
  *
  * ONE function, called by both the nav items and the keyboard shortcuts. They
  * had the same rule written out twice for about ten minutes; two copies of a
@@ -211,12 +194,8 @@ function navigate(socket: Socket, page: string): void {
     showPage(socket, page);
     return;
   }
-  // NOT REACHABLE FROM THE NAV any more: `initCaps` hides a page this build
-  // cannot serve, so nothing offers a click that lands here. It stays because
-  // `navigate` is also called by the keyboard shortcuts, which address pages by
-  // name and do not consult the nav — and because "the Node app still owns this
-  // page" stopped being true when the strangler prefix came off. `/` is this
-  // app, so this is a bounce to the landing page rather than a hand-off.
+  // A name that is not a page (the keyboard shortcuts address pages by name
+  // and do not consult the nav) goes to the landing page.
   window.location.href = '/';
 }
 
@@ -432,26 +411,13 @@ async function main(): Promise<void> {
   // The chrome's permission layer. It reaches the router through this host
   // rather than importing showPage, which would be a cycle — and `go` deliberately
   // calls showPage directly, NOT navigate: being moved off a page you may not see
-  // must land somewhere, and bouncing to the Node app would lose the session's
-  // place for a reason that has nothing to do with coexistence.
+  // must land somewhere, and navigate's bounce to the landing page would lose
+  // the session's place.
   // ── A PAGE THIS BUILD CANNOT SERVE IS HIDDEN, NOT OFFERED ───────────────
   //
-  // `navigate()` sends an unported page to `/` on the reasoning that "the Node
-  // app still owns this page and still renders it correctly". That was true
-  // under the `/next` strangler prefix. It is not true now: this bundle is only
-  // ever served by a process that IS the whole app, so `/` is this app and the
-  // click became a bounce back to the dashboard — which is what the operator
-  // hit on Devices and on Settings.
-  //
-  // So `serves` is a THIRD term in the visibility calculation, alongside the
-  // install toggle and the role. It read "fourth… and the router count" until
-  // that count gate was deleted (issue #121): it hid Devices on a one-device
-  // install, and its own driver had already been dead since the parity harness
-  // went. A comment naming a term that no longer exists is how the next reader
-  // concludes a rule is still enforced. A page that is not in
-  // `PORTED` has no markup in this bundle and cannot be shown by anything; the
-  // honest interface is to leave it out of the nav until it mounts, at which
-  // point it reappears with no further change here.
+  // `serves` is a term in the visibility calculation beside the install toggle
+  // and the role: a page with no markup in this bundle cannot be shown by
+  // anything, so it is left out of the nav. Every page is in `PORTED` today.
   initCaps({
     current: () => currentPage,
     go: (page, mode) => showPage(socket, page, mode),
@@ -656,8 +622,7 @@ async function main(): Promise<void> {
   // affordance of its own. Its table rows carry `data-router-id` and no buttons,
   // and its cards carry none either — the ONLY way into the router modal from
   // this page is the fleet map's popover and its no-location tray, both of which
-  // go through `window._rtrOpenModal`, and both of which belong to the map's
-  // unported SVG half.
+  // go through `window._rtrOpenModal` (routers-map.ts).
   //
   // `rtrAddBtn`, `rtrTbody` and the modal's own trigger live on the SETTINGS
   // page (`web/src/ui/page-settings.html`). An earlier version of this file
@@ -665,10 +630,8 @@ async function main(): Promise<void> {
   // `[data-edit-router]` handler for an attribute nothing in the app produces —
   // The selector audit is what said so.
   //
-  // THE OPENER NOW EXISTS: `settings-routers.ts` renders the Edit button the
-  // live app opens the modal from, and is wired below. The page still does not
-  // MOUNT (LOOP 1h), so both stay inert for now — but they are inert together
-  // and for one reason, rather than one of them being permanently unreachable.
+  // The Settings page's opener is `settings-routers.ts`'s Edit button, wired
+  // below.
   mountRouters(socket);
   // The fleet map's SVG half, mounted from HERE so the dependency stays
   // one-way: `routers-map.ts` imports `routers.ts`, never the reverse. See the
@@ -747,14 +710,6 @@ async function main(): Promise<void> {
   // Save Settings. See pages/branding-settings.ts.
   initBrandingSettings();
 
-  // The poll sliders, the preset profiles, the settings banner and Reset.
-  //
-  // The reload passed in is the POLL HALF only. The live `loadSettings` also
-  // fills ~100 form fields through `populateSettings`, which is exported and
-  // still uncalled — mounting the Settings page is what wires that up, and it is
-  // LOOP item 1h. Passing a partial reload rather than nothing is deliberate:
-  // after a Reset the sliders MUST show the defaults they were reset to, and a
-  // no-op reload would leave them displaying the values that no longer apply.
   // THE MODAL, mounted at last. It has been ported and tested since well before
   // anything could open it; `settings-routers.ts` below is the Edit button the
   // live app opens it from.
@@ -816,6 +771,9 @@ async function main(): Promise<void> {
     if ((e as CustomEvent).detail === 'settings') loadSettings();
   });
 
+  // The poll sliders, the preset profiles, the settings banner and Reset. The
+  // reload is `loadSettings`, which also fills the form fields: after a Reset the
+  // sliders MUST show the defaults they were reset to.
   initPollAndBanner(loadSettings);
   // The System Prompt box's Reset button and character counter. Bound once, like
   // the poll controls beside it; populate fills the box on every load.

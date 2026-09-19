@@ -9,7 +9,7 @@
  * the server was restarted, every in-memory session died, and every subsequent
  * request answered 401 — so the page sat there doing nothing, with NO LOGIN
  * SCREEN and nothing working. The document was never re-requested, so the
- * server's own 302 on `/next/` never came into it.
+ * server's own redirect to the login page never came into it.
  *
  * `main.ts` catches the failure from `loadRouters()` and logs it, which is why
  * this was invisible in development: the console said "no routers are readable

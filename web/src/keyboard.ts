@@ -3,12 +3,10 @@
 //
 // ── WHY IT TAKES `navigate` RATHER THAN CALLING showPage ────────────────────
 //
-// During coexistence not every page is ported, and going to one that is not
-// would show an empty panel. `wireNav` already decides that — ported pages
-// render here, everything else hands the browser back to the Node app. The
-// shortcut has to make the SAME decision, so it is given the same function
-// rather than a second copy of the rule: two copies of a routing decision drift,
-// and the way you find out is a shortcut that blanks the page.
+// `navigate` decides where a page name goes (a real page, or the landing page).
+// The shortcut has to make the SAME decision as the nav, so it is given the same
+// function rather than a second copy of the rule: two copies of a routing
+// decision drift, and the way you find out is a shortcut that blanks the page.
 //
 // ── ONLY NINE OF THE TWENTY-ONE SLOTS CAN BE REACHED ────────────────────────
 //

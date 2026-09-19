@@ -20,12 +20,7 @@ import { esc, el, debounce, renderSortHeader, sortMul,
          type SortCol, type SortState } from '../dom';
 import { fmtTs } from '../timefmt';
 
-/**
- * `/next/api/audit`, not `/api/audit` — see internal/server/audit_api.go. The
- * live Audit page is still served by Node through this proxy, so the endpoints
- * stay staged until this page cuts over; the prefix comes off in one commit that
- * can be reverted in one.
- */
+/** The audit trail's endpoints. See internal/server/audit_api.go. */
 const API = '/api/audit';
 
 interface AuditRow {

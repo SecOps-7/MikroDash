@@ -44,14 +44,10 @@ export interface NavHost {
   current(): string;
   go(page: string, mode: NavMode): void;
   /**
-   * Can THIS BUILD serve the page, or does it still belong to Node?
-   *
-   * While the port coexists with the live app every page is reachable: the ones
-   * this build has not ported are handed to Node, which renders them correctly.
-   * With no Node there is nothing to hand off to, and a nav item for an unported
-   * page sends the browser to `/` — which now serves this app and lands on the
-   * dashboard. The operator reported exactly that: "the Devices page redirects
-   * back to the Dashboard page. Same with the Settings page."
+   * Can THIS BUILD serve the page? A page with no markup in the bundle would
+   * send the browser to `/` and land on the dashboard, which the operator hit
+   * once ("the Devices page redirects back to the Dashboard page"), so the nav
+   * leaves it out instead.
    *
    * A page this build cannot serve is not hidden because it is forbidden or
    * switched off; it is hidden because it is NOT HERE YET. Both remaining ones —

@@ -3,19 +3,11 @@
 // Per-device throughput, derived from connection byte deltas. The device table,
 // its filters and its sort live here.
 //
-// ── THE CHART IS NOT PORTED YET, AND THE PAGE IS NOT IN `PORTED` BECAUSE OF IT ─
+// ── TWO SOURCES ────────────────────────────────────────────────────────────
 //
-// This page has two data sources: `bandwidth:update` for the table, and
-// `traffic:update` for the compact live chart at the top. The chart is a
-// Chart.js instance built from the DASHBOARD's sample buffer and its shared
-// clock (`allPoints`, `_serverOffset`, `_lastSampleTs`), so it is ported with
-// the Dashboard rather than here — the two would otherwise keep two buffers of
-// the same stream.
-//
-// Until then this module is not wired into main.ts. A page that quietly rendered
-// its table and left an empty canvas where the chart belongs would be a
-// regression dressed as progress; the live page keeps serving instead, which is
-// what the strangler-fig arrangement is for.
+// `bandwidth:update` for the table, and `traffic:update` for the compact live
+// chart at the top, which shares the Dashboard's sample buffer and clock rather
+// than keeping a second buffer of the same stream.
 
 import { fmtTime } from '../timefmt';
 import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag } from '../dom';

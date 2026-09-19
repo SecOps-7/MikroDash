@@ -7,13 +7,9 @@
 // why an alert can be open and acknowledged at once, and why the table gives
 // them separate columns rather than one status.
 //
-// ── THE ACK WRITE STILL GOES TO NODE ────────────────────────────────────────
+// ── THE ACK ─────────────────────────────────────────────────────────────────
 //
-// The button POSTs to `/api/alerts/:id/ack`, which this server does not
-// implement — the Go side proxies every unported /api/* path, so the request
-// reaches the real endpoint with the session cookie and works unchanged. That is
-// the strangler working as intended: this page renders from the Go read
-// endpoints while its one write is still served by the app being replaced.
+// The button POSTs to `/api/alerts/:id/ack` (internal/server/alerts_api.go).
 
 import { esc, el, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
 import { fmtTs, fmtDuration, statCard } from './reports';

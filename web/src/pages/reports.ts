@@ -2,10 +2,9 @@
 //
 // ── THIS IS THE FIRST PAGE WITH AN HTTP API RATHER THAN A SOCKET ────────────
 //
-// Every ported page so far is fed by the WebSocket. Reports is request/response:
-// the operator picks a range and presses Load. The endpoints are the Go ones at
-// `/next/api/reports/*` — see internal/server/reports.go for why they are not at
-// `/api/reports/*` yet.
+// Most pages are fed by the WebSocket. Reports is request/response: the
+// operator picks a range and presses Load, against `/api/reports/*`
+// (internal/server/reports.go).
 //
 // ── TIMES ARE timefmt.ts's ───────────────────────────────────────────────────
 //
@@ -269,11 +268,7 @@ export function savePreset(val: string): void {
  * picker survive a reload: the previously chosen interface is kept if the new
  * list still contains it.
  *
- * ── THE ENDPOINTS ARE THE PORT'S, UNDER /next/ ──────────────────────────────
- *
- * `/next/api/reports/*`, not `/api/reports/*` — see internal/server/reports.go.
- * The one exception is the alert acknowledge write, which is still Node's and
- * reaches it through the proxy.
+ * The endpoints are `/api/reports/*` (internal/server/reports.go).
  */
 
 const API = '/api/reports/';
@@ -325,14 +320,7 @@ export function fillIfaceSelect(id: string, ifaces: string[]): string {
 /**
  * The href behind a CSV or PDF button.
  *
- * ── IT POINTS AT /next/, LIKE EVERYTHING ELSE ON THIS PAGE ──────────────────
- *
- * The live app builds `/api/reports/<type>/export`. This port's report
- * endpoints — exports included — sit under `/next/api/reports/` until the page
- * cuts over, for the reason `internal/server/reports.go` gives: `/api/*` still
- * proxies to Node, so registering there would move a page nobody has ported
- * onto an implementation nobody has compared. Linking a ported page at the
- * unported implementation would be the same mistake from the other end.
+ * `/api/reports/<type>/export`, as every report endpoint is under `/api/reports/`.
  *
  * `aggregate` is read from the select at CALL time rather than taken from the
  * load's snapshot, exactly as the original does. In practice they agree — the

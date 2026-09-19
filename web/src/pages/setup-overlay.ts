@@ -8,20 +8,11 @@
 // there are no routers. The ACCOUNT one is `firstRunView` in login.html and is
 // already complete, server and browser.
 //
-// ── WHY THE WIRING IS NOT HERE ──────────────────────────────────────────────
+// ── THE DECISIONS HERE, THE WIRING IN setup-overlay-wire.ts ────────────────
 //
-// The overlay's Connect button makes two requests, and BOTH are recorded cutover
-// blockers:
-//
-//	POST /api/routers               writes routers.json, which Node caches and
-//	                                rebuilds from that stale cache (blocker 4)
-//	POST /api/routers/:id/activate  UNPORTED, and it writes settings.json via
-//	                                switchRouter (blocker 3)
-//
-// So the overlay cannot be exercised while Node runs, whatever this module does.
-// What CAN be done now is the part that drifts — the field defaults, the port
-// flip and the list of fields that re-lock the save button — pinned by
-// The setup-overlay check against the live handler.
+// This module holds what drifts: the field defaults, the port flip and the list
+// of fields that re-lock the save button. The requests (create the router, then
+// activate it) are made by setup-overlay-wire.ts.
 //
 // The DOM is not rebuilt: `web/src/ui/shell.html` already carries all fifteen
 // ids, extracted verbatim by the extract-ui tool. Markup is never retyped.
