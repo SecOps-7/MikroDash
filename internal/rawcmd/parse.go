@@ -44,6 +44,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"mikrodash/internal/audit"
 )
 
 // Command is one parsed command.
@@ -192,7 +194,11 @@ func Parse(in string) (Command, error) {
 			return Command{}, fmt.Errorf("the value of %q has a quote inside it", name)
 		}
 		words = append(words, "="+name+"="+value)
-		shown = append(shown, name+"="+value)
+		if Sensitive(name) {
+			shown = append(shown, name+"="+audit.Set)
+		} else {
+			shown = append(shown, name+"="+value)
+		}
 	}
 	return Command{
 		Menu: "/" + strings.Join(segments, "/"), Verb: verb,
@@ -241,4 +247,23 @@ func cut(s string) string {
 		return s[:40] + "…"
 	}
 	return s
+}
+
+// sensitiveRe is RouterOS's own list of sensitive parameters ("List of menus
+// with sensitive parameters", help.mikrotik.com): a name that is, or ends in
+// `-`, password, passphrase, secret(s), key, key-N, key-val, pin or cak. That
+// covers private-key, preshared-key, wpa2-pre-shared-key, tcp-md5-key,
+// static-key-0, sim-pin and the rest of the list without naming each.
+//
+// NOT audit.IsCredentialField, which is broad on purpose and matches `pass`:
+// masking mangle's `passthrough` in a print would hide real configuration
+// from the model. ZeroTier's `identity` is left out for the same reason; the
+// word is ordinary everywhere else.
+var sensitiveRe = regexp.MustCompile(`(^|-)(password|passphrase|secrets?|key|key-[0-9]|key-val|pin|cak)$`)
+
+// Sensitive reports whether a RouterOS property's value must never be shown:
+// in a command's Text (the dialog, the audit trail, the model) or in a raw
+// reply. A public key is public.
+func Sensitive(name string) bool {
+	return name != "public-key" && sensitiveRe.MatchString(name)
 }

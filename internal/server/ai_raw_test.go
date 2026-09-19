@@ -395,3 +395,21 @@ func TestBothRawToolsAreAnsweredByName(t *testing.T) {
 		}
 	}
 }
+
+// TestRawOutputMasksSecrets. A raw `print` of /ppp/secret or a WireGuard
+// interface returns the password or private key, and every reply field was
+// copied to the model and the transcript (review loop).
+func TestRawOutputMasksSecrets(t *testing.T) {
+	out := rawOutput([]routeros.Reply{
+		{"name": "wg1", "private-key": "hunter2", "public-key": "PUB"},
+		{"name": "vpn", "password": "hunter2", "passthrough": "yes"},
+	})
+	if strings.Contains(out, "hunter2") {
+		t.Errorf("a secret reached the model: %s", out)
+	}
+	for _, want := range []string{"PUB", `"passthrough":"yes"`, `"private-key":"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("%s is missing from %s; a secret is masked, not the row", want, out)
+		}
+	}
+}

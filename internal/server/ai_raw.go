@@ -199,6 +199,11 @@ func rawOutput(rows []routeros.Reply) string {
 		}
 		row := map[string]string{}
 		for k, v := range r {
+			// MASKED, NOT DROPPED: "this peer has a private key" is worth the
+			// model knowing; the key is not.
+			if rawcmd.Sensitive(k) && v != "" {
+				v = audit.Set
+			}
 			row[k] = v
 		}
 		b, _ := json.Marshal(row)
