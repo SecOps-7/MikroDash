@@ -2,6 +2,7 @@ package backups
 
 import (
 	"encoding/hex"
+	"net/netip"
 	"testing"
 	"time"
 )
@@ -20,7 +21,7 @@ const host = "10.0.0.2"
 
 func mint(t *testing.T, rt *RestoreTokens) string {
 	t.Helper()
-	tok, err := rt.Mint(7, "router-a", host)
+	tok, err := rt.Mint(7, "router-a", []netip.Addr{netip.MustParseAddr(host)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,5 +181,37 @@ func TestServableChecksTheROWNotTheRequest(t *testing.T) {
 	// And a refused verdict serves nothing, whatever the row says.
 	if BackupServable(RestoreVerdict{Reason: "expired"}, 7, "router-a", "s", nil) {
 		t.Error("a refused verdict served a row")
+	}
+}
+
+// TestANamedRouterRedeemsFromAnyOfItsAddresses. The token was bound to the
+// configured host STRING, so a router added by name ("chr-test") could never
+// redeem one: the fetch arrives from an address, and a name is not one. The
+// server resolves the name at mint; any address it resolved to is accepted,
+// and an IPv4-mapped IPv6 peer is the same address (review loop).
+func TestANamedRouterRedeemsFromAnyOfItsAddresses(t *testing.T) {
+	sources := []netip.Addr{netip.MustParseAddr("192.0.2.7"), netip.MustParseAddr("2001:db8::7")}
+	for _, from := range []string{"192.0.2.7", "2001:db8::7", "::ffff:192.0.2.7"} {
+		rt, _ := tokensAt(time.Unix(1787000000, 0))
+		tok, err := rt.Mint(7, "router-a", sources)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := rt.Redeem(tok, from); !v.OK {
+			t.Errorf("redeemed from %s: %s", from, v.Reason)
+		}
+	}
+	// THE CONTROL: an address it did not resolve to is still refused.
+	rt, _ := tokensAt(time.Unix(1787000000, 0))
+	tok, _ := rt.Mint(7, "router-a", sources)
+	if v := rt.Redeem(tok, "192.0.2.8"); v.OK || v.Reason != "wrong-source" {
+		t.Errorf("a stranger redeemed the token: %+v", v)
+	}
+	// And a token minted with no source cannot be redeemed at all.
+	rt, _ = tokensAt(time.Unix(1787000000, 0))
+	if tok, err := rt.Mint(7, "router-a", nil); err == nil {
+		if v := rt.Redeem(tok, "192.0.2.7"); v.OK {
+			t.Error("a token with no source was redeemed")
+		}
 	}
 }

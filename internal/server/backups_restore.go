@@ -33,7 +33,10 @@ package server
 // the router was busy applying it.
 
 import (
+	"context"
 	"encoding/json"
+	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -156,7 +159,13 @@ func (cn *conn) restoreLocked(req restoreReq) {
 			acceptedNote(req.AcceptVersion),
 	})
 
-	token, err := cn.srv.restoreTokens.Mint(row.ID, cn.routerID, cn.rsession.Host())
+	sources, err := restoreSources(context.Background(), cn.rsession.Host())
+	if err != nil {
+		cn.bkErr("failed", map[string]any{"message": "The router's host name did not resolve, " +
+			"so MikroDash cannot tell its fetch from anyone else's: " + safe.Message(err.Error())})
+		return
+	}
+	token, err := cn.srv.restoreTokens.Mint(row.ID, cn.routerID, sources)
 	if err != nil {
 		cn.bkErr("failed", map[string]any{"message": safe.Message(err.Error())})
 		return
@@ -324,3 +333,23 @@ func acceptedNote(accepted bool) string {
 
 // strconv64 renders a row id for an audit field and a URL path.
 func strconv64(n int64) string { return strconv.FormatInt(n, 10) }
+
+// restoreSources is every address the restore fetch may arrive from: the
+// configured host itself when it is an address, or every address its name
+// resolves to. Resolved here, at mint, because the token compares addresses.
+func restoreSources(ctx context.Context, host string) ([]netip.Addr, error) {
+	if a, err := netip.ParseAddr(host); err == nil {
+		return []netip.Addr{a.Unmap()}, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	names, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]netip.Addr, 0, len(names))
+	for _, a := range names {
+		out = append(out, a.Unmap())
+	}
+	return out, nil
+}

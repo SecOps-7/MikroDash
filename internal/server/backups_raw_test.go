@@ -1,8 +1,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,7 +56,7 @@ func TestRawWithAnUnknownTokenIsForbidden(t *testing.T) {
 // anywhere else, so a valid token from the wrong address is refused.
 func TestRawRefusesAValidTokenFromTheWrongSource(t *testing.T) {
 	s := rawServer(t, time.Now)
-	tok, err := s.restoreTokens.Mint(1, "r1", "10.0.0.2")
+	tok, err := s.restoreTokens.Mint(1, "r1", []netip.Addr{netip.MustParseAddr("10.0.0.2")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +72,7 @@ func TestRawRefusesAValidTokenFromTheWrongSource(t *testing.T) {
 // varying the conditions until a combination was accepted.
 func TestRawSpendsTheTokenEvenOnAFailedAttempt(t *testing.T) {
 	s := rawServer(t, time.Now)
-	tok, _ := s.restoreTokens.Mint(1, "r1", "10.0.0.2")
+	tok, _ := s.restoreTokens.Mint(1, "r1", []netip.Addr{netip.MustParseAddr("10.0.0.2")})
 
 	// Wrong source: refused, and the token is gone.
 	rawGet(s, "1", tok, "10.0.0.99")
@@ -87,7 +89,7 @@ func TestRawSpendsTheTokenEvenOnAFailedAttempt(t *testing.T) {
 // is "there is nothing to serve", and the router should treat it that way.
 func TestRawWithNoDatabaseIsNotFound(t *testing.T) {
 	s := rawServer(t, time.Now)
-	tok, _ := s.restoreTokens.Mint(7, "r1", "10.0.0.2")
+	tok, _ := s.restoreTokens.Mint(7, "r1", []netip.Addr{netip.MustParseAddr("10.0.0.2")})
 	if w := rawGet(s, "7", tok, "10.0.0.2"); w.Code != 404 {
 		t.Fatalf("status %d, want 404", w.Code)
 	}
@@ -97,7 +99,7 @@ func TestRawWithNoDatabaseIsNotFound(t *testing.T) {
 // redemption happens before the id is even parsed.
 func TestRawWithAJunkIDIsNotFound(t *testing.T) {
 	s := rawServer(t, time.Now)
-	tok, _ := s.restoreTokens.Mint(1, "r1", "10.0.0.2")
+	tok, _ := s.restoreTokens.Mint(1, "r1", []netip.Addr{netip.MustParseAddr("10.0.0.2")})
 	if w := rawGet(s, "not-a-number", tok, "10.0.0.2"); w.Code != 404 {
 		t.Fatalf("status %d, want 404", w.Code)
 	}
@@ -111,7 +113,7 @@ func TestRawRefusesAnExpiredToken(t *testing.T) {
 	base := time.Now()
 	clock := base
 	s := rawServer(t, func() time.Time { return clock })
-	tok, _ := s.restoreTokens.Mint(1, "r1", "10.0.0.2")
+	tok, _ := s.restoreTokens.Mint(1, "r1", []netip.Addr{netip.MustParseAddr("10.0.0.2")})
 
 	clock = base.Add(backups.RestoreTokenTTL + time.Second)
 	if w := rawGet(s, "1", tok, "10.0.0.2"); w.Code != 403 {
@@ -150,5 +152,29 @@ func TestRawIsRegisteredAtTheRealPath(t *testing.T) {
 	}
 	if string(body) == "" {
 		t.Fatal("empty source")
+	}
+}
+
+// TestRestoreSourcesResolveAName. A literal address is its own source; a name is
+// every address it resolves to, so a router configured as "chr-test" can
+// redeem its restore token (review loop).
+func TestRestoreSourcesResolveAName(t *testing.T) {
+	got, err := restoreSources(context.Background(), "127.0.0.1")
+	if err != nil || len(got) != 1 || got[0] != netip.MustParseAddr("127.0.0.1") {
+		t.Errorf("a literal resolved to %v, %v", got, err)
+	}
+	got, err = restoreSources(context.Background(), "localhost")
+	if err != nil {
+		t.Fatalf("localhost did not resolve: %v", err)
+	}
+	found := false
+	for _, a := range got {
+		found = found || a == netip.MustParseAddr("127.0.0.1") || a == netip.MustParseAddr("::1")
+	}
+	if !found {
+		t.Errorf("localhost resolved to %v, with no loopback address", got)
+	}
+	if _, err := restoreSources(context.Background(), "no-such-host.invalid"); err == nil {
+		t.Error("an unresolvable name produced sources")
 	}
 }

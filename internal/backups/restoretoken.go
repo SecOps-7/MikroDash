@@ -19,8 +19,9 @@ package backups
 //	one backup id      and one router — checked against the ROW, not the request
 //	single use         redeemed on the FIRST attempt, whether or not it succeeded
 //	120 seconds        and swept even if never presented
-//	source-bound       to the router's configured host, so a token that leaks
-//	                   off the box cannot be redeemed from anywhere else
+//	source-bound       to the addresses the router's configured host resolved
+//	                   to when it was minted, so a token that leaks off the
+//	                   box cannot be redeemed from anywhere else
 //
 // It can only ever READ one specific file. Nothing mints one on a schedule.
 //
@@ -35,7 +36,8 @@ package backups
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"strings"
+	"net/netip"
+	"slices"
 	"sync"
 	"time"
 )
@@ -46,8 +48,11 @@ const RestoreTokenTTL = 120 * time.Second
 type restoreEntry struct {
 	BackupID int64
 	RouterID string
-	Host     string
-	Expires  time.Time
+	// Sources are the addresses a fetch may come from: the configured host
+	// resolved at mint. A name is not an address, and bound to the name a
+	// router configured by one could never redeem its token.
+	Sources []netip.Addr
+	Expires time.Time
 }
 
 // RestoreTokens is the live set. Zero value is not usable; call NewRestoreTokens.
@@ -65,7 +70,7 @@ func NewRestoreTokens(now func() time.Time) *RestoreTokens {
 }
 
 // Mint issues a token bound to one backup on one router.
-func (t *RestoreTokens) Mint(backupID int64, routerID, host string) (string, error) {
+func (t *RestoreTokens) Mint(backupID int64, routerID string, sources []netip.Addr) (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
@@ -81,7 +86,7 @@ func (t *RestoreTokens) Mint(backupID int64, routerID, host string) (string, err
 	// redeemable.
 	t.sweepLocked()
 	t.m[token] = restoreEntry{
-		BackupID: backupID, RouterID: routerID, Host: host,
+		BackupID: backupID, RouterID: routerID, Sources: sources,
 		Expires: t.now().Add(RestoreTokenTTL),
 	}
 	return token, nil
@@ -119,10 +124,13 @@ func (t *RestoreTokens) Redeem(token, remoteIP string) RestoreVerdict {
 	if t.now().After(e.Expires) {
 		return RestoreVerdict{Reason: "expired"}
 	}
-	// `::ffff:` is how an IPv4 peer arrives on a dual-stack listener. Stripped
-	// before the compare, as the original strips it, or every restore from an
-	// IPv4 router would be refused as wrong-source.
-	if strings.TrimPrefix(remoteIP, "::ffff:") != e.Host {
+	// `::ffff:` is how an IPv4 peer arrives on a dual-stack listener. Unmapped
+	// before the compare, or every restore from an IPv4 router would be refused
+	// as wrong-source.
+	from, err := netip.ParseAddr(remoteIP)
+	if err != nil || !slices.ContainsFunc(e.Sources, func(a netip.Addr) bool {
+		return a.Unmap() == from.Unmap()
+	}) {
 		return RestoreVerdict{Reason: "wrong-source"}
 	}
 	return RestoreVerdict{OK: true, Entry: e}
