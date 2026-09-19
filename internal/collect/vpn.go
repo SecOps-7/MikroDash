@@ -700,7 +700,9 @@ func (v *VPN) Reconnected() {
 	v.pppAvail, v.ipsecAvail = nil, nil
 	v.mu.Unlock()
 	v.Tick()
-	v.poll.start()
+	// RE-SUBSCRIBE, as Firewall and Wireless do: starting the raw loop left
+	// /ppp/active unsubscribed, so PPP and IPsec froze after a router reboot.
+	v.sched.begin()
 }
 
 func (v *VPN) Suspend() { v.sched.end() }

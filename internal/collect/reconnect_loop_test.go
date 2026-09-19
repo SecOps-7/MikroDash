@@ -36,6 +36,13 @@ func TestAReconnectLeavesNoOrphanLoop(t *testing.T) {
 			w.UseCache(roscache.New(emptyReader{}))
 			return w.loop, w.Reconnected, w.Suspend
 		}},
+		// VPN too (review loop): its /ppp/active subscription also went, so a
+		// router reboot froze the PPP and IPsec rows until a page change.
+		{"vpn", func() (*pollLoop, func(), func()) {
+			v := NewVPN(emptyReader{}, Emit{}, 5000)
+			v.UseCache(roscache.New(emptyReader{}))
+			return v.poll, v.Reconnected, v.Suspend
+		}},
 	} {
 		loop, reconnect, suspend := tc.build()
 		reconnect()
@@ -99,4 +106,22 @@ func TestARetuneReachesTheSchedulersDemand(t *testing.T) {
 		}
 		stop()
 	}
+}
+
+// TestAVPNReconnectKeepsItsSubscription. VPN's Reconnected ended its scheduled
+// subscription and started the raw loop in its place, so the cache stopped
+// reading /ppp/active for it (review loop).
+func TestAVPNReconnectKeepsItsSubscription(t *testing.T) {
+	c := roscache.New(emptyReader{})
+	v := NewVPN(emptyReader{}, Emit{}, 5000)
+	v.UseCache(c)
+	v.Start()
+	defer v.Stop()
+	v.Reconnected()
+	for _, d := range c.Demand() {
+		if d.Menu == "/ppp/active/print" {
+			return
+		}
+	}
+	t.Errorf("after Reconnected the scheduler's demand is %+v, without /ppp/active/print", c.Demand())
 }
