@@ -129,8 +129,14 @@ func (w *Wire) SetSettings(set alert.Settings) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.set = set
-	for _, e := range w.evals {
+	// UNDER EACH ROUTER'S LOCK: a rule run reads the settings under it, and
+	// swapping them under the wire's alone raced that read. The order, wire then
+	// router, is the order forRouter and Evaluate take them in.
+	for id, e := range w.evals {
+		l := w.locks[id]
+		l.Lock()
 		e.SetSettings(set)
+		l.Unlock()
 	}
 }
 
@@ -150,9 +156,10 @@ func (w *Wire) Routers() int {
 	return len(w.evals)
 }
 
-// forRouter returns this router's evaluator AND the lock that must be held
-// while using it. See Evaluate for why the two travel together.
-func (w *Wire) forRouter(routerID string, now int64) (*alert.Evaluator, *sync.Mutex) {
+// forRouter returns this router's evaluator, the lock that must be held while
+// using it, and its store, whose clock Evaluate sets under that lock. See
+// Evaluate for why they travel together.
+func (w *Wire) forRouter(routerID string) (*alert.Evaluator, *sync.Mutex, timedStore) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	st := w.stores[routerID]
@@ -172,8 +179,7 @@ func (w *Wire) forRouter(routerID string, now int64) (*alert.Evaluator, *sync.Mu
 		w.evals[routerID] = alert.NewEvaluator(w.set, st)
 		w.locks[routerID] = &sync.Mutex{}
 	}
-	st.setNow(now)
-	return w.evals[routerID], w.locks[routerID]
+	return w.evals[routerID], w.locks[routerID], st
 }
 
 // Evaluate feeds one collector payload to the rules and returns what fired.
@@ -297,8 +303,11 @@ func (w *Wire) Evaluate(r alert.Router, event string, payload any) []alert.Fired
 	}
 
 	// ONE ROUTER'S RULES RUN ONE AT A TIME — see the note above the switch.
-	ev, lock := w.forRouter(r.ID, w.now())
+	ev, lock, st := w.forRouter(r.ID)
 	lock.Lock()
+	// THE CLOCK IS SET UNDER THE ROUTER'S LOCK, which is where the rule run
+	// reads it; set under the wire's, it raced another event's run.
+	st.setNow(w.now())
 	fired := run(ev)
 	lock.Unlock()
 
