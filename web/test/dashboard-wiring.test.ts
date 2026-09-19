@@ -485,6 +485,16 @@ const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
   if (!callsIn(sf).has('initDashboard')) {
     problems.push('main.ts never calls initDashboard — nothing is wired at boot');
   }
+  // A payload that arrives while the tab is hidden is dropped by every page's
+  // visibility guard; refocusOnReturn asks for it again (review loop).
+  if (!callsIn(sf).has('refocusOnReturn')) {
+    problems.push('main.ts never calls refocusOnReturn — a page stays stale after its tab returns');
+  }
+  // perms:changed was subscribed twice, refreshing the caps twice per nudge.
+  const permsSubs = (fs.readFileSync(mainPath, 'utf8').match(/socket\.on\('perms:changed'/g) || []).length;
+  if (permsSubs !== 1) {
+    problems.push('main.ts subscribes to perms:changed ' + permsSubs + ' times, want 1');
+  }
 }
 
 // ── the visibilitychange handler brings the traffic chart back to now ───────

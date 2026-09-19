@@ -95,6 +95,20 @@ function pageVisible(name: string): boolean {
   return currentPage === name && !document.hidden;
 }
 
+// ── A HIDDEN TAB DROPS WHAT ARRIVES; COMING BACK ASKS FOR IT AGAIN ─────────
+//
+// Every page handler declines to render while `pageVisible` is false, so a
+// payload that arrived in the background was drawn only by the next one, up to
+// a whole poll later. `page:focus` replays the page's last payloads from the
+// server's memory (resumePage), with no router read, and they now land on a
+// visible page. NOT `mikrodash:pagechange`: Settings reloads its form on that,
+// which would throw away an edit in progress.
+function refocusOnReturn(socket: Socket): void {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && currentPage && socket.isOpen()) socket.emit('page:focus', currentPage);
+  });
+}
+
 function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
   // Hiding the nav link was never a block — showPage('settings') from the
   // console opened the whole admin page for anyone. The server refused every
@@ -474,7 +488,9 @@ async function main(): Promise<void> {
   // stale. Fleet-wide, like perms:changed — sites are not per-router.
   socket.on('sites:update', (list) => onSitesUpdate(list));
   // A permissions change can take the principals card away — or give it —
-  // without a reload. Re-asking is cheap; leaving it on screen is not.
+  // without a reload. Re-asking is cheap; leaving it on screen is not. A nudge,
+  // never the caps themselves: re-asking re-resolves them server-side, so a
+  // forged event cannot widen anything. (It was subscribed twice; once is it.)
   socket.on('perms:changed', () => { void refreshCaps().then(refreshPrincipalsVisibility); });
 
   // ── THE ROUTER YOU ARE LOOKING AT WAS DISABLED ────────────────────────────
@@ -509,9 +525,7 @@ async function main(): Promise<void> {
   });
   // The account modal — opened by the chip, which `wireNav` deliberately skips.
   wireAccount();
-  // A nudge, never the caps themselves: re-asking re-resolves them server-side,
-  // so a forged event cannot widen anything.
-  socket.on('perms:changed', () => { void refreshCaps(); });
+  refocusOnReturn(socket);
 
   // ── Re-join the page room after a router switch ───────────────────────────
   //
