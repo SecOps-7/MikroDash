@@ -171,7 +171,7 @@ func Render(c Canvas, title string, columns []string, rows []map[string]any, met
 	}
 	dateRange := ""
 	if meta != nil && meta.From != 0 && meta.To != 0 {
-		// // AN EN DASH, not the rightwards arrow this used to carry. U+2192 is not in
+		// AN EN DASH, not the rightwards arrow this used to carry. U+2192 is not in
 		// the WinAnsi charset of the standard-14 Helvetica, and pdfkit does not
 		// substitute: it emits the raw code point and advances by ZERO, so the
 		// separator was invisible in every report that left the default font alone.

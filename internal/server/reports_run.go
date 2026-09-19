@@ -11,6 +11,7 @@ import (
 	"mikrodash/internal/mailer"
 	"mikrodash/internal/reportpdf"
 	"mikrodash/internal/reports"
+	"mikrodash/internal/safe"
 )
 
 // runResult is `runOnce`'s result object.
@@ -216,7 +217,9 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 	}
 
 	if err := mailer.Send(cfg, msg); err != nil {
-		res.Outcome, res.Err = "failed", err.Error()
+		// SANITISED: the mail error names the SMTP host and port, and this text
+		// is stored in report_runs.error and returned to the page.
+		res.Outcome, res.Err = "failed", safe.Message(err.Error())
 		return res
 	}
 

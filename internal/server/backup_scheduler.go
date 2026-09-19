@@ -12,13 +12,13 @@ import (
 	"mikrodash/internal/session"
 )
 
-// The backup scheduler's construction — the last half of cutover step 0.
+// The backup scheduler's construction.
 //
 // ── OFF UNLESS SWITCHED ON ─────────────────────────────────────────────────
 //
 // Two schedulers against one fleet take two backups of every router on the same
-// timetable, each holding a router channel while it runs. During coexistence
-// Node owns that job, so `-backup-scheduler` defaults false and this returns nil.
+// timetable, each holding a router channel while it runs, so `-backup-scheduler`
+// must be passed (the image passes it) and without it this returns nil.
 //
 // ── THE QUEUE IS `Manager.Acquire`, AND THAT IS THE WHOLE DESIGN DECISION ──
 //

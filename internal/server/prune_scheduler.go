@@ -22,13 +22,10 @@ import (
 //
 // So the test for this file reads the START site, not the sweep.
 //
-// ── STANDALONE ONLY ───────────────────────────────────────────────────────
+// ── BEHIND -retention ─────────────────────────────────────────────────────
 //
-// During coexistence the Node app runs `startPruneInterval` against the same
-// database, and two sweeps would duplicate the work — harmlessly, since a DELETE
-// by age is idempotent and the second finds nothing, but pointlessly. More to
-// the point, retention is an INSTALL-wide policy and one process should own it.
-// Standalone means there is no Node, so this process owns everything.
+// Retention is an INSTALL-wide policy that DELETES, so it runs only when asked
+// for (the image passes the flag).
 //
 // ── THE SETTINGS ARE RE-READ ON EVERY SWEEP ───────────────────────────────
 //
@@ -53,11 +50,8 @@ const pruneInterval = 24 * time.Hour
 // buildPruneScheduler starts the sweep, or says why it did not.
 func (s *Server) buildPruneScheduler(enabled bool) *pruneScheduler {
 	if !enabled {
-		// The message names BOTH conditions, because it stopped being true when
-		// -retention was added: saying only "standalone" sent a reader looking
-		// for a mode they were already in.
 		log.Printf("[db] retention sweep off; nothing ages out of the database " +
-			"(needs -retention, and only runs standalone)")
+			"(pass -retention to enable)")
 		return nil
 	}
 	if s.auditDB == nil {

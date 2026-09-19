@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,5 +79,24 @@ func TestNoSessionIsTheStrictAuthAnswer(t *testing.T) {
 	}
 	if runSource(nil) != "schedule" || runSource(&Session{AuthMode: "modern"}) != "manual" {
 		t.Error("runs are recorded under the wrong source")
+	}
+}
+
+// TestAMailFailureIsStoredSanitised. The mailer's error names the SMTP host and
+// port, and it was stored in report_runs.error and returned to the page as is
+// (review loop). Checked at the source, as session.go's stored error is
+// (internal/safe/errors_test.go): reaching the branch needs an SMTP server.
+func TestAMailFailureIsStoredSanitised(t *testing.T) {
+	src, err := os.ReadFile("reports_run.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(src)
+	i := strings.Index(s, "mailer.Send(cfg, msg); err != nil {")
+	if i < 0 {
+		t.Fatal("reports_run.go no longer sends through mailer.Send; this check reads nothing")
+	}
+	if branch := s[i : i+400]; !strings.Contains(branch, "safe.Message(err.Error())") {
+		t.Errorf("a mail failure is stored without safe.Message:\n%s", branch)
 	}
 }

@@ -38,13 +38,11 @@ var cp1252High = map[rune]byte{
 // because it would both draw a glyph the live app does not draw and push
 // everything after it along by half an em.
 //
-// # The live defect this exposes
+// # What this means for a report
 //
-// `src/reports/pdf.js` builds its date range as `${from}  →  ${to}`, and that
-// arrow is invisible and zero-width in every report PDF the live app has ever
-// produced. Recorded in ../MikroDash/ToDo.md. The port reproduces the behaviour
-// rather than quietly fixing it, per the porting rule; fixing it upstream is the
-// live repo's call and would change what this gate compares against.
+// A rune outside cp1252 is DROPPED, not substituted. The date range once used a
+// rightwards arrow, which cp1252 cannot hold, and it vanished from every PDF;
+// it is an en dash now (render.go). A new separator must be a cp1252 character.
 func EncodeText(s string) string {
 	// Fast path: the overwhelming majority of report strings are ASCII.
 	ascii := true
