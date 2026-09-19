@@ -39,17 +39,11 @@ func (cn *conn) scanErr(code string, extra map[string]any) {
 // says nothing about who may disrupt a radio, and the capability says nothing
 // about whether the feature is switched on at all.
 func (cn *conn) mayScan() bool {
+	// canPage answers no session, sign-in off and an unavailable grant database
+	// for a write, all three as NO, so nothing below needs to: the branches that
+	// said YES for the last two could not be reached, and are gone.
 	if !cn.canPage("wifi-clients", "write") {
 		return false
-	}
-	if cn.sess == nil {
-		return false
-	}
-	if cn.sess.AuthMode == "none" {
-		return true
-	}
-	if !cn.srv.rbac.Available() {
-		return true // the documented gap, reported at startup
 	}
 	ok, err := cn.srv.rbac.Can(cn.userID, "router:scan", cn.routerID)
 	if err != nil {
