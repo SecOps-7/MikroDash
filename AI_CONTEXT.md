@@ -33,7 +33,7 @@ them goes through a guard that can refuse it.
 | Transport | `github.com/coder/websocket` |
 | RouterOS | `github.com/go-routeros/routeros/v3`, wrapped by `internal/routeros` |
 | PDF | `github.com/go-pdf/fpdf` |
-| GeoIP | `github.com/oschwald/maxminddb-golang`, reading DB-IP City Lite |
+| GeoIP | `github.com/oschwald/maxminddb-golang/v2`, reading DB-IP City Lite |
 
 Node is a **build-time** dependency only, for the frontend bundle and for the
 corpus generators in `tools/`. Nothing Node-related runs in production.

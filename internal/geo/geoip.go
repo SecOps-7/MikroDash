@@ -34,7 +34,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 )
 
 // The record geometry, from geoip-lite's `conf4` and `conf6`.

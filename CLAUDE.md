@@ -152,7 +152,7 @@ table.
   `modernc.org/sqlite` (pure Go, no cgo, so the binary stays static), `github.com/coder/websocket`,
   `github.com/go-routeros/routeros/v3` (a patched copy, `third_party/go-routeros`: see
   "Three things about `internal/routeros`"), `github.com/go-pdf/fpdf`,
-  `github.com/oschwald/maxminddb-golang` (the DB-IP geo reader) and `github.com/evanw/esbuild`.
+  `github.com/oschwald/maxminddb-golang/v2` (the DB-IP geo reader) and `github.com/evanw/esbuild`.
   - **esbuild runs through its Go API** in `cmd/webbuild`, so the image needs no JavaScript
     runtime. Node is a development dependency only: `tsc --noEmit` and the tests in `web/test/`.
   - **fpdf walks bytes against a cp1252 table**, so `reportpdf.EncodeText` is mandatory on every

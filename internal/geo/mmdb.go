@@ -3,11 +3,12 @@ package geo
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 )
 
 // THE MMDB BACKEND — DB-IP City Lite, and why it replaced geoip-lite's files.
@@ -117,8 +118,14 @@ func lookupMMDB(r *maxminddb.Reader, ip net.IP) (Location, bool) {
 	if r == nil || ip == nil {
 		return Location{}, false
 	}
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return Location{}, false
+	}
+	// Unmap: net.ParseIP returns an IPv4 address in its 16-byte mapped form,
+	// and v2 looks a mapped address up as IPv6.
 	var rec mmdbRecord
-	if err := r.Lookup(ip, &rec); err != nil {
+	if err := r.Lookup(addr.Unmap()).Decode(&rec); err != nil {
 		return Location{}, false
 	}
 	if rec.Country.ISO == "" {

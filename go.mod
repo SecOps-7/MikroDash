@@ -7,7 +7,7 @@ require (
 	github.com/evanw/esbuild v0.28.2
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/go-routeros/routeros/v3 v3.0.1
-	github.com/oschwald/maxminddb-golang v1.13.1
+	github.com/oschwald/maxminddb-golang/v2 v2.6.0
 	golang.org/x/crypto v0.57.0
 	modernc.org/sqlite v1.59.0
 )

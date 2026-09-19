@@ -28,7 +28,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/oschwald/maxminddb-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 )
 
 // entry is one gazetteer row as written to disk. The field names match
@@ -80,13 +80,16 @@ func main() {
 
 	seen := map[key]*entry{}
 	networks := 0
-	// SkipAliasedNetworks: without it the v6 tree's mapped-v4 aliases are walked
-	// again, counting the same ranges twice and inflating every weight that has
-	// a v4 presence.
-	it := db.Networks(maxminddb.SkipAliasedNetworks)
-	for it.Next() {
+	// Aliased networks are skipped, which v2 does by default: walking them
+	// would count the v6 tree's mapped-v4 aliases a second time and inflate
+	// every weight that has a v4 presence.
+	for res := range db.Networks() {
+		if err := res.Err(); err != nil {
+			fmt.Fprintln(os.Stderr, "geogen: walking the database:", err)
+			os.Exit(1)
+		}
 		var r record
-		if _, err := it.Network(&r); err != nil {
+		if err := res.Decode(&r); err != nil {
 			continue
 		}
 		networks++
@@ -111,11 +114,6 @@ func main() {
 			Lat: r.Location.Lat, Lon: r.Location.Lon, W: 1,
 		}
 	}
-	if err := it.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "geogen: walking the database:", err)
-		os.Exit(1)
-	}
-
 	rows := make([]entry, 0, len(seen))
 	for _, e := range seen {
 		rows = append(rows, *e)
