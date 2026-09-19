@@ -1819,6 +1819,21 @@
        `/interface/wifi/registration-table/print` the value column was squeezed
        until "pushed" wrapped mid-word to two lines. */
     .diag-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)}
+    /* Who asked: a source pill, a bar on the headline's scale, the rate. */
+    .diag-src{display:grid;grid-template-columns:minmax(5.5rem,auto) 1fr auto;align-items:center;gap:.5rem;padding:.22rem 0;font-size:.8rem}
+    .diag-src .vpn-hs-badge{justify-self:start}
+    .diag-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden}
+    .diag-bar-fill{display:block;height:100%;border-radius:3px;background:var(--accent-rx);transition:width .3s}
+    /* Busiest menus: a small sortable table. The menu column shrinks and
+       ellipsises for the same reason .diag-name does. */
+    .diag-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.76rem}
+    .diag-table th{font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);text-align:left;padding:.2rem .25rem;border-bottom:1px solid var(--border)}
+    .diag-table th:nth-child(2){width:7rem}
+    .diag-table th:nth-child(3){width:3.2rem}
+    .diag-table td{padding:.2rem .25rem;border-bottom:1px solid var(--border)}
+    .diag-table tr:last-child td{border-bottom:none}
+    .diag-menu{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);color:var(--text-muted)}
+    .diag-num{text-align:right !important;font-weight:600}
 
 /* ── The WAN uplink picker ───────────────────────────────────────────────────
    Shown only in Manual mode: in Auto it would be a list of checkboxes that

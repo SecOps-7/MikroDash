@@ -69,8 +69,8 @@ var (
 	// path to count it, which is a strange trade for an instrument.
 	counts = map[string]int64{}
 
-	// rate is a ROLLING per-router command count: sixty one-second buckets,
-	// summed on read.
+	// load is a ROLLING per-router command count, split by who asked and for
+	// which menu: sixty one-second buckets per (source, menu), summed on read.
 	//
 	// ── WHY NOT `counts`, WHICH IS RIGHT THERE ──────────────────────────────
 	//
@@ -86,7 +86,17 @@ var (
 	// not. Sixty buckets is one minute at one-second resolution, and a bucket
 	// carries the second it belongs to so a router that goes quiet ages out
 	// instead of holding its last reading for ever.
-	rate = map[string]*cmdRate{}
+	//
+	// ── KEYED BY SOURCE AND MENU, AND THE TOTAL IS THEIR SUM ────────────────
+	//
+	// It was one counter per router. The card's headline counted a Security
+	// Scan's thirty-seven reads and said nothing about where they came from: the
+	// only list on it named the collectors' SUBSCRIPTIONS, so a burst from the
+	// Apps tab, the Tools page or the AI agent raised the number with nothing on
+	// the card to account for it. The total is now derived from these rows
+	// rather than kept beside them, so the headline and its breakdown cannot
+	// disagree.
+	load = map[string]map[loadKey]*cmdRate{}
 
 	// menus is commands per RouterOS menu since the last report.
 	//
@@ -167,18 +177,29 @@ func Acquire(routerID string) func() {
 	return func() { once.Do(func() { <-g }) }
 }
 
-// Note records which menu a command was for. Called beside Acquire by each of
-// the three readers, rather than folded into Acquire, so the concurrency gate
-// keeps its signature and its single responsibility.
-func Note(routerID, menu string) {
+// Note records one command: the router it went to, the menu it was for, and
+// the SOURCE that asked (a collector, or a feature such as the Security Scan).
+// Called beside Acquire by each reader, and by the stream openers, rather than
+// folded into Acquire, so the concurrency gate keeps its signature and its single
+// responsibility: a stream is a command and takes no slot.
+//
+// An empty source is recorded as "Other" rather than dropped: a command nobody
+// named is still a command the router answered.
+func Note(routerID, menu, source string) {
 	if menu == "" {
 		return
 	}
+	if source == "" {
+		source = "Other"
+	}
 	mu.Lock()
 	menus[menu]++
-	noteRateLocked(routerID)
+	noteRateLocked(routerID, loadKey{source, menu})
 	mu.Unlock()
 }
+
+// loadKey is one row of a router's rolling minute.
+type loadKey struct{ source, menu string }
 
 // cmdRate is one router's rolling minute. Index is the unix second modulo the
 // window, and `sec` records which second the bucket actually holds -- without it
@@ -191,14 +212,19 @@ type cmdRate struct {
 const rateWindow = 60
 
 // noteRateLocked adds one command to this second's bucket. Caller holds mu.
-func noteRateLocked(routerID string) {
+func noteRateLocked(routerID string, k loadKey) {
 	if routerID == "" {
 		return
 	}
-	r := rate[routerID]
+	rows := load[routerID]
+	if rows == nil {
+		rows = map[loadKey]*cmdRate{}
+		load[routerID] = rows
+	}
+	r := rows[k]
 	if r == nil {
 		r = &cmdRate{}
-		rate[routerID] = r
+		rows[k] = r
 	}
 	now := time.Now().Unix()
 	i := now % rateWindow
@@ -206,6 +232,18 @@ func noteRateLocked(routerID string) {
 		r.sec[i], r.n[i] = now, 0
 	}
 	r.n[i]++
+}
+
+// sum is how many commands the bucket holds for the minute ending now.
+func (r *cmdRate) sum(now int64) int64 {
+	cut := now - rateWindow
+	total := int64(0)
+	for i := range r.sec {
+		if r.sec[i] > cut {
+			total += r.n[i]
+		}
+	}
+	return total
 }
 
 // Cap is the in-flight command limit, for an instrument that wants to show a
@@ -217,24 +255,34 @@ func Cap() int {
 	return max()
 }
 
-// CommandsPerMin is how many commands this router has been sent in the last
-// minute. Non-destructive: any number of readers may ask, and asking changes
-// nothing.
-func CommandsPerMin(routerID string) int64 {
+// Rate is one row of a router's last minute: this many commands, for this
+// menu, asked for by this source.
+type Rate struct {
+	Source string
+	Menu   string
+	PerMin int64
+}
+
+// Load is every (source, menu) that sent this router a command in the last
+// minute. Their sum is the router's command rate. Non-destructive: any number
+// of readers may ask, and asking changes nothing but the pruning of rows that
+// have aged out, which no reader could have seen.
+func Load(routerID string) []Rate {
 	mu.Lock()
 	defer mu.Unlock()
-	r := rate[routerID]
-	if r == nil {
-		return 0
-	}
-	cut := time.Now().Unix() - rateWindow
-	total := int64(0)
-	for i := range r.sec {
-		if r.sec[i] > cut {
-			total += r.n[i]
+	now := time.Now().Unix()
+	out := []Rate{}
+	for k, r := range load[routerID] {
+		n := r.sum(now)
+		if n == 0 {
+			// AGED OUT, so dropped: the AI agent's raw commands can name any
+			// menu, and a row kept at zero for ever is a leak with a key.
+			delete(load[routerID], k)
+			continue
 		}
+		out = append(out, Rate{Source: k.source, Menu: k.menu, PerMin: n})
 	}
-	return total
+	return out
 }
 
 // StreamOpened records that a channel is now open on this router, and returns
@@ -449,6 +497,6 @@ func Reset() {
 	// The rolling rate too: it decays on its own in a running process, but a
 	// test that runs two cases inside one second would see the first case's
 	// commands in the second's reading.
-	rate = map[string]*cmdRate{}
+	load = map[string]map[loadKey]*cmdRate{}
 	maxOne = -1
 }

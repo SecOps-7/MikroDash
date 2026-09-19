@@ -23,6 +23,11 @@
 //   derivation   what those rows are being turned into
 //   views        who is listening, which is what decides the other two
 //
+// Acquisition says who asked (the command rate by source), which menus the last
+// minute's commands were for (a sortable table), and what the collectors
+// subscribe to. The first two cover every path that reaches the router, the
+// on-demand features included; see internal/session/sources.go.
+//
 // ── `esc`, NOT THE `dcEsc` THE OTHER DASHBOARD CARDS USE ───────────────────
 //
 // Every other card on this page escapes with `dcEsc`, and does so for a reason
@@ -39,8 +44,9 @@
 // in separate stores — so under `web/test/` it returns `''` and the card renders
 // nothing. `esc` is a string replace and needs no DOM.
 
-import { el, esc } from '../dom';
-import type { Diagnostics } from '../gen/payloads';
+import { el, esc, renderSortHeader, sortRows } from '../dom';
+import type { SortState } from '../dom';
+import type { Diagnostics, MenuRate, SourceLoad } from '../gen/payloads';
 
 /** A number, or an em dash when the server said nothing rather than zero. */
 function num(v: number | undefined): string {
@@ -59,6 +65,63 @@ function row(label: string, value: string, active: boolean, title?: string): str
   return '<div class="diag-row"' + t + '><span class="diag-name">' + esc(label) +
     '</span><span class="diag-count ' + (active ? 'diag-count-active' : 'diag-count-zero') +
     '">' + value + '</span></div>';
+}
+
+/**
+ * A source as a coloured pill, by KIND rather than by name: the collectors'
+ * steady reads are blue, a feature somebody started (a scan, an app, a tool run,
+ * the AI agent, a page) is amber, and an unnamed or background source is grey.
+ * A new feature therefore gets a colour without this file learning its name.
+ */
+function sourcePill(src: string): string {
+  const cls = src === 'Collectors' ? 'hs-info'
+    : src === 'Other' || src === 'Devices' ? 'hs-never' : 'hs-warn';
+  return '<span class="vpn-hs-badge ' + cls + '">' + esc(src) + '</span>';
+}
+
+/** How a subscribed menu is delivered, as a pill: pushed green, polled blue. */
+function deliveryPill(streamed: boolean): string {
+  return streamed
+    ? '<span class="vpn-hs-badge hs-ok">pushed</span>'
+    : '<span class="vpn-hs-badge hs-info">polled</span>';
+}
+
+/**
+ * WHO ASKED: the command rate split by source, one bar each against the total.
+ * The bars share one scale, the headline, so they read as parts of it.
+ */
+function sourceRows(sources: SourceLoad[], total: number): string {
+  return sources.map((s) => {
+    const pct = total > 0 ? Math.max(2, Math.round((s.perMin / total) * 100)) : 0;
+    return '<div class="diag-src">' + sourcePill(s.source) +
+      '<span class="diag-bar"><span class="diag-bar-fill" style="width:' + pct + '%"></span></span>' +
+      '<span class="diag-count diag-count-active">' + s.perMin + '</span></div>';
+  }).join('');
+}
+
+// The busiest-menus table's sort, kept across repaints so a two-second tick
+// does not undo the operator's click.
+const busySort: SortState = { col: 'perMin', dir: 'desc' };
+let lastBusy: MenuRate[] = [];
+
+function busiestBody(rows: MenuRate[]): string {
+  return sortRows(rows, busySort.col, busySort.dir).map((r) =>
+    '<tr><td class="diag-menu" title="' + esc(r.menu) + '">' + esc(r.menu) + '</td>' +
+    '<td>' + sourcePill(r.source) + '</td>' +
+    '<td class="diag-num">' + r.perMin + '</td></tr>').join('');
+}
+
+function paintBusiest(): void {
+  if (!el('dc-diagBusyHead')) return;
+  renderSortHeader('dc-diagBusyHead', [
+    { key: 'menu', label: 'Menu' },
+    { key: 'source', label: 'Source' },
+    { key: 'perMin', label: '/ min', cls: 'diag-num' },
+  ], busySort, () => {
+    const body = el('dc-diagBusyBody');
+    if (body) body.innerHTML = busiestBody(lastBusy);
+    paintBusiest();
+  });
 }
 
 function heading(text: string, sub: string): string {
@@ -94,19 +157,41 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
   html += row('· polled', num(a.polled), (a.polled || 0) > 0,
     'Read on a schedule.');
 
-  // THE MENUS THEMSELVES. Everything above this is how much; this is what, and
-  // it is the half an operator needs to act on a number they do not like.
+  // WHO ASKED. The headline counts every command this process sends the router:
+  // the collectors' reads, and every feature that reaches it on demand (the
+  // Security Scan, the Apps tab, the Tools page, the AI agent, the pages'
+  // reads and writes). Without this, a scan's thirty-odd reads moved the number
+  // with nothing on the card to account for them.
+  const sources = a.sources || [];
+  if (sources.length) {
+    html += heading('Who asked', 'commands / min by source');
+    html += sourceRows(sources, a.commandsPerMin || 0);
+  }
+
+  // WHAT WAS SENT, busiest first: the menus the last minute's commands were
+  // for. Unlike the subscriptions below, this includes every on-demand read.
+  lastBusy = a.busiest || [];
+  if (lastBusy.length) {
+    html += heading('Busiest menus', 'last minute');
+    html += '<table class="diag-table"><thead><tr id="dc-diagBusyHead"></tr></thead>' +
+      '<tbody id="dc-diagBusyBody">' + busiestBody(lastBusy) + '</tbody></table>';
+    if ((a.busiestMore || 0) > 0) {
+      html += row('+ ' + a.busiestMore + ' more', '', false,
+        'The list is capped so the card stays a card. The counts above are complete.');
+    }
+  }
+
+  // THE SUBSCRIPTIONS. What the collectors want, and how each is delivered.
   const reads = a.reads || [];
   if (reads.length) {
-    html += heading('Menus read', 'what is actually asked for');
-    html += reads.map((m) => row(
-      String(m.menu || ''),
-      m.streamed ? 'pushed' : 'polled',
-      !!m.streamed,
-      m.streamed
+    html += heading('Menus subscribed', 'what the collectors want');
+    html += reads.map((m) => {
+      const title = m.streamed
         ? 'The router pushes this table on an open channel; it is not re-asked.'
-        : 'Read on a schedule, once per cadence, however many collectors want it.',
-    )).join('');
+        : 'Read on a schedule, once per cadence, however many collectors want it.';
+      return '<div class="diag-row" title="' + esc(title) + '"><span class="diag-name">' +
+        esc(String(m.menu || '')) + '</span>' + deliveryPill(!!m.streamed) + '</div>';
+    }).join('');
     // SAID, NOT SILENT. A truncated list that does not admit it is an instrument
     // reporting less than it measured.
     if ((a.more || 0) > 0) {
@@ -136,4 +221,5 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
   }
 
   listEl.innerHTML = html;
+  if (lastBusy.length) paintBusiest();
 }

@@ -19,7 +19,7 @@ func TestAPrimeReadThatEndsEarlyIsNotLeftCounted(t *testing.T) {
 	defer m.Shutdown()
 	defer m.Release("r1")
 
-	pr := primeReader{reader{s}, time.Second}
+	pr := primeReader{reader{s: s}, time.Second}
 	if _, err := pr.Do(routeros.Cmd{Path: "/system/resource/print"}); err == nil {
 		t.Fatal("setup: the session is not connected, so the prime read should fail at once")
 	}

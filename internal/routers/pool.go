@@ -281,7 +281,7 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	// Released when the command is OVER, as the session's reader.Do does and for
 	// the same reason: a timed-out command runs on the router until it is
 	// cancelled.
-	roslimit.Note(r.s.cfg.ID, cmd.Path)
+	roslimit.Note(r.s.cfg.ID, cmd.Path, "Devices")
 	release := sync.OnceFunc(roslimit.Acquire(r.s.cfg.ID))
 	rows, err := c.Do(cmd.OnFinished(release))
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -300,6 +300,8 @@ func (r reader) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), er
 	if c == nil || !up {
 		return nil, errNotConnected{}
 	}
+	// The opening is a command, counted as Do counts one.
+	roslimit.Note(r.s.cfg.ID, cmd.Path, "Devices")
 	return c.Stream(cmd, onRow)
 }
 

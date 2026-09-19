@@ -349,12 +349,24 @@ sends it to the socket every two seconds while the card is on screen.
 | section | what it reads | where the number comes from |
 |---|---|---|
 | Acquisition | router commands/min, in flight against the cap, open channels, menus split into pushed and polled | `roslimit`, `roscache.Demand`, `roscache.StreamedMenus` |
-| Menus read | the subscribed menus themselves, pushed first | `roscache.Demand` |
+| Who asked | the command rate split by source: the collectors, or the feature that asked (Security Scan, Apps, Tools, WiFi scan, AI agent, Pages, Packages, Backups) | `roslimit.Load` |
+| Busiest menus | the menus the last minute's commands were for, and who asked, in a sortable table | `roslimit.Load` |
+| Menus subscribed | the subscribed menus themselves, pushed first | `roscache.Demand` |
 | Derivation | payloads/min | one counter in the session's single emit closure |
 | Views | collectors running of those demand can gate, occupied rooms, dormant, and the holds | `Session.Wants`, `hub.Occupants`, `Session.holds` |
 
 The card lists menus rather than subscriber counts because of where sharing
 happens: see "Most sharing happens one level up" under Layer 1.
+
+**Every command is counted where it leaves this process, not by each feature.**
+The collectors reach a router through the session's `reader` (`Do`, `Stream`) and
+every page and feature through `Session.Exec` and `Session.StreamUntilDone`; each
+notes the command in `roslimit` with its source. The collectors' source is fixed;
+a feature's is read off the stack and named by `commandSource` in
+`internal/server/diagnostics.go` (see `internal/session/sources.go`), and
+`TestEveryRouterCallerHasASource` fails on a file that sends a command and is not
+named. Not counted: the `/cancel` the client writes to end a stream or a timed-out
+command, and the Settings connection test, which dials a router of its own.
 
 ---
 

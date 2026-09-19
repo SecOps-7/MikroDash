@@ -458,7 +458,13 @@ func defaultIfOr(v, fallback string) string {
 	return v
 }
 
-type reader struct{ s *Session }
+// reader's source names who its commands are counted against (sources.go).
+// Empty is the collectors, which is every reader the session hands out; Exec
+// builds one naming its caller.
+type reader struct {
+	s      *Session
+	source string
+}
 
 func (r reader) Connected() bool {
 	r.s.mu.Lock()
@@ -487,6 +493,9 @@ func (r reader) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), er
 	// B.4 enables streaming collectors one at a time and measures each. This is
 	// the number it reads. An instrument, not a limit: B.0b searched to 24
 	// concurrent channels on live hardware and found no ceiling.
+	// THE OPENING IS A COMMAND, and it was not counted: the channel was, as a
+	// level, but the rate never saw the command that opened it.
+	roslimit.Note(r.s.RouterID, cmd.Path, SourceCollectors)
 	stop, err := c.Stream(cmd, onRow)
 	if err != nil {
 		return nil, err
@@ -513,15 +522,35 @@ func (r reader) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), er
 // the eight slots for it would let a diagnostic hold a collector's read back.
 // The level is released exactly once, when the stream ends by itself or when
 // stop() returns — whichever comes first.
+//
+// ── AND COUNTED AS A COMMAND, BY WHO ASKED ─────────────────────────────────
+//
+// The Tools page's ping, traceroute, torch and bandwidth test, and the WiFi
+// frequency scan, reached the router here and never entered the command rate:
+// only `reader.Do` noted a command. See sources.go for how the caller is named.
 func (s *Session) StreamUntilDone(
 	cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error),
 ) (func(), error) {
+	source := callerSource()
+	if s.execForTest != nil {
+		// A scripted router answers the whole run at once, then ends it.
+		roslimit.Note(s.RouterID, cmd.Path, source)
+		rows, err := s.execForTest(cmd)
+		for _, row := range rows {
+			onRow(row)
+		}
+		if onDone != nil {
+			onDone(err)
+		}
+		return func() {}, nil
+	}
 	s.mu.Lock()
 	c := s.client
 	s.mu.Unlock()
 	if c == nil {
 		return nil, errNotConnected
 	}
+	roslimit.Note(s.RouterID, cmd.Path, source)
 	opened := roslimit.StreamOpened(s.RouterID)
 	stop, err := c.StreamUntilDone(cmd, onRow, func(err error) {
 		opened()
@@ -539,8 +568,18 @@ func (s *Session) StreamUntilDone(
 	}, nil
 }
 
+// Do is the one place a request-and-reply command reaches this router, for the
+// collectors and for every page and feature (Exec) alike, and it counts the
+// command against the reader's source.
 func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
+	source := r.source
+	if source == "" {
+		source = SourceCollectors
+	}
 	if r.s.execForTest != nil {
+		// COUNTED AS A ROUTER'S COMMAND WOULD BE: the scripted router is the
+		// router here, and a test of what the card counts drives this path.
+		roslimit.Note(r.s.RouterID, cmd.Path, source)
 		cmd.Finish()
 		rows, err := r.s.execForTest(cmd)
 		// A scripted `add` answers its new id as a row holding only `ret`, which
@@ -582,7 +621,7 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	// `Cmd.OnFinished`, and also runs the moment Do returns WITHOUT a timeout: the
 	// command is over then, and a Do that never calls Finished still cannot leak
 	// the slot. The OnceFunc makes the two one release.
-	roslimit.Note(r.s.RouterID, cmd.Path)
+	roslimit.Note(r.s.RouterID, cmd.Path, source)
 	release := sync.OnceFunc(roslimit.Acquire(r.s.RouterID))
 	rows, err := c.Do(cmd.OnFinished(release))
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -932,16 +971,16 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		}
 		m.h.Forward([]string{room + sub}, e, payload)
 	})
-	s.dns = collect.NewDNS(reader{s}, emit, s.conf().Poll["dns"])
+	s.dns = collect.NewDNS(reader{s: s}, emit, s.conf().Poll["dns"])
 	// THE OCCUPANCY ORACLE IS A CLOSURE over this session, not a captured hub:
 	// within the collector, each area is read only while ITS page is open, and
 	// occupancy is a question only the session can answer.
-	s.areas = collect.NewAreas(reader{s}, emit).WithOccupancy(func(room string) bool {
+	s.areas = collect.NewAreas(reader{s: s}, emit).WithOccupancy(func(room string) bool {
 		return s.roomsOccupied(collect.Rooms{room})
 	})
 	// Built FIRST, because three other collectors take it as their RateSource.
 	// It is the only one they depend on, and it depends on none of them.
-	s.ifStatus = collect.NewIfStatus(reader{s}, emit, rec.ID, s.conf().Poll["ifStatus"])
+	s.ifStatus = collect.NewIfStatus(reader{s: s}, emit, rec.ID, s.conf().Poll["ifStatus"])
 	// A REAL RateSource — `s.ifStatus`, built three lines up.
 	//
 	// This comment said "nil RateSource: interfaceStatus is not ported, so the
@@ -954,7 +993,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// Corrected 2026-08-29. A comment that UNDERSTATES what the code does is the
 	// mirror of the `_sendNowLimiter` one fixed the same day: both send a reader
 	// looking for work that is already finished.
-	s.bridges = collect.NewBridges(reader{s}, emit, s.ifStatus, s.conf().Poll["bridges"])
+	s.bridges = collect.NewBridges(reader{s: s}, emit, s.ifStatus, s.conf().Poll["bridges"])
 	// Rates from `s.ifStatus` here too. STILL nil lease counts, though — and that
 	// half was and remains true, for a reason of its own now that dhcpLeases IS
 	// ported: vlans wants
@@ -962,8 +1001,8 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// addresses (`LeaseIPs()`), which is what dhcpNetworks needs. Joining leases
 	// to VLANs is the vlans page's question, not this one's, so the column keeps
 	// degrading to 0 until someone answers it.
-	s.vlans = collect.NewVlans(reader{s}, emit, s.ifStatus, nil, s.conf().Poll["vlans"])
-	s.wan = collect.NewWan(reader{s}, emit, s.ifStatus, s.conf().Poll["wan"]).
+	s.vlans = collect.NewVlans(reader{s: s}, emit, s.ifStatus, nil, s.conf().Poll["vlans"])
+	s.wan = collect.NewWan(reader{s: s}, emit, s.ifStatus, s.conf().Poll["wan"]).
 		WithDocs(m.docsFor(rec.ID))
 
 	// ── ONE COALESCING CACHE PER ROUTER ────────────────────────────────────
@@ -976,7 +1015,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// The cache is shared BY ROUTER, not by collector: that is the only key that
 	// matches what is scarce, for the same reason `roslimit` is keyed that way.
 	// Collectors that have not opted in read directly and are unaffected.
-	s.roscache = roscache.New(reader{s})
+	s.roscache = roscache.New(reader{s: s})
 	// The tick is how often the demand set is re-read, not how often any menu
 	// is fetched. It bounds how late a newly subscribed menu is picked up, so
 	// it wants to be comfortably shorter than the shortest cadence anybody
@@ -1002,12 +1041,12 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// deliberately describes it instead of quoting it. The test file records the
 	// same trap from the last time somebody hit it.
 	s.sched.Start()
-	s.packages = collect.NewPackages(reader{s}, emit, s.conf().Poll["packages"])
-	s.routing = collect.NewRouting(reader{s}, emit, s.conf().Poll["routing"])
+	s.packages = collect.NewPackages(reader{s: s}, emit, s.conf().Poll["packages"])
+	s.routing = collect.NewRouting(reader{s: s}, emit, s.conf().Poll["routing"])
 	// Built BEFORE dhcpNetworks, which takes it as its lease source: a subnet's
 	// client count is the leases that fall inside it, and only this collector
 	// knows what they are. Unlike vlans, this one is no longer nil.
-	s.dhcpLeases = collect.NewDHCPLeases(reader{s}, emit, s.conf().Poll["dhcpLeases"])
+	s.dhcpLeases = collect.NewDHCPLeases(reader{s: s}, emit, s.conf().Poll["dhcpLeases"])
 	// ── BUILT BEFORE ITS FOUR CONSUMERS, AND IT EMITS NOTHING ──────────────
 	//
 	// The ARP table is the only place the router says which MAC is behind which
@@ -1016,18 +1055,18 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// registration row and an MNDP neighbour carry no address at all.
 	//
 	// It takes no `emit` because it has no audience — see internal/collect/arp.go.
-	s.arp = collect.NewARP(reader{s}, s.conf().Poll["arp"])
+	s.arp = collect.NewARP(reader{s: s}, s.conf().Poll["arp"])
 	// The WAN interface name is the record's, falling back to "WAN1" inside the
 	// collector exactly as index.js does.
-	s.dhcpNetworks = collect.NewDHCPNetworks(reader{s}, emit, s.dhcpLeases, "", s.conf().Poll["dhcpNetworks"])
+	s.dhcpNetworks = collect.NewDHCPNetworks(reader{s: s}, emit, s.dhcpLeases, "", s.conf().Poll["dhcpNetworks"])
 	// Its own poll interval, not the shared default: PPP rates are differences
 	// between byte counters, so the interval IS the measurement window.
-	s.ppp = collect.NewPPP(reader{s}, emit, s.conf().Poll["ppp"])
-	s.vpn = collect.NewVPN(reader{s}, emit, s.conf().Poll["vpn"])
+	s.ppp = collect.NewPPP(reader{s: s}, emit, s.conf().Poll["ppp"])
+	s.vpn = collect.NewVPN(reader{s: s}, emit, s.conf().Poll["vpn"])
 	// NOT suspended by page focus, because it has no page: the Dashboard card it
 	// feeds is visible whenever anyone is looking at the router at all. The idle
 	// gate in Manager.Release still stops it when the last viewer leaves.
-	s.netwatch = collect.NewNetwatch(reader{s}, emit, s.conf().Poll["netwatch"])
+	s.netwatch = collect.NewNetwatch(reader{s: s}, emit, s.conf().Poll["netwatch"])
 	// Same reasoning as netwatch: no page of its own, so no page gate. It feeds
 	// the Dashboard's Top Talkers card, and the idle gate in Manager.Release is
 	// what stops it when the last viewer leaves.
@@ -1038,7 +1077,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// when item 1 of LOOP.md shipped one on 2026-08-28. Nothing failed when that
 	// premise expired, which is why the operator found its sibling by using the
 	// app: `topN` was hardcoded and "Top Connections N" did nothing.
-	s.talkers = collect.NewTalkers(reader{s}, emit, s.conf().Poll["talkers"],
+	s.talkers = collect.NewTalkers(reader{s: s}, emit, s.conf().Poll["talkers"],
 		topSetting(cfgSettings, "topTalkersN"))
 	// Same again: the latency block is part of the Dashboard's network card, so
 	// there is no page to gate on.
@@ -1050,37 +1089,37 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// `cfg.PingTarget` under a comment calling the two the same value. An empty
 	// record still means 1.1.1.1: NewPing's default. A later edit arrives
 	// through Manager.ApplyPingTarget.
-	s.ping = collect.NewPing(reader{s}, emit, s.conf().Poll["ping"], rec.PingTarget)
+	s.ping = collect.NewPing(reader{s: s}, emit, s.conf().Poll["ping"], rec.PingTarget)
 	// THE USERNAME WE ACTUALLY CONNECT AS is what the lockout guard protects, so
 	// it comes from the live config rather than from anything the page sends.
 	// The live app also passes whatever routers.json separately holds, because
 	// the two can drift — see ResolveSelf. This side has one source today, and
 	// the slice is here so adding the second is a one-line change rather than a
 	// signature change.
-	s.rosUsers = collect.NewRosUsers(reader{s}, emit, []string{s.cfg.Username}, s.conf().Poll["rosusers"])
+	s.rosUsers = collect.NewRosUsers(reader{s: s}, emit, []string{s.cfg.Username}, s.conf().Poll["rosusers"])
 	// The FIREWALL COLLECTOR IS BUILT FIRST because Queues borrows it by
 	// reference for its FastTrack banner. Only a SUMMARY crosses that boundary —
 	// a reader holding `queues` but not `firewall` learns that FastTrack is on,
 	// which is a fact about the Queues page's own correctness, not a firewall
 	// listing. Until this was ported the banner reported "cannot say", which is
 	// the same degradation the live app applies when Firewall collection is off.
-	s.firewall = collect.NewFirewall(reader{s}, emit, s.conf().Poll["firewall"])
-	s.wifi = collect.NewWifi(reader{s}, emit, s.conf().Poll["wifi"])
-	s.capsman = collect.NewCapsman(reader{s}, emit, s.conf().Poll["capsman"])
-	s.queues = collect.NewQueues(reader{s}, emit, s.firewall, s.conf().Poll["queues"])
+	s.firewall = collect.NewFirewall(reader{s: s}, emit, s.conf().Poll["firewall"])
+	s.wifi = collect.NewWifi(reader{s: s}, emit, s.conf().Poll["wifi"])
+	s.capsman = collect.NewCapsman(reader{s: s}, emit, s.conf().Poll["capsman"])
+	s.queues = collect.NewQueues(reader{s: s}, emit, s.firewall, s.conf().Poll["queues"])
 	// NOT gated on page focus, for the same reason as netwatch: these are the
 	// dashboard's gauges, and the dashboard is on screen whenever anyone is
 	// looking at the router at all. The idle gate in Manager.Release still stops
 	// it when the last viewer leaves.
-	s.system = s.newSystem(reader{s}, emit)
+	s.system = s.newSystem(reader{s: s}, emit)
 	// The only STREAMING collector: /log/listen pushes an entry as the router
 	// writes it. No poll interval, because there is nothing to poll.
-	s.logs = collect.NewLogs(reader{s}, emit)
+	s.logs = collect.NewLogs(reader{s: s}, emit)
 	// Built LAST, because it joins three of the others: ifStatus names the
 	// bridges, dhcpLeases names the clients, and system fills the core's
 	// identity and gauges. Each is optional — a nil one costs exactly the field
 	// it feeds, which is what the live app does when a collector is disabled.
-	s.topology = collect.NewTopology(reader{s}, emit, s.ifStatus, rec.ID, rec.Label, s.conf().Poll["topology"]).
+	s.topology = collect.NewTopology(reader{s: s}, emit, s.ifStatus, rec.ID, rec.Label, s.conf().Poll["topology"]).
 		WithDocs(m.docsFor(rec.ID)).
 		WithSources(s.dhcpLeases, s.system).
 		// Fills `TopoInput.ARPIP`, which was declared and used at two sites from
@@ -1091,7 +1130,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// needed: a registration row has a MAC and nothing else, so a client with no
 	// DHCP name shows as its MAC — which is what the live app does on a router
 	// that is not the client's DHCP server either.
-	s.wireless = collect.NewWireless(reader{s}, emit, s.dhcpLeases, s.conf().Poll["wireless"]).
+	s.wireless = collect.NewWireless(reader{s: s}, emit, s.dhcpLeases, s.conf().Poll["wireless"]).
 		WithARP(s.arp).
 		// The last fallback: reverse DNS on the address ARP found, for a device
 		// with a static address and no lease. One cache per session, cleared on
@@ -1105,7 +1144,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// they SUBSCRIBE TO THE SAME MENU with identical proplists, so the demand set
 	// coalesces them. `ConnTable`, the hand-built snapshot that used to do this,
 	// is gone: it was the right mechanism before there was a general one.
-	s.conns = collect.NewConnections(reader{s}, emit, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["conns"]).
+	s.conns = collect.NewConnections(reader{s: s}, emit, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["conns"]).
 		// The heavy per-country and per-source indexes are built only when
 		// somebody is on the Connections page. The hub's room occupancy is the
 		// same question the Node side asks its adapter.
@@ -1118,7 +1157,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// Step 2 of `nameOf`: the lease keyed by the MAC ARP found, when the
 		// lease keyed by the address does not exist.
 		WithARP(s.arp)
-	s.bandwidth = collect.NewBandwidth(reader{s}, emit, s.ifStatus, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["bandwidth"]).
+	s.bandwidth = collect.NewBandwidth(reader{s: s}, emit, s.ifStatus, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["bandwidth"]).
 		WithGeo(geoLookup()).
 		WithOrg(asn.Lookup).
 		WithARP(s.arp)
@@ -1139,7 +1178,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// does not exist — which looks identical to a router that is simply quiet.
 	// The global setting is honoured here now too, so the badge, the history and
 	// the page all name the same interface.
-	s.traffic = collect.NewTraffic(reader{s}, emit,
+	s.traffic = collect.NewTraffic(reader{s: s}, emit,
 		defaultIfOr(rec.DefaultIf, defaultIfOr(globalDefaultIf(cfgSettings), "ether1")), 5)
 
 	// ── WHO SHARES A MENU WITH WHOM ────────────────────────────────────────
@@ -2495,9 +2534,10 @@ func (s *Session) InWriteQueue(fn func() error) error {
 	return fn()
 }
 
-// Exec issues one command on the live connection.
+// Exec issues one command on the live connection, counted against the feature
+// that called it (sources.go).
 func (s *Session) Exec(cmd routeros.Cmd) ([]routeros.Reply, error) {
-	return reader{s}.Do(cmd)
+	return reader{s: s, source: callerSource()}.Do(cmd)
 }
 
 // topSetting reads one of the "how many rows" counts out of the settings file,

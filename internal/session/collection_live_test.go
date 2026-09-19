@@ -14,7 +14,7 @@ import (
 // or history meant a restart. The dialog promised a reconnect that never came.
 func TestASavedCollectorSwitchReachesTheLiveSession(t *testing.T) {
 	s := &Session{RouterID: "r1"}
-	s.dns = collect.NewDNS(reader{s}, noEmit, 4000)
+	s.dns = collect.NewDNS(reader{s: s}, noEmit, 4000)
 	s.eff.Store(&collection.Resolved{
 		Enabled: map[string]bool{"dns": true}, Poll: map[string]int{"dns": 4000},
 	})

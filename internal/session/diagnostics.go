@@ -83,6 +83,36 @@ type AcqLayer struct {
 	Reads []MenuLoad `json:"reads"`
 	// More is how many menus the list left out. Zero means it is complete.
 	More int `json:"more"`
+
+	// Sources splits CommandsPerMin by who asked: the collectors, or a feature
+	// such as the Security Scan, the Apps tab, the Tools page or the AI agent.
+	// Their sum is CommandsPerMin exactly; both are read from one snapshot.
+	//
+	// ── WHY IT EXISTS ───────────────────────────────────────────────────────
+	//
+	// `Reads` names what the COLLECTORS subscribe to, and nothing else on the
+	// card said where a command came from. A scan's thirty-seven reads raised the
+	// headline with nothing to account for them, and the Tools page's runs were
+	// not in the headline at all (sources.go).
+	Sources []SourceLoad `json:"sources"`
+	// Busiest is the menus that were sent the most commands in the last minute,
+	// with who asked: what was ACTUALLY sent, where Reads is what is wanted.
+	Busiest []MenuRate `json:"busiest"`
+	// BusiestMore is how many rows the Busiest list left out.
+	BusiestMore int `json:"busiestMore"`
+}
+
+// SourceLoad is one source's commands in the last minute.
+type SourceLoad struct {
+	Source string `json:"source"`
+	PerMin int64  `json:"perMin"`
+}
+
+// MenuRate is one menu's commands in the last minute, from one source.
+type MenuRate struct {
+	Menu   string `json:"menu"`
+	Source string `json:"source"`
+	PerMin int64  `json:"perMin"`
 }
 
 // MenuLoad is one subscribed menu.
@@ -134,12 +164,15 @@ func (s *Session) Diagnostics(now int64) Diagnostics {
 
 	// ── LAYER 1: WHAT LEAVES THIS PROCESS ──────────────────────────────────
 	d.Acquisition = AcqLayer{
-		CommandsPerMin: roslimit.CommandsPerMin(s.RouterID),
-		InFlight:       roslimit.InFlight(s.RouterID),
-		Cap:            roslimit.Cap(),
-		Channels:       roslimit.OpenStreams(s.RouterID),
-		Reads:          []MenuLoad{},
+		InFlight: roslimit.InFlight(s.RouterID),
+		Cap:      roslimit.Cap(),
+		Channels: roslimit.OpenStreams(s.RouterID),
+		Reads:    []MenuLoad{},
+		Sources:  []SourceLoad{},
+		Busiest:  []MenuRate{},
 	}
+	d.Acquisition.CommandsPerMin, d.Acquisition.Sources, d.Acquisition.Busiest,
+		d.Acquisition.BusiestMore = commandLoad(roslimit.Load(s.RouterID))
 	if s.roscache != nil {
 		streamed := map[string]bool{}
 		for _, m := range s.roscache.StreamedMenus() {
@@ -210,6 +243,50 @@ func (s *Session) Diagnostics(now int64) Diagnostics {
 	s.mu.Unlock()
 	d.Views = v
 	return d
+}
+
+// diagBusiest is how many rows the Busiest list keeps. Ten is a dashboard
+// card's worth; the rest are counted in BusiestMore, never dropped silently.
+const diagBusiest = 10
+
+// commandLoad folds a router's last minute into the headline, the per-source
+// split and the busiest menus. One snapshot feeds all three, so they agree.
+//
+// Both lists are ordered busiest first, then by name, so an unchanged minute
+// paints the same card twice rather than shuffling it.
+func commandLoad(rows []roslimit.Rate) (total int64, sources []SourceLoad, busiest []MenuRate, more int) {
+	by := map[string]int64{}
+	busiest = make([]MenuRate, 0, len(rows))
+	for _, r := range rows {
+		total += r.PerMin
+		by[r.Source] += r.PerMin
+		busiest = append(busiest, MenuRate{Menu: r.Menu, Source: r.Source, PerMin: r.PerMin})
+	}
+	sources = make([]SourceLoad, 0, len(by))
+	for src, n := range by {
+		sources = append(sources, SourceLoad{Source: src, PerMin: n})
+	}
+	sort.Slice(sources, func(i, j int) bool {
+		if sources[i].PerMin != sources[j].PerMin {
+			return sources[i].PerMin > sources[j].PerMin
+		}
+		return sources[i].Source < sources[j].Source
+	})
+	sort.Slice(busiest, func(i, j int) bool {
+		a, b := busiest[i], busiest[j]
+		if a.PerMin != b.PerMin {
+			return a.PerMin > b.PerMin
+		}
+		if a.Menu != b.Menu {
+			return a.Menu < b.Menu
+		}
+		return a.Source < b.Source
+	})
+	if len(busiest) > diagBusiest {
+		more = len(busiest) - diagBusiest
+		busiest = busiest[:diagBusiest]
+	}
+	return total, sources, busiest, more
 }
 
 // rollingMin counts events over the last minute, in one-second buckets.

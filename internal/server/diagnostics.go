@@ -24,8 +24,66 @@ package server
 // over state, driven by a ticker that runs only while somebody is looking at it.
 
 import (
+	"path/filepath"
+	"strings"
 	"time"
+
+	"mikrodash/internal/session"
 )
+
+// ── WHO ASKED: THE CARD'S SOURCES ──────────────────────────────────────────
+//
+// The card splits the router's command rate by source. The collectors are named
+// by the session; every other command reaches the router through
+// `Session.Exec` or `Session.StreamUntilDone` from a file in this package, and
+// the session reads the calling file off the stack and asks `commandSource` to
+// name it (internal/session/sources.go). The OUTERMOST named file wins, so the
+// AI agent's writes through the resource path, and its security_scan, are the
+// agent's.
+//
+// A LEDGER, BOTH WAYS: `TestEveryRouterCallerHasASource` fails on a file here
+// that sends a router command and is not named below, and on a name below whose
+// file no longer sends one. A new feature therefore cannot land in "Other"
+// silently.
+
+// aiPrefix names every file of the AI agent, which reaches the router from
+// several of them and through other features' code.
+const aiPrefix = "ai_"
+
+// commandSources names each file that sends a router command.
+var commandSources = map[string]string{
+	"secscan.go":          "Security Scan",
+	"apps.go":             "Apps",
+	"tools.go":            "Tools",
+	"wifiscan.go":         "WiFi scan",
+	"resource.go":         "Pages",
+	"area_group.go":       "Pages",
+	"history.go":          "Pages",
+	"rosusers.go":         "Pages",
+	"wan.go":              "Pages",
+	"routers_identity.go": "Pages",
+	"dnsfleet_api.go":     "Pages",
+	"topofleet_api.go":    "Pages",
+	"packages.go":         "Packages",
+	"backups.go":          "Backups",
+	"backups_restore.go":  "Backups",
+	"backup_scheduler.go": "Backups",
+}
+
+// commandSource names the feature a source file belongs to, or "" for a file
+// that is not one of this package's.
+func commandSource(file string) string {
+	if !strings.Contains(filepath.ToSlash(file), "/internal/server/") {
+		return ""
+	}
+	base := filepath.Base(file)
+	if strings.HasPrefix(base, aiPrefix) && !strings.HasSuffix(base, "_test.go") {
+		return "AI agent"
+	}
+	return commandSources[base]
+}
+
+func init() { session.SetSourceNamer(commandSource) }
 
 // diagRefresh is how often the card is repainted. Two seconds, matching the
 // Devices page: the numbers are per-minute rates, so a faster tick would show

@@ -210,7 +210,7 @@ func (s *Session) donePriming() {
 func (s *Session) primeSystem(within time.Duration) bool {
 	// Through newSystem, so the one reading a warm session takes also reports
 	// the router's identity: see Manager.SetOnIdentity.
-	c := s.newSystem(primeReader{reader{s}, within}, hub.Relay{})
+	c := s.newSystem(primeReader{reader{s: s}, within}, hub.Relay{})
 	// ONE COMMAND, which is the whole claim this makes. A fresh collector has a
 	// zero `healthAt`, so its first Tick would ask `/system/health/print` before
 	// the gauges -- a second roslimit-gated command per router for `TempC`,

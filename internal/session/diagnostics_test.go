@@ -202,3 +202,58 @@ func TestDiagnosticsOnANilSessionIsEmpty(t *testing.T) {
 		t.Errorf("nil session gave %+v", d)
 	}
 }
+
+// TestDiagnosticsSplitsTheCommandRateBySource. The headline and its breakdown
+// come from one snapshot, so they cannot disagree; a collector's read is named
+// "Collectors" and a feature's Exec is named by the file that called it.
+func TestDiagnosticsSplitsTheCommandRateBySource(t *testing.T) {
+	roslimit.Reset()
+	t.Cleanup(roslimit.Reset)
+	s := NewForTestWithExec(hub.New(), "r-src", func(routeros.Cmd) ([]routeros.Reply, error) { return nil, nil })
+
+	// A collector's read, through the reader every collector is handed.
+	for i := 0; i < 3; i++ {
+		if _, err := (reader{s: s}).Do(routeros.Cmd{Path: "/ip/arp/print"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An on-demand read with no namer installed in this package's tests.
+	if _, err := s.Exec(routeros.Cmd{Path: "/app/print"}); err != nil {
+		t.Fatal(err)
+	}
+
+	a := s.Diagnostics(0).Acquisition
+	if a.CommandsPerMin != 4 {
+		t.Fatalf("CommandsPerMin = %d, want 4", a.CommandsPerMin)
+	}
+	sum := int64(0)
+	for _, src := range a.Sources {
+		sum += src.PerMin
+	}
+	if sum != a.CommandsPerMin {
+		t.Errorf("the sources sum to %d and the headline says %d", sum, a.CommandsPerMin)
+	}
+	if len(a.Sources) != 2 || a.Sources[0] != (SourceLoad{SourceCollectors, 3}) ||
+		a.Sources[1] != (SourceLoad{SourceOther, 1}) {
+		t.Errorf("Sources = %+v, want Collectors 3 then Other 1, busiest first", a.Sources)
+	}
+	if len(a.Busiest) != 2 || a.Busiest[0] != (MenuRate{"/ip/arp/print", SourceCollectors, 3}) {
+		t.Errorf("Busiest = %+v, want /ip/arp/print from Collectors first", a.Busiest)
+	}
+}
+
+// TestDiagnosticsCapsTheBusiestList and admits it.
+func TestDiagnosticsCapsTheBusiestList(t *testing.T) {
+	roslimit.Reset()
+	t.Cleanup(roslimit.Reset)
+	for i := 0; i < diagBusiest+3; i++ {
+		roslimit.Note("r-cap", "/m"+string(rune('a'+i))+"/print", SourceCollectors)
+	}
+	a := NewForTest(hub.New(), "r-cap").Diagnostics(0).Acquisition
+	if len(a.Busiest) != diagBusiest || a.BusiestMore != 3 {
+		t.Errorf("Busiest has %d rows and says %d more; want %d and 3", len(a.Busiest), a.BusiestMore, diagBusiest)
+	}
+	if a.CommandsPerMin != int64(diagBusiest+3) {
+		t.Errorf("CommandsPerMin = %d: the cap is on the list, not the count", a.CommandsPerMin)
+	}
+}

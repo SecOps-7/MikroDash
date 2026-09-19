@@ -484,6 +484,17 @@ export interface MenuLoad {
   streamed: boolean;
 }
 
+export interface SourceLoad {
+  source: string;
+  perMin: number;
+}
+
+export interface MenuRate {
+  menu: string;
+  source: string;
+  perMin: number;
+}
+
 export interface AcqLayer {
   commandsPerMin: number;
   inFlight: number;
@@ -494,6 +505,9 @@ export interface AcqLayer {
   polled: number;
   reads: MenuLoad[];
   more: number;
+  sources: SourceLoad[];
+  busiest: MenuRate[];
+  busiestMore: number;
 }
 
 export interface DerLayer {

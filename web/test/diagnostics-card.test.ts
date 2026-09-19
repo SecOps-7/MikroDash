@@ -54,6 +54,17 @@ function full(over: any = {}) {
         { menu: '/ip/dns/static/print', streamed: false },
       ],
       more: 0,
+      sources: [
+        { source: 'Collectors', perMin: 80 },
+        { source: 'Security Scan', perMin: 37 },
+        { source: 'Other', perMin: 1 },
+      ],
+      busiest: [
+        { menu: '/ip/arp/print', source: 'Collectors', perMin: 30 },
+        { menu: '/ip/service/print', source: 'Security Scan', perMin: 1 },
+        { menu: '/app/print', source: 'Apps', perMin: 5 },
+      ],
+      busiestMore: 0,
     },
     derivation: { payloadsPerMin: 240 },
     views: { running: 7, gated: 22, dormant: 2, rooms: 5, holds: ['alerts', 'history'] },
@@ -130,9 +141,9 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
   // "· pushed by router" COUNTS row above, so it passes against a renderer that
   // labels every menu the same — measured: that mutation survived the loose
   // version of this check.
-  ok(html.includes('>/interface/wifi/registration-table/print</span><span class="diag-count diag-count-active">pushed<'),
+  ok(html.includes('>/interface/wifi/registration-table/print</span><span class="vpn-hs-badge hs-ok">pushed<'),
     'the streamed menu is not labelled as pushed on its own row');
-  ok(html.includes('>/ip/arp/print</span><span class="diag-count diag-count-zero">polled<'),
+  ok(html.includes('>/ip/arp/print</span><span class="vpn-hs-badge hs-info">polled<'),
     'the polled menu is not labelled as polled on its own row');
 }
 
@@ -141,8 +152,8 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
 {
   const p = full();
   p.acquisition.reads = [];
-  ok(!render(p).html.includes('Menus read'),
-    'the Menus read heading rendered with nothing under it');
+  ok(!render(p).html.includes('Menus subscribed'),
+    'the Menus subscribed heading rendered with nothing under it');
 }
 
 // ── 5b. a truncated list SAYS SO ────────────────────────────────────────────
@@ -168,6 +179,7 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
     acquisition: {
       commandsPerMin: 0, inFlight: 0, cap: 4, channels: 0,
       menus: 0, streamed: 0, polled: 0, reads: [], more: 0,
+      sources: [], busiest: [], busiestMore: 0,
     },
     derivation: { payloadsPerMin: 0 },
     views: { running: 0, gated: 22, dormant: 0, rooms: 0, holds: [] },
@@ -221,6 +233,66 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
   const { html } = render(p);
   ok(!html.includes('<img'), 'a menu name reached innerHTML as markup');
   ok(html.includes('&lt;img'), 'the menu name was dropped rather than escaped');
+}
+
+// ── 10. WHO ASKED: every source is named, as a pill of its kind ─────────────
+//
+// The headline counts every command, the on-demand features' included. Without
+// this section a Security Scan's reads moved the number with nothing on the card
+// to account for them. The kind decides the colour, so a feature added later is
+// amber without this file learning its name.
+{
+  const { html } = render(full());
+  ok(html.includes('Who asked'), 'the per-source section is missing');
+  ok(html.includes('<span class="vpn-hs-badge hs-info">Collectors</span>'),
+    'the collectors are not a blue pill');
+  ok(html.includes('<span class="vpn-hs-badge hs-warn">Security Scan</span>'),
+    'an on-demand feature is not an amber pill');
+  ok(html.includes('<span class="vpn-hs-badge hs-never">Other</span>'),
+    'an unnamed source is not a grey pill');
+  // The bar is the source's share of the HEADLINE: 37 of 118 is 31%.
+  ok(html.includes('style="width:31%"'), 'the Security Scan bar is not its share of the command rate');
+  const p = full();
+  p.acquisition.sources = [];
+  ok(!render(p).html.includes('Who asked'), 'the per-source heading rendered with nothing under it');
+}
+
+// ── 11. BUSIEST MENUS: a sortable table, busiest first, re-sortable ─────────
+{
+  const doc = makeDoc(['dc-diagTotal', 'dc-diagList']);
+  const prev = global.document;
+  global.document = doc;
+  try {
+    const { renderDiagnosticsCard } = require(OUT);
+    renderDiagnosticsCard(full());
+    // The shim realises an id written inside innerHTML as an EMPTY node, so the
+    // first paint is read from the list and the re-sort from the body it rewrites.
+    const list = doc.getElementById('dc-diagList').innerHTML as string;
+    const body = () => doc.getElementById('dc-diagBusyBody').innerHTML as string;
+    const order = (html: string) => ['/ip/arp/print', '/app/print', '/ip/service/print']
+      .map((m) => html.indexOf('>' + m + '<'));
+    const [arp, app, svc] = order(list.slice(list.indexOf('dc-diagBusyBody')));
+    ok(arp >= 0 && app > arp && svc > app, 'the busiest menus are not ordered by rate, busiest first');
+    ok(list.includes('<td><span class="vpn-hs-badge hs-warn">Apps</span></td>'), 'a menu row does not name its source');
+    const head = doc.getElementById('dc-diagBusyHead');
+    ok(head.innerHTML.includes('/ min'), 'the busiest table has no header');
+    // Clicking the rate header flips it to ascending.
+    const ths = head.querySelectorAll('th');
+    ok(ths.length === 3, `the header has ${ths.length} sortable cells, want 3`);
+    ths[2]._clicks.forEach((fn: () => void) => fn());
+    const [arp2, app2, svc2] = order(body());
+    ok(svc2 >= 0 && app2 > svc2 && arp2 > app2, 'clicking the rate header did not reverse the order');
+  } finally {
+    global.document = prev;
+  }
+  const p = full();
+  p.acquisition.busiestMore = 6;
+  ok(render(p).html.includes('+ 6 more'), 'the busiest list was capped and the card does not admit it');
+  // A menu the AI agent's raw command names is typed by a person: escaped.
+  p.acquisition.busiest = [{ menu: '<img src=x onerror=1>', source: 'AI agent', perMin: 1 }];
+  const { html } = render(p);
+  ok(!html.includes('<img'), 'a busiest menu reached innerHTML as markup');
+  ok(html.includes('&lt;img'), 'the busiest menu was dropped rather than escaped');
 }
 
 fs.rmSync(OUT, { force: true });
