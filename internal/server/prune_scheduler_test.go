@@ -32,18 +32,12 @@ func TestTheRetentionSweepIsStarted(t *testing.T) {
 			"settings are then read by nobody and the database grows without bound, " +
 			"which is the state this was written to fix.")
 	}
-	// STANDALONE **AND** THE FLAG, and the second half is the one with teeth.
-	//
-	// This asserted `standalone` alone until 2026-08-29. `standalone` means only
-	// "no -node was passed", and `tools/live-diff.sh` stands a Go server up
-	// against the LIVE /data — so a dry run with no flag would have pruned the
-	// production database unattended. The sweep is the only one of the four
-	// switches that DELETES, so it is the one where a default-on mistake cannot
-	// be undone.
-	if !regexp.MustCompile(`buildPruneScheduler\(srv\.standalone && opts\.Retention\)`).Match(src) {
-		t.Error("the retention sweep is no longer gated on BOTH `standalone` and the " +
-			"-retention flag. It DELETES, and `standalone` alone is not evidence that " +
-			"this process owns the database it is pointed at.")
+	// BEHIND THE FLAG. It was `standalone && -retention` while a Node process
+	// could own the /data; that mode is retired (2026-09-19), and the flag is
+	// the half with teeth: the sweep is the only switch that DELETES, so it is
+	// the one where a default-on mistake cannot be undone.
+	if !regexp.MustCompile(`buildPruneScheduler\(opts\.Retention\)`).Match(src) {
+		t.Error("the retention sweep is no longer gated on the -retention flag. It DELETES.")
 	}
 }
 
@@ -148,45 +142,24 @@ func TestThePruneIntervalMatchesLive(t *testing.T) {
 	}
 }
 
-// THE #105 MIGRATION IS GATED ON `standalone` TOO, and for the same reason as
-// the retention sweep: it WRITES, and `tools/live-diff.sh` stands a Go server up
-// against the LIVE /data with `-node` set.
-//
-// A proxying process is not the owner of that directory. Live agrees about the
-// seam — its migration is an IIFE in `index.js`, the app — while the router seed
-// stays in `routers.js` data access and runs for any reader, as this port's does.
-func TestTheCollectionMigrationIsStandaloneOnly(t *testing.T) {
-	src, err := os.ReadFile("server.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !regexp.MustCompile(`srv\.standalone && srv\.store != nil`).Match(src) {
-		t.Error("MigrateCollectionMode is no longer gated on `standalone`. It writes " +
-			"router records and settings.json, and a process proxying to Node is " +
-			"pointed at a /data it does not own.")
-	}
-}
-
 // EVERY STARTUP ACTION THAT ACTS ON SHARED STATE HAS A GATE, AND THIS NAMES THEM.
 //
 // ── THE CLASS, WRITTEN DOWN AFTER TWO INSTANCES IN THREE DAYS ─────────────
 //
-// `tools/live-diff.sh` and the live-socket-diff tool stand a Go server up
-// against the LIVE `/data` to compare payloads. Anything `New` does at startup,
-// that server does too — to production.
+// Anything `New` does at startup, every process pointed at that /data does too.
+// This names each action and its gate, so a gate cannot change unnoticed.
 //
-//   - the RETENTION SWEEP deletes rows. Gated on `standalone && -retention`
-//     after it was found running on `standalone` alone.
-//   - the #105 MIGRATION rewrites routers and settings.json. Gated on
-//     `standalone` after a diff run was found to have been safe only because
-//     the install was already migrated.
+// ── RE-AIMED 2026-09-19, DELIBERATELY ─────────────────────────────────────
 //
-// Both were added without asking whether a diff run would perform them. This
-// test is the question, asked once, in a place that fails.
+// Every gate here carried `srv.standalone`, meaning "no -node was passed": a
+// process proxying to the Node app beside it was not the owner of the /data and
+// must not act on it. The coexistence mode is retired, so that half is gone and
+// each gate is its flag alone. The #105 migration now runs whenever a store is
+// open; its own guard makes a migrated install a no-op.
 //
 // ── WHAT IS DELIBERATELY UNGATED, AND WHY ─────────────────────────────────
 //
-// The ALERT EVALUATOR writes rows with no standalone gate, and that is a
+// The ALERT EVALUATOR writes rows with no gate, and that is a
 // recorded decision rather than an oversight (`alert_wire.go`): "A row filed
 // twice is a duplicate an operator can delete. A message sent twice is not. So
 // the writes go in now." The port was designed to evaluate while proxying, so
@@ -200,17 +173,17 @@ func TestEveryStartupActionIsGated(t *testing.T) {
 	s := string(src)
 
 	for _, c := range []struct{ what, mustMatch, why string }{
-		{"the background pool", `buildPool\(srv\.standalone && !opts\.NoPool\)`,
+		{"the background pool", `buildPool\(!opts\.NoPool\)`,
 			"it holds a connection to every router"},
 		// WAS `buildAlertPool(...)`. The alert pool is gone; the same switch now
 		// sets `holdFleet`, which is what decides whether a session is held for
 		// every router nobody is watching. Same gate, same consequence, one
 		// implementation instead of two.
-		{"the always-on fleet holds", `srv\.holdFleet = srv\.standalone && !opts\.NoPool`,
+		{"the always-on fleet holds", `srv\.holdFleet = !opts\.NoPool`,
 			"it holds a connection to every router"},
-		{"the retention sweep", `buildPruneScheduler\(srv\.standalone && opts\.Retention\)`,
+		{"the retention sweep", `buildPruneScheduler\(opts\.Retention\)`,
 			"it DELETES rows"},
-		{"the #105 migration", `srv\.standalone && srv\.store != nil`,
+		{"the #105 migration", `if srv\.store != nil \{\s*if err := srv\.store\.MigrateCollectionMode`,
 			"it rewrites router records and settings.json"},
 		{"the backup scheduler", `buildBackupScheduler\(opts\.BackupScheduler\)`,
 			"it writes files to routers"},

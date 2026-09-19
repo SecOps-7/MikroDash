@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"mikrodash/internal/db"
 	"mikrodash/internal/hub"
@@ -119,8 +118,7 @@ func usersServer(t *testing.T, sess *Session, usersJSON string,
 	}
 	t.Cleanup(func() { _ = d.Close() })
 
-	auth := NewAuth("", time.Hour)
-	auth.cache["tok"] = cached{session: sess, until: time.Now().Add(time.Hour)}
+	auth := authFor("tok", sess)
 
 	s := &Server{store: st, auditDB: d, auth: auth, hub: hub.New(),
 		devicesWatchers: map[*hub.Client]bool{},

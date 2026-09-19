@@ -111,8 +111,7 @@ COPY --from=build /geo/cities.json            /app/geo/cities.json
 VOLUME ["/data"]
 EXPOSE 3081
 ENTRYPOINT ["/usr/local/bin/mikrodash"]
-# Standalone, because after cutover this process IS the app. Every one of these
-# is overridable by giving the container its own arguments.
-CMD ["-listen", ":3081", "-node=", "-data", "/data", \
+# Every one of these is overridable by giving the container its own arguments.
+CMD ["-listen", ":3081", "-data", "/data", \
      "-web", "/app/web/dist", "-static", "/app/web/public", \
      "-history", "-backup-scheduler", "-retention", "-alert-dispatch"]

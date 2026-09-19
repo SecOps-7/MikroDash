@@ -499,7 +499,7 @@ func TestTheFieldsTheLivePayloadCarriesAreAllThere(t *testing.T) {
 func httpRouterList(t *testing.T, s *Server, sess *Session) []map[string]any {
 	t.Helper()
 	if s.auth == nil {
-		s.auth = NewAuth("", time.Minute)
+		s.auth = NewAuth()
 	}
 	s.auth.SetLocal(func(string) (*Session, bool) { return sess, true })
 	t.Cleanup(func() { s.auth.SetLocal(nil) })

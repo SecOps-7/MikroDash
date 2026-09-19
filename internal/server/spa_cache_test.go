@@ -40,7 +40,7 @@ func TestTheAppShellAndBundleAreRevalidated(t *testing.T) {
 // AND SO ARE THE SHARED ASSETS BESIDE IT.
 //
 // `/css/dashboard-grid.css` holds every Dashboard card's styles and is served by
-// `staticOrProxy`, not `spa`. It was missing the header, so after a deploy the
+// `staticOrNotFound`, not `spa`. It was missing the header, so after a deploy the
 // operator's browser rendered the new Agent Overview markup with the OLD
 // stylesheet: white text on the card background, and no blinking cursor.
 func TestTheSharedAssetsAreRevalidated(t *testing.T) {
@@ -53,11 +53,11 @@ func TestTheSharedAssetsAreRevalidated(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	srv := &Server{standalone: true, staticDir: dir, proxy: deadProxy(t)}
+	srv := &Server{staticDir: dir}
 
 	for _, p := range []string{"/css/dashboard-grid.css", "/logo.png", "/login"} {
 		rec := httptest.NewRecorder()
-		srv.staticOrProxy().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		srv.staticOrNotFound().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s answered %d, want 200", p, rec.Code)
 		}

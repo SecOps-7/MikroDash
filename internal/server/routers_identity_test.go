@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"mikrodash/internal/hub"
 	"mikrodash/internal/routeros"
@@ -132,9 +131,7 @@ func TestAnIdentityThatCanNeverBeANameIsRefused(t *testing.T) {
 // refused, as it is on the socket.
 func TestARouterIdentityWriteNeedsSignIn(t *testing.T) {
 	s := alertSettingsServer(t, `{}`)
-	auth := NewAuth("", time.Hour)
-	auth.cache["tok"] = cached{session: &Session{Username: "someone", AuthMode: "none"},
-		until: time.Now().Add(time.Minute)}
+	auth := authFor("tok", &Session{Username: "someone", AuthMode: "none"})
 	s.auth = auth
 	req := httptest.NewRequest(http.MethodPut, "/api/routers/r-A/identity", strings.NewReader(`{"name":"office-gw"}`))
 	req.SetPathValue("id", "r-A")

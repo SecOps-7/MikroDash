@@ -115,8 +115,7 @@ func alertServerIn(t *testing.T, sess *Session) (*Server, *http.ServeMux, map[st
 	// limiter is registered". Nothing was wrong with the limiter; the suite had
 	// simply grown. A TTL that is a function of how busy the machine is makes
 	// every auth-dependent test a flake generator.
-	auth := NewAuth("", time.Hour)
-	auth.cache["tok"] = cached{session: sess, until: time.Now().Add(time.Minute)}
+	auth := authFor("tok", sess)
 
 	// A STORE, because `routerNames` resolves the label the payload carries and a
 	// nil store makes it null whatever the route does — a mutation dropping the

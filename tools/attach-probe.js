@@ -35,7 +35,7 @@
  *
  *   MDU=<user> MDP=<password> WS_PATH=<path to ws> node tools/attach-probe.js [settle] [window]
  *
- * Hand-run, like `tools/live-diff.sh`: it needs a running Go server on :3097,
+ * Hand-run: it needs a running MikroDash server on :3097,
  * the live /data, and a dashboard login. Credentials come from the ENVIRONMENT
  * and are never written anywhere.
  */

@@ -21,7 +21,7 @@ import (
 // A page missing from the loop would 404 on a link the app itself renders — the
 // nav would offer a URL the server refuses.
 func TestEveryPageHasAURL(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	for _, p := range pages.All {
@@ -64,7 +64,7 @@ func TestTheDashboardIsServedAtHome(t *testing.T) {
 // path that names no page must say so, not quietly serve the shell and let the
 // frontend decide. `/nothing-here` has been pinned since before URLs existed.
 func TestAnUnknownPathIsStillAnHonest404(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	for _, path := range []string{"/nothing-here", "/logs-typo", "/dashboard"} {
@@ -82,7 +82,7 @@ func TestAnUnknownPathIsStillAnHonest404(t *testing.T) {
 // Without it, signing in after following a link to `/logs` lands on the
 // dashboard, and the link may as well not have been shared.
 func TestADeepLinkSurvivesTheLogin(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	for _, tc := range []struct{ req, wantNext string }{
@@ -112,22 +112,5 @@ func TestADeepLinkSurvivesTheLogin(t *testing.T) {
 		if err != nil || got != tc.wantNext {
 			t.Errorf("GET %s carries next=%q, want %q", tc.req, got, tc.wantNext)
 		}
-	}
-}
-
-// TestCoexistenceDoesNotClaimThePageURLs.
-//
-// With a proxy target configured the page routes must not exist, or this build
-// would answer for paths the other process owns. The registration sits inside
-// `s.standalone` for exactly this reason.
-func TestCoexistenceDoesNotClaimThePageURLs(t *testing.T) {
-	srv := &Server{standalone: false, staticDir: t.TempDir(), proxy: deadProxy(t)}
-	h := srv.Handler()
-
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/logs", nil))
-	if rec.Code == http.StatusFound {
-		t.Error("GET /logs was answered by this process while a proxy target is configured — " +
-			"the page routes must stay standalone-only")
 	}
 }

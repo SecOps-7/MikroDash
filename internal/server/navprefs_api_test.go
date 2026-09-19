@@ -262,7 +262,7 @@ func signedInServerStore(t *testing.T, password string) (http.Handler, string, *
 	t.Cleanup(func() { _ = d.Close() })
 	navDBPath = filepath.Join(dbDir, "mikrodash.db")
 
-	srv, err := New(st, Options{NodeURL: "", WebDir: t.TempDir(), AuditDB: d})
+	srv, err := New(st, Options{WebDir: t.TempDir(), AuditDB: d})
 	if err != nil {
 		t.Fatal(err)
 	}

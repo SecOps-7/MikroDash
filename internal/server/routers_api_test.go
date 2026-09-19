@@ -98,8 +98,7 @@ func routersServer(t *testing.T, sess *Session, settingsJSON string) (
 	// limiter is registered". Nothing was wrong with the limiter; the suite had
 	// simply grown. A TTL that is a function of how busy the machine is makes
 	// every auth-dependent test a flake generator.
-	auth := NewAuth("", time.Hour)
-	auth.cache["tok"] = cached{session: sess, until: time.Now().Add(time.Minute)}
+	auth := authFor("tok", sess)
 
 	s := &Server{store: st, auditDB: d, auth: auth, hub: hub.New(),
 		devicesWatchers: map[*hub.Client]bool{},

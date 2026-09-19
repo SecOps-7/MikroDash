@@ -310,7 +310,6 @@ func (cn *conn) revalidator(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			cn.srv.auth.Forget(cn.cookie)
 			live, err := cn.srv.auth.Validate(cn.cookie)
 			if err != nil {
 				EvSessionExpired.Send(cn.srv.hub, cn.c, map[string]any{})

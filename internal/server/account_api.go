@@ -3,21 +3,10 @@ package server
 // The account modal's own-session endpoints: `GET /api/account/sessions` and
 // `POST /api/account/sessions/revoke-others`.
 //
-// ── STANDALONE ONLY, FOR THE REASON LOGIN IS ────────────────────────────────
-//
-// Both read `sessions4Web`, and that store is only populated when THIS process
-// mints the sessions. While Node is the authority it holds them in its own
-// process-local Map, so a Go answer here would be an empty list beside a browser
-// that is plainly signed in — "you have no sessions" on the page that exists to
-// show you where you are signed in.
-//
-// So they register with the login routes and under the same condition. Getting
-// this wrong is worse than leaving them proxied: an empty list is a confident
-// wrong answer, where the proxy gives the right one.
-//
-// `/api/account/access` and `/api/account/password` register in their own
-// functions rather than here, for reasons given at each. See the notes at the
-// foot of this file.
+// Also `GET /api/account/access` (the role names a principal holds, by scope),
+// `GET /api/auth/permissions` and `POST /api/account/password`. They registered
+// in four functions under different conditions while the Node app could be the
+// session authority; with that mode retired they register together.
 
 import (
 	"encoding/json"
@@ -33,17 +22,12 @@ import (
 func (s *Server) registerAccount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/account/sessions", s.accountSessions)
 	mux.HandleFunc("POST /api/account/sessions/revoke-others", s.accountRevokeOthers)
-}
-
-// registerAccountAccess is SEPARATE and UNCONDITIONAL, unlike the two above.
-//
-// `GET /api/account/access` reads the grant graph out of the SQLite database
-// both processes share, so Go and Node compute the same answer from the same
-// rows — there is no process-local state to be wrong about. The two session
-// routes are gated because the session store is this process's alone; applying
-// the same gate here would leave a correct answer proxied for no reason.
-func (s *Server) registerAccountAccess(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/account/access", s.accountAccess)
+	// The same capability object `/api/auth/status` nests under `session.caps`,
+	// on its own: the client asks after a router switch, because `caps.pages`
+	// is a union across READABLE routers and that set can change (capsFor).
+	mux.HandleFunc("GET /api/auth/permissions", s.authPermissions)
+	mux.HandleFunc("POST /api/account/password", s.accountPassword)
 }
 
 // accountAccess answers the role names this principal holds, by scope.
@@ -134,42 +118,7 @@ func (s *Server) webUserID(sess *Session) string {
 	return s.userIDFor(sess.Username)
 }
 
-// ── WHAT IS NOT HERE, AND WHY ───────────────────────────────────────────────
-//
-// `GET /api/account/access` is `Rbac.accessSummaryFor(userId)` — the role names
-// a principal holds globally, per site and per router. Every input is ported
-// (`internal/rbac` reads the grant graph, `internal/db` has the role, site and
-// router names), so this is porting work rather than a blocker, and it is left
-// for its own pass because it wants a generated corpus: the live function DROPS
-// entries whose site or router has been deleted, and a port that rendered
-// "null" at somebody instead would pass any test written from the happy path.
-//
-// `POST /api/account/password` WRITES users.json, and that is why it registers
-// separately. The Node app cached that file on first load and never re-read it,
-// so while both processes ran, a change written from this side was invisible to
-// it and reverted by its next save — the operator would be told their password
-// had changed when it had not.
-//
-// THAT HAZARD IS HISTORICAL: there is no Node process any more, `-node` defaults
-// to empty, and `standalone` is therefore always true. The split registration is
-// kept because it costs nothing and still says which routes depend on this
-// process owning the file.
-//
-// It is a CUTOVER step, not a port step, and it stays proxied until then.
-
-// registerAuthPermissions is `GET /api/auth/permissions` — the same capability
-// object `/api/auth/status` nests under `session.caps`, on its own.
-//
-// UNCONDITIONAL, like `/api/account/access` and for the same reason: it is
-// computed from the grant graph in the database both processes share, so Go and
-// Node answer identically from the same rows.
-//
-// The client asks for it separately after a router switch, because `caps.pages`
-// is a union across READABLE ROUTERS and that set can change — see `capsFor`.
-func (s *Server) registerAuthPermissions(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/auth/permissions", s.authPermissions)
-}
-
+// authPermissions answers the capability object on its own. See registerAccount.
 func (s *Server) authPermissions(w http.ResponseWriter, r *http.Request) {
 	sess, err := s.auth.Validate(r.Header.Get("Cookie"))
 	if err != nil || sess == nil {
@@ -185,22 +134,6 @@ func (s *Server) authPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "caps": caps})
-}
-
-// registerAccountPassword is `POST /api/account/password`.
-//
-// ── STANDALONE ONLY, LIKE THE SESSION ROUTES ABOVE, AND FOR A HARDER REASON ─
-//
-// It WRITES users.json, which the Node app cached on first load and never
-// re-read — so while Node ran, a change written here was invisible to it AND
-// reverted by its next save. The operator would be told their password had
-// changed when it had not, which is worse than the endpoint being absent.
-//
-// The hazard was coexistence and nothing else. It cannot occur now (there is no
-// Node to run), and the route registers unconditionally in practice because
-// `standalone` is always true.
-func (s *Server) registerAccountPassword(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/account/password", s.accountPassword)
 }
 
 // minPasswordLen is the live floor: `String(newPassword).length < 4`.

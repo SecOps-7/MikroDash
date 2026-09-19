@@ -537,8 +537,7 @@ services:
 | `-alert-dispatch` | off | actually SEND alert notifications. The evaluator and its database rows run either way |
 | `-no-pool` | off | do not hold background connections to routers nobody is watching |
 | `-geo` | `/app/geo` | directory holding `dbip-city-lite.mmdb` and `cities.json`, both baked into the image. Point it at a volume to supply your own |
-| `-auth-ttl` | `15s` | how long a validated session may be cached |
-| `-node` | empty | proxy un-ported routes to another MikroDash. **Empty means standalone**, which is what a normal install wants; it exists for the migration and refuses a target that is its own listener |
+| `-node` | empty | retired: the Node coexistence mode was removed. Accepted when empty, so an older command line that passes `-node=` still starts; any value is refused |
 | `-trusted-proxies` | empty | IPs or CIDR ranges of reverse proxies whose `X-Forwarded-For` is believed. **Empty trusts none**, which is right when browsers connect directly. Also read from `MIKRODASH_TRUSTED_PROXIES` |
 
 **The four feature switches default OFF** because each one is unsafe to run twice against the same

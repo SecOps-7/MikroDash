@@ -21,7 +21,6 @@ import (
 	"mikrodash/internal/geo"
 	"mikrodash/internal/websession"
 	"net/http"
-	"net/http/httputil"
 	"net/netip"
 	"net/url"
 	"os"
@@ -45,54 +44,31 @@ import (
 
 // Options configures the server.
 type Options struct {
-	// NodeURL is the Node app this proxies to and delegates sessions to.
-	// EMPTY means standalone: nothing to proxy to, and Go owns authentication.
-	NodeURL string
 	// GeoDir is where geoip-lite keeps its data, for the location picker's
 	// gazetteer. Empty means the picker reports itself unavailable, which is a
 	// supported state rather than an error.
 	GeoDir string
-	// NoPool turns the background pool OFF in a standalone process that would
-	// otherwise run one.
-	//
-	// The pool holds a connection to every router NOBODY has open, and the
-	// documented bottleneck on a MikroTik is concurrent API channels. Standalone
-	// normally means "there is no other pool", which is why the pool is bound to
-	// it — but running this process beside the live app to compare them breaks
-	// that implication, and then both pools are live against the same hardware.
-	// This is the way out, and it costs the Devices page its rows for unwatched
-	// routers rather than breaking anything.
+	// NoPool turns OFF the background pool and the fleet holds: the connection
+	// to every router nobody has open, which answers the Devices page and keeps
+	// alerting running. For a second process pointed at a fleet another
+	// MikroDash already polls, where two pools would double the channels held
+	// on the same hardware (API channels are the documented bottleneck).
 	NoPool bool
-	// AlertDispatch turns alert NOTIFICATIONS on. It defaults OFF, and the
-	// default is the decision — not an oversight to be tidied up later.
-	//
-	// The evaluator and the database writes run regardless: they are idempotent
-	// within this install's own history, and they are what make the Alerts page
-	// and the Devices alert counts real. Sending is different. The port record
-	// blocker 5:
-	//
-	//	Both engines evaluate the same conditions against the same physical
-	//	routers, and the cooldown is an in-memory map rather than a shared row,
-	//	so neither sees the other's sends. A duplicated Telegram message or
-	//	email cannot be un-received.
-	//
-	// A row filed twice is a duplicate an operator deletes. A message sent twice
-	// is already in their pocket. So this stays off until the operator says
-	// otherwise, and after cutover it is simply on.
+	// AlertDispatch turns alert NOTIFICATIONS on; the evaluator and its database
+	// rows run either way. Off unless passed (the image passes it), because a
+	// second process watching the same routers would send every alert twice,
+	// and a message cannot be unsent.
 	AlertDispatch bool
-	// BackupScheduler turns SCHEDULED backups on. Off by default, for the same
-	// reason as the dispatch: during coexistence Node is already taking them,
-	// and two schedulers means two backups per router per schedule, each holding
-	// a router channel while it runs.
+	// BackupScheduler turns SCHEDULED backups on. Off unless passed (the image
+	// passes it): two schedulers would take two backups per router per schedule.
 	BackupScheduler bool
 
-	// Retention turns the daily database sweep on. Off by default: it DELETES,
-	// and `standalone` is not by itself evidence that this process owns the
-	// database it is pointed at.
+	// Retention turns the daily database sweep on. Off unless passed (the image
+	// passes it): it DELETES, and must be asked for.
 	Retention bool
-	// History turns the traffic/ping/connectivity RECORDING on. Off by default:
-	// two processes bucketing the same samples double every minute row, and
-	// Reports averages by minute, so the damage is a plausible wrong chart.
+	// History turns the traffic/ping/connectivity RECORDING on. Off unless passed
+	// (the image passes it): two processes bucketing the same samples double
+	// every minute row, and Reports averages by minute.
 	History bool
 	// StaticDir is the shared asset tree — `/vendor/*`, `/css/*`, `/logo.png`,
 	// `/preflight.js`, and the login page.
@@ -148,8 +124,6 @@ type Options struct {
 	// deployment fact rather than a setting, so an admin session cannot widen it.
 	// See internal/trustedproxy and issue #111.
 	TrustedProxies []netip.Prefix
-	// AuthTTL bounds how long a validated session is cached.
-	AuthTTL time.Duration
 	// AuditDB is the shared SQLite trail. Nil disables audit recording.
 	AuditDB *db.DB
 
@@ -167,7 +141,6 @@ type Server struct {
 	hub            *hub.Hub
 	auth           *Auth
 	sessions       *session.Manager
-	proxy          *httputil.ReverseProxy
 	web            http.Handler
 	originPatterns []string
 	// writeLimit bounds router writes per user per router (#97). See write_limit.go.
@@ -215,7 +188,7 @@ type Server struct {
 	// backupSched takes scheduled backups. Nil unless `-backup-scheduler`.
 	// STARTED BY NOBODY even when built: `Scheduler.Start` is the cutover step.
 	backupSched *backups.Scheduler
-	// The daily retention sweep. Nil unless this process is standalone.
+	// The daily retention sweep. Nil unless -retention was passed.
 	pruneSched *pruneScheduler
 	// historyWire is built early, because the always-on pool must be given it
 	// BEFORE its first Sync — see New.
@@ -268,9 +241,6 @@ type Server struct {
 
 	// ── AUTHENTICATION AFTER CUTOVER ────────────────────────────────────────
 	//
-	// standalone is "there is no Node to delegate to" — see auth_login.go for
-	// why these three exist and why they are conditional.
-	standalone   bool
 	sessions4Web *websession.Store
 	forceHTTPS   bool
 	// staticDir is the shared asset tree; see Options.StaticDir.
@@ -316,23 +286,7 @@ func (s *Server) bkIsRunning(routerID string) bool {
 }
 
 func New(st *store.Store, opts Options) (*Server, error) {
-	nodeURL, err := url.Parse(opts.NodeURL)
-	if err != nil {
-		return nil, err
-	}
-	ttl := opts.AuthTTL
-	if ttl == 0 {
-		ttl = 15 * time.Second
-	}
 	h := hub.New()
-
-	proxy := httputil.NewSingleHostReverseProxy(nodeURL)
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		// The Node app being down must read as "the half that has not been
-		// ported is unavailable", not as a blank page with no explanation.
-		log.Printf("[proxy] %s %s: %v", r.Method, r.URL.Path, err)
-		http.Error(w, "the MikroDash Node app is not reachable", http.StatusBadGateway)
-	}
 
 	srv := &Server{
 		hub: h,
@@ -347,13 +301,8 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		// One registry for the process. See the field's comment: the fleet cap and
 		// the per-operator cooldown are both meaningless if each connection keeps
 		// its own.
-		scans: wifiscan.NewRegistry(func() int64 { return time.Now().UnixMilli() }),
-		auth:  NewAuth(opts.NodeURL, ttl),
-		// STANDALONE IS "no Node to delegate to", which is what cutover means.
-		// Derived rather than configured: a separate flag could disagree with
-		// the proxy target, and then auth and routing would have different
-		// ideas about whether Node exists.
-		standalone:   strings.TrimSpace(opts.NodeURL) == "",
+		scans:        wifiscan.NewRegistry(func() int64 { return time.Now().UnixMilli() }),
+		auth:         NewAuth(),
 		staticDir:    strings.TrimSpace(opts.StaticDir),
 		cities:       geo.NewCityHolder(opts.GeoDir),
 		sessions4Web: websession.New(),
@@ -377,18 +326,14 @@ func New(st *store.Store, opts Options) (*Server, error) {
 			return out
 		}),
 		sessions:       session.NewManager(st, h),
-		proxy:          proxy,
 		web:            http.FileServer(http.Dir(opts.WebDir)),
 		originPatterns: opts.OriginPatterns,
 		writeLimit:     newWriteLimiter(),
 		aiLimit:        newRateLimiter(20, time.Minute),
 	}
-	// Installed AFTER construction because it closes over the server. In
-	// standalone mode this is the whole of authentication; while Node runs it
-	// stays nil and `Auth.Validate` asks Node exactly as before.
-	if srv.standalone {
-		srv.auth.SetLocal(srv.localSession)
-	}
+	// Installed AFTER construction because it closes over the server. It is the
+	// whole of authentication.
+	srv.auth.SetLocal(srv.localSession)
 	// The background pool. AFTER construction too — its identity hook closes
 	// over the server, to write the record, record the audit event and broadcast
 	// the new router list. See pool_wire.go for what gates it.
@@ -400,32 +345,17 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// sessions, so a migration running after them would leave the whole first
 	// run on the pre-migration answer — the operator's Poll silently served as
 	// Stream until the next restart.
-	// ── STANDALONE ONLY, AND THIS IS NOT DEFENSIVENESS ────────────────────
-	//
-	// The migration WRITES: router records, then settings.json. `tools/live-diff.sh`
-	// stands a Go server up against the LIVE /data to diff payloads, and it
-	// passes `-node`, so this process is a proxy rather than the app. A proxy is
-	// not the owner of that directory and must not migrate it.
-	//
-	// Today the live install is already migrated, so the flag check returned
-	// early and the diff run wrote nothing — VERIFIED by mtime, both files
-	// untouched. That is luck rather than design, and it is the same shape as
-	// the `-retention` gate: a verification run must not be able to act.
-	//
-	// It also matches where live puts it. `_migrateCollectionMode` is an IIFE in
-	// `index.js` — the APP — while the router seed lives in `routers.js` data
-	// access and therefore still runs for any reader, exactly as live's does.
-	if srv.standalone && srv.store != nil {
+	if srv.store != nil {
 		if err := srv.store.MigrateCollectionMode(); err != nil {
 			log.Printf("[store] collection migration: %v", err)
 		}
 	}
 	srv.startedAt = time.Now()
-	srv.pool = srv.buildPool(srv.standalone && !opts.NoPool)
+	srv.pool = srv.buildPool(!opts.NoPool)
 	// THE ALWAYS-ON HOLDS, sharing the same switch — see fleet_holds.go for why.
 	// Unlike the overview pool these connect as soon as they are synced, so the
 	// sync happens once here rather than waiting for a page.
-	srv.holdFleet = srv.standalone && !opts.NoPool
+	srv.holdFleet = !opts.NoPool
 	if !srv.holdFleet {
 		log.Printf("[holds] off; routers nobody is watching are neither connected " +
 			"to nor alerted on (pass -no-pool to keep it that way)")
@@ -545,11 +475,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// `dbRetentionDays`, `dbAlertRetentionDays` and `dbAuditRetentionDays`, the
 	// write route validated and persisted them, and no code read one. The
 	// database grew without bound while the UI implied a policy.
-	// STANDALONE **AND** THE FLAG. `standalone` alone was not enough: it means
-	// only "no -node was passed", and `tools/live-diff.sh` stands a server up
-	// against the LIVE /data. The sweep DELETES, so it is the one switch of the
-	// four where a default-on mistake cannot be undone.
-	srv.pruneSched = srv.buildPruneScheduler(srv.standalone && opts.Retention)
+	// BEHIND ITS FLAG, off by default: the sweep DELETES, so it is the one switch
+	// where a default-on mistake cannot be undone.
+	srv.pruneSched = srv.buildPruneScheduler(opts.Retention)
 	// The history recorder. Installed on the session manager even when disabled,
 	// so the call sites in session.go run on every tick rather than for the first
 	// time inside the cutover window.
@@ -608,68 +536,35 @@ func (s *Server) Handler() http.Handler {
 	s.registerAudit(mux)
 	s.registerBackupRaw(mux)
 	s.registerBackupDownloads(mux)
-	// ── ONLY WITHOUT A NODE TO PROXY TO ─────────────────────────────────
-	//
-	// See auth_login.go. Registering these while Node runs would stop
-	// `/api/auth/login` reaching it, so the browser would hold a Go session
-	// Node does not know and every unported page would answer 401 — a bug
-	// that looks like "the login works but half the app logged me out".
-	if s.standalone {
-		s.registerAuthLogin(mux)
-		// The first-run wizard WRITES users.json, which Node caches and never
-		// re-reads — so with both processes up, both would see zero users and
-		// both would mint a first administrator. See setup_api.go.
-		s.registerSetup(mux)
-		// The account modal's session list and its revoke button read the
-		// session store this process owns, which is empty while Node is the
-		// authority. See account_api.go.
-		s.registerAccount(mux)
-		// The password change WRITES users.json, which Node caches and would
-		// revert — so it registers only where Node is not running.
-		s.registerAccountPassword(mux)
-	}
-	// `/api/auth/status` too: the login page asks it before showing the form,
-	// and the SPA asks it for its first paint. Proxied while Node runs.
-	if s.standalone {
-		mux.HandleFunc("GET /api/auth/status", s.authStatus)
-	}
+	s.registerAuthLogin(mux)
+	// The first-run wizard. See setup_api.go.
+	s.registerSetup(mux)
+	// The account modal: sessions, access, permissions, password. See
+	// account_api.go.
+	s.registerAccount(mux)
+	// `/api/auth/status`: the login page asks it before showing the form, and
+	// the SPA asks it for its first paint.
+	mux.HandleFunc("GET /api/auth/status", s.authStatus)
 	s.registerSettings(mux)
 	// The install's name and icon (issue #131). Its reads are public: the login
 	// page shows them before anybody signs in. See branding_api.go.
 	s.registerBranding(mux)
 	s.registerUserNotify(mux)
 	s.registerPrincipals(mux)
-	if s.standalone {
-		// The principal WRITES. Standalone only, and the reason is the same one
-		// that gates the login routes: Node caches its RBAC views on a generation
-		// counter only its own bump() advances, so a Go write while it runs would
-		// leave it honouring a revoked grant until it restarted.
-		s.registerUsersWrite(mux)
-		s.registerGroupsWrite(mux)
-		s.registerRolesWrite(mux)
-		s.registerGrantsWrite(mux)
-		// The database cleanup card. Standalone for a DIFFERENT reason from the
-		// principal writes above: nothing here is cached by Node, but a purge
-		// deletes history the running Node app is still collecting into, and the
-		// two would race on the same file.
-		s.registerDBAdmin(mux)
-		// The four Test buttons. Standalone-only for the same shape of reason,
-		// though not the same reason: this one SENDS, and while both apps run
-		// there are two Settings pages that could send. One message per press is
-		// harmless — see the file header on why blocker 5 does not reach it — but
-		// the button belongs to the app the operator is actually configuring.
-		s.registerTestNotification(mux)
-		// The AI Agent tab's Test button. Beside the notification tests for
-		// the same reason they are here: it makes the server connect OUT to a
-		// host named in the request, so it belongs to the app the operator is
-		// actually configuring.
-		s.registerAITest(mux)
-		s.registerHealth(mux)
-	}
+	// The principal writes.
+	s.registerUsersWrite(mux)
+	s.registerGroupsWrite(mux)
+	s.registerRolesWrite(mux)
+	s.registerGrantsWrite(mux)
+	// The database cleanup card.
+	s.registerDBAdmin(mux)
+	// The four notification Test buttons.
+	s.registerTestNotification(mux)
+	// The AI Agent tab's Test button.
+	s.registerAITest(mux)
+	s.registerHealth(mux)
 	s.registerNavPrefs(mux)
 	s.registerLocalCC(mux)
-	s.registerAccountAccess(mux)
-	s.registerAuthPermissions(mux)
 	s.registerCities(mux)
 	s.registerLayouts(mux)
 	s.registerRouterDocs(mux)
@@ -680,19 +575,11 @@ func (s *Server) Handler() http.Handler {
 	s.registerRouterTest(mux)
 	s.registerSites(mux)
 
-	// ── THE SHARED ASSETS, WHEN THIS PROCESS HAS TO SERVE THEM ──────────
+	// ── THE SHARED ASSETS, AND AN HONEST 404 FOR EVERYTHING ELSE ─────────
 	//
-	// Registered BEFORE the catch-all and only when a directory is configured,
-	// so an install that is still proxying behaves exactly as it did. The
-	// handler falls through to the proxy for anything the directory does not
-	// hold, which keeps a partial asset tree from turning into a wall of 404s
-	// mid-migration.
-	if s.staticDir != "" {
-		mux.Handle("/", s.staticOrProxy())
-	} else {
-		// Everything else is still Node's.
-		mux.Handle("/", s.proxy)
-	}
+	// The catch-all: a file from the static tree when it holds one, 404 when it
+	// does not (or when no tree is configured).
+	mux.Handle("/", s.staticOrNotFound())
 	// ── THE APP LIVES AT THE ROOT. THERE IS NO PREFIX ──────────────────────
 	//
 	// It used to live under `/next`, which was COEXISTENCE SCAFFOLDING: a second
@@ -710,55 +597,43 @@ func (s *Server) Handler() http.Handler {
 	// why the first attempt at this was a redirect: served at the root, a
 	// relative reference resolves to `/app.js` and nothing served it. The
 	// document now names `/app.js` and `/app.css` outright.
+	mux.Handle("/{$}", s.requireSession(s.spa()))
+	mux.Handle("/app.js", s.requireSession(s.spa()))
+	mux.Handle("/app.css", s.requireSession(s.spa()))
+
+	// ── A URL PER PAGE ─────────────────────────────────────────────────
 	//
-	// STILL GATED ON `standalone`, and that is not a leftover: `tools/live-diff.sh`
-	// runs this binary ALONGSIDE the live app to compare their payloads endpoint
-	// by endpoint, and it logs in through this process's proxy. Taking `/` away
-	// from Node would break the one tool that measures the two against each
-	// other. With a Node URL configured, this process serves APIs and proxies the
-	// rest, exactly as before — it just no longer offers a frontend of its own.
-	if s.standalone {
-		mux.Handle("/{$}", s.requireSession(s.spa()))
-		mux.Handle("/app.js", s.requireSession(s.spa()))
-		mux.Handle("/app.css", s.requireSession(s.spa()))
-
-		// ── A URL PER PAGE ─────────────────────────────────────────────────
-		//
-		// `spa()` already rewrites an extensionless path to `/` and serves the
-		// built document, so every page gets the same shell and the frontend
-		// router decides what to show from the path.
-		//
-		// REGISTERED ONE BY ONE, not as a catch-all, and that is the whole
-		// point: an unknown path still reaches `/` and answers an honest 404
-		// instead of the shell. A catch-all would also have to re-derive the
-		// reserved list -- /api, /ws, /healthz, /login, /preflight.js, /vendor,
-		// /css, /fonts -- that this gets for free from the mux preferring the
-		// more specific pattern.
-		//
-		// Inside `s.standalone` deliberately: with a proxy target configured,
-		// these paths must still fall through to it.
-		for _, p := range pages.All {
-			mux.Handle("/"+p.URL(), s.requireSession(s.spa()))
-		}
-
-		// ── THE LOGIN DOCUMENT AND THE TWO CLASSIC SCRIPTS ─────────────────
-		//
-		// NOT session-gated, and that is the point: `/login` is where an
-		// unauthenticated browser is SENT, so gating it would be a redirect
-		// loop. `preflight.js` is in the <head> of the app shell and runs before
-		// anything has been validated.
-		//
-		// Served from `dist` rather than from the static tree because they are
-		// now BUILT — `web/src/entry/login.ts` and `web/src/entry/preflight.ts`. They were
-		// byte-for-byte copies of the live repo's files under `web/public`
-		// until 2026-08-28, when the operator asked that the port "stand on its
-		// own without any lingering JS from the live repo". Registering them
-		// here is what makes the copies unreachable, so deleting them cannot
-		// silently leave the old ones being served.
-		mux.Handle("/login", s.distFile("/login.html"))
-		mux.Handle("/login.js", s.distFile("/login.js"))
-		mux.Handle("/preflight.js", s.distFile("/preflight.js"))
+	// `spa()` already rewrites an extensionless path to `/` and serves the
+	// built document, so every page gets the same shell and the frontend
+	// router decides what to show from the path.
+	//
+	// REGISTERED ONE BY ONE, not as a catch-all, and that is the whole
+	// point: an unknown path still reaches `/` and answers an honest 404
+	// instead of the shell. A catch-all would also have to re-derive the
+	// reserved list -- /api, /ws, /healthz, /login, /preflight.js, /vendor,
+	// /css, /fonts -- that this gets for free from the mux preferring the
+	// more specific pattern.
+	for _, p := range pages.All {
+		mux.Handle("/"+p.URL(), s.requireSession(s.spa()))
 	}
+
+	// ── THE LOGIN DOCUMENT AND THE TWO CLASSIC SCRIPTS ─────────────────
+	//
+	// NOT session-gated, and that is the point: `/login` is where an
+	// unauthenticated browser is SENT, so gating it would be a redirect
+	// loop. `preflight.js` is in the <head> of the app shell and runs before
+	// anything has been validated.
+	//
+	// Served from `dist` rather than from the static tree because they are
+	// now BUILT — `web/src/entry/login.ts` and `web/src/entry/preflight.ts`. They were
+	// byte-for-byte copies of the live repo's files under `web/public`
+	// until 2026-08-28, when the operator asked that the port "stand on its
+	// own without any lingering JS from the live repo". Registering them
+	// here is what makes the copies unreachable, so deleting them cannot
+	// silently leave the old ones being served.
+	mux.Handle("/login", s.distFile("/login.html"))
+	mux.Handle("/login.js", s.distFile("/login.js"))
+	mux.Handle("/preflight.js", s.distFile("/preflight.js"))
 	return logRequests(mux)
 }
 

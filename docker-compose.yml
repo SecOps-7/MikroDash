@@ -65,16 +65,8 @@ services:
       - MIKRODASH_CMD_STATS=${MIKRODASH_CMD_STATS:-}
     # The flags are baked into the image's CMD; they are repeated here so the
     # deployed configuration is readable without inspecting the image.
-    #
-    # `-node=` is EMPTY on purpose and must stay that way. It names a Node
-    # MikroDash to proxy un-ported routes to, and it defaulted to
-    # http://127.0.0.1:3081 during the migration. At cutover that made the app
-    # proxy every such route TO ITSELF, and silently disabled the background pool
-    # and the retention sweep, because both are gated on "standalone" meaning no
-    # -node. Three subsystems wrong from one stale default.
     command:
       - -listen=:3081
-      - -node=
       - -data=/data
       - -web=/app/web/dist
       - -static=/app/web/public

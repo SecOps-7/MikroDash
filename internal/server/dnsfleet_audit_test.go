@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 )
 
 // A FLEET DNS COPY NEEDS AN AUDIT TRAIL, as a write from the page does (#97).
@@ -14,9 +13,7 @@ import (
 // and says why rather than looking like a permission problem.
 func TestAFleetDNSCopyNeedsAnAuditTrail(t *testing.T) {
 	s := alertSettingsServer(t, `{}`)
-	auth := NewAuth("", time.Hour)
-	auth.cache["tok"] = cached{session: &Session{Username: "someone", AuthMode: "modern"},
-		until: time.Now().Add(time.Minute)}
+	auth := authFor("tok", &Session{Username: "someone", AuthMode: "modern"})
 	s.auth = auth
 
 	body := `{"routerIds":["r-A"],"values":{"name":"probe.lan","type":"A","address":"192.0.2.10"}}`

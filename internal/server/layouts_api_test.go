@@ -312,7 +312,7 @@ func grantedServer(t *testing.T, password string) (http.Handler, string, *db.DB)
 	t.Cleanup(func() { _ = d.Close() })
 	navDBPath = filepath.Join(dbDir, "mikrodash.db")
 
-	srv, err := New(st, Options{NodeURL: "", WebDir: t.TempDir(), AuditDB: d})
+	srv, err := New(st, Options{WebDir: t.TempDir(), AuditDB: d})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +455,7 @@ func scopedGrantServer(t *testing.T, password string) (http.Handler, string, *db
 	}
 	t.Cleanup(func() { _ = d.Close() })
 
-	srv, err := New(st, Options{NodeURL: "", WebDir: t.TempDir(), AuditDB: d})
+	srv, err := New(st, Options{WebDir: t.TempDir(), AuditDB: d})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -503,7 +503,7 @@ func citySearchServer(t *testing.T, password string) (http.Handler, string, *db.
 
 	// NO GeoDir: the gazetteer is unreadable, which is a supported state and the
 	// one this harness can reach without shipping tens of megabytes of data.
-	srv, err := New(st, Options{NodeURL: "", WebDir: t.TempDir(), AuditDB: d})
+	srv, err := New(st, Options{WebDir: t.TempDir(), AuditDB: d})
 	if err != nil {
 		t.Fatal(err)
 	}

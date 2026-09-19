@@ -29,7 +29,7 @@ import (
 
 // freshInstall is a /data with NO users.json at all — the state this route
 // exists for, and the only one in which it does anything.
-func freshInstall(t *testing.T, nodeURL string) (http.Handler, string) {
+func freshInstall(t *testing.T) (http.Handler, string) {
 	t.Helper()
 	dir := t.TempDir()
 	for name, body := range map[string]string{
@@ -43,7 +43,7 @@ func freshInstall(t *testing.T, nodeURL string) (http.Handler, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := New(st, Options{NodeURL: nodeURL, WebDir: t.TempDir()})
+	srv, err := New(st, Options{WebDir: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,25 +64,9 @@ func setupBody(user, pass string) string {
 	return string(b)
 }
 
-// TestSetupIsNotServedWhileNodeRuns. The route must reach the proxy, which in a
-// test has nowhere to go and answers 502 — that 502 is the PROOF it was proxied.
-// A 200 here would mean Go claimed an install Node still believes is unclaimed.
-func TestSetupIsNotServedWhileNodeRuns(t *testing.T) {
-	h, dir := freshInstall(t, "http://127.0.0.1:1")
-	rec := postSetup(h, setupBody("ann", "an-invented-password"))
-	if rec.Code != http.StatusBadGateway {
-		t.Errorf("POST /api/users/setup answered %d with a Node configured, want 502 (proxied). "+
-			"users.js caches users.json, so both processes would see zero users and both "+
-			"would mint a first administrator.", rec.Code)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "users.json")); !os.IsNotExist(err) {
-		t.Error("a users.json was written while Node is the authority")
-	}
-}
-
 // TestSetupCreatesTheFirstAdministrator — the whole path, standalone.
 func TestSetupCreatesTheFirstAdministrator(t *testing.T) {
-	h, dir := freshInstall(t, "")
+	h, dir := freshInstall(t)
 
 	rec := postSetup(h, setupBody("ann", "an-invented-password"))
 	if rec.Code != http.StatusOK {
@@ -137,7 +121,7 @@ func TestSetupCreatesTheFirstAdministrator(t *testing.T) {
 
 // TestSetupClosesForEver — the second call is refused, whatever it asks for.
 func TestSetupClosesForEver(t *testing.T) {
-	h, _ := freshInstall(t, "")
+	h, _ := freshInstall(t)
 
 	if rec := postSetup(h, setupBody("ann", "an-invented-password")); rec.Code != http.StatusOK {
 		t.Fatalf("the first call answered %d: %s", rec.Code, rec.Body.String())
@@ -177,7 +161,7 @@ func TestSetupRefusesBadInput(t *testing.T) {
 		{"both wrong reports the USERNAME", "bad name", "abc", "Invalid username"},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			h, dir := freshInstall(t, "")
+			h, dir := freshInstall(t)
 			rec := postSetup(h, setupBody(c.user, c.pass))
 			if rec.Code != http.StatusBadRequest {
 				t.Errorf("answered %d, want 400: %s", rec.Code, rec.Body.String())
@@ -195,13 +179,13 @@ func TestSetupRefusesBadInput(t *testing.T) {
 
 	// The shapes that MUST be accepted, or a legitimate name is refused.
 	for _, user := range []string{"ann", "a", "A_b.c-d", strings.Repeat("a", 64), "007"} {
-		h, _ := freshInstall(t, "")
+		h, _ := freshInstall(t)
 		if rec := postSetup(h, setupBody(user, "an-invented-password")); rec.Code != http.StatusOK {
 			t.Errorf("username %q was refused: %d %s", user, rec.Code, rec.Body.String())
 		}
 	}
 	// Exactly four characters is the floor, not one above it.
-	h, _ := freshInstall(t, "")
+	h, _ := freshInstall(t)
 	if rec := postSetup(h, setupBody("ann", "abcd")); rec.Code != http.StatusOK {
 		t.Errorf("a four-character password was refused: %d %s", rec.Code, rec.Body.String())
 	}
@@ -218,7 +202,7 @@ func TestSetupRefusesBadInput(t *testing.T) {
 // it is TWO ADMINISTRATORS on an install meant to have one, the second being
 // whoever else was pointing a script at the port.
 func TestOnlyOneAdministratorSurvivesAConcurrentRush(t *testing.T) {
-	h, dir := freshInstall(t, "")
+	h, dir := freshInstall(t)
 
 	const n = 8
 	var wg sync.WaitGroup
@@ -301,7 +285,7 @@ func TestOnlyOneAdministratorSurvivesAConcurrentRush(t *testing.T) {
 // PLAN the route hands the writer, which must be one global grant and never
 // zero. Zero is the lockout.
 func TestTheFirstAdministratorIsNotLockedOut(t *testing.T) {
-	h, dir := freshInstall(t, "")
+	h, dir := freshInstall(t)
 	if rec := postSetup(h, setupBody("ann", "an-invented-password")); rec.Code != http.StatusOK {
 		t.Fatalf("setup answered %d: %s", rec.Code, rec.Body.String())
 	}
@@ -538,7 +522,7 @@ func TestSetupWritesTheGlobalAdminGrant(t *testing.T) {
 // Contorting the test to tell the two 500s apart would pin which branch fires
 // rather than what an operator gets.
 func TestSetupRefusesWhenTheUserFileCannotBeRead(t *testing.T) {
-	h, dir := freshInstall(t, "")
+	h, dir := freshInstall(t)
 	if err := os.Mkdir(filepath.Join(dir, "users.json"), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -553,7 +537,7 @@ func TestSetupRefusesWhenTheUserFileCannotBeRead(t *testing.T) {
 	}
 
 	// A CORRUPT file, which is the likelier shape of the same failure.
-	h2, dir2 := freshInstall(t, "")
+	h2, dir2 := freshInstall(t)
 	if err := os.WriteFile(filepath.Join(dir2, "users.json"), []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +557,7 @@ func TestSetupRefusesWhenTheUserFileCannotBeRead(t *testing.T) {
 // anyway. The limiter matters for the case that gate does NOT cover — an
 // install still waiting to be claimed, being probed.
 func TestSetupIsRateLimited(t *testing.T) {
-	h, _ := freshInstall(t, "")
+	h, _ := freshInstall(t)
 
 	// Every request is INVALID, so the zero-users gate never closes and each one
 	// reaches the limiter. Without this the first success would close setup and

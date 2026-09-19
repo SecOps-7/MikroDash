@@ -63,9 +63,9 @@ func authFixture(t *testing.T, password string) *store.Store {
 	return st
 }
 
-func newAuthServer(t *testing.T, nodeURL, password string) http.Handler {
+func newAuthServer(t *testing.T, password string) http.Handler {
 	t.Helper()
-	srv, err := New(authFixture(t, password), Options{NodeURL: nodeURL, WebDir: t.TempDir()})
+	srv, err := New(authFixture(t, password), Options{WebDir: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,26 +81,10 @@ func postLogin(h http.Handler, user, pass string) *httptest.ResponseRecorder {
 	return rec
 }
 
-// TestLoginIsNotServedWhileNodeRuns. The route must reach the proxy, which in a
-// test has nowhere to go and answers 502 — that is the PROOF it was proxied.
-// A 200 or a 401 here would mean Go answered, which is the coexistence bug.
-func TestLoginIsNotServedWhileNodeRuns(t *testing.T) {
-	h := newAuthServer(t, "http://127.0.0.1:1", "hunter-two-not-a-real-password")
-	rec := postLogin(h, "someone", "hunter-two-not-a-real-password")
-	if rec.Code != http.StatusBadGateway {
-		t.Errorf("POST /api/auth/login answered %d with a Node configured, want 502 (proxied). "+
-			"Go must NOT own this route during coexistence: the browser would hold a session "+
-			"Node does not know and every unported page would answer 401", rec.Code)
-	}
-	if rec.Header().Get("Set-Cookie") != "" {
-		t.Error("a cookie was minted while Node is the authority")
-	}
-}
-
 // TestLoginMintsASessionWhenStandalone.
 func TestLoginMintsASessionWhenStandalone(t *testing.T) {
 	const pw = "correct-horse-battery-staple"
-	h := newAuthServer(t, "", pw)
+	h := newAuthServer(t, pw)
 
 	rec := postLogin(h, "someone", pw)
 	if rec.Code != http.StatusOK {
@@ -158,7 +142,7 @@ func TestLoginMintsASessionWhenStandalone(t *testing.T) {
 // closes the timing channel; a response that named which half failed would hand
 // back by content exactly what that withholds.
 func TestAWrongPasswordAndAMissingUserAreIndistinguishable(t *testing.T) {
-	h := newAuthServer(t, "", "the-right-one")
+	h := newAuthServer(t, "the-right-one")
 
 	wrong := postLogin(h, "someone", "the-wrong-one")
 	missing := postLogin(h, "nobody-at-all", "the-wrong-one")
@@ -186,7 +170,7 @@ func TestAWrongPasswordAndAMissingUserAreIndistinguishable(t *testing.T) {
 // from "you sent the wrong thing", and that is not an oracle: it says nothing
 // about whether any account exists.
 func TestMissingCredentialsAre400(t *testing.T) {
-	h := newAuthServer(t, "", "whatever")
+	h := newAuthServer(t, "whatever")
 	for _, c := range []struct{ user, pass string }{
 		{"", "x"}, {"someone", ""}, {"", ""},
 	} {
@@ -312,7 +296,7 @@ func auditRows(t *testing.T, action string) []auditedActor {
 // password guessing was bounded only by scrypt. Issue #111, where a tunnel puts
 // the login page on the internet.
 func TestLoginIsRateLimited(t *testing.T) {
-	h := newAuthServer(t, "", "correct-horse-battery-staple")
+	h := newAuthServer(t, "correct-horse-battery-staple")
 	for i := 1; i <= 10; i++ {
 		if rec := postLogin(h, "someone", "a-wrong-password"); rec.Code == http.StatusTooManyRequests {
 			t.Fatalf("attempt %d was refused; the limit is ten a minute", i)

@@ -19,41 +19,17 @@ package server
 // use it", and it was removed rather than aliased: an alias nobody uses is a
 // second code path nobody tests, which is how (1) survived as long as it did.
 //
-// ── COEXISTENCE IS STILL A MODE, AND IT STILL KEEPS ITS HANDS OFF `/` ───────
-//
-// Not as a migration step any more — `tools/live-diff.sh` runs this binary
-// beside the live app and logs in THROUGH its proxy to compare payloads
-// endpoint by endpoint. Taking `/` away from Node would break the only tool
-// that measures the two implementations against each other. With a Node URL
-// configured this process serves APIs and proxies the rest; it offers no
-// frontend of its own.
+// Coexistence itself (serving APIs and proxying the rest to a Node app beside
+// this one) was retired on 2026-09-19, so the root is always this app's.
 
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
-	"net/url"
 	"testing"
 )
 
-// deadProxy is a real ReverseProxy pointing nowhere. A nil one PANICS when the
-// catch-all serves, which is a crash rather than the assertion this test is
-// making — the first version of this file did exactly that.
-func deadProxy(t *testing.T) *httputil.ReverseProxy {
-	t.Helper()
-	u, err := url.Parse("http://127.0.0.1:1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := httputil.NewSingleHostReverseProxy(u)
-	p.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
-		w.WriteHeader(http.StatusBadGateway)
-	}
-	return p
-}
-
-func TestStandaloneServesTheAppFromTheRoot(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+func TestTheAppIsServedFromTheRoot(t *testing.T) {
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	rec := httptest.NewRecorder()
@@ -81,7 +57,7 @@ func TestStandaloneServesTheAppFromTheRoot(t *testing.T) {
 // The property the operator asked for, pinned so it cannot come back by accident
 // — a re-added alias would be a second, untested path to the same app.
 func TestTheStranglerPrefixIsGone(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	for _, p := range []string{"/next/", "/next/dns", "/next/app.js"} {
@@ -101,7 +77,7 @@ func TestTheStranglerPrefixIsGone(t *testing.T) {
 // would not — a blank shell that looks like the app, which is a worse failure
 // than a 404.
 func TestTheAppAssetsAreServedAtTheirAbsolutePaths(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	for _, p := range []string{"/app.js", "/app.css"} {
@@ -114,55 +90,23 @@ func TestTheAppAssetsAreServedAtTheirAbsolutePaths(t *testing.T) {
 	}
 }
 
-// TestCoexistenceLeavesTheRootAlone — the half that matters more.
-//
-// `tools/live-diff.sh` logs in through this process's proxy. Taking `/` from
-// Node breaks the comparison this whole port is verified by.
-func TestCoexistenceLeavesTheRootAlone(t *testing.T) {
-	srv := &Server{standalone: false, staticDir: t.TempDir(), proxy: deadProxy(t)}
-	h := srv.Handler()
-
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
-
-	if rec.Code != http.StatusBadGateway {
-		t.Errorf("GET / answered %d with a Node URL configured; it must reach the proxy (502 "+
-			"here, because the test proxy points nowhere)", rec.Code)
-	}
-}
-
-// TestStandaloneAnswers404ForAnUnportedPath.
-//
-// The static handler falls through to the proxy for anything its directory does
-// not hold — which was right mid-migration, where "not here" meant "still
-// Node's". With no Node the target is empty and the operator gets a 502: "the
-// upstream failed", when the truth is "there is no upstream".
-func TestStandaloneAnswers404ForAnUnportedPath(t *testing.T) {
-	srv := &Server{standalone: true, staticDir: t.TempDir(), proxy: deadProxy(t)}
+// TestAnUnservedPathIs404. The static handler fell through to a proxy for
+// anything its directory did not hold, which was right while a Node app owned
+// the rest; with none, that answered 502 ("the upstream failed") where the
+// truth is "nothing serves this". 404 is the honest answer.
+func TestAnUnservedPathIs404(t *testing.T) {
+	srv := &Server{staticDir: t.TempDir()}
 	h := srv.Handler()
 
 	for _, p := range []string{"/nothing-here", "/also-not-here"} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
 		if rec.Code == http.StatusBadGateway {
-			t.Errorf("%s answered 502 in standalone. There is no upstream to have failed; 404 is "+
+			t.Errorf("%s answered 502. There is no upstream to have failed; 404 is "+
 				"the honest answer and the one a browser renders sensibly.", p)
 		}
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("%s answered %d, want 404", p, rec.Code)
 		}
-	}
-}
-
-// TestCoexistenceStillFallsThroughToNode — the half that must not change.
-func TestCoexistenceStillFallsThroughToNode(t *testing.T) {
-	srv := &Server{standalone: false, staticDir: t.TempDir(), proxy: deadProxy(t)}
-	h := srv.Handler()
-
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/settings", nil))
-	if rec.Code == http.StatusNotFound {
-		t.Error("/settings answered 404 while a Node URL is configured. That path is still Node's " +
-			"during a live-diff run, and 404ing it breaks the comparison.")
 	}
 }

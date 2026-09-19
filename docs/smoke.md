@@ -9,8 +9,7 @@ Run this after every merge that should go into a production container.
 - `docker compose logs --tail=100 mikrodash` shows a healthy RouterOS connection
 
 The startup banner states what is switched on — history recording, the backup
-scheduler, alert dispatch, the retention sweep — and whether the process is
-standalone. Read it: each of those lines is the app telling you what it will do,
+scheduler, alert dispatch, the retention sweep. Read it: each of those lines is the app telling you what it will do,
 and a surprise there is worth resolving before the UI checks.
 
 ## UI checks

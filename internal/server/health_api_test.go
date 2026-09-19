@@ -20,7 +20,7 @@ import (
 // by design, reachable without a session.
 func TestUnauthenticatedHealthzDisclosesOnlyOkAndStarting(t *testing.T) {
 	s := schedServer(t, `[]`)
-	s.auth = NewAuth("", time.Hour)
+	s.auth = NewAuth()
 
 	mux := http.NewServeMux()
 	s.registerHealth(mux)
@@ -74,7 +74,7 @@ func TestUnauthenticatedHealthzDisclosesOnlyOkAndStarting(t *testing.T) {
 func TestHealthzIsA503WhenNothingIsConnected(t *testing.T) {
 	s := schedServer(t, `[{"id":"r1","label":"One","host":"198.51.100.1","port":8728,
 	  "username":"u","password":""}]`)
-	s.auth = NewAuth("", time.Hour)
+	s.auth = NewAuth()
 	if err := os.WriteFile(filepath.Join(s.store.Dir, "settings.json"),
 		[]byte(`{"activeRouterId":"r1"}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -118,7 +118,7 @@ func TestHealthzIsA503WhenNothingIsConnected(t *testing.T) {
 // first changes here.
 func TestAFreshInstallWithNoDeviceIsHealthy(t *testing.T) {
 	s := schedServer(t, `[]`)
-	s.auth = NewAuth("", time.Hour)
+	s.auth = NewAuth()
 
 	mux := http.NewServeMux()
 	s.registerHealth(mux)
@@ -155,7 +155,7 @@ func TestAFreshInstallWithNoDeviceIsHealthy(t *testing.T) {
 func TestAConfiguredDeviceThatNeverAnswersIsStillUnhealthy(t *testing.T) {
 	s := schedServer(t, `[{"id":"r1","label":"One","host":"198.51.100.1","port":8728,
 	  "username":"u","password":""}]`)
-	s.auth = NewAuth("", time.Hour)
+	s.auth = NewAuth()
 	if err := os.WriteFile(filepath.Join(s.store.Dir, "settings.json"),
 		[]byte(`{"activeRouterId":"r1"}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -186,7 +186,7 @@ func TestAConfiguredDeviceThatNeverAnswersIsStillUnhealthy(t *testing.T) {
 // — the fixture has to be something no coercion can rescue.
 func TestACorruptFleetFileIsNotMistakenForAFreshInstall(t *testing.T) {
 	s := schedServer(t, `[]`)
-	s.auth = NewAuth("", time.Hour)
+	s.auth = NewAuth()
 	if err := os.WriteFile(filepath.Join(s.store.Dir, "routers.json"),
 		[]byte(`[{"id":"r1","label":"One","host":`), 0o600); err != nil {
 		t.Fatal(err)

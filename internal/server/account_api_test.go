@@ -202,27 +202,6 @@ func TestRevokeOthersSparesTheCaller(t *testing.T) {
 	}
 }
 
-// TestAccountSessionsAreNotServedWhileNodeRuns.
-//
-// The store is empty while Node owns sessions, so a Go answer would be "you have
-// no sessions" beside a browser that is plainly signed in. A confident wrong
-// answer is worse than the proxy's correct one — the same rule as the login
-// routes, and the 502 here is the proof it was proxied.
-func TestAccountSessionsAreNotServedWhileNodeRuns(t *testing.T) {
-	h := newAuthServer(t, "http://127.0.0.1:1", "a-password")
-	for _, r := range []*http.Request{
-		httptest.NewRequest("GET", "/api/account/sessions", nil),
-		httptest.NewRequest("POST", "/api/account/sessions/revoke-others", nil),
-	} {
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, r)
-		if rec.Code != http.StatusBadGateway {
-			t.Errorf("%s %s answered %d with a Node configured, want 502 (proxied)",
-				r.Method, r.URL.Path, rec.Code)
-		}
-	}
-}
-
 func contains(haystack, needle string) bool {
 	return len(needle) > 0 && len(haystack) >= len(needle) &&
 		func() bool {
@@ -251,22 +230,6 @@ func postPassword(h http.Handler, token, current, next string) *httptest.Respons
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
-}
-
-// TestPasswordChangeIsNotServedWhileNodeRuns.
-//
-// It WRITES users.json, and `src/users.js` caches the file on first load — so a
-// change written during coexistence is invisible to Node AND reverted by its
-// next save. The operator would be told their password had changed when it had
-// not, which is worse than the endpoint being absent. The 502 is the proof it
-// was proxied.
-func TestPasswordChangeIsNotServedWhileNodeRuns(t *testing.T) {
-	h := newAuthServer(t, "http://127.0.0.1:1", "an-invented-password")
-	rec := postPassword(h, "", "an-invented-password", "another-invented-password")
-	if rec.Code != http.StatusBadGateway {
-		t.Errorf("answered %d with a Node configured, want 502 (proxied). A password change "+
-			"while Node runs is reverted by its next save", rec.Code)
-	}
 }
 
 // TestAPasswordChangeVerifiesTheCurrentOneFirst.

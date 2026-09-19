@@ -41,7 +41,7 @@ func healthPoolServer(t *testing.T, dial routers.Dialer) *Server {
 	t.Helper()
 	s := schedServer(t, `[{"id":"r1","label":"One","host":"198.51.100.1","port":8728,
 	  "username":"u","password":""}]`)
-	s.auth = NewAuth("", time.Hour)
+	s.auth = NewAuth()
 	// The active router, which is what `activeRouterHealth` looks up.
 	if err := os.WriteFile(filepath.Join(s.store.Dir, "settings.json"),
 		[]byte(`{"activeRouterId":"r1"}`), 0o600); err != nil {
