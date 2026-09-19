@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -255,5 +256,57 @@ func TestTheContainerActionsNameTheirCommand(t *testing.T) {
 		if _, _, refusal := actionArgs(spec, "", ""); refusal == "" {
 			t.Errorf("%s was accepted without a container name", key)
 		}
+	}
+}
+
+// TestAWarnedActionIsAskedAgainWithTheWarning. The approval of a WAN lease
+// action passed no acknowledgement, so a self-cutoff warning refused it every
+// time and it could never run from the assistant. A warned outcome now raises
+// a second proposal carrying the fingerprint, with the warning shown (review
+// loop).
+func TestAWarnedActionIsAskedAgainWithTheWarning(t *testing.T) {
+	cn, me := readbackConn(t)
+	spec, _ := aitools.ActionByKey("wan_dhcp_renew")
+	p := &aiWriteProposal{actionKey: spec.Key, target: "ether1"}
+	cn.answerAIAction(spec, p, writeOutcome{Code: "self-cutoff", Name: "ether1", Detail: map[string]any{
+		"warning":     map[string]any{"wan": "ether1", "address": "203.0.113.9", "certain": false},
+		"fingerprint": "fp-1", "verb": "renew",
+	}})
+
+	var propose, written map[string]any
+	for done := false; !done; {
+		select {
+		case b := <-me.Send:
+			var env struct {
+				Event string         `json:"event"`
+				Data  map[string]any `json:"data"`
+			}
+			if json.Unmarshal(b, &env) == nil {
+				switch env.Event {
+				case "ai:propose":
+					propose = env.Data
+				case "ai:written":
+					written = env.Data
+				}
+			}
+		default:
+			done = true
+		}
+	}
+	if propose == nil {
+		t.Fatal("a warned action was not put to the operator again")
+	}
+	if propose["warnCode"] != "self-cutoff" {
+		t.Errorf("the second proposal shows warnCode %v, want self-cutoff", propose["warnCode"])
+	}
+	tok, _ := propose["token"].(string)
+	cn.proposeMu.Lock()
+	again := cn.proposals[tok]
+	cn.proposeMu.Unlock()
+	if again == nil || again.ack != "fp-1" || again.target != "ether1" {
+		t.Errorf("the second proposal does not carry the fingerprint and target: %+v", again)
+	}
+	if written == nil || written["applied"] != false {
+		t.Errorf("the first approval was not reported as not run: %v", written)
 	}
 }

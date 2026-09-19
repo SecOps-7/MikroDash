@@ -96,7 +96,14 @@ func actionArgs(spec aitools.ActionSpec, rawTarget, rawMode string) (target, mod
 // returns at once, for the reason raiseAIProposal does: a human takes longer
 // than the model request this runs inside.
 func (cn *conn) raiseAIAction(spec aitools.ActionSpec, target, mode string) string {
-	tok, err := cn.addProposal(&aiWriteProposal{actionKey: spec.Key, target: target, mode: mode})
+	return cn.raiseAIActionWarned(spec, target, mode, "", nil)
+}
+
+// raiseAIActionWarned is raiseAIAction carrying a guard's warning: `ack` is its
+// fingerprint, replayed at approval, and `warning` its detail with the code, as
+// the dialog shows it for a row write.
+func (cn *conn) raiseAIActionWarned(spec aitools.ActionSpec, target, mode, ack string, warning map[string]any) string {
+	tok, err := cn.addProposal(&aiWriteProposal{actionKey: spec.Key, target: target, mode: mode, ack: ack})
 	if errors.Is(err, errProposalsFull) {
 		return "There are already several things waiting for the operator to answer. " +
 			"Ask them to deal with those before proposing another."
@@ -105,11 +112,16 @@ func (cn *conn) raiseAIAction(spec aitools.ActionSpec, target, mode string) stri
 		return "That action could not be put to the operator, so nothing was run."
 	}
 
+	warnCode, _ := warning["code"].(string)
+	shown, _ := warning["warning"].(map[string]any)
+	if shown == nil {
+		shown = map[string]any{}
+	}
 	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
 		"token": tok, "kind": "action", "action": spec.Key, "label": aiActionLabel(spec, mode),
 		"name": target, "command": aiActionCommand(spec, target, mode),
 		"routerName": cn.rsession.Label, "typedName": spec.TypedName, "credentials": spec.Credentials,
-		"warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
+		"warnCode": warnCode, "warning": shown, "values": map[string]string{},
 	})
 
 	if spec.TypedName {
@@ -217,9 +229,9 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, in actionApproval) {
 	var out writeOutcome
 	switch spec.Key {
 	case "wan_dhcp_renew":
-		out = cn.runWanLease("renew", cn.wanLeaseID(p.target), p.target, "", "agent")
+		out = cn.runWanLease("renew", cn.wanLeaseID(p.target), p.target, p.ack, "agent")
 	case "wan_dhcp_release":
-		out = cn.runWanLease("release", cn.wanLeaseID(p.target), p.target, "", "agent")
+		out = cn.runWanLease("release", cn.wanLeaseID(p.target), p.target, p.ack, "agent")
 	case "backup_run":
 		out = cn.runBackupNow("agent")
 	case "packages_schedule":
@@ -238,6 +250,22 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, in actionApproval) {
 		out = cn.runContainerRemove(p.target)
 	}
 
+	cn.answerAIAction(spec, p, out)
+}
+
+// answerAIAction reports an approved action's outcome.
+//
+// A GUARD WARNED, as the WAN page's self-cutoff does for the uplink MikroDash
+// reaches the router on: put to the operator again WITH the warning and its
+// fingerprint, as change_row's guardGate does. Before, the approval always sent
+// no acknowledgement, and the action could never run from here.
+func (cn *conn) answerAIAction(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutcome) {
+	if fp, gate := guardGate(out); gate {
+		cn.raiseAIActionWarned(spec, p.target, p.mode, fp, gateDetail(out))
+		cn.aiActionDone(spec.Key, false, "Not run yet: MikroDash reaches this router through "+
+			"that uplink, so it is asking the operator again with that warning shown.")
+		return
+	}
 	if out.Code != "" {
 		cn.aiActionDone(spec.Key, false, aiActionRefusal(spec, out))
 		return
@@ -277,9 +305,6 @@ func aiActionRefusal(spec aitools.ActionSpec, out writeOutcome) string {
 		return "Not run: that request was incomplete."
 	case "stale-row":
 		return "Not run: that uplink changed on the router since it was read."
-	case "self-cutoff", "stale-warning":
-		return "Not run: MikroDash reaches this router through that uplink, so the action needs " +
-			"the safety warning acknowledged in the dialog."
 	case "not-configured":
 		return "Not run: backups are not configured for this router, so there is no password to " +
 			"encrypt one with."
