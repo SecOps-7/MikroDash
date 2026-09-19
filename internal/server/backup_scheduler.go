@@ -53,7 +53,7 @@ func (s *Server) buildBackupScheduler(enabled bool) *backups.Scheduler {
 	return backups.NewScheduler(backups.SchedDeps{
 		Routers:  s.schedRouters,
 		LastRun:  s.lastBackupRun,
-		Timezone: s.displayTimezone,
+		Timezone: s.displayTZ,
 		Queue:    s.inRouterWriteQueue,
 		RunFor:   s.runScheduledBackup,
 		Log:      func(m string) { log.Printf("[backup] %s", m) },

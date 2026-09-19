@@ -7,19 +7,18 @@
 // `/next/api/reports/*` — see internal/server/reports.go for why they are not at
 // `/api/reports/*` yet.
 //
-// ── THE TIMEZONE RULES ARE THE ORIGINAL'S, INCLUDING THE INCONSISTENT ONE ───
+// ── TIMES ARE timefmt.ts's ───────────────────────────────────────────────────
 //
-// With `displayTimezone` set, timestamps are formatted in THAT zone. With it
-// unset they are formatted in the BROWSER's zone — not UTC. Those are different
-// answers and the live page gives both, depending on a setting. The port runs in
-// the same browser with the same Date, so both are reproduced by construction
-// rather than by arithmetic; there is nothing here to get wrong except the choice
-// of branch.
+// Timestamps and axis labels are formatted in the install's display timezone,
+// or the browser's when none is set, by the one module that formats every time
+// in the app. This page kept its own copy of the zone, fed by a setter nothing
+// called, so it always used the browser's (review loop).
 //
 // The preset arithmetic below is likewise all local time: `setHours(0,0,0,0)` is
 // midnight where the OPERATOR is, which is what "today" has to mean on a page
 // whose other end is a date picker.
 
+import { fmtTs, fmtTime, fmtMonthDay } from '../timefmt';
 import { esc, el } from '../dom';
 import { renderPing, renderConn, wirePingPager, type PingRow, type ConnRow } from './reports-ping';
 import {
@@ -44,33 +43,12 @@ import { loadSchedules, wireScheduleActions, wireScheduleForm } from './reports-
 // key against the live source for exactly this reason.
 const RPT_PRESET_KEY = 'mkd_rpt_preset';
 
-/** Set from the settings payload; empty means "use the browser's zone". */
-let displayTimezone = '';
-
-export function setReportTimezone(tz: string): void {
-  displayTimezone = tz || '';
-}
-
-const p2 = (n: number): string => String(n).padStart(2, '0');
-
 // ── Formatters ──────────────────────────────────────────────────────────────
 
-/** A timestamp for a table cell. Em dash for a missing one, never "1970". */
-export function fmtTs(ts: number): string {
-  if (!ts) return '—';
-  if (displayTimezone) {
-    // 'sv-SE' gives '2026-01-01 00:00:00'; some engines put a T in, which the
-    // original normalises away rather than depending on its absence.
-    return new Intl.DateTimeFormat('sv-SE', {
-      timeZone: displayTimezone,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-    }).format(new Date(ts)).replace('T', ' ');
-  }
-  const d = new Date(ts);
-  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' +
-    p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
-}
+/** A timestamp for a table cell. See timefmt.ts. */
+export { fmtTs };
+
+const p2 = (n: number): string => String(n).padStart(2, '0');
 
 /**
  * A duration, coarsened as it grows: hours drop the seconds, minutes keep them.
@@ -101,27 +79,9 @@ const DAY = 86400000;
  * every tick, and a six-hour chart labelled MM-DD says nothing at all.
  */
 export function chartLabel(ts: number, spanMs: number): string {
-  if (displayTimezone) {
-    let opts: Intl.DateTimeFormatOptions;
-    if (spanMs <= 12 * HOUR) {
-      opts = { timeZone: displayTimezone, hour: '2-digit', minute: '2-digit', hour12: false };
-    } else if (spanMs <= 3 * DAY) {
-      opts = {
-        timeZone: displayTimezone, month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', hour12: false,
-      };
-    } else {
-      opts = { timeZone: displayTimezone, month: '2-digit', day: '2-digit' };
-    }
-    return new Intl.DateTimeFormat('sv-SE', opts).format(new Date(ts));
-  }
-  const d = new Date(ts);
-  if (spanMs <= 12 * HOUR) return p2(d.getHours()) + ':' + p2(d.getMinutes());
-  if (spanMs <= 3 * DAY) {
-    return p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' +
-      p2(d.getHours()) + ':' + p2(d.getMinutes());
-  }
-  return p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  if (spanMs <= 12 * HOUR) return fmtTime(ts, false);
+  if (spanMs <= 3 * DAY) return fmtMonthDay(ts) + ' ' + fmtTime(ts, false);
+  return fmtMonthDay(ts);
 }
 
 /** One stat card. Both halves are escaped: a value can be a router-supplied name. */

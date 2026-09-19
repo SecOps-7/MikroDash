@@ -46,6 +46,7 @@
 // somebody presses Load on a date range. The tab bar asks for it when the tab is
 // opened, which is the live app's behaviour.
 
+import { fmtTs } from '../timefmt';
 import { esc, el, fmtBytes } from '../dom';
 
 export interface ScheduleRun {
@@ -100,11 +101,7 @@ let editing: ScheduleRow | null = null;
 /** A last-run summary: when, and how it went. */
 function fmtRun(r: ScheduleRun | null | undefined): string {
   if (!r) return '—';
-  // `toLocaleString()` with no arguments, as the original — the operator's own
-  // locale and zone, NOT `displayTimezone`. The two disagree for an operator who
-  // set that field, and reproducing the disagreement is the port's job rather
-  // than quietly improving one column.
-  return new Date(r.ran_at).toLocaleString() + ' · ' + r.outcome;
+  return fmtTs(r.ran_at, false) + ' · ' + r.outcome;
 }
 
 export function renderSchedules(): void {
@@ -292,7 +289,7 @@ export function wireScheduleActions(): void {
           '<th>Detail</th></tr></thead><tbody>' +
           (runs.length
             ? runs.map((r) =>
-              '<tr><td class="bw-mac">' + esc(new Date(r.ran_at).toLocaleString()) + '</td>' +
+              '<tr><td class="bw-mac">' + esc(fmtTs(r.ran_at, false)) + '</td>' +
               '<td>' + esc(r.outcome) + '</td>' +
               '<td>' + esc(String(r.recipients_n ?? 0)) + '</td>' +
               // A zero size shows a dash rather than "0 B": a run that sent

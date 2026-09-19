@@ -98,7 +98,7 @@ func (cn *conn) backupsList() {
 	EvBackupsState.Send(cn.srv.hub, cn.c, backups.StatePayload{
 		RouterID: cn.routerID,
 		Label:    cn.rsession.Label,
-		Settings: backups.SettingsFrom(rec.block, rec.keepCount, rec.keepDays, cn.srv.displayTimezone()),
+		Settings: backups.SettingsFrom(rec.block, rec.keepCount, rec.keepDays, cn.srv.displayTZ()),
 		Summary:  summary,
 		// The page uses this to disable its own buttons while a run is in flight,
 		// and the set is on the SERVER so a second operator opening the page
@@ -673,21 +673,4 @@ func (cn *conn) bkStoredRow(id int64) *db.BackupRow {
 		return nil
 	}
 	return row
-}
-
-// displayTimezone is the zone the schedule card labels its time with.
-//
-// EMPTY IS THE SERVER'S OWN, and the card says "server time" for it — so an
-// unreadable settings file degrades to a truthful label rather than to a wrong
-// zone name. That is why the error is dropped rather than surfaced.
-func (s *Server) displayTimezone() string {
-	if s.store == nil {
-		return ""
-	}
-	settings, err := s.store.Settings()
-	if err != nil {
-		return ""
-	}
-	tz, _ := settings["displayTimezone"].(string)
-	return tz
 }

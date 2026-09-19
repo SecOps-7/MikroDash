@@ -27,6 +27,7 @@
 // `initTopologyPage`; the sentence that used to sit here saying it was not wired
 // yet outlived the slice it described.
 
+import { fmtTime } from '../timefmt';
 import { esc, el as byId, fmtMbps, svgEl, attr, text, lsGet, lsSet } from '../dom';
 import { mergePeers } from './topo-merge';
 import type { TopoPeer } from './topo-merge';
@@ -428,7 +429,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     const bits = [n.name || n.key, TYPE_LABEL[n.type] || n.type];
     if (n.ip) bits.push(n.ip);
     if (n.board) bits.push(n.board);
-    if (n.gone) bits.push('last seen ' + new Date(n.lastSeen).toLocaleTimeString());
+    if (n.gone) bits.push('last seen ' + fmtTime(n.lastSeen));
     return bits.join(' · ');
   }
 

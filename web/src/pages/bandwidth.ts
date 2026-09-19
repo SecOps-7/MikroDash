@@ -17,6 +17,7 @@
 // regression dressed as progress; the live page keeps serving instead, which is
 // what the strangler-fig arrangement is for.
 
+import { fmtTime } from '../timefmt';
 import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag } from '../dom';
 import {
   RIGHT_BUFFER_MS, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
@@ -181,7 +182,7 @@ export function bwChartConfig(nowMs: number, windowSecs: number, rightBufferMs: 
           titleFont: { family: "'JetBrains Mono',monospace", size: 10 },
           bodyFont: { family: "'JetBrains Mono',monospace", size: 10 },
           callbacks: {
-            title: (items: { parsed: { x: number } }[]) => new Date(items[0]!.parsed.x).toLocaleTimeString(),
+            title: (items: { parsed: { x: number } }[]) => fmtTime(items[0]!.parsed.x),
             label: (c: { dataset: { label: string }; parsed: { y: number } }) =>
               ' ' + c.dataset.label + ': ' + fmtMbps(c.parsed.y),
           },

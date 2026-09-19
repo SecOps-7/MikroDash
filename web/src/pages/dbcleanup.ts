@@ -30,6 +30,7 @@
  * fetching and the listener registration.
  */
 
+import { fmtDate } from '../timefmt';
 import { el, esc, fmtBytes } from '../dom';
 
 export interface DbRouter { id: string; label?: string | null; host?: string | null }
@@ -118,7 +119,7 @@ export function statsText(s: DbStats): { size: string; rows: string; oldest: str
   return {
     size: fmtBytes(s.bytes || 0),
     rows: (s.total || 0).toLocaleString(),
-    oldest: s.oldestTs ? new Date(s.oldestTs).toLocaleDateString() : '—',
+    oldest: fmtDate(s.oldestTs),
   };
 }
 

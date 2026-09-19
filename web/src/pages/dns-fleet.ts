@@ -22,6 +22,7 @@
 // are marked and left alone. Making "make them the same" a one-click action
 // means choosing which router is right, and nothing here knows that.
 
+import { fmtTime } from '../timefmt';
 import { esc, el, lsGet, lsSet } from '../dom';
 import { openResource, registerExtra } from '../resource';
 import type { Socket } from '../socket';
@@ -276,7 +277,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     if (note) {
       const failed = data.filter((r) => !r.ok);
       note.textContent = notice || (loading ? 'reading…'
-        : takenAt ? new Date(takenAt).toLocaleTimeString() +
+        : takenAt ? fmtTime(takenAt) +
           (failed.length ? ' · ' + failed.length + ' unreachable' : '')
         : '');
     }

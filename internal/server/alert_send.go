@@ -158,7 +158,7 @@ func cooldownKey(f alert.Fired) string {
 // zone, or the server's own when none is set.
 func (s *Server) alertTimestamp() string {
 	now := time.Now()
-	if tz := s.displayTimezone(); tz != "" {
+	if tz := s.displayTZ(); tz != "" {
 		if loc, err := time.LoadLocation(tz); err == nil {
 			now = now.In(loc)
 		}

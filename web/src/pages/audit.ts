@@ -13,30 +13,12 @@
  * comment gives the reason: "the trail is history, and a page that reloads
  * itself while being read is worse than one that does not."
  *
- * ── fmtTs IS IMPORTED FROM reports.ts, WHERE THE LIVE PAGE DUPLICATES IT ────
- *
- * The live Audit page defines its own copy, explaining that it would rather
- * format locally than hoist a function it is the only other user of — and both
- * copies then read the SAME `_displayTimezone` global.
- *
- * That shared global is the part that matters, so this imports instead. The two
- * implementations are identical (including the `.replace('T',' ')` that a stale
- * comment in the live file still describes as a miscopy — it was fixed there),
- * and importing means ONE module-level zone rather than two, which is the shape
- * the single global already had. Duplicating would produce a second variable and
- * a second thing to remember to wire.
- *
- * KNOWN GAP, NOT INTRODUCED HERE: `setReportTimezone` is exported by reports.ts
- * and never called, because this port has no handler for the `pages` payload
- * that carries `displayTimezone` (app.js:2883). So both pages currently format
- * in the BROWSER's zone, where the live app uses the configured one for an
- * operator who set it. That is the nav-and-shell queue item's job; when it lands
- * it fixes both pages at once, which it could not do if this file kept its own.
+ * Times are formatted by timefmt.ts, in the install's display timezone.
  */
 
 import { esc, el, debounce, renderSortHeader, sortMul,
          type SortCol, type SortState } from '../dom';
-import { fmtTs } from './reports';
+import { fmtTs } from '../timefmt';
 
 /**
  * `/next/api/audit`, not `/api/audit` — see internal/server/audit_api.go. The

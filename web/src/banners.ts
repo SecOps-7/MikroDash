@@ -36,8 +36,8 @@
 // the fleet-wide broadcast added later made an ungated banner report other
 // routers' outages as this one's.
 
+import { fmtTime } from './timefmt';
 import { el } from './dom.js';
-import { getDisplayTimezone } from './caps.js';
 
 let rosDisconnected = false;
 let socketDown = false;
@@ -180,18 +180,7 @@ export function initClock(): void {
   if (!node) return;
   let last = '';
   const tick = (): void => {
-    const tz = getDisplayTimezone();
-    let str: string;
-    if (tz) {
-      str = new Intl.DateTimeFormat('en-GB', {
-        timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-      }).format(new Date());
-    } else {
-      const now = new Date();
-      str = now.getHours().toString().padStart(2, '0') + ':' +
-            now.getMinutes().toString().padStart(2, '0') + ':' +
-            now.getSeconds().toString().padStart(2, '0');
-    }
+    const str = fmtTime(Date.now());
     if (str !== last) {
       last = str;
       node.textContent = str;

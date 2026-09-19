@@ -12,6 +12,7 @@
 // four can be compared against the live ones by DOM equality, which is the
 // strongest gate available, and the writes cannot.
 
+import { fmtTs } from './timefmt';
 import { initUserNotify, loadUserNotify } from './pages/usernotify';
 import { el, esc } from './dom.js';
 
@@ -66,10 +67,7 @@ export function renderAccess(a: AccessGrants): void {
 /**
  * The signed-in sessions.
  *
- * `toLocaleString()` with no arguments, exactly as the original: the browser's
- * locale and timezone decide the format. A port that pinned an explicit format
- * would render differently for every user outside the one locale it chose,
- * which is a user-visible change however much tidier the string looks.
+ * Times in the install's display timezone, as every time in the app (timefmt.ts).
  */
 export function renderSessions(list: SessionRow[] | null | undefined): void {
   const body = el('acct_sessionsBody');
@@ -79,8 +77,8 @@ export function renderSessions(list: SessionRow[] | null | undefined): void {
     return;
   }
   body.innerHTML = list.map((s) => {
-    const when = new Date(s.createdAt).toLocaleString();
-    const exp = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : 'never';
+    const when = fmtTs(s.createdAt, false);
+    const exp = s.expiresAt ? fmtTs(s.expiresAt, false) : 'never';
     return '<div style="display:flex;justify-content:space-between;gap:.7rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.75rem">' +
            '<span>Signed in ' + esc(when) + (s.current ? ' <strong>(this device)</strong>' : '') + '</span>' +
            '<span style="color:var(--text-muted)">expires ' + esc(exp) + '</span></div>';

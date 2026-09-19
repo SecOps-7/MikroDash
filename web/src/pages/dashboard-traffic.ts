@@ -30,6 +30,7 @@
 // the chart at the current time from the visibilitychange handler instead, and
 // the browser paints the returning page with it already current.
 
+import { fmtTime } from '../timefmt';
 import type { Socket } from '../socket';
 import { el, fmtMbps } from '../dom';
 import { notePayload } from '../stale';
@@ -86,12 +87,12 @@ export const trafficTickPlugin = {
     ctx.save();
     ctx.font = "10px 'JetBrains Mono',monospace";
     ctx.textBaseline = 'top';
-    const labelW = ctx.measureText(new Date(x.min).toLocaleTimeString()).width;
+    const labelW = ctx.measureText(fmtTime(x.min)).width;
     const n = Math.min(7, Math.max(1, Math.floor(w / (labelW + 20))));
     if (n === 1) {
       ctx.fillStyle = 'rgba(148,163,190,.4)';
       ctx.textAlign = 'right';
-      ctx.fillText(new Date(x.max).toLocaleTimeString(), ca.right, ca.bottom + 6);
+      ctx.fillText(fmtTime(x.max), ca.right, ca.bottom + 6);
     } else {
       for (let i = 0; i < n; i++) {
         const frac = i / (n - 1), px = Math.round(ca.left + frac * w);
@@ -105,7 +106,7 @@ export const trafficTickPlugin = {
         ctx.stroke();
         ctx.fillStyle = 'rgba(148,163,190,.4)';
         ctx.textAlign = i === 0 ? 'left' : i === n - 1 ? 'right' : 'center';
-        ctx.fillText(new Date(x.min + frac * (x.max - x.min)).toLocaleTimeString(), px, ca.bottom + 6);
+        ctx.fillText(fmtTime(x.min + frac * (x.max - x.min)), px, ca.bottom + 6);
       }
     }
     ctx.restore();
@@ -137,7 +138,7 @@ export function chartConfig(nowMs: number): unknown {
           titleFont: { family: "'JetBrains Mono',monospace", size: 11 },
           bodyFont: { family: "'JetBrains Mono',monospace", size: 11 },
           callbacks: {
-            title: (items: { parsed: { x: number } }[]) => new Date(items[0]!.parsed.x).toLocaleTimeString(),
+            title: (items: { parsed: { x: number } }[]) => fmtTime(items[0]!.parsed.x),
             label: (c: { dataset: { label: string }; parsed: { y: number } }) =>
               ' ' + c.dataset.label + ': ' + fmtMbps(c.parsed.y),
           },

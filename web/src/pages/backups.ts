@@ -21,6 +21,7 @@
  * harder to find again than one that greys.
  */
 
+import { fmtTs } from '../timefmt';
 import { esc, el, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
 import type { StatePayload } from '../gen/payloads';
@@ -45,11 +46,9 @@ const ERRORS: Record<string, string> = {
   unavailable: 'The router is not connected.',
 };
 
+/** When a backup was taken, to the minute, in the display timezone. */
 function fmtWhen(ts: number): string {
-  if (!ts) return '—';
-  const d = new Date(ts);
-  return d.toLocaleDateString() + ' ' +
-    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return fmtTs(ts, false);
 }
 
 export function initBackupsPage(socket: Socket, isVisible: (page: string) => boolean): void {
