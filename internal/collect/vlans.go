@@ -448,8 +448,7 @@ type Vlans struct {
 	// lastEmit is when a payload last went out, for vlansHeartbeat.
 	lastEmit time.Time
 
-	last    *VlansPayload
-	lastErr string
+	last *VlansPayload
 }
 
 // NewVlans builds the collector. `rates` and `leases` may be nil — the page
@@ -537,9 +536,6 @@ func (v *Vlans) rebuild() {
 func (v *Vlans) read(cmd routeros.Cmd) []routeros.Reply {
 	rows, err := readVia(v.cache, v.ros, cmd, v.pollMs.duration())
 	if err != nil {
-		if !menuMissing(err) {
-			v.lastErr = err.Error()
-		}
 		return nil
 	}
 	return nonEmptyRows(rows)

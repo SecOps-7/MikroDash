@@ -376,9 +376,6 @@ type Bandwidth struct {
 	prev   map[string]bwPrev
 	last   *BandwidthPayload
 	lastFp string
-	// lastSnapshot is the timestamp of the reading this collector last worked
-	// from. See Tick: the same snapshot twice would difference to zero.
-	lastSnapshot int64
 	// lastEmit is when a payload last went out. The fingerprint suppresses an
 	// unchanged one, and this is what stops that suppression being permanent.
 	lastEmit time.Time
@@ -474,7 +471,6 @@ func (b *Bandwidth) Reconnected() {
 	b.mu.Lock()
 	b.prev = map[string]bwPrev{}
 	b.lastFp = ""
-	b.lastSnapshot = 0
 	b.mu.Unlock()
 	b.sched.begin()
 }

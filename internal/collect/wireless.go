@@ -498,7 +498,6 @@ func (w *Wireless) Reconnected() {
 	w.mu.Lock()
 	w.mode, w.ssidEndpoint, w.capsOK = "", "", false
 	w.probedCaps = false
-	w.probedCaps = false
 	w.ssids = []WirelessSSID{}
 	w.managedElsewhere = 0
 	w.lastFp = ""

@@ -263,7 +263,6 @@ type IfStatus struct {
 	metaIn int
 
 	last       *IfStatusPayload
-	lastErr    string
 	lastFp     string
 	lastEmitAt time.Time
 }
@@ -302,9 +301,6 @@ func NewIfStatus(ros Reader, emit Emit, routerID string, pollMs int) *IfStatus {
 func (s *IfStatus) read(cmd routeros.Cmd) []routeros.Reply {
 	rows, err := s.ros.Do(cmd)
 	if err != nil {
-		if !menuMissing(err) {
-			s.lastErr = err.Error()
-		}
 		return nil
 	}
 	out := make([]routeros.Reply, 0, len(rows))
@@ -361,7 +357,6 @@ func (s *IfStatus) rates(ifaces []routeros.Reply) map[string]Rate {
 		"=.proplist=name,rx-bits-per-second,tx-bits-per-second",
 	}})
 	if err != nil {
-		s.lastErr = err.Error()
 		return out
 	}
 	for _, r := range rows {
