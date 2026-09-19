@@ -312,7 +312,7 @@ recent release rather than unreleased work on `main`. Each release is a multi-ar
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.61
+docker pull ghcr.io/secops-7/mikrodash:0.8.62
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -534,7 +534,7 @@ services:
 | `-history` | off | record traffic, ping and connectivity history for the Reports page |
 | `-backup-scheduler` | off | take scheduled configuration backups |
 | `-retention` | off | run the daily retention sweep that ages data out of the database |
-| `-alert-dispatch` | off | actually SEND alert notifications. The evaluator and its database rows run either way |
+| `-alert-dispatch` | off | actually SEND alert notifications and scheduled report emails. The alert evaluator and its database rows run either way |
 | `-no-pool` | off | do not hold background connections to routers nobody is watching |
 | `-geo` | `/app/geo` | directory holding `dbip-city-lite.mmdb` and `cities.json`, both baked into the image. Point it at a volume to supply your own |
 | `-node` | empty | retired: the Node coexistence mode was removed. Accepted when empty, so an older command line that passes `-node=` still starts; any value is refused |

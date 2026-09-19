@@ -2,6 +2,56 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.62] - Scheduled reports send on their own, and times follow your timezone
+
+### New
+
+- **Scheduled reports send by themselves.** A daily, weekly or monthly schedule now
+  mails its report after its send hour; before, only "Send now" ever sent one.
+- **Every time follows the display timezone** set in Settings: Reports, Audit, backups,
+  sessions, schedule runs, topology and the charts. Times read `2026-09-19 07:58`
+  everywhere instead of in each browser's own format.
+
+### Fixed
+
+- **Security:** a second account whose name differed only in case (`Alice` beside
+  `alice`) was authorised as the first; usernames now match exactly, and a rename onto a
+  taken name is refused. Passwords typed into a raw command no longer reach the audit
+  trail or the assistant. A report's mail error no longer shows the mail server's
+  address. The mobile router picker escapes names.
+- **A router added by hostname can be restored** from a backup.
+- **Clearing a number field** (routing rule min-prefix, OSPF cost, queue priority, PPP
+  byte limits and others) no longer fails the save.
+- **Non-admins can rename scripts**; editing a remote log action no longer sends bad
+  values.
+- **Switching routers** no longer shows the previous router's sparklines, trend lines or
+  table rows.
+- **A tab you come back to** shows what arrived while it was in the background.
+- **Changing a poll interval** now changes how often the router is read, and VPN,
+  Firewall and Wireless keep updating after a router reconnects.
+- **Fewer router channels:** several races that could open duplicate channels are fixed,
+  a slow page can no longer stall other commands to the same router, and routers without
+  BGP no longer get a failing command every tick.
+- **The assistant** acts only on the router the question was about, pins an approved
+  edit to the row it showed, can run a WAN action after showing its safety warning, and
+  refreshes stale wireless data.
+- **The topology panel** closes when its close button is pressed.
+- An install that had deleted the Operator or Read Only role no longer fails a database
+  upgrade on every start.
+
+### Changed
+
+- **The old Node coexistence mode is removed.** `-node` is still accepted when empty so
+  existing command lines keep working; any value is refused. `-auth-ttl` is gone.
+
+### Internal
+
+- A full code review, worked through item by item: dead code and CSS removed, duplicated
+  helpers merged, the Network Topology page split into three files, and stale comments
+  corrected throughout.
+- CI checks the generated code, and a version tag publishes only after the tests pass.
+- Web tests fail on a DOM lookup a page makes that the test does not declare.
+
 ## [0.8.61] - AI Agent answers big questions, and Address Lists handles large blocklists
 
 ### New
