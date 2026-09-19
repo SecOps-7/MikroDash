@@ -815,8 +815,13 @@ func (s *IfStatus) Reconnected() {
 // countdown that was mid-flight when it stopped runs out. The rows are still
 // worth keeping — they are the right shape and mostly still true — so this
 // re-reads them on the first tick back rather than blanking the page.
+//
+// AND IT RELEASES THE RATE CHANNEL, as Stop does. Left joined, a collector
+// nobody was watching held /interface/monitor-traffic open; the first sync after
+// Resume rejoins it.
 func (s *IfStatus) Suspend() {
 	s.sched.end()
+	s.stopRateChannel()
 	s.mu.Lock()
 	s.metaIn = 0
 	s.mu.Unlock()
