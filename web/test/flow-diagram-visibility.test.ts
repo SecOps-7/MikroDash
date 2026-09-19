@@ -30,6 +30,7 @@ import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
 import { makeDoc } from './dom-shim';
+import { ast, is, parseSource } from './ts-parse';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
@@ -163,23 +164,21 @@ check('hiding the tab pauses', () => {
 // no cheap way to observe the effect. A perfectly wired banners.ts that nothing
 // initialises is the bug in a different place.
 check('wireBanners initialises the visibility handler', () => {
-  const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
   const mainPath = path.join(ROOT, 'web', 'src', 'main.ts');
-  const sf = ts.createSourceFile(mainPath, fs.readFileSync(mainPath, 'utf8'),
-    ts.ScriptTarget.ES2022, true);
+  const sf = parseSource(mainPath, fs.readFileSync(mainPath, 'utf8'));
 
   let body: any = null;
   const findFn = (n: any) => {
-    if (ts.isFunctionDeclaration(n) && n.name && n.name.text === 'wireBanners') body = n;
-    ts.forEachChild(n, findFn);
+    if (is.isFunctionDeclaration(n) && n.name && n.name.text === 'wireBanners') body = n;
+    n.forEachChild(findFn);
   };
-  ts.forEachChild(sf, findFn);
+  sf.forEachChild(findFn);
   assert.ok(body, 'main.ts has no wireBanners function');
 
   const calls = new Set<string>();
   const walk = (n: any) => {
-    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) calls.add(n.expression.text);
-    ts.forEachChild(n, walk);
+    if (is.isCallExpression(n) && is.isIdentifier(n.expression)) calls.add(n.expression.text);
+    n.forEachChild(walk);
   };
   walk(body);
   assert.ok(calls.has('initDiagramVisibility'),
@@ -197,42 +196,40 @@ check('wireBanners initialises the visibility handler', () => {
 // the switching overlay must first return for a frame whose `routerId` is not
 // `activeRouterId`. Source-level, for the reason given above.
 check('router:status reaches the banner only for the router on screen', () => {
-  const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
   const mainPath = path.join(ROOT, 'web', 'src', 'main.ts');
-  const sf = ts.createSourceFile(mainPath, fs.readFileSync(mainPath, 'utf8'),
-    ts.ScriptTarget.ES2022, true);
+  const sf = parseSource(mainPath, fs.readFileSync(mainPath, 'utf8'));
 
   const handlers: any[] = [];
   const findOn = (n: any) => {
-    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)
+    if (is.isCallExpression(n) && is.isPropertyAccessExpression(n.expression)
         && n.expression.name.text === 'on' && n.arguments.length === 2
-        && ts.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'router:status') {
+        && is.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'router:status') {
       handlers.push(n.arguments[1]);
     }
-    ts.forEachChild(n, findOn);
+    n.forEachChild(findOn);
   };
-  ts.forEachChild(sf, findOn);
+  sf.forEachChild(findOn);
   assert.ok(handlers.length > 0, 'main.ts has no router:status handler');
 
   // What describes the router on screen: the banner, the two dots, the overlay.
   const onScreen = (n: any): string | null => {
-    if (!ts.isCallExpression(n)) return null;
+    if (!is.isCallExpression(n)) return null;
     const callee = n.expression;
-    if (ts.isIdentifier(callee) && (callee.text === 'setRosBanner' || callee.text === 'overlayOnStatus')) {
+    if (is.isIdentifier(callee) && (callee.text === 'setRosBanner' || callee.text === 'overlayOnStatus')) {
       return callee.text;
     }
-    if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'toggle'
-        && n.arguments.length > 0 && ts.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'offline') {
+    if (is.isPropertyAccessExpression(callee) && callee.name.text === 'toggle'
+        && n.arguments.length > 0 && is.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'offline') {
       return "classList.toggle('offline')";
     }
     return null;
   };
   // A guard is `if (<names routerId and activeRouterId>) return;`.
-  const isGuard = (n: any) => ts.isIfStatement(n)
+  const isGuard = (n: any) => is.isIfStatement(n)
     && /\brouterId\b/.test(n.expression.getText(sf))
     && /\bactiveRouterId\b/.test(n.expression.getText(sf))
-    && (ts.isReturnStatement(n.thenStatement)
-      || (ts.isBlock(n.thenStatement) && n.thenStatement.statements.some((s: any) => ts.isReturnStatement(s))));
+    && (is.isReturnStatement(n.thenStatement)
+      || (is.isBlock(n.thenStatement) && n.thenStatement.statements.some((s: any) => is.isReturnStatement(s))));
 
   let bannerSeen = false;
   for (const h of handlers) {
@@ -242,7 +239,7 @@ check('router:status reaches the banner only for the router on screen', () => {
       if (isGuard(n)) guardAt = Math.min(guardAt, n.getStart(sf));
       const what = onScreen(n);
       if (what) uses.push({ what, at: n.getStart(sf) });
-      ts.forEachChild(n, walk);
+      n.forEachChild(walk);
     };
     walk(h);
     const line = sf.getLineAndCharacterOfPosition(h.getStart(sf)).line + 1;
@@ -269,27 +266,25 @@ check('router:status reaches the banner only for the router on screen', () => {
 // written in ONE place, `switchRouter`, which every switch goes through, and
 // nowhere else.
 check('activeRouterId is written only by switchRouter', () => {
-  const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
   const mainPath = path.join(ROOT, 'web', 'src', 'main.ts');
-  const sf = ts.createSourceFile(mainPath, fs.readFileSync(mainPath, 'utf8'),
-    ts.ScriptTarget.ES2022, true);
+  const sf = parseSource(mainPath, fs.readFileSync(mainPath, 'utf8'));
 
   const enclosingFn = (n: any): string => {
     for (let p = n.parent; p; p = p.parent) {
-      if (ts.isFunctionDeclaration(p)) return p.name ? p.name.text : '<anonymous>';
+      if (is.isFunctionDeclaration(p)) return p.name ? p.name.text : '<anonymous>';
     }
     return '<module>';
   };
   const writers: string[] = [];
   let inSwitch = 0;
   const walk = (n: any) => {
-    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken
-        && ts.isIdentifier(n.left) && n.left.text === 'activeRouterId') {
+    if (is.isBinaryExpression(n) && n.operatorToken.kind === ast.SyntaxKind.EqualsToken
+        && is.isIdentifier(n.left) && n.left.text === 'activeRouterId') {
       const fn = enclosingFn(n);
       if (fn === 'switchRouter') inSwitch++;
       else writers.push(fn + ' at main.ts:' + (sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1));
     }
-    ts.forEachChild(n, walk);
+    n.forEachChild(walk);
   };
   walk(sf);
   assert.ok(inSwitch > 0,

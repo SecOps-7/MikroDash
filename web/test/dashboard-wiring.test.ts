@@ -42,6 +42,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
+import { is, parseSource } from './ts-parse';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const LIVE = path.resolve(process.env.MIKRODASH_SRC || path.join(ROOT, '..', 'MikroDash'));
@@ -443,17 +444,15 @@ if (!docEvents.some((e) => e.type === 'visibilitychange')) {
 // would break on a reformat, a longer comment, or a reordered body, none of
 // which change what is wired. Parsing asks the actual question: does the body of
 // `switchRouter` contain a call to `resetSysMeta`?
-const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
 {
   const mainPath = path.join(ROOT, 'web', 'src', 'main.ts');
-  const sf = ts.createSourceFile(mainPath, fs.readFileSync(mainPath, 'utf8'),
-    ts.ScriptTarget.ES2022, true);
+  const sf = parseSource(mainPath, fs.readFileSync(mainPath, 'utf8'));
 
   const callsIn = (node) => {
     const out = new Set();
     const walk = (n) => {
-      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) out.add(n.expression.text);
-      ts.forEachChild(n, walk);
+      if (is.isCallExpression(n) && is.isIdentifier(n.expression)) out.add(n.expression.text);
+      n.forEachChild(walk);
     };
     walk(node);
     return out;
@@ -461,8 +460,8 @@ const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
 
   let switchRouterBody = null;
   const findFn = (n) => {
-    if (ts.isFunctionDeclaration(n) && n.name && n.name.text === 'switchRouter') switchRouterBody = n;
-    ts.forEachChild(n, findFn);
+    if (is.isFunctionDeclaration(n) && n.name && n.name.text === 'switchRouter') switchRouterBody = n;
+    n.forEachChild(findFn);
   };
   findFn(sf);
 
@@ -505,22 +504,21 @@ const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
 // back on the axis it was left on, and no behavioural test can see the wiring.
 {
   const dashPath = path.join(ROOT, 'web', 'src', 'pages', 'dashboard.ts');
-  const sf = ts.createSourceFile(dashPath, fs.readFileSync(dashPath, 'utf8'),
-    ts.ScriptTarget.ES2022, true);
+  const sf = parseSource(dashPath, fs.readFileSync(dashPath, 'utf8'));
   let handler = null;
   const find = (n) => {
-    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) &&
+    if (is.isCallExpression(n) && is.isPropertyAccessExpression(n.expression) &&
         n.expression.name.text === 'addEventListener' && n.arguments.length >= 2 &&
-        ts.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'visibilitychange') {
+        is.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'visibilitychange') {
       handler = n.arguments[1];
     }
-    ts.forEachChild(n, find);
+    n.forEachChild(find);
   };
   find(sf);
   const calls = new Set();
   const walk = (n) => {
-    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) calls.add(n.expression.text);
-    ts.forEachChild(n, walk);
+    if (is.isCallExpression(n) && is.isIdentifier(n.expression)) calls.add(n.expression.text);
+    n.forEachChild(walk);
   };
   if (handler) walk(handler);
   if (!handler) {

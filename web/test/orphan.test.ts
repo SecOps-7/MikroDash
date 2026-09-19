@@ -40,11 +40,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-// Resolved from the repository root, not from `__dirname`: inside the bundle
-// `__dirname` is `web/test-out`, so the original relative walk pointed at
-// `web/web/node_modules`.
-const ROOT_FOR_TS = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
-const ts = require(path.join(ROOT_FOR_TS, 'web', 'node_modules', 'typescript'));
+import { ast, is, parseSource, parseSources } from './ts-parse';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const SRC = path.join(ROOT, 'web', 'src');
@@ -68,9 +64,10 @@ if (files.length < 30) throw new Error('only ' + files.length + ' sources found 
 const problems = [];
 let scanned = 0, declared = 0;
 
+// One compiler for every file: starting it per file costs a fifth of a second each.
+const parsed = parseSources(Object.fromEntries(files.map((f) => [f, fs.readFileSync(f, 'utf8')])));
 for (const file of files) {
-  const text = fs.readFileSync(file, 'utf8');
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.ES2022, true);
+  const sf = parsed[file];
   scanned++;
 
   // Module-scope `let`/`var` only. A `const` cannot be reassigned, so "written
@@ -78,11 +75,11 @@ for (const file of files) {
   // one the bundler already answers by dropping it.
   const names = [];
   for (const st of sf.statements) {
-    if (!ts.isVariableStatement(st)) continue;
+    if (!is.isVariableStatement(st)) continue;
     const flags = st.declarationList.flags;
-    if (flags & ts.NodeFlags.Const) continue;
+    if (flags & ast.NodeFlags.Const) continue;
     for (const d of st.declarationList.declarations) {
-      if (ts.isIdentifier(d.name)) names.push(d.name.text);
+      if (is.isIdentifier(d.name)) names.push(d.name.text);
     }
   }
   if (!names.length) continue;
@@ -95,27 +92,27 @@ for (const file of files) {
   const reads = new Map(names.map((n) => [n, 0]));
   const writes = new Map(names.map((n) => [n, 0]));
   const visit = (node) => {
-    if (ts.isIdentifier(node) && reads.has(node.text)) {
+    if (is.isIdentifier(node) && reads.has(node.text)) {
       const p = node.parent;
       let isWrite = false;
-      if (p && ts.isBinaryExpression(p) && p.left === node &&
-          p.operatorToken.kind === ts.SyntaxKind.EqualsToken) isWrite = true;
-      if (p && (ts.isPostfixUnaryExpression(p) || ts.isPrefixUnaryExpression(p)) &&
-          (p.operator === ts.SyntaxKind.PlusPlusToken || p.operator === ts.SyntaxKind.MinusMinusToken)) {
+      if (p && is.isBinaryExpression(p) && p.left === node &&
+          p.operatorToken.kind === ast.SyntaxKind.EqualsToken) isWrite = true;
+      if (p && (is.isPostfixUnaryExpression(p) || is.isPrefixUnaryExpression(p)) &&
+          (p.operator === ast.SyntaxKind.PlusPlusToken || p.operator === ast.SyntaxKind.MinusMinusToken)) {
         isWrite = true;
       }
       // The declaration itself is neither.
-      const isDecl = p && ts.isVariableDeclaration(p) && p.name === node;
+      const isDecl = p && is.isVariableDeclaration(p) && p.name === node;
       // A property access `foo.bar` reads `foo`, not a same-named module var,
       // unless the identifier IS the object — handled by only skipping the name
       // half of a property access.
-      const isPropName = p && ts.isPropertyAccessExpression(p) && p.name === node;
+      const isPropName = p && is.isPropertyAccessExpression(p) && p.name === node;
       if (!isDecl && !isPropName) {
         if (isWrite) writes.set(node.text, writes.get(node.text) + 1);
         else reads.set(node.text, reads.get(node.text) + 1);
       }
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   };
   visit(sf);
 
@@ -134,17 +131,17 @@ for (const file of files) {
 // synthetic one is planted and the same analysis run over it.
 {
   const probe = `let plantedOrphan = 0;\nexport function f(){ plantedOrphan = 1; }\n`;
-  const sf = ts.createSourceFile('probe.ts', probe, ts.ScriptTarget.ES2022, true);
+  const sf = parseSource('probe.ts', probe);
   let reads = 0, writes = 0;
   const visit = (node) => {
-    if (ts.isIdentifier(node) && node.text === 'plantedOrphan') {
+    if (is.isIdentifier(node) && node.text === 'plantedOrphan') {
       const p = node.parent;
-      const isDecl = p && ts.isVariableDeclaration(p) && p.name === node;
-      const isWrite = p && ts.isBinaryExpression(p) && p.left === node &&
-        p.operatorToken.kind === ts.SyntaxKind.EqualsToken;
+      const isDecl = p && is.isVariableDeclaration(p) && p.name === node;
+      const isWrite = p && is.isBinaryExpression(p) && p.left === node &&
+        p.operatorToken.kind === ast.SyntaxKind.EqualsToken;
       if (!isDecl) { if (isWrite) writes++; else reads++; }
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   };
   visit(sf);
   if (!(reads === 0 && writes === 1)) {
