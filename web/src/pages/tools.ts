@@ -323,7 +323,7 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     });
   }
   const svg = el('traceMap') as unknown as SVGSVGElement | null;
-  const hops = el('traceHops');
+  const hops = el('traceHopList');
   if (svg && hops) traceMap = createTraceMap(svg, hops, el('traceMapEmpty'));
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => {

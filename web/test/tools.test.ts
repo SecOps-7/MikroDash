@@ -50,7 +50,8 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   // traceMap: an <svg> the trace map draws into with path geometry
   // (getTotalLength, getPointAtLength) this shim does not have. Its planner is
   // tested in tools-cards.test.ts, and the drawing is checked in a browser.
-  { allowUnknown: ['toolsTabs', 'traceMap'] });
+  // traceHopList is only read when traceMap exists, which it does not here.
+  { allowUnknown: ['toolsTabs', 'traceMap', 'traceHopList'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
