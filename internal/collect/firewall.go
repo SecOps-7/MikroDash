@@ -564,9 +564,17 @@ func (f *Firewall) ProbeV6() {
 	// perfectly well. Silent, and invisible to every test, because no test has a
 	// half-connected session.
 	//
-	// A router that genuinely lacks the menu therefore re-probes on each page
-	// focus. That is one cheap failed command per visit, not per poll, and it is
-	// the right way round: never latch an answer we did not get.
+	// BUT A ROUTER THAT SAYS IT HAS NO SUCH MENU HAS ANSWERED. This comment
+	// used to promise "one failed command per visit, not per poll", and it was
+	// per poll: the probe also runs on every counter delivery. A menu the router
+	// refuses or does not have is latched for the connection (Reconnected
+	// clears it), with the family left unknown, which keeps the tab shown.
+	if err != nil && menuGone(err) {
+		f.mu.Lock()
+		f.v6Probed = true
+		f.mu.Unlock()
+		return
+	}
 	if err != nil || len(rows) == 0 {
 		return
 	}
