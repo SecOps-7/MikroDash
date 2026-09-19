@@ -377,3 +377,21 @@ func TestNeitherRawToolIsOfferedToAnyViewerOfAnyShape(t *testing.T) {
 		}
 	}
 }
+
+// TestBothRawToolsAreAnsweredByName. `run_command` was dispatched and
+// `bulk_execute` was not: it fell through to `aitools.ByName`, which does not
+// know it, so the plan path, its gates and its dialog were reachable only from
+// tests (review loop: wire it, decided 2026-09-19). Through the dispatcher
+// both must meet the gate, never "does not exist".
+func TestBothRawToolsAreAnsweredByName(t *testing.T) {
+	cn := &conn{srv: &Server{}} // nobody: the gate refuses
+	for name, tc := range map[string]aiprovider.ToolCall{
+		"run_command":  rawCall(`{"command":"/ip/address/print"}`),
+		"bulk_execute": bulkCall(`{"commands":["/ip/address/print"]}`),
+	} {
+		got := cn.runAITool(cn.scope(), tc)
+		if strings.Contains(got, "does not exist") || !strings.Contains(got, "not available") {
+			t.Errorf("%s through runAITool produced %q, not the gate's refusal", name, got)
+		}
+	}
+}

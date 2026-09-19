@@ -50,8 +50,8 @@ const ActionToolName = "run_action"
 //
 // The gates are in internal/server: a signed-in global administrator, the
 // `aiAllowRawCommands` setting, and the router's name typed back on every single
-// command. Slice 4 of the MikroMCP parity work builds them; the frontend is not
-// wired, deliberately.
+// command. `runAITool` answers both by name, and both reach the operator through
+// the ordinary proposal dialog (`kind: "command"`).
 const (
 	RawCommandToolName = "run_command"
 	BulkToolName       = "bulk_execute"

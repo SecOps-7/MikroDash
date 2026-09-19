@@ -88,6 +88,8 @@ func (cn *conn) runAITool(sc connScope, tc aiprovider.ToolCall) string {
 	// ai_raw.go.
 	case aitools.RawCommandToolName:
 		return cn.onLoopFor(sc, func() string { return cn.runAIRawCommandTool(tc) })
+	case aitools.BulkToolName:
+		return cn.onLoopFor(sc, func() string { return cn.runAIBulkTool(tc) })
 	}
 	t, ok := aitools.ByName(tc.Function.Name)
 	if !ok {
