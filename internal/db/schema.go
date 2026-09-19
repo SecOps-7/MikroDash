@@ -67,11 +67,13 @@ var portMigrations = map[int][]string{
 	//
 	// Safe to run twice, as every statement here must be: the primary key makes
 	// the second insert a no-op rather than a duplicate row.
+	//
+	// FROM roles, NOT VALUES: both roles are deletable, and OR IGNORE does not
+	// cover a foreign key. A VALUES insert naming a deleted role failed this
+	// migration on every boot and held 18 behind it.
 	17: {
 		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
-		 VALUES ('readonly', 'ai-agent', 'read')`,
-		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
-		 VALUES ('operator', 'ai-agent', 'read')`,
+		 SELECT id, 'ai-agent', 'read' FROM roles WHERE id IN ('readonly', 'operator')`,
 	},
 	// 18: the assistant's conversation history, per person per router.
 	//
