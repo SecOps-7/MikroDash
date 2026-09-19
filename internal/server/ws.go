@@ -607,6 +607,9 @@ func (cn *conn) dispatch(in inbound) {
 		cn.secScanGet()
 	case "secscan:run":
 		cn.secScanRun()
+	// The Dashboard's Security Score card: Rescan. See secscan.go.
+	case "secscore:scan":
+		cn.secScoreScan()
 	// The Containers page's Apps tab: see internal/server/apps.go.
 	case "apps:list":
 		cn.appsList()

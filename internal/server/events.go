@@ -35,6 +35,7 @@ var (
 	EvToolsBtest        = hub.Declare[ToolsBtestPayload]("tools:btest")
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
 	EvSecScanResult     = hub.Declare[SecScanPayload]("secscan:result")
+	EvSecScore          = hub.Declare[SecScorePayload]("secscore:state")
 	EvAppsState         = hub.Declare[AppsPayload]("apps:state")
 	EvAppsProgress      = hub.Declare[AppsProgressPayload]("apps:progress")
 	EvAreaGroupRows     = hub.Declare[AreaGroupRowsPayload]("area:grouprows")

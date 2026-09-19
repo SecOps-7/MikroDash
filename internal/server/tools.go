@@ -390,8 +390,12 @@ func diagFailure(err error) (string, string) {
 // Each returns the result to hand the model, or the sentence explaining why
 // there is none. TestEveryDiagnosticToolHasARunner holds this map to the
 // catalogue in both directions.
-var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string){
-	"ping": func(rs *session.Session, args []byte) (any, string) {
+//
+// A runner gets the connection and its router snapshot, not only the session:
+// the security scan runs through the server's one scan path (secscan.go).
+var diagRunners = map[string]func(cn *conn, sc connScope, args []byte) (any, string){
+	"ping": func(_ *conn, sc connScope, args []byte) (any, string) {
+		rs := sc.rs
 		var req toolsPingReq
 		if json.Unmarshal(args, &req) != nil {
 			return nil, "The arguments could not be read. Pass an object with `address`, and optionally `count`."
@@ -402,7 +406,8 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		}
 		return res, ""
 	},
-	"traceroute": func(rs *session.Session, args []byte) (any, string) {
+	"traceroute": func(_ *conn, sc connScope, args []byte) (any, string) {
+		rs := sc.rs
 		var req toolsTracerouteReq
 		if json.Unmarshal(args, &req) != nil {
 			return nil, "The arguments could not be read. Pass an object with `address`, and optionally `maxHops`."
@@ -413,6 +418,7 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		}
 		return res, ""
 	},
+	"secscan": func(cn *conn, sc connScope, _ []byte) (any, string) { return cn.freshPosture(sc) },
 }
 
 // assistantPingCount is the assistant's own cap on a ping, and it is never
@@ -443,7 +449,7 @@ func (cn *conn) runDiagTool(sc connScope, t aitools.Tool, tc aiprovider.ToolCall
 		return "Another diagnostic is still running for this operator; try again when it has finished."
 	}
 	defer cn.toolBusy.Store(false)
-	res, why := run(sc.rs, []byte(tc.Function.Arguments))
+	res, why := run(cn, sc, []byte(tc.Function.Arguments))
 	if why != "" {
 		return why
 	}

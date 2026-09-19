@@ -540,6 +540,13 @@
       "page": "tools"
     },
     {
+      "name": "security_scan",
+      "access": "read",
+      "resource": "",
+      "diagnostic": "secscan",
+      "page": "security-scan"
+    },
+    {
       "name": "traceroute",
       "access": "read",
       "resource": "",

@@ -368,6 +368,44 @@
         </div>
       </div>
 
+      <!-- dc-card-secscore: Security Score ─────────────────────────────────
+           The Security Scan page's score card on the Dashboard: the same ring and
+           grade, the issues by severity, the report's age and a Rescan. Fed by
+           `secscore:state`; see internal/server/secscan.go. -->
+      <div id="dc-card-secscore" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-secscore" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h3 class="card-title mb-0">Security Score</h3>
+            <button id="dc-secRescan" class="agent-refresh" type="button"
+                    title="Scan again" aria-label="Scan the router's security again">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+            </button>
+          </div>
+          <div class="card-body dc-sec-body">
+            <div class="sec-score dc-sec-score" id="dc-secScore">
+              <div class="sec-ring-wrap">
+                <svg class="sec-ring" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="sec-ring-bg" cx="60" cy="60" r="52"></circle>
+                  <circle class="sec-ring-val" id="dc-secRing" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
+                </svg>
+                <div class="sec-score-num"><span id="dc-secVal">—</span><small>/100</small></div>
+              </div>
+            </div>
+            <div class="dc-sec-side">
+              <div class="dc-sec-label" id="dc-secLabel">Waiting for the router…</div>
+              <div class="dc-sec-sevs" id="dc-secSevs"></div>
+              <div class="dc-sec-progress" id="dc-secProgress"><div class="dc-sec-progress-bar" id="dc-secProgressBar"></div></div>
+              <div class="dc-sec-meta" id="dc-secMeta"></div>
+              <a href="#" class="sec-open dc-sec-open" id="dc-secOpen">Open Security Scan ›</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- dc-card-signal: Signal Health -->
       <div id="dc-card-signal" class="dash-card">
         <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>

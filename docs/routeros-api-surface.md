@@ -292,6 +292,11 @@ package, no RouterBOARD on a CHR) answers "no such command" and its checks repor
 unknown. Only the firewall tables are read whole: a rule's matchers are the
 question, and any property can be one.
 
+The Dashboard's Security Score card and the assistant's `security_scan` tool run
+the same scan through the same path (`runClaimedScan`), so they read exactly these
+menus, with these proplists. The card scans only when its router has no report;
+the tool scans on every call, or waits for a scan already running.
+
 | Command | Proplist |
 |---|---|
 | `/ip/service/print` | `=.proplist=name,port,disabled,dynamic,available-from,address,certificate` |

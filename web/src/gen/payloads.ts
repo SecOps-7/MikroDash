@@ -1124,6 +1124,25 @@ export interface SecScanPayload {
   message: string;
 }
 
+export interface SecScorePayload {
+  routerId: string;
+  has: boolean;
+  score: number;
+  issues: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  passed: number;
+  checks: number;
+  scannedAt: number;
+  running: boolean;
+  done: number;
+  total: number;
+  code: string;
+  message: string;
+}
+
 export interface Site {
   id: string;
   name: string;
@@ -1838,6 +1857,7 @@ export interface Events {
   'routers:stats': RouterStatsRow[];
   'routing:update': RoutingPayload;
   'secscan:result': SecScanPayload;
+  'secscore:state': SecScorePayload;
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;

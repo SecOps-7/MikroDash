@@ -54,7 +54,13 @@ func dashCardPage(key string) string { return dashcards.PageFor(key) }
 // indistinguishable from a quiet one — the card shows whatever the connect-time
 // replay happened to catch and never updates again.
 func (cn *conn) dashCardRoom(key string) string {
-	return "router-" + cn.routerID + "-dash-card-" + dashcards.EmitRoom(key)
+	return dashCardRoomFor(cn.routerID, key)
+}
+
+// dashCardRoomFor is a card's room on a given router, for a sender that is not
+// the card's own connection (the Security Score card hears every scan).
+func dashCardRoomFor(routerID, key string) string {
+	return "router-" + routerID + "-dash-card-" + dashcards.EmitRoom(key)
 }
 
 func (cn *conn) dashCardFocus(key string) {
@@ -121,6 +127,11 @@ func (cn *conn) dashCardFocus(key string) {
 	// reaches here.
 	if key == "agent" {
 		cn.agentFocus()
+	}
+	// THE THIRD: the Security Score card is fed by scans, which this process
+	// runs on demand. Gated on the Security Scan page by the check above.
+	if key == "secscore" {
+		cn.secScoreFocus()
 	}
 }
 

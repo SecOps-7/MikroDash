@@ -87,6 +87,10 @@ const CARDS = {
   // arrives on a per-socket ticker that runs only while the card is on a
   // Dashboard.
   'dashboard-card-agent': 'ai:overview',
+  // The Security Score card: fed by scans the server runs on demand (the page's,
+  // its own, or the assistant's), per router, so it also owns the router switch
+  // that drops a frame about the router just left.
+  'dashboard-card-secscore': { event: 'secscore:state', also: ['router:switched'] },
   'dashboard-card-connlists': 'conn:update',
   'dashboard-card-logs': { event: 'logs:new', also: ['logs:history'] },
   // Shares traffic:update with the chart, and owns two more events of its own.
@@ -294,6 +298,8 @@ const PROBE = {
   // element. One real port is the smallest payload that exercises the card.
   'ifstatus:update': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false, ips: [] }] },
   'ifstatus:names': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false }] },
+  'secscore:state': { routerId: '', has: true, score: 72, issues: 3, critical: 0, high: 1, medium: 2, low: 0,
+    passed: 30, checks: 46, scannedAt: 1, running: false, done: 0, total: 37, code: '', message: '' },
 };
 for (const [m, entry] of Object.entries(CARDS)) {
   const event = cardEvent(entry);

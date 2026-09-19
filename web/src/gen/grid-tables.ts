@@ -219,6 +219,14 @@ export const DEFAULT_LAYOUT: readonly GridCard[] = [
     "w": 8,
     "h": 3,
     "visible": false
+  },
+  {
+    "id": "dc-card-secscore",
+    "x": 1,
+    "y": 1,
+    "w": 6,
+    "h": 6,
+    "visible": false
   }
 ];
 
@@ -246,7 +254,8 @@ export const CARD_LABELS: Readonly<Record<string, string>> = {
   "dc-card-logs": "Logs",
   "dc-card-netwatch": "NetWatch",
   "dc-card-diagnostics": "API Diagnostics",
-  "dc-card-agent": "Agent Overview"
+  "dc-card-agent": "Agent Overview",
+  "dc-card-secscore": "Security Score"
 };
 
 /**
@@ -262,5 +271,6 @@ export const CARD_ROOMS: Readonly<Record<string, string>> = {
   "dc-card-fwaction": "firewall",
   "dc-card-logs": "logs",
   "dc-card-diagnostics": "diagnostics",
-  "dc-card-agent": "agent"
+  "dc-card-agent": "agent",
+  "dc-card-secscore": "secscore"
 };

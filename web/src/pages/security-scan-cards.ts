@@ -12,7 +12,19 @@ import { esc } from '../dom';
 import { scoreGrade } from './tools-ping-cards';
 import type { Finding, Report, CategoryScore } from '../gen/payloads';
 
-const GRADE_WORD = { good: 'Good', fair: 'Fair', poor: 'At risk' } as const;
+export const GRADE_WORD = { good: 'Good', fair: 'Fair', poor: 'At risk' } as const;
+
+/** The score ring's circumference (r=52 in a 120 box): the page's ring and the
+ *  Dashboard's Security Score card share it. */
+export const RING_C = 2 * Math.PI * 52;
+
+/** A report's age, as the page and the Dashboard card say it. */
+export function ago(ms: number): string {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return 'scanned just now';
+  if (s < 3600) return 'scanned ' + Math.round(s / 60) + ' min ago';
+  return 'scanned ' + Math.round(s / 3600) + ' h ago';
+}
 
 /** The label under the score: its grade (the ping Score's thresholds) and how
  *  many issues. */

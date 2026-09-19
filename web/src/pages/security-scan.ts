@@ -22,25 +22,17 @@ import type { Report } from '../gen/payloads';
 import { scoreGrade, tween } from './tools-ping-cards';
 import {
   scoreLabel, categoryRow, topFindings, surfaceCard, firewallCard, accountsCard, updatesCard,
-  coverageCard, findingRow, passedRow, sortValue,
+  coverageCard, findingRow, passedRow, sortValue, ago, RING_C,
 } from './security-scan-cards';
 
 /** A report older than this is rescanned when the page opens. */
 const FRESH_MS = 30 * 60 * 1000;
-const RING_C = 2 * Math.PI * 52;
 
 const REFUSED: Record<string, string> = {
   denied: 'You may not scan this router.',
   unavailable: 'No router is connected.',
   busy: 'A scan of this router is already running; its result will appear here.',
 };
-
-function ago(ms: number): string {
-  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
-  if (s < 60) return 'scanned just now';
-  if (s < 3600) return 'scanned ' + Math.round(s / 60) + ' min ago';
-  return 'scanned ' + Math.round(s / 3600) + ' h ago';
-}
 
 export function initSecurityScanPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let report: Report | null = null;

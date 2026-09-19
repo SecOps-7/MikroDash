@@ -90,7 +90,11 @@ func TestEveryCardRoomIsEmittedTo(t *testing.T) {
 		// Recorded by name rather than by widening the rule: a card added with a
 		// genuinely missing emit must still fail here, and "cards fed by the
 		// server" is not a property this scan can see for itself.
-		if k == "diagnostics" || k == "agent" {
+		//
+		// `secscore` joined 2026-09-19: the Security Score card is fed by the
+		// scans internal/server/secscan.go runs (runClaimedScan broadcasts to its
+		// room), not by a collector.
+		if k == "diagnostics" || k == "agent" || k == "secscore" {
 			continue
 		}
 		if room := dashcards.EmitRoom(k); !emitted[room] {

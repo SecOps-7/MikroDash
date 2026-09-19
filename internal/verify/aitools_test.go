@@ -74,6 +74,10 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 // here. An unbounded "skip anything with no resource" would quietly absorb a
 // read tool that had lost its key, so exactly these two are allowed and their
 // names are checked.
+// diagnosticPages is each diagnostic tool gated on a page other than Tools,
+// and that page.
+var diagnosticPages = map[string]string{"security_scan": "security-scan"}
+
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}
 	unbound := 0
@@ -107,8 +111,15 @@ func TestEveryResourceHasATool(t *testing.T) {
 			if r.Resource != "" || r.Collector != "" {
 				t.Errorf("diagnostic tool %q also names a resource or a collector", r.Name)
 			}
-			if r.Page != "tools" {
-				t.Errorf("diagnostic tool %q is gated on page %q, not tools", r.Name, r.Page)
+			// Re-aimed 2026-09-19 for `security_scan`, which runs the Security
+			// Scan page's check: a diagnostic is gated on the page whose check it
+			// runs, pinned per tool so a new one must say which.
+			want := "tools"
+			if p, ok := diagnosticPages[r.Name]; ok {
+				want = p
+			}
+			if r.Page != want {
+				t.Errorf("diagnostic tool %q is gated on page %q, not %s", r.Name, r.Page, want)
 			}
 			continue
 		}

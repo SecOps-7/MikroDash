@@ -465,20 +465,57 @@ html[data-theme="light"] #dashAddPanel {
 #dc-card-agent .agent-cursor.is-typing { animation: none; opacity: 1; }
 @keyframes agent-blink { 50% { opacity: 0; } }
 
-#dc-card-agent .agent-refresh {
+:is(#dc-card-agent, #dc-card-secscore) .agent-refresh {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.5rem; height: 1.5rem; padding: 0; flex: none;
   background: transparent; border: 1px solid transparent; border-radius: 6px;
   color: var(--text-muted); cursor: pointer;
 }
-#dc-card-agent .agent-refresh:hover { color: var(--text-main); border-color: var(--border); }
-#dc-card-agent .agent-refresh:disabled { cursor: default; opacity: .8; }
-#dc-card-agent .agent-refresh svg {
+:is(#dc-card-agent, #dc-card-secscore) .agent-refresh:hover { color: var(--text-main); border-color: var(--border); }
+:is(#dc-card-agent, #dc-card-secscore) .agent-refresh:disabled { cursor: default; opacity: .8; }
+:is(#dc-card-agent, #dc-card-secscore) .agent-refresh svg {
   width: .85rem; height: .85rem; fill: none; stroke: currentColor; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
 }
-#dc-card-agent .agent-refresh.is-busy svg { animation: agent-spin .8s linear infinite; }
+:is(#dc-card-agent, #dc-card-secscore) .agent-refresh.is-busy svg { animation: agent-spin .8s linear infinite; }
 @keyframes agent-spin { to { transform: rotate(360deg); } }
+
+/* The Security Score card: the Security Scan page's ring (app.css, sec-*) at
+   card size, with the grade, issues by severity and the report's age beside it.
+   Stacks when the card is narrow. */
+#dc-card-secscore .dc-sec-body {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: .75rem 1rem; height: 100%; overflow: hidden;
+}
+#dc-card-secscore .dc-sec-score { flex: 0 0 auto; width: min(132px, 42%); min-width: 96px; }
+#dc-card-secscore .dc-sec-score .sec-ring-wrap { width: 100%; }
+#dc-card-secscore .dc-sec-score .sec-score-num { font-size: 1.7rem; }
+#dc-card-secscore .dc-sec-side { flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; gap: .5rem; }
+#dc-card-secscore .dc-sec-label { font-weight: 700; font-size: .92rem; color: var(--text-main); }
+#dc-card-secscore .dc-sec-score.grade-good ~ .dc-sec-side .dc-sec-label { color: var(--accent-ok); }
+#dc-card-secscore .dc-sec-score.grade-fair ~ .dc-sec-side .dc-sec-label { color: var(--accent-warn); }
+#dc-card-secscore .dc-sec-score.grade-poor ~ .dc-sec-side .dc-sec-label { color: var(--accent-err); }
+#dc-card-secscore .dc-sec-sevs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; }
+#dc-card-secscore .dc-sec-sev {
+  display: flex; flex-direction: column; align-items: center; padding: .3rem .2rem;
+  border-radius: 8px; border: 1px solid var(--border); background: rgba(99,130,190,.05);
+}
+#dc-card-secscore .dc-sec-sev b { font-family: var(--font-mono); font-size: 1rem; line-height: 1.1; color: var(--text-muted); }
+#dc-card-secscore .dc-sec-sev span { font-size: .58rem; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-critical { border-color: rgba(239,68,68,.45); background: rgba(239,68,68,.1); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-critical b { color: var(--accent-err); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-high { border-color: rgba(251,146,60,.45); background: rgba(251,146,60,.1); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-high b { color: rgba(251,146,60,.95); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-medium { border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.1); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-medium b { color: var(--accent-warn); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-low { border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.08); }
+#dc-card-secscore .dc-sec-sev.is-on.sev-low b { color: var(--accent-rx); }
+#dc-card-secscore .dc-sec-meta { font-size: .68rem; color: var(--text-muted); }
+#dc-card-secscore .dc-sec-meta.is-bad { color: var(--accent-err); }
+#dc-card-secscore .dc-sec-progress { height: 3px; border-radius: 3px; background: var(--border); overflow: hidden; display: none; }
+#dc-card-secscore .dc-sec-progress.is-on { display: block; }
+#dc-card-secscore .dc-sec-progress-bar { height: 100%; width: 0; background: var(--accent-rx); transition: width .3s; }
+#dc-card-secscore .dc-sec-open { font-size: .72rem; align-self: flex-start; margin-left: 0; }
 
 #dc-card-diagnostics .card-body {
   display: flex;

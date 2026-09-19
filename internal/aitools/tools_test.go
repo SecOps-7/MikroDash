@@ -283,7 +283,8 @@ func TestEveryReadToolTakesNoArguments(t *testing.T) {
 // ways: an argument added to a tool fails here until it is named, and a tool
 // added without an entry fails too.
 func TestADiagnosticTakesOnlyItsTarget(t *testing.T) {
-	want := map[string][]string{"ping": {"address", "count"}, "traceroute": {"address", "maxHops"}}
+	want := map[string][]string{"ping": {"address", "count"}, "traceroute": {"address", "maxHops"},
+		"security_scan": {}}
 	seen := 0
 	for _, tool := range All() {
 		if tool.Diagnostic == "" {

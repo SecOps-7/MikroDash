@@ -480,6 +480,25 @@ func diagTools() []Tool {
 		Diagnostic: "traceroute",
 		Page:       "tools",
 		Access:     AccessRead,
+	}, {
+		// THE ROUTER'S SECURITY POSTURE IN ONE CALL: the Security Scan page's
+		// checks, run fresh every time (the operator's call, 2026-09-19). It
+		// reads configuration and changes nothing, so it is a read of the page.
+		Name: "security_scan",
+		Description: "Read only: changes nothing. Audit the security posture of the router the " +
+			"operator has selected, the same scan as the Security Scan page: about 40 checks over " +
+			"management services, firewall, accounts, updates, layer-2 access, wireless and " +
+			"logging, run fresh on every call (a few seconds of reads, one menu at a time, among " +
+			"them /ip/service, /ip/firewall/filter, /user, /ip/neighbor/discovery-settings and " +
+			"/system/package/update). Returns the score out of " +
+			"100 and its grade, failed checks by severity, every failed check with what was found " +
+			"and how to fix it, the checks that could not be answered, each category's score, and " +
+			"facts such as the enabled services, RouterOS version and user counts. Use it for any " +
+			"question about how secure, hardened or exposed the router is.",
+		Parameters: noArgs(),
+		Diagnostic: "secscan",
+		Page:       "security-scan",
+		Access:     AccessRead,
 	}}
 }
 

@@ -135,6 +135,11 @@ var All = []Card{
 	// summary of pages they cannot open.
 	{ID: "dc-card-agent", Label: "Agent Overview", Room: "agent", Page: "ai-agent",
 		X: 1, Y: 1, W: 8, H: 3},
+	// The Security Score: the Security Scan page's score card on the Dashboard.
+	// Fed by scans rather than a collector (see internal/server/secscan.go), and
+	// gated on the Security Scan page, whose report it summarises.
+	{ID: "dc-card-secscore", Label: "Security Score", Room: "secscore", Page: "security-scan",
+		X: 1, Y: 1, W: 6, H: 6},
 }
 
 // PageFor is the page a card room borrows its data from, and therefore the
