@@ -66,8 +66,12 @@ interface Tool {
   request(): Record<string, unknown> | null;
 }
 
-/** Whether a Continuous box is ticked. */
-const ticked = (id: string): boolean => !!el<HTMLInputElement>(id)?.checked;
+/** A count picker's choice: a number, or its last option, Continuous, which
+ *  runs until stopped (0 goes to the server as "no count"). */
+function pick(id: string, fallback: number): { n: number; continuous: boolean } {
+  const v = el<HTMLSelectElement>(id)?.value || '';
+  return v === 'continuous' ? { n: 0, continuous: true } : { n: Number(v || fallback), continuous: false };
+}
 
 const TOOLS: Tool[] = [
   {
@@ -75,8 +79,8 @@ const TOOLS: Tool[] = [
     label: 'Ping',
     request: () => {
       const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
-      return address ? { address, count: Number(el<HTMLSelectElement>('pingCount')?.value || 10),
-        continuous: ticked('pingContinuous') } : null;
+      const c = pick('pingCount', 10);
+      return address ? { address, count: c.n, continuous: c.continuous } : null;
     },
   },
   {
@@ -92,8 +96,8 @@ const TOOLS: Tool[] = [
     rows: 'torchRows', cols: 5, label: 'Watch',
     request: () => {
       const iface = el<HTMLSelectElement>('torchInterface')?.value || '';
-      return iface ? { interface: iface, seconds: Number(el<HTMLSelectElement>('torchSeconds')?.value || 5),
-        continuous: ticked('torchContinuous') } : null;
+      const c = pick('torchSeconds', 5);
+      return iface ? { interface: iface, seconds: c.n, continuous: c.continuous } : null;
     },
   },
   {
@@ -313,13 +317,6 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       clearResult(t);
       setRunning(t, 'Running…');
       socket.emit('tools:' + t.key, req);
-    });
-  }
-  // CONTINUOUS HAS NO COUNT: the Packets and Seconds pickers step aside.
-  for (const [box, pick] of [['pingContinuous', 'pingCount'], ['torchContinuous', 'torchSeconds']] as const) {
-    el(box)?.addEventListener('change', () => {
-      const sel = el<HTMLSelectElement>(pick);
-      if (sel) sel.disabled = ticked(box);
     });
   }
   const svg = el('traceMap') as unknown as SVGSVGElement | null;

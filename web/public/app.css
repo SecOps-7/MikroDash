@@ -1992,7 +1992,6 @@
        colour is a token, so each palette and the light theme follow. */
     .tool-panel .data-scroll{overflow:auto}
     .tool-panel .data-scroll thead th{position:sticky;top:0;z-index:1;background:var(--bg-deep)}
-    .tool-continuous{align-self:center;margin:0 .25rem}
     .tool-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:0 0 .8rem}
     .tool-card{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.65rem .8rem;overflow:hidden;
       transition:border-color .4s,box-shadow .4s}

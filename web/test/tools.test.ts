@@ -42,7 +42,7 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'traceForm', 'traceAddress', 'traceHops', 'traceRun', 'traceStatus', 'traceSummary', 'traceRows',
   'torchForm', 'torchInterface', 'torchSeconds', 'torchRun', 'torchStatus', 'torchSummary', 'torchRows',
   'btestForm', 'btestAddress', 'btestUser', 'btestPassword', 'btestSeconds', 'btestProtocol', 'btestDirection',
-  'btestRun', 'btestStatus', 'btestSummary', 'btestRows', 'pingContinuous', 'torchContinuous',
+  'btestRun', 'btestStatus', 'btestSummary', 'btestRows',
   // The live cards (tools-ping-cards.ts, tools-btest-cards.ts).
   'pingScoreRing', 'pingCardScore', 'pingScoreVal', 'pingLastVal', 'pingMinVal', 'pingMaxVal', 'pingLossVal',
   'pingCardLoss', 'pingSpark', 'pingCardLast', 'btestScaleRx', 'btestScaleTx', 'btestArcRx', 'btestNeedleRx',
@@ -198,10 +198,10 @@ assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 
 // STOP. Pressing the running tool's button asks the server to stop, and sends
 // no second run; the stopped frame draws the run so far and settles it.
 sent.length = 0;
-n.pingContinuous.checked = true;
+n.pingCount.value = 'continuous';
 n.pingForm.fire('submit', { preventDefault: () => {} });
-assert.deepStrictEqual(sent, [['tools:ping', { address: '198.51.100.1', count: 2, continuous: true }]],
-  'the Continuous switch did not reach the request');
+assert.deepStrictEqual(sent, [['tools:ping', { address: '198.51.100.1', count: 0, continuous: true }]],
+  'the Continuous option did not reach the request');
 handlers['tools:ping'](frame(1, false));
 n.pingForm.fire('submit', { preventDefault: () => {} });
 assert.deepStrictEqual(sent.slice(1), [['tools:stop', {}]], 'pressing Stop did not ask for the run to stop');
@@ -211,7 +211,7 @@ handlers['tools:ping']({ ...frame(2, true), code: 'stopped' });
 assert.ok(/<span class="wg-down">timeout<\/span>/.test(rows()), 'the stopped frame\'s run so far was not drawn:\n' + rows());
 assert.ok(/Stopped/.test(String(n.pingStatus.textContent)), 'a stopped run does not say so');
 assert.ok(n.pingRun.textContent === 'Ping' && !n.pingRun.disabled, 'a stopped run left the button as Stop');
-n.pingContinuous.checked = false;
+n.pingCount.value = '2';
 // LEAVING THE PAGE STOPS THE RUN; opening it again, or leaving with nothing
 // running, sends nothing (the control).
 sent.length = 0;
