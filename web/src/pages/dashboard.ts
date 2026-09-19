@@ -39,7 +39,7 @@ import { renderFwActionsCard } from './dashboard-card-fwactions';
 import { onLogsHistory, onLogsNew, resetLogsCard } from './dashboard-card-logs';
 import { renderDiagnosticsCard } from './dashboard-card-diagnostics';
 import { renderAgentCard, initAgentRefresh } from './dashboard-card-agent';
-import { initSecScoreCard } from './dashboard-card-secscore';
+import { initSecScoreCard, switchSecScoreCard } from './dashboard-card-secscore';
 import { renderConnListCards } from './dashboard-card-connlists';
 import { createConnMap } from './dashboard-card-map';
 import { renderConnFlowCard } from './dashboard-card-connflow';
@@ -191,4 +191,5 @@ export function initDashboard(socket: Socket): void {
 }
 
 /** The router-switch half of the card resets. See the header. */
-export { resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard };
+export { resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard,
+  switchSecScoreCard };

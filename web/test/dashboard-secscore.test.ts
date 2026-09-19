@@ -100,6 +100,14 @@ assert.strictEqual(n['dc-secLabel'].textContent, 'At risk · 7 issues');
 handlers['router:switched']({ activeId: 'r2' });
 assert.strictEqual(n['dc-secVal'].textContent, '55', 'switching back did not draw r2\'s last state');
 
+// THE SWITCH AS ASKED (switchRouter in main.ts): the previous router's score
+// is gone before any server frame, replaced by the new router's if known.
+mod.switchSecScoreCard('r9');
+assert.strictEqual(n['dc-secLabel'].textContent, 'Waiting for the router…', 'the previous router\'s score stayed under the new name');
+mod.switchSecScoreCard('r3');
+assert.strictEqual(n['dc-secVal'].textContent, '44', 'a known router\'s score was not drawn at once');
+mod.switchSecScoreCard('r2');
+
 // RESCAN sends one request; OPEN goes to the page.
 n['dc-secRescan'].fire('click');
 assert.deepStrictEqual(sent, [['secscore:scan', {}]], 'Rescan did not send exactly one request');

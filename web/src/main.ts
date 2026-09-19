@@ -69,7 +69,7 @@ import { initRouterModal } from './pages/router-modal';
 import { initAlertFilters } from './pages/settings-alert-filters';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
-import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard } from './pages/dashboard';
+import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
 import { initIpTip } from './iptip';
 import { initDashboardGrid } from './pages/dashboard-grid';
 
@@ -342,6 +342,9 @@ function switchRouter(socket: Socket, id: string): void {
   resetRoutingCards();
   resetBandwidthCard();
   resetLogsCard();
+  // The Security Score card shows the new router's last score if it has one
+  // (dashboard-card-secscore.ts), never the previous router's.
+  switchSecScoreCard(id);
   // The pages that accumulate per router: sparklines, trend lines, and the
   // generated tables' rows and permissions.
   resetInterfacesPage();

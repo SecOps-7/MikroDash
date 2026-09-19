@@ -119,14 +119,22 @@ function reset(): void {
   for (const c of ['grade-good', 'grade-fair', 'grade-poor']) el('dc-secScore')?.classList.remove(c);
 }
 
+/**
+ * Show another router: its latest frame if one has arrived, else waiting.
+ * Called by switchRouter in main.ts the moment a switch is asked for, so the
+ * previous router's score never sits under the new router's name, and again on
+ * `router:switched`.
+ */
+export function switchSecScoreCard(id: string): void {
+  routerId = id;
+  const known = latest[id];
+  if (known) draw(known);
+  else reset();
+}
+
 export function initSecScoreCard(socket: Socket): void {
   socket.on('secscore:state', (d) => renderSecScoreCard(d));
-  socket.on('router:switched', (d) => {
-    routerId = d.activeId;
-    const known = latest[routerId];
-    if (known) draw(known);
-    else reset();
-  });
+  socket.on('router:switched', (d) => switchSecScoreCard(d.activeId));
   el('dc-secRescan')?.addEventListener('click', () => {
     const btn = el<HTMLButtonElement>('dc-secRescan');
     if (btn) {
