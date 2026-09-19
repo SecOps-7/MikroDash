@@ -11,6 +11,7 @@ import (
 
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/aitools"
+	"mikrodash/internal/rbac"
 	"mikrodash/internal/resource"
 )
 
@@ -281,9 +282,14 @@ func TestTheWriteToolRefusesBeforeItTouchesAnything(t *testing.T) {
 // know, so a field the model invented used to vanish and the REST was written:
 // asked for an input accept on `src-address-list`, which fwFilter does not
 // declare, the hAP AC2 received an unconditional input accept. Refused before
-// permission or any read, and the invented name is not echoed.
+// any read, and the invented name is not echoed.
+//
+// RE-AIMED (review loop): it ran as nobody, because the check came before the
+// permission one. The refusal lists the settable fields, which a viewer without
+// write access must not be shown, so it now comes after it and this runs as an
+// administrator. TestADeniedViewerIsNotShownTheSettableFields is the other side.
 func TestAFieldTheResourceDoesNotHaveIsRefused(t *testing.T) {
-	cn := &conn{}
+	cn := writerConn(t, resource.FWFilter, resource.IPPool)
 	got := cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","values":{"chain":"input","action":"accept","srcAddressList":"mgmt"}}`))
 	if !strings.Contains(got, "nothing was changed") || !strings.Contains(got, "srcAddress") {
 		t.Errorf("an undeclared field produced %q", got)
@@ -296,10 +302,10 @@ func TestAFieldTheResourceDoesNotHaveIsRefused(t *testing.T) {
 	if !strings.Contains(got, "nothing was changed") {
 		t.Errorf("a Display field produced %q", got)
 	}
-	// CONTROL: only declared fields get past this check, to the permission one.
+	// CONTROL: declared fields alone get past this check.
 	got = cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","values":{"chain":"input","action":"accept"}}`))
-	if !strings.Contains(got, "permission") {
-		t.Errorf("declared fields alone produced %q", got)
+	if strings.Contains(got, "nothing was changed") && strings.Contains(got, "settable fields") {
+		t.Errorf("declared fields alone were refused as undeclared: %q", got)
 	}
 	// A delete names no values, so it is not held to this.
 	got = cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","id":"*1","delete":true,"values":{"bogus":"x"}}`))
@@ -415,4 +421,39 @@ func TestAProposalIsOnlyAnswerableOnItsRouter(t *testing.T) {
 	if got := cn.takeAIProposal(proposalFrame(tok)); got == nil {
 		t.Error("a proposal was refused on the router it was raised on")
 	}
+}
+
+// TestADeniedViewerIsNotShownTheSettableFields. The undeclared-field refusal
+// lists every field the resource can set, and it ran before the write
+// permission check, so a viewer with no write access learned the schema by
+// naming a field that does not exist (review loop).
+func TestADeniedViewerIsNotShownTheSettableFields(t *testing.T) {
+	cn := &conn{} // nobody: no write permission anywhere
+	got := cn.runAIWriteTool(writeCall(`{"resource":"dnsStatic","id":"*1","values":{"noSuchField":"x"}}`))
+	if strings.Contains(got, "settable fields") {
+		t.Errorf("a denied viewer was shown the field list: %q", got)
+	}
+	if !strings.Contains(got, "permission") {
+		t.Errorf("a denied viewer got %q, not the permission refusal", got)
+	}
+}
+
+// writerConn is a signed-in global administrator on router r-A, holding write on
+// the pages of the given resources in the session's union as well as in the
+// grant graph: what a write needs to get past the permission check.
+func writerConn(t *testing.T, res ...*resource.Resource) *conn {
+	t.Helper()
+	cn := rawAdminConn(t, false)
+	cn.srv.rbac = rbac.New(cn.srv.auditDB, func() []rbac.Router { return []rbac.Router{{ID: "r-A"}} })
+	cn.userID = cn.srv.userIDFor("boss")
+	cn.routerID = "r-A"
+	cn.sess.Readable = []string{"r-A"}
+	cn.sess.Pages = map[string]string{}
+	for _, r := range res {
+		cn.sess.Pages[r.Page] = "write"
+	}
+	if !cn.canPage(res[0].Page, "write") {
+		t.Fatal("the fixture cannot write " + res[0].Page + "; the test would pass for the wrong reason")
+	}
+	return cn
 }

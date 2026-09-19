@@ -114,17 +114,22 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	// UNCONDITIONAL input accept. A write must be what was asked or nothing.
 	// Display fields are refused too: they are never sent, so naming one is the
 	// same silent drop. The invented name is not echoed, as a resource's is not.
-	if !args.Delete {
-		if bad := undeclaredFields(res, args.Values); bad > 0 {
-			return fmt.Sprintf("%d of those field names are not fields %s can set, so nothing was changed. "+
-				"Its settable fields are: %s.", bad, res.Label, strings.Join(settableFields(res), ", "))
-		}
-	}
+	//
+	// AFTER THE PERMISSION CHECK, because the refusal lists the resource's
+	// settable fields, and that is schema a viewer without write access was
+	// never shown.
+	//
 	// RE-CHECKED, though `Permitted` already filtered the enum. The enum was
 	// built when the question was asked and a role can be edited while an answer
 	// is being composed.
 	if !cn.canPage(res.Page, "write") {
 		return "You do not have permission to change that, so nothing was proposed."
+	}
+	if !args.Delete {
+		if bad := undeclaredFields(res, args.Values); bad > 0 {
+			return fmt.Sprintf("%d of those field names are not fields %s can set, so nothing was changed. "+
+				"Its settable fields are: %s.", bad, res.Label, strings.Join(settableFields(res), ", "))
+		}
 	}
 	if cn.rsession == nil || cn.srv.store == nil {
 		return "No device is selected, so nothing was proposed."
