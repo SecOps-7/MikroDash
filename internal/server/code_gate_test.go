@@ -15,14 +15,20 @@ import (
 // and a typed confirmation, which namesCode triggers.
 
 func TestCodeChangesNeedAGlobalAdmin(t *testing.T) {
-	stored := map[string]string{".id": "*1", "name": "backup", "source": ":log info x", "policy": "read", "comment": ""}
+	// dont-require-permissions as the router stores it: "false", where a
+	// validated form sends "no". The form always sends it, so a control that
+	// omitted it never met the mismatch that refused every rename.
+	stored := map[string]string{".id": "*1", "name": "backup", "source": ":log info x", "policy": "read", "comment": "",
+		"dont-require-permissions": "false"}
 	for name, c := range map[string]struct {
 		action string
 		values map[string]string
 		before map[string]string
 	}{
-		"changing the source":    {"update", map[string]string{"source": ":log info y"}, stored},
-		"widening the policy":    {"update", map[string]string{"policy": "read,write,policy"}, stored},
+		"changing the source": {"update", map[string]string{"source": ":log info y"}, stored},
+		"widening the policy": {"update", map[string]string{"policy": "read,write,policy"}, stored},
+		"dropping the permission check": {"update",
+			map[string]string{"dontRequirePermissions": "yes"}, stored},
 		"a new script with code": {"create", map[string]string{"name": "n", "source": "/system reboot"}, nil},
 		"running a script":       {"run", nil, stored},
 	} {
@@ -38,7 +44,9 @@ func TestCodeChangesNeedAGlobalAdmin(t *testing.T) {
 		action string
 		values map[string]string
 	}{
-		"a rename":                  {"update", map[string]string{"name": "backup-nightly"}},
+		"a rename": {"update", map[string]string{"name": "backup-nightly"}},
+		"a rename as the form sends it": {"update", map[string]string{"name": "backup-nightly",
+			"source": ":log info x", "policy": "read", "dontRequirePermissions": "no"}},
 		"a comment":                 {"update", map[string]string{"comment": "nightly"}},
 		"the same source, resent":   {"update", map[string]string{"source": ":log info x"}},
 		"a delete":                  {"delete", nil},

@@ -484,7 +484,7 @@ func (f Field) check(raw string) (string, string) {
 		}
 		return strconv.Itoa(n), ""
 	case TypeBool, TypeFlag:
-		if s == "true" || s == "yes" {
+		if truthyROS(s) {
 			return "yes", ""
 		}
 		return "no", ""
@@ -2728,12 +2728,25 @@ func (r *Resource) CodeChange(values, before map[string]string) bool {
 			}
 			continue
 		}
+		if f.Type == TypeBool || f.Type == TypeFlag {
+			// ONE WORD EACH SIDE: a validated checkbox is "yes"/"no" and the
+			// router stores "true"/"false", so a plain compare called every
+			// resend a change and refused a non-admin's rename.
+			if truthyROS(v) != truthyROS(before[f.ROS]) {
+				return true
+			}
+			continue
+		}
 		if v != before[f.ROS] {
 			return true
 		}
 	}
 	return false
 }
+
+// truthyROS is a checkbox's value in either spelling: "yes" from a form or a
+// write, "true" from a router's print.
+func truthyROS(v string) bool { return v == "yes" || v == "true" }
 
 // RunsCode reports whether the named row action executes code.
 func (r *Resource) RunsCode(action string) bool {
