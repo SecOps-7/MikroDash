@@ -121,7 +121,8 @@ export function appCard(a: AppRow, may: boolean, pending: Pending | undefined): 
   return '<article class="apps-card st-' + esc(state) + '" data-app-card="' + esc(a.name) + '">' +
     '<div class="apps-card-head">' + tile(a) +
     '<div class="apps-card-titles"><div class="apps-card-name">' + esc(a.name) + '</div>' +
-    '<div class="apps-card-cat">' + esc(categoryLabel(a.category)) + '</div></div>' + statePill(state) + '</div>' +
+    '<div class="apps-card-sub"><span class="apps-card-cat">' + esc(categoryLabel(a.category)) + '</span>' +
+    statePill(state) + '</div></div></div>' +
     '<p class="apps-card-desc">' + esc(a.description || 'No description.') + '</p>' +
     '<div class="apps-card-meta">' +
     (a.defaultNetwork ? '<span class="apps-meta">' + esc(a.defaultNetwork === 'lan' ? 'On the LAN' : 'Behind NAT') + '</span>' : '') +

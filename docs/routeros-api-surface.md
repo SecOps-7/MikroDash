@@ -337,8 +337,10 @@ question, and any property can be one.
 Added by hand on 2026-09-19, and kept out of the counts above, like the Security
 Scan's. RouterOS 7.21 and later; read and written on CHR Test (7.24.3) before it
 was written here. The store is read when the Apps tab is shown, never polled; an
-install, start or restart then reads that one app's row every 2 s until it runs,
-fails or 10 minutes pass. The `/app` rows also carry `secrets` and the compose
+change then reads that one app's row every 2 s until it reaches its goal
+(running, stopped, or removed for a cleanup), fails or 10 minutes pass. Stopped and
+not installed are told apart by `interface` (`none` when not installed): 7.24.3
+keeps a cleaned-up app's `app-size`, although the docs say cleanup empties it. The `/app` rows also carry `secrets` and the compose
 `yaml`, and no proplist here names either (`TestTheAppStoreReadsNoSecret`).
 `default-credentials` is the catalog's published first login, the same on every
 router. A router with no `/app` answers "no such command" and the tab says the
@@ -346,9 +348,9 @@ store is not available.
 
 | Command | Proplist or arguments |
 |---|---|
-| `/app/print` | `=.proplist=.id,name,category,description,project-page,default-credentials,default-network,firewall-redirects,disabled,running,status,ui-url,app-size,data-size,memory-current,cpu-usage,custom` |
+| `/app/print` | `=.proplist=.id,name,category,description,project-page,default-credentials,default-network,firewall-redirects,disabled,running,status,ui-url,interface,app-size,data-size,memory-current,cpu-usage,custom` |
 | `/app/print` (the target, before a change) | `=.proplist=.id,name ?name=<app>` |
-| `/app/print` (following a change) | `=.proplist=name,disabled,running,status,ui-url,app-size ?name=<app>` |
+| `/app/print` (following a change) | `=.proplist=name,disabled,running,status,ui-url,interface ?name=<app>` |
 | `/app/settings/print` | `=.proplist=disk,lan-bridge,assumed-lan-bridge,router-ip,assumed-router-ip` |
 | `/disk/print` | `=.proplist=slot,fs,mounted,free,size` |
 | `/interface/bridge/print` | `=.proplist=name` |

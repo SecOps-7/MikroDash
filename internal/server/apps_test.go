@@ -57,8 +57,9 @@ func appFixture(t *testing.T) *appFake {
 	}
 	var f struct {
 		Exchanges []struct {
-			Cmd  string              `json:"cmd"`
-			Rows []map[string]string `json:"rows"`
+			Cmd    string              `json:"cmd"`
+			Params []string            `json:"params"`
+			Rows   []map[string]string `json:"rows"`
 		} `json:"exchanges"`
 	}
 	if err := json.Unmarshal(b, &f); err != nil {
@@ -66,6 +67,14 @@ func appFixture(t *testing.T) *appFake {
 	}
 	fake := &appFake{rows: map[string][]routeros.Reply{}, trap: map[string]bool{}}
 	for _, e := range f.Exchanges {
+		// The replay answers by path, so a capture taken with an older proplist
+		// would replay rows missing a field the code now reads (as `interface`
+		// once was). The store read's proplist must be the one it was taken with.
+		if e.Cmd == "/app/print" {
+			if got, want := strings.Join(e.Params, " "), "=.proplist="+strings.Join(appProps, ","); got != want {
+				t.Fatalf("appStore.json was captured with %q, but the store now reads %q: recapture it", got, want)
+			}
+		}
 		for _, r := range e.Rows {
 			fake.rows[e.Cmd] = append(fake.rows[e.Cmd], routeros.Reply(r))
 		}
@@ -95,8 +104,8 @@ func TestTheAppStoreReadsNoSecret(t *testing.T) {
 	}
 }
 
-// THE CHR TEST STORE, AS CAPTURED: set up on pcie1, librespeed running, the
-// other 107 apps available; only the mounted ext4 disk is offered; no IP Cloud
+// THE CHR TEST STORE, AS CAPTURED: set up on pcie1, librespeed running (with
+// its veth), the other 107 apps available (`interface=none`); only the mounted ext4 disk is offered; no IP Cloud
 // name, so plain HTTP links.
 func TestTheCHRStoreReplays(t *testing.T) {
 	p := readAppStore(appFixture(t))
@@ -134,7 +143,8 @@ func TestNoAppMenuIsUnsupported(t *testing.T) {
 	}
 }
 
-// A ROW'S STATE. Found live on 7.24.3: RouterOS reports progress steps its docs
+// A ROW'S STATE. Stopped or not installed is the row's `interface` (see the
+// header of apps.go: `app-size` survives a cleanup). Found live on 7.24.3: RouterOS reports progress steps its docs
 // do not list ("wait for reverse proxy", "initalizing network: adding
 // bridge"), which a list of progress words read as errors. Anything that is not
 // a failure is progress.
@@ -143,8 +153,11 @@ func TestAnAppsState(t *testing.T) {
 		row  routeros.Reply
 		want string
 	}{
+		{routeros.Reply{"disabled": "true", "interface": "none"}, "available"},
 		{routeros.Reply{"disabled": "true"}, "available"},
-		{routeros.Reply{"disabled": "true", "app-size": "10"}, "stopped"},
+		{routeros.Reply{"disabled": "true", "interface": "veth-app-librespeed", "app-size": "10"}, "stopped"},
+		// After cleanup, as 7.24.3 reports it: the old size stays, the veth is gone.
+		{routeros.Reply{"disabled": "true", "interface": "none", "app-size": "165757561"}, "available"},
 		{routeros.Reply{"disabled": "false", "running": "true"}, "running"},
 		{routeros.Reply{"disabled": "false", "status": "downloading/extracting"}, "installing"},
 		{routeros.Reply{"disabled": "false", "status": "wait for reverse proxy"}, "installing"},
@@ -237,32 +250,55 @@ func TestARemoveNeedsTheNameTyped(t *testing.T) {
 	}
 }
 
-// FOLLOWING AN INSTALL: progress until it runs; a failure, a stop, or quit end it.
-func TestAnInstallIsFollowedToItsEnd(t *testing.T) {
-	old := appPollEvery
-	appPollEvery = time.Millisecond
-	t.Cleanup(func() { appPollEvery = old })
-	follow := func(rows ...routeros.Reply) (followResult, int) {
+// FOLLOWING A CHANGE to its verb's goal. An install runs until it is running;
+// a failure, a stop, or quit end it. A stop and a remove are followed too:
+// found live, a remove answered at once while cleanup ran for seconds more, and
+// the store read then showed the app half-removed with nothing to update it.
+func TestAChangeIsFollowedToItsGoal(t *testing.T) {
+	oldEvery, oldMax := appPollEvery, appFollowMax
+	// A follow aimed at the wrong goal spins until the cap: keep it short, so
+	// that shows as a timeout here rather than a ten-minute hang.
+	appPollEvery, appFollowMax = time.Millisecond, 200*time.Millisecond
+	t.Cleanup(func() { appPollEvery, appFollowMax = oldEvery, oldMax })
+	follow := func(verb string, rows ...routeros.Reply) (followResult, int) {
 		f := &appFake{queue: rows}
 		n := 0
-		return followAppRow(f, "librespeed", nil, func(routeros.Reply) { n++ }), n
+		return followAppRow(f, "librespeed", appGoal[verb], nil, func(routeros.Reply) { n++ }), n
 	}
-	res, n := follow(routeros.Reply{"disabled": "false", "status": "downloading/extracting"},
+	veth := "veth-app-librespeed"
+	res, n := follow("install", routeros.Reply{"disabled": "false", "status": "downloading/extracting"},
 		routeros.Reply{"disabled": "false", "status": "wait for reverse proxy"},
 		routeros.Reply{"disabled": "false", "running": "true", "ui-url": "http://198.51.100.15:3004"})
 	if res.code != "" || !res.running || res.uiURL == "" || n != 3 {
 		t.Errorf("a clean install ended %+v after %d frames", res, n)
 	}
-	if res, _ := follow(routeros.Reply{"disabled": "false", "status": "error: not enough space"}); res.code != "failed" {
+	if res, _ := follow("install", routeros.Reply{"disabled": "false", "status": "error: not enough space"}); res.code != "failed" {
 		t.Errorf("a failure ended %+v", res)
 	}
-	if res, _ := follow(routeros.Reply{"disabled": "true", "app-size": "10"}); res.code != "failed" {
-		t.Errorf("an app that stopped ended %+v", res)
+	if res, _ := follow("start", routeros.Reply{"disabled": "true", "interface": veth}); res.code != "failed" {
+		t.Errorf("an app that stopped while starting ended %+v", res)
+	}
+	// A remove: still running, then stopping, then gone (the size stays, as on 7.24.3).
+	res, n = follow("remove", routeros.Reply{"disabled": "false", "running": "true", "interface": veth},
+		routeros.Reply{"disabled": "true", "interface": veth, "status": "stopping"},
+		routeros.Reply{"disabled": "true", "interface": "none", "app-size": "165757561"})
+	if res.code != "" || n != 3 {
+		t.Errorf("a remove ended %+v after %d frames, want done after the veth went", res, n)
+	}
+	res, n = follow("stop", routeros.Reply{"disabled": "false", "running": "true", "interface": veth},
+		routeros.Reply{"disabled": "true", "interface": veth})
+	if res.code != "" || res.running || n != 2 {
+		t.Errorf("a stop ended %+v after %d frames", res, n)
+	}
+	for verb := range appVerbs {
+		if appGoal[verb] == "" {
+			t.Errorf("%s has no goal, so it would be followed for ten minutes", verb)
+		}
 	}
 	quit := make(chan struct{})
 	close(quit)
 	f := &appFake{queue: []routeros.Reply{{"disabled": "false", "status": "starting"}}}
-	if res := followAppRow(f, "librespeed", quit, func(routeros.Reply) {}); res.code != codeScanStopped {
+	if res := followAppRow(f, "librespeed", "running", quit, func(routeros.Reply) {}); res.code != codeScanStopped {
 		t.Errorf("a quit follow ended %+v", res)
 	}
 }

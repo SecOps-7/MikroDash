@@ -19,9 +19,16 @@ import (
 // present whether it is installed or not. Enabling a row installs it: RouterOS
 // pulls the images, makes the veth, the NAT and the firewall redirects, and
 // starts it, reporting how far it has got in `status`. Disabling stops it;
-// `cleanup` removes it AND ITS DATA. A disabled row with no `app-size` was never
-// downloaded (the store's "available"); one with an app-size is installed and
-// stopped. Apps need `/app/settings disk` set first (the setup card).
+// `cleanup` removes it AND ITS DATA. Apps need `/app/settings disk` set first
+// (the setup card).
+//
+// ── STOPPED OR NOT INSTALLED: THE ROW'S `interface` ─────────────────────────
+//
+// Both are disabled rows. Measured on CHR Test (7.24.3), 2026-09-19: an
+// installed app keeps its veth (`interface=veth-app-<name>`) and its container
+// while stopped; a never-installed app, and one after `cleanup`, reads
+// `interface=none` and has no container. `app-size` does NOT tell them apart:
+// the docs say cleanup empties it, but 7.24.3 keeps reporting the old size.
 //
 // ── WHO MAY INSTALL ─────────────────────────────────────────────────────────
 //
@@ -53,14 +60,14 @@ import (
 // from the browser), the rate-limited write queue, the app found by name in a
 // FRESH read, the audit row written BEFORE the command (an install can take
 // minutes and a dropped connection must not leave it unrecorded), then the
-// command by the row's id. An install or start is then followed: the app's own
-// row is re-read every appPollEvery until it runs, fails or appFollowMax passes,
-// each reading sent to the page as progress.
+// command by the row's id. Every change is then followed: the app's own row is
+// re-read every appPollEvery until it reaches the verb's goal (appGoal), fails
+// or appFollowMax passes, each reading sent to the page as progress.
 
 // appProps is the store's read: everything the cards show, and never `secrets`
 // or `yaml`.
 var appProps = []string{".id", "name", "category", "description", "project-page", "default-credentials",
-	"default-network", "firewall-redirects", "disabled", "running", "status", "ui-url", "app-size",
+	"default-network", "firewall-redirects", "disabled", "running", "status", "ui-url", "interface", "app-size",
 	"data-size", "memory-current", "cpu-usage", "custom"}
 
 // appVerbs is every change the page can ask for, and the /app command it runs.
@@ -183,15 +190,20 @@ func appState(r routeros.Reply) string {
 	switch {
 	case r["running"] == "true":
 		return "running"
-	case r["disabled"] == "true" && r["app-size"] == "":
-		return "available"
-	case r["disabled"] == "true":
+	case r["disabled"] == "true" && appInstalled(r):
 		return "stopped"
+	case r["disabled"] == "true":
+		return "available"
 	case appFailed(r["status"]):
 		return "error"
 	default:
 		return "installing"
 	}
+}
+
+// appInstalled: the app still has its network (see "STOPPED OR NOT INSTALLED").
+func appInstalled(r routeros.Reply) bool {
+	return r["interface"] != "" && r["interface"] != "none"
 }
 
 func appFailed(status string) bool {
@@ -341,11 +353,7 @@ func (cn *conn) appsDo(raw json.RawMessage) {
 			done(rosWriteFail(err), safe.Message(err.Error()))
 			return
 		}
-		if req.Verb == "install" || req.Verb == "start" || req.Verb == "restart" {
-			cn.followApp(sc.rs, sc.routerID, req.Name, req.Verb)
-			return
-		}
-		done("", "")
+		cn.followApp(sc.rs, sc.routerID, req.Name, req.Verb)
 	}()
 }
 
@@ -386,7 +394,8 @@ var appNotes = map[string]string{
 	"remove":  "removes a container app and deletes its data",
 }
 
-// followApp re-reads one app until it runs, fails or appFollowMax passes, and
+// followApp re-reads one app until it reaches its verb's goal, fails or
+// appFollowMax passes, and
 // sends each reading as progress. A router switch or closed socket stops it.
 func (cn *conn) followApp(rs appReader, routerID, name, verb string) {
 	quit := make(chan struct{})
@@ -396,7 +405,7 @@ func (cn *conn) followApp(rs appReader, routerID, name, verb string) {
 	}
 	cn.appsQuit = quit
 	cn.appsMu.Unlock()
-	res := followAppRow(rs, name, quit, func(r routeros.Reply) {
+	res := followAppRow(rs, name, appGoal[verb], quit, func(r routeros.Reply) {
 		EvAppsProgress.Send(cn.srv.hub, cn.c, AppsProgressPayload{RouterID: routerID, Name: name, Verb: verb,
 			Status: r["status"], Running: r["running"] == "true", UIURL: r["ui-url"]})
 	})
@@ -412,14 +421,20 @@ type followResult struct {
 	running                      bool
 }
 
+// appGoal is the state each verb is followed to. A stop and a remove are
+// followed too: cleanup takes seconds, and a store read before it ends shows
+// the app half-removed, with nothing to say when it finishes.
+var appGoal = map[string]string{"install": "running", "start": "running", "restart": "running",
+	"stop": "stopped", "remove": "available"}
+
 // followAppRow is the loop itself, apart from the socket so it can be tested.
-func followAppRow(rs appReader, name string, quit <-chan struct{}, progress func(routeros.Reply)) followResult {
+func followAppRow(rs appReader, name, goal string, quit <-chan struct{}, progress func(routeros.Reply)) followResult {
 	deadline := time.Now().Add(appFollowMax)
 	tick := time.NewTicker(appPollEvery)
 	defer tick.Stop()
 	for {
 		rows, err := rs.Exec(routeros.Cmd{Path: "/app/print",
-			Args: []string{"=.proplist=name,disabled,running,status,ui-url,app-size", "?name=" + name}})
+			Args: []string{"=.proplist=name,disabled,running,status,ui-url,interface", "?name=" + name}})
 		if err != nil {
 			return followResult{code: "failed", message: safe.Message(err.Error())}
 		}
@@ -428,17 +443,18 @@ func followAppRow(rs appReader, name string, quit <-chan struct{}, progress func
 		}
 		r := rows[0]
 		progress(r)
-		switch appState(r) {
-		case "running":
-			return followResult{running: true, status: r["status"], uiURL: r["ui-url"]}
-		case "error":
+		state := appState(r)
+		switch {
+		case state == goal:
+			return followResult{running: state == "running", status: r["status"], uiURL: r["ui-url"]}
+		case state == "error":
 			return followResult{code: "failed", status: r["status"], message: "RouterOS reports: " + safe.Message(r["status"])}
-		case "stopped", "available":
+		case goal == "running" && (state == "stopped" || state == "available"):
 			return followResult{code: "failed", status: r["status"], message: "The app stopped before it was running."}
 		}
 		if time.Now().After(deadline) {
 			return followResult{code: "timeout", status: r["status"],
-				message: "Still not running after 10 minutes; it may still be downloading. The store shows its state."}
+				message: "Not " + goal + " after 10 minutes; it may still be working. The store shows its state."}
 		}
 		select {
 		case <-quit:

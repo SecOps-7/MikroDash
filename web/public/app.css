@@ -2248,8 +2248,9 @@
       box-shadow:0 6px 16px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.25)}
     .apps-tile.is-big{width:58px;height:58px;font-size:1.2rem;border-radius:15px}
     .apps-card-titles{flex:1;min-width:0}
-    .apps-card-name{font-weight:700;color:var(--text-main);font-size:.88rem;line-height:1.2;overflow-wrap:anywhere}
+    .apps-card-name{font-weight:700;color:var(--text-main);font-size:.88rem;line-height:1.2;overflow-wrap:break-word}
     .apps-card-cat{font-size:.68rem;color:var(--text-muted)}
+    .apps-card-sub{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin-top:.2rem}
     .apps-card-desc{margin:0;font-size:.76rem;line-height:1.45;color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:2;
       -webkit-box-orient:vertical;overflow:hidden;min-height:2.2em}
     .apps-card-meta{display:flex;flex-wrap:wrap;gap:.3rem}
