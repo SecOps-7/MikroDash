@@ -12,8 +12,6 @@ name: Tests
 # The gate sweep is the interesting half. `tools/verify.sh` discovers what to run
 # by globbing rather than by reading a list, which is why it cannot forget a
 # category, and it reports a SKIP as a skip rather than folding it into green.
-# Since the 2026-08-31 cutover the 105 generator --check runs skip permanently:
-# they regenerate FROM the Node implementation, and there is none.
 
 on:
   pull_request:
@@ -30,29 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
-    env:
-      # PINNED, AND NOT A WORKAROUND.
-      #
-      # Nine gates compare rendered HTML that contains local-time output -- an
-      # uptime of "up 6h", a scheduled-run list, report period labels. Their
-      # recordings were generated on a machine in Europe/Berlin, and a recording
-      # carries the environment that produced it whether or not anyone wrote that
-      # down. Run them under UTC and exactly those nine fail; run them under
-      # Europe/Berlin and all 136 pass. Confirmed both ways on 2026-08-31, and
-      # the first CI run after cutover is what surfaced it: until then the gates
-      # had only ever run in one timezone.
-      #
-      # The right fix would be to make the gates timezone-independent and
-      # re-record. That is no longer possible: the recordings derive from the
-      # Node implementation, which was deleted at the v0.8.0 cutover, so they are
-      # frozen as they are. Reproducing the environment they were made in is
-      # therefore the only correct option, not the convenient one.
-      #
-      # If a gate is ever rewritten to be timezone-independent, this can go --
-      # but check all nine, because removing it while one still renders local
-      # time turns a deterministic pass into a silent regional failure.
-      TZ: Europe/Berlin
 
     steps:
       - name: Checkout
@@ -75,9 +50,6 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      # Unit tests plus the differential gates that compare Go payloads against
-      # the recorded Node ones, and the proplist drift gate. Both read committed
-      # recordings, so neither needs the old implementation present.
       - name: go test
         run: go test ./...
 
@@ -87,10 +59,9 @@ jobs:
           node-version: '24'
 
       # Node is not a runtime dependency and never runs in production. It is
-      # needed for exactly two development-time things: `tsc --noEmit`, which
-      # emits nothing, and the ~300 gate and audit scripts, which bundle frontend
-      # TypeScript through esbuild. Testing TypeScript needs a JavaScript
-      # runtime, and that is not a dependency this repo can decide away.
+      # needed for two development-time things: `tsc --noEmit`, which emits
+      # nothing, and the web tests, which bundle frontend TypeScript through
+      # esbuild and run it. Testing TypeScript needs a JavaScript runtime.
       - name: Install frontend dev tooling
         run: npm ci --no-audit --no-fund
         working-directory: web
@@ -99,9 +70,7 @@ jobs:
         run: npx tsc --noEmit
         working-directory: web
 
-      # The frontend has to exist before the gates run: several compare a built
-      # bundle against a recorded renderer. This is the same builder the image
-      # uses, so what CI checks is what ships.
+      # The same builder the image uses, so what CI checks is what ships.
       - name: Build frontend
         run: go run ./cmd/webbuild -dir web
 

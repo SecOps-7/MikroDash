@@ -2,23 +2,8 @@ package db
 
 // The alert counts the Routers page shows.
 //
-// ── ONLY THE GROUPED COUNT IS HERE, AND THAT IS THE RULE ────────────────────
-//
-// A READ NOTHING CALLS IS A READ NOTHING GATES. `src/db.js` has three more alert
-// reads — `queryOpenAlerts`, `queryRecentAlerts` and `queryAlertEvents` — and
-// none is ported, because nothing in this port asks for them: the Alerts page
-// and the notification bell are both unported, and `wiring-audit` records the
-// bell's five ids as blocked on the alert FEED.
-//
-// Porting a query ahead of its caller would add code no corpus drives and no
-// gate covers, and it would read as progress. When the bell lands, its query
-// lands with it and is gated by the same work.
-//
-// (This sentence used to end "see the package header's rule that this side stays
-// the smaller of the two". The package header carries no such rule — the rule is
-// this paragraph, and it now says so itself rather than pointing at a
-// cross-reference that was never there. Third comment found this session naming
-// something that does not exist; the other two were a gate and a generator.)
+// The Alerts page's and the bell's reads are in alertfeed.go, and the Reports
+// page's in history.go.
 
 import "errors"
 

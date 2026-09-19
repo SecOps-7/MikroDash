@@ -45,10 +45,10 @@ type Page struct {
 	// ── WHY THIS IS DECLARED AND NOT DERIVED ────────────────────────────────
 	//
 	// It looks derivable: a collector emits to `page-<key>`, so scan the emits.
-	// It is not, and the arithmetic says why. There are 26 pages and 27 registry
-	// rows; SIX pages have no collector at all (dashboard, reports, audit-trail,
-	// backups, devices, settings), FIVE are fed by more than one, and six
-	// collector keys differ from the page they own -- `rosusers` owns `users`,
+	// It is not: some pages have no collector at all (dashboard, reports,
+	// audit-trail, backups, devices, settings and more), some are fed by more
+	// than one, and several collector keys differ from the page they own --
+	// `rosusers` owns `users`,
 	// `wifi` owns `wifi-networks`, `wireless` owns `wifi-clients`, `conns` owns
 	// `connections`, `ifStatus` owns `interfaces`, `topology` owns
 	// `network-topology`.
@@ -65,7 +65,7 @@ type Page struct {
 	// AND against the emit literals, so a declaration that stops being true fails.
 	Collector string
 	// Path is the URL segment when it differs from the key. Empty means the key
-	// IS the URL, which is true of 25 of the 26 pages.
+	// IS the URL, which is true of every page but one.
 	//
 	// ── THE ONE EXCEPTION, AND WHY IT IS ONE ────────────────────────────────
 	//

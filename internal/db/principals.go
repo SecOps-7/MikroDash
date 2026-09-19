@@ -10,7 +10,7 @@ package db
 // the table that decides who may do what, and two hand-written queries agree for
 // every case anybody thought to try.
 //
-// Nothing here writes. Node owns every mutation of these tables.
+// This file reads. The writes are grantwrite.go, rolewrite.go and their siblings.
 
 import (
 	"database/sql"

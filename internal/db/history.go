@@ -17,11 +17,11 @@ package db
 // requires it. Where a value is interpolated it is a LITERAL FROM THIS FILE and
 // never from a caller — see aggBucket.
 //
-// ── READ-ONLY ───────────────────────────────────────────────────────────────
+// ── THE READ SIDE ───────────────────────────────────────────────────────────
 //
-// Nothing here writes. The Node app owns the schema, the migrations and the
-// sampling; this reads what it recorded. A port that started inserting samples
-// would double every series on the page.
+// This file reads. The samples are written by historywrite.go, when the process
+// runs with -history; two recorders on one database would double every series,
+// which is why that is behind a flag.
 
 import (
 	"database/sql"

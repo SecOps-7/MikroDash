@@ -12,10 +12,11 @@
 # The checks that asked a DIFFERENT question moved rather than died. They read the
 # CURRENT source and assert properties that are still worth holding:
 #
-#   internal/verify/   22 Go tests -- credentials, identity columns, the
+#   internal/verify/   Go tests -- credentials, identity columns, the
 #                      WebSocket vocabulary, endpoints, selectors, reachability,
-#                      the blur-suspend guard and more.
-#   web/test/          18 tests that bundle the app's own TypeScript and run it
+#                      the blur-suspend guard and more (CLAUDE.md counts them,
+#                      and a test re-measures that count).
+#   web/test/          tests that bundle the app's own TypeScript and run it
 #                      against a DOM shim. JavaScript-hosted because testing
 #                      TypeScript needs a JavaScript runtime and Go has no DOM.
 #

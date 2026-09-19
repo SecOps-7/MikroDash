@@ -1,11 +1,9 @@
 package db
 
-// Opaque JSON preference blobs, keyed by (user_id, kind) — the port of
-// `db.js`'s getLayout/setLayout.
+// Opaque JSON preference blobs, keyed by (user_id, kind).
 //
 // Three kinds exist and the schema CHECK names them: 'dashboard', 'topology'
-// and 'nav'. Only `nav` is read and written here so far; the other two belong to
-// pages this port has not taken on, and their routes are still proxied.
+// and 'nav', read and written by the layout and nav-prefs routes.
 
 import (
 	"database/sql"
