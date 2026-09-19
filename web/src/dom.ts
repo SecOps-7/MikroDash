@@ -443,6 +443,17 @@ export function svcBadge(org: string, cat: string | null): string {
   return '<span class="svc-badge svc-' + (cat || 'other') + '">' + esc(org) + '</span>';
 }
 
+/** A protocol as a coloured pill: TCP blue, UDP green, ICMP (and icmpv6) amber,
+ *  anything else grey. Shared by Bandwidth and Torch, so one protocol reads the
+ *  same colour on both. */
+export function protoPill(p: string): string {
+  if (!p) return '—';
+  const cls = p === 'tcp' ? 'bw-proto-tcp'
+    : p === 'udp' ? 'bw-proto-udp'
+      : p.indexOf('icmp') !== -1 ? 'bw-proto-icmp' : 'bw-proto-other';
+  return '<span class="bw-proto ' + cls + '">' + esc(p) + '</span>';
+}
+
 /** A regional-indicator flag from an ISO-3166 alpha-2 code, either case. */
 export function iso2Flag(cc: string): string {
   if (!cc || cc.length !== 2) return '';

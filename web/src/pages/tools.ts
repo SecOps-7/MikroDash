@@ -27,7 +27,7 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { esc, el, fmtMbps } from '../dom';
+import { esc, el, fmtMbps, protoPill } from '../dom';
 import type { PingResult, TracerouteResult, TorchResult, BtestResult } from '../gen/payloads';
 
 const REFUSED: Record<string, string> = {
@@ -176,11 +176,11 @@ function renderTorch(r: TorchResult): void {
   const end = (a: string, p: string): string => esc(a) + (p ? ':' + esc(p) : '');
   rows.innerHTML = r.flows.map((f) =>
     '<tr>' +
-    '<td>' + esc(f.protocol) + '</td>' +
+    '<td>' + protoPill(f.protocol) + '</td>' +
     '<td>' + end(f.srcAddress, f.srcPort) + '</td>' +
     '<td>' + end(f.dstAddress, f.dstPort) + '</td>' +
-    '<td>' + bps(f.rxBps) + '</td>' +
-    '<td>' + bps(f.txBps) + '</td>' +
+    '<td style="color:var(--accent-rx)">' + bps(f.rxBps) + '</td>' +
+    '<td style="color:var(--accent-tx)">' + bps(f.txBps) + '</td>' +
     '</tr>').join('');
 }
 

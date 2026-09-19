@@ -163,6 +163,12 @@ handlers['tools:torch']({ code: '', message: '', done: true, result: { interface
   flows: [{ protocol: 'tcp', srcAddress: '198.51.100.1', srcPort: '443', dstAddress: '198.51.100.2', dstPort: '50000', rxBps: 2000000, txBps: 0 }] } });
 assert.ok(/2\.00 Mbps/.test(String(n.torchRows.innerHTML)) && /198\.51\.100\.1:443/.test(String(n.torchRows.innerHTML)),
   'the flow was not drawn:\n' + n.torchRows.innerHTML);
+// Rx and Tx in the app's rx blue and tx green; the protocol as its pill.
+assert.ok(/<td style="color:var\(--accent-rx\)">2\.00 Mbps<\/td>/.test(String(n.torchRows.innerHTML)) &&
+  /<td style="color:var\(--accent-tx\)">/.test(String(n.torchRows.innerHTML)),
+  'Rx and Tx are not in the rx and tx colours:\n' + n.torchRows.innerHTML);
+assert.ok(/<span class="bw-proto bw-proto-tcp">tcp<\/span>/.test(String(n.torchRows.innerHTML)),
+  'the protocol is not a pill:\n' + n.torchRows.innerHTML);
 assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 'omitted flows are not admitted to');
 
 // THE BANDWIDTH TEST sends the password once, then empties its field; a failed

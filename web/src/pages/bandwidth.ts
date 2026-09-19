@@ -10,7 +10,7 @@
 // than keeping a second buffer of the same stream.
 
 import { fmtTime } from '../timefmt';
-import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag } from '../dom';
+import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag, protoPill } from '../dom';
 import {
   RIGHT_BUFFER_MS, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
   pruneAndMax, smoothMax, type XYPoint,
@@ -39,14 +39,6 @@ export function bar(val: number, max: number, cls: string): string {
   const pct = max > 0 ? Math.min(val / max, 1) : 0;
   const w = Math.max(Math.round(pct * 60), pct > 0 ? 2 : 0);
   return '<span class="bw-bar ' + cls + '" style="width:' + w + 'px"></span>';
-}
-
-function protoCell(p: string): string {
-  if (!p) return '—';
-  const cls = p === 'tcp' ? 'bw-proto-tcp'
-    : p === 'udp' ? 'bw-proto-udp'
-      : p.indexOf('icmp') !== -1 ? 'bw-proto-icmp' : 'bw-proto-other';
-  return '<span class="bw-proto ' + cls + '">' + esc(p) + '</span>';
 }
 
 type SortKey = 'name' | 'dstIp' | 'rxMbps' | 'txMbps' | 'totalMbps' | 'iface' | 'proto' | 'org';
@@ -316,7 +308,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
         '<td class="bw-rate bw-rate-tx">' + fmtMbps(r.txMbps) + bar(r.txMbps, maxBar, 'bw-bar-tx') + '</td>' +
         '<td class="bw-rate bw-rate-total">' + fmtMbps(r.totalMbps) + '</td>' +
         '<td><span class="bw-ip">' + esc(r.iface || '—') + '</span></td>' +
-        '<td>' + protoCell(r.proto) + '</td>' +
+        '<td>' + protoPill(r.proto) + '</td>' +
         '<td>' + orgLabel + '</td>' +
       '</tr>';
     }).join('');
