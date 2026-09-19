@@ -96,14 +96,26 @@ type Session struct {
 
 	RouterID string
 	Label    string
-	// alertsEnabled is this router's per-device alert switch, captured when the
-	// session is built. The live app RE-READS it on every event "in case it was
-	// toggled after session creation"; this said the port "gets that for free,
-	// since a change to the record rebuilds the session
-	// (`collectionFingerprint`)" — and nothing here rebuilds it, because that
-	// fingerprint does not exist. Same gap as `eff` above: toggling alerts on a
-	// router somebody is watching takes effect when the session is next built.
-	alertsEnabled bool
+	// alertsEnabled is this router's per-device alert switch.
+	//
+	// ── IT FOLLOWS THE RECORD NOW, AND IT DID NOT ──────────────────────────
+	//
+	// It was captured when the session was built. The live app re-reads it on
+	// every event "in case it was toggled after session creation"; this said the
+	// port "gets that for free, since a change to the record rebuilds the
+	// session (`collectionFingerprint`)", and nothing here rebuilds it, because
+	// that fingerprint does not exist. So turning Alert Monitoring on for a
+	// router somebody was watching did nothing until a restart: the setting
+	// saved, the holds followed it, and the session went on evaluating with the
+	// old answer. Reported 2026-09-20 ("no netwatch alerts"), and reproduced by
+	// enabling alerting on a test router: the rules stayed silent until the
+	// process came back.
+	//
+	// `Manager.ApplyAlerts` sets it on save, beside ApplyPingTarget and
+	// ApplyCollection, which exist for record fields with the same promise.
+	// ATOMIC because the readers are collector goroutines: the emit closure asks
+	// it for every payload.
+	alertsEnabled atomic.Bool
 
 	h *hub.Hub
 	// fleet is the manager's fleet-wide status send; see Manager.SetFleetStatus.
@@ -873,18 +885,17 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	eff := collection.Resolve(cfgSettings, collection.ParseRouter(rec.Collection))
 
 	s := &Session{
-		dormancy:      dormancy.NewSupervisor(dormancy.Defaults()),
-		RouterID:      rec.ID,
-		Label:         rec.Label,
-		alertsEnabled: rec.AlertsEnabled,
-		h:             m.h,
-		fleet:         &m.fleetStatus,
-		history:       m.history,
-		identity:      m.identityFor(rec.ID),
-		connThreshMs:  historywire.ThresholdMs(connDownSecOf(rec)),
-		refs:          1,
-		holds:         map[string]bool{},
-		wake:          make(chan struct{}, 1),
+		dormancy:     dormancy.NewSupervisor(dormancy.Defaults()),
+		RouterID:     rec.ID,
+		Label:        rec.Label,
+		h:            m.h,
+		fleet:        &m.fleetStatus,
+		history:      m.history,
+		identity:     m.identityFor(rec.ID),
+		connThreshMs: historywire.ThresholdMs(connDownSecOf(rec)),
+		refs:         1,
+		holds:        map[string]bool{},
+		wake:         make(chan struct{}, 1),
 		cfg: routeros.Config{
 			Host: rec.Host, Port: rec.Port,
 			Username: rec.Username, Password: rec.Password,
@@ -899,6 +910,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 			Label: rec.Label,
 		},
 	}
+	s.alertsEnabled.Store(rec.AlertsEnabled)
 	s.eff.Store(&eff)
 	room := "router-" + s.RouterID + "-"
 	// An EMPTY sub means router-wide, the room `router:status` uses. It exists
@@ -934,7 +946,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		s.notePayload()
 
 		fired := m.alerts.Evaluate(alert.Router{
-			ID: s.RouterID, AlertsEnabled: s.alertsEnabled,
+			ID: s.RouterID, AlertsEnabled: s.alertsEnabled.Load(),
 		}, event, payload)
 		if m.onFired != nil && len(fired) > 0 {
 			m.onFired(s.RouterID, s.Label, fired)
@@ -1333,7 +1345,7 @@ var AlertFeeds = []string{"ping", "vpn", "ifStatus", "netwatch", "system", "rout
 // still watching a room this collector emits to"; alerting is not watching a
 // room, so the question does not reach it and the answer would be no.
 func (s *Session) NeededForAlerts(key string) bool {
-	if s == nil || !s.alertsEnabled {
+	if s == nil || !s.alertsEnabled.Load() {
 		return false
 	}
 	for _, k := range AlertFeeds {
@@ -2021,7 +2033,7 @@ func (s *Session) connectLoop() {
 			// it too, so a router with alerting OFF pays nothing: this is the
 			// same work the alert pool does for such a router today, moved to the
 			// session that was already doing the other four.
-			if s.alertsEnabled {
+			if s.alertsEnabled.Load() {
 				if s.conf().Enabled["vpn"] {
 					s.vpn.Start()
 				}

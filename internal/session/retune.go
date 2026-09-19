@@ -176,3 +176,42 @@ func (m *Manager) ApplyPollRetunes(updates, saved store.Settings) map[string][]s
 	}
 	return out
 }
+
+// ApplyAlerts follows a router's Alert Monitoring switch onto its live session.
+//
+// ── THE SWITCH SAID "ON SAVE" AND MEANT "ON RESTART" ───────────────────────
+//
+// The flag was read once, when the session was built (see Session.alertsEnabled),
+// so turning alerting on for a router somebody was watching changed the stored
+// record, took the `alerts` hold, and left the session evaluating with the old
+// answer until the process came back. The same shape as the ping target and the
+// collector switches, which is why this sits beside them.
+//
+// TURNING IT ON ALSO STARTS THE TWO COLLECTORS THAT ONLY ALERTING WANTS. `vpn`
+// and `routing` are page-gated and started at connect only when alerting is on
+// (session.go), so a session that connected with it off is not running them, and
+// four of the six rules read their payloads. Turning it off leaves them: demand
+// suspends what nobody is watching, and stopping a collector a page is showing
+// because alerting changed would be a different bug.
+//
+// Returns whether anything changed, so the caller can log a real change.
+func (m *Manager) ApplyAlerts(routerID string, enabled bool) bool {
+	m.mu.Lock()
+	s, ok := m.live[routerID]
+	m.mu.Unlock()
+	if !ok || s == nil {
+		return false
+	}
+	if s.alertsEnabled.Swap(enabled) == enabled {
+		return false
+	}
+	if enabled {
+		if s.vpn != nil && s.conf().Enabled["vpn"] {
+			s.vpn.Start()
+		}
+		if s.routing != nil && s.conf().Enabled["routing"] {
+			s.routing.Resume()
+		}
+	}
+	return true
+}

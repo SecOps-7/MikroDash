@@ -394,6 +394,15 @@ func (s *Server) reconfigureLiveSession(id string) {
 	// rebuilt, so without this an edited target waited for a restart.
 	s.sessions.ApplyPingTarget(id, rec.PingTarget)
 
+	// AND THIS ROUTER'S ALERT SWITCH, which the same dialog says takes effect on
+	// save. It was read once when the session was built, so turning alerting on
+	// for a router somebody was watching did nothing until a restart, while the
+	// holds and the stored record both followed it. See Manager.ApplyAlerts.
+	if s.sessions.ApplyAlerts(id, rec.AlertsEnabled) {
+		log.Printf("[routers] %s: alert monitoring %s", rec.Label,
+			map[bool]string{true: "on", false: "off"}[rec.AlertsEnabled])
+	}
+
 	// AND THE COLLECTOR SWITCHES AND POLL OVERRIDES, which the device dialog says
 	// take effect on save. They were resolved once when the session was built, so
 	// a collector switched off kept running until a restart. Resolved exactly as
