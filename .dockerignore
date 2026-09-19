@@ -7,3 +7,16 @@ bin/
 .playwright-mcp
 .serena/cache
 *.tgz
+
+# Local files, some holding credentials. The runtime stage copies only built
+# artefacts, but `COPY . .` put these in the build stage, and a build cache or
+# an intermediate image is still somewhere a secret should not be.
+.env
+.env.*
+.mcp.json
+.claude
+.temp
+notes
+.serena
+Changes.md
+/mikrodash
