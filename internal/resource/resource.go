@@ -150,6 +150,13 @@ type Field struct {
 	// most fields — a comment, an address — and wrong for the ones that carry a
 	// sentinel, so the field says which it is rather than the write path guessing.
 	ClearAs string
+	// ClearBang clears the field with `=!<ros>=`, which REMOVES the property,
+	// where RouterOS refuses an empty value. Measured on the CHR, 7.24.1: every
+	// Clearable integer refuses `=<ros>=` ("an integer required"); `min-prefix`,
+	// OSPF `default-cost` and `auth-id` are removed by the bang form, while
+	// `limit-bytes-*`, IPsec `port`, DHCP `netmask` and queue `priority` accept
+	// it and change nothing, so those declare their default in ClearAs instead.
+	ClearBang bool
 	// Clearable means "send this even when empty, so the operator can empty it".
 	Clearable   bool
 	Options     []string
@@ -618,6 +625,10 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		// hold, so without this every such field was "cleared": a remote log
 		// action's rename also wrote an empty `memory-stop-on-full`.
 		if v.Editing && f.Clearable && f.Applies(v.Values) {
+			if f.ClearBang {
+				args = append(args, "=!"+f.ROS+"=")
+				continue
+			}
 			args = append(args, "="+f.ROS+"="+f.ClearAs)
 		}
 	}
@@ -938,9 +949,9 @@ var PPPSecret = &Resource{
 		// an operator could set a cap and never take it off again: an emptied box
 		// sends nothing, so the router would keep the old figure.
 		{Name: "limitBytesIn", ROS: "limit-bytes-in", Label: "Limit In (bytes)",
-			Type: TypeInt, Min: intp(0), Clearable: true, Placeholder: "0"},
+			Type: TypeInt, Min: intp(0), Clearable: true, ClearAs: "0", Placeholder: "0"},
 		{Name: "limitBytesOut", ROS: "limit-bytes-out", Label: "Limit Out (bytes)",
-			Type: TypeInt, Min: intp(0), Clearable: true, Placeholder: "0"},
+			Type: TypeInt, Min: intp(0), Clearable: true, ClearAs: "0", Placeholder: "0"},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
 	},
@@ -1512,7 +1523,7 @@ var RoutingRule = &Resource{
 		{Name: "table", ROS: "table", Label: "Table", Type: TypeText,
 			OptionsFrom: &OptionsFrom{Menu: "/routing/table", Value: "name"},
 			ShowIf:      &ShowIf{Field: "action", In: []string{"lookup", "lookup-only-in-table"}}},
-		{Name: "minPrefix", ROS: "min-prefix", Label: "Min Prefix", Type: TypeInt, Clearable: true,
+		{Name: "minPrefix", ROS: "min-prefix", Label: "Min Prefix", Type: TypeInt, Clearable: true, ClearBang: true,
 			Min: intp(0), Max: intp(128),
 			Help: "Ignore routes in the table shorter than this prefix length."},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
@@ -1573,7 +1584,7 @@ var OSPFArea = &Resource{
 			ShowIf: &ShowIf{Field: "type", In: []string{"stub", "nssa"}}},
 		{Name: "nssaTranslator", ROS: "nssa-translator", Label: "NSSA Translator", Type: TypeSelect,
 			Options: []string{"candidate", "yes", "no"}, ShowIf: &ShowIf{Field: "type", In: []string{"nssa"}}},
-		{Name: "defaultCost", ROS: "default-cost", Label: "Default Cost", Type: TypeInt, Clearable: true, Min: intp(0)},
+		{Name: "defaultCost", ROS: "default-cost", Label: "Default Cost", Type: TypeInt, Clearable: true, ClearBang: true, Min: intp(0)},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
 		{Name: "inactive", ROS: "inactive", Label: "Inactive", Type: TypeBool, Display: true},
@@ -1604,7 +1615,7 @@ var OSPFTemplate = &Resource{
 			Options: []string{"simple", "md5", "sha1", "sha256", "sha384", "sha512"}},
 		{Name: "authKey", ROS: "auth-key", Label: "Authentication Key", Type: TypeSecret,
 			ShowIf: &ShowIf{Field: "auth", In: []string{"simple", "md5", "sha1", "sha256", "sha384", "sha512"}}},
-		{Name: "authId", ROS: "auth-id", Label: "Key ID", Type: TypeInt, Clearable: true, Min: intp(0), Max: intp(255),
+		{Name: "authId", ROS: "auth-id", Label: "Key ID", Type: TypeInt, Clearable: true, ClearBang: true, Min: intp(0), Max: intp(255),
 			ShowIf: &ShowIf{Field: "auth", In: []string{"md5", "sha1", "sha256", "sha384", "sha512"}}},
 		{Name: "helloInterval", ROS: "hello-interval", Label: "Hello Interval", Type: TypeText, Placeholder: "10s"},
 		{Name: "deadInterval", ROS: "dead-interval", Label: "Dead Interval", Type: TypeText, Placeholder: "40s"},
@@ -1659,7 +1670,7 @@ var IPsecPeer = &Resource{
 		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "branch-office"},
 		{Name: "address", ROS: "address", Label: "Address", Type: TypeText, Clearable: true,
 			Placeholder: "203.0.113.10", Help: "The remote end: an address, a prefix, or a name to resolve."},
-		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Clearable: true, Min: intp(1), Max: intp(65535)},
+		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Clearable: true, ClearAs: "500", Min: intp(1), Max: intp(65535)},
 		{Name: "localAddress", ROS: "local-address", Label: "Local Address", Type: TypeText, Clearable: true},
 		{Name: "profile", ROS: "profile", Label: "Profile", Type: TypeText,
 			OptionsFrom: &OptionsFrom{Menu: "/ip/ipsec/profile", Value: "name"}},
@@ -1999,7 +2010,7 @@ var DHCPNetwork = &Resource{
 			Placeholder: "192.168.88.1", Help: "Comma separated."},
 		{Name: "domain", ROS: "domain", Label: "Domain", Type: TypeText, Clearable: true},
 		{Name: "ntpServer", ROS: "ntp-server", Label: "NTP Servers", Type: TypeText, Clearable: true},
-		{Name: "netmask", ROS: "netmask", Label: "Netmask", Type: TypeInt, Clearable: true, Min: intp(0), Max: intp(32),
+		{Name: "netmask", ROS: "netmask", Label: "Netmask", Type: TypeInt, Clearable: true, ClearAs: "0", Min: intp(0), Max: intp(32),
 			Help: "Empty takes the network's own."},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 	},
@@ -2283,7 +2294,7 @@ var QueueTree = &Resource{
 		{Name: "maxLimit", ROS: "max-limit", Label: "Max Limit", Type: TypeText, Clearable: true,
 			Placeholder: "10M", Help: "0 is unlimited."},
 		{Name: "limitAt", ROS: "limit-at", Label: "Limit At", Type: TypeText, Clearable: true, Placeholder: "5M"},
-		{Name: "priority", ROS: "priority", Label: "Priority", Type: TypeInt, Min: intp(1), Max: intp(8), Clearable: true,
+		{Name: "priority", ROS: "priority", Label: "Priority", Type: TypeInt, Min: intp(1), Max: intp(8), Clearable: true, ClearAs: "8",
 			Placeholder: "8"},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
