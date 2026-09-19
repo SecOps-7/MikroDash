@@ -44,6 +44,9 @@ package routers
 //   global default interface beats the router's own
 //   drop the "ether1" last resort
 //   derive isActive from connectedness
+//
+// `isActive` is the VIEWER'S selected router, not presence in `Main` (see
+// StatsSources.ActiveID); it moved on 2026-09-19.
 
 import "mikrodash/internal/collect"
 
@@ -85,9 +88,21 @@ type MainSession struct {
 // StatsSources is everything the payload is built from, all resolved.
 type StatsSources struct {
 	Routers []StatsRouter
-	// Main holds only routers with an interactive session. PRESENCE is what
-	// `isActive` reports and what decides which payloads a row reads.
+	// Main holds every router with a live session. PRESENCE decides which
+	// payloads a row reads; it no longer says which router is active.
 	Main map[string]MainSession
+	// ActiveID is the router THIS viewer has selected in the header, and the
+	// only row marked `isActive`.
+	//
+	// ── IT WAS PRESENCE IN `Main`, AND THAT MARKED THE WHOLE FLEET ──────────
+	//
+	// In the original one session existed, for the one active router, so `!!s`
+	// named it. Here the warm holds that replaced `internal/alertpool` keep a
+	// session for every enabled router, `Main` is filled from all of them, and
+	// every card on the Devices page said "active". The selection is per
+	// connection, so the caller passes it rather than this package guessing it
+	// from who holds what.
+	ActiveID string
 	// Background is the pool's cache, keyed by router id.
 	Background map[string]Summary
 
@@ -126,14 +141,14 @@ func BuildStats(src StatsSources) []Row {
 			continue
 		}
 
-		main, isActive := src.Main[r.ID]
+		main, hasMain := src.Main[r.ID]
 		bg, hasBG := src.Background[r.ID]
 
 		in := Input{
 			ID:        r.ID,
 			Label:     r.Label,
 			Host:      r.Host,
-			IsActive:  isActive,
+			IsActive:  src.ActiveID != "" && r.ID == src.ActiveID,
 			SiteIDs:   r.SiteIDs,
 			Geo:       r.Geo,
 			DefaultIf: DefaultIfFor(r.DefaultIf, src.DefaultIf),
@@ -143,7 +158,7 @@ func BuildStats(src StatsSources) []Row {
 		// header. Mixing them would put one connection's CPU beside another's
 		// uptime.
 		switch {
-		case isActive:
+		case hasMain:
 			in.Known = main.Known
 			in.Connected = main.Connected
 			in.LastError = main.LastError

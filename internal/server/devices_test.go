@@ -132,7 +132,7 @@ func TestTheStatsPayloadIsBuiltPerViewer(t *testing.T) {
 // Devices page on a fresh install must render an empty fleet rather than panic.
 func TestBuildStatsSourcesSurvivesAnEmptyServer(t *testing.T) {
 	s := devicesServer(t)
-	src := s.buildStatsSources(&Session{AuthMode: "none"})
+	src := s.buildStatsSources(&Session{AuthMode: "none"}, "")
 
 	if src.Main == nil || src.Background == nil || src.OpenAlerts == nil || src.Sites == nil {
 		t.Fatalf("a nil map reached BuildStats: %+v", src)
@@ -140,6 +140,25 @@ func TestBuildStatsSourcesSurvivesAnEmptyServer(t *testing.T) {
 	// And it produces a payload rather than panicking.
 	if rows := routers.BuildStats(src); len(rows) != 0 {
 		t.Errorf("%d rows from an empty server", len(rows))
+	}
+}
+
+// TestTheStatsMarkOnlyTheViewersRouterActive.
+//
+// The Devices page drew "active" on every card: `isActive` was presence in
+// `Main`, and warm holds put every enabled router there. It is the router this
+// connection has selected, and nothing else.
+func TestTheStatsMarkOnlyTheViewersRouterActive(t *testing.T) {
+	sess := &Session{AuthMode: "none"}
+	s, _, _ := routersServer(t, sess, "")
+	rows := routers.BuildStats(s.buildStatsSources(sess, "r2"))
+	if len(rows) != 2 {
+		t.Fatalf("%d row(s), want both fixture routers", len(rows))
+	}
+	for _, r := range rows {
+		if want := r.ID == "r2"; r.IsActive != want {
+			t.Errorf("%s: isActive=%v, want %v", r.ID, r.IsActive, want)
+		}
 	}
 }
 

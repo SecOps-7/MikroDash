@@ -34,9 +34,9 @@ type Input struct {
 	Label string // already defaulted to Host by the caller if empty
 	Host  string
 
-	// IsActive is `!!s` in the original: whether an INTERACTIVE session exists,
-	// not whether the router is reachable. The page uses it to mark the router
-	// someone is currently looking at.
+	// IsActive marks the router the viewer has selected, not whether it is
+	// reachable. The original's `!!s` meant the same thing because it held one
+	// session, for the active router; see StatsSources.ActiveID.
 	IsActive  bool
 	Connected bool
 	// Known is whether `Connected` is an OBSERVATION or just its zero value. See

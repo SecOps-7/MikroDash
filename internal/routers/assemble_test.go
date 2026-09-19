@@ -32,9 +32,6 @@ func TestAnInteractiveSessionWinsEvenWithNoPayload(t *testing.T) {
 		t.Errorf("cpu = %v; the interactive session has no payload, so the row must be null "+
 			"rather than falling back to the background pool's reading", f["cpu"])
 	}
-	if f["isActive"] != true {
-		t.Error("isActive must be true whenever an interactive session exists")
-	}
 }
 
 // With NO interactive session the background pool is what the row reads.
@@ -54,16 +51,17 @@ func TestABackgroundOnlyRouterReadsThePool(t *testing.T) {
 	}
 }
 
-// `isActive` is PRESENCE, not reachability: it marks the router somebody is
-// looking at. A session that exists but has not connected is still active.
-func TestIsActiveIsPresenceNotConnectedness(t *testing.T) {
+// `isActive` is the SELECTION, not reachability: the viewer's router is active
+// even while its session has not connected.
+func TestIsActiveIsTheSelectionNotConnectedness(t *testing.T) {
 	got := BuildStats(StatsSources{
-		Routers: []StatsRouter{sr("a")},
-		Main:    map[string]MainSession{"a": {Connected: false, LastError: "Connection refused"}},
+		Routers:  []StatsRouter{sr("a")},
+		Main:     map[string]MainSession{"a": {Connected: false, LastError: "Connection refused"}},
+		ActiveID: "a",
 	})
 	f := fields(t, got[0])
 	if f["isActive"] != true {
-		t.Error("isActive false for a router with an interactive session")
+		t.Error("isActive false for the selected router")
 	}
 	if f["connected"] != false {
 		t.Error("connected true for a session that has not connected")
@@ -397,7 +395,40 @@ func TestAnInteractiveSessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
 		t.Error("the watched router claims a known-offline state before its " +
 			"session has dialled")
 	}
-	if !got[0].IsActive {
-		t.Error("isActive is presence and must be unaffected by this")
+}
+
+// ── ONLY THE VIEWER'S ROUTER IS ACTIVE, HOWEVER MANY SESSIONS ARE LIVE ─────
+//
+// Warm holds keep a session for every enabled router, so `Main` holds the whole
+// fleet. When `isActive` was presence in `Main`, every card on the Devices page
+// said "active" (reported 2026-09-19). A session is a source of data; the
+// selection is the viewer's.
+func TestOnlyTheSelectedRouterIsActiveWhenEverySessionIsLive(t *testing.T) {
+	got := BuildStats(StatsSources{
+		Routers: []StatsRouter{sr("a"), sr("b"), sr("c")},
+		Main: map[string]MainSession{
+			"a": {Connected: true, Known: true},
+			"b": {Connected: true, Known: true},
+			"c": {Connected: true, Known: true},
+		},
+		ActiveID: "b",
+	})
+	for _, r := range got {
+		if want := r.ID == "b"; r.IsActive != want {
+			t.Errorf("%s: isActive=%v, want %v; only the selected router is active",
+				r.ID, r.IsActive, want)
+		}
+	}
+
+	// NO SELECTION, NO ACTIVE ROW. A socket on the Devices page need not have
+	// selected a router at all, and "" must not match anything.
+	none := BuildStats(StatsSources{
+		Routers: []StatsRouter{sr("a"), {ID: "", Label: "blank", Host: "h"}},
+		Main:    map[string]MainSession{"a": {Connected: true, Known: true}},
+	})
+	for _, r := range none {
+		if r.IsActive {
+			t.Errorf("%q is active with nothing selected", r.ID)
+		}
 	}
 }

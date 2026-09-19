@@ -51,13 +51,15 @@ func decodeGeo(raw json.RawMessage) map[string]any {
 	return m
 }
 
-// buildStatsSources gathers everything `routers.BuildStats` needs.
+// buildStatsSources gathers everything `routers.BuildStats` needs. `activeID`
+// is the router this viewer has selected, the one row the page marks active.
 //
 // Assembled HERE rather than in `internal/routers` so that package keeps no
 // dependency on sessions, the store or the database: it is pure, and its tests
 // run without any of them.
-func (s *Server) buildStatsSources(sess *Session) routers.StatsSources {
+func (s *Server) buildStatsSources(sess *Session, activeID string) routers.StatsSources {
 	out := routers.StatsSources{
+		ActiveID:   activeID,
 		Main:       map[string]routers.MainSession{},
 		Background: map[string]routers.Summary{},
 		OpenAlerts: map[string]int{},
@@ -883,5 +885,6 @@ func (s *Server) scheduleDevicesRelease() {
 // both resolved for one principal. Broadcasting one viewer's rows would show
 // another viewer routers they may not read.
 func (cn *conn) sendRoutersStats() {
-	EvRoutersStats.Send(cn.srv.hub, cn.c, routers.BuildStats(cn.srv.buildStatsSources(cn.sess)))
+	EvRoutersStats.Send(cn.srv.hub, cn.c,
+		routers.BuildStats(cn.srv.buildStatsSources(cn.sess, cn.routerID)))
 }
