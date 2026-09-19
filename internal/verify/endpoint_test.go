@@ -76,9 +76,12 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 				called[u] = true
 			}
 		}
+		// FOLDED FIRST, like the hrefs: `fetch('/api/alerts/' + id + '/ack')`
+		// captured as `/api/alerts/`, a prefix of every alerts route, so the call
+		// passed whatever the route was really called (review loop).
 		for _, re := range []*regexp.Regexp{fetchCall, constURL} {
-			for _, m := range re.FindAllStringSubmatch(body, -1) {
-				u := normaliseRoute(m[1])
+			for _, m := range re.FindAllStringSubmatch(foldInterpolation(body), -1) {
+				u := collapseWildcards(normaliseRoute(trimTrailingInterpolation(m[1])))
 				// SCOPED TO THE API. A static asset -- the world atlas, a font --
 				// is answered by the file server, not by a registered route, so
 				// asking whether a route exists for it is the wrong question.
@@ -149,6 +152,11 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 		if served[u] {
 			return true
 		}
+		// A BUILT URL HAS ITS WHOLE SHAPE, so it is served exactly or not at all.
+		// The subtree rules below are for a literal naming a route family.
+		if strings.Contains(u, "{}") {
+			return false
+		}
 		for _, r := range servedList {
 			if strings.HasSuffix(r, "/") && strings.HasPrefix(u, r) {
 				return true
@@ -204,21 +212,33 @@ var hrefLiteral = regexp.MustCompile(`href=\\?["']([^"'>]*)`)
 // hrefRoutes pulls API paths out of `<a href>` attributes built by string
 // concatenation. See the note at the call site for why this is a separate pass.
 func hrefRoutes(body string) []string {
-	folded := jsConcat.ReplaceAllString(body, "{}")
 	var out []string
-	for _, m := range hrefLiteral.FindAllStringSubmatch(folded, -1) {
-		u := m[1]
-		// A TRAILING INTERPOLATION THAT IS NOT ITS OWN SEGMENT is a query string
-		// or a fragment appended to the last segment — `'/rsc' + q` — not part of
-		// the path. `/api/x/{}` keeps its wildcard; `/api/x/rsc{}` loses it.
-		for strings.HasSuffix(u, "{}") && !strings.HasSuffix(u, "/{}") {
-			u = strings.TrimSuffix(u, "{}")
-		}
-		if r := normaliseRoute(u); r != "" {
+	for _, m := range hrefLiteral.FindAllStringSubmatch(foldInterpolation(body), -1) {
+		if r := normaliseRoute(trimTrailingInterpolation(m[1])); r != "" {
 			out = append(out, collapseWildcards(r))
 		}
 	}
 	return out
+}
+
+// templateExpr is `${expr}` inside a template literal.
+var templateExpr = regexp.MustCompile(`\$\{[^}]*\}`)
+
+// foldInterpolation turns every interpolated segment into `{}`, from either
+// spelling: `' + expr + '` and `${expr}`.
+func foldInterpolation(body string) string {
+	return templateExpr.ReplaceAllString(jsConcat.ReplaceAllString(body, "{}"), "{}")
+}
+
+// trimTrailingInterpolation: A TRAILING INTERPOLATION THAT IS NOT ITS OWN
+// SEGMENT is a query string or a fragment appended to the last segment,
+// `'/rsc' + q`, not part of the path. `/api/x/{}` keeps its wildcard;
+// `/api/x/rsc{}` loses it.
+func trimTrailingInterpolation(u string) string {
+	for strings.HasSuffix(u, "{}") && !strings.HasSuffix(u, "/{}") {
+		u = strings.TrimSuffix(u, "{}")
+	}
+	return u
 }
 
 func inAPIScope(u string) bool {
