@@ -46,7 +46,7 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
    '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
   { stdio: 'inherit' });
 
-const doc = makeDoc(['routers-grid']);
+const doc = makeDoc(['routers-grid'], { allowUnknown: ['rsTotal', 'rsOnline', 'rsOffline', 'rsAlerting', 'routersSiteFilter', 'routersSearch', 'routersShown'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, location: { pathname: '/devices' } };
 const page = require(OUT);

@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { makeDoc } from './dom-shim.js';
+import { makeDoc, RES_MODAL_IDS } from './dom-shim.js';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
@@ -51,7 +51,7 @@ function boot() {
   // module level, so a cached bundle would carry one case's tab into the next.
   delete require.cache[require.resolve(OUT)];
   const mod = require(OUT);
-  const doc = makeDoc(shellIds(mod.AREAS), { query: { '[data-res-add]': [], '[data-res-rows]': [] } });
+  const doc = makeDoc(shellIds(mod.AREAS), { allowUnknown: [...RES_MODAL_IDS], query: { '[data-res-add]': [], '[data-res-rows]': [] } });
   const handlers = {};
   const socket = { on: (ev, fn) => { handlers[ev] = fn; }, emit: () => {} };
   const prevDoc = global.document;

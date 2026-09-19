@@ -94,6 +94,8 @@ const IDL = [
  * @param {object}   [opts]
  * @param {string[]} [opts.pickSelectors]  selectors querySelectorAll must answer,
  *                                         matched against assigned innerHTML
+ * @param {string[]} [opts.allowUnknown]   lookups this test knowingly leaves
+ *                                         unanswered — see UNKNOWN LOOKUPS FAIL
  * 11. A <select>'s value follows its options — see the innerHTML setter.
  */
 function makeDoc(ids, opts) {
@@ -114,6 +116,7 @@ function makeDoc(ids, opts) {
   const listeners = {};
   const unknown = new Set();
   const parents = {};
+  watchUnknown(unknown, (opts || {}).allowUnknown || []);
 
   /** One shared node per parent NAME: two children of one element get one parent. */
   const parentFor = (name) => {
@@ -516,5 +519,39 @@ function withDocument(doc, fn) {
     if (prev === undefined) delete globalThis.document; else globalThis.document = prev;
   }
 }
+
+// ── UNKNOWN LOOKUPS FAIL THE TEST, UNLESS THE TEST SAYS WHICH ────────────────
+//
+// `getElementById` and friends RECORD an id nobody declared rather than throw,
+// so a page takes its not-found branch as a browser would. But nothing looked at
+// the record: a page whose markup id was renamed simply rendered nothing into a
+// node that no longer existed, and its test stayed green (review loop,
+// 2026-09-19). Now every document is checked when the test process exits, and a
+// lookup outside the document's ids and its `allowUnknown` list fails it. An
+// allowance is a written-down gap, usually another module's furniture (the
+// resource modal) that the bundle wires and this test does not exercise. An
+// entry ending in `*` allows every lookup starting with the rest.
+const watched: { unknown: Set<string>; allow: Set<string> }[] = [];
+function watchUnknown(unknown: Set<string>, allow: string[]): void {
+  if (watched.length === 0) {
+    process.on('exit', () => {
+      const missed = new Set<string>();
+      const allowed = (w: { allow: Set<string> }, u: string): boolean => w.allow.has(u) ||
+        [...w.allow].some((a) => a.endsWith('*') && u.startsWith(a.slice(0, -1)));
+      for (const w of watched) for (const u of w.unknown) if (!allowed(w, u)) missed.add(u);
+      if (missed.size > 0) {
+        console.error('dom-shim: the page looked up ' + missed.size + ' id(s)/selector(s) this ' +
+          'test neither declares nor allows: ' + [...missed].join(', ') +
+          '. Declare them, or add them to makeDoc\'s allowUnknown with the reason.');
+        process.exitCode = 1;
+      }
+    });
+  }
+  watched.push({ unknown, allow: new Set(allow) });
+}
+
+/** The resource modal's furniture: wired by any bundle that includes resource.ts. */
+export const RES_MODAL_IDS = ['res_previewBtn', 'res_save', 'res_dup', 'res_delete',
+  '[data-modal-close="resModal"]', 'resModal', 'res_warn'];
 
 export { makeDoc, withDocument };

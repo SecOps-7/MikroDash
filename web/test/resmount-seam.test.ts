@@ -32,7 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { makeDoc } from './dom-shim.js';
+import { makeDoc, RES_MODAL_IDS } from './dom-shim.js';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.rm-entry.ts');
@@ -56,8 +56,7 @@ const SCHEMA = (key, label) => ({ key, label, permitted: true, fields: [], title
  * them, through the real `res:schema` handler.
  */
 function run(slot, then, schemas, replayAfter) {
-  const doc = makeDoc(['fwAddSlot'], {
-    query: { '[data-res-add]': [{ id: 'fwAddSlot', value: slot }] },
+  const doc = makeDoc(['fwAddSlot'], { allowUnknown: [...RES_MODAL_IDS], query: { '[data-res-add]': [{ id: 'fwAddSlot', value: slot }] },
   });
   // The slot's attribute is what the code reads, and it must be REWRITABLE:
   // the whole point is a page changing it between renders.
@@ -179,7 +178,7 @@ const labels = (html) => [...html.matchAll(/data-res-addbtn="([^"]*)"/g)].map((m
 // which the server sends on every select including after a reconnect, asked
 // for them all again anyway.
 {
-  const doc = makeDoc(['fwAddSlot'], { query: { '[data-res-add]': [{ id: 'fwAddSlot', value: 'fwFilter' }] } });
+  const doc = makeDoc(['fwAddSlot'], { allowUnknown: [...RES_MODAL_IDS], query: { '[data-res-add]': [{ id: 'fwAddSlot', value: 'fwFilter' }] } });
   doc.queryNodes['[data-res-add]'][0].getAttribute = (k) => (k === 'data-res-add' ? 'fwFilter' : null);
   const emits = [];
   const handlers = {};

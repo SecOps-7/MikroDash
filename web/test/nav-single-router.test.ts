@@ -49,7 +49,7 @@ const SEL = '.nav-item[data-page="devices"]';
 
 /** A document holding one Devices nav item, and nothing else of note. */
 function boot() {
-  const doc = makeDoc([], { query: { [SEL]: [{ id: 'nav-devices' }], '.nav-group': [] } });
+  const doc = makeDoc([], { allowUnknown: ['acctMyAlerts', '.nav-item[data-page=*'], query: { [SEL]: [{ id: 'nav-devices' }], '.nav-group': [] } });
   const prevDoc = global.document;
   const prevWin = global.window;
   global.document = doc;

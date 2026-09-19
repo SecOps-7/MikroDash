@@ -32,7 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { makeDoc } from './dom-shim.js';
+import { makeDoc, RES_MODAL_IDS } from './dom-shim.js';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
@@ -87,7 +87,7 @@ function boot() {
   // Declaring them keeps the unknown-id check below meaningful: it should catch
   // an id the PAGE reads and this test forgot, not a selector belonging to
   // machinery this test is not driving.
-  const doc = makeDoc(IDS, { query: { '[data-res-add]': [], '[data-res-rows]': [] } });
+  const doc = makeDoc(IDS, { allowUnknown: [...RES_MODAL_IDS, '[data-ppptab]'], query: { '[data-res-add]': [], '[data-res-rows]': [] } });
   const handlers = {};
   const socket = { on: (ev, fn) => { handlers[ev] = fn; }, emit: () => {} };
   const prevDoc = global.document;

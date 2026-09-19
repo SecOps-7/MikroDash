@@ -57,7 +57,7 @@ function client(over) {
 }
 
 function boot() {
-  const doc = makeDoc(IDS);
+  const doc = makeDoc(IDS, { allowUnknown: ['faModal', 'faOpenBtn', 'wlBand24', 'wlBand5', 'wlBand6'] });
   const handlers = {};
   const socket = { on: (ev, fn) => { handlers[ev] = fn; }, emit: () => {} };
   const prevDoc = global.document;

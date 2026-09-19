@@ -76,7 +76,7 @@ function row(over) {
 }
 
 function boot(rows, summary) {
-  const doc = makeDoc(IDS);
+  const doc = makeDoc(IDS, { allowUnknown: ['bkRouterName'] });
   const handlers = {};
   const socket = { on: (ev, fn) => { handlers[ev] = fn; }, emit: () => {} };
   const prevDoc = global.document;

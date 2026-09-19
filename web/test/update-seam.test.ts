@@ -95,7 +95,7 @@ function fakeClock() {
 
 function run(payload, o) {
   const opts = o || {};
-  const doc = makeDoc(IDS, {});
+  const doc = makeDoc(IDS, { allowUnknown: ['uptimeDisplay', 'uptimeChip', 'gaugeRow', 'sysMeta', 'sysMetaTemp', 'upd_notes', 'upd_pending'] });
   const emits = [];
   const handlers = {};
   const prev = { doc: globalThis.document, win: globalThis.window };

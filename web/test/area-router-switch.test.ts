@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { makeDoc } from './dom-shim.js';
+import { makeDoc, RES_MODAL_IDS } from './dom-shim.js';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.area-switch-entry.ts');
@@ -28,7 +28,7 @@ const mod = require(OUT);
 const KEY = 'ip-pools';
 const ids = mod.AREAS.flatMap((a) => ['areaBody-', 'areaBadge-', 'areaTabs-', 'areaAdd-', 'areaGroupTable-', 'areaGroupNote-']
   .map((p) => p + a.key));
-const doc = makeDoc(ids, { query: { '[data-res-add]': [], '[data-res-rows]': [] } });
+const doc = makeDoc(ids, { allowUnknown: [...RES_MODAL_IDS], query: { '[data-res-add]': [], '[data-res-rows]': [] } });
 const handlers = {};
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };

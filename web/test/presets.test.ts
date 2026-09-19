@@ -56,8 +56,7 @@ say('ok  Home unchanged; Standard adds the six; Advanced is every page; each tie
 
 // ── VISIBLE PAGES: A PRESET SETS THE GENERATED TOGGLES, AND IS RECOGNISED ────
 const navIds = Object.keys(mod.PAGE_NAV_MAP).map((k) => 's_' + k);
-const doc = makeDoc(['viewPresetWrap', ...navIds], {
-  query: { 'input[data-area-toggle]': mod.AREAS.map((a) => a.key) },
+const doc = makeDoc(['viewPresetWrap', ...navIds], { allowUnknown: ['.view-preset-btn'], query: { 'input[data-area-toggle]': mod.AREAS.map((a) => a.key) },
 });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, localStorage: { getItem: () => null, setItem: () => {} } };
