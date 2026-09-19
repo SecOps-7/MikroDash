@@ -46,14 +46,35 @@ func TestEveryHoldReasonIsTaken(t *testing.T) {
 			"so the scan has stopped matching and this gate checks nothing", len(declared))
 	}
 
-	// And who takes them. `Retain` is the only way a hold is set.
+	// And who takes them. `Retain` is the only way a hold is set: `holdOne`'s
+	// table, by name, and any literal `Retain(id, "<reason>")` elsewhere.
+	//
+	// THE TABLE IS READ AS THE TABLE. This scanned every `{"x",` literal in the
+	// package and then kept only four hard-coded words (`isHoldish`) so as not to
+	// fire on unrelated struct literals, which meant a new hold reason taken and
+	// never read could not fail the reverse check below. (Fleet holds use a
+	// generated per-request name through a variable and read no reason, on
+	// purpose: they keep a connection up for one request.)
 	dir := filepath.Join(root, "internal", "server")
+	holdsSrc := stripGoComments(mustRead(t, filepath.Join(dir, "fleet_holds.go")))
+	start := strings.Index(holdsSrc, "func (s *Server) holdOne(")
+	if start < 0 {
+		t.Fatal("fleet_holds.go has no holdOne; this gate no longer knows where holds are taken")
+	}
+	body := holdsSrc[start:]
+	if end := strings.Index(body, "\n}\n"); end > 0 {
+		body = body[:end]
+	}
 	taken := map[string]bool{}
+	for _, m := range regexp.MustCompile(`\{"(\w+)",`).FindAllStringSubmatch(body, -1) {
+		taken[m[1]] = true
+	}
+	if len(taken) < 3 {
+		t.Fatalf("read %d hold reasons out of holdOne's table; there are at least three, so "+
+			"the scan has stopped matching", len(taken))
+	}
 	for _, name := range goFilesIn(t, dir) {
 		src := stripGoComments(mustRead(t, filepath.Join(dir, name)))
-		for _, m := range regexp.MustCompile(`\{"(\w+)",`).FindAllStringSubmatch(src, -1) {
-			taken[m[1]] = true
-		}
 		for _, m := range regexp.MustCompile(`Retain\([^,]+,\s*"(\w+)"\)`).FindAllStringSubmatch(src, -1) {
 			taken[m[1]] = true
 		}
@@ -77,7 +98,7 @@ func TestEveryHoldReasonIsTaken(t *testing.T) {
 	// session alive and runs nothing, which is a connection held for no purpose.
 	var unread []string
 	for reason := range taken {
-		if !declared[reason] && isHoldish(reason) {
+		if !declared[reason] {
 			unread = append(unread, reason)
 		}
 	}
@@ -86,17 +107,6 @@ func TestEveryHoldReasonIsTaken(t *testing.T) {
 		t.Errorf("%v are taken as holds and `reasonsLocked` reads none of them, so each "+
 			"keeps a session alive and runs nothing", unread)
 	}
-}
-
-// isHoldish keeps the reverse check from firing on every two-field struct
-// literal in the package. Only the words that appear beside a hold reason count.
-func isHoldish(s string) bool {
-	for _, r := range []string{"alerts", "history", "warm", "devices"} {
-		if strings.EqualFold(s, r) {
-			return true
-		}
-	}
-	return false
 }
 
 // TestEveryStatsRouterFieldIsPopulated.
