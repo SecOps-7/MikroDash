@@ -6,8 +6,9 @@
  * - A scan in flight shows progress and disables Rescan; the end of it enables
  *   it again.
  * - A refused Rescan says why and keeps the report on the card.
- * - A frame about another router is dropped after a switch, and the switch
- *   resets the card to waiting.
+ * - A frame about another router is not drawn; a switch draws that router's
+ *   last frame, even one sent before the switch was announced (the server's
+ *   order), or waits when there is none.
  * - Rescan sends one `secscore:scan`; Open goes to the Security Scan page.
  */
 
@@ -86,6 +87,18 @@ assert.notStrictEqual(n['dc-secVal'].textContent, '13', 'a frame about the route
 handlers['secscore:state'](state({ routerId: 'r2', score: 55 }));
 assert.strictEqual(n['dc-secVal'].textContent, '55');
 assert.strictEqual(n['dc-secLabel'].textContent, 'At risk · 3 issues');
+
+// THE NEW ROUTER'S STATE BEFORE THE SWITCH: the server sends it as part of the
+// move and announces the switch after. Found live: the card dropped it and
+// then waited for ever.
+handlers['secscore:state'](state({ routerId: 'r3', score: 44, issues: 7 }));
+assert.strictEqual(n['dc-secVal'].textContent, '55', 'a frame for a router not yet selected was drawn');
+handlers['router:switched']({ activeId: 'r3' });
+assert.strictEqual(n['dc-secVal'].textContent, '44', 'the new router\'s state, sent before the switch, was lost');
+assert.strictEqual(n['dc-secLabel'].textContent, 'At risk · 7 issues');
+// And back: r2's last state is drawn at once, not "waiting".
+handlers['router:switched']({ activeId: 'r2' });
+assert.strictEqual(n['dc-secVal'].textContent, '55', 'switching back did not draw r2\'s last state');
 
 // RESCAN sends one request; OPEN goes to the page.
 n['dc-secRescan'].fire('click');

@@ -28,9 +28,19 @@ const REFUSED: Record<string, string> = {
   unavailable: 'No router is connected.',
 };
 
-/** The router the card is showing; a frame about another is dropped. */
+/** The router the card is showing; a frame about another is not drawn. */
 let routerId = '';
 let last: SecScorePayload | null = null;
+
+// ── THE NEW ROUTER'S STATE ARRIVES BEFORE THE SWITCH IS ANNOUNCED ──────────
+//
+// The server rejoins the card's room, and sends it the new router's state, as
+// part of the move, and announces `router:switched` after it (see switchRouter
+// in main.ts). Dropping that frame as another router's and then resetting on
+// the switch left the card waiting for ever (found live, 2026-09-19). So the
+// latest frame of every router is kept, and a switch draws the new router's if
+// it is already here.
+const latest: Record<string, SecScorePayload> = {};
 
 function setText(id: string, v: string): void {
   const e = el(id);
@@ -61,9 +71,15 @@ export function secScoreMeta(d: SecScorePayload): string {
 }
 
 export function renderSecScoreCard(d: SecScorePayload): void {
-  if (routerId && d.routerId && d.routerId !== routerId) return;
   // A refusal of Rescan keeps the report already on the card.
-  if (d.code && d.code !== 'failed' && last?.has) d = { ...last, code: d.code, running: false };
+  const kept = d.routerId ? latest[d.routerId] : last;
+  if (d.code && d.code !== 'failed' && kept?.has) d = { ...kept, code: d.code, running: false };
+  if (d.routerId) latest[d.routerId] = d;
+  if (routerId && d.routerId && d.routerId !== routerId) return;
+  draw(d);
+}
+
+function draw(d: SecScorePayload): void {
   last = d;
   const card = el('dc-secScore');
   const g = d.has ? scoreGrade(d.score) : '';
@@ -107,7 +123,9 @@ export function initSecScoreCard(socket: Socket): void {
   socket.on('secscore:state', (d) => renderSecScoreCard(d));
   socket.on('router:switched', (d) => {
     routerId = d.activeId;
-    reset();
+    const known = latest[routerId];
+    if (known) draw(known);
+    else reset();
   });
   el('dc-secRescan')?.addEventListener('click', () => {
     const btn = el<HTMLButtonElement>('dc-secRescan');

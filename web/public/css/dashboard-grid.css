@@ -487,7 +487,7 @@ html[data-theme="light"] #dashAddPanel {
   display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
   padding: .75rem 1rem; height: 100%; overflow: hidden;
 }
-#dc-card-secscore .dc-sec-score { flex: 0 0 auto; width: min(132px, 42%); min-width: 96px; }
+#dc-card-secscore .dc-sec-score { flex: 0 0 auto; width: min(132px, 42%); min-width: 96px; background: none; }
 #dc-card-secscore .dc-sec-score .sec-ring-wrap { width: 100%; }
 #dc-card-secscore .dc-sec-score .sec-score-num { font-size: 1.7rem; }
 #dc-card-secscore .dc-sec-side { flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; gap: .5rem; }
