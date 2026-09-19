@@ -16,7 +16,7 @@ for what a ported collector has to cover.
 
 | Kind | Count |
 |---|---|
-| read | 76 |
+| read | 75 |
 | stream | 16 |
 | write | 12 |
 | action | 16 |
@@ -89,7 +89,6 @@ for what a ported collector has to cover.
 | `/ppp/profile/print` | src/collectors/ppp.js |
 | `/queue/simple/print` | src/collectors/queues.js |
 | `/queue/tree/print` | src/collectors/queues.js |
-| `/routing/bgp/peer/print` | src/collectors/routing.js |
 | `/routing/bgp/session/print` | src/collectors/routing.js |
 | `/system/health/print` | src/collectors/system.js |
 | `/system/identity/print` | internal/server/routers_identity.go |

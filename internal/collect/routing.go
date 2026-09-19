@@ -441,7 +441,12 @@ func (r *Routing) loadRoutes() {
 // both tables on every alert tick for every router.
 // The route tables are the SLOW lane; the BGP menus are the fast one. Tick 0
 // reads both, so the first payload is never missing its routes.
-func (r *Routing) derive(rows []routeros.Reply, _ error, slow bool) (*RoutingPayload, string) {
+func (r *Routing) derive(rows []routeros.Reply, err error, slow bool) (*RoutingPayload, string) {
+	// A FAILED READ KEEPS THE LAST PAYLOAD. It read as "no sessions", so a
+	// timeout blanked the peers for a tick. A menu that is not there is empty.
+	if err != nil && !menuGone(err) {
+		return nil, ""
+	}
 	if !r.bgpOnly && slow {
 		r.loadRoutes()
 	}
@@ -460,7 +465,12 @@ func (r *Routing) reset() {}
 // constructs it plainly and only the pool asks for the narrow mode.
 func (r *Routing) BGPOnly() *Routing { r.bgpOnly = true; return r }
 
-// loadBGP reads the v7 session menu, falling back to the legacy peer menu.
+// loadBGP takes the v7 session rows.
+//
+// NO LEGACY FALLBACK. It read `/routing/bgp/peer/print` whenever the session
+// table was empty, which is every tick on a router without BGP; that menu does
+// not exist in RouterOS v7 (7.1.1 onwards), and this app is v7-only, so it was
+// one refused command per tick per router.
 //
 // UNVERIFIED BY ANY FIXTURE — see the package note. None of the three routers
 // runs BGP, so what is proven here is the shape of the transform, by the unit
@@ -476,13 +486,6 @@ var routingBgpCmd = routeros.Cmd{
 }
 
 func (r *Routing) loadBGP(rows []routeros.Reply) {
-	if len(rows) == 0 {
-		rows = r.safeRead(routeros.Cmd{
-			Path: "/routing/bgp/peer/print",
-			Args: []string{"=.proplist=name,remote-address,remote-as,state,uptime," +
-				"prefix-count,updates-sent,updates-received,last-error,inactive-reason,hold-time,keepalive-time"},
-		})
-	}
 	r.sessions = map[string]routeros.Reply{}
 	r.sessionOrder = r.sessionOrder[:0]
 	for _, row := range rows {
