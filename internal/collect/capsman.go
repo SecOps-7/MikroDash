@@ -1019,7 +1019,9 @@ func (c *Capsman) reset() { c.managerAvail, c.capAvail, c.v1Avail = nil, nil, ni
 
 // build reads the menus that accompany the registration table and derives the payload.
 func (c *Capsman) build(reg []routeros.Reply) (*CapsmanPayload, string) {
-	remote := c.read(capsRemoteCmd, nil)
+	// THROUGH THE CACHE, as topology reads it: two collectors on one menu share
+	// one read. It went past the cache while topology's comment said otherwise.
+	remote, _ := readVia(c.cache, c.ros, capsRemoteCmd, c.pollMs.duration())
 	radios := c.read(capsRadioCmd, nil)
 	// THROUGH THE CACHE. Four collectors read each of these two menus, more
 	// than any other in the tree. `read`'s availability latch is not wanted
@@ -1036,7 +1038,7 @@ func (c *Capsman) build(reg []routeros.Reply) (*CapsmanPayload, string) {
 	// a manager it does not have.
 	legacy := c.v1Avail != nil && *c.v1Avail
 	if legacy {
-		v1Remote = c.read(capsV1RemoteCmd, nil)
+		v1Remote, _ = readVia(c.cache, c.ros, capsV1RemoteCmd, c.pollMs.duration())
 		v1Radios = c.read(capsV1RadioCmd, nil)
 		v1Ifaces, _ = readVia(c.cache, c.ros, capsV1IfaceCmd, c.pollMs.duration())
 		v1Reg, _ = readVia(c.cache, c.ros, capsV1RegCmd, c.pollMs.duration())
