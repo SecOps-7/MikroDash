@@ -1187,3 +1187,23 @@ func TestTheTokenBudgetSettingReachesTheChat(t *testing.T) {
 		}
 	}
 }
+
+// TestThePromptsDescribeTheToolsTheModelHas. The preamble said the model could
+// not "reboot, back up or upgrade the device" while run_action offered exactly
+// those, and called change_row "the only tool that changes anything". A model
+// that believes the preamble refuses the operator's request for a backup; one
+// that believes the tool list learns the preamble is unreliable (review loop).
+func TestThePromptsDescribeTheToolsTheModelHas(t *testing.T) {
+	for name, text := range map[string]string{
+		"aiSafetyPreamble": aiSafetyPreamble, "AIDefaultSystemPrompt": AIDefaultSystemPrompt,
+	} {
+		if !strings.Contains(text, aitools.ActionToolName) {
+			t.Errorf("%s never mentions %s, which the model is given", name, aitools.ActionToolName)
+		}
+		for _, lie := range []string{"back up or upgrade", "only tool that changes anything"} {
+			if strings.Contains(text, lie) {
+				t.Errorf("%s still says %q", name, lie)
+			}
+		}
+	}
+}

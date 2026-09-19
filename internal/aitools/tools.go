@@ -123,7 +123,8 @@ const (
 	AccessWrite = "write"
 )
 
-// WriteToolName is the ONE tool that changes anything.
+// WriteToolName is the ONE tool that changes a row. (`run_action` performs a
+// declared action, always through the operator; see actions.go.)
 //
 // ── ONE, NOT ONE PER RESOURCE ───────────────────────────────────────────────
 //
