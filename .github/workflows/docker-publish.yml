@@ -5,7 +5,10 @@ on:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      # THREE NUMBERS, not `v*.*.*`: that glob also matched `vfoo.bar.baz`, for
+      # which the semver tags below come out empty while `latest` (enabled for
+      # any refs/tags/v…) was still pushed, moving it to an unversioned build.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
 
 env:
