@@ -1,27 +1,10 @@
 package notify
 
-// ── THESE ARE COMPLETE AND DELIBERATELY UNWIRED ─────────────────────────────
+// ── WHO SENDS ───────────────────────────────────────────────────────────────
 //
-// Nothing calls `Send`, and that is a cutover constraint rather than an
-// oversight. Two things stand between here and a caller:
-//
-//  1. THE CALLER IS NOT PORTED. `src/alerter.js` is 692 lines and EVENT-DRIVEN —
-//     `evaluate(event, data)` runs per collector event, not on a timer. This
-//     port's `internal/alert` holds the formatting and the row shaping, none of
-//     the decision.
-//
-//  2. WIRING IT WHILE NODE RUNS WOULD SEND EVERYTHING TWICE. Both apps run
-//     collectors against the same routers and would evaluate the same
-//     conditions, and the cooldown that might have interlocked them is an
-//     IN-MEMORY Map (`_deliver`'s `cooldownMap`) rather than a shared row — so
-//     neither engine sees the other's sends.
-//
-// That last point is why this blocker is worse than the settings one. A reverted
-// write is a lost edit; a duplicated notification is outbound, and an operator
-// cannot un-receive two of every alert from the system that exists to tell them
-// when something is wrong.
-//
-// The port record notes it; CLAUDE.md carries it as cutover blocker 5.
+// `Send` is called by internal/alertdispatch for alert notifications, which run
+// only when the process is started with `-alert-dispatch` (the image passes
+// it), and the Test buttons reach the transports through test_notif_api.go.
 
 import (
 	"bytes"
@@ -147,7 +130,6 @@ func Send(ctx context.Context, c Doer, s Settings, mail Mailer, title, body stri
 			if err != nil {
 				return err
 			}
-			// FALSE: ntfy's failures carry no reason. See Post.
 			return Post(ctx, c, r)
 		})
 	}

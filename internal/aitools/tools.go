@@ -14,12 +14,13 @@
 // assistant can call, and `cmd/toolgen` plus the ledger in internal/verify make
 // a resource with no tool, or a tool naming no resource, a build failure.
 //
-// ── ONE TOOL WRITES, AND IT IS NAMED ────────────────────────────────────────
+// ── THE WRITERS ARE NAMED ───────────────────────────────────────────────────
 //
-// Every tool here is a LIST except exactly one, `change_row`. There is still no
-// `Action` — `resource.Action` carries a `Verb` that becomes a RouterOS command
-// under the resource's menu, so an action is a command the model would be
-// choosing, and it is excluded by name rather than by convention.
+// Every tool here reads, except `change_row` and `run_action` (actions.go). No
+// tool is generated from a `resource.Action`: its `Verb` becomes a RouterOS
+// command under the resource's menu, so an action would be a command the model
+// chose. `run_action` instead names one of a fixed catalogue of page actions,
+// each with its own handler, and always goes to the operator first.
 //
 // `change_row` proposes a change to one row of one declared resource. It cannot
 // name a menu, cannot send a command, and reaches the router only through the
@@ -64,9 +65,9 @@ const namePrefix = "list_"
 type Tool struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	// Parameters is a JSON Schema object. Every tool here takes NO arguments:
-	// the resource decides the menu, and a model that could pass a menu could
-	// pass one this app never declared.
+	// Parameters is a JSON Schema object. A list tool takes NO arguments: the
+	// resource decides the menu, and a model that could pass a menu could pass
+	// one this app never declared. A diagnostic and the writers declare theirs.
 	Parameters map[string]any `json:"parameters"`
 
 	// Resource is the registry key this tool reads. Not sent to the model —

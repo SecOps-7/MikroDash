@@ -1,9 +1,6 @@
-// Package notify holds the notifier's pure decisions — the port of the two
-// functions in `src/notifier.js` that can be reached without sending anything.
-//
-// The transports (Telegram, Pushbullet, SMTP, ntfy) are NOT ported. What is here
-// is the part that decides whether there is anywhere to send, and the part that
-// turns a failed send into a sentence somebody can act on.
+// Package notify is the notifier: the transports (Telegram, Pushbullet, SMTP,
+// ntfy, in send.go), the decision whether there is anywhere to send, and the
+// part that turns a failed send into a sentence somebody can act on.
 //
 // ── WHY "IS ANY CHANNEL ACTIVE?" IS ONE QUESTION AND NOT TWO ────────────────
 //

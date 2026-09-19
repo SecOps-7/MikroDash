@@ -2,18 +2,10 @@ package server
 
 // The report read endpoints: ping, traffic, bandwidth, alerts and connectivity.
 //
-// ── THEY LIVE UNDER /next/, NOT /api/ ───────────────────────────────────────
+// ── HTTP, NOT THE WEBSOCKET ─────────────────────────────────────────────────
 //
-// This is the first HTTP JSON API in the Go server — every other ported page is
-// fed over the WebSocket, and every /api/* path still proxies to Node. Reports
-// is request/response rather than streamed, so it needs one.
-//
-// Registering them at `/api/reports/*` would work and would be WRONG for now:
-// the LIVE Reports page is still served by Node through this proxy, so those
-// routes would silently move a page nobody has ported onto an implementation
-// nobody has compared. The strangler rule is that a page and its endpoints cut
-// over together. These sit at `/next/api/reports/*` until the page lands, at
-// which point the prefix comes off in one commit that can be reverted in one.
+// Most pages are fed over the WebSocket. Reports is request/response rather than
+// streamed, so its endpoints are HTTP, at `/api/reports/*`.
 //
 // ── THE GATE IS THE reports PAGE GRANT, AND THAT IS NOT A SHORTCUT ──────────
 //
@@ -52,7 +44,7 @@ import (
 	"mikrodash/internal/reports"
 )
 
-// reportsPrefix is where these hang until the page cuts over.
+// reportsPrefix is where the report endpoints are served.
 const reportsPrefix = "/api/reports/"
 
 // registerReports adds the read endpoints to a mux.
@@ -63,16 +55,13 @@ func (s *Server) registerReports(mux *http.ServeMux) {
 	mux.HandleFunc(reportsPrefix+"alerts", s.reportHandler(s.reportAlerts))
 	mux.HandleFunc(reportsPrefix+"connectivity", s.reportHandler(s.reportConnectivity))
 	mux.HandleFunc(reportsPrefix+"schedules", s.reportHandler(s.reportSchedules))
-	// The run history. `{id}` is a ServeMux wildcard, which keeps the URL the
-	// same shape the live app uses — one less thing for the page to special-case
-	// when these endpoints eventually move to /api/.
+	// The run history. `{id}` is a ServeMux wildcard.
 	mux.HandleFunc(reportsPrefix+"schedules/{id}/runs", s.reportHandler(s.reportScheduleRuns))
 	// The five exports are registered by NAME rather than as `{kind}/export`.
 	//
-	// A consequence worth knowing: an UNKNOWN report type is not a 404 from here
-	// — `/next/api/reports/nonsense/export` matches no export route and falls
-	// through to the SPA catch-all, which answers 200 with index.html like any
-	// other unknown /next/ path. Nothing constructs such a URL, and special-casing
+	// A consequence worth knowing: an UNKNOWN report type is not answered from
+	// here. `/api/reports/nonsense/export` matches no export route and is answered
+	// as any unmatched path is. Nothing constructs such a URL, and special-casing
 	// it would mean one route existing only to say no.
 	// A wildcard there conflicts with `schedules/{id}` — both match
 	// `/schedules/export` and neither is more specific, so ServeMux panics at

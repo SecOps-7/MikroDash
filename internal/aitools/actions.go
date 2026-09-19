@@ -11,12 +11,12 @@ import (
 // ── WHY A SECOND WRITER, AND ONLY ONE MORE ──────────────────────────────────
 //
 // `change_row` covers everything that IS a row: a queue, a user, a firewall
-// rule. These five are not rows. Renewing a DHCP lease, taking a backup,
-// scheduling a package change, applying those changes and upgrading RouterBOOT
-// are VERBS the pages already offer, each with its own handler, its own audit
+// rule. These are not rows. Renewing a DHCP lease, taking a backup, scheduling
+// a package change, applying those changes, upgrading RouterBOOT, a torch run
+// and the container verbs are VERBS the pages already offer, each with its own handler, its own audit
 // row and — for the two that reboot — its own typed-back router name. They have
 // no menu to write and nothing to read back, so `change_row` cannot express
-// them, and one tool per verb would put five more descriptions on every request.
+// them, and one tool per verb would put a description each on every request.
 //
 // ── EVERY CALL IS A PROPOSAL ────────────────────────────────────────────────
 //

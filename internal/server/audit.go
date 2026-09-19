@@ -101,9 +101,9 @@ func clientIPOf(r *http.Request) string {
 	return trustedproxy.Client(r.RemoteAddr, r.Header.Values("X-Forwarded-For"), trusted)
 }
 
-// trustedProxies is the parsed `trustedProxies` setting. Package level because
-// the rate limiters resolve a client without a Server; replaced whole, never
-// mutated, by refreshTrustedProxies. Empty trusts nothing.
+// trustedProxies are the peers whose X-Forwarded-For is believed, stored once in
+// New from Options.TrustedProxies. Package level because the rate limiters
+// resolve a client without a Server. Empty trusts nothing.
 var trustedProxies atomic.Pointer[[]netip.Prefix]
 
 // auditValues masks every secret-typed field BY TYPE, before anything is diffed.

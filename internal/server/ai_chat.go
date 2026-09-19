@@ -35,14 +35,15 @@ import (
 // object and no path that assembles one: the assistant cannot become a way to
 // read a page the permission matrix refuses.
 //
-// ── READ-ONLY TOOLS, AND THE BOUNDARY IS STRUCTURAL ─────────────────────────
+// ── THE TOOLS, AND THE BOUNDARY IS STRUCTURAL ───────────────────────────────
 //
-// The model may call tools, and every one of them is a LIST — `internal/aitools`
-// builds the catalogue from the resource registry and excludes `resource.Action`
-// by name, so there is nothing to advertise that mutates. If the model suggests a
-// RouterOS command, that command is text on a page for a human to read. Nothing
-// reachable from here can change a router, which is why this slice still needs
-// no confirmation dialog and no write audit.
+// The catalogue `internal/aitools` builds is list tools, live readers and
+// diagnostics, plus two writers: `change_row` (one row of a declared resource,
+// through the form's pipeline; ai_write.go) and `run_action` (a declared page
+// action, always proposed; ai_action.go). `run_command` and `bulk_execute` are
+// never advertised and are answered by name behind the raw-command gates
+// (ai_raw.go). Nothing the model writes reaches a router except through one of
+// those three files, each with its permission check, confirmation and audit.
 //
 // ── THE REPLY BUDGET IS THE OPERATOR'S ──────────────────────────────────────
 //
@@ -655,9 +656,9 @@ func freshenFor(rs *session.Session, now int64) []string {
 // cannot be removed from the tab.
 //
 // IT IS STILL NOT THE SECURITY BOUNDARY. That is structural and lives elsewhere:
-// every tool is a list, generated from the resource registry with
-// `resource.Action` excluded BY NAME, and `runAITool` re-checks the page
-// permission before reading. A prompt is what makes an ordinary model behave
+// the catalogue is generated from the resource registry, `runAITool` re-checks
+// the page permission before reading, and the writers (ai_write.go,
+// ai_action.go, ai_raw.go) check permission, propose and audit. A prompt is what makes an ordinary model behave
 // well; none of it survives a model that does not. But a preamble a form can
 // delete is not even a mitigation, which is why this one cannot be.
 const aiSafetyPreamble = `You are an assistant built into MikroDash, a dashboard for MikroTik RouterOS devices.
