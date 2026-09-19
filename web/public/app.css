@@ -2297,6 +2297,7 @@
     .apps-modal-card h4{margin:0 0 .5rem;color:var(--text-main)}
     .apps-modal-card p{font-size:.8rem;color:var(--text-muted)}
     .apps-modal-card label{display:flex;flex-direction:column;gap:.3rem;font-size:.74rem;color:var(--text-muted)}
+    .apps-modal-card label code{font-family:var(--font-mono);color:var(--text-main);background:rgba(99,130,190,.12);padding:.05rem .35rem;border-radius:5px}
     .apps-modal-card input{background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);border-radius:8px;padding:.45rem .6rem}
     .apps-modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.9rem}
     @media (prefers-reduced-motion: reduce){

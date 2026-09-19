@@ -203,6 +203,11 @@ assert.strictEqual(c.monogram('home-assistant'), 'HA');
 assert.strictEqual(c.monogram('librespeed'), 'LI');
 assert.deepStrictEqual(c.ports({ ports: '8123:8123:tcp:web, 53:53:udp' }), ['8123 web', '53']);
 assert.strictEqual(c.credentials({ defaultCredentials: 'None' }), '');
+assert.strictEqual(c.size('165757560'), '158.1 MB', 'a size is not shown for a human');
+assert.strictEqual(c.size('12%'), '12%', 'a value that is not a byte count was reformatted');
+const drawn = c.drawer(app('librespeed', 'running', { memory: '17432576', appSize: '165757560', dataSize: '88629' }), true, undefined);
+assert.ok(drawn.includes('16.6 MB') && drawn.includes('158.1 MB') && drawn.includes('86.6 KB') && !drawn.includes('165757560'),
+  'the drawer shows raw byte counts');
 assert.deepStrictEqual(c.tileHues({ name: 'a', category: 'x' }), c.tileHues({ name: 'a', category: 'x' }), 'a tile is not stable');
 console.log('ok  the Apps tab: cards, filters, install, progress, remove, permissions, setup and router switches');
 fs.rmSync(OUT, { force: true });

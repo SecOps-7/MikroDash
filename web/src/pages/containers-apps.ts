@@ -155,7 +155,7 @@ export function initContainersApps(socket: Socket): void {
     m.innerHTML = '<div class="apps-modal-card" role="dialog" aria-modal="true">' +
       '<h4>Remove ' + esc(removing) + '?</h4>' +
       '<p>This stops the app and <b>permanently deletes its data</b> and its image. It cannot be undone.</p>' +
-      '<label>Type <code>' + esc(removing) + '</code> to confirm<input type="text" id="appsConfirm" autocomplete="off" spellcheck="false"></label>' +
+      '<label><span>Type <code>' + esc(removing) + '</code> to confirm</span><input type="text" id="appsConfirm" autocomplete="off" spellcheck="false"></label>' +
       '<div class="apps-modal-actions"><button type="button" class="apps-btn" data-apps-cancel>Cancel</button>' +
       '<button type="button" class="apps-btn is-danger" id="appsRemove" data-apps-remove disabled>Remove app</button></div></div>';
     m.hidden = false;

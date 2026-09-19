@@ -15,7 +15,7 @@
 // MikroDash self-hosts its assets, so a tile is the app's initials on a gradient
 // picked from its category: the same app always looks the same.
 
-import { esc } from '../dom';
+import { esc, fmtBytes } from '../dom';
 import type { AppRow } from '../gen/payloads';
 
 /** A web address to link to, or '' when the value is not one. */
@@ -76,6 +76,12 @@ export function ports(a: Pick<AppRow, 'ports'>): string[] {
     const f = p.split(':');
     return f[0] + (f[3] ? ' ' + f[3] : '');
   });
+}
+
+/** A byte count as the router gives it ("165757560"), for a human; anything
+ *  that is not a plain number is shown as it came. */
+export function size(v: string): string {
+  return /^\d+$/.test(v) ? fmtBytes(Number(v)) : v;
 }
 
 /** Default credentials worth showing: not empty, not "none". */
@@ -147,8 +153,8 @@ export function drawer(a: AppRow, may: boolean, pending: Pending | undefined): s
     (page ? '<a class="apps-link" href="' + esc(page) + '" target="_blank" rel="noopener noreferrer">Project page ↗</a>' : '') +
     '<div class="apps-kvs">' + row('State', STATE_WORD[a.state] || a.state) + row('Status', a.status) +
     row('Network', a.defaultNetwork === 'lan' ? 'On the LAN' : a.defaultNetwork ? 'Behind NAT (internal)' : '') +
-    row('Ports', ports(a).join(', ')) + row('Default login', credentials(a)) + row('Memory', a.memory) +
-    row('CPU', a.cpu) + row('Image size', a.appSize) + row('Data size', a.dataSize) + '</div>' +
+    row('Ports', ports(a).join(', ')) + row('Default login', credentials(a)) + row('Memory', size(a.memory)) +
+    row('CPU', a.cpu) + row('Image size', size(a.appSize)) + row('Data size', size(a.dataSize)) + '</div>' +
     '<div class="apps-card-actions">' + actions(a, may, pending) + '</div>';
 }
 
