@@ -203,6 +203,10 @@ type Traffic struct {
 	defaultIf string
 	maxPoints int
 
+	// syncMu serialises joining and releasing the shared channel: see
+	// syncStream. Never taken while holding mu.
+	syncMu sync.Mutex
+
 	// cache is where the channel lives. `traffic` used to open a raw stream of
 	// its own; it is one holder of a SHARED fill now — see
 	// internal/collect/monitortraffic.go.
@@ -363,6 +367,8 @@ func (t *Traffic) Stop() {
 // the interface set is unchanged, so a restart that left the key in place would
 // close the stream and decline to reopen it.
 func (t *Traffic) stopStream() {
+	t.syncMu.Lock()
+	defer t.syncMu.Unlock()
 	t.mu.Lock()
 	stop := t.stop
 	t.stop, t.streamKey = nil, ""
@@ -457,10 +463,17 @@ func (t *Traffic) ifaceListLocked() []string {
 }
 
 // syncStream restarts the stream when the interface set has changed.
+//
+// SERIALISED BY syncMu, because it decides under t.mu and joins outside it:
+// two watchers arriving together each joined, the second overwrote the first's
+// release, and the first holder kept its interfaces in the merged channel for
+// the life of the session.
 func (t *Traffic) syncStream() {
 	if !t.ros.Connected() || t.cache == nil {
 		return
 	}
+	t.syncMu.Lock()
+	defer t.syncMu.Unlock()
 
 	t.mu.Lock()
 	names := t.ifaceListLocked()
