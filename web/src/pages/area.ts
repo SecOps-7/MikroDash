@@ -45,7 +45,8 @@ import { actionBadge } from './firewall';
 import type { Socket } from '../socket';
 import type { AreaPayload, AreaTable, AreaGroupRowsPayload } from '../gen/payloads';
 
-/** The tab showing on each area, by page key. Reset when an area first renders. */
+/** The tab showing on each area, by page key. Unset is the first tab, and an
+ *  index past the area's tables reads as the first (tabIndex). */
 const activeTab: Record<string, number> = {};
 
 /** The last payload per area, so a tab switch redraws without waiting for a tick. */
