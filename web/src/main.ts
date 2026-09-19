@@ -12,7 +12,7 @@
 
 import { el } from './dom';
 import { installFetchGuard, verifySessionAfterFailure } from './fetch-guard';
-import { overlayOnStatus, overlayOnSwitch, wireRouterDropdown } from './router-dropdown';
+import { overlayOnStatus, overlayOnSwitch, selectOptionsHtml, wireRouterDropdown } from './router-dropdown';
 import { initUpgrade } from './pages/upgrade';
 import { Socket, type AllEvents } from './socket';
 import { initAppearance, wireAppearance } from './appearance';
@@ -816,8 +816,7 @@ async function main(): Promise<void> {
   // wiring only this one left the desktop with no working switcher at all.
   const sel = el<HTMLSelectElement>('navRouterSelect');
   if (sel) {
-    sel.innerHTML = routers.map((r) =>
-      '<option value="' + r.id + '">' + (r.label || r.name || r.id) + '</option>').join('');
+    sel.innerHTML = selectOptionsHtml(routers);
     sel.addEventListener('change', () => {
       switchRouter(socket, sel.value);
       socket.emit('page:focus', currentPage);

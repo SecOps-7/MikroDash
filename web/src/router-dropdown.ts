@@ -48,6 +48,16 @@ export function rtrLabel(r: DropdownRouter): string {
 }
 
 /**
+ * The mobile router select's options. ESCAPED like the dropdown: a label is
+ * whatever the operator typed, and the select was built by string concatenation
+ * with neither the label nor the id escaped.
+ */
+export function selectOptionsHtml(routers: readonly { id: string; label?: string; name?: string }[]): string {
+  return routers.map((r) =>
+    '<option value="' + esc(r.id) + '">' + esc(r.label || r.name || r.id) + '</option>').join('');
+}
+
+/**
  * The rows a query selects.
  *
  * DISABLED ROUTERS ARE DROPPED FIRST, before the query — a disabled router is
