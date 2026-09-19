@@ -64,7 +64,11 @@ type aiWriteProposal struct {
 	// remove marks a delete. Approval then runs `removeRow`, the form's own
 	// delete path, rather than `writeRow`.
 	remove bool
-	ack    string
+	// identity is the row's identity as the router held it when the proposal
+	// was raised: approval refuses a row at the same `.id` that is no longer it,
+	// as the form's `expectedIdentity` does. "" where nothing was read.
+	identity string
+	ack      string
 	// actionKey, target and mode describe a `run_action` proposal instead of a
 	// row write: resKey is empty on one and actionKey is empty on the other.
 	actionKey string
@@ -194,6 +198,11 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	if p == nil {
 		return aiRefusalText(res, refusal)
 	}
+	if p.editing && p.before != nil {
+		// The row the operator will be shown, pinned: approval refuses a row at
+		// this `.id` that is no longer it.
+		req.ExpectedIdentity = res.IdentityOf(p.before)
+	}
 	ack := ""
 	if p.verdict.Warned() {
 		ack = p.verdict.Fingerprint
@@ -231,6 +240,7 @@ func (cn *conn) proposeAIRemove(res *resource.Resource, id string) string {
 	if p == nil {
 		return aiRefusalText(res, refusal)
 	}
+	req.ExpectedIdentity = res.IdentityOf(p.row)
 	ack := ""
 	gate := map[string]any{}
 	if p.verdict.Warned() {
@@ -262,7 +272,7 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 
 	code := removing == nil && namesCode(res, req.Values)
 	tok, err := cn.addProposal(&aiWriteProposal{
-		resKey: res.Key, rowID: req.ID, values: req.Values,
+		resKey: res.Key, rowID: req.ID, values: req.Values, identity: req.ExpectedIdentity,
 		remove: removing != nil, ack: ack, code: code,
 	})
 	if errors.Is(err, errProposalsFull) {
@@ -424,7 +434,8 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	// CLEARED every clearable field the edit did not name: measured on the CHR on
 	// 2026-09-18, an approved change to a script's source also emptied its policy
 	// and its comment. Every dialog-approved partial edit had done this.
-	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack, Partial: p.rowID != ""}
+	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack, Partial: p.rowID != "",
+		ExpectedIdentity: p.identity}
 	var out writeOutcome
 	if p.remove {
 		out = cn.removeRow(res, req, "agent")

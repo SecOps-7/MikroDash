@@ -13,6 +13,7 @@ import (
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/rbac"
 	"mikrodash/internal/resource"
+	"mikrodash/internal/routeros"
 )
 
 // The write tool's own decisions, without a router.
@@ -456,4 +457,44 @@ func writerConn(t *testing.T, res ...*resource.Resource) *conn {
 		t.Fatal("the fixture cannot write " + res[0].Page + "; the test would pass for the wrong reason")
 	}
 	return cn
+}
+
+// TestAnApprovedEditOfARowThatChangedIdentityIsRefused. A proposal remembered
+// only the row's `.id`, so approving it minutes later wrote to whatever row
+// held that id then, even one renamed or replaced since the operator was shown
+// it. The form sends the row's identity for exactly this; the proposal now
+// keeps the identity it read, and approval refuses a row that is no longer it
+// (review loop).
+func TestAnApprovedEditOfARowThatChangedIdentityIsRefused(t *testing.T) {
+	now := routeros.Reply{".id": "*1", "name": "someone-else.lan", "type": "A", "address": "192.0.2.10"}
+	cn, me := readbackConn(t, answer(now)) // one read: the approval's; a write would need more
+	tok, err := cn.addProposal(&aiWriteProposal{resKey: "dnsStatic", rowID: "*1",
+		values: map[string]any{"address": "192.0.2.99"}, identity: "probe.lan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cn.aiWriteApprove(json.RawMessage(`{"token":"` + tok + `"}`))
+
+	var written map[string]any
+	for {
+		select {
+		case b := <-me.Send:
+			var env struct {
+				Event string         `json:"event"`
+				Data  map[string]any `json:"data"`
+			}
+			if json.Unmarshal(b, &env) == nil && env.Event == "ai:written" {
+				written = env.Data
+			}
+			continue
+		default:
+		}
+		break
+	}
+	if written == nil {
+		t.Fatal("the approval answered nothing")
+	}
+	if written["applied"] != false {
+		t.Errorf("an edit approved for probe.lan was applied to %s: %v", now["name"], written)
+	}
 }
