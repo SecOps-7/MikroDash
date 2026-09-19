@@ -239,6 +239,9 @@ rather than plain text.
   kind on one side only fails tsc. Held by `TestEveryAreaPillNamesARealColumnAndKind` and
   `web/test/area-pills.test.ts`.
 - **A hand-built page must copy the same markup and helpers**; nothing generates them for it.
+- **Rx and Tx have fixed colours, and so do protocols.** An Rx value is `var(--accent-rx)` (blue) and
+  a Tx value `var(--accent-tx)` (green), everywhere. A protocol column is `protoPill` in
+  `web/src/dom.ts` (tcp blue, udp green, icmp amber, anything else grey), not a second scheme.
 - **An ordered table** (routing rules, IPsec policies, OSPF templates: the first match decides) does
   **not** sort. It is always in the router's order, with its move arrows — the Queues page's rule.
 
