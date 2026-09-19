@@ -124,7 +124,9 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     setHTML('secAccounts', accountsCard(r));
     setHTML('secUpdates', updatesCard(r));
     setHTML('secCoverage', coverageCard(r));
-    const issues = r.findings.filter((f) => f.status === 'fail').length;
+    // The pill counts what the score's label calls issues: info observations
+    // are listed, not counted.
+    const issues = r.findings.filter((f) => f.status === 'fail' && f.severity !== 'info').length;
     const badge = el('secScanBadge');
     if (badge) {
       badge.textContent = String(issues);

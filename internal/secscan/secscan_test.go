@@ -64,7 +64,10 @@ var cases = map[string][2]map[string][]Row{
 	},
 	"mgmt.ssl-no-certificate": {
 		{"/ip/service": {{"name": "api-ssl", "disabled": "false", "certificate": "none"}}},
-		{"/ip/service": {{"name": "api-ssl", "disabled": "false", "certificate": "api"}}},
+		// The connection rows RouterOS 7.24 adds (dynamic, no certificate) are
+		// not the service: found live, where they failed this check.
+		{"/ip/service": {{"name": "api-ssl", "disabled": "false", "certificate": "api"},
+			{"name": "api-ssl", "disabled": "false", "dynamic": "true"}}},
 	},
 	"mgmt.mac-telnet": {
 		{"/tool/mac-server": one("allowed-interface-list", "all")},
@@ -432,6 +435,7 @@ func TestTheCHRReplay(t *testing.T) {
 		"mgmt.plaintext-services": Fail,
 		"mgmt.mac-winbox":         Fail,
 		"mgmt.bandwidth-server":   Fail,
+		"mgmt.ssl-no-certificate": Pass, // api-ssl has chr-api; its connection rows have none
 		"acct.admin-user":         Fail,
 		"sys.update":              Fail,
 		"fw.ipv6-input":           Pass, // its IPv6 input ends in a reject

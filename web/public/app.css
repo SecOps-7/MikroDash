@@ -2077,7 +2077,8 @@
     .sec-progress{height:3px;border-radius:2px;background:transparent;overflow:hidden;margin:-.25rem 0 .6rem;opacity:0;transition:opacity .3s}
     .sec-progress.is-on{opacity:1;background:var(--border)}
     .sec-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent-rx),var(--accent-tx));transition:width .35s ease}
-    .sec-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}
+    /* dense: the wide cards fill the gaps a two-row score card leaves. */
+    .sec-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:row dense;gap:.75rem}
     @media (max-width:1300px){.sec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media (max-width:980px){.sec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media (max-width:620px){.sec-grid{grid-template-columns:1fr}}

@@ -242,8 +242,12 @@ var Checks = []Check{
 			}
 			var bad []string
 			for _, r := range rows {
+				// NOT THE DYNAMIC ROWS: RouterOS 7.24 lists each live connection
+				// to a service as a dynamic row, with no certificate of its own,
+				// and MikroDash's own api-ssl sessions are among them.
 				n := r["name"]
-				if (n == "www-ssl" || n == "api-ssl") && enabledRow(r) && (r["certificate"] == "" || r["certificate"] == "none") {
+				if (n == "www-ssl" || n == "api-ssl") && !yes(r["dynamic"]) && enabledRow(r) &&
+					(r["certificate"] == "" || r["certificate"] == "none") {
 					bad = append(bad, n)
 				}
 			}
