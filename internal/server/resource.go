@@ -2242,6 +2242,30 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 		if cn.rsession.CollectorEnabled("queues") {
 			cn.rsession.Queues().RefreshNow()
 		}
+	case "dhcp":
+		// THE LEASE TABLE FIRST, THEN THE SUBNETS BUILT FROM IT. Leases are read
+		// on the router's DHCP interval (290 s on the Standard profile), so without
+		// this a lease saved on the DHCP page appeared only when that ran out:
+		// reported 2026-09-19, and the log said "dhcpLease belongs to page "dhcp",
+		// which has no collector to refresh" on every save. The networks re-read
+		// after it, so the pool gauge counts the new lease too.
+		if cn.rsession.CollectorEnabled("dhcpLeases") {
+			cn.rsession.DHCPLeases().RefreshNow()
+		}
+		if cn.rsession.CollectorEnabled("dhcpNetworks") {
+			cn.rsession.DHCPNetworks().RefreshNow()
+		}
+	// FOUND BY TestEveryWritablePageIsRefreshedAfterAWrite with the DHCP case:
+	// a saved static route or WireGuard peer waited for the next scheduled read
+	// too, with the same log line as the only trace.
+	case "routing":
+		if cn.rsession.CollectorEnabled("routing") {
+			cn.rsession.Routing().RefreshNow()
+		}
+	case "vpn":
+		if cn.rsession.CollectorEnabled("vpn") {
+			cn.rsession.VPN().RefreshNow()
+		}
 	case "ppp":
 		// The PPP collector reads its config tables — profiles, servers and the
 		// secrets — only every `pppConfigEvery` ticks, so without this a saved
