@@ -322,6 +322,16 @@ func Dial(cfg Config) (*Client, error) {
 	// One parked goroutine per dial is small; unbounded over an uptime measured
 	// in weeks, across reconnects, is not. Cancelling in Close ends it and also
 	// unblocks the reader, which is the tidier shutdown anyway.
+	// ── A BUFFER BETWEEN THE READER AND EVERY STREAM ─────────────────────────
+	//
+	// A listener's channel was unbuffered, so the connection's single reader
+	// goroutine could not hand a stream its next row until that stream's onRow
+	// returned; meanwhile no reply to any other command on the connection was
+	// read. A slow consumer stalled every poll on the router (measured against a
+	// fake: 750 ms for a command behind five 200 ms rows). The buffer lets the
+	// reader move on; a consumer slower than its stream for streamQueue rows
+	// still stalls it, which is a consumer bug to find, not to hide.
+	inner.Queue = streamQueue
 	ctx, cancel := context.WithCancel(context.Background())
 	cl.cancel = cancel
 	errC := inner.AsyncContext(ctx)
@@ -335,6 +345,10 @@ func Dial(cfg Config) (*Client, error) {
 
 	return cl, nil
 }
+
+// streamQueue is how many rows a stream may have waiting for its consumer before
+// the connection's reader waits for it. See Dial.
+const streamQueue = 256
 
 // Do issues a command and returns every row of the reply.
 //
