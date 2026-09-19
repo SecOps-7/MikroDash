@@ -1986,3 +1986,76 @@
     .md-ros .ros-num{color:var(--accent-alt)}
     .md-ros .ros-string{color:var(--accent-ok)}
     .md-ros .ros-comment{color:var(--text-muted);font-style:italic}
+
+    /* ── The Tools page: live cards, the traceroute map, the speed gauges ──────
+       (tools-ping-cards.ts, tools-trace-map.ts, tools-btest-cards.ts). Every
+       colour is a token, so each palette and the light theme follow. */
+    .tool-panel .data-scroll{overflow:auto}
+    .tool-panel .data-scroll thead th{position:sticky;top:0;z-index:1;background:var(--bg-deep)}
+    .tool-continuous{align-self:center;margin:0 .25rem}
+    .tool-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:0 0 .8rem}
+    .tool-card{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.65rem .8rem;overflow:hidden;
+      transition:border-color .4s,box-shadow .4s}
+    .tool-card-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+    .tool-card-value{font-family:var(--font-mono);font-size:1.45rem;font-weight:600;color:var(--text-main);line-height:1.25;font-variant-numeric:tabular-nums}
+    .tool-card-value small{font-size:.7rem;font-weight:500;color:var(--text-muted);margin-left:.2rem}
+    .tool-card-tick{animation:tool-tick .6s ease-out}
+    @keyframes tool-tick{0%{border-color:var(--accent-rx);box-shadow:0 0 0 0 rgba(56,189,248,.35)}100%{box-shadow:0 0 0 8px rgba(56,189,248,0)}}
+    .tool-card-score{display:flex;align-items:center;gap:.7rem}
+    .tool-ring{width:58px;height:58px;flex:0 0 auto;transform:rotate(-90deg)}
+    .tool-ring circle{fill:none;stroke-width:7}
+    .tool-ring-bg{stroke:var(--border)}
+    .tool-ring-val{stroke:var(--text-muted);stroke-linecap:round;transition:stroke-dashoffset .6s cubic-bezier(.2,.7,.3,1),stroke .4s}
+    .tool-card-score.grade-good .tool-ring-val{stroke:var(--accent-ok)}
+    .tool-card-score.grade-fair .tool-ring-val{stroke:var(--accent-warn)}
+    .tool-card-score.grade-poor .tool-ring-val{stroke:var(--accent-err)}
+    .tool-card-score.grade-good .tool-card-value span{color:var(--accent-ok)}
+    .tool-card-score.grade-fair .tool-card-value span{color:var(--accent-warn)}
+    .tool-card-score.grade-poor .tool-card-value span{color:var(--accent-err)}
+    .tool-spark{position:absolute;left:0;right:0;bottom:0;width:100%;height:28px;opacity:.55}
+    .tool-spark polyline{fill:none;stroke:var(--accent-rx);stroke-width:1.5;vector-effect:non-scaling-stroke}
+    #pingCardLoss.is-bad .tool-card-value span{color:var(--accent-err)}
+    #pingCardLoss.is-bad{border-color:rgba(248,113,113,.4)}
+
+    .trace-card{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:.6rem;margin:0 0 .8rem}
+    .trace-map-wrap{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;aspect-ratio:2/1;max-height:420px}
+    .trace-map{width:100%;height:100%;display:block;--k:1}
+    .trace-map .map-country{stroke-width:calc(.5px * var(--k))}
+    .trace-map-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.8rem;pointer-events:none}
+    .trace-line{fill:none;stroke:var(--accent-rx);stroke-width:calc(1.6px * var(--k));stroke-linecap:round;opacity:.85;filter:drop-shadow(0 0 calc(2px * var(--k)) rgba(56,189,248,.6))}
+    .trace-comet{r:calc(4px * var(--k));fill:#fff;filter:drop-shadow(0 0 calc(4px * var(--k)) var(--accent-rx)) drop-shadow(0 0 calc(8px * var(--k)) var(--accent-rx))}
+    .trace-dot{r:calc(3.4px * var(--k));fill:var(--accent-rx);stroke:var(--bg-deep);stroke-width:calc(1px * var(--k))}
+    .trace-home{r:calc(4.6px * var(--k));fill:var(--accent-tx);stroke:var(--bg-deep);stroke-width:calc(1.2px * var(--k))}
+    .trace-ripple{r:calc(4px * var(--k));fill:none;stroke:var(--accent-rx);stroke-width:calc(1.4px * var(--k));
+      transform-box:fill-box;transform-origin:center;pointer-events:none;animation:rtrmap-ripple 1.6s cubic-bezier(.2,.6,.35,1) 1 forwards}
+    .trace-label{font-family:var(--font-mono);font-size:calc(10px * var(--k));font-weight:700;fill:var(--text-main);
+      transform:translate(calc(6px * var(--k)),calc(-6px * var(--k)));paint-order:stroke;stroke:var(--bg-deep);stroke-width:calc(2.5px * var(--k))}
+    .trace-hops{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.35rem;overflow:auto;max-height:420px;font-size:.72rem}
+    .trace-hop{display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;grid-template-areas:"n where ms" "n ip ip";gap:0 .4rem;
+      padding:.3rem .35rem;border-radius:6px;opacity:.45;transition:opacity .4s,background .4s}
+    .trace-hop.is-landed{opacity:1}
+    .trace-hop.is-landed:last-child{background:rgba(56,189,248,.08)}
+    .trace-hop.is-timeout{opacity:.6}
+    .trace-hop-n{grid-area:n;font-family:var(--font-mono);font-weight:700;color:var(--accent-rx);align-self:center;text-align:center}
+    .trace-hop.is-home .trace-hop-n{color:var(--accent-tx)}
+    .trace-hop-where{grid-area:where;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-main)}
+    .trace-hop-ip{grid-area:ip;font-family:var(--font-mono);color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .trace-hop-ms{grid-area:ms;font-family:var(--font-mono);color:var(--accent-rx)}
+    @media (max-width:760px){.trace-card{grid-template-columns:1fr}.trace-hops{max-height:240px}}
+
+    .tool-gauge{text-align:center}
+    .tool-gauge .tool-card-label{text-align:left}
+    .tool-gauge-dial{width:100%;max-width:190px;display:block;margin:.1rem auto 0;overflow:visible}
+    .tool-gauge-bg,.tool-gauge-arc{fill:none;stroke-width:9;stroke-linecap:round}
+    .tool-gauge-bg{stroke:var(--border)}
+    .tool-gauge-arc{transition:stroke-dashoffset .9s cubic-bezier(.2,.7,.3,1)}
+    .tool-gauge-rx .tool-gauge-arc,.tool-gauge-rx .tool-card-value{stroke:var(--accent-rx);color:var(--accent-rx)}
+    .tool-gauge-tx .tool-gauge-arc,.tool-gauge-tx .tool-card-value{stroke:var(--accent-tx);color:var(--accent-tx)}
+    .tool-gauge-needle{stroke:var(--text-main);stroke-width:2.5;stroke-linecap:round;transform-origin:60px 62px;transform:rotate(-90deg);
+      transition:transform .9s cubic-bezier(.2,.7,.3,1)}
+    .tool-gauge-hub{fill:var(--text-main)}
+    .tool-gauge-foot{display:flex;justify-content:space-between;font-size:.66rem;color:var(--text-muted);font-family:var(--font-mono)}
+    @media (prefers-reduced-motion: reduce){
+      .tool-card-tick,.trace-ripple{animation:none}
+      .tool-ring-val,.tool-gauge-arc,.tool-gauge-needle{transition:none}
+    }

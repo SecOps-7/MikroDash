@@ -46,6 +46,20 @@ type Hop struct {
 	WorstMs  *float64 `json:"worstMs"`
 	// Status is RouterOS's word for an ICMP error from this hop, when one came.
 	Status string `json:"status"`
+	// Where the hop is, from the geo database: set by the caller, since this
+	// package reads no database. Lat and Lon are nil for a private or unknown
+	// address, never zero for absence.
+	Country string   `json:"country"`
+	City    string   `json:"city"`
+	Lat     *float64 `json:"lat"`
+	Lon     *float64 `json:"lon"`
+}
+
+// Place is where a route starts: the router's own location.
+type Place struct {
+	Lat   float64 `json:"lat"`
+	Lon   float64 `json:"lon"`
+	Label string  `json:"label"`
 }
 
 // TracerouteResult is one finished run.
@@ -55,6 +69,9 @@ type TracerouteResult struct {
 	// Error is the router's note on the run as a whole, such as "Too many
 	// hops" when the target was not reached within the hop limit.
 	Error string `json:"error"`
+	// Origin is the router's own place, set by the page's handler; nil when
+	// it has none, and always nil for the assistant, which draws no map.
+	Origin *Place `json:"origin"`
 }
 
 // FoldTraceroute reads a run's rows into its route.

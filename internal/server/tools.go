@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,7 +59,8 @@ type ToolsPingPayload struct {
 	// Result is nil when Code is set.
 	Result *diag.PingResult `json:"result"`
 	// Code is empty on success, and otherwise one of: denied, unavailable,
-	// busy, address, failed.
+	// busy, address, failed, or stopped — the operator pressed Stop, and
+	// Result is the run so far.
 	Code string `json:"code"`
 	// Message is the router's own words for a failed run, sanitised.
 	Message string `json:"message"`
@@ -78,6 +80,8 @@ type ToolsTraceroutePayload struct {
 type toolsPingReq struct {
 	Address string `json:"address"`
 	Count   int    `json:"count"`
+	// Continuous pings until stopped, or for diag.ContinuousMax.
+	Continuous bool `json:"continuous"`
 }
 
 type toolsTracerouteReq struct {
@@ -142,12 +146,10 @@ func (cn *conn) toolsPing(raw json.RawMessage) {
 	cn.startTool("read",
 		func(code string) { EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: code, Done: true}) },
 		func(rs *session.Session, quit <-chan struct{}) {
-			res, code, msg := runPing(rs, req.Address, req.Count, quit, func(p *diag.PingResult) {
+			res, code, msg := runPing(rs, req.Address, req.Count, req.Continuous, quit, func(p *diag.PingResult) {
 				EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: p})
 			})
-			if code != codeStopped {
-				EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: res, Code: code, Message: msg, Done: true})
-			}
+			EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Result: res, Code: code, Message: msg, Done: true})
 		})
 }
 
@@ -160,12 +162,17 @@ func (cn *conn) toolsTraceroute(raw json.RawMessage) {
 			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Code: code, Done: true})
 		},
 		func(rs *session.Session, quit <-chan struct{}) {
+			// The route starts where this router is: computed once, from disk and
+			// the geo database, and put on every frame the page draws.
+			origin := cn.srv.routerOrigin(cn.routerID)
 			res, code, msg := runTraceroute(rs, req.Address, req.MaxHops, quit, func(r *diag.TracerouteResult) {
+				r.Origin = origin
 				EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: r})
 			})
-			if code != codeStopped {
-				EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: res, Code: code, Message: msg, Done: true})
+			if res != nil {
+				res.Origin = origin
 			}
+			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Result: res, Code: code, Message: msg, Done: true})
 		})
 }
 
@@ -175,8 +182,9 @@ func (cn *conn) toolsTraceroute(raw json.RawMessage) {
 // already checked permission; this checks only what the request itself can get
 // wrong. `progress`, when not nil, is handed the run so far as replies arrive;
 // `quit`, when not nil, ends the run early (see streamDiag).
-func runPing(rs diagStream, address string, count int, quit <-chan struct{}, progress func(*diag.PingResult)) (*diag.PingResult, string, string) {
-	cmd, err := diag.PingCommand(address, count)
+func runPing(rs diagStream, address string, count int, continuous bool, quit <-chan struct{},
+	progress func(*diag.PingResult)) (*diag.PingResult, string, string) {
+	cmd, err := diag.PingCommand(address, count, continuous)
 	if err != nil {
 		return nil, "address", err.Error()
 	}
@@ -184,11 +192,12 @@ func runPing(rs diagStream, address string, count int, quit <-chan struct{}, pro
 		r := diag.FoldPing(address, rows)
 		return &r
 	}
-	rows, code, msg := streamDiag(rs, cmd, quit, nil, report(progress, fold))
-	if code != "" {
-		return nil, code, msg
+	o := diagRun{progress: report(progress, fold)}
+	if continuous {
+		o.trim, o.endAtTimeout = diag.KeepLast(diag.PingKeepReplies), true
 	}
-	return fold(rows), "", ""
+	rows, code, msg := streamDiag(rs, cmd, quit, o)
+	return finish(fold, rows, code, msg)
 }
 
 // runTraceroute runs one bounded traceroute on a router and folds its reply.
@@ -201,13 +210,11 @@ func runTraceroute(rs diagStream, address string, maxHops int, quit <-chan struc
 	}
 	fold := func(rows []routeros.Reply) *diag.TracerouteResult {
 		r := diag.FoldTraceroute(address, rows)
+		locateHops(&r)
 		return &r
 	}
-	rows, code, msg := streamDiag(rs, cmd, quit, diag.CompleteSections, report(progress, fold))
-	if code != "" {
-		return nil, code, msg
-	}
-	return fold(rows), "", ""
+	rows, code, msg := streamDiag(rs, cmd, quit, diagRun{complete: diag.CompleteSections, progress: report(progress, fold)})
+	return finish(fold, rows, code, msg)
 }
 
 // report adapts a tool's progress callback to the rows streamDiag hands out,
@@ -226,7 +233,9 @@ type diagStream interface {
 	StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error)) (func(), error)
 }
 
-// codeStopped is a run ended by `quit`. Never sent: nobody is waiting for it.
+// codeStopped is a run ended by `quit`: the operator pressed Stop or left the
+// page, switched router, or closed the socket. Its frame carries the run so far,
+// which the page draws when it was waiting for it and drops when it was not.
 const codeStopped = "stopped"
 
 // progressEvery is the most often a run's progress is sent. Four frames a second
@@ -234,42 +243,65 @@ const codeStopped = "stopped"
 // still lands on its own. A variable so a test need not wait it out.
 var progressEvery = 250 * time.Millisecond
 
+// diagRun is how streamDiag treats one command's rows. Every field is optional.
+type diagRun struct {
+	// complete cuts the rows so far to the part that can be folded (see
+	// diag.CompleteSections).
+	complete func([]routeros.Reply) []routeros.Reply
+	// trim bounds what is kept as rows arrive: a continuous run would otherwise
+	// hold every row of an hour.
+	trim func([]routeros.Reply) []routeros.Reply
+	// progress is handed the rows so far, cut by complete.
+	progress func([]routeros.Reply)
+	// endAtTimeout makes reaching cmd.Timeout the run's end rather than a
+	// failure: a continuous run's timeout is diag.ContinuousMax, its cap.
+	endAtTimeout bool
+}
+
 // streamDiag sends one diagnostic command and returns its rows, or "failed" with
-// the reason, or codeStopped when `quit` closed first.
+// the reason, or codeStopped and the rows so far when `quit` closed first.
 //
 // ── PROGRESS ────────────────────────────────────────────────────────────────
 //
-// `progress`, when not nil, is called from this goroutine with the rows so far —
-// cut by `complete`, when not nil, to the part that can be folded — at most once
-// per progressEvery, and only when that part has grown. The final rows are
-// returned, never handed to `progress`: the caller sends them as the result.
+// `progress`, when set, is called from this goroutine with the rows so far —
+// cut by `complete`, when set, to the part that can be folded — at most once
+// per progressEvery, and only when that part has grown. GROWN IS COUNTED IN
+// ROWS RECEIVED, not rows kept: a trimmed run keeps a constant number, and
+// comparing lengths would stop its progress at the first trim. The final rows
+// are returned, never handed to `progress`: the caller sends them as the result.
 //
 // ── HOW THE STREAM ENDS, AND THAT IT DOES ───────────────────────────────────
 //
 //   - By itself, at `!done` or a trap: onDone reports it, and no /cancel is
 //     written to a command that has already finished.
 //   - Past cmd.Timeout: the client cancels it on the router and onDone reports a
-//     timeout. The bound is the client's, the same one Exec had.
+//     timeout — a failure, unless endAtTimeout says it is the run's cap.
 //   - `quit`: stop() cancels it on the router and returns once it has ended —
 //     or, if the router will not end it, once the connection it was on has been
 //     given up (see (*routeros.Client).StreamUntilDone).
 //
 // Every path returns, so the caller's run slot and this goroutine go with it.
+// A run cut short (stopped, or at its cap) returns its complete part, so a half-
+// arrived traceroute table or torch second is not drawn as the answer.
 //
 // A name that does not resolve, or an API user without the `test` policy, is a
 // trap with the router's own words in it — which is what the operator needs to
 // read, without this client's prefix on it. SANITISED, as every outbound error
 // is: a transport failure carries the router's address.
-func streamDiag(rs diagStream, cmd routeros.Cmd, quit <-chan struct{}, complete func([]routeros.Reply) []routeros.Reply,
-	progress func([]routeros.Reply)) ([]routeros.Reply, string, string) {
+func streamDiag(rs diagStream, cmd routeros.Cmd, quit <-chan struct{}, o diagRun) ([]routeros.Reply, string, string) {
 	var mu sync.Mutex
 	var rows []routeros.Reply
+	received := 0
 	grew := make(chan struct{}, 1)
 	ended := make(chan error, 1)
 	stop, err := rs.StreamUntilDone(cmd,
 		func(r routeros.Reply) {
 			mu.Lock()
 			rows = append(rows, r)
+			received++
+			if o.trim != nil {
+				rows = o.trim(rows)
+			}
 			mu.Unlock()
 			select {
 			case grew <- struct{}{}:
@@ -282,11 +314,20 @@ func streamDiag(rs diagStream, cmd routeros.Cmd, quit <-chan struct{}, complete 
 		return nil, code, msg
 	}
 	// A full-slice expression, so a later append cannot write under a frame
-	// still being folded.
-	snapshot := func() []routeros.Reply {
+	// still being folded. `dropped` is how many rows the trim has let go.
+	snapshot := func() ([]routeros.Reply, int) {
 		mu.Lock()
 		defer mu.Unlock()
-		return rows[:len(rows):len(rows)]
+		return rows[:len(rows):len(rows)], received - len(rows)
+	}
+	cut := func() []routeros.Reply {
+		all, _ := snapshot()
+		if o.complete != nil {
+			if part := o.complete(all); len(part) > 0 {
+				return part
+			}
+		}
+		return all
 	}
 
 	tick := time.NewTicker(progressEvery)
@@ -295,31 +336,45 @@ func streamDiag(rs diagStream, cmd routeros.Cmd, quit <-chan struct{}, complete 
 	for {
 		select {
 		case err := <-ended:
+			if err != nil && o.endAtTimeout && errors.Is(err, context.DeadlineExceeded) {
+				return cut(), "", ""
+			}
 			if err != nil {
 				code, msg := diagFailure(err)
 				return nil, code, msg
 			}
-			return snapshot(), "", ""
+			all, _ := snapshot()
+			return all, "", ""
 		case <-quit:
 			stop()
-			return nil, codeStopped, ""
+			return cut(), codeStopped, ""
 		case <-grew:
 			dirty = true
 		case <-tick.C:
-			if !dirty || progress == nil {
+			if !dirty || o.progress == nil {
 				continue
 			}
 			dirty = false
-			part := snapshot()
-			if complete != nil {
-				part = complete(part)
+			part, dropped := snapshot()
+			if o.complete != nil {
+				part = o.complete(part)
 			}
-			if len(part) > reported {
-				reported = len(part)
-				progress(part)
+			if n := dropped + len(part); n > reported {
+				reported = n
+				o.progress(part)
 			}
 		}
 	}
+}
+
+// finish turns streamDiag's answer into a runner's: the folded result, or a code
+// and message. A stopped run is folded too, because the operator is looking at
+// it; a failed one has nothing to fold.
+func finish[T any](fold func([]routeros.Reply) *T, rows []routeros.Reply, code, msg string) (*T, string, string) {
+	if code != "" && code != codeStopped {
+		return nil, code, msg
+	}
+	return fold(rows), code, msg
 }
 
 // diagFailure is the page's words for a run that did not finish.
@@ -341,7 +396,7 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		if json.Unmarshal(args, &req) != nil {
 			return nil, "The arguments could not be read. Pass an object with `address`, and optionally `count`."
 		}
-		res, code, msg := runPing(rs, req.Address, req.Count, nil, nil)
+		res, code, msg := runPing(rs, req.Address, assistantPingCount(req.Count), false, nil, nil)
 		if code != "" {
 			return nil, "The ping did not run: " + msg
 		}
@@ -359,6 +414,10 @@ var diagRunners = map[string]func(rs *session.Session, args []byte) (any, string
 		return res, ""
 	},
 }
+
+// assistantPingCount is the assistant's own cap on a ping, and it is never
+// continuous: the model waits for the whole run (see diag.AssistantPingMax).
+func assistantPingCount(n int) int { return min(n, diag.AssistantPingMax) }
 
 // runDiagTool runs a diagnostic the assistant asked for.
 //
@@ -422,6 +481,8 @@ type ToolsTorchPayload struct {
 type toolsTorchReq struct {
 	Interface string `json:"interface"`
 	Seconds   int    `json:"seconds"`
+	// Continuous watches until stopped, or for diag.ContinuousMax.
+	Continuous bool `json:"continuous"`
 }
 
 // toolsCaps answers `tools:caps`.
@@ -470,12 +531,10 @@ func (cn *conn) toolsTorch(raw json.RawMessage) {
 			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Code: code, Done: true})
 		},
 		func(rs *session.Session, quit <-chan struct{}) {
-			res, code, msg := cn.runTorch(rs, req.Interface, req.Seconds, "", quit, func(r *diag.TorchResult) {
+			res, code, msg := cn.runTorch(rs, req.Interface, req.Seconds, req.Continuous, "", quit, func(r *diag.TorchResult) {
 				EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: r})
 			})
-			if code != codeStopped {
-				EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: res, Code: code, Message: msg, Done: true})
-			}
+			EvToolsTorch.Send(cn.srv.hub, cn.c, ToolsTorchPayload{Result: res, Code: code, Message: msg, Done: true})
 		})
 }
 
@@ -488,9 +547,9 @@ func (cn *conn) toolsTorch(raw json.RawMessage) {
 // starts and then fails to be recorded still loaded the router.
 //
 // Progress is each complete second's flows, averaged over the seconds so far.
-func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, via string,
+func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, continuous bool, via string,
 	quit <-chan struct{}, progress func(*diag.TorchResult)) (*diag.TorchResult, string, string) {
-	cmd, err := diag.TorchCommand(iface, seconds)
+	cmd, err := diag.TorchCommand(iface, seconds, continuous)
 	if err != nil {
 		return nil, "interface", err.Error()
 	}
@@ -516,14 +575,21 @@ func (cn *conn) runTorch(rs *session.Session, iface string, seconds int, via str
 	cn.recorder().Record(ev)
 	fold := func(rows []routeros.Reply) *diag.TorchResult {
 		r := diag.FoldTorch(iface, rows)
-		r.Seconds = diag.TorchSeconds(seconds)
+		if continuous {
+			r.Continuous = true
+		} else {
+			r.Seconds = diag.TorchSeconds(seconds)
+		}
 		return &r
 	}
-	rows, code, msg := streamDiag(rs, cmd, quit, diag.CompleteSections, report(progress, fold))
-	if code != "" {
-		return nil, code, msg
+	o := diagRun{complete: diag.CompleteSections, progress: report(progress, fold)}
+	if continuous {
+		// The last TorchWindow whole seconds, plus the one arriving: folded
+		// through CompleteSections, a rolling window.
+		o.trim, o.endAtTimeout = diag.KeepLastSections(diag.TorchWindow), true
 	}
-	return fold(rows), "", ""
+	rows, code, msg := streamDiag(rs, cmd, quit, o)
+	return finish(fold, rows, code, msg)
 }
 
 // runTorchAction is the approved `torch` action: the page's run, for the
@@ -533,7 +599,7 @@ func (cn *conn) runTorchAction(iface string) writeOutcome {
 		return writeOutcome{Code: "busy"}
 	}
 	defer cn.toolBusy.Store(false)
-	res, code, msg := cn.runTorch(cn.rsession, iface, diag.TorchDefaultSeconds, "agent", nil, nil)
+	res, code, msg := cn.runTorch(cn.rsession, iface, diag.TorchDefaultSeconds, false, "agent", nil, nil)
 	if code != "" {
 		return writeOutcome{Code: code, Detail: map[string]any{"message": msg}}
 	}
@@ -611,9 +677,7 @@ func (cn *conn) toolsBtest(raw json.RawMessage) {
 			res, code, msg := cn.runBtest(rs, req, "", quit, func(r *diag.BtestResult) {
 				EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: r})
 			})
-			if code != codeStopped {
-				EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: res, Code: code, Message: msg, Done: true})
-			}
+			EvToolsBtest.Send(cn.srv.hub, cn.c, ToolsBtestPayload{Result: res, Code: code, Message: msg, Done: true})
 		})
 }
 
@@ -652,9 +716,9 @@ func streamBtest(rs diagStream, cmd routeros.Cmd, address string,
 		r := diag.FoldBandwidthTest(address, rows)
 		return &r
 	}
-	rows, code, msg := streamDiag(rs, cmd, quit, nil, report(progress, fold))
+	rows, code, msg := streamDiag(rs, cmd, quit, diagRun{progress: report(progress, fold)})
 	if code != "" {
-		return nil, code, msg
+		return finish(fold, rows, code, msg)
 	}
 	r := fold(rows)
 	if !r.Done {

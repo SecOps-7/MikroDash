@@ -71,6 +71,10 @@ func TestTheMMDBBackendIsPreferredAndAnswers(t *testing.T) {
 		if !ok || loc.Country != "US" {
 			t.Errorf("8.8.8.8 -> %+v (ok=%v), want country US", loc, ok)
 		}
+		// And a place: the traceroute map draws from these.
+		if loc.Lat == nil || loc.Lon == nil || *loc.Lat < 24 || *loc.Lat > 50 || *loc.Lon > -66 || *loc.Lon < -125 {
+			t.Errorf("8.8.8.8 has no place inside the contiguous US: %+v", loc)
+		}
 	})
 
 	t.Run("unroutable space is unplaced, not an error", func(t *testing.T) {

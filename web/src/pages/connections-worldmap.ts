@@ -120,6 +120,23 @@ export function decodeCountries(topo: Topology, objectName = 'countries'): MapCo
   return out;
 }
 
+let atlas: Promise<MapCountry[]> | null = null;
+
+/**
+ * The decoded atlas, fetched and decoded ONCE for every map on the page: the
+ * Connections map and the Tools page's traceroute map both draw from it. A
+ * failed fetch is not cached, so the next map to open tries again.
+ */
+export function loadCountries(): Promise<MapCountry[]> {
+  if (!atlas) {
+    atlas = fetch(MAP_URL)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((world: Topology | null) => (world ? decodeCountries(world) : []));
+    atlas.then((cs) => { if (!cs.length) atlas = null; }, () => { atlas = null; });
+  }
+  return atlas;
+}
+
 function svgEl(tag: string, attrs?: Record<string, string | number>): SVGElement {
   const e = document.createElementNS(NS, tag) as SVGElement;
   if (attrs) for (const k of Object.keys(attrs)) e.setAttribute(k, String(attrs[k]));
@@ -291,12 +308,11 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
     },
   };
 
-  fetch(MAP_URL)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((world: Topology | null) => {
-      if (!world) return;
+  loadCountries()
+    .then((countries) => {
+      if (!countries.length) return;
       const frag = document.createDocumentFragment();
-      for (const c of decodeCountries(world)) {
+      for (const c of countries) {
         const path = svgEl('path', { d: c.d, class: 'map-country', 'data-cc': c.cc });
         pathEls[c.cc] = path;
         if (c.centroid) centroids[c.cc] = c.centroid;

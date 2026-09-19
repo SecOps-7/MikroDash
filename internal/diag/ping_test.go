@@ -45,7 +45,7 @@ func TestPingSendsWhatTheCaptureWasTakenWith(t *testing.T) {
 	c := readCapture(t, "toolPing.json", 2)
 	for _, ex := range c.Exchanges {
 		addr := strings.TrimPrefix(ex.Params[0], "=address=")
-		cmd, err := PingCommand(addr, len(ex.Rows))
+		cmd, err := PingCommand(addr, len(ex.Rows), false)
 		if err != nil {
 			t.Fatalf("%s: %v", addr, err)
 		}
@@ -107,7 +107,7 @@ func TestPingBounds(t *testing.T) {
 		{0, PingDefaultCount}, {-3, PingDefaultCount}, {1, 1},
 		{PingMaxCount, PingMaxCount}, {PingMaxCount + 1, PingMaxCount}, {1000, PingMaxCount},
 	} {
-		cmd, err := PingCommand("198.51.100.1", tc.in)
+		cmd, err := PingCommand("198.51.100.1", tc.in, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,13 +122,13 @@ func TestPingBounds(t *testing.T) {
 // word, a property, a flag — is refused here rather than by the router.
 func TestPingAddressesAreOneToken(t *testing.T) {
 	for _, ok := range []string{"198.51.100.1", "2001:db8::1", "fe80::1%ether1", "example.com", "02:00:00:00:00:01", "a"} {
-		if _, err := PingCommand(ok, 1); err != nil {
+		if _, err := PingCommand(ok, 1, false); err != nil {
 			t.Errorf("%q refused: %v", ok, err)
 		}
 	}
 	for _, bad := range []string{"", " ", "198.51.100.1 count=1000", "-flag", "a=b", "x\ny", "=address=1.1.1.1",
 		strings.Repeat("a", 254)} {
-		if _, err := PingCommand(bad, 1); err == nil {
+		if _, err := PingCommand(bad, 1, false); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
 	}

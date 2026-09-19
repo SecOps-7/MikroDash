@@ -109,7 +109,7 @@ func TestAPingShowsEachReplyAsItComes(t *testing.T) {
 	var mu sync.Mutex
 	var seen []int
 	ch := runAsync(func() (*diag.PingResult, string, string) {
-		return runPing(f, "127.0.0.1", 3, nil, func(p *diag.PingResult) {
+		return runPing(f, "127.0.0.1", 3, false, nil, func(p *diag.PingResult) {
 			mu.Lock()
 			seen = append(seen, len(p.Replies))
 			mu.Unlock()
@@ -154,7 +154,7 @@ func TestProgressIsThrottled(t *testing.T) {
 	f := newFakeStream()
 	var frames atomic.Int32
 	ch := runAsync(func() (*diag.PingResult, string, string) {
-		return runPing(f, "198.51.100.1", 10, nil, func(*diag.PingResult) { frames.Add(1) })
+		return runPing(f, "198.51.100.1", 10, false, nil, func(*diag.PingResult) { frames.Add(1) })
 	})
 	f.wait(t)
 	for i := 0; i < 200; i++ {
@@ -256,7 +256,7 @@ func TestATrapOrATimeoutIsAFailure(t *testing.T) {
 	} {
 		f := newFakeStream()
 		ch := runAsync(func() (*diag.PingResult, string, string) {
-			return runPing(f, "no.such.host", 2, nil, nil)
+			return runPing(f, "no.such.host", 2, false, nil, nil)
 		})
 		f.wait(t)
 		f.row(routeros.Reply{"seq": "0", "host": "no.such.host", "status": "timeout", "sent": "1"})
@@ -274,29 +274,32 @@ func TestATrapOrATimeoutIsAFailure(t *testing.T) {
 	// A stream that cannot open is a failure too.
 	f := newFakeStream()
 	f.openErr = &routeros.Trap{Message: "not connected"}
-	if _, code, msg := runPing(f, "198.51.100.1", 2, nil, nil); code != "failed" || !strings.Contains(msg, "not connected") {
+	if _, code, msg := runPing(f, "198.51.100.1", 2, false, nil, nil); code != "failed" || !strings.Contains(msg, "not connected") {
 		t.Errorf("a stream that did not open answered %q %q", code, msg)
 	}
 }
 
-// AN EARLY STOP — the socket closing, or the operator switching router — ends
-// the run at once: the stream is stopped (which cancels it on the router), the
-// runner returns, and nothing more is reported.
+// AN EARLY STOP — the operator pressing Stop or leaving the page, the socket
+// closing, or a router switch — ends the run at once: the stream is stopped
+// (which cancels it on the router), the runner returns THE RUN SO FAR with code
+// "stopped" (the page draws it when it pressed Stop, and drops it otherwise),
+// and nothing more is reported. Until Stop existed the answer was nothing,
+// because nobody could be waiting for it.
 func TestAnEarlyStopCancelsTheStream(t *testing.T) {
 	fastProgress(t, 10*time.Millisecond)
 	f := newFakeStream()
 	quit := make(chan struct{})
 	var frames atomic.Int32
 	ch := runAsync(func() (*diag.PingResult, string, string) {
-		return runPing(f, "198.51.100.1", 10, quit, func(*diag.PingResult) { frames.Add(1) })
+		return runPing(f, "198.51.100.1", 10, false, quit, func(*diag.PingResult) { frames.Add(1) })
 	})
 	f.wait(t)
 	f.row(routeros.Reply{"seq": "0", "host": "198.51.100.1", "status": "timeout", "sent": "1"})
 	time.Sleep(40 * time.Millisecond)
 	close(quit)
 	o := outcome(t, ch)
-	if o.code != codeStopped || o.res != nil {
-		t.Errorf("a stopped run answered %q %+v, want %q and nothing to draw", o.code, o.res, codeStopped)
+	if o.code != codeStopped || o.res == nil || len(o.res.Replies) != 1 || o.res.Sent != 1 {
+		t.Errorf("a stopped run answered %q %+v, want %q and the one reply so far", o.code, o.res, codeStopped)
 	}
 	if n := f.stops.Load(); n != 1 {
 		t.Errorf("the stream was stopped %d times, want 1: it would run on, holding its channel", n)

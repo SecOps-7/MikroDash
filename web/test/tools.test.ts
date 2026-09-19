@@ -12,6 +12,13 @@
  * - The output is live: progress frames (`done: false`) are drawn as they come
  *   and leave the run pending; the `done: true` frame settles it. Progress after
  *   a router switch, or for a tool that is not pending, is dropped.
+ * - RUN BECOMES STOP (2026-09-19). While a run is pending its own button is an
+ *   enabled red Stop, not a disabled Run: pressing it sends `tools:stop`, never a
+ *   second run, and the other tools' buttons are disabled. A `stopped` frame
+ *   settles the run and draws what it carries. Leaving the page stops it too.
+ *   The assertions that said "Run stays disabled while pending" were re-aimed
+ *   at "the button is Stop" deliberately: the rule they held, one run at a
+ *   time, is still what they check.
  */
 
 import fs from 'node:fs';
@@ -35,7 +42,15 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'traceForm', 'traceAddress', 'traceHops', 'traceRun', 'traceStatus', 'traceSummary', 'traceRows',
   'torchForm', 'torchInterface', 'torchSeconds', 'torchRun', 'torchStatus', 'torchSummary', 'torchRows',
   'btestForm', 'btestAddress', 'btestUser', 'btestPassword', 'btestSeconds', 'btestProtocol', 'btestDirection',
-  'btestRun', 'btestStatus', 'btestSummary', 'btestRows'], { allowUnknown: ['toolsTabs'] });
+  'btestRun', 'btestStatus', 'btestSummary', 'btestRows', 'pingContinuous', 'torchContinuous',
+  // The live cards (tools-ping-cards.ts, tools-btest-cards.ts).
+  'pingScoreRing', 'pingCardScore', 'pingScoreVal', 'pingLastVal', 'pingMinVal', 'pingMaxVal', 'pingLossVal',
+  'pingCardLoss', 'pingSpark', 'pingCardLast', 'btestScaleRx', 'btestScaleTx', 'btestArcRx', 'btestNeedleRx',
+  'btestValRx', 'btestAvgRx', 'btestArcTx', 'btestNeedleTx', 'btestValTx', 'btestAvgTx', 'btestLostVal', 'btestCpuVal', 'pingScroll', 'torchScroll'],
+  // traceMap: an <svg> the trace map draws into with path geometry
+  // (getTotalLength, getPointAtLength) this shim does not have. Its planner is
+  // tested in tools-cards.test.ts, and the drawing is checked in a browser.
+  { allowUnknown: ['toolsTabs', 'traceMap'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
@@ -62,8 +77,10 @@ assert.ok(!/timeout/.test(rows()), 'a result nobody asked for was drawn:\n' + ro
 n.pingAddress.value = '198.51.100.1';
 n.pingCount.value = '2';
 n.pingForm.fire('submit', { preventDefault: () => {} });
-assert.deepStrictEqual(sent, [['tools:ping', { address: '198.51.100.1', count: 2 }]], 'the form did not ask for one run');
-assert.strictEqual(n.pingRun.disabled, true, 'Run stays enabled while a run is pending');
+assert.deepStrictEqual(sent, [['tools:ping', { address: '198.51.100.1', count: 2, continuous: false }]], 'the form did not ask for one run');
+const isStop = (b) => b.textContent === 'Stop' && b.classList.contains('sbtn-danger') && !b.disabled;
+assert.ok(isStop(n.pingRun), 'the running tool\'s button is not a red, enabled Stop');
+assert.strictEqual(n.traceRun.disabled, true, 'another tool can start while a run is pending');
 
 handlers['tools:ping'](result);
 const html = rows();
@@ -71,7 +88,13 @@ assert.ok(/0\.114 ms/.test(html), 'the reply has no time:\n' + html);
 assert.ok(/<span class="wg-down">timeout<\/span>/.test(html), 'the lost packet does not say timeout:\n' + html);
 assert.ok(!/<b>x<\/b>/.test(html) && /&lt;b&gt;/.test(html), 'a reply host was not escaped:\n' + html);
 assert.ok(/2 sent, 1 received, 50% loss/.test(String(n.pingSummary.textContent)), 'no summary');
-assert.strictEqual(n.pingRun.disabled, false, 'Run stays disabled after the result');
+// THE CARDS follow the same frame: half the packets lost scores 0.
+assert.strictEqual(String(n.pingLossVal.textContent), '50', 'the Loss card was not drawn');
+assert.strictEqual(String(n.pingScoreVal.textContent), '0', 'the Score card does not score a 50% loss as 0');
+assert.ok(n.pingCardLoss.classList.contains('is-bad') && n.pingCardScore.classList.contains('grade-poor'),
+  'the Loss and Score cards are not marked bad');
+assert.ok(n.pingRun.textContent === 'Ping' && !n.pingRun.classList.contains('sbtn-danger') && !n.pingRun.disabled,
+  'the button is not Ping again after the result');
 
 // A new run clears the last result at once, so a failure is not shown under the
 // previous address's replies.
@@ -95,7 +118,7 @@ handlers['tools:ping'](result);
 assert.ok(/Not run yet/.test(rows()), 'a result for the old router was drawn after the switch');
 
 // LIVE OUTPUT. Progress frames arrive while the run is going: each is drawn,
-// the run stays pending (Run stays disabled, the status still says running), and
+// the run stays pending (its button stays Stop, the status still says running), and
 // the done frame settles it.
 const replies = result.result.replies;
 const frame = (k: number, done: boolean) => ({ code: '', message: '', done,
@@ -103,13 +126,13 @@ const frame = (k: number, done: boolean) => ({ code: '', message: '', done,
 n.pingForm.fire('submit', { preventDefault: () => {} });
 handlers['tools:ping'](frame(1, false));
 assert.ok(/0\.114 ms/.test(rows()) && !/timeout/.test(rows()), 'the first progress frame was not drawn:\n' + rows());
-assert.strictEqual(n.pingRun.disabled, true, 'a progress frame settled the run');
+assert.ok(isStop(n.pingRun), 'a progress frame settled the run');
 assert.ok(/Running/.test(String(n.pingStatus.textContent)), 'a progress frame cleared the running status');
 handlers['tools:ping'](frame(2, false));
 assert.ok(/<span class="wg-down">timeout<\/span>/.test(rows()), 'the second progress frame was not drawn:\n' + rows());
-assert.strictEqual(n.pingRun.disabled, true, 'the second progress frame settled the run');
+assert.ok(isStop(n.pingRun), 'the second progress frame settled the run');
 handlers['tools:ping'](frame(2, true));
-assert.strictEqual(n.pingRun.disabled, false, 'the done frame did not settle the run');
+assert.ok(n.pingRun.textContent === 'Ping' && !n.pingRun.disabled, 'the done frame did not settle the run');
 assert.strictEqual(String(n.pingStatus.textContent), '', 'the running status outlived the done frame');
 assert.ok(/2 sent/.test(String(n.pingSummary.textContent)), 'the done frame was not drawn');
 // Progress for a tool that is not pending is dropped (the control is above)...
@@ -158,7 +181,7 @@ sent.length = 0;
 n.torchInterface.value = 'ether1';
 n.torchSeconds.value = '3';
 n.torchForm.fire('submit', { preventDefault: () => {} });
-assert.deepStrictEqual(sent, [['tools:torch', { interface: 'ether1', seconds: 3 }]], 'the torch form did not ask for one run');
+assert.deepStrictEqual(sent, [['tools:torch', { interface: 'ether1', seconds: 3, continuous: false }]], 'the torch form did not ask for one run');
 handlers['tools:torch']({ code: '', message: '', done: true, result: { interface: 'ether1', seconds: 3, reports: 2, omitted: 2, totalRxBps: 2000000, totalTxBps: 0,
   flows: [{ protocol: 'tcp', srcAddress: '198.51.100.1', srcPort: '443', dstAddress: '198.51.100.2', dstPort: '50000', rxBps: 2000000, txBps: 0 }] } });
 assert.ok(/2\.00 Mbps/.test(String(n.torchRows.innerHTML)) && /198\.51\.100\.1:443/.test(String(n.torchRows.innerHTML)),
@@ -170,6 +193,34 @@ assert.ok(/<td style="color:var\(--accent-rx\)">2\.00 Mbps<\/td>/.test(String(n.
 assert.ok(/<span class="bw-proto bw-proto-tcp">tcp<\/span>/.test(String(n.torchRows.innerHTML)),
   'the protocol is not a pill:\n' + n.torchRows.innerHTML);
 assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 'omitted flows are not admitted to');
+
+// STOP. Pressing the running tool's button asks the server to stop, and sends
+// no second run; the stopped frame draws the run so far and settles it.
+sent.length = 0;
+n.pingContinuous.checked = true;
+n.pingForm.fire('submit', { preventDefault: () => {} });
+assert.deepStrictEqual(sent, [['tools:ping', { address: '198.51.100.1', count: 2, continuous: true }]],
+  'the Continuous switch did not reach the request');
+handlers['tools:ping'](frame(1, false));
+n.pingForm.fire('submit', { preventDefault: () => {} });
+assert.deepStrictEqual(sent.slice(1), [['tools:stop', {}]], 'pressing Stop did not ask for the run to stop');
+assert.strictEqual(n.pingRun.disabled, true, 'Stop can be pressed twice while the stop is on its way');
+assert.ok(/Stopping/.test(String(n.pingStatus.textContent)), 'the status does not say it is stopping');
+handlers['tools:ping']({ ...frame(2, true), code: 'stopped' });
+assert.ok(/<span class="wg-down">timeout<\/span>/.test(rows()), 'the stopped frame\'s run so far was not drawn:\n' + rows());
+assert.ok(/Stopped/.test(String(n.pingStatus.textContent)), 'a stopped run does not say so');
+assert.ok(n.pingRun.textContent === 'Ping' && !n.pingRun.disabled, 'a stopped run left the button as Stop');
+n.pingContinuous.checked = false;
+// LEAVING THE PAGE STOPS THE RUN; opening it again, or leaving with nothing
+// running, sends nothing (the control).
+sent.length = 0;
+doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'dashboard' });
+assert.deepStrictEqual(sent, [], 'leaving the page with nothing running sent something');
+n.pingForm.fire('submit', { preventDefault: () => {} });
+sent.length = 0;
+doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'dashboard' });
+assert.deepStrictEqual(sent, [['tools:stop', {}]], 'leaving the page did not stop the run');
+handlers['tools:ping']({ ...frame(1, true), code: 'stopped' });
 
 // THE BANDWIDTH TEST sends the password once, then empties its field; a failed
 // test says what RouterOS said.
@@ -191,6 +242,10 @@ handlers['tools:btest']({ code: '', message: '', done: true, result: { address: 
   direction: 'both', duration: '3s', rxBps: 4612040, txBps: 1702032, lostPackets: 0, localCpu: 0, remoteCpu: 3 } });
 assert.ok(/4\.61 Mbps/.test(String(n.btestRows.innerHTML)) && /far one 3%/.test(String(n.btestRows.innerHTML)),
   'the result was not drawn:\n' + n.btestRows.innerHTML);
+// The gauges: no current rate in this frame, so the needles rest and the
+// averages are written beneath them.
+assert.ok(/avg 4\.61 Mbps/.test(String(n.btestAvgRx.textContent)) && /avg 1\.70 Mbps/.test(String(n.btestAvgTx.textContent)),
+  'the gauges do not show the run averages: ' + n.btestAvgRx.textContent + ' / ' + n.btestAvgTx.textContent);
 
 // A router switch forgets the permission until the new router's caps arrive.
 handlers['router:switched']({ activeId: 'r4' });

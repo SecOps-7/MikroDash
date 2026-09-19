@@ -1067,6 +1067,8 @@ export interface BtestResult {
   duration: string;
   rxBps: number;
   txBps: number;
+  rxNowBps: number;
+  txNowBps: number;
   lostPackets: number;
   localCpu: number;
   remoteCpu: number;
@@ -1124,6 +1126,7 @@ export interface Flow {
 export interface TorchResult {
   interface: string;
   seconds: number;
+  continuous: boolean;
   reports: number;
   flows: Flow[];
   omitted: number;
@@ -1147,12 +1150,23 @@ export interface Hop {
   bestMs: number | null;
   worstMs: number | null;
   status: string;
+  country: string;
+  city: string;
+  lat: number | null;
+  lon: number | null;
+}
+
+export interface Place {
+  lat: number;
+  lon: number;
+  label: string;
 }
 
 export interface TracerouteResult {
   address: string;
   hops: Hop[];
   error: string;
+  origin: Place | null;
 }
 
 export interface ToolsTraceroutePayload {

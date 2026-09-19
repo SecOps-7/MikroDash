@@ -28,3 +28,33 @@ func CompleteSections(rows []routeros.Reply) []routeros.Reply {
 	}
 	return rows[:n]
 }
+
+// KeepLast is the last n rows: a continuous ping's trim.
+func KeepLast(n int) func([]routeros.Reply) []routeros.Reply {
+	return func(rows []routeros.Reply) []routeros.Reply {
+		if len(rows) <= n {
+			return rows
+		}
+		return rows[len(rows)-n:]
+	}
+}
+
+// KeepLastSections is the rows of the last n `.section`s plus the one still
+// arriving: a continuous torch's trim. Folded through CompleteSections, that is
+// exactly its last n whole seconds.
+func KeepLastSections(n int) func([]routeros.Reply) []routeros.Reply {
+	return func(rows []routeros.Reply) []routeros.Reply {
+		seen, i := 0, len(rows)
+		for i > 0 {
+			sec := rows[i-1][".section"]
+			seen++
+			if seen > n+1 {
+				break
+			}
+			for i > 0 && rows[i-1][".section"] == sec {
+				i--
+			}
+		}
+		return rows[i:]
+	}
+}

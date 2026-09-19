@@ -14,7 +14,11 @@ import (
 // it runs, which is why it needs write access to Tools.
 const (
 	TorchDefaultSeconds = 5
-	TorchMaxSeconds     = 10
+	TorchMaxSeconds     = 60
+	// TorchWindow is the seconds a continuous run averages over: the latest
+	// ones, so its table shows what is happening now rather than a mean since
+	// it started that dilutes the longer it runs.
+	TorchWindow = 5
 	// TorchMaxFlows is how many flows a result carries, busiest first. A busy
 	// uplink has hundreds, and a page or a model handed all of them reads none.
 	TorchMaxFlows = 25
@@ -39,10 +43,15 @@ func TorchSeconds(seconds int) int {
 	return seconds
 }
 
-// TorchCommand is the one torch sentence this app sends.
-func TorchCommand(iface string, seconds int) (routeros.Cmd, error) {
+// TorchCommand is the one torch sentence this app sends. A continuous one has
+// no duration, so RouterOS watches until it is cancelled, and ContinuousMax is
+// its bound.
+func TorchCommand(iface string, seconds int, continuous bool) (routeros.Cmd, error) {
 	if !ifaceRe.MatchString(iface) {
 		return routeros.Cmd{}, ErrInterface
+	}
+	if continuous {
+		return routeros.Cmd{Path: "/tool/torch", Args: []string{"=interface=" + iface}, Timeout: ContinuousMax}, nil
 	}
 	seconds = TorchSeconds(seconds)
 	return routeros.Cmd{
@@ -68,8 +77,11 @@ type Flow struct {
 type TorchResult struct {
 	Interface string `json:"interface"`
 	// Seconds is how long the run watched. Set by the caller, which knows what
-	// it asked for; the rows do not say.
+	// it asked for; the rows do not say. Zero for a continuous run.
 	Seconds int `json:"seconds"`
+	// Continuous is a run with no end: its rates are the average over its last
+	// TorchWindow seconds, not over the run.
+	Continuous bool `json:"continuous"`
 	// Reports is how many one-second reports the run produced, which the
 	// averages divide by. RouterOS sends none for the first second, so a
 	// 3-second run has 2.

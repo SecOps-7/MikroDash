@@ -590,6 +590,10 @@ func (cn *conn) dispatch(in inbound) {
 		cn.toolsBtest(in.Data)
 	case "tools:caps":
 		cn.toolsCaps()
+	// Stop: the run's own quit, exactly as a router switch ends it. Its last
+	// frame, with code "stopped", carries the run so far.
+	case "tools:stop":
+		cn.stopTool()
 	// Registered as its own literal beside firewall:tab rather than folded into
 	// it, for the reason wan:renew and wan:release are separate: the next person
 	// greps for the event name, and these two carry DIFFERENT PERMISSION GATES

@@ -58,6 +58,9 @@ func TestAFinishedBandwidthTestReadsItsLastReport(t *testing.T) {
 	if r.RxBps != 4612040 || r.TxBps != 1702032 || r.RemoteCPU != 3 || r.Direction != "both" {
 		t.Errorf("result = %+v, want the last report's totals: rx 4612040, tx 1702032, remote cpu 3", r)
 	}
+	if r.RxNowBps != 6876768 || r.TxNowBps != 969440 {
+		t.Errorf("current rates rx %d tx %d, want the last report's 6876768 and 969440", r.RxNowBps, r.TxNowBps)
+	}
 }
 
 // A FAILED RUN IS NOT A TRAP. RouterOS ends it on a status saying why, and a

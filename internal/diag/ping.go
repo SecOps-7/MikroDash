@@ -23,10 +23,25 @@ import (
 
 // Ping bounds. RouterOS sends one packet a second by default, so the count is
 // also the run's length in seconds.
+//
+// THE ASSISTANT HAS ITS OWN, LOWER CAP. The page shows each reply as it comes
+// and has a Stop button; a model waits for the whole run before it reads any of
+// it, so a hundred-second ping would be a hundred seconds of nothing.
 const (
 	PingDefaultCount = 4
-	PingMaxCount     = 10
+	PingMaxCount     = 100
+	AssistantPingMax = 10
+	// PingKeepReplies is how many replies a continuous run carries: the latest,
+	// which is what a table being watched shows. Its totals are the router's
+	// running ones, so nothing is lost by the cut (see FoldPing).
+	PingKeepReplies = 100
 )
+
+// ContinuousMax is the longest a continuous ping or torch runs. A run ends when
+// the operator stops it, leaves the page or closes the tab; this is for the
+// tab nobody closes, which would otherwise hold a channel on the router for
+// ever.
+const ContinuousMax = time.Hour
 
 // ErrAddress is an address that is not one token.
 var ErrAddress = errors.New("the address must be one IP address, host name or MAC address")
@@ -37,10 +52,14 @@ var ErrAddress = errors.New("the address must be one IP address, host name or MA
 // with a character that could read as a flag or a property.
 var addressRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.:%_-]{0,252}$`)
 
-// PingCommand is the one ping sentence this app sends.
-func PingCommand(address string, count int) (routeros.Cmd, error) {
+// PingCommand is the one ping sentence this app sends. A continuous one has no
+// count, so RouterOS pings until it is cancelled, and ContinuousMax is its bound.
+func PingCommand(address string, count int, continuous bool) (routeros.Cmd, error) {
 	if !addressRe.MatchString(address) {
 		return routeros.Cmd{}, ErrAddress
+	}
+	if continuous {
+		return routeros.Cmd{Path: "/tool/ping", Args: []string{"=address=" + address}, Timeout: ContinuousMax}, nil
 	}
 	if count <= 0 {
 		count = PingDefaultCount
@@ -82,6 +101,9 @@ type PingResult struct {
 }
 
 // FoldPing reads a run's rows into its result.
+//
+// A continuous run is folded from its latest PingKeepReplies rows only (see
+// KeepLast), so Replies is those and Sent is still the whole run's count.
 //
 // THE SUMMARY IS THE LAST ROW'S. Every row RouterOS sends carries the running
 // sent, received and loss, and the min, avg and max once anything has replied;

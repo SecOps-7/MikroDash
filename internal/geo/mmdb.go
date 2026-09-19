@@ -69,9 +69,11 @@ type mmdbRecord struct {
 	City struct {
 		Names map[string]string `maxminddb:"names"`
 	} `maxminddb:"city"`
+	// POINTERS, so a record with no location decodes as nil rather than 0,0
+	// (see Location in geoip.go for why that matters).
 	Location struct {
-		Lat float64 `maxminddb:"latitude"`
-		Lon float64 `maxminddb:"longitude"`
+		Lat *float64 `maxminddb:"latitude"`
+		Lon *float64 `maxminddb:"longitude"`
 	} `maxminddb:"location"`
 }
 
@@ -141,9 +143,14 @@ func lookupMMDB(r *maxminddb.Reader, ip net.IP) (Location, bool) {
 			region = rec.Subdivisions[0].ISO
 		}
 	}
+	// THE COORDINATES WERE DECODED AND DROPPED here until 2026-09-19, when the
+	// Tools page's traceroute map became the first thing to read them from this
+	// backend: every hop came back with a country and a city and no place.
 	return Location{
 		Country: rec.Country.ISO,
 		Region:  region,
 		City:    rec.City.Names["en"],
+		Lat:     rec.Location.Lat,
+		Lon:     rec.Location.Lon,
 	}, true
 }

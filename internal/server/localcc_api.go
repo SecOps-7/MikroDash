@@ -175,18 +175,15 @@ func localCCPayload(wanIP string, maySeeIP bool, country func(string) string,
 // prefix. Handing `203.0.113.7/24` to a geo lookup finds nothing, and the
 // symptom is an empty country rather than an error.
 func (s *Server) activeWanIP() string {
-	if s.store == nil || s.sessions == nil {
+	return s.wanIPOf(s.activeRouterID())
+}
+
+// wanIPOf is one router's WAN address, from its LIVE session only (see above).
+func (s *Server) wanIPOf(routerID string) string {
+	if routerID == "" || s.sessions == nil {
 		return ""
 	}
-	cfg, err := s.store.Settings()
-	if err != nil {
-		return ""
-	}
-	activeID, _ := cfg["activeRouterId"].(string)
-	if activeID == "" {
-		return ""
-	}
-	sess := s.sessions.Live()[activeID]
+	sess := s.sessions.Live()[routerID]
 	if sess == nil {
 		return ""
 	}
@@ -230,38 +227,36 @@ func addressOfCIDR(v string) string {
 // `activeWanIP` above carries the same warning for the same reason — the
 // obvious spelling of "get the active router" dials it.
 func (s *Server) activeRouterPlaceCC() string {
-	if s.store == nil {
+	loc := s.routerPlace(s.activeRouterID())
+	if loc == nil {
 		return ""
 	}
-	cfg, err := s.store.Settings()
-	if err != nil {
-		return ""
-	}
-	activeID, _ := cfg["activeRouterId"].(string)
-	if activeID == "" {
-		return ""
+	return loc.CC
+}
+
+// routerPlace is one router's configured location, through ResolveLocation, or
+// nil when it has none. From disk only, as activeRouterPlaceCC explains.
+func (s *Server) routerPlace(routerID string) *geoplace.Location {
+	if routerID == "" || s.store == nil {
+		return nil
 	}
 	all, problems := s.store.Routers()
 	if len(problems) != 0 {
 		// A fleet that would not read is not a fleet with no location. Answering
-		// "" here is the same as before this fallback existed.
-		return ""
+		// nothing here is the same as before this fallback existed.
+		return nil
 	}
 	var rec *store.Router
 	for i := range all {
-		if all[i].ID == activeID {
+		if all[i].ID == routerID {
 			rec = &all[i]
 			break
 		}
 	}
 	if rec == nil {
-		return ""
+		return nil
 	}
-	loc := geoplace.ResolveLocation(decodeGeo(rec.Geo), s.primarySiteRow(rec))
-	if loc == nil {
-		return ""
-	}
-	return loc.CC
+	return geoplace.ResolveLocation(decodeGeo(rec.Geo), s.primarySiteRow(rec))
 }
 
 // primarySiteRow is the device's FIRST site, as `routers.BuildRow` reads it —

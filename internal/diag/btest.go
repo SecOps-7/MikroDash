@@ -94,8 +94,12 @@ type BtestResult struct {
 	Duration string `json:"duration"`
 	// RxBps and TxBps are the whole run's averages, in bits per second, from
 	// this router's side.
-	RxBps       int64 `json:"rxBps"`
-	TxBps       int64 `json:"txBps"`
+	RxBps int64 `json:"rxBps"`
+	TxBps int64 `json:"txBps"`
+	// RxNowBps and TxNowBps are the latest report's current rates: what the
+	// page's gauges show while the test runs, where an average lags.
+	RxNowBps    int64 `json:"rxNowBps"`
+	TxNowBps    int64 `json:"txNowBps"`
 	LostPackets int64 `json:"lostPackets"`
 	LocalCPU    int   `json:"localCpu"`
 	RemoteCPU   int   `json:"remoteCpu"`
@@ -115,6 +119,8 @@ func FoldBandwidthTest(address string, rows []routeros.Reply) BtestResult {
 	out.Duration = last["duration"]
 	out.RxBps = atoi64(last["rx-total-average"])
 	out.TxBps = atoi64(last["tx-total-average"])
+	out.RxNowBps = atoi64(last["rx-current"])
+	out.TxNowBps = atoi64(last["tx-current"])
 	out.LostPackets = atoi64(last["lost-packets"])
 	out.LocalCPU = atoi(last["local-cpu-load"])
 	out.RemoteCPU = atoi(last["remote-cpu-load"])

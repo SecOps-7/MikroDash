@@ -11,7 +11,7 @@ func TestTorchSendsWhatTheCaptureWasTakenWith(t *testing.T) {
 	ex := c.Exchanges[0]
 	iface := strings.TrimPrefix(ex.Params[0], "=interface=")
 	secs, _ := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(ex.Params[1], "=duration="), "s"))
-	cmd, err := TorchCommand(iface, secs)
+	cmd, err := TorchCommand(iface, secs, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestTorchBounds(t *testing.T) {
 		{0, TorchDefaultSeconds}, {-1, TorchDefaultSeconds}, {1, 1},
 		{TorchMaxSeconds, TorchMaxSeconds}, {TorchMaxSeconds + 1, TorchMaxSeconds}, {3600, TorchMaxSeconds},
 	} {
-		cmd, err := TorchCommand("ether1", tc.in)
+		cmd, err := TorchCommand("ether1", tc.in, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,12 +98,12 @@ func TestTorchBounds(t *testing.T) {
 		}
 	}
 	for _, ok := range []string{"ether1", "2.4GHz WiFi", "bridge-lan", "pppoe-out1"} {
-		if _, err := TorchCommand(ok, 1); err != nil {
+		if _, err := TorchCommand(ok, 1, false); err != nil {
 			t.Errorf("%q refused: %v", ok, err)
 		}
 	}
 	for _, bad := range []string{"", "=x", "a\nb", strings.Repeat("a", 65)} {
-		if _, err := TorchCommand(bad, 1); err == nil {
+		if _, err := TorchCommand(bad, 1, false); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
 	}

@@ -15,7 +15,17 @@
 //
 // The server streams each run: its event arrives with `done: false` as rows come
 // in — the run so far, folded exactly as the finished one is — and once with
-// `done: true` to end it. Both are drawn by the tool's one renderer, so the last
+// `done: true` to end it. Ping, traceroute and bandwidth test draw cards or a
+// map above their tables from the same frames (tools-ping-cards.ts,
+// tools-trace-map.ts, tools-btest-cards.ts).
+//
+// ── RUN BECOMES STOP ────────────────────────────────────────────────────────
+//
+// While a tool runs, its own button is a red Stop, and pressing it sends
+// `tools:stop`. The server cancels the command on the router and ends the run
+// with code `stopped` and the run so far, which is drawn like any other frame.
+// Leaving the page stops a run too: a continuous ping nobody is watching would
+// otherwise hold a channel on the router for its whole hour. Both are drawn by the tool's one renderer, so the last
 // progress frame and the result cannot disagree about what a row looks like. A
 // progress frame leaves the run pending; only the done one settles it.
 //
@@ -29,6 +39,9 @@
 import type { Socket } from '../socket';
 import { esc, el, fmtMbps, protoPill } from '../dom';
 import type { PingResult, TracerouteResult, TorchResult, BtestResult } from '../gen/payloads';
+import { renderPingCards } from './tools-ping-cards';
+import { renderBtestCards } from './tools-btest-cards';
+import { createTraceMap, type TraceMap } from './tools-trace-map';
 
 const REFUSED: Record<string, string> = {
   denied: 'You may not run this tool on this router.',
@@ -48,20 +61,27 @@ interface Tool {
   summary: string;
   rows: string;
   cols: number;
+  /** The Run button's own word, which it goes back to after Stop. */
+  label: string;
   request(): Record<string, unknown> | null;
 }
+
+/** Whether a Continuous box is ticked. */
+const ticked = (id: string): boolean => !!el<HTMLInputElement>(id)?.checked;
 
 const TOOLS: Tool[] = [
   {
     key: 'ping', write: false, form: 'pingForm', run: 'pingRun', status: 'pingStatus', summary: 'pingSummary', rows: 'pingRows', cols: 6,
+    label: 'Ping',
     request: () => {
       const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
-      return address ? { address, count: Number(el<HTMLSelectElement>('pingCount')?.value || 4) } : null;
+      return address ? { address, count: Number(el<HTMLSelectElement>('pingCount')?.value || 10),
+        continuous: ticked('pingContinuous') } : null;
     },
   },
   {
     key: 'traceroute', write: false, form: 'traceForm', run: 'traceRun', status: 'traceStatus', summary: 'traceSummary',
-    rows: 'traceRows', cols: 7,
+    rows: 'traceRows', cols: 7, label: 'Trace',
     request: () => {
       const address = (el<HTMLInputElement>('traceAddress')?.value || '').trim();
       return address ? { address, maxHops: Number(el<HTMLSelectElement>('traceHops')?.value || 15) } : null;
@@ -69,15 +89,16 @@ const TOOLS: Tool[] = [
   },
   {
     key: 'torch', write: true, form: 'torchForm', run: 'torchRun', status: 'torchStatus', summary: 'torchSummary',
-    rows: 'torchRows', cols: 5,
+    rows: 'torchRows', cols: 5, label: 'Watch',
     request: () => {
       const iface = el<HTMLSelectElement>('torchInterface')?.value || '';
-      return iface ? { interface: iface, seconds: Number(el<HTMLSelectElement>('torchSeconds')?.value || 5) } : null;
+      return iface ? { interface: iface, seconds: Number(el<HTMLSelectElement>('torchSeconds')?.value || 5),
+        continuous: ticked('torchContinuous') } : null;
     },
   },
   {
     key: 'btest', write: true, form: 'btestForm', run: 'btestRun', status: 'btestStatus', summary: 'btestSummary',
-    rows: 'btestRows', cols: 2,
+    rows: 'btestRows', cols: 2, label: 'Test',
     request: () => {
       const address = (el<HTMLInputElement>('btestAddress')?.value || '').trim();
       if (!address) return null;
@@ -108,18 +129,46 @@ function notRun(t: Tool): string {
   return '<tr><td colspan="' + t.cols + '" class="empty-state">Not run yet</td></tr>';
 }
 
+let traceMap: TraceMap | null = null;
+
 function clearResult(t: Tool): void {
   const summary = el(t.summary);
   if (summary) summary.textContent = '';
   const rows = el(t.rows);
   if (rows) rows.innerHTML = notRun(t);
+  if (t.key === 'ping') renderPingCards(null);
+  if (t.key === 'btest') renderBtestCards(null);
+  if (t.key === 'traceroute') traceMap?.clear();
+}
+
+// ── A LONG RUN SCROLLS INSIDE ITS TABLE ─────────────────────────────────────
+//
+// A hundred pings, or an hour of them, would push the page past the bottom of
+// the screen (reported by the operator). The table's scroller is held to the
+// space left below it, and a ping table that is scrolled to its end follows the
+// newest reply; scrolled up, it stays where the operator put it.
+function fitHeight(wrap: HTMLElement): void {
+  if (typeof wrap.getBoundingClientRect !== 'function' || typeof window === 'undefined' || !window.innerHeight) return;
+  const top = wrap.getBoundingClientRect().top;
+  wrap.style.maxHeight = Math.max(220, Math.floor(window.innerHeight - top - 24)) + 'px';
+}
+
+function drawBounded(scrollId: string, follow: boolean, draw: () => void): void {
+  const wrap = el(scrollId);
+  const atEnd = !wrap || wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 8;
+  draw();
+  if (!wrap) return;
+  fitHeight(wrap);
+  if (follow && atEnd) wrap.scrollTop = wrap.scrollHeight;
 }
 
 function renderPing(r: PingResult): void {
   const summary = el('pingSummary');
   if (summary) {
     summary.textContent = r.sent + ' sent, ' + r.received + ' received, ' + r.lossPct + '% loss' +
-      (r.avgMs == null ? '' : ' · min ' + ms(r.minMs) + ', avg ' + ms(r.avgMs) + ', max ' + ms(r.maxMs));
+      (r.avgMs == null ? '' : ' · min ' + ms(r.minMs) + ', avg ' + ms(r.avgMs) + ', max ' + ms(r.maxMs)) +
+      // A continuous run carries its latest replies; the totals are the run's.
+      (r.replies.length < r.sent ? ' · showing the latest ' + r.replies.length : '');
   }
   const rows = el('pingRows');
   if (!rows) return;
@@ -164,7 +213,8 @@ function renderTraceroute(r: TracerouteResult): void {
 function renderTorch(r: TorchResult): void {
   const summary = el('torchSummary');
   if (summary) {
-    summary.textContent = 'Watched ' + r.interface + ' for ' + r.seconds + ' s · average rx ' + bps(r.totalRxBps) +
+    summary.textContent = (r.continuous ? 'Watching ' + r.interface + ' · the last ' + r.reports + ' s'
+      : 'Watched ' + r.interface + ' for ' + r.seconds + ' s') + ' · average rx ' + bps(r.totalRxBps) +
       ', tx ' + bps(r.totalTxBps) + (r.omitted ? ' · ' + r.omitted + ' quieter flows not shown' : '');
   }
   const rows = el('torchRows');
@@ -205,16 +255,32 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   // it arrives, so a Run button that would only be refused is never offered.
   let mayWrite = false;
 
+  // THE RUNNING TOOL'S BUTTON IS ITS STOP; every other Run button is disabled,
+  // as is a write tool's for a viewer who may not write.
   function setRunning(t: Tool | null, note: string): void {
     pending = t;
     for (const x of TOOLS) {
       const btn = el<HTMLButtonElement>(x.run);
-      if (btn) btn.disabled = t !== null || (x.write && !mayWrite);
+      if (!btn) continue;
+      const running = x === t;
+      btn.disabled = t !== null ? !running : (x.write && !mayWrite);
+      btn.textContent = running ? 'Stop' : x.label;
+      btn.classList.toggle('sbtn-danger', running);
+      btn.classList.toggle('sbtn-primary', !running);
     }
     if (t) {
       const status = el(t.status);
       if (status) status.textContent = note;
     }
+  }
+
+  function stop(): void {
+    if (!pending) return;
+    const btn = el<HTMLButtonElement>(pending.run);
+    if (btn) btn.disabled = true;
+    const status = el(pending.status);
+    if (status) status.textContent = 'Stopping…';
+    socket.emit('tools:stop', {});
   }
 
   function settle(t: Tool, d: { code: string; message: string; done: boolean }, draw: () => void): void {
@@ -227,8 +293,9 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     setRunning(null, '');
     const status = el(t.status);
     if (status) status.textContent = '';
-    if (!d.code) {
+    if (!d.code || d.code === 'stopped') {
       draw();
+      if (d.code && status) status.textContent = 'Stopped.';
       return;
     }
     if (status) status.textContent = REFUSED[d.code] || d.message || 'The tool did not run.';
@@ -237,6 +304,7 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   for (const t of TOOLS) {
     el(t.form)?.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (pending === t) { stop(); return; }
       if (pending) return;
       const req = t.request();
       if (!req) return;
@@ -247,11 +315,45 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       socket.emit('tools:' + t.key, req);
     });
   }
+  // CONTINUOUS HAS NO COUNT: the Packets and Seconds pickers step aside.
+  for (const [box, pick] of [['pingContinuous', 'pingCount'], ['torchContinuous', 'torchSeconds']] as const) {
+    el(box)?.addEventListener('change', () => {
+      const sel = el<HTMLSelectElement>(pick);
+      if (sel) sel.disabled = ticked(box);
+    });
+  }
+  const svg = el('traceMap') as unknown as SVGSVGElement | null;
+  const hops = el('traceHops');
+  if (svg && hops) traceMap = createTraceMap(svg, hops, el('traceMapEmpty'));
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => {
+      for (const id of ['pingScroll', 'torchScroll']) {
+        const wrap = el(id);
+        if (wrap) fitHeight(wrap);
+      }
+    });
+  }
   const [ping, trace, torch, btest] = TOOLS as [Tool, Tool, Tool, Tool];
-  socket.on('tools:ping', (d) => settle(ping, d, () => { if (d.result) renderPing(d.result); }));
-  socket.on('tools:traceroute', (d) => settle(trace, d, () => { if (d.result) renderTraceroute(d.result); }));
-  socket.on('tools:torch', (d) => settle(torch, d, () => { if (d.result) renderTorch(d.result); }));
-  socket.on('tools:btest', (d) => settle(btest, d, () => { if (d.result) renderBtest(d.result); }));
+  socket.on('tools:ping', (d) => settle(ping, d, () => {
+    if (!d.result) return;
+    const r = d.result;
+    drawBounded('pingScroll', true, () => renderPing(r));
+    renderPingCards(r);
+  }));
+  socket.on('tools:traceroute', (d) => settle(trace, d, () => {
+    if (!d.result) return;
+    renderTraceroute(d.result);
+    traceMap?.update(d.result);
+  }));
+  socket.on('tools:torch', (d) => settle(torch, d, () => {
+    const r = d.result;
+    if (r) drawBounded('torchScroll', false, () => renderTorch(r));
+  }));
+  socket.on('tools:btest', (d) => settle(btest, d, () => {
+    if (!d.result) return;
+    renderBtest(d.result);
+    renderBtestCards(d.result);
+  }));
 
   socket.on('tools:caps', (d) => {
     mayWrite = d.mayWrite;
@@ -270,6 +372,9 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   const askCaps = (): void => socket.emit('tools:caps', {});
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail === 'tools') askCaps();
+    // LEAVING THE PAGE STOPS THE RUN (decided 2026-09-19): nobody is watching
+    // it, and a continuous one would hold its channel for the hour.
+    else stop();
   });
 
   socket.on('router:switched', () => {
