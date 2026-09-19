@@ -263,6 +263,23 @@ func (s *Server) userUpdate(w http.ResponseWriter, r *http.Request, sess *Sessio
 
 	before := s.publicUserByID(id)
 
+	// A RENAME ONTO A TAKEN NAME IS A 409, as a create is. Nothing checked it,
+	// so two accounts could share a name and login would find the first.
+	if v, present := body["username"]; present && before != nil {
+		if name, _ := v.(string); name != before["username"] {
+			taken, err := s.usernameTaken(name)
+			if err != nil {
+				log.Printf("[users] read: %v", err)
+				writeJSONErr(w, http.StatusInternalServerError, "could not read the user list")
+				return
+			}
+			if taken {
+				writeJSONErr(w, http.StatusConflict, "Username already exists")
+				return
+			}
+		}
+	}
+
 	up := store.UserUpdates{}
 	if v, present := body["username"]; present {
 		str := bodyString(v)

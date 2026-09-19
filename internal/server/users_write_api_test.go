@@ -661,3 +661,32 @@ func usernameOf(t *testing.T, dir, id string) string {
 	}
 	return ""
 }
+
+// TestOneUsernameRuleEverywhere. Login, create and the password change match a
+// username EXACTLY; `userIDFor`, which resolves the id every grant is keyed by,
+// matched case-insensitively and took the first hit. users.json holding
+// "alice" (administrator) and a later "Alice" (viewer) let Alice sign in as
+// herself and be authorised as alice. A rename also skipped the taken check,
+// which is how two such names come to exist (review loop, Medium 1).
+func TestOneUsernameRuleEverywhere(t *testing.T) {
+	s, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "alice"}, seedUsersJSON)
+
+	if id := s.userIDFor("Alice"); id != "" {
+		t.Errorf(`userIDFor("Alice") = %q; login would refuse that name, so no id may answer for it`, id)
+	}
+	if id := s.userIDFor("alice"); id != "u-1" {
+		t.Errorf(`userIDFor("alice") = %q, want u-1: the control`, id)
+	}
+
+	w := doJSON(mux, "PUT", "/api/users/u-2", `{"username":"alice"}`, authed)
+	if w.Code != 409 {
+		t.Errorf("renaming bob onto alice answered %d, want 409 — %s", w.Code, w.Body.String())
+	}
+	if got := usernameOf(t, dir, "u-2"); got != "bob" {
+		t.Errorf("a refused rename still renamed the account to %q", got)
+	}
+	// Keeping your own name is not a collision.
+	if w := doJSON(mux, "PUT", "/api/users/u-2", `{"username":"bob"}`, authed); w.Code != 200 {
+		t.Errorf("re-saving bob's own name answered %d, want 200 — %s", w.Code, w.Body.String())
+	}
+}

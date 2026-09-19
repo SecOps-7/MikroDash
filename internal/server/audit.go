@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"net/netip"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -242,9 +241,9 @@ func (cn *conn) canPageIn(sc connScope, page, access string) bool {
 // /api/auth/status sends a username and never an id, on purpose. users.json —
 // which this process already reads and decrypts — carries both, so the mapping
 // costs nothing and needs no change to the live repo. Usernames are the login
-// identifier and therefore unique; a miss means the record was deleted between
-// the session being minted and this lookup, and answering "" makes every
-// subsequent question fail closed.
+// identifier and therefore unique, compared exactly as login compares them; a
+// miss means the record was deleted between the session being minted and this
+// lookup, and answering "" makes every subsequent question fail closed.
 func (s *Server) userIDFor(username string) string {
 	if s.store == nil || username == "" {
 		return ""
@@ -255,7 +254,9 @@ func (s *Server) userIDFor(username string) string {
 		return ""
 	}
 	for _, u := range users {
-		if strings.EqualFold(u.Username, username) {
+		// EXACT, as login, create and the password change are. A case-folded
+		// match here authorised "Alice" as "alice" (review loop, Medium 1).
+		if u.Username == username {
 			return u.ID
 		}
 	}
