@@ -103,11 +103,16 @@ func (c *Client) ListenArgsQueueContext(ctx context.Context, sentence []string, 
 
 	c.tags[l.tag] = l
 
-	go func() {
-		<-ctx.Done()
+	// MIKRODASH PATCH (see PATCHES.md, change 3): no watcher for a context that
+	// can never be cancelled. Its Done channel is nil, so the goroutine below
+	// would wait for ever, one per listener opened.
+	if ctx.Done() != nil {
+		go func() {
+			<-ctx.Done()
 
-		c.r.Cancel()
-	}()
+			c.r.Cancel()
+		}()
+	}
 
 	return l, nil
 }

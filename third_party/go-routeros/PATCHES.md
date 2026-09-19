@@ -43,3 +43,20 @@ the router are unchanged.
 
 `TestTracingNeverLogsACredential` in `internal/routeros` says whether a
 replacement library still needs this.
+
+## Change 3: a listener on an uncancellable context starts no watcher
+
+`ListenArgsQueueContext` started a goroutine per listener that waited on
+`<-ctx.Done()` and then cancelled the connection's reader. `ListenArgs` passes
+`context.Background()`, whose `Done()` is nil, so that goroutine could never
+wake: every stream opened parked one for the life of the process. MikroDash
+opens its streams through `ListenArgs`, and a stream reopened every ten seconds
+parked about 8,600 a day per menu.
+
+The watcher is now started only when `ctx.Done()` is not nil, which is exactly
+the case in which it can ever run. Behaviour for a cancellable context is
+unchanged; note that cancelling one still cancels the whole connection's reader,
+which is why MikroDash never passes one.
+
+`TestAStreamLeavesNoGoroutineBehind` in `internal/routeros` says whether a
+replacement library still needs this.
