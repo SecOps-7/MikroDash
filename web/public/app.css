@@ -27,7 +27,6 @@
     :root{--card-badge-bg:rgba(99,130,190,.12);--card-badge-color:rgba(148,163,190,.7);--card-badge-bg-active-blue:rgba(56,189,248,.15);--card-badge-color-active-blue:rgba(56,189,248,.9);--card-badge-bg-active-green:rgba(52,211,153,.15);--card-badge-color-active-green:rgba(52,211,153,.9)}
     .card-badge{font-family:var(--font-mono);font-size:.68rem;font-weight:600;padding:.15em .55em;border-radius:5px;background:var(--card-badge-bg);color:var(--card-badge-color);border:none;line-height:1.5}
     .card-badge.active-blue{background:var(--card-badge-bg-active-blue);color:var(--card-badge-color-active-blue)}
-    .card-badge.active-green{background:var(--card-badge-bg-active-green);color:var(--card-badge-color-active-green)}
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
     /* Keyboard focus. Before this there were seven :focus rules in the whole
@@ -214,7 +213,6 @@
     .bw-proto-other{background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid var(--border)}
     .bw-flag{font-size:.85rem;margin-right:.2rem}
     .bw-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:.8rem}
-    .bw-stats{display:none}
     .nav-items{display:flex;flex-direction:column}
     .sform-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem;display:block}
     .sform-input{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;color:var(--text-main);outline:none;transition:border-color .15s}
@@ -432,8 +430,7 @@
               vertical-align:-1px;margin-right:.45rem}
     .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18)}
     /* Settings lays its cards out on a grid rather than one long strip. Cards
-       need min-width:0 so they can shrink inside a track (same reason as
-       .mikrodash-col--center). */
+       need min-width:0 so they can shrink inside a track. */
     .scard{min-width:0}
     /* Cards that want the whole width: tables, the tallest card (which would
        otherwise leave a large gap beside it), and tabs holding only one card. */
@@ -443,7 +440,6 @@
        what happens to Sites and Users once Users spans the grid. A min-height on
        the body (not the card) keeps the table area from collapsing while still
        letting the card grow past it as rows are added. */
-    .scard--tall .scard-body{min-height:15rem}
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
     .scard-body{padding:.9rem 1rem}
@@ -452,8 +448,6 @@
     .sbanner-ok{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:rgba(52,211,153,.9)}
     .sbanner-warn{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:rgba(251,191,36,.9)}
     .sbanner-err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:rgba(248,113,113,.9)}
-    .srange-wrap{display:flex;align-items:center;gap:.6rem}
-    .srange-wrap input[type=range]{flex:1;accent-color:var(--accent-rx)}
     #pollSlidersWrap{display:grid;grid-template-columns:1fr 1fr;gap:0 1.4rem;align-items:start}
     /* The group heading spans both columns so the split reads as two lists of
        one kind each, not one list wrapped arbitrarily. */
@@ -574,8 +568,6 @@
     .sys-meta-item{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
     .sys-meta-item strong{color:var(--text-main)}
     /* lan */
-    .lan-divider{border-top:1px solid var(--border);margin:.8rem -.75rem 0;padding:.7rem .75rem 0}
-    .lan-section-label{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(99,130,190,.5);margin-bottom:.45rem}
     .lan-net{padding:.25rem .45rem;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.18);border-radius:6px;margin-bottom:.25rem}
     .lan-net:last-child{margin-bottom:0}
     .lan-cidr{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--text-main)}
@@ -1092,8 +1084,6 @@
     .lease-pill.bound{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
     .lease-pill.waiting{background:rgba(245,159,0,.1);color:var(--accent-warn);border:1px solid rgba(245,159,0,.25)}
     .lease-pill.expired{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
-    .lease-online{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
-    .lease-online.yes{background:var(--accent-ok)} .lease-online.no{background:rgba(148,163,190,.3)}
     /* logs */
     .log-count-badge{font-family:var(--font-mono);font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:12px;cursor:pointer;border:1px solid transparent;transition:opacity .15s,transform .1s;user-select:none;white-space:nowrap}
     .log-count-badge:hover{opacity:.8;transform:scale(1.04)}
@@ -1146,7 +1136,6 @@
     .ros-update-row.muted{background:rgba(99,130,190,.04);border:1px solid var(--border);color:var(--text-muted);opacity:.65}
     /* wg pill */
     .wg-up{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:4px;padding:1px 6px}
-    .wg-idle{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
     .wg-up::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-ok);flex-shrink:0}
     .wg-down{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-err);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:1px 6px}
     .wg-down::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-err);flex-shrink:0}
@@ -1154,10 +1143,8 @@
     .top-row{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border)}
     .top-row:last-child{border-bottom:none}
     .top-name{font-size:.78rem;font-weight:600;color:var(--text-main)}
-    .top-sub{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted)}
     .top-count{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--accent-rx)}
     .top-geo{font-family:var(--font-mono);font-size:.62rem;color:#c084fc;background:rgba(192,132,252,.08);border:1px solid rgba(192,132,252,.2);border-radius:4px;padding:1px 6px;white-space:nowrap;flex-shrink:0;margin-right:.9rem}
-    .top-org{font-family:var(--font-mono);font-size:.62rem;color:var(--accent-rx);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem}
     /* ── Service badges ───────────────────────────────────────────────────── */
     .svc-badge{display:inline-block;font-family:var(--font-mono);font-size:.58rem;font-weight:600;padding:.1em .45em;border-radius:4px;vertical-align:middle;white-space:nowrap;line-height:1.5;margin-left:.35rem;flex-shrink:0}
     .svc-cdn      {background:rgba(56,189,248,.15);  color:rgba(56,189,248,.95)}   /* sky blue   */
@@ -1187,9 +1174,6 @@
     .section-sep{font-family:var(--font-ui);font-weight:800;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(99,130,190,.4);padding:.45rem 0 .2rem}
     .empty-state{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);padding:.9rem 0;text-align:center}
     @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-    .row-deck>*{animation:fadeIn .3s ease both}
-    .row-deck>*:nth-child(1){animation-delay:.04s} .row-deck>*:nth-child(2){animation-delay:.09s}
-    .row-deck>*:nth-child(3){animation-delay:.14s} .row-deck>*:nth-child(4){animation-delay:.19s}
     /* ── Mobile burger menu ───────────────────────────────────────────── */
     #burgerBtn{display:none;position:fixed;top:11px;left:11px;z-index:300;width:32px;height:32px;border-radius:7px;border:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(8px);cursor:pointer;align-items:center;justify-content:center;color:var(--text-muted)}
     #burgerBtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
@@ -1209,37 +1193,22 @@
       .page-view{padding:.65rem .6rem}
     }
     /* Dashboard grid */
-    .mikrodash-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr auto;gap:.75rem;margin-bottom:1rem}
     /* Stacked columns span row 1, stack cards with gap */
-    .mikrodash-col{grid-row:1;display:flex;flex-direction:column;gap:.75rem}
-    .mikrodash-col>[data-card-id]{display:flex;flex-direction:column;flex:1}
-    .mikrodash-col>[data-card-id]>.card{flex:1;display:flex;flex-direction:column}
-    .mikrodash-col>[data-card-id]>.card>.card-body{flex:1}
     /* Center column: natural height; min-width:0 prevents SVG intrinsic-size from blocking shrink */
-    .mikrodash-col--center{align-self:start;min-width:0}
-    .mikrodash-col--center>[data-card-id]{flex:none;min-width:0}
-    .mikrodash-col--center>[data-card-id]>.card{flex:none;min-width:0}
-    .mikrodash-col--center>[data-card-id]>.card>.card-body{flex:none;min-width:0}
     /* Connections in row 1, stretches full height */
     [data-card-id="connCard"]{grid-row:1;display:flex;flex-direction:column}
     [data-card-id="connCard"]>.card{flex:1;display:flex;flex-direction:column}
     [data-card-id="connCard"]>.card>.card-body{flex:1}
     [data-card-id="connCard"]>.card{height:100%}
     @media(max-width:991px){
-      .mikrodash-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:auto auto}
-      .mikrodash-col,[data-card-id="connCard"]{grid-row:auto}
+      [data-card-id="connCard"]{grid-row:auto}
     }
     @media(max-width:650px){
-      .mikrodash-grid{grid-template-columns:1fr;grid-template-rows:auto;gap:.5rem}
-      .mikrodash-col{gap:.5rem}
-      .mikrodash-col,[data-card-id="connCard"]{grid-row:auto;height:auto}
-      .mikrodash-col>[data-card-id]{flex:none}
-      .mikrodash-col>[data-card-id]>.card>.card-body{flex:none}
+      [data-card-id="connCard"]{grid-row:auto;height:auto}
       [data-card-id="connCard"]>.card{height:auto}
       [data-card-id="connCard"]>.card>.card-body{flex:none;height:auto}
     }
     /* Ping chart */
-    .ping-section{border-top:1px solid var(--border);padding:.4rem .5rem .35rem;margin-top:.25rem}
     .ping-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;font-family:var(--font-mono);font-size:.7rem}
     .ping-stat{display:flex;gap:1.4rem}
     .ping-val{font-weight:700;font-size:.82rem}
@@ -1248,8 +1217,6 @@
     .ping-bad{color:#f87171}
     .ping-canvas-wrap{position:relative;height:40px}
     /* VPN page */
-    .vpn-page-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
-    @media(max-width:650px){.vpn-page-grid{grid-template-columns:1fr}}
     /* World map */
     .map-country{fill:rgba(99,130,190,.12);stroke:rgba(99,130,190,.2);stroke-width:.4;transition:fill .5s,stroke .5s}
     @keyframes mapPulse{0%{fill:rgba(255,255,255,.7)}50%{fill:rgba(56,189,248,.9)}100%{}}
@@ -1309,18 +1276,6 @@
       .bw-table colgroup col:nth-child(7){ width:65px }
       .bw-table colgroup col:nth-child(8){ width:160px }
     }
-    /* Wireless horizontal scroll on mobile */
-    @media(max-width:700px){
-      #page-wireless .card-body.p-0{ overflow-x:auto;-webkit-overflow-scrolling:touch }
-      #page-wireless .table-responsive,
-      #page-wireless .data-scroll{ overflow:visible }
-      #page-wireless table{ min-width:460px;table-layout:fixed;width:460px }
-      #page-wireless colgroup col:nth-child(1){ width:170px }
-      #page-wireless colgroup col:nth-child(2){ width:80px }
-      #page-wireless colgroup col:nth-child(3){ width:110px }
-      #page-wireless colgroup col:nth-child(4){ width:70px }
-      #page-wireless colgroup col:nth-child(5){ width:70px }
-    }
     /* Connections map fullscreen overlay */
     #mapFsOverlay{display:none;position:fixed;inset:0;z-index:9999;background:var(--bg-deep);flex-direction:column}
     #mapFsOverlay.active{display:flex}
@@ -1363,7 +1318,6 @@
                    border:1px solid var(--border);border-radius:3px;cursor:pointer}
     .notif-ack-btn:hover{color:var(--text-main);border-color:var(--accent-rx)}
     /* Geo flag */
-    .geo-flag{font-size:.8rem;margin-right:.2rem}
     /* Wireless enhancements */
     .wl-sort-btn{background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:.63rem;padding:2px 7px;cursor:pointer;transition:background .15s,color .15s}
     .wl-sort-btn:hover{background:rgba(56,189,248,.12);color:var(--accent-rx)}
@@ -1622,12 +1576,9 @@
     .wl-std-6{background:rgba(45,212,191,.12);color:rgba(45,212,191,.95);border:1px solid rgba(45,212,191,.25)}
     .wl-std-6e{background:rgba(34,211,238,.12);color:rgba(34,211,238,.95);border:1px solid rgba(34,211,238,.28)}
     .wl-std-7{background:rgba(244,114,182,.12);color:rgba(244,114,182,.95);border:1px solid rgba(244,114,182,.28)}
-    .wl-idle td{opacity:.55}
-    .wl-idle .wl-idle-tag{display:inline-block;font-family:var(--font-mono);font-size:.56rem;color:var(--text-muted);border:1px solid var(--border);border-radius:3px;padding:0 4px;margin-left:.3rem;vertical-align:middle}
     .wl-rate{font-family:var(--font-mono);font-size:.7rem}
     .wl-rate-rx{color:var(--accent-tx);font-size:.65rem}
     /* Interface totals */
-    .iface-totals{font-size:.6rem;color:rgba(148,163,190,.4);margin-top:.1rem}
     /* Topbar clock */
     @media(max-width:767px){#tobarClock{display:none}}
     .info-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:6px;font-size:.73rem;font-family:var(--font-mono);text-decoration:none;transition:background .15s,color .15s;cursor:pointer;border:none}
@@ -1750,11 +1701,6 @@
     .rt-proto-inner{display:flex;gap:.9rem;align-items:center}
     .rt-donut-wrap{flex-shrink:0;width:130px;height:130px;position:relative}
     .rt-proto-grid-wrap{flex:1;min-width:0}
-    .rt-donut-legend{display:flex;flex-direction:column;gap:.2rem;margin-top:.4rem}
-    .rt-donut-legend-item{display:flex;align-items:center;gap:.35rem;font-size:.65rem;font-family:var(--font-ui)}
-    .rt-donut-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-    .rt-donut-legend-label{color:var(--text-muted);flex:1}
-    .rt-donut-legend-val{font-family:var(--font-mono);color:var(--text-main);font-size:.68rem}
     .rt-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     .rt-proto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.4rem}
     .rt-proto-item{background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;display:flex;flex-direction:column;gap:.1rem}
@@ -1873,7 +1819,6 @@
        `/interface/wifi/registration-table/print` the value column was squeezed
        until "pushed" wrapped mid-word to two lines. */
     .diag-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)}
-  
 
 /* ── The WAN uplink picker ───────────────────────────────────────────────────
    Shown only in Manual mode: in Auto it would be a list of checkboxes that
