@@ -106,7 +106,7 @@ func (c Config) Timeout() time.Duration {
 
 // Client builds the HTTP client for one Config.
 //
-// ── A CLIENT PER CONFIG, NOT A PACKAGE-LEVEL ONE ────────────────────────────
+// ── A CLIENT PER CONFIG, NOT A PACKAGE-LEVEL ONE (the transports are shared) ──
 //
 // `notify` can share one, because its timeout is a constant and it never skips
 // verification. Here both are the operator's to set, and a shared client would
@@ -119,11 +119,9 @@ func (c Config) Timeout() time.Duration {
 // the response named. That is the operator's credential going somewhere they did
 // not configure, decided by the endpoint rather than by them.
 func (c Config) Client() *http.Client {
-	tr := &http.Transport{}
+	tr := verifyingTransport
 	if c.TLSInsecure {
-		// EXPLICIT OPT-IN ONLY, mirroring `routerTlsInsecure`. A lab endpoint
-		// with a self-signed certificate is a real case; a blanket skip is not.
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // operator opt-in
+		tr = insecureTransport
 	}
 	return &http.Client{
 		Timeout:   c.Timeout(),
@@ -134,6 +132,22 @@ func (c Config) Client() *http.Client {
 		},
 	}
 }
+
+// ONE TRANSPORT PER TLS CHOICE, shared by every client. A transport per request
+// left each round's keep-alive connection and its goroutines idle until the
+// endpoint hung up. Two, not one, for the reason above: the TLS decision lives
+// on the transport, and a lab endpoint's opt-out must not reach a hosted one.
+// Cloned from http.DefaultTransport for its proxy, dial and idle settings.
+var (
+	verifyingTransport = http.DefaultTransport.(*http.Transport).Clone()
+	insecureTransport  = func() *http.Transport {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		// EXPLICIT OPT-IN ONLY, mirroring `routerTlsInsecure`. A lab endpoint
+		// with a self-signed certificate is a real case; a blanket skip is not.
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // operator opt-in
+		return tr
+	}()
+)
 
 // endpoint resolves the chat-completions URL for a base.
 //

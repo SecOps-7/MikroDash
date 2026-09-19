@@ -422,3 +422,23 @@ func TestTheReplyBudgetIsBoundedAndFallsBackWhenUnusable(t *testing.T) {
 		t.Errorf("the default budget is %d, want the operator's 8192", DefaultReplyTokens)
 	}
 }
+
+// TestClientsShareATransportPerTLSChoice. Client built a fresh http.Transport
+// for every model request, so each round of every chat left an idle keep-alive
+// connection and its goroutines behind until the endpoint closed them (review
+// loop). Two transports serve every client: one verifying, one not, so a lab
+// endpoint's opt-out still cannot reach a hosted one.
+func TestClientsShareATransportPerTLSChoice(t *testing.T) {
+	a := (Config{TimeoutMs: 5000}).Client().Transport
+	b := (Config{TimeoutMs: 90000}).Client().Transport
+	if a != b {
+		t.Error("two verifying clients have different transports: each request opens its own pool")
+	}
+	if c := (Config{TLSInsecure: true}).Client().Transport; c == a {
+		t.Error("the insecure client shares the verifying transport")
+	}
+	tr := a.(*http.Transport)
+	if tr.Proxy == nil {
+		t.Error("the transport ignores HTTP_PROXY; http.DefaultTransport honours it")
+	}
+}
