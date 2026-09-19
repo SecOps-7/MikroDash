@@ -68,7 +68,7 @@ func (s *Server) navPrefsGet(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusUnauthorized, "not signed in")
 		return
 	}
-	blob, lerr := s.auditDB.Layout(s.layoutUser(sess), "nav")
+	blob, lerr := s.ownLayout(sess, "nav")
 	if lerr != nil || blob == nil {
 		writeJSON(w, nil)
 		return
@@ -132,7 +132,12 @@ func (s *Server) navPrefsSave(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(expanded)
 
-	if serr := s.auditDB.SetLayout(s.layoutUser(sess), "nav", map[string]any{
+	user := s.layoutUser(sess)
+	if user == "" {
+		writeJSONErr(w, http.StatusUnauthorized, "not signed in")
+		return
+	}
+	if serr := s.auditDB.SetLayout(user, "nav", map[string]any{
 		"grouped": *body.Grouped, "expanded": expanded,
 	}); serr != nil {
 		writeJSONErr(w, http.StatusInternalServerError, "could not save")
@@ -221,16 +226,26 @@ func writeJSON400OK(w http.ResponseWriter) {
 // `userIDFor` resolves the username to the id out of `users.json`, which is what
 // `webUserID` in `account_api.go` already did for the session store — the two
 // now agree, as they always should have.
+//
+// ── THE SHARED ROW IS SIGN-IN-OFF'S, AND NOBODY ELSE'S ──────────────────────
+//
+// With no session, or sign-in off, there is no identity and the shared row is
+// the answer. A SIGNED-IN user whose record is gone (deleted while the session
+// lived) answers "" — they used to be handed the shared row, so their next save
+// overwrote every sign-in-off viewer's layout. A write answers 401 on "", and a
+// read treats it as "nothing saved".
 func (s *Server) layoutUser(sess *Session) string {
-	if sess == nil {
+	if sess == nil || sess.AuthMode == "none" {
 		return db.SharedLayoutUser
 	}
-	id := s.userIDFor(sess.Username)
-	if id == "" {
-		// A username with no record is the shared identity rather than an empty
-		// key: an empty `user_id` would collide with every other empty one and
-		// hand a shared preference to whoever asked next.
-		return db.SharedLayoutUser
+	return s.userIDFor(sess.Username)
+}
+
+// ownLayout reads a signed-in user's own row, or nothing when they have none.
+func (s *Server) ownLayout(sess *Session, key string) (json.RawMessage, error) {
+	user := s.layoutUser(sess)
+	if user == "" {
+		return nil, nil
 	}
-	return id
+	return s.auditDB.Layout(user, key)
 }

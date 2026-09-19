@@ -59,7 +59,7 @@ func (s *Server) dashboardLayoutGet(w http.ResponseWriter, r *http.Request) {
 	// null instead would leave the previous user's arrangement on screen.
 	// "dashboard" is a STORAGE key here — the row in `user_layouts` — and stays
 	// put though the page is now `home`. See the note on the topology layout.
-	own, err := s.auditDB.Layout(s.layoutUser(sess), "dashboard")
+	own, err := s.ownLayout(sess, "dashboard")
 	if err == nil && own != nil {
 		writeRawJSON(w, own)
 		return
@@ -97,7 +97,12 @@ func (s *Server) dashboardLayoutSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON400OK(w)
 		return
 	}
-	if err := s.auditDB.SetLayout(s.layoutUser(sess), "dashboard",
+	user := s.layoutUser(sess)
+	if user == "" {
+		writeJSONErr(w, http.StatusUnauthorized, "not signed in")
+		return
+	}
+	if err := s.auditDB.SetLayout(user, "dashboard",
 		map[string]any{"cards": *body.Cards}); err != nil {
 		writeJSON500OK(w)
 		return
@@ -144,7 +149,7 @@ func (s *Server) topoLayoutRow(sess *Session) map[string]json.RawMessage {
 	// operator has saved. The PERMISSION check above uses the page key, because
 	// that is looked up in rbac.PageKeys — the two are different questions that
 	// happened to share a word.
-	blob, err := s.auditDB.Layout(s.layoutUser(sess), "topology")
+	blob, err := s.ownLayout(sess, "topology")
 	if err != nil || blob == nil {
 		blob, err = s.auditDB.Layout(db.SharedLayoutUser, "topology")
 	}
@@ -224,7 +229,12 @@ func (s *Server) topologyLayoutSave(w http.ResponseWriter, r *http.Request) {
 		}
 		all[body.RouterID] = encoded
 	}
-	if err := s.auditDB.SetLayout(s.layoutUser(sess), "topology", all); err != nil {
+	user := s.layoutUser(sess)
+	if user == "" {
+		writeJSONErr(w, http.StatusUnauthorized, "not signed in")
+		return
+	}
+	if err := s.auditDB.SetLayout(user, "topology", all); err != nil {
 		writeJSON500OK(w)
 		return
 	}

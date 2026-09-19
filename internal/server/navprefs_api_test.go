@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"mikrodash/internal/db"
+	"mikrodash/internal/store"
 
 	"encoding/json"
 	_ "modernc.org/sqlite"
@@ -236,6 +237,13 @@ CREATE TABLE user_layouts (
 // would let a mistake in that keying pass unnoticed.
 func signedInServer(t *testing.T, password string) (http.Handler, string) {
 	t.Helper()
+	h, token, _ := signedInServerStore(t, password)
+	return h, token
+}
+
+// signedInServerStore is signedInServer, also returning the user store.
+func signedInServerStore(t *testing.T, password string) (http.Handler, string, *store.Store) {
+	t.Helper()
 	st := authFixture(t, password)
 
 	dbDir := t.TempDir()
@@ -269,7 +277,7 @@ func signedInServer(t *testing.T, password string) (http.Handler, string) {
 	if token == "" {
 		t.Fatalf("no session token in %q", cookie)
 	}
-	return handler, token
+	return handler, token, st
 }
 
 // navLayoutUsers reads the user_id of every stored layout. The path is captured
@@ -299,3 +307,37 @@ func navLayoutUsers(t *testing.T) []string {
 
 // navDBPath is set by signedInServer so the assertion above can reach the file.
 var navDBPath string
+
+// TestAUserWithNoRecordCannotWriteTheSharedLayout. layoutUser fell back to the
+// shared row for a signed-in user whose record was gone, so that user's next
+// save overwrote the row every sign-in-off viewer reads. The shared row is
+// sign-in-off's alone now: such a save is refused (review loop).
+func TestAUserWithNoRecordCannotWriteTheSharedLayout(t *testing.T) {
+	h, token, st := signedInServerStore(t, "a-password-for-a-ghost")
+	users, err := st.Users()
+	if err != nil || len(users) == 0 {
+		t.Fatalf("the fixture has no user to delete: %v", err)
+	}
+	for _, u := range users {
+		if _, err := st.DeleteUser(u.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// NAV PREFS, which need only a session: the layout routes also check a page
+	// permission, which a user with no record cannot hold, so they refused the
+	// write already (403) and could not show this.
+	req := httptest.NewRequest("POST", "/api/nav-prefs", bytes.NewReader([]byte(`{"grouped":true,"expanded":[]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", "mikrodash_sid="+token)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code == http.StatusOK {
+		t.Errorf("a user with no record saved a layout (%d)", rec.Code)
+	}
+	for _, u := range navLayoutUsers(t) {
+		if u == db.SharedLayoutUser {
+			t.Errorf("the shared layout row was written by a user with no record")
+		}
+	}
+}
