@@ -34,6 +34,7 @@ var (
 	EvToolsTorch        = hub.Declare[ToolsTorchPayload]("tools:torch")
 	EvToolsBtest        = hub.Declare[ToolsBtestPayload]("tools:btest")
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
+	EvSecScanResult     = hub.Declare[SecScanPayload]("secscan:result")
 	EvAreaGroupRows     = hub.Declare[AreaGroupRowsPayload]("area:grouprows")
 	EvRouterFollow      = hub.Declare[RouterFollowPayload]("router:follow")
 )

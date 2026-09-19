@@ -11,6 +11,7 @@ import (
 	"mikrodash/internal/diag"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/routers"
+	"mikrodash/internal/secscan"
 	"mikrodash/internal/session"
 )
 
@@ -51,6 +52,10 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			return ToolsPingPayload{Result: &r}
 		},
 		"tools:caps": func() any { return ToolsCapsPayload{Interfaces: []string{}} },
+		"secscan:result": func() any {
+			rep := secscan.Run(secscan.Inputs{Rows: map[string][]secscan.Row{}, Absent: map[string]bool{}})
+			return SecScanPayload{Report: &rep}
+		},
 		"area:grouprows": func() any {
 			return areaGroupPayload(areaGroupRequest{}, collect.AreaTable{}, nil)
 		},

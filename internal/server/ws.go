@@ -143,6 +143,10 @@ type conn struct {
 	// goroutine as well as the read loop.
 	toolMu   sync.Mutex
 	toolQuit chan struct{}
+	// scanQuit closes to end this connection's Security Scan in flight, on a
+	// router switch or a closed socket: see secscan.go.
+	scanMu   sync.Mutex
+	scanQuit chan struct{}
 	// groups keeps this browser's last grouped-table read, so a search filters
 	// it rather than reading a large list again (area_group.go).
 	groups groupMemo
@@ -594,6 +598,11 @@ func (cn *conn) dispatch(in inbound) {
 	// frame, with code "stopped", carries the run so far.
 	case "tools:stop":
 		cn.stopTool()
+	// The Security Scan page: see internal/server/secscan.go.
+	case "secscan:get":
+		cn.secScanGet()
+	case "secscan:run":
+		cn.secScanRun()
 	// Registered as its own literal beside firewall:tab rather than folded into
 	// it, for the reason wan:renew and wan:release are separate: the next person
 	// greps for the event name, and these two carry DIFFERENT PERMISSION GATES
@@ -1516,6 +1525,7 @@ func (cn *conn) releaseRouter() {
 	// its result anyway: stopped here, it stops holding a channel on that router
 	// instead of running on to its timeout for nobody.
 	cn.stopTool()
+	cn.stopSecScan()
 	// ── THE ROOMS GO FIRST, AND THE ORDER IS THE WHOLE POINT ──────────────
 	//
 	// Both switch call sites already left every room immediately after calling

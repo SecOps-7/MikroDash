@@ -232,6 +232,7 @@ func TestEveryAreaShellHasItsTitleFirstThenItsTabs(t *testing.T) {
 		shells = append(shells, shell{"page-" + a.Key + ".html", `id="areaTabs-` + a.Key + `"`, `id="areaBadge-` + a.Key + `"`})
 	}
 	shells = append(shells, shell{"page-tools.html", `id="toolsTabs"`, ""})
+	shells = append(shells, shell{"page-security-scan.html", `id="secScanTabs"`, `id="secScanBadge"`})
 	for _, s := range shells {
 		b, err := os.ReadFile(filepath.Join(root, "web", "src", "ui", s.file))
 		if err != nil {

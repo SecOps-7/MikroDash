@@ -1,0 +1,108 @@
+  <!-- The Security Scan page: internal/secscan's catalogue, run on demand by the
+       server (secscan:run) and drawn by web/src/pages/security-scan.ts. The
+       score card is the first card: the top left of the grid. -->
+  <div class="page-view" id="page-security-scan">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="secScanCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Security Scan</h3>
+            <span id="secScanBadge" class="card-badge" title="Findings">0</span>
+            <span id="secScanTabs" class="stab-bar rttab-bar" role="tablist">
+              <button class="stab active" type="button" role="tab" aria-selected="true" data-sectab="overview">Overview</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-sectab="findings">Findings</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-sectab="passed">Passed</button>
+            </span>
+          </div>
+          <div class="hdr-actions d-flex align-items-center gap-2">
+            <span class="muted-note" id="secScanAge"></span>
+            <button class="sbtn sbtn-primary" id="secScanRun" type="button">Rescan</button>
+          </div>
+        </div>
+        <div class="card-body" id="secScanBody">
+          <div class="sec-progress" id="secScanProgress" aria-hidden="true"><div class="sec-progress-bar" id="secScanProgressBar"></div></div>
+          <div class="muted-note mb-2" id="secScanStatus"></div>
+
+          <div class="sec-panel" id="secPanel-overview">
+            <div class="sec-grid">
+              <!-- 0 to 100, top left. -->
+              <div class="sec-card sec-score" id="secScoreCard">
+                <div class="sec-ring-wrap">
+                  <svg class="sec-ring" viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="sec-ring-bg" cx="60" cy="60" r="52"></circle>
+                    <circle class="sec-ring-val" id="secScoreRing" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
+                  </svg>
+                  <div class="sec-score-num"><span id="secScoreVal">—</span><small>/100</small></div>
+                </div>
+                <div class="sec-score-label" id="secScoreLabel">Not scanned yet</div>
+                <div class="sec-score-sub" id="secScoreSub"></div>
+              </div>
+              <div class="sec-card sec-sevs">
+                <div class="sec-card-title">Findings by severity</div>
+                <div class="sec-sev-grid">
+                  <button class="sec-sev sev-critical" type="button" data-secsev="critical"><span class="sec-sev-n" id="secSevCritical">0</span><span>Critical</span></button>
+                  <button class="sec-sev sev-high" type="button" data-secsev="high"><span class="sec-sev-n" id="secSevHigh">0</span><span>High</span></button>
+                  <button class="sec-sev sev-medium" type="button" data-secsev="medium"><span class="sec-sev-n" id="secSevMedium">0</span><span>Medium</span></button>
+                  <button class="sec-sev sev-low" type="button" data-secsev="low"><span class="sec-sev-n" id="secSevLow">0</span><span>Low</span></button>
+                </div>
+              </div>
+              <div class="sec-card sec-wide">
+                <div class="sec-card-title">Categories</div>
+                <div class="sec-cats" id="secCats"></div>
+              </div>
+              <div class="sec-card sec-wide">
+                <div class="sec-card-title">Most urgent</div>
+                <div class="sec-top" id="secTop"></div>
+              </div>
+              <div class="sec-card">
+                <div class="sec-card-title">Attack surface</div>
+                <div class="sec-surface" id="secSurface"></div>
+              </div>
+              <div class="sec-card">
+                <div class="sec-card-title">Firewall posture</div>
+                <div class="sec-checklist" id="secFirewall"></div>
+              </div>
+              <div class="sec-card">
+                <div class="sec-card-title">Accounts</div>
+                <div class="sec-facts" id="secAccounts"></div>
+              </div>
+              <div class="sec-card">
+                <div class="sec-card-title">Updates</div>
+                <div class="sec-facts" id="secUpdates"></div>
+              </div>
+              <div class="sec-card">
+                <div class="sec-card-title">Coverage</div>
+                <div class="sec-facts" id="secCoverage"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec-panel" id="secPanel-findings" style="display:none">
+            <div class="sec-filters" id="secFilters">
+              <button class="sec-chip active" type="button" data-filter="all">All</button>
+              <button class="sec-chip" type="button" data-filter="critical">Critical</button>
+              <button class="sec-chip" type="button" data-filter="high">High</button>
+              <button class="sec-chip" type="button" data-filter="medium">Medium</button>
+              <button class="sec-chip" type="button" data-filter="low">Low</button>
+              <button class="sec-chip" type="button" data-filter="info">Info</button>
+            </div>
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0 sec-table">
+                <thead><tr id="secFindingsHead"></tr></thead>
+                <tbody id="secFindingsRows"><tr><td colspan="5" class="empty-state">Not scanned yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="sec-panel" id="secPanel-passed" style="display:none">
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0 sec-table">
+                <thead><tr><th>Check</th><th>Category</th><th>Severity</th></tr></thead>
+                <tbody id="secPassedRows"><tr><td colspan="3" class="empty-state">Not scanned yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

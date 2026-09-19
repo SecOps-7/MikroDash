@@ -2068,3 +2068,125 @@
       .tool-card-tick,.trace-ripple{animation:none}
       .tool-ring-val,.tool-gauge-arc,.tool-gauge-needle{transition:none}
     }
+
+    /* ── The Security Scan page (security-scan.ts) ───────────────────────────
+       A grid of cards with the score first, so it sits top left. Colours are
+       tokens; the pills are the vpn-hs-badge kinds, with high its own orange
+       between critical's red and medium's amber. */
+    .vpn-hs-badge.sec-sev-high{background:rgba(251,146,60,.12);color:rgba(251,146,60,.95);border:1px solid rgba(251,146,60,.3)}
+    .sec-progress{height:3px;border-radius:2px;background:transparent;overflow:hidden;margin:-.25rem 0 .6rem;opacity:0;transition:opacity .3s}
+    .sec-progress.is-on{opacity:1;background:var(--border)}
+    .sec-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent-rx),var(--accent-tx));transition:width .35s ease}
+    .sec-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}
+    @media (max-width:1300px){.sec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width:980px){.sec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:620px){.sec-grid{grid-template-columns:1fr}}
+    .sec-card{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:.85rem .95rem;min-width:0;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+    .sec-wide{grid-column:span 2}
+    @media (max-width:620px){.sec-wide{grid-column:auto}}
+    .sec-card-title{font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:.55rem}
+    .sec-panel .sec-card{opacity:0;transform:translateY(6px)}
+    .sec-panel.sec-in .sec-card{animation:sec-card-in .5s cubic-bezier(.2,.7,.3,1) forwards}
+    .sec-panel.sec-in .sec-card:nth-child(2){animation-delay:.05s}
+    .sec-panel.sec-in .sec-card:nth-child(3){animation-delay:.1s}
+    .sec-panel.sec-in .sec-card:nth-child(4){animation-delay:.15s}
+    .sec-panel.sec-in .sec-card:nth-child(n+5){animation-delay:.2s}
+    @keyframes sec-card-in{to{opacity:1;transform:none}}
+    /* Before the first scan the cards are there, just quiet. */
+    .sec-panel:not(.sec-in) .sec-card{opacity:.55;transform:none}
+
+    /* The score: a gradient-lit ring, graded like the ping Score. */
+    .sec-score{grid-row:span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+      background:radial-gradient(120% 90% at 50% 0%,rgba(56,189,248,.08),transparent 60%),var(--bg-card)}
+    .sec-ring-wrap{position:relative;width:min(170px,72%);aspect-ratio:1}
+    .sec-ring{width:100%;height:100%;display:block;transform:rotate(-90deg);overflow:visible}
+    .sec-ring circle{fill:none;stroke-width:9}
+    .sec-ring-bg{stroke:var(--border)}
+    .sec-ring-val{stroke:var(--text-muted);stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.7,.3,1),stroke .4s;
+      filter:drop-shadow(0 0 6px currentColor)}
+    .sec-score.grade-good .sec-ring-val{stroke:var(--accent-ok);color:var(--accent-ok)}
+    .sec-score.grade-fair .sec-ring-val{stroke:var(--accent-warn);color:var(--accent-warn)}
+    .sec-score.grade-poor .sec-ring-val{stroke:var(--accent-err);color:var(--accent-err)}
+    .sec-score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);
+      font-size:2.6rem;font-weight:700;line-height:1;color:var(--text-main);font-variant-numeric:tabular-nums}
+    .sec-score-num small{font-size:.8rem;color:var(--text-muted);margin-left:.15rem;font-weight:500}
+    .sec-score.grade-good .sec-score-num span{color:var(--accent-ok)}
+    .sec-score.grade-fair .sec-score-num span{color:var(--accent-warn)}
+    .sec-score.grade-poor .sec-score-num span{color:var(--accent-err)}
+    .sec-score-label{margin-top:.55rem;font-weight:600;color:var(--text-main)}
+    .sec-score-sub{font-size:.72rem;color:var(--text-muted);margin-top:.15rem}
+
+    /* Severity tiles: each a filter into the findings. */
+    .sec-sev-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}
+    .sec-sev{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem;padding:.55rem .65rem;border-radius:9px;cursor:pointer;
+      background:rgba(99,130,190,.06);border:1px solid var(--border);color:var(--text-muted);font-size:.7rem;text-align:left;transition:transform .15s,border-color .2s}
+    .sec-sev:hover{transform:translateY(-1px)}
+    .sec-sev-n{font-family:var(--font-mono);font-size:1.5rem;font-weight:700;line-height:1.1;color:var(--text-main)}
+    .sec-sev.sev-critical .sec-sev-n{color:var(--accent-err)}
+    .sec-sev.sev-critical{border-color:rgba(248,113,113,.3)}
+    .sec-sev.sev-high .sec-sev-n{color:rgba(251,146,60,.95)}
+    .sec-sev.sev-medium .sec-sev-n{color:var(--accent-warn)}
+    .sec-sev.sev-low .sec-sev-n{color:var(--accent-rx)}
+
+    /* Categories: a bar per category. */
+    .sec-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.55rem .9rem}
+    .sec-cat-head{display:flex;justify-content:space-between;align-items:baseline;font-size:.76rem}
+    .sec-cat-name{color:var(--text-main)}
+    .sec-cat-score{font-family:var(--font-mono);font-weight:700}
+    .sec-cat-score.grade-good{color:var(--accent-ok)}
+    .sec-cat-score.grade-fair{color:var(--accent-warn)}
+    .sec-cat-score.grade-poor{color:var(--accent-err)}
+    .sec-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin:.25rem 0 .15rem}
+    .sec-bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.2,.7,.3,1)}
+    .sec-bar-fill.grade-good{background:var(--accent-ok)}
+    .sec-bar-fill.grade-fair{background:var(--accent-warn)}
+    .sec-bar-fill.grade-poor{background:var(--accent-err)}
+    .sec-cat-counts{font-size:.66rem;color:var(--text-muted)}
+
+    /* Most urgent. */
+    .sec-top-row{display:flex;align-items:center;gap:.55rem;padding:.4rem 0;border-bottom:1px solid var(--border)}
+    .sec-top-row:last-child{border-bottom:0}
+    .sec-top-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:var(--accent-rx)}
+    .sec-top-row.sev-critical .sec-top-dot{background:var(--accent-err);box-shadow:0 0 0 0 rgba(248,113,113,.6);animation:sec-pulse 1.8s infinite}
+    .sec-top-row.sev-high .sec-top-dot{background:rgba(251,146,60,.95)}
+    .sec-top-row.sev-medium .sec-top-dot{background:var(--accent-warn)}
+    @keyframes sec-pulse{70%{box-shadow:0 0 0 7px rgba(248,113,113,0)}100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}}
+    .sec-top-text{flex:1;min-width:0}
+    .sec-top-title{font-size:.8rem;color:var(--text-main)}
+    .sec-top-detail{font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sec-open{font-size:.72rem;white-space:nowrap;color:var(--accent-rx);text-decoration:none;margin-left:.35rem}
+    .sec-open:hover{text-decoration:underline}
+    .sec-empty{font-size:.78rem;color:var(--text-muted)}
+
+    /* Attack surface, the checklists and the facts. */
+    .sec-svc-row{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.6rem}
+    .sec-svc small{opacity:.7}
+    .sec-check{display:flex;align-items:center;gap:.45rem;font-size:.76rem;padding:.16rem 0;color:var(--text-main)}
+    .sec-check-mark{width:1.15rem;height:1.15rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+      font-size:.66rem;font-weight:700;flex:0 0 auto}
+    .sec-check.st-pass .sec-check-mark{background:rgba(74,222,128,.14);color:var(--accent-ok)}
+    .sec-check.st-fail .sec-check-mark{background:rgba(248,113,113,.14);color:var(--accent-err)}
+    .sec-check.st-unknown .sec-check-mark{background:rgba(99,130,190,.1);color:var(--text-muted)}
+    .sec-check.st-unknown{color:var(--text-muted)}
+    .sec-fact{display:flex;justify-content:space-between;gap:.6rem;font-size:.76rem;padding:.2rem 0;border-bottom:1px dashed var(--border)}
+    .sec-fact:last-child{border-bottom:0}
+    .sec-fact span{color:var(--text-muted)}
+    .sec-fact b{font-family:var(--font-mono);font-weight:600;color:var(--text-main);text-align:right}
+    .sec-fact b.sec-bad{color:var(--accent-err)}
+    .sec-unknown{margin-top:.4rem;font-size:.66rem;color:var(--text-muted);line-height:1.5}
+
+    /* Findings. */
+    .sec-filters{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem}
+    .sec-chip{font-size:.72rem;padding:.2rem .65rem;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer}
+    .sec-chip.active{border-color:var(--accent-rx);color:var(--accent-rx);background:rgba(56,189,248,.08)}
+    .sec-table td{vertical-align:top}
+    .sec-finding-title{color:var(--text-main);font-weight:600;font-size:.8rem}
+    .sec-finding-detail{font-family:var(--font-mono);font-size:.7rem;color:var(--accent-warn);margin-top:.1rem}
+    .sec-finding-why{font-size:.72rem;color:var(--text-muted);margin-top:.15rem;max-width:44rem}
+    .sec-fix{font-size:.72rem;color:var(--text-main);max-width:26rem}
+    @media (prefers-reduced-motion: reduce){
+      .sec-panel.sec-in .sec-card{animation:none;opacity:1;transform:none}
+      .sec-ring-val,.sec-bar-fill,.sec-progress-bar{transition:none}
+      .sec-top-row.sev-critical .sec-top-dot{animation:none}
+    }

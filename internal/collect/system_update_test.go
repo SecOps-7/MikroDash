@@ -94,7 +94,7 @@ func TestSystemUpdateMatchesTheLiveRule(t *testing.T) {
 			if c.InstalledBase != nil && base != *c.InstalledBase {
 				t.Errorf("installed base = %q, live = %q", base, *c.InstalledBase)
 			}
-			got := updateVerdict(row["latest-version"], row["status"], base)
+			got := UpdateVerdict(row["latest-version"], row["status"], base)
 			if got != *c.UpdateAvailable {
 				t.Errorf("updateAvailable = %v, live = %v (latest=%q status=%q base=%q)",
 					got, *c.UpdateAvailable, row["latest-version"], row["status"], base)

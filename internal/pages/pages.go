@@ -103,6 +103,9 @@ var All = []Page{
 	{Key: "vpn", Title: "VPN", Collector: "vpn"},
 	{Key: "users", Title: "Users", Collector: "rosusers"},
 	{Key: "queues", Title: "Queues", Collector: "queues"},
+	// The Security Scan (2026-09-19): no collector. It reads its menus once, on
+	// demand, through secscan:run (internal/server/secscan.go).
+	{Key: "security-scan", Title: "Security Scan"},
 	{Key: "firewall", Title: "Firewall", Collector: "firewall"},
 	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi"},
 	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman"},

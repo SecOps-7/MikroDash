@@ -280,6 +280,58 @@ twice, 37,111 rows each way for one address-list entry on a synced blocklist.
 | `/ipv6/address` | ipv6Address | ip-addresses | add, set, remove |
 | `/ipv6/route` | route6 | routing | add, set, remove |
 
+
+## The Security Scan's reads (internal/secscan)
+
+Added by hand on 2026-09-19, and kept out of the counts above, which describe the
+Node-era surface. The Security Scan page reads these once per scan, on demand, one
+at a time (`internal/server/secscan.go`), each with the proplist below, which names
+no credential. Every path and property was read off CHR Test and hAP AC2 (RouterOS
+7.24.3) before it was written here. A menu the router does not have (no wireless
+package, no RouterBOARD on a CHR) answers "no such command" and its checks report
+unknown. Only the firewall tables are read whole: a rule's matchers are the
+question, and any property can be one.
+
+| Command | Proplist |
+|---|---|
+| `/ip/service/print` | `=.proplist=name,port,disabled,dynamic,available-from,address,certificate` |
+| `/tool/mac-server/print` | `=.proplist=allowed-interface-list` |
+| `/tool/mac-server/mac-winbox/print` | `=.proplist=allowed-interface-list` |
+| `/tool/mac-server/ping/print` | `=.proplist=enabled` |
+| `/ip/neighbor/discovery-settings/print` | `=.proplist=discover-interface-list` |
+| `/tool/romon/print` | `=.proplist=enabled` |
+| `/tool/bandwidth-server/print` | `=.proplist=enabled,authenticate` |
+| `/ip/ssh/print` | `=.proplist=strong-crypto,forwarding-enabled` |
+| `/ip/firewall/filter/print` | (whole row) |
+| `/ipv6/firewall/filter/print` | (whole row) |
+| `/ipv6/settings/print` | `=.proplist=disable-ipv6` |
+| `/ip/settings/print` | `=.proplist=rp-filter,tcp-syncookies` |
+| `/ip/dns/print` | `=.proplist=allow-remote-requests` |
+| `/interface/list/member/print` | `=.proplist=interface,list,disabled` |
+| `/ip/upnp/print` | `=.proplist=enabled` |
+| `/ip/socks/print` | `=.proplist=enabled,auth-method` |
+| `/ip/proxy/print` | `=.proplist=enabled` |
+| `/ip/smb/print` | `=.proplist=enabled,status` |
+| `/interface/pptp-server/server/print` | `=.proplist=enabled` |
+| `/interface/l2tp-server/server/print` | `=.proplist=enabled,use-ipsec` |
+| `/snmp/print` | `=.proplist=enabled` |
+| `/snmp/community/print` | `=.proplist=name,addresses,security,write-access,disabled` |
+| `/ip/cloud/print` | `=.proplist=ddns-enabled` |
+| `/user/print` | `=.proplist=name,group,address,disabled` |
+| `/user/group/print` | `=.proplist=name,policy` |
+| `/user/settings/print` | `=.proplist=minimum-password-length` |
+| `/user/active/print` | `=.proplist=name,via` |
+| `/system/package/update/print` | `=.proplist=installed-version,latest-version,status` |
+| `/system/routerboard/print` | `=.proplist=routerboard,current-firmware,upgrade-firmware` |
+| `/system/ntp/client/print` | `=.proplist=enabled` |
+| `/system/logging/print` | `=.proplist=action,disabled` |
+| `/system/logging/action/print` | `=.proplist=name,target,remote` |
+| `/system/script/print` | `=.proplist=name,dont-require-permissions` |
+| `/system/device-mode/print` | `=.proplist=mode` |
+| `/interface/wifi/security/print` | `=.proplist=name,authentication-types,encryption,wps` |
+| `/interface/wireless/security-profiles/print` | `=.proplist=name,mode,authentication-types,unicast-ciphers` |
+| `/certificate/print` | `=.proplist=name,invalid-after` |
+
 ## Proplists
 
 A proplist is the only thing keeping a credential out of a payload — see

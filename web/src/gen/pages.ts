@@ -31,6 +31,7 @@ export const PAGES: readonly Page[] = [
   { key: "vpn", title: "VPN", path: "vpn" },
   { key: "users", title: "Users", path: "users" },
   { key: "queues", title: "Queues", path: "queues" },
+  { key: "security-scan", title: "Security Scan", path: "security-scan" },
   { key: "firewall", title: "Firewall", path: "firewall" },
   { key: "wifi-networks", title: "Wifi Networks", path: "wifi-networks" },
   { key: "capsman", title: "CAPsMAN", path: "capsman" },

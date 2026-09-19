@@ -138,6 +138,8 @@ type Options struct {
 
 // Server is the whole thing.
 type Server struct {
+	// secScans is the Security Scan page's last report per router (secscan.go).
+	secScans       secScanStore
 	hub            *hub.Hub
 	auth           *Auth
 	sessions       *session.Manager

@@ -585,7 +585,7 @@ func (e *Evaluator) SystemUpdate(r Router, cpuLoad *float64,
 //
 // ── FOR A PAYLOAD THAT CARRIES NO UPDATE INFORMATION AT ALL ───────────────
 //
-// `updateVerdict` conflates "not checked yet" with "up to date": with no
+// `UpdateVerdict` conflates "not checked yet" with "up to date": with no
 // `latest-version` and no `status` it returns false, and `updateRule` reads
 // false as "the router reached the version" and RESOLVES an open alert.
 //
@@ -604,7 +604,7 @@ func (e *Evaluator) SystemUpdate(r Router, cpuLoad *float64,
 // held by `session.Manager` now, so the premise above — two collectors for one
 // router, disagreeing about the update check — cannot arise from that source.
 //
-// THAT IS NOT A REASON TO FOLD THIS BACK IN. The defect is in `updateVerdict`
+// THAT IS NOT A REASON TO FOLD THIS BACK IN. The defect is in `UpdateVerdict`
 // conflating "not checked" with "up to date", and it fires for ANY payload that
 // carries no update information: a primed reading, a first tick before the
 // check has run, a collector whose check failed. Removing the split would make

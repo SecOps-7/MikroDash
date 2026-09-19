@@ -136,7 +136,7 @@ func tempFromHealth(rows []routeros.Reply) *float64 {
 	return nil
 }
 
-// updateVerdict is the reading of an update row that BOTH the dashboard's
+// UpdateVerdict is the reading of an update row that BOTH the dashboard's
 // system card and the Packages page make — literally the same function, because
 // the same router state must not produce two different answers on two pages.
 // `parseUpdate` in packages.go called it by copying it until 2026-09-16, which
@@ -160,7 +160,7 @@ func tempFromHealth(rows []routeros.Reply) *float64 {
 // recorded case was changed deliberately. Anything this does not recognise —
 // a development build like `7.25rc3` — still falls back to inequality rather
 // than being ordered by a guess.
-func updateVerdict(latest, status, installed string) bool {
+func UpdateVerdict(latest, status, installed string) bool {
 	if latest != "" {
 		if cmp, ok := rosVersionCmp(latest, installed); ok {
 			return cmp > 0
@@ -303,7 +303,7 @@ func buildSystem(r routeros.Reply, health []routeros.Reply, update routeros.Repl
 		FreeHdd:         freeHdd,
 		Version:         installed,
 		LatestVersion:   latest,
-		UpdateAvailable: updateVerdict(latest, status, installedBase),
+		UpdateAvailable: UpdateVerdict(latest, status, installedBase),
 		UpdateStatus:    status,
 		UpdateChannel:   update["channel"],
 		BoardName:       board,
@@ -712,7 +712,7 @@ func updateTransient(row routeros.Reply) bool {
 //
 // The wire first asked it with its own narrower test, `latest == "" && status ==
 // ""`. That is a STRICT SUBSET: a transient status ("finding out latest
-// version...") has a status, slipped through, and `updateVerdict` read it as
+// version...") has a status, slipped through, and `UpdateVerdict` read it as
 // false — resolving the alert. Four rows appeared after the first fix for
 // exactly that reason, which is how the subset was found.
 //
@@ -747,7 +747,7 @@ func (s *System) applyUpdate(row routeros.Reply) {
 	updated.LatestVersion = row["latest-version"]
 	updated.UpdateStatus = row["status"]
 	updated.UpdateChannel = row["channel"]
-	updated.UpdateAvailable = updateVerdict(row["latest-version"], row["status"],
+	updated.UpdateAvailable = UpdateVerdict(row["latest-version"], row["status"],
 		strings.TrimSpace(parenSuffix.ReplaceAllString(updated.Version, "")))
 	s.last = &updated
 	s.lastFP = ""

@@ -217,6 +217,11 @@
       "settingsKey": "pageConnections"
     },
     {
+      "key": "security-scan",
+      "title": "Security Scan",
+      "settingsKey": null
+    },
+    {
       "key": "firewall",
       "title": "Firewall",
       "settingsKey": "pageFirewall"

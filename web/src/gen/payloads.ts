@@ -1008,6 +1008,67 @@ export interface RoutingPayload {
   summary: PeerSummary;
 }
 
+export interface Finding {
+  id: string;
+  category: string;
+  severity: string;
+  title: string;
+  status: string;
+  detail: string[];
+  why: string;
+  fix: string;
+  link: string;
+}
+
+export interface CategoryScore {
+  name: string;
+  score: number;
+  pass: number;
+  fail: number;
+  unknown: number;
+}
+
+export interface ServiceFact {
+  name: string;
+  port: string;
+  enabled: boolean;
+  restricted: boolean;
+  plaintext: boolean;
+}
+
+export interface Facts {
+  services: ServiceFact[];
+  installed: string;
+  latest: string;
+  firmwareCurrent: string;
+  firmwareUpgrade: string;
+  users: number;
+  fullUsers: number;
+  minPasswordLen: string;
+  adminEnabled: boolean;
+}
+
+export interface Report {
+  score: number;
+  findings: Finding[];
+  categories: CategoryScore[];
+  failed: Record<string, number> | null;
+  passed: number;
+  unknown: number;
+  facts: Facts;
+}
+
+export interface SecScanPayload {
+  routerId: string;
+  report: Report | null;
+  scannedAt: number;
+  running: boolean;
+  done: number;
+  total: number;
+  code: string;
+  message: string;
+}
+
 export interface Site {
   id: string;
   name: string;
@@ -1719,6 +1780,7 @@ export interface Events {
   'router:follow': RouterFollowPayload;
   'routers:stats': RouterStatsRow[];
   'routing:update': RoutingPayload;
+  'secscan:result': SecScanPayload;
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;

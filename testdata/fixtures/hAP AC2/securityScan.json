@@ -1,0 +1,1021 @@
+{
+  "collector": "secscan",
+  "router": {
+    "model": "hAP ac^2",
+    "osVersion": "7.24.3"
+  },
+  "note": "Captured from the hAP AC2 test router as it stands: every menu the Security Scan reads, with its own proplists (no credential is in any of them). Comments dropped, addresses mapped into TEST-NET-2 and 2001:db8::. Notable: ether1 is in both the WAN and LAN interface lists.",
+  "exchanges": [
+    {
+      "cmd": "/ip/service/print",
+      "params": [
+        "=.proplist=name,port,disabled,dynamic,available-from,address,certificate"
+      ],
+      "rows": [
+        {
+          "available-from": "",
+          "disabled": "true",
+          "dynamic": "false",
+          "name": "ftp",
+          "port": "21"
+        },
+        {
+          "available-from": "198.51.100.54/24",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "ssh",
+          "port": "22"
+        },
+        {
+          "available-from": "",
+          "disabled": "true",
+          "dynamic": "false",
+          "name": "telnet",
+          "port": "23"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "resolver",
+          "port": "53"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "resolver",
+          "port": "53"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "dhcp",
+          "port": "67"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "dhcpclient",
+          "port": "68"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "www",
+          "port": "80"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "ntp",
+          "port": "123"
+        },
+        {
+          "available-from": "198.51.100.54/24",
+          "certificate": "mcp-api-cert",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "www-ssl",
+          "port": "443"
+        },
+        {
+          "available-from": "",
+          "certificate": "none",
+          "disabled": "true",
+          "dynamic": "false",
+          "name": "reverse-proxy",
+          "port": "443"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "l2tp",
+          "port": "1701"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "discover",
+          "port": "5678"
+        },
+        {
+          "available-from": "198.51.100.54/24",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "winbox",
+          "port": "8291"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "api",
+          "port": "8728"
+        },
+        {
+          "available-from": "198.51.100.54/24",
+          "certificate": "api-ssl-cert",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "api-ssl",
+          "port": "8729"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "api-ssl",
+          "port": "8729"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "api-ssl",
+          "port": "8729"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/mac-server/print",
+      "params": [
+        "=.proplist=allowed-interface-list"
+      ],
+      "rows": [
+        {
+          "allowed-interface-list": "LAN"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/mac-server/mac-winbox/print",
+      "params": [
+        "=.proplist=allowed-interface-list"
+      ],
+      "rows": [
+        {
+          "allowed-interface-list": "LAN"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/mac-server/ping/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/neighbor/discovery-settings/print",
+      "params": [
+        "=.proplist=discover-interface-list"
+      ],
+      "rows": [
+        {
+          "discover-interface-list": "LAN"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/romon/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/bandwidth-server/print",
+      "params": [
+        "=.proplist=enabled,authenticate"
+      ],
+      "rows": [
+        {
+          "authenticate": "true",
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/ssh/print",
+      "params": [
+        "=.proplist=strong-crypto,forwarding-enabled"
+      ],
+      "rows": [
+        {
+          "forwarding-enabled": "no",
+          "strong-crypto": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/firewall/filter/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*F",
+          "action": "passthrough",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "true",
+          "packets": "0"
+        },
+        {
+          ".id": "*D",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "input",
+          "dst-port": "53",
+          "dynamic": "false",
+          "in-interface": "ether1",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "udp"
+        },
+        {
+          ".id": "*E",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "input",
+          "dst-port": "53",
+          "dynamic": "false",
+          "in-interface": "ether1",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "tcp"
+        },
+        {
+          ".id": "*1",
+          "action": "accept",
+          "bytes": "72327619",
+          "chain": "input",
+          "connection-state": "established,related,untracked",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "680004"
+        },
+        {
+          ".id": "*2",
+          "action": "drop",
+          "bytes": "80",
+          "chain": "input",
+          "connection-state": "invalid",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "2"
+        },
+        {
+          ".id": "*3",
+          "action": "accept",
+          "bytes": "4144",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "26",
+          "protocol": "icmp"
+        },
+        {
+          ".id": "*4",
+          "action": "accept",
+          "bytes": "60",
+          "chain": "input",
+          "dst-address": "127.0.0.1",
+          "dynamic": "false",
+          "in-interface": "lo",
+          "invalid": "false",
+          "packets": "1",
+          "src-address": "127.0.0.1"
+        },
+        {
+          ".id": "*5",
+          "action": "drop",
+          "bytes": "10573",
+          "chain": "input",
+          "dynamic": "false",
+          "in-interface-list": "!LAN",
+          "invalid": "false",
+          "packets": "57"
+        },
+        {
+          ".id": "*6",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "ipsec-policy": "in,ipsec",
+          "packets": "0"
+        },
+        {
+          ".id": "*7",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "ipsec-policy": "out,ipsec",
+          "packets": "0"
+        },
+        {
+          ".id": "*8",
+          "action": "fasttrack-connection",
+          "bytes": "124",
+          "chain": "forward",
+          "connection-state": "established,related",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "1"
+        },
+        {
+          ".id": "*9",
+          "action": "accept",
+          "bytes": "124",
+          "chain": "forward",
+          "connection-state": "established,related,untracked",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "1"
+        },
+        {
+          ".id": "*A",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "connection-state": "invalid",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0"
+        },
+        {
+          ".id": "*B",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "connection-nat-state": "!dstnat",
+          "dynamic": "false",
+          "in-interface-list": "WAN",
+          "invalid": "false",
+          "packets": "0"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/dns/print",
+      "params": [
+        "=.proplist=allow-remote-requests"
+      ],
+      "rows": [
+        {
+          "allow-remote-requests": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/list/member/print",
+      "params": [
+        "=.proplist=interface,list,disabled"
+      ],
+      "rows": [
+        {
+          "disabled": "false",
+          "interface": "bridge",
+          "list": "LAN"
+        },
+        {
+          "disabled": "false",
+          "interface": "ether1",
+          "list": "WAN"
+        },
+        {
+          "disabled": "false",
+          "interface": "ether1",
+          "list": "LAN"
+        }
+      ]
+    },
+    {
+      "cmd": "/ipv6/settings/print",
+      "params": [
+        "=.proplist=disable-ipv6"
+      ],
+      "rows": [
+        {
+          "disable-ipv6": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ipv6/firewall/filter/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*18",
+          "action": "passthrough",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "true",
+          "packets": "0"
+        },
+        {
+          ".id": "*1",
+          "action": "accept",
+          "bytes": "35840",
+          "chain": "input",
+          "connection-state": "established,related,untracked",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "676"
+        },
+        {
+          ".id": "*2",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "input",
+          "connection-state": "invalid",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0"
+        },
+        {
+          ".id": "*3",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "icmpv6"
+        },
+        {
+          ".id": "*4",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dst-port": "33434-33534",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "udp"
+        },
+        {
+          ".id": "*5",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dst-port": "546",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "udp",
+          "src-address": "2001:db8:7c::/10"
+        },
+        {
+          ".id": "*6",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dst-port": "500,4500",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "udp"
+        },
+        {
+          ".id": "*7",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "ipsec-ah"
+        },
+        {
+          ".id": "*8",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "ipsec-esp"
+        },
+        {
+          ".id": "*9",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "ipsec-policy": "in,ipsec",
+          "packets": "0"
+        },
+        {
+          ".id": "*A",
+          "action": "drop",
+          "bytes": "11146",
+          "chain": "input",
+          "dynamic": "false",
+          "in-interface-list": "!LAN",
+          "invalid": "false",
+          "packets": "54"
+        },
+        {
+          ".id": "*B",
+          "action": "fasttrack-connection",
+          "bytes": "0",
+          "chain": "forward",
+          "connection-state": "established,related",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0"
+        },
+        {
+          ".id": "*C",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "connection-state": "established,related,untracked",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0"
+        },
+        {
+          ".id": "*D",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "connection-state": "invalid",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0"
+        },
+        {
+          ".id": "*E",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "src-address-list": "bad_ipv6"
+        },
+        {
+          ".id": "*F",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "dst-address-list": "bad_ipv6",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0"
+        },
+        {
+          ".id": "*10",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "hop-limit": "equal:1",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "icmpv6"
+        },
+        {
+          ".id": "*11",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "icmpv6"
+        },
+        {
+          ".id": "*12",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "139"
+        },
+        {
+          ".id": "*13",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dst-port": "500,4500",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "udp"
+        },
+        {
+          ".id": "*14",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "ipsec-ah"
+        },
+        {
+          ".id": "*15",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "protocol": "ipsec-esp"
+        },
+        {
+          ".id": "*16",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "invalid": "false",
+          "ipsec-policy": "in,ipsec",
+          "packets": "0"
+        },
+        {
+          ".id": "*17",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "dynamic": "false",
+          "in-interface-list": "!LAN",
+          "invalid": "false",
+          "packets": "0"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/settings/print",
+      "params": [
+        "=.proplist=rp-filter,tcp-syncookies"
+      ],
+      "rows": [
+        {
+          "rp-filter": "no",
+          "tcp-syncookies": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/upnp/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/socks/print",
+      "params": [
+        "=.proplist=enabled,auth-method"
+      ],
+      "rows": [
+        {
+          "auth-method": "none",
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/proxy/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/smb/print",
+      "params": [
+        "=.proplist=enabled,status"
+      ],
+      "rows": [
+        {
+          "enabled": "auto",
+          "status": "disabled"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/pptp-server/server/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/l2tp-server/server/print",
+      "params": [
+        "=.proplist=enabled,use-ipsec"
+      ],
+      "rows": [
+        {
+          "enabled": "false",
+          "use-ipsec": "no"
+        }
+      ]
+    },
+    {
+      "cmd": "/snmp/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/snmp/community/print",
+      "params": [
+        "=.proplist=name,addresses,security,write-access,disabled"
+      ],
+      "rows": [
+        {
+          "addresses": "::/0",
+          "disabled": "false",
+          "name": "public",
+          "security": "none",
+          "write-access": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/cloud/print",
+      "params": [
+        "=.proplist=ddns-enabled"
+      ],
+      "rows": [
+        {
+          "ddns-enabled": "auto"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/print",
+      "params": [
+        "=.proplist=name,group,address,disabled"
+      ],
+      "rows": [
+        {
+          "address": "198.51.100.54/24",
+          "disabled": "false",
+          "group": "full",
+          "name": "admin"
+        },
+        {
+          "address": "198.51.100.54/24",
+          "disabled": "false",
+          "group": "full",
+          "name": "mcp-api"
+        },
+        {
+          "address": "",
+          "disabled": "false",
+          "group": "full",
+          "name": "mikrodash"
+        },
+        {
+          "address": "",
+          "disabled": "false",
+          "group": "mikromcp",
+          "name": "mikromcp"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/settings/print",
+      "params": [
+        "=.proplist=minimum-password-length"
+      ],
+      "rows": [
+        {
+          "minimum-password-length": "0"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/group/print",
+      "params": [
+        "=.proplist=name,policy"
+      ],
+      "rows": [
+        {
+          "name": "read",
+          "policy": "local,telnet,ssh,reboot,read,test,winbox,password,web,sniff,sensitive,api,romon,rest-api,!ftp,!write,!policy"
+        },
+        {
+          "name": "write",
+          "policy": "local,telnet,ssh,reboot,read,write,test,winbox,password,web,sniff,sensitive,api,romon,rest-api,!ftp,!policy"
+        },
+        {
+          "name": "full",
+          "policy": "local,telnet,ssh,ftp,reboot,read,write,policy,test,winbox,password,web,sniff,sensitive,api,romon,rest-api"
+        },
+        {
+          "name": "mikrodash",
+          "policy": "read,write,test,api,!local,!telnet,!ssh,!ftp,!reboot,!policy,!winbox,!password,!web,!sniff,!sensitive,!romon,!rest-api"
+        },
+        {
+          "name": "mikromcp",
+          "policy": "local,ssh,reboot,read,write,test,winbox,web,api,romon,rest-api,!telnet,!ftp,!policy,!password,!sniff,!sensitive"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/active/print",
+      "params": [
+        "=.proplist=name,via"
+      ],
+      "rows": [
+        {
+          "name": "mikrodash",
+          "via": "api"
+        },
+        {
+          "name": "mikrodash",
+          "via": "api"
+        },
+        {
+          "name": "mikrodash",
+          "via": "api"
+        },
+        {
+          "name": "mikrodash",
+          "via": "api"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/package/update/print",
+      "params": [
+        "=.proplist=installed-version,latest-version,status"
+      ],
+      "rows": [
+        {
+          "installed-version": "7.24.3",
+          "latest-version": "7.24.4",
+          "status": "New version is available"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/routerboard/print",
+      "params": [
+        "=.proplist=routerboard,current-firmware,upgrade-firmware"
+      ],
+      "rows": [
+        {
+          "current-firmware": "7.23.3",
+          "routerboard": "true",
+          "upgrade-firmware": "7.24.3"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/ntp/client/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/logging/print",
+      "params": [
+        "=.proplist=action,disabled"
+      ],
+      "rows": [
+        {
+          "action": "memory",
+          "disabled": "false"
+        },
+        {
+          "action": "memory",
+          "disabled": "false"
+        },
+        {
+          "action": "memory",
+          "disabled": "false"
+        },
+        {
+          "action": "echo",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/logging/action/print",
+      "params": [
+        "=.proplist=name,target,remote"
+      ],
+      "rows": [
+        {
+          "name": "memory",
+          "target": "memory"
+        },
+        {
+          "name": "disk",
+          "target": "disk"
+        },
+        {
+          "name": "echo",
+          "target": "echo"
+        },
+        {
+          "name": "remote",
+          "remote": "0.0.0.0",
+          "target": "remote"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/script/print",
+      "params": [
+        "=.proplist=name,dont-require-permissions"
+      ],
+      "rows": []
+    },
+    {
+      "cmd": "/system/device-mode/print",
+      "params": [
+        "=.proplist=mode"
+      ],
+      "rows": [
+        {
+          "mode": "advanced"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/security/print",
+      "params": [
+        "=.proplist=name,authentication-types,encryption,wps"
+      ],
+      "rows": [
+        {
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "name": "sec-test",
+          "wps": "disable"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wireless/security-profiles/print",
+      "params": [
+        "=.proplist=name,mode,authentication-types,unicast-ciphers"
+      ],
+      "rows": [],
+      "trap": "no such command or directory (wireless)"
+    },
+    {
+      "cmd": "/certificate/print",
+      "params": [
+        "=.proplist=name,invalid-after"
+      ],
+      "rows": [
+        {
+          "invalid-after": "2036-08-06 16:18:07",
+          "name": "mcp-api-cert"
+        },
+        {
+          "invalid-after": "2036-08-06 17:42:04",
+          "name": "local-ca"
+        },
+        {
+          "invalid-after": "2036-08-06 17:42:14",
+          "name": "api-ssl-cert"
+        }
+      ]
+    }
+  ]
+}

@@ -151,9 +151,13 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// It runs nothing until somebody starts a tool, so hiding it is a question of
 	// who may run diagnostics — the permission matrix — and not of router load,
 	// which is what the Visible Pages toggles exist to answer.
-	if noToggle != 5 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 5 (dashboard, reports, "+
-			"settings, ai-agent, tools)", noToggle)
+	//
+	// SIX SINCE THE SECURITY SCAN (2026-09-19), for the Tools page's reason: it
+	// reads nothing until it is opened, so who sees it is the permission
+	// matrix's question (admins only by default), not router load's.
+	if noToggle != 6 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 6 (dashboard, reports, "+
+			"settings, ai-agent, tools, security-scan)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

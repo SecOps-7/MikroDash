@@ -73,8 +73,9 @@ function fmtMs(v: number): string {
   return v < 1 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v));
 }
 
-/** Counts a number from what it shows to `to`, over a quarter second. */
-function tween(node: HTMLElement | null, to: number | null, fmt: (v: number) => string): void {
+/** Counts a number from what it shows to `to`, over a quarter second. Shared
+ *  with the Security Scan's score. */
+export function tween(node: HTMLElement | null, to: number | null, fmt: (v: number) => string): void {
   if (!node) return;
   if (to == null) {
     node.textContent = '—';

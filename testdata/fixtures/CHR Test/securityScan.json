@@ -1,0 +1,623 @@
+{
+  "collector": "secscan",
+  "router": {
+    "model": "CHR QEMU Standard PC (i440FX + PIIX, 1996)",
+    "osVersion": "7.24.3"
+  },
+  "note": "Captured from the CHR test router as it stands: every menu the Security Scan reads, with its own proplists (no credential is in any of them). Comments dropped, addresses mapped into TEST-NET-2 and 2001:db8::. /system/routerboard and /interface/wireless are absent on a CHR and recorded as the router's trap.",
+  "exchanges": [
+    {
+      "cmd": "/ip/service/print",
+      "params": [
+        "=.proplist=name,port,disabled,dynamic,available-from,address,certificate"
+      ],
+      "rows": [
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "ftp",
+          "port": "21"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "ssh",
+          "port": "22"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "telnet",
+          "port": "23"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "dhcpclient",
+          "port": "68"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "www",
+          "port": "80"
+        },
+        {
+          "available-from": "",
+          "certificate": "none",
+          "disabled": "true",
+          "dynamic": "false",
+          "name": "www-ssl",
+          "port": "443"
+        },
+        {
+          "available-from": "",
+          "certificate": "none",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "reverse-proxy",
+          "port": "443"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "btest",
+          "port": "2000"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "discover",
+          "port": "5678"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "winbox",
+          "port": "8291"
+        },
+        {
+          "available-from": "",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "api",
+          "port": "8728"
+        },
+        {
+          "available-from": "",
+          "certificate": "chr-api",
+          "disabled": "false",
+          "dynamic": "false",
+          "name": "api-ssl",
+          "port": "8729"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "api-ssl",
+          "port": "8729"
+        },
+        {
+          "disabled": "false",
+          "dynamic": "true",
+          "name": "api-ssl",
+          "port": "8729"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/mac-server/print",
+      "params": [
+        "=.proplist=allowed-interface-list"
+      ],
+      "rows": [
+        {
+          "allowed-interface-list": "all"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/mac-server/mac-winbox/print",
+      "params": [
+        "=.proplist=allowed-interface-list"
+      ],
+      "rows": [
+        {
+          "allowed-interface-list": "all"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/mac-server/ping/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/neighbor/discovery-settings/print",
+      "params": [
+        "=.proplist=discover-interface-list"
+      ],
+      "rows": [
+        {
+          "discover-interface-list": "static"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/romon/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/tool/bandwidth-server/print",
+      "params": [
+        "=.proplist=enabled,authenticate"
+      ],
+      "rows": [
+        {
+          "authenticate": "true",
+          "enabled": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/ssh/print",
+      "params": [
+        "=.proplist=strong-crypto,forwarding-enabled"
+      ],
+      "rows": [
+        {
+          "forwarding-enabled": "no",
+          "strong-crypto": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/firewall/filter/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*14",
+          "action": "accept",
+          "bytes": "1385645",
+          "chain": "input",
+          "connection-state": "established,related",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "26406"
+        },
+        {
+          ".id": "*16",
+          "action": "accept",
+          "bytes": "572",
+          "chain": "input",
+          "dst-port": "8728,8729",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "13",
+          "protocol": "tcp"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/dns/print",
+      "params": [
+        "=.proplist=allow-remote-requests"
+      ],
+      "rows": [
+        {
+          "allow-remote-requests": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/list/member/print",
+      "params": [
+        "=.proplist=interface,list,disabled"
+      ],
+      "rows": []
+    },
+    {
+      "cmd": "/ipv6/settings/print",
+      "params": [
+        "=.proplist=disable-ipv6"
+      ],
+      "rows": [
+        {
+          "disable-ipv6": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ipv6/firewall/filter/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*17",
+          "action": "accept",
+          "bytes": "132608",
+          "chain": "input",
+          "connection-state": "established,related",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "518"
+        },
+        {
+          ".id": "*18",
+          "action": "accept",
+          "bytes": "4080",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "43",
+          "protocol": "icmpv6"
+        },
+        {
+          ".id": "*19",
+          "action": "drop",
+          "bytes": "0",
+          "chain": "forward",
+          "disabled": "true",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "0",
+          "src-address": "2001:db8::/32"
+        },
+        {
+          ".id": "*1A",
+          "action": "reject",
+          "bytes": "107744",
+          "chain": "input",
+          "dynamic": "false",
+          "invalid": "false",
+          "packets": "518",
+          "reject-with": "icmp-no-route"
+        },
+        {
+          ".id": "*1B",
+          "action": "accept",
+          "bytes": "0",
+          "chain": "input",
+          "disabled": "false",
+          "dynamic": "false",
+          "invalid": "false",
+          "log": "false",
+          "packets": "0",
+          "src-address": "2001:db8:beef::/48"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/settings/print",
+      "params": [
+        "=.proplist=rp-filter,tcp-syncookies"
+      ],
+      "rows": [
+        {
+          "rp-filter": "no",
+          "tcp-syncookies": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/upnp/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/socks/print",
+      "params": [
+        "=.proplist=enabled,auth-method"
+      ],
+      "rows": [
+        {
+          "auth-method": "none",
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/proxy/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/smb/print",
+      "params": [
+        "=.proplist=enabled,status"
+      ],
+      "rows": [
+        {
+          "enabled": "auto",
+          "status": "disabled"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/pptp-server/server/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/l2tp-server/server/print",
+      "params": [
+        "=.proplist=enabled,use-ipsec"
+      ],
+      "rows": [
+        {
+          "enabled": "false",
+          "use-ipsec": "no"
+        }
+      ]
+    },
+    {
+      "cmd": "/snmp/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/snmp/community/print",
+      "params": [
+        "=.proplist=name,addresses,security,write-access,disabled"
+      ],
+      "rows": [
+        {
+          "addresses": "::/0",
+          "disabled": "false",
+          "name": "public",
+          "security": "none",
+          "write-access": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/cloud/print",
+      "params": [
+        "=.proplist=ddns-enabled"
+      ],
+      "rows": [
+        {
+          "ddns-enabled": "auto"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/print",
+      "params": [
+        "=.proplist=name,group,address,disabled"
+      ],
+      "rows": [
+        {
+          "address": "",
+          "disabled": "false",
+          "group": "full",
+          "name": "admin"
+        },
+        {
+          "address": "",
+          "disabled": "false",
+          "group": "full",
+          "name": "mikrodash"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/settings/print",
+      "params": [
+        "=.proplist=minimum-password-length"
+      ],
+      "rows": [
+        {
+          "minimum-password-length": "0"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/group/print",
+      "params": [
+        "=.proplist=name,policy"
+      ],
+      "rows": [
+        {
+          "name": "read",
+          "policy": "local,telnet,ssh,reboot,read,test,winbox,password,web,sniff,sensitive,api,romon,rest-api,!ftp,!write,!policy"
+        },
+        {
+          "name": "write",
+          "policy": "local,telnet,ssh,reboot,read,write,test,winbox,password,web,sniff,sensitive,api,romon,rest-api,!ftp,!policy"
+        },
+        {
+          "name": "full",
+          "policy": "local,telnet,ssh,ftp,reboot,read,write,policy,test,winbox,password,web,sniff,sensitive,api,romon,rest-api"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/active/print",
+      "params": [
+        "=.proplist=name,via"
+      ],
+      "rows": [
+        {
+          "name": "mikrodash",
+          "via": "api"
+        },
+        {
+          "name": "mikrodash",
+          "via": "api"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/package/update/print",
+      "params": [
+        "=.proplist=installed-version,latest-version,status"
+      ],
+      "rows": [
+        {
+          "installed-version": "7.24.3",
+          "latest-version": "7.24.4",
+          "status": "New version is available"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/routerboard/print",
+      "params": [
+        "=.proplist=routerboard,current-firmware,upgrade-firmware"
+      ],
+      "rows": [],
+      "trap": "no such command or directory (routerboard)"
+    },
+    {
+      "cmd": "/system/ntp/client/print",
+      "params": [
+        "=.proplist=enabled"
+      ],
+      "rows": [
+        {
+          "enabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/logging/print",
+      "params": [
+        "=.proplist=action,disabled"
+      ],
+      "rows": [
+        {
+          "action": "memory",
+          "disabled": "false"
+        },
+        {
+          "action": "memory",
+          "disabled": "false"
+        },
+        {
+          "action": "memory",
+          "disabled": "false"
+        },
+        {
+          "action": "echo",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/logging/action/print",
+      "params": [
+        "=.proplist=name,target,remote"
+      ],
+      "rows": [
+        {
+          "name": "memory",
+          "target": "memory"
+        },
+        {
+          "name": "disk",
+          "target": "disk"
+        },
+        {
+          "name": "echo",
+          "target": "echo"
+        },
+        {
+          "name": "remote",
+          "remote": "0.0.0.0",
+          "target": "remote"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/script/print",
+      "params": [
+        "=.proplist=name,dont-require-permissions"
+      ],
+      "rows": []
+    },
+    {
+      "cmd": "/system/device-mode/print",
+      "params": [
+        "=.proplist=mode"
+      ],
+      "rows": [
+        {
+          "mode": "advanced"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/security/print",
+      "params": [
+        "=.proplist=name,authentication-types,encryption,wps"
+      ],
+      "rows": []
+    },
+    {
+      "cmd": "/interface/wireless/security-profiles/print",
+      "params": [
+        "=.proplist=name,mode,authentication-types,unicast-ciphers"
+      ],
+      "rows": [],
+      "trap": "no such command or directory (wireless)"
+    },
+    {
+      "cmd": "/certificate/print",
+      "params": [
+        "=.proplist=name,invalid-after"
+      ],
+      "rows": [
+        {
+          "invalid-after": "2027-09-07 13:29:17",
+          "name": "chr-ca"
+        },
+        {
+          "invalid-after": "2027-09-18 08:37:22",
+          "name": "chr-api"
+        }
+      ]
+    }
+  ]
+}

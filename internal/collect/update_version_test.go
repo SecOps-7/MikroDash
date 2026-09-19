@@ -56,8 +56,8 @@ func TestAnOlderLatestVersionIsNotAnUpdate(t *testing.T) {
 	} {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
-			if got := updateVerdict(c.latest, c.status, c.installed); got != c.want {
-				t.Errorf("updateVerdict(%q, %q, %q) = %v, want %v",
+			if got := UpdateVerdict(c.latest, c.status, c.installed); got != c.want {
+				t.Errorf("UpdateVerdict(%q, %q, %q) = %v, want %v",
 					c.latest, c.status, c.installed, got, c.want)
 			}
 		})
@@ -98,7 +98,7 @@ func TestRosVersionCmpOnlyOrdersWhatItRecognises(t *testing.T) {
 	}
 }
 
-// ONE RULE, TWO PAGES. `parseUpdate` fills the Packages page and `updateVerdict`
+// ONE RULE, TWO PAGES. `parseUpdate` fills the Packages page and `UpdateVerdict`
 // fills the dashboard's system card, and they disagreed for as long as one was a
 // copy of the other. This pins that they are now the same answer, including for
 // the row that caused the defect.
@@ -115,7 +115,7 @@ func TestBothPagesReadAnUpdateRowTheSameWay(t *testing.T) {
 		row := row
 		t.Run(row["installed-version"]+" -> "+row["latest-version"], func(t *testing.T) {
 			u := parseUpdate(row)
-			want := updateVerdict(row["latest-version"], row["status"], u.InstalledVersion)
+			want := UpdateVerdict(row["latest-version"], row["status"], u.InstalledVersion)
 			if u.UpdateAvailable != want {
 				t.Errorf("Packages says %v, the system card says %v (row %v)",
 					u.UpdateAvailable, want, row)

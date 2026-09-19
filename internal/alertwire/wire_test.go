@@ -523,7 +523,7 @@ func TestOneRoutersRulesAreNotEvaluatedConcurrently(t *testing.T) {
 // ── THE MEASURED DEFECT ───────────────────────────────────────────────────
 //
 // 50 `routeros_update` fire/resolve pairs in 24 hours on the active router,
-// against ZERO in the live app over the same period. `updateVerdict` returns
+// against ZERO in the live app over the same period. `UpdateVerdict` returns
 // false when there is no `latest-version` and no `status`, and `updateRule`
 // reads false as "the router reached the version" and closes the alert.
 //
@@ -609,7 +609,7 @@ func TestAnUncheckedSystemPayloadDoesNotResolveAnUpdateAlert(t *testing.T) {
 	// 5. A TRANSIENT STATUS IS STILL UNKNOWN, and this is the case the first fix
 	//    missed. "finding out latest version..." has a status and no version, so
 	//    a guard of `latest == "" && status == ""` let it through and
-	//    `updateVerdict` read it as "up to date". FOUR ROWS appeared after that
+	//    `UpdateVerdict` read it as "up to date". FOUR ROWS appeared after that
 	//    fix shipped, which is how the subset was found.
 	for _, transient := range []string{
 		"finding out latest version...", "checking for updates", "Update in progress",
