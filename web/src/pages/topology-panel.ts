@@ -167,8 +167,12 @@ export function topoPanel(st: TopoState, deps: {
     //
     // Focus is the honest test for "in use": nothing else in the panel takes it,
     // and the next render after the operator tabs or clicks away catches up.
-    if (panel.contains(document.activeElement)) return;
+    //
+    // BUT A CLOSE IS NOT A REBUILD. With nothing selected the panel shuts
+    // whatever has focus: the close button itself holds focus when clicked, so
+    // with the guard first it cleared the selection and left the panel open.
     if (!st.sel || !st.data) { panel.className = 'topo-panel'; return; }
+    if (panel.contains(document.activeElement)) return;
     const n = st.data.nodes.find((m) => m.key === st.sel);
     if (!n) { panel.className = 'topo-panel'; return; }
 

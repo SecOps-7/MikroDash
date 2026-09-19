@@ -50,6 +50,7 @@ func (s *Server) buildReportScheduler(enabled bool) *reportScheduler {
 		log.Printf("[reports] scheduler needs the store and the history database; not started")
 		return nil
 	}
+	log.Printf("[reports] scheduler on — due report schedules will be sent")
 	return &reportScheduler{s: s, now: time.Now, stop: make(chan struct{}),
 		run: func(row *db.ReportSchedule) { s.runSchedule(row, nil) }}
 }
