@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 18
+const schemaVersion = 19
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -81,6 +81,42 @@ var portMigrations = map[int][]string{
 	// the model one device's discussion while it answered about another, and it
 	// would do so confidently. Scoped to the person because a transcript is
 	// theirs: it holds the questions they asked about their network.
+	// 19: the WireGuard page's grants, carried across from the VPN page's.
+	//
+	// ── A SPLIT IS NOT A RENAME, AND `pages.Renamed` CANNOT EXPRESS IT ────
+	//
+	// The WireGuard peers used to live on the VPN page, so a `vpn` grant is what
+	// conferred managing them. They are on their own page now and BOTH keys stay
+	// live — `vpn` is the cross-protocol overview — so this is not a rename:
+	// `pages.Renamed` would move the grant rather than copy it, and
+	// `TestRenamedNamesNoLivePage` refuses an entry whose key is a current page.
+	//
+	// Without this, every install's operators keep a VPN page that no longer has
+	// peers on it and silently lose the ability to manage them. NOTHING FAILS
+	// when that happens, which is the exact shape of the 2026-09-01 incident
+	// where readonly and operator quietly lost pages.
+	//
+	// ── EVERY ROLE, NOT JUST THE BUILTIN TWO ──────────────────────────────
+	//
+	// Migration 17 bounded itself to the builtin roles because it GRANTED
+	// something new, and an upgrade must not decide what a custom role confers.
+	// This one PRESERVES reach that already existed: a role that could manage
+	// WireGuard peers yesterday can manage them today, at the same access level,
+	// and a role that could only read still only reads.
+	//
+	// It is not perfectly conservative and the difference is worth stating: the
+	// new page also manages WireGuard INTERFACES, which the VPN page never did,
+	// so a role with `vpn` write gains creating and removing them. Carried
+	// deliberately on the operator's decision of 2026-09-20 — the alternative
+	// silently breaks the workflows people already have.
+	//
+	// Safe to run twice: the primary key makes the second insert a no-op.
+	// FROM role_pages rather than VALUES, so a deleted role cannot fail it on
+	// the foreign key — the trap migration 17 records at length.
+	19: {
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 SELECT role_id, 'wireguard', access FROM role_pages WHERE page = 'vpn'`,
+	},
 	18: {`CREATE TABLE IF NOT EXISTS ai_messages (
           id        INTEGER PRIMARY KEY AUTOINCREMENT,
           ts        INTEGER NOT NULL,
@@ -227,7 +263,11 @@ var builtinRoles = []struct {
 // `TestTheSeededRolePagesNameRealPages` fails if a later rename orphans one.
 var roleReadPages = []string{
 	"dashboard", "network-topology", "wifi-clients", "interfaces", "dhcp",
-	"vpn", "connections", "routing", "bandwidth", "firewall",
+	// `wireguard` sits beside `vpn` rather than replacing it: the VPN page is
+	// the cross-protocol overview and the WireGuard page is where the peers
+	// are, so a new install's read roles need both. Migration 19 is what does
+	// the same for installs that already exist.
+	"vpn", "wireguard", "connections", "routing", "bandwidth", "firewall",
 	"logs", "devices",
 	// ── ai-agent IS A DELIBERATE WIDENING, DECIDED RATHER THAN INHERITED ──
 	//
