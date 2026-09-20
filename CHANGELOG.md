@@ -2,6 +2,62 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.65] - A WireGuard page, and the Connections page learns who owns an address
+
+### New
+
+- **WireGuard** (Tunnels, WireGuard): its own page at last, with **Interfaces** and
+  **Peers** tabs. Add an interface and RouterOS generates the keypair; add a peer and it
+  can mint the client's identity too, so setting up a phone is: pick an interface, type a
+  name, press Add.
+- **A peer's client configuration, with a scannable QR code.** Open a peer, press Config,
+  point the phone at the code. The router draws the code itself, so nothing here guesses
+  at the format. Copy or download the `.conf` instead if you prefer.
+- **Overlapping peers are flagged.** Two peers on one interface claiming the same allowed
+  address breaks routing silently; both now carry a warning.
+- **VPN** becomes a true overview: every tunnel technology at once, a card per live
+  connection whatever carries it, and a way through to each dedicated page.
+- **The Connections page names who owns an address.** OVH, Linode, Deutsche Telekom,
+  Proximus, Vox Telecom, Quad9, AdGuard and every other network, not just the dozen big
+  ones. Measured on one router's live traffic: 40 of 70 destinations named before, 70 of
+  70 now.
+- **The AI Agent can place a firewall rule**, not only append one. Ask for a rule "above
+  the drop" and it goes there.
+- **Router Offline and Online alerts**, using the Offline threshold from Settings.
+
+### Fixed
+
+- **The Offline threshold was honoured in one of the three places its help text claimed.**
+  It now applies on save, drives the new offline alerts, and debounces the fleet's status
+  badge, so a two-second blip stops turning a router red.
+- **Wide tables scroll sideways on a phone** instead of leaving the screen. WiFi Networks
+  and CAPsMAN were losing 309 and 441 pixels of table with no way to reach it, and eleven
+  pages kept four summary tiles side by side on a 390px screen.
+- **The wordmark gives way to the logo** on a small screen, where it was taking up to 40%
+  of the top bar.
+- **Alert Monitoring takes effect on save**, not on the next restart.
+- **NetWatch catches an outage shorter than one reading.**
+- **DHCP, Routing and VPN show a saved row at once** rather than on the next poll.
+- **Packages says why the available list is empty** instead of showing nothing.
+- **Alerts log whether a notification was sent**, and why it was not.
+- **A live stream publishes its round when it finishes**, not an interval later.
+
+### Internal
+
+- **WireGuard peer reads no longer ask the router for private keys.** The poll had no
+  property list, so RouterOS returned every peer's private and pre-shared key on every
+  read, into server memory.
+- **Organisation lookup is a database, not a frozen list.** DB-IP ASN Lite, fetched at
+  image build beside the city database, replaces a hand-curated table of 339 prefixes
+  frozen at the port. That table also listed a range under Amazon that swallows Microsoft
+  Azure space, so Azure traffic had been labelled Amazon.
+- Note that the answer now means whose NETWORK carries the traffic rather than whose
+  service it is: Twitch reads Amazon and Spotify reads Google, because that is who routes
+  the packets.
+- **A new check** keeps each geo database fetched, shipped, named by the package that
+  reads it and credited, and keeps the service colours agreeing across the Go map, the
+  stylesheet and the connection diagram.
+
 ## [0.8.64] - Security Scan, an app store for containers, and a Tools page that draws the route
 
 ### New

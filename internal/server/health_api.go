@@ -166,7 +166,7 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // `TestEveryConfigReaderSurvivesAFreshInstall` is what stops a fourth.
 //
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.64"
+const AppVersion = "0.8.65"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

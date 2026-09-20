@@ -141,9 +141,9 @@ MikroDash has more than fifty pages. Here they are by area (the sidebar can grou
 |---|---|
 | **Overview** | Dashboard, Devices, Network Topology, WAN |
 | **Wireless** | Wifi Networks, Wifi Clients, Wifi Map (draw your site and see clients around each access point), CAPsMAN (both the `wifi` and legacy stacks) |
-| **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, PPPoE Clients, DNS, IP Pools, Interface Lists |
+| **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, DNS, IP Pools, Interface Lists |
 | **Routing** | Routing (routes and BGP), Routing Tables, Routing Rules, OSPF, VRRP |
-| **Tunnels** | VPN (WireGuard, PPP sessions, IPsec peers), PPP, IPsec, OpenVPN |
+| **Tunnels** | VPN (an overview of every tunnel technology, with a card per live connection), WireGuard (interfaces and peers, with a client configuration and a scannable QR code), PPP, IPsec, OpenVPN, PPPoE Clients |
 | **Traffic** | Connections (with a world map), Bandwidth, Queues, Logs |
 | **Security** | Firewall (Filter, NAT, Mangle and Raw, with reorder, undo and redo), Address Lists, Certificates, Security Scan |
 | **System** | Users (RouterOS accounts and groups), Services, Packages, Scripts, Scheduler, NTP Client, Clock, Logging, SNMP, Files, Containers, NetWatch |
@@ -158,6 +158,7 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 
 - **Lockout guards.** Changing or removing the address, interface, service, route, firewall rule, certificate or account MikroDash itself connects through is refused or raises a warning first, because nothing in the app could undo it.
 - **Secrets are never read back.** WiFi passphrases, PPP and OpenVPN passwords, IPsec pre-shared keys and SNMP passwords are not requested from the router at all, so no page can display one. A blank password field means "keep the current one".
+- **One deliberate exception, and it is audited.** A WireGuard peer's client configuration contains that peer's private key, which is the point of it. It is fetched by a one-shot request rather than carried on the socket, needs write access to the WireGuard page on that router, is refused outright when sign-in is off or no audit database exists, and writes a row naming who revealed it before the router is asked. The key itself never enters that row.
 - **Code is for global administrators.** What a script, scheduler task, VRRP script or container image runs is RouterOS code, so changing it needs a global administrator.
 - **Reboots ask for the router's name.** Applying package changes, upgrading RouterOS or restoring a backup requires the router's name typed back.
 - **No sign-in, no writes.** With sign-in turned off, every configuration page is read-only.
