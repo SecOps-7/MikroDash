@@ -20,6 +20,20 @@
         </div>
       </div>
 
+      <!-- WHAT IS ACTUALLY CONNECTED, across every technology at once. The
+           dedicated pages each manage one protocol and show its configuration;
+           nothing else in the app answers "who is on the VPN right now". Built
+           from the same `vpn:update` the table above uses, so it costs the
+           router nothing. -->
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title">Live Connections</h3><span id="vpnLiveCount" class="card-badge">0</span>
+        </div>
+        <div class="card-body" style="padding:.65rem .75rem">
+          <div class="vpn-tile-grid" id="vpnLiveGrid"></div>
+        </div>
+      </div>
+
       <!-- PPP sessions (L2TP / PPTP / SSTP / OpenVPN). Hidden unless the router
            actually has sessions, so a WireGuard-only setup is unchanged. -->
       <div class="card" id="vpnPppCard" style="display:none">

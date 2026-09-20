@@ -18,6 +18,15 @@
  *                   A test that accepted `0` would be pinning the lie.
  *   the gated link  a row pointing at a page the viewer may not open is an
  *                   invitation to a permission error.
+ *   the live cards   ONE CARD PER THING ACTUALLY CONNECTED, across every
+ *                    technology. Two things can go wrong silently: a card for
+ *                    something that is not live (the grading filters are the
+ *                    same ones the table uses, so they must not drift apart),
+ *                    and a RATE printed where only a cumulative total was
+ *                    measured. Only the WireGuard collector differences two
+ *                    readings; a PPP session carries bytes since it came up.
+ *                    "0 B/s" beside a busy L2TP tunnel is a measurement this
+ *                    page never took.
  */
 
 import fs from 'node:fs';
@@ -31,7 +40,7 @@ const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 const ENTRY = path.join(ROOT, 'testdata', '.vpnov-entry.ts');
 fs.writeFileSync(ENTRY,
-  "export { initVpnPage, overviewRows } from '../web/src/pages/vpn.js';\n");
+  "export { initVpnPage, overviewRows, liveConnections } from '../web/src/pages/vpn.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.vpnov.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -40,6 +49,7 @@ fs.rmSync(ENTRY, { force: true });
 const mod = require(OUT);
 
 const doc = makeDoc(['vpnOverviewCount', 'vpnOverviewTbody',
+  'vpnLiveCount', 'vpnLiveGrid',
   'vpnPppCard', 'vpnPppCount', 'vpnPppTbody',
   'vpnIpsecCard', 'vpnIpsecCount', 'vpnIpsecTbody']);
 
@@ -69,12 +79,14 @@ mod.initVpnPage(socket, (p) => p === 'vpn');
 const n = doc.nodes;
 
 let keyN = 0;
-const wg = (state) => ({ id: '*1', publicKey: 'k' + (++keyN), type: 'WireGuard', name: 'p',
+const wg = (state, over) => Object.assign({ id: '*1', publicKey: 'k' + (++keyN),
+  type: 'WireGuard', name: 'p',
   state, comment: '', lastHandshake: '5s', keepalive: '', endpoint: '', allowedIp: '10.0.0.2/32',
-  interface: 'wg0', rx: 0, tx: 0, rxRate: 0, txRate: 0, disabled: false, responder: false });
-const pppSess = (service) => ({ type: 'PPP', name: 'u', service, address: '198.51.100.5',
-  callerId: '', uptime: '1h', rx: 0, tx: 0 });
-const ipsecPeer = (state) => ({ type: 'IPsec', name: 'p', state, uptime: '', side: '', enc: '', auth: '' });
+  interface: 'wg0', rx: 0, tx: 0, rxRate: 0, txRate: 0, disabled: false, responder: false }, over);
+const pppSess = (service, over) => Object.assign({ type: 'PPP', name: 'u', service,
+  address: '198.51.100.5', callerId: '', uptime: '1h', rx: 0, tx: 0 }, over);
+const ipsecPeer = (state, over) => Object.assign({ type: 'IPsec', name: 'p', state,
+  uptime: '', side: '', enc: '', auth: '' }, over);
 
 const payload = (over) => Object.assign({ ts: 1, tunnels: [], ppp: [], ipsec: [], pollMs: 10000 }, over);
 
@@ -171,6 +183,73 @@ check('the PPP and IPsec tables stay hidden until the router has any', () => {
   handlers['vpn:update'](payload({ ppp: [pppSess('L2TP')], ipsec: [ipsecPeer('established')] }));
   assert.strictEqual(n.vpnPppCard.style.display, '', 'the PPP card stayed hidden with a session');
   assert.strictEqual(n.vpnIpsecCard.style.display, '', 'the IPsec card stayed hidden with a peer');
+});
+
+// ── THE LIVE CONNECTION CARDS ──────────────────────────────────────────────
+
+check('a card per live connection, and none for anything that is not', () => {
+  const conns = mod.liveConnections(payload({
+    tunnels: [wg('active', { name: 'phone' }), wg('stale', { name: 'laptop' }),
+      wg('never', { name: 'spare' })],
+    ppp: [pppSess('L2TP', { name: 'dave' })],
+    ipsec: [ipsecPeer('established', { name: 'branch' }), ipsecPeer('connecting', { name: 'dr' })],
+  }));
+  const names = conns.map((c) => c.name).sort();
+  assert.deepStrictEqual(names, ['branch', 'dave', 'phone'],
+    'the cards do not match what is actually connected: ' + JSON.stringify(names));
+  // AND THE FILTERS ARE THE TABLE'S FILTERS. A peer the table calls idle must
+  // not have a card, which is the way these two can silently drift apart.
+  const techs = Object.fromEntries(conns.map((c) => [c.name, c.tech]));
+  assert.strictEqual(techs.phone, 'WireGuard');
+  assert.strictEqual(techs.dave, 'L2TP', 'the router\'s own service spelling should be shown');
+  assert.strictEqual(techs.branch, 'IPsec');
+});
+
+check('a rate is shown only where a rate was measured', () => {
+  const conns = mod.liveConnections(payload({
+    tunnels: [wg('active', { name: 'phone', rxRate: 1500, txRate: 400, rx: 99, tx: 99 })],
+    ppp: [pppSess('L2TP', { name: 'dave', rx: 12000000, tx: 4000000 })],
+  }));
+  handlers['vpn:update'](payload({
+    tunnels: [wg('active', { name: 'phone', rxRate: 1500, txRate: 400, rx: 99, tx: 99 })],
+    ppp: [pppSess('L2TP', { name: 'dave', rx: 12000000, tx: 4000000 })],
+  }));
+  const html = String(n.vpnLiveGrid.innerHTML);
+  const cards = html.split('<div class="vpn-tile up">').slice(1);
+  assert.strictEqual(cards.length, 2, 'expected one card each');
+  const phone = cards.find((c) => /phone/.test(c));
+  const dave = cards.find((c) => /dave/.test(c));
+
+  assert.ok(/\/s</.test(phone),
+    'the WireGuard peer differences two readings, so its card should carry a rate');
+  assert.ok(!/\/s</.test(dave),
+    'a PPP session carries bytes SINCE IT CAME UP, not a rate; printing "/s" there '
+    + 'reports a measurement this page never took');
+  assert.ok(/12 MB|11\.4 MB|12\.0 MB/.test(dave),
+    'the PPP session should show its cumulative total instead: ' + dave);
+  // Rx and Tx keep their fixed colours here as everywhere else.
+  assert.ok(phone.includes('var(--accent-rx)') && phone.includes('var(--accent-tx)'),
+    'Rx should be blue and Tx green on a card as in every other table');
+  assert.ok(conns.length === 2, 'the pure function and the render disagree on how many');
+});
+
+check('the live badge counts connections, and says so in blue', () => {
+  // TWO PEERS ON ONE TECHNOLOGY, so counting technologies and counting
+  // connections give different answers. With one of each they agree, and the
+  // check cannot tell the two apart.
+  handlers['vpn:update'](payload({
+    tunnels: [wg('active'), wg('active')], ppp: [pppSess('L2TP')],
+  }));
+  assert.strictEqual(String(n.vpnLiveCount.textContent), '3',
+    'the live badge should count connections, not technologies');
+  assert.ok(String(n.vpnLiveCount.className).includes('active-blue'));
+
+  handlers['vpn:update'](payload({ tunnels: [wg('stale')] }));
+  assert.strictEqual(String(n.vpnLiveCount.textContent), '0');
+  assert.ok(!String(n.vpnLiveCount.className).includes('active-blue'),
+    'a zero live count is still marked active-blue');
+  assert.ok(/Nothing is connected/.test(String(n.vpnLiveGrid.innerHTML)),
+    'an empty grid should say so rather than being blank');
 });
 
 say(failed ? '  ' + failed + ' failed' : 'vpn-overview: all checks passed');

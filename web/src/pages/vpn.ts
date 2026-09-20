@@ -9,8 +9,12 @@
 // IPsec pages it should always have sat with.
 //
 // What is left is the one view none of those pages can give: every technology at
-// once. The PPP and IPsec tables stay because they are the live detail behind
-// two of the rows, and nothing else in the app shows a running session.
+// once — a table of what is configured, and BELOW IT A CARD PER LIVE
+// CONNECTION, whatever carries it. Each dedicated page manages one protocol and
+// shows its configuration; none of them can answer "who is on the VPN right
+// now", because that question spans all of them. The PPP and IPsec tables stay
+// below that as the per-session detail — caller id, encryption, authentication
+// — that does not fit on a card.
 //
 // ── ONE HONEST ASYMMETRY, STATED RATHER THAN PAPERED OVER ───────────────────
 //
@@ -78,6 +82,88 @@ function navReachable(page: string): boolean {
   return !!item && item.style.display !== 'none';
 }
 
+/** One live connection, whatever carries it. */
+export interface LiveConn {
+  /** Unique within a render: the tile's key and its dot's identity. */
+  key: string;
+  name: string;
+  /** WireGuard, L2TP, OVPN, IPsec — what the operator calls the thing. */
+  tech: string;
+  /** Where it lands: an interface, an address, or the peer's side. */
+  where: string;
+  /** How long, or how recently: an uptime or a handshake age. */
+  age: string;
+  /** Cipher and auth for IPsec; empty for the rest. */
+  detail: string;
+  rxRate: number;
+  txRate: number;
+  rx: number;
+  tx: number;
+}
+
+/**
+ * Everything actually connected right now, across every technology.
+ *
+ * ── WHY THIS LIVES ON THE OVERVIEW AND NOT ON A PROTOCOL PAGE ─────────────
+ *
+ * Each dedicated page manages ONE protocol and shows its configuration —
+ * every WireGuard peer including the ones that never connected, every IPsec
+ * policy, every OpenVPN server. None of them answers "who is on the VPN right
+ * now", because that question spans all of them. This does, from the payload
+ * this page already receives.
+ *
+ * ── "LIVE" MEANS THE SAME THING HERE AS IN THE TABLE ABOVE ────────────────
+ *
+ * A WireGuard peer counts when `PeerState` grades it active, and an IPsec peer
+ * when it is established — the same tests `overviewRows` applies, so a card
+ * cannot appear for a technology the table calls idle. Every `/ppp/active` row
+ * is by definition a live session, which is why PPP has no filter.
+ */
+export function liveConnections(d: VPNPayload): LiveConn[] {
+  const out: LiveConn[] = [];
+  for (const t of (d.tunnels || [])) {
+    if (t.type !== 'WireGuard' || t.state !== 'active') continue;
+    out.push({
+      key: 'wg|' + t.publicKey,
+      name: t.name || t.interface || t.publicKey.slice(0, 12),
+      tech: 'WireGuard',
+      where: t.endpoint || t.interface || '',
+      age: t.lastHandshake ? 'handshake ' + t.lastHandshake : '',
+      detail: '',
+      rxRate: t.rxRate || 0, txRate: t.txRate || 0, rx: t.rx || 0, tx: t.tx || 0,
+    });
+  }
+  for (const s of (d.ppp || [])) {
+    out.push({
+      key: 'ppp|' + s.name + '|' + s.address,
+      name: s.name || '—',
+      // The router's own spelling, upper-cased by ParsePppSessions: L2TP,
+      // SSTP, PPTP, OVPN, PPPOE. Not translated into product names — the
+      // operator matches this against what RouterOS shows them.
+      tech: s.service || 'PPP',
+      where: s.address || '',
+      age: s.uptime ? 'up ' + s.uptime : '',
+      detail: s.callerId || '',
+      rxRate: 0, txRate: 0, rx: s.rx || 0, tx: s.tx || 0,
+    });
+  }
+  for (const p of (d.ipsec || [])) {
+    if (p.state !== 'established') continue;
+    out.push({
+      key: 'ipsec|' + p.name,
+      name: p.name || '—',
+      tech: 'IPsec',
+      where: p.side || '',
+      age: p.uptime ? 'up ' + p.uptime : '',
+      // Cipher and authentication are the thing an IPsec operator checks, and
+      // nothing else in the app shows them.
+      detail: [p.enc, p.auth].filter(Boolean).join(' / '),
+      rxRate: 0, txRate: 0, rx: 0, tx: 0,
+    });
+  }
+  return out;
+}
+
 /** A dash, not a zero: "the payload cannot say" is not "there are none". */
 function count(n: number | null): string {
   return n === null ? '<span style="color:var(--text-muted)">&mdash;</span>' : String(n);
@@ -117,6 +203,41 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
           '<td style="text-align:right">' + link + '</td>' +
           '</tr>';
       }).join('');
+    }
+
+    // ── the live connections ─────────────────────────────────────────────
+    const conns = liveConnections(d);
+    const liveCount = el('vpnLiveCount');
+    if (liveCount) {
+      liveCount.textContent = String(conns.length);
+      liveCount.className = 'card-badge' + (conns.length > 0 ? ' active-blue' : '');
+    }
+    const grid = el('vpnLiveGrid');
+    if (grid) {
+      grid.innerHTML = conns.length
+        ? conns.map((c) => {
+          // RATES WHERE THERE ARE RATES, TOTALS WHERE THERE ARE NOT. Only the
+          // WireGuard collector differences two readings; a PPP session
+          // carries cumulative bytes and an IPsec peer carries neither, so a
+          // rate of 0 would be a measurement this page never took.
+          const traffic = (c.rxRate > 0 || c.txRate > 0)
+            ? '<span style="color:var(--accent-rx)">↓ ' + esc(fmtBytes(Math.round(c.rxRate))) + '/s</span>' +
+              '<span style="color:var(--accent-tx)">↑ ' + esc(fmtBytes(Math.round(c.txRate))) + '/s</span>'
+            : (c.rx > 0 || c.tx > 0)
+              ? '<span style="color:var(--accent-rx)">↓ ' + esc(fmtBytes(c.rx)) + '</span>' +
+                '<span style="color:var(--accent-tx)">↑ ' + esc(fmtBytes(c.tx)) + '</span>'
+              : '';
+          return '<div class="vpn-tile up">' +
+            '<div class="vpn-tile-name"><span class="iface-dot up"></span>' +
+              '<span class="vpn-tile-name-text">' + esc(c.name) + '</span></div>' +
+            '<div class="vpn-tile-iface"><span class="vpn-proto-pill">' + esc(c.tech) + '</span>' +
+              (c.where ? ' ' + esc(c.where) : '') + '</div>' +
+            (c.age ? '<div class="vpn-tile-hs">' + esc(c.age) + '</div>' : '') +
+            (c.detail ? '<div class="vpn-tile-ip">' + esc(c.detail) + '</div>' : '') +
+            (traffic ? '<div class="vpn-tile-traffic">' + traffic + '</div>' : '') +
+          '</div>';
+        }).join('')
+        : '<div class="empty-state" style="grid-column:1/-1">Nothing is connected right now</div>';
     }
 
     // ── PPP and IPsec ────────────────────────────────────────────────────────
