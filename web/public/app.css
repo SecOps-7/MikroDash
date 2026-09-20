@@ -134,6 +134,8 @@
     #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
     #topbarLogo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(40vw,22rem)}
     #topbarLogo span{color:var(--accent-rx)}
+    /* Shown only on a phone — see the max-width:767px block. */
+    #topbarMark{display:none;width:24px;height:24px;object-fit:contain;border-radius:4px;flex-shrink:0}
     .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
     #pageTitleWrap{display:flex;align-items:center;gap:.45rem;min-width:0}
     #pageTitleIcon{display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-muted)}
@@ -1058,7 +1060,20 @@
     #fwSearch{width:100%;max-width:280px;background:rgba(13,18,30,.9);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:.72rem;padding:.28rem .6rem;font-family:var(--font-mono)}
     html[data-theme="light"] #fwSearch{background:rgba(255,255,255,.9)}
     /* scroll */
-    .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent}
+    /* A TABLE WIDER THAN ITS CARD SCROLLS SIDEWAYS. Without overflow-x the
+       columns past the card's edge are simply unreachable — not clipped
+       visibly, just gone, which is how a phone loses the right-hand half of
+       every table. Unconditional rather than inside a media query: a table
+       that does not fit is wrong at any width, and `auto` shows nothing when
+       it does fit.
+       Most `.data-scroll` wrappers already carry an inline `overflow-y:auto`,
+       which makes the browser compute overflow-x to `auto` for them as a side
+       effect. The ones WITHOUT a max-height — WiFi Networks, CAPsMAN — kept
+       `visible` and leaked 309px and 441px off the page. */
+    .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    /* `.table-responsive` had NO RULE AT ALL — the class was carried by nine
+       pages and styled nothing. It means what its name says now. */
+    .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch}
     /* Pin the header row inside any scrolling table body. Without this the
        column names leave the screen the moment the table is longer than the
        viewport, which on a 500-row host table means scrolling back up to
@@ -1191,6 +1206,24 @@
       #navRouterWrap{display:flex}
       .iface-grid{--if-w:160px}
       .page-view{padding:.65rem .6rem}
+      /* A CARD HEADER WRAPS INSTEAD OF PUSHING ITS ACTIONS OFF THE SCREEN.
+         The Interfaces header ran 158px past the edge and the Containers tab
+         bar 193px — the tab bar scrolls on its own, but a flex child defaults
+         to min-width:auto and will not shrink below its content, so the
+         scrollport never got narrow enough to engage. */
+      .card-header{flex-wrap:wrap;row-gap:.4rem}
+      .card-header>*,.card-header .d-flex,.hdr-actions{min-width:0}
+      /* And the INNER flex row wraps too. min-width:0 lets a row shrink, but
+         a button has a width it will not go below, so the Users header's add
+         slot still ran 10px over until its row was allowed a second line. */
+      .card-header .d-flex,.hdr-actions{flex-wrap:wrap}
+      /* THE WORDMARK GIVES WAY TO THE MARK. The sidebar is off-canvas behind
+         the burger at this width, so its logo is not on screen; this puts one
+         back beside the burger and drops the text, which was eating up to
+         40vw of a 390px topbar. */
+      #topbarLogo{display:none}
+      #topbarMark{display:block}
+      .topbar-sep{display:none}
     }
     /* Dashboard grid */
     /* Stacked columns span row 1, stack cards with gap */
@@ -1328,8 +1361,14 @@
     .wl-sort-btn.active[data-dir="desc"]::after{content:' 93'}
     /* Wireless summary row */
     .wl-summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:.85rem}
-    @media(max-width:1100px){.wl-summary-row{grid-template-columns:1fr 1fr}}
-    @media(max-width:600px){.wl-summary-row{grid-template-columns:1fr}}
+    /* FOUR TILES, AS A CLASS RATHER THAN AN INLINE STYLE. Eleven pages wrote
+       `style="grid-template-columns:repeat(4,1fr)"` on the row, and an inline
+       style beats any stylesheet rule — so the mobile collapse below never
+       applied to them and four tiles stayed four tiles on a 390px screen, each
+       84px wide holding a label needing 107px. */
+    .wl-summary-row-4{grid-template-columns:repeat(4,1fr)}
+    @media(max-width:1100px){.wl-summary-row,.wl-summary-row-4{grid-template-columns:1fr 1fr}}
+    @media(max-width:600px){.wl-summary-row,.wl-summary-row-4{grid-template-columns:1fr}}
     /* SSID list. Scrolls rather than growing, so one router with a dozen
        virtual APs cannot push Signal Health and Band Split off the screen. */
     .wl-ssid-list{max-height:8.6rem;overflow-y:auto;margin:-.15rem -.25rem 0}
