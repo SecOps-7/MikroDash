@@ -19,8 +19,13 @@ package asn
 // up an address known to belong to the service, rather than recalled. Two
 // results from that run are worth keeping:
 //
-//   - Spotify and Twitch have no entry, because their traffic resolves to
-//     Google and Amazon. They do not own the networks that serve them.
+//   - Spotify and Twitch are absent, and an entry here would not bring them
+//     back. Their autonomous systems — AS8403 and AS46489 — are not in DB-IP
+//     ASN Lite AT ALL, and no organisation name in the file contains either
+//     word. Their traffic leaves Google and Amazon networks, so that is what
+//     the page says. Nothing keyed on the network can answer "Twitch"; only a
+//     hand-maintained prefix list could, which is the mechanism this package
+//     replaced for being frozen and wrong.
 //   - Google, Amazon, Microsoft, Akamai and Netflix each announce from SEVERAL
 //     autonomous systems, so each gets several rows.
 func Category(as uint) string {
