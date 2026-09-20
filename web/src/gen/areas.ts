@@ -186,6 +186,14 @@ export const AREAS: readonly Area[] = [
     panels: [],
   },
   {
+    key: "wireguard", title: "WireGuard", navGroup: "tunnels", tier: "advanced",
+    icon: "<circle cx=\"12\" cy=\"12\" r=\"9\"/><polyline points=\"13 7 9 13 12 13 11 17 15 11 12 11 13 7\"/>",
+    tables: [
+      { resource: "wgInterface", title: "Interfaces", columns: ["name", "publicKey", "listenPort", "mtu", "running", "disabled", "comment"], ordered: false, pills: { "running": "good", "disabled": "warn" } },
+    ],
+    panels: [],
+  },
+  {
     key: "openvpn", title: "OpenVPN", navGroup: "tunnels", tier: "advanced",
     icon: "<path d=\"M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z\"/><path d=\"M9 12l2 2 4-4\"/>",
     tables: [

@@ -54,6 +54,7 @@ export const PAGES: readonly Page[] = [
   { key: "ospf", title: "OSPF", path: "ospf" },
   { key: "ipsec", title: "IPsec", path: "ipsec" },
   { key: "openvpn", title: "OpenVPN", path: "openvpn" },
+  { key: "wireguard", title: "WireGuard", path: "wireguard" },
   { key: "vrrp", title: "VRRP", path: "vrrp" },
   { key: "pppoe-clients", title: "PPPoE Clients", path: "pppoe-clients" },
   { key: "dhcp-clients", title: "DHCP Clients", path: "dhcp-clients" },

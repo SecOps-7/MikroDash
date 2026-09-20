@@ -495,10 +495,16 @@
       "page": "wan"
     },
     {
+      "name": "list_wgInterface",
+      "access": "read",
+      "resource": "wgInterface",
+      "page": "wireguard"
+    },
+    {
       "name": "list_wgPeer",
       "access": "read",
       "resource": "wgPeer",
-      "page": "vpn"
+      "page": "wireguard"
     },
     {
       "name": "list_wifiNet",

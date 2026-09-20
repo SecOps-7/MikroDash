@@ -337,6 +337,32 @@ var declared = []Area{
 		},
 		Poll: 60 * time.Second,
 	},
+	// WireGuard: the tunnels themselves on one tab, their peers on the other.
+	//
+	// ONE TABLE AND ONE PANEL, not two tables, and the reason is the data. The
+	// shared `areas` collector reads a menu plainly once a minute, so it holds
+	// no previous sample: a peer's transfer RATES are not merely missing but
+	// unrepresentable, and `active`/`stale`/`never` is a word DERIVED from the
+	// age of `last-handshake` rather than a column any router returns. Peers as
+	// a generated table would read `1m33s` in grey beside `8224731432`.
+	//
+	// It would also cost a router channel. `internal/collect/cache.go` records
+	// that `/interface/wireguard/peers` has exactly one consumer; a second one
+	// asking a different shape cannot be coalesced with it.
+	//
+	// So the peers tab is a hand-built panel fed by `vpn:update`, the payload
+	// the dashboard card and the alert rules already pay for. The panel is
+	// declared here and registered by its own module; until that module lands
+	// this area is its Interfaces table alone, which is a page that works.
+	{
+		Key: "wireguard", Title: "WireGuard", NavGroup: "tunnels", Tier: "advanced",
+		Icon: `<circle cx="12" cy="12" r="9"/><polyline points="13 7 9 13 12 13 11 17 15 11 12 11 13 7"/>`,
+		Tables: []Table{
+			{Resource: "wgInterface", Title: "Interfaces",
+				Columns: []string{"name", "publicKey", "listenPort", "mtu", "running", "disabled", "comment"}},
+		},
+		Poll: 60 * time.Second,
+	},
 	// OpenVPN: the servers this router runs and the clients it dials out with.
 	// The accounts a server admits are the PPP page's secrets.
 	{

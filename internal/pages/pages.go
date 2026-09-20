@@ -131,6 +131,7 @@ var All = []Page{
 	{Key: "ospf", Title: "OSPF", Collector: "areas"},
 	{Key: "ipsec", Title: "IPsec", Collector: "areas"},
 	{Key: "openvpn", Title: "OpenVPN", Collector: "areas"},
+	{Key: "wireguard", Title: "WireGuard", Collector: "areas"},
 	{Key: "vrrp", Title: "VRRP", Collector: "areas"},
 	{Key: "pppoe-clients", Title: "PPPoE Clients", Collector: "areas"},
 	{Key: "dhcp-clients", Title: "DHCP Clients", Collector: "areas"},

@@ -107,6 +107,11 @@
       "settingsKey": null
     },
     {
+      "key": "wireguard",
+      "title": "WireGuard",
+      "settingsKey": null
+    },
+    {
       "key": "vrrp",
       "title": "VRRP",
       "settingsKey": null

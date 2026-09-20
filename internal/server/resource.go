@@ -2262,7 +2262,22 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 		if cn.rsession.CollectorEnabled("routing") {
 			cn.rsession.Routing().RefreshNow()
 		}
-	case "vpn":
+	// ── `case "vpn"` WAS HERE, AND ITS RESOURCE MOVED ────────────────────
+	//
+	// The VPN page's only writable rows were the WireGuard peers, and those
+	// belong to the WireGuard page now. No resource names page "vpn", so that
+	// case could never run again — which the refresh ledger says out loud, in
+	// the direction that catches a case nothing can reach.
+	//
+	// ── TWO REFRESHES, BECAUSE THE PAGE HAS TWO SOURCES ──────────────────
+	//
+	// A saved INTERFACE is a generated-area row and a saved PEER is in the vpn
+	// payload. Naming the page here takes it out of the area default below, so
+	// the area refresh has to be spelled out — and the ledger that checks this
+	// accepts a case that does only one of the two, which is exactly why it is
+	// written down here instead.
+	case "wireguard":
+		cn.rsession.Areas().RefreshNow("wireguard")
 		if cn.rsession.CollectorEnabled("vpn") {
 			cn.rsession.VPN().RefreshNow()
 		}

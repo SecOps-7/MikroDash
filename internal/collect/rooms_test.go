@@ -105,7 +105,10 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 		key  string
 		want []string
 	}{
-		{"vpn", []string{"page-vpn", "dash-card-vpn"}},
+		// `page-wireguard` joined the audience on 2026-09-20. The WireGuard
+		// page's Peers tab renders this payload rather than a generated table,
+		// so a viewer sitting on that page must keep the collector running.
+		{"vpn", []string{"page-vpn", "page-wireguard", "dash-card-vpn"}},
 		{"routing", []string{"page-routing", "page-dashboard"}},
 		{"dhcpNetworks", []string{"page-dhcp", "dash-card-network"}},
 		// `page-wifi-map` has been in the audience since the map page landed: it

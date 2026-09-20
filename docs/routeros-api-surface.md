@@ -250,7 +250,8 @@ twice, 37,111 rows each way for one address-list entry on a synced blocklist.
 | `/container/config` | containerConfig | containers | set (singleton; password never read) |
 | `/interface/veth` | veth | containers | add, set, remove (selfPath) |
 | `/interface/vrrp` | vrrp | vrrp | add, set, remove (selfPath, codeGate on the scripts; password never read) |
-| `/interface/wireguard/peers` | wgPeer | vpn | add, set, remove |
+| `/interface/wireguard` | wgInterface | wireguard | add, set, remove (selfPath; private-key never read) |
+| `/interface/wireguard/peers` | wgPeer | wireguard | add, set, remove (private-key and preshared-key never read) |
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |
 | `/interface/wireless/security-profiles` | wlSecProfile | wifi | add, set, remove |
 | `/ip/dhcp-client` | dhcpClient | dhcp-clients | add, set, remove (dhcpClientPath, tunnelDefault, codeGate on the script) |

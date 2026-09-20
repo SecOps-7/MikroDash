@@ -86,8 +86,15 @@ var (
 	talkersRooms     = Rooms{"page-dashboard"}
 	topologyRooms    = Rooms{"page-network-topology"}
 	vlansRooms       = Rooms{"page-vlans"}
-	vpnRooms         = Rooms{"page-vpn", "dash-card-vpn"}
-	wanRooms         = Rooms{"page-wan"}
+	// THREE ROOMS, AND THE WIREGUARD PAGE IS THE REASON FOR THE THIRD. Its
+	// Peers tab renders this payload rather than a generated table, because a
+	// table read plainly once a minute cannot carry transfer rates or grade a
+	// handshake age. Joining the room here is the whole wiring: `RoomsOf` is
+	// derived from this list, so demand, blur-suspend and dormancy follow, and
+	// the tab costs the router NOTHING beyond what the dashboard card and the
+	// alert rules already pay for.
+	vpnRooms = Rooms{"page-vpn", "page-wireguard", "dash-card-vpn"}
+	wanRooms = Rooms{"page-wan"}
 	// The Wi-Fi map needs BOTH: `wifi` says which access point each network is
 	// on, and `wireless` says who is connected to it. Neither owns the page —
 	// see internal/pages — and both have to reach it or half of it is blank.

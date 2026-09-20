@@ -61,6 +61,20 @@ func repoRoot(t *testing.T) string {
 var pruned = map[string]bool{
 	".git": true, "node_modules": true, ".screenshots": true,
 	"dist": true, ".test-out": true,
+	// ── `.claude` HOLDS CHECKOUTS OF THIS VERY REPOSITORY ─────────────────
+	//
+	// It is gitignored tool state, and the agent tooling puts ISOLATED GIT
+	// WORKTREES under `.claude/worktrees/` — each one a full copy of this repo
+	// at some other commit. Walking into them makes every scan here read a
+	// different version of its own subject: on 2026-09-20 a worktree sitting at
+	// an older commit made `TestCitedPathsExist` report fifteen missing paths,
+	// all of them files that had been renamed since, cited by that checkout's
+	// stale copies.
+	//
+	// That is "a check must not read itself" in a new costume — the trap this
+	// package's own header says it has already been caught by three times — and
+	// it is not this repository's source, so no check should be reading it.
+	".claude": true,
 }
 
 // tracked walks the working tree and returns every file, relative and

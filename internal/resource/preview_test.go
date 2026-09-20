@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -39,6 +40,7 @@ func TestPreviewCommandMatchesTheLiveModule(t *testing.T) {
 	}
 
 	checked, masked := 0, 0
+	seenAdded := map[string]bool{}
 	for _, c := range payload.Cases {
 		c := c
 		if c.Invalid {
@@ -58,6 +60,20 @@ func TestPreviewCommandMatchesTheLiveModule(t *testing.T) {
 			// deliberate narrowing: `options_test.go` compares the schemas, and
 			// this compares only the rendering.
 			got := r.PreviewCommand(Validated{Values: c.Validated, Editing: c.Editing}, id)
+			// Strip what this port adds beyond the Node module, and record
+			// that it really was there. See added_test.go.
+			for _, name := range addedFor(c.Key) {
+				f := r.FieldByName(name)
+				if f == nil || f.ROS == "" {
+					continue
+				}
+				stripped := regexp.MustCompile(` =`+regexp.QuoteMeta(f.ROS)+`=[^ ]*`).
+					ReplaceAllString(got, "")
+				if stripped != got {
+					seenAdded[c.Key+"/"+name] = true
+				}
+				got = stripped
+			}
 			if got != c.Command {
 				t.Errorf("preview differs\n  live: %s\n  port: %s", c.Command, got)
 			}
@@ -89,5 +105,11 @@ func TestPreviewCommandMatchesTheLiveModule(t *testing.T) {
 	if masked == checked {
 		t.Error("every case masked — this suite cannot see one that masks everything")
 	}
+	// NOT CHECKED HERE: that every recorded addition appears in some preview.
+	// A Display field never reaches a command and a TypeSecret one is dropped
+	// when empty, so both are legitimately absent from every case. added_test.go
+	// checks the names against the registry, which is the claim that can be made
+	// without excluding exactly the fields this corpus cannot see.
+	_ = seenAdded
 	t.Logf("%d previews compared, %d carrying a masked secret", checked, masked)
 }

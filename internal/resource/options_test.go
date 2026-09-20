@@ -423,8 +423,26 @@ func TestPortedFieldsMatchTheirLiveDeclarations(t *testing.T) {
 						showInt(gf.Min), showInt(gf.Max))
 				}
 			}
-			if len(res.Fields) != len(live) {
-				t.Errorf("%s has %d fields here and %d live", res.Key, len(res.Fields), len(live))
+			// ── FIELDS THIS PORT ADDS ARE RECORDED, NOT ASSUMED ─────────
+			//
+			// The loop above walks the LIVE declarations, so a field the Node
+			// app never had is invisible to it and only this count notices.
+			// `added_test.go` is the one list both parity gates read; a name in
+			// it must be a real field here and must NOT be declared live, or
+			// the allowance would excuse a field that was always there.
+			added := addedFor(res.Key)
+			for _, n := range added {
+				for _, lf := range live {
+					if lf.Name == n {
+						t.Errorf("addedSinceNode records %s.%s as added since Node, but "+
+							"resources.js declares it. The recording, not the ledger, is "+
+							"the authority: delete the entry.", res.Key, n)
+					}
+				}
+			}
+			if len(res.Fields) != len(live)+len(added) {
+				t.Errorf("%s has %d fields here and %d live (%d recorded as added since)",
+					res.Key, len(res.Fields), len(live), len(added))
 			}
 
 			// ACTIONS. A resource that quietly lost one would still pass every

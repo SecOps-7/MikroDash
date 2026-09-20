@@ -1175,6 +1175,23 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			collect.EvVpnUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
+	// ── THE WIREGUARD PAGE IS FED BY TWO COLLECTORS ──────────────────────
+	//
+	// Its Interfaces tab is a generated area and its Peers tab renders
+	// `vpn:update`, so a viewer opening it needs both replayed. Naming the
+	// page here also takes it out of the `default:` branch below, which is why
+	// the area replay is spelled out rather than inherited.
+	case "wireguard":
+		if last := cn.rsession.Areas().Last(page); last != nil {
+			replay := *last
+			replay.TS = time.Now().UnixMilli()
+			collect.EvAreaUpdate.Send(cn.srv.hub, cn.c, replay)
+		}
+		if last := cn.rsession.VPN().Last(); last != nil {
+			replay := *last
+			replay.TS = time.Now().UnixMilli()
+			collect.EvVpnUpdate.Send(cn.srv.hub, cn.c, replay)
+		}
 	case "users":
 		if last := cn.rsession.RosUsers().Last(); last != nil {
 			replay := *last

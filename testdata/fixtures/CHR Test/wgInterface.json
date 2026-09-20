@@ -1,0 +1,37 @@
+{
+  "collector": "areas",
+  "resource": "wgInterface",
+  "router": {
+    "model": "CHR",
+    "osVersion": "7.24.4"
+  },
+  "note": "Captured from the CHR test router. The interfaces were created FOR the capture, peered to each other over loopback so the running flag is real. What is real is the router's own reply: which fields /interface/wireguard returns, including the read-only public-key and running, and how it spells them. `private-key` is DROPPED entirely -- the menu really does return it, which is why the resource declares it TypeSecret so areaReadCmd never names it in a proplist -- and `public-key` is tokenised, because a WireGuard public key is not a secret but is a stable unique identifier for a device. tools/capture-fixtures.js drives the Node collectors and cannot capture an area, so this was read through /interface/wireguard/print and written in the same shape.",
+  "exchanges": [
+    {
+      "cmd": "/interface/wireguard/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*D",
+          "name": "wg-test-a",
+          "mtu": "1420",
+          "listen-port": "13231",
+          "public-key": "public-key-f36a",
+          "running": "true",
+          "disabled": "false",
+          "comment": "fixture capture"
+        },
+        {
+          ".id": "*E",
+          "name": "wg-test-b",
+          "mtu": "1420",
+          "listen-port": "13232",
+          "public-key": "public-key-2836",
+          "running": "true",
+          "disabled": "false",
+          "comment": "fixture capture"
+        }
+      ]
+    }
+  ]
+}

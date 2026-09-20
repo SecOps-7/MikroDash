@@ -2548,6 +2548,60 @@ var Vlan = &Resource{
 
 func intp(n int) *int { return &n }
 
+// WgInterface is /interface/wireguard — the tunnel itself, which this app could
+// not create or edit at all until now. `docs/mikromcp-parity.md` recorded the
+// gap in its own words: "No WireGuard interface resource yet (peers only)."
+//
+// ── THE PRIVATE KEY IS DECLARED AND NEVER READ BACK ────────────────────────
+//
+// RouterOS GENERATES a keypair when an interface is added, so the field is left
+// blank on a create and the router mints one — which is why WireGuard setup here
+// involves no key handling at all. Blank on an edit leaves the router's key
+// alone, the same mechanism `presharedKey` uses on WgPeer below.
+//
+// It is `TypeSecret` and that is load-bearing twice over: `RowValues` drops it
+// so it never reaches a form, and `areaReadCmd` skips it so it is never in the
+// proplist. The menu really does return it — measured on the lab CHR — so
+// without the declaration the area read would carry every interface's private
+// key to every viewer of the page.
+//
+// ── GUARDED BY selfPath ────────────────────────────────────────────────────
+//
+// A WireGuard interface CAN be the path the management session arrives on; a
+// site-to-site tunnel is exactly that. So renaming, disabling or removing one
+// can take MikroDash's own route away, which is the question `selfPath` exists
+// to ask. It WARNS rather than refuses, because tearing down a tunnel is an
+// ordinary thing to do, and it fails open when `/user/active` is denied.
+//
+// NO `vrf` FIELD in v1. The property exists from 7.21 but is absent from
+// `/interface/wireguard/print` on the 7.24.4 lab router, so declaring it
+// Clearable would send `vrf=` on an edit and risk a trap on builds that do not
+// carry it. Nothing here depends on it; add it with a live check behind it.
+var WgInterface = &Resource{
+	Key: "wgInterface", Page: "wireguard", Label: "WireGuard Interface",
+	Title: "WireGuard Interface", Menu: "/interface/wireguard", Identity: []string{"name"},
+	Guard:                []string{"selfPath"},
+	GuardInterfaceFields: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true,
+			Placeholder: "wireguard1"},
+		{Name: "listenPort", ROS: "listen-port", Label: "Listen Port", Type: TypeInt,
+			Min: intp(1), Max: intp(65535), Placeholder: "13231",
+			Help: "the UDP port clients connect to"},
+		{Name: "mtu", ROS: "mtu", Label: "MTU", Type: TypeInt,
+			Min: intp(68), Max: intp(65535), Placeholder: "1420"},
+		{Name: "privateKey", ROS: "private-key", Label: "Private Key", Type: TypeSecret,
+			Help: "leave blank — RouterOS generates one when the interface is added, " +
+				"and keeps the current key on an edit"},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		// The router computes these. `Display` shows them and `Validate` drops
+		// them, so no write can send one back.
+		{Name: "publicKey", ROS: "public-key", Label: "Public Key", Type: TypeWgKey, Display: true},
+		{Name: "running", ROS: "running", Label: "Running", Type: TypeBool, Display: true},
+	},
+}
+
 // WgPeer mirrors the `wgPeer` entry in src/routeros/resources.js.
 //
 // IDENTIFIED BY ITS PUBLIC KEY, not by a name. A WireGuard peer has no unique
@@ -2566,12 +2620,14 @@ func intp(n int) *int { return &n }
 // router: editing one cannot move the interface the management session arrives
 // on, which is the question `selfPath` exists to answer.
 var WgPeer = &Resource{
-	Key: "wgPeer", Page: "vpn", Label: "WireGuard Peer",
+	Key: "wgPeer", Page: "wireguard", Label: "WireGuard Peer",
 	Title: "WireGuard Peer", Menu: "/interface/wireguard/peers", Identity: []string{"publicKey"},
 	Fields: []Field{
 		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText,
 			Required: true, Placeholder: "wireguard1",
 			OptionsFrom: &OptionsFrom{Menu: "/interface/wireguard", Value: "name"}},
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Clearable: true,
+			Help: "RouterOS 7.15 and later. Not unique — see the note above."},
 		{Name: "publicKey", ROS: "public-key", Label: "Public Key", Type: TypeWgKey, Required: true},
 		{Name: "allowedAddress", ROS: "allowed-address", Label: "Allowed Addresses",
 			Type: TypeText, Required: true, Placeholder: "10.0.0.2/32"},
@@ -2582,6 +2638,39 @@ var WgPeer = &Resource{
 			Type: TypeText, Placeholder: "25s"},
 		{Name: "presharedKey", ROS: "preshared-key", Label: "Pre-shared Key", Type: TypeSecret,
 			Help: "leave blank to keep the current key"},
+		// ── THE CLIENT'S HALF, WHICH THE ROUTER STORES SO IT CAN HAND IT OUT ──
+		//
+		// RouterOS keeps the peer's OWN private key and the settings a client
+		// needs, which is what lets a config be printed for it. They are the
+		// peer's description of the device at the other end, not of the router,
+		// and `internal/wgconfig` turns them into the .conf a phone scans.
+		//
+		// `privateKey` is TypeSecret, so it is never read back into the form and
+		// never named in a proplist. Blank keeps the router's key; `auto` tells
+		// RouterOS to mint one, which is how a client is created without anybody
+		// handling key material.
+		{Name: "privateKey", ROS: "private-key", Label: "Client Private Key", Type: TypeSecret,
+			Help: "leave blank to keep the current key; type `auto` to have the router " +
+				"generate one. RouterOS stores this so it can print the client configuration."},
+		{Name: "clientAddress", ROS: "client-address", Label: "Client Address",
+			Type: TypeText, Clearable: true, Placeholder: "10.0.0.2/32",
+			Help: "the address the client gives its own tunnel interface"},
+		{Name: "clientDns", ROS: "client-dns", Label: "Client DNS", Type: TypeText, Clearable: true},
+		{Name: "clientEndpoint", ROS: "client-endpoint", Label: "Client Endpoint",
+			Type: TypeText, Clearable: true, Placeholder: "vpn.example.com:13231",
+			Help: "the address and port the client dials to reach this router"},
+		{Name: "clientKeepalive", ROS: "client-keepalive", Label: "Client Keepalive",
+			Type: TypeText, Clearable: true, Placeholder: "25s"},
+		{Name: "clientAllowedAddress", ROS: "client-allowed-address",
+			Label: "Client Allowed Addresses", Type: TypeText, Clearable: true,
+			Help: "RouterOS 7.21 and later. What the client routes into the tunnel; " +
+				"older routers always send everything."},
+		// READ-ONLY, and deliberately not writable. `responder` is 7.17+ and was
+		// spelled `is-responder` in 7.15-7.16.2. One writable field cannot cover
+		// both without either trapping on an old router or becoming one-way, and
+		// declaring both spellings would be two forms of one thing. Shown, read
+		// by the collector under either name, never written.
+		{Name: "responder", ROS: "responder", Label: "Responder", Type: TypeBool, Display: true},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
 	},
@@ -2805,6 +2894,7 @@ var byKey = map[string]*Resource{
 	ContainerMount.Key:      ContainerMount,
 	ContainerConfig.Key:     ContainerConfig,
 	Veth.Key:                Veth,
+	WgInterface.Key:         WgInterface,
 	AddressList.Key:         AddressList,
 	IfList.Key:              IfList,
 	IfListMember.Key:        IfListMember,
