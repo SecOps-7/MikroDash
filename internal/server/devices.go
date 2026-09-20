@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"mikrodash/internal/collection"
+	"mikrodash/internal/connstate"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/session"
 	"mikrodash/internal/store"
@@ -62,6 +63,7 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		ActiveID:   activeID,
 		Main:       map[string]routers.MainSession{},
 		Background: map[string]routers.Summary{},
+		Online:     map[string]bool{},
 		OpenAlerts: map[string]int{},
 		Sites:      map[string]routers.Site{},
 	}
@@ -77,6 +79,14 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		log.Printf("[devices] %v", p)
 	}
 	for _, r := range all {
+		// THE DEBOUNCED VERDICT, asked per router rather than taken off either
+		// pool's summary. An absent entry is left absent: `BuildStats` falls
+		// back to the live socket for a router nothing has judged yet, and
+		// writing `false` here would be the "every card is red on first open"
+		// defect again, in a new place.
+		if up, known := s.connTrack.Online(r.ID); known {
+			out.Online[r.ID] = up
+		}
 		out.Routers = append(out.Routers, routers.StatsRouter{
 			ID: r.ID, Label: r.Label, Host: r.Host, Disabled: r.Disabled,
 			SiteIDs: store.RouterSiteIDs(r),
@@ -591,6 +601,36 @@ func (s *Server) declareReporting(r store.Router) {
 	}
 }
 
+// declareConnThreshold tells the debounce how long this router must be
+// unreachable before it counts as offline — the device dialog's "Offline
+// threshold", `connDownThresholdSec`.
+//
+// ── DECLARED, NOT CAPTURED, AND THAT IS THE FIX ────────────────────────────
+//
+// The session used to resolve this when it was BUILT and hold the answer for
+// the router's whole life. A router held for alerting or recording is never
+// rebuilt, so an operator who changed the threshold saw the field save and the
+// record update while the running debounce went on using the old value until
+// the process restarted. Reported 2026-09-20 in the same breath as the alert
+// switch, which had the identical shape.
+//
+// Declared beside `declareReporting` because they are the same kind of fact and
+// the same sync already carries it: `syncFleetHolds` runs on every router save,
+// so there is no second place to remember.
+func (s *Server) declareConnThreshold(r store.Router) {
+	s.connTrack.SetThreshold(r.ID, connstate.ThresholdMs(connDownSecOf(r)))
+}
+
+// connDownSecOf keeps "unset" distinct from a deliberate zero — `ThresholdMs`
+// gives the live 30s default for the first and declares an outage at once for
+// the second.
+func connDownSecOf(r store.Router) (int, bool) {
+	if r.ConnDownThresholdSec == nil {
+		return 0, false
+	}
+	return *r.ConnDownThresholdSec, true
+}
+
 // ── THE OUTAGE DEBOUNCE IS NO LONGER CACHED HERE ──────────────────────────
 //
 // `noteConnThreshold` and `connThresholdMs` were a per-router cache of the
@@ -604,7 +644,7 @@ func (s *Server) declareReporting(r store.Router) {
 // the session writes `connectivity_events` and carries the threshold off its own
 // record: `connThreshMs`, built once in `Acquire`. There is no hook left with
 // nothing but an id, so there is nothing left to cache for. Removed rather than
-// left populated and unread — see `internal/session/connthresh_test.go`, which
+// left populated and unread — see `internal/server/connthresh_test.go`, which
 // is where the property this protected is asserted now.
 
 // devicesFocus is what a browser opening the Devices page sets in motion.

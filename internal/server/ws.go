@@ -706,8 +706,8 @@ func (cn *conn) selectRouter(id string) {
 	rs, err := cn.srv.sessions.Acquire(id)
 	if err != nil {
 		log.Printf("[ws] %s: router:select %s FAILED to acquire: %v", cn.c.ID, id, err)
-		session.EvRouterStatus.Send(cn.srv.hub, cn.c, map[string]any{
-			"routerId": id, "connected": false, "reason": err.Error()})
+		session.EvRouterStatus.Send(cn.srv.hub, cn.c,
+			session.StatusFrame(cn.srv.connTrack, id, false, err.Error()))
 		return
 	}
 	// ── THE ALERT POOL MUST LET GO OF A ROUTER A SESSION HAS TAKEN ────────
@@ -775,8 +775,8 @@ func (cn *conn) selectRouter(id string) {
 	cn.setRouter(id, rs)
 	cn.srv.hub.Join(cn.c, "router-"+id)
 	EvRouterActive.Send(cn.srv.hub, cn.c, map[string]any{"activeId": id})
-	session.EvRouterStatus.Send(cn.srv.hub, cn.c, map[string]any{
-		"routerId": id, "connected": rs.Connected(), "reason": rs.LastError()})
+	session.EvRouterStatus.Send(cn.srv.hub, cn.c,
+		session.StatusFrame(cn.srv.connTrack, id, rs.Connected(), rs.LastError()))
 	cn.sendPooledStatus()
 	// The card subscriptions the grid sent before a router existed — see
 	// dashcard.go:rejoinCards.
@@ -1630,8 +1630,8 @@ func (cn *conn) sendPooledStatus() {
 		if visible != nil && !visible[id] {
 			continue
 		}
-		session.EvRouterStatus.Send(cn.srv.hub, cn.c, map[string]any{
-			"routerId": id, "connected": up})
+		session.EvRouterStatus.Send(cn.srv.hub, cn.c,
+			session.StatusFrame(cn.srv.connTrack, id, up, ""))
 	}
 }
 

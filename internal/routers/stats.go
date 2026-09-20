@@ -39,6 +39,12 @@ type Input struct {
 	// session, for the active router; see StatsSources.ActiveID.
 	IsActive  bool
 	Connected bool
+	// Online is the DEBOUNCED verdict: whether this router counts as offline
+	// yet, after its own "Offline threshold". `Connected` is the socket this
+	// instant; this is what the badge reads, so a six-second reconnect does not
+	// paint the card red. Set by BuildStats from StatsSources.Online, falling
+	// back to `Connected` where nothing has judged.
+	Online bool
 	// Known is whether `Connected` is an OBSERVATION or just its zero value. See
 	// the Row field of the same name for why the page needs to be able to tell.
 	//
@@ -83,6 +89,10 @@ type Row struct {
 	Host      string `json:"host"`
 	IsActive  bool   `json:"isActive"`
 	Connected bool   `json:"connected"`
+	// Online is the DEBOUNCED verdict — see Input.Online. The card's badge reads
+	// THIS; `connected` stays the live socket, which is what the login-failure
+	// box and the "is this reading current" checks need.
+	Online bool `json:"online"`
 	// Known is whether anything has actually LOOKED at this router yet.
 	//
 	// ── FALSE IS NOT THE SAME CLAIM AS OFFLINE ──────────────────────────────
@@ -159,7 +169,7 @@ type Site struct {
 func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySeeWanIp bool) Row {
 	r := Row{
 		ID: in.ID, Label: in.Label, Host: in.Host,
-		IsActive: in.IsActive, Connected: in.Connected, Known: in.Known,
+		IsActive: in.IsActive, Connected: in.Connected, Online: in.Online, Known: in.Known,
 		OpenAlerts: openAlerts[in.ID],
 	}
 	if !in.Connected && in.LastError != "" {

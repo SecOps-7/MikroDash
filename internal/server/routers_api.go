@@ -502,7 +502,7 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 	// dropping it mid-life would make the next connect look like a first
 	// sighting and write a spurious "up" row. A removed router is the one case
 	// where forgetting is right, and it had no caller either.
-	s.historyWire.Forget(id)
+	s.connTrack.Forget(id)
 	if s.auditDB != nil {
 		if err := s.auditDB.DeleteRouterData(id); err != nil {
 			log.Printf("[routers] purge %s: %v", id, err)

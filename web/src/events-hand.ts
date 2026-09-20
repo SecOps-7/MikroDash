@@ -256,7 +256,12 @@ export interface HandEvents {
   'router:disabled': { routerId: string };
   // `reason` is "" rather than null when there is no error, and absent from
   // the pooled-status path.
-  'router:status': { routerId: string; connected: boolean; reason?: string };
+  //
+  // TWO FACTS, NOT ONE. `connected` is the API socket this instant — the banner,
+  // the dots and the write path. `online` is the DEBOUNCED verdict, after the
+  // device's own Offline threshold, and it is what the fleet's badges read. Both
+  // are always sent: `session.StatusFrame` is the only builder.
+  'router:status': { routerId: string; connected: boolean; online: boolean; reason?: string };
   'router:switched': { activeId: string };
   'routers:update': RouterRecord[];
   'session:expired': Nothing;

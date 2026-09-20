@@ -31,6 +31,7 @@ import (
 
 	"mikrodash/internal/backups"
 	"mikrodash/internal/changelog"
+	"mikrodash/internal/connstate"
 	"mikrodash/internal/db"
 	"mikrodash/internal/historywire"
 	"mikrodash/internal/hub"
@@ -197,7 +198,10 @@ type Server struct {
 	// historyWire is built early, because the always-on pool must be given it
 	// BEFORE its first Sync — see New.
 	historyWire *historywire.Wire
-	// connTick drives the debounce. See historywire.Wire.TickAll.
+	// connTrack is the fleet's connectivity debounce: who is OFFLINE, as
+	// opposed to whose socket is shut this instant. See internal/connstate.
+	connTrack *connstate.Tracker
+	// connTick drives that debounce. See connstate.Tracker.TickAll.
 	connTick *time.Ticker
 	connStop chan struct{}
 	// startedAt is when this process began serving, for /healthz's uptime and
@@ -372,6 +376,22 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// something forces a rebuild. Wiring it two hundred lines further down, next
 	// to the session manager's copy, is exactly that bug.
 	srv.historyWire = srv.buildHistoryWire(opts.History)
+	// ── AND THE DEBOUNCE, HERE RATHER THAN WITH THE RECORDER ──────────────
+	//
+	// A session takes the tracker when it is BUILT, and `syncFleetHolds` below
+	// builds one for every enabled router. `SetHistoryWire` — which this
+	// replaces — was called a hundred lines further down, AFTER that sync, so
+	// every held session took nil and the connect and drop of every router
+	// nobody was watching reached no state machine at all. The same ordering
+	// defect as the identity writer immediately below, which has its own note
+	// and its own test for exactly this reason.
+	//
+	// ROWS AND VERDICTS GO TO DIFFERENT PLACES, which is the whole point of the
+	// split: rows to the history wire, where reporting and `-history` decide
+	// whether they are written, and the verdict to the badge and the alert,
+	// which are true whether or not anything is being recorded.
+	srv.connTrack = connstate.New(srv.historyWire.RecordConn, srv.connVerdict)
+	srv.sessions.SetConnTracker(srv.connTrack)
 	// ── AND THE IDENTITY WRITER, FOR THE SAME REASON ──────────────────────
 	//
 	// What each router says it is — the model, serial and version Settings →
@@ -415,9 +435,8 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// workable threshold was zero — record every close, at once. A routine
 	// six-second reconnect then appeared in the Reports page as an outage.
 	//
-	// ONE SECOND, for the whole fleet. The threshold is measured in seconds and
-	// the sweep is a map walk plus a comparison per router; a finer tick would
-	// buy nothing a report can show.
+	// The cadence and why it is no longer gated on `-history` are on
+	// startConnTicker itself.
 	srv.startConnTicker()
 	// ── AND AGAIN WHEN A SESSION FINALLY GOES ─────────────────────────────
 	//
@@ -488,9 +507,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// BEHIND ITS FLAG, off by default: the sweep DELETES, so it is the one switch
 	// where a default-on mistake cannot be undone.
 	srv.pruneSched = srv.buildPruneScheduler(opts.Retention)
-	// The history recorder. Installed on the session manager even when disabled,
-	// so the call sites in session.go run on every tick rather than for the first
-	// time inside the cutover window.
+	// The traffic and ping recorder, off the session's emit seam. CONNECTIVITY
+	// is no longer part of it — that is the tracker's, attached at the top of
+	// New, where the ordering is correct.
 	hw := srv.historyWire
 	srv.sessions.SetHistoryWire(hw)
 	// ── AND THE POOL RECORDS TOO, WHEN -history IS ON ─────────────────────
@@ -738,13 +757,18 @@ func loginFor(r *http.Request) string {
 //
 // startConnTicker drives the connectivity debounce.
 //
-// Nil-safe on a disabled wire — `TickAll` returns immediately — but the ticker
-// is only started when recording is on, so a deployment without `-history` pays
-// nothing for it.
+// ── IT IS NO LONGER GATED ON `-history`, AND THAT WAS THE WHOLE DEFECT ─────
+//
+// The ticker used to start only when recording was on, because recording was
+// the only consumer. The debounce decides the fleet's Online/Offline badge and
+// the Router Offline / Online alert now, so on a default install — `-history`
+// is off by default — a gated ticker would mean no outage is ever DECLARED:
+// every drop would sit as a pending timer nothing advances, and the threshold
+// would silently mean "never".
+//
+// ONE SECOND, for the whole fleet. The threshold is measured in seconds and the
+// sweep is a map walk plus a comparison per router.
 func (s *Server) startConnTicker() {
-	if !s.historyWire.Enabled() {
-		return
-	}
 	s.connTick = time.NewTicker(time.Second)
 	s.connStop = make(chan struct{})
 	go func() {
@@ -753,7 +777,7 @@ func (s *Server) startConnTicker() {
 			case <-s.connStop:
 				return
 			case t := <-s.connTick.C:
-				s.historyWire.TickAll(t.UnixMilli())
+				s.connTrack.TickAll(t.UnixMilli())
 			}
 		}
 	}()

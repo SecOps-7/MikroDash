@@ -36,15 +36,12 @@ import (
 // ledger broke: `data-val` sat in it excused as "a feature this port has not
 // taken on" while being a plain bug on a shipped page.
 var recorderUnwired = map[string]string{
-	// `Tick` advances the disconnect debounce, and nothing drives it BY DESIGN.
-	// The two callers pass a threshold of zero, which `internal/history`'s rule
-	// 4 makes its own branch: it records on every close and needs no timer. A
-	// non-zero threshold has nowhere to come from either — `connDownThresholdSec`
-	// is in routers.json and is not modelled on `store.Router`. Wiring a ticker
-	// means adding that field first, and this entry is what will fail when
-	// somebody does.
-	"Tick": "no ticker: both callers use a zero threshold, which is its own " +
-		"branch in internal/history and needs no debounce",
+	// `Tick` WAS HERE, excused as "no ticker: both callers use a zero threshold".
+	// The excuse expired in two stages — `startConnTicker` gave it a clock, and
+	// `connDownThresholdSec` reached it — and the method itself has since left
+	// this package for `internal/connstate`. The entry is deleted rather than
+	// reworded, and the loop below now fails on a ledger entry naming a method
+	// that no longer exists, which is what would have caught it sitting here.
 	// `Records` is a PREDICATE, not a writer, and this check is about writers:
 	// its question is "does a table stop being written because nothing calls
 	// this". `Record` consults it on every traffic sample from inside the
@@ -55,11 +52,11 @@ var recorderUnwired = map[string]string{
 	// actually matters, IS called from the fleet syncs and is checked here.
 	"Records": "a predicate consulted by Record inside the package; exported for " +
 		"callers to ask rather than to be driven",
-	// Same shape as `Records` directly above: `Record`, `apply` and `TickAll`
-	// all consult it from inside the package, which the scan cannot see because
-	// it excludes the recorder's own source. `SetReporting` is the entry point
-	// that matters here, and it IS called from both fleet syncs.
-	"Reporting": "a predicate consulted by Record, apply and TickAll inside the " +
+	// Same shape as `Records` directly above: `Record` and `RecordConn` both
+	// consult it from inside the package, which the scan cannot see because it
+	// excludes the recorder's own source. `SetReporting` is the entry point that
+	// matters here, and it IS called from both fleet syncs.
+	"Reporting": "a predicate consulted by Record and RecordConn inside the " +
 		"package; exported for callers to ask rather than to be driven",
 }
 
@@ -128,10 +125,33 @@ func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {
 	sort.Strings(names)
 	recvAlt := strings.Join(names, "|")
 
+	// ── AND THE LEDGER ITSELF IS CHECKED AGAINST THE SOURCE ────────────────
+	//
+	// The loop below reads the METHODS and asks the ledger about each, so an
+	// entry naming a method that no longer exists is never consulted and never
+	// fails. `Tick` sat here for exactly that reason after its excuse had
+	// expired. A ledger that cannot go stale has to be read both ways.
+	have := map[string]bool{}
+	for _, name := range entry {
+		have[name] = true
+	}
+	for name, reason := range recorderUnwired {
+		if !have[name] {
+			t.Errorf("the ledger excuses Wire.%s (%q), which is no longer a method "+
+				"on the recorder. Delete the entry.", name, reason)
+		}
+	}
+
 	var missing []string
 	for _, name := range entry {
 		// Optionally qualified — `s.historyWire`, `m.history`, or a bare local.
-		used := regexp.MustCompile(`(?:\w+\.)?(?:` + recvAlt + `)\.` + name + `\(`).
+		//
+		// A METHOD VALUE COUNTS, which is the second alternative: the server
+		// wires `RecordConn` by handing it to `connstate.New` as the tracker's
+		// row sink, so it is never spelled with a `(` after it. Bounded to a
+		// following comma or close paren so it matches an argument rather than
+		// any mention of the name.
+		used := regexp.MustCompile(`(?:\w+\.)?(?:` + recvAlt + `)\.` + name + `(?:\(|\s*[,)])`).
 			MatchString(callers)
 		reason, recorded := recorderUnwired[name]
 		switch {

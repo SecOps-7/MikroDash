@@ -182,6 +182,36 @@ func (w *Wire) forRouter(routerID string) (*alert.Evaluator, *sync.Mutex, timedS
 	return w.evals[routerID], w.locks[routerID], st
 }
 
+// RouterStatus feeds one DEBOUNCED connectivity verdict to the rules.
+//
+// ── ITS OWN ENTRY POINT, NOT A CASE IN `Evaluate` ──────────────────────────
+//
+// `Evaluate` is the collector seam: it switches on a payload type, and every
+// payload it knows arrived over a working connection. A router going offline
+// has no payload and never will, for the obvious reason. This is the same split
+// the connectivity recorder has always had — see `internal/connstate`, which is
+// driven by session lifecycle rather than by an emit — and folding it into the
+// type switch would mean inventing a payload to describe the absence of one.
+//
+// The lock, the clock and the per-router store are the same as `Evaluate`'s,
+// because the de-duplication has to be: a Router Offline row and a Host Down row
+// on the same router are written by the same store under the same lock.
+func (w *Wire) RouterStatus(r alert.Router, up bool) []alert.Fired {
+	if w == nil || r.ID == "" {
+		return nil
+	}
+	ev, lock, st := w.forRouter(r.ID)
+	lock.Lock()
+	st.setNow(w.now())
+	fired := ev.RouterStatus(r, up)
+	lock.Unlock()
+
+	if len(fired) > 0 {
+		log.Printf("[alert] %s router:status: %d change(s)", r.ID, len(fired))
+	}
+	return fired
+}
+
 // Evaluate feeds one collector payload to the rules and returns what fired.
 //
 // ── AN UNRECOGNISED EVENT IS THE COMMON CASE, NOT AN ERROR ─────────────────

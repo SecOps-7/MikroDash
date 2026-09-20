@@ -105,6 +105,16 @@ type StatsSources struct {
 	ActiveID string
 	// Background is the pool's cache, keyed by router id.
 	Background map[string]Summary
+	// Online is the DEBOUNCED verdict per router — `internal/connstate`, driven
+	// by each router's own "Offline threshold". An absent entry means the
+	// debounce has not judged this router yet, which is NOT the same as down:
+	// the row then falls back to the live socket state.
+	//
+	// A map rather than a field on the two session shapes above, because the
+	// verdict is not either pool's to report. It is one answer per router
+	// whichever socket happens to be holding it, which is exactly the confusion
+	// `Main` and `Background` disagreeing about `Connected` used to cause.
+	Online map[string]bool
 
 	// DefaultIf is the GLOBAL setting, used when a router names no interface of
 	// its own. The original falls back again to "ether1" after it.
@@ -183,6 +193,14 @@ func BuildStats(src StatsSources) []Row {
 			// overview pool has dialled it.
 			in.Known = false
 			in.Connected = false
+		}
+
+		// THE BADGE'S FACT, after the switch above has settled the socket's.
+		// Falling back to `Connected` keeps a fresh install honest: a router
+		// nothing has judged yet reports what its socket says, not Offline.
+		in.Online = in.Connected
+		if v, ok := src.Online[r.ID]; ok {
+			in.Online = v
 		}
 
 		out = append(out, BuildRow(in, src.OpenAlerts, src.Sites, src.MaySeeWanIp))

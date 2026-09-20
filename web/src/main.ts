@@ -865,11 +865,21 @@ async function main(): Promise<void> {
 
   socket.on('router:status', (d) => {
     if (!d || !d.routerId) return;
-    routerStatus[d.routerId] = !!d.connected;
+    // ── THE FLEET READS `online`, THE ACTIVE ROUTER READS `connected` ──────
+    //
+    // `online` is the DEBOUNCED verdict — the device's own Offline threshold,
+    // thirty seconds by default — so a router that blinks during a reconnect
+    // does not flip every badge in the Settings table and every dot in the
+    // dropdown to red and back. `connected` is the socket this instant, and
+    // everything below the activeRouterId guard uses it: the banner, the two
+    // dots and the switching overlay must react at once, because a page that
+    // claims a connection it does not have is worse than one that says so
+    // early.
+    routerStatus[d.routerId] = !!d.online;
     // The Settings table's badge for THIS router, in place. Without it that
     // table keeps whatever status it was rendered with until the next
     // `routers:update` — a router that went offline still reading "Online".
-    updateRouterStatusBadge(d.routerId, !!d.connected);
+    updateRouterStatusBadge(d.routerId, !!d.online);
     // The dropdown's per-router dots, which are about every router.
     dropdown.refresh();
 

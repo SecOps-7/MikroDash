@@ -144,3 +144,21 @@ func (c *Connectivity) Tick(now int64) ConnEffect {
 // DeclaredOffline reports whether an outage has been declared and not yet
 // recovered. Nothing reads it yet; the alert port will.
 func (c *Connectivity) DeclaredOffline() bool { return c.declaredOffline }
+
+// Online is the DEBOUNCED verdict: what this machine last decided, rather than
+// whether a socket is open right now.
+//
+// `known` is rule 3's starting state turned into an answer. "Never observed" is
+// not "down", and a page that conflated them painted every router red for the
+// two seconds before the first dial returned — reported twice. The two return
+// values are deliberately separate for that reason.
+//
+// A router whose link has dropped but whose debounce has not expired is still
+// ONLINE here, which is the whole point of the threshold: `prev` moves when the
+// outage is declared, not when the socket closes.
+func (c *Connectivity) Online() (up, known bool) {
+	if c.prev == nil {
+		return false, false
+	}
+	return *c.prev, true
+}

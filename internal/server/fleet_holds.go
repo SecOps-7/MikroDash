@@ -139,6 +139,7 @@ func (s *Server) syncFleetHolds() {
 	for _, r := range all {
 		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
 		s.declareReporting(r)
+		s.declareConnThreshold(r)
 		// THE DECLARATIONS ABOVE ARE NOT GATED ON THE MANAGER, and that split is
 		// deliberate. They tell the recorder what a series contains, which is
 		// true whether or not anything is holding a session; folding them behind

@@ -110,6 +110,10 @@ func (s *Server) alertSettings() alert.Settings {
 		NotifIfaceUpDown:  flag("notifIfaceUpDown", true),
 		NotifVPN:          flag("notifVpn", true),
 		NotifBGP:          flag("notifBgp", true),
+		// DEFAULT OFF, matching `notifNetwatch` and the live app's own default
+		// for this switch: a router that reboots nightly would otherwise notify
+		// twice a night on an install nobody asked.
+		NotifRouterStatus: flag("notifRouterStatus", false),
 		IfaceTypeFilters: map[string]bool{
 			"notifIfaceEther":  flag("notifIfaceEther", true),
 			"notifIfaceWlan":   flag("notifIfaceWlan", true),

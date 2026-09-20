@@ -75,7 +75,7 @@ export function licenseLabel(level: string): string {
 }
 
 const RTL_COLS: Record<string, { str?: boolean }> = {
-  connected: {}, label: { str: true }, host: { str: true },
+  online: {}, label: { str: true }, host: { str: true },
   boardName: { str: true }, version: { str: true },
   openAlerts: {}, cpu: {}, memPct: {}, hddPct: {}, clients: {},
   rxMbps: {}, txMbps: {}, uptime: { str: true },
@@ -227,7 +227,7 @@ export function renderRoutersSummary(rows: RouterStatsRow[] | null): void {
   // while the first sweep is still running, which is the honest picture.
   let online = 0, offline = 0, alerting = 0;
   (rows || []).forEach((r) => {
-    if (r.connected) online++;
+    if (r.online) online++;
     else if (r.known) offline++;
     if (r.openAlerts > 0) alerting++;
   });
@@ -274,10 +274,10 @@ export function rtrMatches(r: RouterStatsRow, q: string): boolean {
   if (!q) return true;
   const hay = [r.label, r.host, r.boardName, r.version].join(' ').toLowerCase();
   return q.split(/\s+/).every((term) => {
-    if (term === 'online') return !!r.connected;
+    if (term === 'online') return !!r.online;
     // Unknown is not offline: searching `offline` must not list every router
     // the first sweep has yet to reach.
-    if (term === 'offline') return r.known && !r.connected;
+    if (term === 'offline') return r.known && !r.online;
     if (term === 'alerting') return r.openAlerts > 0;
     return hay.indexOf(term) !== -1;
   });
@@ -366,7 +366,7 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
 
     // Explain an offline card rather than leaving the user to read container
     // logs. The server sends this already sanitized; esc() it like any other.
-    const offlineWhy = !r.connected && r.lastError
+    const offlineWhy = !r.online && r.lastError
       ? '<div style="font-size:.72rem;line-height:1.35;color:#d63939;background:rgba(214,57,57,.08);'
         + 'border:1px solid rgba(214,57,57,.22);border-radius:6px;padding:.35rem .55rem;margin-bottom:.75rem">'
         + esc(r.lastError) + '</div>' : '';
@@ -394,15 +394,15 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
       // visibly taller than its neighbours — measured at 297px against 275px.
       + '<div class="card h-100">'
       + '<div class="card-header" style="align-items:flex-start">'
-      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (!r.known ? '#6c7a91' : r.connected ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
+      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (!r.known ? '#6c7a91' : r.online ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
       + '<div class="me-auto">'
       + '<div class="d-flex align-items-center"><strong class="card-title mb-0 me-1" style="color:inherit">' + esc(r.label) + '</strong>' + activeBadge + '</div>'
       + hostSub
       + '</div>'
       // THREE STATES, not two. `!known` means no pool has reached this router
       // yet, and saying "Offline" about it in red was alarming and wrong.
-      + '<span class="badge ms-2 ' + (!r.known ? 'bg-secondary-lt' : r.connected ? 'bg-green-lt' : 'bg-red-lt') + '">'
-      + (!r.known ? 'Checking…' : r.connected ? 'Online' : 'Offline') + '</span>'
+      + '<span class="badge ms-2 ' + (!r.known ? 'bg-secondary-lt' : r.online ? 'bg-green-lt' : 'bg-red-lt') + '">'
+      + (!r.known ? 'Checking…' : r.online ? 'Online' : 'Offline') + '</span>'
       + '</div>'
       + '<div class="card-body">'
       + offlineWhy
@@ -487,9 +487,9 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
       : dash;
     // `rtl-offline` DIMS THE ROW, so an unchecked router must not carry it —
     // see the three states on the card badge above.
-    return '<tr class="rtl-row' + (r.connected || !r.known ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
-      + '<td><span class="rtl-dot" style="background:' + (!r.known ? '#6c7a91' : r.connected ? '#34d399' : '#f87171') + '" title="'
-        + (!r.known ? 'Checking…' : r.connected ? 'Online' : 'Offline') + '"></span></td>'
+    return '<tr class="rtl-row' + (r.online || !r.known ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
+      + '<td><span class="rtl-dot" style="background:' + (!r.known ? '#6c7a91' : r.online ? '#34d399' : '#f87171') + '" title="'
+        + (!r.known ? 'Checking…' : r.online ? 'Online' : 'Offline') + '"></span></td>'
       + '<td>' + esc(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
       + '<td class="text-muted">' + esc(r.host || '') + '</td>'
       + '<td>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
@@ -595,7 +595,7 @@ function canManage(id: string): boolean {
  */
 export function dotColour(r: RouterStatsRow): string {
   if (!r.known) return 'var(--accent-muted,#6c7a91)';
-  return r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)';
+  return r.online ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)';
 }
 
 export function popHtml(r: RouterStatsRow): string {
@@ -636,7 +636,7 @@ export function groupPopHtml(g: MapGroup): string {
   const place = (first.geo && first.geo.label) || 'this location';
   // KNOWN and not connected. Counting `!connected` made a cluster announce
   // "3 offline" the instant the map opened, before anything had been asked.
-  const down = g.routers.filter((r) => r.known && !r.connected).length;
+  const down = g.routers.filter((r) => r.known && !r.online).length;
   return '<div class="rmp-name">' + g.routers.length + ' routers</div>'
     + '<div class="rmp-loc" style="margin-top:.2rem;padding-top:0;border-top:0">'
     + esc(place)
@@ -667,7 +667,7 @@ export function renderTray(unlocated: RouterStatsRow[]): void {
     + unlocated.length + '):</span>'
     + unlocated.map((r) => '<span class="rmt-pill" data-open-router="' + esc(r.id) + '" title="'
         + esc(r.host) + '"><span class="rtl-dot" style="background:'
-        + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
+        + (r.online ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
         + '"></span>' + esc(r.label) + '</span>').join('')
     + '<span class="rmt-label" style="flex-basis:100%;margin-top:.25rem">'
     + 'Their WAN address is private or unroutable, so it cannot be geolocated. '

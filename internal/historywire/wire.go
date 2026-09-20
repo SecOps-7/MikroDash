@@ -51,12 +51,6 @@ type Wire struct {
 	w       *history.Writer
 	store   Store
 
-	// The connectivity half — see conn.go. A SEPARATE LOCK from `mu`: a
-	// connectivity event and a traffic sample have nothing to say to each other,
-	// and sharing one mutex would put every router's samples behind one router's
-	// debounce.
-	connMu sync.Mutex
-	conns  map[string]*connState
 	// recorded is, per router, the interfaces whose traffic reaches history.
 	// See SetRecordedInterfaces: an absent or empty entry records everything.
 	recMu    sync.Mutex
@@ -69,7 +63,6 @@ type Wire struct {
 func New(enabled bool, store Store) *Wire {
 	return &Wire{
 		enabled: enabled, w: history.NewWriter(), store: store,
-		conns: map[string]*connState{},
 	}
 }
 

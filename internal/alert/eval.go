@@ -45,6 +45,10 @@ type Settings struct {
 	IfaceTypeFilters map[string]bool
 	NotifVPN         bool
 	NotifBGP         bool
+	// NotifRouterStatus is the router's OWN reachability — see
+	// routerstatus.go. The setting has existed since the Node app and had no
+	// reader in this port until 2026-09-20.
+	NotifRouterStatus bool
 }
 
 // Router is what the evaluator needs to know about the device.

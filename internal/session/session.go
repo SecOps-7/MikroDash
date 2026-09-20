@@ -29,6 +29,7 @@ import (
 	"mikrodash/internal/asn"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/collection"
+	"mikrodash/internal/connstate"
 	"mikrodash/internal/dormancy"
 	"mikrodash/internal/geo"
 	"mikrodash/internal/historywire"
@@ -123,18 +124,18 @@ type Session struct {
 	fleet *atomic.Pointer[func(frame map[string]any)]
 	cfg   routeros.Config
 
-	// history is the recorder, captured from the Manager when this session is
-	// built. Nil-safe: every method on it guards its own receiver, so an install
-	// with no history database simply records nothing.
-	history *historywire.Wire
+	// conn is the fleet's connectivity debounce, captured from the Manager when
+	// this session is built. Nil-safe: every method on it guards its own
+	// receiver, so a Manager with none simply decides nothing.
+	//
+	// The ROUTER'S OWN THRESHOLD is not held here. It lives on the tracker, set
+	// by `declareConnThreshold` from the fleet sync, because a copy taken at
+	// build time is a copy that never hears about a save. See
+	// `connstate.Tracker.SetThreshold`.
+	conn *connstate.Tracker
 	// identity is the Manager's identity writer, bound to this router; nil when
 	// none is attached. Every System collector built by newSystem carries it.
 	identity collect.IdentityFunc
-	// connThreshMs is this router's outage debounce, from its own record. Zero
-	// is a real setting — record every close at once — so it is resolved through
-	// `historywire.ThresholdMs` at build time rather than defaulted here.
-	connThreshMs int64
-
 	// wake interrupts the connect loop's retry sleep.
 	//
 	// BUFFERED, AND SENT TO WITHOUT BLOCKING, so a signal raised while the loop
@@ -437,19 +438,6 @@ func (s *Session) UsesTLS() bool {
 	return s.cfg.TLS
 }
 
-// reader adapts the session to collect.Reader. The indirection matters: the
-// client is REPLACED on a reconnect, and a collector holding the old pointer
-// would read from a closed connection for ever.
-// connDownSecOf reads a router's outage debounce, keeping "unset" distinct from
-// a deliberate zero — `ThresholdMs` gives the live 30s default for the first and
-// records every close at once for the second.
-func connDownSecOf(rec *store.Router) (int, bool) {
-	if rec == nil || rec.ConnDownThresholdSec == nil {
-		return 0, false
-	}
-	return *rec.ConnDownThresholdSec, true
-}
-
 // globalDefaultIf is the install-wide default interface, the middle rung of the
 // precedence `routers.DefaultIfFor` resolves. Read straight off the settings map
 // rather than through `store.Merge`: the environment overlay is the server's
@@ -470,6 +458,10 @@ func defaultIfOr(v, fallback string) string {
 	return v
 }
 
+// reader adapts the session to collect.Reader. The indirection matters: the
+// client is REPLACED on a reconnect, and a collector holding the old pointer
+// would read from a closed connection for ever.
+//
 // reader's source names who its commands are counted against (sources.go).
 // Empty is the collectors, which is every reader the session hands out; Exec
 // builds one naming its caller.
@@ -702,7 +694,13 @@ type Manager struct {
 	// SQLite file write TWO rows per minute per interface, and Reports averages
 	// by minute. The chart would not look broken; it would look plausible and be
 	// wrong, which is worse.
+	// history is the RECORDER, for traffic and ping rows off the emit seam
+	// (`Record`, `Flush`). It no longer carries connectivity: that is `conn`
+	// below, which has to run whether or not anything is being recorded.
 	history *historywire.Wire
+	// conn is the fleet's connectivity debounce — who is OFFLINE, as opposed to
+	// whose socket is shut this instant. See internal/connstate.
+	conn *connstate.Tracker
 
 	// onIdentity writes what a router reports about ITSELF onto its record.
 	// Nil until the server attaches it, and nil is inert. See SetOnIdentity.
@@ -735,9 +733,48 @@ func (m *Manager) SetAlertSink(fn func(routerID, routerLabel string, fired []ale
 	m.onFired = fn
 }
 
-// SetHistoryWire installs the history recorder. Nil, or a wire built with
-// `enabled` false, records nothing.
+// Announce re-sends one router's status frame.
+//
+// Called when the DEBOUNCE changes its mind — an outage declared by the ticker
+// rather than by an event — because nothing else is happening at that moment:
+// the socket closed thirty seconds ago and the loop has long since moved on.
+// Without it the fleet badge would wait for the next Devices tick.
+func (m *Manager) Announce(routerID string) {
+	m.mu.Lock()
+	s := m.live[routerID]
+	m.mu.Unlock()
+	if s != nil {
+		s.announce()
+	}
+}
+
+// AlertRouter is what the rules need to know about a router, plus the label an
+// alert message is addressed with, read off the live session that already holds
+// both. `ok` is false when nothing holds this router.
+//
+// ── READ FROM THE SESSION, NEVER FROM THE STORE ────────────────────────────
+//
+// The caller is the connectivity verdict, which fires on every connect. Reading
+// the record there would mean `store.Routers()` — which decrypts every router's
+// password with scrypt — on every reconnect of every router. That cost is
+// exactly why the server's old per-router threshold cache existed; the session
+// already carries both facts, so nothing needs caching.
+func (m *Manager) AlertRouter(routerID string) (alert.Router, string, bool) {
+	m.mu.Lock()
+	s := m.live[routerID]
+	m.mu.Unlock()
+	if s == nil {
+		return alert.Router{}, "", false
+	}
+	return alert.Router{ID: s.RouterID, AlertsEnabled: s.alertsEnabled.Load()}, s.Label, true
+}
+
+// SetHistoryWire installs the traffic and ping recorder. Nil, or a wire built
+// with `enabled` false, records nothing.
 func (m *Manager) SetHistoryWire(w *historywire.Wire) { m.history = w }
+
+// SetConnTracker installs the fleet's connectivity debounce. Nil is inert.
+func (m *Manager) SetConnTracker(t *connstate.Tracker) { m.conn = t }
 
 // SetOnIdentity attaches the writer for what a router reports about ITSELF:
 // model, serial, and the RouterOS version, which changes on every upgrade.
@@ -885,17 +922,16 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	eff := collection.Resolve(cfgSettings, collection.ParseRouter(rec.Collection))
 
 	s := &Session{
-		dormancy:     dormancy.NewSupervisor(dormancy.Defaults()),
-		RouterID:     rec.ID,
-		Label:        rec.Label,
-		h:            m.h,
-		fleet:        &m.fleetStatus,
-		history:      m.history,
-		identity:     m.identityFor(rec.ID),
-		connThreshMs: historywire.ThresholdMs(connDownSecOf(rec)),
-		refs:         1,
-		holds:        map[string]bool{},
-		wake:         make(chan struct{}, 1),
+		dormancy: dormancy.NewSupervisor(dormancy.Defaults()),
+		RouterID: rec.ID,
+		Label:    rec.Label,
+		h:        m.h,
+		fleet:    &m.fleetStatus,
+		conn:     m.conn,
+		identity: m.identityFor(rec.ID),
+		refs:     1,
+		holds:    map[string]bool{},
+		wake:     make(chan struct{}, 1),
 		cfg: routeros.Config{
 			Host: rec.Host, Port: rec.Port,
 			Username: rec.Username, Password: rec.Password,
@@ -1830,21 +1866,23 @@ func (s *Session) connectLoop() {
 	//
 	// Owned by this goroutine alone, which is what lets it be lock-free.
 	var authBackoff routeros.AuthBackoff
-	// ── CONNECTIVITY IS RECORDED ON TRANSITIONS, AND THAT IS A DIVERGENCE ──
+	// ── CONNECTIVITY IS REPORTED ON TRANSITIONS, AND THAT IS A DIVERGENCE ──
 	//
-	// `historywire.Wire.Connected` / `.Disconnected` had NO production caller
-	// anywhere in this port. `connectivity_events` therefore stopped being
-	// written at the cutover while ping and traffic kept going, and the Reports
-	// page — reading a table frozen mid-outage — showed every router Down with
-	// ~2% uptime. The state machine and its corpus were ported; only the two
-	// calls that drive them were missing. `internal/history/connectivity.go`
-	// says so in its own header: "NOTHING CONSTRUCTS THIS YET."
+	// The connectivity state machine had NO production caller anywhere in this
+	// port. `connectivity_events` therefore stopped being written at the cutover
+	// while ping and traffic kept going, and the Reports page — reading a table
+	// frozen mid-outage — showed every router Down with ~2% uptime. The machine
+	// and its corpus were ported; only the two calls that drive them were
+	// missing. `internal/history/connectivity.go` says so in its own header:
+	// "NOTHING CONSTRUCTS THIS YET."
 	//
-	// THE THRESHOLD IS ZERO, deliberately, and that decides the shape of this.
-	// Rule 4 of that file makes a zero threshold its own branch which writes on
-	// EVERY close and needs no `Tick` — and no ticker exists to drive one, while
-	// `connDownThresholdSec` is not even modelled on `store.Router`. Zero is the
-	// only value with a complete path behind it.
+	// THE THRESHOLD IS NO LONGER ZERO, and that paragraph used to say it was:
+	// rule 4 makes a zero threshold its own branch which writes on every close
+	// and needs no `Tick`, and at the cutover there was no ticker to drive one.
+	// There is now — `startConnTicker`, one second for the whole fleet — and the
+	// router's own `connDownThresholdSec` reaches the machine through
+	// `connstate.Tracker.SetThreshold`. What this loop reports is unchanged: an
+	// event, debounced elsewhere.
 	//
 	// But "every close" is what a dial loop produces most of: a router down for a
 	// day would write thousands of identical rows. The live app did exactly that
@@ -1883,7 +1921,7 @@ func (s *Session) connectLoop() {
 			s.announce()
 			if !reportedDown {
 				reportedDown = true
-				s.history.Disconnected(s.RouterID, s.connThreshMs, time.Now().UnixMilli())
+				s.conn.Disconnected(s.RouterID, time.Now().UnixMilli())
 			}
 			wait := authBackoff.Delay(err, retry)
 			// WRITTEN WITHOUT AN else BRANCH, deliberately.
@@ -1926,7 +1964,7 @@ func (s *Session) connectLoop() {
 		// The status this returns is discarded: `announce` below already sends
 		// `router:status` on every connect, including the reconnects that write
 		// no row, and a second emit would double every badge update.
-		s.history.Connected(s.RouterID, s.connThreshMs, time.Now().UnixMilli())
+		s.conn.Connected(s.RouterID, time.Now().UnixMilli())
 		log.Printf("[session] %s connected", s.Label)
 		s.announce()
 
@@ -2352,7 +2390,7 @@ func (s *Session) connectLoop() {
 		// moment the link went rather than five seconds later.
 		if down && !reportedDown {
 			reportedDown = true
-			s.history.Disconnected(s.RouterID, s.connThreshMs, time.Now().UnixMilli())
+			s.conn.Disconnected(s.RouterID, time.Now().UnixMilli())
 		}
 
 		// ── CLOSE THE CLIENT WE ARE ABANDONING ────────────────────────────
@@ -2502,11 +2540,7 @@ func (s *Session) conf() *collection.Resolved {
 // reboot shows up as a status chip rather than as a table that quietly stops
 // changing.
 func (s *Session) announce() {
-	frame := map[string]any{
-		"routerId":  s.RouterID,
-		"connected": s.Connected(),
-		"reason":    s.LastError(),
-	}
+	frame := StatusFrame(s.conn, s.RouterID, s.Connected(), s.LastError())
 	EvRouterStatus.Broadcast(s.h, "router-"+s.RouterID, frame)
 	// ── AND EVERY OTHER BROWSER THAT MAY READ THIS ROUTER ────────────────
 	//
@@ -2530,6 +2564,42 @@ func (s *Session) announce() {
 		if fn := s.fleet.Load(); fn != nil {
 			(*fn)(frame)
 		}
+	}
+}
+
+// StatusFrame builds a `router:status` payload.
+//
+// ── ONE BUILDER, BECAUSE THE FRAME CARRIES TWO FACTS NOW ──────────────────
+//
+// `connected` is the API socket, this instant. It dims the page you are on,
+// raises the "RouterOS not connected" banner and decides whether a write can be
+// attempted, and all three must react at once: a UI that claims a connection it
+// does not have is worse than one that says so early.
+//
+// `online` is the DEBOUNCED verdict — the device dialog's Offline threshold,
+// thirty seconds by default. It is what the FLEET'S badges read, so a router
+// that blinks for six seconds does not paint the Devices page red.
+//
+// Four places send this event: the session's own announce, and three in
+// `internal/server/ws.go` — a select that failed to acquire, a select that
+// succeeded, and the statuses sent on connect. A frame built by hand in any of
+// them would omit `online`, which the browser reads as false: every router
+// would go Offline the moment a viewer selected one. Hence a function rather
+// than a convention.
+//
+// Before a router has been observed at all there is no verdict, and "never
+// seen" is not "down": `online` falls back to the live value rather than
+// reporting a fresh install as a fleet of offline devices.
+func StatusFrame(t *connstate.Tracker, routerID string, connected bool, reason string) map[string]any {
+	online, known := t.Online(routerID)
+	if !known {
+		online = connected
+	}
+	return map[string]any{
+		"routerId":  routerID,
+		"connected": connected,
+		"online":    online,
+		"reason":    reason,
 	}
 }
 

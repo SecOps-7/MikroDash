@@ -92,9 +92,18 @@ global.window = { addEventListener: () => {}, location: { pathname: '/devices' }
 
 const page = require(OUT);
 
-/** One row, defaulted to every field the page reads. */
+/**
+ * One row, defaulted to every field the page reads.
+ *
+ * `online` is the DEBOUNCED verdict and `connected` the live socket; the page's
+ * badges read the first and its login-failure box the second. These fixtures
+ * are about the THIRD state — "nothing has asked" — so the two agree in every
+ * row here, and `row()` mirrors `connected` into `online` unless a case says
+ * otherwise. A fixture that set only `connected` would leave `online` undefined,
+ * which reads as Offline and is a different bug from the one under test.
+ */
 function row(over) {
-  return Object.assign({
+  const r = Object.assign({
     id: 'r', label: 'R', host: '198.51.100.1', isActive: false,
     connected: false, known: false, lastError: null, openAlerts: 0,
     cpu: null, uptime: null, memPct: null, hddPct: null,
@@ -102,6 +111,8 @@ function row(over) {
     rxMbps: null, txMbps: null, clients: null,
     siteIds: [], siteNames: [], siteId: null, siteName: null, geo: null,
   }, over);
+  if (!('online' in r)) r.online = r.connected;
+  return r;
 }
 
 // The three states, once, reused by every case below.

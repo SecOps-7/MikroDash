@@ -1001,6 +1001,7 @@ export interface RouterStatsRow {
   host: string;
   isActive: boolean;
   connected: boolean;
+  online: boolean;
   known: boolean;
   lastError: string | null;
   openAlerts: number;
