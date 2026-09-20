@@ -283,6 +283,14 @@ export function initWireguardPeers(socket: Socket): void {
       if (!t || !t.closest) return;
       const open = t.closest('[data-wg-config]') as HTMLElement | null;
       if (open) {
+        // ── STOPPED HERE, OR THE ROW OPENS ITS EDIT FORM TOO ──────────────
+        //
+        // `mountRows` delegates from `document`, and this button lives inside a
+        // row carrying `data-id`, so without this the click reaches both: the
+        // configuration dialog opens ON TOP of an edit form nobody asked for.
+        // Seen in the browser, not by any test — the DOM shim has no document
+        // level row handler to collide with.
+        (e as unknown as { stopPropagation: () => void }).stopPropagation();
         void showConfig(open.getAttribute('data-wg-config') || '');
         return;
       }

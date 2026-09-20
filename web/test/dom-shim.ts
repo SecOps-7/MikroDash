@@ -191,9 +191,22 @@ function makeDoc(ids, opts) {
     // written `function () { this.value }` are ordinary — the Interfaces type
     // filter is one — and calling them unbound throws on `this.classList` in
     // strict mode, which reads as a port defect rather than a harness gap.
+    // ── AND THE EVENT CARRIES WHAT A REAL ONE CARRIES ───────────────────
+    //
+    // `preventDefault` and `stopPropagation` are on every DOM event, so a
+    // handler that calls one is ordinary code, not defensive code. Without
+    // them the shim throws "not a function" and the failure reads as a page
+    // defect. Found by the WireGuard peers panel, which stops a Config click
+    // from also reaching the row's edit handler — a collision a real browser
+    // has and this shim, having no document-level row handler, does not.
+    //
+    // They are no-ops: nothing here models bubbling, so there is nothing to
+    // stop. A test that needs to ASSERT one was called passes its own spy in
+    // `extra`, which overrides these.
     n.fire = (ev, extra) => {
       for (const fn of (n._listeners[ev] || []).slice()) {
-        fn.call(n, Object.assign({ target: n }, extra));
+        fn.call(n, Object.assign(
+          { target: n, preventDefault() {}, stopPropagation() {} }, extra));
       }
     };
     // Streaming pages APPEND rather than replace — a log line arrives and is

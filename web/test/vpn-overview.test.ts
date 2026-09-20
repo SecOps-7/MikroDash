@@ -42,13 +42,30 @@ const mod = require(OUT);
 const doc = makeDoc(['vpnOverviewCount', 'vpnOverviewTbody',
   'vpnPppCard', 'vpnPppCount', 'vpnPppTbody',
   'vpnIpsecCard', 'vpnIpsecCount', 'vpnIpsecTbody']);
+
+// ── THE NAV IS THE REAL GATE, SO THE TEST DRIVES THE NAV ───────────────────
+//
+// An earlier version of this stubbed the page's `isVisible` argument and
+// asserted on that. It passed while NOT ONE LINK rendered in a browser, because
+// the page was asking the wrong question entirely — `isVisible` answers "is
+// this page on screen", which is false for every other page by definition.
+// Stubbing the collaborator tested the intention; this drives the mechanism.
+const navPages = new Set(['wireguard', 'ipsec', 'openvpn', 'ppp']);
+const hiddenNav = new Set();
+doc.querySelector = (sel) => {
+  const m = /^\.nav-item\[data-page="([a-z-]+)"\]$/.exec(String(sel));
+  if (!m) return null;
+  const page = m[1];
+  if (!navPages.has(page)) return null;
+  return { style: { display: hiddenNav.has(page) ? 'none' : '' }, click: () => {} };
+};
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 
 const handlers = {};
 const socket = { on: (ev, fn) => { handlers[ev] = fn; }, emit: () => {} };
-let visible = (p) => true;
-mod.initVpnPage(socket, (p) => visible(p));
+// The page's own blur guard: it draws only while `vpn` is the page on screen.
+mod.initVpnPage(socket, (p) => p === 'vpn');
 const n = doc.nodes;
 
 let keyN = 0;
@@ -99,19 +116,40 @@ check('"Configured" is a dash where the payload cannot say', () => {
     'the unknown counts did not render as a dash');
 });
 
-check('a link is rendered only for a page the viewer may open', () => {
-  visible = () => true;
+check('a link is rendered only for a page the nav actually offers', () => {
   handlers['vpn:update'](payload({ tunnels: [wg('active')] }));
   assert.ok(/data-vpn-page="wireguard"/.test(String(n.vpnOverviewTbody.innerHTML)),
-    'no link to the WireGuard page for a viewer who may open it');
+    'no link to the WireGuard page for a viewer whose nav offers it');
 
-  visible = (p) => p !== 'wireguard';
+  // A ROLE THAT CANNOT SEE THE PAGE: caps.ts hides the nav item by setting
+  // display:none, which is exactly what this asks about.
+  hiddenNav.add('wireguard');
   handlers['vpn:update'](payload({ tunnels: [wg('active')] }));
-  const html = String(n.vpnOverviewTbody.innerHTML);
+  let html = String(n.vpnOverviewTbody.innerHTML);
   assert.ok(!/data-vpn-page="wireguard"/.test(html),
-    'a viewer who may not open the WireGuard page was still offered the link');
+    'a viewer whose nav hides the WireGuard page was still offered the link');
   assert.ok(/WireGuard/.test(html), 'the row itself disappeared; only its link should');
-  visible = () => true;
+  hiddenNav.delete('wireguard');
+
+  // AND A PAGE THAT IS NOT IN THE NAV AT ALL — an install where the area was
+  // never mounted — is the same answer by a different route.
+  navPages.delete('ipsec');
+  handlers['vpn:update'](payload({ tunnels: [wg('active')] }));
+  html = String(n.vpnOverviewTbody.innerHTML);
+  assert.ok(!/data-vpn-page="ipsec"/.test(html), 'a page absent from the nav was linked');
+  assert.ok(/data-vpn-page="openvpn"/.test(html), 'the other links vanished with it');
+  navPages.add('ipsec');
+});
+
+// ── AND THE PAGE DRAWS ONLY WHILE IT IS ON SCREEN ──────────────────────────
+check('a payload arriving while another page is up is not drawn', () => {
+  n.vpnOverviewTbody.innerHTML = '';
+  const handlers2 = {};
+  const sock2 = { on: (ev, fn) => { handlers2[ev] = fn; }, emit: () => {} };
+  mod.initVpnPage(sock2, () => false);
+  handlers2['vpn:update'](payload({ tunnels: [wg('active')] }));
+  assert.strictEqual(String(n.vpnOverviewTbody.innerHTML), '',
+    'the page redrew while it was off screen');
 });
 
 check('the badge counts technologies that have something live', () => {

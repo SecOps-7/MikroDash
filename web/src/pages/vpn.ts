@@ -56,6 +56,28 @@ export function overviewRows(d: VPNPayload): OverviewRow[] {
   ];
 }
 
+/**
+ * Whether this viewer can actually reach a page.
+ *
+ * ── NOT `pageVisible`, AND THE DIFFERENCE IS THE WHOLE BUG ─────────────────
+ *
+ * The first version of this asked `isVisible(page)`. That function answers
+ * "is this page ON SCREEN right now" — it is the blur-suspend guard,
+ * `currentPage === name && !document.hidden` — so on the VPN page it is false
+ * for every OTHER page by definition, and not one link ever rendered. The web
+ * test could not see it because it stubs `isVisible` itself, which tests the
+ * intention rather than the wiring. A browser found it in a second.
+ *
+ * The nav item is the real answer: `web/src/caps.ts` sets its `display` from
+ * the install's visible-pages setting, the viewer's role and the build. It is
+ * also the handle the click below uses, so the question and the action are one
+ * mechanism rather than two that can disagree.
+ */
+function navReachable(page: string): boolean {
+  const item = document.querySelector<HTMLElement>('.nav-item[data-page="' + page + '"]');
+  return !!item && item.style.display !== 'none';
+}
+
 /** A dash, not a zero: "the payload cannot say" is not "there are none". */
 function count(n: number | null): string {
   return n === null ? '<span style="color:var(--text-muted)">&mdash;</span>' : String(n);
@@ -63,6 +85,9 @@ function count(n: number | null): string {
 
 export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean): void {
   socket.on('vpn:update', (d) => {
+    // THE BLUR GUARD every other page carries: nothing is drawn while this page
+    // is off screen, and `resumePage` replays the payload on the way back in.
+    if (!isVisible('vpn')) return;
     const rows = overviewRows(d);
     const live = rows.filter((r) => r.active > 0).length;
 
@@ -80,8 +105,8 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
           : '<span class="vpn-hs-badge hs-never">idle</span>';
         // THE LINK IS GATED. A row pointing at a page the viewer may not open
         // is an invitation to a permission error, so it renders as nothing
-        // instead — `pageVisible` is the same answer the nav uses.
-        const link = isVisible(r.page)
+        // instead. See navReachable for why it is not `isVisible`.
+        const link = navReachable(r.page)
           ? '<a href="#" class="vpn-overview-link" data-vpn-page="' + esc(r.page) + '">Open &rsaquo;</a>'
           : '';
         return '<tr>' +
