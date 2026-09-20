@@ -52,6 +52,40 @@ func (w *watchedStreamer) counts() (opens, stops int) {
 	return w.opens, w.stops
 }
 
+// startedWithoutItsWatchdog is a started ping collector whose BACKGROUND
+// watchdog loop has been stopped, so the only tick is the one the test calls.
+//
+// ── WHY, AND IT WAS A REAL FLAKE ────────────────────────────────────────────
+//
+// These tests age the stream by hand (goQuiet) and then call `watchdogTick`
+// themselves: the tick under test is the one whose inputs the test set. `Start`
+// also starts the real watchdog, and between `goQuiet` and the row the stream is
+// deliberately stale — so a background tick landing in that window reopens it,
+// and the test reports the second open as a failure of the code. It is not:
+// reopening a stream that is stale WHEN THE WATCHDOG LOOKS is exactly right.
+//
+// THE FIRST TICK IS IMMEDIATE, AND THE INTERVAL DOES NOT HELP. `pollLoop.start`
+// fires at once when a whole interval has passed since its last run, and a new
+// loop has never run — so the watchdog's first tick is scheduled for now
+// however long `wdEvery` is. Lengthening it still failed about twice in three
+// hundred runs on one CPU. The loop has to be STOPPED.
+//
+// Measured after `TestALivePingStreamIsLeftAlone` failed inside a full
+// `go test ./...` on a loaded machine (2026-09-20) with "2 opens, 1 stops",
+// which is what a first tick arriving late produces. In production that tick
+// reads a stream whose `streamStart` was stamped a moment earlier, finds it
+// fresh, and does nothing.
+func startedWithoutItsWatchdog(s *watchedStreamer) *Ping {
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+	// AFTER Start, which is what starts the loop. A ping that failed to open
+	// its stream has no watchdog to stop.
+	if p.wd != nil {
+		p.wd.stop()
+	}
+	return p
+}
+
 // goQuiet makes the stream look silent for longer than the watchdog allows.
 func goQuiet(p *Ping) {
 	p.mu.Lock()
@@ -63,8 +97,7 @@ func goQuiet(p *Ping) {
 
 func TestASilentPingStreamIsReopened(t *testing.T) {
 	s := &watchedStreamer{}
-	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
-	p.Start()
+	p := startedWithoutItsWatchdog(s)
 	defer p.Stop()
 
 	goQuiet(p)
@@ -82,8 +115,7 @@ func TestASilentPingStreamIsReopened(t *testing.T) {
 
 func TestALivePingStreamIsLeftAlone(t *testing.T) {
 	s := &watchedStreamer{}
-	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
-	p.Start()
+	p := startedWithoutItsWatchdog(s)
 	defer p.Stop()
 
 	// The stream is old enough to be judged — and a row has JUST arrived, so it
@@ -103,8 +135,7 @@ func TestALivePingStreamIsLeftAlone(t *testing.T) {
 
 func TestAPingStreamThatFailedToOpenIsRetried(t *testing.T) {
 	s := &watchedStreamer{fail: true}
-	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
-	p.Start()
+	p := startedWithoutItsWatchdog(s)
 	defer p.Stop()
 
 	s.mu.Lock()
@@ -126,8 +157,7 @@ func TestAPingStreamThatFailedToOpenIsRetried(t *testing.T) {
 
 func TestASuspendedPingIsNotReopened(t *testing.T) {
 	s := &watchedStreamer{}
-	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
-	p.Start()
+	p := startedWithoutItsWatchdog(s)
 	p.Suspend()
 	defer p.Stop()
 
