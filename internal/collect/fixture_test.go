@@ -427,6 +427,19 @@ var addedSinceNode = map[string][]addedField{
 	"netwatch": {
 		added("hosts[].disabled"), added("hosts[].interval"), added("hosts[].since"),
 	},
+	// A WireGuard peer's own switch and its responder flag, added 2026-09-20 for
+	// the WireGuard page's Peers tab, which shows both as pills. A disabled peer
+	// reads as "never connected" without the first, which is a different problem
+	// with a different fix.
+	//
+	// `responder` is read under TWO SPELLINGS — RouterOS added it as
+	// `is-responder` in 7.15 and renamed it in 7.17 — so a 7.15 or 7.16 router
+	// is not silently reported as having none. Purely additive; the AX3 capture
+	// carries `responder` on two of its thirteen peers, so both are filled from
+	// the recording.
+	"vpn": {
+		added("tunnels[].disabled"), added("tunnels[].responder"),
+	},
 	// The 802.11 generation a client negotiated. Added 2026-09-07 for the WiFi
 	// Clients page's Standard column: the Node app read the registration table's
 	// `band` and kept only the frequency half, so the generation was collected

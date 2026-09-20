@@ -191,7 +191,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "wgInterface", title: "Interfaces", columns: ["name", "publicKey", "listenPort", "mtu", "running", "disabled", "comment"], ordered: false, pills: { "running": "good", "disabled": "warn" } },
     ],
-    panels: [],
+    panels: [{ key: "peers", title: "Peers" }],
   },
   {
     key: "openvpn", title: "OpenVPN", navGroup: "tunnels", tier: "advanced",

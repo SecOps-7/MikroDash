@@ -143,12 +143,20 @@ func TestTemplateIDsAreBound(t *testing.T) {
 	// read as an unbound id: a control that IS wired, reported as one that is
 	// not. Found on 2026-09-13 by the topology map's cabling picker, which is
 	// bound exactly that way.
+	// AND A HELPER THAT BINDS BY ID IS A BINDING. `renderSortHeader` in
+	// web/src/dom.ts takes a thead's id, calls `el` on it and wires the column
+	// clicks — so passing an id to it wires that element as surely as calling
+	// `el` here would. Without this the pattern reported the WireGuard page's
+	// sortable header as unbound while it was being sorted on screen, which is
+	// the same shape as the `byId<T>` gap recorded above: the check knowing
+	// fewer ways to bind than the code has.
 	bound := func(id string) bool {
 		q := regexp.QuoteMeta(id)
 		return regexp.MustCompile(
 			`\b(?:el|byId)(?:<[^>]*>)?\('` + q + `'\)` +
 				`|getElementById\('` + q + `'\)` +
 				`|closest\('#` + q + `'\)` +
+				`|renderSortHeader\('` + q + `'` +
 				`|querySelector\w*\('#` + q + `'\)`).MatchString(all)
 	}
 

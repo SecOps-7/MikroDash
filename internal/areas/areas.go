@@ -351,9 +351,8 @@ var declared = []Area{
 	// asking a different shape cannot be coalesced with it.
 	//
 	// So the peers tab is a hand-built panel fed by `vpn:update`, the payload
-	// the dashboard card and the alert rules already pay for. The panel is
-	// declared here and registered by its own module; until that module lands
-	// this area is its Interfaces table alone, which is a page that works.
+	// the dashboard card and the alert rules already pay for. See
+	// web/src/pages/wireguard-peers.ts.
 	{
 		Key: "wireguard", Title: "WireGuard", NavGroup: "tunnels", Tier: "advanced",
 		Icon: `<circle cx="12" cy="12" r="9"/><polyline points="13 7 9 13 12 13 11 17 15 11 12 11 13 7"/>`,
@@ -361,7 +360,8 @@ var declared = []Area{
 			{Resource: "wgInterface", Title: "Interfaces",
 				Columns: []string{"name", "publicKey", "listenPort", "mtu", "running", "disabled", "comment"}},
 		},
-		Poll: 60 * time.Second,
+		Panels: []Panel{{Key: "peers", Title: "Peers"}},
+		Poll:   60 * time.Second,
 	},
 	// OpenVPN: the servers this router runs and the clients it dials out with.
 	// The accounts a server admits are the PPP page's secrets.

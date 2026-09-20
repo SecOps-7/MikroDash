@@ -1576,6 +1576,8 @@ export interface Tunnel {
   tx: number;
   rxRate: number;
   txRate: number;
+  disabled: boolean;
+  responder: boolean;
 }
 
 export interface PppTunnel {

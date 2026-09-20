@@ -41,6 +41,7 @@ import { initCapsmanPage } from './pages/capsman';
 import { initInterfacesPage, resetInterfacesPage } from './pages/interfaces';
 import { initAreaPages, mountAreaNav, resetAreaPages } from './pages/area';
 import { initContainersApps } from './pages/containers-apps';
+import { initWireguardPeers } from './pages/wireguard-peers';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -600,9 +601,11 @@ async function main(): Promise<void> {
   initCapsmanPage(socket, pageVisible);
   initInterfacesPage(socket, pageVisible);
   // EVERY GENERATED PAGE, from one call: see internal/areas and web/src/pages/area.ts.
-  // Before the area pages, so the Containers page's Apps panel is registered
-  // when its tabs are first drawn.
+  // Both panel modules go BEFORE the area pages, so their tabs exist when the
+  // tab strips are first drawn: `panelsOf` filters to panels that have
+  // registered, so a module mounted afterwards has no tab at all.
   initContainersApps(socket);
+  initWireguardPeers(socket);
   initAreaPages(socket, pageVisible);
   initLogsPage(socket, pageVisible);
   initTopologyPage(socket, pageVisible);

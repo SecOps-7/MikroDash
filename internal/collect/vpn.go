@@ -76,7 +76,7 @@ var (
 	vpnPeersCmd = routeros.Cmd{Path: "/interface/wireguard/peers/print", Args: []string{
 		"=.proplist=.id,interface,name,comment,public-key,allowed-address," +
 			"persistent-keepalive,endpoint-address,current-endpoint-address," +
-			"last-handshake,rx,rx-bytes,tx,tx-bytes"}}
+			"last-handshake,rx,rx-bytes,tx,tx-bytes,disabled,responder,is-responder"}}
 	vpnPppCmd  = routeros.Cmd{Path: "/ppp/active/print"}
 	vpnSaCmd   = routeros.Cmd{Path: "/ip/ipsec/installed-sa/print"}
 	vpnPeerCmd = routeros.Cmd{Path: "/ip/ipsec/active-peers/print"}
@@ -113,6 +113,17 @@ type Tunnel struct {
 	TX            int     `json:"tx"`
 	RXRate        float64 `json:"rxRate"`
 	TXRate        float64 `json:"txRate"`
+	// Disabled is the peer's own switch. A disabled peer still has a row, a
+	// name and an allowed address, and reads as "never connected" without it —
+	// which is a different problem with a different fix.
+	Disabled bool `json:"disabled"`
+	// Responder marks a peer the router will not initiate a handshake to.
+	//
+	// TWO SPELLINGS, and the reason is a RouterOS rename: 7.15 added the flag as
+	// `is-responder` and 7.17 renamed it to `responder`. Read under both, like
+	// `rx`/`rx-bytes` above, so a 7.15 or 7.16 router is not silently reported
+	// as having no responders at all.
+	Responder bool `json:"responder"`
 }
 
 // PppTunnel is a PPP-based session — L2TP, PPTP, SSTP, OpenVPN or PPPoE.
@@ -417,6 +428,8 @@ func BuildTunnels(rows []routeros.Reply, prev map[string]vpnSample, now time.Tim
 			AllowedIP:     p["allowed-address"],
 			Interface:     p["interface"],
 			RX:            rxBytes, TX: txBytes, RXRate: rxRate, TXRate: txRate,
+			Disabled:  p["disabled"] == "true",
+			Responder: p["responder"] == "true" || p["is-responder"] == "true",
 		})
 	}
 	return out, next
