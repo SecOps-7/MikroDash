@@ -233,6 +233,24 @@ check('a rate is shown only where a rate was measured', () => {
   assert.ok(conns.length === 2, 'the pure function and the render disagree on how many');
 });
 
+check('an idle WireGuard peer still shows a rate, not a total', () => {
+  // THE FLICKER THIS PINS. Deciding by the VALUES — "a rate when the rate is
+  // non-zero" — was live for one build, and a quiet peer swapped between
+  // "10 B/s" and "9.1 GB" under the same label as its traffic came and went.
+  // The technology decides, not the reading: WireGuard is differenced, so 0 B/s
+  // is a real measurement.
+  handlers['vpn:update'](payload({
+    tunnels: [wg('active', { name: 'quiet', rxRate: 0, txRate: 0,
+      rx: 9800000000, tx: 205000000 })],
+  }));
+  const html = String(n.vpnLiveGrid.innerHTML);
+  assert.ok(/0 B\/s/.test(html),
+    'an idle WireGuard peer should read 0 B/s; it has a measured rate: ' + html);
+  assert.ok(!/9\.1 GB|9 GB/.test(html),
+    'the card fell back to a cumulative total, so the same label carries two '
+    + 'different quantities depending on how busy the peer happens to be');
+});
+
 check('the live badge counts connections, and says so in blue', () => {
   // TWO PEERS ON ONE TECHNOLOGY, so counting technologies and counting
   // connections give different answers. With one of each they agree, and the

@@ -95,6 +95,19 @@ export interface LiveConn {
   age: string;
   /** Cipher and auth for IPsec; empty for the rest. */
   detail: string;
+  /**
+   * WHETHER A RATE WAS MEASURED AT ALL, which is a property of the
+   * TECHNOLOGY and not of this reading. Only the WireGuard collector
+   * differences two polls; a PPP session carries bytes since it came up and an
+   * IPsec peer carries neither.
+   *
+   * Deciding it per reading instead — "print a rate when the rate is non-zero"
+   * — was live on the VPN page for one build, and a quiet WireGuard peer
+   * flipped between "↓ 10 B/s" and "↓ 9.1 GB" as its traffic came and went.
+   * Two different quantities under one label, changing every poll. An idle
+   * WireGuard peer really is doing 0 B/s, and saying so is the honest answer.
+   */
+  rated: boolean;
   rxRate: number;
   txRate: number;
   rx: number;
@@ -130,6 +143,7 @@ export function liveConnections(d: VPNPayload): LiveConn[] {
       where: t.endpoint || t.interface || '',
       age: t.lastHandshake ? 'handshake ' + t.lastHandshake : '',
       detail: '',
+      rated: true,
       rxRate: t.rxRate || 0, txRate: t.txRate || 0, rx: t.rx || 0, tx: t.tx || 0,
     });
   }
@@ -144,6 +158,7 @@ export function liveConnections(d: VPNPayload): LiveConn[] {
       where: s.address || '',
       age: s.uptime ? 'up ' + s.uptime : '',
       detail: s.callerId || '',
+      rated: false,
       rxRate: 0, txRate: 0, rx: s.rx || 0, tx: s.tx || 0,
     });
   }
@@ -158,6 +173,7 @@ export function liveConnections(d: VPNPayload): LiveConn[] {
       // Cipher and authentication are the thing an IPsec operator checks, and
       // nothing else in the app shows them.
       detail: [p.enc, p.auth].filter(Boolean).join(' / '),
+      rated: false,
       rxRate: 0, txRate: 0, rx: 0, tx: 0,
     });
   }
@@ -216,11 +232,11 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
     if (grid) {
       grid.innerHTML = conns.length
         ? conns.map((c) => {
-          // RATES WHERE THERE ARE RATES, TOTALS WHERE THERE ARE NOT. Only the
-          // WireGuard collector differences two readings; a PPP session
-          // carries cumulative bytes and an IPsec peer carries neither, so a
-          // rate of 0 would be a measurement this page never took.
-          const traffic = (c.rxRate > 0 || c.txRate > 0)
+          // RATES WHERE A RATE WAS MEASURED, TOTALS WHERE ONE WAS NOT, and
+          // the technology decides which — never this reading's values. See
+          // `rated`: choosing per reading made one card swap quantities under
+          // the same label every time its peer went quiet.
+          const traffic = c.rated
             ? '<span style="color:var(--accent-rx)">↓ ' + esc(fmtBytes(Math.round(c.rxRate))) + '/s</span>' +
               '<span style="color:var(--accent-tx)">↑ ' + esc(fmtBytes(Math.round(c.txRate))) + '/s</span>'
             : (c.rx > 0 || c.tx > 0)
