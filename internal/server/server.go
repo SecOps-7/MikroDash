@@ -565,6 +565,11 @@ func (s *Server) Handler() http.Handler {
 	s.registerAudit(mux)
 	s.registerBackupRaw(mux)
 	s.registerBackupDownloads(mux)
+	// A WireGuard peer's client configuration, for the same reason backups are
+	// served this way: it is a credential, and a one-shot HTTP response keeps it
+	// out of `window.__lastEvent`, which retains every socket payload for the
+	// life of the tab. See internal/server/wireguard.go.
+	s.registerWireguard(mux)
 	s.registerAuthLogin(mux)
 	// The first-run wizard. See setup_api.go.
 	s.registerSetup(mux)

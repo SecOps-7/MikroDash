@@ -50,7 +50,11 @@ const area = mod.AREAS.find((a) => a.key === KEY);
 assert.ok(area, 'internal/areas declares no wireguard area');
 
 const ids = [...['areaBody-', 'areaBadge-', 'areaTabs-', 'areaAdd-', 'areaGroupTable-', 'areaGroupNote-'].map((p) => p + KEY),
-  'areaPanel-wireguard-peers', 'wgPeerHead', 'wgPeerRows'];
+  'areaPanel-wireguard-peers', 'wgPeerHead', 'wgPeerRows',
+  // The client-config dialog. Its nodes hold a PRIVATE KEY while it is open,
+  // which is why the cases at the end assert they are emptied rather than
+  // merely hidden.
+  'wgConfModal', 'wgConfTitle', 'wgConfQR', 'wgConfText', 'wgConfNote', 'wgConfDownload'];
 const doc = makeDoc(ids, { allowUnknown: [...RES_MODAL_IDS], query: { '[data-res-add]': [], '[data-res-rows]': [] } });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
@@ -221,6 +225,67 @@ check('an empty peer list says what to do about it', () => {
   assert.ok(/Add one/.test(rows()), 'the empty state does not say what to do');
 });
 
-say(failed ? '  ' + failed + ' failed' : 'wireguard-peers: all checks passed');
-fs.rmSync(OUT, { force: true });
-if (failed) process.exit(1);
+// ── THE CLIENT CONFIG DIALOG ────────────────────────────────────────────────
+//
+// What matters here is not that it renders but that it does not LINGER. The
+// config holds the peer's private key and lives only in these nodes, so closing
+// must empty them rather than hide them — a key left in the DOM outlives the
+// moment the operator meant to reveal it.
+const CONF = '[Interface]\nPrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEA=\n';
+let asked = '';
+(global as any).fetch = (url: string) => {
+  asked = url;
+  return Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ peer: 'phone', interface: 'wg0', config: CONF,
+      qr: '<svg><rect/></svg>', note: '' }),
+  });
+};
+
+const clickIn = (map) => host.fire('click', { target: target(map) });
+const confText = () => String(n.wgConfText.textContent || '');
+
+(async () => {
+  update([peer({ publicKey: 'kAAA', name: 'phone' })]);
+
+  clickIn({ '[data-wg-config]': { 'data-wg-config': 'kAAA' } });
+  await new Promise((r) => setTimeout(r, 0));
+
+  check('opening the dialog asks for THAT peer and shows the config', () => {
+    assert.ok(asked.indexOf('publicKey=kAAA') !== -1,
+      'the request did not name the peer by its public key: ' + asked);
+    assert.ok(asked.indexOf('/api/wireguard/peer-config') === 0,
+      'the config was not fetched over its own HTTP route: ' + asked);
+    assert.ok(confText().indexOf('PrivateKey') !== -1, 'the config did not render');
+    assert.strictEqual(n.wgConfModal.hidden, false, 'the dialog stayed hidden');
+  });
+
+  check('closing it EMPTIES the nodes, it does not just hide them', () => {
+    clickIn({ '[data-wg-close]': {} });
+    assert.strictEqual(confText(), '',
+      'the private key is still in the DOM after the dialog closed');
+    assert.strictEqual(String(n.wgConfQR.innerHTML || ''), '', 'the QR is still in the DOM');
+    assert.strictEqual(n.wgConfModal.hidden, true, 'the dialog is still shown');
+  });
+
+  clickIn({ '[data-wg-config]': { 'data-wg-config': 'kAAA' } });
+  await new Promise((r) => setTimeout(r, 0));
+  check('a router switch clears a config left on screen', () => {
+    assert.ok(confText().indexOf('PrivateKey') !== -1, 'the control failed: nothing was shown');
+    fire('router:switched', { activeId: 'r2' });
+    assert.strictEqual(confText(), '',
+      'a configuration for the previous router is still on screen after switching');
+  });
+
+  clickIn({ '[data-wg-config]': { 'data-wg-config': 'kAAA' } });
+  await new Promise((r) => setTimeout(r, 0));
+  check('leaving the page clears it too', () => {
+    assert.ok(confText().indexOf('PrivateKey') !== -1, 'the control failed: nothing was shown');
+    doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'dashboard' });
+    assert.strictEqual(confText(), '', 'the key survived navigating away');
+  });
+
+  say(failed ? '  ' + failed + ' failed' : 'wireguard-peers: all checks passed');
+  fs.rmSync(OUT, { force: true });
+  if (failed) process.exit(1);
+})();
