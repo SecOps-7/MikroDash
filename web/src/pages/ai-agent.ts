@@ -306,7 +306,14 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       //
       // An ACTION is not a row: its label is the verb itself ("Apply package
       // changes and reboot"), so it reads as one rather than as "Change the …".
-      const verb = d.action === 'create' ? 'Create a ' : d.action === 'delete' ? 'Delete the ' : 'Change the ';
+      // A MOVE IS NOT A CHANGE TO THE ROW. Its fields are untouched; what moves
+      // is where it sits, and in an ordered table that is the configuration.
+      // "Change the Filter Rule" for a reorder is exactly the sentence that
+      // makes a position edit read as a field edit.
+      const verb = d.action === 'create' ? 'Create a '
+        : d.action === 'delete' ? 'Delete the '
+        : d.action === 'move' ? 'Move the '
+        : 'Change the ';
       what.textContent = isAction
         ? d.label + (d.name ? ' \u2014 ' + d.name : '')
         : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
@@ -349,6 +356,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     const approve = el('aiProposeApprove');
     if (approve) {
       approve.textContent = d.action === 'delete' ? 'Delete it'
+        : d.action === 'move' ? 'Move it'
         : d.typedReason === 'code' ? 'Apply this code change'
         : d.typedName ? 'Run it and reboot'
         : isAction ? 'Run it' : 'Apply this change';

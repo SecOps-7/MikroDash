@@ -69,6 +69,11 @@ type aiWriteProposal struct {
 	// as the form's `expectedIdentity` does. "" where nothing was read.
 	identity string
 	ack      string
+	// move marks a REORDER, and `anchor` is the id the row lands before — "" for
+	// the end of the table, which is why `move` is a flag rather than a non-empty
+	// anchor. Approval runs `moveRow`, the page's own move path.
+	move   bool
+	anchor string
 	// actionKey, target and mode describe a `run_action` proposal instead of a
 	// row write: resKey is empty on one and actionKey is empty on the other.
 	actionKey string
@@ -97,10 +102,15 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 		ID       string         `json:"id"`
 		Values   map[string]any `json:"values"`
 		Delete   bool           `json:"delete"`
+		// Before is a REORDER: the id of the row this one should sit before, or
+		// `end`. See ai_move.go. Empty means no move was asked for, which is why
+		// the end of the table is a word rather than an empty string.
+		Before string `json:"before"`
 	}
 	if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
 		return "Those arguments were not valid JSON. Send `resource`, then `values` to create, " +
-			"`id` and `values` to edit, or `id` and `delete: true` to delete."
+			"`id` and `values` to edit, `id` and `delete: true` to delete, or `id` and " +
+			"`before` to move a row."
 	}
 	res := resource.ByKey(args.Resource)
 	if res == nil {
@@ -129,7 +139,14 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	if !cn.canPage(res.Page, "write") {
 		return "You do not have permission to change that, so nothing was proposed."
 	}
-	if !args.Delete {
+	// A MOVE IS ITS OWN CHANGE. Combining it with an edit or a delete would mean
+	// two pipelines, two audit rows and two confirmations behind one call, and an
+	// operator answering the second without having seen the first.
+	if args.Before != "" && (args.Delete || len(args.Values) > 0) {
+		return "A move is a change on its own: send `id` and `before` with nothing else, then " +
+			"the edit or the delete as a second call. Nothing was changed."
+	}
+	if !args.Delete && args.Before == "" {
 		if bad := undeclaredFields(res, args.Values); bad > 0 {
 			return fmt.Sprintf("%d of those field names are not fields %s can set, so nothing was changed. "+
 				"Its settable fields are: %s.", bad, res.Label, strings.Join(settableFields(res), ", "))
@@ -140,6 +157,9 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	}
 	if args.Delete {
 		return cn.proposeAIRemove(res, args.ID)
+	}
+	if args.Before != "" {
+		return cn.proposeAIMove(res, args.ID, args.Before)
 	}
 	if len(args.Values) == 0 {
 		return "No field values were given, so there is nothing to change."
@@ -434,12 +454,16 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	// CLEARED every clearable field the edit did not name: measured on the CHR on
 	// 2026-09-18, an approved change to a script's source also emptied its policy
 	// and its comment. Every dialog-approved partial edit had done this.
-	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack, Partial: p.rowID != "",
-		ExpectedIdentity: p.identity}
+	req := &resRequest{Resource: res.Key, ID: p.rowID, Values: p.values, Ack: p.ack,
+		Partial:          p.rowID != "" && !p.move,
+		ExpectedIdentity: p.identity, HasAnchor: p.move, Anchor: p.anchor}
 	var out writeOutcome
-	if p.remove {
+	switch {
+	case p.move:
+		out = cn.moveRow(res, req, "agent")
+	case p.remove:
 		out = cn.removeRow(res, req, "agent")
-	} else {
+	default:
 		out = cn.writeRow(res, req, "agent")
 	}
 
@@ -448,6 +472,12 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	if p.remove && out.Code == "" {
 		text = fmt.Sprintf("Applied: the %s %s was deleted, and reading the table back "+
 			"confirmed it is gone.", res.Label, quoted(out.Name))
+	}
+	if p.move && out.Code == "" {
+		// The ORDER is what was confirmed, not merely that the command was
+		// accepted: `commitMove` reads the table back and checks the row sits
+		// where it was told to.
+		text = aiMoveApplied(res, out.Name, p.anchor == "")
 	}
 	if out.Code != "" {
 		text = aiRefusalText(res, out)
@@ -648,6 +678,14 @@ func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 			"was refused rather than attempted."
 	case "rate-limited":
 		return "Not applied: too many changes to this router in the last minute."
+	case "at-end":
+		// A MOVE THAT ASKED FOR WHERE THE ROW ALREADY IS. It says it did not
+		// happen, as every refusal here must, and it says WHY — a model told
+		// only "not applied" asks for the same move again.
+		return "Not applied: that row is already in that position, so nothing moved."
+	case "bad-request":
+		return "Not applied: that was not a change this tool can make. Check the `id` and, " +
+			"for a move, that `before` names a different row or is `end`."
 	case "outcome-unknown":
 		return "The router accepted the change but reading it back did not confirm it, so " +
 			"MikroDash cannot say whether it took effect. Tell the operator to check the " +

@@ -101,11 +101,27 @@ func TestEveryRefusalTheWritePathCanProduceHasASentence(t *testing.T) {
 		"rate-limited", "outcome-unknown",
 		// The delete path's own refusal (removeRow).
 		"not-removable",
+		// And the move path's (moveRow): a row already where it was asked to go,
+		// and a request the move cannot make at all — an anchor that is the row
+		// itself, or neither a direction nor an anchor.
+		"at-end", "bad-request",
 	}
+	// THE FALLBACK IS WHAT THIS GATE HAS TO SEE THROUGH. `aiRefusalText` ends in
+	// a generic "could not be changed", which is a real sentence and says the
+	// change did not happen — so a code with no case of its own satisfied every
+	// assertion below and this ledger passed for codes it had never been told
+	// about. Found by planting exactly that (2026-09-20). A listed code must now
+	// say something the fallback does not.
+	fallback := aiRefusalText(res, writeOutcome{Code: "a-code-with-no-sentence-of-its-own"})
 	for _, code := range codes {
 		got := aiRefusalText(res, writeOutcome{Code: code})
 		if strings.TrimSpace(got) == "" {
 			t.Errorf("code %q produces no sentence", code)
+			continue
+		}
+		if got == fallback {
+			t.Errorf("code %q falls through to the generic refusal (%q), which tells the "+
+				"model nothing it can act on or relay", code, got)
 			continue
 		}
 		// EVERY ONE SAYS IT DID NOT HAPPEN, except the unconfirmed case, which

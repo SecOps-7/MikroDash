@@ -532,6 +532,28 @@ func listTool(r *resource.Resource) Tool {
 	return t
 }
 
+// Movable reports whether the assistant may reorder this resource's rows.
+//
+// ── ORDER IS CONFIGURATION, AND ONLY THE FIREWALL'S IS OFFERED HERE ─────────
+//
+// In an ordered table the FIRST MATCH DECIDES, so a rule appended to the end of
+// a chain is very often a rule that never runs: an assistant that could only
+// append could make a change that looks applied and does nothing. That is the
+// gap this closes, and the operator scoped it to the firewall.
+//
+// `Ordered` alone would also hand the model the routing rules, the IPsec
+// policies, the OSPF templates and the simple queues, whose order matters just
+// as much and whose blast radius nobody has asked for yet. `Page` is declared
+// registry data rather than a second list beside `Ordered`, so widening this is
+// deleting half a condition rather than remembering to extend a copy —
+// `TestExactlyTheFirewallsOrderedTablesAreMovable` names the set both ways.
+//
+// The browser is unchanged: its arrows and drag still reach every `Ordered`
+// resource, through the same handler.
+func Movable(r *resource.Resource) bool {
+	return r != nil && r.Ordered && r.Page == "firewall"
+}
+
 // writeTool builds the write tool over exactly the resources the caller says
 // this viewer may change.
 //
@@ -546,10 +568,19 @@ func listTool(r *resource.Resource) Tool {
 // The caller re-checks the named resource's page before anything is written.
 // This decides what is OFFERED; that decides what happens.
 func writeTool(resources []string) Tool {
+	// THE MOVE ARGUMENT IS OFFERED ONLY WHEN SOMETHING CAN BE MOVED, for the
+	// reason the enum is filtered: a model told about `before` on a catalogue
+	// holding no ordered table will eventually try it and be refused.
+	var movable []string
+	for _, key := range resources {
+		if Movable(resource.ByKey(key)) {
+			movable = append(movable, key)
+		}
+	}
 	return Tool{
 		Name: WriteToolName,
 		Description: "Make a change to ONE row on the router the operator has selected: " +
-			"create it, edit it, or delete it. " +
+			"create it, edit it, or delete it" + moveClause(movable) + ". " +
 			"Set `resource` to one of the listed names. Call that resource's list_ tool first " +
 			"to see its field names, current rows and their ids. " +
 			"To CREATE, omit `id` and give `values`. To EDIT, pass the row's `id` and the " +
@@ -559,7 +590,7 @@ func writeTool(resources []string) Tool {
 			"it, which is always the case for a delete and for a change that could cut " +
 			"MikroDash off from the router. Never say a change was applied unless the result " +
 			"says so.",
-		Parameters: map[string]any{
+		Parameters: withMoveArg(map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"resource": map[string]any{
@@ -583,9 +614,47 @@ func writeTool(resources []string) Tool {
 			},
 			"required":             []string{"resource"},
 			"additionalProperties": false,
-		},
+		}, movable),
 		Access: AccessWrite,
 	}
+}
+
+// moveClause is what the description says about reordering, and "" when this
+// viewer can write nothing ordered.
+func moveClause(movable []string) string {
+	if len(movable) == 0 {
+		return ""
+	}
+	return ", or move it into place in its table (" + strings.Join(movable, ", ") + ")"
+}
+
+// withMoveArg adds `before` to the write tool's schema, and nothing when there
+// is nothing to move.
+//
+// ── A ROW TO LAND BEFORE, NEVER A POSITION ──────────────────────────────────
+//
+// An index would be computed against a table the model read some calls ago, and
+// the row at that index now is anybody's guess. An id is checked against the
+// table as the router holds it at the moment of the move: it is either still
+// there or the move is refused. It is also what the page's own drag sends, so
+// the assistant and the browser ask for a move in the same words.
+func withMoveArg(params map[string]any, movable []string) map[string]any {
+	if len(movable) == 0 {
+		return params
+	}
+	props, _ := params["properties"].(map[string]any)
+	if props == nil {
+		return params
+	}
+	props["before"] = map[string]any{
+		"type": "string",
+		"description": "Reorder instead of editing: the `id` of the row this one should sit " +
+			"IMMEDIATELY BEFORE, or the word `end` to put it last. Send it with `id` and " +
+			"nothing else — no `values`, no `delete`. Only " + strings.Join(movable, ", ") +
+			" have an order. In these tables the FIRST MATCHING ROW DECIDES, so a new row, " +
+			"which is always added at the end, often never runs until it is moved into place.",
+	}
+	return params
 }
 
 // describe is what the model reads to decide whether to call this tool.

@@ -2312,174 +2312,223 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 
 // ── res:move ────────────────────────────────────────────────────────────────
 
-// resMove reorders a row in a table where position is meaning.
-//
-// FIREWALL ONLY TODAY, and `Ordered` is what says so. Everywhere else the router
-// keeps its own order and moving a row would mean nothing.
-//
-// THE BROWSER SENDS A DIRECTION OR AN ANCHOR, NEVER A POSITION. An arrow says
-// which way and a drag says which row to land before; both refuse to name an
-// index. The neighbour is resolved here, from a read taken in this same tick, so
-// an operator clicking twice quickly — or two operators at once — cannot move a
-// rule to an index computed against a table that has already changed underneath
-// them. Same reasoning as the fresh read everywhere else, applied to ordering.
+// resMove is the socket handler: resolve, move, tell the browser. The pipeline
+// itself is `moveRow`, split from the reporting for the reason `writeRow` and
+// `removeRow` are — the assistant needs the same sequence as a value it can
+// hand back to a model rather than as a frame sent to a page.
 func (cn *conn) resMove(raw json.RawMessage) {
 	res, req := cn.resolve(raw, true)
 	if res == nil {
-		return
-	}
-	if !res.Ordered {
-		cn.resErr(res.Key, "bad-request", "", nil)
 		return
 	}
 	// PRESENCE, not emptiness. An anchor of "" means "land at the end", which is
 	// a real instruction and different from sending no anchor at all — the
 	// difference `hasOwnProperty(r, 'anchor')` carries on the Node side. A
 	// struct field cannot hold it, so the raw request is probed for the key.
-	anchored := hasJSONKey(raw, "anchor")
-	req.HasAnchor = anchored
-	up := req.Direction == "up"
-	if req.ID == "" || (!anchored && req.Direction != "up" && req.Direction != "down") {
-		cn.resErr(res.Key, "bad-request", "", nil)
+	req.HasAnchor = hasJSONKey(raw, "anchor")
+	// A human at a form: no provenance to add.
+	out := cn.moveRow(res, req, "")
+	if out.Code == "" {
+		// `movedId` is what the page pulses, so the eye can find the row that
+		// just changed places in a table of thirty near-identical ones.
+		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
+			"resource": res.Key, "action": out.Action, "name": out.Name, "movedId": req.ID})
 		return
 	}
-	name := req.ExpectedIdentity
+	cn.resErr(res.Key, out.Code, out.Name, out.Detail)
+}
 
+// moveRow reorders a row in a table where position is meaning.
+//
+// ORDERED TABLES ONLY, and `Ordered` is what says so. Everywhere else the router
+// keeps its own order and moving a row would mean nothing.
+//
+// THE CALLER SENDS A DIRECTION OR AN ANCHOR, NEVER A POSITION. An arrow says
+// which way, a drag — and the assistant's `before` — says which row to land
+// before; none of them may name an index. The neighbour is resolved from a read
+// taken inside this write-queue slot, so an operator clicking twice quickly, two
+// operators at once, or a model working from a list it read a minute ago cannot
+// move a rule to an index computed against a table that has already changed
+// underneath them. Same reasoning as the fresh read everywhere else, applied to
+// ordering.
+//
+// Like `writeRow` it performs every side effect and RETURNS what happened; `via`
+// is the caller's provenance and is never read off the request.
+func (cn *conn) moveRow(res *resource.Resource, req *resRequest, via string) writeOutcome {
+	if !res.Ordered {
+		return writeOutcome{Code: "bad-request"}
+	}
+	if req.ID == "" ||
+		(!req.HasAnchor && req.Direction != "up" && req.Direction != "down") {
+		return writeOutcome{Code: "bad-request"}
+	}
+	// A ROW CANNOT LAND BEFORE ITSELF. The drag path cannot produce it — it
+	// ignores a pointer over the dragged row — but `before` is a model's word
+	// for a row it chose, and RouterOS is not the place to find out.
+	if req.HasAnchor && req.Anchor == req.ID {
+		return writeOutcome{Code: "bad-request"}
+	}
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
-		rows, err := cn.readMenu(res)
-		if err != nil {
-			return err
-		}
-		at := -1
-		for i, r := range rows {
-			if r[".id"] == req.ID {
-				at = i
-				break
-			}
-		}
-		if at < 0 {
-			cn.resErr(res.Key, "stale-row", name, nil)
+		p, refusal := cn.prepareMove(res, req)
+		if p == nil {
+			out = refusal
 			return nil
 		}
-		row := rows[at]
-		name = res.IdentityOf(row)
-		if req.ExpectedIdentity != "" && name != req.ExpectedIdentity {
-			cn.resErr(res.Key, "stale-row", name, nil)
+		if gate := ackGate(p.verdict, req.Ack); gate != nil {
+			code, _ := gate["code"].(string)
+			delete(gate, "code")
+			out = writeOutcome{Code: code, Name: p.name, Detail: gate}
 			return nil
 		}
+		out = cn.commitMove(p, via)
+		return nil
+	})
+	if err != nil {
+		return writeOutcome{Code: writeFailCode(err), Name: req.ExpectedIdentity,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	return out
+}
 
-		if anchored {
-			// The row the drag aimed at must still be there. If it has gone, the
-			// table the operator was looking at is not the table on the router,
-			// and dropping the rule somewhere approximate is worse than saying so.
-			if req.Anchor != "" {
-				found := false
-				for _, r := range rows {
-					if r[".id"] == req.Anchor {
-						found = true
-						break
-					}
-				}
-				if !found {
-					cn.resErr(res.Key, "stale-row", name, nil)
-					return nil
-				}
-			}
-			if anchorAt(rows, at) == req.Anchor {
-				// Dropped exactly where it already was.
-				cn.resErr(res.Key, "at-end", name, nil)
-				return nil
-			}
-		} else if (up && at == 0) || (!up && at == len(rows)-1) {
+// preparedMove is a reorder that has been CHECKED but not performed: the row the
+// router holds now, its identity, where RouterOS will be told to put it, and the
+// guard's verdict. The move twin of `preparedWrite` and `preparedRemove`, and
+// for the same reason — so the assistant's dialog and the move itself are built
+// from one server-side reading.
+type preparedMove struct {
+	res  *resource.Resource
+	req  *resRequest
+	name string
+	at   int
+	// dest is the id RouterOS is told to place the row BEFORE, "" for the end of
+	// the table. Resolved here from the same read the checks ran against.
+	dest string
+	// how is what the audit row records about the gesture: an arrow, a drag, or
+	// the assistant naming the row to land before.
+	how     string
+	verdict guard.Verdict
+}
+
+// prepareMove reads the menu fresh, finds the row, resolves the neighbour the
+// move is relative to and runs the guards. It changes nothing.
+//
+// A nil prepared move means the returned outcome is a refusal and the caller
+// must stop.
+func (cn *conn) prepareMove(res *resource.Resource, req *resRequest) (*preparedMove, writeOutcome) {
+	name := req.ExpectedIdentity
+	rows, err := cn.readMenu(res)
+	if err != nil {
+		return nil, writeOutcome{Code: writeFailCode(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	at := -1
+	for i, r := range rows {
+		if r[".id"] == req.ID {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		return nil, writeOutcome{Code: "stale-row", Name: name}
+	}
+	row := rows[at]
+	// THE ROW'S OWN IDENTITY, never the request's: an audit row that took its
+	// name from an optional field records a move without saying what moved.
+	name = res.IdentityOf(row)
+	if req.ExpectedIdentity != "" && name != req.ExpectedIdentity {
+		return nil, writeOutcome{Code: "stale-row", Name: name}
+	}
+
+	up := req.Direction == "up"
+	how, dest := "down", ""
+	if req.HasAnchor {
+		how, dest = "drag", req.Anchor
+		// The row the move aims at must still be there. If it has gone, the
+		// table the caller was looking at is not the table on the router, and
+		// dropping the rule somewhere approximate — at the END, which is what an
+		// unresolvable destination means to RouterOS — is worse than saying so.
+		if req.Anchor != "" && rowByID(rows, req.Anchor) == nil {
+			return nil, writeOutcome{Code: "stale-row", Name: name}
+		}
+		if anchorAt(rows, at) == req.Anchor {
+			// Dropped exactly where it already was.
+			return nil, writeOutcome{Code: "at-end", Name: name}
+		}
+	} else {
+		if up {
+			how = "up"
+		}
+		if (up && at == 0) || (!up && at == len(rows)-1) {
 			// Already where it is going. Not an error worth a banner, but the
 			// page should stop drawing an arrow that does nothing.
-			cn.resErr(res.Key, "at-end", name, nil)
-			return nil
+			return nil, writeOutcome{Code: "at-end", Name: name}
 		}
-
-		verdict, gerr := cn.verdictFor(res, "move", histValues(res.RowValues(row)), row)
-		if gerr != nil {
-			cn.recorder().Denied(audit.Event{
-				Action: res.Key + ".move", TargetType: res.Key, RouterID: cn.routerID,
-				TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
-			})
-			cn.resErr(res.Key, "guard-not-ported", name,
-				map[string]any{"message": safe.Message(gerr.Error())})
-			return nil
-		}
-		if r := cn.guardRefusal(res, "move", req.ID, name, verdict); r != nil {
-			cn.resErr(res.Key, r.Code, name, r.Detail)
-			return nil
-		}
-		if gate := ackGate(verdict, req.Ack); gate != nil {
-			gate["resource"] = res.Key
-			gate["name"] = name
-			EvResError.Send(cn.srv.hub, cn.c, gate)
-			return nil
-		}
-
 		// RouterOS inserts the moved rule BEFORE `destination`. So moving up
 		// means "before the rule currently above me", and moving down means
 		// "before the rule two below" — with no destination at all when there is
 		// nothing below, which sends it to the end.
-		dest := req.Anchor
-		if !anchored {
-			if up {
-				dest = rows[at-1][".id"]
-			} else if at+2 < len(rows) {
-				dest = rows[at+2][".id"]
-			} else {
-				dest = ""
-			}
+		if up {
+			dest = rows[at-1][".id"]
+		} else if at+2 < len(rows) {
+			dest = rows[at+2][".id"]
 		}
-		// `=numbers=`, not `=.id=`. The move command addresses rows by number,
-		// and an `.id` is accepted there where it is not elsewhere.
-		args := []string{"=numbers=" + req.ID}
-		if dest != "" {
-			args = append(args, "=destination="+dest)
-		}
-		if _, werr := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/move", Args: args}); werr != nil {
-			return werr
-		}
-
-		// The ORDER must be the one asked for before the move is reported (#97): the
-		// row sits immediately before its destination, or last when there is none.
-		// A read-back that fails, or an order that does not hold, is an unknown
-		// outcome rather than the ordinary success it used to be.
-		moved, merr := cn.readMenu(res)
-		nowAt, placed := -1, false
-		if merr == nil {
-			nowAt, placed = confirmMoved(moved, req.ID, dest)
-		}
-		if !placed {
-			return cn.outcomeUnknown(res, res.Key+".move", req.ID, name, req.Ack)
-		}
-
-		how := "down"
-		switch {
-		case anchored:
-			how = "drag"
-		case up:
-			how = "up"
-		}
-		cn.recorder().Record(audit.Event{
-			Action: res.Key + ".move", TargetType: res.Key, RouterID: cn.routerID,
-			TargetID: req.ID, TargetName: name,
-			Before: map[string]any{"position": at},
-			After:  map[string]any{"position": nowAt},
-			Extra:  append([]audit.KV{{Key: "how", Value: how}}, ackExtra(req.Ack)...),
-		})
-
-		cn.refreshFor(res)
-		// `movedId` is what the page pulses, so the eye can find the row that
-		// just changed places in a table of thirty near-identical ones.
-		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
-			"resource": res.Key, "action": "move", "name": name, "movedId": req.ID})
-		return nil
-	})
-	if err != nil {
-		cn.resErr(res.Key, writeFailCode(err), name, map[string]any{"message": safe.Message(err.Error())})
 	}
+
+	verdict, gerr := cn.verdictFor(res, "move", histValues(res.RowValues(row)), row)
+	if gerr != nil {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".move", TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
+		})
+		return nil, writeOutcome{Code: "guard-not-ported", Name: name,
+			Detail: map[string]any{"message": safe.Message(gerr.Error())}}
+	}
+	if r := cn.guardRefusal(res, "move", req.ID, name, verdict); r != nil {
+		return nil, *r
+	}
+	return &preparedMove{res: res, req: req, name: name, at: at, dest: dest, how: how,
+		verdict: verdict}, writeOutcome{}
+}
+
+// commitMove sends the move and confirms it by reading the table back.
+func (cn *conn) commitMove(p *preparedMove, via string) writeOutcome {
+	res, req := p.res, p.req
+
+	// `=numbers=`, not `=.id=`. The move command addresses rows by number, and
+	// an `.id` is accepted there where it is not elsewhere.
+	args := []string{"=numbers=" + req.ID}
+	if p.dest != "" {
+		args = append(args, "=destination="+p.dest)
+	}
+	if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/move", Args: args}); err != nil {
+		return writeOutcome{Code: writeFailCode(err), Name: p.name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+
+	// The ORDER must be the one asked for before the move is reported (#97): the
+	// row sits immediately before its destination, or last when there is none.
+	// A read-back that fails, or an order that does not hold, is an unknown
+	// outcome rather than the ordinary success it used to be.
+	moved, merr := cn.readMenu(res)
+	nowAt, placed := -1, false
+	if merr == nil {
+		nowAt, placed = confirmMoved(moved, req.ID, p.dest)
+	}
+	if !placed {
+		return cn.unknownOutcome(res, res.Key+".move", req.ID, p.name, req.Ack, via)
+	}
+
+	cn.recorder().Record(audit.Event{
+		Action: res.Key + ".move", TargetType: res.Key, RouterID: cn.routerID,
+		TargetID: req.ID, TargetName: p.name,
+		Before: map[string]any{"position": p.at},
+		After:  map[string]any{"position": nowAt},
+		Extra:  append([]audit.KV{{Key: "how", Value: p.how}}, writeExtra(req.Ack, via)...),
+	})
+
+	cn.refreshFor(res)
+	return writeOutcome{Action: "move", Name: p.name}
 }
 
 // anchorAt is the id a row currently sits before, or "" when it is last.

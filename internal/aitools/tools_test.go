@@ -324,6 +324,14 @@ func TestADiagnosticTakesOnlyItsTarget(t *testing.T) {
 // a row and it said it had no delete action. `delete` is a boolean that routes
 // the same `resource` and `id` to `removeRow`, the form's own delete path; it
 // names nothing the registry decides, and a delete is always put to the operator.
+//
+// RE-AIMED AGAIN FOR `before`, deliberately. The assistant could only append, and
+// in a firewall the first match decides, so an appended rule is very often one
+// that never runs. `before` is the id of a ROW — the same thing the page's drag
+// sends as its anchor — routing the same `resource` and `id` to `moveRow`, the
+// page's own move path. It is not an index and not a menu: the registry still
+// decides what may be reordered (`Movable`) and the row is resolved against the
+// table as the router holds it at the moment of the move.
 func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 	tool, ok := ByName(WriteToolName)
 	if !ok {
@@ -333,7 +341,8 @@ func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 		t.Errorf("%q declares access %q", WriteToolName, tool.Access)
 	}
 	props, _ := tool.Parameters["properties"].(map[string]any)
-	want := map[string]bool{"resource": true, "id": true, "values": true, "delete": true}
+	want := map[string]bool{"resource": true, "id": true, "values": true, "delete": true,
+		"before": true}
 	for name := range props {
 		if !want[name] {
 			t.Errorf("the write tool accepts %q, which the write path never asked for", name)
@@ -486,5 +495,91 @@ func TestAGroupedListToolTakesOnlyItsGroup(t *testing.T) {
 	}
 	if seen == 0 {
 		t.Error("no list tool is grouped, though Address Lists declares GroupBy")
+	}
+}
+
+// TestExactlyTheFirewallsOrderedTablesAreMovable, in BOTH directions.
+//
+// ── A LEDGER, BECAUSE THE SET IS A BLAST RADIUS ─────────────────────────────
+//
+// `Movable` decides which of the router's ordered tables a MODEL may reorder.
+// Widening it is a real decision — the routing rules, the IPsec policies, the
+// OSPF templates and the simple queues are all ordered, and all consequential —
+// so a resource joining or leaving this set fails here and is made deliberately.
+//
+// Named rather than derived from the same expression `Movable` uses: a test that
+// recomputed the predicate would agree with any predicate.
+func TestExactlyTheFirewallsOrderedTablesAreMovable(t *testing.T) {
+	want := map[string]bool{
+		"fwFilter": true, "fwNat": true, "fwMangle": true, "fwRaw": true,
+		"fwFilter6": true, "fwNat6": true, "fwMangle6": true, "fwRaw6": true,
+	}
+	got := map[string]bool{}
+	ordered := 0
+	for _, r := range resource.All() {
+		if r.Ordered {
+			ordered++
+		}
+		if Movable(r) {
+			got[r.Key] = true
+			if !want[r.Key] {
+				t.Errorf("%s is movable by the assistant and this ledger does not say so. "+
+					"Widening what a model may reorder is a decision, not a side effect", r.Key)
+			}
+		}
+	}
+	for key := range want {
+		if !got[key] {
+			t.Errorf("%s is no longer movable by the assistant, though the ledger says it is. "+
+				"If that was deliberate, remove it here", key)
+		}
+	}
+	// The other half of the claim: there ARE ordered tables outside the
+	// firewall, so "only the firewall's" is a restriction rather than a
+	// description of everything that exists.
+	if ordered <= len(want) {
+		t.Errorf("%d ordered resources, %d of them movable: nothing is being held back, so "+
+			"this ledger is not measuring the restriction it describes", ordered, len(want))
+	}
+	if Movable(nil) {
+		t.Error("a nil resource is movable")
+	}
+}
+
+// TestTheWriteToolOffersBeforeOnlyWhenSomethingCanMove, both ways. The enum is
+// the permission for `resource`; the same has to hold for `before`, or a viewer
+// who may write only the DNS page is told about an argument every use of which
+// would be refused.
+func TestTheWriteToolOffersBeforeOnlyWhenSomethingCanMove(t *testing.T) {
+	props := func(pages ...string) map[string]any {
+		can := func(page, access string) bool {
+			if access != AccessWrite {
+				return true
+			}
+			for _, p := range pages {
+				if p == page {
+					return true
+				}
+			}
+			return false
+		}
+		for _, tool := range Permitted(can) {
+			if tool.Name == WriteToolName {
+				p, _ := tool.Parameters["properties"].(map[string]any)
+				return p
+			}
+		}
+		t.Fatalf("no write tool was offered to a viewer who may write %v", pages)
+		return nil
+	}
+	if props("firewall")["before"] == nil {
+		t.Error("a viewer who may write the Firewall page is not told how to move a rule, " +
+			"so the assistant can still only append")
+	}
+	if p := props("dns"); p["before"] != nil {
+		t.Error("a viewer who may write only the DNS page is offered `before`, every use of " +
+			"which would be refused")
+	} else if p["values"] == nil {
+		t.Fatal("that viewer was offered no write tool at all; this test is measuring nothing")
 	}
 }
