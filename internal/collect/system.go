@@ -47,6 +47,7 @@ package collect
 // dashboard gauges would simply stop. See the note there.
 
 import (
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -54,6 +55,7 @@ import (
 	"time"
 
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/safe"
 )
 
 // Declared as Cmd values rather than inline so the proplist drift gate can
@@ -666,6 +668,15 @@ func (s *System) checkForUpdates() {
 	// the page styles a status matching it as a warning.
 	_, checkErr := s.ros.Do(systemUpdateCheckCmd)
 	denied := checkErr != nil && menuDenied(checkErr)
+	// SAID OUT LOUD. A check that fails for any other reason — the router cannot
+	// reach upgrade.mikrotik.com, DNS is down, the server refused — left no
+	// trace at all, and the visible symptom is two pages away: RouterOS only
+	// lists the packages AVAILABLE to install once a check has succeeded, so a
+	// silently failing check reads as "the Packages page lost half its rows"
+	// (reported 2026-09-20).
+	if checkErr != nil && !denied {
+		log.Printf("[system] update check failed: %v", safe.Message(checkErr.Error()))
+	}
 
 	// THROUGH THE CACHE: `packages` reads this menu too.
 	rows, err := readVia(s.cache, s.ros, systemUpdatePrintCmd, s.pollMs.duration())

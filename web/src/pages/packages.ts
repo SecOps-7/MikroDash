@@ -310,6 +310,16 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     const set = (id: string, v: string): void => { const e = el(id); if (e) e.textContent = v; };
     set('pkgSumInstalled', c.installed === undefined ? '—' : String(c.installed));
     set('pkgSumAvailable', c.available === undefined ? '—' : String(c.available));
+    // ── WHY "AVAILABLE" CAN READ ZERO ──────────────────────────────────────
+    //
+    // RouterOS lists the packages it could install only after a successful
+    // `check-for-updates`, and lists none until then — so a router whose checks
+    // have been failing shows its installed packages and nothing else, with no
+    // way to tell that from "this build has no extras". Reported 2026-09-20 as
+    // "available packages are missing". The Check for updates button above
+    // fills it in.
+    const hint = el('pkgAvailHint');
+    if (hint) hint.style.display = c.available ? 'none' : '';
     set('pkgSumDisabled', c.disabled === undefined ? '—' : String(c.disabled));
     set('pkgSumUpdate', data.update && data.update.updateAvailable
       ? (data.update.latestVersion || 'update')

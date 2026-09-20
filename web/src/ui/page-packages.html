@@ -3,7 +3,11 @@
 
       <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
         <div class="wl-summary-card"><div class="wl-summary-title">Installed</div><div class="fa-stat-val" id="pkgSumInstalled">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Available</div><div class="fa-stat-val" id="pkgSumAvailable">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Available</div><div class="fa-stat-val" id="pkgSumAvailable">&mdash;</div>
+          <!-- Shown only when the router lists none: RouterOS learns what is
+               available from an update check and lists nothing until one has
+               succeeded (reported 2026-09-20). -->
+          <div class="pkg-avail-hint" id="pkgAvailHint" style="display:none">after an update check</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Disabled</div><div class="fa-stat-val" id="pkgSumDisabled">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">RouterOS</div><div class="fa-stat-val" id="pkgSumUpdate">&mdash;</div></div>
       </div>

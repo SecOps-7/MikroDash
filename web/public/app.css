@@ -2171,6 +2171,7 @@
     .sec-top-text{flex:1;min-width:0}
     .sec-top-title{font-size:.8rem;color:var(--text-main)}
     .sec-top-detail{font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pkg-avail-hint{font-size:.6rem;color:var(--text-muted);line-height:1.2;margin-top:.15rem}
     .sec-open{font-size:.72rem;white-space:nowrap;color:var(--accent-rx);text-decoration:none;margin-left:.35rem}
     .sec-open:hover{text-decoration:underline}
     .sec-empty{font-size:.78rem;color:var(--text-muted)}
