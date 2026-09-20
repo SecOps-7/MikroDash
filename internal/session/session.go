@@ -858,6 +858,18 @@ func geoLookup() collect.GeoLookup {
 	return db.Lookuper()
 }
 
+// orgLookup is the organisation join, resolved per session for the same reason
+// geoLookup is: the database is loaded at startup and a deployment without it
+// must still serve pages. Nil when unavailable, which leaves the badges empty
+// and everything else unchanged.
+func orgLookup() collect.OrgLookup {
+	db, ok := asn.Current()
+	if !ok {
+		return nil
+	}
+	return db.Lookuper()
+}
+
 // Acquire returns the session for a router, connecting if this is the first
 // caller. The caller must Release exactly once.
 func (m *Manager) Acquire(routerID string) (*Session, error) {
@@ -1201,13 +1213,13 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		WithTopN(topSetting(cfgSettings, "topN")).
 		WithDetailed(func() bool { return m.h.Occupants(room+"page-connections") > 0 }).
 		WithGeo(geoLookup()).
-		WithOrg(asn.Lookup).
+		WithOrg(orgLookup()).
 		// Step 2 of `nameOf`: the lease keyed by the MAC ARP found, when the
 		// lease keyed by the address does not exist.
 		WithARP(s.arp)
 	s.bandwidth = collect.NewBandwidth(reader{s: s}, emit, s.ifStatus, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["bandwidth"]).
 		WithGeo(geoLookup()).
-		WithOrg(asn.Lookup).
+		WithOrg(orgLookup()).
 		WithARP(s.arp)
 	// The default interface is what the WAN badge watches, so it is always in
 	// the stream even when nobody has selected it. Five minutes of history, as

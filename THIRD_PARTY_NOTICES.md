@@ -138,18 +138,42 @@ above covers the TopoJSON packaging of it.
 
 ---
 
-## IP geolocation data — DB-IP City Lite
+## IP geolocation data — DB-IP City Lite and ASN Lite
 
 **IP Geolocation by [DB-IP](https://db-ip.com)**, used under the
 [Creative Commons Attribution 4.0 International Licence](https://creativecommons.org/licenses/by/4.0/).
 
+Two databases, same vendor and same terms:
+
+| file | answers | read by |
+|---|---|---|
+| `dbip-city-lite.mmdb` | country, region, city, coordinates | `internal/geo` |
+| `dbip-asn-lite.mmdb` | the organisation owning an address | `internal/asn` |
+
 The attribution above is a LICENCE CONDITION, not a courtesy: CC BY 4.0 requires
 crediting the source, and the credit has to travel with anything that ships the
-data. `dbip-city-lite.mmdb` is baked into the image, so this file is where that
-credit lives.
+data.
 
-The database is fetched fresh by the `geodata` stage of the `Dockerfile` — no
-account, no licence key. It replaced geoip-lite's bundled `.dat` files on
+**AND THIS FILE IS THE WHOLE OF IT — deliberately, and worth reading before
+changing.** DB-IP's terms for a web application are specific: "you must include
+a link back to DB-IP.com on pages that display or use results from the
+database". The credit was put on the Connections page and the dashboard on
+2026-09-20 and taken off again the same day, because the operator did not want
+it in the interface. So the attribution lives here and in the README, which is
+what most self-hosted applications do and is a defensible reading of the
+licence, but it is not the strictest one.
+
+`internal/verify/geodata_test.go` pins what remains: the credit, the link, and
+BOTH database filenames. Crediting the city database while quietly adding a
+second one beside it is exactly how the ASN file arrived uncredited.
+
+Both databases are fetched fresh by the `geodata` stage of the `Dockerfile` — no
+account, no licence key. MaxMind's GeoLite2 is better data and updates more
+often, but it needs an account, a key and a signed EULA, which would make a
+build nobody who clones this repo can run; IPinfo and IP2Location were checked
+in September 2026 and both require an account too.
+
+City Lite replaced geoip-lite's bundled `.dat` files on
 2026-08-30, because those shipped whatever geoip-lite 2.0.3 published and nothing
 in that project's build ever refreshed them: the addresses moved and the file did
 not.

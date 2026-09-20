@@ -53,6 +53,22 @@ RUN set -eux; \
     test -s /dbip.mmdb.gz; \
     gunzip /dbip.mmdb.gz; \
     test -s /dbip.mmdb
+# THE ASN DATABASE, on the same terms and the same month-then-previous loop.
+# It answers "who owns this address" for the Connections page; City Lite carries
+# country and city and NO organisation at all, so this is a second file rather
+# than a field on the first. 9 MB against City Lite's 121 MB.
+RUN set -eux; \
+    this=$(date -u +%Y-%m); \
+    prev=$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m 2>/dev/null || echo "$this"); \
+    for m in "$this" "$prev"; do \
+      if curl -sSfL --retry 3 --max-time 600 \
+           -o /dbip-asn.mmdb.gz "https://download.db-ip.com/free/dbip-asn-lite-$m.mmdb.gz"; then \
+        echo "geo: fetched dbip-asn-lite-$m"; break; \
+      fi; \
+    done; \
+    test -s /dbip-asn.mmdb.gz; \
+    gunzip /dbip-asn.mmdb.gz; \
+    test -s /dbip-asn.mmdb
 
 # ── the binary ────────────────────────────────────────────────────────────
 # CGO_ENABLED=0 is not decoration. `modernc.org/sqlite` is pure Go precisely so
@@ -92,7 +108,8 @@ RUN go run ./cmd/webbuild -dir web
 # /api/cities needs a LIST, and an .mmdb is a lookup structure: enumerating it
 # means walking ~14.7M networks, which takes ~35s. `CityHolder` builds lazily on
 # first search, so doing it at runtime would hang the first keystroke.
-COPY --from=geodata /dbip.mmdb /geo/dbip-city-lite.mmdb
+COPY --from=geodata /dbip.mmdb     /geo/dbip-city-lite.mmdb
+COPY --from=geodata /dbip-asn.mmdb /geo/dbip-asn-lite.mmdb
 RUN go run ./cmd/geogen -mmdb /geo/dbip-city-lite.mmdb -out /geo/cities.json
 
 # ── runtime ───────────────────────────────────────────────────────────────
@@ -107,6 +124,7 @@ COPY --from=build /out/mikrodash /usr/local/bin/mikrodash
 COPY --from=build /src/web/dist  /app/web/dist
 COPY web/public                  /app/web/public
 COPY --from=build /geo/dbip-city-lite.mmdb /app/geo/dbip-city-lite.mmdb
+COPY --from=build /geo/dbip-asn-lite.mmdb  /app/geo/dbip-asn-lite.mmdb
 COPY --from=build /geo/cities.json            /app/geo/cities.json
 VOLUME ["/data"]
 EXPOSE 3081

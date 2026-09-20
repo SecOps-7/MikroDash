@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"mikrodash/internal/asn"
 	"mikrodash/internal/db"
 	"mikrodash/internal/geo"
 	"mikrodash/internal/roslimit"
@@ -129,6 +130,14 @@ func main() {
 	// swallowing the failure and every lookup silently returning nothing.
 	if _, ok := geo.Shared(*geoDir); !ok {
 		log.Printf("[mikrodash] geo lookups unavailable, countries will be empty: %v", geo.Reason())
+	}
+	// The ASN database is loaded here for the same reasons and on the same
+	// terms — one load point, one place the failure is said, every caller
+	// gating on availability. It lives beside the city database because it is
+	// the same vendor, the same licence and the same `-geo` directory.
+	if _, ok := asn.Shared(*geoDir); !ok {
+		log.Printf("[mikrodash] organisation lookups unavailable, connection owners "+
+			"will be empty: %v", asn.Reason())
 	}
 
 	st, err := store.Open(*data)

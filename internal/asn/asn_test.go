@@ -1,136 +1,223 @@
 package asn
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-type asnCase struct {
-	IP string `json:"ip"`
-	// Found is SEPARATE from Org for the same reason the geo cases separate it
-	// from Country: the original returns null for no match, and a single string
-	// field cannot tell that from a match whose name happens to be empty.
-	Found bool   `json:"found"`
-	Org   string `json:"org"`
-	Cat   string `json:"cat"`
+// ── WHAT IS WORTH PINNING NOW THAT THIS IS A DATABASE ──────────────────────
+//
+// The old suite replayed 1604 cases derived from a checked-in prefix list, so
+// it pinned the data. The data is no longer ours: it arrives monthly from
+// DB-IP, and a test asserting that 8.8.8.8 is Google would be asserting
+// something only the vendor controls. Pinning it would turn a routine data
+// refresh into a red build.
+//
+// What IS ours, and what these pin:
+//
+//	the tidying     pure, and the only place a company name is invented
+//	the categories  a number-keyed map, where a typo is invisible by eye
+//	the type check  the mirror-image of internal/geo's: the WRONG database
+//	                opens cleanly and answers nothing, which reads as "no
+//	                network owns this" rather than as a misconfiguration
+//	the degrading   no database must be a miss, never a panic
+//
+// The database itself is exercised by TestAgainstARealDatabase, which SKIPS
+// when there is none — the same bargain internal/geo/mmdb_test.go makes.
+
+func TestNameStripsLegalFormsAndAppliesAliases(t *testing.T) {
+	cases := []struct{ raw, want string }{
+		// The ones an operator sees every day.
+		{"Google LLC", "Google"},
+		{"Cloudflare, Inc.", "Cloudflare"},
+		{"Amazon.com, Inc.", "Amazon"},
+		{"Microsoft Corporation", "Microsoft"},
+		{"Apple Inc.", "Apple"},
+		{"Fastly, Inc.", "Fastly"},
+		{"GitHub, Inc.", "GitHub"},
+		{"Anthropic, PBC", "Anthropic"},
+		{"Deutsche Telekom AG", "Deutsche Telekom"},
+		{"OVH SAS", "OVH"},
+		{"Quad9", "Quad9"},
+
+		// ALIASES, which is the judgement half. AS32934 is still registered to
+		// Facebook; nobody calls it that.
+		{"Facebook, Inc.", "Meta"},
+		{"nextdns, Inc.", "NextDNS"},
+		{"AdGuard Software Limited", "AdGuard"},
+		{"Cisco OpenDNS, LLC", "OpenDNS"},
+
+		// TWO SPELLINGS OF ONE COMPANY MUST LAND ON ONE NAME. The Connections
+		// page folds destinations onto this string, so a company reaching it
+		// under two names becomes two nodes in the diagram.
+		{"Akamai Technologies, Inc.", "Akamai"},
+		{"Akamai International B.V.", "Akamai"},
+		{"Google Asia Pacific Pte. Ltd.", "Google"},
+
+		// Repeated stripping: both halves of a compound legal form go.
+		{"Level 7 Wireless (Pty) Ltd", "Level 7 Wireless"},
+
+		{"Telkom SA Ltd.", "Telkom SA"},
+		{"Cogent Communications", "Cogent Communications"},
+
+		// A SUFFIX IS A WHOLE WORD, and these are the proof. Every one is a
+		// real organisation name out of the database — a scan of it on
+		// 2026-09-20 found 123 names where a legal form sits INSIDE a word, so
+		// this is a live hazard rather than a hypothetical one. Without the
+		// separator check ASFINAG, an Austrian motorway operator, becomes
+		// "ASFIN".
+		{"ASFINAG", "ASFINAG"},
+		{"DELFI UAB", "DELFI UAB"},
+		{"Bezeq International-Ltd", "Bezeq International-Ltd"},
+		{"COMCAST-SRL", "COMCAST-SRL"},
+		{"Vodacom", "Vodacom"},
+
+		// A name that is nothing but a legal form keeps something to show.
+		{"Inc.", "Inc."},
+		{"  Google LLC  ", "Google"},
+	}
+	for _, c := range cases {
+		if got := Name(c.raw); got != c.want {
+			t.Errorf("Name(%q) = %q, want %q", c.raw, got, c.want)
+		}
+	}
 }
 
-// KNOWN_DIVERGENT — addresses where this port DELIBERATELY disagrees with
-// asnLookup.js, each with the reason it is not worth closing.
-//
-// ipaddr.js implements the legacy inet_aton grammar: `0x08.8.8.8`, `134744072`,
-// `8.8.2056` and `8.8.8.010` are all 8.8.8.8 to it, and therefore Google. Go's
-// netip accepts dotted-quad decimal and nothing else, so the port answers
-// nothing for them.
-//
-// NOT CLOSED, on purpose. The input to this function is an address out of a
-// RouterOS connection table, and RouterOS emits canonical dotted-quad — none of
-// these forms can occur. Reproducing the grammar means hand-rolling a second IP
-// parser to be maintained for traffic that does not exist. What is NOT
-// acceptable is closing the gap by deleting the cases, so the divergence is
-// asserted instead: implement the grammar and this test fails, which forces the
-// note to be removed rather than left lying.
-var knownDivergent = map[string]string{
-	"0x08.8.8.8":      "hex octet",
-	"0x8.0x8.0x8.0x8": "hex octets",
-	"134744072":       "one-part inet_aton",
-	"8.526344":        "two-part inet_aton",
-	"8.8.2056":        "three-part inet_aton",
-	"8.8.8.010":       "octal octet",
+// AN AMBIGUOUS SUFFIX IS LEFT ON, and that is a decision rather than an
+// oversight: "AS" is both a Scandinavian company form and the abbreviation for
+// an autonomous system, so stripping it would mangle any network whose name
+// ends in those letters. A slightly long badge beats a wrong name.
+func TestAmbiguousSuffixesSurvive(t *testing.T) {
+	for _, raw := range []string{"Telenor Norge AS", "Blix Solutions AS", "Altibox AS"} {
+		if got := Name(raw); got != raw {
+			t.Errorf("Name(%q) = %q; a trailing AS must be left alone", raw, got)
+		}
+	}
 }
 
-// TestLookupMatchesAsnLookup replays every answer the live lookupOrg gave.
+func TestCategoryIsKeyedOnTheNumberAndFallsBackToOther(t *testing.T) {
+	if got := Category(13335); got != "cdn" {
+		t.Errorf("Category(AS13335 Cloudflare) = %q, want cdn", got)
+	}
+	if got := Category(32934); got != "social" {
+		t.Errorf("Category(AS32934 Meta) = %q, want social", got)
+	}
+	// THE dns COLOUR IS REACHABLE, which it was not before this change: the CSS
+	// carried `.svc-dns` while no organisation could ever have that category.
+	if got := Category(19281); got != "dns" {
+		t.Errorf("Category(AS19281 Quad9) = %q, want dns; the svc-dns colour is dead again", got)
+	}
+	// An unknown network is "other" — a value the page renders, not a gap.
+	if got := Category(64496); got != "other" {
+		t.Errorf("Category(AS64496) = %q, want other", got)
+	}
+	if got := Category(0); got != "other" {
+		t.Errorf("Category(0) = %q, want other", got)
+	}
+}
+
+// The categories themselves are pinned by internal/verify's geodata ledger,
+// which reads the map, app.css and the Sankey palette and fails in BOTH
+// directions. A copy of the category list here would be a third place to keep
+// in step, and the ledger's whole point is that copies drift — `.svc-dns` sat
+// in app.css for months with nothing able to produce it.
+
+// NO DATABASE IS A MISS, NOT A PANIC. A Connections page with no organisation
+// badges is degraded; a collector that panics is broken.
+func TestAMissingDatabaseDegrades(t *testing.T) {
+	var d *DB
+	if org, cat, ok := d.Lookup("8.8.8.8"); ok || org != "" || cat != "" {
+		t.Errorf("a nil database answered (%q, %q, %v); it must miss", org, cat, ok)
+	}
+	if _, err := Load(t.TempDir()); err == nil {
+		t.Error("Load of a directory with no database returned no error")
+	}
+}
+
+// THE WRONG DATABASE MUST BE NAMED, NOT SILENTLY EMPTY. A City database opens
+// cleanly through this reader and then answers with no organisation for every
+// address on earth, which looks exactly like "nothing owns this".
+func TestACityDatabaseIsRefused(t *testing.T) {
+	dir := os.Getenv("MIKRODASH_GEO_DIR")
+	if dir == "" {
+		dir = "/app/geo"
+	}
+	city := filepath.Join(dir, "dbip-city-lite.mmdb")
+	if _, err := os.Stat(city); err != nil {
+		t.Skipf("no city database at %s to mis-load", city)
+	}
+	tmp := t.TempDir()
+	if err := os.Symlink(city, filepath.Join(tmp, mmdbName)); err != nil {
+		t.Skipf("cannot stage the wrong database: %v", err)
+	}
+	_, err := Load(tmp)
+	if err == nil {
+		t.Fatal("a City database loaded as an ASN database; every lookup would " +
+			"answer nothing and look like missing data")
+	}
+	if !contains(err.Error(), "ASN database is required") {
+		t.Errorf("the refusal does not say what is wrong: %v", err)
+	}
+}
+
+// ── AND THE REAL THING, WHEN THERE IS ONE ──────────────────────────────────
 //
-// The cases are generated FROM the range list — first, last, middle and the two
-// addresses immediately outside each range — so an off-by-one in prefix handling
-// fails here rather than being discovered on a page.
-func TestLookupMatchesAsnLookup(t *testing.T) {
-	path := filepath.Join("..", "..", "testdata", "asn-cases.json")
-	raw, err := os.ReadFile(path)
+// Skipped rather than failed without a database, exactly as
+// internal/geo/mmdb_test.go is: this file is republished monthly and a test
+// that cannot run offline must not be a test that fails offline.
+//
+// It asserts the SHAPE the app depends on, not the vendor's answers: that a
+// well-known address resolves to something, that the name has been tidied, and
+// that an address in unrouted space misses. Asserting "8.8.8.8 is Google" would
+// make a routine data refresh a red build.
+func TestAgainstARealDatabase(t *testing.T) {
+	dir := os.Getenv("MIKRODASH_GEO_DIR")
+	if dir == "" {
+		dir = "/app/geo"
+	}
+	db, err := Load(dir)
 	if err != nil {
-		t.Fatalf("reading the cases: %v", err)
+		t.Skipf("no ASN database in %s: %v", dir, err)
 	}
-	var cases struct {
-		Total   int       `json:"total"`
-		Matched int       `json:"matched"`
-		Cases   []asnCase `json:"cases"`
+	org, cat, ok := db.Lookup("8.8.8.8")
+	if !ok || org == "" {
+		t.Fatalf("8.8.8.8 resolved to nothing (%q/%q); the database is loaded but answering empty", org, cat)
 	}
-	if err := json.Unmarshal(raw, &cases); err != nil {
-		t.Fatalf("parsing the cases: %v", err)
+	// TIDIED, not raw. If this ever reads "Google LLC" the Name step has been
+	// bypassed somewhere between the record and the payload.
+	if contains(org, "LLC") || contains(org, "Inc") {
+		t.Errorf("8.8.8.8 = %q; the legal suffix reached the badge", org)
 	}
-	if len(cases.Cases) == 0 {
-		t.Fatal("no cases — regenerate with tools/asn-cases.js")
+	if cat == "" {
+		t.Error("a hit returned an empty category; the page renders a class name")
 	}
-
-	matched := 0
-	for _, c := range cases.Cases {
-		if _, skip := knownDivergent[c.IP]; skip {
-			continue
-		}
-		org, ok := Org(c.IP)
-		if ok != c.Found || org != c.Org {
-			t.Errorf("%q: got (%q, %v), asnLookup says (%q, %v)", c.IP, org, ok, c.Org, c.Found)
-			continue
-		}
-		if cat := Category(org); cat != c.Cat {
-			t.Errorf("%q: category %q, asnLookup says %q", c.IP, cat, c.Cat)
-		}
-		if ok {
-			matched++
-		}
+	// An address in space reserved for documentation belongs to no AS.
+	if org, _, ok := db.Lookup("198.51.100.1"); ok {
+		t.Errorf("TEST-NET-2 resolved to %q; unrouted space must miss", org)
 	}
-	// The divergent addresses all MATCH on the live side, so they are added back
-	// before the total is compared. Getting this wrong in the lenient direction
-	// would make the count agree while the answers did not.
-	if matched+len(knownDivergent) != cases.Matched {
-		t.Errorf("matched %d addresses (+%d known-divergent), the case file records %d",
-			matched, len(knownDivergent), cases.Matched)
+	// A GUARD ON THE LIBRARY, not on this package. The reader resolves a zoned
+	// address on its own, which is why internal/asn does not strip one — the
+	// prefix-walking reader it replaced had to, because netip.Prefix.Contains
+	// refuses a zoned address. A maxminddb that stops doing this fails here
+	// rather than quietly turning every zoned address into a miss.
+	if _, _, ok := db.Lookup("2001:4860:4860::8888%eth0"); !ok {
+		t.Error("the reader no longer resolves a zoned address; internal/asn " +
+			"relies on it doing so and must strip the zone itself again")
 	}
-	t.Logf("%d addresses, %d matched, %d known divergences skipped",
-		len(cases.Cases), matched, len(knownDivergent))
-}
-
-// TestKnownDivergencesStillDiverge asserts the gap DESCRIBED ABOVE still exists.
-//
-// This is the half that makes a documented gap honest. Without it, someone
-// implementing inet_aton parsing would close the divergence and leave a comment
-// claiming it is open — and the next reader would believe the comment. Closing
-// it fails here, which is the only reliable way to make the note get deleted.
-func TestKnownDivergencesStillDiverge(t *testing.T) {
-	for ip, why := range knownDivergent {
-		if org, ok := Org(ip); ok {
-			t.Errorf("%q (%s) now resolves to %q — asnLookup accepts this form and the "+
-				"port did not. If that was deliberate, remove it from knownDivergent "+
-				"and from the note above it.", ip, why, org)
-		}
+	if _, _, ok := db.Lookup("not an address"); ok {
+		t.Error("an unparseable address was reported as a hit")
 	}
 }
 
-// TestCategoryFallsBackToOther pins the half of the contract the cases cannot
-// reach: an org name that is not in the table at all. Every org the case file
-// contains IS in the table, so without this the fallback goes unexercised.
-func TestCategoryFallsBackToOther(t *testing.T) {
-	for _, org := range []string{"", "Nobody", "cloudflare", "CLOUDFLARE"} {
-		if got := Category(org); got != "other" {
-			t.Errorf("Category(%q) = %q, want \"other\"", org, got)
-		}
-	}
-	// And a known one, so the test cannot pass by returning "other" always.
-	if got := Category("Cloudflare"); got != "cdn" {
-		t.Errorf("Category(\"Cloudflare\") = %q, want \"cdn\"", got)
-	}
-}
-
-// TestLookupShape checks the collectors' entry point returns both values
-// together, since it is the only function they call.
-func TestLookupShape(t *testing.T) {
-	org, cat, ok := Lookup("8.8.8.8")
-	if !ok || org != "Google" || cat != "cloud" {
-		t.Errorf("Lookup(8.8.8.8) = (%q, %q, %v), want (Google, cloud, true)", org, cat, ok)
-	}
-	if org, cat, ok := Lookup("not-an-ip"); ok || org != "" || cat != "" {
-		t.Errorf("Lookup(not-an-ip) = (%q, %q, %v), want empty and false", org, cat, ok)
-	}
+func contains(s, sub string) bool {
+	return len(sub) > 0 && len(s) >= len(sub) &&
+		(func() bool {
+			for i := 0; i+len(sub) <= len(s); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+			return false
+		})()
 }

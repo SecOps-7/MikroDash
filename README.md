@@ -424,7 +424,7 @@ RouterOS binary API (TCP / TLS)
 
 Concurrent API channels, not data volume, are what strain a small router, so the collector layer is built to ask for less: live data streams, configuration is polled, and a collector runs only while a page, card, alert or report needs it. [Collector-Architecture.md](Collector-Architecture.md) describes it in full.
 
-Geo-IP data comes from [DB-IP City Lite](https://db-ip.com), bundled into the image at build time. Lookups happen locally; nothing leaves the machine.
+Geo-IP data comes from [DB-IP](https://db-ip.com) — City Lite for country and city, ASN Lite for the organisation that owns an address — both bundled into the image at build time under CC BY 4.0. Lookups happen locally; nothing leaves the machine.
 
 ---
 

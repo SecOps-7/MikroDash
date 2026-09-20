@@ -1,167 +1,164 @@
-// Package asn answers "who owns this address" from a curated range list.
+// Package asn answers "who owns this address", from DB-IP ASN Lite.
 //
-// It is the port of `src/util/asnLookup.js`: not a real ASN database, but a
-// hand-maintained table of published ranges for the dozen services a home
-// router actually talks to. The connections page folds destinations onto the
-// answer — a diagram naming Google once tells you more than nine rows of Google
-// addresses — and colours them by category.
+// ── WHAT IT REPLACED, AND WHY ──────────────────────────────────────────────
 //
-// ── THE TABLE IS DATA, THIS FILE IS BEHAVIOUR ───────────────────────────────
+// This was a hand-curated table of 339 published prefixes covering thirteen
+// services, ported from the Node app and frozen the day it was ported. It was
+// measured against one router's live connection table on 2026-09-20:
 //
-// `table.go` holds the ranges; this file holds the matching. The split is worth
-// keeping because the two fail differently — a wrong range answers "Google" for
-// an address that is not Google, while a wrong match answers nothing for one
-// that is.
+//	named by the curated table:  40/70  (57%)
+//	named by DB-IP ASN Lite:     70/70  (100%)
 //
-// ── AND THE TABLE IS CURRENTLY LOCKED, WHICH IS WORTH SAYING OUT LOUD ───────
+// The thirty misses were not exotic — OVH, Linode, Deutsche Telekom, Proximus,
+// Verizon, Vox Telecom, AdGuard, Quad9. Worse, three of the forty hits were
+// WRONG: the table listed 52.144.0.0/12 under Amazon, which swallows Microsoft
+// Azure space, so Azure traffic had been labelled Amazon since the cutover.
+// That is the failure a curated list cannot catch about itself, and it is why
+// this is a database now.
 //
-// It was generated once from the Node app's `src/util/asnLookup.js` at the
-// 2026-08-31 cutover, by a script deleted with the rest of that app. Nothing
-// refreshes it: no `go:generate`, no `cmd/` generator, no download in the
-// Dockerfile — the only geo data fetched at build time is DB-IP City Lite,
-// which carries country and city and no organisation at all.
+// ── THE ANSWER CHANGED MEANING, AND THAT IS WORTH KNOWING ──────────────────
 //
-// `testdata/asn-cases.json` pins the ranges PREFIX BY PREFIX: its cases are the
-// first, last and middle address of every range plus the two just outside it,
-// so editing one prefix fails `TestLookupMatchesAsnLookup`. That is a real gate
-// and it is why this is locked rather than merely stale — the corpus generator
-// was deleted too, so a new prefix needs a new corpus to go with it.
+// A range list says WHOSE SERVICE this is. An AS says WHOSE NETWORK carries it.
+// They differ wherever a service rents someone else's network: Twitch now reads
+// Amazon and Spotify reads Google, because that is who actually routes the
+// packets. Measured, not assumed — every probe address for both resolved to the
+// host's AS. The old answer was a guess about intent; this one is a fact about
+// routing, and the page says what the router is really talking to.
 //
-// What no test can see is the world moving underneath: a range Google announced
-// after the cutover reads as no org at all, and every one of those 1604 cases
-// still passes.
+// ── DB-IP AND NOT MAXMIND, FOR THE REASON internal/geo GIVES ───────────────
 //
-// ── NO CACHE HERE, DELIBERATELY ─────────────────────────────────────────────
+// GeoLite2 ASN is updated daily and is probably better data. It also needs an
+// account, a licence key and a signed EULA, which makes a build nobody who
+// clones this repo can run. DB-IP ASN Lite is one keyless HTTPS GET, monthly,
+// CC BY 4.0 — the same terms, the same vendor and the same Dockerfile shape as
+// the city database beside it. IPinfo and IP2Location were checked and both
+// require an account too.
 //
-// The original keeps a 5,000-entry LRU because it is called once per connection
-// per tick from JavaScript. This side is already memoised: every collector
-// builds a per-tick map keyed by address before it asks. A third cache would
-// need a mutex on the hot path to save a walk over 339 prefixes that Go does in
-// microseconds, and caching is the one kind of state that turns a pure function
-// into something a test has to reset.
+// CC BY 4.0 REQUIRES THE CREDIT TO BE VISIBLE. "IP Geolocation by DB-IP",
+// linked to db-ip.com, on the pages that show the data. See `web/src/ui/` —
+// it is a licence term, not a courtesy, and `internal/verify` pins it.
+//
+// ── FAILURE IS A VALUE, AS IT IS FOR GEO ───────────────────────────────────
+//
+// No database is a DEGRADED state, never a fatal one: a Connections page with
+// no organisation badges still shows every address, rate and country. Callers
+// gate on the bool rather than on a non-nil handle, so "no database" is a state
+// the code names rather than one it stumbles into.
 package asn
 
 import (
+	"fmt"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
+
+	"github.com/oschwald/maxminddb-golang/v2"
 )
 
-// entry is one org and its published ranges, split by family. The generator
-// writes these as strings; parsing happens once, at init.
-type entry struct {
-	org    string
-	v4, v6 []string
+// mmdbName is the file Load looks for. Fixed rather than globbed, for the
+// reason internal/geo fixes its own: a directory holding two vintages should
+// fail loudly at the download step, not silently pick whichever sorted first.
+const mmdbName = "dbip-asn-lite.mmdb"
+
+// record is the subset of a DB-IP ASN row this package reads. Decoded into a
+// struct rather than `any` so maxminddb skips everything not named here; this
+// runs once per distinct destination per tick.
+type record struct {
+	Num uint   `maxminddb:"autonomous_system_number"`
+	Org string `maxminddb:"autonomous_system_organization"`
 }
 
-// parsedEntry is the same thing after parsing, which is what Org walks.
-type parsedEntry struct {
-	org    string
-	v4, v6 []netip.Prefix
-}
+// DB is a loaded ASN database.
+type DB struct{ r *maxminddb.Reader }
 
-var parsed []parsedEntry
+var (
+	once   sync.Once
+	shared *DB
+	reason string
+)
 
-// ORDER IS PRESERVED FROM THE TABLE. The original returns the first entry that
-// matches, and its header says specific entries come before broad ones — so a
-// sort here, by prefix length or org or anything else, would change answers.
-func init() {
-	parsed = make([]parsedEntry, 0, len(orgs))
-	for _, e := range orgs {
-		pe := parsedEntry{org: e.org}
-		// A range that does not parse is DROPPED rather than fatal, which is the
-		// original's `catch (_) { return null }` filter. A malformed entry in a
-		// hand-maintained list should cost that one range and nothing else.
-		for _, c := range e.v4 {
-			if p, err := netip.ParsePrefix(strings.TrimSpace(c)); err == nil {
-				pe.v4 = append(pe.v4, p)
-			}
-		}
-		for _, c := range e.v6 {
-			if p, err := netip.ParsePrefix(strings.TrimSpace(c)); err == nil {
-				pe.v6 = append(pe.v6, p)
-			}
-		}
-		parsed = append(parsed, pe)
-	}
-}
-
-// Org returns the owning organisation, or "" when the address is in none of the
-// ranges. The bool distinguishes "looked up and found nothing" from "not looked
-// up", which is what a null org in the payload means.
-//
-// THE FAMILY RULES ARE THE ORIGINAL'S, and the v4-mapped case is the subtle one:
-// `::ffff:8.8.8.8` is checked against the v6 ranges AS A V6 ADDRESS — it matches
-// none of them today, but that is the order the original tries — and then
-// against the v4 ranges as 8.8.8.8. A reader that only unwrapped it would agree
-// here and disagree the day someone publishes a range covering ::ffff:0:0/96.
-// NO TrimSpace, and that absence is load-bearing. `ipaddr.parse(' 8.8.8.8 ')`
-// throws, so the original returns null for a padded address; trimming here made
-// this side answer "Google" where the live app answers nothing. It was written
-// as a kindness and it is a behaviour change — the gate caught it on its first
-// run, which is the whole reason the case set carries malformed input.
-func Org(ip string) (string, bool) {
-	addr, err := netip.ParseAddr(ip)
+// Load opens the database in dir.
+func Load(dir string) (*DB, error) {
+	p := filepath.Join(dir, mmdbName)
+	st, err := os.Stat(p)
 	if err != nil {
-		return "", false
+		return nil, err
 	}
-	// A ZONE IS STRIPPED, NOT REFUSED. `ipaddr.parse('2001:4860::1%eth0')` reads
-	// the last group with parseInt, which stops at the `%`, so the original
-	// matches that address as though the zone were absent. Stripping is also
-	// required rather than merely faithful: netip.Prefix.Contains returns FALSE
-	// for any address carrying a zone, so leaving it on would silently make every
-	// zoned address match nothing.
-	addr = addr.WithZone("")
-
-	// unmapped is the v4 view of the address: itself when it is v4, the unwrapped
-	// form when it is v4-mapped, and invalid for a real v6 address.
-	var unmapped netip.Addr
-	switch {
-	case addr.Is4In6():
-		unmapped = addr.Unmap()
-	case addr.Is4():
-		unmapped = addr
+	if st.IsDir() || st.Size() == 0 {
+		return nil, fmt.Errorf("asn: %s is empty or a directory", p)
 	}
-	// A v6-shaped address is matched against the v6 ranges. `Is4()` is false for
-	// the mapped form, which is exactly how ipaddr.js sees it too.
-	checkV6 := !addr.Is4()
-
-	for _, e := range parsed {
-		if checkV6 {
-			for _, p := range e.v6 {
-				if p.Contains(addr) {
-					return e.org, true
-				}
-			}
-		}
-		if unmapped.IsValid() {
-			for _, p := range e.v4 {
-				if p.Contains(unmapped) {
-					return e.org, true
-				}
-			}
-		}
+	r, err := maxminddb.Open(p)
+	if err != nil {
+		return nil, fmt.Errorf("opening %s: %w", p, err)
 	}
-	return "", false
+	// VALIDATE THE TYPE. A City database opens cleanly here and then answers
+	// with no organisation for every address — which reads as "nothing owns
+	// this" rather than as the wrong file in the wrong place. internal/geo
+	// makes the same check for the mirror-image mistake.
+	if t := r.Metadata.DatabaseType; !strings.Contains(strings.ToLower(t), "asn") {
+		r.Close()
+		return nil, fmt.Errorf("%s is a %q database; an ASN database is required "+
+			"(any other kind answers with no organisation, which looks like missing "+
+			"data rather than the wrong file)", p, t)
+	}
+	return &DB{r: r}, nil
 }
 
-// Category is the colour class for an org. An unmapped org — and the empty
-// string — is "other", which is a value the page renders rather than a missing
-// one.
-func Category(org string) string {
-	if org == "" {
-		return "other"
-	}
-	if c, ok := categories[org]; ok {
-		return c
-	}
-	return "other"
+// Shared loads the database once from the usual place, and reports whether it
+// is available.
+func Shared(dir string) (*DB, bool) {
+	once.Do(func() {
+		db, err := Load(dir)
+		if err != nil {
+			reason = err.Error()
+			return
+		}
+		shared = db
+	})
+	return shared, shared != nil
 }
 
-// Lookup is the collectors' OrgLookup shape: org, category, found.
-func Lookup(ip string) (string, string, bool) {
-	org, ok := Org(ip)
-	if !ok {
+// Reason is why the database is unavailable, for a log line or a status page.
+func Reason() string { return reason }
+
+// Current is the database Shared already loaded, for callers with no business
+// knowing where it lives.
+func Current() (*DB, bool) { return shared, shared != nil }
+
+// Lookup returns the owning organisation and its colour category.
+//
+// The bool distinguishes "looked up and found nothing" from "not looked up",
+// which is what a null org in the payload means. An address in no AS — unrouted
+// space, or a network this Lite edition does not carry — is a miss, not an
+// organisation with an empty name.
+func (d *DB) Lookup(ip string) (string, string, bool) {
+	if d == nil || d.r == nil {
 		return "", "", false
 	}
-	return org, Category(org), true
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return "", "", false
+	}
+	// NO ZONE HANDLING HERE, and that is measured rather than assumed. The
+	// prefix-walking reader this replaced HAD to strip a zone, because
+	// netip.Prefix.Contains returns false for any address carrying one. The
+	// mmdb reader resolves `…::8888%eth0` correctly on its own, so stripping it
+	// here would be a line with no instances. TestAgainstARealDatabase asserts
+	// the library still does it, which is the guard that used to be this code.
+	var rec record
+	if err := d.r.Lookup(addr).Decode(&rec); err != nil {
+		return "", "", false
+	}
+	if rec.Org == "" {
+		return "", "", false
+	}
+	return Name(rec.Org), Category(rec.Num), true
+}
+
+// Lookuper adapts a database to the collectors' OrgLookup shape, as
+// (*geo.DB).Lookuper does for theirs.
+func (d *DB) Lookuper() func(ip string) (string, string, bool) {
+	return d.Lookup
 }
