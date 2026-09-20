@@ -168,3 +168,24 @@ func (c *Cache) Demand() []Demand {
 
 // Every is a fixed cadence for Subscribe.
 func Every(d time.Duration) func() time.Duration { return func() time.Duration { return d } }
+
+// deliverStreamed hands a menu's newly completed round to its subscribers,
+// shaped exactly as the scheduler shapes a refresh.
+//
+// ── THE SAME PATH, ON THE DATA'S CLOCK RATHER THAN THE SCHEDULER'S ─────────
+//
+// `Get` on a stream-filled entry answers from the last complete round and sends
+// the router nothing, so this costs one map read and whatever the subscriber
+// does with it. A menu nobody subscribes to is not delivered: the fill may be
+// held open for a row hook alone (traffic), and inventing a delivery for it
+// would run a derive nobody asked for.
+func (c *Cache) deliverStreamed(menu string) {
+	for _, d := range c.Demand() {
+		if d.Menu != menu {
+			continue
+		}
+		rows, err := c.Get(menu, d.Fields, d.Cadence)
+		c.deliver(menu, rows, err)
+		return
+	}
+}

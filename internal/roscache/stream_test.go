@@ -995,14 +995,25 @@ func TestJoinStreamRefusesWhatItCannotDo(t *testing.T) {
 
 // TestTheMergedBoundaryIsTheFinestHolderAsksFor.
 //
+// ── RE-AIMED 2026-09-20: THE TWO GAPS ARE NO LONGER ONE ────────────────────
+//
+// The boundary WAS the holder's interval, and the staleness window was derived
+// from the boundary. That cost an interval of delay on every streamed menu — a
+// round of rows already in hand was not published until the next re-print
+// arrived — and a NetWatch recovery reached the rules two minutes after the
+// router saw it. The round gap is now `roundQuiet`, a second, measured against
+// bursts of 53 to 132ms for the heaviest table here; the STALENESS window is
+// still derived from the interval, because a menu read once a minute is
+// legitimately quiet for a minute.
+//
+// So what this test pins has changed with it: the round gap is the finest of a
+// second and the interval, and the staleness window still follows the interval
+// in both directions. A holder joining must not lift either.
+//
 // ── A SURVIVING MUTATION IS WHY THIS EXISTS ────────────────────────────────
 //
 // Deleting `tightenBoundaryLocked` from the join path left every other test
-// green. The boundary is how long a quiet gap must be to end a round, and it is
-// derived from the CADENCE — so a fill created by a five-second holder keeps a
-// five-second boundary after a one-second holder widens the channel to one
-// second. The round boundary is then five times the interval, and the staleness
-// window that the empty-table rule doubles is wrong with it.
+// green.
 //
 // It survives in practice on this menu because the repeat-key signal ends a
 // round anyway — monitor-traffic re-sends every interface every interval — which
@@ -1024,18 +1035,21 @@ func TestTheMergedBoundaryIsTheFinestHolderAsksFor(t *testing.T) {
 	f.mu.Lock()
 	first, firstStale := f.boundary, f.stale
 	f.mu.Unlock()
-	if first != 5*time.Second {
-		t.Fatalf("the first holder's boundary is %v, want 5s", first)
+	if first != roundQuiet {
+		t.Fatalf("the first holder's round gap is %v, want %v: a round in hand must not "+
+			"wait for the next re-print to be published", first, roundQuiet)
+	}
+	if firstStale < 2*5*time.Second {
+		t.Fatalf("a five-second holder's staleness window is %v: a stream is silent between "+
+			"re-prints, and judging it dead inside one reopens a healthy channel", firstStale)
 	}
 
 	defer joinIfaces(t, c, "ether1", 1, nil)()
 	f.mu.Lock()
 	after, afterStale := f.boundary, f.stale
 	f.mu.Unlock()
-	if after != time.Second {
-		t.Errorf("after a 1s holder joined a 5s channel the boundary is %v, want 1s — "+
-			"the merged channel delivers every second and a round that takes five to "+
-			"close is four seconds of two rounds counted as one", after)
+	if after != roundQuiet {
+		t.Errorf("after a 1s holder joined a 5s channel the round gap is %v, want %v", after, roundQuiet)
 	}
 	// The staleness floor must not RISE with the boundary falling, and must not
 	// fall below the floor either: it is max(streamStale, 2*boundary).
@@ -1045,5 +1059,17 @@ func TestTheMergedBoundaryIsTheFinestHolderAsksFor(t *testing.T) {
 	if afterStale > firstStale {
 		t.Errorf("staleness rose from %v to %v as the cadence got FINER",
 			firstStale, afterStale)
+	}
+
+	// AND A MINUTE-LONG STREAM IS NOT JUDGED DEAD IN SECONDS, which is what
+	// deriving the staleness window from the round gap would do: netwatch is
+	// re-printed once a minute and says nothing in between.
+	f2 := newFill(routeros.Cmd{}, byName, time.Minute, streamCheck, streamStale)
+	if f2.boundary != roundQuiet {
+		t.Errorf("a minute-long stream's round gap is %v, want %v", f2.boundary, roundQuiet)
+	}
+	if f2.stale < 2*time.Minute {
+		t.Errorf("a minute-long stream is called dead after %v of silence, and it is quiet "+
+			"for a minute by design", f2.stale)
 	}
 }

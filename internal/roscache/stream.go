@@ -115,6 +115,30 @@ var unrollable = map[string]string{
 const (
 	streamStale = 10 * time.Second
 	streamCheck = 5 * time.Second
+	// roundQuiet is how long a stream must be silent for the round it has just
+	// delivered to count as complete.
+	//
+	// ── IT WAS THE INTERVAL, AND THAT COST A WHOLE ONE ─────────────────────
+	//
+	// The gap was the subscription's cadence, so a table re-printed every
+	// minute had its round closed by the arrival of the NEXT re-print — a whole
+	// interval after the rows were in hand. With the collector then taking it on
+	// its own tick, a change reached the browser and the alert rules up to two
+	// intervals late: the operator was told a NetWatch host had come back at
+	// 11:15:32 for a router that saw it at 11:13:30 (2026-09-20).
+	//
+	// A round arrives in a BURST, which is what makes a short gap safe.
+	// Measured on the hAP AX3 that day: /tool/netwatch/print delivered its 3
+	// rows in under a millisecond, and /ip/firewall/connection/print — the
+	// heaviest streamed table here — delivered 354 to 486 rows in 53 to 132ms.
+	// A second is an order of magnitude above the worst of those and sixty times
+	// tighter than the interval it replaces.
+	//
+	// It is NOT the silence that means the channel is dead: that is `stale`,
+	// which stays derived from the interval, because a menu read once a minute
+	// is legitimately quiet for a minute. Deriving one from the other is what
+	// coupled them — see newFill.
+	roundQuiet = time.Second
 )
 
 // streamFill keeps one menu's entry current from an open channel.
@@ -148,6 +172,24 @@ type streamFill struct {
 	// difference between this recovery being tested and being hoped for.
 	check time.Duration
 	stale time.Duration
+	// onPublish is called after a round completes, outside the lock, with the
+	// menu this fill serves. The cache sets it; see JoinStream.
+	//
+	// ── WHY A ROUND IS PUSHED RATHER THAN WAITED FOR ───────────────────────
+	//
+	// The scheduler asks each menu for its rows on the subscription's cadence,
+	// which is the right clock for a POLL: the read happens when it asks. A
+	// streamed menu is the other way round — the rows are already here, and the
+	// tick only decides when somebody is told. That added up to a whole extra
+	// interval of delay on top of the one the round boundary cost (see
+	// roundQuiet), so a NetWatch recovery reached the rules two minutes after
+	// the router saw it.
+	//
+	// The scheduler still ticks, and that is deliberate: it is the heartbeat a
+	// collector's re-emit rule uses, and for a stream-filled entry its Get costs
+	// no router command. This only adds the timely delivery the data itself can
+	// announce.
+	onPublish func()
 	// restarts is how many times the watchdog has reopened this channel. Read by
 	// a test, and worth having: a channel restarting steadily is a router
 	// problem that would otherwise look like a slow page.
@@ -282,6 +324,9 @@ func (c *Cache) JoinStream(j Join) (func(), error) {
 		f.shared = j.Merge != nil
 		f.holders = map[int]Join{}
 		f.done = make(chan struct{})
+		// A FINISHED ROUND IS HANDED OVER AT ONCE. See streamFill.onPublish.
+		menu := j.Menu
+		f.onPublish = func() { c.deliverStreamed(menu) }
 		c.fills[j.Menu] = f
 	}
 	f.mu.Lock()
@@ -379,15 +424,17 @@ func (f *streamFill) mergeLocked() routeros.Cmd {
 }
 
 // tightenBoundaryLocked lowers the round boundary to the finest any holder wants.
-func (f *streamFill) tightenBoundaryLocked(b time.Duration) {
-	if b <= 0 {
+func (f *streamFill) tightenBoundaryLocked(interval time.Duration) {
+	if interval <= 0 {
 		return
 	}
-	if f.boundary <= 0 || b < f.boundary {
-		f.boundary = b
+	if g := roundGap(interval); f.boundary <= 0 || g < f.boundary {
+		f.boundary = g
 	}
-	if 2*f.boundary > f.stale {
-		f.stale = 2 * f.boundary
+	// FROM THE INTERVAL, never from the round gap: a holder asking for a minute
+	// must not have its channel judged dead after two seconds. See roundQuiet.
+	if 2*interval > f.stale {
+		f.stale = 2 * interval
 	}
 }
 
@@ -426,13 +473,24 @@ func sameCmd(a, b routeros.Cmd) bool {
 
 // newFill is the shared constructor for both entry points.
 func newFill(cmd routeros.Cmd, keyOf func(routeros.Reply) string,
-	boundary, check, stale time.Duration) *streamFill {
-	if boundary > 0 && 2*boundary > stale {
-		stale = 2 * boundary
+	interval, check, stale time.Duration) *streamFill {
+	// THE DEAD-CHANNEL BOUND COMES FROM THE INTERVAL, the round boundary does
+	// not. See roundQuiet.
+	if interval > 0 && 2*interval > stale {
+		stale = 2 * interval
 	}
 	return &streamFill{cmd: cmd, keyOf: keyOf,
 		rows: map[string]routeros.Reply{}, round: map[string]routeros.Reply{},
-		boundary: boundary, check: check, stale: stale}
+		boundary: roundGap(interval), check: check, stale: stale}
+}
+
+// roundGap is the silence that ends a round: a second, or the interval itself
+// when that is shorter (a one-second stream must not wait a second to publish).
+func roundGap(interval time.Duration) time.Duration {
+	if interval > 0 && interval < roundQuiet {
+		return interval
+	}
+	return roundQuiet
 }
 
 // StreamStats is one fill's health, for a collector that used to run its own
@@ -597,34 +655,44 @@ func (f *streamFill) absorb(r routeros.Reply) {
 		fn(r)
 	}
 	k := f.keyOf(r)
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	// THE ANNOUNCEMENT IS OUTSIDE THE LOCK, for the reason the fan-out above
+	// is: it reaches a collector's derive. The fold is a closure so the unlock
+	// happens before it rather than after, which a deferred unlock would invert.
+	published := func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
 
-	// A GAP ENDS THE PREVIOUS ROUND, and this is checked before the repeat so a
-	// small table's round closes on time rather than an interval late.
-	if f.boundary > 0 && len(f.round) > 0 && !f.lastRow.IsZero() &&
-		time.Since(f.lastRow) > f.boundary {
-		f.finishRoundLocked()
-	}
-	f.lastRow = time.Now()
-	// Any row ends the run of silence, which is what makes the empty-table rule
-	// self-correcting rather than sticky.
-	f.quietSince = time.Time{}
+		// A GAP ENDS THE PREVIOUS ROUND, and this is checked before the repeat
+		// so a small table's round closes on time rather than an interval late.
+		done := false
+		if f.boundary > 0 && len(f.round) > 0 && !f.lastRow.IsZero() &&
+			time.Since(f.lastRow) > f.boundary {
+			done = f.finishRoundLocked()
+		}
+		f.lastRow = time.Now()
+		// Any row ends the run of silence, which is what makes the empty-table
+		// rule self-correcting rather than sticky.
+		f.quietSince = time.Time{}
 
-	if k == "" {
-		// NOT DROPPED SILENTLY. A menu whose rows this cannot name is one a
-		// rolling map cannot represent, and the count is what makes that
-		// visible from outside instead of appearing as a page missing a row.
-		f.unkeyed++
-		return
+		if k == "" {
+			// NOT DROPPED SILENTLY. A menu whose rows this cannot name is one a
+			// rolling map cannot represent, and the count is what makes that
+			// visible from outside instead of appearing as a page missing a row.
+			f.unkeyed++
+			return done
+		}
+		if _, repeat := f.round[k]; repeat {
+			done = f.finishRoundLocked() || done
+		}
+		if f.round == nil {
+			f.round = map[string]routeros.Reply{}
+		}
+		f.round[k] = r
+		return done
+	}()
+	if published {
+		f.announce()
 	}
-	if _, repeat := f.round[k]; repeat {
-		f.finishRoundLocked()
-	}
-	if f.round == nil {
-		f.round = map[string]routeros.Reply{}
-	}
-	f.round[k] = r
 }
 
 // rowHooks copies the holders' row callbacks so `absorb` can call them without
@@ -644,15 +712,29 @@ func (f *streamFill) rowHooks() []func(routeros.Reply) {
 	return out
 }
 
-// finishRoundLocked publishes the round just received. Caller holds f.mu.
-func (f *streamFill) finishRoundLocked() {
+// finishRoundLocked publishes the round just received, and reports whether it
+// did. Caller holds f.mu, and announces OUTSIDE it: `onPublish` reaches a
+// collector's derive, which takes its own locks and may read this cache again.
+func (f *streamFill) finishRoundLocked() bool {
 	if len(f.round) == 0 {
-		return
+		return false
 	}
 	f.rows = f.round
 	f.round = map[string]routeros.Reply{}
 	f.published = true
 	f.rounds++
+	return true
+}
+
+// announce hands a finished round to the menu's subscribers. Never called with
+// f.mu held.
+func (f *streamFill) announce() {
+	f.mu.Lock()
+	fn := f.onPublish
+	f.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 // hasRows reports whether this fill has received anything at all yet.
@@ -738,9 +820,10 @@ func (f *streamFill) watch(s Streamer, done <-chan struct{}) {
 			// gap when the NEXT row arrives, which for a table read once a
 			// minute is a minute late; this closes it on time. Same rule, the
 			// other side of the silence.
+			closedRound := false
 			if f.boundary > 0 && len(f.round) > 0 && !f.lastRow.IsZero() &&
 				time.Since(f.lastRow) > f.boundary {
-				f.finishRoundLocked()
+				closedRound = f.finishRoundLocked()
 			}
 
 			// ── AN EMPTY TABLE SENDS NOTHING, AND SO DOES A DEAD STREAM ─────
@@ -782,6 +865,10 @@ func (f *streamFill) watch(s Streamer, done <-chan struct{}) {
 			shut := f.closed
 			gen := f.gen
 			f.mu.Unlock()
+			// OUTSIDE THE LOCK, as absorb announces: this reaches a collector.
+			if closedRound {
+				f.announce()
+			}
 			if shut || quiet < f.stale {
 				continue
 			}
