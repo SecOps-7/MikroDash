@@ -712,6 +712,7 @@ export interface NetwatchHost {
   comment: string;
   disabled: boolean;
   interval: string;
+  since: string;
 }
 
 export interface NetwatchPayload {

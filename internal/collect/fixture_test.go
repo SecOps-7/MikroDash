@@ -418,8 +418,14 @@ var addedSinceNode = map[string][]addedField{
 	// Whether a host is disabled and how often it is probed, added 2026-09-15 for
 	// the NetWatch page (#97), which shows and edits both. Purely additive; the
 	// capture read the full row, so both are filled from the recording.
+	// `since` joined them on 2026-09-20: RouterOS's own "this host last changed
+	// state at". The table is read once a minute and the operator's hosts went
+	// down and back up in thirty seconds, so both readings said "up" and the
+	// alert rule had nothing to compare; `since` moving is the evidence that the
+	// outage happened. Purely additive, and the capture read the full row, so it
+	// is filled from the recording.
 	"netwatch": {
-		added("hosts[].disabled"), added("hosts[].interval"),
+		added("hosts[].disabled"), added("hosts[].interval"), added("hosts[].since"),
 	},
 	// The 802.11 generation a client negotiated. Added 2026-09-07 for the WiFi
 	// Clients page's Standard column: the Node app read the registration table's

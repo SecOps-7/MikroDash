@@ -136,6 +136,9 @@ type Evaluator struct {
 	// from both. Absent means never seen, which is its own answer: see
 	// NetwatchUpdate.
 	prevNetwatchState map[string]string
+	// prevNetwatchSince is the router's own "last changed at" per host id, which
+	// is how an outage SHORTER THAN ONE READING is caught: see NetwatchUpdate.
+	prevNetwatchSince map[string]string
 
 	// prevIfState is the running AND disabled flags per interface name. Both are
 	// needed: the disabled one is what tells an admin action from a real fault,
@@ -217,6 +220,7 @@ func NewEvaluator(s Settings, store Store) *Evaluator {
 	return &Evaluator{settings: s, store: store,
 		prevPingAlert:     map[string]bool{},
 		prevNetwatchState: map[string]string{},
+		prevNetwatchSince: map[string]string{},
 		prevIfState:       map[string]ifState{},
 		prevVPNState:      map[string]string{},
 		prevBGPState:      map[string]bool{},
@@ -469,6 +473,9 @@ type NetwatchHost struct {
 	Host   string
 	Name   string
 	Status string // "up" | "down" | "unknown"
+	// Since is when the router says this host last changed state. See
+	// collect.NetwatchHost.Since, and the outage rule below.
+	Since string
 }
 
 // NetwatchUpdate evaluates one netwatch:update event.
@@ -514,7 +521,30 @@ func (e *Evaluator) NetwatchUpdate(r Router, hosts []NetwatchHost) []Fired {
 		wasDown := prev == "down"
 		isDown := h.Status == "down"
 
-		if seen && wasDown != isDown {
+		// ── AN OUTAGE SHORTER THAN ONE READING ─────────────────────────────
+		//
+		// This table is read once a minute, and the operator's hosts went down
+		// and back up in thirty seconds (2026-09-20): both readings said "up",
+		// `wasDown != isDown` was false, and nothing fired while the router's own
+		// script had already told Home Assistant twice.
+		//
+		// `since` is the router's own "last changed at". If it MOVED while the
+		// status looks unchanged, the host changed state at least twice in
+		// between, and the one that matters is an up host that was down: it is
+		// reported as the pair it really was, a down and then its recovery, in
+		// that order so the recovery has a row to resolve.
+		//
+		// ONLY FOR A HOST THAT IS UP AND WAS UP. A host that is still down has an
+		// alert open already, and re-raising it on every flap would be noise.
+		// A ROUTER REBOOT re-probes every host and restamps `since`, so a reboot
+		// reports one pair per host: the hosts were unreachable from the router,
+		// and the alternative is trusting a timestamp across a restart.
+		prevSince, sinceSeen := e.prevNetwatchSince[h.ID]
+		missedOutage := seen && sinceSeen && !isDown && !wasDown &&
+			h.Since != "" && prevSince != "" && h.Since != prevSince
+		e.prevNetwatchSince[h.ID] = h.Since
+
+		if seen && wasDown != isDown || missedOutage {
 			name := h.Name
 			if name == "" {
 				name = h.Host
@@ -525,7 +555,25 @@ func (e *Evaluator) NetwatchUpdate(r Router, hosts []NetwatchHost) []Fired {
 			if name != h.Host {
 				desc = name + " (" + h.Host + ")"
 			}
-			if isDown {
+			if missedOutage {
+				// THE DOWN FIRST, so the recovery below has a row to resolve:
+				// `emit` only reports an "up" when something was actually
+				// closed. The detail says when the router saw it come back,
+				// because "is unreachable" for a host that is reachable now
+				// would be a lie by the time it is read.
+				out = append(out, e.emit(r, Fired{
+					AlertType: "Host Down",
+					Subject:   name,
+					Detail:    "NetWatch host " + desc + " was unreachable",
+				}, e.settings.NotifNetwatch)...)
+				out = append(out, e.emit(r, Fired{
+					Up:          true,
+					AlertType:   "Host Up",
+					ResolveType: "host_down",
+					Subject:     name,
+					Detail:      "NetWatch host " + desc + " is reachable again (the router saw it return at " + h.Since + ")",
+				}, e.settings.NotifNetwatch)...)
+			} else if isDown {
 				out = append(out, e.emit(r, Fired{
 					AlertType: "Host Down",
 					Subject:   name,
@@ -544,6 +592,7 @@ func (e *Evaluator) NetwatchUpdate(r Router, hosts []NetwatchHost) []Fired {
 		e.prevNetwatchState[h.ID] = h.Status
 	}
 	capMap(e.prevNetwatchState, live)
+	capMap(e.prevNetwatchSince, live)
 	return out
 }
 

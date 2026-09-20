@@ -49,6 +49,18 @@ type NetwatchHost struct {
 	// probed rather than as down: see internal/alertwire.
 	Disabled bool   `json:"disabled"`
 	Interval string `json:"interval"`
+	// Since is RouterOS's own "this host last changed state at", as it prints
+	// it ("2026-09-20 01:36:59", the router's clock).
+	//
+	// ── IT IS WHAT CATCHES AN OUTAGE SHORTER THAN A READING ────────────────
+	//
+	// This table is read once a minute. Measured on the operator's hAP AX3
+	// (2026-09-20): two hosts went down and came back in THIRTY SECONDS each, so
+	// both readings either side said "up" and the rule had nothing to compare.
+	// The router's own on-down script had already fired. `since` moving while
+	// the status looks unchanged is the evidence that a change happened in
+	// between, and it costs no extra read: the row carries it.
+	Since string `json:"since"`
 }
 
 // NetwatchPayload is `netwatch:update`. HOSTS FIRST, then ts — the field order
@@ -104,6 +116,7 @@ func normaliseNetwatch(r routeros.Reply) NetwatchHost {
 	return NetwatchHost{
 		ID: r[".id"], Host: r["host"], Type: typ, Status: status, Name: r["name"],
 		Comment: r["comment"], Disabled: r["disabled"] == "true", Interval: r["interval"],
+		Since: r["since"],
 	}
 }
 

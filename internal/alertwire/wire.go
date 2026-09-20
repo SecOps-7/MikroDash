@@ -365,7 +365,7 @@ func hosts(in []collect.NetwatchHost) []alert.NetwatchHost {
 			status = "unknown"
 		}
 		out = append(out, alert.NetwatchHost{
-			ID: h.ID, Host: h.Host, Name: h.Name, Status: status,
+			ID: h.ID, Host: h.Host, Name: h.Name, Status: status, Since: h.Since,
 		})
 	}
 	return out
