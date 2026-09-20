@@ -24,8 +24,14 @@
            dedicated pages each manage one protocol and show its configuration;
            nothing else in the app answers "who is on the VPN right now". Built
            from the same `vpn:update` the table above uses, so it costs the
-           router nothing. -->
-      <div class="card">
+           router nothing.
+
+           EVERY CARD BELOW THE FIRST CARRIES ITS OWN margin-top. `.card` has no
+           margin of its own, so stacked cards sit flush unless one is given —
+           the idiom `page-ppp.html` already uses for its second card. Setting
+           it inline beside `display:none` is safe: the page only ever assigns
+           `style.display`, which leaves the rest of the inline style alone. -->
+      <div class="card" style="margin-top:.85rem">
         <div class="card-header d-flex align-items-center gap-2">
           <h3 class="card-title">Live Connections</h3><span id="vpnLiveCount" class="card-badge">0</span>
         </div>
@@ -36,7 +42,7 @@
 
       <!-- PPP sessions (L2TP / PPTP / SSTP / OpenVPN). Hidden unless the router
            actually has sessions, so a WireGuard-only setup is unchanged. -->
-      <div class="card" id="vpnPppCard" style="display:none">
+      <div class="card" id="vpnPppCard" style="display:none;margin-top:.85rem">
         <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">PPP Sessions</h3><span id="vpnPppCount" class="card-badge">0</span></div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -49,7 +55,7 @@
       </div>
 
       <!-- IPsec peers, joined to their installed SAs for the negotiated ciphers. -->
-      <div class="card" id="vpnIpsecCard" style="display:none">
+      <div class="card" id="vpnIpsecCard" style="display:none;margin-top:.85rem">
         <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">IPsec Peers</h3><span id="vpnIpsecCount" class="card-badge">0</span></div>
         <div class="card-body p-0">
           <div class="table-responsive">
