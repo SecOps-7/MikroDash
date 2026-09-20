@@ -2656,9 +2656,20 @@ var WgPeer = &Resource{
 			Type: TypeText, Clearable: true, Placeholder: "10.0.0.2/32",
 			Help: "the address the client gives its own tunnel interface"},
 		{Name: "clientDns", ROS: "client-dns", Label: "Client DNS", Type: TypeText, Clearable: true},
+		// ── HOST ONLY. THE ROUTER APPENDS THE PORT ITSELF ────────────────
+		//
+		// Measured on a lab CHR (7.24.4): `show-client-config` renders
+		// `Endpoint = <client-endpoint>:<the interface's listen-port>`. So a
+		// value of `vpn.example.com` produces `vpn.example.com:13231` and works,
+		// while `vpn.example.com:9999` produces `vpn.example.com:9999:13231` —
+		// a config the client accepts and can never connect with.
+		//
+		// The placeholder and help say so, because the field's NAME invites the
+		// mistake and nothing on the router refuses it.
 		{Name: "clientEndpoint", ROS: "client-endpoint", Label: "Client Endpoint",
-			Type: TypeText, Clearable: true, Placeholder: "vpn.example.com:13231",
-			Help: "the address and port the client dials to reach this router"},
+			Type: TypeText, Clearable: true, Placeholder: "vpn.example.com",
+			Help: "host only — the router appends the interface's listen port. " +
+				"A port here is emitted twice and the client cannot connect."},
 		{Name: "clientKeepalive", ROS: "client-keepalive", Label: "Client Keepalive",
 			Type: TypeText, Clearable: true, Placeholder: "25s"},
 		{Name: "clientAllowedAddress", ROS: "client-allowed-address",
