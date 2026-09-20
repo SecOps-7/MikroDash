@@ -66,9 +66,16 @@ func readVia(c *roscache.Cache, ros Reader, cmd routeros.Cmd, ttl time.Duration)
 // carrying anything beyond a field list is asking a narrower question than its
 // menu name and must not be served a broader answer.
 //
-// `/interface/wireguard/peers` is the one live example of the second: a Query
-// that asks for full detail, so it is cacheable in principle and not by THIS
-// cache. It has one consumer, so nothing is lost.
+// THERE IS NO LIVE EXAMPLE OF THE SECOND any more, and the one there was is
+// worth recording. `/interface/wireguard/peers` asked with `=detail=`, which is
+// "anything beyond a field list", so it was cacheable in principle and not by
+// this cache. That read now names a proplist — it had to, because `=detail=`
+// also returned every peer's `private-key` — and a field list is exactly what
+// this cache can key on, so the exception closed as a side effect of a
+// credential fix rather than of a caching decision.
+//
+// It still has one consumer and still reads directly, so nothing is served
+// through here yet. The condition below is what would notice if that changed.
 //
 // No args means "every field", which IS cacheable — as the widest possible
 // union. See roscache.Get.

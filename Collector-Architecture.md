@@ -131,7 +131,7 @@ the one recorded override.
 
 - derived from another collector's output: `vlans`, `bandwidth`;
 - a set B stream: `logs`, `ping`, `traffic`;
-- a non-plain command: `vpn`;
+- two cadences in one collector: `vpn`;
 - a menu chosen at runtime: `firewall`, `wifi`, `wireless`, and `areas` — which
   is the case in its strongest form: `internal/areas` declares each generated
   page, and which menus are read is the set of areas whose room is occupied, so

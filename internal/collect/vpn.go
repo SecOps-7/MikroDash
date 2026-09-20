@@ -49,10 +49,37 @@ import (
 )
 
 var (
-	vpnPeersCmd = routeros.Cmd{Path: "/interface/wireguard/peers/print", Args: []string{"=detail="}}
-	vpnPppCmd   = routeros.Cmd{Path: "/ppp/active/print"}
-	vpnSaCmd    = routeros.Cmd{Path: "/ip/ipsec/installed-sa/print"}
-	vpnPeerCmd  = routeros.Cmd{Path: "/ip/ipsec/active-peers/print"}
+	// ── THE PROPLIST IS WHAT KEEPS THE PRIVATE KEYS ON THE ROUTER ─────────
+	//
+	// This was `=detail=` with no proplist, and RouterOS answers such a read
+	// with EVERY property — including `private-key` and `preshared-key`, for
+	// every peer, on every poll. `tools/capture-fixtures.js` says so in its own
+	// words: the first fixture capture "aborted on exactly that".
+	//
+	// `TestNoProplistNamesACredential` could not see it. That check reads
+	// proplists, and a command with no proplist is not checked at all — its own
+	// closing section lists this as its first known gap. So the rule was right,
+	// the enforcement point was right, and this read simply sat outside it.
+	//
+	// MEASURED on the lab CHR (7.24.4, two interfaces peered over loopback so
+	// the counters are real): the proplist returns `rx`, `tx`, `last-handshake`
+	// and `current-endpoint-address` exactly as `=detail=` did, and returns
+	// neither secret. `=detail=` is gone rather than kept beside it, because on
+	// this menu the two answer with an IDENTICAL key set — a plain print returns
+	// the secrets too, so `=detail=` was never what caused this and never bought
+	// anything here.
+	//
+	// EVERY NAME BELOW IS READ by BuildTunnels or peerName. `rx-bytes` and
+	// `tx-bytes` are the older RouterOS spelling of the counters, which the
+	// build falls back to; dropping them from the list would silently zero the
+	// rates on exactly the routers that need the fallback.
+	vpnPeersCmd = routeros.Cmd{Path: "/interface/wireguard/peers/print", Args: []string{
+		"=.proplist=.id,interface,name,comment,public-key,allowed-address," +
+			"persistent-keepalive,endpoint-address,current-endpoint-address," +
+			"last-handshake,rx,rx-bytes,tx,tx-bytes"}}
+	vpnPppCmd  = routeros.Cmd{Path: "/ppp/active/print"}
+	vpnSaCmd   = routeros.Cmd{Path: "/ip/ipsec/installed-sa/print"}
+	vpnPeerCmd = routeros.Cmd{Path: "/ip/ipsec/active-peers/print"}
 )
 
 // A peer whose counters have not moved for longer than this reads as idle.
@@ -134,7 +161,7 @@ type VPN struct {
 	// session, which is every test. See collect/cache.go.
 	cache *roscache.Cache
 	// See scheduled.go. Mechanism A: /ppp/active subscribed, WireGuard on the
-	// residual timer because its command carries a detail argument.
+	// residual timer because this collector needs TWO CADENCES.
 	sched scheduled
 
 	mu sync.Mutex
@@ -170,8 +197,8 @@ func NewVPN(ros Reader, emit Emit, pollMs int) *VPN {
 	v.pollMs = newPollInterval(ms)
 	v.poll = newPollLoop(func() { v.RefreshNow() }, v.pollMs.duration)
 	// MECHANISM A. The loop is the other half, not a fallback: it drives
-	// RefreshNow, which reads the WireGuard menu with its detail argument and
-	// emits. The subscription drives /ppp/active. Disjoint, which is the rule.
+	// RefreshNow, which reads the WireGuard menu and emits. The subscription
+	// drives /ppp/active. Disjoint, which is the rule.
 	//
 	// ── THE SUBSCRIPTION IS ON THE SLOW LANE, AND IT WAS NOT ────────────────
 	//
@@ -600,11 +627,23 @@ func (v *VPN) loadOther() {
 //
 // ── WHY THIS COLLECTOR IS SPLIT THIS WAY ────────────────────────────────────
 //
-// Its WireGuard menu carries a detail argument, and a subscription keyed by menu
-// and fields cannot express one: the scheduler would issue that menu WITHOUT the
-// argument and hand back different rows. Nothing would fail -- the VPN page would
-// simply lose columns. So WireGuard stays on the RESIDUAL timer, where
+// THE REASON CHANGED ON 2026-09-20, and the old one is recorded because it was
+// load-bearing for a year: the WireGuard menu carried a detail argument, and a
+// subscription keyed by menu and fields cannot express one — the scheduler would
+// issue the menu WITHOUT the argument and hand back different rows, losing the
+// page columns silently. That argument is gone; the read now names a proplist,
+// which a subscription expresses exactly.
+//
+// What keeps the split is the thing that was always underneath it: THIS
+// COLLECTOR NEEDS TWO CADENCES. Handshake ages move every few seconds, while PPP
+// sessions and IPsec associations change when a tunnel comes up or goes down —
+// and a table collector subscribes to ONE menu on ONE clock (scheduled.go). So
+// the slow menus are subscribed and WireGuard stays on the RESIDUAL timer, where
 // `RefreshNow` reads it and emits.
+//
+// Subscribing WireGuard on a second, faster clock is now POSSIBLE and is not
+// done here: it is a measured change to how often a router is read, not a side
+// effect of a credential fix.
 //
 // What is scheduled is /ppp/active, which is plain. THE DELIVERED ROWS ARE USED
 // AS DELIVERED and not re-read: re-reading them here would put the same menu on

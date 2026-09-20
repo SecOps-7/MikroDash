@@ -4,7 +4,7 @@
     "model": "identity-0cc5 ax^3",
     "osVersion": "7.24"
   },
-  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js. THE RECORDED `=detail=` PREDATES THE PROPLIST: this capture was taken while the collector asked for every property, which is what put private-key in the reply and aborted the first capture run. The read now names a proplist, so these rows are a SUPERSET of what the app asks for today and the replay matches by command path. Kept as captured rather than rewritten, because the recording is of what the router actually answered.",
   "exchanges": [
     {
       "cmd": "/interface/wireguard/peers/print",

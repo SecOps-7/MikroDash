@@ -28,8 +28,8 @@ package collect
 //
 // The collectors that cannot be scheduled keep their own mechanism, for the four
 // reasons Collector-Architecture.md records: derived (vlans, bandwidth), set B
-// streams (logs, ping, traffic), a non-plain command (vpn) and a menu chosen at
-// runtime (firewall, wifi, wireless). So do the table collectors whose lifecycle
+// streams (logs, ping, traffic), two cadences in one collector (vpn) and a menu
+// chosen at runtime (firewall, wifi, wireless). So do the table collectors whose lifecycle
 // genuinely differs: a residual loop beside its subscription (ifStatus), two
 // payloads with separate emit gates (conns), and a second loop pinging each
 // neighbour (topology). Forcing those in would mean a hook per difference, which
