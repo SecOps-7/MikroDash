@@ -154,18 +154,9 @@ The attribution above is a LICENCE CONDITION, not a courtesy: CC BY 4.0 requires
 crediting the source, and the credit has to travel with anything that ships the
 data.
 
-**AND THIS FILE IS THE WHOLE OF IT — deliberately, and worth reading before
-changing.** DB-IP's terms for a web application are specific: "you must include
-a link back to DB-IP.com on pages that display or use results from the
-database". The credit was put on the Connections page and the dashboard on
-2026-09-20 and taken off again the same day, because the operator did not want
-it in the interface. So the attribution lives here and in the README, which is
-what most self-hosted applications do and is a defensible reading of the
-licence, but it is not the strictest one.
-
-`internal/verify/geodata_test.go` pins what remains: the credit, the link, and
-BOTH database filenames. Crediting the city database while quietly adding a
-second one beside it is exactly how the ASN file arrived uncredited.
+`internal/verify/geodata_test.go` pins the credit, the link and BOTH database
+filenames — crediting one while quietly adding a second beside it is how the ASN
+file arrived uncredited.
 
 Both databases are fetched fresh by the `geodata` stage of the `Dockerfile` — no
 account, no licence key. MaxMind's GeoLite2 is better data and updates more

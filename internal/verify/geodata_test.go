@@ -101,9 +101,8 @@ func TestEveryGeoFetchFallsBackAMonth(t *testing.T) {
 }
 
 // CC BY 4.0 REQUIRES ATTRIBUTION, and THIRD_PARTY_NOTICES.md is where this app
-// gives it. There is no on-page credit: the operator decided on 2026-09-20 that
-// the dashboard and Connections page carry none, so the notices file and the
-// README are the whole of it — which makes a check that they actually name both
+// gives it. Nothing in the interface credits DB-IP, so that file and the README
+// are the whole of it — which makes a check that they actually name both
 // databases the only thing standing between shipping the data and shipping it
 // uncredited.
 func TestBothGeoDatabasesAreCreditedInTheNotices(t *testing.T) {
