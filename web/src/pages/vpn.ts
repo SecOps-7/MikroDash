@@ -1,93 +1,98 @@
-// The VPN page — a port of the `vpn:update` handler in public/app.js.
+// The VPN page — an overview of every VPN technology, and a way through to each.
 //
-// NOT AN IIFE over there either, and the same shape as DHCP: one top-level
-// handler draws BOTH this page and the dashboard's VPN card, with two helpers
-// above it. The live-renderer tool lifts the lot as one range.
+// ── WHAT THIS PAGE USED TO BE ───────────────────────────────────────────────
 //
-// This module renders only the page. The dashboard mini-card the same live
-// handler also writes is left alone — that element is not in the ported shell,
-// and the Dashboard is its own queue item.
+// It was a WireGuard page wearing the wrong name: five summary tiles that
+// counted WireGuard peers only, a WireGuard peer grid with its own Add button,
+// and PPP and IPsec as two afterthoughts that hid themselves when empty. That
+// content moved to /wireguard on 2026-09-20, beside the dedicated OpenVPN and
+// IPsec pages it should always have sat with.
+//
+// What is left is the one view none of those pages can give: every technology at
+// once. The PPP and IPsec tables stay because they are the live detail behind
+// two of the rows, and nothing else in the app shows a running session.
+//
+// ── ONE HONEST ASYMMETRY, STATED RATHER THAN PAPERED OVER ───────────────────
+//
+// "Configured" is filled for WireGuard and blank for the other three. The
+// payload's `tunnels` is every configured PEER, while `ppp` and `ipsec` are
+// `/ppp/active` and `/ip/ipsec/active-peers` — SESSIONS, not configuration. A
+// zero in that column for OpenVPN would say "no servers configured" when it
+// means "nobody is connected right now", so the cell is left empty instead. The
+// asymmetry belongs to the payload, not to this page, and the dedicated pages
+// are where a configuration count would be truthful.
 
-import { esc, el, resRow, fmtMbps, fmtBytes } from '../dom';
+import { esc, el, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
-import { mountAdds, mountRows } from '../resource';
+import type { VPNPayload } from '../gen/payloads';
 
-/**
- * A RouterOS last-handshake duration in seconds.
- *
- * Infinity for "never" or empty. NOTE THE FINAL `|| Infinity`: a string that
- * parses to zero is treated as never rather than as brand new, which is the live
- * behaviour and matters because `0` and `never` want the same badge.
- */
-function hsToSecs(s: string): number {
-  if (!s || s === 'never') return Infinity;
-  let total = 0;
-  const re = /(\d+)([wdhms])/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s)) !== null) {
-    const n = parseInt(m[1] as string, 10);
-    if (m[2] === 'w') total += n * 604800;
-    else if (m[2] === 'd') total += n * 86400;
-    else if (m[2] === 'h') total += n * 3600;
-    else if (m[2] === 'm') total += n * 60;
-    else total += n;
-  }
-  // `total`, NOT `total || Infinity`. The live helper returns the accumulated
-  // seconds and 0 is a real reading: a peer that has just completed a handshake
-  // reports `0s`, and `|| Infinity` turned that into the STALEST possible value
-  // — a freshly connected peer rendered red. An unparseable string matches
-  // nothing and also yields 0, which live treats as recent; reproduced rather
-  // than corrected, because the badge is a live behaviour and not this port's to
-  // redesign. Caught by a Node-era check, since deleted.
-  return total;
+/** One row of the overview. `configured` is null where the payload cannot say. */
+export interface OverviewRow {
+  label: string;
+  page: string;
+  configured: number | null;
+  active: number;
 }
 
 /**
- * The colour-coded handshake badge.
+ * The four rows, derived from the one payload this page already receives.
  *
- * WireGuard re-keys about every three minutes while a peer is active, so the
- * thresholds grade by age: under 3 minutes is fine, under 10 is a warning,
- * older is stale. A peer that is not connected gets "Never connected" whatever
- * its handshake says — the badge follows the state, not the clock.
+ * Exported so the gate can drive the derivation without a DOM: the counting is
+ * the only thing here worth getting wrong.
  */
-function hsBadge(uptime: string, connected: boolean): string {
-  if (!connected || !uptime || uptime === 'never') {
-    return '<span class="vpn-hs-badge hs-never">Never connected</span>';
-  }
-  const secs = hsToSecs(uptime);
-  const cls = secs < 180 ? 'hs-ok' : secs < 600 ? 'hs-warn' : 'hs-stale';
-  // The live code picks a dot per class and every branch is the same glyph.
-  // Written as the one glyph rather than the three-way choice: the rendered
-  // output is what this page is judged on, and it is identical.
-  return '<span class="vpn-hs-badge ' + cls + '">● ' + esc(uptime) + '</span>';
+export function overviewRows(d: VPNPayload): OverviewRow[] {
+  const tunnels = d.tunnels || [];
+  const ppp = d.ppp || [];
+  const ipsec = d.ipsec || [];
+  const wg = tunnels.filter((t) => t.type === 'WireGuard');
+  // `ParsePppSessions` upper-cases the service, so OpenVPN sessions arrive as
+  // `OVPN` — the spelling RouterOS uses in /ppp/active, not the product name.
+  const ovpn = ppp.filter((s) => s.service === 'OVPN');
+  return [
+    { label: 'WireGuard', page: 'wireguard', configured: wg.length, active: wg.filter((t) => t.state === 'active').length },
+    { label: 'IPsec', page: 'ipsec', configured: null, active: ipsec.filter((p) => p.state === 'established').length },
+    { label: 'OpenVPN', page: 'openvpn', configured: null, active: ovpn.length },
+    { label: 'PPP / L2TP / SSTP', page: 'ppp', configured: null, active: ppp.length - ovpn.length },
+  ];
+}
+
+/** A dash, not a zero: "the payload cannot say" is not "there are none". */
+function count(n: number | null): string {
+  return n === null ? '<span style="color:var(--text-muted)">&mdash;</span>' : String(n);
 }
 
 export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean): void {
   socket.on('vpn:update', (d) => {
-    const all = d.tunnels || [];
-    const wg = all.filter((t) => t.type === 'WireGuard');
-    const connected = wg.filter((t) => t.state === 'active');
-    const stale = wg.filter((t) => t.state === 'stale');
-    const never = wg.filter((t) => t.state === 'never');
+    const rows = overviewRows(d);
+    const live = rows.filter((r) => r.active > 0).length;
 
-    // The badge in this page's card header. The live handler writes this same
-    // element, so it belongs here rather than to the dashboard.
-    const count = el('vpnPageCount');
-    if (count) {
-      count.textContent = String(wg.length);
-      count.className = 'card-badge' + (wg.length > 0 ? ' active-blue' : '');
+    const badge = el('vpnOverviewCount');
+    if (badge) {
+      badge.textContent = String(live);
+      badge.className = 'card-badge' + (live > 0 ? ' active-blue' : '');
     }
 
-    // ── summary tiles ────────────────────────────────────────────────────────
-    const totalMbps = wg.reduce((sum, t) => sum + ((t.rxRate || 0) + (t.txRate || 0)) / 1e6 * 8, 0);
-    const set = (id: string, v: string): void => { const e = el(id); if (e) e.textContent = v; };
-    set('vpnStatTotal', String(wg.length));
-    set('vpnStatConn', String(connected.length));
-    set('vpnStatStale', String(stale.length));
-    // "Never connected" is its OWN count rather than being lumped in with peers
-    // that connected once and went away — those are `stale`.
-    set('vpnStatIdle', String(never.length));
-    set('vpnStatThroughput', totalMbps > 0 ? fmtMbps(totalMbps) : '0');
+    const body = el('vpnOverviewTbody');
+    if (body) {
+      body.innerHTML = rows.map((r) => {
+        const pill = r.active > 0
+          ? '<span class="vpn-hs-badge hs-ok">' + r.active + ' active</span>'
+          : '<span class="vpn-hs-badge hs-never">idle</span>';
+        // THE LINK IS GATED. A row pointing at a page the viewer may not open
+        // is an invitation to a permission error, so it renders as nothing
+        // instead — `pageVisible` is the same answer the nav uses.
+        const link = isVisible(r.page)
+          ? '<a href="#" class="vpn-overview-link" data-vpn-page="' + esc(r.page) + '">Open &rsaquo;</a>'
+          : '';
+        return '<tr>' +
+          '<td style="font-weight:600">' + esc(r.label) + '</td>' +
+          '<td>' + count(r.configured) + '</td>' +
+          '<td>' + r.active + '</td>' +
+          '<td>' + pill + '</td>' +
+          '<td style="text-align:right">' + link + '</td>' +
+          '</tr>';
+      }).join('');
+    }
 
     // ── PPP and IPsec ────────────────────────────────────────────────────────
     // Both cards stay hidden unless the router actually has any, so a
@@ -132,48 +137,21 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
         '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.auth || '—') + '</td>' +
         '</tr>').join('');
     }
-
-    // ── the tile grid ────────────────────────────────────────────────────────
-    // SORTED IN PLACE, connected first. `wg` is a filtered copy, so this does
-    // not disturb the payload — and it runs AFTER the summary counts are taken,
-    // which is where the original has it.
-    wg.sort((a, b) => (b.state === 'active' ? 1 : 0) - (a.state === 'active' ? 1 : 0));
-
-    const grid = el('vpnPageGrid');
-    if (!grid) return;
-    if (!wg.length) {
-      grid.innerHTML = '<div class="empty-state">No peers configured</div>';
-      return;
-    }
-    grid.innerHTML = wg.map((t) => {
-      const isConn = t.state === 'active';
-      const rxR = t.rxRate || 0;
-      const txR = t.txRate || 0;
-      const rxRateStr = rxR > 0
-        ? '<span style="color:var(--accent-rx)">↓ ' + fmtBytes(Math.round(rxR)) + '/s</span>' : '';
-      const txRateStr = txR > 0
-        ? '<span style="color:var(--accent-tx)">↑ ' + fmtBytes(Math.round(txR)) + '/s</span>' : '';
-      const totStr = '<span style="color:var(--text-muted)">↓ ' + fmtBytes(parseInt(String(t.rx), 10) || 0) +
-        ' ↑ ' + fmtBytes(parseInt(String(t.tx), 10) || 0) + '</span>';
-      const dotCls = isConn ? 'up' : 'dis';
-      const tileCls = 'vpn-tile ' + (isConn ? 'up' : 'idle');
-      // A tile, not a row — the delegation looks for the nearest ancestor with a
-      // data-id, so the two work the same. Identity is the PUBLIC KEY, which is
-      // what the write round-trips to prove the row has not moved underneath.
-      return '<div class="' + tileCls + '"' + resRow(t.id, t.publicKey) + '>' +
-        '<div class="vpn-tile-name"><span class="iface-dot ' + dotCls + '"></span><span class="vpn-tile-name-text">' + esc(t.name || t.interface || '—') + '</span></div>' +
-        (t.interface ? '<div class="vpn-tile-iface">' + esc(t.interface) + (t.allowedIp ? ' · ' + esc(t.allowedIp) : '') + '</div>' : '') +
-        (t.endpoint ? '<div class="vpn-tile-ip">' + esc(t.endpoint) + '</div>' : '') +
-        '<div class="vpn-tile-hs">' + hsBadge(t.lastHandshake, isConn) + '</div>' +
-        ((rxRateStr || txRateStr)
-          ? '<div class="vpn-tile-traffic">' + rxRateStr + txRateStr + '</div>'
-          : (isConn ? '<div class="vpn-tile-traffic">' + totStr + '</div>' : '')) +
-      '</div>';
-    }).join('');
   });
 
-  mountAdds(socket);
-  mountRows(socket);
-
-  void isVisible;
+  // ── GOING THROUGH TO A PAGE ─────────────────────────────────────────────
+  //
+  // By clicking the nav item rather than by routing here: the nav entry for a
+  // GENERATED page is injected at runtime by area.ts's mountAreaNav, so it is
+  // the only handle that exists for every one of these four. The same idiom the
+  // Security Scan page and the Security Score card use.
+  document.addEventListener('click', (e) => {
+    const t = (e as unknown as { target: HTMLElement | null }).target;
+    const a = t && t.closest ? t.closest('[data-vpn-page]') as HTMLElement | null : null;
+    if (!a) return;
+    (e as unknown as { preventDefault: () => void }).preventDefault();
+    const page = a.getAttribute('data-vpn-page');
+    if (!page) return;
+    (document.querySelector('.nav-item[data-page="' + page + '"]') as HTMLElement | null)?.click();
+  });
 }
