@@ -13,9 +13,14 @@ package collect
 // GEO AND ASN ARE OPTIONAL. `geo.available()` is false on the Node side wherever
 // geoip-lite failed to load, and the app degrades to counts without countries
 // rather than refusing to work. The same is true here: both lookups default to
-// nil and the payload is the same shape either way. `internal/geo` supplies the
-// country lookup; the ASN one has no port yet, so `Org` is still nil in
-// practice and every org index is empty.
+// nil and the payload is the same shape either way.
+//
+// BOTH ARE WIRED IN PRODUCTION — `internal/geo` supplies the country and
+// `internal/asn` the organisation, both attached in `internal/session`
+// (`WithGeo`/`WithOrg`). This said for a while that the ASN side "has no port
+// yet, so `Org` is still nil in practice", which was true on the day it was
+// written and stopped being true when the port landed. A reader believing it
+// would have taken every org index for dead code.
 
 import (
 	"encoding/json"

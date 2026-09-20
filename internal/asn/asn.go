@@ -6,13 +6,30 @@
 // answer — a diagram naming Google once tells you more than nine rows of Google
 // addresses — and colours them by category.
 //
-// ── THE TABLE IS GENERATED, THE MATCHING IS PORTED ──────────────────────────
+// ── THE TABLE IS DATA, THIS FILE IS BEHAVIOUR ───────────────────────────────
 //
-// `table.go` is produced by a Node-era script (since deleted) from the live source and must not
-// be edited; this file holds the part that has actual behaviour. The split
-// matters because the two fail differently: a stale table is caught by
-// `--check`, while a wrong match is caught only by a Node-era case corpus (since deleted), which
-// replays the LIVE function's answers.
+// `table.go` holds the ranges; this file holds the matching. The split is worth
+// keeping because the two fail differently — a wrong range answers "Google" for
+// an address that is not Google, while a wrong match answers nothing for one
+// that is.
+//
+// ── AND THE TABLE IS CURRENTLY LOCKED, WHICH IS WORTH SAYING OUT LOUD ───────
+//
+// It was generated once from the Node app's `src/util/asnLookup.js` at the
+// 2026-08-31 cutover, by a script deleted with the rest of that app. Nothing
+// refreshes it: no `go:generate`, no `cmd/` generator, no download in the
+// Dockerfile — the only geo data fetched at build time is DB-IP City Lite,
+// which carries country and city and no organisation at all.
+//
+// `testdata/asn-cases.json` pins the ranges PREFIX BY PREFIX: its cases are the
+// first, last and middle address of every range plus the two just outside it,
+// so editing one prefix fails `TestLookupMatchesAsnLookup`. That is a real gate
+// and it is why this is locked rather than merely stale — the corpus generator
+// was deleted too, so a new prefix needs a new corpus to go with it.
+//
+// What no test can see is the world moving underneath: a range Google announced
+// after the cutover reads as no org at all, and every one of those 1604 cases
+// still passes.
 //
 // ── NO CACHE HERE, DELIBERATELY ─────────────────────────────────────────────
 //
