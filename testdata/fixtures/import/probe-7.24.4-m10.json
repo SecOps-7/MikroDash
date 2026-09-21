@@ -1,0 +1,49 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "findings": [
+    {
+      "name": "m10 trap",
+      "answer": "\"\" err=\"\""
+    },
+    {
+      "name": "m10 file after",
+      "answer": "(absent)"
+    }
+  ],
+  "steps": [
+    {
+      "label": "m10: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-numbers.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnvAIOhc5v0ia6Ba1D"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m10: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnvAIOhc5v0ia6Ba1D",
+        "=contents=\u003c6 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m10 remove by numbers=name",
+      "path": "/file/remove",
+      "args": [
+        "=numbers=mdprobe-numbers.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 7
+    }
+  ]
+}

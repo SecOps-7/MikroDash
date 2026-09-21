@@ -283,6 +283,9 @@ func main() {
 	if runs("m9") {
 		m9UserActive(p)
 	}
+	if runs("m10") {
+		m10RemoveByName(p)
+	}
 	if runs("m3") {
 		m3FileCeiling(p)
 	}
@@ -353,6 +356,20 @@ func main() {
 	} else {
 		fmt.Println(string(enc))
 	}
+}
+
+// M10: does `/file/remove =numbers=<name>` remove a file over the API?
+// backups.Sweep removes by name that way, and Config Management's sweep shares
+// it; this tool's own helpers use `.id` because `numbers` trapped elsewhere.
+func m10RemoveByName(p *probe) {
+	fmt.Fprintln(os.Stderr, "M10 /file/remove by numbers=<name>")
+	const name = prefix + "numbers.rsc"
+	if !p.writeFile("m10", name, "# m10\n") {
+		return
+	}
+	s := p.run("m10 remove by numbers=name", "/file/remove", 10*time.Second, "=numbers="+name)
+	p.note("m10 trap", fmt.Sprintf("%q err=%q", s.Trap, s.Err))
+	p.note("m10 file after", p.fileSize(name))
 }
 
 // M9: does /user/active carry the address MikroDash arrives from?
