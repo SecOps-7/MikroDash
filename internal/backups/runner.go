@@ -98,7 +98,7 @@ func ExportText(w Writer, path, base string, now func() time.Time, sleep func(ti
 	if err != nil {
 		return "", err
 	}
-	buf, err := ReadFile(chunkReaderOf(w), base+".rsc", size)
+	buf, err := ReadRouterFile(w, base+".rsc", size)
 	if err != nil {
 		return "", err
 	}

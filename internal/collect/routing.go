@@ -240,34 +240,6 @@ func mapRoute(r routeros.Reply, family string) Route {
 	}
 }
 
-var (
-	hmsRe = regexp.MustCompile(`^(\d+):(\d+):(\d+)$`)
-	// ms is an alternative of its own, listed first, so the 930 of "24s930ms" is
-	// not read as 930 minutes. A bare number is the legacy seconds spelling.
-	durRe    = regexp.MustCompile(`(\d+)(ms|w|d|h|m|s)`)
-	digitsRe = regexp.MustCompile(`^\d+$`)
-)
-
-// parseUptime reads RouterOS durations into seconds: "01:02:03", "2w1d2h3m4s", "24s930ms"
-// (milliseconds dropped) and a bare "90".
-func parseUptime(s string) int {
-	if s == "" {
-		return 0
-	}
-	if m := hmsRe.FindStringSubmatch(s); m != nil {
-		return safeInt(m[1])*3600 + safeInt(m[2])*60 + safeInt(m[3])
-	}
-	if digitsRe.MatchString(s) {
-		return safeInt(s)
-	}
-	scale := map[string]int{"w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1, "ms": 0}
-	sec := 0
-	for _, m := range durRe.FindAllStringSubmatch(s, -1) {
-		sec += safeInt(m[1]) * scale[m[2]]
-	}
-	return sec
-}
-
 var ixRe = regexp.MustCompile(`\b(ix|ixp|peering|rs\d|route.server|routeserver)\b`)
 
 // classifyPeer labels a session for the page. The private-ASN ranges are
@@ -580,7 +552,7 @@ func (r *Routing) buildPeers() []Peer {
 			RemoteAddr:    remoteAddr,
 			RemoteAs:      remoteAs,
 			State:         state,
-			UptimeSec:     parseUptime(s["uptime"]),
+			UptimeSec:     routeros.DurationSeconds(s["uptime"]),
 			Prefixes:      prefixes,
 			PrefixHistory: append([]int{}, hist...),
 			// v7's session menu counts BGP messages, not updates: local.messages
@@ -591,8 +563,8 @@ func (r *Routing) buildPeers() []Peer {
 			MessagesSent: safeInt(firstNonEmpty(s["local.messages"], s["updates-sent"])),
 			MessagesRecv: safeInt(firstNonEmpty(s["remote.messages"], s["updates-received"])),
 			LastError:    firstNonEmpty(s["output.last-notification"], s["inactive-reason"], s["last-error"]),
-			HoldTime:     parseUptime(s["hold-time"]),
-			Keepalive:    parseUptime(s["keepalive-time"]),
+			HoldTime:     routeros.DurationSeconds(s["hold-time"]),
+			Keepalive:    routeros.DurationSeconds(s["keepalive-time"]),
 			Flapping:     flapping,
 		})
 	}

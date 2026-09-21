@@ -44,9 +44,25 @@ func TestOnlyOurOwnFilesAreSwept(t *testing.T) {
 		"flash/mikrodash-cfg-0123456789abcdef.rsc",
 		"mikrodash-backup-0123456789abcdef.backup",
 		"mikrodash-cfg-0123456789abcdef.rsc.bak",
+		"mikrodash-cfg-0123456789abcdef.backup.old",
 	} {
 		if IsOurFile(n) {
 			t.Errorf("%s would be swept", n)
+		}
+	}
+}
+
+func TestTheDeadMansNamesAreSwept(t *testing.T) {
+	base, err := NewBaseName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !IsOurScheduler(base) || !IsOurFile(base+".backup") {
+		t.Errorf("%s: the dead-man's scheduler or backup would be left behind", base)
+	}
+	for _, n := range []string{"mikrodash-cfg-", base + "x", "my-" + base, "mikrodash-backup-0123456789abcdef"} {
+		if IsOurScheduler(n) {
+			t.Errorf("scheduler %q would be removed", n)
 		}
 	}
 }

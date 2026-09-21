@@ -183,7 +183,7 @@ func Run(cfg RunConfig) (res RunResult) {
 	if err != nil {
 		return fail(err)
 	}
-	bakBuf, err := ReadFile(chunkReaderOf(w), base+".backup", bakSize)
+	bakBuf, err := ReadRouterFile(w, base+".backup", bakSize)
 	if err != nil {
 		return fail(err)
 	}
@@ -198,6 +198,12 @@ func Run(cfg RunConfig) (res RunResult) {
 	say("stored " + stem + " (" + itoaKB(rscBytes) + " KB export, " +
 		itoaKB(backupBytes) + " KB binary)")
 	return res
+}
+
+// ReadRouterFile reads a file of `size` bytes off the router whole, in
+// /file/read chunks. Config Management reads its dry-run reports this way.
+func ReadRouterFile(w Writer, name string, size int) ([]byte, error) {
+	return ReadFile(chunkReaderOf(w), name, size)
 }
 
 // chunkReaderOf adapts a Writer to the ChunkReader ReadFile wants.

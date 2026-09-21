@@ -13,7 +13,10 @@ import (
 // one would let a Backups sweep delete a file an import is about to read.
 const FilePrefix = "mikrodash-cfg-"
 
-var ourFile = regexp.MustCompile(`^mikrodash-cfg-[0-9a-f]{16}(\.rsc|-report\.txt)$`)
+var (
+	ourFile = regexp.MustCompile(`^mikrodash-cfg-[0-9a-f]{16}(\.rsc|-report\.txt|\.backup)$`)
+	ourBase = regexp.MustCompile(`^mikrodash-cfg-[0-9a-f]{16}$`)
+)
 
 // NewFileName names one file to import: `mikrodash-cfg-<16 hex>.rsc`.
 //
@@ -26,11 +29,22 @@ var ourFile = regexp.MustCompile(`^mikrodash-cfg-[0-9a-f]{16}(\.rsc|-report\.txt
 // the only variable part, and it holds no dot. TestFileNamesNeverAutoRun holds
 // it.
 func NewFileName() (string, error) {
+	base, err := NewBaseName()
+	if err != nil {
+		return "", err
+	}
+	return base + ".rsc", nil
+}
+
+// NewBaseName is `mikrodash-cfg-<16 hex>` with no extension: the name the
+// dead-man's backup is saved under (RouterOS adds `.backup`) and its scheduler
+// is given, so the sweep finds both.
+func NewBaseName() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return FilePrefix + hex.EncodeToString(b) + ".rsc", nil
+	return FilePrefix + hex.EncodeToString(b), nil
 }
 
 // ReportName is where a dry-run's report goes for the file being imported.
@@ -49,3 +63,8 @@ func ReportName(file string) (write, read string) {
 // may be swept. The whole shape, not only the prefix: a file an operator
 // happened to name `mikrodash-cfg-notes.txt` is theirs.
 func IsOurFile(name string) bool { return ourFile.MatchString(name) }
+
+// IsOurScheduler reports whether a scheduler entry is a dead-man Config
+// Management armed. Swept with the files: one left by a process that died
+// would otherwise fire for ever once its backup file was gone.
+func IsOurScheduler(name string) bool { return ourBase.MatchString(name) }
