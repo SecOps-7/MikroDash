@@ -389,6 +389,9 @@ sentences are in `testdata/fixtures/import/probe-7.24.4.json` and
 | (tag cancel) | Cancelling `/import`'s API tag **stops it mid-file and leaves it half-applied**: 180 of 950 lines after an 80 ms cancel, stable thereafter. A real import is never cancelled on a short timer, and a timeout is recorded as a partial outcome |
 | `/system/scheduler/add` | `=name=<n> =interval=15s =on-event=/import file-name=<undo>`: the dead-man revert. **First fires after one interval, not at creation** (15 s), and its `/import` of the undo file ran with the API user's rights |
 | `/user/active/print` | Rows carry `address`, `via`, `group`, `name`, `radius`, `when`: `address` is where MikroDash arrives from, as the router sees it |
+| `/system/reset-configuration` | `=no-defaults=yes =skip-backup=yes =keep-users=yes =run-after-reset=<file>` (`export-reset-7.24.4.json`). The connection drops; the CHR was back in 20 s. **`keep-users=yes` keeps MikroDash's login, password and all**, so a credential never has to be written into the script. The script **may remove its own file on its first line** — it is loaded before it runs. **A reset destroys certificates**: api-ssl came back enabled with `certificate=none`, and TLS clients got `ssl: no common ciphers`. **The first runtime error aborts the rest of the script**, and nothing reports it at the time: it is only in `/log` afterwards, `system,error,critical: error while running run-after-reset script: <msg> (<cmd>; line N)`. On a CHR a DHCP client on ether1 survives a `no-defaults` reset, so a script adding one fails at that line |
+| `/system/backup/save` | `=name=<n> =dont-encrypt=yes` (lab only) — the way back before a reset |
+| `/system/backup/load` | `=name=<n>.backup =password=`: restored the lab in 10 s, original certificate included |
 
 ## Proplists
 

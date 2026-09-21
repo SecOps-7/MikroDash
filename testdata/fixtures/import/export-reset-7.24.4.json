@@ -1,0 +1,74 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "note": "Export + reset, measured 2026-09-21 on CHR Test with /system/reset-configuration no-defaults=yes skip-backup=yes keep-users=yes run-after-reset=<file>. The script's first line removed the file itself; line 2 added a DHCP client on ether1, which a CHR keeps through a no-defaults reset, so it failed and every later line (certificate, api-ssl, marker) was skipped. The failure is reported only in /log afterwards. The lab was restored from a binary backup taken first.",
+  "findings": [
+    {
+      "name": "m8 before",
+      "answer": "api-ssl certificate=\"chr-api\" disabled=false port=8729"
+    },
+    {
+      "name": "m8 pre-reset backup",
+      "answer": "size=44741"
+    },
+    {
+      "name": "m8 reset answer",
+      "answer": "trap=\"\" err=\"\" done=map[]"
+    },
+    {
+      "name": "m8 came back",
+      "answer": "after 20s, over api (plain)"
+    },
+    {
+      "name": "m8 our login survived (keep-users)",
+      "answer": "yes \u2014 this dial used it"
+    },
+    {
+      "name": "m8 script deleted itself",
+      "answer": "true"
+    },
+    {
+      "name": "m8 script ran to its last line",
+      "answer": "false"
+    },
+    {
+      "name": "m8 api-ssl after",
+      "answer": "api-ssl certificate=\"none\" disabled=false port=8729"
+    },
+    {
+      "name": "m8 log",
+      "answer": "system,info: router rebooted by api:mikrodash@<ip>/reset"
+    },
+    {
+      "name": "m8 log",
+      "answer": "ssld,error: ssl: no common ciphers"
+    },
+    {
+      "name": "m8 log",
+      "answer": "ssld,error: ssl: no common ciphers"
+    },
+    {
+      "name": "m8 log",
+      "answer": "ssld,error: ssl: no common ciphers"
+    },
+    {
+      "name": "m8 log",
+      "answer": "system,error,critical: error while running run-after-reset script: failure: dhcp-client on that interface already exists (/ip/dhcp-client/add; line 2)"
+    },
+    {
+      "name": "m8 log",
+      "answer": "system,error,critical:"
+    },
+    {
+      "name": "m8 restore issued",
+      "answer": "trap=\"\" err=\"\""
+    },
+    {
+      "name": "m8 restored",
+      "answer": "back after 10s over api (plain); api-ssl certificate=\"chr-api\" disabled=false port=8729"
+    },
+    {
+      "name": "m8 original certificate back",
+      "answer": "true"
+    }
+  ]
+}

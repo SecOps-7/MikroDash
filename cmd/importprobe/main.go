@@ -50,6 +50,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -234,6 +235,7 @@ func main() {
 		rname = flag.String("router", "CHR Test", "the router's label in that store")
 		out   = flag.String("out", "", "write the recorded sentences here as JSON fixtures")
 		only  = flag.String("only", "", "comma-separated measurements to run (default: all)")
+		destr = flag.Bool("destructive", false, "allow m8, which WIPES AND REBOOTS the router")
 	)
 	flag.Parse()
 	if *data == "" {
@@ -305,6 +307,15 @@ func main() {
 	if runs("m7") {
 		m7DeadMan(p)
 	}
+	// M8 WIPES AND REBOOTS THE ROUTER, so it never runs as part of "all": it
+	// needs to be named, and -destructive given as well.
+	if want["m8"] {
+		if !*destr {
+			fmt.Fprintln(os.Stderr, "m8 resets the router: add -destructive to run it")
+			os.Exit(2)
+		}
+		m8ExportReset(p, cfg)
+	}
 
 	report := struct {
 		RouterOS string    `json:"routerOS"`
@@ -322,7 +333,18 @@ func main() {
 		if f := strings.Fields(ver); len(f) > 0 {
 			short = f[0]
 		}
-		name := filepath.Join(*out, "probe-"+short+".json")
+		// A PARTIAL RUN GETS ITS OWN FILE. With one name for every run, `-only m8`
+		// would overwrite the full fixture with the one measurement it made.
+		stem := "probe-" + short
+		if len(want) > 0 {
+			ms := make([]string, 0, len(want))
+			for m := range want {
+				ms = append(ms, m)
+			}
+			sort.Strings(ms)
+			stem += "-" + strings.Join(ms, "-")
+		}
+		name := filepath.Join(*out, stem+".json")
 		if err := os.WriteFile(name, append(enc, '\n'), 0o644); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -617,6 +639,180 @@ func m7DeadMan(p *probe) {
 	p.note("m7 first run after", fmt.Sprint(firstRun.Round(time.Second)))
 	p.note("m7 undo removed the marker after", fmt.Sprint(markerGone.Round(time.Second)))
 }
+
+// M8: export + reset, the portable full-replacement route.
+//
+// ── WHAT IT MEASURES ─────────────────────────────────────────────────────────
+//
+//   - whether `keep-users=yes` keeps MikroDash's login, password and all. If it
+//     does, the run-after-reset script never needs a credential written into it
+//     — which the design would otherwise have to do, on the router's flash;
+//   - whether the script runs, and whether it can DELETE ITSELF ON ITS FIRST
+//     LINE. M2 showed a file is parsed whole before any of it runs, so removing
+//     the file first should cost nothing and leaves nothing on disk however the
+//     rest goes;
+//   - whether a self-signed certificate can be made and signed inside the
+//     script, so `api-ssl` answers again. A reset destroys certificates and
+//     `/export` never carries them;
+//   - how long the router is gone;
+//   - where the script's outcome can be read afterwards, since no API session
+//     is open to receive a trap while it runs.
+//
+// ── IT PUTS THE LAB BACK AS IT FOUND IT ──────────────────────────────────────
+//
+// A binary backup is taken first and loaded afterwards, which restores the
+// original certificate and everything else, and reboots once more. If the
+// router does not come back over api-ssl, a plain-API dial is tried so the
+// restore can still be issued; if neither answers, the serial console on
+// 127.0.0.1:15000 is the way in, and this says so.
+func m8ExportReset(p *probe, cfg routeros.Config) {
+	fmt.Fprintln(os.Stderr, "M8 export + reset (DESTRUCTIVE: wipes and reboots the router)")
+	p.cleanup()
+	const backup = prefix + "prereset"
+	const script = prefix + "reset.rsc"
+	const cert = prefix + "api"
+	marker := prefix + "reset-ran.test"
+
+	// What the router looks like before, so the restore can be checked.
+	before := func(label string) string {
+		rows, _ := p.c.Do(routeros.Cmd{Path: "/ip/service/print", Timeout: 10 * time.Second,
+			Args: []string{"?name=api-ssl", "=.proplist=name,certificate,disabled,port"}})
+		if len(rows) == 0 {
+			return "(no api-ssl row)"
+		}
+		return fmt.Sprintf("api-ssl certificate=%q disabled=%s port=%s",
+			rows[0]["certificate"], rows[0]["disabled"], rows[0]["port"])
+	}
+	origCert := before("before")
+	p.note("m8 before", origCert)
+
+	// 1. The way back.
+	bk := p.run("m8 backup save", "/system/backup/save", 60*time.Second,
+		"=name="+backup, "=dont-encrypt=yes")
+	if bk.Trap != "" || bk.Err != "" {
+		p.note("m8", fmt.Sprintf("ABORTED: could not take the pre-reset backup: trap=%q err=%q", bk.Trap, bk.Err))
+		return
+	}
+	for i := 0; i < 30 && p.fileSize(backup+".backup") == "(absent)"; i++ {
+		time.Sleep(time.Second)
+	}
+	if p.fileSize(backup+".backup") == "(absent)" {
+		p.note("m8", "ABORTED: the pre-reset backup never appeared")
+		return
+	}
+	p.note("m8 pre-reset backup", "size="+p.fileSize(backup+".backup"))
+
+	// 2. The run-after-reset script. The FIRST line removes the file itself.
+	// ether1's DHCP client is this lab's reachability (QEMU slirp); a real
+	// deploy's captured export carries the router's own addressing instead.
+	body := "/file remove [find name=\"" + script + "\"]\n" +
+		"/ip/dhcp-client add interface=ether1\n" +
+		"/certificate add name=" + cert + " common-name=" + cert + " days-valid=30\n" +
+		"/certificate sign " + cert + "\n" +
+		"/ip/service set api-ssl certificate=" + cert + "\n" +
+		"/ip/dns/static add name=" + marker + " address=192.0.2.99\n"
+	if !p.writeFile("m8 script", script, body) {
+		p.note("m8", "ABORTED: could not write the run-after-reset script")
+		return
+	}
+
+	// 3. The reset. The connection is expected to drop.
+	t0 := time.Now()
+	rs := p.run("m8 reset-configuration", "/system/reset-configuration", 20*time.Second,
+		"=no-defaults=yes", "=skip-backup=yes", "=keep-users=yes", "=run-after-reset="+script)
+	p.note("m8 reset answer", fmt.Sprintf("trap=%q err=%q done=%v", rs.Trap, rs.Err, rs.Done))
+	p.c.Close()
+
+	// 4. Wait for it. api-ssl first — what MikroDash itself would use — then
+	// plain api as the lab's way to put things back.
+	redial := func(limit time.Duration) (*routeros.Client, string, time.Duration) {
+		deadline := time.Now().Add(limit)
+		for time.Now().Before(deadline) {
+			time.Sleep(5 * time.Second)
+			c := cfg
+			c.DialTimeout = 5 * time.Second
+			if cl, err := routeros.Dial(c); err == nil {
+				return cl, "api-ssl", time.Since(t0)
+			}
+			plain := cfg
+			plain.TLS, plain.Port, plain.DialTimeout = false, 8728, 5*time.Second
+			if cl, err := routeros.Dial(plain); err == nil {
+				return cl, "api (plain)", time.Since(t0)
+			}
+		}
+		return nil, "", 0
+	}
+	cl, via, after := redial(6 * time.Minute)
+	if cl == nil {
+		p.note("m8 came back", "NO — neither api-ssl nor plain api answered in 6 minutes. "+
+			"Recover through the serial console (127.0.0.1:15000): log in as admin, then "+
+			"/system/backup/load name="+backup)
+		return
+	}
+	p.c = cl
+	p.note("m8 came back", fmt.Sprintf("after %s, over %s", after.Round(time.Second), via))
+
+	// 5. What the script did.
+	p.note("m8 our login survived (keep-users)", "yes — this dial used it")
+	p.note("m8 script deleted itself", fmt.Sprint(p.fileSize(script) == "(absent)"))
+	mk, _ := p.c.Do(routeros.Cmd{Path: "/ip/dns/static/print",
+		Args: []string{"?name=" + marker}, Timeout: 10 * time.Second})
+	p.note("m8 script ran to its last line", fmt.Sprint(len(mk) > 0))
+	p.note("m8 api-ssl after", before("after"))
+	// THE LOG IS KEPT ONLY WHERE IT CONCERNS THE SCRIPT, with addresses masked:
+	// a router's log carries addresses and MACs, and this goes into a committed
+	// fixture.
+	lg := p.run("m8 log after", "/log/print", 15*time.Second, "=.proplist=topics,message")
+	kept := []routeros.Reply{}
+	for _, r := range lg.Rows {
+		m := strings.ToLower(r["message"] + " " + r["topics"])
+		if strings.Contains(m, "script") || strings.Contains(m, "error") ||
+			strings.Contains(m, "fail") || strings.Contains(m, "mdprobe") ||
+			strings.Contains(m, "certificate") || strings.Contains(m, "reset") {
+			kept = append(kept, routeros.Reply{"topics": r["topics"], "message": maskAddrs(r["message"])})
+		}
+	}
+	p.steps[len(p.steps)-1].Rows = kept
+	for _, r := range kept {
+		p.note("m8 log", r["topics"]+": "+r["message"])
+	}
+
+	// 6. Put the lab back.
+	ld := p.run("m8 backup load", "/system/backup/load", 20*time.Second,
+		"=name="+backup+".backup", "=password=")
+	p.note("m8 restore issued", fmt.Sprintf("trap=%q err=%q", ld.Trap, ld.Err))
+	p.c.Close()
+	t0 = time.Now()
+	cl, via, after = redial(6 * time.Minute)
+	if cl == nil {
+		p.note("m8 restored", "NO — the router did not return after the restore. "+
+			"Recover through the serial console (127.0.0.1:15000).")
+		return
+	}
+	p.c = cl
+	p.note("m8 restored", fmt.Sprintf("back after %s over %s; %s", after.Round(time.Second), via, before("restored")))
+	p.note("m8 original certificate back", fmt.Sprint(before("restored") == origCert))
+	if id := p.fileID(backup + ".backup"); id != "" {
+		p.run("m8 remove backup", "/file/remove", 10*time.Second, "=.id="+id)
+	}
+}
+
+// maskAddrs replaces IPv4 addresses and MACs, keeping TEST-NET-1 (192.0.2.0/24),
+// which is this tool's own and identifies nothing.
+func maskAddrs(s string) string {
+	s = ipv4.ReplaceAllStringFunc(s, func(a string) string {
+		if strings.HasPrefix(a, "192.0.2.") {
+			return a
+		}
+		return "<ip>"
+	})
+	return mac.ReplaceAllString(s, "<mac>")
+}
+
+var (
+	ipv4 = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
+	mac  = regexp.MustCompile(`\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b`)
+)
 
 // fromStore is cmd/conformance's and cmd/streamcost's, deliberately a copy: each
 // lab tool is a single file that keeps working if another is deleted.
