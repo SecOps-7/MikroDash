@@ -678,7 +678,7 @@ func (s *Server) reportScheduleCreate(w http.ResponseWriter, r *http.Request, q 
 		writeJSONErr(w, http.StatusBadRequest, "malformed request")
 		return
 	}
-	id, err := newScheduleID()
+	id, err := newUUID()
 	if err != nil {
 		writeJSONErr(w, http.StatusInternalServerError, "cannot generate an id")
 		return
@@ -768,8 +768,9 @@ func (s *Server) reportScheduleDelete(w http.ResponseWriter, r *http.Request, q 
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// newScheduleID is a v4 UUID, matching `crypto.randomUUID()`.
-func newScheduleID() (string, error) {
+// newUUID is a v4 UUID, matching `crypto.randomUUID()`: report schedules and
+// Config Management's templates and runs are named by one.
+func newUUID() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
