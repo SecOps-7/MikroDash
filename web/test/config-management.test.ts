@@ -36,6 +36,31 @@ const mod = require(OUT);
 fs.rmSync(OUT, { force: true });
 const { cards, editor, deploy, history } = mod;
 
+// ── Deploying on defaults ────────────────────────────────────────────────────
+{
+  const a = deploy.newSecret();
+  const b = deploy.newSecret();
+  assert.ok(/^[A-Za-z0-9]{20}$/.test(a), 'a generated password is not 20 letters and digits: ' + a);
+  assert.notStrictEqual(a, b, 'two generated passwords are the same');
+  const defs = [{ name: 'contact', type: 'text', default: 'noc' }, { name: 'pw', type: 'secret' },
+    { name: 'ports', type: 'iface-list', default: 'ether2' }];
+  const saved = deploy.defaultsFromValues(defs, { contact: ' ops ', pw: 'hunter2-secret', ports: '' });
+  assert.strictEqual(saved[0].default, 'ops', 'a saved default was not the value typed, trimmed');
+  assert.strictEqual(saved[1].default, undefined, 'a password was saved as a default');
+  assert.strictEqual(saved[2].default, undefined, 'an emptied setting kept its old default');
+  const routers = [{ id: 'r1', label: 'R1' }];
+  const vals = { r1: { contact: 'noc', pw: 'Abc123generated', ports: 'ether2' } };
+  const hidden = deploy.valuesGrid(defs, routers, vals, false);
+  const shown = deploy.valuesGrid(defs, routers, vals, true);
+  assert.ok(hidden.includes('data-dep-reveal') && hidden.includes('type="password"'),
+    'a password setting has no hidden field or no Show toggle');
+  assert.ok(!shown.includes('type="password"') && shown.includes('value="Abc123generated"'),
+    'Show passwords does not show the password');
+  assert.ok(hidden.includes('value="noc"'), 'a setting is not filled with its value');
+  assert.ok(!deploy.valuesGrid([defs[0]], routers, vals).includes('data-dep-reveal'),
+    'a template with no password offers to show passwords');
+}
+
 // ── History and Drift ────────────────────────────────────────────────────────
 {
   const run = history.sortable({ id: 'r1', templateId: null, templateName: '<b>T</b>', revision: 2, method: 'additions',
@@ -181,7 +206,8 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   'cfgCaptureBox', 'cfgEdName', 'cfgEdDesc', 'cfgEdBody', 'cfgEdVars', 'cfgEdSave', 'cfgEdDelete', 'cfgEdClose',
   'cfgDepTpl', 'cfgDepRouters', 'cfgDepValues', 'cfgDepPreview', 'cfgDepPreviews', 'cfgDepStart', 'cfgRollout',
   'cfgDepTplMeta', 'cfgDepConfirm', 'cfgDepWhy', 'cfgDep', 'cfgHistHead', 'cfgHistBody', 'cfgHistEmpty',
-  'cfgHistRefresh', 'cfgDriftHead', 'cfgDriftBody', 'cfgDriftEmpty', 'cfgDriftRefresh'],
+  'cfgHistRefresh', 'cfgDriftHead', 'cfgDriftBody', 'cfgDriftEmpty', 'cfgDriftRefresh', 'cfgDepSaveDefaults',
+  'cfgDepSaveWhy'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };

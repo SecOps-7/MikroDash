@@ -100,10 +100,7 @@ func PrepareReset(r Reset) (ResetPrepared, error) {
 	if err != nil {
 		return ResetPrepared{}, err
 	}
-	findings := append(cfgtpl.Analyze(filled, cfgtpl.Full), cfgtpl.AnalyzeLive(filled, r.Live)...)
-	if findings == nil {
-		findings = []cfgtpl.Finding{}
-	}
+	findings := findingsFor(resolved, filled, cfgtpl.Full, r.Live)
 	return ResetPrepared{Bootstrap: boot, Rest: rest, Findings: findings,
 		Hash: Hash(strings.Join(boot, "\n") + "\n--\n" + rest)}, nil
 }

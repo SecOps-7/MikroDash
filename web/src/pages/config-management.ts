@@ -18,7 +18,8 @@ import {
   type RunRow, type SortableRun,
 } from './config-management-history';
 import {
-  findingKey, previewCard, readyToStart, rolloutView, routerPicker, valuesGrid, type RouterOpt, type RouterPreview,
+  defaultsFromValues, findingKey, newSecret, previewCard, readyToStart, rolloutView, routerPicker, valuesGrid,
+  type RouterOpt, type RouterPreview,
 } from './config-management-deploy';
 
 const TABS = ['library', 'editor', 'deploy', 'history', 'drift'] as const;
@@ -114,6 +115,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     tplId: '', defs: [] as VarDef[], kind: 'fragment', routers: [] as RouterOpt[], picked: [] as string[],
     values: {} as Record<string, Record<string, string>>, previews: {} as Record<string, RouterPreview>,
     acked: new Set<string>(),
+    /** One generated password per secret setting, shared by every router. */
+    secrets: {} as Record<string, string>, reveal: false,
   };
   let run: CfgDeployPayload | null = null;
 
@@ -561,6 +564,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         const t = await fetchTemplate(id);
         dep.defs = varsOf(t.variables);
         dep.kind = t.kind;
+        dep.secrets = {};
+        for (const d of dep.defs) if (d.type === 'secret') dep.secrets[d.name] = newSecret();
       } catch (e) {
         showWhy(e instanceof Error ? e.message : 'The template could not be read');
       }
@@ -585,7 +590,13 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     if (routers) routers.innerHTML = routerPicker(dep.routers, dep.picked);
     const picked = dep.picked.map((id) => ({ id, label: labelOf(id) }));
     const values = el('cfgDepValues');
-    if (values) values.innerHTML = valuesGrid(dep.defs, picked, dep.values);
+    for (const id of dep.picked) {
+      const v = (dep.values[id] ??= { ...defaultsFor() });
+      for (const [k, secret] of Object.entries(dep.secrets)) if (!v[k]) v[k] = secret;
+    }
+    if (values) values.innerHTML = valuesGrid(dep.defs, picked, dep.values, dep.reveal);
+    const save = el('cfgDepSaveDefaults') as HTMLButtonElement | null;
+    if (save) save.disabled = !dep.defs.length || !dep.picked.length;
     drawPreviews();
   }
 
@@ -638,10 +649,42 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   }
 
   function defaultsFor(): Record<string, string> {
-    const out: Record<string, string> = {};
+    const out: Record<string, string> = { ...dep.secrets };
     for (const d of dep.defs) if (d.default && d.type !== 'secret') out[d.name] = d.default;
     return out;
   }
+
+  /** Saves the settings as they stand for the first router picked as the
+   *  template's defaults. A canned template cannot change, so they go into a
+   *  new custom copy of it, which the Deploy tab then carries on with. */
+  async function saveDefaults(): Promise<void> {
+    const why = el('cfgDepSaveWhy');
+    const say = (m: string, ok = false): void => {
+      if (why) { why.textContent = m; why.classList.toggle('is-ok', ok); }
+    };
+    const rid = dep.picked[0];
+    if (!dep.tplId || !rid) return;
+    const t = lib.find((x) => x.id === dep.tplId);
+    let id = dep.tplId;
+    try {
+      if (t?.canned) {
+        if (!window.confirm('Canned templates cannot be changed. Save these settings in a new custom copy of "' +
+          t.name + '"?')) return;
+        id = (await api<{ id: string }>('templates/' + encodeURIComponent(id) + '/clone', { method: 'POST' })).id;
+      }
+      const d = await fetchTemplate(id);
+      await api('templates/' + encodeURIComponent(id), { ...json({ name: d.name, description: d.description,
+        body: d.body, variables: defaultsFromValues(dep.defs, dep.values[rid] ?? defaultsFor()),
+        revision: d.revision }), method: 'PUT' });
+      await load();
+      if (id !== dep.tplId) await pickTemplate(id);
+      say(id === dep.tplId && !t?.canned ? 'Saved as this template\'s defaults.'
+        : 'Saved in the custom template "' + d.name + '", now selected.', true);
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'The defaults were not saved');
+    }
+  }
+
 
   function start(): void {
     const why = readyToStart(dep.picked, dep.previews, dep.acked);
@@ -703,6 +746,12 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
     invalidate();
   });
+  el('cfgDepValues')?.addEventListener('change', (e) => {
+    if (!(e.target as HTMLElement).hasAttribute('data-dep-reveal')) return;
+    dep.reveal = (e.target as HTMLInputElement).checked;
+    drawDeploy();
+  });
+  el('cfgDepSaveDefaults')?.addEventListener('click', () => void saveDefaults());
   el('cfgDepPreview')?.addEventListener('click', () => void previewAll());
   el('cfgDepPreviews')?.addEventListener('change', (e) => {
     const box = e.target as HTMLInputElement;

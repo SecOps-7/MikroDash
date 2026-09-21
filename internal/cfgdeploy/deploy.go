@@ -28,6 +28,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -115,6 +116,29 @@ type Outcome struct {
 	// Baseline is the post-deploy export of the template's menus, for drift.
 	Baseline string `json:"-"`
 	Message  string `json:"message,omitempty"`
+}
+
+// findingsFor is every finding on what a router will be sent: each check reads the
+// FILLED template, what the router receives, except literal-secret. That one
+// asks whether the author wrote a credential into the template's text, which
+// only the text as written can answer: filled, a password given for a secret
+// placeholder reads exactly like one typed into the template, and was flagged
+// as one on every template with a password setting.
+func findingsFor(written, filled *cfgtpl.Template, profile string, live cfgtpl.LiveContext) []cfgtpl.Finding {
+	out := []cfgtpl.Finding{}
+	for _, f := range cfgtpl.Analyze(filled, profile) {
+		if f.Code != "literal-secret" {
+			out = append(out, f)
+		}
+	}
+	for _, f := range cfgtpl.Analyze(written, profile) {
+		if f.Code == "literal-secret" {
+			out = append(out, f)
+		}
+	}
+	out = append(out, cfgtpl.AnalyzeLive(filled, live)...)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
+	return out
 }
 
 // Hash is the fingerprint of rendered text, as the preview shows it and the

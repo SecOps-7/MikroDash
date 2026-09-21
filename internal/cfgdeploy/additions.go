@@ -57,10 +57,7 @@ func Prepare(do Do, p Plan) (Prepared, error) {
 	if err != nil {
 		return Prepared{}, err
 	}
-	findings := append(cfgtpl.Analyze(filled, cfgtpl.Additions), cfgtpl.AnalyzeLive(filled, p.Live)...)
-	if findings == nil {
-		findings = []cfgtpl.Finding{}
-	}
+	findings := findingsFor(resolved, filled, cfgtpl.Additions, p.Live)
 	if ensured == nil {
 		ensured = []cfgtpl.EnsureResult{}
 	}

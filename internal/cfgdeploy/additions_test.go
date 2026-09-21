@@ -470,3 +470,32 @@ func TestTheFilledTemplateIsWhatIsJudged(t *testing.T) {
 		t.Errorf("telnet was refused as MikroDash's own service: %+v", prep.Findings)
 	}
 }
+
+// A password given for a secret placeholder is not a credential written into
+// the template; one typed into the template's text still is.
+func TestAFilledSecretIsNotACredentialInTheTemplate(t *testing.T) {
+	for _, c := range []struct {
+		src  string
+		vals map[string]string
+		want bool
+	}{
+		{"/snmp community\nadd name=x authentication-password={{pw}}", map[string]string{"pw": "Generated1234567890"}, false},
+		{"/snmp community\nadd name=x authentication-password=typed-in-here", nil, true},
+	} {
+		tp, err := cfgtpl.Parse(c.src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prep, err := Prepare(nil, Plan{Template: tp, Values: c.vals})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := false
+		for _, f := range prep.Findings {
+			got = got || f.Code == "literal-secret"
+		}
+		if got != c.want {
+			t.Errorf("%q: flagged as a credential in the template = %v, want %v", c.src, got, c.want)
+		}
+	}
+}

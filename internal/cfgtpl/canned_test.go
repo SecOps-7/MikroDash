@@ -65,6 +65,48 @@ func TestEveryCannedTemplateIsDeployable(t *testing.T) {
 	}
 }
 
+// Every canned template deploys on its defaults alone: nothing typed but the
+// secrets, which have no default on purpose (one would be the same on every
+// install, and public here); the Deploy tab fills each with a fresh random
+// value instead. So every other setting needs a default of its own type, and
+// the template filled with them must bind, fill and pass its checks.
+func TestEveryCannedTemplateDeploysOnItsDefaults(t *testing.T) {
+	server := map[string]string{"mgmt_src": "192.0.2.9", "api_service": "api-ssl", "api_user": "mikrodash"}
+	for _, c := range CannedTemplates() {
+		given := map[string]string{}
+		for _, d := range c.Variables {
+			switch {
+			case Secret(d.Type):
+				if d.Default != "" {
+					t.Errorf("%s: {{%s}} is a secret with a default", c.ID, d.Name)
+				}
+				given[d.Name] = "generated-in-the-browser-1"
+			case d.Default == "":
+				t.Errorf("%s: {{%s}} has no default, so the template cannot be deployed as it comes", c.ID, d.Name)
+			}
+		}
+		tp, err := Parse(c.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bound, vals, err := Bind(tp, c.Variables, given, server)
+		if err != nil {
+			t.Errorf("%s does not bind on its defaults: %v", c.ID, err)
+			continue
+		}
+		filled, err := Fill(bound, vals)
+		if err != nil {
+			t.Errorf("%s does not fill on its defaults: %v", c.ID, err)
+			continue
+		}
+		for _, f := range Analyze(filled, Additions) {
+			if f.Level == Refuse {
+				t.Errorf("%s on its defaults, line %d is refused: %s", c.ID, f.Line, f.Message)
+			}
+		}
+	}
+}
+
 // Every row a canned template adds carries its tag, and the template removes
 // its own tagged rows first, so applying it twice leaves one copy.
 //

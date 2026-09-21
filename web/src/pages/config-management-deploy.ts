@@ -41,18 +41,51 @@ export function routerPicker(routers: RouterOpt[], picked: string[]): string {
     }).join('') + '</div>';
 }
 
+/** A fresh password for a secret setting: 20 letters and digits from the
+ *  browser's CSPRNG. A secret has no default on purpose (one would be the
+ *  same on every install), so the Deploy tab fills it with one of these. */
+export function newSecret(): string {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const out: string[] = [];
+  // Rejection sampling: only bytes below the largest multiple of the alphabet
+  // are used, so no letter is likelier than another.
+  const limit = 256 - (256 % abc.length);
+  while (out.length < 20) {
+    for (const b of crypto.getRandomValues(new Uint8Array(32))) {
+      if (b < limit && out.length < 20) out.push(abc[b % abc.length] as string);
+    }
+  }
+  return out.join('');
+}
+
+/** The template's settings with these values as their defaults: what "Save
+ *  these settings as the template's defaults" stores. A secret keeps no
+ *  default, since it would be stored with the template. */
+export function defaultsFromValues(defs: VarDef[], values: Record<string, string>): VarDef[] {
+  return defs.map((d) => {
+    if (d.type === 'secret') return { ...d, default: undefined };
+    const v = (values[d.name] ?? '').trim();
+    return { ...d, default: v || undefined };
+  });
+}
+
 /** The settings grid: a row per router, a column per setting, and a first row
- *  that fills them all. */
-export function valuesGrid(defs: VarDef[], routers: RouterOpt[], values: Record<string, Record<string, string>>): string {
+ *  that fills them all. Passwords are hidden unless `reveal`. */
+export function valuesGrid(defs: VarDef[], routers: RouterOpt[], values: Record<string, Record<string, string>>,
+  reveal = false): string {
   if (!defs.length) return '<div class="cfg-meta">This template asks for no settings.</div>';
   if (!routers.length) return '<div class="cfg-meta">Pick routers first.</div>';
-  const kind = (d: VarDef): string => (d.type === 'secret' ? 'password' : 'text');
+  const kind = (d: VarDef): string => (d.type === 'secret' && !reveal ? 'password' : 'text');
+  const secrets = defs.some((d) => d.type === 'secret');
   const cell = (rid: string, d: VarDef): string => {
     const v = values[rid]?.[d.name] ?? (d.type === 'secret' ? '' : d.default ?? '');
     return '<td><input class="form-control form-control-sm" data-dep-val="' + esc(rid) + '" data-dep-var="' +
       esc(d.name) + '" type="' + kind(d) + '" value="' + esc(v) + '" placeholder="' + esc(d.type) + '" autocomplete="off"></td>';
   };
-  return '<div class="cfg-scroll"><table class="table table-sm cfg-grid-vals"><thead><tr><th>Router</th>' +
+  return (secrets ? '<label class="cfg-reveal"><input type="checkbox" data-dep-reveal' + (reveal ? ' checked' : '') +
+    '> Show passwords <span class="cfg-meta">(each was generated for this deploy; change it, or note it for ' +
+    'whatever will use it)</span></label>' : '') +
+    '<div class="cfg-scroll"><table class="table table-sm cfg-grid-vals"><thead><tr><th>Router</th>' +
     defs.map((d) => '<th><span class="cfg-var">{{' + esc(d.name) + '}}</span>' +
       (d.label ? '<div class="cfg-meta">' + esc(d.label) + '</div>' : '') + '</th>').join('') +
     '</tr></thead><tbody><tr class="cfg-grid-all"><td>All routers</td>' +
