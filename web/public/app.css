@@ -2588,7 +2588,9 @@
     .vpn-hs-badge.cfg-run-warn{background:color-mix(in srgb,var(--accent-warn) 13%,transparent);color:var(--accent-warn);border:1px solid color-mix(in srgb,var(--accent-warn) 32%,transparent)}
     .vpn-hs-badge.cfg-run-live{background:color-mix(in srgb,var(--accent-rx) 13%,transparent);color:var(--accent-rx);border:1px solid color-mix(in srgb,var(--accent-rx) 32%,transparent)}
     .vpn-hs-badge.cfg-run-muted{background:color-mix(in srgb,var(--text-muted) 12%,transparent);color:var(--text-muted);border:1px solid color-mix(in srgb,var(--text-muted) 28%,transparent)}
-    @media (max-width:640px){.cfg-hist-bar{flex-direction:column;align-items:flex-start}.cfg-drift-acts{white-space:normal}}
+    /* The table scrolls sideways on a phone; an opened row's detail stays in view rather than spanning it. */
+    @media (max-width:640px){.cfg-hist-bar{flex-direction:column;align-items:flex-start}.cfg-drift-acts{white-space:normal}
+      .cfg-hist-open .cfg-hist-detail{position:sticky;left:.5rem;max-width:calc(100vw - 3.5rem)}}
     .cfg-decide{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.7rem;padding:.7rem .8rem;border-radius:12px;
       border:1px solid color-mix(in srgb,var(--accent-alt) 40%,var(--border));background:color-mix(in srgb,var(--accent-alt) 9%,transparent);font-size:.82rem}
     .cfg-decide input{width:6rem}

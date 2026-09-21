@@ -55,7 +55,8 @@ export interface DriftRow {
 /** What a check of one baseline found, or is doing. */
 export type DriftCheck =
   | { state: 'checking' }
-  | { state: 'error'; message: string }
+  /** `accept` when it was the accept that failed, not the check. */
+  | { state: 'error'; message: string; accept?: boolean }
   | { state: 'done'; drifted: boolean; fingerprint: string; checkedAt: number; hunks: Hunk[]; truncated: boolean };
 
 /** The key a baseline is held under: a template on a router. */
@@ -178,7 +179,9 @@ export const DRIFT_COLS: SortCol[] = [
 function driftStatus(c: DriftCheck | undefined): string {
   if (!c) return '<span class="vpn-hs-badge cfg-run-muted">Not checked</span>';
   if (c.state === 'checking') return '<span class="vpn-hs-badge cfg-run-live">Reading the router…</span>';
-  if (c.state === 'error') return '<span class="vpn-hs-badge cfg-run-bad">Could not check</span>';
+  if (c.state === 'error') {
+    return '<span class="vpn-hs-badge cfg-run-bad">' + (c.accept ? 'Not accepted' : 'Could not check') + '</span>';
+  }
   return c.drifted ? '<span class="vpn-hs-badge cfg-run-warn">Drifted</span>'
     : '<span class="vpn-hs-badge cfg-run-ok">As deployed</span>';
 }

@@ -83,6 +83,8 @@ const { cards, editor, deploy, history } = mod;
     'a baseline in step offers to accept a change that is not there');
   const failed = history.driftRows([base], { [key]: { state: 'error', message: 'no <router>' } }, '');
   assert.ok(failed.includes('Could not check') && failed.includes('no &lt;router&gt;'), 'a failed check is not said, or not escaped');
+  const refused = history.driftRows([base], { [key]: { state: 'error', message: 'changed', accept: true } }, '');
+  assert.ok(refused.includes('Not accepted') && !refused.includes('Could not check'), 'a refused accept reads as a failed check');
 }
 
 const tpl = (extra) => ({ id: 'x', name: 'N', description: 'D', category: 'home', kind: 'fragment', canned: true,

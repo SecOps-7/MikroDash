@@ -828,7 +828,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       openDrift = '';
       await loadDrift();
     } catch (e) {
-      checks[key] = { state: 'error', message: e instanceof Error ? e.message : 'The baseline was not changed' };
+      checks[key] = { state: 'error', message: e instanceof Error ? e.message : 'The baseline was not changed', accept: true };
       drawDrift();
     }
   }
