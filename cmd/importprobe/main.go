@@ -909,7 +909,8 @@ func m13CannedDryRun(p *probe) {
 	fmt.Fprintln(os.Stderr, "M13 canned templates through the router's dry-run")
 	sample := map[string]string{"iface": "ether1", "cidr": "192.0.2.0/24", "rate": "50M", "ip": "192.0.2.10",
 		"secret": "example-pass-123", "ifaddr": "192.0.2.1/24", "hostname": "pool.ntp.org", "port": "13231",
-		"int": "12", "ipv4-list": "192.0.2.53", "text": "lab"}
+		"int": "12", "ipv4-list": "192.0.2.53", "text": "lab", "vlan-id": "30", "ipv4": "192.0.2.1",
+		"ident": "vlan30", "iface-list": "ether1", "port-list": "8123"}
 	server := map[string]string{"mgmt_src": "192.0.2.9", "api_service": "api-ssl", "api_user": "mikrodash"}
 
 	// THE CONTROL. A dry-run is only evidence about property names if it
@@ -939,7 +940,7 @@ func m13CannedDryRun(p *probe) {
 			p.note("m13 "+c.ID, "does not parse: "+err.Error())
 			continue
 		}
-		vals, err := cfgtpl.Resolve(c.Variables, given, server)
+		tp, vals, err := cfgtpl.Bind(tp, c.Variables, given, server)
 		if err != nil {
 			p.note("m13 "+c.ID, "values: "+err.Error())
 			continue

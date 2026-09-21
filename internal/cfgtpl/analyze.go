@@ -114,6 +114,9 @@ var extraMenus = map[string]string{
 	"/tool/bandwidth-server":          "the bandwidth-test server on or off",
 	"/tool/romon":                     "RoMON on or off",
 	"/user/settings":                  "the password policy",
+	// Rows, but no page yet. Its lockout risk is judged where it bites: the
+	// vlan-filtering switch and each port's pvid (lockout-port-vlan).
+	"/interface/bridge/vlan": "the bridge's VLAN table: which VLANs each port carries, tagged or untagged",
 }
 
 // KnownMenu reports whether an addition may touch a menu: one the resource
@@ -428,6 +431,14 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 		if menu == "/interface/bridge" && l.Verb == "set" && may(l, "vlan-filtering", "yes") {
 			add(l, Ack, "vlan-filtering", "/interface/bridge: turning on VLAN filtering drops every frame "+
 				"not already allowed by the bridge's VLAN table, the management path's included")
+		}
+
+		// A port moved into another VLAN leaves the one it was in. MikroDash
+		// knows the bridge it arrives on, not which of its ports, so any
+		// port's VLAN change may be the one it arrives through.
+		if menu == "/interface/bridge/port" && (l.Verb == "set" || l.Verb == "add") && has(l, "pvid") {
+			add(l, Ack, "lockout-port-vlan", "/interface/bridge/port: this moves a port into another VLAN; if "+
+				"MikroDash arrives through that port, it is cut off")
 		}
 
 		// ── Interfaces and addresses MikroDash may arrive on ─────────────────

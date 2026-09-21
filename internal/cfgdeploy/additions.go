@@ -18,7 +18,7 @@ import (
 type Plan struct {
 	Template *cfgtpl.Template
 	// Values are every placeholder's value for THIS router, the server
-	// variables included (cfgtpl.Resolve).
+	// variables included (cfgtpl.Bind).
 	Values map[string]string
 	Live   cfgtpl.LiveContext
 }
@@ -77,7 +77,7 @@ func FindingKey(f cfgtpl.Finding) string { return f.Code + "@" + strconv.Itoa(f.
 var lockCodes = map[string]bool{
 	"lockout-firewall": true, "lockout-unknown": true, "own-service-address": true,
 	"vlan-filtering": true, "lockout-interface": true, "lockout-address": true,
-	"lockout-route": true,
+	"lockout-route": true, "lockout-port-vlan": true,
 }
 
 // LockClass reports whether findings include any that can cut MikroDash off.

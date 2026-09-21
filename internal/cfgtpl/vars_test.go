@@ -128,7 +128,7 @@ func TestResolve(t *testing.T) {
 	}
 	server := map[string]string{"mgmt_src": "192.0.2.9", "api_service": "api-ssl", "api_user": "mikrodash"}
 
-	got, err := Resolve(defs, map[string]string{"vlan": "030", "wan": "ether1"}, server)
+	got, err := resolveValues(defs, map[string]string{"vlan": "030", "wan": "ether1"}, server)
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -142,20 +142,20 @@ func TestResolve(t *testing.T) {
 	}
 
 	// Missing values: a required one, and an untyped-empty iface.
-	_, err = Resolve(defs, map[string]string{}, server)
+	_, err = resolveValues(defs, map[string]string{}, server)
 	fe, ok := err.(FieldErrors)
 	if !ok || fe["vlan"] == "" || fe["wan"] == "" {
 		t.Errorf("missing values were not all reported per field: %v", err)
 	}
 
 	// THE OPERATOR MAY NOT CHOOSE A SERVER VARIABLE — not even to a valid value.
-	_, err = Resolve(defs, map[string]string{"vlan": "30", "wan": "ether1", "mgmt_src": "192.0.2.1"}, server)
+	_, err = resolveValues(defs, map[string]string{"vlan": "30", "wan": "ether1", "mgmt_src": "192.0.2.1"}, server)
 	if fe, ok := err.(FieldErrors); !ok || fe["mgmt_src"] == "" {
 		t.Errorf("an operator-supplied mgmt_src was accepted; it must be refused, not overwritten: %v", err)
 	}
 
 	// A value that fails its type is named on its field.
-	_, err = Resolve(defs, map[string]string{"vlan": "5000", "wan": "ether1"}, server)
+	_, err = resolveValues(defs, map[string]string{"vlan": "5000", "wan": "ether1"}, server)
 	if fe, ok := err.(FieldErrors); !ok || !strings.Contains(fe["vlan"], "outside") {
 		t.Errorf("an out-of-range VLAN was not reported on its field: %v", err)
 	}

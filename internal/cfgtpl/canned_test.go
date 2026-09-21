@@ -67,25 +67,53 @@ func TestEveryCannedTemplateIsDeployable(t *testing.T) {
 
 // Every row a canned template adds carries its tag, and the template removes
 // its own tagged rows first, so applying it twice leaves one copy.
+//
+// A template deployed once PER INSTANCE (a VLAN per VLAN id) tags each
+// instance on its own, `mdcfg:<id>:{{var}}`: one tag for all of them would
+// make deploying VLAN 20 remove VLAN 10. Its removes must then name that same
+// instance, or re-applying it would leave the old copy behind.
 func TestCannedTemplatesAreIdempotent(t *testing.T) {
 	for _, c := range CannedTemplates() {
 		tp, _ := Parse(c.Body)
 		tag := "mdcfg:" + c.ID
-		removed := map[string]bool{}
+		// instance is the tag a value holds: the plain tag, or the tag with a
+		// per-instance placeholder, written as the template spells it.
+		instance := func(v Value) (string, bool) {
+			if lit, ok := v.Literal(); ok {
+				return lit, lit == tag
+			}
+			if len(v.Parts) == 2 && v.Parts[0].Lit == tag+":" && v.Parts[1].Var != "" {
+				return tag + ":{{" + v.Parts[1].Var + "}}", true
+			}
+			return "", false
+		}
+		removed := map[string]string{}
 		for _, l := range tp.Lines {
 			switch l.Verb {
 			case "remove":
-				removed[l.Path()] = true
+				for _, a := range l.Find {
+					if a.Name == "comment" {
+						if t, ok := instance(a.Value); ok {
+							removed[l.Path()] = t
+						}
+					}
+				}
+				if _, ok := removed[l.Path()]; !ok {
+					removed[l.Path()] = "(other)"
+				}
 			case "add":
 				v, _ := l.Arg("comment")
-				lit, _ := v.Literal()
+				lit, tagged := instance(v)
 				name, _ := l.Arg("name")
 				nm, _ := name.Literal()
-				tagged := lit == tag || strings.HasPrefix(nm, "mdcfg-") || l.Path() == "/system/logging"
+				tagged = tagged || strings.HasPrefix(nm, "mdcfg-") || l.Path() == "/system/logging"
+				if strings.HasPrefix(lit, tag+":") && removed[l.Path()] != lit {
+					t.Errorf("%s line %d: adds instance %s to %s without removing that instance first", c.ID, l.Num, lit, l.Path())
+				}
 				if !tagged {
 					t.Errorf("%s line %d: an added row carries neither %q nor an mdcfg- name", c.ID, l.Num, tag)
 				}
-				if !removed[l.Path()] {
+				if _, ok := removed[l.Path()]; !ok {
 					t.Errorf("%s line %d: adds to %s without first removing its own rows there", c.ID, l.Num, l.Path())
 				}
 			}
@@ -154,9 +182,11 @@ func TestLockClassCannedTemplatesKeepMikroDashIn(t *testing.T) {
 // in the manifest too; the version is what a clone records as its baseline.
 var cannedLedger = map[string]string{
 	"anti-bufferbloat":        "dbbf23da08e5155f@v1",
+	"bridge-vlan":             "6ec9b5eb7aa100f6@v1",
 	"dns-and-time":            "4c410ebe6cd5cff4@v1",
 	"fair-share":              "d03fb41c11775c09@v1",
 	"family-safe-dns":         "b5aaaa7e59bb63c2@v1",
+	"guest-network":           "72800c2714bd9c64@v1",
 	"home-firewall":           "39803d7b9336e6e6@v1",
 	"iot-isolation":           "96f4838dcb3a85b7@v1",
 	"ipv6-firewall":           "806602513075a7f2@v1",
@@ -168,6 +198,8 @@ var cannedLedger = map[string]string{
 	"site-ntp-server":         "5877cbc7c84b5a47@v1",
 	"snmp-v3":                 "1c3faaf2504b3766@v1",
 	"stack-hardening":         "6c0d2ab08b2fabb0@v1",
+	"three-vlan-home":         "bef6caa309782f4d@v1",
+	"vlan-network":            "c34518a65d146813@v1",
 	"wireguard-remote-access": "75e47df1551205d1@v1",
 }
 

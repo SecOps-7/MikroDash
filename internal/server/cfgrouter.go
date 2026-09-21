@@ -258,7 +258,7 @@ func (s *Server) cfgPreview(w http.ResponseWriter, r *http.Request, sess *Sessio
 		return
 	}
 	live, server := liveOf(sn)
-	vals, err := cfgtpl.Resolve(defs, in.Values, server)
+	pt, vals, err := cfgtpl.Bind(pt, defs, in.Values, server)
 	if err != nil {
 		var fe cfgtpl.FieldErrors
 		if errors.As(err, &fe) {

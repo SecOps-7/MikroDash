@@ -323,3 +323,16 @@ func TestDroppingInvalidIsNotALockout(t *testing.T) {
 		t.Errorf("a drop of new connections: %q", got)
 	}
 }
+
+// A port's VLAN change may be the port MikroDash arrives through: MikroDash
+// knows the bridge, not the port, so every one needs an OK.
+func TestAPortVLANChangeNeedsAnOK(t *testing.T) {
+	for _, line := range []string{"set [ find interface=ether2 ] pvid=10", "add bridge=bridge interface=ether3 pvid=20"} {
+		if got := codes(AnalyzeLive(mustParse(t, "/interface bridge port\n"+line), lab)); got != "ack:lockout-port-vlan" {
+			t.Errorf("%s: %q", line, got)
+		}
+	}
+	if got := codes(AnalyzeLive(mustParse(t, "/interface bridge port\nset [ find interface=ether2 ] edge=yes"), lab)); got != "" {
+		t.Errorf("a port change that keeps its VLAN: %q", got)
+	}
+}

@@ -34,6 +34,14 @@
       "answer": "ok"
     },
     {
+      "name": "m13 guest-network",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 three-vlan-home",
+      "answer": "ok"
+    },
+    {
       "name": "m13 office-firewall",
       "answer": "ok"
     },
@@ -72,6 +80,14 @@
     {
       "name": "m13 site-ntp-server",
       "answer": "ok"
+    },
+    {
+      "name": "m13 vlan-network",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 bridge-vlan",
+      "answer": "ok"
     }
   ],
   "steps": [
@@ -86,7 +102,7 @@
       "done": {
         "ret": "**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ"
       },
-      "ms": 1
+      "ms": 8
     },
     {
       "label": "m13 control: set contents",
@@ -97,7 +113,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 1
+      "ms": 9
     },
     {
       "label": "m13 control unknown property",
@@ -110,7 +126,7 @@
       "rows": [],
       "done": {},
       "trap": "Script Error: bad parameter no-such-property (line 2 column 23)",
-      "ms": 0
+      "ms": 2
     },
     {
       "label": "m13 control: remove stale",
@@ -120,7 +136,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 4
+      "ms": 5
     },
     {
       "label": "m13 control: add",
@@ -133,7 +149,7 @@
       "done": {
         "ret": "**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ"
       },
-      "ms": 1
+      "ms": 4
     },
     {
       "label": "m13 control: set contents",
@@ -144,7 +160,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 2
     },
     {
       "label": "m13 control bad enum value",
@@ -157,7 +173,7 @@
       "rows": [],
       "done": {},
       "trap": "Script Error: syntax error (line 2 column 15)",
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 home-firewall: add",
@@ -170,7 +186,7 @@
       "done": {
         "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgibYI1SjsblcpHch0OwOrgsT5"
       },
-      "ms": 1
+      "ms": 3
     },
     {
       "label": "m13 home-firewall: set contents",
@@ -181,7 +197,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 2
     },
     {
       "label": "m13 dry-run home-firewall",
@@ -195,7 +211,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 6
+      "ms": 12
     },
     {
       "label": "m13 dns-and-time: add",
@@ -208,7 +224,7 @@
       "done": {
         "ret": "**Hn4qVys7PH2ojodbNREFiG84OjmzGMfsdRG6woQ7gO9yHq67"
       },
-      "ms": 1
+      "ms": 2
     },
     {
       "label": "m13 dns-and-time: set contents",
@@ -219,7 +235,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run dns-and-time",
@@ -271,7 +287,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 2
+      "ms": 3
     },
     {
       "label": "m13 iot-isolation: add",
@@ -295,7 +311,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run iot-isolation",
@@ -309,7 +325,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 2
+      "ms": 3
     },
     {
       "label": "m13 anti-bufferbloat: add",
@@ -333,7 +349,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run anti-bufferbloat",
@@ -347,7 +363,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 1
+      "ms": 2
     },
     {
       "label": "m13 privacy-essentials: add",
@@ -360,7 +376,7 @@
       "done": {
         "ret": "**Mw2dHKjBKqE8MVPspkIOEmrVT7blCHW3rg52Rqd1JYafPTW0hdfJdiAl"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 privacy-essentials: set contents",
@@ -371,7 +387,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run privacy-essentials",
@@ -385,7 +401,83 @@
       "done": {
         "ret": "true"
       },
-      "ms": 0
+      "ms": 1
+    },
+    {
+      "label": "m13 guest-network: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-guest-network.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgibQgDkZuT0N7aZtkBrkLUYpX"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 guest-network: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1BSe0q4KAKF8a8LButnbBuJNbgibQgDkZuT0N7aZtkBrkLUYpX",
+        "=contents=\u003c1372 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 dry-run guest-network",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-guest-network.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 7
+    },
+    {
+      "label": "m13 three-vlan-home: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-three-vlan-home.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHlAYDEs6MpkmQ0dBKPCSSmoczL"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 three-vlan-home: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**KCRj5cGns0kk2UUZbQkRGm0AcyHlAYDEs6MpkmQ0dBKPCSSmoczL",
+        "=contents=\u003c4752 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 dry-run three-vlan-home",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-three-vlan-home.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 21
     },
     {
       "label": "m13 office-firewall: add",
@@ -409,7 +501,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run office-firewall",
@@ -423,7 +515,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 6
+      "ms": 10
     },
     {
       "label": "m13 wireguard-remote-access: add",
@@ -447,7 +539,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run wireguard-remote-access",
@@ -461,7 +553,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 1
+      "ms": 2
     },
     {
       "label": "m13 fair-share: add",
@@ -474,7 +566,7 @@
       "done": {
         "ret": "**12hRvUEsmCF9qeHKwEyy3lKcQ1ZTqn53sThnveJ8alIjcR"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 fair-share: set contents",
@@ -485,7 +577,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 1
+      "ms": 2
     },
     {
       "label": "m13 dry-run fair-share",
@@ -499,7 +591,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 2
+      "ms": 3
     },
     {
       "label": "m13 management-lockdown: add",
@@ -523,7 +615,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 2
     },
     {
       "label": "m13 dry-run management-lockdown",
@@ -537,7 +629,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 1
+      "ms": 3
     },
     {
       "label": "m13 ipv6-firewall: add",
@@ -550,7 +642,7 @@
       "done": {
         "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgibg72WHXjya4u0VdUSu1prwB"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 ipv6-firewall: set contents",
@@ -561,7 +653,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run ipv6-firewall",
@@ -575,7 +667,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 3
+      "ms": 6
     },
     {
       "label": "m13 stack-hardening: add",
@@ -613,7 +705,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 password-policy: add",
@@ -626,7 +718,7 @@
       "done": {
         "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHcXaDmLaleNWgmnqT02eSjQjHH"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 password-policy: set contents",
@@ -675,7 +767,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run remote-syslog",
@@ -689,7 +781,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 2
+      "ms": 4
     },
     {
       "label": "m13 snmp-v3: add",
@@ -702,7 +794,7 @@
       "done": {
         "ret": "**uz2LaCs9Q9jso3ZVs1uF5JId8iBCYbOGJhdrnvqNP"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 snmp-v3: set contents",
@@ -727,7 +819,7 @@
       "done": {
         "ret": "true"
       },
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 site-ntp-server: add",
@@ -751,7 +843,7 @@
       ],
       "rows": [],
       "done": {},
-      "ms": 0
+      "ms": 1
     },
     {
       "label": "m13 dry-run site-ntp-server",
@@ -766,6 +858,82 @@
         "ret": "true"
       },
       "ms": 0
+    },
+    {
+      "label": "m13 vlan-network: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-vlan-network.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**Hn4qVys7PH2ojodbNREFiG84OjnXDHTlGFuquXqgqDv1NJuF"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 vlan-network: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**Hn4qVys7PH2ojodbNREFiG84OjnXDHTlGFuquXqgqDv1NJuF",
+        "=contents=\u003c973 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run vlan-network",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-vlan-network.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m13 bridge-vlan: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-bridge-vlan.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**4J9PJMv0wDEyJwjaYl3AMo9hbFulMlDSrCY0G9NGFe0wmiB"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 bridge-vlan: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**4J9PJMv0wDEyJwjaYl3AMo9hbFulMlDSrCY0G9NGFe0wmiB",
+        "=contents=\u003c280 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m13 dry-run bridge-vlan",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-bridge-vlan.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
     }
   ]
 }

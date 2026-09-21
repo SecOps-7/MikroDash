@@ -427,7 +427,7 @@ func (s *Server) cfgRunOne(r *cfgRun, t *cfgTargetRun) cfgdeploy.Outcome {
 	var out cfgdeploy.Outcome
 	err := s.inRouterWriteQueueWith(t.row.RouterID, func(sn *session.Session) error {
 		live, server := liveOf(sn)
-		vals, err := cfgtpl.Resolve(r.defs, t.in.Values, server)
+		tpl, vals, err := cfgtpl.Bind(r.t, r.defs, t.in.Values, server)
 		if err != nil {
 			out = cfgdeploy.Outcome{State: cfgdeploy.StatePreflightFailed, Applied: "none", Code: "values",
 				Message: err.Error()}
@@ -448,11 +448,11 @@ func (s *Server) cfgRunOne(r *cfgRun, t *cfgTargetRun) cfgdeploy.Outcome {
 			Log: func(m string) { log.Printf("[config][%s] %s", t.label, m) },
 		}
 		if r.kind == cfgtpl.KindFullExport {
-			out = cfgdeploy.RunReset(env, cfgdeploy.Reset{Template: r.t, Values: vals, Live: live, Source: r.source,
+			out = cfgdeploy.RunReset(env, cfgdeploy.Reset{Template: tpl, Values: vals, Live: live, Source: r.source,
 				Override: t.in.Override, Expect: t.in.Expect, Approved: t.in.Hash, Acked: acked})
 		} else {
 			out = cfgdeploy.RunAdditions(env, cfgdeploy.Additions{
-				Plan:   cfgdeploy.Plan{Template: r.t, Values: vals, Live: live},
+				Plan:   cfgdeploy.Plan{Template: tpl, Values: vals, Live: live},
 				Expect: t.in.Expect, Approved: t.in.Hash, Acked: acked})
 		}
 		return nil

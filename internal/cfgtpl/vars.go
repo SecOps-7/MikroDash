@@ -41,8 +41,17 @@ type VarDef struct {
 var Types = []string{
 	"ip", "ipv4", "ipv6", "cidr", "ifaddr", "hostname", "int", "port", "vlan-id",
 	"mac", "iface", "enum", "ident", "duration", "rate", "text", "secret",
-	"ipv4-list", "cidr-list", "host-list",
+	"ipv4-list", "cidr-list", "host-list", "iface-list", "port-list",
 }
+
+// listElem is each list type's element type. A list is comma-separated, and
+// no element type admits a comma, so splitting it can never cut one element.
+var listElem = map[string]string{
+	"ipv4-list": "ipv4", "cidr-list": "cidr", "host-list": "hostname", "iface-list": "iface", "port-list": "port",
+}
+
+// IsList reports whether a type holds a comma-separated list.
+func IsList(typ string) bool { _, ok := listElem[typ]; return ok }
 
 // Secret reports whether a type's values are credentials: masked in the UI,
 // never written to the database or an audit row, held in memory only for the
@@ -274,8 +283,8 @@ func Validate(d VarDef, raw string) (string, error) {
 			return "", fmt.Errorf("%q is not a rate such as 90M or 500k", v)
 		}
 		return v, nil
-	case "ipv4-list", "cidr-list", "host-list":
-		elem := VarDef{Type: map[string]string{"ipv4-list": "ipv4", "cidr-list": "cidr", "host-list": "hostname"}[d.Type]}
+	case "ipv4-list", "cidr-list", "host-list", "iface-list", "port-list":
+		elem := VarDef{Type: listElem[d.Type]}
 		items := strings.Split(v, ",")
 		if len(items) > 16 {
 			return "", fmt.Errorf("more than 16 entries")
@@ -309,13 +318,13 @@ func (f FieldErrors) Error() string {
 	return strings.Join(parts, "; ")
 }
 
-// Resolve turns what the operator typed and what MikroDash knows about the
+// resolveValues turns what the operator typed and what MikroDash knows about the
 // router into the values Render substitutes.
 //
 // A server variable the operator tried to set is REFUSED, not overwritten: a
 // value typed into it is a sign the operator believes they are choosing it, and
 // silently replacing it would leave them believing that.
-func Resolve(defs []VarDef, given, server map[string]string) (map[string]string, error) {
+func resolveValues(defs []VarDef, given, server map[string]string) (map[string]string, error) {
 	errs := FieldErrors{}
 	out := map[string]string{}
 	for name := range given {
@@ -337,6 +346,12 @@ func Resolve(defs []VarDef, given, server map[string]string) (map[string]string,
 		v, ok := given[d.Name]
 		if !ok || (v == "" && d.Default != "") {
 			v, ok = d.Default, d.Default != ""
+		}
+		// An optional list may be empty: no ports, no servers. Only a list
+		// can say "none" without the value itself becoming empty text.
+		if IsList(d.Type) && !d.Required && strings.TrimSpace(v) == "" {
+			out[d.Name] = ""
+			continue
 		}
 		if !ok {
 			// A missing text or secret is an empty string unless required; a
