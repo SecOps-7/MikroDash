@@ -80,6 +80,28 @@ var identityColumns = []identityColumn{
 			"creatorMayRead asks the grant graph with it, which is keyed by user id.",
 	},
 	{
+		column: "cfg_templates.created_by", kind: "id",
+		file: "internal/server/cfgmgmt.go", site: "CreatedBy: s.userIDFor(sess.Username)}", sites: 1,
+		why: "a template made in the editor. The column is the user id, as report_schedules' is; " +
+			"the Library and History name the author through it.",
+	},
+	{
+		column: "cfg_templates.created_by", kind: "id",
+		file: "internal/server/cfgmgmt.go", site: "c.CreatedBy = id, s.userIDFor(sess.Username)", sites: 1,
+		why: "a clone (Customise, Duplicate) belongs to whoever cloned it, not to the source's author.",
+	},
+	{
+		column: "cfg_templates.created_by", kind: "id",
+		file: "internal/server/cfgrouter.go", site: "CreatedBy: s.userIDFor(sess.Username)}", sites: 1,
+		why: "a template captured from a router: the third writer, and the one furthest from the editor.",
+	},
+	{
+		column: "cfg_runs.created_by", kind: "id",
+		file: "internal/server/cfgjob.go", site: "CreatedBy: s.userIDFor(r.actor.Username)}", sites: 1,
+		why: "who started a deploy, recorded before anything is sent. The job re-checks that same " +
+			"person before every router, by the session it keeps, not by this column.",
+	},
+	{
 		column: "grants.created_by", kind: "caller",
 		file: "internal/db/grantwrite.go", site: "s.CreatedBy", sites: 2,
 		why: "as above, and distinct from principal_id — swapping them is silent.",
@@ -117,9 +139,9 @@ func TestIdentityColumns(t *testing.T) {
 	}
 
 	// The ledger is hand-written, so an empty or truncated one would pass in
-	// silence. Six columns is what this port writes today.
-	if len(identityColumns) < 6 {
-		t.Fatalf("the ledger holds %d columns; it had 6 — entries were removed rather than "+
+	// silence. Eleven entries is what this port writes today.
+	if len(identityColumns) < 11 {
+		t.Fatalf("the ledger holds %d entries; it had 11 — entries were removed rather than "+
 			"the writers being fixed", len(identityColumns))
 	}
 	t.Logf("%d shared identity columns checked, each at its recorded number of call sites",
