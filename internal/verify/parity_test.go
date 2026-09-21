@@ -24,6 +24,11 @@ func TestTheParityTableNamesRealTools(t *testing.T) {
 	for _, tl := range aitools.All() {
 		tools[tl.Name] = true
 	}
+	// The raw command tools are not in the generated catalogue: they are added
+	// to a question's list only past their gate (2026-09-21), but they exist.
+	for _, tl := range aitools.RawTools() {
+		tools[tl.Name] = true
+	}
 	statuses := map[string]bool{"covered": true, "partial": true, "context": true, "pending": true, "excluded": true, "gap": true}
 	row := regexp.MustCompile("^\\| `([a-z_]+)` \\| (.*?) \\| ([a-z]+) \\| (.*) \\|$")
 	name := regexp.MustCompile("`([^`]+)`")
