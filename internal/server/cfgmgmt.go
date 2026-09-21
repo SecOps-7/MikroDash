@@ -202,7 +202,48 @@ func (s *Server) cfgList(w http.ResponseWriter, _ *http.Request, _ *Session) {
 		writeJSONErr(w, http.StatusInternalServerError, "could not read the templates")
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "templates": rows})
+	writeJSON(w, map[string]any{"ok": true, "templates": rows, "canned": cannedViews()})
+}
+
+// cannedView is a shipped template as the Library lists it.
+type cannedView struct {
+	cfgtpl.Canned
+	// LockClass is whether deploying it arms the dead-man: it holds a change
+	// that could cut MikroDash off, judged as if MikroDash's address on the
+	// router were unknown, which is the most a list can know.
+	LockClass bool     `json:"lockClass"`
+	Scope     []string `json:"scope"`
+}
+
+func cannedViews() []cannedView {
+	out := []cannedView{}
+	for _, c := range cfgtpl.CannedTemplates() {
+		v := cannedView{Canned: c, Scope: []string{}}
+		if t, err := cfgtpl.Parse(c.Body); err == nil {
+			v.Scope = t.Menus()
+			v.LockClass = cfgdeploy.LockClass(cfgtpl.AnalyzeLive(t, cfgtpl.LiveContext{}))
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
+// cannedRow is a shipped template in the shape a stored one has, so reading,
+// previewing and cloning treat the two alike. Its revision is its version.
+func cannedRow(id string) (*db.CfgTemplate, bool) {
+	c, ok := cfgtpl.CannedByID(strings.TrimPrefix(id, cfgtpl.CannedPrefix))
+	if !ok || !strings.HasPrefix(id, cfgtpl.CannedPrefix) {
+		return nil, false
+	}
+	scope := "[]"
+	if t, err := cfgtpl.Parse(c.Body); err == nil {
+		b, _ := json.Marshal(t.Menus())
+		scope = string(b)
+	}
+	vars, _ := json.Marshal(c.Variables)
+	return &db.CfgTemplate{ID: id, Name: c.Name, Description: c.Description, Kind: cfgtpl.KindFragment,
+		Scope: scope, Body: c.Body, Variables: string(vars), Fingerprint: cfgdeploy.Hash(c.Body),
+		Revision: c.Version}, true
 }
 
 func (s *Server) cfgGet(w http.ResponseWriter, r *http.Request, _ *Session) {
@@ -227,6 +268,13 @@ func (s *Server) cfgGet(w http.ResponseWriter, r *http.Request, _ *Session) {
 
 // cfgLoad reads a template or answers 404.
 func (s *Server) cfgLoad(w http.ResponseWriter, id string) (*db.CfgTemplate, bool) {
+	if strings.HasPrefix(id, cfgtpl.CannedPrefix) {
+		t, ok := cannedRow(id)
+		if !ok {
+			writeJSONErr(w, http.StatusNotFound, "no such template")
+		}
+		return t, ok
+	}
 	t, err := s.auditDB.CfgTemplate(id)
 	if err != nil {
 		log.Printf("[config] template %s: %v", id, err)
@@ -318,7 +366,20 @@ func (s *Server) cfgCreate(w http.ResponseWriter, r *http.Request, sess *Session
 	writeJSON(w, map[string]any{"ok": true, "id": id, "findings": c.Findings})
 }
 
+// cfgShipped answers a change aimed at a canned template: a release owns it,
+// and a clone is how to change it.
+func cfgShipped(w http.ResponseWriter, id string) bool {
+	if strings.HasPrefix(id, cfgtpl.CannedPrefix) {
+		writeJSONErr(w, http.StatusForbidden, "a canned template ships with MikroDash; clone it to change it")
+		return true
+	}
+	return false
+}
+
 func (s *Server) cfgUpdate(w http.ResponseWriter, r *http.Request, sess *Session) {
+	if cfgShipped(w, r.PathValue("id")) {
+		return
+	}
 	t, ok := s.cfgLoad(w, r.PathValue("id"))
 	if !ok {
 		return
@@ -356,6 +417,9 @@ func (s *Server) cfgUpdate(w http.ResponseWriter, r *http.Request, sess *Session
 }
 
 func (s *Server) cfgDelete(w http.ResponseWriter, r *http.Request, sess *Session) {
+	if cfgShipped(w, r.PathValue("id")) {
+		return
+	}
 	t, ok := s.cfgLoad(w, r.PathValue("id"))
 	if !ok {
 		return
@@ -382,7 +446,13 @@ func (s *Server) cfgClone(w http.ResponseWriter, r *http.Request, sess *Session)
 	}
 	c := *t
 	c.ID, c.CreatedBy = id, s.userIDFor(sess.Username)
-	base := "template:" + t.ID + "@" + strconv.Itoa(t.Revision)
+	// Where it came from: a canned id already carries its prefix, a stored one
+	// is marked as such. The editor offers a compare when the source moves on.
+	src := "template:" + t.ID
+	if strings.HasPrefix(t.ID, cfgtpl.CannedPrefix) {
+		src = t.ID
+	}
+	base := src + "@" + strconv.Itoa(t.Revision)
 	c.Baseline = &base
 	for n := 1; ; n++ {
 		c.Name = cloneName(t.Name, n)

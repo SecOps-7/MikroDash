@@ -96,7 +96,11 @@ func PrepareReset(r Reset) (ResetPrepared, error) {
 	if err != nil {
 		return ResetPrepared{}, err
 	}
-	findings := append(cfgtpl.Analyze(resolved, cfgtpl.Full), cfgtpl.AnalyzeLive(resolved, r.Live)...)
+	filled, err := cfgtpl.Fill(resolved, r.Values)
+	if err != nil {
+		return ResetPrepared{}, err
+	}
+	findings := append(cfgtpl.Analyze(filled, cfgtpl.Full), cfgtpl.AnalyzeLive(filled, r.Live)...)
 	if findings == nil {
 		findings = []cfgtpl.Finding{}
 	}

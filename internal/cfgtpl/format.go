@@ -46,6 +46,60 @@ func Render(t *Template, vals map[string]string) (string, error) {
 	})
 }
 
+// Fill is t with every placeholder replaced by its value, as literal text:
+// what the router will receive, in a form the analyser can judge. It is for
+// ANALYSIS only; the router is sent Render's output, which quotes each value.
+func Fill(t *Template, vals map[string]string) (*Template, error) {
+	fill := func(v Value) (Value, error) {
+		if _, lit := v.Literal(); lit {
+			return v, nil
+		}
+		var b strings.Builder
+		for _, p := range v.Parts {
+			if p.Var == "" {
+				b.WriteString(p.Lit)
+				continue
+			}
+			x, ok := vals[p.Var]
+			if !ok {
+				return v, fmt.Errorf("no value was given for {{%s}}", p.Var)
+			}
+			b.WriteString(x)
+		}
+		return Value{Parts: []Part{{Lit: b.String()}}, Quoted: true}, nil
+	}
+	fillArgs := func(as []Arg) ([]Arg, error) {
+		out := make([]Arg, len(as))
+		for i, a := range as {
+			v, err := fill(a.Value)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = Arg{Name: a.Name, Value: v}
+		}
+		return out, nil
+	}
+	out := &Template{Lines: make([]Line, len(t.Lines))}
+	for i, l := range t.Lines {
+		var err error
+		if l.Args, err = fillArgs(l.Args); err != nil {
+			return nil, &ParseError{l.Num, err.Error()}
+		}
+		if l.Find, err = fillArgs(l.Find); err != nil {
+			return nil, &ParseError{l.Num, err.Error()}
+		}
+		pos := make([]Value, len(l.Pos))
+		for j, v := range l.Pos {
+			if pos[j], err = fill(v); err != nil {
+				return nil, &ParseError{l.Num, err.Error()}
+			}
+		}
+		l.Pos = pos
+		out.Lines[i] = l
+	}
+	return out, nil
+}
+
 // RenderCommands renders each command as ONE absolute line,
 // `/ip address add address=…`, for a script that must wrap every command on
 // its own: the export + reset bootstrap puts each inside

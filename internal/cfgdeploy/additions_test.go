@@ -373,3 +373,32 @@ func TestTheSweepTakesOnlyOurSchedulers(t *testing.T) {
 		t.Error("the operator's own scheduler was removed")
 	}
 }
+
+// The deploy judges what will be sent: a placeholder that names MikroDash's
+// own service is refused before anything moves.
+func TestAPlaceholderCannotHideMikroDashsOwnService(t *testing.T) {
+	f := newFake(t)
+	f.menus["/ip/service"] = nil
+	tp, _ := cfgtpl.Parse("/ip service\nset [ find name={{svc}} ] disabled=yes")
+	prep, err := Prepare(f.Do, Plan{Template: tp, Values: map[string]string{"svc": "api-ssl"}, Live: lab})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfgtpl.Worst(prep.Findings) != cfgtpl.Refuse {
+		t.Errorf("findings %+v: disabling api-ssl through a placeholder was not refused", prep.Findings)
+	}
+}
+
+// And judged filled, not merely cautious: the same line naming telnet is not
+// MikroDash's service, and is not refused.
+func TestTheFilledTemplateIsWhatIsJudged(t *testing.T) {
+	f := newFake(t)
+	tp, _ := cfgtpl.Parse("/ip service\nset [ find name={{svc}} ] disabled=yes")
+	prep, err := Prepare(f.Do, Plan{Template: tp, Values: map[string]string{"svc": "telnet"}, Live: lab})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := cfgtpl.Worst(prep.Findings); w == cfgtpl.Refuse {
+		t.Errorf("telnet was refused as MikroDash's own service: %+v", prep.Findings)
+	}
+}

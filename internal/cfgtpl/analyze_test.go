@@ -257,3 +257,43 @@ func TestRefusedMenuAgreesWithTheAnalyser(t *testing.T) {
 		}
 	}
 }
+
+// An unknown value is read as the dangerous one. A placeholder service name
+// may be MikroDash's own; a placeholder address is still a change.
+func TestUnknownValuesFlag(t *testing.T) {
+	cases := []struct{ src, want string }{
+		{"/ip service\nset [ find name={{svc}} ] disabled=yes", "refuse:own-service"},
+		{"/ip service\nset [ find name=api-ssl ] disabled={{off}}", "refuse:own-service"},
+		{"/ip service\nset [ find name=api-ssl ] address={{net}}", "ack:own-service-address"},
+		{"/interface bridge\nset [ find name=bridge ] vlan-filtering={{vf}}", "ack:vlan-filtering"},
+		{"/ip firewall filter\nadd chain={{c}} action=drop protocol=udp dst-port=53", ""},
+		{"/ip firewall filter\nadd chain=input action={{a}}", "ack:lockout-firewall"},
+	}
+	for _, c := range cases {
+		if got := codes(AnalyzeLive(mustParse(t, c.src), lab)); got != c.want {
+			t.Errorf("%q: %q, want %q", c.src, got, c.want)
+		}
+	}
+}
+
+// Filled, the template says what the router will receive, and the analyser
+// judges that: the placeholder that named api-ssl is refused as MikroDash's
+// own service, the one that named telnet is not.
+func TestFillIsWhatIsJudged(t *testing.T) {
+	tp := mustParse(t, "/ip service\nset [ find name={{svc}} ] disabled=yes")
+	for svc, want := range map[string]string{"api-ssl": "refuse:own-service", "telnet": ""} {
+		f, err := Fill(tp, map[string]string{"svc": svc})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := codes(AnalyzeLive(f, lab)); got != want {
+			t.Errorf("svc=%s: %q, want %q", svc, got, want)
+		}
+	}
+	if _, err := Fill(tp, nil); err == nil {
+		t.Error("a missing value was filled")
+	}
+	if v, _ := tp.Lines[0].Find[0].Value.Var(); v != "svc" {
+		t.Error("Fill changed the template it was given")
+	}
+}

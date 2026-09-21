@@ -167,3 +167,33 @@ func TestTheRouterRoutes(t *testing.T) {
 		}
 	}
 }
+
+// A shipped template reads like a stored one, and cannot be changed in place.
+func TestCannedTemplatesAreServedAndProtected(t *testing.T) {
+	row, ok := cannedRow("canned:home-firewall")
+	if !ok || row.Kind != cfgtpl.KindFragment || row.Revision < 1 || !strings.Contains(row.Scope, "/ip/firewall/filter") {
+		t.Fatalf("%+v %v", row, ok)
+	}
+	if _, ok := cannedRow("home-firewall"); ok {
+		t.Error("a canned id without its prefix was served")
+	}
+	if _, ok := cannedRow("canned:nope"); ok {
+		t.Error("an unknown canned id was served")
+	}
+	lock := map[string]bool{}
+	for _, v := range cannedViews() {
+		lock[v.ID] = v.LockClass
+	}
+	if !lock["home-firewall"] || !lock["management-lockdown"] || lock["dns-and-time"] {
+		t.Errorf("lock-class marks %v", lock)
+	}
+	for _, id := range []string{"canned:home-firewall", "canned:anything"} {
+		rec := httptest.NewRecorder()
+		if !cfgShipped(rec, id) || rec.Code != 403 {
+			t.Errorf("%s: a change to a canned template was not refused", id)
+		}
+	}
+	if cfgShipped(httptest.NewRecorder(), "0b6f3c1a-0000-4000-8000-000000000000") {
+		t.Error("a stored template was refused as canned")
+	}
+}

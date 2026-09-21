@@ -278,7 +278,17 @@ var firewallInput = map[string]string{
 // recoveryServices are the ways back in when MikroDash is cut off.
 var recoveryServices = map[string]bool{"winbox": true, "ssh": true, "www-ssl": true}
 
-// AnalyzeLive judges a RENDERED template against one router's management path.
+// AnalyzeLive judges a template against one router's management path.
+//
+// ── GIVE IT THE FILLED TEMPLATE ─────────────────────────────────────────────
+//
+// A deploy analyses Fill(t, values): what the router will actually receive.
+// A placeholder still present is UNKNOWN, and unknown is read in the direction
+// that flags, never the one that passes: an unknown service name may be
+// MikroDash's own, an unknown `disabled=` may be yes, an unknown address is
+// still a change. The Library, which has no values yet, relies on exactly that.
+// Reading a placeholder as empty once let `set [ find name={{svc}} ]
+// disabled=yes` pass for svc=api-ssl.
 //
 // ── IT DOES NOT MODEL RULE ORDER, AND SAYS SO ───────────────────────────────
 //
@@ -294,6 +304,8 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 	add := func(l Line, level, code, f string, a ...any) {
 		out = append(out, Finding{Level: level, Code: code, Line: l.Num, Message: fmt.Sprintf(f, a...)})
 	}
+	// arg is a setting's literal value, "" when absent or unknown. It feeds
+	// the firewall guard, where "" means "any", which is the flagging reading.
 	arg := func(l Line, name string) string {
 		v, ok := l.Arg(name)
 		if !ok {
@@ -302,11 +314,23 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 		s, _ := v.Literal()
 		return s
 	}
+	// may reports whether a setting is, or could be, want: present and either
+	// that literal or not known yet.
+	may := func(l Line, name, want string) bool {
+		v, ok := l.Arg(name)
+		if !ok {
+			return false
+		}
+		s, lit := v.Literal()
+		return !lit || s == want
+	}
+	// findName is the name a selector names. An unknown one is not named: it
+	// could be any row, MikroDash's own included.
 	findName := func(l Line) (string, bool) {
 		for _, a := range l.Find {
 			if a.Name == "name" {
-				s, _ := a.Value.Literal()
-				return s, true
+				s, lit := a.Value.Literal()
+				return s, lit
 			}
 		}
 		return "", false
@@ -316,11 +340,10 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 		menu := l.Path()
 
 		// ── A drop on the path MikroDash arrives by ──────────────────────────
-		if chain, ok := firewallInput[menu]; ok && l.Verb == "add" && arg(l, "chain") == chain {
-			switch arg(l, "action") {
-			case "drop", "reject", "tarpit":
+		if chain, ok := firewallInput[menu]; ok && l.Verb == "add" && may(l, "chain", chain) {
+			if may(l, "action", "drop") || may(l, "action", "reject") || may(l, "action", "tarpit") {
 				rule := guard.FWRule{
-					Chain: chain, Action: arg(l, "action"),
+					Chain: chain, Action: firstNonEmpty(arg(l, "action"), "drop"),
 					SrcAddress: arg(l, "src-address"), DstAddress: arg(l, "dst-address"),
 					Protocol: arg(l, "protocol"), DstPort: arg(l, "dst-port"),
 					InInterface: arg(l, "in-interface"), Disabled: arg(l, "disabled") == "yes",
@@ -340,7 +363,7 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 		// ── The services MikroDash and a person use to get in ────────────────
 		if menu == "/ip/service" && (l.Verb == "set" || l.Verb == "disable") {
 			name, named := findName(l)
-			disabling := l.Verb == "disable" || arg(l, "disabled") == "yes"
+			disabling := l.Verb == "disable" || may(l, "disabled", "yes")
 			ours := !named || name == ctx.APIService
 			switch {
 			case ours && disabling:
@@ -349,7 +372,7 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 			case ours && movesPort(l, ctx.FW.APIPort):
 				add(l, Refuse, "own-service", "/ip/service: this moves %s to another port, and MikroDash would "+
 					"reconnect to the old one", ctx.APIService)
-			case ours && arg(l, "address") != "":
+			case ours && has(l, "address"):
 				add(l, Ack, "own-service-address", "/ip/service: this restricts where %s may be reached from — "+
 					"it must include MikroDash's own address", ctx.APIService)
 			case named && recoveryServices[name] && disabling:
@@ -359,14 +382,14 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 		}
 
 		// ── The classic instant lockout ──────────────────────────────────────
-		if menu == "/interface/bridge" && l.Verb == "set" && arg(l, "vlan-filtering") == "yes" {
+		if menu == "/interface/bridge" && l.Verb == "set" && may(l, "vlan-filtering", "yes") {
 			add(l, Ack, "vlan-filtering", "/interface/bridge: turning on VLAN filtering drops every frame "+
 				"not already allowed by the bridge's VLAN table, the management path's included")
 		}
 
 		// ── Interfaces and addresses MikroDash may arrive on ─────────────────
 		if strings.HasPrefix(menu, "/interface") && (l.Verb == "disable" ||
-			(l.Verb == "set" && arg(l, "disabled") == "yes")) {
+			(l.Verb == "set" && may(l, "disabled", "yes"))) {
 			name, named := findName(l)
 			if !named || containsStr(ctx.FW.Interfaces, name) || !ctx.FW.Resolved {
 				add(l, Ack, "lockout-interface", "%s: this disables an interface MikroDash may arrive on", menu)
@@ -383,6 +406,18 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
+}
+
+func has(l Line, name string) bool {
+	_, ok := l.Arg(name)
+	return ok
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // movesPort reports whether a /ip/service line sets a port other than the one

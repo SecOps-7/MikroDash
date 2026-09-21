@@ -49,7 +49,15 @@ func Prepare(do Do, p Plan) (Prepared, error) {
 	if err != nil {
 		return Prepared{}, err
 	}
-	findings := append(cfgtpl.Analyze(resolved, cfgtpl.Additions), cfgtpl.AnalyzeLive(resolved, p.Live)...)
+	// Judged FILLED: what the router will receive, not the placeholders. An
+	// unknown value reads as the dangerous one, so analysing the template as
+	// written would flag too much; analysing it with values read as empty
+	// would pass `set [ find name={{svc}} ] disabled=yes` for svc=api-ssl.
+	filled, err := cfgtpl.Fill(resolved, p.Values)
+	if err != nil {
+		return Prepared{}, err
+	}
+	findings := append(cfgtpl.Analyze(filled, cfgtpl.Additions), cfgtpl.AnalyzeLive(filled, p.Live)...)
 	if findings == nil {
 		findings = []cfgtpl.Finding{}
 	}
