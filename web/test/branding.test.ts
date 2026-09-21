@@ -137,6 +137,13 @@ say('ok  only /logo.png and the versioned stored icon are used');
   assert.ok(S.iconFileProblem({ type: 'image/svg+xml', size: 100 }), 'an SVG passed the file check');
   assert.ok(S.iconFileProblem({ type: 'image/png', size: S.ICON_MAX_BYTES + 1 }), 'an over-size file passed');
   assert.strictEqual(S.iconFileProblem({ type: 'image/jpeg', size: 1000 }), '');
+  // The Name Font list: the wordmark's own font is the Default option, not a
+  // second entry, and the Appearance card's "(Default)" (the interface font's)
+  // is not carried over.
+  const wm = S.wordmarkFontOptions(new Map([['oxanium', 'Oxanium (Default)'], ['syne', 'Syne']]));
+  assert.ok(!wm.some((o) => o.id === S.WORDMARK_FONT), 'the wordmark font is listed beside its own Default option');
+  assert.ok(!wm.some((o) => /Default/.test(o.label)), 'a Name Font choice claims to be the default');
+  assert.deepStrictEqual(wm.find((o) => o.id === 'oxanium'), { id: 'oxanium', label: 'Oxanium' });
   assert.strictEqual(S.iconSizeProblem(64, 64), '');
   assert.strictEqual(S.iconSizeProblem(512, 512), '');
   assert.ok(S.iconSizeProblem(63, 63), 'a 63px icon passed');

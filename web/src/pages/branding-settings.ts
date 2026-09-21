@@ -23,6 +23,20 @@ export const ICON_MAX_PX = 512;
 export const ICON_MAX_BYTES = 512 * 1024;
 
 /** Why a chosen file cannot be an icon, or '' when its type and size are fine. */
+/** The wordmark's own font, which its Default option stands for. */
+export const WORDMARK_FONT = 'orbitron';
+
+/**
+ * The Name Font choices: every appearance font but the wordmark's own (that is
+ * the Default option), under the Appearance card's labels. That card marks ITS
+ * default with "(Default)", which is the interface font's, not the wordmark's,
+ * so the mark is dropped here.
+ */
+export function wordmarkFontOptions(labels: Map<string, string>): { id: string; label: string }[] {
+  return FONTS.filter((f) => f.id !== WORDMARK_FONT)
+    .map((f) => ({ id: f.id, label: (labels.get(f.id) || f.id).replace(/ \(Default\)$/, '') }));
+}
+
 export function iconFileProblem(file: { size: number; type: string }): string {
   if (file.type !== 'image/png' && file.type !== 'image/jpeg') return 'The icon must be a PNG or JPEG image.';
   if (file.size > ICON_MAX_BYTES) return 'The icon is larger than 512 KB.';
@@ -60,16 +74,15 @@ export function initBrandingSettings(): void {
   const status = el('brandStatus');
 
   // The fonts the Appearance card offers, under the labels it shows them with.
-  // Syne is the wordmark's own font, which is the Default option.
+  // Orbitron is the wordmark's own font, which is the Default option.
   const labels = new Map<string, string>();
   el<HTMLSelectElement>('appearanceFont')?.querySelectorAll('option').forEach((o) => {
     labels.set(o.value, o.textContent || o.value);
   });
-  for (const f of FONTS) {
-    if (f.id === 'syne') continue;
+  for (const f of wordmarkFontOptions(labels)) {
     const opt = document.createElement('option');
     opt.value = f.id;
-    opt.textContent = labels.get(f.id) || f.id;
+    opt.textContent = f.label;
     fontSel.appendChild(opt);
   }
 

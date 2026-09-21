@@ -203,9 +203,13 @@ export function applyTheme(t: string): void {
   reapplyBgVars();
 }
 
-/** An unknown id falls back to Syne — FONTS[1], by position, as the original. */
+/** The interface font a browser gets until it picks another. */
+export const DEFAULT_FONT = 'oxanium';
+
+/** An unknown id falls back to the default font, found by id rather than by
+ *  its position in the list. */
 export function applyFont(fontId: string): void {
-  const font = FONTS.find((f) => f.id === fontId) || FONTS[1]!;
+  const font = FONTS.find((f) => f.id === fontId) || FONTS.find((f) => f.id === DEFAULT_FONT)!;
   root().style.setProperty('--font-ui', font.family);
   lsSet(KEYS.font, font.id);
 }
@@ -241,7 +245,15 @@ export function initAppearance(): void {
   // standing and the sliders ignored until something else repainted.
   applyTheme(lsGet(KEYS.theme) || 'dark');
 
-  applyFont(lsGet(KEYS.font) || 'syne');
+  // THE OLD DEFAULT, ONCE. applyFont stores the font on every load, so every
+  // browser that ever opened MikroDash holds 'syne', the default before
+  // Oxanium, whether or not anyone chose it. Read as the old default a single
+  // time; the marker lets a later, deliberate choice of Syne stand.
+  if (lsGet(KEYS.fontDefault) !== DEFAULT_FONT) {
+    if (lsGet(KEYS.font) === 'syne') lsSet(KEYS.font, DEFAULT_FONT);
+    lsSet(KEYS.fontDefault, DEFAULT_FONT);
+  }
+  applyFont(lsGet(KEYS.font) || DEFAULT_FONT);
   applyFontSize(lsGet(KEYS.fontSize) || 'normal');
 
   const num = (key: string): number =>
@@ -322,7 +334,7 @@ export function syncAppearanceControls(): void {
   put('appearanceTextBright', 'data-text-bright');
   put('appearanceBgBright', 'data-bg-bright');
   const fontSel = el<HTMLSelectElement>('appearanceFont');
-  if (fontSel) fontSel.value = lsGet(KEYS.font) || 'syne';
+  if (fontSel) fontSel.value = lsGet(KEYS.font) || DEFAULT_FONT;
   const sizeSel = el<HTMLSelectElement>('appearanceFontSize');
   if (sizeSel) sizeSel.value = lsGet(KEYS.fontSize) || 'normal';
 }

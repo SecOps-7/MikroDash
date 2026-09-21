@@ -24,7 +24,8 @@ export const KEYS = {
   "textBright": "mikrodash_text_bright",
   "bgBright": "mikrodash_bg_bright",
   "font": "mikrodash_font",
-  "fontSize": "mikrodash_font_size"
+  "fontSize": "mikrodash_font_size",
+  "fontDefault": "mikrodash_font_default"
 } as const;
 
 /** Order is load-bearing: the `<select>` renders the labels in this order and
