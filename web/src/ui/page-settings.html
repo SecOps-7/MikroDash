@@ -1238,6 +1238,16 @@
                 asking.</strong> A change that could cut MikroDash off from the router is always
                 put to you, whatever this is set to.
               </p>
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main);margin-top:.6rem">
+                <input type="checkbox" id="s_aiAllowRawCommands">
+                <span>Let the assistant run raw RouterOS commands</span>
+              </label>
+              <p style="font-size:.7rem;color:var(--text-muted);margin:.35rem 0 0">
+                For what no page covers. Offered only to signed-in global administrators, and
+                <strong>every command, even a read, is shown to you and runs only when you type the
+                router's name</strong>. Raw commands skip MikroDash's own checks, read-back and
+                undo, so leave this off unless you need it.
+              </p>
             </div>
             <div class="sform-row" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)">
               <div class="sform-group" style="flex:2">

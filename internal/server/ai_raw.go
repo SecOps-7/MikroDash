@@ -22,12 +22,13 @@ package server
 // path returns rows the Router Users page would have refused to show a viewer
 // who may not read it, and the person approving is the check on that.
 //
-// ── NOT ADVERTISED ──────────────────────────────────────────────────────────
+// ── ADVERTISED ONLY PAST THE STANDING GATES ─────────────────────────────────
 //
-// `run_command` is in no viewer's tool list and not in the generated catalogue.
-// A model can still name it, because a model can name anything, and that call
-// lands here and meets the gates — which is the point of answering by name
-// rather than with "no such tool".
+// `run_command` is not in the generated catalogue. It is added to one
+// question's tool list only for a viewer `rawGateNote` passes (see ai_chat.go),
+// so nobody else is told it exists. A model can still name it, because a model
+// can name anything, and that call lands here and meets the gates, which is the
+// point of answering by name rather than with "no such tool".
 
 import (
 	"encoding/json"
@@ -37,6 +38,7 @@ import (
 
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
+	"mikrodash/internal/aitools"
 	"mikrodash/internal/audit"
 	"mikrodash/internal/rawcmd"
 	"mikrodash/internal/routeros"
@@ -60,30 +62,41 @@ func (cn *conn) rawCommandGate(action string) (store.Settings, string) {
 	const refusal = "Raw RouterOS commands are not available. They are off unless a global " +
 		"administrator has switched them on for this installation."
 
-	// SIGNED IN, and a global administrator. `isGlobalAdmin` answers true when
-	// sign-in is switched off entirely; that is right for reading the principal
-	// graph and wrong here, for the reason #97 gives about router writes: a
-	// command nobody can be held to is one nobody should be able to send.
-	if cn.sess == nil || cn.sess.AuthMode == "none" || !cn.srv.isGlobalAdmin(cn.sess) {
-		cn.recorder().Denied(audit.Event{
-			Action: action, TargetType: "router", RouterID: cn.routerID,
-			Note: "not a signed-in global administrator",
-		})
-		return nil, refusal
-	}
-	settings, err := cn.srv.mergedSettings()
-	if err != nil {
+	settings, note := cn.rawGateNote()
+	if note == "unreadable" {
 		return nil, "The settings could not be read, so nothing was run."
 	}
-	if !store.AIAllowRawCommands(settings) {
+	if note != "" {
 		cn.recorder().Denied(audit.Event{
-			Action: action, TargetType: "router", RouterID: cn.routerID,
-			Note: "aiAllowRawCommands is off",
+			Action: action, TargetType: "router", RouterID: cn.routerID, Note: note,
 		})
 		return nil, refusal
 	}
 	if cn.rsession == nil {
 		return nil, "No device is selected, so nothing was run."
+	}
+	return settings, ""
+}
+
+// rawGateNote is the two standing gates, answered without auditing: "" when
+// this viewer passes both, otherwise why not (the audit note). The tool list
+// asks it on every question, and the executor through rawCommandGate on every
+// call, so what is advertised and what is refused cannot disagree.
+//
+// SIGNED IN, and a global administrator. `isGlobalAdmin` answers true when
+// sign-in is switched off entirely; that is right for reading the principal
+// graph and wrong here, for the reason #97 gives about router writes: a
+// command nobody can be held to is one nobody should be able to send.
+func (cn *conn) rawGateNote() (store.Settings, string) {
+	if cn.sess == nil || cn.sess.AuthMode == "none" || !cn.srv.isGlobalAdmin(cn.sess) {
+		return nil, "not a signed-in global administrator"
+	}
+	settings, err := cn.srv.mergedSettings()
+	if err != nil {
+		return nil, "unreadable"
+	}
+	if !store.AIAllowRawCommands(settings) {
+		return nil, "aiAllowRawCommands is off"
 	}
 	return settings, ""
 }
@@ -248,7 +261,7 @@ func rawOutput(rows []routeros.Reply) string {
 
 // rawPlanMaxSteps bounds a plan. Twenty is more than an operator will read
 // carefully, and a plan nobody reads carefully is one nobody is confirming.
-const rawPlanMaxSteps = 20
+const rawPlanMaxSteps = aitools.RawPlanMaxSteps
 
 // runAIBulkTool is `bulk_execute`.
 func (cn *conn) runAIBulkTool(tc aiprovider.ToolCall) string {

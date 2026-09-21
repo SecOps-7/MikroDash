@@ -40,22 +40,69 @@ const ActionToolName = "run_action"
 // RawCommandToolName and BulkToolName are the raw command tools: one RouterOS
 // command the model composed, and an ordered list of them.
 //
-// ── DECLARED HERE, ADVERTISED NOWHERE ───────────────────────────────────────
+// ── ADVERTISED ONLY PAST THE GATES ──────────────────────────────────────────
 //
-// They are NOT in `All()` and not in `Permitted()`, so no model is ever told
-// they exist, and the generated catalogue does not carry them. The names live
-// here because the executor has to recognise a call by name — a model can invent
-// a name, and inventing this one must reach the gates rather than a "no such
-// tool" that would read as the feature being merely hidden.
+// They are NOT in `All()` and not in `Permitted()`, so the generated catalogue
+// and the page-permission path never carry them. Since 2026-09-21 (the
+// operator's choice, with a Settings switch) internal/server adds `RawTools()`
+// to one question's tool list when that viewer passes the standing gates: a
+// signed-in global administrator, and the `aiAllowRawCommands` setting on.
+// Everyone else is never told they exist. The names live here too because the
+// executor recognises a call by name: a model can invent one, and inventing it
+// must reach the gates rather than a "no such tool".
 //
-// The gates are in internal/server: a signed-in global administrator, the
-// `aiAllowRawCommands` setting, and the router's name typed back on every single
-// command. `runAITool` answers both by name, and both reach the operator through
-// the ordinary proposal dialog (`kind: "command"`).
+// The third gate is per command: the router's name typed back on every one,
+// whatever `aiConfirmWrites` says. Both reach the operator through the ordinary
+// proposal dialog (`kind: "command"`).
 const (
 	RawCommandToolName = "run_command"
 	BulkToolName       = "bulk_execute"
 )
+
+// RawPlanMaxSteps is the most commands one bulk_execute may hold.
+const RawPlanMaxSteps = 20
+
+// RawTools are the two raw command tools, for a viewer past the standing gates.
+func RawTools() []Tool {
+	syntax := "One RouterOS command in CLI form: a menu path, a verb and name=value words, such as " +
+		"`/ip/firewall/filter/add chain=input action=accept comment=\"office\"` or " +
+		"`/interface/set .id=*3 disabled=no`. No scripting: no newline, `;`, `:`, `[ ]`, `{ }`, " +
+		"`$`, backtick or backslash."
+	return []Tool{{
+		Name: RawCommandToolName,
+		Description: "Run ONE RouterOS command on the router the operator has selected, for what no " +
+			"other tool covers. " + syntax + " It skips MikroDash's own checks, read-back and undo, so " +
+			"prefer change_row, plan_changes and run_action. Every command, even a print, is put to " +
+			"the operator, who types the router's name to run it; the result is the router's reply.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"command": map[string]any{"type": "string", "description": "The command."},
+			},
+			"required":             []string{"command"},
+			"additionalProperties": false,
+		},
+		Access: AccessWrite,
+	}, {
+		Name: BulkToolName,
+		Description: fmt.Sprintf("Run up to %d RouterOS commands in order on the router the operator has "+
+			"selected, approved once by the operator typing the router's name. Each is as run_command "+
+			"takes it. %s It stops at the first command the router refuses.", RawPlanMaxSteps, syntax),
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"commands": map[string]any{
+					"type": "array", "minItems": 1, "maxItems": RawPlanMaxSteps,
+					"items":       map[string]any{"type": "string"},
+					"description": "The commands, in the order they run.",
+				},
+			},
+			"required":             []string{"commands"},
+			"additionalProperties": false,
+		},
+		Access: AccessWrite,
+	}}
+}
 
 // ActionSpec is one declared action: what it is called, which page's write
 // permission owns it, and what it needs.

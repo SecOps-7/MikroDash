@@ -184,6 +184,14 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 	for _, t := range aitools.Permitted(cn.canPage) {
 		tools = append(tools, t)
 	}
+	// THE RAW COMMAND TOOLS, only past the standing gates (ai_raw.go): a
+	// signed-in global administrator with aiAllowRawCommands on. Each call is
+	// still gated, and put to the operator with the router's name typed back.
+	if _, note := cn.rawGateNote(); note == "" {
+		for _, t := range aitools.RawTools() {
+			tools = append(tools, t)
+		}
+	}
 
 	go func() {
 		// ONE DEADLINE FOR THE WHOLE EXCHANGE, not one per model call. The loop

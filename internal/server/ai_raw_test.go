@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -411,5 +412,34 @@ func TestRawOutputMasksSecrets(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("%s is missing from %s; a secret is masked, not the row", want, out)
 		}
+	}
+}
+
+// THE RAW TOOLS ARE ADVERTISED BEHIND THE SAME GATE THAT REFUSES THEM. The
+// question's tool list adds RawTools only when rawGateNote passes, and
+// rawCommandGate refuses on that same note, so nobody is offered a tool whose
+// every call the executor would refuse, and nobody who may run one is not told.
+func TestTheRawToolsAreAdvertisedBehindTheirGate(t *testing.T) {
+	for _, cn := range []*conn{
+		{srv: &Server{}},
+		{srv: &Server{}, sess: &Session{AuthMode: "none", Username: "whoever"}},
+	} {
+		if _, note := cn.rawGateNote(); note == "" {
+			t.Errorf("session %+v passed the standing gates", cn.sess)
+		}
+	}
+	src, err := os.ReadFile("ai_chat.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`if _, note := cn\.rawGateNote\(\); note == "" \{\s*for _, t := range aitools\.RawTools\(\)`).Match(src) {
+		t.Error("ai_chat.go no longer adds RawTools only when rawGateNote passes")
+	}
+	gate, err := os.ReadFile("ai_raw.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(gate), "settings, note := cn.rawGateNote()") {
+		t.Error("rawCommandGate no longer answers from rawGateNote, so advertising and refusing can disagree")
 	}
 }

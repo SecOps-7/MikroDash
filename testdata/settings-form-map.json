@@ -48,7 +48,8 @@
       "pageWifiMap",
       "pageNetwatch",
       "pageWireless",
-      "aiConfirmWrites"
+      "aiConfirmWrites",
+      "aiAllowRawCommands"
     ],
     "value": [
       "aiBaseUrl",
