@@ -182,6 +182,12 @@ type Cmd struct {
 	// row an `add` made. A write reads back that one row rather than the whole
 	// menu before and after to find it by difference.
 	Ret *string
+	// Done, if set, receives EVERY word of the reply's `!done`. `Ret` is the one
+	// word a write needs; a command that answers on `!done` rather than in rows
+	// needs the rest. `/import` is the case it exists for: whether its report
+	// comes back in rows, on `!done`, or not at all over the API is measured by
+	// cmd/importprobe rather than assumed.
+	Done *map[string]string
 }
 
 // OnFinished returns the command with f added to what runs when it is over.
@@ -411,6 +417,14 @@ func (c *Client) Do(cmd Cmd) ([]Reply, error) {
 		}
 		if cmd.Ret != nil && r.reply != nil && r.reply.Done != nil {
 			*cmd.Ret = r.reply.Done.Map["ret"]
+		}
+		if cmd.Done != nil && r.reply != nil && r.reply.Done != nil {
+			// A COPY, not the library's map: the caller owns what it is handed.
+			m := make(map[string]string, len(r.reply.Done.Map))
+			for k, v := range r.reply.Done.Map {
+				m[k] = v
+			}
+			*cmd.Done = m
 		}
 		return rowsOf(r.reply), nil
 	case <-expired:

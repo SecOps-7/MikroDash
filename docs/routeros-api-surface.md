@@ -369,6 +369,27 @@ store is not available.
 | `/app/cleanup` | `=numbers=<id>`: remove, deleting the app's data; needs the name typed |
 | `/app/settings/set` | `=disk=<slot>` and `=lan-bridge=<bridge>`, each one the router offered |
 
+## Config Management's import path (measured by cmd/importprobe)
+
+Added by hand on 2026-09-21, and kept out of the counts above. Nothing in the app
+issues these yet: they were MEASURED on CHR Test (7.24.4) before any deploy code
+was written, because the documentation contradicts itself on two of them. The raw
+sentences are in `testdata/fixtures/import/probe-7.24.4.json` and
+`oversize-write-7.24.4.json`.
+
+| Command | Arguments, and what was measured |
+|---|---|
+| `/file/add` | `=name=<n> =type=file`. `!done` carries the new file's id in `ret` |
+| `/file/set` | `=.id=<id> =contents=<text>`. **60416 bytes accepted; 61440 refused** with the clean trap `failure: contents too long`. **102400 bytes gets NO trap: the router closes the API connection** (EOF) and every later command on it fails. The cap must be enforced before sending, and a template larger than it is split |
+| `/file/print` | `?name=<n>`, for the id and `size` |
+| `/file/remove` | `=.id=<id>` |
+| `/import` | `=file-name=<n>`. **The real run is `verbose=no`.** It returns when finished, not before (600 lines, 266 ms, all applied at return). A **runtime** error stops the file at that line with the lines before it applied, and the trap names the line and the command: `input does not match any value of list (/interface/list/member/add (list); line 5)`. `verbose=yes` stops at the same line but its trap drops the line number. A **syntax** error applies nothing: the whole file is parsed first, and the trap is `expected name value (line 7 column 1)` |
+| `/import` (dry-run) | `=file-name=<n> =verbose=yes =dry-run=`, or `=dry-run=yes` — both accepted over the API. **Returns no text over the API**: success is `!done` `ret=true`, a syntax error is the trap `found 1 error(s) in import file` with no line. It checks **syntax only** — a reference to a list that does not exist passes — so it cannot see whether an earlier line creates what a later one uses |
+| `/execute` | `=script=/import file-name=<n> verbose=yes dry-run =file=<out>`: the ONLY way to get the dry-run's own words back. Writes the console report to `<out>.txt` (CRLF line endings) with `#line N` markers and the error with its line and column. **Console syntax, not API syntax**: in this string `dry-run` is a bare flag, and `dry-run=yes` is "expected end of command" |
+| (tag cancel) | Cancelling `/import`'s API tag **stops it mid-file and leaves it half-applied**: 180 of 950 lines after an 80 ms cancel, stable thereafter. A real import is never cancelled on a short timer, and a timeout is recorded as a partial outcome |
+| `/system/scheduler/add` | `=name=<n> =interval=15s =on-event=/import file-name=<undo>`: the dead-man revert. **First fires after one interval, not at creation** (15 s), and its `/import` of the undo file ran with the API user's rights |
+| `/user/active/print` | Rows carry `address`, `via`, `group`, `name`, `radius`, `when`: `address` is where MikroDash arrives from, as the router sees it |
+
 ## Proplists
 
 A proplist is the only thing keeping a credential out of a payload — see

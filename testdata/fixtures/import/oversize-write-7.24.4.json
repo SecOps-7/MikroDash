@@ -1,0 +1,127 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "note": "Oversized /file/set contents over the API, measured 2026-09-21. 62464 bytes traps cleanly (\"failure: contents too long\"); 102400 bytes gets no trap and the router closes the API connection (EOF), failing every command after it.",
+  "steps": [
+    {
+      "label": "m3 30KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-30.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oPRj32Yfj"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m3 30KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oPRj32Yfj",
+        "=contents=<30720 bytes>"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m3 59KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-59.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oQ57ZdF3L"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m3 59KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oQ57ZdF3L",
+        "=contents=<60416 bytes>"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 2
+    },
+    {
+      "label": "m3 61KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-61.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oQNsEc1JL"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m3 61KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oQNsEc1JL",
+        "=contents=<62464 bytes>"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "failure: contents too long",
+      "ms": 1
+    },
+    {
+      "label": "m3 100KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-100.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**iCZmBt8h022klSCCmZjmOXstB6b2IuIBH"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m3 100KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**iCZmBt8h022klSCCmZjmOXstB6b2IuIBH",
+        "=contents=<102400 bytes>"
+      ],
+      "rows": [],
+      "done": {},
+      "err": "EOF",
+      "ms": 1
+    },
+    {
+      "label": "m3 200KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-200.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {},
+      "err": "connection closed without a !fatal from the router: EOF",
+      "ms": 0
+    },
+    {
+      "label": "m3 200KiB: add (no type)",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-200.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "err": "connection closed without a !fatal from the router: EOF",
+      "ms": 0
+    }
+  ]
+}

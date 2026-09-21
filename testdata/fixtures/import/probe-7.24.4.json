@@ -1,0 +1,704 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "findings": [
+    {
+      "name": "m9 /user/active fields",
+      "answer": ".id,address,group,name,radius,via,when"
+    },
+    {
+      "name": "m9 carries address",
+      "answer": "true"
+    },
+    {
+      "name": "m3 set 30 KiB (30720 bytes)",
+      "answer": "accepted=true stored-size=30720"
+    },
+    {
+      "name": "m3 set 59 KiB (60416 bytes)",
+      "answer": "accepted=true stored-size=60416"
+    },
+    {
+      "name": "m3 set 60 KiB (61440 bytes)",
+      "answer": "accepted=false stored-size=0"
+    },
+    {
+      "name": "m3 set 61 KiB (62464 bytes)",
+      "answer": "accepted=false stored-size=0"
+    },
+    {
+      "name": "m1 dry-run =dry-run=",
+      "answer": "rows=0 done=map[ret:true] trap=\"\" err=\"\""
+    },
+    {
+      "name": "m1 dry-run =dry-run=yes",
+      "answer": "rows=0 done=map[ret:true] trap=\"\" err=\"\""
+    },
+    {
+      "name": "m1 dry-run applied anything",
+      "answer": "mdprobe entries after dry-run = 0"
+    },
+    {
+      "name": "m1b /execute",
+      "answer": "rows=0 done=map[ret:*2205] trap=\"\" err=\"\""
+    },
+    {
+      "name": "m1b captured output",
+      "answer": "file=\"mdprobe-out.txt\" size=396 contents=\"#line 1\\r\\n/ip/dns/static add name=mdprobe-1.test address=192.0.2.2\\r\\n#line 2\\r\\n/ip/dns/static add name=mdprobe-2.test address=192.0.2.3\\r\\n#line 3..6\\r\\n/ip/dns/static add name=\\\"mdprobe-unterminated\\r\\n/ip/dns/static add name=mdprobe-4.test address=192.0.2.5\\r\\n/ip/dns/static add name=mdprobe-5.test address=192.0.2.6\\r\\n\\r\\nexpected name value (line 7 column 1)\\r\\nScript Error: found 1 error(s) in import file\\n\""
+    },
+    {
+      "name": "m2 verbose=no",
+      "answer": "lines applied=4 of 9 dns adds; rows=0 done=map[] trap=\"Script Error: input does not match any value of list (/interface/list/member/add (list); line 5)\""
+    },
+    {
+      "name": "m2 verbose=yes",
+      "answer": "lines applied=4 of 9 dns adds; rows=0 done=map[] trap=\"Script Error: input does not match any value of list\""
+    },
+    {
+      "name": "m2 dry-run",
+      "answer": "lines applied=0 of 9 dns adds; rows=0 done=map[ret:true] trap=\"\""
+    },
+    {
+      "name": "m2 syntax dry-run",
+      "answer": "applied=0; rows=0 done=map[] trap=\"Script Error: found 1 error(s) in import file\""
+    },
+    {
+      "name": "m2 syntax verbose=no",
+      "answer": "applied=0; rows=0 done=map[] trap=\"Script Error: expected name value (line 7 column 1)\""
+    },
+    {
+      "name": "m2 missing file",
+      "answer": "trap=\"Cannot open import file, file does not exist\" err=\"\""
+    },
+    {
+      "name": "m4 dry-run of add-then-use",
+      "answer": "rows=0 done=map[ret:true] trap=\"\""
+    },
+    {
+      "name": "m5 returned after",
+      "answer": "1247 ms; entries at return=600, 3s later=600 (of 600); trap=\"\""
+    },
+    {
+      "name": "m6 after cancel",
+      "answer": "err=\"routeros: timed out: context deadline exceeded\"; entries each second=[1 1 1 1 1 1 1 1] (of 950)"
+    },
+    {
+      "name": "m7 first run after",
+      "answer": "15s"
+    },
+    {
+      "name": "m7 undo removed the marker after",
+      "answer": "15s"
+    }
+  ],
+  "steps": [
+    {
+      "label": "m9: /user/active",
+      "path": "/user/active/print",
+      "args": [],
+      "rows": [
+        {
+          ".id": "\u003c.id\u003e",
+          "address": "\u003caddress\u003e",
+          "group": "\u003cgroup\u003e",
+          "name": "\u003cname\u003e",
+          "radius": "\u003cradius\u003e",
+          "via": "\u003cvia\u003e",
+          "when": "\u003cwhen\u003e"
+        },
+        {
+          ".id": "\u003c.id\u003e",
+          "address": "\u003caddress\u003e",
+          "group": "\u003cgroup\u003e",
+          "name": "\u003cname\u003e",
+          "radius": "\u003cradius\u003e",
+          "via": "\u003cvia\u003e",
+          "when": "\u003cwhen\u003e"
+        }
+      ],
+      "done": {},
+      "ms": 2
+    },
+    {
+      "label": "m3 30KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-30.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oPRj32Yfj"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m3 30KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oPRj32Yfj",
+        "=contents=\u003c30720 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 2
+    },
+    {
+      "label": "m3 59KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-59.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oQ57ZdF3L"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m3 59KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oQ57ZdF3L",
+        "=contents=\u003c60416 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m3 60KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-60.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oQNnXwm7H"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m3 60KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oQNnXwm7H",
+        "=contents=\u003c61440 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "failure: contents too long",
+      "ms": 0
+    },
+    {
+      "label": "m3 61KiB: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-ceil-61.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**AhjTamZOmO83dKtnv9DXPZ1oQNsEc1JL"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m3 61KiB: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**AhjTamZOmO83dKtnv9DXPZ1oQNsEc1JL",
+        "=contents=\u003c62464 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "failure: contents too long",
+      "ms": 0
+    },
+    {
+      "label": "m1: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-valid.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**cvjKCB6TjiMucEfTW74Ozxgtex8AF"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m1: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**cvjKCB6TjiMucEfTW74Ozxgtex8AF",
+        "=contents=\u003c171 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m1 dry-run =dry-run=",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-valid.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m1 dry-run =dry-run=yes",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-valid.rsc",
+        "=verbose=yes",
+        "=dry-run=yes"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m1b: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-synerr.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqOsJQDvnNw68R"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m1b: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqOsJQDvnNw68R",
+        "=contents=\u003c274 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m1b execute",
+      "path": "/execute",
+      "args": [
+        "=script=/import file-name=mdprobe-synerr.rsc verbose=yes dry-run",
+        "=file=mdprobe-out"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "*2205"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m2 verbose=no: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-rterr.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**cvjKCB6TjiMucEfTW5g7GJc6qU7JT"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m2 verbose=no: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**cvjKCB6TjiMucEfTW5g7GJc6qU7JT",
+        "=contents=\u003c586 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m2 import verbose=no",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-rterr.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Script Error: input does not match any value of list (/interface/list/member/add (list); line 5)",
+      "ms": 3
+    },
+    {
+      "label": "m2 verbose=yes: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-rterr.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**cvjKCB6TjiMucEfTW5g7GJc6qU7JT"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m2 verbose=yes: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**cvjKCB6TjiMucEfTW5g7GJc6qU7JT",
+        "=contents=\u003c586 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 10
+    },
+    {
+      "label": "m2 import verbose=yes",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-rterr.rsc",
+        "=verbose=yes"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Script Error: input does not match any value of list",
+      "ms": 240
+    },
+    {
+      "label": "m2 dry-run: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-rterr.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**cvjKCB6TjiMucEfTW5g7GJc6qU7JT"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m2 dry-run: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**cvjKCB6TjiMucEfTW5g7GJc6qU7JT",
+        "=contents=\u003c586 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m2 import dry-run",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-rterr.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m2 syntax dry-run: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-synerr.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqOsJQDvnNw68R"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m2 syntax dry-run: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqOsJQDvnNw68R",
+        "=contents=\u003c274 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m2 syntax dry-run",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-synerr.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Script Error: found 1 error(s) in import file",
+      "ms": 1
+    },
+    {
+      "label": "m2 syntax verbose=no: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-synerr.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqOsJQDvnNw68R"
+      },
+      "ms": 4
+    },
+    {
+      "label": "m2 syntax verbose=no: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqOsJQDvnNw68R",
+        "=contents=\u003c274 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m2 syntax verbose=no",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-synerr.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Script Error: expected name value (line 7 column 1)",
+      "ms": 2
+    },
+    {
+      "label": "m2 missing file",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-nope.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Cannot open import file, file does not exist",
+      "ms": 0
+    },
+    {
+      "label": "m4: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-dep.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2HZlVt1Mxo9xNABcQm8UGYViicl"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m4: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2HZlVt1Mxo9xNABcQm8UGYViicl",
+        "=contents=\u003c100 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m4 dry-run",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-dep.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m5: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-big.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2HZlVt1Mxo9xNABcQm5veFuC7xz"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m5: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2HZlVt1Mxo9xNABcQm5veFuC7xz",
+        "=contents=\u003c36170 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m5 import 600 lines",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-big.rsc"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1247
+    },
+    {
+      "label": "m6: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-huge.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**9QZgBfJRszKNVjXeSJGSnL71E9iN"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m6: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**9QZgBfJRszKNVjXeSJGSnL71E9iN",
+        "=contents=\u003c57412 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m6 import with 80ms timeout",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-huge.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "err": "routeros: timed out: context deadline exceeded",
+      "ms": 80
+    },
+    {
+      "label": "m7 undo: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-undo.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**9QZgBfJRszKNVjXeSKNW4hh36FRz"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m7 undo: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**9QZgBfJRszKNVjXeSKNW4hh36FRz",
+        "=contents=\u003c56 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m7 marker",
+      "path": "/ip/dns/static/add",
+      "args": [
+        "=name=mdprobe-marker.test",
+        "=address=192.0.2.200"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "*262"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m7 our group",
+      "path": "/user/print",
+      "args": [
+        "=.proplist=name,group"
+      ],
+      "rows": [
+        {
+          "group": "full",
+          "name": "admin"
+        },
+        {
+          "group": "full",
+          "name": "mikrodash"
+        }
+      ],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m7 add scheduler",
+      "path": "/system/scheduler/add",
+      "args": [
+        "=name=mdprobe-deadman",
+        "=interval=15s",
+        "=on-event=/import file-name=mdprobe-undo.rsc"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "*1"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m7 scheduler row",
+      "path": "/system/scheduler/print",
+      "args": [
+        "?name=mdprobe-deadman"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "disabled": "false",
+          "interval": "15s",
+          "name": "mdprobe-deadman",
+          "next-run": "2026-09-21 09:07:28",
+          "on-event": "/import file-name=mdprobe-undo.rsc",
+          "owner": "mikrodash",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "1",
+          "start-date": "2026-09-21",
+          "start-time": "09:06:58"
+        }
+      ],
+      "done": {},
+      "ms": 0
+    }
+  ]
+}
