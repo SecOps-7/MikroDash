@@ -329,6 +329,13 @@ func main() {
 		}
 		m11BackupDeadMan(p, cfg)
 	}
+	if want["m12"] {
+		if !*destr {
+			fmt.Fprintln(os.Stderr, "m12 resets the router: add -destructive to run it")
+			os.Exit(2)
+		}
+		m12Bootstrap(p, cfg)
+	}
 
 	report := struct {
 		RouterOS string    `json:"routerOS"`
@@ -821,6 +828,135 @@ func m8ExportReset(p *probe, cfg routeros.Config) {
 	p.note("m8 original certificate back", fmt.Sprint(before("restored") == origCert))
 	if id := p.fileID(backup + ".backup"); id != "" {
 		p.run("m8 remove backup", "/file/remove", 10*time.Second, "=.id="+id)
+	}
+}
+
+// M12: the export + reset BOOTSTRAP, as Config Management would write it.
+//
+// M8 showed that the first runtime error in a run-after-reset script aborts
+// the rest silently, and stopped at its line 2, so its certificate steps never
+// ran. This measures what the design depends on:
+//
+//   - that each line wrapped in `:do { … } on-error={ :log … }` survives a
+//     failing line (the DHCP client a CHR keeps through a reset makes line 2
+//     fail on purpose) and logs which one;
+//   - that a certificate can be added, SIGNED and assigned to api-ssl inside
+//     the script, so MikroDash comes back over TLS;
+//   - that a final `:log` line marks the script as having reached its end.
+//
+// The lab is put back from a backup afterwards, as M8 does.
+func m12Bootstrap(p *probe, cfg routeros.Config) {
+	fmt.Fprintln(os.Stderr, "M12 export+reset bootstrap (DESTRUCTIVE: wipes and reboots the router)")
+	p.cleanup()
+	const backup = prefix + "preboot"
+	const script = prefix + "boot.rsc"
+	const cert = prefix + "api"
+	marker := prefix + "boot-ran.test"
+
+	bk := p.run("m12 backup save", "/system/backup/save", 60*time.Second, "=name="+backup, "=dont-encrypt=yes")
+	if bk.Trap != "" || bk.Err != "" {
+		p.note("m12", fmt.Sprintf("ABORTED: no pre-reset backup: trap=%q err=%q", bk.Trap, bk.Err))
+		return
+	}
+	for i := 0; i < 30 && p.fileSize(backup+".backup") == "(absent)"; i++ {
+		time.Sleep(time.Second)
+	}
+	if p.fileSize(backup+".backup") == "(absent)" {
+		p.note("m12", "ABORTED: the pre-reset backup never appeared")
+		return
+	}
+
+	guard := func(n int, cmd string) string {
+		return fmt.Sprintf(":do { %s } on-error={ :log warning \"%sbootstrap: line %d failed\" }\n", cmd, prefix, n)
+	}
+	body := "/file remove [find name=\"" + script + "\"]\n" +
+		guard(2, "/ip dhcp-client add interface=ether1") +
+		guard(3, "/certificate add name="+cert+" common-name="+cert+" days-valid=30") +
+		guard(4, "/certificate sign "+cert) +
+		guard(5, "/ip service set api-ssl certificate="+cert) +
+		guard(6, "/ip dns static add name="+marker+" address=192.0.2.98") +
+		":log info \"" + prefix + "bootstrap: done\"\n"
+	if !p.writeFile("m12 script", script, body) {
+		p.note("m12", "ABORTED: could not write the bootstrap")
+		return
+	}
+
+	t0 := time.Now()
+	rs := p.run("m12 reset-configuration", "/system/reset-configuration", 20*time.Second,
+		"=no-defaults=yes", "=skip-backup=yes", "=keep-users=yes", "=run-after-reset="+script)
+	p.note("m12 reset answer", fmt.Sprintf("trap=%q err=%q", rs.Trap, rs.Err))
+	p.c.Close()
+
+	// api-ssl ONLY first: coming back over TLS is the measurement.
+	var cl *routeros.Client
+	via := ""
+	for time.Since(t0) < 4*time.Minute && cl == nil {
+		time.Sleep(5 * time.Second)
+		c := cfg
+		c.DialTimeout = 5 * time.Second
+		if x, err := routeros.Dial(c); err == nil {
+			cl, via = x, "api-ssl"
+		}
+	}
+	if cl == nil {
+		plain := cfg
+		plain.TLS, plain.Port, plain.DialTimeout = false, 8728, 5*time.Second
+		for time.Since(t0) < 6*time.Minute && cl == nil {
+			time.Sleep(5 * time.Second)
+			if x, err := routeros.Dial(plain); err == nil {
+				cl, via = x, "api (plain)"
+			}
+		}
+	}
+	if cl == nil {
+		p.note("m12 came back", "NO. Recover through the serial console (127.0.0.1:15000): "+
+			"/system/backup/load name="+backup+".backup")
+		return
+	}
+	p.c = cl
+	p.note("m12 came back", fmt.Sprintf("after %s, over %s", time.Since(t0).Round(time.Second), via))
+	p.note("m12 script deleted itself", fmt.Sprint(p.fileSize(script) == "(absent)"))
+	mk, _ := p.c.Do(routeros.Cmd{Path: "/ip/dns/static/print", Args: []string{"?name=" + marker},
+		Timeout: 10 * time.Second})
+	p.note("m12 lines after the failing one ran", fmt.Sprint(len(mk) > 0))
+	sv, _ := p.c.Do(routeros.Cmd{Path: "/ip/service/print", Timeout: 10 * time.Second,
+		Args: []string{"?name=api-ssl", "=.proplist=certificate"}})
+	if len(sv) > 0 {
+		p.note("m12 api-ssl certificate", sv[0]["certificate"])
+	}
+	lg := p.run("m12 log after", "/log/print", 15*time.Second, "=.proplist=topics,message")
+	kept := []routeros.Reply{}
+	for _, r := range lg.Rows {
+		m := strings.ToLower(r["message"] + " " + r["topics"])
+		if strings.Contains(m, "bootstrap") || strings.Contains(m, "script") || strings.Contains(m, "certificate") {
+			kept = append(kept, routeros.Reply{"topics": r["topics"], "message": maskAddrs(r["message"])})
+		}
+	}
+	p.steps[len(p.steps)-1].Rows = kept
+	for _, r := range kept {
+		p.note("m12 log", r["topics"]+": "+r["message"])
+	}
+
+	ld := p.run("m12 backup load", "/system/backup/load", 20*time.Second,
+		"=name="+backup+".backup", "=password=")
+	p.note("m12 restore issued", fmt.Sprintf("trap=%q err=%q", ld.Trap, ld.Err))
+	p.c.Close()
+	t1 := time.Now()
+	cl = nil
+	for time.Since(t1) < 6*time.Minute && cl == nil {
+		time.Sleep(5 * time.Second)
+		c := cfg
+		c.DialTimeout = 5 * time.Second
+		cl, _ = routeros.Dial(c)
+	}
+	if cl == nil {
+		p.note("m12 restored", "NO. Recover through the serial console (127.0.0.1:15000).")
+		return
+	}
+	p.c = cl
+	p.note("m12 restored", "back over api-ssl after "+fmt.Sprint(time.Since(t1).Round(time.Second)))
+	if id := p.fileID(backup + ".backup"); id != "" {
+		p.run("m12 remove backup", "/file/remove", 10*time.Second, "=.id="+id)
 	}
 }
 

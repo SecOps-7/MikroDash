@@ -1,0 +1,147 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "findings": [
+    {
+      "name": "m12 reset answer",
+      "answer": "trap=\"\" err=\"\""
+    },
+    {
+      "name": "m12 came back",
+      "answer": "after 25s, over api-ssl"
+    },
+    {
+      "name": "m12 script deleted itself",
+      "answer": "true"
+    },
+    {
+      "name": "m12 lines after the failing one ran",
+      "answer": "true"
+    },
+    {
+      "name": "m12 api-ssl certificate",
+      "answer": "mdprobe-api"
+    },
+    {
+      "name": "m12 log",
+      "answer": "script,warning: mdprobe-bootstrap: line 2 failed"
+    },
+    {
+      "name": "m12 log",
+      "answer": "certificate,info: generated CA certificate: mdprobe-api"
+    },
+    {
+      "name": "m12 log",
+      "answer": "script,info: mdprobe-bootstrap: done"
+    },
+    {
+      "name": "m12 log",
+      "answer": "system,info: ip service changed by run-after-reset/action:1 (/ip service set api-ssl certificate=mdprobe-api)"
+    },
+    {
+      "name": "m12 restore issued",
+      "answer": "trap=\"\" err=\"\""
+    },
+    {
+      "name": "m12 restored",
+      "answer": "back over api-ssl after 15s"
+    }
+  ],
+  "steps": [
+    {
+      "label": "m12 backup save",
+      "path": "/system/backup/save",
+      "args": [
+        "=name=mdprobe-preboot",
+        "=dont-encrypt=yes"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 15
+    },
+    {
+      "label": "m12 script: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-boot.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**9QZgBfJRszKNVjXeSIkOx9qdLXaV"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m12 script: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**9QZgBfJRszKNVjXeSIkOx9qdLXaV",
+        "=contents=\u003c677 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m12 reset-configuration",
+      "path": "/system/reset-configuration",
+      "args": [
+        "=no-defaults=yes",
+        "=skip-backup=yes",
+        "=keep-users=yes",
+        "=run-after-reset=mdprobe-boot.rsc"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 4
+    },
+    {
+      "label": "m12 log after",
+      "path": "/log/print",
+      "args": [
+        "=.proplist=topics,message"
+      ],
+      "rows": [
+        {
+          "message": "mdprobe-bootstrap: line 2 failed",
+          "topics": "script,warning"
+        },
+        {
+          "message": "generated CA certificate: mdprobe-api",
+          "topics": "certificate,info"
+        },
+        {
+          "message": "mdprobe-bootstrap: done",
+          "topics": "script,info"
+        },
+        {
+          "message": "ip service changed by run-after-reset/action:1 (/ip service set api-ssl certificate=mdprobe-api)",
+          "topics": "system,info"
+        }
+      ],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m12 backup load",
+      "path": "/system/backup/load",
+      "args": [
+        "=name=mdprobe-preboot.backup",
+        "=password="
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 10
+    },
+    {
+      "label": "m12 remove backup",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**C9bqLkZWU32wjg33CvjdS3b7ZKLvGDLXPUjg"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    }
+  ]
+}
