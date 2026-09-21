@@ -96,9 +96,12 @@ func TestDangerousMenus(t *testing.T) {
 		// no code set is still one the next edit fills in.
 		{"/system script\nadd name=x", Refuse, Ack},
 		{"/system scheduler\nadd name=x interval=1m", Refuse, Ack},
-		{"/certificate\nadd name=x common-name=x", Refuse, Refuse},
+		// A full export carries these (the lab CHR's own did), so a full
+		// replacement acknowledges them; an addition never touches them.
+		{"/certificate\nadd name=x common-name=x", Refuse, Ack},
 		{"/file\nset [ find name=x ] contents=y", Refuse, Refuse},
-		{"/container\nadd remote-image=x", Refuse, Refuse},
+		{"/container\nadd remote-image=x", Refuse, Ack},
+		{"/disk\nadd type=file file-path=swap", Refuse, Ack},
 		{"/user\nadd name=x group=full", Refuse, Ack},
 		{"/user group\nadd name=x policy=read", Refuse, Ack},
 		{"/user settings\nset minimum-password-length=12", "", ""},
@@ -295,5 +298,16 @@ func TestFillIsWhatIsJudged(t *testing.T) {
 	}
 	if v, _ := tp.Lines[0].Find[0].Value.Var(); v != "svc" {
 		t.Error("Fill changed the template it was given")
+	}
+}
+
+// Dropping invalid packets cannot cut an established management session.
+func TestDroppingInvalidIsNotALockout(t *testing.T) {
+	src := "/ip firewall filter\nadd chain=input action=drop connection-state=invalid"
+	if got := codes(AnalyzeLive(mustParse(t, src), lab)); got != "" {
+		t.Errorf("%q", got)
+	}
+	if got := codes(AnalyzeLive(mustParse(t, "/ip firewall filter\nadd chain=input action=drop connection-state=new"), lab)); got != "ack:lockout-firewall" {
+		t.Errorf("a drop of new connections: %q", got)
 	}
 }

@@ -98,8 +98,10 @@ export function templateCard(t: LibTemplate): string {
     '<div class="cfg-tpl-scope">' + scope + '</div>' +
     '<footer class="cfg-tpl-foot">' + vars +
     '<span class="cfg-tpl-actions">' +
-    '<button class="cfg-btn" type="button" data-cfg-act="preview">Preview</button>' +
-    '<button class="cfg-btn" type="button" data-cfg-act="clone">' + (t.canned ? 'Customise' : 'Duplicate') + '</button>' +
+    (t.canned ? '<button class="cfg-btn" type="button" data-cfg-act="preview">Preview</button>' +
+      '<button class="cfg-btn" type="button" data-cfg-act="clone">Customise</button>'
+      : '<button class="cfg-btn" type="button" data-cfg-act="edit">Edit</button>' +
+      '<button class="cfg-btn" type="button" data-cfg-act="clone">Duplicate</button>') +
     '<button class="cfg-btn cfg-btn-go" type="button" data-cfg-act="deploy">Deploy</button>' +
     '</span></footer></article>';
 }

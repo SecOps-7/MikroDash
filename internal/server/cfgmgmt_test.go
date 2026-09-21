@@ -197,3 +197,20 @@ func TestCannedTemplatesAreServedAndProtected(t *testing.T) {
 		t.Error("a stored template was refused as canned")
 	}
 }
+
+func TestTheEditorsCheckIsRouted(t *testing.T) {
+	if _, p := newServeMuxFor(t).Handler(httptest.NewRequest("POST", cfgPrefix+"check", nil)); p == "" {
+		t.Error("the editor's check is not routed")
+	}
+}
+
+func TestCaptureMenusLeaveOutTheRefused(t *testing.T) {
+	ms := cfgtpl.CaptureMenus()
+	has := map[string]bool{}
+	for _, m := range ms {
+		has[m] = true
+	}
+	if !has["/ip/firewall/filter"] || !has["/ip/dns"] || has["/system/script"] || has["/user"] || has["/certificate"] {
+		t.Errorf("capture menus: %v", ms)
+	}
+}

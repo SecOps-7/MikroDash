@@ -23,6 +23,7 @@ const ENTRY = path.join(ROOT, 'testdata', '.cfgmgmt-entry.ts');
 fs.writeFileSync(ENTRY, [
   "export { initConfigManagementPage, toLibrary } from '../web/src/pages/config-management.js';",
   "export * as cards from '../web/src/pages/config-management-cards.js';",
+  "export * as editor from '../web/src/pages/config-management-editor.js';",
 ].join('\n') + '\n');
 const OUT = path.join(ROOT, 'testdata', '.cfgmgmt.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -31,7 +32,7 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 fs.rmSync(ENTRY, { force: true });
 const mod = require(OUT);
 fs.rmSync(OUT, { force: true });
-const { cards } = mod;
+const { cards, editor } = mod;
 
 const tpl = (extra) => ({ id: 'x', name: 'N', description: 'D', category: 'home', kind: 'fragment', canned: true,
   version: 1, lockClass: false, scope: [], variables: 0, tags: [], baseline: null, updatedAt: 0, ...extra });
@@ -78,10 +79,26 @@ assert.deepStrictEqual(lib.map((t) => [t.id, t.category, t.canned, t.variables, 
   [['canned:dns-and-time', 'home', true, 2, false], ['s1', 'custom', false, 0, true]]);
 assert.deepStrictEqual(lib[1].scope, ['/ip/dns']);
 
+// ── THE EDITOR'S SETTINGS FOLLOW THE TEXT ────────────────────────────────────
+assert.deepStrictEqual(editor.usedVars('/ip dns\nset servers={{b}} a={{a}} c={{b}}'), ['b', 'a'], 'first appearance first');
+const sync = editor.syncVars([{ name: 'gone', type: 'ipv4', label: 'kept' }],
+  '/ip service\nset [ find name={{api_service}} ] address={{net}}', ['mgmt_src', 'api_service', 'api_user']);
+assert.deepStrictEqual(sync.defs.map((d) => d.name), ['gone', 'net'],
+  'a used placeholder is declared, a removed one kept, and MikroDash\'s own are never asked for');
+assert.deepStrictEqual(sync.unused, ['gone'], 'the removed one is reported as unused');
+assert.ok(editor.gutter('a\nb\nc', 2).includes('<span class="cfg-ln-bad">2</span>'), 'the refused line is marked');
+const secret = editor.varRow({ name: 'pw', type: 'secret', default: 'hunter2' }, ['text', 'secret'], false);
+assert.ok(!secret.includes('hunter2') && /data-var-field="default"[^>]*disabled/.test(secret),
+  'a secret was offered a default, which would be stored with the template');
+const form = editor.captureForm([{ id: 'r1', label: '<b>edge</b>' }], ['/ip/dns']);
+assert.ok(!form.includes('<b>edge') && form.includes('&lt;b&gt;edge'), 'a router label reached the markup unescaped');
+
 // ── NOTHING IS FETCHED UNTIL THE PAGE IS SHOWN ──────────────────────────────
 const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 'cfgLibrary', 'cfgDrawer',
   'cfgDrawerTitle', 'cfgDrawerMeta', 'cfgDrawerBody', 'cfgDrawerClose', 'cfgPanel-library', 'cfgPanel-editor',
-  'cfgPanel-deploy', 'cfgPanel-history', 'cfgPanel-drift'], { allowUnknown: ['#cfgTabs [data-cfgtab]'] });
+  'cfgPanel-deploy', 'cfgPanel-history', 'cfgPanel-drift', 'cfgNew', 'cfgEdNew', 'cfgCapture', 'cfgEdCapture',
+  'cfgCaptureBox', 'cfgEdName', 'cfgEdDesc', 'cfgEdBody', 'cfgEdVars', 'cfgEdSave', 'cfgEdDelete', 'cfgEdClose'],
+  { allowUnknown: ['#cfgTabs [data-cfgtab]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };
 const fetched = [];

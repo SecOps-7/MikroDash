@@ -67,10 +67,15 @@ var refusedMenus = []struct {
 }{
 	{"/system/script", "a script is code that runs with the router's rights", true},
 	{"/system/scheduler", "a scheduler entry runs code on a timer", true},
-	{"/certificate", "certificates carry private keys", false},
+	// A full export carries /certificate SETTINGS (never a certificate: they
+	// are not exported), a swap file under /disk, and container configuration
+	// such as the registry. Measured on the lab CHR's own export (2026-09-21):
+	// refusing them made a real router's export undeployable, so a full
+	// replacement acknowledges them. An addition still may not touch them.
+	{"/certificate", "certificates carry private keys", true},
 	{"/file", "files are not configuration", false},
-	{"/disk", "disks are not configuration", false},
-	{"/container", "a container runs an image — code", false},
+	{"/disk", "disks and swap files are storage, not network configuration", true},
+	{"/container", "a container runs an image — code", true},
 	{"/tool/netwatch", "netwatch entries run scripts on up and down", true},
 	{"/user/ssh-keys", "SSH keys are credentials", false},
 	{"/user/group", "user groups decide who may do what", true},
@@ -131,6 +136,24 @@ func RefusedMenu(menu string) bool {
 		}
 	}
 	return false
+}
+
+// CaptureMenus is every menu a fragment may be captured from: known, and not
+// one an addition may never touch. Sorted, for a picker.
+func CaptureMenus() []string {
+	out := []string{}
+	for m := range menuIndex {
+		if !RefusedMenu(m) {
+			out = append(out, m)
+		}
+	}
+	for m := range extraMenus {
+		if !RefusedMenu(m) {
+			out = append(out, m)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // menuIndex is the registry, by menu path.
@@ -348,8 +371,16 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 					Protocol: arg(l, "protocol"), DstPort: arg(l, "dst-port"),
 					InInterface: arg(l, "in-interface"), Disabled: arg(l, "disabled") == "yes",
 				}
+				// A drop of only invalid packets cannot cut a management
+				// session, which is established; MikroTik's own firewall drops
+				// them first.
+				state, _ := l.Arg("connection-state")
+				onlyInvalid := false
+				if s, lit := state.Literal(); lit && s == "invalid" {
+					onlyInvalid = true
+				}
 				switch {
-				case rule.Disabled:
+				case rule.Disabled, onlyInvalid:
 				case !ctx.FW.Resolved:
 					add(l, Ack, "lockout-unknown", "%s: a %s rule on %s, and MikroDash's own address on this "+
 						"router is not known, so it cannot tell whether this cuts it off", menu, rule.Action, chain)

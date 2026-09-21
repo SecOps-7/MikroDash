@@ -183,7 +183,7 @@ const ROS_RULES: { cls: string; re: RegExp }[] = [
   // later words plain, deliberately -- consuming them risks swallowing the verb,
   // and a wrong colour reads worse than none.
   { cls: 'ros-path', re: /^\/[A-Za-z][\w-]*(?:\/[A-Za-z][\w-]*)*/ },
-  { cls: 'ros-verb', re: /^(?:add|set|remove|print|enable|disable|move|export|import|find|monitor|unset)\b/ },
+  { cls: 'ros-verb', re: /^(?:add|set|remove|print|enable|disable|move|export|import|find|monitor|unset|ensure)\b/ },
   { cls: 'ros-key', re: /^[A-Za-z][\w-]*(?==)/ },
   { cls: 'ros-op', re: /^=/ },
   { cls: 'ros-num', re: /^\d+(?:\.\d+)*(?:\/\d+)?(?::\d+)?/ },

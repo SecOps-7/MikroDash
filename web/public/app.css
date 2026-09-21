@@ -2478,6 +2478,52 @@
     .cfg-var{font-family:var(--font-mono);color:var(--accent-pink);background:color-mix(in srgb,var(--accent-pink) 12%,transparent);
       border-radius:4px;padding:0 .15rem}
 
+    /* The editor. The text area is transparent over a highlighted layer; the
+       two share ONE set of metrics (.cfg-ed-text, .cfg-ed-hl, .cfg-ed-gutter),
+       or the caret drifts from the colours as the author types. */
+    .cfg-ed-empty{max-width:42rem;margin:2.5rem auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:.7rem}
+    .cfg-ed-empty .cfg-tpl-actions{justify-content:center}
+    .cfg-capture{width:100%;margin-top:.6rem;padding:.9rem;border:1px solid var(--border);border-radius:12px;text-align:left;
+      background:radial-gradient(80% 120% at 0% 0%,color-mix(in srgb,var(--accent-rx) 10%,transparent),transparent 70%),var(--bg-card)}
+    .cfg-capture-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.55rem;align-items:end}
+    .cfg-capture-row label{display:flex;flex-direction:column;gap:.25rem;font-size:.7rem;color:var(--text-muted)}
+    .cfg-capture-row label[hidden]{display:none}
+    .cfg-capture .cfg-meta{margin:.6rem 0 0}
+    .cfg-ed{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:.9rem}
+    @media (max-width:1100px){.cfg-ed{grid-template-columns:1fr}}
+    .cfg-ed-main{display:flex;flex-direction:column;gap:.55rem;min-width:0}
+    .cfg-ed-head{display:flex;flex-direction:column;gap:.4rem}
+    .cfg-ed-name{font-weight:650;font-size:1rem}
+    .cfg-ed-code{display:flex;min-height:420px;height:62vh;border:1px solid var(--border);border-radius:12px;overflow:hidden;
+      background:color-mix(in srgb,var(--bg-deep) 70%,transparent)}
+    .cfg-ed-gutter,.cfg-ed-hl,.cfg-ed-text{margin:0;font-family:var(--font-mono);font-size:.76rem;line-height:1.6;tab-size:4;
+      padding:.75rem .85rem;white-space:pre;letter-spacing:0;border:0}
+    .cfg-ed-gutter{flex-shrink:0;min-width:3.2rem;text-align:right;color:var(--text-muted);opacity:.6;overflow:hidden;user-select:none;
+      background:color-mix(in srgb,var(--text-muted) 5%,transparent);border-right:1px solid var(--border)}
+    .cfg-ln-bad{color:var(--accent-err);opacity:1;font-weight:700}
+    .cfg-ed-stack{position:relative;flex:1;min-width:0}
+    .cfg-ed-hl,.cfg-ed-text{position:absolute;inset:0;overflow:auto}
+    .cfg-ed-hl{pointer-events:none;color:var(--text-main);overflow:hidden}
+    .cfg-ed-text{width:100%;height:100%;resize:none;outline:none;background:transparent;color:transparent;caret-color:var(--accent-rx)}
+    .cfg-ed-text::selection{background:color-mix(in srgb,var(--accent-rx) 30%,transparent);color:transparent}
+    .cfg-ed.is-plain .cfg-ed-text{color:var(--text-main)}
+    .cfg-ed.is-plain .cfg-ed-hl{display:none}
+    .cfg-ed-status{font-size:.76rem;color:var(--text-muted);min-height:1.3rem;display:flex;align-items:center;gap:.45rem}
+    .cfg-ed-status.is-ok{color:var(--accent-ok)}
+    .cfg-ed-status.is-bad{color:var(--accent-err)}
+    .cfg-ln-tag{font-family:var(--font-mono);font-size:.68rem;padding:.05rem .4rem;border-radius:5px;
+      background:color-mix(in srgb,var(--accent-err) 14%,transparent);border:1px solid color-mix(in srgb,var(--accent-err) 32%,transparent)}
+    .cfg-ed-side{display:flex;flex-direction:column;gap:.4rem;min-width:0;padding:.2rem .1rem}
+    .cfg-ed-side .cfg-drawer-h:first-child{margin-top:0}
+    .cfg-var-row{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;padding:.55rem;margin-bottom:.4rem;border-radius:10px;
+      border:1px solid var(--border);background:color-mix(in srgb,var(--text-muted) 5%,transparent)}
+    .cfg-var-row .cfg-var-name{grid-column:1/-1;display:flex;align-items:center;gap:.4rem}
+    .cfg-var-row.is-unused{opacity:.6;border-style:dashed}
+    .cfg-var-row.is-locked{grid-template-columns:1fr;border-style:dashed}
+    .cfg-var-req{grid-column:1/-1;display:flex;align-items:center;gap:.35rem;font-size:.7rem;color:var(--text-muted)}
+    .cfg-ed-acts{display:flex;justify-content:flex-end;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
+    .cfg-ed-acts #cfgEdDelete{margin-right:auto;color:var(--accent-err)}
+
     @media (prefers-reduced-motion:reduce){
       .cfg-tpl{animation:none;transition:none}
       .cfg-tpl:hover{transform:none}

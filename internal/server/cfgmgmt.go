@@ -49,6 +49,41 @@ func (s *Server) registerConfig(mux *http.ServeMux) {
 	mux.HandleFunc("PUT "+cfgPrefix+"templates/{id}", lim(s.cfgWrite("config.template.update", s.cfgUpdate)))
 	mux.HandleFunc("DELETE "+cfgPrefix+"templates/{id}", lim(s.cfgWrite("config.template.delete", s.cfgDelete)))
 	mux.HandleFunc("POST "+cfgPrefix+"templates/{id}/clone", lim(s.cfgWrite("config.template.clone", s.cfgClone)))
+	// The editor's live check: checkTemplate without the save. Changes
+	// nothing, so a read; limited, since the editor calls it as the author
+	// types.
+	mux.HandleFunc("POST "+cfgPrefix+"check", newRateLimiter(120, time.Minute).limit(s.cfgRead(s.cfgCheck)))
+}
+
+// cfgCheck answers what a save would: the refusal with its line, or the
+// findings and the menus touched.
+func (s *Server) cfgCheck(w http.ResponseWriter, r *http.Request, _ *Session) {
+	r.Body = http.MaxBytesReader(w, r.Body, cfgMaxBody+64<<10)
+	var in struct {
+		cfgTemplateIn
+		Kind string `json:"kind"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONErr(w, http.StatusBadRequest, "the request is not a template")
+		return
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		in.Name = "draft"
+	}
+	kind := in.Kind
+	if kind == "" {
+		kind = cfgtpl.KindFragment
+	}
+	c, err := checkTemplate(in.cfgTemplateIn, profileFor(kind))
+	if err != nil {
+		cfgRefuse(w, err)
+		return
+	}
+	if t, err := cfgtpl.Parse(c.Body); err == nil {
+		c.Findings = append(c.Findings, cfgtpl.AnalyzeLive(t, cfgtpl.LiveContext{})...)
+	}
+	writeJSON(w, map[string]any{"ok": true, "findings": c.Findings, "scope": json.RawMessage(c.Scope),
+		"fingerprint": c.Fingerprint})
 }
 
 // cfgRead is a global administrator's GET.
@@ -216,7 +251,9 @@ func (s *Server) cfgList(w http.ResponseWriter, _ *http.Request, _ *Session) {
 			}
 		}
 	}
-	writeJSON(w, map[string]any{"ok": true, "templates": rows, "canned": cannedViews(), "lockClass": lock})
+	writeJSON(w, map[string]any{"ok": true, "templates": rows, "canned": cannedViews(), "lockClass": lock,
+		"captureMenus": cfgtpl.CaptureMenus(), "varTypes": cfgtpl.Types,
+		"serverVars": []string{"mgmt_src", "api_service", "api_user"}})
 }
 
 // cannedView is a shipped template as the Library lists it.

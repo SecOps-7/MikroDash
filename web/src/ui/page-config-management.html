@@ -17,7 +17,10 @@
               <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="drift">Drift</button>
             </span>
           </div>
-          <div class="hdr-actions d-flex align-items-center gap-2" id="cfgActions"></div>
+          <div class="hdr-actions d-flex align-items-center gap-2" id="cfgActions">
+            <button class="cfg-btn" type="button" id="cfgNew">New template</button>
+            <button class="cfg-btn cfg-btn-go" type="button" id="cfgCapture">Capture from a router</button>
+          </div>
         </div>
         <div class="card-body" id="cfgBody">
           <div class="cfg-panel" id="cfgPanel-library">
@@ -36,7 +39,45 @@
             </section>
             <div id="cfgLibrary"><div class="cfg-empty">Loading the library…</div></div>
           </div>
-          <div class="cfg-panel" id="cfgPanel-editor" hidden></div>
+          <div class="cfg-panel" id="cfgPanel-editor" hidden>
+            <div class="cfg-ed-empty" id="cfgEdEmpty">
+              <h4 class="cfg-hero-title">Start a template</h4>
+              <p class="cfg-hero-sub">Write one in RouterOS's own export syntax, customise a canned one from the
+                Library, or capture a menu or a whole router as it is configured today.</p>
+              <div class="cfg-tpl-actions">
+                <button class="cfg-btn cfg-btn-go" type="button" id="cfgEdNew">New template</button>
+                <button class="cfg-btn" type="button" id="cfgEdCapture">Capture from a router</button>
+              </div>
+              <div id="cfgCaptureBox" hidden></div>
+            </div>
+            <div class="cfg-ed" id="cfgEd" hidden>
+              <div class="cfg-ed-main">
+                <div class="cfg-ed-head">
+                  <input class="form-control cfg-ed-name" id="cfgEdName" placeholder="Template name" maxlength="80" aria-label="Template name">
+                  <input class="form-control form-control-sm" id="cfgEdDesc" placeholder="What it does, in a sentence" maxlength="500" aria-label="Description">
+                  <div class="cfg-meta" id="cfgEdMeta"></div>
+                </div>
+                <div class="cfg-ed-code">
+                  <pre class="cfg-ed-gutter" id="cfgEdGutter" aria-hidden="true">1</pre>
+                  <div class="cfg-ed-stack">
+                    <pre class="cfg-ed-hl md-ros" id="cfgEdHl" aria-hidden="true"></pre>
+                    <textarea class="cfg-ed-text" id="cfgEdBody" spellcheck="false" autocapitalize="off" autocomplete="off"
+                      wrap="off" aria-label="Template text"></textarea>
+                  </div>
+                </div>
+                <div class="cfg-ed-status" id="cfgEdStatus"></div>
+              </div>
+              <aside class="cfg-ed-side">
+                <section><h5 class="cfg-drawer-h">Settings</h5><div id="cfgEdVars"></div><div id="cfgEdServerVars"></div></section>
+                <section><h5 class="cfg-drawer-h">Checks</h5><div id="cfgEdChecks"></div></section>
+                <div class="cfg-ed-acts">
+                  <button class="cfg-btn" type="button" id="cfgEdDelete">Delete</button>
+                  <button class="cfg-btn" type="button" id="cfgEdClose">Close</button>
+                  <button class="cfg-btn cfg-btn-go" type="button" id="cfgEdSave">Save</button>
+                </div>
+              </aside>
+            </div>
+          </div>
           <div class="cfg-panel" id="cfgPanel-deploy" hidden></div>
           <div class="cfg-panel" id="cfgPanel-history" hidden></div>
           <div class="cfg-panel" id="cfgPanel-drift" hidden></div>

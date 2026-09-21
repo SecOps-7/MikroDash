@@ -207,7 +207,8 @@ func TestAnExportCarryingRefusedMenusIsRefused(t *testing.T) {
 	env, _ := f.env()
 	backups := 0
 	env.Backup = func() (int64, error) { backups++; return 7, nil }
-	out := RunReset(env, resetOf(t, f, exportShape+"/certificate\nadd name=x common-name=x\n", sameModel))
+	// /file is refused in a full replacement too: files are not configuration.
+	out := RunReset(env, resetOf(t, f, exportShape+"/file\nset [ find name=x ] contents=y\n", sameModel))
 	if out.Code != "refused" || backups != 0 || f.sent("/file/add") {
 		t.Errorf("%+v", out)
 	}
