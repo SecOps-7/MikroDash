@@ -36,7 +36,7 @@ import type { SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Tunnel } from '../gen/payloads';
 import { mountAdds, mountRows } from '../resource';
-import { registerAreaPanel } from './area';
+import { openAreaPanel, registerAreaPanel } from './area';
 
 /**
  * A RouterOS last-handshake duration in seconds.
@@ -325,6 +325,19 @@ export function initWireguardPeers(socket: Socket): void {
   });
 
   document.addEventListener('mikrodash:pagechange', () => { wipeConfig(); });
+
+  // ── AN APPROVED ASSISTANT ACTION OPENS THE DIALOG, NOT THE MODEL ─────────
+  //
+  // `wireguard_show_config` sends this operator the peer's PUBLIC key and
+  // nothing else. The page and the Peers tab come up, and the dialog fetches
+  // the configuration over its own audited route, so the private key reaches
+  // this browser exactly as the Config button would bring it, and never the
+  // conversation. Navigating first: the page change wipes the dialog.
+  socket.on('wireguard:showconfig', (d) => {
+    document.dispatchEvent(new CustomEvent('mikrodash:navigate', { detail: 'wireguard' }));
+    if (!openAreaPanel('wireguard', 'peers')) return;
+    void showConfig(d.publicKey);
+  });
 
   registerAreaPanel('wireguard', 'peers', {
     show(h: HTMLElement) {

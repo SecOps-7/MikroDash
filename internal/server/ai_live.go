@@ -51,6 +51,7 @@ const aiLiveMaxAge = 5 * time.Second
 // no reader would be advertised and then answer "not available", and a reader no
 // tool names is code nothing can reach.
 var liveToolReaders = map[string]func(rs *session.Session, t aitools.Tool) string{
+	"system":       liveSystemStatus,
 	"ifStatus":     liveInterfaceTraffic,
 	"wan":          liveWanStatus,
 	"packages":     livePackages,
@@ -302,6 +303,55 @@ func renderWanStatus(p *collect.WANPayload) any {
 }
 
 // ── list_packages ───────────────────────────────────────────────────────────
+
+// liveSystemStatus is the router's health from the system collector, the
+// reading the dashboard's gauges draw. Before (MikroMCP's check_router_health
+// and get_system_status), it reached the model only as a line of every
+// prompt's context, as old as that prompt; this is re-read when it is more
+// than a few seconds old.
+func liveSystemStatus(rs *session.Session, t aitools.Tool) string {
+	col := rs.System()
+	return liveAnswer(t, liveSource[collect.SystemPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.SystemPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/system/resource",
+		absent:  "The router's health readings are not available yet.",
+	}, renderSystemStatus)
+}
+
+type liveSystem struct {
+	CPULoadPct      int      `json:"cpuLoadPct"`
+	CPUCount        int      `json:"cpuCount,omitempty"`
+	CPUMHz          int      `json:"cpuMHz,omitempty"`
+	MemoryUsedPct   int      `json:"memoryUsedPct"`
+	MemoryUsedMB    int      `json:"memoryUsedMB"`
+	MemoryTotalMB   int      `json:"memoryTotalMB"`
+	StorageUsedPct  int      `json:"storageUsedPct"`
+	StorageFreeMB   int      `json:"storageFreeMB"`
+	StorageTotalMB  int      `json:"storageTotalMB"`
+	TemperatureC    *float64 `json:"temperatureC,omitempty"`
+	Uptime          string   `json:"uptime"`
+	Version         string   `json:"version"`
+	LatestVersion   string   `json:"latestVersion,omitempty"`
+	UpdateAvailable bool     `json:"updateAvailable"`
+	UpdateChannel   string   `json:"updateChannel,omitempty"`
+	Board           string   `json:"board,omitempty"`
+}
+
+// renderSystemStatus shapes the payload for the model. NO SERIAL AND NO
+// LICENCE: they identify the device and answer nothing about its health.
+func renderSystemStatus(p *collect.SystemPayload) any {
+	mb := func(b int) int { return b / (1 << 20) }
+	return liveSystem{
+		CPULoadPct: p.CPULoad, CPUCount: p.CPUCount, CPUMHz: p.CPUFreq,
+		MemoryUsedPct: p.MemPct, MemoryUsedMB: mb(p.UsedMem), MemoryTotalMB: mb(p.TotalMem),
+		StorageUsedPct: p.HddPct, StorageFreeMB: mb(p.FreeHdd), StorageTotalMB: mb(p.TotalHdd),
+		TemperatureC: p.TempC, Uptime: p.UptimeRaw, Version: p.Version,
+		LatestVersion: p.LatestVersion, UpdateAvailable: p.UpdateAvailable, UpdateChannel: p.UpdateChannel,
+		Board: p.BoardName,
+	}
+}
 
 func livePackages(rs *session.Session, t aitools.Tool) string {
 	col := rs.Packages()

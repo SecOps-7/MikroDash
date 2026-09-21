@@ -27,8 +27,8 @@ import (
 //
 // ── THE TYPED NAME IS THE OPERATOR'S, NEVER THE MODEL'S ─────────────────────
 //
-// `packages_apply_and_reboot` and `firmware_upgrade_and_reboot` require the
-// router's name typed back, exactly as the page does. That word comes from the
+// Every action marked TypedName (the four that reboot, and script_run) requires
+// the router's name typed back, exactly as the page does. That word comes from the
 // approval the operator sends, and this tool takes no `confirm` argument at all:
 // a model that could supply it would be answering its own confirmation.
 
@@ -98,6 +98,33 @@ func Actions() []ActionSpec {
 			Summary: "Apply the scheduled package changes. THIS REBOOTS THE ROUTER."},
 		{Key: "firmware_upgrade_and_reboot", Page: "packages", TypedName: true,
 			Summary: "Upgrade the RouterBOOT firmware. THIS REBOOTS THE ROUTER."},
+		// MikroMCP parity, 2026-09-21: the RouterOS version upgrade the Packages
+		// page already offers, and a bare reboot, the operator's choice.
+		{Key: "routeros_upgrade_and_reboot", Page: "packages", TypedName: true,
+			Summary: "Download and install the RouterOS update the router has found (see list_packages " +
+				"for the installed and latest version). THIS REBOOTS THE ROUTER."},
+		{Key: "reboot", Page: "packages", TypedName: true,
+			Summary: "Reboot the router. It is unreachable for a minute or two."},
+		// A SCRIPT RUNS CODE: behind codeGate on the Scripts page, and for the
+		// assistant also the raw-command gate with the name typed back, as
+		// changing a script's source is (the operator's choice, 2026-09-18).
+		{Key: "script_run", Page: "scripts", Target: "script", TypedName: true,
+			Summary: "Run one of the router's own scripts, by name, as the Scripts page's Run does. " +
+				"Only when raw commands are enabled for the assistant and a global administrator approves."},
+		{Key: "fetch_url", Page: "files", Target: "url",
+			Summary: "Have the router download one file from an http:// or https:// address into its own " +
+				"storage. It is saved under the address's file name; *.auto.* files and packages are refused."},
+		{Key: "certificate_sign", Page: "certificates", Target: "certificate",
+			Summary: "Self-sign a certificate that has not been signed yet (create it first with change_row), " +
+				"generating its key on the router."},
+		// THE CONFIG IS A CREDENTIAL (the peer's private key), so it is never
+		// returned to the model: approving this opens the WireGuard page's own
+		// configuration dialog in the operator's browser, fetched and audited as
+		// that dialog always is.
+		{Key: "wireguard_show_config", Page: "wireguard", Target: "peer",
+			Summary: "Show a WireGuard peer's client configuration (QR code and .conf) to the operator, " +
+				"in their browser. Pass the peer's name or public key. You are never given the " +
+				"configuration: it holds the peer's private key."},
 		// A DIAGNOSTIC, and an action rather than a read tool because it loads
 		// the router's CPU while it runs: the operator decided torch needs write
 		// access to Tools, and so it is always proposed. The duration is fixed.

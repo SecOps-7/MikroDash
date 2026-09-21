@@ -42,6 +42,7 @@ import { initInterfacesPage, resetInterfacesPage } from './pages/interfaces';
 import { initAreaPages, mountAreaNav, resetAreaPages } from './pages/area';
 import { initContainersApps } from './pages/containers-apps';
 import { initWireguardPeers } from './pages/wireguard-peers';
+import { initFilesTransfer } from './pages/files-transfer';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -415,6 +416,12 @@ async function main(): Promise<void> {
   // null when the dashboard markup is not present.
   initDashboardGrid();
   initKeyboard((page) => navigate(socket, page));
+  // A module that must move the operator to another page (an approved assistant
+  // action opening its result) asks here rather than importing showPage.
+  document.addEventListener('mikrodash:navigate', (e) => {
+    const page = (e as CustomEvent<string>).detail;
+    if (typeof page === 'string') navigate(socket, page);
+  });
   // The chrome's permission layer. It reaches the router through this host
   // rather than importing showPage, which would be a cycle — and `go` deliberately
   // calls showPage directly, NOT navigate: being moved off a page you may not see
@@ -607,6 +614,7 @@ async function main(): Promise<void> {
   // registered, so a module mounted afterwards has no tab at all.
   initContainersApps(socket);
   initWireguardPeers(socket);
+  initFilesTransfer(socket);
   initAreaPages(socket, pageVisible);
   initLogsPage(socket, pageVisible);
   initTopologyPage(socket, pageVisible);

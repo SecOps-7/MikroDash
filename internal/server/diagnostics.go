@@ -66,6 +66,7 @@ var commandSources = map[string]string{
 	"dnsfleet_api.go":     "Pages",
 	"topofleet_api.go":    "Pages",
 	"packages.go":         "Packages",
+	"files.go":            "Files",
 	"backups.go":          "Backups",
 	"backups_restore.go":  "Backups",
 	"backup_scheduler.go": "Backups",

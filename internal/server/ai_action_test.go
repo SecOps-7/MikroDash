@@ -80,8 +80,10 @@ func TestEveryDeclaredActionHasAHandler(t *testing.T) {
 
 // TestEveryRebootActionIsConfirmedByTypedName.
 //
-// The two reboot-class actions must reach a handler that compares the operator's
-// typed word with the router's own label. The word travels on the APPROVAL
+// Every action marked TypedName must reach a handler that compares the operator's
+// typed word with the router's own label. Re-aimed 2026-09-21: the set was the
+// two reboot-class actions; it is now the four that reboot plus script_run,
+// which runs code (the operator's choice), and its handler takes the target too. The word travels on the APPROVAL
 // frame: `run_action` declares no `confirm` argument, so a model cannot answer
 // its own confirmation, and a branch that dropped it would apply a reboot on one
 // press.
@@ -97,14 +99,14 @@ func TestEveryRebootActionIsConfirmedByTypedName(t *testing.T) {
 			continue
 		}
 		typed++
-		re := regexp.MustCompile(`case "` + a.Key + `":\s*\n\s*out = cn\.run\w+\(confirm, "agent"\)`)
+		re := regexp.MustCompile(`case "` + a.Key + `":\s*\n\s*out = cn\.run\w+\([^)\n]*\bconfirm\b[^)\n]*\)`)
 		if !re.MatchString(body) {
 			t.Errorf("action %q reboots the router; its branch must pass the operator's typed "+
 				"`confirm` to its handler", a.Key)
 		}
 	}
-	if typed != 2 {
-		t.Errorf("%d actions are marked TypedName; the two reboot-class ones should be", typed)
+	if typed != 5 {
+		t.Errorf("%d actions are marked TypedName; the four that reboot and script_run should be", typed)
 	}
 	// And the tool itself must not offer the model a way to supply it.
 	for _, tool := range aitools.All() {

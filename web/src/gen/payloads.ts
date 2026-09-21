@@ -621,6 +621,12 @@ export interface DNSPayload {
   available: boolean;
 }
 
+export interface FilesFetchPayload {
+  ok: boolean;
+  name: string;
+  error: string;
+}
+
 export interface FirewallRule {
   id: string;
   chain: string;
@@ -1798,6 +1804,10 @@ export interface WifiPayload {
   totals: WifiTotals;
 }
 
+export interface WgShowConfigPayload {
+  publicKey: string;
+}
+
 export interface WirelessClient {
   mac: string;
   signal: number;
@@ -1910,6 +1920,7 @@ export interface Events {
   'conn:update': ConnsUpdate;
   'diagnostics:update': Diagnostics;
   'dns:update': DNSPayload;
+  'files:fetched': FilesFetchPayload;
   'firewall:update': FirewallPayload;
   'ifstatus:names': IfNamesPayload;
   'ifstatus:update': IfStatusPayload;
@@ -1944,6 +1955,7 @@ export interface Events {
   'wan:status': WanStatus;
   'wan:update': WANPayload;
   'wifi:update': WifiPayload;
+  'wireguard:showconfig': WgShowConfigPayload;
   'wireless:update': WirelessPayload;
 }
 

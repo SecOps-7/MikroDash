@@ -27,7 +27,7 @@ const mod = require(OUT);
 
 const doc = makeDoc(['pkgSumInstalled', 'pkgSumAvailable', 'pkgAvailHint', 'pkgSumDisabled', 'pkgSumUpdate',
   'pkgPendingCard', 'pkgPendingList', 'pkgApplyBtn', 'packagesCard', 'packagesBadge', 'pkgActionNote',
-  'pkgStatus', 'pkgCheckBtn', 'packagesSearch', 'packagesThead', 'packagesTable', 'packagesFwCard',
+  'pkgStatus', 'pkgCheckBtn', 'pkgRebootBtn', 'packagesSearch', 'packagesThead', 'packagesTable', 'packagesFwCard',
   'pkgFwBody', 'pkgRbCard', 'pkgRbBody', 'pkgAutoUpgrade']);
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };

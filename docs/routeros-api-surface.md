@@ -141,7 +141,7 @@ for what a ported collector has to cover.
 | `/system/reboot` | internal/server/packages.go |
 | `/system/routerboard/upgrade` | internal/server/packages.go |
 | `/tool/bandwidth-test` | internal/diag/btest.go (Tools page) |
-| `/tool/fetch` | src/index.js |
+| `/tool/fetch` | src/index.js, internal/server/files.go (an http(s) GET into a file MikroDash names) |
 | `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js, internal/diag/ping.go (Tools page) |
 | `/tool/torch` | internal/diag/torch.go (Tools page) |
 | `/tool/traceroute` | internal/diag/traceroute.go (Tools page) |
@@ -217,7 +217,7 @@ twice, 37,111 rows each way for one address-list entry on a synced blocklist.
 
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
-| `/certificate` | certificate | certificates | set, remove |
+| `/certificate` | certificate | certificates | add, set, remove, sign (self-signs: `sign =.id=` measured on the CHR, 7.24.4) |
 | `/snmp` | snmp | snmp | set |
 | `/snmp/community` | snmpCommunity | snmp | add, set, remove |
 | `/system/clock` | clock | clock | set |
@@ -264,6 +264,8 @@ twice, 37,111 rows each way for one address-list entry on a synced blocklist.
 | `/ip/ipsec/identity` | ipsecIdentity | ipsec | add, set, remove (guarded by ipsecPath; secret and password never read) |
 | `/ip/ipsec/policy` | ipsecPolicy | ipsec | add, set, remove, move (guarded by ipsecPath) |
 | `/ip/pool` | ipPool | ip-pools | add, set, remove |
+| `/ip/arp` | arp | arp | add, set, remove (dynamic rows read-only) |
+| `/ip/dns` | dnsSettings | dns | set |
 | `/ip/service` | ipService | ip-services | set |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
 | `/ip/firewall/address-list` | addressList | address-lists | add, set, remove; the page polls `print =.proplist=list,dynamic,disabled` for its per-list summary and reads one list with `print ?list=<name>` when it is opened; the assistant's `list_addressList` reads the same two ways |

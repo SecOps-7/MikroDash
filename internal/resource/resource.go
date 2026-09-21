@@ -114,7 +114,12 @@ type Field struct {
 	// identified by when that field must not be edited from here: an
 	// interface's name is what WAN uplinks, the traffic pick and topology pins
 	// are keyed on, so renaming one would orphan all three.
-	Display bool
+	// CreateOnly is set when a row is made and fixed after it: a certificate's
+	// common name, key size and validity describe the key, and RouterOS refuses
+	// to change them on a signed certificate. An edit neither shows it as an
+	// input nor sends it; the form draws it locked, as a Display field.
+	CreateOnly bool
+	Display    bool
 
 	// Code marks a field whose value is RouterOS CODE: a script's source, a
 	// scheduler's on-event. Writing one is running a command by another route,
@@ -234,6 +239,12 @@ type Resource struct {
 	// NoCreate refuses a create. An interface exists because hardware or another
 	// menu made it; `/interface` has no `add`, so offering one would be a form
 	// that can only fail at the router.
+	// RemovalIsFinal marks a resource that can be created but whose removal a
+	// re-create would not undo: a certificate's key is generated when it is
+	// signed, so adding one back under the old name makes a different
+	// certificate. A NoCreate resource is final too; see UndoesRemoval.
+	RemovalIsFinal bool
+
 	NoCreate bool
 
 	// Actions are the named verbs this resource offers. See Action.
@@ -555,7 +566,7 @@ func (r *Resource) Validate(values map[string]string, editing bool) (Validated, 
 	clean := map[string]string{}
 
 	for _, f := range r.Fields {
-		if f.Display {
+		if f.Display || (editing && f.CreateOnly) {
 			continue
 		}
 		if !f.Applies(values) {
@@ -672,6 +683,10 @@ func negateUnset(options []string, chosen string) string {
 // `/set` with the row's `.id` when editing, `/add` without one when creating —
 // the same split BuildArgs already encodes through `Editing`, expressed here as
 // the verb.
+// UndoesRemoval reports whether undoing this resource's removal, which is an
+// add, would restore the row.
+func (r *Resource) UndoesRemoval() bool { return !r.NoCreate && !r.RemovalIsFinal }
+
 // SingletonID is the id a singleton's one row is given. Not a RouterOS id
 // (those are `*N`), so it can never collide with one.
 const SingletonID = "singleton"
@@ -803,6 +818,7 @@ func (r *Resource) Describe() map[string]any {
 			"name": f.Name, "label": f.Label, "type": string(f.Type), "input": f.input(),
 			"required": f.Required, "options": opts, "placeholder": f.Placeholder,
 			"help": f.Help, "showIf": showIf, "min": minv, "max": maxv, "display": f.Display,
+			"createOnly": f.CreateOnly,
 		})
 	}
 	actions := make([]map[string]any, 0, len(r.Actions))
@@ -1134,16 +1150,38 @@ var IPService = &Resource{
 var Certificate = &Resource{
 	Key: "certificate", Page: "certificates", Label: "Certificate",
 	Title: "Certificate", Menu: "/certificate", Identity: []string{"name"},
-	NoCreate: true,
-	Guard:    []string{"certLockout"},
+	Guard:          []string{"certLockout"},
+	RemovalIsFinal: true,
+	// CREATED, THEN SIGNED (MikroMCP parity, 2026-09-21). A new certificate is
+	// a request with no key until it is signed; Sign self-signs it, generating
+	// the key on the router. MEASURED on the lab CHR (7.24.4): `sign =.id=`
+	// works over the API, streams `progress` rows and returns on `done` (about
+	// a second for RSA 2048), after which the row has a fingerprint and a
+	// private key. An unsigned row has no fingerprint, which is what gates it.
+	Actions: []Action{{Key: "sign", Verb: "sign", Label: "Sign", Note: "self-signed a certificate",
+		When: func(r map[string]string) bool { return r["fingerprint"] == "" }}},
 	Fields: []Field{
 		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true},
+		{Name: "commonName", ROS: "common-name", Label: "Common Name", Type: TypeText, Required: true,
+			CreateOnly: true, Placeholder: "router.lan"},
+		{Name: "subjectAltName", ROS: "subject-alt-name", Label: "Alternative Names", Type: TypeText,
+			CreateOnly: true, Placeholder: "DNS:router.lan,IP:192.168.88.1",
+			Help: "Other names the certificate is valid for, each as DNS:, IP: or email:."},
+		// The documented set: RSA sizes, then the curves.
+		{Name: "keySize", ROS: "key-size", Label: "Key Size", Type: TypeSelect, CreateOnly: true, Default: "2048",
+			Options: []string{"1024", "1536", "2048", "4096", "8192", "prime256v1", "secp384r1", "secp521r1"}},
+		{Name: "daysValid", ROS: "days-valid", Label: "Days Valid", Type: TypeInt, CreateOnly: true, Default: "365",
+			Min: intp(1), Max: intp(36500)},
+		// Plain text: a comma list from a documented set of sixteen, which a
+		// single select cannot hold.
+		{Name: "keyUsage", ROS: "key-usage", Label: "Key Usage", Type: TypeText, CreateOnly: true,
+			Placeholder: "digital-signature,key-encipherment,tls-server",
+			Help:        "Comma separated, e.g. key-cert-sign,crl-sign for a CA. Empty keeps RouterOS's default."},
 		{Name: "trusted", ROS: "trusted", Label: "Trusted", Type: TypeBool, Clearable: true},
 		// Plain text: a comma-separated list of stores whose set grows with each
 		// RouterOS version (twenty-three in 7.23), so a picker would go stale.
 		{Name: "trustStore", ROS: "trust-store", Label: "Trust Store", Type: TypeText, Placeholder: "all",
 			Help: "Which features may trust this certificate, comma separated: all, or e.g. ipsec, fetch, dns."},
-		{Name: "commonName", ROS: "common-name", Label: "Common Name", Type: TypeText, Display: true},
 		{Name: "privateKey", ROS: "private-key", Label: "Private Key", Type: TypeBool, Display: true},
 		{Name: "authority", ROS: "authority", Label: "Authority", Type: TypeBool, Display: true},
 		{Name: "keyType", ROS: "key-type", Label: "Key Type", Type: TypeText, Display: true},
@@ -1151,6 +1189,58 @@ var Certificate = &Resource{
 		{Name: "invalidAfter", ROS: "invalid-after", Label: "Invalid After", Type: TypeText, Display: true},
 		{Name: "expiresAfter", ROS: "expires-after", Label: "Expires In", Type: TypeText, Display: true},
 		{Name: "fingerprint", ROS: "fingerprint", Label: "Fingerprint", Type: TypeText, Display: true},
+	},
+}
+
+// DNSSettings is /ip/dns: the router's own resolver (MikroMCP parity,
+// 2026-09-21). The DNS page showed these read-only from its collector; this
+// makes them editable there and gives the assistant list_ and change_row.
+// Properties from the RouterOS command tree for /ip/dns/set; the read-only
+// cache-used is documented on the DNS page.
+var DNSSettings = &Resource{
+	Key: "dnsSettings", Page: "dns", Label: "DNS Settings",
+	Title: "DNS Settings", Menu: "/ip/dns", Singleton: true,
+	NoCreate:      true,
+	RemovableWhen: func(map[string]string) bool { return false },
+	Fields: []Field{
+		{Name: "servers", ROS: "servers", Label: "Servers", Type: TypeText, Clearable: true,
+			Placeholder: "1.1.1.1,9.9.9.9", Help: "Upstream resolvers, comma separated."},
+		{Name: "allowRemoteRequests", ROS: "allow-remote-requests", Label: "Allow Remote Requests",
+			Type: TypeBool, Clearable: true,
+			Help: "Answer DNS for other devices. Keep it firewalled from the internet."},
+		{Name: "useDohServer", ROS: "use-doh-server", Label: "DoH Server", Type: TypeText, Clearable: true,
+			Placeholder: "https://cloudflare-dns.com/dns-query", Help: "DNS over HTTPS. Empty uses plain DNS."},
+		{Name: "verifyDohCert", ROS: "verify-doh-cert", Label: "Verify DoH Certificate", Type: TypeBool,
+			Clearable: true},
+		{Name: "cacheSize", ROS: "cache-size", Label: "Cache Size (KiB)", Type: TypeInt, Min: intp(64)},
+		{Name: "cacheMaxTtl", ROS: "cache-max-ttl", Label: "Cache Max TTL", Type: TypeText, Placeholder: "1w"},
+		{Name: "cacheUsed", ROS: "cache-used", Label: "Cache Used (KiB)", Type: TypeText, Display: true},
+	},
+}
+
+// ARP is /ip/arp (MikroMCP parity, 2026-09-21): the table the router builds,
+// and the static entries an operator pins. Properties from the RouterOS
+// command tree for /ip/arp/add. A dynamic entry is the router's own and is
+// read-only; removing one only makes the router learn it again.
+var ARP = &Resource{
+	Key: "arp", Page: "arp", Label: "ARP Entry",
+	Title: "ARP Entry", Menu: "/ip/arp", Identity: []string{"address"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Fields: []Field{
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeIP, Required: true},
+		{Name: "macAddress", ROS: "mac-address", Label: "MAC Address", Type: TypeMac, Required: true},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "published", ROS: "published", Label: "Published", Type: TypeBool, Clearable: true,
+			Help: "Answer ARP for this address on the interface (proxy ARP for one host)."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+		{Name: "dynamic", ROS: "dynamic", Label: "Dynamic", Type: TypeBool, Display: true},
+		{Name: "complete", ROS: "complete", Label: "Complete", Type: TypeBool, Display: true},
+		// Not in the documentation's property list, and in the router's reply
+		// (reachable, permanent...): testdata/fixtures/CHR Test/arp.json.
+		{Name: "status", ROS: "status", Label: "Status", Type: TypeText, Display: true},
 	},
 }
 
@@ -2884,6 +2974,8 @@ var byKey = map[string]*Resource{
 	SimpleQueue.Key:         SimpleQueue,
 	QueueTree.Key:           QueueTree,
 	IPPool.Key:              IPPool,
+	DNSSettings.Key:         DNSSettings,
+	ARP.Key:                 ARP,
 	RoutingTable.Key:        RoutingTable,
 	RoutingRule.Key:         RoutingRule,
 	OSPFInstance.Key:        OSPFInstance,

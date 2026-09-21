@@ -530,6 +530,10 @@ func (cn *conn) dispatch(in inbound) {
 		cn.packagesUpgrade(in.Data)
 	case "packages:apply":
 		cn.packagesApply(in.Data)
+	case "files:fetch":
+		cn.filesFetch(in.Data)
+	case "packages:reboot":
+		cn.packagesReboot(in.Data)
 	case "packages:fwupgrade":
 		cn.packagesFwUpgrade(in.Data)
 	case "packages:autoupgrade":

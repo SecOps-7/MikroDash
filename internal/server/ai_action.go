@@ -117,13 +117,28 @@ func (cn *conn) raiseAIActionWarned(spec aitools.ActionSpec, target, mode, ack s
 	if shown == nil {
 		shown = map[string]any{}
 	}
+	// WHY the name is typed: script_run runs code; every other typed-name
+	// action reboots. The card says which, and so does the reply to the model.
+	reason := ""
+	if spec.TypedName {
+		reason = "reboot"
+		if spec.Key == "script_run" {
+			reason = "run"
+		}
+	}
 	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
 		"token": tok, "kind": "action", "action": spec.Key, "label": aiActionLabel(spec, mode),
 		"name": target, "command": aiActionCommand(spec, target, mode),
-		"routerName": cn.rsession.Label, "typedName": spec.TypedName, "credentials": spec.Credentials,
-		"warnCode": warnCode, "warning": shown, "values": map[string]string{},
+		"routerName": cn.rsession.Label, "typedName": spec.TypedName, "typedReason": reason,
+		"credentials": spec.Credentials,
+		"warnCode":    warnCode, "warning": shown, "values": map[string]string{},
 	})
 
+	if reason == "run" {
+		return "Waiting for confirmation. MikroDash is asking the operator to confirm this by " +
+			"typing the router's name, because it runs code on the router. It has not run yet: " +
+			"tell them what the script will do."
+	}
 	if spec.TypedName {
 		return "Waiting for confirmation. MikroDash is asking the operator to confirm this by " +
 			"typing the router's name, because it reboots the router. It has not run yet: tell " +
@@ -152,6 +167,18 @@ func aiActionLabel(spec aitools.ActionSpec, mode string) string {
 		return "Apply package changes and reboot"
 	case "firmware_upgrade_and_reboot":
 		return "Upgrade RouterBOOT firmware and reboot"
+	case "routeros_upgrade_and_reboot":
+		return "Upgrade RouterOS and reboot"
+	case "reboot":
+		return "Reboot the router"
+	case "script_run":
+		return "Run a script"
+	case "certificate_sign":
+		return "Sign a certificate"
+	case "fetch_url":
+		return "Router downloads a file"
+	case "wireguard_show_config":
+		return "Show a WireGuard client configuration"
 	case "torch":
 		return "Watch an interface's traffic"
 	case "bandwidth_test":
@@ -182,6 +209,18 @@ func aiActionCommand(spec aitools.ActionSpec, target, mode string) string {
 		return "/system/package/apply-changes"
 	case "firmware_upgrade_and_reboot":
 		return "/system/routerboard/upgrade, then /system/reboot"
+	case "routeros_upgrade_and_reboot":
+		return "/system/package/update/install"
+	case "reboot":
+		return "/system/reboot"
+	case "script_run":
+		return "/system/script/run (" + target + ")"
+	case "certificate_sign":
+		return "/certificate/sign (" + target + ")"
+	case "fetch_url":
+		return "/tool/fetch url=" + target
+	case "wireguard_show_config":
+		return "Opens this peer's configuration dialog on the WireGuard page (" + target + ")"
 	case "torch":
 		return fmt.Sprintf("/tool/torch interface=%s duration=%ds", target, diag.TorchDefaultSeconds)
 	case "container_start", "container_stop":
@@ -240,6 +279,18 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, in actionApproval) {
 		out = cn.runPackageApply(confirm, "agent")
 	case "firmware_upgrade_and_reboot":
 		out = cn.runFirmwareUpgrade(confirm, "agent")
+	case "routeros_upgrade_and_reboot":
+		out = cn.runRouterOSUpgrade(confirm, "agent")
+	case "reboot":
+		out = cn.runReboot(confirm, "agent")
+	case "script_run":
+		out = cn.runScriptAction(p.target, confirm)
+	case "certificate_sign":
+		out = cn.runNamedRowAction(resource.Certificate, p.target, "sign")
+	case "fetch_url":
+		out = cn.runFetchURL(p.target, "agent")
+	case "wireguard_show_config":
+		out = cn.runWgShowConfig(p.target)
 	case "torch":
 		out = cn.runTorchAction(p.target)
 	case "bandwidth_test":
@@ -365,6 +416,24 @@ func aiActionApplied(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutco
 			"will be unreachable for a minute or two."
 	case "firmware_upgrade_and_reboot":
 		return "Done: the RouterBOOT firmware upgrade was started and the router is rebooting."
+	case "routeros_upgrade_and_reboot":
+		if latest, _ := out.Detail["latest"].(string); latest != "" {
+			return "Done: RouterOS " + latest + " is being installed and the router is rebooting. It will " +
+				"be unreachable for a few minutes."
+		}
+		return "Done: the RouterOS update is being installed and the router is rebooting."
+	case "reboot":
+		return "Done: the router is rebooting. It will be unreachable for a minute or two."
+	case "script_run":
+		return fmt.Sprintf("Done: the script %s was run. Its effects are whatever it does; check them with "+
+			"the relevant list_ tool.", quoted(p.target))
+	case "certificate_sign":
+		return fmt.Sprintf("Done: %s was signed. It now has a key and a fingerprint.", quoted(p.target))
+	case "fetch_url":
+		return fmt.Sprintf("Done: the router downloaded it as %s. list_files shows it.", quoted(out.Name))
+	case "wireguard_show_config":
+		return "Done: the configuration is open in the operator's browser. It holds the peer's private " +
+			"key, so it is not part of this conversation."
 	case "torch":
 		if r, ok := out.Detail["torch"].(*diag.TorchResult); ok {
 			return torchSummary(r)
@@ -391,10 +460,10 @@ func (cn *conn) aiActionDone(key string, applied bool, text string) {
 	})
 }
 
-// containerID resolves a container NAME to its id from a fresh read. The model
-// names a container as list_container reported it, never by id.
-func (cn *conn) containerID(name string) string {
-	rows, err := cn.readMenu(resource.Container)
+// rowIDByName resolves a NAME the model took from a list tool to the row's id,
+// from a fresh read: the model never quotes a RouterOS id back.
+func (cn *conn) rowIDByName(res *resource.Resource, name string) string {
+	rows, err := cn.readMenu(res)
 	if err != nil {
 		return ""
 	}
@@ -406,20 +475,43 @@ func (cn *conn) containerID(name string) string {
 	return ""
 }
 
+// runNamedRowAction runs a resource's row action on the row with that name,
+// through the page's own path (runRowAction), with the agent's provenance.
+func (cn *conn) runNamedRowAction(res *resource.Resource, name, action string) writeOutcome {
+	id := cn.rowIDByName(res, name)
+	if id == "" {
+		return writeOutcome{Code: "bad-request"}
+	}
+	return cn.runRowAction(res, &resRequest{ID: id, ExpectedIdentity: name, Action: action}, "agent")
+}
+
+// runScriptAction is an approved script_run. RUNNING A SCRIPT IS RUNNING CODE:
+// the raw-command gate first (a signed-in global administrator, the
+// aiAllowRawCommands setting), then the router's name typed back, then the
+// Scripts page's Run, whose codeGate checks the administrator again.
+func (cn *conn) runScriptAction(name, confirm string) writeOutcome {
+	if _, refusal := cn.rawCommandGate("raw.script"); refusal != "" {
+		return writeOutcome{Code: "denied"}
+	}
+	if cn.rsession == nil {
+		return writeOutcome{Code: "unavailable"}
+	}
+	if label := cn.rsession.Label; label == "" || !strings.EqualFold(strings.TrimSpace(confirm), label) {
+		return writeOutcome{Code: "confirm-mismatch", Name: label, Detail: map[string]any{"routerName": label}}
+	}
+	return cn.runNamedRowAction(resource.Script, name, "run")
+}
+
 // runContainerAction is an approved container_start or container_stop: the
 // Containers page's own row action, through the same path, with the agent's
 // provenance.
 func (cn *conn) runContainerAction(name, verb string) writeOutcome {
-	id := cn.containerID(name)
-	if id == "" {
-		return writeOutcome{Code: "bad-request"}
-	}
-	return cn.runRowAction(resource.Container, &resRequest{ID: id, ExpectedIdentity: name, Action: verb}, "agent")
+	return cn.runNamedRowAction(resource.Container, name, verb)
 }
 
 // runContainerRemove is an approved container_remove: the page's delete.
 func (cn *conn) runContainerRemove(name string) writeOutcome {
-	id := cn.containerID(name)
+	id := cn.rowIDByName(resource.Container, name)
 	if id == "" {
 		return writeOutcome{Code: "bad-request"}
 	}

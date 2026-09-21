@@ -8,6 +8,12 @@
       "page": "address-lists"
     },
     {
+      "name": "list_arp",
+      "access": "read",
+      "resource": "arp",
+      "page": "arp"
+    },
+    {
       "name": "list_bandwidth",
       "access": "read",
       "resource": "",
@@ -143,6 +149,12 @@
       "resource": "",
       "collector": "dhcpNetworks",
       "page": "dhcp"
+    },
+    {
+      "name": "list_dnsSettings",
+      "access": "read",
+      "resource": "dnsSettings",
+      "page": "dns"
     },
     {
       "name": "list_dnsStatic",
@@ -461,6 +473,13 @@
       "access": "read",
       "resource": "snmpCommunity",
       "page": "snmp"
+    },
+    {
+      "name": "list_system_status",
+      "access": "read",
+      "resource": "",
+      "collector": "system",
+      "page": "dashboard"
     },
     {
       "name": "list_topology",

@@ -749,7 +749,7 @@ func (cn *conn) commitRemove(p *preparedRemove, via string) writeOutcome {
 	// certificate's removal would have made an unsigned TEMPLATE with its name,
 	// and a file's would have made an empty file. A delete that cannot be undone
 	// offers no undo (found building Files, 2026-09-18).
-	if !res.NoCreate {
+	if res.UndoesRemoval() {
 		cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
 			req.ID, name, histValues(res.RowValues(row)), nil))
 	}

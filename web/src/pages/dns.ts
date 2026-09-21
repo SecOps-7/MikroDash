@@ -7,7 +7,7 @@
 
 import { esc, el, resRow, debounce, renderSortHeader, sortMul, type SortCol, type SortState, kv } from '../dom';
 import type { Socket } from '../socket';
-import { mountAdds, mountRows } from '../resource';
+import { mountAdds, mountRows, openResource } from '../resource';
 import { initDnsFleet } from './dns-fleet';
 import type { DNSStaticEntry, DNSPayload } from '../gen/payloads';
 
@@ -25,6 +25,14 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
 
   let data: DNSPayload | null = null;
   const sortS: SortState = { col: 'name', dir: 'asc' };
+
+  // The resolver's settings are the `dnsSettings` resource: one row with no
+  // id of its own, which the engine calls "singleton". The shared form edits
+  // it, with the same permission, audit and undo as any other row; a viewer
+  // who may not write the page gets no form (openResource checks).
+  el('dnsSettingsEdit')?.addEventListener('click', () => {
+    openResource(socket, 'dnsSettings', { id: 'singleton' });
+  });
 
   function renderSettings(): void {
     const s = data?.settings;

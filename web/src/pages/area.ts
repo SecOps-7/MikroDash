@@ -131,6 +131,21 @@ export function registerAreaPanel(areaKey: string, panelKey: string, hook: AreaP
   panelHooks[areaKey + '#' + panelKey] = hook;
 }
 
+/**
+ * Show one of an area's panels, as clicking its tab would. For a module that is
+ * sent to a panel from outside it (an approved assistant action); false when the
+ * area has no such registered panel.
+ */
+export function openAreaPanel(areaKey: string, panelKey: string): boolean {
+  const area = AREAS.find((a) => a.key === areaKey);
+  if (!area) return false;
+  const i = panelsOf(area).findIndex((p) => p.key === panelKey);
+  if (i < 0) return false;
+  activeTab[area.key] = area.tables.length + i;
+  render(area);
+  return true;
+}
+
 /** The area's panels that have a module, in declared order. */
 function panelsOf(area: Area): AreaPanel[] {
   return (area.panels || []).filter((p) => panelHooks[area.key + '#' + p.key]);
@@ -173,10 +188,13 @@ function cell(v: string | undefined): string {
  *  without RouterOS's trailing "..." ("searching..."), so both spellings match.
  *  A word not listed is a neutral pill: it is still a state, just not one this
  *  table knows the meaning of. */
-const STATE_OK = new Set(['bound', 'full', 'established', 'running', 'synchronized', 'connected']);
+// ARP entries report the kernel's neighbour states (reachable, stale, delay,
+// probe, incomplete, failed); a pinned entry's `permanent` stays neutral.
+const STATE_OK = new Set(['bound', 'full', 'established', 'running', 'synchronized', 'connected', 'reachable']);
 const STATE_WARN = new Set(['searching', 'requesting', 'rebinding', 'renewing', 'stopping', 'connecting',
-  'init', 'attempt', '2-way', 'exstart', 'exchange', 'loading', 'waiting', 'starting']);
-const STATE_BAD = new Set(['error', 'down', 'expired', 'timeout']);
+  'init', 'attempt', '2-way', 'exstart', 'exchange', 'loading', 'waiting', 'starting', 'stale', 'delay', 'probe',
+  'incomplete']);
+const STATE_BAD = new Set(['error', 'down', 'expired', 'timeout', 'failed']);
 
 function pill(cls: string, text: string): string {
   return '<span class="vpn-hs-badge ' + cls + '">' + esc(text) + '</span>';

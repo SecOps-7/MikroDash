@@ -301,28 +301,44 @@ func (cn *conn) packagesCheck() {
 // would be lost exactly when it matters most. This is the most consequential
 // action in the app; `packagesApply` records the same way for the same reason.
 func (cn *conn) packagesUpgrade(raw json.RawMessage) {
-	if cn.routerID == "" || cn.rsession == nil {
-		cn.pkgErr("unavailable", nil)
+	var req pkgApplyReq
+	_ = json.Unmarshal(raw, &req)
+	out := cn.runRouterOSUpgrade(req.Confirm, "")
+	if out.Code != "" {
+		cn.pkgErr(out.Code, out.Detail)
 		return
+	}
+	// `routerId` is the router the dialog waits to see come back.
+	body := map[string]any{"action": "upgrade", "routerName": out.Name, "routerId": cn.routerID}
+	for _, k := range []string{"latest", "rebooting"} {
+		if v, ok := out.Detail[k]; ok {
+			body[k] = v
+		}
+	}
+	EvPackagesOk.Send(cn.srv.hub, cn.c, body)
+}
+
+// runRouterOSUpgrade downloads and installs the RouterOS update the router has
+// found, which REBOOTS it, and reports what happened. Split out for
+// `run_action` (MikroMCP's manage_upgrade), as runFirmwareUpgrade is; the
+// page's handler above wraps it. `confirm` is the router's name typed back.
+func (cn *conn) runRouterOSUpgrade(confirm, via string) writeOutcome {
+	if cn.routerID == "" || cn.rsession == nil {
+		return writeOutcome{Code: "unavailable"}
 	}
 	if !cn.canPage("packages", "write") {
 		cn.recorder().Denied(audit.Event{Action: "package.upgrade", TargetType: "router",
 			TargetID: cn.routerID, RouterID: cn.routerID})
-		cn.pkgErr("denied", nil)
-		return
+		return writeOutcome{Code: "denied"}
 	}
-
-	var req pkgApplyReq
-	_ = json.Unmarshal(raw, &req)
-
 	// The same second gate `packagesApply` uses: prove the operator knows which
 	// router this is, case-insensitively and trimmed. It is not a typing test.
 	name := cn.rsession.Label
-	if name == "" || !strings.EqualFold(strings.TrimSpace(req.Confirm), name) {
-		cn.pkgErr("confirm-mismatch", map[string]any{"routerName": name})
-		return
+	if name == "" || !strings.EqualFold(strings.TrimSpace(confirm), name) {
+		return writeOutcome{Code: "confirm-mismatch", Name: name, Detail: map[string]any{"routerName": name}}
 	}
 
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
 		rows, rerr := cn.rsession.Exec(routeros.Cmd{Path: "/system/package/update/print"})
 		if rerr != nil {
@@ -334,7 +350,8 @@ func (cn *conn) packagesUpgrade(raw json.RawMessage) {
 		}
 		installed, latest := row["installed-version"], row["latest-version"]
 		if latest == "" || (installed != "" && latest == installed) {
-			cn.pkgErr("nothing-to-update", map[string]any{"installed": installed, "latest": latest})
+			out = writeOutcome{Code: "nothing-to-update", Name: name,
+				Detail: map[string]any{"installed": installed, "latest": latest}}
 			return nil
 		}
 
@@ -342,22 +359,27 @@ func (cn *conn) packagesUpgrade(raw json.RawMessage) {
 			name, orQuestion(installed), latest)
 		EvPackagesApplying.Send(cn.srv.hub, cn.c, map[string]any{"routerName": name, "count": 1, "upgrade": true})
 
+		// BEFORE THE CALL: the router reboots while the command is in flight, so
+		// a row written afterwards would be lost exactly when it matters most.
+		extra := []audit.KV{
+			{Key: "from", Value: installed},
+			{Key: "to", Value: latest},
+			{Key: "channel", Value: row["channel"]},
+		}
+		if via != "" {
+			extra = append(extra, audit.KV{Key: "via", Value: via})
+		}
 		cn.recorder().Record(audit.Event{
 			Action: "package.upgrade", TargetType: "router",
 			TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
-			Extra: []audit.KV{
-				{Key: "from", Value: installed},
-				{Key: "to", Value: latest},
-				{Key: "channel", Value: row["channel"]},
-			},
-			Note: "downloaded the RouterOS update and rebooted the router",
+			Extra: extra,
+			Note:  "downloaded the RouterOS update and rebooted the router",
 		})
 
 		if _, werr := cn.rsession.Exec(routeros.Cmd{Path: "/system/package/update/install"}); werr != nil {
 			return werr
 		}
-		// `routerId` is the router the dialog waits to see come back.
-		EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": "upgrade", "routerName": name, "routerId": cn.routerID, "latest": latest})
+		out = writeOutcome{Action: "upgrade", Name: name, Detail: map[string]any{"latest": latest}}
 		return nil
 	})
 	if err != nil {
@@ -365,11 +387,65 @@ func (cn *conn) packagesUpgrade(raw json.RawMessage) {
 		// router is rebooting as it answers. Reporting it as an error would tell
 		// the operator the upgrade failed when it is in fact under way.
 		if code := rosWriteFail(err); code == "failed" {
-			EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": "upgrade", "routerName": name, "routerId": cn.routerID, "rebooting": true})
-		} else {
-			cn.pkgErr(code, map[string]any{"message": safe.Message(err.Error())})
+			return writeOutcome{Action: "upgrade", Name: name, Detail: map[string]any{"rebooting": true}}
 		}
+		return writeOutcome{Code: rosWriteFail(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
+	return out
+}
+
+// packagesReboot answers `packages:reboot`: restart the router, nothing else.
+func (cn *conn) packagesReboot(raw json.RawMessage) {
+	var req pkgApplyReq
+	_ = json.Unmarshal(raw, &req)
+	out := cn.runReboot(req.Confirm, "")
+	if out.Code != "" {
+		cn.pkgErr(out.Code, out.Detail)
+		return
+	}
+	EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": "reboot", "routerName": out.Name,
+		"routerId": cn.routerID, "rebooting": true})
+}
+
+// runReboot restarts the router (MikroMCP's reboot, the operator's choice on
+// 2026-09-21). Before, a reboot was offered only as the last step of an apply
+// or a firmware upgrade. It owns the Packages page's write permission, as
+// those do, and the router's name typed back, as they do.
+func (cn *conn) runReboot(confirm, via string) writeOutcome {
+	if cn.routerID == "" || cn.rsession == nil {
+		return writeOutcome{Code: "unavailable"}
+	}
+	if !cn.canPage("packages", "write") {
+		cn.recorder().Denied(audit.Event{Action: "router.reboot", TargetType: "router",
+			TargetID: cn.routerID, RouterID: cn.routerID})
+		return writeOutcome{Code: "denied"}
+	}
+	name := cn.rsession.Label
+	if name == "" || !strings.EqualFold(strings.TrimSpace(confirm), name) {
+		return writeOutcome{Code: "confirm-mismatch", Name: name, Detail: map[string]any{"routerName": name}}
+	}
+	err := cn.inWriteQueue(func() error {
+		log.Printf("[packages] reboot of %s", name)
+		var extra []audit.KV
+		if via != "" {
+			extra = append(extra, audit.KV{Key: "via", Value: via})
+		}
+		// BEFORE THE CALL, as every reboot-class action records.
+		cn.recorder().Record(audit.Event{
+			Action: "router.reboot", TargetType: "router",
+			TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
+			Extra: extra, Note: "rebooted the router",
+		})
+		_, werr := cn.rsession.Exec(routeros.Cmd{Path: "/system/reboot"})
+		return werr
+	})
+	// A LOST CONNECTION IS THE EXPECTED OUTCOME: the router is going down.
+	if err != nil && rosWriteFail(err) != "failed" {
+		return writeOutcome{Code: rosWriteFail(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	return writeOutcome{Action: "reboot", Name: name, Detail: map[string]any{"rebooting": true}}
 }
 
 // orQuestion is the log's placeholder for a router that did not report its

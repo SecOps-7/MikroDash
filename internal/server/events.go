@@ -41,6 +41,8 @@ var (
 	EvAreaGroupRows     = hub.Declare[AreaGroupRowsPayload]("area:grouprows")
 	EvRouterFollow      = hub.Declare[RouterFollowPayload]("router:follow")
 	EvCfgDeployState    = hub.Declare[CfgDeployPayload]("cfgdeploy:state")
+	EvWgShowConfig      = hub.Declare[WgShowConfigPayload]("wireguard:showconfig")
+	EvFilesFetch        = hub.Declare[FilesFetchPayload]("files:fetched")
 )
 
 // Map payloads, whose browser types are hand-written in web/src/events-hand.ts.

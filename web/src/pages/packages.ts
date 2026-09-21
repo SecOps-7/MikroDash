@@ -345,6 +345,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     if (d && d.action === 'apply') setStatus('Applying changes — the router is rebooting');
     else if (d && d.action === 'check') setStatus('Update check finished');
     else if (d && d.action === 'fwupgrade') setStatus('RouterBOOT written — the router is rebooting');
+    else if (d && d.action === 'reboot') setStatus('The router is rebooting');
     else if (d && d.action === 'autoupgrade') {
       setStatus(d.on ? 'Auto-upgrade is on' : 'Auto-upgrade is off');
     }
@@ -391,6 +392,21 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       // but an argument the original does not send is still a difference on the
       // wire, and `packages-page-check` compares the emit trail now.
       socket.emit('packages:check');
+    });
+  }
+
+  // A BARE REBOOT, typed back like Apply: it is the same outage.
+  const reboot = el('pkgRebootBtn');
+  if (reboot) {
+    reboot.addEventListener('click', () => {
+      if (!caps.permitted) { setStatus('You do not have write access to this router'); return; }
+      const name = caps.routerName || '';
+      const typed = window.prompt(
+        'This REBOOTS the router. It will be unreachable for a minute or two.\n\n' +
+        'Type the router name to confirm: ' + name);
+      if (typed === null) return;
+      setStatus('Rebooting…');
+      socket.emit('packages:reboot', { confirm: typed });
     });
   }
 

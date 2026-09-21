@@ -160,5 +160,23 @@ el('aiProposeApprove').fire('click');
 ok(!sent.some((s) => s.event === 'ai:write:approve'),
   'Approve still sent a proposal raised on the previous router');
 
+// ── 6. running a script asks for the name, and says it runs code ────────────
+//
+// script_run is typed back like a reboot, but it reboots nothing: saying it did
+// would train people to skim the ones that do. The control is section 1, whose
+// card did say reboot.
+propose({
+  token: 't6', kind: 'action', action: 'script_run', label: 'Run a script', name: 'md-noop',
+  command: '/system/script/run (md-noop)', typedName: true, typedReason: 'run', routerName: 'CHR Test',
+  warnCode: '', warning: {}, values: {},
+});
+ok(el('aiProposeTyped').hidden === false, 'running a script did not ask for the router name');
+ok(!/reboot/i.test(el('aiProposeApprove').textContent) && !/reboot/i.test(el('aiProposeTypedLabel').textContent),
+  `running a script reads as a reboot: ${JSON.stringify(el('aiProposeApprove').textContent)} / ` +
+  JSON.stringify(el('aiProposeTypedLabel').textContent));
+ok(/runs code/i.test(el('aiProposeTypedLabel').textContent),
+  `the prompt does not say it runs code: ${JSON.stringify(el('aiProposeTypedLabel').textContent)}`);
+el('aiProposeReject').fire('click');
+
 fs.rmSync(OUT, { force: true });
 say(`ai-propose-typed-name: ${checks} checks passed`);

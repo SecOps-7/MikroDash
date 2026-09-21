@@ -280,7 +280,9 @@ var declared = []Area{
 		Icon: `<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`,
 		Tables: []Table{{Resource: "file",
 			Columns: []string{"name", "type", "size", "lastModified"}}},
-		Poll: 60 * time.Second,
+		// Moving files onto the router: web/src/pages/files-transfer.ts.
+		Panels: []Panel{{Key: "transfer", Title: "Transfer"}},
+		Poll:   60 * time.Second,
 	},
 	// ── SLICE 9: ROUTING AND VPN ────────────────────────────────────────────
 	//
@@ -451,6 +453,17 @@ var declared = []Area{
 			{Resource: "ipv6Address", Title: "IPv6",
 				Columns: []string{"address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"}},
 		},
+		Poll: 60 * time.Second,
+	},
+	// ARP (MikroMCP parity, 2026-09-21): the router's address-to-MAC table, and
+	// the static entries pinned in it. Dynamic rows are the router's own and
+	// read-only.
+	{
+		Key: "arp", Title: "ARP", NavGroup: "network", Tier: "advanced",
+		Icon: `<rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="14" width="7" height="6" rx="1.5"/><path d="M10 7h4a3 3 0 0 1 3 3v4"/><path d="M14 17h-4a3 3 0 0 1-3-3v-4"/>`,
+		Tables: []Table{{Resource: "arp",
+			Columns: []string{"address", "macAddress", "interface", "status", "published", "dynamic", "disabled", "comment"},
+			Pills:   map[string]string{"status": "state", "published": "info"}}},
 		Poll: 60 * time.Second,
 	},
 }

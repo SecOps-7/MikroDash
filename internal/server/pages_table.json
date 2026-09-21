@@ -27,6 +27,11 @@
       "settingsKey": null
     },
     {
+      "key": "arp",
+      "title": "ARP",
+      "settingsKey": null
+    },
+    {
       "key": "address-lists",
       "title": "Address Lists",
       "settingsKey": null

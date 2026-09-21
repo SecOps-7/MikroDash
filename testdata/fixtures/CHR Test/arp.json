@@ -1,0 +1,57 @@
+{
+  "collector": "areas",
+  "exchanges": [
+    {
+      "cmd": "/ip/arp/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*1",
+          "address": "10.0.2.2",
+          "complete": "true",
+          "dhcp": "false",
+          "disabled": "false",
+          "dynamic": "true",
+          "interface": "ether1",
+          "invalid": "false",
+          "mac-address": "52:55:0A:00:02:02",
+          "published": "false",
+          "status": "reachable",
+          "vrf": "main"
+        },
+        {
+          ".id": "*4",
+          "address": "198.51.100.20",
+          "comment": "fixture capture",
+          "complete": "true",
+          "dhcp": "false",
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "ether1",
+          "invalid": "false",
+          "mac-address": "02:00:00:00:00:14",
+          "published": "false",
+          "status": "permanent",
+          "vrf": "main"
+        },
+        {
+          ".id": "*5",
+          "address": "198.51.100.21",
+          "complete": "true",
+          "dhcp": "false",
+          "disabled": "false",
+          "dynamic": "false",
+          "interface": "ether1",
+          "invalid": "false",
+          "mac-address": "00:00:00:00:00:00",
+          "published": "true",
+          "status": "permanent",
+          "vrf": "main"
+        }
+      ]
+    }
+  ],
+  "note": "Captured from the CHR test router. The two static entries were created FOR the capture, with documentation-range addresses (TEST-NET-2, RFC 5737) and locally administered MACs, and removed after it; the one dynamic row is QEMU user networking's own gateway (10.0.2.2 and QEMU's fixed MAC), a constant of the emulator rather than a network. What is real is the router's own reply: which fields /ip/arp returns and how it spells the dynamic, complete and published flags. tools/capture-fixtures.js drives the Node collectors and cannot capture an area, so this was read through /ip/arp/print and written in the same shape.",
+  "resource": "arp",
+  "router": "CHR Test"
+}

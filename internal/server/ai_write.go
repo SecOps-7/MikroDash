@@ -147,9 +147,10 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 			"the edit or the delete as a second call. Nothing was changed."
 	}
 	if !args.Delete && args.Before == "" {
-		if bad := undeclaredFields(res, args.Values); bad > 0 {
+		editing := args.ID != ""
+		if bad := undeclaredFields(res, args.Values, editing); bad > 0 {
 			return fmt.Sprintf("%d of those field names are not fields %s can set, so nothing was changed. "+
-				"Its settable fields are: %s.", bad, res.Label, strings.Join(settableFields(res), ", "))
+				"Its settable fields are: %s.", bad, res.Label, strings.Join(settableFields(res, editing), ", "))
 		}
 	}
 	if cn.rsession == nil || cn.srv.store == nil {
@@ -735,9 +736,9 @@ func quoted(name string) string {
 
 // undeclaredFields counts the keys in `values` that are not settable fields of
 // the resource: unknown names, and Display fields, which are never sent.
-func undeclaredFields(res *resource.Resource, values map[string]any) int {
+func undeclaredFields(res *resource.Resource, values map[string]any, editing bool) int {
 	ok := map[string]bool{}
-	for _, f := range settableFields(res) {
+	for _, f := range settableFields(res, editing) {
 		ok[f] = true
 	}
 	bad := 0
@@ -749,11 +750,13 @@ func undeclaredFields(res *resource.Resource, values map[string]any) int {
 	return bad
 }
 
-// settableFields is every field a write may name, in declaration order.
-func settableFields(res *resource.Resource) []string {
+// settableFields is every field a write may name, in declaration order. A
+// create-only field is settable on a create and not on an edit, where the
+// engine would drop it silently, as it does a display field.
+func settableFields(res *resource.Resource, editing bool) []string {
 	var out []string
 	for _, f := range res.Fields {
-		if !f.Display {
+		if !f.Display && !(editing && f.CreateOnly) {
 			out = append(out, f.Name)
 		}
 	}

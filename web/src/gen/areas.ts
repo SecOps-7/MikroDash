@@ -146,7 +146,7 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "file", title: "File", columns: ["name", "type", "size", "lastModified"], ordered: false, pills: {} },
     ],
-    panels: [],
+    panels: [{ key: "transfer", title: "Transfer" }],
   },
   {
     key: "routing-tables", title: "Routing Tables", navGroup: "ipsvc", tier: "advanced",
@@ -253,6 +253,14 @@ export const AREAS: readonly Area[] = [
     tables: [
       { resource: "ipAddress", title: "IPv4", columns: ["address", "network", "interface", "disabled", "dynamic", "invalid", "comment"], ordered: false, pills: { "disabled": "warn", "dynamic": "info", "invalid": "bad" } },
       { resource: "ipv6Address", title: "IPv6", columns: ["address", "interface", "advertise", "disabled", "dynamic", "invalid", "comment"], ordered: false, pills: { "disabled": "warn", "dynamic": "info", "invalid": "bad" } },
+    ],
+    panels: [],
+  },
+  {
+    key: "arp", title: "ARP", navGroup: "network", tier: "advanced",
+    icon: "<rect x=\"3\" y=\"4\" width=\"7\" height=\"6\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"6\" rx=\"1.5\"/><path d=\"M10 7h4a3 3 0 0 1 3 3v4\"/><path d=\"M14 17h-4a3 3 0 0 1-3-3v-4\"/>",
+    tables: [
+      { resource: "arp", title: "ARP Entry", columns: ["address", "macAddress", "interface", "status", "published", "dynamic", "disabled", "comment"], ordered: false, pills: { "status": "state", "published": "info", "dynamic": "info", "disabled": "warn" } },
     ],
     panels: [],
   },

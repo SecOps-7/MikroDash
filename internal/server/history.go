@@ -132,7 +132,7 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 		// A resource that cannot be created cannot be re-created either: the
 		// delete path records no undo for one, and this refuses it anyway, before
 		// anything reaches the router.
-		if res.NoCreate {
+		if !res.UndoesRemoval() {
 			return "", nil, errNotRecreatable
 		}
 		validated, errs := res.Validate(op.Values, false)

@@ -254,8 +254,12 @@ function buildForm(schema: Schema, values: Record<string, unknown> | null,
                    options?: Record<string, string[]>): void {
   const host = el('res_fields');
   if (!host) return;
+  // A CREATE-ONLY field is an input on Add and a locked box on Edit (`values`
+  // is the row being edited, null for a new one): the server does not send it
+  // on an edit, so an input there would look like it counted.
   host.innerHTML = schema.fields
-    .map((f) => fieldHtml(f, values ? values[f.name] : undefined, options ? options[f.name] : undefined))
+    .map((f) => fieldHtml(values && f.createOnly ? { ...f, display: true } : f,
+      values ? values[f.name] : undefined, options ? options[f.name] : undefined))
     .join('');
   applyShowIf(schema);
   // A field that controls another's visibility redraws it as it changes — the

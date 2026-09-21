@@ -56,6 +56,8 @@ export interface ResSchemaField {
   max: number | null;
   /** Shown in the form and never sent; the server skips it in every write. */
   display: boolean;
+  /** Set when a row is made and fixed after it: an edit shows it locked. */
+  createOnly: boolean;
 }
 
 /**
@@ -176,6 +178,7 @@ export interface HandEvents {
     kind?: string;
     /** A reboot-class action: the router's name must be typed to confirm it. */
     typedName?: boolean;
+    /** Why the name is typed: "reboot", "run" (a script) or "code" (a code edit). */
     typedReason?: string;
     /** The router's own label, which the typed name is compared with. */
     routerName?: string;

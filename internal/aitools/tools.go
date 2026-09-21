@@ -200,6 +200,18 @@ func All() []Tool {
 // internal/server holds every entry here to a reader there, in both directions.
 func liveTools() []Tool {
 	return []Tool{{
+		Name: namePrefix + "system_status",
+		Description: "Read only. The router's health now, read from /system/resource and " +
+			"/system/health: CPU load, memory and storage used, temperature where the board " +
+			"reports one, uptime, RouterOS version and whether an update is available, board " +
+			"name and CPU count. Use it for any question about how the router is coping, how " +
+			"long it has been up, or which version it runs.",
+		Parameters: noArgs(),
+		Collector:  "system",
+		Freshness:  FreshLive,
+		Page:       "dashboard",
+		Access:     AccessRead,
+	}, {
 		Name: namePrefix + "interface_traffic",
 		Description: "Read only. List EVERY interface with its live throughput, read from " +
 			"/interface/monitor-traffic: rxMbps and txMbps now, plus running and disabled " +

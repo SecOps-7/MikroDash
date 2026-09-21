@@ -111,9 +111,9 @@ func TestAnEditsRefusalNamesTheRow(t *testing.T) {
 }
 
 // A DELETE THAT CANNOT BE UNDONE OFFERS NO UNDO. Undoing a delete is an add, and
-// for a NoCreate resource (a certificate, a file) the add would not restore the
-// row: it would make an unsigned certificate template, or an empty file, with
-// the old name. The history refuses it before any read, and the delete path
+// for a NoCreate resource (a file) the add would not restore the row, and for a
+// certificate, creatable since 2026-09-21, it would make a new key under the old
+// name (RemovalIsFinal). The history refuses it before any read, and the delete path
 // records nothing to undo.
 func TestADeleteOfSomethingThatCannotBeCreatedCannotBeUndone(t *testing.T) {
 	cn := &conn{} // no session: reaching the router would panic, so a refusal is early
@@ -130,8 +130,18 @@ func TestADeleteOfSomethingThatCannotBeCreatedCannotBeUndone(t *testing.T) {
 	if at < 0 {
 		t.Fatal("the delete history push has moved; this test has lost its anchor")
 	}
-	guard := strings.LastIndex(src[:at], "if !res.NoCreate {")
+	// Re-aimed 2026-09-21: the guard is UndoesRemoval, which is NoCreate OR
+	// RemovalIsFinal, since a certificate became creatable and stayed final.
+	guard := strings.LastIndex(src[:at], "if res.UndoesRemoval() {")
 	if guard < 0 || at-guard > 200 {
 		t.Error("the delete path records an undo for a resource that cannot be created")
+	}
+	for _, c := range []struct {
+		res  *resource.Resource
+		want bool
+	}{{resource.Certificate, false}, {resource.File, false}, {resource.ARP, true}} {
+		if got := c.res.UndoesRemoval(); got != c.want {
+			t.Errorf("%s: undoing its removal restores it = %v, want %v", c.res.Key, got, c.want)
+		}
 	}
 }

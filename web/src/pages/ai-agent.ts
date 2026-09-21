@@ -358,6 +358,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       approve.textContent = d.action === 'delete' ? 'Delete it'
         : d.action === 'move' ? 'Move it'
         : d.typedReason === 'code' ? 'Apply this code change'
+        : d.typedReason === 'run' ? 'Run the script'
         : d.typedName ? 'Run it and reboot'
         : isAction ? 'Run it' : 'Apply this change';
     }
@@ -377,7 +378,9 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       // reboot anything, and saying it does would train people to skim both.
       label.textContent = (d.typedReason === 'code'
         ? 'This changes code the router runs. Type its name \u2014 '
-        : 'This reboots the router. Type its name \u2014 ') + proposalTyped + ' \u2014 to confirm.';
+        : d.typedReason === 'run'
+          ? 'This runs code on the router. Type its name \u2014 '
+          : 'This reboots the router. Type its name \u2014 ') + proposalTyped + ' \u2014 to confirm.';
     }
     syncApprove();
 

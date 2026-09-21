@@ -33,6 +33,7 @@ import (
 	"strings"
 
 	"mikrodash/internal/audit"
+	"mikrodash/internal/resource"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
 	"mikrodash/internal/wgconfig"
@@ -275,4 +276,41 @@ func confFilename(name string) string {
 		return "wireguard.conf"
 	}
 	return string(out) + ".conf"
+}
+
+// WgShowConfigPayload asks the approving operator's browser to open one peer's
+// configuration dialog. It carries the PUBLIC key only: the dialog fetches the
+// config itself, over wgConfigPath, audited as any other opening of it is.
+type WgShowConfigPayload struct {
+	PublicKey string `json:"publicKey"`
+}
+
+// runWgShowConfig is an approved wireguard_show_config. The model names the peer
+// by name or public key; the key the browser gets is the router's, from a fresh
+// read, so a key the model invented opens nothing. The config never passes
+// through here, which is what keeps it out of the conversation.
+func (cn *conn) runWgShowConfig(peer string) writeOutcome {
+	rows, err := cn.readMenu(resource.WgPeer)
+	if err != nil {
+		return writeOutcome{Code: "unavailable"}
+	}
+	peer = strings.TrimSpace(peer)
+	key, matches := "", 0
+	for _, r := range rows {
+		if r["public-key"] == peer {
+			key, matches = r["public-key"], 1
+			break
+		}
+		// A NAME IS NOT UNIQUE on a peer (see the resource), so two peers with
+		// it open neither: the operator would be shown one they did not mean.
+		if peer != "" && r["name"] == peer {
+			key = r["public-key"]
+			matches++
+		}
+	}
+	if matches != 1 || key == "" {
+		return writeOutcome{Code: "bad-request"}
+	}
+	EvWgShowConfig.Send(cn.srv.hub, cn.c, WgShowConfigPayload{PublicKey: key})
+	return writeOutcome{}
 }
