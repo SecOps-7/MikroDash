@@ -310,13 +310,25 @@ func (s *Server) aiHistory(user, routerID string) []aiprovider.ChatMessage {
 // answer follows. A thread saved before empty answers became errors holds such
 // questions; replaying them handed the model turns it never answered. Nothing is
 // deleted: the rows stay in the database and simply are not replayed or shown.
+//
+// AN APPROVAL'S OUTCOME is its own assistant row (aiWritten), saved when the
+// operator answers a proposal, so it follows a pair rather than making one. It
+// is folded into the answer before it, which keeps the thread strictly
+// question, answer, and puts "Applied: ..." back in the transcript and in front
+// of the model. Before, the outcome was sent once, live, and a revisit of the
+// page or the next question lost it.
 func answeredOnly(rows []aiprovider.ChatMessage) []aiprovider.ChatMessage {
 	out := []aiprovider.ChatMessage{}
 	for i := 0; i < len(rows); i++ {
 		if rows[i].Role == db.AIRoleUser {
 			if i+1 < len(rows) && rows[i+1].Role == db.AIRoleAssistant {
-				out = append(out, rows[i], rows[i+1])
+				question, answer := rows[i], rows[i+1]
 				i++
+				for i+1 < len(rows) && rows[i+1].Role == db.AIRoleAssistant {
+					answer.Content += "\n\n" + rows[i+1].Content
+					i++
+				}
+				out = append(out, question, answer)
 			}
 			continue
 		}

@@ -43,6 +43,8 @@ type toolRecord struct {
 const (
 	writeTool  = "change_row"
 	actionTool = "run_action"
+	// planTool is change_row several times over, approved once (2026-09-21).
+	planTool = "plan_changes"
 )
 
 func loadToolArtefact(t *testing.T) []toolRecord {
@@ -128,9 +130,11 @@ func TestEveryResourceHasATool(t *testing.T) {
 		}
 		if r.Resource == "" {
 			unbound++
-			if r.Name != writeTool && r.Name != actionTool {
-				t.Errorf("tool %q names no resource; only %q and %q may",
-					r.Name, writeTool, actionTool)
+			// plan_changes (2026-09-21) names its resources per step, as
+			// change_row names its one per call.
+			if r.Name != writeTool && r.Name != actionTool && r.Name != planTool {
+				t.Errorf("tool %q names no resource; only %q, %q and %q may",
+					r.Name, writeTool, planTool, actionTool)
 			}
 			continue
 		}
@@ -139,9 +143,9 @@ func TestEveryResourceHasATool(t *testing.T) {
 		}
 		recorded[r.Resource] = r
 	}
-	if unbound != 2 {
-		t.Errorf("%d tools carry no resource; exactly two (%q and %q) should",
-			unbound, writeTool, actionTool)
+	if unbound != 3 {
+		t.Errorf("%d tools carry no resource; exactly three (%q, %q and %q) should",
+			unbound, writeTool, planTool, actionTool)
 	}
 	if liveTools == 0 {
 		t.Error("no live tools are recorded; list_interface_traffic has gone, or the record " +
@@ -217,12 +221,16 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 			// pages this viewer may write, and the named action's page is
 			// checked again per call and again at approval.
 			//
+			// `plan_changes` (2026-09-21) is change_row's shape again: each
+			// step's resource enum is the same per-viewer list, and every step's
+			// page is checked when proposed and again at approval.
+			//
 			// That reasoning is only safe for a tool that declares itself a
 			// writer and is the one this ledger knows about. Anything else with
 			// no page is the original failure: advertised to every viewer,
 			// including one denied the page whose menu it reads.
 			ungated++
-			if (r.Name != writeTool && r.Name != actionTool) || r.Access != "write" {
+			if (r.Name != writeTool && r.Name != actionTool && r.Name != planTool) || r.Access != "write" {
 				t.Errorf("tool %q has no owning page — it would be advertised to every viewer, "+
 					"including one denied the page whose menu it reads", r.Name)
 			}
@@ -233,15 +241,20 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 				"for everybody, so the tool is invisible to every viewer", r.Name, r.Page)
 		}
 	}
-	if ungated != 2 {
-		t.Errorf("%d tools carry no page; exactly two (%q and %q) should",
-			ungated, writeTool, actionTool)
+	if ungated != 3 {
+		t.Errorf("%d tools carry no page; exactly three (%q, %q and %q) should",
+			ungated, writeTool, planTool, actionTool)
 	}
 }
 
-// TestExactlyTwoToolsCanChangeAnything.
+// TestExactlyThreeToolsCanChangeAnything.
 //
-// ── IT SAID "NONE", THEN "ONE", AND NOW SAYS "TWO" ──────────────────────────
+// ── IT SAID "NONE", THEN "ONE", THEN "TWO", AND NOW SAYS "THREE" ────────────
+//
+// Re-aimed for `plan_changes` (2026-09-21, the operator's choice): several row
+// changes approved once. It writes nothing change_row cannot, through the same
+// writeRow and removeRow, so it adds no new kind of write; it is named here
+// because the question is which tools can change a router, not how many kinds.
 //
 // It required every name to start `list_` and forbade a set of mutating verbs,
 // because nothing advertised could write. It was re-aimed for `change_row`, and
@@ -253,7 +266,7 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 // many tools can change a router, and WHICH. A third writer appearing, or a
 // verb-shaped name other than the one declared here, is the feature changing
 // character, and it must not be possible without this failing.
-func TestExactlyTwoToolsCanChangeAnything(t *testing.T) {
+func TestExactlyThreeToolsCanChangeAnything(t *testing.T) {
 	// Named rather than pattern-matched, so adding one is deliberate. These are
 	// the shapes a per-verb tool would take — the thing `internal/aitools`
 	// excludes: a RouterOS verb the model picks, rather than an action this app
@@ -290,10 +303,10 @@ func TestExactlyTwoToolsCanChangeAnything(t *testing.T) {
 		}
 	}
 	sort.Strings(writers)
-	want := []string{writeTool, actionTool}
+	want := []string{writeTool, actionTool, planTool}
 	sort.Strings(want)
-	if len(writers) != len(want) || writers[0] != want[0] || writers[1] != want[1] {
-		t.Errorf("the tools that can change a router are %v; exactly two (%v) should be able to",
+	if strings.Join(writers, ",") != strings.Join(want, ",") {
+		t.Errorf("the tools that can change a router are %v; exactly three (%v) should be able to",
 			writers, want)
 	}
 }

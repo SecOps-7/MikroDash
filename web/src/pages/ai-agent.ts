@@ -319,6 +319,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       what.textContent = isAction
         ? d.label + (d.name ? ' \u2014 ' + d.name : '')
         : d.action === 'undo' ? 'Undo the ' + d.name + ' (' + d.label + ')'
+        : d.kind === 'plan' ? 'Plan: ' + d.label + ' \u2014 ' + d.name
         : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
     }
     const cmd = el('aiProposeCmd');
@@ -361,6 +362,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       approve.textContent = d.action === 'delete' ? 'Delete it'
         : d.action === 'move' ? 'Move it'
         : d.action === 'undo' ? 'Undo it'
+        : d.kind === 'plan' ? 'Apply the plan'
         : d.typedReason === 'code' ? 'Apply this code change'
         : d.typedReason === 'run' ? 'Run the script'
         : d.typedName ? 'Run it and reboot'

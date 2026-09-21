@@ -606,6 +606,12 @@
       "page": ""
     },
     {
+      "name": "plan_changes",
+      "access": "write",
+      "resource": "",
+      "page": ""
+    },
+    {
       "name": "run_action",
       "access": "write",
       "resource": "",

@@ -102,13 +102,23 @@ func TestTheWriteToolOffersOnlyTheResourcesThisViewerMayChange(t *testing.T) {
 		}
 		return true
 	}
-	var write *Tool
+	// BY NAME since plan_changes (2026-09-21): there are several write tools,
+	// and the plan's step enum must be the same list as change_row's.
+	var write, plan *Tool
 	for _, tool := range Permitted(only) {
-		if tool.Access == AccessWrite {
-			cp := tool
+		cp := tool
+		switch tool.Name {
+		case WriteToolName:
 			write = &cp
+		case PlanToolName:
+			plan = &cp
 		}
 	}
+	if plan == nil {
+		t.Fatal("plan_changes was not offered beside change_row")
+	}
+	stepProps, _ := plan.Parameters["properties"].(map[string]any)["steps"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
+	planEnum, _ := stepProps["resource"].(map[string]any)["enum"].([]string)
 	if write == nil {
 		t.Fatalf("no write tool was offered to a viewer who may write page %q", target)
 	}
@@ -117,6 +127,9 @@ func TestTheWriteToolOffersOnlyTheResourcesThisViewerMayChange(t *testing.T) {
 	enum, _ := res["enum"].([]string)
 	if len(enum) == 0 {
 		t.Fatal("the write tool offered no resources at all")
+	}
+	if strings.Join(planEnum, ",") != strings.Join(enum, ",") {
+		t.Errorf("plan_changes offers %v, change_row %v; a plan may change only what change_row may", planEnum, enum)
 	}
 	for _, key := range enum {
 		r := resource.ByKey(key)
@@ -373,10 +386,11 @@ func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 //
 // RE-AIMED for `run_action` (slice 3): there are now TWO writers, `change_row`
 // for rows and `run_action` for the pages' own verbs, and they are the last two
-// entries in that order.
+// entries in that order. RE-AIMED AGAIN for `plan_changes` (2026-09-21), which
+// is change_row several times over and sits beside it.
 func TestTheReadCatalogueIsOrderedAndTheWritersAreLast(t *testing.T) {
 	all := All()
-	writers := []string{WriteToolName, ActionToolName}
+	writers := []string{WriteToolName, PlanToolName, ActionToolName}
 	body := all[:len(all)-len(writers)]
 	prev := ""
 	for _, tool := range body {

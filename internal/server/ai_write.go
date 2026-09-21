@@ -25,11 +25,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	"mikrodash/internal/aiprovider"
+	"mikrodash/internal/db"
 	"mikrodash/internal/history"
 	"mikrodash/internal/rawcmd"
 	"mikrodash/internal/resource"
@@ -78,6 +80,10 @@ type aiWriteProposal struct {
 	// undo is the history entry an approved undo reverses (ai_undo.go): the
 	// assistant's own newest change to this resource, pinned when proposed.
 	undo *history.Entry
+	// rowPlan is a plan_changes proposal (ai_plan.go): its checked steps, run in
+	// order on approval. resKey and actionKey are empty on one.
+	rowPlan   []rowPlanStep
+	planTitle string
 	// actionKey, target and mode describe a `run_action` proposal instead of a
 	// row write: resKey is empty on one and actionKey is empty on the other.
 	actionKey string
@@ -408,6 +414,10 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 		cn.approveAIRawCommand(p, in.Confirm)
 		return
 	}
+	if p != nil && p.rowPlan != nil {
+		cn.approveAIRowPlan(p)
+		return
+	}
 	if p != nil && p.actionKey != "" {
 		// The operator's typed-back router name, and a login the action needs,
 		// travel on THIS frame, never on the tool call: see aitools/actions.go.
@@ -417,7 +427,7 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 		return
 	}
 	if p == nil {
-		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+		cn.aiWritten(map[string]any{
 			"applied": false, "resource": "", "name": "",
 			"text": "That proposal is no longer available. Ask again if you still want it.",
 		})
@@ -425,7 +435,7 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	}
 	res := resource.ByKey(p.resKey)
 	if res == nil {
-		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+		cn.aiWritten(map[string]any{
 			"applied": false, "resource": p.resKey, "name": "",
 			"text": "That resource is not available on this build.",
 		})
@@ -434,7 +444,7 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	// CHECKED AGAIN AT APPROVAL. The proposal may have been raised minutes ago,
 	// and a role can be edited in between.
 	if !cn.canPage(res.Page, "write") {
-		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+		cn.aiWritten(map[string]any{
 			"applied": false, "resource": res.Key, "name": "",
 			"text": "You do not have permission to make that change.",
 		})
@@ -454,13 +464,13 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 		}
 		_ = json.Unmarshal(raw, &in)
 		if _, refusal := cn.rawCommandGate("raw.code"); refusal != "" {
-			EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+			cn.aiWritten(map[string]any{
 				"applied": false, "resource": res.Key, "name": "", "text": refusal,
 			})
 			return
 		}
 		if name := cn.rsession.Label; name == "" || !strings.EqualFold(strings.TrimSpace(in.Confirm), name) {
-			EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+			cn.aiWritten(map[string]any{
 				"applied": false, "resource": res.Key, "name": "",
 				"text": "Not applied: the router's name was not typed back correctly.",
 			})
@@ -503,7 +513,7 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	if out.Code != "" {
 		text = aiRefusalText(res, out)
 	}
-	EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+	cn.aiWritten(map[string]any{
 		"applied": out.Code == "", "resource": res.Key, "name": out.Name, "text": text,
 	})
 }
@@ -518,8 +528,11 @@ func (cn *conn) aiWriteReject(raw json.RawMessage) {
 		if name == "" {
 			name = p.actionKey
 		}
+		if p.rowPlan != nil {
+			name = "plan"
+		}
 	}
-	EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+	cn.aiWritten(map[string]any{
 		"applied": false, "resource": name, "name": "",
 		"text": "Not applied. You declined that change.",
 	})
@@ -805,4 +818,20 @@ func namesCode(res *resource.Resource, values map[string]any) bool {
 		}
 	}
 	return false
+}
+
+// aiWritten tells the operator what became of a proposal, and REMEMBERS it: the
+// outcome is saved as an assistant row in this thread, which answeredOnly folds
+// into the answer before it. Sent once and never saved, it was gone from the
+// transcript on the next visit to the page, and the model's next turn saw only
+// its own "Waiting for confirmation" (found live, 2026-09-21, on a plan that
+// stopped partway).
+func (cn *conn) aiWritten(m map[string]any) {
+	EvAIWritten.Send(cn.srv.hub, cn.c, m)
+	text, _ := m["text"].(string)
+	if user := cn.aiHistoryUser(); text != "" && user != "" && cn.routerID != "" && cn.srv.auditDB != nil {
+		if err := cn.srv.auditDB.AppendAIMessage(user, cn.routerID, db.AIRoleAssistant, text); err != nil {
+			log.Printf("[ai] outcome not saved: %v", err)
+		}
+	}
 }

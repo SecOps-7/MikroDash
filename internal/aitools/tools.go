@@ -176,7 +176,7 @@ func All() []Tool {
 	// LAST, and after the sort, so the read catalogue keeps its stable order and
 	// the one tool that changes anything is not buried alphabetically among
 	// thirty that cannot.
-	return append(out, writeTool(keys), actionTool(Actions()))
+	return append(out, writeTool(keys), planTool(keys), actionTool(Actions()))
 }
 
 // liveTools read what a COLLECTOR measures rather than what a menu holds.
@@ -699,6 +699,64 @@ func writeTool(resources []string) Tool {
 	}
 }
 
+// PlanToolName is several row changes put to the operator as ONE approval
+// (MikroMCP's plan_changes and apply_plan, the operator's choice on
+// 2026-09-21). See internal/server/ai_plan.go.
+const PlanToolName = "plan_changes"
+
+// PlanMaxSteps is the most changes one plan may hold: enough for a feature
+// that spans menus (a pool, a DHCP server, its network), few enough that the
+// operator reads every line of the card.
+const PlanMaxSteps = 10
+
+// planTool is change_row's create, edit and delete, several at once. No move
+// and no undo: each has its own table-order or history rules, and is its own
+// change_row call.
+func planTool(resources []string) Tool {
+	return Tool{
+		Name: PlanToolName,
+		Description: "Propose SEVERAL row changes on the router the operator has selected as ONE " +
+			"plan, which the operator approves once. Each step is what one change_row call " +
+			"would be: CREATE (`resource` and `values`), EDIT (`resource`, `id` and `values`) " +
+			"or DELETE (`resource`, `id` and `delete: true`). Steps run in order when the " +
+			"operator approves, each through MikroDash's own checks, audit and undo history, " +
+			"and the plan STOPS at the first step that fails or that a safety check warns " +
+			"about; the result says which steps were applied. Use it for changes that belong " +
+			"together; a single change is change_row. A step cannot change RouterOS code. " +
+			"Call the list_ tools first for field names and ids.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"title": map[string]any{
+					"type":        "string",
+					"description": "A short name for the plan, shown to the operator.",
+				},
+				"steps": map[string]any{
+					"type": "array", "minItems": 1, "maxItems": PlanMaxSteps,
+					"description": "The changes, in the order they are applied.",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"resource": map[string]any{"type": "string", "enum": resources},
+							"id": map[string]any{"type": "string",
+								"description": "The row's RouterOS id, for an edit or a delete."},
+							"values": map[string]any{"type": "object",
+								"description": "Field name to value, for a create or an edit."},
+							"delete": map[string]any{"type": "boolean",
+								"description": "Set true, with `id`, to delete that row."},
+						},
+						"required":             []string{"resource"},
+						"additionalProperties": false,
+					},
+				},
+			},
+			"required":             []string{"title", "steps"},
+			"additionalProperties": false,
+		},
+		Access: AccessWrite,
+	}
+}
+
 // moveClause is what the description says about reordering, and "" when this
 // viewer can write nothing ordered.
 func moveClause(movable []string) string {
@@ -831,7 +889,7 @@ func Permitted(can func(page, access string) bool) []Tool {
 	// something this app does badly, rather than something this person may not
 	// do.
 	if len(writable) > 0 {
-		out = append(out, writeTool(writable))
+		out = append(out, writeTool(writable), planTool(writable))
 	}
 	// THE SECOND WRITER, filtered the same way: the actions whose page this
 	// viewer may write. See actions.go.

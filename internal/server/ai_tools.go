@@ -82,6 +82,9 @@ func (cn *conn) runAITool(sc connScope, tc aiprovider.ToolCall) string {
 	// declared action rather than a menu. See ai_action.go.
 	case aitools.ActionToolName:
 		return cn.onLoopFor(sc, func() string { return cn.runAIActionTool(tc) })
+	// A PLAN is change_row several times over, approved once. See ai_plan.go.
+	case aitools.PlanToolName:
+		return cn.onLoopFor(sc, func() string { return cn.runAIPlanTool(tc) })
 	// THE RAW COMMAND TOOLS ARE NOT ADVERTISED, and are still answered by name.
 	// A model can invent a name, and this one must meet the gates rather than
 	// "no such tool", which would read as the feature being merely hidden. See

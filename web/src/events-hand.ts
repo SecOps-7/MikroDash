@@ -174,7 +174,7 @@ export interface HandEvents {
     action: string;
     name: string;
     command: string;
-    /** "action" for a run_action proposal; absent or "row" for a change_row one. */
+    /** "action" for a run_action proposal, "plan" for plan_changes; absent or "row" for a change_row one. */
     kind?: string;
     /** A reboot-class action: the router's name must be typed to confirm it. */
     typedName?: boolean;

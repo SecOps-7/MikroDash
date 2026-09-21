@@ -137,7 +137,7 @@ func (cn *conn) raiseAIRawCommand(cmd rawcmd.Command) string {
 func (cn *conn) approveAIRawCommand(p *aiWriteProposal, confirm string) {
 	cmd := *p.raw
 	done := func(applied bool, text string) {
-		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+		cn.aiWritten(map[string]any{
 			"applied": applied, "resource": "run_command", "name": cmd.Menu, "text": text,
 		})
 	}
@@ -329,7 +329,7 @@ type planStep struct {
 func (cn *conn) approveAIPlan(p *aiWriteProposal, confirm string) {
 	plan := p.plan
 	done := func(applied bool, text string) {
-		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+		cn.aiWritten(map[string]any{
 			"applied": applied, "resource": "bulk_execute", "name": "", "text": text,
 		})
 	}

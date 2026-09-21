@@ -1146,6 +1146,23 @@ func TestHistoryReplaysOnlyAnsweredQuestions(t *testing.T) {
 	}
 }
 
+// AN APPROVAL'S OUTCOME, saved as its own assistant row after a pair, is
+// folded into that pair's answer; one before any pair is not replayed.
+func TestAnApprovalsOutcomeIsFoldedIntoTheAnswerBeforeIt(t *testing.T) {
+	u, a := "user", "assistant"
+	rows := []aiprovider.ChatMessage{
+		{Role: a, Content: "orphan outcome"},
+		{Role: u, Content: "q1"}, {Role: a, Content: "Waiting for confirmation."},
+		{Role: a, Content: "Applied: the plan."},
+		{Role: u, Content: "q2"}, {Role: a, Content: "a2"},
+	}
+	got := answeredOnly(rows)
+	if len(got) != 4 || got[1].Content != "Waiting for confirmation.\n\nApplied: the plan." ||
+		got[2].Content != "q2" || got[3].Content != "a2" {
+		t.Errorf("replayed %+v", got)
+	}
+}
+
 // And through the real database, so aiHistory is held to using the filter: a
 // thread with a question saved and never answered replays without it.
 func TestAiHistoryDropsTheUnansweredQuestionItStored(t *testing.T) {

@@ -455,7 +455,7 @@ func aiActionApplied(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutco
 // aiActionDone tells the page, and through it the model's next turn, what became
 // of the action.
 func (cn *conn) aiActionDone(key string, applied bool, text string) {
-	EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+	cn.aiWritten(map[string]any{
 		"applied": applied, "resource": key, "name": "", "text": text,
 	})
 }

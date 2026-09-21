@@ -94,7 +94,7 @@ func (cn *conn) approveAIUndo(res *resource.Resource, p *aiWriteProposal) {
 		code, _ := d["code"].(string)
 		warning, _ := d["warning"].(map[string]any)
 		cn.raiseAIUndoProposal(res, p.undo, fp, code, warning)
-		EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{"applied": false, "resource": res.Key, "name": "",
+		cn.aiWritten(map[string]any{"applied": false, "resource": res.Key, "name": "",
 			"text": "Not undone yet: a safety check warned about it, so MikroDash is asking the operator " +
 				"again with that warning shown."})
 		return
@@ -103,7 +103,7 @@ func (cn *conn) approveAIUndo(res *resource.Resource, p *aiWriteProposal) {
 	if out.Code != "" {
 		text = aiRefusalText(res, out)
 	}
-	EvAIWritten.Send(cn.srv.hub, cn.c, map[string]any{
+	cn.aiWritten(map[string]any{
 		"applied": out.Code == "", "resource": res.Key, "name": out.Name, "text": text,
 	})
 }
