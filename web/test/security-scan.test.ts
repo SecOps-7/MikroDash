@@ -104,6 +104,15 @@ assert.ok(/data-goto="firewall"/.test(rows), 'a finding does not link to the pag
 assert.strictEqual((rows.match(/data-goto=/g) || []).length, 2, 'a finding with no page got an Open link');
 assert.ok(/T fw.input-established/.test(String(n.secPassedRows.innerHTML)), 'the passed checks are not listed');
 
+// THE FILTER IS DOM TEXT, and it reaches the empty state's markup escaped: a
+// chip whose value matches no finding draws "No <value> issues".
+const chip = (v) => ({ closest: (sel) => (sel === '[data-filter]' ? { getAttribute: () => v } : null) });
+n.secScanBody.fire('click', { target: chip('<img src=x onerror=alert(1)>') });
+const empty = String(n.secFindingsRows.innerHTML);
+assert.ok(!/<img/.test(empty) && /No &lt;img src=x/.test(empty), 'the severity filter reached the markup unescaped:\n' + empty);
+n.secScanBody.fire('click', { target: chip('all') });
+assert.ok(/T fw.syncookies/.test(String(n.secFindingsRows.innerHTML)), 'the All chip did not bring the findings back');
+
 // A FRAME ABOUT THE ROUTER JUST LEFT is dropped; the new router is asked.
 sent.length = 0;
 handlers['router:switched']({ activeId: 'r2' });

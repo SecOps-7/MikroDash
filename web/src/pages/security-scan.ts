@@ -16,7 +16,7 @@
 // file places them, runs the score's count-up and the ring's sweep, and owns
 // the tabs, the severity filter and the table's sort.
 
-import { el, renderSortHeader, sortRows, type SortState } from '../dom';
+import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Report } from '../gen/payloads';
 import { scoreGrade, tween } from './tools-ping-cards';
@@ -83,8 +83,11 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     const keyed = rows.map((f) => ({ f, severity: sortValue(f, 'severity'), title: sortValue(f, 'title'),
       category: sortValue(f, 'category') }));
     const sorted = sortRows(keyed, sort.col, sort.dir).map((k) => k.f);
+    // The filter is read out of a `data-filter` or `data-secsev` attribute, so
+    // it is DOM text going back into markup: escaped like any other value, so
+    // the empty state cannot become markup whatever a chip is later made to say.
     setHTML('secFindingsRows', sorted.length ? sorted.map(findingRow).join('')
-      : '<tr><td colspan="5" class="empty-state">' + (filter === 'all' ? 'No issues found' : 'No ' + filter + ' issues') + '</td></tr>');
+      : '<tr><td colspan="5" class="empty-state">' + (filter === 'all' ? 'No issues found' : 'No ' + esc(filter) + ' issues') + '</td></tr>');
     document.querySelectorAll('#secFilters [data-filter]').forEach((b) =>
       b.classList.toggle('active', b.getAttribute('data-filter') === filter));
   }
