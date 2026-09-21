@@ -2434,6 +2434,13 @@
       border-top:1px solid var(--border);flex-wrap:wrap}
     .cfg-tpl-actions{display:flex;gap:.35rem;flex-wrap:wrap}
     .cfg-meta{font-size:.68rem;color:var(--text-muted)}
+    .cfg-btn{display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .62rem;border-radius:7px;font-size:.72rem;font-weight:600;
+      cursor:pointer;text-decoration:none;color:var(--text-main);background:color-mix(in srgb,var(--text-muted) 9%,transparent);
+      border:1px solid var(--border);transition:background .2s,border-color .2s,color .2s}
+    .cfg-btn:hover{border-color:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 50%,var(--border));color:var(--text-main)}
+    .cfg-btn-go{color:var(--cfg-c,var(--accent-rx));background:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 14%,transparent);
+      border-color:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 38%,transparent)}
+    .cfg-btn-go:hover{background:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 24%,transparent);color:var(--cfg-c,var(--accent-rx))}
     .cfg-empty{padding:2rem 1rem;text-align:center;color:var(--text-muted);font-size:.82rem}
 
     /* Pills, by meaning. */

@@ -273,9 +273,11 @@ func (s *Server) cfgGet(w http.ResponseWriter, r *http.Request, _ *Session) {
 	}
 	v := cfgView{CfgTemplate: *t, Body: body, Findings: []cfgtpl.Finding{}}
 	if pt, err := cfgtpl.Parse(body); err == nil {
-		if fs := cfgtpl.Analyze(pt, profileFor(t.Kind)); fs != nil {
-			v.Findings = fs
-		}
+		// The lockout checks too, judged as the Library card is: with no
+		// router chosen, MikroDash's way in is unknown. The card's "may cut
+		// MikroDash off" and these lines are the same verdict.
+		v.Findings = append(v.Findings, cfgtpl.Analyze(pt, profileFor(t.Kind))...)
+		v.Findings = append(v.Findings, cfgtpl.AnalyzeLive(pt, cfgtpl.LiveContext{})...)
 	}
 	writeJSON(w, map[string]any{"ok": true, "template": v})
 }

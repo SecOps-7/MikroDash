@@ -365,16 +365,21 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 			name, named := findName(l)
 			disabling := l.Verb == "disable" || may(l, "disabled", "yes")
 			ours := !named || name == ctx.APIService
+			// Unknown before a router is chosen: named for what it is.
+			svc := ctx.APIService
+			if svc == "" {
+				svc = "MikroDash's API service"
+			}
 			switch {
 			case ours && disabling:
 				add(l, Refuse, "own-service", "/ip/service: this disables %s, the service MikroDash is connected "+
-					"through — it could never reconnect to see the result", ctx.APIService)
+					"through — it could never reconnect to see the result", svc)
 			case ours && movesPort(l, ctx.FW.APIPort):
 				add(l, Refuse, "own-service", "/ip/service: this moves %s to another port, and MikroDash would "+
-					"reconnect to the old one", ctx.APIService)
+					"reconnect to the old one", svc)
 			case ours && has(l, "address"):
 				add(l, Ack, "own-service-address", "/ip/service: this restricts where %s may be reached from — "+
-					"it must include MikroDash's own address", ctx.APIService)
+					"it must include MikroDash's own address", svc)
 			case named && recoveryServices[name] && disabling:
 				add(l, Ack, "recovery-path", "/ip/service: this disables %s — if a later change locks MikroDash "+
 					"out, that is one fewer way back in", name)
