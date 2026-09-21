@@ -108,11 +108,13 @@ fs.rmSync(ENTRY, { force: true });
 const IDS = ['connMapList', 'connMapSub', 'connPortList', 'connMapBadge', 'connFilterLabel',
   'connSrcFilter', 'worldMap', 'worldMapWrap', 'mapTooltip', 'sankeySvg', 'sankeyEmpty',
   'connTotal', 'mapZoomIn', 'mapZoomOut', 'mapZoomReset', 'mapFullscreenBtn', 'mapFsOverlay',
-  'mapFsClose'];
+  'mapFsClose', 'connTabs', 'connListSearch', 'connListPager', 'connListPager2', 'connPanelMap', 'connPanelList',
+  'connListHead', 'connListBody', 'connListStatus'];
 
 /** Mount the page and hand the caller its handlers and its document. */
 function mount(run) {
-  const doc = makeDoc(IDS, {});
+  // The tab bar's two buttons, which the page reads with a document query.
+  const doc = makeDoc(IDS, { query: { '#connTabs [data-conntab]': ['map', 'list'] } });
   const tree = makeTree();
   const listEl = tree.mk('div');
   doc.nodes.connMapList = listEl;
@@ -130,9 +132,10 @@ function mount(run) {
   globalThis.fetch = () => Promise.reject(new Error('no network in a gate'));
 
   const handlers = {};
+  const emits = [];
   try {
     delete require.cache[require.resolve(OUT)];
-    require(OUT).initConnectionsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit() {} },
+    require(OUT).initConnectionsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => emits.push([ev, d]) },
       () => true);
     // BELIEVABILITY OF THE MOUNT: a page that registered nothing, or that asked
     // for ids this shim does not provide, would make every assertion below a
@@ -141,7 +144,7 @@ function mount(run) {
     assert.ok(handlers['conn:source-data'], 'the page registered no conn:source-data handler');
     assert.equal(doc.unknown.size, 0,
       'the page looked up ids this gate does not provide: ' + [...doc.unknown].join(', '));
-    return run({ handlers, doc, listEl });
+    return run({ handlers, doc, listEl, emits });
   } finally {
     for (const [k, g] of [['doc', 'document'], ['win', 'window'], ['fetch', 'fetch']]) {
       if (prev[k] === undefined) delete globalThis[g]; else globalThis[g] = prev[k];
@@ -296,10 +299,67 @@ mount((w) => {
     { label: '', srcValue: '', srcActive: false });
 });
 
+// ── THE LIST TAB (2026-09-21) ────────────────────────────────────────────────
+//
+// The server sends `conn:list` only to a viewer who says its List tab is open,
+// so the tab must say so on every switch; and the client filter and the search
+// narrow the list as they narrow the map.
+const LIST = {
+  ts: 1, total: 3, capped: false, rows: [
+    { id: '*1', src: '198.51.100.10', client: '<b>pc1</b>', local: true, dst: '203.0.113.5',
+      dstPort: '443', dstLocal: false, proto: 'tcp', state: 'established', country: 'US', org: 'Example CDN',
+      tx: 2048, rx: 1048576, txRate: 1000, rxRate: 250000 },
+    { id: '*2', src: '198.51.100.11', client: 'pc2', local: true, dst: '203.0.113.9',
+      dstPort: '53', dstLocal: false, proto: 'udp', state: '', country: 'NO', org: '',
+      tx: 100, rx: 200, txRate: null, rxRate: null },
+    { id: '*3', src: '198.51.100.10', client: '<b>pc1</b>', local: true, dst: '198.51.100.1',
+      dstPort: '22', dstLocal: true, proto: 'tcp', state: 'time-wait', country: '', org: '',
+      tx: 10, rx: 10, txRate: 0, rxRate: 0 },
+  ],
+};
+const bodyRows = (w) => (String(w.doc.nodes.connListBody.innerHTML).match(/<tr>/g) || []).length;
+const clickTab = (w, t) => w.doc.nodes.connTabs.fire('click',
+  { target: { closest: () => ({ getAttribute: () => t }) } });
+
+mount((w) => {
+  const lastList = () => [...w.emits].reverse().find(([ev]) => ev === 'conn:list');
+  check('the map tab at start', { said: lastList() }, { said: ['conn:list', { on: false }] });
+  clickTab(w, 'list');
+  check('opening the List tab', {
+    said: lastList(), list: w.doc.nodes.connPanelList.hidden, map: w.doc.nodes.connPanelMap.hidden,
+    search: w.doc.nodes.connListSearch.hidden,
+  }, { said: ['conn:list', { on: true }], list: false, map: true, search: false });
+
+  w.handlers['conn:list'](LIST);
+  const html = String(w.doc.nodes.connListBody.innerHTML);
+  check('every connection is a row', { rows: bodyRows(w) }, { rows: 3 });
+  check('a row reads right', {
+    escaped: html.includes('&lt;b&gt;pc1&lt;/b&gt;') && !html.includes('<b>pc1</b>'),
+    txColoured: html.includes('conn-rate conn-tx'), rxColoured: html.includes('conn-rate conn-rx'),
+    statePill: html.includes('conn-st conn-st-ok'), service: html.includes('HTTPS'),
+    lan: html.includes('>LAN<'), noRate: html.includes('>—<'),
+    status: w.doc.nodes.connListStatus.textContent,
+  }, { escaped: true, txColoured: true, rxColoured: true, statePill: true, service: true, lan: true,
+    noRate: true, status: '3 connections' });
+
+  chooseSource(w, '198.51.100.10');
+  check('the client filter narrows the list', { rows: bodyRows(w) }, { rows: 2 });
+  chooseSource(w, '');
+
+  w.doc.nodes.connListSearch.fire('input', { target: { value: 'dns' } });
+  check('the search narrows the list', {
+    rows: bodyRows(w), status: w.doc.nodes.connListStatus.textContent,
+  }, { rows: 1, status: '3 connections, 1 shown' });
+
+  clickTab(w, 'map');
+  check('leaving the List tab', { said: lastList(), list: w.doc.nodes.connPanelList.hidden },
+    { said: ['conn:list', { on: false }], list: true });
+});
+
 fs.rmSync(OUT, { force: true });
 if (problems.length) {
   for (const p of problems) shout('  ' + p);
   shout('\nconn-filters-check: ' + problems.length + ' problem(s)');
   process.exit(1);
 }
-say('conn-filters-check: the country and client filters exclude each other, and each survives a poll');
+say('conn-filters-check: the country and client filters exclude each other, each survives a poll, and the List tab says when it opens and follows both');

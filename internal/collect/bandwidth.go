@@ -342,11 +342,11 @@ func bwInt(s string) int64 {
 
 // ── the collector ────────────────────────────────────────────────────────────
 
-// bandwidthConnCmd is the connection table, with the proplist connections.js
-// declares — the two collectors read the SAME columns because they read the same
-// table for different questions.
-var bandwidthConnCmd = routeros.Cmd{Path: "/ip/firewall/connection/print", Args: []string{
-	"=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes"}}
+// bandwidthConnCmd is the connection table: the connections collector's own
+// command, not a copy of it. The two read the SAME columns because they read
+// the same table for different questions, and a copy could drift and stop the
+// two reads coalescing into one.
+var bandwidthConnCmd = connsCmd
 
 // Bandwidth is the collector.
 //
@@ -410,11 +410,21 @@ func NewBandwidth(ros Reader, emit Emit, rates RateSource, leases LeaseSource,
 	// reads. The proplists are identical (see bandwidthConnCmd), so the union is
 	// not widened either.
 	//
-	// It is strictly better than the snapshot, and not only in coupling. Every
-	// delivery is a fresh read, which removes the "same snapshot twice" hazard
-	// Tick has to guard against below, and it removes the separate fallback read
-	// for a session with no connections collector: this one now drives the menu
-	// itself when it is the only subscriber.
+	// It is strictly better than the snapshot, and not only in coupling: it
+	// removes the separate fallback read for a session with no connections
+	// collector, since this one drives the menu itself when it is the only
+	// subscriber.
+	//
+	// ── EACH READING ONCE, AND THIS DEPENDS ON IT ───────────────────────────
+	//
+	// The rates below difference this reading against the last, so the same
+	// reading delivered twice reads as zero traffic. This said every delivery
+	// was a fresh read, and for a STREAMED table that stopped being true on
+	// 2026-09-20: rounds were delivered as they completed while the scheduler
+	// went on re-delivering the stored round, and the page's rates alternated
+	// with zeros (measured 2026-09-21). The delivery layer now gives each round
+	// once (roscache Scheduler.run, TestARoundTheStreamDeliveredIsNotDeliveredAgain);
+	// this collector keeps no guard of its own.
 	b.sched = scheduled{
 		loop: b.loop, menu: bandwidthConnCmd.Path, fields: fieldsOf(bandwidthConnCmd),
 		cadence: b.pollMs.duration, apply: b.apply,

@@ -428,6 +428,31 @@ export interface CfgDeployPayload {
   targets: CfgDeployTarget[];
 }
 
+export interface ConnRow {
+  id: string;
+  src: string;
+  client: string;
+  local: boolean;
+  dst: string;
+  dstPort: string;
+  dstLocal: boolean;
+  proto: string;
+  state: string;
+  country: string;
+  org: string;
+  tx: number;
+  rx: number;
+  txRate: number | null;
+  rxRate: number | null;
+}
+
+export interface ConnListPayload {
+  ts: number;
+  total: number;
+  capped: boolean;
+  rows: ConnRow[];
+}
+
 export interface ConnProtoCounts {
   tcp: number;
   udp: number;
@@ -1881,6 +1906,7 @@ export interface Events {
   'bridges:update': BridgesPayload;
   'capsman:update': CapsmanPayload;
   'cfgdeploy:state': CfgDeployPayload;
+  'conn:list': ConnListPayload;
   'conn:update': ConnsUpdate;
   'diagnostics:update': Diagnostics;
   'dns:update': DNSPayload;

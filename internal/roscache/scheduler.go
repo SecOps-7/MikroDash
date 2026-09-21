@@ -117,6 +117,27 @@ func (s *Scheduler) run(now time.Time) {
 		}
 		s.lastRun[d.Menu] = now
 
+		// ── A ROUND THE STREAM HAS JUST DELIVERED IS NOT DELIVERED AGAIN ────
+		//
+		// Since rounds are delivered as they complete (deliverStreamed), this
+		// tick answering a streamed menu from its snapshot handed every
+		// subscriber the SAME round a second time. For a consumer that
+		// differences readings that is not harmless repetition: the second
+		// reading minus the first is zero. MEASURED on the hAP AX3,
+		// 2026-09-21: the Bandwidth page's rates alternated between the real
+		// figures and zero on every cell, and so did the Connections List.
+		//
+		// So a menu whose stream delivered a round within the last cadence
+		// and a half is skipped: its subscribers already have it. The half is
+		// slack for a round that closes a little after the tick. A QUIET stream,
+		// an emptied table that publishes no rounds, still gets this tick every
+		// cadence, which is the heartbeat dormancy and the collectors' re-emit
+		// rules ride (TestAStreamedMenuStillFiresOnDeliver): the tick is
+		// withheld only when a delivery just happened anyway.
+		if s.c.deliveredRoundSince(d.Menu, now.Add(-d.Cadence-d.Cadence/2)) {
+			continue
+		}
+
 		// ── INVALIDATE FIRST, AND THAT IS NOT BELT AND BRACES ───────────────
 		//
 		// TWO CLOCKS MUST NOT DECIDE THE SAME THING. This loop has just decided

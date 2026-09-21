@@ -1,16 +1,37 @@
   <div class="page-view" id="page-connections">
     <div class="container-fluid px-0" style="width:100%">
       <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
-            <h3 class="card-title">Connections Map</h3>
-            <span id="connMapBadge" class="card-badge">0</span>
+            <h3 class="card-title mb-0">Connections</h3>
+            <span id="connMapBadge" class="card-badge" title="Connections on the router">0</span>
+            <span id="connTabs" class="stab-bar rttab-bar" role="tablist">
+              <button class="stab active" type="button" role="tab" aria-selected="true" data-conntab="map">Connections Map</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-conntab="list">Connections List</button>
+            </span>
           </div>
-          <select id="connSrcFilter" class="conn-src-filter" title="Filter by Client">
-            <option value="">All Clients</option>
-          </select>
+          <div class="hdr-actions d-flex align-items-center gap-2">
+            <input id="connListSearch" class="conn-search" type="search" placeholder="Search connections"
+              aria-label="Search connections" autocomplete="off" hidden>
+            <select id="connSrcFilter" class="conn-src-filter" title="Filter by Client">
+              <option value="">All Clients</option>
+            </select>
+          </div>
         </div>
-        <div class="card-body" style="padding:.5rem">
+        <div class="card-body" id="connPanelList" hidden>
+          <div class="conn-list-bar">
+            <span class="conn-sub" id="connListStatus">Waiting for the connection table…</span>
+            <div class="conn-pager" id="connListPager"></div>
+          </div>
+          <div class="conn-scroll">
+            <table class="table table-sm conn-table">
+              <thead><tr id="connListHead"></tr></thead>
+              <tbody id="connListBody"></tbody>
+            </table>
+          </div>
+          <div class="conn-pager conn-pager-end" id="connListPager2"></div>
+        </div>
+        <div class="card-body" id="connPanelMap" style="padding:.5rem">
           <div id="worldMapWrap" style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgba(56,189,248,.03);cursor:grab;user-select:none">
             <svg id="worldMap" viewBox="0 0 1000 500" style="width:100%;display:block;touch-action:none"></svg>
             <div class="map-tooltip" id="mapTooltip"></div>

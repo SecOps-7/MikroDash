@@ -46,6 +46,11 @@ var extraBuilders = map[string]func(Reader) any{
 		c.Tick()
 		return c.Last()
 	},
+	"conns#list": func(r Reader) any {
+		rows, _ := r.Do(connsCmd)
+		list, _ := BuildConnList(ConnListInput{Rows: rows, MaxConns: connsMaxRows})
+		return list
+	},
 	"conns#bandwidth": func(r Reader) any {
 		c := NewBandwidth(r, Emit{}, nil, nil, nil, 30000)
 		c.Tick()

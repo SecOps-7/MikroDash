@@ -185,7 +185,22 @@ func (c *Cache) deliverStreamed(menu string) {
 			continue
 		}
 		rows, err := c.Get(menu, d.Fields, d.Cadence)
+		c.demandMu.Lock()
+		if c.roundAt == nil {
+			c.roundAt = map[string]time.Time{}
+		}
+		c.roundAt[menu] = time.Now()
+		c.demandMu.Unlock()
 		c.deliver(menu, rows, err)
 		return
 	}
+}
+
+// deliveredRoundSince reports whether a streamed round of this menu was
+// delivered after `since`.
+func (c *Cache) deliveredRoundSince(menu string, since time.Time) bool {
+	c.demandMu.Lock()
+	defer c.demandMu.Unlock()
+	at, ok := c.roundAt[menu]
+	return ok && at.After(since)
 }

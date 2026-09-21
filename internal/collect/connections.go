@@ -545,17 +545,22 @@ func orgCatOf(orgOf map[string][2]string, org string) string {
 //	the "same snapshot twice" guard   `bandwidth` had to detect re-reading one
 //	                                  reading, because differencing it against
 //	                                  itself yields zeros and overwrites a live
-//	                                  table with an idle-looking one. Every
-//	                                  delivery being a fresh read removes the
-//	                                  hazard rather than guarding it.
+//	                                  table with an idle-looking one. The
+//	                                  delivery layer gives each reading once
+//	                                  instead (roscache Scheduler.run): it once
+//	                                  did not, for a streamed table, and both
+//	                                  pages' rates alternated with zeros.
 //	a separate fallback read          for a session with no `conns` collector.
 //	                                  `bandwidth` drives the menu itself when it
 //	                                  is the only subscriber.
 
 // ── the collector ────────────────────────────────────────────────────────────
 
+// `tcp-state` is for the Connections List's state pill (connlist.go). It is
+// read by both collectors because the read is ONE: bandwidth uses this command
+// itself, so the proplists cannot drift apart and stop coalescing.
 var connsCmd = routeros.Cmd{Path: "/ip/firewall/connection/print", Args: []string{
-	"=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes"}}
+	"=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes,tcp-state"}}
 
 // connsMaxRows is the processing cap. Beyond it rows are counted but not
 // aggregated, and the payload says so — a truncated answer presented as the
@@ -581,6 +586,12 @@ type Connections struct {
 	// detailed reports whether anyone has the Connections page open. The heavy
 	// per-country and per-source indexes are built only then.
 	detailed func() bool
+	// listed reports whether anyone has the page's List tab open; the list of
+	// every connection is built only then. listPrev and listAt are the last
+	// reading's bytes, for the rates.
+	listed   func() bool
+	listPrev map[string][2]int64
+	listAt   time.Time
 	geo      GeoLookup
 	org      OrgLookup
 
@@ -609,6 +620,7 @@ func NewConnections(ros Reader, emit Emit, leases LeaseSource,
 		topN:     5,
 		prevIDs:  map[string]bool{},
 		detailed: func() bool { return true },
+		listed:   func() bool { return false },
 	}
 	c.loop = newPollLoop(func() { c.Tick() }, func() time.Duration {
 		return c.pollMs.duration()
@@ -647,6 +659,14 @@ func (c *Connections) WithTopN(n int) *Connections {
 
 // WithDetailed supplies the test for "is anyone on the Connections page". The
 // server answers it by asking the hub how many occupants the room has.
+// WithListed wires "is the List tab open": the room ConnListRoom's occupancy.
+func (c *Connections) WithListed(fn func() bool) *Connections {
+	if fn != nil {
+		c.listed = fn
+	}
+	return c
+}
+
 func (c *Connections) WithDetailed(fn func() bool) *Connections {
 	if fn != nil {
 		c.detailed = fn
@@ -795,8 +815,9 @@ func (c *Connections) apply(rows []routeros.Reply, err error) {
 	now := time.Now().UnixMilli()
 
 	detailed := c.detailed()
+	lan := c.lanCidrs()
 	payload := BuildConns(ConnsInput{
-		Rows: rows, LanCidrs: c.lanCidrs(), TopN: c.topN, MaxConns: connsMaxRows,
+		Rows: rows, LanCidrs: lan, TopN: c.topN, MaxConns: connsMaxRows,
 		Detailed: detailed, PollMs: c.pollMs.ms(), NameOf: c.nameOf, Geo: c.geo, Org: c.org,
 	})
 	payload.TS = now
@@ -884,6 +905,34 @@ func (c *Connections) apply(rows []routeros.Reply, err error) {
 		EvConnCountryData.Emit(c.emit, connsDetailRooms.Join(), CountryData(payload))
 		EvConnSourceData.Emit(c.emit, connsDetailRooms.Join(), SourceData(payload))
 	}
+	c.applyList(rows, lan, now)
+}
+
+// applyList sends every connection to the List tab, when it is open. Every
+// reading is sent: the byte counts and rates change on every one, so a
+// fingerprint would suppress nothing. When nobody is looking the last reading
+// is dropped, so rates restart from nothing rather than from a stale reading.
+func (c *Connections) applyList(rows []routeros.Reply, lan []string, now int64) {
+	if !c.listed() {
+		c.mu.Lock()
+		c.listPrev, c.listAt = nil, time.Time{}
+		c.mu.Unlock()
+		return
+	}
+	c.mu.Lock()
+	prev, at := c.listPrev, c.listAt
+	c.mu.Unlock()
+	var elapsed time.Duration
+	if !at.IsZero() {
+		elapsed = time.Since(at)
+	}
+	list, next := BuildConnList(ConnListInput{Rows: rows, LanCidrs: lan, MaxConns: connsMaxRows,
+		NameOf: c.nameOf, Geo: c.geo, Org: c.org, Prev: prev, Elapsed: elapsed})
+	list.TS = now
+	c.mu.Lock()
+	c.listPrev, c.listAt = next, time.Now()
+	c.mu.Unlock()
+	EvConnList.Emit(c.emit, ConnListRoom, *list)
 }
 
 func connsFingerprint(p *ConnsPayload) string {

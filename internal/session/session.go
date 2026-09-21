@@ -1212,6 +1212,8 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// construction rather than instantly.
 		WithTopN(topSetting(cfgSettings, "topN")).
 		WithDetailed(func() bool { return m.h.Occupants(room+"page-connections") > 0 }).
+		// The List tab's rows, only while somebody has that tab open.
+		WithListed(func() bool { return m.h.Occupants(room+collect.ConnListRoom) > 0 }).
 		WithGeo(geoLookup()).
 		WithOrg(orgLookup()).
 		// Step 2 of `nameOf`: the lease keyed by the MAC ARP found, when the

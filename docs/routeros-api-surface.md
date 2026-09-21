@@ -432,7 +432,7 @@ A proplist is the only thing keeping a credential out of a payload — see
 | `=.proplist=.id,name,vlan-id,interface,mtu,running,disabled,comment` | src/collectors/vlans.js |
 | `=.proplist=.id,packets,bytes` | src/collectors/firewall.js |
 | `=.proplist=.id,service-name,interface,disabled,max-sessions,authentication` | src/collectors/ppp.js |
-| `=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes` | src/collectors/connections.js |
+| `=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes,tcp-state` | internal/collect/connections.go (shared by bandwidth.go); `tcp-state` feeds the Connections List's state pill |
 | `=.proplist=.id,supported-bands,action,master-configuration,slave-configurations,name-format,radio-mac,identity-regexp,comment,disabled` | src/collectors/capsman.js, src/routeros/wifiMenus.js |
 | `=.proplist=.id,when,name,address,via,group,radius` | src/collectors/rosusers.js |
 | `=.proplist=address,gateway,dns-server` | src/collectors/dhcpNetworks.js |

@@ -56,13 +56,13 @@ func TestEverySharedMenuIsRoutedOrExplained(t *testing.T) {
 		"/ppp/active/print":                            "",
 		"/ip/route/print":                              "",
 		"/interface/print":                             "",
-		// ROUTED SINCE 3.2d, and this entry carried the OPPOSITE claim until
-		// 2026-09-09. `connections.go` and `bandwidth.go` both subscribe, with
-		// byte-identical proplists, so it is one read with two deliveries. The
-		// reason it used to hold -- "connTable passes the PARSED snapshot" --
-		// was wrong in its premise as well as out of date: `ConnTable.Latest`
-		// handed back RAW rows. See L.3 for why nothing caught it.
-		"/ip/firewall/connection/print": "",
+		// `/ip/firewall/connection/print` WAS HERE, routed since 3.2d: both
+		// `connections.go` and `bandwidth.go` subscribed with byte-identical
+		// proplists, one read with two deliveries. Since 2026-09-21 bandwidth
+		// uses `connsCmd` itself (`bandwidthConnCmd = connsCmd`), so the menu has
+		// one declaration: the two cannot diverge and stop coalescing, which is
+		// what this entry watched for. The scan now sees one declaring file and
+		// the ledger asked for the entry to go.
 
 		// `/interface/monitor-traffic` WAS HERE, and the entry named the condition
 		// under which it would leave: "SLATED FOR B.1: a stream can BACK an entry

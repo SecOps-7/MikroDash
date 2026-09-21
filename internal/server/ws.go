@@ -89,7 +89,11 @@ type conn struct {
 	// here rather than in the collector because it is a property of the VIEWER;
 	// the collector keeps only the refcount per interface.
 	trafficIf string
-	cookie    string
+	// connListOn is whether this viewer's Connections List tab is open. It
+	// outlives the room: a router switch leaves every room, and the page's
+	// next page:focus rejoins the list room from this.
+	connListOn bool
+	cookie     string
 	// clientIP is resolved once at the upgrade: the audit trail records who did
 	// a thing and from where, and the request is the only place that is known.
 	clientIP string
@@ -608,6 +612,14 @@ func (cn *conn) dispatch(in inbound) {
 	case "secscan:run":
 		cn.secScanRun()
 	// Config Management's deploy job: see internal/server/cfgjob.go.
+	// The Connections page's List tab, open or closed. See collect/connlist.go.
+	case "conn:list":
+		var tab struct {
+			On bool `json:"on"`
+		}
+		if json.Unmarshal(in.Data, &tab) == nil {
+			cn.connList(tab.On)
+		}
 	case "cfgdeploy:watch":
 		cn.cfgWatch()
 	case "cfgdeploy:start":
@@ -1007,6 +1019,9 @@ func (cn *conn) pageFocus(page string) {
 		return
 	}
 	cn.srv.hub.Join(cn.c, "router-"+cn.routerID+"-page-"+page)
+	if page == "connections" {
+		cn.joinConnList()
+	}
 	// THE DEVICES PAGE IS FLEET-WIDE, not about the router this socket has
 	// selected — which is why it gets its own hook rather than a collector in
 	// `resumePage`. Its rows come from the background pool plus every
@@ -1392,6 +1407,11 @@ func (cn *conn) pageBlur(page string) {
 		return
 	}
 	cn.srv.hub.Leave(cn.c, "router-"+cn.routerID+"-page-"+page)
+	// Leaving the page leaves its List room; the tab stays open, and the next
+	// page:focus rejoins it.
+	if page == "connections" {
+		cn.srv.hub.Leave(cn.c, session.RoomFor(cn.routerID, collect.ConnListRoom))
+	}
 	// ── PHASE 4.2b: THE ROOM IS LEFT, AND THAT IS THE WHOLE EVENT ──────────
 	//
 	// This held a 19-case `switch page` of suspends, seven of them wrapped in
@@ -1677,4 +1697,31 @@ func (s *Server) sendFleetStatus(frame map[string]any) {
 		}
 		session.EvRouterStatus.Send(s.hub, cn.c, frame)
 	}
+}
+
+// connList records whether this viewer's Connections List tab is open, and
+// joins or leaves its room to match.
+func (cn *conn) connList(on bool) {
+	cn.mu.Lock()
+	cn.connListOn = on
+	cn.mu.Unlock()
+	if !on {
+		if cn.routerID != "" {
+			cn.srv.hub.Leave(cn.c, session.RoomFor(cn.routerID, collect.ConnListRoom))
+		}
+		return
+	}
+	cn.joinConnList()
+}
+
+// joinConnList joins the List room when the tab is open. Only a viewer who may
+// read the Connections page joins: the list is that page's data.
+func (cn *conn) joinConnList() {
+	cn.mu.Lock()
+	on := cn.connListOn
+	cn.mu.Unlock()
+	if !on || cn.routerID == "" || !cn.canPage("connections", "read") {
+		return
+	}
+	cn.srv.hub.Join(cn.c, session.RoomFor(cn.routerID, collect.ConnListRoom))
 }

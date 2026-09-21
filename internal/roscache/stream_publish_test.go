@@ -113,3 +113,51 @@ func TestDeliveringARoundSendsTheRouterNothing(t *testing.T) {
 		t.Errorf("%d router read(s) while delivering a streamed round", reads)
 	}
 }
+
+// A ROUND IS DELIVERED ONCE (2026-09-21). The scheduler used to answer a
+// streamed menu from its snapshot on every tick, handing subscribers the round
+// the stream had just delivered a second time: to anything that differences
+// readings, a reading of zero change. The Bandwidth page's rates alternated
+// with zeros because of it. A quiet stream still gets the tick, which is the
+// heartbeat (see TestAStreamedMenuStillFiresOnDeliver).
+func TestARoundTheStreamDeliveredIsNotDeliveredAgain(t *testing.T) {
+	p := &pusher{}
+	c := New(p)
+	var mu sync.Mutex
+	n := 0
+	release := c.Subscribe("/tool/netwatch/print", nil,
+		func() time.Duration { return time.Minute },
+		func(rows []routeros.Reply, err error) {
+			mu.Lock()
+			n++
+			mu.Unlock()
+		})
+	defer release()
+	stop, err := fillTimed(t, c, "/tool/netwatch/print", byRouterOSID,
+		5*time.Millisecond, time.Millisecond, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop()
+	count := func() int { mu.Lock(); defer mu.Unlock(); return n }
+
+	p.push(routeros.Reply{".id": "*1", "host": "10.255.255.1", "status": "up"})
+	deadline := time.Now().Add(2 * time.Second)
+	for count() == 0 && time.Now().Before(deadline) {
+		time.Sleep(2 * time.Millisecond)
+	}
+	if count() != 1 {
+		t.Fatalf("%d deliveries of the first round, want 1", count())
+	}
+
+	sched := NewScheduler(c, time.Hour)
+	sched.run(time.Now())
+	if got := count(); got != 1 {
+		t.Errorf("the scheduler delivered the round the stream had just delivered: %d deliveries, want 1", got)
+	}
+	// Two cadences later, with no round since: the tick is the heartbeat again.
+	sched.run(time.Now().Add(2 * time.Minute))
+	if got := count(); got != 2 {
+		t.Errorf("a quiet stream lost its scheduled delivery: %d deliveries, want 2", got)
+	}
+}

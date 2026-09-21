@@ -16,7 +16,7 @@
 // to Germany" — a question the payload cannot answer without the cross-matrix
 // nobody sends. So selecting one clears the other, in both directions.
 
-import { el, iso2Flag } from '../dom';
+import { el, iso2Flag, lsGet, lsSet, renderSortHeader, sortRows, type SortState } from '../dom';
 import type { Socket } from '../socket';
 import { CC_NAMES } from './connections-map';
 import {
@@ -27,8 +27,11 @@ import {
   countriesFromSourceDests, clientOptions,
 } from './connections-lists';
 import { createSankeyThrottle, renderSankey } from './connections-sankey';
+import {
+  CONN_COLS, connRowHTML, filterConns, pageOf, pagerHTML, sortable,
+} from './connections-table';
 import type {
-  ConnCountry, ConnCountryProto, ConnDestEntry, ConnPort, ConnsPayload, ConnsUpdate, Lease,
+  ConnCountry, ConnCountryProto, ConnDestEntry, ConnListPayload, ConnPort, ConnsPayload, ConnsUpdate, Lease,
 } from '../gen/payloads';
 
 // The last `conn:update`, with the per-country indexes that arrive on their own
@@ -151,6 +154,8 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
   /** Select a country, or clear with null. */
   function selectCountry(cc: string | null): void {
     selectedCC = cc;
+    listPage = 0;
+    drawList();
     // The two filters are mutually exclusive — see the header.
     if (cc && filteredBySrc) {
       filteredBySrc = '';
@@ -192,6 +197,8 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
   /** Select one client, or clear with an empty string. */
   function selectSource(ip: string): void {
     filteredBySrc = ip;
+    listPage = 0;
+    drawList();
     if (ip && selectedCC) {
       selectedCC = null;
       const label = el('connFilterLabel');
@@ -398,4 +405,101 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
   window.addEventListener('resize', () => {
     if (isVisible('connections')) sankey.redraw();
   });
+
+  // ── The List tab ───────────────────────────────────────────────────────────
+  //
+  // Every connection, a row each (`conn:list`, see collect/connlist.go). The
+  // server sends it only while this viewer's List tab is open, so the tab says
+  // so whenever it opens or closes, and again after a reconnect, when the
+  // server has forgotten. The client and country filters above apply here too.
+
+  type ConnTab = 'map' | 'list';
+  const TAB_KEY = 'mikrodash_conn_tab';
+  let tab: ConnTab = lsGet<string>(TAB_KEY, 'map') === 'list' ? 'list' : 'map';
+  let listed: ConnListPayload | null = null;
+  let listPage = 0;
+  let query = '';
+  const listSort: SortState = { col: 'rxr', dir: 'desc' };
+
+  function showTab(next: ConnTab): void {
+    tab = next;
+    lsSet(TAB_KEY, next);
+    document.querySelectorAll<HTMLElement>('#connTabs [data-conntab]').forEach((b) => {
+      const on = b.getAttribute('data-conntab') === next;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+    });
+    const mapPanel = el('connPanelMap');
+    const listPanel = el('connPanelList');
+    const search = el('connListSearch');
+    if (mapPanel) mapPanel.hidden = next !== 'map';
+    if (listPanel) listPanel.hidden = next !== 'list';
+    if (search) search.hidden = next !== 'list';
+    if (isVisible('connections')) socket.emit('conn:list', { on: next === 'list' });
+    if (next === 'list') drawList();
+    else if (last) redrawMap();
+  }
+
+  function drawList(): void {
+    if (tab !== 'list' || !isVisible('connections')) return;
+    renderSortHeader('connListHead', CONN_COLS, listSort, drawList);
+    const body = el('connListBody');
+    const status = el('connListStatus');
+    if (!listed) {
+      if (status) status.textContent = 'Waiting for the connection table…';
+      return;
+    }
+    let rows = filterConns(listed.rows.map(sortable), query, filteredBySrc);
+    if (selectedCC) rows = rows.filter((r) => r.country === selectedCC);
+    const matched = sortRows(rows, listSort.col, listSort.dir);
+    const pg = pageOf(matched, listPage);
+    listPage = pg.page;
+    if (body) {
+      body.innerHTML = pg.rows.map(connRowHTML).join('') ||
+        '<tr><td colspan="' + CONN_COLS.length + '" class="conn-empty">No connections match.</td></tr>';
+    }
+    const pager = pagerHTML(pg.rows.length, matched.length, pg.page, pg.pages);
+    for (const id of ['connListPager', 'connListPager2']) {
+      const p = el(id);
+      if (p) p.innerHTML = pager;
+    }
+    if (status) {
+      const filtered = matched.length !== listed.rows.length;
+      status.textContent = listed.total.toLocaleString() + ' connections' +
+        (filtered ? ', ' + matched.length.toLocaleString() + ' shown' : '') +
+        (listed.capped ? '. The router has more than MikroDash processes; the first ' +
+          listed.rows.length.toLocaleString() + ' are listed.' : '');
+    }
+  }
+
+  socket.on('conn:list', (p) => {
+    listed = p;
+    drawList();
+  });
+  el('connTabs')?.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest('[data-conntab]')?.getAttribute('data-conntab');
+    if ((t === 'map' || t === 'list') && t !== tab) showTab(t);
+  });
+  el('connListSearch')?.addEventListener('input', (e) => {
+    query = (e.target as HTMLInputElement).value;
+    listPage = 0;
+    drawList();
+  });
+  for (const id of ['connListPager', 'connListPager2']) {
+    el(id)?.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('[data-conn-page]');
+      if (!b || (b as HTMLButtonElement).disabled) return;
+      listPage = Number(b.getAttribute('data-conn-page')) || 0;
+      drawList();
+    });
+  }
+  // A reconnect is a new connection on the server, which has not heard which
+  // tab is open.
+  document.addEventListener('socket:reconnect', () => {
+    if (tab === 'list' && isVisible('connections')) socket.emit('conn:list', { on: true });
+  });
+  document.addEventListener('mikrodash:pagechange', (e) => {
+    if ((e as CustomEvent).detail === 'connections') showTab(tab);
+  });
+  showTab(tab);
 }

@@ -190,6 +190,35 @@
     .conn-src-filter:focus{border-color:var(--accent-rx);color:var(--text-main)}
     .conn-src-filter.active{border-color:var(--accent-rx);color:var(--accent-rx)}
     html[data-theme="light"] .conn-src-filter{background:rgba(255,255,255,.95);color:var(--text-main)}
+    /* ── The Connections List tab ─────────────────────────────────────── */
+    .conn-search{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.25rem .55rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-main);outline:none;min-width:200px}
+    .conn-search:focus{border-color:var(--accent-rx)}
+    #connPanelList{padding:.5rem .75rem}
+    .conn-list-bar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.4rem}
+    .conn-scroll{overflow-x:auto}
+    .conn-table{margin:0;font-size:.74rem}
+    .conn-table th{white-space:nowrap}
+    .conn-table td{vertical-align:middle;padding-top:.35rem;padding-bottom:.35rem}
+    .conn-num{text-align:right;white-space:nowrap}
+    .conn-who{font-family:var(--font-mono);white-space:nowrap;color:var(--text-main)}
+    .conn-sub{font-size:.66rem;color:var(--text-muted);font-family:var(--font-mono)}
+    .conn-port{color:var(--text-muted)}
+    .conn-flag{margin-right:.3rem}
+    .conn-rate{font-family:var(--font-mono);font-weight:600}
+    .conn-tx{color:var(--accent-tx)}
+    .conn-rx{color:var(--accent-rx)}
+    .conn-svc{display:inline-block;padding:.1rem .45rem;border-radius:999px;font-size:.64rem;font-weight:600;font-family:var(--font-mono);color:var(--accent-alt);background:color-mix(in srgb,var(--accent-alt) 13%,transparent);border:1px solid color-mix(in srgb,var(--accent-alt) 30%,transparent)}
+    .conn-st{display:inline-block;padding:.1rem .45rem;border-radius:999px;font-size:.64rem;font-weight:600;font-family:var(--font-mono);border:1px solid transparent}
+    .conn-st-ok{color:var(--accent-ok);background:color-mix(in srgb,var(--accent-ok) 13%,transparent);border-color:color-mix(in srgb,var(--accent-ok) 30%,transparent)}
+    .conn-st-warn{color:var(--accent-warn);background:color-mix(in srgb,var(--accent-warn) 13%,transparent);border-color:color-mix(in srgb,var(--accent-warn) 30%,transparent)}
+    .conn-st-muted{color:var(--text-muted);background:color-mix(in srgb,var(--text-muted) 12%,transparent);border-color:color-mix(in srgb,var(--text-muted) 26%,transparent)}
+    .conn-st-other{color:var(--accent-rx);background:color-mix(in srgb,var(--accent-rx) 12%,transparent);border-color:color-mix(in srgb,var(--accent-rx) 28%,transparent)}
+    .conn-pager{display:flex;align-items:center;gap:.4rem}
+    .conn-pager-end{justify-content:flex-end;margin-top:.4rem}
+    .conn-page-btn{width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);color:var(--text-main);line-height:1;cursor:pointer}
+    .conn-page-btn:disabled{opacity:.35;cursor:default}
+    .conn-empty{text-align:center;color:var(--text-muted);padding:1.5rem!important}
+    @media (max-width:640px){.conn-search{min-width:0;width:100%}}
 
     .bw-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);background:var(--bg-card)}
     .bw-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}

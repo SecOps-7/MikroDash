@@ -106,6 +106,10 @@ type Cache struct {
 	nextSub  uint64
 	// onDeliver is the after-refresh heartbeat. See OnDeliver in scheduler.go.
 	onDeliver func(menu string)
+	// roundAt is when each streamed menu last delivered a round of its own
+	// (deliverStreamed), so the scheduler does not deliver that round again.
+	// Under demandMu. See Scheduler.run.
+	roundAt map[string]time.Time
 }
 
 func New(ros Reader) *Cache {
