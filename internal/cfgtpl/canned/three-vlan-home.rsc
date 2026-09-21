@@ -38,8 +38,11 @@ set [ find interface={{guest_ports}} ] pvid={{guest_vlan}}
 add name=Home vlan-id={{home_vlan}} interface={{bridge}} comment="mdcfg:three-vlan-home"
 add name=IoT vlan-id={{iot_vlan}} interface={{bridge}} comment="mdcfg:three-vlan-home"
 add name=Guest vlan-id={{guest_vlan}} interface={{bridge}} comment="mdcfg:three-vlan-home"
+# The WAN membership and the masquerade are ENSURED, not added: RouterOS's
+# default configuration already has both, and adding the membership again
+# fails the import at that line ("already have such entry", seen on a hAP ac2).
 /interface list member
-add list=WAN interface={{wan_iface}} comment="mdcfg:three-vlan-home"
+ensure list=WAN interface={{wan_iface}}
 add list=LAN interface=Home comment="mdcfg:three-vlan-home"
 /ip address
 add address="{{home_gateway}}/{{prefix}}" interface=Home comment="mdcfg:three-vlan-home"
@@ -60,7 +63,7 @@ add address={{guest_network}} gateway={{guest_gateway}} dns-server={{guest_gatew
 /ip dns
 set allow-remote-requests=yes
 /ip firewall nat
-add chain=srcnat action=masquerade out-interface-list=WAN comment="mdcfg:three-vlan-home"
+ensure chain=srcnat action=masquerade out-interface-list=WAN
 /ip firewall filter
 add chain=input action=accept connection-state=established,related,untracked comment="mdcfg:three-vlan-home"
 add chain=input action=drop connection-state=invalid comment="mdcfg:three-vlan-home"

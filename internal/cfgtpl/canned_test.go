@@ -198,7 +198,7 @@ var cannedLedger = map[string]string{
 	"site-ntp-server":         "5877cbc7c84b5a47@v1",
 	"snmp-v3":                 "1c3faaf2504b3766@v1",
 	"stack-hardening":         "6c0d2ab08b2fabb0@v1",
-	"three-vlan-home":         "bef6caa309782f4d@v1",
+	"three-vlan-home":         "e4ac541251553022@v1",
 	"vlan-network":            "c34518a65d146813@v1",
 	"wireguard-remote-access": "75e47df1551205d1@v1",
 }
