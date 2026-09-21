@@ -44,6 +44,8 @@
 package main
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -318,6 +320,14 @@ func main() {
 			os.Exit(2)
 		}
 		m8ExportReset(p, cfg)
+	}
+	// M11 REBOOTS THE ROUTER too, by design: it is the revert under test.
+	if want["m11"] {
+		if !*destr {
+			fmt.Fprintln(os.Stderr, "m11 reboots the router: add -destructive to run it")
+			os.Exit(2)
+		}
+		m11BackupDeadMan(p, cfg)
 	}
 
 	report := struct {
@@ -812,6 +822,116 @@ func m8ExportReset(p *probe, cfg routeros.Config) {
 	if id := p.fileID(backup + ".backup"); id != "" {
 		p.run("m8 remove backup", "/file/remove", 10*time.Second, "=.id="+id)
 	}
+}
+
+// M11: a dead-man that reverts by LOADING A BACKUP rather than importing an
+// undo file.
+//
+// An undo file has to be written from the template: every `set` needs the value
+// it replaced, every `remove` the whole row it removed. A backup taken just
+// before the change needs neither, and because the scheduler is added AFTER the
+// backup, loading it also removes the scheduler, so it fires once. What this
+// measures:
+//
+//   - whether `/system backup load` runs from a scheduler at all, with no
+//     console to answer its "Restore and reboot?" prompt;
+//   - whether the router comes back holding the pre-change state (a marker
+//     made before the backup is there, one made after is not), and without the
+//     scheduler;
+//   - how long MikroDash is blind.
+//
+// The password is minted here, used once, and never recorded: the fixture
+// shows `<one-time>`. It guards a file that lives on the router it restores,
+// so it exposes nothing a reader of the router could not already see.
+func m11BackupDeadMan(p *probe, cfg routeros.Config) {
+	fmt.Fprintln(os.Stderr, "M11 dead-man by backup load (DESTRUCTIVE: reboots the router)")
+	p.cleanup()
+	const backup = prefix + "deadman"
+	const sched = prefix + "deadman-load"
+	before, after := prefix+"m11-before.test", prefix+"m11-after.test"
+
+	pwb := make([]byte, 18)
+	if _, err := crand.Read(pwb); err != nil {
+		p.note("m11", "ABORTED: no randomness for the one-time password")
+		return
+	}
+	pw := hex.EncodeToString(pwb)
+	mask := func() {
+		s := &p.steps[len(p.steps)-1]
+		for i, a := range s.Args {
+			s.Args[i] = strings.ReplaceAll(a, pw, "<one-time>")
+		}
+	}
+
+	p.run("m11 marker before", "/ip/dns/static/add", 10*time.Second, "=name="+before, "=address=192.0.2.111")
+	bk := p.run("m11 backup save", "/system/backup/save", 60*time.Second,
+		"=name="+backup, "=password="+pw, "=encryption=aes-sha256")
+	mask()
+	if bk.Trap != "" || bk.Err != "" {
+		p.note("m11", fmt.Sprintf("ABORTED: backup save trap=%q err=%q", bk.Trap, bk.Err))
+		return
+	}
+	for i := 0; i < 30 && p.fileSize(backup+".backup") == "(absent)"; i++ {
+		time.Sleep(time.Second)
+	}
+	p.run("m11 marker after", "/ip/dns/static/add", 10*time.Second, "=name="+after, "=address=192.0.2.112")
+
+	const every = 20 * time.Second
+	add := p.run("m11 add scheduler", "/system/scheduler/add", 10*time.Second,
+		"=name="+sched, "=interval=20s",
+		"=on-event=/system backup load name="+backup+".backup password="+pw)
+	mask()
+	if add.Trap != "" || add.Err != "" {
+		p.note("m11 scheduler add", fmt.Sprintf("REFUSED trap=%q err=%q", add.Trap, add.Err))
+		return
+	}
+	t0 := time.Now()
+
+	// Wait for the router to go away: the old session starts failing.
+	dropped := time.Duration(-1)
+	for time.Since(t0) < every+60*time.Second {
+		time.Sleep(2 * time.Second)
+		if _, err := p.c.Do(routeros.Cmd{Path: "/system/identity/print", Timeout: 3 * time.Second}); err != nil {
+			dropped = time.Since(t0)
+			break
+		}
+	}
+	if dropped < 0 {
+		rows, _ := p.c.Do(routeros.Cmd{Path: "/system/scheduler/print",
+			Args: []string{"?name=" + sched, "=.proplist=run-count"}, Timeout: 10 * time.Second})
+		rc := "(no row)"
+		if len(rows) > 0 {
+			rc = rows[0]["run-count"]
+		}
+		p.note("m11 router rebooted", "NO — still answering after "+fmt.Sprint(every+60*time.Second)+
+			"; scheduler run-count="+rc)
+		return
+	}
+	p.note("m11 router went away after", fmt.Sprint(dropped.Round(time.Second)))
+	p.c.Close()
+
+	var cl *routeros.Client
+	for time.Since(t0) < 6*time.Minute && cl == nil {
+		time.Sleep(5 * time.Second)
+		c := cfg
+		c.DialTimeout = 5 * time.Second
+		cl, _ = routeros.Dial(c)
+	}
+	if cl == nil {
+		p.note("m11 came back", "NO — recover through the serial console (127.0.0.1:15000)")
+		return
+	}
+	p.c = cl
+	p.note("m11 came back after", fmt.Sprint(time.Since(t0).Round(time.Second)))
+	has := func(path, key, val string) bool {
+		rows, _ := p.c.Do(routeros.Cmd{Path: path + "/print", Args: []string{"?" + key + "=" + val},
+			Timeout: 10 * time.Second})
+		return len(rows) > 0
+	}
+	p.note("m11 marker made before the backup is back", fmt.Sprint(has("/ip/dns/static", "name", before)))
+	p.note("m11 marker made after the backup is gone", fmt.Sprint(!has("/ip/dns/static", "name", after)))
+	p.note("m11 scheduler is gone", fmt.Sprint(!has("/system/scheduler", "name", sched)))
+	p.note("m11 backup file remains", fmt.Sprint(p.fileSize(backup+".backup") != "(absent)"))
 }
 
 // maskAddrs replaces IPv4 addresses and MACs, keeping TEST-NET-1 (192.0.2.0/24),

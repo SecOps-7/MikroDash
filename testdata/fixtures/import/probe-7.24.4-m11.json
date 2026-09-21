@@ -1,0 +1,83 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "findings": [
+    {
+      "name": "m11 router went away after",
+      "answer": "20s"
+    },
+    {
+      "name": "m11 came back after",
+      "answer": "35s"
+    },
+    {
+      "name": "m11 marker made before the backup is back",
+      "answer": "true"
+    },
+    {
+      "name": "m11 marker made after the backup is gone",
+      "answer": "true"
+    },
+    {
+      "name": "m11 scheduler is gone",
+      "answer": "true"
+    },
+    {
+      "name": "m11 backup file remains",
+      "answer": "true"
+    }
+  ],
+  "steps": [
+    {
+      "label": "m11 marker before",
+      "path": "/ip/dns/static/add",
+      "args": [
+        "=name=mdprobe-m11-before.test",
+        "=address=192.0.2.111"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "*1"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m11 backup save",
+      "path": "/system/backup/save",
+      "args": [
+        "=name=mdprobe-deadman",
+        "=password=\u003cone-time\u003e",
+        "=encryption=aes-sha256"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 9
+    },
+    {
+      "label": "m11 marker after",
+      "path": "/ip/dns/static/add",
+      "args": [
+        "=name=mdprobe-m11-after.test",
+        "=address=192.0.2.112"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "*2"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m11 add scheduler",
+      "path": "/system/scheduler/add",
+      "args": [
+        "=name=mdprobe-deadman-load",
+        "=interval=20s",
+        "=on-event=/system backup load name=mdprobe-deadman.backup password=\u003cone-time\u003e"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "*0"
+      },
+      "ms": 0
+    }
+  ]
+}
