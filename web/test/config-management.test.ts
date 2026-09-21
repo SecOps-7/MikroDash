@@ -24,6 +24,7 @@ fs.writeFileSync(ENTRY, [
   "export { initConfigManagementPage, toLibrary } from '../web/src/pages/config-management.js';",
   "export * as cards from '../web/src/pages/config-management-cards.js';",
   "export * as editor from '../web/src/pages/config-management-editor.js';",
+  "export * as deploy from '../web/src/pages/config-management-deploy.js';",
 ].join('\n') + '\n');
 const OUT = path.join(ROOT, 'testdata', '.cfgmgmt.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -32,7 +33,7 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 fs.rmSync(ENTRY, { force: true });
 const mod = require(OUT);
 fs.rmSync(OUT, { force: true });
-const { cards, editor } = mod;
+const { cards, editor, deploy } = mod;
 
 const tpl = (extra) => ({ id: 'x', name: 'N', description: 'D', category: 'home', kind: 'fragment', canned: true,
   version: 1, lockClass: false, scope: [], variables: 0, tags: [], baseline: null, updatedAt: 0, ...extra });
@@ -93,11 +94,41 @@ assert.ok(!secret.includes('hunter2') && /data-var-field="default"[^>]*disabled/
 const form = editor.captureForm([{ id: 'r1', label: '<b>edge</b>' }], ['/ip/dns']);
 assert.ok(!form.includes('<b>edge') && form.includes('&lt;b&gt;edge'), 'a router label reached the markup unescaped');
 
+// ── THE DEPLOY TAB WILL NOT START UNTIL EVERY ROUTER IS READY ────────────────
+const ack = { level: 'ack', code: 'lockout-firewall', line: 13, message: 'm' };
+const ok = { routerId: 'r1', hash: 'h1', findings: [ack] };
+assert.strictEqual(deploy.readyToStart([], {}, new Set()), 'Pick at least one router');
+assert.strictEqual(deploy.readyToStart(['r1'], {}, new Set()), 'Preview every router first');
+assert.strictEqual(deploy.readyToStart(['r1'], { r1: ok }, new Set()), 'Tick OK on every check that needs it');
+assert.strictEqual(deploy.readyToStart(['r1'], { r1: ok }, new Set(['r1|lockout-firewall@13'])), '', 'ready');
+assert.strictEqual(deploy.readyToStart(['r1'], { r1: { routerId: 'r1', hash: 'h', findings: [{ level: 'refuse', code: 'x', message: 'no' }] } },
+  new Set()), 'A check refuses this template on a router');
+assert.strictEqual(deploy.findingKey(ack), 'lockout-firewall@13', 'the key must be the one cfgdeploy.FindingKey writes');
+// The canary is the first picked, and marked.
+const picker = deploy.routerPicker([{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], ['b', 'a']);
+assert.ok(/data-dep-router="b"[^]*?cfg-pill-canary/.test(picker.slice(picker.indexOf('data-dep-router="b"'))), 'the canary is marked');
+// A secret is entered as one, and a label stays text.
+const vgrid = deploy.valuesGrid([{ name: 'pw', type: 'secret' }], [{ id: 'r', label: '<b>x</b>' }], {});
+assert.ok(/data-dep-var="pw" type="password"/.test(vgrid), 'a secret is entered in the clear');
+assert.ok(!vgrid.includes('<b>x'), 'a router label reached the markup unescaped');
+// The rollout asks for the count after the canary, and escapes what it shows.
+const roll = deploy.rolloutView({ runId: 'run', state: 'awaiting-canary', templateName: '<i>t</i>', kind: 'fragment',
+  startedBy: 'admin', error: '', targets: [
+    { routerId: 'a', label: '<b>A</b>', canary: true, state: 'applied', step: '', code: '', applied: 'all', message: '',
+      backupId: 7, reconnectMs: 1200, reverted: false, failedLine: 0 },
+    { routerId: 'b', label: 'B', canary: false, state: 'pending', step: '', code: '', applied: '', message: '',
+      backupId: 0, reconnectMs: 0, reverted: false, failedLine: 0 }] });
+assert.ok(roll.includes('id="cfgDepCount"') && roll.includes('type <strong>2</strong>'), 'the canary decision asks for the count');
+assert.ok(!roll.includes('<b>A') && !roll.includes('<i>t'), 'the rollout reached the markup unescaped');
+assert.ok(roll.includes('Restore point #7'), 'the restore point is shown');
+
 // ── NOTHING IS FETCHED UNTIL THE PAGE IS SHOWN ──────────────────────────────
 const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 'cfgLibrary', 'cfgDrawer',
   'cfgDrawerTitle', 'cfgDrawerMeta', 'cfgDrawerBody', 'cfgDrawerClose', 'cfgPanel-library', 'cfgPanel-editor',
   'cfgPanel-deploy', 'cfgPanel-history', 'cfgPanel-drift', 'cfgNew', 'cfgEdNew', 'cfgCapture', 'cfgEdCapture',
-  'cfgCaptureBox', 'cfgEdName', 'cfgEdDesc', 'cfgEdBody', 'cfgEdVars', 'cfgEdSave', 'cfgEdDelete', 'cfgEdClose'],
+  'cfgCaptureBox', 'cfgEdName', 'cfgEdDesc', 'cfgEdBody', 'cfgEdVars', 'cfgEdSave', 'cfgEdDelete', 'cfgEdClose',
+  'cfgDepTpl', 'cfgDepRouters', 'cfgDepValues', 'cfgDepPreview', 'cfgDepPreviews', 'cfgDepStart', 'cfgRollout',
+  'cfgDepTplMeta', 'cfgDepConfirm', 'cfgDepWhy', 'cfgDep'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };
@@ -109,7 +140,9 @@ global.fetch = async (url) => {
       variables: [], lockClass: true, scope: ['/ip/firewall/filter'] }] }) };
 };
 let visible = false;
-mod.initConfigManagementPage(() => visible);
+const handlers = {};
+const sent = [];
+mod.initConfigManagementPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => sent.push([ev, d]) }, () => visible);
 doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'config-management' });
 assert.deepStrictEqual(fetched, [], 'the page fetched while it was not the page shown');
 doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'dashboard' });
@@ -117,6 +150,7 @@ assert.deepStrictEqual(fetched, [], 'another page opening made this one fetch');
 visible = true;
 doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'config-management' });
 assert.deepStrictEqual(fetched, ['/api/config/templates'], 'opening the page did not load the library');
+assert.deepStrictEqual(sent, [['cfgdeploy:watch', {}]], 'opening the page did not watch the deploy job');
 
 (async () => {
   await new Promise((r) => setTimeout(r, 10));

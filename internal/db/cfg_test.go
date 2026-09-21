@@ -158,7 +158,9 @@ func TestTheLedgerOutlivesItsTemplate(t *testing.T) {
 	cfgExec(t, d, `INSERT INTO cfg_baselines (template_id, router_id, body, fingerprint, taken_at)
 	    VALUES ('t1', 'r1', 'x', 'fp', 1)`)
 
-	cfgExec(t, d, `DELETE FROM cfg_templates WHERE id = 't1'`)
+	if ok, err := d.DeleteCfgTemplate("t1"); err != nil || !ok {
+		t.Fatalf("delete: %v %v", ok, err)
+	}
 
 	var tid *string
 	var name string
@@ -248,5 +250,14 @@ func TestRetentionSkipsAPinnedBackup(t *testing.T) {
 	}
 	if all, _ := d.StoredBackups("r1"); len(all) != 3 {
 		t.Errorf("the History list lost the pinned backup: %d rows", len(all))
+	}
+}
+
+// A canned template is not a row, and its baseline is kept all the same.
+func TestACannedTemplateHasABaseline(t *testing.T) {
+	d := openTest(t, t.TempDir())
+	if err := d.SetCfgBaseline(CfgBaseline{TemplateID: "canned:home-firewall", RouterID: "r1", Body: "x",
+		Fingerprint: "f", TakenAt: 1}); err != nil {
+		t.Fatalf("a canned template's baseline was refused: %v", err)
 	}
 }

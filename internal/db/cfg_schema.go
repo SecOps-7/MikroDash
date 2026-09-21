@@ -28,6 +28,10 @@ package db
 // `cfg_run_targets` is never purged with a router, for the reason
 // `routerPurgeExcluded` gives.
 //
+// `cfg_baselines.template_id` has NO foreign key: a baseline is kept for a
+// canned template too (`canned:<id>`), which is not a row. Deleting a stored
+// template deletes its baselines itself (DeleteCfgTemplate).
+//
 // `cfg_templates.backup_id` REFERENCES config_backups with no ON DELETE: the
 // binary a full-binary template is made of cannot be deleted from under it.
 // Retention skips it (`PinnedBackupIDs`), and the operator's delete refuses it
@@ -100,7 +104,7 @@ CREATE TABLE IF NOT EXISTS cfg_run_targets (
 CREATE INDEX IF NOT EXISTS idx_cfg_run_targets_router ON cfg_run_targets(router_id);
 
 CREATE TABLE IF NOT EXISTS cfg_baselines (
-          template_id TEXT    NOT NULL REFERENCES cfg_templates(id) ON DELETE CASCADE,
+          template_id TEXT    NOT NULL,
           router_id   TEXT    NOT NULL,
           run_id      TEXT,
           body        TEXT    NOT NULL,

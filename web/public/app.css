@@ -2524,7 +2524,75 @@
     .cfg-ed-acts{display:flex;justify-content:flex-end;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
     .cfg-ed-acts #cfgEdDelete{margin-right:auto;color:var(--accent-err)}
 
+    /* The Deploy tab: a numbered stepper, each router's preview, the rollout. */
+    .cfg-dep{display:flex;flex-direction:column;gap:.2rem}
+    .cfg-step{display:grid;grid-template-columns:2.2rem minmax(0,1fr);gap:.8rem;padding:.9rem 0;border-bottom:1px solid var(--border)}
+    .cfg-step:last-child{border-bottom:0}
+    .cfg-step-n{width:2rem;height:2rem;border-radius:50%;display:grid;place-items:center;font-family:var(--font-mono);font-weight:700;
+      color:var(--accent-rx);background:color-mix(in srgb,var(--accent-rx) 14%,transparent);border:1px solid color-mix(in srgb,var(--accent-rx) 34%,transparent)}
+    .cfg-step-body{min-width:0;display:flex;flex-direction:column;gap:.5rem}
+    .cfg-step-title{margin:0;font-size:.9rem;font-weight:650;color:var(--text-main)}
+    .cfg-step-body > .cfg-meta,.cfg-step-body p.cfg-meta{margin:0}
+    .cfg-dep-tpl{max-width:28rem}
+    .cfg-pick-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+    .cfg-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.4rem}
+    .cfg-pick-item{display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border-radius:9px;cursor:pointer;
+      border:1px solid var(--border);background:color-mix(in srgb,var(--text-muted) 5%,transparent);transition:border-color .2s,background .2s}
+    .cfg-pick-item.is-on{border-color:color-mix(in srgb,var(--accent-rx) 45%,var(--border));background:color-mix(in srgb,var(--accent-rx) 9%,transparent)}
+    .cfg-pick-name{flex:1;min-width:0;font-size:.8rem;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .vpn-hs-badge.cfg-pill-canary{background:color-mix(in srgb,var(--accent-alt) 15%,transparent);color:var(--accent-alt);border:1px solid color-mix(in srgb,var(--accent-alt) 34%,transparent)}
+    .cfg-scroll{overflow-x:auto}
+    .cfg-grid-vals td,.cfg-grid-vals th{font-size:.74rem;vertical-align:middle;min-width:9rem}
+    .cfg-grid-vals td:first-child,.cfg-grid-vals th:first-child{min-width:7rem;color:var(--text-main)}
+    .cfg-grid-all td{background:color-mix(in srgb,var(--accent-rx) 6%,transparent)}
+    .cfg-prevs{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:.6rem}
+    @media (max-width:620px){.cfg-prevs{grid-template-columns:1fr}}
+    .cfg-prev{padding:.7rem .75rem;border-radius:12px;border:1px solid var(--border);background:var(--bg-card);display:flex;flex-direction:column;gap:.45rem;min-width:0}
+    .cfg-prev.is-bad{border-color:color-mix(in srgb,var(--accent-err) 45%,var(--border))}
+    .cfg-prev-head{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+    .cfg-prev-msg{font-size:.78rem;color:var(--accent-err)}
+    .cfg-prev-fields{margin:0;padding-left:1rem;font-size:.74rem;color:var(--text-muted)}
+    .cfg-prev-text summary{cursor:pointer;font-size:.74rem;color:var(--accent-rx)}
+    .cfg-prev-text .cfg-code{margin-top:.4rem;max-height:40vh}
+    .cfg-ack{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;font-weight:600;color:var(--accent-warn)}
+    .cfg-dep-go{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+    .cfg-dep-go input{max-width:22rem}
+    .cfg-dep-why{color:var(--accent-warn)}
+    .cfg-dep-why:empty{display:none}
+
+    .cfg-roll-head{display:flex;justify-content:space-between;align-items:center;gap:.8rem;margin-bottom:.7rem;padding:.9rem 1rem;
+      border-radius:14px;border:1px solid var(--border);
+      background:radial-gradient(70% 140% at 0% 0%,color-mix(in srgb,var(--accent-rx) 16%,transparent),transparent 70%),var(--bg-card)}
+    .cfg-roll-head.state-done{background:radial-gradient(70% 140% at 0% 0%,color-mix(in srgb,var(--accent-ok) 18%,transparent),transparent 70%),var(--bg-card)}
+    .cfg-roll-head.state-halted,.cfg-roll-head.state-interrupted{background:radial-gradient(70% 140% at 0% 0%,color-mix(in srgb,var(--accent-err) 16%,transparent),transparent 70%),var(--bg-card)}
+    .cfg-roll-title{font-size:1.05rem;font-weight:700;color:var(--text-main)}
+    .cfg-banner{padding:.55rem .75rem;border-radius:10px;font-size:.78rem;margin-bottom:.6rem;border:1px solid var(--border)}
+    .cfg-banner.is-warn{color:var(--accent-warn);background:color-mix(in srgb,var(--accent-warn) 10%,transparent);border-color:color-mix(in srgb,var(--accent-warn) 32%,transparent)}
+    .cfg-banner.is-bad{color:var(--accent-err);background:color-mix(in srgb,var(--accent-err) 10%,transparent);border-color:color-mix(in srgb,var(--accent-err) 32%,transparent)}
+    .cfg-decide{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.7rem;padding:.7rem .8rem;border-radius:12px;
+      border:1px solid color-mix(in srgb,var(--accent-alt) 40%,var(--border));background:color-mix(in srgb,var(--accent-alt) 9%,transparent);font-size:.82rem}
+    .cfg-decide input{width:6rem}
+    .cfg-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.6rem}
+    @media (max-width:620px){.cfg-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .cfg-tile{--t:var(--text-muted);position:relative;display:flex;gap:.65rem;align-items:flex-start;padding:.75rem;border-radius:12px;
+      border:1px solid color-mix(in srgb,var(--t) 35%,var(--border));background:radial-gradient(90% 120% at 0% 0%,color-mix(in srgb,var(--t) 12%,transparent),transparent 70%),var(--bg-card)}
+    .cfg-tile.is-active{--t:var(--accent-rx)}
+    .cfg-tile.is-ok{--t:var(--accent-ok);animation:cfg-pop .45s cubic-bezier(.2,.7,.3,1.4)}
+    .cfg-tile.is-bad{--t:var(--accent-err)}
+    .cfg-tile.is-part{--t:var(--accent-warn)}
+    .cfg-tile.is-skip{opacity:.55}
+    .cfg-tile-ring{flex-shrink:0;width:14px;height:14px;margin-top:.2rem;border-radius:50%;border:2px solid var(--t);background:color-mix(in srgb,var(--t) 25%,transparent)}
+    .cfg-tile.is-active .cfg-tile-ring{animation:cfg-breathe 1.4s ease-in-out infinite}
+    .cfg-tile.is-ok .cfg-tile-ring{background:var(--t)}
+    .cfg-tile-body{min-width:0}
+    .cfg-tile-name{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;font-weight:650;font-size:.84rem;color:var(--text-main)}
+    .cfg-tile-state{font-size:.74rem;color:var(--t);font-weight:600;margin-top:.1rem}
+    .cfg-tile-detail{font-size:.72rem;color:var(--text-muted);margin-top:.15rem;overflow-wrap:anywhere}
+    @keyframes cfg-breathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--t) 45%,transparent)}50%{box-shadow:0 0 0 7px transparent}}
+    @keyframes cfg-pop{0%{transform:scale(.96)}60%{transform:scale(1.02)}100%{transform:none}}
+
     @media (prefers-reduced-motion:reduce){
+      .cfg-tile.is-ok,.cfg-tile.is-active .cfg-tile-ring{animation:none}
       .cfg-tpl{animation:none;transition:none}
       .cfg-tpl:hover{transform:none}
       .cfg-drawer{transition:none}

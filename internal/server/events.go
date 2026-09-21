@@ -40,6 +40,7 @@ var (
 	EvAppsProgress      = hub.Declare[AppsProgressPayload]("apps:progress")
 	EvAreaGroupRows     = hub.Declare[AreaGroupRowsPayload]("area:grouprows")
 	EvRouterFollow      = hub.Declare[RouterFollowPayload]("router:follow")
+	EvCfgDeployState    = hub.Declare[CfgDeployPayload]("cfgdeploy:state")
 )
 
 // Map payloads, whose browser types are hand-written in web/src/events-hand.ts.

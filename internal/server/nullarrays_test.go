@@ -52,7 +52,9 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			return ToolsPingPayload{Result: &r}
 		},
 		"tools:caps": func() any { return ToolsCapsPayload{Interfaces: []string{}} },
-		"apps:state": func() any { return emptyApps("", "", "") },
+		// No deploy yet, and a run whose targets are still being read.
+		"cfgdeploy:state": func() any { return cfgPayloadOf(nil) },
+		"apps:state":      func() any { return emptyApps("", "", "") },
 		"secscan:result": func() any {
 			rep := secscan.Run(secscan.Inputs{Rows: map[string][]secscan.Row{}, Absent: map[string]bool{}})
 			return SecScanPayload{Report: &rep}

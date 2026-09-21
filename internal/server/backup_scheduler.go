@@ -103,6 +103,12 @@ func (s *Server) lastBackupRun(routerID string) int64 {
 // Acquire/Release around it, so a router nobody is watching gets a session for
 // the duration and a router someone IS watching shares theirs — see the header.
 func (s *Server) inRouterWriteQueue(routerID string, fn func() error) error {
+	return s.inRouterWriteQueueWith(routerID, func(*session.Session) error { return fn() })
+}
+
+// inRouterWriteQueueWith is inRouterWriteQueue handing fn the session it holds,
+// for a caller that sends its own commands under the hold (Config Management).
+func (s *Server) inRouterWriteQueueWith(routerID string, fn func(*session.Session) error) error {
 	sess, err := s.sessions.Acquire(routerID)
 	if err != nil {
 		return err
@@ -142,7 +148,7 @@ func (s *Server) inRouterWriteQueue(routerID string, fn func() error) error {
 	if err := waitConnected(sess, backupDialWait); err != nil {
 		return err
 	}
-	return sess.InWriteQueue(fn)
+	return sess.InWriteQueue(func() error { return fn(sess) })
 }
 
 // backupCmdTimeout bounds ONE command inside a backup run.

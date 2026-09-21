@@ -403,6 +403,31 @@ export interface CapsmanPayload {
   legacyManager: boolean;
 }
 
+export interface CfgDeployTarget {
+  routerId: string;
+  label: string;
+  canary: boolean;
+  state: string;
+  step: string;
+  code: string;
+  applied: string;
+  message: string;
+  backupId: number;
+  reconnectMs: number;
+  reverted: boolean;
+  failedLine: number;
+}
+
+export interface CfgDeployPayload {
+  runId: string;
+  state: string;
+  templateName: string;
+  kind: string;
+  startedBy: string;
+  error: string;
+  targets: CfgDeployTarget[];
+}
+
 export interface ConnProtoCounts {
   tcp: number;
   udp: number;
@@ -1855,6 +1880,7 @@ export interface Events {
   'bandwidth:update': BandwidthPayload;
   'bridges:update': BridgesPayload;
   'capsman:update': CapsmanPayload;
+  'cfgdeploy:state': CfgDeployPayload;
   'conn:update': ConnsUpdate;
   'diagnostics:update': Diagnostics;
   'dns:update': DNSPayload;

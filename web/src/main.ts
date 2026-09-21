@@ -620,7 +620,7 @@ async function main(): Promise<void> {
   initBackupsPage(socket, pageVisible);
   initToolsPage(socket, pageVisible);
   initSecurityScanPage(socket, pageVisible);
-  initConfigManagementPage(pageVisible);
+  initConfigManagementPage(socket, pageVisible);
 
   let routers: RouterRow[] = [];
   try {

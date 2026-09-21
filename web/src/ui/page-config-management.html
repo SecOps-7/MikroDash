@@ -78,7 +78,34 @@
               </aside>
             </div>
           </div>
-          <div class="cfg-panel" id="cfgPanel-deploy" hidden></div>
+          <div class="cfg-panel" id="cfgPanel-deploy" hidden>
+            <div id="cfgRollout"></div>
+            <div class="cfg-dep" id="cfgDep">
+              <section class="cfg-step"><div class="cfg-step-n">1</div><div class="cfg-step-body">
+                <h5 class="cfg-step-title">Template</h5>
+                <select class="form-select form-select-sm cfg-dep-tpl" id="cfgDepTpl" aria-label="Template"></select>
+                <div class="cfg-meta" id="cfgDepTplMeta"></div></div></section>
+              <section class="cfg-step"><div class="cfg-step-n">2</div><div class="cfg-step-body">
+                <h5 class="cfg-step-title">Routers</h5><div id="cfgDepRouters"></div></div></section>
+              <section class="cfg-step"><div class="cfg-step-n">3</div><div class="cfg-step-body">
+                <h5 class="cfg-step-title">Settings</h5><div id="cfgDepValues"></div></div></section>
+              <section class="cfg-step"><div class="cfg-step-n">4</div><div class="cfg-step-body">
+                <h5 class="cfg-step-title">Preview and checks</h5>
+                <p class="cfg-meta">Each router is read as it is now: its interfaces, its rules, and where it sees
+                  MikroDash from. What it will receive, and anything that needs your OK, appears below.</p>
+                <button class="cfg-btn cfg-btn-go" type="button" id="cfgDepPreview">Preview on each router</button>
+                <div class="cfg-prevs" id="cfgDepPreviews"></div></div></section>
+              <section class="cfg-step"><div class="cfg-step-n">5</div><div class="cfg-step-body">
+                <h5 class="cfg-step-title">Deploy</h5>
+                <p class="cfg-meta">Each router gets a restore point first, the syntax is checked on the router, and
+                  MikroDash logs in afresh afterwards to prove it still can.</p>
+                <div class="cfg-dep-go">
+                  <input class="form-control form-control-sm" id="cfgDepConfirm" autocomplete="off" aria-label="Confirm">
+                  <button class="cfg-btn cfg-btn-go" type="button" id="cfgDepStart">Deploy</button>
+                </div>
+                <div class="cfg-meta cfg-dep-why" id="cfgDepWhy"></div></div></section>
+            </div>
+          </div>
           <div class="cfg-panel" id="cfgPanel-history" hidden></div>
           <div class="cfg-panel" id="cfgPanel-drift" hidden></div>
         </div>

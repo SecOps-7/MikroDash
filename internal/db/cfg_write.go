@@ -86,17 +86,29 @@ func (d *DB) UpdateCfgTemplate(t CfgTemplate, from int) error {
 	return nil
 }
 
-// DeleteCfgTemplate removes a template. Its runs stay, naming it.
+// DeleteCfgTemplate removes a template and its drift baselines, in one
+// transaction. Its runs stay, naming it.
 func (d *DB) DeleteCfgTemplate(id string) (bool, error) {
 	if d == nil || d.sql == nil {
 		return false, errors.New("db not open")
 	}
-	res, err := d.sql.Exec(`DELETE FROM cfg_templates WHERE id = ?`, id)
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM cfg_baselines WHERE template_id = ?`, id); err != nil {
+		return false, err
+	}
+	res, err := tx.Exec(`DELETE FROM cfg_templates WHERE id = ?`, id)
 	if err != nil {
 		return false, err
 	}
 	n, err := res.RowsAffected()
-	return n > 0, err
+	if err != nil {
+		return false, err
+	}
+	return n > 0, tx.Commit()
 }
 
 // CfgRun is one deploy.

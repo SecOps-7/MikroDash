@@ -5,12 +5,17 @@
 // The markup is built by config-management-cards.ts and -editor.ts.
 
 import { el, esc } from '../dom';
+import type { Socket } from '../socket';
+import type { CfgDeployPayload } from '../gen/payloads';
 import {
   categoryBar, drawerBody, findingRow, libraryGrid, statStrip, type LibTemplate, type TemplateDetail,
 } from './config-management-cards';
 import {
   HIGHLIGHT_LIMIT, captureForm, editorLayer, gutter, serverVarRows, syncVars, varRow, type VarDef,
 } from './config-management-editor';
+import {
+  findingKey, previewCard, readyToStart, rolloutView, routerPicker, valuesGrid, type RouterOpt, type RouterPreview,
+} from './config-management-deploy';
 
 const TABS = ['library', 'editor', 'deploy', 'history', 'drift'] as const;
 type Tab = (typeof TABS)[number];
@@ -79,7 +84,16 @@ interface Draft {
   body: string; vars: VarDef[];
 }
 
-export function initConfigManagementPage(isVisible: (page: string) => boolean): void {
+/** A preview's reply: an addition's `prepared`, or a full export's `reset`. */
+interface PreviewReply {
+  kind: string;
+  target: RouterPreview['target'];
+  prepared?: { rendered: string; hash: string; findings: RouterPreview['findings'] };
+  reset?: { bootstrap: string[]; rest: string; hash: string; findings: RouterPreview['findings'] };
+  lockClass?: boolean;
+}
+
+export function initConfigManagementPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let tab: Tab = 'library';
   let lib: LibTemplate[] = [];
   let category = 'all';
@@ -90,9 +104,14 @@ export function initConfigManagementPage(isVisible: (page: string) => boolean): 
   let draft: Draft | null = null;
   let dirty = false;
   let checkTimer: ReturnType<typeof setTimeout> | null = null;
-  /** The template the Deploy tab opens with, when a card's Deploy was pressed. */
-  let deployPick = '';
   const visible = (): boolean => isVisible('config-management');
+  /** The Deploy tab's choices, until a run starts. */
+  const dep = {
+    tplId: '', defs: [] as VarDef[], kind: 'fragment', routers: [] as RouterOpt[], picked: [] as string[],
+    values: {} as Record<string, Record<string, string>>, previews: {} as Record<string, RouterPreview>,
+    acked: new Set<string>(),
+  };
+  let run: CfgDeployPayload | null = null;
 
   function show(next: Tab): void {
     tab = next;
@@ -421,10 +440,7 @@ export function initConfigManagementPage(isVisible: (page: string) => boolean): 
     if (act === 'preview') void preview(id);
     else if (act === 'edit') void openEditor(id);
     else if (act === 'clone') void customise(id);
-    else if (act === 'deploy') {
-      deployPick = id;
-      show('deploy');
-    }
+    else if (act === 'deploy') void openDeploy(id);
   });
   el('cfgDrawerClose')?.addEventListener('click', closeDrawer);
   document.addEventListener('keydown', (e) => {
@@ -501,7 +517,205 @@ export function initConfigManagementPage(isVisible: (page: string) => boolean): 
     }
     if (!visible()) return;
     show(tab);
-    void load();
+    void load().then(async () => {
+      await loadRouters();
+      drawDeploy();
+    });
+    socket.emit('cfgdeploy:watch', {});
   });
-  void deployPick;
+
+  // ── The Deploy tab ───────────────────────────────────────────────────────
+
+  const labelOf = (id: string): string => dep.routers.find((r) => r.id === id)?.label ?? id;
+
+  async function openDeploy(id: string): Promise<void> {
+    show('deploy');
+    await loadRouters();
+    await pickTemplate(id);
+  }
+
+  async function loadRouters(): Promise<void> {
+    if (dep.routers.length) return;
+    try {
+      const r = await fetch('/api/routers', { credentials: 'same-origin' });
+      const b = (await r.json()) as { routers?: { id: string; label?: string; host?: string; disabled?: boolean }[] };
+      dep.routers = (b.routers ?? []).filter((x) => !x.disabled).map((x) => ({ id: x.id, label: x.label || x.host || x.id }));
+    } catch {
+      dep.routers = [];
+    }
+  }
+
+  async function pickTemplate(id: string): Promise<void> {
+    dep.tplId = id;
+    dep.previews = {};
+    dep.acked.clear();
+    dep.defs = [];
+    if (id) {
+      try {
+        const t = await fetchTemplate(id);
+        dep.defs = varsOf(t.variables);
+        dep.kind = t.kind;
+      } catch (e) {
+        showWhy(e instanceof Error ? e.message : 'The template could not be read');
+      }
+    }
+    drawDeploy();
+  }
+
+  function drawDeploy(): void {
+    const sel = el('cfgDepTpl') as HTMLSelectElement | null;
+    if (sel) {
+      sel.innerHTML = '<option value="">Choose a template</option>' + lib.map((t) => '<option value="' + esc(t.id) + '"' +
+        (t.id === dep.tplId ? ' selected' : '') + '>' + esc(t.name) + (t.canned ? '' : ' (custom)') + '</option>').join('');
+    }
+    const t = lib.find((x) => x.id === dep.tplId);
+    const meta = el('cfgDepTplMeta');
+    if (meta) {
+      meta.textContent = !t ? '' : (t.kind === 'full-export' ? 'Full replacement: each router is reset and rebuilt. '
+        : 'An addition: merged into what each router already has. ') +
+        (t.lockClass ? 'It can cut MikroDash off, so each router arms an automatic revert first.' : '');
+    }
+    const routers = el('cfgDepRouters');
+    if (routers) routers.innerHTML = routerPicker(dep.routers, dep.picked);
+    const picked = dep.picked.map((id) => ({ id, label: labelOf(id) }));
+    const values = el('cfgDepValues');
+    if (values) values.innerHTML = valuesGrid(dep.defs, picked, dep.values);
+    drawPreviews();
+  }
+
+  function drawPreviews(): void {
+    const box = el('cfgDepPreviews');
+    if (box) {
+      box.innerHTML = dep.picked.filter((id) => dep.previews[id])
+        .map((id) => previewCard(labelOf(id), dep.previews[id] as RouterPreview, dep.acked)).join('');
+    }
+    const canary = dep.picked[0];
+    const confirm = el('cfgDepConfirm') as HTMLInputElement | null;
+    if (confirm) confirm.placeholder = canary ? 'Type ' + labelOf(canary) + ' to deploy' : 'Pick routers first';
+    showWhy(dep.tplId ? readyToStart(dep.picked, dep.previews, dep.acked) : 'Choose a template');
+  }
+
+  function showWhy(msg: string): void {
+    const why = el('cfgDepWhy');
+    if (why) why.textContent = msg;
+    const go = el('cfgDepStart') as HTMLButtonElement | null;
+    if (go) go.disabled = !!msg;
+  }
+
+  function invalidate(): void {
+    dep.previews = {};
+    dep.acked.clear();
+    drawPreviews();
+  }
+
+  async function previewAll(): Promise<void> {
+    if (!dep.tplId || !dep.picked.length) return;
+    const btn = el('cfgDepPreview') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Reading each router…'; }
+    dep.previews = {};
+    dep.acked.clear();
+    await Promise.all(dep.picked.map(async (rid) => {
+      try {
+        const r = await api<PreviewReply>('templates/' + encodeURIComponent(dep.tplId) + '/preview',
+          json({ routerId: rid, values: dep.values[rid] ?? defaultsFor() }));
+        const p = r.prepared ?? r.reset;
+        dep.previews[rid] = { routerId: rid, hash: p?.hash, findings: p?.findings ?? [], target: r.target,
+          lockClass: r.lockClass, rendered: r.prepared ? r.prepared.rendered
+            : '# Phase A, the bootstrap after the reset\n' + (r.reset?.bootstrap ?? []).join('\n') +
+              '\n\n# Phase B, imported once MikroDash is back\n' + (r.reset?.rest ?? '') };
+      } catch (e) {
+        dep.previews[rid] = { routerId: rid, error: e instanceof Error ? e.message : 'The preview failed' };
+      }
+    }));
+    if (btn) { btn.disabled = false; btn.textContent = 'Preview again'; }
+    drawPreviews();
+  }
+
+  function defaultsFor(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const d of dep.defs) if (d.default && d.type !== 'secret') out[d.name] = d.default;
+    return out;
+  }
+
+  function start(): void {
+    const why = readyToStart(dep.picked, dep.previews, dep.acked);
+    if (why) { showWhy(why); return; }
+    socket.emit('cfgdeploy:start', {
+      templateId: dep.tplId,
+      confirm: (el('cfgDepConfirm') as HTMLInputElement | null)?.value ?? '',
+      targets: dep.picked.map((rid) => {
+        const p = dep.previews[rid] as RouterPreview;
+        return { routerId: rid, values: dep.values[rid] ?? defaultsFor(), hash: p.hash, expect: p.target, override: '',
+          acked: (p.findings ?? []).filter((f) => f.level === 'ack').map(findingKey) };
+      }),
+    });
+  }
+
+  function drawRun(): void {
+    const box = el('cfgRollout');
+    if (box) box.innerHTML = run ? rolloutView(run) : '';
+    const live = !!run && ['canary', 'awaiting-canary', 'rolling'].includes(run.state);
+    const setup = el('cfgDep');
+    if (setup) setup.hidden = live;
+  }
+
+  socket.on('cfgdeploy:state', (p) => {
+    if (p.state === 'refused') {
+      showWhy(p.error);
+      return;
+    }
+    run = p.runId ? p : null;
+    if (visible()) drawRun();
+  });
+
+  el('cfgDepTpl')?.addEventListener('change', (e) => void pickTemplate((e.target as HTMLSelectElement).value));
+  el('cfgDepRouters')?.addEventListener('change', (e) => {
+    const box = e.target as HTMLInputElement;
+    const id = box.getAttribute('data-dep-router');
+    if (!id) return;
+    dep.picked = box.checked ? [...dep.picked.filter((x) => x !== id), id] : dep.picked.filter((x) => x !== id);
+    invalidate();
+    drawDeploy();
+  });
+  el('cfgDepRouters')?.addEventListener('click', (e) => {
+    const all = (e.target as HTMLElement).closest('[data-dep-all]')?.getAttribute('data-dep-all');
+    if (all === null || all === undefined) return;
+    dep.picked = all === '1' ? dep.routers.map((r) => r.id) : [];
+    invalidate();
+    drawDeploy();
+  });
+  el('cfgDepValues')?.addEventListener('input', (e) => {
+    const f = e.target as HTMLInputElement;
+    const rid = f.getAttribute('data-dep-val');
+    const name = f.getAttribute('data-dep-var');
+    const allName = f.getAttribute('data-dep-all-var');
+    if (allName) {
+      for (const id of dep.picked) (dep.values[id] ??= { ...defaultsFor() })[allName] = f.value;
+      document.querySelectorAll<HTMLInputElement>('[data-dep-var="' + allName + '"]').forEach((x) => { x.value = f.value; });
+    } else if (rid && name) {
+      (dep.values[rid] ??= { ...defaultsFor() })[name] = f.value;
+    }
+    invalidate();
+  });
+  el('cfgDepPreview')?.addEventListener('click', () => void previewAll());
+  el('cfgDepPreviews')?.addEventListener('change', (e) => {
+    const box = e.target as HTMLInputElement;
+    const rid = box.getAttribute('data-dep-ack');
+    const key = box.getAttribute('data-key');
+    if (!rid || !key) return;
+    if (box.checked) dep.acked.add(rid + '|' + key);
+    else dep.acked.delete(rid + '|' + key);
+    drawPreviews();
+  });
+  el('cfgDepStart')?.addEventListener('click', start);
+  el('cfgRollout')?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    if (t.closest('#cfgDepCancel')) {
+      if (window.confirm('Stop the deploy before its next router? A router being changed is finished first.')) {
+        socket.emit('cfgdeploy:cancel', {});
+      }
+    } else if (t.closest('#cfgDepContinue')) {
+      socket.emit('cfgdeploy:continue', { confirm: (el('cfgDepCount') as HTMLInputElement | null)?.value ?? '' });
+    }
+  });
 }

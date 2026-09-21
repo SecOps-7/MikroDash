@@ -139,6 +139,8 @@ type Options struct {
 
 // Server is the whole thing.
 type Server struct {
+	// cfg is Config Management's one deploy job (cfgjob.go).
+	cfg cfgJob
 	// secScans is the Security Scan page's last report per router (secscan.go).
 	secScans       secScanStore
 	hub            *hub.Hub

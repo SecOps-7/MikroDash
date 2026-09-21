@@ -607,6 +607,15 @@ func (cn *conn) dispatch(in inbound) {
 		cn.secScanGet()
 	case "secscan:run":
 		cn.secScanRun()
+	// Config Management's deploy job: see internal/server/cfgjob.go.
+	case "cfgdeploy:watch":
+		cn.cfgWatch()
+	case "cfgdeploy:start":
+		cn.cfgStart(in.Data)
+	case "cfgdeploy:continue":
+		cn.cfgContinue(in.Data)
+	case "cfgdeploy:cancel":
+		cn.cfgCancel()
 	// The Dashboard's Security Score card: Rescan. See secscan.go.
 	case "secscore:scan":
 		cn.secScoreScan()
