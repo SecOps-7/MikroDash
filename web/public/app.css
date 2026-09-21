@@ -2570,6 +2570,25 @@
     .cfg-banner{padding:.55rem .75rem;border-radius:10px;font-size:.78rem;margin-bottom:.6rem;border:1px solid var(--border)}
     .cfg-banner.is-warn{color:var(--accent-warn);background:color-mix(in srgb,var(--accent-warn) 10%,transparent);border-color:color-mix(in srgb,var(--accent-warn) 32%,transparent)}
     .cfg-banner.is-bad{color:var(--accent-err);background:color-mix(in srgb,var(--accent-err) 10%,transparent);border-color:color-mix(in srgb,var(--accent-err) 32%,transparent)}
+    .cfg-hist-bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.75rem}
+    .cfg-hist td{vertical-align:middle}
+    .cfg-hist-row{cursor:pointer}
+    .cfg-hist-row:hover td,.cfg-hist-row.is-open td{background:color-mix(in srgb,var(--accent-rx) 6%,transparent)}
+    .cfg-hist-n{font-variant-numeric:tabular-nums;font-weight:600}
+    .cfg-hist-open > td{padding:.25rem .5rem 1rem}
+    .cfg-hist-detail{display:flex;flex-direction:column;gap:.6rem}
+    .cfg-hist-target{border:1px solid var(--border);border-radius:10px;padding:.6rem .75rem}
+    .cfg-out{max-height:22rem;overflow:auto}
+    .cfg-out-line.is-bad{color:var(--accent-err);font-weight:600}
+    .cfg-drift-acts{white-space:nowrap;text-align:right}
+    .cfg-drift-acts .cfg-btn + .cfg-btn{margin-left:.35rem}
+    .cfg-drift-go{display:flex;gap:.5rem;flex-wrap:wrap}
+    .vpn-hs-badge.cfg-run-ok{background:color-mix(in srgb,var(--accent-ok) 13%,transparent);color:var(--accent-ok);border:1px solid color-mix(in srgb,var(--accent-ok) 32%,transparent)}
+    .vpn-hs-badge.cfg-run-bad{background:color-mix(in srgb,var(--accent-err) 13%,transparent);color:var(--accent-err);border:1px solid color-mix(in srgb,var(--accent-err) 32%,transparent)}
+    .vpn-hs-badge.cfg-run-warn{background:color-mix(in srgb,var(--accent-warn) 13%,transparent);color:var(--accent-warn);border:1px solid color-mix(in srgb,var(--accent-warn) 32%,transparent)}
+    .vpn-hs-badge.cfg-run-live{background:color-mix(in srgb,var(--accent-rx) 13%,transparent);color:var(--accent-rx);border:1px solid color-mix(in srgb,var(--accent-rx) 32%,transparent)}
+    .vpn-hs-badge.cfg-run-muted{background:color-mix(in srgb,var(--text-muted) 12%,transparent);color:var(--text-muted);border:1px solid color-mix(in srgb,var(--text-muted) 28%,transparent)}
+    @media (max-width:640px){.cfg-hist-bar{flex-direction:column;align-items:flex-start}.cfg-drift-acts{white-space:normal}}
     .cfg-decide{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.7rem;padding:.7rem .8rem;border-radius:12px;
       border:1px solid color-mix(in srgb,var(--accent-alt) 40%,var(--border));background:color-mix(in srgb,var(--accent-alt) 9%,transparent);font-size:.82rem}
     .cfg-decide input{width:6rem}

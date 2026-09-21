@@ -160,6 +160,49 @@ func TestARuntimeErrorIsPartial(t *testing.T) {
 	}
 }
 
+// The baseline covers every menu the template names. An ensure line that
+// resolved to nothing must not drop its menu from the baseline, or the Drift
+// tab, which reads the menus of the template as written, would find that menu
+// "drifted" on every check.
+func TestTheBaselineKeepsAMenuWhoseEnsureResolvedToNothing(t *testing.T) {
+	f := newFake(t)
+	f.menus["/interface/list"] = append(f.menus["/interface/list"], map[string]string{"name": "MGMT"})
+	a := preview(t, f, "/interface list\nensure name=MGMT\n/ip dns static\nadd name=x.lan address=192.0.2.9", nil, false)
+	env, _ := f.env()
+	out := RunAdditions(env, a)
+	if out.State != StateApplied {
+		t.Fatalf("%+v", out)
+	}
+	for _, m := range []string{"interface list", "ip dns static"} {
+		if !strings.Contains(out.Baseline, m) {
+			t.Errorf("the baseline has no %q export: %q", m, out.Baseline)
+		}
+	}
+}
+
+// A snapshot exports each menu once (a menu's export holds its sub-menus),
+// keeps no export comment (one names the router), and never runs one menu's
+// last line into the next one's first. All three seen on the lab CHR.
+func TestASnapshotIsEachMenuOnceWithoutComments(t *testing.T) {
+	f := newFake(t)
+	tp, err := cfgtpl.Parse("/system ntp client\nset enabled=yes\n/system ntp client servers\nadd address=192.0.2.1\n" +
+		"/ip dns\nset allow-remote-requests=no")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, _ := f.env()
+	got, err := Snapshot(env, tp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "ip dns\nsystem ntp client\n" {
+		t.Errorf("snapshot %q; want each outermost menu's export, a line each, no comments", got)
+	}
+	if f.sent("/system/ntp/client/servers/export") {
+		t.Error("a sub-menu was exported again beside the menu that holds it")
+	}
+}
+
 // The rows a verdict depended on can move while the files go up.
 func TestTheRouterChangingMidDeployStopsIt(t *testing.T) {
 	f := newFake(t)

@@ -4,15 +4,19 @@
 // is no collector behind it, so nothing is fetched while it is not shown.
 // The markup is built by config-management-cards.ts and -editor.ts.
 
-import { el, esc } from '../dom';
+import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
 import type { Socket } from '../socket';
-import type { CfgDeployPayload } from '../gen/payloads';
+import type { CfgDeployPayload, Hunk } from '../gen/payloads';
 import {
   categoryBar, drawerBody, findingRow, libraryGrid, statStrip, type LibTemplate, type TemplateDetail,
 } from './config-management-cards';
 import {
   HIGHLIGHT_LIMIT, captureForm, editorLayer, gutter, serverVarRows, syncVars, varRow, type VarDef,
 } from './config-management-editor';
+import {
+  DRIFT_COLS, HISTORY_COLS, driftKey, driftRows, historyRows, sortable, type DriftCheck, type DriftRow, type RunDetail,
+  type RunRow, type SortableRun,
+} from './config-management-history';
 import {
   findingKey, previewCard, readyToStart, rolloutView, routerPicker, valuesGrid, type RouterOpt, type RouterPreview,
 } from './config-management-deploy';
@@ -124,6 +128,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       const p = el('cfgPanel-' + t);
       if (p) p.hidden = t !== next;
     }
+    if (next === 'history') void loadHistory();
+    else if (next === 'drift') void loadDrift();
   }
 
   // ── The Library ──────────────────────────────────────────────────────────
@@ -718,4 +724,134 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       socket.emit('cfgdeploy:continue', { confirm: (el('cfgDepCount') as HTMLInputElement | null)?.value ?? '' });
     }
   });
+
+  // ── History ──────────────────────────────────────────────────────────────
+
+  let runs: SortableRun[] = [];
+  const histSort: SortState = { col: 'createdAt', dir: 'desc' };
+  let openRun = '';
+  let openDetail: RunDetail | null = null;
+
+  async function loadHistory(): Promise<void> {
+    try {
+      runs = (await api<{ runs: RunRow[] }>('runs')).runs.map(sortable);
+    } catch {
+      runs = [];
+    }
+    drawHistory();
+  }
+
+  function drawHistory(): void {
+    if (!visible()) return;
+    renderSortHeader('cfgHistHead', HISTORY_COLS, histSort, drawHistory);
+    const body = el('cfgHistBody');
+    if (body) body.innerHTML = historyRows(sortRows(runs, histSort.col, histSort.dir), openRun, openDetail);
+    const empty = el('cfgHistEmpty');
+    if (empty) empty.hidden = runs.length > 0;
+  }
+
+  async function toggleRun(id: string): Promise<void> {
+    openRun = openRun === id ? '' : id;
+    openDetail = null;
+    drawHistory();
+    if (!openRun) return;
+    try {
+      const d = await api<RunDetail>('runs/' + encodeURIComponent(id));
+      if (openRun === id) openDetail = d;
+    } catch {
+      if (openRun === id) openRun = '';
+    }
+    drawHistory();
+  }
+
+  el('cfgHistBody')?.addEventListener('click', (e) => {
+    const tr = (e.target as HTMLElement).closest('tr[data-run]');
+    const id = tr?.getAttribute('data-run');
+    if (id) void toggleRun(id);
+  });
+  el('cfgHistRefresh')?.addEventListener('click', () => void loadHistory());
+
+  // ── Drift ────────────────────────────────────────────────────────────────
+
+  let drift: DriftRow[] = [];
+  const driftSort: SortState = { col: 'templateName', dir: 'asc' };
+  const checks: Record<string, DriftCheck> = {};
+  let openDrift = '';
+
+  async function loadDrift(): Promise<void> {
+    try {
+      drift = (await api<{ baselines: DriftRow[] }>('drift')).baselines;
+    } catch {
+      drift = [];
+    }
+    drawDrift();
+  }
+
+  function drawDrift(): void {
+    if (!visible()) return;
+    renderSortHeader('cfgDriftHead', DRIFT_COLS, driftSort, drawDrift);
+    const body = el('cfgDriftBody');
+    if (body) body.innerHTML = driftRows(sortRows(drift, driftSort.col, driftSort.dir), checks, openDrift);
+    const empty = el('cfgDriftEmpty');
+    if (empty) empty.hidden = drift.length > 0;
+  }
+
+  interface CheckReply {
+    drifted: boolean; fingerprint: string; checkedAt: number;
+    diff: { hunks: Hunk[]; truncated: boolean };
+  }
+
+  async function checkDrift(row: DriftRow): Promise<void> {
+    const key = driftKey(row);
+    checks[key] = { state: 'checking' };
+    drawDrift();
+    try {
+      const r = await api<CheckReply>('drift/check', json({ templateId: row.templateId, routerId: row.routerId }));
+      checks[key] = { state: 'done', drifted: r.drifted, fingerprint: r.fingerprint, checkedAt: r.checkedAt,
+        hunks: r.diff.hunks, truncated: r.diff.truncated };
+      if (r.drifted) openDrift = key;
+    } catch (e) {
+      checks[key] = { state: 'error', message: e instanceof Error ? e.message : 'The check failed' };
+    }
+    drawDrift();
+  }
+
+  async function acceptDrift(row: DriftRow): Promise<void> {
+    const key = driftKey(row);
+    const c = checks[key];
+    if (c?.state !== 'done') return;
+    if (!window.confirm('Make what ' + row.routerLabel + ' holds now the baseline for ' + row.templateName +
+      '? Later checks compare against it.')) return;
+    try {
+      await api('drift/accept', json({ templateId: row.templateId, routerId: row.routerId, fingerprint: c.fingerprint }));
+      checks[key] = { ...c, drifted: false, hunks: [] };
+      openDrift = '';
+      await loadDrift();
+    } catch (e) {
+      checks[key] = { state: 'error', message: e instanceof Error ? e.message : 'The baseline was not changed' };
+      drawDrift();
+    }
+  }
+
+  async function reapply(row: DriftRow): Promise<void> {
+    await openDeploy(row.templateId);
+    dep.picked = dep.routers.some((r) => r.id === row.routerId) ? [row.routerId] : [];
+    invalidate();
+    drawDeploy();
+  }
+
+  el('cfgDriftBody')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-drift-act]');
+    const key = btn?.closest('[data-drift]')?.getAttribute('data-drift');
+    const row = drift.find((r) => driftKey(r) === key);
+    if (!btn || !row || !key) return;
+    const act = btn.getAttribute('data-drift-act');
+    if (act === 'check') void checkDrift(row);
+    else if (act === 'diff') {
+      openDrift = openDrift === key ? '' : key;
+      drawDrift();
+    } else if (act === 'accept') void acceptDrift(row);
+    else if (act === 'reapply') void reapply(row);
+  });
+  el('cfgDriftRefresh')?.addEventListener('click', () => void loadDrift());
 }

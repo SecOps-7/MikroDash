@@ -25,6 +25,7 @@ fs.writeFileSync(ENTRY, [
   "export * as cards from '../web/src/pages/config-management-cards.js';",
   "export * as editor from '../web/src/pages/config-management-editor.js';",
   "export * as deploy from '../web/src/pages/config-management-deploy.js';",
+  "export * as history from '../web/src/pages/config-management-history.js';",
 ].join('\n') + '\n');
 const OUT = path.join(ROOT, 'testdata', '.cfgmgmt.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -33,7 +34,56 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 fs.rmSync(ENTRY, { force: true });
 const mod = require(OUT);
 fs.rmSync(OUT, { force: true });
-const { cards, editor, deploy } = mod;
+const { cards, editor, deploy, history } = mod;
+
+// ── History and Drift ────────────────────────────────────────────────────────
+{
+  const run = history.sortable({ id: 'r1', templateId: null, templateName: '<b>T</b>', revision: 2, method: 'additions',
+    state: 'halted', startedBy: '<i>x</i>', createdAt: 1790000000000, finishedAt: null, error: null,
+    routers: { applied: 1, failed: 1, 'not-attempted': 1 } });
+  assert.strictEqual(run.total, 3, 'the routers column does not count every router');
+  const closed = history.historyRows([run], '', null);
+  assert.ok(!closed.includes('<b>T</b>') && !closed.includes('<i>x</i>'), 'a run row renders markup from its data');
+  assert.ok(closed.includes('cfg-run-bad') && closed.includes('Stopped'), 'a halted run is not a red Stopped pill');
+  assert.ok(closed.includes('1/3') && closed.includes('1 not applied'), 'the routers cell miscounts');
+  assert.ok(!closed.includes('cfg-hist-open'), 'a closed run shows its detail');
+  const detail = { startedBy: 'x', run: { bodyMasked: '/ip dns\nset servers={{dns}}' }, targets: [{
+    routerId: 'a', label: '<s>R</s>', state: 'failed-partial', step: null, backupId: 81, dryRunOutput: null,
+    importOutput: 'ok line\n<bad> line', failedLine: 2, reconnectMs: null, warning: null, error: 'stopped <here>' }] };
+  const open = history.historyRows([run], 'r1', detail);
+  assert.ok(open.includes('cfg-hist-open') && open.includes('Restore point #81'), 'an open run hides its restore point');
+  assert.ok(open.includes('<span class="cfg-out-line is-bad">&lt;bad&gt; line</span>'),
+    'the line the import stopped at is not marked, or is not escaped');
+  assert.ok(!open.includes('<s>R</s>') && !open.includes('<here>'), 'a router\'s label or error renders as markup');
+  assert.ok(open.includes('cfg-var'), 'what was sent is not highlighted');
+  assert.ok(history.historyRows([run], 'r1', null).includes('Reading the run'), 'an open run shows nothing while loading');
+  const said = (html, text) => html.split(text).length - 1;
+  const halted = { ...run, error: '<s>R</s>: stopped <here>' };
+  assert.strictEqual(said(history.runDetail(halted, detail), 'stopped &lt;here&gt;'), 1,
+    'the run repeats the error its router already shows');
+  assert.strictEqual(said(history.runDetail({ ...run, error: 'the job stopped' }, detail), 'the job stopped'), 1,
+    'a run error no router gave is not shown');
+
+  const base = { templateId: 't', templateName: '<b>N</b>', routerId: 'r', routerLabel: 'R', takenAt: 1790000000000 };
+  const key = history.driftKey(base);
+  assert.ok(history.driftRows([base], {}, '').includes('Not checked'), 'an unchecked baseline claims a status');
+  assert.ok(!history.driftRows([base], {}, '').includes('<b>N</b>'), 'a baseline row renders markup');
+  const hunks = [{ aStart: 1, aCount: 1, bStart: 1, bCount: 1, lines: [
+    { op: '-', text: 'add name=<old>', aLine: 1 }, { op: '+', text: 'add name=new', bLine: 1 }] }];
+  const drifted = { [key]: { state: 'done', drifted: true, fingerprint: 'f', checkedAt: 1790000000000, hunks, truncated: false } };
+  const shown = history.driftRows([base], drifted, key);
+  assert.ok(shown.includes('Drifted') && shown.includes('bk-del') && shown.includes('bk-add'), 'a drifted baseline hides its diff');
+  assert.ok(shown.includes('&lt;old&gt;') && !shown.includes('<old>'), 'a diff line renders as markup');
+  assert.ok(shown.includes('data-drift-act="reapply"') && shown.includes('data-drift-act="accept"'),
+    'a drifted baseline offers no way on');
+  assert.ok(!history.driftRows([base], drifted, '').includes('bk-del'), 'a closed drift still shows its diff');
+  const same = { [key]: { state: 'done', drifted: false, fingerprint: 'f', checkedAt: 1, hunks: [], truncated: false } };
+  const inStep = history.driftRows([base], same, key);
+  assert.ok(inStep.includes('As deployed') && !inStep.includes('data-drift-act="accept"'),
+    'a baseline in step offers to accept a change that is not there');
+  const failed = history.driftRows([base], { [key]: { state: 'error', message: 'no <router>' } }, '');
+  assert.ok(failed.includes('Could not check') && failed.includes('no &lt;router&gt;'), 'a failed check is not said, or not escaped');
+}
 
 const tpl = (extra) => ({ id: 'x', name: 'N', description: 'D', category: 'home', kind: 'fragment', canned: true,
   version: 1, lockClass: false, scope: [], variables: 0, tags: [], baseline: null, updatedAt: 0, ...extra });
@@ -128,7 +178,8 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   'cfgPanel-deploy', 'cfgPanel-history', 'cfgPanel-drift', 'cfgNew', 'cfgEdNew', 'cfgCapture', 'cfgEdCapture',
   'cfgCaptureBox', 'cfgEdName', 'cfgEdDesc', 'cfgEdBody', 'cfgEdVars', 'cfgEdSave', 'cfgEdDelete', 'cfgEdClose',
   'cfgDepTpl', 'cfgDepRouters', 'cfgDepValues', 'cfgDepPreview', 'cfgDepPreviews', 'cfgDepStart', 'cfgRollout',
-  'cfgDepTplMeta', 'cfgDepConfirm', 'cfgDepWhy', 'cfgDep'],
+  'cfgDepTplMeta', 'cfgDepConfirm', 'cfgDepWhy', 'cfgDep', 'cfgHistHead', 'cfgHistBody', 'cfgHistEmpty',
+  'cfgHistRefresh', 'cfgDriftHead', 'cfgDriftBody', 'cfgDriftEmpty', 'cfgDriftRefresh'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };

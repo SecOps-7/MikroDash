@@ -566,6 +566,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerReports(mux)
 	s.registerConfig(mux)
 	s.registerConfigRouter(mux)
+	s.registerConfigHistory(mux)
 	s.registerAudit(mux)
 	s.registerBackupRaw(mux)
 	s.registerBackupDownloads(mux)

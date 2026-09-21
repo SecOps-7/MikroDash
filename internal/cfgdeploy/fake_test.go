@@ -258,7 +258,8 @@ func (f *fakeRouter) Do(c routeros.Cmd) ([]routeros.Reply, error) {
 	}
 	if strings.HasSuffix(c.Path, "/export") {
 		menu := strings.TrimSuffix(c.Path, "/export")
-		f.addFile(f.arg(c, "file")+".rsc", "# 2026-09-21 12:00:00 by RouterOS 7.24.4\n"+
+		// A real export opens with the date and the router's own id.
+		f.addFile(f.arg(c, "file")+".rsc", "# 2026-09-21 12:00:00 by RouterOS 7.24.4\n# system id = FAKEID\n"+
 			strings.ReplaceAll(strings.TrimPrefix(menu, "/"), "/", " ")+"\n")
 		return nil, nil
 	}

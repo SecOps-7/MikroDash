@@ -282,7 +282,7 @@ func RunAdditions(env Env, a Additions) (out Outcome) {
 
 	if out.State == StateApplied {
 		env.Step("baseline")
-		if base, err := env.exportMenus(prep.Menus); err != nil {
+		if base, err := Snapshot(env, a.Template); err != nil {
 			env.Log("the drift baseline could not be taken: " + err.Error())
 		} else {
 			out.Baseline = base

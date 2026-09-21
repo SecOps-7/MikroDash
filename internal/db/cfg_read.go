@@ -98,6 +98,32 @@ func (d *DB) CfgRuns(limit int) ([]CfgRun, error) {
 	return out, rows.Err()
 }
 
+// CfgRunTargetStates counts each run's routers by state, for the History
+// list: run id → state → routers.
+func (d *DB) CfgRunTargetStates() (map[string]map[string]int, error) {
+	out := map[string]map[string]int{}
+	if d == nil || d.sql == nil {
+		return out, errors.New("db not open")
+	}
+	rows, err := d.sql.Query(`SELECT run_id, state, COUNT(*) FROM cfg_run_targets GROUP BY run_id, state`)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var run, state string
+		var n int
+		if err := rows.Scan(&run, &state, &n); err != nil {
+			return out, err
+		}
+		if out[run] == nil {
+			out[run] = map[string]int{}
+		}
+		out[run][state] = n
+	}
+	return out, rows.Err()
+}
+
 // CfgRun reads one run and its targets in deploy order, or nil when there is
 // none.
 func (d *DB) CfgRun(id string) (*CfgRun, []CfgRunTarget, error) {

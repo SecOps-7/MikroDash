@@ -268,12 +268,30 @@ func (e *Env) readMenus(menus []string) (map[string][]map[string]string, error) 
 	return out, nil
 }
 
+// Snapshot is the router's own export of every menu a template touches: the
+// drift baseline a deploy records, and what the Drift tab takes again to
+// compare with it. One function for both, so the two cannot differ in how
+// they read. The menus are the template's as written, `ensure` lines
+// included: resolving one to nothing must not drop its menu from one side.
+func Snapshot(env Env, t *cfgtpl.Template) (string, error) {
+	return env.exportMenus(t.Menus())
+}
+
 // exportMenus is the router's own export of each menu, joined: the drift
 // baseline, and what the page diffs against it later.
+//
+// Seen on the lab CHR's first drift check (7.24.4): a menu's export holds its
+// sub-menus too, so `/system ntp client` already carries its servers, and
+// exporting `/system ntp client servers` as well showed them twice. A menu
+// inside another one listed is therefore not exported again. And every
+// export opens with comments that are not configuration: the date line, and
+// `# system id = …`, the router's own identifier. Lines starting with `#`
+// are dropped, and each kept line ends in a newline, so one menu's last
+// line cannot run into the next menu's first.
 func (e *Env) exportMenus(menus []string) (string, error) {
 	var b strings.Builder
 	w := e.writer(30 * time.Second)
-	for _, m := range menus {
+	for _, m := range outermost(menus) {
 		base, err := cfgtpl.NewBaseName()
 		if err != nil {
 			return "", err
@@ -282,7 +300,31 @@ func (e *Env) exportMenus(menus []string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("exporting %s: %w", m, err)
 		}
-		b.WriteString(backups.Normalize(text))
+		for _, l := range backups.NormalizeLines(text) {
+			if strings.HasPrefix(l, "#") {
+				continue
+			}
+			b.WriteString(l)
+			b.WriteByte('\n')
+		}
 	}
 	return b.String(), nil
+}
+
+// outermost is menus without any that another one listed contains.
+func outermost(menus []string) []string {
+	var out []string
+	for _, m := range menus {
+		inside := false
+		for _, p := range menus {
+			if strings.HasPrefix(m, p+"/") {
+				inside = true
+				break
+			}
+		}
+		if !inside {
+			out = append(out, m)
+		}
+	}
+	return out
 }

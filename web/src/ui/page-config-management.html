@@ -106,8 +106,23 @@
                 <div class="cfg-meta cfg-dep-why" id="cfgDepWhy"></div></div></section>
             </div>
           </div>
-          <div class="cfg-panel" id="cfgPanel-history" hidden></div>
-          <div class="cfg-panel" id="cfgPanel-drift" hidden></div>
+          <div class="cfg-panel" id="cfgPanel-history" hidden>
+            <div class="cfg-hist-bar"><span class="cfg-meta">Every deploy, newest first. Open one for what each router
+              said, in RouterOS's own words, and its restore point.</span>
+              <button class="cfg-btn" type="button" id="cfgHistRefresh">Refresh</button></div>
+            <div class="cfg-scroll"><table class="table table-sm cfg-hist">
+              <thead><tr id="cfgHistHead"></tr></thead><tbody id="cfgHistBody"></tbody></table></div>
+            <div class="cfg-empty" id="cfgHistEmpty" hidden>No deploys yet. Deploy a template and it is recorded here.</div>
+          </div>
+          <div class="cfg-panel" id="cfgPanel-drift" hidden>
+            <div class="cfg-hist-bar"><span class="cfg-meta">What each router held in a template's menus when its last
+              deploy finished. Checking reads that router now; nothing is checked on its own.</span>
+              <button class="cfg-btn" type="button" id="cfgDriftRefresh">Refresh</button></div>
+            <div class="cfg-scroll"><table class="table table-sm cfg-hist">
+              <thead><tr id="cfgDriftHead"></tr></thead><tbody id="cfgDriftBody"></tbody></table></div>
+            <div class="cfg-empty" id="cfgDriftEmpty" hidden>No baselines yet. Each successful deploy records one for
+              every router it reached.</div>
+          </div>
         </div>
       </div>
     </div>
