@@ -46,6 +46,28 @@ func Render(t *Template, vals map[string]string) (string, error) {
 	})
 }
 
+// RenderCommands renders each command as ONE absolute line,
+// `/ip address add address=…`, for a script that must wrap every command on
+// its own: the export + reset bootstrap puts each inside
+// `:do { … } on-error={ … }` so that one failing line cannot abort the rest
+// (measured, cmd/importprobe m8 and m12).
+//
+// The line is write's own output for that command, header joined to it, so
+// every value still leaves through QuoteROS: a rendered value can hold no
+// unquoted `{`, `}` or `;` to break out of the wrapping.
+func RenderCommands(t *Template, vals map[string]string) ([]string, error) {
+	out := make([]string, 0, len(t.Lines))
+	for _, l := range t.Lines {
+		s, err := Render(&Template{Lines: []Line{l}}, vals)
+		if err != nil {
+			return nil, err
+		}
+		hdr, cmd, _ := strings.Cut(strings.TrimSuffix(s, "\n"), "\n")
+		out = append(out, hdr+" "+cmd)
+	}
+	return out, nil
+}
+
 // write is Format and Render's one writer. A nil sub keeps placeholders.
 //
 // THE FORM IS AN EXPORT'S: a header line whenever the menu changes, then

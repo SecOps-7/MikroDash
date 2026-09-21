@@ -39,6 +39,16 @@ type fakeRouter struct {
 	// fire is what the dead-man does when its interval passes.
 	fire func(f *fakeRouter, name string)
 
+	// fetched and loaded record the clone's two router commands.
+	fetched, loaded []string
+	refuseLoad      bool
+
+	// resetArgs is what reset-configuration was given; onReset is what the
+	// bootstrap does (default: it reaches its end); logs is /log.
+	resetArgs []string
+	onReset   func(f *fakeRouter, script string)
+	logs      []string
+
 	log []string
 }
 
@@ -164,6 +174,34 @@ func (f *fakeRouter) Do(c routeros.Cmd) ([]routeros.Reply, error) {
 			return []routeros.Reply{{}}, nil
 		}
 		return []routeros.Reply{{"data": body[off:]}}, nil
+	case "/tool/fetch":
+		f.fetched = append(f.fetched, f.arg(c, "url"))
+		f.addFile(f.arg(c, "dst-path"), "BINARY")
+		return nil, nil
+	case "/system/backup/load":
+		f.loaded = append(f.loaded, f.arg(c, "name")+" "+f.arg(c, "password"))
+		if f.refuseLoad {
+			return nil, &routeros.Trap{Message: "wrong password"}
+		}
+		f.boot = f.clock.now
+		return nil, errors.New("connection closed")
+	case "/system/reset-configuration":
+		f.resetArgs = c.Args
+		script := f.files[f.arg(c, "run-after-reset")]
+		f.rmFile(f.arg(c, "run-after-reset")) // its line 1
+		f.boot = f.clock.now
+		if f.onReset != nil {
+			f.onReset(f, script)
+		} else {
+			f.logs = append(f.logs, "mikrodash-bootstrap: done")
+		}
+		return nil, errors.New("connection closed")
+	case "/log/print":
+		out := []routeros.Reply{}
+		for _, m := range f.logs {
+			out = append(out, routeros.Reply{"message": m})
+		}
+		return out, nil
 	case "/system/backup/save":
 		f.addFile(f.arg(c, "name")+".backup", "BINARY")
 		return nil, nil

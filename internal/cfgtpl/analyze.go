@@ -3,6 +3,7 @@ package cfgtpl
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"mikrodash/internal/guard"
@@ -325,7 +326,7 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 			case ours && disabling:
 				add(l, Refuse, "own-service", "/ip/service: this disables %s, the service MikroDash is connected "+
 					"through — it could never reconnect to see the result", ctx.APIService)
-			case ours && arg(l, "port") != "":
+			case ours && movesPort(l, ctx.FW.APIPort):
 				add(l, Refuse, "own-service", "/ip/service: this moves %s to another port, and MikroDash would "+
 					"reconnect to the old one", ctx.APIService)
 			case ours && arg(l, "address") != "":
@@ -362,6 +363,20 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
+}
+
+// movesPort reports whether a /ip/service line sets a port other than the one
+// MikroDash uses. The port it already uses is not a move: a real export writes
+// `port=8729` on api-ssl, and refusing that refused every full export. A value
+// that cannot be read as that number (a placeholder, a typo) is a move: not
+// knowing is not a pass.
+func movesPort(l Line, current int) bool {
+	v, ok := l.Arg("port")
+	if !ok {
+		return false
+	}
+	lit, isLit := v.Literal()
+	return !isLit || lit != strconv.Itoa(current) || current == 0
 }
 
 func containsStr(xs []string, s string) bool {

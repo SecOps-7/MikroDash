@@ -442,3 +442,41 @@ func TestSplitPartsStandAlone(t *testing.T) {
 		t.Error("a command longer than one part was split or passed; it must be refused")
 	}
 }
+
+// One line per command, each one importable and parsing back to itself, and
+// a hostile value still inert inside it.
+func TestRenderCommandsIsOneLinePerCommand(t *testing.T) {
+	tp := mustParse(t, "/ip address\nadd address={{a}} interface=ether1\n/interface ethernet\nset [ find default-name=ether1 ] name=WAN comment=\"x\"")
+	vals := map[string]string{"a": "192.0.2.1/24"}
+	got, err := RenderCommands(tp, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"/ip address add address=192.0.2.1/24 interface=ether1",
+		"/interface ethernet set [ find default-name=ether1 ] name=WAN comment=x",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("got %q", got)
+	}
+	for _, l := range got {
+		back, err := Parse(l)
+		if err != nil || len(back.Lines) != 1 {
+			t.Errorf("%q does not parse back as one command: %v", l, err)
+		}
+	}
+	// Wrapped in `:do { … }`, a value must stay one literal to the end of the
+	// line: decoded by the manual's rules, it is exactly the input and nothing
+	// follows it. Braces are hex-escaped as well, so no brace appears at all.
+	hostile := mustParse(t, "/system identity\nset name={{n}}")
+	v := "x } on-error={} ; /system reboot"
+	lines, _ := RenderCommands(hostile, map[string]string{"n": v})
+	val := strings.SplitN(lines[0], "name=", 2)[1]
+	dec, rest, ok := manualDecode(val)
+	if !ok || dec != v || rest != "" || strings.ContainsAny(val, "{}") {
+		t.Errorf("%q: decoded %q, then %q", lines[0], dec, rest)
+	}
+	if _, err := RenderCommands(mustParse(t, "/interface list\nensure name=A"), nil); err == nil {
+		t.Error("an unresolved ensure was rendered")
+	}
+}

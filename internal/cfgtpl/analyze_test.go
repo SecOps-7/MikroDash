@@ -200,6 +200,8 @@ func TestServiceLockout(t *testing.T) {
 		{"set [ find ] disabled=yes", "refuse:own-service"},
 		{"disable [ find name=api-ssl ]", "refuse:own-service"},
 		{"set [ find name=api-ssl ] port=9999", "refuse:own-service"},
+		{"set [ find name=api-ssl ] port=8729", ""}, // the port it is on: every real export says so
+		{"set [ find name=api-ssl ] port={{p}}", "refuse:own-service"},
 		{"set [ find name=api-ssl ] address=192.0.2.0/24", "ack:own-service-address"},
 		{"set [ find name=winbox ] disabled=yes", "ack:recovery-path"},
 		{"set [ find name=ssh ] disabled=yes", "ack:recovery-path"},
