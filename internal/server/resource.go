@@ -1166,18 +1166,22 @@ func (cn *conn) resOptions(res *resource.Resource) map[string][]string {
 // Read in the same tick as the write is checked, deliberately: a collector's
 // copy of the address table can be minutes old, and this question is about
 // right now.
-func (cn *conn) managementPath() guard.ManagementPath {
+func (cn *conn) managementPath() guard.ManagementPath { return managementPathOf(cn.rsession) }
+
+// managementPathOf is managementPath for any router's session: Config
+// Management asks it of routers the viewer is not looking at.
+func managementPathOf(sn *session.Session) guard.ManagementPath {
 	var active, addrs []routeros.Reply
-	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+	if rows, err := sn.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
 		active = rows
 	}
 	// No proplist: selfPath needs `actual-interface`, which no page asks for.
 	// It differs from `interface` exactly where it matters — an address on a
 	// bridge reports the physical port as the actual one.
-	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/ip/address/print"}); err == nil {
+	if rows, err := sn.Exec(routeros.Cmd{Path: "/ip/address/print"}); err == nil {
 		addrs = rows
 	}
-	return guard.ResolveManagementInterfaces(active, addrs, []string{cn.rsession.Username()})
+	return guard.ResolveManagementInterfaces(active, addrs, []string{sn.Username()})
 }
 
 // ackGate turns a verdict into a refusal the page can act on, or nil to proceed.

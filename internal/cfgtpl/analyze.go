@@ -111,6 +111,28 @@ var extraMenus = map[string]string{
 	"/user/settings":                  "the password policy",
 }
 
+// KnownMenu reports whether an addition may touch a menu: one the resource
+// registry has, or one of the settings menus named in extraMenus.
+func KnownMenu(menu string) bool {
+	_, extra := extraMenus[menu]
+	return menuIndex[menu] != nil || extra
+}
+
+// RefusedMenu reports whether an addition may never touch a menu: one of
+// refusedMenus, or the accounts. A capture of one would be a template that can
+// never be deployed.
+func RefusedMenu(menu string) bool {
+	if menu == userMenu {
+		return true
+	}
+	for _, rm := range refusedMenus {
+		if menu == rm.prefix || strings.HasPrefix(menu, rm.prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
 // menuIndex is the registry, by menu path.
 var menuIndex = func() map[string]*resource.Resource {
 	m := map[string]*resource.Resource{}
@@ -167,12 +189,10 @@ func Analyze(t *Template, profile string) []Finding {
 			continue
 		}
 
-		if profile == Additions && res == nil {
-			if _, ok := extraMenus[menu]; !ok {
-				add(l, Refuse, "unknown-menu", "%s is not a menu MikroDash knows, so it cannot check what "+
-					"this line does", menu)
-				continue
-			}
+		if profile == Additions && !KnownMenu(menu) {
+			add(l, Refuse, "unknown-menu", "%s is not a menu MikroDash knows, so it cannot check what "+
+				"this line does", menu)
+			continue
 		}
 
 		// Row numbers differ between routers; an export uses them only for

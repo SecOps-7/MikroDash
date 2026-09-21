@@ -69,6 +69,7 @@ var commandSources = map[string]string{
 	"backups.go":          "Backups",
 	"backups_restore.go":  "Backups",
 	"backup_scheduler.go": "Backups",
+	"cfgrouter.go":        "Config Management",
 }
 
 // commandSource names the feature a source file belongs to, or "" for a file

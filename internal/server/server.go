@@ -563,6 +563,7 @@ func (s *Server) Handler() http.Handler {
 	// quietly becomes a 404 page.
 	s.registerReports(mux)
 	s.registerConfig(mux)
+	s.registerConfigRouter(mux)
 	s.registerAudit(mux)
 	s.registerBackupRaw(mux)
 	s.registerBackupDownloads(mux)

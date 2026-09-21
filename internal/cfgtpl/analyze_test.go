@@ -240,3 +240,20 @@ func TestWorst(t *testing.T) {
 		t.Errorf("Worst = %q, want refuse", Worst(fs))
 	}
 }
+
+// RefusedMenu and Analyze must agree: a menu RefusedMenu names is refused in
+// an addition, and one it does not name is not refused for being that menu.
+func TestRefusedMenuAgreesWithTheAnalyser(t *testing.T) {
+	for _, m := range []string{"/system/script", "/system/scheduler", "/user", "/user/group",
+		"/certificate", "/container/envs", "/file", "/ip/dns", "/ip/firewall/filter", "/user/settings"} {
+		menuRefused := false
+		for _, f := range Analyze(mustParse(t, menuLine(m, "set a=1")), Additions) {
+			if f.Code == "menu" || f.Code == "users" {
+				menuRefused = true
+			}
+		}
+		if RefusedMenu(m) != menuRefused {
+			t.Errorf("%s: RefusedMenu says %v, the analyser %v", m, RefusedMenu(m), menuRefused)
+		}
+	}
+}

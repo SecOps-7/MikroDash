@@ -114,3 +114,56 @@ func newServeMuxFor(t *testing.T) *http.ServeMux {
 	(&Server{}).registerConfig(mux)
 	return mux
 }
+
+// A menu the router did not export in time is a line in the export (7.11 and
+// later), and a comment, so the parser alone would drop it. A capture refuses
+// instead of storing an export that silently lacks a menu.
+func TestACaptureMissingAMenuIsRefused(t *testing.T) {
+	text := "# 2026-09-21 by RouterOS 7.24.4\n# serial number = X\n/ip dns\nset servers=192.0.2.53\n" +
+		"#error exporting \"/interface/wifi\" (timeout)\n/system identity\nset name=a\n"
+	if _, err := checkCapture(text); err == nil || !strings.Contains(err.Error(), "/interface/wifi") {
+		t.Errorf("a capture missing a menu was accepted: %v", err)
+	}
+	tp, err := checkCapture("# serial number = X\n/ip dns\nset servers=192.0.2.53\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := cfgtpl.Format(tp); strings.Contains(out, "serial") || strings.Contains(out, "#") {
+		t.Errorf("the stored body keeps the export's identifying comments: %q", out)
+	}
+	if _, err := checkCapture("/ip dns\nset a=1\n:delay 1\n"); err == nil || err.(*cfgInputError).Line != 3 {
+		t.Errorf("an export the dialect cannot hold: %v", err)
+	}
+	if _, err := checkCapture("# nothing\n"); err == nil {
+		t.Error("an empty export was accepted")
+	}
+}
+
+func TestWhatACaptureExports(t *testing.T) {
+	p, a, err := captureSource(cfgtpl.KindFragment, "/ip/firewall/filter")
+	if err != nil || p != "/ip/firewall/filter/export" || len(a) != 0 {
+		t.Errorf("fragment: %s %v %v; a fragment is never exported with its secrets", p, a, err)
+	}
+	p, a, err = captureSource(cfgtpl.KindFullExport, "")
+	if err != nil || p != "/export" || strings.Join(a, " ") != "=show-sensitive=" {
+		t.Errorf("full export: %s %v %v", p, a, err)
+	}
+	for _, c := range [][2]string{{cfgtpl.KindFragment, "/system/script"}, {cfgtpl.KindFragment, "/nope"},
+		{cfgtpl.KindFullBinary, ""}, {"", ""}} {
+		if _, _, err := captureSource(c[0], c[1]); err == nil {
+			t.Errorf("%v was accepted", c)
+		}
+	}
+}
+
+func TestTheRouterRoutes(t *testing.T) {
+	mux := http.NewServeMux()
+	(&Server{}).registerConfigRouter(mux)
+	for _, c := range []struct{ method, path string }{
+		{"POST", cfgPrefix + "capture"}, {"POST", cfgPrefix + "templates/abc/preview"},
+	} {
+		if _, p := mux.Handler(httptest.NewRequest(c.method, c.path, nil)); p == "" {
+			t.Errorf("%s %s is not routed", c.method, c.path)
+		}
+	}
+}
