@@ -76,7 +76,8 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 // names are checked.
 // diagnosticPages is each diagnostic tool gated on a page other than Tools,
 // and that page.
-var diagnosticPages = map[string]string{"security_scan": "security-scan"}
+// read_file (2026-09-21) reads a file: a read of the Files page.
+var diagnosticPages = map[string]string{"security_scan": "security-scan", "read_file": "files"}
 
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}

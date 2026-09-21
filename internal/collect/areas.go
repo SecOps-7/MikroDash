@@ -109,7 +109,7 @@ func BuildAreaRows(res *resource.Resource, title string, columns []string, rows 
 	cols := append([]string(nil), columns...)
 	if len(cols) == 0 {
 		for _, f := range res.Fields {
-			if f.Type != resource.TypeSecret {
+			if !f.Unread() {
 				cols = append(cols, f.Name)
 			}
 		}
@@ -376,7 +376,7 @@ func areaReadCmd(res *resource.Resource) routeros.Cmd {
 	props := []string{".id"}
 	seen := map[string]bool{".id": true}
 	for _, f := range res.Fields {
-		if f.Type == resource.TypeSecret || f.ROS == "" || seen[f.ROS] {
+		if f.Unread() || f.ROS == "" || seen[f.ROS] {
 			continue
 		}
 		seen[f.ROS] = true

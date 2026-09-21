@@ -159,10 +159,11 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
       '<span class="stoggle-thumb"></span></span></label>';
   }
 
-  if (f.input === 'code') {
-    // RouterOS CODE: multi-line, monospace, and set as the textarea's content
-    // (escaped), never as an attribute. Writing it is held to the raw-command
-    // gate server-side; the form only has to show it faithfully.
+  if (f.input === 'code' || f.input === 'block') {
+    // RouterOS CODE, or a BLOCK of text (a file's contents): multi-line,
+    // monospace, and set as the textarea's content (escaped), never as an
+    // attribute. Writing code is held to the raw-command gate server-side; the
+    // form only has to show either faithfully.
     const code = value === undefined || value === null ? '' : String(value);
     return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
       '<label class="sform-label" for="' + id + '">' + esc(f.label) + '</label>' +
@@ -514,6 +515,9 @@ export function guardRefusedText(rule: unknown): string {
     case 'certificate-in-use': return 'That is the certificate the API service MikroDash connects through presents. Removing it would cut MikroDash off; change it in WinBox.';
     case 'certificate-unknown': return 'MikroDash cannot read which certificate its API service presents, so removing certificates is refused.';
     case 'service-address-unknown': return 'MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.';
+    case 'file-runs': return 'A file named *.auto.* runs on the router as it lands, so it is not created here.';
+    case 'file-installs': return 'A .npk package is installed at the next reboot. Use the Packages page for that.';
+    case 'file-path': return 'A file name may not start with / or climb out with ..';
     default: return 'A safety rule refused this change.';
   }
 }

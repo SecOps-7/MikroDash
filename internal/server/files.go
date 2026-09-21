@@ -9,22 +9,28 @@ package server
 // output into a variable. This offers exactly one shape of it, an http(s) GET
 // into a file whose name MikroDash chose. The name is the URL's last segment,
 // cleaned, and it is refused outright when it would DO something on the router
-// rather than sit there: a name with `.auto.` runs as a script when a file
-// lands (the rule internal/cfgtpl keeps too), and an `.npk` is installed at the
-// next reboot, which is the Packages page's job and its permission.
+// rather than sit there: the fileName guard (internal/guard/fileguard.go), the
+// same one a file created on the Files page answers to.
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"mikrodash/internal/audit"
+	"mikrodash/internal/backups"
+	"mikrodash/internal/guard"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
+	"mikrodash/internal/session"
 )
 
 // FilesFetchPayload answers `files:fetch`: the file the router wrote, or why not.
@@ -66,14 +72,12 @@ func fetchTarget(raw string) (u *url.URL, name, problem string) {
 	if len(name) > 64 {
 		name = name[len(name)-64:]
 	}
-	low := strings.ToLower(name)
-	switch {
-	case name == "":
+	if name == "" {
 		return nil, "", "The address does not end in a file name."
-	case strings.Contains(low, ".auto."):
-		return nil, "", "A file named *.auto.* runs on the router as it lands, so it is not downloaded here."
-	case strings.HasSuffix(low, ".npk"):
-		return nil, "", "A package is installed at the next reboot; use the Packages page for that."
+	}
+	if v := guard.CheckFileName("create", name); v.Refused() {
+		why := guardRefusalText(writeOutcome{Detail: map[string]any{"rule": v.Code}})
+		return nil, "", "Not downloaded: " + why
 	}
 	return u, name, ""
 }
@@ -130,4 +134,110 @@ func (cn *conn) filesFetch(raw json.RawMessage) {
 		}
 	}
 	EvFilesFetch.Send(cn.srv.hub, cn.c, p)
+}
+
+// ── READING ONE FILE: CAPPED, TEXT ONLY, SECRETS MASKED ──────────────────────
+//
+// The Files page's viewer and the assistant's read_file both come here, and it
+// is the only path that reads a file's contents (the resource never does). A
+// file may be a config export or a key, so:
+//   - it must be at most fileViewMax bytes, and text (valid UTF-8, no NUL);
+//   - a PEM private key refuses the whole file, since no part of it is safe;
+//   - every `password=`, `secret=` and similar value is replaced, whoever reads.
+// The masking is the same for the operator and the model: one rule, and a
+// viewer that showed more would be a second path to the same secret.
+
+// fileViewMax is the largest file shown, in bytes.
+const fileViewMax = 64 << 10
+
+// FilesContentPayload answers `files:read`.
+type FilesContentPayload struct {
+	Name   string `json:"name"`
+	Text   string `json:"text"`
+	Size   int    `json:"size"`
+	Masked int    `json:"masked"`
+	Error  string `json:"error"`
+}
+
+// secretAssign matches a RouterOS `key=value` whose key names a credential,
+// quoted value or bare. The key list is the fixtures' dropped-key rule
+// (passphrase, password, private-key, pre-shared-key) plus the other names
+// RouterOS gives a credential in an export.
+var secretAssign = regexp.MustCompile(`(?i)\b((?:[a-z0-9]+-)*(?:password|passphrase|secret|private-key|pre-shared-key|preshared-key|auth-key|psk))=("(?:[^"\\]|\\.)*"|[^\s"]+)`)
+
+// maskSecrets replaces each credential value, and counts them.
+func maskSecrets(text string) (string, int) {
+	n := 0
+	out := secretAssign.ReplaceAllStringFunc(text, func(m string) string {
+		n++
+		return m[:strings.Index(m, "=")+1] + "«hidden»"
+	})
+	return out, n
+}
+
+// readTextFile reads one file for showing. The problem is for the reader, and
+// an empty one means the text is good.
+func readTextFile(rs *session.Session, name string) (p FilesContentPayload) {
+	p.Name = name
+	name = strings.TrimSpace(name)
+	if name == "" || rs == nil {
+		p.Error = "Name one file."
+		return
+	}
+	rows, err := rs.Exec(routeros.Cmd{Path: "/file/print", Timeout: 15 * time.Second,
+		Args: []string{"?name=" + name, "=.proplist=type,size"}})
+	if err != nil {
+		p.Error = "The router could not be read: " + safe.Message(err.Error())
+		return
+	}
+	if len(rows) == 0 {
+		p.Error = "There is no file of that name."
+		return
+	}
+	if rows[0]["type"] == "directory" || rows[0]["type"] == "disk" {
+		p.Error = "That is a " + rows[0]["type"] + ", not a file."
+		return
+	}
+	size, _ := strconv.Atoi(strings.ReplaceAll(rows[0]["size"], " ", ""))
+	p.Size = size
+	if size > fileViewMax {
+		p.Error = fmt.Sprintf("It is %d bytes; only files up to %d bytes are shown.", size, fileViewMax)
+		return
+	}
+	w := func(cmd string, args ...string) ([]map[string]string, error) {
+		replies, err := rs.Exec(routeros.Cmd{Path: cmd, Args: args, Timeout: 30 * time.Second})
+		out := make([]map[string]string, 0, len(replies))
+		for _, r := range replies {
+			out = append(out, map[string]string(r))
+		}
+		return out, err
+	}
+	body, err := backups.ReadRouterFile(w, name, size)
+	if err != nil {
+		p.Error = "The file could not be read: " + safe.Message(err.Error())
+		return
+	}
+	if bytes.IndexByte(body, 0) >= 0 || !utf8.Valid(body) {
+		p.Error = "It is not a text file, so it is not shown."
+		return
+	}
+	if bytes.Contains(body, []byte("PRIVATE KEY-----")) {
+		p.Error = "It holds a private key, so it is not shown."
+		return
+	}
+	p.Text, p.Masked = maskSecrets(string(body))
+	return
+}
+
+// filesRead is the `files:read` socket handler: {name}. A read of the Files page.
+func (cn *conn) filesRead(raw json.RawMessage) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	_ = json.Unmarshal(raw, &req)
+	if !cn.canPage("files", "read") {
+		EvFilesContent.Send(cn.srv.hub, cn.c, FilesContentPayload{Name: req.Name, Error: "You may not read files on this router."})
+		return
+	}
+	EvFilesContent.Send(cn.srv.hub, cn.c, readTextFile(cn.rsession, req.Name))
 }

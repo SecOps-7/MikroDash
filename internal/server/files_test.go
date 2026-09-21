@@ -1,6 +1,9 @@
 package server
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The router downloads only an http(s) file into a name MikroDash chose, and
 // never one that would run or install once it landed.
@@ -23,6 +26,30 @@ func TestAFetchIsOneFileUnderASafeName(t *testing.T) {
 	} {
 		if _, name, p := fetchTarget(bad); p == "" {
 			t.Errorf("%q was accepted as %q", bad, name)
+		}
+	}
+}
+
+// Every credential in an export is masked, quoted or bare, and nothing else is.
+func TestAFileShownHasItsSecretsMasked(t *testing.T) {
+	in := `/user add name=ops password=hunter2 group=full
+/interface wireless security-profiles add wpa2-pre-shared-key="a b\"c" name=home
+/interface wireguard add private-key="AAAA=" name=wg1
+/ppp secret add name=x password="" service=any
+/snmp community set authentication-password=pw1 encryption-password=pw2
+/system identity set name=secretive-router`
+	out, n := maskSecrets(in)
+	for _, leak := range []string{"hunter2", `a b\"c`, "AAAA=", "pw1", "pw2"} {
+		if strings.Contains(out, leak) {
+			t.Errorf("%q survived masking:\n%s", leak, out)
+		}
+	}
+	if n != 6 {
+		t.Errorf("%d values masked, want 6:\n%s", n, out)
+	}
+	for _, kept := range []string{"name=ops", "group=full", "name=home", "service=any", "name=secretive-router"} {
+		if !strings.Contains(out, kept) {
+			t.Errorf("%q was masked too:\n%s", kept, out)
 		}
 	}
 }

@@ -621,6 +621,14 @@ export interface DNSPayload {
   available: boolean;
 }
 
+export interface FilesContentPayload {
+  name: string;
+  text: string;
+  size: number;
+  masked: number;
+  error: string;
+}
+
 export interface FilesFetchPayload {
   ok: boolean;
   name: string;
@@ -1920,6 +1928,7 @@ export interface Events {
   'conn:update': ConnsUpdate;
   'diagnostics:update': Diagnostics;
   'dns:update': DNSPayload;
+  'files:content': FilesContentPayload;
   'files:fetched': FilesFetchPayload;
   'firewall:update': FirewallPayload;
   'ifstatus:names': IfNamesPayload;

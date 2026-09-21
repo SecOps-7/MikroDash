@@ -86,20 +86,34 @@ func TestTheClockNeverSendsTheTime(t *testing.T) {
 	}
 }
 
-// A FILE IS SEEN AND REMOVED, NEVER WRITTEN, AND ITS CONTENTS ARE NEVER READ.
-// NoCreate and NoEdit refuse the writes; no field may name `contents`, because
-// the areas read asks for exactly the declared fields.
+// A FILE IS CREATED ONCE, NEVER EDITED, AND ITS CONTENTS ARE NEVER READ.
+//
+// Re-aimed 2026-09-21, when files became creatable (upload). It said no field
+// may name `contents`; the rule it protected is that contents are never READ,
+// so now `contents` must be write-only, every writable field create-only, and
+// the name guarded. The areas proplist half is TestEveryAreaReadNamesItsFields.
 func TestAFileIsNeverWrittenNorItsContentsRead(t *testing.T) {
-	if !File.NoCreate || !File.NoEdit {
-		t.Error("files can be created or edited from this page")
+	if File.NoCreate || !File.NoEdit || File.UndoesRemoval() {
+		t.Error("a file must be creatable, never editable, and its removal final")
+	}
+	contents := File.FieldByName("contents")
+	if contents == nil || contents.ROS != "contents" || !contents.Unread() {
+		t.Fatal("a file's contents are declared as something a read would carry")
 	}
 	for _, f := range File.Fields {
-		if f.ROS == "contents" {
-			t.Errorf("the file resource declares %q, so its contents would be read", f.Name)
+		if !f.Display && !f.CreateOnly {
+			t.Errorf("file field %q can be changed after the file exists", f.Name)
 		}
-		if !f.Display {
-			t.Errorf("file field %q is writable", f.Name)
-		}
+	}
+	if got := File.RowValues(map[string]string{"name": "export.rsc", "contents": "what the file holds"}); got["contents"] != nil {
+		t.Errorf("a file's contents came back in its row: %v", got)
+	}
+	guarded := false
+	for _, g := range File.Guard {
+		guarded = guarded || g == "fileName"
+	}
+	if !guarded {
+		t.Error("a file is created without the fileName guard, so *.auto.rsc would run as it lands")
 	}
 	if File.RemovableWhen(map[string]string{"type": "disk"}) {
 		t.Error("a disk could be removed from the Files page")

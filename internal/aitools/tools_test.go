@@ -284,7 +284,7 @@ func TestEveryReadToolTakesNoArguments(t *testing.T) {
 // added without an entry fails too.
 func TestADiagnosticTakesOnlyItsTarget(t *testing.T) {
 	want := map[string][]string{"ping": {"address", "count"}, "traceroute": {"address", "maxHops"},
-		"security_scan": {}}
+		"security_scan": {}, "read_file": {"name"}}
 	seen := 0
 	for _, tool := range All() {
 		if tool.Diagnostic == "" {

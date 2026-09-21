@@ -288,9 +288,11 @@ func TestEveryAreaReadNamesItsFields(t *testing.T) {
 		}
 		for _, f := range res.Fields {
 			switch {
-			case f.Type == resource.TypeSecret && asked[f.ROS]:
-				t.Errorf("%s asks the router for secret %q", cmd.Path, f.ROS)
-			case f.Type != resource.TypeSecret && !asked[f.ROS]:
+			// Re-aimed 2026-09-21: "never read" is Unread (a secret, or a
+			// write-only field such as a file's contents), not the type alone.
+			case f.Unread() && asked[f.ROS]:
+				t.Errorf("%s asks the router for write-only %q", cmd.Path, f.ROS)
+			case !f.Unread() && !asked[f.ROS]:
 				t.Errorf("%s does not ask for %q, which %s declares, so its column would be blank", cmd.Path, f.ROS, res.Key)
 			}
 		}

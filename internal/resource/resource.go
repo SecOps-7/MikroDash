@@ -68,6 +68,10 @@ const (
 	// them (a CRLF is stored as LF) and is not trimmed; every other control
 	// character is still refused. Always paired with Field.Code.
 	TypeCode Type = "code"
+	// TypeBlock is multi-line TEXT that is not code: a file's contents. It is
+	// checked as TypeCode is (newlines and tabs allowed, other controls refused)
+	// and drawn as the same textarea, but carries no Code gate.
+	TypeBlock Type = "block"
 )
 
 // OptionsFrom is where a field's picker list comes from.
@@ -120,6 +124,11 @@ type Field struct {
 	// input nor sends it; the form draws it locked, as a Display field.
 	CreateOnly bool
 	Display    bool
+	// WriteOnly is sent and never read back, like a secret, without being one:
+	// a file's contents are written by a create and never asked for, since a
+	// file may hold a key or a config export and every read would carry it.
+	// See Unread.
+	WriteOnly bool
 
 	// Code marks a field whose value is RouterOS CODE: a script's source, a
 	// scheduler's on-event. Writing one is running a command by another route,
@@ -189,6 +198,8 @@ func (f Field) input() string {
 		return "multi"
 	case TypeCode:
 		return "code"
+	case TypeBlock:
+		return "block"
 	default:
 		return "text"
 	}
@@ -421,8 +432,13 @@ var ctrl = func(s string) bool {
 	return false
 }
 
+// Unread is whether a field is never read from the router: a secret, or a
+// WriteOnly field. Every read path (the areas proplist, RowValues, the list
+// tools) asks this rather than the type.
+func (f Field) Unread() bool { return f.Type == TypeSecret || f.WriteOnly }
+
 func (f Field) check(raw string) (string, string) {
-	if f.Type == TypeCode {
+	if f.Type == TypeCode || f.Type == TypeBlock {
 		code := strings.ReplaceAll(raw, "\r\n", "\n")
 		for _, r := range code {
 			if (r < 0x20 && r != '\n' && r != '\t') || r == 0x7f {
@@ -1506,27 +1522,35 @@ var SNMPCommunity = &Resource{
 	},
 }
 
-// File is /file (slice 7): read and delete, no upload, never edited. From the
-// command tree for /file.
+// File is /file (slice 7): listed, removed, and since 2026-09-21 created as a
+// text file (MikroMCP's upload_file, the operator's choice). Never edited. From
+// the command tree for /file and /file/add (`name`, `contents`, `type`).
 //
-// ── NOTHING HERE WRITES A FILE ──────────────────────────────────────────────
+// ── A FILE IS WRITTEN ONCE, AND ITS CONTENTS ARE NEVER READ HERE ────────────
 //
-// `/file set contents=` and `/file add` write file contents, so the resource is
-// NoCreate and NoEdit, and every field is Display: the table is for seeing what
-// is there and removing what should not be. Nor are contents ever READ — the
-// areas proplist names only the declared fields, and `contents` is not one — so
-// a file holding a key or a config export never reaches the browser. A disk
-// listed here is storage, not a file, and cannot be removed from this page.
-// MikroDash's own backups make and remove temporary files of their own; deleting
-// one mid-backup fails that backup, which says so.
+// `contents` is CreateOnly and WriteOnly: a create sends it (`/file add`), and
+// no read asks for it, so the areas proplist, the form and the list tool never
+// carry a file that holds a key or a config export. Reading one is its own
+// deliberate path, capped and masked (internal/server/files.go). The fileName
+// guard refuses a name the router would act on: *.auto.* runs, .npk installs.
+// Removal is final: an undo would re-create the name, not the contents.
+//
+// A disk listed here is storage, not a file, and cannot be removed from this
+// page. MikroDash's own backups make and remove temporary files of their own;
+// deleting one mid-backup fails that backup, which says so.
 var File = &Resource{
 	Key: "file", Page: "files", Label: "File",
 	Title: "File", Menu: "/file", Identity: []string{"name"},
-	NoCreate:      true,
-	NoEdit:        true,
-	RemovableWhen: func(r map[string]string) bool { return r["type"] != "disk" },
+	NoEdit:         true,
+	RemovalIsFinal: true,
+	Guard:          []string{"fileName"},
+	RemovableWhen:  func(r map[string]string) bool { return r["type"] != "disk" },
 	Fields: []Field{
-		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Display: true},
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, CreateOnly: true,
+			Placeholder: "notes.txt", Help: "A folder may be given first, as in flash/notes.txt."},
+		{Name: "contents", ROS: "contents", Label: "Contents", Type: TypeBlock, CreateOnly: true,
+			WriteOnly: true, Max: intp(60000),
+			Help: "Text, up to 60000 bytes. It is written once; MikroDash does not read it back."},
 		{Name: "type", ROS: "type", Label: "Type", Type: TypeText, Display: true},
 		{Name: "size", ROS: "size", Label: "Size", Type: TypeText, Display: true},
 		{Name: "lastModified", ROS: "last-modified", Label: "Last Modified", Type: TypeText, Display: true},
@@ -3115,7 +3139,7 @@ func (r *Resource) RowValues(row map[string]string) map[string]any {
 		return out
 	}
 	for _, f := range r.Fields {
-		if f.Type == TypeSecret {
+		if f.Unread() {
 			continue
 		}
 		raw, ok := row[f.ROS]

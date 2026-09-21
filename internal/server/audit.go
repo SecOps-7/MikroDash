@@ -140,7 +140,9 @@ func auditValues(res *resource.Resource, values map[string]any) map[string]any {
 		if !ok {
 			continue
 		}
-		if f.Type == resource.TypeSecret {
+		// A WRITE-ONLY value (a file's contents) is recorded as a secret is:
+		// set or unset, never the text.
+		if f.Unread() {
 			s, _ := v.(string)
 			if s != "" {
 				out[f.Name] = audit.Set

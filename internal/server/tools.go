@@ -394,6 +394,19 @@ func diagFailure(err error) (string, string) {
 // A runner gets the connection and its router snapshot, not only the session:
 // the security scan runs through the server's one scan path (secscan.go).
 var diagRunners = map[string]func(cn *conn, sc connScope, args []byte) (any, string){
+	"readfile": func(_ *conn, sc connScope, args []byte) (any, string) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(args, &req) != nil || strings.TrimSpace(req.Name) == "" {
+			return nil, "The arguments could not be read. Pass an object with `name`."
+		}
+		p := readTextFile(sc.rs, req.Name)
+		if p.Error != "" {
+			return nil, "The file was not read: " + p.Error
+		}
+		return map[string]any{"name": p.Name, "size": p.Size, "maskedValues": p.Masked, "text": p.Text}, ""
+	},
 	"ping": func(_ *conn, sc connScope, args []byte) (any, string) {
 		rs := sc.rs
 		var req toolsPingReq

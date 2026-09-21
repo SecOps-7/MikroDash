@@ -511,6 +511,30 @@ func diagTools() []Tool {
 		Diagnostic: "secscan",
 		Page:       "security-scan",
 		Access:     AccessRead,
+	}, {
+		// ONE FILE'S TEXT, the Files page's viewer (MikroMCP's get_file_content,
+		// the operator's choice on 2026-09-21). Read only, capped, and masked.
+		Name: "read_file",
+		Description: "Read only: changes nothing. Read the text of one file on the router the " +
+			"operator has selected, by its name as list_file shows it, with /file/read. Only text files up to " +
+			"65536 bytes are returned. Every password, secret and key value is replaced with " +
+			"«hidden» and the count of those is returned; a file holding a private key is not " +
+			"returned at all. Use it to look at an export, a script file, a log written to disk " +
+			"or a downloaded list.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"name": map[string]any{
+					"type":        "string",
+					"description": "The file's name, including any folder, as list_file shows it.",
+				},
+			},
+			"required":             []string{"name"},
+			"additionalProperties": false,
+		},
+		Diagnostic: "readfile",
+		Page:       "files",
+		Access:     AccessRead,
 	}}
 }
 
@@ -694,7 +718,7 @@ func describe(r *resource.Resource) string {
 	for _, f := range r.Fields {
 		// A secret is never returned — `RowValues` drops it — so advertising it
 		// would describe a field the answer cannot contain.
-		if f.Type == resource.TypeSecret {
+		if f.Unread() {
 			continue
 		}
 		names = append(names, f.Name)

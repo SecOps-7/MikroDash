@@ -565,6 +565,13 @@
       "page": "tools"
     },
     {
+      "name": "read_file",
+      "access": "read",
+      "resource": "",
+      "diagnostic": "readfile",
+      "page": "files"
+    },
+    {
       "name": "security_scan",
       "access": "read",
       "resource": "",

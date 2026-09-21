@@ -43,6 +43,7 @@ var (
 	EvCfgDeployState    = hub.Declare[CfgDeployPayload]("cfgdeploy:state")
 	EvWgShowConfig      = hub.Declare[WgShowConfigPayload]("wireguard:showconfig")
 	EvFilesFetch        = hub.Declare[FilesFetchPayload]("files:fetched")
+	EvFilesContent      = hub.Declare[FilesContentPayload]("files:content")
 )
 
 // Map payloads, whose browser types are hand-written in web/src/events-hand.ts.

@@ -532,6 +532,8 @@ func (cn *conn) dispatch(in inbound) {
 		cn.packagesApply(in.Data)
 	case "files:fetch":
 		cn.filesFetch(in.Data)
+	case "files:read":
+		cn.filesRead(in.Data)
 	case "packages:reboot":
 		cn.packagesReboot(in.Data)
 	case "packages:fwupgrade":

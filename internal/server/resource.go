@@ -1229,7 +1229,7 @@ var portedGuards = map[string]bool{
 	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 	"listLockout": true, "serviceLockout": true, "certLockout": true, "codeGate": true,
 	"rulePath": true, "ipsecPath": true, "tunnelDefault": true, "dhcpClientPath": true,
-	"tableInUse": true,
+	"tableInUse": true, "fileName": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1344,6 +1344,9 @@ func (cn *conn) guardVerdict(kind string, res *resource.Resource, action string,
 		return v, v.Refused()
 	case "codeGate":
 		v = codeDecision(res, action, values, before, cn.codeAllowed())
+		return v, v.Refused()
+	case "fileName":
+		v = guard.CheckFileName(action, values["name"])
 		return v, v.Refused()
 	case "selfAccount":
 		v = cn.selfAccountVerdict(res, action, values, before)

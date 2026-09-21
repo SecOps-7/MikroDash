@@ -79,7 +79,7 @@ func confirmAction(after []routeros.Reply, id, verb string) (routeros.Reply, boo
 func observedValues(res *resource.Resource, row routeros.Reply, requested map[string]string) map[string]any {
 	obs := res.RowValues(row)
 	for _, f := range res.Fields {
-		if f.Type != resource.TypeSecret {
+		if !f.Unread() {
 			continue
 		}
 		if v, ok := requested[f.Name]; ok {

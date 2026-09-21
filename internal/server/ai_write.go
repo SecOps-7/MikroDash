@@ -636,6 +636,12 @@ func guardRefusalText(out writeOutcome) string {
 		return "users cannot be placed in, or edited while in, the group MikroDash signs in with."
 	case "self-unresolved":
 		return "MikroDash cannot identify its own account on this router, so user changes are refused."
+	case "file-runs":
+		return "a file named *.auto.* runs on the router as it lands."
+	case "file-installs":
+		return "a .npk package is installed at the next reboot; that is the Packages page's job."
+	case "file-path":
+		return "a file name may not start with / or climb out with .."
 	}
 	return "a safety rule refused it."
 }

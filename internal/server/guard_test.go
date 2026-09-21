@@ -38,7 +38,9 @@ func TestPortedGuardsAreDeclaredExplicitly(t *testing.T) {
 		// 2026-09-18: the DHCP client holding the address MikroDash dials.
 		"dhcpClientPath": true,
 		// 2026-09-18: a routing table enabled rules look routes up in.
-		"tableInUse": true}
+		"tableInUse": true,
+		// 2026-09-21: a file the router would run (*.auto.*) or install (.npk).
+		"fileName": true}
 	if len(portedGuards) != len(want) {
 		t.Errorf("portedGuards = %v; update this test when a guard is ported", portedGuards)
 	}
