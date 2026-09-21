@@ -101,6 +101,7 @@ type cfgTargetRun struct {
 
 type cfgRun struct {
 	id, tplID, tplName, kind string
+	revision                 int
 	t                        *cfgtpl.Template
 	defs                     []cfgtpl.VarDef
 	source                   cfgtpl.Device
@@ -246,7 +247,7 @@ func (s *Server) cfgPlan(sess *Session, in cfgStartIn) (*cfgRun, string) {
 	if strings.TrimSpace(in.Confirm) != strings.TrimSpace(ok[0].Label) {
 		return nil, "Type the first router's name, " + ok[0].Label + ", to start"
 	}
-	run := &cfgRun{tplID: row.ID, tplName: row.Name, kind: row.Kind, t: t, defs: defs, actor: *sess,
+	run := &cfgRun{tplID: row.ID, tplName: row.Name, kind: row.Kind, revision: row.Revision, t: t, defs: defs, actor: *sess,
 		state: db.CfgRunCanary, decide: make(chan bool, 1)}
 	if row.SourceModel != nil && row.SourceOSVersion != nil {
 		run.source = cfgtpl.Device{Board: *row.SourceModel, OSVersion: *row.SourceOSVersion}
@@ -306,7 +307,7 @@ func (s *Server) cfgRecordStart(r *cfgRun) error {
 	canary := r.targets[0].row.RouterID
 	text := cfgtpl.Format(r.t)
 	return s.auditDB.CreateCfgRun(db.CfgRun{ID: r.id, TemplateID: cfgStoredID(r.tplID), TemplateName: r.tplName,
-		Method: cfgMethod(r.kind), BodyMasked: text, Fingerprint: cfgdeploy.Hash(text),
+		Revision: r.revision, Method: cfgMethod(r.kind), BodyMasked: text, Fingerprint: cfgdeploy.Hash(text),
 		ValuesJSON: string(vj), State: r.state, CanaryRouterID: &canary,
 		CreatedBy: s.userIDFor(r.actor.Username)}, targets)
 }

@@ -195,6 +195,18 @@ func TestFirewallLockout(t *testing.T) {
 	if got := codes(AnalyzeLive(mustParse(t, "/ip firewall filter\nadd chain=input action=drop src-address=198.51.100.0/24"), unknown)); got != "ack:lockout-unknown" {
 		t.Errorf("with our address unresolved, a drop was %q; it must say it cannot tell", got)
 	}
+	// Arriving over a ROUTE: the address is known, no interface is. The
+	// address still decides; only an interface clause cannot be judged.
+	routed := LiveContext{FW: guard.FWContext{Addresses: []string{"198.51.100.7"}, APIPort: 8729}, APIService: "api-ssl"}
+	for _, c := range []struct{ line, want string }{
+		{"add chain=input action=drop src-address=198.51.100.7", "ack:lockout-firewall"},
+		{"add chain=input action=drop src-address=203.0.113.0/24", ""},
+		{"add chain=input action=drop in-interface=ether1", "ack:lockout-unknown"},
+	} {
+		if got := codes(AnalyzeLive(mustParse(t, "/ip firewall filter\n"+c.line), routed)); got != c.want {
+			t.Errorf("routed, %s: %q, want %q", c.line, got, c.want)
+		}
+	}
 }
 
 func TestServiceLockout(t *testing.T) {

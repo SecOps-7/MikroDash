@@ -112,6 +112,16 @@ const (
 	DeadManAfter = 5 * time.Minute
 	// reconnectWindow is how long the fresh login is retried after an import.
 	reconnectWindow = 60 * time.Second
+	// firewallSettle is how long after an import the fresh login waits before
+	// its first try. MEASURED on the lab CHR (7.24.4): an import that REMOVES
+	// a filter rule and adds its replacement returns before the new rule is in
+	// force. New logins from the address it drops still got in at 0, 300, 500
+	// and 700 ms, and were dropped from 1 s on. Every canned lock-class
+	// template opens with exactly that remove, so a login inside the hole
+	// "proved" a lockout was not one, and the dead-man was disarmed. Five
+	// times the measured window, because a router with a larger rule set
+	// has more to reload.
+	firewallSettle = 5 * time.Second
 	// importTimeout is generous on purpose: cancelling an import leaves it
 	// half-applied at a point nobody can predict (measured), so a real import
 	// is never cancelled on a short timer.
@@ -255,6 +265,7 @@ func RunAdditions(env Env, a Additions) (out Outcome) {
 
 	env.Step("reconnect")
 	t0 := env.Now()
+	env.Sleep(firewallSettle)
 	if !freshLogin(&env, a.Expect, reconnectWindow) {
 		return lockedOut(&env, dm, out)
 	}

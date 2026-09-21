@@ -381,9 +381,16 @@ func AnalyzeLive(t *Template, ctx LiveContext) []Finding {
 				}
 				switch {
 				case rule.Disabled, onlyInvalid:
-				case !ctx.FW.Resolved:
+				case len(ctx.FW.Addresses) == 0:
 					add(l, Ack, "lockout-unknown", "%s: a %s rule on %s, and MikroDash's own address on this "+
 						"router is not known, so it cannot tell whether this cuts it off", menu, rule.Action, chain)
+				// The address is known but no interface is: MikroDash arrives
+				// over a route, not off a connected subnet. Only a rule that
+				// names an interface needs one to be judged.
+				case !ctx.FW.Resolved && rule.InInterface != "":
+					add(l, Ack, "lockout-unknown", "%s: a %s rule on %s for in-interface=%s, and MikroDash "+
+						"arrives over a route, so which interface it comes in on is not known", menu, rule.Action,
+						chain, rule.InInterface)
 				case guard.MatchesUs(rule, ctx.FW):
 					add(l, Ack, "lockout-firewall", "%s: this %s rule on %s can match MikroDash's own connection",
 						menu, rule.Action, chain)

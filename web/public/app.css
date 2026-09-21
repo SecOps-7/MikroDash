@@ -2533,6 +2533,7 @@
     .cfg-step-body{min-width:0;display:flex;flex-direction:column;gap:.5rem}
     .cfg-step-title{margin:0;font-size:.9rem;font-weight:650;color:var(--text-main)}
     .cfg-step-body > .cfg-meta,.cfg-step-body p.cfg-meta{margin:0}
+    .cfg-step-body > .cfg-btn{align-self:flex-start}
     .cfg-dep-tpl{max-width:28rem}
     .cfg-pick-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
     .cfg-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.4rem}

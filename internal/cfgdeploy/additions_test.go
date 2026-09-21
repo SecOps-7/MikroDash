@@ -262,6 +262,31 @@ func TestALockoutIsRevertedAndNothingTouchesTheDeadMan(t *testing.T) {
 	}
 }
 
+// An import that removes a rule and re-adds it returns before the new rule is
+// in force (measured, firewallSettle): a fresh login inside that hole gets in,
+// and "proves" a lockout was not one.
+func TestAFreshLoginWaitsForTheFirewallToSettle(t *testing.T) {
+	f := newFake(t)
+	a := preview(t, f, lockTpl, nil, true)
+	var importedAt time.Time
+	f.importReal = func(string) string { importedAt = f.clock.now; return "" }
+	reverted := false
+	f.fire = func(f *fakeRouter, name string) { delete(f.sched, name); f.boot = f.clock.now; reverted = true }
+	env, _ := f.env()
+	fresh := env.Fresh
+	env.Fresh = func() (Identity, error) {
+		id, err := fresh() // it also runs the router's clock: the dead-man fires
+		if reverted || f.clock.now.Sub(importedAt) < time.Second {
+			return id, err // the hole: the new drop is not in force yet
+		}
+		return Identity{}, errors.New("i/o timeout")
+	}
+	out := RunAdditions(env, a)
+	if out.Code != "reverted" || !out.Reverted {
+		t.Fatalf("a login inside the settle window was taken as proof: %+v", out)
+	}
+}
+
 // A router that answers again without having rebooted did NOT revert.
 func TestAnsweringAgainIsNotARevert(t *testing.T) {
 	f := newFake(t)

@@ -25,7 +25,8 @@
 //   - whether cancelling the API tag stops an import already running;
 //   - whether a one-shot `/system/scheduler` entry can serve as a dead-man
 //     revert, and when it first fires;
-//   - whether `/user/active` carries the address MikroDash arrives from.
+//   - whether `/user/active` carries the address MikroDash arrives from;
+//   - how long after an import a firewall rule it re-adds is in force.
 //
 // Each answer decides a branch of the design, so each is MEASURED here and the
 // raw sentences are kept, rather than assumed and discovered wrong in
@@ -33,8 +34,8 @@
 //
 // ── IT REFUSES ANY ROUTER THAT IS NOT A CHR ─────────────────────────────────
 //
-// This tool writes: it creates files, DNS static entries, an interface list and
-// a scheduler entry, and imports files. It is meant for the disposable lab CHR
+// This tool writes: it creates files, DNS static entries, an interface list, a
+// scheduler entry and a filter rule, and imports files. It is meant for the disposable lab CHR
 // and nothing else. A label is only a name in a store, so the check that counts
 // is what the router says it IS: `/system/resource` must report a CHR board
 // before the first write. Everything it creates is named `mdprobe-…` and removed
@@ -50,6 +51,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -209,6 +211,7 @@ func (p *probe) cleanup() {
 		{"/interface/list/member", "list"},
 		{"/interface/list", "name"},
 		{"/file", "name"},
+		{"/ip/firewall/filter", "comment"},
 	} {
 		rows, err := p.c.Do(routeros.Cmd{Path: m.path + "/print",
 			Args: []string{"=.proplist=.id," + m.key}, Timeout: 15 * time.Second})
@@ -291,6 +294,9 @@ func main() {
 	}
 	if runs("m13") {
 		m13CannedDryRun(p)
+	}
+	if runs("m14") {
+		m14FirewallSettle(p, cfg)
 	}
 	if runs("m3") {
 		m3FileCeiling(p)
@@ -391,6 +397,64 @@ func m10RemoveByName(p *probe) {
 	s := p.run("m10 remove by numbers=name", "/file/remove", 10*time.Second, "=numbers="+name)
 	p.note("m10 trap", fmt.Sprintf("%q err=%q", s.Trap, s.Err))
 	p.note("m10 file after", p.fileSize(name))
+}
+
+// M14: how long after an import does a filter rule it removed and re-added
+// take effect? A deploy proves it did not lock MikroDash out with a fresh
+// login straight after the import, so a window in which the old rule set is
+// still in force would make that proof worthless.
+//
+// The rule drops only NEW connections to the API ports from this probe's own
+// address, so the probe's session survives on a router with no "accept
+// established" rule. The address reaches the router only inside the file,
+// which is recorded by its length.
+func m14FirewallSettle(p *probe, cfg routeros.Config) {
+	fmt.Fprintln(os.Stderr, "M14 firewall settle after an import")
+	u, err := net.Dial("udp", net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port)))
+	if err != nil {
+		p.note("m14", "ABORTED: no local address: "+err.Error())
+		return
+	}
+	me := u.LocalAddr().(*net.UDPAddr).IP.String()
+	_ = u.Close()
+	const (
+		name    = prefix + "settle.rsc"
+		comment = prefix + "settle"
+	)
+	rule := "add chain=input action=drop protocol=tcp dst-port=8728,8729 connection-state=new src-address=" +
+		me + " comment=" + comment + "\n"
+	fresh := cfg
+	fresh.DialTimeout = 3 * time.Second
+	fresh.Label = "m14 fresh login"
+	login := func() bool {
+		c, err := routeros.Dial(fresh)
+		if err == nil {
+			c.Close()
+		}
+		return err == nil
+	}
+	// A plain add first: the rule the samples replace.
+	if !p.writeFile("m14 seed", name, "/ip firewall filter\n"+rule) {
+		return
+	}
+	p.run("m14 seed import", "/import", 30*time.Second, "=file-name="+name, "=verbose=no")
+	time.Sleep(3 * time.Second)
+	p.note("m14 control: a login 3 s after a plain add", fmt.Sprintf("got in=%v", login()))
+	body := "/ip firewall filter\nremove [ find comment=" + comment + " ]\n" + rule
+	for _, d := range []time.Duration{0, 0, 300 * time.Millisecond, 700 * time.Millisecond, time.Second,
+		2 * time.Second, 5 * time.Second} {
+		if !p.writeFile("m14", name, body) {
+			return
+		}
+		s := p.run("m14 remove and re-add", "/import", 30*time.Second, "=file-name="+name, "=verbose=no")
+		if s.Trap != "" || s.Err != "" {
+			p.note("m14", "ABORTED: the import failed")
+			return
+		}
+		time.Sleep(d)
+		p.note(fmt.Sprintf("m14 login %v after remove+add", d), fmt.Sprintf("got in=%v", login()))
+		time.Sleep(2 * time.Second)
+	}
 }
 
 // M9: does /user/active carry the address MikroDash arrives from?

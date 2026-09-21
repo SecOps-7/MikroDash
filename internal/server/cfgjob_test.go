@@ -82,6 +82,9 @@ func TestADeployStartsOnlyAsItWasConfirmed(t *testing.T) {
 		run.targets[1].line.Canary || run.state != db.CfgRunCanary {
 		t.Errorf("the canary is not the first router picked: %+v", run.targets[0].line)
 	}
+	if run.revision < 1 {
+		t.Errorf("the run does not know which revision of the template it deploys: %d", run.revision)
+	}
 	for _, tr := range run.targets {
 		if tr.row.RunID != run.id || tr.row.RunID == "" {
 			t.Errorf("a target does not carry its run's id")
@@ -113,7 +116,7 @@ func TestARecordedRunKeepsNoSecret(t *testing.T) {
 	defer d.Close()
 	s := &Server{auditDB: d}
 	sess := Session{Username: "someone", AuthMode: "modern"}
-	run := &cfgRun{id: "run-1", tplID: "canned:snmp-v3", tplName: "SNMPv3", kind: "fragment", actor: sess,
+	run := &cfgRun{id: "run-1", tplID: "canned:snmp-v3", tplName: "SNMPv3", kind: "fragment", revision: 3, actor: sess,
 		state: db.CfgRunCanary, t: mustTemplate(t, "/snmp\nset contact={{contact}}\n/snmp community\nadd name=x authentication-password={{pw}}"),
 		defs: cfgtplVars{{Name: "contact", Type: "text"}, {Name: "pw", Type: "secret"}}.defs(),
 		targets: []*cfgTargetRun{{in: cfgTargetIn{RouterID: "r1", Values: map[string]string{"contact": "noc", "pw": "hunter2-secret"}},
@@ -133,6 +136,9 @@ func TestARecordedRunKeepsNoSecret(t *testing.T) {
 	}
 	if got.TemplateID != nil {
 		t.Error("a canned template was linked as a stored one")
+	}
+	if got.Revision != 3 {
+		t.Errorf("the run recorded revision %d of the template, not 3", got.Revision)
 	}
 }
 

@@ -1,0 +1,405 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "findings": [
+    {
+      "name": "m14 control: a login 3 s after a plain add",
+      "answer": "got in=false"
+    },
+    {
+      "name": "m14 login 0s after remove+add",
+      "answer": "got in=true"
+    },
+    {
+      "name": "m14 login 0s after remove+add",
+      "answer": "got in=true"
+    },
+    {
+      "name": "m14 login 300ms after remove+add",
+      "answer": "got in=true"
+    },
+    {
+      "name": "m14 login 700ms after remove+add",
+      "answer": "got in=true"
+    },
+    {
+      "name": "m14 login 1s after remove+add",
+      "answer": "got in=false"
+    },
+    {
+      "name": "m14 login 2s after remove+add",
+      "answer": "got in=false"
+    },
+    {
+      "name": "m14 login 5s after remove+add",
+      "answer": "got in=false"
+    }
+  ],
+  "steps": [
+    {
+      "label": "m14 seed: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 5
+    },
+    {
+      "label": "m14 seed: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c147 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14 seed import",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 3
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 8
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 9
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 8
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 3
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 4
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 5
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 14
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 3
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 4
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 4
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 3
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 10
+    },
+    {
+      "label": "m14: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m14: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-settle.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**2akN9OJzaW94o2ygJwqHnG20TIKnYTT"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m14: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**2akN9OJzaW94o2ygJwqHnG20TIKnYTT",
+        "=contents=\u003c186 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m14 remove and re-add",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-settle.rsc",
+        "=verbose=no"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1
+    }
+  ]
+}
