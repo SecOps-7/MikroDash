@@ -53,6 +53,9 @@ var routerPurgeExcluded = map[string]string{
 		"about. Removing a router from the fleet is maintenance, and it must not delete " +
 		"somebody's transcript as a side effect. Age (prune.go, the only port-added rule) and " +
 		"the operator clearing their own thread are the two things that remove one",
+	"cfg_run_targets": "it is the record of what Config Management did to a router, and " +
+		"it outlives the router exactly as audit_events does: a router removed after a bad " +
+		"deploy must not take the evidence of that deploy with it",
 }
 
 // DeleteRouterData clears every time-series table for one router, in ONE

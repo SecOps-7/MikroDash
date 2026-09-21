@@ -175,6 +175,15 @@ func main() {
 			log.Printf("[mikrodash] applied %d schema migration(s)", n)
 		}
 
+		// A Config Management run the previous process left open is closed, and
+		// never resumed: its secret values died with that process, and its
+		// confirmation was for then. See db.InterruptCfgRuns.
+		if n, ierr := adb.InterruptCfgRuns(); ierr != nil {
+			log.Printf("[mikrodash] WARNING: could not close interrupted config runs: %v", ierr)
+		} else if n > 0 {
+			log.Printf("[mikrodash] marked %d config deploy run(s) interrupted by the restart", n)
+		}
+
 		// Page keys are also permission keys, so renaming one strands every
 		// grant naming the old one -- silently, and invisibly to the
 		// administrator most likely to be looking, because administrators are

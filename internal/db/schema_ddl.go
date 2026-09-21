@@ -32,8 +32,8 @@ package db
 // is deliberately absent: SQLite maintains it for AUTOINCREMENT tables and
 // refuses an explicit one.
 //
-// `router_docs` and `ai_messages` are the tables this PORT added rather than
-// inherited — see `portMigrations` in schema.go, which is what gets them into a
+// `router_docs`, `ai_messages` and Config Management's four (`cfgTablesDDL`,
+// appended below) are the tables this PORT added rather than inherited — see `portMigrations` in schema.go, which is what gets them into a
 // database the Node app created.
 const freshSchemaDDL = `
 CREATE TABLE alert_events (
@@ -275,4 +275,4 @@ CREATE INDEX idx_report_schedules_router ON report_schedules (router_id);
 
 CREATE INDEX idx_traffic_router_iface_ts
           ON traffic_samples(router_id, interface, ts);
-`
+` + cfgTablesDDL

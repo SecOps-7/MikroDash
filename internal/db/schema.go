@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 19
+const schemaVersion = 20
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -127,6 +127,9 @@ var portMigrations = map[int][]string{
         )`,
 		`CREATE INDEX IF NOT EXISTS idx_ai_messages_thread
          ON ai_messages(user_id, router_id, ts)`},
+	// 20: Config Management — templates, deploy runs, their targets, and drift
+	// baselines. One constant for this and the fresh schema: cfg_schema.go.
+	20: {cfgTablesDDL},
 }
 
 // createSchema builds a new database at `path`.

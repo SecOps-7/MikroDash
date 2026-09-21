@@ -190,6 +190,24 @@ func (d *DB) StoredBackups(routerID string) ([]BackupRow, error) {
 	return scanBackups(rows)
 }
 
+// PrunableBackups is StoredBackups less every pinned backup: the binary a
+// full-binary Config Management template is made of is not a restore point,
+// and retention neither counts nor removes it.
+func (d *DB) PrunableBackups(routerID string) ([]BackupRow, error) {
+	if d == nil || d.sql == nil {
+		return []BackupRow{}, errors.New("db not open")
+	}
+	rows, err := d.sql.Query(`SELECT `+backupCols+` FROM config_backups
+                WHERE router_id = ? AND stem IS NOT NULL AND pruned_at IS NULL
+                  AND id NOT IN (SELECT backup_id FROM cfg_templates WHERE backup_id IS NOT NULL)
+                ORDER BY taken_at DESC`, routerID)
+	if err != nil {
+		return []BackupRow{}, err
+	}
+	defer rows.Close()
+	return scanBackups(rows)
+}
+
 // BackupSummary is the page's four cards.
 type BackupSummary struct {
 	Runs        int     `json:"runs"`

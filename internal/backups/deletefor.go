@@ -41,6 +41,10 @@ type DeletableRow struct {
 	Stem   string
 	Dir    string
 	Pruned bool
+	// Pinned is a backup a Config Management template is made of. It is
+	// refused BEFORE its files are touched: the row's foreign key would refuse
+	// the row delete anyway, but only after the files were already gone.
+	Pinned bool
 }
 
 // MaxDeletePerRequest bounds one message. ONE MESSAGE MUST NOT BE ABLE TO ASK
@@ -102,6 +106,11 @@ func DeleteFor(s DeleteStore, routerID string, ids []int64, fallbackDir string,
 	for _, id := range ids {
 		row := s.RowFor(id, routerID)
 		if row == nil {
+			continue
+		}
+		if row.Pinned {
+			failed++
+			log(fmt.Sprintf("%s is kept: a Config Management template is made of it", row.Stem))
 			continue
 		}
 		dir := row.Dir

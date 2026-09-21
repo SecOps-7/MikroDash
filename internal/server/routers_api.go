@@ -487,6 +487,11 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 		if _, err := s.auditDB.DeleteRouterDocs(id); err != nil {
 			log.Printf("[routers] docs for %s: %v", id, err)
 		}
+		// Config Management's drift baselines, for the same reason. Its run
+		// ledger stays: see routerPurgeExcluded.
+		if _, err := s.auditDB.DeleteCfgBaselinesForRouter(id); err != nil {
+			log.Printf("[routers] config baselines for %s: %v", id, err)
+		}
 	}
 	EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
 

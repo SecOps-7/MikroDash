@@ -206,3 +206,23 @@ func TestAFractionalIDIsDroppedNotRounded(t *testing.T) {
 		t.Errorf("got %v, want 3 and 4", got)
 	}
 }
+
+// A backup a Config Management template is made of keeps its files: the row's
+// foreign key would refuse the row delete, but only after the files were gone.
+func TestAPinnedBackupKeepsItsFiles(t *testing.T) {
+	dir := t.TempDir()
+	f := seedDelete(t, dir)
+	f.rows[1].Pinned = true
+
+	var logged []string
+	removed, failed := DeleteFor(f, "r1", []int64{1}, dir, func(s string) { logged = append(logged, s) })
+	if len(removed) != 0 || failed != 1 {
+		t.Fatalf("removed %v, failed %d; a pinned backup must be refused", removed, failed)
+	}
+	if _, err := os.Stat(BackupPath(dir, "2026-03-15T093000")); err != nil {
+		t.Errorf("the pinned backup's file is gone: %v", err)
+	}
+	if len(logged) != 1 {
+		t.Errorf("logged %v, want the one refusal", logged)
+	}
+}

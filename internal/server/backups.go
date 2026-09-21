@@ -259,8 +259,9 @@ func (r bkRecorder) Record(row backups.RunRow) (int64, error) {
 
 type bkPruner struct{ db *db.DB }
 
+// StoredBackupsFor leaves out every pinned backup (db.PrunableBackups).
 func (p bkPruner) StoredBackupsFor(routerID string) ([]backups.StoredPair, error) {
-	rows, err := p.db.StoredBackups(routerID)
+	rows, err := p.db.PrunableBackups(routerID)
 	if err != nil {
 		return nil, err
 	}
@@ -471,9 +472,13 @@ func (s bkDeleteStore) RowFor(id int64, routerID string) *backups.DeletableRow {
 	if err != nil || !backups.RowBelongsTo(row, routerID) {
 		return nil
 	}
+	pinned, err := s.db.PinnedBackupIDs()
+	if err != nil {
+		return nil
+	}
 	return &backups.DeletableRow{
 		ID: row.ID, Stem: deref(row.Stem), Dir: deref(row.Dir),
-		Pruned: row.PrunedAt != nil,
+		Pruned: row.PrunedAt != nil, Pinned: pinned[row.ID],
 	}
 }
 
