@@ -48,7 +48,7 @@ It **discovers** what to check rather than working from a list, so a new check r
 | | |
 |---|---|
 | `internal/verify/` | 81 Go tests — static checks over the current source. Picked up by `go test ./...`. |
-| `web/test/` | 70 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
+| `web/test/` | 71 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
 
 Package tests use the standard library `testing` package only.
 

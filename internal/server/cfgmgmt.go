@@ -202,7 +202,21 @@ func (s *Server) cfgList(w http.ResponseWriter, _ *http.Request, _ *Session) {
 		writeJSONErr(w, http.StatusInternalServerError, "could not read the templates")
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "templates": rows, "canned": cannedViews()})
+	// Which stored templates would arm the dead-man, judged as the canned ones
+	// are. A full export is not judged here: it replaces everything, and the
+	// deploy asks for its own confirmations.
+	lock := map[string]bool{}
+	for _, r := range rows {
+		if r.Kind != cfgtpl.KindFragment {
+			continue
+		}
+		if full, err := s.auditDB.CfgTemplate(r.ID); err == nil && full != nil {
+			if t, err := cfgtpl.Parse(full.Body); err == nil {
+				lock[r.ID] = cfgdeploy.LockClass(cfgtpl.AnalyzeLive(t, cfgtpl.LiveContext{}))
+			}
+		}
+	}
+	writeJSON(w, map[string]any{"ok": true, "templates": rows, "canned": cannedViews(), "lockClass": lock})
 }
 
 // cannedView is a shipped template as the Library lists it.

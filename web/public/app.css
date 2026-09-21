@@ -2360,3 +2360,119 @@
       .apps-shimmer,.apps-spin{animation:none}
       .apps-card:hover{transform:none}
     }
+
+    /* ── The Config Management page (config-management.ts) ───────────────────
+       Every colour is a theme token; tints are color-mix of one, so all
+       palettes and both themes carry it. Each category has its accent
+       (--cfg-c), set once on the card and read by its rail, glyph and glow. */
+    .cfg-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin-bottom:.85rem}
+    .cfg-stat{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:12px;padding:.7rem .85rem;
+      background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--cfg-s,var(--accent-rx)) 14%,transparent),transparent 60%),var(--bg-card)}
+    .cfg-stat-n{font-family:var(--font-mono);font-size:1.55rem;font-weight:700;line-height:1.1;color:var(--cfg-s,var(--text-main));font-variant-numeric:tabular-nums}
+    .cfg-stat-l{font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-top:.15rem}
+    .cfg-stat-canned{--cfg-s:var(--accent-rx)}
+    .cfg-stat-custom{--cfg-s:var(--accent-pink)}
+    .cfg-stat-lock{--cfg-s:var(--accent-warn)}
+    @media (max-width:620px){.cfg-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+    .cfg-hero{position:relative;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:.9rem;
+      padding:1.1rem 1.2rem;margin-bottom:.9rem;border:1px solid var(--border);border-radius:14px;overflow:hidden;
+      background:
+        radial-gradient(60% 120% at 0% 0%,color-mix(in srgb,var(--accent-rx) 18%,transparent),transparent 70%),
+        radial-gradient(50% 120% at 100% 100%,color-mix(in srgb,var(--accent-alt) 16%,transparent),transparent 70%),
+        radial-gradient(40% 80% at 70% 0%,color-mix(in srgb,var(--accent-pink) 9%,transparent),transparent 70%),
+        var(--bg-card)}
+    .cfg-hero-title{margin:0;font-size:1.15rem;font-weight:700;letter-spacing:.01em;
+      background:linear-gradient(90deg,var(--text-main),color-mix(in srgb,var(--accent-rx) 70%,var(--text-main)));
+      -webkit-background-clip:text;background-clip:text;color:transparent}
+    .cfg-hero-sub{margin:.3rem 0 0;max-width:46rem;font-size:.8rem;color:var(--text-muted)}
+    .cfg-hero-controls{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;min-width:0}
+    .cfg-segs{display:flex;gap:.25rem;padding:.2rem;border-radius:10px;background:color-mix(in srgb,var(--text-muted) 10%,transparent);
+      border:1px solid var(--border);overflow-x:auto;max-width:100%;scrollbar-width:none}
+    .cfg-seg{display:inline-flex;align-items:center;gap:.35rem;border:0;background:transparent;color:var(--text-muted);
+      font-size:.74rem;padding:.3rem .6rem;border-radius:7px;white-space:nowrap;cursor:pointer;transition:background .2s,color .2s}
+    .cfg-seg:hover{color:var(--text-main)}
+    .cfg-seg.active{background:var(--bg-card);color:var(--text-main);box-shadow:0 1px 6px color-mix(in srgb,var(--accent-rx) 22%,transparent)}
+    .cfg-seg-n{font-family:var(--font-mono);font-size:.64rem;padding:0 .3rem;border-radius:5px;
+      background:color-mix(in srgb,var(--text-muted) 16%,transparent)}
+    .cfg-seg.active .cfg-seg-n{background:color-mix(in srgb,var(--accent-rx) 22%,transparent);color:var(--accent-rx)}
+    .cfg-search{width:14rem;max-width:100%}
+    @media (max-width:620px){.cfg-hero{padding:.9rem}.cfg-hero-controls,.cfg-search{width:100%}}
+
+    .cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:.8rem}
+    @media (max-width:620px){.cfg-grid{grid-template-columns:1fr}}
+    .cfg-tpl{--cfg-c:var(--accent-rx);position:relative;display:flex;flex-direction:column;gap:.55rem;min-width:0;overflow:hidden;
+      padding:1rem .95rem .85rem;border:1px solid var(--border);border-radius:14px;
+      background:radial-gradient(90% 70% at 100% 0%,color-mix(in srgb,var(--cfg-c) 10%,transparent),transparent 65%),var(--bg-card);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.03);transition:transform .2s cubic-bezier(.2,.7,.3,1),box-shadow .25s,border-color .25s;
+      animation:cfg-in .45s cubic-bezier(.2,.7,.3,1) both}
+    .cfg-tpl:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--cfg-c) 45%,var(--border));
+      box-shadow:0 10px 28px -14px color-mix(in srgb,var(--cfg-c) 60%,transparent)}
+    .cfg-tpl:nth-child(2){animation-delay:.03s}.cfg-tpl:nth-child(3){animation-delay:.06s}.cfg-tpl:nth-child(4){animation-delay:.09s}
+    .cfg-tpl:nth-child(5){animation-delay:.12s}.cfg-tpl:nth-child(n+6){animation-delay:.15s}
+    @keyframes cfg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .cfg-tpl-rail{position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--cfg-c),color-mix(in srgb,var(--cfg-c) 20%,transparent))}
+    .cfg-cat-home{--cfg-c:var(--accent-tx)}
+    .cfg-cat-office{--cfg-c:var(--accent-rx)}
+    .cfg-cat-security{--cfg-c:var(--accent-err)}
+    .cfg-cat-monitoring{--cfg-c:var(--accent-alt)}
+    .cfg-cat-network{--cfg-c:var(--accent-warn)}
+    .cfg-cat-custom{--cfg-c:var(--accent-pink)}
+    .cfg-tpl-head{display:flex;align-items:flex-start;gap:.7rem}
+    .cfg-glyph{flex-shrink:0;display:grid;place-items:center;width:38px;height:38px;border-radius:11px;color:var(--cfg-c);
+      background:color-mix(in srgb,var(--cfg-c) 14%,transparent);border:1px solid color-mix(in srgb,var(--cfg-c) 30%,transparent)}
+    .cfg-glyph svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .cfg-tpl-titles{min-width:0}
+    .cfg-tpl-name{margin:0;font-size:.95rem;font-weight:650;color:var(--text-main);line-height:1.25}
+    .cfg-tpl-pills{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin-top:.3rem}
+    .cfg-tpl-desc{margin:0;font-size:.78rem;line-height:1.45;color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    .cfg-tpl-scope{display:flex;flex-wrap:wrap;gap:.3rem}
+    .cfg-chip{font-family:var(--font-mono);font-size:.64rem;padding:.1rem .4rem;border-radius:5px;color:var(--text-muted);
+      background:color-mix(in srgb,var(--text-muted) 10%,transparent);border:1px solid var(--border)}
+    .cfg-chip-more{color:var(--cfg-c)}
+    .cfg-tpl-foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:auto;padding-top:.55rem;
+      border-top:1px solid var(--border);flex-wrap:wrap}
+    .cfg-tpl-actions{display:flex;gap:.35rem;flex-wrap:wrap}
+    .cfg-meta{font-size:.68rem;color:var(--text-muted)}
+    .cfg-empty{padding:2rem 1rem;text-align:center;color:var(--text-muted);font-size:.82rem}
+
+    /* Pills, by meaning. */
+    .vpn-hs-badge.cfg-pill-canned{background:color-mix(in srgb,var(--accent-rx) 13%,transparent);color:var(--accent-rx);border:1px solid color-mix(in srgb,var(--accent-rx) 32%,transparent)}
+    .vpn-hs-badge.cfg-pill-custom,.vpn-hs-badge.cfg-pill-external{background:color-mix(in srgb,var(--accent-pink) 13%,transparent);color:var(--accent-pink);border:1px solid color-mix(in srgb,var(--accent-pink) 32%,transparent)}
+    .vpn-hs-badge.cfg-pill-full{background:color-mix(in srgb,var(--accent-alt) 14%,transparent);color:var(--accent-alt);border:1px solid color-mix(in srgb,var(--accent-alt) 32%,transparent)}
+    .vpn-hs-badge.cfg-pill-lock,.vpn-hs-badge.cfg-pill-ack{background:color-mix(in srgb,var(--accent-warn) 13%,transparent);color:var(--accent-warn);border:1px solid color-mix(in srgb,var(--accent-warn) 32%,transparent)}
+    .vpn-hs-badge.cfg-pill-refuse{background:color-mix(in srgb,var(--accent-err) 13%,transparent);color:var(--accent-err);border:1px solid color-mix(in srgb,var(--accent-err) 32%,transparent)}
+    .vpn-hs-badge.cfg-pill-warn{background:color-mix(in srgb,var(--accent-rx) 11%,transparent);color:var(--accent-rx);border:1px solid color-mix(in srgb,var(--accent-rx) 28%,transparent)}
+
+    /* The external generator: set apart, dashed, its own colour. */
+    .cfg-external{--cfg-c:var(--accent-pink);border-style:dashed;border-color:color-mix(in srgb,var(--accent-pink) 45%,var(--border));
+      background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--accent-pink) 4%,transparent) 0 10px,transparent 10px 20px),var(--bg-card)}
+
+    /* The preview drawer. */
+    .cfg-drawer{position:fixed;top:0;right:0;bottom:0;z-index:300;width:min(620px,100vw);display:flex;flex-direction:column;
+      background:var(--bg-card);backdrop-filter:blur(14px);border-left:1px solid var(--border);
+      box-shadow:-24px 0 60px -20px rgba(0,0,0,.55);transform:translateX(104%);transition:transform .3s cubic-bezier(.2,.7,.3,1);visibility:hidden}
+    .cfg-drawer.open{transform:none;visibility:visible}
+    .cfg-drawer-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;padding:1rem 1.1rem;border-bottom:1px solid var(--border);
+      background:radial-gradient(80% 140% at 0% 0%,color-mix(in srgb,var(--accent-rx) 12%,transparent),transparent 70%)}
+    .cfg-drawer-title{margin:0;font-size:1.05rem;font-weight:700;color:var(--text-main)}
+    .cfg-drawer-meta{font-size:.72rem;color:var(--text-muted);margin-top:.2rem}
+    .cfg-drawer-body{padding:1rem 1.1rem 2rem;overflow:auto;flex:1}
+    .cfg-drawer-desc{font-size:.82rem;color:var(--text-muted);margin:0 0 .9rem}
+    .cfg-drawer-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin:1.1rem 0 .5rem}
+    .cfg-vars td,.cfg-vars th{font-size:.76rem;vertical-align:top}
+    .cfg-findings{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.4rem}
+    .cfg-finding{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem;font-size:.76rem;color:var(--text-main);
+      padding:.45rem .55rem;border-radius:8px;border:1px solid var(--border);background:color-mix(in srgb,var(--text-muted) 5%,transparent)}
+    .cfg-finding-msg{flex:1 1 20rem}
+    .cfg-code{margin:0;padding:.8rem .9rem;border-radius:10px;border:1px solid var(--border);max-height:60vh;overflow:auto;
+      font-family:var(--font-mono);font-size:.72rem;line-height:1.6;white-space:pre;color:var(--text-main);
+      background:color-mix(in srgb,var(--bg-deep) 70%,transparent)}
+    .cfg-var{font-family:var(--font-mono);color:var(--accent-pink);background:color-mix(in srgb,var(--accent-pink) 12%,transparent);
+      border-radius:4px;padding:0 .15rem}
+
+    @media (prefers-reduced-motion:reduce){
+      .cfg-tpl{animation:none;transition:none}
+      .cfg-tpl:hover{transform:none}
+      .cfg-drawer{transition:none}
+    }

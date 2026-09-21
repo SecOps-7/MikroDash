@@ -20,7 +20,22 @@
           <div class="hdr-actions d-flex align-items-center gap-2" id="cfgActions"></div>
         </div>
         <div class="card-body" id="cfgBody">
-          <div class="cfg-panel" id="cfgPanel-library"></div>
+          <div class="cfg-panel" id="cfgPanel-library">
+            <div class="cfg-stats" id="cfgStats"></div>
+            <section class="cfg-hero">
+              <div class="cfg-hero-text">
+                <h4 class="cfg-hero-title">Configuration library</h4>
+                <p class="cfg-hero-sub">Tested setups for home and office, and the templates you make. Every one is
+                  checked line by line, dry-run on the router, and backed up before it is applied.</p>
+              </div>
+              <div class="cfg-hero-controls">
+                <div class="cfg-segs" id="cfgCats" role="group" aria-label="Category"></div>
+                <input class="form-control form-control-sm cfg-search" id="cfgSearch" type="search"
+                  placeholder="Search templates" aria-label="Search templates">
+              </div>
+            </section>
+            <div id="cfgLibrary"><div class="cfg-empty">Loading the library…</div></div>
+          </div>
           <div class="cfg-panel" id="cfgPanel-editor" hidden></div>
           <div class="cfg-panel" id="cfgPanel-deploy" hidden></div>
           <div class="cfg-panel" id="cfgPanel-history" hidden></div>
@@ -28,4 +43,16 @@
         </div>
       </div>
     </div>
+    <!-- A template, read in full: highlighted text, its settings, what the
+         analyser says about it. -->
+    <aside class="cfg-drawer" id="cfgDrawer" aria-hidden="true" aria-labelledby="cfgDrawerTitle">
+      <header class="cfg-drawer-head">
+        <div>
+          <h4 class="cfg-drawer-title" id="cfgDrawerTitle"></h4>
+          <div class="cfg-drawer-meta" id="cfgDrawerMeta"></div>
+        </div>
+        <button class="sbtn" type="button" id="cfgDrawerClose" aria-label="Close">✕</button>
+      </header>
+      <div class="cfg-drawer-body" id="cfgDrawerBody"></div>
+    </aside>
   </div>
