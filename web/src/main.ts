@@ -52,6 +52,7 @@ import { initBandwidthPage } from './pages/bandwidth';
 import { initBackupsPage } from './pages/backups';
 import { initToolsPage } from './pages/tools';
 import { initSecurityScanPage } from './pages/security-scan';
+import { initConfigManagementPage } from './pages/config-management';
 import { mountRouters, renderRoutersStats } from './pages/routers';
 import type { StoredRouter } from './pages/router-form';
 import { mountReports } from './pages/reports';
@@ -619,6 +620,7 @@ async function main(): Promise<void> {
   initBackupsPage(socket, pageVisible);
   initToolsPage(socket, pageVisible);
   initSecurityScanPage(socket, pageVisible);
+  initConfigManagementPage(pageVisible);
 
   let routers: RouterRow[] = [];
   try {

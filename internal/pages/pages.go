@@ -161,6 +161,9 @@ var All = []Page{
 	{Key: "audit-trail", Title: "Audit Trail"},
 	{Key: "backups", Title: "Backups"},
 	{Key: "devices", Title: "Devices"},
+	// Config Management. NO COLLECTOR: templates, runs and drift are read on
+	// demand, and a deploy's progress arrives on its own event.
+	{Key: "config-management", Title: "Config Management"},
 	{Key: "settings", Title: "Settings"},
 }
 

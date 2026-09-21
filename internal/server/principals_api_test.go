@@ -155,9 +155,14 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// SIX SINCE THE SECURITY SCAN (2026-09-19), for the Tools page's reason: it
 	// reads nothing until it is opened, so who sees it is the permission
 	// matrix's question (admins only by default), not router load's.
-	if noToggle != 6 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 6 (dashboard, reports, "+
-			"settings, ai-agent, tools, security-scan)", noToggle)
+	//
+	// SEVEN SINCE CONFIG MANAGEMENT (2026-09-21), for the same reason again: it
+	// reads nothing from any router until it is opened and asked, and every
+	// change it can make is an administrator's, so who sees it is the
+	// permission matrix's question, not router load's.
+	if noToggle != 7 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 7 (dashboard, reports, "+
+			"settings, ai-agent, tools, security-scan, config-management)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

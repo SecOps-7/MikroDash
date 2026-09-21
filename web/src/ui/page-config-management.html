@@ -1,0 +1,31 @@
+  <!-- The Config Management page: a library of configuration templates, captured
+       from routers or canned, deployed to one router or the fleet. The deploy
+       sequences are internal/cfgdeploy; this page is drawn by
+       web/src/pages/config-management.ts. -->
+  <div class="page-view" id="page-config-management">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="cfgCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Config Management</h3>
+            <span id="cfgBadge" class="card-badge active-blue" title="Templates">0</span>
+            <span id="cfgTabs" class="stab-bar rttab-bar" role="tablist">
+              <button class="stab active" type="button" role="tab" aria-selected="true" data-cfgtab="library">Library</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="editor">Editor</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="deploy">Deploy</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="history">History</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="drift">Drift</button>
+            </span>
+          </div>
+          <div class="hdr-actions d-flex align-items-center gap-2" id="cfgActions"></div>
+        </div>
+        <div class="card-body" id="cfgBody">
+          <div class="cfg-panel" id="cfgPanel-library"></div>
+          <div class="cfg-panel" id="cfgPanel-editor" hidden></div>
+          <div class="cfg-panel" id="cfgPanel-deploy" hidden></div>
+          <div class="cfg-panel" id="cfgPanel-history" hidden></div>
+          <div class="cfg-panel" id="cfgPanel-drift" hidden></div>
+        </div>
+      </div>
+    </div>
+  </div>

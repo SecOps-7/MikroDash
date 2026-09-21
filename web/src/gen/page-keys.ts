@@ -72,6 +72,7 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "logs",
   "packages",
   "devices",
+  "config-management",
   "tools",
   "ai-agent",
   "reports",

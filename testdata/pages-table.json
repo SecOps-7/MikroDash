@@ -112,6 +112,11 @@
       "settingsKey": "pageDevices"
     },
     {
+      "key": "config-management",
+      "title": "Config Management",
+      "settingsKey": null
+    },
+    {
       "key": "reports",
       "title": "Reports",
       "settingsKey": null
@@ -211,6 +216,7 @@
     "logs",
     "packages",
     "devices",
+    "config-management",
     "tools",
     "ai-agent",
     "reports",
