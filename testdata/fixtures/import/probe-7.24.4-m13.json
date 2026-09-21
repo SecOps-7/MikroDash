@@ -1,0 +1,771 @@
+{
+  "routerOS": "7.24.4 (stable)",
+  "findings": [
+    {
+      "name": "m13 control: unknown property rejected",
+      "answer": "true"
+    },
+    {
+      "name": "m13 control: bad enum value rejected",
+      "answer": "true"
+    },
+    {
+      "name": "m13 home-firewall",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 dns-and-time",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 family-safe-dns",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 iot-isolation",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 anti-bufferbloat",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 privacy-essentials",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 office-firewall",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 wireguard-remote-access",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 fair-share",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 management-lockdown",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 ipv6-firewall",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 stack-hardening",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 password-policy",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 remote-syslog",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 snmp-v3",
+      "answer": "ok"
+    },
+    {
+      "name": "m13 site-ntp-server",
+      "answer": "ok"
+    }
+  ],
+  "steps": [
+    {
+      "label": "m13 control: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-control.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 control: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ",
+        "=contents=\u003c31 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 control unknown property",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-control.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Script Error: bad parameter no-such-property (line 2 column 23)",
+      "ms": 0
+    },
+    {
+      "label": "m13 control: remove stale",
+      "path": "/file/remove",
+      "args": [
+        "=.id=**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 4
+    },
+    {
+      "label": "m13 control: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-control.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 control: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**uz2LaCs9Q9jso3ZVs1uF5JId8i9dsefyroROceBcZ",
+        "=contents=\u003c36 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 control bad enum value",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-control.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {},
+      "trap": "Script Error: syntax error (line 2 column 15)",
+      "ms": 0
+    },
+    {
+      "label": "m13 home-firewall: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-home-firewall.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgibYI1SjsblcpHch0OwOrgsT5"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 home-firewall: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1BSe0q4KAKF8a8LButnbBuJNbgibYI1SjsblcpHch0OwOrgsT5",
+        "=contents=\u003c1323 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run home-firewall",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-home-firewall.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 6
+    },
+    {
+      "label": "m13 dns-and-time: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-dns-and-time.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**Hn4qVys7PH2ojodbNREFiG84OjmzGMfsdRG6woQ7gO9yHq67"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 dns-and-time: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**Hn4qVys7PH2ojodbNREFiG84OjmzGMfsdRG6woQ7gO9yHq67",
+        "=contents=\u003c278 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run dns-and-time",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-dns-and-time.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 family-safe-dns: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-family-safe-dns.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHH7E8sGSsxnhEndoNXmsh5QyeZ"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 family-safe-dns: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**KCRj5cGns0kk2UUZbQkRGm0AcyHH7E8sGSsxnhEndoNXmsh5QyeZ",
+        "=contents=\u003c398 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 dry-run family-safe-dns",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-family-safe-dns.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m13 iot-isolation: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-iot-isolation.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgibg58b7SkUCswD3pShOOqvK7"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 iot-isolation: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1BSe0q4KAKF8a8LButnbBuJNbgibg58b7SkUCswD3pShOOqvK7",
+        "=contents=\u003c520 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run iot-isolation",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-iot-isolation.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m13 anti-bufferbloat: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-anti-bufferbloat.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1LPOUBD8JJKwAZYqiXVeHynauiN6ifVUKzy9eMRBdgkWuaKhh32Gdn"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 anti-bufferbloat: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1LPOUBD8JJKwAZYqiXVeHynauiN6ifVUKzy9eMRBdgkWuaKhh32Gdn",
+        "=contents=\u003c265 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run anti-bufferbloat",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-anti-bufferbloat.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 privacy-essentials: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-privacy-essentials.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**Mw2dHKjBKqE8MVPspkIOEmrVT7blCHW3rg52Rqd1JYafPTW0hdfJdiAl"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 privacy-essentials: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**Mw2dHKjBKqE8MVPspkIOEmrVT7blCHW3rg52Rqd1JYafPTW0hdfJdiAl",
+        "=contents=\u003c312 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run privacy-essentials",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-privacy-essentials.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 office-firewall: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-office-firewall.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHaRJhkvYU1NsWwFD3fufFdE1b9"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 office-firewall: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**KCRj5cGns0kk2UUZbQkRGm0AcyHaRJhkvYU1NsWwFD3fufFdE1b9",
+        "=contents=\u003c2206 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run office-firewall",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-office-firewall.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 6
+    },
+    {
+      "label": "m13 wireguard-remote-access: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-wireguard-remote-access.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**79zDGTtXvAJppd1K04RA04FMVlIjDYupAeHxUaV7vnZy5hbTYeBkCXa6qCxG32h"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 wireguard-remote-access: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**79zDGTtXvAJppd1K04RA04FMVlIjDYupAeHxUaV7vnZy5hbTYeBkCXa6qCxG32h",
+        "=contents=\u003c447 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run wireguard-remote-access",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-wireguard-remote-access.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 fair-share: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-fair-share.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**12hRvUEsmCF9qeHKwEyy3lKcQ1ZTqn53sThnveJ8alIjcR"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 fair-share: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**12hRvUEsmCF9qeHKwEyy3lKcQ1ZTqn53sThnveJ8alIjcR",
+        "=contents=\u003c389 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 dry-run fair-share",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-fair-share.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m13 management-lockdown: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-management-lockdown.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1WhesBaqorarAfYnGgr5dgJ1x6Q47uJEZjQXP8UfLXO3ojVblJcN6tss7P"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 management-lockdown: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1WhesBaqorarAfYnGgr5dgJ1x6Q47uJEZjQXP8UfLXO3ojVblJcN6tss7P",
+        "=contents=\u003c296 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run management-lockdown",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-management-lockdown.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 ipv6-firewall: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-ipv6-firewall.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgibg72WHXjya4u0VdUSu1prwB"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 ipv6-firewall: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1BSe0q4KAKF8a8LButnbBuJNbgibg72WHXjya4u0VdUSu1prwB",
+        "=contents=\u003c1071 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run ipv6-firewall",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-ipv6-firewall.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 3
+    },
+    {
+      "label": "m13 stack-hardening: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-stack-hardening.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHj7uOR7kbZHJTilrtKgzq3GlHP"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 stack-hardening: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**KCRj5cGns0kk2UUZbQkRGm0AcyHj7uOR7kbZHJTilrtKgzq3GlHP",
+        "=contents=\u003c113 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 dry-run stack-hardening",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-stack-hardening.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 password-policy: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-password-policy.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHcXaDmLaleNWgmnqT02eSjQjHH"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 password-policy: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**KCRj5cGns0kk2UUZbQkRGm0AcyHcXaDmLaleNWgmnqT02eSjQjHH",
+        "=contents=\u003c67 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 1
+    },
+    {
+      "label": "m13 dry-run password-policy",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-password-policy.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 remote-syslog: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-remote-syslog.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**1BSe0q4KAKF8a8LButnbBuJNbgicntnulzdcXlEJpPgZgrMfdj"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 remote-syslog: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**1BSe0q4KAKF8a8LButnbBuJNbgicntnulzdcXlEJpPgZgrMfdj",
+        "=contents=\u003c347 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run remote-syslog",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-remote-syslog.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 2
+    },
+    {
+      "label": "m13 snmp-v3: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-snmp-v3.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**uz2LaCs9Q9jso3ZVs1uF5JId8iBCYbOGJhdrnvqNP"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 snmp-v3: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**uz2LaCs9Q9jso3ZVs1uF5JId8iBCYbOGJhdrnvqNP",
+        "=contents=\u003c325 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run snmp-v3",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-snmp-v3.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    },
+    {
+      "label": "m13 site-ntp-server: add",
+      "path": "/file/add",
+      "args": [
+        "=name=mdprobe-canned-site-ntp-server.rsc",
+        "=type=file"
+      ],
+      "rows": [],
+      "done": {
+        "ret": "**KCRj5cGns0kk2UUZbQkRGm0AcyHj2Eu1NdlrXN5g5sSBtsPB27Nr"
+      },
+      "ms": 1
+    },
+    {
+      "label": "m13 site-ntp-server: set contents",
+      "path": "/file/set",
+      "args": [
+        "=.id=**KCRj5cGns0kk2UUZbQkRGm0AcyHj2Eu1NdlrXN5g5sSBtsPB27Nr",
+        "=contents=\u003c211 bytes\u003e"
+      ],
+      "rows": [],
+      "done": {},
+      "ms": 0
+    },
+    {
+      "label": "m13 dry-run site-ntp-server",
+      "path": "/import",
+      "args": [
+        "=file-name=mdprobe-canned-site-ntp-server.rsc",
+        "=verbose=yes",
+        "=dry-run="
+      ],
+      "rows": [],
+      "done": {
+        "ret": "true"
+      },
+      "ms": 0
+    }
+  ]
+}

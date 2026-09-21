@@ -57,6 +57,7 @@ import (
 	"strings"
 	"time"
 
+	"mikrodash/internal/cfgtpl"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/store"
 )
@@ -287,6 +288,9 @@ func main() {
 	}
 	if runs("m10") {
 		m10RemoveByName(p)
+	}
+	if runs("m13") {
+		m13CannedDryRun(p)
 	}
 	if runs("m3") {
 		m3FileCeiling(p)
@@ -828,6 +832,89 @@ func m8ExportReset(p *probe, cfg routeros.Config) {
 	p.note("m8 original certificate back", fmt.Sprint(before("restored") == origCert))
 	if id := p.fileID(backup + ".backup"); id != "" {
 		p.run("m8 remove backup", "/file/remove", 10*time.Second, "=.id="+id)
+	}
+}
+
+// M13: every canned template, rendered with sample values, through RouterOS's
+// own dry-run. The resource registry holds only the fields MikroDash's pages
+// edit, so it cannot say whether a canned template names a real property; the
+// router's parser can. A dry-run checks every argument name and value and
+// applies nothing (measured, m1). A failure's own words are captured through
+// /execute, as the deploy does.
+func m13CannedDryRun(p *probe) {
+	fmt.Fprintln(os.Stderr, "M13 canned templates through the router's dry-run")
+	sample := map[string]string{"iface": "ether1", "cidr": "192.0.2.0/24", "rate": "50M", "ip": "192.0.2.10",
+		"secret": "example-pass-123", "ifaddr": "192.0.2.1/24", "hostname": "pool.ntp.org", "port": "13231",
+		"int": "12", "ipv4-list": "192.0.2.53", "text": "lab"}
+	server := map[string]string{"mgmt_src": "192.0.2.9", "api_service": "api-ssl", "api_user": "mikrodash"}
+
+	// THE CONTROL. A dry-run is only evidence about property names if it
+	// rejects one that does not exist, and a value outside an enum; both must
+	// FAIL here, or every "ok" below means nothing.
+	for label, body := range map[string]string{
+		"unknown property": "/ip dns\nset no-such-property=1\n",
+		"bad enum value":   "/ip settings\nset rp-filter=sideways\n",
+	} {
+		name := prefix + "canned-control.rsc"
+		if !p.writeFile("m13 control", name, body) {
+			continue
+		}
+		s := p.run("m13 control "+label, "/import", 30*time.Second, "=file-name="+name, "=verbose=yes", "=dry-run=")
+		p.note("m13 control: "+label+" rejected", fmt.Sprint(s.Trap != "" || s.Done["ret"] != "true"))
+	}
+
+	for _, c := range cfgtpl.CannedTemplates() {
+		given := map[string]string{}
+		for _, d := range c.Variables {
+			if d.Default == "" {
+				given[d.Name] = sample[d.Type]
+			}
+		}
+		tp, err := cfgtpl.Parse(c.Body)
+		if err != nil {
+			p.note("m13 "+c.ID, "does not parse: "+err.Error())
+			continue
+		}
+		vals, err := cfgtpl.Resolve(c.Variables, given, server)
+		if err != nil {
+			p.note("m13 "+c.ID, "values: "+err.Error())
+			continue
+		}
+		empty := map[string][]map[string]string{}
+		for _, m := range cfgtpl.EnsureMenus(tp) {
+			empty[m] = nil
+		}
+		resolved, _, err := cfgtpl.ResolveEnsure(tp, vals, empty)
+		if err == nil {
+			var text string
+			if text, err = cfgtpl.Render(resolved, vals); err == nil {
+				name := prefix + "canned-" + c.ID + ".rsc"
+				if !p.writeFile("m13 "+c.ID, name, text) {
+					continue
+				}
+				s := p.run("m13 dry-run "+c.ID, "/import", 30*time.Second,
+					"=file-name="+name, "=verbose=yes", "=dry-run=")
+				verdict := "ok"
+				if s.Trap != "" || s.Err != "" || s.Done["ret"] != "true" {
+					verdict = fmt.Sprintf("FAILED trap=%q err=%q", s.Trap, s.Err)
+					out := prefix + "canned-out"
+					p.run("m13 capture "+c.ID, "/execute", 20*time.Second,
+						"=script=/import file-name="+name+" verbose=yes dry-run", "=file="+out)
+					time.Sleep(2 * time.Second)
+					rows, _ := p.c.Do(routeros.Cmd{Path: "/file/print", Timeout: 10 * time.Second,
+						Args: []string{"?name=" + out + ".txt", "=.proplist=contents"}})
+					if len(rows) > 0 {
+						verdict += " report=" + fmt.Sprintf("%q", rows[0]["contents"])
+					}
+					if id := p.fileID(out + ".txt"); id != "" {
+						p.run("m13 remove report", "/file/remove", 10*time.Second, "=.id="+id)
+					}
+				}
+				p.note("m13 "+c.ID, verdict)
+				continue
+			}
+		}
+		p.note("m13 "+c.ID, "render: "+err.Error())
 	}
 }
 
