@@ -394,6 +394,8 @@ func diagFailure(err error) (string, string) {
 // A runner gets the connection and its router snapshot, not only the session:
 // the security scan runs through the server's one scan path (secscan.go).
 var diagRunners = map[string]func(cn *conn, sc connScope, args []byte) (any, string){
+	"export": func(_ *conn, sc connScope, args []byte) (any, string) { return runExportTool(sc, args) },
+	"fleet":  func(cn *conn, sc connScope, _ []byte) (any, string) { return runFleetTool(cn, sc) },
 	"readfile": func(_ *conn, sc connScope, args []byte) (any, string) {
 		var req struct {
 			Name string `json:"name"`

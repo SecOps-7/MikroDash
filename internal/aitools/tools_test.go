@@ -284,7 +284,8 @@ func TestEveryReadToolTakesNoArguments(t *testing.T) {
 // added without an entry fails too.
 func TestADiagnosticTakesOnlyItsTarget(t *testing.T) {
 	want := map[string][]string{"ping": {"address", "count"}, "traceroute": {"address", "maxHops"},
-		"security_scan": {}, "read_file": {"name"}}
+		"security_scan": {}, "read_file": {"name"},
+		"export_config": {"menu"}, "list_routers": {}}
 	seen := 0
 	for _, tool := range All() {
 		if tool.Diagnostic == "" {
@@ -332,6 +333,11 @@ func TestADiagnosticTakesOnlyItsTarget(t *testing.T) {
 // page's own move path. It is not an index and not a menu: the registry still
 // decides what may be reordered (`Movable`) and the row is resolved against the
 // table as the router holds it at the moment of the move.
+//
+// RE-AIMED FOR `undo` (2026-09-21), deliberately. A boolean routing `resource`
+// to histStep, the page's own Undo path, for the newest entry on that
+// resource's stack and only when the assistant made it (ai_undo.go). It names
+// no row and no value: the history decides what is undone.
 func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 	tool, ok := ByName(WriteToolName)
 	if !ok {
@@ -342,7 +348,7 @@ func TestTheWriteToolTakesExactlyResourceIdValuesAndDelete(t *testing.T) {
 	}
 	props, _ := tool.Parameters["properties"].(map[string]any)
 	want := map[string]bool{"resource": true, "id": true, "values": true, "delete": true,
-		"before": true}
+		"before": true, "undo": true}
 	for name := range props {
 		if !want[name] {
 			t.Errorf("the write tool accepts %q, which the write path never asked for", name)

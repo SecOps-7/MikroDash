@@ -53,3 +53,18 @@ func TestAFileShownHasItsSecretsMasked(t *testing.T) {
 		}
 	}
 }
+
+// An export's header keeps its date and drops what names the device.
+func TestAnExportLosesItsIdentifyingHeader(t *testing.T) {
+	in := "# 2026-09-21 21:01:25 by RouterOS 7.24.4\n# system id = AbCdEfGh+iJ\n# software id = ABCD-1234\n" +
+		"#\n# model = C53UiG+5HPaxD2HPaxD\n# serial number = HF0000000AB\n/ip dns\nset servers=1.1.1.1\n"
+	out := exportIdentifying.ReplaceAllString(in, "")
+	for _, gone := range []string{"system id", "software id", "model =", "serial number"} {
+		if strings.Contains(out, gone) {
+			t.Errorf("%q survived:\n%s", gone, out)
+		}
+	}
+	if !strings.HasPrefix(out, "# 2026-09-21 21:01:25 by RouterOS 7.24.4\n") || !strings.Contains(out, "set servers=1.1.1.1") {
+		t.Errorf("more than the identifying lines went:\n%s", out)
+	}
+}

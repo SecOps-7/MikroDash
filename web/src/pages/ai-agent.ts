@@ -314,8 +314,11 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
         : d.action === 'delete' ? 'Delete the '
         : d.action === 'move' ? 'Move the '
         : 'Change the ';
+      // AN UNDO names what it takes back ("edit of 192.0.2.10"), the page's
+      // own Undo tooltip, with the kind of row after it.
       what.textContent = isAction
         ? d.label + (d.name ? ' \u2014 ' + d.name : '')
+        : d.action === 'undo' ? 'Undo the ' + d.name + ' (' + d.label + ')'
         : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
     }
     const cmd = el('aiProposeCmd');
@@ -357,6 +360,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     if (approve) {
       approve.textContent = d.action === 'delete' ? 'Delete it'
         : d.action === 'move' ? 'Move it'
+        : d.action === 'undo' ? 'Undo it'
         : d.typedReason === 'code' ? 'Apply this code change'
         : d.typedReason === 'run' ? 'Run the script'
         : d.typedName ? 'Run it and reboot'

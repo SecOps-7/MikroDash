@@ -535,6 +535,43 @@ func diagTools() []Tool {
 		Diagnostic: "readfile",
 		Page:       "files",
 		Access:     AccessRead,
+	}, {
+		// THE CONFIGURATION AS ROUTEROS PRINTS IT (MikroMCP's export_config).
+		// A read of the Backups page, which already shows exports.
+		Name: "export_config",
+		Description: "Read only: changes no configuration. Export the configuration of the router " +
+			"the operator has selected, with /export, as RouterOS script text: the whole " +
+			"configuration, or one menu's with `menu` (such as /ip/firewall/filter). Credentials " +
+			"are never included: RouterOS hides them and any left are shown as «hidden». Up to " +
+			"49152 bytes are returned; `truncated` says when there was more, and exporting one " +
+			"menu then gives that part in full. It takes a few seconds, and writes a temporary " +
+			"file on the router that is removed again. Use it to review or compare configuration " +
+			"in RouterOS's own words.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"menu": map[string]any{
+					"type":        "string",
+					"description": "A RouterOS menu path to export alone, such as /ip/firewall/filter. Omit it for everything.",
+				},
+			},
+			"additionalProperties": false,
+		},
+		Diagnostic: "export",
+		Page:       "backups",
+		Access:     AccessRead,
+	}, {
+		// THE FLEET (MikroMCP's list_routers): the Devices page's rows.
+		Name: "list_routers",
+		Description: "Read only: changes nothing. List every router this operator may see, from " +
+			"MikroDash's own records rather than any router's /system/resource: its name, whether " +
+			"it is the one selected, online, model, RouterOS version, CPU, memory and storage use, " +
+			"uptime, DHCP clients, open alerts, sites and the last connection error. Use it for " +
+			"questions about the fleet as a whole; the other tools read only the selected router.",
+		Parameters: noArgs(),
+		Diagnostic: "fleet",
+		Page:       "devices",
+		Access:     AccessRead,
 	}}
 }
 
@@ -620,7 +657,9 @@ func writeTool(resources []string) Tool {
 			"Set `resource` to one of the listed names. Call that resource's list_ tool first " +
 			"to see its field names, current rows and their ids. " +
 			"To CREATE, omit `id` and give `values`. To EDIT, pass the row's `id` and the " +
-			"`values` to change. To DELETE, pass the row's `id` and `delete: true`. " +
+			"`values` to change. To DELETE, pass the row's `id` and `delete: true`. To UNDO " +
+			"your own most recent change to a resource, pass `resource` and `undo: true`; only " +
+			"your newest change there can be undone, and the operator always confirms it. " +
 			"The change goes through MikroDash's own checks, audit trail and undo history. " +
 			"The result says what happened: applied, or waiting for the operator to confirm " +
 			"it, which is always the case for a delete and for a change that could cut " +
@@ -646,6 +685,11 @@ func writeTool(resources []string) Tool {
 				"delete": map[string]any{
 					"type":        "boolean",
 					"description": "Set true, with `id`, to delete that row.",
+				},
+				"undo": map[string]any{
+					"type": "boolean",
+					"description": "Set true, with `resource` and nothing else, to take back the most " +
+						"recent change YOU made to that resource in this session.",
 				},
 			},
 			"required":             []string{"resource"},

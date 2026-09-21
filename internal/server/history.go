@@ -62,10 +62,11 @@ func (cn *conn) histEmit(key string) {
 	})
 }
 
-func (cn *conn) histPush(key string, e *history.Entry) {
+func (cn *conn) histPush(key string, e *history.Entry, via string) {
 	if e == nil {
 		return
 	}
+	e.Via = via
 	h := cn.histFor(key)
 	h.undo = append(h.undo, e)
 	if len(h.undo) > histDepth {
@@ -194,8 +195,6 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 	if res == nil {
 		return
 	}
-	action := res.Key + "." + dir
-
 	h := cn.histFor(res.Key)
 	stack := h.undo
 	if dir == "redo" {
@@ -205,31 +204,65 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 		cn.resErr(res.Key, "nothing-to-"+dir, "", nil)
 		return
 	}
-	entry := stack[len(stack)-1]
+	cn.answerHist(res, dir, cn.histStep(dir, res, stack[len(stack)-1], req.Ack, ""))
+}
+
+// histStep runs one undo or redo of `entry`, the top of its stack, in the
+// write queue.
+//
+// ── A WRITE LIKE ANY OTHER ──────────────────────────────────────────────────
+//
+// The read, the checks and the op run INSIDE the write queue, which takes the
+// rate limit first. histRun did all of it directly: an undo took no write slot
+// and no rate limit, so it could be sent as fast as the router answered and
+// could interleave with another writer's read-check-write on the same menu
+// (review 2026-09-19).
+//
+// The page's buttons and the assistant's `change_row` undo both come here, and
+// each answers its own caller from the outcome: one path, two reporters.
+func (cn *conn) histStep(dir string, res *resource.Resource, entry *history.Entry, ack, via string) writeOutcome {
 	op := entry.Reverse
 	if dir == "redo" {
 		op = entry.Forward
 	}
-
-	// ── A WRITE LIKE ANY OTHER ──────────────────────────────────────────────
-	//
-	// The read, the checks and the op run INSIDE the write queue, which takes
-	// the rate limit first. histRun did all of it directly: an undo took no
-	// write slot and no rate limit, so it could be sent as fast as the router
-	// answered and could interleave with another writer's read-check-write on
-	// the same menu (review 2026-09-19).
+	var out writeOutcome
 	if err := cn.inWriteQueue(func() error {
-		cn.histApply(dir, action, res, req, h, entry, op)
+		out = cn.histApply(dir, res.Key+"."+dir, res, ack, cn.histFor(res.Key), entry, op, via)
 		return nil
 	}); err != nil {
-		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
+		return writeOutcome{Code: writeFailCode(err), Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
+	return out
 }
 
-// histApply is an undo or redo, run inside the write queue by histRun. It
-// answers the browser itself on every path.
-func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRequest,
-	h *histStack, entry *history.Entry, op history.Op) {
+// answerHist tells the page what an undo or redo did.
+//
+// `movedId` IS PART OF THE SUCCESS PAYLOAD, and it is easy to leave out because
+// nothing fails without it. The Firewall page pulses the row it names so the
+// eye can find what an undo just moved — `res:ok` is handled there for `move`,
+// `undo` and `redo` alike. NULL WHEN THE OP PRODUCED NO ID, matching
+// `out.id || null`: an undo of a create removes a row and has none.
+func (cn *conn) answerHist(res *resource.Resource, dir string, out writeOutcome) {
+	if out.Code != "" {
+		cn.resErr(res.Key, out.Code, out.Name, out.Detail)
+		return
+	}
+	var movedID any
+	if id, _ := out.Detail["movedId"].(string); id != "" {
+		movedID = id
+	}
+	EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
+		"resource": res.Key, "action": dir, "name": out.Name, "movedId": movedID})
+}
+
+// histApply is an undo or redo, run inside the write queue by histStep. It
+// answers nobody itself: the outcome says what happened.
+func (cn *conn) histApply(dir, action string, res *resource.Resource, ack string,
+	h *histStack, entry *history.Entry, op history.Op, via string) writeOutcome {
+
+	fail := func(err error) writeOutcome {
+		return writeOutcome{Code: writeFailCode(err), Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
 
 	// The row this entry is about, read by its id; an add is about a row that
 	// is not there, so it reads nothing.
@@ -237,8 +270,7 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 	if op.Op != "add" {
 		var err error
 		if rows, err = cn.readRow(res, op.ID); err != nil {
-			cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
-			return
+			return fail(err)
 		}
 	}
 
@@ -255,8 +287,7 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 		}
 		if beforeRow == nil || res.IdentityOf(beforeRow) != entry.Identity {
 			cn.histDrop(res.Key)
-			cn.resErr(res.Key, "stale-history", "", nil)
-			return
+			return writeOutcome{Code: "stale-history"}
 		}
 	}
 
@@ -270,8 +301,7 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 			Action: action, TargetType: res.Key, RouterID: cn.routerID,
 			TargetID: op.ID, TargetName: entry.Identity, Note: refusal,
 		})
-		cn.resErr(res.Key, refusal, entry.Label, nil)
-		return
+		return writeOutcome{Code: refusal, Name: entry.Label}
 	}
 
 	values := op.Values
@@ -285,25 +315,21 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 			TargetID: op.ID, TargetName: entry.Identity,
 			Note: "guard-not-ported: " + gerr.Error(),
 		})
-		cn.resErr(res.Key, "guard-not-ported", entry.Label,
-			map[string]any{"message": safe.Message(gerr.Error())})
-		return
+		return writeOutcome{Code: "guard-not-ported", Name: entry.Label,
+			Detail: map[string]any{"message": safe.Message(gerr.Error())}}
 	}
 	if r := cn.guardRefusal(res, opMeans[op.Op], op.ID, entry.Identity, verdict); r != nil {
-		cn.resErr(res.Key, r.Code, entry.Label, r.Detail)
-		return
+		return writeOutcome{Code: r.Code, Name: entry.Label, Detail: r.Detail}
 	}
-	if gate := ackGate(verdict, req.Ack); gate != nil {
-		gate["resource"] = res.Key
-		gate["name"] = entry.Label
-		EvResError.Send(cn.srv.hub, cn.c, gate)
-		return
+	if gate := ackGate(verdict, ack); gate != nil {
+		code, _ := gate["code"].(string)
+		delete(gate, "code")
+		return writeOutcome{Code: code, Name: entry.Label, Detail: gate}
 	}
 
 	newID, errs, err := cn.applyOp(res, op)
 	if len(errs) > 0 {
-		cn.resErr(res.Key, "invalid", "", map[string]any{"errors": errs})
-		return
+		return writeOutcome{Code: "invalid", Detail: map[string]any{"errors": errs}}
 	}
 	if errors.Is(err, errOutcomeUnknown) {
 		// The router accepted the undo or redo, but it could not be confirmed, so
@@ -318,8 +344,7 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 		cn.refreshFor(res)
 	}
 	if err != nil {
-		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})
-		return
+		return fail(err)
 	}
 
 	// Keep the entry pointing at the row that now exists, and at what it now
@@ -336,6 +361,9 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 		}
 	}
 
+	// WHOEVER LAST APPLIED IT OWNS IT: a change the operator redid from the
+	// page is theirs now, and no longer one the assistant may undo.
+	entry.Via = via
 	if dir == "undo" {
 		h.undo = h.undo[:len(h.undo)-1]
 		h.redo = append(h.redo, entry)
@@ -346,7 +374,10 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 	cn.histEmit(res.Key)
 
 	extra := []audit.KV{{Key: dir, Value: true}, {Key: "op", Value: op.Op}}
-	extra = append(extra, ackExtra(req.Ack)...)
+	if via != "" {
+		extra = append(extra, audit.KV{Key: "via", Value: via})
+	}
+	extra = append(extra, ackExtra(ack)...)
 	cn.recorder().Record(audit.Event{
 		Action: action, TargetType: res.Key, RouterID: cn.routerID,
 		TargetID: newID, TargetName: entry.Identity,
@@ -354,22 +385,7 @@ func (cn *conn) histApply(dir, action string, res *resource.Resource, req *resRe
 	})
 
 	cn.refreshFor(res)
-	// `movedId` IS PART OF THIS PAYLOAD, and it is easy to leave out because
-	// nothing fails without it. The Firewall page pulses the row it names so the
-	// eye can find what an undo just moved — `res:ok` is handled there for
-	// `move`, `undo` and `redo` alike. Omitting it costs no error and no test:
-	// the row simply does not light up, on the one page where a reorder is the
-	// whole point of the action.
-	//
-	// NULL WHEN THE OP PRODUCED NO ID, matching `out.id || null`. An undo of a
-	// delete recreates a row and has one; an undo of an update rebinds to the
-	// same row and has one; an undo of a create removes a row and has none.
-	var movedID any
-	if newID != "" {
-		movedID = newID
-	}
-	EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
-		"resource": res.Key, "action": dir, "name": entry.Identity, "movedId": movedID})
+	return writeOutcome{Action: dir, Name: entry.Identity, Detail: map[string]any{"movedId": newID}}
 }
 
 // histRowRefusal is the refusal code a form write would give this op on this

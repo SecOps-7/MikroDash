@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"mikrodash/internal/aiprovider"
+	"mikrodash/internal/history"
 	"mikrodash/internal/rawcmd"
 	"mikrodash/internal/resource"
 	"mikrodash/internal/routeros"
@@ -74,6 +75,9 @@ type aiWriteProposal struct {
 	// anchor. Approval runs `moveRow`, the page's own move path.
 	move   bool
 	anchor string
+	// undo is the history entry an approved undo reverses (ai_undo.go): the
+	// assistant's own newest change to this resource, pinned when proposed.
+	undo *history.Entry
 	// actionKey, target and mode describe a `run_action` proposal instead of a
 	// row write: resKey is empty on one and actionKey is empty on the other.
 	actionKey string
@@ -106,6 +110,8 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 		// `end`. See ai_move.go. Empty means no move was asked for, which is why
 		// the end of the table is a word rather than an empty string.
 		Before string `json:"before"`
+		// Undo takes back the assistant's newest change to `resource`. See ai_undo.go.
+		Undo bool `json:"undo"`
 	}
 	if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
 		return "Those arguments were not valid JSON. Send `resource`, then `values` to create, " +
@@ -145,6 +151,16 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	if args.Before != "" && (args.Delete || len(args.Values) > 0) {
 		return "A move is a change on its own: send `id` and `before` with nothing else, then " +
 			"the edit or the delete as a second call. Nothing was changed."
+	}
+	if args.Undo {
+		if args.ID != "" || args.Delete || args.Before != "" || len(args.Values) > 0 {
+			return "An undo is a change on its own: send `resource` and `undo: true` with nothing else. " +
+				"Nothing was changed."
+		}
+		if cn.rsession == nil {
+			return "No device is selected, so nothing was proposed."
+		}
+		return cn.proposeAIUndo(res)
 	}
 	if !args.Delete && args.Before == "" {
 		editing := args.ID != ""
@@ -451,6 +467,10 @@ func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 			return
 		}
 	}
+	if p.undo != nil {
+		cn.approveAIUndo(res, p)
+		return
+	}
 	// PARTIAL ON AN EDIT, as change_row built it. Without it the approved write
 	// CLEARED every clearable field the edit did not name: measured on the CHR on
 	// 2026-09-18, an approved change to a script's source also emptied its policy
@@ -685,6 +705,12 @@ func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 			"was refused rather than attempted."
 	case "rate-limited":
 		return "Not applied: too many changes to this router in the last minute."
+	case "stale-history":
+		return "Not undone: that row has changed on the router since, so its undo history was dropped. " +
+			"List it and make the change you want as a new one."
+	case "history-moved":
+		return "Not undone: another change to that table was made or undone since this was proposed, " +
+			"so it is no longer the newest. Nothing was changed."
 	case "at-end":
 		// A MOVE THAT ASKED FOR WHERE THE ROW ALREADY IS. It says it did not
 		// happen, as every refusal here must, and it says WHY — a model told

@@ -58,6 +58,9 @@ type Entry struct {
 	Forward  Op
 	Reverse  Op
 	Label    string
+	// Via is who made the write: "agent" for the assistant, "" for the page.
+	// The assistant may undo only a change it made (change_row's `undo`).
+	Via string
 }
 
 var verbs = map[string]string{

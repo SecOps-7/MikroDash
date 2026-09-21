@@ -546,7 +546,7 @@ func (cn *conn) commitWrite(p *preparedWrite, via string) writeOutcome {
 			beforeHist = histValues(res.RowValues(p.before))
 		}
 		cn.histPush(res.Key, history.Build(res.Key, res.Label, p.action,
-			newID, p.name, beforeHist, p.validated.Values))
+			newID, p.name, beforeHist, p.validated.Values), via)
 	}
 
 	var beforeVals map[string]any
@@ -751,7 +751,7 @@ func (cn *conn) commitRemove(p *preparedRemove, via string) writeOutcome {
 	// offers no undo (found building Files, 2026-09-18).
 	if res.UndoesRemoval() {
 		cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
-			req.ID, name, histValues(res.RowValues(row)), nil))
+			req.ID, name, histValues(res.RowValues(row)), nil), via)
 	}
 
 	// after is `{}` for a delete: Diff walks the keys of `after`, so an empty
@@ -991,7 +991,7 @@ func (cn *conn) runRowAction(res *resource.Resource, req *resRequest, via string
 		// enable and disable invert each other, so they are recorded. A verb
 		// with no inverse — make-static — yields nothing, and history.Build says
 		// so by returning nil.
-		cn.histPush(res.Key, history.Build(res.Key, res.Label, def.Key, req.ID, name, nil, nil))
+		cn.histPush(res.Key, history.Build(res.Key, res.Label, def.Key, req.ID, name, nil, nil), via)
 
 		ev := audit.Event{
 			Action: action, TargetType: res.Key, RouterID: cn.routerID,
