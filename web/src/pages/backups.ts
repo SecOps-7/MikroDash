@@ -26,6 +26,7 @@ import { esc, el, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
 import type { StatePayload } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
+import { hunksHTML } from '../diffview';
 
 /** Every outcome the runner can record. An unknown one still renders. */
 const OUTCOME: Record<string, { label: string; cls: string }> = {
@@ -372,16 +373,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     } else {
       title.textContent = 'Changes';
       summary.textContent = d.added + ' added, ' + d.removed + ' removed';
-      body.innerHTML = d.hunks.map((h) => {
-        const head = '<div class="bk-hunk-hdr">@@ -' + h.aStart + ',' + h.aCount +
-          ' +' + h.bStart + ',' + h.bCount + ' @@</div>';
-        return head + h.lines.map((l) => {
-          const cls = l.op === '+' ? 'bk-add' : l.op === '-' ? 'bk-del' : '';
-          const num = l.op === '+' ? l.bLine : l.aLine;
-          return '<div class="bk-line ' + cls + '"><span class="bk-ln">' + (num || '') + '</span>' +
-            esc(l.op + ' ' + l.text) + '</div>';
-        }).join('');
-      }).join('');
+      body.innerHTML = hunksHTML(d.hunks);
     }
     el('bkDiffModal')?.classList.add('open');
   }
