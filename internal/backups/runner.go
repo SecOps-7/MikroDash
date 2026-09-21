@@ -83,6 +83,28 @@ func Settled(w Writer, name string, timeout time.Duration, now func() time.Time,
 	return 0, fmt.Errorf("timed out waiting for %s", name)
 }
 
+// ExportText runs one export into `<base>.rsc` on the router and reads it
+// back whole. `path` is `/export` for the whole configuration, or a menu's own
+// (`/ip/firewall/export`) for a part of it; `args` are its flags.
+//
+// The file stays on the router: the caller's Sweep removes it, on every path,
+// which is also what removes it when this fails halfway.
+func ExportText(w Writer, path, base string, now func() time.Time, sleep func(time.Duration),
+	args ...string) (string, error) {
+	if _, err := w(path, append([]string{"=file=" + base}, args...)...); err != nil {
+		return "", err
+	}
+	size, err := Settled(w, base+".rsc", settleTimeout, now, sleep)
+	if err != nil {
+		return "", err
+	}
+	buf, err := ReadFile(chunkReaderOf(w), base+".rsc", size)
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
+
 // Identity is model, serial and RouterOS version, as the restore guard will
 // compare them, plus the free space that explains a failure.
 type Identity struct {
@@ -136,17 +158,24 @@ func ReadIdentity(w Writer) (Identity, error) {
 	return id, nil
 }
 
-// Sweep removes everything MikroDash left on the router, including from earlier
-// runs, and reports how many it took.
+// OwnFile reports whether a router file is one Backups created.
 //
 // PREFIX MATCH AT POSITION ZERO, not "contains": a file merely mentioning the
-// prefix somewhere in its name is not one this app created, and this function
-// deletes what it matches.
+// prefix somewhere in its name is not one this app created, and Sweep deletes
+// what this matches.
+func OwnFile(name string) bool { return strings.HasPrefix(name, FilePrefix) }
+
+// Sweep removes every file `own` claims, including those left by earlier runs,
+// and reports how many it took.
+//
+// EACH FEATURE PASSES ITS OWN MATCH. Backups passes OwnFile; Config Management
+// passes its own, and neither prefix starts the other, so neither sweep can
+// delete a file the other is about to read.
 //
 // It never returns an error. A sweep that cannot run is worth logging and not
 // worth failing a backup over — the files it would have removed are removed by
 // the next run instead.
-func Sweep(w Writer, log func(string)) int {
+func Sweep(w Writer, own func(string) bool, log func(string)) int {
 	if log == nil {
 		log = func(string) {}
 	}
@@ -158,7 +187,7 @@ func Sweep(w Writer, log func(string)) int {
 	removed := 0
 	for _, r := range rows {
 		name := r["name"]
-		if !strings.HasPrefix(name, FilePrefix) {
+		if !own(name) {
 			continue
 		}
 		if _, err := w("/file/remove", "=numbers="+name); err != nil {

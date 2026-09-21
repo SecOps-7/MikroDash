@@ -149,7 +149,7 @@ func TestSweepMatchesThePrefixAtPositionZero(t *testing.T) {
 		removed = append(removed, strings.TrimPrefix(args[0], "=numbers="))
 		return nil, nil
 	}
-	n := Sweep(w, nil)
+	n := Sweep(w, OwnFile, nil)
 	if n != 2 {
 		t.Fatalf("swept %d, want 2; removed %v", n, removed)
 	}
@@ -170,7 +170,7 @@ func TestSweepNeverFailsTheBackup(t *testing.T) {
 		}
 		return nil, errors.New("file is locked")
 	}
-	if n := Sweep(w, func(s string) { logged = append(logged, s) }); n != 0 {
+	if n := Sweep(w, OwnFile, func(s string) { logged = append(logged, s) }); n != 0 {
 		t.Errorf("counted %d removals that did not happen", n)
 	}
 	if len(logged) != 1 || !strings.Contains(logged[0], "could not remove") {
@@ -262,5 +262,37 @@ func TestIdentityFallsBackToPlatformWhenThereIsNoBoardName(t *testing.T) {
 	}
 	if id.OSVersion != "7.24" {
 		t.Errorf("OSVersion = %q, want 7.24", id.OSVersion)
+	}
+}
+
+// A part of the configuration is exported from its own menu, with its flags,
+// into the file the caller named; Run's whole-router export is the same call.
+func TestExportTextSendsItsPathAndFlags(t *testing.T) {
+	var sent []string
+	body := "/ip firewall filter\nadd chain=input action=accept\n"
+	w := func(cmd string, args ...string) ([]map[string]string, error) {
+		switch cmd {
+		case "/ip/firewall/export":
+			sent = append([]string{cmd}, args...)
+			return nil, nil
+		case "/file/print":
+			return []map[string]string{{"name": "x.rsc", "size": itoa(len(body))}}, nil
+		case "/file/read":
+			if args[1] == "=offset=0" {
+				return []map[string]string{{"data": body}}, nil
+			}
+			return []map[string]string{{}}, nil
+		}
+		return nil, errors.New("unexpected " + cmd)
+	}
+	got, err := ExportText(w, "/ip/firewall/export", "x", time.Now, func(time.Duration) {}, "=terse=")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != body {
+		t.Errorf("read back %q", got)
+	}
+	if strings.Join(sent, " ") != "/ip/firewall/export =file=x =terse=" {
+		t.Errorf("sent %v", sent)
 	}
 }

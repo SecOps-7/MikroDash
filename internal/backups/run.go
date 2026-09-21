@@ -117,7 +117,7 @@ func Run(cfg RunConfig) (res RunResult) {
 	defer func() {
 		// The router does not keep our temp files, whatever happened above.
 		if w != nil {
-			Sweep(w, say)
+			Sweep(w, OwnFile, say)
 		}
 		if stop != nil {
 			stop()
@@ -150,25 +150,17 @@ func Run(cfg RunConfig) (res RunResult) {
 	res.FreeBytes = id.FreeBytes
 
 	// Anything left by a run that died before its sweep.
-	if swept := Sweep(w, say); swept > 0 {
+	if swept := Sweep(w, OwnFile, say); swept > 0 {
 		say("swept " + itoa(swept) + " file(s) left by an earlier run")
 	}
 
 	base := FilePrefix + stem
 
 	// ── The export, for diffing ─────────────────────────────────────────────
-	if _, err := w("/export", "=file="+base); err != nil {
-		return fail(err)
-	}
-	rscSize, err := Settled(w, base+".rsc", settleTimeout, now, sleep)
+	rscText, err := ExportText(w, "/export", base, now, sleep)
 	if err != nil {
 		return fail(err)
 	}
-	rscBuf, err := ReadFile(chunkReaderOf(w), base+".rsc", rscSize)
-	if err != nil {
-		return fail(err)
-	}
-	rscText := string(rscBuf)
 	res.Fingerprint = Fingerprint(rscText)
 
 	// Same configuration as last time: the run is worth recording, a second
