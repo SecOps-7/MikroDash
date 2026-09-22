@@ -128,6 +128,9 @@ COPY --from=build /geo/dbip-asn-lite.mmdb  /app/geo/dbip-asn-lite.mmdb
 COPY --from=build /geo/cities.json            /app/geo/cities.json
 VOLUME ["/data"]
 EXPOSE 3081
+# Zero-touch provisioning's WireGuard, userspace, so no NET_ADMIN. Nothing
+# listens here until it is switched on in Settings, Provisioning.
+EXPOSE 13231/udp
 ENTRYPOINT ["/usr/local/bin/mikrodash"]
 # Every one of these is overridable by giving the container its own arguments.
 CMD ["-listen", ":3081", "-data", "/data", \

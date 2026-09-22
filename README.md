@@ -52,6 +52,7 @@ services:
     restart: unless-stopped
     ports:
       - "3081:3081"
+      - "13231:13231/udp"   # only for zero-touch provisioning; see below
     volumes:
       - mikrodash-data:/data
 
@@ -125,6 +126,7 @@ A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/
 | 🔐 **Users and access control** | Per-user accounts with editable roles (a read and write matrix per page), granted to users or groups over everything, a site, or a single router. |
 | 🔔 **Alerts and notifications** | Interface up/down, WireGuard peers, CPU, ping loss, NetWatch hosts, router online/offline, RouterOS updates, configuration drift and backup failures, delivered to Telegram, Pushbullet, ntfy and email, with cooldowns and editable templates. |
 | 📈 **History and reports** | Traffic, ping, bandwidth, alerts and connectivity recorded to SQLite, viewable by date range, exported to CSV or PDF, and emailed on a daily, weekly or monthly schedule. |
+| 🪄 **Zero-touch provisioning** | Add a router before it exists: a wizard makes a short script for it, and when the router runs it, it calls home, joins the fleet and receives its Config Management template on its own. Remote routers dial in over a WireGuard tunnel built into MikroDash, from behind NAT anywhere; a generic script brings in a whole rollout, each router waiting for your approval. |
 | 🧩 **Config Management** | A library of 20 ready-made configuration templates (firewalls, VLANs, a guest network, WireGuard, DNS, queues, monitoring) plus your own, captured from a router or written in the editor. Every setting has a working default. Deploy to one router or the fleet: a syntax check first, a restore point, a canary router before the rest, an automatic revert if a change cuts MikroDash off, and History and Drift afterwards. |
 | 💾 **Backups** | Scheduled configuration backups kept only when something changed, with a unified diff of what moved, retention rules, and a guarded restore. |
 | 🛠️ **Tools** | Ping, traceroute with an animated world map of the hops, torch and bandwidth test, run from the router with live output and a Stop button. |
@@ -185,6 +187,22 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 - **Agent Overview card:** an optional dashboard card with a one-line router status written by the assistant.
 
 [`docs/mikromcp-parity.md`](docs/mikromcp-parity.md) maps what the assistant can reach.
+
+</details>
+
+<details>
+<summary><strong>Zero-touch provisioning in detail</strong></summary>
+
+<br>
+
+**Off by default.** Switch it on under Settings, Provisioning, and give the public name or address routers will dial.
+
+- **Add device** on the Devices page asks where the router will be. **Remote** routers dial this MikroDash over WireGuard, so they can be anywhere with internet access; **Local** routers call home over your LAN and need no tunnel. Name it, optionally give its serial number (only that router can then use the script), pick its sites and a template, and download the script.
+- **Run the script on the router**: upload it and run `/import`, or paste it into a terminal. It sets up the tunnel and an API user limited to MikroDash's address, then calls home every minute until MikroDash answers, and removes itself.
+- **On arrival** the router is added to the fleet and its template is previewed on it and deployed through Config Management, with a restore point and the auto-revert, as the person who added it.
+- **A generic script** (Settings, Provisioning) serves a whole rollout. Each router that runs it waits on the Devices page as **Not yet provisioned**, with its serial, model and RouterOS version, until you **Onboard** it (name, sites, template) or **Reject** it. Nothing connects to it before then.
+- **Only your instance.** Every script carries this MikroDash's WireGuard key and instance ID. Scripts are shown once and expire; making a new one stops the old one working. The router's API password is made on the router (remote) and sent only inside the tunnel.
+- **One UDP port**, 13231 by default, must be published and forwarded to MikroDash. The WireGuard server runs in userspace, so the container needs no extra privileges.
 
 </details>
 
@@ -345,6 +363,7 @@ The four feature switches are off in the bare binary and on in the image, becaus
 MikroDash is built for your **local network**. It serves plain HTTP; terminate TLS at a reverse proxy if you need it.
 
 - **Turn on sign-in.** Settings, Authentication, **Require sign-in**. With it off, anyone who reaches the page can see all of your routers' data (router configuration stays read-only). With it on, access is granted as a role (which pages, read or write) over a scope (everything, a site, or one router).
+- **Zero-touch provisioning opens one UDP port** (13231, WireGuard) while it is switched on. It is the only part of MikroDash meant to face the internet: a router without a valid script cannot complete a handshake with it.
 - **Never expose it directly to the internet.** For remote access use a VPN, or an authenticating proxy such as Cloudflare Access or Authelia in front of MikroDash with sign-in enabled.
 - **Credentials at rest** are encrypted with AES-256-GCM; user passwords are hashed with scrypt. Keep the `/data` volume, and `/data/.secret` in particular, private.
 - **Sign-in is rate limited** per client, and every change is recorded in the audit trail.

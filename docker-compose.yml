@@ -23,6 +23,12 @@ services:
     container_name: MikroDash
     ports:
       - "3081:3081"
+      # ZERO-TOUCH PROVISIONING'S WIREGUARD. Nothing listens until it is switched
+      # on (Settings, Provisioning), and it is userspace, so the container needs
+      # no NET_ADMIN and no /dev/net/tun. Remote routers dial it, so it must be
+      # reachable from the internet (forwarded on your firewall) to be useful.
+      # If you change the port in Settings, change it here to match.
+      - "13231:13231/udp"
     volumes:
       - data:/data
     restart: unless-stopped
