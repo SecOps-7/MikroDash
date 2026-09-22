@@ -70,4 +70,14 @@ assert.strictEqual(r.font, 'inter', 'a browser that chose another font lost it')
 r = boot({ mikrodash_font: 'no-such-font' });
 assert.strictEqual(r.font, 'oxanium', 'an unknown font did not fall back to the default');
 
+// THE CJK FALLBACK (#94) sits before the generic family of whatever font is
+// chosen, once, so Chinese text uses a system Chinese face rather than
+// whatever the platform picks for "sans-serif".
+r = boot({ mikrodash_font: 'inter' });
+assert.ok(/'MD CJK',\s*(sans-serif|serif|monospace|system-ui|cursive)$/.test(r.ui),
+  'the chosen font stack has no CJK fallback before its generic family: ' + r.ui);
+assert.strictEqual(A.withCJK("'X', sans-serif"), "'X', 'MD CJK', sans-serif");
+assert.strictEqual(A.withCJK("'X', 'MD CJK', sans-serif"), "'X', 'MD CJK', sans-serif", 'added twice');
+assert.strictEqual(A.withCJK("'X'"), "'X', 'MD CJK'", 'a stack with no generic family still gets it, last');
+
 console.log('appearance-font-default: all checks passed');
