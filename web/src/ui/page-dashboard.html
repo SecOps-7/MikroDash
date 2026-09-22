@@ -1,4 +1,13 @@
   <div class="page-view active" id="page-dashboard">
+    <!-- Zero-touch provisioning: routers that called home on a generic script
+         and wait to be onboarded. Above the grid, not a card in it: it is about
+         the fleet, not the router this dashboard shows. Only an administrator
+         is sent the state it is drawn from (pages/ztp.ts). -->
+    <div class="ztp-notice" id="ztpNotice" hidden>
+      <span class="vpn-hs-badge ztp-pill-pending">Not yet provisioned</span>
+      <span id="ztpNoticeText"></span>
+      <button class="sbtn sbtn-primary ztp-btn" type="button" id="ztpNoticeBtn">Review on Devices</button>
+    </div>
     <div id="dash-grid-root">
       <!-- Drag placeholder (position updated by JS during drag) -->
       <div id="dash-placeholder" aria-hidden="true"></div>

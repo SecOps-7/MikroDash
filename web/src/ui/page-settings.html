@@ -12,6 +12,7 @@
         <button class="stab" data-tab="appearance">Appearance</button>
         <button class="stab" data-tab="auth">Authentication</button>
         <button class="stab" data-tab="ai">AI Agent</button>
+        <button class="stab" data-tab="provisioning">Provisioning</button>
         <button class="stab" data-tab="about">About</button>
       </div>
 
@@ -1346,6 +1347,90 @@
               </span>
               <span id="aiPromptCount" style="font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap">0 / 8000</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Provisioning tab: zero-touch provisioning ───────────────────── -->
+      <div class="stab-panel" id="stab-provisioning">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="14" width="18" height="7" rx="1.5"/><path d="M7 17.5h.01M11 17.5h.01"/><path d="M12 3v8"/><path d="M8.5 7.5 12 11l3.5-3.5"/></svg>
+            <span class="scard-title">Zero-touch provisioning</span>
+            <label class="stoggle" style="margin:0 0 0 auto"><span class="stoggle-switch"><input type="checkbox" id="s_ztpEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">
+              New routers run a short script and call home to this MikroDash, then join the fleet on
+              their own. A remote router dials in over a WireGuard tunnel built into MikroDash, so it
+              can sit behind NAT anywhere. <strong>This opens one UDP port</strong>, which must be
+              published from the container and reachable from the internet; it stays closed while this
+              is off. Routers on your own network need no tunnel.
+            </p>
+            <div class="ztp-status" id="ztpStatusLine"></div>
+            <div class="sform-row" style="margin-top:.6rem">
+              <div class="sform-group" style="flex:2">
+                <label class="sform-label" for="s_ztpEndpoint">Address routers dial</label>
+                <input type="text" id="s_ztpEndpoint" class="sform-input" placeholder="vpn.example.com" autocomplete="off">
+              </div>
+              <div class="sform-group" style="flex:1">
+                <label class="sform-label" for="s_ztpListenPort">UDP port</label>
+                <input type="number" id="s_ztpListenPort" class="sform-input" min="1" max="65535" placeholder="13231">
+              </div>
+            </div>
+            <div class="sform-row" style="margin-top:.5rem">
+              <div class="sform-group" style="flex:1">
+                <label class="sform-label" for="s_ztpSubnet">Tunnel addresses</label>
+                <input type="text" id="s_ztpSubnet" class="sform-input" placeholder="10.249.0.0/16" autocomplete="off">
+              </div>
+              <div class="sform-group" style="flex:2">
+                <label class="sform-label" for="s_ztpLanUrl">This MikroDash on your LAN</label>
+                <input type="text" id="s_ztpLanUrl" class="sform-input" placeholder="http://192.168.88.10:3081" autocomplete="off">
+              </div>
+            </div>
+            <p class="ztp-help" style="margin-top:.4rem">
+              The public address is a name or IP, with no port. Tunnel addresses must be private and not
+              used on your routers' networks. The LAN address is where local routers call home, and the
+              wizard suggests it.
+            </p>
+            <dl class="ztp-facts ztp-facts-wide" style="margin-top:.6rem">
+              <dt>Instance</dt><dd><code id="ztpInstanceId">—</code></dd>
+              <dt>Public key</dt><dd><code id="ztpPublicKey">—</code></dd>
+            </dl>
+            <p class="ztp-help">Every script carries this instance's key, so a router can only ever call
+              home to this MikroDash.</p>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <span class="scard-title">Generic scripts</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">
+              One script for many routers, for a rollout. Each router that runs it appears on the Devices
+              page as <strong>Not yet provisioned</strong>, and joins the fleet when you onboard it. It
+              needs provisioning switched on and the address above.
+            </p>
+            <div class="sform-row">
+              <div class="sform-group" style="flex:2">
+                <label class="sform-label" for="ztpBatchName">Name</label>
+                <input type="text" id="ztpBatchName" class="sform-input" maxlength="64" placeholder="Spring branch rollout" autocomplete="off">
+              </div>
+              <div class="sform-group" style="flex:1">
+                <label class="sform-label" for="ztpBatchDays">Works for</label>
+                <select id="ztpBatchDays" class="sform-input">
+                  <option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex;gap:.6rem;align-items:center;margin-top:.5rem">
+              <button class="sbtn sbtn-primary" type="button" id="ztpBatchBtn">Make a generic script</button>
+              <span class="ztp-help" id="ztpBatchMsg" aria-live="polite"></span>
+            </div>
+            <table class="rtr-list" style="margin-top:.7rem">
+              <thead><tr><th>Name</th><th>State</th><th>Devices</th><th></th></tr></thead>
+              <tbody id="ztpBatchBody"><tr><td colspan="4" class="ztp-help">No generic scripts yet.</td></tr></tbody>
+            </table>
           </div>
         </div>
       </div>

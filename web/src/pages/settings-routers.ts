@@ -25,6 +25,7 @@
  */
 
 import { el, esc } from '../dom';
+import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
 
 export interface RouterRow {
   id: string;
@@ -63,6 +64,10 @@ export function renderRouterRow(
 ): string {
   const isActive = r.id === activeId;
   const activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
+  // A router that came in by zero-touch provisioning says so, and how.
+  const ztp = ztpDeviceForRouter(r.id);
+  const ztpBadge = ztp ? '<span class="rtr-ztp-badge" title="Added by zero-touch provisioning (' +
+    (ztp.mode === 'local' ? 'local' : 'through its tunnel') + ')">ZTP</span>' : '';
   const delBtn = '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + '" data-rtr-label="' + esc(r.label) + '" data-rtr-action="delete" title="Delete">&#128465;</button>';
   const toggleBtn = '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem"'
     + (isActive ? ' disabled title="Cannot disable the active router"' : '')
@@ -96,7 +101,7 @@ export function renderRouterRow(
   const serialCell = r.serial ? '<span class="rtr-host">' + esc(r.serial) + '</span>' : unknown;
   const versionCell = r.osVersion ? '<span class="rtr-ver-pill">' + esc(r.osVersion) + '</span>' : unknown;
   return '<tr' + (r.disabled ? ' style="opacity:.55"' : '') + '>' +
-    '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + '</div>' + activeBadge + siteChip + '</td>' +
+    '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + ztpBadge + '</div>' + activeBadge + siteChip + '</td>' +
     '<td>' + statusCell + '</td>' +
     '<td><span class="rtr-host">' + esc(r.host) + '</span></td>' +
     '<td>' + modelCell + '</td>' +
@@ -193,6 +198,9 @@ export function renderRoutersInto(): void {
 
 export function initSettingsRoutersTable(d: RouterTableDeps): void {
   deps = d;
+  // The ZTP badge is drawn from provisioning's state, which can arrive after
+  // the table.
+  onZtpState(() => renderRoutersInto());
 
   // ── THE ADD BUTTON, WHICH WAS BOUND NOWHERE AT ALL ────────────────────────
   //

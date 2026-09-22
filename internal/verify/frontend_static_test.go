@@ -149,7 +149,9 @@ func TestTemplateIDsAreBound(t *testing.T) {
 	// `el` here would. Without this the pattern reported the WireGuard page's
 	// sortable header as unbound while it was being sorted on screen, which is
 	// the same shape as the `byId<T>` gap recorded above: the check knowing
-	// fewer ways to bind than the code has.
+	// fewer ways to bind than the code has. `querySelector<T>('#x')` is the same
+	// gap again, found 2026-09-22 by the provisioning wizard, whose steps bind
+	// their inputs inside the dialog's body rather than the document.
 	bound := func(id string) bool {
 		q := regexp.QuoteMeta(id)
 		return regexp.MustCompile(
@@ -157,7 +159,7 @@ func TestTemplateIDsAreBound(t *testing.T) {
 				`|getElementById\('` + q + `'\)` +
 				`|closest\('#` + q + `'\)` +
 				`|renderSortHeader\('` + q + `'` +
-				`|querySelector\w*\('#` + q + `'\)`).MatchString(all)
+				`|querySelector\w*(?:<[^>]*>)?\('#` + q + `'\)`).MatchString(all)
 	}
 
 	var unbound []string

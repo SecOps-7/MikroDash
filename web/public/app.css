@@ -2651,3 +2651,87 @@
       .cfg-tpl:hover{transform:none}
       .cfg-drawer{transition:none}
     }
+
+    /* ── Zero-touch provisioning (pages/ztp.ts) and the wizard (wizard.ts) ── */
+    .vpn-hs-badge.ztp-pill-wait{background:color-mix(in srgb,var(--accent-rx) 12%,transparent);color:var(--accent-rx);border:1px solid color-mix(in srgb,var(--accent-rx) 30%,transparent)}
+    .vpn-hs-badge.ztp-pill-pending{background:color-mix(in srgb,var(--accent-warn) 14%,transparent);color:var(--accent-warn);border:1px solid color-mix(in srgb,var(--accent-warn) 36%,transparent)}
+    .vpn-hs-badge.ztp-pill-busy{background:color-mix(in srgb,var(--accent-alt) 14%,transparent);color:var(--accent-alt);border:1px solid color-mix(in srgb,var(--accent-alt) 34%,transparent)}
+    .vpn-hs-badge.ztp-pill-ok{background:color-mix(in srgb,var(--accent-tx) 13%,transparent);color:var(--accent-tx);border:1px solid color-mix(in srgb,var(--accent-tx) 32%,transparent)}
+    .vpn-hs-badge.ztp-pill-bad{background:color-mix(in srgb,var(--accent-err) 13%,transparent);color:var(--accent-err);border:1px solid color-mix(in srgb,var(--accent-err) 32%,transparent)}
+    .vpn-hs-badge.ztp-pill-off,.vpn-hs-badge.ztp-pill-mode{background:color-mix(in srgb,var(--text-muted) 12%,transparent);color:var(--text-muted);border:1px solid var(--border)}
+    .ztp-spin{width:.6rem;height:.6rem;border-radius:50%;border:1.5px solid currentColor;border-right-color:transparent;animation:ztp-spin .9s linear infinite}
+    @keyframes ztp-spin{to{transform:rotate(360deg)}}
+    .ztp-section{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:.85rem 1rem}
+    .ztp-sec-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}
+    .ztp-sec-title{font-size:.82rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em}
+    .ztp-sec-note{font-size:.74rem;color:var(--accent-warn)}
+    .ztp-empty{font-size:.76rem;color:var(--text-muted)}
+    .ztp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem}
+    .ztp-card{border:1px solid var(--border);border-radius:10px;padding:.75rem .85rem;display:flex;flex-direction:column;gap:.45rem;min-width:0;transition:border-color .2s}
+    .ztp-card.state-pending{border-color:color-mix(in srgb,var(--accent-warn) 45%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent-warn) 12%,transparent) inset}
+    .ztp-card.state-failed{border-color:color-mix(in srgb,var(--accent-err) 40%,transparent)}
+    .ztp-card.state-rejected{opacity:.6}
+    .ztp-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+    .ztp-card-name{font-weight:600;font-size:.86rem;color:var(--text-main);overflow-wrap:anywhere}
+    .ztp-card-hint{font-size:.72rem;color:var(--text-muted);line-height:1.4}
+    .ztp-card-err{font-size:.72rem;line-height:1.4;color:var(--accent-err);background:color-mix(in srgb,var(--accent-err) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent-err) 22%,transparent);border-radius:6px;padding:.35rem .55rem}
+    .ztp-card-actions{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:auto;padding-top:.2rem}
+    .ztp-btn{padding:.28rem .7rem;font-size:.72rem}
+    .ztp-facts{display:grid;grid-template-columns:auto 1fr;gap:.15rem .7rem;margin:0;font-size:.72rem}
+    .ztp-facts dt{color:var(--text-muted);font-weight:400}
+    .ztp-facts dd{margin:0;color:var(--text-main);font-family:var(--font-mono);overflow-wrap:anywhere}
+    .ztp-facts-wide{margin-bottom:.8rem}
+    .ztp-msg{margin-bottom:.6rem}
+    .ztp-notice{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:0 0 .8rem;padding:.55rem .8rem;border-radius:10px;font-size:.78rem;color:var(--text-main);background:color-mix(in srgb,var(--accent-warn) 8%,var(--bg-card));border:1px solid color-mix(in srgb,var(--accent-warn) 32%,transparent)}
+    .ztp-notice .ztp-btn{margin-left:auto}
+    .ztp-status{font-size:.76rem;color:var(--text-muted);display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+    .ztp-help{font-size:.72rem;color:var(--text-muted);line-height:1.45;margin-top:.25rem}
+    .ztp-help code,.ztp-steps code{font-family:var(--font-mono);font-size:.7rem;padding:.05rem .3rem;border-radius:4px;background:color-mix(in srgb,var(--text-muted) 14%,transparent);color:var(--text-main)}
+    .ztp-opt{font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0}
+    .ztp-lead{font-size:.86rem;color:var(--text-main);margin-bottom:.7rem}
+    .ztp-sub{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .4rem}
+    .ztp-choices{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    .ztp-choice{display:flex;flex-direction:column;gap:.35rem;padding:.9rem 1rem;border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color .15s,background .15s;position:relative}
+    .ztp-choice input{position:absolute;opacity:0;pointer-events:none}
+    .ztp-choice:hover{border-color:color-mix(in srgb,var(--accent-rx) 45%,transparent)}
+    .ztp-choice.is-on{border-color:var(--accent-rx);background:color-mix(in srgb,var(--accent-rx) 8%,transparent)}
+    .ztp-choice:focus-within{outline:2px solid var(--accent-rx);outline-offset:2px}
+    .ztp-choice.is-off{opacity:.55;cursor:not-allowed}
+    .ztp-choice-title{font-weight:700;font-size:.9rem;color:var(--text-main)}
+    .ztp-choice-text{font-size:.74rem;color:var(--text-muted);line-height:1.45}
+    .ztp-choice-off{font-size:.72rem;color:var(--accent-warn)}
+    .ztp-sites{display:flex;flex-wrap:wrap;gap:.3rem .9rem;font-size:.76rem}
+    .ztp-site{display:inline-flex;align-items:center;gap:.3rem;cursor:pointer}
+    .ztp-notes{margin-top:.6rem;font-size:.74rem;color:var(--text-muted)}
+    .ztp-script-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.5rem}
+    .ztp-script-btns{display:flex;gap:.4rem}
+    .ztp-script{max-height:16rem;overflow:auto;font-family:var(--font-mono);font-size:.68rem;line-height:1.45;padding:.7rem .8rem;border-radius:8px;border:1px solid var(--border);background:color-mix(in srgb,var(--bg-deep) 70%,transparent);color:var(--text-main);white-space:pre}
+    .ztp-steps{font-size:.76rem;color:var(--text-main);padding-left:1.2rem;margin:.7rem 0}
+    .ztp-steps li{margin-bottom:.25rem}
+    .rtr-ztp-badge{font-size:.6rem;padding:.1rem .4rem;border-radius:4px;margin-left:.3rem;background:color-mix(in srgb,var(--accent-alt) 14%,transparent);color:var(--accent-alt);border:1px solid color-mix(in srgb,var(--accent-alt) 32%,transparent)}
+    .rtr-modal.wiz{width:min(760px,94vw);display:flex;flex-direction:column}
+    .rtr-modal.wiz>.rtr-modal-body{display:block;min-height:14rem}
+    .wiz .cfg-grid-all{display:none}
+    .wiz-rail-wrap{padding:.75rem 1.1rem 0}
+    .wiz-rail{display:flex;gap:.4rem;list-style:none;margin:0;padding:0}
+    .wiz-step{flex:1;display:flex;align-items:center;gap:.45rem;font-size:.72rem;color:var(--text-muted);min-width:0}
+    .wiz-step+.wiz-step::before{content:"";flex:0 0 1rem;height:1px;background:var(--border)}
+    .wiz-dot{flex:0 0 1.45rem;height:1.45rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.68rem;border:1px solid var(--border);transition:background .2s,border-color .2s}
+    .wiz-step.is-current{color:var(--text-main);font-weight:600}
+    .wiz-step.is-current .wiz-dot{border-color:var(--accent-rx);background:color-mix(in srgb,var(--accent-rx) 18%,transparent);color:var(--accent-rx)}
+    .wiz-step.is-done .wiz-dot{border-color:var(--accent-tx);background:color-mix(in srgb,var(--accent-tx) 16%,transparent);color:var(--accent-tx)}
+    .wiz-step-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wiz-rail-small{display:none;font-size:.74rem;color:var(--text-muted)}
+    .wiz-foot{display:flex;align-items:center;gap:.6rem;padding:.75rem 1.1rem;border-top:1px solid var(--border)}
+    .wiz-why{flex:1;font-size:.74rem;color:var(--text-muted);text-align:right}
+    .wiz-why.is-bad{color:var(--accent-err)}
+    @media (max-width:600px){
+      .wiz-rail{display:none}
+      .wiz-rail-small{display:block}
+      .ztp-choices{grid-template-columns:1fr}
+      .ztp-notice .ztp-btn{margin-left:0}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .ztp-spin{animation:none}
+      .ztp-card,.ztp-choice,.wiz-dot{transition:none}
+    }

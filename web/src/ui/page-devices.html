@@ -49,6 +49,11 @@
         </div>
       </div>
 
+      <!-- Zero-touch provisioning: devices on their way into the fleet, and
+           those that called home unannounced. Empty and hidden when there are
+           none and provisioning is off. -->
+      <div class="ztp-section mt-3" id="ztpSection" hidden></div>
+
       <!-- Header bar: view on the left, one search on the right. Per-column
            filter boxes lived in the table head and cost a row of chrome for
            something one box answers. -->
@@ -67,6 +72,13 @@
           <option value="list">List</option>
           <option value="map">Map</option>
         </select>
+        <!-- Shown once a ztp:state arrives, which only an administrator's
+             socket is sent (pages/ztp.ts). -->
+        <button class="sbtn sbtn-primary" type="button" id="ztpAddBtn" hidden
+                title="Make a script that brings a new router into the fleet on its own">
+          <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add device
+        </button>
       </div>
 
       <!-- `justify-content-center`: a partly filled last row used to pack hard

@@ -55,6 +55,7 @@ import { initToolsPage } from './pages/tools';
 import { initSecurityScanPage } from './pages/security-scan';
 import { initConfigManagementPage } from './pages/config-management';
 import { mountRouters, renderRoutersStats } from './pages/routers';
+import { mountZtp } from './pages/ztp';
 import type { StoredRouter } from './pages/router-form';
 import { mountReports } from './pages/reports';
 import { initAuditPage } from './pages/audit';
@@ -659,6 +660,9 @@ async function main(): Promise<void> {
   // one-way: `routers-map.ts` imports `routers.ts`, never the reverse. See the
   // note at the top of `mountRouters`.
   initRoutersMap();
+  // Zero-touch provisioning: the Devices page's section and wizards, Settings →
+  // Provisioning and the Dashboard's notice, all from one `ztp:state`.
+  mountZtp(socket);
 
   // The first-run overlay. Mounted 2026-08-29, once
   // `POST /api/routers/{id}/activate` was ported — until then its Connect button
