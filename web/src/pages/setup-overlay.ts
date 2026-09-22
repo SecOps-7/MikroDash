@@ -120,6 +120,6 @@ export const SETUP_WATCH_FIELDS = [
 
 /** The test result line, both outcomes. */
 export function setupTestResultText(ok: boolean, boardName: string, error: string): string {
-  if (ok) return '✓ Connected' + (boardName ? ' — ' + boardName : '');
+  if (ok) return t('✓ Connected') + (boardName ? ' — ' + boardName : '');
   return '✗ ' + (error || t('Failed'));
 }

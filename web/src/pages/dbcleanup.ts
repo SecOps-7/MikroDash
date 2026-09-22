@@ -76,7 +76,7 @@ export const TYPE_LABELS: Record<string, string> = {
 export function routerName(id: string, known: DbRouter[]): string {
   const m = known.find((x) => x.id === id);
   if (m) return m.label || m.host || id;
-  return 'Removed router (' + String(id).slice(0, 8) + '…)';
+  return t('Removed router ({id}…)', { id: String(id).slice(0, 8) });
 }
 
 /**
@@ -141,22 +141,17 @@ export function summaryHtml(
   if (!j.total) return null;
   const byType = j.byType || {};
   const parts = opts.types
-    .filter((t) => byType[t])
-    .map((t) => TYPE_LABELS[t] + ' <b>' + (byType[t] as number).toLocaleString() + '</b>');
-  const where = opts.routerId ? routerName(opts.routerId, known) : 'all routers';
-  const when = opts.olderThanDays
-    ? 'older than ' + opts.olderThanDays + ' day' + (opts.olderThanDays === 1 ? '' : 's')
-    : t('of any age');
-  return (
-    'Will delete <b>' +
-    j.total.toLocaleString() +
-    '</b> rows from ' +
-    esc(where) +
-    ', ' +
-    when +
-    '.<br>' +
-    parts.join(' &middot; ')
-  );
+    .filter((ty) => byType[ty])
+    .map((ty) => TYPE_LABELS[ty] + ' <b>' + (byType[ty] as number).toLocaleString() + '</b>');
+  const v = {
+    n: j.total.toLocaleString(),
+    where: esc(opts.routerId ? routerName(opts.routerId, known) : t('all routers')),
+    days: opts.olderThanDays || 0,
+  };
+  const sentence = !opts.olderThanDays ? t('Will delete <b>{n}</b> rows from {where}, of any age.', v)
+    : opts.olderThanDays === 1 ? t('Will delete <b>{n}</b> rows from {where}, older than 1 day.', v)
+      : t('Will delete <b>{n}</b> rows from {where}, older than {days} days.', v);
+  return sentence + '<br>' + parts.join(' &middot; ');
 }
 
 /**
@@ -167,7 +162,7 @@ export function summaryHtml(
  */
 export function deletedText(j: DbPurgeReply): string {
   const freed = Math.max(0, (j.bytesBefore || 0) - (j.bytesAfter || 0));
-  return '✓ Deleted ' + (j.deleted || 0).toLocaleString() + ' rows, freed ' + fmtBytes(freed) + '.';
+  return t('✓ Deleted {n} rows, freed {size}.', { n: (j.deleted || 0).toLocaleString(), size: fmtBytes(freed) });
 }
 
 // ── The wiring ──────────────────────────────────────────────────────────────
@@ -357,7 +352,7 @@ export function initDbCleanup(): void {
     setBusy(
       true,
       'delete',
-      'Deleting ' + count.toLocaleString() + ' rows and compacting the database…',
+      t('Deleting {n} rows and compacting the database…', { n: count.toLocaleString() }),
     );
     post({ routerId: opts.routerId, types: opts.types, olderThanDays: opts.olderThanDays })
       .then((j) => {

@@ -254,11 +254,11 @@ export function initSettingsSave(reloadSettings: () => void): void {
         // Reset button carries the scar for the other half of this — it once
         // reported "✓ Reset to defaults" on a 403 — and this is the worse half,
         // because it destroys work rather than merely lying about it.
-        showBanner('err', 'Save failed: ' + ((d && d.error) || 'unknown error'));
+        showBanner('err', t('Save failed: {error}', { error: (d && d.error) || t('unknown error') }));
       })
       .catch((e) => {
         restore();
-        showBanner('err', 'Request failed: ' + e);
+        showBanner('err', t('Request failed: {error}', { error: String(e) }));
       });
   });
 }

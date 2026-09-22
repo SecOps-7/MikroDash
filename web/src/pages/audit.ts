@@ -267,7 +267,7 @@ export function initAuditPage(): void {
         const note = el('auditNote');
         // Say plainly that the view is partial rather than letting a paged list
         // look like the whole trail.
-        if (note) note.textContent = total > PAGE ? 'showing ' + PAGE + ' at a time' : '';
+        if (note) note.textContent = total > PAGE ? t('showing {n} at a time', { n: PAGE }) : '';
         renderSummary();
         render();
         // The export links carry the FILTERS but not the paging, so a download

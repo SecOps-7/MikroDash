@@ -89,8 +89,7 @@ export function renderPingPage(): void {
   // `toLocaleString` on the count, so 12,345 rows reads as a number rather than
   // a serial. The original's, and it follows the browser's locale.
   if (info) {
-    info.textContent = 'Page ' + (pingPage + 1) + ' of ' + pages +
-      ' (' + total.toLocaleString() + ' rows)';
+    info.textContent = t('Page {page} of {pages} ({rows} rows)', { page: pingPage + 1, pages, rows: total.toLocaleString() });
   }
   const prev = el<HTMLButtonElement>('rptPingPrev');
   if (prev) prev.disabled = pingPage === 0;

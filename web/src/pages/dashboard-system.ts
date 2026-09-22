@@ -81,7 +81,7 @@ export function flushSysUpdate(): void {
 
   const ut = parseUptime(d.uptimeRaw);
   const uptimeDisplay = el('uptimeDisplay');
-  if (uptimeDisplay) uptimeDisplay.textContent = 'Uptime: ' + ut;
+  if (uptimeDisplay) uptimeDisplay.textContent = t('Uptime: {uptime}', { uptime: ut });
   const uptimeChip = el('uptimeChip');
   if (uptimeChip) {
     uptimeChip.textContent = ut;

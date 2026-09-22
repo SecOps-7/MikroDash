@@ -466,10 +466,9 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     }
     if (status) {
       const filtered = matched.length !== listed.rows.length;
-      status.textContent = listed.total.toLocaleString() + ' connections' +
-        (filtered ? ', ' + matched.length.toLocaleString() + ' shown' : '') +
-        (listed.capped ? '. The router has more than MikroDash processes; the first ' +
-          listed.rows.length.toLocaleString() + ' are listed.' : '');
+      const v = { n: listed.total.toLocaleString(), shown: matched.length.toLocaleString(), first: listed.rows.length.toLocaleString() };
+      status.textContent = (filtered ? t('{n} connections, {shown} shown', v) : t('{n} connections', v)) +
+        (listed.capped ? '. ' + t('The router has more than MikroDash processes; the first {first} are listed.', v) : '');
     }
   }
 

@@ -221,8 +221,8 @@ export function initRouterModal(opts: {
       'router-denied': t('The router refused the new identity: the API user lacks write permission.'),
       'write-failed': t('The router refused the new identity.'),
     };
-    if (j.error) return '✗ Device saved, identity not changed: ' + j.error;
-    return '✗ Device saved. ' + (codes[j.code || ''] ||
+    if (j.error) return t('✗ Device saved, identity not changed: {error}', { error: j.error });
+    return t('✗ Device saved.') + ' ' + (codes[j.code || ''] ||
       (status === 403 ? t('You may not change this router.') : t('The device identity was not changed.')));
   }
 
@@ -363,7 +363,7 @@ export function initRouterModal(opts: {
     if (!data.host) { showTestResult(false, t('Host is required')); return; }
     if (btn) { btn.disabled = true; btn.textContent = t('Testing…'); }
     hideTestResult();
-    try { await runTest(data); } catch (e) { showTestResult(false, '✗ Request failed: ' + String(e)); }
+    try { await runTest(data); } catch (e) { showTestResult(false, t('✗ Request failed: {error}', { error: String(e) })); }
     if (btn) { btn.disabled = false; btn.textContent = t('Test Connection'); }
   });
 
@@ -403,7 +403,7 @@ export function initRouterModal(opts: {
       el('rtrModalBg')?.classList.remove('open');
       opts.onSaved();
     } catch (e) {
-      showTestResult(false, '✗ Request failed: ' + String(e));
+      showTestResult(false, t('✗ Request failed: {error}', { error: String(e) }));
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = t('Save'); }
     }

@@ -178,7 +178,7 @@ export function initWireguardPeers(socket: Socket): void {
           : t('The router did not return a configuration.');
         return;
       }
-      if (title) title.textContent = 'Client configuration — ' + String(body.peer || '');
+      if (title) title.textContent = t('Client configuration — {peer}', { peer: String(body.peer || '') });
       // THE CONFIG IS TEXT, so it goes in as text. `textContent`, never
       // `innerHTML`: it is the operator's own router data and it is not markup.
       pre.textContent = String(body.config || '');
@@ -262,7 +262,7 @@ export function initWireguardPeers(socket: Socket): void {
         '<div class="apps-modal-card" style="width:min(720px,94vw)">' +
           ('<h3 class="card-title" id="wgConfTitle">' + t('Client configuration') + '</h3>') +
           '<p style="font-size:.78rem;color:var(--accent-red,#f87171);margin:.3rem 0 .6rem">' +
-            'This contains the client\'s private key. Anyone who has it can join your network.' +
+            t('This contains the client\'s private key. Anyone who has it can join your network.') +
           '</p>' +
           '<div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start">' +
             '<div id="wgConfQR" style="width:min(240px,60vw)"></div>' +

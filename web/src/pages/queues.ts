@@ -160,7 +160,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     const h = hist[key] || { up: [], down: [] };
     const title = source === 'router'
       ? t('Router-reported average (bytes/sec), shown until a window is measured')
-      : 'Measured over ' + ((windowMs || 0) / 1000).toFixed(1) + ' s';
+      : t('Measured over {s} s', { s: ((windowMs || 0) / 1000).toFixed(1) });
     return '<div class="q-rate" title="' + esc(title) + '">' +
       rateLine('tx', up, h.up) +
       (down === null ? '' : rateLine('rx', down, h.down)) + '</div>';
@@ -196,8 +196,8 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     if (!data) return 'Waiting for queue data&hellip;';
     if (data.denied) return t('This router\'s MikroDash account cannot read queues.');
     return menu === 'simple'
-      ? 'No simple queues on this router. A simple queue caps the bandwidth of one target &mdash; an address, a subnet, or an interface.' +
-        (writable.simpleQueue ? ' ' + t('Use') + ' <strong>' + t('Add') + '</strong> ' + t('to create one.') : '')
+      ? t('No simple queues on this router. A simple queue caps the bandwidth of one target — an address, a subnet, or an interface.') +
+        (writable.simpleQueue ? ' ' + t('Use <strong>Add</strong> to create one.') : '')
       : t('No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.');
   }
 
@@ -280,10 +280,11 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     // FastTrack rule active, a fresh queue on the LAN still counted several
     // megabits within seconds. FastTrack diverts the connections it matches, not
     // all traffic, so the honest claim is "some of it bypasses these queues".
-    banner.innerHTML = ('<strong>' + t('FastTrack is active on this router.') + '</strong> ') +
-      'FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here only shapes the traffic FastTrack did not take' +
-      (ft.scoped ? ' — and this rule is narrowed, so it takes only part of it.' : t(', which can be a small fraction of the total.')) +
-      ' If a limit looks like it is having no effect, this is usually why. To shape that traffic too, disable the FastTrack rule in <em>IP &rarr; Firewall &rarr; Filter</em>, or exclude the traffic from it.';
+    banner.innerHTML = '<strong>' + t('FastTrack is active on this router.') + '</strong> ' +
+      (ft.scoped
+        ? t('FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here only shapes the traffic FastTrack did not take — and this rule is narrowed, so it takes only part of it.')
+        : t('FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here only shapes the traffic FastTrack did not take, which can be a small fraction of the total.')) +
+      ' ' + t('If a limit looks like it is having no effect, this is usually why. To shape that traffic too, disable the FastTrack rule in <em>IP → Firewall → Filter</em>, or exclude the traffic from it.');
   }
 
   function renderSummary(): void {

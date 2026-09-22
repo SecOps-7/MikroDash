@@ -118,8 +118,8 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
     }
 
     if (!filtered.length) {
-      table.innerHTML = '<tr><td colspan="4" class="empty-state">No leases' +
-        ((leaseFilter || leaseServerFilter) ? ' matching filter' : '') + '…</td></tr>';
+      table.innerHTML = '<tr><td colspan="4" class="empty-state">' +
+        ((leaseFilter || leaseServerFilter) ? t('No leases matching filter…') : t('No leases…')) + '</td></tr>';
       return;
     }
     table.innerHTML = sortLeases(filtered).map((l) => {
@@ -197,7 +197,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
     if (!servers || !servers.length) { sel.style.display = 'none'; return; }
     sel.style.display = '';
 
-    let html = '<option value="">All leases (' + allLeases.length + ')</option>';
+    let html = '<option value="">' + t('All leases ({n})', { n: allLeases.length }) + '</option>';
     html += servers.map((s) => {
       const bits = [s.name];
       if (s.iface && s.iface !== s.name) bits.push(s.iface);
@@ -222,8 +222,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
     // "Waiting for network data…" for ever, nor showing the subnets of whichever
     // router was selected before it.
     if (!nets.length) {
-      host.innerHTML = '<div class="empty-state" style="font-size:.75rem;padding:.5rem 0">' +
-        'No DHCP networks on this device</div>';
+      host.innerHTML = '<div class="empty-state" style="font-size:.75rem;padding:.5rem 0">' + t('No DHCP networks on this device') + '</div>';
       return;
     }
     const rows = nets.map((n) => {

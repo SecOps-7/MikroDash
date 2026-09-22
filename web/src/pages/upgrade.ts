@@ -32,7 +32,7 @@ import type { UpdInfo } from './dashboard-system';
 
 /** What the dialog says when the router refuses. */
 export function upgradeErrorText(code: string | undefined, routerName: string): string {
-  if (code === 'confirm-mismatch') return 'That is not this router’s name. Type "' + routerName + '".';
+  if (code === 'confirm-mismatch') return t('That is not this router’s name. Type "{name}".', { name: routerName });
   if (code === 'nothing-to-update') return t('This router is already on the newest version it knows about.');
   if (code === 'denied') return t('You do not have permission to update this router.');
   if (code === 'router-write-policy') return t('The RouterOS user MikroDash connects with lacks the write policy.');

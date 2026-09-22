@@ -347,10 +347,10 @@ export function initPollAndBanner(reloadSettings: () => void): void {
             showBanner('ok', t('✓ Reset to defaults'));
             reloadSettings();
           } else {
-            showBanner('err', 'Reset failed: ' + ((d && d.error) || 'not permitted'));
+            showBanner('err', t('Reset failed: {error}', { error: (d && d.error) || t('not permitted') }));
           }
         })
-        .catch((e) => showBanner('err', 'Reset failed: ' + e));
+        .catch((e) => showBanner('err', t('Reset failed: {error}', { error: String(e) })));
     });
   }
 }

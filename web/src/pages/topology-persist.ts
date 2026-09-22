@@ -95,7 +95,7 @@ export function topoPersist(st: TopoState, deps: {
     if (!b) return;
     b.classList.toggle('is-on', st.fleetOn);
     b.textContent = st.fleetBusy ? t('Fleet…')
-      : (st.fleetOn && st.fleetStat.answered ? 'Fleet ' + st.fleetStat.answered : t('Fleet'));
+      : (st.fleetOn && st.fleetStat.answered ? t('Fleet {n}', { n: st.fleetStat.answered }) : t('Fleet'));
   }
 
   // ── the operator's own cabling ────────────────────────────────────────────
@@ -184,7 +184,7 @@ export function topoPersist(st: TopoState, deps: {
     if (!b) return;
     b.classList.toggle('is-on', st.pinsEnabled);
     const n = Object.keys(st.pins).length;
-    b.textContent = n ? 'Pins ' + n : t('Pins');
+    b.textContent = n ? t('Pins {n}', { n }) : t('Pins');
   }
 
   return { applyData, loadPeers, syncFleetBtn, loadPins, savePins, syncPinsBtn };

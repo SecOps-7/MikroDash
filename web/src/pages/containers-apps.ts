@@ -71,8 +71,10 @@ export function initContainersApps(socket: Socket): void {
       '<div><b>' + running + '</b><span>running</span></div></div>';
     if (s.ready) {
       return ('<div class="apps-hero-card"><div class="apps-hero-text"><h4>' + t('App store') + '</h4>') +
-        ('<p>' + t('One click installs an app: RouterOS pulls its images and sets up its network and firewall. Apps are stored on') + ' <b>') + esc(s.disk) + '</b>' + (s.lanBridge ? ', joined to <b>' + esc(s.lanBridge) + '</b>' : '') +
-        '. ' + (s.httpsLinks ? t('Each app gets an HTTPS link through IP Cloud.')
+        '<p>' + (s.lanBridge
+          ? t('One click installs an app: RouterOS pulls its images and sets up its network and firewall. Apps are stored on <b>{disk}</b>, joined to <b>{bridge}</b>.', { disk: esc(s.disk), bridge: esc(s.lanBridge) })
+          : t('One click installs an app: RouterOS pulls its images and sets up its network and firewall. Apps are stored on <b>{disk}</b>.', { disk: esc(s.disk) })) +
+        ' ' + (s.httpsLinks ? t('Each app gets an HTTPS link through IP Cloud.')
           : t('Apps get plain HTTP links: HTTPS links need IP Cloud (IP › Cloud) to give this router a DNS name.')) +
         '</p></div>' + stats + '</div>';
     }
@@ -153,9 +155,9 @@ export function initContainersApps(socket: Socket): void {
       return;
     }
     m.innerHTML = '<div class="apps-modal-card" role="dialog" aria-modal="true">' +
-      '<h4>Remove ' + esc(removing) + '?</h4>' +
-      ('<p>' + t('This stops the app and') + ' <b>' + t('permanently deletes its data') + '</b> ' + t('and its image. It cannot be undone.') + '</p>') +
-      ('<label><span>' + t('Type') + ' <code>') + esc(removing) + '</code> to confirm</span><input type="text" id="appsConfirm" autocomplete="off" spellcheck="false"></label>' +
+      '<h4>' + t('Remove {app}?', { app: esc(removing) }) + '</h4>' +
+      '<p>' + t('This stops the app and <b>permanently deletes its data</b> and its image. It cannot be undone.') + '</p>' +
+      '<label><span>' + t('Type <code>{app}</code> to confirm', { app: esc(removing) }) + '</span><input type="text" id="appsConfirm" autocomplete="off" spellcheck="false"></label>' +
       ('<div class="apps-modal-actions"><button type="button" class="apps-btn" data-apps-cancel>' + t('Cancel') + '</button>') +
       ('<button type="button" class="apps-btn is-danger" id="appsRemove" data-apps-remove disabled>' + t('Remove app') + '</button></div></div>');
     m.hidden = false;

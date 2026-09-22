@@ -259,7 +259,7 @@ export function grantAddPlan(
   if (!principalId) return { error: unsaved };
 
   // `|| 'global:'` — an empty picker means every router, not a malformed scope.
-  const parts = (scopeValue || 'global:').split(':');
+  const parts = (scopeValue || t('global:')).split(':');
   return {
     method: 'POST',
     url: '/api/grants',
@@ -314,13 +314,13 @@ export function grantOutcome(
 // user-visible change even though nothing about the request differs.
 
 export function userDeletePrompt(username: string): string {
-  return 'Delete user "' + username + '"? This cannot be undone.';
+  return t('Delete user "{name}"? This cannot be undone.', { name: username });
 }
 
 export function groupDeletePrompt(name: string): string {
-  return 'Delete group "' + name + '"?\n\nIts members keep any access granted to them directly.';
+  return t('Delete group "{name}"?\n\nIts members keep any access granted to them directly.', { name });
 }
 
 export function roleDeletePrompt(name: string): string {
-  return 'Delete the role "' + name + '"?';
+  return t('Delete the role "{name}"?', { name });
 }

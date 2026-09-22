@@ -53,7 +53,7 @@ export function railHtml(steps: WizardStep[], at: number): string {
     '<li class="wiz-step' + (i < at ? ' is-done' : i === at ? ' is-current' : '') + '"' +
     (i === at ? ' aria-current="step"' : '') + '><span class="wiz-dot">' + (i < at ? '&#10003;' : String(i + 1)) +
     '</span><span class="wiz-step-name">' + esc(s.title) + '</span></li>').join('') + '</ol>' +
-    '<div class="wiz-rail-small">Step ' + (at + 1) + ' of ' + steps.length + ': ' + esc(steps[at]?.title ?? '') + '</div>';
+    '<div class="wiz-rail-small">' + t('Step {n} of {total}: {title}', { n: at + 1, total: steps.length, title: esc(steps[at]?.title ?? '') }) + '</div>';
 }
 
 /** Open a wizard. Returns a function that closes it. */
@@ -128,7 +128,7 @@ export function openWizard(spec: WizardSpec): () => void {
       advance();
     }, (e: unknown) => {
       busy = false;
-      error = 'The request failed: ' + String(e);
+      error = t('The request failed: {error}', { error: String(e) });
       recheck();
     });
   });

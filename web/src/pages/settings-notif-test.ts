@@ -246,7 +246,7 @@ export function certSummary(c: CertInfo): { head: string; rows: [string, string]
   return {
     head: c.mismatch
       ? t('The endpoint presented a DIFFERENT certificate from the one you trusted. Trust it only if you replaced it yourself.')
-      : 'The endpoint\'s certificate is not trusted' + (c.selfSigned ? ' (it is self-signed).' : '.'),
+      : c.selfSigned ? t('The endpoint\'s certificate is not trusted (it is self-signed).') : t('The endpoint\'s certificate is not trusted.'),
     rows,
   };
 }

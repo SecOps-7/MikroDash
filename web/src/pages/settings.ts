@@ -27,8 +27,7 @@
  */
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
-import { bindLanguageSelect } from '../i18n';
+import { t, bindLanguageSelect } from '../i18n';
 // `siteIdsOf` is the ARRAY-WINS-OUTRIGHT rule, ported once in `routers.ts` and
 // reused rather than restated: a second copy here would drift, and the half that
 // drifts silently is the empty array — an explicit `siteIds: []` means "no
@@ -654,7 +653,7 @@ export interface GroupView {
 export function groupTableHtml(groups: GroupView[], look: PrincipalLookups): string {
   if (!groups.length) {
     return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">'
-      + 'No groups yet. Add one to grant a role to several people at once.</td></tr>';
+      + t('No groups yet. Add one to grant a role to several people at once.') + '</td></tr>';
   }
   const td = 'padding:.4rem .5rem;border-bottom:1px solid var(--border)';
   return groups.map((g) => {
@@ -734,9 +733,9 @@ export function siteRouterCounts(
  */
 export function siteDeletePrompt(name: string, routerCount: number): string {
   const warn = routerCount
-    ? '\n\n' + routerCount + ' device(s) will lose this site. They keep any other sites, and are not deleted.'
+    ? '\n\n' + t('{n} device(s) will lose this site. They keep any other sites, and are not deleted.', { n: routerCount })
     : '';
-  return 'Delete site "' + name + '"?' + warn;
+  return t('Delete site "{name}"?', { name }) + warn;
 }
 
 /** What the site form holds when Save is pressed. */
@@ -868,7 +867,7 @@ export function siteMemberRowsHtml(
       if (known) elsewhere.push(known.name);
     }
     const other = elsewhere.length
-      ? ' <span style="color:var(--text-muted)">— also in ' + esc(elsewhere.join(', ')) + '</span>'
+      ? ' <span style="color:var(--text-muted)">' + t('— also in {list}', { list: esc(elsewhere.join(', ')) }) + '</span>'
       : '';
     return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">'
       + '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>'
@@ -879,7 +878,7 @@ export function siteMemberRowsHtml(
 export function siteTableHtml(sites: SiteView[], counts: Record<string, number>): string {
   if (!sites.length) {
     return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">'
-      + 'No sites yet. Add one to group your devices.</td></tr>';
+      + t('No sites yet. Add one to group your devices.') + '</td></tr>';
   }
   return sites.map((s) => siteRowHtml(s, counts[s.id] || 0)).join('');
 }

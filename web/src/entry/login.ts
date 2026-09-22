@@ -27,8 +27,7 @@
  */
 
 import { loadBranding } from '../branding';
-import { t } from '../i18n';
-import { bindLanguageSelect } from '../i18n';
+import { t, bindLanguageSelect } from '../i18n';
 
 const byId = (id: string): HTMLElement | null => document.getElementById(id);
 
@@ -89,7 +88,7 @@ function safeNext(): string {
 
 function main(): void {
   // The install's own name and icon, before anybody signs in (issue #131).
-  void loadBranding(' — Sign In');
+  void loadBranding(' — ' + t('Sign In'));
   bindLanguageSelect(byId('loginLang') as HTMLSelectElement | null, byId('loginLangWrap'));
   const loginView = byId('loginView');
   const firstRunView = byId('firstRunView');

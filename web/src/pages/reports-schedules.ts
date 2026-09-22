@@ -208,7 +208,7 @@ export function wireScheduleActions(): void {
       // cannot load without a router — and pinned as a difference in
       // a Node-era check (since deleted) rather than quietly diverging.
       if (!row || !router?.value) return;
-      if (!window.confirm('Remove the scheduled report "' + row.name + '"?')) return;
+      if (!window.confirm(t('Remove the scheduled report "{name}"?', { name: row.name }))) return;
       void fetch(API + '/' + encodeURIComponent(id) + '?routerId=' +
         encodeURIComponent(router.value), { method: 'DELETE', credentials: 'same-origin' })
         // RELOADS ONLY ON SUCCESS, which is the live app's shape. An earlier

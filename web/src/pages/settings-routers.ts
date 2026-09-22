@@ -134,7 +134,7 @@ export function renderRouterTable(
 
 /** The delete confirmation, which names what is about to be destroyed. */
 export function deleteRouterPrompt(label: string): string {
-  return 'Delete router "' + label + '"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.';
+  return t('Delete router "{name}"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.', { name: label });
 }
 
 /**

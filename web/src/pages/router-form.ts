@@ -421,14 +421,12 @@ export function seedGeoPicker(
         // without moving a value.
         cc: site.place_cc || '', lat: site.lat ?? undefined, lon: site.lon ?? undefined,
       },
-      hint: '<span class="text-muted">' + t('From this router\u2019s site,') + ' '
-        + esc(site.place_name) + '. Pick a town to override it.</span>',
+      hint: '<span class="text-muted">' + t('From this router\u2019s site, {place}. Pick a town to override it.', { place: esc(site.place_name) }) + '</span>',
     };
   }
   return {
     mode: 'clear', value: null,
-    hint: '<span class="text-muted">' + t('No location yet. A private or CGNAT WAN') + ' '
-      + 'address cannot be geolocated \u2014 pick a town instead.</span>',
+    hint: '<span class="text-muted">' + t('No location yet. A private or CGNAT WAN address cannot be geolocated \u2014 pick a town instead.') + '</span>',
   };
 }
 
@@ -443,7 +441,7 @@ export function seedGeoPicker(
 export function testResultMessage(
   ok: boolean, boardName: string | undefined, error: string | undefined,
 ): string {
-  if (ok) return '\u2713 Connected' + (boardName ? ' \u2014 ' + boardName : '');
+  if (ok) return t('\u2713 Connected') + (boardName ? ' \u2014 ' + boardName : '');
   return '\u2717 ' + (error || t('Connection failed'));
 }
 

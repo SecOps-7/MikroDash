@@ -65,10 +65,10 @@ export function secScoreSevs(d: SecScorePayload): string {
 
 /** The line under the tiles: progress, a refusal, or the checks and the age. */
 export function secScoreMeta(d: SecScorePayload): string {
-  if (d.running) return 'Scanning ' + d.done + ' of ' + d.total + ' menus…';
-  if (d.code) return REFUSED[d.code] || (d.message ? 'The last scan failed: ' + d.message : t('The last scan failed.'));
+  if (d.running) return t('Scanning {done} of {total} menus…', { done: d.done, total: d.total });
+  if (d.code) return REFUSED[d.code] || (d.message ? t('The last scan failed: {error}', { error: d.message }) : t('The last scan failed.'));
   if (!d.has) return '';
-  return d.passed + ' of ' + d.checks + ' checks passed · ' + ago(d.scannedAt);
+  return t('{passed} of {checks} checks passed', { passed: d.passed, checks: d.checks }) + ' · ' + ago(d.scannedAt);
 }
 
 export function renderSecScoreCard(d: SecScorePayload): void {

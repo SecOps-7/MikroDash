@@ -179,8 +179,8 @@ export function rolloutView(p: CfgDeployPayload): string {
   if (!p.runId) return '';
   const live = p.state === 'canary' || p.state === 'rolling' || p.state === 'awaiting-canary';
   const ask = p.state === 'awaiting-canary'
-    ? ('<div class="cfg-decide"><span>' + t('Check the canary, then type') + ' <strong>') + p.targets.length +
-      ('</strong> ' + t('to deploy to every router.') + '</span><input class="form-control form-control-sm" id="cfgDepCount" ') +
+    ? '<div class="cfg-decide"><span>' + t('Check the canary, then type <strong>{n}</strong> to deploy to every router.', { n: p.targets.length }) +
+      '</span><input class="form-control form-control-sm" id="cfgDepCount" ' +
       'autocomplete="off" placeholder="' + p.targets.length + '"><button class="cfg-btn cfg-btn-go" type="button" ' +
       ('id="cfgDepContinue">' + t('Continue') + '</button></div>')
     : '';

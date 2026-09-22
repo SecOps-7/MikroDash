@@ -240,7 +240,7 @@ export function renderTrafficChart(
 
   if (showCapacity() && s.capacityDownMbps && labels.length) {
     sets.push({
-      label: 'Capacity RX (' + s.capacityDownMbps + ' Mbps)',
+      label: t('Capacity RX ({n} Mbps)', { n: s.capacityDownMbps }),
       data: labels.map(() => s.capacityDownMbps),
       borderColor: 'rgba(148,163,190,.55)', borderDash: [6, 4], borderWidth: 1,
       pointRadius: 0, fill: false,
@@ -249,7 +249,7 @@ export function renderTrafficChart(
     // on a symmetric link just thicken one of them.
     if (s.capacityUpMbps && s.capacityUpMbps !== s.capacityDownMbps) {
       sets.push({
-        label: 'Capacity TX (' + s.capacityUpMbps + ' Mbps)',
+        label: t('Capacity TX ({n} Mbps)', { n: s.capacityUpMbps }),
         data: labels.map(() => s.capacityUpMbps),
         borderColor: 'rgba(148,163,190,.35)', borderDash: [2, 4], borderWidth: 1,
         pointRadius: 0, fill: false,

@@ -219,9 +219,9 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
       const where = h.city || h.country
         ? (h.country ? iso2Flag(h.country) + ' ' : '') + esc([h.city, h.country].filter(Boolean).join(', '))
         : t('private or unknown address');
-      return '<div class="trace-tip-row"><b>Hop ' + h.hop + '</b> · ' + where + '<br><span class="trace-tip-ip">' + esc(h.address) +
+      return '<div class="trace-tip-row"><b>' + t('Hop {n}', { n: h.hop }) + '</b> · ' + where + '<br><span class="trace-tip-ip">' + esc(h.address) +
         '</span> · ' + fmtMs(h.lastMs) + (h.bestMs != null && h.worstMs != null && h.bestMs !== h.worstMs
-          ? ' (best ' + fmtMs(h.bestMs) + ', worst ' + fmtMs(h.worstMs) + ')' : '') + ' · ' + h.lossPct + '% loss</div>';
+          ? ' ' + t('(best {best}, worst {worst})', { best: fmtMs(h.bestMs), worst: fmtMs(h.worstMs) }) : '') + ' · ' + t('{n}% loss', { n: h.lossPct }) + '</div>';
     }).join('');
   }
   svg.addEventListener('pointermove', (e) => {

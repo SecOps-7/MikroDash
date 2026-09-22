@@ -380,8 +380,8 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
       const managed = (data && data.ssidsManagedElsewhere) || 0;
       list.innerHTML = '<div class="wl-ssid-empty">' +
         (managed
-          ? managed + ' radio' + (managed === 1 ? '' : 's') +
-            ' managed by CAPsMAN — SSIDs are set on the manager.'
+          ? (managed === 1 ? t('1 radio managed by CAPsMAN — SSIDs are set on the manager.')
+            : t('{n} radios managed by CAPsMAN — SSIDs are set on the manager.', { n: managed }))
           : t('No SSIDs configured on this router.')) +
         '</div>';
       return;

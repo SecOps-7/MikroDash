@@ -432,28 +432,28 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
   }
 
   function renderSummary(st: WifiPayload): void {
-    const t = st.totals;
+    const tot = st.totals;
     const set = (id: string, v: string) => { const e = el(id); if (e) e.textContent = v; };
-    set('wnRadioCount', t == null || t.radios == null ? '—' : String(t.radios));
-    set('wnNetCount', t == null || t.networks == null ? '—' : String(t.networks));
-    set('wnClientCount', t == null || t.clients == null ? '—' : String(t.clients));
+    set('wnRadioCount', tot == null || tot.radios == null ? '—' : String(tot.radios));
+    set('wnNetCount', tot == null || tot.networks == null ? '—' : String(tot.networks));
+    set('wnClientCount', tot == null || tot.clients == null ? '—' : String(tot.clients));
 
     // The stack note names where the radios came from, and on a router running a
     // legacy manager that is two places. Counted off the rows rather than from a
     // totals field: the payload already says which are v1 and a second count
     // would be a number to keep in step.
     const v1Radios = (st.radios || []).filter((r) => r.readOnlyReason === 'capsv1').length;
-    const local = st.stack === 'wifi' ? 'modern (/interface/wifi)'
-      : st.stack === 'wireless' ? 'legacy (/interface/wireless)' : '';
-    const viaV1 = v1Radios ? v1Radios + ' via CAPsMAN v1' : '';
+    const local = st.stack === 'wifi' ? t('modern (/interface/wifi)')
+      : st.stack === 'wireless' ? t('legacy (/interface/wireless)') : '';
+    const viaV1 = v1Radios ? t('{n} via CAPsMAN v1', { n: v1Radios }) : '';
     set('wnStackNote', [local, viaV1].filter(Boolean).join(' · '));
 
     const virtual = (st.networks || []).filter((n) => n.isVirtual).length;
-    set('wnVirtualNote', virtual ? virtual + (virtual === 1 ? ' virtual AP' : ' virtual APs') : '');
+    set('wnVirtualNote', virtual ? (virtual === 1 ? t('1 virtual AP') : t('{n} virtual APs', { n: virtual })) : '');
 
-    const caps = (t && t.capsManaged) || 0;
+    const caps = (tot && tot.capsManaged) || 0;
     set('wnCapNote', caps
-      ? caps + (caps === 1 ? ' network is CAP-managed' : ' networks are CAP-managed')
+      ? (caps === 1 ? t('1 network is CAP-managed') : t('{n} networks are CAP-managed', { n: caps }))
       : '');
   }
 
@@ -474,7 +474,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     if (!nets.length || !ro) { note.textContent = ''; return; }
     note.textContent = ro === nets.length
       ? t('Every network here is provisioned by CAPsMAN — edit them on the CAPsMAN page, not here.')
-      : ro + ' of these are provisioned by CAPsMAN and cannot be edited here.';
+      : t('{n} of these are provisioned by CAPsMAN and cannot be edited here.', { n: ro });
   }
 
   function render(): void {

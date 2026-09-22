@@ -46,9 +46,9 @@ export function iconFileProblem(file: { size: number; type: string }): string {
 
 /** Why an image's dimensions cannot be an icon, or '' when they are fine. */
 export function iconSizeProblem(width: number, height: number): string {
-  if (width !== height) return 'The icon must be square; this one is ' + width + ' × ' + height + ' px.';
+  if (width !== height) return t('The icon must be square; this one is {w} × {h} px.', { w: width, h: height });
   if (width < ICON_MIN_PX || width > ICON_MAX_PX) {
-    return 'The icon must be ' + ICON_MIN_PX + ' to ' + ICON_MAX_PX + ' px; this one is ' + width + ' px.';
+    return t('The icon must be {min} to {max} px; this one is {w} px.', { min: ICON_MIN_PX, max: ICON_MAX_PX, w: width });
   }
   return '';
 }
@@ -123,7 +123,7 @@ export function initBrandingSettings(): void {
   saveBtn.addEventListener('click', () => {
     const name = nameIn.value.trim();
     if (Array.from(name).length > NAME_MAX) {
-      say('The name is longer than ' + NAME_MAX + ' characters.', 'error');
+      say(t('The name is longer than {n} characters.', { n: NAME_MAX }), 'error');
       return;
     }
     saveBtn.disabled = true;

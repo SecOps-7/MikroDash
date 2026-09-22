@@ -159,7 +159,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     card.style.display = '';
     list.innerHTML = pending
       .map((p) => esc(p.name) + ' — ' + esc(p.scheduledAction || 'change'))
-      .join(' · ') + ' · nothing has happened yet; the router applies these on reboot';
+      .join(' · ') + ' · ' + t('nothing has happened yet; the router applies these on reboot');
     const btn = el<HTMLButtonElement>('pkgApplyBtn');
     if (btn) btn.disabled = !caps.permitted;
   }
@@ -262,8 +262,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
         (f.autoUpgrade ? ' checked' : '') +
         '><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>';
     } else {
-      html += '<span class="muted-note">Upgrades automatically: ' +
-        (f.autoUpgrade ? 'yes' : 'no') + '</span>';
+      html += '<span class="muted-note">' + (f.autoUpgrade ? t('Upgrades automatically: yes') : t('Upgrades automatically: no')) + '</span>';
     }
     if (caps.permitted) {
       html += '<button id="pkgFwUpgradeBtn" class="sbtn ' + (pending ? 'sbtn-warn' : 'sbtn-outline') +

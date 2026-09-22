@@ -238,8 +238,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     const peers = sortPeers(filterPeers(data.peers || []));
 
     if (!peers.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No BGP peers' +
-        ((data.peers || []).length ? ' match current filter' : ' — BGP may not be configured') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">' +
+        ((data.peers || []).length ? t('No BGP peers match current filter') : t('No BGP peers — BGP may not be configured')) + '</td></tr>';
       return;
     }
 
@@ -350,8 +350,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     if (!data || !routesTbody) return;
     const routes = sortRoutes(filterRoutes(data.routes || []));
     if (!routes.length) {
-      routesTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No routes' +
-        ((data.routes || []).length ? ' match current filter' : '') + '</td></tr>';
+      routesTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">' +
+        ((data.routes || []).length ? t('No routes match current filter') : t('No routes')) + '</td></tr>';
       return;
     }
     routesTbody.innerHTML = routes.map((r) => {

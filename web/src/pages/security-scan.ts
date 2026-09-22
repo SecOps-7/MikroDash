@@ -62,7 +62,7 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     el('secScanProgress')?.classList.toggle('is-on', on);
     const fill = el('secScanProgressBar');
     if (fill) fill.style.width = (on && total ? Math.round((done / total) * 100) : 0) + '%';
-    if (on) setText('secScanStatus', total ? 'Scanning… ' + done + ' of ' + total + ' settings read' : t('Scanning…'));
+    if (on) setText('secScanStatus', total ? t('Scanning… {done} of {total} settings read', { done, total }) : t('Scanning…'));
   }
 
   function run(): void {
