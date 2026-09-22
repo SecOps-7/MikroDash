@@ -75,6 +75,19 @@ func (s *Server) ztpProvision(id string) {
 		finish(db.ZTPFailed, "the person who pre-provisioned this device is no longer an administrator, so its template was not applied")
 		return
 	}
+	// A DEPLOY TAKES A RESTORE POINT FIRST, and refuses without one; a restore
+	// point needs the router's backup password, which a router onboarded here
+	// does not have. Found in the live test: the template was refused with
+	// "backups are not enabled for this router". Set here rather than on
+	// onboarding so Try again reaches it too. Only a missing password is
+	// filled, never an operator's replaced; scheduled backups stay off, as for
+	// a router added by hand.
+	if s.backupRecord(*d.RouterID).password == "" {
+		if err := s.store.SetBackupPassword(*d.RouterID, ztpPassword()); err != nil {
+			finish(db.ZTPFailed, "a restore point could not be prepared, so nothing was sent")
+			return
+		}
+	}
 	values, err := s.ztpOpenValues(d)
 	if err != nil {
 		finish(db.ZTPFailed, "its template's settings could not be unsealed, so nothing was sent")
