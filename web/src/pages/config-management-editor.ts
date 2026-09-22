@@ -103,6 +103,5 @@ export function captureForm(routers: { id: string; label: string }[], menus: str
       esc(m) + '</option>').join('') + '</select></label>' +
     ('<label>' + t('Name') + '<input class="form-control form-control-sm" id="cfgCapName" placeholder="' + t('e.g. Branch firewall') + '"></label>') +
     ('<button class="cfg-btn cfg-btn-go" type="button" id="cfgCapGo">' + t('Capture') + '</button></div>') +
-    '<p class="cfg-meta">A menu is captured without its secrets. The whole router is captured with them, for a faithful ' +
-    'replacement, and stored encrypted.</p></div>';
+    ('<p class="cfg-meta">' + t('A menu is captured without its secrets. The whole router is captured with them, for a faithful replacement, and stored encrypted.') + '</p></div>');
 }

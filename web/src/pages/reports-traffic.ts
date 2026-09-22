@@ -247,8 +247,7 @@ export function renderBandwidth(
     if (truncated) {
       hint.textContent = 'Chart and table show ' + rows.length.toLocaleString() +
         ' of ' + (s.bandwidthSamples as number).toLocaleString() +
-        ' samples — choose an aggregation to cover the full range. ' +
-        'Totals above are for the full range.';
+        ' samples — choose an aggregation to cover the full range. Totals above are for the full range.';
     }
   }
 

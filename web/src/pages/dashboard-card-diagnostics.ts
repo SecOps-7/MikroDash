@@ -217,8 +217,7 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
   const holds = v.holds || [];
   if (holds.length) {
     html += row(t('kept alive by'), holds.join(', '), true,
-      'Reasons other than a viewer: alerting, history recording, the Devices page, ' +
-      'or merely keeping the connection warm.');
+      t('Reasons other than a viewer: alerting, history recording, the Devices page, or merely keeping the connection warm.'));
   }
 
   listEl.innerHTML = html;

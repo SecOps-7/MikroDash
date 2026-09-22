@@ -270,8 +270,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
         '<code>policy</code> permission for user management. To enable this page for this router: ' +
         '<code>/user group set [find name=&lt;group&gt;] policy=read,write,policy,api,test</code>';
     } else if (data && data.self && !data.self.resolved) {
-      msg = 'MikroDash cannot identify its own account on this router, so every change here is refused. ' +
-        'This is expected when the dashboard authenticates through RADIUS.';
+      msg = t('MikroDash cannot identify its own account on this router, so every change here is refused. This is expected when the dashboard authenticates through RADIUS.');
     }
     card.style.display = msg ? '' : 'none';
     body.innerHTML = msg;

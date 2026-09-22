@@ -706,12 +706,10 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
             'or press Enter to close it; Esc throws it away.');
       }
       if (clientMode === 'ring' && doc.metresPerUnit <= 0) {
-        bits.push('Signal ring needs a scale — set one in Edit mode. ' +
-          'Drawing at a fixed radius until then.');
+        bits.push(t('Signal ring needs a scale — set one in Edit mode. Drawing at a fixed radius until then.'));
       }
       if (clientMode === 'ring' && doc.metresPerUnit > 0) {
-        bits.push('Radius is a distance ESTIMATE from the signal. The direction ' +
-          'is arbitrary: a router reports one reading per client, never three.');
+        bits.push(t('Radius is a distance ESTIMATE from the signal. The direction is arbitrary: a router reports one reading per client, never three.'));
       }
       foot.innerHTML = esc(bits.join('  ·  '));
     }
@@ -855,12 +853,9 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       field(t('Metres per canvas unit'),
         '<input class="sform-input" id="wmfScale" type="number" step="0.01" min="0" value="' +
         String(doc.metresPerUnit || '') + '" placeholder="e.g. 0.25">') +
-      '<div class="wm-panel-note">Draw a wall you know the length of, read its ' +
-        'Width, and divide: 40 m across 160 units is 0.25. Only the Signal ring ' +
-        'mode uses it.</div>' +
+      ('<div class="wm-panel-note">' + t('Draw a wall you know the length of, read its Width, and divide: 40 m across 160 units is 0.25. Only the Signal ring mode uses it.') + '</div>') +
       ('<div class="wm-panel-title" style="margin-top:.9rem">' + t('Access points') + '</div>') +
-      (rows || '<div class="wm-panel-note">No radios reported yet. Open Wifi ' +
-        'Networks once so this router has answered.</div>');
+      (rows || '<div class="wm-panel-note">' + t('No radios reported yet. Open Wifi Networks once so this router has answered.') + '</div>');
   }
 
   function wireTray(): void {

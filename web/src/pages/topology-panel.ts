@@ -95,8 +95,7 @@ export function topoPanel(st: TopoState, deps: {
           ? '<div class="topo-pin-note">Pinned by hand.' +
             (st.pinsEnabled ? '' : ' Pins are switched off, so it is not being applied.') +
             '</div>'
-          : '<div class="topo-pin-note">Discovery cannot see through a switch that ' +
-            'forwards no LLDP. Set this when the graph puts a device in the wrong place.</div>') +
+          : '<div class="topo-pin-note">' + t('Discovery cannot see through a switch that forwards no LLDP. Set this when the graph puts a device in the wrong place.') + '</div>') +
         pinPortBtn(key) +
       '</div>';
   }

@@ -71,8 +71,7 @@ export function initContainersApps(socket: Socket): void {
       '<div><b>' + running + '</b><span>running</span></div></div>';
     if (s.ready) {
       return ('<div class="apps-hero-card"><div class="apps-hero-text"><h4>' + t('App store') + '</h4>') +
-        '<p>One click installs an app: RouterOS pulls its images and sets up its network and firewall. ' +
-        'Apps are stored on <b>' + esc(s.disk) + '</b>' + (s.lanBridge ? ', joined to <b>' + esc(s.lanBridge) + '</b>' : '') +
+        ('<p>' + t('One click installs an app: RouterOS pulls its images and sets up its network and firewall. Apps are stored on') + ' <b>') + esc(s.disk) + '</b>' + (s.lanBridge ? ', joined to <b>' + esc(s.lanBridge) + '</b>' : '') +
         '. ' + (s.httpsLinks ? t('Each app gets an HTTPS link through IP Cloud.')
           : t('Apps get plain HTTP links: HTTPS links need IP Cloud (IP › Cloud) to give this router a DNS name.')) +
         '</p></div>' + stats + '</div>';

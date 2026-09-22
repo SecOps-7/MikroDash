@@ -262,8 +262,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     // The default is detect-interface-list=none, so this is the common case
     // rather than a fault. Say what to run.
     body.innerHTML = ('<strong>' + t('Internet detection is switched off on this router.') + '</strong> ') +
-      'RouterOS decides which interfaces reach the internet, and it is not looking. ' +
-      'This page shows what it reports, so it has nothing to show until detection is on. Enable it with ' +
+      'RouterOS decides which interfaces reach the internet, and it is not looking. This page shows what it reports, so it has nothing to show until detection is on. Enable it with ' +
       '<code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic ' +
       'beyond an occasional probe.';
   }
@@ -379,13 +378,11 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       if (body) {
         body.innerHTML =
           '<p>MikroDash reaches ' + esc(caps.routerName || 'this router') + ' from <code>' +
-            esc(w.address || '') + '</code>, which is not on any of its connected subnets — so that ' +
-            'traffic arrives over a WAN.</p>' +
+            esc(w.address || '') + ('</code>' + t(', which is not on any of its connected subnets — so that traffic arrives over a WAN.') + '</p>') +
           (w.certain
             ? '<p><strong>' + esc(w.wan || '') + ' is the uplink carrying the active default route</strong>, ' +
               'which means it is carrying this session.</p>'
-            : '<p>This router has more than one active default route, so which uplink carries this ' +
-              'session cannot be determined — <strong>' + esc(w.wan || '') + ' may be the one.</strong></p>') +
+            : ('<p>' + t('This router has more than one active default route, so which uplink carries this session cannot be determined —') + ' <strong>') + esc(w.wan || '') + ' may be the one.</strong></p>') +
           '<p>' + (((el<HTMLInputElement>('wanWarnVerb')?.value) || '') === 'release'
             ? t('Releasing the lease takes the uplink down until the client rebinds.')
             : t('Renewing blips the uplink briefly.')) +

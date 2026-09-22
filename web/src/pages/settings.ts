@@ -734,8 +734,7 @@ export function siteRouterCounts(
  */
 export function siteDeletePrompt(name: string, routerCount: number): string {
   const warn = routerCount
-    ? '\n\n' + routerCount + ' device(s) will lose this site. They keep any other sites, '
-      + 'and are not deleted.'
+    ? '\n\n' + routerCount + ' device(s) will lose this site. They keep any other sites, and are not deleted.'
     : '';
   return 'Delete site "' + name + '"?' + warn;
 }

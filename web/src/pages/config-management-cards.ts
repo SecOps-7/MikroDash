@@ -115,9 +115,7 @@ export function generatorCard(): string {
     '<path d="M18 14v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 19V7.5A1.5 1.5 0 0 1 5.5 6H10"/></svg></span>' +
     ('<div class="cfg-tpl-titles"><h4 class="cfg-tpl-name">' + t('MikroTik config generator') + '</h4>') +
     ('<div class="cfg-tpl-pills"><span class="vpn-hs-badge cfg-pill-external">' + t('External site') + '</span></div></div></header>') +
-    '<p class="cfg-tpl-desc">Describe a setup in plain words and get a RouterOS configuration to start from. ' +
-    'It opens in a new tab and needs internet access. MikroDash has not reviewed it: paste what it gives you ' +
-    'into a new template, and the editor checks every line before anything reaches a router.</p>' +
+    ('<p class="cfg-tpl-desc">' + t('Describe a setup in plain words and get a RouterOS configuration to start from. It opens in a new tab and needs internet access. MikroDash has not reviewed it: paste what it gives you into a new template, and the editor checks every line before anything reaches a router.') + '</p>') +
     ('<footer class="cfg-tpl-foot"><span class="cfg-meta">' + t('Nothing is sent to it from here') + '</span>') +
     '<span class="cfg-tpl-actions"><a class="cfg-btn cfg-btn-go" href="' + GENERATOR_URL + '" target="_blank" ' +
     ('rel="noopener noreferrer">' + t('Open generator') + '</a></span></footer></article>');
@@ -130,8 +128,7 @@ export function libraryGrid(all: LibTemplate[], category: string, query: string)
     (!q || (tpl.name + ' ' + tpl.description + ' ' + tpl.tags.join(' ') + ' ' + tpl.scope.join(' ')).toLowerCase().includes(q)));
   const cards = shown.map(templateCard).join('');
   const empty = shown.length ? '' : '<div class="cfg-empty">' +
-    (category === 'custom' && !q ? 'No custom templates yet. Customise a canned one, capture one from a router, ' +
-      'or start a new one.' : t('Nothing matches.')) + '</div>';
+    (category === 'custom' && !q ? t('No custom templates yet. Customise a canned one, capture one from a router, or start a new one.') : t('Nothing matches.')) + '</div>';
   return '<div class="cfg-grid">' + cards + generatorCard() + '</div>' + empty;
 }
 

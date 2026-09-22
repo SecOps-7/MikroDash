@@ -312,8 +312,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       : 'Delete these ' + ids.length + ' restore points?';
     // BOTH HALVES GO — the files and the row listing them — so say so, and say
     // where the record does survive rather than implying nothing is kept.
-    if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\n' +
-      'and cannot be recovered. The Audit page keeps the record.')) return;
+    if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\nand cannot be recovered. The Audit page keeps the record.')) return;
     socket.emit('backups:delete', { ids });
     picked.clear();
     syncBulk();

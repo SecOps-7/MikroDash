@@ -281,11 +281,9 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     // megabits within seconds. FastTrack diverts the connections it matches, not
     // all traffic, so the honest claim is "some of it bypasses these queues".
     banner.innerHTML = ('<strong>' + t('FastTrack is active on this router.') + '</strong> ') +
-      'FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here ' +
-      'only shapes the traffic FastTrack did not take' +
+      'FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here only shapes the traffic FastTrack did not take' +
       (ft.scoped ? ' — and this rule is narrowed, so it takes only part of it.' : t(', which can be a small fraction of the total.')) +
-      ' If a limit looks like it is having no effect, this is usually why. ' +
-      'To shape that traffic too, disable the FastTrack rule in <em>IP &rarr; Firewall &rarr; Filter</em>, or exclude the traffic from it.';
+      ' If a limit looks like it is having no effect, this is usually why. To shape that traffic too, disable the FastTrack rule in <em>IP &rarr; Firewall &rarr; Filter</em>, or exclude the traffic from it.';
   }
 
   function renderSummary(): void {

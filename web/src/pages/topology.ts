@@ -773,15 +773,13 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       html += ('<div class="topo-empty-hint">' + t('This API user cannot read') + ' <code>/ip/neighbor</code>. ') +
         'Grant the <code>read</code> policy to see discovered devices.</div>';
     } else if (d && d.mode === 'tx-only') {
-      html += '<div class="topo-empty-hint">Discovery is set to <code>tx-only</code>, so this router ' +
-        'advertises itself but never records neighbours. Set it to <code>tx-and-rx</code> under ' +
+      html += ('<div class="topo-empty-hint">' + t('Discovery is set to') + ' <code>tx-only</code>' + t(', so this router advertises itself but never records neighbours. Set it to') + ' <code>tx-and-rx</code> under ') +
         '<code>/ip/neighbor/discovery-settings</code>.</div>';
     } else if (d && d.interfaceList && d.interfaceList !== 'all') {
       html += ('<div class="topo-empty-hint">' + t('Discovery only runs on the') + ' <code>') + esc(d.interfaceList) +
         ('</code> ' + t('interface list. Devices reached through other interfaces will not appear here.') + '</div>');
     } else {
-      html += '<div class="topo-empty-hint">Nothing is advertising LLDP, CDP or MNDP on this router\u2019s ' +
-        'discovery interfaces. Unmanaged switches and most end devices stay invisible by design.</div>';
+      html += '<div class="topo-empty-hint">' + t('Nothing is advertising LLDP, CDP or MNDP on this router\u2019s discovery interfaces. Unmanaged switches and most end devices stay invisible by design.') + '</div>';
     }
     emptyEl.className = 'topo-empty show';
     emptyEl.innerHTML = html;

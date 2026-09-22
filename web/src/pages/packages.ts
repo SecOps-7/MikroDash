@@ -271,9 +271,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     }
     html += '</div>';
     html += '</div>';
-    html += '<p class="muted-note" style="margin:.7rem 0 0">RouterBOOT is the bootloader, upgraded ' +
-      'separately from RouterOS and applied by a reboot. With auto-upgrade on, the board writes it ' +
-      'itself on the next boot after a RouterOS upgrade.</p>';
+    html += '<p class="muted-note" style="margin:.7rem 0 0">' + t('RouterBOOT is the bootloader, upgraded separately from RouterOS and applied by a reboot. With auto-upgrade on, the board writes it itself on the next boot after a RouterOS upgrade.') + '</p>';
     box.innerHTML = html;
 
     const up = el<HTMLButtonElement>('pkgFwUpgradeBtn');
@@ -284,8 +282,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
         // Typed confirmation, as Apply uses: this reboots a production router,
         // and the name is what makes the wrong router a hard mistake to make.
         const typed = window.prompt(
-          'This writes the RouterBOOT firmware and REBOOTS the router.\n\n' +
-          'Type the router name to confirm: ' + name);
+          'This writes the RouterBOOT firmware and REBOOTS the router.\n\nType the router name to confirm: ' + name);
         if (typed === null) return;
         setStatus(t('Upgrading RouterBOOT — the router will reboot'));
         socket.emit('packages:fwupgrade', { confirm: typed });
@@ -403,8 +400,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       if (!caps.permitted) { setStatus(t('You do not have write access to this router')); return; }
       const name = caps.routerName || '';
       const typed = window.prompt(
-        'This REBOOTS the router. It will be unreachable for a minute or two.\n\n' +
-        'Type the router name to confirm: ' + name);
+        'This REBOOTS the router. It will be unreachable for a minute or two.\n\nType the router name to confirm: ' + name);
       if (typed === null) return;
       setStatus(t('Rebooting…'));
       socket.emit('packages:reboot', { confirm: typed });
@@ -420,8 +416,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       // router, and the name is what makes "the wrong router" a hard mistake to
       // make rather than an easy one.
       const typed = window.prompt(
-        'This applies all scheduled package changes and REBOOTS the router.\n\n' +
-        'Type the router name to confirm: ' + name);
+        'This applies all scheduled package changes and REBOOTS the router.\n\nType the router name to confirm: ' + name);
       if (typed === null) return;
       socket.emit('packages:apply', { confirm: typed });
     });

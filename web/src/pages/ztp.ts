@@ -246,8 +246,7 @@ function openOnboard(d: ZTPDeviceView): void {
         noBack: true,
         render: () => ('<p class="ztp-lead">' + t('Onboarding') + ' <strong>') + esc(form.label) + '</strong>.</p>' +
           '<p class="ztp-help">MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it ' +
-          'answers' + (c.chosen ? t(', and its template is then previewed on it and applied') : '') + '. Its progress ' +
-          'shows on its card in the meantime.</p>',
+          'answers' + (c.chosen ? t(', and its template is then previewed on it and applied') : '') + '. Its progress shows on its card in the meantime.</p>',
       },
     ],
   });
@@ -336,8 +335,7 @@ function mountSettings(): void {
   el('ztpBatchBody')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest?.('[data-ztp-revoke]') as HTMLElement | null;
     if (!b) return;
-    if (!confirm('Revoke this generic script?\n\nRouters that have not called home yet can no longer use it. ' +
-      'Devices it already brought in are not affected.')) return;
+    if (!confirm(t('Revoke this generic script?\n\nRouters that have not called home yet can no longer use it. Devices it already brought in are not affected.'))) return;
     void api('POST', '/api/ztp/batches/' + encodeURIComponent(b.dataset.ztpRevoke ?? '') + '/revoke')
       .catch((err) => { const m = el('ztpBatchMsg'); if (m) m.textContent = errText(err); });
   });

@@ -143,13 +143,11 @@ export function warningHTML(ifaces: FaIface[], selected: string): string {
   if (!rec) return t('Scanning takes the selected radio off the air.');
   const n = rec.clients || 0;
   if (n === 0) {
-    return 'This radio has <b>no clients connected</b>, so scanning it should ' +
-      'interrupt nobody. Other radios on this router are unaffected.';
+    return t('This radio has') + ' <b>' + t('no clients connected') + '</b>' + t(', so scanning it should interrupt nobody. Other radios on this router are unaffected.');
   }
   return `Scanning takes this radio off the air. Its <b>${n} connected ` +
     `${n === 1 ? 'client' : 'clients'} will be disconnected</b> for the duration of the ` +
-    'scan, including any on its other SSIDs, and may take some seconds to return afterwards. ' +
-    'Other radios on this router are unaffected.';
+    'scan, including any on its other SSIDs, and may take some seconds to return afterwards. Other radios on this router are unaffected.';
 }
 
 /**
@@ -372,8 +370,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
     if (keep && ifaces.some((i) => i.name === keep)) ifaceSel.value = keep;
     scanBtn.disabled = !ifaces.length;
     if (!ifaces.length) {
-      emptyEl!.textContent = 'This router reports no radio that can be scanned. ' +
-        'Virtual APs, CAPsMAN-managed radios and the legacy wireless package are not supported.';
+      emptyEl!.textContent = t('This router reports no radio that can be scanned. Virtual APs, CAPsMAN-managed radios and the legacy wireless package are not supported.');
     }
     updateWarning();
   });

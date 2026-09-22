@@ -116,8 +116,7 @@ export function updView(state: 'idle' | 'issuing' | 'rebooting'): UpdView {
     // would imply the upgrade could still be called off. It cannot.
     cancelText: t('Close'),
     confirmHidden: true,
-    pendingText: 'The router is downloading the packages and restarting. It will be unreachable '
-      + 'for a minute or two, and MikroDash reconnects on its own. This closes when it is back.',
+    pendingText: t('The router is downloading the packages and restarting. It will be unreachable for a minute or two, and MikroDash reconnects on its own. This closes when it is back.'),
     pendingHidden: false,
   };
 }

@@ -54,8 +54,14 @@
   ", and its template is then previewed on it and applied": [
     "web/src/pages/ztp.ts"
   ],
+  ", so this router advertises itself but never records neighbours. Set it to": [
+    "web/src/pages/topology.ts"
+  ],
   ", which can be a small fraction of the total.": [
     "web/src/pages/queues.ts"
+  ],
+  ", which is not on any of its connected subnets — so that traffic arrives over a WAN.": [
+    "web/src/pages/wan.ts"
   ],
   "0 debug": [
     "web/src/ui/page-logs.html"
@@ -203,6 +209,9 @@
   ],
   "A host, a prefix (192.0.2.0/24), a range (192.0.2.10-192.0.2.20) or a DNS name.": [
     "internal/resource"
+  ],
+  "A menu is captured without its secrets. The whole router is captured with them, for a faithful replacement, and stored encrypted.": [
+    "web/src/pages/config-management-editor.ts"
   ],
   "A pool from IP Pools, or static-only to hand out only static leases.": [
     "internal/resource"
@@ -733,6 +742,9 @@
   ],
   "Answer DNS for other devices. Keep it firewalled from the internet.": [
     "internal/resource"
+  ],
+  "Anywhere with internet access, behind NAT included. It dials this MikroDash over an encrypted WireGuard tunnel, and is managed through it.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "App Icon": [
     "web/src/ui/page-settings.html"
@@ -2101,6 +2113,9 @@
   "Derivation": [
     "web/src/pages/dashboard-card-diagnostics.ts"
   ],
+  "Describe a setup in plain words and get a RouterOS configuration to start from. It opens in a new tab and needs internet access. MikroDash has not reviewed it: paste what it gives you into a new template, and the editor checks every line before anything reaches a router.": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "Description": [
     "web/src/pages/topology-panel.ts",
     "web/src/ui/page-config-management.html",
@@ -2206,8 +2221,14 @@
   "Discovery": [
     "web/src/pages/topology-panel.ts"
   ],
+  "Discovery cannot see through a switch that forwards no LLDP. Set this when the graph puts a device in the wrong place.": [
+    "web/src/pages/topology-panel.ts"
+  ],
   "Discovery interfaces": [
     "web/src/pages/capsman.ts"
+  ],
+  "Discovery is set to": [
+    "web/src/pages/topology.ts"
   ],
   "Discovery kept off the WAN": [
     "web/src/pages/security-scan-cards.ts"
@@ -2314,6 +2335,9 @@
   ],
   "Draining Buckets": [
     "web/src/pages/ai-agent.ts"
+  ],
+  "Draw a wall you know the length of, read its Width, and divide: 40 m across 160 units is 0.25. Only the Signal ring mode uses it.": [
+    "web/src/pages/wifi-map.ts"
   ],
   "Draw an area by clicking its corners. Double-click or Enter to close it.": [
     "web/src/ui/page-wifi-map.html"
@@ -3307,6 +3331,9 @@
   "In Interface": [
     "internal/resource"
   ],
+  "In a terminal on the router, run": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "In use": [
     "web/src/ui/page-settings.html"
   ],
@@ -4053,6 +4080,9 @@
   "MikroDash cannot identify its own account on this router, so changes are refused.": [
     "web/src/resource.ts"
   ],
+  "MikroDash cannot identify its own account on this router, so every change here is refused. This is expected when the dashboard authenticates through RADIUS.": [
+    "web/src/pages/rosusers.ts"
+  ],
   "MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.": [
     "web/src/resource.ts"
   ],
@@ -4492,6 +4522,9 @@
   "No connectivity events for this range.": [
     "web/src/pages/reports-ping.ts"
   ],
+  "No custom templates yet. Customise a canned one, capture one from a router, or start a new one.": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "No data for this range.": [
     "web/src/pages/reports-ping.ts",
     "web/src/pages/reports-traffic.ts"
@@ -4596,6 +4629,9 @@
   ],
   "No queues match that search.": [
     "web/src/pages/queues.ts"
+  ],
+  "No radios reported yet. Open Wifi Networks once so this router has answered.": [
+    "web/src/pages/wifi-map.ts"
   ],
   "No replies": [
     "web/src/pages/tools.ts"
@@ -4783,6 +4819,9 @@
   "Nothing here yet. Use \u003cstrong\u003eAdd\u003c/strong\u003e to create one.": [
     "web/src/pages/area.ts"
   ],
+  "Nothing is advertising LLDP, CDP or MNDP on this routeru2019s discovery interfaces. Unmanaged switches and most end devices stay invisible by design.": [
+    "web/src/pages/topology.ts"
+  ],
   "Nothing is connected right now": [
     "web/src/pages/vpn.ts"
   ],
@@ -4906,6 +4945,9 @@
   "On Master": [
     "internal/resource"
   ],
+  "On a network this MikroDash can reach directly. No tunnel: it calls home over your LAN and is managed at its own address.": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "On the canary": [
     "web/src/pages/config-management-history.ts"
   ],
@@ -4925,6 +4967,9 @@
   ],
   "One address per line. Sent as Bcc, so recipients cannot see each other.": [
     "web/src/ui/shell.html"
+  ],
+  "One click installs an app: RouterOS pulls its images and sets up its network and firewall. Apps are stored on": [
+    "web/src/pages/containers-apps.ts"
   ],
   "One group per access point, both bands together": [
     "web/src/ui/page-wifi-networks.html"
@@ -5562,6 +5607,9 @@
   "Radius estimates the distance from the signal. Needs a scale.": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Radius is a distance ESTIMATE from the signal. The direction is arbitrary: a router reports one reading per client, never three.": [
+    "web/src/pages/wifi-map.ts"
+  ],
   "Raleway": [
     "web/src/ui/page-settings.html"
   ],
@@ -5633,6 +5681,9 @@
   "Real-time MikroTik Router Dashboard": [
     "web/src/ui/login.html",
     "web/src/ui/page-settings.html"
+  ],
+  "Reasons other than a viewer: alerting, history recording, the Devices page, or merely keeping the connection warm.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
   ],
   "Reassembling Packets": [
     "web/src/pages/ai-agent.ts"
@@ -5913,6 +5964,9 @@
   "Revoke": [
     "web/src/pages/ztp-views.ts"
   ],
+  "Revoke this generic script?\n\nRouters that have not called home yet can no longer use it. Devices it already brought in are not affected.": [
+    "web/src/pages/ztp.ts"
+  ],
   "Revoked": [
     "web/src/pages/ztp-views.ts"
   ],
@@ -6014,6 +6068,9 @@
   ],
   "RouterBOARD Firmware": [
     "web/src/ui/page-packages.html"
+  ],
+  "RouterBOOT is the bootloader, upgraded separately from RouterOS and applied by a reboot. With auto-upgrade on, the board writes it itself on the next boot after a RouterOS upgrade.": [
+    "web/src/pages/packages.ts"
   ],
   "RouterBOOT written — the router is rebooting": [
     "web/src/pages/packages.ts"
@@ -6174,6 +6231,9 @@
   ],
   "SMTP Host": [
     "web/src/ui/page-settings.html"
+  ],
+  "SMTP is not configured, so these reports cannot be sent. Set a mail server under Settings → Notifications.": [
+    "web/src/pages/reports-schedules.ts"
   ],
   "SNMP": [
     "internal/areas",
@@ -6648,6 +6708,9 @@
   ],
   "Signal ring": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Signal ring needs a scale — set one in Edit mode. Drawing at a fixed radius until then.": [
+    "web/src/pages/wifi-map.ts"
   ],
   "Signed in as": [
     "web/src/ui/shell.html"
@@ -7339,6 +7402,9 @@
   "The router has no address it can reach MikroDash on. Set a backup base URL in Settings.": [
     "web/src/pages/backups.ts"
   ],
+  "The router is downloading the packages and restarting. It will be unreachable for a minute or two, and MikroDash reconnects on its own. This closes when it is back.": [
+    "web/src/pages/upgrade.ts"
+  ],
   "The router is downloading…": [
     "web/src/pages/files-transfer.ts"
   ],
@@ -7504,6 +7570,9 @@
   "This MikroDash on your LAN": [
     "web/src/ui/page-settings.html"
   ],
+  "This MikroDash, as the router reaches it": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "This Month": [
     "web/src/ui/page-reports.html"
   ],
@@ -7598,6 +7667,9 @@
     "web/src/pages/rosusers.ts",
     "web/src/pages/wan.ts"
   ],
+  "This router has more than one active default route, so which uplink carries this session cannot be determined —": [
+    "web/src/pages/wan.ts"
+  ],
   "This router has neither CAPsMAN menu — no manager and no CAP mode here.": [
     "web/src/pages/capsman.ts"
   ],
@@ -7624,6 +7696,9 @@
   ],
   "This router is already on the newest version it knows about.": [
     "web/src/pages/upgrade.ts"
+  ],
+  "This router reports no radio that can be scanned. Virtual APs, CAPsMAN-managed radios and the legacy wireless package are not supported.": [
+    "web/src/pages/wireless-fa.ts"
   ],
   "This router's MikroDash account cannot read queues.": [
     "web/src/pages/queues.ts"
@@ -9125,6 +9200,9 @@
   ],
   "to deploy to every router.": [
     "web/src/pages/config-management-deploy.ts"
+  ],
+  "to the router: drag it into WinBox's Files window, or use the Files page here.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "total": [
     "web/src/ui/page-dashboard.html"

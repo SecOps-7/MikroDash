@@ -31,8 +31,7 @@ export function initFilesTransfer(socket: Socket): void {
     h.innerHTML =
       '<div class="files-transfer">' +
         ('<h4 class="card-title" style="font-size:.9rem;margin-bottom:.3rem">' + t('Router downloads a URL') + '</h4>') +
-        '<p class="muted-note" style="margin:0 0 .6rem">The router fetches the file itself, over its own ' +
-          'connection, and saves it under the address\'s file name. Scripts that run on arrival ' +
+        '<p class="muted-note" style="margin:0 0 .6rem">The router fetches the file itself, over its own connection, and saves it under the address\'s file name. Scripts that run on arrival ' +
           ('(<code>*.auto.*</code>' + t(') and packages are refused.') + '</p>') +
         '<form id="filesFetchForm" class="d-flex gap-2 flex-wrap" autocomplete="off">' +
           '<input id="filesFetchUrl" class="form-control form-control-sm" type="url" required ' +

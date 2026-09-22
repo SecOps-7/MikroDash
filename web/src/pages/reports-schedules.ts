@@ -116,8 +116,7 @@ export function renderSchedules(): void {
     notice.style.display = state.smtpReady ? 'none' : '';
     const nt = el('rptSchedNoticeText');
     if (nt) {
-      nt.textContent = 'SMTP is not configured, so these reports cannot be sent. ' +
-        'Set a mail server under Settings → Notifications.';
+      nt.textContent = t('SMTP is not configured, so these reports cannot be sent. Set a mail server under Settings → Notifications.');
     }
   }
 

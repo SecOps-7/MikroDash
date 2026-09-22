@@ -131,10 +131,8 @@ export function whereStep(mode: string, s: ZTPStatus): string {
     '<span class="ztp-choice-title">' + title + '</span><span class="ztp-choice-text">' + lines + '</span>' +
     (off ? '<span class="ztp-choice-off">' + esc(off) + '</span>' : '') + '</label>';
   return ('<p class="ztp-lead">' + t('Where will this router be?') + '</p><div class="ztp-choices">') +
-    card('remote', t('Remote'), 'Anywhere with internet access, behind NAT included. It dials this MikroDash over an ' +
-      'encrypted WireGuard tunnel, and is managed through it.', blocked) +
-    card('local', t('Local'), 'On a network this MikroDash can reach directly. No tunnel: it calls home over your LAN ' +
-      'and is managed at its own address.') + '</div>';
+    card('remote', t('Remote'), t('Anywhere with internet access, behind NAT included. It dials this MikroDash over an encrypted WireGuard tunnel, and is managed through it.'), blocked) +
+    card('local', t('Local'), t('On a network this MikroDash can reach directly. No tunnel: it calls home over your LAN and is managed at its own address.')) + '</div>';
 }
 
 export interface DeviceForm { label: string; serial: string; siteIds: string[]; days: number; lanUrl: string }
@@ -167,11 +165,9 @@ export function deviceStep(f: DeviceForm, mode: string, sites: SiteOpt[], facts?
     (facts ? '' : '<div class="sform-group"><label class="sform-label" for="ztpSerial">Serial number ' +
       '<span class="ztp-opt">optional</span></label>' +
       '<input id="ztpSerial" class="sform-input" maxlength="64" autocomplete="off" value="' + esc(f.serial) +
-      '" placeholder="HF1234567AB"><div class="ztp-help">When given, only the router with this serial can use ' +
-      'the script. On the router: <code>/system routerboard print</code>, or on a CHR ' +
+      '" placeholder="HF1234567AB"><div class="ztp-help">When given, only the router with this serial can use the script. On the router: <code>/system routerboard print</code>, or on a CHR ' +
       '<code>/system license print</code>.</div></div>') +
-    (mode === 'local' ? '<div class="sform-group"><label class="sform-label" for="ztpLanUrl">This MikroDash, as the ' +
-      'router reaches it</label><input id="ztpLanUrl" class="sform-input" autocomplete="off" value="' + esc(f.lanUrl) +
+    (mode === 'local' ? ('<div class="sform-group"><label class="sform-label" for="ztpLanUrl">' + t('This MikroDash, as the router reaches it') + '</label><input id="ztpLanUrl" class="sform-input" autocomplete="off" value="') + esc(f.lanUrl) +
       '" placeholder="http://192.168.88.10:3081"><div class="ztp-help">The router calls home here, and its API user ' +
       t('accepts logins from this address only.') + '</div></div>' : '') +
     (sites.length ? ('<div class="sform-group"><span class="sform-label">' + t('Sites') + '</span><div class="ztp-sites">') +
@@ -249,8 +245,7 @@ export function scriptPanel(r: ScriptResult, now: number, what: string): string 
     ('<button class="sbtn sbtn-ghost" type="button" data-ztp-copy>' + t('Copy') + '</button>') +
     ('<button class="sbtn sbtn-primary" type="button" data-ztp-download>' + t('Download') + '</button></div></div>') +
     '<pre class="ztp-script" tabindex="0">' + esc(r.script) + '</pre>' +
-    ('<ol class="ztp-steps"><li>' + t('Upload') + ' <strong>') + esc(r.filename) + '</strong> to the router: drag it into WinBox\'s ' +
-    'Files window, or use the Files page here.</li><li>In a terminal on the router, run <code>' +
+    ('<ol class="ztp-steps"><li>' + t('Upload') + ' <strong>') + esc(r.filename) + ('</strong> ' + t('to the router: drag it into WinBox\'s Files window, or use the Files page here.') + '</li><li>' + t('In a terminal on the router, run') + ' <code>') +
     esc(importCommand(r.filename)) + ('</code>.</li><li>' + t('Or paste the whole script into the terminal instead.') + '</li></ol>') +
     '<div class="cfg-banner is-warn">This script is shown once and holds a secret. Keep it like a password; if it ' +
     'is lost, make a new one, which also stops this one working.</div>';
