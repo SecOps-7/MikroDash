@@ -141,6 +141,9 @@ type Options struct {
 type Server struct {
 	// cfg is Config Management's one deploy job (cfgjob.go).
 	cfg cfgJob
+	// ztp is zero-touch provisioning's tunnel engine and its enrolment
+	// endpoint (ztp.go), up only while the ztpEnabled setting is on.
+	ztp ztpState
 	// secScans is the Security Scan page's last report per router (secscan.go).
 	secScans       secScanStore
 	hub            *hub.Hub
@@ -552,6 +555,10 @@ func New(st *store.Store, opts Options) (*Server, error) {
 			// to push separately at startup.
 		}
 	}
+	// ZERO-TOUCH PROVISIONING'S TUNNEL, when the setting is on. A tunnelled
+	// router's session that dials before this is up simply retries, as every
+	// session does on a failed dial.
+	srv.ztpSync()
 	return srv, nil
 }
 
@@ -565,6 +572,7 @@ func (s *Server) Handler() http.Handler {
 	// quietly becomes a 404 page.
 	s.registerReports(mux)
 	s.registerConfig(mux)
+	s.registerZTP(mux)
 	s.registerConfigRouter(mux)
 	s.registerConfigHistory(mux)
 	s.registerAudit(mux)
@@ -822,6 +830,7 @@ func (s *Server) Shutdown() {
 	if s.pruneSched != nil {
 		s.pruneSched.Stop()
 	}
+	s.ztpShutdown()
 	s.sessions.Shutdown()
 	// ── THE OPEN MINUTE, BEFORE THE CONNECTIONS GO ────────────────────
 	//

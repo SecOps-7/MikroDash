@@ -102,6 +102,24 @@ var identityColumns = []identityColumn{
 			"person before every router, by the session it keeps, not by this column.",
 	},
 	{
+		column: "ztp_devices.created_by, ztp_batches.created_by", kind: "id",
+		file: "internal/server/ztp_api.go", site: "CreatedBy: s.userIDFor(sess.Username)}", sites: 2,
+		why: "who pre-provisioned a device, and who made a generic script. A device's template is " +
+			"deployed AS this user when it calls home, re-checked as a global administrator by id.",
+	},
+	{
+		column: "ztp_devices.created_by", kind: "id",
+		file: "internal/server/ztp_api.go", site: "d.CreatedBy = s.userIDFor(sess.Username)", sites: 1,
+		why: "approving a device that called home unannounced: the approver's deploy, so the " +
+			"column moves to them. The id, because ztpActor resolves it back to a user.",
+	},
+	{
+		column: "ztp_devices.created_by", kind: "caller",
+		file: "internal/server/ztp_enrol.go", site: "CreatedBy: b.CreatedBy", sites: 1,
+		why: "a device calling home on a generic script is held under the batch's creator until " +
+			"someone approves it; copied, never re-resolved, so it stays an id.",
+	},
+	{
 		column: "grants.created_by", kind: "caller",
 		file: "internal/db/grantwrite.go", site: "s.CreatedBy", sites: 2,
 		why: "as above, and distinct from principal_id — swapping them is silent.",
@@ -139,9 +157,9 @@ func TestIdentityColumns(t *testing.T) {
 	}
 
 	// The ledger is hand-written, so an empty or truncated one would pass in
-	// silence. Eleven entries is what this port writes today.
-	if len(identityColumns) < 11 {
-		t.Fatalf("the ledger holds %d entries; it had 11 — entries were removed rather than "+
+	// silence. Fourteen entries is what this port writes today.
+	if len(identityColumns) < 14 {
+		t.Fatalf("the ledger holds %d entries; it had 14 — entries were removed rather than "+
 			"the writers being fixed", len(identityColumns))
 	}
 	t.Logf("%d shared identity columns checked, each at its recorded number of call sites",

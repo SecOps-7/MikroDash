@@ -626,6 +626,8 @@ func (cn *conn) dispatch(in inbound) {
 		if json.Unmarshal(in.Data, &tab) == nil {
 			cn.connList(tab.On)
 		}
+	case "ztp:watch":
+		cn.ztpWatch()
 	case "cfgdeploy:watch":
 		cn.cfgWatch()
 	case "cfgdeploy:start":

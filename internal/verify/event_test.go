@@ -34,6 +34,9 @@ var eventsUnconsumed = map[string]string{
 	"packages:applying": "vestigial in the live app too — it was emitted and nothing listened. " +
 		"Reproduced rather than dropped, so a future reader finds this note instead of " +
 		"'fixing' a consumer into existence.",
+	"ztp:state": "zero-touch provisioning's server landed a step before its pages (2026-09-22); " +
+		"the Devices page, the Dashboard card and Settings subscribe in the next step, and " +
+		"this entry fails the moment one does.",
 }
 
 // eventsUnserved: a page listens, deliberately nothing emits it.

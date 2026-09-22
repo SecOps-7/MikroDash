@@ -493,6 +493,8 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[routers] config baselines for %s: %v", id, err)
 		}
 	}
+	// A router that came in by zero-touch provisioning takes its tunnel with it.
+	s.ztpForgetRouter(id)
 	EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
 
 	// `CloseNow` for the same reason as the disable path above: a deleted router

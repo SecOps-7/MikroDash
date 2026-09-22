@@ -1851,6 +1851,59 @@ export interface WirelessPayload {
   ssidsManagedElsewhere: number;
 }
 
+export interface ZTPStatus {
+  enabled: boolean;
+  up: boolean;
+  error: string;
+  instanceId: string;
+  publicKey: string;
+  endpoint: string;
+  port: number;
+  subnet: string;
+  lanUrl: string;
+  peers: number;
+  handshakes: number;
+}
+
+export interface ZTPDeviceView {
+  id: string;
+  mode: string;
+  state: string;
+  label: string;
+  serial: string;
+  tunnelIp: string;
+  model: string;
+  version: string;
+  identity: string;
+  source: string;
+  templateId: string;
+  routerId: string;
+  runId: string;
+  batchName: string;
+  siteIds: string[];
+  error: string;
+  createdAt: number;
+  expiresAt: number;
+  firstSeen: number;
+  lastSeen: number;
+}
+
+export interface ZTPBatchView {
+  id: string;
+  name: string;
+  live: boolean;
+  devices: number;
+  createdAt: number;
+  expiresAt: number;
+  revokedAt: number;
+}
+
+export interface ZTPPayload {
+  status: ZTPStatus;
+  devices: ZTPDeviceView[];
+  batches: ZTPBatchView[];
+}
+
 export interface DiffLine {
   op: string;
   text: string;
@@ -1966,6 +2019,7 @@ export interface Events {
   'wifi:update': WifiPayload;
   'wireguard:showconfig': WgShowConfigPayload;
   'wireless:update': WirelessPayload;
+  'ztp:state': ZTPPayload;
 }
 
 // The events whose payload is a map, and so has no struct to generate from.

@@ -279,3 +279,20 @@ func orJSONObject(s string) string {
 	}
 	return s
 }
+
+// ZTPApprove gives a pending device to the operator who approved it: from now
+// on its deploy runs as them, so created_by moves with the decision. Only a
+// device still pending, so a second approval cannot re-own one already acted on.
+func (d *DB) ZTPApprove(id, userID string) error {
+	if err := d.ready(); err != nil {
+		return err
+	}
+	res, err := d.sql.Exec(`UPDATE ztp_devices SET created_by = ? WHERE id = ? AND state = ?`, userID, id, ZTPPending)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrZTPNotFound
+	}
+	return nil
+}

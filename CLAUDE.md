@@ -135,7 +135,7 @@ bytes; the envelope is `iv‖tag‖ciphertext` while Go's `Open` wants `cipherte
 
 **Database identity columns have no blanket rule.** `grants.principal_id`, `audit_events.actor_id`,
 `user_layouts.user_id`, `report_schedules.created_by`, `cfg_templates.created_by` and
-`cfg_runs.created_by` hold the user ID; `alert_events.acknowledged_by` and
+`cfg_runs.created_by`, `ztp_devices.created_by` and `ztp_batches.created_by` hold the user ID; `alert_events.acknowledged_by` and
 `audit_events.actor_name` hold the username. A writer reaching for the other one is invisible to a
 round-trip test, because one implementation agrees with itself whatever it wrote — read the real
 table.
