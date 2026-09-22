@@ -29,10 +29,14 @@ import (
 //
 // cmd/importprobe is the measuring tool the whole design rests on. It refuses
 // any router that does not say it is a CHR, and it is not linked into the
-// binary.
+// binary. cmd/ztpprobe (2026-09-22) is the same kind of tool for zero-touch
+// provisioning's bootstrap: CHR only, not linked, and it runs `/execute` only
+// to read back what a measured script printed. The bootstrap itself is run by
+// the operator on the router, never by MikroDash, so it adds no call site.
 var importSites = map[string]bool{
 	"internal/cfgdeploy/deploy.go": true,
 	"cmd/importprobe/main.go":      true,
+	"cmd/ztpprobe/main.go":         true,
 }
 
 // namesImport is a literal that could run code: the command path itself, or a
