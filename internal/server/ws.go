@@ -97,6 +97,11 @@ type conn struct {
 	// clientIP is resolved once at the upgrade: the audit trail records who did
 	// a thing and from where, and the request is the only place that is known.
 	clientIP string
+	// lang is the interface language of the page this socket serves (#94),
+	// picked at the upgrade exactly as servedDoc picked the document: the
+	// md_lang cookie, then the browser's languages, and "" for English. The
+	// assistant answers in it.
+	lang string
 	// userID is the grant graph's key for this session's user, resolved once at
 	// the upgrade. Empty means "not found", and every authorization question
 	// then fails closed.
@@ -247,6 +252,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		cookie:   cookie,
 		clientIP: clientIPOf(r),
 		userID:   s.userIDFor(user.Username),
+		lang:     s.pageLang(r),
 	}
 	s.hub.Add(cn.c)
 	log.Printf("[ws] %s connected as %s", id, user.Username)

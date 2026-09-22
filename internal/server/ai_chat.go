@@ -175,6 +175,8 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 	// THE THREAD IS PINNED WITH IT. The question is saved under the router it was
 	// asked about, even if the operator has switched away by the time it lands.
 	histUser, histRouter := cn.aiHistoryUser(), cn.routerID
+	// AND THE LANGUAGE, read on this goroutine with the rest of the scope.
+	lang := cn.lang
 
 	// ADVERTISED ONCE, FROM THIS VIEWER'S PERMISSIONS. `Permitted` decides what
 	// the model is told exists; the executor re-checks before reading or writing
@@ -214,8 +216,11 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 			func(page string) bool { return allowedPages[page] })
 		msgs := []aiprovider.ChatMessage{
 			{Role: "system", Content: aiSystemPrompt(settings, rawOn)},
-			{Role: "system", Content: aicontext.Render(items)},
 		}
+		if note := aiLanguageNote(lang); note != "" {
+			msgs = append(msgs, aiprovider.ChatMessage{Role: "system", Content: note})
+		}
+		msgs = append(msgs, aiprovider.ChatMessage{Role: "system", Content: aicontext.Render(items)})
 		// ── THE CONVERSATION SO FAR, BETWEEN THE CONTEXT AND THE QUESTION ────
 		//
 		// After both system messages rather than between them, so every endpoint
@@ -843,6 +848,24 @@ func aiPreamble(raw bool) string {
 	commands += "\nlist_routers reports on the other routers from MikroDash's own records; every " +
 		"other tool acts only on the device selected, and you cannot reach any other."
 	return strings.Replace(aiSafetyPreamble, aiRawCommandsMark, commands, 1)
+}
+
+// aiLanguageNote asks for replies in the operator's interface language (#94),
+// or nothing on an English page. It is a message of its own, after the safety
+// preamble, which stays in English: the rules are most reliable in the
+// language they were written and tested in, and a translation of them would be
+// a second copy to keep in step. The language is named by its BCP 47 tag, which
+// every capable model reads, so no list of language names exists to drift from
+// the catalogs. RouterOS's own words are kept as RouterOS spells them, because
+// the operator types them into the router.
+func aiLanguageNote(lang string) string {
+	if lang == "" || lang == "en" {
+		return ""
+	}
+	return "The operator is using MikroDash in the language tagged \"" + lang + "\" (BCP 47). " +
+		"Write every reply in that language. Keep RouterOS commands, menu paths, property " +
+		"names and values, interface names and anything quoted from the router exactly as " +
+		"they are, untranslated."
 }
 
 // aiRawCommandsMark is where the preamble says what, besides the declared

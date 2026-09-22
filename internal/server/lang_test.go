@@ -175,3 +175,34 @@ func TestTheLanguageFollowsTheAccount(t *testing.T) {
 		t.Errorf("the account holds %s after signing in with de, want {\"lang\":\"de\"}", blob)
 	}
 }
+
+// pageLang is servedDoc's choice, so the assistant answers in the language of
+// the page that opened the socket.
+func TestPageLangIsTheServedDocumentsLanguage(t *testing.T) {
+	req := func(cookie, accept string) *http.Request {
+		r := httptest.NewRequest("GET", "/ws", nil)
+		if cookie != "" {
+			r.AddCookie(&http.Cookie{Name: "md_lang", Value: cookie})
+		}
+		if accept != "" {
+			r.Header.Set("Accept-Language", accept)
+		}
+		return r
+	}
+	none := &Server{}
+	if got := none.pageLang(req("zh-CN", "zh-CN")); got != "" {
+		t.Errorf("a build with no translations picked %q", got)
+	}
+	s := &Server{langs: []string{"de", "zh-CN"}}
+	for _, c := range []struct{ cookie, accept, want string }{
+		{"", "", ""},
+		{"de", "", "de"},
+		{"", "zh-TW,zh;q=0.9", "zh-CN"},
+		{"en", "de", ""},
+		{"fr", "", ""},
+	} {
+		if got := s.pageLang(req(c.cookie, c.accept)); got != c.want {
+			t.Errorf("pageLang(cookie %q, Accept-Language %q) = %q, want %q", c.cookie, c.accept, got, c.want)
+		}
+	}
+}

@@ -934,6 +934,20 @@ func builtLangs(dir string) []string {
 // servedDoc is the path of the document to serve, "index" or "login", in the
 // chosen language. With no translations it is always the English one, and the
 // response is exactly what it was before any of this existed.
+// pageLang is the language servedDoc picks for this request: the md_lang
+// cookie, then Accept-Language, among the languages this build has; "" is
+// English, and so is a build with no translations.
+func (s *Server) pageLang(r *http.Request) string {
+	if len(s.langs) == 0 {
+		return ""
+	}
+	cookie := ""
+	if c, err := r.Cookie("md_lang"); err == nil {
+		cookie = c.Value
+	}
+	return i18n.PickLang(cookie, r.Header.Get("Accept-Language"), s.langs)
+}
+
 func (s *Server) servedDoc(w http.ResponseWriter, r *http.Request, doc string) string {
 	if len(s.langs) == 0 {
 		if doc == "index" {
@@ -944,11 +958,7 @@ func (s *Server) servedDoc(w http.ResponseWriter, r *http.Request, doc string) s
 	// The same URL answers differently by these two, so a cache must key on
 	// them.
 	w.Header().Add("Vary", "Cookie, Accept-Language")
-	cookie := ""
-	if c, err := r.Cookie("md_lang"); err == nil {
-		cookie = c.Value
-	}
-	if lang := i18n.PickLang(cookie, r.Header.Get("Accept-Language"), s.langs); lang != "" {
+	if lang := s.pageLang(r); lang != "" {
 		return "/" + doc + "." + lang + ".html"
 	}
 	if doc == "index" {
