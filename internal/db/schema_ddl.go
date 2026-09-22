@@ -231,7 +231,7 @@ CREATE TABLE router_docs (
 
 CREATE TABLE "user_layouts" (
           user_id    TEXT NOT NULL,
-          kind       TEXT NOT NULL CHECK (kind IN ('dashboard','topology','nav')),
+          kind       TEXT NOT NULL CHECK (kind IN ('dashboard','topology','nav','lang')),
           data       TEXT NOT NULL,
           updated_at INTEGER NOT NULL,
           PRIMARY KEY (user_id, kind)

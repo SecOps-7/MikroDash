@@ -98,19 +98,32 @@ export function languages(): { code: string; name: string }[] {
 
 /** Choose a language: remembered in a cookie the server reads to pick the
  *  page, for a year, then the page reloads in it. 'en' is a choice too, and
- *  beats the browser's own preference. */
-export function setLang(code: string): void {
+ *  beats the browser's own preference.
+ *
+ *  Signed in, the choice is also kept on the account (`POST /api/lang`), so
+ *  signing in on another browser brings it along. The reload waits for that,
+ *  and happens whatever it answers: the cookie alone still switches this one. */
+export function setLang(code: string, account = false): void {
   if (!/^[a-z]{2,3}(-[A-Z][A-Za-z]{1,3})?$/.test(code)) return;
   document.cookie = 'md_lang=' + code + '; path=/; max-age=31536000; SameSite=Lax';
-  location.reload();
+  if (!account) {
+    location.reload();
+    return;
+  }
+  void fetch('/api/lang', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lang: code }),
+  }).catch(() => undefined).finally(() => location.reload());
 }
 
 /**
  * Wire a language selector: fill it from the languages this build has, show
  * its wrapper only when there is a choice to make, and switch on change. The
- * sign-in page and Settings, Appearance both use it.
+ * sign-in page and Settings, Appearance both use it; Settings passes
+ * `account`, as only a signed-in page has an account to keep the choice on.
  */
-export function bindLanguageSelect(select: HTMLSelectElement | null, wrap: HTMLElement | null): void {
+export function bindLanguageSelect(select: HTMLSelectElement | null, wrap: HTMLElement | null, account = false): void {
   const langs = languages();
   if (!select || !wrap || langs.length < 2) return;
   select.innerHTML = '';
@@ -122,7 +135,7 @@ export function bindLanguageSelect(select: HTMLSelectElement | null, wrap: HTMLE
   }
   select.value = currentLang();
   wrap.hidden = false;
-  select.addEventListener('change', () => setLang(select.value));
+  select.addEventListener('change', () => setLang(select.value, account));
 }
 
 /** For tests: forget the loaded catalog so the next t() reads the page again. */

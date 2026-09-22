@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 21
+const schemaVersion = 22
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -133,6 +133,30 @@ var portMigrations = map[int][]string{
 	// 21: zero-touch provisioning — the devices it knows and the batches of
 	// generic scripts. One constant for this and the fresh schema: ztp_schema.go.
 	21: {ztpTablesDDL},
+	// 22: 'lang' joins user_layouts' kinds, the interface language a user
+	// chose, kept on the account so it follows them to another browser (#94).
+	// SQLite cannot alter a CHECK, so the table is rebuilt and renamed into
+	// place, as the Node app did once before; the rows are copied unchanged.
+	//
+	// A database without the table (a test's minimal schema) gets an empty one
+	// first, so the copy has something to read and the result is the same.
+	22: {
+		`CREATE TABLE IF NOT EXISTS user_layouts (
+          user_id TEXT NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (user_id, kind)
+        )`,
+		`CREATE TABLE user_layouts_new (
+          user_id    TEXT NOT NULL,
+          kind       TEXT NOT NULL CHECK (kind IN ('dashboard','topology','nav','lang')),
+          data       TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (user_id, kind)
+        )`,
+		`INSERT INTO user_layouts_new (user_id, kind, data, updated_at)
+		 SELECT user_id, kind, data, updated_at FROM user_layouts`,
+		`DROP TABLE user_layouts`,
+		`ALTER TABLE user_layouts_new RENAME TO user_layouts`,
+	},
 }
 
 // createSchema builds a new database at `path`.

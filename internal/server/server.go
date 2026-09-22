@@ -619,6 +619,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerAITest(mux)
 	s.registerHealth(mux)
 	s.registerNavPrefs(mux)
+	s.registerLang(mux)
 	s.registerLocalCC(mux)
 	s.registerCities(mux)
 	s.registerLayouts(mux)

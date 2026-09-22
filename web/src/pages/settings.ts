@@ -320,7 +320,7 @@ export function activateSettingsTab(tabName: string): void {
 export function mountSettingsTabs(): void {
   // The interface language (#94), in Appearance: hidden unless the build has
   // more than English.
-  bindLanguageSelect(el<HTMLSelectElement>('langSelect'), el('langCard'));
+  bindLanguageSelect(el<HTMLSelectElement>('langSelect'), el('langCard'), true);
   document.querySelectorAll('#page-settings .stab').forEach((t) => {
     t.addEventListener('click', () => {
       activateSettingsTab((t as HTMLElement).dataset.tab || '');
