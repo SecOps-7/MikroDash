@@ -40,6 +40,7 @@ import { onLogsHistory, onLogsNew, resetLogsCard } from './dashboard-card-logs';
 import { renderDiagnosticsCard } from './dashboard-card-diagnostics';
 import { renderAgentCard, initAgentRefresh } from './dashboard-card-agent';
 import { initSecScoreCard, switchSecScoreCard } from './dashboard-card-secscore';
+import { initWanFlowCard } from './dashboard-card-wanflow';
 import { renderConnListCards } from './dashboard-card-connlists';
 import { createConnMap } from './dashboard-card-map';
 import { renderConnFlowCard } from './dashboard-card-connflow';
@@ -100,6 +101,7 @@ export function initDashboard(socket: Socket): void {
   socket.on('ai:overview', (d) => renderAgentCard(d));
   initAgentRefresh(socket);
   initSecScoreCard(socket);
+  initWanFlowCard(socket);
   socket.on('stream:health', (d) => renderStreamHealth(d));
   socket.on('wan:status', (d) => renderWanStatus(d));
   socket.on('logs:history', (d) => onLogsHistory(d));

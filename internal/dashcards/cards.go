@@ -140,6 +140,12 @@ var All = []Card{
 	// gated on the Security Scan page, whose report it summarises.
 	{ID: "dc-card-secscore", Label: "Security Score", Room: "secscore", Page: "security-scan",
 		X: 1, Y: 1, W: 6, H: 6},
+	// WAN Flow: the WAN page's live Sankey of traffic across the uplinks,
+	// scaled to whatever size the card is given. Fed by the WAN collector's
+	// `wan:update` (which also keeps the interface-status collector running, for
+	// the rates), and gated on the WAN page, whose data it draws. 12 by 5 is the
+	// operator's default (2026-09-22).
+	{ID: "dc-card-wanflow", Label: "WAN Flow", Room: "wan", Page: "wan", X: 1, Y: 1, W: 12, H: 5},
 }
 
 // PageFor is the page a card room borrows its data from, and therefore the

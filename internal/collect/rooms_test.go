@@ -134,6 +134,9 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 		{"ifStatus", []string{
 			"page-interfaces", "page-network-topology", "dash-card-physports",
 			"page-bridges", "page-vlans", "page-wan",
+			// The WAN Flow Dashboard card draws the WAN payload, whose rates
+			// are ifStatus's: it keeps ifStatus alive as the WAN page does.
+			"dash-card-wan",
 			"page-bandwidth", "dash-card-wireless",
 		}},
 		// ── AND THE COLLECTOR WITH NO AUDIENCE AT ALL ──────────────────────

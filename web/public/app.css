@@ -2788,16 +2788,16 @@
 
     /* ── WAN Flow, the live Sankey (pages/wan-flow.ts) ──────────────────── */
     .wan-flow-card{overflow:hidden;position:relative}
-    .wan-flow-card::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;pointer-events:none;opacity:.6;
-      background:linear-gradient(90deg,transparent,var(--accent-tx),var(--accent-rx),transparent);background-size:200% 100%;
-      animation:wan-flow-sheen 6s linear infinite}
-    @keyframes wan-flow-sheen{from{background-position:200% 0}to{background-position:0 0}}
-    .wan-flow-totals{display:flex;gap:.9rem;font-family:var(--font-mono);font-size:.9rem;font-weight:700}
     .wan-flow-body{padding:.5rem .75rem .9rem}
     .wan-flow-wrap{position:relative;border-radius:12px;
       background:radial-gradient(60% 90% at 0% 50%,color-mix(in srgb,var(--accent-tx) 7%,transparent),transparent 70%),
                  radial-gradient(60% 90% at 100% 50%,color-mix(in srgb,var(--accent-rx) 8%,transparent),transparent 70%)}
     .wan-flow-svg{display:block;overflow:visible}
+    /* The Dashboard card: the drawing fills the card body and scales with it
+       (pages/wan-flow.ts, fit "box"), so a resized card never crops it. */
+    .dc-wanflow-body{padding:.35rem .5rem .5rem;display:flex}
+    .dc-wanflow-body .wan-flow-wrap{flex:1;min-width:0;min-height:0}
+    .dc-wanflow-body .wan-flow-svg{width:100%;height:100%}
     .wan-flow-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;
       padding:1rem;font-size:.78rem;color:var(--text-muted);background:color-mix(in srgb,var(--bg-card) 70%,transparent)}
     .wf-lane{transition:opacity .4s}
@@ -2831,11 +2831,9 @@
     .wf-node-bar{fill:var(--accent-rx);transition:width .6s ease}
     .wan-flow-card.is-paused .wf-dot{opacity:0!important}
     @media (max-width:640px){
-      .wan-flow-totals{font-size:.8rem}
       .wf-node-rates{font-size:9.5px}
     }
     @media (prefers-reduced-motion: reduce){
-      .wan-flow-card::before{animation:none}
       .wf-dot{display:none}
       .wf-lane,.wf-node-bar{transition:none}
     }

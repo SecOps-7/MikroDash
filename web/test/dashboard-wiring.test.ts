@@ -91,6 +91,9 @@ const CARDS = {
   // its own, or the assistant's), per router, so it also owns the router switch
   // that drops a frame about the router just left.
   'dashboard-card-secscore': { event: 'secscore:state', also: ['router:switched'] },
+  // WAN Flow: the WAN page's Sankey on the Dashboard, fed by the WAN collector
+  // through the card's own room, and cleared on a router switch.
+  'dashboard-card-wanflow': { event: 'wan:update', also: ['router:switched'] },
   'dashboard-card-connlists': 'conn:update',
   'dashboard-card-logs': { event: 'logs:new', also: ['logs:history'] },
   // Shares traffic:update with the chart, and owns two more events of its own.
@@ -301,6 +304,12 @@ const PROBE = {
   // element. One real port is the smallest payload that exercises the card.
   'ifstatus:update': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false, ips: [] }] },
   'ifstatus:names': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false }] },
+  // One uplink, the smallest payload the card writes from.
+  'wan:update': { ts: 1, pollMs: 1000, ratesAvailable: true, activeDefaultWan: 'ether1', publicIp: '',
+    detectionEnabled: true, available: true, denied: false, uplinkSource: 'detect', manualNames: [], interfaces: [],
+    wans: [{ name: 'ether1', type: 'ether', isTunnel: false, state: 'internet', manual: false, since: '', running: true,
+      address: '', isPublic: null, gateway: '', routeDistance: '1', routeActive: true, hasDefaultRoute: true,
+      rxMbps: 1, txMbps: 1, rxBytes: null, txBytes: null, dhcp: null }] },
   'secscore:state': { routerId: '', has: true, score: 72, issues: 3, critical: 0, high: 1, medium: 2, low: 0,
     passed: 30, checks: 46, scannedAt: 1, running: false, done: 0, total: 37, code: '', message: '' },
 };

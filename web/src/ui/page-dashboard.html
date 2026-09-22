@@ -377,6 +377,29 @@
         </div>
       </div>
 
+      <!-- dc-card-wanflow: WAN Flow ───────────────────────────────────────
+           The WAN page's live Sankey (pages/wan-flow.ts, fit "box"): laid out at
+           this card's aspect ratio and scaled to fill it, so it grows and shrinks
+           with the card. Fed by wan:update through the dash-card-wan room. -->
+      <div id="dc-card-wanflow" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-wanflow" type="button" title="Remove card">&#x2715;</button>
+        <div class="card wan-flow-card" id="dcWanFlowCard">
+          <div class="card-header">
+            <h3 class="card-title mb-0">WAN Flow</h3>
+          </div>
+          <div class="card-body dc-wanflow-body">
+            <div class="wan-flow-wrap" id="dcWanFlowWrap">
+              <svg id="dcWanFlowSvg" class="wan-flow-svg" role="img"
+                   aria-label="Where the WAN traffic goes: from this router through each uplink to the internet, upload in green and download in blue"></svg>
+              <div class="wan-flow-empty" id="dcWanFlowEmpty" hidden></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- dc-card-secscore: Security Score ─────────────────────────────────
            The Security Scan page's score card on the Dashboard: the same ring and
            grade, the issues by severity, the report's age and a Rescan. Fed by

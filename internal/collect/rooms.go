@@ -94,7 +94,10 @@ var (
 	// the tab costs the router NOTHING beyond what the dashboard card and the
 	// alert rules already pay for.
 	vpnRooms = Rooms{"page-vpn", "page-wireguard", "dash-card-vpn"}
-	wanRooms = Rooms{"page-wan"}
+	// AND THE WAN FLOW CARD, which draws the same payload on the Dashboard. The
+	// interface-status collector the rates come from stays alive for it too,
+	// through keepAliveFor's wanRooms.
+	wanRooms = Rooms{"page-wan", "dash-card-wan"}
 	// The Wi-Fi map needs BOTH: `wifi` says which access point each network is
 	// on, and `wireless` says who is connected to it. Neither owns the page —
 	// see internal/pages — and both have to reach it or half of it is blank.

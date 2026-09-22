@@ -64,12 +64,11 @@
            share now, split into upload and download lanes with particles
            flowing along them. Built from wan:update: no router cost. -->
       <div class="card wan-flow-card mt-3" id="wanFlowCard">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div class="d-flex align-items-center gap-2">
-            <h3 class="card-title mb-0">WAN Flow</h3>
-            <span id="wanFlowBadge" class="card-badge active-blue" title="Uplinks drawn">0</span>
-          </div>
-          <div class="hdr-actions wan-flow-totals" id="wanFlowTotals"></div>
+        <!-- Title alone, by the operator's choice (2026-09-22): the uplink count
+             and the totals are in the summary and the table above, and the
+             diagram carries each uplink's numbers. -->
+        <div class="card-header">
+          <h3 class="card-title mb-0">WAN Flow</h3>
         </div>
         <div class="card-body wan-flow-body">
           <div class="wan-flow-wrap" id="wanFlowWrap">

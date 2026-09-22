@@ -84,9 +84,20 @@ for (const b of L.bands) {
   assert.ok(b.y1 >= nodeTop(b) && b.y1 + b.hn <= nodeTop(b) + F.NODE_H, `${b.name}'s ribbon spills out of its node`);
   assert.ok(b.hn <= b.h, `${b.name}'s ribbon widens into its node`);
 }
+// The ECMP bracket sits 12 above the first node and its label about 14 above
+// that: both must be inside the drawing, in the compact layout too.
+for (const lay of [L, F.layout(flow.rows, 1200, true)]) {
+  assert.ok(nodeTop(lay.bands[0]) - 12 - 14 >= 0, 'the ECMP label would be cut off at the top');
+}
 assert.ok(nodeTop(L.bands[0]) >= 0 && nodeTop(L.bands[3]) + F.NODE_H <= L.height, 'a node is outside the drawing');
 assert.ok(L.xRouter < L.xNodeL && L.xNodeL < L.xNodeR && L.xNodeR < L.xNet, 'the columns are out of order');
 const narrow = F.layout(flow.rows, 360);
+// The Dashboard card's compact layout: less room between nodes, the same rules.
+const C = F.layout(flow.rows, 1200, true);
+assert.ok(C.height < L.height, 'the compact layout is not shorter');
+for (let i = 1; i < C.bands.length; i++) {
+  assert.ok(nodeTop(C.bands[i]) >= nodeTop(C.bands[i - 1]) + F.NODE_H, 'compact nodes overlap');
+}
 assert.ok(narrow.xNodeR < narrow.xNet && narrow.xNodeL > narrow.xRouter, 'a phone-width layout overlaps its columns');
 
 // ── PARTICLES ─────────────────────────────────────────────────────────────

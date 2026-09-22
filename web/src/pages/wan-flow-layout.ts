@@ -91,9 +91,14 @@ export const MIN_BAND = 3;
 /** Vertical room each uplink node needs for its name and rates. */
 export const NODE_H = 58;
 const NODE_GAP = 26;
+/** The Dashboard card's gap: it is scaled to fit, and every unit of height
+ *  spent between nodes is text made smaller. */
+const NODE_GAP_COMPACT = 12;
 /** How far inside the node box a ribbon enters it, top and bottom. */
 const NODE_INSET = 6;
-const PAD = 18;
+/** Room around the drawing. The top must hold the ECMP bracket's margin and
+ *  its label above it (found live: at 18 the label was cut off). */
+const PAD = 30;
 
 /**
  * Where everything goes, for a drawing `width` pixels wide.
@@ -104,9 +109,10 @@ const PAD = 18;
  * centred on the router and Internet side, so all of it pours into one point
  * at each end, which is what makes it read as a flow.
  */
-export function layout(rows: FlowRow[], width: number): Layout {
+export function layout(rows: FlowRow[], width: number, compact = false): Layout {
   const n = Math.max(rows.length, 1);
-  const height = Math.max(240, PAD * 2 + n * NODE_H + (n - 1) * NODE_GAP);
+  const gap = compact ? NODE_GAP_COMPACT : NODE_GAP;
+  const height = Math.max(compact ? 0 : 240, PAD * 2 + n * NODE_H + (n - 1) * gap);
   const nodeW = Math.min(230, Math.max(150, width * 0.24));
   const colW = 14;
   const xRouter = PAD + colW;
@@ -122,7 +128,7 @@ export function layout(rows: FlowRow[], width: number): Layout {
 
   const bands: Band[] = [];
   let y0 = stackTop;
-  const nodeTop = (height - (rows.length * NODE_H + (rows.length - 1) * NODE_GAP)) / 2;
+  const nodeTop = (height - (rows.length * NODE_H + (rows.length - 1) * gap)) / 2;
   rows.forEach((r, i) => {
     // Shares, not rates: a zero total draws every band at the floor, and the
     // spare height is shared out only among uplinks that carry something.
@@ -130,7 +136,7 @@ export function layout(rows: FlowRow[], width: number): Layout {
     const t = (r.tx || 0), x = (r.rx || 0);
     const txH = t + x > 0 ? (t / (t + x)) * h : h / 2;
     const hn = Math.min(h, NODE_H - 2 * NODE_INSET);
-    const nodeY = nodeTop + i * (NODE_H + NODE_GAP) + (NODE_H - hn) / 2;
+    const nodeY = nodeTop + i * (NODE_H + gap) + (NODE_H - hn) / 2;
     bands.push({
       name: r.name, active: r.active, y0, y1: nodeY, h, hn,
       tx: { top: 0, h: txH }, rx: { top: txH, h: h - txH },

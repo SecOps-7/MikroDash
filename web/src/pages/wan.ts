@@ -30,7 +30,7 @@ import { esc, el, renderSortHeader, type SortCol, type SortState, mutedDash } fr
 import type { Socket } from '../socket';
 import type { WAN, WANPayload } from '../gen/payloads';
 import { fmtMb } from './wan-flow-layout';
-import { clearWanFlow, initWanFlow, noteWanFlow } from './wan-flow';
+import { createWanFlow } from './wan-flow';
 
 const COLS: SortCol[] = [
   { key: '', label: 'Uplink' }, { key: '', label: 'Address' }, { key: '', label: 'Gateway' },
@@ -77,7 +77,12 @@ function leaseCell(w: WAN): string {
 }
 
 export function initWanPage(socket: Socket, isVisible: (page: string) => boolean): void {
-  initWanFlow(socket, isVisible);
+  // The WAN Flow card: as wide as the page, as tall as the uplinks need.
+  const flowCard = createWanFlow(socket, {
+    id: 'wanFlow', fit: 'rows', visible: () => isVisible('wan'),
+    cardId: 'wanFlowCard', wrapId: 'wanFlowWrap', svgId: 'wanFlowSvg', emptyId: 'wanFlowEmpty',
+    noUplinks: 'No uplinks to draw. The table above says why.',
+  });
   const tb = el('wanTable');
   if (!tb) return;
 
@@ -329,7 +334,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     }
     renderSummary();
     if (isVisible('wan')) render();
-    noteWanFlow(d);
+    flowCard.note(d);
   });
 
   socket.on('wan:caps', (d) => {
@@ -439,11 +444,12 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     // Another router's declared uplinks are not this one's.
     srcMode = 'auto'; srcNames = []; srcDirty = false;
     syncSource();
-    clearWanFlow();
+    flowCard.clear();
   });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail !== 'wan') return;
+    flowCard.redraw();
     // Permission is a property of this socket, not of the shared payload.
     socket.emit('wan:caps', {});
     if (data) render();
