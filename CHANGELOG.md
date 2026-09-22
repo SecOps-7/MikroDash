@@ -2,6 +2,60 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.66] - Config Management, and an AI Agent that can do what MikroMCP does
+
+### New
+
+- **Config Management** (below Devices): a template library, an editor, and deploy to one
+  router or the fleet.
+  - **20 ready-made templates**: firewalls (MikroTik's own default, with MikroDash's
+    address let in first), VLANs, a guest network, Home/IoT/Guest VLANs, WireGuard,
+    DNS, CAKE, fair-share queues, syslog, SNMPv3 and more.
+  - **Every setting has a working default**, so a template deploys as is; passwords are
+    generated fresh in the browser. Save your own defaults into a custom copy.
+  - **Deploys carefully:** syntax check, restore point, a canary router first, an
+    automatic revert if a change cuts MikroDash off, and a fresh login to prove it.
+  - **History** of every run with RouterOS's own words, and **Drift** to check a router
+    against what was deployed.
+- **The AI Agent covers 117 of MikroMCP's 118 tools** (see `docs/mikromcp-parity.md`):
+  - **Plans:** several changes on one approval card, run in order, stopping at the first
+    failure.
+  - **Undo** its own most recent change.
+  - **Actions:** reboot, RouterOS upgrade, sign a certificate, run a script, have the
+    router download a file, show a WireGuard client config (in your browser, never to
+    the model).
+  - **Reads** a file, a configuration export and the fleet's status, with credentials
+    hidden.
+  - **Raw RouterOS commands**, off unless a global administrator switches them on; every
+    command is typed back.
+- **ARP** page, **DNS settings** editing, **certificates** can be created and signed.
+- **Files** can be created (text) and downloaded to the router, and a Transfer tab
+  reads a file's text.
+- **Packages** gains a **Reboot** button.
+- **Connections** is tabbed: the world map, or a sortable, searchable list of every
+  connection with its TCP state and live TX/RX.
+- **New default fonts:** Oxanium for the interface, Orbitron for the wordmark. Your
+  chosen font is kept.
+
+### Fixed
+
+- **The result of an approved AI change vanished** after leaving the AI page, and the
+  assistant never learned it. Results are now kept in the conversation.
+- **The Bandwidth page and connection rates flickered to zero** on routers that stream
+  the connection table: each reading arrived twice.
+- **The AI Agent's instructions said it had no raw commands** while it had them, so it
+  refused to use them.
+- **Configuration exports kept a line that identifies the device** (RouterOS 7.24's
+  `system id`) when handed to the assistant.
+
+### Internal
+
+- New guard `fileName`, field options `CreateOnly` and `WriteOnly`, and `RemovalIsFinal`
+  for rows whose removal cannot be undone (certificates, files).
+- One undo path for the page's buttons and the assistant.
+- The ledgers that count the assistant's writers and pin file handling were re-aimed
+  deliberately; each re-aim is explained in its test.
+
 ## [0.8.65] - A WireGuard page, and the Connections page learns who owns an address
 
 ### New

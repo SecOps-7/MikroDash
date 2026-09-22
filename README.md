@@ -125,10 +125,11 @@ A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/
 | 🔐 **Users and access control** | Per-user accounts with editable roles (a read and write matrix per page), granted to users or groups over everything, a site, or a single router. |
 | 🔔 **Alerts and notifications** | Interface up/down, WireGuard peers, CPU, ping loss, NetWatch hosts, router online/offline, RouterOS updates, configuration drift and backup failures, delivered to Telegram, Pushbullet, ntfy and email, with cooldowns and editable templates. |
 | 📈 **History and reports** | Traffic, ping, bandwidth, alerts and connectivity recorded to SQLite, viewable by date range, exported to CSV or PDF, and emailed on a daily, weekly or monthly schedule. |
+| 🧩 **Config Management** | A library of 20 ready-made configuration templates (firewalls, VLANs, a guest network, WireGuard, DNS, queues, monitoring) plus your own, captured from a router or written in the editor. Every setting has a working default. Deploy to one router or the fleet: a syntax check first, a restore point, a canary router before the rest, an automatic revert if a change cuts MikroDash off, and History and Drift afterwards. |
 | 💾 **Backups** | Scheduled configuration backups kept only when something changed, with a unified diff of what moved, retention rules, and a guarded restore. |
 | 🛠️ **Tools** | Ping, traceroute with an animated world map of the hops, torch and bandwidth test, run from the router with live output and a Stop button. |
 | 🛡️ **Security Scan** | Audits the router's configuration (management access, firewall, exposed services, accounts, system, wireless and certificates), scores it, and links each finding to the page where it is fixed. The score is also a Dashboard card, and the AI Agent can run the scan when you ask how secure a router is. |
-| 🤖 **AI Agent** | An optional assistant that answers questions from live router data and proposes changes through the same checks, audit trail and undo as the forms. Works with any OpenAI-compatible endpoint, including local models. |
+| 🤖 **AI Agent** | An optional assistant that answers questions from live router data and makes changes through the same checks, audit trail and undo as the forms: one row, or several as a plan you approve once. It can reboot, upgrade, sign a certificate, run a script, read a file or an export, and undo its own change, always with your confirmation. Works with any OpenAI-compatible endpoint, including local models. |
 | 📦 **Containers** | RouterOS containers with their env lists, mounts and interfaces, plus an **Apps** tab that browses RouterOS's app store and installs an app in one click. |
 | 🧾 **Audit trail** | Every write, allowed or refused, with who, where, what changed and the outcome. Filterable and exportable to CSV. Credential values are never stored. |
 | 🎨 **Make it yours** | 26 colour palettes, 26 self-hosted fonts, contrast and brightness controls, visible-page presets, a grouped sidebar, and custom branding (name and icon). |
@@ -139,12 +140,12 @@ MikroDash has more than fifty pages. Here they are by area (the sidebar can grou
 
 | Area | Pages |
 |---|---|
-| **Overview** | Dashboard, Devices, Network Topology, WAN |
+| **Overview** | Dashboard, Devices, Config Management, Network Topology, WAN |
 | **Wireless** | Wifi Networks, Wifi Clients, Wifi Map (draw your site and see clients around each access point), CAPsMAN (both the `wifi` and legacy stacks) |
-| **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, DNS, IP Pools, Interface Lists |
+| **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, DNS, IP Pools, Interface Lists, ARP |
 | **Routing** | Routing (routes and BGP), Routing Tables, Routing Rules, OSPF, VRRP |
 | **Tunnels** | VPN (an overview of every tunnel technology, with a card per live connection), WireGuard (interfaces and peers, with a client configuration and a scannable QR code), PPP, IPsec, OpenVPN, PPPoE Clients |
-| **Traffic** | Connections (with a world map), Bandwidth, Queues, Logs |
+| **Traffic** | Connections (a world map, or a list of every connection), Bandwidth, Queues, Logs |
 | **Security** | Firewall (Filter, NAT, Mangle and Raw, with reorder, undo and redo), Address Lists, Certificates, Security Scan |
 | **System** | Users (RouterOS accounts and groups), Services, Packages, Scripts, Scheduler, NTP Client, Clock, Logging, SNMP, Files, Containers, NetWatch |
 | **MikroDash** | Tools, AI Agent, Reports, Backups, Audit Trail, Settings |
@@ -160,7 +161,9 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 - **Secrets are never read back.** WiFi passphrases, PPP and OpenVPN passwords, IPsec pre-shared keys and SNMP passwords are not requested from the router at all, so no page can display one. A blank password field means "keep the current one".
 - **One deliberate exception, and it is audited.** A WireGuard peer's client configuration contains that peer's private key, which is the point of it. It is fetched by a one-shot request rather than carried on the socket, needs write access to the WireGuard page on that router, is refused outright when sign-in is off or no audit database exists, and writes a row naming who revealed it before the router is asked. The key itself never enters that row.
 - **Code is for global administrators.** What a script, scheduler task, VRRP script or container image runs is RouterOS code, so changing it needs a global administrator.
-- **Reboots ask for the router's name.** Applying package changes, upgrading RouterOS or restoring a backup requires the router's name typed back.
+- **Reboots ask for the router's name.** Rebooting, applying package changes, upgrading RouterOS or restoring a backup requires the router's name typed back.
+- **Files that would act are refused.** A file created or downloaded to the router may not be named to run on arrival (`*.auto.*`) or to install at the next reboot (`.npk`). A file's contents are read only when you ask, capped, with credential values hidden.
+- **Config Management deploys carefully.** A syntax check before anything runs, a restore point per router, a canary router whose name you type before the rest, an automatic revert if a change cuts MikroDash off, and a fresh login to prove it did not.
 - **No sign-in, no writes.** With sign-in turned off, every configuration page is read-only.
 
 </details>
@@ -174,7 +177,9 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 
 - **Any OpenAI-compatible endpoint:** a hosted provider, a gateway, or a model on your own hardware (Ollama, LM Studio, vLLM, LiteLLM). Configure it under Settings, AI Agent, and use **Test Connection**. A hosted endpoint receives router names, addresses and network shape; a local one sends nothing outside your network.
 - **Reads what you can read.** It answers from the router's current data and can look up any table your role permits, never a page your role denies.
-- **Changes go through the forms' own path:** one row at a time, with the same permission checks, lockout guards, undo history and audit entry. It cannot run arbitrary RouterOS commands or reach another router.
+- **Changes go through the forms' own path:** one row at a time, or several as a plan you approve once, with the same permission checks, lockout guards, undo history and audit entry. It can undo its own most recent change, and run the pages' own actions (reboot, upgrade, sign a certificate, run a script, download a file), each confirmed.
+- **Only the router you selected.** It reads the others' status from MikroDash's records and cannot reach them. It reads files and configuration exports with credentials hidden, and a WireGuard client configuration opens in your browser, never in the conversation.
+- **Raw RouterOS commands are off** unless a global administrator switches them on (Settings, AI Agent). Even then they are offered only to global administrators, and every command, reads included, runs only when you type the router's name.
 - **Asks before changing anything** by default. Deletes, and changes that could cut MikroDash off from the router, always ask.
 - **Keeps the conversation** per user and per router, so follow-up questions work. **Clear** deletes it, and it expires after the retention period you set.
 - **Agent Overview card:** an optional dashboard card with a one-line router status written by the assistant.
