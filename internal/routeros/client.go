@@ -116,6 +116,12 @@ type Config struct {
 	InsecureTLS bool
 	DialTimeout time.Duration
 
+	// DialContext, when set, opens the connection instead of the system's
+	// dialer: zero-touch provisioning's tunnel (internal/ztp) reaches a remote
+	// router's API through its own userspace IP stack. TLS, when set, goes on
+	// top of what it returns, with the same certificate policy as a direct dial.
+	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+
 	// Debug turns on the library's protocol tracing — the port of live's
 	// `debug: Settings.load().rosDebug` at `src/index.js:444`, which sets
 	// node-routeros's own `debug` flag.
@@ -271,13 +277,23 @@ func Dial(cfg Config) (*Client, error) {
 		conn net.Conn
 		err  error
 	)
-	if cfg.TLS {
+	switch {
+	case cfg.DialContext != nil:
+		conn, err = cfg.DialContext(dialCtx, "tcp", addr)
+		if err == nil && cfg.TLS {
+			tc := tls.Client(conn, &tls.Config{InsecureSkipVerify: cfg.InsecureTLS, ServerName: cfg.Host}) //nolint:gosec // as below
+			if err = tc.HandshakeContext(dialCtx); err != nil {
+				_ = conn.Close()
+			}
+			conn = tc
+		}
+	case cfg.TLS:
 		// RouterOS ships a self-signed certificate. InsecureSkipVerify mirrors
 		// the Node deployment's rejectUnauthorized:false rather than inventing a
 		// stricter policy every existing router would fail.
 		conn, err = (&tls.Dialer{Config: &tls.Config{InsecureSkipVerify: cfg.InsecureTLS}}). //nolint:gosec // see above
 													DialContext(dialCtx, "tcp", addr)
-	} else {
+	default:
 		conn, err = new(net.Dialer).DialContext(dialCtx, "tcp", addr)
 	}
 	if err != nil {

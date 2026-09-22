@@ -20,6 +20,9 @@
 //   - z5 whether `/user add address=` really refuses a login from elsewhere;
 //   - z6 whether a script can put an input accept rule FIRST;
 //   - z7 whether a scheduler can remove itself from its own on-event;
+//   - z10 the real thing: a bootstrap from ztp.RemoteScript, /imported, calls
+//     home with its identity and a password it made, and MikroDash then signs
+//     in through the tunnel with that password;
 //   - z8 the premise itself: that RouterOS completes a WireGuard handshake with
 //     internal/ztp's userspace engine, through the CHR's NAT, and that traffic
 //     flows both ways (the router's fetch in, MikroDash's TCP to the API out).
@@ -121,6 +124,15 @@ func (p *probe) script(label, body string) string {
 		}
 	}
 	return "(no output within 15s)"
+}
+
+func (p *probe) fileID(name string) string {
+	rows, _ := p.c.Do(routeros.Cmd{Path: "/file/print", Args: []string{"?name=" + name, "=.proplist=.id"},
+		Timeout: 10 * time.Second})
+	if len(rows) == 0 {
+		return ""
+	}
+	return rows[0][".id"]
 }
 
 func (p *probe) cleanup() {
@@ -226,6 +238,7 @@ func main() {
 		{"z4", func() { z4WireGuard(p) }}, {"z5", func() { z5UserAddress(p, cfg) }},
 		{"z6", func() { z6FirstRule(p) }}, {"z7", func() { z7SelfRemovingScheduler(p) }},
 		{"z8", func() { z8Tunnel(p) }}, {"z9", func() { z9ScriptParts(p) }},
+		{"z10", func() { z10Bootstrap(p, cfg) }},
 	} {
 		if len(only) == 0 || only[m.name] {
 			m.fn()
@@ -359,6 +372,148 @@ func z7SelfRemovingScheduler(p *probe) {
 	time.Sleep(12 * time.Second)
 	rows := p.run("z7 after 12s", "/system/scheduler/print", "?name="+prefix+"sch", "=.proplist=.id,run-count")
 	p.note("z7 still there after 12s", fmt.Sprint(len(rows.Rows) > 0))
+}
+
+// cleanupZTP removes everything a bootstrap creates (all carry ztp.Comment, or
+// ztp's fixed names), and puts the API services back as they were.
+func (p *probe) cleanupZTP(services []routeros.Reply) {
+	for _, m := range []string{"/system/scheduler", "/system/script", "/ip/firewall/filter", "/ip/address",
+		"/interface/wireguard/peers", "/interface/wireguard", "/user"} {
+		rows, _ := p.c.Do(routeros.Cmd{Path: m + "/print", Args: []string{"=.proplist=.id,comment,name"}, Timeout: 15 * time.Second})
+		for _, r := range rows {
+			if r["comment"] == ztp.Comment || r["name"] == ztp.UserName || r["name"] == ztp.IfaceName ||
+				r["name"] == ztp.EnrolIface || r["name"] == ztp.EnrolScript {
+				_, _ = p.c.Do(routeros.Cmd{Path: m + "/remove", Args: []string{"=.id=" + r[".id"]}, Timeout: 15 * time.Second})
+			}
+		}
+	}
+	for _, r := range services {
+		addr := r["address"]
+		_, _ = p.c.Do(routeros.Cmd{Path: "/ip/service/set", Timeout: 15 * time.Second,
+			Args: []string{"=.id=" + r[".id"], "=disabled=" + r["disabled"], "=address=" + addr}})
+	}
+}
+
+func z10Bootstrap(p *probe, cfg routeros.Config) {
+	fmt.Fprintln(os.Stderr, "Z10 a generated remote bootstrap, end to end")
+	svc := p.run("z10 services before", "/ip/service/print", "?name=api", "=.proplist=.id,name,disabled,address,port")
+	svc2 := p.run("z10 services before", "/ip/service/print", "?name=api-ssl", "=.proplist=.id,name,disabled,address,port")
+	services := append(svc.Rows, svc2.Rows...)
+	for _, r := range services {
+		p.note("z10 service before", fmt.Sprint(r))
+	}
+	p.cleanupZTP(nil)
+	defer p.cleanupZTP(services)
+
+	sPriv, sPub, _ := ztp.NewKeyPair()
+	dPriv, dPub, _ := ztp.NewKeyPair()
+	server := netip.MustParseAddr("10.249.0.1")
+	dev := netip.MustParseAddr("10.249.1.2")
+	eng, err := ztp.Start(ztp.Config{PrivateKey: sPriv, ListenPort: 13231, Address: server})
+	if err != nil {
+		p.note("z10 engine", err.Error())
+		return
+	}
+	defer eng.Close()
+	_ = eng.SetPeer(ztp.Peer{PublicKey: dPub, Allowed: []netip.Prefix{netip.PrefixFrom(dev, 32)}})
+
+	var (
+		mu       sync.Mutex
+		password string
+		enrolled = make(chan struct{}, 1)
+	)
+	l, err := eng.ListenTCP(80)
+	if err != nil {
+		p.note("z10 listen", err.Error())
+		return
+	}
+	defer l.Close()
+	go func() {
+		_ = http.Serve(l, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			_ = json.NewDecoder(io.LimitReader(r.Body, 8192)).Decode(&body)
+			mu.Lock()
+			if pw, ok := body["password"].(string); ok {
+				password = pw
+				body["password"] = fmt.Sprintf("<%d chars>", len(pw))
+			}
+			// The serial identifies the lab CHR; it is not recorded.
+			if sn, ok := body["serial"].(string); ok {
+				body["serial"] = fmt.Sprintf("<%d chars>", len(sn))
+			}
+			mu.Unlock()
+			p.note("z10 enrol request", fmt.Sprintf("%s %s from %s body=%v", r.Method, r.URL.Path, r.RemoteAddr, body))
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"ok":true,"address":"` + dev.String() + `"}`))
+			select {
+			case enrolled <- struct{}{}:
+			default:
+			}
+		}))
+	}()
+
+	host, _, _ := strings.Cut(p.srvAddr, ":")
+	script := ztp.RemoteScript(ztp.Instance{ID: "probe-instance", PublicKey: sPub, Endpoint: host, Port: 13231, Server: server},
+		ztp.Remote{Label: "lab CHR", Token: "probe-token", PrivateKey: dPriv, Address: dev, Expires: time.Now().Add(time.Hour)})
+	p.note("z10 script size", fmt.Sprintf("%d bytes, %d lines", len(script), strings.Count(script, "\n")))
+	const file = prefix + "ztp.rsc"
+	if id := p.fileID(file); id != "" {
+		p.run("z10 stale", "/file/remove", "=.id="+id)
+	}
+	p.run("z10 file add", "/file/add", "=name="+file, "=type=file")
+	id := p.fileID(file)
+	set := p.run("z10 file set", "/file/set", "=.id="+id, "=contents="+script)
+	if set.Trap != "" {
+		p.note("z10 file set", set.Trap)
+		return
+	}
+	imp := p.run("z10 import", "/import", "=file-name="+file)
+	p.note("z10 import", fmt.Sprintf("trap=%q done=%v", imp.Trap, imp.Done))
+
+	select {
+	case <-enrolled:
+	case <-time.After(40 * time.Second):
+		p.note("z10 enrolment", "none within 40s")
+		lg := p.run("z10 log", "/log/print")
+		for i, r := range lg.Rows {
+			if i >= len(lg.Rows)-8 {
+				p.note("z10 log", r["topics"]+" "+r["message"])
+			}
+		}
+		return
+	}
+	time.Sleep(3 * time.Second)
+	mu.Lock()
+	pw := password
+	mu.Unlock()
+	for _, port := range []int{8728, 8729} {
+		c, err := routeros.Dial(routeros.Config{Host: dev.String(), Port: port, TLS: port == 8729, InsecureTLS: true,
+			Username: ztp.UserName, Password: pw, DialContext: eng.DialContext})
+		if err != nil {
+			p.note(fmt.Sprintf("z10 login through the tunnel :%d", port), "failed: "+err.Error())
+			continue
+		}
+		rows, err := c.Do(routeros.Cmd{Path: "/system/resource/print", Args: []string{"=.proplist=board-name,version"}, Timeout: 10 * time.Second})
+		c.Close()
+		if err != nil || len(rows) == 0 {
+			p.note(fmt.Sprintf("z10 read through the tunnel :%d", port), fmt.Sprint(err))
+			continue
+		}
+		p.note(fmt.Sprintf("z10 login through the tunnel :%d", port), "ok: "+rows[0]["board-name"]+" "+rows[0]["version"])
+	}
+	sc := p.run("z10 enrol script left", "/system/script/print", "?name="+ztp.EnrolScript, "=.proplist=.id")
+	sh := p.run("z10 enrol scheduler left", "/system/scheduler/print", "?name="+ztp.EnrolScript, "=.proplist=.id")
+	p.note("z10 cleaned up after itself", fmt.Sprintf("script left=%v scheduler left=%v", len(sc.Rows) > 0, len(sh.Rows) > 0))
+	// The control for the address limit: the same user and password from
+	// MikroDash's own Docker address, outside the tunnel, must be refused.
+	c2 := cfg
+	c2.Username, c2.Password = ztp.UserName, pw
+	if c, err := routeros.Dial(c2); err == nil {
+		c.Close()
+		p.note("z10 same login outside the tunnel", "LOGGED IN: the address limit did not hold")
+	} else {
+		p.note("z10 same login outside the tunnel", "refused: "+err.Error())
+	}
 }
 
 func z9ScriptParts(p *probe) {
