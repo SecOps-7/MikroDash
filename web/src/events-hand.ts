@@ -178,7 +178,7 @@ export interface HandEvents {
     kind?: string;
     /** A reboot-class action: the router's name must be typed to confirm it. */
     typedName?: boolean;
-    /** Why the name is typed: "reboot", "run" (a script) or "code" (a code edit). */
+    /** Why the name is typed: "reboot", "run" (a script), "code" (a code edit) or "command" (a raw command). */
     typedReason?: string;
     /** The router's own label, which the typed name is compared with. */
     routerName?: string;

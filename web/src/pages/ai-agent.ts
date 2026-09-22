@@ -320,6 +320,11 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
         ? d.label + (d.name ? ' \u2014 ' + d.name : '')
         : d.action === 'undo' ? 'Undo the ' + d.name + ' (' + d.label + ')'
         : d.kind === 'plan' ? 'Plan: ' + d.label + ' \u2014 ' + d.name
+        // A RAW COMMAND is not a row either: it is run, not "changed", and a
+        // read is said to be one.
+        : d.kind === 'command' ? (d.action === 'plan' ? d.label
+          : (d.action === 'read' ? 'Read with a RouterOS command' : 'Run a RouterOS command') +
+            (d.name ? ' \u2014 ' + d.name : ''))
         : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
     }
     const cmd = el('aiProposeCmd');
@@ -365,6 +370,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
         : d.kind === 'plan' ? 'Apply the plan'
         : d.typedReason === 'code' ? 'Apply this code change'
         : d.typedReason === 'run' ? 'Run the script'
+        : d.typedReason === 'command' ? (d.action === 'plan' ? 'Run the commands' : 'Run the command')
         : d.typedName ? 'Run it and reboot'
         : isAction ? 'Run it' : 'Apply this change';
     }
@@ -386,6 +392,8 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
         ? 'This changes code the router runs. Type its name \u2014 '
         : d.typedReason === 'run'
           ? 'This runs code on the router. Type its name \u2014 '
+          : d.typedReason === 'command'
+          ? 'This runs a RouterOS command that MikroDash does not check. Type its name \u2014 '
           : 'This reboots the router. Type its name \u2014 ') + proposalTyped + ' \u2014 to confirm.';
     }
     syncApprove();

@@ -139,7 +139,8 @@ func (cn *conn) raiseAIRawCommand(cmd rawcmd.Command) string {
 	EvAIPropose.Send(cn.srv.hub, cn.c, map[string]any{
 		"token": tok, "kind": "command", "action": kind, "label": "RouterOS command",
 		"name": cmd.Menu, "command": cmd.Text, "routerName": cn.rsession.Label,
-		"typedName": true, "warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
+		"typedName": true, "typedReason": "command",
+		"warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
 	})
 	return "Waiting for confirmation. MikroDash is asking the operator to confirm this command by " +
 		"typing the router's name; raw commands are always confirmed, reads included. It has not " +
@@ -311,7 +312,8 @@ func (cn *conn) raiseAIPlan(plan []rawcmd.Command) string {
 		"token": tok, "kind": "command", "action": "plan",
 		"label": fmt.Sprintf("RouterOS plan, %d commands", len(plan)),
 		"name":  "", "command": planText(plan), "routerName": cn.rsession.Label,
-		"typedName": true, "warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
+		"typedName": true, "typedReason": "command",
+		"warnCode": "", "warning": map[string]any{}, "values": map[string]string{},
 	})
 	return fmt.Sprintf("Waiting for confirmation. MikroDash is showing the operator all %d "+
 		"commands as one plan, to confirm by typing the router's name. They run in order and stop "+

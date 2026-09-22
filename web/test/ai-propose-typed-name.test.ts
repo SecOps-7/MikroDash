@@ -178,5 +178,23 @@ ok(/runs code/i.test(el('aiProposeTypedLabel').textContent),
   `the prompt does not say it runs code: ${JSON.stringify(el('aiProposeTypedLabel').textContent)}`);
 el('aiProposeReject').fire('click');
 
+// ── 7. a raw command says it runs a command, not that it reboots ────────────
+//
+// Found live (2026-09-22): the first raw command ever shown read "Change the
+// RouterOS command" and "This reboots the router", with "Run it and reboot".
+propose({
+  token: 't7', kind: 'command', action: 'read', label: 'RouterOS command', name: '/system/identity',
+  command: '/system/identity/print', typedName: true, typedReason: 'command', routerName: 'CHR Test',
+  warnCode: '', warning: {}, values: {},
+});
+ok(el('aiProposeTyped').hidden === false, 'a raw command did not ask for the router name');
+ok(!/reboot/i.test(el('aiProposeApprove').textContent + el('aiProposeTypedLabel').textContent),
+  `a raw command reads as a reboot: ${JSON.stringify(el('aiProposeApprove').textContent)}`);
+ok(el('aiProposeWhat').textContent.startsWith('Read with a RouterOS command'),
+  `a raw read reads as a row change: ${JSON.stringify(el('aiProposeWhat').textContent)}`);
+ok(/Run the command/.test(el('aiProposeApprove').textContent) && /does not check/.test(el('aiProposeTypedLabel').textContent),
+  `the raw command's button or prompt: ${JSON.stringify(el('aiProposeApprove').textContent)}`);
+el('aiProposeReject').fire('click');
+
 fs.rmSync(OUT, { force: true });
 say(`ai-propose-typed-name: ${checks} checks passed`);

@@ -432,8 +432,14 @@ func TestTheRawToolsAreAdvertisedBehindTheirGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`if _, note := cn\.rawGateNote\(\); note == "" \{\s*for _, t := range aitools\.RawTools\(\)`).Match(src) {
+	// Re-aimed 2026-09-22: one answer from the gate now feeds both the tool
+	// list and the system prompt, which had told a viewer holding the tools
+	// that they did not exist.
+	if !regexp.MustCompile(`_, rawNote := cn\.rawGateNote\(\)\s*rawOn := rawNote == ""\s*if rawOn \{\s*for _, t := range aitools\.RawTools\(\)`).Match(src) {
 		t.Error("ai_chat.go no longer adds RawTools only when rawGateNote passes")
+	}
+	if !strings.Contains(string(src), "aiSystemPrompt(settings, rawOn)") {
+		t.Error("the system prompt is not told the same gate answer as the tool list")
 	}
 	gate, err := os.ReadFile("ai_raw.go")
 	if err != nil {
