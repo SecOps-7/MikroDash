@@ -9526,9 +9526,6 @@
   "global, an interface, or another tree queue.": [
     "internal/resource"
   ],
-  "global:": [
-    "web/src/pages/principal-forms.ts"
-  ],
   "h": [
     "web/src/ui/page-settings.html"
   ],

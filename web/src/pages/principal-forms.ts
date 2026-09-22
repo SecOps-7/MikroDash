@@ -259,7 +259,7 @@ export function grantAddPlan(
   if (!principalId) return { error: unsaved };
 
   // `|| 'global:'` — an empty picker means every router, not a malformed scope.
-  const parts = (scopeValue || t('global:')).split(':');
+  const parts = (scopeValue || 'global:').split(':');
   return {
     method: 'POST',
     url: '/api/grants',
