@@ -2754,3 +2754,34 @@
       .ztp-spin{animation:none}
       .ztp-card,.ztp-choice,.wiz-dot{transition:none}
     }
+
+    /* ── The AI Agent's welcome (page-ai-agent.html) ───────────────────────── */
+    .ai-welcome{margin:auto;display:flex;flex-direction:column;align-items:center;text-align:center;width:100%;max-width:46rem;padding:1.5rem .5rem;animation:ai-welcome-in .45s ease-out}
+    @keyframes ai-welcome-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .ai-welcome-mark{width:4rem;height:4rem;border-radius:1.25rem;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;
+      background:linear-gradient(135deg,color-mix(in srgb,var(--accent-rx) 22%,transparent),color-mix(in srgb,var(--accent-alt) 22%,transparent));
+      border:1px solid color-mix(in srgb,var(--accent-rx) 35%,transparent);
+      box-shadow:0 0 28px color-mix(in srgb,var(--accent-alt) 28%,transparent),inset 0 0 18px color-mix(in srgb,var(--accent-rx) 12%,transparent)}
+    .ai-welcome-mark svg{width:2rem;height:2rem;fill:none;stroke:var(--accent-rx);stroke-width:1.6;stroke-linejoin:round;animation:ai-mark-glow 3.2s ease-in-out infinite}
+    @keyframes ai-mark-glow{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--accent-rx) 70%,transparent))}}
+    .ai-welcome-title{font-size:1.25rem;font-weight:700;margin:0 0 .5rem;color:var(--text-main);letter-spacing:.01em}
+    .ai-welcome-text{font-size:.8rem;line-height:1.6;color:var(--text-muted);max-width:36rem;margin:0 0 1.4rem}
+    .ai-suggest-label{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.55rem}
+    .ai-suggest-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(13.5rem,100%),1fr));gap:.6rem;width:100%}
+    .ai-suggest{display:flex;align-items:flex-start;gap:.65rem;text-align:left;padding:.75rem .8rem;border-radius:12px;cursor:pointer;
+      background:color-mix(in srgb,var(--accent-rx) 4%,var(--bg-card));border:1px solid var(--border);color:inherit;font:inherit;
+      transition:border-color .15s,background .15s,transform .15s,box-shadow .15s}
+    .ai-suggest:hover,.ai-suggest:focus-visible{border-color:color-mix(in srgb,var(--accent-rx) 55%,transparent);background:color-mix(in srgb,var(--accent-rx) 9%,var(--bg-card));
+      transform:translateY(-2px);box-shadow:0 6px 18px color-mix(in srgb,var(--accent-rx) 14%,transparent);outline:none}
+    .ai-suggest-icon{flex:0 0 1.9rem;height:1.9rem;border-radius:9px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent-alt) 14%,transparent);border:1px solid color-mix(in srgb,var(--accent-alt) 30%,transparent)}
+    .ai-suggest-icon svg{width:1rem;height:1rem;fill:none;stroke:var(--accent-alt);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .ai-suggest:first-child .ai-suggest-icon{background:color-mix(in srgb,var(--accent-tx) 14%,transparent);border-color:color-mix(in srgb,var(--accent-tx) 32%,transparent)}
+    .ai-suggest:first-child .ai-suggest-icon svg{stroke:var(--accent-tx)}
+    .ai-suggest-text{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+    .ai-suggest-title{font-size:.8rem;font-weight:600;color:var(--text-main)}
+    .ai-suggest-sub{font-size:.7rem;line-height:1.4;color:var(--text-muted)}
+    @media (prefers-reduced-motion: reduce){
+      .ai-welcome,.ai-welcome-mark svg{animation:none}
+      .ai-suggest{transition:none}
+      .ai-suggest:hover,.ai-suggest:focus-visible{transform:none}
+    }

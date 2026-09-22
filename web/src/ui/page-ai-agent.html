@@ -27,15 +27,47 @@
           <div id="aiAgentWindow">
             <div id="aiAgentLog" class="data-scroll"
                  style="overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.9rem">
-              <div id="aiAgentEmpty" style="margin:auto;text-align:center;max-width:34rem;color:var(--text-muted)">
-                <div style="font-size:.86rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem">
-                  Ask about this router
+              <!-- ── THE WELCOME, until the first message ───────────────────
+                   Each suggestion is a button carrying its question in
+                   data-ai-prompt; one delegated listener in ai-agent.ts sends
+                   it, exactly as if it had been typed. -->
+              <div id="aiAgentEmpty" class="ai-welcome">
+                <div class="ai-welcome-mark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M10 3c.6 3.9 3.1 6.4 7 7-3.9.6-6.4 3.1-7 7-.6-3.9-3.1-6.4-7-7 3.9-.6 6.4-3.1 7-7z"/><path d="M18.5 2.5c.25 1.4 1.1 2.25 2.5 2.5-1.4.25-2.25 1.1-2.5 2.5-.25-1.4-1.1-2.25-2.5-2.5 1.4-.25 2.25-1.1 2.5-2.5z"/><path d="M18.5 16.5c.2 1 .8 1.6 1.8 1.8-1 .2-1.6.8-1.8 1.8-.2-1-.8-1.6-1.8-1.8 1-.2 1.6-.8 1.8-1.8z"/></svg>
                 </div>
-                <div style="font-size:.76rem;line-height:1.5">
-                  The assistant can see what this device is reporting right now, and can change
-                  only what you are allowed to change yourself. Every change goes through the same
-                  checks and audit trail as the forms, and unless you have turned that off in
-                  Settings it asks you first.
+                <h2 class="ai-welcome-title">Ask me anything about your router</h2>
+                <p class="ai-welcome-text">
+                  I can read its configuration, check how it is doing, and make changes with the
+                  same tools as the dashboard: the same permissions, the same safety checks and the
+                  same audit trail. I ask before changing anything, unless you have turned that off
+                  in Settings.
+                </p>
+                <div class="ai-suggest-label">Try one of these</div>
+                <div class="ai-suggest-grid">
+                  <button class="ai-suggest" type="button" data-ai-prompt="Run a security check on this router. Explain the most important findings first, and what I should do about each.">
+                    <span class="ai-suggest-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></span>
+                    <span class="ai-suggest-text"><span class="ai-suggest-title">Router security check</span><span class="ai-suggest-sub">Audit it and explain the risks, worst first</span></span>
+                  </button>
+                  <button class="ai-suggest" type="button" data-ai-prompt="How is this router doing? Summarise CPU, memory, storage and uptime, and point out anything unusual.">
+                    <span class="ai-suggest-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span>
+                    <span class="ai-suggest-text"><span class="ai-suggest-title">Health check</span><span class="ai-suggest-sub">CPU, memory, uptime and anything unusual</span></span>
+                  </button>
+                  <button class="ai-suggest" type="button" data-ai-prompt="Which devices are using the most bandwidth right now, and what are they talking to?">
+                    <span class="ai-suggest-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg></span>
+                    <span class="ai-suggest-text"><span class="ai-suggest-title">Top bandwidth users</span><span class="ai-suggest-sub">Which devices are busiest right now</span></span>
+                  </button>
+                  <button class="ai-suggest" type="button" data-ai-prompt="Review the firewall rules. Point out anything risky, redundant or missing, and suggest fixes.">
+                    <span class="ai-suggest-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 10h18M3 15h18M9 4v6M15 10v5M9 15v5"/></svg></span>
+                    <span class="ai-suggest-text"><span class="ai-suggest-title">Firewall review</span><span class="ai-suggest-sub">Spot risky, redundant or missing rules</span></span>
+                  </button>
+                  <button class="ai-suggest" type="button" data-ai-prompt="Look through the recent logs for errors or warnings and explain what they mean and whether I need to act.">
+                    <span class="ai-suggest-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3L2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+                    <span class="ai-suggest-text"><span class="ai-suggest-title">Recent problems</span><span class="ai-suggest-sub">Errors and warnings from the logs, explained</span></span>
+                  </button>
+                  <button class="ai-suggest" type="button" data-ai-prompt="List the devices connected to this router, with their names, addresses and how they are connected.">
+                    <span class="ai-suggest-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M8 20h8M12 15v5"/></svg></span>
+                    <span class="ai-suggest-text"><span class="ai-suggest-title">Connected devices</span><span class="ai-suggest-sub">Who is on the network, by name and address</span></span>
+                  </button>
                 </div>
               </div>
             </div>

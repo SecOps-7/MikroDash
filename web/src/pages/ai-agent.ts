@@ -443,6 +443,16 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   // against a partial DOM.
   el<HTMLInputElement>('aiProposeConfirm')?.addEventListener('input', syncApprove);
   sendBtn()?.addEventListener('click', send);
+  // A SUGGESTION IS A QUESTION TYPED FOR YOU: it goes through the input and
+  // send(), so it is refused while an answer is pending, like any other.
+  el('aiAgentEmpty')?.addEventListener('click', (e) => {
+    const card = (e.target as HTMLElement | null)?.closest?.('[data-ai-prompt]');
+    const text = card?.getAttribute('data-ai-prompt');
+    const box = input();
+    if (!text || !box) return;
+    box.value = text;
+    send();
+  });
   input()?.addEventListener('keydown', (e) => {
     const ev = e as KeyboardEvent;
     // ENTER SENDS, SHIFT+ENTER NEWLINES. A question is usually one line, and a
