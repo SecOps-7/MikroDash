@@ -143,11 +143,11 @@ export function warningHTML(ifaces: FaIface[], selected: string): string {
   if (!rec) return t('Scanning takes the selected radio off the air.');
   const n = rec.clients || 0;
   if (n === 0) {
-    return t('This radio has') + ' <b>' + t('no clients connected') + '</b>' + t(', so scanning it should interrupt nobody. Other radios on this router are unaffected.');
+    return t('This radio has <b>no clients connected</b>, so scanning it should interrupt nobody. Other radios on this router are unaffected.');
   }
-  return `Scanning takes this radio off the air. Its <b>${n} connected ` +
-    `${n === 1 ? 'client' : 'clients'} will be disconnected</b> for the duration of the ` +
-    'scan, including any on its other SSIDs, and may take some seconds to return afterwards. Other radios on this router are unaffected.';
+  return n === 1
+    ? t('Scanning takes this radio off the air. Its <b>1 connected client will be disconnected</b> for the duration of the scan, including any on its other SSIDs, and may take some seconds to return afterwards. Other radios on this router are unaffected.')
+    : t('Scanning takes this radio off the air. Its <b>{n} connected clients will be disconnected</b> for the duration of the scan, including any on its other SSIDs, and may take some seconds to return afterwards. Other radios on this router are unaffected.', { n });
 }
 
 /**
@@ -479,11 +479,13 @@ export function spectrumTooltipLines(
 ): string[] {
   if (!row) return [];
   const out: string[] = [];
-  if (row.load != null) out.push('Load        ' + row.load + '%');
-  if (row.nets != null) out.push('Networks    ' + row.nets);
-  if (row.nf != null) out.push('Noise floor ' + row.nf + ' dBm');
-  if (row.maxSig != null) out.push('Max signal  ' + row.maxSig + ' dBm');
-  if (row.minSig != null) out.push('Min signal  ' + row.minSig + ' dBm');
+  // The names are padded to one column, as the tooltip is monospaced.
+  const k = (name: string): string => (name + ' ').padEnd(12);
+  if (row.load != null) out.push(k(t('Load')) + row.load + '%');
+  if (row.nets != null) out.push(k(t('Networks')) + row.nets);
+  if (row.nf != null) out.push(k(t('Noise floor')) + row.nf + ' dBm');
+  if (row.maxSig != null) out.push(k(t('Max signal')) + row.maxSig + ' dBm');
+  if (row.minSig != null) out.push(k(t('Min signal')) + row.minSig + ' dBm');
   if (row.ch === currentChannelMhz) out.push(t('— this radio —'));
   return out;
 }

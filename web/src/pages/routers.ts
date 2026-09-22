@@ -604,9 +604,9 @@ export function popHtml(r: RouterStatsRow): string {
   const up = r.uptime ? String(r.uptime) : '—';
   // Where the position came from, stated plainly and without alarm. The map
   // itself no longer distinguishes them.
-  const from = g.source === 'manual' ? 'set here'
+  const from = g.source === 'manual' ? t('set here')
     : g.source === 'site' ? t('from its site')
-    : (g.wanIp ? 'from ' + esc(g.wanIp) : t('from its WAN address'));
+    : (g.wanIp ? t('from {address}', { address: esc(g.wanIp) }) : t('from its WAN address'));
   const loc = esc(g.label || t('Unknown'))
     + ' <span class="text-muted">(' + from + ')</span>';
   return '<div class="rmp-name"><span class="rtl-dot" style="background:' + dotColour(r)
@@ -664,14 +664,13 @@ export function renderTray(unlocated: RouterStatsRow[]): void {
   if (!tray) return;
   if (!unlocated.length) { tray.hidden = true; tray.innerHTML = ''; return; }
   tray.hidden = false;
-  tray.innerHTML = '<span class="rmt-label">No location ('
-    + unlocated.length + '):</span>'
+  tray.innerHTML = '<span class="rmt-label">' + t('No location ({n}):', { n: unlocated.length }) + '</span>'
     + unlocated.map((r) => '<span class="rmt-pill" data-open-router="' + esc(r.id) + '" title="'
         + esc(r.host) + '"><span class="rtl-dot" style="background:'
         + (r.online ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
         + '"></span>' + esc(r.label) + '</span>').join('')
     + '<span class="rmt-label" style="flex-basis:100%;margin-top:.25rem">'
-    + 'Their WAN address is private or unroutable, so it cannot be geolocated. Set a town in the router\u2019s settings, or give its site one.</span>';
+    + t('Their WAN address is private or unroutable, so it cannot be geolocated. Set a town in the router\u2019s settings, or give its site one.') + '</span>';
 }
 
 /**

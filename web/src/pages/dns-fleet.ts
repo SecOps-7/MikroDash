@@ -287,8 +287,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     const live = data.filter((r) => r.ok);
     const cols = live.length + 4;
     if (!picked.length) {
-      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' +
-        'Pick the routers to compare.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' + t('Pick the routers to compare.') + '</td></tr>';
       return;
     }
     if (loading && !rows.length) {
@@ -296,8 +295,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
       return;
     }
     if (!rows.length) {
-      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' +
-        'No static entries on the selected routers.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' + t('No static entries on the selected routers.') + '</td></tr>';
       return;
     }
     tb.innerHTML = sorted().map((row) => {
@@ -353,7 +351,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
           // THE FIELD ERRORS TOO: `invalid` alone says a record was refused
           // without saying which property the descriptor would not take.
           const errs = (d.errors || []) as Array<{ field?: string; message?: string }>;
-          notice = 'the write was refused' + (d.code ? ': ' + d.code : '') +
+          notice = (d.code ? t('the write was refused: {code}', { code: d.code }) : t('the write was refused')) +
             (errs.length ? ' — ' + errs.map((e) => e.message || e.field).join('; ') : '');
           return;
         }
@@ -458,8 +456,8 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     // second — so a second press is safe.
     const work = rows.filter((r) => r.missing.length);
     if (!work.length) return;
-    if (!window.confirm('Copy ' + work.length + ' record' + (work.length === 1 ? '' : 's') +
-      ' to every router that is missing it?')) return;
+    if (!window.confirm(work.length === 1 ? t('Copy 1 record to every router that is missing it?')
+      : t('Copy {n} records to every router that is missing it?', { n: work.length }))) return;
     let left = work.length;
     work.forEach((row) => {
       const from = Object.values(row.on)[0];

@@ -561,21 +561,22 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   function edgeTooltip(e: TopoEdge, r: Rate | null): string {
     if (e.pinned) {
       let tip = t('pinned by hand: this device was told to hang off that one');
-      if (e.viaPort) tip += '\non ' + e.viaPort;
-      if (e.remoteIface) tip += '\nits port: ' + e.remoteIface;
+      if (e.viaPort) tip += '\n' + t('on {port}', { port: e.viaPort });
+      if (e.remoteIface) tip += '\n' + t('its port: {port}', { port: e.remoteIface });
       return tip;
     }
     if (e.inferred) {
       // Say plainly that this link is DEDUCED, and from what: the router can see
       // that the device is behind this switch, but not which switch port.
-      let tip = 'behind this device on ' + (e.viaPort || t('the same port')) +
-        ' — inferred: seen via MNDP/CDP only, so it is not directly attached';
-      if (e.remoteIface) tip += '\nits port: ' + e.remoteIface;
+      let tip = e.viaPort
+        ? t('behind this device on {port} — inferred: seen via MNDP/CDP only, so it is not directly attached', { port: e.viaPort })
+        : t('behind this device on the same port — inferred: seen via MNDP/CDP only, so it is not directly attached');
+      if (e.remoteIface) tip += '\n' + t('its port: {port}', { port: e.remoteIface });
       return tip;
     }
-    let tip = e.iface || 'link';
+    let tip = e.iface || t('link');
     if (e.remoteIface) tip += '  →  ' + e.remoteIface;
-    if (e.shared) tip += '  (shared segment — more than one device on this port)';
+    if (e.shared) tip += '  ' + t('(shared segment — more than one device on this port)');
     if (r) tip += '  ↓' + fmtMbps(r.rx) + '  ↑' + fmtMbps(r.tx);
     return tip;
   }
@@ -770,14 +771,11 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     let html = '<b>' + t('No neighbouring devices discovered') + '</b>';
     const d = st.data.discovery;
     if (st.data.permissionDenied) {
-      html += ('<div class="topo-empty-hint">' + t('This API user cannot read') + ' <code>/ip/neighbor</code>. ') +
-        'Grant the <code>read</code> policy to see discovered devices.</div>';
+      html += '<div class="topo-empty-hint">' + t('This API user cannot read <code>/ip/neighbor</code>. Grant the <code>read</code> policy to see discovered devices.') + '</div>';
     } else if (d && d.mode === 'tx-only') {
-      html += ('<div class="topo-empty-hint">' + t('Discovery is set to') + ' <code>tx-only</code>' + t(', so this router advertises itself but never records neighbours. Set it to') + ' <code>tx-and-rx</code> under ') +
-        '<code>/ip/neighbor/discovery-settings</code>.</div>';
+      html += '<div class="topo-empty-hint">' + t('Discovery is set to <code>tx-only</code>, so this router advertises itself but never records neighbours. Set it to <code>tx-and-rx</code> under <code>/ip/neighbor/discovery-settings</code>.') + '</div>';
     } else if (d && d.interfaceList && d.interfaceList !== 'all') {
-      html += ('<div class="topo-empty-hint">' + t('Discovery only runs on the') + ' <code>') + esc(d.interfaceList) +
-        ('</code> ' + t('interface list. Devices reached through other interfaces will not appear here.') + '</div>');
+      html += '<div class="topo-empty-hint">' + t('Discovery only runs on the <code>{list}</code> interface list. Devices reached through other interfaces will not appear here.', { list: esc(d.interfaceList) }) + '</div>';
     } else {
       html += '<div class="topo-empty-hint">' + t('Nothing is advertising LLDP, CDP or MNDP on this router\u2019s discovery interfaces. Unmanaged switches and most end devices stay invisible by design.') + '</div>';
     }
@@ -790,10 +788,10 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     if (!footEl) return;
     const parts: string[] = [];
     const d = st.data && st.data.discovery;
-    if (d && d.protocol && d.protocol.length) parts.push('Discovery: ' + esc(d.protocol.join(', ')));
-    if (d && d.interfaceList) parts.push('on <code>' + esc(d.interfaceList) + '</code>');
+    if (d && d.protocol && d.protocol.length) parts.push(t('Discovery: {protocols}', { protocols: esc(d.protocol.join(', ')) }));
+    if (d && d.interfaceList) parts.push(t('on <code>{list}</code>', { list: esc(d.interfaceList) }));
     if (st.data && st.data.pingDenied) {
-      parts.push('<span style="color:var(--accent-warn)">' + t('latency needs the') + ' <code>test</code> policy</span>');
+      parts.push('<span style="color:var(--accent-warn)">' + t('latency needs the <code>test</code> policy') + '</span>');
     }
     const legend = ([['up', '--accent-ok'], ['warn', '--accent-warn'], ['down', '--accent-err']] as const)
       .map((p) => '<span class="topo-legend" style="color:var(' + p[1] + ')">' +

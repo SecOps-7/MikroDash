@@ -145,19 +145,19 @@ function output(title: string, text: string | null, failedLine: number | null): 
 
 /** One run opened: each router and what it said, then what was sent. */
 export function runDetail(r: RunRow, d: RunDetail): string {
-  const targets = d.targets.map((t) => {
+  const targets = d.targets.map((tg) => {
     const facts = [
-      t.backupId ? 'Restore point #' + t.backupId + ' (Backups page)' : '',
-      t.reconnectMs ? 'back in ' + (t.reconnectMs / 1000).toFixed(1) + ' s' : '',
-      t.failedLine ? 'stopped at line ' + t.failedLine : '',
-      t.state === 'applying' && t.step ? 'step: ' + t.step : '',
+      tg.backupId ? t('Restore point #{id} (Backups page)', { id: tg.backupId }) : '',
+      tg.reconnectMs ? t('back in {s} s', { s: (tg.reconnectMs / 1000).toFixed(1) }) : '',
+      tg.failedLine ? t('stopped at line {n}', { n: tg.failedLine }) : '',
+      tg.state === 'applying' && tg.step ? t('step: {step}', { step: tg.step }) : '',
     ].filter(Boolean);
-    return '<div class="cfg-hist-target"><div class="cfg-prev-head"><strong>' + esc(t.label) + '</strong>' +
-      pill(TARGET_STATE, t.state) + (facts.length ? '<span class="cfg-meta">' + esc(facts.join(' · ')) + '</span>' : '') +
-      '</div>' + (t.error ? '<div class="cfg-banner is-bad">' + esc(t.error) + '</div>' : '') +
-      (t.warning ? '<div class="cfg-banner is-warn">' + esc(t.warning) + '</div>' : '') +
-      output('The syntax check, in RouterOS\'s words', t.dryRunOutput, null) +
-      output('The import, in RouterOS\'s words', t.importOutput, t.failedLine) + '</div>';
+    return '<div class="cfg-hist-target"><div class="cfg-prev-head"><strong>' + esc(tg.label) + '</strong>' +
+      pill(TARGET_STATE, tg.state) + (facts.length ? '<span class="cfg-meta">' + esc(facts.join(' · ')) + '</span>' : '') +
+      '</div>' + (tg.error ? '<div class="cfg-banner is-bad">' + esc(tg.error) + '</div>' : '') +
+      (tg.warning ? '<div class="cfg-banner is-warn">' + esc(tg.warning) + '</div>' : '') +
+      output(t('The syntax check, in RouterOS\'s words'), tg.dryRunOutput, null) +
+      output(t('The import, in RouterOS\'s words'), tg.importOutput, tg.failedLine) + '</div>';
   }).join('');
   // The run's error is usually one router's, named ("CHR Test: …"): shown
   // with that router already, it is not said twice.
@@ -215,10 +215,9 @@ export function driftRows(rows: DriftRow[], checks: Record<string, DriftCheck>, 
 
 /** A drifted baseline: what changed since the deploy, and the two ways on. */
 export function driftDiff(hunks: Hunk[], truncated: boolean): string {
-  return '<div class="cfg-hist-detail"><p class="cfg-meta">Lines marked − were there after the deploy and are ' +
-    'gone; lines marked + are on the router now and were not.</p>' +
+  return '<div class="cfg-hist-detail"><p class="cfg-meta">' + t('Lines marked − were there after the deploy and are gone; lines marked + are on the router now and were not.') + '</p>' +
     (truncated ? '<div class="cfg-banner is-warn">' + t('The difference is too large to show in full.') + '</div>' : '') +
     '<div class="bk-diff cfg-drift-diff">' + hunksHTML(hunks) + '</div>' +
-    '<div class="cfg-drift-go"><button class="cfg-btn cfg-btn-go" type="button" data-drift-act="reapply">Re-apply the template</button><button class="cfg-btn" type="button" data-drift-act="accept">Accept as the new baseline' +
+    '<div class="cfg-drift-go"><button class="cfg-btn cfg-btn-go" type="button" data-drift-act="reapply">' + t('Re-apply the template') + '</button><button class="cfg-btn" type="button" data-drift-act="accept">' + t('Accept as the new baseline') +
     '</button></div></div>';
 }

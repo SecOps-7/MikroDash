@@ -85,16 +85,15 @@ export function topoPanel(st: TopoState, deps: {
       esc(label) + '</option>';
     return ('<div class="topo-panel-sec">' + t('Cabling') + '</div>') +
       '<div class="topo-pin">' +
-        '<select class="rt-sel" id="topoPinSel" aria-label="What this device hangs off">' +
-          opt('', 'Work it out (' + esc(parentName(
-            (st.data?.nodes || []).find((m) => m.key === key)!) || 'directly attached') + ')') +
+        '<select class="rt-sel" id="topoPinSel" aria-label="' + t('What this device hangs off') + '">' +
+          opt('', t('Work it out ({parent})', { parent: parentName(
+            (st.data?.nodes || []).find((m) => m.key === key)!) || t('directly attached') })) +
           opt('core', t('Directly attached to this router')) +
-          rows.map((r) => opt(r.key, 'Behind ' + r.name)).join('') +
+          rows.map((r) => opt(r.key, t('Behind {device}', { device: r.name }))).join('') +
         '</select>' +
         (st.pins[key]
-          ? '<div class="topo-pin-note">Pinned by hand.' +
-            (st.pinsEnabled ? '' : ' Pins are switched off, so it is not being applied.') +
-            '</div>'
+          ? '<div class="topo-pin-note">' + (st.pinsEnabled ? t('Pinned by hand.')
+            : t('Pinned by hand. Pins are switched off, so it is not being applied.')) + '</div>'
           : '<div class="topo-pin-note">' + t('Discovery cannot see through a switch that forwards no LLDP. Set this when the graph puts a device in the wrong place.') + '</div>') +
         pinPortBtn(key) +
       '</div>';
@@ -125,8 +124,8 @@ export function topoPanel(st: TopoState, deps: {
     const allMine = sib.every((m) => st.pins[m.key] === key);
     return '<button class="topo-btn topo-pin-port" id="topoPinPort" type="button">' +
       (allMine
-        ? 'Put the ' + sib.length + ' back on the router'
-        : 'Everything else on ' + esc(port) + ' (' + sib.length + ') is behind this') +
+        ? t('Put the {n} back on the router', { n: sib.length })
+        : t('Everything else on {port} ({n}) is behind this', { port: esc(port), n: sib.length })) +
       '</button>';
   }
 

@@ -170,10 +170,10 @@ function drawBounded(scrollId: string, follow: boolean, draw: () => void): void 
 function renderPing(r: PingResult): void {
   const summary = el('pingSummary');
   if (summary) {
-    summary.textContent = r.sent + ' sent, ' + r.received + ' received, ' + r.lossPct + '% loss' +
-      (r.avgMs == null ? '' : ' · min ' + ms(r.minMs) + ', avg ' + ms(r.avgMs) + ', max ' + ms(r.maxMs)) +
+    summary.textContent = t('{sent} sent, {received} received, {loss}% loss', { sent: r.sent, received: r.received, loss: r.lossPct }) +
+      (r.avgMs == null ? '' : ' · ' + t('min {min}, avg {avg}, max {max}', { min: ms(r.minMs), avg: ms(r.avgMs), max: ms(r.maxMs) })) +
       // A continuous run carries its latest replies; the totals are the run's.
-      (r.replies.length < r.sent ? ' · showing the latest ' + r.replies.length : '');
+      (r.replies.length < r.sent ? ' · ' + t('showing the latest {n}', { n: r.replies.length }) : '');
   }
   const rows = el('pingRows');
   if (!rows) return;
@@ -218,9 +218,10 @@ function renderTraceroute(r: TracerouteResult): void {
 function renderTorch(r: TorchResult): void {
   const summary = el('torchSummary');
   if (summary) {
-    summary.textContent = (r.continuous ? 'Watching ' + r.interface + ' · the last ' + r.reports + ' s'
-      : 'Watched ' + r.interface + ' for ' + r.seconds + ' s') + ' · average rx ' + bps(r.totalRxBps) +
-      ', tx ' + bps(r.totalTxBps) + (r.omitted ? ' · ' + r.omitted + ' quieter flows not shown' : '');
+    summary.textContent = (r.continuous ? t('Watching {iface} · the last {n} s', { iface: r.interface, n: r.reports })
+      : t('Watched {iface} for {n} s', { iface: r.interface, n: r.seconds })) +
+      ' · ' + t('average rx {rx}, tx {tx}', { rx: bps(r.totalRxBps), tx: bps(r.totalTxBps) }) +
+      (r.omitted ? ' · ' + t('{n} quieter flows not shown', { n: r.omitted }) : '');
   }
   const rows = el('torchRows');
   if (!rows) return;
@@ -243,15 +244,15 @@ function renderBtest(r: BtestResult): void {
   const summary = el('btestSummary');
   // A report still connecting has no duration or direction yet.
   if (summary) {
-    summary.textContent = 'Tested to ' + r.address + (r.duration ? ' for ' + r.duration : '') +
-      (r.direction ? ', ' + r.direction : '');
+    summary.textContent = (r.duration ? t('Tested to {address} for {duration}', { address: r.address, duration: r.duration })
+      : t('Tested to {address}', { address: r.address })) + (r.direction ? ', ' + r.direction : '');
   }
   const rows = el('btestRows');
   if (!rows) return;
   const line = (k: string, v: string): string => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
   rows.innerHTML = line(t('Receive (average)'), bps(r.rxBps)) + line(t('Transmit (average)'), bps(r.txBps)) +
     line(t('Lost packets'), String(r.lostPackets)) +
-    line('CPU load', 'this router ' + r.localCpu + '%, the far one ' + r.remoteCpu + '%');
+    line(t('CPU load'), t('this router {local}%, the far one {remote}%', { local: r.localCpu, remote: r.remoteCpu }));
 }
 
 export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean): void {

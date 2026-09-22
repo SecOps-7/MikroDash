@@ -686,13 +686,13 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     set('wmStatClients', String((wireless?.clients || []).length - unplacedCount));
     set('wmStatUnplaced', String(unplacedCount));
     set('wmStatScale', doc.metresPerUnit > 0
-      ? doc.metresPerUnit.toFixed(2) + ' m/unit' : 'not set');
+      ? doc.metresPerUnit.toFixed(2) + ' m/unit' : t('not set'));
     const foot = el('wmFoot');
     if (foot) {
       const bits: string[] = [];
       if (unplacedCount) {
-        bits.push(unplacedCount + ' client' + (unplacedCount === 1 ? '' : 's') +
-          ' on an access point that is not on the map');
+        bits.push(unplacedCount === 1 ? t('1 client on an access point that is not on the map')
+          : t('{n} clients on an access point that is not on the map', { n: unplacedCount }));
       }
       if (measuring) {
         bits.push(measureFrom
@@ -702,8 +702,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       if (drawing) {
         bits.push(drawing.length < 3
           ? t('Click each corner of the area. Three at least.')
-          : drawing.length + ' corners. Click the first one again, double-click ' +
-            'or press Enter to close it; Esc throws it away.');
+          : t('{n} corners. Click the first one again, double-click or press Enter to close it; Esc throws it away.', { n: drawing.length }));
       }
       if (clientMode === 'ring' && doc.metresPerUnit <= 0) {
         bits.push(t('Signal ring needs a scale — set one in Edit mode. Drawing at a fixed radius until then.'));
@@ -773,8 +772,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
           String(o.floors) + '">')
         : '') +
       (poly
-        ? '<div class="wm-panel-note">' + o.points.length + ' corners. Drag one to ' +
-          'move it; drag the outline to move the whole shape.</div>'
+        ? '<div class="wm-panel-note">' + t('{n} corners. Drag one to move it; drag the outline to move the whole shape.', { n: o.points.length }) + '</div>'
         : field(t('Width'), '<input class="sform-input" id="wmfW" type="number" value="' + String(Math.round(o.w)) + '">') +
           field(t('Height'), '<input class="sform-input" id="wmfH" type="number" value="' + String(Math.round(o.h)) + '">')) +
       field(t('Colour'), '<div class="wm-swatches" id="wmfColours">' +
@@ -818,7 +816,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       field(t('Label'), '<input class="sform-input" id="wmfApLabel" value="' + esc(a.label) + '">') +
       field(t('Floor'), '<input class="sform-input" id="wmfApFloor" type="number" min="1" max="64" value="' +
         String(a.floor) + '">') +
-      '<div class="wm-panel-note">Radios: ' + esc(a.ifaces.join(', ') || '—') + '</div>' +
+      '<div class="wm-panel-note">' + t('Radios: {list}', { list: esc(a.ifaces.join(', ') || '—') }) + '</div>' +
       ('<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">' + t('Take off the map') + '</button>');
   }
 

@@ -266,9 +266,8 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     if (!card || !body) return;
     let msg = '';
     if (data && data.denied) {
-      msg = 'This router\'s MikroDash account cannot read <code>/user</code>. RouterOS requires the ' +
-        '<code>policy</code> permission for user management. To enable this page for this router: ' +
-        '<code>/user group set [find name=&lt;group&gt;] policy=read,write,policy,api,test</code>';
+      msg = t('This router\'s MikroDash account cannot read <code>/user</code>. RouterOS requires the <code>policy</code> permission for user management. To enable this page for this router:') +
+        ' <code>/user group set [find name=&lt;group&gt;] policy=read,write,policy,api,test</code>';
     } else if (data && data.self && !data.self.resolved) {
       msg = t('MikroDash cannot identify its own account on this router, so every change here is refused. This is expected when the dashboard authenticates through RADIUS.');
     }
@@ -340,8 +339,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const id = b.getAttribute('data-id') || '';
     const name = b.getAttribute('data-name') || '';
     if (act !== 'session-remove') return;
-    if (!window.confirm('End "' + name +
-        '"\u2019s session?\n\nThey will be disconnected from the router immediately.')) return;
+    if (!window.confirm(t('End "{user}"\u2019s session?\n\nThey will be disconnected from the router immediately.', { user: name }))) return;
     busy = busyKey(act, id);
     render();
     socket.emit('rossession:remove', { id, expectedName: name });
@@ -366,13 +364,14 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
 
   socket.on('rosusers:ok', (d) => {
     busy = '';
+    const who = (d && d.name) || '';
     const what: Record<string, string> = {
-      'session-remove': 'Ended the session for ',
+      'session-remove': t('Ended the session for {user}', { user: who }),
     };
     // NO `render()` here, and that is the original's. It is the only reason this
     // message survives at all — until the next payload, which the write itself
     // asked for.
-    setStatus(((d && d.action && what[d.action]) || 'Done: ') + ((d && d.name) || ''));
+    setStatus((d && d.action && what[d.action]) || t('Done: {what}', { what: who }));
   });
 
   socket.on('rosusers:error', (d) => {
@@ -398,8 +397,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       // NOT claimed here: that every session type is refused. winbox and ssh
       // were not tested, because the only ones available were the operator's own
       // and this session's. The wording says what was seen and no more.
-      'write-failed': 'The router refused to end that session ("action failed"). ' +
-        'RouterOS keeps some session types — API and REST API sessions among them — and they have to be cleared from the router itself.',
+      'write-failed': t('The router refused to end that session ("action failed"). RouterOS keeps some session types — API and REST API sessions among them — and they have to be cleared from the router itself.'),
     };
     const text = (code && msg[code]) || (d && d.message) || t('Action failed');
     setStatus(text);

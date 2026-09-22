@@ -84,8 +84,7 @@ export function valuesGrid(defs: VarDef[], routers: RouterOpt[], values: Record<
       esc(d.name) + '" type="' + kind(d) + '" value="' + esc(v) + '" placeholder="' + esc(d.type) + '" autocomplete="off"></td>';
   };
   return (secrets ? '<label class="cfg-reveal"><input type="checkbox" data-dep-reveal' + (reveal ? ' checked' : '') +
-    '> Show passwords <span class="cfg-meta">(each was generated for this deploy; change it, or note it for ' +
-    'whatever will use it)</span></label>' : '') +
+    '> ' + t('Show passwords') + ' <span class="cfg-meta">' + t('(each was generated for this deploy; change it, or note it for whatever will use it)') + '</span></label>' : '') +
     ('<div class="cfg-scroll"><table class="table table-sm cfg-grid-vals"><thead><tr><th>' + t('Router') + '</th>') +
     defs.map((d) => '<th><span class="cfg-var">{{' + esc(d.name) + '}}</span>' +
       (d.label ? '<div class="cfg-meta">' + esc(d.label) + '</div>' : '') + '</th>').join('') +
@@ -162,12 +161,12 @@ const STEP: Record<string, string> = {
 export function deployTile(tgt: CfgDeployTarget): string {
   const k = TILE[tgt.state] ?? { cls: 'is-queued', word: tgt.state };
   const detail = tgt.state === 'applying' ? STEP[tgt.step] ?? tgt.step
-    : tgt.message || (tgt.state === 'applied' && tgt.reconnectMs ? 'Back in ' + (tgt.reconnectMs / 1000).toFixed(1) + ' s' : '');
+    : tgt.message || (tgt.state === 'applied' && tgt.reconnectMs ? t('Back in {s} s', { s: (tgt.reconnectMs / 1000).toFixed(1) }) : '');
   return '<div class="cfg-tile ' + k.cls + '"><div class="cfg-tile-ring"></div><div class="cfg-tile-body">' +
     '<div class="cfg-tile-name">' + esc(tgt.label) + (tgt.canary ? '<span class="vpn-hs-badge cfg-pill-canary">' + t('Canary') + '</span>' : '') +
     '</div><div class="cfg-tile-state">' + esc(k.word) + (tgt.reverted ? ' · reverted' : '') + '</div>' +
     (detail ? '<div class="cfg-tile-detail">' + esc(detail) + '</div>' : '') +
-    (tgt.backupId ? '<div class="cfg-meta">Restore point #' + tgt.backupId + '</div>' : '') + '</div></div>';
+    (tgt.backupId ? '<div class="cfg-meta">' + t('Restore point #{id}', { id: tgt.backupId }) + '</div>' : '') + '</div></div>';
 }
 
 const RUN_WORD: Record<string, string> = {
@@ -186,12 +185,10 @@ export function rolloutView(p: CfgDeployPayload): string {
       ('id="cfgDepContinue">' + t('Continue') + '</button></div>')
     : '';
   const reset = p.kind === 'full-export'
-    ? '<div class="cfg-banner is-warn">A full replacement resets each router and reboots it; MikroDash cannot see it ' +
-      'until it returns.</div>'
+    ? '<div class="cfg-banner is-warn">' + t('A full replacement resets each router and reboots it; MikroDash cannot see it until it returns.') + '</div>'
     : '';
   return '<div class="cfg-roll-head state-' + esc(p.state) + '"><div><div class="cfg-roll-title">' +
-    esc(RUN_WORD[p.state] ?? p.state) + '</div><div class="cfg-meta">' + esc(p.templateName) + ' · started by ' +
-    esc(p.startedBy) + '</div></div>' + (live ? '<button class="cfg-btn" type="button" id="cfgDepCancel">' + t('Cancel') + '</button>' : '') +
+    esc(RUN_WORD[p.state] ?? p.state) + '</div><div class="cfg-meta">' + esc(p.templateName) + ' · ' + t('started by {user}', { user: esc(p.startedBy) }) + '</div></div>' + (live ? '<button class="cfg-btn" type="button" id="cfgDepCancel">' + t('Cancel') + '</button>' : '') +
     '</div>' + (p.error ? '<div class="cfg-banner is-bad">' + esc(p.error) + '</div>' : '') + reset + ask +
     '<div class="cfg-tiles">' + p.targets.map(deployTile).join('') + '</div>';
 }

@@ -143,7 +143,7 @@ export function renderTraffic(rows: TrafficRow[], summary: IfaceSummary | null, 
       statCard(mbpsOrDash(s.rxP95Mbps), '95th %ile RX') +
       statCard(mbpsOrDash(s.txP95Mbps), '95th %ile TX') +
       statCard(utilPct(s.rxPeakPct ?? null) + ' / ' + utilPct(s.txPeakPct ?? null),
-        'Peak Util RX/TX' + (over ? ' ⚠' : '')) +
+        t('Peak Util RX/TX') + (over ? ' ⚠' : '')) +
       // THE COUNT SWITCHES SOURCE with the aggregation: bucket count from the
       // rows, sample count from the summary. `rows.length` is the number of
       // buckets drawn, while the summary count is every sample behind them — and
@@ -201,8 +201,7 @@ export function renderBwPage(): void {
   if (pager) pager.style.display = total > BW_PAGE_SIZE ? '' : 'none';
   const info = el('rptBwPageInfo');
   if (info) {
-    info.textContent = 'Page ' + (bwPage + 1) + ' of ' + pages +
-      ' (' + total.toLocaleString() + ' rows)';
+    info.textContent = t('Page {page} of {pages} ({rows} rows)', { page: bwPage + 1, pages, rows: total.toLocaleString() });
   }
   const prev = el<HTMLButtonElement>('rptBwPrev');
   if (prev) prev.disabled = bwPage === 0;
@@ -229,8 +228,8 @@ export function renderBandwidth(
     stats.innerHTML =
       statCard(fmtDataMB(s.rxTotalMb), t('Total Download')) +
       statCard(fmtDataMB(s.txTotalMb), t('Total Upload')) +
-      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↓') +
-      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↑') +
+      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), t('Busiest {period}', { period: bucketNoun(agg) }) + ' ↓') +
+      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), t('Busiest {period}', { period: bucketNoun(agg) }) + ' ↑') +
       // `bandwidthSamples`: this card is under the VOLUME chart.
       statCard((agg ? rows.length : (s.bandwidthSamples || 0)).toLocaleString(), countLabel);
   }
@@ -245,9 +244,8 @@ export function renderBandwidth(
     const truncated = !agg && !!s.bandwidthSamples && s.bandwidthSamples > rows.length;
     hint.style.display = truncated ? '' : 'none';
     if (truncated) {
-      hint.textContent = 'Chart and table show ' + rows.length.toLocaleString() +
-        ' of ' + (s.bandwidthSamples as number).toLocaleString() +
-        ' samples — choose an aggregation to cover the full range. Totals above are for the full range.';
+      hint.textContent = t('Chart and table show {shown} of {n} samples — choose an aggregation to cover the full range. Totals above are for the full range.',
+        { shown: rows.length.toLocaleString(), n: (s.bandwidthSamples as number).toLocaleString() });
     }
   }
 
