@@ -65,10 +65,15 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "pageNetwatch",
     "pageWireless",
     "aiConfirmWrites",
-    "aiAllowRawCommands"
+    "aiAllowRawCommands",
+    "ztpEnabled"
   ],
   "value": [
     "aiBaseUrl",
+    "ztpEndpoint",
+    "ztpListenPort",
+    "ztpSubnet",
+    "ztpLanUrl",
     "aiTlsPin",
     "aiHeaders",
     "aiMaxTokens",

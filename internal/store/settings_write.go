@@ -36,6 +36,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"math"
+	"net/netip"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -174,6 +176,24 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 			updates["aiTlsPin"] = ""
 		} else if pin := NormalizeTLSPin(s); pin != "" {
 			updates["aiTlsPin"] = pin
+		}
+	}
+	// ztpSubnet is zero-touch provisioning's tunnel prefix: IPv4, and a /22 or
+	// wider, so it holds the server's /24, the enrolment /24 and devices
+	// (internal/ztp's ParsePlan is the full rule; this is its shape, without
+	// importing the tunnel into the store). ztpLanUrl is local mode's call-home
+	// address: http or https, a host, nothing else. A malformed value is
+	// ignored, as elsewhere here.
+	if raw, ok := body["ztpSubnet"]; ok {
+		if p, err := netip.ParsePrefix(strings.TrimSpace(asString(raw))); err == nil && p.Addr().Is4() && p.Bits() <= 22 {
+			updates["ztpSubnet"] = p.Masked().String()
+		}
+	}
+	if raw, ok := body["ztpLanUrl"]; ok {
+		v := strings.TrimRight(strings.TrimSpace(asString(raw)), "/")
+		if u, err := url.Parse(v); v == "" || (err == nil && (u.Scheme == "http" || u.Scheme == "https") &&
+			u.Host != "" && u.User == nil && (u.Path == "" || u.Path == "/") && u.RawQuery == "") {
+			updates["ztpLanUrl"] = cut(v, 256)
 		}
 	}
 	// The Agent Overview card's prompt. Empty means the built-in prompt, as for

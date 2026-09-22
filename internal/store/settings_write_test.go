@@ -281,6 +281,10 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		"aiOverviewTextColor": {"#38bdf8"},
 		// Empty clears the pin; a fingerprint in any pasted shape sets it.
 		"aiTlsPin": {"", "AB:" + strings.Repeat("CD:", 30) + "EF"},
+		// Zero-touch provisioning: the tunnel prefix, and local mode's
+		// call-home URL (empty clears it).
+		"ztpSubnet": {"10.249.0.0/16"},
+		"ztpLanUrl": {"", "http://192.0.2.10:3081"},
 		// BOTH PROBES MATTER for the generated pages too. An EMPTY list is not a
 		// rejected write: it is "nothing is hidden", which is exactly what an
 		// operator does by ticking the last box back on, and a handler that

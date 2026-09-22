@@ -57,6 +57,7 @@ export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
   "topTalkersN": [1, 20],
   "updateCheckHours": [1, 168],
   "vpnDashTopN": [1, 50],
+  "ztpListenPort": [1, 65535],
 };
 
 /** Trimmed and cut to 256 by the server. */
@@ -70,6 +71,7 @@ export const STR_FIELDS: readonly string[] = [
   "smtpHost",
   "smtpTo",
   "telegramChatId",
+  "ztpEndpoint",
 ];
 
 /** Only a real `true` or the string "true" counts as true. */
@@ -126,6 +128,7 @@ export const BOOL_FIELDS: readonly string[] = [
   "smtpSecure",
   "telegramEnabled",
   "userNotifyEnabled",
+  "ztpEnabled",
 ];
 
 /** Sealed at rest and NOT trimmed. A masked value is dropped; an EMPTY STRING is a destructive clear. */
@@ -152,4 +155,6 @@ export const SPECIAL_CASES: readonly string[] = [
   "notifBody",
   "notifBodyUp",
   "sessionTimeoutMs",
+  "ztpLanUrl",
+  "ztpSubnet",
 ];

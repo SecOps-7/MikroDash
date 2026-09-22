@@ -136,6 +136,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -277,6 +284,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -418,6 +432,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -560,6 +581,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -702,6 +730,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -844,6 +879,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -986,6 +1028,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1128,6 +1177,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1268,6 +1324,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1408,6 +1471,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1548,6 +1618,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1690,6 +1767,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1830,6 +1914,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -1970,6 +2061,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2110,6 +2208,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2250,6 +2355,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2391,6 +2503,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2532,6 +2651,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2672,6 +2798,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2812,6 +2945,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -2952,6 +3092,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     },
@@ -3093,6 +3240,13 @@
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
         "aiAllowRawCommands": false,
+        "ztpEnabled": false,
+        "ztpEndpoint": "",
+        "ztpListenPort": 13231,
+        "ztpSubnet": "10.249.0.0/16",
+        "ztpLanUrl": "",
+        "ztpPrivateKey": "",
+        "ztpInstanceId": "",
         "hiddenAreas": []
       }
     }

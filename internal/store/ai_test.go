@@ -187,3 +187,33 @@ func TestNormalizeTLSPin(t *testing.T) {
 		t.Errorf("an empty pin did not clear it: %#v", u["aiTlsPin"])
 	}
 }
+
+// The ZTP settings that have one valid shape refuse any other, and the keys
+// the server makes for itself cannot be written from a browser.
+func TestZTPSettingsKeepTheirShape(t *testing.T) {
+	for in, want := range map[string]any{
+		"10.249.0.0/16": "10.249.0.0/16", "10.249.3.9/22": "10.249.0.0/22",
+		"10.249.0.0/24": nil, "2001:db8::/48": nil, "nope": nil,
+	} {
+		u, _ := SettingsUpdate(map[string]any{"ztpSubnet": in})
+		if u["ztpSubnet"] != want {
+			t.Errorf("ztpSubnet %q stored %#v, want %#v", in, u["ztpSubnet"], want)
+		}
+	}
+	for in, want := range map[string]any{
+		"http://192.0.2.10:3081/": "http://192.0.2.10:3081", "https://md.example.net": "https://md.example.net",
+		"": "", "ftp://192.0.2.10": nil, "http://u:p@192.0.2.10": nil, "http://192.0.2.10/x": nil, "192.0.2.10": nil,
+	} {
+		u, _ := SettingsUpdate(map[string]any{"ztpLanUrl": in})
+		if u["ztpLanUrl"] != want {
+			t.Errorf("ztpLanUrl %q stored %#v, want %#v", in, u["ztpLanUrl"], want)
+		}
+	}
+	u, _ := SettingsUpdate(map[string]any{"ztpPrivateKey": "k", "ztpInstanceId": "i", "ztpListenPort": float64(13231)})
+	if u["ztpPrivateKey"] != nil || u["ztpInstanceId"] != nil {
+		t.Errorf("a server-made ZTP key was writable from a browser: %v", u)
+	}
+	if u["ztpListenPort"] != 13231 {
+		t.Errorf("ztpListenPort stored %#v", u["ztpListenPort"])
+	}
+}

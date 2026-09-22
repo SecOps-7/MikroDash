@@ -131,6 +131,13 @@
     "aiOverviewPrompt": "",
     "aiOverviewTextColor": "#38bdf8",
     "aiAllowRawCommands": false,
+    "ztpEnabled": false,
+    "ztpEndpoint": "",
+    "ztpListenPort": 13231,
+    "ztpSubnet": "10.249.0.0/16",
+    "ztpLanUrl": "",
+    "ztpPrivateKey": "",
+    "ztpInstanceId": "",
     "hiddenAreas": []
   },
   "defaultsOrder": [
@@ -264,6 +271,13 @@
     "aiOverviewPrompt",
     "aiOverviewTextColor",
     "aiAllowRawCommands",
+    "ztpEnabled",
+    "ztpEndpoint",
+    "ztpListenPort",
+    "ztpSubnet",
+    "ztpLanUrl",
+    "ztpPrivateKey",
+    "ztpInstanceId",
     "hiddenAreas"
   ],
   "encrypted": [
@@ -273,7 +287,8 @@
     "smtpUser",
     "smtpPass",
     "ntfyToken",
-    "aiApiKey"
+    "aiApiKey",
+    "ztpPrivateKey"
   ],
   "envMap": {
     "routerHost": {

@@ -48,10 +48,15 @@
       "pageNetwatch",
       "pageWireless",
       "aiConfirmWrites",
-      "aiAllowRawCommands"
+      "aiAllowRawCommands",
+      "ztpEnabled"
     ],
     "value": [
       "aiBaseUrl",
+      "ztpEndpoint",
+      "ztpListenPort",
+      "ztpSubnet",
+      "ztpLanUrl",
       "aiTlsPin",
       "aiHeaders",
       "aiMaxTokens",
