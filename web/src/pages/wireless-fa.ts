@@ -13,7 +13,7 @@
  */
 
 import type { WifiscanRow } from '../gen/payloads';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { HandEvents } from '../events-hand';
 
 /** One radio in the picker, as `wifiscan:interfaces` lists it. */
@@ -456,7 +456,7 @@ export function scanErrorText(d: Pick<HandEvents['wifiscan:error'], 'code' | 'me
     case 'not-a-radio': return t('That interface is not a radio');
     case 'no-such-interface': return t('No such radio on this router');
     case 'unavailable': return t('Radio list not ready yet — try again in a moment');
-    default: return d.message || t('Scan failed');
+    default: return ts(d.message) || t('Scan failed');
   }
 }
 

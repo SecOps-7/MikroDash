@@ -21,7 +21,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { FORM_FIELDS, PLACEHOLDER_CREDENTIALS } from '../gen/settings-form-map';
 import { INT_FIELDS, STR_FIELDS } from '../gen/settings-write-fields';
 import { showBanner, customValues } from './settings-poll';
@@ -254,7 +254,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
         // Reset button carries the scar for the other half of this — it once
         // reported "✓ Reset to defaults" on a 403 — and this is the worse half,
         // because it destroys work rather than merely lying about it.
-        showBanner('err', t('Save failed: {error}', { error: (d && d.error) || t('unknown error') }));
+        showBanner('err', t('Save failed: {error}', { error: ts(d && d.error) || t('unknown error') }));
       })
       .catch((e) => {
         restore();

@@ -47,7 +47,7 @@
 // opened, which is the live app's behaviour.
 
 import { fmtTs } from '../timefmt';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { esc, el, fmtBytes } from '../dom';
 
 export interface ScheduleRun {
@@ -429,7 +429,7 @@ function saveSchedule(): void {
       // The server's message where there is one: the validator writes for an
       // operator to read, and replacing it with a generic line would throw away
       // the only thing that says which field is wrong.
-      schedError((d && d.error) || t('Could not save the schedule.'));
+      schedError(ts(d && d.error) || t('Could not save the schedule.'));
     })
     .catch(() => { schedError(t('Could not save the schedule.')); });
 }

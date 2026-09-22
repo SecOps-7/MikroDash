@@ -5,7 +5,7 @@
 // The markup is built by config-management-cards.ts and -editor.ts.
 
 import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { CfgDeployPayload, Hunk } from '../gen/payloads';
 import {
@@ -76,7 +76,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch('/api/config/' + path, { credentials: 'same-origin', ...init });
   const body = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string; line?: number };
   if (!r.ok || body.ok === false) {
-    throw new ApiError(body.error || t('The request failed ({status})', { status: r.status }), r.status, body.line ?? 0);
+    throw new ApiError(ts(body.error) || t('The request failed ({status})', { status: r.status }), r.status, body.line ?? 0);
   }
   return body;
 }

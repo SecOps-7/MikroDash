@@ -13,7 +13,7 @@
 // strongest gate available, and the writes cannot.
 
 import { fmtTs } from './timefmt';
-import { t } from './i18n';
+import { t, ts } from './i18n';
 import { initUserNotify, loadUserNotify } from './pages/usernotify';
 import { el, esc } from './dom.js';
 
@@ -252,7 +252,7 @@ export function wireAccount(): void {
       .then((r) => r.json())
       .then((d) => {
         pwBtn.disabled = false;
-        if (!d.ok) return acctSay(out, false, d.error || t('Failed'));
+        if (!d.ok) return acctSay(out, false, ts(d.error) || t('Failed'));
         cur.value = nw.value = cf.value = '';
         acctSay(out, true, d.revokedOtherSessions
           ? t('✓ Password changed — signed out of {n} other session(s)', { n: d.revokedOtherSessions })
@@ -270,7 +270,7 @@ export function wireAccount(): void {
       .then((r) => r.json())
       .then((d) => {
         revokeBtn.disabled = false;
-        if (!d.ok) return acctSay(out, false, d.error || t('Failed'));
+        if (!d.ok) return acctSay(out, false, ts(d.error) || t('Failed'));
         acctSay(out, true, t('✓ Signed out {n} other session(s)', { n: d.revoked }));
         loadAccount();
       })

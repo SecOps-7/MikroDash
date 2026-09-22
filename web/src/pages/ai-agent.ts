@@ -25,7 +25,7 @@
  */
 
 import type { Socket } from '../socket';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { el } from '../dom';
 import { renderMarkdown } from '../markdown';
 import { warningText } from '../resource';
@@ -252,7 +252,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     // Whatever streamed before the failure stays on screen, and the error
     // follows it; it is simply no longer being written to.
     endStream();
-    add('error', d.error || t('The request failed.'));
+    add('error', ts(d.error) || t('The request failed.'));
   });
 
   // ── A CHANGE THE ASSISTANT WANTS TO MAKE ──────────────────────────────────

@@ -85,6 +85,18 @@ export function tl(label: string): string {
   return data().strings[label] || label;
 }
 
+/**
+ * A message the server sent: a refusal or a validation error. It is shown in
+ * the page's language when it is exactly one of the server's own literal
+ * messages (i18ngen reads them from internal/server), and as it came otherwise,
+ * so a message built from values, or text the router wrote, passes through
+ * untouched. Empty for nothing, so `ts(d.error) || t('Failed')` reads naturally.
+ */
+export function ts(message: string | null | undefined): string {
+  if (!message) return '';
+  return data().strings[message] || message;
+}
+
 /** The language being shown: 'en' unless a translated page is loaded. */
 export function currentLang(): string {
   return data().lang;

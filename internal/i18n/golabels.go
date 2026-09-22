@@ -1,8 +1,14 @@
 package i18n
 
 import (
+	"go/ast"
+	"go/parser"
+	gotoken "go/token"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"mikrodash/internal/areas"
 	"mikrodash/internal/pages"
@@ -84,4 +90,76 @@ func ColumnLabel(name string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// ServerMessages is every message the server sends as a literal, with the file
+// it is in: the third argument of writeJSONErr, and a string given to a
+// Message or Error field or to an "error" or "message" map key, in
+// internal/server. The browser shows a server message through ts(), which
+// translates only an exact match to one of these; a message built from values
+// ("Password too short: 3"), or text the router wrote, matches none and is
+// shown as it came.
+func ServerMessages(root string) (map[string][]string, error) {
+	dir := filepath.Join(root, "internal", "server")
+	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]string{}
+	add := func(s, file string) {
+		if !strings.ContainsFunc(s, unicode.IsLetter) {
+			return
+		}
+		for _, f := range out[s] {
+			if f == file {
+				return
+			}
+		}
+		out[s] = append(out[s], file)
+	}
+	fset := gotoken.NewFileSet()
+	for _, path := range files {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		rel, _ := filepath.Rel(root, path)
+		rel = filepath.ToSlash(rel)
+		lit := func(e ast.Expr) (string, bool) {
+			b, ok := e.(*ast.BasicLit)
+			if !ok || b.Kind != gotoken.STRING {
+				return "", false
+			}
+			s, err := strconv.Unquote(b.Value)
+			return s, err == nil
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.CallExpr:
+				if id, ok := x.Fun.(*ast.Ident); ok && id.Name == "writeJSONErr" && len(x.Args) == 3 {
+					if s, ok := lit(x.Args[2]); ok {
+						add(s, rel)
+					}
+				}
+			case *ast.KeyValueExpr:
+				key := ""
+				switch k := x.Key.(type) {
+				case *ast.Ident:
+					key = k.Name
+				case *ast.BasicLit:
+					key, _ = lit(k)
+				}
+				if key == "Message" || key == "Error" || key == "message" || key == "error" {
+					if s, ok := lit(x.Value); ok {
+						add(s, rel)
+					}
+				}
+			}
+			return true
+		})
+	}
+	return out, nil
 }

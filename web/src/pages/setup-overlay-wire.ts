@@ -28,7 +28,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import {
   collectSetupBody, flipPortForTls, SETUP_WATCH_FIELDS, setupTestResultText,
   type SetupBody,
@@ -242,7 +242,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
     })
       .then((r) => r.json())
       .then((d) => {
-        if (!d.ok) throw new Error(d.error || t('Failed to add router'));
+        if (!d.ok) throw new Error(ts(d.error) || t('Failed to add router'));
         const id = d.router && d.router.id;
         if (!id) throw new Error('No router ID returned');
         return fetch('/api/routers/' + encodeURIComponent(id) + '/activate', {
@@ -253,7 +253,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
         // `switching` IS SUCCESS. The server answers that when it has accepted
         // the switch and is still tearing the old session down, and treating it
         // as a failure would show an error over a activation that worked.
-        if (!d.ok && !d.switching) throw new Error(d.error || t('Failed to activate router'));
+        if (!d.ok && !d.switching) throw new Error(ts(d.error) || t('Failed to activate router'));
         hideOverlay();
         setBusy(false);
       })

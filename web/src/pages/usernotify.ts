@@ -7,7 +7,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 
 /** The three field groups, and they are treated differently on purpose. */
 export const UN_BOOLS = ['telegramEnabled', 'pushbulletEnabled', 'ntfyEnabled', 'emailEnabled'];
@@ -226,7 +226,7 @@ export function initUserNotify(): void {
         .then((r) => r.json())
         .then((data: { ok?: boolean; error?: string; config?: UserNotifyConfig }) => {
           saveBtn.disabled = false;
-          show(saveResult, saveOutcome(!!data.ok, data.error));
+          show(saveResult, saveOutcome(!!data.ok, ts(data.error)));
           // REPOPULATE on success: the server's answer is the truth about what
           // is stored, and it comes back masked — so a credential just typed is
           // replaced by its placeholder rather than left on screen.
@@ -254,7 +254,7 @@ export function initUserNotify(): void {
         .then((r) => r.json())
         .then((data: { ok?: boolean; error?: string }) => {
           btn.disabled = false;
-          show(result, testOutcome(!!data.ok, data.error));
+          show(result, testOutcome(!!data.ok, ts(data.error)));
         })
         .catch((e: unknown) => {
           btn.disabled = false;

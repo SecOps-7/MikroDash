@@ -32,7 +32,7 @@
 // back on the way to a table tab.
 
 import { esc, el, resRow, fmtBytes, renderSortHeader, sortRows } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Tunnel } from '../gen/payloads';
@@ -174,7 +174,7 @@ export function initWireguardPeers(socket: Socket): void {
       const res = await fetch('/api/wireguard/peer-config' + q, { credentials: 'same-origin' });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        note.textContent = (body && body.error) ? String(body.error)
+        note.textContent = (body && body.error) ? ts(String(body.error))
           : t('The router did not return a configuration.');
         return;
       }

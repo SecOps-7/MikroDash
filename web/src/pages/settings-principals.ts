@@ -27,7 +27,7 @@
  */
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import {
   userRowHtml, groupTableHtml, roleTableHtml, sizePrincipalsCard, mountPrincipalTabs,
   applyAuthModeVisibility, rolePageRowHtml, grantEditorHtml,
@@ -621,7 +621,7 @@ async function remove(url: string, reload: () => Promise<void>): Promise<void> {
   try {
     const r = await fetch(url, { method: 'DELETE', credentials: 'same-origin' });
     const j = await r.json().catch(() => null);
-    if (!j || !j.ok) alert((j && j.error) || t('Delete failed'));
+    if (!j || !j.ok) alert(ts(j && j.error) || t('Delete failed'));
   } catch {
     alert('Request failed');
   }

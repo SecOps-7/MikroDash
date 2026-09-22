@@ -228,6 +228,9 @@
   "A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.": [
     "web/src/ui/page-settings.html"
   ],
+  "A group with that name already exists": [
+    "internal/server/groups_write_api.go"
+  ],
   "A host, a prefix (192.0.2.0/24), a range (192.0.2.10-192.0.2.20) or a DNS name.": [
     "internal/resource"
   ],
@@ -239,6 +242,9 @@
   ],
   "A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says \u003cem\u003ewhat\u003c/em\u003e, the scope says \u003cem\u003ewhich devices\u003c/em\u003e. Administrator is built in and always sees everything.": [
     "web/src/ui/page-settings.html"
+  ],
+  "A role with that name already exists": [
+    "internal/server/roles_write_api.go"
   ],
   "A router cannot take this template": [
     "web/src/pages/config-management-deploy.ts"
@@ -260,6 +266,9 @@
   ],
   "A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.": [
     "web/src/ui/page-settings.html"
+  ],
+  "A site with that name already exists": [
+    "internal/server/sites_api.go"
   ],
   "A time of day, or startup to run once at boot.": [
     "internal/resource"
@@ -524,6 +533,17 @@
     "internal/resource"
   ],
   "Administrator access required": [
+    "internal/server/ai_test_api.go",
+    "internal/server/branding_api.go",
+    "internal/server/cfgmgmt.go",
+    "internal/server/db_api.go",
+    "internal/server/principals_api.go",
+    "internal/server/routers_activate.go",
+    "internal/server/routers_api.go",
+    "internal/server/routers_conntest.go",
+    "internal/server/settings_write_api.go",
+    "internal/server/sites_api.go",
+    "internal/server/test_notif_api.go",
     "web/src/caps.ts"
   ],
   "Advanced": [
@@ -1336,6 +1356,9 @@
   "Cannot check for a FastTrack rule \u0026mdash; Firewall collection is switched off for this router.": [
     "web/src/pages/queues.ts"
   ],
+  "Cannot delete your own account": [
+    "internal/server/users_write_api.go"
+  ],
   "Cannot deploy": [
     "web/src/pages/config-management-deploy.ts"
   ],
@@ -1429,6 +1452,9 @@
   ],
   "Changing or running RouterOS code is limited to global administrators, as raw commands are.": [
     "web/src/resource.ts"
+  ],
+  "Changing templates needs a signed-in administrator": [
+    "internal/server/cfgmgmt.go"
   ],
   "Changing the router": [
     "web/src/ui/page-settings.html"
@@ -1962,6 +1988,12 @@
   "Current Password": [
     "web/src/ui/shell.html"
   ],
+  "Current and new password are required": [
+    "internal/server/account_api.go"
+  ],
+  "Current password is incorrect": [
+    "internal/server/account_api.go"
+  ],
   "Custom": [
     "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-settings.html"
@@ -2167,6 +2199,9 @@
   "Delete failed": [
     "web/src/pages/dbcleanup.ts",
     "web/src/pages/settings-principals.ts"
+  ],
+  "Delete failed: {error}": [
+    "web/src/pages/settings-routers.ts"
   ],
   "Delete group \"{name}\"?\n\nIts members keep any access granted to them directly.": [
     "web/src/pages/principal-forms.ts"
@@ -2632,6 +2667,9 @@
   ],
   "Engine Id": [
     "internal/areas"
+  ],
+  "Enter an email address first": [
+    "internal/server/usernotify_api.go"
   ],
   "Entries": [
     "web/src/pages/area.ts"
@@ -3103,6 +3141,9 @@
   ],
   "Fullscreen map": [
     "web/src/ui/page-connections.html"
+  ],
+  "GET only": [
+    "internal/server/reports.go"
   ],
   "GMT Offset": [
     "internal/resource"
@@ -3646,10 +3687,34 @@
   "Invalid dropped on input": [
     "web/src/pages/security-scan-cards.ts"
   ],
+  "Invalid principal type": [
+    "internal/server/grants_write_api.go"
+  ],
   "Invalid request": [
     "web/src/pages/packages.ts",
     "web/src/pages/rosusers.ts",
     "web/src/pages/wan.ts"
+  ],
+  "Invalid request body": [
+    "internal/server/db_api.go",
+    "internal/server/grants_write_api.go",
+    "internal/server/groups_write_api.go",
+    "internal/server/roles_write_api.go",
+    "internal/server/users_write_api.go"
+  ],
+  "Invalid role": [
+    "internal/server/grants_write_api.go",
+    "internal/server/users_write_api.go"
+  ],
+  "Invalid scope type": [
+    "internal/server/grants_write_api.go"
+  ],
+  "Invalid username": [
+    "internal/server/setup_api.go",
+    "internal/server/users_write_api.go"
+  ],
+  "Invalid username or password": [
+    "internal/server/auth_login.go"
   ],
   "Is Default": [
     "internal/areas"
@@ -4346,6 +4411,9 @@
   "Minute": [
     "web/src/pages/reports-traffic.ts"
   ],
+  "Missing credentials": [
+    "internal/server/auth_login.go"
+  ],
   "Mixed": [
     "web/src/pages/wifi.ts"
   ],
@@ -4836,6 +4904,9 @@
   "No location yet. A private or CGNAT WAN address cannot be geolocated — pick a town instead.": [
     "web/src/pages/router-form.ts"
   ],
+  "No mail server is configured for this install": [
+    "internal/server/usernotify_api.go"
+  ],
   "No matching town.": [
     "web/src/pages/city-picker.ts"
   ],
@@ -4951,8 +5022,25 @@
   "No static entries on the selected routers.": [
     "web/src/pages/dns-fleet.ts"
   ],
+  "No such grant": [
+    "internal/server/grants_write_api.go"
+  ],
+  "No such group": [
+    "internal/server/grants_write_api.go",
+    "internal/server/groups_write_api.go"
+  ],
   "No such radio on this router": [
     "web/src/pages/wireless-fa.ts"
+  ],
+  "No such role": [
+    "internal/server/roles_write_api.go"
+  ],
+  "No such router": [
+    "internal/server/grants_write_api.go"
+  ],
+  "No such site": [
+    "internal/server/grants_write_api.go",
+    "internal/server/sites_api.go"
   ],
   "No traffic seen": [
     "web/src/pages/tools.ts"
@@ -5021,6 +5109,18 @@
   ],
   "Not checked": [
     "web/src/pages/config-management-history.ts"
+  ],
+  "Not permitted": [
+    "internal/server/alerts_api.go",
+    "internal/server/backups_download.go",
+    "internal/server/cities_api.go",
+    "internal/server/dnsfleet_api.go",
+    "internal/server/layouts_api.go",
+    "internal/server/reports.go",
+    "internal/server/routerdocs_api.go",
+    "internal/server/routers_api.go",
+    "internal/server/routers_identity.go",
+    "internal/server/wireguard.go"
   ],
   "Not permitted to scan this router": [
     "web/src/pages/wireless-fa.ts"
@@ -5377,6 +5477,9 @@
   "PDF": [
     "web/src/ui/page-audit-trail.html"
   ],
+  "PDF export is not implemented in this build": [
+    "internal/server/audit_api.go"
+  ],
   "PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.": [
     "web/src/ui/page-settings.html"
   ],
@@ -5495,6 +5598,11 @@
   "Password must be at least 4 characters.": [
     "web/src/entry/login.ts"
   ],
+  "Password too short": [
+    "internal/server/account_api.go",
+    "internal/server/setup_api.go",
+    "internal/server/users_write_api.go"
+  ],
   "Passwords do not match.": [
     "web/src/entry/login.ts"
   ],
@@ -5530,6 +5638,12 @@
   ],
   "Peers": [
     "internal/areas"
+  ],
+  "Per-user notification channels are disabled for this install": [
+    "internal/server/usernotify_api.go"
+  ],
+  "Per-user notification channels require user accounts": [
+    "internal/server/usernotify_api.go"
   ],
   "Permissions": [
     "internal/resource",
@@ -5785,6 +5899,9 @@
   ],
   "Provisioning is switched on but not running: {error}": [
     "web/src/pages/ztp-views.ts"
+  ],
+  "Provisioning needs a signed-in administrator": [
+    "internal/server/ztp_api.go"
   ],
   "Pruned": [
     "web/src/pages/backups.ts"
@@ -6369,6 +6486,13 @@
   "Router User": [
     "internal/resource"
   ],
+  "Router changes are unavailable: the audit database is not open": [
+    "internal/server/dnsfleet_api.go",
+    "internal/server/routers_identity.go"
+  ],
+  "Router changes need sign-in to be turned on": [
+    "internal/server/routers_identity.go"
+  ],
   "Router disconnected mid-scan": [
     "web/src/pages/wireless-fa.ts"
   ],
@@ -6377,6 +6501,9 @@
   ],
   "Router is offline": [
     "web/src/pages/wireless-fa.ts"
+  ],
+  "Router not found": [
+    "internal/server/routers_api.go"
   ],
   "Router port": [
     "web/src/pages/topology-panel.ts"
@@ -6737,6 +6864,9 @@
   "Scope": [
     "web/src/ui/page-dns.html"
   ],
+  "Scope id required": [
+    "internal/server/grants_write_api.go"
+  ],
   "Score": [
     "web/src/ui/page-tools.html"
   ],
@@ -6985,6 +7115,9 @@
     "web/src/pages/ztp-views.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/shell.html"
+  ],
+  "Setup already complete": [
+    "internal/server/setup_api.go"
   ],
   "Setup failed.": [
     "web/src/entry/login.ts"
@@ -7399,6 +7532,9 @@
   "Switch router": [
     "web/src/ui/shell.html"
   ],
+  "Switch to another router before disabling this one.": [
+    "internal/server/routers_api.go"
+  ],
   "Switches": [
     "web/src/ui/page-network-topology.html"
   ],
@@ -7615,11 +7751,22 @@
   "That uplink changed on the router — the page has been refreshed": [
     "web/src/pages/wan.ts"
   ],
+  "That would leave nobody with administrator access": [
+    "internal/server/grants_write_api.go",
+    "internal/server/groups_write_api.go",
+    "internal/server/users_write_api.go"
+  ],
   "The API service MikroDash uses (api or api-ssl)": [
     "web/src/pages/config-management-editor.ts"
   ],
   "The API user MikroDash connects as is part of what gets replaced — if\nthat user did not exist when this backup was taken, MikroDash will lose\naccess to this router.": [
     "web/src/pages/backups.ts"
+  ],
+  "The Administrator role cannot be deleted": [
+    "internal/server/roles_write_api.go"
+  ],
+  "The Administrator role cannot be edited": [
+    "internal/server/roles_write_api.go"
   ],
   "The DHCP host name, or reverse DNS where there is no lease": [
     "web/src/ui/page-wifi-map.html"
@@ -7642,6 +7789,12 @@
   ],
   "The address to probe. For a DNS probe, the name to resolve.": [
     "internal/resource"
+  ],
+  "The app is no longer in the store.": [
+    "internal/server/apps.go"
+  ],
+  "The app stopped before it was running.": [
+    "internal/server/apps.go"
   ],
   "The assistant can only change things you are allowed to change yourself, and every change goes through the same checks, confirmation and audit trail as the forms. \u003cstrong\u003eTurning this off lets it apply ordinary changes without asking.\u003c/strong\u003e A change that could cut MikroDash off from the router is always put to you, whatever this is set to.": [
     "web/src/ui/page-settings.html"
@@ -8773,6 +8926,10 @@
   "User Group": [
     "internal/resource"
   ],
+  "User not found": [
+    "internal/server/account_api.go",
+    "internal/server/users_write_api.go"
+  ],
   "User on the far router": [
     "web/src/ui/page-ai-agent.html"
   ],
@@ -8782,6 +8939,9 @@
     "web/src/ui/login.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "Username already exists": [
+    "internal/server/users_write_api.go"
   ],
   "Username is required.": [
     "web/src/entry/login.ts"
@@ -9388,6 +9548,9 @@
   "You may not do that.": [
     "web/src/pages/containers-apps.ts"
   ],
+  "You may not read files on this router.": [
+    "internal/server/files.go"
+  ],
   "You may not run this tool on this router.": [
     "web/src/pages/tools.ts"
   ],
@@ -9422,11 +9585,29 @@
     "web/src/ui/page-tools.html",
     "web/src/ui/page-wifi-map.html"
   ],
+  "a batch needs a name of 1 to 64 characters": [
+    "internal/server/ztp_api.go"
+  ],
+  "a binary backup has no text to preview": [
+    "internal/server/cfgrouter.go"
+  ],
+  "a canned template ships with MikroDash; clone it to change it": [
+    "internal/server/cfgmgmt.go"
+  ],
   "a comma list — the extra SSIDs provisioned onto the same radio": [
     "internal/resource"
   ],
   "a comma list — the rule matches a radio offering any of them": [
     "internal/resource"
+  ],
+  "a device needs a name of 1 to 64 characters": [
+    "internal/server/ztp_api.go"
+  ],
+  "a template needs a name of 1 to 80 characters": [
+    "internal/server/cfgrouter.go"
+  ],
+  "a template with that name already exists": [
+    "internal/server/cfgmgmt.go"
   ],
   "admin": [
     "web/src/ui/login.html",
@@ -9434,6 +9615,9 @@
   ],
   "after an update check": [
     "web/src/ui/page-packages.html"
+  ],
+  "alert store unavailable": [
+    "internal/server/alerts_api.go"
   ],
   "alerts@example.com": [
     "web/src/ui/page-settings.html"
@@ -9447,6 +9631,15 @@
   "any time": [
     "web/src/ui/page-backups.html"
   ],
+  "audit query failed": [
+    "internal/server/audit_api.go"
+  ],
+  "audit trail unavailable": [
+    "internal/server/audit_api.go"
+  ],
+  "audit unavailable": [
+    "internal/server/audit_api.go"
+  ],
   "auto, address:…, fqdn:…, user-fqdn:…, key-id:… or dn": [
     "internal/resource"
   ],
@@ -9455,6 +9648,12 @@
   ],
   "back in {s} s": [
     "web/src/pages/config-management-history.ts"
+  ],
+  "bad alert id": [
+    "internal/server/alerts_api.go"
+  ],
+  "bad router id": [
+    "internal/server/alerts_api.go"
   ],
   "behind this device on the same port — inferred: seen via MNDP/CDP only, so it is not directly attached": [
     "web/src/pages/topology.ts"
@@ -9468,11 +9667,164 @@
   "both": [
     "web/src/ui/page-tools.html"
   ],
+  "cannot generate an id": [
+    "internal/server/reports.go"
+  ],
+  "channel is required": [
+    "internal/server/test_notif_api.go",
+    "internal/server/usernotify_api.go"
+  ],
+  "choose local or remote": [
+    "internal/server/ztp_api.go"
+  ],
   "commands / min by source": [
     "web/src/pages/dashboard-card-diagnostics.ts"
   ],
+  "could not acknowledge the alert": [
+    "internal/server/alerts_api.go"
+  ],
+  "could not check administrator access": [
+    "internal/server/grants_write_api.go",
+    "internal/server/groups_write_api.go",
+    "internal/server/users_write_api.go"
+  ],
+  "could not clear the alerts": [
+    "internal/server/alerts_api.go"
+  ],
+  "could not count grants": [
+    "internal/server/roles_write_api.go"
+  ],
+  "could not count the rows": [
+    "internal/server/db_api.go"
+  ],
+  "could not create the grant": [
+    "internal/server/grants_write_api.go"
+  ],
+  "could not create the group": [
+    "internal/server/groups_write_api.go"
+  ],
+  "could not create the role": [
+    "internal/server/roles_write_api.go"
+  ],
+  "could not create the user": [
+    "internal/server/users_write_api.go"
+  ],
+  "could not delete the grant": [
+    "internal/server/grants_write_api.go"
+  ],
+  "could not delete the group": [
+    "internal/server/groups_write_api.go"
+  ],
+  "could not delete the role": [
+    "internal/server/roles_write_api.go"
+  ],
+  "could not delete the user": [
+    "internal/server/users_write_api.go"
+  ],
+  "could not detach devices": [
+    "internal/server/sites_api.go"
+  ],
+  "could not generate a backup password": [
+    "internal/server/backups.go"
+  ],
+  "could not read grants": [
+    "internal/server/principals_api.go"
+  ],
+  "could not read group members": [
+    "internal/server/principals_api.go"
+  ],
+  "could not read groups": [
+    "internal/server/principals_api.go"
+  ],
+  "could not read roles": [
+    "internal/server/principals_api.go"
+  ],
+  "could not read the alert": [
+    "internal/server/alerts_api.go"
+  ],
+  "could not read the database statistics": [
+    "internal/server/db_api.go"
+  ],
+  "could not read the group": [
+    "internal/server/grants_write_api.go",
+    "internal/server/groups_write_api.go"
+  ],
+  "could not read the role": [
+    "internal/server/grants_write_api.go",
+    "internal/server/roles_write_api.go"
+  ],
+  "could not read the settings": [
+    "internal/server/ai_test_api.go",
+    "internal/server/backups.go",
+    "internal/server/routers_activate.go",
+    "internal/server/settings_write_api.go",
+    "internal/server/test_notif_api.go"
+  ],
+  "could not read the site": [
+    "internal/server/grants_write_api.go"
+  ],
+  "could not read the stored export": [
+    "internal/server/backups.go"
+  ],
+  "could not read the template": [
+    "internal/server/cfgmgmt.go"
+  ],
+  "could not read the templates": [
+    "internal/server/cfgmgmt.go"
+  ],
+  "could not read the user list": [
+    "internal/server/users_write_api.go"
+  ],
+  "could not read users": [
+    "internal/server/principals_api.go"
+  ],
+  "could not record the active router": [
+    "internal/server/routers_activate.go"
+  ],
+  "could not remove the router": [
+    "internal/server/routers_api.go"
+  ],
+  "could not reset the icon": [
+    "internal/server/branding_api.go"
+  ],
+  "could not save": [
+    "internal/server/lang_api.go",
+    "internal/server/navprefs_api.go"
+  ],
+  "could not save the branding": [
+    "internal/server/branding_api.go"
+  ],
+  "could not save the icon": [
+    "internal/server/branding_api.go"
+  ],
+  "could not save the router": [
+    "internal/server/routers_api.go"
+  ],
+  "could not save the settings": [
+    "internal/server/backups.go",
+    "internal/server/settings_write_api.go"
+  ],
+  "could not store the backup password": [
+    "internal/server/backups.go"
+  ],
+  "could not update the group": [
+    "internal/server/groups_write_api.go"
+  ],
+  "could not update the role": [
+    "internal/server/roles_write_api.go"
+  ],
+  "could not update the user": [
+    "internal/server/users_write_api.go"
+  ],
   "dBm": [
     "web/src/ui/shell.html"
+  ],
+  "data directory unavailable": [
+    "internal/server/branding_api.go"
+  ],
+  "database unavailable": [
+    "internal/server/db_api.go",
+    "internal/server/sites_api.go"
   ],
   "days, 0 for no limit": [
     "web/src/ui/page-backups.html"
@@ -9511,8 +9863,15 @@
   "expires {when}": [
     "web/src/account.ts"
   ],
+  "failed": [
+    "web/src/pages/settings-notif-test.ts",
+    "web/src/pages/settings-poll.ts"
+  ],
   "filled by MikroDash": [
     "web/src/pages/config-management-editor.ts"
+  ],
+  "forbidden": [
+    "internal/server/backups_raw.go"
   ],
   "from its WAN address": [
     "web/src/pages/routers.ts"
@@ -9528,6 +9887,13 @@
   ],
   "h": [
     "web/src/ui/page-settings.html"
+  ],
+  "history unavailable": [
+    "internal/server/reports.go"
+  ],
+  "host is required": [
+    "internal/server/routers_api.go",
+    "internal/server/routers_conntest.go"
   ],
   "host only — the router appends the interface's listen port. A port here is emitted twice and the client cannot connect.": [
     "internal/resource"
@@ -9552,6 +9918,12 @@
   ],
   "in the store": [
     "web/src/pages/containers-apps.ts"
+  ],
+  "interface required for export": [
+    "internal/server/reports.go"
+  ],
+  "invalid request": [
+    "internal/server/branding_api.go"
   ],
   "its port: {port}": [
     "web/src/pages/topology.ts"
@@ -9599,6 +9971,17 @@
   "loss": [
     "web/src/ui/page-dashboard.html"
   ],
+  "malformed": [
+    "internal/server/ztp_enrol.go"
+  ],
+  "malformed body": [
+    "internal/server/ai_test_api.go",
+    "internal/server/test_notif_api.go",
+    "internal/server/usernotify_api.go"
+  ],
+  "malformed request": [
+    "internal/server/reports.go"
+  ],
   "match one radio only; leave blank to match any": [
     "internal/resource"
   ],
@@ -9623,18 +10006,82 @@
   "no access granted": [
     "web/src/pages/settings.ts"
   ],
+  "no backup database": [
+    "internal/server/backups_download.go"
+  ],
   "no longer advertising": [
     "web/src/pages/topology-panel.ts"
   ],
+  "no peer named": [
+    "internal/server/wireguard.go"
+  ],
+  "no router id": [
+    "internal/server/routers_api.go",
+    "internal/server/routers_identity.go"
+  ],
+  "no such alert": [
+    "internal/server/alerts_api.go"
+  ],
+  "no such batch": [
+    "internal/server/ztp_api.go"
+  ],
+  "no such device": [
+    "internal/server/ztp_api.go"
+  ],
+  "no such router": [
+    "internal/server/routers_activate.go"
+  ],
+  "no such run": [
+    "internal/server/cfghistory.go"
+  ],
+  "no such template": [
+    "internal/server/cfgmgmt.go"
+  ],
   "not applied yet": [
     "web/src/pages/wan.ts"
+  ],
+  "not found": [
+    "internal/server/backups_download.go",
+    "internal/server/backups_raw.go",
+    "internal/server/reports.go"
   ],
   "not permitted": [
     "web/src/pages/settings-alert-filters.ts",
     "web/src/pages/settings-poll.ts"
   ],
+  "not read: too many routers in one request": [
+    "internal/server/dnsfleet_api.go",
+    "internal/server/topofleet_api.go"
+  ],
   "not set": [
     "web/src/pages/wifi-map.ts"
+  ],
+  "not signed in": [
+    "internal/server/account_api.go",
+    "internal/server/ai_test_api.go",
+    "internal/server/alerts_api.go",
+    "internal/server/audit_api.go",
+    "internal/server/backups_download.go",
+    "internal/server/branding_api.go",
+    "internal/server/cfgmgmt.go",
+    "internal/server/cities_api.go",
+    "internal/server/db_api.go",
+    "internal/server/lang_api.go",
+    "internal/server/layouts_api.go",
+    "internal/server/localcc_api.go",
+    "internal/server/navprefs_api.go",
+    "internal/server/principals_api.go",
+    "internal/server/reports.go",
+    "internal/server/routers_activate.go",
+    "internal/server/routers_api.go",
+    "internal/server/routers_identity.go",
+    "internal/server/settings_api.go",
+    "internal/server/settings_write_api.go",
+    "internal/server/sites_api.go",
+    "internal/server/test_notif_api.go",
+    "internal/server/usernotify_api.go",
+    "internal/server/wireguard.go",
+    "internal/server/ztp_api.go"
   ],
   "not used for hourly": [
     "web/src/pages/backups.ts"
@@ -9650,6 +10097,15 @@
   ],
   "on {port}": [
     "web/src/pages/topology.ts"
+  ],
+  "only a device that has not called home yet has a script to regenerate": [
+    "internal/server/ztp_api.go"
+  ],
+  "only a device waiting for approval can be approved": [
+    "internal/server/ztp_api.go"
+  ],
+  "only a device whose provisioning failed can be retried": [
+    "internal/server/ztp_api.go"
   ],
   "open to any address": [
     "web/src/pages/security-scan-cards.ts"
@@ -9673,6 +10129,9 @@
   "pinned by hand: this device was told to hang off that one": [
     "web/src/pages/topology.ts"
   ],
+  "principal store unavailable": [
+    "internal/server/principals_api.go"
+  ],
   "private or unknown address": [
     "web/src/pages/tools-trace-map.ts"
   ],
@@ -9691,6 +10150,9 @@
   "receive": [
     "web/src/ui/page-tools.html"
   ],
+  "refused": [
+    "internal/server/ztp_enrol.go"
+  ],
   "restore points, 0 for no limit": [
     "web/src/ui/page-backups.html"
   ],
@@ -9699,6 +10161,19 @@
   ],
   "router does not agree": [
     "web/src/pages/wan.ts"
+  ],
+  "router id is required": [
+    "internal/server/routers_activate.go"
+  ],
+  "router store unavailable": [
+    "internal/server/routers_api.go",
+    "internal/server/sites_api.go"
+  ],
+  "routerId required": [
+    "internal/server/reports.go"
+  ],
+  "routerIds must be an array": [
+    "internal/server/sites_api.go"
   ],
   "s": [
     "web/src/ui/page-settings.html"
@@ -9712,8 +10187,15 @@
   "set here": [
     "web/src/pages/routers.ts"
   ],
+  "set the address routers reach this MikroDash on (Settings, Provisioning) first": [
+    "internal/server/ztp_api.go"
+  ],
   "sets read on that tier and clears the rest": [
     "web/src/ui/page-settings.html"
+  ],
+  "settings store unavailable": [
+    "internal/server/ai_test_api.go",
+    "internal/server/settings_write_api.go"
   ],
   "showing the latest {n}": [
     "web/src/pages/tools.ts"
@@ -9721,8 +10203,29 @@
   "showing {n} at a time": [
     "web/src/pages/audit.ts"
   ],
+  "site create failed": [
+    "internal/server/sites_api.go"
+  ],
+  "site delete failed": [
+    "internal/server/sites_api.go"
+  ],
+  "site list failed": [
+    "internal/server/sites_api.go"
+  ],
+  "site lookup failed": [
+    "internal/server/sites_api.go"
+  ],
+  "site update failed": [
+    "internal/server/sites_api.go"
+  ],
   "smtp.example.com": [
     "web/src/ui/page-settings.html"
+  ],
+  "some values are not valid": [
+    "internal/server/cfgrouter.go"
+  ],
+  "someone else changed this template since you opened it; reload it": [
+    "internal/server/cfgmgmt.go"
   ],
   "started by {user}": [
     "web/src/pages/config-management-deploy.ts"
@@ -9736,6 +10239,15 @@
   "tcp": [
     "web/src/ui/page-tools.html"
   ],
+  "that batch is already revoked": [
+    "internal/server/ztp_api.go"
+  ],
+  "that is not a serial number": [
+    "internal/server/ztp_api.go"
+  ],
+  "that router is not available": [
+    "internal/server/cfgrouter.go"
+  ],
   "the RouterOS user cannot read the host table": [
     "web/src/pages/bridges.ts"
   ],
@@ -9745,11 +10257,52 @@
   "the address the client gives its own tunnel interface": [
     "internal/resource"
   ],
+  "the audit trail is unavailable": [
+    "internal/server/reports.go"
+  ],
+  "the database is unavailable": [
+    "internal/server/cfgmgmt.go",
+    "internal/server/ztp_api.go"
+  ],
   "the passphrase lives on the profile, not here": [
     "internal/resource"
   ],
   "the radio this SSID rides on": [
     "internal/resource"
+  ],
+  "the request does not name a baseline": [
+    "internal/server/cfghistory.go"
+  ],
+  "the request does not name what was checked": [
+    "internal/server/cfghistory.go"
+  ],
+  "the request is not a capture": [
+    "internal/server/cfgrouter.go"
+  ],
+  "the request is not a device": [
+    "internal/server/ztp_api.go"
+  ],
+  "the request is not a preview": [
+    "internal/server/cfgrouter.go"
+  ],
+  "the request is not a template": [
+    "internal/server/cfgmgmt.go"
+  ],
+  "the request is not an approval": [
+    "internal/server/ztp_api.go"
+  ],
+  "the router changed since you checked it; check it again": [
+    "internal/server/cfghistory.go"
+  ],
+  "the router is not connected": [
+    "internal/server/wireguard.go"
+  ],
+  "the run could not be recorded": [
+    "internal/server/backups.go"
+  ],
+  "the template could not be decrypted": [
+    "internal/server/cfgmgmt.go",
+    "internal/server/cfgrouter.go"
   ],
   "the write did not reach the server": [
     "web/src/pages/dns-fleet.ts"
@@ -9759,6 +10312,9 @@
   ],
   "the write was refused: {code}": [
     "web/src/pages/dns-fleet.ts"
+  ],
+  "this device is already a router; remove it from Devices instead": [
+    "internal/server/ztp_api.go"
   ],
   "this router reports no queue statistics": [
     "web/src/pages/queues.ts"
@@ -9781,17 +10337,28 @@
   "udp": [
     "web/src/ui/page-tools.html"
   ],
+  "unavailable": [
+    "internal/server/ztp_enrol.go"
+  ],
   "unavailable (test policy)": [
     "web/src/pages/topology-panel.ts"
   ],
   "unknown error": [
     "web/src/pages/settings-save.ts"
   ],
+  "unknown language": [
+    "internal/server/lang_api.go"
+  ],
   "up {age}": [
     "web/src/pages/wan.ts"
   ],
   "upload": [
     "web/src/ui/page-bandwidth.html"
+  ],
+  "user store unavailable": [
+    "internal/server/principals_api.go",
+    "internal/server/setup_api.go",
+    "internal/server/users_write_api.go"
   ],
   "username": [
     "web/src/ui/page-settings.html"

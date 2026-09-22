@@ -38,7 +38,7 @@
 // pages, and this follows. Reproduce, report, follow — three rounds of it.
 
 import { esc, el, renderSortHeader, sortMul, resRow, type SortCol, type SortState, mutedDash } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { RosUsersPayload } from '../gen/payloads';
@@ -399,7 +399,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       // and this session's. The wording says what was seen and no more.
       'write-failed': t('The router refused to end that session ("action failed"). RouterOS keeps some session types — API and REST API sessions among them — and they have to be cleared from the router itself.'),
     };
-    const text = (code && msg[code]) || (d && d.message) || t('Action failed');
+    const text = (code && msg[code]) || ts(d && d.message) || t('Action failed');
     setStatus(text);
     if (isVisible('users')) render();
   });

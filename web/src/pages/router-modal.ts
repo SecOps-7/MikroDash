@@ -20,7 +20,7 @@
 // unrelated edit, with nothing on screen to say so.
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import {
   // `cityListHtml`, `shouldSearchCity`, `formatPlace` and `CITY_DEBOUNCE_MS` were
   // imported here while this file had its own picker wiring. They moved with it
@@ -221,7 +221,7 @@ export function initRouterModal(opts: {
       'router-denied': t('The router refused the new identity: the API user lacks write permission.'),
       'write-failed': t('The router refused the new identity.'),
     };
-    if (j.error) return t('✗ Device saved, identity not changed: {error}', { error: j.error });
+    if (j.error) return t('✗ Device saved, identity not changed: {error}', { error: ts(j.error) });
     return t('✗ Device saved.') + ' ' + (codes[j.code || ''] ||
       (status === 403 ? t('You may not change this router.') : t('The device identity was not changed.')));
   }

@@ -14,7 +14,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { FONTS } from '../gen/appearance-tables.js';
 import { applyBranding, normaliseBranding, renderWordmark, type Branding } from '../branding';
 
@@ -56,8 +56,8 @@ export function iconSizeProblem(width: number, height: number): string {
 function errorOf(j: unknown, fallback: string): string {
   if (j && typeof j === 'object') {
     const r = j as Record<string, unknown>;
-    if (typeof r.error === 'string' && r.error) return r.error;
-    if (typeof r.message === 'string' && r.message) return r.message;
+    if (typeof r.error === 'string' && r.error) return ts(r.error);
+    if (typeof r.message === 'string' && r.message) return ts(r.message);
   }
   return fallback;
 }

@@ -37,7 +37,7 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { esc, el, fmtMbps, protoPill } from '../dom';
 import type { PingResult, TracerouteResult, TorchResult, BtestResult } from '../gen/payloads';
 import { renderPingCards } from './tools-ping-cards';
@@ -304,7 +304,7 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       if (d.code && status) status.textContent = 'Stopped.';
       return;
     }
-    if (status) status.textContent = REFUSED[d.code] || d.message || t('The tool did not run.');
+    if (status) status.textContent = REFUSED[d.code] || ts(d.message) || t('The tool did not run.');
   }
 
   for (const tool of TOOLS) {

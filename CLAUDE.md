@@ -297,6 +297,10 @@ move together:
   registries for the catalog. `tl()` takes a variable, so it may be called only from the files in
   `tlCallers` (`internal/verify/i18n_test.go`), a ledger that fails both ways. Select options and
   placeholders are RouterOS values and examples of them, and are never translated.
+- **Server messages are shown through `ts(message)`**, which translates only an exact match to one of the
+  server's own literal messages (`internal/i18n.ServerMessages`: `writeJSONErr`'s third argument and
+  `Message`/`Error`/`"error"`/`"message"` literals in `internal/server`). A message built from values, or
+  text the router wrote, matches none and is shown as it came.
 - **A sentence with a value is one string with a `{placeholder}`**, never pieces joined with `+`: a
   translator has to be able to move the value. Country names come from `Intl.DisplayNames`
   (`countryName`), not the catalog.
@@ -327,7 +331,7 @@ move together:
 | | |
 |---|---|
 | `internal/verify/` | 86 Go tests. Static checks over the current source: credentials, cited paths, translation drift, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 76 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `web/test/` | 77 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

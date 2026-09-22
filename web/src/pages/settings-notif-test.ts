@@ -25,7 +25,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 
 export interface TestChannelSpec {
   btnId: string;
@@ -177,7 +177,7 @@ export function testPayload(channel: string): Record<string, unknown> {
  * this note goes with it.
  */
 export function resultText(d: { ok?: boolean; error?: string }, okText?: string): string {
-  return d.ok ? (okText || t('✓ Sent!')) : '✗ ' + (d.error || 'failed');
+  return d.ok ? (okText || t('✓ Sent!')) : '✗ ' + (ts(d.error) || t('failed'));
 }
 
 export function resultColour(ok: boolean): string {

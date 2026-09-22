@@ -17,7 +17,7 @@
 // the tabs, the severity filter and the table's sort.
 
 import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { Report } from '../gen/payloads';
 import { scoreGrade, tween } from './tools-ping-cards';
@@ -161,7 +161,7 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     if (d.code === 'stopped') return;
     if (d.code) {
       setRunning(false);
-      setText('secScanStatus', REFUSED[d.code] || d.message || t('The scan did not finish.'));
+      setText('secScanStatus', REFUSED[d.code] || ts(d.message) || t('The scan did not finish.'));
       // Another viewer's scan of this router: its result is asked for shortly.
       if (d.code === 'busy') {
         setTimeout(() => { if (isVisible('security-scan')) socket.emit('secscan:get', {}); }, 3000);

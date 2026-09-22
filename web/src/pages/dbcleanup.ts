@@ -31,7 +31,7 @@
  */
 
 import { fmtDate } from '../timefmt';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { el, esc, fmtBytes } from '../dom';
 
 export interface DbRouter { id: string; label?: string | null; host?: string | null }
@@ -324,7 +324,7 @@ export function initDbCleanup(): void {
       .then((j) => {
         setBusy(false);
         if (!j || !j.ok) {
-          say('err', (j && j.error) || t('Preview failed'));
+          say('err', ts(j && j.error) || t('Preview failed'));
           return;
         }
         say('', '');
@@ -358,7 +358,7 @@ export function initDbCleanup(): void {
       .then((j) => {
         setBusy(false);
         if (!j || !j.ok) {
-          say('err', (j && j.error) || t('Delete failed'));
+          say('err', ts(j && j.error) || t('Delete failed'));
           return;
         }
         say('ok', deletedText(j));

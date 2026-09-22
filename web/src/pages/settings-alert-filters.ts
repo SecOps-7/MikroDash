@@ -28,7 +28,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { showBanner } from './settings-poll';
 import {
   ALERT_TOGGLES, ALERT_TYPE_DEFAULTS, ALERT_IFACE_DEFAULTS,
@@ -133,7 +133,7 @@ export function initAlertFilters(): void {
           obj[m.field] = box.checked;
           saveAlertFilters();
           if (m.field === 'ifaceUpDown') updateFilterCard();
-          showBanner('err', t('Could not save that alert toggle: {error}', { error: (d && d.error) || t('not permitted') }));
+          showBanner('err', t('Could not save that alert toggle: {error}', { error: ts(d && d.error) || t('not permitted') }));
         })
         // EMPTY, and faithful. A network failure leaves the box as the operator
         // set it: the local copy is already saved, so the toggle still governs

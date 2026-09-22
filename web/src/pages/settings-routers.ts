@@ -25,7 +25,7 @@
  */
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
 
 export interface RouterRow {
@@ -265,7 +265,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         body: JSON.stringify({ disabled: !rr.disabled }),
       })
         .then((res) => res.json())
-        .then((j) => { if (!j.ok) alert(j.error || t('Toggle failed')); })
+        .then((j) => { if (!j.ok) alert(ts(j.error) || t('Toggle failed')); })
         .catch(() => alert('Network error'));
       return;
     }
@@ -278,7 +278,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         credentials: 'same-origin',
       })
         .then((r) => r.json())
-        .then((r) => { if (!r.ok) alert('Delete failed: ' + (r.error || t('Unknown error'))); })
+        .then((r) => { if (!r.ok) alert(t('Delete failed: {error}', { error: ts(r.error) || t('Unknown error') })); })
         .catch((e) => alert('Request failed: ' + e));
     }
   });

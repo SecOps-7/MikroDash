@@ -17,7 +17,7 @@
 // how to open it, and no buttons.
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { AppsPayload } from '../gen/payloads';
 import { registerAreaPanel } from './area';
@@ -184,7 +184,7 @@ export function initContainersApps(socket: Socket): void {
       return;
     }
     if (d.code) {
-      pending[d.name] = { verb: d.verb, status: '', error: REFUSED[d.code] || d.message || t('That did not work.') };
+      pending[d.name] = { verb: d.verb, status: '', error: REFUSED[d.code] || ts(d.message) || t('That did not work.') };
     } else {
       delete pending[d.name];
     }

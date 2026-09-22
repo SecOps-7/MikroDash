@@ -11,7 +11,7 @@
 // reconnect starts in no rooms.
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { ZTPDeviceView, ZTPPayload } from '../gen/payloads';
 import { onZtpState, setZtpState, ztpState } from '../ztp-state';
@@ -26,7 +26,7 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
     ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   });
   const j = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
-  if (!r.ok || j.ok === false) throw new Error(j.error || t('The request failed ({status})', { status: r.status }));
+  if (!r.ok || j.ok === false) throw new Error(ts(j.error) || t('The request failed ({status})', { status: r.status }));
   return j;
 }
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));

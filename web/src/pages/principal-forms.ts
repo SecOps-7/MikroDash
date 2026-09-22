@@ -1,4 +1,4 @@
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 
 /**
  * What the User, Group and Role forms DECIDE — separated from what they touch.
@@ -98,7 +98,7 @@ export function userSaveOutcome(hadId: boolean, res: SaveResponse): SaveOutcome 
   const d = res.body;
   // ONLY `d.ok` — the user form does not consult the HTTP status. See rule 5.
   if (!d || !d.ok) {
-    return { ...FAILED, error: (d && d.error) || t('Save failed') };
+    return { ...FAILED, error: ts(d && d.error) || t('Save failed') };
   }
   // A CREATE THAT CAME BACK WITH A RECORD stays open in edit mode. Both
   // conditions matter: without an id there is nothing for the grant editor to
@@ -133,7 +133,7 @@ export function groupSaveOutcome(res: SaveResponse): SaveOutcome {
   // Reproduced as the asymmetry it is.
   const ok = res.httpOk !== false && !!(d && d.ok);
   if (!ok) {
-    return { ...FAILED, error: (d && d.error) || t('Could not save the group') };
+    return { ...FAILED, error: ts(d && d.error) || t('Could not save the group') };
   }
   return { error: '', close: true, switchToEdit: false, reload: true };
 }
@@ -165,7 +165,7 @@ export function roleSavePlan(f: {
 export function roleSaveOutcome(res: SaveResponse): SaveOutcome {
   const d = res.body;
   if (!d || !d.ok) {
-    return { ...FAILED, error: (d && d.error) || t('Could not save the role') };
+    return { ...FAILED, error: ts(d && d.error) || t('Could not save the role') };
   }
   return { error: '', close: true, switchToEdit: false, reload: true };
 }
@@ -298,7 +298,7 @@ export function grantOutcome(
   const d = res.body;
   if (!d || !d.ok) {
     return {
-      error: (d && d.error)
+      error: ts(d && d.error)
         || (fallback === 'add' ? t('Could not grant access') : t('Could not remove access')),
       refresh: true,
     };

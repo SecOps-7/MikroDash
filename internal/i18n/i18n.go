@@ -558,8 +558,9 @@ func TSLiterals(src string) (lits []string, bad []int) {
 // Sources is every source string in the frontend, with the files it appears
 // in (relative to root, the repository), and every refused t() call by file
 // and line. The markup is web/src/ui/*.html; the code is web/src/**/*.ts, less
-// the generated tables; and the labels declared in Go, which tl() renders
-// (GoLabels).
+// the generated tables; the labels declared in Go, which tl() renders
+// (GoLabels); and the server's literal messages, which ts() renders
+// (ServerMessages).
 func Sources(root string) (map[string][]string, map[string][]int, error) {
 	out := map[string][]string{}
 	bad := map[string][]int{}
@@ -618,6 +619,15 @@ func Sources(root string) (map[string][]string, map[string][]int, error) {
 		return nil, nil, err
 	}
 	for k, froms := range GoLabels() {
+		for _, f := range froms {
+			add(k, f)
+		}
+	}
+	msgs, err := ServerMessages(root)
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, froms := range msgs {
 		for _, f := range froms {
 			add(k, f)
 		}

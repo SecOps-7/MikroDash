@@ -12,7 +12,7 @@
 // credential value masked by the server; it is set as text, never markup.
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import { registerAreaPanel } from './area';
 
@@ -78,7 +78,7 @@ export function initFilesTransfer(socket: Socket): void {
     busy = false;
     const btn = el<HTMLButtonElement>('filesFetchBtn');
     if (btn) btn.disabled = false;
-    note(d.ok ? t('Saved as {name}.', { name: d.name }) : d.error, d.ok);
+    note(d.ok ? t('Saved as {name}.', { name: d.name }) : ts(d.error), d.ok);
   });
 
   socket.on('files:content', (d) => {
@@ -86,7 +86,7 @@ export function initFilesTransfer(socket: Socket): void {
     const pre = el('filesReadText');
     if (!n || !pre) return;
     if (d.error) {
-      n.textContent = d.error;
+      n.textContent = ts(d.error);
       pre.textContent = '';
       pre.hidden = true;
       return;

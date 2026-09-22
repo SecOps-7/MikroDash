@@ -27,7 +27,7 @@
  */
 
 import { loadBranding } from '../branding';
-import { t, bindLanguageSelect } from '../i18n';
+import { t, bindLanguageSelect, ts } from '../i18n';
 
 const byId = (id: string): HTMLElement | null => document.getElementById(id);
 
@@ -154,7 +154,7 @@ function main(): void {
             btn.disabled = false;
             btn.textContent = t('Sign In');
           }
-          showError('loginError', d.error || t('Sign in failed.'));
+          showError('loginError', ts(d.error) || t('Sign in failed.'));
         }
       })
       .catch(() => {
@@ -219,7 +219,7 @@ function main(): void {
             btn.disabled = false;
             btn.textContent = t('Create Account');
           }
-          showError('setupError', d.error || t('Setup failed.'));
+          showError('setupError', ts(d.error) || t('Setup failed.'));
         }
       })
       .catch(() => {

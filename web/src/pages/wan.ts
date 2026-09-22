@@ -27,7 +27,7 @@
 // uplink RouterOS does not call `internet` is visible as exactly that.
 
 import { esc, el, renderSortHeader, type SortCol, type SortState, mutedDash } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { WAN, WANPayload } from '../gen/payloads';
 import { fmtMb } from './wan-flow-layout';
@@ -400,7 +400,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       'router-write-policy': t('The RouterOS user needs write permission for this'),
       unsupported: t('This router does not support that command'),
     };
-    setStatus((code && msg[code]) || (d && d.message) || t('Action failed'));
+    setStatus((code && msg[code]) || ts(d && d.message) || t('Action failed'));
     if (isVisible('wan')) render();
   });
 

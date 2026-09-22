@@ -22,7 +22,7 @@
  */
 
 import { fmtTs } from '../timefmt';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { esc, el, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
 import type { StatePayload } from '../gen/payloads';
@@ -430,7 +430,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     // The page's own note line is the sink: there is no global toast, and each
     // page surfaces its errors where the thing that failed is on screen.
     if (note) {
-      note.textContent = (e?.code ? ERRORS[e.code] : '') || e?.message || t('Backup request failed');
+      note.textContent = (e?.code ? ERRORS[e.code] : '') || ts(e?.message) || t('Backup request failed');
       note.style.color = 'var(--accent-warn)';
     }
   });

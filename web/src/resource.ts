@@ -17,7 +17,7 @@
 // authority on it.
 
 import { esc, el } from './dom';
-import { t, tl } from './i18n';
+import { t, tl, ts } from './i18n';
 import type { Socket } from './socket';
 import type { HandEvents, ResSchema, ResSchemaField } from './events-hand';
 
@@ -1208,7 +1208,7 @@ function wire(socket: Socket): void {
       'outcome-unknown': t('The router accepted the change, but it could not be confirmed. The table has been refreshed; check it before trying again.'),
     };
     if (d && d.code === 'invalid' && Array.isArray(d.errors)) {
-      setError(d.errors.map((e) => e.message).join('; '));
+      setError(d.errors.map((e) => ts(e.message)).join('; '));
       return;
     }
     // THE ROUTER'S OWN WORDS TOO, BUT ONLY WHERE THEY ARE THE ROUTER'S. The
@@ -1216,7 +1216,7 @@ function wire(socket: Socket): void {
     // and which property, and dropping it turned a policy problem into a dead
     // end. `rate-limited` and `outcome-unknown` are MikroDash speaking rather
     // than the router, so a "Router:" on those would be a lie.
-    const said = (d && d.message) || '';
+    const said = ts(d && d.message);
     const mapped = (d && codes[d.code]) || '';
     setError(mapped
       ? mapped + (routerSaid[d.code] && said && said !== mapped ? ' ' + t('Router:') + ' ' + said : '')

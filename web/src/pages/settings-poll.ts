@@ -23,7 +23,7 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import { POLL_SLIDERS, POLL_PROFILES, POLL_PROFILE_KEY, type PollSlider } from '../gen/poll-tables';
 
 export type PollData = Record<string, unknown>;
@@ -316,7 +316,7 @@ export function initPollAndBanner(reloadSettings: () => void): void {
             setPollProfileUI('custom');
             showCustomStatus(true, t('✓ Saved'));
           } else {
-            showCustomStatus(false, '✗ ' + ((d && d.error) || 'failed'));
+            showCustomStatus(false, '✗ ' + (ts(d && d.error) || t('failed')));
           }
         })
         .catch(() => {
@@ -347,7 +347,7 @@ export function initPollAndBanner(reloadSettings: () => void): void {
             showBanner('ok', t('✓ Reset to defaults'));
             reloadSettings();
           } else {
-            showBanner('err', t('Reset failed: {error}', { error: (d && d.error) || t('not permitted') }));
+            showBanner('err', t('Reset failed: {error}', { error: ts(d && d.error) || t('not permitted') }));
           }
         })
         .catch((e) => showBanner('err', t('Reset failed: {error}', { error: String(e) })));

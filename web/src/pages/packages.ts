@@ -13,7 +13,7 @@
 // one.
 
 import { esc, el, renderSortHeader, sortMul, debounce, fmtBytes, type SortCol, type SortState, kv } from '../dom';
-import { t } from '../i18n';
+import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { Package, Firmware, Update, PackagesPayload } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
@@ -364,7 +364,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       'outcome-unknown': t('The router accepted the change but it could not be confirmed'),
       'rate-limited': t('Too many changes to this router in the last minute'),
     };
-    setStatus((d && d.code && msg[d.code]) || (d && d.message) || t('Action failed'));
+    setStatus((d && d.code && msg[d.code]) || ts(d && d.message) || t('Action failed'));
     if (isVisible('packages')) render();
   });
 
