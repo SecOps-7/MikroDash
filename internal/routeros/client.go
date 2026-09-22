@@ -54,6 +54,7 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -104,6 +105,48 @@ func (t *Trap) Denied() bool {
 		strings.Contains(m, "no permissions")
 }
 
+// ── THE TUNNEL IS A ROUTE ────────────────────────────────────────────────────
+//
+// Zero-touch provisioning runs a userspace WireGuard in this process
+// (internal/ztp), with its own IP stack. A router enrolled through it is an
+// ordinary router record whose host is its tunnel address; while the engine is
+// up, Dial sends every address inside the tunnel prefix through the engine, the
+// way a kernel route would. So the session, the pool, the deploy's fresh-login
+// proof and the connection test reach a tunnelled router with no field or
+// branch of their own, and anything outside the prefix dials as it always has.
+
+// DialFunc opens a connection, as net.Dialer.DialContext does.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
+type tunnelRoute struct {
+	prefix netip.Prefix
+	dial   DialFunc
+}
+
+var tunnel atomic.Pointer[tunnelRoute]
+
+// SetTunnel routes the addresses in prefix through dial, replacing any route
+// set before.
+func SetTunnel(prefix netip.Prefix, dial DialFunc) {
+	tunnel.Store(&tunnelRoute{prefix: prefix.Masked(), dial: dial})
+}
+
+// ClearTunnel removes the route: the engine has stopped.
+func ClearTunnel() { tunnel.Store(nil) }
+
+// tunnelFor is the tunnel's dialer when host is an address inside its prefix.
+func tunnelFor(host string) DialFunc {
+	r := tunnel.Load()
+	if r == nil {
+		return nil
+	}
+	a, err := netip.ParseAddr(host)
+	if err != nil || !r.prefix.Contains(a.Unmap()) {
+		return nil
+	}
+	return r.dial
+}
+
 // Config is what it takes to reach a router.
 type Config struct {
 	Host     string
@@ -120,7 +163,7 @@ type Config struct {
 	// dialer: zero-touch provisioning's tunnel (internal/ztp) reaches a remote
 	// router's API through its own userspace IP stack. TLS, when set, goes on
 	// top of what it returns, with the same certificate policy as a direct dial.
-	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+	DialContext DialFunc
 
 	// Debug turns on the library's protocol tracing — the port of live's
 	// `debug: Settings.load().rosDebug` at `src/index.js:444`, which sets
@@ -277,9 +320,13 @@ func Dial(cfg Config) (*Client, error) {
 		conn net.Conn
 		err  error
 	)
+	dial := cfg.DialContext
+	if dial == nil {
+		dial = tunnelFor(cfg.Host)
+	}
 	switch {
-	case cfg.DialContext != nil:
-		conn, err = cfg.DialContext(dialCtx, "tcp", addr)
+	case dial != nil:
+		conn, err = dial(dialCtx, "tcp", addr)
 		if err == nil && cfg.TLS {
 			tc := tls.Client(conn, &tls.Config{InsecureSkipVerify: cfg.InsecureTLS, ServerName: cfg.Host}) //nolint:gosec // as below
 			if err = tc.HandshakeContext(dialCtx); err != nil {
