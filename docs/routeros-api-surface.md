@@ -398,6 +398,23 @@ sentences are in `testdata/fixtures/import/probe-7.24.4.json` and
 | `/system/backup/save` | `=name=<n> =dont-encrypt=yes` (lab only) — the way back before a reset |
 | `/system/backup/load` | `=name=<n>.backup =password=`: restored the lab in 10 s, original certificate included |
 
+## Zero-touch provisioning's bootstrap (measured by cmd/ztpprobe)
+
+RouterOS 7.24.4 on the lab CHR, 2026-09-22. What the call-home script depends on, measured before it was written. The run's sentences stay out of the repository: they carry the CHR's system ID.
+
+| Command | Measured |
+|---|---|
+| `/system/routerboard/print` | **Absent on a CHR**: the trap is `no such command or directory (routerboard)`. A RouterBOARD answers `serial-number` |
+| `/system/license/print` | On a CHR the row has `system-id` and `level`. In script, `[/system routerboard get serial-number]` inside `:do {} on-error={}`, falling back to `[/system license get system-id]`, identifies either kind of device |
+| `:rndstr` | `[:rndstr length=24 from="<alphabet>"]` returns 24 characters, and two calls differ: the router makes its own API password |
+| `/tool/fetch` (POST) | `url=… http-method=post http-header-field="Content-Type: application/json" http-data="<json>" output=user as-value` sends the body as given and **returns the reply to the script**: `($r->"status")` is `finished`, `($r->"data")` the body. Without the header the body goes as `application/x-www-form-urlencoded`. **An HTTP error raises a script error**, `failure: Status 403, Forbidden (/tool/fetch; line 1)`, catchable with `:onerror` |
+| `:deserialize` | `[:deserialize from=json value=($r->"data")]` reads the reply; `($j->"address")` and `($j->"ok")` come back as sent |
+| `/interface/wireguard/add` | `=private-key=<base64>` **takes a key MikroDash made**, and the router's `public-key` equals the one Go's `crypto/ecdh.X25519` derives from it. Without `private-key` the router makes one, and a script reads it with `[/interface wireguard get [find name=<n>] public-key]` |
+| `/interface/wireguard/peers/add` | `=interface= =public-key= =endpoint-address= =endpoint-port= =allowed-address=<ip>/32 =persistent-keepalive=25s` |
+| `/user/add` | `=address=<ip>/32` **refuses a login from anywhere else**: `not allowed to login from this address (9)`. Widened to `0.0.0.0/0`, the same login succeeds (the control) |
+| `/ip/firewall/filter/add` (script) | `place-before=[:pick [find] 0]` puts the rule first (position 0 of 3); with no rules at all, a plain `add` |
+| `/system/scheduler/add` | `=interval=5s =on-event=/system scheduler remove [find name=<n>]`: **a scheduler can remove itself**, gone within 12 s. The bootstrap's enrolment retry ends that way once it succeeds |
+
 ## Proplists
 
 A proplist is the only thing keeping a credential out of a payload — see
