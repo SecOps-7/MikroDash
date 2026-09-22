@@ -90,6 +90,33 @@ func TestCloseNowIgnoresRemainingViewers(t *testing.T) {
 	}
 }
 
+// HOLDS TOO. Alerting, history and the Devices page's warm connection hold a
+// session without a viewer, and every enabled router has at least the last.
+// CloseNow zeroed only the viewers, so a DELETED router's session lived on,
+// held, redialling a router that no longer existed: syncFleetHolds, which
+// drops holds, only walks the routers still in the store.
+func TestCloseNowIgnoresHolds(t *testing.T) {
+	m := graceManager(t, time.Hour)
+
+	for _, reason := range []string{"alerts", "history", "warm"} {
+		if _, err := m.Retain("r1", reason); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Control: a held session outlives its last viewer's Release, so the
+	// assertion below is about CloseNow and not about holds being ignored
+	// everywhere.
+	m.Release("r1")
+	if _, live := m.Live()["r1"]; !live {
+		t.Fatal("control: a held session did not survive Release")
+	}
+
+	m.CloseNow("r1")
+	if _, live := m.Live()["r1"]; live {
+		t.Error("a held session survived CloseNow — a deleted router keeps being polled")
+	}
+}
+
 // Both are ordinary: a delete can arrive for a router nobody ever opened, and a
 // disable can be clicked twice.
 func TestCloseNowOnAnUnknownOrAlreadyClosedRouter(t *testing.T) {

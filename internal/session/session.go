@@ -1642,6 +1642,15 @@ func (m *Manager) CloseNow(routerID string) {
 		s.linger = nil
 	}
 	s.refs = 0
+	// AND THE HOLDS, which is what "whoever is still holding it" means. Only
+	// refs were zeroed, so a router held for alerting, history or the Devices
+	// page's warm connection (every enabled router has that one) survived its
+	// own deletion: idleOut found it spoken for and kept it. Disable recovered,
+	// because the next syncFleetHolds dropped a disabled router's holds; delete
+	// never did, because that sync walks the routers that still exist. The
+	// deleted router's session redialled until the next restart. Found in the
+	// zero-touch provisioning live test, 2026-09-22.
+	clear(s.holds)
 	s.mu.Unlock()
 	m.mu.Unlock()
 
