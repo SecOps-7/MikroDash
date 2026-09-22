@@ -294,6 +294,9 @@
   "Accounts": [
     "web/src/ui/page-security-scan.html"
   ],
+  "Acknowledge": [
+    "web/src/pages/reports-alerts.ts"
+  ],
   "Acknowledged": [
     "web/src/pages/reports-alerts.ts",
     "web/src/ui/page-reports.html"
@@ -490,6 +493,7 @@
   ],
   "All": [
     "web/src/pages/config-management-cards.ts",
+    "web/src/pages/containers-apps.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-security-scan.html"
   ],
@@ -1344,6 +1348,9 @@
   "Compare these records across several routers": [
     "web/src/ui/page-dns.html"
   ],
+  "Config": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
   "Config Management": [
     "web/src/ui/page-config-management.html",
     "web/src/ui/shell.html"
@@ -1446,6 +1453,9 @@
   "Containers": [
     "web/src/ui/page-containers.html"
   ],
+  "Continue": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Continuous ping": [
     "web/src/ui/page-tools.html"
   ],
@@ -1484,6 +1494,9 @@
   ],
   "Could not grant access": [
     "web/src/pages/principal-forms.ts"
+  ],
+  "Could not load sites.": [
+    "web/src/pages/settings-sites.ts"
   ],
   "Could not open it": [
     "web/src/pages/config-management.ts"
@@ -1786,6 +1799,7 @@
   "Disabled": [
     "web/src/pages/area.ts",
     "web/src/pages/netwatch.ts",
+    "web/src/pages/settings-routers.ts",
     "web/src/pages/wifi.ts",
     "web/src/ui/page-packages.html"
   ],
@@ -1952,6 +1966,8 @@
   ],
   "Edit": [
     "web/src/pages/config-management-cards.ts",
+    "web/src/pages/reports-schedules.ts",
+    "web/src/pages/settings-routers.ts",
     "web/src/pages/settings.ts",
     "web/src/ui/page-dns.html",
     "web/src/ui/page-wifi-map.html",
@@ -2508,6 +2524,7 @@
     "web/src/ui/page-settings.html"
   ],
   "History": [
+    "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-backups.html",
     "web/src/ui/page-config-management.html"
   ],
@@ -3115,6 +3132,9 @@
   "Maximum connections tracked": [
     "web/src/ui/page-settings.html"
   ],
+  "May cut MikroDash off · auto-revert": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "Mbps": [
     "web/src/pages/bandwidth.ts",
     "web/src/pages/dashboard-cards-util.ts",
@@ -3445,6 +3465,9 @@
   "No VLANs configured on this router.": [
     "web/src/pages/vlans.ts"
   ],
+  "No access": [
+    "web/src/pages/settings.ts"
+  ],
   "No access granted yet — ask an administrator.": [
     "web/src/account.ts"
   ],
@@ -3499,6 +3522,12 @@
   ],
   "No check passed": [
     "web/src/pages/security-scan.ts"
+  ],
+  "No connections match.": [
+    "web/src/pages/connections.ts"
+  ],
+  "No connectivity events for this range.": [
+    "web/src/pages/reports-ping.ts"
   ],
   "No data for this range.": [
     "web/src/pages/reports-ping.ts",
@@ -3629,6 +3658,9 @@
   "No routers configured.": [
     "web/src/pages/routers.ts"
   ],
+  "No routers configured. Click Add Router to get started.": [
+    "web/src/pages/settings-routers.ts"
+  ],
   "No routers match": [
     "web/src/router-dropdown.ts"
   ],
@@ -3747,6 +3779,7 @@
     "web/src/pages/wireless-fa.ts"
   ],
   "Not run yet": [
+    "web/src/pages/tools.ts",
     "web/src/ui/page-tools.html"
   ],
   "Not running": [
@@ -3935,11 +3968,20 @@
   "Open a background connection for push alerts even when this router is not the active view.": [
     "web/src/ui/shell.html"
   ],
+  "Open generator": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "Open menu": [
     "web/src/ui/shell.html"
   ],
+  "Open settings": [
+    "web/src/pages/routers.ts"
+  ],
   "Open the Add form with a router picker under its fields": [
     "web/src/ui/page-dns.html"
+  ],
+  "Open ›": [
+    "web/src/pages/security-scan-cards.ts"
   ],
   "OpenConfirm": [
     "web/src/ui/page-routing.html"
@@ -4154,6 +4196,9 @@
   "Pins": [
     "web/src/pages/topology-persist.ts",
     "web/src/ui/page-network-topology.html"
+  ],
+  "Place": [
+    "web/src/pages/wifi-map.ts"
   ],
   "Placed APs": [
     "web/src/ui/page-wifi-map.html"
@@ -4409,6 +4454,7 @@
     "web/src/pages/config-management-history.ts"
   ],
   "Reading…": [
+    "web/src/pages/dns-fleet.ts",
     "web/src/pages/files-transfer.ts"
   ],
   "Real-time MikroTik Router Dashboard": [
@@ -4512,6 +4558,8 @@
     "web/src/pages/topology-panel.ts"
   ],
   "Remove": [
+    "web/src/pages/reports-schedules.ts",
+    "web/src/pages/settings.ts",
     "web/src/pages/ztp-views.ts"
   ],
   "Remove app": [
@@ -4591,6 +4639,9 @@
   "Resolving Eventually": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Restore": [
+    "web/src/pages/backups.ts"
+  ],
   "Restore points": [
     "web/src/ui/page-backups.html"
   ],
@@ -4613,6 +4664,9 @@
   ],
   "Review on Devices": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "Revoke": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Revoked": [
     "web/src/pages/ztp-views.ts"
@@ -4830,6 +4884,7 @@
     "web/src/pages/reports-traffic.ts"
   ],
   "Save": [
+    "web/src/pages/backups.ts",
     "web/src/pages/router-modal.ts",
     "web/src/pages/wifi-map.ts",
     "web/src/resource.ts",
@@ -5074,6 +5129,9 @@
   ],
   "Send at": [
     "web/src/ui/shell.html"
+  ],
+  "Send now": [
+    "web/src/pages/reports-schedules.ts"
   ],
   "Sending the backup to the router…": [
     "web/src/pages/backups.ts"
@@ -6313,6 +6371,9 @@
   "UTC": [
     "web/src/ui/page-settings.html"
   ],
+  "Unassigned": [
+    "web/src/pages/routers.ts"
+  ],
   "Undo": [
     "web/src/pages/packages.ts"
   ],
@@ -6374,6 +6435,10 @@
   ],
   "Up to date with RouterOS": [
     "web/src/pages/packages.ts"
+  ],
+  "Update": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/upgrade.ts"
   ],
   "Update \u0026 Reboot": [
     "web/src/pages/upgrade.ts",

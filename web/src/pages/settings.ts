@@ -588,7 +588,7 @@ export function accessSummary(grants: GrantView[] | undefined, look: PrincipalLo
   if (!grants || !grants.length) {
     return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;'
       + 'background:rgba(148,163,190,.1);color:var(--text-muted);'
-      + 'border:1px solid rgba(148,163,190,.15)">No access</span>';
+      + ('border:1px solid rgba(148,163,190,.15)">' + t('No access') + '</span>');
   }
   return grants.map((g) =>
     '<div style="font-size:.72rem">' + esc(roleName(g, look))
@@ -667,8 +667,8 @@ export function groupTableHtml(groups: GroupView[], look: PrincipalLookups): str
       + '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + (g.memberUserIds || []).length + '</td>'
       + '<td style="' + td + ';font-size:.72rem">' + access + '</td>'
       + '<td style="' + td + ';text-align:right;white-space:nowrap">'
-        + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="edit" data-group-id="' + esc(g.id) + '">Edit</button> '
-        + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="delete" data-group-id="' + esc(g.id) + '">Delete</button>'
+        + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="edit" data-group-id="' + esc(g.id) + ('">' + t('Edit') + '</button> ')
+        + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="delete" data-group-id="' + esc(g.id) + ('">' + t('Delete') + '</button>')
       + '</td></tr>';
   }).join('');
 }
@@ -687,8 +687,8 @@ export function siteRowHtml(s: SiteView, routerCount: number): string {
     + '<td style="' + td + ';color:var(--text-muted)">' + (s.description ? esc(s.description) : '—') + '</td>'
     + '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + routerCount + '</td>'
     + '<td style="' + td + ';text-align:right;white-space:nowrap">'
-      + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="edit" data-site-id="' + esc(s.id) + '">Edit</button> '
-      + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="delete" data-site-id="' + esc(s.id) + '">Delete</button>'
+      + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="edit" data-site-id="' + esc(s.id) + ('">' + t('Edit') + '</button> ')
+      + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="delete" data-site-id="' + esc(s.id) + ('">' + t('Delete') + '</button>')
     + '</td></tr>';
 }
 
@@ -929,8 +929,8 @@ export function roleTableHtml(roles: RoleView[]): string {
   return roles.map((r) => {
     const actions = r.builtin
       ? '<span style="color:var(--text-muted);font-size:.7rem">built in</span>'
-      : '<button class="sbtn sbtn-outline" data-role-edit="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem">Edit</button>'
-        + ' <button class="sbtn sbtn-outline" data-role-del="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem;color:#f87171;border-color:rgba(248,113,113,.35)">Delete</button>';
+      : '<button class="sbtn sbtn-outline" data-role-edit="' + esc(r.id) + ('" style="padding:.15rem .5rem;font-size:.7rem">' + t('Edit') + '</button>')
+        + ' <button class="sbtn sbtn-outline" data-role-del="' + esc(r.id) + ('" style="padding:.15rem .5rem;font-size:.7rem;color:#f87171;border-color:rgba(248,113,113,.35)">' + t('Delete') + '</button>');
     return '<tr style="border-bottom:1px solid var(--border)">'
       + '<td style="padding:.4rem .5rem">' + esc(r.name)
         + (r.description ? '<div style="color:var(--text-muted);font-size:.7rem">' + esc(r.description) + '</div>' : '') + '</td>'
@@ -1023,7 +1023,7 @@ export function grantEditorHtml(
   const rows = (grants || []).map((g) =>
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">'
     + '<span style="flex:1">' + esc(roleName(g, look)) + ' — ' + esc(scopeLabel(g, look)) + '</span>'
-    + '<button class="sbtn sbtn-ghost" style="padding:.1rem .45rem;font-size:.65rem" data-grant-del="' + esc(String(g.id)) + '">Remove</button>'
+    + '<button class="sbtn sbtn-ghost" style="padding:.1rem .45rem;font-size:.65rem" data-grant-del="' + esc(String(g.id)) + ('">' + t('Remove') + '</button>')
     + '</div>').join('');
 
   const sites = o.sitesById || {};

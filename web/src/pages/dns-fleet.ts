@@ -292,7 +292,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
       return;
     }
     if (loading && !rows.length) {
-      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">Reading…</td></tr>';
+      tb.innerHTML = '<tr><td colspan="' + cols + ('" class="empty-state">' + t('Reading…') + '</td></tr>');
       return;
     }
     if (!rows.length) {

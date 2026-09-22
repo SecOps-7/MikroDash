@@ -272,6 +272,6 @@ export function batchRows(batches: ZTPBatchView[], now: number): string {
       : b.live ? ('<span class="vpn-hs-badge ztp-pill-ok">' + t('Live') + '</span> <span class="ztp-help">expires ') +
         esc(relTime(b.expiresAt, now)) + '</span>'
         : '<span class="vpn-hs-badge ztp-pill-off">' + t('Expired') + '</span>') + '</td><td>' + b.devices + '</td><td>' +
-    (b.live ? '<button class="sbtn sbtn-danger ztp-btn" type="button" data-ztp-revoke="' + esc(b.id) + '">Revoke</button>' : '') +
+    (b.live ? '<button class="sbtn sbtn-danger ztp-btn" type="button" data-ztp-revoke="' + esc(b.id) + ('">' + t('Revoke') + '</button>') : '') +
     '</td></tr>').join('');
 }

@@ -212,7 +212,7 @@ function applyConnSort(): void {
   if (tbody) {
     if (!sorted.length) {
       tbody.innerHTML = '<tr><td colspan="' + (connAgg ? 5 : 3) +
-        '" class="rpt-empty">No connectivity events for this range.</td></tr>';
+        ('" class="rpt-empty">' + t('No connectivity events for this range.') + '</td></tr>');
     } else if (connAgg) {
       tbody.innerHTML = sorted.map((r) =>
         '<tr>' +

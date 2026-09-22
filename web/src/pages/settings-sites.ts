@@ -83,7 +83,7 @@ async function load(): Promise<void> {
     // create a site that already exists and be told the name is taken.
     if (tb) {
       tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);'
-        + 'font-size:.76rem">Could not load sites.</td></tr>';
+        + ('font-size:.76rem">' + t('Could not load sites.') + '</td></tr>');
     }
   }
 }

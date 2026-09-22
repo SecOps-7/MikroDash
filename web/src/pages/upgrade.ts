@@ -49,7 +49,7 @@ export function upgradeErrorText(code: string | undefined, routerName: string): 
 export function updateSlotHtml(permitted: boolean, latest: string): string {
   return (permitted && latest)
     ? '<button class="sbtn sbtn-warn" id="sysUpdateBtn" data-upgrade-open'
-      + ' style="padding:.1rem .45rem;font-size:.64rem">Update</button>'
+      + (' style="padding:.1rem .45rem;font-size:.64rem">' + t('Update') + '</button>')
     : '';
 }
 

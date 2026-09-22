@@ -201,7 +201,7 @@ export function syncRoutersSiteFilter(rows: RouterStatsRow[] | null): void {
     ids.map((id) => '<option value="' + esc(id) + '">' + esc(names[id]!) + '</option>').join('') +
     // Only offered when such devices exist, so a fully assigned fleet keeps a
     // clean list.
-    (anyLoose ? '<option value="' + RTR_UNASSIGNED + '">Unassigned</option>' : '');
+    (anyLoose ? '<option value="' + RTR_UNASSIGNED + ('">' + t('Unassigned') + '</option>') : '');
 
   if (sel.innerHTML !== html) {
     const keep = sel.value;
@@ -620,7 +620,7 @@ export function popHtml(r: RouterStatsRow): string {
     + (r.openAlerts ? ('<span>' + t('Alerts') + '</span><b style="color:var(--accent-amber,#f59f00)">') + r.openAlerts + '</b>' : '')
     + '</div>'
     + '<div class="rmp-loc">' + loc + '</div>'
-    + (canManage(r.id) ? '<button type="button" data-open-router="' + esc(r.id) + '">Open settings</button>' : '');
+    + (canManage(r.id) ? '<button type="button" data-open-router="' + esc(r.id) + ('">' + t('Open settings') + '</button>') : '');
 }
 
 /**

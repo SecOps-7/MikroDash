@@ -848,7 +848,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         '<span class="wm-tray-name" title="' + esc(c.ifaces.join(', ')) + '">' +
           esc(c.label) + '</span>' +
         (on ? '<span class="wm-tray-note">placed</span>'
-          : '<button class="topo-btn" data-place="' + esc(c.key) + '">Place</button>') +
+          : '<button class="topo-btn" data-place="' + esc(c.key) + ('">' + t('Place') + '</button>')) +
       '</div>';
     }).join('');
     return ('<div class="wm-panel-title">' + t('Site') + '</div>') +

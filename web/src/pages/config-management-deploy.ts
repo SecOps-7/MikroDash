@@ -183,7 +183,7 @@ export function rolloutView(p: CfgDeployPayload): string {
     ? ('<div class="cfg-decide"><span>' + t('Check the canary, then type') + ' <strong>') + p.targets.length +
       ('</strong> ' + t('to deploy to every router.') + '</span><input class="form-control form-control-sm" id="cfgDepCount" ') +
       'autocomplete="off" placeholder="' + p.targets.length + '"><button class="cfg-btn cfg-btn-go" type="button" ' +
-      'id="cfgDepContinue">Continue</button></div>'
+      ('id="cfgDepContinue">' + t('Continue') + '</button></div>')
     : '';
   const reset = p.kind === 'full-export'
     ? '<div class="cfg-banner is-warn">A full replacement resets each router and reboots it; MikroDash cannot see it ' +

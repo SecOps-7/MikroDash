@@ -131,7 +131,7 @@ function ms(v: number | null | undefined): string {
 }
 
 function notRun(tool: Tool): string {
-  return '<tr><td colspan="' + tool.cols + '" class="empty-state">Not run yet</td></tr>';
+  return '<tr><td colspan="' + tool.cols + ('" class="empty-state">' + t('Not run yet') + '</td></tr>');
 }
 
 let traceMap: TraceMap | null = null;

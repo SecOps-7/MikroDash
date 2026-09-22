@@ -83,7 +83,7 @@ export function templateCard(tpl: LibTemplate): string {
     (tpl.scope.length > 3 ? '<span class="cfg-chip cfg-chip-more">+' + (tpl.scope.length - 3) + '</span>' : '');
   const lock = tpl.lockClass
     ? '<span class="vpn-hs-badge cfg-pill-lock" title="Deploying it arms an automatic revert: if MikroDash cannot ' +
-      'log back in, the router puts itself back.">May cut MikroDash off · auto-revert</span>'
+      ('log back in, the router puts itself back.">' + t('May cut MikroDash off · auto-revert') + '</span>')
     : '';
   const vars = tpl.variables
     ? '<span class="cfg-meta">' + tpl.variables + (tpl.variables === 1 ? ' setting' : ' settings') + '</span>'
@@ -120,7 +120,7 @@ export function generatorCard(): string {
     'into a new template, and the editor checks every line before anything reaches a router.</p>' +
     ('<footer class="cfg-tpl-foot"><span class="cfg-meta">' + t('Nothing is sent to it from here') + '</span>') +
     '<span class="cfg-tpl-actions"><a class="cfg-btn cfg-btn-go" href="' + GENERATOR_URL + '" target="_blank" ' +
-    'rel="noopener noreferrer">Open generator</a></span></footer></article>';
+    ('rel="noopener noreferrer">' + t('Open generator') + '</a></span></footer></article>');
 }
 
 /** The Library grid for one category and search. */

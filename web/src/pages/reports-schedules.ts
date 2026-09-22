@@ -139,11 +139,11 @@ export function renderSchedules(): void {
   body.innerHTML = state.rows.map((r) => {
     const acts: string[] = [];
     if (state.permitted) {
-      acts.push('<button class="sbtn sbtn-ghost" data-rs-edit="' + esc(r.id) + '">Edit</button>');
-      acts.push('<button class="sbtn sbtn-ghost" data-rs-run="' + esc(r.id) + '">Send now</button>');
-      acts.push('<button class="sbtn sbtn-ghost" data-rs-del="' + esc(r.id) + '">Remove</button>');
+      acts.push('<button class="sbtn sbtn-ghost" data-rs-edit="' + esc(r.id) + ('">' + t('Edit') + '</button>'));
+      acts.push('<button class="sbtn sbtn-ghost" data-rs-run="' + esc(r.id) + ('">' + t('Send now') + '</button>'));
+      acts.push('<button class="sbtn sbtn-ghost" data-rs-del="' + esc(r.id) + ('">' + t('Remove') + '</button>'));
     }
-    acts.push('<button class="sbtn sbtn-ghost" data-rs-runs="' + esc(r.id) + '">History</button>');
+    acts.push('<button class="sbtn sbtn-ghost" data-rs-runs="' + esc(r.id) + ('">' + t('History') + '</button>'));
     const why = r.disabledReason
       ? '<div class="bw-mac">' + esc(r.disabledReason) + '</div>' : '';
     return '<tr>' +

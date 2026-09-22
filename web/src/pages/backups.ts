@@ -132,7 +132,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     const actions = el('bkSettingsActions');
     if (actions) {
       actions.innerHTML = st.permitted
-        ? '<button class="sbtn sbtn-primary" style="' + BTN + '" id="bkSave">Save</button>' : '';
+        ? '<button class="sbtn sbtn-primary" style="' + BTN + ('" id="bkSave">' + t('Save') + '</button>') : '';
       if (st.permitted) el('bkSave')?.addEventListener('click', saveSettings);
     }
 
@@ -141,8 +141,8 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       // Restore and Delete lead; Back Up Now anchors the right-hand end, so the
       // button that needs no selection never changes state as rows are ticked.
       hist.innerHTML = st.permitted
-        ? '<button class="sbtn sbtn-purple" style="' + BTN + '" id="bkRestore" disabled>Restore</button>' +
-          '<button class="sbtn sbtn-danger" style="' + BTN + '" id="bkDelete" disabled>Delete</button>' +
+        ? '<button class="sbtn sbtn-purple" style="' + BTN + ('" id="bkRestore" disabled>' + t('Restore') + '</button>') +
+          '<button class="sbtn sbtn-danger" style="' + BTN + ('" id="bkDelete" disabled>' + t('Delete') + '</button>') +
           '<button class="sbtn sbtn-primary" style="' + BTN + '" id="bkRun"' + (busy ? ' disabled' : '') + '>' +
           (busy ? 'Backing up&hellip;' : t('+ Back Up Now')) + '</button>' : '';
       if (st.permitted) {
@@ -170,7 +170,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       const actions: string[] = [];
       if (r.stem && !r.pruned) {
         actions.push('<button class="sbtn sbtn-ghost" style="' + BTN +
-          '" data-bk-diff="' + r.id + '">Changes</button>');
+          '" data-bk-diff="' + r.id + ('">' + t('Changes') + '</button>'));
         if (st.permitted) {
           // PLAIN LINKS, so the browser saves the file rather than the page
           // having to hold several MB in memory to hand it over.

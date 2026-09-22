@@ -457,7 +457,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     listPage = pg.page;
     if (body) {
       body.innerHTML = pg.rows.map(connRowHTML).join('') ||
-        '<tr><td colspan="' + CONN_COLS.length + '" class="conn-empty">No connections match.</td></tr>';
+        '<tr><td colspan="' + CONN_COLS.length + ('" class="conn-empty">' + t('No connections match.') + '</td></tr>');
     }
     const pager = pagerHTML(pg.rows.length, matched.length, pg.page, pg.pages);
     for (const id of ['connListPager', 'connListPager2']) {

@@ -82,7 +82,7 @@ export function renderRouterRow(
   const badgeCls = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
   const badgeTxt = connState === true ? t('Online') : connState === false ? t('Offline') : '—';
   const statusCell = r.disabled
-    ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="' + esc(r.id) + '">Disabled</span>'
+    ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="' + esc(r.id) + ('">' + t('Disabled') + '</span>')
     : '<span class="rtr-status-badge ' + badgeCls + '" data-rtr-conn="' + esc(r.id) + '">' + badgeTxt + '</span>';
   // Identity is persisted on the router entry rather than read from the live
   // stats feed, so these stay populated while a router is offline or disabled.
@@ -112,7 +112,7 @@ export function renderRouterRow(
     '<td style="text-align:right;white-space:nowrap">' +
       '<div style="display:flex;gap:.3rem;justify-content:flex-end">' +
         toggleBtn +
-        '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + '" data-rtr-action="edit">Edit</button>' +
+        '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + ('" data-rtr-action="edit">' + t('Edit') + '</button>') +
         delBtn +
       '</div>' +
     '</td>' +
@@ -127,7 +127,7 @@ export function renderRouterTable(
   sitesById: Record<string, SiteName>,
 ): string {
   if (!routers.length) {
-    return '<tr><td colspan="' + ROUTER_TABLE_COLUMNS + '" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
+    return '<tr><td colspan="' + ROUTER_TABLE_COLUMNS + ('" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">' + t('No routers configured. Click Add Router to get started.') + '</td></tr>');
   }
   return routers.map((r) => renderRouterRow(r, activeId, status, sitesById)).join('');
 }

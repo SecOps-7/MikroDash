@@ -44,7 +44,7 @@ export function sevPill(sev: string): string {
 
 /** The page a finding is fixed on, as an Open link; nothing when it has none. */
 export function openLink(f: Finding): string {
-  return f.link ? '<a href="#" class="sec-open" data-goto="' + esc(f.link) + '">Open ›</a>' : '';
+  return f.link ? '<a href="#" class="sec-open" data-goto="' + esc(f.link) + ('">' + t('Open ›') + '</a>') : '';
 }
 
 /** One category's bar: its score, pass/fail counts, and a grade colour. */
