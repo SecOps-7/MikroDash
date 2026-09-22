@@ -90,7 +90,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "dbRetentionDays",
     "defaultIf",
     "displayTimezone",
-    "firewallTopN",
     "historyMinutes",
     "maxConns",
     "notifBody",
@@ -160,10 +159,6 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
   "displayTimezone": {
     "kind": "orEmpty",
     "expr": "data.displayTimezone || ''"
-  },
-  "firewallTopN": {
-    "kind": "undefinedToEmpty",
-    "expr": "data[f] !== undefined ? data[f] : ''"
   },
   "historyMinutes": {
     "kind": "undefinedToEmpty",

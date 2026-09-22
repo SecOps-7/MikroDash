@@ -47,7 +47,7 @@ const Mask = "••••••••"
 var ViewerFields = []string{
 	"authMode",
 	"pingTarget",
-	"topN", "topTalkersN", "firewallTopN", "vpnDashTopN", "maxConns", "historyMinutes",
+	"topN", "topTalkersN", "vpnDashTopN", "maxConns", "historyMinutes",
 	"alertCpuThreshold", "alertPingLoss",
 	"activeRouterId",
 	"pageWifi", "pageWireless", "pageWifiMap", "pageNetwatch", "pageInterfaces", "pageDhcp", "pageVpn", "pageConnections",

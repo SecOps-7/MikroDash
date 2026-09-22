@@ -108,9 +108,10 @@ func TestToggledClassesAreAnswered(t *testing.T) {
 }
 
 // settingsKeysRecorded: settings keys nothing reads, with why.
-var settingsKeysRecorded = map[string]string{
-	"firewallTopN": "dead in the original too — it had no consumer either.",
-}
+// EMPTY SINCE 2026-09-22: its one entry, `firewallTopN`, was removed from
+// the settings altogether (the operator's choice), which is what an unread key
+// should come to. The check still runs both ways for the next one.
+var settingsKeysRecorded = map[string]string{}
 
 // TestEverySettingsKeyIsRead: a key with a default is a key something consumes.
 //

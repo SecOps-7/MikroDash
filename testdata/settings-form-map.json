@@ -73,7 +73,6 @@
       "dbRetentionDays",
       "defaultIf",
       "displayTimezone",
-      "firewallTopN",
       "historyMinutes",
       "maxConns",
       "notifBody",
@@ -141,10 +140,6 @@
     "displayTimezone": {
       "kind": "orEmpty",
       "expr": "data.displayTimezone || ''"
-    },
-    "firewallTopN": {
-      "kind": "undefinedToEmpty",
-      "expr": "data[f] !== undefined ? data[f] : ''"
     },
     "historyMinutes": {
       "kind": "undefinedToEmpty",

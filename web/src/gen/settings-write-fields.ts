@@ -23,7 +23,6 @@ export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
   "dbAiRetentionDays": [1, 3650],
   "dbAlertRetentionDays": [1, 3650],
   "dbRetentionDays": [1, 3650],
-  "firewallTopN": [1, 50],
   "historyMinutes": [5, 120],
   "maxConns": [1000, 100000],
   "notifCooldownSec": [10, 3600],
