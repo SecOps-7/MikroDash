@@ -24,7 +24,6 @@
 // landed rather than ported with the quirk reproduced.
 
 import { esc } from '../dom';
-import { t } from '../i18n';
 import { dcEsc } from './dashboard-cards-util';
 import { portSvg } from './port-svg';
 import type { IfStatusPayload } from '../gen/payloads';
@@ -42,7 +41,7 @@ export function renderPhysPortsCard(data: IfStatusPayload): void {
   // whether a broken emit is visible.
   const ifaces = (data.interfaces || []).filter((i) => PHYSICAL.indexOf(i.type) !== -1);
   if (!ifaces.length) {
-    panel.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted)">' + t('No ethernet ports') + '</div>';
+    panel.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted)">No ethernet ports</div>';
     return;
   }
 

@@ -1,5 +1,3 @@
-import { t, ts } from '../i18n';
-
 /**
  * What the User, Group and Role forms DECIDE — separated from what they touch.
  *
@@ -78,7 +76,7 @@ export function userSavePlan(f: { id: string; username: string; password: string
   // behaviour keeps that difference where it already is rather than moving it.
   const id = f.id.trim();
   const username = f.username.trim();
-  if (!username) return { error: t('Username required') };
+  if (!username) return { error: 'Username required' };
 
   // NO ROLE AND NO allowedRouterIds. The live comment: "access is grants now,
   // edited below." Sending either would trigger the server's legacy projection,
@@ -98,7 +96,7 @@ export function userSaveOutcome(hadId: boolean, res: SaveResponse): SaveOutcome 
   const d = res.body;
   // ONLY `d.ok` — the user form does not consult the HTTP status. See rule 5.
   if (!d || !d.ok) {
-    return { ...FAILED, error: ts(d && d.error) || t('Save failed') };
+    return { ...FAILED, error: (d && d.error) || 'Save failed' };
   }
   // A CREATE THAT CAME BACK WITH A RECORD stays open in edit mode. Both
   // conditions matter: without an id there is nothing for the grant editor to
@@ -121,7 +119,7 @@ export function groupSavePlan(f: {
     description: f.description.trim(),
     memberUserIds: f.memberUserIds,
   };
-  if (!body.name) return { error: t('Name is required') };
+  if (!body.name) return { error: 'Name is required' };
   return id
     ? { method: 'PUT', url: '/api/groups/' + encodeURIComponent(id), body }
     : { method: 'POST', url: '/api/groups', body };
@@ -133,7 +131,7 @@ export function groupSaveOutcome(res: SaveResponse): SaveOutcome {
   // Reproduced as the asymmetry it is.
   const ok = res.httpOk !== false && !!(d && d.ok);
   if (!ok) {
-    return { ...FAILED, error: ts(d && d.error) || t('Could not save the group') };
+    return { ...FAILED, error: (d && d.error) || 'Could not save the group' };
   }
   return { error: '', close: true, switchToEdit: false, reload: true };
 }
@@ -156,7 +154,7 @@ export function roleSavePlan(f: {
     // gets an empty array and the revocation lands.
     pages: f.pages,
   };
-  if (!body.name) return { error: t('Name is required') };
+  if (!body.name) return { error: 'Name is required' };
   return id
     ? { method: 'PUT', url: '/api/roles/' + encodeURIComponent(id), body }
     : { method: 'POST', url: '/api/roles', body };
@@ -165,7 +163,7 @@ export function roleSavePlan(f: {
 export function roleSaveOutcome(res: SaveResponse): SaveOutcome {
   const d = res.body;
   if (!d || !d.ok) {
-    return { ...FAILED, error: ts(d && d.error) || t('Could not save the role') };
+    return { ...FAILED, error: (d && d.error) || 'Could not save the role' };
   }
   return { error: '', close: true, switchToEdit: false, reload: true };
 }
@@ -189,7 +187,7 @@ export function groupMembersHtml(
   esc: (s: string) => string,
 ): string {
   if (!users.length) {
-    return '<span style="color:var(--text-muted)">' + t('No users yet.') + '</span>';
+    return '<span style="color:var(--text-muted)">No users yet.</span>';
   }
   return users.map((u) =>
     '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">'
@@ -298,8 +296,8 @@ export function grantOutcome(
   const d = res.body;
   if (!d || !d.ok) {
     return {
-      error: ts(d && d.error)
-        || (fallback === 'add' ? t('Could not grant access') : t('Could not remove access')),
+      error: (d && d.error)
+        || (fallback === 'add' ? 'Could not grant access' : 'Could not remove access'),
       refresh: true,
     };
   }
@@ -314,13 +312,13 @@ export function grantOutcome(
 // user-visible change even though nothing about the request differs.
 
 export function userDeletePrompt(username: string): string {
-  return t('Delete user "{name}"? This cannot be undone.', { name: username });
+  return 'Delete user "' + username + '"? This cannot be undone.';
 }
 
 export function groupDeletePrompt(name: string): string {
-  return t('Delete group "{name}"?\n\nIts members keep any access granted to them directly.', { name });
+  return 'Delete group "' + name + '"?\n\nIts members keep any access granted to them directly.';
 }
 
 export function roleDeletePrompt(name: string): string {
-  return t('Delete the role "{name}"?', { name });
+  return 'Delete the role "' + name + '"?';
 }

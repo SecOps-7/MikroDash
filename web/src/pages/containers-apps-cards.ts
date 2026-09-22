@@ -16,7 +16,6 @@
 // picked from its category: the same app always looks the same.
 
 import { esc, fmtBytes } from '../dom';
-import { t } from '../i18n';
 import type { AppRow } from '../gen/payloads';
 
 /** A web address to link to, or '' when the value is not one. */
@@ -59,7 +58,7 @@ export function categoryLabel(c: string): string {
 }
 
 const STATE_WORD: Record<string, string> = {
-  available: t('Available'), installing: t('Installing'), running: t('Running'), stopped: t('Stopped'), error: t('Error'),
+  available: 'Available', installing: 'Installing', running: 'Running', stopped: 'Stopped', error: 'Error',
 };
 const STATE_KIND: Record<string, string> = {
   available: 'hs-never', installing: 'hs-info', running: 'hs-ok', stopped: 'hs-warn', error: 'hs-stale',
@@ -108,14 +107,14 @@ export function actions(a: AppRow, may: boolean, pending: Pending | undefined): 
     ? '<a class="apps-btn is-primary" href="' + esc(open) + '" target="_blank" rel="noopener noreferrer">Open ↗</a>' : '';
   if (pending && !pending.error) {
     return '<button type="button" class="apps-btn is-busy" disabled><span class="apps-spin"></span>' +
-      esc(pending.status || (pending.verb === 'remove' ? t('Removing…') : t('Working…'))) + '</button>';
+      esc(pending.status || (pending.verb === 'remove' ? 'Removing…' : 'Working…')) + '</button>';
   }
   if (!may) return openBtn;
   switch (a.state) {
-    case 'available': return btn('install', t('Install'), 'is-primary is-install');
-    case 'running': return openBtn + btn('stop', t('Stop'), '') + btn('restart', t('Restart'), '') + btn('remove', t('Remove'), 'is-danger');
-    case 'stopped': return btn('start', t('Start'), 'is-primary') + btn('remove', t('Remove'), 'is-danger');
-    case 'error': return btn('start', t('Retry'), 'is-primary') + btn('remove', t('Remove'), 'is-danger');
+    case 'available': return btn('install', 'Install', 'is-primary is-install');
+    case 'running': return openBtn + btn('stop', 'Stop', '') + btn('restart', 'Restart', '') + btn('remove', 'Remove', 'is-danger');
+    case 'stopped': return btn('start', 'Start', 'is-primary') + btn('remove', 'Remove', 'is-danger');
+    case 'error': return btn('start', 'Retry', 'is-primary') + btn('remove', 'Remove', 'is-danger');
     default: return '';
   }
 }
@@ -130,15 +129,15 @@ export function appCard(a: AppRow, may: boolean, pending: Pending | undefined): 
     '<div class="apps-card-titles"><div class="apps-card-name">' + esc(a.name) + '</div>' +
     '<div class="apps-card-sub"><span class="apps-card-cat">' + esc(categoryLabel(a.category)) + '</span>' +
     statePill(state) + '</div></div></div>' +
-    '<p class="apps-card-desc">' + esc(a.description || t('No description.')) + '</p>' +
+    '<p class="apps-card-desc">' + esc(a.description || 'No description.') + '</p>' +
     '<div class="apps-card-meta">' +
-    (a.defaultNetwork ? '<span class="apps-meta">' + esc(a.defaultNetwork === 'lan' ? t('On the LAN') : t('Behind NAT')) + '</span>' : '') +
+    (a.defaultNetwork ? '<span class="apps-meta">' + esc(a.defaultNetwork === 'lan' ? 'On the LAN' : 'Behind NAT') + '</span>' : '') +
     ps.slice(0, 3).map((p) => '<span class="apps-meta is-mono">' + esc(p) + '</span>').join('') +
     (ps.length > 3 ? '<span class="apps-meta">+' + (ps.length - 3) + '</span>' : '') + '</div>' +
     (state === 'installing' ? '<div class="apps-shimmer"></div>' : '') +
     (pending?.error ? '<div class="apps-card-error">' + esc(pending.error) + '</div>' : '') +
     (cred && (a.state === 'running' || a.state === 'stopped')
-      ? ('<div class="apps-cred"><span>' + t('Default login') + '</span><code>') + esc(cred) + '</code>' +
+      ? '<div class="apps-cred"><span>Default login</span><code>' + esc(cred) + '</code>' +
         '<button type="button" class="apps-copy" data-app-copy="' + esc(cred) + '" title="Copy">Copy</button></div>' : '') +
     '<div class="apps-card-actions">' + actions(a, may, pending) + '</div></article>';
 }
@@ -152,10 +151,10 @@ export function drawer(a: AppRow, may: boolean, pending: Pending | undefined): s
     '<button type="button" class="apps-close" data-app-close aria-label="Close">×</button></div>' +
     '<p class="apps-drawer-desc">' + esc(a.description || '') + '</p>' +
     (page ? '<a class="apps-link" href="' + esc(page) + '" target="_blank" rel="noopener noreferrer">Project page ↗</a>' : '') +
-    '<div class="apps-kvs">' + row(t('State'), STATE_WORD[a.state] || a.state) + row(t('Status'), a.status) +
-    row(t('Network'), a.defaultNetwork === 'lan' ? t('On the LAN') : a.defaultNetwork ? t('Behind NAT (internal)') : '') +
-    row(t('Ports'), ports(a).join(', ')) + row(t('Default login'), credentials(a)) + row(t('Memory'), size(a.memory)) +
-    row('CPU', a.cpu) + row(t('Image size'), size(a.appSize)) + row(t('Data size'), size(a.dataSize)) + '</div>' +
+    '<div class="apps-kvs">' + row('State', STATE_WORD[a.state] || a.state) + row('Status', a.status) +
+    row('Network', a.defaultNetwork === 'lan' ? 'On the LAN' : a.defaultNetwork ? 'Behind NAT (internal)' : '') +
+    row('Ports', ports(a).join(', ')) + row('Default login', credentials(a)) + row('Memory', size(a.memory)) +
+    row('CPU', a.cpu) + row('Image size', size(a.appSize)) + row('Data size', size(a.dataSize)) + '</div>' +
     '<div class="apps-card-actions">' + actions(a, may, pending) + '</div>';
 }
 

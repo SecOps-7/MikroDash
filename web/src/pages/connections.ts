@@ -17,7 +17,6 @@
 // nobody sends. So selecting one clears the other, in both directions.
 
 import { el, iso2Flag, lsGet, lsSet, renderSortHeader, sortRows, type SortState } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { CC_NAMES } from './connections-map';
 import {
@@ -253,7 +252,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     if (!sel || !last) return;
     const current = sel.value;
     const devices = clientOptions(last.topSources || [], leases);
-    sel.innerHTML = '<option value="">' + t('All Clients') + '</option>';
+    sel.innerHTML = '<option value="">All Clients</option>';
     devices.forEach((d) => {
       const opt = document.createElement('option');
       opt.value = d.ip;
@@ -447,7 +446,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     const body = el('connListBody');
     const status = el('connListStatus');
     if (!listed) {
-      if (status) status.textContent = t('Waiting for the connection table…');
+      if (status) status.textContent = 'Waiting for the connection table…';
       return;
     }
     let rows = filterConns(listed.rows.map(sortable), query, filteredBySrc);
@@ -457,7 +456,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     listPage = pg.page;
     if (body) {
       body.innerHTML = pg.rows.map(connRowHTML).join('') ||
-        '<tr><td colspan="' + CONN_COLS.length + ('" class="conn-empty">' + t('No connections match.') + '</td></tr>');
+        '<tr><td colspan="' + CONN_COLS.length + '" class="conn-empty">No connections match.</td></tr>';
     }
     const pager = pagerHTML(pg.rows.length, matched.length, pg.page, pg.pages);
     for (const id of ['connListPager', 'connListPager2']) {
@@ -466,9 +465,10 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     }
     if (status) {
       const filtered = matched.length !== listed.rows.length;
-      const v = { n: listed.total.toLocaleString(), shown: matched.length.toLocaleString(), first: listed.rows.length.toLocaleString() };
-      status.textContent = (filtered ? t('{n} connections, {shown} shown', v) : t('{n} connections', v)) +
-        (listed.capped ? '. ' + t('The router has more than MikroDash processes; the first {first} are listed.', v) : '');
+      status.textContent = listed.total.toLocaleString() + ' connections' +
+        (filtered ? ', ' + matched.length.toLocaleString() + ' shown' : '') +
+        (listed.capped ? '. The router has more than MikroDash processes; the first ' +
+          listed.rows.length.toLocaleString() + ' are listed.' : '');
     }
   }
 

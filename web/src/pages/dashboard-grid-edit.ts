@@ -33,7 +33,6 @@
 // back. That is the live behaviour and it is the forgiving one.
 
 import { el } from '../dom';
-import { t } from '../i18n';
 import { cloneLayout, findFreeSlot } from './dashboard-grid-layout';
 import { applyLayout, saveLayout } from './dashboard-grid-store';
 import { CARD_LABELS, CARD_ROOMS, DEFAULT_LAYOUT, GAP, PAD, type GridCard } from '../gen/grid-tables';
@@ -163,14 +162,14 @@ export function createGridEditor(
 
     const hdr = document.createElement('div');
     hdr.className = 'dash-add-header';
-    hdr.textContent = t('Hidden Cards');
+    hdr.textContent = 'Hidden Cards';
     panel.appendChild(hdr);
 
     const hidden = layout.filter((c) => !c.visible);
     if (hidden.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'dash-add-empty';
-      empty.textContent = t('All cards are visible');
+      empty.textContent = 'All cards are visible';
       panel.appendChild(empty);
     } else {
       const chips = document.createElement('div');
@@ -189,7 +188,7 @@ export function createGridEditor(
     const resetLink = document.createElement('a');
     resetLink.className = 'dash-reset-link';
     resetLink.href = '#';
-    resetLink.textContent = t('Reset to default layout');
+    resetLink.textContent = 'Reset to default layout';
     resetLink.addEventListener('click', (e) => {
       e.preventDefault();
       // Applied, NOT saved — see the header. Discard still puts the old one back.

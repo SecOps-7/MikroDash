@@ -25,7 +25,6 @@
  */
 
 import { el, esc } from '../dom';
-import { t, ts } from '../i18n';
 import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
 
 export interface RouterRow {
@@ -64,25 +63,25 @@ export function renderRouterRow(
   sitesById: Record<string, SiteName>,
 ): string {
   const isActive = r.id === activeId;
-  const activeBadge = isActive ? '<span class="rtr-active-badge">' + t('Active') + '</span>' : '';
+  const activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
   // A router that came in by zero-touch provisioning says so, and how.
   const ztp = ztpDeviceForRouter(r.id);
   const ztpBadge = ztp ? '<span class="rtr-ztp-badge" title="Added by zero-touch provisioning (' +
-    (ztp.mode === 'local' ? 'local' : t('through its tunnel')) + ')">ZTP</span>' : '';
+    (ztp.mode === 'local' ? 'local' : 'through its tunnel') + ')">ZTP</span>' : '';
   const delBtn = '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + '" data-rtr-label="' + esc(r.label) + '" data-rtr-action="delete" title="Delete">&#128465;</button>';
   const toggleBtn = '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem"'
     + (isActive ? ' disabled title="Cannot disable the active router"' : '')
     + ' data-rtr-id="' + esc(r.id) + '" data-rtr-action="toggle">'
-    + (r.disabled ? t('Enable') : t('Disable')) + '</button>';
+    + (r.disabled ? 'Enable' : 'Disable') + '</button>';
   const tlsBadge = r.tls
     ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
-    : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">' + t('Unencrypted') + '</span>';
+    : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
   const certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
   const connState = status[r.id];
   const badgeCls = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
-  const badgeTxt = connState === true ? t('Online') : connState === false ? t('Offline') : '—';
+  const badgeTxt = connState === true ? 'Online' : connState === false ? 'Offline' : '—';
   const statusCell = r.disabled
-    ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="' + esc(r.id) + ('">' + t('Disabled') + '</span>')
+    ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="' + esc(r.id) + '">Disabled</span>'
     : '<span class="rtr-status-badge ' + badgeCls + '" data-rtr-conn="' + esc(r.id) + '">' + badgeTxt + '</span>';
   // Identity is persisted on the router entry rather than read from the live
   // stats feed, so these stay populated while a router is offline or disabled.
@@ -112,7 +111,7 @@ export function renderRouterRow(
     '<td style="text-align:right;white-space:nowrap">' +
       '<div style="display:flex;gap:.3rem;justify-content:flex-end">' +
         toggleBtn +
-        '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + ('" data-rtr-action="edit">' + t('Edit') + '</button>') +
+        '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + '" data-rtr-action="edit">Edit</button>' +
         delBtn +
       '</div>' +
     '</td>' +
@@ -127,14 +126,14 @@ export function renderRouterTable(
   sitesById: Record<string, SiteName>,
 ): string {
   if (!routers.length) {
-    return '<tr><td colspan="' + ROUTER_TABLE_COLUMNS + ('" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">' + t('No routers configured. Click Add Router to get started.') + '</td></tr>');
+    return '<tr><td colspan="' + ROUTER_TABLE_COLUMNS + '" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
   }
   return routers.map((r) => renderRouterRow(r, activeId, status, sitesById)).join('');
 }
 
 /** The delete confirmation, which names what is about to be destroyed. */
 export function deleteRouterPrompt(label: string): string {
-  return t('Delete router "{name}"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.', { name: label });
+  return 'Delete router "' + label + '"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.';
 }
 
 /**
@@ -177,7 +176,7 @@ export function updateRouterStatusBadge(routerId: string, connected: boolean): v
   const badge = document.querySelector('[data-rtr-conn="' + routerId + '"]');
   if (!badge) return;
   badge.className = 'rtr-status-badge ' + (connected ? 'rtr-status-badge--on' : 'rtr-status-badge--off');
-  badge.textContent = connected ? t('Online') : t('Offline');
+  badge.textContent = connected ? 'Online' : 'Offline';
 }
 
 export interface RouterTableDeps {
@@ -265,7 +264,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         body: JSON.stringify({ disabled: !rr.disabled }),
       })
         .then((res) => res.json())
-        .then((j) => { if (!j.ok) alert(ts(j.error) || t('Toggle failed')); })
+        .then((j) => { if (!j.ok) alert(j.error || 'Toggle failed'); })
         .catch(() => alert('Network error'));
       return;
     }
@@ -278,7 +277,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         credentials: 'same-origin',
       })
         .then((r) => r.json())
-        .then((r) => { if (!r.ok) alert(t('Delete failed: {error}', { error: ts(r.error) || t('Unknown error') })); })
+        .then((r) => { if (!r.ok) alert('Delete failed: ' + (r.error || 'Unknown error')); })
         .catch((e) => alert('Request failed: ' + e));
     }
   });

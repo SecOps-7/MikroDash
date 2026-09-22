@@ -14,7 +14,6 @@
  */
 
 import { el } from '../dom';
-import { t, ts } from '../i18n';
 import { FONTS } from '../gen/appearance-tables.js';
 import { applyBranding, normaliseBranding, renderWordmark, type Branding } from '../branding';
 
@@ -39,16 +38,16 @@ export function wordmarkFontOptions(labels: Map<string, string>): { id: string; 
 }
 
 export function iconFileProblem(file: { size: number; type: string }): string {
-  if (file.type !== 'image/png' && file.type !== 'image/jpeg') return t('The icon must be a PNG or JPEG image.');
-  if (file.size > ICON_MAX_BYTES) return t('The icon is larger than 512 KB.');
+  if (file.type !== 'image/png' && file.type !== 'image/jpeg') return 'The icon must be a PNG or JPEG image.';
+  if (file.size > ICON_MAX_BYTES) return 'The icon is larger than 512 KB.';
   return '';
 }
 
 /** Why an image's dimensions cannot be an icon, or '' when they are fine. */
 export function iconSizeProblem(width: number, height: number): string {
-  if (width !== height) return t('The icon must be square; this one is {w} × {h} px.', { w: width, h: height });
+  if (width !== height) return 'The icon must be square; this one is ' + width + ' × ' + height + ' px.';
   if (width < ICON_MIN_PX || width > ICON_MAX_PX) {
-    return t('The icon must be {min} to {max} px; this one is {w} px.', { min: ICON_MIN_PX, max: ICON_MAX_PX, w: width });
+    return 'The icon must be ' + ICON_MIN_PX + ' to ' + ICON_MAX_PX + ' px; this one is ' + width + ' px.';
   }
   return '';
 }
@@ -56,8 +55,8 @@ export function iconSizeProblem(width: number, height: number): string {
 function errorOf(j: unknown, fallback: string): string {
   if (j && typeof j === 'object') {
     const r = j as Record<string, unknown>;
-    if (typeof r.error === 'string' && r.error) return ts(r.error);
-    if (typeof r.message === 'string' && r.message) return ts(r.message);
+    if (typeof r.error === 'string' && r.error) return r.error;
+    if (typeof r.message === 'string' && r.message) return r.message;
   }
   return fallback;
 }
@@ -102,7 +101,7 @@ export function initBrandingSettings(): void {
   };
   const settle = (r: Response): Promise<Branding> =>
     r.json().catch(() => null).then((j: unknown) => {
-      if (!r.ok) throw new Error(errorOf(j, t('The change could not be saved.')));
+      if (!r.ok) throw new Error(errorOf(j, 'The change could not be saved.'));
       const b = normaliseBranding(j);
       show(b);
       applyBranding(b);
@@ -123,7 +122,7 @@ export function initBrandingSettings(): void {
   saveBtn.addEventListener('click', () => {
     const name = nameIn.value.trim();
     if (Array.from(name).length > NAME_MAX) {
-      say(t('The name is longer than {n} characters.', { n: NAME_MAX }), 'error');
+      say('The name is longer than ' + NAME_MAX + ' characters.', 'error');
       return;
     }
     saveBtn.disabled = true;
@@ -160,19 +159,19 @@ export function initBrandingSettings(): void {
         fileIn.value = '';
         return;
       }
-      say(t('Uploading…'));
+      say('Uploading…');
       void fetch('/api/branding/icon', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': file.type }, body: file,
       })
         .then(settle)
-        .then(() => say(t('Icon saved.'), 'ok'))
+        .then(() => say('Icon saved.', 'ok'))
         .catch((e: Error) => say(e.message, 'error'))
         .finally(() => { fileIn.value = ''; });
     };
     probe.onerror = () => {
       URL.revokeObjectURL(url);
-      say(t('The file could not be read as an image.'), 'error');
+      say('The file could not be read as an image.', 'error');
       fileIn.value = '';
     };
     probe.src = url;
@@ -182,7 +181,7 @@ export function initBrandingSettings(): void {
     resetBtn.disabled = true;
     void fetch('/api/branding/icon', { method: 'DELETE', credentials: 'same-origin' })
       .then(settle)
-      .then(() => say(t('Using the default icon.'), 'ok'))
+      .then(() => say('Using the default icon.', 'ok'))
       .catch((e: Error) => {
         say(e.message, 'error');
         resetBtn.disabled = false;

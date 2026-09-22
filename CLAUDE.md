@@ -282,31 +282,6 @@ move together:
 
 ---
 
-## Translation (#94)
-
-- **English is the source, and the key.** A catalog is `web/locales/<lang>.json`, `{"English": "translation"}`;
-  a missing entry shows English. Adding a language is adding one file (with `"@name"`, its own name).
-- **Markup is translated at build time** (`internal/i18n`, called by `cmd/webbuild`), into
-  `index.<lang>.html` and `login.<lang>.html`; the server picks one by the `md_lang` cookie or the browser.
-  Mark an element `translate="no"` to keep its text out.
-- **Code translates only through `t('literal', { vars })`** (`web/src/i18n.ts`). Never pass it a variable:
-  that is how router data would reach a catalog, and the drift gate refuses it. Router-supplied values are
-  never translated.
-- **Labels declared in Go go through `tl(label)`**: field labels and help, action labels, resource, area,
-  tab and page titles, which reach the browser as data. `internal/i18n.GoLabels` reads them from the
-  registries for the catalog. `tl()` takes a variable, so it may be called only from the files in
-  `tlCallers` (`internal/verify/i18n_test.go`), a ledger that fails both ways. Select options and
-  placeholders are RouterOS values and examples of them, and are never translated.
-- **Server messages are shown through `ts(message)`**, which translates only an exact match to one of the
-  server's own literal messages (`internal/i18n.ServerMessages`: `writeJSONErr`'s third argument and
-  `Message`/`Error`/`"error"`/`"message"` literals in `internal/server`). A message built from values, or
-  text the router wrote, matches none and is shown as it came.
-- **A sentence with a value is one string with a `{placeholder}`**, never pieces joined with `+`: a
-  translator has to be able to move the value. Country names come from `Intl.DisplayNames`
-  (`countryName`), not the catalog.
-- **`web/locales/source.json` is generated** (`go run ./cmd/i18ngen`), and `TestTranslationsKeepUpWithTheInterface`
-  fails on a stale or broken translation and reports untranslated counts.
-
 ## WebSocket events
 
 - **Every event is declared once, with its payload type:** `hub.Declare[T]("name")`, in
@@ -330,8 +305,8 @@ move together:
 
 | | |
 |---|---|
-| `internal/verify/` | 86 Go tests. Static checks over the current source: credentials, cited paths, translation drift, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 77 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `internal/verify/` | 83 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
+| `web/test/` | 76 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

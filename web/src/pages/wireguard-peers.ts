@@ -32,7 +32,6 @@
 // back on the way to a table tab.
 
 import { esc, el, resRow, fmtBytes, renderSortHeader, sortRows } from '../dom';
-import { t, ts } from '../i18n';
 import type { SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Tunnel } from '../gen/payloads';
@@ -74,7 +73,7 @@ function hsToSecs(s: string): number {
  */
 function hsBadge(handshake: string, state: string): string {
   if (state === 'never' || !handshake || handshake === 'never') {
-    return '<span class="vpn-hs-badge hs-never">' + t('Never connected') + '</span>';
+    return '<span class="vpn-hs-badge hs-never">Never connected</span>';
   }
   const secs = hsToSecs(handshake);
   const cls = secs < 180 ? 'hs-ok' : secs < 600 ? 'hs-warn' : 'hs-stale';
@@ -98,13 +97,13 @@ function hsBadge(handshake: string, state: string): string {
  */
 export function overlappingPeers(rows: readonly Tunnel[]): Set<string> {
   const seen = new Map<string, string[]>();
-  for (const tun of rows) {
-    for (const a of String(tun.allowedIp || '').split(',')) {
+  for (const t of rows) {
+    for (const a of String(t.allowedIp || '').split(',')) {
       const addr = a.trim();
       if (!addr) continue;
-      const key = (tun.interface || '') + '|' + addr;
+      const key = (t.interface || '') + '|' + addr;
       const keys = seen.get(key) || [];
-      keys.push(tun.publicKey);
+      keys.push(t.publicKey);
       seen.set(key, keys);
     }
   }
@@ -116,14 +115,14 @@ export function overlappingPeers(rows: readonly Tunnel[]): Set<string> {
 }
 
 const COLS = [
-  { key: 'name', label: t('Peer') },
-  { key: 'interface', label: t('Interface') },
-  { key: 'state', label: t('Status') },
-  { key: 'lastHandshake', label: t('Handshake') },
-  { key: 'allowedIp', label: t('Allowed Addresses') },
-  { key: 'endpoint', label: t('Endpoint') },
-  { key: 'keepalive', label: t('Keepalive') },
-  { key: '', label: t('Rx / Tx'), style: 'text-align:right' },
+  { key: 'name', label: 'Peer' },
+  { key: 'interface', label: 'Interface' },
+  { key: 'state', label: 'Status' },
+  { key: 'lastHandshake', label: 'Handshake' },
+  { key: 'allowedIp', label: 'Allowed Addresses' },
+  { key: 'endpoint', label: 'Endpoint' },
+  { key: 'keepalive', label: 'Keepalive' },
+  { key: '', label: 'Rx / Tx', style: 'text-align:right' },
   // NOT SORTABLE, and not a field: the Config button. A viewer who may not
   // reveal a configuration still sees it — the server refuses and audits the
   // attempt, and hiding a button is not an access control. See
@@ -166,7 +165,7 @@ export function initWireguardPeers(socket: Socket): void {
     if (!modal || !pre || !qr || !note) return;
     wipeConfig();
     modal.hidden = false;
-    if (note) note.textContent = t('Asking the router…');
+    if (note) note.textContent = 'Asking the router…';
 
     const q = '?routerId=' + encodeURIComponent(routerId) +
       '&publicKey=' + encodeURIComponent(publicKey);
@@ -174,11 +173,11 @@ export function initWireguardPeers(socket: Socket): void {
       const res = await fetch('/api/wireguard/peer-config' + q, { credentials: 'same-origin' });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        note.textContent = (body && body.error) ? ts(String(body.error))
-          : t('The router did not return a configuration.');
+        note.textContent = (body && body.error) ? String(body.error)
+          : 'The router did not return a configuration.';
         return;
       }
-      if (title) title.textContent = t('Client configuration — {peer}', { peer: String(body.peer || '') });
+      if (title) title.textContent = 'Client configuration — ' + String(body.peer || '');
       // THE CONFIG IS TEXT, so it goes in as text. `textContent`, never
       // `innerHTML`: it is the operator's own router data and it is not markup.
       pre.textContent = String(body.config || '');
@@ -190,7 +189,7 @@ export function initWireguardPeers(socket: Socket): void {
       const dl = el<HTMLAnchorElement>('wgConfDownload');
       if (dl) dl.href = '/api/wireguard/peer-config' + q + '&download=1';
     } catch {
-      note.textContent = t('Could not reach this server.');
+      note.textContent = 'Could not reach this server.';
     }
   }
 
@@ -210,37 +209,37 @@ export function initWireguardPeers(socket: Socket): void {
     if (!body) return;
     if (!last.length) {
       body.innerHTML = '<tr><td colspan="' + COLS.length +
-        ('"><div class="empty-state">' + t('No peers yet. Add one to hand a device its configuration.') + '</div></td></tr>');
+        '"><div class="empty-state">No peers yet. Add one to hand a device its configuration.</div></td></tr>';
       return;
     }
 
     const clashing = overlappingPeers(last);
     const rows = sortRows(last, sort.col, sort.dir);
-    body.innerHTML = rows.map((tun) => {
-      const rxR = tun.rxRate || 0;
-      const txR = tun.txRate || 0;
+    body.innerHTML = rows.map((t) => {
+      const rxR = t.rxRate || 0;
+      const txR = t.txRate || 0;
       const rate = (rxR > 0 || txR > 0)
         ? '<span style="color:var(--accent-rx)">↓ ' + esc(fmtBytes(Math.round(rxR))) + '/s</span> ' +
           '<span style="color:var(--accent-tx)">↑ ' + esc(fmtBytes(Math.round(txR))) + '/s</span>'
-        : '<span style="color:var(--accent-rx)">↓ ' + esc(fmtBytes(tun.rx || 0)) + '</span> ' +
-          '<span style="color:var(--accent-tx)">↑ ' + esc(fmtBytes(tun.tx || 0)) + '</span>';
-      const config = '<button class="btn btn-sm" data-wg-config="' + esc(tun.publicKey) +
-        ('" title="Show this peer\'s client configuration and QR code">' + t('Config') + '</button>');
+        : '<span style="color:var(--accent-rx)">↓ ' + esc(fmtBytes(t.rx || 0)) + '</span> ' +
+          '<span style="color:var(--accent-tx)">↑ ' + esc(fmtBytes(t.tx || 0)) + '</span>';
+      const config = '<button class="btn btn-sm" data-wg-config="' + esc(t.publicKey) +
+        '" title="Show this peer\'s client configuration and QR code">Config</button>';
       const flags =
-        (tun.disabled ? '<span class="vpn-hs-badge hs-warn">disabled</span> ' : '') +
-        (tun.responder ? '<span class="vpn-hs-badge hs-info">responder</span> ' : '') +
-        (clashing.has(tun.publicKey)
+        (t.disabled ? '<span class="vpn-hs-badge hs-warn">disabled</span> ' : '') +
+        (t.responder ? '<span class="vpn-hs-badge hs-info">responder</span> ' : '') +
+        (clashing.has(t.publicKey)
           ? '<span class="vpn-hs-badge hs-stale" title="Another peer on this interface claims the same allowed address. WireGuard routes by longest prefix, so only one of them will ever receive that traffic.">overlap</span>'
           : '');
-      return '<tr' + resRow(tun.id, tun.publicKey, 'wgPeer') + '>' +
-        '<td style="font-weight:600">' + esc(tun.name || '—') + '</td>' +
-        '<td>' + esc(tun.interface || '—') + '</td>' +
-        '<td>' + hsBadge(tun.lastHandshake, tun.state) + '</td>' +
-        '<td style="font-size:.72rem">' + esc(tun.lastHandshake || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(tun.allowedIp || '—') +
+      return '<tr' + resRow(t.id, t.publicKey, 'wgPeer') + '>' +
+        '<td style="font-weight:600">' + esc(t.name || '—') + '</td>' +
+        '<td>' + esc(t.interface || '—') + '</td>' +
+        '<td>' + hsBadge(t.lastHandshake, t.state) + '</td>' +
+        '<td style="font-size:.72rem">' + esc(t.lastHandshake || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(t.allowedIp || '—') +
           (flags ? ' ' + flags : '') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(tun.endpoint || '—') + '</td>' +
-        '<td style="font-size:.72rem">' + esc(tun.keepalive || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(t.endpoint || '—') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(t.keepalive || '—') + '</td>' +
         '<td style="text-align:right;font-family:var(--font-mono);font-size:.72rem">' + rate + '</td>' +
         '<td style="text-align:right">' + config + '</td>' +
         '</tr>';
@@ -260,9 +259,9 @@ export function initWireguardPeers(socket: Socket): void {
       '</div>' +
       '<div class="apps-modal" id="wgConfModal" hidden>' +
         '<div class="apps-modal-card" style="width:min(720px,94vw)">' +
-          ('<h3 class="card-title" id="wgConfTitle">' + t('Client configuration') + '</h3>') +
+          '<h3 class="card-title" id="wgConfTitle">Client configuration</h3>' +
           '<p style="font-size:.78rem;color:var(--accent-red,#f87171);margin:.3rem 0 .6rem">' +
-            t('This contains the client\'s private key. Anyone who has it can join your network.') +
+            'This contains the client\'s private key. Anyone who has it can join your network.' +
           '</p>' +
           '<div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start">' +
             '<div id="wgConfQR" style="width:min(240px,60vw)"></div>' +
@@ -271,18 +270,18 @@ export function initWireguardPeers(socket: Socket): void {
           '</div>' +
           '<p id="wgConfNote" style="font-size:.75rem;color:var(--text-muted);margin:.6rem 0 0"></p>' +
           '<div class="hdr-actions" style="justify-content:flex-end;gap:.4rem;margin-top:.8rem">' +
-            ('<button class="btn btn-sm" data-wg-copy>' + t('Copy') + '</button>') +
-            ('<a class="btn btn-sm" id="wgConfDownload" download>' + t('Download') + '</a>') +
-            ('<button class="btn btn-sm" data-wg-close>' + t('Close') + '</button>') +
+            '<button class="btn btn-sm" data-wg-copy>Copy</button>' +
+            '<a class="btn btn-sm" id="wgConfDownload" download>Download</a>' +
+            '<button class="btn btn-sm" data-wg-close>Close</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     renderSortHeader('wgPeerHead', COLS, sort, draw);
 
     h.addEventListener('click', (e) => {
-      const tgt = (e as unknown as { target: HTMLElement | null }).target;
-      if (!tgt || !tgt.closest) return;
-      const open = tgt.closest('[data-wg-config]') as HTMLElement | null;
+      const t = (e as unknown as { target: HTMLElement | null }).target;
+      if (!t || !t.closest) return;
+      const open = t.closest('[data-wg-config]') as HTMLElement | null;
       if (open) {
         // ── STOPPED HERE, OR THE ROW OPENS ITS EDIT FORM TOO ──────────────
         //
@@ -295,11 +294,11 @@ export function initWireguardPeers(socket: Socket): void {
         void showConfig(open.getAttribute('data-wg-config') || '');
         return;
       }
-      if (tgt.closest('[data-wg-close]') || tgt === el('wgConfModal')) {
+      if (t.closest('[data-wg-close]') || t === el('wgConfModal')) {
         wipeConfig();
         return;
       }
-      if (tgt.closest('[data-wg-copy]')) {
+      if (t.closest('[data-wg-copy]')) {
         const pre = el('wgConfText');
         const text = pre ? pre.textContent || '' : '';
         if (text && navigator.clipboard) void navigator.clipboard.writeText(text);
@@ -312,7 +311,7 @@ export function initWireguardPeers(socket: Socket): void {
   }
 
   socket.on('vpn:update', (d) => {
-    last = (d.tunnels || []).filter((tun) => tun.type === 'WireGuard');
+    last = (d.tunnels || []).filter((t) => t.type === 'WireGuard');
     draw();
   });
 

@@ -21,7 +21,6 @@
 // operator's own setting and it is the more useful thing to say.
 
 import { el } from '../dom';
-import { t } from '../i18n';
 import type { WanStatus } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
 
@@ -41,7 +40,8 @@ export function renderStreamHealth(h: HandEvents['stream:health'] | undefined): 
   // with no explanation, which is worse than neither.
   if (!card || !warn) return;
   if (h.degraded) {
-    warn.textContent = t('⚠ Data incomplete — stream restarted {n} times without recovering', { n: h.restarts });
+    warn.textContent = '⚠ Data incomplete — stream restarted ' + h.restarts +
+      ' times without recovering';
     card.classList.add('is-degraded');
   } else {
     warn.textContent = '';

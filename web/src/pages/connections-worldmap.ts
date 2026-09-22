@@ -14,7 +14,6 @@
 // static file (web/public/vendor/world-atlas) fetched when the map opens.
 
 import { CC_NAMES, NUM_TO_ISO2, centroidOf, coordsToD, makeArcD } from './connections-map';
-import { countryName } from '../i18n';
 import { esc, iso2Flag } from '../dom';
 import type { ConnCountryProto } from '../gen/payloads';
 
@@ -493,7 +492,7 @@ export function attachMapZoom(
 
 /** Country name and flag, for the tooltip. */
 export function countryLabel(cc: string): string {
-  return iso2Flag(cc) + ' ' + countryName(cc, CC_NAMES[cc]);
+  return iso2Flag(cc) + ' ' + (CC_NAMES[cc] || cc);
 }
 
 /**
@@ -545,7 +544,7 @@ export function bindMapTooltip(
       tipCc = cc;
       wrapRect = null; // the box resizes with its text
       const flag = iso2Flag(cc);
-      tooltipEl.innerHTML = flag + ' <strong>' + esc(countryName(cc, CC_NAMES[cc])) + '</strong>' +
+      tooltipEl.innerHTML = flag + ' <strong>' + esc(CC_NAMES[cc] || cc) + '</strong>' +
         (city ? ' · ' + esc(city) : '') +
         (count ? ' &nbsp;<span style="color:var(--accent-rx)">' + count + ' conns</span>' : '') +
         ((proto.tcp || proto.udp)

@@ -14,7 +14,6 @@
 // something the app it replaces does not.
 
 import { el } from '../dom';
-import { t } from '../i18n';
 
 /**
  * Escape by round-tripping through a text node, NOT by substitution.
@@ -77,9 +76,9 @@ export function dcFlag(cc: string | null | undefined): string {
  */
 export function dcSplitRate(mbps: unknown): { num: string; unit: string } {
   const n = Number(mbps) || 0;
-  if (n >= 1000) return { num: (n / 1000).toFixed(2), unit: t('Gbps') };
-  if (n >= 1) return { num: n.toFixed(2), unit: t('Mbps') };
-  if (n >= 0.001) return { num: (n * 1000).toFixed(1), unit: t('Kbps') };
+  if (n >= 1000) return { num: (n / 1000).toFixed(2), unit: 'Gbps' };
+  if (n >= 1) return { num: n.toFixed(2), unit: 'Mbps' };
+  if (n >= 0.001) return { num: (n * 1000).toFixed(1), unit: 'Kbps' };
   return { num: '—', unit: '' };
 }
 

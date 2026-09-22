@@ -6,18 +6,17 @@
 // it renders correctly.
 
 import { esc, el, resRow, debounce, renderSortHeader, sortMul, type SortCol, type SortState, kv } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows, openResource } from '../resource';
 import { initDnsFleet } from './dns-fleet';
 import type { DNSStaticEntry, DNSPayload } from '../gen/payloads';
 
 const COLS_S: SortCol[] = [
-  { key: 'name', label: t('Name') },
-  { key: 'address', label: t('Address') },
-  { key: 'type', label: t('Type') },
+  { key: 'name', label: 'Name' },
+  { key: 'address', label: 'Address' },
+  { key: 'type', label: 'Type' },
   { key: 'ttl', label: 'TTL' },
-  { key: 'comment', label: t('Comment') },
+  { key: 'comment', label: 'Comment' },
 ];
 
 export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -44,18 +43,18 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
     let html = '';
     html += s.dohEnabled
       ? kv('DNS over HTTPS', esc(s.dohUrl), 'on') +
-        kv(t('Certificate check'), s.dohVerifyCert ? 'verified' : 'NOT verified',
+        kv('Certificate check', s.dohVerifyCert ? 'verified' : 'NOT verified',
           s.dohVerifyCert ? 'on' : 'warn')
       : kv('DNS over HTTPS', 'off', 'off');
-    html += kv(t('Servers'), esc(servers));
-    html += kv(t('Allow remote requests'), s.allowRemoteRequests ? 'yes' : 'no',
+    html += kv('Servers', esc(servers));
+    html += kv('Allow remote requests', s.allowRemoteRequests ? 'yes' : 'no',
       s.allowRemoteRequests ? 'warn' : 'off');
-    html += kv(t('Cache'), (s.cacheUsed === null ? '—' : String(s.cacheUsed)) + ' / ' +
+    html += kv('Cache', (s.cacheUsed === null ? '—' : String(s.cacheUsed)) + ' / ' +
       (s.cacheSize === null ? '—' : String(s.cacheSize)) + ' KiB');
-    html += kv(t('Cache max TTL'), esc(s.cacheMaxTtl || '—'));
+    html += kv('Cache max TTL', esc(s.cacheMaxTtl || '—'));
     html += kv('mDNS repeat', esc(s.mdnsRepeatIfaces.join(', ') || '—'));
-    html += kv(t('Max UDP packet'), s.maxUdpPacketSize === null ? '—' : String(s.maxUdpPacketSize));
-    html += kv(t('Query timeout'), esc(s.queryServerTimeout || '—') + ' / ' + esc(s.queryTotalTimeout || '—'));
+    html += kv('Max UDP packet', s.maxUdpPacketSize === null ? '—' : String(s.maxUdpPacketSize));
+    html += kv('Query timeout', esc(s.queryServerTimeout || '—') + ' / ' + esc(s.queryTotalTimeout || '—'));
     settingsBody!.innerHTML = html;
   }
 
@@ -90,7 +89,7 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
       '<td style="color:var(--text-muted)">' + esc(e.comment || '') + '</td>' +
       '</tr>').join('')
       : '<tr><td colspan="5" class="empty-state">' +
-        (q ? t('No entries match that search.') : t('No static DNS entries.')) + '</td></tr>';
+        (q ? 'No entries match that search.' : 'No static DNS entries.') + '</td></tr>';
   }
 
   function render(): void {

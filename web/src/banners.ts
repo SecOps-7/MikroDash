@@ -37,7 +37,6 @@
 // routers' outages as this one's.
 
 import { fmtTime } from './timefmt';
-import { t } from './i18n';
 import { el } from './dom.js';
 
 let rosDisconnected = false;
@@ -126,7 +125,7 @@ export function setRosBanner(connected: boolean, reason?: string | null): void {
     resumeDiagram();
   } else {
     const text = el('rosBannerText');
-    if (text) text.textContent = reason || t('RouterOS not connected — retrying…');
+    if (text) text.textContent = reason || 'RouterOS not connected — retrying…';
     // Suppressed while the red banner is up; see the header.
     if (!reconnect || !reconnect.classList.contains('show')) ros.classList.add('show');
     document.body.classList.add('is-ros-disconnected');

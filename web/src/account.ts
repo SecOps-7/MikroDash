@@ -13,7 +13,6 @@
 // strongest gate available, and the writes cannot.
 
 import { fmtTs } from './timefmt';
-import { t, ts } from './i18n';
 import { initUserNotify, loadUserNotify } from './pages/usernotify';
 import { el, esc } from './dom.js';
 
@@ -50,19 +49,19 @@ export function renderAccess(a: AccessGrants): void {
   if (!body) return;
   const rows: string[] = [];
   if (a.global && a.global.length) {
-    rows.push(('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">' + t('Everything') + '</strong>') +
+    rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Everything</strong>' +
               '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(a.global.join(', ')) + '</div></div>');
   }
   (a.sites || []).forEach((s) => {
-    rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">' + t('Site: {name}', { name: esc(s.siteName) }) + '</strong>' +
+    rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Site: ' + esc(s.siteName) + '</strong>' +
               '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(s.roles.join(', ')) + '</div></div>');
   });
   (a.routers || []).forEach((r) => {
-    rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">' + t('Router: {name}', { name: esc(r.routerLabel) }) + '</strong>' +
+    rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Router: ' + esc(r.routerLabel) + '</strong>' +
               '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(r.roles.join(', ')) + '</div></div>');
   });
   body.innerHTML = rows.length ? rows.join('')
-    : '<span style="color:var(--text-muted);font-size:.78rem">' + t('No access granted yet — ask an administrator.') + '</span>';
+    : '<span style="color:var(--text-muted);font-size:.78rem">No access granted yet — ask an administrator.</span>';
 }
 
 /**
@@ -74,15 +73,15 @@ export function renderSessions(list: SessionRow[] | null | undefined): void {
   const body = el('acct_sessionsBody');
   if (!body) return;
   if (!list || !list.length) {
-    body.innerHTML = '<span style="color:var(--text-muted);font-size:.78rem">' + t('No active sessions.') + '</span>';
+    body.innerHTML = '<span style="color:var(--text-muted);font-size:.78rem">No active sessions.</span>';
     return;
   }
   body.innerHTML = list.map((s) => {
     const when = fmtTs(s.createdAt, false);
     const exp = s.expiresAt ? fmtTs(s.expiresAt, false) : 'never';
     return '<div style="display:flex;justify-content:space-between;gap:.7rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.75rem">' +
-           '<span>' + t('Signed in {when}', { when: esc(when) }) + (s.current ? ' <strong>' + t('(this device)') + '</strong>' : '') + '</span>' +
-           '<span style="color:var(--text-muted)">' + t('expires {when}', { when: esc(exp) }) + '</span></div>';
+           '<span>Signed in ' + esc(when) + (s.current ? ' <strong>(this device)</strong>' : '') + '</span>' +
+           '<span style="color:var(--text-muted)">expires ' + esc(exp) + '</span></div>';
   }).join('');
 }
 
@@ -239,12 +238,12 @@ export function wireAccount(): void {
     const cf = el<HTMLInputElement>('acct_confirmPassword');
     const out = el('acct_pwResult');
     if (!cur || !nw || !cf) return;
-    if (!cur.value || !nw.value) return acctSay(out, false, t('Both passwords are required'));
+    if (!cur.value || !nw.value) return acctSay(out, false, 'Both passwords are required');
     // Checked here as well as server-side: catching a typo before it is
     // submitted is kinder than changing a password to something unintended.
-    if (nw.value !== cf.value) return acctSay(out, false, t('New passwords do not match'));
+    if (nw.value !== cf.value) return acctSay(out, false, 'New passwords do not match');
     pwBtn.disabled = true;
-    acctSay(out, true, t('Saving…'));
+    acctSay(out, true, 'Saving…');
     void fetch('/api/account/password', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword: cur.value, newPassword: nw.value }),
@@ -252,11 +251,11 @@ export function wireAccount(): void {
       .then((r) => r.json())
       .then((d) => {
         pwBtn.disabled = false;
-        if (!d.ok) return acctSay(out, false, ts(d.error) || t('Failed'));
+        if (!d.ok) return acctSay(out, false, d.error || 'Failed');
         cur.value = nw.value = cf.value = '';
         acctSay(out, true, d.revokedOtherSessions
-          ? t('✓ Password changed — signed out of {n} other session(s)', { n: d.revokedOtherSessions })
-          : t('✓ Password changed'));
+          ? '✓ Password changed — signed out of ' + d.revokedOtherSessions + ' other session(s)'
+          : '✓ Password changed');
         loadAccount();
       })
       .catch((e) => { pwBtn.disabled = false; acctSay(out, false, String(e)); });
@@ -270,8 +269,8 @@ export function wireAccount(): void {
       .then((r) => r.json())
       .then((d) => {
         revokeBtn.disabled = false;
-        if (!d.ok) return acctSay(out, false, ts(d.error) || t('Failed'));
-        acctSay(out, true, t('✓ Signed out {n} other session(s)', { n: d.revoked }));
+        if (!d.ok) return acctSay(out, false, d.error || 'Failed');
+        acctSay(out, true, '✓ Signed out ' + d.revoked + ' other session(s)');
         loadAccount();
       })
       .catch((e) => { revokeBtn.disabled = false; acctSay(out, false, String(e)); });

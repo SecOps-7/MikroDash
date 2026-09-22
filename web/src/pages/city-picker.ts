@@ -9,7 +9,6 @@
 // piece of the modal; it is a precondition for wiring it at all.
 
 import { esc } from '../dom';
-import { t } from '../i18n';
 
 /** A town as `/api/cities` returns it. */
 export interface City {
@@ -65,7 +64,7 @@ export function cityListHtml(
 ): string {
   if (!results.length) {
     return '<div class="cpick-empty">'
-      + (unavailable ? t('City search is unavailable on this install.') : t('No matching town.'))
+      + (unavailable ? 'City search is unavailable on this install.' : 'No matching town.')
       + '</div>';
   }
   return results.map((p, i) =>

@@ -203,19 +203,6 @@ export function applyTheme(t: string): void {
   reapplyBgVars();
 }
 
-/**
- * A font stack with the CJK face before its generic family (#94). 'MD CJK' is
- * declared in app.css as system Chinese faces through local() only and limited
- * to CJK code points, so Latin text never uses it and nothing is downloaded;
- * without it a Chinese page falls back to whatever the platform picks for the
- * generic family, which differs from browser to browser.
- */
-export function withCJK(stack: string): string {
-  if (stack.includes("'MD CJK'")) return stack;
-  const m = /,\s*(sans-serif|serif|monospace|system-ui|cursive)\s*$/.exec(stack);
-  return m ? stack.slice(0, m.index) + ", 'MD CJK'" + stack.slice(m.index) : stack + ", 'MD CJK'";
-}
-
 /** The interface font a browser gets until it picks another. */
 export const DEFAULT_FONT = 'oxanium';
 
@@ -223,7 +210,7 @@ export const DEFAULT_FONT = 'oxanium';
  *  its position in the list. */
 export function applyFont(fontId: string): void {
   const font = FONTS.find((f) => f.id === fontId) || FONTS.find((f) => f.id === DEFAULT_FONT)!;
-  root().style.setProperty('--font-ui', withCJK(font.family));
+  root().style.setProperty('--font-ui', font.family);
   lsSet(KEYS.font, font.id);
 }
 

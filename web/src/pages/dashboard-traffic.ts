@@ -31,7 +31,6 @@
 // the browser paints the returning page with it already current.
 
 import { fmtTime } from '../timefmt';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { el, fmtMbps } from '../dom';
 import { notePayload } from '../stale';
@@ -86,7 +85,7 @@ export const trafficTickPlugin = {
     if (!x || x.min == null || x.max == null) return;
     const ctx = c.ctx, ca = c.chartArea, w = ca.right - ca.left;
     ctx.save();
-    ctx.font = "10px t('JetBrains Mono'),monospace";
+    ctx.font = "10px 'JetBrains Mono',monospace";
     ctx.textBaseline = 'top';
     const labelW = ctx.measureText(fmtTime(x.min)).width;
     const n = Math.min(7, Math.max(1, Math.floor(w / (labelW + 20))));
@@ -136,8 +135,8 @@ export function chartConfig(nowMs: number): unknown {
         legend: { display: false },
         tooltip: {
           backgroundColor: 'rgba(7,9,15,.9)', borderColor: 'rgba(99,130,190,.2)', borderWidth: 1,
-          titleFont: { family: "t('JetBrains Mono'),monospace", size: 11 },
-          bodyFont: { family: "t('JetBrains Mono'),monospace", size: 11 },
+          titleFont: { family: "'JetBrains Mono',monospace", size: 11 },
+          bodyFont: { family: "'JetBrains Mono',monospace", size: 11 },
           callbacks: {
             title: (items: { parsed: { x: number } }[]) => fmtTime(items[0]!.parsed.x),
             label: (c: { dataset: { label: string }; parsed: { y: number } }) =>
@@ -159,7 +158,7 @@ export function chartConfig(nowMs: number): unknown {
           grid: { color: 'rgba(99,130,190,.07)' },
           ticks: {
             color: 'rgba(148,163,190,.4)',
-            font: { family: "t('JetBrains Mono'),monospace", size: 10 },
+            font: { family: "'JetBrains Mono',monospace", size: 10 },
             callback: (v: number) => fmtMbps(v),
           },
         },

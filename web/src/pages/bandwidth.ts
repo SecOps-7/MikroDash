@@ -10,7 +10,6 @@
 // than keeping a second buffer of the same stream.
 
 import { fmtTime } from '../timefmt';
-import { t } from '../i18n';
 import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag, protoPill } from '../dom';
 import {
   RIGHT_BUFFER_MS, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
@@ -89,9 +88,9 @@ const SORT_COLS: Array<{ id: string; key: SortKey }> = [
  */
 export function splitRate(mbps: unknown): { num: string; unit: string } {
   const n = Number(mbps) || 0;
-  if (n >= 1000) return { num: (n / 1000).toFixed(2), unit: t('Gbps') };
-  if (n >= 1) return { num: n.toFixed(2), unit: t('Mbps') };
-  if (n >= 0.001) return { num: (n * 1000).toFixed(1), unit: t('Kbps') };
+  if (n >= 1000) return { num: (n / 1000).toFixed(2), unit: 'Gbps' };
+  if (n >= 1) return { num: n.toFixed(2), unit: 'Mbps' };
+  if (n >= 0.001) return { num: (n * 1000).toFixed(1), unit: 'Kbps' };
   return { num: '\u2014', unit: '' };
 }
 
@@ -164,8 +163,8 @@ export function bwChartConfig(nowMs: number, windowSecs: number, rightBufferMs: 
         legend: { display: false },
         tooltip: {
           backgroundColor: 'rgba(7,9,15,.9)', borderColor: 'rgba(99,130,190,.2)', borderWidth: 1,
-          titleFont: { family: "t('JetBrains Mono'),monospace", size: 10 },
-          bodyFont: { family: "t('JetBrains Mono'),monospace", size: 10 },
+          titleFont: { family: "'JetBrains Mono',monospace", size: 10 },
+          bodyFont: { family: "'JetBrains Mono',monospace", size: 10 },
           callbacks: {
             title: (items: { parsed: { x: number } }[]) => fmtTime(items[0]!.parsed.x),
             label: (c: { dataset: { label: string }; parsed: { y: number } }) =>
@@ -183,7 +182,7 @@ export function bwChartConfig(nowMs: number, windowSecs: number, rightBufferMs: 
           grid: { color: 'rgba(99,130,190,.06)' },
           ticks: {
             color: 'rgba(148,163,190,.4)',
-            font: { family: "t('JetBrains Mono'),monospace", size: 9 },
+            font: { family: "'JetBrains Mono',monospace", size: 9 },
             callback: (v: number) => fmtMbps(v),
             maxTicksLimit: 4,
           },
@@ -278,7 +277,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
   function render(): void {
     const rows = filtered();
     if (!rows.length) {
-      tbody!.innerHTML = '<tr><td colspan="8" class="bw-empty">' + t('No active bandwidth') + '</td></tr>';
+      tbody!.innerHTML = '<tr><td colspan="8" class="bw-empty">No active bandwidth</td></tr>';
       if (stats) stats.textContent = '';
       return;
     }
@@ -362,7 +361,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
     const existing = Array.from(selIface.options).map((o) => o.value).filter(Boolean).sort();
     if (ifaces.length === existing.length && ifaces.every((n, i) => n === existing[i])) return;
     const cur = selIface.value;
-    selIface.innerHTML = '<option value="">' + t('All interfaces') + '</option>';
+    selIface.innerHTML = '<option value="">All interfaces</option>';
     ifaces.forEach((name) => {
       const o = document.createElement('option');
       o.value = name;

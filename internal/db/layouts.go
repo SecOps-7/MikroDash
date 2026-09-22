@@ -2,9 +2,8 @@ package db
 
 // Opaque JSON preference blobs, keyed by (user_id, kind).
 //
-// Four kinds exist and the schema CHECK names them: 'dashboard', 'topology'
-// and 'nav', read and written by the layout and nav-prefs routes, and 'lang',
-// the interface language, by the language route (migration 22).
+// Three kinds exist and the schema CHECK names them: 'dashboard', 'topology'
+// and 'nav', read and written by the layout and nav-prefs routes.
 
 import (
 	"database/sql"

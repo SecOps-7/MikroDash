@@ -19,7 +19,6 @@
 // read as a fact rather than an absence.
 
 import { el } from '../dom';
-import { t } from '../i18n';
 import { dcDrawGauge } from './dashboard-cards-util';
 import type { LanPayload } from '../gen/payloads';
 
@@ -29,5 +28,5 @@ export function renderIpUtilCard(data: LanPayload): void {
   const pct = totalPool > 0 ? Math.round((totalUsed / totalPool) * 100) : 0;
   dcDrawGauge(pct);
   const lbl = el('dc-dhcpGaugeLbl');
-  if (lbl) lbl.textContent = totalPool > 0 ? t('{used} / {total} used', { used: totalUsed, total: totalPool }) : t('used');
+  if (lbl) lbl.textContent = totalPool > 0 ? (totalUsed + ' / ' + totalPool + ' used') : 'used';
 }

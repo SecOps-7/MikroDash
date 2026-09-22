@@ -6,7 +6,6 @@
 // bandwidth share a different set of concerns and get their own.
 
 import { esc, el, maxOf, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
-import { t } from '../i18n';
 import { fmtTs, fmtDuration, statCard } from './reports';
 import { renderPingChart } from './reports-charts';
 
@@ -37,10 +36,10 @@ const PING_PAGE_SIZE = 100;
 // ── Ping ────────────────────────────────────────────────────────────────────
 
 const PING_COLS: SortCol[] = [
-  { key: 'ts', label: t('Time'), style: '' },
-  { key: 'target', label: t('Target'), style: '' },
+  { key: 'ts', label: 'Time', style: '' },
+  { key: 'target', label: 'Target', style: '' },
   { key: 'rtt_ms', label: 'RTT (ms)', style: 'text-align:right' },
-  { key: 'loss_pct', label: t('Loss %'), style: 'text-align:right' },
+  { key: 'loss_pct', label: 'Loss %', style: 'text-align:right' },
 ];
 
 let pingRaw: PingRow[] = [];
@@ -80,7 +79,7 @@ export function renderPingPage(): void {
           '<td style="text-align:right;font-family:var(--font-mono)"' + lossClass + '>' +
           esc((+r.loss_pct).toFixed(1)) + '%</td></tr>';
       }).join('')
-      : '<tr><td colspan="4" class="rpt-empty">' + t('No data for this range.') + '</td></tr>';
+      : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
   }
 
   const pager = el('rptPingPager');
@@ -89,7 +88,8 @@ export function renderPingPage(): void {
   // `toLocaleString` on the count, so 12,345 rows reads as a number rather than
   // a serial. The original's, and it follows the browser's locale.
   if (info) {
-    info.textContent = t('Page {page} of {pages} ({rows} rows)', { page: pingPage + 1, pages, rows: total.toLocaleString() });
+    info.textContent = 'Page ' + (pingPage + 1) + ' of ' + pages +
+      ' (' + total.toLocaleString() + ' rows)';
   }
   const prev = el<HTMLButtonElement>('rptPingPrev');
   if (prev) prev.disabled = pingPage === 0;
@@ -135,11 +135,11 @@ export function renderPing(rows: PingRow[]): void {
   const stats = el('rptPingStats');
   if (stats) {
     stats.innerHTML =
-      statCard(uptime, t('Uptime')) +
-      statCard(avgRtt !== '—' ? avgRtt + ' ms' : '—', t('Avg RTT')) +
-      statCard(maxRtt !== '—' ? maxRtt + ' ms' : '—', t('Max RTT')) +
-      statCard(avgLoss !== '—' ? avgLoss + '%' : '—', t('Avg Loss')) +
-      statCard(rows.length.toLocaleString(), t('Samples'));
+      statCard(uptime, 'Uptime') +
+      statCard(avgRtt !== '—' ? avgRtt + ' ms' : '—', 'Avg RTT') +
+      statCard(maxRtt !== '—' ? maxRtt + ' ms' : '—', 'Max RTT') +
+      statCard(avgLoss !== '—' ? avgLoss + '%' : '—', 'Avg Loss') +
+      statCard(rows.length.toLocaleString(), 'Samples');
   }
 
   renderPingChart(rows);
@@ -170,17 +170,17 @@ export function wirePingPager(): void {
 // ── Connectivity ────────────────────────────────────────────────────────────
 
 const CONN_COLS_AGG: SortCol[] = [
-  { key: 'ts', label: t('Time'), style: '' },
-  { key: 'total', label: t('Total'), style: 'text-align:right' },
-  { key: 'online', label: t('Online'), style: 'text-align:right' },
-  { key: 'offline', label: t('Offline'), style: 'text-align:right' },
-  { key: 'uptime_pct', label: t('Uptime&nbsp;%'), style: 'text-align:right' },
+  { key: 'ts', label: 'Time', style: '' },
+  { key: 'total', label: 'Total', style: 'text-align:right' },
+  { key: 'online', label: 'Online', style: 'text-align:right' },
+  { key: 'offline', label: 'Offline', style: 'text-align:right' },
+  { key: 'uptime_pct', label: 'Uptime&nbsp;%', style: 'text-align:right' },
 ];
 
 const CONN_COLS_RAW: SortCol[] = [
-  { key: 'ts', label: t('Time'), style: '' },
-  { key: 'connected', label: t('Status'), style: '' },
-  { key: 'downtime_ms', label: t('Down Duration'), style: 'text-align:right' },
+  { key: 'ts', label: 'Time', style: '' },
+  { key: 'connected', label: 'Status', style: '' },
+  { key: 'downtime_ms', label: 'Down Duration', style: 'text-align:right' },
 ];
 
 let connRaw: ConnRow[] = [];
@@ -211,7 +211,7 @@ function applyConnSort(): void {
   if (tbody) {
     if (!sorted.length) {
       tbody.innerHTML = '<tr><td colspan="' + (connAgg ? 5 : 3) +
-        ('" class="rpt-empty">' + t('No connectivity events for this range.') + '</td></tr>');
+        '" class="rpt-empty">No connectivity events for this range.</td></tr>';
     } else if (connAgg) {
       tbody.innerHTML = sorted.map((r) =>
         '<tr>' +
@@ -228,8 +228,8 @@ function applyConnSort(): void {
     } else {
       tbody.innerHTML = sorted.map((r) => {
         const badge = r.connected
-          ? '<span class="rtr-status-badge rtr-status-badge--on">' + t('Online') + '</span>'
-          : '<span class="rtr-status-badge rtr-status-badge--off">' + t('Offline') + '</span>';
+          ? '<span class="rtr-status-badge rtr-status-badge--on">Online</span>'
+          : '<span class="rtr-status-badge rtr-status-badge--off">Offline</span>';
         // "ONGOING" IS NOT ZERO. A null duration on an offline row means the
         // outage has no end yet — the annotation walks backwards and finds no
         // online event after it — and showing 0s would report a router that is
@@ -237,7 +237,7 @@ function applyConnSort(): void {
         const dur = !r.connected
           ? (r.downtime_ms != null
             ? esc(fmtDuration(r.downtime_ms))
-            : '<span style="color:var(--accent-warn)">' + t('Ongoing') + '</span>')
+            : '<span style="color:var(--accent-warn)">Ongoing</span>')
           : '<span style="color:var(--text-muted)">—</span>';
         return '<tr>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">' +
@@ -281,12 +281,12 @@ export function renderConn(rows: ConnRow[], agg: string): void {
     // count otherwise. A "Total Downtime: 0s" card on a healthy week reads as a
     // measurement that failed rather than a week with no outages.
     stats.innerHTML =
-      statCard(uptime, t('Connection Uptime')) +
-      statCard(onlineN, t('Online Events')) +
-      statCard(offlineN, t('Offline Events')) +
+      statCard(uptime, 'Connection Uptime') +
+      statCard(onlineN, 'Online Events') +
+      statCard(offlineN, 'Offline Events') +
       (!connAgg && totalDownMs
-        ? statCard(fmtDuration(totalDownMs), t('Total Downtime'))
-        : statCard(rows.length, connAgg ? t('Buckets') : t('Total Events')));
+        ? statCard(fmtDuration(totalDownMs), 'Total Downtime')
+        : statCard(rows.length, connAgg ? 'Buckets' : 'Total Events'));
   }
 
   connRaw = rows;

@@ -31,7 +31,6 @@
 // and never come back.
 
 import { esc, el, fmtBytes, parseUptime } from '../dom';
-import { t } from '../i18n';
 import { gauge } from './dashboard-gauge';
 import type { SystemPayload } from '../gen/payloads';
 
@@ -81,7 +80,7 @@ export function flushSysUpdate(): void {
 
   const ut = parseUptime(d.uptimeRaw);
   const uptimeDisplay = el('uptimeDisplay');
-  if (uptimeDisplay) uptimeDisplay.textContent = t('Uptime: {uptime}', { uptime: ut });
+  if (uptimeDisplay) uptimeDisplay.textContent = 'Uptime: ' + ut;
   const uptimeChip = el('uptimeChip');
   if (uptimeChip) {
     uptimeChip.textContent = ut;
@@ -91,7 +90,7 @@ export function flushSysUpdate(): void {
   // Storage only when the router HAS storage. `totalHdd > 0` and not merely
   // truthy: a router reporting 0 draws two gauges, not three with an empty one.
   let html = gauge('CPU', d.cpuLoad, 'cpu') + gauge('RAM', d.memPct, 'mem');
-  if (d.totalHdd > 0) html += gauge(t('Storage'), d.hddPct, 'hdd');
+  if (d.totalHdd > 0) html += gauge('Storage', d.hddPct, 'hdd');
   const gaugeRow = el('gaugeRow');
   if (gaugeRow) gaugeRow.innerHTML = html;
 
@@ -133,8 +132,8 @@ export function flushSysUpdate(): void {
       // module once it knows whether the viewer may reboot this router. Empty
       // for everyone else, so the row is unchanged for a viewer who cannot act.
       ur = '<div class="ros-update-row warn"><span class="ros-update-dot"></span>&#11014; ' +
-        t('{installed} → <strong>{latest}</strong> available', { installed: esc(installedBase), latest: esc(d.latestVersion) }) +
-        '<span id="sysUpdateAction"></span></div>';
+        esc(installedBase) + ' &rarr; <strong>' + esc(d.latestVersion) +
+        '</strong> available<span id="sysUpdateAction"></span></div>';
       // Published rather than read back off the DOM: the versions are already
       // parsed here, and the upgrade dialog should show what this row showed.
       //
@@ -151,14 +150,14 @@ export function flushSysUpdate(): void {
       // about a router on 7.24.3. That state only reaches this branch since
       // `updateVerdict` started ordering versions rather than comparing them
       // (internal/collect/system.go); before, it drew a downgrade arrow instead.
-      ur = '<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; ' +
-        t('RouterOS <strong>{version}</strong> — Up to date', { version: esc(installedBase || d.latestVersion) }) + '</div>';
+      ur = '<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>' +
+        esc(installedBase || d.latestVersion) + '</strong> &mdash; Up to date</div>';
     } else if (d.updateStatus) {
       const isUnavail = /unavailable|cannot|error|failed/i.test(d.updateStatus);
       const rowCls = isUnavail ? 'ros-update-row muted' : 'ros-update-row pending';
       ur = '<div class="' + rowCls + '"><span class="ros-update-dot"></span>' + esc(d.updateStatus) + '</div>';
     } else {
-      ur = '<div class="ros-update-row pending"><span class="ros-update-dot"></span>' + t('Checking for updates…') + '</div>';
+      ur = '<div class="ros-update-row pending"><span class="ros-update-dot"></span>Checking for updates…</div>';
     }
     // Dirty check. Without it the row was rewritten on every poll tick, which is
     // what made the amber "available" strip and its Update button flash:

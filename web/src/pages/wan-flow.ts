@@ -30,7 +30,6 @@
 // there are no particles and the ribbons change at once.
 
 import { el } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { WANPayload } from '../gen/payloads';
 import { isRosDisconnected } from '../banners';
@@ -225,7 +224,7 @@ export function createWanFlow(socket: Socket, o: WanFlowOptions): WanFlow {
     });
     const empty = el(ids.empty);
     const why = !flow.rows.length ? o.noUplinks
-      : !ratesAvailable ? t('Waiting for interface rates. They come from the interface status collector.') : '';
+      : !ratesAvailable ? 'Waiting for interface rates. They come from the interface status collector.' : '';
     if (empty) { empty.textContent = why; empty.hidden = !why; }
     el(ids.card)?.classList.toggle('is-paused', !live());
   }

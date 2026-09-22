@@ -19,7 +19,6 @@
  */
 
 import { el } from '../dom';
-import { t } from '../i18n';
 import { mountCityPicker, type City, type CityPickerState } from './city-picker';
 import {
   siteTableHtml, siteRouterCounts, siteMemberRowsHtml, siteSavePlan, siteDeletePrompt,
@@ -83,7 +82,7 @@ async function load(): Promise<void> {
     // create a site that already exists and be told the name is taken.
     if (tb) {
       tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);'
-        + ('font-size:.76rem">' + t('Could not load sites.') + '</td></tr>');
+        + 'font-size:.76rem">Could not load sites.</td></tr>';
     }
   }
 }
@@ -132,7 +131,7 @@ function showForm(site: SiteRecord | null): void {
   }
 
   box.innerHTML = siteMemberRowsHtml(fleetOf(), site, sitesById);
-  if (title) title.textContent = site ? t('Edit Site') : t('Add Site');
+  if (title) title.textContent = site ? 'Edit Site' : 'Add Site';
   wrap.classList.add('open');
   nameEl.focus();
 }
@@ -185,7 +184,7 @@ async function save(): Promise<void> {
     });
     const j1 = await r1.json();
     if (!r1.ok || !j1 || !j1.ok) {
-      formError((j1 && j1.error) || t('Could not save the site'));
+      formError((j1 && j1.error) || 'Could not save the site');
       return;
     }
     // The membership call goes SECOND because a new site has no id until now.
@@ -199,7 +198,7 @@ async function save(): Promise<void> {
     hideForm();
     await load();
   } catch {
-    formError(t('Could not save the site'));
+    formError('Could not save the site');
   }
 }
 

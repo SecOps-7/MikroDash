@@ -7,7 +7,6 @@
  */
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 // An alert row is the Go struct internal/alert.Row, generated — the bell and
 // the server cannot disagree about its fields.
@@ -87,7 +86,7 @@ export function alertAge(ts: number, now: number): string {
  */
 export function panelHTML(alerts: AlertRow[], now: number): string {
   const shown = alerts.filter((a) => !a.acknowledgedAt);
-  if (!shown.length) return '<div class="notif-empty">' + t('No alerts') + '</div>';
+  if (!shown.length) return '<div class="notif-empty">No alerts</div>';
 
   const open = shown.filter(isOpen);
   const done = shown.filter((a) => !isOpen(a));
@@ -120,7 +119,7 @@ export function panelHTML(alerts: AlertRow[], now: number): string {
   };
 
   return open.map(row).join('') +
-    (open.length && done.length ? '<div class="notif-sep">' + t('Recently resolved') + '</div>' : '') +
+    (open.length && done.length ? '<div class="notif-sep">Recently resolved</div>' : '') +
     done.map(row).join('');
 }
 
@@ -205,7 +204,7 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
     };
     clearBtn.addEventListener('click', () => {
       const rid = activeRouterId();
-      if (!rid) { clearFail(t('No router')); return; }
+      if (!rid) { clearFail('No router'); return; }
       (clearBtn as HTMLButtonElement).disabled = true;
       fetch('/api/alerts/clear-all', {
         method: 'POST',
@@ -217,7 +216,7 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
         // `{ok:false}` is a refusal the status does not show.
         .then((r) => r.json().then((j: { ok?: boolean }) => ({ ok: r.ok && !!(j && j.ok) })))
         .then((res) => {
-          if (!res.ok) { clearFail(t('Failed')); return; }
+          if (!res.ok) { clearFail('Failed'); return; }
           // DO NOT WAIT FOR `alerts:cleared-all` TO EMPTY THE PANEL. The server
           // emits only when it actually cleared something, so a second click —
           // or a click when nothing is open — would otherwise leave the list
@@ -228,7 +227,7 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
           alerts = ackAlerts(alerts, ids, now, null);
           render();
         })
-        .catch(() => { clearFail(t('Failed')); })
+        .catch(() => { clearFail('Failed'); })
         .then(() => { (clearBtn as HTMLButtonElement).disabled = false; });
     });
   }

@@ -22,7 +22,6 @@ import {
   esc, el, fmtDataMB, fmtMbps, renderSortHeader, sortRows,
   type SortCol, type SortState,
 } from '../dom';
-import { t } from '../i18n';
 import { fmtTs, statCard, utilPct } from './reports';
 import { renderTrafficChart, renderBandwidthChart } from './reports-charts';
 
@@ -85,19 +84,19 @@ const mbpsOrDash = (v: number | null | undefined): string => (v == null ? '—' 
  * hence "Busiest Minute", which is not a unit anyone would guess.
  */
 function bucketNoun(agg: string): string {
-  return agg === 'hour' ? t('Hour')
-    : agg === 'day' ? t('Day')
-      : agg === 'week' ? t('Week')
-        : agg === 'month' ? t('Month') : t('Minute');
+  return agg === 'hour' ? 'Hour'
+    : agg === 'day' ? 'Day'
+      : agg === 'week' ? 'Week'
+        : agg === 'month' ? 'Month' : 'Minute';
 }
 
 // ── Traffic ─────────────────────────────────────────────────────────────────
 
 const TRAFFIC_COLS: SortCol[] = [
-  { key: 'ts', label: t('Time'), style: '' },
-  { key: 'interface', label: t('Interface'), style: '' },
-  { key: 'rx_mbps', label: t('RX (Mbps)'), style: 'text-align:right' },
-  { key: 'tx_mbps', label: t('TX (Mbps)'), style: 'text-align:right' },
+  { key: 'ts', label: 'Time', style: '' },
+  { key: 'interface', label: 'Interface', style: '' },
+  { key: 'rx_mbps', label: 'RX (Mbps)', style: 'text-align:right' },
+  { key: 'tx_mbps', label: 'TX (Mbps)', style: 'text-align:right' },
 ];
 
 let trafficRaw: TrafficRow[] = [];
@@ -118,7 +117,7 @@ function applyTrafficSort(): void {
         esc((+r.rx_mbps).toFixed(3)) + '</td>' +
         '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">' +
         esc((+r.tx_mbps).toFixed(3)) + '</td></tr>').join('')
-      : '<tr><td colspan="4" class="rpt-empty">' + t('No data for this range.') + '</td></tr>';
+      : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
   }
   renderSortHeader('rptTrafficThead', TRAFFIC_COLS, trafficSort, applyTrafficSort);
 }
@@ -126,7 +125,7 @@ function applyTrafficSort(): void {
 /** The Traffic History tab. `agg` is the aggregate dropdown's current value. */
 export function renderTraffic(rows: TrafficRow[], summary: IfaceSummary | null, agg: string): void {
   const s = summary || {};
-  const sampleLabel = agg ? t('Buckets') : t('Samples');
+  const sampleLabel = agg ? 'Buckets' : 'Samples';
   // OVER 100% IS A SIGNAL, NOT AN ERROR. The utilisation is deliberately
   // unclamped — see UtilPct on the server — so a link reporting 177% is telling
   // you the configured capacity is wrong. The warning triangle says so without
@@ -136,14 +135,14 @@ export function renderTraffic(rows: TrafficRow[], summary: IfaceSummary | null, 
   const stats = el('rptTrafficStats');
   if (stats) {
     stats.innerHTML =
-      statCard(mbpsOrDash(s.rxMaxMbps), t('Peak RX')) +
-      statCard(mbpsOrDash(s.txMaxMbps), t('Peak TX')) +
-      statCard(mbpsOrDash(s.rxAvgMbps), t('Avg RX')) +
-      statCard(mbpsOrDash(s.txAvgMbps), t('Avg TX')) +
+      statCard(mbpsOrDash(s.rxMaxMbps), 'Peak RX') +
+      statCard(mbpsOrDash(s.txMaxMbps), 'Peak TX') +
+      statCard(mbpsOrDash(s.rxAvgMbps), 'Avg RX') +
+      statCard(mbpsOrDash(s.txAvgMbps), 'Avg TX') +
       statCard(mbpsOrDash(s.rxP95Mbps), '95th %ile RX') +
       statCard(mbpsOrDash(s.txP95Mbps), '95th %ile TX') +
       statCard(utilPct(s.rxPeakPct ?? null) + ' / ' + utilPct(s.txPeakPct ?? null),
-        t('Peak Util RX/TX') + (over ? ' ⚠' : '')) +
+        'Peak Util RX/TX' + (over ? ' ⚠' : '')) +
       // THE COUNT SWITCHES SOURCE with the aggregation: bucket count from the
       // rows, sample count from the summary. `rows.length` is the number of
       // buckets drawn, while the summary count is every sample behind them — and
@@ -164,10 +163,10 @@ export function renderTraffic(rows: TrafficRow[], summary: IfaceSummary | null, 
 // ── Bandwidth ───────────────────────────────────────────────────────────────
 
 const BW_COLS: SortCol[] = [
-  { key: 'ts', label: t('Time'), style: '' },
-  { key: 'interface', label: t('Interface'), style: '' },
-  { key: 'rx_mb', label: t('Download (MB)'), style: 'text-align:right' },
-  { key: 'tx_mb', label: t('Upload (MB)'), style: 'text-align:right' },
+  { key: 'ts', label: 'Time', style: '' },
+  { key: 'interface', label: 'Interface', style: '' },
+  { key: 'rx_mb', label: 'Download (MB)', style: 'text-align:right' },
+  { key: 'tx_mb', label: 'Upload (MB)', style: 'text-align:right' },
 ];
 
 let bwRaw: BandwidthRow[] = [];
@@ -194,14 +193,15 @@ export function renderBwPage(): void {
         esc(fmtDataMB(+r.rx_mb)) + '</td>' +
         '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">' +
         esc(fmtDataMB(+r.tx_mb)) + '</td></tr>').join('')
-      : '<tr><td colspan="4" class="rpt-empty">' + t('No data for this range.') + '</td></tr>';
+      : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
   }
 
   const pager = el('rptBwPager');
   if (pager) pager.style.display = total > BW_PAGE_SIZE ? '' : 'none';
   const info = el('rptBwPageInfo');
   if (info) {
-    info.textContent = t('Page {page} of {pages} ({rows} rows)', { page: bwPage + 1, pages, rows: total.toLocaleString() });
+    info.textContent = 'Page ' + (bwPage + 1) + ' of ' + pages +
+      ' (' + total.toLocaleString() + ' rows)';
   }
   const prev = el<HTMLButtonElement>('rptBwPrev');
   if (prev) prev.disabled = bwPage === 0;
@@ -221,15 +221,15 @@ export function renderBandwidth(
   rows: BandwidthRow[], summary: IfaceSummary | null, agg: string,
 ): void {
   const s = summary || {};
-  const countLabel = agg ? t('Buckets') : t('Samples');
+  const countLabel = agg ? 'Buckets' : 'Samples';
 
   const stats = el('rptBwStats');
   if (stats) {
     stats.innerHTML =
-      statCard(fmtDataMB(s.rxTotalMb), t('Total Download')) +
-      statCard(fmtDataMB(s.txTotalMb), t('Total Upload')) +
-      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), t('Busiest {period}', { period: bucketNoun(agg) }) + ' ↓') +
-      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), t('Busiest {period}', { period: bucketNoun(agg) }) + ' ↑') +
+      statCard(fmtDataMB(s.rxTotalMb), 'Total Download') +
+      statCard(fmtDataMB(s.txTotalMb), 'Total Upload') +
+      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↓') +
+      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↑') +
       // `bandwidthSamples`: this card is under the VOLUME chart.
       statCard((agg ? rows.length : (s.bandwidthSamples || 0)).toLocaleString(), countLabel);
   }
@@ -244,8 +244,10 @@ export function renderBandwidth(
     const truncated = !agg && !!s.bandwidthSamples && s.bandwidthSamples > rows.length;
     hint.style.display = truncated ? '' : 'none';
     if (truncated) {
-      hint.textContent = t('Chart and table show {shown} of {n} samples — choose an aggregation to cover the full range. Totals above are for the full range.',
-        { shown: rows.length.toLocaleString(), n: (s.bandwidthSamples as number).toLocaleString() });
+      hint.textContent = 'Chart and table show ' + rows.length.toLocaleString() +
+        ' of ' + (s.bandwidthSamples as number).toLocaleString() +
+        ' samples — choose an aggregation to cover the full range. ' +
+        'Totals above are for the full range.';
     }
   }
 

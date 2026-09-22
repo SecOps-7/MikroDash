@@ -14,7 +14,6 @@
 
 import { esc, el, bandBadge, standardBadge, bandRank, ssidColours, installWifiGlobals,
   renderSortHeader, lsGet, lsSet, type SortState } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { initFrequencyAnalyser } from './wireless-fa';
 import type { WirelessClient, WirelessPayload } from '../gen/payloads';
@@ -52,10 +51,10 @@ export function parseTxRate(raw: string): string {
 }
 
 function sigQuality(dbm: number): string {
-  if (dbm >= -55) return '<span style="color:rgba(52,211,153,.9)">' + t('Excellent') + '</span>';
-  if (dbm >= -65) return '<span style="color:rgba(56,189,248,.9)">' + t('Good') + '</span>';
-  if (dbm >= -75) return '<span style="color:rgba(251,191,36,.9)">' + t('Fair') + '</span>';
-  return '<span style="color:rgba(248,113,113,.9)">' + t('Poor') + '</span>';
+  if (dbm >= -55) return '<span style="color:rgba(52,211,153,.9)">Excellent</span>';
+  if (dbm >= -65) return '<span style="color:rgba(56,189,248,.9)">Good</span>';
+  if (dbm >= -75) return '<span style="color:rgba(251,191,36,.9)">Fair</span>';
+  return '<span style="color:rgba(248,113,113,.9)">Poor</span>';
 }
 
 /** A rate as a NUMBER, for sorting. Zero when it cannot be read, so an
@@ -231,7 +230,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     if (!btn) return;
     btn.classList.toggle('active', grouped);
     btn.setAttribute('aria-pressed', grouped ? 'true' : 'false');
-    btn.textContent = grouped ? t('Grouped by AP') : t('Flat list');
+    btn.textContent = grouped ? 'Grouped by AP' : 'Flat list';
   }
 
   function persist(): void {
@@ -286,18 +285,18 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     // The wl-col-* classes are passed through because the matching td carries
     // them.
     renderSortHeader('wlThead', [
-      { key: 'name', label: t('Device') },
-      { label: t('Interface'), cls: 'wl-col-iface' },
-      { key: 'band', label: t('Band') },
-      { key: 'standard', label: t('Standard') },
-      { key: 'signal', label: t('Signal'), cls: 'text-end' },
+      { key: 'name', label: 'Device' },
+      { label: 'Interface', cls: 'wl-col-iface' },
+      { key: 'band', label: 'Band' },
+      { key: 'standard', label: 'Standard' },
+      { key: 'signal', label: 'Signal', cls: 'text-end' },
       { key: 'txRate', label: 'TX / RX' },
-      { key: 'uptime', label: t('Uptime'), cls: 'wl-col-uptime' },
+      { key: 'uptime', label: 'Uptime', cls: 'wl-col-uptime' },
     ], sort, () => { syncSortBtns(); renderWireless(); });
 
     const rows = sortClients(clients, sort.col, sort.dir);
     if (!rows.length) {
-      wirelessTable.innerHTML = '<tr><td colspan="7" class="empty-state">' + t('No wireless clients') + '</td></tr>';
+      wirelessTable.innerHTML = '<tr><td colspan="7" class="empty-state">No wireless clients</td></tr>';
       return;
     }
 
@@ -380,9 +379,9 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
       const managed = (data && data.ssidsManagedElsewhere) || 0;
       list.innerHTML = '<div class="wl-ssid-empty">' +
         (managed
-          ? (managed === 1 ? t('1 radio managed by CAPsMAN — SSIDs are set on the manager.')
-            : t('{n} radios managed by CAPsMAN — SSIDs are set on the manager.', { n: managed }))
-          : t('No SSIDs configured on this router.')) +
+          ? managed + ' radio' + (managed === 1 ? '' : 's') +
+            ' managed by CAPsMAN — SSIDs are set on the manager.'
+          : 'No SSIDs configured on this router.') +
         '</div>';
       return;
     }

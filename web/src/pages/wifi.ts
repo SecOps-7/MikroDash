@@ -35,7 +35,6 @@
 
 import { esc, el, bandBadge, bandRank, ssidColours, installWifiGlobals,
   renderSortHeader, lsGet, lsSet, type SortCol, type SortState } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { WifiNetwork, WifiRadio, WifiPayload } from '../gen/payloads';
 
@@ -101,8 +100,8 @@ function bySsid(nets: WifiNetwork[]): SsidRow[] {
     if (n.running) row.running = true;
     if (n.band && row.bands.indexOf(n.band) === -1) row.bands.push(n.band);
     if (n.ap && row.aps.indexOf(n.ap) === -1) row.aps.push(n.ap);
-    if (n.security !== row.security) row.security = t('Mixed');
-    if (n.vlanId !== row.vlanId) row.vlanId = t('Mixed');
+    if (n.security !== row.security) row.security = 'Mixed';
+    if (n.vlanId !== row.vlanId) row.vlanId = 'Mixed';
   });
   out.forEach((r) => r.bands.sort((a, b) => bandRank(a) - bandRank(b)));
   return out;
@@ -131,11 +130,11 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
   }
 
   function stateCell(n: WifiNetwork): string {
-    if (n.disabled) return '<span class="badge bg-secondary-lt">' + t('Disabled') + '</span>';
-    if (n.running) return '<span class="badge bg-green-lt">' + t('Running') + '</span>';
+    if (n.disabled) return '<span class="badge bg-secondary-lt">Disabled</span>';
+    if (n.running) return '<span class="badge bg-green-lt">Running</span>';
     // Enabled but not running is its own answer, and the interesting one: a
     // radio with no country set, or no supported channel, sits exactly here.
-    return '<span class="badge bg-yellow-lt">' + t('Not running') + '</span>';
+    return '<span class="badge bg-yellow-lt">Not running</span>';
   }
 
   function securityCell(n: WifiNetwork): string {
@@ -156,9 +155,9 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
         esc(radio.name) +
         (bits.length ? '<span class="muted-note" style="margin-left:.5rem;font-weight:400">' +
                        esc(bits.join(' · ')) + '</span>' : '') +
-        (radio.readOnlyReason === 'capsv1' ? badge(t('CAPsMAN v1'), 'bg-orange-lt')
+        (radio.readOnlyReason === 'capsv1' ? badge('CAPsMAN v1', 'bg-orange-lt')
           : radio.capsManaged ? badge('CAP', 'bg-purple-lt') : '') +
-        (radio.disabled ? badge(t('Disabled'), 'bg-secondary-lt') : '') +
+        (radio.disabled ? badge('Disabled', 'bg-secondary-lt') : '') +
         '<span class="muted-note" style="float:right;font-weight:400">' +
           esc(String(count)) + (count === 1 ? ' network' : ' networks') + '</span>' +
       '</td></tr>';
@@ -197,13 +196,13 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
       : '';
     return '<tr' + handle + '>' +
       '<td style="padding-left:1.5rem">' + ssidPill(n) +
-        (n.hidden ? badge(t('Hidden'), 'bg-secondary-lt') : '') +
-        (n.isVirtual ? badge(t('Virtual AP'), 'bg-azure-lt') : '') +
+        (n.hidden ? badge('Hidden', 'bg-secondary-lt') : '') +
+        (n.isVirtual ? badge('Virtual AP', 'bg-azure-lt') : '') +
         // Says WHY the row will not open, which is the difference between a
         // read-only table and a broken one.
         (n.readOnlyReason === 'caps' ? badge('CAP', 'bg-purple-lt')
-          : n.readOnlyReason === 'capsv1' ? badge(t('CAPsMAN v1'), 'bg-orange-lt')
-            : n.readOnlyReason === 'provisioned' ? badge(t('Provisioned'), 'bg-purple-lt') : '') +
+          : n.readOnlyReason === 'capsv1' ? badge('CAPsMAN v1', 'bg-orange-lt')
+            : n.readOnlyReason === 'provisioned' ? badge('Provisioned', 'bg-purple-lt') : '') +
         // Saying which profile a value comes from is what makes the override
         // prompt make sense when it appears.
         (n.inherits && n.inherits.ssid
@@ -251,8 +250,8 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
       '<td>' + esc(r.vlanId || '\u2014') + '</td>' +
       '<td>' + esc(String(r.clients)) + '</td>' +
       '<td>' + (r.running
-        ? '<span class="badge bg-green-lt">' + t('Running') + '</span>'
-        : '<span class="badge bg-yellow-lt">' + t('Not running') + '</span>') + '</td>' +
+        ? '<span class="badge bg-green-lt">Running</span>'
+        : '<span class="badge bg-yellow-lt">Not running</span>') + '</td>' +
     '</tr>';
   }
 
@@ -295,22 +294,22 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
 
   const COLS_ROW: SortCol[] = [
     { key: 'ssid', label: 'SSID' },
-    { key: 'name', label: t('Interface') },
-    { key: 'band', label: t('Band') },
-    { key: 'security', label: t('Security') },
+    { key: 'name', label: 'Interface' },
+    { key: 'band', label: 'Band' },
+    { key: 'security', label: 'Security' },
     { key: 'vlanId', label: 'VLAN' },
-    { key: 'clients', label: t('Clients') },
-    { key: 'state', label: t('State') },
+    { key: 'clients', label: 'Clients' },
+    { key: 'state', label: 'State' },
   ];
   // The same seven columns, two of them answering the aggregate's question.
   const COLS_SSID: SortCol[] = [
     { key: 'ssid', label: 'SSID' },
-    { key: 'name', label: t('Interfaces') },
-    { key: 'band', label: t('Bands') },
-    { key: 'security', label: t('Security') },
+    { key: 'name', label: 'Interfaces' },
+    { key: 'band', label: 'Bands' },
+    { key: 'security', label: 'Security' },
     { key: 'vlanId', label: 'VLAN' },
-    { key: 'clients', label: t('Clients') },
-    { key: 'state', label: t('State') },
+    { key: 'clients', label: 'Clients' },
+    { key: 'state', label: 'State' },
   ];
 
   /** Rows grouped by a key, in the order the sorted list first mentions each. */
@@ -354,8 +353,8 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
 
     if (!nets.length) {
       const why = st.stack === 'none'
-        ? t('This router has no wireless interfaces.')
-        : t('No wireless networks are configured.');
+        ? 'This router has no wireless interfaces.'
+        : 'No wireless networks are configured.';
       tbody.innerHTML = '<tr><td colspan="7" class="empty-state">' + esc(why) + '</td></tr>';
       return;
     }
@@ -377,7 +376,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
       // absence: on a manager that also runs radios of its own, those networks
       // belong to the manager and saying so beats an empty heading.
       tbody.innerHTML = groupBy(rows, (n) => n.ap).map((g) => {
-        const label = g.key || t('This router');
+        const label = g.key || 'This router';
         const bands = [...new Set(g.rows.map((n) => n.band).filter(Boolean))]
           .sort((a, b) => bandRank(a) - bandRank(b));
         const clients = g.rows.reduce((t, n) => t + n.clients, 0);
@@ -428,32 +427,32 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
           '<td>' + esc(p.mode || '—') + '</td>' +
           '<td>' + esc(p.authTypes || 'none') + '</td>' +
         '</tr>').join('')
-      : '<tr><td colspan="3" class="empty-state">' + t('No security profiles') + '</td></tr>';
+      : '<tr><td colspan="3" class="empty-state">No security profiles</td></tr>';
   }
 
   function renderSummary(st: WifiPayload): void {
-    const tot = st.totals;
+    const t = st.totals;
     const set = (id: string, v: string) => { const e = el(id); if (e) e.textContent = v; };
-    set('wnRadioCount', tot == null || tot.radios == null ? '—' : String(tot.radios));
-    set('wnNetCount', tot == null || tot.networks == null ? '—' : String(tot.networks));
-    set('wnClientCount', tot == null || tot.clients == null ? '—' : String(tot.clients));
+    set('wnRadioCount', t == null || t.radios == null ? '—' : String(t.radios));
+    set('wnNetCount', t == null || t.networks == null ? '—' : String(t.networks));
+    set('wnClientCount', t == null || t.clients == null ? '—' : String(t.clients));
 
     // The stack note names where the radios came from, and on a router running a
     // legacy manager that is two places. Counted off the rows rather than from a
     // totals field: the payload already says which are v1 and a second count
     // would be a number to keep in step.
     const v1Radios = (st.radios || []).filter((r) => r.readOnlyReason === 'capsv1').length;
-    const local = st.stack === 'wifi' ? t('modern (/interface/wifi)')
-      : st.stack === 'wireless' ? t('legacy (/interface/wireless)') : '';
-    const viaV1 = v1Radios ? t('{n} via CAPsMAN v1', { n: v1Radios }) : '';
+    const local = st.stack === 'wifi' ? 'modern (/interface/wifi)'
+      : st.stack === 'wireless' ? 'legacy (/interface/wireless)' : '';
+    const viaV1 = v1Radios ? v1Radios + ' via CAPsMAN v1' : '';
     set('wnStackNote', [local, viaV1].filter(Boolean).join(' · '));
 
     const virtual = (st.networks || []).filter((n) => n.isVirtual).length;
-    set('wnVirtualNote', virtual ? (virtual === 1 ? t('1 virtual AP') : t('{n} virtual APs', { n: virtual })) : '');
+    set('wnVirtualNote', virtual ? virtual + (virtual === 1 ? ' virtual AP' : ' virtual APs') : '');
 
-    const caps = (tot && tot.capsManaged) || 0;
+    const caps = (t && t.capsManaged) || 0;
     set('wnCapNote', caps
-      ? (caps === 1 ? t('1 network is CAP-managed') : t('{n} networks are CAP-managed', { n: caps }))
+      ? caps + (caps === 1 ? ' network is CAP-managed' : ' networks are CAP-managed')
       : '');
   }
 
@@ -473,8 +472,8 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     note.style.color = '';
     if (!nets.length || !ro) { note.textContent = ''; return; }
     note.textContent = ro === nets.length
-      ? t('Every network here is provisioned by CAPsMAN — edit them on the CAPsMAN page, not here.')
-      : t('{n} of these are provisioned by CAPsMAN and cannot be edited here.', { n: ro });
+      ? 'Every network here is provisioned by CAPsMAN — edit them on the CAPsMAN page, not here.'
+      : ro + ' of these are provisioned by CAPsMAN and cannot be edited here.';
   }
 
   function render(): void {

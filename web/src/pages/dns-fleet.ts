@@ -23,7 +23,6 @@
 // means choosing which router is right, and nothing here knows that.
 
 import { fmtTime } from '../timefmt';
-import { t } from '../i18n';
 import { esc, el, lsGet, lsSet } from '../dom';
 import { openResource, registerExtra } from '../resource';
 import type { Socket } from '../socket';
@@ -210,7 +209,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     const host = el('dnsFleetPick');
     if (!host) return;
     if (!fleet.length) {
-      host.innerHTML = '<span class="muted-note">' + t('No routers.') + '</span>';
+      host.innerHTML = '<span class="muted-note">No routers.</span>';
       return;
     }
     host.innerHTML = fleet.map((r) => {
@@ -230,10 +229,10 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     if (!tr) return;
     const live = data.filter((r) => r.ok);
     tr.innerHTML =
-      ('<th style="cursor:pointer;user-select:none" data-dnssort="name">' + t('Record') + '</th>') +
-      ('<th>' + t('Type') + '</th><th>' + t('Value') + '</th>') +
+      '<th style="cursor:pointer;user-select:none" data-dnssort="name">Record</th>' +
+      '<th>Type</th><th>Value</th>' +
       live.map((r) => '<th class="dns-fleet-col">' + esc(r.label) + '</th>').join('') +
-      ('<th style="cursor:pointer;user-select:none" data-dnssort="presence">' + t('On') + '</th>');
+      '<th style="cursor:pointer;user-select:none" data-dnssort="presence">On</th>';
   }
 
   function sorted(): FleetRow[] {
@@ -277,7 +276,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     if (badge) badge.textContent = String(rows.length);
     if (note) {
       const failed = data.filter((r) => !r.ok);
-      note.textContent = notice || (loading ? t('reading…')
+      note.textContent = notice || (loading ? 'reading…'
         : takenAt ? fmtTime(takenAt) +
           (failed.length ? ' · ' + failed.length + ' unreachable' : '')
         : '');
@@ -287,15 +286,17 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     const live = data.filter((r) => r.ok);
     const cols = live.length + 4;
     if (!picked.length) {
-      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' + t('Pick the routers to compare.') + '</td></tr>';
+      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' +
+        'Pick the routers to compare.</td></tr>';
       return;
     }
     if (loading && !rows.length) {
-      tb.innerHTML = '<tr><td colspan="' + cols + ('" class="empty-state">' + t('Reading…') + '</td></tr>');
+      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">Reading…</td></tr>';
       return;
     }
     if (!rows.length) {
-      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' + t('No static entries on the selected routers.') + '</td></tr>';
+      tb.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' +
+        'No static entries on the selected routers.</td></tr>';
       return;
     }
     tb.innerHTML = sorted().map((row) => {
@@ -351,7 +352,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
           // THE FIELD ERRORS TOO: `invalid` alone says a record was refused
           // without saying which property the descriptor would not take.
           const errs = (d.errors || []) as Array<{ field?: string; message?: string }>;
-          notice = (d.code ? t('the write was refused: {code}', { code: d.code }) : t('the write was refused')) +
+          notice = 'the write was refused' + (d.code ? ': ' + d.code : '') +
             (errs.length ? ' — ' + errs.map((e) => e.message || e.field).join('; ') : '');
           return;
         }
@@ -361,7 +362,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
           notice = bad.map((x) => named(x.id).label + ': ' + x.code).join(' · ');
         }
       })
-      .catch(() => { notice = t('the write did not reach the server'); });
+      .catch(() => { notice = 'the write did not reach the server'; });
   }
 
   /** Copy one record to one or more routers, then re-read so the table is the
@@ -416,7 +417,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
       alsoIDs = [];
       if (scope !== 'fleet' || !rest.length) return '';
       return '<div class="dns-extra">' +
-        ('<div class="dns-extra-title">' + t('Also add it to') + '</div>') +
+        '<div class="dns-extra-title">Also add it to</div>' +
         '<div class="dns-extra-pick">' +
           rest.map((r) => '<label class="dns-fleet-router">' +
             '<input type="checkbox" data-dnsalso="' + esc(r.id) + '">' +
@@ -425,7 +426,8 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
               ? '<span class="dns-extra-host">' + esc(r.host) + '</span>' : '') +
             '</label>').join('') +
         '</div>' +
-        ('<div class="muted-note">' + t('Written after this router accepts it, one at a time. A router that already has the record is left alone.') + '</div>') +
+        '<div class="muted-note">Written after this router accepts it, one at a ' +
+          'time. A router that already has the record is left alone.</div>' +
       '</div>';
     },
     wire() {
@@ -456,8 +458,8 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     // second — so a second press is safe.
     const work = rows.filter((r) => r.missing.length);
     if (!work.length) return;
-    if (!window.confirm(work.length === 1 ? t('Copy 1 record to every router that is missing it?')
-      : t('Copy {n} records to every router that is missing it?', { n: work.length }))) return;
+    if (!window.confirm('Copy ' + work.length + ' record' + (work.length === 1 ? '' : 's') +
+      ' to every router that is missing it?')) return;
     let left = work.length;
     work.forEach((row) => {
       const from = Object.values(row.on)[0];

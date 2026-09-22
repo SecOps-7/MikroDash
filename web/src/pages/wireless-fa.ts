@@ -13,7 +13,6 @@
  */
 
 import type { WifiscanRow } from '../gen/payloads';
-import { t, ts } from '../i18n';
 import type { HandEvents } from '../events-hand';
 
 /** One radio in the picker, as `wifiscan:interfaces` lists it. */
@@ -140,14 +139,16 @@ export function gridHTML(rows: WifiscanRow[], currentChannelMhz: number | null):
  */
 export function warningHTML(ifaces: FaIface[], selected: string): string {
   const rec = ifaces.filter((i) => i.name === selected)[0];
-  if (!rec) return t('Scanning takes the selected radio off the air.');
+  if (!rec) return 'Scanning takes the selected radio off the air.';
   const n = rec.clients || 0;
   if (n === 0) {
-    return t('This radio has <b>no clients connected</b>, so scanning it should interrupt nobody. Other radios on this router are unaffected.');
+    return 'This radio has <b>no clients connected</b>, so scanning it should ' +
+      'interrupt nobody. Other radios on this router are unaffected.';
   }
-  return n === 1
-    ? t('Scanning takes this radio off the air. Its <b>1 connected client will be disconnected</b> for the duration of the scan, including any on its other SSIDs, and may take some seconds to return afterwards. Other radios on this router are unaffected.')
-    : t('Scanning takes this radio off the air. Its <b>{n} connected clients will be disconnected</b> for the duration of the scan, including any on its other SSIDs, and may take some seconds to return afterwards. Other radios on this router are unaffected.', { n });
+  return `Scanning takes this radio off the air. Its <b>${n} connected ` +
+    `${n === 1 ? 'client' : 'clients'} will be disconnected</b> for the duration of the ` +
+    'scan, including any on its other SSIDs, and may take some seconds to return afterwards. ' +
+    'Other radios on this router are unaffected.';
 }
 
 /**
@@ -160,7 +161,7 @@ export function warningHTML(ifaces: FaIface[], selected: string): string {
  * clue which radio is idle and which carries the network.
  */
 export function ifaceOptionsHTML(ifaces: FaIface[]): string {
-  if (!ifaces.length) return '<option disabled selected>' + t('No scannable radio') + '</option>';
+  if (!ifaces.length) return '<option disabled selected>No scannable radio</option>';
   return ifaces.map((i) => {
     const n = i.clients || 0;
     return `<option value="${esc(i.name)}">${esc(i.name)}` +
@@ -203,7 +204,7 @@ export function scanStatus(endsAt: number, now: number): string {
   const left = Math.max(0, Math.ceil((endsAt - now) / 1000));
   // Past zero the router owes us a result; say we are waiting rather than
   // counting into negative numbers.
-  return left > 0 ? `Scanning… ${left}s — clients disconnected` : t('Finishing…');
+  return left > 0 ? `Scanning… ${left}s — clients disconnected` : 'Finishing…';
 }
 
 // ── the dialog itself ───────────────────────────────────────────────────────
@@ -323,7 +324,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
       legendClick: (e, item, legend) => faLegendClick(e, item, legend),
     });
     render();
-    setStatus(t('Idle'), false);
+    setStatus('Idle', false);
     socket.emit('wifiscan:interfaces');
   }
 
@@ -370,7 +371,8 @@ export function initFrequencyAnalyser(socket: Socket): void {
     if (keep && ifaces.some((i) => i.name === keep)) ifaceSel.value = keep;
     scanBtn.disabled = !ifaces.length;
     if (!ifaces.length) {
-      emptyEl!.textContent = t('This router reports no radio that can be scanned. Virtual APs, CAPsMAN-managed radios and the legacy wireless package are not supported.');
+      emptyEl!.textContent = 'This router reports no radio that can be scanned. ' +
+        'Virtual APs, CAPsMAN-managed radios and the legacy wireless package are not supported.';
     }
     updateWarning();
   });
@@ -402,8 +404,8 @@ export function initFrequencyAnalyser(socket: Socket): void {
     const n = d.sampleCount || 0;
     setStatus(d.reason === 'complete'
       ? `Done — ${rows.length} channels from ${n} samples`
-      : d.reason === 'disconnected' ? t('Router disconnected mid-scan')
-        : d.reason === 'aborted' ? t('Stopped') : `Ended: ${d.reason || 'unknown'}`, false);
+      : d.reason === 'disconnected' ? 'Router disconnected mid-scan'
+        : d.reason === 'aborted' ? 'Stopped' : `Ended: ${d.reason || 'unknown'}`, false);
   });
 
   socket.on('wifiscan:error', (d) => {
@@ -448,15 +450,15 @@ export function initFrequencyAnalyser(socket: Socket): void {
 export function scanErrorText(d: Pick<HandEvents['wifiscan:error'], 'code' | 'message' | 'iface'>): string {
   switch (d.code) {
     case 'busy': return `Already scanning ${d.iface || 'this router'}`;
-    case 'fleet-busy': return t('Too many scans running across the fleet — try again shortly');
-    case 'cooldown': return t('Scanned very recently — wait a few seconds');
-    case 'denied': return t('Not permitted to scan this router');
-    case 'router-offline': return t('Router is offline');
-    case 'capsman-managed': return t('That radio is managed by CAPsMAN');
-    case 'not-a-radio': return t('That interface is not a radio');
-    case 'no-such-interface': return t('No such radio on this router');
-    case 'unavailable': return t('Radio list not ready yet — try again in a moment');
-    default: return ts(d.message) || t('Scan failed');
+    case 'fleet-busy': return 'Too many scans running across the fleet — try again shortly';
+    case 'cooldown': return 'Scanned very recently — wait a few seconds';
+    case 'denied': return 'Not permitted to scan this router';
+    case 'router-offline': return 'Router is offline';
+    case 'capsman-managed': return 'That radio is managed by CAPsMAN';
+    case 'not-a-radio': return 'That interface is not a radio';
+    case 'no-such-interface': return 'No such radio on this router';
+    case 'unavailable': return 'Radio list not ready yet — try again in a moment';
+    default: return d.message || 'Scan failed';
   }
 }
 
@@ -479,14 +481,12 @@ export function spectrumTooltipLines(
 ): string[] {
   if (!row) return [];
   const out: string[] = [];
-  // The names are padded to one column, as the tooltip is monospaced.
-  const k = (name: string): string => (name + ' ').padEnd(12);
-  if (row.load != null) out.push(k(t('Load')) + row.load + '%');
-  if (row.nets != null) out.push(k(t('Networks')) + row.nets);
-  if (row.nf != null) out.push(k(t('Noise floor')) + row.nf + ' dBm');
-  if (row.maxSig != null) out.push(k(t('Max signal')) + row.maxSig + ' dBm');
-  if (row.minSig != null) out.push(k(t('Min signal')) + row.minSig + ' dBm');
-  if (row.ch === currentChannelMhz) out.push(t('— this radio —'));
+  if (row.load != null) out.push('Load        ' + row.load + '%');
+  if (row.nets != null) out.push('Networks    ' + row.nets);
+  if (row.nf != null) out.push('Noise floor ' + row.nf + ' dBm');
+  if (row.maxSig != null) out.push('Max signal  ' + row.maxSig + ' dBm');
+  if (row.minSig != null) out.push('Min signal  ' + row.minSig + ' dBm');
+  if (row.ch === currentChannelMhz) out.push('— this radio —');
   return out;
 }
 
@@ -575,10 +575,10 @@ export function spectrumConfig(deps: {
         // Congestion stays on the chart as the bar colour and is readable as a
         // number in the tooltip and the grid above — it does not need a line of
         // its own competing with the signal trace.
-        { label: t('Signal power'), data: [], yAxisID: 'y', order: 3,
+        { label: 'Signal power', data: [], yAxisID: 'y', order: 3,
           backgroundColor: [], borderRadius: 2, borderSkipped: false },
         // The reference the signal is measured against.
-        { label: t('Noise floor'), type: 'line', data: [], yAxisID: 'y', order: 2,
+        { label: 'Noise floor', type: 'line', data: [], yAxisID: 'y', order: 2,
           borderColor: 'rgba(148,163,190,.75)', borderDash: [4, 3],
           borderWidth: 1.5, pointRadius: 0, tension: 0.25, fill: false, spanGaps: true },
       ],
@@ -686,7 +686,7 @@ interface ChartDefaults {
 
 /** The legend item the band plugin has no dataset for. */
 export const FA_BAND_LEGEND: LegendItem = {
-  text: t('Active Channel'),
+  text: 'Active Channel',
   fillStyle: 'rgba(56,189,248,.35)',
   strokeStyle: 'rgba(56,189,248,.85)',
   lineWidth: 1.5,

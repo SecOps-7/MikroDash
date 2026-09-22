@@ -27,7 +27,6 @@
  */
 
 import { loadBranding } from '../branding';
-import { t, bindLanguageSelect, ts } from '../i18n';
 
 const byId = (id: string): HTMLElement | null => document.getElementById(id);
 
@@ -88,8 +87,7 @@ function safeNext(): string {
 
 function main(): void {
   // The install's own name and icon, before anybody signs in (issue #131).
-  void loadBranding(' — ' + t('Sign In'));
-  bindLanguageSelect(byId('loginLang') as HTMLSelectElement | null, byId('loginLangWrap'));
+  void loadBranding(' — Sign In');
   const loginView = byId('loginView');
   const firstRunView = byId('firstRunView');
   const loadingView = byId('loadingView');
@@ -120,13 +118,13 @@ function main(): void {
     const username = (byId('loginUser') as HTMLInputElement | null)?.value.trim() || '';
     const password = (byId('loginPass') as HTMLInputElement | null)?.value || '';
     if (!username || !password) {
-      showError('loginError', t('Please enter username and password.'));
+      showError('loginError', 'Please enter username and password.');
       return;
     }
     const btn = byId('loginBtn') as HTMLButtonElement | null;
     if (btn) {
       btn.disabled = true;
-      btn.textContent = t('Signing in…');
+      btn.textContent = 'Signing in…';
     }
     void fetch('/api/auth/login', {
       method: 'POST',
@@ -152,17 +150,17 @@ function main(): void {
         } else {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = t('Sign In');
+            btn.textContent = 'Sign In';
           }
-          showError('loginError', ts(d.error) || t('Sign in failed.'));
+          showError('loginError', d.error || 'Sign in failed.');
         }
       })
       .catch(() => {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = t('Sign In');
+          btn.textContent = 'Sign In';
         }
-        showError('loginError', t('Network error. Please try again.'));
+        showError('loginError', 'Network error. Please try again.');
       });
   }
 
@@ -183,19 +181,19 @@ function main(): void {
     const username = (byId('setupUser') as HTMLInputElement | null)?.value.trim() || '';
     const password = (byId('setupPass') as HTMLInputElement | null)?.value || '';
     const confirm = (byId('setupPass2') as HTMLInputElement | null)?.value || '';
-    if (!username) { showError('setupError', t('Username is required.')); return; }
+    if (!username) { showError('setupError', 'Username is required.'); return; }
     // FOUR, not eight. Reproduced rather than improved: the server enforces its
     // own rule and this is only the early message, so raising it here would
     // reject a password the install would have accepted.
     if (password.length < 4) {
-      showError('setupError', t('Password must be at least 4 characters.'));
+      showError('setupError', 'Password must be at least 4 characters.');
       return;
     }
-    if (password !== confirm) { showError('setupError', t('Passwords do not match.')); return; }
+    if (password !== confirm) { showError('setupError', 'Passwords do not match.'); return; }
     const btn = byId('setupBtn') as HTMLButtonElement | null;
     if (btn) {
       btn.disabled = true;
-      btn.textContent = t('Creating account…');
+      btn.textContent = 'Creating account…';
     }
     void fetch('/api/users/setup', {
       method: 'POST',
@@ -217,17 +215,17 @@ function main(): void {
         } else {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = t('Create Account');
+            btn.textContent = 'Create Account';
           }
-          showError('setupError', ts(d.error) || t('Setup failed.'));
+          showError('setupError', d.error || 'Setup failed.');
         }
       })
       .catch(() => {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = t('Create Account');
+          btn.textContent = 'Create Account';
         }
-        showError('setupError', t('Network error. Please try again.'));
+        showError('setupError', 'Network error. Please try again.');
       });
   }
 

@@ -12,7 +12,6 @@
 // The button POSTs to `/api/alerts/:id/ack` (internal/server/alerts_api.go).
 
 import { esc, el, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
-import { t } from '../i18n';
 import { fmtTs, fmtDuration, statCard } from './reports';
 
 export interface AlertRow {
@@ -30,13 +29,13 @@ export interface AlertRow {
 }
 
 const ALERT_COLS: SortCol[] = [
-  { key: 'fired_at', label: t('Fired At'), style: '' },
-  { key: 'alert_type', label: t('Type'), style: '' },
-  { key: 'subject', label: t('Subject'), style: '' },
-  { key: 'detail', label: t('Detail'), style: '' },
-  { key: 'resolved_at', label: t('Resolved At'), style: '' },
-  { key: 'acknowledged_at', label: t('Acknowledged'), style: '' },
-  { key: 'downtime_ms', label: t('Down Time'), style: 'text-align:right' },
+  { key: 'fired_at', label: 'Fired At', style: '' },
+  { key: 'alert_type', label: 'Type', style: '' },
+  { key: 'subject', label: 'Subject', style: '' },
+  { key: 'detail', label: 'Detail', style: '' },
+  { key: 'resolved_at', label: 'Resolved At', style: '' },
+  { key: 'acknowledged_at', label: 'Acknowledged', style: '' },
+  { key: 'downtime_ms', label: 'Down Time', style: 'text-align:right' },
 ];
 
 let alertRaw: AlertRow[] = [];
@@ -50,7 +49,7 @@ function applyAlertSort(): void {
       ? sorted.map((r) => {
         const res = r.resolved_at
           ? esc(fmtTs(r.resolved_at))
-          : '<span style="color:var(--accent-warn)">' + t('Open') + '</span>';
+          : '<span style="color:var(--accent-warn)">Open</span>';
         const dt = r.resolved_at ? fmtDuration(r.resolved_at - r.fired_at) : '—';
         // An open alert offers the button; a resolved one that was never
         // acknowledged shows a dash, because acknowledging something already
@@ -60,7 +59,7 @@ function applyAlertSort(): void {
             (r.acknowledged_by ? ' · ' + esc(r.acknowledged_by) : '')
           : (r.resolved_at ? '—'
             : '<button class="sbtn sbtn-ghost" style="padding:.15rem .5rem;font-size:.65rem"' +
-              ' data-ack-id="' + esc(String(r.id)) + ('">' + t('Acknowledge') + '</button>'));
+              ' data-ack-id="' + esc(String(r.id)) + '">Acknowledge</button>');
         return '<tr>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">' +
           esc(fmtTs(r.fired_at)) + '</td>' +
@@ -74,7 +73,7 @@ function applyAlertSort(): void {
           '<td style="font-family:var(--font-mono);font-size:.71rem;text-align:right">' +
           esc(dt) + '</td></tr>';
       }).join('')
-      : '<tr><td colspan="7" class="rpt-empty">' + t('No alerts for this range.') + '</td></tr>';
+      : '<tr><td colspan="7" class="rpt-empty">No alerts for this range.</td></tr>';
   }
   renderSortHeader('rptAlertThead', ALERT_COLS, alertSort, applyAlertSort);
 }
@@ -111,10 +110,10 @@ export function renderAlerts(rows: AlertRow[]): void {
   const stats = el('rptAlertStats');
   if (stats) {
     stats.innerHTML =
-      statCard(rows.length, t('Total')) +
-      statCard(open, t('Open')) +
-      statCard(resolved, t('Resolved')) +
-      statCard(topType, t('Top Type'));
+      statCard(rows.length, 'Total') +
+      statCard(open, 'Open') +
+      statCard(resolved, 'Resolved') +
+      statCard(topType, 'Top Type');
   }
 
   alertRaw = (rows || []).map((r) => ({

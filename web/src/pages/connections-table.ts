@@ -3,7 +3,6 @@
 // nothing here touches the page, so all of it is testable without one.
 
 import { esc, fmtBytes, fmtMbps, iso2Flag, protoPill, type SortCol } from '../dom';
-import { t } from '../i18n';
 import type { ConnRow } from '../gen/payloads';
 import { CC_NAMES, PORT_NAMES } from './connections-map';
 
@@ -11,11 +10,11 @@ import { CC_NAMES, PORT_NAMES } from './connections-map';
 export const PAGE_SIZE = 100;
 
 export const CONN_COLS: SortCol[] = [
-  { key: 'who', label: t('Client') },
-  { key: 'dst', label: t('Destination') },
-  { key: 'svc', label: t('Service') },
-  { key: 'proto', label: t('Protocol') },
-  { key: 'state', label: t('State') },
+  { key: 'who', label: 'Client' },
+  { key: 'dst', label: 'Destination' },
+  { key: 'svc', label: 'Service' },
+  { key: 'proto', label: 'Protocol' },
+  { key: 'state', label: 'State' },
   { key: 'txr', label: '↑ TX', cls: 'conn-num' },
   { key: 'rxr', label: '↓ RX', cls: 'conn-num' },
 ];

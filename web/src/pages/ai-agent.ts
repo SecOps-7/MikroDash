@@ -25,7 +25,6 @@
  */
 
 import type { Socket } from '../socket';
-import { t, ts } from '../i18n';
 import { el } from '../dom';
 import { renderMarkdown } from '../markdown';
 import { warningText } from '../resource';
@@ -40,25 +39,25 @@ type Role = 'you' | 'assistant' | 'error';
  * jokes about networking because that is what the person reading them does.
  */
 const PUNS: readonly string[] = [
-  t('Wiring bits'), t('Sorting Frames'), t('Handling Packets'), t('Hauling Bytes'), t('Routing Crumbs'),
-  t('Counting Collisions'), t('Bending Light'), t('Surfing Radio Waves'), t('Chasing Broadcasts'),
-  t('Flooding Unknowns'), t('Aging MAC Tables'), t('Poisoning Routes'), t('Splitting Horizons'),
-  t('Summarizing Prefixes'), t('Electing Root Bridges'), t('Converging Topology'),
-  t('Reconverging Anyway'), t('Trunking VLANs'), t('Untagging Frames'), t('Decrementing TTL'),
-  t('Fragmenting Packets'), t('Reassembling Packets'), t('Shaping Traffic'), t('Dropping Tail'),
-  t('Queueing Politely'), t('Buffering Bloat'), t('Herding Datagrams'), t('Draining Buckets'),
-  t('Marking DSCP'), t('Hopping Channels'), t('Dodging Interference'), t('Negotiating Beacons'),
-  t('Roaming Aimlessly'), t('Measuring RSSI'), t('Blaming Microwaves'), t('Surviving 2.4GHz'),
-  t('Steering Bands'), t('Counting Retries'), t('Deauthing Nobody'), t('Polishing Fiber'),
-  t('Terminating Cables'), t('Untangling Patch Leads'), t('Crimping RJ45s'), t('Reversing Polarity'),
-  t('Warming Transceivers'), t('Wiggling SFPs'), t('Blowing Dust'), t('Chasing Attenuation'),
-  t('Blaming DNS'), t('Asking Upstream'), t('Leasing Addresses'), t('Renewing Leases'), t('Shouting ARP'),
-  t('Resolving Eventually'), t('Caching Negatively'), t('Expiring TTLs'), t('Doing Kessel Runs'),
-  t('Pinging the Void'), t('Consulting the Oracle'), t('Rerouting Auxiliary Power'),
-  t('Engaging Warp Cores'), t('Finding the Way'), t('Dividing by Zero Safely'), t('Turning It Off And On'),
-  t('Waiting on SNMP'), t('Politely Polling'), t('Counting Octets'), t('Averaging Nonsense'),
-  t('Interpolating Gaps'), t('Arguing With RouterOS'), t('Reading Winbox Tea Leaves'), t('Tailing Logs'),
-  t('Ignoring Warnings'),
+  'Wiring bits', 'Sorting Frames', 'Handling Packets', 'Hauling Bytes', 'Routing Crumbs',
+  'Counting Collisions', 'Bending Light', 'Surfing Radio Waves', 'Chasing Broadcasts',
+  'Flooding Unknowns', 'Aging MAC Tables', 'Poisoning Routes', 'Splitting Horizons',
+  'Summarizing Prefixes', 'Electing Root Bridges', 'Converging Topology',
+  'Reconverging Anyway', 'Trunking VLANs', 'Untagging Frames', 'Decrementing TTL',
+  'Fragmenting Packets', 'Reassembling Packets', 'Shaping Traffic', 'Dropping Tail',
+  'Queueing Politely', 'Buffering Bloat', 'Herding Datagrams', 'Draining Buckets',
+  'Marking DSCP', 'Hopping Channels', 'Dodging Interference', 'Negotiating Beacons',
+  'Roaming Aimlessly', 'Measuring RSSI', 'Blaming Microwaves', 'Surviving 2.4GHz',
+  'Steering Bands', 'Counting Retries', 'Deauthing Nobody', 'Polishing Fiber',
+  'Terminating Cables', 'Untangling Patch Leads', 'Crimping RJ45s', 'Reversing Polarity',
+  'Warming Transceivers', 'Wiggling SFPs', 'Blowing Dust', 'Chasing Attenuation',
+  'Blaming DNS', 'Asking Upstream', 'Leasing Addresses', 'Renewing Leases', 'Shouting ARP',
+  'Resolving Eventually', 'Caching Negatively', 'Expiring TTLs', 'Doing Kessel Runs',
+  'Pinging the Void', 'Consulting the Oracle', 'Rerouting Auxiliary Power',
+  'Engaging Warp Cores', 'Finding the Way', 'Dividing by Zero Safely', 'Turning It Off And On',
+  'Waiting on SNMP', 'Politely Polling', 'Counting Octets', 'Averaging Nonsense',
+  'Interpolating Gaps', 'Arguing With RouterOS', 'Reading Winbox Tea Leaves', 'Tailing Logs',
+  'Ignoring Warnings',
 ];
 
 
@@ -115,7 +114,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     who.style.fontSize = '.68rem';
     who.style.color = 'var(--text-muted)';
     who.style.marginBottom = '.2rem';
-    who.textContent = role === 'you' ? t('You') : role === 'assistant' ? t('Assistant') : t('Error');
+    who.textContent = role === 'you' ? 'You' : role === 'assistant' ? 'Assistant' : 'Error';
     wrap.appendChild(who);
 
     const body = document.createElement('div');
@@ -252,7 +251,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     // Whatever streamed before the failure stays on screen, and the error
     // follows it; it is simply no longer being written to.
     endStream();
-    add('error', ts(d.error) || t('The request failed.'));
+    add('error', d.error || 'The request failed.');
   });
 
   // ── A CHANGE THE ASSISTANT WANTS TO MAKE ──────────────────────────────────
@@ -311,31 +310,25 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       // is where it sits, and in an ordered table that is the configuration.
       // "Change the Filter Rule" for a reorder is exactly the sentence that
       // makes a position edit read as a field edit.
-      const v = { what: d.label, name: d.name };
-      const rowLine = d.name
-        ? (d.action === 'create' ? t('Create a {what} “{name}”', v)
-          : d.action === 'delete' ? t('Delete the {what} “{name}”', v)
-            : d.action === 'move' ? t('Move the {what} “{name}”', v)
-              : t('Change the {what} “{name}”', v))
-        : (d.action === 'create' ? t('Create a {what}', v)
-          : d.action === 'delete' ? t('Delete the {what}', v)
-            : d.action === 'move' ? t('Move the {what}', v)
-              : t('Change the {what}', v));
+      const verb = d.action === 'create' ? 'Create a '
+        : d.action === 'delete' ? 'Delete the '
+        : d.action === 'move' ? 'Move the '
+        : 'Change the ';
       // AN UNDO names what it takes back ("edit of 192.0.2.10"), the page's
       // own Undo tooltip, with the kind of row after it.
       what.textContent = isAction
         ? d.label + (d.name ? ' \u2014 ' + d.name : '')
-        : d.action === 'undo' ? t('Undo the {name} ({what})', v)
-        : d.kind === 'plan' ? t('Plan: {what} \u2014 {name}', v)
+        : d.action === 'undo' ? 'Undo the ' + d.name + ' (' + d.label + ')'
+        : d.kind === 'plan' ? 'Plan: ' + d.label + ' \u2014 ' + d.name
         // A RAW COMMAND is not a row either: it is run, not "changed", and a
         // read is said to be one.
         : d.kind === 'command' ? (d.action === 'plan' ? d.label
-          : (d.action === 'read' ? t('Read with a RouterOS command') : t('Run a RouterOS command')) +
+          : (d.action === 'read' ? 'Read with a RouterOS command' : 'Run a RouterOS command') +
             (d.name ? ' \u2014 ' + d.name : ''))
-        : rowLine;
+        : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
     }
     const cmd = el('aiProposeCmd');
-    if (cmd) cmd.textContent = d.command || t('(no command could be built)');
+    if (cmd) cmd.textContent = d.command || '(no command could be built)';
 
     const vals = el('aiProposeValues');
     if (vals) {
@@ -371,15 +364,15 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     // so does it for an action that reboots a router.
     const approve = el('aiProposeApprove');
     if (approve) {
-      approve.textContent = d.action === 'delete' ? t('Delete it')
-        : d.action === 'move' ? t('Move it')
-        : d.action === 'undo' ? t('Undo it')
-        : d.kind === 'plan' ? t('Apply the plan')
-        : d.typedReason === 'code' ? t('Apply this code change')
-        : d.typedReason === 'run' ? t('Run the script')
-        : d.typedReason === 'command' ? (d.action === 'plan' ? t('Run the commands') : t('Run the command'))
-        : d.typedName ? t('Run it and reboot')
-        : isAction ? t('Run it') : t('Apply this change');
+      approve.textContent = d.action === 'delete' ? 'Delete it'
+        : d.action === 'move' ? 'Move it'
+        : d.action === 'undo' ? 'Undo it'
+        : d.kind === 'plan' ? 'Apply the plan'
+        : d.typedReason === 'code' ? 'Apply this code change'
+        : d.typedReason === 'run' ? 'Run the script'
+        : d.typedReason === 'command' ? (d.action === 'plan' ? 'Run the commands' : 'Run the command')
+        : d.typedName ? 'Run it and reboot'
+        : isAction ? 'Run it' : 'Apply this change';
     }
 
     // ── THE SECOND GATE, FOR AN ACTION THAT REBOOTS ────────────────────────
@@ -395,14 +388,13 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     if (label && proposalTyped) {
       // WHY a name is asked for is part of the prompt: a code change does not
       // reboot anything, and saying it does would train people to skim both.
-      const v = { name: proposalTyped };
-      label.textContent = d.typedReason === 'code'
-        ? t('This changes code the router runs. Type its name \u2014 {name} \u2014 to confirm.', v)
+      label.textContent = (d.typedReason === 'code'
+        ? 'This changes code the router runs. Type its name \u2014 '
         : d.typedReason === 'run'
-          ? t('This runs code on the router. Type its name \u2014 {name} \u2014 to confirm.', v)
+          ? 'This runs code on the router. Type its name \u2014 '
           : d.typedReason === 'command'
-            ? t('This runs a RouterOS command that MikroDash does not check. Type its name \u2014 {name} \u2014 to confirm.', v)
-            : t('This reboots the router. Type its name \u2014 {name} \u2014 to confirm.', v);
+          ? 'This runs a RouterOS command that MikroDash does not check. Type its name \u2014 '
+          : 'This reboots the router. Type its name \u2014 ') + proposalTyped + ' \u2014 to confirm.';
     }
     syncApprove();
 

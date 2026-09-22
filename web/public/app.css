@@ -1,5 +1,4 @@
-@font-face{font-family:'MD CJK';src:local('PingFang SC'),local('Hiragino Sans GB'),local('Microsoft YaHei'),local('Noto Sans CJK SC'),local('Source Han Sans SC'),local('Noto Sans SC'),local('WenQuanYi Micro Hei');unicode-range:U+2E80-2FDF,U+3000-303F,U+3100-312F,U+31A0-31BF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF}
-    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--accent-alt:#a78bfa;--accent-pink:#f472b6;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,'MD CJK',monospace;--font-ui:'Oxanium','MD CJK',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
+    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--accent-alt:#a78bfa;--accent-pink:#f472b6;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Oxanium',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
     html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--accent-alt:#6a3fb0;--accent-pink:#c2185b;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
     html[data-palette="nord"]{--bg-deep:#1e2430;--bg-card:rgba(46,52,64,.9);--border:rgba(76,86,106,.4);--accent-rx:#88c0d0;--accent-tx:#a3be8c;--text-muted:rgba(216,222,233,.5);--text-main:rgba(236,239,244,.9);--nav-bg:rgba(25,30,40,.95);--topbar-bg:rgba(25,30,40,.8)}
     html[data-palette="nord"][data-theme="light"]{--bg-deep:#d8dce3;--bg-card:rgba(236,239,244,.95);--border:#a9afba;--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:#626876;--text-main:rgba(46,52,64,.9);--nav-bg:rgba(204,210,220,.97);--topbar-bg:rgba(204,210,220,.9)}
@@ -133,7 +132,7 @@
     #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
     /* topbar */
     #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
-    #topbarLogo{font-family:'Orbitron','MD CJK',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(40vw,22rem)}
+    #topbarLogo{font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(40vw,22rem)}
     #topbarLogo span{color:var(--accent-rx)}
     /* Shown only on a phone — see the max-width:767px block. */
     #topbarMark{display:none;width:24px;height:24px;object-fit:contain;border-radius:4px;flex-shrink:0}
@@ -281,7 +280,7 @@
        top bar's wordmark, so what is saved is what the corner will show. */
     .brand-preview{display:flex;align-items:center;gap:.55rem;margin:0 0 .9rem;padding:.55rem .75rem;border:1px solid var(--border);border-radius:8px;min-height:46px;overflow:hidden}
     .brand-preview img{width:24px;height:24px;object-fit:contain;border-radius:4px;flex-shrink:0}
-    .brand-preview-name{font-family:'Orbitron','MD CJK',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand-preview-name{font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .brand-preview-name span{color:var(--accent-rx)}
     .brand-hint{font-size:.72rem;color:var(--text-muted);margin:.35rem 0 .55rem}
     .brand-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.35rem}

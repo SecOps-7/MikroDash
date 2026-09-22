@@ -27,15 +27,14 @@
 // uplink RouterOS does not call `internet` is visible as exactly that.
 
 import { esc, el, renderSortHeader, type SortCol, type SortState, mutedDash } from '../dom';
-import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { WAN, WANPayload } from '../gen/payloads';
 import { fmtMb } from './wan-flow-layout';
 import { createWanFlow } from './wan-flow';
 
 const COLS: SortCol[] = [
-  { key: '', label: t('Uplink') }, { key: '', label: t('Address') }, { key: '', label: t('Gateway') },
-  { key: '', label: t('Route') }, { key: '', label: t('Lease') }, { key: '', label: t('Rate') },
+  { key: '', label: 'Uplink' }, { key: '', label: 'Address' }, { key: '', label: 'Gateway' },
+  { key: '', label: 'Route' }, { key: '', label: 'Lease' }, { key: '', label: 'Rate' },
   { key: '', label: '' },
 ];
 
@@ -56,7 +55,7 @@ function since(ts: string): string {
 function rateCell(w: WAN): string {
   if (w.rxMbps === null && w.txMbps === null) {
     // null is "Interface Rates is not collecting", which is not "idle".
-    return mutedDash(t('Interface Rates collection is off for this router'));
+    return mutedDash('Interface Rates collection is off for this router');
   }
   return '<div class="q-rate">' +
     '<div class="q-rate-line"><span class="q-rate-arrow ' + (w.rxMbps ? 'rx' : 'zero') + '">&#8595;</span>' +
@@ -82,7 +81,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
   const flowCard = createWanFlow(socket, {
     id: 'wanFlow', fit: 'rows', visible: () => isVisible('wan'),
     cardId: 'wanFlowCard', wrapId: 'wanFlowWrap', svgId: 'wanFlowSvg', emptyId: 'wanFlowEmpty',
-    noUplinks: t('No uplinks to draw. The table above says why.'),
+    noUplinks: 'No uplinks to draw. The table above says why.',
   });
   const tb = el('wanTable');
   if (!tb) return;
@@ -131,7 +130,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     if (picker) picker.style.display = (canWrite && srcMode === 'manual') ? '' : 'none';
     const note = el('wanPickerNote');
     if (note) {
-      note.textContent = srcDirty ? t('not applied yet')
+      note.textContent = srcDirty ? 'not applied yet'
         : srcNames.length + ' selected';
     }
     const apply = el('wanPickerApply');
@@ -143,7 +142,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     if (!list) return;
     const ifaces = (data && data.interfaces) || [];
     if (!ifaces.length) {
-      list.innerHTML = '<span class="muted-note">' + t('No interfaces reported yet.') + '</span>';
+      list.innerHTML = '<span class="muted-note">No interfaces reported yet.</span>';
       return;
     }
     list.innerHTML = ifaces.map((i) =>
@@ -171,21 +170,21 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       .then(() => {
         srcDirty = false;
         setStatus(srcMode === 'manual'
-          ? t('Using the uplinks you declared')
-          : t('Back to the router\'s own detection'));
+          ? 'Using the uplinks you declared'
+          : 'Back to the router\'s own detection');
         syncSource();
       })
-      .catch(() => setStatus(t('Could not save the uplink list')));
+      .catch(() => setStatus('Could not save the uplink list'));
   }
 
   function emptyState(): string {
     if (!data) return 'Waiting for WAN data&hellip;';
-    if (data.denied) return t('This router\'s MikroDash account cannot read the internet-detection state.');
+    if (data.denied) return 'This router\'s MikroDash account cannot read the internet-detection state.';
     if (data.uplinkSource === 'manual') {
-      return t('No interfaces are declared as uplinks. Tick the ones that carry the internet.');
+      return 'No interfaces are declared as uplinks. Tick the ones that carry the internet.';
     }
-    if (!data.detectionEnabled) return t('Internet detection is not enabled on this router.');
-    return t('No uplink currently reports an internet connection.');
+    if (!data.detectionEnabled) return 'Internet detection is not enabled on this router.';
+    return 'No uplink currently reports an internet connection.';
   }
 
   // The actions cell, reproducing the live markup attribute for attribute.
@@ -200,7 +199,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       '<button class="ru-act' + (cls ? ' ' + cls : '') + '" data-wanact="' + verb +
       '" data-id="' + esc(w.dhcp!.id) + '" data-name="' + esc(w.name) + '"' +
       (busy === w.dhcp!.id ? ' disabled' : '') + '>' + label + '</button>';
-    return b('renew', t('Renew')) + ' ' + b('release', t('Release'), 'danger');
+    return b('renew', 'Renew') + ' ' + b('release', 'Release', 'danger');
   }
 
   function render(): void {
@@ -215,12 +214,12 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
         '<td>' + esc(w.name) +
         (w.manual
           ? '<span class="badge bg-orange-lt" style="margin-left:.35rem;font-size:.6rem"' +
-            ' title="' + (w.state === 'internet' ? t('You declared this an uplink. RouterOS agrees.')
-              : t('You declared this an uplink. RouterOS does NOT report it as an internet link.')) +
-            '">' + t('declared') + '</span>' : '') +
+            ' title="You declared this an uplink. RouterOS ' +
+            (w.state === 'internet' ? 'agrees.' : 'does NOT report it as an internet link.') +
+            '">declared</span>' : '') +
         '<div class="muted-note">' + esc(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
-        (age ? ' · ' + t('up {age}', { age: esc(age) }) : '') +
-        (w.manual && w.state !== 'internet' ? ' · ' + t('router does not agree') : '') + '</div></td>' +
+        (age ? ' · up ' + esc(age) : '') +
+        (w.manual && w.state !== 'internet' ? ' · router does not agree' : '') + '</div></td>' +
         '<td>' + (w.address ? esc(w.address) : mutedDash()) +
         (w.isPublic === true ? '<div class="muted-note" style="color:var(--accent-rx)">public</div>'
           : w.isPublic === false ? '<div class="muted-note">private</div>' : '') + '</td>' +
@@ -230,7 +229,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
             ? '<span class="wl-band wl-band-6">active</span>'
             : '<span class="wl-band wl-band-24">standby</span>') +
           '<div class="muted-note">distance ' + esc(w.routeDistance || '?') + '</div>'
-          : mutedDash(t('No default route via this uplink'))) + '</td>' +
+          : mutedDash('No default route via this uplink')) + '</td>' +
         '<td>' + leaseCell(w) + '</td>' +
         '<td>' + rateCell(w) + '</td>' +
         '<td>' + actions(w) + '</td>' +
@@ -240,7 +239,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     const note = el('wanActionNote');
     // Never clears a message it did not write — see setStatus.
     if (note && !note.dataset.status) {
-      note.textContent = caps.permitted ? '' : t('read-only — you do not have write access to this router');
+      note.textContent = caps.permitted ? '' : 'read-only — you do not have write access to this router';
     }
     renderNotice();
     renderSummary();
@@ -261,8 +260,11 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     card.style.display = '';
     // The default is detect-interface-list=none, so this is the common case
     // rather than a fault. Say what to run.
-    body.innerHTML = '<strong>' + t('Internet detection is switched off on this router.') + '</strong> ' +
-      t('RouterOS decides which interfaces reach the internet, and it is not looking. This page shows what it reports, so it has nothing to show until detection is on. Enable it with <code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic beyond an occasional probe.');
+    body.innerHTML = '<strong>Internet detection is switched off on this router.</strong> ' +
+      'RouterOS decides which interfaces reach the internet, and it is not looking. ' +
+      'This page shows what it reports, so it has nothing to show until detection is on. Enable it with ' +
+      '<code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic ' +
+      'beyond an occasional probe.';
   }
 
   function renderSummary(): void {
@@ -296,8 +298,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
   }
 
   document.addEventListener('click', (e) => {
-    const tgt = e.target as HTMLElement | null;
-    const b = tgt?.closest?.('[data-wanact]') as HTMLElement | null;
+    const t = e.target as HTMLElement | null;
+    const b = t?.closest?.('[data-wanact]') as HTMLElement | null;
     if (!b) return;
     const verb = b.getAttribute('data-wanact') || '';
     const id = b.getAttribute('data-id') || '';
@@ -307,8 +309,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     // will drop your own connection". Conflating them would train the operator
     // to dismiss both with one habit.
     const msg = verb === 'release'
-      ? t('Release the DHCP lease on "{uplink}"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.', { uplink: name })
-      : t('Renew the DHCP lease on "{uplink}"?\n\nThe uplink blips briefly while the lease is renewed.', { uplink: name });
+      ? 'Release the DHCP lease on "' + name + '"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.'
+      : 'Renew the DHCP lease on "' + name + '"?\n\nThe uplink blips briefly while the lease is renewed.';
     if (!window.confirm(msg)) return;
     send(verb, id, name);
   });
@@ -345,8 +347,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     busy = '';
     // "Requested", not "renewed": the lease settles over the next second or two
     // and the next tick is what reports the outcome.
-    const uplink = (d && d.name) || '';
-    setStatus(d && d.action === 'release' ? t('Released the lease on {uplink}', { uplink }) : t('Requested a renewal on {uplink}', { uplink }));
+    setStatus((d && d.action === 'release' ? 'Released the lease on ' : 'Requested a renewal on ') +
+      ((d && d.name) || ''));
   });
 
   socket.on('wan:error', (d) => {
@@ -375,32 +377,34 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       const body = el('wanWarnBody');
       if (body) {
         body.innerHTML =
-          '<p>' + (caps.routerName
-            ? t('MikroDash reaches {router} from <code>{address}</code>, which is not on any of its connected subnets — so that traffic arrives over a WAN.', { router: esc(caps.routerName), address: esc(w.address || '') })
-            : t('MikroDash reaches this router from <code>{address}</code>, which is not on any of its connected subnets — so that traffic arrives over a WAN.', { address: esc(w.address || '') })) + '</p>' +
+          '<p>MikroDash reaches ' + esc(caps.routerName || 'this router') + ' from <code>' +
+            esc(w.address || '') + '</code>, which is not on any of its connected subnets — so that ' +
+            'traffic arrives over a WAN.</p>' +
           (w.certain
-            ? '<p>' + t('<strong>{uplink} is the uplink carrying the active default route</strong>, which means it is carrying this session.', { uplink: esc(w.wan || '') }) + '</p>'
-            : '<p>' + t('This router has more than one active default route, so which uplink carries this session cannot be determined — <strong>{uplink} may be the one.</strong>', { uplink: esc(w.wan || '') }) + '</p>') +
+            ? '<p><strong>' + esc(w.wan || '') + ' is the uplink carrying the active default route</strong>, ' +
+              'which means it is carrying this session.</p>'
+            : '<p>This router has more than one active default route, so which uplink carries this ' +
+              'session cannot be determined — <strong>' + esc(w.wan || '') + ' may be the one.</strong></p>') +
           '<p>' + (((el<HTMLInputElement>('wanWarnVerb')?.value) || '') === 'release'
-            ? t('Releasing the lease takes the uplink down until the client rebinds.')
-            : t('Renewing blips the uplink briefly.')) +
-          ' ' + t('The dashboard will lose this router until it comes back. It should return on its own.') + '</p>' +
+            ? 'Releasing the lease takes the uplink down until the client rebinds.'
+            : 'Renewing blips the uplink briefly.') +
+          ' The dashboard will lose this router until it comes back. It should return on its own.</p>' +
           (code === 'stale-warning'
-            ? '<p><em>' + t('The situation changed since you confirmed, so please confirm again.') + '</em></p>' : '');
+            ? '<p><em>The situation changed since you confirmed, so please confirm again.</em></p>' : '');
       }
       el('wanWarnWrap')?.classList.add('open');
       return;
     }
 
     const msg: Record<string, string> = {
-      denied: t('You do not have write access to this router'),
-      unavailable: t('WAN collection is not running for this router'),
-      'bad-request': t('Invalid request'),
-      'stale-row': t('That uplink changed on the router — the page has been refreshed'),
-      'router-write-policy': t('The RouterOS user needs write permission for this'),
-      unsupported: t('This router does not support that command'),
+      denied: 'You do not have write access to this router',
+      unavailable: 'WAN collection is not running for this router',
+      'bad-request': 'Invalid request',
+      'stale-row': 'That uplink changed on the router — the page has been refreshed',
+      'router-write-policy': 'The RouterOS user needs write permission for this',
+      unsupported: 'This router does not support that command',
     };
-    setStatus((code && msg[code]) || ts(d && d.message) || t('Action failed'));
+    setStatus((code && msg[code]) || (d && d.message) || 'Action failed');
     if (isVisible('wan')) render();
   });
 

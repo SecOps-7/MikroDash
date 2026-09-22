@@ -19,7 +19,6 @@
 // different id order, or a queued pulse — takes the full path.
 
 import { esc, el, resRow, debounce, fmtBytes } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 // FirewallPayload, as generated from the Go collector:
 //
@@ -171,7 +170,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
           '<span class="fw-action-count">' + e[1] + '</span>' +
         '</div>';
       }).join('') ||
-        '<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">' + t('No rules') + '</span></div>';
+        '<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">No rules</span></div>';
     }
 
     updateChainCount(d);
@@ -190,7 +189,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     const entries = Object.keys(counts).map((k) => [k, counts[k]] as [string, number])
       .sort((a, b) => b[1] - a[1]);
     if (!entries.length) {
-      e.innerHTML = '<span style="color:var(--text-muted);font-size:.7rem">' + t('No rules') + '</span>';
+      e.innerHTML = '<span style="color:var(--text-muted);font-size:.7rem">No rules</span>';
       return;
     }
     const max = entries[0]![1];
@@ -284,7 +283,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     }
     if (!rules.length) {
       firewallTable.innerHTML = '<tr><td colspan="9" class="empty-state">' +
-        (search ? t('No rules match search') : t('No rules')) + '</td></tr>';
+        (search ? 'No rules match search' : 'No rules') + '</td></tr>';
       pulse = null;
       return;
     }
@@ -295,8 +294,8 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
       // owns both flows, including the guard prompt a reorder can raise, and any
       // future ordered resource gets the same behaviour for free.
       const moveCell = canMove
-        ? ('<button class="fw-move" data-res-move="up" title="' + t('Move up') + '"') + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-          ('<button class="fw-move" data-res-move="down" title="' + t('Move down') + '"') + (at === last ? ' disabled' : '') + '>&#9660;</button>'
+        ? '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+          '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button>'
         : '';
       // U+283F, the six-dot braille cell — the conventional grip, and a single
       // character rather than an SVG repeated down thirty rows.

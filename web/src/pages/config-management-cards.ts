@@ -3,7 +3,6 @@
 // socket, a fetch or a page.
 
 import { esc } from '../dom';
-import { t } from '../i18n';
 import { tokenizeRouterOS } from '../markdown';
 
 /** One template as the Library shows it: canned or stored, one shape. */
@@ -25,13 +24,13 @@ export interface LibTemplate {
 }
 
 export const CATEGORIES: { key: string; label: string }[] = [
-  { key: 'all', label: t('All') },
-  { key: 'home', label: t('Home') },
-  { key: 'office', label: t('Office') },
-  { key: 'security', label: t('Security') },
-  { key: 'monitoring', label: t('Monitoring') },
-  { key: 'network', label: t('Network') },
-  { key: 'custom', label: t('Custom') },
+  { key: 'all', label: 'All' },
+  { key: 'home', label: 'Home' },
+  { key: 'office', label: 'Office' },
+  { key: 'security', label: 'Security' },
+  { key: 'monitoring', label: 'Monitoring' },
+  { key: 'network', label: 'Network' },
+  { key: 'custom', label: 'Custom' },
 ];
 
 /** The external generator. A plain link that never carries data. */
@@ -57,8 +56,8 @@ export function highlight(src: string): string {
   const re = /\{\{[a-z][a-z0-9_]*\}\}/g;
   let last = 0;
   const plain = (s: string): void => {
-    for (const tok of tokenizeRouterOS(s)) {
-      out.push(tok.cls ? '<span class="' + tok.cls + '">' + esc(tok.text) + '</span>' : esc(tok.text));
+    for (const t of tokenizeRouterOS(s)) {
+      out.push(t.cls ? '<span class="' + t.cls + '">' + esc(t.text) + '</span>' : esc(t.text));
     }
   };
   for (let m = re.exec(src); m; m = re.exec(src)) {
@@ -70,40 +69,40 @@ export function highlight(src: string): string {
   return out.join('');
 }
 
-function kindPill(tpl: LibTemplate): string {
-  if (tpl.canned) return '<span class="vpn-hs-badge cfg-pill-canned">' + t('Canned') + '</span>';
-  if (tpl.kind === 'full-export') return '<span class="vpn-hs-badge cfg-pill-full">' + t('Full export') + '</span>';
-  if (tpl.kind === 'full-binary') return '<span class="vpn-hs-badge cfg-pill-full">' + t('Binary clone') + '</span>';
-  return '<span class="vpn-hs-badge cfg-pill-custom">' + t('Custom') + '</span>';
+function kindPill(t: LibTemplate): string {
+  if (t.canned) return '<span class="vpn-hs-badge cfg-pill-canned">Canned</span>';
+  if (t.kind === 'full-export') return '<span class="vpn-hs-badge cfg-pill-full">Full export</span>';
+  if (t.kind === 'full-binary') return '<span class="vpn-hs-badge cfg-pill-full">Binary clone</span>';
+  return '<span class="vpn-hs-badge cfg-pill-custom">Custom</span>';
 }
 
 /** One Library card. */
-export function templateCard(tpl: LibTemplate): string {
-  const scope = tpl.scope.slice(0, 3).map((m) => '<span class="cfg-chip">' + esc(m) + '</span>').join('') +
-    (tpl.scope.length > 3 ? '<span class="cfg-chip cfg-chip-more">+' + (tpl.scope.length - 3) + '</span>' : '');
-  const lock = tpl.lockClass
+export function templateCard(t: LibTemplate): string {
+  const scope = t.scope.slice(0, 3).map((m) => '<span class="cfg-chip">' + esc(m) + '</span>').join('') +
+    (t.scope.length > 3 ? '<span class="cfg-chip cfg-chip-more">+' + (t.scope.length - 3) + '</span>' : '');
+  const lock = t.lockClass
     ? '<span class="vpn-hs-badge cfg-pill-lock" title="Deploying it arms an automatic revert: if MikroDash cannot ' +
-      ('log back in, the router puts itself back.">' + t('May cut MikroDash off · auto-revert') + '</span>')
+      'log back in, the router puts itself back.">May cut MikroDash off · auto-revert</span>'
     : '';
-  const vars = tpl.variables
-    ? '<span class="cfg-meta">' + tpl.variables + (tpl.variables === 1 ? ' setting' : ' settings') + '</span>'
-    : '<span class="cfg-meta">' + t('No settings') + '</span>';
-  return '<article class="cfg-tpl cfg-cat-' + esc(tpl.category) + '" data-cfg-id="' + esc(tpl.id) + '">' +
+  const vars = t.variables
+    ? '<span class="cfg-meta">' + t.variables + (t.variables === 1 ? ' setting' : ' settings') + '</span>'
+    : '<span class="cfg-meta">No settings</span>';
+  return '<article class="cfg-tpl cfg-cat-' + esc(t.category) + '" data-cfg-id="' + esc(t.id) + '">' +
     '<div class="cfg-tpl-rail"></div>' +
-    '<header class="cfg-tpl-head"><span class="cfg-glyph">' + glyph(tpl.category) + '</span>' +
-    '<div class="cfg-tpl-titles"><h4 class="cfg-tpl-name">' + esc(tpl.name) + '</h4>' +
-    '<div class="cfg-tpl-pills">' + kindPill(tpl) + (tpl.canned ? '<span class="cfg-meta">v' + tpl.version + '</span>' : '') +
+    '<header class="cfg-tpl-head"><span class="cfg-glyph">' + glyph(t.category) + '</span>' +
+    '<div class="cfg-tpl-titles"><h4 class="cfg-tpl-name">' + esc(t.name) + '</h4>' +
+    '<div class="cfg-tpl-pills">' + kindPill(t) + (t.canned ? '<span class="cfg-meta">v' + t.version + '</span>' : '') +
     '</div></div></header>' +
-    '<p class="cfg-tpl-desc">' + esc(tpl.description || t('No description.')) + '</p>' +
+    '<p class="cfg-tpl-desc">' + esc(t.description || 'No description.') + '</p>' +
     (lock ? '<div class="cfg-tpl-lock">' + lock + '</div>' : '') +
     '<div class="cfg-tpl-scope">' + scope + '</div>' +
     '<footer class="cfg-tpl-foot">' + vars +
     '<span class="cfg-tpl-actions">' +
-    (tpl.canned ? ('<button class="cfg-btn" type="button" data-cfg-act="preview">' + t('Preview') + '</button>') +
-      ('<button class="cfg-btn" type="button" data-cfg-act="clone">' + t('Customise') + '</button>')
-      : ('<button class="cfg-btn" type="button" data-cfg-act="edit">' + t('Edit') + '</button>') +
-      ('<button class="cfg-btn" type="button" data-cfg-act="clone">' + t('Duplicate') + '</button>')) +
-    ('<button class="cfg-btn cfg-btn-go" type="button" data-cfg-act="deploy">' + t('Deploy') + '</button>') +
+    (t.canned ? '<button class="cfg-btn" type="button" data-cfg-act="preview">Preview</button>' +
+      '<button class="cfg-btn" type="button" data-cfg-act="clone">Customise</button>'
+      : '<button class="cfg-btn" type="button" data-cfg-act="edit">Edit</button>' +
+      '<button class="cfg-btn" type="button" data-cfg-act="clone">Duplicate</button>') +
+    '<button class="cfg-btn cfg-btn-go" type="button" data-cfg-act="deploy">Deploy</button>' +
     '</span></footer></article>';
 }
 
@@ -113,22 +112,25 @@ export function generatorCard(): string {
     '<header class="cfg-tpl-head"><span class="cfg-glyph">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/>' +
     '<path d="M18 14v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 19V7.5A1.5 1.5 0 0 1 5.5 6H10"/></svg></span>' +
-    ('<div class="cfg-tpl-titles"><h4 class="cfg-tpl-name">' + t('MikroTik config generator') + '</h4>') +
-    ('<div class="cfg-tpl-pills"><span class="vpn-hs-badge cfg-pill-external">' + t('External site') + '</span></div></div></header>') +
-    ('<p class="cfg-tpl-desc">' + t('Describe a setup in plain words and get a RouterOS configuration to start from. It opens in a new tab and needs internet access. MikroDash has not reviewed it: paste what it gives you into a new template, and the editor checks every line before anything reaches a router.') + '</p>') +
-    ('<footer class="cfg-tpl-foot"><span class="cfg-meta">' + t('Nothing is sent to it from here') + '</span>') +
+    '<div class="cfg-tpl-titles"><h4 class="cfg-tpl-name">MikroTik config generator</h4>' +
+    '<div class="cfg-tpl-pills"><span class="vpn-hs-badge cfg-pill-external">External site</span></div></div></header>' +
+    '<p class="cfg-tpl-desc">Describe a setup in plain words and get a RouterOS configuration to start from. ' +
+    'It opens in a new tab and needs internet access. MikroDash has not reviewed it: paste what it gives you ' +
+    'into a new template, and the editor checks every line before anything reaches a router.</p>' +
+    '<footer class="cfg-tpl-foot"><span class="cfg-meta">Nothing is sent to it from here</span>' +
     '<span class="cfg-tpl-actions"><a class="cfg-btn cfg-btn-go" href="' + GENERATOR_URL + '" target="_blank" ' +
-    ('rel="noopener noreferrer">' + t('Open generator') + '</a></span></footer></article>');
+    'rel="noopener noreferrer">Open generator</a></span></footer></article>';
 }
 
 /** The Library grid for one category and search. */
 export function libraryGrid(all: LibTemplate[], category: string, query: string): string {
   const q = query.trim().toLowerCase();
-  const shown = all.filter((tpl) => (category === 'all' || tpl.category === category) &&
-    (!q || (tpl.name + ' ' + tpl.description + ' ' + tpl.tags.join(' ') + ' ' + tpl.scope.join(' ')).toLowerCase().includes(q)));
+  const shown = all.filter((t) => (category === 'all' || t.category === category) &&
+    (!q || (t.name + ' ' + t.description + ' ' + t.tags.join(' ') + ' ' + t.scope.join(' ')).toLowerCase().includes(q)));
   const cards = shown.map(templateCard).join('');
   const empty = shown.length ? '' : '<div class="cfg-empty">' +
-    (category === 'custom' && !q ? t('No custom templates yet. Customise a canned one, capture one from a router, or start a new one.') : t('Nothing matches.')) + '</div>';
+    (category === 'custom' && !q ? 'No custom templates yet. Customise a canned one, capture one from a router, ' +
+      'or start a new one.' : 'Nothing matches.') + '</div>';
   return '<div class="cfg-grid">' + cards + generatorCard() + '</div>' + empty;
 }
 
@@ -141,13 +143,13 @@ export function categoryBar(active: string, counts: Record<string, number>): str
 
 /** The stat strip's tiles. */
 export function statStrip(all: LibTemplate[]): string {
-  const canned = all.filter((tpl) => tpl.canned).length;
+  const canned = all.filter((t) => t.canned).length;
   const tile = (n: number | string, label: string, cls = ''): string =>
     '<div class="cfg-stat ' + cls + '"><div class="cfg-stat-n">' + n + '</div><div class="cfg-stat-l">' +
     esc(label) + '</div></div>';
-  return tile(canned, t('Canned'), 'cfg-stat-canned') + tile(all.length - canned, t('Custom'), 'cfg-stat-custom') +
-    tile(all.filter((tpl) => tpl.lockClass).length, t('With auto-revert'), 'cfg-stat-lock') +
-    tile(new Set(all.map((tpl) => tpl.category)).size, t('Categories'));
+  return tile(canned, 'Canned', 'cfg-stat-canned') + tile(all.length - canned, 'Custom', 'cfg-stat-custom') +
+    tile(all.filter((t) => t.lockClass).length, 'With auto-revert', 'cfg-stat-lock') +
+    tile(new Set(all.map((t) => t.category)).size, 'Categories');
 }
 
 /** A template read in full, as the preview drawer shows it. */
@@ -158,7 +160,7 @@ export interface TemplateDetail {
   findings: { level: string; code: string; line?: number; message: string }[];
 }
 
-const LEVEL_LABEL: Record<string, string> = { refuse: t('Refused'), ack: t('Needs your OK'), warn: t('Note') };
+const LEVEL_LABEL: Record<string, string> = { refuse: 'Refused', ack: 'Needs your OK', warn: 'Note' };
 
 /** One finding: its level as a pill, its line, and what it means. */
 export function findingRow(f: TemplateDetail['findings'][number]): string {
@@ -169,18 +171,18 @@ export function findingRow(f: TemplateDetail['findings'][number]): string {
 
 export function drawerBody(d: TemplateDetail): string {
   const vars = d.variables.length
-    ? ('<table class="table table-sm cfg-vars"><thead><tr><th>' + t('Setting') + '</th><th>' + t('Type') + '</th><th>' + t('Default') + '</th></tr></thead><tbody>') +
+    ? '<table class="table table-sm cfg-vars"><thead><tr><th>Setting</th><th>Type</th><th>Default</th></tr></thead><tbody>' +
       d.variables.map((v) => '<tr><td><span class="cfg-var">{{' + esc(v.name) + '}}</span>' +
         (v.label ? '<div class="cfg-meta">' + esc(v.label) + '</div>' : '') + '</td><td>' + esc(v.type) +
         (v.required ? ' <span class="cfg-meta">required</span>' : '') + '</td><td>' +
         (v.default ? '<code>' + esc(v.default) + '</code>' : '<span class="cfg-meta">—</span>') + '</td></tr>').join('') +
       '</tbody></table>'
-    : '<div class="cfg-meta">' + t('This template has no settings.') + '</div>';
+    : '<div class="cfg-meta">This template has no settings.</div>';
   const findings = d.findings.length
     ? '<ul class="cfg-findings">' + d.findings.map(findingRow).join('') + '</ul>'
-    : '<div class="cfg-meta">' + t('Nothing to flag.') + '</div>';
+    : '<div class="cfg-meta">Nothing to flag.</div>';
   return '<p class="cfg-drawer-desc">' + esc(d.description) + '</p>' +
-    ('<h5 class="cfg-drawer-h">' + t('Settings') + '</h5>') + vars +
-    ('<h5 class="cfg-drawer-h">' + t('Checks') + '</h5>') + findings +
-    ('<h5 class="cfg-drawer-h">' + t('Template') + '</h5><pre class="cfg-code md-ros">') + highlight(d.body) + '</pre>';
+    '<h5 class="cfg-drawer-h">Settings</h5>' + vars +
+    '<h5 class="cfg-drawer-h">Checks</h5>' + findings +
+    '<h5 class="cfg-drawer-h">Template</h5><pre class="cfg-code md-ros">' + highlight(d.body) + '</pre>';
 }

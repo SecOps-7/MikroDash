@@ -26,7 +26,6 @@
 // editing this file.
 
 import { PAGE_NAV_MAP } from './gen/view-presets.js';
-import { t } from './i18n';
 import type { NavMode } from './routing';
 import { ALL_NAV_PAGES } from './gen/page-keys.js';
 import { AREA_KEY_SET } from './gen/areas.js';
@@ -241,7 +240,7 @@ export function applyCaps(c: Caps | null | undefined): void {
     const allowed = !!cur[e.getAttribute('data-cap') || ''];
     if (e.hasAttribute('data-cap-disable')) {
       (e as HTMLButtonElement).disabled = !allowed;
-      if (!allowed) e.title = t('You do not have permission for this');
+      if (!allowed) e.title = 'You do not have permission for this';
     } else {
       e.style.display = allowed ? '' : 'none';
     }
@@ -253,7 +252,7 @@ export function applyCaps(c: Caps | null | undefined): void {
   const saveSett = document.getElementById('settingsSaveBtn') as HTMLButtonElement | null;
   if (saveSett) {
     saveSett.disabled = !cur.manageSettings;
-    if (!cur.manageSettings) saveSett.title = t('Administrator access required');
+    if (!cur.manageSettings) saveSett.title = 'Administrator access required';
   }
   const settingsNav = document.getElementById('settingsNavItem');
   // Operators still have a reason to open Settings — their own preferences and

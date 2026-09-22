@@ -23,7 +23,6 @@
  */
 
 import { el } from '../dom';
-import { t, ts } from '../i18n';
 import { POLL_SLIDERS, POLL_PROFILES, POLL_PROFILE_KEY, type PollSlider } from '../gen/poll-tables';
 
 export type PollData = Record<string, unknown>;
@@ -147,8 +146,8 @@ export function buildSliders(data: PollData, sliders: PollSlider[] = POLL_SLIDER
       const hdr = document.createElement('div');
       hdr.className = 'poll-group-hdr';
       hdr.textContent = range === 'live'
-        ? t('Live data — 1s to 30s')
-        : t('Slow-changing data — 10s to 10m');
+        ? 'Live data — 1s to 30s'
+        : 'Slow-changing data — 10s to 10m';
       wrap.appendChild(hdr);
     }
     const row = document.createElement('div');
@@ -298,7 +297,7 @@ export function initPollAndBanner(reloadSettings: () => void): void {
     saveBtn.addEventListener('click', () => {
       const vals = customValues();
       saveBtn.disabled = true;
-      saveBtn.textContent = t('Saving…');
+      saveBtn.textContent = 'Saving…';
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -308,21 +307,21 @@ export function initPollAndBanner(reloadSettings: () => void): void {
         .then((r) => r.json())
         .then((d) => {
           saveBtn.disabled = false;
-          saveBtn.textContent = t('Save Custom Profile');
+          saveBtn.textContent = 'Save Custom Profile';
           if (d && d.ok) {
             // The table gains a `custom` row only now, which is why
             // `applyPollProfile` marks an unknown profile active anyway.
             POLL_PROFILES.custom = vals;
             setPollProfileUI('custom');
-            showCustomStatus(true, t('✓ Saved'));
+            showCustomStatus(true, '✓ Saved');
           } else {
-            showCustomStatus(false, '✗ ' + (ts(d && d.error) || t('failed')));
+            showCustomStatus(false, '✗ ' + ((d && d.error) || 'failed'));
           }
         })
         .catch(() => {
           saveBtn.disabled = false;
-          saveBtn.textContent = t('Save Custom Profile');
-          showCustomStatus(false, t('✗ Request failed'));
+          saveBtn.textContent = 'Save Custom Profile';
+          showCustomStatus(false, '✗ Request failed');
         });
     });
   }
@@ -330,7 +329,7 @@ export function initPollAndBanner(reloadSettings: () => void): void {
   const resetBtn = el<HTMLButtonElement>('settingsResetBtn');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      if (!confirm(t('Reset all settings to defaults? This cannot be undone.'))) return;
+      if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -344,13 +343,13 @@ export function initPollAndBanner(reloadSettings: () => void): void {
         // exactly what it did".
         .then((d) => {
           if (d && d.ok) {
-            showBanner('ok', t('✓ Reset to defaults'));
+            showBanner('ok', '✓ Reset to defaults');
             reloadSettings();
           } else {
-            showBanner('err', t('Reset failed: {error}', { error: ts(d && d.error) || t('not permitted') }));
+            showBanner('err', 'Reset failed: ' + ((d && d.error) || 'not permitted'));
           }
         })
-        .catch((e) => showBanner('err', t('Reset failed: {error}', { error: String(e) })));
+        .catch((e) => showBanner('err', 'Reset failed: ' + e));
     });
   }
 }

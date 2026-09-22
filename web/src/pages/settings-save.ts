@@ -21,7 +21,6 @@
  */
 
 import { el } from '../dom';
-import { t, ts } from '../i18n';
 import { FORM_FIELDS, PLACEHOLDER_CREDENTIALS } from '../gen/settings-form-map';
 import { INT_FIELDS, STR_FIELDS } from '../gen/settings-write-fields';
 import { showBanner, customValues } from './settings-poll';
@@ -224,7 +223,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
 
   btn.addEventListener('click', () => {
     btn.disabled = true;
-    btn.textContent = t('Saving…');
+    btn.textContent = 'Saving…';
     void fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -238,7 +237,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
       .then((d: { ok?: boolean; error?: string }) => {
         restore();
         if (d && d.ok) {
-          showBanner('ok', t('✓ Settings saved'));
+          showBanner('ok', '✓ Settings saved');
           // LOAD-BEARING, not cosmetic. It re-blanks the credential inputs so a
           // second Save does not re-post a secret typed for the first, and it
           // re-reads what the server actually stored — which, because invalid
@@ -254,11 +253,11 @@ export function initSettingsSave(reloadSettings: () => void): void {
         // Reset button carries the scar for the other half of this — it once
         // reported "✓ Reset to defaults" on a 403 — and this is the worse half,
         // because it destroys work rather than merely lying about it.
-        showBanner('err', t('Save failed: {error}', { error: ts(d && d.error) || t('unknown error') }));
+        showBanner('err', 'Save failed: ' + ((d && d.error) || 'unknown error'));
       })
       .catch((e) => {
         restore();
-        showBanner('err', t('Request failed: {error}', { error: String(e) }));
+        showBanner('err', 'Request failed: ' + e);
       });
   });
 }

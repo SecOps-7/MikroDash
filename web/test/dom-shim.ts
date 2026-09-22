@@ -560,9 +560,7 @@ function watchUnknown(unknown: Set<string>, allow: string[]): void {
       }
     });
   }
-  // `i18n-catalog` is every page's: t() reads the embedded catalog once, and a
-  // document without one is English, which is what every test here renders.
-  watched.push({ unknown, allow: new Set([...allow, 'i18n-catalog']) });
+  watched.push({ unknown, allow: new Set(allow) });
 }
 
 /** The resource modal's furniture: wired by any bundle that includes resource.ts. */

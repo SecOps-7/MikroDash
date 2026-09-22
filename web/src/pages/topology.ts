@@ -28,7 +28,6 @@
 // yet outlived the slice it described.
 
 import { topoPanel } from './topology-panel';
-import { t } from '../i18n';
 import { topoPersist } from './topology-persist';
 import { fmtTime } from '../timefmt';
 import { esc, el as byId, fmtMbps, svgEl, attr, text, lsGet, lsSet } from '../dom';
@@ -115,9 +114,9 @@ export function glyph(type: string): string {
 }
 
 export const TYPE_LABEL: Record<string, string> = {
-  router: t('Router'), switch: t('Switch'), ap: t('Access point'), station: t('Station'),
-  phone: t('VoIP phone'), modem: t('Modem'), repeater: t('Repeater'),
-  other: t('Other device'), unknown: t('Unidentified'),
+  router: 'Router', switch: 'Switch', ap: 'Access point', station: 'Station',
+  phone: 'VoIP phone', modem: 'Modem', repeater: 'Repeater',
+  other: 'Other device', unknown: 'Unidentified',
 };
 
 // ── layout ──────────────────────────────────────────────────────────────────
@@ -560,23 +559,22 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
 
   function edgeTooltip(e: TopoEdge, r: Rate | null): string {
     if (e.pinned) {
-      let tip = t('pinned by hand: this device was told to hang off that one');
-      if (e.viaPort) tip += '\n' + t('on {port}', { port: e.viaPort });
-      if (e.remoteIface) tip += '\n' + t('its port: {port}', { port: e.remoteIface });
+      let tip = 'pinned by hand: this device was told to hang off that one';
+      if (e.viaPort) tip += '\non ' + e.viaPort;
+      if (e.remoteIface) tip += '\nits port: ' + e.remoteIface;
       return tip;
     }
     if (e.inferred) {
       // Say plainly that this link is DEDUCED, and from what: the router can see
       // that the device is behind this switch, but not which switch port.
-      let tip = e.viaPort
-        ? t('behind this device on {port} — inferred: seen via MNDP/CDP only, so it is not directly attached', { port: e.viaPort })
-        : t('behind this device on the same port — inferred: seen via MNDP/CDP only, so it is not directly attached');
-      if (e.remoteIface) tip += '\n' + t('its port: {port}', { port: e.remoteIface });
+      let tip = 'behind this device on ' + (e.viaPort || 'the same port') +
+        ' — inferred: seen via MNDP/CDP only, so it is not directly attached';
+      if (e.remoteIface) tip += '\nits port: ' + e.remoteIface;
       return tip;
     }
-    let tip = e.iface || t('link');
+    let tip = e.iface || 'link';
     if (e.remoteIface) tip += '  →  ' + e.remoteIface;
-    if (e.shared) tip += '  ' + t('(shared segment — more than one device on this port)');
+    if (e.shared) tip += '  (shared segment — more than one device on this port)';
     if (r) tip += '  ↓' + fmtMbps(r.rx) + '  ↑' + fmtMbps(r.tx);
     return tip;
   }
@@ -707,7 +705,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     if (sig === vlanSig) return;
     vlanSig = sig;
     const keep = vlanFilter;
-    elVlan.innerHTML = ('<option value="">' + t('All VLANs') + '</option>') +
+    elVlan.innerHTML = '<option value="">All VLANs</option>' +
       list.map((v) => '<option value="' + v.vid + '">' + esc(v.name) +
         (String(v.name) === String(v.vid) ? '' : ' (' + v.vid + ')') + '</option>').join('');
     // Keep the current selection if it still exists; otherwise fall back to all.
@@ -759,7 +757,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     const count = st.data ? st.data.nodes.filter((n) => n.kind !== 'core').length : 0;
     if (!st.data) {
       emptyEl.className = 'topo-empty show';
-      emptyEl.innerHTML = '<b>' + t('Waiting for the router…') + '</b>';
+      emptyEl.innerHTML = '<b>Waiting for the router…</b>';
       return;
     }
     if (count) {
@@ -768,16 +766,21 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       return;
     }
 
-    let html = '<b>' + t('No neighbouring devices discovered') + '</b>';
+    let html = '<b>No neighbouring devices discovered</b>';
     const d = st.data.discovery;
     if (st.data.permissionDenied) {
-      html += '<div class="topo-empty-hint">' + t('This API user cannot read <code>/ip/neighbor</code>. Grant the <code>read</code> policy to see discovered devices.') + '</div>';
+      html += '<div class="topo-empty-hint">This API user cannot read <code>/ip/neighbor</code>. ' +
+        'Grant the <code>read</code> policy to see discovered devices.</div>';
     } else if (d && d.mode === 'tx-only') {
-      html += '<div class="topo-empty-hint">' + t('Discovery is set to <code>tx-only</code>, so this router advertises itself but never records neighbours. Set it to <code>tx-and-rx</code> under <code>/ip/neighbor/discovery-settings</code>.') + '</div>';
+      html += '<div class="topo-empty-hint">Discovery is set to <code>tx-only</code>, so this router ' +
+        'advertises itself but never records neighbours. Set it to <code>tx-and-rx</code> under ' +
+        '<code>/ip/neighbor/discovery-settings</code>.</div>';
     } else if (d && d.interfaceList && d.interfaceList !== 'all') {
-      html += '<div class="topo-empty-hint">' + t('Discovery only runs on the <code>{list}</code> interface list. Devices reached through other interfaces will not appear here.', { list: esc(d.interfaceList) }) + '</div>';
+      html += '<div class="topo-empty-hint">Discovery only runs on the <code>' + esc(d.interfaceList) +
+        '</code> interface list. Devices reached through other interfaces will not appear here.</div>';
     } else {
-      html += '<div class="topo-empty-hint">' + t('Nothing is advertising LLDP, CDP or MNDP on this router\u2019s discovery interfaces. Unmanaged switches and most end devices stay invisible by design.') + '</div>';
+      html += '<div class="topo-empty-hint">Nothing is advertising LLDP, CDP or MNDP on this router\u2019s ' +
+        'discovery interfaces. Unmanaged switches and most end devices stay invisible by design.</div>';
     }
     emptyEl.className = 'topo-empty show';
     emptyEl.innerHTML = html;
@@ -788,10 +791,10 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     if (!footEl) return;
     const parts: string[] = [];
     const d = st.data && st.data.discovery;
-    if (d && d.protocol && d.protocol.length) parts.push(t('Discovery: {protocols}', { protocols: esc(d.protocol.join(', ')) }));
-    if (d && d.interfaceList) parts.push(t('on <code>{list}</code>', { list: esc(d.interfaceList) }));
+    if (d && d.protocol && d.protocol.length) parts.push('Discovery: ' + esc(d.protocol.join(', ')));
+    if (d && d.interfaceList) parts.push('on <code>' + esc(d.interfaceList) + '</code>');
     if (st.data && st.data.pingDenied) {
-      parts.push('<span style="color:var(--accent-warn)">' + t('latency needs the <code>test</code> policy') + '</span>');
+      parts.push('<span style="color:var(--accent-warn)">latency needs the <code>test</code> policy</span>');
     }
     const legend = ([['up', '--accent-ok'], ['warn', '--accent-warn'], ['down', '--accent-err']] as const)
       .map((p) => '<span class="topo-legend" style="color:var(' + p[1] + ')">' +

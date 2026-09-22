@@ -30,7 +30,6 @@
 // reproduced instead, and the difference is pinned by a case.
 
 import { esc, el, svcBadge } from '../dom';
-import { t } from '../i18n';
 import type { ConnsUpdate } from '../gen/payloads';
 
 const MAX_CONN_HIST = 60;
@@ -83,7 +82,7 @@ export function renderProtoBars(pc: ConnsUpdate['protoCounts']): void {
   const total = pc.tcp + pc.udp + pc.icmp + pc.other || 1;
   const items = [
     { k: 'TCP', c: 'tcp', v: pc.tcp }, { k: 'UDP', c: 'udp', v: pc.udp },
-    { k: 'ICMP', c: 'icmp', v: pc.icmp }, { k: t('Other'), c: 'other', v: pc.other },
+    { k: 'ICMP', c: 'icmp', v: pc.icmp }, { k: 'Other', c: 'other', v: pc.other },
   ];
   protoBars.innerHTML = items.map((it) => {
     const pct = Math.round((it.v / total) * 100);

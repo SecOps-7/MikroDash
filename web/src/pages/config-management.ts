@@ -5,7 +5,6 @@
 // The markup is built by config-management-cards.ts and -editor.ts.
 
 import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
-import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { CfgDeployPayload, Hunk } from '../gen/payloads';
 import {
@@ -59,10 +58,10 @@ export function toLibrary(stored: StoredRow[], canned: CannedRow[], lock: Record
       canned: true, version: c.version, lockClass: c.lockClass, scope: c.scope, variables: c.variables.length,
       tags: c.tags, baseline: null, updatedAt: 0,
     })),
-    ...stored.map((tpl): LibTemplate => ({
-      id: tpl.id, name: tpl.name, description: tpl.description, category: 'custom', kind: tpl.kind, canned: false,
-      version: tpl.revision, lockClass: !!lock[tpl.id], scope: parseList(tpl.scope).map(String),
-      variables: parseList(tpl.variables).length, tags: [], baseline: tpl.baseline, updatedAt: tpl.updatedAt,
+    ...stored.map((t): LibTemplate => ({
+      id: t.id, name: t.name, description: t.description, category: 'custom', kind: t.kind, canned: false,
+      version: t.revision, lockClass: !!lock[t.id], scope: parseList(t.scope).map(String),
+      variables: parseList(t.variables).length, tags: [], baseline: t.baseline, updatedAt: t.updatedAt,
     })),
   ];
 }
@@ -76,7 +75,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch('/api/config/' + path, { credentials: 'same-origin', ...init });
   const body = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string; line?: number };
   if (!r.ok || body.ok === false) {
-    throw new ApiError(ts(body.error) || t('The request failed ({status})', { status: r.status }), r.status, body.line ?? 0);
+    throw new ApiError(body.error || 'The request failed (' + r.status + ')', r.status, body.line ?? 0);
   }
   return body;
 }
@@ -128,9 +127,9 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', String(on));
     });
-    for (const tpl of TABS) {
-      const p = el('cfgPanel-' + tpl);
-      if (p) p.hidden = tpl !== next;
+    for (const t of TABS) {
+      const p = el('cfgPanel-' + t);
+      if (p) p.hidden = t !== next;
     }
     if (next === 'history') void loadHistory();
     else if (next === 'drift') void loadDrift();
@@ -141,7 +140,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   function drawLibrary(): void {
     if (!visible()) return;
     const counts: Record<string, number> = { all: lib.length };
-    for (const tpl of lib) counts[tpl.category] = (counts[tpl.category] ?? 0) + 1;
+    for (const t of lib) counts[t.category] = (counts[t.category] ?? 0) + 1;
     const badge = el('cfgBadge');
     if (badge) badge.textContent = String(lib.length);
     const stats = el('cfgStats');
@@ -161,7 +160,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       serverVars = r.serverVars ?? [];
     } catch (e) {
       const grid = el('cfgLibrary');
-      if (grid) grid.innerHTML = '<div class="cfg-empty">' + esc(e instanceof Error ? e.message : t('The library could not be read')) + '</div>';
+      if (grid) grid.innerHTML = '<div class="cfg-empty">' + esc(e instanceof Error ? e.message : 'The library could not be read') + '</div>';
       return;
     }
     drawLibrary();
@@ -183,23 +182,23 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   const varsOf = (v: string | VarDef[]): VarDef[] => (typeof v === 'string' ? parseList(v) as VarDef[] : v);
 
   async function preview(id: string): Promise<void> {
-    const tpl = lib.find((x) => x.id === id);
+    const t = lib.find((x) => x.id === id);
     const d = el('cfgDrawer');
     const title = el('cfgDrawerTitle');
     const meta = el('cfgDrawerMeta');
     const body = el('cfgDrawerBody');
-    if (!tpl || !d || !title || !meta || !body) return;
-    title.textContent = tpl.name;
-    meta.textContent = (tpl.canned ? t('Canned · v{version}', { version: tpl.version }) : t('Custom · revision {version}', { version: tpl.version })) +
-      ' · ' + (tpl.scope.length === 1 ? t('1 menu') : t('{n} menus', { n: tpl.scope.length }));
-    body.innerHTML = '<div class="cfg-empty">' + t('Loading…') + '</div>';
+    if (!t || !d || !title || !meta || !body) return;
+    title.textContent = t.name;
+    meta.textContent = (t.canned ? 'Canned · v' + t.version : 'Custom · revision ' + t.version) +
+      ' · ' + t.scope.length + (t.scope.length === 1 ? ' menu' : ' menus');
+    body.innerHTML = '<div class="cfg-empty">Loading…</div>';
     d.classList.add('open');
     d.setAttribute('aria-hidden', 'false');
     try {
       const r = await fetchTemplate(id);
       body.innerHTML = drawerBody({ ...r, variables: varsOf(r.variables) });
     } catch (e) {
-      body.innerHTML = '<div class="cfg-empty">' + esc(e instanceof Error ? e.message : t('Could not open it')) + '</div>';
+      body.innerHTML = '<div class="cfg-empty">' + esc(e instanceof Error ? e.message : 'Could not open it') + '</div>';
     }
   }
 
@@ -209,14 +208,14 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       await load();
       await openEditor(r.id);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : t('The copy could not be made'));
+      window.alert(e instanceof Error ? e.message : 'The copy could not be made');
     }
   }
 
   // ── The Editor ───────────────────────────────────────────────────────────
 
   function leaveDraft(): boolean {
-    return !dirty || window.confirm(t('Leave this template without saving your changes?'));
+    return !dirty || window.confirm('Leave this template without saving your changes?');
   }
 
   async function openEditor(id: string | null): Promise<void> {
@@ -231,7 +230,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         draft = { id: r.id, revision: r.revision, kind: r.kind, name: r.name, description: r.description,
           body: r.body, vars: varsOf(r.variables) };
       } catch (e) {
-        window.alert(e instanceof Error ? e.message : t('The template could not be opened'));
+        window.alert(e instanceof Error ? e.message : 'The template could not be opened');
         return;
       }
     }
@@ -260,8 +259,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     (el('cfgEdBody') as HTMLTextAreaElement).value = draft.body;
     const meta = el('cfgEdMeta');
     if (meta) {
-      meta.textContent = draft.id ? (draft.kind === 'fragment' ? t('Custom template') : t('Full export')) +
-        ' · revision ' + draft.revision : t('New template, not saved yet');
+      meta.textContent = draft.id ? (draft.kind === 'fragment' ? 'Custom template' : 'Full export') +
+        ' · revision ' + draft.revision : 'New template, not saved yet';
     }
     const del = el('cfgEdDelete');
     if (del) del.hidden = !draft.id;
@@ -286,7 +285,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const box = el('cfgEdVars');
     if (box) {
       box.innerHTML = draft.vars.length ? draft.vars.map((d) => varRow(d, varTypes, synced.unused.includes(d.name))).join('')
-        : '<div class="cfg-meta">' + t('Write {example} in the template to ask for a setting.', { example: '<span class="cfg-var">{{name}}</span>' }) + '</div>';
+        : '<div class="cfg-meta">Write <span class="cfg-var">{{name}}</span> in the template to ask for a setting.</div>';
     }
     const sv = el('cfgEdServerVars');
     if (sv) sv.innerHTML = serverVarRows(serverVars.filter((n) => draft?.body.includes('{{' + n + '}}')));
@@ -318,9 +317,9 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     drawBody(line);
     // The last checks were of text that no longer reads; do not let them stand.
     const checks = el('cfgEdChecks');
-    if (checks) checks.innerHTML = '<div class="cfg-meta">' + t('Fix the refused line to see the checks.') + '</div>';
+    if (checks) checks.innerHTML = '<div class="cfg-meta">Fix the refused line to see the checks.</div>';
     setStatus('is-bad', (line ? '<span class="cfg-ln-tag">line ' + line + '</span>' : '') +
-      esc(e instanceof Error ? e.message : t('The template could not be checked')));
+      esc(e instanceof Error ? e.message : 'The template could not be checked'));
   }
 
   async function check(): Promise<void> {
@@ -334,9 +333,9 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       const checks = el('cfgEdChecks');
       if (checks) {
         checks.innerHTML = r.findings.length ? '<ul class="cfg-findings">' + r.findings.map(findingRow).join('') + '</ul>'
-          : '<div class="cfg-meta">' + t('Nothing to flag.') + '</div>';
+          : '<div class="cfg-meta">Nothing to flag.</div>';
       }
-      setStatus('is-ok', t('Every line reads as RouterOS configuration.'));
+      setStatus('is-ok', 'Every line reads as RouterOS configuration.');
     } catch (e) {
       if (draft && draft.body === at) refused(e);
     }
@@ -363,7 +362,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   }
 
   async function remove(): Promise<void> {
-    if (!draft?.id || !window.confirm(t('Delete "{name}"? Its deploy history is kept.', { name: draft.name }))) return;
+    if (!draft?.id || !window.confirm('Delete "' + draft.name + '"? Its deploy history is kept.')) return;
     try {
       await api('templates/' + encodeURIComponent(draft.id), { method: 'DELETE' });
       draft = null;
@@ -371,7 +370,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       drawEditor();
       void load();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : t('The template could not be deleted'));
+      window.alert(e instanceof Error ? e.message : 'The template could not be deleted');
     }
   }
 
@@ -384,16 +383,16 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const box = el('cfgCaptureBox');
     if (!box) return;
     box.hidden = false;
-    box.innerHTML = '<div class="cfg-meta">' + t('Loading routers…') + '</div>';
+    box.innerHTML = '<div class="cfg-meta">Loading routers…</div>';
     try {
       const r = await fetch('/api/routers', { credentials: 'same-origin' });
       const b = (await r.json()) as { routers?: { id: string; label?: string; host?: string; disabled?: boolean }[] };
       const routers = (b.routers ?? []).filter((x) => !x.disabled)
         .map((x) => ({ id: x.id, label: x.label || x.host || x.id }));
       box.innerHTML = routers.length ? captureForm(routers, captureMenus)
-        : '<div class="cfg-meta">' + t('No routers to capture from.') + '</div>';
+        : '<div class="cfg-meta">No routers to capture from.</div>';
     } catch {
-      box.innerHTML = '<div class="cfg-meta">' + t('The routers could not be listed.') + '</div>';
+      box.innerHTML = '<div class="cfg-meta">The routers could not be listed.</div>';
     }
   }
 
@@ -402,7 +401,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const go = el('cfgCapGo') as HTMLButtonElement | null;
     if (go) {
       go.disabled = true;
-      go.textContent = t('Capturing…');
+      go.textContent = 'Capturing…';
     }
     try {
       const kind = value(el('cfgCapKind'));
@@ -413,11 +412,11 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       await load();
       await openEditor(r.id);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : t('The capture failed'));
+      window.alert(e instanceof Error ? e.message : 'The capture failed');
     } finally {
       if (go) {
         go.disabled = false;
-        go.textContent = t('Capture');
+        go.textContent = 'Capture';
       }
     }
   }
@@ -426,8 +425,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
 
   el('cfgTabs')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-cfgtab]');
-    const tab = b?.getAttribute('data-cfgtab') as Tab | null;
-    if (tab && TABS.includes(tab)) show(tab);
+    const t = b?.getAttribute('data-cfgtab') as Tab | null;
+    if (t && TABS.includes(t)) show(t);
   });
   el('cfgCats')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-cfg-cat]');
@@ -486,19 +485,19 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     dirty = true;
     drawBody(0);
     drawVars();
-    setStatus('', t('Checking…'));
+    setStatus('', 'Checking…');
     scheduleCheck();
   });
   // The highlighted layer and the gutter follow the text area's scroll.
   el('cfgEdBody')?.addEventListener('scroll', (e) => {
-    const ta = e.target as HTMLTextAreaElement;
+    const t = e.target as HTMLTextAreaElement;
     const hl = el('cfgEdHl');
     const g = el('cfgEdGutter');
     if (hl) {
-      hl.scrollTop = ta.scrollTop;
-      hl.scrollLeft = ta.scrollLeft;
+      hl.scrollTop = t.scrollTop;
+      hl.scrollLeft = t.scrollLeft;
     }
-    if (g) g.scrollTop = ta.scrollTop;
+    if (g) g.scrollTop = t.scrollTop;
   });
   el('cfgEdVars')?.addEventListener('input', (e) => {
     const f = e.target as HTMLInputElement | HTMLSelectElement;
@@ -562,13 +561,13 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     dep.defs = [];
     if (id) {
       try {
-        const tpl = await fetchTemplate(id);
-        dep.defs = varsOf(tpl.variables);
-        dep.kind = tpl.kind;
+        const t = await fetchTemplate(id);
+        dep.defs = varsOf(t.variables);
+        dep.kind = t.kind;
         dep.secrets = {};
         for (const d of dep.defs) if (d.type === 'secret') dep.secrets[d.name] = newSecret();
       } catch (e) {
-        showWhy(e instanceof Error ? e.message : t('The template could not be read'));
+        showWhy(e instanceof Error ? e.message : 'The template could not be read');
       }
     }
     drawDeploy();
@@ -577,15 +576,15 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   function drawDeploy(): void {
     const sel = el('cfgDepTpl') as HTMLSelectElement | null;
     if (sel) {
-      sel.innerHTML = ('<option value="">' + t('Choose a template') + '</option>') + lib.map((tpl) => '<option value="' + esc(tpl.id) + '"' +
-        (tpl.id === dep.tplId ? ' selected' : '') + '>' + esc(tpl.name) + (tpl.canned ? '' : ' (custom)') + '</option>').join('');
+      sel.innerHTML = '<option value="">Choose a template</option>' + lib.map((t) => '<option value="' + esc(t.id) + '"' +
+        (t.id === dep.tplId ? ' selected' : '') + '>' + esc(t.name) + (t.canned ? '' : ' (custom)') + '</option>').join('');
     }
-    const tpl = lib.find((x) => x.id === dep.tplId);
+    const t = lib.find((x) => x.id === dep.tplId);
     const meta = el('cfgDepTplMeta');
     if (meta) {
-      meta.textContent = !tpl ? '' : (tpl.kind === 'full-export' ? t('Full replacement: each router is reset and rebuilt.') + ' '
-        : t('An addition: merged into what each router already has.') + ' ') +
-        (tpl.lockClass ? t('It can cut MikroDash off, so each router arms an automatic revert first.') : '');
+      meta.textContent = !t ? '' : (t.kind === 'full-export' ? 'Full replacement: each router is reset and rebuilt. '
+        : 'An addition: merged into what each router already has. ') +
+        (t.lockClass ? 'It can cut MikroDash off, so each router arms an automatic revert first.' : '');
     }
     const routers = el('cfgDepRouters');
     if (routers) routers.innerHTML = routerPicker(dep.routers, dep.picked);
@@ -609,8 +608,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
     const canary = dep.picked[0];
     const confirm = el('cfgDepConfirm') as HTMLInputElement | null;
-    if (confirm) confirm.placeholder = canary ? t('Type {router} to deploy', { router: labelOf(canary) }) : t('Pick routers first');
-    showWhy(dep.tplId ? readyToStart(dep.picked, dep.previews, dep.acked) : t('Choose a template'));
+    if (confirm) confirm.placeholder = canary ? 'Type ' + labelOf(canary) + ' to deploy' : 'Pick routers first';
+    showWhy(dep.tplId ? readyToStart(dep.picked, dep.previews, dep.acked) : 'Choose a template');
   }
 
   function showWhy(msg: string): void {
@@ -629,7 +628,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   async function previewAll(): Promise<void> {
     if (!dep.tplId || !dep.picked.length) return;
     const btn = el('cfgDepPreview') as HTMLButtonElement | null;
-    if (btn) { btn.disabled = true; btn.textContent = t('Reading each router…'); }
+    if (btn) { btn.disabled = true; btn.textContent = 'Reading each router…'; }
     dep.previews = {};
     dep.acked.clear();
     await Promise.all(dep.picked.map(async (rid) => {
@@ -642,10 +641,10 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
             : '# Phase A, the bootstrap after the reset\n' + (r.reset?.bootstrap ?? []).join('\n') +
               '\n\n# Phase B, imported once MikroDash is back\n' + (r.reset?.rest ?? '') };
       } catch (e) {
-        dep.previews[rid] = { routerId: rid, error: e instanceof Error ? e.message : t('The preview failed') };
+        dep.previews[rid] = { routerId: rid, error: e instanceof Error ? e.message : 'The preview failed' };
       }
     }));
-    if (btn) { btn.disabled = false; btn.textContent = t('Preview again'); }
+    if (btn) { btn.disabled = false; btn.textContent = 'Preview again'; }
     drawPreviews();
   }
 
@@ -665,11 +664,12 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     };
     const rid = dep.picked[0];
     if (!dep.tplId || !rid) return;
-    const tpl = lib.find((x) => x.id === dep.tplId);
+    const t = lib.find((x) => x.id === dep.tplId);
     let id = dep.tplId;
     try {
-      if (tpl?.canned) {
-        if (!window.confirm(t('Canned templates cannot be changed. Save these settings in a new custom copy of "{name}"?', { name: tpl.name }))) return;
+      if (t?.canned) {
+        if (!window.confirm('Canned templates cannot be changed. Save these settings in a new custom copy of "' +
+          t.name + '"?')) return;
         id = (await api<{ id: string }>('templates/' + encodeURIComponent(id) + '/clone', { method: 'POST' })).id;
       }
       const d = await fetchTemplate(id);
@@ -678,10 +678,10 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         revision: d.revision }), method: 'PUT' });
       await load();
       if (id !== dep.tplId) await pickTemplate(id);
-      say(id === dep.tplId && !tpl?.canned ? t('Saved as this template\'s defaults.')
-        : t('Saved in the custom template "{name}", now selected.', { name: d.name }), true);
+      say(id === dep.tplId && !t?.canned ? 'Saved as this template\'s defaults.'
+        : 'Saved in the custom template "' + d.name + '", now selected.', true);
     } catch (e) {
-      say(e instanceof Error ? e.message : t('The defaults were not saved'));
+      say(e instanceof Error ? e.message : 'The defaults were not saved');
     }
   }
 
@@ -764,12 +764,12 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   });
   el('cfgDepStart')?.addEventListener('click', start);
   el('cfgRollout')?.addEventListener('click', (e) => {
-    const tgt = e.target as HTMLElement;
-    if (tgt.closest('#cfgDepCancel')) {
-      if (window.confirm(t('Stop the deploy before its next router? A router being changed is finished first.'))) {
+    const t = e.target as HTMLElement;
+    if (t.closest('#cfgDepCancel')) {
+      if (window.confirm('Stop the deploy before its next router? A router being changed is finished first.')) {
         socket.emit('cfgdeploy:cancel', {});
       }
-    } else if (tgt.closest('#cfgDepContinue')) {
+    } else if (t.closest('#cfgDepContinue')) {
       socket.emit('cfgdeploy:continue', { confirm: (el('cfgDepCount') as HTMLInputElement | null)?.value ?? '' });
     }
   });
@@ -860,7 +860,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         hunks: r.diff.hunks, truncated: r.diff.truncated };
       if (r.drifted) openDrift = key;
     } catch (e) {
-      checks[key] = { state: 'error', message: e instanceof Error ? e.message : t('The check failed') };
+      checks[key] = { state: 'error', message: e instanceof Error ? e.message : 'The check failed' };
     }
     drawDrift();
   }
@@ -869,14 +869,15 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const key = driftKey(row);
     const c = checks[key];
     if (c?.state !== 'done') return;
-    if (!window.confirm(t('Make what {router} holds now the baseline for {template}? Later checks compare against it.', { router: row.routerLabel, template: row.templateName }))) return;
+    if (!window.confirm('Make what ' + row.routerLabel + ' holds now the baseline for ' + row.templateName +
+      '? Later checks compare against it.')) return;
     try {
       await api('drift/accept', json({ templateId: row.templateId, routerId: row.routerId, fingerprint: c.fingerprint }));
       checks[key] = { ...c, drifted: false, hunks: [] };
       openDrift = '';
       await loadDrift();
     } catch (e) {
-      checks[key] = { state: 'error', message: e instanceof Error ? e.message : t('The baseline was not changed'), accept: true };
+      checks[key] = { state: 'error', message: e instanceof Error ? e.message : 'The baseline was not changed', accept: true };
       drawDrift();
     }
   }

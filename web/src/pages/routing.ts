@@ -15,7 +15,6 @@
 // it is the identical file rather than a second copy.
 
 import { esc, el, resRow, sparkPoints } from '../dom';
-import { t } from '../i18n';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { RoutingPayload, Peer, Route, RouteCounts, PeerSummary } from '../gen/payloads';
@@ -37,7 +36,7 @@ const DONUT_COLORS: Record<string, string> = {
   other: 'rgba(99,130,190,.4)',
 };
 const DONUT_LABELS: Record<string, string> = {
-  static: t('Static'), dynamic: t('Dynamic'), bgp: 'BGP', ospf: 'OSPF', other: t('Other'),
+  static: 'Static', dynamic: 'Dynamic', bgp: 'BGP', ospf: 'OSPF', other: 'Other',
 };
 
 // established first, then the rest of the BGP state machine in order.
@@ -56,7 +55,7 @@ function fmtUptime(sec: number): string {
 }
 
 function stateBadge(state: string, flapping: boolean): string {
-  if (flapping) return '<span class="bgp-state flap">' + t('Flapping') + '</span>';
+  if (flapping) return '<span class="bgp-state flap">Flapping</span>';
   // The class is the state with everything but letters and hyphens removed, so
   // an unrecognised state from a future RouterOS cannot inject a class name.
   return '<span class="bgp-state ' + state.replace(/[^a-z-]/gi, '') + '">' + esc(state) + '</span>';
@@ -192,7 +191,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = "bold 26px t('JetBrains Mono'),ui-monospace,monospace";
+            ctx.font = "bold 26px 'JetBrains Mono',ui-monospace,monospace";
             ctx.fillStyle = color;
             ctx.fillText(String(donutTotal || '—'), cx, cy);
             ctx.restore();
@@ -238,8 +237,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     const peers = sortPeers(filterPeers(data.peers || []));
 
     if (!peers.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">' +
-        ((data.peers || []).length ? t('No BGP peers match current filter') : t('No BGP peers — BGP may not be configured')) + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No BGP peers' +
+        ((data.peers || []).length ? ' match current filter' : ' — BGP may not be configured') + '</td></tr>';
       return;
     }
 
@@ -250,7 +249,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
       const typeText: Record<string, string> = {
         upstream: 'rgba(56,189,248,.8)', ix: 'rgba(167,139,250,.8)', private: 'rgba(251,191,36,.8)',
       };
-      const typeLabel: Record<string, string> = { upstream: t('Upstream'), ix: 'IX', private: t('Private') };
+      const typeLabel: Record<string, string> = { upstream: 'Upstream', ix: 'IX', private: 'Private' };
       const ptype = p.peerType || 'upstream';
       const typeBadge = '<span style="font-size:.6rem;font-family:var(--font-ui);padding:.1rem .35rem;border-radius:3px;' +
         'background:' + (typeColors[ptype] || 'rgba(99,130,190,.1)') + ';color:' + (typeText[ptype] || 'var(--text-muted)') + '">' +
@@ -350,8 +349,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     if (!data || !routesTbody) return;
     const routes = sortRoutes(filterRoutes(data.routes || []));
     if (!routes.length) {
-      routesTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">' +
-        ((data.routes || []).length ? t('No routes match current filter') : t('No routes')) + '</td></tr>';
+      routesTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No routes' +
+        ((data.routes || []).length ? ' match current filter' : '') + '</td></tr>';
       return;
     }
     routesTbody.innerHTML = routes.map((r) => {
@@ -359,9 +358,9 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
         ? '<span style="color:rgba(52,211,153,.9);font-size:.7rem">&#10003; Active</span>'
         : '<span style="color:var(--text-muted);font-size:.7rem">—</span>';
       const typeCell = r.type === 'static'
-        ? '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(56,189,248,.1);color:rgba(56,189,248,.8)">' + t('Static') + '</span>'
+        ? '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(56,189,248,.1);color:rgba(56,189,248,.8)">Static</span>'
         : '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8)">' +
-          (r.protocol !== r.type ? esc(r.protocol.toUpperCase()) : t('Dynamic')) + '</span>';
+          (r.protocol !== r.type ? esc(r.protocol.toUpperCase()) : 'Dynamic') + '</span>';
       const familyBadge = r.family === 'ipv6'
         ? '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:3px;background:rgba(167,139,250,.12);color:rgba(167,139,250,.8);margin-right:.3rem">IPv6</span>'
         : '';
@@ -416,8 +415,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
   // The card is shared, so its title and its filter group belong to whichever
   // tab is showing.
   const RT_TAB_META: Record<string, { title: string; filters: string }> = {
-    routes: { title: t('Static & Dynamic Routes'), filters: 'rtRoutesFilters' },
-    bgp: { title: t('BGP Peers'), filters: 'rtPeersFilters' },
+    routes: { title: 'Static & Dynamic Routes', filters: 'rtRoutesFilters' },
+    bgp: { title: 'BGP Peers', filters: 'rtPeersFilters' },
   };
   let rtTab = 'routes';
 

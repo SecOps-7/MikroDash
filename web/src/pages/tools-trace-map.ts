@@ -39,7 +39,6 @@
 // its own and sits on the one before it, so one dot can stand for several.
 
 import { loadCountries, attachMapZoom, bindZoomButtons } from './connections-worldmap';
-import { t } from '../i18n';
 import { project } from './connections-map';
 import { esc, iso2Flag } from '../dom';
 import type { TracerouteResult } from '../gen/payloads';
@@ -213,15 +212,15 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
   function tipFor(at: Pt): string {
     const here = drawn.filter((d) => same(d.at, at));
     return here.map((d) => {
-      if (d.hop === 0) return ('<div class="trace-tip-row"><b>' + t('This router') + '</b> · ') + esc(last?.origin?.label || '') + '</div>';
+      if (d.hop === 0) return '<div class="trace-tip-row"><b>This router</b> · ' + esc(last?.origin?.label || '') + '</div>';
       const h = last?.hops.find((x) => x.hop === d.hop);
       if (!h) return '';
       const where = h.city || h.country
         ? (h.country ? iso2Flag(h.country) + ' ' : '') + esc([h.city, h.country].filter(Boolean).join(', '))
-        : t('private or unknown address');
-      return '<div class="trace-tip-row"><b>' + t('Hop {n}', { n: h.hop }) + '</b> · ' + where + '<br><span class="trace-tip-ip">' + esc(h.address) +
+        : 'private or unknown address';
+      return '<div class="trace-tip-row"><b>Hop ' + h.hop + '</b> · ' + where + '<br><span class="trace-tip-ip">' + esc(h.address) +
         '</span> · ' + fmtMs(h.lastMs) + (h.bestMs != null && h.worstMs != null && h.bestMs !== h.worstMs
-          ? ' ' + t('(best {best}, worst {worst})', { best: fmtMs(h.bestMs), worst: fmtMs(h.worstMs) }) : '') + ' · ' + t('{n}% loss', { n: h.lossPct }) + '</div>';
+          ? ' (best ' + fmtMs(h.bestMs) + ', worst ' + fmtMs(h.worstMs) + ')' : '') + ' · ' + h.lossPct + '% loss</div>';
     }).join('');
   }
   svg.addEventListener('pointermove', (e) => {
@@ -260,7 +259,7 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
       marks.appendChild(svgEl('circle', { cx: s.at[0], cy: s.at[1], class: s.hop === 0 ? 'trace-home' : 'trace-dot',
         'data-hop': s.hop, 'data-at': s.at[0] + ',' + s.at[1] }));
       const text = svgEl('text', { x: s.at[0], y: s.at[1], class: 'trace-label' });
-      text.textContent = s.hop === 0 ? (last?.origin?.label || t('This router')) : String(s.hop);
+      text.textContent = s.hop === 0 ? (last?.origin?.label || 'This router') : String(s.hop);
       labels.appendChild(text);
       points.push(s.at);
       if (hop?.country) {
@@ -323,11 +322,11 @@ export function createTraceMap(els: TraceMapEls): TraceMap {
     const rows: string[] = [];
     if (last.origin) {
       rows.push('<div class="trace-hop is-home' + (landed.has(0) ? ' is-landed' : '') + '"><span class="trace-hop-n">⌂</span>' +
-        '<span class="trace-hop-where">' + esc(last.origin.label || t('This router')) + '</span><span></span><span></span></div>');
+        '<span class="trace-hop-where">' + esc(last.origin.label || 'This router') + '</span><span></span><span></span></div>');
     }
     for (const h of last.hops) {
       const where = h.timedOut ? '<span class="muted-note">no reply</span>'
-        : !h.address ? '<span class="muted-note">' + t('probing…') + '</span>'
+        : !h.address ? '<span class="muted-note">probing…</span>'
           : h.city || h.country ? (h.country ? iso2Flag(h.country) + ' ' : '') + esc(h.city || h.country)
             : '<span class="muted-note">private</span>';
       rows.push('<div class="trace-hop' + (landed.has(h.hop) ? ' is-landed' : '') + (h.timedOut ? ' is-timeout' : '') + '">' +

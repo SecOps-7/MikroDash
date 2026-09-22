@@ -37,7 +37,6 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { t, ts } from '../i18n';
 import { esc, el, fmtMbps, protoPill } from '../dom';
 import type { PingResult, TracerouteResult, TorchResult, BtestResult } from '../gen/payloads';
 import { renderPingCards } from './tools-ping-cards';
@@ -45,9 +44,9 @@ import { renderBtestCards } from './tools-btest-cards';
 import { createTraceMap, type TraceMap } from './tools-trace-map';
 
 const REFUSED: Record<string, string> = {
-  denied: t('You may not run this tool on this router.'),
-  unavailable: t('No router is connected.'),
-  busy: t('Another tool is still running.'),
+  denied: 'You may not run this tool on this router.',
+  unavailable: 'No router is connected.',
+  busy: 'Another tool is still running.',
 };
 
 /** One tool: the ids its markup uses, spelled out so each can be found, and
@@ -77,7 +76,7 @@ function pick(id: string, fallback: number): { n: number; continuous: boolean } 
 const TOOLS: Tool[] = [
   {
     key: 'ping', write: false, form: 'pingForm', run: 'pingRun', status: 'pingStatus', summary: 'pingSummary', rows: 'pingRows', cols: 6,
-    label: t('Ping'),
+    label: 'Ping',
     request: () => {
       const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
       const c = pick('pingCount', 10);
@@ -86,7 +85,7 @@ const TOOLS: Tool[] = [
   },
   {
     key: 'traceroute', write: false, form: 'traceForm', run: 'traceRun', status: 'traceStatus', summary: 'traceSummary',
-    rows: 'traceRows', cols: 7, label: t('Trace'),
+    rows: 'traceRows', cols: 7, label: 'Trace',
     request: () => {
       const address = (el<HTMLInputElement>('traceAddress')?.value || '').trim();
       return address ? { address, maxHops: Number(el<HTMLSelectElement>('traceHops')?.value || 15) } : null;
@@ -94,7 +93,7 @@ const TOOLS: Tool[] = [
   },
   {
     key: 'torch', write: true, form: 'torchForm', run: 'torchRun', status: 'torchStatus', summary: 'torchSummary',
-    rows: 'torchRows', cols: 5, label: t('Watch'),
+    rows: 'torchRows', cols: 5, label: 'Watch',
     request: () => {
       const iface = el<HTMLSelectElement>('torchInterface')?.value || '';
       const c = pick('torchSeconds', 5);
@@ -103,7 +102,7 @@ const TOOLS: Tool[] = [
   },
   {
     key: 'btest', write: true, form: 'btestForm', run: 'btestRun', status: 'btestStatus', summary: 'btestSummary',
-    rows: 'btestRows', cols: 2, label: t('Test'),
+    rows: 'btestRows', cols: 2, label: 'Test',
     request: () => {
       const address = (el<HTMLInputElement>('btestAddress')?.value || '').trim();
       if (!address) return null;
@@ -130,20 +129,20 @@ function ms(v: number | null | undefined): string {
   return v == null ? '—' : (v < 1 ? v.toFixed(3) : v.toFixed(1)) + ' ms';
 }
 
-function notRun(tool: Tool): string {
-  return '<tr><td colspan="' + tool.cols + ('" class="empty-state">' + t('Not run yet') + '</td></tr>');
+function notRun(t: Tool): string {
+  return '<tr><td colspan="' + t.cols + '" class="empty-state">Not run yet</td></tr>';
 }
 
 let traceMap: TraceMap | null = null;
 
-function clearResult(tool: Tool): void {
-  const summary = el(tool.summary);
+function clearResult(t: Tool): void {
+  const summary = el(t.summary);
   if (summary) summary.textContent = '';
-  const rows = el(tool.rows);
-  if (rows) rows.innerHTML = notRun(tool);
-  if (tool.key === 'ping') renderPingCards(null);
-  if (tool.key === 'btest') renderBtestCards(null);
-  if (tool.key === 'traceroute') traceMap?.clear();
+  const rows = el(t.rows);
+  if (rows) rows.innerHTML = notRun(t);
+  if (t.key === 'ping') renderPingCards(null);
+  if (t.key === 'btest') renderBtestCards(null);
+  if (t.key === 'traceroute') traceMap?.clear();
 }
 
 // ── A LONG RUN SCROLLS INSIDE ITS TABLE ─────────────────────────────────────
@@ -170,15 +169,15 @@ function drawBounded(scrollId: string, follow: boolean, draw: () => void): void 
 function renderPing(r: PingResult): void {
   const summary = el('pingSummary');
   if (summary) {
-    summary.textContent = t('{sent} sent, {received} received, {loss}% loss', { sent: r.sent, received: r.received, loss: r.lossPct }) +
-      (r.avgMs == null ? '' : ' · ' + t('min {min}, avg {avg}, max {max}', { min: ms(r.minMs), avg: ms(r.avgMs), max: ms(r.maxMs) })) +
+    summary.textContent = r.sent + ' sent, ' + r.received + ' received, ' + r.lossPct + '% loss' +
+      (r.avgMs == null ? '' : ' · min ' + ms(r.minMs) + ', avg ' + ms(r.avgMs) + ', max ' + ms(r.maxMs)) +
       // A continuous run carries its latest replies; the totals are the run's.
-      (r.replies.length < r.sent ? ' · ' + t('showing the latest {n}', { n: r.replies.length }) : '');
+      (r.replies.length < r.sent ? ' · showing the latest ' + r.replies.length : '');
   }
   const rows = el('pingRows');
   if (!rows) return;
   if (!r.replies.length) {
-    rows.innerHTML = '<tr><td colspan="6" class="empty-state">' + t('No replies') + '</td></tr>';
+    rows.innerHTML = '<tr><td colspan="6" class="empty-state">No replies</td></tr>';
     return;
   }
   rows.innerHTML = r.replies.map((p) => {
@@ -200,7 +199,7 @@ function renderTraceroute(r: TracerouteResult): void {
   const rows = el('traceRows');
   if (!rows) return;
   if (!r.hops.length) {
-    rows.innerHTML = '<tr><td colspan="7" class="empty-state">' + t('No hops') + '</td></tr>';
+    rows.innerHTML = '<tr><td colspan="7" class="empty-state">No hops</td></tr>';
     return;
   }
   rows.innerHTML = r.hops.map((h) =>
@@ -218,15 +217,14 @@ function renderTraceroute(r: TracerouteResult): void {
 function renderTorch(r: TorchResult): void {
   const summary = el('torchSummary');
   if (summary) {
-    summary.textContent = (r.continuous ? t('Watching {iface} · the last {n} s', { iface: r.interface, n: r.reports })
-      : t('Watched {iface} for {n} s', { iface: r.interface, n: r.seconds })) +
-      ' · ' + t('average rx {rx}, tx {tx}', { rx: bps(r.totalRxBps), tx: bps(r.totalTxBps) }) +
-      (r.omitted ? ' · ' + t('{n} quieter flows not shown', { n: r.omitted }) : '');
+    summary.textContent = (r.continuous ? 'Watching ' + r.interface + ' · the last ' + r.reports + ' s'
+      : 'Watched ' + r.interface + ' for ' + r.seconds + ' s') + ' · average rx ' + bps(r.totalRxBps) +
+      ', tx ' + bps(r.totalTxBps) + (r.omitted ? ' · ' + r.omitted + ' quieter flows not shown' : '');
   }
   const rows = el('torchRows');
   if (!rows) return;
   if (!r.flows.length) {
-    rows.innerHTML = '<tr><td colspan="5" class="empty-state">' + t('No traffic seen') + '</td></tr>';
+    rows.innerHTML = '<tr><td colspan="5" class="empty-state">No traffic seen</td></tr>';
     return;
   }
   const end = (a: string, p: string): string => esc(a) + (p ? ':' + esc(p) : '');
@@ -244,15 +242,15 @@ function renderBtest(r: BtestResult): void {
   const summary = el('btestSummary');
   // A report still connecting has no duration or direction yet.
   if (summary) {
-    summary.textContent = (r.duration ? t('Tested to {address} for {duration}', { address: r.address, duration: r.duration })
-      : t('Tested to {address}', { address: r.address })) + (r.direction ? ', ' + r.direction : '');
+    summary.textContent = 'Tested to ' + r.address + (r.duration ? ' for ' + r.duration : '') +
+      (r.direction ? ', ' + r.direction : '');
   }
   const rows = el('btestRows');
   if (!rows) return;
   const line = (k: string, v: string): string => '<tr><th>' + k + '</th><td>' + v + '</td></tr>';
-  rows.innerHTML = line(t('Receive (average)'), bps(r.rxBps)) + line(t('Transmit (average)'), bps(r.txBps)) +
-    line(t('Lost packets'), String(r.lostPackets)) +
-    line(t('CPU load'), t('this router {local}%, the far one {remote}%', { local: r.localCpu, remote: r.remoteCpu }));
+  rows.innerHTML = line('Receive (average)', bps(r.rxBps)) + line('Transmit (average)', bps(r.txBps)) +
+    line('Lost packets', String(r.lostPackets)) +
+    line('CPU load', 'this router ' + r.localCpu + '%, the far one ' + r.remoteCpu + '%');
 }
 
 export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -263,19 +261,19 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
 
   // THE RUNNING TOOL'S BUTTON IS ITS STOP; every other Run button is disabled,
   // as is a write tool's for a viewer who may not write.
-  function setRunning(tool: Tool | null, note: string): void {
-    pending = tool;
+  function setRunning(t: Tool | null, note: string): void {
+    pending = t;
     for (const x of TOOLS) {
       const btn = el<HTMLButtonElement>(x.run);
       if (!btn) continue;
-      const running = x === tool;
-      btn.disabled = tool !== null ? !running : (x.write && !mayWrite);
-      btn.textContent = running ? t('Stop') : x.label;
+      const running = x === t;
+      btn.disabled = t !== null ? !running : (x.write && !mayWrite);
+      btn.textContent = running ? 'Stop' : x.label;
       btn.classList.toggle('sbtn-danger', running);
       btn.classList.toggle('sbtn-primary', !running);
     }
-    if (tool) {
-      const status = el(tool.status);
+    if (t) {
+      const status = el(t.status);
       if (status) status.textContent = note;
     }
   }
@@ -285,40 +283,40 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     const btn = el<HTMLButtonElement>(pending.run);
     if (btn) btn.disabled = true;
     const status = el(pending.status);
-    if (status) status.textContent = t('Stopping…');
+    if (status) status.textContent = 'Stopping…';
     socket.emit('tools:stop', {});
   }
 
-  function settle(tool: Tool, d: { code: string; message: string; done: boolean }, draw: () => void): void {
-    if (pending !== tool) return;
+  function settle(t: Tool, d: { code: string; message: string; done: boolean }, draw: () => void): void {
+    if (pending !== t) return;
     if (!d.done) {
       // The run so far. Still pending: the status keeps saying it is running.
       draw();
       return;
     }
     setRunning(null, '');
-    const status = el(tool.status);
+    const status = el(t.status);
     if (status) status.textContent = '';
     if (!d.code || d.code === 'stopped') {
       draw();
       if (d.code && status) status.textContent = 'Stopped.';
       return;
     }
-    if (status) status.textContent = REFUSED[d.code] || ts(d.message) || t('The tool did not run.');
+    if (status) status.textContent = REFUSED[d.code] || d.message || 'The tool did not run.';
   }
 
-  for (const tool of TOOLS) {
-    el(tool.form)?.addEventListener('submit', (e) => {
+  for (const t of TOOLS) {
+    el(t.form)?.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (pending === tool) { stop(); return; }
+      if (pending === t) { stop(); return; }
       if (pending) return;
-      const req = tool.request();
+      const req = t.request();
       if (!req) return;
       // THE LAST RESULT GOES AT ONCE, so a run that fails does not leave the
       // previous address's result standing under its error.
-      clearResult(tool);
-      setRunning(tool, t('Running…'));
-      socket.emit('tools:' + tool.key, req);
+      clearResult(t);
+      setRunning(t, 'Running…');
+      socket.emit('tools:' + t.key, req);
     });
   }
   const svg = el('traceMap') as unknown as SVGSVGElement | null;
@@ -364,9 +362,9 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     if (sel) sel.innerHTML = d.interfaces.map((n) => '<option>' + esc(n) + '</option>').join('');
     setRunning(pending, '');
     if (!pending) {
-      for (const tool of TOOLS) {
-        const status = el(tool.status);
-        if (tool.write && status) status.textContent = mayWrite ? '' : t('Needs write access to Tools.');
+      for (const t of TOOLS) {
+        const status = el(t.status);
+        if (t.write && status) status.textContent = mayWrite ? '' : 'Needs write access to Tools.';
       }
     }
   });
@@ -387,7 +385,7 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     }
     mayWrite = false;
     setRunning(null, '');
-    for (const tool of TOOLS) clearResult(tool);
+    for (const t of TOOLS) clearResult(t);
     if (isVisible('tools')) askCaps();
   });
 
@@ -396,9 +394,9 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     const tab = (e.target as HTMLElement | null)?.closest?.('[data-tooltab]');
     const key = tab?.getAttribute('data-tooltab');
     if (!key) return;
-    for (const tool of TOOLS) {
-      const panel = el('toolPanel-' + tool.key);
-      if (panel) panel.style.display = tool.key === key ? '' : 'none';
+    for (const t of TOOLS) {
+      const panel = el('toolPanel-' + t.key);
+      if (panel) panel.style.display = t.key === key ? '' : 'none';
     }
     document.querySelectorAll('#toolsTabs [data-tooltab]').forEach((b) => {
       const on = b.getAttribute('data-tooltab') === key;

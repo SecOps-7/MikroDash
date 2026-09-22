@@ -39,7 +39,6 @@
 // later re-render.
 
 import { el } from './dom.js';
-import { t } from './i18n';
 import {
   STALE_GRACE, STALE_CARDS, COLLECTOR_CARDS, DASH_CARD_TABLES,
 } from './gen/stale-tables.js';
@@ -143,7 +142,7 @@ export function applyCollectionConfig(enabled: Record<string, unknown> | undefin
       if (isOff) {
         timers[cardId] = 0;
         card.classList.remove('is-stale');
-        if (ov) ov.textContent = t('● collection disabled');
+        if (ov) ov.textContent = '● collection disabled';
       } else {
         if (ov) ov.textContent = '● stale';
         if (timers[cardId] === 0) timers[cardId] = Date.now();
@@ -165,7 +164,7 @@ export function sweepStale(now: number): void {
       // Only when it does not already say so — rewriting an unchanged string
       // every three seconds is work for nothing.
       if (ov && (ov.textContent || '').indexOf('disabled') === -1) {
-        ov.textContent = t('● collection disabled');
+        ov.textContent = '● collection disabled';
       }
       continue;
     }

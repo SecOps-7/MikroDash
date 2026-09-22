@@ -1288,23 +1288,3 @@ func TestThePromptSaysWhetherRawCommandsExist(t *testing.T) {
 		t.Error("the default prompt still denies the raw tools, whatever the gate says")
 	}
 }
-
-// The assistant answers in the page's language (#94): nothing is added on an
-// English page, and a translated page names its language by tag, keeps
-// RouterOS's own words untranslated, and obeys the preamble's em dash rule.
-func TestTheAssistantAnswersInThePagesLanguage(t *testing.T) {
-	for _, lang := range []string{"", "en"} {
-		if note := aiLanguageNote(lang); note != "" {
-			t.Errorf("aiLanguageNote(%q) = %q; an English page must add nothing to the prompt", lang, note)
-		}
-	}
-	note := aiLanguageNote("zh-CN")
-	for _, want := range []string{`"zh-CN"`, "every reply", "untranslated"} {
-		if !strings.Contains(note, want) {
-			t.Errorf("the language note lacks %q: %s", want, note)
-		}
-	}
-	if strings.Contains(note, "—") {
-		t.Error("the language note uses an em dash, which the preamble forbids the model")
-	}
-}

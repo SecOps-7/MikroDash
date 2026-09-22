@@ -1,7 +1,6 @@
 // Boot: the socket, the navigation, the chrome, and every page module.
 
 import { el } from './dom';
-import { t, tl } from './i18n';
 import { installFetchGuard, verifySessionAfterFailure } from './fetch-guard';
 import { overlayOnStatus, overlayOnSwitch, selectOptionsHtml, wireRouterDropdown } from './router-dropdown';
 import { initUpgrade } from './pages/upgrade';
@@ -131,7 +130,7 @@ function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
   }
 
   const title = el('pageTitle');
-  if (title) title.textContent = tl(pageTitle(name));
+  if (title) title.textContent = pageTitle(name);
   const icon = el('pageTitleIcon');
   if (icon) {
     icon.innerHTML = '';
@@ -291,7 +290,7 @@ function wireBanners(socket: Socket): void {
   // Not a RouterOS outage, but it uses the same banner to say so: there is
   // nothing to show and the reason is worth stating rather than leaving blank.
   socket.on('access:none', () => {
-    setRosBanner(false, t('No router is readable by this account'));
+    setRosBanner(false, 'No router is readable by this account');
   });
 }
 
@@ -877,7 +876,7 @@ async function main(): Promise<void> {
   function paintOverlay(label: string): void {
     const ovl = el('rtrSwitchingOverlay');
     const lbl = el('rtrSwitchingLabel');
-    if (lbl && label) lbl.textContent = t('Switching to {router}…', { router: label });
+    if (lbl && label) lbl.textContent = 'Switching to ' + label + '…';
     if (ovl) ovl.classList.toggle('open', overlay.open);
   }
 

@@ -20,7 +20,6 @@
 // unrelated edit, with nothing on screen to say so.
 
 import { el, esc } from '../dom';
-import { t, ts } from '../i18n';
 import {
   // `cityListHtml`, `shouldSearchCity`, `formatPlace` and `CITY_DEBOUNCE_MS` were
   // imported here while this file had its own picker wiring. They moved with it
@@ -190,7 +189,7 @@ export function initRouterModal(opts: {
   async function loadIdentity(id: string): Promise<void> {
     const box = input('rtrModalIdentity');
     const hint = el('rtrModalIdentityHint');
-    resetIdentity(t('Reading from the router…'));
+    resetIdentity('Reading from the router…');
     if (!box) return;
     try {
       const r = await fetch('/api/routers/' + encodeURIComponent(id) + '/identity', { credentials: 'same-origin' });
@@ -201,29 +200,29 @@ export function initRouterModal(opts: {
         box.value = j.name || '';
         identityLoaded = j.name || '';
         box.disabled = false;
-        if (hint) hint.textContent = t('The name the router gives itself. Saving writes it to the router.');
+        if (hint) hint.textContent = 'The name the router gives itself. Saving writes it to the router.';
       } else if (hint) {
         hint.textContent = r.status === 403
-          ? t('You may not change this router.')
-          : t('The router cannot be reached, so its identity cannot be read or changed now.');
+          ? 'You may not change this router.'
+          : 'The router cannot be reached, so its identity cannot be read or changed now.';
       }
     } catch {
-      if (hint) hint.textContent = t('The device identity could not be read.');
+      if (hint) hint.textContent = 'The device identity could not be read.';
     }
   }
 
   function identityMessage(status: number, j: { code?: string; error?: string }): string {
     const codes: Record<string, string> = {
-      'rate-limited': t('Too many changes to this router in the last minute, so its identity was not changed.'),
-      'outcome-unknown': t('The router accepted the new identity, but it could not be confirmed. Check the router before trying again.'),
-      unreachable: t('The router could not be reached, so its identity was not changed.'),
-      'read-failed': t('The device identity could not be read, so it was not changed.'),
-      'router-denied': t('The router refused the new identity: the API user lacks write permission.'),
-      'write-failed': t('The router refused the new identity.'),
+      'rate-limited': 'Too many changes to this router in the last minute, so its identity was not changed.',
+      'outcome-unknown': 'The router accepted the new identity, but it could not be confirmed. Check the router before trying again.',
+      unreachable: 'The router could not be reached, so its identity was not changed.',
+      'read-failed': 'The device identity could not be read, so it was not changed.',
+      'router-denied': 'The router refused the new identity: the API user lacks write permission.',
+      'write-failed': 'The router refused the new identity.',
     };
-    if (j.error) return t('✗ Device saved, identity not changed: {error}', { error: ts(j.error) });
-    return t('✗ Device saved.') + ' ' + (codes[j.code || ''] ||
-      (status === 403 ? t('You may not change this router.') : t('The device identity was not changed.')));
+    if (j.error) return '✗ Device saved, identity not changed: ' + j.error;
+    return '✗ Device saved. ' + (codes[j.code || ''] ||
+      (status === 403 ? 'You may not change this router.' : 'The device identity was not changed.'));
   }
 
   // ── open ──────────────────────────────────────────────────────────────────
@@ -249,7 +248,7 @@ export function initRouterModal(opts: {
     const primary = el<HTMLSelectElement>('rtrModalPrimarySite');
     if (primary) {
       const all = opts.sites();
-      primary.innerHTML = '<option value="">' + t('— No site —') + '</option>';
+      primary.innerHTML = '<option value="">— No site —</option>';
       (f.siteIds || []).filter((id) => all[id]).forEach((id) => {
         const o = document.createElement('option');
         o.value = id;
@@ -360,18 +359,18 @@ export function initRouterModal(opts: {
   v<HTMLButtonElement>('rtrModalTestBtn')?.addEventListener('click', async () => {
     const btn = v<HTMLButtonElement>('rtrModalTestBtn');
     const data = body();
-    if (!data.host) { showTestResult(false, t('Host is required')); return; }
-    if (btn) { btn.disabled = true; btn.textContent = t('Testing…'); }
+    if (!data.host) { showTestResult(false, 'Host is required'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
     hideTestResult();
-    try { await runTest(data); } catch (e) { showTestResult(false, t('✗ Request failed: {error}', { error: String(e) })); }
-    if (btn) { btn.disabled = false; btn.textContent = t('Test Connection'); }
+    try { await runTest(data); } catch (e) { showTestResult(false, '✗ Request failed: ' + String(e)); }
+    if (btn) { btn.disabled = false; btn.textContent = 'Test Connection'; }
   });
 
   v<HTMLButtonElement>('rtrModalSaveBtn')?.addEventListener('click', async () => {
     const btn = v<HTMLButtonElement>('rtrModalSaveBtn');
     const data = body();
-    if (!data.host) { showTestResult(false, t('Host is required')); return; }
-    if (btn) { btn.disabled = true; btn.textContent = gate.maySaveDirectly() ? t('Saving…') : t('Testing…'); }
+    if (!data.host) { showTestResult(false, 'Host is required'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = gate.maySaveDirectly() ? 'Saving…' : 'Testing…'; }
     try {
       // SAVE ONLY AFTER A PASSING TEST. Credentials that were never tried
       // against the router they now name must not reach the store.
@@ -382,7 +381,7 @@ export function initRouterModal(opts: {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin', body: JSON.stringify(data),
       });
-      if (!r.ok) { showTestResult(false, t('✗ Save failed')); return; }
+      if (!r.ok) { showTestResult(false, '✗ Save failed'); return; }
       // THE IDENTITY GOES SECOND, and only when it changed and could be read.
       // A refusal keeps the dialog open with the device already saved.
       const identityBox = input('rtrModalIdentity');
@@ -403,9 +402,9 @@ export function initRouterModal(opts: {
       el('rtrModalBg')?.classList.remove('open');
       opts.onSaved();
     } catch (e) {
-      showTestResult(false, t('✗ Request failed: {error}', { error: String(e) }));
+      showTestResult(false, '✗ Request failed: ' + String(e));
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = t('Save'); }
+      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
     }
   });
 

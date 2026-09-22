@@ -25,7 +25,6 @@
  */
 
 import { el } from '../dom';
-import { t, ts } from '../i18n';
 
 export interface TestChannelSpec {
   btnId: string;
@@ -86,7 +85,7 @@ export const TEST_CHANNELS: TestChannelSpec[] = [
     url: '/api/settings/test-ai', payload: aiTestPayload,
     // NOT "Sent!". Nothing was delivered to anybody: the endpoint answered, the
     // key was accepted and the model name exists, which is a different claim.
-    okText: t('✓ Connected'),
+    okText: '✓ Connected',
     onReply: showCertificate,
   },
 ];
@@ -177,7 +176,7 @@ export function testPayload(channel: string): Record<string, unknown> {
  * this note goes with it.
  */
 export function resultText(d: { ok?: boolean; error?: string }, okText?: string): string {
-  return d.ok ? (okText || t('✓ Sent!')) : '✗ ' + (ts(d.error) || t('failed'));
+  return d.ok ? (okText || '✓ Sent!') : '✗ ' + (d.error || 'failed');
 }
 
 export function resultColour(ok: boolean): string {
@@ -195,7 +194,7 @@ function wire(spec: TestChannelSpec): void {
     // sign the press did anything.
     btn.disabled = true;
     if (result) {
-      result.textContent = t('Sending…');
+      result.textContent = 'Sending…';
       result.style.color = 'var(--text-muted)';
     }
     void fetch(spec.url || '/api/settings/test-notification', {
@@ -240,13 +239,13 @@ export function formatFingerprint(hex: string): string {
 /** What the certificate box says: a headline, then label and value rows. */
 export function certSummary(c: CertInfo): { head: string; rows: [string, string][] } {
   const rows: [string, string][] = [['SHA-256', formatFingerprint(c.fingerprint)],
-    [t('Subject'), c.subject || '(none)']];
-  if (c.names.length) rows.push([t('Names'), c.names.join(', ')]);
-  rows.push([t('Issuer'), c.issuer || '(none)'], [t('Expires'), c.notAfter]);
+    ['Subject', c.subject || '(none)']];
+  if (c.names.length) rows.push(['Names', c.names.join(', ')]);
+  rows.push(['Issuer', c.issuer || '(none)'], ['Expires', c.notAfter]);
   return {
     head: c.mismatch
-      ? t('The endpoint presented a DIFFERENT certificate from the one you trusted. Trust it only if you replaced it yourself.')
-      : c.selfSigned ? t('The endpoint\'s certificate is not trusted (it is self-signed).') : t('The endpoint\'s certificate is not trusted.'),
+      ? 'The endpoint presented a DIFFERENT certificate from the one you trusted. Trust it only if you replaced it yourself.'
+      : 'The endpoint\'s certificate is not trusted' + (c.selfSigned ? ' (it is self-signed).' : '.'),
     rows,
   };
 }
@@ -284,11 +283,11 @@ export function showCertificate(d: TestReply): void {
   btn.type = 'button';
   btn.className = 'sbtn sbtn-ghost';
   btn.style.marginTop = '.4rem';
-  btn.textContent = t('Trust this certificate');
+  btn.textContent = 'Trust this certificate';
   btn.addEventListener('click', () => {
     const pin = el<HTMLInputElement>('s_aiTlsPin');
     if (pin) pin.value = formatFingerprint(c.fingerprint);
-    box.textContent = t('Trusted in the form. Save the settings to keep it, then Test Connection again.');
+    box.textContent = 'Trusted in the form. Save the settings to keep it, then Test Connection again.';
   });
   box.appendChild(btn);
 }

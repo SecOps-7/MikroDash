@@ -43,7 +43,6 @@
 // clicking its corners, and its vertices can be dragged afterwards.
 
 import { esc, el, lsGet, lsSet, svgEl, attr, text } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { WifiPayload, WirelessPayload, WirelessClient } from '../gen/payloads';
 
@@ -686,29 +685,32 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     set('wmStatClients', String((wireless?.clients || []).length - unplacedCount));
     set('wmStatUnplaced', String(unplacedCount));
     set('wmStatScale', doc.metresPerUnit > 0
-      ? doc.metresPerUnit.toFixed(2) + ' m/unit' : t('not set'));
+      ? doc.metresPerUnit.toFixed(2) + ' m/unit' : 'not set');
     const foot = el('wmFoot');
     if (foot) {
       const bits: string[] = [];
       if (unplacedCount) {
-        bits.push(unplacedCount === 1 ? t('1 client on an access point that is not on the map')
-          : t('{n} clients on an access point that is not on the map', { n: unplacedCount }));
+        bits.push(unplacedCount + ' client' + (unplacedCount === 1 ? '' : 's') +
+          ' on an access point that is not on the map');
       }
       if (measuring) {
         bits.push(measureFrom
-          ? t('Click the other end of the distance you are measuring.')
-          : t('Click one end of something you know the length of.'));
+          ? 'Click the other end of the distance you are measuring.'
+          : 'Click one end of something you know the length of.');
       }
       if (drawing) {
         bits.push(drawing.length < 3
-          ? t('Click each corner of the area. Three at least.')
-          : t('{n} corners. Click the first one again, double-click or press Enter to close it; Esc throws it away.', { n: drawing.length }));
+          ? 'Click each corner of the area. Three at least.'
+          : drawing.length + ' corners. Click the first one again, double-click ' +
+            'or press Enter to close it; Esc throws it away.');
       }
       if (clientMode === 'ring' && doc.metresPerUnit <= 0) {
-        bits.push(t('Signal ring needs a scale — set one in Edit mode. Drawing at a fixed radius until then.'));
+        bits.push('Signal ring needs a scale — set one in Edit mode. ' +
+          'Drawing at a fixed radius until then.');
       }
       if (clientMode === 'ring' && doc.metresPerUnit > 0) {
-        bits.push(t('Radius is a distance ESTIMATE from the signal. The direction is arbitrary: a router reports one reading per client, never three.'));
+        bits.push('Radius is a distance ESTIMATE from the signal. The direction ' +
+          'is arbitrary: a router reports one reading per client, never three.');
       }
       foot.innerHTML = esc(bits.join('  ·  '));
     }
@@ -721,8 +723,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     e.classList.toggle('show', blank);
     if (blank) {
       e.innerHTML = mode === 'edit'
-        ? t('Draw the site: add a building, then place your access points on it.')
-        : t('Nothing has been drawn for this router yet. Switch to Edit to start.');
+        ? 'Draw the site: add a building, then place your access points on it.'
+        : 'Nothing has been drawn for this router yet. Switch to Edit to start.';
     }
   }
 
@@ -764,23 +766,24 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   function objectPanel(o: MapObject): string {
     const poly = o.points.length >= 3;
     return '<div class="wm-panel-title">' + esc(o.kind) + '</div>' +
-      field(t('Label'), '<input class="sform-input" id="wmfLabel" value="' + esc(o.label) + '">') +
+      field('Label', '<input class="sform-input" id="wmfLabel" value="' + esc(o.label) + '">') +
       // STOREYS ARE A BUILDING'S. A fence and a plot have one apiece, and a
       // storey count on them put floors in the picker nothing could be on.
       (o.kind === 'building'
-        ? field(t('Storeys'), '<input class="sform-input" id="wmfFloors" type="number" min="1" max="64" value="' +
+        ? field('Storeys', '<input class="sform-input" id="wmfFloors" type="number" min="1" max="64" value="' +
           String(o.floors) + '">')
         : '') +
       (poly
-        ? '<div class="wm-panel-note">' + t('{n} corners. Drag one to move it; drag the outline to move the whole shape.', { n: o.points.length }) + '</div>'
-        : field(t('Width'), '<input class="sform-input" id="wmfW" type="number" value="' + String(Math.round(o.w)) + '">') +
-          field(t('Height'), '<input class="sform-input" id="wmfH" type="number" value="' + String(Math.round(o.h)) + '">')) +
-      field(t('Colour'), '<div class="wm-swatches" id="wmfColours">' +
+        ? '<div class="wm-panel-note">' + o.points.length + ' corners. Drag one to ' +
+          'move it; drag the outline to move the whole shape.</div>'
+        : field('Width', '<input class="sform-input" id="wmfW" type="number" value="' + String(Math.round(o.w)) + '">') +
+          field('Height', '<input class="sform-input" id="wmfH" type="number" value="' + String(Math.round(o.h)) + '">')) +
+      field('Colour', '<div class="wm-swatches" id="wmfColours">' +
         PALETTE.map((c) => '<button type="button" class="wm-swatch' +
           (c === o.colour ? ' is-on' : '') + '" data-colour="' + esc(c) + '"' +
           ' style="background:' + (c || 'transparent') + '"' +
           ' title="' + (c ? esc(c) : 'default') + '"></button>').join('') + '</div>') +
-      ('<button class="sbtn sbtn-danger wm-panel-btn" id="wmfDelete">' + t('Delete') + '</button>');
+      '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfDelete">Delete</button>';
   }
 
   function wireObjectPanel(o: MapObject): void {
@@ -811,13 +814,13 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   }
 
   function apPanel(a: MapAP): string {
-    return ('<div class="wm-panel-title">' + t('Access point') + '</div>') +
+    return '<div class="wm-panel-title">Access point</div>' +
       '<div class="wm-panel-sub">' + esc(a.ap || a.ifaces.join(', ')) + '</div>' +
-      field(t('Label'), '<input class="sform-input" id="wmfApLabel" value="' + esc(a.label) + '">') +
-      field(t('Floor'), '<input class="sform-input" id="wmfApFloor" type="number" min="1" max="64" value="' +
+      field('Label', '<input class="sform-input" id="wmfApLabel" value="' + esc(a.label) + '">') +
+      field('Floor', '<input class="sform-input" id="wmfApFloor" type="number" min="1" max="64" value="' +
         String(a.floor) + '">') +
-      '<div class="wm-panel-note">' + t('Radios: {list}', { list: esc(a.ifaces.join(', ') || '—') }) + '</div>' +
-      ('<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">' + t('Take off the map') + '</button>');
+      '<div class="wm-panel-note">Radios: ' + esc(a.ifaces.join(', ') || '—') + '</div>' +
+      '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">Take off the map</button>';
   }
 
   function wireApPanel(a: MapAP): void {
@@ -844,16 +847,19 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         '<span class="wm-tray-name" title="' + esc(c.ifaces.join(', ')) + '">' +
           esc(c.label) + '</span>' +
         (on ? '<span class="wm-tray-note">placed</span>'
-          : '<button class="topo-btn" data-place="' + esc(c.key) + ('">' + t('Place') + '</button>')) +
+          : '<button class="topo-btn" data-place="' + esc(c.key) + '">Place</button>') +
       '</div>';
     }).join('');
-    return ('<div class="wm-panel-title">' + t('Site') + '</div>') +
-      field(t('Metres per canvas unit'),
+    return '<div class="wm-panel-title">Site</div>' +
+      field('Metres per canvas unit',
         '<input class="sform-input" id="wmfScale" type="number" step="0.01" min="0" value="' +
         String(doc.metresPerUnit || '') + '" placeholder="e.g. 0.25">') +
-      ('<div class="wm-panel-note">' + t('Draw a wall you know the length of, read its Width, and divide: 40 m across 160 units is 0.25. Only the Signal ring mode uses it.') + '</div>') +
-      ('<div class="wm-panel-title" style="margin-top:.9rem">' + t('Access points') + '</div>') +
-      (rows || '<div class="wm-panel-note">' + t('No radios reported yet. Open Wifi Networks once so this router has answered.') + '</div>');
+      '<div class="wm-panel-note">Draw a wall you know the length of, read its ' +
+        'Width, and divide: 40 m across 160 units is 0.25. Only the Signal ring ' +
+        'mode uses it.</div>' +
+      '<div class="wm-panel-title" style="margin-top:.9rem">Access points</div>' +
+      (rows || '<div class="wm-panel-note">No radios reported yet. Open Wifi ' +
+        'Networks once so this router has answered.</div>');
   }
 
   function wireTray(): void {
@@ -906,7 +912,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     const btn = el('wmSave');
     if (btn) {
       btn.classList.toggle('is-dirty', dirty);
-      btn.textContent = dirty ? t('Save *') : t('Save');
+      btn.textContent = dirty ? 'Save *' : 'Save';
     }
   }
 
@@ -965,14 +971,14 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         // saveable, because an empty canvas and a failed read look the same and
         // one Save would replace the site plan with whatever is on screen.
         loaded = false;
-        note(t('The stored plan could not be read, so saving is off until it can.'));
+        note('The stored plan could not be read, so saving is off until it can.');
       });
   }
 
   function save(): void {
     if (!routerID) return;
     if (!loaded) {
-      note(t('Not saving: the stored plan was never read, and this would replace it.'));
+      note('Not saving: the stored plan was never read, and this would replace it.');
       return;
     }
     fetch('/api/router-doc', {
@@ -999,7 +1005,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       .catch(() => {
         // LEFT DIRTY ON PURPOSE: nothing was stored, and the operator's drawing
         // is still the only copy of it.
-        note(t('The plan was not saved. You may not have permission to edit it.'));
+        note('The plan was not saved. You may not have permission to edit it.');
       });
   }
 
@@ -1012,7 +1018,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     const size = DEFAULT_SIZE[kind]!;
     doc.objects.push({
       id: newID(),
-      kind, label: kind === 'label' ? t('Label') : '',
+      kind, label: kind === 'label' ? 'Label' : '',
       x: x - size.w / 2, y: y - size.h / 2, w: size.w, h: size.h,
       points: [], floors: 1, colour: '',
     });

@@ -135,8 +135,6 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Set-Cookie",
 		s.sessions4Web.BuildCookieHeader(sess.Token, sess.ExpiresAt, s.forceHTTPS))
-	// The account's interface language follows the user to this browser.
-	s.syncAccountLang(w, r, found.ID)
 	log.Printf("[auth] login — user=%q role=%s", found.Username, found.Role)
 	s.loginRecorder(r, found.Username).Record(audit.Event{
 		Action: "auth.login", TargetType: "user",

@@ -21,7 +21,6 @@
 // subscriber cannot.
 
 import { el, esc } from '../dom';
-import { t } from '../i18n';
 import type { Socket } from '../socket';
 
 import type { HandEvents } from '../events-hand';
@@ -32,11 +31,11 @@ import type { UpdInfo } from './dashboard-system';
 
 /** What the dialog says when the router refuses. */
 export function upgradeErrorText(code: string | undefined, routerName: string): string {
-  if (code === 'confirm-mismatch') return t('That is not this router’s name. Type "{name}".', { name: routerName });
-  if (code === 'nothing-to-update') return t('This router is already on the newest version it knows about.');
-  if (code === 'denied') return t('You do not have permission to update this router.');
-  if (code === 'router-write-policy') return t('The RouterOS user MikroDash connects with lacks the write policy.');
-  return t('The router refused the upgrade.');
+  if (code === 'confirm-mismatch') return 'That is not this router’s name. Type "' + routerName + '".';
+  if (code === 'nothing-to-update') return 'This router is already on the newest version it knows about.';
+  if (code === 'denied') return 'You do not have permission to update this router.';
+  if (code === 'router-write-policy') return 'The RouterOS user MikroDash connects with lacks the write policy.';
+  return 'The router refused the upgrade.';
 }
 
 /**
@@ -49,7 +48,7 @@ export function upgradeErrorText(code: string | undefined, routerName: string): 
 export function updateSlotHtml(permitted: boolean, latest: string): string {
   return (permitted && latest)
     ? '<button class="sbtn sbtn-warn" id="sysUpdateBtn" data-upgrade-open'
-      + (' style="padding:.1rem .45rem;font-size:.64rem">' + t('Update') + '</button>')
+      + ' style="padding:.1rem .45rem;font-size:.64rem">Update</button>'
     : '';
 }
 
@@ -91,9 +90,9 @@ export interface UpdView {
 export function updView(state: 'idle' | 'issuing' | 'rebooting'): UpdView {
   if (state === 'idle') {
     return {
-      goDisabled: false, goText: t('Update & Reboot'), goIsHtml: false,
+      goDisabled: false, goText: 'Update & Reboot', goIsHtml: false,
       confirmDisabled: false,
-      cancelText: t('Cancel'), confirmHidden: false,
+      cancelText: 'Cancel', confirmHidden: false,
       pendingText: '', pendingHidden: true,
     };
   }
@@ -114,9 +113,10 @@ export function updView(state: 'idle' | 'issuing' | 'rebooting'): UpdView {
     confirmDisabled: true,
     // Once the command is out there is nothing left to confirm, and "Cancel"
     // would imply the upgrade could still be called off. It cannot.
-    cancelText: t('Close'),
+    cancelText: 'Close',
     confirmHidden: true,
-    pendingText: t('The router is downloading the packages and restarting. It will be unreachable for a minute or two, and MikroDash reconnects on its own. This closes when it is back.'),
+    pendingText: 'The router is downloading the packages and restarting. It will be unreachable '
+      + 'for a minute or two, and MikroDash reconnects on its own. This closes when it is back.',
     pendingHidden: false,
   };
 }
@@ -218,17 +218,17 @@ export function initUpgrade(socket: Socket): void {
     // Two shapes: `notes` on success, `error` on failure. Asked with `in`
     // because the failure shape has no `notes` key at all.
     if ('notes' in reply && reply.notes) setNotes(reply.notes, false);
-    else setNotes(t('Release notes unavailable'), true);
+    else setNotes('Release notes unavailable', true);
   });
 
   document.addEventListener('click', (e) => {
-    const tgt = e.target as HTMLElement | null;
-    if (!tgt?.closest) return;
+    const t = e.target as HTMLElement | null;
+    if (!t?.closest) return;
     // ANY CONTROL THAT ASKS, not one id. The System card's slot button is the
     // original and keeps its id; the Packages page draws a second one in its
     // Firmware & Update card, and both open THIS dialog rather than a copy of
     // it. Matching on the id would have meant duplicating the id or the dialog.
-    if (tgt.closest('[data-upgrade-open]')) {
+    if (t.closest('[data-upgrade-open]')) {
       const set = (id: string, v: string): void => { const n = el(id); if (n) n.textContent = v; };
       set('upd_from', upd.installed || '—');
       set('upd_to', upd.latest || '—');
@@ -238,9 +238,9 @@ export function initUpgrade(socket: Socket): void {
       // update strip flash before `lastUpdateRowHtml` was added. Nobody who
       // never opens the dialog should cost a fetch of a third-party URL.
       notesFor = upd.latest || '';
-      setNotes(t('Loading release notes…'), true);
+      setNotes('Loading release notes…', true);
       if (notesFor) socket.emit('packages:notes', { version: notesFor });
-      else setNotes(t('Release notes unavailable'), true);
+      else setNotes('Release notes unavailable', true);
 
       const confirm = el<HTMLInputElement>('upd_confirm');
       if (confirm) { confirm.value = ''; confirm.placeholder = caps.routerName || ''; }
@@ -253,7 +253,7 @@ export function initUpgrade(socket: Socket): void {
       el('updModal')?.classList.add('open');
       return;
     }
-    if (tgt.closest('#upd_go')) {
+    if (t.closest('#upd_go')) {
       // One command per dialog, not one per click. The disabled check is the
       // guard: a second click while `issuing` would send a second install.
       if (el<HTMLButtonElement>('upd_go')?.disabled) return;

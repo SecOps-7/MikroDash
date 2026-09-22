@@ -207,11 +207,6 @@ func (cn *conn) overviewTick() time.Duration {
 	}
 
 	prompt := overviewPrompt(settings)
-	// IN THE PAGE'S LANGUAGE, and part of the prompt so the cache below, which
-	// is keyed on the prompt, writes a fresh line when the language changes.
-	if note := aiLanguageNote(cn.lang); note != "" {
-		prompt += "\n\n" + note
-	}
 	cfg := aiConfigFor(nil, settings)
 	key := cn.aiHistoryUserFor(sc.sess)
 	// Swapped before any early return below it could be skipped by, and after the

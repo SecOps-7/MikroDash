@@ -7,7 +7,6 @@
  */
 
 import { el } from '../dom';
-import { t, ts } from '../i18n';
 
 /** The three field groups, and they are treated differently on purpose. */
 export const UN_BOOLS = ['telegramEnabled', 'pushbulletEnabled', 'ntfyEnabled', 'emailEnabled'];
@@ -63,7 +62,7 @@ export const UN_IDS: Record<string, string> = {
  * it has.
  */
 export function credentialPlaceholder(stored: unknown): string {
-  return stored ? t('leave blank to keep current') : 'not set';
+  return stored ? 'leave blank to keep current' : 'not set';
 }
 
 export interface UserNotifyConfig {
@@ -165,13 +164,13 @@ export const pending = (word: string): Outcome => ({ text: word, colour: MUTED, 
  */
 export function saveOutcome(ok: boolean, error?: string): Outcome {
   return ok
-    ? { text: t('✓ Saved'), colour: GREEN, clearAfterMs: 4000 }
+    ? { text: '✓ Saved', colour: GREEN, clearAfterMs: 4000 }
     : { text: '✗ ' + (error || 'failed'), colour: RED, clearAfterMs: 4000 };
 }
 
 export function testOutcome(ok: boolean, error?: string): Outcome {
   return ok
-    ? { text: t('✓ Sent!'), colour: GREEN, clearAfterMs: 5000 }
+    ? { text: '✓ Sent!', colour: GREEN, clearAfterMs: 5000 }
     : { text: '✗ ' + (error || 'failed'), colour: RED, clearAfterMs: 5000 };
 }
 
@@ -217,7 +216,7 @@ export function initUserNotify(): void {
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
       saveBtn.disabled = true;
-      show(saveResult, pending(t('Saving…')));
+      show(saveResult, pending('Saving…'));
       void fetch('/api/user-notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,7 +225,7 @@ export function initUserNotify(): void {
         .then((r) => r.json())
         .then((data: { ok?: boolean; error?: string; config?: UserNotifyConfig }) => {
           saveBtn.disabled = false;
-          show(saveResult, saveOutcome(!!data.ok, ts(data.error)));
+          show(saveResult, saveOutcome(!!data.ok, data.error));
           // REPOPULATE on success: the server's answer is the truth about what
           // is stored, and it comes back masked — so a credential just typed is
           // replaced by its placeholder rather than left on screen.
@@ -245,7 +244,7 @@ export function initUserNotify(): void {
     if (!btn) continue;
     btn.addEventListener('click', () => {
       btn.disabled = true;
-      show(result, pending(t('Sending…')));
+      show(result, pending('Sending…'));
       void fetch('/api/user-notify/test-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -254,7 +253,7 @@ export function initUserNotify(): void {
         .then((r) => r.json())
         .then((data: { ok?: boolean; error?: string }) => {
           btn.disabled = false;
-          show(result, testOutcome(!!data.ok, ts(data.error)));
+          show(result, testOutcome(!!data.ok, data.error));
         })
         .catch((e: unknown) => {
           btn.disabled = false;

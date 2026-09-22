@@ -31,7 +31,6 @@
  */
 
 import { fmtDate } from '../timefmt';
-import { t, ts } from '../i18n';
 import { el, esc, fmtBytes } from '../dom';
 
 export interface DbRouter { id: string; label?: string | null; host?: string | null }
@@ -59,10 +58,10 @@ export interface DbPurgeReply {
 
 /** The live `TYPE_LABELS`. The ORDER of a summary follows the checkbox order, not this. */
 export const TYPE_LABELS: Record<string, string> = {
-  traffic: t('Traffic graphs'),
-  ping: t('Ping history'),
-  bandwidth: t('Bandwidth usage'),
-  events: t('Alerts & connectivity'),
+  traffic: 'Traffic graphs',
+  ping: 'Ping history',
+  bandwidth: 'Bandwidth usage',
+  events: 'Alerts & connectivity',
 };
 
 /**
@@ -76,7 +75,7 @@ export const TYPE_LABELS: Record<string, string> = {
 export function routerName(id: string, known: DbRouter[]): string {
   const m = known.find((x) => x.id === id);
   if (m) return m.label || m.host || id;
-  return t('Removed router ({id}…)', { id: String(id).slice(0, 8) });
+  return 'Removed router (' + String(id).slice(0, 8) + '…)';
 }
 
 /**
@@ -141,17 +140,22 @@ export function summaryHtml(
   if (!j.total) return null;
   const byType = j.byType || {};
   const parts = opts.types
-    .filter((ty) => byType[ty])
-    .map((ty) => TYPE_LABELS[ty] + ' <b>' + (byType[ty] as number).toLocaleString() + '</b>');
-  const v = {
-    n: j.total.toLocaleString(),
-    where: esc(opts.routerId ? routerName(opts.routerId, known) : t('all routers')),
-    days: opts.olderThanDays || 0,
-  };
-  const sentence = !opts.olderThanDays ? t('Will delete <b>{n}</b> rows from {where}, of any age.', v)
-    : opts.olderThanDays === 1 ? t('Will delete <b>{n}</b> rows from {where}, older than 1 day.', v)
-      : t('Will delete <b>{n}</b> rows from {where}, older than {days} days.', v);
-  return sentence + '<br>' + parts.join(' &middot; ');
+    .filter((t) => byType[t])
+    .map((t) => TYPE_LABELS[t] + ' <b>' + (byType[t] as number).toLocaleString() + '</b>');
+  const where = opts.routerId ? routerName(opts.routerId, known) : 'all routers';
+  const when = opts.olderThanDays
+    ? 'older than ' + opts.olderThanDays + ' day' + (opts.olderThanDays === 1 ? '' : 's')
+    : 'of any age';
+  return (
+    'Will delete <b>' +
+    j.total.toLocaleString() +
+    '</b> rows from ' +
+    esc(where) +
+    ', ' +
+    when +
+    '.<br>' +
+    parts.join(' &middot; ')
+  );
 }
 
 /**
@@ -162,7 +166,7 @@ export function summaryHtml(
  */
 export function deletedText(j: DbPurgeReply): string {
   const freed = Math.max(0, (j.bytesBefore || 0) - (j.bytesAfter || 0));
-  return t('✓ Deleted {n} rows, freed {size}.', { n: (j.deleted || 0).toLocaleString(), size: fmtBytes(freed) });
+  return '✓ Deleted ' + (j.deleted || 0).toLocaleString() + ' rows, freed ' + fmtBytes(freed) + '.';
 }
 
 // ── The wiring ──────────────────────────────────────────────────────────────
@@ -225,8 +229,8 @@ function setBusy(on: boolean, which?: string, msg?: string): void {
   const n = nodes();
   n.prevBtn!.disabled = on;
   n.delBtn!.disabled = on || pendingCount === 0;
-  n.prevBtn!.textContent = on && which === 'preview' ? t('Checking…') : previewLabel;
-  n.delBtn!.textContent = on && which === 'delete' ? t('Deleting…') : deleteLabel;
+  n.prevBtn!.textContent = on && which === 'preview' ? 'Checking…' : previewLabel;
+  n.delBtn!.textContent = on && which === 'delete' ? 'Deleting…' : deleteLabel;
   if (on) {
     n.result!.className = 'dbc-result busy';
     n.result!.innerHTML = '<span class="dbc-spin"></span>' + esc(msg || '');
@@ -240,7 +244,7 @@ function renderScope(byRouter: DbRouterRows[]): void {
   // back to "All routers" — the safe direction to fail, and what the live card
   // does.
   const keep = scope.value;
-  scope.innerHTML = '<option value="">' + t('All routers') + '</option>';
+  scope.innerHTML = '<option value="">All routers</option>';
   scopeIds(known, byRouter).forEach((id) => {
     const o = document.createElement('option');
     o.value = id;
@@ -310,11 +314,11 @@ export function initDbCleanup(): void {
   n.prevBtn.addEventListener('click', () => {
     const opts = currentOpts();
     if (!opts.types.length) {
-      say('err', t('Select at least one data type.'));
+      say('err', 'Select at least one data type.');
       return;
     }
     pendingCount = 0;
-    setBusy(true, 'preview', t('Counting matching rows…'));
+    setBusy(true, 'preview', 'Counting matching rows…');
     post({
       routerId: opts.routerId,
       types: opts.types,
@@ -324,13 +328,13 @@ export function initDbCleanup(): void {
       .then((j) => {
         setBusy(false);
         if (!j || !j.ok) {
-          say('err', ts(j && j.error) || t('Preview failed'));
+          say('err', (j && j.error) || 'Preview failed');
           return;
         }
         say('', '');
         const html = summaryHtml(j, opts, known);
         if (html === null) {
-          nodes().summary!.innerHTML = t('Nothing matches that selection.');
+          nodes().summary!.innerHTML = 'Nothing matches that selection.';
           return;
         }
         pendingCount = j.total || 0;
@@ -339,26 +343,26 @@ export function initDbCleanup(): void {
       })
       .catch(() => {
         setBusy(false);
-        say('err', t('Preview failed'));
+        say('err', 'Preview failed');
       });
   });
 
   n.delBtn.addEventListener('click', () => {
     const opts = currentOpts();
     if (!opts.types.length) return;
-    if (!confirm(t('Delete this data permanently? This cannot be undone.'))) return;
+    if (!confirm('Delete this data permanently? This cannot be undone.')) return;
     const count = pendingCount;
     pendingCount = 0; // the preview is spent either way
     setBusy(
       true,
       'delete',
-      t('Deleting {n} rows and compacting the database…', { n: count.toLocaleString() }),
+      'Deleting ' + count.toLocaleString() + ' rows and compacting the database…',
     );
     post({ routerId: opts.routerId, types: opts.types, olderThanDays: opts.olderThanDays })
       .then((j) => {
         setBusy(false);
         if (!j || !j.ok) {
-          say('err', ts(j && j.error) || t('Delete failed'));
+          say('err', (j && j.error) || 'Delete failed');
           return;
         }
         say('ok', deletedText(j));
@@ -367,7 +371,7 @@ export function initDbCleanup(): void {
       })
       .catch(() => {
         setBusy(false);
-        say('err', t('Delete failed'));
+        say('err', 'Delete failed');
       });
   });
 

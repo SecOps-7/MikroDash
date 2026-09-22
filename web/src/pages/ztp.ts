@@ -11,7 +11,6 @@
 // reconnect starts in no rooms.
 
 import { el, esc } from '../dom';
-import { t, ts } from '../i18n';
 import type { Socket } from '../socket';
 import type { ZTPDeviceView, ZTPPayload } from '../gen/payloads';
 import { onZtpState, setZtpState, ztpState } from '../ztp-state';
@@ -26,7 +25,7 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
     ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   });
   const j = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
-  if (!r.ok || j.ok === false) throw new Error(ts(j.error) || t('The request failed ({status})', { status: r.status }));
+  if (!r.ok || j.ok === false) throw new Error(j.error || 'The request failed (' + r.status + ')');
   return j;
 }
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -73,7 +72,7 @@ const newConfig = (): ConfigState =>
 function configStep(c: ConfigState, label: () => string, next: string,
   leave: () => Promise<string>): WizardStep {
   return {
-    title: t('Configuration'),
+    title: 'Configuration',
     next,
     render: () => V.configStep(c.templates, c.chosen, c.tpl, label(), c.values, c.acked, c.reveal),
     check: () => V.configProblem(c.tpl, c.chosen, c.values, c.acked),
@@ -120,7 +119,7 @@ function configStep(c: ConfigState, label: () => string, next: string,
 
 function scriptStep(get: () => V.ScriptResult | null, what: string): WizardStep {
   return {
-    title: t('Script'),
+    title: 'Script',
     noBack: true,
     render: () => { const r = get(); return r ? V.scriptPanel(r, Date.now(), what) : ''; },
     bind(body) {
@@ -128,8 +127,8 @@ function scriptStep(get: () => V.ScriptResult | null, what: string): WizardStep 
       if (!r) return;
       const copy = body.querySelector<HTMLButtonElement>('[data-ztp-copy]');
       copy?.addEventListener('click', () => {
-        void navigator.clipboard?.writeText(r.script).then(() => { copy.textContent = t('Copied'); },
-          () => { copy.textContent = t('Select the text and copy it'); });
+        void navigator.clipboard?.writeText(r.script).then(() => { copy.textContent = 'Copied'; },
+          () => { copy.textContent = 'Select the text and copy it'; });
       });
       body.querySelector('[data-ztp-download]')?.addEventListener('click', () => {
         const a = document.createElement('a');
@@ -162,12 +161,12 @@ function openAddDevice(): void {
   void loadSites().then((s) => { sites = s; });
 
   openWizard({
-    title: t('Add a device'),
+    title: 'Add a device',
     steps: [
       {
-        title: t('Where'),
+        title: 'Where',
         render: () => V.whereStep(mode, ztpState()?.status ?? p.status),
-        check: () => (mode ? '' : t('Choose where it will be')),
+        check: () => (mode ? '' : 'Choose where it will be'),
         bind(body, redraw) {
           body.querySelectorAll<HTMLInputElement>('input[name="ztpMode"]').forEach((i) => i.addEventListener('change', () => {
             mode = i.value;
@@ -176,7 +175,7 @@ function openAddDevice(): void {
         },
       },
       deviceFormStep(form, () => mode, () => sites),
-      configStep(c, () => form.label, t('Make the script'), async () => {
+      configStep(c, () => form.label, 'Make the script', async () => {
         try {
           result = await api<V.ScriptResult>('POST', '/api/ztp/devices', {
             mode, label: form.label.trim(), serial: form.serial.trim(), siteIds: form.siteIds, days: form.days,
@@ -188,7 +187,7 @@ function openAddDevice(): void {
           return errText(e);
         }
       }),
-      scriptStep(() => result, form.label.trim() ? t('Run it on {router}.', { router: form.label.trim() }) : t('Run it on the router.')),
+      scriptStep(() => result, 'Run it on ' + (form.label.trim() || 'the router') + '.'),
     ],
   });
 }
@@ -196,7 +195,7 @@ function openAddDevice(): void {
 function deviceFormStep(form: V.DeviceForm, mode: () => string, sites: () => V.SiteOpt[],
   facts?: ZTPDeviceView): WizardStep {
   return {
-    title: t('Device'),
+    title: 'Device',
     render: () => V.deviceStep(form, mode(), sites(), facts),
     check: () => V.deviceProblem(form, mode()),
     bind(body, _redraw, recheck) {
@@ -227,10 +226,10 @@ function openOnboard(d: ZTPDeviceView): void {
   void loadTemplates().then((t) => { c.templates = t; }, () => { /* None only */ });
   void loadSites().then((s) => { sites = s; });
   openWizard({
-    title: t('Onboard a device'),
+    title: 'Onboard a device',
     steps: [
       deviceFormStep(form, () => 'generic', () => sites, d),
-      configStep(c, () => form.label, t('Onboard'), async () => {
+      configStep(c, () => form.label, 'Onboard', async () => {
         try {
           await api('POST', '/api/ztp/devices/' + encodeURIComponent(d.id) + '/approve', {
             label: form.label.trim(), siteIds: form.siteIds, templateId: c.chosen,
@@ -242,12 +241,12 @@ function openOnboard(d: ZTPDeviceView): void {
         }
       }),
       {
-        title: t('Done'),
+        title: 'Done',
         noBack: true,
-        render: () => '<p class="ztp-lead">' + t('Onboarding <strong>{router}</strong>.', { router: esc(form.label) }) + '</p>' +
-          '<p class="ztp-help">' + (c.chosen
-            ? t('MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it answers, and its template is then previewed on it and applied. Its progress shows on its card in the meantime.')
-            : t('MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it answers. Its progress shows on its card in the meantime.')) + '</p>',
+        render: () => '<p class="ztp-lead">Onboarding <strong>' + esc(form.label) + '</strong>.</p>' +
+          '<p class="ztp-help">MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it ' +
+          'answers' + (c.chosen ? ', and its template is then previewed on it and applied' : '') + '. Its progress ' +
+          'shows on its card in the meantime.</p>',
       },
     ],
   });
@@ -278,22 +277,21 @@ async function act(action: string, d: ZTPDeviceView): Promise<void> {
         openOnboard(d);
         return;
       case 'reject':
-        if (!confirm(t('Reject {router}?\n\nIts tunnel is closed and it can no longer reach this MikroDash.', { router: name }))) return;
+        if (!confirm('Reject ' + name + '?\n\nIts tunnel is closed and it can no longer reach this MikroDash.')) return;
         await api('POST', base + '/reject');
         return;
       case 'retry':
         await api('POST', base + '/retry');
         return;
       case 'delete':
-        if (!confirm(d.state === 'awaiting'
-          ? t('Remove {router} from provisioning?\n\nIts script stops working.', { router: name })
-          : t('Remove {router} from provisioning?', { router: name }))) return;
+        if (!confirm('Remove ' + name + ' from provisioning?' + (d.state === 'awaiting'
+          ? '\n\nIts script stops working.' : ''))) return;
         await api('DELETE', base);
         return;
       case 'regenerate': {
-        if (!confirm(t('Make a new script for {router}?\n\nThe old one stops working.', { router: name }))) return;
+        if (!confirm('Make a new script for ' + name + '?\n\nThe old one stops working.')) return;
         const r = await api<V.ScriptResult>('POST', base + '/regenerate', {});
-        showScript(t('New script for {router}', { router: name }), r, t('Run it on {router}.', { router: name }));
+        showScript('New script for ' + name, r, 'Run it on ' + name + '.');
         return;
       }
     }
@@ -310,7 +308,7 @@ function renderSettings(p: ZTPPayload): void {
   const status = el('ztpStatusLine');
   if (status) status.innerHTML = V.statusLine(s);
   const inst = el('ztpInstanceId');
-  if (inst) inst.textContent = s.instanceId || t('Made when provisioning is first switched on');
+  if (inst) inst.textContent = s.instanceId || 'Made when provisioning is first switched on';
   const key = el('ztpPublicKey');
   if (key) key.textContent = s.publicKey || '—';
   const body = el('ztpBatchBody');
@@ -327,16 +325,18 @@ function mountSettings(): void {
     const name = nameIn?.value.trim() ?? '';
     const msg = el('ztpBatchMsg');
     if (msg) msg.textContent = '';
-    if (!name) { if (msg) msg.textContent = t('Name the script first, for example the rollout it is for.'); return; }
+    if (!name) { if (msg) msg.textContent = 'Name the script first, for example the rollout it is for.'; return; }
     void api<V.ScriptResult>('POST', '/api/ztp/batches', { name, days }).then((r) => {
       if (nameIn) nameIn.value = '';
-      showScript(t('Generic script: {name}', { name }), r, t('Run it on any number of routers; each waits on the Devices page to be onboarded.'));
+      showScript('Generic script: ' + name, r, 'Run it on any number of routers; each waits on the Devices page ' +
+        'to be onboarded.');
     }, (e) => { if (msg) msg.textContent = errText(e); });
   });
   el('ztpBatchBody')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest?.('[data-ztp-revoke]') as HTMLElement | null;
     if (!b) return;
-    if (!confirm(t('Revoke this generic script?\n\nRouters that have not called home yet can no longer use it. Devices it already brought in are not affected.'))) return;
+    if (!confirm('Revoke this generic script?\n\nRouters that have not called home yet can no longer use it. ' +
+      'Devices it already brought in are not affected.')) return;
     void api('POST', '/api/ztp/batches/' + encodeURIComponent(b.dataset.ztpRevoke ?? '') + '/revoke')
       .catch((err) => { const m = el('ztpBatchMsg'); if (m) m.textContent = errText(err); });
   });
@@ -350,8 +350,8 @@ function renderNotice(p: ZTPPayload): void {
   const pending = p.devices.filter((d) => d.state === 'pending').length;
   n.hidden = !pending;
   const text = el('ztpNoticeText');
-  if (text) text.textContent = pending === 1 ? t('1 device has called home and is waiting to be onboarded.')
-    : t('{n} devices have called home and are waiting to be onboarded.', { n: pending });
+  if (text) text.textContent = pending + (pending === 1 ? ' device has' : ' devices have') +
+    ' called home and ' + (pending === 1 ? 'is' : 'are') + ' waiting to be onboarded.';
 }
 
 export function mountZtp(socket: Socket): void {

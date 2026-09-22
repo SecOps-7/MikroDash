@@ -27,7 +27,6 @@
  */
 
 import { el, esc } from '../dom';
-import { t, bindLanguageSelect } from '../i18n';
 // `siteIdsOf` is the ARRAY-WINS-OUTRIGHT rule, ported once in `routers.ts` and
 // reused rather than restated: a second copy here would drift, and the half that
 // drifts silently is the empty array — an explicit `siteIds: []` means "no
@@ -318,9 +317,6 @@ export function activateSettingsTab(tabName: string): void {
  * it removed rather than reintroducing it as a "nice to have".
  */
 export function mountSettingsTabs(): void {
-  // The interface language (#94), in Appearance: hidden unless the build has
-  // more than English.
-  bindLanguageSelect(el<HTMLSelectElement>('langSelect'), el('langCard'), true);
   document.querySelectorAll('#page-settings .stab').forEach((t) => {
     t.addEventListener('click', () => {
       activateSettingsTab((t as HTMLElement).dataset.tab || '');
@@ -587,7 +583,7 @@ export function accessSummary(grants: GrantView[] | undefined, look: PrincipalLo
   if (!grants || !grants.length) {
     return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;'
       + 'background:rgba(148,163,190,.1);color:var(--text-muted);'
-      + ('border:1px solid rgba(148,163,190,.15)">' + t('No access') + '</span>');
+      + 'border:1px solid rgba(148,163,190,.15)">No access</span>';
   }
   return grants.map((g) =>
     '<div style="font-size:.72rem">' + esc(roleName(g, look))
@@ -619,8 +615,8 @@ export function userRowHtml(u: UserView, look: PrincipalLookups): string {
   return '<td style="padding:.45rem .5rem;font-size:.82rem">' + esc(u.username) + '</td>'
     + '<td style="padding:.45rem .5rem" colspan="2">' + accessSummary(u.grants, look) + '</td>'
     + '<td style="padding:.45rem .5rem;text-align:right;white-space:nowrap">'
-    + ('<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">' + t('Edit') + '</button>')
-    + ('<button class="sbtn sbtn-danger" style="font-size:.72rem;padding:.2rem .55rem" data-action="del">' + t('Delete') + '</button>')
+    + '<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">Edit</button>'
+    + '<button class="sbtn sbtn-danger" style="font-size:.72rem;padding:.2rem .55rem" data-action="del">Delete</button>'
     + '</td>';
 }
 
@@ -653,21 +649,21 @@ export interface GroupView {
 export function groupTableHtml(groups: GroupView[], look: PrincipalLookups): string {
   if (!groups.length) {
     return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">'
-      + t('No groups yet. Add one to grant a role to several people at once.') + '</td></tr>';
+      + 'No groups yet. Add one to grant a role to several people at once.</td></tr>';
   }
   const td = 'padding:.4rem .5rem;border-bottom:1px solid var(--border)';
   return groups.map((g) => {
     const access = (g.grants || []).length
       ? (g.grants || []).map((x) => esc(roleName(x, look) + ' — ' + scopeLabel(x, look))).join('<br>')
-      : '<span style="color:var(--text-muted)">' + t('no access granted') + '</span>';
+      : '<span style="color:var(--text-muted)">no access granted</span>';
     return '<tr>'
       + '<td style="' + td + ';font-weight:600">' + esc(g.name)
         + (g.description ? '<div style="font-weight:400;font-size:.7rem;color:var(--text-muted)">' + esc(g.description) + '</div>' : '') + '</td>'
       + '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + (g.memberUserIds || []).length + '</td>'
       + '<td style="' + td + ';font-size:.72rem">' + access + '</td>'
       + '<td style="' + td + ';text-align:right;white-space:nowrap">'
-        + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="edit" data-group-id="' + esc(g.id) + ('">' + t('Edit') + '</button> ')
-        + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="delete" data-group-id="' + esc(g.id) + ('">' + t('Delete') + '</button>')
+        + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="edit" data-group-id="' + esc(g.id) + '">Edit</button> '
+        + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="delete" data-group-id="' + esc(g.id) + '">Delete</button>'
       + '</td></tr>';
   }).join('');
 }
@@ -686,8 +682,8 @@ export function siteRowHtml(s: SiteView, routerCount: number): string {
     + '<td style="' + td + ';color:var(--text-muted)">' + (s.description ? esc(s.description) : '—') + '</td>'
     + '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + routerCount + '</td>'
     + '<td style="' + td + ';text-align:right;white-space:nowrap">'
-      + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="edit" data-site-id="' + esc(s.id) + ('">' + t('Edit') + '</button> ')
-      + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="delete" data-site-id="' + esc(s.id) + ('">' + t('Delete') + '</button>')
+      + '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="edit" data-site-id="' + esc(s.id) + '">Edit</button> '
+      + '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="delete" data-site-id="' + esc(s.id) + '">Delete</button>'
     + '</td></tr>';
 }
 
@@ -733,9 +729,10 @@ export function siteRouterCounts(
  */
 export function siteDeletePrompt(name: string, routerCount: number): string {
   const warn = routerCount
-    ? '\n\n' + t('{n} device(s) will lose this site. They keep any other sites, and are not deleted.', { n: routerCount })
+    ? '\n\n' + routerCount + ' device(s) will lose this site. They keep any other sites, '
+      + 'and are not deleted.'
     : '';
-  return t('Delete site "{name}"?', { name }) + warn;
+  return 'Delete site "' + name + '"?' + warn;
 }
 
 /** What the site form holds when Save is pressed. */
@@ -792,7 +789,7 @@ export function siteSavePlan(form: SiteFormValues): SiteSavePlan {
   // of spaces is refused here rather than by the server, so the operator is told
   // in the form instead of by a round trip.
   const name = form.name.trim();
-  if (!name) return { error: t('Name is required') };
+  if (!name) return { error: 'Name is required' };
 
   const editing = form.id !== '';
   return {
@@ -851,7 +848,7 @@ export function siteMemberRowsHtml(
   sitesById: Record<string, { name: string }>,
 ): string {
   if (!devices.length) {
-    return '<span style="color:var(--text-muted)">' + t('No devices configured yet.') + '</span>';
+    return '<span style="color:var(--text-muted)">No devices configured yet.</span>';
   }
   return devices.map((r) => {
     const ids = siteIdsOf(r);
@@ -867,7 +864,7 @@ export function siteMemberRowsHtml(
       if (known) elsewhere.push(known.name);
     }
     const other = elsewhere.length
-      ? ' <span style="color:var(--text-muted)">' + t('— also in {list}', { list: esc(elsewhere.join(', ')) }) + '</span>'
+      ? ' <span style="color:var(--text-muted)">— also in ' + esc(elsewhere.join(', ')) + '</span>'
       : '';
     return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">'
       + '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>'
@@ -878,7 +875,7 @@ export function siteMemberRowsHtml(
 export function siteTableHtml(sites: SiteView[], counts: Record<string, number>): string {
   if (!sites.length) {
     return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">'
-      + t('No sites yet. Add one to group your devices.') + '</td></tr>';
+      + 'No sites yet. Add one to group your devices.</td></tr>';
   }
   return sites.map((s) => siteRowHtml(s, counts[s.id] || 0)).join('');
 }
@@ -922,13 +919,13 @@ export function pageSummary(role: RoleView): string {
  */
 export function roleTableHtml(roles: RoleView[]): string {
   if (!roles.length) {
-    return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted)">' + t('No roles yet.') + '</td></tr>';
+    return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted)">No roles yet.</td></tr>';
   }
   return roles.map((r) => {
     const actions = r.builtin
       ? '<span style="color:var(--text-muted);font-size:.7rem">built in</span>'
-      : '<button class="sbtn sbtn-outline" data-role-edit="' + esc(r.id) + ('" style="padding:.15rem .5rem;font-size:.7rem">' + t('Edit') + '</button>')
-        + ' <button class="sbtn sbtn-outline" data-role-del="' + esc(r.id) + ('" style="padding:.15rem .5rem;font-size:.7rem;color:#f87171;border-color:rgba(248,113,113,.35)">' + t('Delete') + '</button>');
+      : '<button class="sbtn sbtn-outline" data-role-edit="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem">Edit</button>'
+        + ' <button class="sbtn sbtn-outline" data-role-del="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem;color:#f87171;border-color:rgba(248,113,113,.35)">Delete</button>';
     return '<tr style="border-bottom:1px solid var(--border)">'
       + '<td style="padding:.4rem .5rem">' + esc(r.name)
         + (r.description ? '<div style="color:var(--text-muted);font-size:.7rem">' + esc(r.description) + '</div>' : '') + '</td>'
@@ -1021,7 +1018,7 @@ export function grantEditorHtml(
   const rows = (grants || []).map((g) =>
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">'
     + '<span style="flex:1">' + esc(roleName(g, look)) + ' — ' + esc(scopeLabel(g, look)) + '</span>'
-    + '<button class="sbtn sbtn-ghost" style="padding:.1rem .45rem;font-size:.65rem" data-grant-del="' + esc(String(g.id)) + ('">' + t('Remove') + '</button>')
+    + '<button class="sbtn sbtn-ghost" style="padding:.1rem .45rem;font-size:.65rem" data-grant-del="' + esc(String(g.id)) + '">Remove</button>'
     + '</div>').join('');
 
   const sites = o.sitesById || {};
@@ -1032,15 +1029,15 @@ export function grantEditorHtml(
 
   // `rows || <the empty note>` — an empty string is falsy, so a principal with
   // no grants gets the note rather than a blank box.
-  return (rows || '<div style="color:var(--text-muted);margin-bottom:.3rem">' + t('No access granted yet.') + '</div>')
+  return (rows || '<div style="color:var(--text-muted);margin-bottom:.3rem">No access granted yet.</div>')
     + '<div style="display:flex;gap:.4rem;margin-top:.5rem">'
       + '<select class="sform-input" data-grant-role style="flex:0 0 9rem">'
         + (o.roles || []).map((r) => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('')
       + '</select>'
       + '<select class="sform-input" data-grant-scope style="flex:1">'
-        + ('<option value="global:">' + t('All routers') + '</option>') + siteOpts + rtrOpts
+        + '<option value="global:">All routers</option>' + siteOpts + rtrOpts
       + '</select>'
-      + ('<button class="sbtn sbtn-outline" data-grant-add style="flex:0 0 auto">' + t('Add') + '</button>')
+      + '<button class="sbtn sbtn-outline" data-grant-add style="flex:0 0 auto">Add</button>'
     + '</div>';
 }
 

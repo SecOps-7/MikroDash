@@ -6,7 +6,6 @@
 // return markup, which also makes them testable without a page.
 
 import { esc, svcBadge, iso2Flag, sparkPoints } from '../dom';
-import { t, countryName } from '../i18n';
 import { CC_NAMES, PORT_NAMES } from './connections-map';
 import type {
   ConnCountry, ConnCountryProto, ConnDestEntry, ConnPort, ConnSource, Lease,
@@ -71,7 +70,7 @@ export function countryRowHTML(e: ConnCountry, spark: string, selected: boolean)
     '<span class="conn-map-flag">' + iso2Flag(e.cc) + '</span>' +
     '<div style="flex:1;min-width:0">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
-        '<div class="conn-map-label" style="min-width:0">' + esc(countryName(e.cc, CC_NAMES[e.cc])) +
+        '<div class="conn-map-label" style="min-width:0">' + esc(CC_NAMES[e.cc] || e.cc) +
           (e.city ? ' <span class="conn-map-label-sub">' + esc(e.city) + '</span>' : '') + '</div>' +
         (spark ? '<div style="flex-shrink:0">' + spark + '</div>' : '') +
       '</div>' +
@@ -150,7 +149,7 @@ export function syncCountryRow(
   const fl = q('.conn-map-flag');
   if (fl && fl.textContent !== flag) fl.textContent = flag;
 
-  const labelHtml = esc(countryName(e.cc, CC_NAMES[e.cc])) +
+  const labelHtml = esc(CC_NAMES[e.cc] || e.cc) +
     (e.city ? ' <span class="conn-map-label-sub">' + esc(e.city) + '</span>' : '');
   const lab = q('.conn-map-label');
   if (lab && lab.innerHTML !== labelHtml) lab.innerHTML = labelHtml;
@@ -213,7 +212,7 @@ export function syncCountryList(
     for (const k of Object.keys(rows)) delete rows[k];
     // "No geo data yet" rather than "no connections": on a router without the
     // MaxMind database this list is empty while the rest of the page is full.
-    list.innerHTML = '<div class="empty-state">' + t('No geo data yet') + '</div>';
+    list.innerHTML = '<div class="empty-state">No geo data yet</div>';
     return;
   }
 
@@ -259,7 +258,7 @@ export function countryListHTML(
     // "No geo data yet" rather than "no connections": on a router without the
     // MaxMind database this list is empty while the rest of the page is full,
     // and saying which is which saves someone hunting for a fault.
-    return '<div class="empty-state">' + t('No geo data yet') + '</div>';
+    return '<div class="empty-state">No geo data yet</div>';
   }
   return topCountries.map((e) =>
     countryRowHTML(e, drawSparkSVG(sparks[e.cc]), e.cc === selectedCC)).join('');

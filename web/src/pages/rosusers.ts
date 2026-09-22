@@ -38,7 +38,6 @@
 // pages, and this follows. Reproduce, report, follow — three rounds of it.
 
 import { esc, el, renderSortHeader, sortMul, resRow, type SortCol, type SortState, mutedDash } from '../dom';
-import { t, ts } from '../i18n';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { RosUsersPayload } from '../gen/payloads';
@@ -46,18 +45,18 @@ import type { RosUsersPayload } from '../gen/payloads';
 // A KEYLESS COLUMN IS NOT SORTABLE — see renderSortHeader. The action column is
 // the only one here that must never be.
 const USER_COLS: SortCol[] = [
-  { key: 'name', label: t('User') }, { key: 'group', label: t('Group') },
-  { key: 'address', label: t('Allowed From') }, { key: 'lastLogin', label: t('Last Login') },
-  { key: 'disabled', label: t('Status') }, { key: '', label: '' },
+  { key: 'name', label: 'User' }, { key: 'group', label: 'Group' },
+  { key: 'address', label: 'Allowed From' }, { key: 'lastLogin', label: 'Last Login' },
+  { key: 'disabled', label: 'Status' }, { key: '', label: '' },
 ];
 const GROUP_COLS: SortCol[] = [
-  { key: 'name', label: t('Group') }, { key: 'granted', label: t('Permissions') },
-  { key: 'members', label: t('Users') }, { key: '', label: '' },
+  { key: 'name', label: 'Group' }, { key: 'granted', label: 'Permissions' },
+  { key: 'members', label: 'Users' }, { key: '', label: '' },
 ];
 const SESS_COLS: SortCol[] = [
-  { key: 'name', label: t('User') }, { key: 'address', label: t('From') },
-  { key: 'via', label: t('Via') }, { key: 'group', label: t('Group') },
-  { key: 'when', label: t('Since') }, { key: '', label: '' },
+  { key: 'name', label: 'User' }, { key: 'address', label: 'From' },
+  { key: 'via', label: 'Via' }, { key: 'group', label: 'Group' },
+  { key: 'when', label: 'Since' }, { key: '', label: '' },
 ];
 
 export function initRosUsersPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -161,7 +160,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
    * one that takes a moment to go.
    */
   const PENDING: Record<string, string> = {
-    'session-remove': t('Closing\u2026'),
+    'session-remove': 'Closing\u2026',
   };
 
   function btn(act: string, id: string, name: string, label: string, cls?: string): string {
@@ -196,7 +195,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
         '<td>' + (u.protected ? lockCell('account') : '') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" class="empty-state">' +
-      (term ? t('No users match that search.') : 'Waiting for user data&hellip;') + '</td></tr>';
+      (term ? 'No users match that search.' : 'Waiting for user data&hellip;') + '</td></tr>';
   }
 
   function renderGroups(): void {
@@ -223,7 +222,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
         '<td>' + (g.protected ? lockCell('group') : '') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="4" class="empty-state">' +
-      (term ? t('No groups match that search.') : 'Waiting for group data&hellip;') + '</td></tr>';
+      (term ? 'No groups match that search.' : 'Waiting for group data&hellip;') + '</td></tr>';
   }
 
   function renderSessions(): void {
@@ -246,9 +245,9 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : mutedDash()) + '</td>' +
       '<td>' + (x.protected ? lockCell('session')
         : !writable.rosUser ? ''
-        : btn('session-remove', x.id, x.name, t('End Session'), 'danger')) + '</td>' +
+        : btn('session-remove', x.id, x.name, 'End Session', 'danger')) + '</td>' +
       '</tr>').join('') : '<tr><td colspan="6" class="empty-state">' +
-      (term ? t('No sessions match that search.') : t('Nobody is logged in.')) + '</td></tr>';
+      (term ? 'No sessions match that search.' : 'Nobody is logged in.') + '</td></tr>';
   }
 
   /**
@@ -266,10 +265,12 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     if (!card || !body) return;
     let msg = '';
     if (data && data.denied) {
-      msg = t('This router\'s MikroDash account cannot read <code>/user</code>. RouterOS requires the <code>policy</code> permission for user management. To enable this page for this router:') +
-        ' <code>/user group set [find name=&lt;group&gt;] policy=read,write,policy,api,test</code>';
+      msg = 'This router\'s MikroDash account cannot read <code>/user</code>. RouterOS requires the ' +
+        '<code>policy</code> permission for user management. To enable this page for this router: ' +
+        '<code>/user group set [find name=&lt;group&gt;] policy=read,write,policy,api,test</code>';
     } else if (data && data.self && !data.self.resolved) {
-      msg = t('MikroDash cannot identify its own account on this router, so every change here is refused. This is expected when the dashboard authenticates through RADIUS.');
+      msg = 'MikroDash cannot identify its own account on this router, so every change here is refused. ' +
+        'This is expected when the dashboard authenticates through RADIUS.';
     }
     card.style.display = msg ? '' : 'none';
     body.innerHTML = msg;
@@ -304,7 +305,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const note = el('ruActionNote');
     // Never clears a message it did not write — see setStatus.
     if (note && !note.dataset.status) {
-      note.textContent = writable.rosUser ? '' : t('read-only — you do not have write access to this router');
+      note.textContent = writable.rosUser ? '' : 'read-only — you do not have write access to this router';
     }
     renderNotice();
     renderSummary();
@@ -339,7 +340,8 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const id = b.getAttribute('data-id') || '';
     const name = b.getAttribute('data-name') || '';
     if (act !== 'session-remove') return;
-    if (!window.confirm(t('End "{user}"\u2019s session?\n\nThey will be disconnected from the router immediately.', { user: name }))) return;
+    if (!window.confirm('End "' + name +
+        '"\u2019s session?\n\nThey will be disconnected from the router immediately.')) return;
     busy = busyKey(act, id);
     render();
     socket.emit('rossession:remove', { id, expectedName: name });
@@ -364,29 +366,28 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
 
   socket.on('rosusers:ok', (d) => {
     busy = '';
-    const who = (d && d.name) || '';
     const what: Record<string, string> = {
-      'session-remove': t('Ended the session for {user}', { user: who }),
+      'session-remove': 'Ended the session for ',
     };
     // NO `render()` here, and that is the original's. It is the only reason this
     // message survives at all — until the next payload, which the write itself
     // asked for.
-    setStatus((d && d.action && what[d.action]) || t('Done: {what}', { what: who }));
+    setStatus(((d && d.action && what[d.action]) || 'Done: ') + ((d && d.name) || ''));
   });
 
   socket.on('rosusers:error', (d) => {
     busy = '';
     const code = d && d.code;
     const msg: Record<string, string> = {
-      denied: t('You do not have write access to this router'),
-      unavailable: t('Router user collection is not running for this router'),
-      'bad-request': t('Invalid request'),
-      'stale-row': t('That row changed on the router \u2014 the page has been refreshed'),
-      'protected-account': t('That is the account MikroDash signs in with \u2014 manage it in WinBox'),
+      denied: 'You do not have write access to this router',
+      unavailable: 'Router user collection is not running for this router',
+      'bad-request': 'Invalid request',
+      'stale-row': 'That row changed on the router \u2014 the page has been refreshed',
+      'protected-account': 'That is the account MikroDash signs in with \u2014 manage it in WinBox',
       'self-unresolved':
-        t('MikroDash cannot identify its own account on this router, so changes are refused'),
-      'router-write-policy': t('The RouterOS user needs the "policy" permission for this'),
-      unsupported: t('This router does not support that command'),
+        'MikroDash cannot identify its own account on this router, so changes are refused',
+      'router-write-policy': 'The RouterOS user needs the "policy" permission for this',
+      unsupported: 'This router does not support that command',
       // MEASURED on RouterOS 7.24 and 7.24.1, 2026-09-01: `/user/active/remove`
       // answers `action failed (6)` for BOTH `via=rest-api` and `via=api` rows,
       // issued by a full-group user, with `numbers=[find ...]` as well as a bare
@@ -397,9 +398,11 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       // NOT claimed here: that every session type is refused. winbox and ssh
       // were not tested, because the only ones available were the operator's own
       // and this session's. The wording says what was seen and no more.
-      'write-failed': t('The router refused to end that session ("action failed"). RouterOS keeps some session types — API and REST API sessions among them — and they have to be cleared from the router itself.'),
+      'write-failed': 'The router refused to end that session ("action failed"). ' +
+        'RouterOS keeps some session types — API and REST API sessions among them — ' +
+        'and they have to be cleared from the router itself.',
     };
-    const text = (code && msg[code]) || ts(d && d.message) || t('Action failed');
+    const text = (code && msg[code]) || (d && d.message) || 'Action failed';
     setStatus(text);
     if (isVisible('users')) render();
   });

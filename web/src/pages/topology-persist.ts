@@ -4,7 +4,6 @@
 // reaches the rest of the page through `deps`.
 
 import { el as byId } from '../dom';
-import { t } from '../i18n';
 import { mergePeers } from './topo-merge';
 import type { RouterRecord } from '../events-hand';
 import type { TopoState } from './topology';
@@ -94,8 +93,8 @@ export function topoPersist(st: TopoState, deps: {
     const b = byId('topoFleetBtn');
     if (!b) return;
     b.classList.toggle('is-on', st.fleetOn);
-    b.textContent = st.fleetBusy ? t('Fleet…')
-      : (st.fleetOn && st.fleetStat.answered ? t('Fleet {n}', { n: st.fleetStat.answered }) : t('Fleet'));
+    b.textContent = st.fleetBusy ? 'Fleet…'
+      : (st.fleetOn && st.fleetStat.answered ? 'Fleet ' + st.fleetStat.answered : 'Fleet');
   }
 
   // ── the operator's own cabling ────────────────────────────────────────────
@@ -184,7 +183,7 @@ export function topoPersist(st: TopoState, deps: {
     if (!b) return;
     b.classList.toggle('is-on', st.pinsEnabled);
     const n = Object.keys(st.pins).length;
-    b.textContent = n ? t('Pins {n}', { n }) : t('Pins');
+    b.textContent = n ? 'Pins ' + n : 'Pins';
   }
 
   return { applyData, loadPeers, syncFleetBtn, loadPins, savePins, syncPinsBtn };

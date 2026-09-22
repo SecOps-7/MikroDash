@@ -9,9 +9,6 @@
   <link rel="stylesheet" href="/vendor/fonts/fonts.css">
   <link rel="stylesheet" href="/css/app-fonts.css">
   <style>
-    /* CJK text falls back to a system Chinese face (#94): local() only, so nothing
-       is downloaded, and limited to CJK code points, so Latin text never uses it. */
-    @font-face{font-family:'MD CJK';src:local('PingFang SC'),local('Hiragino Sans GB'),local('Microsoft YaHei'),local('Noto Sans CJK SC'),local('Source Han Sans SC'),local('Noto Sans SC'),local('WenQuanYi Micro Hei');unicode-range:U+2E80-2FDF,U+3000-303F,U+3100-312F,U+31A0-31BF,U+3200-9FFF,U+F900-FAFF,U+FE30-FE4F,U+FF00-FFEF}
     :root {
       --bg-deep:    #07090f;
       --bg-card:    rgba(13,18,30,.92);
@@ -20,8 +17,8 @@
       --accent-err: #f87171;
       --text-muted: rgba(148,163,190,.55);
       --text-main:  rgba(200,215,240,.9);
-      --font-mono:  'JetBrains Mono', ui-monospace, 'MD CJK', monospace;
-      --font-ui:    'Oxanium', 'MD CJK', sans-serif;
+      --font-mono:  'JetBrains Mono', ui-monospace, monospace;
+      --font-ui:    'Oxanium', sans-serif;
       --font-btn:   'Inter', var(--font-ui);
       --radius:     10px;
     }
@@ -79,7 +76,7 @@
     }
     .login-brand-name {
       /* The wordmark's own face, as in the top bar; a branded font replaces it. */
-      font-family: 'Orbitron', 'MD CJK', sans-serif;
+      font-family: 'Orbitron', sans-serif;
       font-size: 1.35rem;
       font-weight: 700;
       color: var(--text-main);
@@ -199,9 +196,6 @@
       margin-right: .4rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .login-lang { margin-top: 1rem; text-align: center; }
-    .login-lang select { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border);
-      border-radius: 6px; padding: .3rem .6rem; font-size: .8rem; font-family: inherit; }
   </style>
 </head>
 <body>
@@ -256,11 +250,6 @@
         <div class="login-error" id="setupError"></div>
       </div>
 
-    </div>
-    <!-- The interface language (#94): shown only when this build has more
-         than English. Filled by web/src/i18n.ts's bindLanguageSelect. -->
-    <div class="login-lang" id="loginLangWrap" hidden>
-      <select id="loginLang" aria-label="Language"></select>
     </div>
   </div>
 
