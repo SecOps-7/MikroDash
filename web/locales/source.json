@@ -1,0 +1,4349 @@
+{
+  "(leave blank to keep)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "(optional)": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "+ Add Group": [
+    "web/src/ui/page-settings.html"
+  ],
+  "+ Add Role": [
+    "web/src/ui/page-settings.html"
+  ],
+  "+ Add Site": [
+    "web/src/ui/page-settings.html"
+  ],
+  "+ Add User": [
+    "web/src/ui/page-settings.html"
+  ],
+  "+ Add entry": [
+    "web/src/ui/page-dns.html"
+  ],
+  "+ Area": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "+ Building": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "+ Label": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "+ Wall": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "0 debug": [
+    "web/src/ui/page-logs.html"
+  ],
+  "0 errors": [
+    "web/src/ui/page-logs.html"
+  ],
+  "0 info": [
+    "web/src/ui/page-logs.html"
+  ],
+  "0 warnings": [
+    "web/src/ui/page-logs.html"
+  ],
+  "1 Mbps": [
+    "web/src/ui/page-tools.html"
+  ],
+  "1 day": [
+    "web/src/ui/page-settings.html"
+  ],
+  "1 hour": [
+    "web/src/ui/page-settings.html"
+  ],
+  "1 min": [
+    "web/src/ui/shell.html"
+  ],
+  "1 year": [
+    "web/src/ui/page-settings.html"
+  ],
+  "15m": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "1m": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "2 min": [
+    "web/src/ui/shell.html"
+  ],
+  "2.4 GHz": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "24 hours": [
+    "web/src/ui/page-settings.html"
+  ],
+  "30 days": [
+    "web/src/ui/page-settings.html"
+  ],
+  "30 s": [
+    "web/src/ui/shell.html"
+  ],
+  "30m": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "4 hours": [
+    "web/src/ui/page-settings.html"
+  ],
+  "5 GHz": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "5m": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "6 GHz": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "60 s": [
+    "web/src/ui/page-settings.html"
+  ],
+  "7 days": [
+    "web/src/ui/page-settings.html"
+  ],
+  "8 hours": [
+    "web/src/ui/page-settings.html"
+  ],
+  "90 days": [
+    "web/src/ui/page-settings.html"
+  ],
+  "\u003ckbd\u003e1\u003c/kbd\u003e–\u003ckbd\u003e9\u003c/kbd\u003e pages  ·  \u003ckbd\u003e/\u003c/kbd\u003e log search": [
+    "web/src/ui/shell.html"
+  ],
+  "\u003csmall\u003ems\u003c/small\u003e": [
+    "web/src/ui/page-tools.html"
+  ],
+  "\u003cstrong style=\"color:rgba(200,215,240,.75)\"\u003eDisclaimer\u003c/strong\u003e\u003cbr\u003e MikroDash is an independent, community-built project and is \u003cstrong style=\"color:rgba(200,215,240,.75)\"\u003enot affiliated with, endorsed by, or associated with MikroTik SIA\u003c/strong\u003e in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "\u003cstrong style=\"font-size:.82rem\"\u003eEmail (SMTP)\u003c/strong\u003e": [
+    "web/src/ui/page-settings.html"
+  ],
+  "\u003cstrong style=\"font-size:.82rem\"\u003eEmail\u003c/strong\u003e": [
+    "web/src/ui/shell.html"
+  ],
+  "\u003cstrong style=\"font-size:.82rem\"\u003ePushbullet\u003c/strong\u003e": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "\u003cstrong style=\"font-size:.82rem\"\u003eTelegram\u003c/strong\u003e": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "\u003cstrong style=\"font-size:.82rem\"\u003entfy\u003c/strong\u003e": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "A backup is stored only when the configuration actually changed, so a frequent schedule costs a short check rather than disk. Each restore point is a pair: an export for the diff, and an encrypted binary for the restore.": [
+    "web/src/ui/page-backups.html"
+  ],
+  "A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says \u003cem\u003ewhat\u003c/em\u003e, the scope says \u003cem\u003ewhich devices\u003c/em\u003e. Administrator is built in and always sees everything.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "A variable that does not apply to an alert renders as empty. \u003ccode\u003e{{comment}}\u003c/code\u003e is the comment set on the router for whatever the alert is about — an interface, a NetWatch host, a VPN peer or a BGP peer.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "AF": [
+    "web/src/ui/page-devices.html"
+  ],
+  "AI Agent": [
+    "web/src/ui/page-ai-agent.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "AI Agent conversations": [
+    "web/src/ui/page-settings.html"
+  ],
+  "AP": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "API Diagnostics": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "API Key": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "API Port": [
+    "web/src/ui/shell.html"
+  ],
+  "ARP": [
+    "web/src/ui/page-arp.html"
+  ],
+  "ASN": [
+    "web/src/ui/page-routing.html"
+  ],
+  "ASN / Org": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "About": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Access": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Access Management": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Access Token": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Access granted to this group": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Access granted to this user": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Access management sections": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Access points": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Account": [
+    "web/src/ui/shell.html"
+  ],
+  "Accounts": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Acknowledged": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Across the fleet": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Action": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-firewall.html"
+  ],
+  "Action Breakdown": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Action filter": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Actions": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Active": [
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-vpn.html"
+  ],
+  "Active Sessions": [
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-users.html",
+    "web/src/ui/shell.html"
+  ],
+  "Active only": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Active routes filter": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Actor filter": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Actors": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Add": [
+    "web/src/ui/shell.html"
+  ],
+  "Add Card": [
+    "web/src/ui/shell.html"
+  ],
+  "Add Device": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Add Group": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Add Role": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Add Site": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Add User": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Add a building": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Add a text label": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Add a wall or fence": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Add device": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Add your MikroTik router to get started": [
+    "web/src/ui/shell.html"
+  ],
+  "Address": [
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-tools.html",
+    "web/src/ui/page-vpn.html"
+  ],
+  "Address Lists": [
+    "web/src/ui/page-address-lists.html"
+  ],
+  "Address family": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Address family filter": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Address routers dial": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Advanced": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Africa/Cairo (EET)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Africa/Johannesburg (SAST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Africa/Lagos (WAT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Africa/Nairobi (EAT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Agent Overview": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Agent Overview card": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Aggregation period": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Alert Cooldown": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Alert Events": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Alert Monitoring": [
+    "web/src/ui/shell.html"
+  ],
+  "Alert Thresholds": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Alert Types": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Alerting": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Alerts": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/shell.html"
+  ],
+  "Alerts \u0026 connectivity": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Alerts \u0026 connectivity events": [
+    "web/src/ui/page-settings.html"
+  ],
+  "All": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-security-scan.html"
+  ],
+  "All Clients": [
+    "web/src/ui/page-connections.html"
+  ],
+  "All Sites": [
+    "web/src/ui/page-devices.html"
+  ],
+  "All Types": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "All VLANs": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "All actions": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "All actors": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "All floors": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "All interfaces": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "All leases": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "All levels": [
+    "web/src/ui/page-logs.html"
+  ],
+  "All none": [
+    "web/src/ui/page-settings.html"
+  ],
+  "All outcomes": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "All read": [
+    "web/src/ui/page-settings.html"
+  ],
+  "All routers": [
+    "web/src/ui/page-settings.html"
+  ],
+  "All routes": [
+    "web/src/ui/page-routing.html"
+  ],
+  "All states": [
+    "web/src/ui/page-routing.html"
+  ],
+  "All types": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "All write": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Allow personal channels": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Allow self-signed cert": [
+    "web/src/ui/shell.html"
+  ],
+  "America/Anchorage (AKT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Bogota": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Buenos_Aires": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Chicago (CT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Denver (MT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Honolulu (HST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Los_Angeles (PT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Mexico_City": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/New_York (ET)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Phoenix (MST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Sao_Paulo": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Toronto": [
+    "web/src/ui/page-settings.html"
+  ],
+  "America/Vancouver": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Another MikroTik's address": [
+    "web/src/ui/page-tools.html"
+  ],
+  "App Icon": [
+    "web/src/ui/page-settings.html"
+  ],
+  "App Name": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Appearance": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Apply": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Apply changes \u0026 reboot…": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Apply this change": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Asia/Bangkok (ICT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Dhaka (BST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Dubai (GST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Hong_Kong (HKT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Jerusalem (IST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Karachi (PKT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Kolkata (IST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Seoul (KST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Shanghai (CST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Singapore (SGT)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Asia/Tokyo (JST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Ask about this router… (Enter to send, Shift+Enter for a new line)": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Ask me anything about your router": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Ask me before the assistant changes anything": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Atom One Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Attack surface": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Audit": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Audit Trail": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Audit it and explain the risks, worst first": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Australia/Adelaide (ACST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Australia/Perth (AWST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Australia/Sydney (AEST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Authentication": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-vpn.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Auto": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Auto (browser / server local)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Auto Frame — keep every router in view. Panning or zooming turns it off.": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Automatic backups": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Available": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Available variables": [
+    "web/src/ui/page-settings.html"
+  ],
+  "BGP": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "BGP Peers": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "BGP address family filter": [
+    "web/src/ui/page-routing.html"
+  ],
+  "BGP peer type filter": [
+    "web/src/ui/page-routing.html"
+  ],
+  "BGP peer up/down, large prefix-count swings, session flapping and hold-timer misconfiguration": [
+    "web/src/ui/page-settings.html"
+  ],
+  "BGP session state filter": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Background Brightness": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Background brightness": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Backup Failed": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Backup Schedule": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Backup time": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Backups": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Band": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Band Split": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Bands": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Bandwidth": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Bandwidth Usage": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Bandwidth test": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Bandwidth usage": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Believe /interface/detect-internet": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Best": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Best Channel": [
+    "web/src/ui/shell.html"
+  ],
+  "Body — Down / Alert": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Body — Up / Recovery": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Bot Token": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Branding": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Bridge": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-vlans.html"
+  ],
+  "Bridge VLAN Table": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Bridge tables": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Bridges": [
+    "web/src/ui/page-bridges.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Bright": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Built with Node.js · Socket.IO · Chart.js · Bootstrap": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Bytes": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "CAPs": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "CAPsMAN": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "CAPsMAN configuration": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "CPU": [
+    "web/src/ui/page-devices.html"
+  ],
+  "CPU (this / far)": [
+    "web/src/ui/page-tools.html"
+  ],
+  "CPU Alert Threshold (%)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "CPU alert threshold, percent": [
+    "web/src/ui/page-settings.html"
+  ],
+  "CPU, memory, uptime and anything unusual": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "CSV": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Cache Used": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Caller ID": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "Cancel": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wan.html",
+    "web/src/ui/shell.html"
+  ],
+  "Capture from a router": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Carrying Traffic": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Categories": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Category": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Catppuccin Latte": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Catppuccin Mocha": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Catppuccin\u003cbr\u003eLatte": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Catppuccin\u003cbr\u003eMocha": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Certificates": [
+    "web/src/ui/page-certificates.html"
+  ],
+  "Chain": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Chain Count": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Change Password": [
+    "web/src/ui/shell.html"
+  ],
+  "Changes": [
+    "web/src/ui/shell.html"
+  ],
+  "Changes apply immediately without restart.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Changes this browser's language at once. Router names, comments and other data from the router are always shown exactly as the router reports them.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Changes waiting for a reboot": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Changing the router": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Changing your password signs you out everywhere else. This device stays signed in.": [
+    "web/src/ui/shell.html"
+  ],
+  "Channel": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Channel congestion": [
+    "web/src/ui/shell.html"
+  ],
+  "Chart history window in minutes": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Chat ID": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Chat history (days)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Check": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Check for updates": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Checks": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Choose a password": [
+    "web/src/ui/login.html"
+  ],
+  "Choose a radio and press Scan.": [
+    "web/src/ui/shell.html"
+  ],
+  "Choose which events trigger alerts and push notifications.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Clear": [
+    "web/src/ui/page-ai-agent.html",
+    "web/src/ui/page-logs.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Clear all": [
+    "web/src/ui/shell.html"
+  ],
+  "Clear this override and use the automatic location": [
+    "web/src/ui/shell.html"
+  ],
+  "Clear this site's location": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Client Isolation": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Client labels": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Client placement": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Clients": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Clients on the map": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Clients ring their access point at a fixed radius": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Clock": [
+    "web/src/ui/page-clock.html"
+  ],
+  "Close": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wan.html",
+    "web/src/ui/shell.html"
+  ],
+  "Close fullscreen": [
+    "web/src/ui/shell.html"
+  ],
+  "Collapses the 23 pages into Network, Wireless, IP Services, Tunnels, Traffic, Security and System. Turn it off for one flat list.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Collection": [
+    "web/src/ui/shell.html"
+  ],
+  "Comfortaa": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Comfortable": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Comment": [
+    "web/src/ui/page-firewall.html",
+    "web/src/ui/page-netwatch.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Compact": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Compare these records across several routers": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Config Management": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/shell.html"
+  ],
+  "Configuration": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Configuration Drift": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Configuration library": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Configure push notification services. Save settings before using the test button.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Configured": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "Confirm": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Confirm New Password": [
+    "web/src/ui/shell.html"
+  ],
+  "Confirm Password": [
+    "web/src/ui/login.html"
+  ],
+  "Confirm password": [
+    "web/src/ui/login.html"
+  ],
+  "Congestion": [
+    "web/src/ui/shell.html"
+  ],
+  "Connect": [
+    "web/src/ui/page-routing.html",
+    "web/src/ui/shell.html"
+  ],
+  "Connected": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Connected Clients": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Connected devices": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Connection": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Connection Flow": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Connections": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Connections List": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Connections Map": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Connections on the router": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Connectivity": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Connects to any OpenAI-compatible endpoint: a hosted provider, a gateway, or a model running on your own hardware. \u003cstrong\u003eA hosted endpoint sends router names, addresses and network shape to that provider.\u003c/strong\u003e A local one (Ollama, LM Studio, vLLM, LiteLLM) sends nothing outside your network. The AI Agent page appears once this is switched on and an endpoint and model are set.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Containers": [
+    "web/src/ui/page-containers.html"
+  ],
+  "Continuous ping": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Continuous torch": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Contrast": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Contrast \u0026 Brightness": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Cooldown (seconds)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Copy every record to every router that is missing it": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Country": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Coverage": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Create Account": [
+    "web/src/ui/login.html"
+  ],
+  "Create Admin Account": [
+    "web/src/ui/login.html"
+  ],
+  "Critical": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Current Channel": [
+    "web/src/ui/shell.html"
+  ],
+  "Current Password": [
+    "web/src/ui/shell.html"
+  ],
+  "Custom": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Customise dashboard layout": [
+    "web/src/ui/shell.html"
+  ],
+  "DHCP": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "DHCP Clients": [
+    "web/src/ui/page-dhcp-clients.html"
+  ],
+  "DHCP Leases": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "DHCP Servers": [
+    "web/src/ui/page-dhcp-servers.html"
+  ],
+  "DHCP leases": [
+    "web/src/ui/page-devices.html"
+  ],
+  "DM Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "DNS": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Daily": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/shell.html"
+  ],
+  "Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Dash": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Dashboard": [
+    "web/src/ui/shell.html"
+  ],
+  "Data Cleanup": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Data Retention": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Data cleanup age": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Data cleanup scope": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Data types": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Database size": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Datapath": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Day": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Day Before Yesterday": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Debug": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Debug Logging (ROS_DEBUG)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.": [
+    "web/src/ui/shell.html"
+  ],
+  "Default": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Default (Orbitron)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Default Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Default Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Default WAN Interface": [
+    "web/src/ui/shell.html"
+  ],
+  "Default\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Default\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Delete": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/shell.html"
+  ],
+  "Delete data": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Delete data older than": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Delete stored history on demand. Retention above prunes automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Delete this conversation. The assistant forgets it too.": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Deploy": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Description": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Destination": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-tools.html"
+  ],
+  "Detail": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Device": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/shell.html"
+  ],
+  "Device Users": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Device identity": [
+    "web/src/ui/shell.html"
+  ],
+  "Device type filter": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Devices": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Devices at this site": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Devices whose PRIMARY site is this one, and which have no location of their own, are shown here on the map.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Diagnostics": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Dim": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Direction": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Disabled": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Discard": [
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/shell.html"
+  ],
+  "Discard saved positions and lay out again": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Disk": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Disk used": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Display Name": [
+    "web/src/ui/shell.html"
+  ],
+  "Display Timezone": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Display timezone": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Distance": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Do it anyway": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Documentation": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Don’t change it": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Down": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Down Time": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Download": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Download (MB)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Download / Upload (MB/min)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Download capacity": [
+    "web/src/ui/shell.html"
+  ],
+  "Download capacity, Mbps": [
+    "web/src/ui/shell.html"
+  ],
+  "Dracula": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Draw an area by clicking its corners. Double-click or Enter to close it.": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Drawing tools": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Drift": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Drops": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Duplicate": [
+    "web/src/ui/shell.html"
+  ],
+  "Duration": [
+    "web/src/ui/shell.html"
+  ],
+  "Dynamic": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Dynamic only": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Each router gets a restore point first, the syntax is checked on the router, and MikroDash logs in afresh afterwards to prove it still can.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Each router is read as it is now: its interfaces, its rules, and where it sees MikroDash from. What it will receive, and anything that needs your OK, appears below.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Each setting starts at the template's default, ready to deploy as it is; change any of them first if they do not fit this network.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Each user signs in with their own account. Access comes from the roles granted to them here, and from any group they belong to.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Edit": [
+    "web/src/ui/page-dns.html",
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/shell.html"
+  ],
+  "Editor": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Empty: the endpoint's certificate must be publicly trusted": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Enabled": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/shell.html"
+  ],
+  "Encryption": [
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-vpn.html"
+  ],
+  "Endpoint": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Error": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Errors": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Errors and warnings from the logs, explained": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Established": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Ethernet": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Amsterdam": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Athens": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Berlin": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Brussels": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Bucharest": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Budapest": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Dublin": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Helsinki": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Istanbul": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Lisbon": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/London": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Madrid": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Moscow": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Paris": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Prague": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Rome": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Stockholm": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Europe/Warsaw": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Events": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Events retention (days)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Everforest": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Every deploy, newest first. Open one for what each router said, in RouterOS's own words, and its restore point.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Every interface, no grouping": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Every page, including Routers": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Every script carries this instance's key, so a router can only ever call home to this MikroDash.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Everything (no age limit)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Excellent": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Export CSV": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Export PDF": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Extra Large": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Extra Small": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Extra headers": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Failed": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Fair": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Fast": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Fast Roaming": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Faster": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Files": [
+    "web/src/ui/page-files.html"
+  ],
+  "Fill a new entry from this one": [
+    "web/src/ui/shell.html"
+  ],
+  "Filter": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Filter by Client": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Filter by site — a device may belong to more than one": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Filter by type": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Filter debug": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Filter errors": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Filter info": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Filter leases by DHCP server": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "Filter warnings": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Find a device by name, IP or MAC…": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Findings": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Findings by severity": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Fira Code": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Fira Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Fired At": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Firewall": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Firewall Actions": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Firewall posture": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Firewall review": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Firmware \u0026 Update": [
+    "web/src/ui/page-packages.html"
+  ],
+  "First-line monitoring: logs and reports": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Fit": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Fit the route": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Fit to view": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Fixed size": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Flaps": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Flat": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Fleet": [
+    "web/src/ui/page-dns.html",
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Floor": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Flow": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Fold the IPv6 rules into Rule Counts, Action Breakdown and Chain Count": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Font Family": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Font Size": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Fonts": [
+    "web/src/ui/page-settings.html"
+  ],
+  "For an endpoint on your own network with a self-signed certificate. Press \u003cstrong\u003eTest Connection\u003c/strong\u003e: if the certificate is not trusted, it is shown with a \u003cstrong\u003eTrust\u003c/strong\u003e button that fills this in, then save. Only that exact certificate is accepted afterwards.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "For what no page covers. Offered only to signed-in global administrators, and \u003cstrong\u003eevery command, even a read, is shown to you and runs only when you type the router's name\u003c/strong\u003e. Raw commands skip MikroDash's own checks, read-back and undo, so leave this off unless you need it.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Forwarding": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Frequency": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/shell.html"
+  ],
+  "Frequency Analyzer": [
+    "web/src/ui/shell.html"
+  ],
+  "From": [
+    "web/src/ui/page-settings.html"
+  ],
+  "From date/time": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Fullscreen map": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Gateway": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Gbps": [
+    "web/src/ui/shell.html"
+  ],
+  "Geist": [
+    "web/src/ui/page-settings.html"
+  ],
+  "General": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Generic scripts": [
+    "web/src/ui/page-settings.html"
+  ],
+  "GitHub": [
+    "web/src/ui/page-settings.html"
+  ],
+  "GitHub Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "GitHub Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "GitHub\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "GitHub\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Good": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Group by": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Group the sidebar into categories": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Group the table by access point, or list every client flat": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Grouped by AP": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Groups": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-users.html"
+  ],
+  "Gruvbox Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Gruvbox Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Gruvbox\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Gruvbox\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Handshake": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Head Office": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Health check": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Hide pages you don't use. Dashboard and Settings are always visible. A preset ticks a whole set at once; each user still only sees pages their role allows.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "High": [
+    "web/src/ui/page-security-scan.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "High CPU": [
+    "web/src/ui/page-settings.html"
+  ],
+  "History": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/page-config-management.html"
+  ],
+  "Home": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Home plus Topology, DNS, VLANs, VPN, Firewall and Logs": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Hop": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Host": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-netwatch.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-tools.html"
+  ],
+  "Host / IP": [
+    "web/src/ui/shell.html"
+  ],
+  "Host Table": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Hostname": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "Hour": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Hourly": [
+    "web/src/ui/page-backups.html"
+  ],
+  "I can read its configuration, check how it is doing, and make changes with the same tools as the dashboard: the same permissions, the same safety checks and the same audit trail. I ask before changing anything, unless you have turned that off in Settings.": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "IBM Plex Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "ID": [
+    "web/src/ui/page-backups.html"
+  ],
+  "IP": [
+    "web/src/ui/page-dhcp.html",
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "IP Addresses": [
+    "web/src/ui/page-ip-addresses.html"
+  ],
+  "IP Pools": [
+    "web/src/ui/page-ip-pools.html"
+  ],
+  "IP Services": [
+    "web/src/ui/shell.html"
+  ],
+  "IP Utilisation": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-dhcp.html"
+  ],
+  "IP address or host name": [
+    "web/src/ui/page-tools.html"
+  ],
+  "IP address, host name or MAC": [
+    "web/src/ui/page-tools.html"
+  ],
+  "IP version filter": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "IPsec": [
+    "web/src/ui/page-ipsec.html"
+  ],
+  "IPsec Peers": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "IPv4": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "IPv4 + IPv6": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "IPv4 only": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "IPv6": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "IPv6 only": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "IX / Route Server": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Idle": [
+    "web/src/ui/page-routing.html",
+    "web/src/ui/shell.html"
+  ],
+  "In use": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Info": [
+    "web/src/ui/page-logs.html",
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Installed": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Instance": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Inter": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Interface": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-tools.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/page-wifi-networks.html",
+    "web/src/ui/shell.html"
+  ],
+  "Interface Alert Filter": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Interface Lists": [
+    "web/src/ui/page-interface-lists.html"
+  ],
+  "Interface Types": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Interface Up / Down": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Interface filter": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Interface font": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Interface font size": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Interface language": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Interface:": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Interfaces": [
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Interfaces that carry the internet": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Internet Uplinks": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Interval": [
+    "web/src/ui/page-netwatch.html"
+  ],
+  "JetBrains Mono": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Kanagawa": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Keep at most": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Keep for": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Keep names, access points and clients the same size on screen at any zoom": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "LAN + WAN": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "LAN only": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Language": [
+    "web/src/ui/login.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Large": [
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Last": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Last 1 Hour": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 1 Year": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 12 Hours": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 2 Days": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 24 Hours": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 3 Hours": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 30 Days": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 6 Hours": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 6 Months": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 7 Days": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last 90 Days": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Last Error": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Last Up": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Last backup": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Last run": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Latency": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Latency →": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Lato": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Learned Hosts": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Leave it empty to use the built-in prompt.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Legacy wireless keeps the passphrase here, not on the interface.": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Let the assistant run raw RouterOS commands": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Lets each user add their own Telegram, Pushbullet, ntfy or email destination under \u003cstrong\u003eMy Alerts\u003c/strong\u003e, in addition to the channels here. Users are only ever notified about routers they have access to. Because ntfy and SMTP let a user choose the destination host, enabling this allows any account to make this server send to an address it picks.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Library": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Limit interface up/down alerts to specific interface types.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Limits": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Link integrity faults: CRC/FCS, alignment, collisions. A rising count means a cable or duplex problem": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Links": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "List": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Live Connections": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "Load": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Loading the library…": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Loading…": [
+    "web/src/ui/login.html",
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/shell.html"
+  ],
+  "Local Address": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Location": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Log severity filter": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Logging": [
+    "web/src/ui/page-logging.html"
+  ],
+  "Logs": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Loss": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Loss %": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Lost packets": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Low": [
+    "web/src/ui/page-security-scan.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "MAC": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-dhcp.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "MHz": [
+    "web/src/ui/shell.html"
+  ],
+  "MIT License": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Main building, ground floor": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Make a generic script": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Make a script that brings a new router into the fleet on its own": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Mangle": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Manrope": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Manual": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Map": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Map of configured routers": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Master Config": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Matches name, host, model, RouterOS version and site. Also understands online, offline and alerting.": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Material Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Material Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Material\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Material\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Max": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Max Connections": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Max hops": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Maximum connections tracked": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Mbps": [
+    "web/src/ui/shell.html"
+  ],
+  "Measure": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Medium": [
+    "web/src/ui/page-security-scan.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Members": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Merge the other routers' neighbour tables into this map": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Message Templates": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Metrics retention (days)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Mikro": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "MikroDash": [
+    "web/src/ui/login.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "MikroDash Alert": [
+    "web/src/ui/page-settings.html"
+  ],
+  "MikroDash Connects As": [
+    "web/src/ui/page-users.html"
+  ],
+  "MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "MikroDash · MIT License · Made with ♥ for the MikroTik community": [
+    "web/src/ui/page-settings.html"
+  ],
+  "MikroDash — Sign In": [
+    "web/src/ui/login.html"
+  ],
+  "MikroTik": [
+    "web/src/ui/shell.html"
+  ],
+  "MikroTik RouterOS": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Min": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Minimum time between repeated push alerts for the same event. Prevents notification flooding.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Mode": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Model": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Monitoring": [
+    "web/src/ui/shell.html"
+  ],
+  "Monokai": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Monokai Pro": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Monokai\u003cbr\u003ePro": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Month": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Monthly": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/shell.html"
+  ],
+  "Monthly usage": [
+    "web/src/ui/shell.html"
+  ],
+  "Montserrat": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Most urgent": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Msgs In": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Msgs Out": [
+    "web/src/ui/page-routing.html"
+  ],
+  "My Access": [
+    "web/src/ui/shell.html"
+  ],
+  "My Account": [
+    "web/src/ui/shell.html"
+  ],
+  "My Notification Channels": [
+    "web/src/ui/shell.html"
+  ],
+  "NAT": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "NOC Tier 1": [
+    "web/src/ui/page-settings.html"
+  ],
+  "NTP Client": [
+    "web/src/ui/page-ntp-client.html"
+  ],
+  "Name": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-netwatch.html",
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/page-wifi-networks.html",
+    "web/src/ui/shell.html"
+  ],
+  "Name Font": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Name Format": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Navigation": [
+    "web/src/ui/page-settings.html"
+  ],
+  "NetWatch": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-netwatch.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "NetWatch Hosts": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Network": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/shell.html"
+  ],
+  "Network Operators": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Network Topology": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Network topology map": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Networks": [
+    "web/src/ui/page-wifi-networks.html",
+    "web/src/ui/shell.html"
+  ],
+  "Never": [
+    "web/src/ui/page-settings.html"
+  ],
+  "New Password": [
+    "web/src/ui/shell.html"
+  ],
+  "New routers run a short script and call home to this MikroDash, then join the fleet on their own. A remote router dials in over a WireGuard tunnel built into MikroDash, so it can sit behind NAT anywhere. \u003cstrong\u003eThis opens one UDP port\u003c/strong\u003e, which must be published from the container and reachable from the internet; it stays closed while this is off. Routers on your own network need no tunnel.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "New template": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Newest": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Next →": [
+    "web/src/ui/page-reports.html"
+  ],
+  "No active peers": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "No alerts yet": [
+    "web/src/ui/shell.html"
+  ],
+  "No baselines yet. Each successful deploy records one for every router it reached.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "No deploys yet. Deploy a template and it is recorded here.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "No devices": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "No generic scripts yet.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "No hosts configured": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "No users exist yet. Create the first admin account to get started.": [
+    "web/src/ui/login.html"
+  ],
+  "No wireless clients": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Noise Floor": [
+    "web/src/ui/shell.html"
+  ],
+  "Nord Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Nord Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Nord\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Nord\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Normal": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Not run yet": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Not scanned yet": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Not yet provisioned": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Notification Channels": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Notification Title": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Notification cooldown, seconds": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Notifications": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Notify once per release when RouterOS has a newer version available": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Number of devices to show": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Nunito": [
+    "web/src/ui/page-settings.html"
+  ],
+  "OSPF": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-ospf.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Off by default. The card asks the model only while it is on your Dashboard and the Dashboard is open, and by default at most once every 3 hours (10800 seconds); coming back sooner shows the last line again rather than asking. Set 0 hours to give the interval in seconds only; it must be between 1 minute and 24 hours. On a hosted endpoint every refresh is billable, including the refresh icon on the card.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Off means no login at all: anyone who can reach this page can see every router. Changing router configuration needs sign-in, so write pages are read-only while this is off. Only sensible on a trusted network.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Offline": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Offline threshold": [
+    "web/src/ui/shell.html"
+  ],
+  "Older →": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Oldest record": [
+    "web/src/ui/page-settings.html"
+  ],
+  "One Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "One address per line. Sent as Bcc, so recipients cannot see each other.": [
+    "web/src/ui/shell.html"
+  ],
+  "One group per access point, both bands together": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "One group per radio, virtual APs beneath it": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "One row per network, aggregated across every radio": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "One script for many routers, for a rollout. Each router that runs it appears on the Devices page as \u003cstrong\u003eNot yet provisioned\u003c/strong\u003e, and joins the fleet when you onboard it. It needs provisioning switched on and the address above.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "One\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "One\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Online": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Open Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Open Security Scan ›": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Open a background connection for push alerts even when this router is not the active view.": [
+    "web/src/ui/shell.html"
+  ],
+  "Open menu": [
+    "web/src/ui/shell.html"
+  ],
+  "Open the Add form with a router picker under its fields": [
+    "web/src/ui/page-dns.html"
+  ],
+  "OpenConfirm": [
+    "web/src/ui/page-routing.html"
+  ],
+  "OpenSent": [
+    "web/src/ui/page-routing.html"
+  ],
+  "OpenVPN": [
+    "web/src/ui/page-openvpn.html"
+  ],
+  "Orbit": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Orbitron": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Other": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Outcome filter": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Outfit": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Overview": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Overview prompt": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Oxanium (Default)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "PDF": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "PPP": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "PPP Sessions": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "PPP configuration": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "PPPoE Clients": [
+    "web/src/ui/page-pppoe-clients.html"
+  ],
+  "PPPoE Servers": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Pacific/Auckland (NZST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Pacific/Honolulu (HST)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Packages": [
+    "web/src/ui/page-packages.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Packets": [
+    "web/src/ui/page-firewall.html",
+    "web/src/ui/page-tools.html"
+  ],
+  "Packets discarded rather than corrupted: full queue, no buffer. A rising count means congestion": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Page access": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Pages": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Palenight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Passed": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Password": [
+    "web/src/ui/login.html",
+    "web/src/ui/page-ai-agent.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-tools.html",
+    "web/src/ui/shell.html"
+  ],
+  "Pause": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Peer": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-vpn.html"
+  ],
+  "Physical Ports": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Pick the routers to compare.": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Ping": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Ping \u0026 traffic samples": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Ping Loss": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Ping Loss Alert (%)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Ping Stability": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Ping Target": [
+    "web/src/ui/shell.html"
+  ],
+  "Ping history": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Ping loss alert threshold, percent": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Pins": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Placed APs": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Plus Jakarta Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Poll": [
+    "web/src/ui/shell.html"
+  ],
+  "Poll Intervals": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Poll suits lower-end hardware: it replaces persistent API streams with periodic requests, which is what actually strains a small router. Logs and the traffic graph always stream — polling them would drop log lines and cost more than it saves.": [
+    "web/src/ui/shell.html"
+  ],
+  "Poor": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Poppins": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Port": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Ports": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Position in the chain — a rule below the final drop never runs": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Prefix Trend": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Prefixes": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Preset": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Preview": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Preview and checks": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Preview on each router": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Previous Month": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Previous Week": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Previous Year": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Primary site": [
+    "web/src/ui/shell.html"
+  ],
+  "Primary site, used for the map location": [
+    "web/src/ui/shell.html"
+  ],
+  "Private / Internal": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Probe": [
+    "web/src/ui/page-netwatch.html"
+  ],
+  "Profiles": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Proto": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Protocol": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Provisioning": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Public Address": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Public key": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Questions and a summary of this router are sent to the endpoint configured in Settings → AI Agent. Your conversation about each router is saved so the assistant can follow up; Clear deletes it, and it expires after the chat history retention set in Settings → Data Retention (30 days by default).": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Queue tables": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Queues": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Quick date range": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Quicksand": [
+    "web/src/ui/page-settings.html"
+  ],
+  "RAM": [
+    "web/src/ui/page-devices.html"
+  ],
+  "RST": [
+    "web/src/ui/page-connections.html"
+  ],
+  "RTT (ms)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "RTT Trend (ms)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "RX": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-interfaces.html"
+  ],
+  "RX (Mbps)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "RX / TX": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "RX / TX (Mbps)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Radio": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Radios": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Radius estimates the distance from the signal. Needs a scale.": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Raleway": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rate Limit": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Rates": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Raw": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Re-layout": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Read every selected router again": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Read the full licence": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Real-time MikroTik Router Dashboard": [
+    "web/src/ui/login.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Reboot…": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Receive": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Recent problems": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Recipients": [
+    "web/src/ui/page-reports.html",
+    "web/src/ui/shell.html"
+  ],
+  "Record traffic, bandwidth, ping and uptime history for this device so it appears in Reports. Off means nothing is written to disk for it — alerts still notify, but leave no history.": [
+    "web/src/ui/shell.html"
+  ],
+  "Refresh": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Refresh hours": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Refresh now": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Refresh seconds": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Refresh the Agent Overview": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Refused": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Regional": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Reload": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Remote Address": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Remote CAPs": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Remote Requests": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Remove card": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Rename this install and give it its own icon. Shown in the top left, the browser tab, the login page, PDF reports and report emails.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Report a Bug": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Reporting": [
+    "web/src/ui/shell.html"
+  ],
+  "Reports": [
+    "web/src/ui/shell.html"
+  ],
+  "Require sign-in": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rescan": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Reset to Default": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Reset to defaults": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Reset view — zoom right out to the whole world": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Reset zoom": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Resolved At": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Resolver": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Restore points": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Result": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Review on Devices": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Roboto": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Roles": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rose Pine": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rose Pine Dawn": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rose Pine Moon": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rose Pine\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rose Pine\u003cbr\u003eDawn": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Rose Pine\u003cbr\u003eMoon": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Route type filter": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Router": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Router Logs": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Router Offline / Online": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Router security check": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Router uptime": [
+    "web/src/ui/shell.html"
+  ],
+  "Router user tables": [
+    "web/src/ui/page-users.html"
+  ],
+  "RouterBOARD Firmware": [
+    "web/src/ui/page-packages.html"
+  ],
+  "RouterOS": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-packages.html"
+  ],
+  "RouterOS API port": [
+    "web/src/ui/shell.html"
+  ],
+  "RouterOS Update Available": [
+    "web/src/ui/page-settings.html"
+  ],
+  "RouterOS not connected": [
+    "web/src/ui/shell.html"
+  ],
+  "RouterOS password": [
+    "web/src/ui/shell.html"
+  ],
+  "RouterOS update check every": [
+    "web/src/ui/page-settings.html"
+  ],
+  "RouterOS username": [
+    "web/src/ui/shell.html"
+  ],
+  "Routers": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Routes": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Routes by Protocol": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Routing": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Routing Rules": [
+    "web/src/ui/page-routing-rules.html"
+  ],
+  "Routing Tables": [
+    "web/src/ui/page-routing-tables.html"
+  ],
+  "Routing protocol": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Rule Counts": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Run a trace to draw its route": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Rx": [
+    "web/src/ui/page-tools.html"
+  ],
+  "SMTP Host": [
+    "web/src/ui/page-settings.html"
+  ],
+  "SNMP": [
+    "web/src/ui/page-snmp.html"
+  ],
+  "SSID": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Save": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/shell.html"
+  ],
+  "Save Custom Profile": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save Group": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save My Channels": [
+    "web/src/ui/shell.html"
+  ],
+  "Save Name": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save Role": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save Settings": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save Site": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save User": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Save the plan for everyone": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Save these settings as the template's defaults": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Scale": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Scan": [
+    "web/src/ui/shell.html"
+  ],
+  "Scan again": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Scan the RF environment — interrupts clients on the chosen radio": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Scan the router's security again": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Scanning": [
+    "web/src/ui/shell.html"
+  ],
+  "Scanning takes the selected radio off the air.": [
+    "web/src/ui/shell.html"
+  ],
+  "Schedule": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Scheduled": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Scheduled report": [
+    "web/src/ui/shell.html"
+  ],
+  "Scheduler": [
+    "web/src/ui/page-scheduler.html"
+  ],
+  "Scope": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Score": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Scripts": [
+    "web/src/ui/page-scripts.html"
+  ],
+  "Search IP / hostname / MAC…": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Search MAC, port or VLAN…": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Search chain, action, address, comment…": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Search connections": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Search destination or gateway…": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Search devices…": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/shell.html"
+  ],
+  "Search for a town or city…": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Search hostname, IP, MAC…": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "Search id, name or port…": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Search identity, board or serial…": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Search name or address…": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Search package…": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Search peer name, IP or ASN…": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Search target or detail…": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Search templates": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Search user, address or caller id…": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Search user, profile or address…": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Search…": [
+    "web/src/ui/page-logs.html",
+    "web/src/ui/page-queues.html",
+    "web/src/ui/page-users.html"
+  ],
+  "Seconds": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Secrets": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Sections": [
+    "web/src/ui/page-reports.html",
+    "web/src/ui/shell.html"
+  ],
+  "Security": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-wifi-networks.html",
+    "web/src/ui/shell.html"
+  ],
+  "Security Profiles": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Security Scan": [
+    "web/src/ui/page-security-scan.html",
+    "web/src/ui/shell.html"
+  ],
+  "Security Score": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Select a router and date range, then click Load.": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Select a router to see its scheduled reports.": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Select all restore points": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Send": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Send Test": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Send To": [
+    "web/src/ui/shell.html"
+  ],
+  "Send alerts when these thresholds are reached.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Send at": [
+    "web/src/ui/shell.html"
+  ],
+  "Sent using the server's mail settings.": [
+    "web/src/ui/shell.html"
+  ],
+  "Seq": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Serial": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Server": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Service": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "Service Name": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Services": [
+    "web/src/ui/page-ip-services.html",
+    "web/src/ui/page-ppp.html"
+  ],
+  "Session Timeout": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Session timeout": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Sessions": [
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-users.html"
+  ],
+  "Sessions are cleared on server restart. Signing in again is all that is needed.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Set the scale by measuring a known distance": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Sets the timezone for all timestamps: dashboard clock, push notifications, reports, and exports.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Settings": [
+    "web/src/ui/page-config-management.html",
+    "web/src/ui/shell.html"
+  ],
+  "Severity": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Shaping Now": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Show IPv6 in cards": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Show command": [
+    "web/src/ui/shell.html"
+  ],
+  "Show dynamic rows": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Show every client device. Collapsed by default — use the count chip on a device to expand just that one.": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Show link capacity": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Show only clients on a VLAN": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Side": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "Sign In": [
+    "web/src/ui/login.html"
+  ],
+  "Sign Out": [
+    "web/src/ui/shell.html"
+  ],
+  "Sign Out Everywhere Else": [
+    "web/src/ui/shell.html"
+  ],
+  "Sign out": [
+    "web/src/ui/shell.html"
+  ],
+  "Sign-in": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Signal": [
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Signal Health": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Signal ring": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Signed in as": [
+    "web/src/ui/shell.html"
+  ],
+  "Simple": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Simple Queues": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Sites": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-settings.html"
+  ],
+  "Size": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/page-tools.html"
+  ],
+  "Skip DFS": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Slave Configs": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Slow": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Slower": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Small": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Sofia Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Solarized Dark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Solarized Light": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Solarized\u003cbr\u003eDark": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Solarized\u003cbr\u003eLight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Sort:": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Source": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Source Sans 3": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Sources → Destinations": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Space Grotesk": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Spanning Tree": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Spectrum": [
+    "web/src/ui/shell.html"
+  ],
+  "Spot risky, redundant or missing rules": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Spring branch rollout": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Src → Dst": [
+    "web/src/ui/page-firewall.html"
+  ],
+  "Standard": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Start a template": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "State": [
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-vpn.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Static": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Static \u0026 Dynamic Routes": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Static + Dynamic": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Static Entries": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Static only": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Stations": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Status": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-dhcp.html",
+    "web/src/ui/page-netwatch.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-tools.html",
+    "web/src/ui/page-vpn.html"
+  ],
+  "Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.": [
+    "web/src/ui/shell.html"
+  ],
+  "Stop": [
+    "web/src/ui/shell.html"
+  ],
+  "Stored rows": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Stream": [
+    "web/src/ui/shell.html"
+  ],
+  "Subject": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Subnets": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "Succeeded": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Support \u0026 Donations": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Switch router": [
+    "web/src/ui/shell.html"
+  ],
+  "Switches": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Switching router…": [
+    "web/src/ui/shell.html"
+  ],
+  "Sync all missing": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Syne": [
+    "web/src/ui/page-settings.html"
+  ],
+  "System": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/shell.html"
+  ],
+  "System Prompt": [
+    "web/src/ui/page-settings.html"
+  ],
+  "System UI": [
+    "web/src/ui/page-settings.html"
+  ],
+  "TLS uses port 8729 (API-SSL, recommended)  ·  Plain uses port 8728 (API, unencrypted)": [
+    "web/src/ui/shell.html"
+  ],
+  "TTL": [
+    "web/src/ui/page-tools.html"
+  ],
+  "TX": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-interfaces.html"
+  ],
+  "TX (Mbps)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "TX / RX": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "TX Rate": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Tagged": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Tagged Ports": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Target": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Team responsible for day-to-day monitoring": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Technology": [
+    "web/src/ui/page-vpn.html"
+  ],
+  "Template": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Template name": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Template text": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Templates": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Test": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Test Connection": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Tested setups for home and office, and the templates you make. Every one is checked line by line, dry-run on the router, and backed up before it is applied.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "Text Brightness": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Text Colour": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Text brightness": [
+    "web/src/ui/page-settings.html"
+  ],
+  "The DHCP host name, or reverse DNS where there is no lease": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "The address": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "The assistant can only change things you are allowed to change yourself, and every change goes through the same checks, confirmation and audit trail as the forms. \u003cstrong\u003eTurning this off lets it apply ordinary changes without asking.\u003c/strong\u003e A change that could cut MikroDash off from the router is always put to you, whatever this is set to.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "The card’s terminal text. MikroDash blue by default.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "The comment on the DHCP lease": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "The configured model": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "The hardware address": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "The most the model may write in one reply, its reasoning included. A reasoning model that runs out writes nothing; raise it if answers come back cut off.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "The only check that contacts MikroTik rather than your router. Minimum 1 hour.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "The public address is a name or IP, with no port. Tunnel addresses must be private and not used on your routers' networks. The LAN address is where local routers call home, and the wizard suggests it.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "The route on a world map": [
+    "web/src/ui/page-tools.html"
+  ],
+  "The router downloads the packages and \u003cstrong\u003ereboots immediately\u003c/strong\u003e. Every connection through it drops for the duration.": [
+    "web/src/ui/shell.html"
+  ],
+  "The signal, in dBm": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Theme": [
+    "web/src/ui/page-settings.html"
+  ],
+  "This Day Last Week": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This MikroDash on your LAN": [
+    "web/src/ui/page-settings.html"
+  ],
+  "This Month": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This Month So Far": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This Week": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This Week So Far": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This Year": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This Year So Far": [
+    "web/src/ui/page-reports.html"
+  ],
+  "This router": [
+    "web/src/ui/page-dns.html"
+  ],
+  "This will interrupt your own connection": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Throughput": [
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-wan.html"
+  ],
+  "Throw away every unsaved change": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Ticking a device adds this site to it. It keeps any other sites it is already in, and unticking removes only this one.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Time": [
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-tools.html"
+  ],
+  "Time window": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Timeout (ms)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Times the link has gone down since the counter was last reset": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "To": [
+    "web/src/ui/page-settings.html"
+  ],
+  "To date/time": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Today": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Today So Far": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Toggle animated traffic flow": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Toggle light / dark": [
+    "web/src/ui/shell.html"
+  ],
+  "Toggle link rate labels": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Token budget": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Tokyo Night": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Tokyo\u003cbr\u003eNight": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Tools": [
+    "web/src/ui/page-tools.html",
+    "web/src/ui/shell.html"
+  ],
+  "Top 10": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Top 20": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Top 50": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Top Connections N": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Top Countries": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Top Destinations": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Top Ports": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Top Sources": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Top Talkers": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Top Talkers N": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Top bandwidth users": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Top connections count": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Top talkers count": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Topic URL": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Topology": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Torch": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Total": [
+    "web/src/ui/page-bandwidth.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-routing.html"
+  ],
+  "Total Devices": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Total RX": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Total Shaped": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Total TX": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Total Throughput": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Total received since the counter was last reset": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Total sent since the counter was last reset": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Trace": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Traceroute": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Traffic": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/shell.html"
+  ],
+  "Traffic History": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Traffic History (min)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Traffic and bandwidth reports cover one interface.": [
+    "web/src/ui/shell.html"
+  ],
+  "Traffic graphs": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Traffic scope filter": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Transmit": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Tree": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Tree Queues": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Trigger": [
+    "web/src/ui/page-backups.html"
+  ],
+  "Trusted certificate (SHA-256)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Try one of these": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Tunnel addresses": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Tunnels": [
+    "web/src/ui/shell.html"
+  ],
+  "Tx": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Type": [
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-reports.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-vlans.html"
+  ],
+  "Type the router name to confirm": [
+    "web/src/ui/shell.html"
+  ],
+  "UDP port": [
+    "web/src/ui/page-settings.html"
+  ],
+  "UTC": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Unplaced": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Unresolved alerts on this device": [
+    "web/src/ui/page-devices.html"
+  ],
+  "Untagged": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Untagged Ports": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Update \u0026 Reboot": [
+    "web/src/ui/shell.html"
+  ],
+  "Update Password": [
+    "web/src/ui/shell.html"
+  ],
+  "Update RouterOS": [
+    "web/src/ui/shell.html"
+  ],
+  "Updates": [
+    "web/src/ui/page-security-scan.html"
+  ],
+  "Uplinks": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Upload": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Upload (MB)": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Upload Icon…": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Upload capacity": [
+    "web/src/ui/shell.html"
+  ],
+  "Upload capacity, Mbps": [
+    "web/src/ui/shell.html"
+  ],
+  "Upstream": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Uptime": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-vpn.html",
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Use Default Icon": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Use TLS": [
+    "web/src/ui/shell.html"
+  ],
+  "Use automatic": [
+    "web/src/ui/shell.html"
+  ],
+  "Use implicit TLS (port 465) — leave unchecked for STARTTLS (port 587)": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Use the links you pinned by hand. Set one from a device's panel.": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Use the list below instead": [
+    "web/src/ui/page-wan.html"
+  ],
+  "User": [
+    "web/src/ui/page-tools.html",
+    "web/src/ui/page-vpn.html"
+  ],
+  "User on the far router": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Username": [
+    "web/src/ui/login.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Users": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-users.html",
+    "web/src/ui/shell.html"
+  ],
+  "VLAN": [
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "VLAN IDs": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "VLAN filter": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "VLANs": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-vlans.html",
+    "web/src/ui/shell.html"
+  ],
+  "VPN": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-vpn.html",
+    "web/src/ui/shell.html"
+  ],
+  "VPN Dashboard Top N": [
+    "web/src/ui/page-settings.html"
+  ],
+  "VPN Peer State": [
+    "web/src/ui/page-settings.html"
+  ],
+  "VPN peers shown on dashboard": [
+    "web/src/ui/page-settings.html"
+  ],
+  "VRRP": [
+    "web/src/ui/page-vrrp.html"
+  ],
+  "Version": [
+    "web/src/ui/page-settings.html"
+  ],
+  "View": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "View — Compact fits more cards per row; List adds sortable columns": [
+    "web/src/ui/page-devices.html"
+  ],
+  "View — larger cards show longer names in full; List adds counters and error columns": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "View:": [
+    "web/src/ui/page-wifi-networks.html"
+  ],
+  "Visible Pages": [
+    "web/src/ui/page-settings.html"
+  ],
+  "WAN": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "WAN Flow": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wan.html"
+  ],
+  "WAN Rx": [
+    "web/src/ui/page-devices.html"
+  ],
+  "WAN Traffic": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "WAN Tx": [
+    "web/src/ui/page-devices.html"
+  ],
+  "WAN only": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "WPS": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Waiting for BGP data…": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Waiting for CAPsMAN data…": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Waiting for DNS data…": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Waiting for NetWatch data…": [
+    "web/src/ui/page-netwatch.html"
+  ],
+  "Waiting for PPP configuration…": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Waiting for PPP data…": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Waiting for PPP secrets…": [
+    "web/src/ui/page-ppp.html"
+  ],
+  "Waiting for VLAN data…": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Waiting for WAN data…": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Waiting for audit data…": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "Waiting for bridge VLAN data…": [
+    "web/src/ui/page-vlans.html"
+  ],
+  "Waiting for bridge data…": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Waiting for connection data…": [
+    "web/src/ui/page-connections.html",
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Waiting for data…": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "Waiting for firmware data…": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Waiting for group data…": [
+    "web/src/ui/page-users.html"
+  ],
+  "Waiting for host data…": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Waiting for lease data…": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "Waiting for network data…": [
+    "web/src/ui/page-dhcp.html"
+  ],
+  "Waiting for package data…": [
+    "web/src/ui/page-packages.html"
+  ],
+  "Waiting for port data…": [
+    "web/src/ui/page-bridges.html"
+  ],
+  "Waiting for queue data…": [
+    "web/src/ui/page-queues.html"
+  ],
+  "Waiting for route data…": [
+    "web/src/ui/page-routing.html"
+  ],
+  "Waiting for session data…": [
+    "web/src/ui/page-users.html"
+  ],
+  "Waiting for static entries…": [
+    "web/src/ui/page-dns.html"
+  ],
+  "Waiting for the connection table…": [
+    "web/src/ui/page-connections.html"
+  ],
+  "Waiting for the router…": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "Waiting for user data…": [
+    "web/src/ui/page-users.html"
+  ],
+  "Waiting…": [
+    "web/src/ui/page-address-lists.html",
+    "web/src/ui/page-arp.html",
+    "web/src/ui/page-certificates.html",
+    "web/src/ui/page-clock.html",
+    "web/src/ui/page-containers.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-dhcp-clients.html",
+    "web/src/ui/page-dhcp-servers.html",
+    "web/src/ui/page-files.html",
+    "web/src/ui/page-firewall.html",
+    "web/src/ui/page-interface-lists.html",
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-ip-addresses.html",
+    "web/src/ui/page-ip-pools.html",
+    "web/src/ui/page-ip-services.html",
+    "web/src/ui/page-ipsec.html",
+    "web/src/ui/page-logging.html",
+    "web/src/ui/page-ntp-client.html",
+    "web/src/ui/page-openvpn.html",
+    "web/src/ui/page-ospf.html",
+    "web/src/ui/page-pppoe-clients.html",
+    "web/src/ui/page-routing-rules.html",
+    "web/src/ui/page-routing-tables.html",
+    "web/src/ui/page-scheduler.html",
+    "web/src/ui/page-scripts.html",
+    "web/src/ui/page-snmp.html",
+    "web/src/ui/page-vrrp.html",
+    "web/src/ui/page-wireguard.html"
+  ],
+  "Warning": [
+    "web/src/ui/page-logs.html"
+  ],
+  "Watch": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Week": [
+    "web/src/ui/page-reports.html"
+  ],
+  "Weekly": [
+    "web/src/ui/page-backups.html",
+    "web/src/ui/shell.html"
+  ],
+  "What each router held in a template's menus when its last deploy finished. Checking reads that router now; nothing is checked on its own.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "What it does, in a sentence": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "What the card is asked to write. Leave it empty to use the built-in prompt; MikroDash’s safety rules are always applied on top.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "When": [
+    "web/src/ui/page-backups.html"
+  ],
+  "When the link last came up": [
+    "web/src/ui/page-interfaces.html"
+  ],
+  "Where the WAN traffic goes: from this router through each uplink to the internet, upload in green and download in blue": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wan.html"
+  ],
+  "Where the uplink list comes from": [
+    "web/src/ui/page-wan.html"
+  ],
+  "Which alerts are sent is set by an administrator.": [
+    "web/src/ui/shell.html"
+  ],
+  "Which devices are busiest right now": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Which storey to draw": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Who is on the network, by name and address": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Who the assistant is and how it behaves. Edit it to change its tone, to tell it about your network, or to give it standing instructions. \u003cstrong\u003eMikroDash’s own safety rules are always applied on top of this and cannot be edited here\u003c/strong\u003e, so the assistant still refuses to follow instructions found in router data, and still cannot run commands or reach any device other than the one selected.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Wi-Fi site map": [
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "WiFi SSIDs": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "Width": [
+    "web/src/ui/page-capsman.html"
+  ],
+  "Wifi Clients": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/shell.html"
+  ],
+  "Wifi Map": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/shell.html"
+  ],
+  "Wifi Networks": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/page-wifi-networks.html",
+    "web/src/ui/shell.html"
+  ],
+  "WireGuard": [
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-wireguard.html"
+  ],
+  "Wireless": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "Wireless, Interfaces, DHCP, Connections and Bandwidth": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Wiring bits": [
+    "web/src/ui/page-ai-agent.html"
+  ],
+  "Work Sans": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Works for": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Worst": [
+    "web/src/ui/page-tools.html"
+  ],
+  "Worst latency": [
+    "web/src/ui/page-network-topology.html"
+  ],
+  "Write a one-line router status on the Dashboard": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Write one in RouterOS's own export syntax, customise a canned one from the Library, or capture a menu or a whole router as it is configured today.": [
+    "web/src/ui/page-config-management.html"
+  ],
+  "X-Tenant: acme": [
+    "web/src/ui/page-settings.html"
+  ],
+  "You will need your current password.": [
+    "web/src/ui/shell.html"
+  ],
+  "Your own delivery, in addition to the install-wide channels. You are only ever notified about routers you have access to, checked at the moment the alert is sent.": [
+    "web/src/ui/shell.html"
+  ],
+  "Your own selection": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Your username is managed by an administrator.": [
+    "web/src/ui/shell.html"
+  ],
+  "Zero-touch provisioning": [
+    "web/src/ui/page-settings.html"
+  ],
+  "Zoom in": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-tools.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "Zoom out": [
+    "web/src/ui/page-devices.html",
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-tools.html",
+    "web/src/ui/page-wifi-map.html"
+  ],
+  "admin": [
+    "web/src/ui/login.html",
+    "web/src/ui/shell.html"
+  ],
+  "after an update check": [
+    "web/src/ui/page-packages.html"
+  ],
+  "alerts@example.com": [
+    "web/src/ui/page-settings.html"
+  ],
+  "any time": [
+    "web/src/ui/page-backups.html"
+  ],
+  "both": [
+    "web/src/ui/page-tools.html"
+  ],
+  "dBm": [
+    "web/src/ui/shell.html"
+  ],
+  "days, 0 for no limit": [
+    "web/src/ui/page-backups.html"
+  ],
+  "download": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "e.g. -100123456789": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "e.g. Home Router": [
+    "web/src/ui/shell.html"
+  ],
+  "e.g. Office Router": [
+    "web/src/ui/shell.html"
+  ],
+  "ether1": [
+    "web/src/ui/shell.html"
+  ],
+  "h": [
+    "web/src/ui/page-settings.html"
+  ],
+  "hours": [
+    "web/src/ui/page-settings.html"
+  ],
+  "http://192.0.2.10:11434/v1": [
+    "web/src/ui/page-settings.html"
+  ],
+  "http://192.168.88.10:3081": [
+    "web/src/ui/page-settings.html"
+  ],
+  "https://ntfy.sh/my-topic": [
+    "web/src/ui/page-settings.html"
+  ],
+  "https://ntfy.sh/your-topic": [
+    "web/src/ui/shell.html"
+  ],
+  "leave blank to keep current": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "llama3.1:8b": [
+    "web/src/ui/page-settings.html"
+  ],
+  "loss": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "max": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "min": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "ms": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "of": [
+    "web/src/ui/page-tools.html"
+  ],
+  "ops@example.com noc@example.com": [
+    "web/src/ui/shell.html"
+  ],
+  "optional": [
+    "web/src/ui/page-settings.html"
+  ],
+  "paste key here": [
+    "web/src/ui/shell.html"
+  ],
+  "paste key here, or leave blank for a local model": [
+    "web/src/ui/page-settings.html"
+  ],
+  "paste token here": [
+    "web/src/ui/shell.html"
+  ],
+  "receive": [
+    "web/src/ui/page-tools.html"
+  ],
+  "restore points, 0 for no limit": [
+    "web/src/ui/page-backups.html"
+  ],
+  "router commands / min": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "s": [
+    "web/src/ui/page-settings.html"
+  ],
+  "seconds": [
+    "web/src/ui/shell.html"
+  ],
+  "sets read on that tier and clears the rest": [
+    "web/src/ui/page-settings.html"
+  ],
+  "smtp.example.com": [
+    "web/src/ui/page-settings.html"
+  ],
+  "tcp": [
+    "web/src/ui/page-tools.html"
+  ],
+  "to": [
+    "web/src/ui/page-reports.html"
+  ],
+  "total": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "transmit": [
+    "web/src/ui/page-tools.html"
+  ],
+  "udp": [
+    "web/src/ui/page-tools.html"
+  ],
+  "upload": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "username": [
+    "web/src/ui/page-settings.html"
+  ],
+  "vpn.example.com": [
+    "web/src/ui/page-settings.html"
+  ],
+  "v—": [
+    "web/src/ui/page-settings.html"
+  ],
+  "you@example.com": [
+    "web/src/ui/page-settings.html",
+    "web/src/ui/shell.html"
+  ],
+  "{{alertType}}  {{routerName}}  {{detail}}  {{ifaceName}}  {{status}}  {{comment}}\u003cbr\u003e{{cpuLoad}}  {{pingLoss}}  {{pingTarget}}  {{pingRtt}}  {{vpnPeer}}  {{host}}  {{netwatchName}}  {{bgpPeer}}  {{timestamp}}": [
+    "web/src/ui/page-settings.html"
+  ],
+  "— No site —": [
+    "web/src/ui/shell.html"
+  ],
+  "← Newer": [
+    "web/src/ui/page-audit-trail.html"
+  ],
+  "← Prev": [
+    "web/src/ui/page-reports.html"
+  ],
+  "↑ TX  ": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "↑ Upload": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "↓ Download": [
+    "web/src/ui/page-dashboard.html"
+  ],
+  "↓ RX  ": [
+    "web/src/ui/page-bandwidth.html"
+  ],
+  "◎ Frequency Analyzer": [
+    "web/src/ui/page-wifi-clients.html"
+  ],
+  "● filtered": [
+    "web/src/ui/page-connections.html"
+  ],
+  "● stale": [
+    "web/src/ui/page-address-lists.html",
+    "web/src/ui/page-arp.html",
+    "web/src/ui/page-bridges.html",
+    "web/src/ui/page-capsman.html",
+    "web/src/ui/page-certificates.html",
+    "web/src/ui/page-clock.html",
+    "web/src/ui/page-containers.html",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-dhcp-clients.html",
+    "web/src/ui/page-dhcp-servers.html",
+    "web/src/ui/page-dns.html",
+    "web/src/ui/page-files.html",
+    "web/src/ui/page-firewall.html",
+    "web/src/ui/page-interface-lists.html",
+    "web/src/ui/page-interfaces.html",
+    "web/src/ui/page-ip-addresses.html",
+    "web/src/ui/page-ip-pools.html",
+    "web/src/ui/page-ip-services.html",
+    "web/src/ui/page-ipsec.html",
+    "web/src/ui/page-logging.html",
+    "web/src/ui/page-network-topology.html",
+    "web/src/ui/page-ntp-client.html",
+    "web/src/ui/page-openvpn.html",
+    "web/src/ui/page-ospf.html",
+    "web/src/ui/page-packages.html",
+    "web/src/ui/page-ppp.html",
+    "web/src/ui/page-pppoe-clients.html",
+    "web/src/ui/page-queues.html",
+    "web/src/ui/page-routing-rules.html",
+    "web/src/ui/page-routing-tables.html",
+    "web/src/ui/page-routing.html",
+    "web/src/ui/page-scheduler.html",
+    "web/src/ui/page-scripts.html",
+    "web/src/ui/page-snmp.html",
+    "web/src/ui/page-users.html",
+    "web/src/ui/page-vlans.html",
+    "web/src/ui/page-vrrp.html",
+    "web/src/ui/page-wan.html",
+    "web/src/ui/page-wifi-clients.html",
+    "web/src/ui/page-wifi-map.html",
+    "web/src/ui/page-wireguard.html"
+  ],
+  "☕ Buy me a coffee": [
+    "web/src/ui/page-settings.html"
+  ],
+  "⚠ Dashboard is publicly accessible — anyone on the network can view it.": [
+    "web/src/ui/page-settings.html"
+  ],
+  "⚠️ {{alertType}} on {{routerName}}: {{detail}}": [
+    "web/src/ui/page-settings.html"
+  ],
+  "⚡ Reconnecting…": [
+    "web/src/ui/shell.html"
+  ],
+  "✅ {{alertType}} on {{routerName}}: {{detail}}": [
+    "web/src/ui/page-settings.html"
+  ],
+  "💳 PayPal": [
+    "web/src/ui/page-settings.html"
+  ]
+}

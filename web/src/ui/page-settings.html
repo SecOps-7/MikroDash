@@ -559,6 +559,18 @@
 
       <!-- ── Appearance tab ─────────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-appearance">
+        <!-- The interface language (#94). A choice for this browser, kept in a
+             cookie, so it is not part of the Save below. Shown only when this
+             build has more than English. -->
+        <div class="scard" id="langCard" hidden>
+          <div class="scard-header">
+            <span class="scard-title">Language</span>
+          </div>
+          <div class="scard-body">
+            <select id="langSelect" class="sform-input" aria-label="Interface language" style="max-width:16rem"></select>
+            <p class="sform-hint" style="margin-top:.4rem">Changes this browser's language at once. Router names, comments and other data from the router are always shown exactly as the router reports them.</p>
+          </div>
+        </div>
         <div class="scard">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>

@@ -282,6 +282,19 @@ move together:
 
 ---
 
+## Translation (#94)
+
+- **English is the source, and the key.** A catalog is `web/locales/<lang>.json`, `{"English": "translation"}`;
+  a missing entry shows English. Adding a language is adding one file (with `"@name"`, its own name).
+- **Markup is translated at build time** (`internal/i18n`, called by `cmd/webbuild`), into
+  `index.<lang>.html` and `login.<lang>.html`; the server picks one by the `md_lang` cookie or the browser.
+  Mark an element `translate="no"` to keep its text out.
+- **Code translates only through `t('literal', { vars })`** (`web/src/i18n.ts`). Never pass it a variable:
+  that is how router data would reach a catalog, and the drift gate refuses it. Router-supplied values are
+  never translated.
+- **`web/locales/source.json` is generated** (`go run ./cmd/i18ngen`), and `TestTranslationsKeepUpWithTheInterface`
+  fails on a stale or broken translation and reports untranslated counts.
+
 ## WebSocket events
 
 - **Every event is declared once, with its payload type:** `hub.Declare[T]("name")`, in
@@ -305,7 +318,7 @@ move together:
 
 | | |
 |---|---|
-| `internal/verify/` | 83 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
+| `internal/verify/` | 85 Go tests. Static checks over the current source: credentials, cited paths, translation drift, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
 | `web/test/` | 76 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 

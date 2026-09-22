@@ -21,14 +21,17 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/evanw/esbuild/pkg/api"
 
+	"mikrodash/internal/i18n"
 	"mikrodash/internal/pages"
 )
 
@@ -237,6 +240,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "webbuild: copying login.html:", err)
 		os.Exit(1)
 	}
+	if err := localize(here, dist, html); err != nil {
+		fmt.Fprintln(os.Stderr, "webbuild: translating:", err)
+		os.Exit(1)
+	}
 
 	if *watch {
 		ctx, cerr := api.Context(appOpts(here, dist))
@@ -257,4 +264,91 @@ func main() {
 		fatal(api.Build(o), filepath.Base(o.Outfile))
 	}
 	fmt.Println("built dist/")
+}
+
+// localize writes each language's copy of the two documents (#94):
+// dist/index.<lang>.html and dist/login.<lang>.html, translated from
+// web/locales/<lang>.json by internal/i18n, with `lang` set and the catalog
+// embedded for t() (web/src/i18n.ts). The server picks one by the md_lang
+// cookie or the browser's language.
+//
+// ENGLISH IS UNTOUCHED UNTIL THERE IS A SECOND LANGUAGE. With no catalog this
+// writes nothing and index.html is byte for byte what it was. With one, the
+// English documents gain only the language list, so their selector appears.
+//
+// A copy left behind by a catalog since removed is deleted, so the server
+// never offers a language the build no longer has.
+func localize(here, dist, index string) error {
+	cats, err := i18n.Locales(filepath.Join(here, "locales"))
+	if err != nil {
+		return err
+	}
+	old, _ := filepath.Glob(filepath.Join(dist, "index.*.html"))
+	oldLogin, _ := filepath.Glob(filepath.Join(dist, "login.*.html"))
+	for _, f := range append(old, oldLogin...) {
+		if err := os.Remove(f); err != nil {
+			return err
+		}
+	}
+	if len(cats) == 0 {
+		return nil
+	}
+	login, err := os.ReadFile(filepath.Join(dist, "login.html"))
+	if err != nil {
+		return err
+	}
+
+	codes := make([]string, 0, len(cats))
+	for code := range cats {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	type lang struct {
+		Code string `json:"code"`
+		Name string `json:"name"`
+	}
+	langs := []lang{{Code: "en", Name: "English"}}
+	for _, code := range codes {
+		langs = append(langs, lang{Code: code, Name: cats[code].Name(code)})
+	}
+
+	embed := func(doc, code string, strs map[string]string) (string, error) {
+		b, err := json.Marshal(struct {
+			Lang      string            `json:"lang"`
+			Strings   map[string]string `json:"strings"`
+			Languages []lang            `json:"languages"`
+		}{code, strs, langs})
+		if err != nil {
+			return "", err
+		}
+		// json.Marshal escapes < > & already, so nothing in a catalog can end
+		// the script element early.
+		tag := `<script type="application/json" id="i18n-catalog">` + string(b) + "</script>\n"
+		if !strings.Contains(doc, "</head>") {
+			return "", fmt.Errorf("a document has no </head> to carry the catalog")
+		}
+		doc = strings.Replace(doc, "</head>", tag+"</head>", 1)
+		return strings.Replace(doc, `<html lang="en"`, `<html lang="`+code+`"`, 1), nil
+	}
+
+	for name, doc := range map[string]string{"index": index, "login": string(login)} {
+		en, err := embed(doc, "en", map[string]string{})
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(dist, name+".html"), []byte(en), 0o644); err != nil {
+			return err
+		}
+		for _, code := range codes {
+			cat := cats[code]
+			out, err := embed(i18n.Translate(doc, cat), code, cat.Strings())
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(dist, name+"."+code+".html"), []byte(out), 0o644); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

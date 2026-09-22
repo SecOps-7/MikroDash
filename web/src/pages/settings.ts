@@ -27,6 +27,7 @@
  */
 
 import { el, esc } from '../dom';
+import { bindLanguageSelect } from '../i18n';
 // `siteIdsOf` is the ARRAY-WINS-OUTRIGHT rule, ported once in `routers.ts` and
 // reused rather than restated: a second copy here would drift, and the half that
 // drifts silently is the empty array — an explicit `siteIds: []` means "no
@@ -317,6 +318,9 @@ export function activateSettingsTab(tabName: string): void {
  * it removed rather than reintroducing it as a "nice to have".
  */
 export function mountSettingsTabs(): void {
+  // The interface language (#94), in Appearance: hidden unless the build has
+  // more than English.
+  bindLanguageSelect(el<HTMLSelectElement>('langSelect'), el('langCard'));
   document.querySelectorAll('#page-settings .stab').forEach((t) => {
     t.addEventListener('click', () => {
       activateSettingsTab((t as HTMLElement).dataset.tab || '');

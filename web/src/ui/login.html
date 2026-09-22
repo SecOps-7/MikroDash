@@ -196,6 +196,9 @@
       margin-right: .4rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .login-lang { margin-top: 1rem; text-align: center; }
+    .login-lang select { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border);
+      border-radius: 6px; padding: .3rem .6rem; font-size: .8rem; font-family: inherit; }
   </style>
 </head>
 <body>
@@ -250,6 +253,11 @@
         <div class="login-error" id="setupError"></div>
       </div>
 
+    </div>
+    <!-- The interface language (#94): shown only when this build has more
+         than English. Filled by web/src/i18n.ts's bindLanguageSelect. -->
+    <div class="login-lang" id="loginLangWrap" hidden>
+      <select id="loginLang" aria-label="Language"></select>
     </div>
   </div>
 

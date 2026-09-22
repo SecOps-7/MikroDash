@@ -25,6 +25,8 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +37,7 @@ import (
 	"mikrodash/internal/db"
 	"mikrodash/internal/historywire"
 	"mikrodash/internal/hub"
+	"mikrodash/internal/i18n"
 	"mikrodash/internal/pages"
 	"mikrodash/internal/rbac"
 	"mikrodash/internal/routers"
@@ -139,6 +142,10 @@ type Options struct {
 
 // Server is the whole thing.
 type Server struct {
+	// langs are the interface languages this build has (#94), besides English:
+	// those with both a translated index and a translated login page in the
+	// built directory. See servedDoc.
+	langs []string
 	// cfg is Config Management's one deploy job (cfgjob.go).
 	cfg cfgJob
 	// ztp is zero-touch provisioning's tunnel engine and its enrolment
@@ -340,6 +347,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		}),
 		sessions:       session.NewManager(st, h),
 		web:            http.FileServer(http.Dir(opts.WebDir)),
+		langs:          builtLangs(opts.WebDir),
 		originPatterns: opts.OriginPatterns,
 		writeLimit:     newWriteLimiter(),
 		aiLimit:        newRateLimiter(20, time.Minute),
@@ -696,7 +704,7 @@ func (s *Server) spa() http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		if ext := path.Ext(r.URL.Path); ext == "" {
 			r = r.Clone(r.Context())
-			r.URL.Path = "/"
+			r.URL.Path = s.servedDoc(w, r, "index")
 		}
 		s.web.ServeHTTP(w, r)
 	})
@@ -713,6 +721,9 @@ func (s *Server) distFile(name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = r.Clone(r.Context())
 		r.URL.Path = name
+		if name == "/login.html" {
+			r.URL.Path = s.servedDoc(w, r, "login")
+		}
 		s.web.ServeHTTP(w, r)
 	})
 }
@@ -892,4 +903,55 @@ func logRequests(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// ── WHICH LANGUAGE'S DOCUMENT (#94) ─────────────────────────────────────────
+//
+// The build writes a translated copy of the two documents per language
+// (cmd/webbuild). The choice is the md_lang cookie, set by the language
+// selectors, or failing that the browser's own Accept-Language; English
+// otherwise. The rule is internal/i18n.PickLang.
+
+// builtLangs is every language the built directory has BOTH documents for, so
+// the server never offers a sign-in page that leads to an English dashboard.
+func builtLangs(dir string) []string {
+	files, _ := filepath.Glob(filepath.Join(dir, "index.*.html"))
+	var out []string
+	for _, f := range files {
+		lang := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "index."), ".html")
+		if !i18n.ValidLang(lang) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(dir, "login."+lang+".html")); err == nil {
+			out = append(out, lang)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// servedDoc is the path of the document to serve, "index" or "login", in the
+// chosen language. With no translations it is always the English one, and the
+// response is exactly what it was before any of this existed.
+func (s *Server) servedDoc(w http.ResponseWriter, r *http.Request, doc string) string {
+	if len(s.langs) == 0 {
+		if doc == "index" {
+			return "/"
+		}
+		return "/" + doc + ".html"
+	}
+	// The same URL answers differently by these two, so a cache must key on
+	// them.
+	w.Header().Add("Vary", "Cookie, Accept-Language")
+	cookie := ""
+	if c, err := r.Cookie("md_lang"); err == nil {
+		cookie = c.Value
+	}
+	if lang := i18n.PickLang(cookie, r.Header.Get("Accept-Language"), s.langs); lang != "" {
+		return "/" + doc + "." + lang + ".html"
+	}
+	if doc == "index" {
+		return "/"
+	}
+	return "/" + doc + ".html"
 }
