@@ -53,6 +53,7 @@ import (
 	"sync"
 	"time"
 
+	"mikrodash/internal/cfgtpl"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/store"
 	"mikrodash/internal/ztp"
@@ -127,7 +128,7 @@ func (p *probe) cleanup() {
 	for _, m := range []menu{
 		{"/system/scheduler", "name"}, {"/interface/wireguard", "name"},
 		{"/user", "name"}, {"/file", "name"}, {"/ip/firewall/filter", "comment"},
-		{"/ip/address", "comment"},
+		{"/ip/address", "comment"}, {"/system/script", "name"},
 	} {
 		rows, err := p.c.Do(routeros.Cmd{Path: m.path + "/print",
 			Args: []string{"=.proplist=.id," + m.key}, Timeout: 15 * time.Second})
@@ -224,7 +225,7 @@ func main() {
 		{"z1", func() { z1Identity(p) }}, {"z2", func() { z2Rndstr(p) }}, {"z3", func() { z3Fetch(p) }},
 		{"z4", func() { z4WireGuard(p) }}, {"z5", func() { z5UserAddress(p, cfg) }},
 		{"z6", func() { z6FirstRule(p) }}, {"z7", func() { z7SelfRemovingScheduler(p) }},
-		{"z8", func() { z8Tunnel(p) }},
+		{"z8", func() { z8Tunnel(p) }}, {"z9", func() { z9ScriptParts(p) }},
 	} {
 		if len(only) == 0 || only[m.name] {
 			m.fn()
@@ -358,6 +359,32 @@ func z7SelfRemovingScheduler(p *probe) {
 	time.Sleep(12 * time.Second)
 	rows := p.run("z7 after 12s", "/system/scheduler/print", "?name="+prefix+"sch", "=.proplist=.id,run-count")
 	p.note("z7 still there after 12s", fmt.Sprint(len(rows.Rows) > 0))
+}
+
+func z9ScriptParts(p *probe) {
+	fmt.Fprintln(os.Stderr, "Z9 script parts: serialize, a stored script, self-removal")
+	p.note("z9 serialize", p.script("z9a", `:local id "AB12\"x"; :local m {"token"="t0k";"serial"=$id;"n"=3}; `+
+		`:put [:serialize to=json value=$m]`))
+	// A script stored over the API with a multi-line source, run by a scheduler
+	// by name, that removes its scheduler and then itself.
+	src := ":global mdprobeRan \"yes\"\n" +
+		"/system scheduler remove [find name=\"" + prefix + "sch9\"]\n" +
+		"/system script remove [find name=\"" + prefix + "s9\"]"
+	add := p.run("z9 script add", "/system/script/add", "=name="+prefix+"s9", "=source="+src)
+	p.note("z9 script add", fmt.Sprintf("trap=%q", add.Trap))
+	sch := p.run("z9 scheduler", "/system/scheduler/add", "=name="+prefix+"sch9", "=interval=5s", "=on-event="+prefix+"s9")
+	p.note("z9 scheduler runs a script by name", fmt.Sprintf("trap=%q", sch.Trap))
+	time.Sleep(12 * time.Second)
+	s1 := p.run("z9 script left", "/system/script/print", "?name="+prefix+"s9", "=.proplist=.id")
+	s2 := p.run("z9 scheduler left", "/system/scheduler/print", "?name="+prefix+"sch9", "=.proplist=.id")
+	p.note("z9 after 12s", fmt.Sprintf("script left=%v scheduler left=%v", len(s1.Rows) > 0, len(s2.Rows) > 0))
+	p.note("z9 the script ran", p.script("z9b", `:global mdprobeRan; :put ("ran=" . $mdprobeRan)`))
+	// And a script added by a line of RouterOS TEXT, its source quoted as
+	// cfgtpl.QuoteROS quotes it (newline as \0A, quotes and $ escaped), then run.
+	quoted := cfgtpl.QuoteROS(":put \"hi \\$x\"\n:put [:len \"four\"]")
+	line := "/system script add name=\"" + prefix + "s9b\" source=" + quoted + "; :put [/system script get [find name=\"" + prefix + "s9b\"] source]; /system script run [find name=\"" + prefix + "s9b\"]"
+	p.note("z9 quoted source line", line)
+	p.note("z9 quoted source result", p.script("z9c", line))
 }
 
 func z8Tunnel(p *probe) {
