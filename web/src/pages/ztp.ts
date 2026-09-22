@@ -153,7 +153,7 @@ function openAddDevice(): void {
   const p = ztpState();
   if (!p) return;
   let mode = V.remoteBlocked(p.status) ? 'local' : 'remote';
-  const form: V.DeviceForm = { label: '', serial: '', siteIds: [], days: 7, lanUrl: p.status.lanUrl || location.origin };
+  const form: V.DeviceForm = { label: '', serial: '', siteIds: [], days: 7, lanUrl: p.status.lanUrl || V.lanSuggestion(location.origin, location.hostname) };
   const c = newConfig();
   let sites: V.SiteOpt[] = [];
   let result: V.ScriptResult | null = null;
@@ -314,7 +314,8 @@ function renderSettings(p: ZTPPayload): void {
   const body = el('ztpBatchBody');
   if (body) body.innerHTML = V.batchRows(p.batches, Date.now());
   const lan = el<HTMLInputElement>('s_ztpLanUrl');
-  if (lan && !lan.placeholder.startsWith('http')) lan.placeholder = location.origin;
+  const suggest = V.lanSuggestion(location.origin, location.hostname);
+  if (lan && suggest) lan.placeholder = suggest;
 }
 
 function mountSettings(): void {

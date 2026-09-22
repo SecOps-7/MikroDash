@@ -141,4 +141,12 @@ assert.strictEqual(V.relTime(NOW - 1 * 3600e3, NOW), '60 minutes ago');
 assert.strictEqual(V.relTime(NOW - 20e3, NOW), 'just now');
 assert.strictEqual(V.relTime(0, NOW), '');
 
+// ── THE LAN SUGGESTION NEVER NAMES LOOPBACK ────────────────────────────────
+assert.strictEqual(V.lanSuggestion('http://localhost:3081', 'localhost'), '');
+assert.strictEqual(V.lanSuggestion('http://127.0.0.1:3081', '127.0.0.1'), '');
+assert.strictEqual(V.lanSuggestion('http://[::1]:3081', '[::1]'), '');
+assert.strictEqual(V.lanSuggestion('http://10.0.0.5:3081', '10.0.0.5'), 'http://10.0.0.5:3081',
+  'control: a reachable origin was not suggested');
+assert.strictEqual(V.lanSuggestion('http://dash.lan', 'dash.lan'), 'http://dash.lan');
+
 console.log('ztp: views, gates and rail pinned');

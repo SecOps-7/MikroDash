@@ -2726,6 +2726,12 @@
     .wiz-why{flex:1;font-size:.74rem;color:var(--text-muted);text-align:right}
     .wiz-why.is-bad{color:var(--accent-err)}
     @media (max-width:600px){
+      /* The Devices toolbar gained Add device, and at phone width one row
+         clipped it off the edge and squeezed the search box to nothing. It
+         wraps instead: the search takes a row of its own. */
+      .routers-toolbar{flex-wrap:wrap;row-gap:.4rem}
+      .routers-toolbar #routersSearch{flex-basis:100%;max-width:none!important;order:5}
+      .routers-toolbar #ztpAddBtn{order:4}
       .wiz-rail{display:none}
       .wiz-rail-small{display:block}
       .ztp-choices{grid-template-columns:1fr}

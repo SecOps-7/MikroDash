@@ -105,6 +105,14 @@ export function sectionHtml(p: ZTPPayload, now: number): string {
     '<div class="ztp-grid">' + list.map((d) => deviceCard(d, now)).join('') + '</div>';
 }
 
+/** The LAN address to suggest for a local device: the browser's own origin,
+ *  unless that is this machine's loopback, which a router can never reach.
+ *  Found in the live test, where a browser on the MikroDash host was offered
+ *  http://localhost:3081. */
+export function lanSuggestion(origin: string, hostname: string): string {
+  return /^(localhost|127\.|\[?::1\]?$)/.test(hostname) ? '' : origin;
+}
+
 /** Why a remote device cannot be added yet, or ''. */
 export function remoteBlocked(s: ZTPStatus): string {
   if (!s.enabled) return 'Switch provisioning on in Settings → Provisioning first.';
