@@ -77,9 +77,21 @@ func readZTPSettings(s store.Settings) ztpSettings {
 	return z
 }
 
-// ztpSync brings the engine to what the settings say. Safe to call at any
-// time; it never returns with the engine half up.
+// ztpSync brings the engine to what the settings say, then tells the pages
+// watching. Safe to call at any time; it never returns with the engine half up.
+//
+// THE BROADCAST IS OUTSIDE THE LOCK, and it is not optional: Settings →
+// Provisioning shows the engine's state from `ztp:state`, and without it a
+// save that started the engine left the tab saying "Off" until a reload.
+// Found in the live test on 2026-09-22. ztpPayload takes s.ztp.mu itself.
 func (s *Server) ztpSync() {
+	s.ztpApply()
+	if s.hub != nil {
+		s.ztpChanged()
+	}
+}
+
+func (s *Server) ztpApply() {
 	if s.store == nil {
 		return
 	}
