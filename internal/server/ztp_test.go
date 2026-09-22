@@ -261,3 +261,33 @@ func TestRemovingARouterEndsItsTunnel(t *testing.T) {
 		t.Error("another router's record was removed")
 	}
 }
+
+// A pre-provisioned device's template values wait days for it, and some are
+// passwords: they are stored sealed, and open to exactly what was given.
+func TestPreProvisionedValuesAreSealed(t *testing.T) {
+	s := ztpTestServer(t)
+	d := db.ZTPDevice{ID: "v", Mode: db.ZTPRemote, State: db.ZTPAwaiting, CreatedBy: "u"}
+	in := ztpDeviceIn{Values: map[string]string{"wifiPass": "correct-horse-battery", "vlan": "20"}}
+	if err := s.ztpApplyChoice(&d, in); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(d.ValuesJSON, "correct-horse") || strings.Contains(d.ValuesJSON, `"vlan"`) {
+		t.Fatalf("the values are stored readable: %s", d.ValuesJSON)
+	}
+	if err := s.auditDB.CreateZTPDevice(d); err != nil {
+		t.Fatal(err)
+	}
+	back, _ := s.auditDB.ZTPDevice("v")
+	got, err := s.ztpOpenValues(back)
+	if err != nil || got["wifiPass"] != "correct-horse-battery" || got["vlan"] != "20" || len(got) != 2 {
+		t.Fatalf("the sealed values open to %v, %v", got, err)
+	}
+	// No values: nothing sealed, and nothing to open.
+	empty := db.ZTPDevice{}
+	if err := s.ztpApplyChoice(&empty, ztpDeviceIn{}); err != nil || empty.ValuesJSON != "" {
+		t.Fatalf("no values stored %q, %v", empty.ValuesJSON, err)
+	}
+	if got, err := s.ztpOpenValues(&empty); err != nil || len(got) != 0 {
+		t.Fatalf("no values opened to %v, %v", got, err)
+	}
+}

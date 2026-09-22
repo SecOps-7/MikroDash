@@ -400,7 +400,10 @@ func (s *Server) ztpCreateDevice(w http.ResponseWriter, r *http.Request, sess *S
 	}
 	d := db.ZTPDevice{ID: id, Mode: in.Mode, State: db.ZTPAwaiting, Label: in.Label, Serial: in.Serial,
 		CreatedBy: s.userIDFor(sess.Username)}
-	s.ztpApplyChoice(&d, in)
+	if err := s.ztpApplyChoice(&d, in); err != nil {
+		writeJSONErrFrom(w, http.StatusInternalServerError, err)
+		return
+	}
 	script, problem := s.ztpIssue(&d, in.Days, in.LANURL)
 	if problem != "" {
 		writeJSONErr(w, http.StatusConflict, problem)
@@ -418,8 +421,18 @@ func (s *Server) ztpCreateDevice(w http.ResponseWriter, r *http.Request, sess *S
 }
 
 // ztpApplyChoice records the wizard's sites, template, values and accepted
-// codes. Secret values are kept out, as a run's are.
-func (s *Server) ztpApplyChoice(d *db.ZTPDevice, in ztpDeviceIn) {
+// codes.
+//
+// ── THE VALUES ARE SEALED, ALL OF THEM ──────────────────────────────────────
+//
+// A deploy strips a template's secret settings from its run record, because
+// the run has them in hand. A device's deploy runs when it calls home, days
+// later, so its values must be KEPT until then, and some may be passwords.
+// They are sealed with the store's envelope as one object, secret or not:
+// which settings are secret is the template's to say, and a template can
+// change between the wizard and the device's arrival. ztpOpenValues is the
+// only reader, and a provisioned device's values are forgotten.
+func (s *Server) ztpApplyChoice(d *db.ZTPDevice, in ztpDeviceIn) error {
 	sites, _ := json.Marshal(nonNil(in.SiteIDs))
 	d.SiteIDs = string(sites)
 	if in.TemplateID != "" {
@@ -428,10 +441,38 @@ func (s *Server) ztpApplyChoice(d *db.ZTPDevice, in ztpDeviceIn) {
 	} else {
 		d.TemplateID = nil
 	}
-	vals, _ := json.Marshal(in.Values)
-	d.ValuesJSON = string(vals)
+	d.ValuesJSON = ""
+	if len(in.Values) > 0 {
+		vals, _ := json.Marshal(in.Values)
+		sealed, err := s.store.Encrypt(string(vals))
+		if err != nil {
+			return err
+		}
+		box, _ := json.Marshal(map[string]string{"sealed": sealed})
+		d.ValuesJSON = string(box)
+	}
 	acked, _ := json.Marshal(nonNil(in.Acked))
 	d.AckedJSON = string(acked)
+	return nil
+}
+
+// ztpOpenValues is a device's template values, unsealed.
+func (s *Server) ztpOpenValues(d *db.ZTPDevice) (map[string]string, error) {
+	var box struct {
+		Sealed string `json:"sealed"`
+	}
+	values := map[string]string{}
+	if d.ValuesJSON == "" {
+		return values, nil
+	}
+	if err := json.Unmarshal([]byte(d.ValuesJSON), &box); err != nil || box.Sealed == "" {
+		return values, err
+	}
+	plain, err := s.store.Decrypt(box.Sealed)
+	if err != nil {
+		return nil, err
+	}
+	return values, json.Unmarshal([]byte(plain), &values)
 }
 
 func (s *Server) ztpLoadFor(w http.ResponseWriter, r *http.Request) (*db.ZTPDevice, bool) {
@@ -500,7 +541,10 @@ func (s *Server) ztpApprove(w http.ResponseWriter, r *http.Request, sess *Sessio
 		writeJSONErr(w, http.StatusUnprocessableEntity, tplName)
 		return
 	}
-	s.ztpApplyChoice(d, in)
+	if err := s.ztpApplyChoice(d, in); err != nil {
+		writeJSONErrFrom(w, http.StatusInternalServerError, err)
+		return
+	}
 	// THE APPROVER OWNS WHAT HAPPENS NEXT: the deploy runs as them.
 	d.CreatedBy = s.userIDFor(sess.Username)
 	d.State = db.ZTPEnrolled

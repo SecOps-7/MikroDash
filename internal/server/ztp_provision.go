@@ -75,8 +75,11 @@ func (s *Server) ztpProvision(id string) {
 		finish(db.ZTPFailed, "the person who pre-provisioned this device is no longer an administrator, so its template was not applied")
 		return
 	}
-	var values map[string]string
-	_ = json.Unmarshal([]byte(d.ValuesJSON), &values)
+	values, err := s.ztpOpenValues(d)
+	if err != nil {
+		finish(db.ZTPFailed, "its template's settings could not be unsealed, so nothing was sent")
+		return
+	}
 	var accepted []string
 	_ = json.Unmarshal([]byte(d.AckedJSON), &accepted)
 	okCode := map[string]bool{}
@@ -187,6 +190,8 @@ func (s *Server) ztpProvision(id string) {
 	state, why := run.state, run.errText
 	s.cfg.mu.Unlock()
 	if state == db.CfgRunDone {
+		// Applied: the values, secrets among them, are not needed again.
+		d.ValuesJSON = ""
 		finish(db.ZTPProvisioned, "")
 		return
 	}
