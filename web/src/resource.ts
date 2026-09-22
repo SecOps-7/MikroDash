@@ -17,7 +17,7 @@
 // authority on it.
 
 import { esc, el } from './dom';
-import { t } from './i18n';
+import { t, tl } from './i18n';
 import type { Socket } from './socket';
 import type { HandEvents, ResSchema, ResSchemaField } from './events-hand';
 
@@ -147,14 +147,14 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
   if (f.display) {
     const v = value === undefined || value === null ? '' : String(value);
     return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
-      '<label class="sform-label" for="' + id + '">' + esc(f.label) + '</label>' +
+      '<label class="sform-label" for="' + id + '">' + esc(tl(f.label)) + '</label>' +
       '<input class="sform-input" id="' + id + '" value="' + esc(v) + '" disabled></div>';
   }
 
   if (f.input === 'checkbox') {
     // No <label for> on a toggle: the .stoggle markup wraps its own input.
     return '<label class="stoggle" style="margin-top:.7rem" data-res-field="' + esc(f.name) + '">' +
-      '<span class="stoggle-label">' + esc(f.label) + '</span>' +
+      '<span class="stoggle-label">' + esc(tl(f.label)) + '</span>' +
       '<span class="stoggle-switch"><input type="checkbox" id="' + id + '"' +
       (checkedValue(value) ? ' checked' : '') + '><span class="stoggle-track"></span>' +
       '<span class="stoggle-thumb"></span></span></label>';
@@ -167,11 +167,11 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
     // form only has to show either faithfully.
     const code = value === undefined || value === null ? '' : String(value);
     return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
-      '<label class="sform-label" for="' + id + '">' + esc(f.label) + '</label>' +
+      '<label class="sform-label" for="' + id + '">' + esc(tl(f.label)) + '</label>' +
       '<textarea class="sform-input" id="' + id + '" rows="12" spellcheck="false" ' +
       'style="font-family:var(--font-mono,monospace);font-size:.74rem;white-space:pre;resize:vertical">' +
       esc(code) + '</textarea>' +
-      (f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' + esc(f.help) + '</div>' : '') +
+      (f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' + esc(tl(f.help)) + '</div>' : '') +
       '</div>';
   }
 
@@ -184,17 +184,17 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
       '<input type="checkbox" id="' + id + '__' + i + '" data-res-multi="' + esc(f.name) + '" value="' + esc(o) + '"' +
       (chosen.has(o) ? ' checked' : '') + '>' + esc(o) + '</label>').join('');
     return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
-      '<div class="sform-label">' + esc(f.label) + '</div>' +
+      '<div class="sform-label">' + esc(tl(f.label)) + '</div>' +
       '<div id="' + id + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));' +
       'gap:.3rem .6rem;padding:.5rem;border:1px solid var(--border);border-radius:6px">' + boxes + '</div>' +
-      (f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' + esc(f.help) + '</div>' : '') +
+      (f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' + esc(tl(f.help)) + '</div>' : '') +
       '</div>';
   }
 
-  const lbl = '<label class="sform-label" for="' + id + '">' + esc(f.label) +
+  const lbl = '<label class="sform-label" for="' + id + '">' + esc(tl(f.label)) +
     (f.required ? ' <span style="color:var(--accent-err)">*</span>' : '') + '</label>';
   const help = f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' +
-    esc(f.help) + '</div>' : '';
+    esc(tl(f.help)) + '</div>' : '';
   let body: string;
 
   if (choices && choices.length) {
@@ -327,125 +327,117 @@ function close(): void {
  */
 export function warningText(code: string, w: Record<string, unknown>): { headline: string; why: string } {
   const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+  // Each value is escaped and wrapped once, then placed by the sentence: a
+  // translation moves a value to wherever its language puts it.
+  const c = (v: unknown): string => '<code>' + esc(str(v) || '?') + '</code>';
   const cut = t('This may cut MikroDash off from this router.');
+  const unknownFrom = (what: string): { headline: string; why: string } => ({ headline: cut, why: what });
+  const del = str(w.action) === 'delete';
+  const add = str(w.action) === 'create';
   switch (code) {
     case 'self-cutoff':
       return {
         headline: cut,
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
-          ('</code>' + t(', which arrives on') + ' <code>') + esc(str(w.interface) || '?') + '</code>, the interface this ' +
-          'change ' + (str(w.action) === 'delete' ? 'removes' : 'alters') + '.',
+        why: del
+          ? t('The router sees MikroDash at {address}, which arrives on {iface}, the interface this change removes.', { address: c(w.address), iface: c(w.interface) })
+          : t('The router sees MikroDash at {address}, which arrives on {iface}, the interface this change alters.', { address: c(w.address), iface: c(w.interface) }),
       };
     case 'route-cutoff': {
-      const verb = str(w.action) === 'delete' ? 'removes' : str(w.action) === 'create' ? 'adds' : 'changes';
+      const v = { address: c(w.address), route: c(w.destination) };
       return {
         headline: cut,
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
-          '</code>, an address it reaches through a route, and this change ' + verb +
-          ' the route <code>' + esc(str(w.destination) || '?') + '</code> that covers it.',
+        why: del ? t('The router sees MikroDash at {address}, an address it reaches through a route, and this change removes the route {route} that covers it.', v)
+          : add ? t('The router sees MikroDash at {address}, an address it reaches through a route, and this change adds the route {route} that covers it.', v)
+            : t('The router sees MikroDash at {address}, an address it reaches through a route, and this change changes the route {route} that covers it.', v),
       };
     }
     case 'route-cutoff-unknown':
-      return {
-        headline: cut,
-        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
-          'whether changing the route <code>' + esc(str(w.destination) || '?') + '</code> cuts its own connection.',
-      };
+      return unknownFrom(t('MikroDash could not read where the router sees it connecting from, so it cannot tell whether changing the route {route} cuts its own connection.', { route: c(w.destination) }));
     case 'rule-cutoff': {
-      const verb = str(w.action) === 'delete' ? 'removes' : str(w.action) === 'create' ? 'adds' : 'changes';
-      const where = str(w.ruleAction) === 'drop' || str(w.ruleAction) === 'unreachable'
-        ? 'answers <code>' + esc(str(w.ruleAction)) + '</code>'
-        : 'looks the route up in table <code>' + esc(str(w.table) || '?') + '</code>';
-      return {
-        headline: cut,
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, and this change ' +
-          verb + ' a routing rule for <code>' + esc(str(w.destination) || '?') + '</code> that ' + where +
-          ' before the main table is consulted, which can send the router\'s replies somewhere they never arrive.',
-      };
+      const v = { address: c(w.address), dst: c(w.destination), answer: c(w.ruleAction), table: c(w.table) };
+      const answers = str(w.ruleAction) === 'drop' || str(w.ruleAction) === 'unreachable';
+      const why = answers
+        ? (del ? t('The router sees MikroDash at {address}, and this change removes a routing rule for {dst} that answers {answer} before the main table is consulted, which can send the router\'s replies somewhere they never arrive.', v)
+          : add ? t('The router sees MikroDash at {address}, and this change adds a routing rule for {dst} that answers {answer} before the main table is consulted, which can send the router\'s replies somewhere they never arrive.', v)
+            : t('The router sees MikroDash at {address}, and this change changes a routing rule for {dst} that answers {answer} before the main table is consulted, which can send the router\'s replies somewhere they never arrive.', v))
+        : (del ? t('The router sees MikroDash at {address}, and this change removes a routing rule for {dst} that looks the route up in table {table} before the main table is consulted, which can send the router\'s replies somewhere they never arrive.', v)
+          : add ? t('The router sees MikroDash at {address}, and this change adds a routing rule for {dst} that looks the route up in table {table} before the main table is consulted, which can send the router\'s replies somewhere they never arrive.', v)
+            : t('The router sees MikroDash at {address}, and this change changes a routing rule for {dst} that looks the route up in table {table} before the main table is consulted, which can send the router\'s replies somewhere they never arrive.', v));
+      return { headline: cut, why };
     }
     case 'ipsec-cutoff': {
-      const verb = str(w.action) === 'delete' ? 'removes' : str(w.action) === 'create' ? 'adds' : 'changes';
+      const v = { address: c(w.address), dst: c(w.destination), act: c(w.ipsecAction) };
       return {
         headline: cut,
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, and this change ' + verb +
-          ' an IPsec policy for <code>' + esc(str(w.destination) || '?') + '</code> that would <code>' +
-          esc(str(w.ipsecAction) || '?') + '</code> the router\'s replies to it, or that MikroDash arrives through.',
+        why: del ? t('The router sees MikroDash at {address}, and this change removes an IPsec policy for {dst} that would {act} the router\'s replies to it, or that MikroDash arrives through.', v)
+          : add ? t('The router sees MikroDash at {address}, and this change adds an IPsec policy for {dst} that would {act} the router\'s replies to it, or that MikroDash arrives through.', v)
+            : t('The router sees MikroDash at {address}, and this change changes an IPsec policy for {dst} that would {act} the router\'s replies to it, or that MikroDash arrives through.', v),
       };
     }
     case 'ipsec-cutoff-unknown':
-      return {
-        headline: cut,
-        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether this ' +
-          'IPsec policy for <code>' + esc(str(w.destination) || '?') + '</code> carries its own connection.',
-      };
+      return unknownFrom(t('MikroDash could not read where the router sees it connecting from, so it cannot tell whether this IPsec policy for {dst} carries its own connection.', { dst: c(w.destination) }));
     case 'ipsec-peer-cutoff': {
-      const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
+      const v = { address: c(w.address), peer: c(w.peer) };
       return {
         headline: cut,
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, inside a policy that ' +
-          'encrypts through peer <code>' + esc(str(w.peer) || '?') + '</code>, and this change ' + verb +
-          ' that peer or its identity, which can drop the tunnel MikroDash arrives over.',
+        why: del ? t('The router sees MikroDash at {address}, inside a policy that encrypts through peer {peer}, and this change removes that peer or its identity, which can drop the tunnel MikroDash arrives over.', v)
+          : t('The router sees MikroDash at {address}, inside a policy that encrypts through peer {peer}, and this change changes that peer or its identity, which can drop the tunnel MikroDash arrives over.', v),
       };
     }
     case 'ipsec-peer-cutoff-unknown':
-      return {
-        headline: cut,
-        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether peer <code>' +
-          esc(str(w.peer) || '?') + '</code> carries its own connection.',
-      };
+      return unknownFrom(t('MikroDash could not read where the router sees it connecting from, so it cannot tell whether peer {peer} carries its own connection.', { peer: c(w.peer) }));
     case 'dhcp-client-cutoff': {
-      const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
+      const v = { address: c(w.address), iface: c(w.interface) };
       return {
         headline: cut,
-        why: 'MikroDash reaches this router at <code>' + esc(str(w.address) || '?') + '</code>, the address the DHCP ' +
-          'client on <code>' + esc(str(w.interface) || '?') + '</code> holds, and this change ' + verb +
-          ' that client, which takes the address away.',
+        why: del ? t('MikroDash reaches this router at {address}, the address the DHCP client on {iface} holds, and this change removes that client, which takes the address away.', v)
+          : t('MikroDash reaches this router at {address}, the address the DHCP client on {iface} holds, and this change changes that client, which takes the address away.', v),
       };
     }
     case 'rule-cutoff-unknown':
-      return {
-        headline: cut,
-        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell whether ' +
-          'this routing rule for <code>' + esc(str(w.destination) || '?') + '</code> reroutes its own connection.',
-      };
+      return unknownFrom(t('MikroDash could not read where the router sees it connecting from, so it cannot tell whether this routing rule for {dst} reroutes its own connection.', { dst: c(w.destination) }));
     case 'address-cutoff': {
-      const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
-      return {
-        headline: cut,
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
-          ('</code>' + t(', on the subnet of') + ' <code>') + esc(str(w.prefix) || '?') + '</code>' +
-          (str(w.interface) ? ' on <code>' + esc(str(w.interface)) + '</code>' : '') +
-          ', and this change ' + verb + ' that address.',
-      };
+      const v = { address: c(w.address), prefix: c(w.prefix), iface: c(w.interface) };
+      const why = str(w.interface)
+        ? (del ? t('The router sees MikroDash at {address}, on the subnet of {prefix} on {iface}, and this change removes that address.', v)
+          : t('The router sees MikroDash at {address}, on the subnet of {prefix} on {iface}, and this change changes that address.', v))
+        : (del ? t('The router sees MikroDash at {address}, on the subnet of {prefix}, and this change removes that address.', v)
+          : t('The router sees MikroDash at {address}, on the subnet of {prefix}, and this change changes that address.', v));
+      return { headline: cut, why };
     }
     case 'address-cutoff-unknown':
-      return {
-        headline: cut,
-        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
-          'whether changing the address <code>' + esc(str(w.prefix) || '?') + '</code> cuts its own connection.',
-      };
+      return unknownFrom(t('MikroDash could not read where the router sees it connecting from, so it cannot tell whether changing the address {prefix} cuts its own connection.', { prefix: c(w.prefix) }));
     case 'list-cutoff': {
       // The RULE is untouched; who is IN the list moved, and the rule's verdict on
       // MikroDash's own traffic moved with it. An interface-list member IS the
       // interface MikroDash arrives on; an address-list entry COVERS its address.
-      const v = '<code>' + esc(str(w.value) || '?') + '</code>';
-      const who = str(w.kind) === 'interface'
-        ? 'the interface MikroDash arrives on, ' + v + ','
-        : v + ', which covers the address the router sees MikroDash at,';
-      return {
-        headline: cut,
-        why: 'This ' + (str(w.move) === 'joins' ? 'puts ' : 'takes ') + who + ' ' +
-          (str(w.move) === 'joins' ? 'into' : 'out of') + ' the list <code>' + esc(str(w.list) || '?') +
-          ('</code>' + t(', and the input rule matching') + ' <code>') + esc(str(w.ruleMatch) || '?') + '</code> would then ' +
-          (str(w.effect) === 'loses-accept' ? 'stop accepting' : 'drop') + ' its traffic.',
-      };
+      const v = { value: c(w.value), list: c(w.list), rule: c(w.ruleMatch) };
+      const iface = str(w.kind) === 'interface';
+      const joins = str(w.move) === 'joins';
+      const drops = str(w.effect) !== 'loses-accept';
+      let why: string;
+      if (iface && joins) {
+        why = drops ? t('This puts the interface MikroDash arrives on, {value}, into the list {list}, and the input rule matching {rule} would then drop its traffic.', v)
+          : t('This puts the interface MikroDash arrives on, {value}, into the list {list}, and the input rule matching {rule} would then stop accepting its traffic.', v);
+      } else if (iface) {
+        why = drops ? t('This takes the interface MikroDash arrives on, {value}, out of the list {list}, and the input rule matching {rule} would then drop its traffic.', v)
+          : t('This takes the interface MikroDash arrives on, {value}, out of the list {list}, and the input rule matching {rule} would then stop accepting its traffic.', v);
+      } else if (joins) {
+        why = drops ? t('This puts {value}, which covers the address the router sees MikroDash at, into the list {list}, and the input rule matching {rule} would then drop its traffic.', v)
+          : t('This puts {value}, which covers the address the router sees MikroDash at, into the list {list}, and the input rule matching {rule} would then stop accepting its traffic.', v);
+      } else {
+        why = drops ? t('This takes {value}, which covers the address the router sees MikroDash at, out of the list {list}, and the input rule matching {rule} would then drop its traffic.', v)
+          : t('This takes {value}, which covers the address the router sees MikroDash at, out of the list {list}, and the input rule matching {rule} would then stop accepting its traffic.', v);
+      }
+      return { headline: cut, why };
     }
     case 'list-redefine': {
-      const verb = str(w.change) === 'delete' ? 'deletes' : str(w.change) === 'rename' ? 'renames' : t('changes what is in');
+      const v = { list: c(w.list), rule: c(w.ruleMatch) };
       return {
         headline: cut,
-        why: 'This ' + verb + ' the list <code>' + esc(str(w.list) || '?') + ('</code>' + t(', which the input rule matching') + ' <code>') +
-          esc(str(w.ruleMatch) || '?') + '</code> uses to decide on MikroDash\'s own traffic.',
+        why: str(w.change) === 'delete' ? t('This deletes the list {list}, which the input rule matching {rule} uses to decide on MikroDash\'s own traffic.', v)
+          : str(w.change) === 'rename' ? t('This renames the list {list}, which the input rule matching {rule} uses to decide on MikroDash\'s own traffic.', v)
+            : t('This changes what is in the list {list}, which the input rule matching {rule} uses to decide on MikroDash\'s own traffic.', v),
       };
     }
     case 'self-lockout':
@@ -464,35 +456,31 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
       };
       return {
         headline: t('This queue covers MikroDash\'s own connection to this router.'),
-        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, inside <code>' +
-          esc(str(w.target) || '?') + ('</code>' + t(', and this queue caps it at') + ' <code>') +
-          esc(rate(cap.up) + '/' + rate(cap.down)) + '</code>. The dashboard may become slow; the queue ' +
-          'can still be edited or removed from its row.',
+        why: t('The router sees MikroDash at {address}, inside {target}, and this queue caps it at {cap}. The dashboard may become slow; the queue can still be edited or removed from its row.', {
+          address: c(w.address), target: c(w.target), cap: '<code>' + esc(rate(cap.up) + '/' + rate(cap.down)) + '</code>',
+        }),
       };
     }
     case 'table-in-use': {
       // Measured on the CHR (7.24.1): a removed or disabled table leaves its
       // rules inactive; a table without FIB leaves them looking in an empty one.
       const n = Number(w.rules) || 0;
-      const them = n === 1 ? 'it' : 'them';
-      const what = str(w.change) === 'remove' ? 'Removing the table makes ' + them + ' inactive, as if ' +
-          (n === 1 ? 'it were' : 'they were') + ' not there.'
-        : str(w.change) === 'disable' ? 'Disabling the table makes ' + them + ' inactive, as if ' +
-          (n === 1 ? 'it were' : 'they were') + ' not there.'
-          : 'Without FIB the table\'s routes are not installed, so ' + (n === 1 ? 'its' : 'their') +
-            ' lookups find nothing.';
-      return {
-        headline: t('Routing rules use this table.'),
-        why: (n === 1 ? t('A routing rule looks') : n + ' routing rules look') + ' routes up in <code>' +
-          esc(str(w.table) || '?') + '</code>. ' + what,
-      };
+      const one = n === 1;
+      const v = { n, table: c(w.table) };
+      const uses = one ? t('A routing rule looks routes up in {table}.', v) : t('{n} routing rules look routes up in {table}.', v);
+      const what = str(w.change) === 'remove'
+        ? (one ? t('Removing the table makes it inactive, as if it were not there.') : t('Removing the table makes them inactive, as if they were not there.'))
+        : str(w.change) === 'disable'
+          ? (one ? t('Disabling the table makes it inactive, as if it were not there.') : t('Disabling the table makes them inactive, as if they were not there.'))
+          : (one ? t('Without FIB the table\'s routes are not installed, so its lookups find nothing.') : t('Without FIB the table\'s routes are not installed, so their lookups find nothing.'));
+      return { headline: t('Routing rules use this table.'), why: uses + ' ' + what };
     }
     case 'wifi-inherit':
       return { headline: t('This change needs confirming.'), why: t('It overrides a setting this network inherits from a shared configuration profile.') };
     case 'capsman-push':
       return { headline: t('This change needs confirming.'), why: t('This profile is provisioned to managed access points, so the change will be pushed to them.') };
     default:
-      return { headline: t('This change needs confirming.'), why: 'A safety check flagged it (<code>' + esc(code || '?') + '</code>).' };
+      return { headline: t('This change needs confirming.'), why: t('A safety check flagged it ({code}).', { code: c(code) }) };
   }
 }
 
@@ -570,7 +558,7 @@ function actionBar(schema: Schema, avail: string[]): void {
   host.innerHTML = (avail || []).map((k) => {
     const a = (schema.actions || []).find((x) => x.key === k);
     return a ? '<button class="sbtn sbtn-primary" data-res-actionbtn="' + esc(a.key) + '" ' +
-      'style="padding:.3rem .7rem;font-size:.72rem">' + esc(a.label) + '</button>' : '';
+      'style="padding:.3rem .7rem;font-size:.72rem">' + esc(tl(a.label)) + '</button>' : '';
   }).join(' ');
 }
 
@@ -581,7 +569,10 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   current = { key: schema.key, id: row ? row.id : null, identity: row ? row.identity : null };
   shown = { schema, options: options || {} };
   const title = el('res_title');
-  if (title) title.textContent = (readOnly ? '' : row ? 'Edit ' : 'Add ') + schema.title;
+  if (title) {
+    title.textContent = readOnly ? tl(schema.title)
+      : row ? t('Edit {thing}', { thing: tl(schema.title) }) : t('Add {thing}', { thing: tl(schema.title) });
+  }
   buildForm(schema, values, options);
   actionBar(schema, actions || []);
   lastSave = null;
@@ -614,7 +605,7 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   const save = el('res_save');
   if (save) {
     save.style.display = frozen ? 'none' : '';
-    save.textContent = row ? t('Save') : 'Add ' + schema.label;
+    save.textContent = row ? t('Save') : t('Add {thing}', { thing: tl(schema.label) });
   }
   // THE PREVIEW BUTTON, shown on a writable form and hidden on a read-only one.
   //
@@ -651,8 +642,8 @@ function show(schema: Schema, values: Record<string, unknown> | null,
 function histButton(kind: 'undo' | 'redo', key: string, on: boolean, label: string): string {
   const glyph = kind === 'undo' ? '↶' : '↷';
   const title = on
-    ? (kind === 'undo' ? 'Undo ' : 'Redo ') + label
-    : 'Nothing to ' + kind;
+    ? (kind === 'undo' ? t('Undo {what}', { what: label }) : t('Redo {what}', { what: label }))
+    : (kind === 'undo' ? t('Nothing to undo') : t('Nothing to redo'));
   return '<button class="sbtn ' + (on ? 'sbtn-primary' : 'sbtn-ghost') + ' res-hist"' +
     ' data-res-hist="' + kind + '" data-res-histkey="' + esc(key) + '"' +
     (on ? '' : ' disabled') +
@@ -921,7 +912,7 @@ function mountAddSlots(): void {
       // still belong: those rows can be edited.
       ready.filter((s) => s.creatable !== false).map((s) =>
       '<button class="sbtn sbtn-primary" data-res-addbtn="' + esc(s.key) + '"' +
-      ' style="padding:.28rem .65rem;font-size:.72rem">' + esc('+ Add ' + s.label) +
+      ' style="padding:.28rem .65rem;font-size:.72rem">' + esc('+ ' + t('Add {thing}', { thing: tl(s.label) })) +
       '</button>').join('');
   });
 }
@@ -1228,7 +1219,7 @@ function wire(socket: Socket): void {
     const said = (d && d.message) || '';
     const mapped = (d && codes[d.code]) || '';
     setError(mapped
-      ? mapped + (routerSaid[d.code] && said && said !== mapped ? ' Router: ' + said : '')
+      ? mapped + (routerSaid[d.code] && said && said !== mapped ? ' ' + t('Router:') + ' ' + said : '')
       : said || t('The change was refused.'));
   });
 

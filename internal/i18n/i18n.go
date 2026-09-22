@@ -475,6 +475,24 @@ func PickLang(cookie, acceptLanguage string, available []string) string {
 
 // ── THE STRINGS THE CODE TRANSLATES ─────────────────────────────────────────
 
+// tlCall finds a call of tl(, the door for labels declared in Go. Its argument
+// is data by design, so what the gate checks is WHERE it is called.
+var tlCall = regexp.MustCompile(`(^|[^A-Za-z0-9_$.])tl\(`)
+
+// TLCalls is how many times the source calls tl(), comments, strings and the
+// function's own definition aside.
+func TLCalls(src string) int {
+	_, code := blankComments(src)
+	n := 0
+	for _, m := range tlCall.FindAllStringIndex(code, -1) {
+		if strings.HasSuffix(strings.TrimRight(code[:m[0]+1], " \t("), "function") {
+			continue
+		}
+		n++
+	}
+	return n
+}
+
 // tCall finds a call of t( … and what its first argument begins with.
 var tCall = regexp.MustCompile(`(^|[^A-Za-z0-9_$.])t\(\s*`)
 
@@ -530,7 +548,8 @@ func TSLiterals(src string) (lits []string, bad []int) {
 // Sources is every source string in the frontend, with the files it appears
 // in (relative to root, the repository), and every refused t() call by file
 // and line. The markup is web/src/ui/*.html; the code is web/src/**/*.ts, less
-// the generated tables.
+// the generated tables; and the labels declared in Go, which tl() renders
+// (GoLabels).
 func Sources(root string) (map[string][]string, map[string][]int, error) {
 	out := map[string][]string{}
 	bad := map[string][]int{}
@@ -587,6 +606,11 @@ func Sources(root string) (map[string][]string, map[string][]int, error) {
 	})
 	if err != nil {
 		return nil, nil, err
+	}
+	for k, froms := range GoLabels() {
+		for _, f := range froms {
+			add(k, f)
+		}
 	}
 	for k := range out {
 		sort.Strings(out[k])

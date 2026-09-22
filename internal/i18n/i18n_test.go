@@ -184,3 +184,39 @@ func TestCatalogMeta(t *testing.T) {
 		t.Errorf("@name reported stale: %v", p.Stale)
 	}
 }
+
+func TestTLCalls(t *testing.T) {
+	src := "// tl(x) in a comment\nexport function tl(label: string) {}\n" +
+		"const s = 'tl(y)';\nh.textContent = tl(f.label);\nx.stl(1); o.tl(2);\n"
+	if n := TLCalls(src); n != 1 {
+		t.Errorf("TLCalls = %d, want 1: the call, not the comment, the definition, the string "+
+			"or a method of the same name", n)
+	}
+}
+
+func TestGoLabels(t *testing.T) {
+	g := GoLabels()
+	// A field label, an area title and a page title, each from its registry.
+	for _, want := range []string{"Canonical Name", "Dashboard"} {
+		if len(g[want]) == 0 {
+			t.Errorf("GoLabels lacks %q", want)
+		}
+	}
+	// Placeholders and options are router values, never labels.
+	for _, never := range []string{"pool.ntp.org", "server.lan"} {
+		if len(g[never]) != 0 {
+			t.Errorf("GoLabels has %q, which is an example value, not a label", never)
+		}
+	}
+	if len(g) < 300 {
+		t.Errorf("GoLabels found only %d labels; a registry has stopped being read", len(g))
+	}
+}
+
+func TestColumnLabel(t *testing.T) {
+	for in, want := range map[string]string{"nextPool": "Next Pool", "name": "Name", "mtu": "Mtu", "l2mtu": "L2mtu", "rxBps": "Rx Bps"} {
+		if got := ColumnLabel(in); got != want {
+			t.Errorf("ColumnLabel(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

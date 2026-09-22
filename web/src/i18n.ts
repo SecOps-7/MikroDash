@@ -72,6 +72,19 @@ export function countryName(cc: string, english: string | undefined): string {
   return english || cc;
 }
 
+/**
+ * A label declared in Go: a field's label or help, an action, a resource, an
+ * area's tab or a page's title, which reach the browser as data. Their text is
+ * in the catalog because i18ngen reads the Go registries, not this call.
+ *
+ * ONLY THE FILES THAT RENDER THOSE LABELS MAY CALL IT, and the drift gate
+ * holds that list: its argument is not a literal, so where it is called is
+ * the whole of what keeps router data out of it.
+ */
+export function tl(label: string): string {
+  return data().strings[label] || label;
+}
+
 /** The language being shown: 'en' unless a translated page is loaded. */
 export function currentLang(): string {
   return data().lang;

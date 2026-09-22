@@ -1,7 +1,7 @@
 // Boot: the socket, the navigation, the chrome, and every page module.
 
 import { el } from './dom';
-import { t } from './i18n';
+import { t, tl } from './i18n';
 import { installFetchGuard, verifySessionAfterFailure } from './fetch-guard';
 import { overlayOnStatus, overlayOnSwitch, selectOptionsHtml, wireRouterDropdown } from './router-dropdown';
 import { initUpgrade } from './pages/upgrade';
@@ -131,7 +131,7 @@ function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
   }
 
   const title = el('pageTitle');
-  if (title) title.textContent = pageTitle(name);
+  if (title) title.textContent = tl(pageTitle(name));
   const icon = el('pageTitleIcon');
   if (icon) {
     icon.innerHTML = '';
@@ -877,7 +877,7 @@ async function main(): Promise<void> {
   function paintOverlay(label: string): void {
     const ovl = el('rtrSwitchingOverlay');
     const lbl = el('rtrSwitchingLabel');
-    if (lbl && label) lbl.textContent = 'Switching to ' + label + '…';
+    if (lbl && label) lbl.textContent = t('Switching to {router}…', { router: label });
     if (ovl) ovl.classList.toggle('open', overlay.open);
   }
 

@@ -54,23 +54,8 @@
   ", and its template is then previewed on it and applied": [
     "web/src/pages/ztp.ts"
   ],
-  ", and the input rule matching": [
-    "web/src/resource.ts"
-  ],
-  ", and this queue caps it at": [
-    "web/src/resource.ts"
-  ],
-  ", on the subnet of": [
-    "web/src/resource.ts"
-  ],
-  ", which arrives on": [
-    "web/src/resource.ts"
-  ],
   ", which can be a small fraction of the total.": [
     "web/src/pages/queues.ts"
-  ],
-  ", which the input rule matching": [
-    "web/src/resource.ts"
   ],
   "0 debug": [
     "web/src/ui/page-logs.html"
@@ -80,6 +65,9 @@
   ],
   "0 info": [
     "web/src/ui/page-logs.html"
+  ],
+  "0 is unlimited.": [
+    "internal/resource"
   ],
   "0 warnings": [
     "web/src/ui/page-logs.html"
@@ -93,6 +81,9 @@
   "1 hour": [
     "web/src/ui/page-settings.html"
   ],
+  "1 is the highest, 8 the lowest.": [
+    "internal/resource"
+  ],
   "1 min": [
     "web/src/ui/shell.html"
   ],
@@ -104,6 +95,9 @@
   ],
   "1m": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "2 for IPv4, 3 for IPv6.": [
+    "internal/resource"
   ],
   "2 min": [
     "web/src/ui/shell.html"
@@ -146,6 +140,9 @@
   ],
   "8 hours": [
     "web/src/ui/page-settings.html"
+  ],
+  "802.11r Fast Roaming": [
+    "internal/resource"
   ],
   "90 days": [
     "web/src/ui/page-settings.html"
@@ -195,11 +192,20 @@
   "A file named *.auto.* runs on the router as it lands, so it is not created here.": [
     "web/src/resource.ts"
   ],
+  "A folder may be given first, as in flash/notes.txt.": [
+    "internal/resource"
+  ],
   "A global administrator must choose where apps are stored before any can be installed.": [
     "web/src/pages/containers-apps.ts"
   ],
   "A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.": [
     "web/src/ui/page-settings.html"
+  ],
+  "A host, a prefix (192.0.2.0/24), a range (192.0.2.10-192.0.2.20) or a DNS name.": [
+    "internal/resource"
+  ],
+  "A pool from IP Pools, or static-only to hand out only static leases.": [
+    "internal/resource"
   ],
   "A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says \u003cem\u003ewhat\u003c/em\u003e, the scope says \u003cem\u003ewhich devices\u003c/em\u003e. Administrator is built in and always sees everything.": [
     "web/src/ui/page-settings.html"
@@ -207,7 +213,10 @@
   "A router cannot take this template": [
     "web/src/pages/config-management-deploy.ts"
   ],
-  "A routing rule looks": [
+  "A routing rule looks routes up in {table}.": [
+    "web/src/resource.ts"
+  ],
+  "A safety check flagged it ({code}).": [
     "web/src/resource.ts"
   ],
   "A safety rule refused this change.": [
@@ -222,13 +231,20 @@
   "A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.": [
     "web/src/ui/page-settings.html"
   ],
+  "A time of day, or startup to run once at boot.": [
+    "internal/resource"
+  ],
   "A variable that does not apply to an alert renders as empty. \u003ccode\u003e{{comment}}\u003c/code\u003e is the comment set on the router for whatever the alert is about — an interface, a NetWatch host, a VPN peer or a BGP peer.": [
     "web/src/ui/page-settings.html"
+  ],
+  "AC Name": [
+    "internal/resource"
   ],
   "AF": [
     "web/src/ui/page-devices.html"
   ],
   "AI Agent": [
+    "internal/pages",
     "web/src/ui/page-ai-agent.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -250,7 +266,12 @@
     "web/src/ui/shell.html"
   ],
   "ARP": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-arp.html"
+  ],
+  "ARP Entry": [
+    "internal/resource"
   ],
   "ASN": [
     "web/src/ui/page-routing.html"
@@ -308,6 +329,8 @@
     "web/src/ui/page-dns.html"
   ],
   "Action": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/audit.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-firewall.html"
@@ -324,11 +347,13 @@
     "web/src/ui/page-audit-trail.html"
   ],
   "Actions": [
+    "internal/areas",
     "web/src/ui/page-backups.html",
     "web/src/ui/page-reports.html",
     "web/src/ui/page-settings.html"
   ],
   "Active": [
+    "internal/resource",
     "web/src/pages/settings-routers.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-vpn.html"
@@ -354,7 +379,6 @@
     "web/src/ui/page-audit-trail.html"
   ],
   "Add": [
-    "web/src/pages/area.ts",
     "web/src/pages/queues.ts",
     "web/src/pages/settings.ts",
     "web/src/ui/shell.html"
@@ -362,8 +386,15 @@
   "Add \"test\" policy to your RouterOS API user to enable ping": [
     "web/src/pages/dashboard-ping.ts"
   ],
+  "Add ARP For Leases": [
+    "internal/resource"
+  ],
   "Add Card": [
     "web/src/ui/shell.html"
+  ],
+  "Add Default Route": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Add Device": [
     "web/src/pages/router-form.ts",
@@ -405,10 +436,15 @@
   "Add your MikroTik router to get started": [
     "web/src/ui/shell.html"
   ],
+  "Add {thing}": [
+    "web/src/resource.ts"
+  ],
   "Addition": [
     "web/src/pages/config-management-history.ts"
   ],
   "Address": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/dns.ts",
     "web/src/pages/ppp.ts",
     "web/src/pages/wan.ts",
@@ -416,8 +452,17 @@
     "web/src/ui/page-tools.html",
     "web/src/ui/page-vpn.html"
   ],
+  "Address List Entry": [
+    "internal/resource"
+  ],
   "Address Lists": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-address-lists.html"
+  ],
+  "Address Pool": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Address family": [
     "web/src/ui/page-firewall.html"
@@ -428,11 +473,40 @@
   "Address routers dial": [
     "web/src/ui/page-settings.html"
   ],
+  "Addresses": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Addresses or host names, comma separated. Per-server options are on the Servers tab.": [
+    "internal/resource"
+  ],
+  "Addresses or prefixes allowed to connect, comma separated. Empty admits every address.": [
+    "internal/resource"
+  ],
+  "Addresses traps are sent to, comma separated.": [
+    "internal/resource"
+  ],
+  "Adjacency": [
+    "internal/areas"
+  ],
+  "Adjacent For": [
+    "internal/resource"
+  ],
   "Administrator access required": [
     "web/src/caps.ts"
   ],
   "Advanced": [
     "web/src/ui/page-settings.html"
+  ],
+  "Advertise": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Advertise the interface's network without speaking OSPF on it.": [
+    "internal/resource"
+  ],
+  "Advertise this prefix to hosts on the interface.": [
+    "internal/resource"
   ],
   "Africa/Cairo (EET)": [
     "web/src/ui/page-settings.html"
@@ -563,6 +637,15 @@
   "All write": [
     "web/src/ui/page-settings.html"
   ],
+  "All {noun}s": [
+    "web/src/pages/area.ts"
+  ],
+  "Allow": [
+    "internal/resource"
+  ],
+  "Allow Remote Requests": [
+    "internal/resource"
+  ],
   "Allow personal channels": [
     "web/src/ui/page-settings.html"
   ],
@@ -572,7 +655,11 @@
   "Allow self-signed cert": [
     "web/src/ui/shell.html"
   ],
+  "Allowed Address": [
+    "internal/resource"
+  ],
   "Allowed Addresses": [
+    "internal/resource",
     "web/src/pages/wireguard-peers.ts"
   ],
   "Allowed From": [
@@ -580,6 +667,9 @@
   ],
   "Also add it to": [
     "web/src/pages/dns-fleet.ts"
+  ],
+  "Alternative Names": [
+    "internal/resource"
   ],
   "America/Anchorage (AKT)": [
     "web/src/ui/page-settings.html"
@@ -620,6 +710,15 @@
   "America/Vancouver": [
     "web/src/ui/page-settings.html"
   ],
+  "An IANA time zone name, or manual.": [
+    "internal/resource"
+  ],
+  "An address or a host name.": [
+    "internal/resource"
+  ],
+  "An address, or the name of a /routing/id entry. Empty picks one.": [
+    "internal/resource"
+  ],
   "An upgrade is available": [
     "web/src/pages/packages.ts"
   ],
@@ -628,6 +727,12 @@
   ],
   "Another tool is still running.": [
     "web/src/pages/tools.ts"
+  ],
+  "Answer ARP for this address on the interface (proxy ARP for one host).": [
+    "internal/resource"
+  ],
+  "Answer DNS for other devices. Keep it firewalled from the internet.": [
+    "internal/resource"
   ],
   "App Icon": [
     "web/src/ui/page-settings.html"
@@ -673,11 +778,27 @@
   "Applying its template": [
     "web/src/pages/ztp-views.ts"
   ],
+  "Apps": [
+    "internal/areas"
+  ],
   "Apps get plain HTTP links: HTTPS links need IP Cloud (IP › Cloud) to give this router a DNS name.": [
     "web/src/pages/containers-apps.ts"
   ],
   "Apps need a formatted, mounted disk (ext4 or btrfs). Add one under System › Disks, then come back.": [
     "web/src/pages/containers-apps.ts"
+  ],
+  "Area": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Area ID": [
+    "internal/resource"
+  ],
+  "Area Id": [
+    "internal/areas"
+  ],
+  "Areas": [
+    "internal/areas"
   ],
   "Arguing With RouterOS": [
     "web/src/pages/ai-agent.ts"
@@ -753,6 +874,7 @@
     "web/src/ui/shell.html"
   ],
   "Audit Trail": [
+    "internal/pages",
     "web/src/ui/page-audit-trail.html"
   ],
   "Audit it and explain the risks, worst first": [
@@ -767,11 +889,38 @@
   "Australia/Sydney (AEST)": [
     "web/src/ui/page-settings.html"
   ],
+  "Auth": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Auth Key": [
+    "internal/resource"
+  ],
+  "Auth Method": [
+    "internal/areas"
+  ],
+  "Auth Password": [
+    "internal/resource"
+  ],
+  "Auth Protocol": [
+    "internal/resource"
+  ],
   "Authentication": [
+    "internal/resource",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-vpn.html",
     "web/src/ui/page-wifi-networks.html"
+  ],
+  "Authentication Key": [
+    "internal/resource"
+  ],
+  "Authoritative": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Authority": [
+    "internal/resource"
   ],
   "Auto": [
     "web/src/ui/page-wan.html"
@@ -798,7 +947,12 @@
     "web/src/ui/page-backups.html"
   ],
   "Available": [
+    "internal/resource",
     "web/src/ui/page-packages.html"
+  ],
+  "Available From": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Available variables": [
     "web/src/ui/page-settings.html"
@@ -871,10 +1025,12 @@
     "web/src/ui/page-backups.html"
   ],
   "Backups": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Band": [
+    "internal/resource",
     "web/src/pages/wifi.ts",
     "web/src/pages/wireless.ts",
     "web/src/ui/page-capsman.html",
@@ -890,6 +1046,7 @@
     "web/src/ui/page-capsman.html"
   ],
   "Bandwidth": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -956,10 +1113,14 @@
     "web/src/ui/page-settings.html"
   ],
   "Bridge": [
+    "internal/resource",
     "web/src/pages/bridges.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-vlans.html"
+  ],
+  "Bridge Port": [
+    "internal/resource"
   ],
   "Bridge VLAN Table": [
     "web/src/ui/page-vlans.html"
@@ -968,6 +1129,7 @@
     "web/src/ui/page-bridges.html"
   ],
   "Bridges": [
+    "internal/pages",
     "web/src/ui/page-bridges.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -988,6 +1150,12 @@
   "Built with Go · TypeScript · WebSockets · Chart.js · Tabler": [
     "web/src/ui/page-settings.html"
   ],
+  "Built-in": [
+    "internal/resource"
+  ],
+  "Builtin": [
+    "internal/areas"
+  ],
   "Busiest menus": [
     "web/src/pages/dashboard-card-diagnostics.ts"
   ],
@@ -1007,8 +1175,24 @@
     "web/src/ui/page-capsman.html"
   ],
   "CAPsMAN": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "CAPsMAN Channel Profile": [
+    "internal/resource"
+  ],
+  "CAPsMAN Configuration Profile": [
+    "internal/resource"
+  ],
+  "CAPsMAN Datapath Profile": [
+    "internal/resource"
+  ],
+  "CAPsMAN Provisioning Rule": [
+    "internal/resource"
+  ],
+  "CAPsMAN Security Profile": [
+    "internal/resource"
   ],
   "CAPsMAN configuration": [
     "web/src/ui/page-capsman.html"
@@ -1040,8 +1224,17 @@
   "Cache": [
     "web/src/pages/dns.ts"
   ],
+  "Cache Max TTL": [
+    "internal/resource"
+  ],
+  "Cache Size (KiB)": [
+    "internal/resource"
+  ],
   "Cache Used": [
     "web/src/ui/page-dns.html"
+  ],
+  "Cache Used (KiB)": [
+    "internal/resource"
   ],
   "Cache max TTL": [
     "web/src/pages/dns.ts"
@@ -1056,6 +1249,7 @@
     "web/src/pages/ztp-views.ts"
   ],
   "Caller ID": [
+    "internal/resource",
     "web/src/pages/ppp.ts",
     "web/src/ui/page-vpn.html"
   ],
@@ -1083,6 +1277,9 @@
   ],
   "Cannot deploy": [
     "web/src/pages/config-management-deploy.ts"
+  ],
+  "Canonical Name": [
+    "internal/resource"
   ],
   "Capabilities": [
     "web/src/pages/topology-panel.ts"
@@ -1122,15 +1319,20 @@
     "web/src/ui/page-settings.html"
   ],
   "Certificate": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/capsman.ts"
   ],
   "Certificate check": [
     "web/src/pages/dns.ts"
   ],
   "Certificates": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-certificates.html"
   ],
   "Chain": [
+    "internal/resource",
     "web/src/ui/page-firewall.html"
   ],
   "Chain Count": [
@@ -1165,6 +1367,12 @@
     "web/src/pages/packages.ts",
     "web/src/ui/page-capsman.html"
   ],
+  "Channel Profile": [
+    "internal/resource"
+  ],
+  "Channel Width": [
+    "internal/resource"
+  ],
   "Channel congestion": [
     "web/src/ui/shell.html"
   ],
@@ -1187,6 +1395,9 @@
   "Check": [
     "web/src/pages/config-management-history.ts",
     "web/src/ui/page-security-scan.html"
+  ],
+  "Check Gateway": [
+    "internal/resource"
   ],
   "Check again": [
     "web/src/pages/config-management-history.ts"
@@ -1237,6 +1448,10 @@
   "Choose which events trigger alerts and push notifications.": [
     "web/src/ui/page-settings.html"
   ],
+  "Cipher": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "City search is unavailable on this install.": [
     "web/src/pages/city-picker.ts"
   ],
@@ -1269,8 +1484,27 @@
   "Client": [
     "web/src/pages/connections-table.ts"
   ],
+  "Client Address": [
+    "internal/resource"
+  ],
+  "Client Allowed Addresses": [
+    "internal/resource"
+  ],
+  "Client DNS": [
+    "internal/resource"
+  ],
+  "Client Endpoint": [
+    "internal/resource"
+  ],
   "Client Isolation": [
+    "internal/resource",
     "web/src/ui/page-capsman.html"
+  ],
+  "Client Keepalive": [
+    "internal/resource"
+  ],
+  "Client Private Key": [
+    "internal/resource"
   ],
   "Client configuration": [
     "web/src/pages/wireguard-peers.ts"
@@ -1282,6 +1516,7 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "Clients": [
+    "internal/areas",
     "web/src/pages/capsman.ts",
     "web/src/pages/routers.ts",
     "web/src/pages/vlans.ts",
@@ -1298,6 +1533,9 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "Clock": [
+    "internal/areas",
+    "internal/pages",
+    "internal/resource",
     "web/src/ui/page-clock.html"
   ],
   "Close": [
@@ -1330,16 +1568,37 @@
     "web/src/ui/page-devices.html",
     "web/src/ui/page-interfaces.html"
   ],
+  "Comma separated, e.g. key-cert-sign,crl-sign for a CA. Empty keeps RouterOS's default.": [
+    "internal/resource"
+  ],
+  "Comma separated, or all, static or dynamic.": [
+    "internal/resource"
+  ],
+  "Comma separated.": [
+    "internal/resource"
+  ],
+  "Command": [
+    "internal/resource"
+  ],
   "Commands holding a concurrency slot right now, against the per-router cap.": [
     "web/src/pages/dashboard-card-diagnostics.ts"
   ],
   "Comment": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/dns.ts",
     "web/src/pages/ppp.ts",
     "web/src/ui/page-firewall.html",
     "web/src/ui/page-netwatch.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Common Name": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Communities": [
+    "internal/areas"
   ],
   "Compact": [
     "web/src/ui/page-devices.html",
@@ -1348,10 +1607,14 @@
   "Compare these records across several routers": [
     "web/src/ui/page-dns.html"
   ],
+  "Complete": [
+    "internal/resource"
+  ],
   "Config": [
     "web/src/pages/wireguard-peers.ts"
   ],
   "Config Management": [
+    "internal/pages",
     "web/src/ui/page-config-management.html",
     "web/src/ui/shell.html"
   ],
@@ -1361,6 +1624,9 @@
   ],
   "Configuration Drift": [
     "web/src/ui/page-settings.html"
+  ],
+  "Configuration Profile": [
+    "internal/resource"
   ],
   "Configuration library": [
     "web/src/ui/page-config-management.html"
@@ -1383,6 +1649,9 @@
   "Confirm password": [
     "web/src/ui/login.html"
   ],
+  "Conflict Detection": [
+    "internal/resource"
+  ],
   "Congestion": [
     "web/src/ui/shell.html"
   ],
@@ -1390,6 +1659,10 @@
     "web/src/pages/setup-overlay-wire.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/shell.html"
+  ],
+  "Connect To": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Connected": [
     "web/src/pages/capsman.ts",
@@ -1419,6 +1692,9 @@
     "web/src/ui/page-connections.html",
     "web/src/ui/page-dashboard.html"
   ],
+  "Connection State": [
+    "internal/resource"
+  ],
   "Connection Uptime": [
     "web/src/pages/reports-ping.ts"
   ],
@@ -1426,6 +1702,7 @@
     "web/src/pages/router-form.ts"
   ],
   "Connections": [
+    "internal/pages",
     "web/src/ui/page-connections.html",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-settings.html",
@@ -1450,8 +1727,29 @@
   "Consulting the Oracle": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Contact": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Container": [
+    "internal/resource"
+  ],
+  "Container Env": [
+    "internal/resource"
+  ],
+  "Container Mount": [
+    "internal/resource"
+  ],
+  "Container Settings": [
+    "internal/resource"
+  ],
   "Containers": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-containers.html"
+  ],
+  "Contents": [
+    "internal/resource"
   ],
   "Continue": [
     "web/src/pages/config-management-deploy.ts"
@@ -1488,6 +1786,10 @@
   ],
   "Copy every record to every router that is missing it": [
     "web/src/ui/page-dns.html"
+  ],
+  "Cost": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Could not check": [
     "web/src/pages/config-management-history.ts"
@@ -1535,6 +1837,7 @@
     "web/src/pages/dbcleanup.ts"
   ],
   "Country": [
+    "internal/resource",
     "web/src/ui/page-capsman.html"
   ],
   "Coverage": [
@@ -1546,6 +1849,9 @@
   ],
   "Create Admin Account": [
     "web/src/ui/login.html"
+  ],
+  "Created": [
+    "internal/resource"
   ],
   "Creating account…": [
     "web/src/entry/login.ts"
@@ -1576,17 +1882,37 @@
     "web/src/ui/shell.html"
   ],
   "DHCP": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "DHCP Client": [
+    "internal/resource"
+  ],
   "DHCP Clients": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-dhcp-clients.html"
+  ],
+  "DHCP Lease": [
+    "internal/resource"
   ],
   "DHCP Leases": [
     "web/src/ui/page-dhcp.html"
   ],
+  "DHCP Network": [
+    "internal/resource"
+  ],
+  "DHCP Server": [
+    "internal/resource"
+  ],
   "DHCP Servers": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-dhcp-servers.html"
+  ],
+  "DHCP Snooping": [
+    "internal/resource"
   ],
   "DHCP leases": [
     "web/src/ui/page-devices.html"
@@ -1595,11 +1921,25 @@
     "web/src/ui/page-settings.html"
   ],
   "DNS": [
+    "internal/pages",
+    "internal/resource",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "DNS Entry": [
+    "internal/resource"
+  ],
+  "DNS Servers": [
+    "internal/resource"
+  ],
+  "DNS Settings": [
+    "internal/resource"
+  ],
   "DNS not open to the WAN": [
     "web/src/pages/security-scan-cards.ts"
+  ],
+  "DNS over HTTPS. Empty uses plain DNS.": [
+    "internal/resource"
   ],
   "Daily": [
     "web/src/ui/page-backups.html",
@@ -1614,6 +1954,7 @@
     "web/src/ui/shell.html"
   ],
   "Dashboard": [
+    "internal/pages",
     "web/src/ui/shell.html"
   ],
   "Data Cleanup": [
@@ -1637,12 +1978,28 @@
   "Datapath": [
     "web/src/ui/page-capsman.html"
   ],
+  "Datapath Profile": [
+    "internal/resource"
+  ],
+  "Date": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Day": [
     "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Day Before Yesterday": [
     "web/src/ui/page-reports.html"
+  ],
+  "Daylight Saving": [
+    "internal/resource"
+  ],
+  "Days Valid": [
+    "internal/resource"
+  ],
+  "Dead Interval": [
+    "internal/resource"
   ],
   "Deauthing Nobody": [
     "web/src/pages/ai-agent.ts"
@@ -1660,6 +2017,7 @@
     "web/src/pages/ai-agent.ts"
   ],
   "Default": [
+    "internal/resource",
     "web/src/pages/config-management-cards.ts",
     "web/src/pages/config-management-editor.ts",
     "web/src/ui/page-reports.html"
@@ -1667,11 +2025,20 @@
   "Default (Orbitron)": [
     "web/src/ui/page-settings.html"
   ],
+  "Default Cost": [
+    "internal/resource"
+  ],
   "Default Dark": [
     "web/src/ui/page-settings.html"
   ],
   "Default Light": [
     "web/src/ui/page-settings.html"
+  ],
+  "Default Profile": [
+    "internal/resource"
+  ],
+  "Default Route Distance": [
+    "internal/resource"
   ],
   "Default WAN Interface": [
     "web/src/ui/shell.html"
@@ -1740,16 +2107,26 @@
     "web/src/ui/page-settings.html"
   ],
   "Destination": [
+    "internal/resource",
     "web/src/pages/connections-table.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-tools.html"
+  ],
+  "Destination Address": [
+    "internal/resource"
+  ],
+  "Destination Port": [
+    "internal/resource"
   ],
   "Detail": [
     "web/src/pages/audit.ts",
     "web/src/pages/reports-alerts.ts",
     "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-reports.html"
+  ],
+  "Detect Time Zone": [
+    "internal/resource"
   ],
   "Device": [
     "web/src/pages/wireless.ts",
@@ -1770,6 +2147,7 @@
     "web/src/ui/page-network-topology.html"
   ],
   "Devices": [
+    "internal/pages",
     "web/src/ui/page-network-topology.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -1783,6 +2161,9 @@
   "Diagnostics": [
     "web/src/ui/page-settings.html"
   ],
+  "Dial On Demand": [
+    "internal/resource"
+  ],
   "Dim": [
     "web/src/ui/page-settings.html"
   ],
@@ -1793,15 +2174,24 @@
     "web/src/pages/topology-panel.ts"
   ],
   "Disable": [
+    "internal/resource",
     "web/src/pages/packages.ts",
     "web/src/pages/settings-routers.ts"
   ],
   "Disabled": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/area.ts",
     "web/src/pages/netwatch.ts",
     "web/src/pages/settings-routers.ts",
     "web/src/pages/wifi.ts",
     "web/src/ui/page-packages.html"
+  ],
+  "Disabling the table makes it inactive, as if it were not there.": [
+    "web/src/resource.ts"
+  ],
+  "Disabling the table makes them inactive, as if they were not there.": [
+    "web/src/resource.ts"
   ],
   "Disarming the auto-revert": [
     "web/src/pages/config-management-deploy.ts"
@@ -1842,14 +2232,21 @@
     "web/src/ui/page-settings.html"
   ],
   "Distance": [
+    "internal/resource",
     "web/src/ui/page-routing.html"
   ],
   "Dividing by Zero Safely": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Dns Server": [
+    "internal/areas"
+  ],
   "Do it anyway": [
     "web/src/resource.ts",
     "web/src/ui/page-wan.html"
+  ],
+  "DoH Server": [
+    "internal/resource"
   ],
   "Documentation": [
     "web/src/ui/page-settings.html"
@@ -1860,12 +2257,22 @@
   "Doing Kessel Runs": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Domain": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Don't Require Permissions": [
+    "internal/resource"
+  ],
   "Done": [
     "web/src/pages/ztp.ts",
     "web/src/wizard.ts"
   ],
   "Don’t change it": [
     "web/src/ui/page-ai-agent.html"
+  ],
+  "Dotted form. 0.0.0.0 is the backbone.": [
+    "internal/resource"
   ],
   "Down": [
     "web/src/pages/dashboard-netwatch.ts",
@@ -1929,6 +2336,15 @@
   "Drops": [
     "web/src/ui/page-interfaces.html"
   ],
+  "Dst": [
+    "internal/areas"
+  ],
+  "Dst Active": [
+    "internal/areas"
+  ],
+  "Dst Address": [
+    "internal/areas"
+  ],
   "Duplicate": [
     "web/src/pages/config-management-cards.ts",
     "web/src/ui/shell.html"
@@ -1937,6 +2353,8 @@
     "web/src/ui/shell.html"
   ],
   "Dynamic": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/area.ts",
     "web/src/pages/dashboard-card-routing.ts",
     "web/src/pages/routing.ts",
@@ -1945,6 +2363,9 @@
   ],
   "Dynamic only": [
     "web/src/ui/page-routing.html"
+  ],
+  "EUI-64": [
+    "internal/resource"
   ],
   "Each app gets an HTTPS link through IP Cloud.": [
     "web/src/pages/containers-apps.ts"
@@ -1991,16 +2412,26 @@
   "Edit scheduled report": [
     "web/src/pages/reports-schedules.ts"
   ],
+  "Edit {thing}": [
+    "web/src/resource.ts"
+  ],
   "Editor": [
     "web/src/ui/page-config-management.html"
   ],
   "Electing Root Bridges": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Email To": [
+    "internal/resource"
+  ],
+  "Empty takes the network's own.": [
+    "internal/resource"
+  ],
   "Empty: the endpoint's certificate must be publicly trusted": [
     "web/src/ui/page-settings.html"
   ],
   "Enable": [
+    "internal/resource",
     "web/src/pages/packages.ts",
     "web/src/pages/settings-routers.ts"
   ],
@@ -2011,6 +2442,8 @@
     "web/src/ui/page-settings.html"
   ],
   "Enabled": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-backups.html",
     "web/src/ui/shell.html"
   ],
@@ -2018,18 +2451,46 @@
     "web/src/ui/page-ppp.html",
     "web/src/ui/page-vpn.html"
   ],
+  "Encryption Password": [
+    "internal/resource"
+  ],
+  "Encryption Protocol": [
+    "internal/resource"
+  ],
   "End Session": [
     "web/src/pages/rosusers.ts"
   ],
   "Endpoint": [
+    "internal/resource",
     "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Endpoint Port": [
+    "internal/resource"
   ],
   "Engaging Warp Cores": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Engine ID": [
+    "internal/resource"
+  ],
+  "Engine ID Suffix": [
+    "internal/resource"
+  ],
+  "Engine Id": [
+    "internal/areas"
+  ],
   "Entries": [
     "web/src/pages/area.ts"
+  ],
+  "Entrypoint": [
+    "internal/resource"
+  ],
+  "Env Lists": [
+    "internal/resource"
+  ],
+  "Envs": [
+    "internal/areas"
   ],
   "Error": [
     "web/src/pages/ai-agent.ts",
@@ -2146,6 +2607,14 @@
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
   ],
+  "Exchange Mode": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Exclude": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Expired": [
     "web/src/pages/config-management-history.ts",
     "web/src/pages/ztp-views.ts"
@@ -2153,6 +2622,13 @@
   "Expires": [
     "web/src/pages/settings-notif-test.ts",
     "web/src/pages/ztp-views.ts"
+  ],
+  "Expires After": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Expires In": [
+    "internal/resource"
   ],
   "Expiring TTLs": [
     "web/src/pages/ai-agent.ts"
@@ -2174,6 +2650,12 @@
   ],
   "Extra headers": [
     "web/src/ui/page-settings.html"
+  ],
+  "FIB": [
+    "internal/resource"
+  ],
+  "FT over DS": [
+    "internal/resource"
   ],
   "Failed": [
     "web/src/account.ts",
@@ -2208,7 +2690,21 @@
   "Faster": [
     "web/src/ui/page-settings.html"
   ],
+  "Fib": [
+    "internal/areas"
+  ],
+  "File": [
+    "internal/resource"
+  ],
+  "File Count": [
+    "internal/resource"
+  ],
+  "File Name": [
+    "internal/resource"
+  ],
   "Files": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-files.html"
   ],
   "Fill a new entry from this one": [
@@ -2216,6 +2712,9 @@
   ],
   "Filter": [
     "web/src/ui/page-firewall.html"
+  ],
+  "Filter Rule": [
+    "internal/resource"
   ],
   "Filter by Client": [
     "web/src/ui/page-connections.html"
@@ -2256,6 +2755,9 @@
   "Findings by severity": [
     "web/src/ui/page-security-scan.html"
   ],
+  "Fingerprint": [
+    "internal/resource"
+  ],
   "Fira Code": [
     "web/src/ui/page-settings.html"
   ],
@@ -2267,11 +2769,24 @@
     "web/src/ui/page-reports.html"
   ],
   "Firewall": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Firewall Actions": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "Firewall Filter Rule": [
+    "internal/resource"
+  ],
+  "Firewall Mangle Rule": [
+    "internal/resource"
+  ],
+  "Firewall NAT Rule": [
+    "internal/resource"
+  ],
+  "Firewall Raw Rule": [
+    "internal/resource"
   ],
   "Firewall posture": [
     "web/src/ui/page-security-scan.html"
@@ -2365,6 +2880,12 @@
   "Forget": [
     "web/src/pages/ztp-views.ts"
   ],
+  "Format": [
+    "internal/resource"
+  ],
+  "Forward To": [
+    "internal/resource"
+  ],
   "Forwarding": [
     "web/src/ui/page-capsman.html"
   ],
@@ -2374,7 +2895,11 @@
   "Fragmenting Packets": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Frame Types": [
+    "internal/resource"
+  ],
   "Frequency": [
+    "internal/resource",
     "web/src/ui/page-backups.html",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-reports.html",
@@ -2382,6 +2907,9 @@
   ],
   "Frequency Analyzer": [
     "web/src/ui/shell.html"
+  ],
+  "Frequency Drift": [
+    "internal/resource"
   ],
   "From": [
     "web/src/pages/audit.ts",
@@ -2405,7 +2933,12 @@
   "Fullscreen map": [
     "web/src/ui/page-connections.html"
   ],
+  "GMT Offset": [
+    "internal/resource"
+  ],
   "Gateway": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/dhcp.ts",
     "web/src/pages/wan.ts",
     "web/src/ui/page-routing.html"
@@ -2420,6 +2953,13 @@
   ],
   "General": [
     "web/src/ui/page-settings.html"
+  ],
+  "Generate Policy": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Generate the last 64 bits from the interface identifier. Leave them zero in the address.": [
+    "internal/resource"
   ],
   "Generic scripts": [
     "web/src/ui/page-settings.html"
@@ -2442,6 +2982,9 @@
   "Give it a name": [
     "web/src/pages/ztp-views.ts"
   ],
+  "Gmt Offset": [
+    "internal/areas"
+  ],
   "Good": [
     "web/src/pages/security-scan-cards.ts",
     "web/src/pages/wireless.ts",
@@ -2449,6 +2992,7 @@
     "web/src/ui/page-wifi-clients.html"
   ],
   "Group": [
+    "internal/resource",
     "web/src/pages/rosusers.ts"
   ],
   "Group by": [
@@ -2481,6 +3025,9 @@
   "Gruvbox\u003cbr\u003eLight": [
     "web/src/ui/page-settings.html"
   ],
+  "Guaranteed upload/download rate.": [
+    "internal/resource"
+  ],
   "Handling Packets": [
     "web/src/pages/ai-agent.ts"
   ],
@@ -2500,6 +3047,9 @@
   "Height": [
     "web/src/pages/wifi-map.ts"
   ],
+  "Hello Interval": [
+    "internal/resource"
+  ],
   "Herding Datagrams": [
     "web/src/pages/ai-agent.ts"
   ],
@@ -2509,6 +3059,9 @@
   ],
   "Hidden Cards": [
     "web/src/pages/dashboard-grid-edit.ts"
+  ],
+  "Hide SSID": [
+    "internal/resource"
   ],
   "Hide changes": [
     "web/src/pages/config-management-history.ts"
@@ -2545,6 +3098,7 @@
     "web/src/pages/bridges.ts"
   ],
   "Host": [
+    "internal/resource",
     "web/src/pages/routers.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-devices.html",
@@ -2563,6 +3117,7 @@
     "web/src/pages/setup-overlay-wire.ts"
   ],
   "Hostname": [
+    "internal/resource",
     "web/src/ui/page-dhcp.html"
   ],
   "Hour": [
@@ -2571,6 +3126,12 @@
   ],
   "Hourly": [
     "web/src/ui/page-backups.html"
+  ],
+  "How often it repeats. 0s runs it once.": [
+    "internal/resource"
+  ],
+  "How often to probe, in RouterOS time: 30s, 5m, 1h.": [
+    "internal/resource"
   ],
   "I can read its configuration, check how it is doing, and make changes with the same tools as the dashboard: the same permissions, the same safety checks and the same audit trail. I ask before changing anything, unless you have turned that off in Settings.": [
     "web/src/ui/page-ai-agent.html"
@@ -2581,6 +3142,9 @@
   "ID": [
     "web/src/ui/page-backups.html"
   ],
+  "IGMP Snooping": [
+    "internal/resource"
+  ],
   "IP": [
     "web/src/ui/page-dhcp.html",
     "web/src/ui/page-interfaces.html",
@@ -2588,10 +3152,20 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "IP Addresses": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-ip-addresses.html"
   ],
+  "IP Pool": [
+    "internal/resource"
+  ],
   "IP Pools": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-ip-pools.html"
+  ],
+  "IP Service": [
+    "internal/resource"
   ],
   "IP Services": [
     "web/src/ui/shell.html"
@@ -2610,24 +3184,79 @@
     "web/src/ui/page-bandwidth.html"
   ],
   "IPsec": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-ipsec.html"
+  ],
+  "IPsec Identity": [
+    "internal/resource"
+  ],
+  "IPsec Peer": [
+    "internal/resource"
   ],
   "IPsec Peers": [
     "web/src/ui/page-vpn.html"
   ],
+  "IPsec Policy": [
+    "internal/resource"
+  ],
+  "IPsec Protocols": [
+    "internal/resource"
+  ],
   "IPv4": [
+    "internal/areas",
     "web/src/ui/page-firewall.html"
   ],
   "IPv4 + IPv6": [
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-routing.html"
   ],
+  "IPv4 Address": [
+    "internal/resource"
+  ],
+  "IPv4 Route": [
+    "internal/resource"
+  ],
   "IPv4 only": [
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-routing.html"
   ],
   "IPv6": [
+    "internal/areas",
     "web/src/ui/page-firewall.html"
+  ],
+  "IPv6 Address": [
+    "internal/resource"
+  ],
+  "IPv6 Filter Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Firewall Filter Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Firewall Mangle Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Firewall NAT Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Firewall Raw Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Gateway": [
+    "internal/resource"
+  ],
+  "IPv6 Mangle Rule": [
+    "internal/resource"
+  ],
+  "IPv6 NAT Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Raw Rule": [
+    "internal/resource"
+  ],
+  "IPv6 Route": [
+    "internal/resource"
   ],
   "IPv6 input covered": [
     "web/src/pages/security-scan-cards.ts"
@@ -2639,27 +3268,62 @@
   "IX / Route Server": [
     "web/src/ui/page-routing.html"
   ],
+  "Iburst": [
+    "internal/areas"
+  ],
   "Icon saved.": [
     "web/src/pages/branding-settings.ts"
+  ],
+  "Identities": [
+    "internal/areas"
   ],
   "Identity": [
     "web/src/pages/capsman.ts",
     "web/src/pages/ztp-views.ts"
+  ],
+  "Identity Regexp": [
+    "internal/resource"
   ],
   "Idle": [
     "web/src/pages/wireless-fa.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/shell.html"
   ],
+  "Ignore Pushed Routes": [
+    "internal/resource"
+  ],
+  "Ignore routes in the table shorter than this prefix length.": [
+    "internal/resource"
+  ],
   "Ignoring Warnings": [
     "web/src/pages/ai-agent.ts"
+  ],
+  "Image": [
+    "internal/resource"
+  ],
+  "In Filter Chain": [
+    "internal/resource"
+  ],
+  "In Interface": [
+    "internal/resource"
   ],
   "In use": [
     "web/src/ui/page-settings.html"
   ],
+  "Inactive": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Include": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Info": [
     "web/src/ui/page-logs.html",
     "web/src/ui/page-security-scan.html"
+  ],
+  "Initial Burst": [
+    "internal/resource"
   ],
   "Input ends in a drop": [
     "web/src/pages/security-scan-cards.ts"
@@ -2667,16 +3331,26 @@
   "Install": [
     "web/src/pages/packages.ts"
   ],
+  "Install this table's routes for forwarding. Policy routing needs it.": [
+    "internal/resource"
+  ],
   "Installed": [
     "web/src/ui/page-packages.html"
   ],
   "Instance": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-settings.html"
+  ],
+  "Instances": [
+    "internal/areas"
   ],
   "Inter": [
     "web/src/ui/page-settings.html"
   ],
   "Interface": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/bridges.ts",
     "web/src/pages/reports-traffic.ts",
     "web/src/pages/vlans.ts",
@@ -2696,11 +3370,25 @@
   "Interface Alert Filter": [
     "web/src/ui/page-settings.html"
   ],
+  "Interface List": [
+    "internal/resource"
+  ],
+  "Interface List Member": [
+    "internal/resource"
+  ],
   "Interface Lists": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-interface-lists.html"
+  ],
+  "Interface Name": [
+    "internal/resource"
   ],
   "Interface Rates collection is off for this router": [
     "web/src/pages/wan.ts"
+  ],
+  "Interface Templates": [
+    "internal/areas"
   ],
   "Interface Types": [
     "web/src/ui/page-interfaces.html"
@@ -2724,10 +3412,16 @@
     "web/src/ui/page-reports.html"
   ],
   "Interfaces": [
+    "internal/areas",
+    "internal/pages",
+    "internal/resource",
     "web/src/pages/wifi.ts",
     "web/src/ui/page-interfaces.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "Interfaces holding an address in these networks.": [
+    "internal/resource"
   ],
   "Interfaces that carry the internet": [
     "web/src/ui/page-wan.html"
@@ -2751,7 +3445,17 @@
     "web/src/pages/config-management-deploy.ts"
   ],
   "Interval": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-netwatch.html"
+  ],
+  "Invalid": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Invalid After": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Invalid dropped on forward": [
     "web/src/pages/security-scan-cards.ts"
@@ -2763,6 +3467,9 @@
     "web/src/pages/packages.ts",
     "web/src/pages/rosusers.ts",
     "web/src/pages/wan.ts"
+  ],
+  "Is Default": [
+    "internal/areas"
   ],
   "Issuer": [
     "web/src/pages/settings-notif-test.ts"
@@ -2805,10 +3512,27 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "Keepalive": [
+    "internal/resource",
     "web/src/pages/wireguard-peers.ts"
   ],
   "Kept current by an open channel instead of being polled.": [
     "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Key": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Key ID": [
+    "internal/resource"
+  ],
+  "Key Size": [
+    "internal/resource"
+  ],
+  "Key Type": [
+    "internal/resource"
+  ],
+  "Key Usage": [
+    "internal/resource"
   ],
   "Kid Control is not available on this router": [
     "web/src/pages/dashboard-talkers.ts"
@@ -2876,6 +3600,14 @@
   "Last Login": [
     "web/src/pages/rosusers.ts"
   ],
+  "Last Modified": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Last Started": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Last Up": [
     "web/src/ui/page-interfaces.html"
   ],
@@ -2895,17 +3627,37 @@
   "Lato": [
     "web/src/ui/page-settings.html"
   ],
+  "Layer Dir": [
+    "internal/areas"
+  ],
+  "Layer Directory": [
+    "internal/resource"
+  ],
   "Learned Hosts": [
     "web/src/ui/page-bridges.html"
   ],
   "Lease": [
+    "internal/resource",
     "web/src/pages/wan.ts"
+  ],
+  "Lease Script": [
+    "internal/resource"
+  ],
+  "Lease Time": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Leases": [
     "web/src/pages/dhcp.ts"
   ],
   "Leasing Addresses": [
     "web/src/pages/ai-agent.ts"
+  ],
+  "Leave blank to keep the current password. The router enforces its own minimum length.": [
+    "internal/resource"
+  ],
+  "Leave empty for a permanent entry. An entry with a timeout is dynamic: it is removed when the timeout runs out and is not saved in the configuration.": [
+    "internal/resource"
   ],
   "Leave it empty to use the built-in prompt.": [
     "web/src/ui/page-settings.html"
@@ -2922,11 +3674,23 @@
   "Lets each user add their own Telegram, Pushbullet, ntfy or email destination under \u003cstrong\u003eMy Alerts\u003c/strong\u003e, in addition to the channels here. Users are only ever notified about routers they have access to. Because ntfy and SMTP let a user choose the destination host, enabling this allows any account to make this server send to an address it picks.": [
     "web/src/ui/page-settings.html"
   ],
+  "Level": [
+    "internal/resource"
+  ],
   "Library": [
     "web/src/ui/page-config-management.html"
   ],
   "Light": [
     "web/src/ui/page-settings.html"
+  ],
+  "Limit At": [
+    "internal/resource"
+  ],
+  "Limit In (bytes)": [
+    "internal/resource"
+  ],
+  "Limit Out (bytes)": [
+    "internal/resource"
   ],
   "Limit interface up/down alerts to specific interface types.": [
     "web/src/ui/page-settings.html"
@@ -2934,6 +3698,9 @@
   "Limits": [
     "web/src/pages/queues.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Lines Per File": [
+    "internal/resource"
   ],
   "Link down": [
     "web/src/pages/topology-panel.ts"
@@ -2949,8 +3716,20 @@
     "web/src/ui/page-settings.html"
   ],
   "List": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-interfaces.html"
+  ],
+  "Listen Port": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Lists": [
+    "internal/areas"
+  ],
+  "Lists whose interfaces are never members, comma separated.": [
+    "internal/resource"
   ],
   "Live": [
     "web/src/pages/topology-panel.ts",
@@ -2978,6 +3757,7 @@
     "web/src/ui/page-config-management.html"
   ],
   "Loading…": [
+    "web/src/pages/area.ts",
     "web/src/pages/config-management.ts",
     "web/src/ui/login.html",
     "web/src/ui/page-devices.html",
@@ -2991,22 +3771,44 @@
     "web/src/pages/ztp-views.ts"
   ],
   "Local Address": [
+    "internal/resource",
     "web/src/ui/page-ppp.html"
   ],
+  "Local Forwarding": [
+    "internal/resource"
+  ],
   "Location": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "Log": [
+    "internal/resource"
+  ],
+  "Log Prefix": [
+    "internal/resource"
   ],
   "Log severity filter": [
     "web/src/ui/page-logs.html"
   ],
   "Logging": [
+    "internal/areas",
+    "internal/pages",
+    "internal/resource",
     "web/src/ui/page-logging.html"
+  ],
+  "Logging Action": [
+    "internal/resource"
+  ],
+  "Logging Rule": [
+    "internal/resource"
   ],
   "Logging in afresh": [
     "web/src/pages/config-management-deploy.ts"
   ],
   "Logs": [
+    "internal/pages",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -3034,6 +3836,7 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "MAC Address": [
+    "internal/resource",
     "web/src/pages/bridges.ts"
   ],
   "MAC Telnet limited": [
@@ -3042,17 +3845,32 @@
   "MAC WinBox limited": [
     "web/src/pages/security-scan-cards.ts"
   ],
+  "MAC address for PPPoE, IP address for PPTP and L2TP": [
+    "internal/resource"
+  ],
   "MHz": [
     "web/src/ui/shell.html"
   ],
   "MIT License": [
     "web/src/ui/page-settings.html"
   ],
+  "MTU": [
+    "internal/resource"
+  ],
+  "Mac Address": [
+    "internal/areas"
+  ],
   "Made when provisioning is first switched on": [
     "web/src/pages/ztp.ts"
   ],
+  "Mail Exchanger": [
+    "internal/resource"
+  ],
   "Main building, ground floor": [
     "web/src/ui/page-settings.html"
+  ],
+  "Make Static": [
+    "internal/resource"
   ],
   "Make a generic script": [
     "web/src/ui/page-settings.html"
@@ -3078,6 +3896,9 @@
   "Mangle": [
     "web/src/ui/page-firewall.html"
   ],
+  "Mangle Rule": [
+    "internal/resource"
+  ],
   "Manrope": [
     "web/src/ui/page-settings.html"
   ],
@@ -3095,6 +3916,15 @@
   ],
   "Master Config": [
     "web/src/ui/page-capsman.html"
+  ],
+  "Master Configuration": [
+    "internal/resource"
+  ],
+  "Match By": [
+    "internal/resource"
+  ],
+  "Match Subdomains": [
+    "internal/resource"
   ],
   "Matches name, host, model, RouterOS version and site. Also understands online, offline and alerting.": [
     "web/src/ui/page-devices.html"
@@ -3118,10 +3948,18 @@
     "web/src/ui/page-settings.html"
   ],
   "Max Limit": [
+    "internal/resource",
     "web/src/pages/queues.ts"
+  ],
+  "Max Poll": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Max RTT": [
     "web/src/pages/reports-ping.ts"
+  ],
+  "Max Sessions": [
+    "internal/resource"
   ],
   "Max UDP packet": [
     "web/src/pages/dns.ts"
@@ -3151,10 +3989,25 @@
     "web/src/ui/page-settings.html"
   ],
   "Members": [
+    "internal/areas",
     "web/src/ui/page-settings.html"
   ],
   "Memory": [
     "web/src/pages/topology-panel.ts"
+  ],
+  "Memory Current": [
+    "internal/areas"
+  ],
+  "Memory High": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Memory In Use": [
+    "internal/resource"
+  ],
+  "Memory Lines": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Menu": [
     "web/src/pages/config-management-editor.ts",
@@ -3206,8 +4059,29 @@
   "MikroDash cannot read which certificate its API service presents, so removing certificates is refused.": [
     "web/src/resource.ts"
   ],
+  "MikroDash could not read where the router sees it connecting from, so it cannot tell whether changing the address {prefix} cuts its own connection.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash could not read where the router sees it connecting from, so it cannot tell whether changing the route {route} cuts its own connection.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash could not read where the router sees it connecting from, so it cannot tell whether peer {peer} carries its own connection.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash could not read where the router sees it connecting from, so it cannot tell whether this IPsec policy for {dst} carries its own connection.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash could not read where the router sees it connecting from, so it cannot tell whether this routing rule for {dst} reroutes its own connection.": [
+    "web/src/resource.ts"
+  ],
   "MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.": [
     "web/src/ui/page-settings.html"
+  ],
+  "MikroDash reaches this router at {address}, the address the DHCP client on {iface} holds, and this change changes that client, which takes the address away.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash reaches this router at {address}, the address the DHCP client on {iface} holds, and this change removes that client, which takes the address away.": [
+    "web/src/resource.ts"
   ],
   "MikroDash · MIT License · Made with ♥ for the MikroTik community": [
     "web/src/ui/page-settings.html"
@@ -3227,6 +4101,13 @@
   "Min": [
     "web/src/ui/page-tools.html"
   ],
+  "Min Poll": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Min Prefix": [
+    "internal/resource"
+  ],
   "Minimum firmware": [
     "web/src/pages/packages.ts"
   ],
@@ -3240,9 +4121,14 @@
     "web/src/pages/wifi.ts"
   ],
   "Mode": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-map.html",
     "web/src/ui/page-wifi-networks.html"
+  ],
+  "Mode Config": [
+    "internal/resource"
   ],
   "Model": [
     "web/src/pages/ztp-views.ts",
@@ -3282,6 +4168,12 @@
   "Most urgent": [
     "web/src/ui/page-security-scan.html"
   ],
+  "Mount Lists": [
+    "internal/resource"
+  ],
+  "Mounts": [
+    "internal/areas"
+  ],
   "Move down": [
     "web/src/pages/area.ts",
     "web/src/pages/capsman.ts",
@@ -3307,11 +4199,20 @@
   "Msgs Out": [
     "web/src/ui/page-routing.html"
   ],
+  "Mtu": [
+    "internal/areas"
+  ],
   "My Access": [
     "web/src/ui/shell.html"
   ],
   "My Account": [
     "web/src/ui/shell.html"
+  ],
+  "My ID": [
+    "internal/resource"
+  ],
+  "My Id": [
+    "internal/areas"
   ],
   "My Notification Channels": [
     "web/src/ui/shell.html"
@@ -3319,13 +4220,30 @@
   "NAT": [
     "web/src/ui/page-firewall.html"
   ],
+  "NAT Rule": [
+    "internal/resource"
+  ],
   "NOC Tier 1": [
     "web/src/ui/page-settings.html"
   ],
+  "NSSA Translator": [
+    "internal/resource"
+  ],
   "NTP Client": [
+    "internal/areas",
+    "internal/pages",
+    "internal/resource",
     "web/src/ui/page-ntp-client.html"
   ],
+  "NTP Server": [
+    "internal/resource"
+  ],
+  "NTP Servers": [
+    "internal/resource"
+  ],
   "Name": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/config-management-editor.ts",
     "web/src/pages/dns.ts",
     "web/src/pages/queues.ts",
@@ -3345,7 +4263,11 @@
     "web/src/ui/page-settings.html"
   ],
   "Name Format": [
+    "internal/resource",
     "web/src/ui/page-capsman.html"
+  ],
+  "Name Server": [
+    "internal/resource"
   ],
   "Name is required": [
     "web/src/pages/principal-forms.ts",
@@ -3369,16 +4291,28 @@
   "Negotiating Beacons": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Neighbors": [
+    "internal/areas"
+  ],
   "NetWatch": [
+    "internal/pages",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-netwatch.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "NetWatch Host": [
+    "internal/resource"
+  ],
   "NetWatch Hosts": [
     "web/src/ui/page-settings.html"
   ],
+  "Netmask": [
+    "internal/resource"
+  ],
   "Network": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/shell.html"
@@ -3387,7 +4321,11 @@
     "web/src/ui/page-settings.html"
   ],
   "Network Topology": [
+    "internal/pages",
     "web/src/ui/page-network-topology.html"
+  ],
+  "Network Type": [
+    "internal/resource"
   ],
   "Network error. Please try again.": [
     "web/src/entry/login.ts"
@@ -3396,6 +4334,8 @@
     "web/src/ui/page-network-topology.html"
   ],
   "Networks": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-wifi-networks.html",
     "web/src/ui/shell.html"
   ],
@@ -3405,8 +4345,20 @@
   "Never connected": [
     "web/src/pages/wireguard-peers.ts"
   ],
+  "Never shown once saved: env values commonly carry passwords. Leave blank to keep it.": [
+    "internal/resource"
+  ],
+  "New Connection Mark": [
+    "internal/resource"
+  ],
+  "New Packet Mark": [
+    "internal/resource"
+  ],
   "New Password": [
     "web/src/ui/shell.html"
+  ],
+  "New Routing Mark": [
+    "internal/resource"
   ],
   "New WAN traffic dropped": [
     "web/src/pages/security-scan-cards.ts"
@@ -3435,6 +4387,14 @@
   "Next": [
     "web/src/wizard.ts"
   ],
+  "Next Pool": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Next Run": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Next →": [
     "web/src/ui/page-reports.html"
   ],
@@ -3461,6 +4421,9 @@
   ],
   "No SSIDs configured on this router.": [
     "web/src/pages/wireless.ts"
+  ],
+  "No Summaries": [
+    "internal/resource"
   ],
   "No VLANs configured on this router.": [
     "web/src/pages/vlans.ts"
@@ -3713,6 +4676,9 @@
   "No traffic seen": [
     "web/src/pages/tools.ts"
   ],
+  "No trailing dot. The Name above must be _service._proto.name, for example _sip._tcp.office.lan": [
+    "internal/resource"
+  ],
   "No uplink currently reports an internet connection.": [
     "web/src/pages/wan.ts"
   ],
@@ -3811,6 +4777,12 @@
   "Nothing has been drawn for this router yet. Switch to Edit to start.": [
     "web/src/pages/wifi-map.ts"
   ],
+  "Nothing here yet.": [
+    "web/src/pages/area.ts"
+  ],
+  "Nothing here yet. Use \u003cstrong\u003eAdd\u003c/strong\u003e to create one.": [
+    "web/src/pages/area.ts"
+  ],
   "Nothing is connected right now": [
     "web/src/pages/vpn.ts"
   ],
@@ -3827,6 +4799,12 @@
     "web/src/pages/config-management-cards.ts",
     "web/src/pages/config-management-deploy.ts",
     "web/src/pages/config-management.ts"
+  ],
+  "Nothing to redo": [
+    "web/src/resource.ts"
+  ],
+  "Nothing to undo": [
+    "web/src/resource.ts"
   ],
   "Nothing urgent: every weighted check passed.": [
     "web/src/pages/security-scan-cards.ts"
@@ -3857,9 +4835,23 @@
     "web/src/ui/page-settings.html"
   ],
   "OSPF": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-ospf.html",
     "web/src/ui/page-routing.html"
+  ],
+  "OSPF Area": [
+    "internal/resource"
+  ],
+  "OSPF Instance": [
+    "internal/resource"
+  ],
+  "OSPF Interface Template": [
+    "internal/resource"
+  ],
+  "OSPF Neighbor": [
+    "internal/resource"
   ],
   "Of the collectors demand can start and stop, how many something currently wants.": [
     "web/src/pages/dashboard-card-diagnostics.ts"
@@ -3899,8 +4891,20 @@
   "On": [
     "web/src/pages/dns-fleet.ts"
   ],
+  "On Backup": [
+    "internal/resource"
+  ],
+  "On Event": [
+    "internal/resource"
+  ],
+  "On Fail": [
+    "internal/resource"
+  ],
   "On Interface": [
     "web/src/pages/bridges.ts"
+  ],
+  "On Master": [
+    "internal/resource"
   ],
   "On the canary": [
     "web/src/pages/config-management-history.ts"
@@ -3931,6 +4935,9 @@
   "One menu (for additions)": [
     "web/src/pages/config-management-editor.ts"
   ],
+  "One or more ranges or prefixes, comma separated.": [
+    "internal/resource"
+  ],
   "One row per network, aggregated across every radio": [
     "web/src/ui/page-wifi-networks.html"
   ],
@@ -3954,6 +4961,15 @@
   ],
   "Online Events": [
     "web/src/pages/reports-ping.ts"
+  ],
+  "Only One Session": [
+    "internal/resource"
+  ],
+  "Only lines whose message matches.": [
+    "internal/resource"
+  ],
+  "Only log in from these addresses. Empty allows any.": [
+    "internal/resource"
   ],
   "Open": [
     "web/src/pages/capsman.ts",
@@ -3990,7 +5006,15 @@
     "web/src/ui/page-routing.html"
   ],
   "OpenVPN": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-openvpn.html"
+  ],
+  "OpenVPN Client": [
+    "internal/resource"
+  ],
+  "OpenVPN Server": [
+    "internal/resource"
   ],
   "Opening the template…": [
     "web/src/pages/ztp-views.ts"
@@ -4007,6 +5031,10 @@
   "Orbitron": [
     "web/src/ui/page-settings.html"
   ],
+  "Originate Default": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Other": [
     "web/src/pages/dashboard-card-routing.ts",
     "web/src/pages/dashboard-conn.ts",
@@ -4016,6 +5044,18 @@
   ],
   "Other device": [
     "web/src/pages/topology.ts"
+  ],
+  "Other lists whose interfaces are also members, comma separated: all, dynamic, static, none, or a list of your own.": [
+    "internal/resource"
+  ],
+  "Other names the certificate is valid for, each as DNS:, IP: or email:.": [
+    "internal/resource"
+  ],
+  "Out Filter Chain": [
+    "internal/resource"
+  ],
+  "Out Interface": [
+    "internal/resource"
   ],
   "Outcome": [
     "web/src/pages/config-management-history.ts"
@@ -4032,6 +5072,10 @@
   "Overview prompt": [
     "web/src/ui/page-settings.html"
   ],
+  "Owner": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Oxanium (Default)": [
     "web/src/ui/page-settings.html"
   ],
@@ -4041,9 +5085,19 @@
   "PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.": [
     "web/src/ui/page-settings.html"
   ],
+  "PPK Secret": [
+    "internal/resource"
+  ],
   "PPP": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "PPP Profile": [
+    "internal/resource"
+  ],
+  "PPP Secret": [
+    "internal/resource"
   ],
   "PPP Sessions": [
     "web/src/ui/page-vpn.html"
@@ -4051,11 +5105,19 @@
   "PPP configuration": [
     "web/src/ui/page-ppp.html"
   ],
+  "PPPoE Client": [
+    "internal/resource"
+  ],
   "PPPoE Clients": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-pppoe-clients.html"
   ],
   "PPPoE Servers": [
     "web/src/ui/page-ppp.html"
+  ],
+  "PVID": [
+    "internal/resource"
   ],
   "Pacific/Auckland (NZST)": [
     "web/src/ui/page-settings.html"
@@ -4070,12 +5132,17 @@
     "web/src/pages/packages.ts"
   ],
   "Packages": [
+    "internal/pages",
     "web/src/ui/page-packages.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Packet Mark": [
+    "internal/resource",
     "web/src/pages/queues.ts"
+  ],
+  "Packet Marks": [
+    "internal/resource"
   ],
   "Packets": [
     "web/src/ui/page-firewall.html",
@@ -4097,6 +5164,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Parent": [
+    "internal/resource",
     "web/src/pages/queues.ts",
     "web/src/pages/vlans.ts"
   ],
@@ -4107,7 +5175,18 @@
   "Passed": [
     "web/src/ui/page-security-scan.html"
   ],
+  "Passive": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Passphrase": [
+    "internal/resource"
+  ],
+  "Passthrough": [
+    "internal/resource"
+  ],
   "Password": [
+    "internal/resource",
     "web/src/ui/login.html",
     "web/src/ui/page-ai-agent.html",
     "web/src/ui/page-settings.html",
@@ -4140,13 +5219,25 @@
     "web/src/pages/reports-charts.ts"
   ],
   "Peer": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-vpn.html"
   ],
+  "Peers": [
+    "internal/areas"
+  ],
   "Permissions": [
+    "internal/resource",
     "web/src/pages/rosusers.ts"
+  ],
+  "Ph2 State": [
+    "internal/areas"
+  ],
+  "Phase 2": [
+    "internal/resource"
   ],
   "Physical Ports": [
     "web/src/ui/page-dashboard.html",
@@ -4215,6 +5306,16 @@
   "Poisoning Routes": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Policies": [
+    "internal/areas"
+  ],
+  "Policy": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Policy Template Group": [
+    "internal/resource"
+  ],
   "Polishing Fiber": [
     "web/src/pages/ai-agent.ts"
   ],
@@ -4239,6 +5340,8 @@
     "web/src/ui/page-settings.html"
   ],
   "Port": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-settings.html"
   ],
   "Ports": [
@@ -4247,6 +5350,19 @@
   ],
   "Position in the chain — a rule below the final drop never runs": [
     "web/src/ui/page-firewall.html"
+  ],
+  "Pre-shared Key": [
+    "internal/resource"
+  ],
+  "Preemption": [
+    "internal/resource"
+  ],
+  "Preference": [
+    "internal/resource"
+  ],
+  "Prefix": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Prefix Trend": [
     "web/src/ui/page-routing.html"
@@ -4291,28 +5407,48 @@
   "Primary site, used for the map location": [
     "web/src/ui/shell.html"
   ],
+  "Priority": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Private": [
     "web/src/pages/routing.ts"
   ],
   "Private / Internal": [
     "web/src/ui/page-routing.html"
   ],
+  "Private Key": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Probe": [
+    "internal/resource",
     "web/src/ui/page-netwatch.html"
   ],
   "Profile": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/ppp.ts"
   ],
   "Profiles": [
     "web/src/ui/page-ppp.html"
   ],
+  "Proposal": [
+    "internal/resource"
+  ],
   "Proto": [
+    "internal/areas",
     "web/src/ui/page-bandwidth.html"
   ],
   "Protocol": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/bridges.ts",
     "web/src/pages/connections-table.ts",
     "web/src/ui/page-tools.html"
+  ],
+  "Protocol Mode": [
+    "internal/resource"
   ],
   "Provisioned": [
     "web/src/pages/wifi.ts",
@@ -4323,6 +5459,9 @@
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html"
   ],
+  "Provisioning Rule": [
+    "internal/resource"
+  ],
   "Provisioning failed": [
     "web/src/pages/ztp-views.ts"
   ],
@@ -4332,8 +5471,22 @@
   "Public Address": [
     "web/src/ui/page-wan.html"
   ],
+  "Public Key": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Public key": [
     "web/src/ui/page-settings.html"
+  ],
+  "Published": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Pull Directory": [
+    "internal/resource"
+  ],
+  "Push Routes": [
+    "internal/resource"
   ],
   "Push channels held open. A channel costs no commands, which is why it is counted separately.": [
     "web/src/pages/dashboard-card-diagnostics.ts"
@@ -4344,6 +5497,9 @@
   "Questions and a summary of this router are sent to the endpoint configured in Settings → AI Agent. Your conversation about each router is saved so the assistant can follow up; Clear deletes it, and it expires after the chat history retention set in Settings → Data Retention (30 days by default).": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "Queue Tree": [
+    "internal/resource"
+  ],
   "Queue tables": [
     "web/src/ui/page-queues.html"
   ],
@@ -4351,6 +5507,7 @@
     "web/src/pages/ai-agent.ts"
   ],
   "Queues": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -4388,7 +5545,11 @@
     "web/src/ui/page-reports.html"
   ],
   "Radio": [
+    "internal/resource",
     "web/src/ui/page-wifi-networks.html"
+  ],
+  "Radio MAC": [
+    "internal/resource"
   ],
   "Radio list not ready yet — try again in a moment": [
     "web/src/pages/wireless-fa.ts"
@@ -4404,11 +5565,16 @@
   "Raleway": [
     "web/src/ui/page-settings.html"
   ],
+  "Ranges": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Rate": [
     "web/src/pages/queues.ts",
     "web/src/pages/wan.ts"
   ],
   "Rate Limit": [
+    "internal/resource",
     "web/src/ui/page-ppp.html"
   ],
   "Rates": [
@@ -4417,8 +5583,15 @@
   "Raw": [
     "web/src/ui/page-firewall.html"
   ],
+  "Raw Rule": [
+    "internal/resource"
+  ],
   "Re-layout": [
     "web/src/ui/page-network-topology.html"
+  ],
+  "Read Access": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Read a text file": [
     "web/src/pages/files-transfer.ts"
@@ -4499,6 +5672,16 @@
   "Recording the baseline": [
     "web/src/pages/config-management-deploy.ts"
   ],
+  "Redirect Gateway": [
+    "internal/resource"
+  ],
+  "Redistribute": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Redo {what}": [
+    "web/src/resource.ts"
+  ],
   "Refresh": [
     "web/src/ui/page-config-management.html",
     "web/src/ui/page-settings.html"
@@ -4520,11 +5703,29 @@
     "web/src/pages/config-management-deploy.ts",
     "web/src/ui/page-audit-trail.html"
   ],
+  "Regex": [
+    "internal/resource"
+  ],
   "Regional": [
     "web/src/ui/page-settings.html"
   ],
+  "Registry": [
+    "internal/resource"
+  ],
+  "Registry Password": [
+    "internal/resource"
+  ],
+  "Registry Url": [
+    "internal/areas"
+  ],
+  "Registry User": [
+    "internal/resource"
+  ],
   "Reject": [
     "web/src/pages/ztp-views.ts"
+  ],
+  "Reject With": [
+    "internal/resource"
   ],
   "Rejected": [
     "web/src/pages/ztp-views.ts"
@@ -4542,14 +5743,32 @@
     "web/src/ui/page-dns.html"
   ],
   "Remote": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/ppp.ts",
     "web/src/pages/ztp-views.ts"
   ],
   "Remote Address": [
+    "internal/resource",
     "web/src/ui/page-ppp.html"
   ],
   "Remote CAPs": [
     "web/src/ui/page-capsman.html"
+  ],
+  "Remote Certificate": [
+    "internal/resource"
+  ],
+  "Remote ID": [
+    "internal/resource"
+  ],
+  "Remote Id": [
+    "internal/areas"
+  ],
+  "Remote Image": [
+    "internal/areas"
+  ],
+  "Remote Port": [
+    "internal/resource"
   ],
   "Remote Requests": [
     "web/src/ui/page-dns.html"
@@ -4567,6 +5786,12 @@
   ],
   "Remove card": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "Removing the table makes it inactive, as if it were not there.": [
+    "web/src/resource.ts"
+  ],
+  "Removing the table makes them inactive, as if they were not there.": [
+    "web/src/resource.ts"
   ],
   "Rename this install and give it its own icon. Shown in the top left, the browser tab, the login page, PDF reports and report emails.": [
     "web/src/ui/page-settings.html"
@@ -4593,7 +5818,11 @@
     "web/src/ui/shell.html"
   ],
   "Reports": [
+    "internal/pages",
     "web/src/ui/shell.html"
+  ],
+  "Require Client Certificate": [
+    "internal/resource"
   ],
   "Require sign-in": [
     "web/src/ui/page-settings.html"
@@ -4604,6 +5833,9 @@
   "Rescan": [
     "web/src/pages/security-scan.ts",
     "web/src/ui/page-security-scan.html"
+  ],
+  "Reset Counters": [
+    "internal/resource"
   ],
   "Reset all settings to defaults? This cannot be undone.": [
     "web/src/pages/settings-poll.ts"
@@ -4638,6 +5870,19 @@
   ],
   "Resolving Eventually": [
     "web/src/pages/ai-agent.ts"
+  ],
+  "Responder": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Restart Count": [
+    "internal/areas"
+  ],
+  "Restart Policy": [
+    "internal/resource"
+  ],
+  "Restarts": [
+    "internal/resource"
   ],
   "Restore": [
     "web/src/pages/backups.ts"
@@ -4687,6 +5932,9 @@
     "web/src/pages/config-management-deploy.ts",
     "web/src/pages/config-management-history.ts"
   ],
+  "Root Directory": [
+    "internal/resource"
+  ],
   "Rose Pine": [
     "web/src/ui/page-settings.html"
   ],
@@ -4706,6 +5954,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Route": [
+    "internal/resource",
     "web/src/pages/wan.ts"
   ],
   "Route type filter": [
@@ -4718,11 +5967,20 @@
     "web/src/pages/topology.ts",
     "web/src/ui/page-reports.html"
   ],
+  "Router ID": [
+    "internal/resource"
+  ],
+  "Router Id": [
+    "internal/areas"
+  ],
   "Router Logs": [
     "web/src/ui/page-logs.html"
   ],
   "Router Offline / Online": [
     "web/src/ui/page-settings.html"
+  ],
+  "Router User": [
+    "internal/resource"
   ],
   "Router disconnected mid-scan": [
     "web/src/pages/wireless-fa.ts"
@@ -4751,6 +6009,9 @@
   "Router-reported average (bytes/sec), shown until a window is measured": [
     "web/src/pages/queues.ts"
   ],
+  "Router:": [
+    "web/src/resource.ts"
+  ],
   "RouterBOARD Firmware": [
     "web/src/ui/page-packages.html"
   ],
@@ -4761,6 +6022,12 @@
     "web/src/ui/page-backups.html",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-packages.html"
+  ],
+  "RouterOS 7.15 and later. Not unique — see the note above.": [
+    "internal/resource"
+  ],
+  "RouterOS 7.21 and later. What the client routes into the tunnel; older routers always send everything.": [
+    "internal/resource"
   ],
   "RouterOS API port": [
     "web/src/ui/shell.html"
@@ -4780,6 +6047,12 @@
   "RouterOS password": [
     "web/src/ui/shell.html"
   ],
+  "RouterOS script, or the name of a script, to run. Changing it is limited to global administrators.": [
+    "internal/resource"
+  ],
+  "RouterOS script. Changing it is limited to global administrators.": [
+    "internal/resource"
+  ],
   "RouterOS update check every": [
     "web/src/ui/page-settings.html"
   ],
@@ -4796,6 +6069,7 @@
     "web/src/pages/ztp-views.ts"
   ],
   "Routes": [
+    "internal/resource",
     "web/src/ui/page-routing.html"
   ],
   "Routes by Protocol": [
@@ -4803,16 +6077,31 @@
     "web/src/ui/page-routing.html"
   ],
   "Routing": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Routing Crumbs": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Routing Mark": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Routing Rule": [
+    "internal/resource"
+  ],
   "Routing Rules": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-routing-rules.html"
   ],
+  "Routing Table": [
+    "internal/resource"
+  ],
   "Routing Tables": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-routing-tables.html"
   ],
   "Routing protocol": [
@@ -4827,8 +6116,17 @@
   "Rule Counts": [
     "web/src/ui/page-firewall.html"
   ],
+  "Rules": [
+    "internal/areas"
+  ],
+  "Run": [
+    "internal/resource"
+  ],
   "Run \"Test Connection\" successfully before saving": [
     "web/src/pages/setup-overlay-wire.ts"
+  ],
+  "Run Count": [
+    "internal/areas"
   ],
   "Run a RouterOS command": [
     "web/src/pages/ai-agent.ts"
@@ -4854,11 +6152,19 @@
   "Run the script": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Run with the script's own policy even when started by a user or scheduler that lacks it.": [
+    "internal/resource"
+  ],
   "Running": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/wifi.ts"
   ],
   "Running…": [
     "web/src/pages/tools.ts"
+  ],
+  "Runs": [
+    "internal/resource"
   ],
   "Rx": [
     "web/src/ui/page-tools.html"
@@ -4870,9 +6176,16 @@
     "web/src/ui/page-settings.html"
   ],
   "SNMP": [
+    "internal/areas",
+    "internal/pages",
+    "internal/resource",
     "web/src/ui/page-snmp.html"
   ],
+  "SNMP Community": [
+    "internal/resource"
+  ],
   "SSID": [
+    "internal/resource",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-networks.html"
   ],
@@ -4986,10 +6299,15 @@
   "Scheduled": [
     "web/src/ui/page-reports.html"
   ],
+  "Scheduled Task": [
+    "internal/resource"
+  ],
   "Scheduled report": [
     "web/src/ui/shell.html"
   ],
   "Scheduler": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-scheduler.html"
   ],
   "Scope": [
@@ -4999,11 +6317,17 @@
     "web/src/ui/page-tools.html"
   ],
   "Script": [
+    "internal/resource",
     "web/src/pages/ztp-views.ts",
     "web/src/pages/ztp.ts"
   ],
   "Scripts": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-scripts.html"
+  ],
+  "Search": [
+    "web/src/pages/area.ts"
   ],
   "Search IP / hostname / MAC…": [
     "web/src/ui/page-bandwidth.html"
@@ -5063,6 +6387,9 @@
     "web/src/ui/page-queues.html",
     "web/src/ui/page-users.html"
   ],
+  "Secondary Frequency": [
+    "internal/resource"
+  ],
   "Seconds": [
     "web/src/ui/page-tools.html"
   ],
@@ -5074,16 +6401,22 @@
     "web/src/ui/shell.html"
   ],
   "Security": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/config-management-cards.ts",
     "web/src/pages/wifi.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-networks.html",
     "web/src/ui/shell.html"
   ],
+  "Security Profile": [
+    "internal/resource"
+  ],
   "Security Profiles": [
     "web/src/ui/page-wifi-networks.html"
   ],
   "Security Scan": [
+    "internal/pages",
     "web/src/ui/page-security-scan.html",
     "web/src/ui/shell.html"
   ],
@@ -5117,6 +6450,9 @@
   "Send": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "Send Initial Contact": [
+    "internal/resource"
+  ],
   "Send Test": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -5126,6 +6462,9 @@
   ],
   "Send alerts when these thresholds are reached.": [
     "web/src/ui/page-settings.html"
+  ],
+  "Send all traffic through the tunnel.": [
+    "internal/resource"
   ],
   "Send at": [
     "web/src/ui/shell.html"
@@ -5153,20 +6492,28 @@
     "web/src/ui/page-settings.html"
   ],
   "Server": [
+    "internal/resource",
     "web/src/ui/page-tools.html"
   ],
   "Servers": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/dns.ts"
   ],
   "Service": [
+    "internal/resource",
     "web/src/pages/connections-table.ts",
     "web/src/pages/ppp.ts",
     "web/src/ui/page-vpn.html"
   ],
   "Service Name": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/page-ppp.html"
   ],
   "Services": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-ip-services.html",
     "web/src/ui/page-ppp.html"
   ],
@@ -5205,6 +6552,8 @@
     "web/src/pages/config-management-cards.ts"
   ],
   "Settings": [
+    "internal/areas",
+    "internal/pages",
     "web/src/pages/config-management-cards.ts",
     "web/src/pages/ztp-views.ts",
     "web/src/ui/page-config-management.html",
@@ -5250,8 +6599,20 @@
   "Show only clients on a VLAN": [
     "web/src/ui/page-network-topology.html"
   ],
+  "Show the entries in {group}": [
+    "web/src/pages/area.ts"
+  ],
+  "Showing {shown} of {n} matches. Search to narrow.": [
+    "web/src/pages/area.ts"
+  ],
+  "Showing {shown} of {n}. Search to narrow.": [
+    "web/src/pages/area.ts"
+  ],
   "Side": [
     "web/src/ui/page-vpn.html"
+  ],
+  "Sign": [
+    "internal/resource"
   ],
   "Sign In": [
     "web/src/entry/login.ts",
@@ -5297,6 +6658,9 @@
   "Simple": [
     "web/src/ui/page-queues.html"
   ],
+  "Simple Queue": [
+    "internal/resource"
+  ],
   "Simple Queues": [
     "web/src/ui/page-queues.html"
   ],
@@ -5312,6 +6676,8 @@
     "web/src/ui/page-settings.html"
   ],
   "Size": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/packages.ts",
     "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-backups.html",
@@ -5320,6 +6686,9 @@
   "Skip DFS": [
     "web/src/ui/page-capsman.html"
   ],
+  "Skip DFS Channels": [
+    "internal/resource"
+  ],
   "Skipped": [
     "web/src/pages/backups.ts",
     "web/src/pages/config-management-deploy.ts",
@@ -5327,6 +6696,9 @@
   ],
   "Slave Configs": [
     "web/src/ui/page-capsman.html"
+  ],
+  "Slave Configurations": [
+    "internal/resource"
   ],
   "Slow": [
     "web/src/ui/page-settings.html"
@@ -5365,8 +6737,15 @@
     "web/src/pages/ai-agent.ts"
   ],
   "Source": [
+    "internal/resource",
     "web/src/pages/dashboard-card-diagnostics.ts",
     "web/src/ui/page-tools.html"
+  ],
+  "Source Address": [
+    "internal/resource"
+  ],
+  "Source Port": [
+    "internal/resource"
   ],
   "Source Sans 3": [
     "web/src/ui/page-settings.html"
@@ -5393,6 +6772,12 @@
   "Spring branch rollout": [
     "web/src/ui/page-settings.html"
   ],
+  "Src": [
+    "internal/areas"
+  ],
+  "Src Address": [
+    "internal/areas"
+  ],
   "Src → Dst": [
     "web/src/ui/page-firewall.html"
   ],
@@ -5400,6 +6785,20 @@
     "web/src/pages/wireless.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-clients.html"
+  ],
+  "Start": [
+    "internal/resource"
+  ],
+  "Start Date": [
+    "internal/resource"
+  ],
+  "Start On Boot": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Start Time": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Start a template": [
     "web/src/ui/page-config-management.html"
@@ -5411,6 +6810,8 @@
     "web/src/pages/containers-apps.ts"
   ],
   "State": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/bridges.ts",
     "web/src/pages/capsman.ts",
     "web/src/pages/connections-table.ts",
@@ -5422,6 +6823,10 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/page-vpn.html",
     "web/src/ui/page-wifi-networks.html"
+  ],
+  "State Changes": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Static": [
     "web/src/pages/dashboard-card-routing.ts",
@@ -5436,6 +6841,9 @@
   "Static + Dynamic": [
     "web/src/ui/page-routing.html"
   ],
+  "Static DNS Entry": [
+    "internal/resource"
+  ],
   "Static Entries": [
     "web/src/ui/page-dns.html"
   ],
@@ -5449,6 +6857,8 @@
     "web/src/ui/page-network-topology.html"
   ],
   "Status": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/config-management-history.ts",
     "web/src/pages/packages.ts",
     "web/src/pages/reports-ping.ts",
@@ -5473,8 +6883,12 @@
     "web/src/pages/containers-apps.ts"
   ],
   "Stop": [
+    "internal/resource",
     "web/src/pages/tools.ts",
     "web/src/ui/shell.html"
+  ],
+  "Stop When Full": [
+    "internal/resource"
   ],
   "Stop the deploy before its next router? A router being changed is finished first.": [
     "web/src/pages/config-management.ts"
@@ -5525,6 +6939,9 @@
   "Support \u0026 Donations": [
     "web/src/ui/page-settings.html"
   ],
+  "Supported Bands": [
+    "internal/resource"
+  ],
   "Surfing Radio Waves": [
     "web/src/pages/ai-agent.ts"
   ],
@@ -5546,8 +6963,18 @@
   "Switching router…": [
     "web/src/ui/shell.html"
   ],
+  "Switching to {router}…": [
+    "web/src/main.ts"
+  ],
+  "Sync Connection Tracking": [
+    "internal/resource"
+  ],
   "Sync all missing": [
     "web/src/ui/page-dns.html"
+  ],
+  "Synced Server": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Syne": [
     "web/src/ui/page-settings.html"
@@ -5556,16 +6983,24 @@
     "web/src/ui/page-dashboard.html",
     "web/src/ui/shell.html"
   ],
+  "System Offset": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "System Prompt": [
     "web/src/ui/page-settings.html"
   ],
   "System UI": [
     "web/src/ui/page-settings.html"
   ],
+  "TLS Version": [
+    "internal/resource"
+  ],
   "TLS uses port 8729 (API-SSL, recommended)  ·  Plain uses port 8728 (API, unencrypted)": [
     "web/src/ui/shell.html"
   ],
   "TTL": [
+    "internal/resource",
     "web/src/ui/page-tools.html"
   ],
   "TX": [
@@ -5582,6 +7017,13 @@
   ],
   "TX Rate": [
     "web/src/ui/page-wifi-clients.html"
+  ],
+  "Table": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Tag": [
+    "internal/resource"
   ],
   "Tagged": [
     "web/src/ui/page-vlans.html"
@@ -5600,6 +7042,8 @@
     "web/src/pages/config-management-deploy.ts"
   ],
   "Target": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/audit.ts",
     "web/src/pages/queues.ts",
     "web/src/pages/reports-ping.ts",
@@ -5612,6 +7056,7 @@
     "web/src/ui/page-vpn.html"
   ],
   "Template": [
+    "internal/resource",
     "web/src/pages/config-management-cards.ts",
     "web/src/pages/config-management-history.ts",
     "web/src/ui/page-config-management.html"
@@ -5644,6 +7089,9 @@
     "web/src/pages/router-modal.ts",
     "web/src/pages/setup-overlay-wire.ts"
   ],
+  "Text": [
+    "internal/resource"
+  ],
   "Text Brightness": [
     "web/src/ui/page-settings.html"
   ],
@@ -5652,6 +7100,9 @@
   ],
   "Text brightness": [
     "web/src/ui/page-settings.html"
+  ],
+  "Text, up to 60000 bytes. It is written once; MikroDash does not read it back.": [
+    "internal/resource"
   ],
   "That address list would not admit the address the router sees MikroDash connecting from.": [
     "web/src/resource.ts"
@@ -5735,6 +7186,9 @@
   "The address": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "The address to probe. For a DNS probe, the name to resolve.": [
+    "internal/resource"
+  ],
   "The assistant can only change things you are allowed to change yourself, and every change goes through the same checks, confirmation and audit trail as the forms. \u003cstrong\u003eTurning this off lets it apply ordinary changes without asking.\u003c/strong\u003e A change that could cut MikroDash off from the router is always put to you, whatever this is set to.": [
     "web/src/ui/page-settings.html"
   ],
@@ -5752,6 +7206,9 @@
   ],
   "The card’s terminal text. MikroDash blue by default.": [
     "web/src/ui/page-settings.html"
+  ],
+  "The certificate a TLS service presents. Empty means none.": [
+    "internal/resource"
   ],
   "The change could not be saved.": [
     "web/src/pages/branding-settings.ts"
@@ -5798,11 +7255,17 @@
   "The hardware address": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "The highest priority holds the address.": [
+    "internal/resource"
+  ],
   "The icon is larger than 512 KB.": [
     "web/src/pages/branding-settings.ts"
   ],
   "The icon must be a PNG or JPEG image.": [
     "web/src/pages/branding-settings.ts"
+  ],
+  "The interface a packet arrived on. The router's own traffic has none.": [
+    "internal/resource"
   ],
   "The last scan failed.": [
     "web/src/pages/dashboard-card-secscore.ts"
@@ -5837,6 +7300,9 @@
   "The public address is a name or IP, with no port. Tunnel addresses must be private and not used on your routers' networks. The LAN address is where local routers call home, and the wizard suggests it.": [
     "web/src/ui/page-settings.html"
   ],
+  "The remote end: an address, a prefix, or a name to resolve.": [
+    "internal/resource"
+  ],
   "The request failed.": [
     "web/src/pages/ai-agent.ts"
   ],
@@ -5862,6 +7328,9 @@
     "web/src/pages/wireguard-peers.ts"
   ],
   "The router did not return these settings.": [
+    "web/src/pages/area.ts"
+  ],
+  "The router did not return this {noun}: {error}": [
     "web/src/pages/area.ts"
   ],
   "The router downloads the packages and \u003cstrong\u003ereboots immediately\u003c/strong\u003e. Every connection through it drops for the duration.": [
@@ -5906,11 +7375,77 @@
   "The router reported no rate for this queue": [
     "web/src/pages/queues.ts"
   ],
+  "The router sees MikroDash at {address}, an address it reaches through a route, and this change adds the route {route} that covers it.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, an address it reaches through a route, and this change changes the route {route} that covers it.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, an address it reaches through a route, and this change removes the route {route} that covers it.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change adds a routing rule for {dst} that answers {answer} before the main table is consulted, which can send the router's replies somewhere they never arrive.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change adds a routing rule for {dst} that looks the route up in table {table} before the main table is consulted, which can send the router's replies somewhere they never arrive.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change adds an IPsec policy for {dst} that would {act} the router's replies to it, or that MikroDash arrives through.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change changes a routing rule for {dst} that answers {answer} before the main table is consulted, which can send the router's replies somewhere they never arrive.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change changes a routing rule for {dst} that looks the route up in table {table} before the main table is consulted, which can send the router's replies somewhere they never arrive.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change changes an IPsec policy for {dst} that would {act} the router's replies to it, or that MikroDash arrives through.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change removes a routing rule for {dst} that answers {answer} before the main table is consulted, which can send the router's replies somewhere they never arrive.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change removes a routing rule for {dst} that looks the route up in table {table} before the main table is consulted, which can send the router's replies somewhere they never arrive.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, and this change removes an IPsec policy for {dst} that would {act} the router's replies to it, or that MikroDash arrives through.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, inside a policy that encrypts through peer {peer}, and this change changes that peer or its identity, which can drop the tunnel MikroDash arrives over.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, inside a policy that encrypts through peer {peer}, and this change removes that peer or its identity, which can drop the tunnel MikroDash arrives over.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, inside {target}, and this queue caps it at {cap}. The dashboard may become slow; the queue can still be edited or removed from its row.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, on the subnet of {prefix} on {iface}, and this change changes that address.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, on the subnet of {prefix} on {iface}, and this change removes that address.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, on the subnet of {prefix}, and this change changes that address.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, on the subnet of {prefix}, and this change removes that address.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, which arrives on {iface}, the interface this change alters.": [
+    "web/src/resource.ts"
+  ],
+  "The router sees MikroDash at {address}, which arrives on {iface}, the interface this change removes.": [
+    "web/src/resource.ts"
+  ],
   "The routers could not be listed.": [
     "web/src/pages/config-management.ts"
   ],
   "The scan did not finish.": [
     "web/src/pages/security-scan.ts"
+  ],
+  "The script to run for each matching line. Changing it is limited to global administrators.": [
+    "internal/resource"
   ],
   "The script works for": [
     "web/src/pages/ztp-views.ts"
@@ -6002,6 +7537,12 @@
   "This change needs confirming.": [
     "web/src/resource.ts"
   ],
+  "This changes what is in the list {list}, which the input rule matching {rule} uses to decide on MikroDash's own traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This deletes the list {list}, which the input rule matching {rule} uses to decide on MikroDash's own traffic.": [
+    "web/src/resource.ts"
+  ],
   "This device": [
     "web/src/pages/ztp-views.ts"
   ],
@@ -6026,13 +7567,31 @@
   "This profile is provisioned to managed access points, so the change will be pushed to them.": [
     "web/src/resource.ts"
   ],
+  "This puts the interface MikroDash arrives on, {value}, into the list {list}, and the input rule matching {rule} would then drop its traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This puts the interface MikroDash arrives on, {value}, into the list {list}, and the input rule matching {rule} would then stop accepting its traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This puts {value}, which covers the address the router sees MikroDash at, into the list {list}, and the input rule matching {rule} would then drop its traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This puts {value}, which covers the address the router sees MikroDash at, into the list {list}, and the input rule matching {rule} would then stop accepting its traffic.": [
+    "web/src/resource.ts"
+  ],
   "This queue covers MikroDash's own connection to this router.": [
+    "web/src/resource.ts"
+  ],
+  "This renames the list {list}, which the input rule matching {rule} uses to decide on MikroDash's own traffic.": [
     "web/src/resource.ts"
   ],
   "This router": [
     "web/src/pages/tools-trace-map.ts",
     "web/src/pages/wifi.ts",
     "web/src/ui/page-dns.html"
+  ],
+  "This router does not have that menu. It may need a package this RouterOS build does not include.": [
+    "web/src/pages/area.ts"
   ],
   "This router does not support that command": [
     "web/src/pages/packages.ts",
@@ -6072,8 +7631,23 @@
   "This router's MikroDash account cannot read the internet-detection state.": [
     "web/src/pages/wan.ts"
   ],
+  "This router’s MikroDash account cannot read {menu}. RouterOS requires a user group with permission for this menu.": [
+    "web/src/pages/area.ts"
+  ],
   "This stops the app and": [
     "web/src/pages/containers-apps.ts"
+  ],
+  "This takes the interface MikroDash arrives on, {value}, out of the list {list}, and the input rule matching {rule} would then drop its traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This takes the interface MikroDash arrives on, {value}, out of the list {list}, and the input rule matching {rule} would then stop accepting its traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This takes {value}, which covers the address the router sees MikroDash at, out of the list {list}, and the input rule matching {rule} would then drop its traffic.": [
+    "web/src/resource.ts"
+  ],
+  "This takes {value}, which covers the address the router sees MikroDash at, out of the list {list}, and the input rule matching {rule} would then stop accepting its traffic.": [
+    "web/src/resource.ts"
   ],
   "This template asks for no settings.": [
     "web/src/pages/config-management-deploy.ts"
@@ -6105,13 +7679,28 @@
     "web/src/pages/config-management-deploy.ts"
   ],
   "Time": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/reports-ping.ts",
     "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html",
     "web/src/ui/page-tools.html"
   ],
+  "Time Zone": [
+    "internal/resource"
+  ],
+  "Time Zone Autodetect": [
+    "internal/areas"
+  ],
+  "Time Zone Name": [
+    "internal/areas"
+  ],
   "Time window": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "Timeout": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Timeout (ms)": [
     "web/src/ui/page-settings.html"
@@ -6119,8 +7708,20 @@
   "Times the link has gone down since the counter was last reset": [
     "web/src/ui/page-interfaces.html"
   ],
+  "Tmpdir": [
+    "internal/areas"
+  ],
   "To": [
     "web/src/ui/page-settings.html"
+  ],
+  "To Address": [
+    "internal/resource"
+  ],
+  "To Addresses": [
+    "internal/resource"
+  ],
+  "To Ports": [
+    "internal/resource"
   ],
   "To date/time": [
     "web/src/ui/page-reports.html"
@@ -6165,6 +7766,7 @@
     "web/src/pages/wireless-fa.ts"
   ],
   "Tools": [
+    "internal/pages",
     "web/src/ui/page-tools.html",
     "web/src/ui/shell.html"
   ],
@@ -6216,6 +7818,13 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "Topics": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Topics, comma separated; ! excludes one.": [
+    "internal/resource"
+  ],
   "Topology": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -6224,6 +7833,8 @@
     "web/src/ui/page-tools.html"
   ],
   "Total": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/reports-alerts.ts",
     "web/src/pages/reports-ping.ts",
     "web/src/ui/page-bandwidth.html",
@@ -6283,6 +7894,9 @@
   "Traffic History (min)": [
     "web/src/ui/page-settings.html"
   ],
+  "Traffic Processing": [
+    "internal/resource"
+  ],
   "Traffic and bandwidth reports cover one interface.": [
     "web/src/ui/shell.html"
   ],
@@ -6293,11 +7907,31 @@
   "Traffic scope filter": [
     "web/src/ui/page-bandwidth.html"
   ],
+  "Transfer": [
+    "internal/areas"
+  ],
   "Transmit": [
     "web/src/ui/page-tools.html"
   ],
   "Transmit (average)": [
     "web/src/pages/tools.ts"
+  ],
+  "Trap Community": [
+    "internal/resource"
+  ],
+  "Trap Generators": [
+    "internal/resource"
+  ],
+  "Trap Interfaces": [
+    "internal/resource"
+  ],
+  "Trap Target": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "Trap Version": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Tree": [
     "web/src/ui/page-queues.html"
@@ -6311,8 +7945,15 @@
   "Trunking VLANs": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Trust Store": [
+    "internal/resource"
+  ],
   "Trust this certificate": [
     "web/src/pages/settings-notif-test.ts"
+  ],
+  "Trusted": [
+    "internal/areas",
+    "internal/resource"
   ],
   "Trusted certificate (SHA-256)": [
     "web/src/ui/page-settings.html"
@@ -6327,6 +7968,8 @@
     "web/src/ui/page-ai-agent.html"
   ],
   "Tunnel": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/ztp-views.ts"
   ],
   "Tunnel addresses": [
@@ -6348,6 +7991,8 @@
     "web/src/ui/page-tools.html"
   ],
   "Type": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/bridges.ts",
     "web/src/pages/config-management-cards.ts",
     "web/src/pages/containers-apps.ts",
@@ -6379,6 +8024,9 @@
   ],
   "Undo it": [
     "web/src/pages/ai-agent.ts"
+  ],
+  "Undo {what}": [
+    "web/src/resource.ts"
   ],
   "Unencrypted": [
     "web/src/pages/settings-routers.ts"
@@ -6489,6 +8137,9 @@
   "Upload capacity, Mbps": [
     "web/src/ui/shell.html"
   ],
+  "Upload/download cap. 0 is unlimited.": [
+    "internal/resource"
+  ],
   "Uploading": [
     "web/src/pages/config-management-deploy.ts"
   ],
@@ -6498,6 +8149,9 @@
   "Upstream": [
     "web/src/pages/routing.ts",
     "web/src/ui/page-routing.html"
+  ],
+  "Upstream resolvers, comma separated.": [
+    "internal/resource"
   ],
   "Uptime": [
     "web/src/pages/ppp.ts",
@@ -6514,11 +8168,19 @@
     "web/src/pages/reports-ping.ts"
   ],
   "Use": [
-    "web/src/pages/area.ts",
     "web/src/pages/queues.ts"
   ],
   "Use Default Icon": [
     "web/src/ui/page-settings.html"
+  ],
+  "Use Encryption": [
+    "internal/resource"
+  ],
+  "Use Peer DNS": [
+    "internal/resource"
+  ],
+  "Use Peer NTP": [
+    "internal/resource"
   ],
   "Use TLS": [
     "web/src/ui/shell.html"
@@ -6535,16 +8197,30 @@
   "Use the list below instead": [
     "web/src/ui/page-wan.html"
   ],
+  "Used": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "User": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/ppp.ts",
     "web/src/pages/rosusers.ts",
     "web/src/ui/page-tools.html",
     "web/src/ui/page-vpn.html"
   ],
+  "User Auth Method": [
+    "internal/resource"
+  ],
+  "User Group": [
+    "internal/resource"
+  ],
   "User on the far router": [
     "web/src/ui/page-ai-agent.html"
   ],
   "Username": [
+    "internal/areas",
+    "internal/resource",
     "web/src/ui/login.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -6556,6 +8232,7 @@
     "web/src/pages/principal-forms.ts"
   ],
   "Users": [
+    "internal/pages",
     "web/src/pages/rosusers.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-users.html",
@@ -6570,7 +8247,15 @@
   "Using the uplinks you declared": [
     "web/src/pages/wan.ts"
   ],
+  "VETH": [
+    "internal/areas",
+    "internal/resource"
+  ],
+  "VETH Interface": [
+    "internal/resource"
+  ],
   "VLAN": [
+    "internal/resource",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-networks.html"
@@ -6578,18 +8263,32 @@
   "VLAN Filter": [
     "web/src/pages/bridges.ts"
   ],
+  "VLAN Filtering": [
+    "internal/resource"
+  ],
+  "VLAN ID": [
+    "internal/resource"
+  ],
   "VLAN IDs": [
     "web/src/ui/page-vlans.html"
+  ],
+  "VLAN Interface": [
+    "internal/resource"
+  ],
+  "VLAN Mode": [
+    "internal/resource"
   ],
   "VLAN filter": [
     "web/src/ui/page-network-topology.html"
   ],
   "VLANs": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-vlans.html",
     "web/src/ui/shell.html"
   ],
   "VPN": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-vpn.html",
     "web/src/ui/shell.html"
@@ -6603,13 +8302,33 @@
   "VPN peers shown on dashboard": [
     "web/src/ui/page-settings.html"
   ],
+  "VRF": [
+    "internal/resource"
+  ],
+  "VRID": [
+    "internal/resource"
+  ],
   "VRRP": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-vrrp.html"
   ],
+  "VRRP Interface": [
+    "internal/resource"
+  ],
   "Value": [
+    "internal/resource",
     "web/src/pages/dns-fleet.ts"
   ],
+  "Verify DoH Certificate": [
+    "internal/resource"
+  ],
+  "Verify Server Certificate": [
+    "internal/resource"
+  ],
   "Version": [
+    "internal/areas",
+    "internal/resource",
     "web/src/pages/capsman.ts",
     "web/src/pages/packages.ts",
     "web/src/pages/topology-panel.ts",
@@ -6643,7 +8362,14 @@
   "VoIP phone": [
     "web/src/pages/topology.ts"
   ],
+  "Vrf": [
+    "internal/areas"
+  ],
+  "Vrid": [
+    "internal/areas"
+  ],
   "WAN": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -6671,8 +8397,18 @@
   "WAN only": [
     "web/src/ui/page-bandwidth.html"
   ],
+  "WPA Passphrase": [
+    "internal/resource"
+  ],
+  "WPA2 Passphrase": [
+    "internal/resource"
+  ],
   "WPS": [
+    "internal/resource",
     "web/src/ui/page-capsman.html"
+  ],
+  "Wait for the remote end to connect rather than initiating.": [
+    "internal/resource"
   ],
   "Waiting": [
     "web/src/pages/config-management-deploy.ts",
@@ -6786,6 +8522,7 @@
     "web/src/pages/ai-agent.ts"
   ],
   "Waiting…": [
+    "web/src/pages/area.ts",
     "web/src/ui/page-address-lists.html",
     "web/src/ui/page-arp.html",
     "web/src/ui/page-certificates.html",
@@ -6833,6 +8570,9 @@
     "web/src/ui/page-backups.html",
     "web/src/ui/shell.html"
   ],
+  "Weight": [
+    "internal/resource"
+  ],
   "What": [
     "web/src/pages/config-management-editor.ts"
   ],
@@ -6844,6 +8584,12 @@
   ],
   "What the card is asked to write. Leave it empty to use the built-in prompt; MikroDash’s safety rules are always applied on top.": [
     "web/src/ui/page-settings.html"
+  ],
+  "What the script may do, comma separated: ftp, reboot, read, write, policy, test, password, sniff, sensitive, romon.": [
+    "internal/resource"
+  ],
+  "What the task's code may do, comma separated.": [
+    "internal/resource"
   ],
   "What this router will receive": [
     "web/src/pages/config-management-deploy.ts"
@@ -6862,6 +8608,12 @@
   "Where": [
     "web/src/pages/ztp.ts"
   ],
+  "Where addresses come from once this pool is exhausted. Empty means none.": [
+    "internal/resource"
+  ],
+  "Where requests are accepted from, comma separated.": [
+    "internal/resource"
+  ],
   "Where the WAN traffic goes: from this router through each uplink to the internet, upload in green and download in blue": [
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wan.html"
@@ -6877,6 +8629,9 @@
   ],
   "Which devices are busiest right now": [
     "web/src/ui/page-ai-agent.html"
+  ],
+  "Which features may trust this certificate, comma separated: all, or e.g. ipsec, fetch, dns.": [
+    "internal/resource"
   ],
   "Which storey to draw": [
     "web/src/ui/page-wifi-map.html"
@@ -6907,26 +8662,46 @@
     "web/src/ui/page-capsman.html"
   ],
   "Wifi Clients": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-clients.html",
     "web/src/ui/shell.html"
   ],
   "Wifi Map": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-map.html",
     "web/src/ui/shell.html"
   ],
+  "Wifi Network": [
+    "internal/resource"
+  ],
+  "Wifi Network (legacy)": [
+    "internal/resource"
+  ],
   "Wifi Networks": [
+    "internal/pages",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-networks.html",
     "web/src/ui/shell.html"
+  ],
+  "Wifi Security Profile": [
+    "internal/resource"
   ],
   "Wiggling SFPs": [
     "web/src/pages/ai-agent.ts"
   ],
   "WireGuard": [
+    "internal/areas",
+    "internal/pages",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wireguard.html"
+  ],
+  "WireGuard Interface": [
+    "internal/resource"
+  ],
+  "WireGuard Peer": [
+    "internal/resource"
   ],
   "Wired client": [
     "web/src/pages/topology-panel.ts"
@@ -6944,6 +8719,12 @@
   ],
   "With auto-revert": [
     "web/src/pages/config-management-cards.ts"
+  ],
+  "Without FIB the table's routes are not installed, so its lookups find nothing.": [
+    "web/src/resource.ts"
+  ],
+  "Without FIB the table's routes are not installed, so their lookups find nothing.": [
+    "web/src/resource.ts"
   ],
   "Work Sans": [
     "web/src/ui/page-settings.html"
@@ -6968,8 +8749,15 @@
   "Write": [
     "web/src/pages/config-management.ts"
   ],
+  "Write Access": [
+    "internal/areas",
+    "internal/resource"
+  ],
   "Write a one-line router status on the Dashboard": [
     "web/src/ui/page-settings.html"
+  ],
+  "Write access lets SNMP change this router's configuration.": [
+    "internal/resource"
   ],
   "Write one in RouterOS's own export syntax, customise a canned one from the Library, or capture a menu or a whole router as it is configured today.": [
     "web/src/ui/page-config-management.html"
@@ -7040,6 +8828,12 @@
     "web/src/ui/page-tools.html",
     "web/src/ui/page-wifi-map.html"
   ],
+  "a comma list — the extra SSIDs provisioned onto the same radio": [
+    "internal/resource"
+  ],
+  "a comma list — the rule matches a radio offering any of them": [
+    "internal/resource"
+  ],
   "accepts logins from this address only.": [
     "web/src/pages/ztp-views.ts"
   ],
@@ -7056,17 +8850,23 @@
   "alerts@example.com": [
     "web/src/ui/page-settings.html"
   ],
+  "an IP address, or the name of an IP pool": [
+    "internal/resource"
+  ],
   "and its image. It cannot be undone.": [
     "web/src/pages/containers-apps.ts"
   ],
   "any time": [
     "web/src/ui/page-backups.html"
   ],
+  "auto, address:…, fqdn:…, user-fqdn:…, key-id:… or dn": [
+    "internal/resource"
+  ],
+  "blank is an open network": [
+    "internal/resource"
+  ],
   "both": [
     "web/src/ui/page-tools.html"
-  ],
-  "changes what is in": [
-    "web/src/resource.ts"
   ],
   "commands / min by source": [
     "web/src/pages/dashboard-card-diagnostics.ts"
@@ -7085,6 +8885,9 @@
   ],
   "download": [
     "web/src/ui/page-bandwidth.html"
+  ],
+  "dst-address gateway metric, several separated by commas. Ignored for OpenVPN": [
+    "internal/resource"
   ],
   "e.g. -100123456789": [
     "web/src/ui/page-settings.html",
@@ -7111,8 +8914,14 @@
   "from its site": [
     "web/src/pages/routers.ts"
   ],
+  "global, an interface, or another tree queue.": [
+    "internal/resource"
+  ],
   "h": [
     "web/src/ui/page-settings.html"
+  ],
+  "host only — the router appends the interface's listen port. A port here is emitted twice and the client cannot connect.": [
+    "internal/resource"
   ],
   "hours": [
     "web/src/ui/page-settings.html"
@@ -7154,11 +8963,29 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "leave blank to keep the current key": [
+    "internal/resource"
+  ],
+  "leave blank to keep the current key; type `auto` to have the router generate one. RouterOS stores this so it can print the client configuration.": [
+    "internal/resource"
+  ],
+  "leave blank to keep the current passphrase": [
+    "internal/resource"
+  ],
+  "leave blank to keep the current password": [
+    "internal/resource"
+  ],
+  "leave blank — RouterOS generates one when the interface is added, and keeps the current key on an edit": [
+    "internal/resource"
+  ],
   "llama3.1:8b": [
     "web/src/ui/page-settings.html"
   ],
   "loss": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "match one radio only; leave blank to match any": [
+    "internal/resource"
   ],
   "max": [
     "web/src/ui/page-dashboard.html"
@@ -7266,6 +9093,18 @@
   "the RouterOS user cannot read the host table": [
     "web/src/pages/bridges.ts"
   ],
+  "the UDP port clients connect to": [
+    "internal/resource"
+  ],
+  "the address the client gives its own tunnel interface": [
+    "internal/resource"
+  ],
+  "the passphrase lives on the profile, not here": [
+    "internal/resource"
+  ],
+  "the radio this SSID rides on": [
+    "internal/resource"
+  ],
   "the same port": [
     "web/src/pages/topology.ts"
   ],
@@ -7282,7 +9121,6 @@
     "web/src/ui/page-reports.html"
   ],
   "to create one.": [
-    "web/src/pages/area.ts",
     "web/src/pages/queues.ts"
   ],
   "to deploy to every router.": [
@@ -7305,6 +9143,9 @@
   ],
   "username": [
     "web/src/ui/page-settings.html"
+  ],
+  "v3 Protocol": [
+    "internal/resource"
   ],
   "vpn.example.com": [
     "web/src/ui/page-settings.html"
@@ -7333,6 +9174,21 @@
   "you@example.com": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "{n} entries": [
+    "web/src/pages/area.ts"
+  ],
+  "{n} entry": [
+    "web/src/pages/area.ts"
+  ],
+  "{n} matching entries": [
+    "web/src/pages/area.ts"
+  ],
+  "{n} matching entry": [
+    "web/src/pages/area.ts"
+  ],
+  "{n} routing rules look routes up in {table}.": [
+    "web/src/resource.ts"
   ],
   "{{alertType}}  {{routerName}}  {{detail}}  {{ifaceName}}  {{status}}  {{comment}}\u003cbr\u003e{{cpuLoad}}  {{pingLoss}}  {{pingTarget}}  {{pingRtt}}  {{vpnPeer}}  {{host}}  {{netwatchName}}  {{bgpPeer}}  {{timestamp}}": [
     "web/src/ui/page-settings.html"

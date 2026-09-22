@@ -1,8 +1,10 @@
 package verify
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"mikrodash/internal/i18n"
@@ -81,5 +83,60 @@ func TestTheTranslationCheckCanFail(t *testing.T) {
 	}
 	if _, bad := i18n.TSLiterals("x = t(hostName);"); len(bad) != 1 {
 		t.Error("t() given a variable was not caught")
+	}
+}
+
+// tlCallers is the ledger of files allowed to call tl(): the ones that render
+// labels declared in Go. tl() takes a variable by design, so the only thing
+// keeping router data out of it is where it is called, and this list is that.
+var tlCallers = map[string]string{
+	"web/src/resource.ts":   "the resource forms: field labels and help, action labels, the resource's name",
+	"web/src/pages/area.ts": "the generated pages: tab titles, nav entries, column headers",
+	"web/src/main.ts":       "the page header's title",
+}
+
+// TestOnlyTheLabelRenderersCallTL holds the ledger in both directions: a file
+// outside it that calls tl() fails, and so does a file in it that no longer
+// does, because a stale entry is an allowance nobody is using.
+func TestOnlyTheLabelRenderersCallTL(t *testing.T) {
+	root := repoRoot(t)
+	seen := map[string]bool{}
+	err := filepath.WalkDir(filepath.Join(root, "web", "src"), func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == "gen" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(p, ".ts") {
+			return nil
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, p)
+		rel = filepath.ToSlash(rel)
+		if i18n.TLCalls(string(b)) == 0 {
+			return nil
+		}
+		seen[rel] = true
+		if _, ok := tlCallers[rel]; !ok {
+			t.Errorf("%s calls tl(), which is only for labels declared in Go. Text written in "+
+				"this file goes through t('literal'); if it really renders Go labels, add it to "+
+				"tlCallers with the reason", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for f := range tlCallers {
+		if !seen[f] {
+			t.Errorf("tlCallers lists %s, which no longer calls tl(); remove the entry", f)
+		}
 	}
 }

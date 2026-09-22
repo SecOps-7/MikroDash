@@ -292,6 +292,14 @@ move together:
 - **Code translates only through `t('literal', { vars })`** (`web/src/i18n.ts`). Never pass it a variable:
   that is how router data would reach a catalog, and the drift gate refuses it. Router-supplied values are
   never translated.
+- **Labels declared in Go go through `tl(label)`**: field labels and help, action labels, resource, area,
+  tab and page titles, which reach the browser as data. `internal/i18n.GoLabels` reads them from the
+  registries for the catalog. `tl()` takes a variable, so it may be called only from the files in
+  `tlCallers` (`internal/verify/i18n_test.go`), a ledger that fails both ways. Select options and
+  placeholders are RouterOS values and examples of them, and are never translated.
+- **A sentence with a value is one string with a `{placeholder}`**, never pieces joined with `+`: a
+  translator has to be able to move the value. Country names come from `Intl.DisplayNames`
+  (`countryName`), not the catalog.
 - **`web/locales/source.json` is generated** (`go run ./cmd/i18ngen`), and `TestTranslationsKeepUpWithTheInterface`
   fails on a stale or broken translation and reports untranslated counts.
 
@@ -318,7 +326,7 @@ move together:
 
 | | |
 |---|---|
-| `internal/verify/` | 85 Go tests. Static checks over the current source: credentials, cited paths, translation drift, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
+| `internal/verify/` | 86 Go tests. Static checks over the current source: credentials, cited paths, translation drift, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
 | `web/test/` | 76 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 

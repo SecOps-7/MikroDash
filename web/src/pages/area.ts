@@ -39,7 +39,7 @@
 // kind, or naming one Go does not have, fails tsc.
 
 import { el, esc, resRow, renderSortHeader, sortRows, debounce, type SortCol, type SortState } from '../dom';
-import { t } from '../i18n';
+import { t, tl } from '../i18n';
 import { mountAdds, mountRows } from '../resource';
 import { AREAS, type Area, type AreaPanel, type PillKind } from '../gen/areas';
 import { actionBadge } from './firewall';
@@ -235,7 +235,7 @@ function renderTabs(area: Area): void {
   }
   const open = activePanel(area);
   const at = open ? area.tables.length + panels.indexOf(open) : tabIndex(area);
-  const titles = [...area.tables.map((t) => t.title), ...panels.map((p) => p.title)];
+  const titles = [...area.tables.map((x) => tl(x.title)), ...panels.map((p) => tl(p.title))];
   host.innerHTML = titles.map((title, i) =>
     '<button class="stab' + (i === at ? ' active' : '') + '" type="button" role="tab"' +
     ' aria-selected="' + (i === at ? 'true' : 'false') + '"' +
@@ -283,20 +283,20 @@ function render(area: Area): void {
   if (!(table?.groupBy && openGroup[area.key + '#' + at])) body.removeAttribute('data-open-group');
 
   if (!payload) {
-    body.innerHTML = '<div class="empty-state">Waiting&hellip;</div>';
+    body.innerHTML = '<div class="empty-state">' + t('Waiting…') + '</div>';
     return;
   }
   // THREE DIFFERENT SENTENCES, because they have three different fixes: the
   // account cannot read the menu, this build has no such menu, or the router
   // genuinely holds none of these.
   if (payload.denied) {
-    body.innerHTML = '<div class="empty-state">This router’s MikroDash account cannot read ' +
-      esc(declared.resource) + '. RouterOS requires a user group with permission for this menu.</div>';
+    body.innerHTML = '<div class="empty-state">' + t('This router’s MikroDash account cannot read {menu}. RouterOS requires a user group with permission for this menu.',
+      { menu: esc(declared.resource) }) + '</div>';
     return;
   }
   if (table?.unsupported) {
-    body.innerHTML = '<div class="empty-state">This router does not have that menu. ' +
-      'It may need a package this RouterOS build does not include.</div>';
+    body.innerHTML = '<div class="empty-state">' +
+      t('This router does not have that menu. It may need a package this RouterOS build does not include.') + '</div>';
     return;
   }
 
@@ -310,7 +310,7 @@ function render(area: Area): void {
       ? '<table class="table table-vcenter mb-0"><tbody data-res-rows="' + esc(declared.resource) + '">' +
         declared.columns.map((c) =>
           '<tr' + resRow(r.id, r.identity, declared.resource) + '>' +
-          '<th style="width:34%;font-weight:500;color:var(--text-muted)">' + esc(columnLabel(c)) + '</th>' +
+          '<th style="width:34%;font-weight:500;color:var(--text-muted)">' + esc(tl(columnLabel(c))) + '</th>' +
           '<td>' + valueCell(declared.pills[c], r.values?.[c]) + '</td></tr>').join('') +
         '</tbody></table>'
       : '<div class="empty-state">' + t('The router did not return these settings.') + '</div>';
@@ -332,7 +332,7 @@ function render(area: Area): void {
 function renderGrouped(area: Area, at: number, table: AreaTable, body: HTMLElement): void {
   const k = area.key + '#' + at;
   const g = openGroup[k];
-  const noun = columnLabel(table.groupBy);
+  const noun = tl(columnLabel(table.groupBy));
   if (!g) {
     const sort = (groupSorts[k] = groupSorts[k] || { col: '', dir: 'asc' });
     const list = (table.groups || []).map((grp, pos) => ({ grp, pos }));
@@ -342,15 +342,13 @@ function renderGrouped(area: Area, at: number, table: AreaTable, body: HTMLEleme
       : list;
     const rows = shown.map(({ grp }) =>
       '<tr data-areagroup="' + esc(grp.name) + '" data-areagroupof="' + esc(area.key) + '" style="cursor:pointer"' +
-      ' title="Show the entries in ' + esc(grp.name) + '">' +
+      ' title="' + t('Show the entries in {group}', { group: esc(grp.name) }) + '">' +
       '<td>' + pill('hs-info', grp.name) + '</td><td>' + grp.count.toLocaleString() + '</td>' +
       '<td>' + grp.dynamic.toLocaleString() + '</td><td>' + grp.disabled.toLocaleString() + '</td></tr>').join('');
     const declared = area.tables[at]!;
     body.innerHTML = '<table class="table table-vcenter mb-0">' +
       '<thead><tr id="areaThead-' + esc(area.key) + '"></tr></thead><tbody>' +
-      (rows || '<tr><td colspan="4" class="empty-state">Nothing here yet.' +
-        (writable[declared.resource] && creatable[declared.resource] !== false ? ' ' + t('Use') + ' <strong>' + t('Add') + '</strong> ' + t('to create one.') : '') +
-        '</td></tr>') + '</tbody></table>';
+      (rows || '<tr><td colspan="4" class="empty-state">' + nothingYet(declared.resource) + '</td></tr>') + '</tbody></table>';
     groupDrawn[k] = { col: sort.col, dir: sort.dir };
     renderSortHeader('areaThead-' + area.key, [
       { key: 'name', label: esc(noun) }, { key: 'count', label: t('Entries') },
@@ -367,10 +365,10 @@ function renderGrouped(area: Area, at: number, table: AreaTable, body: HTMLEleme
   if (body.getAttribute('data-open-group') !== k + '|' + g) {
     body.setAttribute('data-open-group', k + '|' + g);
     body.innerHTML = '<div class="d-flex align-items-center flex-wrap gap-2 px-3 py-2" style="border-bottom:1px solid var(--border)">' +
-      '<button class="sbtn sbtn-outline" type="button" data-areagroupback="' + esc(area.key) + '">&larr; All ' +
-      esc(noun.toLowerCase()) + 's</button>' + pill('hs-info', g) +
+      '<button class="sbtn sbtn-outline" type="button" data-areagroupback="' + esc(area.key) + '">&larr; ' +
+      t('All {noun}s', { noun: esc(noun.toLowerCase()) }) + '</button>' + pill('hs-info', g) +
       '<input type="search" class="sform-input" style="max-width:260px;margin-left:auto" id="areaGroupSearch-' +
-      esc(area.key) + '" data-areagroupsearch="' + esc(area.key) + '" placeholder="Search" autocomplete="off" value="' +
+      esc(area.key) + '" data-areagroupsearch="' + esc(area.key) + '" placeholder="' + t('Search') + '" autocomplete="off" value="' +
       esc(groupSearch[k] || '') + '">' +
       '<span id="areaGroupNote-' + esc(area.key) + '" style="color:var(--text-muted);font-size:.75rem"></span></div>' +
       '<div id="areaGroupTable-' + esc(area.key) + '"><div class="empty-state">Loading&hellip;</div></div>';
@@ -380,22 +378,23 @@ function renderGrouped(area: Area, at: number, table: AreaTable, body: HTMLEleme
   const reply = groupRows[k];
   if (!host) return;
   if (!reply || reply.group !== g) {
-    host.innerHTML = '<div class="empty-state">Loading&hellip;</div>';
+    host.innerHTML = '<div class="empty-state">' + t('Loading…') + '</div>';
     if (note) note.textContent = '';
     return;
   }
   if (reply.error) {
-    host.innerHTML = '<div class="empty-state">The router did not return this ' + esc(noun.toLowerCase()) +
-      ': ' + esc(reply.error) + '</div>';
+    host.innerHTML = '<div class="empty-state">' + t('The router did not return this {noun}: {error}', { noun: esc(noun.toLowerCase()), error: esc(reply.error) }) + '</div>';
     if (note) note.textContent = '';
     return;
   }
   // THE COUNT IS THE TRUTH, the rows a window on it: 500 of 37,111 says so.
   if (note) {
+    const v = { shown: reply.rows.length.toLocaleString(), n: reply.total.toLocaleString() };
     note.textContent = reply.total > reply.rows.length
-      ? 'Showing ' + reply.rows.length.toLocaleString() + ' of ' + reply.total.toLocaleString() +
-        (reply.search ? ' matches' : '') + '. Search to narrow.'
-      : reply.total.toLocaleString() + (reply.search ? ' matching' : '') + (reply.total === 1 ? ' entry' : ' entries');
+      ? (reply.search ? t('Showing {shown} of {n} matches. Search to narrow.', v) : t('Showing {shown} of {n}. Search to narrow.', v))
+      : reply.search
+        ? (reply.total === 1 ? t('{n} matching entry', v) : t('{n} matching entries', v))
+        : (reply.total === 1 ? t('{n} entry', v) : t('{n} entries', v));
   }
   drawRows(area, at, reply.rows, host);
 }
@@ -415,8 +414,8 @@ function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['r
   const cols: SortCol[] = [
     ...(arrows ? [{ label: '', style: 'width:1%' }] : []),
     ...declared.columns.map((c) => declared.ordered
-      ? { label: esc(columnLabel(c)) }
-      : { key: c, label: esc(columnLabel(c)) }),
+      ? { label: esc(tl(columnLabel(c))) }
+      : { key: c, label: esc(tl(columnLabel(c))) }),
   ];
   const last = list.length - 1;
   const move = (pos: number): string => '<td style="white-space:nowrap">' +
@@ -438,9 +437,7 @@ function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['r
     '<thead><tr id="areaThead-' + esc(area.key) + '"></tr></thead>' +
     '<tbody data-res-rows="' + esc(declared.resource) + '">' +
     (rows || '<tr><td colspan="' + (declared.columns.length + (arrows ? 1 : 0)) + '" class="empty-state">' +
-      'Nothing here yet.' + (writable[declared.resource] && creatable[declared.resource] !== false
-        ? ' ' + t('Use') + ' <strong>' + t('Add') + '</strong> ' + t('to create one.') : '') +
-      '</td></tr>') +
+      nothingYet(declared.resource) + '</td></tr>') +
     '</tbody></table>';
   drawn[area.key + '#' + at] = { col: sort.col, dir: sort.dir };
   renderSortHeader('areaThead-' + area.key, cols, sort, () => {
@@ -450,6 +447,12 @@ function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['r
     if (was && was.col === sort.col && was.dir === 'desc') sort.col = '';
     render(area);
   });
+}
+
+/** An empty table's line, with the way to fill it where the viewer may. */
+function nothingYet(resource: string): string {
+  return writable[resource] && creatable[resource] !== false
+    ? t('Nothing here yet. Use <strong>Add</strong> to create one.') : t('Nothing here yet.');
 }
 
 /**
@@ -511,7 +514,7 @@ export function mountAreaNav(): void {
     // and that is safe only because it is a build-time constant: nothing a
     // router sends ever reaches it. The title is data-shaped, so it is escaped.
     a.innerHTML = '<span class="nav-icon"><svg viewBox="0 0 24 24">' + area.icon +
-      '</svg></span><span class="nav-label">' + esc(area.title) + '</span>';
+      '</svg></span><span class="nav-label">' + esc(tl(area.title)) + '</span>';
     group.appendChild(a);
   }
 }
