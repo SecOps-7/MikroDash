@@ -1,6 +1,8 @@
   <div class="page-view" id="page-connections">
     <div class="container-fluid px-0" style="width:100%">
-      <div class="card">
+      <!-- conn-main: a size container, so the List tab can take the Map tab's
+           height from the card's width (app.css). -->
+      <div class="card conn-main">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <h3 class="card-title mb-0">Connections</h3>
@@ -23,7 +25,7 @@
             <span class="conn-sub" id="connListStatus">Waiting for the connection table…</span>
             <div class="conn-pager" id="connListPager"></div>
           </div>
-          <div class="conn-scroll">
+          <div class="conn-scroll" id="connListScroll">
             <table class="table table-sm conn-table">
               <thead><tr id="connListHead"></tr></thead>
               <tbody id="connListBody"></tbody>

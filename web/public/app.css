@@ -194,6 +194,19 @@
     .conn-search{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.25rem .55rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-main);outline:none;min-width:200px}
     .conn-search:focus{border-color:var(--accent-rx)}
     #connPanelList{padding:.5rem .75rem}
+    /* THE LIST TAB IS THE MAP TAB'S SIZE, and scrolls inside it. It grew to fit
+       every row, so switching tabs resized the card and pushed the cards below
+       it down the page. The map is 2:1 inside .5rem of padding, so its panel is
+       (width - 1rem) / 2 + 1rem tall; the card is a size container and the list
+       takes the same height from the same width. A floor keeps a phone's list
+       usable, where the map is only a couple of hundred pixels tall. The bar and
+       the bottom pager stay put; only the table scrolls, its header pinned. */
+    .conn-main{container-type:inline-size}
+    #connPanelList:not([hidden]){display:flex;flex-direction:column;height:max(20rem,calc((100cqw - 1rem) / 2 + 1rem))}
+    #connPanelList>.conn-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+    /* The card colour is translucent, so rows showed through a pinned header in it;
+       laid over the page's own background it looks the same and hides them. */
+    #connPanelList .conn-table thead th{position:sticky;top:0;z-index:1;background:linear-gradient(var(--bg-card),var(--bg-card)),var(--bg-deep)}
     .conn-list-bar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.4rem}
     .conn-scroll{overflow-x:auto}
     .conn-table{margin:0;font-size:.74rem}

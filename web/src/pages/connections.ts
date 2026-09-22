@@ -491,6 +491,10 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
       if (!b || (b as HTMLButtonElement).disabled) return;
       listPage = Number(b.getAttribute('data-conn-page')) || 0;
       drawList();
+      // A new page starts at its first row: the list scrolls inside a card of
+      // fixed height, and the next page kept the old one's scroll position.
+      const scroll = el('connListScroll');
+      if (scroll) scroll.scrollTop = 0;
     });
   }
   // A reconnect is a new connection on the server, which has not heard which
