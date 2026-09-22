@@ -23,7 +23,7 @@
 //     Any other tag ends the run: a <span id> is a slot the code writes into,
 //     and moving it would break the page.
 //   - The title, placeholder, aria-label and alt attributes are units.
-//   - Nothing inside <script>, <style>, <svg>, <pre> or <textarea>, or inside an
+//   - Nothing inside <script>, <style>, <pre> or <textarea>, or inside an
 //     element marked translate="no" (the HTML standard's own attribute) is
 //     touched. Router data never reaches markup source at all: it is written
 //     by code at run time, and code translates only what it passes to t().
@@ -55,7 +55,7 @@ var inline = map[string]bool{"strong": true, "b": true, "em": true, "i": true, "
 	"kbd": true, "code": true, "small": true, "u": true}
 
 // skipped elements' content is never text to translate.
-var skipped = map[string]bool{"script": true, "style": true, "svg": true, "pre": true, "textarea": true}
+var skipped = map[string]bool{"script": true, "style": true, "pre": true, "textarea": true}
 
 // The attributes that carry words.
 var attrRe = regexp.MustCompile(`(\s(?:title|placeholder|aria-label|alt)\s*=\s*)("([^"]*)"|'([^']*)')`)

@@ -59,7 +59,7 @@ func TestUnits(t *testing.T) {
 		`<label>Name <span id="n"></span> here</label>` +
 		`<input placeholder='Search devices…'>` +
 		`<script>var s = "Not text";</script>` +
-		`<svg><text>Not text either</text></svg>` +
+		`<svg><path d="M0 0"/><text x="4">Wired</text></svg>` +
 		`<span translate="no">RouterBOARD <b>hEX</b></span>` +
 		`<!-- A comment is not text -->` +
 		`<button>Save &amp; close</button></div>`
@@ -72,6 +72,9 @@ func TestUnits(t *testing.T) {
 		"Opens <strong>one UDP port</strong>, which must be published.",
 		"Name", "here",
 		"Search devices…",
+		// An SVG's <text> is visible text, so it is translated like any other
+		// (the dashboard's network card labels); its shapes carry none.
+		"Wired",
 		"Save & close",
 	}
 	if strings.Join(got, "|") != strings.Join(want, "|") {

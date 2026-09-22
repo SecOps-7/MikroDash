@@ -6549,6 +6549,9 @@
   "RouterOS 7.21 and later. What the client routes into the tunnel; older routers always send everything.": [
     "internal/resource"
   ],
+  "RouterOS \u003cstrong\u003e{version}\u003c/strong\u003e — Up to date": [
+    "web/src/pages/dashboard-system.ts"
+  ],
   "RouterOS API port": [
     "web/src/ui/shell.html"
   ],
@@ -9088,6 +9091,7 @@
   ],
   "WAN": [
     "internal/pages",
+    "web/src/ui/page-dashboard.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -9445,10 +9449,14 @@
   "WireGuard Peer": [
     "internal/resource"
   ],
+  "Wired": [
+    "web/src/ui/page-dashboard.html"
+  ],
   "Wired client": [
     "web/src/pages/topology-panel.ts"
   ],
   "Wireless": [
+    "web/src/ui/page-dashboard.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -10355,6 +10363,11 @@
   "upload": [
     "web/src/ui/page-bandwidth.html"
   ],
+  "used": [
+    "web/src/pages/dashboard-card-iputil.ts",
+    "web/src/ui/page-dashboard.html",
+    "web/src/ui/page-dhcp.html"
+  ],
   "user store unavailable": [
     "internal/server/principals_api.go",
     "internal/server/setup_api.go",
@@ -10387,6 +10400,9 @@
   "you@example.com": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "{installed} → \u003cstrong\u003e{latest}\u003c/strong\u003e available": [
+    "web/src/pages/dashboard-system.ts"
   ],
   "{n} clients on an access point that is not on the map": [
     "web/src/pages/wifi-map.ts"
@@ -10456,6 +10472,9 @@
   ],
   "{sent} sent, {received} received, {loss}% loss": [
     "web/src/pages/tools.ts"
+  ],
+  "{used} / {total} used": [
+    "web/src/pages/dashboard-card-iputil.ts"
   ],
   "{{alertType}}  {{routerName}}  {{detail}}  {{ifaceName}}  {{status}}  {{comment}}\u003cbr\u003e{{cpuLoad}}  {{pingLoss}}  {{pingTarget}}  {{pingRtt}}  {{vpnPeer}}  {{host}}  {{netwatchName}}  {{bgpPeer}}  {{timestamp}}": [
     "web/src/ui/page-settings.html"

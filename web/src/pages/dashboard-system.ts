@@ -133,8 +133,8 @@ export function flushSysUpdate(): void {
       // module once it knows whether the viewer may reboot this router. Empty
       // for everyone else, so the row is unchanged for a viewer who cannot act.
       ur = '<div class="ros-update-row warn"><span class="ros-update-dot"></span>&#11014; ' +
-        esc(installedBase) + ' &rarr; <strong>' + esc(d.latestVersion) +
-        '</strong> available<span id="sysUpdateAction"></span></div>';
+        t('{installed} → <strong>{latest}</strong> available', { installed: esc(installedBase), latest: esc(d.latestVersion) }) +
+        '<span id="sysUpdateAction"></span></div>';
       // Published rather than read back off the DOM: the versions are already
       // parsed here, and the upgrade dialog should show what this row showed.
       //
@@ -151,8 +151,8 @@ export function flushSysUpdate(): void {
       // about a router on 7.24.3. That state only reaches this branch since
       // `updateVerdict` started ordering versions rather than comparing them
       // (internal/collect/system.go); before, it drew a downgrade arrow instead.
-      ur = '<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>' +
-        esc(installedBase || d.latestVersion) + '</strong> &mdash; Up to date</div>';
+      ur = '<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; ' +
+        t('RouterOS <strong>{version}</strong> — Up to date', { version: esc(installedBase || d.latestVersion) }) + '</div>';
     } else if (d.updateStatus) {
       const isUnavail = /unavailable|cannot|error|failed/i.test(d.updateStatus);
       const rowCls = isUnavail ? 'ros-update-row muted' : 'ros-update-row pending';
