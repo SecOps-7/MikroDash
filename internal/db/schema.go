@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 20
+const schemaVersion = 21
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -130,6 +130,9 @@ var portMigrations = map[int][]string{
 	// 20: Config Management — templates, deploy runs, their targets, and drift
 	// baselines. One constant for this and the fresh schema: cfg_schema.go.
 	20: {cfgTablesDDL},
+	// 21: zero-touch provisioning — the devices it knows and the batches of
+	// generic scripts. One constant for this and the fresh schema: ztp_schema.go.
+	21: {ztpTablesDDL},
 }
 
 // createSchema builds a new database at `path`.
