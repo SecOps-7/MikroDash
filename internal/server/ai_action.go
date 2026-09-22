@@ -173,6 +173,8 @@ func aiActionLabel(spec aitools.ActionSpec, mode string) string {
 		return "Reboot the router"
 	case "script_run":
 		return "Run a script"
+	case "clock_set":
+		return "Set the router's clock"
 	case "certificate_sign":
 		return "Sign a certificate"
 	case "fetch_url":
@@ -215,6 +217,11 @@ func aiActionCommand(spec aitools.ActionSpec, target, mode string) string {
 		return "/system/reboot"
 	case "script_run":
 		return "/system/script/run (" + target + ")"
+	case "clock_set":
+		if date, clock, problem := clockTarget(target); problem == "" {
+			return "/system/clock/set date=" + date + " time=" + clock
+		}
+		return "/system/clock/set (" + target + ": not a valid date and time; it will be refused)"
 	case "certificate_sign":
 		return "/certificate/sign (" + target + ")"
 	case "fetch_url":
@@ -285,6 +292,8 @@ func (cn *conn) approveAIAction(p *aiWriteProposal, in actionApproval) {
 		out = cn.runReboot(confirm, "agent")
 	case "script_run":
 		out = cn.runScriptAction(p.target, confirm)
+	case "clock_set":
+		out = cn.runClockSet(p.target, "agent")
 	case "certificate_sign":
 		out = cn.runNamedRowAction(resource.Certificate, p.target, "sign")
 	case "fetch_url":
@@ -350,6 +359,11 @@ func aiActionRefusal(spec aitools.ActionSpec, out writeOutcome) string {
 	case "unavailable":
 		return "Not run: the router is not reachable, or that page's collector is not running."
 	case "bad-request":
+		// THE ACTION'S OWN REASON FIRST: a malformed date or a refused URL is
+		// not "no such name", and fetch_url's precise message was dropped here.
+		if msg, _ := out.Detail["message"].(string); msg != "" {
+			return "Not run: " + msg + "."
+		}
 		if spec.Target != "" {
 			return "Not run: no " + spec.Target + " of that name was found on this router."
 		}
@@ -431,6 +445,9 @@ func aiActionApplied(spec aitools.ActionSpec, p *aiWriteProposal, out writeOutco
 		return fmt.Sprintf("Done: %s was signed. It now has a key and a fingerprint.", quoted(p.target))
 	case "fetch_url":
 		return fmt.Sprintf("Done: the router downloaded it as %s. list_files shows it.", quoted(out.Name))
+	case "clock_set":
+		return fmt.Sprintf("Done: the router's clock was set to %s, in its own time zone. If NTP is "+
+			"enabled it will correct the clock at its next sync.", out.Name)
 	case "wireguard_show_config":
 		return "Done: the configuration is open in the operator's browser. It holds the peer's private " +
 			"key, so it is not part of this conversation."

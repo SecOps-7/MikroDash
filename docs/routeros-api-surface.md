@@ -220,7 +220,7 @@ twice, 37,111 rows each way for one address-list entry on a synced blocklist.
 | `/certificate` | certificate | certificates | add, set, remove, sign (self-signs: `sign =.id=` measured on the CHR, 7.24.4) |
 | `/snmp` | snmp | snmp | set |
 | `/snmp/community` | snmpCommunity | snmp | add, set, remove |
-| `/system/clock` | clock | clock | set |
+| `/system/clock` | clock | clock | set (the page: the time zone only; the AI Agent's `clock_set`: `date=YYYY-MM-DD time=HH:MM:SS`, measured on the CHR, 7.24.4, where a time out of range is wrapped into the next day rather than refused) |
 | `/system/logging` | logRule | logging | add, set, remove |
 | `/system/logging/action` | logAction | logging | add, set, remove |
 | `/system/ntp/client` | ntpClient | ntp-client | set |

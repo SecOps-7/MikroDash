@@ -67,6 +67,7 @@ var commandSources = map[string]string{
 	"topofleet_api.go":    "Pages",
 	"packages.go":         "Packages",
 	"files.go":            "Files",
+	"clock.go":            "Clock",
 	"backups.go":          "Backups",
 	"backups_restore.go":  "Backups",
 	"backup_scheduler.go": "Backups",

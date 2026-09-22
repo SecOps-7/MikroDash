@@ -161,6 +161,12 @@ func Actions() []ActionSpec {
 		{Key: "fetch_url", Page: "files", Target: "url",
 			Summary: "Have the router download one file from an http:// or https:// address into its own " +
 				"storage. It is saved under the address's file name; *.auto.* files and packages are refused."},
+		// THE ONE TARGET THAT IS NOT A NAME: a date and time, validated strictly
+		// by the server, which RouterOS itself does not do for the time.
+		{Key: "clock_set", Page: "clock", Target: "date and time",
+			Summary: "Set the router's date and time by hand, in its own time zone (list_clock shows the " +
+				"current ones): target \"YYYY-MM-DD HH:MM:SS\". If NTP is enabled it will correct the clock " +
+				"at its next sync, so for a lasting fix check the NTP client instead."},
 		{Key: "certificate_sign", Page: "certificates", Target: "certificate",
 			Summary: "Self-sign a certificate that has not been signed yet (create it first with change_row), " +
 				"generating its key on the router."},

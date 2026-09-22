@@ -126,9 +126,9 @@ and the declared actions, so a renamed or removed tool fails the build rather th
 | `rollback_change` | `change_row` | covered | Its `undo: true`: the assistant's own newest change to a resource, through the page's undo path, always approved. |
 | `run_command` | `run_command` | covered | As bulk_execute: every command typed back. |
 | `run_script` | `run_action:script_run` | covered | Behind the raw-command gate and codeGate, with the router's name typed back. |
-| `set_system_clock` | — | excluded | The Clock page never sends the time (NTP sets it); only the time zone is written. |
+| `set_system_clock` | `run_action:clock_set` | covered | Date and time in the router's own time zone, validated strictly (RouterOS wraps a time out of range instead of refusing it); always proposed. The Clock page itself still writes only the time zone. |
 | `torch` | `run_action:torch` | covered | Always proposed; 5 seconds. |
 | `traceroute` | `traceroute` | covered | Bounded: up to 30 hops. |
 | `upload_file` | `change_row:file` | covered | As delete_file: a text file created with its contents, which are never read back. |
 
-Totals: covered 117, partial 0, context 0, pending 0, excluded 1, gap 0, of 118 tools.
+Totals: covered 118, partial 0, context 0, pending 0, excluded 0, gap 0, of 118 tools.
