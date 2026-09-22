@@ -62,7 +62,7 @@ These are deliberate constraints rather than style preferences:
 - **A check that cannot fail is worse than no check.** Anything that scans a set asserts it actually found something. An audit that silently measures zero reads exactly like one that passed.
 - **A gap is recorded, never hidden.** The ledgers in `internal/verify/` fail in both directions: an unrecorded gap fails, and so does a recorded one that has since closed.
 - **Self-hosted assets.** Everything the browser loads lives in `web/public/vendor/`, so the dashboard works on an isolated network with no internet access. No CDN references.
-- **A small dependency footprint.** There are seven Go dependencies and each has a reason beyond convenience. `esbuild` is used through its Go API, which is why building the frontend needs no JavaScript runtime. New ones are worth discussing first.
+- **A small dependency footprint.** There are eight Go dependencies and each has a reason beyond convenience. `esbuild` is used through its Go API, which is why building the frontend needs no JavaScript runtime. New ones are worth discussing first.
 - **Errors are sanitised.** Anything reaching the browser goes through `safe.Message()` first.
 - **Deliberate changes are welcome; silent ones are not.** If your change alters what a page shows, a WebSocket payload or an interaction, say so in the PR. If it makes a check fail, update the check and explain why in the commit — do not delete it.
 

@@ -149,11 +149,13 @@ table.
 - **"More efficient" means fewer router channels, not faster payload assembly.** The bottleneck is
   concurrent API channels on the MikroTik, not CPU here.
 - **Go stdlib first, but not stdlib-only.** A dependency needs a reason better than convenience.
-  Seven are in: `golang.org/x/crypto` (scrypt, which the user store's key derivation demands),
+  Eight are in: `golang.org/x/crypto` (scrypt, which the user store's key derivation demands),
   `modernc.org/sqlite` (pure Go, no cgo, so the binary stays static), `github.com/coder/websocket`,
   `github.com/go-routeros/routeros/v3` (a patched copy, `third_party/go-routeros`: see
   "Three things about `internal/routeros`"), `github.com/go-pdf/fpdf`,
-  `github.com/oschwald/maxminddb-golang/v2` (the DB-IP geo reader) and `github.com/evanw/esbuild`.
+  `github.com/oschwald/maxminddb-golang/v2` (the DB-IP geo reader), `github.com/evanw/esbuild` and
+  `golang.zx2c4.com/wireguard` (zero-touch provisioning's tunnel: userspace WireGuard with gVisor's
+  netstack, so the container needs no NET_ADMIN or tun device; `internal/ztp`).
   - **esbuild runs through its Go API** in `cmd/webbuild`, so the image needs no JavaScript
     runtime. Node is a development dependency only: `tsc --noEmit` and the tests in `web/test/`.
   - **fpdf walks bytes against a cp1252 table**, so `reportpdf.EncodeText` is mandatory on every
