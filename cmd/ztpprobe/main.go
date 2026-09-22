@@ -19,7 +19,10 @@
 //     interface's own public key;
 //   - z5 whether `/user add address=` really refuses a login from elsewhere;
 //   - z6 whether a script can put an input accept rule FIRST;
-//   - z7 whether a scheduler can remove itself from its own on-event.
+//   - z7 whether a scheduler can remove itself from its own on-event;
+//   - z8 the premise itself: that RouterOS completes a WireGuard handshake with
+//     internal/ztp's userspace engine, through the CHR's NAT, and that traffic
+//     flows both ways (the router's fetch in, MikroDash's TCP to the API out).
 //
 // ── IT REFUSES ANY ROUTER THAT IS NOT A CHR ─────────────────────────────────
 //
@@ -32,6 +35,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
@@ -42,6 +46,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +55,7 @@ import (
 
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/store"
+	"mikrodash/internal/ztp"
 )
 
 const prefix = "mdprobe-"
@@ -121,6 +127,7 @@ func (p *probe) cleanup() {
 	for _, m := range []menu{
 		{"/system/scheduler", "name"}, {"/interface/wireguard", "name"},
 		{"/user", "name"}, {"/file", "name"}, {"/ip/firewall/filter", "comment"},
+		{"/ip/address", "comment"},
 	} {
 		rows, err := p.c.Do(routeros.Cmd{Path: m.path + "/print",
 			Args: []string{"=.proplist=.id," + m.key}, Timeout: 15 * time.Second})
@@ -217,6 +224,7 @@ func main() {
 		{"z1", func() { z1Identity(p) }}, {"z2", func() { z2Rndstr(p) }}, {"z3", func() { z3Fetch(p) }},
 		{"z4", func() { z4WireGuard(p) }}, {"z5", func() { z5UserAddress(p, cfg) }},
 		{"z6", func() { z6FirstRule(p) }}, {"z7", func() { z7SelfRemovingScheduler(p) }},
+		{"z8", func() { z8Tunnel(p) }},
 	} {
 		if len(only) == 0 || only[m.name] {
 			m.fn()
@@ -350,6 +358,99 @@ func z7SelfRemovingScheduler(p *probe) {
 	time.Sleep(12 * time.Second)
 	rows := p.run("z7 after 12s", "/system/scheduler/print", "?name="+prefix+"sch", "=.proplist=.id,run-count")
 	p.note("z7 still there after 12s", fmt.Sprint(len(rows.Rows) > 0))
+}
+
+func z8Tunnel(p *probe) {
+	fmt.Fprintln(os.Stderr, "Z8 RouterOS against the userspace engine")
+	sPriv, sPub, _ := ztp.NewKeyPair()
+	rPriv, rPub, _ := ztp.NewKeyPair()
+	eng, err := ztp.Start(ztp.Config{PrivateKey: sPriv, ListenPort: 13231, Address: netip.MustParseAddr("10.249.0.1")})
+	if err != nil {
+		p.note("z8 engine", "did not start: "+err.Error())
+		return
+	}
+	defer eng.Close()
+	_ = eng.SetPeer(ztp.Peer{PublicKey: rPub, Allowed: []netip.Prefix{netip.MustParsePrefix("10.249.1.2/32")}})
+	l, err := eng.ListenTCP(80)
+	if err != nil {
+		p.note("z8 listen", err.Error())
+		return
+	}
+	defer l.Close()
+	go func() {
+		_ = http.Serve(l, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p.mu.Lock()
+			p.hits = append(p.hits, "via tunnel from "+r.RemoteAddr)
+			p.mu.Unlock()
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		}))
+	}()
+	host, _, _ := strings.Cut(p.srvAddr, ":")
+	for _, s := range []struct {
+		path string
+		args []string
+	}{
+		// MEASURED: a listen port another WireGuard interface already holds makes
+		// RouterOS create the interface DISABLED, with `.about: Listen port
+		// already used`, and it sends nothing. So no port is given here, to see
+		// what RouterOS picks for itself.
+		{"/interface/wireguard/add", []string{"=name=" + prefix + "ztp", "=private-key=" + rPriv}},
+		{"/interface/wireguard/peers/add", []string{"=interface=" + prefix + "ztp", "=public-key=" + sPub,
+			"=endpoint-address=" + host, "=endpoint-port=13231", "=allowed-address=10.249.0.1/32", "=persistent-keepalive=5s"}},
+		{"/ip/address/add", []string{"=address=10.249.1.2/16", "=interface=" + prefix + "ztp", "=comment=" + prefix + "ztp"}},
+	} {
+		st := p.run("z8 "+s.path, s.path, s.args...)
+		if st.Trap != "" || st.Err != "" {
+			p.note("z8 "+s.path, fmt.Sprintf("trap=%q err=%q", st.Trap, st.Err))
+			return
+		}
+	}
+	// Let the input chain admit the tunnel, first, as the bootstrap will.
+	p.script("z8fw", `/ip firewall filter; :local first [:pick [find] 0]; `+
+		`:if ([:len $first] > 0) do={ add chain=input action=accept in-interface="`+prefix+`ztp" comment="`+prefix+`ztp" place-before=$first } `+
+		`else={ add chain=input action=accept in-interface="`+prefix+`ztp" comment="`+prefix+`ztp" }; :put ok`)
+
+	// IN: the router calls home over the tunnel.
+	p.note("z8 router calls home", p.script("z8a", `:onerror e in={ :local r [/tool fetch url="http://10.249.0.1/enrol" `+
+		`http-method=post http-data="{}" output=user as-value]; :put ("status=" . ($r->"status") . " data=" . ($r->"data")) } `+
+		`do={ :put ("error=" . $e) }`))
+	rp := p.run("z8 router peer", "/interface/wireguard/peers/print", "?interface="+prefix+"ztp")
+	for _, r := range rp.Rows {
+		p.note("z8 router's peer", fmt.Sprintf("tx=%s rx=%s last-handshake=%q current-endpoint=%s:%s running=%s",
+			r["tx"], r["rx"], r["last-handshake"], r["current-endpoint-address"], r["current-endpoint-port"], r["running"]))
+	}
+	wi := p.run("z8 router iface", "/interface/wireguard/print", "?name="+prefix+"ztp")
+	for _, r := range wi.Rows {
+		delete(r, "private-key")
+		p.note("z8 router's interface", fmt.Sprint(r))
+	}
+	lg := p.run("z8 log", "/log/print", "?topics=wireguard")
+	for i, r := range lg.Rows {
+		if i >= len(lg.Rows)-6 {
+			p.note("z8 log", r["time"]+" "+r["topics"]+" "+r["message"])
+		}
+	}
+	all := p.run("z8 all wg", "/interface/wireguard/print", "=.proplist=name,listen-port,disabled,running")
+	for _, r := range all.Rows {
+		p.note("z8 wg on router", fmt.Sprint(r))
+	}
+	st, _ := eng.Status()
+	for _, s := range st {
+		p.note("z8 engine sees peer", fmt.Sprintf("endpoint=%s handshake=%v rx=%d tx=%d", s.Endpoint,
+			!s.LastHandshake.IsZero(), s.RxBytes, s.TxBytes))
+	}
+	// OUT: MikroDash reaches the router's API port through the tunnel.
+	for _, port := range []string{"8728", "8729"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		c, err := eng.DialContext(ctx, "tcp", "10.249.1.2:"+port)
+		cancel()
+		if err != nil {
+			p.note("z8 TCP to API "+port, "failed: "+err.Error())
+			continue
+		}
+		c.Close()
+		p.note("z8 TCP to API "+port, "connected")
+	}
 }
 
 // fromStore is importprobe's, deliberately a copy: each lab tool is one file.
