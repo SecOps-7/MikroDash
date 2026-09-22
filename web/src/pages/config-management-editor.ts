@@ -3,6 +3,7 @@
 // wires them to the page.
 
 import { esc } from '../dom';
+import { t } from '../i18n';
 import { highlight } from './config-management-cards';
 
 /** One declared setting, as the server stores it (cfgtpl.VarDef). */
@@ -69,10 +70,10 @@ export function varRow(d: VarDef, types: string[], unused: boolean): string {
     '<div class="cfg-var-name"><span class="cfg-var">{{' + esc(d.name) + '}}</span>' +
     (unused ? '<span class="cfg-meta">not used</span>' : '') + '</div>' +
     '<select class="form-select form-select-sm" data-var-field="type" aria-label="Type">' + types.map(opt).join('') + '</select>' +
-    '<input class="form-control form-control-sm" data-var-field="label" placeholder="Label" value="' + esc(d.label ?? '') + '">' +
-    '<input class="form-control form-control-sm" data-var-field="default" placeholder="Default" value="' +
+    ('<input class="form-control form-control-sm" data-var-field="label" placeholder="' + t('Label') + '" value="') + esc(d.label ?? '') + '">' +
+    ('<input class="form-control form-control-sm" data-var-field="default" placeholder="' + t('Default') + '" value="') +
     esc(d.type === 'secret' ? '' : d.default ?? '') + '"' + (d.type === 'secret' ? ' disabled title="A secret has no default: it would be stored with the template"' : '') + '>' +
-    (d.type === 'enum' ? '<input class="form-control form-control-sm" data-var-field="options" placeholder="Options, comma separated" value="' +
+    (d.type === 'enum' ? ('<input class="form-control form-control-sm" data-var-field="options" placeholder="' + t('Options, comma separated') + '" value="') +
       esc((d.options ?? []).join(',')) + '">' : '') +
     '<label class="cfg-var-req"><input type="checkbox" data-var-field="required"' + (d.required ? ' checked' : '') + '> required</label>' +
     '</div>';
@@ -81,27 +82,27 @@ export function varRow(d: VarDef, types: string[], unused: boolean): string {
 export function serverVarRows(names: string[]): string {
   const what: Record<string, string> = {
     mgmt_src: "MikroDash's address, as each router sees it",
-    api_service: 'The API service MikroDash uses (api or api-ssl)',
-    api_user: 'The account MikroDash logs in as',
+    api_service: t('The API service MikroDash uses (api or api-ssl)'),
+    api_user: t('The account MikroDash logs in as'),
   };
   return names.map((n) => '<div class="cfg-var-row is-locked"><div class="cfg-var-name"><span class="cfg-var">{{' +
-    esc(n) + '}}</span><span class="cfg-meta">filled by MikroDash</span></div><div class="cfg-meta">' +
+    esc(n) + ('}}</span><span class="cfg-meta">' + t('filled by MikroDash') + '</span></div><div class="cfg-meta">') +
     esc(what[n] ?? '') + '</div></div>').join('');
 }
 
 /** The capture form: which router, the whole of it or one menu, and a name. */
 export function captureForm(routers: { id: string; label: string }[], menus: string[]): string {
   return '<div class="cfg-capture">' +
-    '<div class="cfg-capture-row"><label>Router<select class="form-select form-select-sm" id="cfgCapRouter">' +
+    ('<div class="cfg-capture-row"><label>' + t('Router') + '<select class="form-select form-select-sm" id="cfgCapRouter">') +
     routers.map((r) => '<option value="' + esc(r.id) + '">' + esc(r.label) + '</option>').join('') + '</select></label>' +
-    '<label>What<select class="form-select form-select-sm" id="cfgCapKind">' +
-    '<option value="fragment">One menu (for additions)</option>' +
-    '<option value="full-export">The whole router (for full replacement)</option></select></label>' +
-    '<label id="cfgCapMenuWrap">Menu<select class="form-select form-select-sm" id="cfgCapMenu">' +
+    ('<label>' + t('What') + '<select class="form-select form-select-sm" id="cfgCapKind">') +
+    ('<option value="fragment">' + t('One menu (for additions)') + '</option>') +
+    ('<option value="full-export">' + t('The whole router (for full replacement)') + '</option></select></label>') +
+    ('<label id="cfgCapMenuWrap">' + t('Menu') + '<select class="form-select form-select-sm" id="cfgCapMenu">') +
     menus.map((m) => '<option value="' + esc(m) + '"' + (m === '/ip/firewall/filter' ? ' selected' : '') + '>' +
       esc(m) + '</option>').join('') + '</select></label>' +
-    '<label>Name<input class="form-control form-control-sm" id="cfgCapName" placeholder="e.g. Branch firewall"></label>' +
-    '<button class="cfg-btn cfg-btn-go" type="button" id="cfgCapGo">Capture</button></div>' +
+    ('<label>' + t('Name') + '<input class="form-control form-control-sm" id="cfgCapName" placeholder="' + t('e.g. Branch firewall') + '"></label>') +
+    ('<button class="cfg-btn cfg-btn-go" type="button" id="cfgCapGo">' + t('Capture') + '</button></div>') +
     '<p class="cfg-meta">A menu is captured without its secrets. The whole router is captured with them, for a faithful ' +
     'replacement, and stored encrypted.</p></div>';
 }

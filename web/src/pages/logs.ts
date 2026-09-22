@@ -21,6 +21,7 @@
 // at two thousand lines.
 
 import { esc, el, debounce } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { LogEntry } from '../gen/payloads';
 
@@ -148,7 +149,7 @@ export function initLogsPage(socket: Socket, isVisible: (page: string) => boolea
 
   toggleScroll?.addEventListener('click', () => {
     autoScroll = !autoScroll;
-    toggleScroll.textContent = autoScroll ? 'Pause' : 'Resume';
+    toggleScroll.textContent = autoScroll ? t('Pause') : t('Resume');
   });
 
   // Clear empties the VIEW and the buffer, not the router's log. The next

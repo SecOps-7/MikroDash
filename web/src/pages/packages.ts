@@ -13,16 +13,17 @@
 // one.
 
 import { esc, el, renderSortHeader, sortMul, debounce, fmtBytes, type SortCol, type SortState, kv } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { Package, Firmware, Update, PackagesPayload } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
 
 const COLS: SortCol[] = [
-  { key: 'name', label: 'Package' },
-  { key: 'version', label: 'Version' },
-  { key: 'size', label: 'Size' },
-  { key: 'built', label: 'Built' },
-  { key: 'state', label: 'State' },
+  { key: 'name', label: t('Package') },
+  { key: 'version', label: t('Version') },
+  { key: 'size', label: t('Size') },
+  { key: 'built', label: t('Built') },
+  { key: 'state', label: t('State') },
   { key: 'actions', label: '' },
 ];
 
@@ -73,10 +74,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     const b = (act: string, label: string, cls?: string): string =>
       '<button class="pkg-act' + (cls ? ' ' + cls : '') + '" data-act="' + act +
       '" data-name="' + esc(p.name) + '"' + dis + '>' + label + '</button>';
-    if (p.scheduled) return b('unschedule', 'Undo', 'undo');
-    if (p.state === 'available') return b('enable', 'Install');
-    if (p.state === 'disabled') return b('enable', 'Enable') + ' ' + b('uninstall', 'Uninstall');
-    if (p.state === 'installed') return b('disable', 'Disable') + ' ' + b('uninstall', 'Uninstall');
+    if (p.scheduled) return b('unschedule', t('Undo'), 'undo');
+    if (p.state === 'available') return b('enable', t('Install'));
+    if (p.state === 'disabled') return b('enable', t('Enable')) + ' ' + b('uninstall', t('Uninstall'));
+    if (p.state === 'installed') return b('disable', t('Disable')) + ' ' + b('uninstall', t('Uninstall'));
     return '';
   }
 
@@ -120,7 +121,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     const an = el('pkgActionNote');
     if (an) {
       an.textContent = caps.permitted
-        ? '' : 'read-only — you do not have write access to this router';
+        ? '' : t('read-only — you do not have write access to this router');
     }
 
     tbody!.innerHTML = rows.length
@@ -134,7 +135,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
         '<td>' + actionsFor(p) + '</td>' +
         '</tr>').join('')
       : '<tr><td colspan="6" class="empty-state">' +
-        (q ? 'No packages match that search.' : 'Waiting for package data…') + '</td></tr>';
+        (q ? t('No packages match that search.') : t('Waiting for package data…')) + '</td></tr>';
 
     tbody!.querySelectorAll<HTMLButtonElement>('.pkg-act').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -175,7 +176,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     // for the reason `updateSlotHtml` gives — a button with nothing to do, or
     // one that refuses on click, is worse than none.
     const updateBtn = (caps.permitted && u.updateAvailable && u.latestVersion)
-      ? ' <button class="sbtn sbtn-warn" data-upgrade-open'
+      ? ' ' + t('<button class="sbtn sbtn-warn" data-upgrade-open')
         + ' style="padding:.1rem .45rem;font-size:.64rem;margin-left:.4rem">Update</button>'
       : '';
 
@@ -184,7 +185,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       (u.updateAvailable ? ' → ' + esc(u.latestVersion) : '') + updateBtn,
       u.updateAvailable ? 'warn' : 'on');
     if (f.isRouterboard) {
-      html += kv('Firmware', esc(f.currentFirmware || '—') +
+      html += kv(t('Firmware'), esc(f.currentFirmware || '—') +
         (f.upgradeAvailable ? ' → ' + esc(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
     }
     // THE ROUTER'S STATUS TEXT IS NOT ALWAYS TRUE, and saying it anyway made
@@ -199,12 +200,12 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     // "unavailable" needs to reach the operator. Kept in step by hand; the two
     // render differently enough that one function would not serve both.
     const upToDate = !u.updateAvailable && !!u.latestVersion;
-    html += kv('Update status', esc(upToDate ? 'Up to date' : (u.status || '—')),
+    html += kv(t('Update status'), esc(upToDate ? t('Up to date') : (u.status || '—')),
       u.updateAvailable ? 'warn' : 'off');
-    html += kv('Channel', esc(u.channel || '—'));
+    html += kv(t('Channel'), esc(u.channel || '—'));
     if (f.isRouterboard) {
-      html += kv('Minimum firmware', esc(f.minimumFirmware || '—'));
-      html += kv('Board', esc(f.boardName || '—') + (f.model ? ' (' + esc(f.model) + ')' : ''));
+      html += kv(t('Minimum firmware'), esc(f.minimumFirmware || '—'));
+      html += kv(t('Board'), esc(f.boardName || '—') + (f.model ? ' (' + esc(f.model) + ')' : ''));
     }
     body.innerHTML = html;
     renderRouterboard();
@@ -246,17 +247,17 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     html += '<div class="kv-item"><div class="kv-key">RouterBOOT</div><div class="kv-val' +
       (pending ? ' warn' : ' on') + '">' + esc(f.currentFirmware || '—') +
       (pending ? ' → ' + esc(f.upgradeFirmware) : '') + '</div></div>';
-    html += '<div class="kv-item"><div class="kv-key">Status</div><div class="kv-val' +
+    html += ('<div class="kv-item"><div class="kv-key">' + t('Status') + '</div><div class="kv-val') +
       (pending ? ' warn' : ' on') + '">' +
-      (pending ? 'An upgrade is available' : 'Up to date with RouterOS') + '</div></div>';
+      (pending ? t('An upgrade is available') : t('Up to date with RouterOS')) + '</div></div>';
     html += '</div>';
 
     html += '<div class="pkg-rb-actions">';
     if (f.autoUpgrade === null || f.autoUpgrade === undefined) {
-      html += '<span class="muted-note">Auto-upgrade could not be read from this router.</span>';
+      html += '<span class="muted-note">' + t('Auto-upgrade could not be read from this router.') + '</span>';
     } else if (caps.permitted) {
       html += '<label class="stoggle stoggle-bare">' +
-        '<span class="stoggle-label">Upgrade automatically</span>' +
+        ('<span class="stoggle-label">' + t('Upgrade automatically') + '</span>') +
         '<span class="stoggle-switch"><input type="checkbox" id="pkgAutoUpgrade"' +
         (f.autoUpgrade ? ' checked' : '') +
         '><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>';
@@ -286,7 +287,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
           'This writes the RouterBOOT firmware and REBOOTS the router.\n\n' +
           'Type the router name to confirm: ' + name);
         if (typed === null) return;
-        setStatus('Upgrading RouterBOOT — the router will reboot');
+        setStatus(t('Upgrading RouterBOOT — the router will reboot'));
         socket.emit('packages:fwupgrade', { confirm: typed });
       });
     }
@@ -298,7 +299,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
         // until a reply says otherwise: the collector's refresh redraws it.
         const on = auto.checked;
         auto.checked = !!(data && data.firmware && data.firmware.autoUpgrade);
-        setStatus(on ? 'Turning auto-upgrade on…' : 'Turning auto-upgrade off…');
+        setStatus(on ? t('Turning auto-upgrade on…') : t('Turning auto-upgrade off…'));
         socket.emit('packages:autoupgrade', { on });
       });
     }
@@ -342,32 +343,32 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
 
   socket.on('packages:ok', (d) => {
     busy = '';
-    if (d && d.action === 'apply') setStatus('Applying changes — the router is rebooting');
-    else if (d && d.action === 'check') setStatus('Update check finished');
-    else if (d && d.action === 'fwupgrade') setStatus('RouterBOOT written — the router is rebooting');
-    else if (d && d.action === 'reboot') setStatus('The router is rebooting');
+    if (d && d.action === 'apply') setStatus(t('Applying changes — the router is rebooting'));
+    else if (d && d.action === 'check') setStatus(t('Update check finished'));
+    else if (d && d.action === 'fwupgrade') setStatus(t('RouterBOOT written — the router is rebooting'));
+    else if (d && d.action === 'reboot') setStatus(t('The router is rebooting'));
     else if (d && d.action === 'autoupgrade') {
-      setStatus(d.on ? 'Auto-upgrade is on' : 'Auto-upgrade is off');
+      setStatus(d.on ? t('Auto-upgrade is on') : t('Auto-upgrade is off'));
     }
   });
 
   socket.on('packages:error', (d) => {
     busy = '';
     const msg: Record<string, string> = {
-      denied: 'You do not have write access to this router',
-      unavailable: 'Package collection is not running for this router',
-      'bad-request': 'Invalid request',
-      'no-such-package': 'That package is no longer listed',
-      'router-write-policy': 'The RouterOS user needs write permission for this',
-      unsupported: 'This router does not support that command',
-      'confirm-mismatch': 'The router name did not match — nothing was applied',
-      'nothing-scheduled': 'There are no scheduled changes to apply',
-      'no-routerboard': 'This device has no RouterBOOT to upgrade',
-      'firmware-current': 'The bootloader already matches the firmware on the board',
-      'outcome-unknown': 'The router accepted the change but it could not be confirmed',
-      'rate-limited': 'Too many changes to this router in the last minute',
+      denied: t('You do not have write access to this router'),
+      unavailable: t('Package collection is not running for this router'),
+      'bad-request': t('Invalid request'),
+      'no-such-package': t('That package is no longer listed'),
+      'router-write-policy': t('The RouterOS user needs write permission for this'),
+      unsupported: t('This router does not support that command'),
+      'confirm-mismatch': t('The router name did not match — nothing was applied'),
+      'nothing-scheduled': t('There are no scheduled changes to apply'),
+      'no-routerboard': t('This device has no RouterBOOT to upgrade'),
+      'firmware-current': t('The bootloader already matches the firmware on the board'),
+      'outcome-unknown': t('The router accepted the change but it could not be confirmed'),
+      'rate-limited': t('Too many changes to this router in the last minute'),
     };
-    setStatus((d && d.code && msg[d.code]) || (d && d.message) || 'Action failed');
+    setStatus((d && d.code && msg[d.code]) || (d && d.message) || t('Action failed'));
     if (isVisible('packages')) render();
   });
 
@@ -385,8 +386,8 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
   const chk = el('pkgCheckBtn');
   if (chk) {
     chk.addEventListener('click', () => {
-      if (!caps.permitted) { setStatus('You do not have write access to this router'); return; }
-      setStatus('Checking for updates…');
+      if (!caps.permitted) { setStatus(t('You do not have write access to this router')); return; }
+      setStatus(t('Checking for updates…'));
       // NO PAYLOAD, matching the live page (`../MikroDash/public/app.js:13027`).
       // The Go handler ignores `in.Data` for this event, so `{}` did nothing —
       // but an argument the original does not send is still a difference on the
@@ -399,13 +400,13 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
   const reboot = el('pkgRebootBtn');
   if (reboot) {
     reboot.addEventListener('click', () => {
-      if (!caps.permitted) { setStatus('You do not have write access to this router'); return; }
+      if (!caps.permitted) { setStatus(t('You do not have write access to this router')); return; }
       const name = caps.routerName || '';
       const typed = window.prompt(
         'This REBOOTS the router. It will be unreachable for a minute or two.\n\n' +
         'Type the router name to confirm: ' + name);
       if (typed === null) return;
-      setStatus('Rebooting…');
+      setStatus(t('Rebooting…'));
       socket.emit('packages:reboot', { confirm: typed });
     });
   }

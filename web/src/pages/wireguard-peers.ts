@@ -32,6 +32,7 @@
 // back on the way to a table tab.
 
 import { esc, el, resRow, fmtBytes, renderSortHeader, sortRows } from '../dom';
+import { t } from '../i18n';
 import type { SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Tunnel } from '../gen/payloads';
@@ -73,7 +74,7 @@ function hsToSecs(s: string): number {
  */
 function hsBadge(handshake: string, state: string): string {
   if (state === 'never' || !handshake || handshake === 'never') {
-    return '<span class="vpn-hs-badge hs-never">Never connected</span>';
+    return '<span class="vpn-hs-badge hs-never">' + t('Never connected') + '</span>';
   }
   const secs = hsToSecs(handshake);
   const cls = secs < 180 ? 'hs-ok' : secs < 600 ? 'hs-warn' : 'hs-stale';
@@ -115,14 +116,14 @@ export function overlappingPeers(rows: readonly Tunnel[]): Set<string> {
 }
 
 const COLS = [
-  { key: 'name', label: 'Peer' },
-  { key: 'interface', label: 'Interface' },
-  { key: 'state', label: 'Status' },
-  { key: 'lastHandshake', label: 'Handshake' },
-  { key: 'allowedIp', label: 'Allowed Addresses' },
-  { key: 'endpoint', label: 'Endpoint' },
-  { key: 'keepalive', label: 'Keepalive' },
-  { key: '', label: 'Rx / Tx', style: 'text-align:right' },
+  { key: 'name', label: t('Peer') },
+  { key: 'interface', label: t('Interface') },
+  { key: 'state', label: t('Status') },
+  { key: 'lastHandshake', label: t('Handshake') },
+  { key: 'allowedIp', label: t('Allowed Addresses') },
+  { key: 'endpoint', label: t('Endpoint') },
+  { key: 'keepalive', label: t('Keepalive') },
+  { key: '', label: t('Rx / Tx'), style: 'text-align:right' },
   // NOT SORTABLE, and not a field: the Config button. A viewer who may not
   // reveal a configuration still sees it — the server refuses and audits the
   // attempt, and hiding a button is not an access control. See
@@ -165,7 +166,7 @@ export function initWireguardPeers(socket: Socket): void {
     if (!modal || !pre || !qr || !note) return;
     wipeConfig();
     modal.hidden = false;
-    if (note) note.textContent = 'Asking the router…';
+    if (note) note.textContent = t('Asking the router…');
 
     const q = '?routerId=' + encodeURIComponent(routerId) +
       '&publicKey=' + encodeURIComponent(publicKey);
@@ -174,7 +175,7 @@ export function initWireguardPeers(socket: Socket): void {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         note.textContent = (body && body.error) ? String(body.error)
-          : 'The router did not return a configuration.';
+          : t('The router did not return a configuration.');
         return;
       }
       if (title) title.textContent = 'Client configuration — ' + String(body.peer || '');
@@ -189,7 +190,7 @@ export function initWireguardPeers(socket: Socket): void {
       const dl = el<HTMLAnchorElement>('wgConfDownload');
       if (dl) dl.href = '/api/wireguard/peer-config' + q + '&download=1';
     } catch {
-      note.textContent = 'Could not reach this server.';
+      note.textContent = t('Could not reach this server.');
     }
   }
 
@@ -209,7 +210,7 @@ export function initWireguardPeers(socket: Socket): void {
     if (!body) return;
     if (!last.length) {
       body.innerHTML = '<tr><td colspan="' + COLS.length +
-        '"><div class="empty-state">No peers yet. Add one to hand a device its configuration.</div></td></tr>';
+        ('"><div class="empty-state">' + t('No peers yet. Add one to hand a device its configuration.') + '</div></td></tr>');
       return;
     }
 
@@ -259,7 +260,7 @@ export function initWireguardPeers(socket: Socket): void {
       '</div>' +
       '<div class="apps-modal" id="wgConfModal" hidden>' +
         '<div class="apps-modal-card" style="width:min(720px,94vw)">' +
-          '<h3 class="card-title" id="wgConfTitle">Client configuration</h3>' +
+          ('<h3 class="card-title" id="wgConfTitle">' + t('Client configuration') + '</h3>') +
           '<p style="font-size:.78rem;color:var(--accent-red,#f87171);margin:.3rem 0 .6rem">' +
             'This contains the client\'s private key. Anyone who has it can join your network.' +
           '</p>' +
@@ -270,9 +271,9 @@ export function initWireguardPeers(socket: Socket): void {
           '</div>' +
           '<p id="wgConfNote" style="font-size:.75rem;color:var(--text-muted);margin:.6rem 0 0"></p>' +
           '<div class="hdr-actions" style="justify-content:flex-end;gap:.4rem;margin-top:.8rem">' +
-            '<button class="btn btn-sm" data-wg-copy>Copy</button>' +
-            '<a class="btn btn-sm" id="wgConfDownload" download>Download</a>' +
-            '<button class="btn btn-sm" data-wg-close>Close</button>' +
+            ('<button class="btn btn-sm" data-wg-copy>' + t('Copy') + '</button>') +
+            ('<a class="btn btn-sm" id="wgConfDownload" download>' + t('Download') + '</a>') +
+            ('<button class="btn btn-sm" data-wg-close>' + t('Close') + '</button>') +
           '</div>' +
         '</div>' +
       '</div>';

@@ -20,6 +20,7 @@
 // exist precisely because averaging already happened server-side.
 
 import { el, fmtMbps, fmtDataMB } from '../dom';
+import { t } from '../i18n';
 import { chartLabel } from './reports';
 import type { PingRow } from './reports-ping';
 import type { TrafficRow, BandwidthRow, IfaceSummary } from './reports-traffic';
@@ -30,7 +31,7 @@ import type { TrafficRow, BandwidthRow, IfaceSummary } from './reports-traffic';
 interface ChartLike { destroy(): void }
 declare const Chart: undefined | (new (canvas: HTMLCanvasElement, cfg: unknown) => ChartLike);
 
-const MONO = { size: 10, family: 'JetBrains Mono,monospace' };
+const MONO = { size: 10, family: t('JetBrains Mono,monospace') };
 const GRID = { color: 'rgba(99,130,190,.08)' };
 const AXIS_TICK = { maxTicksLimit: 8, color: 'rgba(148,163,190,.5)', font: MONO };
 
@@ -107,7 +108,7 @@ export function renderPingChart(rows: PingRow[]): void {
           borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true, spanGaps: true, yAxisID: 'yR',
         },
         {
-          label: 'Loss %', data: losses, borderColor: 'rgba(248,113,113,.8)',
+          label: t('Loss %'), data: losses, borderColor: 'rgba(248,113,113,.8)',
           backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2,
           fill: false, yAxisID: 'yL',
         },
@@ -224,13 +225,13 @@ export function renderTrafficChart(
   const first = sub[0];
   if (agg && sub.length && first && first.rx_max_mbps != null) {
     sets.push({
-      label: 'Peak RX in bucket',
+      label: t('Peak RX in bucket'),
       data: sub.map((r) => +(+(r.rx_max_mbps as number)).toFixed(3)),
       borderColor: 'rgba(56,189,248,.35)', borderDash: [3, 3], borderWidth: 1,
       pointRadius: 0, tension: 0.2, fill: false,
     });
     sets.push({
-      label: 'Peak TX in bucket',
+      label: t('Peak TX in bucket'),
       data: sub.map((r) => +(+(r.tx_max_mbps as number)).toFixed(3)),
       borderColor: 'rgba(52,211,153,.35)', borderDash: [3, 3], borderWidth: 1,
       pointRadius: 0, tension: 0.2, fill: false,
@@ -311,12 +312,12 @@ export function renderBandwidthChart(rows: BandwidthRow[], agg: string): void {
 
   const sets: Record<string, unknown>[] = [
     {
-      label: 'Download', data: sub.map((r) => +(+r.rx_mb).toFixed(3)),
+      label: t('Download'), data: sub.map((r) => +(+r.rx_mb).toFixed(3)),
       borderColor: RX_LINE, backgroundColor: RX_FILL,
       borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
     },
     {
-      label: 'Upload', data: sub.map((r) => +(+r.tx_mb).toFixed(3)),
+      label: t('Upload'), data: sub.map((r) => +(+r.tx_mb).toFixed(3)),
       borderColor: TX_LINE, backgroundColor: TX_FILL,
       borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
     },
@@ -325,13 +326,13 @@ export function renderBandwidthChart(rows: BandwidthRow[], agg: string): void {
   const first = sub[0];
   if (agg && sub.length && first && first.rx_max_mb != null) {
     sets.push({
-      label: 'Busiest minute ↓',
+      label: t('Busiest minute ↓'),
       data: sub.map((r) => +(+(r.rx_max_mb as number)).toFixed(3)),
       borderColor: 'rgba(56,189,248,.35)', borderDash: [3, 3], borderWidth: 1,
       pointRadius: 0, tension: 0.2, fill: false,
     });
     sets.push({
-      label: 'Busiest minute ↑',
+      label: t('Busiest minute ↑'),
       data: sub.map((r) => +(+(r.tx_max_mb as number)).toFixed(3)),
       borderColor: 'rgba(52,211,153,.35)', borderDash: [3, 3], borderWidth: 1,
       pointRadius: 0, tension: 0.2, fill: false,

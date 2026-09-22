@@ -39,6 +39,7 @@
 // kind, or naming one Go does not have, fails tsc.
 
 import { el, esc, resRow, renderSortHeader, sortRows, debounce, type SortCol, type SortState } from '../dom';
+import { t } from '../i18n';
 import { mountAdds, mountRows } from '../resource';
 import { AREAS, type Area, type AreaPanel, type PillKind } from '../gen/areas';
 import { actionBadge } from './firewall';
@@ -312,7 +313,7 @@ function render(area: Area): void {
           '<th style="width:34%;font-weight:500;color:var(--text-muted)">' + esc(columnLabel(c)) + '</th>' +
           '<td>' + valueCell(declared.pills[c], r.values?.[c]) + '</td></tr>').join('') +
         '</tbody></table>'
-      : '<div class="empty-state">The router did not return these settings.</div>';
+      : '<div class="empty-state">' + t('The router did not return these settings.') + '</div>';
     syncAddSlot(area);
     return;
   }
@@ -348,12 +349,12 @@ function renderGrouped(area: Area, at: number, table: AreaTable, body: HTMLEleme
     body.innerHTML = '<table class="table table-vcenter mb-0">' +
       '<thead><tr id="areaThead-' + esc(area.key) + '"></tr></thead><tbody>' +
       (rows || '<tr><td colspan="4" class="empty-state">Nothing here yet.' +
-        (writable[declared.resource] && creatable[declared.resource] !== false ? ' Use <strong>Add</strong> to create one.' : '') +
+        (writable[declared.resource] && creatable[declared.resource] !== false ? ' ' + t('Use') + ' <strong>' + t('Add') + '</strong> ' + t('to create one.') : '') +
         '</td></tr>') + '</tbody></table>';
     groupDrawn[k] = { col: sort.col, dir: sort.dir };
     renderSortHeader('areaThead-' + area.key, [
-      { key: 'name', label: esc(noun) }, { key: 'count', label: 'Entries' },
-      { key: 'dynamic', label: 'Dynamic' }, { key: 'disabled', label: 'Disabled' },
+      { key: 'name', label: esc(noun) }, { key: 'count', label: t('Entries') },
+      { key: 'dynamic', label: t('Dynamic') }, { key: 'disabled', label: t('Disabled') },
     ], sort, () => {
       const was = groupDrawn[k];
       if (was && was.col === sort.col && was.dir === 'desc') sort.col = '';
@@ -419,8 +420,8 @@ function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['r
   ];
   const last = list.length - 1;
   const move = (pos: number): string => '<td style="white-space:nowrap">' +
-    '<button class="fw-move" data-res-move="up" title="Move up"' + (pos === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-    '<button class="fw-move" data-res-move="down" title="Move down"' + (pos === last ? ' disabled' : '') + '>&#9660;</button></td>';
+    ('<button class="fw-move" data-res-move="up" title="' + t('Move up') + '"') + (pos === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+    ('<button class="fw-move" data-res-move="down" title="' + t('Move down') + '"') + (pos === last ? ' disabled' : '') + '>&#9660;</button></td>';
   const shown = sorted
     ? sortRows(list.map((r, pos) => ({ k: sortKey(r.values?.[sort.col]), r, pos })), 'k', sort.dir)
     : list.map((r, pos) => ({ r, pos }));
@@ -438,7 +439,7 @@ function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['r
     '<tbody data-res-rows="' + esc(declared.resource) + '">' +
     (rows || '<tr><td colspan="' + (declared.columns.length + (arrows ? 1 : 0)) + '" class="empty-state">' +
       'Nothing here yet.' + (writable[declared.resource] && creatable[declared.resource] !== false
-        ? ' Use <strong>Add</strong> to create one.' : '') +
+        ? ' ' + t('Use') + ' <strong>' + t('Add') + '</strong> ' + t('to create one.') : '') +
       '</td></tr>') +
     '</tbody></table>';
   drawn[area.key + '#' + at] = { col: sort.col, dir: sort.dir };

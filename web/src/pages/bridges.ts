@@ -8,35 +8,36 @@
 
 import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps,
          type SortCol, type SortState } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 import type { Bridge, BridgesPayload } from '../gen/payloads';
 
 const COLS_B: SortCol[] = [
-  { key: 'name', label: 'Bridge' },
-  { key: 'proto', label: 'Protocol' },
-  { key: 'vlan', label: 'VLAN Filter' },
+  { key: 'name', label: t('Bridge') },
+  { key: 'proto', label: t('Protocol') },
+  { key: 'vlan', label: t('VLAN Filter') },
   { key: 'igmp', label: 'IGMP' },
   { key: 'mac', label: 'MAC' },
   { key: 'mtu', label: 'MTU' },
-  { key: 'ports', label: 'Ports' },
+  { key: 'ports', label: t('Ports') },
   { key: 'rate', label: 'RX / TX' },
 ];
 const COLS_P: SortCol[] = [
-  { key: 'interface', label: 'Interface' },
-  { key: 'bridge', label: 'Bridge' },
+  { key: 'interface', label: t('Interface') },
+  { key: 'bridge', label: t('Bridge') },
   { key: 'pvid', label: 'PVID' },
-  { key: 'role', label: 'STP Role' },
-  { key: 'edge', label: 'Edge' },
-  { key: 'horizon', label: 'Horizon' },
-  { key: 'state', label: 'State' },
+  { key: 'role', label: t('STP Role') },
+  { key: 'edge', label: t('Edge') },
+  { key: 'horizon', label: t('Horizon') },
+  { key: 'state', label: t('State') },
 ];
 const COLS_H: SortCol[] = [
-  { key: 'mac', label: 'MAC Address' },
-  { key: 'port', label: 'On Interface' },
-  { key: 'bridge', label: 'Bridge' },
+  { key: 'mac', label: t('MAC Address') },
+  { key: 'port', label: t('On Interface') },
+  { key: 'bridge', label: t('Bridge') },
   { key: 'vid', label: 'VLAN' },
-  { key: 'type', label: 'Type' },
+  { key: 'type', label: t('Type') },
 ];
 
 function onOff(v: boolean, label: string): string {
@@ -106,7 +107,7 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
       '<td>' + b.portCount + '</td>' +
       '<td>' + rate(b) + '</td>' +
       '</tr>').join('') : '<tr><td colspan="8" class="empty-state">' +
-      (data.available ? 'No bridges configured on this router.' : 'This router has no bridge menu.') +
+      (data.available ? t('No bridges configured on this router.') : t('This router has no bridge menu.')) +
       '</td></tr>';
 
     // ── Ports ──
@@ -135,7 +136,7 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
           '<td>' + esc(p.horizon || '—') + '</td>' +
           '<td>' + state + '</td>' +
           '</tr>';
-      }).join('') : '<tr><td colspan="7" class="empty-state">No bridge ports.</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="empty-state">' + t('No bridge ports.') + '</td></tr>';
     }
 
     // ── Host table ──
@@ -158,7 +159,7 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
     const note = el('bridgesHostNote');
     if (note) {
       note.textContent = !data.hostsAvailable
-        ? 'the RouterOS user cannot read the host table'
+        ? t('the RouterOS user cannot read the host table')
         : (data.hostTotal > (data.hostCap || 0)
           ? 'showing ' + data.hostCap + ' of ' + data.hostTotal
           : '');
@@ -178,7 +179,7 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
           '<td>' + type + '</td>' +
           '</tr>';
       }).join('') : '<tr><td colspan="5" class="empty-state">' +
-        (hq ? 'No hosts match that search.' : 'No learned hosts.') + '</td></tr>';
+        (hq ? t('No hosts match that search.') : t('No learned hosts.')) + '</td></tr>';
     }
   }
 

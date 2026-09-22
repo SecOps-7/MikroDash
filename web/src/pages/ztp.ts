@@ -11,6 +11,7 @@
 // reconnect starts in no rooms.
 
 import { el, esc } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { ZTPDeviceView, ZTPPayload } from '../gen/payloads';
 import { onZtpState, setZtpState, ztpState } from '../ztp-state';
@@ -72,7 +73,7 @@ const newConfig = (): ConfigState =>
 function configStep(c: ConfigState, label: () => string, next: string,
   leave: () => Promise<string>): WizardStep {
   return {
-    title: 'Configuration',
+    title: t('Configuration'),
     next,
     render: () => V.configStep(c.templates, c.chosen, c.tpl, label(), c.values, c.acked, c.reveal),
     check: () => V.configProblem(c.tpl, c.chosen, c.values, c.acked),
@@ -119,7 +120,7 @@ function configStep(c: ConfigState, label: () => string, next: string,
 
 function scriptStep(get: () => V.ScriptResult | null, what: string): WizardStep {
   return {
-    title: 'Script',
+    title: t('Script'),
     noBack: true,
     render: () => { const r = get(); return r ? V.scriptPanel(r, Date.now(), what) : ''; },
     bind(body) {
@@ -127,8 +128,8 @@ function scriptStep(get: () => V.ScriptResult | null, what: string): WizardStep 
       if (!r) return;
       const copy = body.querySelector<HTMLButtonElement>('[data-ztp-copy]');
       copy?.addEventListener('click', () => {
-        void navigator.clipboard?.writeText(r.script).then(() => { copy.textContent = 'Copied'; },
-          () => { copy.textContent = 'Select the text and copy it'; });
+        void navigator.clipboard?.writeText(r.script).then(() => { copy.textContent = t('Copied'); },
+          () => { copy.textContent = t('Select the text and copy it'); });
       });
       body.querySelector('[data-ztp-download]')?.addEventListener('click', () => {
         const a = document.createElement('a');
@@ -161,12 +162,12 @@ function openAddDevice(): void {
   void loadSites().then((s) => { sites = s; });
 
   openWizard({
-    title: 'Add a device',
+    title: t('Add a device'),
     steps: [
       {
-        title: 'Where',
+        title: t('Where'),
         render: () => V.whereStep(mode, ztpState()?.status ?? p.status),
-        check: () => (mode ? '' : 'Choose where it will be'),
+        check: () => (mode ? '' : t('Choose where it will be')),
         bind(body, redraw) {
           body.querySelectorAll<HTMLInputElement>('input[name="ztpMode"]').forEach((i) => i.addEventListener('change', () => {
             mode = i.value;
@@ -175,7 +176,7 @@ function openAddDevice(): void {
         },
       },
       deviceFormStep(form, () => mode, () => sites),
-      configStep(c, () => form.label, 'Make the script', async () => {
+      configStep(c, () => form.label, t('Make the script'), async () => {
         try {
           result = await api<V.ScriptResult>('POST', '/api/ztp/devices', {
             mode, label: form.label.trim(), serial: form.serial.trim(), siteIds: form.siteIds, days: form.days,
@@ -195,7 +196,7 @@ function openAddDevice(): void {
 function deviceFormStep(form: V.DeviceForm, mode: () => string, sites: () => V.SiteOpt[],
   facts?: ZTPDeviceView): WizardStep {
   return {
-    title: 'Device',
+    title: t('Device'),
     render: () => V.deviceStep(form, mode(), sites(), facts),
     check: () => V.deviceProblem(form, mode()),
     bind(body, _redraw, recheck) {
@@ -226,10 +227,10 @@ function openOnboard(d: ZTPDeviceView): void {
   void loadTemplates().then((t) => { c.templates = t; }, () => { /* None only */ });
   void loadSites().then((s) => { sites = s; });
   openWizard({
-    title: 'Onboard a device',
+    title: t('Onboard a device'),
     steps: [
       deviceFormStep(form, () => 'generic', () => sites, d),
-      configStep(c, () => form.label, 'Onboard', async () => {
+      configStep(c, () => form.label, t('Onboard'), async () => {
         try {
           await api('POST', '/api/ztp/devices/' + encodeURIComponent(d.id) + '/approve', {
             label: form.label.trim(), siteIds: form.siteIds, templateId: c.chosen,
@@ -241,11 +242,11 @@ function openOnboard(d: ZTPDeviceView): void {
         }
       }),
       {
-        title: 'Done',
+        title: t('Done'),
         noBack: true,
-        render: () => '<p class="ztp-lead">Onboarding <strong>' + esc(form.label) + '</strong>.</p>' +
+        render: () => ('<p class="ztp-lead">' + t('Onboarding') + ' <strong>') + esc(form.label) + '</strong>.</p>' +
           '<p class="ztp-help">MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it ' +
-          'answers' + (c.chosen ? ', and its template is then previewed on it and applied' : '') + '. Its progress ' +
+          'answers' + (c.chosen ? t(', and its template is then previewed on it and applied') : '') + '. Its progress ' +
           'shows on its card in the meantime.</p>',
       },
     ],
@@ -285,7 +286,7 @@ async function act(action: string, d: ZTPDeviceView): Promise<void> {
         return;
       case 'delete':
         if (!confirm('Remove ' + name + ' from provisioning?' + (d.state === 'awaiting'
-          ? '\n\nIts script stops working.' : ''))) return;
+          ? t('\n\nIts script stops working.') : ''))) return;
         await api('DELETE', base);
         return;
       case 'regenerate': {
@@ -308,7 +309,7 @@ function renderSettings(p: ZTPPayload): void {
   const status = el('ztpStatusLine');
   if (status) status.innerHTML = V.statusLine(s);
   const inst = el('ztpInstanceId');
-  if (inst) inst.textContent = s.instanceId || 'Made when provisioning is first switched on';
+  if (inst) inst.textContent = s.instanceId || t('Made when provisioning is first switched on');
   const key = el('ztpPublicKey');
   if (key) key.textContent = s.publicKey || '—';
   const body = el('ztpBatchBody');
@@ -325,7 +326,7 @@ function mountSettings(): void {
     const name = nameIn?.value.trim() ?? '';
     const msg = el('ztpBatchMsg');
     if (msg) msg.textContent = '';
-    if (!name) { if (msg) msg.textContent = 'Name the script first, for example the rollout it is for.'; return; }
+    if (!name) { if (msg) msg.textContent = t('Name the script first, for example the rollout it is for.'); return; }
     void api<V.ScriptResult>('POST', '/api/ztp/batches', { name, days }).then((r) => {
       if (nameIn) nameIn.value = '';
       showScript('Generic script: ' + name, r, 'Run it on any number of routers; each waits on the Devices page ' +

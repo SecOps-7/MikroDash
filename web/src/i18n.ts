@@ -50,6 +50,28 @@ export function t(src: string, vars?: Record<string, string | number>): string {
   return s.replace(/\{([a-zA-Z][a-zA-Z0-9]*)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }
 
+let regions: Intl.DisplayNames | null | undefined;
+
+/**
+ * A country's name for a two-letter code: the English table's entry on an
+ * English page, the browser's own name for it in any other language (the
+ * `Intl` region names every browser ships), so two hundred country names need
+ * no catalog entries. An unknown code falls back to the English entry, then to
+ * the code itself.
+ */
+export function countryName(cc: string, english: string | undefined): string {
+  if (data().lang !== 'en') {
+    if (regions === undefined) {
+      try { regions = new Intl.DisplayNames([data().lang], { type: 'region' }); } catch { regions = null; }
+    }
+    try {
+      const n = regions && /^[A-Z]{2}$/.test(cc) ? regions.of(cc) : undefined;
+      if (n && n !== cc) return n;
+    } catch { /* an unknown code is not an error */ }
+  }
+  return english || cc;
+}
+
 /** The language being shown: 'en' unless a translated page is loaded. */
 export function currentLang(): string {
   return data().lang;
@@ -93,4 +115,5 @@ export function bindLanguageSelect(select: HTMLSelectElement | null, wrap: HTMLE
 /** For tests: forget the loaded catalog so the next t() reads the page again. */
 export function resetI18n(): void {
   loaded = null;
+  regions = undefined;
 }

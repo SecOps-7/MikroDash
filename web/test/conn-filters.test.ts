@@ -142,8 +142,10 @@ function mount(run) {
     // statement about an untouched document.
     assert.ok(handlers['conn:update'], 'the page registered no conn:update handler');
     assert.ok(handlers['conn:source-data'], 'the page registered no conn:source-data handler');
-    assert.equal(doc.unknown.size, 0,
-      'the page looked up ids this gate does not provide: ' + [...doc.unknown].join(', '));
+    // `i18n-catalog` is every page's: t() reads it once, and none means English.
+    const unknown = [...doc.unknown].filter((u) => u !== 'i18n-catalog');
+    assert.equal(unknown.length, 0,
+      'the page looked up ids this gate does not provide: ' + unknown.join(', '));
     return run({ handlers, doc, listEl, emits });
   } finally {
     for (const [k, g] of [['doc', 'document'], ['win', 'window'], ['fetch', 'fetch']]) {

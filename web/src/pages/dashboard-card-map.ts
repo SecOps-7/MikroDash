@@ -30,6 +30,7 @@
 // accumulate.
 
 import { el } from '../dom';
+import { countryName } from '../i18n';
 import { esc } from '../dom';
 import { mapArcD, applyMapHighlights, mapMaxCount } from './dashboard-map-geometry';
 import { DC_CC_NAMES } from '../gen/dccards-tables';
@@ -192,7 +193,7 @@ export function createConnMap(rng: () => number = Math.random): ConnMap {
         const cc = tgt.dataset.cc, n = counts[cc] || 0;
         // `esc`, not `dcEsc` — this is the page's escaper and the original uses
         // it here, which is right: the value is interpolated into markup.
-        tip.innerHTML = esc(DC_CC_NAMES[cc] || cc) +
+        tip.innerHTML = esc(countryName(cc, DC_CC_NAMES[cc])) +
           (n ? ' &nbsp;<span style="color:var(--accent-rx)">' + esc(String(n)) + ' conns</span>' : '');
         tip.style.display = 'block';
         const rect = (svg.parentElement as HTMLElement).getBoundingClientRect();

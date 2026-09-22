@@ -19,6 +19,7 @@
 // under a literal question mark rather than dropped, so the totals still add up.
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import { dcEsc } from './dashboard-cards-util';
 import type { FirewallPayload } from '../gen/payloads';
 
@@ -62,5 +63,5 @@ export function renderFwActionsCard(data: FirewallPayload): void {
       '<span class="fw-action-count">' + e[1] + '</span>' +
     '</div>';
   }).join('') ||
-    '<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">No rules</span></div>';
+    '<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">' + t('No rules') + '</span></div>';
 }

@@ -17,6 +17,7 @@
 // authority on it.
 
 import { esc, el } from './dom';
+import { t } from './i18n';
 import type { Socket } from './socket';
 import type { HandEvents, ResSchema, ResSchemaField } from './events-hand';
 
@@ -326,13 +327,13 @@ function close(): void {
  */
 export function warningText(code: string, w: Record<string, unknown>): { headline: string; why: string } {
   const str = (v: unknown): string => (typeof v === 'string' ? v : '');
-  const cut = 'This may cut MikroDash off from this router.';
+  const cut = t('This may cut MikroDash off from this router.');
   switch (code) {
     case 'self-cutoff':
       return {
         headline: cut,
         why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
-          '</code>, which arrives on <code>' + esc(str(w.interface) || '?') + '</code>, the interface this ' +
+          ('</code>' + t(', which arrives on') + ' <code>') + esc(str(w.interface) || '?') + '</code>, the interface this ' +
           'change ' + (str(w.action) === 'delete' ? 'removes' : 'alters') + '.',
       };
     case 'route-cutoff': {
@@ -412,7 +413,7 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
       return {
         headline: cut,
         why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
-          '</code>, on the subnet of <code>' + esc(str(w.prefix) || '?') + '</code>' +
+          ('</code>' + t(', on the subnet of') + ' <code>') + esc(str(w.prefix) || '?') + '</code>' +
           (str(w.interface) ? ' on <code>' + esc(str(w.interface)) + '</code>' : '') +
           ', and this change ' + verb + ' that address.',
       };
@@ -435,20 +436,20 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
         headline: cut,
         why: 'This ' + (str(w.move) === 'joins' ? 'puts ' : 'takes ') + who + ' ' +
           (str(w.move) === 'joins' ? 'into' : 'out of') + ' the list <code>' + esc(str(w.list) || '?') +
-          '</code>, and the input rule matching <code>' + esc(str(w.ruleMatch) || '?') + '</code> would then ' +
+          ('</code>' + t(', and the input rule matching') + ' <code>') + esc(str(w.ruleMatch) || '?') + '</code> would then ' +
           (str(w.effect) === 'loses-accept' ? 'stop accepting' : 'drop') + ' its traffic.',
       };
     }
     case 'list-redefine': {
-      const verb = str(w.change) === 'delete' ? 'deletes' : str(w.change) === 'rename' ? 'renames' : 'changes what is in';
+      const verb = str(w.change) === 'delete' ? 'deletes' : str(w.change) === 'rename' ? 'renames' : t('changes what is in');
       return {
         headline: cut,
-        why: 'This ' + verb + ' the list <code>' + esc(str(w.list) || '?') + '</code>, which the input rule matching <code>' +
+        why: 'This ' + verb + ' the list <code>' + esc(str(w.list) || '?') + ('</code>' + t(', which the input rule matching') + ' <code>') +
           esc(str(w.ruleMatch) || '?') + '</code> uses to decide on MikroDash\'s own traffic.',
       };
     }
     case 'self-lockout':
-      return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
+      return { headline: cut, why: t('This firewall rule could match MikroDash\'s own traffic to the router.') };
     case 'self-throttle': {
       // The cap arrives as the guard's {up, down} pair of raw bits per second,
       // null for a half that is not set.
@@ -462,9 +463,9 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
         return String(v);
       };
       return {
-        headline: 'This queue covers MikroDash\'s own connection to this router.',
+        headline: t('This queue covers MikroDash\'s own connection to this router.'),
         why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, inside <code>' +
-          esc(str(w.target) || '?') + '</code>, and this queue caps it at <code>' +
+          esc(str(w.target) || '?') + ('</code>' + t(', and this queue caps it at') + ' <code>') +
           esc(rate(cap.up) + '/' + rate(cap.down)) + '</code>. The dashboard may become slow; the queue ' +
           'can still be edited or removed from its row.',
       };
@@ -481,17 +482,17 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
           : 'Without FIB the table\'s routes are not installed, so ' + (n === 1 ? 'its' : 'their') +
             ' lookups find nothing.';
       return {
-        headline: 'Routing rules use this table.',
-        why: (n === 1 ? 'A routing rule looks' : n + ' routing rules look') + ' routes up in <code>' +
+        headline: t('Routing rules use this table.'),
+        why: (n === 1 ? t('A routing rule looks') : n + ' routing rules look') + ' routes up in <code>' +
           esc(str(w.table) || '?') + '</code>. ' + what,
       };
     }
     case 'wifi-inherit':
-      return { headline: 'This change needs confirming.', why: 'It overrides a setting this network inherits from a shared configuration profile.' };
+      return { headline: t('This change needs confirming.'), why: t('It overrides a setting this network inherits from a shared configuration profile.') };
     case 'capsman-push':
-      return { headline: 'This change needs confirming.', why: 'This profile is provisioned to managed access points, so the change will be pushed to them.' };
+      return { headline: t('This change needs confirming.'), why: t('This profile is provisioned to managed access points, so the change will be pushed to them.') };
     default:
-      return { headline: 'This change needs confirming.', why: 'A safety check flagged it (<code>' + esc(code || '?') + '</code>).' };
+      return { headline: t('This change needs confirming.'), why: 'A safety check flagged it (<code>' + esc(code || '?') + '</code>).' };
   }
 }
 
@@ -502,23 +503,23 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
  */
 export function guardRefusedText(rule: unknown): string {
   switch (rule) {
-    case 'protected-account': return 'That is the account MikroDash signs in with. Manage it in WinBox.';
-    case 'protected-group': return 'That is the group MikroDash signs in with. Manage it in WinBox.';
-    case 'protected-name-value': return 'That name belongs to the account MikroDash signs in with.';
-    case 'protected-group-value': return 'Users cannot be placed in, or edited while in, the group MikroDash signs in with.';
-    case 'self-unresolved': return 'MikroDash cannot identify its own account on this router, so changes are refused.';
-    case 'service-disable': return 'That is the API service MikroDash connects through. Disabling it would cut MikroDash off; change it in WinBox.';
-    case 'service-port': return 'That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.';
-    case 'service-vrf': return 'That is the API service MikroDash connects through. Moving it to another VRF would cut MikroDash off; change it in WinBox.';
-    case 'service-address': return 'That address list would not admit the address the router sees MikroDash connecting from.';
-    case 'code-requires-admin': return 'Changing or running RouterOS code is limited to global administrators, as raw commands are.';
-    case 'certificate-in-use': return 'That is the certificate the API service MikroDash connects through presents. Removing it would cut MikroDash off; change it in WinBox.';
-    case 'certificate-unknown': return 'MikroDash cannot read which certificate its API service presents, so removing certificates is refused.';
-    case 'service-address-unknown': return 'MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.';
-    case 'file-runs': return 'A file named *.auto.* runs on the router as it lands, so it is not created here.';
-    case 'file-installs': return 'A .npk package is installed at the next reboot. Use the Packages page for that.';
-    case 'file-path': return 'A file name may not start with / or climb out with ..';
-    default: return 'A safety rule refused this change.';
+    case 'protected-account': return t('That is the account MikroDash signs in with. Manage it in WinBox.');
+    case 'protected-group': return t('That is the group MikroDash signs in with. Manage it in WinBox.');
+    case 'protected-name-value': return t('That name belongs to the account MikroDash signs in with.');
+    case 'protected-group-value': return t('Users cannot be placed in, or edited while in, the group MikroDash signs in with.');
+    case 'self-unresolved': return t('MikroDash cannot identify its own account on this router, so changes are refused.');
+    case 'service-disable': return t('That is the API service MikroDash connects through. Disabling it would cut MikroDash off; change it in WinBox.');
+    case 'service-port': return t('That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.');
+    case 'service-vrf': return t('That is the API service MikroDash connects through. Moving it to another VRF would cut MikroDash off; change it in WinBox.');
+    case 'service-address': return t('That address list would not admit the address the router sees MikroDash connecting from.');
+    case 'code-requires-admin': return t('Changing or running RouterOS code is limited to global administrators, as raw commands are.');
+    case 'certificate-in-use': return t('That is the certificate the API service MikroDash connects through presents. Removing it would cut MikroDash off; change it in WinBox.');
+    case 'certificate-unknown': return t('MikroDash cannot read which certificate its API service presents, so removing certificates is refused.');
+    case 'service-address-unknown': return t('MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.');
+    case 'file-runs': return t('A file named *.auto.* runs on the router as it lands, so it is not created here.');
+    case 'file-installs': return t('A .npk package is installed at the next reboot. Use the Packages page for that.');
+    case 'file-path': return t('A file name may not start with / or climb out with ..');
+    default: return t('A safety rule refused this change.');
   }
 }
 
@@ -537,10 +538,10 @@ function showWarning(d: HandEvents['res:error']): void {
   box.innerHTML =
     '<strong>' + headline + '</strong><br>' + why +
     (d.code === 'stale-warning'
-      ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+      ? '<br><em>' + t('The values changed since you were asked, so please confirm again.') + '</em>' : '') +
     '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
-    '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
-    '<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Do it anyway</button></div>';
+    ('<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">' + t('Cancel') + '</button>') +
+    ('<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">' + t('Do it anyway') + '</button></div>');
   box.style.display = '';
 
   const ack = d.fingerprint || '';
@@ -613,7 +614,7 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   const save = el('res_save');
   if (save) {
     save.style.display = frozen ? 'none' : '';
-    save.textContent = row ? 'Save' : 'Add ' + schema.label;
+    save.textContent = row ? t('Save') : 'Add ' + schema.label;
   }
   // THE PREVIEW BUTTON, shown on a writable form and hidden on a read-only one.
   //
@@ -1200,20 +1201,20 @@ function wire(socket: Socket): void {
       return;
     }
     const codes: Record<string, string> = {
-      denied: 'You may not change this.',
-      unavailable: 'The router is not reachable.',
-      'stale-row': 'That row changed on the router. Close and reopen it.',
-      'read-only-row': 'This entry cannot be edited here.',
-      'not-creatable': 'This cannot be added here.',
-      'not-editable': 'This can be viewed and deleted here, not edited.',
-      'not-removable': 'This entry cannot be removed here.',
-      'router-denied': 'The router refused the change: the API user lacks permission.',
-      'write-failed': 'The router refused the change.',
-      'bad-request': 'That request was incomplete.',
-      'guard-not-ported': 'This change needs a safety check that is not available yet, so it was refused.',
+      denied: t('You may not change this.'),
+      unavailable: t('The router is not reachable.'),
+      'stale-row': t('That row changed on the router. Close and reopen it.'),
+      'read-only-row': t('This entry cannot be edited here.'),
+      'not-creatable': t('This cannot be added here.'),
+      'not-editable': t('This can be viewed and deleted here, not edited.'),
+      'not-removable': t('This entry cannot be removed here.'),
+      'router-denied': t('The router refused the change: the API user lacks permission.'),
+      'write-failed': t('The router refused the change.'),
+      'bad-request': t('That request was incomplete.'),
+      'guard-not-ported': t('This change needs a safety check that is not available yet, so it was refused.'),
       'guard-refused': guardRefusedText(d && d.rule),
-      'rate-limited': 'Too many changes to this router in the last minute. Wait a moment and try again.',
-      'outcome-unknown': 'The router accepted the change, but it could not be confirmed. The table has been refreshed; check it before trying again.',
+      'rate-limited': t('Too many changes to this router in the last minute. Wait a moment and try again.'),
+      'outcome-unknown': t('The router accepted the change, but it could not be confirmed. The table has been refreshed; check it before trying again.'),
     };
     if (d && d.code === 'invalid' && Array.isArray(d.errors)) {
       setError(d.errors.map((e) => e.message).join('; '));
@@ -1228,7 +1229,7 @@ function wire(socket: Socket): void {
     const mapped = (d && codes[d.code]) || '';
     setError(mapped
       ? mapped + (routerSaid[d.code] && said && said !== mapped ? ' Router: ' + said : '')
-      : said || 'The change was refused.');
+      : said || t('The change was refused.'));
   });
 
   // ── the preview ───────────────────────────────────────────────────────────

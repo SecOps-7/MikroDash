@@ -3,6 +3,7 @@
 // shared state (TopoState) and reaches the rest of the page through `deps`.
 
 import { esc, el as byId, fmtMbps } from '../dom';
+import { t } from '../i18n';
 import type { TopoClient } from '../gen/payloads';
 import { glyph, TYPE_LABEL } from './topology';
 import type { TopoState, TopoNode, Rate } from './topology';
@@ -47,7 +48,7 @@ export function topoPanel(st: TopoState, deps: {
         '<button class="topo-panel-close" id="topoPanelClose" aria-label="Close">&times;</button>' +
       '</div>' +
       '<div class="topo-badges"><span class="topo-badge">' +
-        (n.type === 'wifi-client' ? 'Wi-Fi client' : 'Wired client') + '</span>' +
+        (n.type === 'wifi-client' ? t('Wi-Fi client') : t('Wired client')) + '</span>' +
         (n.vlanNames || []).map((v) => '<span class="topo-badge is-vlan">' + esc(v) + '</span>').join('') +
         // Say plainly when the attachment was DEDUCED from a shared port rather
         // than observed, so a wrong guess is visible rather than silent.
@@ -59,10 +60,10 @@ export function topoPanel(st: TopoState, deps: {
       '<dl class="topo-kv">' +
         row('IPv4', n.ip) + row('MAC', n.mac) +
         row('VLAN', (n.vlanNames || []).join(', ')) +
-        row('Connected to', parentName(n) || 'this router') +
-        row('Via', n.port) + row('SSID', n.ssid) +
-        row('Signal', n.signal ? n.signal + ' dBm' : '') +
-        row('Uptime', n.uptime) +
+        row(t('Connected to'), parentName(n) || 'this router') +
+        row(t('Via'), n.port) + row('SSID', n.ssid) +
+        row(t('Signal'), n.signal ? n.signal + ' dBm' : '') +
+        row(t('Uptime'), n.uptime) +
       '</dl>';
   }
 
@@ -82,12 +83,12 @@ export function topoPanel(st: TopoState, deps: {
     const opt = (v: string, label: string): string =>
       '<option value="' + esc(v) + '"' + (cur === v ? ' selected' : '') + '>' +
       esc(label) + '</option>';
-    return '<div class="topo-panel-sec">Cabling</div>' +
+    return ('<div class="topo-panel-sec">' + t('Cabling') + '</div>') +
       '<div class="topo-pin">' +
         '<select class="rt-sel" id="topoPinSel" aria-label="What this device hangs off">' +
           opt('', 'Work it out (' + esc(parentName(
             (st.data?.nodes || []).find((m) => m.key === key)!) || 'directly attached') + ')') +
-          opt('core', 'Directly attached to this router') +
+          opt('core', t('Directly attached to this router')) +
           rows.map((r) => opt(r.key, 'Behind ' + r.name)).join('') +
         '</select>' +
         (st.pins[key]
@@ -212,16 +213,16 @@ export function topoPanel(st: TopoState, deps: {
 
     let live = '';
     if (n.kind !== 'core') {
-      live += row('Latency', st.data.pingDenied ? 'unavailable (test policy)'
+      live += row(t('Latency'), st.data.pingDenied ? t('unavailable (test policy)')
         : (n.rtt !== null && isFinite(n.rtt) ? n.rtt.toFixed(1) + ' ms' : '—'));
-      live += row('Loss', n.loss !== null && isFinite(n.loss) ? n.loss + '%' : '—');
+      live += row(t('Loss'), n.loss !== null && isFinite(n.loss) ? n.loss + '%' : '—');
     } else if ('cpuLoad' in n) {
       live += row('CPU', n.cpuLoad !== null && isFinite(n.cpuLoad) ? n.cpuLoad + '%' : '');
-      live += row('Memory', n.memPct !== null && isFinite(n.memPct) ? n.memPct + '%' : '');
+      live += row(t('Memory'), n.memPct !== null && isFinite(n.memPct) ? n.memPct + '%' : '');
     }
     if (rate) {
-      live += row('Link down', fmtMbps((rate as Rate).rx));
-      live += row('Link up', fmtMbps((rate as Rate).tx));
+      live += row(t('Link down'), fmtMbps((rate as Rate).rx));
+      live += row(t('Link up'), fmtMbps((rate as Rate).tx));
     }
 
     // What the device ENABLES, falling back to what it merely supports — the
@@ -237,22 +238,22 @@ export function topoPanel(st: TopoState, deps: {
       '<div class="topo-badges">' + badges + '</div>' +
       '<dl class="topo-kv">' +
         row('IPv4', n.ip) + row('IPv6', n.ip6) + row('MAC', n.mac) +
-        row('Board', n.board) + row('Platform', n.platform) + row('Version', n.version) +
-        row('Software ID', n.softwareId) + row('Uptime', n.uptime) +
+        row(t('Board'), n.board) + row(t('Platform'), n.platform) + row(t('Version'), n.version) +
+        row(t('Software ID'), n.softwareId) + row(t('Uptime'), n.uptime) +
       '</dl>' +
-      (live ? '<div class="topo-panel-sec">Live</div><dl class="topo-kv">' + live + '</dl>' : '') +
-      '<div class="topo-panel-sec">Discovery</div>' +
+      (live ? ('<div class="topo-panel-sec">' + t('Live') + '</div><dl class="topo-kv">') + live + '</dl>' : '') +
+      ('<div class="topo-panel-sec">' + t('Discovery') + '</div>') +
       '<dl class="topo-kv">' +
-        row('Behind', parentName(n) +
+        row(t('Behind'), parentName(n) +
           ('pinned' in n && n.pinned ? ' (pinned)' : '')) +
-        row('Router port', n.port || (n.ifaces || []).join(', ')) +
-        row('Remote port', n.remoteIface) +
-        row('Seen via', (n.via || []).join(', ')) +
-        row('Reported by', st.fleetOwner[n.key]) +
-        row('Age', n.ageSec !== null && isFinite(n.ageSec) ? n.ageSec + ' s'
-          : (n.gone ? 'no longer advertising' : '')) +
-        row('Capabilities', caps || (n.kind === 'core' ? '' : 'none advertised')) +
-        row('Description', n.description) +
+        row(t('Router port'), n.port || (n.ifaces || []).join(', ')) +
+        row(t('Remote port'), n.remoteIface) +
+        row(t('Seen via'), (n.via || []).join(', ')) +
+        row(t('Reported by'), st.fleetOwner[n.key]) +
+        row(t('Age'), n.ageSec !== null && isFinite(n.ageSec) ? n.ageSec + ' s'
+          : (n.gone ? t('no longer advertising') : '')) +
+        row(t('Capabilities'), caps || (n.kind === 'core' ? '' : 'none advertised')) +
+        row(t('Description'), n.description) +
       '</dl>' +
       // The core has nothing to hang off, so it gets no picker.
       (n.kind === 'neighbor' ? pinPicker(n.key) : '');

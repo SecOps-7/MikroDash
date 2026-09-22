@@ -12,6 +12,7 @@
 // correctly.
 
 import { esc, el, resRow } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 import type { Lease, LeaseServer, Network } from '../gen/payloads';
@@ -244,7 +245,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
       '</tr>';
     }).join('');
     host.innerHTML = '<table class="dhcp-subnet-table">' +
-      '<thead><tr><th>Subnet</th><th>Gateway</th><th>DNS</th><th>Leases</th></tr></thead>' +
+      ('<thead><tr><th>' + t('Subnet') + '</th><th>' + t('Gateway') + '</th><th>DNS</th><th>' + t('Leases') + '</th></tr></thead>') +
       '<tbody>' + rows + '</tbody></table>';
   }
 

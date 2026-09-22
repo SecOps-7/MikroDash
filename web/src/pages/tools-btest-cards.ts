@@ -14,6 +14,7 @@
 // it.
 
 import { el, fmtMbps } from '../dom';
+import { t } from '../i18n';
 import type { BtestResult } from '../gen/payloads';
 
 /** The dial's full scale, in Mbit/s: the next 1-2-5 step at or above `peak`. */

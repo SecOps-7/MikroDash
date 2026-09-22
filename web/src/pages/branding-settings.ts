@@ -14,6 +14,7 @@
  */
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import { FONTS } from '../gen/appearance-tables.js';
 import { applyBranding, normaliseBranding, renderWordmark, type Branding } from '../branding';
 
@@ -38,8 +39,8 @@ export function wordmarkFontOptions(labels: Map<string, string>): { id: string; 
 }
 
 export function iconFileProblem(file: { size: number; type: string }): string {
-  if (file.type !== 'image/png' && file.type !== 'image/jpeg') return 'The icon must be a PNG or JPEG image.';
-  if (file.size > ICON_MAX_BYTES) return 'The icon is larger than 512 KB.';
+  if (file.type !== 'image/png' && file.type !== 'image/jpeg') return t('The icon must be a PNG or JPEG image.');
+  if (file.size > ICON_MAX_BYTES) return t('The icon is larger than 512 KB.');
   return '';
 }
 
@@ -101,7 +102,7 @@ export function initBrandingSettings(): void {
   };
   const settle = (r: Response): Promise<Branding> =>
     r.json().catch(() => null).then((j: unknown) => {
-      if (!r.ok) throw new Error(errorOf(j, 'The change could not be saved.'));
+      if (!r.ok) throw new Error(errorOf(j, t('The change could not be saved.')));
       const b = normaliseBranding(j);
       show(b);
       applyBranding(b);
@@ -159,19 +160,19 @@ export function initBrandingSettings(): void {
         fileIn.value = '';
         return;
       }
-      say('Uploading…');
+      say(t('Uploading…'));
       void fetch('/api/branding/icon', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': file.type }, body: file,
       })
         .then(settle)
-        .then(() => say('Icon saved.', 'ok'))
+        .then(() => say(t('Icon saved.'), 'ok'))
         .catch((e: Error) => say(e.message, 'error'))
         .finally(() => { fileIn.value = ''; });
     };
     probe.onerror = () => {
       URL.revokeObjectURL(url);
-      say('The file could not be read as an image.', 'error');
+      say(t('The file could not be read as an image.'), 'error');
       fileIn.value = '';
     };
     probe.src = url;
@@ -181,7 +182,7 @@ export function initBrandingSettings(): void {
     resetBtn.disabled = true;
     void fetch('/api/branding/icon', { method: 'DELETE', credentials: 'same-origin' })
       .then(settle)
-      .then(() => say('Using the default icon.', 'ok'))
+      .then(() => say(t('Using the default icon.'), 'ok'))
       .catch((e: Error) => {
         say(e.message, 'error');
         resetBtn.disabled = false;

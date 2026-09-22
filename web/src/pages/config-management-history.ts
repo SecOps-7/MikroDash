@@ -1,6 +1,7 @@
 // The History and Drift tabs' markup, as pure functions: rows in, HTML out.
 
 import { esc, type SortCol } from '../dom';
+import { t } from '../i18n';
 import { hunksHTML } from '../diffview';
 import type { Hunk } from '../gen/payloads';
 import { fmtTs } from '../timefmt';
@@ -63,25 +64,25 @@ export type DriftCheck =
 export const driftKey = (r: { templateId: string; routerId: string }): string => r.templateId + '|' + r.routerId;
 
 const RUN_STATE: Record<string, { word: string; cls: string }> = {
-  done: { word: 'Deployed', cls: 'cfg-run-ok' },
-  halted: { word: 'Stopped', cls: 'cfg-run-bad' },
-  cancelled: { word: 'Cancelled', cls: 'cfg-run-muted' },
-  interrupted: { word: 'Interrupted', cls: 'cfg-run-warn' },
-  expired: { word: 'Expired', cls: 'cfg-run-muted' },
-  canary: { word: 'On the canary', cls: 'cfg-run-live' },
-  'awaiting-canary': { word: 'Awaiting your OK', cls: 'cfg-run-live' },
-  rolling: { word: 'Rolling out', cls: 'cfg-run-live' },
+  done: { word: t('Deployed'), cls: 'cfg-run-ok' },
+  halted: { word: t('Stopped'), cls: 'cfg-run-bad' },
+  cancelled: { word: t('Cancelled'), cls: 'cfg-run-muted' },
+  interrupted: { word: t('Interrupted'), cls: 'cfg-run-warn' },
+  expired: { word: t('Expired'), cls: 'cfg-run-muted' },
+  canary: { word: t('On the canary'), cls: 'cfg-run-live' },
+  'awaiting-canary': { word: t('Awaiting your OK'), cls: 'cfg-run-live' },
+  rolling: { word: t('Rolling out'), cls: 'cfg-run-live' },
 };
 
 const TARGET_STATE: Record<string, { word: string; cls: string }> = {
-  applied: { word: 'Applied', cls: 'cfg-run-ok' },
-  failed: { word: 'Failed', cls: 'cfg-run-bad' },
-  'failed-partial': { word: 'Partly applied', cls: 'cfg-run-warn' },
-  unknown: { word: 'Unknown', cls: 'cfg-run-warn' },
-  'preflight-failed': { word: 'Not started', cls: 'cfg-run-bad' },
-  'not-attempted': { word: 'Skipped', cls: 'cfg-run-muted' },
-  pending: { word: 'Waiting', cls: 'cfg-run-muted' },
-  applying: { word: 'Working', cls: 'cfg-run-live' },
+  applied: { word: t('Applied'), cls: 'cfg-run-ok' },
+  failed: { word: t('Failed'), cls: 'cfg-run-bad' },
+  'failed-partial': { word: t('Partly applied'), cls: 'cfg-run-warn' },
+  unknown: { word: t('Unknown'), cls: 'cfg-run-warn' },
+  'preflight-failed': { word: t('Not started'), cls: 'cfg-run-bad' },
+  'not-attempted': { word: t('Skipped'), cls: 'cfg-run-muted' },
+  pending: { word: t('Waiting'), cls: 'cfg-run-muted' },
+  applying: { word: t('Working'), cls: 'cfg-run-live' },
 };
 
 function pill(map: Record<string, { word: string; cls: string }>, state: string): string {
@@ -90,16 +91,16 @@ function pill(map: Record<string, { word: string; cls: string }>, state: string)
 }
 
 const METHOD: Record<string, string> = {
-  additions: 'Addition', 'full-export': 'Full replacement', 'full-binary': 'Binary clone',
+  additions: t('Addition'), 'full-export': t('Full replacement'), 'full-binary': t('Binary clone'),
 };
 
 export const HISTORY_COLS: SortCol[] = [
-  { key: 'createdAt', label: 'Started' },
-  { key: 'templateName', label: 'Template' },
-  { key: 'method', label: 'Method' },
-  { key: 'state', label: 'Outcome' },
-  { key: 'total', label: 'Routers' },
-  { key: 'startedBy', label: 'By' },
+  { key: 'createdAt', label: t('Started') },
+  { key: 'templateName', label: t('Template') },
+  { key: 'method', label: t('Method') },
+  { key: 'state', label: t('Outcome') },
+  { key: 'total', label: t('Routers') },
+  { key: 'startedBy', label: t('By') },
 ];
 
 /** A run with the fields its sortable columns read. */
@@ -128,7 +129,7 @@ export function historyRows(rows: SortableRun[], open: string, detail: RunDetail
       '<td>' + routersCell(r) + '</td>' +
       '<td>' + esc(r.startedBy) + '</td></tr>';
     if (r.id !== open) return tr;
-    const inner = detail ? runDetail(r, detail) : '<div class="cfg-meta">Reading the run…</div>';
+    const inner = detail ? runDetail(r, detail) : '<div class="cfg-meta">' + t('Reading the run…') + '</div>';
     return tr + '<tr class="cfg-hist-open"><td colspan="' + HISTORY_COLS.length + '">' + inner + '</td></tr>';
   }).join('');
 }
@@ -163,27 +164,27 @@ export function runDetail(r: RunRow, d: RunDetail): string {
   const own = !!r.error && !d.targets.some((t) => t.error && r.error?.endsWith(t.error));
   return '<div class="cfg-hist-detail">' +
     (own ? '<div class="cfg-banner is-bad">' + esc(r.error) + '</div>' : '') +
-    (targets || '<div class="cfg-meta">No routers were recorded for this run.</div>') +
-    '<details class="cfg-prev-text"><summary>What was sent (settings as placeholders)</summary>' +
+    (targets || '<div class="cfg-meta">' + t('No routers were recorded for this run.') + '</div>') +
+    ('<details class="cfg-prev-text"><summary>' + t('What was sent (settings as placeholders)') + '</summary>') +
     '<pre class="cfg-code md-ros">' + highlight(d.run.bodyMasked) + '</pre></details></div>';
 }
 
 export const DRIFT_COLS: SortCol[] = [
-  { key: 'templateName', label: 'Template' },
-  { key: 'routerLabel', label: 'Router' },
-  { key: 'takenAt', label: 'Baseline' },
-  { label: 'Status' },
+  { key: 'templateName', label: t('Template') },
+  { key: 'routerLabel', label: t('Router') },
+  { key: 'takenAt', label: t('Baseline') },
+  { label: t('Status') },
   { label: '' },
 ];
 
 function driftStatus(c: DriftCheck | undefined): string {
-  if (!c) return '<span class="vpn-hs-badge cfg-run-muted">Not checked</span>';
-  if (c.state === 'checking') return '<span class="vpn-hs-badge cfg-run-live">Reading the router…</span>';
+  if (!c) return '<span class="vpn-hs-badge cfg-run-muted">' + t('Not checked') + '</span>';
+  if (c.state === 'checking') return '<span class="vpn-hs-badge cfg-run-live">' + t('Reading the router…') + '</span>';
   if (c.state === 'error') {
-    return '<span class="vpn-hs-badge cfg-run-bad">' + (c.accept ? 'Not accepted' : 'Could not check') + '</span>';
+    return '<span class="vpn-hs-badge cfg-run-bad">' + (c.accept ? t('Not accepted') : t('Could not check')) + '</span>';
   }
-  return c.drifted ? '<span class="vpn-hs-badge cfg-run-warn">Drifted</span>'
-    : '<span class="vpn-hs-badge cfg-run-ok">As deployed</span>';
+  return c.drifted ? '<span class="vpn-hs-badge cfg-run-warn">' + t('Drifted') + '</span>'
+    : '<span class="vpn-hs-badge cfg-run-ok">' + t('As deployed') + '</span>';
 }
 
 /** The Drift table's body; a checked baseline that drifted can show its diff. */
@@ -194,9 +195,9 @@ export function driftRows(rows: DriftRow[], checks: Record<string, DriftCheck>, 
     const busy = c?.state === 'checking';
     const drifted = c?.state === 'done' && c.drifted;
     const acts = '<button class="cfg-btn" type="button" data-drift-act="check"' + (busy ? ' disabled' : '') + '>' +
-      (c ? 'Check again' : 'Check') + '</button>' +
+      (c ? t('Check again') : t('Check')) + '</button>' +
       (drifted ? '<button class="cfg-btn" type="button" data-drift-act="diff">' +
-        (open === key ? 'Hide changes' : 'Show changes') + '</button>' : '');
+        (open === key ? t('Hide changes') : t('Show changes')) + '</button>' : '');
     const tr = '<tr data-drift="' + esc(key) + '"><td><strong>' + esc(r.templateName) + '</strong></td>' +
       '<td>' + esc(r.routerLabel) + '</td><td>' + esc(fmtTs(r.takenAt, false)) + '</td>' +
       '<td>' + driftStatus(c) + (c?.state === 'done' ? ' <span class="cfg-meta">' +
@@ -216,7 +217,7 @@ export function driftRows(rows: DriftRow[], checks: Record<string, DriftCheck>, 
 export function driftDiff(hunks: Hunk[], truncated: boolean): string {
   return '<div class="cfg-hist-detail"><p class="cfg-meta">Lines marked − were there after the deploy and are ' +
     'gone; lines marked + are on the router now and were not.</p>' +
-    (truncated ? '<div class="cfg-banner is-warn">The difference is too large to show in full.</div>' : '') +
+    (truncated ? '<div class="cfg-banner is-warn">' + t('The difference is too large to show in full.') + '</div>' : '') +
     '<div class="bk-diff cfg-drift-diff">' + hunksHTML(hunks) + '</div>' +
     '<div class="cfg-drift-go"><button class="cfg-btn cfg-btn-go" type="button" data-drift-act="reapply">Re-apply ' +
     'the template</button><button class="cfg-btn" type="button" data-drift-act="accept">Accept as the new baseline' +

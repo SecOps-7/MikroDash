@@ -1,10 +1,22 @@
 {
+  "\n\nIts script stops working.": [
+    "web/src/pages/ztp.ts"
+  ],
   "(leave blank to keep)": [
     "web/src/ui/page-settings.html"
+  ],
+  "(no command could be built)": [
+    "web/src/pages/ai-agent.ts"
   ],
   "(optional)": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "(this device)": [
+    "web/src/account.ts"
+  ],
+  ") and packages are refused.": [
+    "web/src/pages/files-transfer.ts"
   ],
   "+ Add Group": [
     "web/src/ui/page-settings.html"
@@ -24,14 +36,41 @@
   "+ Area": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "+ Back Up Now": [
+    "web/src/pages/backups.ts"
+  ],
   "+ Building": [
     "web/src/ui/page-wifi-map.html"
   ],
   "+ Label": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "+ New scheduled report": [
+    "web/src/pages/reports-schedules.ts"
+  ],
   "+ Wall": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  ", and its template is then previewed on it and applied": [
+    "web/src/pages/ztp.ts"
+  ],
+  ", and the input rule matching": [
+    "web/src/resource.ts"
+  ],
+  ", and this queue caps it at": [
+    "web/src/resource.ts"
+  ],
+  ", on the subnet of": [
+    "web/src/resource.ts"
+  ],
+  ", which arrives on": [
+    "web/src/resource.ts"
+  ],
+  ", which can be a small fraction of the total.": [
+    "web/src/pages/queues.ts"
+  ],
+  ", which the input rule matching": [
+    "web/src/resource.ts"
   ],
   "0 debug": [
     "web/src/ui/page-logs.html"
@@ -111,6 +150,9 @@
   "90 days": [
     "web/src/ui/page-settings.html"
   ],
+  "\u003cbutton class=\"sbtn sbtn-warn\" data-upgrade-open": [
+    "web/src/pages/packages.ts"
+  ],
   "\u003ckbd\u003e1\u003c/kbd\u003e–\u003ckbd\u003e9\u003c/kbd\u003e pages  ·  \u003ckbd\u003e/\u003c/kbd\u003e log search": [
     "web/src/ui/shell.html"
   ],
@@ -138,14 +180,44 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "A .npk package is installed at the next reboot. Use the Packages page for that.": [
+    "web/src/resource.ts"
+  ],
   "A backup is stored only when the configuration actually changed, so a frequent schedule costs a short check rather than disk. Each restore point is a pair: an export for the diff, and an encrypted binary for the restore.": [
     "web/src/ui/page-backups.html"
+  ],
+  "A check refuses this template on a router": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "A file name may not start with / or climb out with ..": [
+    "web/src/resource.ts"
+  ],
+  "A file named *.auto.* runs on the router as it lands, so it is not created here.": [
+    "web/src/resource.ts"
+  ],
+  "A global administrator must choose where apps are stored before any can be installed.": [
+    "web/src/pages/containers-apps.ts"
   ],
   "A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.": [
     "web/src/ui/page-settings.html"
   ],
   "A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says \u003cem\u003ewhat\u003c/em\u003e, the scope says \u003cem\u003ewhich devices\u003c/em\u003e. Administrator is built in and always sees everything.": [
     "web/src/ui/page-settings.html"
+  ],
+  "A router cannot take this template": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "A routing rule looks": [
+    "web/src/resource.ts"
+  ],
+  "A safety rule refused this change.": [
+    "web/src/resource.ts"
+  ],
+  "A scan of this router is already running; its result will appear here.": [
+    "web/src/pages/security-scan.ts"
+  ],
+  "A serial number is letters, digits and . _ - / + =": [
+    "web/src/pages/ztp-views.ts"
   ],
   "A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.": [
     "web/src/ui/page-settings.html"
@@ -208,7 +280,12 @@
   "Access management sections": [
     "web/src/ui/page-settings.html"
   ],
+  "Access point": [
+    "web/src/pages/topology.ts",
+    "web/src/pages/wifi-map.ts"
+  ],
   "Access points": [
+    "web/src/pages/wifi-map.ts",
     "web/src/ui/page-network-topology.html"
   ],
   "Account": [
@@ -218,17 +295,27 @@
     "web/src/ui/page-security-scan.html"
   ],
   "Acknowledged": [
+    "web/src/pages/reports-alerts.ts",
     "web/src/ui/page-reports.html"
+  ],
+  "Acquisition": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
   ],
   "Across the fleet": [
     "web/src/ui/page-dns.html"
   ],
   "Action": [
+    "web/src/pages/audit.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-firewall.html"
   ],
   "Action Breakdown": [
     "web/src/ui/page-firewall.html"
+  ],
+  "Action failed": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/wan.ts"
   ],
   "Action filter": [
     "web/src/ui/page-audit-trail.html"
@@ -239,8 +326,12 @@
     "web/src/ui/page-settings.html"
   ],
   "Active": [
+    "web/src/pages/settings-routers.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-vpn.html"
+  ],
+  "Active Channel": [
+    "web/src/pages/wireless-fa.ts"
   ],
   "Active Sessions": [
     "web/src/ui/page-ppp.html",
@@ -260,29 +351,43 @@
     "web/src/ui/page-audit-trail.html"
   ],
   "Add": [
+    "web/src/pages/area.ts",
+    "web/src/pages/queues.ts",
+    "web/src/pages/settings.ts",
     "web/src/ui/shell.html"
+  ],
+  "Add \"test\" policy to your RouterOS API user to enable ping": [
+    "web/src/pages/dashboard-ping.ts"
   ],
   "Add Card": [
     "web/src/ui/shell.html"
   ],
   "Add Device": [
+    "web/src/pages/router-form.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Add Group": [
+    "web/src/pages/settings-principals.ts",
     "web/src/ui/page-settings.html"
   ],
   "Add Role": [
+    "web/src/pages/settings-principals.ts",
     "web/src/ui/page-settings.html"
   ],
   "Add Site": [
+    "web/src/pages/settings-sites.ts",
     "web/src/ui/page-settings.html"
   ],
   "Add User": [
+    "web/src/pages/settings-principals.ts",
     "web/src/ui/page-settings.html"
   ],
   "Add a building": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Add a device": [
+    "web/src/pages/ztp.ts"
   ],
   "Add a text label": [
     "web/src/ui/page-wifi-map.html"
@@ -291,12 +396,19 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "Add device": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-devices.html"
   ],
   "Add your MikroTik router to get started": [
     "web/src/ui/shell.html"
   ],
+  "Addition": [
+    "web/src/pages/config-management-history.ts"
+  ],
   "Address": [
+    "web/src/pages/dns.ts",
+    "web/src/pages/ppp.ts",
+    "web/src/pages/wan.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-tools.html",
     "web/src/ui/page-vpn.html"
@@ -313,6 +425,9 @@
   "Address routers dial": [
     "web/src/ui/page-settings.html"
   ],
+  "Administrator access required": [
+    "web/src/caps.ts"
+  ],
   "Advanced": [
     "web/src/ui/page-settings.html"
   ],
@@ -328,6 +443,9 @@
   "Africa/Nairobi (EAT)": [
     "web/src/ui/page-settings.html"
   ],
+  "Age": [
+    "web/src/pages/topology-panel.ts"
+  ],
   "Agent Overview": [
     "web/src/ui/page-dashboard.html"
   ],
@@ -336,6 +454,9 @@
   ],
   "Aggregation period": [
     "web/src/ui/page-reports.html"
+  ],
+  "Aging MAC Tables": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Alert Cooldown": [
     "web/src/ui/page-settings.html"
@@ -356,29 +477,36 @@
     "web/src/ui/page-devices.html"
   ],
   "Alerts": [
+    "web/src/pages/routers.ts",
     "web/src/ui/page-devices.html",
     "web/src/ui/shell.html"
   ],
   "Alerts \u0026 connectivity": [
+    "web/src/pages/dbcleanup.ts",
     "web/src/ui/page-settings.html"
   ],
   "Alerts \u0026 connectivity events": [
     "web/src/ui/page-settings.html"
   ],
   "All": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-security-scan.html"
   ],
   "All Clients": [
+    "web/src/pages/connections.ts",
     "web/src/ui/page-connections.html"
   ],
   "All Sites": [
+    "web/src/pages/routers.ts",
     "web/src/ui/page-devices.html"
   ],
   "All Types": [
+    "web/src/pages/interfaces.ts",
     "web/src/ui/page-interfaces.html"
   ],
   "All VLANs": [
+    "web/src/pages/topology.ts",
     "web/src/ui/page-network-topology.html"
   ],
   "All actions": [
@@ -387,10 +515,14 @@
   "All actors": [
     "web/src/ui/page-audit-trail.html"
   ],
+  "All cards are visible": [
+    "web/src/pages/dashboard-grid-edit.ts"
+  ],
   "All floors": [
     "web/src/ui/page-wifi-map.html"
   ],
   "All interfaces": [
+    "web/src/pages/bandwidth.ts",
     "web/src/ui/page-bandwidth.html"
   ],
   "All leases": [
@@ -409,6 +541,9 @@
     "web/src/ui/page-settings.html"
   ],
   "All routers": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/dbcleanup.ts",
+    "web/src/pages/settings.ts",
     "web/src/ui/page-settings.html"
   ],
   "All routes": [
@@ -427,8 +562,20 @@
   "Allow personal channels": [
     "web/src/ui/page-settings.html"
   ],
+  "Allow remote requests": [
+    "web/src/pages/dns.ts"
+  ],
   "Allow self-signed cert": [
     "web/src/ui/shell.html"
+  ],
+  "Allowed Addresses": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
+  "Allowed From": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "Also add it to": [
+    "web/src/pages/dns-fleet.ts"
   ],
   "America/Anchorage (AKT)": [
     "web/src/ui/page-settings.html"
@@ -469,8 +616,14 @@
   "America/Vancouver": [
     "web/src/ui/page-settings.html"
   ],
+  "An upgrade is available": [
+    "web/src/pages/packages.ts"
+  ],
   "Another MikroTik's address": [
     "web/src/ui/page-tools.html"
+  ],
+  "Another tool is still running.": [
+    "web/src/pages/tools.ts"
   ],
   "App Icon": [
     "web/src/ui/page-settings.html"
@@ -478,8 +631,15 @@
   "App Name": [
     "web/src/ui/page-settings.html"
   ],
+  "App store": [
+    "web/src/pages/containers-apps.ts"
+  ],
   "Appearance": [
     "web/src/ui/page-settings.html"
+  ],
+  "Applied": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
   ],
   "Apply": [
     "web/src/ui/page-wan.html"
@@ -487,8 +647,42 @@
   "Apply changes \u0026 reboot…": [
     "web/src/ui/page-packages.html"
   ],
+  "Apply on arrival": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Apply the plan": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Apply this change": [
+    "web/src/pages/ai-agent.ts",
     "web/src/ui/page-ai-agent.html"
+  ],
+  "Apply this code change": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Applying": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Applying changes — the router is rebooting": [
+    "web/src/pages/packages.ts"
+  ],
+  "Applying its template": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Apps get plain HTTP links: HTTPS links need IP Cloud (IP › Cloud) to give this router a DNS name.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "Apps need a formatted, mounted disk (ext4 or btrfs). Add one under System › Disks, then come back.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "Arguing With RouterOS": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Arming the auto-revert": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "As deployed": [
+    "web/src/pages/config-management-history.ts"
   ],
   "Asia/Bangkok (ICT)": [
     "web/src/ui/page-settings.html"
@@ -532,6 +726,18 @@
   "Ask me before the assistant changes anything": [
     "web/src/ui/page-settings.html"
   ],
+  "Asking Upstream": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Asking the router…": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
+  "Assistant": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "At risk": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
   "Atom One Light": [
     "web/src/ui/page-settings.html"
   ],
@@ -572,6 +778,18 @@
   "Auto Frame — keep every router in view. Panning or zooming turns it off.": [
     "web/src/ui/page-devices.html"
   ],
+  "Auto-revert armed": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Auto-upgrade could not be read from this router.": [
+    "web/src/pages/packages.ts"
+  ],
+  "Auto-upgrade is off": [
+    "web/src/pages/packages.ts"
+  ],
+  "Auto-upgrade is on": [
+    "web/src/pages/packages.ts"
+  ],
   "Automatic backups": [
     "web/src/ui/page-backups.html"
   ],
@@ -581,11 +799,30 @@
   "Available variables": [
     "web/src/ui/page-settings.html"
   ],
+  "Averaging Nonsense": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Avg Loss": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Avg RTT": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Avg RX": [
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Avg TX": [
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Awaiting your OK": [
+    "web/src/pages/config-management-history.ts"
+  ],
   "BGP": [
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
   ],
   "BGP Peers": [
+    "web/src/pages/routing.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-settings.html"
@@ -602,6 +839,15 @@
   "BGP session state filter": [
     "web/src/ui/page-routing.html"
   ],
+  "Back": [
+    "web/src/wizard.ts"
+  ],
+  "Back to the router's own detection": [
+    "web/src/pages/wan.ts"
+  ],
+  "Backed off for reporting nothing. They wake when their page is opened.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "Background Brightness": [
     "web/src/ui/page-settings.html"
   ],
@@ -614,6 +860,9 @@
   "Backup Schedule": [
     "web/src/ui/page-backups.html"
   ],
+  "Backup request failed": [
+    "web/src/pages/backups.ts"
+  ],
   "Backup time": [
     "web/src/ui/page-backups.html"
   ],
@@ -622,6 +871,8 @@
     "web/src/ui/shell.html"
   ],
   "Band": [
+    "web/src/pages/wifi.ts",
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-clients.html",
     "web/src/ui/page-wifi-networks.html"
@@ -631,6 +882,7 @@
     "web/src/ui/page-wifi-clients.html"
   ],
   "Bands": [
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-capsman.html"
   ],
   "Bandwidth": [
@@ -644,16 +896,44 @@
     "web/src/ui/page-tools.html"
   ],
   "Bandwidth usage": [
+    "web/src/pages/dbcleanup.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Baseline": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Behind": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Believe /interface/detect-internet": [
     "web/src/ui/page-wan.html"
+  ],
+  "Bending Light": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Best": [
     "web/src/ui/page-tools.html"
   ],
   "Best Channel": [
     "web/src/ui/shell.html"
+  ],
+  "Binary clone": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Blaming DNS": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Blaming Microwaves": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Blowing Dust": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Board": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/packages.ts",
+    "web/src/pages/topology-panel.ts"
   ],
   "Body — Down / Alert": [
     "web/src/ui/page-settings.html"
@@ -665,10 +945,14 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "Both passwords are required": [
+    "web/src/account.ts"
+  ],
   "Branding": [
     "web/src/ui/page-settings.html"
   ],
   "Bridge": [
+    "web/src/pages/bridges.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-vlans.html"
@@ -687,8 +971,30 @@
   "Bright": [
     "web/src/ui/page-settings.html"
   ],
+  "Buckets": [
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Buffering Bloat": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Built": [
+    "web/src/pages/packages.ts"
+  ],
   "Built with Go · TypeScript · WebSockets · Chart.js · Tabler": [
     "web/src/ui/page-settings.html"
+  ],
+  "Busiest menus": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Busiest minute ↑": [
+    "web/src/pages/reports-charts.ts"
+  ],
+  "Busiest minute ↓": [
+    "web/src/pages/reports-charts.ts"
+  ],
+  "By": [
+    "web/src/pages/config-management-history.ts"
   ],
   "Bytes": [
     "web/src/ui/page-firewall.html"
@@ -702,6 +1008,9 @@
   ],
   "CAPsMAN configuration": [
     "web/src/ui/page-capsman.html"
+  ],
+  "CAPsMAN v1": [
+    "web/src/pages/wifi.ts"
   ],
   "CPU": [
     "web/src/ui/page-devices.html"
@@ -721,27 +1030,78 @@
   "CSV": [
     "web/src/ui/page-audit-trail.html"
   ],
+  "Cabling": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Cache": [
+    "web/src/pages/dns.ts"
+  ],
   "Cache Used": [
     "web/src/ui/page-dns.html"
   ],
+  "Cache max TTL": [
+    "web/src/pages/dns.ts"
+  ],
+  "Caching Negatively": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Called from": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Called home": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Caller ID": [
+    "web/src/pages/ppp.ts",
     "web/src/ui/page-vpn.html"
   ],
+  "Canary": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Cancel": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/containers-apps.ts",
+    "web/src/pages/upgrade.ts",
+    "web/src/resource.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wan.html",
     "web/src/ui/shell.html"
   ],
+  "Cancelled": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Canned": [
+    "web/src/pages/config-management-cards.ts"
+  ],
+  "Cannot check for a FastTrack rule \u0026mdash; Firewall collection is switched off for this router.": [
+    "web/src/pages/queues.ts"
+  ],
+  "Cannot deploy": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Capabilities": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Capture": [
+    "web/src/pages/config-management-editor.ts",
+    "web/src/pages/config-management.ts"
+  ],
   "Capture from a router": [
     "web/src/ui/page-config-management.html"
+  ],
+  "Capturing…": [
+    "web/src/pages/config-management.ts"
   ],
   "Carrying Traffic": [
     "web/src/ui/page-wan.html"
   ],
   "Categories": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-security-scan.html"
   ],
   "Category": [
+    "web/src/pages/security-scan.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/page-security-scan.html"
   ],
@@ -757,6 +1117,12 @@
   "Catppuccin\u003cbr\u003eMocha": [
     "web/src/ui/page-settings.html"
   ],
+  "Certificate": [
+    "web/src/pages/capsman.ts"
+  ],
+  "Certificate check": [
+    "web/src/pages/dns.ts"
+  ],
   "Certificates": [
     "web/src/ui/page-certificates.html"
   ],
@@ -770,6 +1136,7 @@
     "web/src/ui/shell.html"
   ],
   "Changes": [
+    "web/src/pages/backups.ts",
     "web/src/ui/shell.html"
   ],
   "Changes apply immediately without restart.": [
@@ -781,6 +1148,9 @@
   "Changes waiting for a reboot": [
     "web/src/ui/page-packages.html"
   ],
+  "Changing or running RouterOS code is limited to global administrators, as raw commands are.": [
+    "web/src/resource.ts"
+  ],
   "Changing the router": [
     "web/src/ui/page-settings.html"
   ],
@@ -788,6 +1158,7 @@
     "web/src/ui/shell.html"
   ],
   "Channel": [
+    "web/src/pages/packages.ts",
     "web/src/ui/page-capsman.html"
   ],
   "Channel congestion": [
@@ -795,6 +1166,12 @@
   ],
   "Chart history window in minutes": [
     "web/src/ui/page-settings.html"
+  ],
+  "Chasing Attenuation": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Chasing Broadcasts": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Chat ID": [
     "web/src/ui/page-settings.html",
@@ -804,13 +1181,39 @@
     "web/src/ui/page-settings.html"
   ],
   "Check": [
+    "web/src/pages/config-management-history.ts",
     "web/src/ui/page-security-scan.html"
+  ],
+  "Check again": [
+    "web/src/pages/config-management-history.ts"
   ],
   "Check for updates": [
     "web/src/ui/page-packages.html"
   ],
+  "Check the canary, then type": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Checking for updates…": [
+    "web/src/pages/dashboard-system.ts",
+    "web/src/pages/packages.ts"
+  ],
+  "Checking nothing moved": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Checking syntax on the router": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Checking…": [
+    "web/src/pages/config-management.ts",
+    "web/src/pages/dbcleanup.ts",
+    "web/src/pages/routers.ts"
+  ],
   "Checks": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-config-management.html"
+  ],
+  "Checks that need your OK": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Choose a password": [
     "web/src/ui/login.html"
@@ -818,8 +1221,20 @@
   "Choose a radio and press Scan.": [
     "web/src/ui/shell.html"
   ],
+  "Choose a template": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Choose where apps are stored. RouterOS then handles each app’s containers, network and firewall.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "Choose where it will be": [
+    "web/src/pages/ztp.ts"
+  ],
   "Choose which events trigger alerts and push notifications.": [
     "web/src/ui/page-settings.html"
+  ],
+  "City search is unavailable on this install.": [
+    "web/src/pages/city-picker.ts"
   ],
   "Clear": [
     "web/src/ui/page-ai-agent.html",
@@ -829,14 +1244,32 @@
   "Clear all": [
     "web/src/ui/shell.html"
   ],
+  "Clear it to go back to the automatic location.": [
+    "web/src/pages/router-form.ts"
+  ],
   "Clear this override and use the automatic location": [
     "web/src/ui/shell.html"
   ],
   "Clear this site's location": [
     "web/src/ui/page-settings.html"
   ],
+  "Click each corner of the area. Three at least.": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "Click one end of something you know the length of.": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "Click the other end of the distance you are measuring.": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "Client": [
+    "web/src/pages/connections-table.ts"
+  ],
   "Client Isolation": [
     "web/src/ui/page-capsman.html"
+  ],
+  "Client configuration": [
+    "web/src/pages/wireguard-peers.ts"
   ],
   "Client labels": [
     "web/src/ui/page-wifi-map.html"
@@ -845,6 +1278,10 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "Clients": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/routers.ts",
+    "web/src/pages/vlans.ts",
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-network-topology.html",
@@ -860,6 +1297,8 @@
     "web/src/ui/page-clock.html"
   ],
   "Close": [
+    "web/src/pages/upgrade.ts",
+    "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wan.html",
@@ -868,11 +1307,17 @@
   "Close fullscreen": [
     "web/src/ui/shell.html"
   ],
+  "Closingu2026": [
+    "web/src/pages/rosusers.ts"
+  ],
   "Collapses the 23 pages into Network, Wireless, IP Services, Tunnels, Traffic, Security and System. Turn it off for one flat list.": [
     "web/src/ui/page-settings.html"
   ],
   "Collection": [
     "web/src/ui/shell.html"
+  ],
+  "Colour": [
+    "web/src/pages/wifi-map.ts"
   ],
   "Comfortaa": [
     "web/src/ui/page-settings.html"
@@ -881,7 +1326,12 @@
     "web/src/ui/page-devices.html",
     "web/src/ui/page-interfaces.html"
   ],
+  "Commands holding a concurrency slot right now, against the per-router cap.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "Comment": [
+    "web/src/pages/dns.ts",
+    "web/src/pages/ppp.ts",
     "web/src/ui/page-firewall.html",
     "web/src/ui/page-netwatch.html",
     "web/src/ui/page-routing.html",
@@ -899,6 +1349,7 @@
     "web/src/ui/shell.html"
   ],
   "Configuration": [
+    "web/src/pages/ztp.ts",
     "web/src/ui/page-capsman.html"
   ],
   "Configuration Drift": [
@@ -929,10 +1380,12 @@
     "web/src/ui/shell.html"
   ],
   "Connect": [
+    "web/src/pages/setup-overlay-wire.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/shell.html"
   ],
   "Connected": [
+    "web/src/pages/capsman.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
   ],
@@ -942,6 +1395,15 @@
   "Connected devices": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "Connected to": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Connecting to it through its tunnel.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Connecting…": [
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
   "Connection": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -949,6 +1411,12 @@
   "Connection Flow": [
     "web/src/ui/page-connections.html",
     "web/src/ui/page-dashboard.html"
+  ],
+  "Connection Uptime": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Connection failed": [
+    "web/src/pages/router-form.ts"
   ],
   "Connections": [
     "web/src/ui/page-connections.html",
@@ -972,6 +1440,9 @@
   "Connects to any OpenAI-compatible endpoint: a hosted provider, a gateway, or a model running on your own hardware. \u003cstrong\u003eA hosted endpoint sends router names, addresses and network shape to that provider.\u003c/strong\u003e A local one (Ollama, LM Studio, vLLM, LiteLLM) sends nothing outside your network. The AI Agent page appears once this is switched on and an endpoint and model are set.": [
     "web/src/ui/page-settings.html"
   ],
+  "Consulting the Oracle": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Containers": [
     "web/src/ui/page-containers.html"
   ],
@@ -990,11 +1461,65 @@
   "Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.": [
     "web/src/ui/page-settings.html"
   ],
+  "Converging Topology": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Cooldown (seconds)": [
     "web/src/ui/page-settings.html"
   ],
+  "Copied": [
+    "web/src/pages/containers-apps.ts",
+    "web/src/pages/ztp.ts"
+  ],
+  "Copy": [
+    "web/src/pages/containers-apps.ts",
+    "web/src/pages/wireguard-peers.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
   "Copy every record to every router that is missing it": [
     "web/src/ui/page-dns.html"
+  ],
+  "Could not check": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Could not grant access": [
+    "web/src/pages/principal-forms.ts"
+  ],
+  "Could not open it": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Could not reach this server.": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
+  "Could not remove access": [
+    "web/src/pages/principal-forms.ts"
+  ],
+  "Could not save the group": [
+    "web/src/pages/principal-forms.ts"
+  ],
+  "Could not save the role": [
+    "web/src/pages/principal-forms.ts"
+  ],
+  "Could not save the schedule.": [
+    "web/src/pages/reports-schedules.ts"
+  ],
+  "Could not save the site": [
+    "web/src/pages/settings-sites.ts"
+  ],
+  "Could not save the uplink list": [
+    "web/src/pages/wan.ts"
+  ],
+  "Counting Collisions": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Counting Octets": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Counting Retries": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Counting matching rows…": [
+    "web/src/pages/dbcleanup.ts"
   ],
   "Country": [
     "web/src/ui/page-capsman.html"
@@ -1003,10 +1528,17 @@
     "web/src/ui/page-security-scan.html"
   ],
   "Create Account": [
+    "web/src/entry/login.ts",
     "web/src/ui/login.html"
   ],
   "Create Admin Account": [
     "web/src/ui/login.html"
+  ],
+  "Creating account…": [
+    "web/src/entry/login.ts"
+  ],
+  "Crimping RJ45s": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Critical": [
     "web/src/ui/page-security-scan.html"
@@ -1018,7 +1550,14 @@
     "web/src/ui/shell.html"
   ],
   "Custom": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Custom template": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Customise": [
+    "web/src/pages/config-management-cards.ts"
   ],
   "Customise dashboard layout": [
     "web/src/ui/shell.html"
@@ -1046,6 +1585,9 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "DNS not open to the WAN": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
   "Daily": [
     "web/src/ui/page-backups.html",
     "web/src/ui/shell.html"
@@ -1054,6 +1596,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Dash": [
+    "web/src/branding.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -1082,10 +1625,14 @@
     "web/src/ui/page-capsman.html"
   ],
   "Day": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Day Before Yesterday": [
     "web/src/ui/page-reports.html"
+  ],
+  "Deauthing Nobody": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Debug": [
     "web/src/ui/page-logs.html"
@@ -1096,7 +1643,12 @@
   "Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.": [
     "web/src/ui/shell.html"
   ],
+  "Decrementing TTL": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Default": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/config-management-editor.ts",
     "web/src/ui/page-reports.html"
   ],
   "Default (Orbitron)": [
@@ -1118,6 +1670,9 @@
     "web/src/ui/page-settings.html"
   ],
   "Delete": [
+    "web/src/pages/backups.ts",
+    "web/src/pages/settings.ts",
+    "web/src/pages/wifi-map.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/shell.html"
   ],
@@ -1127,28 +1682,65 @@
   "Delete data older than": [
     "web/src/ui/page-settings.html"
   ],
+  "Delete failed": [
+    "web/src/pages/dbcleanup.ts",
+    "web/src/pages/settings-principals.ts"
+  ],
+  "Delete it": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Delete stored history on demand. Retention above prunes automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.": [
     "web/src/ui/page-settings.html"
   ],
   "Delete this conversation. The assistant forgets it too.": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "Delete this data permanently? This cannot be undone.": [
+    "web/src/pages/dbcleanup.ts"
+  ],
+  "Delete this restore point?": [
+    "web/src/pages/backups.ts"
+  ],
+  "Deleting…": [
+    "web/src/pages/dbcleanup.ts"
+  ],
   "Deploy": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-config-management.html"
   ],
+  "Deployed": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Deploying through Config Management.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Deploying to the canary": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Derivation": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "Description": [
+    "web/src/pages/topology-panel.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/page-settings.html"
   ],
   "Destination": [
+    "web/src/pages/connections-table.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-tools.html"
   ],
   "Detail": [
+    "web/src/pages/audit.ts",
+    "web/src/pages/reports-alerts.ts",
+    "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-reports.html"
   ],
   "Device": [
+    "web/src/pages/wireless.ts",
+    "web/src/pages/ztp.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-devices.html",
@@ -1184,8 +1776,21 @@
   "Direction": [
     "web/src/ui/page-tools.html"
   ],
+  "Directly attached to this router": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Disable": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/settings-routers.ts"
+  ],
   "Disabled": [
+    "web/src/pages/area.ts",
+    "web/src/pages/netwatch.ts",
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-packages.html"
+  ],
+  "Disarming the auto-revert": [
+    "web/src/pages/config-management-deploy.ts"
   ],
   "Discard": [
     "web/src/ui/page-wifi-map.html",
@@ -1194,7 +1799,20 @@
   "Discard saved positions and lay out again": [
     "web/src/ui/page-network-topology.html"
   ],
+  "Discovery": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Discovery interfaces": [
+    "web/src/pages/capsman.ts"
+  ],
+  "Discovery kept off the WAN": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "Discovery only runs on the": [
+    "web/src/pages/topology.ts"
+  ],
   "Disk": [
+    "web/src/pages/routers.ts",
     "web/src/ui/page-devices.html"
   ],
   "Disk used": [
@@ -1212,26 +1830,50 @@
   "Distance": [
     "web/src/ui/page-routing.html"
   ],
+  "Dividing by Zero Safely": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Do it anyway": [
+    "web/src/resource.ts",
     "web/src/ui/page-wan.html"
   ],
   "Documentation": [
     "web/src/ui/page-settings.html"
   ],
+  "Dodging Interference": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Doing Kessel Runs": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Done": [
+    "web/src/pages/ztp.ts",
+    "web/src/wizard.ts"
+  ],
   "Don’t change it": [
     "web/src/ui/page-ai-agent.html"
   ],
   "Down": [
+    "web/src/pages/dashboard-netwatch.ts",
+    "web/src/pages/netwatch.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
   ],
+  "Down Duration": [
+    "web/src/pages/reports-ping.ts"
+  ],
   "Down Time": [
+    "web/src/pages/reports-alerts.ts",
     "web/src/ui/page-reports.html"
   ],
   "Download": [
+    "web/src/pages/reports-charts.ts",
+    "web/src/pages/wireguard-peers.ts",
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-ppp.html"
   ],
   "Download (MB)": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Download / Upload (MB/min)": [
@@ -1243,11 +1885,20 @@
   "Download capacity, Mbps": [
     "web/src/ui/shell.html"
   ],
+  "Download to router": [
+    "web/src/pages/files-transfer.ts"
+  ],
   "Dracula": [
     "web/src/ui/page-settings.html"
   ],
+  "Draining Buckets": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Draw an area by clicking its corners. Double-click or Enter to close it.": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Draw the site: add a building, then place your access points on it.": [
+    "web/src/pages/wifi-map.ts"
   ],
   "Drawing tools": [
     "web/src/ui/page-wifi-map.html"
@@ -1255,21 +1906,34 @@
   "Drift": [
     "web/src/ui/page-config-management.html"
   ],
+  "Drifted": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Dropping Tail": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Drops": [
     "web/src/ui/page-interfaces.html"
   ],
   "Duplicate": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/shell.html"
   ],
   "Duration": [
     "web/src/ui/shell.html"
   ],
   "Dynamic": [
+    "web/src/pages/area.ts",
+    "web/src/pages/dashboard-card-routing.ts",
+    "web/src/pages/routing.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
   ],
   "Dynamic only": [
     "web/src/ui/page-routing.html"
+  ],
+  "Each app gets an HTTPS link through IP Cloud.": [
+    "web/src/pages/containers-apps.ts"
   ],
   "Each router gets a restore point first, the syntax is checked on the router, and MikroDash logs in afresh afterwards to prove it still can.": [
     "web/src/ui/page-config-management.html"
@@ -1283,16 +1947,49 @@
   "Each user signs in with their own account. Access comes from the roles granted to them here, and from any group they belong to.": [
     "web/src/ui/page-settings.html"
   ],
+  "Edge": [
+    "web/src/pages/bridges.ts"
+  ],
   "Edit": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/settings.ts",
     "web/src/ui/page-dns.html",
     "web/src/ui/page-wifi-map.html",
     "web/src/ui/shell.html"
   ],
+  "Edit Device": [
+    "web/src/pages/router-form.ts"
+  ],
+  "Edit Group": [
+    "web/src/pages/settings-principals.ts"
+  ],
+  "Edit Role": [
+    "web/src/pages/settings-principals.ts"
+  ],
+  "Edit Site": [
+    "web/src/pages/settings-sites.ts"
+  ],
+  "Edit User": [
+    "web/src/pages/settings-principals.ts"
+  ],
+  "Edit scheduled report": [
+    "web/src/pages/reports-schedules.ts"
+  ],
   "Editor": [
     "web/src/ui/page-config-management.html"
   ],
+  "Electing Root Bridges": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Empty: the endpoint's certificate must be publicly trusted": [
     "web/src/ui/page-settings.html"
+  ],
+  "Enable": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/settings-routers.ts"
+  ],
+  "Enable backups for this router first, so a password can be generated.": [
+    "web/src/pages/backups.ts"
   ],
   "Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.": [
     "web/src/ui/page-settings.html"
@@ -1305,10 +2002,21 @@
     "web/src/ui/page-ppp.html",
     "web/src/ui/page-vpn.html"
   ],
+  "End Session": [
+    "web/src/pages/rosusers.ts"
+  ],
   "Endpoint": [
+    "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-settings.html"
   ],
+  "Engaging Warp Cores": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Entries": [
+    "web/src/pages/area.ts"
+  ],
   "Error": [
+    "web/src/pages/ai-agent.ts",
     "web/src/ui/page-logs.html"
   ],
   "Errors": [
@@ -1320,6 +2028,9 @@
   "Established": [
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
+  ],
+  "Established accepted": [
+    "web/src/pages/security-scan-cards.ts"
   ],
   "Ethernet": [
     "web/src/ui/page-settings.html"
@@ -1393,24 +2104,51 @@
   "Every interface, no grouping": [
     "web/src/ui/page-wifi-networks.html"
   ],
+  "Every line reads as RouterOS configuration.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Every network here is provisioned by CAPsMAN — edit them on the CAPsMAN page, not here.": [
+    "web/src/pages/wifi.ts"
+  ],
   "Every page, including Routers": [
     "web/src/ui/page-settings.html"
   ],
   "Every script carries this instance's key, so a router can only ever call home to this MikroDash.": [
     "web/src/ui/page-settings.html"
   ],
+  "Everything": [
+    "web/src/account.ts"
+  ],
   "Everything (no age limit)": [
     "web/src/ui/page-settings.html"
   ],
+  "Everything configured since this backup is lost.": [
+    "web/src/pages/backups.ts"
+  ],
   "Excellent": [
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
+  ],
+  "Expired": [
+    "web/src/pages/config-management-history.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Expires": [
+    "web/src/pages/settings-notif-test.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Expiring TTLs": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Export CSV": [
     "web/src/ui/page-reports.html"
   ],
   "Export PDF": [
     "web/src/ui/page-reports.html"
+  ],
+  "External site": [
+    "web/src/pages/config-management-cards.ts"
   ],
   "Extra Large": [
     "web/src/ui/page-settings.html"
@@ -1422,9 +2160,23 @@
     "web/src/ui/page-settings.html"
   ],
   "Failed": [
+    "web/src/account.ts",
+    "web/src/pages/backups.ts",
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts",
+    "web/src/pages/notifications.ts",
+    "web/src/pages/setup-overlay.ts",
     "web/src/ui/page-audit-trail.html"
   ],
+  "Failed to activate router": [
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
+  "Failed to add router": [
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
   "Fair": [
+    "web/src/pages/security-scan-cards.ts",
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
   ],
@@ -1433,6 +2185,9 @@
   ],
   "Fast Roaming": [
     "web/src/ui/page-capsman.html"
+  ],
+  "FastTrack is active on this router.": [
+    "web/src/pages/queues.ts"
   ],
   "Faster": [
     "web/src/ui/page-settings.html"
@@ -1473,6 +2228,12 @@
   "Find a device by name, IP or MAC…": [
     "web/src/ui/page-network-topology.html"
   ],
+  "Finding": [
+    "web/src/pages/security-scan.ts"
+  ],
+  "Finding the Way": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Findings": [
     "web/src/ui/page-security-scan.html"
   ],
@@ -1486,6 +2247,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Fired At": [
+    "web/src/pages/reports-alerts.ts",
     "web/src/ui/page-reports.html"
   ],
   "Firewall": [
@@ -1501,8 +2263,17 @@
   "Firewall review": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "Firmware": [
+    "web/src/pages/packages.ts"
+  ],
   "Firmware \u0026 Update": [
     "web/src/ui/page-packages.html"
+  ],
+  "First backup": [
+    "web/src/pages/backups.ts"
+  ],
+  "First seen": [
+    "web/src/pages/ztp-views.ts"
   ],
   "First-line monitoring: logs and reports": [
     "web/src/ui/page-settings.html"
@@ -1518,8 +2289,17 @@
     "web/src/ui/page-network-topology.html",
     "web/src/ui/page-wifi-map.html"
   ],
+  "Fix": [
+    "web/src/pages/security-scan.ts"
+  ],
+  "Fix the refused line to see the checks.": [
+    "web/src/pages/config-management.ts"
+  ],
   "Fixed size": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Flapping": [
+    "web/src/pages/routing.ts"
   ],
   "Flaps": [
     "web/src/ui/page-interfaces.html"
@@ -1527,11 +2307,22 @@
   "Flat": [
     "web/src/ui/page-wifi-networks.html"
   ],
+  "Flat list": [
+    "web/src/pages/wireless.ts"
+  ],
   "Fleet": [
+    "web/src/pages/topology-persist.ts",
     "web/src/ui/page-dns.html",
     "web/src/ui/page-network-topology.html"
   ],
+  "Fleet…": [
+    "web/src/pages/topology-persist.ts"
+  ],
+  "Flooding Unknowns": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Floor": [
+    "web/src/pages/wifi-map.ts",
     "web/src/ui/page-wifi-map.html"
   ],
   "Flow": [
@@ -1555,8 +2346,17 @@
   "For what no page covers. Offered only to signed-in global administrators, and \u003cstrong\u003eevery command, even a read, is shown to you and runs only when you type the router's name\u003c/strong\u003e. Raw commands skip MikroDash's own checks, read-back and undo, so leave this off unless you need it.": [
     "web/src/ui/page-settings.html"
   ],
+  "Forget": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Forwarding": [
     "web/src/ui/page-capsman.html"
+  ],
+  "Found automatically": [
+    "web/src/pages/router-form.ts"
+  ],
+  "Fragmenting Packets": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Frequency": [
     "web/src/ui/page-backups.html",
@@ -1568,18 +2368,35 @@
     "web/src/ui/shell.html"
   ],
   "From": [
+    "web/src/pages/audit.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-settings.html"
   ],
   "From date/time": [
     "web/src/ui/page-reports.html"
   ],
+  "From this routeru2019s site,": [
+    "web/src/pages/router-form.ts"
+  ],
+  "Full export": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/config-management.ts"
+  ],
+  "Full replacement": [
+    "web/src/pages/config-management-history.ts"
+  ],
   "Fullscreen map": [
     "web/src/ui/page-connections.html"
   ],
   "Gateway": [
+    "web/src/pages/dhcp.ts",
+    "web/src/pages/wan.ts",
     "web/src/ui/page-routing.html"
   ],
   "Gbps": [
+    "web/src/pages/bandwidth.ts",
+    "web/src/pages/dashboard-cards-util.ts",
     "web/src/ui/shell.html"
   ],
   "Geist": [
@@ -1606,9 +2423,17 @@
   "GitHub\u003cbr\u003eLight": [
     "web/src/ui/page-settings.html"
   ],
+  "Give it a name": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Good": [
+    "web/src/pages/security-scan-cards.ts",
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
+  ],
+  "Group": [
+    "web/src/pages/rosusers.ts"
   ],
   "Group by": [
     "web/src/ui/page-reports.html"
@@ -1621,6 +2446,7 @@
     "web/src/ui/page-wifi-clients.html"
   ],
   "Grouped by AP": [
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-wifi-clients.html"
   ],
   "Groups": [
@@ -1639,14 +2465,37 @@
   "Gruvbox\u003cbr\u003eLight": [
     "web/src/ui/page-settings.html"
   ],
+  "Handling Packets": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Handshake": [
+    "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-dashboard.html"
+  ],
+  "Hauling Bytes": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Head Office": [
     "web/src/ui/page-settings.html"
   ],
   "Health check": [
     "web/src/ui/page-ai-agent.html"
+  ],
+  "Height": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "Herding Datagrams": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Hidden": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/wifi.ts"
+  ],
+  "Hidden Cards": [
+    "web/src/pages/dashboard-grid-edit.ts"
+  ],
+  "Hide changes": [
+    "web/src/pages/config-management-history.ts"
   ],
   "Hide pages you don't use. Dashboard and Settings are always visible. A preset ticks a whole set at once; each user still only sees pages their role allows.": [
     "web/src/ui/page-settings.html"
@@ -1663,6 +2512,7 @@
     "web/src/ui/page-config-management.html"
   ],
   "Home": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-settings.html"
   ],
   "Home plus Topology, DNS, VLANs, VPN, Firewall and Logs": [
@@ -1671,7 +2521,14 @@
   "Hop": [
     "web/src/ui/page-tools.html"
   ],
+  "Hopping Channels": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Horizon": [
+    "web/src/pages/bridges.ts"
+  ],
   "Host": [
+    "web/src/pages/routers.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-netwatch.html",
@@ -1684,10 +2541,15 @@
   "Host Table": [
     "web/src/ui/page-bridges.html"
   ],
+  "Host is required": [
+    "web/src/pages/router-modal.ts",
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
   "Hostname": [
     "web/src/ui/page-dhcp.html"
   ],
   "Hour": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Hourly": [
@@ -1750,6 +2612,9 @@
   "IPv6": [
     "web/src/ui/page-firewall.html"
   ],
+  "IPv6 input covered": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
   "IPv6 only": [
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-routing.html"
@@ -1757,9 +2622,20 @@
   "IX / Route Server": [
     "web/src/ui/page-routing.html"
   ],
+  "Icon saved.": [
+    "web/src/pages/branding-settings.ts"
+  ],
+  "Identity": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
   "Idle": [
+    "web/src/pages/wireless-fa.ts",
     "web/src/ui/page-routing.html",
     "web/src/ui/shell.html"
+  ],
+  "Ignoring Warnings": [
+    "web/src/pages/ai-agent.ts"
   ],
   "In use": [
     "web/src/ui/page-settings.html"
@@ -1767,6 +2643,12 @@
   "Info": [
     "web/src/ui/page-logs.html",
     "web/src/ui/page-security-scan.html"
+  ],
+  "Input ends in a drop": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "Install": [
+    "web/src/pages/packages.ts"
   ],
   "Installed": [
     "web/src/ui/page-packages.html"
@@ -1778,6 +2660,12 @@
     "web/src/ui/page-settings.html"
   ],
   "Interface": [
+    "web/src/pages/bridges.ts",
+    "web/src/pages/reports-traffic.ts",
+    "web/src/pages/vlans.ts",
+    "web/src/pages/wifi.ts",
+    "web/src/pages/wireguard-peers.ts",
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-interfaces.html",
@@ -1793,6 +2681,9 @@
   ],
   "Interface Lists": [
     "web/src/ui/page-interface-lists.html"
+  ],
+  "Interface Rates collection is off for this router": [
+    "web/src/pages/wan.ts"
   ],
   "Interface Types": [
     "web/src/ui/page-interfaces.html"
@@ -1816,6 +2707,7 @@
     "web/src/ui/page-reports.html"
   ],
   "Interfaces": [
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-interfaces.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -1826,14 +2718,65 @@
   "Internet Uplinks": [
     "web/src/ui/page-wan.html"
   ],
+  "Internet detection is not enabled on this router.": [
+    "web/src/pages/wan.ts"
+  ],
+  "Internet detection is switched off on this router.": [
+    "web/src/pages/wan.ts"
+  ],
+  "Interpolating Gaps": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Interrupted": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Interrupted by a restart": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Interval": [
     "web/src/ui/page-netwatch.html"
+  ],
+  "Invalid dropped on forward": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "Invalid dropped on input": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "Invalid request": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/wan.ts"
+  ],
+  "Issuer": [
+    "web/src/pages/settings-notif-test.ts"
+  ],
+  "It called home without being expected. Onboard it to add it to the fleet, or reject it.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "It can cut MikroDash off, so each router arms an automatic revert first.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "It can no longer reach this MikroDash.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "It overrides a setting this network inherits from a shared configuration profile.": [
+    "web/src/resource.ts"
+  ],
+  "Its deploy is in Config Management → History.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "JetBrains Mono": [
     "web/src/ui/page-settings.html"
   ],
+  "JetBrains Mono,monospace": [
+    "web/src/pages/reports-charts.ts"
+  ],
   "Kanagawa": [
     "web/src/ui/page-settings.html"
+  ],
+  "Kbps": [
+    "web/src/pages/bandwidth.ts",
+    "web/src/pages/dashboard-cards-util.ts"
   ],
   "Keep at most": [
     "web/src/ui/page-backups.html"
@@ -1844,11 +2787,27 @@
   "Keep names, access points and clients the same size on screen at any zoom": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Keepalive": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
+  "Kept current by an open channel instead of being polled.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Kid Control is not available on this router": [
+    "web/src/pages/dashboard-talkers.ts"
+  ],
   "LAN + WAN": [
     "web/src/ui/page-bandwidth.html"
   ],
   "LAN only": [
     "web/src/ui/page-bandwidth.html"
+  ],
+  "LAN:": [
+    "web/src/pages/dashboard-networks.ts"
+  ],
+  "Label": [
+    "web/src/pages/config-management-editor.ts",
+    "web/src/pages/wifi-map.ts"
   ],
   "Language": [
     "web/src/ui/login.html",
@@ -1897,6 +2856,9 @@
   "Last Error": [
     "web/src/ui/page-routing.html"
   ],
+  "Last Login": [
+    "web/src/pages/rosusers.ts"
+  ],
   "Last Up": [
     "web/src/ui/page-interfaces.html"
   ],
@@ -1907,6 +2869,7 @@
     "web/src/ui/page-reports.html"
   ],
   "Latency": [
+    "web/src/pages/topology-panel.ts",
     "web/src/ui/page-tools.html"
   ],
   "Latency →": [
@@ -1918,8 +2881,20 @@
   "Learned Hosts": [
     "web/src/ui/page-bridges.html"
   ],
+  "Lease": [
+    "web/src/pages/wan.ts"
+  ],
+  "Leases": [
+    "web/src/pages/dhcp.ts"
+  ],
+  "Leasing Addresses": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Leave it empty to use the built-in prompt.": [
     "web/src/ui/page-settings.html"
+  ],
+  "Leave this template without saving your changes?": [
+    "web/src/pages/config-management.ts"
   ],
   "Legacy wireless keeps the passphrase here, not on the interface.": [
     "web/src/ui/page-wifi-networks.html"
@@ -1940,10 +2915,17 @@
     "web/src/ui/page-settings.html"
   ],
   "Limits": [
+    "web/src/pages/queues.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Link down": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Link integrity faults: CRC/FCS, alignment, collisions. A rising count means a cable or duplex problem": [
     "web/src/ui/page-interfaces.html"
+  ],
+  "Link up": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Links": [
     "web/src/ui/page-network-topology.html",
@@ -1953,22 +2935,43 @@
     "web/src/ui/page-devices.html",
     "web/src/ui/page-interfaces.html"
   ],
+  "Live": [
+    "web/src/pages/topology-panel.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
   "Live Connections": [
     "web/src/ui/page-vpn.html"
   ],
+  "Live data — 1s to 30s": [
+    "web/src/pages/settings-poll.ts"
+  ],
   "Load": [
     "web/src/ui/page-reports.html"
+  ],
+  "Loading release notes…": [
+    "web/src/pages/upgrade.ts"
+  ],
+  "Loading routers…": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Loading the app store…": [
+    "web/src/pages/containers-apps.ts"
   ],
   "Loading the library…": [
     "web/src/ui/page-config-management.html"
   ],
   "Loading…": [
+    "web/src/pages/config-management.ts",
     "web/src/ui/login.html",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-reports.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-clients.html",
     "web/src/ui/shell.html"
+  ],
+  "Local": [
+    "web/src/pages/ppp.ts",
+    "web/src/pages/ztp-views.ts"
   ],
   "Local Address": [
     "web/src/ui/page-ppp.html"
@@ -1983,18 +2986,25 @@
   "Logging": [
     "web/src/ui/page-logging.html"
   ],
+  "Logging in afresh": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Logs": [
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Loss": [
+    "web/src/pages/topology-panel.ts",
     "web/src/ui/page-tools.html"
   ],
   "Loss %": [
+    "web/src/pages/reports-charts.ts",
+    "web/src/pages/reports-ping.ts",
     "web/src/ui/page-reports.html"
   ],
   "Lost packets": [
+    "web/src/pages/tools.ts",
     "web/src/ui/page-tools.html"
   ],
   "Low": [
@@ -2006,11 +3016,23 @@
     "web/src/ui/page-dhcp.html",
     "web/src/ui/page-wifi-map.html"
   ],
+  "MAC Address": [
+    "web/src/pages/bridges.ts"
+  ],
+  "MAC Telnet limited": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "MAC WinBox limited": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
   "MHz": [
     "web/src/ui/shell.html"
   ],
   "MIT License": [
     "web/src/ui/page-settings.html"
+  ],
+  "Made when provisioning is first switched on": [
+    "web/src/pages/ztp.ts"
   ],
   "Main building, ground floor": [
     "web/src/ui/page-settings.html"
@@ -2020,6 +3042,21 @@
   ],
   "Make a script that brings a new router into the fleet on its own": [
     "web/src/ui/page-devices.html"
+  ],
+  "Make the script": [
+    "web/src/pages/ztp.ts"
+  ],
+  "Managed by": [
+    "web/src/pages/capsman.ts"
+  ],
+  "Manager": [
+    "web/src/pages/capsman.ts"
+  ],
+  "Manager + CAP": [
+    "web/src/pages/capsman.ts"
+  ],
+  "Manager address": [
+    "web/src/pages/capsman.ts"
   ],
   "Mangle": [
     "web/src/ui/page-firewall.html"
@@ -2035,6 +3072,9 @@
   ],
   "Map of configured routers": [
     "web/src/ui/page-devices.html"
+  ],
+  "Marking DSCP": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Master Config": [
     "web/src/ui/page-capsman.html"
@@ -2060,6 +3100,15 @@
   "Max Connections": [
     "web/src/ui/page-settings.html"
   ],
+  "Max Limit": [
+    "web/src/pages/queues.ts"
+  ],
+  "Max RTT": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Max UDP packet": [
+    "web/src/pages/dns.ts"
+  ],
   "Max hops": [
     "web/src/ui/page-tools.html"
   ],
@@ -2067,10 +3116,15 @@
     "web/src/ui/page-settings.html"
   ],
   "Mbps": [
+    "web/src/pages/bandwidth.ts",
+    "web/src/pages/dashboard-cards-util.ts",
     "web/src/ui/shell.html"
   ],
   "Measure": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Measuring RSSI": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Medium": [
     "web/src/ui/page-security-scan.html",
@@ -2079,16 +3133,33 @@
   "Members": [
     "web/src/ui/page-settings.html"
   ],
+  "Memory": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Menu": [
+    "web/src/pages/config-management-editor.ts",
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Menus subscribed": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "Merge the other routers' neighbour tables into this map": [
     "web/src/ui/page-network-topology.html"
   ],
   "Message Templates": [
     "web/src/ui/page-settings.html"
   ],
+  "Method": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Metres per canvas unit": [
+    "web/src/pages/wifi-map.ts"
+  ],
   "Metrics retention (days)": [
     "web/src/ui/page-settings.html"
   ],
   "Mikro": [
+    "web/src/branding.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -2102,6 +3173,18 @@
   ],
   "MikroDash Connects As": [
     "web/src/ui/page-users.html"
+  ],
+  "MikroDash cannot identify its own account on this router, so changes are refused": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "MikroDash cannot identify its own account on this router, so changes are refused.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash cannot read where the router sees it connecting from, so it cannot show that address list would still admit it.": [
+    "web/src/resource.ts"
+  ],
+  "MikroDash cannot read which certificate its API service presents, so removing certificates is refused.": [
+    "web/src/resource.ts"
   ],
   "MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.": [
     "web/src/ui/page-settings.html"
@@ -2118,11 +3201,23 @@
   "MikroTik RouterOS": [
     "web/src/ui/page-settings.html"
   ],
+  "MikroTik config generator": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "Min": [
     "web/src/ui/page-tools.html"
   ],
+  "Minimum firmware": [
+    "web/src/pages/packages.ts"
+  ],
   "Minimum time between repeated push alerts for the same event. Prevents notification flooding.": [
     "web/src/ui/page-settings.html"
+  ],
+  "Minute": [
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Mixed": [
+    "web/src/pages/wifi.ts"
   ],
   "Mode": [
     "web/src/ui/page-capsman.html",
@@ -2130,10 +3225,15 @@
     "web/src/ui/page-wifi-networks.html"
   ],
   "Model": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-settings.html"
   ],
+  "Modem": [
+    "web/src/pages/topology.ts"
+  ],
   "Monitoring": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/shell.html"
   ],
   "Monokai": [
@@ -2146,6 +3246,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Month": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Monthly": [
@@ -2160,6 +3261,25 @@
   ],
   "Most urgent": [
     "web/src/ui/page-security-scan.html"
+  ],
+  "Move down": [
+    "web/src/pages/area.ts",
+    "web/src/pages/capsman.ts",
+    "web/src/pages/firewall.ts"
+  ],
+  "Move earlier — the first matching queue wins": [
+    "web/src/pages/queues.ts"
+  ],
+  "Move it": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Move later": [
+    "web/src/pages/queues.ts"
+  ],
+  "Move up": [
+    "web/src/pages/area.ts",
+    "web/src/pages/capsman.ts",
+    "web/src/pages/firewall.ts"
   ],
   "Msgs In": [
     "web/src/ui/page-routing.html"
@@ -2186,6 +3306,10 @@
     "web/src/ui/page-ntp-client.html"
   ],
   "Name": [
+    "web/src/pages/config-management-editor.ts",
+    "web/src/pages/dns.ts",
+    "web/src/pages/queues.ts",
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-netwatch.html",
@@ -2203,8 +3327,27 @@
   "Name Format": [
     "web/src/ui/page-capsman.html"
   ],
+  "Name is required": [
+    "web/src/pages/principal-forms.ts",
+    "web/src/pages/settings.ts"
+  ],
+  "Name the script first, for example the rollout it is for.": [
+    "web/src/pages/ztp.ts"
+  ],
+  "Names": [
+    "web/src/pages/settings-notif-test.ts"
+  ],
   "Navigation": [
     "web/src/ui/page-settings.html"
+  ],
+  "Needs write access to Tools.": [
+    "web/src/pages/tools.ts"
+  ],
+  "Needs your OK": [
+    "web/src/pages/config-management-cards.ts"
+  ],
+  "Negotiating Beacons": [
+    "web/src/pages/ai-agent.ts"
   ],
   "NetWatch": [
     "web/src/ui/page-dashboard.html",
@@ -2216,6 +3359,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Network": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/shell.html"
   ],
@@ -2224,6 +3368,9 @@
   ],
   "Network Topology": [
     "web/src/ui/page-network-topology.html"
+  ],
+  "Network error. Please try again.": [
+    "web/src/entry/login.ts"
   ],
   "Network topology map": [
     "web/src/ui/page-network-topology.html"
@@ -2235,51 +3382,345 @@
   "Never": [
     "web/src/ui/page-settings.html"
   ],
+  "Never connected": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
   "New Password": [
     "web/src/ui/shell.html"
+  ],
+  "New WAN traffic dropped": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "New passwords do not match": [
+    "web/src/account.ts"
   ],
   "New routers run a short script and call home to this MikroDash, then join the fleet on their own. A remote router dials in over a WireGuard tunnel built into MikroDash, so it can sit behind NAT anywhere. \u003cstrong\u003eThis opens one UDP port\u003c/strong\u003e, which must be published from the container and reachable from the internet; it stays closed while this is off. Routers on your own network need no tunnel.": [
     "web/src/ui/page-settings.html"
   ],
+  "New scheduled report": [
+    "web/src/pages/reports-schedules.ts"
+  ],
+  "New script": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "New template": [
     "web/src/ui/page-config-management.html"
+  ],
+  "New template, not saved yet": [
+    "web/src/pages/config-management.ts"
   ],
   "Newest": [
     "web/src/ui/page-audit-trail.html"
   ],
+  "Next": [
+    "web/src/wizard.ts"
+  ],
   "Next →": [
     "web/src/ui/page-reports.html"
   ],
+  "No": [
+    "web/src/pages/capsman.ts"
+  ],
+  "No CAPs are connected to this manager.": [
+    "web/src/pages/capsman.ts"
+  ],
+  "No CAPs match that search.": [
+    "web/src/pages/capsman.ts"
+  ],
+  "No DHCP networks": [
+    "web/src/pages/dashboard-networks.ts"
+  ],
+  "No PPP profiles.": [
+    "web/src/pages/ppp.ts"
+  ],
+  "No PPP secrets. Add one to let a subscriber connect.": [
+    "web/src/pages/ppp.ts"
+  ],
+  "No PPPoE servers.": [
+    "web/src/pages/ppp.ts"
+  ],
+  "No SSIDs configured on this router.": [
+    "web/src/pages/wireless.ts"
+  ],
+  "No VLANs configured on this router.": [
+    "web/src/pages/vlans.ts"
+  ],
+  "No access granted yet — ask an administrator.": [
+    "web/src/account.ts"
+  ],
+  "No access granted yet.": [
+    "web/src/pages/settings.ts"
+  ],
+  "No active PPP sessions. They appear here when a PPPoE, L2TP, SSTP or PPTP client connects.": [
+    "web/src/pages/ppp.ts"
+  ],
+  "No active bandwidth": [
+    "web/src/pages/bandwidth.ts"
+  ],
   "No active peers": [
+    "web/src/pages/dashboard-vpn.ts",
     "web/src/ui/page-dashboard.html"
+  ],
+  "No active sessions.": [
+    "web/src/account.ts"
+  ],
+  "No alerts": [
+    "web/src/pages/notifications.ts"
+  ],
+  "No alerts for this range.": [
+    "web/src/pages/reports-alerts.ts"
   ],
   "No alerts yet": [
     "web/src/ui/shell.html"
   ],
+  "No app matches.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "No audit events visible to you yet.": [
+    "web/src/pages/audit.ts"
+  ],
+  "No backups have been taken yet.": [
+    "web/src/pages/backups.ts"
+  ],
   "No baselines yet. Each successful deploy records one for every router it reached.": [
     "web/src/ui/page-config-management.html"
+  ],
+  "No bridge VLAN entries.": [
+    "web/src/pages/vlans.ts"
+  ],
+  "No bridge ports.": [
+    "web/src/pages/bridges.ts"
+  ],
+  "No bridges configured on this router.": [
+    "web/src/pages/bridges.ts"
+  ],
+  "No change": [
+    "web/src/pages/backups.ts"
+  ],
+  "No check passed": [
+    "web/src/pages/security-scan.ts"
+  ],
+  "No data for this range.": [
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "No default route via this uplink": [
+    "web/src/pages/wan.ts"
   ],
   "No deploys yet. Deploy a template and it is recorded here.": [
     "web/src/ui/page-config-management.html"
   ],
+  "No description.": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "No devices": [
+    "web/src/pages/dashboard-talkers.ts",
     "web/src/ui/page-dashboard.html"
+  ],
+  "No devices are waiting.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "No devices configured yet.": [
+    "web/src/pages/settings.ts"
+  ],
+  "No differences.": [
+    "web/src/pages/backups.ts"
+  ],
+  "No earlier backup.": [
+    "web/src/pages/backups.ts"
+  ],
+  "No entries match that search.": [
+    "web/src/pages/dns.ts"
+  ],
+  "No ethernet ports": [
+    "web/src/pages/dashboard-card-physports.ts",
+    "web/src/pages/interfaces.ts"
   ],
   "No generic scripts yet.": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-settings.html"
   ],
+  "No geo data": [
+    "web/src/pages/dashboard-card-connlists.ts"
+  ],
+  "No geo data yet": [
+    "web/src/pages/connections-lists.ts"
+  ],
+  "No groups match that search.": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "No hops": [
+    "web/src/pages/tools.ts"
+  ],
   "No hosts configured": [
+    "web/src/pages/dashboard-netwatch.ts",
+    "web/src/pages/netwatch.ts",
     "web/src/ui/page-dashboard.html"
+  ],
+  "No hosts match that search.": [
+    "web/src/pages/bridges.ts"
+  ],
+  "No interfaces": [
+    "web/src/pages/interfaces.ts"
+  ],
+  "No interfaces are declared as uplinks. Tick the ones that carry the internet.": [
+    "web/src/pages/wan.ts"
+  ],
+  "No interfaces reported yet.": [
+    "web/src/pages/wan.ts"
+  ],
+  "No internet interfaces detected": [
+    "web/src/pages/dashboard-networks.ts"
+  ],
+  "No issues found": [
+    "web/src/pages/security-scan.ts"
+  ],
+  "No learned hosts.": [
+    "web/src/pages/bridges.ts"
+  ],
+  "No location yet. A private or CGNAT WAN": [
+    "web/src/pages/router-form.ts"
+  ],
+  "No matching town.": [
+    "web/src/pages/city-picker.ts"
+  ],
+  "No measurement yet": [
+    "web/src/pages/queues.ts"
+  ],
+  "No more events.": [
+    "web/src/pages/audit.ts"
+  ],
+  "No neighbouring devices discovered": [
+    "web/src/pages/topology.ts"
+  ],
+  "No packages match that search.": [
+    "web/src/pages/packages.ts"
+  ],
+  "No peers yet. Add one to hand a device its configuration.": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
+  "No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.": [
+    "web/src/pages/queues.ts"
+  ],
+  "No queues match that search.": [
+    "web/src/pages/queues.ts"
+  ],
+  "No replies": [
+    "web/src/pages/tools.ts"
+  ],
+  "No roles yet.": [
+    "web/src/pages/settings.ts"
+  ],
+  "No router": [
+    "web/src/pages/notifications.ts"
+  ],
+  "No router is connected.": [
+    "web/src/pages/containers-apps.ts",
+    "web/src/pages/dashboard-card-secscore.ts",
+    "web/src/pages/security-scan.ts",
+    "web/src/pages/tools.ts"
+  ],
+  "No router is readable by this account": [
+    "web/src/main.ts"
+  ],
+  "No routers are available.": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "No routers configured.": [
+    "web/src/pages/routers.ts"
+  ],
+  "No routers match": [
+    "web/src/router-dropdown.ts"
+  ],
+  "No routers match that search.": [
+    "web/src/pages/routers.ts"
+  ],
+  "No routers to capture from.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "No routers were recorded for this run.": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "No routers.": [
+    "web/src/pages/dns-fleet.ts"
+  ],
+  "No rules": [
+    "web/src/pages/dashboard-card-fwactions.ts",
+    "web/src/pages/firewall.ts"
+  ],
+  "No rules match search": [
+    "web/src/pages/firewall.ts"
+  ],
+  "No runs yet.": [
+    "web/src/pages/reports-schedules.ts"
+  ],
+  "No scheduled reports for this router yet.": [
+    "web/src/pages/reports-schedules.ts"
+  ],
+  "No scheduled reports for this router.": [
+    "web/src/pages/reports-schedules.ts"
+  ],
+  "No secrets match that search.": [
+    "web/src/pages/ppp.ts"
+  ],
+  "No security profiles": [
+    "web/src/pages/wifi.ts"
+  ],
+  "No sessions match that search.": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "No settings": [
+    "web/src/pages/config-management-cards.ts"
+  ],
+  "No static DNS entries.": [
+    "web/src/pages/dns.ts"
+  ],
+  "No such radio on this router": [
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "No traffic seen": [
+    "web/src/pages/tools.ts"
+  ],
+  "No uplink currently reports an internet connection.": [
+    "web/src/pages/wan.ts"
+  ],
+  "No uplinks to draw. The WAN page says why.": [
+    "web/src/pages/dashboard-card-wanflow.ts"
+  ],
+  "No uplinks to draw. The table above says why.": [
+    "web/src/pages/wan.ts"
   ],
   "No users exist yet. Create the first admin account to get started.": [
     "web/src/ui/login.html"
   ],
+  "No users match that search.": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "No users yet.": [
+    "web/src/pages/principal-forms.ts"
+  ],
   "No wireless clients": [
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
   ],
+  "No wireless networks are configured.": [
+    "web/src/pages/wifi.ts"
+  ],
+  "Nobody is logged in.": [
+    "web/src/pages/rosusers.ts"
+  ],
   "Noise Floor": [
     "web/src/ui/shell.html"
+  ],
+  "Noise floor": [
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "None": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "None (apps behind NAT only)": [
+    "web/src/pages/containers-apps.ts"
   ],
   "Nord Dark": [
     "web/src/ui/page-settings.html"
@@ -2296,14 +3737,69 @@
   "Normal": [
     "web/src/ui/page-settings.html"
   ],
+  "Not accepted": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Not checked": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Not permitted to scan this router": [
+    "web/src/pages/wireless-fa.ts"
+  ],
   "Not run yet": [
     "web/src/ui/page-tools.html"
   ],
+  "Not running": [
+    "web/src/pages/wifi.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Not saving: the stored plan was never read, and this would replace it.": [
+    "web/src/pages/wifi-map.ts"
+  ],
   "Not scanned yet": [
+    "web/src/pages/dashboard-card-secscore.ts",
+    "web/src/pages/security-scan.ts",
     "web/src/ui/page-security-scan.html"
   ],
+  "Not started": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
+  ],
   "Not yet provisioned": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-dashboard.html"
+  ],
+  "Note": [
+    "web/src/pages/config-management-cards.ts"
+  ],
+  "Nothing configured here yet.": [
+    "web/src/pages/capsman.ts"
+  ],
+  "Nothing has been drawn for this router yet. Switch to Edit to start.": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "Nothing is connected right now": [
+    "web/src/pages/vpn.ts"
+  ],
+  "Nothing is sent to it from here": [
+    "web/src/pages/config-management-cards.ts"
+  ],
+  "Nothing matches that selection.": [
+    "web/src/pages/dbcleanup.ts"
+  ],
+  "Nothing matches.": [
+    "web/src/pages/config-management-cards.ts"
+  ],
+  "Nothing to flag.": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management.ts"
+  ],
+  "Nothing urgent: every weighted check passed.": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "Nothing: just add it to the fleet": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Notification Channels": [
     "web/src/ui/page-settings.html"
@@ -2332,14 +3828,31 @@
     "web/src/ui/page-ospf.html",
     "web/src/ui/page-routing.html"
   ],
+  "Of the collectors demand can start and stop, how many something currently wants.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Off": [
+    "web/src/pages/backups.ts",
+    "web/src/pages/capsman.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
   "Off by default. The card asks the model only while it is on your Dashboard and the Dashboard is open, and by default at most once every 3 hours (10800 seconds); coming back sooner shows the last line again rather than asking. Set 0 hours to give the interval in seconds only; it must be between 1 minute and 24 hours. On a hosted endpoint every refresh is billable, including the refresh icon on the card.": [
     "web/src/ui/page-settings.html"
   ],
   "Off means no login at all: anyone who can reach this page can see every router. Changing router configuration needs sign-in, so write pages are read-only while this is off. Only sensible on a trusted network.": [
     "web/src/ui/page-settings.html"
   ],
+  "Office": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "Offline": [
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/routers.ts",
+    "web/src/pages/settings-routers.ts",
     "web/src/ui/page-devices.html"
+  ],
+  "Offline Events": [
+    "web/src/pages/reports-ping.ts"
   ],
   "Offline threshold": [
     "web/src/ui/shell.html"
@@ -2349,6 +3862,26 @@
   ],
   "Oldest record": [
     "web/src/ui/page-settings.html"
+  ],
+  "On": [
+    "web/src/pages/dns-fleet.ts"
+  ],
+  "On Interface": [
+    "web/src/pages/bridges.ts"
+  ],
+  "On the canary": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Onboard": [
+    "web/src/pages/ztp-views.ts",
+    "web/src/pages/ztp.ts"
+  ],
+  "Onboard a device": [
+    "web/src/pages/ztp.ts"
+  ],
+  "Onboarding": [
+    "web/src/pages/ztp-views.ts",
+    "web/src/pages/ztp.ts"
   ],
   "One Dark": [
     "web/src/ui/page-settings.html"
@@ -2362,6 +3895,9 @@
   "One group per radio, virtual APs beneath it": [
     "web/src/ui/page-wifi-networks.html"
   ],
+  "One menu (for additions)": [
+    "web/src/pages/config-management-editor.ts"
+  ],
   "One row per network, aggregated across every radio": [
     "web/src/ui/page-wifi-networks.html"
   ],
@@ -2374,8 +3910,21 @@
   "One\u003cbr\u003eLight": [
     "web/src/ui/page-settings.html"
   ],
+  "Ongoing": [
+    "web/src/pages/reports-ping.ts"
+  ],
   "Online": [
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/routers.ts",
+    "web/src/pages/settings-routers.ts",
     "web/src/ui/page-devices.html"
+  ],
+  "Online Events": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Open": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/reports-alerts.ts"
   ],
   "Open Sans": [
     "web/src/ui/page-settings.html"
@@ -2401,6 +3950,15 @@
   "OpenVPN": [
     "web/src/ui/page-openvpn.html"
   ],
+  "Opening the template…": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Options, comma separated": [
+    "web/src/pages/config-management-editor.ts"
+  ],
+  "Or paste the whole script into the terminal instead.": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Orbit": [
     "web/src/ui/page-wifi-map.html"
   ],
@@ -2408,8 +3966,17 @@
     "web/src/ui/page-settings.html"
   ],
   "Other": [
+    "web/src/pages/dashboard-card-routing.ts",
+    "web/src/pages/dashboard-conn.ts",
+    "web/src/pages/routing.ts",
     "web/src/ui/page-network-topology.html",
     "web/src/ui/page-settings.html"
+  ],
+  "Other device": [
+    "web/src/pages/topology.ts"
+  ],
+  "Outcome": [
+    "web/src/pages/config-management-history.ts"
   ],
   "Outcome filter": [
     "web/src/ui/page-audit-trail.html"
@@ -2454,10 +4021,19 @@
   "Pacific/Honolulu (HST)": [
     "web/src/ui/page-settings.html"
   ],
+  "Package": [
+    "web/src/pages/packages.ts"
+  ],
+  "Package collection is not running for this router": [
+    "web/src/pages/packages.ts"
+  ],
   "Packages": [
     "web/src/ui/page-packages.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "Packet Mark": [
+    "web/src/pages/queues.ts"
   ],
   "Packets": [
     "web/src/ui/page-firewall.html",
@@ -2472,8 +4048,19 @@
   "Pages": [
     "web/src/ui/page-settings.html"
   ],
+  "Pages and cards with a viewer in them. This is what decides which collectors run.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "Palenight": [
     "web/src/ui/page-settings.html"
+  ],
+  "Parent": [
+    "web/src/pages/queues.ts",
+    "web/src/pages/vlans.ts"
+  ],
+  "Partly applied": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
   ],
   "Passed": [
     "web/src/ui/page-security-scan.html"
@@ -2485,22 +4072,58 @@
     "web/src/ui/page-tools.html",
     "web/src/ui/shell.html"
   ],
+  "Password must be at least 4 characters.": [
+    "web/src/entry/login.ts"
+  ],
+  "Passwords do not match.": [
+    "web/src/entry/login.ts"
+  ],
   "Pause": [
+    "web/src/pages/logs.ts",
     "web/src/ui/page-logs.html"
   ],
+  "Payloads built from those rows and sent to any browser watching this router.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Peak RX": [
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Peak RX in bucket": [
+    "web/src/pages/reports-charts.ts"
+  ],
+  "Peak TX": [
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Peak TX in bucket": [
+    "web/src/pages/reports-charts.ts"
+  ],
   "Peer": [
+    "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-vpn.html"
+  ],
+  "Permissions": [
+    "web/src/pages/rosusers.ts"
   ],
   "Physical Ports": [
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-interfaces.html"
   ],
+  "Pick at least one router": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Pick routers first": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Pick routers first.": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Pick the routers to compare.": [
     "web/src/ui/page-dns.html"
   ],
   "Ping": [
+    "web/src/pages/tools.ts",
     "web/src/ui/page-tools.html"
   ],
   "Ping \u0026 traffic samples": [
@@ -2519,19 +4142,39 @@
     "web/src/ui/shell.html"
   ],
   "Ping history": [
+    "web/src/pages/dbcleanup.ts",
     "web/src/ui/page-settings.html"
   ],
   "Ping loss alert threshold, percent": [
     "web/src/ui/page-settings.html"
   ],
+  "Pinging the Void": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Pins": [
+    "web/src/pages/topology-persist.ts",
     "web/src/ui/page-network-topology.html"
   ],
   "Placed APs": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Platform": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Please enter username and password.": [
+    "web/src/entry/login.ts"
+  ],
   "Plus Jakarta Sans": [
     "web/src/ui/page-settings.html"
+  ],
+  "Poisoning Routes": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Polishing Fiber": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Politely Polling": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Poll": [
     "web/src/ui/shell.html"
@@ -2543,6 +4186,7 @@
     "web/src/ui/shell.html"
   ],
   "Poor": [
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
   ],
@@ -2553,6 +4197,7 @@
     "web/src/ui/page-settings.html"
   ],
   "Ports": [
+    "web/src/pages/bridges.ts",
     "web/src/ui/page-bridges.html"
   ],
   "Position in the chain — a rule below the final drop never runs": [
@@ -2568,10 +4213,20 @@
     "web/src/ui/page-settings.html"
   ],
   "Preview": [
+    "web/src/pages/config-management-cards.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Preview again": [
+    "web/src/pages/config-management.ts"
   ],
   "Preview and checks": [
     "web/src/ui/page-config-management.html"
+  ],
+  "Preview every router first": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Preview failed": [
+    "web/src/pages/dbcleanup.ts"
   ],
   "Preview on each router": [
     "web/src/ui/page-config-management.html"
@@ -2591,11 +4246,17 @@
   "Primary site, used for the map location": [
     "web/src/ui/shell.html"
   ],
+  "Private": [
+    "web/src/pages/routing.ts"
+  ],
   "Private / Internal": [
     "web/src/ui/page-routing.html"
   ],
   "Probe": [
     "web/src/ui/page-netwatch.html"
+  ],
+  "Profile": [
+    "web/src/pages/ppp.ts"
   ],
   "Profiles": [
     "web/src/ui/page-ppp.html"
@@ -2604,11 +4265,24 @@
     "web/src/ui/page-bandwidth.html"
   ],
   "Protocol": [
+    "web/src/pages/bridges.ts",
+    "web/src/pages/connections-table.ts",
     "web/src/ui/page-tools.html"
   ],
+  "Provisioned": [
+    "web/src/pages/wifi.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
   "Provisioning": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html"
+  ],
+  "Provisioning failed": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Pruned": [
+    "web/src/pages/backups.ts"
   ],
   "Public Address": [
     "web/src/ui/page-wan.html"
@@ -2616,11 +4290,20 @@
   "Public key": [
     "web/src/ui/page-settings.html"
   ],
+  "Push channels held open. A channel costs no commands, which is why it is counted separately.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Query timeout": [
+    "web/src/pages/dns.ts"
+  ],
   "Questions and a summary of this router are sent to the endpoint configured in Settings → AI Agent. Your conversation about each router is saved so the assistant can follow up; Clear deletes it, and it expires after the chat history retention set in Settings → Data Retention (30 days by default).": [
     "web/src/ui/page-ai-agent.html"
   ],
   "Queue tables": [
     "web/src/ui/page-queues.html"
+  ],
+  "Queueing Politely": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Queues": [
     "web/src/ui/page-settings.html",
@@ -2650,6 +4333,7 @@
     "web/src/ui/page-interfaces.html"
   ],
   "RX (Mbps)": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "RX / TX": [
@@ -2661,7 +4345,11 @@
   "Radio": [
     "web/src/ui/page-wifi-networks.html"
   ],
+  "Radio list not ready yet — try again in a moment": [
+    "web/src/pages/wireless-fa.ts"
+  ],
   "Radios": [
+    "web/src/pages/capsman.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-networks.html"
   ],
@@ -2670,6 +4358,10 @@
   ],
   "Raleway": [
     "web/src/ui/page-settings.html"
+  ],
+  "Rate": [
+    "web/src/pages/queues.ts",
+    "web/src/pages/wan.ts"
   ],
   "Rate Limit": [
     "web/src/ui/page-ppp.html"
@@ -2683,15 +4375,51 @@
   "Re-layout": [
     "web/src/ui/page-network-topology.html"
   ],
+  "Read a text file": [
+    "web/src/pages/files-transfer.ts"
+  ],
   "Read every selected router again": [
     "web/src/ui/page-dns.html"
+  ],
+  "Read on a schedule, once per cadence, however many collectors want it.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Read on a schedule.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
   ],
   "Read the full licence": [
     "web/src/ui/page-settings.html"
   ],
+  "Read with a RouterOS command": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Reading Winbox Tea Leaves": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Reading each router…": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Reading from the router…": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "Reading the router…": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Reading the run…": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Reading…": [
+    "web/src/pages/files-transfer.ts"
+  ],
   "Real-time MikroTik Router Dashboard": [
     "web/src/ui/login.html",
     "web/src/ui/page-settings.html"
+  ],
+  "Reassembling Packets": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Rebooting…": [
+    "web/src/pages/packages.ts"
   ],
   "Reboot…": [
     "web/src/ui/page-packages.html"
@@ -2699,15 +4427,31 @@
   "Receive": [
     "web/src/ui/page-tools.html"
   ],
+  "Receive (average)": [
+    "web/src/pages/tools.ts"
+  ],
   "Recent problems": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "Recently resolved": [
+    "web/src/pages/notifications.ts"
+  ],
   "Recipients": [
+    "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-reports.html",
     "web/src/ui/shell.html"
   ],
+  "Reconverging Anyway": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Record": [
+    "web/src/pages/dns-fleet.ts"
+  ],
   "Record traffic, bandwidth, ping and uptime history for this device so it appears in Reports. Off means nothing is written to disk for it — alerts still notify, but leave no history.": [
     "web/src/ui/shell.html"
+  ],
+  "Recording the baseline": [
+    "web/src/pages/config-management-deploy.ts"
   ],
   "Refresh": [
     "web/src/ui/page-config-management.html",
@@ -2726,13 +4470,34 @@
     "web/src/ui/page-dashboard.html"
   ],
   "Refused": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/config-management-deploy.ts",
     "web/src/ui/page-audit-trail.html"
   ],
   "Regional": [
     "web/src/ui/page-settings.html"
   ],
+  "Reject": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Rejected": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Release": [
+    "web/src/pages/wan.ts"
+  ],
+  "Release notes unavailable": [
+    "web/src/pages/upgrade.ts"
+  ],
+  "Releasing the lease takes the uplink down until the client rebinds.": [
+    "web/src/pages/wan.ts"
+  ],
   "Reload": [
     "web/src/ui/page-dns.html"
+  ],
+  "Remote": [
+    "web/src/pages/ppp.ts",
+    "web/src/pages/ztp-views.ts"
   ],
   "Remote Address": [
     "web/src/ui/page-ppp.html"
@@ -2743,14 +4508,38 @@
   "Remote Requests": [
     "web/src/ui/page-dns.html"
   ],
+  "Remote port": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Remove": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Remove app": [
+    "web/src/pages/containers-apps.ts"
+  ],
   "Remove card": [
     "web/src/ui/page-dashboard.html"
   ],
   "Rename this install and give it its own icon. Shown in the top left, the browser tab, the login page, PDF reports and report emails.": [
     "web/src/ui/page-settings.html"
   ],
+  "Renew": [
+    "web/src/pages/wan.ts"
+  ],
+  "Renewing Leases": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Renewing blips the uplink briefly.": [
+    "web/src/pages/wan.ts"
+  ],
+  "Repeater": [
+    "web/src/pages/topology.ts"
+  ],
   "Report a Bug": [
     "web/src/ui/page-settings.html"
+  ],
+  "Reported by": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Reporting": [
     "web/src/ui/shell.html"
@@ -2761,11 +4550,21 @@
   "Require sign-in": [
     "web/src/ui/page-settings.html"
   ],
+  "Rerouting Auxiliary Power": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Rescan": [
+    "web/src/pages/security-scan.ts",
     "web/src/ui/page-security-scan.html"
+  ],
+  "Reset all settings to defaults? This cannot be undone.": [
+    "web/src/pages/settings-poll.ts"
   ],
   "Reset to Default": [
     "web/src/ui/page-settings.html"
+  ],
+  "Reset to default layout": [
+    "web/src/pages/dashboard-grid-edit.ts"
   ],
   "Reset to defaults": [
     "web/src/ui/page-settings.html"
@@ -2776,26 +4575,63 @@
   "Reset zoom": [
     "web/src/ui/page-connections.html"
   ],
+  "Resetting": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Resolved": [
+    "web/src/pages/reports-alerts.ts"
+  ],
   "Resolved At": [
+    "web/src/pages/reports-alerts.ts",
     "web/src/ui/page-reports.html"
   ],
   "Resolver": [
     "web/src/ui/page-dns.html"
   ],
+  "Resolving Eventually": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Restore points": [
     "web/src/ui/page-backups.html"
   ],
+  "Restore started. The router is rebooting and will be unreachable for a minute or two.": [
+    "web/src/pages/backups.ts"
+  ],
+  "Restore takes a single restore point — select just one": [
+    "web/src/pages/backups.ts"
+  ],
   "Result": [
+    "web/src/pages/audit.ts",
+    "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-backups.html"
+  ],
+  "Resume": [
+    "web/src/pages/logs.ts"
+  ],
+  "Reversing Polarity": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Review on Devices": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "Revoked": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "RoMON off": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "Roaming Aimlessly": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Roboto": [
     "web/src/ui/page-settings.html"
   ],
   "Roles": [
     "web/src/ui/page-settings.html"
+  ],
+  "Rolling out": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
   ],
   "Rose Pine": [
     "web/src/ui/page-settings.html"
@@ -2815,10 +4651,17 @@
   "Rose Pine\u003cbr\u003eMoon": [
     "web/src/ui/page-settings.html"
   ],
+  "Route": [
+    "web/src/pages/wan.ts"
+  ],
   "Route type filter": [
     "web/src/ui/page-routing.html"
   ],
   "Router": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-editor.ts",
+    "web/src/pages/config-management-history.ts",
+    "web/src/pages/topology.ts",
     "web/src/ui/page-reports.html"
   ],
   "Router Logs": [
@@ -2827,17 +4670,38 @@
   "Router Offline / Online": [
     "web/src/ui/page-settings.html"
   ],
+  "Router disconnected mid-scan": [
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "Router downloads a URL": [
+    "web/src/pages/files-transfer.ts"
+  ],
+  "Router is offline": [
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "Router port": [
+    "web/src/pages/topology-panel.ts"
+  ],
   "Router security check": [
     "web/src/ui/page-ai-agent.html"
   ],
   "Router uptime": [
     "web/src/ui/shell.html"
   ],
+  "Router user collection is not running for this router": [
+    "web/src/pages/rosusers.ts"
+  ],
   "Router user tables": [
     "web/src/ui/page-users.html"
   ],
+  "Router-reported average (bytes/sec), shown until a window is measured": [
+    "web/src/pages/queues.ts"
+  ],
   "RouterBOARD Firmware": [
     "web/src/ui/page-packages.html"
+  ],
+  "RouterBOOT written — the router is rebooting": [
+    "web/src/pages/packages.ts"
   ],
   "RouterOS": [
     "web/src/ui/page-backups.html",
@@ -2850,8 +4714,14 @@
   "RouterOS Update Available": [
     "web/src/ui/page-settings.html"
   ],
+  "RouterOS menus at least one collector wants.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "RouterOS not connected": [
     "web/src/ui/shell.html"
+  ],
+  "RouterOS not connected — retrying…": [
+    "web/src/banners.ts"
   ],
   "RouterOS password": [
     "web/src/ui/shell.html"
@@ -2863,9 +4733,13 @@
     "web/src/ui/shell.html"
   ],
   "Routers": [
+    "web/src/pages/config-management-history.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/page-network-topology.html",
     "web/src/ui/page-settings.html"
+  ],
+  "Routers cannot call home.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Routes": [
     "web/src/ui/page-routing.html"
@@ -2878,6 +4752,9 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "Routing Crumbs": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Routing Rules": [
     "web/src/ui/page-routing-rules.html"
   ],
@@ -2887,14 +4764,53 @@
   "Routing protocol": [
     "web/src/ui/page-routing.html"
   ],
+  "Routing rules use this table.": [
+    "web/src/resource.ts"
+  ],
+  "Rows marked v1 belong to the legacy /caps-man tree and are read-only here.": [
+    "web/src/pages/capsman.ts"
+  ],
   "Rule Counts": [
     "web/src/ui/page-firewall.html"
+  ],
+  "Run \"Test Connection\" successfully before saving": [
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
+  "Run a RouterOS command": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Run a trace to draw its route": [
     "web/src/ui/page-tools.html"
   ],
+  "Run it": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Run it and reboot": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Run its script on the router. It calls home within a minute of running it.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Run the command": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Run the commands": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Run the script": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Running": [
+    "web/src/pages/wifi.ts"
+  ],
+  "Running…": [
+    "web/src/pages/tools.ts"
+  ],
   "Rx": [
     "web/src/ui/page-tools.html"
+  ],
+  "Rx / Tx": [
+    "web/src/pages/wireguard-peers.ts"
   ],
   "SMTP Host": [
     "web/src/ui/page-settings.html"
@@ -2906,12 +4822,26 @@
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-networks.html"
   ],
+  "STP Role": [
+    "web/src/pages/bridges.ts"
+  ],
+  "Samples": [
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/reports-traffic.ts"
+  ],
   "Save": [
+    "web/src/pages/router-modal.ts",
+    "web/src/pages/wifi-map.ts",
+    "web/src/resource.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/page-wifi-map.html",
     "web/src/ui/shell.html"
   ],
+  "Save *": [
+    "web/src/pages/wifi-map.ts"
+  ],
   "Save Custom Profile": [
+    "web/src/pages/settings-poll.ts",
     "web/src/ui/page-settings.html"
   ],
   "Save Group": [
@@ -2935,11 +4865,33 @@
   "Save User": [
     "web/src/ui/page-settings.html"
   ],
+  "Save failed": [
+    "web/src/pages/principal-forms.ts"
+  ],
+  "Save the group first, then grant it access": [
+    "web/src/pages/settings-principals.ts"
+  ],
   "Save the plan for everyone": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Save the user first, then grant them access": [
+    "web/src/pages/settings-principals.ts"
+  ],
   "Save these settings as the template's defaults": [
     "web/src/ui/page-config-management.html"
+  ],
+  "Save to start it.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Saved as this template's defaults.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Saving…": [
+    "web/src/account.ts",
+    "web/src/pages/router-modal.ts",
+    "web/src/pages/settings-poll.ts",
+    "web/src/pages/settings-save.ts",
+    "web/src/pages/usernotify.ts"
   ],
   "Scale": [
     "web/src/ui/page-wifi-map.html"
@@ -2950,11 +4902,17 @@
   "Scan again": [
     "web/src/ui/page-dashboard.html"
   ],
+  "Scan failed": [
+    "web/src/pages/wireless-fa.ts"
+  ],
   "Scan the RF environment — interrupts clients on the chosen radio": [
     "web/src/ui/page-wifi-clients.html"
   ],
   "Scan the router's security again": [
     "web/src/ui/page-dashboard.html"
+  ],
+  "Scanned very recently — wait a few seconds": [
+    "web/src/pages/wireless-fa.ts"
   ],
   "Scanning": [
     "web/src/ui/shell.html"
@@ -2962,7 +4920,12 @@
   "Scanning takes the selected radio off the air.": [
     "web/src/ui/shell.html"
   ],
+  "Scanning…": [
+    "web/src/pages/dashboard-card-secscore.ts",
+    "web/src/pages/security-scan.ts"
+  ],
   "Schedule": [
+    "web/src/pages/backups.ts",
     "web/src/ui/page-backups.html"
   ],
   "Scheduled": [
@@ -2979,6 +4942,10 @@
   ],
   "Score": [
     "web/src/ui/page-tools.html"
+  ],
+  "Script": [
+    "web/src/pages/ztp-views.ts",
+    "web/src/pages/ztp.ts"
   ],
   "Scripts": [
     "web/src/ui/page-scripts.html"
@@ -3052,6 +5019,8 @@
     "web/src/ui/shell.html"
   ],
   "Security": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-wifi-networks.html",
     "web/src/ui/shell.html"
@@ -3066,6 +5035,12 @@
   "Security Score": [
     "web/src/ui/page-dashboard.html"
   ],
+  "Seen via": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "Select a restore point to restore from": [
+    "web/src/pages/backups.ts"
+  ],
   "Select a router and date range, then click Load.": [
     "web/src/ui/page-reports.html"
   ],
@@ -3074,6 +5049,15 @@
   ],
   "Select all restore points": [
     "web/src/ui/page-backups.html"
+  ],
+  "Select at least one data type.": [
+    "web/src/pages/dbcleanup.ts"
+  ],
+  "Select one or more restore points to delete": [
+    "web/src/pages/backups.ts"
+  ],
+  "Select the text and copy it": [
+    "web/src/pages/ztp.ts"
   ],
   "Send": [
     "web/src/ui/page-ai-agent.html"
@@ -3091,6 +5075,14 @@
   "Send at": [
     "web/src/ui/shell.html"
   ],
+  "Sending the backup to the router…": [
+    "web/src/pages/backups.ts"
+  ],
+  "Sending…": [
+    "web/src/pages/reports-schedules.ts",
+    "web/src/pages/settings-notif-test.ts",
+    "web/src/pages/usernotify.ts"
+  ],
   "Sent using the server's mail settings.": [
     "web/src/ui/shell.html"
   ],
@@ -3098,12 +5090,19 @@
     "web/src/ui/page-tools.html"
   ],
   "Serial": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-settings.html"
   ],
   "Server": [
     "web/src/ui/page-tools.html"
   ],
+  "Servers": [
+    "web/src/pages/dns.ts"
+  ],
   "Service": [
+    "web/src/pages/connections-table.ts",
+    "web/src/pages/ppp.ts",
     "web/src/ui/page-vpn.html"
   ],
   "Service Name": [
@@ -3126,24 +5125,57 @@
   "Sessions are cleared on server restart. Signing in again is all that is needed.": [
     "web/src/ui/page-settings.html"
   ],
+  "Set here.": [
+    "web/src/pages/router-form.ts"
+  ],
+  "Set the address routers reach this MikroDash on, in Settings → Provisioning.": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Set the scale by measuring a known distance": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "Set up apps": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "Set up the app store": [
+    "web/src/pages/containers-apps.ts"
   ],
   "Sets the timezone for all timestamps: dashboard clock, push notifications, reports, and exports.": [
     "web/src/ui/page-settings.html"
   ],
+  "Setting": [
+    "web/src/pages/config-management-cards.ts"
+  ],
   "Settings": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-config-management.html",
     "web/src/ui/shell.html"
   ],
+  "Setup failed.": [
+    "web/src/entry/login.ts"
+  ],
   "Severity": [
+    "web/src/pages/security-scan.ts",
     "web/src/ui/page-security-scan.html"
   ],
   "Shaping Now": [
     "web/src/ui/page-queues.html"
   ],
+  "Shaping Traffic": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Shouting ARP": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Show": [
+    "web/src/pages/files-transfer.ts"
+  ],
   "Show IPv6 in cards": [
     "web/src/ui/page-firewall.html"
+  ],
+  "Show changes": [
+    "web/src/pages/config-management-history.ts"
   ],
   "Show command": [
     "web/src/ui/shell.html"
@@ -3164,6 +5196,7 @@
     "web/src/ui/page-vpn.html"
   ],
   "Sign In": [
+    "web/src/entry/login.ts",
     "web/src/ui/login.html"
   ],
   "Sign Out": [
@@ -3172,6 +5205,9 @@
   "Sign Out Everywhere Else": [
     "web/src/ui/shell.html"
   ],
+  "Sign in failed.": [
+    "web/src/entry/login.ts"
+  ],
   "Sign out": [
     "web/src/ui/shell.html"
   ],
@@ -3179,6 +5215,8 @@
     "web/src/ui/page-settings.html"
   ],
   "Signal": [
+    "web/src/pages/topology-panel.ts",
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-wifi-clients.html",
     "web/src/ui/page-wifi-map.html"
   ],
@@ -3186,11 +5224,17 @@
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wifi-clients.html"
   ],
+  "Signal power": [
+    "web/src/pages/wireless-fa.ts"
+  ],
   "Signal ring": [
     "web/src/ui/page-wifi-map.html"
   ],
   "Signed in as": [
     "web/src/ui/shell.html"
+  ],
+  "Signing in…": [
+    "web/src/entry/login.ts"
   ],
   "Simple": [
     "web/src/ui/page-queues.html"
@@ -3198,22 +5242,39 @@
   "Simple Queues": [
     "web/src/ui/page-queues.html"
   ],
+  "Since": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "Site": [
+    "web/src/pages/wifi-map.ts"
+  ],
   "Sites": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-settings.html"
   ],
   "Size": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-backups.html",
     "web/src/ui/page-tools.html"
   ],
   "Skip DFS": [
     "web/src/ui/page-capsman.html"
   ],
+  "Skipped": [
+    "web/src/pages/backups.ts",
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
+  ],
   "Slave Configs": [
     "web/src/ui/page-capsman.html"
   ],
   "Slow": [
     "web/src/ui/page-settings.html"
+  ],
+  "Slow-changing data — 10s to 10m": [
+    "web/src/pages/settings-poll.ts"
   ],
   "Slower": [
     "web/src/ui/page-settings.html"
@@ -3223,6 +5284,9 @@
   ],
   "Sofia Sans": [
     "web/src/ui/page-settings.html"
+  ],
+  "Software ID": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Solarized Dark": [
     "web/src/ui/page-settings.html"
@@ -3239,7 +5303,11 @@
   "Sort:": [
     "web/src/ui/page-wifi-clients.html"
   ],
+  "Sorting Frames": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Source": [
+    "web/src/pages/dashboard-card-diagnostics.ts",
     "web/src/ui/page-tools.html"
   ],
   "Source Sans 3": [
@@ -3258,6 +5326,9 @@
   "Spectrum": [
     "web/src/ui/shell.html"
   ],
+  "Splitting Horizons": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Spot risky, redundant or missing rules": [
     "web/src/ui/page-ai-agent.html"
   ],
@@ -3268,13 +5339,26 @@
     "web/src/ui/page-firewall.html"
   ],
   "Standard": [
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-clients.html"
   ],
   "Start a template": [
     "web/src/ui/page-config-management.html"
   ],
+  "Started": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Starting install…": [
+    "web/src/pages/containers-apps.ts"
+  ],
   "State": [
+    "web/src/pages/bridges.ts",
+    "web/src/pages/capsman.ts",
+    "web/src/pages/connections-table.ts",
+    "web/src/pages/packages.ts",
+    "web/src/pages/ppp.ts",
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-ppp.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-settings.html",
@@ -3282,10 +5366,13 @@
     "web/src/ui/page-wifi-networks.html"
   ],
   "Static": [
+    "web/src/pages/dashboard-card-routing.ts",
+    "web/src/pages/routing.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
   ],
   "Static \u0026 Dynamic Routes": [
+    "web/src/pages/routing.ts",
     "web/src/ui/page-routing.html"
   ],
   "Static + Dynamic": [
@@ -3297,10 +5384,18 @@
   "Static only": [
     "web/src/ui/page-routing.html"
   ],
+  "Station": [
+    "web/src/pages/topology.ts"
+  ],
   "Stations": [
     "web/src/ui/page-network-topology.html"
   ],
   "Status": [
+    "web/src/pages/config-management-history.ts",
+    "web/src/pages/packages.ts",
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/wireguard-peers.ts",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-dhcp.html",
@@ -3313,17 +5408,52 @@
   "Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.": [
     "web/src/ui/shell.html"
   ],
+  "Steering Bands": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Still not running after 10 minutes; it may still be downloading.": [
+    "web/src/pages/containers-apps.ts"
+  ],
   "Stop": [
+    "web/src/pages/tools.ts",
     "web/src/ui/shell.html"
+  ],
+  "Stop the deploy before its next router? A router being changed is finished first.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Stopped": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts",
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "Stopping…": [
+    "web/src/pages/tools.ts"
+  ],
+  "Storage": [
+    "web/src/pages/dashboard-system.ts"
+  ],
+  "Store apps on": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "Stored": [
+    "web/src/pages/backups.ts"
   ],
   "Stored rows": [
     "web/src/ui/page-settings.html"
+  ],
+  "Storeys": [
+    "web/src/pages/wifi-map.ts"
   ],
   "Stream": [
     "web/src/ui/shell.html"
   ],
   "Subject": [
+    "web/src/pages/reports-alerts.ts",
+    "web/src/pages/settings-notif-test.ts",
     "web/src/ui/page-reports.html"
+  ],
+  "Subnet": [
+    "web/src/pages/dhcp.ts"
   ],
   "Subnets": [
     "web/src/ui/page-dhcp.html"
@@ -3331,8 +5461,23 @@
   "Succeeded": [
     "web/src/ui/page-audit-trail.html"
   ],
+  "Summarizing Prefixes": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Support \u0026 Donations": [
     "web/src/ui/page-settings.html"
+  ],
+  "Surfing Radio Waves": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Surviving 2.4GHz": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Switch": [
+    "web/src/pages/topology.ts"
+  ],
+  "Switch provisioning on in Settings → Provisioning first.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Switch router": [
     "web/src/ui/shell.html"
@@ -3371,6 +5516,7 @@
     "web/src/ui/page-interfaces.html"
   ],
   "TX (Mbps)": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "TX / RX": [
@@ -3383,9 +5529,22 @@
     "web/src/ui/page-vlans.html"
   ],
   "Tagged Ports": [
+    "web/src/pages/vlans.ts",
     "web/src/ui/page-vlans.html"
   ],
+  "Tailing Logs": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Take off the map": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "Taking a restore point": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Target": [
+    "web/src/pages/audit.ts",
+    "web/src/pages/queues.ts",
+    "web/src/pages/reports-ping.ts",
     "web/src/ui/page-reports.html"
   ],
   "Team responsible for day-to-day monitoring": [
@@ -3395,6 +5554,8 @@
     "web/src/ui/page-vpn.html"
   ],
   "Template": [
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/config-management-history.ts",
     "web/src/ui/page-config-management.html"
   ],
   "Template name": [
@@ -3406,15 +5567,24 @@
   "Templates": [
     "web/src/ui/page-config-management.html"
   ],
+  "Terminating Cables": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Test": [
+    "web/src/pages/tools.ts",
     "web/src/ui/page-tools.html"
   ],
   "Test Connection": [
+    "web/src/pages/router-modal.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
   "Tested setups for home and office, and the templates you make. Every one is checked line by line, dry-run on the router, and backed up before it is applied.": [
     "web/src/ui/page-config-management.html"
+  ],
+  "Testing…": [
+    "web/src/pages/router-modal.ts",
+    "web/src/pages/setup-overlay-wire.ts"
   ],
   "Text Brightness": [
     "web/src/ui/page-settings.html"
@@ -3425,8 +5595,84 @@
   "Text brightness": [
     "web/src/ui/page-settings.html"
   ],
+  "That address list would not admit the address the router sees MikroDash connecting from.": [
+    "web/src/resource.ts"
+  ],
+  "That backup is no longer available.": [
+    "web/src/pages/backups.ts"
+  ],
+  "That did not work.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "That interface is not a radio": [
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "That is the API service MikroDash connects through. Disabling it would cut MikroDash off; change it in WinBox.": [
+    "web/src/resource.ts"
+  ],
+  "That is the API service MikroDash connects through. Moving it to another VRF would cut MikroDash off; change it in WinBox.": [
+    "web/src/resource.ts"
+  ],
+  "That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.": [
+    "web/src/resource.ts"
+  ],
+  "That is the account MikroDash signs in with u2014 manage it in WinBox": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "That is the account MikroDash signs in with. Manage it in WinBox.": [
+    "web/src/resource.ts"
+  ],
+  "That is the certificate the API service MikroDash connects through presents. Removing it would cut MikroDash off; change it in WinBox.": [
+    "web/src/resource.ts"
+  ],
+  "That is the group MikroDash signs in with. Manage it in WinBox.": [
+    "web/src/resource.ts"
+  ],
+  "That name belongs to the account MikroDash signs in with.": [
+    "web/src/resource.ts"
+  ],
+  "That package is no longer listed": [
+    "web/src/pages/packages.ts"
+  ],
+  "That radio is managed by CAPsMAN": [
+    "web/src/pages/wireless-fa.ts"
+  ],
+  "That request was incomplete.": [
+    "web/src/resource.ts"
+  ],
+  "That row changed on the router u2014 the page has been refreshed": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "That row changed on the router. Close and reopen it.": [
+    "web/src/resource.ts"
+  ],
+  "That row has no stored backup to restore from": [
+    "web/src/pages/backups.ts"
+  ],
+  "That uplink changed on the router — the page has been refreshed": [
+    "web/src/pages/wan.ts"
+  ],
+  "The API service MikroDash uses (api or api-ssl)": [
+    "web/src/pages/config-management-editor.ts"
+  ],
+  "The API user MikroDash connects as is part of what gets replaced — if": [
+    "web/src/pages/backups.ts"
+  ],
   "The DHCP host name, or reverse DNS where there is no lease": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "The RouterOS user MikroDash connects with lacks the write policy.": [
+    "web/src/pages/upgrade.ts"
+  ],
+  "The RouterOS user needs the \"policy\" permission for this": [
+    "web/src/pages/rosusers.ts"
+  ],
+  "The RouterOS user needs write permission for this": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/wan.ts"
+  ],
+  "The account MikroDash logs in as": [
+    "web/src/pages/config-management-editor.ts"
   ],
   "The address": [
     "web/src/ui/page-wifi-map.html"
@@ -3434,8 +5680,29 @@
   "The assistant can only change things you are allowed to change yourself, and every change goes through the same checks, confirmation and audit trail as the forms. \u003cstrong\u003eTurning this off lets it apply ordinary changes without asking.\u003c/strong\u003e A change that could cut MikroDash off from the router is always put to you, whatever this is set to.": [
     "web/src/ui/page-settings.html"
   ],
+  "The baseline was not changed": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The bootloader already matches the firmware on the board": [
+    "web/src/pages/packages.ts"
+  ],
+  "The canary is done: your call": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "The capture failed": [
+    "web/src/pages/config-management.ts"
+  ],
   "The card’s terminal text. MikroDash blue by default.": [
     "web/src/ui/page-settings.html"
+  ],
+  "The change could not be saved.": [
+    "web/src/pages/branding-settings.ts"
+  ],
+  "The change was refused.": [
+    "web/src/resource.ts"
+  ],
+  "The check failed": [
+    "web/src/pages/config-management.ts"
   ],
   "The comment on the DHCP lease": [
     "web/src/ui/page-wifi-map.html"
@@ -3443,29 +5710,200 @@
   "The configured model": [
     "web/src/ui/page-ai-agent.html"
   ],
+  "The copy could not be made": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The defaults were not saved": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The device identity could not be read, so it was not changed.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The device identity could not be read.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The device identity was not changed.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The difference is too large to show in full.": [
+    "web/src/pages/config-management-history.ts"
+  ],
+  "The endpoint presented a DIFFERENT certificate from the one you trusted. Trust it only if you replaced it yourself.": [
+    "web/src/pages/settings-notif-test.ts"
+  ],
+  "The file could not be read as an image.": [
+    "web/src/pages/branding-settings.ts"
+  ],
+  "The first you pick goes first, as the canary; the rest wait for your OK.": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "The hardware address": [
     "web/src/ui/page-wifi-map.html"
+  ],
+  "The icon is larger than 512 KB.": [
+    "web/src/pages/branding-settings.ts"
+  ],
+  "The icon must be a PNG or JPEG image.": [
+    "web/src/pages/branding-settings.ts"
+  ],
+  "The last scan failed.": [
+    "web/src/pages/dashboard-card-secscore.ts"
+  ],
+  "The library could not be read": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The list is capped so the card stays a card. The counts above are complete.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
   ],
   "The most the model may write in one reply, its reasoning included. A reasoning model that runs out writes nothing; raise it if answers come back cut off.": [
     "web/src/ui/page-settings.html"
   ],
+  "The name is longer than 64 characters": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "The name the router gives itself. Saving writes it to the router.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The name you typed did not match the router name.": [
+    "web/src/pages/backups.ts"
+  ],
   "The only check that contacts MikroTik rather than your router. Minimum 1 hour.": [
     "web/src/ui/page-settings.html"
+  ],
+  "The plan was not saved. You may not have permission to edit it.": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "The preview failed": [
+    "web/src/pages/config-management.ts"
   ],
   "The public address is a name or IP, with no port. Tunnel addresses must be private and not used on your routers' networks. The LAN address is where local routers call home, and the wizard suggests it.": [
     "web/src/ui/page-settings.html"
   ],
+  "The request failed.": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "The route on a world map": [
     "web/src/ui/page-tools.html"
+  ],
+  "The router accepted the change but it could not be confirmed": [
+    "web/src/pages/packages.ts"
+  ],
+  "The router accepted the change, but it could not be confirmed. The table has been refreshed; check it before trying again.": [
+    "web/src/resource.ts"
+  ],
+  "The router accepted the new identity, but it could not be confirmed. Check the router before trying again.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The router cannot be reached, so its identity cannot be read or changed now.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The router could not be reached, so its identity was not changed.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The router did not return a configuration.": [
+    "web/src/pages/wireguard-peers.ts"
+  ],
+  "The router did not return these settings.": [
+    "web/src/pages/area.ts"
   ],
   "The router downloads the packages and \u003cstrong\u003ereboots immediately\u003c/strong\u003e. Every connection through it drops for the duration.": [
     "web/src/ui/shell.html"
   ],
+  "The router has no address it can reach MikroDash on. Set a backup base URL in Settings.": [
+    "web/src/pages/backups.ts"
+  ],
+  "The router is downloading…": [
+    "web/src/pages/files-transfer.ts"
+  ],
+  "The router is not connected.": [
+    "web/src/pages/backups.ts"
+  ],
+  "The router is not reachable.": [
+    "web/src/resource.ts"
+  ],
+  "The router is rebooting": [
+    "web/src/pages/packages.ts"
+  ],
+  "The router name did not match — nothing was applied": [
+    "web/src/pages/packages.ts"
+  ],
+  "The router pushes this table on an open channel; it is not re-asked.": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "The router refused the change.": [
+    "web/src/resource.ts"
+  ],
+  "The router refused the change: the API user lacks permission.": [
+    "web/src/resource.ts"
+  ],
+  "The router refused the new identity.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The router refused the new identity: the API user lacks write permission.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "The router refused the upgrade.": [
+    "web/src/pages/upgrade.ts"
+  ],
+  "The router reported no rate for this queue": [
+    "web/src/pages/queues.ts"
+  ],
+  "The routers could not be listed.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The scan did not finish.": [
+    "web/src/pages/security-scan.ts"
+  ],
+  "The script works for": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "The service list could not be read.": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
   "The signal, in dBm": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "The situation changed since you confirmed, so please confirm again.": [
+    "web/src/pages/wan.ts"
+  ],
+  "The store could not be read.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "The stored plan could not be read, so saving is off until it can.": [
+    "web/src/pages/wifi-map.ts"
+  ],
+  "The template could not be checked": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The template could not be deleted": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The template could not be opened": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The template could not be read": [
+    "web/src/pages/config-management.ts"
+  ],
+  "The tool did not run.": [
+    "web/src/pages/tools.ts"
+  ],
+  "The values changed since you were asked, so please confirm again.": [
+    "web/src/resource.ts"
+  ],
+  "The whole router (for full replacement)": [
+    "web/src/pages/config-management-editor.ts"
+  ],
   "Theme": [
     "web/src/ui/page-settings.html"
+  ],
+  "There are no scheduled changes to apply": [
+    "web/src/pages/packages.ts"
+  ],
+  "These two configurations differ too widely to show as a line-by-line diff.": [
+    "web/src/pages/backups.ts"
+  ],
+  "This API user cannot read": [
+    "web/src/pages/topology.ts"
   ],
   "This Day Last Week": [
     "web/src/ui/page-reports.html"
@@ -3479,6 +5917,9 @@
   "This Month So Far": [
     "web/src/ui/page-reports.html"
   ],
+  "This REPLACES the entire configuration and reboots the router.": [
+    "web/src/pages/backups.ts"
+  ],
   "This Week": [
     "web/src/ui/page-reports.html"
   ],
@@ -3491,8 +5932,99 @@
   "This Year So Far": [
     "web/src/ui/page-reports.html"
   ],
+  "This can be viewed and deleted here, not edited.": [
+    "web/src/resource.ts"
+  ],
+  "This cannot be added here.": [
+    "web/src/resource.ts"
+  ],
+  "This change needs a safety check that is not available yet, so it was refused.": [
+    "web/src/resource.ts"
+  ],
+  "This change needs confirming.": [
+    "web/src/resource.ts"
+  ],
+  "This device": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "This device has no RouterBOOT to upgrade": [
+    "web/src/pages/packages.ts"
+  ],
+  "This entry cannot be edited here.": [
+    "web/src/resource.ts"
+  ],
+  "This entry cannot be removed here.": [
+    "web/src/resource.ts"
+  ],
+  "This firewall rule could match MikroDash's own traffic to the router.": [
+    "web/src/resource.ts"
+  ],
+  "This is the earliest stored configuration, so there is nothing to compare it against.": [
+    "web/src/pages/backups.ts"
+  ],
+  "This may cut MikroDash off from this router.": [
+    "web/src/resource.ts"
+  ],
+  "This profile is provisioned to managed access points, so the change will be pushed to them.": [
+    "web/src/resource.ts"
+  ],
+  "This queue covers MikroDash's own connection to this router.": [
+    "web/src/resource.ts"
+  ],
   "This router": [
+    "web/src/pages/tools-trace-map.ts",
+    "web/src/pages/wifi.ts",
     "web/src/ui/page-dns.html"
+  ],
+  "This router does not support that command": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/wan.ts"
+  ],
+  "This router has neither CAPsMAN menu — no manager and no CAP mode here.": [
+    "web/src/pages/capsman.ts"
+  ],
+  "This router has no PPP service configured.": [
+    "web/src/pages/ppp.ts"
+  ],
+  "This router has no app of that name.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "This router has no app store.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "This router has no bridge menu.": [
+    "web/src/pages/bridges.ts"
+  ],
+  "This router has no wireless interfaces.": [
+    "web/src/pages/wifi.ts"
+  ],
+  "This router is a CAP — these are set on its manager.": [
+    "web/src/pages/capsman.ts"
+  ],
+  "This router is a CAP, not a manager — it has no CAPs of its own.": [
+    "web/src/pages/capsman.ts"
+  ],
+  "This router is already on the newest version it knows about.": [
+    "web/src/pages/upgrade.ts"
+  ],
+  "This router's MikroDash account cannot read queues.": [
+    "web/src/pages/queues.ts"
+  ],
+  "This router's MikroDash account cannot read the internet-detection state.": [
+    "web/src/pages/wan.ts"
+  ],
+  "This stops the app and": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "This template asks for no settings.": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "This template cannot be applied on arrival": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "This template has no settings.": [
+    "web/src/pages/config-management-cards.ts"
   ],
   "This will interrupt your own connection": [
     "web/src/ui/page-wan.html"
@@ -3504,10 +6036,19 @@
   "Throw away every unsaved change": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Tick OK on every check that needs it": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
   "Ticking a device adds this site to it. It keeps any other sites it is already in, and unticking removes only this one.": [
     "web/src/ui/page-settings.html"
   ],
+  "Tidying old files": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
   "Time": [
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html",
     "web/src/ui/page-tools.html"
   ],
@@ -3535,6 +6076,9 @@
   "Toggle animated traffic flow": [
     "web/src/ui/page-network-topology.html"
   ],
+  "Toggle failed": [
+    "web/src/pages/settings-routers.ts"
+  ],
   "Toggle light / dark": [
     "web/src/ui/shell.html"
   ],
@@ -3549,6 +6093,18 @@
   ],
   "Tokyo\u003cbr\u003eNight": [
     "web/src/ui/page-settings.html"
+  ],
+  "Too many changes to this router in the last minute": [
+    "web/src/pages/packages.ts"
+  ],
+  "Too many changes to this router in the last minute, so its identity was not changed.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "Too many changes to this router in the last minute. Wait a moment and try again.": [
+    "web/src/resource.ts"
+  ],
+  "Too many scans running across the fleet — try again shortly": [
+    "web/src/pages/wireless-fa.ts"
   ],
   "Tools": [
     "web/src/ui/page-tools.html",
@@ -3586,6 +6142,9 @@
   "Top Talkers N": [
     "web/src/ui/page-settings.html"
   ],
+  "Top Type": [
+    "web/src/pages/reports-alerts.ts"
+  ],
   "Top bandwidth users": [
     "web/src/ui/page-ai-agent.html"
   ],
@@ -3607,12 +6166,26 @@
     "web/src/ui/page-tools.html"
   ],
   "Total": [
+    "web/src/pages/reports-alerts.ts",
+    "web/src/pages/reports-ping.ts",
     "web/src/ui/page-bandwidth.html",
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-routing.html"
   ],
   "Total Devices": [
     "web/src/ui/page-devices.html"
+  ],
+  "Total Download": [
+    "web/src/pages/reports-traffic.ts"
+  ],
+  "Total Downtime": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Total Events": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Total In / Out": [
+    "web/src/pages/ppp.ts"
   ],
   "Total RX": [
     "web/src/ui/page-interfaces.html"
@@ -3626,6 +6199,9 @@
   "Total Throughput": [
     "web/src/ui/page-vlans.html"
   ],
+  "Total Upload": [
+    "web/src/pages/reports-traffic.ts"
+  ],
   "Total received since the counter was last reset": [
     "web/src/ui/page-interfaces.html"
   ],
@@ -3633,6 +6209,7 @@
     "web/src/ui/page-interfaces.html"
   ],
   "Trace": [
+    "web/src/pages/tools.ts",
     "web/src/ui/page-tools.html"
   ],
   "Traceroute": [
@@ -3652,6 +6229,7 @@
     "web/src/ui/shell.html"
   ],
   "Traffic graphs": [
+    "web/src/pages/dbcleanup.ts",
     "web/src/ui/page-settings.html"
   ],
   "Traffic scope filter": [
@@ -3659,6 +6237,9 @@
   ],
   "Transmit": [
     "web/src/ui/page-tools.html"
+  ],
+  "Transmit (average)": [
+    "web/src/pages/tools.ts"
   ],
   "Tree": [
     "web/src/ui/page-queues.html"
@@ -3669,11 +6250,26 @@
   "Trigger": [
     "web/src/ui/page-backups.html"
   ],
+  "Trunking VLANs": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Trust this certificate": [
+    "web/src/pages/settings-notif-test.ts"
+  ],
   "Trusted certificate (SHA-256)": [
     "web/src/ui/page-settings.html"
   ],
+  "Trusted in the form. Save the settings to keep it, then Test Connection again.": [
+    "web/src/pages/settings-notif-test.ts"
+  ],
+  "Try again": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Try one of these": [
     "web/src/ui/page-ai-agent.html"
+  ],
+  "Tunnel": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Tunnel addresses": [
     "web/src/ui/page-settings.html"
@@ -3681,10 +6277,25 @@
   "Tunnels": [
     "web/src/ui/shell.html"
   ],
+  "Turning It Off And On": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Turning auto-upgrade off…": [
+    "web/src/pages/packages.ts"
+  ],
+  "Turning auto-upgrade on…": [
+    "web/src/pages/packages.ts"
+  ],
   "Tx": [
     "web/src/ui/page-tools.html"
   ],
   "Type": [
+    "web/src/pages/bridges.ts",
+    "web/src/pages/config-management-cards.ts",
+    "web/src/pages/containers-apps.ts",
+    "web/src/pages/dns-fleet.ts",
+    "web/src/pages/dns.ts",
+    "web/src/pages/reports-alerts.ts",
     "web/src/ui/page-interfaces.html",
     "web/src/ui/page-reports.html",
     "web/src/ui/page-routing.html",
@@ -3693,11 +6304,43 @@
   "Type the router name to confirm": [
     "web/src/ui/shell.html"
   ],
+  "Type the router name to confirm:": [
+    "web/src/pages/backups.ts"
+  ],
   "UDP port": [
     "web/src/ui/page-settings.html"
   ],
   "UTC": [
     "web/src/ui/page-settings.html"
+  ],
+  "Undo": [
+    "web/src/pages/packages.ts"
+  ],
+  "Undo it": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Unencrypted": [
+    "web/src/pages/settings-routers.ts"
+  ],
+  "Unexpected error": [
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
+  "Unidentified": [
+    "web/src/pages/topology.ts"
+  ],
+  "Uninstall": [
+    "web/src/pages/packages.ts"
+  ],
+  "Unknown": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts",
+    "web/src/pages/routers.ts"
+  ],
+  "Unknown error": [
+    "web/src/pages/settings-routers.ts"
+  ],
+  "Unnamed device": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Unplaced": [
     "web/src/ui/page-wifi-map.html"
@@ -3705,13 +6348,35 @@
   "Unresolved alerts on this device": [
     "web/src/ui/page-devices.html"
   ],
+  "Unsupported": [
+    "web/src/pages/capsman.ts"
+  ],
   "Untagged": [
     "web/src/ui/page-vlans.html"
   ],
   "Untagged Ports": [
+    "web/src/pages/vlans.ts",
     "web/src/ui/page-vlans.html"
   ],
+  "Untagging Frames": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Untangling Patch Leads": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Up": [
+    "web/src/pages/dashboard-netwatch.ts",
+    "web/src/pages/dashboard-vpn.ts",
+    "web/src/pages/netwatch.ts"
+  ],
+  "Up to date": [
+    "web/src/pages/packages.ts"
+  ],
+  "Up to date with RouterOS": [
+    "web/src/pages/packages.ts"
+  ],
   "Update \u0026 Reboot": [
+    "web/src/pages/upgrade.ts",
     "web/src/ui/shell.html"
   ],
   "Update Password": [
@@ -3720,16 +6385,34 @@
   "Update RouterOS": [
     "web/src/ui/shell.html"
   ],
+  "Update check finished": [
+    "web/src/pages/packages.ts"
+  ],
+  "Update status": [
+    "web/src/pages/packages.ts"
+  ],
   "Updates": [
     "web/src/ui/page-security-scan.html"
+  ],
+  "Upgrade automatically": [
+    "web/src/pages/packages.ts"
+  ],
+  "Upgrading RouterBOOT — the router will reboot": [
+    "web/src/pages/packages.ts"
+  ],
+  "Uplink": [
+    "web/src/pages/wan.ts"
   ],
   "Uplinks": [
     "web/src/ui/page-wan.html"
   ],
   "Upload": [
+    "web/src/pages/reports-charts.ts",
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-ppp.html"
   ],
   "Upload (MB)": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Upload Icon…": [
@@ -3741,14 +6424,33 @@
   "Upload capacity, Mbps": [
     "web/src/ui/shell.html"
   ],
+  "Uploading": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Uploading…": [
+    "web/src/pages/branding-settings.ts"
+  ],
   "Upstream": [
+    "web/src/pages/routing.ts",
     "web/src/ui/page-routing.html"
   ],
   "Uptime": [
+    "web/src/pages/ppp.ts",
+    "web/src/pages/reports-ping.ts",
+    "web/src/pages/routers.ts",
+    "web/src/pages/topology-panel.ts",
+    "web/src/pages/wireless.ts",
     "web/src/ui/page-devices.html",
     "web/src/ui/page-routing.html",
     "web/src/ui/page-vpn.html",
     "web/src/ui/page-wifi-clients.html"
+  ],
+  "Uptime\u0026nbsp;%": [
+    "web/src/pages/reports-ping.ts"
+  ],
+  "Use": [
+    "web/src/pages/area.ts",
+    "web/src/pages/queues.ts"
   ],
   "Use Default Icon": [
     "web/src/ui/page-settings.html"
@@ -3769,6 +6471,8 @@
     "web/src/ui/page-wan.html"
   ],
   "User": [
+    "web/src/pages/ppp.ts",
+    "web/src/pages/rosusers.ts",
     "web/src/ui/page-tools.html",
     "web/src/ui/page-vpn.html"
   ],
@@ -3780,15 +6484,34 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "Username is required.": [
+    "web/src/entry/login.ts"
+  ],
+  "Username required": [
+    "web/src/pages/principal-forms.ts"
+  ],
   "Users": [
+    "web/src/pages/rosusers.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-users.html",
     "web/src/ui/shell.html"
+  ],
+  "Users cannot be placed in, or edited while in, the group MikroDash signs in with.": [
+    "web/src/resource.ts"
+  ],
+  "Using the default icon.": [
+    "web/src/pages/branding-settings.ts"
+  ],
+  "Using the uplinks you declared": [
+    "web/src/pages/wan.ts"
   ],
   "VLAN": [
     "web/src/ui/page-capsman.html",
     "web/src/ui/page-settings.html",
     "web/src/ui/page-wifi-networks.html"
+  ],
+  "VLAN Filter": [
+    "web/src/pages/bridges.ts"
   ],
   "VLAN IDs": [
     "web/src/ui/page-vlans.html"
@@ -3818,8 +6541,18 @@
   "VRRP": [
     "web/src/ui/page-vrrp.html"
   ],
+  "Value": [
+    "web/src/pages/dns-fleet.ts"
+  ],
   "Version": [
+    "web/src/pages/capsman.ts",
+    "web/src/pages/packages.ts",
+    "web/src/pages/topology-panel.ts",
     "web/src/ui/page-settings.html"
+  ],
+  "Via": [
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/topology-panel.ts"
   ],
   "View": [
     "web/src/ui/page-wifi-map.html"
@@ -3833,8 +6566,17 @@
   "View:": [
     "web/src/ui/page-wifi-networks.html"
   ],
+  "Views": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "Virtual AP": [
+    "web/src/pages/wifi.ts"
+  ],
   "Visible Pages": [
     "web/src/ui/page-settings.html"
+  ],
+  "VoIP phone": [
+    "web/src/pages/topology.ts"
   ],
   "WAN": [
     "web/src/ui/page-settings.html",
@@ -3845,19 +6587,31 @@
     "web/src/ui/page-wan.html"
   ],
   "WAN Rx": [
+    "web/src/pages/routers.ts",
     "web/src/ui/page-devices.html"
   ],
   "WAN Traffic": [
     "web/src/ui/page-bandwidth.html"
   ],
   "WAN Tx": [
+    "web/src/pages/routers.ts",
     "web/src/ui/page-devices.html"
+  ],
+  "WAN and LAN lists apart": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "WAN collection is not running for this router": [
+    "web/src/pages/wan.ts"
   ],
   "WAN only": [
     "web/src/ui/page-bandwidth.html"
   ],
   "WPS": [
     "web/src/ui/page-capsman.html"
+  ],
+  "Waiting": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
   ],
   "Waiting for BGP data…": [
     "web/src/ui/page-routing.html"
@@ -3902,6 +6656,9 @@
   "Waiting for data…": [
     "web/src/ui/page-bandwidth.html"
   ],
+  "Waiting for device": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Waiting for firmware data…": [
     "web/src/ui/page-packages.html"
   ],
@@ -3911,6 +6668,9 @@
   "Waiting for host data…": [
     "web/src/ui/page-bridges.html"
   ],
+  "Waiting for interface rates. They come from the interface status collector.": [
+    "web/src/pages/wan-flow.ts"
+  ],
   "Waiting for lease data…": [
     "web/src/ui/page-dhcp.html"
   ],
@@ -3918,6 +6678,7 @@
     "web/src/ui/page-dhcp.html"
   ],
   "Waiting for package data…": [
+    "web/src/pages/packages.ts",
     "web/src/ui/page-packages.html"
   ],
   "Waiting for port data…": [
@@ -3936,13 +6697,28 @@
     "web/src/ui/page-dns.html"
   ],
   "Waiting for the connection table…": [
+    "web/src/pages/connections.ts",
     "web/src/ui/page-connections.html"
   ],
+  "Waiting for the reboot": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Waiting for the revert": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "Waiting for the router listu2026": [
+    "web/src/pages/routers.ts"
+  ],
   "Waiting for the router…": [
+    "web/src/pages/dashboard-card-secscore.ts",
+    "web/src/pages/topology.ts",
     "web/src/ui/page-dashboard.html"
   ],
   "Waiting for user data…": [
     "web/src/ui/page-users.html"
+  ],
+  "Waiting on SNMP": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Waiting…": [
     "web/src/ui/page-address-lists.html",
@@ -3974,18 +6750,26 @@
     "web/src/ui/page-vrrp.html",
     "web/src/ui/page-wireguard.html"
   ],
+  "Warming Transceivers": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Warning": [
     "web/src/ui/page-logs.html"
   ],
   "Watch": [
+    "web/src/pages/tools.ts",
     "web/src/ui/page-tools.html"
   ],
   "Week": [
+    "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
   ],
   "Weekly": [
     "web/src/ui/page-backups.html",
     "web/src/ui/shell.html"
+  ],
+  "What": [
+    "web/src/pages/config-management-editor.ts"
   ],
   "What each router held in a template's menus when its last deploy finished. Checking reads that router now; nothing is checked on its own.": [
     "web/src/ui/page-config-management.html"
@@ -3996,11 +6780,22 @@
   "What the card is asked to write. Leave it empty to use the built-in prompt; MikroDash’s safety rules are always applied on top.": [
     "web/src/ui/page-settings.html"
   ],
+  "What this router will receive": [
+    "web/src/pages/config-management-deploy.ts"
+  ],
+  "What was sent (settings as placeholders)": [
+    "web/src/pages/config-management-history.ts"
+  ],
   "When": [
+    "web/src/pages/audit.ts",
+    "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-backups.html"
   ],
   "When the link last came up": [
     "web/src/ui/page-interfaces.html"
+  ],
+  "Where": [
+    "web/src/pages/ztp.ts"
   ],
   "Where the WAN traffic goes: from this router through each uplink to the internet, upload in green and download in blue": [
     "web/src/ui/page-dashboard.html",
@@ -4008,6 +6803,9 @@
   ],
   "Where the uplink list comes from": [
     "web/src/ui/page-wan.html"
+  ],
+  "Where will this router be?": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Which alerts are sent is set by an administrator.": [
     "web/src/ui/shell.html"
@@ -4018,11 +6816,20 @@
   "Which storey to draw": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Who": [
+    "web/src/pages/audit.ts"
+  ],
+  "Who asked": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "Who is on the network, by name and address": [
     "web/src/ui/page-ai-agent.html"
   ],
   "Who the assistant is and how it behaves. Edit it to change its tone, to tell it about your network, or to give it standing instructions. \u003cstrong\u003eMikroDash’s own safety rules are always applied on top of this and cannot be edited here\u003c/strong\u003e, so the assistant still refuses to follow instructions found in router data, and still cannot run commands or reach any device other than the one selected.": [
     "web/src/ui/page-settings.html"
+  ],
+  "Wi-Fi client": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Wi-Fi site map": [
     "web/src/ui/page-wifi-map.html"
@@ -4031,6 +6838,7 @@
     "web/src/ui/page-wifi-clients.html"
   ],
   "Width": [
+    "web/src/pages/wifi-map.ts",
     "web/src/ui/page-capsman.html"
   ],
   "Wifi Clients": [
@@ -4048,9 +6856,15 @@
     "web/src/ui/page-wifi-networks.html",
     "web/src/ui/shell.html"
   ],
+  "Wiggling SFPs": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "WireGuard": [
     "web/src/ui/page-dashboard.html",
     "web/src/ui/page-wireguard.html"
+  ],
+  "Wired client": [
+    "web/src/pages/topology-panel.ts"
   ],
   "Wireless": [
     "web/src/ui/page-settings.html",
@@ -4060,10 +6874,22 @@
     "web/src/ui/page-settings.html"
   ],
   "Wiring bits": [
+    "web/src/pages/ai-agent.ts",
     "web/src/ui/page-ai-agent.html"
+  ],
+  "With auto-revert": [
+    "web/src/pages/config-management-cards.ts"
   ],
   "Work Sans": [
     "web/src/ui/page-settings.html"
+  ],
+  "Working": [
+    "web/src/pages/config-management-deploy.ts",
+    "web/src/pages/config-management-history.ts"
+  ],
+  "Working…": [
+    "web/src/pages/containers-apps.ts",
+    "web/src/wizard.ts"
   ],
   "Works for": [
     "web/src/ui/page-settings.html"
@@ -4074,6 +6900,9 @@
   "Worst latency": [
     "web/src/ui/page-network-topology.html"
   ],
+  "Write": [
+    "web/src/pages/config-management.ts"
+  ],
   "Write a one-line router status on the Dashboard": [
     "web/src/ui/page-settings.html"
   ],
@@ -4082,6 +6911,42 @@
   ],
   "X-Tenant: acme": [
     "web/src/ui/page-settings.html"
+  ],
+  "Yes": [
+    "web/src/pages/capsman.ts"
+  ],
+  "You": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "You do not have permission for this": [
+    "web/src/caps.ts"
+  ],
+  "You do not have permission to do that.": [
+    "web/src/pages/backups.ts"
+  ],
+  "You do not have permission to update this router.": [
+    "web/src/pages/upgrade.ts"
+  ],
+  "You do not have write access to this router": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/wan.ts"
+  ],
+  "You may not change this router.": [
+    "web/src/pages/router-modal.ts"
+  ],
+  "You may not change this.": [
+    "web/src/resource.ts"
+  ],
+  "You may not do that.": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "You may not run this tool on this router.": [
+    "web/src/pages/tools.ts"
+  ],
+  "You may not scan this router.": [
+    "web/src/pages/dashboard-card-secscore.ts",
+    "web/src/pages/security-scan.ts"
   ],
   "You will need your current password.": [
     "web/src/ui/shell.html"
@@ -4110,6 +6975,12 @@
     "web/src/ui/page-tools.html",
     "web/src/ui/page-wifi-map.html"
   ],
+  "accepts logins from this address only.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "access to this router.": [
+    "web/src/pages/backups.ts"
+  ],
   "admin": [
     "web/src/ui/login.html",
     "web/src/ui/shell.html"
@@ -4120,11 +6991,20 @@
   "alerts@example.com": [
     "web/src/ui/page-settings.html"
   ],
+  "and its image. It cannot be undone.": [
+    "web/src/pages/containers-apps.ts"
+  ],
   "any time": [
     "web/src/ui/page-backups.html"
   ],
   "both": [
     "web/src/ui/page-tools.html"
+  ],
+  "changes what is in": [
+    "web/src/resource.ts"
+  ],
+  "commands / min by source": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
   ],
   "dBm": [
     "web/src/ui/shell.html"
@@ -4132,12 +7012,21 @@
   "days, 0 for no limit": [
     "web/src/ui/page-backups.html"
   ],
+  "discovering…": [
+    "web/src/pages/capsman.ts"
+  ],
+  "does NOT report it as an internet link.": [
+    "web/src/pages/wan.ts"
+  ],
   "download": [
     "web/src/ui/page-bandwidth.html"
   ],
   "e.g. -100123456789": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "e.g. Branch firewall": [
+    "web/src/pages/config-management-editor.ts"
   ],
   "e.g. Home Router": [
     "web/src/ui/shell.html"
@@ -4147,6 +7036,15 @@
   ],
   "ether1": [
     "web/src/ui/shell.html"
+  ],
+  "filled by MikroDash": [
+    "web/src/pages/config-management-editor.ts"
+  ],
+  "from its WAN address": [
+    "web/src/pages/routers.ts"
+  ],
+  "from its site": [
+    "web/src/pages/routers.ts"
   ],
   "h": [
     "web/src/ui/page-settings.html"
@@ -4166,7 +7064,28 @@
   "https://ntfy.sh/your-topic": [
     "web/src/ui/shell.html"
   ],
+  "in a moment": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "in the store": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "in the template to ask for a setting.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "interface list. Devices reached through other interfaces will not appear here.": [
+    "web/src/pages/topology.ts"
+  ],
+  "kept alive by": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "latency needs the": [
+    "web/src/pages/topology.ts"
+  ],
   "leave blank to keep current": [
+    "web/src/pages/router-form.ts",
+    "web/src/pages/settings-principals.ts",
+    "web/src/pages/usernotify.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -4185,8 +7104,33 @@
   "ms": [
     "web/src/ui/page-dashboard.html"
   ],
+  "no RouterBOARD": [
+    "web/src/pages/security-scan-cards.ts"
+  ],
+  "no access granted": [
+    "web/src/pages/settings.ts"
+  ],
+  "no longer advertising": [
+    "web/src/pages/topology-panel.ts"
+  ],
+  "not applied yet": [
+    "web/src/pages/wan.ts"
+  ],
+  "not used for hourly": [
+    "web/src/pages/backups.ts"
+  ],
   "of": [
     "web/src/ui/page-tools.html"
+  ],
+  "of any age": [
+    "web/src/pages/dbcleanup.ts"
+  ],
+  "opacity 1s ease": [
+    "web/src/entry/login.ts",
+    "web/src/main.ts"
+  ],
+  "open to any address": [
+    "web/src/pages/security-scan-cards.ts"
   ],
   "ops@example.com noc@example.com": [
     "web/src/ui/shell.html"
@@ -4203,6 +7147,27 @@
   "paste token here": [
     "web/src/ui/shell.html"
   ],
+  "permanently deletes its data": [
+    "web/src/pages/containers-apps.ts"
+  ],
+  "pinned by hand: this device was told to hang off that one": [
+    "web/src/pages/topology.ts"
+  ],
+  "private or unknown address": [
+    "web/src/pages/tools-trace-map.ts"
+  ],
+  "probing…": [
+    "web/src/pages/tools-trace-map.ts"
+  ],
+  "read-only — you do not have write access to this router": [
+    "web/src/pages/packages.ts",
+    "web/src/pages/queues.ts",
+    "web/src/pages/rosusers.ts",
+    "web/src/pages/wan.ts"
+  ],
+  "reading…": [
+    "web/src/pages/dns-fleet.ts"
+  ],
   "receive": [
     "web/src/ui/page-tools.html"
   ],
@@ -4214,6 +7179,9 @@
   ],
   "s": [
     "web/src/ui/page-settings.html"
+  ],
+  "scanned just now": [
+    "web/src/pages/security-scan-cards.ts"
   ],
   "seconds": [
     "web/src/ui/shell.html"
@@ -4227,8 +7195,33 @@
   "tcp": [
     "web/src/ui/page-tools.html"
   ],
+  "that user did not exist when this backup was taken, MikroDash will lose": [
+    "web/src/pages/backups.ts"
+  ],
+  "the RouterOS user cannot read the host table": [
+    "web/src/pages/bridges.ts"
+  ],
+  "the same port": [
+    "web/src/pages/topology.ts"
+  ],
+  "the write did not reach the server": [
+    "web/src/pages/dns-fleet.ts"
+  ],
+  "this router reports no queue statistics": [
+    "web/src/pages/queues.ts"
+  ],
+  "through its tunnel": [
+    "web/src/pages/settings-routers.ts"
+  ],
   "to": [
     "web/src/ui/page-reports.html"
+  ],
+  "to create one.": [
+    "web/src/pages/area.ts",
+    "web/src/pages/queues.ts"
+  ],
+  "to deploy to every router.": [
+    "web/src/pages/config-management-deploy.ts"
   ],
   "total": [
     "web/src/ui/page-dashboard.html"
@@ -4238,6 +7231,9 @@
   ],
   "udp": [
     "web/src/ui/page-tools.html"
+  ],
+  "unavailable (test policy)": [
+    "web/src/pages/topology-panel.ts"
   ],
   "upload": [
     "web/src/ui/page-bandwidth.html"
@@ -4251,6 +7247,24 @@
   "v—": [
     "web/src/ui/page-settings.html"
   ],
+  "what the collectors want": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "what the router is asked": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "what the rows become": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "who is listening": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
+  "ws:": [
+    "web/src/main.ts"
+  ],
+  "wss:": [
+    "web/src/main.ts"
+  ],
   "you@example.com": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
@@ -4258,8 +7272,15 @@
   "{{alertType}}  {{routerName}}  {{detail}}  {{ifaceName}}  {{status}}  {{comment}}\u003cbr\u003e{{cpuLoad}}  {{pingLoss}}  {{pingTarget}}  {{pingRtt}}  {{vpnPeer}}  {{host}}  {{netwatchName}}  {{bgpPeer}}  {{timestamp}}": [
     "web/src/ui/page-settings.html"
   ],
+  "· pushed by router": [
+    "web/src/pages/dashboard-card-diagnostics.ts"
+  ],
   "— No site —": [
+    "web/src/pages/router-modal.ts",
     "web/src/ui/shell.html"
+  ],
+  "— this radio —": [
+    "web/src/pages/wireless-fa.ts"
   ],
   "← Newer": [
     "web/src/ui/page-audit-trail.html"
@@ -4281,6 +7302,9 @@
   ],
   "◎ Frequency Analyzer": [
     "web/src/ui/page-wifi-clients.html"
+  ],
+  "● collection disabled": [
+    "web/src/stale.ts"
   ],
   "● filtered": [
     "web/src/ui/page-connections.html"
@@ -4342,6 +7366,35 @@
   ],
   "✅ {{alertType}} on {{routerName}}: {{detail}}": [
     "web/src/ui/page-settings.html"
+  ],
+  "✓ Connected": [
+    "web/src/pages/settings-notif-test.ts"
+  ],
+  "✓ Password changed": [
+    "web/src/account.ts"
+  ],
+  "✓ Reset to defaults": [
+    "web/src/pages/settings-poll.ts"
+  ],
+  "✓ Saved": [
+    "web/src/pages/settings-poll.ts",
+    "web/src/pages/usernotify.ts"
+  ],
+  "✓ Sent!": [
+    "web/src/pages/settings-notif-test.ts",
+    "web/src/pages/usernotify.ts"
+  ],
+  "✓ Settings saved": [
+    "web/src/pages/settings-save.ts"
+  ],
+  "✗ Request failed": [
+    "web/src/pages/settings-poll.ts"
+  ],
+  "✗ Request failed — check browser console": [
+    "web/src/pages/setup-overlay-wire.ts"
+  ],
+  "✗ Save failed": [
+    "web/src/pages/router-modal.ts"
   ],
   "💳 PayPal": [
     "web/src/ui/page-settings.html"

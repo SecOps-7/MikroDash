@@ -18,6 +18,7 @@
 
 import { esc, el, debounce, renderSortHeader, sortMul,
          type SortCol, type SortState } from '../dom';
+import { t } from '../i18n';
 import { fmtTs } from '../timefmt';
 
 /** The audit trail's endpoints. See internal/server/audit_api.go. */
@@ -54,13 +55,13 @@ interface FlatRow {
 const PAGE = 200;
 
 const COLS: SortCol[] = [
-  { key: 'ts', label: 'When' },
-  { key: 'actor', label: 'Who' },
-  { key: 'ip', label: 'From' },
-  { key: 'action', label: 'Action' },
-  { key: 'target', label: 'Target' },
-  { key: 'outcome', label: 'Result' },
-  { key: 'detail', label: 'Detail' },
+  { key: 'ts', label: t('When') },
+  { key: 'actor', label: t('Who') },
+  { key: 'ip', label: t('From') },
+  { key: 'action', label: t('Action') },
+  { key: 'target', label: t('Target') },
+  { key: 'outcome', label: t('Result') },
+  { key: 'detail', label: t('Detail') },
 ];
 
 const MUTED = '<span style="color:var(--text-muted)">&mdash;</span>';
@@ -200,7 +201,7 @@ export function initAuditPage(): void {
       '<td>' + detailCell(r.detail) + '</td>' +
       '</tr>').join('')
       : '<tr><td colspan="7" class="empty-state">' +
-        (offset ? 'No more events.' : 'No audit events visible to you yet.') + '</td></tr>';
+        (offset ? t('No more events.') : t('No audit events visible to you yet.')) + '</td></tr>';
 
     const lbl = el('auPageLbl');
     if (lbl) {

@@ -1,6 +1,7 @@
 // Boot: the socket, the navigation, the chrome, and every page module.
 
 import { el } from './dom';
+import { t } from './i18n';
 import { installFetchGuard, verifySessionAfterFailure } from './fetch-guard';
 import { overlayOnStatus, overlayOnSwitch, selectOptionsHtml, wireRouterDropdown } from './router-dropdown';
 import { initUpgrade } from './pages/upgrade';
@@ -290,7 +291,7 @@ function wireBanners(socket: Socket): void {
   // Not a RouterOS outage, but it uses the same banner to say so: there is
   // nothing to show and the reason is worth stating rather than leaving blank.
   socket.on('access:none', () => {
-    setRosBanner(false, 'No router is readable by this account');
+    setRosBanner(false, t('No router is readable by this account'));
   });
 }
 
@@ -385,12 +386,12 @@ async function main(): Promise<void> {
   if (sessionStorage.getItem('justLoggedIn')) {
     sessionStorage.removeItem('justLoggedIn');
     setTimeout(() => {
-      document.documentElement.style.transition = 'opacity 1s ease';
+      document.documentElement.style.transition = t('opacity 1s ease');
       document.documentElement.style.opacity = '1';
     }, 200);
   }
 
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const proto = location.protocol === 'https:' ? t('wss:') : t('ws:');
   const socket = new Socket(proto + '//' + location.host + '/ws');
 
   // FIRST, and before anything that paints: the palette, contrast and font are

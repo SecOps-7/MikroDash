@@ -25,6 +25,7 @@
  */
 
 import { el, esc } from '../dom';
+import { t } from '../i18n';
 import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
 
 export interface RouterRow {
@@ -63,23 +64,23 @@ export function renderRouterRow(
   sitesById: Record<string, SiteName>,
 ): string {
   const isActive = r.id === activeId;
-  const activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
+  const activeBadge = isActive ? '<span class="rtr-active-badge">' + t('Active') + '</span>' : '';
   // A router that came in by zero-touch provisioning says so, and how.
   const ztp = ztpDeviceForRouter(r.id);
   const ztpBadge = ztp ? '<span class="rtr-ztp-badge" title="Added by zero-touch provisioning (' +
-    (ztp.mode === 'local' ? 'local' : 'through its tunnel') + ')">ZTP</span>' : '';
+    (ztp.mode === 'local' ? 'local' : t('through its tunnel')) + ')">ZTP</span>' : '';
   const delBtn = '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="' + esc(r.id) + '" data-rtr-label="' + esc(r.label) + '" data-rtr-action="delete" title="Delete">&#128465;</button>';
   const toggleBtn = '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem"'
     + (isActive ? ' disabled title="Cannot disable the active router"' : '')
     + ' data-rtr-id="' + esc(r.id) + '" data-rtr-action="toggle">'
-    + (r.disabled ? 'Enable' : 'Disable') + '</button>';
+    + (r.disabled ? t('Enable') : t('Disable')) + '</button>';
   const tlsBadge = r.tls
     ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
-    : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
+    : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">' + t('Unencrypted') + '</span>';
   const certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
   const connState = status[r.id];
   const badgeCls = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
-  const badgeTxt = connState === true ? 'Online' : connState === false ? 'Offline' : '—';
+  const badgeTxt = connState === true ? t('Online') : connState === false ? t('Offline') : '—';
   const statusCell = r.disabled
     ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="' + esc(r.id) + '">Disabled</span>'
     : '<span class="rtr-status-badge ' + badgeCls + '" data-rtr-conn="' + esc(r.id) + '">' + badgeTxt + '</span>';
@@ -176,7 +177,7 @@ export function updateRouterStatusBadge(routerId: string, connected: boolean): v
   const badge = document.querySelector('[data-rtr-conn="' + routerId + '"]');
   if (!badge) return;
   badge.className = 'rtr-status-badge ' + (connected ? 'rtr-status-badge--on' : 'rtr-status-badge--off');
-  badge.textContent = connected ? 'Online' : 'Offline';
+  badge.textContent = connected ? t('Online') : t('Offline');
 }
 
 export interface RouterTableDeps {
@@ -264,7 +265,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         body: JSON.stringify({ disabled: !rr.disabled }),
       })
         .then((res) => res.json())
-        .then((j) => { if (!j.ok) alert(j.error || 'Toggle failed'); })
+        .then((j) => { if (!j.ok) alert(j.error || t('Toggle failed')); })
         .catch(() => alert('Network error'));
       return;
     }
@@ -277,7 +278,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         credentials: 'same-origin',
       })
         .then((r) => r.json())
-        .then((r) => { if (!r.ok) alert('Delete failed: ' + (r.error || 'Unknown error')); })
+        .then((r) => { if (!r.ok) alert('Delete failed: ' + (r.error || t('Unknown error'))); })
         .catch((e) => alert('Request failed: ' + e));
     }
   });

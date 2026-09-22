@@ -24,6 +24,7 @@
 // on touch.
 
 import { esc, el } from './dom';
+import { t } from './i18n';
 
 export interface DropdownRouter {
   id: string;
@@ -85,7 +86,7 @@ export function dropdownHtml(
   rows: readonly DropdownRouter[], activeId: string,
   status: Record<string, boolean | undefined>, hl: number,
 ): string {
-  if (!rows.length) return '<div class="rtr-dd-empty">No routers match</div>';
+  if (!rows.length) return '<div class="rtr-dd-empty">' + t('No routers match') + '</div>';
   let html = '';
   rows.forEach((r, i) => {
     const st = status[r.id];

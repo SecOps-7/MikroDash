@@ -30,6 +30,7 @@
 // previous ROUTER's networks, sitting under the new one's name indefinitely.
 
 import { esc, el } from '../dom';
+import { t } from '../i18n';
 import type { LanPayload } from '../gen/payloads';
 
 /** The live app's `DOT`, a middle dot separator. */
@@ -40,7 +41,7 @@ export function renderNetworks(data: LanPayload): void {
   if (ifaceEl) {
     const ifaces = data.internetIfaces || [];
     if (!ifaces.length) {
-      ifaceEl.innerHTML = '<div class="empty-state">No internet interfaces detected</div>';
+      ifaceEl.innerHTML = '<div class="empty-state">' + t('No internet interfaces detected') + '</div>';
     } else {
       ifaceEl.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem">' +
         ifaces.map((f) =>
@@ -59,12 +60,12 @@ export function renderNetworks(data: LanPayload): void {
   const lanOverview = el('lanOverview');
   if (!lanOverview) return;
   if (!nets.length) {
-    lanOverview.innerHTML = '<div class="empty-state">No DHCP networks</div>';
+    lanOverview.innerHTML = '<div class="empty-state">' + t('No DHCP networks') + '</div>';
     return;
   }
   lanOverview.innerHTML = nets.map((n) =>
     '<div class="lan-net"><div class="lan-cidr">' +
-      '<span style="color:var(--text-muted);font-size:.65rem;margin-right:.3rem">LAN:</span>' +
+      ('<span style="color:var(--text-muted);font-size:.65rem;margin-right:.3rem">' + t('LAN:') + '</span>') +
       esc(n.cidr) + '</div>' +
     '<div class="lan-meta">GW: ' + esc(n.gateway || '—') + ' ' + DOT +
       ' DNS: ' + esc(n.dns || '—') + ' ' + DOT +

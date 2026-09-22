@@ -27,6 +27,7 @@
 // are where a configuration count would be truthful.
 
 import { esc, el, fmtBytes } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { VPNPayload } from '../gen/payloads';
 
@@ -253,7 +254,7 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
             (traffic ? '<div class="vpn-tile-traffic">' + traffic + '</div>' : '') +
           '</div>';
         }).join('')
-        : '<div class="empty-state" style="grid-column:1/-1">Nothing is connected right now</div>';
+        : '<div class="empty-state" style="grid-column:1/-1">' + t('Nothing is connected right now') + '</div>';
     }
 
     // ── PPP and IPsec ────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@
 // busy one still shows a visible stub rather than nothing.
 
 import { el } from '../dom';
+import { t, countryName } from '../i18n';
 import { dcEsc, dcFlag } from './dashboard-cards-util';
 import { DC_CC_NAMES, DC_PORT_NAMES } from '../gen/dccards-tables';
 // A country's `proto` is REQUIRED, and that is the wire contract rather than
@@ -40,7 +41,7 @@ export function renderTopCountries(countries: ConnCountry[]): void {
   const containerEl = el('dc-connTopMapList');
   if (!containerEl) return;
   if (!countries.length) {
-    containerEl.innerHTML = '<div class="empty-state">No geo data</div>';
+    containerEl.innerHTML = '<div class="empty-state">' + t('No geo data') + '</div>';
     return;
   }
   containerEl.innerHTML = countries.slice(0, 12).map((e) => {
@@ -54,7 +55,7 @@ export function renderTopCountries(countries: ConnCountry[]): void {
     return '<div class="conn-map-row">' +
       '<span class="conn-map-flag">' + flag + '</span>' +
       '<div style="flex:1;min-width:0">' +
-        '<div class="conn-map-label">' + dcEsc(DC_CC_NAMES[e.cc] || e.cc) + '</div>' +
+        '<div class="conn-map-label">' + dcEsc(countryName(e.cc, DC_CC_NAMES[e.cc])) + '</div>' +
         '<div class="conn-proto-bar">' +
           '<div class="conn-proto-tcp" style="flex:' + tcpPct + '"></div>' +
           '<div class="conn-proto-udp" style="flex:' + udpPct + '"></div>' +

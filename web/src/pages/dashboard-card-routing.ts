@@ -23,6 +23,7 @@
 // tooltip and legend have nothing to offer for it at all.
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import type { RouteCounts, RoutingPayload } from '../gen/payloads';
 
 interface ChartLike {
@@ -37,7 +38,7 @@ const DONUT_COLOURS: Record<string, string> = {
   bgp: 'rgba(167,139,250,.85)', ospf: 'rgba(251,113,133,.85)', other: 'rgba(99,130,190,.4)',
 };
 const DONUT_LABELS: Record<string, string> = {
-  static: 'Static', dynamic: 'Dynamic', bgp: 'BGP', ospf: 'OSPF', other: 'Other',
+  static: t('Static'), dynamic: t('Dynamic'), bgp: 'BGP', ospf: 'OSPF', other: t('Other'),
 };
 
 let donut: ChartLike | null = null;
@@ -79,7 +80,7 @@ export function drawDonutCentre(chart: {
   const cx = (chart.chartArea.left + chart.chartArea.right) / 2;
   const cy = (chart.chartArea.top + chart.chartArea.bottom) / 2;
   ctx.save();
-  ctx.font = "bold 26px 'JetBrains Mono',ui-monospace,monospace";
+  ctx.font = "bold 26px t('JetBrains Mono'),ui-monospace,monospace";
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim()
     || 'rgba(200,215,240,.9)';
   ctx.textAlign = 'center';

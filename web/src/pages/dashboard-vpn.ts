@@ -18,6 +18,7 @@
 // different peer at the top of the card than the live app does.
 
 import { esc, el } from '../dom';
+import { t } from '../i18n';
 import { getVpnDashTopN } from '../caps';
 import type { VPNPayload } from '../gen/payloads';
 
@@ -61,21 +62,21 @@ export function parseDurationSec(s: string | undefined | null): number {
 export function renderVpnCard(data: VPNPayload): void {
   const table = el('vpnTable');
   if (!table) return;
-  const wgPeers = (data.tunnels || []).filter((t) => t.type === 'WireGuard');
-  const connected = wgPeers.filter((t) => t.state === 'active');
+  const wgPeers = (data.tunnels || []).filter((tun) => tun.type === 'WireGuard');
+  const connected = wgPeers.filter((tun) => tun.state === 'active');
   connected.sort((a, b) => parseDurationSec(a.lastHandshake) - parseDurationSec(b.lastHandshake));
   if (!connected.length) {
-    table.innerHTML = '<tr><td colspan="3" class="empty-state">No active peers</td></tr>';
+    table.innerHTML = '<tr><td colspan="3" class="empty-state">' + t('No active peers') + '</td></tr>';
     return;
   }
-  table.innerHTML = connected.slice(0, getVpnDashTopN()).map((t) => {
-    const endStr = t.endpoint
-      ? '<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem">' + esc(t.endpoint) + '</div>'
+  table.innerHTML = connected.slice(0, getVpnDashTopN()).map((tun) => {
+    const endStr = tun.endpoint
+      ? '<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem">' + esc(tun.endpoint) + '</div>'
       : '';
     return '<tr>' +
-      '<td><span class="wg-up">Up</span></td>' +
-      '<td><div style="font-size:.78rem;font-weight:600">' + esc(t.name || t.interface || '—') + '</div>' + endStr + '</td>' +
-      '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.lastHandshake || '—') + '</td>' +
+      ('<td><span class="wg-up">' + t('Up') + '</span></td>') +
+      '<td><div style="font-size:.78rem;font-weight:600">' + esc(tun.name || tun.interface || '—') + '</div>' + endStr + '</td>' +
+      '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(tun.lastHandshake || '—') + '</td>' +
       '</tr>';
   }).join('');
 }

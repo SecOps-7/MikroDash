@@ -20,6 +20,7 @@
  */
 
 import { esc, el } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 /*
  * RouterStatsRow is one row of the `routers:stats` payload. Absent is null,
@@ -52,8 +53,8 @@ let haveRtrRows = false;
 
 /** What an empty grid or list says. */
 function emptyText(q: string): string {
-  if (q) return 'No routers match that search.';
-  return haveRtrRows ? 'No routers configured.' : 'Waiting for the router list\u2026';
+  if (q) return t('No routers match that search.');
+  return haveRtrRows ? t('No routers configured.') : t('Waiting for the router list\u2026');
 }
 
 /**
@@ -196,7 +197,7 @@ export function syncRoutersSiteFilter(rows: RouterStatsRow[] | null): void {
   });
 
   const ids = Object.keys(names).sort((a, b) => String(names[a]).localeCompare(String(names[b])));
-  const html = '<option value="">All Sites</option>' +
+  const html = ('<option value="">' + t('All Sites') + '</option>') +
     ids.map((id) => '<option value="' + esc(id) + '">' + esc(names[id]!) + '</option>').join('') +
     // Only offered when such devices exist, so a fully assigned fleet keeps a
     // clean list.
@@ -339,7 +340,7 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
 
     const cpuBar = usageBar('CPU', r.cpu, cpuColour, 'mb-1');
     const memBar = usageBar('RAM', r.memPct, memColour, 'mb-1');
-    const hddBar = usageBar('Disk', r.hddPct, hddColour, 'mb-2');
+    const hddBar = usageBar(t('Disk'), r.hddPct, hddColour, 'mb-2');
 
     const uptime = gridUptime(r.uptime);
     const rx = r.rxMbps != null
@@ -402,16 +403,16 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
       // THREE STATES, not two. `!known` means no pool has reached this router
       // yet, and saying "Offline" about it in red was alarming and wrong.
       + '<span class="badge ms-2 ' + (!r.known ? 'bg-secondary-lt' : r.online ? 'bg-green-lt' : 'bg-red-lt') + '">'
-      + (!r.known ? 'Checking…' : r.online ? 'Online' : 'Offline') + '</span>'
+      + (!r.known ? t('Checking…') : r.online ? t('Online') : t('Offline')) + '</span>'
       + '</div>'
       + '<div class="card-body">'
       + offlineWhy
       + cpuBar + memBar + hddBar
       + '<div class="row g-2 text-center">'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Uptime</div><div style="font-size:.9rem;font-weight:500;letter-spacing:.02em">' + uptime + '</div></div>'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Clients</div><div style="font-size:.9rem;font-weight:500;color:#a855f7">' + clients + '</div></div>'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">WAN Rx</div><div style="font-size:.82rem;font-weight:500">' + rx + '</div></div>'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">WAN Tx</div><div style="font-size:.82rem;font-weight:500">' + tx + '</div></div>'
+      + ('<div class="col-6"><div class="text-muted" style="font-size:.72rem">' + t('Uptime') + '</div><div style="font-size:.9rem;font-weight:500;letter-spacing:.02em">') + uptime + '</div></div>'
+      + ('<div class="col-6"><div class="text-muted" style="font-size:.72rem">' + t('Clients') + '</div><div style="font-size:.9rem;font-weight:500;color:#a855f7">') + clients + '</div></div>'
+      + ('<div class="col-6"><div class="text-muted" style="font-size:.72rem">' + t('WAN Rx') + '</div><div style="font-size:.82rem;font-weight:500">') + rx + '</div></div>'
+      + ('<div class="col-6"><div class="text-muted" style="font-size:.72rem">' + t('WAN Tx') + '</div><div style="font-size:.82rem;font-weight:500">') + tx + '</div></div>'
       + '</div>'
       + footer
       + '</div>'
@@ -489,7 +490,7 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
     // see the three states on the card badge above.
     return '<tr class="rtl-row' + (r.online || !r.known ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
       + '<td><span class="rtl-dot" style="background:' + (!r.known ? '#6c7a91' : r.online ? '#34d399' : '#f87171') + '" title="'
-        + (!r.known ? 'Checking…' : r.online ? 'Online' : 'Offline') + '"></span></td>'
+        + (!r.known ? t('Checking…') : r.online ? t('Online') : t('Offline')) + '"></span></td>'
       + '<td>' + esc(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
       + '<td class="text-muted">' + esc(r.host || '') + '</td>'
       + '<td>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
@@ -604,19 +605,19 @@ export function popHtml(r: RouterStatsRow): string {
   // Where the position came from, stated plainly and without alarm. The map
   // itself no longer distinguishes them.
   const from = g.source === 'manual' ? 'set here'
-    : g.source === 'site' ? 'from its site'
-    : (g.wanIp ? 'from ' + esc(g.wanIp) : 'from its WAN address');
-  const loc = esc(g.label || 'Unknown')
+    : g.source === 'site' ? t('from its site')
+    : (g.wanIp ? 'from ' + esc(g.wanIp) : t('from its WAN address'));
+  const loc = esc(g.label || t('Unknown'))
     + ' <span class="text-muted">(' + from + ')</span>';
   return '<div class="rmp-name"><span class="rtl-dot" style="background:' + dotColour(r)
     + '"></span>' + esc(r.label) + '</div>'
     + '<div class="rmp-grid">'
-    + '<span>Host</span><b>' + esc(r.host) + '</b>'
+    + ('<span>' + t('Host') + '</span><b>') + esc(r.host) + '</b>'
     + '<span>CPU</span><b>' + (r.cpu == null ? '—' : r.cpu + '%') + '</b>'
-    + '<span>Uptime</span><b>' + esc(up) + '</b>'
+    + ('<span>' + t('Uptime') + '</span><b>') + esc(up) + '</b>'
     + '<span>WAN</span><b>&#8595;' + (r.rxMbps == null ? '—' : r.rxMbps)
     + ' &#8593;' + (r.txMbps == null ? '—' : r.txMbps) + ' Mbps</b>'
-    + (r.openAlerts ? '<span>Alerts</span><b style="color:var(--accent-amber,#f59f00)">' + r.openAlerts + '</b>' : '')
+    + (r.openAlerts ? ('<span>' + t('Alerts') + '</span><b style="color:var(--accent-amber,#f59f00)">') + r.openAlerts + '</b>' : '')
     + '</div>'
     + '<div class="rmp-loc">' + loc + '</div>'
     + (canManage(r.id) ? '<button type="button" data-open-router="' + esc(r.id) + '">Open settings</button>' : '');

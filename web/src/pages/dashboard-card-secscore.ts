@@ -16,6 +16,7 @@
 // never disagree on what a score means.
 
 import type { Socket } from '../socket';
+import { t } from '../i18n';
 import type { SecScorePayload } from '../gen/payloads';
 import { el, esc } from '../dom';
 import { scoreGrade } from './tools-ping-cards';
@@ -24,8 +25,8 @@ import { GRADE_WORD, RING_C, ago } from './security-scan-cards';
 const SEVS = [['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']] as const;
 
 const REFUSED: Record<string, string> = {
-  denied: 'You may not scan this router.',
-  unavailable: 'No router is connected.',
+  denied: t('You may not scan this router.'),
+  unavailable: t('No router is connected.'),
 };
 
 /** The router the card is showing; a frame about another is not drawn. */
@@ -49,7 +50,7 @@ function setText(id: string, v: string): void {
 
 /** The label beside the ring: the grade and the issues, as the page words it. */
 export function secScoreLabel(d: SecScorePayload): string {
-  if (!d.has) return d.running ? 'Scanning…' : 'Not scanned yet';
+  if (!d.has) return d.running ? t('Scanning…') : t('Not scanned yet');
   return GRADE_WORD[scoreGrade(d.score)] + ' · ' + (d.issues === 1 ? '1 issue' : d.issues + ' issues');
 }
 
@@ -65,7 +66,7 @@ export function secScoreSevs(d: SecScorePayload): string {
 /** The line under the tiles: progress, a refusal, or the checks and the age. */
 export function secScoreMeta(d: SecScorePayload): string {
   if (d.running) return 'Scanning ' + d.done + ' of ' + d.total + ' menus…';
-  if (d.code) return REFUSED[d.code] || (d.message ? 'The last scan failed: ' + d.message : 'The last scan failed.');
+  if (d.code) return REFUSED[d.code] || (d.message ? 'The last scan failed: ' + d.message : t('The last scan failed.'));
   if (!d.has) return '';
   return d.passed + ' of ' + d.checks + ' checks passed · ' + ago(d.scannedAt);
 }
@@ -110,7 +111,7 @@ function draw(d: SecScorePayload): void {
 function reset(): void {
   last = null;
   setText('dc-secVal', '—');
-  setText('dc-secLabel', 'Waiting for the router…');
+  setText('dc-secLabel', t('Waiting for the router…'));
   setText('dc-secMeta', '');
   const sevs = el('dc-secSevs');
   if (sevs) sevs.innerHTML = '';

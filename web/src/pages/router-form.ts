@@ -1,4 +1,5 @@
 import type { City } from './city-picker';
+import { t } from '../i18n';
 // The Add/Edit Router dialog's pure halves.
 //
 // ── PART ONE OF THE MODAL: THE VALUE MAPPING ────────────────────────────────
@@ -94,7 +95,7 @@ export function routerFormValues(
   return {
     // 'Device', not 'Router': #117 renamed the page and the dialog with it —
     // a fleet holds switches too.
-    title: r ? 'Edit Device' : 'Add Device',
+    title: r ? t('Edit Device') : t('Add Device'),
     id: r ? (r.id || '') : '',
     label: r ? (r.label || '') : '',
     // #117: MEMBERSHIP, not one site. The singular `rtrModalSite` select is gone
@@ -112,7 +113,7 @@ export function routerFormValues(
     username: r ? (r.username || '') : 'admin',
     // An edit never shows the stored password and says so; an Add has nothing
     // to explain.
-    passPlaceholder: r ? 'leave blank to keep current' : '',
+    passPlaceholder: r ? t('leave blank to keep current') : '',
     defaultIf: r ? (r.defaultIf || '') : 'ether1',
     pingTarget: r ? (r.pingTarget || '') : '1.1.1.1',
     tls: r ? !!r.tls : true,
@@ -397,13 +398,13 @@ export function seedGeoPicker(
   if (g.place) {
     return {
       mode: 'set', value: g.place,
-      hint: 'Set here. <span class="text-muted">Clear it to go back to the automatic location.</span>',
+      hint: t('Set here.') + ' <span class="text-muted">' + t('Clear it to go back to the automatic location.') + '</span>',
     };
   }
   if (g.auto) {
     return {
       mode: 'preview', value: g.auto,
-      hint: '<span class="text-muted">Found automatically'
+      hint: '<span class="text-muted">' + t('Found automatically')
         + (g.auto.ip ? ' from ' + esc(g.auto.ip) : '')
         + '. Pick a different town to override it.</span>',
     };
@@ -420,13 +421,13 @@ export function seedGeoPicker(
         // without moving a value.
         cc: site.place_cc || '', lat: site.lat ?? undefined, lon: site.lon ?? undefined,
       },
-      hint: '<span class="text-muted">From this router\u2019s site, '
+      hint: '<span class="text-muted">' + t('From this router\u2019s site,') + ' '
         + esc(site.place_name) + '. Pick a town to override it.</span>',
     };
   }
   return {
     mode: 'clear', value: null,
-    hint: '<span class="text-muted">No location yet. A private or CGNAT WAN '
+    hint: '<span class="text-muted">' + t('No location yet. A private or CGNAT WAN') + ' '
       + 'address cannot be geolocated \u2014 pick a town instead.</span>',
   };
 }
@@ -443,7 +444,7 @@ export function testResultMessage(
   ok: boolean, boardName: string | undefined, error: string | undefined,
 ): string {
   if (ok) return '\u2713 Connected' + (boardName ? ' \u2014 ' + boardName : '');
-  return '\u2717 ' + (error || 'Connection failed');
+  return '\u2717 ' + (error || t('Connection failed'));
 }
 
 /**

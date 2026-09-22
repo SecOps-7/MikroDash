@@ -25,6 +25,8 @@
 // typed with a trailing space is posted with the space. Two implementations
 // upstream, two here, and merging them would change one of them.
 
+import { t } from '../i18n';
+
 /** The body both the test and the save send. */
 export interface SetupBody {
   label: string;
@@ -119,5 +121,5 @@ export const SETUP_WATCH_FIELDS = [
 /** The test result line, both outcomes. */
 export function setupTestResultText(ok: boolean, boardName: string, error: string): string {
   if (ok) return '✓ Connected' + (boardName ? ' — ' + boardName : '');
-  return '✗ ' + (error || 'Failed');
+  return '✗ ' + (error || t('Failed'));
 }

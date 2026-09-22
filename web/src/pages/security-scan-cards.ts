@@ -9,10 +9,11 @@
 // The catalogue's own words (title, why, fix) are ours, and escaped anyway.
 
 import { esc } from '../dom';
+import { t } from '../i18n';
 import { scoreGrade } from './tools-ping-cards';
 import type { Finding, Report, CategoryScore } from '../gen/payloads';
 
-export const GRADE_WORD = { good: 'Good', fair: 'Fair', poor: 'At risk' } as const;
+export const GRADE_WORD = { good: t('Good'), fair: t('Fair'), poor: t('At risk') } as const;
 
 /** The score ring's circumference (r=52 in a 120 box): the page's ring and the
  *  Dashboard's Security Score card share it. */
@@ -21,7 +22,7 @@ export const RING_C = 2 * Math.PI * 52;
 /** A report's age, as the page and the Dashboard card say it. */
 export function ago(ms: number): string {
   const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
-  if (s < 60) return 'scanned just now';
+  if (s < 60) return t('scanned just now');
   if (s < 3600) return 'scanned ' + Math.round(s / 60) + ' min ago';
   return 'scanned ' + Math.round(s / 3600) + ' h ago';
 }
@@ -60,7 +61,7 @@ export function categoryRow(c: CategoryScore): string {
 /** The most urgent failed findings, most severe first (the report's order). */
 export function topFindings(r: Report, n = 5): string {
   const fails = r.findings.filter((f) => f.status === 'fail' && f.severity !== 'info').slice(0, n);
-  if (!fails.length) return '<div class="sec-empty">Nothing urgent: every weighted check passed.</div>';
+  if (!fails.length) return '<div class="sec-empty">' + t('Nothing urgent: every weighted check passed.') + '</div>';
   return fails.map((f) => '<div class="sec-top-row sev-' + esc(f.severity) + '">' +
     '<span class="sec-top-dot"></span><div class="sec-top-text"><div class="sec-top-title">' + esc(f.title) + '</div>' +
     '<div class="sec-top-detail">' + esc(f.detail.slice(0, 3).join(', ')) + (f.detail.length > 3 ? ' …' : '') + '</div></div>' +
@@ -68,18 +69,18 @@ export function topFindings(r: Report, n = 5): string {
 }
 
 const SHORT: Record<string, string> = {
-  'mgmt.mac-telnet': 'MAC Telnet limited',
-  'mgmt.mac-winbox': 'MAC WinBox limited',
-  'mgmt.discovery': 'Discovery kept off the WAN',
-  'mgmt.romon': 'RoMON off',
-  'fw.input-default-drop': 'Input ends in a drop',
-  'fw.input-established': 'Established accepted',
-  'fw.input-invalid': 'Invalid dropped on input',
-  'fw.forward-wan': 'New WAN traffic dropped',
-  'fw.forward-invalid': 'Invalid dropped on forward',
-  'fw.dns-open-resolver': 'DNS not open to the WAN',
-  'fw.wan-in-lan': 'WAN and LAN lists apart',
-  'fw.ipv6-input': 'IPv6 input covered',
+  'mgmt.mac-telnet': t('MAC Telnet limited'),
+  'mgmt.mac-winbox': t('MAC WinBox limited'),
+  'mgmt.discovery': t('Discovery kept off the WAN'),
+  'mgmt.romon': t('RoMON off'),
+  'fw.input-default-drop': t('Input ends in a drop'),
+  'fw.input-established': t('Established accepted'),
+  'fw.input-invalid': t('Invalid dropped on input'),
+  'fw.forward-wan': t('New WAN traffic dropped'),
+  'fw.forward-invalid': t('Invalid dropped on forward'),
+  'fw.dns-open-resolver': t('DNS not open to the WAN'),
+  'fw.wan-in-lan': t('WAN and LAN lists apart'),
+  'fw.ipv6-input': t('IPv6 input covered'),
 };
 
 /** A check as a ticked, crossed or unknown line. */
@@ -101,10 +102,10 @@ export function surfaceCard(r: Report): string {
   const svc = r.facts.services;
   const pills = svc.length ? svc.map((s) => {
     const kind = !s.enabled ? 'hs-never' : s.plaintext ? 'hs-stale' : s.restricted ? 'hs-ok' : 'hs-warn';
-    const tip = !s.enabled ? 'disabled' : s.plaintext ? 'plaintext' : s.restricted ? 'restricted' : 'open to any address';
+    const tip = !s.enabled ? 'disabled' : s.plaintext ? 'plaintext' : s.restricted ? 'restricted' : t('open to any address');
     return '<span class="vpn-hs-badge ' + kind + ' sec-svc" title="' + esc(s.name + ': ' + tip) + '">' + esc(s.name) +
       (s.port ? ' <small>' + esc(s.port) + '</small>' : '') + '</span>';
-  }).join('') : '<div class="sec-empty">The service list could not be read.</div>';
+  }).join('') : '<div class="sec-empty">' + t('The service list could not be read.') + '</div>';
   return '<div class="sec-svc-row">' + pills + '</div>' +
     '<div class="sec-mini-list">' + checks(r, ['mgmt.mac-telnet', 'mgmt.mac-winbox', 'mgmt.discovery', 'mgmt.romon']) + '</div>';
 }
@@ -136,7 +137,7 @@ export function updatesCard(r: Report): string {
   const fwBehind = r.findings.some((x) => x.id === 'sys.firmware' && x.status === 'fail');
   return fact('RouterOS installed', f.installed || 'unknown') +
     fact('Latest', f.latest || 'not checked', behind) +
-    fact('Firmware', f.firmwareCurrent ? f.firmwareCurrent + (fwBehind ? ' → ' + f.firmwareUpgrade : '') : 'no RouterBOARD', fwBehind);
+    fact('Firmware', f.firmwareCurrent ? f.firmwareCurrent + (fwBehind ? ' → ' + f.firmwareUpgrade : '') : t('no RouterBOARD'), fwBehind);
 }
 
 export function coverageCard(r: Report): string {

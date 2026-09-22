@@ -23,6 +23,7 @@
 
 import { esc, el, resRow, debounce, renderSortHeader, sortMul,
   type SortCol, type SortState } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type {
   CapsClient, Cap, CapsProvisioning, CapsConfigProfile, CapsSecurityProfile,
@@ -30,14 +31,14 @@ import type {
 } from '../gen/payloads';
 
 const COLS: SortCol[] = [
-  { key: 'identity', label: 'Identity' },
-  { key: 'board', label: 'Board' },
-  { key: 'version', label: 'Version' },
-  { key: 'serial', label: 'Serial' },
-  { key: 'state', label: 'State' },
-  { key: 'connected', label: 'Connected' },
-  { key: 'radios', label: 'Radios' },
-  { key: 'clients', label: 'Clients' },
+  { key: 'identity', label: t('Identity') },
+  { key: 'board', label: t('Board') },
+  { key: 'version', label: t('Version') },
+  { key: 'serial', label: t('Serial') },
+  { key: 'state', label: t('State') },
+  { key: 'connected', label: t('Connected') },
+  { key: 'radios', label: t('Radios') },
+  { key: 'clients', label: t('Clients') },
 ];
 
 const CAPS_RES: Record<string, string> = {
@@ -165,11 +166,11 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       // ToDo #20; the fix landed live on 2026-08-25 and is adopted here, in the
       // same order.
       const msg = !st.available
-        ? 'This router has neither CAPsMAN menu — no manager and no CAP mode here.'
+        ? t('This router has neither CAPsMAN menu — no manager and no CAP mode here.')
         : (st.role === 'cap'
-          ? 'This router is a CAP, not a manager — it has no CAPs of its own.'
-          : (q ? 'No CAPs match that search.'
-            : 'No CAPs are connected to this manager.'));
+          ? t('This router is a CAP, not a manager — it has no CAPs of its own.')
+          : (q ? t('No CAPs match that search.')
+            : t('No CAPs are connected to this manager.')));
       tbody.innerHTML = '<tr><td colspan="8" class="empty-state">' + msg + '</td></tr>';
     } else {
       tbody.innerHTML = rows.map((c) => {
@@ -229,13 +230,13 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     if (data.role === 'cap' || (data.role === 'both' && c.currentIdentity)) {
       panel.style.display = '';
       body.innerHTML = '<div class="kv-grid">' +
-        '<div class="kv-item"><div class="kv-key">Managed by</div><div class="kv-val on">' +
-          esc(c.currentIdentity || 'discovering…') + '</div></div>' +
-        '<div class="kv-item"><div class="kv-key">Manager address</div><div class="kv-val">' +
+        ('<div class="kv-item"><div class="kv-key">' + t('Managed by') + '</div><div class="kv-val on">') +
+          esc(c.currentIdentity || t('discovering…')) + '</div></div>' +
+        ('<div class="kv-item"><div class="kv-key">' + t('Manager address') + '</div><div class="kv-val">') +
           esc(c.currentAddress || '—') + '</div></div>' +
-        '<div class="kv-item"><div class="kv-key">Discovery interfaces</div><div class="kv-val">' +
+        ('<div class="kv-item"><div class="kv-key">' + t('Discovery interfaces') + '</div><div class="kv-val">') +
           esc((c.discoveryInterfaces || []).join(', ') || '—') + '</div></div>' +
-        '<div class="kv-item"><div class="kv-key">Certificate</div><div class="kv-val">' +
+        ('<div class="kv-item"><div class="kv-key">' + t('Certificate') + '</div><div class="kv-val">') +
           esc(c.certificate || '—') + '</div></div>' +
       '</div>';
     } else {
@@ -245,9 +246,9 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
 
   function renderSummary(): void {
     if (!data) return;
-    const t = data.totals;
+    const tot = data.totals;
     const modes: Record<string, string> = {
-      manager: 'Manager', cap: 'CAP', both: 'Manager + CAP', none: 'Off',
+      manager: t('Manager'), cap: 'CAP', both: t('Manager + CAP'), none: t('Off'),
     };
     const set = (id: string, v: string) => { const e = el(id); if (e) e.textContent = v; };
     // WHICH MANAGERS ARE ON, not just that one is. A router running both trees
@@ -256,10 +257,10 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     const trees = data.legacyManager
       ? (data.manager.enabled ? ' (v1 + v2)' : ' (v1)')
       : '';
-    set('capSumMode', data.available ? ((modes[data.role] || '—') + trees) : 'Unsupported');
-    set('capSumCaps', t.caps === undefined ? '—' : String(t.caps));
-    set('capSumRadios', t.radios === undefined ? '—' : String(t.radios));
-    set('capSumClients', t.clients === undefined ? '—' : String(t.clients));
+    set('capSumMode', data.available ? ((modes[data.role] || '—') + trees) : t('Unsupported'));
+    set('capSumCaps', tot.caps === undefined ? '—' : String(tot.caps));
+    set('capSumRadios', tot.radios === undefined ? '—' : String(tot.radios));
+    set('capSumClients', tot.clients === undefined ? '—' : String(tot.clients));
   }
 
   // ── The configuration card ────────────────────────────────────────────────
@@ -269,15 +270,15 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
   }
 
   function yesNo(v: boolean): string {
-    return v ? 'Yes' : '<span class="muted-note">No</span>';
+    return v ? t('Yes') : '<span class="muted-note">' + t('No') + '</span>';
   }
 
   /** Rows for a tab, from the one payload the collector already sends. */
-  function rowsFor(t: string): unknown[] {
+  function rowsFor(tab: string): unknown[] {
     if (!data) return [];
-    if (t === 'provisioning') return data.provisioning || [];
+    if (tab === 'provisioning') return data.provisioning || [];
     const p = data.profiles as unknown as Record<string, unknown[]> | null;
-    return (p && p[t]) || [];
+    return (p && p[tab]) || [];
   }
 
   function provRow(p: CapsProvisioning, at: number, last: number, canMove: boolean): string {
@@ -285,8 +286,8 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // flow, including the guard prompt it can raise. Order is meaning here —
     // the first rule whose bands match a joining radio wins.
     const move = canMove
-      ? '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-        '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button>'
+      ? ('<button class="fw-move" data-res-move="up" title="' + t('Move up') + '"') + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+        ('<button class="fw-move" data-res-move="down" title="' + t('Move down') + '"') + (at === last ? ' disabled' : '') + '>&#9660;</button>'
       : '';
     // A LEGACY ROW CARRIES NO ID and therefore no `data-id`, which is what makes
     // it read-only without a branch here: the resource engine only opens a row
@@ -316,7 +317,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
         // must never be provisioned onward. Worth flagging where it appears.
         (c.manager ? '<span class="badge bg-yellow-lt" style="margin-left:.35rem">manager</span>' : '') + '</td>' +
       '<td>' + dash(c.ssid) +
-        (c.hideSsid ? '<span class="badge bg-secondary-lt" style="margin-left:.35rem">Hidden</span>' : '') + '</td>' +
+        (c.hideSsid ? '<span class="badge bg-secondary-lt" style="margin-left:.35rem">' + t('Hidden') + '</span>' : '') + '</td>' +
       '<td>' + dash(c.country) + '</td>' +
       '<td>' + dash(c.security) + '</td>' +
       '<td>' + dash(c.channel) + '</td>' +
@@ -331,7 +332,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     return '<tr' + resRow(s.id, s.name, 'capsSecurity') + (s.disabled ? ' style="opacity:.5"' : '') + '>' +
       '<td>' + esc(s.name) + v1(s.legacy) + '</td>' +
       '<td><span class="badge ' + (isOpen ? 'bg-red-lt' : 'bg-azure-lt') + '">' +
-        esc(isOpen ? 'Open' : s.authTypes) + '</span></td>' +
+        esc(isOpen ? t('Open') : s.authTypes) + '</span></td>' +
       '<td>' + dash(s.wps) + '</td>' +
       '<td>' + yesNo(s.ft) + '</td>' +
     '</tr>';
@@ -357,18 +358,18 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     '</tr>';
   }
 
-  function renderTab(t: string): void {
-    const tbody = el(TBODY[t] || '');
+  function renderTab(tab: string): void {
+    const tbody = el(TBODY[tab] || '');
     if (!tbody) return;
-    const rows = rowsFor(t);
+    const rows = rowsFor(tab);
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="' + String(COLSPAN[t] || 0) + '" class="empty-state">' +
-        (data ? 'Nothing configured here yet.' : 'Waiting for CAPsMAN data&hellip;') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="' + String(COLSPAN[tab] || 0) + '" class="empty-state">' +
+        (data ? t('Nothing configured here yet.') : 'Waiting for CAPsMAN data&hellip;') + '</td></tr>';
       return;
     }
 
-    if (t === 'provisioning') {
+    if (tab === 'provisioning') {
       // THE MOVE BOUNDS ARE THE EDITABLE ROWS', not the table's. A v1 rule is
       // appended to the same table and cannot be reordered from here, so
       // counting it would disable the arrow on the last rule that can be.
@@ -381,9 +382,9 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       return;
     }
 
-    const fn = t === 'configuration' ? (r: unknown) => configRow(r as CapsConfigProfile)
-      : t === 'security' ? (r: unknown) => securityRow(r as CapsSecurityProfile)
-        : t === 'channel' ? (r: unknown) => channelRow(r as CapsChannelProfile)
+    const fn = tab === 'configuration' ? (r: unknown) => configRow(r as CapsConfigProfile)
+      : tab === 'security' ? (r: unknown) => securityRow(r as CapsSecurityProfile)
+        : tab === 'channel' ? (r: unknown) => channelRow(r as CapsChannelProfile)
           : (r: unknown) => datapathRow(r as CapsDatapathProfile);
     tbody.innerHTML = rows.map(fn).join('');
   }
@@ -395,9 +396,9 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // rather than showing five empty tables that look like a failure.
     if (note) {
       note.textContent = (data && data.role === 'cap')
-        ? 'This router is a CAP — these are set on its manager.'
+        ? t('This router is a CAP — these are set on its manager.')
         : (data && data.legacyManager
-          ? 'Rows marked v1 belong to the legacy /caps-man tree and are read-only here.'
+          ? t('Rows marked v1 belong to the legacy /caps-man tree and are read-only here.')
           : '');
     }
   }
@@ -410,20 +411,20 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     document.dispatchEvent(new CustomEvent('mikrodash:resmount'));
   }
 
-  function setTab(t: string): void {
-    if (!CAPS_RES[t]) return;
-    tab = t;
+  function setTab(tab: string): void {
+    if (!CAPS_RES[tab]) return;
+    tab = tab;
     bar?.querySelectorAll('.stab').forEach((b) => {
-      const on = (b as HTMLElement).dataset.capstab === t;
+      const on = (b as HTMLElement).dataset.capstab === tab;
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     Object.keys(TBODY).forEach((k) => {
       const panel = el('capstab-' + k);
-      if (panel) panel.hidden = (k !== t);
+      if (panel) panel.hidden = (k !== tab);
     });
     syncAddSlot();
-    renderTab(t);
+    renderTab(tab);
   }
 
   // ── Wiring ────────────────────────────────────────────────────────────────
@@ -450,7 +451,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
   socket.on('res:schema', (d) => {
     const key = d && d.key;
     if (!key || !CAPS_RES[tab]) return;
-    if (!Object.keys(CAPS_RES).some((t) => CAPS_RES[t] === key)) return;
+    if (!Object.keys(CAPS_RES).some((tab) => CAPS_RES[tab] === key)) return;
     writable[key] = !!d.permitted;
     if (CAPS_RES[tab] === key) renderTab(tab);
   });

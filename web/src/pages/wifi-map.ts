@@ -43,6 +43,7 @@
 // clicking its corners, and its vertices can be dragged afterwards.
 
 import { esc, el, lsGet, lsSet, svgEl, attr, text } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { WifiPayload, WirelessPayload, WirelessClient } from '../gen/payloads';
 
@@ -695,12 +696,12 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       }
       if (measuring) {
         bits.push(measureFrom
-          ? 'Click the other end of the distance you are measuring.'
-          : 'Click one end of something you know the length of.');
+          ? t('Click the other end of the distance you are measuring.')
+          : t('Click one end of something you know the length of.'));
       }
       if (drawing) {
         bits.push(drawing.length < 3
-          ? 'Click each corner of the area. Three at least.'
+          ? t('Click each corner of the area. Three at least.')
           : drawing.length + ' corners. Click the first one again, double-click ' +
             'or press Enter to close it; Esc throws it away.');
       }
@@ -723,8 +724,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     e.classList.toggle('show', blank);
     if (blank) {
       e.innerHTML = mode === 'edit'
-        ? 'Draw the site: add a building, then place your access points on it.'
-        : 'Nothing has been drawn for this router yet. Switch to Edit to start.';
+        ? t('Draw the site: add a building, then place your access points on it.')
+        : t('Nothing has been drawn for this router yet. Switch to Edit to start.');
     }
   }
 
@@ -766,24 +767,24 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   function objectPanel(o: MapObject): string {
     const poly = o.points.length >= 3;
     return '<div class="wm-panel-title">' + esc(o.kind) + '</div>' +
-      field('Label', '<input class="sform-input" id="wmfLabel" value="' + esc(o.label) + '">') +
+      field(t('Label'), '<input class="sform-input" id="wmfLabel" value="' + esc(o.label) + '">') +
       // STOREYS ARE A BUILDING'S. A fence and a plot have one apiece, and a
       // storey count on them put floors in the picker nothing could be on.
       (o.kind === 'building'
-        ? field('Storeys', '<input class="sform-input" id="wmfFloors" type="number" min="1" max="64" value="' +
+        ? field(t('Storeys'), '<input class="sform-input" id="wmfFloors" type="number" min="1" max="64" value="' +
           String(o.floors) + '">')
         : '') +
       (poly
         ? '<div class="wm-panel-note">' + o.points.length + ' corners. Drag one to ' +
           'move it; drag the outline to move the whole shape.</div>'
-        : field('Width', '<input class="sform-input" id="wmfW" type="number" value="' + String(Math.round(o.w)) + '">') +
-          field('Height', '<input class="sform-input" id="wmfH" type="number" value="' + String(Math.round(o.h)) + '">')) +
-      field('Colour', '<div class="wm-swatches" id="wmfColours">' +
+        : field(t('Width'), '<input class="sform-input" id="wmfW" type="number" value="' + String(Math.round(o.w)) + '">') +
+          field(t('Height'), '<input class="sform-input" id="wmfH" type="number" value="' + String(Math.round(o.h)) + '">')) +
+      field(t('Colour'), '<div class="wm-swatches" id="wmfColours">' +
         PALETTE.map((c) => '<button type="button" class="wm-swatch' +
           (c === o.colour ? ' is-on' : '') + '" data-colour="' + esc(c) + '"' +
           ' style="background:' + (c || 'transparent') + '"' +
           ' title="' + (c ? esc(c) : 'default') + '"></button>').join('') + '</div>') +
-      '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfDelete">Delete</button>';
+      ('<button class="sbtn sbtn-danger wm-panel-btn" id="wmfDelete">' + t('Delete') + '</button>');
   }
 
   function wireObjectPanel(o: MapObject): void {
@@ -814,13 +815,13 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   }
 
   function apPanel(a: MapAP): string {
-    return '<div class="wm-panel-title">Access point</div>' +
+    return ('<div class="wm-panel-title">' + t('Access point') + '</div>') +
       '<div class="wm-panel-sub">' + esc(a.ap || a.ifaces.join(', ')) + '</div>' +
-      field('Label', '<input class="sform-input" id="wmfApLabel" value="' + esc(a.label) + '">') +
-      field('Floor', '<input class="sform-input" id="wmfApFloor" type="number" min="1" max="64" value="' +
+      field(t('Label'), '<input class="sform-input" id="wmfApLabel" value="' + esc(a.label) + '">') +
+      field(t('Floor'), '<input class="sform-input" id="wmfApFloor" type="number" min="1" max="64" value="' +
         String(a.floor) + '">') +
       '<div class="wm-panel-note">Radios: ' + esc(a.ifaces.join(', ') || '—') + '</div>' +
-      '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">Take off the map</button>';
+      ('<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">' + t('Take off the map') + '</button>');
   }
 
   function wireApPanel(a: MapAP): void {
@@ -850,14 +851,14 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
           : '<button class="topo-btn" data-place="' + esc(c.key) + '">Place</button>') +
       '</div>';
     }).join('');
-    return '<div class="wm-panel-title">Site</div>' +
-      field('Metres per canvas unit',
+    return ('<div class="wm-panel-title">' + t('Site') + '</div>') +
+      field(t('Metres per canvas unit'),
         '<input class="sform-input" id="wmfScale" type="number" step="0.01" min="0" value="' +
         String(doc.metresPerUnit || '') + '" placeholder="e.g. 0.25">') +
       '<div class="wm-panel-note">Draw a wall you know the length of, read its ' +
         'Width, and divide: 40 m across 160 units is 0.25. Only the Signal ring ' +
         'mode uses it.</div>' +
-      '<div class="wm-panel-title" style="margin-top:.9rem">Access points</div>' +
+      ('<div class="wm-panel-title" style="margin-top:.9rem">' + t('Access points') + '</div>') +
       (rows || '<div class="wm-panel-note">No radios reported yet. Open Wifi ' +
         'Networks once so this router has answered.</div>');
   }
@@ -912,7 +913,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     const btn = el('wmSave');
     if (btn) {
       btn.classList.toggle('is-dirty', dirty);
-      btn.textContent = dirty ? 'Save *' : 'Save';
+      btn.textContent = dirty ? t('Save *') : t('Save');
     }
   }
 
@@ -971,14 +972,14 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         // saveable, because an empty canvas and a failed read look the same and
         // one Save would replace the site plan with whatever is on screen.
         loaded = false;
-        note('The stored plan could not be read, so saving is off until it can.');
+        note(t('The stored plan could not be read, so saving is off until it can.'));
       });
   }
 
   function save(): void {
     if (!routerID) return;
     if (!loaded) {
-      note('Not saving: the stored plan was never read, and this would replace it.');
+      note(t('Not saving: the stored plan was never read, and this would replace it.'));
       return;
     }
     fetch('/api/router-doc', {
@@ -1005,7 +1006,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       .catch(() => {
         // LEFT DIRTY ON PURPOSE: nothing was stored, and the operator's drawing
         // is still the only copy of it.
-        note('The plan was not saved. You may not have permission to edit it.');
+        note(t('The plan was not saved. You may not have permission to edit it.'));
       });
   }
 
@@ -1018,7 +1019,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     const size = DEFAULT_SIZE[kind]!;
     doc.objects.push({
       id: newID(),
-      kind, label: kind === 'label' ? 'Label' : '',
+      kind, label: kind === 'label' ? t('Label') : '',
       x: x - size.w / 2, y: y - size.h / 2, w: size.w, h: size.h,
       points: [], floors: 1, colour: '',
     });

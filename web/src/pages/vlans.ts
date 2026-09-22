@@ -7,18 +7,19 @@
 // router never sent.
 
 import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps, type SortCol, type SortState, sparkPoints } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 import type { Vlan, VlansPayload } from '../gen/payloads';
 
 const COLS: SortCol[] = [
   { key: 'vlanId', label: 'VLAN' },
-  { key: 'name', label: 'Interface' },
-  { key: 'parent', label: 'Parent' },
+  { key: 'name', label: t('Interface') },
+  { key: 'parent', label: t('Parent') },
   { key: 'mtu', label: 'MTU' },
-  { key: 'tagged', label: 'Tagged Ports' },
-  { key: 'untagged', label: 'Untagged Ports' },
-  { key: 'clients', label: 'Clients' },
+  { key: 'tagged', label: t('Tagged Ports') },
+  { key: 'untagged', label: t('Untagged Ports') },
+  { key: 'clients', label: t('Clients') },
   { key: 'rate', label: 'RX / TX' },
 ];
 
@@ -149,7 +150,7 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
         '<td>' + (v.clients || 0) + '</td>' +
         '<td>' + rate(v) + '</td>' +
         '</tr>';
-    }).join('') : '<tr><td colspan="8" class="empty-state">No VLANs configured on this router.</td></tr>';
+    }).join('') : '<tr><td colspan="8" class="empty-state">' + t('No VLANs configured on this router.') + '</td></tr>';
 
     renderBridge();
   }
@@ -176,7 +177,7 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
       '<td>' + ports(r.untagged) + '</td>' +
       '<td>' + (r.dynamic ? '<span class="wl-band wl-band-6">dynamic</span>'
         : '<span class="wl-band wl-band-5">static</span>') + '</td>' +
-      '</tr>').join('') : '<tr><td colspan="5" class="empty-state">No bridge VLAN entries.</td></tr>';
+      '</tr>').join('') : '<tr><td colspan="5" class="empty-state">' + t('No bridge VLAN entries.') + '</td></tr>';
   }
 
   function renderSummary(): void {

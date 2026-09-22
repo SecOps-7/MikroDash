@@ -17,6 +17,7 @@
 // router that was never asked.
 
 import { esc, el, fmtMbps } from '../dom';
+import { t } from '../i18n';
 import type { TalkersPayload } from '../gen/payloads';
 
 export function renderTalkers(data: TalkersPayload): void {
@@ -25,7 +26,7 @@ export function renderTalkers(data: TalkersPayload): void {
   const devices = data.devices || [];
   if (!devices.length) {
     table.innerHTML = '<tr><td colspan="4" class="empty-state">' +
-      (data.available === false ? 'Kid Control is not available on this router' : 'No devices') +
+      (data.available === false ? t('Kid Control is not available on this router') : t('No devices')) +
       '</td></tr>';
     return;
   }

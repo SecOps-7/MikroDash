@@ -27,6 +27,7 @@
  */
 
 import { el, esc } from '../dom';
+import { t } from '../i18n';
 import {
   userRowHtml, groupTableHtml, roleTableHtml, sizePrincipalsCard, mountPrincipalTabs,
   applyAuthModeVisibility, rolePageRowHtml, grantEditorHtml,
@@ -210,13 +211,13 @@ function showUserForm(user: UserView | null): void {
     // alone — without it, somebody editing a username would reasonably think
     // they had to retype the password, and typing one re-hashes the account.
     pass.value = '';
-    pass.placeholder = user ? 'leave blank to keep current' : 'password';
+    pass.placeholder = user ? t('leave blank to keep current') : 'password';
   }
   formError('uf_error', '');
   renderGrants('uf_grants', 'user', user ? user.id : '', user?.grants,
-    'Save the user first, then grant them access');
+    t('Save the user first, then grant them access'));
   const title = el('uf_title');
-  if (title) title.textContent = user ? 'Edit User' : 'Add User';
+  if (title) title.textContent = user ? t('Edit User') : t('Add User');
   openForm('userFormWrap', true);
   (el('uf_username') as HTMLInputElement | null)?.focus();
 }
@@ -246,10 +247,10 @@ async function saveUser(): Promise<void> {
     if (created) {
       setVal('uf_id', created.id);
       renderGrants('uf_grants', 'user', created.id, created.grants,
-        'Save the user first, then grant them access');
+        t('Save the user first, then grant them access'));
     }
     const pass = el('uf_password') as HTMLInputElement | null;
-    if (pass) pass.placeholder = 'leave blank to keep current';
+    if (pass) pass.placeholder = t('leave blank to keep current');
     return;
   }
   if (outcome.close) openForm('userFormWrap', false);
@@ -268,9 +269,9 @@ function showGroupForm(group: GroupView | null): void {
       (group && group.memberUserIds) || [], esc);
   }
   renderGrants('gf_grants', 'group', group ? group.id : '', group?.grants,
-    'Save the group first, then grant it access');
+    t('Save the group first, then grant it access'));
   const title = el('gf_title');
-  if (title) title.textContent = group ? 'Edit Group' : 'Add Group';
+  if (title) title.textContent = group ? t('Edit Group') : t('Add Group');
   openForm('groupFormWrap', true);
   (el('gf_name') as HTMLInputElement | null)?.focus();
 }
@@ -382,7 +383,7 @@ function showRoleForm(role: RoleView | null): void {
       .map((p) => rolePageRowHtml(p, access[p.key], writeCapablePages)).join('');
   }
   const title = el('rf_title');
-  if (title) title.textContent = role ? 'Edit Role' : 'Add Role';
+  if (title) title.textContent = role ? t('Edit Role') : t('Add Role');
   openForm('roleFormWrap', true);
 }
 
@@ -620,7 +621,7 @@ async function remove(url: string, reload: () => Promise<void>): Promise<void> {
   try {
     const r = await fetch(url, { method: 'DELETE', credentials: 'same-origin' });
     const j = await r.json().catch(() => null);
-    if (!j || !j.ok) alert((j && j.error) || 'Delete failed');
+    if (!j || !j.ok) alert((j && j.error) || t('Delete failed'));
   } catch {
     alert('Request failed');
   }

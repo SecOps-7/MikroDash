@@ -12,6 +12,7 @@
 // credential value masked by the server; it is set as text, never markup.
 
 import { el, esc } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { registerAreaPanel } from './area';
 
@@ -29,23 +30,23 @@ export function initFilesTransfer(socket: Socket): void {
   function layout(h: HTMLElement): void {
     h.innerHTML =
       '<div class="files-transfer">' +
-        '<h4 class="card-title" style="font-size:.9rem;margin-bottom:.3rem">Router downloads a URL</h4>' +
+        ('<h4 class="card-title" style="font-size:.9rem;margin-bottom:.3rem">' + t('Router downloads a URL') + '</h4>') +
         '<p class="muted-note" style="margin:0 0 .6rem">The router fetches the file itself, over its own ' +
           'connection, and saves it under the address\'s file name. Scripts that run on arrival ' +
-          '(<code>*.auto.*</code>) and packages are refused.</p>' +
+          ('(<code>*.auto.*</code>' + t(') and packages are refused.') + '</p>') +
         '<form id="filesFetchForm" class="d-flex gap-2 flex-wrap" autocomplete="off">' +
           '<input id="filesFetchUrl" class="form-control form-control-sm" type="url" required ' +
             'placeholder="https://example.com/file.txt" style="flex:1 1 22rem;min-width:0">' +
-          '<button class="btn btn-sm btn-primary" type="submit" id="filesFetchBtn">Download to router</button>' +
+          ('<button class="btn btn-sm btn-primary" type="submit" id="filesFetchBtn">' + t('Download to router') + '</button>') +
         '</form>' +
         '<div id="filesFetchNote" class="muted-note" style="margin-top:.5rem"></div>' +
-        '<h4 class="card-title" style="font-size:.9rem;margin:1.2rem 0 .3rem">Read a text file</h4>' +
+        ('<h4 class="card-title" style="font-size:.9rem;margin:1.2rem 0 .3rem">' + t('Read a text file') + '</h4>') +
         '<p class="muted-note" style="margin:0 0 .6rem">Text files up to 64 KiB. Passwords, secrets and ' +
           'keys are shown as «hidden»; a file holding a private key is not shown.</p>' +
         '<form id="filesReadForm" class="d-flex gap-2 flex-wrap" autocomplete="off">' +
           '<input id="filesReadName" class="form-control form-control-sm" type="text" required ' +
             'placeholder="flash/notes.txt" style="flex:1 1 22rem;min-width:0">' +
-          '<button class="btn btn-sm btn-outline-secondary" type="submit">Show</button>' +
+          ('<button class="btn btn-sm btn-outline-secondary" type="submit">' + t('Show') + '</button>') +
         '</form>' +
         '<div id="filesReadNote" class="muted-note" style="margin-top:.5rem"></div>' +
         '<pre id="filesReadText" hidden style="margin-top:.5rem;max-height:60vh;overflow:auto;font-size:.72rem;' +
@@ -56,7 +57,7 @@ export function initFilesTransfer(socket: Socket): void {
       const name = (el<HTMLInputElement>('filesReadName')?.value || '').trim();
       if (!name) return;
       const n = el('filesReadNote');
-      if (n) n.textContent = 'Reading…';
+      if (n) n.textContent = t('Reading…');
       const pre = el('filesReadText');
       if (pre) { pre.textContent = ''; pre.hidden = true; }
       socket.emit('files:read', { name });
@@ -71,7 +72,7 @@ export function initFilesTransfer(socket: Socket): void {
       if (btn) btn.disabled = true;
       note('', true);
       const n = el('filesFetchNote');
-      if (n) n.textContent = 'The router is downloading…';
+      if (n) n.textContent = t('The router is downloading…');
       socket.emit('files:fetch', { url });
     });
   }

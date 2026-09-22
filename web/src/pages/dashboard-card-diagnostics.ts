@@ -45,6 +45,7 @@
 // nothing. `esc` is a string replace and needs no DOM.
 
 import { el, esc, renderSortHeader, sortRows } from '../dom';
+import { t } from '../i18n';
 import type { SortState } from '../dom';
 import type { Diagnostics, MenuRate, SourceLoad } from '../gen/payloads';
 
@@ -114,8 +115,8 @@ function busiestBody(rows: MenuRate[]): string {
 function paintBusiest(): void {
   if (!el('dc-diagBusyHead')) return;
   renderSortHeader('dc-diagBusyHead', [
-    { key: 'menu', label: 'Menu' },
-    { key: 'source', label: 'Source' },
+    { key: 'menu', label: t('Menu') },
+    { key: 'source', label: t('Source') },
     { key: 'perMin', label: '/ min', cls: 'diag-num' },
   ], busySort, () => {
     const body = el('dc-diagBusyBody');
@@ -145,17 +146,17 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
 
   let html = '';
 
-  html += heading('Acquisition', 'what the router is asked');
+  html += heading(t('Acquisition'), t('what the router is asked'));
   html += row('open channels', num(a.channels), (a.channels || 0) > 0,
-    'Push channels held open. A channel costs no commands, which is why it is counted separately.');
+    t('Push channels held open. A channel costs no commands, which is why it is counted separately.'));
   html += row('in flight', num(a.inFlight) + ' / ' + num(a.cap), (a.inFlight || 0) > 0,
-    'Commands holding a concurrency slot right now, against the per-router cap.');
+    t('Commands holding a concurrency slot right now, against the per-router cap.'));
   html += row('menus subscribed', num(a.menus), (a.menus || 0) > 0,
-    'RouterOS menus at least one collector wants.');
-  html += row('· pushed by router', num(a.streamed), (a.streamed || 0) > 0,
-    'Kept current by an open channel instead of being polled.');
+    t('RouterOS menus at least one collector wants.'));
+  html += row(t('· pushed by router'), num(a.streamed), (a.streamed || 0) > 0,
+    t('Kept current by an open channel instead of being polled.'));
   html += row('· polled', num(a.polled), (a.polled || 0) > 0,
-    'Read on a schedule.');
+    t('Read on a schedule.'));
 
   // WHO ASKED. The headline counts every command this process sends the router:
   // the collectors' reads, and every feature that reaches it on demand (the
@@ -164,7 +165,7 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
   // with nothing on the card to account for them.
   const sources = a.sources || [];
   if (sources.length) {
-    html += heading('Who asked', 'commands / min by source');
+    html += heading(t('Who asked'), t('commands / min by source'));
     html += sourceRows(sources, a.commandsPerMin || 0);
   }
 
@@ -172,23 +173,23 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
   // for. Unlike the subscriptions below, this includes every on-demand read.
   lastBusy = a.busiest || [];
   if (lastBusy.length) {
-    html += heading('Busiest menus', 'last minute');
+    html += heading(t('Busiest menus'), 'last minute');
     html += '<table class="diag-table"><thead><tr id="dc-diagBusyHead"></tr></thead>' +
       '<tbody id="dc-diagBusyBody">' + busiestBody(lastBusy) + '</tbody></table>';
     if ((a.busiestMore || 0) > 0) {
       html += row('+ ' + a.busiestMore + ' more', '', false,
-        'The list is capped so the card stays a card. The counts above are complete.');
+        t('The list is capped so the card stays a card. The counts above are complete.'));
     }
   }
 
   // THE SUBSCRIPTIONS. What the collectors want, and how each is delivered.
   const reads = a.reads || [];
   if (reads.length) {
-    html += heading('Menus subscribed', 'what the collectors want');
+    html += heading(t('Menus subscribed'), t('what the collectors want'));
     html += reads.map((m) => {
       const title = m.streamed
-        ? 'The router pushes this table on an open channel; it is not re-asked.'
-        : 'Read on a schedule, once per cadence, however many collectors want it.';
+        ? t('The router pushes this table on an open channel; it is not re-asked.')
+        : t('Read on a schedule, once per cadence, however many collectors want it.');
       return '<div class="diag-row" title="' + esc(title) + '"><span class="diag-name">' +
         esc(String(m.menu || '')) + '</span>' + deliveryPill(!!m.streamed) + '</div>';
     }).join('');
@@ -196,26 +197,26 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
     // reporting less than it measured.
     if ((a.more || 0) > 0) {
       html += row('+ ' + a.more + ' more', '', false,
-        'The list is capped so the card stays a card. The counts above are complete.');
+        t('The list is capped so the card stays a card. The counts above are complete.'));
     }
   }
 
-  html += heading('Derivation', 'what the rows become');
+  html += heading(t('Derivation'), t('what the rows become'));
   html += row('payloads / min', num(d.payloadsPerMin), (d.payloadsPerMin || 0) > 0,
-    'Payloads built from those rows and sent to any browser watching this router.');
+    t('Payloads built from those rows and sent to any browser watching this router.'));
 
-  html += heading('Views', 'who is listening');
+  html += heading(t('Views'), t('who is listening'));
   html += row('collectors running', num(v.running) + ' / ' + num(v.gated), (v.running || 0) > 0,
-    'Of the collectors demand can start and stop, how many something currently wants.');
+    t('Of the collectors demand can start and stop, how many something currently wants.'));
   html += row('rooms occupied', num(v.rooms), (v.rooms || 0) > 0,
-    'Pages and cards with a viewer in them. This is what decides which collectors run.');
+    t('Pages and cards with a viewer in them. This is what decides which collectors run.'));
   if ((v.dormant || 0) > 0) {
     html += row('dormant', num(v.dormant), false,
-      'Backed off for reporting nothing. They wake when their page is opened.');
+      t('Backed off for reporting nothing. They wake when their page is opened.'));
   }
   const holds = v.holds || [];
   if (holds.length) {
-    html += row('kept alive by', holds.join(', '), true,
+    html += row(t('kept alive by'), holds.join(', '), true,
       'Reasons other than a viewer: alerting, history recording, the Devices page, ' +
       'or merely keeping the connection warm.');
   }

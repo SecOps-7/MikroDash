@@ -31,6 +31,7 @@
 // and never come back.
 
 import { esc, el, fmtBytes, parseUptime } from '../dom';
+import { t } from '../i18n';
 import { gauge } from './dashboard-gauge';
 import type { SystemPayload } from '../gen/payloads';
 
@@ -90,7 +91,7 @@ export function flushSysUpdate(): void {
   // Storage only when the router HAS storage. `totalHdd > 0` and not merely
   // truthy: a router reporting 0 draws two gauges, not three with an empty one.
   let html = gauge('CPU', d.cpuLoad, 'cpu') + gauge('RAM', d.memPct, 'mem');
-  if (d.totalHdd > 0) html += gauge('Storage', d.hddPct, 'hdd');
+  if (d.totalHdd > 0) html += gauge(t('Storage'), d.hddPct, 'hdd');
   const gaugeRow = el('gaugeRow');
   if (gaugeRow) gaugeRow.innerHTML = html;
 
@@ -157,7 +158,7 @@ export function flushSysUpdate(): void {
       const rowCls = isUnavail ? 'ros-update-row muted' : 'ros-update-row pending';
       ur = '<div class="' + rowCls + '"><span class="ros-update-dot"></span>' + esc(d.updateStatus) + '</div>';
     } else {
-      ur = '<div class="ros-update-row pending"><span class="ros-update-dot"></span>Checking for updates…</div>';
+      ur = '<div class="ros-update-row pending"><span class="ros-update-dot"></span>' + t('Checking for updates…') + '</div>';
     }
     // Dirty check. Without it the row was rewritten on every poll tick, which is
     // what made the amber "available" strip and its Update button flash:

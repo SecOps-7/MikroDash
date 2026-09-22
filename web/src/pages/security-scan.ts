@@ -17,6 +17,7 @@
 // the tabs, the severity filter and the table's sort.
 
 import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import type { Report } from '../gen/payloads';
 import { scoreGrade, tween } from './tools-ping-cards';
@@ -29,9 +30,9 @@ import {
 const FRESH_MS = 30 * 60 * 1000;
 
 const REFUSED: Record<string, string> = {
-  denied: 'You may not scan this router.',
-  unavailable: 'No router is connected.',
-  busy: 'A scan of this router is already running; its result will appear here.',
+  denied: t('You may not scan this router.'),
+  unavailable: t('No router is connected.'),
+  busy: t('A scan of this router is already running; its result will appear here.'),
 };
 
 export function initSecurityScanPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -56,12 +57,12 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     const btn = el<HTMLButtonElement>('secScanRun');
     if (btn) {
       btn.disabled = on;
-      btn.textContent = on ? 'Scanning…' : 'Rescan';
+      btn.textContent = on ? t('Scanning…') : t('Rescan');
     }
     el('secScanProgress')?.classList.toggle('is-on', on);
     const fill = el('secScanProgressBar');
     if (fill) fill.style.width = (on && total ? Math.round((done / total) * 100) : 0) + '%';
-    if (on) setText('secScanStatus', total ? 'Scanning… ' + done + ' of ' + total + ' settings read' : 'Scanning…');
+    if (on) setText('secScanStatus', total ? 'Scanning… ' + done + ' of ' + total + ' settings read' : t('Scanning…'));
   }
 
   function run(): void {
@@ -74,10 +75,10 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     if (!report) return;
     const rows = report.findings.filter((f) => f.status === 'fail' && (filter === 'all' || f.severity === filter));
     renderSortHeader('secFindingsHead', [
-      { key: 'severity', label: 'Severity' },
-      { key: 'title', label: 'Finding' },
-      { key: 'category', label: 'Category' },
-      { label: 'Fix' },
+      { key: 'severity', label: t('Severity') },
+      { key: 'title', label: t('Finding') },
+      { key: 'category', label: t('Category') },
+      { label: t('Fix') },
       { label: '' },
     ], sort, drawFindings);
     const keyed = rows.map((f) => ({ f, severity: sortValue(f, 'severity'), title: sortValue(f, 'title'),
@@ -87,7 +88,7 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     // it is DOM text going back into markup: escaped like any other value, so
     // the empty state cannot become markup whatever a chip is later made to say.
     setHTML('secFindingsRows', sorted.length ? sorted.map(findingRow).join('')
-      : '<tr><td colspan="5" class="empty-state">' + (filter === 'all' ? 'No issues found' : 'No ' + esc(filter) + ' issues') + '</td></tr>');
+      : '<tr><td colspan="5" class="empty-state">' + (filter === 'all' ? t('No issues found') : 'No ' + esc(filter) + ' issues') + '</td></tr>');
     document.querySelectorAll('#secFilters [data-filter]').forEach((b) =>
       b.classList.toggle('active', b.getAttribute('data-filter') === filter));
   }
@@ -129,7 +130,7 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     }
     const passed = r.findings.filter((f) => f.status === 'pass');
     setHTML('secPassedRows', passed.length ? passed.map(passedRow).join('')
-      : '<tr><td colspan="3" class="empty-state">No check passed</td></tr>');
+      : '<tr><td colspan="3" class="empty-state">' + t('No check passed') + '</td></tr>');
     drawFindings();
     el('secPanel-overview')?.classList.add('sec-in');
     setText('secScanAge', scannedAt ? ago(scannedAt) : '');
@@ -146,12 +147,12 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
       val.textContent = '—';
       delete val.dataset.v;
     }
-    setText('secScoreLabel', 'Not scanned yet');
+    setText('secScoreLabel', t('Not scanned yet'));
     setText('secScoreSub', '');
     el('secScoreRing')?.setAttribute('stroke-dashoffset', RING_C.toFixed(1));
     for (const id of ['secCats', 'secTop', 'secSurface', 'secFirewall', 'secAccounts', 'secUpdates', 'secCoverage']) setHTML(id, '');
-    setHTML('secFindingsRows', '<tr><td colspan="5" class="empty-state">Not scanned yet</td></tr>');
-    setHTML('secPassedRows', '<tr><td colspan="3" class="empty-state">Not scanned yet</td></tr>');
+    setHTML('secFindingsRows', '<tr><td colspan="5" class="empty-state">' + t('Not scanned yet') + '</td></tr>');
+    setHTML('secPassedRows', '<tr><td colspan="3" class="empty-state">' + t('Not scanned yet') + '</td></tr>');
     el('secPanel-overview')?.classList.remove('sec-in');
   }
 
@@ -160,7 +161,7 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     if (d.code === 'stopped') return;
     if (d.code) {
       setRunning(false);
-      setText('secScanStatus', REFUSED[d.code] || d.message || 'The scan did not finish.');
+      setText('secScanStatus', REFUSED[d.code] || d.message || t('The scan did not finish.'));
       // Another viewer's scan of this router: its result is asked for shortly.
       if (d.code === 'busy') {
         setTimeout(() => { if (isVisible('security-scan')) socket.emit('secscan:get', {}); }, 3000);

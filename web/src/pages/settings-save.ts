@@ -21,6 +21,7 @@
  */
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import { FORM_FIELDS, PLACEHOLDER_CREDENTIALS } from '../gen/settings-form-map';
 import { INT_FIELDS, STR_FIELDS } from '../gen/settings-write-fields';
 import { showBanner, customValues } from './settings-poll';
@@ -223,7 +224,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
 
   btn.addEventListener('click', () => {
     btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.textContent = t('Saving…');
     void fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -237,7 +238,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
       .then((d: { ok?: boolean; error?: string }) => {
         restore();
         if (d && d.ok) {
-          showBanner('ok', '✓ Settings saved');
+          showBanner('ok', t('✓ Settings saved'));
           // LOAD-BEARING, not cosmetic. It re-blanks the credential inputs so a
           // second Save does not re-post a secret typed for the first, and it
           // re-reads what the server actually stored — which, because invalid

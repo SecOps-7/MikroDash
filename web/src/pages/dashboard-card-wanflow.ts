@@ -8,6 +8,7 @@
 // (`dash-card-wan`) while the card is on the Dashboard.
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { createWanFlow } from './wan-flow';
 
@@ -21,7 +22,7 @@ export function initWanFlowCard(socket: Socket): void {
   const card = createWanFlow(socket, {
     id: 'dcWanFlow', fit: 'box', visible: onScreen,
     cardId: 'dcWanFlowCard', wrapId: 'dcWanFlowWrap', svgId: 'dcWanFlowSvg', emptyId: 'dcWanFlowEmpty',
-    noUplinks: 'No uplinks to draw. The WAN page says why.',
+    noUplinks: t('No uplinks to draw. The WAN page says why.'),
   });
   socket.on('wan:update', (d) => { if (d) card.note(d); });
   socket.on('router:switched', () => card.clear());

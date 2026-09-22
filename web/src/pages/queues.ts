@@ -34,6 +34,7 @@
 // `queueThrottle` guard answered in the engine's own prompt. This module renders.
 
 import { esc, el, renderSortHeader, fmtBytes, resRow, type SortCol, mutedDash, sparkPoints } from '../dom';
+import { t } from '../i18n';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { QueuesPayload } from '../gen/payloads';
@@ -50,13 +51,13 @@ import type { QueuesPayload } from '../gen/payloads';
 // Making them sortable is not the fix. A simple queue is first-match-wins, so
 // position IS semantics, and a sorted view would misrepresent which rule wins.
 const SIMPLE_COLS: SortCol[] = [
-  { key: '', label: '#' }, { key: '', label: 'Name' }, { key: '', label: 'Target' },
-  { key: '', label: 'Limits' }, { key: '', label: 'Rate' }, { key: '', label: '' },
+  { key: '', label: '#' }, { key: '', label: t('Name') }, { key: '', label: t('Target') },
+  { key: '', label: t('Limits') }, { key: '', label: t('Rate') }, { key: '', label: '' },
 ];
 const TREE_COLS: SortCol[] = [
-  { key: '', label: 'Name' }, { key: '', label: 'Parent' },
-  { key: '', label: 'Packet Mark' },
-  { key: '', label: 'Max Limit' }, { key: '', label: 'Rate' }, { key: '', label: '' },
+  { key: '', label: t('Name') }, { key: '', label: t('Parent') },
+  { key: '', label: t('Packet Mark') },
+  { key: '', label: t('Max Limit') }, { key: '', label: t('Rate') }, { key: '', label: '' },
 ];
 
 const HIST_MAX = 40;
@@ -153,12 +154,12 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   function rateCell(key: string, up: number | null, down: number | null,
                     source: string | null, windowMs: number | null): string {
     if (up === null && down === null) {
-      return mutedDash(source === null ? 'No measurement yet'
-                                  : 'The router reported no rate for this queue');
+      return mutedDash(source === null ? t('No measurement yet')
+                                  : t('The router reported no rate for this queue'));
     }
     const h = hist[key] || { up: [], down: [] };
     const title = source === 'router'
-      ? 'Router-reported average (bytes/sec), shown until a window is measured'
+      ? t('Router-reported average (bytes/sec), shown until a window is measured')
       : 'Measured over ' + ((windowMs || 0) / 1000).toFixed(1) + ' s';
     return '<div class="q-rate" title="' + esc(title) + '">' +
       rateLine('tx', up, h.up) +
@@ -177,9 +178,9 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   // drawn while searching, where a move would pass rows the operator cannot see.
   function moveCell(at: number, last: number, dynamic: boolean): string {
     if (dynamic || !writable.simpleQueue || q()) return '';
-    return '<button class="fw-move" data-res-move="up" title="Move earlier — the first matching queue wins"' +
+    return ('<button class="fw-move" data-res-move="up" title="' + t('Move earlier — the first matching queue wins') + '"') +
       (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-      '<button class="fw-move" data-res-move="down" title="Move later"' +
+      ('<button class="fw-move" data-res-move="down" title="' + t('Move later') + '"') +
       (at === last ? ' disabled' : '') + '>&#9660;</button>';
   }
 
@@ -191,13 +192,13 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
    * both wrong and unhelpful, so it explains what the tab is for.
    */
   function emptyState(term: string, menu: string): string {
-    if (term) return 'No queues match that search.';
+    if (term) return t('No queues match that search.');
     if (!data) return 'Waiting for queue data&hellip;';
-    if (data.denied) return 'This router\'s MikroDash account cannot read queues.';
+    if (data.denied) return t('This router\'s MikroDash account cannot read queues.');
     return menu === 'simple'
       ? 'No simple queues on this router. A simple queue caps the bandwidth of one target &mdash; an address, a subnet, or an interface.' +
-        (writable.simpleQueue ? ' Use <strong>Add</strong> to create one.' : '')
-      : 'No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.';
+        (writable.simpleQueue ? ' ' + t('Use') + ' <strong>' + t('Add') + '</strong> ' + t('to create one.') : '')
+      : t('No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.');
   }
 
   function renderSimple(): void {
@@ -263,7 +264,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
       card.style.display = 'none';
       // A footnote, not an alarm: we cannot check, which is not the same as bad.
       if (nCard) nCard.style.display = '';
-      if (notice) notice.innerHTML = 'Cannot check for a FastTrack rule &mdash; Firewall collection is switched off for this router.';
+      if (notice) notice.innerHTML = t('Cannot check for a FastTrack rule &mdash; Firewall collection is switched off for this router.');
       return;
     }
     if (nCard) nCard.style.display = 'none';
@@ -279,10 +280,10 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     // FastTrack rule active, a fresh queue on the LAN still counted several
     // megabits within seconds. FastTrack diverts the connections it matches, not
     // all traffic, so the honest claim is "some of it bypasses these queues".
-    banner.innerHTML = '<strong>FastTrack is active on this router.</strong> ' +
+    banner.innerHTML = ('<strong>' + t('FastTrack is active on this router.') + '</strong> ') +
       'FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here ' +
       'only shapes the traffic FastTrack did not take' +
-      (ft.scoped ? ' — and this rule is narrowed, so it takes only part of it.' : ', which can be a small fraction of the total.') +
+      (ft.scoped ? ' — and this rule is narrowed, so it takes only part of it.' : t(', which can be a small fraction of the total.')) +
       ' If a limit looks like it is having no effect, this is usually why. ' +
       'To shape that traffic too, disable the FastTrack rule in <em>IP &rarr; Firewall &rarr; Filter</em>, or exclude the traffic from it.';
   }
@@ -307,8 +308,8 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     renderSimple(); renderTree(); renderFasttrack(); renderSummary();
     const note = el('qActionNote');
     if (note) {
-      note.textContent = !writable[resKey(tab)] ? 'read-only — you do not have write access to this router'
-        : (data && data.stats === 'none') ? 'this router reports no queue statistics' : '';
+      note.textContent = !writable[resKey(tab)] ? t('read-only — you do not have write access to this router')
+        : (data && data.stats === 'none') ? t('this router reports no queue statistics') : '';
     }
   }
 

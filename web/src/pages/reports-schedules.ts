@@ -47,6 +47,7 @@
 // opened, which is the live app's behaviour.
 
 import { fmtTs } from '../timefmt';
+import { t } from '../i18n';
 import { esc, el, fmtBytes } from '../dom';
 
 export interface ScheduleRun {
@@ -122,7 +123,7 @@ export function renderSchedules(): void {
 
   if (actions) {
     actions.innerHTML = state.permitted
-      ? '<button class="sbtn sbtn-primary" id="rptSchedNew">+ New scheduled report</button>' : '';
+      ? '<button class="sbtn sbtn-primary" id="rptSchedNew">' + t('+ New scheduled report') + '</button>' : '';
   }
 
   if (!state.rows.length) {
@@ -130,8 +131,8 @@ export function renderSchedules(): void {
     // implies the reader could add one, and saying that to somebody who cannot is
     // an invitation to hunt for a button that is not there.
     body.innerHTML = '<tr><td colspan="6" class="rpt-empty">' +
-      (state.permitted ? 'No scheduled reports for this router yet.'
-        : 'No scheduled reports for this router.') + '</td></tr>';
+      (state.permitted ? t('No scheduled reports for this router yet.')
+        : t('No scheduled reports for this router.')) + '</td></tr>';
     return;
   }
 
@@ -240,7 +241,7 @@ export function wireScheduleActions(): void {
       // so it is the slowest button on the page, and without this an impatient
       // operator sends the same report three times.
       run.disabled = true;
-      run.textContent = 'Sending…';
+      run.textContent = t('Sending…');
       // THE ID IS NOT GUARDED, and the neighbouring Remove branch's guard is
       // not a precedent for one here. There, an id nothing matches means no row
       // to name in the confirmation, so BOTH sides return; here the live app
@@ -285,8 +286,8 @@ export function wireScheduleActions(): void {
         if (!d || !d.ok || !box) return;
         const runs = d.runs || [];
         box.innerHTML = '<div class="bw-table-wrap"><table class="bw-table">' +
-          '<thead><tr><th>When</th><th>Result</th><th>Recipients</th><th>Size</th>' +
-          '<th>Detail</th></tr></thead><tbody>' +
+          ('<thead><tr><th>' + t('When') + '</th><th>' + t('Result') + '</th><th>' + t('Recipients') + '</th><th>' + t('Size') + '</th>') +
+          ('<th>' + t('Detail') + '</th></tr></thead><tbody>') +
           (runs.length
             ? runs.map((r) =>
               '<tr><td class="bw-mac">' + esc(fmtTs(r.ran_at, false)) + '</td>' +
@@ -297,7 +298,7 @@ export function wireScheduleActions(): void {
               // looking, and an absence says that better than a number.
               '<td>' + esc(r.bytes ? fmtBytes(r.bytes) : '—') + '</td>' +
               '<td class="bw-mac">' + esc(r.error || '') + '</td></tr>').join('')
-            : '<tr><td colspan="5" class="rpt-empty">No runs yet.</td></tr>') +
+            : '<tr><td colspan="5" class="rpt-empty">' + t('No runs yet.') + '</td></tr>') +
           '</tbody></table></div>';
       })
       .catch(() => { /* leave whatever history is already shown */ });
@@ -345,7 +346,7 @@ function syncIfaceVisibility(): void {
 export function openSchedModal(row: ScheduleRow | null): void {
   editing = row;
   const title = el('rptSchedTitle');
-  if (title) title.textContent = row ? 'Edit scheduled report' : 'New scheduled report';
+  if (title) title.textContent = row ? t('Edit scheduled report') : t('New scheduled report');
 
   const name = el<HTMLInputElement>('rs_name');
   if (name) name.value = row ? row.name : '';
@@ -429,9 +430,9 @@ function saveSchedule(): void {
       // The server's message where there is one: the validator writes for an
       // operator to read, and replacing it with a generic line would throw away
       // the only thing that says which field is wrong.
-      schedError((d && d.error) || 'Could not save the schedule.');
+      schedError((d && d.error) || t('Could not save the schedule.'));
     })
-    .catch(() => { schedError('Could not save the schedule.'); });
+    .catch(() => { schedError(t('Could not save the schedule.')); });
 }
 
 /** New, Edit, Save, and the section toggles that reveal the interface picker. */

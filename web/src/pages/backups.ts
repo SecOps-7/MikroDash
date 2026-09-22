@@ -22,6 +22,7 @@
  */
 
 import { fmtTs } from '../timefmt';
+import { t } from '../i18n';
 import { esc, el, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
 import type { StatePayload } from '../gen/payloads';
@@ -30,21 +31,21 @@ import { hunksHTML } from '../diffview';
 
 /** Every outcome the runner can record. An unknown one still renders. */
 const OUTCOME: Record<string, { label: string; cls: string }> = {
-  changed: { label: 'Stored', cls: 'bg-green-lt' },
-  unchanged: { label: 'No change', cls: 'bg-azure-lt' },
-  skipped: { label: 'Skipped', cls: 'bg-yellow-lt' },
-  failed: { label: 'Failed', cls: 'bg-red-lt' },
+  changed: { label: t('Stored'), cls: 'bg-green-lt' },
+  unchanged: { label: t('No change'), cls: 'bg-azure-lt' },
+  skipped: { label: t('Skipped'), cls: 'bg-yellow-lt' },
+  failed: { label: t('Failed'), cls: 'bg-red-lt' },
 };
 
 const BTN = 'padding:.3125rem .5rem;font-size:.75rem;line-height:1.3333333333';
 
 const ERRORS: Record<string, string> = {
-  denied: 'You do not have permission to do that.',
-  'not-configured': 'Enable backups for this router first, so a password can be generated.',
-  'not-found': 'That backup is no longer available.',
-  'confirm-mismatch': 'The name you typed did not match the router name.',
-  'no-route-back': 'The router has no address it can reach MikroDash on. Set a backup base URL in Settings.',
-  unavailable: 'The router is not connected.',
+  denied: t('You do not have permission to do that.'),
+  'not-configured': t('Enable backups for this router first, so a password can be generated.'),
+  'not-found': t('That backup is no longer available.'),
+  'confirm-mismatch': t('The name you typed did not match the router name.'),
+  'no-route-back': t('The router has no address it can reach MikroDash on. Set a backup base URL in Settings.'),
+  unavailable: t('The router is not connected.'),
 };
 
 /** When a backup was taken, to the minute, in the display timezone. */
@@ -86,7 +87,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     set('bkSumBytes', fmtBytes(st.summary?.bytes || 0));
     set('bkSumSchedule', st.settings.enabled
       ? st.settings.schedule.charAt(0).toUpperCase() + st.settings.schedule.slice(1)
-      : 'Off');
+      : t('Off'));
     set('bkRouterName', st.label || '');
   }
 
@@ -104,7 +105,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     if (!input || !hint) return;
     const hourly = el<HTMLSelectElement>('bkSchedule')?.value === 'hourly';
     input.disabled = hourly || !st?.permitted;
-    if (hourly) { hint.textContent = 'not used for hourly'; return; }
+    if (hourly) { hint.textContent = t('not used for hourly'); return; }
     if (!input.value) { hint.textContent = 'any time'; return; }
     const tz = st?.settings?.timezone;
     hint.textContent = tz ? tz + ' time' : 'server time';
@@ -143,7 +144,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
         ? '<button class="sbtn sbtn-purple" style="' + BTN + '" id="bkRestore" disabled>Restore</button>' +
           '<button class="sbtn sbtn-danger" style="' + BTN + '" id="bkDelete" disabled>Delete</button>' +
           '<button class="sbtn sbtn-primary" style="' + BTN + '" id="bkRun"' + (busy ? ' disabled' : '') + '>' +
-          (busy ? 'Backing up&hellip;' : '+ Back Up Now') + '</button>' : '';
+          (busy ? 'Backing up&hellip;' : t('+ Back Up Now')) + '</button>' : '';
       if (st.permitted) {
         el('bkRun')?.addEventListener('click', runNow);
         el('bkDelete')?.addEventListener('click', deleteSelected);
@@ -158,7 +159,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     if (badge) badge.textContent = String(rows.length);
     const note = el('bkNote');
     if (note) {
-      note.textContent = rows.length ? '' : 'No backups have been taken yet.';
+      note.textContent = rows.length ? '' : t('No backups have been taken yet.');
       note.style.color = '';
     }
 
@@ -224,8 +225,8 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
         // keeping: the run DID store something, and that something is gone now.
         '<td><span class="badge ' + (r.pruned ? 'bg-secondary-lt' : o.cls) + '"' +
           (r.pruned ? ' title="Stored at the time, then removed by retention"' : '') +
-          '>' + esc(r.pruned ? 'Pruned' : o.label) + '</span></td>' +
-        '<td>' + esc(r.source === 'manual' ? ('Manual' + (r.actor ? ' · ' + r.actor : '')) : 'Schedule') + '</td>' +
+          '>' + esc(r.pruned ? t('Pruned') : o.label) + '</span></td>' +
+        '<td>' + esc(r.source === 'manual' ? ('Manual' + (r.actor ? ' · ' + r.actor : '')) : t('Schedule')) + '</td>' +
         '<td>' + esc(r.osVersion || '—') + '</td>' +
         // NO SIZE ON A PRUNED ROW. The bytes are still in the record and are
         // still true of the past, but printing them here claims disk that has
@@ -246,8 +247,8 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     const del = el<HTMLButtonElement>('bkDelete');
     if (del) {
       del.disabled = n === 0 || busy;
-      del.textContent = n > 1 ? 'Delete (' + n + ')' : 'Delete';
-      del.title = n === 0 ? 'Select one or more restore points to delete' : '';
+      del.textContent = n > 1 ? 'Delete (' + n + ')' : t('Delete');
+      del.title = n === 0 ? t('Select one or more restore points to delete') : '';
     }
     const rst = el<HTMLButtonElement>('bkRestore');
     if (rst) {
@@ -257,9 +258,9 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       const only = n === 1 ? Array.from(picked)[0]! : null;
       const ok = only !== null && restorable.has(only);
       rst.disabled = !ok || busy;
-      rst.title = n === 0 ? 'Select a restore point to restore from'
-        : n > 1 ? 'Restore takes a single restore point — select just one'
-        : !ok ? 'That row has no stored backup to restore from'
+      rst.title = n === 0 ? t('Select a restore point to restore from')
+        : n > 1 ? t('Restore takes a single restore point — select just one')
+        : !ok ? t('That row has no stored backup to restore from')
         : '';
     }
     const all = el<HTMLInputElement>('bkPickAll');
@@ -307,7 +308,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     if (!state || !picked.size) return;
     const ids = Array.from(picked);
     const msg = ids.length === 1
-      ? 'Delete this restore point?'
+      ? t('Delete this restore point?')
       : 'Delete these ' + ids.length + ' restore points?';
     // BOTH HALVES GO — the files and the row listing them — so say so, and say
     // where the record does survive rather than implying nothing is kept.
@@ -337,15 +338,15 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     const lines = [
       'Restore ' + state.label + ' from this backup?',
       '',
-      'This REPLACES the entire configuration and reboots the router.',
-      'Everything configured since this backup is lost.',
+      t('This REPLACES the entire configuration and reboots the router.'),
+      t('Everything configured since this backup is lost.'),
       '',
-      'The API user MikroDash connects as is part of what gets replaced — if',
-      'that user did not exist when this backup was taken, MikroDash will lose',
-      'access to this router.',
+      t('The API user MikroDash connects as is part of what gets replaced — if'),
+      t('that user did not exist when this backup was taken, MikroDash will lose'),
+      t('access to this router.'),
     ];
     if (versionNote) lines.push('', versionNote);
-    lines.push('', 'Type the router name to confirm:');
+    lines.push('', t('Type the router name to confirm:'));
     const answer = window.prompt(lines.join('\n'), '');
     if (answer === null) return;
     socket.emit('backups:restore', { id, confirm: answer, acceptVersion: !!acceptVersion });
@@ -359,19 +360,19 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     if (!title || !summary || !body) return;
 
     if (d.baseline) {
-      title.textContent = 'First backup';
-      summary.textContent = 'This is the earliest stored configuration, so there is nothing to compare it against.';
-      body.innerHTML = '<div class="bk-diff-empty">No earlier backup.</div>';
+      title.textContent = t('First backup');
+      summary.textContent = t('This is the earliest stored configuration, so there is nothing to compare it against.');
+      body.innerHTML = '<div class="bk-diff-empty">' + t('No earlier backup.') + '</div>';
     } else if (d.truncated) {
-      title.textContent = 'Changes';
+      title.textContent = t('Changes');
       summary.textContent = '';
-      body.innerHTML = '<div class="bk-diff-empty">These two configurations differ too widely to show as a line-by-line diff.</div>';
+      body.innerHTML = '<div class="bk-diff-empty">' + t('These two configurations differ too widely to show as a line-by-line diff.') + '</div>';
     } else if (!d.hunks.length) {
-      title.textContent = 'Changes';
+      title.textContent = t('Changes');
       summary.textContent = '';
-      body.innerHTML = '<div class="bk-diff-empty">No differences.</div>';
+      body.innerHTML = '<div class="bk-diff-empty">' + t('No differences.') + '</div>';
     } else {
-      title.textContent = 'Changes';
+      title.textContent = t('Changes');
       summary.textContent = d.added + ' added, ' + d.removed + ' removed';
       body.innerHTML = hunksHTML(d.hunks);
     }
@@ -397,14 +398,14 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
 
   socket.on('backups:restoring', () => {
     const n = el('bkNote');
-    if (n) { n.textContent = 'Sending the backup to the router…'; n.style.color = ''; }
+    if (n) { n.textContent = t('Sending the backup to the router…'); n.style.color = ''; }
   });
 
   socket.on('backups:restored', () => {
     pendingRestore = null;
     const n = el('bkNote');
     if (n) {
-      n.textContent = 'Restore started. The router is rebooting and will be unreachable for a minute or two.';
+      n.textContent = t('Restore started. The router is rebooting and will be unreachable for a minute or two.');
       n.style.color = '';
     }
   });
@@ -434,7 +435,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     // The page's own note line is the sink: there is no global toast, and each
     // page surfaces its errors where the thing that failed is on screen.
     if (note) {
-      note.textContent = (e?.code ? ERRORS[e.code] : '') || e?.message || 'Backup request failed';
+      note.textContent = (e?.code ? ERRORS[e.code] : '') || e?.message || t('Backup request failed');
       note.style.color = 'var(--accent-warn)';
     }
   });

@@ -17,6 +17,7 @@
 // nobody sends. So selecting one clears the other, in both directions.
 
 import { el, iso2Flag, lsGet, lsSet, renderSortHeader, sortRows, type SortState } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { CC_NAMES } from './connections-map';
 import {
@@ -252,7 +253,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     if (!sel || !last) return;
     const current = sel.value;
     const devices = clientOptions(last.topSources || [], leases);
-    sel.innerHTML = '<option value="">All Clients</option>';
+    sel.innerHTML = '<option value="">' + t('All Clients') + '</option>';
     devices.forEach((d) => {
       const opt = document.createElement('option');
       opt.value = d.ip;
@@ -446,7 +447,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     const body = el('connListBody');
     const status = el('connListStatus');
     if (!listed) {
-      if (status) status.textContent = 'Waiting for the connection table…';
+      if (status) status.textContent = t('Waiting for the connection table…');
       return;
     }
     let rows = filterConns(listed.rows.map(sortable), query, filteredBySrc);

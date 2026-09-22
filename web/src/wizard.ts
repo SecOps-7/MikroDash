@@ -20,6 +20,7 @@
 // generated from the app this one replaced and cannot be extended.
 
 import { esc } from './dom';
+import { t } from './i18n';
 
 export interface WizardStep {
   /** Its name on the rail. */
@@ -63,9 +64,9 @@ export function openWizard(spec: WizardSpec): () => void {
     '<div class="rtr-modal-hdr"><span class="rtr-modal-title">' + esc(spec.title) + '</span>' +
     '<button class="rtr-modal-close" type="button" data-wiz-close aria-label="Close">&#10005;</button></div>' +
     '<div class="wiz-rail-wrap"></div><div class="rtr-modal-body wiz-body"></div>' +
-    '<div class="wiz-foot"><button class="sbtn sbtn-ghost" type="button" data-wiz-back>Back</button>' +
+    ('<div class="wiz-foot"><button class="sbtn sbtn-ghost" type="button" data-wiz-back>' + t('Back') + '</button>') +
     '<span class="wiz-why" aria-live="polite"></span>' +
-    '<button class="sbtn sbtn-primary" type="button" data-wiz-next>Next</button></div></div>';
+    ('<button class="sbtn sbtn-primary" type="button" data-wiz-next>' + t('Next') + '</button></div></div>');
   document.body.appendChild(bg);
 
   const q = <T extends HTMLElement>(sel: string): T => bg.querySelector(sel) as T;
@@ -75,12 +76,12 @@ export function openWizard(spec: WizardSpec): () => void {
 
   const step = (): WizardStep => spec.steps[at] as WizardStep;
   const recheck = (): void => {
-    const reason = busy ? 'Working…' : error || (step().check?.() ?? '');
+    const reason = busy ? t('Working…') : error || (step().check?.() ?? '');
     why.textContent = reason;
     why.classList.toggle('is-bad', !!error);
     next.disabled = busy || (!!reason && !error);
     back.hidden = at === 0 || !!step().noBack;
-    next.textContent = step().next ?? (at === spec.steps.length - 1 ? 'Done' : 'Next');
+    next.textContent = step().next ?? (at === spec.steps.length - 1 ? t('Done') : t('Next'));
   };
   const redraw = (): void => {
     rail.innerHTML = railHtml(spec.steps, at);

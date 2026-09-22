@@ -22,6 +22,7 @@
 // See internal/collect/ifstatus.go and live issue #108.
 
 import { esc, el, fmtMbps, fmtBytes, sparkPoints } from '../dom';
+import { t } from '../i18n';
 import { mountRows } from '../resource';
 import type { Socket } from '../socket';
 import { portSvg } from './port-svg';
@@ -179,7 +180,7 @@ export function renderIfPorts(ifaces: Interface[]): void {
   if (!panel) return;
   const ethers = ifaces.filter((i) => i.type === 'ether');
   if (!ethers.length) {
-    panel.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted)">No ethernet ports</div>';
+    panel.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted)">' + t('No ethernet ports') + '</div>';
     return;
   }
   // Port size scales down when there are many ports so they all fit one row.
@@ -292,7 +293,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
     let rows = ifaces.filter((i) => !typeFilter || i.type === typeFilter);
     rows = iflSortRows(rows);
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No interfaces</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="empty-state">' + t('No interfaces') + '</td></tr>';
       iflOrder = '';
       return;
     }
@@ -568,7 +569,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
     // The grid is hidden in list view, so its empty state is not enough — the
     // table would keep showing the previous poll's rows.
     if (!ifaces.length) {
-      if (ifaceGrid) ifaceGrid.innerHTML = '<div class="empty-state">No interfaces</div>';
+      if (ifaceGrid) ifaceGrid.innerHTML = '<div class="empty-state">' + t('No interfaces') + '</div>';
       if (view === 'list') renderIfaceList([]);
       return;
     }
@@ -596,7 +597,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       const types: string[] = [];
       ifaces.forEach((i) => { if (i.type && types.indexOf(i.type) === -1) types.push(i.type); });
       types.sort();
-      ifaceTypeFilter.innerHTML = '<option value="">All Types</option>' +
+      ifaceTypeFilter.innerHTML = ('<option value="">' + t('All Types') + '</option>') +
         types.map((t) => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join('');
       if (typeFilter && types.indexOf(typeFilter) !== -1) ifaceTypeFilter.value = typeFilter;
       ifaceTypeFilter.classList.toggle('active', !!typeFilter);

@@ -12,6 +12,7 @@
 // card does anything clever — it is a status, a name and an address.
 
 import { esc, el } from '../dom';
+import { t } from '../i18n';
 import type { NetwatchPayload } from '../gen/payloads';
 
 export function renderNetwatch(data: NetwatchPayload): void {
@@ -19,16 +20,16 @@ export function renderNetwatch(data: NetwatchPayload): void {
   if (!tbody) return;
   const hosts = data.hosts || [];
   if (!hosts.length) {
-    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No hosts configured</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">' + t('No hosts configured') + '</td></tr>';
     return;
   }
   tbody.innerHTML = hosts.map((h) => {
     const isUp = h.status === 'up';
     const isDown = h.status === 'down';
     const statusHtml = isUp
-      ? '<span class="wg-up">Up</span>'
+      ? '<span class="wg-up">' + t('Up') + '</span>'
       : isDown
-        ? '<span class="wg-down">Down</span>'
+        ? '<span class="wg-down">' + t('Down') + '</span>'
         : '<span style="color:var(--text-muted);font-size:.7rem">' + esc(h.status || '?') + '</span>';
     return '<tr>' +
       '<td>' + statusHtml + '</td>' +

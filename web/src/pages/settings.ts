@@ -27,6 +27,7 @@
  */
 
 import { el, esc } from '../dom';
+import { t } from '../i18n';
 import { bindLanguageSelect } from '../i18n';
 // `siteIdsOf` is the ARRAY-WINS-OUTRIGHT rule, ported once in `routers.ts` and
 // reused rather than restated: a second copy here would drift, and the half that
@@ -619,8 +620,8 @@ export function userRowHtml(u: UserView, look: PrincipalLookups): string {
   return '<td style="padding:.45rem .5rem;font-size:.82rem">' + esc(u.username) + '</td>'
     + '<td style="padding:.45rem .5rem" colspan="2">' + accessSummary(u.grants, look) + '</td>'
     + '<td style="padding:.45rem .5rem;text-align:right;white-space:nowrap">'
-    + '<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">Edit</button>'
-    + '<button class="sbtn sbtn-danger" style="font-size:.72rem;padding:.2rem .55rem" data-action="del">Delete</button>'
+    + ('<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">' + t('Edit') + '</button>')
+    + ('<button class="sbtn sbtn-danger" style="font-size:.72rem;padding:.2rem .55rem" data-action="del">' + t('Delete') + '</button>')
     + '</td>';
 }
 
@@ -659,7 +660,7 @@ export function groupTableHtml(groups: GroupView[], look: PrincipalLookups): str
   return groups.map((g) => {
     const access = (g.grants || []).length
       ? (g.grants || []).map((x) => esc(roleName(x, look) + ' — ' + scopeLabel(x, look))).join('<br>')
-      : '<span style="color:var(--text-muted)">no access granted</span>';
+      : '<span style="color:var(--text-muted)">' + t('no access granted') + '</span>';
     return '<tr>'
       + '<td style="' + td + ';font-weight:600">' + esc(g.name)
         + (g.description ? '<div style="font-weight:400;font-size:.7rem;color:var(--text-muted)">' + esc(g.description) + '</div>' : '') + '</td>'
@@ -793,7 +794,7 @@ export function siteSavePlan(form: SiteFormValues): SiteSavePlan {
   // of spaces is refused here rather than by the server, so the operator is told
   // in the form instead of by a round trip.
   const name = form.name.trim();
-  if (!name) return { error: 'Name is required' };
+  if (!name) return { error: t('Name is required') };
 
   const editing = form.id !== '';
   return {
@@ -852,7 +853,7 @@ export function siteMemberRowsHtml(
   sitesById: Record<string, { name: string }>,
 ): string {
   if (!devices.length) {
-    return '<span style="color:var(--text-muted)">No devices configured yet.</span>';
+    return '<span style="color:var(--text-muted)">' + t('No devices configured yet.') + '</span>';
   }
   return devices.map((r) => {
     const ids = siteIdsOf(r);
@@ -923,7 +924,7 @@ export function pageSummary(role: RoleView): string {
  */
 export function roleTableHtml(roles: RoleView[]): string {
   if (!roles.length) {
-    return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted)">No roles yet.</td></tr>';
+    return '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted)">' + t('No roles yet.') + '</td></tr>';
   }
   return roles.map((r) => {
     const actions = r.builtin
@@ -1033,15 +1034,15 @@ export function grantEditorHtml(
 
   // `rows || <the empty note>` — an empty string is falsy, so a principal with
   // no grants gets the note rather than a blank box.
-  return (rows || '<div style="color:var(--text-muted);margin-bottom:.3rem">No access granted yet.</div>')
+  return (rows || '<div style="color:var(--text-muted);margin-bottom:.3rem">' + t('No access granted yet.') + '</div>')
     + '<div style="display:flex;gap:.4rem;margin-top:.5rem">'
       + '<select class="sform-input" data-grant-role style="flex:0 0 9rem">'
         + (o.roles || []).map((r) => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('')
       + '</select>'
       + '<select class="sform-input" data-grant-scope style="flex:1">'
-        + '<option value="global:">All routers</option>' + siteOpts + rtrOpts
+        + ('<option value="global:">' + t('All routers') + '</option>') + siteOpts + rtrOpts
       + '</select>'
-      + '<button class="sbtn sbtn-outline" data-grant-add style="flex:0 0 auto">Add</button>'
+      + ('<button class="sbtn sbtn-outline" data-grant-add style="flex:0 0 auto">' + t('Add') + '</button>')
     + '</div>';
 }
 

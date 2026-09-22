@@ -11,6 +11,7 @@
 // picture used to show WHERE, not to measure anything, and a projection with a
 // name would add a dependency to draw the same rectangle.
 
+
   export const PORT_NAMES: Record<string, string> = {'80':'HTTP','443':'HTTPS','53':'DNS','22':'SSH','21':'FTP',
     '25':'SMTP','587':'SMTP','993':'IMAP','995':'POP3','3389':'RDP','1194':'OpenVPN',
     '51820':'WireGuard','8080':'HTTP-alt','8443':'HTTPS-alt','123':'NTP','67':'DHCP',

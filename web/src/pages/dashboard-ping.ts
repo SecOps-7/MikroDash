@@ -21,6 +21,7 @@
 // the distinction between "the link is bad" and "we were not allowed to look".
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import { notePayload } from '../stale';
 import type { PingPayload, PingPoint } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
@@ -157,7 +158,7 @@ export function onPingUpdate(data: PingPayload): void {
     if (lossEl) {
       lossEl.textContent = 'N/A';
       lossEl.className = 'ping-val ping-warn';
-      lossEl.title = 'Add "test" policy to your RouterOS API user to enable ping';
+      lossEl.title = t('Add "test" policy to your RouterOS API user to enable ping');
     }
     return;
   }

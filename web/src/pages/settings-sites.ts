@@ -19,6 +19,7 @@
  */
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import { mountCityPicker, type City, type CityPickerState } from './city-picker';
 import {
   siteTableHtml, siteRouterCounts, siteMemberRowsHtml, siteSavePlan, siteDeletePrompt,
@@ -131,7 +132,7 @@ function showForm(site: SiteRecord | null): void {
   }
 
   box.innerHTML = siteMemberRowsHtml(fleetOf(), site, sitesById);
-  if (title) title.textContent = site ? 'Edit Site' : 'Add Site';
+  if (title) title.textContent = site ? t('Edit Site') : t('Add Site');
   wrap.classList.add('open');
   nameEl.focus();
 }
@@ -184,7 +185,7 @@ async function save(): Promise<void> {
     });
     const j1 = await r1.json();
     if (!r1.ok || !j1 || !j1.ok) {
-      formError((j1 && j1.error) || 'Could not save the site');
+      formError((j1 && j1.error) || t('Could not save the site'));
       return;
     }
     // The membership call goes SECOND because a new site has no id until now.
@@ -198,7 +199,7 @@ async function save(): Promise<void> {
     hideForm();
     await load();
   } catch {
-    formError('Could not save the site');
+    formError(t('Could not save the site'));
   }
 }
 

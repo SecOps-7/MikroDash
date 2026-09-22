@@ -10,6 +10,7 @@
 // correctly.
 
 import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps, fmtBytes, parseUptime, type SortCol, type SortState, mutedDash } from '../dom';
+import { t } from '../i18n';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 /*
@@ -40,23 +41,23 @@ const PPP_TAB_RES: Record<string, string> = {
 };
 
 const COLS_SECRET: SortCol[] = [
-  { key: 'state', label: 'State' },
-  { key: 'name', label: 'User' },
-  { key: 'service', label: 'Service' },
-  { key: 'profile', label: 'Profile' },
-  { key: 'localAddress', label: 'Local' },
-  { key: 'remoteAddress', label: 'Remote' },
-  { key: 'comment', label: 'Comment' },
+  { key: 'state', label: t('State') },
+  { key: 'name', label: t('User') },
+  { key: 'service', label: t('Service') },
+  { key: 'profile', label: t('Profile') },
+  { key: 'localAddress', label: t('Local') },
+  { key: 'remoteAddress', label: t('Remote') },
+  { key: 'comment', label: t('Comment') },
 ];
 
 const COLS: SortCol[] = [
-  { key: 'name', label: 'User' },
-  { key: 'service', label: 'Service' },
-  { key: 'address', label: 'Address' },
-  { key: 'callerId', label: 'Caller ID' },
-  { key: 'uptime', label: 'Uptime' },
+  { key: 'name', label: t('User') },
+  { key: 'service', label: t('Service') },
+  { key: 'address', label: t('Address') },
+  { key: 'callerId', label: t('Caller ID') },
+  { key: 'uptime', label: t('Uptime') },
   { key: 'rate', label: 'RX / TX' },
-  { key: 'total', label: 'Total In / Out' },
+  { key: 'total', label: t('Total In / Out') },
 ];
 
 export function initPppPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -131,8 +132,8 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
     // Two different empty states, and the difference is the point: a router with
     // no PPP service is not the same as a router whose sessions have all gone.
     const empty = data.available
-      ? 'No active PPP sessions. They appear here when a PPPoE, L2TP, SSTP or PPTP client connects.'
-      : 'This router has no PPP service configured.';
+      ? t('No active PPP sessions. They appear here when a PPPoE, L2TP, SSTP or PPTP client connects.')
+      : t('This router has no PPP service configured.');
 
     tbody.innerHTML = rows.length ? rows.map((s) => {
       const r = s.rxRate === null
@@ -192,8 +193,8 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
     }
 
     const empty = data.available
-      ? 'No PPP secrets. Add one to let a subscriber connect.'
-      : 'This router has no PPP service configured.';
+      ? t('No PPP secrets. Add one to let a subscriber connect.')
+      : t('This router has no PPP service configured.');
 
     tb.innerHTML = rows.length ? rows.map((s) => {
       const pill = s.disabled
@@ -210,7 +211,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
         cell(s.profile) + cell(s.localAddress) + cell(s.remoteAddress) + cell(s.comment) +
       '</tr>';
     }).join('') : '<tr><td colspan="7" class="empty-state">' +
-      esc(q ? 'No secrets match that search.' : empty) + '</td></tr>';
+      esc(q ? t('No secrets match that search.') : empty) + '</td></tr>';
   }
 
   function renderProfiles(): void {
@@ -229,7 +230,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
       '<td>' + esc(p.name) + '</td>' +
       cell(p.localAddress) + cell(p.remoteAddress) + cell(p.rateLimit) + cell(p.encryption) +
       '</tr>').join('')
-      : '<tr><td colspan="5" class="empty-state">No PPP profiles.</td></tr>';
+      : '<tr><td colspan="5" class="empty-state">' + t('No PPP profiles.') + '</td></tr>';
   }
 
   function renderServers(): void {
@@ -247,7 +248,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
         ? '<span class="lease-pill expired">disabled</span>'
         : '<span class="lease-pill bound">enabled</span>') + '</td>' +
       '</tr>').join('')
-      : '<tr><td colspan="4" class="empty-state">No PPPoE servers.</td></tr>';
+      : '<tr><td colspan="4" class="empty-state">' + t('No PPPoE servers.') + '</td></tr>';
   }
 
   function renderConfig(): void {

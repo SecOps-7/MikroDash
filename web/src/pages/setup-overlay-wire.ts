@@ -28,6 +28,7 @@
  */
 
 import { el } from '../dom';
+import { t } from '../i18n';
 import {
   collectSetupBody, flipPortForTls, SETUP_WATCH_FIELDS, setupTestResultText,
   type SetupBody,
@@ -48,7 +49,7 @@ function setSaveReady(ready: boolean): void {
   if (!save) return;
   save.disabled = !ready;
   save.style.opacity = ready ? '' : '0.45';
-  save.title = ready ? '' : 'Run "Test Connection" successfully before saving';
+  save.title = ready ? '' : t('Run "Test Connection" successfully before saving');
 }
 
 function showErr(msg: string): void {
@@ -111,7 +112,7 @@ function setBusy(busy: boolean): void {
     // interlock had locked — the same conditional re-enable the Data Cleanup
     // card needs, and for the same reason.
     save.disabled = busy || !testPassed;
-    save.textContent = busy ? 'Connecting…' : 'Connect';
+    save.textContent = busy ? t('Connecting…') : t('Connect');
   }
 }
 
@@ -181,7 +182,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
     setSaveReady(false);
     const res = el('setupTestResult');
     if (res) {
-      res.textContent = 'Testing…';
+      res.textContent = t('Testing…');
       res.style.color = '';
     }
     const test = el<HTMLButtonElement>('setupTestBtn');
@@ -190,7 +191,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
     // CHECKED AFTER the button was disabled and before the request, so the
     // early return has to re-enable it. The live code does the same.
     if (!b.host) {
-      showErr('Host is required');
+      showErr(t('Host is required'));
       if (test) test.disabled = false;
       return;
     }
@@ -212,7 +213,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
       .catch(() => {
         if (test) test.disabled = false;
         if (res) {
-          res.textContent = '✗ Request failed — check browser console';
+          res.textContent = t('✗ Request failed — check browser console');
           res.style.color = '#f87171';
         }
         setSaveReady(false);
@@ -226,7 +227,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
     clearErr();
     const b = body();
     if (!b.host) {
-      showErr('Host is required');
+      showErr(t('Host is required'));
       return;
     }
     setBusy(true);
@@ -241,7 +242,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
     })
       .then((r) => r.json())
       .then((d) => {
-        if (!d.ok) throw new Error(d.error || 'Failed to add router');
+        if (!d.ok) throw new Error(d.error || t('Failed to add router'));
         const id = d.router && d.router.id;
         if (!id) throw new Error('No router ID returned');
         return fetch('/api/routers/' + encodeURIComponent(id) + '/activate', {
@@ -252,12 +253,12 @@ export function initSetupOverlay(socket: SetupSocket): void {
         // `switching` IS SUCCESS. The server answers that when it has accepted
         // the switch and is still tearing the old session down, and treating it
         // as a failure would show an error over a activation that worked.
-        if (!d.ok && !d.switching) throw new Error(d.error || 'Failed to activate router');
+        if (!d.ok && !d.switching) throw new Error(d.error || t('Failed to activate router'));
         hideOverlay();
         setBusy(false);
       })
       .catch((e) => {
-        showErr((e && e.message) || 'Unexpected error');
+        showErr((e && e.message) || t('Unexpected error'));
         setBusy(false);
       });
   });

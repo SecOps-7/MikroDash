@@ -7,6 +7,7 @@
  */
 
 import { el } from '../dom';
+import { t } from '../i18n';
 
 /** The three field groups, and they are treated differently on purpose. */
 export const UN_BOOLS = ['telegramEnabled', 'pushbulletEnabled', 'ntfyEnabled', 'emailEnabled'];
@@ -62,7 +63,7 @@ export const UN_IDS: Record<string, string> = {
  * it has.
  */
 export function credentialPlaceholder(stored: unknown): string {
-  return stored ? 'leave blank to keep current' : 'not set';
+  return stored ? t('leave blank to keep current') : 'not set';
 }
 
 export interface UserNotifyConfig {
@@ -164,13 +165,13 @@ export const pending = (word: string): Outcome => ({ text: word, colour: MUTED, 
  */
 export function saveOutcome(ok: boolean, error?: string): Outcome {
   return ok
-    ? { text: '✓ Saved', colour: GREEN, clearAfterMs: 4000 }
+    ? { text: t('✓ Saved'), colour: GREEN, clearAfterMs: 4000 }
     : { text: '✗ ' + (error || 'failed'), colour: RED, clearAfterMs: 4000 };
 }
 
 export function testOutcome(ok: boolean, error?: string): Outcome {
   return ok
-    ? { text: '✓ Sent!', colour: GREEN, clearAfterMs: 5000 }
+    ? { text: t('✓ Sent!'), colour: GREEN, clearAfterMs: 5000 }
     : { text: '✗ ' + (error || 'failed'), colour: RED, clearAfterMs: 5000 };
 }
 
@@ -216,7 +217,7 @@ export function initUserNotify(): void {
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
       saveBtn.disabled = true;
-      show(saveResult, pending('Saving…'));
+      show(saveResult, pending(t('Saving…')));
       void fetch('/api/user-notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -244,7 +245,7 @@ export function initUserNotify(): void {
     if (!btn) continue;
     btn.addEventListener('click', () => {
       btn.disabled = true;
-      show(result, pending('Sending…'));
+      show(result, pending(t('Sending…')));
       void fetch('/api/user-notify/test-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
