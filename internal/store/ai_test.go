@@ -1,6 +1,9 @@
 package store
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestAIReadyNeedsAllThree.
 //
@@ -125,13 +128,13 @@ func TestTheDerivedKeyIsNotADefault(t *testing.T) {
 // replace a working key with eight bullet characters.
 func TestAISettingsRoundTripThroughTheWritePath(t *testing.T) {
 	updates, reset := SettingsUpdate(map[string]any{
-		"aiEnabled":     true,
-		"aiBaseUrl":     "  http://198.51.100.10:11434/v1  ",
-		"aiModel":       "a-model",
-		"aiApiKey":      "NOT-A-REAL-KEY",
-		"aiTimeoutMs":   float64(45000),
-		"aiTlsInsecure": true,
-		"aiHeaders":     "  X-Example: one  ",
+		"aiEnabled":   true,
+		"aiBaseUrl":   "  http://198.51.100.10:11434/v1  ",
+		"aiModel":     "a-model",
+		"aiApiKey":    "NOT-A-REAL-KEY",
+		"aiTimeoutMs": float64(45000),
+		"aiTlsPin":    " AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB:AB ",
+		"aiHeaders":   "  X-Example: one  ",
 	})
 	if reset {
 		t.Fatal("an ordinary body read as a reset")
@@ -139,7 +142,7 @@ func TestAISettingsRoundTripThroughTheWritePath(t *testing.T) {
 	for k, want := range map[string]any{
 		"aiEnabled": true, "aiBaseUrl": "http://198.51.100.10:11434/v1",
 		"aiModel": "a-model", "aiApiKey": "NOT-A-REAL-KEY",
-		"aiTimeoutMs": 45000, "aiTlsInsecure": true, "aiHeaders": "X-Example: one",
+		"aiTimeoutMs": 45000, "aiTlsPin": strings.Repeat("ab", 32), "aiHeaders": "X-Example: one",
 	} {
 		if updates[k] != want {
 			t.Errorf("%s = %#v, want %#v", k, updates[k], want)
@@ -159,5 +162,28 @@ func TestAISettingsRoundTripThroughTheWritePath(t *testing.T) {
 	tooBig, _ := SettingsUpdate(map[string]any{"aiTimeoutMs": float64(999999999)})
 	if _, ok := tooBig["aiTimeoutMs"]; ok {
 		t.Errorf("an out-of-range timeout was accepted as %#v", tooBig["aiTimeoutMs"])
+	}
+}
+
+// A pin is one shape, whatever it is pasted as; anything else is not a pin.
+func TestNormalizeTLSPin(t *testing.T) {
+	want := strings.Repeat("0f", 32)
+	for _, in := range []string{want, strings.ToUpper(want), " " + want + " ",
+		strings.TrimSuffix(strings.Repeat("0F:", 32), ":")} {
+		if got := NormalizeTLSPin(in); got != want {
+			t.Errorf("%q gave %q", in, got)
+		}
+	}
+	for _, in := range []string{"", "0f0f", strings.Repeat("0g", 32), strings.Repeat("0f", 33)} {
+		if got := NormalizeTLSPin(in); got != "" {
+			t.Errorf("%q was taken as the pin %q", in, got)
+		}
+	}
+	// And the write path ignores a bad one rather than storing it, and clears on empty.
+	if u, _ := SettingsUpdate(map[string]any{"aiTlsPin": "not-a-pin"}); u["aiTlsPin"] != nil {
+		t.Errorf("a malformed pin was stored: %#v", u["aiTlsPin"])
+	}
+	if u, _ := SettingsUpdate(map[string]any{"aiTlsPin": ""}); u["aiTlsPin"] != "" {
+		t.Errorf("an empty pin did not clear it: %#v", u["aiTlsPin"])
 	}
 }

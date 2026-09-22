@@ -231,7 +231,6 @@
     "telegramEnabled",
     "userNotifyEnabled",
     "aiEnabled",
-    "aiTlsInsecure",
     "aiOverviewEnabled",
     "aiConfirmWrites",
     "aiAllowRawCommands"
@@ -255,6 +254,7 @@
     "aiHeaders",
     "aiSystemPrompt",
     "aiOverviewPrompt",
-    "aiOverviewTextColor"
+    "aiOverviewTextColor",
+    "aiTlsPin"
   ]
 }

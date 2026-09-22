@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -85,8 +86,15 @@ func (s *Server) testAI(w http.ResponseWriter, r *http.Request) {
 		// reason the notification route applies it twice as well.
 		msg := safe.Message(err.Error())
 		log.Printf("[test-ai] %s", msg)
+		out := map[string]any{"ok": false, "error": msg}
+		// AN UNTRUSTED CERTIFICATE IS SHOWN, so the administrator can decide to
+		// trust it: its fingerprint, who it names and when it expires. Only the
+		// page's own "Trust" fills the pin, and only a Save stores it.
+		if cert := aiprovider.PresentedCertificate(err); cert != nil {
+			out["certificate"] = aiCertInfo(cert, cfg.TLSPin != "")
+		}
 		w.WriteHeader(http.StatusInternalServerError)
-		writeJSON(w, map[string]any{"ok": false, "error": msg})
+		writeJSON(w, out)
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true})
@@ -110,6 +118,25 @@ func (s *Server) testAI(w http.ResponseWriter, r *http.Request) {
 // would produce an authentication failure the operator cannot explain, because
 // the page shows the key as configured. `store.IsMasked` is the same test the
 // save path uses to drop it, applied here to fall back instead.
+// aiCertInfo is what the Settings page shows about a refused certificate.
+// `mismatch` is whether a pin was set and this is not it: a certificate that
+// changed under a pin is the case to read twice before trusting.
+func aiCertInfo(cert *x509.Certificate, mismatch bool) map[string]any {
+	names := append([]string{}, cert.DNSNames...)
+	for _, ip := range cert.IPAddresses {
+		names = append(names, ip.String())
+	}
+	return map[string]any{
+		"fingerprint": aiprovider.Fingerprint(cert),
+		"subject":     cert.Subject.String(),
+		"issuer":      cert.Issuer.String(),
+		"names":       names,
+		"notAfter":    cert.NotAfter.UTC().Format("2006-01-02"),
+		"selfSigned":  cert.Subject.String() == cert.Issuer.String(),
+		"mismatch":    mismatch,
+	}
+}
+
 func aiConfigFor(body map[string]any, stored store.Settings) aiprovider.Config {
 	str := func(k string) string { v, _ := stored[k].(string); return v }
 
@@ -118,15 +145,6 @@ func aiConfigFor(body map[string]any, stored store.Settings) aiprovider.Config {
 			return v
 		}
 		return str(key)
-	}
-	boolean := func(key string) bool {
-		if v, ok := body[key]; ok {
-			// The server's rule everywhere else: a real `true` or the string
-			// "true", and nothing else. `1` and "on" are both false.
-			return v == true || v == "true"
-		}
-		b, _ := stored[key].(bool)
-		return b
 	}
 	number := func(key string) int {
 		if v, ok := body[key].(float64); ok {
@@ -141,13 +159,21 @@ func aiConfigFor(body map[string]any, stored store.Settings) aiprovider.Config {
 		return 0
 	}
 
+	// THE PIN AS SENT, EMPTY INCLUDED: the form sends it whenever the field
+	// exists, so Test can try the endpoint with no pin before the cleared field
+	// is saved. Normalised on both paths, so a pasted "AB:CD:…" works in a Test.
+	pin, _ := stored["aiTlsPin"].(string)
+	if v, ok := body["aiTlsPin"].(string); ok {
+		pin = v
+	}
+
 	return aiprovider.Config{
-		BaseURL:     text("aiBaseUrl"),
-		APIKey:      text("aiApiKey"),
-		Model:       text("aiModel"),
-		Headers:     text("aiHeaders"),
-		TimeoutMs:   number("aiTimeoutMs"),
-		TLSInsecure: boolean("aiTlsInsecure"),
-		MaxTokens:   number("aiMaxTokens"),
+		BaseURL:   text("aiBaseUrl"),
+		APIKey:    text("aiApiKey"),
+		Model:     text("aiModel"),
+		Headers:   text("aiHeaders"),
+		TimeoutMs: number("aiTimeoutMs"),
+		TLSPin:    store.NormalizeTLSPin(pin),
+		MaxTokens: number("aiMaxTokens"),
 	}
 }

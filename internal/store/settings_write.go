@@ -166,6 +166,16 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 	if raw, ok := body["aiSystemPrompt"]; ok {
 		updates["aiSystemPrompt"] = cut(strings.TrimSpace(asString(raw)), 8000)
 	}
+	// aiTlsPin is a certificate fingerprint, so it has one valid shape: 64 hex
+	// characters once colons and spaces are dropped (NormalizeTLSPin). Empty
+	// clears the pin. Anything else is ignored, as an invalid value is here.
+	if raw, ok := body["aiTlsPin"]; ok {
+		if s := asString(raw); strings.TrimSpace(s) == "" {
+			updates["aiTlsPin"] = ""
+		} else if pin := NormalizeTLSPin(s); pin != "" {
+			updates["aiTlsPin"] = pin
+		}
+	}
 	// The Agent Overview card's prompt. Empty means the built-in prompt, as for
 	// the chat prompt; capped at 500 because it describes one line on a card, and
 	// every character of it is sent with every refresh.

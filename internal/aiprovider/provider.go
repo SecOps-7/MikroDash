@@ -25,7 +25,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +37,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -69,9 +73,15 @@ type Config struct {
 	Model   string
 	// Headers is the operator's extra headers, one `Name: value` per line, for
 	// the gateways that require them.
-	Headers     string
-	TimeoutMs   int
-	TLSInsecure bool
+	Headers   string
+	TimeoutMs int
+	// TLSPin is the SHA-256 fingerprint (64 lowercase hex characters) of the one
+	// certificate this endpoint may present, for an endpoint on the operator's
+	// own network with a self-signed certificate. Empty means ordinary
+	// verification. It replaced a blanket "skip verification" switch (code
+	// scanning alert 164): a pin accepts that certificate and refuses any other,
+	// so a man in the middle is still refused.
+	TLSPin string
 	// MaxTokens is the chat's reply budget (aiMaxTokens). See ReplyTokens.
 	MaxTokens int
 }
@@ -111,8 +121,8 @@ func (c Config) Timeout() time.Duration {
 // `notify` can share one, because its timeout is a constant and it never skips
 // verification. Here both are the operator's to set, and a shared client would
 // mean the first request's TLS decision silently governing every later one — so
-// turning verification off for a lab endpoint would leave it off for a hosted
-// one until the process restarted.
+// pinning a lab endpoint's certificate would pin it for a hosted one until the
+// process restarted.
 //
 // REDIRECTS ARE REFUSED, NOT FOLLOWED. Go attaches the request's headers to a
 // redirected request, so following one would hand the API key to whatever host
@@ -120,8 +130,8 @@ func (c Config) Timeout() time.Duration {
 // not configure, decided by the endpoint rather than by them.
 func (c Config) Client() *http.Client {
 	tr := verifyingTransport
-	if c.TLSInsecure {
-		tr = insecureTransport
+	if c.TLSPin != "" {
+		tr = pinnedTransport(c.TLSPin)
 	}
 	return &http.Client{
 		Timeout:   c.Timeout(),
@@ -135,19 +145,86 @@ func (c Config) Client() *http.Client {
 
 // ONE TRANSPORT PER TLS CHOICE, shared by every client. A transport per request
 // left each round's keep-alive connection and its goroutines idle until the
-// endpoint hung up. Two, not one, for the reason above: the TLS decision lives
-// on the transport, and a lab endpoint's opt-out must not reach a hosted one.
+// endpoint hung up. Separate ones for the reason above: the TLS decision lives
+// on the transport, and a lab endpoint's pin must not reach a hosted one.
 // Cloned from http.DefaultTransport for its proxy, dial and idle settings.
+var verifyingTransport = http.DefaultTransport.(*http.Transport).Clone()
+
+// The pinned transport, for the one pin in use. ONE, not a map: a pin changes
+// when the operator trusts a new certificate, and Test Connection can try pins
+// that are never saved; a map would keep every one's idle connections for ever.
+// A different pin replaces it, and the old one's idle connections are closed.
 var (
-	verifyingTransport = http.DefaultTransport.(*http.Transport).Clone()
-	insecureTransport  = func() *http.Transport {
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		// EXPLICIT OPT-IN ONLY, mirroring `routerTlsInsecure`. A lab endpoint
-		// with a self-signed certificate is a real case; a blanket skip is not.
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // operator opt-in
-		return tr
-	}()
+	pinnedMu  sync.Mutex
+	pinnedPin string
+	pinnedTr  *http.Transport
 )
+
+// pinnedTransport verifies by the PIN instead of the chain.
+//
+// ── WHY InsecureSkipVerify IS STILL SET ─────────────────────────────────────
+//
+// It is how Go hands verification to the caller: with it set, VerifyConnection
+// runs on every handshake, full and resumed, and is the ONLY check. That check
+// refuses any certificate whose SHA-256 is not the pin, so nothing is skipped:
+// the chain check is replaced by a stricter one, exactly one certificate. A
+// self-signed lab certificate often has no usable SAN, which is why a RootCAs
+// pool holding it would not do: Go's hostname check would refuse it anyway.
+func pinnedTransport(pin string) *http.Transport {
+	pinnedMu.Lock()
+	defer pinnedMu.Unlock()
+	if pinnedTr != nil && pinnedPin == pin {
+		return pinnedTr
+	}
+	if pinnedTr != nil {
+		pinnedTr.CloseIdleConnections()
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // replaced by VerifyConnection's pin check below
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("the endpoint presented no certificate")
+			}
+			if Fingerprint(cs.PeerCertificates[0]) != pin {
+				return &PinMismatchError{Cert: cs.PeerCertificates[0]}
+			}
+			return nil
+		},
+	}
+	pinnedPin, pinnedTr = pin, tr
+	return tr
+}
+
+// Fingerprint is a certificate's SHA-256, as 64 lowercase hex characters: the
+// form a pin is stored in.
+func Fingerprint(cert *x509.Certificate) string {
+	sum := sha256.Sum256(cert.Raw)
+	return hex.EncodeToString(sum[:])
+}
+
+// PinMismatchError is a pinned endpoint presenting a different certificate.
+type PinMismatchError struct{ Cert *x509.Certificate }
+
+func (e *PinMismatchError) Error() string {
+	return "the endpoint's certificate is not the one you trusted"
+}
+
+// PresentedCertificate is the certificate an endpoint presented when it was
+// refused: not trusted by the system, or not the pinned one. nil for any other
+// failure. Go reports the refused chain in its verification error, so showing
+// it to the operator needs no second, unverified connection.
+func PresentedCertificate(err error) *x509.Certificate {
+	var ve *tls.CertificateVerificationError
+	if errors.As(err, &ve) && len(ve.UnverifiedCertificates) > 0 {
+		return ve.UnverifiedCertificates[0]
+	}
+	var pe *PinMismatchError
+	if errors.As(err, &pe) {
+		return pe.Cert
+	}
+	return nil
+}
 
 // endpoint resolves the chat-completions URL for a base.
 //

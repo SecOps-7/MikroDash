@@ -279,6 +279,8 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		"aiSystemPrompt":      {"", "You are a network administrator."},
 		"aiOverviewPrompt":    {"", "Write one line."},
 		"aiOverviewTextColor": {"#38bdf8"},
+		// Empty clears the pin; a fingerprint in any pasted shape sets it.
+		"aiTlsPin": {"", "AB:" + strings.Repeat("CD:", 30) + "EF"},
 		// BOTH PROBES MATTER for the generated pages too. An EMPTY list is not a
 		// rejected write: it is "nothing is hidden", which is exactly what an
 		// operator does by ticking the last box back on, and a handler that

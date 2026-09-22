@@ -1214,10 +1214,14 @@
               <textarea id="s_aiHeaders" class="sform-input" rows="2" placeholder="X-Tenant: acme" autocomplete="off" style="resize:vertical;font-family:var(--font-mono);font-size:.72rem"></textarea>
             </div>
             <div class="sform-group" style="margin-top:.5rem">
-              <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
-                <input type="checkbox" id="s_aiTlsInsecure">
-                <span>Accept a self-signed certificate &mdash; only for an endpoint on your own network</span>
-              </label>
+              <label class="sform-label" for="s_aiTlsPin">Trusted certificate (SHA-256)</label>
+              <input type="text" id="s_aiTlsPin" class="sform-input" placeholder="Empty: the endpoint's certificate must be publicly trusted" autocomplete="off" spellcheck="false" style="font-family:var(--font-mono);font-size:.72rem">
+              <p style="font-size:.7rem;color:var(--text-muted);margin:.35rem 0 0">
+                For an endpoint on your own network with a self-signed certificate. Press
+                <strong>Test Connection</strong>: if the certificate is not trusted, it is shown with a
+                <strong>Trust</strong> button that fills this in, then save. Only that exact certificate is
+                accepted afterwards.
+              </p>
             </div>
             <!-- Test Connection sits with the connection settings it tests, under the
                  last of them, rather than at the foot of the card below unrelated ones. -->
@@ -1225,6 +1229,7 @@
               <button id="btn-test-ai" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Test Connection</button>
               <span id="test-ai-result" style="font-size:.75rem"></span>
             </div>
+            <div id="aiCertTrust" hidden style="margin-top:.5rem;padding:.5rem .6rem;border:1px solid var(--border);border-radius:6px;font-size:.72rem;color:var(--text-main);word-break:break-all"></div>
             <div class="sform-group" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)">
               <label class="sform-label">Changing the router</label>
               <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">

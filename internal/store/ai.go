@@ -1,5 +1,7 @@
 package store
 
+import "strings"
+
 // Whether the AI assistant is usable, as a single derived answer.
 //
 // ── WHY THIS IS DERIVED AND NOT STORED ──────────────────────────────────────
@@ -134,4 +136,21 @@ func AIConfirmWrites(s Settings) bool {
 func AIAllowRawCommands(s Settings) bool {
 	v, _ := s["aiAllowRawCommands"].(bool)
 	return v
+}
+
+// NormalizeTLSPin turns a certificate fingerprint as a person might paste it
+// ("AB:CD:…", spaced, any case) into the stored form, 64 lowercase hex
+// characters, or "" when it is not a SHA-256 fingerprint. The AI endpoint's
+// pin (aiTlsPin): see aiprovider.Config.TLSPin.
+func NormalizeTLSPin(s string) string {
+	s = strings.ToLower(strings.NewReplacer(":", "", " ", "", "\t", "").Replace(strings.TrimSpace(s)))
+	if len(s) != 64 {
+		return ""
+	}
+	for _, r := range s {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return ""
+		}
+	}
+	return s
 }

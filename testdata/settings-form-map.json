@@ -10,7 +10,6 @@
       "ntfyEnabled",
       "aiEnabled",
       "aiOverviewEnabled",
-      "aiTlsInsecure",
       "pushbulletEnabled",
       "rosDebug",
       "routerTls",
@@ -53,6 +52,7 @@
     ],
     "value": [
       "aiBaseUrl",
+      "aiTlsPin",
       "aiHeaders",
       "aiMaxTokens",
       "aiModel",

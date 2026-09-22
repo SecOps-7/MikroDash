@@ -36,6 +36,27 @@ export interface TestChannelSpec {
   payload?: () => Record<string, unknown>;
   /** The word for a success. A notification is SENT; a connection is not. */
   okText?: string;
+  /** Called with every reply, after the result line is written. */
+  onReply?: (d: TestReply) => void;
+}
+
+/** A test's reply. `certificate` is the AI test's refused certificate. */
+export interface TestReply {
+  ok?: boolean;
+  error?: string;
+  certificate?: CertInfo;
+}
+
+/** A certificate an endpoint presented and was refused for (see ai_test_api.go). */
+export interface CertInfo {
+  fingerprint: string;
+  subject: string;
+  issuer: string;
+  names: string[];
+  notAfter: string;
+  selfSigned: boolean;
+  /** A pin was set and this is not it. */
+  mismatch: boolean;
 }
 
 /**
@@ -65,6 +86,7 @@ export const TEST_CHANNELS: TestChannelSpec[] = [
     // NOT "Sent!". Nothing was delivered to anybody: the endpoint answered, the
     // key was accepted and the model name exists, which is a different claim.
     okText: '✓ Connected',
+    onReply: showCertificate,
   },
 ];
 
@@ -75,9 +97,9 @@ export const TEST_CHANNELS: TestChannelSpec[] = [
  *
  * Text fields go only when non-empty, so an untouched box falls back to what is
  * stored and Test works before a Save. The checkbox goes whether or not it is
- * ticked, because `aiTlsInsecure` off is a value an operator sets deliberately —
- * guarding it on truthiness would make it impossible to test with verification
- * turned back ON without saving first. `aiConfigFor` on the server is the other
+ * empty, because an empty `aiTlsPin` is a value an operator sets deliberately —
+ * guarding it on truthiness would make it impossible to test with the pin
+ * cleared without saving first. `aiConfigFor` on the server is the other
  * half of this pair.
  *
  * THE MASKED KEY IS SENT AS IT STANDS. The server's `store.IsMasked` drops it
@@ -91,8 +113,8 @@ export function aiTestPayload(): Record<string, unknown> {
   if (val('s_aiApiKey')) p.aiApiKey = val('s_aiApiKey');
   if (val('s_aiHeaders')) p.aiHeaders = val('s_aiHeaders');
   if (val('s_aiTimeoutMs')) p.aiTimeoutMs = parseInt(val('s_aiTimeoutMs'), 10);
-  const insecure = el<HTMLInputElement>('s_aiTlsInsecure');
-  if (insecure) p.aiTlsInsecure = insecure.checked;
+  const pin = el<HTMLInputElement>('s_aiTlsPin');
+  if (pin) p.aiTlsPin = pin.value.trim();
   return p;
 }
 
@@ -192,6 +214,7 @@ function wire(spec: TestChannelSpec): void {
         const text = resultText(d, spec.okText);
         result.textContent = text;
         result.style.color = resultColour(!!d.ok);
+        spec.onReply?.(d);
         // FIVE SECONDS, on success AND on refusal. The live app clears both,
         // because the line is a transient acknowledgement rather than a record.
         setTimeout(() => { result.textContent = ''; }, 5000);
@@ -206,6 +229,67 @@ function wire(spec: TestChannelSpec): void {
         result.style.color = resultColour(false);
       });
   });
+}
+
+/** The fingerprint as a person compares it: colon-separated upper-case pairs. */
+export function formatFingerprint(hex: string): string {
+  return (hex.toUpperCase().match(/.{2}/g) || []).join(':');
+}
+
+/** What the certificate box says: a headline, then label and value rows. */
+export function certSummary(c: CertInfo): { head: string; rows: [string, string][] } {
+  const rows: [string, string][] = [['SHA-256', formatFingerprint(c.fingerprint)],
+    ['Subject', c.subject || '(none)']];
+  if (c.names.length) rows.push(['Names', c.names.join(', ')]);
+  rows.push(['Issuer', c.issuer || '(none)'], ['Expires', c.notAfter]);
+  return {
+    head: c.mismatch
+      ? 'The endpoint presented a DIFFERENT certificate from the one you trusted. Trust it only if you replaced it yourself.'
+      : 'The endpoint\'s certificate is not trusted' + (c.selfSigned ? ' (it is self-signed).' : '.'),
+    rows,
+  };
+}
+
+/**
+ * The AI test's refused certificate, with a Trust button.
+ *
+ * ── IT STAYS, UNLIKE THE RESULT LINE ───────────────────────────────────────
+ *
+ * The line under the button clears after five seconds; a fingerprint is read
+ * and compared, which takes longer. Trust fills the pin field and nothing
+ * else: only Save stores it. Every value is set as text.
+ */
+export function showCertificate(d: TestReply): void {
+  const box = el('aiCertTrust');
+  if (!box) return;
+  const c = d.certificate;
+  box.textContent = '';
+  box.hidden = !c;
+  if (!c) return;
+  const summary = certSummary(c);
+  const head = document.createElement('div');
+  head.style.fontWeight = '600';
+  head.textContent = summary.head;
+  box.appendChild(head);
+  for (const [label, value] of summary.rows) {
+    const row = document.createElement('div');
+    const b = document.createElement('strong');
+    b.textContent = label + ' ';
+    row.appendChild(b);
+    row.appendChild(document.createTextNode(value));
+    box.appendChild(row);
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sbtn sbtn-ghost';
+  btn.style.marginTop = '.4rem';
+  btn.textContent = 'Trust this certificate';
+  btn.addEventListener('click', () => {
+    const pin = el<HTMLInputElement>('s_aiTlsPin');
+    if (pin) pin.value = formatFingerprint(c.fingerprint);
+    box.textContent = 'Trusted in the form. Save the settings to keep it, then Test Connection again.';
+  });
+  box.appendChild(btn);
 }
 
 export function initNotifTestButtons(): void {

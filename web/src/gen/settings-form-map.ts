@@ -27,7 +27,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "ntfyEnabled",
     "aiEnabled",
     "aiOverviewEnabled",
-    "aiTlsInsecure",
     "pushbulletEnabled",
     "rosDebug",
     "routerTls",
@@ -70,6 +69,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   ],
   "value": [
     "aiBaseUrl",
+    "aiTlsPin",
     "aiHeaders",
     "aiMaxTokens",
     "aiModel",

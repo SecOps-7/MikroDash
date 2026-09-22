@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -273,19 +275,45 @@ func TestARedirectIsRefused(t *testing.T) {
 	}
 }
 
-// TestVerificationIsOnUnlessTheOperatorTurnedItOff.
-func TestVerificationIsOnUnlessTheOperatorTurnedItOff(t *testing.T) {
-	tr, ok := (Config{}).Client().Transport.(*http.Transport)
-	if !ok {
-		t.Fatal("unexpected transport")
-	}
-	if tr.TLSClientConfig != nil && tr.TLSClientConfig.InsecureSkipVerify {
-		t.Error("verification is off by default")
+// TestAPinTrustsExactlyOneCertificate. The blanket "skip verification" switch
+// became a pin (code scanning alert 164). Against a real self-signed server:
+// unpinned it is refused and its certificate reported; pinned to it, it
+// connects; pinned to anything else, it is refused and its certificate reported
+// again, so a man in the middle cannot answer for a pinned endpoint.
+func TestAPinTrustsExactlyOneCertificate(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	want := Fingerprint(srv.Certificate())
+	get := func(c Config) error {
+		resp, err := c.Client().Get(srv.URL)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		return err
 	}
 
-	tr, _ = (Config{TLSInsecure: true}).Client().Transport.(*http.Transport)
-	if tr.TLSClientConfig == nil || !tr.TLSClientConfig.InsecureSkipVerify {
-		t.Error("the explicit opt-in did not take effect")
+	err := get(Config{})
+	if err == nil {
+		t.Fatal("an unpinned client trusted a self-signed certificate")
+	}
+	if cert := PresentedCertificate(err); cert == nil || Fingerprint(cert) != want {
+		t.Errorf("the refused certificate was not reported: %v", err)
+	}
+
+	if err := get(Config{TLSPin: want}); err != nil {
+		t.Errorf("the pinned certificate was refused: %v", err)
+	}
+
+	wrong := strings.Repeat("0", 64)
+	err = get(Config{TLSPin: wrong})
+	var pe *PinMismatchError
+	if err == nil || !errors.As(err, &pe) {
+		t.Fatalf("a certificate other than the pinned one was accepted, or refused for another reason: %v", err)
+	}
+	if cert := PresentedCertificate(err); cert == nil || Fingerprint(cert) != want {
+		t.Error("a pin mismatch did not report the certificate presented")
 	}
 }
 
@@ -426,16 +454,25 @@ func TestTheReplyBudgetIsBoundedAndFallsBackWhenUnusable(t *testing.T) {
 // TestClientsShareATransportPerTLSChoice. Client built a fresh http.Transport
 // for every model request, so each round of every chat left an idle keep-alive
 // connection and its goroutines behind until the endpoint closed them (review
-// loop). Two transports serve every client: one verifying, one not, so a lab
-// endpoint's opt-out still cannot reach a hosted one.
+// loop). Verifying clients share one transport; a pinned one has its own, so a
+// lab endpoint's pin cannot reach a hosted one, and a new pin replaces the old
+// rather than piling up.
 func TestClientsShareATransportPerTLSChoice(t *testing.T) {
 	a := (Config{TimeoutMs: 5000}).Client().Transport
 	b := (Config{TimeoutMs: 90000}).Client().Transport
 	if a != b {
 		t.Error("two verifying clients have different transports: each request opens its own pool")
 	}
-	if c := (Config{TLSInsecure: true}).Client().Transport; c == a {
-		t.Error("the insecure client shares the verifying transport")
+	pinA, pinB := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	p1 := (Config{TLSPin: pinA}).Client().Transport
+	if p1 == a {
+		t.Error("the pinned client shares the verifying transport")
+	}
+	if p2 := (Config{TLSPin: pinA, TimeoutMs: 9000}).Client().Transport; p2 != p1 {
+		t.Error("two clients with one pin have different transports")
+	}
+	if p3 := (Config{TLSPin: pinB}).Client().Transport; p3 == p1 {
+		t.Error("a different pin reused the old pin's transport")
 	}
 	tr := a.(*http.Transport)
 	if tr.Proxy == nil {

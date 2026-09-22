@@ -118,7 +118,10 @@ const tpl = (extra) => ({ id: 'x', name: 'N', description: 'D', category: 'home'
 // ── TEXT IS TEXT ─────────────────────────────────────────────────────────────
 const hostile = cards.templateCard(tpl({ id: '"><img src=x>', name: '<b>n</b>', description: '<script>d</script>',
   scope: ['/ip/<i>'] }));
-assert.ok(!/<b>|<script>|<img|<i>/.test(hostile), 'a template field reached the markup unescaped');
+// CASE-INSENSITIVE, and on the tag name rather than its exact spelling: a
+// check that misses <SCRIPT> or <script defer> would pass markup that got
+// through (code scanning alert 166).
+assert.ok(!/<\/?(?:b|script|img|i)\b/i.test(hostile), 'a template field reached the markup unescaped');
 assert.ok(hostile.includes('&lt;b&gt;n&lt;/b&gt;'), 'the escaped name is shown');
 
 // ── THE LOCK BADGE ───────────────────────────────────────────────────────────
