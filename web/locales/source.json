@@ -687,7 +687,7 @@
   "Bright": [
     "web/src/ui/page-settings.html"
   ],
-  "Built with Node.js · Socket.IO · Chart.js · Bootstrap": [
+  "Built with Go · TypeScript · WebSockets · Chart.js · Tabler": [
     "web/src/ui/page-settings.html"
   ],
   "Bytes": [
