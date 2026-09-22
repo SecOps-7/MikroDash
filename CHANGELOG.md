@@ -2,6 +2,36 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.67] - Zero-touch provisioning, and a friendlier AI Agent
+
+### New
+
+- **Zero-touch provisioning:** add a router before it exists, and it joins the fleet on
+  its own. Switch it on under **Settings, Provisioning** and give the public name or
+  address routers will dial.
+  - **Devices, Add device** makes a short script for one router. **Remote** routers
+    dial in over a WireGuard tunnel built into MikroDash, from behind NAT anywhere;
+    **Local** routers call home over your LAN. Pick a Config Management template and
+    it is applied on arrival, with a restore point and the auto-revert.
+  - **Generic scripts** (Settings, Provisioning) serve a whole rollout. Each router that
+    runs one waits on the Devices page as **Not yet provisioned** until you **Onboard**
+    or **Reject** it, and the Dashboard tells you when one is waiting.
+  - Scripts only work with your instance, are shown once and expire. **Publish UDP
+    13231** from the container; nothing listens until provisioning is switched on, and
+    no extra container privileges are needed.
+- **AI Agent welcome:** a new start screen with six suggested questions to click,
+  including a **Router security check**.
+- **AI endpoint certificate pinning:** a self-signed endpoint is trusted by pinning its
+  certificate from **Test Connection** (Settings, AI Agent), replacing the switch that
+  turned checking off.
+
+### Fixed
+
+- **Connections List** keeps the card's size and scrolls inside it, with the column
+  headers pinned, instead of growing the page.
+- **Deleting a router** now stops MikroDash connecting to it at once; it used to keep
+  retrying until the next restart.
+
 ## [0.8.66] - Config Management, and an AI Agent that can do what MikroMCP does
 
 ### New

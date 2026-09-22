@@ -177,7 +177,7 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 
 **Off by default.** Nothing is sent anywhere until you switch it on and configure an endpoint.
 
-- **Any OpenAI-compatible endpoint:** a hosted provider, a gateway, or a model on your own hardware (Ollama, LM Studio, vLLM, LiteLLM). Configure it under Settings, AI Agent, and use **Test Connection**. A hosted endpoint receives router names, addresses and network shape; a local one sends nothing outside your network.
+- **Any OpenAI-compatible endpoint:** a hosted provider, a gateway, or a model on your own hardware (Ollama, LM Studio, vLLM, LiteLLM). Configure it under Settings, AI Agent, and use **Test Connection**; an endpoint with a self-signed certificate is trusted by pinning it from there, never by turning checking off. A hosted endpoint receives router names, addresses and network shape; a local one sends nothing outside your network.
 - **Reads what you can read.** It answers from the router's current data and can look up any table your role permits, never a page your role denies.
 - **Changes go through the forms' own path:** one row at a time, or several as a plan you approve once, with the same permission checks, lockout guards, undo history and audit entry. It can undo its own most recent change, and run the pages' own actions (reboot, upgrade, sign a certificate, run a script, download a file), each confirmed.
 - **Only the router you selected.** It reads the others' status from MikroDash's records and cannot reach them. It reads files and configuration exports with credentials hidden, and a WireGuard client configuration opens in your browser, never in the conversation.
