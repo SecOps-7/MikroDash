@@ -29,6 +29,8 @@
 import { esc, el, renderSortHeader, type SortCol, type SortState, mutedDash } from '../dom';
 import type { Socket } from '../socket';
 import type { WAN, WANPayload } from '../gen/payloads';
+import { fmtMb } from './wan-flow-layout';
+import { clearWanFlow, initWanFlow, noteWanFlow } from './wan-flow';
 
 const COLS: SortCol[] = [
   { key: '', label: 'Uplink' }, { key: '', label: 'Address' }, { key: '', label: 'Gateway' },
@@ -37,12 +39,6 @@ const COLS: SortCol[] = [
 ];
 
 
-// This page's own rate format — 'Gb/s' and 'kb/s', not dom.ts's fmtMbps.
-function fmtMb(v: number): string {
-  return v >= 1000 ? (v / 1000).toFixed(2) + ' Gb/s'
-    : v >= 1 ? v.toFixed(1) + ' Mb/s'
-    : (v * 1000).toFixed(0) + ' kb/s';
-}
 
 /** The router's own timestamp, as an age. Its clock, not ours. */
 function since(ts: string): string {
@@ -81,6 +77,7 @@ function leaseCell(w: WAN): string {
 }
 
 export function initWanPage(socket: Socket, isVisible: (page: string) => boolean): void {
+  initWanFlow(socket, isVisible);
   const tb = el('wanTable');
   if (!tb) return;
 
@@ -332,6 +329,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     }
     renderSummary();
     if (isVisible('wan')) render();
+    noteWanFlow(d);
   });
 
   socket.on('wan:caps', (d) => {
@@ -441,6 +439,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     // Another router's declared uplinks are not this one's.
     srcMode = 'auto'; srcNames = []; srcDirty = false;
     syncSource();
+    clearWanFlow();
   });
 
   document.addEventListener('mikrodash:pagechange', (e) => {

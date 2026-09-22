@@ -59,6 +59,27 @@
         </div>
       </div>
 
+      <!-- WAN FLOW: a live Sankey of where the WAN traffic goes (pages/wan-flow.ts):
+           this router, each uplink, the Internet. Ribbons are each uplink's
+           share now, split into upload and download lanes with particles
+           flowing along them. Built from wan:update: no router cost. -->
+      <div class="card wan-flow-card mt-3" id="wanFlowCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">WAN Flow</h3>
+            <span id="wanFlowBadge" class="card-badge active-blue" title="Uplinks drawn">0</span>
+          </div>
+          <div class="hdr-actions wan-flow-totals" id="wanFlowTotals"></div>
+        </div>
+        <div class="card-body wan-flow-body">
+          <div class="wan-flow-wrap" id="wanFlowWrap">
+            <svg id="wanFlowSvg" class="wan-flow-svg" width="100%" role="img"
+                 aria-label="Where the WAN traffic goes: from this router through each uplink to the internet, upload in green and download in blue"></svg>
+            <div class="wan-flow-empty" id="wanFlowEmpty" hidden></div>
+          </div>
+        </div>
+      </div>
+
       <!-- The self-cutoff prompt. A dialog rather than a confirm() so it can
            name the address, the uplink and what will happen. -->
       <div class="rtr-modal-bg" id="wanWarnWrap">
