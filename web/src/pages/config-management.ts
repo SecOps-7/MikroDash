@@ -76,7 +76,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch('/api/config/' + path, { credentials: 'same-origin', ...init });
   const body = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string; line?: number };
   if (!r.ok || body.ok === false) {
-    throw new ApiError(body.error || 'The request failed (' + r.status + ')', r.status, body.line ?? 0);
+    throw new ApiError(body.error || t('The request failed ({status})', { status: r.status }), r.status, body.line ?? 0);
   }
   return body;
 }
@@ -190,8 +190,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const body = el('cfgDrawerBody');
     if (!tpl || !d || !title || !meta || !body) return;
     title.textContent = tpl.name;
-    meta.textContent = (tpl.canned ? 'Canned · v' + tpl.version : 'Custom · revision ' + tpl.version) +
-      ' · ' + tpl.scope.length + (tpl.scope.length === 1 ? ' menu' : ' menus');
+    meta.textContent = (tpl.canned ? t('Canned · v{version}', { version: tpl.version }) : t('Custom · revision {version}', { version: tpl.version })) +
+      ' · ' + (tpl.scope.length === 1 ? t('1 menu') : t('{n} menus', { n: tpl.scope.length }));
     body.innerHTML = '<div class="cfg-empty">' + t('Loading…') + '</div>';
     d.classList.add('open');
     d.setAttribute('aria-hidden', 'false');
@@ -286,7 +286,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const box = el('cfgEdVars');
     if (box) {
       box.innerHTML = draft.vars.length ? draft.vars.map((d) => varRow(d, varTypes, synced.unused.includes(d.name))).join('')
-        : '<div class="cfg-meta">' + t('Write') + ' <span class="cfg-var">{{name}}</span> ' + t('in the template to ask for a setting.') + '</div>';
+        : '<div class="cfg-meta">' + t('Write {example} in the template to ask for a setting.', { example: '<span class="cfg-var">{{name}}</span>' }) + '</div>';
     }
     const sv = el('cfgEdServerVars');
     if (sv) sv.innerHTML = serverVarRows(serverVars.filter((n) => draft?.body.includes('{{' + n + '}}')));
@@ -363,7 +363,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   }
 
   async function remove(): Promise<void> {
-    if (!draft?.id || !window.confirm('Delete "' + draft.name + '"? Its deploy history is kept.')) return;
+    if (!draft?.id || !window.confirm(t('Delete "{name}"? Its deploy history is kept.', { name: draft.name }))) return;
     try {
       await api('templates/' + encodeURIComponent(draft.id), { method: 'DELETE' });
       draft = null;
@@ -583,8 +583,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const tpl = lib.find((x) => x.id === dep.tplId);
     const meta = el('cfgDepTplMeta');
     if (meta) {
-      meta.textContent = !tpl ? '' : (tpl.kind === 'full-export' ? 'Full replacement: each router is reset and rebuilt. '
-        : 'An addition: merged into what each router already has. ') +
+      meta.textContent = !tpl ? '' : (tpl.kind === 'full-export' ? t('Full replacement: each router is reset and rebuilt.') + ' '
+        : t('An addition: merged into what each router already has.') + ' ') +
         (tpl.lockClass ? t('It can cut MikroDash off, so each router arms an automatic revert first.') : '');
     }
     const routers = el('cfgDepRouters');
@@ -609,7 +609,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
     const canary = dep.picked[0];
     const confirm = el('cfgDepConfirm') as HTMLInputElement | null;
-    if (confirm) confirm.placeholder = canary ? 'Type ' + labelOf(canary) + ' to deploy' : t('Pick routers first');
+    if (confirm) confirm.placeholder = canary ? t('Type {router} to deploy', { router: labelOf(canary) }) : t('Pick routers first');
     showWhy(dep.tplId ? readyToStart(dep.picked, dep.previews, dep.acked) : t('Choose a template'));
   }
 
@@ -669,8 +669,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     let id = dep.tplId;
     try {
       if (tpl?.canned) {
-        if (!window.confirm('Canned templates cannot be changed. Save these settings in a new custom copy of "' +
-          tpl.name + '"?')) return;
+        if (!window.confirm(t('Canned templates cannot be changed. Save these settings in a new custom copy of "{name}"?', { name: tpl.name }))) return;
         id = (await api<{ id: string }>('templates/' + encodeURIComponent(id) + '/clone', { method: 'POST' })).id;
       }
       const d = await fetchTemplate(id);
@@ -680,7 +679,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       await load();
       if (id !== dep.tplId) await pickTemplate(id);
       say(id === dep.tplId && !tpl?.canned ? t('Saved as this template\'s defaults.')
-        : 'Saved in the custom template "' + d.name + '", now selected.', true);
+        : t('Saved in the custom template "{name}", now selected.', { name: d.name }), true);
     } catch (e) {
       say(e instanceof Error ? e.message : t('The defaults were not saved'));
     }
@@ -870,8 +869,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const key = driftKey(row);
     const c = checks[key];
     if (c?.state !== 'done') return;
-    if (!window.confirm('Make what ' + row.routerLabel + ' holds now the baseline for ' + row.templateName +
-      '? Later checks compare against it.')) return;
+    if (!window.confirm(t('Make what {router} holds now the baseline for {template}? Later checks compare against it.', { router: row.routerLabel, template: row.templateName }))) return;
     try {
       await api('drift/accept', json({ templateId: row.templateId, routerId: row.routerId, fingerprint: c.fingerprint }));
       checks[key] = { ...c, drifted: false, hunks: [] };

@@ -311,22 +311,28 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       // is where it sits, and in an ordered table that is the configuration.
       // "Change the Filter Rule" for a reorder is exactly the sentence that
       // makes a position edit read as a field edit.
-      const verb = d.action === 'create' ? 'Create a '
-        : d.action === 'delete' ? 'Delete the '
-        : d.action === 'move' ? 'Move the '
-        : 'Change the ';
+      const v = { what: d.label, name: d.name };
+      const rowLine = d.name
+        ? (d.action === 'create' ? t('Create a {what} “{name}”', v)
+          : d.action === 'delete' ? t('Delete the {what} “{name}”', v)
+            : d.action === 'move' ? t('Move the {what} “{name}”', v)
+              : t('Change the {what} “{name}”', v))
+        : (d.action === 'create' ? t('Create a {what}', v)
+          : d.action === 'delete' ? t('Delete the {what}', v)
+            : d.action === 'move' ? t('Move the {what}', v)
+              : t('Change the {what}', v));
       // AN UNDO names what it takes back ("edit of 192.0.2.10"), the page's
       // own Undo tooltip, with the kind of row after it.
       what.textContent = isAction
         ? d.label + (d.name ? ' \u2014 ' + d.name : '')
-        : d.action === 'undo' ? 'Undo the ' + d.name + ' (' + d.label + ')'
-        : d.kind === 'plan' ? 'Plan: ' + d.label + ' \u2014 ' + d.name
+        : d.action === 'undo' ? t('Undo the {name} ({what})', v)
+        : d.kind === 'plan' ? t('Plan: {what} \u2014 {name}', v)
         // A RAW COMMAND is not a row either: it is run, not "changed", and a
         // read is said to be one.
         : d.kind === 'command' ? (d.action === 'plan' ? d.label
           : (d.action === 'read' ? t('Read with a RouterOS command') : t('Run a RouterOS command')) +
             (d.name ? ' \u2014 ' + d.name : ''))
-        : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
+        : rowLine;
     }
     const cmd = el('aiProposeCmd');
     if (cmd) cmd.textContent = d.command || t('(no command could be built)');
@@ -389,13 +395,14 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     if (label && proposalTyped) {
       // WHY a name is asked for is part of the prompt: a code change does not
       // reboot anything, and saying it does would train people to skim both.
-      label.textContent = (d.typedReason === 'code'
-        ? 'This changes code the router runs. Type its name \u2014 '
+      const v = { name: proposalTyped };
+      label.textContent = d.typedReason === 'code'
+        ? t('This changes code the router runs. Type its name \u2014 {name} \u2014 to confirm.', v)
         : d.typedReason === 'run'
-          ? 'This runs code on the router. Type its name \u2014 '
+          ? t('This runs code on the router. Type its name \u2014 {name} \u2014 to confirm.', v)
           : d.typedReason === 'command'
-          ? 'This runs a RouterOS command that MikroDash does not check. Type its name \u2014 '
-          : 'This reboots the router. Type its name \u2014 ') + proposalTyped + ' \u2014 to confirm.';
+            ? t('This runs a RouterOS command that MikroDash does not check. Type its name \u2014 {name} \u2014 to confirm.', v)
+            : t('This reboots the router. Type its name \u2014 {name} \u2014 to confirm.', v);
     }
     syncApprove();
 

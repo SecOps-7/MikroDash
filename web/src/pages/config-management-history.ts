@@ -219,7 +219,6 @@ export function driftDiff(hunks: Hunk[], truncated: boolean): string {
     'gone; lines marked + are on the router now and were not.</p>' +
     (truncated ? '<div class="cfg-banner is-warn">' + t('The difference is too large to show in full.') + '</div>' : '') +
     '<div class="bk-diff cfg-drift-diff">' + hunksHTML(hunks) + '</div>' +
-    '<div class="cfg-drift-go"><button class="cfg-btn cfg-btn-go" type="button" data-drift-act="reapply">Re-apply ' +
-    'the template</button><button class="cfg-btn" type="button" data-drift-act="accept">Accept as the new baseline' +
+    '<div class="cfg-drift-go"><button class="cfg-btn cfg-btn-go" type="button" data-drift-act="reapply">Re-apply the template</button><button class="cfg-btn" type="button" data-drift-act="accept">Accept as the new baseline' +
     '</button></div></div>';
 }

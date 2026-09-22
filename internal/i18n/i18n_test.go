@@ -220,3 +220,10 @@ func TestColumnLabel(t *testing.T) {
 		}
 	}
 }
+
+func TestTSLiteralsDecodesUnicodeEscapes(t *testing.T) {
+	lits, bad := TSLiterals(`x = t('Type its name \u2014 {name}');`)
+	if len(bad) != 0 || len(lits) != 1 || lits[0] != "Type its name — {name}" {
+		t.Errorf("got %q (refused %v), want the escape decoded as the browser decodes it", lits, bad)
+	}
+}

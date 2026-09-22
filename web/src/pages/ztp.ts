@@ -26,7 +26,7 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
     ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   });
   const j = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
-  if (!r.ok || j.ok === false) throw new Error(j.error || 'The request failed (' + r.status + ')');
+  if (!r.ok || j.ok === false) throw new Error(j.error || t('The request failed ({status})', { status: r.status }));
   return j;
 }
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -188,7 +188,7 @@ function openAddDevice(): void {
           return errText(e);
         }
       }),
-      scriptStep(() => result, 'Run it on ' + (form.label.trim() || 'the router') + '.'),
+      scriptStep(() => result, form.label.trim() ? t('Run it on {router}.', { router: form.label.trim() }) : t('Run it on the router.')),
     ],
   });
 }
@@ -244,9 +244,10 @@ function openOnboard(d: ZTPDeviceView): void {
       {
         title: t('Done'),
         noBack: true,
-        render: () => ('<p class="ztp-lead">' + t('Onboarding') + ' <strong>') + esc(form.label) + '</strong>.</p>' +
-          '<p class="ztp-help">MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it ' +
-          'answers' + (c.chosen ? t(', and its template is then previewed on it and applied') : '') + '. Its progress shows on its card in the meantime.</p>',
+        render: () => '<p class="ztp-lead">' + t('Onboarding <strong>{router}</strong>.', { router: esc(form.label) }) + '</p>' +
+          '<p class="ztp-help">' + (c.chosen
+            ? t('MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it answers, and its template is then previewed on it and applied. Its progress shows on its card in the meantime.')
+            : t('MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it answers. Its progress shows on its card in the meantime.')) + '</p>',
       },
     ],
   });
@@ -277,21 +278,22 @@ async function act(action: string, d: ZTPDeviceView): Promise<void> {
         openOnboard(d);
         return;
       case 'reject':
-        if (!confirm('Reject ' + name + '?\n\nIts tunnel is closed and it can no longer reach this MikroDash.')) return;
+        if (!confirm(t('Reject {router}?\n\nIts tunnel is closed and it can no longer reach this MikroDash.', { router: name }))) return;
         await api('POST', base + '/reject');
         return;
       case 'retry':
         await api('POST', base + '/retry');
         return;
       case 'delete':
-        if (!confirm('Remove ' + name + ' from provisioning?' + (d.state === 'awaiting'
-          ? t('\n\nIts script stops working.') : ''))) return;
+        if (!confirm(d.state === 'awaiting'
+          ? t('Remove {router} from provisioning?\n\nIts script stops working.', { router: name })
+          : t('Remove {router} from provisioning?', { router: name }))) return;
         await api('DELETE', base);
         return;
       case 'regenerate': {
-        if (!confirm('Make a new script for ' + name + '?\n\nThe old one stops working.')) return;
+        if (!confirm(t('Make a new script for {router}?\n\nThe old one stops working.', { router: name }))) return;
         const r = await api<V.ScriptResult>('POST', base + '/regenerate', {});
-        showScript('New script for ' + name, r, 'Run it on ' + name + '.');
+        showScript(t('New script for {router}', { router: name }), r, t('Run it on {router}.', { router: name }));
         return;
       }
     }
@@ -328,8 +330,7 @@ function mountSettings(): void {
     if (!name) { if (msg) msg.textContent = t('Name the script first, for example the rollout it is for.'); return; }
     void api<V.ScriptResult>('POST', '/api/ztp/batches', { name, days }).then((r) => {
       if (nameIn) nameIn.value = '';
-      showScript('Generic script: ' + name, r, 'Run it on any number of routers; each waits on the Devices page ' +
-        'to be onboarded.');
+      showScript(t('Generic script: {name}', { name }), r, t('Run it on any number of routers; each waits on the Devices page to be onboarded.'));
     }, (e) => { if (msg) msg.textContent = errText(e); });
   });
   el('ztpBatchBody')?.addEventListener('click', (e) => {
@@ -349,8 +350,8 @@ function renderNotice(p: ZTPPayload): void {
   const pending = p.devices.filter((d) => d.state === 'pending').length;
   n.hidden = !pending;
   const text = el('ztpNoticeText');
-  if (text) text.textContent = pending + (pending === 1 ? ' device has' : ' devices have') +
-    ' called home and ' + (pending === 1 ? 'is' : 'are') + ' waiting to be onboarded.';
+  if (text) text.textContent = pending === 1 ? t('1 device has called home and is waiting to be onboarded.')
+    : t('{n} devices have called home and are waiting to be onboarded.', { n: pending });
 }
 
 export function mountZtp(socket: Socket): void {

@@ -215,12 +215,12 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
         '<td>' + esc(w.name) +
         (w.manual
           ? '<span class="badge bg-orange-lt" style="margin-left:.35rem;font-size:.6rem"' +
-            ' title="You declared this an uplink. RouterOS ' +
-            (w.state === 'internet' ? 'agrees.' : t('does NOT report it as an internet link.')) +
-            '">declared</span>' : '') +
+            ' title="' + (w.state === 'internet' ? t('You declared this an uplink. RouterOS agrees.')
+              : t('You declared this an uplink. RouterOS does NOT report it as an internet link.')) +
+            '">' + t('declared') + '</span>' : '') +
         '<div class="muted-note">' + esc(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
-        (age ? ' · up ' + esc(age) : '') +
-        (w.manual && w.state !== 'internet' ? ' · router does not agree' : '') + '</div></td>' +
+        (age ? ' · ' + t('up {age}', { age: esc(age) }) : '') +
+        (w.manual && w.state !== 'internet' ? ' · ' + t('router does not agree') : '') + '</div></td>' +
         '<td>' + (w.address ? esc(w.address) : mutedDash()) +
         (w.isPublic === true ? '<div class="muted-note" style="color:var(--accent-rx)">public</div>'
           : w.isPublic === false ? '<div class="muted-note">private</div>' : '') + '</td>' +
@@ -261,10 +261,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     card.style.display = '';
     // The default is detect-interface-list=none, so this is the common case
     // rather than a fault. Say what to run.
-    body.innerHTML = ('<strong>' + t('Internet detection is switched off on this router.') + '</strong> ') +
-      'RouterOS decides which interfaces reach the internet, and it is not looking. This page shows what it reports, so it has nothing to show until detection is on. Enable it with ' +
-      '<code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic ' +
-      'beyond an occasional probe.';
+    body.innerHTML = '<strong>' + t('Internet detection is switched off on this router.') + '</strong> ' +
+      t('RouterOS decides which interfaces reach the internet, and it is not looking. This page shows what it reports, so it has nothing to show until detection is on. Enable it with <code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic beyond an occasional probe.');
   }
 
   function renderSummary(): void {
@@ -298,8 +296,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
   }
 
   document.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement | null;
-    const b = t?.closest?.('[data-wanact]') as HTMLElement | null;
+    const tgt = e.target as HTMLElement | null;
+    const b = tgt?.closest?.('[data-wanact]') as HTMLElement | null;
     if (!b) return;
     const verb = b.getAttribute('data-wanact') || '';
     const id = b.getAttribute('data-id') || '';
@@ -309,8 +307,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     // will drop your own connection". Conflating them would train the operator
     // to dismiss both with one habit.
     const msg = verb === 'release'
-      ? 'Release the DHCP lease on "' + name + '"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.'
-      : 'Renew the DHCP lease on "' + name + '"?\n\nThe uplink blips briefly while the lease is renewed.';
+      ? t('Release the DHCP lease on "{uplink}"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.', { uplink: name })
+      : t('Renew the DHCP lease on "{uplink}"?\n\nThe uplink blips briefly while the lease is renewed.', { uplink: name });
     if (!window.confirm(msg)) return;
     send(verb, id, name);
   });
@@ -347,8 +345,8 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     busy = '';
     // "Requested", not "renewed": the lease settles over the next second or two
     // and the next tick is what reports the outcome.
-    setStatus((d && d.action === 'release' ? 'Released the lease on ' : 'Requested a renewal on ') +
-      ((d && d.name) || ''));
+    const uplink = (d && d.name) || '';
+    setStatus(d && d.action === 'release' ? t('Released the lease on {uplink}', { uplink }) : t('Requested a renewal on {uplink}', { uplink }));
   });
 
   socket.on('wan:error', (d) => {
@@ -377,16 +375,16 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       const body = el('wanWarnBody');
       if (body) {
         body.innerHTML =
-          '<p>MikroDash reaches ' + esc(caps.routerName || 'this router') + ' from <code>' +
-            esc(w.address || '') + ('</code>' + t(', which is not on any of its connected subnets — so that traffic arrives over a WAN.') + '</p>') +
+          '<p>' + (caps.routerName
+            ? t('MikroDash reaches {router} from <code>{address}</code>, which is not on any of its connected subnets — so that traffic arrives over a WAN.', { router: esc(caps.routerName), address: esc(w.address || '') })
+            : t('MikroDash reaches this router from <code>{address}</code>, which is not on any of its connected subnets — so that traffic arrives over a WAN.', { address: esc(w.address || '') })) + '</p>' +
           (w.certain
-            ? '<p><strong>' + esc(w.wan || '') + ' is the uplink carrying the active default route</strong>, ' +
-              'which means it is carrying this session.</p>'
-            : ('<p>' + t('This router has more than one active default route, so which uplink carries this session cannot be determined —') + ' <strong>') + esc(w.wan || '') + ' may be the one.</strong></p>') +
+            ? '<p>' + t('<strong>{uplink} is the uplink carrying the active default route</strong>, which means it is carrying this session.', { uplink: esc(w.wan || '') }) + '</p>'
+            : '<p>' + t('This router has more than one active default route, so which uplink carries this session cannot be determined — <strong>{uplink} may be the one.</strong>', { uplink: esc(w.wan || '') }) + '</p>') +
           '<p>' + (((el<HTMLInputElement>('wanWarnVerb')?.value) || '') === 'release'
             ? t('Releasing the lease takes the uplink down until the client rebinds.')
             : t('Renewing blips the uplink briefly.')) +
-          ' The dashboard will lose this router until it comes back. It should return on its own.</p>' +
+          ' ' + t('The dashboard will lose this router until it comes back. It should return on its own.') + '</p>' +
           (code === 'stale-warning'
             ? '<p><em>' + t('The situation changed since you confirmed, so please confirm again.') + '</em></p>' : '');
       }

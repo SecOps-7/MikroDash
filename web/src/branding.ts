@@ -21,7 +21,6 @@
  */
 
 import { FONTS } from './gen/appearance-tables.js';
-import { t } from './i18n';
 
 export interface Branding {
   /** The stored name; empty means the default. */
@@ -67,9 +66,9 @@ export function renderWordmark(target: HTMLElement, name: string, font: string):
   if (name) {
     target.appendChild(document.createTextNode(name));
   } else {
-    target.appendChild(document.createTextNode(t('Mikro')));
+    target.appendChild(document.createTextNode('Mikro'));
     const accent = document.createElement('span');
-    accent.textContent = t('Dash');
+    accent.textContent = 'Dash';
     target.appendChild(accent);
   }
   const family = fontFamily(font);

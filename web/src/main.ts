@@ -386,12 +386,12 @@ async function main(): Promise<void> {
   if (sessionStorage.getItem('justLoggedIn')) {
     sessionStorage.removeItem('justLoggedIn');
     setTimeout(() => {
-      document.documentElement.style.transition = t('opacity 1s ease');
+      document.documentElement.style.transition = 'opacity 1s ease';
       document.documentElement.style.opacity = '1';
     }, 200);
   }
 
-  const proto = location.protocol === 'https:' ? t('wss:') : t('ws:');
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const socket = new Socket(proto + '//' + location.host + '/ws');
 
   // FIRST, and before anything that paints: the palette, contrast and font are

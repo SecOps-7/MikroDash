@@ -37,6 +37,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -527,6 +528,15 @@ func TSLiterals(src string) (lits []string, bad []int) {
 					b.WriteByte('\n')
 				case 't':
 					b.WriteByte('\t')
+				case 'u':
+					// \u2014, as the browser reads it: the key must be the text
+					// t() is given at run time, not its spelling in the source.
+					if r, err := strconv.ParseUint(src[j+1:min(j+5, len(src))], 16, 32); err == nil && j+5 <= len(src) {
+						b.WriteRune(rune(r))
+						j += 4
+					} else {
+						b.WriteByte('u')
+					}
 				default:
 					b.WriteByte(src[j])
 				}

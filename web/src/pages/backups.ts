@@ -226,7 +226,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
         '<td><span class="badge ' + (r.pruned ? 'bg-secondary-lt' : o.cls) + '"' +
           (r.pruned ? ' title="Stored at the time, then removed by retention"' : '') +
           '>' + esc(r.pruned ? t('Pruned') : o.label) + '</span></td>' +
-        '<td>' + esc(r.source === 'manual' ? ('Manual' + (r.actor ? ' · ' + r.actor : '')) : t('Schedule')) + '</td>' +
+        '<td>' + esc(r.source === 'manual' ? (r.actor ? t('Manual · {user}', { user: r.actor }) : t('Manual')) : t('Schedule')) + '</td>' +
         '<td>' + esc(r.osVersion || '—') + '</td>' +
         // NO SIZE ON A PRUNED ROW. The bytes are still in the record and are
         // still true of the past, but printing them here claims disk that has
@@ -247,7 +247,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     const del = el<HTMLButtonElement>('bkDelete');
     if (del) {
       del.disabled = n === 0 || busy;
-      del.textContent = n > 1 ? 'Delete (' + n + ')' : t('Delete');
+      del.textContent = n > 1 ? t('Delete ({n})', { n }) : t('Delete');
       del.title = n === 0 ? t('Select one or more restore points to delete') : '';
     }
     const rst = el<HTMLButtonElement>('bkRestore');
@@ -309,10 +309,10 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     const ids = Array.from(picked);
     const msg = ids.length === 1
       ? t('Delete this restore point?')
-      : 'Delete these ' + ids.length + ' restore points?';
+      : t('Delete these {n} restore points?', { n: ids.length });
     // BOTH HALVES GO — the files and the row listing them — so say so, and say
     // where the record does survive rather than implying nothing is kept.
-    if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\nand cannot be recovered. The Audit page keeps the record.')) return;
+    if (!window.confirm(msg + '\n\n' + t('The stored files and their history rows are removed,\nand cannot be recovered. The Audit page keeps the record.'))) return;
     socket.emit('backups:delete', { ids });
     picked.clear();
     syncBulk();
@@ -335,14 +335,12 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
   function askRestore(id: number, acceptVersion: boolean, versionNote?: string): void {
     if (!state) return;
     const lines = [
-      'Restore ' + state.label + ' from this backup?',
+      t('Restore {router} from this backup?', { router: state.label }),
       '',
       t('This REPLACES the entire configuration and reboots the router.'),
       t('Everything configured since this backup is lost.'),
       '',
-      t('The API user MikroDash connects as is part of what gets replaced — if'),
-      t('that user did not exist when this backup was taken, MikroDash will lose'),
-      t('access to this router.'),
+      t('The API user MikroDash connects as is part of what gets replaced — if\nthat user did not exist when this backup was taken, MikroDash will lose\naccess to this router.'),
     ];
     if (versionNote) lines.push('', versionNote);
     lines.push('', t('Type the router name to confirm:'));
@@ -416,15 +414,13 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       // Asked once, then answered by re-submitting. The server refuses the first
       // attempt precisely so this sentence can name both versions.
       askRestore(pendingRestore, true,
-        'WARNING: this backup was taken on RouterOS ' + e.was +
-        ' and the router now runs ' + e.now + '. MikroTik recommend matching versions.');
+        t('WARNING: this backup was taken on RouterOS {was} and the router now runs {now}. MikroTik recommend matching versions.', { was: e.was ?? '', now: e.now ?? '' }));
       return;
     }
     const note = el('bkNote');
     if (e?.code === 'serial-mismatch') {
       if (note) {
-        note.textContent = 'Refused: this backup was taken from serial ' + e.was +
-          ', but this router reports ' + e.now + '. A backup belongs to one device.';
+        note.textContent = t('Refused: this backup was taken from serial {was}, but this router reports {now}. A backup belongs to one device.', { was: e.was ?? '', now: e.now ?? '' });
         note.style.color = 'var(--accent-warn)';
       }
       pendingRestore = null;

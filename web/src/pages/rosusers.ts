@@ -399,8 +399,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       // were not tested, because the only ones available were the operator's own
       // and this session's. The wording says what was seen and no more.
       'write-failed': 'The router refused to end that session ("action failed"). ' +
-        'RouterOS keeps some session types — API and REST API sessions among them — ' +
-        'and they have to be cleared from the router itself.',
+        'RouterOS keeps some session types — API and REST API sessions among them — and they have to be cleared from the router itself.',
     };
     const text = (code && msg[code]) || (d && d.message) || t('Action failed');
     setStatus(text);

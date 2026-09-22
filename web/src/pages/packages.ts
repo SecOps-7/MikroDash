@@ -176,7 +176,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     // for the reason `updateSlotHtml` gives — a button with nothing to do, or
     // one that refuses on click, is worse than none.
     const updateBtn = (caps.permitted && u.updateAvailable && u.latestVersion)
-      ? ' ' + t('<button class="sbtn sbtn-warn" data-upgrade-open')
+      ? ' <button class="sbtn sbtn-warn" data-upgrade-open'
         + (' style="padding:.1rem .45rem;font-size:.64rem;margin-left:.4rem">' + t('Update') + '</button>')
       : '';
 

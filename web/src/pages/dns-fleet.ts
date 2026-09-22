@@ -427,8 +427,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
               ? '<span class="dns-extra-host">' + esc(r.host) + '</span>' : '') +
             '</label>').join('') +
         '</div>' +
-        '<div class="muted-note">Written after this router accepts it, one at a ' +
-          'time. A router that already has the record is left alone.</div>' +
+        ('<div class="muted-note">' + t('Written after this router accepts it, one at a time. A router that already has the record is left alone.') + '</div>') +
       '</div>';
     },
     wire() {

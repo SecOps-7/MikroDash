@@ -1,6 +1,6 @@
 {
-  "\n\nIts script stops working.": [
-    "web/src/pages/ztp.ts"
+  "(built in)": [
+    "web/src/pages/ztp-views.ts"
   ],
   "(leave blank to keep)": [
     "web/src/ui/page-settings.html"
@@ -51,17 +51,11 @@
   "+ Wall": [
     "web/src/ui/page-wifi-map.html"
   ],
-  ", and its template is then previewed on it and applied": [
-    "web/src/pages/ztp.ts"
-  ],
   ", so this router advertises itself but never records neighbours. Set it to": [
     "web/src/pages/topology.ts"
   ],
   ", which can be a small fraction of the total.": [
     "web/src/pages/queues.ts"
-  ],
-  ", which is not on any of its connected subnets — so that traffic arrives over a WAN.": [
-    "web/src/pages/wan.ts"
   ],
   "0 debug": [
     "web/src/ui/page-logs.html"
@@ -84,11 +78,20 @@
   "1 day": [
     "web/src/ui/page-settings.html"
   ],
+  "1 device has called home and is waiting to be onboarded.": [
+    "web/src/pages/ztp.ts"
+  ],
+  "1 device is waiting to be onboarded": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "1 hour": [
     "web/src/ui/page-settings.html"
   ],
   "1 is the highest, 8 the lowest.": [
     "internal/resource"
+  ],
+  "1 menu": [
+    "web/src/pages/config-management.ts"
   ],
   "1 min": [
     "web/src/ui/shell.html"
@@ -153,9 +156,6 @@
   "90 days": [
     "web/src/ui/page-settings.html"
   ],
-  "\u003cbutton class=\"sbtn sbtn-warn\" data-upgrade-open": [
-    "web/src/pages/packages.ts"
-  ],
   "\u003ckbd\u003e1\u003c/kbd\u003e–\u003ckbd\u003e9\u003c/kbd\u003e pages  ·  \u003ckbd\u003e/\u003c/kbd\u003e log search": [
     "web/src/ui/shell.html"
   ],
@@ -183,8 +183,14 @@
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
+  "\u003cstrong\u003e{uplink} is the uplink carrying the active default route\u003c/strong\u003e, which means it is carrying this session.": [
+    "web/src/pages/wan.ts"
+  ],
   "A .npk package is installed at the next reboot. Use the Packages page for that.": [
     "web/src/resource.ts"
+  ],
+  "A Config Management template that adds configuration. It is previewed on the router itself when it arrives, and deployed with a restore point and the auto-revert, as any deploy is.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "A backup is stored only when the configuration actually changed, so a frequent schedule costs a short check rather than disk. Each restore point is a pair: an export for the diff, and an encrypted binary for the restore.": [
     "web/src/ui/page-backups.html"
@@ -439,7 +445,6 @@
     "web/src/ui/page-wifi-map.html"
   ],
   "Add device": [
-    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-devices.html"
   ],
   "Add your MikroTik router to get started": [
@@ -721,6 +726,9 @@
   ],
   "An IANA time zone name, or manual.": [
     "internal/resource"
+  ],
+  "An addition: merged into what each router already has.": [
+    "web/src/pages/config-management.ts"
   ],
   "An address or a host name.": [
     "internal/resource"
@@ -1121,6 +1129,9 @@
   "Both passwords are required": [
     "web/src/account.ts"
   ],
+  "Branch office router": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Branding": [
     "web/src/ui/page-settings.html"
   ],
@@ -1284,6 +1295,12 @@
   "Canned": [
     "web/src/pages/config-management-cards.ts"
   ],
+  "Canned templates cannot be changed. Save these settings in a new custom copy of \"{name}\"?": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Canned · v{version}": [
+    "web/src/pages/config-management.ts"
+  ],
   "Cannot check for a FastTrack rule \u0026mdash; Firewall collection is switched off for this router.": [
     "web/src/pages/queues.ts"
   ],
@@ -1352,6 +1369,12 @@
   ],
   "Change Password": [
     "web/src/ui/shell.html"
+  ],
+  "Change the {what}": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Change the {what} “{name}”": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Changes": [
     "web/src/pages/backups.ts",
@@ -1561,7 +1584,7 @@
   "Close fullscreen": [
     "web/src/ui/shell.html"
   ],
-  "Closingu2026": [
+  "Closing…": [
     "web/src/pages/rosusers.ts"
   ],
   "Collapses the 23 pages into Network, Wireless, IP Services, Tunnels, Traffic, Security and System. Turn it off for one flat list.": [
@@ -1862,6 +1885,12 @@
   "Create Admin Account": [
     "web/src/ui/login.html"
   ],
+  "Create a {what}": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Create a {what} “{name}”": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Created": [
     "internal/resource"
   ],
@@ -1885,6 +1914,9 @@
     "web/src/ui/page-settings.html"
   ],
   "Custom template": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Custom · revision {version}": [
     "web/src/pages/config-management.ts"
   ],
   "Customise": [
@@ -1961,7 +1993,6 @@
     "web/src/ui/page-settings.html"
   ],
   "Dash": [
-    "web/src/branding.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -2068,6 +2099,12 @@
     "web/src/ui/page-config-management.html",
     "web/src/ui/shell.html"
   ],
+  "Delete \"{name}\"? Its deploy history is kept.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Delete ({n})": [
+    "web/src/pages/backups.ts"
+  ],
   "Delete data": [
     "web/src/ui/page-settings.html"
   ],
@@ -2083,6 +2120,15 @@
   ],
   "Delete stored history on demand. Retention above prunes automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.": [
     "web/src/ui/page-settings.html"
+  ],
+  "Delete the {what}": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Delete the {what} “{name}”": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Delete these {n} restore points?": [
+    "web/src/pages/backups.ts"
   ],
   "Delete this conversation. The assistant forgets it too.": [
     "web/src/ui/page-ai-agent.html"
@@ -2734,6 +2780,9 @@
   "Fill a new entry from this one": [
     "web/src/ui/shell.html"
   ],
+  "Fill in {field}": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Filter": [
     "web/src/ui/page-firewall.html"
   ],
@@ -2944,7 +2993,7 @@
   "From date/time": [
     "web/src/ui/page-reports.html"
   ],
-  "From this routeru2019s site,": [
+  "From this router’s site,": [
     "web/src/pages/router-form.ts"
   ],
   "Full export": [
@@ -2953,6 +3002,9 @@
   ],
   "Full replacement": [
     "web/src/pages/config-management-history.ts"
+  ],
+  "Full replacement: each router is reset and rebuilt.": [
+    "web/src/pages/config-management.ts"
   ],
   "Fullscreen map": [
     "web/src/ui/page-connections.html"
@@ -2984,6 +3036,9 @@
   ],
   "Generate the last 64 bits from the interface identifier. Leave them zero in the address.": [
     "internal/resource"
+  ],
+  "Generic script: {name}": [
+    "web/src/pages/ztp.ts"
   ],
   "Generic scripts": [
     "web/src/ui/page-settings.html"
@@ -3331,7 +3386,7 @@
   "In Interface": [
     "internal/resource"
   ],
-  "In a terminal on the router, run": [
+  "In a terminal on the router, run \u003ccode\u003e{command}\u003c/code\u003e.": [
     "web/src/pages/ztp-views.ts"
   ],
   "In use": [
@@ -3512,6 +3567,9 @@
   ],
   "It overrides a setting this network inherits from a shared configuration profile.": [
     "web/src/resource.ts"
+  ],
+  "It stops working {when}.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Its deploy is in Config Management → History.": [
     "web/src/pages/ztp-views.ts"
@@ -3752,6 +3810,12 @@
     "internal/areas",
     "internal/resource"
   ],
+  "Listening on UDP {port} · 1 peer, {seen} seen in the last 3 minutes": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Listening on UDP {port} · {peers} peers, {seen} seen in the last 3 minutes": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Lists": [
     "internal/areas"
   ],
@@ -3902,11 +3966,17 @@
   "Make a generic script": [
     "web/src/ui/page-settings.html"
   ],
+  "Make a new script for {router}?\n\nThe old one stops working.": [
+    "web/src/pages/ztp.ts"
+  ],
   "Make a script that brings a new router into the fleet on its own": [
     "web/src/ui/page-devices.html"
   ],
   "Make the script": [
     "web/src/pages/ztp.ts"
+  ],
+  "Make what {router} holds now the baseline for {template}? Later checks compare against it.": [
+    "web/src/pages/config-management.ts"
   ],
   "Managed by": [
     "web/src/pages/capsman.ts"
@@ -3930,7 +4000,11 @@
     "web/src/ui/page-settings.html"
   ],
   "Manual": [
+    "web/src/pages/backups.ts",
     "web/src/ui/page-wan.html"
+  ],
+  "Manual · {user}": [
+    "web/src/pages/backups.ts"
   ],
   "Map": [
     "web/src/ui/page-devices.html"
@@ -4059,7 +4133,6 @@
     "web/src/ui/page-settings.html"
   ],
   "Mikro": [
-    "web/src/branding.ts",
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
   ],
@@ -4107,11 +4180,23 @@
   "MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.": [
     "web/src/ui/page-settings.html"
   ],
+  "MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it answers, and its template is then previewed on it and applied. Its progress shows on its card in the meantime.": [
+    "web/src/pages/ztp.ts"
+  ],
+  "MikroDash is logging in through its tunnel. It joins the Devices grid as soon as it answers. Its progress shows on its card in the meantime.": [
+    "web/src/pages/ztp.ts"
+  ],
   "MikroDash reaches this router at {address}, the address the DHCP client on {iface} holds, and this change changes that client, which takes the address away.": [
     "web/src/resource.ts"
   ],
   "MikroDash reaches this router at {address}, the address the DHCP client on {iface} holds, and this change removes that client, which takes the address away.": [
     "web/src/resource.ts"
+  ],
+  "MikroDash reaches this router from \u003ccode\u003e{address}\u003c/code\u003e, which is not on any of its connected subnets — so that traffic arrives over a WAN.": [
+    "web/src/pages/wan.ts"
+  ],
+  "MikroDash reaches {router} from \u003ccode\u003e{address}\u003c/code\u003e, which is not on any of its connected subnets — so that traffic arrives over a WAN.": [
+    "web/src/pages/wan.ts"
   ],
   "MikroDash · MIT License · Made with ♥ for the MikroTik community": [
     "web/src/ui/page-settings.html"
@@ -4217,6 +4302,12 @@
   ],
   "Move later": [
     "web/src/pages/queues.ts"
+  ],
+  "Move the {what}": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Move the {what} “{name}”": [
+    "web/src/pages/ai-agent.ts"
   ],
   "Move up": [
     "web/src/pages/area.ts",
@@ -4405,6 +4496,9 @@
   "New script": [
     "web/src/pages/ztp-views.ts"
   ],
+  "New script for {router}": [
+    "web/src/pages/ztp.ts"
+  ],
   "New template": [
     "web/src/ui/page-config-management.html"
   ],
@@ -4542,7 +4636,7 @@
     "web/src/pages/dashboard-talkers.ts",
     "web/src/ui/page-dashboard.html"
   ],
-  "No devices are waiting.": [
+  "No devices are waiting. \u003cstrong\u003eAdd device\u003c/strong\u003e makes a script for a new router; a router running a generic script from Settings → Provisioning appears here to be onboarded.": [
     "web/src/pages/ztp-views.ts"
   ],
   "No devices configured yet.": [
@@ -4819,7 +4913,7 @@
   "Nothing here yet. Use \u003cstrong\u003eAdd\u003c/strong\u003e to create one.": [
     "web/src/pages/area.ts"
   ],
-  "Nothing is advertising LLDP, CDP or MNDP on this routeru2019s discovery interfaces. Unmanaged switches and most end devices stay invisible by design.": [
+  "Nothing is advertising LLDP, CDP or MNDP on this router’s discovery interfaces. Unmanaged switches and most end devices stay invisible by design.": [
     "web/src/pages/topology.ts"
   ],
   "Nothing is connected right now": [
@@ -4959,7 +5053,9 @@
     "web/src/pages/ztp.ts"
   ],
   "Onboarding": [
-    "web/src/pages/ztp-views.ts",
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Onboarding \u003cstrong\u003e{router}\u003c/strong\u003e.": [
     "web/src/pages/ztp.ts"
   ],
   "One Dark": [
@@ -5339,6 +5435,9 @@
   "Placed APs": [
     "web/src/ui/page-wifi-map.html"
   ],
+  "Plan: {what} — {name}": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "Platform": [
     "web/src/pages/topology-panel.ts"
   ],
@@ -5508,6 +5607,12 @@
     "internal/resource"
   ],
   "Provisioning failed": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Provisioning is switched on but not running.": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "Provisioning is switched on but not running: {error}": [
     "web/src/pages/ztp-views.ts"
   ],
   "Pruned": [
@@ -5754,6 +5859,9 @@
     "web/src/pages/config-management-deploy.ts",
     "web/src/ui/page-audit-trail.html"
   ],
+  "Refused: this backup was taken from serial {was}, but this router reports {now}. A backup belongs to one device.": [
+    "web/src/pages/backups.ts"
+  ],
   "Regex": [
     "internal/resource"
   ],
@@ -5778,6 +5886,9 @@
   "Reject With": [
     "internal/resource"
   ],
+  "Reject {router}?\n\nIts tunnel is closed and it can no longer reach this MikroDash.": [
+    "web/src/pages/ztp.ts"
+  ],
   "Rejected": [
     "web/src/pages/ztp-views.ts"
   ],
@@ -5786,6 +5897,12 @@
   ],
   "Release notes unavailable": [
     "web/src/pages/upgrade.ts"
+  ],
+  "Release the DHCP lease on \"{uplink}\"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.": [
+    "web/src/pages/wan.ts"
+  ],
+  "Released the lease on {uplink}": [
+    "web/src/pages/wan.ts"
   ],
   "Releasing the lease takes the uplink down until the client rebinds.": [
     "web/src/pages/wan.ts"
@@ -5838,6 +5955,12 @@
   "Remove card": [
     "web/src/ui/page-dashboard.html"
   ],
+  "Remove {router} from provisioning?": [
+    "web/src/pages/ztp.ts"
+  ],
+  "Remove {router} from provisioning?\n\nIts script stops working.": [
+    "web/src/pages/ztp.ts"
+  ],
   "Removing the table makes it inactive, as if it were not there.": [
     "web/src/resource.ts"
   ],
@@ -5848,6 +5971,9 @@
     "web/src/ui/page-settings.html"
   ],
   "Renew": [
+    "web/src/pages/wan.ts"
+  ],
+  "Renew the DHCP lease on \"{uplink}\"?\n\nThe uplink blips briefly while the lease is renewed.": [
     "web/src/pages/wan.ts"
   ],
   "Renewing Leases": [
@@ -5871,6 +5997,9 @@
   "Reports": [
     "internal/pages",
     "web/src/ui/shell.html"
+  ],
+  "Requested a renewal on {uplink}": [
+    "web/src/pages/wan.ts"
   ],
   "Require Client Certificate": [
     "internal/resource"
@@ -5945,6 +6074,9 @@
     "web/src/pages/backups.ts"
   ],
   "Restore takes a single restore point — select just one": [
+    "web/src/pages/backups.ts"
+  ],
+  "Restore {router} from this backup?": [
     "web/src/pages/backups.ts"
   ],
   "Result": [
@@ -6066,6 +6198,9 @@
   "Router:": [
     "web/src/resource.ts"
   ],
+  "Router: {name}": [
+    "web/src/account.ts"
+  ],
   "RouterBOARD Firmware": [
     "web/src/ui/page-packages.html"
   ],
@@ -6091,6 +6226,9 @@
   ],
   "RouterOS Update Available": [
     "web/src/ui/page-settings.html"
+  ],
+  "RouterOS decides which interfaces reach the internet, and it is not looking. This page shows what it reports, so it has nothing to show until detection is on. Enable it with \u003ccode\u003e/interface detect-internet set detect-interface-list=all\u003c/code\u003e — it is read-only and adds no traffic beyond an occasional probe.": [
+    "web/src/pages/wan.ts"
   ],
   "RouterOS menus at least one collector wants.": [
     "web/src/pages/dashboard-card-diagnostics.ts"
@@ -6197,6 +6335,15 @@
   "Run it and reboot": [
     "web/src/pages/ai-agent.ts"
   ],
+  "Run it on any number of routers; each waits on the Devices page to be onboarded.": [
+    "web/src/pages/ztp.ts"
+  ],
+  "Run it on the router.": [
+    "web/src/pages/ztp.ts"
+  ],
+  "Run it on {router}.": [
+    "web/src/pages/ztp.ts"
+  ],
   "Run its script on the router. It calls home within a minute of running it.": [
     "web/src/pages/ztp-views.ts"
   ],
@@ -6215,7 +6362,8 @@
   "Running": [
     "internal/areas",
     "internal/resource",
-    "web/src/pages/wifi.ts"
+    "web/src/pages/wifi.ts",
+    "web/src/pages/ztp-views.ts"
   ],
   "Running…": [
     "web/src/pages/tools.ts"
@@ -6312,6 +6460,9 @@
     "web/src/pages/ztp-views.ts"
   ],
   "Saved as this template's defaults.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Saved in the custom template \"{name}\", now selected.": [
     "web/src/pages/config-management.ts"
   ],
   "Saving…": [
@@ -6551,6 +6702,9 @@
     "web/src/pages/ztp-views.ts",
     "web/src/ui/page-settings.html"
   ],
+  "Serial number": [
+    "web/src/pages/ztp-views.ts"
+  ],
   "Server": [
     "internal/resource",
     "web/src/ui/page-tools.html"
@@ -6715,6 +6869,9 @@
   "Signed in as": [
     "web/src/ui/shell.html"
   ],
+  "Signed in {when}": [
+    "web/src/account.ts"
+  ],
   "Signing in…": [
     "web/src/entry/login.ts"
   ],
@@ -6732,6 +6889,9 @@
   ],
   "Site": [
     "web/src/pages/wifi-map.ts"
+  ],
+  "Site: {name}": [
+    "web/src/account.ts"
   ],
   "Sites": [
     "web/src/pages/ztp-views.ts",
@@ -7188,7 +7348,7 @@
   "That is the API service MikroDash connects through. Moving its port would cut MikroDash off; change it in WinBox.": [
     "web/src/resource.ts"
   ],
-  "That is the account MikroDash signs in with u2014 manage it in WinBox": [
+  "That is the account MikroDash signs in with — manage it in WinBox": [
     "web/src/pages/rosusers.ts"
   ],
   "That is the account MikroDash signs in with. Manage it in WinBox.": [
@@ -7212,7 +7372,7 @@
   "That request was incomplete.": [
     "web/src/resource.ts"
   ],
-  "That row changed on the router u2014 the page has been refreshed": [
+  "That row changed on the router — the page has been refreshed": [
     "web/src/pages/rosusers.ts"
   ],
   "That row changed on the router. Close and reopen it.": [
@@ -7227,7 +7387,7 @@
   "The API service MikroDash uses (api or api-ssl)": [
     "web/src/pages/config-management-editor.ts"
   ],
-  "The API user MikroDash connects as is part of what gets replaced — if": [
+  "The API user MikroDash connects as is part of what gets replaced — if\nthat user did not exist when this backup was taken, MikroDash will lose\naccess to this router.": [
     "web/src/pages/backups.ts"
   ],
   "The DHCP host name, or reverse DNS where there is no lease": [
@@ -7290,6 +7450,9 @@
   ],
   "The copy could not be made": [
     "web/src/pages/config-management.ts"
+  ],
+  "The dashboard will lose this router until it comes back. It should return on its own.": [
+    "web/src/pages/wan.ts"
   ],
   "The defaults were not saved": [
     "web/src/pages/config-management.ts"
@@ -7366,6 +7529,10 @@
   "The remote end: an address, a prefix, or a name to resolve.": [
     "internal/resource"
   ],
+  "The request failed ({status})": [
+    "web/src/pages/config-management.ts",
+    "web/src/pages/ztp.ts"
+  ],
   "The request failed.": [
     "web/src/pages/ai-agent.ts"
   ],
@@ -7380,6 +7547,9 @@
   ],
   "The router accepted the new identity, but it could not be confirmed. Check the router before trying again.": [
     "web/src/pages/router-modal.ts"
+  ],
+  "The router calls home here, and its API user accepts logins from this address only.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "The router cannot be reached, so its identity cannot be read or changed now.": [
     "web/src/pages/router-modal.ts"
@@ -7528,6 +7698,9 @@
   "The store could not be read.": [
     "web/src/pages/containers-apps.ts"
   ],
+  "The stored files and their history rows are removed,\nand cannot be recovered. The Audit page keeps the record.": [
+    "web/src/pages/backups.ts"
+  ],
   "The stored plan could not be read, so saving is off until it can.": [
     "web/src/pages/wifi-map.ts"
   ],
@@ -7606,6 +7779,9 @@
   "This change needs confirming.": [
     "web/src/resource.ts"
   ],
+  "This changes code the router runs. Type its name — {name} — to confirm.": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "This changes what is in the list {list}, which the input rule matching {rule} uses to decide on MikroDash's own traffic.": [
     "web/src/resource.ts"
   ],
@@ -7651,6 +7827,9 @@
   "This queue covers MikroDash's own connection to this router.": [
     "web/src/resource.ts"
   ],
+  "This reboots the router. Type its name — {name} — to confirm.": [
+    "web/src/pages/ai-agent.ts"
+  ],
   "This renames the list {list}, which the input rule matching {rule} uses to decide on MikroDash's own traffic.": [
     "web/src/resource.ts"
   ],
@@ -7667,7 +7846,7 @@
     "web/src/pages/rosusers.ts",
     "web/src/pages/wan.ts"
   ],
-  "This router has more than one active default route, so which uplink carries this session cannot be determined —": [
+  "This router has more than one active default route, so which uplink carries this session cannot be determined — \u003cstrong\u003e{uplink} may be the one.\u003c/strong\u003e": [
     "web/src/pages/wan.ts"
   ],
   "This router has neither CAPsMAN menu — no manager and no CAP mode here.": [
@@ -7708,6 +7887,15 @@
   ],
   "This router’s MikroDash account cannot read {menu}. RouterOS requires a user group with permission for this menu.": [
     "web/src/pages/area.ts"
+  ],
+  "This runs a RouterOS command that MikroDash does not check. Type its name — {name} — to confirm.": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "This runs code on the router. Type its name — {name} — to confirm.": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "This script is shown once and holds a secret. Keep it like a password; if it is lost, make a new one, which also stops this one working.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "This stops the app and": [
     "web/src/pages/containers-apps.ts"
@@ -8085,6 +8273,9 @@
   "Type the router name to confirm:": [
     "web/src/pages/backups.ts"
   ],
+  "Type {router} to deploy": [
+    "web/src/pages/config-management.ts"
+  ],
   "UDP port": [
     "web/src/ui/page-settings.html"
   ],
@@ -8098,6 +8289,9 @@
     "web/src/pages/packages.ts"
   ],
   "Undo it": [
+    "web/src/pages/ai-agent.ts"
+  ],
+  "Undo the {name} ({what})": [
     "web/src/pages/ai-agent.ts"
   ],
   "Undo {what}": [
@@ -8196,12 +8390,14 @@
   ],
   "Upload": [
     "web/src/pages/reports-charts.ts",
-    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-ppp.html"
   ],
   "Upload (MB)": [
     "web/src/pages/reports-traffic.ts",
     "web/src/ui/page-reports.html"
+  ],
+  "Upload \u003cstrong\u003e{file}\u003c/strong\u003e to the router: drag it into WinBox's Files window, or use the Files page here.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "Upload Icon…": [
     "web/src/ui/page-settings.html"
@@ -8472,6 +8668,9 @@
   "WAN only": [
     "web/src/ui/page-bandwidth.html"
   ],
+  "WARNING: this backup was taken on RouterOS {was} and the router now runs {now}. MikroTik recommend matching versions.": [
+    "web/src/pages/backups.ts"
+  ],
   "WPA Passphrase": [
     "internal/resource"
   ],
@@ -8582,7 +8781,7 @@
   "Waiting for the revert": [
     "web/src/pages/config-management-deploy.ts"
   ],
-  "Waiting for the router listu2026": [
+  "Waiting for the router list…": [
     "web/src/pages/routers.ts"
   ],
   "Waiting for the router…": [
@@ -8676,6 +8875,9 @@
     "web/src/pages/audit.ts",
     "web/src/pages/reports-schedules.ts",
     "web/src/ui/page-backups.html"
+  ],
+  "When given, only the router with this serial can use the script. On the router: \u003ccode\u003e/system routerboard print\u003c/code\u003e, or on a CHR \u003ccode\u003e/system license print\u003c/code\u003e.": [
+    "web/src/pages/ztp-views.ts"
   ],
   "When the link last came up": [
     "web/src/ui/page-interfaces.html"
@@ -8821,9 +9023,6 @@
   "Worst latency": [
     "web/src/ui/page-network-topology.html"
   ],
-  "Write": [
-    "web/src/pages/config-management.ts"
-  ],
   "Write Access": [
     "internal/areas",
     "internal/resource"
@@ -8837,6 +9036,12 @@
   "Write one in RouterOS's own export syntax, customise a canned one from the Library, or capture a menu or a whole router as it is configured today.": [
     "web/src/ui/page-config-management.html"
   ],
+  "Write {example} in the template to ask for a setting.": [
+    "web/src/pages/config-management.ts"
+  ],
+  "Written after this router accepts it, one at a time. A router that already has the record is left alone.": [
+    "web/src/pages/dns-fleet.ts"
+  ],
   "X-Tenant: acme": [
     "web/src/ui/page-settings.html"
   ],
@@ -8845,6 +9050,12 @@
   ],
   "You": [
     "web/src/pages/ai-agent.ts"
+  ],
+  "You declared this an uplink. RouterOS agrees.": [
+    "web/src/pages/wan.ts"
+  ],
+  "You declared this an uplink. RouterOS does NOT report it as an internet link.": [
+    "web/src/pages/wan.ts"
   ],
   "You do not have permission for this": [
     "web/src/caps.ts"
@@ -8909,12 +9120,6 @@
   "a comma list — the rule matches a radio offering any of them": [
     "internal/resource"
   ],
-  "accepts logins from this address only.": [
-    "web/src/pages/ztp-views.ts"
-  ],
-  "access to this router.": [
-    "web/src/pages/backups.ts"
-  ],
   "admin": [
     "web/src/ui/login.html",
     "web/src/ui/shell.html"
@@ -8952,11 +9157,11 @@
   "days, 0 for no limit": [
     "web/src/ui/page-backups.html"
   ],
+  "declared": [
+    "web/src/pages/wan.ts"
+  ],
   "discovering…": [
     "web/src/pages/capsman.ts"
-  ],
-  "does NOT report it as an internet link.": [
-    "web/src/pages/wan.ts"
   ],
   "download": [
     "web/src/ui/page-bandwidth.html"
@@ -8979,6 +9184,9 @@
   ],
   "ether1": [
     "web/src/ui/shell.html"
+  ],
+  "expires {when}": [
+    "web/src/account.ts"
   ],
   "filled by MikroDash": [
     "web/src/pages/config-management-editor.ts"
@@ -9019,11 +9227,11 @@
   "in the store": [
     "web/src/pages/containers-apps.ts"
   ],
-  "in the template to ask for a setting.": [
-    "web/src/pages/config-management.ts"
-  ],
   "interface list. Devices reached through other interfaces will not appear here.": [
     "web/src/pages/topology.ts"
+  ],
+  "just now": [
+    "web/src/pages/ztp-views.ts"
   ],
   "kept alive by": [
     "web/src/pages/dashboard-card-diagnostics.ts"
@@ -9092,10 +9300,6 @@
   "of any age": [
     "web/src/pages/dbcleanup.ts"
   ],
-  "opacity 1s ease": [
-    "web/src/entry/login.ts",
-    "web/src/main.ts"
-  ],
   "open to any address": [
     "web/src/pages/security-scan-cards.ts"
   ],
@@ -9103,6 +9307,7 @@
     "web/src/ui/shell.html"
   ],
   "optional": [
+    "web/src/pages/ztp-views.ts",
     "web/src/ui/page-settings.html"
   ],
   "paste key here": [
@@ -9144,6 +9349,9 @@
   "router commands / min": [
     "web/src/ui/page-dashboard.html"
   ],
+  "router does not agree": [
+    "web/src/pages/wan.ts"
+  ],
   "s": [
     "web/src/ui/page-settings.html"
   ],
@@ -9161,9 +9369,6 @@
   ],
   "tcp": [
     "web/src/ui/page-tools.html"
-  ],
-  "that user did not exist when this backup was taken, MikroDash will lose": [
-    "web/src/pages/backups.ts"
   ],
   "the RouterOS user cannot read the host table": [
     "web/src/pages/bridges.ts"
@@ -9201,9 +9406,6 @@
   "to deploy to every router.": [
     "web/src/pages/config-management-deploy.ts"
   ],
-  "to the router: drag it into WinBox's Files window, or use the Files page here.": [
-    "web/src/pages/ztp-views.ts"
-  ],
   "total": [
     "web/src/ui/page-dashboard.html"
   ],
@@ -9215,6 +9417,9 @@
   ],
   "unavailable (test policy)": [
     "web/src/pages/topology-panel.ts"
+  ],
+  "up {age}": [
+    "web/src/pages/wan.ts"
   ],
   "upload": [
     "web/src/ui/page-bandwidth.html"
@@ -9243,15 +9448,15 @@
   "who is listening": [
     "web/src/pages/dashboard-card-diagnostics.ts"
   ],
-  "ws:": [
-    "web/src/main.ts"
-  ],
-  "wss:": [
-    "web/src/main.ts"
-  ],
   "you@example.com": [
     "web/src/ui/page-settings.html",
     "web/src/ui/shell.html"
+  ],
+  "{n} devices are waiting to be onboarded": [
+    "web/src/pages/ztp-views.ts"
+  ],
+  "{n} devices have called home and are waiting to be onboarded.": [
+    "web/src/pages/ztp.ts"
   ],
   "{n} entries": [
     "web/src/pages/area.ts"
@@ -9264,6 +9469,9 @@
   ],
   "{n} matching entry": [
     "web/src/pages/area.ts"
+  ],
+  "{n} menus": [
+    "web/src/pages/config-management.ts"
   ],
   "{n} routing rules look routes up in {table}.": [
     "web/src/resource.ts"
@@ -9372,6 +9580,9 @@
   "✓ Password changed": [
     "web/src/account.ts"
   ],
+  "✓ Password changed — signed out of {n} other session(s)": [
+    "web/src/account.ts"
+  ],
   "✓ Reset to defaults": [
     "web/src/pages/settings-poll.ts"
   ],
@@ -9385,6 +9596,9 @@
   ],
   "✓ Settings saved": [
     "web/src/pages/settings-save.ts"
+  ],
+  "✓ Signed out {n} other session(s)": [
+    "web/src/account.ts"
   ],
   "✗ Request failed": [
     "web/src/pages/settings-poll.ts"

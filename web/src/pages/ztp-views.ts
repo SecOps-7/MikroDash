@@ -3,7 +3,7 @@
 // and Settings → Provisioning's status. `ztp.ts` wires them.
 
 import { esc } from '../dom';
-import { t } from '../i18n';
+import { t, currentLang } from '../i18n';
 import type { ZTPBatchView, ZTPDeviceView, ZTPPayload, ZTPStatus } from '../gen/payloads';
 import { valuesGrid, type RouterOpt } from './config-management-deploy';
 import type { VarDef } from './config-management-editor';
@@ -35,7 +35,12 @@ export function relTime(ms: number, now: number): string {
   const d = ms - now, a = Math.abs(d);
   const [n, unit] = a < 90e3 ? [0, ''] : a < 90 * 60e3 ? [Math.round(a / 60e3), 'minute']
     : a < 36 * 3600e3 ? [Math.round(a / 3600e3), 'hour'] : [Math.round(a / 86400e3), 'day'];
-  if (!unit) return d > 0 ? t('in a moment') : 'just now';
+  if (!unit) return d > 0 ? t('in a moment') : t('just now');
+  // Another language takes the browser's own phrasing for "in 6 days".
+  if (currentLang() !== 'en') {
+    return new Intl.RelativeTimeFormat(currentLang(), { numeric: 'always' })
+      .format(d > 0 ? n : -n, unit as Intl.RelativeTimeFormatUnit);
+  }
   const s = n + ' ' + unit + (n === 1 ? '' : 's');
   return d > 0 ? 'in ' + s : s + ' ago';
 }
@@ -96,13 +101,12 @@ export function sectionHtml(p: ZTPPayload, now: number): string {
   const pending = list.filter((d) => d.state === 'pending').length;
   if (!list.length) {
     if (!p.status.enabled) return '';
-    return ('<div class="ztp-empty">' + t('No devices are waiting.') + ' <strong>' + t('Add device') + '</strong> makes a script for a new router; ') +
-      'a router running a generic script from Settings → Provisioning appears here to be onboarded.</div>';
+    return '<div class="ztp-empty">' + t('No devices are waiting. <strong>Add device</strong> makes a script for a new router; a router running a generic script from Settings → Provisioning appears here to be onboarded.') + '</div>';
   }
   return ('<div class="ztp-sec-head"><span class="ztp-sec-title">' + t('Provisioning') + '</span>') +
     '<span class="card-badge active-blue">' + list.length + '</span>' +
-    (pending ? '<span class="ztp-sec-note">' + pending + (pending === 1 ? ' device is' : ' devices are') +
-      ' waiting to be onboarded</span>' : '') + '</div>' +
+    (pending ? '<span class="ztp-sec-note">' + (pending === 1 ? t('1 device is waiting to be onboarded')
+      : t('{n} devices are waiting to be onboarded', { n: pending })) + '</span>' : '') + '</div>' +
     '<div class="ztp-grid">' + list.map((d) => deviceCard(d, now)).join('') + '</div>';
 }
 
@@ -117,7 +121,7 @@ export function lanSuggestion(origin: string, hostname: string): string {
 /** Why a remote device cannot be added yet, or ''. */
 export function remoteBlocked(s: ZTPStatus): string {
   if (!s.enabled) return t('Switch provisioning on in Settings → Provisioning first.');
-  if (!s.up) return 'Provisioning is switched on but not running' + (s.error ? ': ' + s.error : '.');
+  if (!s.up) return s.error ? t('Provisioning is switched on but not running: {error}', { error: s.error }) : t('Provisioning is switched on but not running.');
   if (!s.endpoint) return t('Set the address routers reach this MikroDash on, in Settings → Provisioning.');
   return '';
 }
@@ -161,15 +165,13 @@ export function deviceStep(f: DeviceForm, mode: string, sites: SiteOpt[], facts?
   return known +
     ('<div class="sform-group"><label class="sform-label" for="ztpLabel">' + t('Name') + '</label>') +
     '<input id="ztpLabel" class="sform-input" maxlength="64" autocomplete="off" value="' + esc(f.label) +
-    '" placeholder="Branch office router"></div>' +
-    (facts ? '' : '<div class="sform-group"><label class="sform-label" for="ztpSerial">Serial number ' +
-      '<span class="ztp-opt">optional</span></label>' +
+    '" placeholder="' + t('Branch office router') + '"></div>' +
+    (facts ? '' : '<div class="sform-group"><label class="sform-label" for="ztpSerial">' + t('Serial number') +
+      ' <span class="ztp-opt">' + t('optional') + '</span></label>' +
       '<input id="ztpSerial" class="sform-input" maxlength="64" autocomplete="off" value="' + esc(f.serial) +
-      '" placeholder="HF1234567AB"><div class="ztp-help">When given, only the router with this serial can use the script. On the router: <code>/system routerboard print</code>, or on a CHR ' +
-      '<code>/system license print</code>.</div></div>') +
+      '" placeholder="HF1234567AB"><div class="ztp-help">' + t('When given, only the router with this serial can use the script. On the router: <code>/system routerboard print</code>, or on a CHR <code>/system license print</code>.') + '</div></div>') +
     (mode === 'local' ? ('<div class="sform-group"><label class="sform-label" for="ztpLanUrl">' + t('This MikroDash, as the router reaches it') + '</label><input id="ztpLanUrl" class="sform-input" autocomplete="off" value="') + esc(f.lanUrl) +
-      '" placeholder="http://192.168.88.10:3081"><div class="ztp-help">The router calls home here, and its API user ' +
-      t('accepts logins from this address only.') + '</div></div>' : '') +
+      '" placeholder="http://192.168.88.10:3081"><div class="ztp-help">' + t('The router calls home here, and its API user accepts logins from this address only.') + '</div></div>' : '') +
     (sites.length ? ('<div class="sform-group"><span class="sform-label">' + t('Sites') + '</span><div class="ztp-sites">') +
       sites.map((s) => '<label class="ztp-site"><input type="checkbox" data-ztp-site="' + esc(s.id) + '"' +
         (f.siteIds.includes(s.id) ? ' checked' : '') + '> ' + esc(s.name) + '</label>').join('') + '</div></div>' : '') +
@@ -198,7 +200,7 @@ export function configProblem(tpl: OpenTemplate | null, chosen: string, values: 
   if (!tpl || tpl.id !== chosen) return t('Opening the template…');
   if (tpl.findings.some((f) => f.level === 'refuse')) return t('This template cannot be applied on arrival');
   for (const d of tpl.defs) {
-    if (d.required && !(values[d.name] ?? d.default ?? '').trim()) return 'Fill in ' + (d.label || d.name);
+    if (d.required && !(values[d.name] ?? d.default ?? '').trim()) return t('Fill in {field}', { field: d.label || d.name });
   }
   if (ackCodes(tpl.findings).some((f) => !acked.has(f.code))) return t('Tick OK on every check that needs it');
   return '';
@@ -209,10 +211,9 @@ export function configStep(templates: TemplateOpt[], chosen: string, tpl: OpenTe
   values: Record<string, string>, acked: Set<string>, reveal: boolean): string {
   const pick = ('<div class="sform-group"><label class="sform-label" for="ztpTpl">' + t('Apply on arrival') + '</label>') +
     ('<select id="ztpTpl" class="sform-input"><option value="">' + t('Nothing: just add it to the fleet') + '</option>') +
-    templates.map((t) => '<option value="' + esc(t.id) + '"' + (t.id === chosen ? ' selected' : '') + '>' +
-      esc(t.name) + (t.canned ? ' (built in)' : '') + '</option>').join('') + '</select>' +
-    '<div class="ztp-help">A Config Management template that adds configuration. It is previewed on the router ' +
-    'itself when it arrives, and deployed with a restore point and the auto-revert, as any deploy is.</div></div>';
+    templates.map((tpl) => '<option value="' + esc(tpl.id) + '"' + (tpl.id === chosen ? ' selected' : '') + '>' +
+      esc(tpl.name) + (tpl.canned ? ' ' + t('(built in)') : '') + '</option>').join('') + '</select>' +
+    ('<div class="ztp-help">' + t('A Config Management template that adds configuration. It is previewed on the router itself when it arrives, and deployed with a restore point and the auto-revert, as any deploy is.') + '</div></div>');
   if (!chosen) return pick;
   if (!tpl || tpl.id !== chosen) return pick + ('<div class="ztp-help">' + t('Opening the template…') + '</div>');
   const one: RouterOpt[] = [{ id: 'device', label: label || t('This device') }];
@@ -241,22 +242,24 @@ export const importCommand = (filename: string): string => '/import file-name=' 
 /** The script, how to run it, and when it stops working. */
 export function scriptPanel(r: ScriptResult, now: number, what: string): string {
   return '<div class="ztp-script-head"><div><strong>' + esc(r.filename) + '</strong><div class="ztp-help">' + esc(what) +
-    ' It stops working ' + esc(relTime(r.expiresAt, now)) + '.</div></div><div class="ztp-script-btns">' +
+    ' ' + t('It stops working {when}.', { when: esc(relTime(r.expiresAt, now)) }) + '</div></div><div class="ztp-script-btns">' +
     ('<button class="sbtn sbtn-ghost" type="button" data-ztp-copy>' + t('Copy') + '</button>') +
     ('<button class="sbtn sbtn-primary" type="button" data-ztp-download>' + t('Download') + '</button></div></div>') +
     '<pre class="ztp-script" tabindex="0">' + esc(r.script) + '</pre>' +
-    ('<ol class="ztp-steps"><li>' + t('Upload') + ' <strong>') + esc(r.filename) + ('</strong> ' + t('to the router: drag it into WinBox\'s Files window, or use the Files page here.') + '</li><li>' + t('In a terminal on the router, run') + ' <code>') +
-    esc(importCommand(r.filename)) + ('</code>.</li><li>' + t('Or paste the whole script into the terminal instead.') + '</li></ol>') +
-    '<div class="cfg-banner is-warn">This script is shown once and holds a secret. Keep it like a password; if it ' +
-    'is lost, make a new one, which also stops this one working.</div>';
+    '<ol class="ztp-steps"><li>' + t('Upload <strong>{file}</strong> to the router: drag it into WinBox\'s Files window, or use the Files page here.', { file: esc(r.filename) }) +
+    '</li><li>' + t('In a terminal on the router, run <code>{command}</code>.', { command: esc(importCommand(r.filename)) }) +
+    '</li><li>' + t('Or paste the whole script into the terminal instead.') + '</li></ol>' +
+    '<div class="cfg-banner is-warn">' + t('This script is shown once and holds a secret. Keep it like a password; if it is lost, make a new one, which also stops this one working.') + '</div>';
 }
 
 /** Settings → Provisioning's status line. */
 export function statusLine(s: ZTPStatus): string {
   if (!s.enabled) return '<span class="vpn-hs-badge ztp-pill-off">' + t('Off') + '</span> ' + t('Routers cannot call home.');
   if (!s.up) return ('<span class="vpn-hs-badge ztp-pill-bad">' + t('Not running') + '</span> ') + esc(s.error || t('Save to start it.'));
-  return '<span class="vpn-hs-badge ztp-pill-ok">Running</span> Listening on UDP ' + s.port + ' · ' +
-    s.peers + (s.peers === 1 ? ' peer' : ' peers') + ', ' + s.handshakes + ' seen in the last 3 minutes';
+  const v = { port: s.port, peers: s.peers, seen: s.handshakes };
+  return '<span class="vpn-hs-badge ztp-pill-ok">' + t('Running') + '</span> ' + (s.peers === 1
+    ? t('Listening on UDP {port} · 1 peer, {seen} seen in the last 3 minutes', v)
+    : t('Listening on UDP {port} · {peers} peers, {seen} seen in the last 3 minutes', v));
 }
 
 /** Settings → Provisioning's generic scripts. */

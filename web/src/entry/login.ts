@@ -142,7 +142,7 @@ function main(): void {
           // All three have to agree or the app renders invisibly — which it did,
           // for one afternoon, when the port had the first two and not the third.
           sessionStorage.setItem('justLoggedIn', '1');
-          document.body.style.transition = t('opacity 1s ease');
+          document.body.style.transition = 'opacity 1s ease';
           document.body.style.opacity = '0';
           // `replace`, not `assign`: the back button must not return to a login
           // form for a session that now exists.

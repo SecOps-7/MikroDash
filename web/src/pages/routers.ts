@@ -671,8 +671,7 @@ export function renderTray(unlocated: RouterStatsRow[]): void {
         + (r.online ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
         + '"></span>' + esc(r.label) + '</span>').join('')
     + '<span class="rmt-label" style="flex-basis:100%;margin-top:.25rem">'
-    + 'Their WAN address is private or unroutable, so it cannot be geolocated. '
-    + 'Set a town in the router\u2019s settings, or give its site one.</span>';
+    + 'Their WAN address is private or unroutable, so it cannot be geolocated. Set a town in the router\u2019s settings, or give its site one.</span>';
 }
 
 /**
