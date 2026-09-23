@@ -270,3 +270,89 @@ func TestALateTickStretchesTheWindowBack(t *testing.T) {
 			"back to the newest hour row, so the sleep is a permanent gap", got, hours)
 	}
 }
+
+// ── WHAT THE REPORTS PAGE ASKS AFTER COMPACTION ────────────────────────────
+//
+// Both of these failed silently on a real install before they were written.
+// compactedDB is the state that produces them: history older than the raw
+// window, summarised, with its minutes folded away.
+func compactedDB(t *testing.T, now int64) *DB {
+	t.Helper()
+	d := openTestDB(t)
+	old := ((now - int64(RawMinuteDays+20)*msPerDay) / msPerHour) * msPerHour
+	cutoff := ((now - int64(RawMinuteDays)*msPerDay) / msPerHour) * msPerHour
+	for i := 0; i < 3; i++ {
+		seedMinutes(t, d, "ether1", old+int64(i)*msPerHour, []float64{2, 4})
+	}
+	// A SECOND INTERFACE THAT STOPPED THERE, which is the case the picker lost.
+	seedMinutes(t, d, "ether9", old, []float64{1, 1})
+	if _, err := d.RollUp(old, cutoff); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.foldSummarisedMinutes(cutoff); err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+// THE SUMMARY CARD MUST FOLLOW THE CHART. On the operator's install a 60-day
+// chart totalled 2.89 TB above a card reading 557 GB, because the card summed
+// only the minutes that survive compaction whatever range it was asked for.
+// Both numbers look like numbers, which is what made it invisible.
+func TestTheVolumeSummaryReadsTheSameRangeTheChartDoes(t *testing.T) {
+	now := int64(1_800_000_000_000)
+	d := compactedDB(t, now)
+	from := now - int64(RawMinuteDays+25)*msPerDay
+
+	got, err := d.BandwidthSummary("r1", "ether1", from, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Three hours of two minutes each, 2 and 4 MB: 18 MB, and 6 samples.
+	if got.RxTotalMb != 18 {
+		t.Errorf("rx total = %v MB, want 18. A summary that reads the minute table for a "+
+			"range whose minutes are folded away reports whatever survived compaction, "+
+			"not what the range holds", got.RxTotalMb)
+	}
+	if got.Samples != 6 {
+		t.Errorf("samples = %d, want the 6 minutes behind the hours", got.Samples)
+	}
+
+	// THE CONTROL: an empty long range must be empty, not an error. SUM over no
+	// rows is NULL where COUNT is 0, so the hourly branch needs its COALESCE or
+	// this is a 500 on the Reports page rather than a blank chart.
+	empty, err := d.BandwidthSummary("r1", "no-such-iface", from, now)
+	if err != nil {
+		t.Fatalf("an empty long range errored instead of reporting nothing: %v", err)
+	}
+	if empty.Samples != 0 || empty.RxTotalMb != 0 {
+		t.Errorf("an empty range reported %+v", empty)
+	}
+}
+
+// AND THE INTERFACE IS STILL OFFERED. Its history outlives its minutes, so a
+// picker built from the minute table alone makes a report that exists
+// unreachable from the page that offers reports.
+func TestAnInterfaceWithOnlyHourlyHistoryStillLists(t *testing.T) {
+	now := int64(1_800_000_000_000)
+	d := compactedDB(t, now)
+
+	got, err := d.TrafficInterfaces("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, n := range got {
+		found[n] = true
+	}
+	if !found["ether9"] {
+		t.Errorf("the picker offers %v; ether9 has hourly history and no minutes, which is "+
+			"every interface that stopped being recorded more than %d days ago",
+			got, RawMinuteDays)
+	}
+	// THE CONTROL that shows the list is not simply everything: an interface
+	// with no history at all is still absent.
+	if found["never-recorded"] {
+		t.Error("the picker offers an interface with no rows in either table")
+	}
+}

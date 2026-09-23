@@ -242,7 +242,7 @@ func (d *DB) TrafficSamplesAgg(routerID, iface string, from, to int64, agg strin
 	if fromHourly(from, defaultTo(to)) {
 		table, rx, tx, rxMax, txMax, count = "traffic_hourly",
 			"SUM(rx_mbps * samples) / SUM(samples)", "SUM(tx_mbps * samples) / SUM(samples)",
-			"MAX(rx_max_mbps)", "MAX(tx_max_mbps)", "SUM(samples)"
+			"MAX(rx_max_mbps)", "MAX(tx_max_mbps)", "COALESCE(SUM(samples), 0)"
 	}
 	rows, err := d.sql.Query(`
     SELECT `+b.sel+` AS ts,
@@ -375,21 +375,34 @@ func (d *DB) BandwidthSamplesAgg(routerID, iface string, from, to int64, agg str
 // Distinct names from the SAMPLES rather than from the live router, so an
 // interface that has since been renamed or removed still lists for the period it
 // has history in — which is the period a report is about.
+// BOTH RESOLUTIONS, OR AN INTERFACE LEAVES THE PICKER WHILE ITS HISTORY STAYS.
+//
+// The minute rows are folded away after `RawMinuteDays` and the hour rows live
+// for the full retention, so an interface last recorded three weeks ago has 90
+// days of history and no minutes at all. Reading only the minute table dropped
+// it from the list, which made a report that exists unreachable from the page
+// that offers reports — measured on a real install as five interfaces of seven.
 func (d *DB) TrafficInterfaces(routerID string) ([]string, error) {
 	return d.distinctInterfaces(
-		`SELECT DISTINCT interface FROM traffic_samples WHERE router_id = ? ORDER BY interface`, routerID)
+		`SELECT DISTINCT interface FROM (
+		   SELECT interface FROM traffic_samples WHERE router_id = ?
+		   UNION SELECT interface FROM traffic_hourly WHERE router_id = ?
+		 ) ORDER BY interface`, routerID, routerID)
 }
 
 func (d *DB) BandwidthInterfaces(routerID string) ([]string, error) {
 	return d.distinctInterfaces(
-		`SELECT DISTINCT interface FROM bandwidth_usage WHERE router_id = ? ORDER BY interface`, routerID)
+		`SELECT DISTINCT interface FROM (
+		   SELECT interface FROM bandwidth_usage WHERE router_id = ?
+		   UNION SELECT interface FROM bandwidth_hourly WHERE router_id = ?
+		 ) ORDER BY interface`, routerID, routerID)
 }
 
-func (d *DB) distinctInterfaces(query, routerID string) ([]string, error) {
+func (d *DB) distinctInterfaces(query string, args ...any) ([]string, error) {
 	if d == nil || d.sql == nil {
 		return nil, nil
 	}
-	rows, err := d.sql.Query(query, routerID)
+	rows, err := d.sql.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +612,7 @@ func (d *DB) TrafficSummary(routerID, iface string, from, to int64, pct float64)
 	if fromHourly(from, toTS) {
 		table, rx, tx, rxMax2, txMax2, samples = "traffic_hourly",
 			"SUM(rx_mbps * samples) / SUM(samples)", "SUM(tx_mbps * samples) / SUM(samples)",
-			"MAX(rx_max_mbps)", "MAX(tx_max_mbps)", "SUM(samples)"
+			"MAX(rx_max_mbps)", "MAX(tx_max_mbps)", "COALESCE(SUM(samples), 0)"
 	}
 	var n, rowCount int
 	var rxAvg, txAvg, rxMax, txMax *float64
@@ -657,13 +670,27 @@ func (d *DB) BandwidthSummary(routerID, iface string, from, to int64) (Bandwidth
 	if d == nil || d.sql == nil {
 		return empty, nil
 	}
+	// THE SUMMARY FOLLOWS THE CHART TO THE HOUR ROWS. It did not, for one
+	// build, and the Reports page showed a 60-day chart totalling 2.89 TB above
+	// a card reading 557 GB: the card was summing the 14 days of minutes that
+	// survive compaction, for whatever range was asked. A summary that silently
+	// answers a different question from the chart beside it is worse than one
+	// that fails, because both numbers look like numbers.
+	//
+	// Its MAX becomes the largest HOUR rather than the largest minute, which is
+	// the same trade `BandwidthSamplesAgg` makes and for the same reason: the
+	// minutes are gone by then.
+	table, count := "bandwidth_usage", "COUNT(*)"
+	if fromHourly(from, defaultTo(to)) {
+		table, count = "bandwidth_hourly", "COALESCE(SUM(samples), 0)"
+	}
 	var n int
 	var rxSum, txSum, rxMax, txMax *float64
 	err := d.sql.QueryRow(`
-    SELECT COUNT(*)   AS n,
+    SELECT `+count+` AS n,
            SUM(rx_mb) AS rx_sum, SUM(tx_mb) AS tx_sum,
            MAX(rx_mb) AS rx_max, MAX(tx_mb) AS tx_max
-    FROM   bandwidth_usage
+    FROM   `+table+`
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
   `, routerID, iface, from, defaultTo(to)).Scan(&n, &rxSum, &txSum, &rxMax, &txMax)
 	if err != nil {

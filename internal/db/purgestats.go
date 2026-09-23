@@ -46,14 +46,40 @@ type purgeTable struct {
 // Written out rather than lifted, because this has to work in a binary with no
 // live tree beside it — the same arrangement, and the same justification, as
 // `routerDataTables` in purge.go. The corpus is what keeps the two honest.
+// THE HOURLY ROLLUPS ARE PART OF THE TYPE THEY SUMMARISE (#59). "Purge traffic
+// history" that left `traffic_hourly` behind would delete the 14 days of
+// minutes, report exactly how many rows it removed, and leave the operator's
+// long-range chart drawing the traffic they had just asked to be rid of. The
+// `events` type already shows the shape: a type is whatever tables hold it.
+//
+// They are port-added, since live recorded minutes only, and are named in
+// `portAddedPurgeTables` so the parity comparison can set them aside instead of
+// being widened to accept anything.
 var purgeTables = map[string][]purgeTable{
-	"ping":      {{Table: "ping_samples", TS: "ts"}},
-	"traffic":   {{Table: "traffic_samples", TS: "ts"}},
-	"bandwidth": {{Table: "bandwidth_usage", TS: "ts"}},
+	"ping": {{Table: "ping_samples", TS: "ts"}},
+	"traffic": {
+		{Table: "traffic_samples", TS: "ts"},
+		{Table: "traffic_hourly", TS: "ts"},
+	},
+	"bandwidth": {
+		{Table: "bandwidth_usage", TS: "ts"},
+		{Table: "bandwidth_hourly", TS: "ts"},
+	},
 	"events": {
 		{Table: "alert_events", TS: "fired_at"},
 		{Table: "connectivity_events", TS: "ts"},
 	},
+}
+
+// portAddedPurgeTables is every table above that live's PURGE_TABLES has no
+// counterpart for, with why. The parity test excludes exactly these from its
+// positional comparison and reviews them against this ledger instead, so the
+// set cannot grow by an entry nobody wrote a reason for.
+var portAddedPurgeTables = map[string]string{
+	"traffic_hourly": "the hourly traffic rollup (#59). Live recorded minutes only. It is " +
+		"purged WITH traffic_samples because it is the same history at lower resolution: " +
+		"purging one and not the other would report a number and leave the data",
+	"bandwidth_hourly": "the hourly volume rollup (#59), the same arrangement as traffic_hourly",
 }
 
 // PurgeTypes is `Object.keys(PURGE_TABLES)`, in the order the object declares
@@ -259,15 +285,23 @@ func (d *DB) Stats() (DBStats, error) {
 		out.Total += n
 	}
 
-	// THE OLDEST ROW across all five tables, which is what the card shows as
-	// "history back to …". `MIN` over a UNION ALL of five MINs, exactly as the
-	// live query does it — a NULL means no rows anywhere, not zero.
+	// THE OLDEST ROW, which is what the card shows as "history back to …".
+	// `MIN` over a UNION ALL of MINs, as the live query does it — a NULL means
+	// no rows anywhere, not zero.
+	//
+	// THE TWO HOURLY TABLES ARE A DELIBERATE ADDITION to the live five (#59),
+	// and without them this answer is wrong rather than merely lifted: minutes
+	// are folded away after `RawMinuteDays`, so a database holding ninety days
+	// of history would report reaching back fourteen. The card would understate
+	// the very thing it exists to describe.
 	var oldest *int64
 	if err := d.sql.QueryRow(`
 	    SELECT MIN(t) FROM (
 	      SELECT MIN(ts) AS t FROM ping_samples        UNION ALL
 	      SELECT MIN(ts) AS t FROM traffic_samples     UNION ALL
 	      SELECT MIN(ts) AS t FROM bandwidth_usage     UNION ALL
+	      SELECT MIN(ts) AS t FROM traffic_hourly      UNION ALL
+	      SELECT MIN(ts) AS t FROM bandwidth_hourly    UNION ALL
 	      SELECT MIN(ts) AS t FROM connectivity_events UNION ALL
 	      SELECT MIN(fired_at) AS t FROM alert_events
 	    )`).Scan(&oldest); err != nil {

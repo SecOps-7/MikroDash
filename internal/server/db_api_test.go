@@ -28,7 +28,7 @@ import (
 	"mikrodash/internal/db"
 )
 
-// dbAdminDDL adds the four history tables the principals fixture lacks, with
+// dbAdminDDL adds the six history tables the principals fixture lacks, with
 // rows straddling the boundaries the predicate can draw.
 //
 // `alert_events` already exists from `alertTestDDL` and is aged by `fired_at`
@@ -41,12 +41,19 @@ CREATE TABLE IF NOT EXISTS ping_samples        (router_id TEXT NOT NULL, ts INTE
 CREATE TABLE IF NOT EXISTS traffic_samples     (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS bandwidth_usage     (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS connectivity_events (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS traffic_hourly      (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS bandwidth_hourly    (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
 INSERT INTO ping_samples (router_id, ts) VALUES
   ('rtr-1', 1699827200000), ('rtr-1', 1699996400000), ('rtr-2', 1699827200000);
 INSERT INTO traffic_samples (router_id, ts) VALUES
   ('rtr-1', 1699827200000), ('rtr-2', 1699827200000);
 INSERT INTO bandwidth_usage (router_id, ts) VALUES ('rtr-1', 1699827200000);
 INSERT INTO connectivity_events (router_id, ts) VALUES ('rtr-2', 1699827200000);
+-- The hourly rollups are part of the traffic and bandwidth types (#59), so a
+-- row in each makes that pairing observable here the way connectivity_events
+-- makes the events pairing observable: traffic is 2 tables, and only one of
+-- bandwidth's two has a row.
+INSERT INTO traffic_hourly (router_id, ts) VALUES ('rtr-1', 1699827200000);
 `
 
 func dbAdminServer(t *testing.T, sess *Session) (*Server, *http.ServeMux, string) {
@@ -72,9 +79,17 @@ func TestDBStatsReportsTheHistory(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	// SEVEN ROWS: 3 ping, 2 traffic, 1 bandwidth, 1 connectivity.
-	if got.Total != 7 {
-		t.Errorf("total = %d, want 7", got.Total)
+	// EIGHT ROWS: 3 ping, 2 traffic minutes + 1 traffic hour, 1 bandwidth,
+	// 1 connectivity.
+	if got.Total != 8 {
+		t.Errorf("total = %d, want 8", got.Total)
+	}
+	// `traffic` is traffic_samples PLUS traffic_hourly since #59, the same
+	// pairing `events` has. A purge or a count that took only the minutes would
+	// report 2.
+	if got.ByType["traffic"] != 3 {
+		t.Errorf("byType[traffic] = %d, want 3 (2 minute rows and 1 hour row)",
+			got.ByType["traffic"])
 	}
 	if got.ByType["ping"] != 3 {
 		t.Errorf("byType[ping] = %d, want 3", got.ByType["ping"])
@@ -281,9 +296,9 @@ func TestAWhitespaceRouterIdMeansAllRouters(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	// The fixture holds seven rows across two routers.
-	if got.Total != 7 {
-		t.Errorf("total = %d, want 7. A blank routerId was treated as a router name, so the "+
+	// The fixture holds eight rows across two routers.
+	if got.Total != 8 {
+		t.Errorf("total = %d, want 8. A blank routerId was treated as a router name, so the "+
 			"predicate matched nothing.", got.Total)
 	}
 }

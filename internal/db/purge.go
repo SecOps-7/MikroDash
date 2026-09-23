@@ -40,6 +40,25 @@ var routerDataTables = []string{
 	"connectivity_events",
 }
 
+// routerDataTablesPortAdded is cleared as well, and is NOT compared against the
+// live function — live has no such tables to compare with.
+//
+// Kept as a second list rather than appended to the first for the reason
+// `portAddedPrunes` exists: the parity test is exact, and quietly extending the
+// lifted list would turn a gate that fails in both directions into one that
+// agrees with whatever it is shown. The ledger in the test is what reviews
+// these instead.
+//
+// WITHOUT THEM A REMOVED ROUTER KEEPS ITS TRAFFIC HISTORY. The hour rows hold
+// the same measurements as the minute rows, at lower resolution and a longer
+// retention, so leaving them is not a smaller version of the omission: it is
+// the whole history, for up to the full retention, belonging to a router the
+// operator asked to be gone.
+var routerDataTablesPortAdded = []string{
+	"traffic_hourly",
+	"bandwidth_hourly",
+}
+
 // routerPurgeExcluded is what a router purge must NEVER touch, with the reason.
 // Asserted by the same test, so "completing" the list above fails twice.
 var routerPurgeExcluded = map[string]string{
@@ -77,8 +96,8 @@ func (d *DB) DeleteRouterData(routerID string) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	for _, table := range routerDataTables {
-		// The table names come from the constant above, never from a caller.
+	for _, table := range append(append([]string{}, routerDataTables...), routerDataTablesPortAdded...) {
+		// The table names come from the constants above, never from a caller.
 		if _, err := tx.Exec(
 			fmt.Sprintf(`DELETE FROM %s WHERE router_id = ?`, table), routerID); err != nil {
 			return fmt.Errorf("db: purge %s: %w", table, err)

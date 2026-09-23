@@ -163,9 +163,22 @@ func TestPurgeTargetsMatchLive(t *testing.T) {
 			// A NON-ARRAY `types` in the live call falls back to every type. In
 			// Go the parameter is already a slice, so the corpus's string and
 			// null cases arrive as nil — which is the same fallback.
-			got := PurgeTargetsForTest(typeList(tc.Types))
+			all := PurgeTargetsForTest(typeList(tc.Types))
+			// THE PORT-ADDED TABLES ARE SET ASIDE, NOT ACCEPTED (#59). The
+			// hourly rollups are purged with the minutes they summarise and
+			// live has no counterpart, so comparing them positionally against
+			// the recording would fail on a difference that is the design.
+			// Only these exact tables are excused — see portAddedPurgeTables,
+			// which TestPortAddedPurgeTablesAreRecorded reviews in both
+			// directions — so a table added without a reason still fails here.
+			got := make([]purgeTable, 0, len(all))
+			for _, x := range all {
+				if _, added := portAddedPurgeTables[x.Table]; !added {
+					got = append(got, x)
+				}
+			}
 			if len(got) != len(tc.Targets) {
-				t.Fatalf("%d table(s), live had %d: %v vs %v",
+				t.Fatalf("%d lifted table(s), live had %d: %v vs %v",
 					len(got), len(tc.Targets), got, tc.Targets)
 			}
 			for i := range tc.Targets {
@@ -174,6 +187,46 @@ func TestPurgeTargetsMatchLive(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPortAddedPurgeTablesAreRecorded — BOTH DIRECTIONS.
+//
+// An unrecorded port-added table is a DELETE excused from the parity
+// comparison that nothing else reviews. A recorded one that no type purges any
+// more is a note about a table the card has stopped touching — and would also
+// silently narrow the comparison above, since it is the exclusion list.
+func TestPortAddedPurgeTablesAreRecorded(t *testing.T) {
+	inUse := map[string]bool{}
+	for _, tables := range purgeTables {
+		for _, x := range tables {
+			inUse[x.Table] = true
+		}
+	}
+	corpus := map[string]bool{}
+	for _, tc := range loadPurgeCorpus(t).Targets {
+		for _, x := range tc.Targets {
+			corpus[x.Table] = true
+		}
+	}
+	for table := range portAddedPurgeTables {
+		if !inUse[table] {
+			t.Errorf("%s is recorded as a port-added purge table but no type purges it; "+
+				"either the card stopped covering it or this note has outlived it", table)
+		}
+		if corpus[table] {
+			t.Errorf("%s IS in the live recording, so it is not port-added: it belongs in "+
+				"the positional comparison rather than excused from it", table)
+		}
+	}
+	for table := range inUse {
+		if corpus[table] {
+			continue
+		}
+		if _, ok := portAddedPurgeTables[table]; !ok {
+			t.Errorf("%s is purged by this port, is absent from the live recording, and "+
+				"nothing records why", table)
+		}
 	}
 }
 
@@ -187,7 +240,7 @@ CREATE TABLE traffic_samples     (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE bandwidth_usage     (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE connectivity_events (router_id TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE alert_events        (router_id TEXT NOT NULL, fired_at INTEGER NOT NULL);
-`
+` + rollupTablesDDL
 
 // seedPurgeDB builds a database whose rows straddle every boundary the predicate
 // can draw: two routers, and rows both sides of a one-day cutoff.
@@ -237,6 +290,35 @@ func seedPurgeDB(t *testing.T, now int64) *DB {
 			}
 		}
 	}
+	// THE HOURLY ROLLUPS, SEEDED SEPARATELY (#59). They carry NOT NULL measure
+	// columns and a primary key on (router_id, interface, ts), so the generic
+	// insert above cannot write them and its two same-instant rtr-2 rows would
+	// collide. Without these the purge targets added for them would be counted
+	// and deleted against empty tables, which passes either way.
+	// The duplicate old row is a SECOND INTERFACE rather than a second instant,
+	// because the primary key is (router_id, interface, ts) and moving its
+	// timestamp instead would make these tables hold the oldest row in the
+	// database — an artefact of the fixture that the "history back to …"
+	// assertion would then be measuring.
+	for _, row := range []struct {
+		router, iface string
+		at            int64
+	}{
+		{"rtr-1", "ether1", now - 2*day},
+		{"rtr-2", "ether1", now - 2*day}, {"rtr-2", "ether2", now - 2*day},
+		{"rtr-2", "ether1", now - 3600000},
+	} {
+		if _, err := h.Exec(`INSERT INTO traffic_hourly
+		    (router_id, interface, ts, rx_mbps, tx_mbps, rx_max_mbps, tx_max_mbps, samples)
+		    VALUES (?, ?, ?, 1, 1, 1, 1, 60)`, row.router, row.iface, row.at); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.Exec(`INSERT INTO bandwidth_hourly
+		    (router_id, interface, ts, rx_mb, tx_mb, samples)
+		    VALUES (?, ?, ?, 1, 1, 60)`, row.router, row.iface, row.at); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := h.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -257,19 +339,26 @@ func TestCountPurgeAndPurgeAgree(t *testing.T) {
 		opts PurgeOpts
 		want int64
 	}{
-		// TWENTY ROWS in total: five tables, four rows each — one for rtr-1 and
-		// three for rtr-2, of which one is recent.
-		{"everything", PurgeOpts{}, 20},
-		{"one router", PurgeOpts{RouterID: "rtr-1"}, 5},
-		{"the other router", PurgeOpts{RouterID: "rtr-2"}, 15},
-		{"older than a day", PurgeOpts{OlderThanMs: day}, 15},
-		{"one router older than a day", PurgeOpts{RouterID: "rtr-2", OlderThanMs: day}, 10},
+		// TWENTY-EIGHT ROWS in total: seven tables, four rows each — one for
+		// rtr-1 and three for rtr-2, of which one is recent. It was twenty over
+		// five tables until the hourly rollups joined the traffic and bandwidth
+		// types (#59); the fixture's own arithmetic, not a lifted number.
+		{"everything", PurgeOpts{}, 28},
+		{"one router", PurgeOpts{RouterID: "rtr-1"}, 7},
+		{"the other router", PurgeOpts{RouterID: "rtr-2"}, 21},
+		{"older than a day", PurgeOpts{OlderThanMs: day}, 21},
+		{"one router older than a day", PurgeOpts{RouterID: "rtr-2", OlderThanMs: day}, 14},
 		{"one type", PurgeOpts{Types: []string{"ping"}}, 4},
 		// `events` IS TWO TABLES, so it removes eight where a single type removes
 		// four. A port modelling one table per type would report four.
 		{"events is two tables", PurgeOpts{Types: []string{"events"}}, 8},
+		// AND SO IS `traffic` NOW: the minutes and the hourly rollup of them.
+		// A purge that took only the minutes would report four, delete the 14-day
+		// window, and leave the long-range chart drawing the same traffic.
+		{"traffic is its minutes and its hours", PurgeOpts{Types: []string{"traffic"}}, 8},
+		{"bandwidth likewise", PurgeOpts{Types: []string{"bandwidth"}}, 8},
 		// A ZERO age is NOT a condition — this must take everything, not nothing.
-		{"a zero age takes everything", PurgeOpts{OlderThanMs: 0}, 20},
+		{"a zero age takes everything", PurgeOpts{OlderThanMs: 0}, 28},
 		{"a router that has no rows", PurgeOpts{RouterID: "rtr-nope"}, 0},
 		{"an age nothing is older than", PurgeOpts{OlderThanMs: 3650 * day}, 0},
 		// AN UNKNOWN TYPE removes nothing AND must not appear in byType — the
@@ -308,8 +397,8 @@ func TestCountPurgeAndPurgeAgree(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if int64(after.Total) != 20-c.want {
-				t.Errorf("%d row(s) left, want %d", after.Total, 20-c.want)
+			if int64(after.Total) != 28-c.want {
+				t.Errorf("%d row(s) left, want %d", after.Total, 28-c.want)
 			}
 
 			// AN UNKNOWN TYPE MUST NOT APPEAR IN byType. `if (!PURGE_TABLES[type])
@@ -336,34 +425,39 @@ func TestStatsCountsAndOrdersByRouter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stats: %v", err)
 	}
-	if s.Total != 20 {
-		t.Errorf("total = %d, want 20", s.Total)
+	if s.Total != 28 {
+		t.Errorf("total = %d, want 28", s.Total)
 	}
-	// `events` is two tables, so it holds eight of the twenty.
+	// `events` is two tables, so it holds eight of the twenty-eight — and since
+	// #59 so are `traffic` and `bandwidth`, which is why the total is not 20.
 	if s.ByType["events"] != 8 {
 		t.Errorf("byType[events] = %d, want 8 — it is two tables", s.ByType["events"])
+	}
+	if s.ByType["traffic"] != 8 {
+		t.Errorf("byType[traffic] = %d, want 8 — the minutes and their hourly rollup",
+			s.ByType["traffic"])
 	}
 	if s.ByType["ping"] != 4 {
 		t.Errorf("byType[ping] = %d, want 4", s.ByType["ping"])
 	}
-	// DESCENDING BY ROWS: rtr-2 has fifteen and rtr-1 has five, so the row order
-	// and the ID order DISAGREE. That is deliberate — with rtr-1 in front on both
-	// counts, dropping the row-count comparison entirely survives, because the
-	// id tiebreak produces the same answer.
+	// DESCENDING BY ROWS: rtr-2 has twenty-one and rtr-1 has seven, so the row
+	// order and the ID order DISAGREE. That is deliberate — with rtr-1 in front
+	// on both counts, dropping the row-count comparison entirely survives,
+	// because the id tiebreak produces the same answer.
 	if len(s.ByRouter) != 2 {
 		t.Fatalf("%d router(s), want 2", len(s.ByRouter))
 	}
-	if s.ByRouter[0].RouterID != "rtr-2" || s.ByRouter[0].Rows != 15 {
+	if s.ByRouter[0].RouterID != "rtr-2" || s.ByRouter[0].Rows != 21 {
 		t.Errorf("first row is %+v; the router with the MOST history comes first, because that "+
 			"is the one an operator is usually looking for — and it is NOT the one that sorts "+
 			"first by id", s.ByRouter[0])
 	}
-	if s.ByRouter[1].RouterID != "rtr-1" || s.ByRouter[1].Rows != 5 {
+	if s.ByRouter[1].RouterID != "rtr-1" || s.ByRouter[1].Rows != 7 {
 		t.Errorf("second row is %+v", s.ByRouter[1])
 	}
 	// THE OLDEST ROW is the two-day-old one, across every table.
 	if s.OldestTS == nil {
-		t.Fatal("oldestTs is nil with fifteen rows in the database")
+		t.Fatal("oldestTs is nil with twenty-eight rows in the database")
 	}
 	if *s.OldestTS != now-2*86400000 {
 		t.Errorf("oldestTs = %d, want %d", *s.OldestTS, now-2*86400000)

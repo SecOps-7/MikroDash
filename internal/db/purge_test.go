@@ -54,7 +54,7 @@ CREATE TABLE config_backups (id INTEGER PRIMARY KEY, router_id TEXT NOT NULL,
   stem TEXT, dir TEXT, fingerprint TEXT, rsc_bytes INTEGER NOT NULL,
   backup_bytes INTEGER NOT NULL, model TEXT, serial TEXT, os_version TEXT,
   ms INTEGER NOT NULL, pruned_at INTEGER, error TEXT);
-`
+` + rollupTablesDDL
 
 // liveDeleteRouterData returns the body of the live function, or "" when the
 // source is not available.
@@ -127,6 +127,63 @@ func TestTheRouterPurgeTablesMatchLive(t *testing.T) {
 	}
 }
 
+// portAddedRouterPurgeTables: every table this port clears that live has no
+// counterpart for, with why. Named here rather than derived from the list, so
+// the list alone cannot admit a DELETE — the same arrangement, and the same
+// reasoning, as portAddedPrunes.
+var portAddedRouterPurgeTables = map[string]string{
+	"traffic_hourly": "the hourly traffic rollup (#59). Live recorded minutes only, so the " +
+		"recording holds nothing to compare against. It MUST be cleared with the router: it " +
+		"is the same history as traffic_samples at lower resolution and a longer retention, " +
+		"so omitting it would leave a removed router's traffic behind for the full retention",
+	"bandwidth_hourly": "the hourly volume rollup (#59), the same arrangement as traffic_hourly",
+}
+
+// TestPortAddedRouterPurgeTablesAreRecorded — BOTH DIRECTIONS.
+//
+// An unrecorded port-added table is a DELETE nobody reviewed. A recorded one
+// that is no longer cleared is a note about a table the purge has stopped
+// touching. And one that has appeared in the LIVE function belongs in the
+// lifted list, where the parity comparison can see it, not here where it is
+// exempt from it.
+func TestPortAddedRouterPurgeTablesAreRecorded(t *testing.T) {
+	for _, table := range routerDataTablesPortAdded {
+		if _, ok := portAddedRouterPurgeTables[table]; !ok {
+			t.Errorf("%s is cleared by a port-added entry that nothing records — it is "+
+				"exempt from the parity comparison, so this ledger is the only thing "+
+				"that reviews it", table)
+		}
+		for _, lifted := range routerDataTables {
+			if lifted == table {
+				t.Errorf("%s is in BOTH lists, so it is compared against live AND excused "+
+					"from that comparison", table)
+			}
+		}
+	}
+	for table := range portAddedRouterPurgeTables {
+		found := false
+		for _, got := range routerDataTablesPortAdded {
+			if got == table {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s is recorded as a port-added purge table but nothing clears it; "+
+				"either the purge stopped covering it or this note has outlived it", table)
+		}
+	}
+	// AND IT IS STILL ABSENT FROM LIVE. Once live gains the table, the entry
+	// belongs in routerDataTables where the parity test compares it.
+	if body := liveDeleteRouterData(t); body != "" {
+		for table := range portAddedRouterPurgeTables {
+			if strings.Contains(body, table) {
+				t.Errorf("the LIVE function now clears %s, so it is no longer port-added: "+
+					"move it to routerDataTables where the parity comparison covers it", table)
+			}
+		}
+	}
+}
+
 // purgeInsert is one seed row per table, naming every NOT NULL column. Held here
 // rather than built from the table name because the columns genuinely differ --
 // which is the point of matching the real schema.
@@ -137,6 +194,13 @@ var purgeInsert = map[string]string{
 	   VALUES (?, 'ether1', 1, 1, 1)`,
 	"bandwidth_usage": `INSERT INTO bandwidth_usage (router_id, interface, rx_mb, tx_mb, ts)
 	   VALUES (?, 'ether1', 1, 1, 1)`,
+	// The port-added rollups are seeded too, or the DELETEs added for them
+	// would run against empty tables and prove nothing.
+	"traffic_hourly": `INSERT INTO traffic_hourly
+	   (router_id, interface, ts, rx_mbps, tx_mbps, rx_max_mbps, tx_max_mbps, samples)
+	   VALUES (?, 'ether1', 0, 1, 1, 1, 1, 60)`,
+	"bandwidth_hourly": `INSERT INTO bandwidth_hourly
+	   (router_id, interface, ts, rx_mb, tx_mb, samples) VALUES (?, 'ether1', 0, 1, 1, 60)`,
 	"connectivity_events": `INSERT INTO connectivity_events (router_id, connected, ts)
 	   VALUES (?, 1, 1)`,
 	"alert_events": `INSERT INTO alert_events (router_id, alert_type, subject, detail, fired_at)
@@ -153,8 +217,8 @@ func purgeDB(t *testing.T) *DB {
 	if _, err := h.Exec(alertEventsDDL + purgeDDL); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"ping_samples", "traffic_samples", "bandwidth_usage",
-		"connectivity_events"} {
+	for _, table := range append([]string{"ping_samples", "traffic_samples", "bandwidth_usage",
+		"connectivity_events"}, routerDataTablesPortAdded...) {
 		for _, rid := range []string{"r1", "r2"} {
 			if _, err := h.Exec(purgeInsert[table], rid); err != nil {
 				t.Fatalf("seed %s: %v", table, err)

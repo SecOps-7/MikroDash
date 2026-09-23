@@ -835,6 +835,8 @@ func TestRemovingARouterPurgesWhatOnlyMadeSenseWithIt(t *testing.T) {
 
 	for name, table := range map[string]string{
 		"grants": "scope_id", "report_schedules": "router_id", "ping_samples": "router_id",
+		// AND THE ROLLUPS, or a removed router keeps its traffic history (#59).
+		"traffic_hourly": "router_id", "bandwidth_hourly": "router_id",
 	} {
 		if n := countRows(t, s, name, table, "r1"); n != 0 {
 			t.Errorf("%s still has %d rows for the removed router", name, n)
@@ -870,6 +872,21 @@ func seedPurgeables(t *testing.T, s *Server) {
 		   tx_mb REAL NOT NULL, ts INTEGER NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS connectivity_events (id INTEGER PRIMARY KEY,
 		   router_id TEXT NOT NULL, connected INTEGER NOT NULL, ts INTEGER NOT NULL)`,
+		// THE HOURLY ROLLUPS (#59), matching the real schema down to the
+		// composite primary key. A removed router must not keep them: they are
+		// its whole traffic history at lower resolution, and they outlive the
+		// minutes by the full retention. The purge is one transaction, so a
+		// fixture missing these does not merely skip the assertion -- the
+		// DELETE fails and every other table is rolled back with it, which is
+		// how their absence was noticed.
+		`CREATE TABLE IF NOT EXISTS traffic_hourly (router_id TEXT NOT NULL,
+		   interface TEXT NOT NULL, ts INTEGER NOT NULL, rx_mbps REAL NOT NULL,
+		   tx_mbps REAL NOT NULL, rx_max_mbps REAL NOT NULL, tx_max_mbps REAL NOT NULL,
+		   samples INTEGER NOT NULL, PRIMARY KEY (router_id, interface, ts))`,
+		`CREATE TABLE IF NOT EXISTS bandwidth_hourly (router_id TEXT NOT NULL,
+		   interface TEXT NOT NULL, ts INTEGER NOT NULL, rx_mb REAL NOT NULL,
+		   tx_mb REAL NOT NULL, samples INTEGER NOT NULL,
+		   PRIMARY KEY (router_id, interface, ts))`,
 		`CREATE TABLE IF NOT EXISTS report_schedules (id TEXT PRIMARY KEY,
 		   router_id TEXT NOT NULL, name TEXT NOT NULL, sections TEXT NOT NULL,
 		   interface TEXT, aggregate TEXT NOT NULL, recipients TEXT NOT NULL,
@@ -900,7 +917,12 @@ func seedPurgeables(t *testing.T, s *Server) {
 			`INSERT INTO bandwidth_usage (router_id, interface, rx_mb, tx_mb, ts)
 			   VALUES ('`+rid+`', 'ether1', 1, 1, 1)`,
 			`INSERT INTO connectivity_events (router_id, connected, ts)
-			   VALUES ('`+rid+`', 1, 1)`)
+			   VALUES ('`+rid+`', 1, 1)`,
+			`INSERT INTO traffic_hourly (router_id, interface, ts, rx_mbps, tx_mbps,
+			   rx_max_mbps, tx_max_mbps, samples)
+			   VALUES ('`+rid+`', 'ether1', 0, 1, 1, 1, 1, 60)`,
+			`INSERT INTO bandwidth_hourly (router_id, interface, ts, rx_mb, tx_mb, samples)
+			   VALUES ('`+rid+`', 'ether1', 0, 1, 1, 60)`)
 		stmts = append(stmts,
 			`INSERT INTO report_schedules (id, router_id, name, sections, aggregate, recipients,
 			   frequency, send_hour, enabled, created_at, updated_at)
