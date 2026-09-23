@@ -1986,7 +1986,8 @@
 .ifh-note{font-size:.66rem;color:var(--text-muted);line-height:1.5}
 .ifh-note-title{font-size:.7rem;font-weight:600;color:var(--text-main);margin-bottom:.25rem}
 .ifh-note-dim{margin-top:.35rem;opacity:.75}
-.ifh-record{margin-top:.45rem}
+.ifh-rec{margin-top:.5rem;width:100%}
+.ifh-rec .stoggle-label{font-size:.7rem}
 
     /* ── THE AI AGENT PAGE ──────────────────────────────────────────────────
        The transcript fills the page instead of stopping at a fixed height.

@@ -113,9 +113,13 @@ function open(reply, readOnly, identity, rangeKey) {
   const charts = [];
   global.Chart = function (canvas, cfg) {
     const inst = {
-      cfg, data: cfg.data, destroyed: false,
+      // `options` is the live object a real Chart exposes, and the panel writes
+      // its animation onto it every tick — so the stub shares it with cfg
+      // rather than copying, or the assertions would read a stale snapshot.
+      cfg, data: cfg.data, options: cfg.options, destroyed: false,
       destroy() { this.destroyed = true; },
-      update() {},
+      updates: [],
+      update(mode) { this.updates.push(mode); },
     };
     charts.push(inst);
     return inst;
@@ -156,16 +160,18 @@ function open(reply, readOnly, identity, rangeKey) {
   }
   return {
     els, fetched, puts, emitted, mod, charts,
-    clickRecord: () => {
-      const m = get('ifhBody').innerHTML.match(/data-ifh-rec="(on|off)"/);
-      if (!m) throw new Error('no record control in: ' + get('ifhBody').innerHTML);
-      // The handler is delegated on #ifhBody, so the click is dispatched there
-      // with a target carrying the class and the direction — the same shape the
-      // browser delivers.
-      get('ifhBody').fire('click', {
+    /** Flip the recording toggle, as a browser does: the input's `change`
+     *  bubbles to the delegated handler carrying the state it landed in. */
+     flipRecord: () => {
+      const html = get('ifhBody').innerHTML;
+      const m = html.match(/<input type="checkbox" class="ifh-record"([^>]*)>/);
+      if (!m) throw new Error('no record toggle in: ' + html);
+      if (/disabled/.test(m[1])) throw new Error('the toggle is disabled: ' + m[1]);
+      const wasOn = /checked/.test(m[1]);
+      get('ifhBody').fire('change', {
         target: {
           classList: { contains: (c) => c === 'ifh-record' },
-          getAttribute: (k) => (k === 'data-ifh-rec' ? m[1] : null),
+          checked: !wasOn,
         },
       });
     },
@@ -182,6 +188,20 @@ function open(reply, readOnly, identity, rangeKey) {
   };
 }
 
+/**
+ * The recording toggle as rendered: absent, or on/off and movable or not.
+ *
+ * Read out of the markup rather than by asking the panel, because the question
+ * is what an operator is shown — a toggle drawn in the wrong state is exactly
+ * the bug worth catching, and it would agree with the panel's own view of
+ * itself.
+ */
+function toggle(html) {
+  const m = html.match(/<input type="checkbox" class="ifh-record"([^>]*)>/);
+  if (!m) return null;
+  return { on: /checked/.test(m[1]), disabled: /disabled/.test(m[1]) };
+}
+
 let failed = 0;
 const checks = [];
 function check(name, fn) { checks.push({ name, fn }); }
@@ -196,8 +216,8 @@ check('an unrecorded interface explains itself instead of drawing nothing', asyn
   const body = d.body();
   assert.ok(body.includes('not being recorded'),
     'an unrecorded interface must say so, or an empty chart reads as a fault: ' + body);
-  assert.ok(body.includes('Record this interface'),
-    'somebody who may record it was not offered the switch: ' + body);
+  assert.deepEqual(toggle(body), { on: false, disabled: false },
+    'somebody who may record it was not offered a movable, off toggle: ' + body);
 });
 
 check('a viewer who may not record is told, not offered a control that fails', async () => {
@@ -208,7 +228,7 @@ check('a viewer who may not record is told, not offered a control that fails', a
   await new Promise((r) => setImmediate(r));
   const body = d.body();
   assert.ok(body.includes('not being recorded'), body);
-  assert.ok(!body.includes('Record this interface'),
+  assert.equal(toggle(body), null,
     'a read-only viewer was offered a write the server would refuse: ' + body);
 });
 
@@ -325,7 +345,7 @@ check('Live draws for an interface that is not recorded', async () => {
   // AND IT SAYS WHY THE OTHER RANGES ARE EMPTY, rather than leaving the
   // operator to wonder whether the whole panel is broken.
   assert.ok(body.includes('Not recorded'), body);
-  assert.ok(body.includes('Record this interface'), body);
+  assert.deepEqual(toggle(body), { on: false, disabled: false }, body);
 });
 
 check('a live sample for another interface does not draw here', async () => {
@@ -372,9 +392,75 @@ check('an hourly window is labelled by the clock', async () => {
     'an hourly label is not a clock time: ' + JSON.stringify(labels));
 });
 
+// ── SMOOTHNESS ─────────────────────────────────────────────────────────────
+//
+// The live chart used to step: the whole series was replaced and redrawn with
+// animation off, so the line jumped one sample to the left every second. It
+// slides now, which is one config flag and one argument — both easy to lose,
+// and neither visible in any assertion about the numbers.
+
+check('a live chart animates each tick, at the measured sample interval', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  // Two samples a second apart: the animation is measured from them rather
+  // than assumed, because the interface poll is an operator setting.
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+  await new Promise((r) => setTimeout(r, 120));
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 2, txMbps: 2 }]);
+  const anim = d.charts.last().cfg.options.animation;
+  assert.ok(anim && anim.duration > 0,
+    'the live chart is not animated, so it steps once a sample: ' + JSON.stringify(anim));
+  assert.equal(anim.easing, 'linear',
+    'an eased tick speeds up and slows down against a clock that does neither');
+});
+
+check('a live tick does not skip the animation', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+  await new Promise((r) => setTimeout(r, 120));
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 2, txMbps: 2 }]);
+  const c = d.charts.last();
+  assert.ok(c.updates.length, 'the chart was rebuilt rather than updated in place');
+  assert.ok(!c.updates.includes('none'),
+    "update('none') is the flag that SKIPS the animation — passing it is what "
+    + 'made the chart step: ' + JSON.stringify(c.updates));
+});
+
+// THE 30-MINUTE WINDOW IS NOT ANIMATED, and that is deliberate: at 1800 points
+// across a few hundred pixels a sample is sub-pixel, so tweening 1800 values
+// every second buys nothing anyone can see and costs it every second.
+check('the 30-minute window is not animated', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5', '30m');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+  await new Promise((r) => setTimeout(r, 120));
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 2, txMbps: 2 }]);
+  assert.equal(d.charts.last().cfg.options.animation, false,
+    'the 30-minute window animates 1800 sub-pixel points every second');
+});
+
+check('a recorded range is not animated either', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1', recordedIfaces: ['ether5'],
+    rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
+  }, false, 'ether5', '1h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(d.charts.last().cfg.options.animation, false,
+    'a static range has nothing to slide');
+});
+
 // ── THE SWITCH GOES BOTH WAYS ──────────────────────────────────────────────
 
-check('a recorded interface is offered Stop recording', async () => {
+check('a recorded interface has the toggle ON, and movable', async () => {
   const d = open({
     ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
     recordedIfaces: ['ether5'], rows: [],
@@ -382,11 +468,11 @@ check('a recorded interface is offered Stop recording', async () => {
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
-  assert.ok(d.body().includes('Stop recording'),
+  assert.deepEqual(toggle(d.body()), { on: true, disabled: false },
     'recording could be turned on and never off: ' + d.body());
 });
 
-check('Stop recording sends the list without this interface', async () => {
+check('switching the toggle off sends the list without this interface', async () => {
   const d = open({
     ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
     recordedIfaces: ['ether2', 'ether5'], rows: [],
@@ -394,14 +480,14 @@ check('Stop recording sends the list without this interface', async () => {
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
-  d.clickRecord();
+  d.flipRecord();
   await new Promise((r) => setImmediate(r));
   assert.equal(d.puts.length, 1, 'no write was sent: ' + JSON.stringify(d.puts));
   assert.deepEqual(d.puts[0].body.recordedIfaces, ['ether2'],
     'switching ether5 off must leave the others alone: ' + JSON.stringify(d.puts[0].body));
 });
 
-check('Record this interface appends to the stored list', async () => {
+check('switching the toggle on appends to the stored list', async () => {
   const d = open({
     ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1',
     recordedIfaces: ['ether2'], rows: [],
@@ -409,7 +495,7 @@ check('Record this interface appends to the stored list', async () => {
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
-  d.clickRecord();
+  d.flipRecord();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(d.puts[0].body.recordedIfaces, ['ether2', 'ether5']);
 });
@@ -417,7 +503,7 @@ check('Record this interface appends to the stored list', async () => {
 // THE WAN HAS NO SWITCH. It is recorded because it is the default interface and
 // the resolver puts it back whatever the stored list says, so a control that
 // appeared to turn it off would lie.
-check('the default interface is not offered a switch', async () => {
+check('the WAN toggle is on and cannot be moved', async () => {
   const d = open({
     ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
     recordedIfaces: [], rows: [],
@@ -426,10 +512,10 @@ check('the default interface is not offered a switch', async () => {
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
   const body = d.body();
-  assert.ok(!body.includes('Stop recording'),
-    'the WAN was offered a switch that cannot turn it off: ' + body);
-  assert.ok(/Recorded because it is this router/.test(body),
-    'it should say why instead: ' + body);
+  assert.deepEqual(toggle(body), { on: true, disabled: true },
+    'the WAN toggle must show ON and refuse to move, since the resolver puts it '
+    + 'back whatever the stored list says: ' + body);
+  assert.ok(/WAN/.test(body), 'it should say why it cannot be moved: ' + body);
 });
 
 (async () => {

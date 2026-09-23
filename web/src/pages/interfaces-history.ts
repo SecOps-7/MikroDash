@@ -48,6 +48,7 @@ interface ChartLike {
   destroy(): void;
   update(mode?: string): void;
   data: { labels: string[]; datasets: Array<{ data: number[] }> };
+  options: { animation: unknown };
 }
 
 interface HistoryReply {
@@ -70,10 +71,14 @@ interface HistoryReply {
  * Live is first and is the default, because the question an operator opens an
  * interface to ask is almost always about now.
  */
-const LIVE_RANGES: Array<{ key: string; label: string; secs: number }> = [
-  { key: 'live', label: 'Live', secs: 60 },
-  { key: '5m', label: '5 min', secs: 300 },
-  { key: '30m', label: '30 min', secs: 1800 },
+const LIVE_RANGES: Array<{ key: string; label: string; secs: number; smooth: boolean }> = [
+  // `smooth` animates each tick so the line SLIDES rather than stepping. It is
+  // off for the 30-minute window on purpose: at 1800 points across a few
+  // hundred pixels a sample is sub-pixel, so tweening 1800 values every second
+  // buys nothing anyone can see and costs it every second.
+  { key: 'live', label: 'Live', secs: 60, smooth: true },
+  { key: '5m', label: '5 min', secs: 300, smooth: true },
+  { key: '30m', label: '30 min', secs: 1800, smooth: false },
 ];
 
 /** The ranges the SERVER answers. Its map of the same keys decides the
@@ -123,6 +128,29 @@ export function recordLiveSamples(ifaces: readonly Interface[]): void {
 
 function isLive(key: string): boolean {
   return LIVE_RANGES.some((r) => r.key === key);
+}
+
+/**
+ * How long a live tick should take to draw, in ms.
+ *
+ * MEASURED FROM THE SAMPLES, not assumed to be a second: the interface poll is
+ * an operator setting, and an animation longer than the gap between samples
+ * would still be running when the next one arrived — the line would lag
+ * further behind real time with every tick.
+ *
+ * Zero means "do not animate", which is what a recorded range and the
+ * 30-minute window both want.
+ */
+function tickMs(): number {
+  const spec = LIVE_RANGES.find((r) => r.key === range);
+  if (!spec || !spec.smooth) return 0;
+  const buf = liveBuf.get(iface);
+  if (!buf || buf.length < 2) return 0;
+  const gap = (buf[buf.length - 1] as TrafficPoint).ts - (buf[buf.length - 2] as TrafficPoint).ts;
+  if (!(gap > 0)) return 0;
+  // Clamped: a resumed tab can produce one enormous gap, and animating over it
+  // would freeze the chart mid-slide for as long as the tab was away.
+  return Math.min(Math.max(gap, 250), 3000);
 }
 
 function liveWindow(): TrafficPoint[] {
@@ -209,21 +237,30 @@ function rangeBar(): string {
 }
 
 /**
- * The switch, pointing whichever way it currently should.
+ * The recording switch, as the app's own toggle rather than a pair of buttons.
  *
- * THE DEFAULT INTERFACE HAS NO SWITCH. It is recorded because it is the WAN —
- * Reports, the capacity lines and the WAN badge all read that series — and the
- * resolver puts it back whatever the stored list says, so a control that
- * appeared to turn it off would lie.
+ * `.stoggle` is what the dialog's own fields render (the Disabled toggle two
+ * rows above this one), in its `-bare` variant so it sits inside the panel
+ * instead of carrying a second panel background.
+ *
+ * THE DEFAULT INTERFACE'S TOGGLE IS ON AND DISABLED. It is recorded because it
+ * is the WAN — Reports, the capacity lines and the WAN badge all read that
+ * series — and the resolver puts it back whatever the stored list says, so a
+ * switch that could be moved would lie about what happens next.
  */
 function recordControl(d: HistoryReply): string {
   if (!d.mayRecord) return '';
-  if (d.defaultIf && d.defaultIf === iface) {
-    return '<span class="ifh-note-dim">Recorded because it is this router&#39;s WAN.</span>';
-  }
-  return d.recorded
-    ? '<button type="button" class="btn btn-sm ifh-record" data-ifh-rec="off">Stop recording</button>'
-    : '<button type="button" class="btn btn-sm ifh-record" data-ifh-rec="on">Record this interface</button>';
+  const isWan = !!d.defaultIf && d.defaultIf === iface;
+  const on = isWan || !!d.recorded;
+  return '<label class="stoggle stoggle-bare ifh-rec">' +
+    '<span class="stoggle-label">Record Traffic History' +
+    (isWan ? '<span class="ifh-note-dim"> · this router&#39;s WAN</span>' : '') +
+    '</span>' +
+    '<span class="stoggle-switch">' +
+    '<input type="checkbox" class="ifh-record"' + (on ? ' checked' : '') +
+    (isWan ? ' disabled' : '') + '>' +
+    '<span class="stoggle-track"></span><span class="stoggle-thumb"></span>' +
+    '</span></label>';
 }
 
 /**
@@ -290,11 +327,19 @@ function repaintLive(): void {
     return;
   }
   const now = Date.now();
+  // SET EVERY TICK, not once at creation. The chart is built the moment the
+  // first sample lands, when there is no second one to measure an interval
+  // from — so a duration fixed at creation is always zero and the line steps
+  // for ever. It also follows the operator changing the poll interval.
+  const anim = tickMs();
+  chart.options.animation = anim ? { duration: anim, easing: 'linear' } : false;
   chart.data.labels = pts.map((p) => tick(p.ts, now));
   const ds = chart.data.datasets;
   if (ds[0]) ds[0].data = pts.map((p) => +(+p.rx_mbps).toFixed(3));
   if (ds[1]) ds[1].data = pts.map((p) => +(+p.tx_mbps).toFixed(3));
-  chart.update('none');
+  // NOT 'none': that is the flag that skips the animation, and skipping it is
+  // what made the chart step once a second.
+  chart.update();
   const host = el('ifhStats');
   if (host) host.outerHTML = liveStats(pts);
 }
@@ -308,6 +353,7 @@ function paint(): void {
   const canvas = el<HTMLCanvasElement>('ifhChart');
   if (!canvas || typeof Chart === 'undefined') return;
   const nowMs = Date.now();
+  const anim = tickMs();
   chart = new Chart(canvas, {
     type: 'line',
     data: {
@@ -328,7 +374,13 @@ function paint(): void {
       ],
     },
     options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
+      responsive: true, maintainAspectRatio: false,
+      // A LIVE RANGE SLIDES. Chart.js tweens each point to the value of its
+      // neighbour, and because the buffer shifts by one sample per tick that
+      // reads as the line flowing leftwards rather than jumping a point at a
+      // time. Linear, because an eased tick would speed up and slow down
+      // against a clock that does neither.
+      animation: anim ? { duration: anim, easing: 'linear' } : false,
       interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } } },
       scales: {
@@ -413,9 +465,9 @@ function setRecording(on: boolean): void {
   if (!last || !last.mayRecord || !activeID || !iface) return;
   const stored = (last.recordedIfaces || []).filter((n) => n !== iface);
   if (on) stored.push(iface);
-  const btn = document.querySelector('.ifh-record') as HTMLButtonElement | null;
-  const was = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = on ? 'Switching on…' : 'Switching off…'; }
+  const box = document.querySelector('.ifh-record') as HTMLInputElement | null;
+  // Disabled while it is in flight, so a second click cannot race the first.
+  if (box) box.disabled = true;
   fetch('/api/routers/' + encodeURIComponent(activeID), {
     method: 'PUT', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
@@ -424,14 +476,16 @@ function setRecording(on: boolean): void {
     .then((r) => (r.ok ? r.json() : null))
     .then((j) => {
       if (!j || j.ok === false) {
-        if (btn) { btn.disabled = false; btn.textContent = was; }
+        // PUT IT BACK. The browser has already moved the switch; leaving it
+        // where the click left it would show a state the server refused.
+        if (box) { box.disabled = false; box.checked = !on; }
         return;
       }
       // RE-READ rather than patch `last` here: the server resolves the list,
       // and believing our own arithmetic about it is how the two drift.
       load();
     })
-    .catch(() => { if (btn) { btn.disabled = false; btn.textContent = was; } });
+    .catch(() => { if (box) { box.disabled = false; box.checked = !on; } });
 }
 
 export function initInterfaceHistory(socket: {
@@ -485,11 +539,12 @@ export function initInterfaceHistory(socket: {
       });
       const host = el('ifhBody');
       if (host) {
-        host.addEventListener('click', (e) => {
-          const t = e.target as HTMLElement | null;
-          if (t && t.classList.contains('ifh-record')) {
-            setRecording(t.getAttribute('data-ifh-rec') !== 'off');
-          }
+        // CHANGE, not click: the label wraps the input, so a click lands on
+        // whichever span was under the pointer while `change` fires once on
+        // the input itself and carries the state it landed in.
+        host.addEventListener('change', (e) => {
+          const t = e.target as HTMLInputElement | null;
+          if (t && t.classList.contains('ifh-record')) setRecording(!!t.checked);
         });
       }
       paint();
