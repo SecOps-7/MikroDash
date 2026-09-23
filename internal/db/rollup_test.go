@@ -195,3 +195,78 @@ func TestMinutesWhoseHourIsMissingAreNotFolded(t *testing.T) {
 		}
 	}
 }
+
+// THE HOLE A RESTART LEAVES, AND IT IS IN THE MIDDLE. Found on a real database,
+// not here: the first pass after a restart writes the last six hours, and
+// Compact's backfill covers only what is already past the raw-window cutoff. In
+// between sits up to RawMinuteDays of minutes with no hour rows — with hour
+// rows on BOTH SIDES of them, so no bound taken from MAX or MIN of that table
+// can see it — and every long-range read then understates recent traffic while
+// still drawing a chart.
+func TestARestartsHoleInTheMiddleIsFilled(t *testing.T) {
+	d := openTestDB(t)
+	now := int64(1_800_000_000_000)
+	// Two days of minutes, one per hour. Far more than compactWindow, and all
+	// of it inside the raw window, so the backfill never reaches it either.
+	const hours = 48
+	for i := 1; i <= hours; i++ {
+		seedMinutes(t, d, "ether1", ((now-int64(i)*msPerHour)/msPerHour)*msPerHour, []float64{4})
+	}
+
+	// EXACTLY WHAT A RESTART PRODUCES: the routine pass runs and writes the
+	// recent window only.
+	d.RollUpRecent(now)
+	var got int
+	if err := d.sql.QueryRow(`SELECT COUNT(*) FROM traffic_hourly`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got >= hours {
+		t.Fatalf("the routine pass wrote %d of %d hours, so this test is no longer "+
+			"reproducing the hole it was written for", got, hours)
+	}
+
+	// The catch-up is what closes it.
+	if n := d.RollUpCatchUp(now); n == 0 {
+		t.Fatal("the catch-up wrote nothing")
+	}
+	if err := d.sql.QueryRow(`SELECT COUNT(*) FROM traffic_hourly`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != hours {
+		t.Errorf("%d hour row(s) for %d hours of minutes; the hole between the recent "+
+			"window and the raw-window cutoff is still there", got, hours)
+	}
+
+	// AND THE ROUTINE PASS STAYS BOUNDED once it is closed, or the whole
+	// history would be recomputed every five minutes for ever.
+	const window = 2 * compactWindow / msPerHour // two tables
+	if n := d.RollUpRecent(now); n > window {
+		t.Errorf("a routine pass rewrote %d row(s), more than the %d-row window", n, window)
+	}
+}
+
+// A LATE TICK IS NOT A HOLE, and the routine pass handles it by itself: a
+// machine that slept leaves the hour rows BEHIND the window rather than holed,
+// and the window stretches back to meet them.
+func TestALateTickStretchesTheWindowBack(t *testing.T) {
+	d := openTestDB(t)
+	now := int64(1_800_000_000_000)
+	const hours = 12 // twice compactWindow
+	for i := 1; i <= hours; i++ {
+		seedMinutes(t, d, "ether1", ((now-int64(i)*msPerHour)/msPerHour)*msPerHour, []float64{4})
+	}
+	// The hour rows end where the sleep began.
+	if _, err := d.RollUp(now-int64(hours)*msPerHour, now-8*msPerHour); err != nil {
+		t.Fatal(err)
+	}
+
+	d.RollUpRecent(now)
+	var got int
+	if err := d.sql.QueryRow(`SELECT COUNT(*) FROM traffic_hourly`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != hours {
+		t.Errorf("%d hour row(s) of %d after a late tick; the window did not stretch "+
+			"back to the newest hour row, so the sleep is a permanent gap", got, hours)
+	}
+}

@@ -101,7 +101,12 @@ func (s *Server) buildPruneScheduler(retention, history bool) *pruneScheduler {
 		// off costs one branch here and nothing in the loop.
 		var rollC, dayC <-chan time.Time
 		if history {
-			s.runRollUp()
+			// THE STARTUP PASS CATCHES UP, the ticker keeps up. They are
+			// different jobs: the first restart after this shipped, and every
+			// restart after a gap, leaves hours with minutes and no hour row,
+			// and those sit BETWEEN hour rows where no routine bound reaches
+			// them. See RollUpCatchUp.
+			s.runRollUp(true)
 			t := time.NewTicker(rollupInterval)
 			defer t.Stop()
 			rollC = t.C
@@ -117,7 +122,7 @@ func (s *Server) buildPruneScheduler(retention, history bool) *pruneScheduler {
 			case <-ps.stop:
 				return
 			case <-rollC:
-				s.runRollUp()
+				s.runRollUp(false)
 			case <-dayC:
 				s.runPrune()
 			}
@@ -159,12 +164,18 @@ func (ps *pruneScheduler) Stop() {
 }
 
 // runRollUp brings the hour rows up to date. It never deletes; see the flag
-// split on buildPruneScheduler.
-func (s *Server) runRollUp() {
+// split on buildPruneScheduler. `catchUp` covers everything the minute rows
+// imply rather than the recent window, and is for the startup pass only.
+func (s *Server) runRollUp(catchUp bool) {
 	if s.auditDB == nil {
 		return
 	}
-	s.auditDB.RollUpRecent(time.Now().UnixMilli())
+	now := time.Now().UnixMilli()
+	if catchUp {
+		s.auditDB.RollUpCatchUp(now)
+		return
+	}
+	s.auditDB.RollUpRecent(now)
 }
 
 // runPrune reads the current policy and sweeps once.

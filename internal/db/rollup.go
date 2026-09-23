@@ -110,9 +110,11 @@ func (d *DB) RollUp(from, to int64) (int, error) {
 	return total, nil
 }
 
-// compactWindow is how far back a routine pass rolls up. Wider than the gap
-// between passes on purpose: a process that was stopped for an hour, or a
-// machine that slept, comes back and still writes the hours it missed.
+// compactWindow is the SHORTEST a routine pass looks back, not the longest.
+// Wider than the gap between passes on purpose: a process stopped for an hour,
+// or a machine that slept, comes back and still writes the hours it missed.
+//
+// The real bound is where the hour rows actually end — see RollUpRecent.
 const compactWindow = 6 * msPerHour
 
 // Compact is the whole maintenance pass: it rolls completed hours up and then
@@ -207,15 +209,79 @@ func (d *DB) CompactLogged(now int64) (int, int) {
 	return rolled, deleted
 }
 
-// RollUpRecent brings the hour rows up to date for the window a routine pass
-// covers, and is the half of compaction that DELETES NOTHING.
+// RollUpRecent brings the hour rows up to date, and is the half of compaction
+// that DELETES NOTHING.
 //
 // It is therefore the half that runs on an install with no retention policy:
 // without it no hour row is ever written, and every range longer than the raw
 // window reads a table that is empty rather than a chart. Compact calls it too,
-// so "bring the recent hours up to date" has one implementation.
+// so "bring the hours up to date" has one implementation.
+//
+// ── A LATE TICK EXTENDS IT; AN INTERIOR HOLE DOES NOT ──────────────────────
+//
+// The window also stretches back to the newest hour row when that is further
+// than `compactWindow`, which covers a ticker that fired late because the
+// machine slept. It cannot cover a hole in the MIDDLE of the hour rows, and
+// that is `RollUpCatchUp`'s job, at startup, where such a hole is made.
 func (d *DB) RollUpRecent(now int64) int {
-	n, err := d.RollUp(now-compactWindow, now)
+	from := now - compactWindow
+	var latest *int64
+	if err := d.sql.QueryRow(
+		`SELECT MAX(ts) FROM (SELECT MAX(ts) AS ts FROM traffic_hourly
+		  UNION ALL SELECT MAX(ts) FROM bandwidth_hourly)`).Scan(&latest); err != nil {
+		log.Printf("[db] roll up, newest hour: %v", err)
+		return 0
+	}
+	if latest != nil && *latest < from {
+		// From the newest hour rather than the one after it: a pass can have
+		// written that hour while it was still filling. Re-rolling REPLACES, so
+		// it costs one row.
+		from = *latest
+	}
+	return d.rollUpLogged(from, now)
+}
+
+// RollUpCatchUp writes every hour row the minute rows imply, from the oldest
+// minute to now, and is what the scheduler runs ONCE at startup.
+//
+// ── THE HOLE IT EXISTS TO FILL, FOUND ON A REAL DATABASE ───────────────────
+//
+// `RollUpRecent` alone was enough in steady state and wrong the moment a
+// process restarted. The first pass after a restart writes the last six hours
+// and nothing else, while `Compact`'s backfill covers only what is already past
+// the raw-window cutoff. Between the two sits up to `RawMinuteDays` of minutes
+// with no hour rows, and it is INTERIOR — hour rows exist on both sides of it,
+// so no bound taken from MAX or MIN of that table can see it.
+//
+// Measured on the operator's install: 265 hours of minutes in the raw window
+// and 8 hour rows covering them. The same day read over 60 days reported 361
+// samples and a 18.1 Mbit/s peak; read over 2 days, 612 and 53.3. Nothing was
+// lost, since those minutes roll up when they age past the cutoff — but until
+// then every long-range chart UNDERSTATED recent traffic, which is worse than a
+// gap because it still draws.
+//
+// One scan of the minute tables per process start, bounded by the raw window
+// once an install has been compacted at least once.
+func (d *DB) RollUpCatchUp(now int64) int {
+	var oldest *int64
+	if err := d.sql.QueryRow(
+		`SELECT MIN(ts) FROM (SELECT MIN(ts) AS ts FROM traffic_samples
+		  UNION ALL SELECT MIN(ts) FROM bandwidth_usage)`).Scan(&oldest); err != nil {
+		log.Printf("[db] roll up, oldest sample: %v", err)
+		return 0
+	}
+	if oldest == nil {
+		return 0
+	}
+	n := d.rollUpLogged(*oldest, now)
+	if n > 0 {
+		log.Printf("[db] traffic history: %d hour row(s) brought up to date", n)
+	}
+	return n
+}
+
+func (d *DB) rollUpLogged(from, to int64) int {
+	n, err := d.RollUp(from, to)
 	if err != nil {
 		log.Printf("[db] roll up: %v (%d row(s) written before it stopped)", err, n)
 	}

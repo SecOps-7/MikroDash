@@ -147,8 +147,13 @@ func TestThePruneIntervalMatchesLive(t *testing.T) {
 	}
 	// The roll-up needs it for the same reason and more often: an install
 	// redeployed every few minutes would otherwise never reach a tick at all.
-	if !regexp.MustCompile(`if history \{\s*s\.runRollUp\(\)`).Match(src) {
-		t.Error("the hourly roll-up no longer runs once before entering its ticker loop")
+	// AND IT CATCHES UP RATHER THAN COVERING THE ROUTINE WINDOW. Found live: a
+	// restart leaves hours with minutes and no hour row, sitting BETWEEN hour
+	// rows where no routine bound reaches them, and every long-range chart then
+	// understates recent traffic while still drawing.
+	if !regexp.MustCompile(`if history \{(?s).*?s\.runRollUp\(true\)`).Match(src) {
+		t.Error("the hourly roll-up no longer catches up before entering its ticker " +
+			"loop, so a restart leaves a hole the routine pass cannot see")
 	}
 }
 
