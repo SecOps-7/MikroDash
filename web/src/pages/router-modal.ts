@@ -416,6 +416,30 @@ export function initRouterModal(opts: {
     input(id)?.addEventListener('change', () => { if (gate.invalidate()) hideTestResult(); });
   }
 
+  // ── THE PORT FOLLOWS THE TLS SWITCH, WHEN IT IS STILL A DEFAULT ───────────
+  //
+  // `api` listens on 8728 and `api-ssl` on 8729. Turning TLS on and leaving the
+  // port at 8728 speaks TLS to the plain service, which fails with "first
+  // record does not look like a TLS handshake" — and nothing ever reaches 8729.
+  //
+  // That is issue #137: a device created on plain API could not be switched to
+  // TLS by editing it, while deleting and re-creating it worked. Re-creating
+  // works because a blank port falls back to 8729; editing kept the 8728 the
+  // record already had. Reproduced on a test router, where the session did
+  // reconnect promptly — to the old port.
+  //
+  // ONLY A DEFAULT IS MOVED. A port somebody typed is theirs: an operator
+  // running api-ssl on 8443 must not have it rewritten because they ticked a
+  // box, so anything that is not the other protocol's default is left alone.
+  input('rtrModalTls')?.addEventListener('change', () => {
+    const port = input('rtrModalPort');
+    const tls = input('rtrModalTls');
+    if (!port || !tls) return;
+    const cur = port.value.trim();
+    if (tls.checked && cur === '8728') port.value = '8729';
+    else if (!tls.checked && cur === '8729') port.value = '8728';
+  });
+
   for (const id of ['rtrModalCancelBtn', 'rtrModalCloseBtn']) {
     el(id)?.addEventListener('click', () => { el('rtrModalBg')?.classList.remove('open'); });
   }
