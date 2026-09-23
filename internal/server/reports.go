@@ -359,6 +359,11 @@ func (s *Server) ifaceSummary(routerID, iface string, from, to int64) (map[strin
 		"txPeakPct": reports.UtilPct(t.TxMaxMbps, up),
 		"rxP95Pct":  reports.UtilPct(t.RxP95Mbps, down),
 		"txP95Pct":  reports.UtilPct(t.TxP95Mbps, up),
+		// WHICH UNIT THE VOLUME PEAK IS IN (#59). "minute" or "hour", decided by
+		// the same predicate that chose the table, so the card cannot name a unit
+		// the query did not use. The page named it from the aggregation dropdown
+		// before, which never affected the peak at all.
+		"resolution": db.Resolution(from, to),
 	}, nil
 }
 
@@ -1082,7 +1087,10 @@ func (s *Server) pdfSummary(q reportReq) (reports.IfaceSummary, error) {
 		// The AMBIGUOUS `samples` key the live code deliberately refuses to carry
 		// forward: the bandwidth tab and the PDF mean the bandwidth count.
 		BandwidthSamples: b.Samples,
-		CapacityDown:     down,
-		CapacityUp:       up,
+		// Which table answered, so the PDF names the peak's unit rather than the
+		// aggregation's (#59). Same predicate as the read.
+		Resolution:   db.Resolution(q.From, q.To),
+		CapacityDown: down,
+		CapacityUp:   up,
 	}, nil
 }

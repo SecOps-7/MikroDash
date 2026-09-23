@@ -112,11 +112,26 @@ func (p PruneDays) AIDays() int { return orDefault(p.AI, 30) }
 // ── A CONSTANT, NOT A SETTING, AND ON PURPOSE ──────────────────────────────
 //
 // It is not a retention policy an operator has a view about: it is the point
-// where one resolution hands over to another, invisible on every chart because
+// where one resolution hands over to another, largely invisible because
 // `fromHourly` moves the READ with it. A setting here would be a knob whose
 // only honest description is "how much disk to spend on detail nobody can see",
 // and this repository already carries scars from settings that are rendered and
 // never read. If a reason to vary it appears, it becomes one deliberately.
+//
+// ── FOURTEEN WAS QUESTIONED AND KEPT, 2026-09-23 ───────────────────────────
+//
+// The number was chosen writing the plan, not measured, so it was re-examined
+// against the strongest case for a longer window: MONTHLY is a first-class
+// period here — report schedules have a monthly frequency and `aggBucket` has a
+// month — and under fourteen days a report covering last calendar month is
+// entirely hour-sourced, so its p95 is an approximation of the p95 over minutes
+// and its volume peak is an hour rather than a minute. Thirty-five days would
+// have made that report exact, at ~13.5 MB per recorded interface against
+// ~5.4 MB.
+//
+// The operator's call was to keep fourteen. Recorded because the argument is a
+// good one and will occur to the next reader too; what it costs is written down
+// here rather than left to be rediscovered.
 const RawMinuteDays = 14
 
 // RawDays is the minute window, but never longer than the retention that

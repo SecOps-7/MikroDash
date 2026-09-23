@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // PDFBuild is what one report section hands the renderer.
@@ -172,6 +173,9 @@ type IfaceSummary struct {
 	RxMaxMb, TxMaxMb         *float64
 	BandwidthSamples         int
 	CapacityDown, CapacityUp int
+	// Resolution is which table answered, "minute" or "hour" (#59). It names the
+	// unit of RxMaxMb/TxMaxMb, which the aggregation does not.
+	Resolution string
 }
 
 // The percentage rule is `UtilPct` in params.go, already ported and already
@@ -276,7 +280,18 @@ func BuildBandwidth(rows []map[string]any, s IfaceSummary, aggregate, routerLabe
 	}
 	capped, truncated := CapRows(table, columns)
 
-	noun := BucketNoun(aggregate)
+	// TWO DIFFERENT NOUNS, BECAUSE THEY ANSWER DIFFERENT QUESTIONS (#59). The
+	// peak is over the SOURCE rows ungrouped, so it is a minute or an hour; the
+	// chart's axis is per BUCKET, so it is whatever the aggregation says. They
+	// were one noun, and the peak wore the bucket's name while holding the
+	// source's number.
+	peak := PeakNoun(s.Resolution)
+	axis := "min"
+	if aggregate != "" {
+		axis = strings.ToLower(BucketNoun(aggregate))
+	} else if s.Resolution == "hour" {
+		axis = "hour"
+	}
 	countLabel := "Samples"
 	if aggregate != "" {
 		countLabel = "Buckets"
@@ -301,11 +316,11 @@ func BuildBandwidth(rows []map[string]any, s IfaceSummary, aggregate, routerLabe
 				{"Total Upload", FmtDataMB(s.TxTotalMb)},
 				// `(s.rxTotalMb || 0) + (s.txTotalMb || 0)` -- both nulls become 0.
 				{"Total", FmtDataMB(s.RxTotalMb + s.TxTotalMb)},
-				{"Busiest " + noun + " ↓", orDash(s.RxMaxMb)},
-				{"Busiest " + noun + " ↑", orDash(s.TxMaxMb)},
+				{"Busiest " + peak + " ↓", orDash(s.RxMaxMb)},
+				{"Busiest " + peak + " ↑", orDash(s.TxMaxMb)},
 				{countLabel, groupDigits(s.BandwidthSamples)},
 			},
-			ChartData: &Chart{YLabel: "MB/min", Lines: []Line{down, up}},
+			ChartData: &Chart{YLabel: "MB/" + axis, Lines: []Line{down, up}},
 		},
 	}
 }

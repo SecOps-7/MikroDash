@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -102,7 +103,56 @@ func fi(m map[string]any, k string) int {
 	return 0
 }
 
+// ── TWO LABELS THIS PORT DELIBERATELY DOES NOT REPRODUCE (#59) ─────────────
+//
+// Both are on the BANDWIDTH section and both appear only when an aggregation is
+// selected, because that is exactly when the live label was wrong.
+//
+//  1. "Busiest <bucket>" named the aggregation, while the number under it is
+//     MAX over the SOURCE rows ungrouped. Measured on a real range: 2,684.9 MB
+//     labelled "Busiest Day" beside a chart whose busiest day was 36,544.7 MB.
+//     It is the busiest minute, or — beyond the raw window, which live had no
+//     concept of — the busiest hour. So the port names the source.
+//  2. "MB/min" is the chart's y-axis, and an aggregated chart plots per BUCKET.
+//     A daily chart's axis was labelled per minute.
+//
+// THE RECORDING IS NOT EDITED. It says what the live app does, which is still
+// true; these two functions are where the port says it knowingly differs, and
+// they are narrow on purpose — an unaggregated case must still match live
+// exactly, so the divergence cannot spread by accident. `divergences` then
+// fails the whole test if it stops happening, so this cannot decay into a
+// description of something that no longer differs.
+func portStatLabel(live, aggregate string) (string, bool) {
+	if aggregate == "" || !strings.HasPrefix(live, "Busiest ") {
+		return live, false
+	}
+	// The corpus summaries carry no resolution, which is what a minute-sourced
+	// range produces — the only kind live could record.
+	if strings.HasSuffix(live, "↓") {
+		return "Busiest " + PeakNoun("") + " ↓", true
+	}
+	return "Busiest " + PeakNoun("") + " ↑", true
+}
+
+func portYLabel(live, aggregate string) (string, bool) {
+	if aggregate == "" || live != "MB/min" {
+		return live, false
+	}
+	return "MB/" + strings.ToLower(BucketNoun(aggregate)), true
+}
+
+// divergences counts them across the whole corpus, so a ledger with nothing
+// left to excuse fails rather than sitting there.
+var divergences int
+
 func TestBuildersMatchTheLiveReportBuilders(t *testing.T) {
+	divergences = 0
+	t.Cleanup(func() {
+		if divergences == 0 {
+			t.Error("no case diverged from the live labels any more, so portStatLabel " +
+				"and portYLabel are excusing nothing — delete them and compare directly")
+		}
+	})
 	for _, c := range loadBuilderCases(t) {
 		t.Run(c.Name, func(t *testing.T) {
 			// A null router is the live `Routers.getById` finding nothing: the
@@ -181,8 +231,13 @@ func TestBuildersMatchTheLiveReportBuilders(t *testing.T) {
 			}
 			for i, want := range c.Out.Meta.RawStats {
 				g := got.Meta.Stats[i]
-				if g.Label != want.Label {
-					t.Errorf("stat %d label %q, live %q", i, g.Label, want.Label)
+				expect, diverged := portStatLabel(want.Label, c.Opts.Aggregate)
+				if diverged {
+					divergences++
+				}
+				if g.Label != expect {
+					t.Errorf("stat %d label %q, live %q (expected %q here)",
+						i, g.Label, want.Label, expect)
 				}
 				if g.Value != jsValue(want.Value) {
 					t.Errorf("stat %q value %q, live %q", want.Label, g.Value, jsValue(want.Value))
@@ -196,8 +251,13 @@ func TestBuildersMatchTheLiveReportBuilders(t *testing.T) {
 			if got.Meta.ChartData == nil {
 				return
 			}
-			if got.Meta.ChartData.YLabel != c.Out.Meta.ChartData.YLabel {
-				t.Errorf("yLabel %q, live %q", got.Meta.ChartData.YLabel, c.Out.Meta.ChartData.YLabel)
+			wantY, divergedY := portYLabel(c.Out.Meta.ChartData.YLabel, c.Opts.Aggregate)
+			if divergedY {
+				divergences++
+			}
+			if got.Meta.ChartData.YLabel != wantY {
+				t.Errorf("yLabel %q, live %q (expected %q here)",
+					got.Meta.ChartData.YLabel, c.Out.Meta.ChartData.YLabel, wantY)
 			}
 			if len(got.Meta.ChartData.Lines) != len(c.Out.Meta.ChartData.Lines) {
 				t.Fatalf("%d chart lines, live has %d",

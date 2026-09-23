@@ -70,6 +70,10 @@ export interface IfaceSummary {
   txPeakPct?: number | null;
   rxP95Pct?: number | null;
   txP95Pct?: number | null;
+  // WHICH UNIT THE VOLUME PEAK IS IN: 'minute' or 'hour'. Set by the server
+  // from the same predicate that chose the table (db.Resolution), because a
+  // peak is MAX over the source rows and nothing the page sends changes it.
+  resolution?: string;
 }
 
 const BW_PAGE_SIZE = 100;
@@ -77,17 +81,21 @@ const BW_PAGE_SIZE = 100;
 const mbpsOrDash = (v: number | null | undefined): string => (v == null ? '—' : fmtMbps(v));
 
 /**
- * Which bucket a volume peak belongs to.
+ * Which unit a volume peak is in.
  *
- * A volume peak is per bucket, so the card has to say WHICH bucket or the number
- * means nothing. Without an aggregation the stored granularity is one minute —
- * hence "Busiest Minute", which is not a unit anyone would guess.
+ * NOT THE AGGREGATION. The peak is `MAX(rx_mb)` over the rows the server read,
+ * ungrouped, so choosing "by day" in the dropdown does not make it a day —
+ * measured on a real range, the card read 2,684.9 under the label "Busiest Day"
+ * while the busiest day in the chart beside it was 36,544.7. The number was the
+ * busiest MINUTE the whole time.
+ *
+ * So it comes from the source the server actually used, which since #59 is the
+ * minute tables for a recent range and the hourly rollups beyond the raw window.
+ * A missing value means an older server: fall back to the stored granularity it
+ * would have had, which is a minute.
  */
-function bucketNoun(agg: string): string {
-  return agg === 'hour' ? 'Hour'
-    : agg === 'day' ? 'Day'
-      : agg === 'week' ? 'Week'
-        : agg === 'month' ? 'Month' : 'Minute';
+export function peakNoun(resolution: string | undefined): string {
+  return resolution === 'hour' ? 'Hour' : 'Minute';
 }
 
 // ── Traffic ─────────────────────────────────────────────────────────────────
@@ -228,8 +236,10 @@ export function renderBandwidth(
     stats.innerHTML =
       statCard(fmtDataMB(s.rxTotalMb), 'Total Download') +
       statCard(fmtDataMB(s.txTotalMb), 'Total Upload') +
-      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↓') +
-      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↑') +
+      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb),
+        'Busiest ' + peakNoun(s.resolution) + ' ↓') +
+      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb),
+        'Busiest ' + peakNoun(s.resolution) + ' ↑') +
       // `bandwidthSamples`: this card is under the VOLUME chart.
       statCard((agg ? rows.length : (s.bandwidthSamples || 0)).toLocaleString(), countLabel);
   }
@@ -251,7 +261,7 @@ export function renderBandwidth(
     }
   }
 
-  renderBandwidthChart(rows, agg);
+  renderBandwidthChart(rows, agg, s.resolution);
 
   bwRaw = rows;
   bwSort.col = 'ts';

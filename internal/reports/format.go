@@ -102,6 +102,24 @@ func MaxOf(vs []float64) float64 {
 
 // BucketNoun names the bucket a volume peak was measured over. Without an
 // aggregation the stored granularity is one minute.
+// PeakNoun is the unit a VOLUME PEAK is in, which is not the same question as
+// BucketNoun answers (#59).
+//
+// `MAX(rx_mb)` is taken over the source rows ungrouped, so the aggregation
+// chosen for the chart does not change it: "Busiest Day" was the busiest MINUTE
+// on a short range and, once the rollups existed, the busiest HOUR on a long
+// one. This names the source instead, from `db.Resolution`.
+//
+// Deliberately NOT lifted, and deliberately separate from BucketNoun rather
+// than replacing it: the bucket noun is still what the chart's own axis is in,
+// and it has a corpus behind it.
+func PeakNoun(resolution string) string {
+	if resolution == "hour" {
+		return "Hour"
+	}
+	return "Minute"
+}
+
 func BucketNoun(agg string) string {
 	switch agg {
 	case "hour":

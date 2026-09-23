@@ -93,6 +93,26 @@ func fromHourly(from, now int64) bool {
 	return from > 0 && from < now-int64(RawMinuteDays)*msPerDay
 }
 
+// Resolution names what `fromHourly` chose, for the page that has to LABEL the
+// answer (#59).
+//
+// A volume peak is `MAX(rx_mb)` over whatever rows the source holds, so it is
+// the busiest minute or the busiest HOUR depending on nothing the caller passed
+// in. The Reports page used to name that unit from the aggregation dropdown,
+// which is independent of it — so "Busiest Day" was the busiest minute on a
+// short range and the busiest hour on a long one, and only the second of those
+// was #59's doing.
+//
+// Exported from beside the predicate rather than recomputed by the caller,
+// because a second copy of this rule would drift from the read it describes and
+// the page would confidently name the wrong unit.
+func Resolution(from, to int64) string {
+	if fromHourly(from, defaultTo(to)) {
+		return "hour"
+	}
+	return "minute"
+}
+
 func defaultTo(to int64) int64 {
 	if to == 0 {
 		return time.Now().UnixMilli()

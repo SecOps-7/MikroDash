@@ -356,3 +356,57 @@ func TestAnInterfaceWithOnlyHourlyHistoryStillLists(t *testing.T) {
 		t.Error("the picker offers an interface with no rows in either table")
 	}
 }
+
+// THE LABEL AND THE READ MUST NOT DISAGREE. `Resolution` exists so the Reports
+// page can name the unit of a volume peak; if it ever answered differently from
+// the predicate that picks the table, the card would confidently print the
+// wrong unit — which is worse than printing none, because it still looks right.
+func TestResolutionNamesTheTableThatWillBeRead(t *testing.T) {
+	d := openTestDB(t)
+	now := int64(1_800_000_000_000)
+	// SEEDED SO THE TWO SOURCES CANNOT AGREE BY ACCIDENT. The largest single
+	// minute anywhere is 4 MB; the largest hour is 6 MB, which no minute read
+	// can produce. So the peak alone says which table answered.
+	old := ((now - int64(RawMinuteDays+10)*msPerDay) / msPerHour) * msPerHour
+	seedMinutes(t, d, "ether1", old, []float64{2, 4})
+	seedMinutes(t, d, "ether1", ((now-msPerHour)/msPerHour)*msPerHour, []float64{1, 3})
+	if _, err := d.RollUp(old, now); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range []struct {
+		why      string
+		from     int64
+		want     string
+		wantPeak float64
+	}{
+		{"a range inside the raw window", now - 2*msPerDay, "minute", 3},
+		{"a range that starts before it", now - int64(RawMinuteDays+15)*msPerDay, "hour", 6},
+		// The boundary from both sides: an off-by-one here mislabels every range
+		// that starts within a day of it.
+		{"one hour inside the boundary", now - int64(RawMinuteDays)*msPerDay + msPerHour, "minute", 3},
+		// Just outside, the OLD rows are still out of range, so the peak here is
+		// the recent HOUR (1+3 = 4) against the largest recent MINUTE (3). A
+		// smaller gap than the case above, and still one only the hour table
+		// can produce.
+		{"one hour outside it", now - int64(RawMinuteDays)*msPerDay - msPerHour, "hour", 4},
+	} {
+		t.Run(c.why, func(t *testing.T) {
+			got := Resolution(c.from, now)
+			if got != c.want {
+				t.Errorf("Resolution = %q, want %q", got, c.want)
+			}
+			// AND THE QUERY REALLY DID READ THAT TABLE. Checked through the peak
+			// rather than through Resolution again, which would agree with
+			// itself whatever either of them did.
+			sum, err := d.BandwidthSummary("r1", "ether1", c.from, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if sum.RxMaxMb == nil || *sum.RxMaxMb != c.wantPeak {
+				t.Errorf("peak = %v, want %v — the label says %q but the read used the "+
+					"other table", sum.RxMaxMb, c.wantPeak, got)
+			}
+		})
+	}
+}

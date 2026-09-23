@@ -22,7 +22,7 @@
 import { el, fmtMbps, fmtDataMB } from '../dom';
 import { chartLabel } from './reports';
 import type { PingRow } from './reports-ping';
-import type { TrafficRow, BandwidthRow, IfaceSummary } from './reports-traffic';
+import { peakNoun, type TrafficRow, type BandwidthRow, type IfaceSummary } from './reports-traffic';
 
 // Chart.js is loaded by the shell from /vendor, so it is a global here rather
 // than an import. Typed loosely on purpose: the port does not own the library's
@@ -295,10 +295,17 @@ export function renderTrafficChart(
  * line up.
  *
  * The faint dashed pair is the same idea as the rate chart's, one level down: an
- * aggregated point is a bucket SUM, so the busiest minute inside it is invisible
- * without them.
+ * aggregated point is a bucket SUM, so the busiest source row inside it is
+ * invisible without them.
+ *
+ * THEY ARE NAMED FROM THE RESOLUTION, not from the aggregation (#59). Beyond the
+ * raw window the rows being maxed are hourly, so the line is the busiest HOUR in
+ * each bucket; calling it a minute would be a number with the wrong unit rather
+ * than a number that is merely coarse.
  */
-export function renderBandwidthChart(rows: BandwidthRow[], agg: string): void {
+export function renderBandwidthChart(
+  rows: BandwidthRow[], agg: string, resolution?: string,
+): void {
   const canvas = el<HTMLCanvasElement>('rptBandwidthChart');
   if (!canvas || typeof Chart === 'undefined') return;
   if (bandwidthChart) {
@@ -325,13 +332,13 @@ export function renderBandwidthChart(rows: BandwidthRow[], agg: string): void {
   const first = sub[0];
   if (agg && sub.length && first && first.rx_max_mb != null) {
     sets.push({
-      label: 'Busiest minute ↓',
+      label: 'Busiest ' + peakNoun(resolution).toLowerCase() + ' ↓',
       data: sub.map((r) => +(+(r.rx_max_mb as number)).toFixed(3)),
       borderColor: 'rgba(56,189,248,.35)', borderDash: [3, 3], borderWidth: 1,
       pointRadius: 0, tension: 0.2, fill: false,
     });
     sets.push({
-      label: 'Busiest minute ↑',
+      label: 'Busiest ' + peakNoun(resolution).toLowerCase() + ' ↑',
       data: sub.map((r) => +(+(r.tx_max_mb as number)).toFixed(3)),
       borderColor: 'rgba(52,211,153,.35)', borderDash: [3, 3], borderWidth: 1,
       pointRadius: 0, tension: 0.2, fill: false,
