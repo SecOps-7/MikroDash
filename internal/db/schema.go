@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 21
+const schemaVersion = 23
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -133,6 +133,18 @@ var portMigrations = map[int][]string{
 	// 21: zero-touch provisioning — the devices it knows and the batches of
 	// generic scripts. One constant for this and the fresh schema: ztp_schema.go.
 	21: {ztpTablesDDL},
+	// 22 IS DELIBERATELY ABSENT, and the gap is cheaper than the alternative.
+	//
+	// A migration numbered 22 shipped on 2026-09-22 with the localization work
+	// and was reverted with it the next day. The operator's own database had
+	// already run it and is stamped at 22, so a NEW migration with that number
+	// would be skipped there — silently, on exactly one install, which is the
+	// worst possible distribution of a missing table. Numbering the next step 23
+	// costs a hole in the sequence and touches nobody's data.
+	//
+	// 23: the hourly rollups (#59). `rollupTablesDDL` is shared with the fresh
+	// schema, so the two cannot describe different tables.
+	23: {rollupTablesDDL},
 }
 
 // createSchema builds a new database at `path`.

@@ -74,6 +74,25 @@ func aggBucket(agg string) (bucket, bool) {
 
 // defaultTo is the original's `toTs || Date.now()`. A zero `to` means "up to
 // now", which is what the page sends when it has no end bound.
+// ── WHICH RESOLUTION A RANGE IS READ AT (#59) ──────────────────────────────
+//
+// Minute rows are kept for `RawMinuteDays` and hour rows for the ordinary
+// retention, so a range that starts before the minute window has no minutes to
+// read and must come from `traffic_hourly` / `bandwidth_hourly`.
+//
+// ONE RESOLUTION FOR THE WHOLE RANGE, never a union of the two. Hour rows exist
+// for the recent hours as well, so the older source covers the whole span; a
+// chart stitched from both would step where the sources meet and read as a
+// change in traffic rather than a change in source.
+//
+// The aggregated reads are unaffected in shape: their finest bucket is an hour
+// (`aggBucket` has no minute), the hour rows carry the minute PEAK and the
+// sample count, and the coarser buckets weight by that count — so a day built
+// from hours equals the same day built from minutes.
+func fromHourly(from, now int64) bool {
+	return from > 0 && from < now-int64(RawMinuteDays)*msPerDay
+}
+
 func defaultTo(to int64) int64 {
 	if to == 0 {
 		return time.Now().UnixMilli()
@@ -179,8 +198,14 @@ func (d *DB) TrafficSamples(routerID, iface string, from, to int64) ([]TrafficSa
 	if d == nil || d.sql == nil {
 		return nil, nil
 	}
+	table := "traffic_samples"
+	if fromHourly(from, defaultTo(to)) {
+		table = "traffic_hourly"
+	}
+	// `table` is one of two literals chosen here and never a caller's string;
+	// SQL has no placeholder form for an identifier.
 	rows, err := d.sql.Query(`
-    SELECT ts, interface, rx_mbps, tx_mbps FROM traffic_samples
+    SELECT ts, interface, rx_mbps, tx_mbps FROM `+table+`
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
     ORDER  BY ts ASC LIMIT ?
   `, routerID, iface, from, defaultTo(to), sampleLimit)
@@ -209,15 +234,25 @@ func (d *DB) TrafficSamplesAgg(routerID, iface string, from, to int64, agg strin
 	if !ok {
 		return []TrafficSample{}, nil
 	}
+	// FROM HOURS, the average is WEIGHTED by the samples behind each hour and
+	// the peak is the stored minute peak, so a bucket read from hours equals the
+	// same bucket read from minutes rather than merely resembling it.
+	table, rx, tx, rxMax, txMax, count := "traffic_samples",
+		"AVG(rx_mbps)", "AVG(tx_mbps)", "MAX(rx_mbps)", "MAX(tx_mbps)", "COUNT(*)"
+	if fromHourly(from, defaultTo(to)) {
+		table, rx, tx, rxMax, txMax, count = "traffic_hourly",
+			"SUM(rx_mbps * samples) / SUM(samples)", "SUM(tx_mbps * samples) / SUM(samples)",
+			"MAX(rx_max_mbps)", "MAX(tx_max_mbps)", "SUM(samples)"
+	}
 	rows, err := d.sql.Query(`
     SELECT `+b.sel+` AS ts,
            interface,
-           AVG(rx_mbps) AS rx_mbps,
-           AVG(tx_mbps) AS tx_mbps,
-           MAX(rx_mbps) AS rx_max_mbps,
-           MAX(tx_mbps) AS tx_max_mbps,
-           COUNT(*) AS sample_count
-    FROM   traffic_samples
+           `+rx+` AS rx_mbps,
+           `+tx+` AS tx_mbps,
+           `+rxMax+` AS rx_max_mbps,
+           `+txMax+` AS tx_max_mbps,
+           `+count+` AS sample_count
+    FROM   `+table+`
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
     GROUP  BY `+b.group+`
     ORDER  BY ts ASC LIMIT ?
@@ -258,8 +293,12 @@ func (d *DB) BandwidthSamples(routerID, iface string, from, to int64) ([]Bandwid
 	if d == nil || d.sql == nil {
 		return nil, nil
 	}
+	table := "bandwidth_usage"
+	if fromHourly(from, defaultTo(to)) {
+		table = "bandwidth_hourly"
+	}
 	rows, err := d.sql.Query(`
-    SELECT ts, interface, rx_mb, tx_mb FROM bandwidth_usage
+    SELECT ts, interface, rx_mb, tx_mb FROM `+table+`
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
     ORDER  BY ts ASC LIMIT ?
   `, routerID, iface, from, defaultTo(to), sampleLimit)
@@ -293,6 +332,14 @@ func (d *DB) BandwidthSamplesAgg(routerID, iface string, from, to int64, agg str
 	if !ok {
 		return []BandwidthSample{}, nil
 	}
+	// SUMMING SUMS IS EXACT, so a volume bucket read from hours equals the same
+	// bucket read from minutes. Its MAX is the largest HOUR rather than the
+	// largest minute — the minutes are gone by then, and that is the one figure
+	// the older source cannot reproduce.
+	table, count := "bandwidth_usage", "COUNT(*)"
+	if fromHourly(from, defaultTo(to)) {
+		table, count = "bandwidth_hourly", "SUM(samples)"
+	}
 	rows, err := d.sql.Query(`
     SELECT `+b.sel+` AS ts,
            interface,
@@ -300,8 +347,8 @@ func (d *DB) BandwidthSamplesAgg(routerID, iface string, from, to int64, agg str
            SUM(tx_mb) AS tx_mb,
            MAX(rx_mb) AS rx_max_mb,
            MAX(tx_mb) AS tx_max_mb,
-           COUNT(*) AS sample_count
-    FROM   bandwidth_usage
+           `+count+` AS sample_count
+    FROM   `+table+`
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
     GROUP  BY `+b.group+`
     ORDER  BY ts ASC LIMIT ?
@@ -537,15 +584,32 @@ func (d *DB) TrafficSummary(routerID, iface string, from, to int64, pct float64)
 		p = 99
 	}
 
-	var n int
+	// ── THE SAME SUMMARY FROM WHICHEVER RESOLUTION SURVIVES ──────────────
+	//
+	// `rows` is how many ROWS the percentile has to index into; `samples` is how
+	// many measurements are behind them, which is what the card reports. They
+	// are the same number for minutes and differ for hours, and conflating them
+	// would put the percentile's offset past the end of the table.
+	//
+	// The percentile over hours is over HOURLY AVERAGES, which is an
+	// approximation: the minute spread inside an hour is gone with the minutes.
+	// Stated rather than hidden, and the alternative is no number at all.
+	table, rx, tx, rxMax2, txMax2, samples := "traffic_samples",
+		"AVG(rx_mbps)", "AVG(tx_mbps)", "MAX(rx_mbps)", "MAX(tx_mbps)", "COUNT(*)"
+	if fromHourly(from, toTS) {
+		table, rx, tx, rxMax2, txMax2, samples = "traffic_hourly",
+			"SUM(rx_mbps * samples) / SUM(samples)", "SUM(tx_mbps * samples) / SUM(samples)",
+			"MAX(rx_max_mbps)", "MAX(tx_max_mbps)", "SUM(samples)"
+	}
+	var n, rowCount int
 	var rxAvg, txAvg, rxMax, txMax *float64
 	err := d.sql.QueryRow(`
-    SELECT COUNT(*)     AS n,
-           AVG(rx_mbps) AS rx_avg, AVG(tx_mbps) AS tx_avg,
-           MAX(rx_mbps) AS rx_max, MAX(tx_mbps) AS tx_max
-    FROM   traffic_samples
+    SELECT `+samples+` AS n, COUNT(*) AS rows_read,
+           `+rx+` AS rx_avg, `+tx+` AS tx_avg,
+           `+rxMax2+` AS rx_max, `+txMax2+` AS tx_max
+    FROM   `+table+`
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
-  `, routerID, iface, from, toTS).Scan(&n, &rxAvg, &txAvg, &rxMax, &txMax)
+  `, routerID, iface, from, toTS).Scan(&n, &rowCount, &rxAvg, &txAvg, &rxMax, &txMax)
 	if err != nil {
 		return empty, err
 	}
@@ -555,11 +619,11 @@ func (d *DB) TrafficSummary(routerID, iface string, from, to int64, pct float64)
 		return empty, nil
 	}
 
-	rxP95, err := d.percentileCol("traffic_samples", "rx_mbps", routerID, iface, from, toTS, n, p)
+	rxP95, err := d.percentileCol(table, "rx_mbps", routerID, iface, from, toTS, rowCount, p)
 	if err != nil {
 		return empty, err
 	}
-	txP95, err := d.percentileCol("traffic_samples", "tx_mbps", routerID, iface, from, toTS, n, p)
+	txP95, err := d.percentileCol(table, "tx_mbps", routerID, iface, from, toTS, rowCount, p)
 	if err != nil {
 		return empty, err
 	}

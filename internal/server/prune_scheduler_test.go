@@ -36,7 +36,7 @@ func TestTheRetentionSweepIsStarted(t *testing.T) {
 	// could own the /data; that mode is retired (2026-09-19), and the flag is
 	// the half with teeth: the sweep is the only switch that DELETES, so it is
 	// the one where a default-on mistake cannot be undone.
-	if !regexp.MustCompile(`buildPruneScheduler\(opts\.Retention\)`).Match(src) {
+	if !regexp.MustCompile(`buildPruneScheduler\(opts\.Retention,`).Match(src) {
 		t.Error("the retention sweep is no longer gated on the -retention flag. It DELETES.")
 	}
 }
@@ -136,9 +136,19 @@ func TestThePruneIntervalMatchesLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`go func\(\) \{\s*s\.runPrune\(\)`).Match(src) {
+	// RE-AIMED 2026-09-23: the immediate call now sits inside `if retention {`,
+	// because the same goroutine also carries the hourly roll-up and each job
+	// starts only when its own flag is on (#59). The property is unchanged —
+	// the sweep runs once before the loop — so this follows it there rather
+	// than being deleted.
+	if !regexp.MustCompile(`if retention \{\s*s\.runPrune\(\)`).Match(src) {
 		t.Error("the sweep no longer runs once before entering its ticker loop, so a " +
 			"process restarted more often than daily would never prune")
+	}
+	// The roll-up needs it for the same reason and more often: an install
+	// redeployed every few minutes would otherwise never reach a tick at all.
+	if !regexp.MustCompile(`if history \{\s*s\.runRollUp\(\)`).Match(src) {
+		t.Error("the hourly roll-up no longer runs once before entering its ticker loop")
 	}
 }
 
@@ -181,7 +191,11 @@ func TestEveryStartupActionIsGated(t *testing.T) {
 		// implementation instead of two.
 		{"the always-on fleet holds", `srv\.holdFleet = !opts\.NoPool`,
 			"it holds a connection to every router"},
-		{"the retention sweep", `buildPruneScheduler\(opts\.Retention\)`,
+		// TWO FLAGS SINCE 2026-09-23 (#59). The same builder now carries the
+		// hourly roll-up, which only WRITES, so it rides with -history while
+		// everything that deletes stays behind -retention. Both arguments are
+		// named here so collapsing them back into one is a visible edit.
+		{"the retention sweep", `buildPruneScheduler\(opts\.Retention, opts\.History\)`,
 			"it DELETES rows"},
 		{"the #105 migration", `if srv\.store != nil \{\s*if err := srv\.store\.MigrateCollectionMode`,
 			"it rewrites router records and settings.json"},

@@ -10,6 +10,9 @@ import (
 )
 
 // The sample tables, copied from the src/db.js migrations — plus `ai_messages`,
+// and the hourly rollups, which are appended from the PRODUCTION constant
+// (`rollupTablesDDL`) rather than copied: a fixture copy of a table this
+// package also ships is a second description that can drift from the first.
 // which this port added and live never had. It is here because `Prune` DELETEs
 // from every rule's table: a fixture missing one makes every prune test fail as
 // "no such table" rather than measure anything. The audit
@@ -104,7 +107,7 @@ CREATE TABLE ai_messages (
   text      TEXT    NOT NULL
 );
 CREATE INDEX idx_ai_messages_thread ON ai_messages(user_id, router_id, ts);
-`
+` + rollupTablesDDL
 
 type historyCases struct {
 	Base int64 `json:"base"`

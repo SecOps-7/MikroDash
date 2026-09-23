@@ -105,6 +105,30 @@ func (p PruneDays) AuditDays() int  { return orDefault(p.Audit, 365) }
 // that is unrecoverable on a delete path.
 func (p PruneDays) AIDays() int { return orDefault(p.AI, 30) }
 
+// RawMinuteDays is how long the MINUTE rows of the traffic and bandwidth series
+// are kept (#59). Beyond it the same series is read from the hourly rollups,
+// which is a sixtieth of the rows and all a chart covering weeks can draw.
+//
+// ── A CONSTANT, NOT A SETTING, AND ON PURPOSE ──────────────────────────────
+//
+// It is not a retention policy an operator has a view about: it is the point
+// where one resolution hands over to another, invisible on every chart because
+// `fromHourly` moves the READ with it. A setting here would be a knob whose
+// only honest description is "how much disk to spend on detail nobody can see",
+// and this repository already carries scars from settings that are rendered and
+// never read. If a reason to vary it appears, it becomes one deliberately.
+const RawMinuteDays = 14
+
+// RawDays is the minute window, but never longer than the retention that
+// governs the whole series: an operator who keeps 7 days of history must not
+// have 14 days of minutes outliving it.
+func (p PruneDays) RawDays() int {
+	if d := p.MetricDays(); d < RawMinuteDays {
+		return d
+	}
+	return RawMinuteDays
+}
+
 // pruneRules is the six lifted DELETEs in the live order, then this port's own.
 //
 // ORDER IS PRESERVED because the log line reports one total, and a reader
@@ -135,6 +159,20 @@ var pruneRules = []pruneRule{
 	// conversation: `routerPurgeExcluded` in purge.go records why removing a
 	// router must not.
 	{"ai_messages", "ts", PruneDays.AIDays, true},
+
+	// ── THE HOURLY ROLLUPS (#59), WHICH LIVE HAD NO EQUIVALENT OF ──────────
+	//
+	// They carry the same two series at a sixtieth of the rows, so they age on
+	// the SAME policy as the minute tables above: the point of the rollups is a
+	// longer history at lower resolution, not a different retention.
+	//
+	// The minute rows are not deleted here. `Compact` removes them once their
+	// hour has been rolled up, which is strictly safer than an age rule: a
+	// process that was down while a window aged past the cutoff would have had
+	// its minutes deleted before anything summarised them, losing the window
+	// rather than compacting it.
+	{"traffic_hourly", "ts", PruneDays.MetricDays, true},
+	{"bandwidth_hourly", "ts", PruneDays.MetricDays, true},
 }
 
 const msPerDay = 86400000

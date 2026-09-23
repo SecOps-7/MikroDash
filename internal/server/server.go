@@ -511,7 +511,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// database grew without bound while the UI implied a policy.
 	// BEHIND ITS FLAG, off by default: the sweep DELETES, so it is the one switch
 	// where a default-on mistake cannot be undone.
-	srv.pruneSched = srv.buildPruneScheduler(opts.Retention)
+	// It also carries the hourly roll-up, which only writes and so rides with
+	// `-history` instead (#59); the comment on the builder has the split.
+	srv.pruneSched = srv.buildPruneScheduler(opts.Retention, opts.History)
 	// The traffic and ping recorder, off the session's emit seam. CONNECTIVITY
 	// is no longer part of it — that is the tracker's, attached at the top of
 	// New, where the ordering is correct.

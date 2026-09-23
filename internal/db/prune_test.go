@@ -134,6 +134,10 @@ var portAddedPrunes = map[string]string{
 		"recording holds nothing to compare against. It ages faster than everything else here " +
 		"because a transcript is personal rather than operational: it is what somebody asked " +
 		"about their own network, and it earns its keep only while it is still that conversation",
+	"traffic_hourly": "the hourly traffic rollup (#59). Live recorded minutes and nothing else, " +
+		"so the recording has no counterpart. It ages on the same policy as traffic_samples: " +
+		"the rollups exist to keep the history at lower resolution, not to keep it longer",
+	"bandwidth_hourly": "the hourly volume rollup (#59), the same arrangement as traffic_hourly",
 }
 
 // TestPortAddedPruneRulesAreRecorded — BOTH DIRECTIONS.
@@ -236,6 +240,14 @@ func TestPruneDeletesOnlyWhatIsOlderThanItsOwnPolicy(t *testing.T) {
 		{"ai_messages", 300,
 			`INSERT INTO ai_messages (ts, user_id, router_id, role, text)
 			 VALUES (?, 'u1', 'r1', 'user', 'which interface is my WAN?')`, nil},
+		// The rollups age on the METRIC policy, like the minute rows they
+		// summarise: they hold the same history at a lower resolution.
+		{"traffic_hourly", 10,
+			`INSERT INTO traffic_hourly (router_id, interface, ts, rx_mbps, tx_mbps, rx_max_mbps, tx_max_mbps, samples)
+			 VALUES ('r1','ether1',?,1,2,3,4,60)`, nil},
+		{"bandwidth_hourly", 10,
+			`INSERT INTO bandwidth_hourly (router_id, interface, ts, rx_mb, tx_mb, samples)
+			 VALUES ('r1','ether1',?,1,2,60)`, nil},
 	}
 
 	for _, s := range seeds {

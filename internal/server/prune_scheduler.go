@@ -47,12 +47,32 @@ type pruneScheduler struct {
 // pruneInterval is live's `24 * 3600 * 1000` ms, pinned by the corpus.
 const pruneInterval = 24 * time.Hour
 
-// buildPruneScheduler starts the sweep, or says why it did not.
-func (s *Server) buildPruneScheduler(enabled bool) *pruneScheduler {
-	if !enabled {
+// rollupInterval is how often the hour rows are brought up to date (#59).
+//
+// Minutes, not hours, and not because a completed hour changes after it is
+// written. It is so an install restarted every few minutes — a container being
+// rebuilt, a machine that sleeps — still reaches a tick, which is the same
+// reason the daily sweep also runs immediately at startup. The pass is a
+// grouped read over at most six hours of rows.
+const rollupInterval = 5 * time.Minute
+
+// buildPruneScheduler starts the database's maintenance timer, or says why it
+// did not. It carries two jobs on two cadences, and THEY ARE BEHIND DIFFERENT
+// FLAGS on purpose:
+//
+//   - The hourly roll-up rides with `-history`, because it only WRITES: it
+//     summarises minute rows into hour rows and removes nothing. Every range
+//     longer than the raw window reads the hour tables, so an install that
+//     never rolled up would draw an empty month-long chart out of a database
+//     full of traffic.
+//   - Folding those minutes away, and the retention sweep itself, stay behind
+//     `-retention`, this app's one switch that DELETES — off by default
+//     precisely because that mistake cannot be undone. Summarising is not
+//     deletion; removing the minutes afterwards is.
+func (s *Server) buildPruneScheduler(retention, history bool) *pruneScheduler {
+	if !retention {
 		log.Printf("[db] retention sweep off; nothing ages out of the database " +
 			"(pass -retention to enable)")
-		return nil
 	}
 	if s.auditDB == nil {
 		// NOT a fatal condition. The app must serve when the database cannot be
@@ -61,22 +81,44 @@ func (s *Server) buildPruneScheduler(enabled bool) *pruneScheduler {
 		log.Printf("[db] retention sweep needs the database; not started")
 		return nil
 	}
+	if !retention && !history {
+		return nil
+	}
 	ps := &pruneScheduler{stop: make(chan struct{})}
-	log.Printf("[db] retention sweep on (daily)")
+	if retention {
+		log.Printf("[db] retention sweep on (daily)")
+	}
+	if history {
+		log.Printf("[db] traffic history rolled up hourly, every %s", rollupInterval)
+	}
 
 	// IMMEDIATELY, THEN DAILY — live's `run(); _pruneTimer = setInterval(run, …)`.
 	// The immediate run is what stops a process restarted every few hours from
 	// never pruning at all, and the db-prune corpus asserts that the live
 	// side still does it rather than assuming.
 	go func() {
-		s.runPrune()
-		t := time.NewTicker(pruneInterval)
-		defer t.Stop()
+		// A nil channel blocks for ever in a select, so a job that is switched
+		// off costs one branch here and nothing in the loop.
+		var rollC, dayC <-chan time.Time
+		if history {
+			s.runRollUp()
+			t := time.NewTicker(rollupInterval)
+			defer t.Stop()
+			rollC = t.C
+		}
+		if retention {
+			s.runPrune()
+			t := time.NewTicker(pruneInterval)
+			defer t.Stop()
+			dayC = t.C
+		}
 		for {
 			select {
 			case <-ps.stop:
 				return
-			case <-t.C:
+			case <-rollC:
+				s.runRollUp()
+			case <-dayC:
 				s.runPrune()
 			}
 		}
@@ -116,11 +158,27 @@ func (ps *pruneScheduler) Stop() {
 	ps.stop = nil
 }
 
+// runRollUp brings the hour rows up to date. It never deletes; see the flag
+// split on buildPruneScheduler.
+func (s *Server) runRollUp() {
+	if s.auditDB == nil {
+		return
+	}
+	s.auditDB.RollUpRecent(time.Now().UnixMilli())
+}
+
 // runPrune reads the current policy and sweeps once.
 func (s *Server) runPrune() {
 	if s.auditDB == nil {
 		return
 	}
+	// COMPACTION FIRST, AND THE ORDER IS THE SAFE ONE. The sweep below deletes
+	// by age, and a minute row it removes is gone whether or not an hour row
+	// stands for it. Compacting first means every minute the sweep can reach has
+	// already been offered to the roll-up, so the coarse history survives the
+	// fine one rather than both ending at the same date.
+	s.auditDB.CompactLogged(time.Now().UnixMilli())
+
 	n := s.auditDB.PruneLogged(s.retentionPolicy(), time.Now().UnixMilli())
 	if n == 0 {
 		// NO AUDIT ROW FOR A NO-OP. The live sweep records `db.prune` only when
