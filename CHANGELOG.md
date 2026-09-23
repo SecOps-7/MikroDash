@@ -2,6 +2,47 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.68] - Traffic history per interface, and WAN Flow
+
+### New
+
+- **Traffic history per interface (#59).** Click an interface and see its traffic, in the
+  dialog that already opens. **Live** (last 60 seconds), **5 min** and **30 min** come from
+  the page's own stream and work whatever is being recorded; **1 hour** to **30 days** come
+  from history.
+  - A **Record Traffic History** switch on each interface. The WAN is always recorded.
+  - Totals and peak for the range, RX and TX in their usual colours.
+- **Hourly rollups keep that history bounded.** Minutes are kept for 14 days and hours for
+  the full retention, so recording several interfaces costs a sixtieth of what it used to
+  after the first fortnight. Each hour keeps its average, its busiest minute and its sample
+  count, so longer ranges still report a real peak.
+- **WAN Flow.** A live Sankey of traffic across the uplinks, on the WAN page and as a
+  Dashboard card that scales with its edges.
+- **The AI Agent can set the router's clock**, which completes MikroMCP parity at 118 of 118.
+
+### Fixed
+
+- **Switching an existing device to TLS works (#137).** Enabling TLS now moves the port from
+  8728 to 8729, so it connects instead of speaking TLS to the plain API service. A port you
+  typed yourself is left alone.
+- **A refused ping says so (#138).** MikroDash was looking for wording RouterOS does not use,
+  so a refusal reopened the stream every 20 seconds in silence. It now reports it once, names
+  the policy and stops. The wireless scan had the same blind spot.
+- **The Interfaces page no longer skips a tick.** An unchanged payload was suppressed, which
+  cost the live chart that second.
+- **Live charts reach their right edge**, on the Dashboard, the Bandwidth page and the new
+  panel: the gap held at the leading edge is measured from the samples rather than assumed
+  to be one second.
+- **Reports adds up again.** The summary card read only the last 14 days on longer ranges, and
+  interfaces disappeared from the picker once their minute rows aged out.
+- **Removing a router, or purging its history, now clears the hourly rollups too.**
+
+### Internal
+
+- One rule for "the router refused this", instead of three copies that disagreed about the
+  wording.
+- Settings: Firewall Top N removed — nothing had read it for a long time.
+
 ## [0.8.67] - Zero-touch provisioning, and a friendlier AI Agent
 
 ### New
