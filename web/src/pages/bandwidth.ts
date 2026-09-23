@@ -12,7 +12,7 @@
 import { fmtTime } from '../timefmt';
 import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag, protoPill } from '../dom';
 import {
-  RIGHT_BUFFER_MS, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
+  RIGHT_BUFFER_MS, rightBufferFor, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
   pruneAndMax, smoothMax, type XYPoint,
 } from './dashboard-traffic-buffer';
 import type { BandwidthDevice, TrafficPoint } from '../gen/payloads';
@@ -386,7 +386,10 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
 
   function syncChart(animated: boolean): void {
     if (!chart) return;
-    const st = bwSyncState(sharedPoints(), Date.now(), sharedClock(), RIGHT_BUFFER_MS);
+    // The same measured gap the dashboard's chart uses; they share the buffer
+    // these points come from, so a different edge on each would be two answers
+    // to one question.
+    const st = bwSyncState(sharedPoints(), Date.now(), sharedClock(), rightBufferFor(sharedPoints()));
     chart.data.datasets[0]!.data = st.rx;
     chart.data.datasets[1]!.data = st.tx;
     // The redraw SNAPS the axis; only the keepalive eases it. Seeding
@@ -410,7 +413,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
     keepaliveId = requestAnimationFrame(tick);
     const rx = chart.data.datasets[0]!.data;
     const tx = chart.data.datasets[1]!.data;
-    const st = bwTickState(rx, tx, yCurrent, Date.now(), sharedClock(), RIGHT_BUFFER_MS);
+    const st = bwTickState(rx, tx, yCurrent, Date.now(), sharedClock(), rightBufferFor(sharedPoints()));
     yCurrent = st.yMax;
     chart.options.scales.y.max = st.yMax;
     chart.options.scales.x.min = st.xMin;
@@ -427,7 +430,8 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
     if (!canvas) return;
     const Ctor = (window as unknown as { Chart?: BwChartCtor }).Chart;
     if (!Ctor) return;
-    chart = new Ctor(canvas, bwChartConfig(Date.now(), sharedClock().windowSecs, RIGHT_BUFFER_MS));
+    chart = new Ctor(canvas,
+      bwChartConfig(Date.now(), sharedClock().windowSecs, rightBufferFor(sharedPoints())));
   }
 
   function updateStats(rxMbps: number, txMbps: number): void {

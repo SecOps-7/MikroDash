@@ -119,6 +119,55 @@ export const KEEPALIVE_SLACK_MS = 3000;
  */
 export const RIGHT_BUFFER_MS = 1000;
 
+/** How many recent gaps `rightBufferFor` measures, and the bounds it clamps to. */
+const BUFFER_SAMPLES = 20;
+const BUFFER_MAX_MS = 2500;
+
+/**
+ * The gap to hold open at the right edge, measured from the samples themselves.
+ *
+ * ── WHY THE FIXED 1000 WAS NOT ENOUGH ──────────────────────────────────────
+ *
+ * `RIGHT_BUFFER_MS` is documented as "one sample interval", which is true when
+ * a sample arrives every second. A router in STREAM mode does not keep that
+ * promise: measured on the operator's hAP ax^3 (2026-09-23), 55 points over 63
+ * seconds with a mean gap of 1,170 ms — 22 gaps near 1,000, 27 near 1,250, four
+ * near 1,500 and one of 2,000.
+ *
+ * With a fixed 1,000 the axis edge runs ahead of the newest sample whenever one
+ * arrives late, and the line visibly falls short of the frame — the trailing gap
+ * swung between −1,424 ms (drawn past the edge and clipped, as intended) and
+ * +535 ms (a visible hole).
+ *
+ * ── AND WHY A HIGH QUANTILE RATHER THAN THE AVERAGE ─────────────────────────
+ *
+ * The newest sample's age ranges from nothing, just after one lands, to a whole
+ * interval, just before the next. A buffer of the MEAN interval is therefore
+ * too small about half the time — the hole would appear half as often instead
+ * of going away. Covering the recent worst case is what makes the line reach
+ * the edge, so this takes a high quantile of the recent gaps.
+ *
+ * WHAT IT COSTS, since it is a real trade: the chart shows data up to that far
+ * back rather than up to a second back. The clamp bounds it, so one hiccup
+ * cannot push the whole chart into the past.
+ */
+export function rightBufferFor(points: readonly TrafficPoint[]): number {
+  const n = points.length;
+  if (n < 4) return RIGHT_BUFFER_MS;
+  const gaps: number[] = [];
+  for (let i = Math.max(1, n - BUFFER_SAMPLES); i < n; i += 1) {
+    const a = points[i - 1];
+    const b = points[i];
+    if (a && b && b.ts > a.ts) gaps.push(b.ts - a.ts);
+  }
+  if (gaps.length < 3) return RIGHT_BUFFER_MS;
+  gaps.sort((x, y) => x - y);
+  // The 90th percentile: covers the ordinary jitter without letting a single
+  // stall drag the edge back for the next twenty samples.
+  const q = gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * 0.9))] || RIGHT_BUFFER_MS;
+  return Math.min(BUFFER_MAX_MS, Math.max(RIGHT_BUFFER_MS, q));
+}
+
 /**
  * The points the BANDWIDTH chart seeds from, which are NOT the points the
  * dashboard chart seeds from.

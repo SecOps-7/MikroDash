@@ -39,7 +39,7 @@
 
 import { registerExtra } from '../resource';
 import { el, esc, fmtDataMB, fmtMbps } from '../dom';
-import { pushSample, windowedPoints, RIGHT_BUFFER_MS } from './dashboard-traffic-buffer';
+import { pushSample, windowedPoints, rightBufferFor } from './dashboard-traffic-buffer';
 import type { Interface, TrafficPoint } from '../gen/payloads';
 
 declare const Chart: undefined | (new (canvas: HTMLCanvasElement, cfg: unknown) => ChartLike);
@@ -158,7 +158,7 @@ function liveWindow(): TrafficPoint[] {
   // The axis holds a gap at the right and is clipped at the left, so the points
   // kept have to cover BOTH: the same right-hand gap, plus enough beyond the
   // left edge for the line to cross it.
-  return windowedPoints(buf, Date.now(), spec.secs, RIGHT_BUFFER_MS + LEFT_OVERHANG_MS);
+  return windowedPoints(buf, Date.now(), spec.secs, rightBufferFor(buf) + LEFT_OVERHANG_MS);
 }
 
 /** Remembered per browser, because an operator working in 7-day views wants the
@@ -369,12 +369,14 @@ function xWindow(): { min: number; max: number } {
  * gap of one interval means the leading edge is always complete by the time it
  * is visible.
  *
- * `RIGHT_BUFFER_MS` is the dashboard's own constant, read by both of its charts
+ * `rightBufferFor` is the dashboard's own helper, read by both of its charts
  * for exactly this — a second copy here is the drift that file says it exists
- * to prevent.
+ * to prevent. It MEASURES the gap from the samples rather than assuming a
+ * second, which matters here too: the interface poll is an operator setting.
  */
 function liveBounds(now: number, secs: number): { min: number; max: number } {
-  return { min: now - secs * 1000 - RIGHT_BUFFER_MS, max: now - RIGHT_BUFFER_MS };
+  const rb = rightBufferFor(liveBuf.get(iface) || []);
+  return { min: now - secs * 1000 - rb, max: now - rb };
 }
 
 /** The points of one series, at their real timestamps. */

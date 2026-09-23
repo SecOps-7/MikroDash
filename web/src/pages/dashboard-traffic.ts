@@ -36,7 +36,8 @@ import { el, fmtMbps } from '../dom';
 import { notePayload } from '../stale';
 import { isRosDisconnected } from '../banners';
 import {
-  MAX_CLIENT_POINTS, RIGHT_BUFFER_MS, anchorMs, axisWindow, needsFullRedraw, pruneAndMax,
+  MAX_CLIENT_POINTS, RIGHT_BUFFER_MS, rightBufferFor, anchorMs, axisWindow,
+  needsFullRedraw, pruneAndMax,
   pushSample, smoothMax, smoothOffset, windowedPoints,
   type XYPoint,
 } from './dashboard-traffic-buffer';
@@ -200,7 +201,11 @@ export function sharedClock(): { lastSampleTs: number; serverOffset: number; win
 }
 
 export function redrawChart(): void {
-  const pts = windowedPoints(allPoints, Date.now(), windowSecs, RIGHT_BUFFER_MS);
+  // MEASURED FROM THE SAMPLES, not assumed to be a second: a router in stream
+  // mode does not deliver on a metronome, and a fixed gap leaves the line short
+  // of the right edge whenever one arrives late. See rightBufferFor.
+  const rb = rightBufferFor(allPoints);
+  const pts = windowedPoints(allPoints, Date.now(), windowSecs, rb);
   if (!chart) makeChartObj();
   if (!chart) return;
   chart.data.datasets[0]!.data = pts.map((p) => ({ x: p.ts, y: p.rx_mbps }));
@@ -216,7 +221,7 @@ export function redrawChart(): void {
   yMaxCurrent = yMaxTarget;
   chart.options.scales.y.max = yMaxCurrent;
   const anchor = anchorMs(lastSampleTs, serverOffset, Date.now(), pts);
-  const win = axisWindow(anchor, windowSecs, RIGHT_BUFFER_MS);
+  const win = axisWindow(anchor, windowSecs, rb);
   chart.options.scales.x.min = win.min;
   chart.options.scales.x.max = win.max;
   chart.update('none');
@@ -263,13 +268,14 @@ function keepaliveTick(): void {
   if (now - lastTickMs < 33) return;
   lastTickMs = now;
   const sn = now + serverOffset;
-  const vl = sn - windowSecs * 1000 - RIGHT_BUFFER_MS;
+  const rb = rightBufferFor(allPoints);
+  const vl = sn - windowSecs * 1000 - rb;
   const rd = chart.data.datasets[0]!.data, td = chart.data.datasets[1]!.data;
   yMaxTarget = pruneAndMax(rd, td, vl) || 1;
   yMaxCurrent = smoothMax(yMaxCurrent, yMaxTarget);
   chart.options.scales.y.max = yMaxCurrent;
   chart.options.scales.x.min = vl;
-  chart.options.scales.x.max = sn - RIGHT_BUFFER_MS;
+  chart.options.scales.x.max = sn - rb;
   chart.update('none');
 }
 

@@ -31,8 +31,8 @@ const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 const ENTRY = path.join(ROOT, 'testdata', '.traffic-resume-entry.ts');
 fs.writeFileSync(ENTRY,
-  "export { onTrafficHistory, noteTrafficUpdate, resumeTrafficChart, sharedClock } from '../web/src/pages/dashboard-traffic.js';\n" +
-  "export { RIGHT_BUFFER_MS } from '../web/src/pages/dashboard-traffic-buffer.js';\n" +
+  "export { onTrafficHistory, noteTrafficUpdate, resumeTrafficChart, sharedClock, sharedPoints } from '../web/src/pages/dashboard-traffic.js';\n" +
+  "export { RIGHT_BUFFER_MS, rightBufferFor } from '../web/src/pages/dashboard-traffic-buffer.js';\n" +
   "export { fmtMbps } from '../web/src/dom.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.traffic-resume.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -89,7 +89,13 @@ fs.rmSync(OUT, { force: true });
 
 const sample = (ts: number, rx: number, tx: number) => ({ ifName: 'ether1', ts, rx_mbps: rx, tx_mbps: tx });
 const lastX = (c: any, i: number) => c.data.datasets[i].data[c.data.datasets[i].data.length - 1];
-const expectedMax = () => Date.now() + m.sharedClock().serverOffset - m.RIGHT_BUFFER_MS;
+// THE SAME GAP THE CHART USES, not the old fixed constant. The right buffer is
+// measured from the samples now (a router in stream mode does not deliver on a
+// metronome), so a test that kept computing it as RIGHT_BUFFER_MS would be
+// asserting against a formula the code no longer uses — and would fail on any
+// fixture whose gaps are not exactly one second.
+const expectedMax = () =>
+  Date.now() + m.sharedClock().serverOffset - m.rightBufferFor(m.sharedPoints());
 
 // ── a live chart ────────────────────────────────────────────────────────────
 m.onTrafficHistory({ ifName: 'ether1', points: [
