@@ -46,6 +46,17 @@ declare const Chart: undefined | (new (canvas: HTMLCanvasElement, cfg: unknown) 
 
 interface XY { x: number; y: number }
 
+/** The bits of a live Chart the fade reads at draw time. */
+interface ChartInternals {
+  chartArea?: { left: number; right: number };
+  scales?: { x?: { getPixelForValue(v: number): number } };
+  ctx: {
+    createLinearGradient(x0: number, y0: number, x1: number, y1: number): {
+      addColorStop(offset: number, color: string): void;
+    };
+  };
+}
+
 interface ChartLike {
   destroy(): void;
   update(mode?: string): void;
@@ -407,6 +418,8 @@ function paint(): void {
   const canvas = el<HTMLCanvasElement>('ifhChart');
   if (!canvas || typeof Chart === 'undefined') return;
   const win = xWindow();
+  const rxFlat = 'rgb(' + rgbOf(cssVar('--accent-rx')) + ')';
+  const txFlat = 'rgb(' + rgbOf(cssVar('--accent-tx')) + ')';
   chart = new Chart(canvas, {
     type: 'line',
     data: {
@@ -415,12 +428,14 @@ function paint(): void {
           label: 'RX', data: series(rows, 'rx_mbps'),
           // THE FIXED COLOURS, read from the theme rather than written here:
           // Rx is --accent-rx and Tx is --accent-tx everywhere in this app.
-          borderColor: cssVar('--accent-rx'), backgroundColor: 'rgba(56,189,248,.12)',
+          borderColor: fadedColour('--accent-rx', 1),
+          backgroundColor: fadedColour('--accent-rx', 0.12),
           borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
         },
         {
           label: 'TX', data: series(rows, 'tx_mbps'),
-          borderColor: cssVar('--accent-tx'), backgroundColor: 'rgba(74,222,128,.12)',
+          borderColor: fadedColour('--accent-tx', 1),
+          backgroundColor: fadedColour('--accent-tx', 0.12),
           borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
         },
       ],
@@ -431,7 +446,26 @@ function paint(): void {
       // line rather than scrolling it, and the scroll is the window moving.
       animation: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } } },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            boxWidth: 10, font: { size: 10 },
+            // THE SWATCHES ARE SPELLED OUT, because the series colours are
+            // scriptable now and Chart.js cannot resolve a function into a
+            // legend box — it drew "RX" and "TX" as bare text with no colour,
+            // which is the one thing a legend is for.
+            generateLabels: (ch: { data: { datasets: Array<{ label: string }> } }) =>
+              ch.data.datasets.map((ds, i) => ({
+                text: ds.label,
+                fillStyle: i === 0 ? rxFlat : txFlat,
+                strokeStyle: i === 0 ? rxFlat : txFlat,
+                lineWidth: 1,
+                datasetIndex: i,
+              })),
+          },
+        },
+      },
       scales: {
         x: {
           // LINEAR OVER MILLISECONDS, not a time axis: Chart.js's time scale
@@ -465,6 +499,73 @@ function cssVar(name: string): string {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
   } catch { return '#888'; }
 }
+
+/**
+ * A theme colour as `r,g,b`, so the chart can vary its alpha.
+ *
+ * The fill used to be the literal `rgba(56,189,248,.12)` — the default
+ * palette's blue, written into a chart that five other palettes also draw.
+ * Reading the variable keeps Rx and Tx the accent colours they are everywhere
+ * else in this app whichever palette is on.
+ */
+function rgbOf(css: string): string {
+  const hex = css.trim();
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);
+  if (m && m[1]) {
+    const h = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+    return [0, 2, 4].map((k) => parseInt(h.slice(k, k + 2), 16)).join(',');
+  }
+  const rgb = /rgba?\(([^)]+)\)/i.exec(hex);
+  if (rgb && rgb[1]) return rgb[1].split(',').slice(0, 3).map((v) => v.trim()).join(',');
+  return '136,136,136';
+}
+
+/** How far the start of the trace fades in, in pixels. */
+const FADE_PX = 56;
+
+/**
+ * THE START OF THE TRACE IS FADED OUT, and this is why.
+ *
+ * A live window is its full width from the first sample, so until the buffer
+ * fills it the drawn data begins somewhere in the middle of the plot — and with
+ * `fill: true` that beginning is a hard vertical cliff from the baseline up to
+ * the first value, sliding leftwards as history accumulates. It reads as an
+ * edge in the DATA rather than the edge of what has been seen.
+ *
+ * So the first `FADE_PX` of the series dissolve into the background. Once the
+ * window is full the same fade sits at the left edge, where it softens data
+ * leaving the view instead of chopping it — one rule, and it suits both.
+ *
+ * Scriptable rather than computed in the scroll loop: Chart.js evaluates it at
+ * DRAW time, so the gradient follows the start of the data without the loop
+ * needing to know anything about it.
+ */
+function fadedColour(varName: string, alpha: number): unknown {
+  const rgb = rgbOf(cssVar(varName));
+  const flat = 'rgba(' + rgb + ',' + alpha + ')';
+  if (!isLive(range)) return flat;
+  return (c: { chart: ChartInternals; dataset?: { data: XY[] } }): unknown => {
+    const ch = c.chart;
+    const area = ch.chartArea;
+    const sx = ch.scales && ch.scales.x;
+    const data = (c.dataset && c.dataset.data) || [];
+    const first = data[0];
+    if (!area || !sx || !first) return flat;
+    const w = area.right - area.left;
+    if (w <= 0) return flat;
+    const startPx = Math.max(area.left, sx.getPixelForValue(first.x));
+    const from = Math.min(1, Math.max(0, (startPx - area.left) / w));
+    // Strictly increasing stops, or addColorStop throws.
+    const to = Math.min(1, from + FADE_PX / w + 0.0001);
+    const g = ch.ctx.createLinearGradient(area.left, 0, area.right, 0);
+    g.addColorStop(0, 'rgba(' + rgb + ',0)');
+    g.addColorStop(from, 'rgba(' + rgb + ',0)');
+    g.addColorStop(to, flat);
+    g.addColorStop(1, flat);
+    return g;
+  };
+}
+
 
 /**
  * A short axis label.

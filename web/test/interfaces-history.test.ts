@@ -106,7 +106,12 @@ function open(reply, readOnly, identity, rangeKey) {
   // one — the same path a returning operator takes. Absent means the default,
   // which is Live.
   global.localStorage = { getItem: () => rangeKey || null, setItem: () => {} };
-  global.getComputedStyle = () => ({ getPropertyValue: () => '#38bdf8' });
+  // PER VARIABLE, as a real stylesheet answers. A stub returning one colour
+  // for everything made Rx and Tx identical, which hid the legend having no
+  // colours of its own at all.
+  global.getComputedStyle = () => ({
+    getPropertyValue: (n) => (n === '--accent-tx' ? '#34d399' : '#38bdf8'),
+  });
   // A Chart stub that keeps the config, so the AXIS is assertable. Without it
   // the panel silently skips drawing and a mislabelled axis is invisible here —
   // which is how "12:59 … 13:53" came to mean fifty-four seconds.
@@ -119,6 +124,19 @@ function open(reply, readOnly, identity, rangeKey) {
   global.cancelAnimationFrame = () => { frames.cancelled += 1; };
   global.Chart = function (canvas, cfg) {
     const inst = {
+      // Enough of a live Chart for the scriptable colours to run: the fade is
+      // evaluated at DRAW time against the plot box and the x scale, so a stub
+      // without them would silently fall back to the flat colour and the test
+      // would be asserting nothing.
+      chartArea: { left: 40, right: 560 },
+      scales: { x: { getPixelForValue: (v) => {
+        const x = cfg.options.scales.x;
+        return 40 + ((v - x.min) / (x.max - x.min)) * 520;
+      } } },
+      ctx: { createLinearGradient: () => {
+        const stops = [];
+        return { stops, addColorStop: (o, c) => stops.push([o, c]) };
+      } },
       // `options` is the live object a real Chart exposes, and the panel writes
       // its animation onto it every tick — so the stub shares it with cfg
       // rather than copying, or the assertions would read a stale snapshot.
@@ -478,6 +496,94 @@ check('the 30-minute window does not run a frame loop', async () => {
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
   assert.equal(d.frames.requested, 0,
     'the 30-minute window is redrawing every frame for 0.3 px/s of movement');
+});
+
+// THE START OF THE TRACE FADES IN.
+//
+// A live window is its full width from the first sample, so until the buffer
+// fills it the data begins mid-plot — and with fill:true that beginning is a
+// hard vertical cliff from the baseline up to the first value, sliding left as
+// history accumulates. The operator's words: "hide the first part of the
+// leading edge where it is rendering the initial line."
+check('a live series fades in where its data starts', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 9, txMbps: 3 }]);
+  const c = d.charts.last();
+  const fill = c.cfg.data.datasets[0].backgroundColor;
+  assert.equal(typeof fill, 'function',
+    'the fill is a flat colour, so the start of the data is a hard cliff');
+  const g = fill({ chart: c, dataset: c.cfg.data.datasets[0] });
+  assert.ok(g && g.stops && g.stops.length >= 4, 'no gradient was built: ' + JSON.stringify(g));
+  // TRANSPARENT BEFORE THE DATA, opaque after the fade — and the stops must
+  // climb, or addColorStop throws in a real canvas.
+  assert.ok(/,0\)$/.test(g.stops[0][1]), 'the gradient does not start transparent');
+  assert.ok(/,0\)$/.test(g.stops[1][1]), 'it is not still transparent where the data starts');
+  assert.ok(!/,0\)$/.test(g.stops[2][1]), 'it never reaches the solid colour');
+  const offsets = g.stops.map((x) => x[0]);
+  offsets.slice(1).forEach((o, i) => assert.ok(o >= offsets[i],
+    'the colour stops are not increasing, which throws on a real canvas: '
+    + JSON.stringify(offsets)));
+  // AND THE FADE FOLLOWS THE DATA: with one sample at the right-hand edge the
+  // transparent run covers nearly the whole width.
+  assert.ok(offsets[1] > 0.5,
+    'the fade is pinned to the left edge rather than to where the data begins: '
+    + JSON.stringify(offsets));
+});
+
+// THE LEGEND KEEPS ITS COLOURS. Making the series colours scriptable took the
+// swatches away: Chart.js cannot resolve a function into a legend box, so "RX"
+// and "TX" rendered as bare text with nothing to tell them apart.
+check('the legend swatches are real colours, not functions', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 9, txMbps: 3 }]);
+  const c = d.charts.last();
+  const gen = c.cfg.options.plugins.legend.labels.generateLabels;
+  assert.equal(typeof gen, 'function', 'the legend has no swatch colours of its own');
+  const labels = gen(c.cfg);
+  assert.equal(labels.length, 2);
+  labels.forEach((l) => {
+    assert.ok(/^rgb\(/.test(l.fillStyle),
+      'a legend swatch is not a concrete colour: ' + JSON.stringify(l));
+  });
+  assert.notEqual(labels[0].fillStyle, labels[1].fillStyle, 'RX and TX share a colour');
+});
+
+// A RECORDED RANGE IS NOT FADED: its data fills the window it asked for, so
+// there is no "not seen yet" to soften, and a gradient there would just make
+// the oldest hour look like missing data.
+check('a recorded range keeps a flat colour', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1', recordedIfaces: ['ether5'],
+    rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
+  }, false, 'ether5', '1h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(typeof d.charts.last().cfg.data.datasets[0].backgroundColor, 'string');
+});
+
+// AND THE COLOURS COME FROM THE THEME. The fill was the literal
+// rgba(56,189,248,.12) — the default palette's blue, in a chart five other
+// palettes also draw.
+check('the series colours follow the palette', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1', recordedIfaces: ['ether5'],
+    rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
+  }, false, 'ether5', '1h');
+  // getComputedStyle answers as a light-palette install would.
+  global.getComputedStyle = () => ({ getPropertyValue: () => '#247ba1' });
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  const fill = d.charts.last().cfg.data.datasets[0].backgroundColor;
+  assert.ok(/^rgba\(36,123,161,/.test(String(fill)),
+    'the fill ignored the palette and used a hardcoded colour: ' + fill);
 });
 
 // ── THE SWITCH GOES BOTH WAYS ──────────────────────────────────────────────
