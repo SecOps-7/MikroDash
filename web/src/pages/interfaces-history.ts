@@ -44,11 +44,13 @@ import type { Interface, TrafficPoint } from '../gen/payloads';
 
 declare const Chart: undefined | (new (canvas: HTMLCanvasElement, cfg: unknown) => ChartLike);
 
+interface XY { x: number; y: number }
+
 interface ChartLike {
   destroy(): void;
   update(mode?: string): void;
-  data: { labels: string[]; datasets: Array<{ data: number[] }> };
-  options: { animation: unknown };
+  data: { datasets: Array<{ data: XY[] }> };
+  options: { scales: { x: { min: number; max: number } } };
 }
 
 interface HistoryReply {
@@ -130,36 +132,20 @@ function isLive(key: string): boolean {
   return LIVE_RANGES.some((r) => r.key === key);
 }
 
-/**
- * How long a live tick should take to draw, in ms.
- *
- * MEASURED FROM THE SAMPLES, not assumed to be a second: the interface poll is
- * an operator setting, and an animation longer than the gap between samples
- * would still be running when the next one arrived — the line would lag
- * further behind real time with every tick.
- *
- * Zero means "do not animate", which is what a recorded range and the
- * 30-minute window both want.
- */
-function tickMs(): number {
+/** Is this range one that scrolls? See `scroll` below for why 30 min is not. */
+function smoothRange(): boolean {
   const spec = LIVE_RANGES.find((r) => r.key === range);
-  if (!spec || !spec.smooth) return 0;
-  const buf = liveBuf.get(iface);
-  if (!buf || buf.length < 2) return 0;
-  const gap = (buf[buf.length - 1] as TrafficPoint).ts - (buf[buf.length - 2] as TrafficPoint).ts;
-  if (!(gap > 0)) return 0;
-  // Clamped: a resumed tab can produce one enormous gap, and animating over it
-  // would freeze the chart mid-slide for as long as the tab was away.
-  return Math.min(Math.max(gap, 250), 3000);
+  return !!spec && spec.smooth;
 }
 
 function liveWindow(): TrafficPoint[] {
   const spec = LIVE_RANGES.find((r) => r.key === range);
   const buf = liveBuf.get(iface);
   if (!spec || !buf) return [];
-  // rightBufferMs 0: this chart has no leading edge to leave room for, unlike
-  // the dashboard's scrolling axis.
-  return windowedPoints(buf, Date.now(), spec.secs, 0);
+  // TWO SECONDS OF OVERHANG. The axis is clipped at exactly `secs` ago, so
+  // without a point beyond that edge the line would stop short of it and leave
+  // a gap that looks like missing data.
+  return windowedPoints(buf, Date.now(), spec.secs, 2000);
 }
 
 /** Remembered per browser, because an operator working in 7-day views wants the
@@ -318,7 +304,43 @@ function body(d: HistoryReply | null): string {
     '<div class="ifh-note-dim">' + recordControl(d) + '</div></div>';
 }
 
-/** A live tick: move the points without rebuilding the DOM or the chart. */
+/**
+ * The window the x axis shows, in milliseconds.
+ *
+ * A LIVE RANGE IS ALWAYS ITS FULL WIDTH, whether or not there is enough history
+ * to fill it. The axis used to be one category per sample, so five seconds of
+ * traffic stretched across the whole chart and the trace sat hard against the
+ * left edge from the first tick — it looked full when it was nearly empty.
+ * Fixing the window instead means new data enters at the RIGHT and the line
+ * grows leftwards until it fills, which is what a live graph is expected to do.
+ */
+function xWindow(): { min: number; max: number } {
+  if (isLive(range)) {
+    const spec = LIVE_RANGES.find((r) => r.key === range);
+    const now = Date.now();
+    return { min: now - (spec ? spec.secs : 60) * 1000, max: now };
+  }
+  const rows = (last && last.rows) || [];
+  const first = rows[0];
+  const lastRow = rows[rows.length - 1];
+  const now = Date.now();
+  return { min: first ? first.ts : now - 3600000, max: lastRow ? lastRow.ts : now };
+}
+
+/** The points of one series, at their real timestamps. */
+function series(rows: readonly TrafficPoint[], key: 'rx_mbps' | 'tx_mbps'): XY[] {
+  return rows.map((r) => ({ x: r.ts, y: +(+r[key]).toFixed(3) }));
+}
+
+/**
+ * A live tick: hand the chart the new points, and let the SCROLL move them.
+ *
+ * NOTHING IS TWEENED. Chart.js animation interpolates each point's value
+ * towards the next one, and on an index-based axis that is not a scroll — it
+ * is every point in the line sliding vertically at once, which reads as the
+ * whole chart morphing. With the points at their true timestamps the movement
+ * is the window advancing, so the shape is rigid and only the view moves.
+ */
 function repaintLive(): void {
   if (!dialogOpen()) return;
   const pts = liveWindow();
@@ -326,48 +348,78 @@ function repaintLive(): void {
     paint();
     return;
   }
-  const now = Date.now();
-  // SET EVERY TICK, not once at creation. The chart is built the moment the
-  // first sample lands, when there is no second one to measure an interval
-  // from — so a duration fixed at creation is always zero and the line steps
-  // for ever. It also follows the operator changing the poll interval.
-  const anim = tickMs();
-  chart.options.animation = anim ? { duration: anim, easing: 'linear' } : false;
-  chart.data.labels = pts.map((p) => tick(p.ts, now));
   const ds = chart.data.datasets;
-  if (ds[0]) ds[0].data = pts.map((p) => +(+p.rx_mbps).toFixed(3));
-  if (ds[1]) ds[1].data = pts.map((p) => +(+p.tx_mbps).toFixed(3));
-  // NOT 'none': that is the flag that skips the animation, and skipping it is
-  // what made the chart step once a second.
-  chart.update();
+  if (ds[0]) ds[0].data = series(pts, 'rx_mbps');
+  if (ds[1]) ds[1].data = series(pts, 'tx_mbps');
+  scrollTo(Date.now());
   const host = el('ifhStats');
   if (host) host.outerHTML = liveStats(pts);
+}
+
+/** Move the window to `now` and redraw. `'none'` because the motion IS the
+ *  window: anything tweened on top of it would fight the scroll. */
+function scrollTo(now: number): void {
+  if (!chart) return;
+  const spec = LIVE_RANGES.find((r) => r.key === range);
+  if (spec) {
+    chart.options.scales.x.min = now - spec.secs * 1000;
+    chart.options.scales.x.max = now;
+  }
+  chart.update('none');
+}
+
+/**
+ * The scroll: advance the window every animation frame rather than every
+ * sample.
+ *
+ * A window that only moved when a sample arrived would jump a second's worth of
+ * pixels at a time — the "tick" this replaced. Driven by requestAnimationFrame,
+ * which also means the browser stops it while the tab is hidden, so a dashboard
+ * left open in a background tab costs nothing.
+ *
+ * NOT FOR THE 30-MINUTE WINDOW: it advances 0.3 pixels a second, so there is
+ * nothing to smooth and a frame-rate redraw of 1800 points would be paid for
+ * motion no one can see.
+ */
+let raf = 0;
+function startScroll(): void {
+  stopScroll();
+  if (!smoothRange()) return;
+  const step = (): void => {
+    if (!dialogOpen() || !smoothRange() || !chart) { raf = 0; return; }
+    scrollTo(Date.now());
+    raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+}
+
+function stopScroll(): void {
+  if (raf) { cancelAnimationFrame(raf); raf = 0; }
 }
 
 function paint(): void {
   const host = el('ifhBody');
   if (host) host.innerHTML = body(last);
   destroyChart();
+  stopScroll();
   const rows = isLive(range) ? liveWindow() : ((last && last.rows) || []);
   if (!rows.length) return;
   const canvas = el<HTMLCanvasElement>('ifhChart');
   if (!canvas || typeof Chart === 'undefined') return;
-  const nowMs = Date.now();
-  const anim = tickMs();
+  const win = xWindow();
   chart = new Chart(canvas, {
     type: 'line',
     data: {
-      labels: rows.map((r) => tick(r.ts, nowMs)),
       datasets: [
         {
-          label: 'RX', data: rows.map((r) => +(+r.rx_mbps).toFixed(3)),
+          label: 'RX', data: series(rows, 'rx_mbps'),
           // THE FIXED COLOURS, read from the theme rather than written here:
           // Rx is --accent-rx and Tx is --accent-tx everywhere in this app.
           borderColor: cssVar('--accent-rx'), backgroundColor: 'rgba(56,189,248,.12)',
           borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
         },
         {
-          label: 'TX', data: rows.map((r) => +(+r.tx_mbps).toFixed(3)),
+          label: 'TX', data: series(rows, 'tx_mbps'),
           borderColor: cssVar('--accent-tx'), backgroundColor: 'rgba(74,222,128,.12)',
           borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
         },
@@ -375,16 +427,23 @@ function paint(): void {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      // A LIVE RANGE SLIDES. Chart.js tweens each point to the value of its
-      // neighbour, and because the buffer shifts by one sample per tick that
-      // reads as the line flowing leftwards rather than jumping a point at a
-      // time. Linear, because an eased tick would speed up and slow down
-      // against a clock that does neither.
-      animation: anim ? { duration: anim, easing: 'linear' } : false,
+      // NOTHING ANIMATES. See repaintLive: a tween on an index axis morphs the
+      // line rather than scrolling it, and the scroll is the window moving.
+      animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } } },
       scales: {
-        x: { ticks: { maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
+        x: {
+          // LINEAR OVER MILLISECONDS, not a time axis: Chart.js's time scale
+          // needs a date adapter this build does not ship, and a linear axis
+          // with a formatter is the same picture without the dependency.
+          type: 'linear', min: win.min, max: win.max,
+          ticks: {
+            maxTicksLimit: 6, font: { size: 9 }, autoSkip: true,
+            callback: (v: number): string => tick(v, xWindowMax()),
+          },
+          grid: { display: false },
+        },
         y: {
           beginAtZero: true, ticks: { font: { size: 9 } },
           title: { display: true, text: 'Mbps' },
@@ -392,6 +451,13 @@ function paint(): void {
       },
     },
   });
+  startScroll();
+}
+
+/** The right-hand edge the axis labels are measured against. Read from the
+ *  chart so a label cannot disagree with the window it sits under. */
+function xWindowMax(): number {
+  return chart ? chart.options.scales.x.max : Date.now();
 }
 
 function cssVar(name: string): string {

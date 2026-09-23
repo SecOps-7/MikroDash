@@ -111,6 +111,12 @@ function open(reply, readOnly, identity, rangeKey) {
   // the panel silently skips drawing and a mislabelled axis is invisible here —
   // which is how "12:59 … 13:53" came to mean fifty-four seconds.
   const charts = [];
+  // A frame loop that is COUNTED and never actually runs: a real one would
+  // spin for the length of the test, and what matters is whether the panel
+  // asked for frames at all.
+  const frames = { requested: 0, cancelled: 0 };
+  global.requestAnimationFrame = () => { frames.requested += 1; return frames.requested; };
+  global.cancelAnimationFrame = () => { frames.cancelled += 1; };
   global.Chart = function (canvas, cfg) {
     const inst = {
       // `options` is the live object a real Chart exposes, and the panel writes
@@ -159,7 +165,22 @@ function open(reply, readOnly, identity, rangeKey) {
     });
   }
   return {
-    els, fetched, puts, emitted, mod, charts,
+    els, fetched, puts, emitted, mod, charts, frames,
+    /**
+     * Let everything still in flight finish, then zero the frame counters.
+     *
+     * A PREVIOUS test's fetch can resolve after this one has installed its own
+     * globals, and the stale module then repaints through THIS test's Chart and
+     * requestAnimationFrame — one stray chart and one stray frame, attributed
+     * to the wrong panel. Measuring from a drained, zeroed point makes the
+     * count mean "what this panel did", which is what is being asserted.
+     */
+    settle: async () => {
+      for (let i = 0; i < 3; i += 1) await new Promise((r) => setImmediate(r));
+      frames.requested = 0;
+      frames.cancelled = 0;
+      charts.length = 0;
+    },
     /** Flip the recording toggle, as a browser does: the input's `change`
      *  bubbles to the delegated handler carrying the state it landed in. */
      flipRecord: () => {
@@ -369,8 +390,8 @@ check('a live window is labelled by age', async () => {
   await Promise.resolve();
   d.deliverRow();
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
-  const labels = d.charts.last().data.labels;
-  assert.ok(labels.length, 'no chart was drawn');
+  const x = d.charts.last().cfg.options.scales.x;
+  const labels = [x.min, (x.min + x.max) / 2, x.max].map((v) => x.ticks.callback(v));
   labels.forEach((l) => {
     assert.ok(/^(now|-\d+[sm])$/.test(l),
       'a live label reads as a time of day rather than an age: ' + JSON.stringify(labels));
@@ -387,75 +408,76 @@ check('an hourly window is labelled by the clock', async () => {
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
-  const labels = d.charts.last().data.labels;
-  assert.ok(/^\d\d:\d\d$/.test(labels[0]),
-    'an hourly label is not a clock time: ' + JSON.stringify(labels));
+  const x = d.charts.last().cfg.options.scales.x;
+  const label = x.ticks.callback(1790000000000);
+  assert.ok(/^\d\d:\d\d$/.test(label),
+    'an hourly label is not a clock time: ' + JSON.stringify(label));
 });
 
-// ── SMOOTHNESS ─────────────────────────────────────────────────────────────
+// ── SMOOTHNESS, AND WHAT IT IS NOT ─────────────────────────────────────────
 //
-// The live chart used to step: the whole series was replaced and redrawn with
-// animation off, so the line jumped one sample to the left every second. It
-// slides now, which is one config flag and one argument — both easy to lose,
-// and neither visible in any assertion about the numbers.
+// The first attempt animated Chart.js between data updates. On an index-based
+// axis that interpolates every point's VALUE towards its neighbour's, which is
+// not a scroll: the whole line slides vertically at once and reads as the chart
+// morphing. The operator's words were "looks like its morphing constantly".
+//
+// So nothing is tweened. The points carry their real timestamps and the WINDOW
+// moves, which is rigid by construction.
 
-check('a live chart animates each tick, at the measured sample interval', async () => {
-  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
-    false, 'ether5');
-  await Promise.resolve();
-  d.deliverRow();
-  // Two samples a second apart: the animation is measured from them rather
-  // than assumed, because the interface poll is an operator setting.
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
-  await new Promise((r) => setTimeout(r, 120));
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 2, txMbps: 2 }]);
-  const anim = d.charts.last().cfg.options.animation;
-  assert.ok(anim && anim.duration > 0,
-    'the live chart is not animated, so it steps once a sample: ' + JSON.stringify(anim));
-  assert.equal(anim.easing, 'linear',
-    'an eased tick speeds up and slows down against a clock that does neither');
-});
-
-check('a live tick does not skip the animation', async () => {
+check('nothing is tweened, because a tween on this axis morphs the line', async () => {
   const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
-  await new Promise((r) => setTimeout(r, 120));
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 2, txMbps: 2 }]);
-  const c = d.charts.last();
-  assert.ok(c.updates.length, 'the chart was rebuilt rather than updated in place');
-  assert.ok(!c.updates.includes('none'),
-    "update('none') is the flag that SKIPS the animation — passing it is what "
-    + 'made the chart step: ' + JSON.stringify(c.updates));
+  assert.equal(d.charts.last().cfg.options.animation, false,
+    'an animation on a value axis morphs the line instead of scrolling it');
 });
 
-// THE 30-MINUTE WINDOW IS NOT ANIMATED, and that is deliberate: at 1800 points
-// across a few hundred pixels a sample is sub-pixel, so tweening 1800 values
-// every second buys nothing anyone can see and costs it every second.
-check('the 30-minute window is not animated', async () => {
+// THE WINDOW IS ITS FULL WIDTH FROM THE FIRST SAMPLE. It was one category per
+// point, so five seconds of traffic stretched across the whole chart and the
+// trace sat against the left edge from the start: "the graph is already pinned
+// to the left edge, instead of drawing towards it".
+check('a live window spans its whole range even with one sample', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 7, txMbps: 2 }]);
+  const x = d.charts.last().cfg.options.scales.x;
+  assert.equal(x.type, 'linear', 'an index axis cannot hold a point at its real time');
+  assert.equal(x.max - x.min, 60000, 'the Live window is not 60 seconds wide');
+  // AND THE ONE POINT SITS AT THE RIGHT-HAND EDGE, not spread across the chart.
+  const pt = d.charts.last().cfg.data.datasets[0].data[0];
+  assert.ok(x.max - pt.x < 2000,
+    'the only sample is not at the leading edge; it will draw from the left '
+    + 'instead of towards it');
+  assert.ok(pt.x > x.min + 50000, 'the sample is sitting near the left edge');
+});
+
+check('the window scrolls on animation frames, not on samples', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  await d.settle();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+  assert.ok(d.frames.requested > 0,
+    'no frame was requested, so the window only moves when a sample lands — '
+    + 'which is the once-a-second jump this replaced');
+});
+
+// NOT FOR THE 30-MINUTE WINDOW: it advances about a third of a pixel a second,
+// so a frame-rate redraw of 1800 points would be paid for motion no one sees.
+check('the 30-minute window does not run a frame loop', async () => {
   const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
     false, 'ether5', '30m');
   await Promise.resolve();
   d.deliverRow();
+  await d.settle();
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
-  await new Promise((r) => setTimeout(r, 120));
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 2, txMbps: 2 }]);
-  assert.equal(d.charts.last().cfg.options.animation, false,
-    'the 30-minute window animates 1800 sub-pixel points every second');
-});
-
-check('a recorded range is not animated either', async () => {
-  const d = open({
-    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1', recordedIfaces: ['ether5'],
-    rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
-  }, false, 'ether5', '1h');
-  await Promise.resolve();
-  d.deliverRow();
-  await new Promise((r) => setImmediate(r));
-  assert.equal(d.charts.last().cfg.options.animation, false,
-    'a static range has nothing to slide');
+  assert.equal(d.frames.requested, 0,
+    'the 30-minute window is redrawing every frame for 0.3 px/s of movement');
 });
 
 // ── THE SWITCH GOES BOTH WAYS ──────────────────────────────────────────────
