@@ -493,11 +493,12 @@ func (s *Server) syncPool() {
 		if r.Disabled {
 			continue // a disabled router is not connected to at all
 		}
-		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
+		recorded := store.RecordedIfacesFor(r, routers.DefaultIfFor(r.DefaultIf, global))
+		s.declareRecordedInterfaces(r.ID, recorded)
 		s.declareReporting(r)
 		cfgs = append(cfgs, routers.RouterConfig{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
-			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
+			TLS: r.TLS, InsecureTLS: r.TLSInsecure, RecordedIfaces: recorded,
 			User: r.Username, Password: r.Password,
 			// The record's own collection block (#105). A nil one resolves to the
 			// fleet defaults, so a router that has never been configured is not a
@@ -566,21 +567,31 @@ func (s *Server) globalDefaultIf() string {
 	return v
 }
 
-// declareRecordedInterfaces tells the recorder which interfaces this router's
-// history covers.
+// declareRecordedInterfaces tells BOTH sides which interfaces this router's
+// history covers: the recorder, which decides what to write, and the live
+// session's traffic collector, which decides what the stream carries.
 //
-// ONE INTERFACE TODAY — the resolved default. The point of declaring it is not
-// the number but the INDEPENDENCE: before this, the recorded set was whatever
-// happened to be in the traffic stream, which is the default plus every
-// interface a browser was watching. History therefore appeared and disappeared
-// with a browser tab. See `historywire.Wire.SetRecordedInterfaces`.
+// ── THE TWO HALVES MUST AGREE OR HISTORY HAS HOLES ─────────────────────────
 //
-// Widening this to several interfaces — which a multi-WAN router needs, and
-// which costs no extra router channel because `/interface/monitor-traffic`
-// takes a comma list — is a separate change needing somewhere for the operator
-// to say which ones.
-func (s *Server) declareRecordedInterfaces(routerID, defaultIf string) {
-	s.historyWire.SetRecordedInterfaces(routerID, []string{defaultIf})
+// The recorded set is INDEPENDENT of who is looking. Before it, the set was
+// whatever happened to be in the traffic stream — the default plus every
+// interface a browser was watching — so history appeared and disappeared with a
+// tab (`historywire.Wire.SetRecordedInterfaces`). Declaring it to the recorder
+// alone fixes what is WRITTEN and not what is MEASURED: an interface the stream
+// does not carry produces no samples to write, so it would record nothing while
+// the operator believes it is recording. Both, together, from one list.
+//
+// The list is `store.RecordedIfacesFor`, so the default interface is always in
+// it and it is never empty. See that helper: an empty list means "record
+// everything" to the recorder.
+//
+// The pool's sessions get the same list through `RouterConfig`, applied on
+// every sync (`routers.Pool.applyReporting`).
+func (s *Server) declareRecordedInterfaces(routerID string, recorded []string) {
+	s.historyWire.SetRecordedInterfaces(routerID, recorded)
+	if s.sessions != nil {
+		s.sessions.ApplyRecordedIfaces(routerID, recorded)
+	}
 }
 
 // declareReporting tells the two recorders what this router's reporting setting

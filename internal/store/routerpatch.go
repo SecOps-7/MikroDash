@@ -1,6 +1,9 @@
 package store
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // CoerceRouterPatch types a `PUT /api/routers/:id` patch the way the live
 // `updateRouter` does, for the keys the patch actually names.
@@ -82,6 +85,13 @@ func CoerceRouterPatch(patch map[string]any) map[string]any {
 	if v, ok := out["reportingEnabled"]; ok {
 		out["reportingEnabled"] = jsIsTrue(v)
 	}
+	// The interfaces this router records history for, besides the default one
+	// (#59). Coerced rather than trusted for the reason the header gives: a
+	// stored value of the wrong SHAPE fails the typed decode of the whole file
+	// and returns no routers at all.
+	if v, ok := out["recordedIfaces"]; ok {
+		out["recordedIfaces"] = ifaceList(v)
+	}
 	// `parseInt(data.port, 10)`. An unparseable port becomes 0 on the live side
 	// too — `parseInt('abc')` is NaN and JSON.stringify writes it as null — so
 	// this is not made stricter than the thing it mirrors.
@@ -99,6 +109,51 @@ func CoerceRouterPatch(patch map[string]any) map[string]any {
 	// `(n >= 0 && n <= 300) ? n : 30`
 	if v, ok := out["connDownThresholdSec"]; ok {
 		out["connDownThresholdSec"] = connDownOr(v)
+	}
+	return out
+}
+
+// ifaceList is a patch's `recordedIfaces` as the file may hold it: a list of
+// interface names, trimmed, without blanks or repeats, and capped.
+//
+// ANYTHING ELSE BECOMES AN EMPTY LIST, which is this field's "the default
+// interface only" — the same answer a router that never set it gives. A single
+// string is not accepted as a list of one: `"ether1,ether2"` would then record
+// an interface no router has, and silently.
+//
+// THE CAP IS A REAL LIMIT, not tidiness. Every name here is an interface whose
+// minute rows are written for ever after, so a list arriving with four hundred
+// entries would quietly commit an install to that much disk.
+const maxRecordedIfaces = 32
+
+func ifaceList(v any) []string {
+	raw, ok := v.([]any)
+	if !ok {
+		if already, isStrings := v.([]string); isStrings {
+			raw = make([]any, 0, len(already))
+			for _, s := range already {
+				raw = append(raw, s)
+			}
+		} else {
+			return []string{}
+		}
+	}
+	out := []string{}
+	seen := map[string]bool{}
+	for _, item := range raw {
+		name, isString := item.(string)
+		if !isString {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+		if len(out) == maxRecordedIfaces {
+			break
+		}
 	}
 	return out
 }
@@ -137,6 +192,15 @@ func normalizeStoredRouterBools(b []byte) ([]byte, bool) {
 		// MISSING from this list is not a dropped field, it is a stored string
 		// that fails the whole-file decode with no repair pass — which returns
 		// ZERO routers, not one bad one.
+		// `recordedIfaces` is repaired for the same reason as the booleans: a
+		// stored string where a list belongs fails the decode of the ENTIRE
+		// file, and the symptom is zero routers rather than one bad field.
+		if v, ok := r["recordedIfaces"]; ok {
+			if _, isList := v.([]any); !isList {
+				r["recordedIfaces"] = ifaceList(v)
+				changed = true
+			}
+		}
 		for _, k := range []string{"disabled", "alertsEnabled", "reportingEnabled", "tlsInsecure"} {
 			v, ok := r[k]
 			if !ok {

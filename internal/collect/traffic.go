@@ -215,7 +215,15 @@ type Traffic struct {
 	mu sync.Mutex
 	// watching is a REFCOUNT per interface, not a set: two viewers on one
 	// interface must not have the first to leave stop the stream for the second.
-	watching  map[string]int
+	watching map[string]int
+	// recorded are the interfaces this router keeps history for (#59). They are
+	// in the stream whether or not a browser is watching, because the recorder
+	// writes from what the stream carries: an interface nobody is looking at
+	// records nothing, which is how history used to appear and disappear with a
+	// tab (see internal/historywire).
+	//
+	// A SET, not a refcount. A watcher comes and goes; this is configuration.
+	recorded  map[string]bool
 	available map[string]bool
 	hist      map[string][]TrafficPoint
 	lastWan   *WanStatus
@@ -278,7 +286,7 @@ func NewTraffic(ros Reader, emit Emit, defaultIf string, historyMinutes int) *Tr
 	}
 	t := &Traffic{
 		ros: ros, emit: emit, defaultIf: defaultIf, maxPoints: points,
-		watching: map[string]int{}, available: map[string]bool{},
+		watching: map[string]int{}, recorded: map[string]bool{}, available: map[string]bool{},
 		hist:    map[string][]TrafficPoint{},
 		wdEvery: 5 * time.Second, wdStaleMs: 10_000,
 	}
@@ -443,8 +451,9 @@ func (t *Traffic) History(ifName string) TrafficHistory {
 }
 
 // ifaceList is the interfaces the stream must cover: everything being watched,
-// plus the default. Sorted, so the key it produces is stable and a restart is
-// triggered by a real change rather than by map iteration order.
+// plus the default, plus whatever this router records. Sorted, so the key it
+// produces is stable and a restart is triggered by a real change rather than by
+// map iteration order.
 // ifaceListLocked is ifaceList's body for a caller already holding the lock.
 func (t *Traffic) ifaceListLocked() []string {
 	names := []string{}
@@ -458,8 +467,53 @@ func (t *Traffic) ifaceListLocked() []string {
 			names = append(names, n)
 		}
 	}
+	for n := range t.recorded {
+		if !seen[n] {
+			seen[n] = true
+			names = append(names, n)
+		}
+	}
 	sort.Strings(names)
 	return names
+}
+
+// SetRecorded declares the interfaces this router keeps history for, so they
+// stay in the stream with nobody watching.
+//
+// ── ONE ROUTER CHANNEL, WHATEVER THE COUNT ─────────────────────────────────
+//
+// `/interface/monitor-traffic` takes a comma list, so ten recorded interfaces
+// are ten names in one subscription rather than ten channels. The cost of
+// recording another interface is a row a minute on disk, not a slot on the
+// router.
+//
+// The stream is restarted only when the SET changes, which is why this compares
+// before assigning: the fleet syncs call it every few seconds with the same
+// names, and a restart per sync would drop the measurement each time.
+func (t *Traffic) SetRecorded(names []string) {
+	next := make(map[string]bool, len(names))
+	for _, n := range names {
+		if n != "" {
+			next[n] = true
+		}
+	}
+	t.mu.Lock()
+	same := len(next) == len(t.recorded)
+	if same {
+		for n := range next {
+			if !t.recorded[n] {
+				same = false
+				break
+			}
+		}
+	}
+	if same {
+		t.mu.Unlock()
+		return
+	}
+	t.recorded = next
+	t.mu.Unlock()
+	t.syncStream()
 }
 
 // syncStream restarts the stream when the interface set has changed.

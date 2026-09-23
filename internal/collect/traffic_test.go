@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"mikrodash/internal/routeros"
+
+	"mikrodash/internal/roscache"
 )
 
 // Every packet the captured stream delivered, parsed.
@@ -316,5 +318,78 @@ func TestFoldTrafficTouchesOnlyItsOwnRing(t *testing.T) {
 	}
 	if sample.RxMbps != 8 {
 		t.Errorf("rxMbps = %v, want 8 — the sample's own conversion changed", sample.RxMbps)
+	}
+}
+
+// A RECORDED interface is in the stream with nobody watching (#59): the
+// recorder writes from what the stream carries, so an interface the stream
+// leaves out records nothing while the operator believes it is recording.
+func TestRecordedInterfacesStayInTheStream(t *testing.T) {
+	tr := NewTraffic(fakeReader{}, hub.Relay{}, "WAN1", 5)
+	tr.SetAvailable([]string{"WAN1", "ether2", "ether3"})
+	list := func() []string {
+		tr.mu.Lock()
+		defer tr.mu.Unlock()
+		return tr.ifaceListLocked()
+	}
+
+	tr.SetRecorded([]string{"WAN1", "ether3"})
+	if got := list(); len(got) != 2 || got[0] != "WAN1" || got[1] != "ether3" {
+		t.Fatalf("recorded set = %v, want the default and ether3", got)
+	}
+
+	// A WATCHER ON TOP does not double it, and leaving does not take the
+	// recorded one away with it.
+	tr.Watch("ether3")
+	tr.Watch("ether2")
+	if got := list(); len(got) != 3 {
+		t.Errorf("with a watcher on a recorded interface, %v, want three names", got)
+	}
+	tr.Unwatch("ether3")
+	tr.Unwatch("ether2")
+	if got := list(); len(got) != 2 || got[1] != "ether3" {
+		t.Errorf("after the viewers left, %v, want the default and the recorded ether3", got)
+	}
+
+	// AND THE DEFAULT SURVIVES A LIST THAT OMITS IT. The badge reads it on
+	// every page; `store.RecordedIfacesFor` always includes it, and this is the
+	// collector's half of that.
+	tr.SetRecorded([]string{"ether2"})
+	if got := list(); len(got) != 2 || got[0] != "WAN1" || got[1] != "ether2" {
+		t.Errorf("recorded without the default = %v, want it kept", got)
+	}
+
+	tr.SetRecorded(nil)
+	if got := list(); len(got) != 1 || got[0] != "WAN1" {
+		t.Errorf("recorded nothing = %v, want just the default", got)
+	}
+}
+
+// SetRecorded RESTARTS THE STREAM, so declaring the same names again must be a
+// no-op: the fleet syncs call it every few seconds, and a restart per sync
+// would drop the measurement each time.
+func TestSetRecordedIsQuietWhenNothingChanged(t *testing.T) {
+	r := &cmdReader{}
+	tr := NewTraffic(r, hub.Relay{}, "ether1", 1)
+	c := roscache.New(r)
+	tr.UseCache(c)
+	tr.SetAvailable([]string{"ether1", "ether2"})
+
+	tr.SetRecorded([]string{"ether1", "ether2"})
+	r.mu.Lock()
+	first := len(r.cmds)
+	r.mu.Unlock()
+	if first == 0 {
+		t.Fatal("declaring a new recorded set opened no stream")
+	}
+
+	for i := 0; i < 5; i++ {
+		tr.SetRecorded([]string{"ether2", "ether1"}) // same set, other order
+	}
+	r.mu.Lock()
+	again := len(r.cmds)
+	r.mu.Unlock()
+	if again != first {
+		t.Errorf("the same set reopened the stream %d time(s)", again-first)
 	}
 }

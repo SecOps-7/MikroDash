@@ -137,7 +137,7 @@ func (s *Server) syncFleetHolds() {
 	warmSkip := s.warmExclusions()
 
 	for _, r := range all {
-		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
+		s.declareRecordedInterfaces(r.ID, store.RecordedIfacesFor(r, routers.DefaultIfFor(r.DefaultIf, global)))
 		s.declareReporting(r)
 		s.declareConnThreshold(r)
 		// THE DECLARATIONS ABOVE ARE NOT GATED ON THE MANAGER, and that split is

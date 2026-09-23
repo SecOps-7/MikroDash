@@ -1,111 +1,84 @@
 package server
 
-// The two fleet syncs resolve the default interface and declare what history
-// keeps. Both halves were the bug: the syncs took `r.DefaultIf` RAW, so a
-// router with none gave the traffic collector an empty interface list — and
-// `syncStream` opens nothing for an empty list, so the pools that run when
-// nobody is watching recorded no traffic at all. Issue #126.
-
 import (
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
-
-	"mikrodash/internal/historywire"
-	"mikrodash/internal/routeros"
-	"mikrodash/internal/routers"
 )
 
-// Neither router names a default interface on r1; r2 names its own.
-const blankIfFixture = `[
-  {"id":"r1","label":"One","host":"198.51.100.1","port":8728,"username":"u","password":"",
-   "defaultIf":""},
-  {"id":"r2","label":"Two","host":"198.51.100.2","port":8728,"username":"u","password":"",
-   "defaultIf":"sfp1"}
-]`
+// ── WHICH INTERFACES A ROUTER RECORDS REACHES BOTH HALVES (#59) ────────────
+//
+// The recorder decides what is WRITTEN; the traffic collector decides what is
+// MEASURED. Declaring to the recorder alone is the failure this exists for: an
+// interface the stream does not carry produces no samples to write, so it would
+// record nothing while the operator believes it is recording, and the symptom
+// is an empty chart rather than an error.
+//
+// SOURCE-READ, in the house style of `connthresh_test.go`: reaching this live
+// needs a store, a session manager, a pool and a router, and the mutations worth
+// killing are all in the wiring — a declaration no save path reaches, a raw
+// list where the resolved one belongs, or one half of the pair dropped.
+func TestTheRecordedInterfacesReachTheRecorderAndTheStream(t *testing.T) {
+	devices := read(t, "devices.go")
 
-func recServer(t *testing.T) *Server {
-	t.Helper()
-	s, _, dir := routersServer(t, &Session{AuthMode: "none", Username: "admin"},
-		`{"defaultIf":"ether5"}`)
-	if err := os.WriteFile(filepath.Join(dir, "routers.json"),
-		[]byte(blankIfFixture), 0o600); err != nil {
+	if !strings.Contains(devices, "s.historyWire.SetRecordedInterfaces(routerID, recorded)") {
+		t.Error("declareRecordedInterfaces no longer tells the recorder what to write")
+	}
+	if !strings.Contains(devices, "s.sessions.ApplyRecordedIfaces(routerID, recorded)") {
+		t.Error("declareRecordedInterfaces no longer tells the live session what to " +
+			"stream, so a ticked interface would record nothing and say nothing")
+	}
+
+	// THE RESOLVED LIST, NEVER THE RAW FIELD. `store.RecordedIfacesFor` puts the
+	// default interface in and can never answer empty; an empty list tells the
+	// recorder to record EVERY interface in the stream.
+	for _, f := range []string{"devices.go", "fleet_holds.go"} {
+		src := read(t, f)
+		if !strings.Contains(src, "store.RecordedIfacesFor(r,") {
+			t.Errorf("%s declares a recorded set that is not store.RecordedIfacesFor's; "+
+				"a raw list drops the default interface, and an empty one records everything", f)
+		}
+	}
+
+	// AND THE POOL'S SESSIONS GET THE SAME LIST. They are the ones that run when
+	// nobody is watching, which is exactly when recording has to keep working.
+	if !strings.Contains(devices, "RecordedIfaces: recorded") {
+		t.Error("syncPool no longer carries the recorded set into RouterConfig, so a " +
+			"pooled session would stream only the default interface")
+	}
+
+	// The anchor these read by, so a rename re-aims this test rather than
+	// silently passing over a file that no longer declares anything.
+	if !strings.Contains(read(t, "fleet_holds.go"), "s.declareReporting(r)") {
+		t.Fatal("the anchor is gone: syncFleetHolds no longer declares reporting. " +
+			"Re-aim rather than delete.")
+	}
+}
+
+// TestThePoolAppliesTheRecordedSetOnEverySync is the other end of the same wire:
+// the list is config, and config that is only read at build time is the
+// restart-required bug the threshold had (see connthresh_test.go).
+func TestThePoolAppliesTheRecordedSetOnEverySync(t *testing.T) {
+	src, err := os.ReadFile("../routers/pool.go")
+	if err != nil {
 		t.Fatal(err)
 	}
-	s.historyWire = historywire.New(true, nil)
-	return s
-}
-
-// TestTheGlobalDefaultInterfaceIsRead — the middle rung of the precedence, and
-// the one neither pool consulted.
-func TestTheGlobalDefaultInterfaceIsRead(t *testing.T) {
-	s := recServer(t)
-	if got := s.globalDefaultIf(); got != "ether5" {
-		t.Fatalf("globalDefaultIf = %q, want the install setting", got)
+	body := string(src)
+	if !strings.Contains(body, "traffic.SetRecorded(cfg.RecordedIfaces)") {
+		t.Error("applyReporting no longer pushes the recorded set onto live pool " +
+			"sessions; a ticked interface would wait for a reconnect")
 	}
-	if got := routers.DefaultIfFor("", s.globalDefaultIf()); got != "ether5" {
-		t.Errorf("a blank defaultIf resolved to %q", got)
+	if !strings.Contains(body, "s.traffic.SetRecorded(cfg.RecordedIfaces)") {
+		t.Error("a pool session no longer declares its recorded set when it is built, " +
+			"so a router that joins the pool later records only its default interface")
 	}
 }
 
-// TestTheFleetHoldSyncDeclaresWhatToRecord. These are the holds that keep
-// routers nobody is watching connected, so their declaration is what makes a
-// series continuous rather than following a browser tab.
-//
-// `holdFleet` is set by hand because `New` derives it from `-no-pool` and this
-// test has no server options; without it `syncFleetHolds` returns at its first
-// line and every assertion below passes for the wrong reason.
-func TestTheFleetHoldSyncDeclaresWhatToRecord(t *testing.T) {
-	s := recServer(t)
-	s.holdFleet = true
-
-	s.syncFleetHolds()
-
-	if !s.historyWire.Records("r1", "ether5") {
-		t.Error("r1 does not record the install-wide default interface, so a " +
-			"router with no default of its own records nothing in the background")
+func read(t *testing.T, name string) string {
+	t.Helper()
+	b, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if s.historyWire.Records("r1", "ether3") {
-		t.Error("r1 still records an interface only a viewer would have added — " +
-			"the browser is deciding what gets written")
-	}
-	if !s.historyWire.Records("r2", "sfp1") {
-		t.Error("r2 does not record its own default interface")
-	}
+	return string(b)
 }
-
-// TestTheOverviewPoolSyncDeclaresItToo — either pool may hold a given router,
-// so a declaration made by only one of them leaves gaps on handover.
-func TestTheOverviewPoolSyncDeclaresItToo(t *testing.T) {
-	s := recServer(t)
-	s.pool = routers.NewPool(
-		func(routeros.Config) (routers.Conn, error) { return nil, os.ErrClosed },
-		0, nil, nil)
-	t.Cleanup(s.pool.Close)
-
-	s.syncPool()
-
-	if !s.historyWire.Records("r1", "ether5") {
-		t.Error("the overview pool's sync declared nothing for r1")
-	}
-	if s.historyWire.Records("r2", "ether5") {
-		t.Error("r2 records r1's interface; the declaration is not per router")
-	}
-}
-
-// ── THE OUTAGE DEBOUNCE MOVED, AND SO DID ITS TESTS ────────────────────────
-//
-// Three tests stood here: that each sync cached a router's debounce, that a
-// brief drop was not recorded, and that a router asking for zero recorded at
-// once. All three drove `alertPoolStatus`, the hook `internal/alertpool` called
-// on a connect or a drop, and that package and that hook are gone.
-//
-// The property is unchanged and is asserted where it now lives:
-// `internal/session/connthresh_test.go` pins that the session builds
-// `connThreshMs` from the router's own record and passes it to every
-// `history.Connected`/`.Disconnected` call, and `internal/historywire/conn_test.go`
-// already held the debounce behaviour itself — a drop and return inside the
-// window writing nothing, a zero threshold writing at once.
-//
-// Recorded rather than silently dropped: a check removed without a reason reads
-// exactly like one that never existed.

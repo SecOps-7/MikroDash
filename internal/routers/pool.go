@@ -160,6 +160,12 @@ type RouterConfig struct {
 	// gets on the live side too.
 	Collection *collection.Router
 
+	// RecordedIfaces are the interfaces this router keeps history for besides
+	// the default (#59), resolved by `store.RecordedIfacesFor`. Carried for the
+	// same reason DefaultIf is, and pushed onto a live session by
+	// `SetRecordedIfaces` when the operator changes it.
+	RecordedIfaces []string
+
 	// DefaultIf and PingTarget are carried ONLY for the history collectors —
 	// see `applyReporting`. They are the same two values `Session` passes to
 	// `NewTraffic` and `NewPing`, so a pooled recording and a page-driven one
@@ -344,6 +350,9 @@ func (p *Pool) WithHistory(rec func(routerID, event string, payload any)) *Pool 
 	return p
 }
 
+// applyReporting also carries the recorded-interface list (#59) onto each live
+// session, so ticking an interface takes effect on the next fleet sync rather
+// than at the next reconnect.
 // applyReporting starts or stops the history pair on the sessions that already
 // exist, from each router's own `ReportingEnabled`.
 //
@@ -387,9 +396,17 @@ func (p *Pool) applyReporting(byID map[string]RouterConfig) {
 		cfg, known := byID[s.cfg.ID]
 		if known {
 			s.historyOn = cfg.ReportingEnabled
+			s.cfg.RecordedIfaces = cfg.RecordedIfaces
 		}
 		on := s.historyOn && !suspended
+		// CAPTURED UNDER THE LOCK, CALLED OUTSIDE IT, for the reason the note
+		// above gives: `SetRecorded` restarts the stream when the set changed,
+		// and a restart goes through `reader.Stream`, which takes this lock.
+		traffic := s.traffic
 		s.mu.Unlock()
+		if known && traffic != nil {
+			traffic.SetRecorded(cfg.RecordedIfaces)
+		}
 		s.setHistoryCollectors(on)
 	}
 }
@@ -554,6 +571,10 @@ func (p *Pool) build(cfg RouterConfig) *poolSession {
 		rec := p.record
 		emit := hub.NewRelay(func(_ string, e hub.Named, payload any) { rec(id, e.Name(), payload) })
 		s.traffic = collect.NewTraffic(r, emit, cfg.DefaultIf, 5)
+		// Declared at build for the reason the line above gives: a router that
+		// joins the pool later must not wait for a fleet sync to learn which
+		// interfaces it records.
+		s.traffic.SetRecorded(cfg.RecordedIfaces)
 		s.ping = collect.NewPing(r, emit, eff.Poll["ping"], cfg.PingTarget)
 	}
 	return s

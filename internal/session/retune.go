@@ -160,6 +160,23 @@ func (m *Manager) ApplyPingTarget(routerID, target string) {
 	s.ping.SetTarget(target)
 }
 
+// ApplyRecordedIfaces follows a router's recorded-interface list (#59) onto its
+// live session, so ticking an interface starts recording it now rather than at
+// the next reconnect.
+//
+// The same shape as ApplyPingTarget above, and for the same reason: the fleet
+// syncs declare this on every pass, and a session that only learned it at build
+// time would keep streaming yesterday's set for as long as it lived.
+func (m *Manager) ApplyRecordedIfaces(routerID string, names []string) {
+	m.mu.Lock()
+	s, ok := m.live[routerID]
+	m.mu.Unlock()
+	if !ok || s.traffic == nil {
+		return
+	}
+	s.traffic.SetRecorded(names)
+}
+
 func (m *Manager) ApplyPollRetunes(updates, saved store.Settings) map[string][]string {
 	m.mu.Lock()
 	all := make([]*Session, 0, len(m.live))

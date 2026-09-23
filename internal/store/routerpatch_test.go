@@ -3,6 +3,8 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -287,5 +289,55 @@ func TestTheStoredBoolRepairIsNarrow(t *testing.T) {
 	if len(rs) != 0 || len(problems) != 1 {
 		t.Errorf("a malformed file gave %d routers and %d problems, want 0 and 1: %v",
 			len(rs), len(problems), problems)
+	}
+}
+
+// The recorded-interface list (#59): what a patch may say, and what it becomes.
+func TestRecordedIfacesCoercion(t *testing.T) {
+	list := func(patch map[string]any) []string {
+		out := CoerceRouterPatch(patch)
+		got, _ := out["recordedIfaces"].([]string)
+		return got
+	}
+	joined := func(v []string) string { return strings.Join(v, ",") }
+
+	if got := joined(list(map[string]any{"recordedIfaces": []any{" ether2 ", "ether3", "ether2", ""}})); got != "ether2,ether3" {
+		t.Errorf("trimmed, deduplicated and without blanks = %q", got)
+	}
+	// A STRING IS NOT A LIST OF ONE. "ether1,ether2" as a name would record an
+	// interface no router has, and silently.
+	for _, bad := range []any{"ether1,ether2", 7, true, nil, map[string]any{"a": 1}} {
+		if got := list(map[string]any{"recordedIfaces": bad}); len(got) != 0 {
+			t.Errorf("%v became %v, want the empty list", bad, got)
+		}
+	}
+	// The cap is a real limit: every name is minute rows written for ever.
+	many := make([]any, 0, maxRecordedIfaces+10)
+	for i := 0; i < maxRecordedIfaces+10; i++ {
+		many = append(many, "ether"+strconv.Itoa(i))
+	}
+	if got := list(map[string]any{"recordedIfaces": many}); len(got) != maxRecordedIfaces {
+		t.Errorf("a list of %d became %d, want the cap of %d", len(many), len(got), maxRecordedIfaces)
+	}
+	// An absent key stays absent, as every other field here does.
+	if _, ok := CoerceRouterPatch(map[string]any{"label": "x"})["recordedIfaces"]; ok {
+		t.Error("a patch that did not name recordedIfaces gained one")
+	}
+}
+
+// What a router actually records: the default first, then the ticked ones.
+func TestRecordedIfacesForAlwaysCarriesTheDefault(t *testing.T) {
+	got := RecordedIfacesFor(Router{RecordedIfaces: []string{"ether3", " ether2 ", "ether3"}}, "WAN1")
+	if strings.Join(got, ",") != "WAN1,ether3,ether2" {
+		t.Errorf("= %v, want the default first, then the list, deduplicated", got)
+	}
+	// TICKING THE DEFAULT ITSELF does not record it twice.
+	if got := RecordedIfacesFor(Router{RecordedIfaces: []string{"WAN1"}}, "WAN1"); len(got) != 1 {
+		t.Errorf("= %v, want one name", got)
+	}
+	// NEVER EMPTY where there is a default: an empty list tells the recorder to
+	// record every interface in the stream, which is the opposite of "none".
+	if got := RecordedIfacesFor(Router{}, "ether1"); len(got) != 1 || got[0] != "ether1" {
+		t.Errorf("a router that ticked nothing = %v, want just its default", got)
 	}
 }

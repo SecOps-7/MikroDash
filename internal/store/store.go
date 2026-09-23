@@ -455,6 +455,15 @@ type Router struct {
 	// nil default to mean "on" would silently start recording every router in
 	// the fleet the moment this shipped.
 	ReportingEnabled *bool `json:"reportingEnabled"`
+	// RecordedIfaces are the interfaces whose traffic history this router keeps,
+	// BESIDES the default one (#59). Empty is the behaviour every install had
+	// before it existed: the WAN alone.
+	//
+	// The resolved answer is `RecordedIfacesFor`, and it is never this list on
+	// its own: `historywire.Wire.SetRecordedInterfaces` reads an EMPTY list as
+	// "record every interface in the stream", which is the opposite of what an
+	// operator who has ticked nothing is asking for.
+	RecordedIfaces []string `json:"recordedIfaces"`
 	// SiteID is site membership (#78); empty means no site. Read because a
 	// router INHERITS its site's grant — see internal/rbac. Without it every
 	// site-scoped grant would be invisible to the port, and a principal whose
@@ -644,6 +653,29 @@ func (s *Store) Routers() ([]Router, []error) {
 // had before the flag existed.
 func ReportingOn(r Router) bool {
 	return r.ReportingEnabled != nil && *r.ReportingEnabled
+}
+
+// RecordedIfacesFor is what a router's history covers: the resolved default
+// interface first, then whatever else the operator ticked, deduplicated.
+//
+// THE DEFAULT IS ALWAYS IN IT. Reports, the capacity lines and the WAN badge
+// all read that series, so a router that recorded only a hand-picked list would
+// lose the one every other page assumes is there.
+//
+// NEVER EMPTY for a router with a default interface, for the reason the field
+// records: an empty list tells the recorder to record everything.
+func RecordedIfacesFor(r Router, defaultIf string) []string {
+	out := make([]string, 0, len(r.RecordedIfaces)+1)
+	seen := map[string]bool{}
+	for _, n := range append([]string{defaultIf}, r.RecordedIfaces...) {
+		n = strings.TrimSpace(n)
+		if n == "" || seen[n] {
+			continue
+		}
+		seen[n] = true
+		out = append(out, n)
+	}
+	return out
 }
 
 // RouterSiteIDs normalises a record's site membership.
