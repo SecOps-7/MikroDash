@@ -503,16 +503,6 @@ func (s *IfStatus) Tick() {
 	// MAC are in for the opposite reason: they never move on their own, so they
 	// cost nothing, and leaving them out meant an edit to one never reached an
 	// open page.
-	// A HEARTBEAT EVEN WHEN NOTHING MOVED. Suppressing an identical payload for
-	// ever leaves the browser unable to tell an idle interface from a dead
-	// collector, and the page's staleness overlay fires on a link that is
-	// simply quiet. Sixty seconds, matching the original.
-	fp := ifStatusFingerprint(interfaces)
-	if fp == s.lastFp && now.Sub(s.lastEmitAt) < ifStatusHeartbeat {
-		return
-	}
-	s.lastFp, s.lastEmitAt = fp, now
-
 	// SPLIT DELIVERY, and the split is an authorisation boundary.
 	//
 	// The full payload carries per-interface rates, IP addresses and MAC
@@ -525,7 +515,39 @@ func (s *IfStatus) Tick() {
 	// are chrome on every page — so it must not be withheld from a viewer who
 	// has opened none of those three, and it must not disclose anything a denied
 	// page would have shown.
+	//
+	// ── THE RATES PAYLOAD IS NEVER SUPPRESSED, AND THAT IS A CHANGE ─────────
+	//
+	// The dirty check used to gate BOTH halves: an identical payload was dropped
+	// entirely. Measured on the operator's hAP AX3 (2026-09-23), it fired about
+	// nine times in five minutes at a one-second poll — and each time the
+	// Interfaces page's live chart lost that second. The log is unambiguous:
+	//
+	//	build gap=1001ms / SUPPRESSED (identical payload) / build gap=2002ms
+	//
+	// The premise expired when #59 put a per-second chart on this payload. "The
+	// rates are the same as last second" is not nothing to a chart that plots a
+	// point per second; it is the point it needs to draw. So the full payload
+	// goes every tick, and it goes ONLY to the three rooms that render rates —
+	// pages somebody has open, which is exactly when per-second data is worth
+	// sending. An empty room costs nothing.
 	EvIfstatusUpdate.Emit(s.emit, ifStatusRooms.Join(), *payload)
+
+	// ── THE CHROME HALF KEEPS THE SUPPRESSION ──────────────────────────────
+	//
+	// Names and up/down go to EVERY viewer on EVERY page, and they genuinely do
+	// not change from one second to the next — which is the case the dirty check
+	// was written for and where it earns its keep.
+	//
+	// A HEARTBEAT EVEN WHEN NOTHING MOVED. Suppressing an identical payload for
+	// ever leaves the browser unable to tell an idle interface from a dead
+	// collector, and the page's staleness overlay fires on a link that is
+	// simply quiet. Sixty seconds, matching the original.
+	fp := ifStatusFingerprint(interfaces)
+	if fp == s.lastFp && now.Sub(s.lastEmitAt) < ifStatusHeartbeat {
+		return
+	}
+	s.lastFp, s.lastEmitAt = fp, now
 
 	EvIfstatusNames.Emit(s.emit, "", *NamesOf(payload))
 }
