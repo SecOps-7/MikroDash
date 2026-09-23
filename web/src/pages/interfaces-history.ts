@@ -39,7 +39,7 @@
 
 import { registerExtra } from '../resource';
 import { el, esc, fmtDataMB, fmtMbps } from '../dom';
-import { pushSample, windowedPoints } from './dashboard-traffic-buffer';
+import { pushSample, windowedPoints, RIGHT_BUFFER_MS } from './dashboard-traffic-buffer';
 import type { Interface, TrafficPoint } from '../gen/payloads';
 
 declare const Chart: undefined | (new (canvas: HTMLCanvasElement, cfg: unknown) => ChartLike);
@@ -142,10 +142,9 @@ function liveWindow(): TrafficPoint[] {
   const spec = LIVE_RANGES.find((r) => r.key === range);
   const buf = liveBuf.get(iface);
   if (!spec || !buf) return [];
-  // TWO SECONDS OF OVERHANG. The axis is clipped at exactly `secs` ago, so
-  // without a point beyond that edge the line would stop short of it and leave
-  // a gap that looks like missing data.
-  return windowedPoints(buf, Date.now(), spec.secs, 2000);
+  // The same right-hand gap the axis holds open, so the points kept and the
+  // window drawn agree about where the edge is.
+  return windowedPoints(buf, Date.now(), spec.secs, RIGHT_BUFFER_MS);
 }
 
 /** Remembered per browser, because an operator working in 7-day views wants the
@@ -317,14 +316,32 @@ function body(d: HistoryReply | null): string {
 function xWindow(): { min: number; max: number } {
   if (isLive(range)) {
     const spec = LIVE_RANGES.find((r) => r.key === range);
-    const now = Date.now();
-    return { min: now - (spec ? spec.secs : 60) * 1000, max: now };
+    return liveBounds(Date.now(), spec ? spec.secs : 60);
   }
   const rows = (last && last.rows) || [];
   const first = rows[0];
   const lastRow = rows[rows.length - 1];
   const now = Date.now();
   return { min: first ? first.ts : now - 3600000, max: lastRow ? lastRow.ts : now };
+}
+
+/**
+ * The visible window for a live range, ending one sample interval SHORT of now.
+ *
+ * ── THE NEWEST SECOND IS DELIBERATELY OFF-SCREEN ───────────────────────────
+ *
+ * The right-hand end of the line is the part still being drawn: the newest
+ * sample lands, the segment to it appears, and a moment later another arrives.
+ * Held flush against the frame that is a twitching stub at the edge. Keeping a
+ * gap of one interval means the leading edge is always complete by the time it
+ * is visible.
+ *
+ * `RIGHT_BUFFER_MS` is the dashboard's own constant, read by both of its charts
+ * for exactly this — a second copy here is the drift that file says it exists
+ * to prevent.
+ */
+function liveBounds(now: number, secs: number): { min: number; max: number } {
+  return { min: now - secs * 1000 - RIGHT_BUFFER_MS, max: now - RIGHT_BUFFER_MS };
 }
 
 /** The points of one series, at their real timestamps. */
@@ -362,8 +379,9 @@ function scrollTo(now: number): void {
   if (!chart) return;
   const spec = LIVE_RANGES.find((r) => r.key === range);
   if (spec) {
-    chart.options.scales.x.min = now - spec.secs * 1000;
-    chart.options.scales.x.max = now;
+    const b = liveBounds(now, spec.secs);
+    chart.options.scales.x.min = b.min;
+    chart.options.scales.x.max = b.max;
   }
   chart.update('none');
 }

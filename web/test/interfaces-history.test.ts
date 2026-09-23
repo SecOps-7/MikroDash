@@ -447,12 +447,34 @@ check('a live window spans its whole range even with one sample', async () => {
   const x = d.charts.last().cfg.options.scales.x;
   assert.equal(x.type, 'linear', 'an index axis cannot hold a point at its real time');
   assert.equal(x.max - x.min, 60000, 'the Live window is not 60 seconds wide');
-  // AND THE ONE POINT SITS AT THE RIGHT-HAND EDGE, not spread across the chart.
+  // AND THE ONE POINT SITS AT THE RIGHT-HAND END, not spread across the chart.
   const pt = d.charts.last().cfg.data.datasets[0].data[0];
-  assert.ok(x.max - pt.x < 2000,
-    'the only sample is not at the leading edge; it will draw from the left '
+  assert.ok(pt.x > x.min + 50000,
+    'the only sample is sitting near the left edge; it will draw from the left '
     + 'instead of towards it');
-  assert.ok(pt.x > x.min + 50000, 'the sample is sitting near the left edge');
+});
+
+// THE NEWEST SECOND IS HELD OFF-SCREEN.
+//
+// The right-hand end of the line is the part still being drawn — a sample
+// lands, its segment appears, another follows. Flush against the frame that is
+// a twitching stub at the edge, so the window ends one sample interval short of
+// now and the leading edge is complete by the time it is visible. The same gap
+// the Dashboard's traffic charts hold open, from the same constant.
+check('the visible window stops short of now, hiding the leading edge', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  const before = Date.now();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 9, txMbps: 3 }]);
+  const x = d.charts.last().cfg.options.scales.x;
+  assert.ok(before - x.max >= 900,
+    'the window runs right up to now, so the segment being drawn is on screen: '
+    + (before - x.max) + 'ms of gap');
+  assert.ok(before - x.max <= 1500, 'the gap is wider than one sample interval');
+  // AND THE WINDOW IS STILL ITS FULL WIDTH: the gap shifts it, never shrinks it.
+  assert.equal(x.max - x.min, 60000);
 });
 
 check('the window scrolls on animation frames, not on samples', async () => {
