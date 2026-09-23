@@ -98,11 +98,51 @@ func (t *Trap) Absent() bool {
 // Denied reports whether the API user simply may not see this. The Node
 // collectors latch on it exactly as they latch on Absent, because a read-only
 // user is the documented deployment.
-func (t *Trap) Denied() bool {
-	m := strings.ToLower(t.Message)
+func (t *Trap) Denied() bool { return deniedText(strings.ToLower(t.Message)) }
+
+// deniedText is the one list of refusal wordings.
+//
+// "not enough permissions" is what RouterOS 7.x actually answers — measured on
+// 7.24.4 in issue #138. "not enough privileges" is carried because the ping
+// collector latched on it for a year and a router somewhere may still say it;
+// it is unambiguous either way.
+//
+// "cannot run" is deliberately NOT here, though ping's old regex had it. It is
+// not a permission sentence, and this list decides whether to STOP RETRYING —
+// a false positive strands a collector until the router reconnects, which is
+// the more expensive way to be wrong.
+func deniedText(m string) bool {
 	return strings.Contains(m, "not enough permissions") ||
+		strings.Contains(m, "not enough privileges") ||
 		strings.Contains(m, "permission denied") ||
 		strings.Contains(m, "no permissions")
+}
+
+// DeniedErr is `Denied` for a caller holding an error rather than a Trap.
+//
+// ── WHY THIS EXISTS RATHER THAN A REGEX PER COLLECTOR ──────────────────────
+//
+// It did not, and two collectors carried their own pattern instead:
+//
+//	`(?i)not enough privileges|permission denied|cannot run`
+//
+// RouterOS says "not enough PERMISSIONS (9)". The pattern matched none of it,
+// so the refusal was invisible — reported as issue #138, where a ping stream
+// reopened every 20 seconds for ever, logged nothing about permissions, and
+// never recorded a sample. The four places that checked the message correctly
+// all spelled it the other way, and nothing compared them.
+//
+// The Trap is consulted first because it is the router's own answer; the string
+// fallback catches an error that has been wrapped or rebuilt on the way up.
+func DeniedErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	var t *Trap
+	if errors.As(err, &t) {
+		return t.Denied()
+	}
+	return deniedText(strings.ToLower(err.Error()))
 }
 
 // ── THE TUNNEL IS A ROUTE ────────────────────────────────────────────────────

@@ -277,9 +277,19 @@ func TestPingSummaryIsSkippedByTheSTREAM(t *testing.T) {
 // it every retry fails identically, so the refusal is recorded once, emitted so
 // the card can explain itself, and not retried until the router reconnects.
 func TestPingPermissionDeniedLatches(t *testing.T) {
+	// THE WORDING THE ROUTER ACTUALLY USES IS FIRST, and it was missing: this
+	// list said "privileges" while RouterOS 7.24.4 answers "not enough
+	// permissions (9)", so the refusal never latched and the stream reopened
+	// every 20 seconds for ever (issue #138). The test agreed with the code and
+	// both were wrong about the router.
+	//
+	// "cannot run this command" stays: the live collector latched on it and its
+	// sibling classifier still does (internal/wifiscan, pinned by a parity
+	// test). It is kept in `pingRefused` rather than in the shared permission
+	// rule, which decides whether four other call sites stop retrying.
 	for _, msg := range []string{
-		"not enough privileges", "permission denied (9)",
-		"cannot run this command", "NOT ENOUGH PRIVILEGES",
+		"not enough permissions (9)", "NOT ENOUGH PERMISSIONS (9)",
+		"not enough privileges", "permission denied (9)", "cannot run this command",
 	} {
 		t.Run(msg, func(t *testing.T) {
 			f := &fakePingStream{conn: true, err: errString(msg)}

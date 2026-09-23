@@ -134,7 +134,12 @@ var trapRules = []struct {
 	re   *regexp.Regexp
 	code string
 }{
-	{regexp.MustCompile(`not enough privileges|permission denied|cannot run`), "permission-denied"},
+	// "not enough PERMISSIONS" is what RouterOS 7.x answers; this rule said
+	// "privileges" only, so a real refusal fell through to the generic branch
+	// and the operator was told nothing useful. Same stale wording as the ping
+	// collector's, found with it (issue #138).
+	{regexp.MustCompile(`not enough permissions|not enough privileges|permission denied|cannot run`),
+		"permission-denied"},
 	{regexp.MustCompile(`no such command prefix|unknown command`), "unsupported-stack"},
 	{regexp.MustCompile(`no such item|not found`), "no-such-interface"},
 	{regexp.MustCompile(`unknown parameter|no such argument|invalid value`), "bad-parameter"},

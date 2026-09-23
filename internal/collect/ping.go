@@ -30,9 +30,15 @@ package collect
 //
 // ── PERMISSION DENIED LATCHES ───────────────────────────────────────────────
 //
-// `/tool/ping` needs the `test` policy. Without it every retry fails the same
-// way, so the refusal is recorded once, emitted so the card can say so, and not
-// retried until the router reconnects.
+// `/tool/ping` needs the `test` policy AND, measured on RouterOS 7.24.4, the
+// `local` policy too — a group with `read,test,api,!local` is refused with
+// "not enough permissions (9)". MikroTik documents `local` as a console login
+// policy and does not mention it here, so this is observed rather than quoted.
+// Issue #138, where this repository's own README recommended `!local`.
+//
+// Without either, every retry fails the same way, so the refusal is recorded
+// once, emitted so the card can say so, and not retried until the router
+// reconnects.
 
 import (
 	"fmt"
@@ -40,6 +46,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -52,9 +59,17 @@ const (
 	pingDefaultTgt = "1.1.1.1"
 )
 
-// pingDenied matches the answers that mean "this API user may not run ping",
-// as opposed to a transient failure worth retrying.
-var pingDenied = regexp.MustCompile(`(?i)not enough privileges|permission denied|cannot run`)
+// pingRefused is "the router will answer this the same way next time".
+//
+// `routeros.DeniedErr` is the shared permission rule. `cannot run` is NOT in it
+// — it is not a permission sentence and that rule decides whether four other
+// call sites stop retrying — but the live collector latched on it and its
+// sibling classifier still does (`internal/wifiscan`, pinned by a parity test),
+// so it is kept HERE where the lifted behaviour belongs.
+func pingRefused(err error) bool {
+	return routeros.DeniedErr(err) ||
+		strings.Contains(strings.ToLower(err.Error()), "cannot run")
+}
 
 // pingRTTRe is the original's regex, character for character: a number, then an
 // OPTIONAL unit. Anything after the first unit is ignored — see the header.
@@ -454,8 +469,13 @@ func (p *Ping) pollOnce() {
 		"=.proplist=time,response-time,status,min-rtt,max-rtt",
 	}})
 	if err != nil {
-		if pingDenied.MatchString(err.Error()) {
-			log.Printf("[ping] test policy not granted — ping disabled. Add \"test\" to this API user's group to enable it.")
+		// THE ROUTER'S OWN ANSWER, through the one rule that knows its wording.
+		// This was a regex here matching "not enough privileges", which RouterOS
+		// never says — see routeros.DeniedErr and issue #138.
+		if pingRefused(err) {
+			log.Printf("[ping] the router refused /tool/ping for this API user — ping is off. " +
+				"Its group needs BOTH \"test\" and \"local\": " +
+				"/user group set <group> policy=local,read,test,api,...")
 			EvPingUpdate.Emit(p.emit, pingRooms.Join(), *p.noteDenied(time.Now().UnixMilli()))
 		}
 		return
@@ -522,8 +542,13 @@ func (p *Ping) openStreamLocked() {
 		}
 	})
 	if err != nil {
-		if pingDenied.MatchString(err.Error()) {
-			log.Printf("[ping] test policy not granted — ping disabled. Add \"test\" to this API user's group to enable it.")
+		// THE ROUTER'S OWN ANSWER, through the one rule that knows its wording.
+		// This was a regex here matching "not enough privileges", which RouterOS
+		// never says — see routeros.DeniedErr and issue #138.
+		if pingRefused(err) {
+			log.Printf("[ping] the router refused /tool/ping for this API user — ping is off. " +
+				"Its group needs BOTH \"test\" and \"local\": " +
+				"/user group set <group> policy=local,read,test,api,...")
 			EvPingUpdate.Emit(p.emit, pingRooms.Join(), *p.noteDenied(time.Now().UnixMilli()))
 			return
 		}
