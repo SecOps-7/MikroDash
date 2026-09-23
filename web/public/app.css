@@ -1965,7 +1965,10 @@
 .ifh-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;
   flex-wrap:wrap;margin-bottom:.45rem}
 .ifh-title{font-size:.72rem;font-weight:600;color:var(--text-main)}
-.ifh-ranges{display:flex;gap:.25rem}
+.ifh-ranges{display:flex;gap:.25rem;align-items:center;flex-wrap:wrap}
+/* The live ranges and the recorded ones come from different places, so the bar
+   says so with a hairline rather than leaving seven buttons reading as one set. */
+.ifh-range-sep{width:1px;height:.9rem;background:var(--border);margin:0 .15rem}
 .ifh-range{font-size:.62rem;padding:.16rem .4rem;border-radius:4px;cursor:pointer;
   border:1px solid var(--border);background:transparent;color:var(--text-muted)}
 .ifh-range:hover{color:var(--text-main)}

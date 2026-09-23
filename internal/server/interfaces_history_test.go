@@ -34,32 +34,68 @@ func TestTheInterfaceHistoryRouteIsRegistered(t *testing.T) {
 // nothing. The reverse matters too: a range the server accepts and nothing
 // offers is dead code that reads as a feature.
 //
-// They are in different languages and cannot share a constant, so they are
-// compared instead.
+// ── EXCEPT THE LIVE ONES, WHICH THE SERVER NEVER SEES ──────────────────────
+//
+// Live, 5 min and 30 min are drawn from a buffer in the browser, fed by the
+// payload the page already receives, so they work for an interface nothing is
+// recording. They are declared in their own array for exactly this reason: the
+// two sets are checked against different things, and one list holding both
+// would have to guess which half it was looking at.
 func TestTheOfferedRangesAreTheAcceptedRanges(t *testing.T) {
 	ts := read(t, "../../web/src/pages/interfaces-history.ts")
-	// The RANGES table, as the panel declares it: { key: '1h', label: '1 hour' }
-	found := regexp.MustCompile(`\{\s*key:\s*'([^']+)'`).FindAllStringSubmatch(ts, -1)
-	if len(found) == 0 {
-		t.Fatal("no ranges found in interfaces-history.ts — the scan broke, and an empty " +
-			"list would agree with any server")
-	}
-	offered := map[string]bool{}
-	for _, m := range found {
-		offered[m[1]] = true
-	}
+	history := rangeKeys(t, ts, "HISTORY_RANGES")
+	live := rangeKeys(t, ts, "LIVE_RANGES")
 
 	for k := range ifaceHistoryRanges {
-		if !offered[k] {
+		if !history[k] {
 			t.Errorf("the server accepts range %q and the panel offers no button for it", k)
 		}
 	}
-	for k := range offered {
+	for k := range history {
 		if _, ok := ifaceHistoryRanges[k]; !ok {
-			t.Errorf("the panel offers range %q and the server refuses it with a 400, so the "+
-				"button does nothing", k)
+			t.Errorf("the panel offers range %q as a SERVER range and the server refuses it "+
+				"with a 400, so the button does nothing", k)
 		}
 	}
+	// AND A LIVE RANGE IS NOT A SERVER RANGE. If one ever became both, the
+	// panel would draw the buffer for it while the server answered something
+	// else for the same key — two pictures under one label.
+	for k := range live {
+		if _, ok := ifaceHistoryRanges[k]; ok {
+			t.Errorf("%q is declared as a live range AND accepted by the server; it has two "+
+				"sources and the button would mean whichever one ran last", k)
+		}
+	}
+	if len(live) == 0 {
+		t.Error("no live ranges declared — Live is the default and must work for an " +
+			"interface that is not being recorded")
+	}
+}
+
+// rangeKeys reads one declared range table out of the panel's source.
+//
+// It FAILS on an empty result rather than returning one, because an empty set
+// agrees with every assertion above and would turn this ledger into a test that
+// reads nothing and passes.
+func rangeKeys(t *testing.T, src, name string) map[string]bool {
+	t.Helper()
+	i := strings.Index(src, "const "+name)
+	if i < 0 {
+		t.Fatalf("%s is gone from interfaces-history.ts — this gate is stale, not passing", name)
+	}
+	end := strings.Index(src[i:], "];")
+	if end < 0 {
+		t.Fatalf("%s is not a closed array literal", name)
+	}
+	out := map[string]bool{}
+	for _, m := range regexp.MustCompile(`key:\s*'([^']+)'`).
+		FindAllStringSubmatch(src[i:i+end], -1) {
+		out[m[1]] = true
+	}
+	if len(out) == 0 {
+		t.Fatalf("no keys parsed out of %s; the scan broke", name)
+	}
+	return out
 }
 
 // EVERY RANGE IS DRAWN AT AN AGGREGATION THE DATABASE KNOWS, and the longer

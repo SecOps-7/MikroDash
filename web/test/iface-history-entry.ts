@@ -9,5 +9,5 @@
  *
  * Not a `*.test.ts`, so the runner's glob leaves it alone.
  */
-export { initInterfaceHistory } from '../src/pages/interfaces-history';
+export { initInterfaceHistory, recordLiveSamples } from '../src/pages/interfaces-history';
 export { openResource } from '../src/resource';

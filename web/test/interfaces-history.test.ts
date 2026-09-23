@@ -78,7 +78,7 @@ function makeEl(id) {
  * `reply` is what /api/interfaces/history answers; `readOnly` is the dialog's
  * own flag, which the server sets per viewer.
  */
-function open(reply, readOnly, identity) {
+function open(reply, readOnly, identity, rangeKey) {
   const els = {};
   // ANY id resolves: `show` touches a dozen elements of the dialog chrome, and
   // this test is about one of them. An unknown id returning null would make the
@@ -89,6 +89,9 @@ function open(reply, readOnly, identity) {
   };
   const fetched = [];
   const puts = [];
+  const modal = makeEl('resModal');
+  modal.classList.add('open');
+  els.resModal = modal;
   global.document = {
     documentElement: {},
     body: makeEl('body'),
@@ -99,8 +102,25 @@ function open(reply, readOnly, identity) {
     createElement: () => makeEl(''),
   };
   global.window = { confirm: () => true };
-  global.localStorage = { getItem: () => null, setItem: () => {} };
+  // The range is remembered in localStorage, so seeding it is how a test picks
+  // one — the same path a returning operator takes. Absent means the default,
+  // which is Live.
+  global.localStorage = { getItem: () => rangeKey || null, setItem: () => {} };
   global.getComputedStyle = () => ({ getPropertyValue: () => '#38bdf8' });
+  // A Chart stub that keeps the config, so the AXIS is assertable. Without it
+  // the panel silently skips drawing and a mislabelled axis is invisible here —
+  // which is how "12:59 … 13:53" came to mean fifty-four seconds.
+  const charts = [];
+  global.Chart = function (canvas, cfg) {
+    const inst = {
+      cfg, data: cfg.data, destroyed: false,
+      destroy() { this.destroyed = true; },
+      update() {},
+    };
+    charts.push(inst);
+    return inst;
+  };
+  charts.last = () => charts.filter((c) => !c.destroyed).pop();
   global.fetch = (url, opts) => {
     if (opts && opts.method === 'PUT') {
       puts.push({ url, body: JSON.parse(opts.body) });
@@ -135,7 +155,20 @@ function open(reply, readOnly, identity) {
     });
   }
   return {
-    els, fetched, puts, emitted,
+    els, fetched, puts, emitted, mod, charts,
+    clickRecord: () => {
+      const m = get('ifhBody').innerHTML.match(/data-ifh-rec="(on|off)"/);
+      if (!m) throw new Error('no record control in: ' + get('ifhBody').innerHTML);
+      // The handler is delegated on #ifhBody, so the click is dispatched there
+      // with a target carrying the class and the direction — the same shape the
+      // browser delivers.
+      get('ifhBody').fire('click', {
+        target: {
+          classList: { contains: (c) => c === 'ifh-record' },
+          getAttribute: (k) => (k === 'data-ifh-rec' ? m[1] : null),
+        },
+      });
+    },
     deliverRow: () => {
       // openResource resolves the schema through a promise, so the row is
       // delivered on the next turn of the microtask queue.
@@ -155,10 +188,10 @@ function check(name, fn) { checks.push({ name, fn }); }
 
 check('an unrecorded interface explains itself instead of drawing nothing', async (t) => {
   const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
-    false, 'ether5');
+    false, 'ether5', '24h');
   await Promise.resolve();
   d.deliverRow();
-  assert.ok(d.slot().includes('Traffic history'), 'the panel did not render: ' + d.slot());
+  assert.ok(d.slot().includes('class="ifh"'), 'the panel did not render: ' + d.slot());
   await new Promise((r) => setImmediate(r));
   const body = d.body();
   assert.ok(body.includes('not being recorded'),
@@ -169,7 +202,7 @@ check('an unrecorded interface explains itself instead of drawing nothing', asyn
 
 check('a viewer who may not record is told, not offered a control that fails', async () => {
   const d = open({ ok: true, recorded: false, mayRecord: false, defaultIf: 'ether1' },
-    true, 'ether5');
+    true, 'ether5', '24h');
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
@@ -183,15 +216,15 @@ check('a viewer who may not record is told, not offered a control that fails', a
 // on the extra's behalf, and getting it wrong hides a chart from somebody the
 // server would have answered.
 check('the panel still renders on a read-only form', async () => {
-  const d = open({ ok: true, recorded: true, rows: [], defaultIf: 'ether1' }, true, 'ether1');
+  const d = open({ ok: true, recorded: true, rows: [], defaultIf: 'ether1' }, true, 'ether1', '24h');
   await Promise.resolve();
   d.deliverRow();
-  assert.ok(d.slot().includes('Traffic history'),
+  assert.ok(d.slot().includes('class="ifh"'),
     'the slot was empty for a read-only viewer: ' + JSON.stringify(d.slot()));
 });
 
 check('a recorded interface with no rows says it is idle, not unrecorded', async () => {
-  const d = open({ ok: true, recorded: true, rows: [], defaultIf: 'ether1' }, false, 'ether1');
+  const d = open({ ok: true, recorded: true, rows: [], defaultIf: 'ether1' }, false, 'ether1', '24h');
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
@@ -206,7 +239,7 @@ check('a recorded interface with no rows says it is idle, not unrecorded', async
 // range and owns the aggregation, so the one thing the browser must get right
 // is asking about the interface it is showing.
 check('the request names the interface and the range', async () => {
-  const d = open({ ok: true, recorded: true, rows: [], defaultIf: 'ether1' }, false, 'ether 5');
+  const d = open({ ok: true, recorded: true, rows: [], defaultIf: 'ether1' }, false, 'ether 5', '24h');
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
@@ -227,7 +260,7 @@ check('history kept from before recording was turned off is still drawn', async 
     ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1',
     rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
     rxTotalMb: 40, txTotalMb: 12, rxMaxMbps: 9, txMaxMbps: 3,
-  }, false, 'ether3');
+  }, false, 'ether3', '24h');
   await Promise.resolve();
   d.deliverRow();
   await new Promise((r) => setImmediate(r));
@@ -242,10 +275,161 @@ check('history kept from before recording was turned off is still drawn', async 
 
 // AN ADD FORM HAS NO INTERFACE, so there is nothing to show a history for.
 check('an add form draws no history panel', async () => {
-  const d = open({ ok: true, recorded: true, defaultIf: 'ether1' }, false, null);
+  const d = open({ ok: true, recorded: true, defaultIf: 'ether1' }, false, null, '24h');
   await Promise.resolve();
-  assert.ok(!d.slot().includes('Traffic history'),
+  assert.ok(!d.slot().includes('class="ifh"'),
     'a form for an interface that does not exist yet drew a history panel');
+});
+
+// ── LIVE ───────────────────────────────────────────────────────────────────
+//
+// Live is the DEFAULT and is drawn from the browser's own buffer, so it works
+// for an interface nothing is recording. That is the whole point of it: the
+// page can already answer "what is this doing right now" for anything, and
+// making that wait on a recording switch would be an arbitrary refusal.
+
+check('Live is the default range', async () => {
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  const active = d.slot().match(/class="ifh-range active" data-ifh-range="([^"]+)"/);
+  assert.ok(active, 'no range is marked active: ' + d.slot());
+  assert.equal(active[1], 'live');
+});
+
+check('Live draws for an interface that is not recorded', async () => {
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  // Before any sample there is nothing to draw, and the panel says which.
+  assert.ok(d.body().includes('Waiting for the first live sample'),
+    'an empty buffer should say it is waiting: ' + d.body());
+  d.mod.recordLiveSamples([
+    { name: 'ether5', rxMbps: 12, txMbps: 3 },
+    { name: 'ether1', rxMbps: 1, txMbps: 1 },
+  ]);
+  // The chart is drawn from the buffer alone and does not wait for the server.
+  assert.ok(d.body().includes('ifhChart'),
+    'Live waited for the history reply before drawing: ' + d.body());
+  // The recording NOTE does wait for it, since only the server knows. Let the
+  // reply land before asking about it.
+  await new Promise((r) => setImmediate(r));
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 12, txMbps: 3 }]);
+  const body = d.body();
+  assert.ok(body.includes('ifhChart'),
+    'Live drew no chart for an unrecorded interface, which is the one thing it '
+    + 'must always do: ' + body);
+  assert.ok(body.includes('Now down'), 'the live stats are missing: ' + body);
+  // AND IT SAYS WHY THE OTHER RANGES ARE EMPTY, rather than leaving the
+  // operator to wonder whether the whole panel is broken.
+  assert.ok(body.includes('Not recorded'), body);
+  assert.ok(body.includes('Record this interface'), body);
+});
+
+check('a live sample for another interface does not draw here', async () => {
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether9', rxMbps: 99, txMbps: 99 }]);
+  assert.ok(d.body().includes('Waiting for the first live sample'),
+    'another interface\'s traffic was drawn under this one: ' + d.body());
+});
+
+// THE LIVE AXIS SAYS HOW LONG AGO, NOT WHAT TIME.
+//
+// It was mm:ss, and on the 60-second view that reads as a clock: the axis ran
+// "12:59 … 13:53" for fifty-four SECONDS of traffic. The numbers were right and
+// the axis was a lie, which a test that only checked the numbers cannot see.
+check('a live window is labelled by age', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
+  const labels = d.charts.last().data.labels;
+  assert.ok(labels.length, 'no chart was drawn');
+  labels.forEach((l) => {
+    assert.ok(/^(now|-\d+[sm])$/.test(l),
+      'a live label reads as a time of day rather than an age: ' + JSON.stringify(labels));
+  });
+});
+
+// AND A RECORDED RANGE KEEPS THE CLOCK, which is what an operator lines an
+// incident up against.
+check('an hourly window is labelled by the clock', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1', recordedIfaces: ['ether5'],
+    rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
+  }, false, 'ether5', '1h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  const labels = d.charts.last().data.labels;
+  assert.ok(/^\d\d:\d\d$/.test(labels[0]),
+    'an hourly label is not a clock time: ' + JSON.stringify(labels));
+});
+
+// ── THE SWITCH GOES BOTH WAYS ──────────────────────────────────────────────
+
+check('a recorded interface is offered Stop recording', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
+    recordedIfaces: ['ether5'], rows: [],
+  }, false, 'ether5', '24h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  assert.ok(d.body().includes('Stop recording'),
+    'recording could be turned on and never off: ' + d.body());
+});
+
+check('Stop recording sends the list without this interface', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
+    recordedIfaces: ['ether2', 'ether5'], rows: [],
+  }, false, 'ether5', '24h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  d.clickRecord();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(d.puts.length, 1, 'no write was sent: ' + JSON.stringify(d.puts));
+  assert.deepEqual(d.puts[0].body.recordedIfaces, ['ether2'],
+    'switching ether5 off must leave the others alone: ' + JSON.stringify(d.puts[0].body));
+});
+
+check('Record this interface appends to the stored list', async () => {
+  const d = open({
+    ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1',
+    recordedIfaces: ['ether2'], rows: [],
+  }, false, 'ether5', '24h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  d.clickRecord();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(d.puts[0].body.recordedIfaces, ['ether2', 'ether5']);
+});
+
+// THE WAN HAS NO SWITCH. It is recorded because it is the default interface and
+// the resolver puts it back whatever the stored list says, so a control that
+// appeared to turn it off would lie.
+check('the default interface is not offered a switch', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
+    recordedIfaces: [], rows: [],
+  }, false, 'ether1', '24h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  const body = d.body();
+  assert.ok(!body.includes('Stop recording'),
+    'the WAN was offered a switch that cannot turn it off: ' + body);
+  assert.ok(/Recorded because it is this router/.test(body),
+    'it should say why instead: ' + body);
 });
 
 (async () => {

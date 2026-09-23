@@ -26,7 +26,7 @@ import { mountRows } from '../resource';
 import type { Socket } from '../socket';
 import { portSvg } from './port-svg';
 import type { Interface } from '../gen/payloads';
-import { initInterfaceHistory } from './interfaces-history';
+import { initInterfaceHistory, recordLiveSamples } from './interfaces-history';
 
 const IFACE_SPARK_LEN = 30;
 // The empty-address placeholder in a tile: U+00A0, a NON-BREAKING space. A
@@ -564,6 +564,10 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
   socket.on('ifstatus:update', (data) => {
     const ifaces = (data && data.interfaces) || [];
     lastIfaces = ifaces;
+    // The modal's live ranges are drawn from this same payload, buffered per
+    // interface (#59). Fed here rather than by a second subscription, so the
+    // panel cannot be looking at a different tick from the page behind it.
+    recordLiveSamples(ifaces);
     if (ifaceCount) {
       ifaceCount.textContent = String(ifaces.length);
       ifaceCount.className = 'card-badge' + (ifaces.length > 0 ? ' active-blue' : '');
