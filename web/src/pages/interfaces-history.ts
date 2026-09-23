@@ -138,13 +138,27 @@ function smoothRange(): boolean {
   return !!spec && spec.smooth;
 }
 
+/**
+ * How far PAST the left edge points are kept, so the line runs off the axis
+ * instead of stopping short of it.
+ *
+ * `windowedPoints` cuts at `>= cutoff`, and the cutoff is exactly the axis
+ * minimum — so the oldest point it returns sits up to one sample interval
+ * INSIDE the plot, and the trace visibly ends before the frame does. On a
+ * 60-second window that is about nine pixels of gap, and it grows and snaps
+ * shut as each point falls out. Keeping a few seconds more lets Chart.js clip
+ * the line at the edge, which is what the edge is for.
+ */
+const LEFT_OVERHANG_MS = 3000;
+
 function liveWindow(): TrafficPoint[] {
   const spec = LIVE_RANGES.find((r) => r.key === range);
   const buf = liveBuf.get(iface);
   if (!spec || !buf) return [];
-  // The same right-hand gap the axis holds open, so the points kept and the
-  // window drawn agree about where the edge is.
-  return windowedPoints(buf, Date.now(), spec.secs, RIGHT_BUFFER_MS);
+  // The axis holds a gap at the right and is clipped at the left, so the points
+  // kept have to cover BOTH: the same right-hand gap, plus enough beyond the
+  // left edge for the line to cross it.
+  return windowedPoints(buf, Date.now(), spec.secs, RIGHT_BUFFER_MS + LEFT_OVERHANG_MS);
 }
 
 /** Remembered per browser, because an operator working in 7-day views wants the
@@ -185,12 +199,15 @@ function statBox(v: string, l: string, cls: string): string {
  * compaction exactly and means the same thing at every range.
  */
 function stats(d: HistoryReply): string {
-  return '<div class="ifh-stats" id="ifhStats">' +
+  return '<div class="ifh-stats" id="ifhStats">' + statsInner(d) + '</div>';
+}
+
+function statsInner(d: HistoryReply): string {
+  return '' +
     statBox(fmtDataMB(d.rxTotalMb), 'Downloaded', 'ifh-rx') +
     statBox(fmtDataMB(d.txTotalMb), 'Uploaded', 'ifh-tx') +
     statBox(d.rxMaxMbps == null ? '—' : fmtMbps(d.rxMaxMbps), 'Peak down', 'ifh-rx') +
-    statBox(d.txMaxMbps == null ? '—' : fmtMbps(d.txMaxMbps), 'Peak up', 'ifh-tx') +
-    '</div>';
+    statBox(d.txMaxMbps == null ? '—' : fmtMbps(d.txMaxMbps), 'Peak up', 'ifh-tx');
 }
 
 /** The LIVE stat line: the current rate and the peak inside the window.
@@ -198,16 +215,32 @@ function stats(d: HistoryReply): string {
  *  NO TOTALS. A total is a quantity of bytes, and integrating a 1 Hz buffer
  *  that pauses whenever the page is hidden would invent one. The recorded
  *  ranges have minute rows behind them and can answer it honestly. */
-function liveStats(pts: readonly TrafficPoint[]): string {
+function liveStats(all: readonly TrafficPoint[]): string {
+  return '<div class="ifh-stats" id="ifhStats">' + liveStatsInner(all) + '</div>';
+}
+
+/**
+ * The boxes alone, so a tick can replace the CONTENTS of the stats row.
+ *
+ * It used to assign `outerHTML`, which swaps the node itself — the id then has
+ * to be re-found on the replacement, and anything holding the old element is
+ * holding a detached one. Writing into a stable wrapper is the same picture
+ * with none of that.
+ */
+function liveStatsInner(all: readonly TrafficPoint[]): string {
+  // THE PEAK IS OVER WHAT IS DRAWN. The points carry an overhang past the left
+  // edge so the line can cross it, and a peak taken over those would report a
+  // number that is no longer anywhere on the chart.
+  const spec = LIVE_RANGES.find((r) => r.key === range);
+  const b = liveBounds(Date.now(), spec ? spec.secs : 60);
+  const pts = all.filter((p) => p.ts >= b.min);
   const nowPt = pts[pts.length - 1];
   const maxRx = pts.reduce((a, p) => (p.rx_mbps > a ? p.rx_mbps : a), 0);
   const maxTx = pts.reduce((a, p) => (p.tx_mbps > a ? p.tx_mbps : a), 0);
-  return '<div class="ifh-stats" id="ifhStats">' +
-    statBox(fmtMbps(nowPt ? nowPt.rx_mbps : 0), 'Now down', 'ifh-rx') +
-    statBox(fmtMbps(nowPt ? nowPt.tx_mbps : 0), 'Now up', 'ifh-tx') +
+  return statBox(fmtMbps(nowPt ? nowPt.rx_mbps : 0), 'Down', 'ifh-rx') +
+    statBox(fmtMbps(nowPt ? nowPt.tx_mbps : 0), 'Up', 'ifh-tx') +
     statBox(fmtMbps(maxRx), 'Peak down', 'ifh-rx') +
-    statBox(fmtMbps(maxTx), 'Peak up', 'ifh-tx') +
-    '</div>';
+    statBox(fmtMbps(maxTx), 'Peak up', 'ifh-tx');
 }
 
 function rangeBar(): string {
@@ -370,7 +403,7 @@ function repaintLive(): void {
   if (ds[1]) ds[1].data = series(pts, 'tx_mbps');
   scrollTo(Date.now());
   const host = el('ifhStats');
-  if (host) host.outerHTML = liveStats(pts);
+  if (host) host.innerHTML = liveStatsInner(pts);
 }
 
 /** Move the window to `now` and redraw. `'none'` because the motion IS the

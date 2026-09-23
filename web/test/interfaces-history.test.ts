@@ -362,7 +362,7 @@ check('Live draws for an interface that is not recorded', async () => {
   assert.ok(body.includes('ifhChart'),
     'Live drew no chart for an unrecorded interface, which is the one thing it '
     + 'must always do: ' + body);
-  assert.ok(body.includes('Now down'), 'the live stats are missing: ' + body);
+  assert.ok(/>Down</.test(body), 'the live stats are missing: ' + body);
   // AND IT SAYS WHY THE OTHER RANGES ARE EMPTY, rather than leaving the
   // operator to wonder whether the whole panel is broken.
   assert.ok(body.includes('Not recorded'), body);
@@ -475,6 +475,72 @@ check('the visible window stops short of now, hiding the leading edge', async ()
   assert.ok(before - x.max <= 1500, 'the gap is wider than one sample interval');
   // AND THE WINDOW IS STILL ITS FULL WIDTH: the gap shifts it, never shrinks it.
   assert.equal(x.max - x.min, 60000);
+});
+
+// THE LINE RUNS OFF THE LEFT EDGE, it does not stop short of it.
+//
+// `windowedPoints` cuts at `>= cutoff` and the cutoff IS the axis minimum, so
+// the oldest point it returns sits up to one sample inside the plot and the
+// trace visibly ends before the frame does — about nine pixels on a 60-second
+// window, growing and snapping shut as each point falls out. Points are kept
+// past the edge so Chart.js can clip the line at it.
+check('the drawn points reach past the left edge', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  // AGE THE BUFFER. Samples are stamped with the clock when they arrive, so
+  // without moving it every one lands in the same millisecond and there is
+  // nothing older than the window for the overhang to keep — the assertion
+  // below would then be testing an empty history.
+  const realNow = Date.now;
+  const start = realNow() - 70000;
+  for (let i = 0; i <= 70; i += 1) {
+    Date.now = () => start + i * 1000;
+    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 1 }]);
+  }
+  Date.now = realNow;
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 1 }]);
+
+  const c = d.charts.last();
+  const x = c.cfg.options.scales.x;
+  const pts = c.cfg.data.datasets[0].data;
+  assert.ok(pts.length > 1, 'not enough samples to test the edge');
+  assert.ok(pts[0].x < x.min,
+    'the oldest drawn point is inside the plot, so the line stops short of the '
+    + 'left edge instead of being clipped by it: oldest is '
+    + (x.min - pts[0].x) + 'ms inside');
+});
+
+// AND THE PEAK IS OVER WHAT IS DRAWN, not over the overhang. A peak taken from
+// the kept points would report a number that is no longer anywhere on the chart.
+check('the live peak ignores the points beyond the left edge', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  const realNow = Date.now;
+  const start = realNow() - 70000;
+  // THE SPIKE HAS TO LAND IN THE BAND THIS IS ABOUT: older than the visible
+  // window (which ends 61s back) and younger than the cutoff (64s back), so it
+  // is KEPT for the line to cross the edge but must not count towards the peak.
+  // An earlier version put it at 65s, outside the kept range altogether, and
+  // the check passed whether or not the peak filtered anything.
+  for (let i = 0; i <= 70; i += 1) {
+    Date.now = () => start + i * 1000;
+    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: i === 7 ? 900 : 4, txMbps: 1 }]);
+  }
+  Date.now = realNow;
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 4, txMbps: 1 }]);
+
+  // READ THE STATS ELEMENT, not the body. A tick rewrites the contents of
+  // #ifhStats, and the shim never parses innerHTML into nodes — so the body
+  // string still holds whatever the FIRST paint wrote, and asserting on it
+  // measured nothing. (Proven: the filter could be deleted and this passed.)
+  const statsHtml = d.els.ifhStats.innerHTML;
+  assert.ok(/Peak down/.test(statsHtml), 'the stats row never updated: ' + statsHtml);
+  assert.ok(!/900/.test(statsHtml),
+    'the peak names a spike that scrolled off the chart: ' + statsHtml);
 });
 
 check('the window scrolls on animation frames, not on samples', async () => {
