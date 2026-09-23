@@ -573,6 +573,9 @@ func (s *Server) Handler() http.Handler {
 	// the longer pattern regardless of order, but relying on that is how a route
 	// quietly becomes a 404 page.
 	s.registerReports(mux)
+	// The Interfaces modal's history panel. Its own route rather than a reports
+	// one, because it is gated on INTERFACES read (#59); see the file header.
+	s.registerInterfaceHistory(mux)
 	s.registerConfig(mux)
 	s.registerZTP(mux)
 	s.registerConfigRouter(mux)

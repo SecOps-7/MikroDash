@@ -57,9 +57,26 @@ let shown: { schema: Schema; options: Record<string, string[]> } | null = null;
  * gets a div under the fields, and is told what was written once the ACTIVE
  * router has accepted it.
  */
+/** What the dialog is showing, for an extra that needs to know. */
+export interface ExtraContext {
+  /** The dialog is read-only: the viewer may look and not write. */
+  readOnly: boolean;
+  /** The row's identity — for an interface, its name. Null on an add form. */
+  identity: string | null;
+}
+
 export interface ResourceExtra {
-  /** Markup for the slot, or '' to render nothing on this form. */
-  render(mode: 'add' | 'edit'): string;
+  /**
+   * Markup for the slot, or '' to render nothing on this form.
+   *
+   * READ-ONLY IS THE EXTRA'S DECISION, NOT THE DIALOG'S. This slot used to be
+   * skipped outright for a read-only viewer, which is right for an extra that
+   * offers a write (the DNS fleet picker returns '' for exactly that reason)
+   * and wrong for one that only shows something: the Interfaces history panel
+   * is a READ, and refusing it would have hidden a chart from somebody the
+   * server would have answered.
+   */
+  render(mode: 'add' | 'edit', ctx: ExtraContext): string;
   /** Wire what `render` just returned. */
   wire?(): void;
   /** The active router accepted a write, with these values. */
@@ -586,8 +603,11 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   lastSave = null;
   const slot = el('res_extra');
   if (slot) {
-    const extra = readOnly ? undefined : extras.get(schema.key);
-    const html = extra ? extra.render(row ? 'edit' : 'add') : '';
+    const extra = extras.get(schema.key);
+    const html = extra
+      ? extra.render(row ? 'edit' : 'add',
+        { readOnly, identity: row ? row.identity : null })
+      : '';
     slot.innerHTML = html;
     slot.style.display = html ? '' : 'none';
     if (html) extra!.wire?.();

@@ -1956,6 +1956,35 @@
 .dns-extra-pick{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.35rem}
 .dns-extra-host{font-family:var(--font-mono);font-size:.62rem;color:var(--text-muted)}
 
+/* ── THE INTERFACES MODAL'S TRAFFIC HISTORY (#59) ───────────────────────────
+   The same extras slot the DNS picker uses, so the spacing and the border
+   match it rather than being a second look for the same position. Rx and Tx
+   take the fixed accents they take everywhere else in this app. */
+.ifh{margin-top:.7rem;padding:.55rem .7rem;border:1px solid var(--border);
+  border-radius:6px;background:rgba(99,130,190,.05)}
+.ifh-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  flex-wrap:wrap;margin-bottom:.45rem}
+.ifh-title{font-size:.72rem;font-weight:600;color:var(--text-main)}
+.ifh-ranges{display:flex;gap:.25rem}
+.ifh-range{font-size:.62rem;padding:.16rem .4rem;border-radius:4px;cursor:pointer;
+  border:1px solid var(--border);background:transparent;color:var(--text-muted)}
+.ifh-range:hover{color:var(--text-main)}
+.ifh-range.active{border-color:rgba(56,189,248,.45);color:var(--accent-rx);
+  background:rgba(56,189,248,.08)}
+.ifh-chart{height:150px}
+.ifh-stats{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+.ifh-stat{flex:1 1 4.5rem;padding:.3rem .4rem;border:1px solid var(--border);
+  border-radius:5px;text-align:center}
+.ifh-stat-val{font-size:.8rem;font-weight:600}
+.ifh-stat-lbl{font-size:.58rem;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:.03em}
+.ifh-rx{color:var(--accent-rx)}
+.ifh-tx{color:var(--accent-tx)}
+.ifh-note{font-size:.66rem;color:var(--text-muted);line-height:1.5}
+.ifh-note-title{font-size:.7rem;font-weight:600;color:var(--text-main);margin-bottom:.25rem}
+.ifh-note-dim{margin-top:.35rem;opacity:.75}
+.ifh-record{margin-top:.45rem}
+
     /* ── THE AI AGENT PAGE ──────────────────────────────────────────────────
        The transcript fills the page instead of stopping at a fixed height.
        `#main` is already a bounded flex column, so the chain only needs

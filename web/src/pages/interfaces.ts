@@ -26,6 +26,7 @@ import { mountRows } from '../resource';
 import type { Socket } from '../socket';
 import { portSvg } from './port-svg';
 import type { Interface } from '../gen/payloads';
+import { initInterfaceHistory } from './interfaces-history';
 
 const IFACE_SPARK_LEN = 30;
 // The empty-address placeholder in a tile: U+00A0, a NON-BREAKING space. A
@@ -213,6 +214,9 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
   // A tile or a list row opens the resource form: its comment, or enabling and
   // disabling it (#97). Both views carry `data-res-rows="iface"`.
   mountRows(socket);
+  // And that form carries the traffic history panel, in the dialog's extras
+  // slot rather than a second modal beside it (#59).
+  initInterfaceHistory(socket);
   const ifaceCount = el('ifaceCount');
   const ifaceTypeFilter = el<HTMLSelectElement>('ifaceTypeFilter');
   const ifaceSelect = el<HTMLSelectElement>('ifaceSelect');

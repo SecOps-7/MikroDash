@@ -412,10 +412,12 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
   }
 
   registerExtra('dnsStatic', {
-    render() {
+    render(_mode, ctx) {
       const rest = others();
       alsoIDs = [];
-      if (scope !== 'fleet' || !rest.length) return '';
+      // NOTHING FOR A READ-ONLY VIEWER: this offers a write to other routers,
+      // and the dialog no longer makes that decision on an extra's behalf.
+      if (ctx.readOnly || scope !== 'fleet' || !rest.length) return '';
       return '<div class="dns-extra">' +
         '<div class="dns-extra-title">Also add it to</div>' +
         '<div class="dns-extra-pick">' +
