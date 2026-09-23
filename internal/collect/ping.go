@@ -30,15 +30,15 @@ package collect
 //
 // ── PERMISSION DENIED LATCHES ───────────────────────────────────────────────
 //
-// `/tool/ping` needs the `test` policy AND, measured on RouterOS 7.24.4, the
-// `local` policy too — a group with `read,test,api,!local` is refused with
-// "not enough permissions (9)". MikroTik documents `local` as a console login
-// policy and does not mention it here, so this is observed rather than quoted.
-// Issue #138, where this repository's own README recommended `!local`.
+// `/tool/ping` needs the `test` policy. Without it every retry fails the same
+// way, so the refusal is recorded once, emitted so the card can say so, and not
+// retried until the router reconnects.
 //
-// Without either, every retry fails the same way, so the refusal is recorded
-// once, emitted so the card can say so, and not retried until the router
-// reconnects.
+// ISSUE #138 REPORTED THAT `local` IS ALSO NEEDED, and it did not reproduce: on
+// an hAP ac² running RouterOS 7.24.3 a group of `read,test,api,!local` pings
+// fine, and adding `local` changes nothing. What WAS wrong is below — the
+// refusal was never recognised, so the stream reopened every 20s in silence and
+// the operator had nothing to go on.
 
 import (
 	"fmt"
@@ -473,9 +473,9 @@ func (p *Ping) pollOnce() {
 		// This was a regex here matching "not enough privileges", which RouterOS
 		// never says — see routeros.DeniedErr and issue #138.
 		if pingRefused(err) {
-			log.Printf("[ping] the router refused /tool/ping for this API user — ping is off. " +
-				"Its group needs BOTH \"test\" and \"local\": " +
-				"/user group set <group> policy=local,read,test,api,...")
+			log.Printf("[ping] the router refused /tool/ping for this API user — ping is off. "+
+				"Its group needs the \"test\" policy: /user group print where name=<group>. "+
+				"The router said: %v", err)
 			EvPingUpdate.Emit(p.emit, pingRooms.Join(), *p.noteDenied(time.Now().UnixMilli()))
 		}
 		return
@@ -546,9 +546,9 @@ func (p *Ping) openStreamLocked() {
 		// This was a regex here matching "not enough privileges", which RouterOS
 		// never says — see routeros.DeniedErr and issue #138.
 		if pingRefused(err) {
-			log.Printf("[ping] the router refused /tool/ping for this API user — ping is off. " +
-				"Its group needs BOTH \"test\" and \"local\": " +
-				"/user group set <group> policy=local,read,test,api,...")
+			log.Printf("[ping] the router refused /tool/ping for this API user — ping is off. "+
+				"Its group needs the \"test\" policy: /user group print where name=<group>. "+
+				"The router said: %v", err)
 			EvPingUpdate.Emit(p.emit, pingRooms.Join(), *p.noteDenied(time.Now().UnixMilli()))
 			return
 		}

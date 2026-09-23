@@ -261,12 +261,12 @@ Create a dedicated, **read-only** API user. Every page, chart and alert works wi
 
 ```routeros
 /ip service set api port=8728 disabled=no
-/user group add name=mikrodash policy=local,read,api,test,!telnet,!ssh,!ftp,!reboot,!write,!policy,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
+/user group add name=mikrodash policy=read,api,test,!local,!telnet,!ssh,!ftp,!reboot,!write,!policy,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
 /user add name=mikrodash group=mikrodash password=<a-strong-password>
 ```
 
-> [!IMPORTANT]
-> **`local` is required for the ping history**, even over the API. MikroTik documents it as a login policy, and `test` as the one that grants `/tool/ping` — but a group with `read,api,test,!local` is refused with `not enough permissions (9)` on RouterOS 7.24.4. Reported as [#138](https://github.com/SecOps-7/MikroDash/issues/138), where this page recommended `!local` and Reports → Ping stayed empty. It grants console login, not configuration access; everything that changes the router is still denied above.
+> [!NOTE]
+> **`test` is what `/tool/ping` needs**, and it is in the policy above — the ping card and Reports → Ping stay blank without it. If the router refuses it, the log now says so in one line and names the policy instead of retrying in silence ([#138](https://github.com/SecOps-7/MikroDash/issues/138)). That issue was reported as also needing `local`; it did not reproduce on an hAP ac² running RouterOS 7.24.3, where `read,api,test,!local` pings fine — so `local` stays denied here.
 
 <details>
 <summary><strong>Optional: enable the write features</strong></summary>
@@ -284,7 +284,7 @@ Pages that change the router need more than `read`:
 `ftp` governs reading and writing files on the router, which `/export file=` and `/system/backup/save` need; it does not enable the FTP service. **`policy` governs user management, so an account holding it can create router users.** Grant it deliberately, not by default.
 
 ```routeros
-/user group set [find name=mikrodash] policy=local,read,write,policy,api,test,!telnet,!ssh,!ftp,!reboot,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
+/user group set [find name=mikrodash] policy=read,write,policy,api,test,!local,!telnet,!ssh,!ftp,!reboot,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
 ```
 
 Without these nothing breaks: a page that is refused drops to read-only and shows the command it needs. MikroDash never lets you edit the account it signs in with, or that account's group.
