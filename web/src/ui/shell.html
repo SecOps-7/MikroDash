@@ -837,6 +837,17 @@
                the nav entry and the `devices` page key. -->
           <button type="button" class="stab" role="tab" data-nchantab="devices">Devices</button>
         </div>
+        <!-- ── ONE SIZE FOR EVERY TAB ────────────────────────────────────
+             The three panels share a single grid cell, so the box is as tall as
+             the TALLEST of them and switching tabs does not resize the dialog.
+             An inactive panel is hidden with `visibility`, not `display`, which
+             is what keeps it occupying that cell.
+
+             MEASURED RATHER THAN PINNED: a `min-height` in pixels would be the
+             obvious alternative and would be wrong the next time an event is
+             added to the Events tab — the number would still look deliberate
+             while no longer matching anything. -->
+        <div class="nchan-panels">
         <div class="nchan-panel active" data-nchanpanel="channel">
           <div class="sform-row">
             <div class="sform-group">
@@ -951,9 +962,10 @@
              told about it, and stacking the second under the first made it read
              as a property of the event list. -->
         <div class="nchan-panel" data-nchanpanel="devices">
-          <p class="nchan-help">Which routers this channel is told about. No selection means every
-            router, now and in future.</p>
+          <p class="nchan-help nchan-panel-note">Which routers this channel is told about. No
+            selection means every router, now and in future.</p>
           <div id="nchanRouters" class="nchan-routers"></div>
+        </div>
         </div>
       </div>
       <div id="nchanError" class="login-error" style="display:none;margin-top:.75rem"></div>

@@ -2953,8 +2953,23 @@
 /* THE MODAL'S TABS. `.stab-panel.active` is a two-column grid at page width,
    which would columnise a form that is one column wide — so the panels inside
    the dialog are their own class rather than a reuse of that one. */
-.nchan-panel { display: none; padding-top: .9rem; }
-.nchan-panel.active { display: block; }
+/* ── EVERY TAB IS THE SAME SIZE ──────────────────────────────────────────
+   The panels stack in ONE grid cell, so the wrapper is as tall as the tallest
+   of them and switching tabs no longer resizes the dialog around the operator.
+
+   `visibility`, not `display`: a `display:none` panel occupies nothing, which
+   is exactly the resizing this removes. Hidden this way it still holds the cell
+   open, and it is still out of the tab order and unclickable.
+
+   No pixel height anywhere. A `min-height` would have been the obvious fix and
+   would be wrong the next time an event is added to the Events tab, while still
+   looking deliberate. */
+.nchan-panels { display: grid; }
+.nchan-panel { grid-area: 1 / 1; visibility: hidden; padding-top: .9rem; }
+.nchan-panel.active { visibility: visible; }
+/* A panel's opening sentence, with room under it: the router list sat directly
+   against this line with nothing between them. */
+.nchan-panel-note { margin: 0 0 .9rem; }
 .nchan-tabs .stab-bar { margin-bottom: 0; }
 
 .nchan-event { align-items: flex-start; }
