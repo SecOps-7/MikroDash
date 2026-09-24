@@ -2986,6 +2986,30 @@
 .nchan-panel-note { margin: 0 0 .9rem; }
 /* The cooldown sits above the Enabled divider, with air of its own. */
 .nchan-cooldown { margin: 1rem 0 0; }
+
+/* Message Templates: the variable list on the left, the fields on the right.
+   The list is READ while the fields are WRITTEN, and a reader scans to the left
+   of what they are editing rather than under it — which is where the list used
+   to be, below the two tall body boxes and so below the fold of its own card. */
+.msg-templates {
+  display: grid; grid-template-columns: minmax(13rem, 1fr) 2.4fr;
+  gap: 1rem; align-items: start;
+}
+.msg-vars {
+  padding: .6rem .7rem; border-radius: .4rem;
+  background: var(--bg-alt); border: 1px solid var(--border);
+}
+.msg-vars-title { font-size: .72rem; color: var(--text-muted); margin: 0 0 .35rem; font-weight: 600; }
+.msg-vars-list {
+  font-size: .72rem; color: var(--text-muted); margin: 0;
+  line-height: 1.75; font-family: var(--font-mono);
+}
+.msg-vars-note { font-size: .7rem; color: var(--text-muted); margin: .5rem 0 0; line-height: 1.6; }
+/* ONE COLUMN ON A NARROW WINDOW, with the list FIRST: on a phone there is no
+   "beside", and a reference above the fields it describes still reads in order. */
+@media (max-width: 860px) {
+  .msg-templates { grid-template-columns: 1fr; }
+}
 .nchan-tabs .stab-bar { margin-bottom: 0; }
 
 .nchan-event { align-items: flex-start; }

@@ -695,9 +695,9 @@ func (e *Evaluator) SystemCPUOnly(r Router, cpuLoad *float64) []Fired {
 // while being silent — the exact failure this whole feature exists to make
 // visible. `validateChannel` refuses one, rather than clamping it quietly.
 //
-// 75 and 30 on the operator's decision of 2026-09-24.
+// 70 and 30 on the operator's decision of 2026-09-24.
 const (
-	FloorCPU      = 75.0
+	FloorCPU      = 70.0
 	FloorPingLoss = 30.0
 )
 
