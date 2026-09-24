@@ -2987,12 +2987,13 @@
 /* The cooldown sits above the Enabled divider, with air of its own. */
 .nchan-cooldown { margin: 1rem 0 0; }
 
-/* Message Templates: the variable list on the left, the fields on the right.
-   The list is READ while the fields are WRITTEN, and a reader scans to the left
-   of what they are editing rather than under it — which is where the list used
-   to be, below the two tall body boxes and so below the fold of its own card. */
+/* Message Templates: the fields on the left, the variable list on the right, in
+   equal halves. The fields are the work and take the side the eye starts on; the
+   list is the reference and sits where it can be glanced at without leaving the
+   box being typed into. It used to be a strip below both, which is below the
+   fold of its own card once the body boxes are open. */
 .msg-templates {
-  display: grid; grid-template-columns: minmax(13rem, 1fr) 2.4fr;
+  display: grid; grid-template-columns: 1fr 1fr;
   gap: 1rem; align-items: start;
 }
 .msg-vars {
@@ -3005,8 +3006,9 @@
   line-height: 1.75; font-family: var(--font-mono);
 }
 .msg-vars-note { font-size: .7rem; color: var(--text-muted); margin: .5rem 0 0; line-height: 1.6; }
-/* ONE COLUMN ON A NARROW WINDOW, with the list FIRST: on a phone there is no
-   "beside", and a reference above the fields it describes still reads in order. */
+/* ONE COLUMN ON A NARROW WINDOW. The DOM order is fields then list, which is
+   the order to read them in when there is no "beside", so nothing needs
+   reordering here. */
 @media (max-width: 860px) {
   .msg-templates { grid-template-columns: 1fr; }
 }

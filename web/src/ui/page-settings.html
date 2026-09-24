@@ -369,23 +369,17 @@
             <span class="scard-title">Message Templates</span>
           </div>
           <div class="scard-body">
-            <!-- ── THE VARIABLES ARE A REFERENCE, SO THEY GO BESIDE THE FIELDS ──
-                 They were a strip UNDER the three inputs, which is where you
-                 cannot see them while typing into the thing they are for: the
-                 body boxes are the tall ones, so the list sat below the fold of
-                 its own card at any normal window height.
+            <!-- ── THE FIELDS ARE WRITTEN, THE LIST IS READ BESIDE THEM ─────────
+                 The list was a strip UNDER the inputs, which is where you cannot
+                 see it while typing into the thing it is for: the body boxes are
+                 the tall ones, so the reference sat below the fold of its own
+                 card at any normal window height.
 
-                 Left column, and the fields on the right, because the list is
-                 read while the fields are written — and a reader scans to the
-                 left of what they are editing, not under it. -->
+                 FIELDS LEFT, LIST RIGHT, in equal halves. The fields are the
+                 work and take the side the eye starts on; the list is the
+                 reference and sits where it can be glanced at without leaving
+                 the box being typed into. -->
             <div class="msg-templates">
-              <aside class="msg-vars">
-                <p class="msg-vars-title">Available variables</p>
-                <p class="msg-vars-list">{{alertType}}<br>{{routerName}}<br>{{detail}}<br>{{ifaceName}}<br>{{status}}<br>{{comment}}<br>{{cpuLoad}}<br>{{pingLoss}}<br>{{pingTarget}}<br>{{pingRtt}}<br>{{vpnPeer}}<br>{{host}}<br>{{netwatchName}}<br>{{bgpPeer}}<br>{{timestamp}}</p>
-                <p class="msg-vars-note">A variable that does not apply to an alert renders as empty.
-                  <code>{{comment}}</code> is the comment set on the router for whatever the alert is
-                  about &mdash; an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
-              </aside>
               <div class="msg-fields">
                 <div class="sform-group">
                   <label class="sform-label">Notification Title</label>
@@ -400,6 +394,13 @@
                   <textarea id="s_notifBodyUp" class="sform-input" rows="4" maxlength="512" placeholder="✅ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
                 </div>
               </div>
+              <aside class="msg-vars">
+                <p class="msg-vars-title">Available variables</p>
+                <p class="msg-vars-list">{{alertType}}<br>{{routerName}}<br>{{detail}}<br>{{ifaceName}}<br>{{status}}<br>{{comment}}<br>{{cpuLoad}}<br>{{pingLoss}}<br>{{pingTarget}}<br>{{pingRtt}}<br>{{vpnPeer}}<br>{{host}}<br>{{netwatchName}}<br>{{bgpPeer}}<br>{{timestamp}}</p>
+                <p class="msg-vars-note">A variable that does not apply to an alert renders as empty.
+                  <code>{{comment}}</code> is the comment set on the router for whatever the alert is
+                  about &mdash; an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
+              </aside>
             </div>
           </div>
         </div>
