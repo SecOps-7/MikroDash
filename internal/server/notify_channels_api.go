@@ -169,6 +169,17 @@ func (s *Server) notifyChannelsList(w http.ResponseWriter, r *http.Request) {
 	// a 403 and had no way at all to make a channel of their own.
 	writeJSON(w, map[string]any{
 		"ok": true, "channels": out, "canManageInstall": s.isGlobalAdmin(sess),
+		// ── WHICH CHANNEL SENDS THE REPORTS, IN THE SAME REPLY ───────────
+		//
+		// The page draws a tick on one SMTP card, so it needs this to render a
+		// card at all. It used to come from `/api/settings`, which the settings
+		// page loads separately — so the grid painted before the answer arrived
+		// and the tick appeared a beat later, on whichever card the fallback
+		// would have chosen anyway. One request, one paint, no race.
+		//
+		// EMPTY IS NOT "NONE". It means the first enabled install SMTP channel,
+		// which is what `smtpConfig` falls back to, and the page ticks that one.
+		"reportChannelId": s.reportChannelID(),
 	})
 }
 
@@ -506,4 +517,18 @@ func jsonList(v []string) string {
 		return "[]"
 	}
 	return string(out)
+}
+
+// reportChannelID is the operator's chosen mail channel for scheduled reports,
+// or "" for the first enabled install SMTP channel.
+//
+// A read failure is "" rather than an error: the list is still worth drawing
+// without a tick, and the reports path reads this for itself anyway.
+func (s *Server) reportChannelID() string {
+	cfg, err := s.mergedSettings()
+	if err != nil {
+		return ""
+	}
+	v, _ := cfg["reportChannelId"].(string)
+	return v
 }

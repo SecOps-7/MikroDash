@@ -13,7 +13,7 @@
  *
  * ── SAVE IS LOCKED UNTIL A TEST PASSES, AND ANY CHANGE RE-LOCKS IT ─────────
  *
- * The interlock is the same shape as the Data Cleanup card's preview: a button
+ * The interlock is the same shape as the Data Cleanup dialog's preview: a button
  * that acts on a result the operator actually saw. Here the result is "this host
  * answered", and the fields that can make it wrong are exactly
  * `SETUP_WATCH_FIELDS` — not every field, because re-locking on a typo in the
@@ -109,7 +109,7 @@ function setBusy(busy: boolean): void {
   if (save) {
     // NOT JUST `busy`. Clearing the busy state must not hand back a Save the
     // interlock had locked — the same conditional re-enable the Data Cleanup
-    // card needs, and for the same reason.
+    // dialog needs, and for the same reason.
     save.disabled = busy || !testPassed;
     save.textContent = busy ? 'Connecting…' : 'Connect';
   }

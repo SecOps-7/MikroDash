@@ -1,5 +1,10 @@
 /**
- * Settings → Data Cleanup.
+ * Settings → General → Data Cleanup, the #dbcModal dialog.
+ *
+ * It was a card on the tab and is opened from a button in the Data Retention
+ * card now, which is why nothing here listens for the settings page any more:
+ * the stats are fetched when the dialog opens, because that is the only moment
+ * anyone can see them.
  *
  * ── THE PREVIEW IS A SAFETY INTERLOCK, NOT A CONVENIENCE ────────────────────
  *
@@ -9,7 +14,7 @@
  * (`_pendingCount = 0` before the request goes out) so a double-click cannot
  * delete twice off one confirmation.
  *
- * That interlock is the whole reason this card is not just two fetches. Every
+ * That interlock is the whole reason this dialog is not just two fetches. Every
  * piece of it is reproduced here, including the order the live code does it in:
  * the count is zeroed BEFORE the request, not in the response handler, because a
  * response handler does not run if the operator clicks again first.
@@ -181,6 +186,8 @@ function nodes() {
     scope: el<HTMLSelectElement>('dbcScope'),
     age: el<HTMLSelectElement>('dbcAge'),
     types: el('dbcTypes'),
+    openBtn: el<HTMLButtonElement>('dbcOpenBtn'),
+    modal: el('dbcModal'),
     prevBtn: el<HTMLButtonElement>('dbcPreviewBtn'),
     delBtn: el<HTMLButtonElement>('dbcPurgeBtn'),
     summary: el('dbcSummary'),
@@ -299,10 +306,10 @@ function invalidate(): void {
 
 export function initDbCleanup(): void {
   const n = nodes();
-  // The live guard, and it is load-bearing rather than defensive: this card is
+  // The live guard, and it is load-bearing rather than defensive: this dialog is
   // hidden from anyone who is not a global admin, so on most sessions these
   // elements are simply absent.
-  if (!n.scope || !n.prevBtn || !n.delBtn) return;
+  if (!n.scope || !n.prevBtn || !n.delBtn || !n.openBtn || !n.modal) return;
 
   previewLabel = n.prevBtn.textContent || '';
   deleteLabel = n.delBtn.textContent || '';
@@ -375,10 +382,12 @@ export function initDbCleanup(): void {
       });
   });
 
-  document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent).detail === 'settings') {
-      invalidate();
-      loadStats();
-    }
+  // OPENING IS WHAT REFRESHES. The dialog carries a spent preview and a stale
+  // database size otherwise -- both were true of the card every time the
+  // Settings page was revisited, and both are cleared here instead.
+  n.openBtn.addEventListener('click', () => {
+    invalidate();
+    void loadStats();
+    nodes().modal!.classList.add('open');
   });
 }

@@ -5,8 +5,8 @@
 <h1 align="center">MikroDash</h1>
 
 <p align="center">
-  <strong>A real-time, self-hosted dashboard for MikroTik RouterOS v7.</strong><br>
-  Live data over the RouterOS binary API, a single static binary, one Docker volume.
+  <strong>Open-source command center for RouterOS</strong><br>
+  Self-hosted and live over the MikroTik RouterOS v7 binary API: a single static binary, one Docker volume.
 </p>
 
 <p align="center">

@@ -727,9 +727,10 @@ async function main(): Promise<void> {
     authMode: () => (globalThis as unknown as { _authMode?: string })._authMode || 'none',
   });
 
-  // Data Cleanup, on the same page. It takes NO accessors: it fetches its own
-  // router list, because the names it needs include routers that have been
-  // DELETED and are still holding history — ids `routers` no longer carries.
+  // Data Cleanup, the dialog the same page's Data Retention card opens. It takes
+  // NO accessors: it fetches its own router list, because the names it needs
+  // include routers that have been DELETED and are still holding history — ids
+  // `routers` no longer carries.
   initDbCleanup();
 
   // Settings, Appearance, Branding: its own save, upload and reset; not part of

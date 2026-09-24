@@ -52,6 +52,16 @@ let editing: ChannelView | null = null;
 /** Whether this viewer may own install-wide channels. Told by the server; a
  *  non-administrator makes channels for themselves instead. */
 let canManageInstall = false;
+
+/**
+ * Which SMTP channel scheduled reports go out through.
+ *
+ * "" IS NOT "NONE". It means the first enabled install-owned SMTP channel, which
+ * is what `smtpConfig` on the server falls back to and what `reportsChannelID`
+ * below ticks. That is why an upgraded install needs no migration: the seeded
+ * "Email" channel is found on its own.
+ */
+let reportChannelId = '';
 /**
  * The stored URLs, once the detail read has returned them.
  *
@@ -84,6 +94,27 @@ function show(open: boolean): void {
   if (m) m.classList.toggle('open', open);
 }
 
+/**
+ * The channel the reports tick belongs on, resolved the way the server resolves
+ * it.
+ *
+ * ONLY ONE CAN BE TICKED BECAUSE THERE IS ONLY ONE VALUE. The state is the
+ * single `reportChannelId` setting, not a flag per channel, so exclusivity is
+ * structural — there is no handler untick­ing the others and therefore no way for
+ * two to drift into being ticked at once.
+ *
+ * A stored id naming a channel that has since been DELETED falls through to the
+ * first, matching the server's second pass. Without that the page would show no
+ * tick at all while reports carried on being sent, or worse, agree with a
+ * settings value that stops them.
+ */
+function reportsChannelID(): string {
+  const smtp = channels.filter((c) => c.kind === 'smtp' && c.owner === INSTALL);
+  if (reportChannelId && smtp.some((c) => c.id === reportChannelId)) return reportChannelId;
+  const first = smtp.find((c) => c.enabled);
+  return first ? first.id : '';
+}
+
 /** The card for one channel. */
 function card(c: ChannelView): string {
   const where = c.owner === INSTALL ? 'Install' : 'Mine';
@@ -108,6 +139,7 @@ function card(c: ChannelView): string {
     + (c.enabled ? 'ON' : 'OFF') + '</span></div>'
     + '<div class="apps-card-desc">' + dest + '</div>'
     + '<div class="apps-card-meta">' + esc(evs) + ' &middot; ' + esc(scope) + '</div>'
+    + reportsTick(c)
     + '<div class="apps-card-actions">'
     + '<button class="apps-btn" data-nchan-act="test" data-nchan="' + esc(c.id) + '">Test</button>'
     + '<button class="apps-btn" data-nchan-act="edit" data-nchan="' + esc(c.id) + '">Edit</button>'
@@ -117,37 +149,77 @@ function card(c: ChannelView): string {
 }
 
 /**
- * Fill the "reports are sent through" picker from the SMTP channels.
+ * The "send scheduled reports through this one" tick, on SMTP cards only.
  *
- * Reports need a real mail server, so only SMTP channels are offered — a
- * webhook cannot carry a PDF attachment. The blank option is not "none": it
- * means the first enabled install SMTP channel, which is the right answer for
- * an install with exactly one and is what makes an upgrade need no migration.
+ * ── WHY ONLY INSTALL-OWNED SMTP ────────────────────────────────────────────
+ *
+ * A webhook cannot carry a PDF attachment, so a report needs a real mail server.
+ * And the owner test is the server's: a user's personal email channel must not
+ * become the server every scheduled report in the install goes out through, so
+ * it is not offered as one.
+ *
+ * ── IT DOES NOT UNTICK ─────────────────────────────────────────────────────
+ *
+ * Clicking the ticked one is a no-op. Reports have to leave through something,
+ * and an untick would store an id of "" — which the server reads as "the first
+ * enabled install SMTP channel", i.e. this one again. A control whose off state
+ * is indistinguishable from its on state is worse than one that does not turn
+ * off, so it is `disabled` when ticked and says why.
  */
-function renderReportPicker(): void {
-  const sel = el<HTMLSelectElement>('s_reportChannelId');
-  if (!sel) return;
-  const chosen = sel.value;
-  const smtp = channels.filter((c) => c.kind === 'smtp' && c.owner === INSTALL);
-  sel.innerHTML = '<option value="">First enabled SMTP channel</option>'
-    + smtp.map((c) => '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>').join('');
-  // Keep a stored choice selected even before the settings load repaints it.
-  if (chosen) sel.value = chosen;
+function reportsTick(c: ChannelView): string {
+  if (c.kind !== 'smtp' || c.owner !== INSTALL) return '';
+  const on = c.id === reportsChannelID();
+  const locked = on || !canManageInstall;
+  const why = on
+    ? 'Reports already go out through this channel. Tick another SMTP channel to move them.'
+    : (canManageInstall
+      ? 'Send scheduled reports through this mail server'
+      : 'Only a global administrator can move the reports channel');
+  return '<label class="nchan-reports' + (on ? ' is-on' : '') + '" title="' + esc(why) + '">'
+    + '<input type="checkbox" data-nchan-report="' + esc(c.id) + '"'
+    + (on ? ' checked' : '') + (locked ? ' disabled' : '') + '>'
+    + '<span>Scheduled reports</span></label>';
 }
 
 function render(): void {
-  renderReportPicker();
   const grid = el('nchanGrid');
   if (grid) {
     grid.innerHTML = channels.length
       ? channels.map(card).join('')
       : '<p class="nchan-help">No channels yet. Add one to start receiving alerts.</p>';
   }
-  const count = el('nchanCount');
-  if (count) {
-    count.textContent = String(channels.length);
-    count.className = 'card-badge' + (channels.length > 0 ? ' active-blue' : '');
-  }
+}
+
+/**
+ * Store which SMTP channel the scheduled reports leave through.
+ *
+ * ── A ONE-KEY POST TO /api/settings ────────────────────────────────────────
+ *
+ * `reportChannelId` is an ordinary setting, so this is the route that already
+ * validates and audits it — the same partial-body POST the Polling tab's Save
+ * Custom Profile button makes. Inventing an endpoint for it would be a second
+ * way to write one settings key.
+ *
+ * ── THE LOCAL VALUE MOVES ONLY ON `ok` ─────────────────────────────────────
+ *
+ * A refusal — a non-admin, a validation failure — must leave the tick where it
+ * was, so the state is set from the reply and the grid repainted from that. An
+ * optimistic update would show the reports moving to a channel the server is
+ * still sending nothing through.
+ */
+async function setReportsChannel(id: string): Promise<void> {
+  if (!id || id === reportsChannelID()) return;
+  try {
+    const r = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ reportChannelId: id }),
+    });
+    const j = await r.json();
+    if (j && j.ok) reportChannelId = id;
+  } catch { /* the tick stays where it was, which is where the reports are */ }
+  render();
 }
 
 async function load(): Promise<void> {
@@ -156,6 +228,10 @@ async function load(): Promise<void> {
     const j = await r.json();
     channels = (j && j.channels) || [];
     canManageInstall = !!(j && j.canManageInstall);
+    // FROM THIS REPLY, not from `/api/settings`. The grid used to paint before
+    // that separate load answered, so the tick arrived a beat later on whichever
+    // card the fallback would have picked anyway.
+    reportChannelId = (j && typeof j.reportChannelId === 'string') ? j.reportChannelId : '';
   } catch { channels = []; }
   render();
 }
@@ -473,6 +549,19 @@ export function initNotifyChannels(): void {
           await test(c.id, t as HTMLButtonElement);
         }
       })();
+    });
+
+    // ── MOVING THE REPORTS CHANNEL ────────────────────────────────────────
+    //
+    // A `change` listener on the grid rather than one per box, for the same
+    // reason the actions above are delegated: `render()` replaces the whole
+    // grid's innerHTML on every load, so anything bound to a box is thrown away
+    // with it and silently stops working after the first repaint.
+    grid.addEventListener('change', (ev) => {
+      const box = (ev.target as HTMLElement).closest('[data-nchan-report]') as
+        HTMLInputElement | null;
+      if (!box) return;
+      void setReportsChannel(box.getAttribute('data-nchan-report') || '');
     });
   }
 

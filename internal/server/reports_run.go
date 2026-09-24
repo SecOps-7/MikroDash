@@ -295,27 +295,7 @@ func (s *Server) smtpConfig() (mailer.Config, string, bool) {
 		want, _ = cfg["reportChannelId"].(string)
 	}
 
-	var chosen *db.NotifyChannel
-	for i := range rows {
-		c := &rows[i]
-		if c.Kind != notify.KindSMTP {
-			continue
-		}
-		if want != "" {
-			if c.ID == want {
-				chosen = c
-				break
-			}
-			continue
-		}
-		// THE FALLBACK IS DELIBERATELY NARROW: enabled, and owned by the
-		// install. A user's personal email channel must not become the server
-		// every scheduled report in the install goes out through.
-		if c.Enabled == 1 && c.Owner == db.InstallOwner {
-			chosen = c
-			break
-		}
-	}
+	chosen := chooseReportChannel(rows, want)
 	if chosen == nil {
 		return mailer.Config{}, "", false
 	}
@@ -421,4 +401,50 @@ func (s *Server) creatorMayRead(creatorID, routerID string) bool {
 		return false
 	}
 	return ok
+}
+
+// chooseReportChannel picks the mail channel a scheduled report leaves through:
+// the one named, else the first enabled install-owned SMTP channel.
+//
+// ── PURE, BECAUSE THE RULE IS THE PART THAT BREAKS ─────────────────────────
+//
+// `smtpConfig` around it needs a database and a settings store. The decision it
+// makes needs neither, and it is the decision that has to agree with what the
+// Settings page draws — the page ticks a card by running this same rule in
+// TypeScript. Rows in, channel out, so both ends can be tested against the same
+// cases.
+//
+// ── TWO PASSES, AND THE SECOND IS NOT A NICETY ────────────────────────────
+//
+// A single pass that returned nothing when `want` matched nothing meant DELETING
+// the chosen channel stopped every scheduled report, with the page still showing
+// a mail server configured and nothing anywhere saying why.
+//
+// BOTH PASSES REQUIRE AN INSTALL-OWNED SMTP CHANNEL. A user's personal email
+// channel must not become the server every scheduled report in the install goes
+// out through, and that holds however the id got stored — the page never offers
+// one, so a stored id naming one arrived some other way and is not to be
+// honoured just because it is specific.
+//
+// ENABLED IS CHECKED ONLY ON THE FALLBACK, and the asymmetry is deliberate. An
+// operator who ticked a channel and later disabled it made two decisions, and
+// silently re-routing their reports to a different mail server would be worse
+// than not sending them: the mail arrives, from the wrong address, looking
+// right. The fallback has no such decision behind it, so it skips what is off.
+func chooseReportChannel(rows []db.NotifyChannel, want string) *db.NotifyChannel {
+	if want != "" {
+		for i := range rows {
+			c := &rows[i]
+			if c.Kind == notify.KindSMTP && c.Owner == db.InstallOwner && c.ID == want {
+				return c
+			}
+		}
+	}
+	for i := range rows {
+		c := &rows[i]
+		if c.Kind == notify.KindSMTP && c.Enabled == 1 && c.Owner == db.InstallOwner {
+			return c
+		}
+	}
+	return nil
 }

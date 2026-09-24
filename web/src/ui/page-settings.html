@@ -40,12 +40,12 @@
         </div>
       </div>
 
-      <!-- ── General tab: Poll Intervals + Limits + Diagnostics ─────────── -->
+      <!-- ── General tab: General + Poll Intervals + Limits + Data Retention ── -->
       <div class="stab-panel" id="stab-general">
         <div class="scard">
           <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            <span class="scard-title">Regional</span>
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span class="scard-title">General</span>
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Sets the timezone for all timestamps: dashboard clock, push notifications, reports, and exports.</p>
@@ -120,6 +120,13 @@
                   </optgroup>
                 </select>
               </div>
+            </div>
+            <!-- The Diagnostics card was one toggle and a paragraph, sitting on
+                 its own in the two-column grid. Both are here verbatim; the
+                 setting key is unchanged. -->
+            <p style="font-size:.74rem;color:var(--text-muted);margin:1.1rem 0 .75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Debug Logging (ROS_DEBUG)</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
           </div>
         </div>
@@ -218,15 +225,35 @@
                 <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">AI Agent conversations</span>
               </div>
             </div>
+            <!-- ON-DEMAND DELETION OPENS FROM HERE. It was a card of its own,
+                 the only thing on this tab that is an ACTION rather than a
+                 setting, and it was three times the height of every card around
+                 it. The dialog is #dbcModal, below. -->
+            <div style="display:flex;justify-content:flex-end;margin-top:.9rem">
+              <button class="sbtn sbtn-ghost" id="dbcOpenBtn" type="button">Data Cleanup</button>
+            </div>
           </div>
         </div>
-        <div class="scard scard--wide">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-err);stroke-width:2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            <span class="scard-title">Data Cleanup</span>
+        <!-- ── DATA CLEANUP ────────────────────────────────────────────
+             Opened by #dbcOpenBtn in the Data Retention card above. Registered
+             in testdata/modal-list.json, so Escape and a backdrop click close it
+             like every other dialog in the app.
+
+             A DIRECT CHILD OF THE TAB PANEL, which is a two-column grid. A
+             position:fixed box is not a grid item, so it takes no column and
+             leaves no gap where a card would have been.
+
+             The Preview/Delete pair is the footer, and the footer keeps the
+             `dbc-actions` class because the disabled styling that makes the
+             safety interlock visible is scoped to it. -->
+        <div class="rtr-modal-bg" id="dbcModal">
+         <div class="rtr-modal pmodal">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title">Data Cleanup</span>
+            <button class="rtr-modal-close" data-modal-close="dbcModal" aria-label="Close">&#10005;</button>
           </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history on demand. Retention above prunes automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.</p>
+          <div class="rtr-modal-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history on demand. The retention limits prune automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.</p>
             <div class="dbc-stats" id="dbcStats">
               <div class="dbc-stat"><span class="dbc-stat-label">Database size</span><span class="dbc-stat-value" id="dbcSize">—</span></div>
               <div class="dbc-stat"><span class="dbc-stat-label">Stored rows</span><span class="dbc-stat-value" id="dbcRows">—</span></div>
@@ -260,24 +287,14 @@
               </div>
             </div>
             <div class="dbc-summary" id="dbcSummary"></div>
-            <div class="dbc-actions" style="display:flex;gap:.5rem;margin-top:.8rem;flex-wrap:wrap">
-              <button class="sbtn sbtn-ghost" id="dbcPreviewBtn" type="button">Preview</button>
-              <button class="sbtn sbtn-danger" id="dbcPurgeBtn" type="button" disabled>Delete data</button>
-            </div>
             <div class="dbc-result" id="dbcResult"></div>
           </div>
-        </div>
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span class="scard-title">Diagnostics</span>
+          <div class="rtr-modal-footer dbc-actions">
+            <button class="sbtn sbtn-ghost" data-modal-close="dbcModal" type="button">Close</button>
+            <button class="sbtn sbtn-ghost" id="dbcPreviewBtn" type="button">Preview</button>
+            <button class="sbtn sbtn-danger" id="dbcPurgeBtn" type="button" disabled>Delete data</button>
           </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
-            <div class="stoggle-grid">
-              <label class="stoggle"><span class="stoggle-label">Debug Logging (ROS_DEBUG)</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            </div>
-          </div>
+         </div>
         </div>
       </div>
 
@@ -288,8 +305,11 @@
         <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <!-- NO COUNT PILL. The furniture rule puts a `card-badge` beside a
+                 PAGE title; this is a card inside the Settings page, whose own
+                 title and pill are at the top. A second count here counted the
+                 cards directly below it, which the operator can see. -->
             <span class="scard-title">Notification channels</span>
-            <span id="nchanCount" class="card-badge">0</span>
             <div class="hdr-actions nchan-actions">
               <button type="button" class="sbtn sbtn-primary" id="nchanAdd">+ Add channel</button>
             </div>
@@ -304,21 +324,19 @@
                  gate went when alert types moved onto the channel, so what is
                  left to say is what the channel decides. -->
             <p class="nchan-note">MikroDash records every alert. Each channel chooses which of them
-              it delivers, and which routers it covers.</p>
+              it delivers, and which routers it covers. Scheduled reports go out through the SMTP
+              channel ticked below; their recipients come from each schedule, not from the channel.</p>
             <div id="nchanGrid" class="apps-grid"></div>
-            <!-- ── REPORTS SUBSCRIBE TO AN EMAIL CHANNEL ────────────────────
-                 The install-wide SMTP block is gone: a mail server is a channel
-                 like any other destination. Scheduled reports borrow one's
-                 SERVER and keep their own recipient list, because a schedule
-                 says who a report goes to and a channel says who an alert goes
-                 to. Empty means the first enabled install SMTP channel, which
-                 is the right answer for an install that has exactly one. -->
-            <div class="sform-group" style="margin-top:1rem;max-width:26rem">
-              <label class="sform-label" for="s_reportChannelId">Scheduled reports are sent through</label>
-              <select class="sform-input" id="s_reportChannelId"></select>
-              <p class="nchan-help">Reports need an SMTP channel; a webhook cannot carry a PDF.
-                Their recipients come from each schedule, not from the channel.</p>
-            </div>
+            <!-- ── REPORTS SUBSCRIBE FROM THE CARD, NOT FROM A PICKER ───────
+                 This was a select underneath the grid naming which channel the
+                 reports go through. A second control listing the same channels
+                 the grid is already showing is two places for one idea, and it
+                 sat below the fold once there were a few cards.
+
+                 The choice is a tick on the SMTP card itself now, rendered in
+                 `card()`. Only one can be ticked because the state is one
+                 setting, `reportChannelId`, not a flag per channel — the
+                 exclusivity is structural rather than enforced by a handler. -->
           </div>
         </div>
 
@@ -1290,7 +1308,7 @@
               <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"/>
               <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
             </div>
-            <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
+            <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Open-source command center for RouterOS</div>
             <div style="margin:.35rem 0 .5rem">
               <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
             </div>

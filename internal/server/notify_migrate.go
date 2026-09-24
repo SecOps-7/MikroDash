@@ -196,6 +196,26 @@ func installChannels(cfg map[string]any, dec func(string) string) []seeded {
 	// The three that are no longer in `encrypted` arrive sealed.
 	secret := func(k string) string { v, _ := cfg[k].(string); return strings.TrimSpace(dec(v)) }
 	on := func(k string) bool { return notify.Truthy(cfg[k]) }
+	// ── THE PORT IS A NUMBER IN settings.json, NOT A STRING ───────────────
+	//
+	// It reaches here through `encoding/json`, so a stored `587` is a float64
+	// and a hand-edited `"587"` is a string. Reading it with `str` — which is
+	// what this did — type-asserts to string, misses the float64 and yields
+	// port 0, so a migrated mail server would dial nowhere. The same shape
+	// caught `smtpFromSettings` in test_notif_api.go: whenever an int crosses
+	// this map, BOTH forms have to be read.
+	num := func(k string) int {
+		switch v := cfg[k].(type) {
+		case float64:
+			return int(v)
+		case int:
+			return v
+		case string:
+			n, _ := strconv.Atoi(strings.TrimSpace(v))
+			return n
+		}
+		return 0
+	}
 
 	if on("telegramEnabled") && secret("telegramBotToken") != "" && str("telegramChatId") != "" {
 		out = append(out, seeded{"Telegram", notify.KindWebhook, webhookConfig{
@@ -213,9 +233,8 @@ func installChannels(cfg map[string]any, dec func(string) string) []seeded {
 		}
 	}
 	if on("smtpEnabled") && str("smtpHost") != "" && str("smtpTo") != "" {
-		port, _ := strconv.Atoi(str("smtpPort"))
 		out = append(out, seeded{"Email", notify.KindSMTP, smtpConfigJSON{
-			Host: str("smtpHost"), Port: port, Secure: on("smtpSecure"),
+			Host: str("smtpHost"), Port: num("smtpPort"), Secure: on("smtpSecure"),
 			User: secret("smtpUser"), Pass: secret("smtpPass"),
 			From: str("smtpFrom"), To: str("smtpTo"),
 		}})

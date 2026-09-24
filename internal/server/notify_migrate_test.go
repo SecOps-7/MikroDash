@@ -209,3 +209,60 @@ func TestTheMigrationUnsealsCredentialsFromTheRawFile(t *testing.T) {
 		t.Errorf("the mail credentials were not unsealed: user=%q pass=%q", sc.User, sc.Pass)
 	}
 }
+
+// THE PORT ARRIVES AS A NUMBER, AND THAT IS THE SHAPE THAT WAS BROKEN.
+//
+// `settings.json` is written by `encoding/json`, so a stored port is a float64
+// on the way back in — never the string the test above happens to use. The
+// migration read it with the same `str` helper as the host and the recipient,
+// which type-asserts to string, missed the float64 and produced port 0. An
+// upgraded install would have had a mail channel that looked complete on the
+// page and dialled nowhere.
+//
+// It is the second time this exact shape has bitten in this feature:
+// `smtpFromSettings` in test_notif_api.go parsed float64 and int but not the
+// string `DecodeChannel` writes. So both directions are pinned here, over every
+// form the map can actually hold.
+//
+// A real value, 587, rather than a round number, so a zero cannot be mistaken
+// for a default that happened to be right.
+func TestTheMigratedMailPortSurvivesEveryFormTheFileCanHold(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		v    any
+	}{
+		{"float64, which is what encoding/json hands back", float64(587)},
+		{"int, which a Go caller building the map in memory writes", 587},
+		{"string, which a hand-edited settings.json holds", "587"},
+		{"string with space, because an operator edited it", " 587 "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := installChannels(map[string]any{
+				"smtpEnabled": true, "smtpHost": "mail.example.net",
+				"smtpTo": "ops@example.net", "smtpPort": tc.v,
+			}, func(v string) string { return v })
+			if len(got) != 1 {
+				t.Fatalf("made %d channels, want 1", len(got))
+			}
+			sc, ok := got[0].cfg.(smtpConfigJSON)
+			if !ok {
+				t.Fatalf("the email channel is %T", got[0].cfg)
+			}
+			if sc.Port != 587 {
+				t.Errorf("port came through as %d from %T(%v) — a channel on port "+
+					"%d connects to nothing, and the page would still show the mail "+
+					"server as configured", sc.Port, tc.v, tc.v, sc.Port)
+			}
+		})
+	}
+
+	// AN ABSENT PORT IS STILL ZERO, deliberately. The mailer's own default
+	// applies then, and inventing 587 here would hide a settings file that lost
+	// the key.
+	got := installChannels(map[string]any{
+		"smtpEnabled": true, "smtpHost": "mail.example.net", "smtpTo": "ops@example.net",
+	}, func(v string) string { return v })
+	if sc := got[0].cfg.(smtpConfigJSON); sc.Port != 0 {
+		t.Errorf("a missing port was invented as %d", sc.Port)
+	}
+}

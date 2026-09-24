@@ -260,11 +260,15 @@ func TestTheTablesCoverTheRealSurface(t *testing.T) {
 	// `telegramBotToken`, `pushbulletApiKey`, `ntfyToken`, `smtpUser` and
 	// `smtpPass` all left this table when their transports became channels:
 	// those credentials live in a channel's sealed `config` now, not in a
-	// settings key, so the Settings page neither writes nor discloses them. They
-	// remain in `encrypted` in settings_tables.json, and only there, so an
-	// install upgrading from before channels can still DECRYPT them for
-	// `SeedNotifyChannels` — which is the one thing that would otherwise read
-	// ciphertext and build a channel that cannot send.
+	// settings key, so the Settings page neither writes nor discloses them.
+	//
+	// THEY LEFT `encrypted` IN settings_tables.json TOO, which looks like it
+	// would strand an upgrading install on ciphertext it can no longer read.
+	// It does not: `SeedNotifyChannels` calls `(*store.Store).Decrypt` on each
+	// one explicitly, precisely so the list can be short. Keeping them listed
+	// would have been the quiet bug — `SaveSettings` writes every `kept`
+	// credential back, so five keys nothing reads would be re-added to
+	// settings.json on every save, for ever.
 	//
 	// ONE IS NOT ZERO, and the difference matters: `aiApiKey` is what keeps the
 	// credential branch of this endpoint exercised at all. If it ever leaves too,
