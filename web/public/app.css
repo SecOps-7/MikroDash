@@ -2914,6 +2914,20 @@
   padding: .2rem .4rem; white-space: nowrap;
 }
 .nchan-gear:hover { color: var(--accent-rx); border-color: var(--accent-rx); }
+/* A threshold, edited where it is read. It carries its own "%" so the number
+   needs no unit inside the box, and it is sized to three digits because that is
+   the whole range. */
+.nchan-thr {
+  display: inline-flex; align-items: center; gap: .2rem;
+  color: var(--text-muted); font-size: .7rem; white-space: nowrap;
+}
+.nchan-thr input {
+  width: 3.4rem; text-align: right;
+  font-family: var(--font-mono); font-size: .7rem;
+  padding: .18rem .3rem; border-radius: 4px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-main);
+}
+.nchan-thr input:focus { outline: none; border-color: var(--accent-rx); }
 .nchan-gear svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; }
 /* ABOVE THE DIALOG THAT OPENED IT. `.rtr-modal-bg` is z-index 900, so this has
    to beat that number and not merely be positive — 60 was written first and put

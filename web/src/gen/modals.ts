@@ -21,7 +21,6 @@ export const CLOSABLE_MODALS: readonly string[] = [
   "faModal",
   "groupFormWrap",
   "nchanIfaceModal",
-  "nchanThrModal",
   "notifChanModal",
   "qFormWrap",
   "roleFormWrap",

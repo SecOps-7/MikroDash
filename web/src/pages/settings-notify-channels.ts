@@ -286,58 +286,32 @@ const GEAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
   + '<circle cx="12" cy="12" r="3"/>'
   + '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
-/** What the threshold gear's label says. */
-function thresholdSummary(key: string): string {
-  const v = key === 'high_cpu' ? tuning.cpu : tuning.pingLoss;
-  return (v || (key === 'high_cpu' ? 90 : 100)) + '%';
-}
-
 /** The floor below which nothing is recorded, so nothing can be asked for. */
-const FLOOR = { high_cpu: 75, ping_loss: 50 } as Record<string, number>;
+const FLOOR = { high_cpu: 75, ping_loss: 30 } as Record<string, number>;
 
 /**
- * Open the threshold picker for one event.
- *
- * THE FLOOR IS THE SLIDER'S MINIMUM, not a message after the fact. Nothing below
- * `alert.FloorCPU` or `alert.FloorPingLoss` is recorded, so a channel set under
- * it would look configured and stay silent — the server refuses it, and the
- * control simply cannot express it.
+ * This channel's threshold for one event, falling back to the old install
+ * default so the box is never blank.
  */
-function openThreshold(key: string): void {
-  thrKey = key;
-  const floor = FLOOR[key] || 1;
-  const range = el<HTMLInputElement>('nchanThrRange');
-  const title = el('nchanThrTitle');
-  const note = el('nchanThrNote');
-  if (title) title.textContent = key === 'high_cpu' ? 'CPU threshold' : 'Ping loss threshold';
-  if (note) {
-    note.textContent = key === 'high_cpu'
-      ? 'Tell this channel when a router\u2019s CPU load reaches this.'
-      : 'Tell this channel when packet loss to the ping target reaches this.';
-  }
-  if (range) {
-    range.min = String(floor);
-    range.value = String(Math.max(floor,
-      key === 'high_cpu' ? (tuning.cpu || 90) : (tuning.pingLoss || 100)));
-  }
-  showThresholdValue();
-  el('nchanThrModal')?.classList.add('open');
+function thresholdValue(key: string): number {
+  const v = key === 'high_cpu' ? tuning.cpu : tuning.pingLoss;
+  return v || (key === 'high_cpu' ? 90 : 100);
 }
 
-/** Mirror the slider into its readout and into the gear that opened it. */
-function showThresholdValue(): void {
-  const range = el<HTMLInputElement>('nchanThrRange');
-  if (!range) return;
-  const v = Number(range.value);
-  if (thrKey === 'high_cpu') tuning.cpu = v; else tuning.pingLoss = v;
-  const out = el('nchanThrVal');
-  if (out) out.textContent = v + '%';
-  const sum = document.querySelector('[data-nchan-thrsum="' + thrKey + '"]');
-  if (sum) sum.textContent = thresholdSummary(thrKey);
+/**
+ * Read one threshold box back into the module.
+ *
+ * AN EMPTY OR UNDER-FLOOR BOX IS LEFT ALONE rather than written as zero. A
+ * number input is empty for a moment while it is being retyped, and storing that
+ * as 0 would silently mean "use the default" — the operator's half-typed "9" on
+ * the way to "95" would reset their threshold.
+ */
+function readThreshold(box: HTMLInputElement): void {
+  const key = box.getAttribute('data-nchan-thr') || '';
+  const v = Number(box.value);
+  if (!Number.isFinite(v) || v < (FLOOR[key] || 1) || v > 100) return;
+  if (key === 'high_cpu') tuning.cpu = v; else tuning.pingLoss = v;
 }
-
-/** Which event's threshold the picker is currently showing. */
-let thrKey = 'high_cpu';
 
 /** Mirror the cooldown slider into its readout. */
 function showCooldown(): void {
@@ -363,16 +337,22 @@ function eventRow(e: EventRow, on: boolean): string {
   // A CPU alert has no interface. Drawing the filter beside every event would
   // suggest it narrows them all, and an operator who set it would reasonably
   // expect their CPU alerts to stop too.
-  // ── A THRESHOLD GEAR, ON THE TWO EVENTS THAT HAVE A NUMBER ────────────
+  // ── A NUMBER, NOT A DIALOG ────────────────────────────────────────────
   //
-  // Same control as the interface filter beside it, and deliberately so: both
-  // answer "narrow this event for this channel", and two different affordances
-  // for one idea would be two things to learn.
+  // The two thresholds are one percentage each. A gear opening a dialog with a
+  // slider was three interactions and a second window to read one number that
+  // fits in the row it belongs to — the interface filter earns a dialog because
+  // it is five independent choices, and these are not.
+  //
+  // MIN IS THE RECORDING FLOOR. Nothing below it is recorded, so a channel set
+  // under it would look configured and stay silent; the server refuses one, and
+  // the control will not produce one.
   const thr = e.key === 'high_cpu' || e.key === 'ping_loss'
-    ? '<button type="button" class="nchan-gear" data-nchan-thrbtn="' + esc(e.key) + '"'
-      + ' title="Choose how high this has to get before this channel is told">'
-      + GEAR_SVG + '<span data-nchan-thrsum="' + esc(e.key) + '">'
-      + esc(thresholdSummary(e.key)) + '</span></button>'
+    ? '<span class="nchan-thr"><input type="number" data-nchan-thr="' + esc(e.key) + '"'
+      + ' min="' + (FLOOR[e.key] || 1) + '" max="100" step="1"'
+      + ' value="' + esc(String(thresholdValue(e.key))) + '"'
+      + ' aria-label="' + esc(e.label) + ' threshold, percent"'
+      + ' title="Tell this channel when it reaches this percentage">%</span>'
     : '';
   const gear = e.key === IFACE_EVENT
     ? '<button type="button" class="nchan-gear" data-nchan-ifacebtn'
@@ -436,7 +416,19 @@ function fillModal(c: ChannelView | null): void {
   // them.
   tuning = (c && c.tuning) ? { ...c.tuning } : { cpu: 90, pingLoss: 100, cooldownSec: 60 };
   const cool = el<HTMLInputElement>('nchanCooldown');
-  if (cool) cool.value = String(tuning.cooldownSec || 60);
+  if (cool) {
+    // ── A STORED VALUE ABOVE THE SLIDER'S TOP WIDENS IT ─────────────────
+    //
+    // The slider tops out at 600 seconds, and the install setting this replaced
+    // allowed 3600 — so a carried channel can hold more than the control can
+    // show. A range input CLAMPS a value past its max, and the readout would
+    // then be written back on the next save, silently lowering a cooldown the
+    // operator chose. Widening for that one channel keeps their number and still
+    // stops at 600 for everyone else.
+    const secs = tuning.cooldownSec || 60;
+    cool.max = String(Math.max(600, secs));
+    cool.value = String(secs);
+  }
   showCooldown();
   setValue('nchanSmtpTo', (c && c.smtpTo) || '');
   setValue('nchanSmtpCc', (c && c.smtpCc) || '');
@@ -698,8 +690,7 @@ export function initNotifyChannels(): void {
       el('nchanIfaceModal')?.classList.add('open');
       return;
     }
-    const thr = t.closest('[data-nchan-thrbtn]');
-    if (thr) openThreshold(thr.getAttribute('data-nchan-thrbtn') || 'high_cpu');
+
   });
   // READ BACK ON EVERY TICK, not on Done. The dialog closes by Escape, by the
   // backdrop and by its button, and only one of those three is a place to hang
@@ -714,7 +705,7 @@ export function initNotifyChannels(): void {
   // number for the whole gesture — the one moment it is being looked at.
   document.addEventListener('input', (ev) => {
     const t = ev.target as HTMLElement | null;
-    if (t?.id === 'nchanThrRange') showThresholdValue();
+    if (t?.hasAttribute?.('data-nchan-thr')) readThreshold(t as HTMLInputElement);
     if (t?.id === 'nchanCooldown') showCooldown();
   });
 
