@@ -58,7 +58,7 @@ func (s *Server) SeedNotifyChannels() (int, error) {
 		return 0, nil
 	}
 	have, err := s.auditDB.CountNotifyChannels()
-	if err != nil || have > 0 {
+	if err != nil {
 		return 0, err
 	}
 	// ── THE RAW FILE, NOT THE MERGED MAP ─────────────────────────────────
@@ -99,6 +99,15 @@ func (s *Server) SeedNotifyChannels() (int, error) {
 	now := time.Now().UnixMilli()
 
 	made := 0
+	// ── THE INSTALL PASS RUNS ONCE ────────────────────────────────────────
+	//
+	// Guarded on there being no channels at all. Deliberately blunt: an
+	// operator who has made even one channel has adopted the new model, and
+	// re-seeding the old keys underneath them would resurrect destinations they
+	// may have deleted on purpose.
+	if have > 0 {
+		return s.seedUserChannels(events, now)
+	}
 	for _, c := range installChannels(cfg, dec) {
 		if err := s.writeSeeded(db.InstallOwner, c, events, now); err != nil {
 			// ONE FAILURE DOES NOT ABANDON THE REST. A channel that cannot be
@@ -110,12 +119,37 @@ func (s *Server) SeedNotifyChannels() (int, error) {
 		made++
 	}
 
+	n, err := s.seedUserChannels(events, now)
+	return made + n, err
+}
+
+// seedUserChannels carries each user's "My Alerts" row across, PER USER.
+//
+// ── WHY THIS IS NOT GUARDED LIKE THE INSTALL PASS ─────────────────────────
+//
+// The install pass runs once, on a database with no channels. A user's row can
+// appear at any time — somebody configured My Alerts after the upgrade but
+// before its panel was removed — and that row would then never be carried, and
+// removing the panel would strand a destination its owner still expects to
+// work. So this runs on every start and skips only the users who already have
+// a channel, which is the same "they have adopted the new model" test applied
+// one owner at a time.
+func (s *Server) seedUserChannels(events []string, now int64) (int, error) {
 	users, err := s.auditDB.ListUserNotifyConfigs()
 	if err != nil {
 		log.Printf("[notify] could not read per-user notification settings: %v", err)
-		users = nil
+		return 0, nil
 	}
+	made := 0
 	for userID, data := range users {
+		mine, err := s.auditDB.NotifyChannelsFor(userID)
+		if err != nil {
+			log.Printf("[notify] could not read channels for user %s: %v", userID, err)
+			continue
+		}
+		if len(mine) > 0 {
+			continue
+		}
 		for _, c := range userChannels(s, data) {
 			if err := s.writeSeeded(userID, c, events, now); err != nil {
 				log.Printf("[notify] could not carry %q for user %s: %v", c.name, userID, err)

@@ -29,7 +29,6 @@ import { PAGE_NAV_MAP } from './gen/view-presets.js';
 import type { NavMode } from './routing';
 import { ALL_NAV_PAGES } from './gen/page-keys.js';
 import { AREA_KEY_SET } from './gen/areas.js';
-import { applyMyAlertsTab } from './account.js';
 
 export interface Caps {
   pages?: Record<string, boolean>;
@@ -115,7 +114,6 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
   if (pages) pageInstall = pages;
   const p = pageInstall;
 
-  applyMyAlertsTab(p.userNotifyEnabled);
   // `!= null` rather than a truthiness test, and `|| ''` after it: an explicitly
   // cleared timezone must REPLACE the previous one, while an absent key must
   // leave it alone. Those are different states and a falsy test collapses them.

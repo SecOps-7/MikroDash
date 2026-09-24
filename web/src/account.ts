@@ -13,7 +13,6 @@
 // strongest gate available, and the writes cannot.
 
 import { fmtTs } from './timefmt';
-import { initUserNotify, loadUserNotify } from './pages/usernotify';
 import { el, esc } from './dom.js';
 
 export interface AccessGrants {
@@ -116,39 +115,6 @@ export function setPwFormOpen(open: boolean): void {
 }
 
 /**
- * Show or hide the My Alerts section.
- *
- * It lived as a Settings tab until this modal took it over: Settings is
- * install-wide administration, and a personal delivery channel is not — an
- * ordinary user should never need the admin page to reach one.
- *
- * The auth-mode test is `!== 'none'` rather than `=== 'modern'`, and that is not
- * a style choice. `_authMode` is assigned from `/api/auth/status`, which lands
- * after the first `settings:pages`, so an equality test reads `undefined` and
- * hides the section permanently. Excluding only the mode that CANNOT use it is
- * correct at both points in time — 'none' has no user for the channels to
- * belong to.
- *
- * Loaded once, lazily: nobody should pay a request for a panel they never open.
- */
-export function applyMyAlertsTab(enabled: unknown): void {
-  const section = el('acctMyAlerts');
-  if (!section) return;
-  const authMode = (globalThis as unknown as { _authMode?: string })._authMode;
-  const show = enabled === true && authMode !== 'none';
-  section.style.display = show ? '' : 'none';
-  // THIS READ `globalThis._loadUserNotify` — the LIVE app's global, published by
-  // `window._loadUserNotify = loadUserNotify` in app.js. It was the honest shim
-  // while the tab had no port: the panel worked because the Node app's script
-  // was still on the page. This port has its own module now, so it calls it
-  // directly and the tab no longer depends on the app it is replacing.
-  if (show && !section.dataset.loaded) {
-    section.dataset.loaded = '1';
-    loadUserNotify();
-  }
-}
-
-/**
  * Fill the modal. Four independent reads, none of which blocks the others.
  *
  * `/api/settings` is asked for the install switch rather than waiting for the
@@ -174,7 +140,6 @@ export function loadAccount(): void {
   }
 
   void fetch('/api/settings').then((r) => r.json())
-    .then((d) => { if (d) applyMyAlertsTab(d.userNotifyEnabled === true); })
     .catch(() => {});
   void fetch('/api/account/access').then((r) => r.json())
     .then((d) => { if (d && d.ok) renderAccess(d.access); })
@@ -226,7 +191,6 @@ export function wireAccount(): void {
   // The My Alerts tab. Its own module because the account modal is otherwise
   // about identity — password, session — and personal notification channels are
   // a separate feature that happens to live in the same dialog.
-  initUserNotify();
   el('authUserChip')?.addEventListener('click', () => { openAccountModal(); });
   el('acct_pwToggleBtn')?.addEventListener('click', () => { setPwFormOpen(true); });
   el('acct_pwCancelBtn')?.addEventListener('click', () => { setPwFormOpen(false); });

@@ -24,6 +24,7 @@ import (
 
 	"mikrodash/internal/alert"
 	"mikrodash/internal/alertdispatch"
+	"mikrodash/internal/db"
 	"mikrodash/internal/notify"
 )
 
@@ -105,6 +106,23 @@ func (s *Server) channelRecipients(routerID, event string) []alertdispatch.Recip
 			s.openChannelConfig(r.Config), r.Events, r.Routers)
 		if !spec.Wants(event, routerID) {
 			continue
+		}
+		// ── A USER'S CHANNEL ONLY HEARS ABOUT ROUTERS THEY MAY READ ──────
+		//
+		// Carried over from `perUserRecipients`, which this replaces, and it is
+		// the load-bearing half of it: the permission is asked at SEND time, not
+		// when the channel was made, so revoking a grant stops delivery on the
+		// very next alert with nothing to invalidate. Without it a user could
+		// create a channel scoped to "all routers" and be told about every
+		// router in the fleet, including the ones their role hides.
+		//
+		// The install's own channels are not asked — `_install` is not a user
+		// and has no grants.
+		if r.Owner != db.InstallOwner && s.rbac != nil {
+			ok, err := s.rbac.Can(r.Owner, "router:read", routerID)
+			if err != nil || !ok {
+				continue
+			}
 		}
 		if !spec.Deliverable() {
 			// SAID OUT LOUD, for the same reason the dispatcher says why it

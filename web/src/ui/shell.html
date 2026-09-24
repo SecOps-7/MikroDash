@@ -512,113 +512,20 @@
           </div>
         </div>
 
-        <!-- Per-user notification channels (#109), moved here from Settings so
-             an ordinary user never needs the admin page. -->
-        <div id="acctMyAlerts" style="display:none">
+        <!-- ── "MY NOTIFICATION CHANNELS" IS GONE ───────────────────────────
+             It was a second place a destination could live: four fixed
+             transports per user, with their own table, API and test endpoint,
+             doing the same job as a notification channel. A user's channels are
+             ordinary rows in `notify_channels` now, owned by `user:<id>`, and
+             are made and tested from Settings -> Notifications like any other.
+             Each stored row was carried across on first start; see
+             `seedUserChannels`, which skips a user who already has one. -->
         <div class="scard scard--wide">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span class="scard-title">My Notification Channels</span>
-          </div>
           <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">
-              Your own delivery, in addition to the install-wide channels. You are only ever notified
-              about routers you have access to, checked at the moment the alert is sent.
-            </p>
-
-            <!-- Telegram -->
-            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                <div style="display:flex;align-items:center;gap:.55rem">
-                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.555l-2.95-.924c-.64-.204-.657-.64.136-.954l11.57-4.46c.532-.194 1 .13.966.004z"/></svg>
-                  <strong style="font-size:.82rem">Telegram</strong>
-                </div>
-                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_telegramEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              </div>
-              <div class="sform-row">
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Bot Token</label>
-                  <input type="password" id="un_telegramBotToken" class="sform-input" placeholder="paste token here" autocomplete="off">
-                </div>
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Chat ID</label>
-                  <input type="text" id="un_telegramChatId" class="sform-input" placeholder="e.g. -100123456789" autocomplete="off">
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                <button id="btn-un-test-telegram" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                <span id="un-test-telegram-result" style="font-size:.75rem"></span>
-              </div>
-            </div>
-
-            <div class="nchan-pair">
-              <!-- Pushbullet -->
-              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                  <div style="display:flex;align-items:center;gap:.55rem">
-                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
-                    <strong style="font-size:.82rem">Pushbullet</strong>
-                  </div>
-                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                </div>
-                <div class="sform-row">
-                  <div class="sform-group" style="margin-bottom:.55rem">
-                    <label class="sform-label">API Key</label>
-                    <input type="password" id="un_pushbulletApiKey" class="sform-input" placeholder="paste key here" autocomplete="off">
-                  </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                  <button id="btn-un-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                  <span id="un-test-pushbullet-result" style="font-size:.75rem"></span>
-                </div>
-              </div>
-
-              <!-- ntfy -->
-              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                  <div style="display:flex;align-items:center;gap:.55rem">
-                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                    <strong style="font-size:.82rem">ntfy</strong>
-                  </div>
-                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                </div>
-                <div class="sform-row">
-                  <div class="sform-group" style="margin-bottom:.55rem">
-                    <label class="sform-label">Topic URL</label>
-                    <input type="text" id="un_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/your-topic" autocomplete="off">
-                  </div>
-                  <div class="sform-group" style="margin-bottom:.55rem">
-                    <label class="sform-label">Access Token <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
-                    <input type="password" id="un_ntfyToken" class="sform-input" placeholder="paste token here" autocomplete="off">
-                  </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                  <button id="btn-un-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                  <span id="un-test-ntfy-result" style="font-size:.75rem"></span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Email — opt in only. The mail server belongs to the install; the
-                   only part that is this user's is where to send it. -->
-              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                  <div style="display:flex;align-items:center;gap:.55rem">
-                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
-                    <strong style="font-size:.82rem">Email</strong>
-                  </div>
-                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_emailEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                </div>
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Send To</label>
-                  <input type="text" id="un_emailTo" class="sform-input" placeholder="you@example.com" autocomplete="email">
-                </div>
-                <p style="font-size:.7rem;color:var(--text-muted);margin:0 0 .5rem">Sent using the server's mail settings.</p>
-                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                  <button id="btn-un-test-email" class="sbtn sbtn-ghost" type="button">Send Test</button>
-                  <span id="un-test-email-result" style="font-size:.75rem"></span>
-                </div>
-              </div>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:0">
+              Your own notification destinations live in
+              <strong>Settings &rarr; Notifications</strong> now, alongside the
+              install's. Add a channel there and it is yours alone.</p>
           </div>
         </div>
 
