@@ -558,7 +558,17 @@
        edge and the bar with it, while the last card still clears the bar
        because the two are in the same flow. */
     #page-settings{padding-bottom:0}
-    #page-settings>.container-fluid{padding-bottom:1.25rem}
+    /* The padding belongs to the CONTENT, not to the page. `bottom:0` on the
+       sticky bar resolves against the scroller's content box, so .page-view's
+       own padding was a strip of page below the bar that cards scrolled
+       through. Moving it onto the panels puts the breathing room between the
+       last card and the bar, leaves the tabs where the bar is hidden unchanged,
+       and lets the bar end where the scroller ends. */
+    #page-settings>.container-fluid{padding-bottom:0}
+    #page-settings .stab-panel{padding-bottom:1.25rem}
+    /* Left of the buttons, and it keeps its reserved height so the bar does not
+       change size when a message appears. */
+    #settingsActions .sbanner{margin:0 auto 0 0}
     .theme-swatch-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
     .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;border-radius:8px;padding:.4rem;border:2px solid transparent;transition:border-color .15s}
     .theme-swatch:hover{border-color:rgba(99,130,190,.3)}

@@ -40,7 +40,7 @@
         </div>
       </div>
 
-      <!-- ── General tab: General + Poll Intervals + Limits + Data Retention ── -->
+      <!-- ── General tab: General + Data Retention + Limits + Poll Intervals ── -->
       <div class="stab-panel" id="stab-general">
         <div class="scard">
           <div class="scard-header">
@@ -132,6 +132,71 @@
         </div>
         <div class="scard">
           <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span class="scard-title">Data Retention</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.</p>
+            <div class="sform-row">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Metrics retention (days)</label>
+                <input class="sform-input" id="s_dbRetentionDays" type="number" min="7" max="3650" placeholder="90">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Ping &amp; traffic samples</span>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Events retention (days)</label>
+                <input class="sform-input" id="s_dbAlertRetentionDays" type="number" min="7" max="3650" placeholder="365">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Alerts &amp; connectivity events</span>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Chat history (days)</label>
+                <input class="sform-input" id="s_dbAiRetentionDays" type="number" min="1" max="3650" placeholder="30">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">AI Agent conversations</span>
+              </div>
+            </div>
+            <!-- ON-DEMAND DELETION OPENS FROM HERE. It was a card of its own,
+                 the only thing on this tab that is an ACTION rather than a
+                 setting, and it was three times the height of every card around
+                 it. The dialog is #dbcModal, below. -->
+            <div style="display:flex;justify-content:flex-end;margin-top:.9rem">
+              <button class="sbtn sbtn-ghost" id="dbcOpenBtn" type="button">Data Cleanup</button>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
+            <span class="scard-title">Limits</span>
+          </div>
+          <div class="scard-body">
+            <div class="sform-row3">
+              <div class="sform-group">
+                <label class="sform-label">Top Connections N</label>
+                <input class="sform-input" id="s_topN" type="number" min="1" max="50" aria-label="Top connections count">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Top Talkers N</label>
+                <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20" aria-label="Top talkers count">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">VPN Dashboard Top N</label>
+                <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50" aria-label="VPN peers shown on dashboard">
+              </div>
+            </div>
+            <div class="sform-row" style="margin-bottom:0">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Max Connections</label>
+                <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000" aria-label="Maximum connections tracked">
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Traffic History (min)</label>
+                <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120" aria-label="Chart history window in minutes">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span class="scard-title">Poll Intervals</span>
           </div>
@@ -169,73 +234,8 @@
             </details>
           </div>
         </div>
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
-            <span class="scard-title">Limits</span>
-          </div>
-          <div class="scard-body">
-            <div class="sform-row3">
-              <div class="sform-group">
-                <label class="sform-label">Top Connections N</label>
-                <input class="sform-input" id="s_topN" type="number" min="1" max="50" aria-label="Top connections count">
-              </div>
-              <div class="sform-group">
-                <label class="sform-label">Top Talkers N</label>
-                <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20" aria-label="Top talkers count">
-              </div>
-              <div class="sform-group">
-                <label class="sform-label">VPN Dashboard Top N</label>
-                <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50" aria-label="VPN peers shown on dashboard">
-              </div>
-            </div>
-            <div class="sform-row" style="margin-bottom:0">
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Max Connections</label>
-                <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000" aria-label="Maximum connections tracked">
-              </div>
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Traffic History (min)</label>
-                <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120" aria-label="Chart history window in minutes">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-            <span class="scard-title">Data Retention</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.</p>
-            <div class="sform-row">
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Metrics retention (days)</label>
-                <input class="sform-input" id="s_dbRetentionDays" type="number" min="7" max="3650" placeholder="90">
-                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Ping &amp; traffic samples</span>
-              </div>
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Events retention (days)</label>
-                <input class="sform-input" id="s_dbAlertRetentionDays" type="number" min="7" max="3650" placeholder="365">
-                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Alerts &amp; connectivity events</span>
-              </div>
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Chat history (days)</label>
-                <input class="sform-input" id="s_dbAiRetentionDays" type="number" min="1" max="3650" placeholder="30">
-                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">AI Agent conversations</span>
-              </div>
-            </div>
-            <!-- ON-DEMAND DELETION OPENS FROM HERE. It was a card of its own,
-                 the only thing on this tab that is an ACTION rather than a
-                 setting, and it was three times the height of every card around
-                 it. The dialog is #dbcModal, below. -->
-            <div style="display:flex;justify-content:flex-end;margin-top:.9rem">
-              <button class="sbtn sbtn-ghost" id="dbcOpenBtn" type="button">Data Cleanup</button>
-            </div>
-          </div>
-        </div>
         <!-- ── DATA CLEANUP ────────────────────────────────────────────
-             Opened by #dbcOpenBtn in the Data Retention card above. Registered
+             Opened by #dbcOpenBtn in the Data Retention card. Registered
              in testdata/modal-list.json, so Escape and a backdrop click close it
              like every other dialog in the app.
 
@@ -1365,15 +1365,26 @@
         </div>
       </div>
 
-      <!-- Actions (hidden on Routers and About tabs) -->
-      <div id="settingsActions" style="display:none;gap:.6rem;justify-content:flex-end;padding-bottom:.75rem">
+      <!-- Actions (hidden on Routers and About tabs).
+
+           THE BANNER IS INSIDE THE BAR, and that is the whole point of the
+           nesting. It used to be the next sibling BELOW a bar that is stuck to
+           the bottom of the viewport, so "✓ Settings saved" rendered off-screen
+           unless the operator happened to be scrolled to the very end — the one
+           message that exists to be seen, in the one place it could not be. In
+           here it inherits the bar's sticky position and is always on screen.
+
+           It is also what lets the bar sit flush: nothing follows it now, so it
+           ends where the scroller ends rather than floating above whatever was
+           underneath. -->
+      <div id="settingsActions" style="display:none;gap:.6rem;align-items:center;justify-content:flex-end;padding-bottom:.75rem">
+        <div id="settingsBanner" class="sbanner"></div>
         <button class="sbtn sbtn-ghost" id="settingsResetBtn">Reset to defaults</button>
         <button class="sbtn sbtn-primary" id="settingsSaveBtn">
           <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Save Settings
         </button>
       </div>
-      <div id="settingsBanner" class="sbanner" style="margin-bottom:2rem"></div>
 
     </div>
   </div>
