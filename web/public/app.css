@@ -2994,8 +2994,17 @@
    fold of its own card once the body boxes are open. */
 .msg-templates {
   display: grid; grid-template-columns: 1fr 1fr;
-  gap: 1rem; align-items: start;
+  gap: 1rem;
+  /* STRETCH, NOT START. The right column is the shorter one, so with `start` it
+     ended partway down the card and left a band of nothing under it. Stretched,
+     the variables box takes the slack and its footnote lands on the card's own
+     bottom edge, level with the last field opposite. */
+  align-items: stretch;
 }
+/* The column is a flex column so the BOX absorbs the spare height and the note
+   is pushed to the bottom, rather than the two sharing it and floating apart. */
+.msg-vars { display: flex; flex-direction: column; }
+.msg-vars-list { flex: 1; }
 /* ── THE BOX IS THE LIST, NOT THE WHOLE COLUMN ─────────────────────────────
    The heading and the footnote used to sit INSIDE the panel with the variables,
    which made the panel a mixed thing: a label, a reference and a caveat sharing
@@ -3014,10 +3023,28 @@
 .msg-vars-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  /* THE ROWS STAY AT THE TOP of a box that is now taller than they are. Without
+     this the grid spreads fifteen names down the whole height, which reads as a
+     list with something missing between each line. */
+  align-content: start;
   gap: .15rem .6rem;
   margin: 0;
-  padding: .6rem .7rem; border-radius: .4rem;
-  background: var(--bg-alt); border: 1px solid var(--border);
+  padding: .6rem .7rem; border-radius: 6px;
+  /* `--bg-deep`, not `--bg-alt`. THE LATTER DOES NOT EXIST: it is defined by no
+     theme in this stylesheet, so `var(--bg-alt)` resolved to transparent and the
+     box had a border around nothing. It came in with the card's original inline
+     style and survived the move out of it, because a colour that silently
+     resolves to nothing looks like a colour somebody chose.
+     `--bg-deep` is what `.sform-input` uses, so the reference now sits on the
+     same surface as the fields opposite it. */
+  background: var(--bg-deep); border: 1px solid var(--border);
+}
+/* THE CELLS ARE TEXT, NOT FIFTEEN CONTROLS. A global rule gives every `code`
+   element its own background, padding and radius, which inside a box turns a
+   list into a grid of pills that look pressable. Stripped here: the box is the
+   container, and what it contains reads as writing. */
+.msg-vars-list code {
+  background: none; padding: 0; border: 0; border-radius: 0;
 }
 .msg-vars-list code {
   font-family: var(--font-mono); font-size: .72rem;
