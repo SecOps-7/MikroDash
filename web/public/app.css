@@ -2996,14 +2996,32 @@
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 1rem; align-items: start;
 }
-.msg-vars {
+/* ── THE BOX IS THE LIST, NOT THE WHOLE COLUMN ─────────────────────────────
+   The heading and the footnote used to sit INSIDE the panel with the variables,
+   which made the panel a mixed thing: a label, a reference and a caveat sharing
+   one border. The heading now reads as a field label like the ones opposite it,
+   and the note reads as the hint under a control — so the bordered box contains
+   only what it is a box of. */
+.msg-vars-title {
+  font-size: .72rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin: 0 0 .3rem; display: block;
+}
+/* AS MANY COLUMNS AS FIT, rather than one. `auto-fill` with a floor wide enough
+   for the longest name means the list reflows with the card instead of leaving
+   the right half of its own box empty — and it needs no number here that has to
+   be revisited when a variable is added or renamed. */
+.msg-vars-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: .15rem .6rem;
+  margin: 0;
   padding: .6rem .7rem; border-radius: .4rem;
   background: var(--bg-alt); border: 1px solid var(--border);
 }
-.msg-vars-title { font-size: .72rem; color: var(--text-muted); margin: 0 0 .35rem; font-weight: 600; }
-.msg-vars-list {
-  font-size: .72rem; color: var(--text-muted); margin: 0;
-  line-height: 1.75; font-family: var(--font-mono);
+.msg-vars-list code {
+  font-family: var(--font-mono); font-size: .72rem;
+  color: var(--text-muted); line-height: 1.75;
 }
 .msg-vars-note { font-size: .7rem; color: var(--text-muted); margin: .5rem 0 0; line-height: 1.6; }
 /* ONE COLUMN ON A NARROW WINDOW. The DOM order is fields then list, which is

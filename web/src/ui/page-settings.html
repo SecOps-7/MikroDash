@@ -396,7 +396,27 @@
               </div>
               <aside class="msg-vars">
                 <p class="msg-vars-title">Available variables</p>
-                <p class="msg-vars-list">{{alertType}}<br>{{routerName}}<br>{{detail}}<br>{{ifaceName}}<br>{{status}}<br>{{comment}}<br>{{cpuLoad}}<br>{{pingLoss}}<br>{{pingTarget}}<br>{{pingRtt}}<br>{{vpnPeer}}<br>{{host}}<br>{{netwatchName}}<br>{{bgpPeer}}<br>{{timestamp}}</p>
+                <!-- ONE ELEMENT PER VARIABLE, not one line of text with <br> between
+                     them. A single run of text can only be a column as wide as its
+                     longest entry, which left most of this box empty; as separate
+                     cells they flow into as many columns as the box has room for. -->
+                <div class="msg-vars-list">
+                  <code>{{alertType}}</code>
+                  <code>{{routerName}}</code>
+                  <code>{{detail}}</code>
+                  <code>{{ifaceName}}</code>
+                  <code>{{status}}</code>
+                  <code>{{comment}}</code>
+                  <code>{{cpuLoad}}</code>
+                  <code>{{pingLoss}}</code>
+                  <code>{{pingTarget}}</code>
+                  <code>{{pingRtt}}</code>
+                  <code>{{vpnPeer}}</code>
+                  <code>{{host}}</code>
+                  <code>{{netwatchName}}</code>
+                  <code>{{bgpPeer}}</code>
+                  <code>{{timestamp}}</code>
+                </div>
                 <p class="msg-vars-note">A variable that does not apply to an alert renders as empty.
                   <code>{{comment}}</code> is the comment set on the router for whatever the alert is
                   about &mdash; an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
