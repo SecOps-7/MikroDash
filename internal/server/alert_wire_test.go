@@ -52,74 +52,16 @@ func TestAnEmptySettingsFileGivesTheDefaults(t *testing.T) {
 	if got.PingLoss != 100 {
 		t.Errorf("PingLoss = %v, want 100", got.PingLoss)
 	}
-	// The four families the defaults ship ON.
-	for name, on := range map[string]bool{
-		"NotifCPU": got.NotifCPU, "NotifPing": got.NotifPing,
-		"NotifVPN": got.NotifVPN, "NotifBGP": got.NotifBGP,
-		"NotifIfaceUpDown": got.NotifIfaceUpDown,
-	} {
-		if !on {
-			t.Errorf("%s is off by default — an absent key was read as false", name)
-		}
-	}
-	// And the three that ship OFF. Reading these as true would alert on things
-	// the install deliberately does not watch.
-	for name, on := range map[string]bool{
-		"NotifNetwatch": got.NotifNetwatch, "NotifRouterUpdate": got.NotifRouterUpdate,
-	} {
-		if on {
-			t.Errorf("%s is on by default", name)
-		}
-	}
 }
 
-// THE INTERFACE FILTERS carry their own defaults, and they are not uniform:
-// ether and wlan ship on, bridge/vlan/other off.
-func TestTheInterfaceFiltersKeepTheirOwnDefaults(t *testing.T) {
-	s := alertSettingsServer(t, `{}`)
-	got := s.alertSettings().IfaceTypeFilters
-	for k, want := range map[string]bool{
-		"notifIfaceEther": true, "notifIfaceWlan": true,
-		"notifIfaceBridge": false, "notifIfaceVlan": false, "notifIfaceOther": false,
-	} {
-		if got[k] != want {
-			t.Errorf("%s = %v, want %v", k, got[k], want)
-		}
-	}
-	if len(got) != 5 {
-		t.Errorf("%d filters, want 5 — a missing key reads as false and silences that kind",
-			len(got))
-	}
-}
-
-// AN EXPLICIT FALSE OVERRIDES AN ON-BY-DEFAULT TOGGLE, which is the whole point
-// of the setting. `flag`'s fallback must not win over a value that is present.
-func TestAnExplicitFalseIsHonoured(t *testing.T) {
-	s := alertSettingsServer(t, `{"notifCpu":false,"notifPing":false,"notifIfaceEther":false}`)
-	got := s.alertSettings()
-	if got.NotifCPU {
-		t.Error("notifCpu:false was overridden by the default")
-	}
-	if got.NotifPing {
-		t.Error("notifPing:false was overridden by the default")
-	}
-	if got.IfaceTypeFilters["notifIfaceEther"] {
-		t.Error("notifIfaceEther:false was overridden by the default")
-	}
-}
-
-// AN EXPLICIT TRUE turns on a family that ships off.
-func TestAnExplicitTrueIsHonoured(t *testing.T) {
-	s := alertSettingsServer(t, `{"notifNetwatch":true,"notifRouterUpdate":true,"notifIfaceVlan":true}`)
-	got := s.alertSettings()
-	if !got.NotifNetwatch || !got.NotifRouterUpdate {
-		t.Errorf("an explicit true was ignored: netwatch=%v update=%v",
-			got.NotifNetwatch, got.NotifRouterUpdate)
-	}
-	if !got.IfaceTypeFilters["notifIfaceVlan"] {
-		t.Error("notifIfaceVlan:true was ignored")
-	}
-}
+// THE GATE DEFAULTS ARE GONE, AND SO ARE THEIR TESTS.
+//
+// Two checks lived here: that the four families shipping ON were read as ON
+// when their key was absent, and that the interface filters kept their own
+// non-uniform defaults. Both described the install-wide notif* gates, which
+// notification channels replaced — every alert type is recorded now, and a
+// channel's Events tab decides what is delivered. What is left to verify about
+// `alertSettings` is the two thresholds, above.
 
 // THE THRESHOLDS come through as numbers, including a zero the operator chose.
 //
@@ -142,7 +84,7 @@ func TestAnExplicitZeroThresholdIsNotTheDefault(t *testing.T) {
 func TestUnreadableSettingsFallBackToTheDefaults(t *testing.T) {
 	s := alertSettingsServer(t, `not json`)
 	got := s.alertSettings()
-	if got.CPUThreshold != 90 || !got.NotifCPU {
+	if got.CPUThreshold != 90 || got.PingLoss != 100 {
 		t.Errorf("an unreadable file produced %+v; the built-in thresholds should stand", got)
 	}
 }

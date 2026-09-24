@@ -34,8 +34,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "userNotifyEnabled"
   ],
   "checkOn": [
-    "notifBackupDrift",
-    "notifBackupFail",
     "pageAudit",
     "pageBackups",
     "pageBandwidth",
@@ -108,21 +106,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "updateCheckHours",
     "vpnDashTopN"
   ],
-  "checkGuarded": [
-    "notifBgp",
-    "notifCpu",
-    "notifIfaceBridge",
-    "notifIfaceEther",
-    "notifIfaceOther",
-    "notifIfaceUpDown",
-    "notifIfaceVlan",
-    "notifIfaceWlan",
-    "notifNetwatch",
-    "notifPing",
-    "notifRouterStatus",
-    "notifRouterUpdate",
-    "notifVpn"
-  ]
+  "checkGuarded": []
 };
 
 /** Per-field rule for an absent value; see the generator's valueKind(). */

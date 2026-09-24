@@ -17,8 +17,6 @@
       "userNotifyEnabled"
     ],
     "checkOn": [
-      "notifBackupDrift",
-      "notifBackupFail",
       "pageAudit",
       "pageBackups",
       "pageBandwidth",
@@ -91,21 +89,7 @@
       "updateCheckHours",
       "vpnDashTopN"
     ],
-    "checkGuarded": [
-      "notifBgp",
-      "notifCpu",
-      "notifIfaceBridge",
-      "notifIfaceEther",
-      "notifIfaceOther",
-      "notifIfaceUpDown",
-      "notifIfaceVlan",
-      "notifIfaceWlan",
-      "notifNetwatch",
-      "notifPing",
-      "notifRouterStatus",
-      "notifRouterUpdate",
-      "notifVpn"
-    ]
+    "checkGuarded": []
   },
   "valueDefaults": {
     "alertCpuThreshold": {

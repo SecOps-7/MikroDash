@@ -166,3 +166,26 @@ func (s *Server) haveChannels() bool {
 	}
 	return n > 0
 }
+
+// decryptSetting unseals one stored credential, reading a failure as empty.
+//
+// ── IT OUTLIVED THE FILE IT CAME FROM ──────────────────────────────────────
+//
+// It lived in `usernotify_api.go`, which went when the per-user panel did. Two
+// callers still need it: `userChannels`, which carries a user's stored
+// credentials into channels on first start, and the legacy per-user fan-out
+// that still runs on an install with no channels yet.
+//
+// A failed decrypt costs that ONE credential rather than the whole record —
+// the deliberate asymmetry with `sealChannelConfig`, which refuses to save
+// rather than write a secret in the clear.
+func (s *Server) decryptSetting(b64 string) string {
+	if b64 == "" || s.store == nil {
+		return ""
+	}
+	plain, err := s.store.Decrypt(b64)
+	if err != nil {
+		return ""
+	}
+	return plain
+}

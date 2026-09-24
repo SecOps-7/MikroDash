@@ -30,25 +30,23 @@ package alert
 import "strconv"
 
 // Settings is the subset of the install settings the covered rules read.
+// Settings is what the rules need from the install's configuration.
+//
+// ── THE notif* GATES ARE GONE ─────────────────────────────────────────────
+//
+// It carried NotifCPU, NotifPing, NotifIfaceUpDown, IfaceTypeFilters and the
+// rest: one boolean per alert type deciding whether that type was raised at
+// all. Notification channels replaced them. Every alert is recorded now, and a
+// channel's Events tab decides what is DELIVERED — see `emit`.
+//
+// What is left is the two numbers that define when an event EXISTS, which is a
+// different question from who hears about it and is the reason they stayed
+// install-wide: a threshold per channel would leave `alert_events` with no
+// single truth about whether an alert fired, and acknowledging one would mean
+// nothing.
 type Settings struct {
-	CPUThreshold      float64
-	NotifCPU          bool
-	NotifRouterUpdate bool
-	PingLoss          float64
-	NotifPing         bool
-	NotifNetwatch     bool
-	NotifIfaceUpDown  bool
-	// IfaceTypeFilters is the per-TYPE half of the interface gate, keyed by the
-	// setting name `IfaceTypeKey` derives -- notifIfaceEther and friends. A map
-	// rather than five fields because the key is COMPUTED from the interface, and
-	// five fields would mean a switch here restating the one in IfaceTypeKey.
-	IfaceTypeFilters map[string]bool
-	NotifVPN         bool
-	NotifBGP         bool
-	// NotifRouterStatus is the router's OWN reachability — see
-	// routerstatus.go. The setting has existed since the Node app and had no
-	// reader in this port until 2026-09-20.
-	NotifRouterStatus bool
+	CPUThreshold float64
+	PingLoss     float64
 }
 
 // Router is what the evaluator needs to know about the device.
@@ -295,7 +293,7 @@ func (e *Evaluator) PingUpdate(r Router, target *string, loss, rtt *float64) []F
 			AlertType: "Ping Loss",
 			Subject:   subject,
 			Detail:    "Ping loss to " + rawTarget(target) + " is " + trimNum(*loss) + "%",
-		}, e.settings.NotifPing)
+		})
 	case !isLoss && seen && prev:
 		out = e.emit(r, Fired{
 			Up:          true,
@@ -303,7 +301,7 @@ func (e *Evaluator) PingUpdate(r Router, target *string, loss, rtt *float64) []F
 			ResolveType: "ping_loss",
 			Subject:     subject,
 			Detail:      "Ping to " + rawTarget(target) + " restored",
-		}, e.settings.NotifPing)
+		})
 	}
 	e.prevPingAlert[key] = isLoss
 	return out
@@ -349,7 +347,7 @@ func (e *Evaluator) VPNUpdate(r Router, tunnels []VPNTunnel) []Fired {
 					AlertType: "VPN Disconnected",
 					Subject:   t.Name,
 					Detail:    "VPN peer " + t.Name + " disconnected",
-				}, e.settings.NotifVPN)...)
+				})...)
 			} else {
 				out = append(out, e.emit(r, Fired{
 					Up:          true,
@@ -357,7 +355,7 @@ func (e *Evaluator) VPNUpdate(r Router, tunnels []VPNTunnel) []Fired {
 					ResolveType: "vpn_disconnected",
 					Subject:     t.Name,
 					Detail:      "VPN peer " + t.Name + " connected",
-				}, e.settings.NotifVPN)...)
+				})...)
 			}
 		}
 		live[t.Name] = true
@@ -427,14 +425,12 @@ func (e *Evaluator) IfstatusUpdate(r Router, ifaces []Interface) []Fired {
 		// `prev !== undefined` and because both of those props could move --
 		// change the zero value or the resolve behaviour and it starts mattering.
 		if seen && prev.Running != i.Running && !adminToggled {
-			typeEnabled := e.settings.NotifIfaceUpDown &&
-				e.ifaceTypeEnabled(IfaceTypeKey(IfaceType(i.Name, i.Type)))
 			if !i.Running {
 				out = append(out, e.emit(r, Fired{
 					AlertType: "Interface Down",
 					Subject:   i.Name,
 					Detail:    i.Name + " went down",
-				}, typeEnabled)...)
+				})...)
 			} else {
 				out = append(out, e.emit(r, Fired{
 					Up:          true,
@@ -442,7 +438,7 @@ func (e *Evaluator) IfstatusUpdate(r Router, ifaces []Interface) []Fired {
 					ResolveType: "interface_down",
 					Subject:     i.Name,
 					Detail:      i.Name + " came up",
-				}, typeEnabled)...)
+				})...)
 			}
 		}
 		// RECORDED EVEN WHEN THE TRANSITION WAS ADMINISTRATIVE, so the next real
@@ -452,23 +448,6 @@ func (e *Evaluator) IfstatusUpdate(r Router, ifaces []Interface) []Fired {
 	}
 	capMap(e.prevIfState, live)
 	return out
-}
-
-// ifaceTypeEnabled answers the per-type half of the gate.
-//
-// ABSENT MEANS ENABLED. The live check is `_settings[k] === true`, so a filter
-// the operator has never touched is... false, and would suppress everything --
-// except the settings DEFAULTS ship every one of these as true, so an install
-// always has them. A map here would read a missing key as "off" and silence the
-// whole family on a fixture that forgot one; treating absent as ON matches what
-// a real settings object holds and fails loudly in a test that omits a filter
-// rather than silently passing.
-func (e *Evaluator) ifaceTypeEnabled(key string) bool {
-	if e.settings.IfaceTypeFilters == nil {
-		return true
-	}
-	v, ok := e.settings.IfaceTypeFilters[key]
-	return !ok || v
 }
 
 // NetwatchHost is one row of a netwatch:update.
@@ -569,20 +548,20 @@ func (e *Evaluator) NetwatchUpdate(r Router, hosts []NetwatchHost) []Fired {
 					AlertType: "Host Down",
 					Subject:   name,
 					Detail:    "NetWatch host " + desc + " was unreachable",
-				}, e.settings.NotifNetwatch)...)
+				})...)
 				out = append(out, e.emit(r, Fired{
 					Up:          true,
 					AlertType:   "Host Up",
 					ResolveType: "host_down",
 					Subject:     name,
 					Detail:      "NetWatch host " + desc + " is reachable again (the router saw it return at " + h.Since + ")",
-				}, e.settings.NotifNetwatch)...)
+				})...)
 			} else if isDown {
 				out = append(out, e.emit(r, Fired{
 					AlertType: "Host Down",
 					Subject:   name,
 					Detail:    "NetWatch host " + desc + " is unreachable",
-				}, e.settings.NotifNetwatch)...)
+				})...)
 			} else {
 				out = append(out, e.emit(r, Fired{
 					Up:          true,
@@ -590,7 +569,7 @@ func (e *Evaluator) NetwatchUpdate(r Router, hosts []NetwatchHost) []Fired {
 					ResolveType: "host_down",
 					Subject:     name,
 					Detail:      "NetWatch host " + desc + " is reachable",
-				}, e.settings.NotifNetwatch)...)
+				})...)
 			}
 		}
 		e.prevNetwatchState[h.ID] = h.Status
@@ -696,14 +675,14 @@ func (e *Evaluator) cpuRule(r Router, cpuLoad *float64) []Fired {
 			AlertType: "High CPU",
 			Detail: "CPU at " + trimNum(*cpuLoad) + "% (threshold: " +
 				trimNum(e.settings.CPUThreshold) + "%)",
-		}, e.settings.NotifCPU)
+		})
 	case !isHigh && e.prevCPUAlert != nil && *e.prevCPUAlert:
 		out = e.emit(r, Fired{
 			Up:          true,
 			AlertType:   "CPU Normal",
 			ResolveType: "high_cpu",
 			Detail:      "CPU back to " + trimNum(*cpuLoad) + "% (below threshold)",
-		}, e.settings.NotifCPU)
+		})
 	}
 	// RECORDED WHETHER OR NOT ANYTHING FIRED, and after the decision. A toggle
 	// that suppressed the alert must still advance the edge state, or switching
@@ -735,7 +714,7 @@ func (e *Evaluator) updateRule(r Router, available bool, latest, running string)
 			Supersede: supersede,
 			Detail: "RouterOS " + latest + " is available (running " +
 				cleanVersion(running) + ")",
-		}, e.settings.NotifRouterUpdate)
+		})
 
 	case !available && e.prevUpdateVersion != "":
 		// The router reached the version, or the channel changed. Clear the open
@@ -750,7 +729,7 @@ func (e *Evaluator) updateRule(r Router, available bool, latest, running string)
 			// silently fails to match the row.
 			ResolveType: "routeros_update",
 			Detail:      "RouterOS is up to date (" + cleanVersion(running) + ")",
-		}, e.settings.NotifRouterUpdate)
+		})
 	}
 	return nil
 }
@@ -764,10 +743,21 @@ func (e *Evaluator) updateRule(r Router, available bool, latest, running string)
 // Alert Filter stopped filtering the notification bell, so switching Wireless
 // off silenced the push and still rang the bell on every wlan flap. A filter
 // that does not filter what you are looking at is not a filter."
-func (e *Evaluator) emit(r Router, f Fired, typeEnabled bool) []Fired {
-	if !typeEnabled {
-		return nil
-	}
+// emit records one alert and returns it.
+//
+// ── IT NO LONGER GATES ON AN ALERT TYPE ───────────────────────────────────
+//
+// It used to take `typeEnabled` and return nil for a type switched off
+// install-wide, so a disabled type was never recorded OR sent. Issue #109 moved
+// that check down into delivery and had to be reverted, because the
+// notification bell then stopped honouring the Interface Alert Filter.
+//
+// The gate is gone entirely now, which dissolves that tension rather than
+// choosing a side: MikroDash RECORDS every alert, so the bell and the Alerts
+// page are a complete log, and each notification channel chooses which of them
+// it delivers. There is one list of event types in the app and it lives on the
+// channel.
+func (e *Evaluator) emit(r Router, f Fired) []Fired {
 	stored := storedType(f.AlertType)
 
 	if f.Up {
@@ -976,7 +966,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 					AlertType: "BGP Peer Down",
 					Subject:   peer,
 					Detail:    "BGP peer " + where + " left established (" + state + ")",
-				}, e.settings.NotifBGP)...)
+				})...)
 			} else {
 				out = append(out, e.emit(r, Fired{
 					Up:          true,
@@ -984,7 +974,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 					ResolveType: "bgp_peer_down",
 					Subject:     peer,
 					Detail:      "BGP peer " + where + " is established",
-				}, e.settings.NotifBGP)...)
+				})...)
 			}
 		}
 		e.prevBGPState[p.Key] = isEst
@@ -1014,7 +1004,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 						Subject:   peer,
 						Detail: peer + ": " + dir + trimNum(delta) + " prefixes (" +
 							trimNum(oldPfx) + " → " + trimNum(now) + ")",
-					}, e.settings.NotifBGP)...)
+					})...)
 					e.prevBGPPfxAlert[p.Key] = true
 				} else if !swung && e.prevBGPPfxAlert[p.Key] {
 					// The count held steady for a reading, so the table has
@@ -1025,7 +1015,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 						ResolveType: "bgp_prefix_change",
 						Subject:     peer,
 						Detail:      peer + ": prefix count steady at " + trimNum(now),
-					}, e.settings.NotifBGP)...)
+					})...)
 					e.prevBGPPfxAlert[p.Key] = false
 				}
 			}
@@ -1039,7 +1029,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 					AlertType: "BGP Session Flapping",
 					Subject:   peer,
 					Detail:    "BGP session " + where + " is flapping",
-				}, e.settings.NotifBGP)...)
+				})...)
 			} else if _, seen := e.prevBGPFlap[p.Key]; seen {
 				// The live `else if (prevBgpFlap.has(key))` guard, and it is an
 				// EQUIVALENT check rather than a reachable one: getting here
@@ -1052,7 +1042,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 					ResolveType: "bgp_session_flapping",
 					Subject:     peer,
 					Detail:      "BGP session " + where + " has stopped flapping",
-				}, e.settings.NotifBGP)...)
+				})...)
 			}
 			e.prevBGPFlap[p.Key] = p.Flapping
 		}
@@ -1072,7 +1062,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 					Subject:   peer,
 					Detail: peer + ": hold-time=" + trimNum(*p.HoldTime) +
 						"s, keepalive=0",
-				}, e.settings.NotifBGP)...)
+				})...)
 			} else if _, seen := e.prevBGPHold[p.Key]; seen {
 				out = append(out, e.emit(r, Fired{
 					Up:          true,
@@ -1080,7 +1070,7 @@ func (e *Evaluator) RoutingUpdate(r Router, peers []BGPPeer) []Fired {
 					ResolveType: "bgp_hold_timer_warning",
 					Subject:     peer,
 					Detail:      peer + ": hold timer no longer misconfigured",
-				}, e.settings.NotifBGP)...)
+				})...)
 			}
 			e.prevBGPHold[p.Key] = badHold
 		}

@@ -90,37 +90,12 @@ func (s *Server) alertSettings() alert.Settings {
 		}
 		return def
 	}
-	// ABSENT MEANS THE DEFAULT, NOT FALSE. `Settings.DEFAULTS` ships `notifCpu`,
-	// `notifPing`, `notifVpn` and `notifBgp` ON, so reading a missing key as
-	// false would silence four alert families on any install whose settings file
-	// predates them.
-	flag := func(k string, def bool) bool {
-		if v, ok := cfg[k].(bool); ok {
-			return v
-		}
-		return def
-	}
+	// THE notif* GATES ARE GONE. Every alert type is recorded now and each
+	// notification channel chooses what it delivers, so the only settings the
+	// rules still need are the two numbers that decide when an event EXISTS.
 	return alert.Settings{
-		CPUThreshold:      num("alertCpuThreshold", 90),
-		PingLoss:          num("alertPingLoss", 100),
-		NotifCPU:          flag("notifCpu", true),
-		NotifRouterUpdate: flag("notifRouterUpdate", false),
-		NotifPing:         flag("notifPing", true),
-		NotifNetwatch:     flag("notifNetwatch", false),
-		NotifIfaceUpDown:  flag("notifIfaceUpDown", true),
-		NotifVPN:          flag("notifVpn", true),
-		NotifBGP:          flag("notifBgp", true),
-		// DEFAULT OFF, matching `notifNetwatch` and the live app's own default
-		// for this switch: a router that reboots nightly would otherwise notify
-		// twice a night on an install nobody asked.
-		NotifRouterStatus: flag("notifRouterStatus", false),
-		IfaceTypeFilters: map[string]bool{
-			"notifIfaceEther":  flag("notifIfaceEther", true),
-			"notifIfaceWlan":   flag("notifIfaceWlan", true),
-			"notifIfaceBridge": flag("notifIfaceBridge", false),
-			"notifIfaceVlan":   flag("notifIfaceVlan", false),
-			"notifIfaceOther":  flag("notifIfaceOther", false),
-		},
+		CPUThreshold: num("alertCpuThreshold", 90),
+		PingLoss:     num("alertPingLoss", 100),
 	}
 }
 

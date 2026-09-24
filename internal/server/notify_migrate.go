@@ -76,7 +76,7 @@ func (s *Server) SeedNotifyChannels() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	events := alert.DefaultEvents(s.eventGate())
+	events := alert.DefaultEvents()
 	// THE THREE LEGACY CREDENTIALS ARE DECRYPTED HERE, EXPLICITLY.
 	//
 	// They are no longer in `encrypted` in settings_tables.json, so

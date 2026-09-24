@@ -13,7 +13,7 @@ import (
 // one decision out.
 func TestARouterGoingOfflineAndComingBack(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{NotifRouterStatus: true}, store)
+	ev := NewEvaluator(Settings{}, store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 
 	fired := ev.RouterStatus(r, false)
@@ -51,7 +51,7 @@ func TestARouterGoingOfflineAndComingBack(t *testing.T) {
 // notify.
 func TestAnUnpairedRecoveryIsSilent(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{NotifRouterStatus: true}, store)
+	ev := NewEvaluator(Settings{}, store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 
 	if n := len(ev.RouterStatus(r, true)); n != 0 {
@@ -60,17 +60,14 @@ func TestAnUnpairedRecoveryIsSilent(t *testing.T) {
 	}
 }
 
-// THE TWO SWITCHES, EACH ON ITS OWN. A rule that ignored either would notify an
-// operator who asked not to be.
-func TestTheRouterStatusRuleHonoursBothSwitches(t *testing.T) {
-	r := Router{ID: "r1", AlertsEnabled: true}
-
-	off := NewEvaluator(Settings{NotifRouterStatus: false}, &memStore{})
-	if n := len(off.RouterStatus(r, false)); n != 0 {
-		t.Errorf("notifRouterStatus off still fired %d alerts", n)
-	}
-
-	unmonitored := NewEvaluator(Settings{NotifRouterStatus: true}, &memStore{})
+// THE ROUTER'S OWN SWITCH, which is the one that is left.
+//
+// This was "both switches": the router's `alertsEnabled` and the install-wide
+// `notifRouterStatus`. The second is gone — every alert type is recorded now and
+// a notification channel decides what it delivers — so what remains is the
+// per-router one, which still means "do not monitor this device at all".
+func TestTheRouterStatusRuleHonoursTheRouterSwitch(t *testing.T) {
+	unmonitored := NewEvaluator(Settings{}, &memStore{})
 	if n := len(unmonitored.RouterStatus(Router{ID: "r1"}, false)); n != 0 {
 		t.Errorf("a router with alert monitoring off fired %d alerts", n)
 	}
@@ -84,7 +81,7 @@ func TestTheRouterStatusRuleHonoursBothSwitches(t *testing.T) {
 // thing keeping them apart — which is exactly the shape that goes wrong.
 func TestOneRoutersOutageDoesNotSuppressAnothers(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{NotifRouterStatus: true}, store)
+	ev := NewEvaluator(Settings{}, store)
 
 	if n := len(ev.RouterStatus(Router{ID: "r1", AlertsEnabled: true}, false)); n != 1 {
 		t.Fatalf("r1 fired %d", n)

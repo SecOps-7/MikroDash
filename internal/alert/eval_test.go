@@ -20,21 +20,12 @@ type liveFired struct {
 }
 
 type evalCase struct {
+	// ONLY THE THRESHOLDS. The corpus still carries the old notif* keys in some
+	// cases; they are ignored here because the gates they described no longer
+	// exist — see the note at the top of alert-eval-cases.json.
 	Settings struct {
-		CPUThreshold      float64 `json:"alertCpuThreshold"`
-		NotifCPU          bool    `json:"notifCpu"`
-		NotifRouterUpdate bool    `json:"notifRouterUpdate"`
-		PingLoss          float64 `json:"alertPingLoss"`
-		NotifPing         bool    `json:"notifPing"`
-		NotifNetwatch     bool    `json:"notifNetwatch"`
-		NotifIfaceUpDown  bool    `json:"notifIfaceUpDown"`
-		NotifIfaceEther   *bool   `json:"notifIfaceEther"`
-		NotifIfaceWlan    *bool   `json:"notifIfaceWlan"`
-		NotifIfaceBridge  *bool   `json:"notifIfaceBridge"`
-		NotifIfaceVlan    *bool   `json:"notifIfaceVlan"`
-		NotifIfaceOther   *bool   `json:"notifIfaceOther"`
-		NotifVPN          bool    `json:"notifVpn"`
-		NotifBGP          bool    `json:"notifBgp"`
+		CPUThreshold float64 `json:"alertCpuThreshold"`
+		PingLoss     float64 `json:"alertPingLoss"`
 	} `json:"settings"`
 	Events []struct {
 		Event string `json:"event"`
@@ -240,17 +231,13 @@ func TestEvaluatorMatchesLive(t *testing.T) {
 				}
 				store.Record(tc.Router.ID, a.Type, subj, "")
 			}
+			// ONLY THE THRESHOLDS. The notif* gates left `Settings` when alert
+			// types moved onto the notification channel: every alert is
+			// recorded now, and what is DELIVERED is a channel's decision. The
+			// ten corpus cases that pinned those gates were removed with them.
 			ev := NewEvaluator(Settings{
-				CPUThreshold:      tc.Settings.CPUThreshold,
-				NotifCPU:          tc.Settings.NotifCPU,
-				NotifRouterUpdate: tc.Settings.NotifRouterUpdate,
-				PingLoss:          tc.Settings.PingLoss,
-				NotifPing:         tc.Settings.NotifPing,
-				NotifNetwatch:     tc.Settings.NotifNetwatch,
-				NotifIfaceUpDown:  tc.Settings.NotifIfaceUpDown,
-				IfaceTypeFilters:  ifaceFilters(tc),
-				NotifVPN:          tc.Settings.NotifVPN,
-				NotifBGP:          tc.Settings.NotifBGP,
+				CPUThreshold: tc.Settings.CPUThreshold,
+				PingLoss:     tc.Settings.PingLoss,
 			}, store)
 			router := Router{ID: tc.Router.ID, AlertsEnabled: tc.Router.AlertsEnabled}
 
@@ -357,7 +344,7 @@ func TestEvaluatorMatchesLive(t *testing.T) {
 // the operator continuously while a CPU stayed busy.
 func TestTheCPURuleIsAnEdgeNotALevel(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{CPUThreshold: 80, NotifCPU: true}, store)
+	ev := NewEvaluator(Settings{CPUThreshold: 80}, store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 
 	load := func(v float64) []Fired {
@@ -385,7 +372,7 @@ func TestTheCPURuleIsAnEdgeNotALevel(t *testing.T) {
 // reading as 0, decides the CPU recovered, and fires a spurious resolution.
 func TestAMissingCPUReadingDoesNotResetTheEdge(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{CPUThreshold: 80, NotifCPU: true}, store)
+	ev := NewEvaluator(Settings{CPUThreshold: 80}, store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 
 	high := 90.0
@@ -415,63 +402,6 @@ func showLive(fs []liveFired) string {
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
-}
-
-// TestAnAbsentInterfaceFilterIsEnabled.
-//
-// Direct rather than through the corpus, because every generated case carries
-// all five filters -- the live DEFAULTS ship them -- so the corpus cannot tell
-// `!ok || v` from `ok && v`. A map read that treated a missing key as OFF would
-// silence the whole interface family for any caller that built its settings from
-// a partial object, which is what a first-run install and every hand-written
-// caller look like.
-func TestAnAbsentInterfaceFilterIsEnabled(t *testing.T) {
-	store := &memStore{}
-	ev := NewEvaluator(Settings{
-		NotifIfaceUpDown: true,
-		// notifIfaceEther is ABSENT.
-		IfaceTypeFilters: map[string]bool{"notifIfaceWlan": false},
-	}, store)
-	r := Router{ID: "r1", AlertsEnabled: true}
-
-	ev.IfstatusUpdate(r, []Interface{{Name: "ether1", Running: true}})
-	got := ev.IfstatusUpdate(r, []Interface{{Name: "ether1", Running: false}})
-	if len(got) != 1 {
-		t.Errorf("an interface whose type filter is ABSENT fired %d alerts, want 1", len(got))
-	}
-
-	// Believability: an explicitly FALSE filter really does suppress, so the
-	// assertion above is about absence rather than about a gate that never fires.
-	ev2 := NewEvaluator(Settings{
-		NotifIfaceUpDown: true,
-		IfaceTypeFilters: map[string]bool{"notifIfaceEther": false},
-	}, &memStore{})
-	ev2.IfstatusUpdate(r, []Interface{{Name: "ether1", Running: true}})
-	if n := len(ev2.IfstatusUpdate(r, []Interface{{Name: "ether1", Running: false}})); n != 0 {
-		t.Errorf("an explicitly disabled filter fired %d alerts", n)
-	}
-}
-
-// ifaceFilters builds the per-type gate from a case's settings.
-//
-// A case sets only the filter it is about, so an ABSENT one must read as
-// ENABLED -- the live DEFAULTS ship every one of these true, and a map that read
-// a missing key as "off" would silence the whole family for every case that did
-// not list all five.
-func ifaceFilters(tc evalCase) map[string]bool {
-	out := map[string]bool{}
-	for key, v := range map[string]*bool{
-		"notifIfaceEther":  tc.Settings.NotifIfaceEther,
-		"notifIfaceWlan":   tc.Settings.NotifIfaceWlan,
-		"notifIfaceBridge": tc.Settings.NotifIfaceBridge,
-		"notifIfaceVlan":   tc.Settings.NotifIfaceVlan,
-		"notifIfaceOther":  tc.Settings.NotifIfaceOther,
-	} {
-		if v != nil {
-			out[key] = *v
-		}
-	}
-	return out
 }
 
 // TestTheBoundPrunesWhatIsGoneAndKeepsWhatIsLive.
@@ -549,8 +479,7 @@ func TestEveryCappedMapIsActuallyPruned(t *testing.T) {
 		}
 	}
 	r := Router{ID: "r1", AlertsEnabled: true}
-	set := Settings{NotifIfaceUpDown: true, NotifNetwatch: true, NotifVPN: true,
-		NotifBGP: true, IfaceTypeFilters: map[string]bool{"other": true, "ether": true}}
+	set := Settings{}
 	ev := NewEvaluator(set, &memStore{})
 
 	var ifaces []Interface

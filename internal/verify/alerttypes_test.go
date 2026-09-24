@@ -180,21 +180,12 @@ func TestTheBackupEventsMatchTheBackupRunner(t *testing.T) {
 	}
 }
 
-// EVERY GATE NAMES A REAL SETTING. A catalogue entry whose gate is misspelled
-// reads as "this event is switched off install-wide" for ever, because the
-// settings lookup misses and falls to the default.
-func TestEveryCatalogueGateNamesARealSetting(t *testing.T) {
-	root := repoRoot(t)
-	rel := filepath.Join("internal", "store", "settings_tables.json")
-	b, err := os.ReadFile(filepath.Join(root, rel))
-	if err != nil {
-		t.Fatalf("reading %s: %v", rel, err)
-	}
-	src := string(b)
-	for _, ty := range alert.Types() {
-		if !strings.Contains(src, `"`+ty.Gate+`"`) {
-			t.Errorf("catalogue entry %q is gated on setting %q, which is not in %s",
-				ty.Key, ty.Gate, rel)
-		}
-	}
-}
+// THE GATE LEDGER IS GONE, AND THAT IS THE POINT.
+//
+// It checked that every catalogue entry named a real `notif*` setting, because
+// an entry gated on a misspelled key would read as "switched off install-wide"
+// for ever. There are no gates now: every alert type is recorded and each
+// notification channel decides what it delivers, so there is no second list for
+// the catalogue to agree with. The two ledgers above — against the evaluator's
+// literals, and against the backup runner's kinds — are what remain, and they
+// are the ones that were load-bearing.

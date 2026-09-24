@@ -236,7 +236,7 @@ func TestTheTablesCoverTheRealSurface(t *testing.T) {
 	if n := len(wtables.IntFields); n < 30 {
 		t.Errorf("only %d integer ranges", n)
 	}
-	if n := len(wtables.BoolFields); n < 40 {
+	if n := len(wtables.BoolFields); n < 30 {
 		t.Errorf("only %d boolean fields — the page toggles alone are ~24", n)
 	}
 	// CREDENTIALS ARE COUNTED EXACTLY, where every other table here has a floor,

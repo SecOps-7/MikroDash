@@ -95,12 +95,17 @@ func TestNoNotificationTextIsBroadcast(t *testing.T) {
 	}
 	// ...and one notif BOOLEAN, so a filter that dropped everything would not
 	// pass this test by accident.
-	src["notifCpu"] = true
+	//
+	// `userNotifyEnabled` rather than `notifCpu`: the per-type gates left the
+	// settings entirely when alert types moved onto the notification channel,
+	// and this control has to be a key the payload still carries or it stops
+	// being a control at all.
+	src["userNotifyEnabled"] = true
 
 	out := PageSettings(src)
-	if _, ok := out["notifCpu"]; !ok {
-		t.Fatal("notifCpu was dropped -- the filter excludes every notif key, so the " +
-			"assertions below would hold for a projection that sends nothing")
+	if _, ok := out["userNotifyEnabled"]; !ok {
+		t.Fatal("userNotifyEnabled was dropped -- the filter excludes every notif key, " +
+			"so the assertions below would hold for a projection that sends nothing")
 	}
 	for k, v := range out {
 		if s, isStr := v.(string); isStr && strings.HasPrefix(s, "SECRET-") {

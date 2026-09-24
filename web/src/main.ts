@@ -70,7 +70,6 @@ import { initPollAndBanner, applyPollSettings } from './pages/settings-poll';
 import { initSettingsSave } from './pages/settings-save';
 import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } from './pages/settings-routers';
 import { initRouterModal } from './pages/router-modal';
-import { initAlertFilters } from './pages/settings-alert-filters';
 import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
@@ -755,7 +754,6 @@ async function main(): Promise<void> {
   // the poll wiring only because both listen for the settings page change and
   // this one also restores from localStorage — order between them is otherwise
   // immaterial, since they share no state.
-  initAlertFilters();
 
   // The four Test buttons. Each press SENDS one real message, so the button
   // locks for the duration of the request — a double-click is two notifications,

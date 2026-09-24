@@ -48,10 +48,10 @@ func (e *Evaluator) RouterStatus(r Router, up bool) []Fired {
 			AlertType:   "Router Online",
 			ResolveType: "router_offline",
 			Detail:      "The router is reachable again",
-		}, e.settings.NotifRouterStatus)
+		})
 	}
 	return e.emit(r, Fired{
 		AlertType: "Router Offline",
 		Detail:    "The router is not responding",
-	}, e.settings.NotifRouterStatus)
+	})
 }

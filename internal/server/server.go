@@ -601,7 +601,6 @@ func (s *Server) Handler() http.Handler {
 	// The install's name and icon (issue #131). Its reads are public: the login
 	// page shows them before anybody signs in. See branding_api.go.
 	s.registerBranding(mux)
-	s.registerUserNotify(mux)
 	s.registerPrincipals(mux)
 	// The principal writes.
 	s.registerUsersWrite(mux)

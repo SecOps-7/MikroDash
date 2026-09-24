@@ -178,51 +178,23 @@ func (s *Server) notifyChannelEvents(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.channelSession(w, r); !ok {
 		return
 	}
-	gate := s.eventGate()
+	// NO `raised` FIELD ANY MORE. It said whether the install raised this event
+	// at all, and every event is raised now — the channel is the only thing that
+	// decides what is delivered.
 	type ev struct {
 		Key    string `json:"key"`
 		Label  string `json:"label"`
 		Desc   string `json:"desc"`
-		Raised bool   `json:"raised"`
 		Backup bool   `json:"backup"`
 	}
 	out := []ev{}
 	for _, t := range alert.Types() {
-		out = append(out, ev{Key: t.Key, Label: t.Label, Desc: t.Desc,
-			Raised: gate(t.Gate), Backup: t.Backup})
+		out = append(out, ev{Key: t.Key, Label: t.Label, Desc: t.Desc, Backup: t.Backup})
 	}
 	writeJSON(w, map[string]any{
 		"ok": true, "events": out, "schemes": notify.Schemes,
-		"defaults": alert.DefaultEvents(gate),
+		"defaults": alert.DefaultEvents(),
 	})
-}
-
-// eventGate reads the install-wide `notif*` settings, so the modal can say which
-// events are switched off above it.
-func (s *Server) eventGate() func(string) bool {
-	cfg := map[string]any{}
-	if s.store != nil {
-		if got, err := s.store.Settings(); err == nil {
-			cfg = got
-		}
-	}
-	return func(key string) bool {
-		if v, ok := cfg[key].(bool); ok {
-			return v
-		}
-		// ABSENT MEANS THE DEFAULT, not false — the rule `alertSettings`
-		// follows. Reading absent as false here would show a fresh install with
-		// every event switched off.
-		return alertDefaultOn(key)
-	}
-}
-
-func alertDefaultOn(key string) bool {
-	switch key {
-	case "notifNetwatch", "notifRouterStatus", "notifRouterUpdate":
-		return false
-	}
-	return true
 }
 
 func (s *Server) notifyChannelCreate(w http.ResponseWriter, r *http.Request) {

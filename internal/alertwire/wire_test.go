@@ -63,15 +63,9 @@ func (f *fakeHist) ResolveAlertEvent(r, t, s string, now int64) []int64 {
 }
 
 func onSettings() alert.Settings {
-	return alert.Settings{
-		CPUThreshold: 80, NotifCPU: true, NotifRouterUpdate: true,
-		PingLoss: 20, NotifPing: true, NotifNetwatch: true,
-		NotifIfaceUpDown: true, NotifVPN: true, NotifBGP: true,
-		IfaceTypeFilters: map[string]bool{
-			"notifIfaceEther": true, "notifIfaceWlan": true, "notifIfaceBridge": true,
-			"notifIfaceVlan": true, "notifIfaceOther": true,
-		},
-	}
+	// The notif* gates are gone: every alert type is recorded, and what is
+	// DELIVERED is a notification channel's decision.
+	return alert.Settings{CPUThreshold: 80, PingLoss: 20}
 }
 
 func wireOn(t *testing.T) (*Wire, *fakeHist) {
@@ -398,16 +392,23 @@ func TestSettingsChangeKeepsTheEdgeState(t *testing.T) {
 		t.Fatalf("first firing produced %v", got)
 	}
 	before := w.Routers()
-	off := onSettings()
-	off.NotifCPU = false
-	w.SetSettings(off)
+	// A THRESHOLD CHANGE, since the toggles are gone. This test is about the
+	// evaluators being updated IN PLACE rather than rebuilt — rebuilding would
+	// lose the edge state and re-fire an alert that is already open.
+	raised := onSettings()
+	raised.CPUThreshold = 99
+	w.SetSettings(raised)
 	if w.Routers() != before {
 		t.Errorf("%d evaluator(s) after a settings change, was %d — they were rebuilt",
 			w.Routers(), before)
 	}
-	// With the toggle off the rule is silent, which is the point of the toggle.
-	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 10}); len(got) != 0 {
-		t.Errorf("the cpu rule fired %v with its toggle off", got)
+	// AND THE EVALUATOR IS STILL THE SAME ONE, holding the open alert: dropping
+	// to 10 produces exactly one RECOVERY. A rebuilt evaluator would have
+	// forgotten it was alerting and produced nothing at all.
+	got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 10})
+	if len(got) != 1 || !got[0].Up {
+		t.Errorf("after a settings change the recovery was %v, want one Up — a "+
+			"rebuilt evaluator forgets it was alerting and never resolves", got)
 	}
 
 	// AND THE EDGE STATE SURVIVED. Turn the toggle back on and send a reading

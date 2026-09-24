@@ -284,46 +284,16 @@
       <!-- ── Notifications tab ─────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-notifications">
 
-        <!-- Alert Types -->
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span class="scard-title">Alert Types</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Choose which events trigger alerts and push notifications.</p>
-            <div class="stoggle-grid">
-              <label class="stoggle"><span class="stoggle-label">Interface Up / Down</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceUpDown"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">VPN Peer State</span><span class="stoggle-switch"><input type="checkbox" id="s_notifVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">High CPU</span><span class="stoggle-switch"><input type="checkbox" id="s_notifCpu"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Ping Loss</span><span class="stoggle-switch"><input type="checkbox" id="s_notifPing"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">NetWatch Hosts</span><span class="stoggle-switch"><input type="checkbox" id="s_notifNetwatch"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Router Offline / Online</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterStatus"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Configuration Drift</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBackupDrift"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Backup Failed</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBackupFail"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle" title="Notify once per release when RouterOS has a newer version available"><span class="stoggle-label">RouterOS Update Available</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterUpdate"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle" title="BGP peer up/down, large prefix-count swings, session flapping and hold-timer misconfiguration"><span class="stoggle-label">BGP Peers</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBgp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            </div>
-          </div>
-        </div>
+        <!-- ── ALERT TYPES AND THE INTERFACE FILTER LIVE ON THE CHANNEL ──
+             They were two cards here and a third list in the channel dialog,
+             which is two places for one idea — the page needed a paragraph
+             explaining how they differed, and a paragraph explaining a design
+             is usually the design being wrong.
 
-        <!-- Interface Alert Filter -->
-        <div class="scard" id="notifIfaceFilterCard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="15" y="2" width="7" height="7" rx="1"/><rect x="2" y="15" width="7" height="7" rx="1"/><path d="M17 17h4m-2-2v4"/></svg>
-            <span class="scard-title">Interface Alert Filter</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Limit interface up/down alerts to specific interface types.</p>
-            <div class="stoggle-grid">
-              <label class="stoggle"><span class="stoggle-label">Ethernet</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceEther"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceWlan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Bridge</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceBridge"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">VLAN</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceVlan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Other</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceOther"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            </div>
-          </div>
-        </div>
+             MikroDash records every alert now, so the bell and the Alerts page
+             are a complete log, and each channel's Events tab decides what it
+             DELIVERS. That also dissolves the issue #109 problem rather than
+             picking a side in it: there is no global gate left to move. -->
 
         <!-- Alert Thresholds -->
         <div class="scard">

@@ -70,10 +70,11 @@ export function collectSettingsForm(
   // switch every page off. `.checked` is already the right type; this comment is
   // here so nobody "simplifies" it into a string.
   //
-  // `checkGuarded` is included even though `settings-alert-filters.ts` saves
-  // those 13 the instant they change. Its network-failure path leaves the box as
-  // the operator set it and says "the next Save reconciles the server" — which
-  // is only true if this sends them.
+  // `checkGuarded` is still walked although it is empty today: it held the 13
+  // alert-type toggles that `settings-alert-filters.ts` saved on change, and
+  // both went when alert types moved onto the notification channel. The loop
+  // stays because the KIND still exists in the generated table and a future
+  // save-on-change field would land in it.
   for (const key of [...FORM_FIELDS.checkOn, ...FORM_FIELDS.checkOff,
     ...FORM_FIELDS.checkGuarded]) {
     const input = el<HTMLInputElement>('s_' + key);

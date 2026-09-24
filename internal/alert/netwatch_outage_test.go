@@ -18,7 +18,7 @@ import (
 // recovery sent first would be swallowed and the operator would see nothing.
 func TestAnOutageBetweenTwoReadingsIsCaught(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{NotifNetwatch: true}, store)
+	ev := NewEvaluator(Settings{}, store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 	host := func(status, since string) []NetwatchHost {
 		return []NetwatchHost{{ID: "*2", Host: "84.200.70.40", Name: "VPN2", Status: status, Since: since}}
@@ -62,7 +62,7 @@ func TestAnOutageBetweenTwoReadingsIsCaught(t *testing.T) {
 // transition is unaffected by the new rule.
 func TestTheOutageRuleLeavesTheOrdinaryTransitionsAlone(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{NotifNetwatch: true}, store)
+	ev := NewEvaluator(Settings{}, store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 	host := func(status, since string) []NetwatchHost {
 		return []NetwatchHost{{ID: "*1", Host: "10.255.255.1", Name: "SA VPN", Status: status, Since: since}}
