@@ -3030,14 +3030,18 @@
   gap: .15rem .6rem;
   margin: 0;
   padding: .6rem .7rem; border-radius: 6px;
-  /* `--bg-deep`, not `--bg-alt`. THE LATTER DOES NOT EXIST: it is defined by no
-     theme in this stylesheet, so `var(--bg-alt)` resolved to transparent and the
-     box had a border around nothing. It came in with the card's original inline
-     style and survived the move out of it, because a colour that silently
-     resolves to nothing looks like a colour somebody chose.
-     `--bg-deep` is what `.sform-input` uses, so the reference now sits on the
-     same surface as the fields opposite it. */
-  background: var(--bg-deep); border: 1px solid var(--border);
+  /* ── NO BACKGROUND, ON PURPOSE ────────────────────────────────────────
+     The card's own surface shows through, and the border alone marks the box.
+     This began as an accident — the original inline style asked for
+     `var(--bg-alt)`, which is defined by no theme here, so it resolved to
+     transparent — but it is what the box has always looked like and the
+     operator asked for it back after seeing the alternative.
+     `--bg-deep` was that alternative, and it is the wrong one: it is DARKER
+     than `--bg-card`, so the reference read as a hole punched in the card
+     rather than a panel on it.
+     Recorded rather than left as a bare omission, because a missing
+     `background` is exactly what somebody tidies up next. */
+  border: 1px solid var(--border);
 }
 /* THE CELLS ARE TEXT, NOT FIFTEEN CONTROLS. A global rule gives every `code`
    element its own background, padding and radius, which inside a box turns a
