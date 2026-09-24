@@ -99,10 +99,20 @@ const HISTORY_RANGES: Array<{ key: string; label: string }> = [
   { key: '30d', label: '30 days' },
 ];
 
-const RANGE_KEY = 'md.ifaceHistoryRange';
-
 let activeID = '';
 let iface = '';
+
+/**
+ * The range on show. RESET TO LIVE EVERY TIME THE PANEL OPENS — see `render`.
+ *
+ * It used to be remembered in `localStorage` under `md.ifaceHistoryRange`, on
+ * the reasoning that an operator working in 7-day views wants the next
+ * interface in a 7-day view too. In use that reasoning was wrong and the
+ * stickiness was the bug: one look at 1 hour, days ago, and every interface
+ * clicked since opened on a flat historical chart instead of what the link is
+ * doing now. Opening an interface asks "what is this doing?", so Live is the
+ * answer to start from, and the other ranges are one click away.
+ */
 let range = 'live';
 let chart: ChartLike | null = null;
 let last: HistoryReply | null = null;
@@ -166,20 +176,6 @@ function liveWindow(): TrafficPoint[] {
   // kept have to cover BOTH: the same right-hand gap, plus enough beyond the
   // left edge for the line to cross it.
   return windowedPoints(buf, Date.now(), spec.secs, rightBufferFor(buf) + LEFT_OVERHANG_MS);
-}
-
-/** Remembered per browser, because an operator working in 7-day views wants the
- *  next interface in a 7-day view too. An unknown stored value falls back. */
-function storedRange(): string {
-  try {
-    const v = localStorage.getItem(RANGE_KEY);
-    if (v && (isLive(v) || HISTORY_RANGES.some((r) => r.key === v))) return v;
-  } catch { /* storage disabled: the default is correct */ }
-  return 'live';
-}
-
-function rememberRange(v: string): void {
-  try { localStorage.setItem(RANGE_KEY, v); } catch { /* ignore */ }
 }
 
 function destroyChart(): void {
@@ -655,7 +651,6 @@ function setRecording(on: boolean): void {
 export function initInterfaceHistory(socket: {
   on(ev: 'router:active', fn: (d: { activeId?: string }) => void): void;
 }): void {
-  range = storedRange();
   fetch('/api/routers', { credentials: 'same-origin' })
     .then((r) => (r.ok ? r.json() : null))
     .then((j) => { if (j && j.activeId) activeID = String(j.activeId); })
@@ -676,6 +671,8 @@ export function initInterfaceHistory(socket: {
       if (mode === 'add' || !ctx.identity) return '';
       iface = ctx.identity;
       last = null;
+      // EVERY OPEN STARTS ON LIVE. See the declaration of `range`.
+      range = 'live';
       return '<div class="ifh">' +
         '<div class="ifh-head"><div class="ifh-title">Traffic</div>' +
         rangeBar() + '</div>' +
@@ -689,7 +686,6 @@ export function initInterfaceHistory(socket: {
           if (want === range) return;
           const wasLive = isLive(range);
           range = want;
-          rememberRange(range);
           document.querySelectorAll('[data-ifh-range]').forEach((o) => {
             o.classList.toggle('active',
               (o as HTMLElement).getAttribute('data-ifh-range') === range);

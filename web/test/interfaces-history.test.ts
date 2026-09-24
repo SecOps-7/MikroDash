@@ -38,6 +38,9 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
     '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
   { stdio: 'inherit' });
 
+/** The one browser-local store every `open` in this file shares. */
+const storage = {};
+
 function makeEl(id) {
   const classes = new Set();
   const node = {
@@ -92,20 +95,60 @@ function open(reply, readOnly, identity, rangeKey) {
   const modal = makeEl('resModal');
   modal.classList.add('open');
   els.resModal = modal;
+
+  /**
+   * The range buttons, minted from the markup the panel actually rendered.
+   *
+   * A range is chosen by CLICKING, which is the only way an operator has. It
+   * used to be seeded through `localStorage`, and that stopped being a path at
+   * all when the remembered range was removed — a harness that kept seeding it
+   * would have gone on "selecting" ranges that the panel ignored, and every
+   * range-specific assertion would have been made against Live.
+   *
+   * Parsed out of the slot rather than listed here, so a test cannot pick a
+   * range the panel does not offer.
+   */
+  const rangeBtns = {};
+  const btnFor = (key) => {
+    if (!rangeBtns[key]) {
+      const b = makeEl('');
+      b.setAttribute('data-ifh-range', key);
+      rangeBtns[key] = b;
+    }
+    return rangeBtns[key];
+  };
+  const renderedRangeKeys = () => {
+    const html = (els.res_extra && els.res_extra.innerHTML) || '';
+    const keys = [];
+    const re = /data-ifh-range="([^"]+)"/g;
+    let m = re.exec(html);
+    while (m) { keys.push(m[1]); m = re.exec(html); }
+    return keys;
+  };
   global.document = {
     documentElement: {},
     body: makeEl('body'),
     getElementById: get,
-    querySelectorAll: (sel) => (sel === '[data-ifh-range]' ? [] : []),
+    querySelectorAll: (sel) => (sel === '[data-ifh-range]'
+      ? renderedRangeKeys().map(btnFor)
+      : []),
     querySelector: (sel) => (sel === '.ifh-record' ? els.__recordBtn || null : null),
     addEventListener: () => {},
     createElement: () => makeEl(''),
   };
   global.window = { confirm: () => true };
-  // The range is remembered in localStorage, so seeding it is how a test picks
-  // one — the same path a returning operator takes. Absent means the default,
-  // which is Live.
-  global.localStorage = { getItem: () => rangeKey || null, setItem: () => {} };
+  // A REAL STORE, shared by every `open` in this file, because a browser's is.
+  //
+  // The panel no longer reads or writes it — `deliverRow` picks a range by
+  // clicking. Backing it with a live object anyway is what lets "a reload opens
+  // on Live" fail: with a stub that always answered null, reintroducing the
+  // remembered range would have been invisible, and the check would have been
+  // one that cannot fail.
+  global.localStorage = {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(storage, k) ? storage[k] : null),
+    setItem: (k, v) => { storage[k] = String(v); },
+    removeItem: (k) => { delete storage[k]; },
+  };
   global.getComputedStyle = () => ({ getPropertyValue: () => '#38bdf8' });
   // A Chart stub that keeps the config, so the AXIS is assertable. Without it
   // the panel silently skips drawing and a mislabelled axis is invisible here —
@@ -201,6 +244,32 @@ function open(reply, readOnly, identity, rangeKey) {
       // delivered on the next turn of the microtask queue.
       handlers['res:row']({
         resource: 'iface', id: '*1', identity, values: {}, readOnly,
+        options: {}, actions: [], removable: false,
+      });
+      // THE RANGE IS CHOSEN THE WAY AN OPERATOR CHOOSES IT: by clicking, once
+      // the bar exists. The panel always opens on Live now, so a test wanting
+      // any other range must take the same click.
+      if (rangeKey) {
+        const html = get('res_extra').innerHTML;
+        if (html.indexOf('data-ifh-range="' + rangeKey + '"') < 0) {
+          throw new Error('the panel offers no ' + rangeKey + ' button: ' + html.slice(0, 200));
+        }
+        btnFor(rangeKey).fire('click');
+      }
+    },
+    /** Click a range on an already-open panel. */
+    pickRange: (key) => btnFor(key).fire('click'),
+    /** Open the dialog again for a DIFFERENT interface, as clicking a second
+     *  tile does. The module is long-lived, so this is the path on which a
+     *  range chosen a moment ago could leak into the next interface. */
+    reopen: async (name) => {
+      mod.openResource(socket, 'iface', { id: '*2', name });
+      if (handlers['res:schema']) {
+        handlers['res:schema']({ key: 'iface', title: 'Interface', permitted: true, fields: [] });
+      }
+      await Promise.resolve();
+      handlers['res:row']({
+        resource: 'iface', id: '*2', identity: name, values: {}, readOnly,
         options: {}, actions: [], removable: false,
       });
     },
@@ -329,14 +398,85 @@ check('an add form draws no history panel', async () => {
 // page can already answer "what is this doing right now" for anything, and
 // making that wait on a recording switch would be an arbitrary refusal.
 
+/**
+ * Which range the panel RENDERED as active.
+ *
+ * Only meaningful straight after a render. A click toggles `active` on the
+ * button elements themselves, and in this shim those are detached stubs rather
+ * than nodes inside `res_extra`, so a click never shows up here. That is a
+ * limit of the harness, not of the panel — to prove a click took, read a signal
+ * the click actually produces, such as the range it then asks the server for.
+ */
+const activeRange = (html) => {
+  const m = html.match(/class="ifh-range active" data-ifh-range="([^"]+)"/);
+  return m ? m[1] : null;
+};
+
+/** The range the last history request named — what a click really does. */
+const lastAskedRange = (fetched) => {
+  const url = fetched.filter((u) => u.indexOf('/api/interfaces/history') === 0).pop() || '';
+  const m = url.match(/[?&]range=([^&]+)/);
+  return m ? m[1] : null;
+};
+
 check('Live is the default range', async () => {
   const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  const active = d.slot().match(/class="ifh-range active" data-ifh-range="([^"]+)"/);
-  assert.ok(active, 'no range is marked active: ' + d.slot());
-  assert.equal(active[1], 'live');
+  assert.equal(activeRange(d.slot()), 'live', 'no range is marked active: ' + d.slot());
+});
+
+// ── AND LIVE IS THE DEFAULT *EVERY* TIME ───────────────────────────────────
+//
+// The range used to be remembered in `localStorage`, so one look at "1 hour"
+// made every interface opened afterwards — on that browser, for ever — open on
+// a flat historical chart. The operator's words: "it remembers the last range
+// tab I was on the last time like 1 hour and when i click on the card it goes
+// back to that. it should default to Live every time".
+//
+// The module outlives the dialog, so `range` is module state and this is the
+// path it leaks along. Two checks, because the leak has two shapes.
+check('a range chosen on one interface does not follow to the next', async () => {
+  const reply = { ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1',
+    recordedIfaces: ['ether5'], rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }] };
+  const d = open(reply, false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  await d.settle();
+  d.pickRange('24h');
+  await d.settle();
+  // The chosen range really did take, or the second half proves nothing.
+  assert.equal(lastAskedRange(d.fetched), '24h',
+    'clicking 24 hours did not select it, so this test cannot see a leak: '
+    + JSON.stringify(d.fetched));
+
+  await d.reopen('ether6');
+  await d.settle();
+  assert.equal(activeRange(d.slot()), 'live',
+    'the next interface opened on the range left behind by the last one');
+});
+
+// THE SAME THING ACROSS A RELOAD, which is what `localStorage` made permanent.
+// A fresh module with nothing seeded must still open on Live.
+check('a reload opens on Live, not on whatever was last chosen', async () => {
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  await d.settle();
+  d.pickRange('7d');
+  await d.settle();
+  assert.equal(lastAskedRange(d.fetched), '7d',
+    'the 7-day click did not take: ' + JSON.stringify(d.fetched));
+
+  // A NEW BROWSER SESSION: `open` re-requires the bundle, which is the reload.
+  const fresh = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  fresh.deliverRow();
+  assert.equal(activeRange(fresh.slot()), 'live',
+    'a reload restored the last range instead of opening on Live');
 });
 
 check('Live draws for an interface that is not recorded', async () => {
