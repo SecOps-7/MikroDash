@@ -50,6 +50,9 @@ let defaults: string[] = [];
 let routers: Array<{ id: string; label: string }> = [];
 /** The channel being edited, or null for a new one. */
 let editing: ChannelView | null = null;
+/** Whether this viewer may own install-wide channels. Told by the server; a
+ *  non-administrator makes channels for themselves instead. */
+let canManageInstall = false;
 
 const INSTALL = '_install';
 
@@ -109,6 +112,7 @@ async function load(): Promise<void> {
     const r = await fetch('/api/notify-channels', { credentials: 'same-origin' });
     const j = await r.json();
     channels = (j && j.channels) || [];
+    canManageInstall = !!(j && j.canManageInstall);
   } catch { channels = []; }
   render();
 }
@@ -272,7 +276,10 @@ function bodyFor(): Record<string, unknown> {
     events: checkedValues('data-nchan-event'),
     routers: checkedValues('data-nchan-router'),
   };
-  if (!editing) body.owner = 'install';
+  // OWNERSHIP IS ASKED FOR, NOT ASSUMED. Sending "install" unconditionally is
+  // what made Add Channel answer 403 for everybody who is not an administrator.
+  // The server still decides — this only says which of the two to ask for.
+  if (!editing) body.owner = canManageInstall ? 'install' : 'mine';
 
   if (kind === 'webhook') {
     const raw = getValue('nchanUrls').split('\n').map((s) => s.trim()).filter((s) => s !== '');

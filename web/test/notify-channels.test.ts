@@ -69,7 +69,7 @@ const EVENTS = {
 };
 
 /** Mount the module with a DOM shim, and hand back what it did. */
-function mount(channels) {
+function mount(channels, canManageInstall) {
   const els = {};
   const get = (id) => {
     if (!els[id]) els[id] = makeEl(id);
@@ -99,7 +99,10 @@ function mount(channels) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(EVENTS) });
     }
     if (u.startsWith('/api/notify-channels')) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, channels }) });
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ok: true, channels, canManageInstall: !!canManageInstall }),
+      });
     }
     if (u.startsWith('/api/routers')) {
       return Promise.resolve({
@@ -163,8 +166,8 @@ check('an empty list says so rather than drawing nothing', async () => {
 
 // ── THE SAVE BODY ──────────────────────────────────────────────────────────
 
-check('a new webhook channel sends its URLs and claims install ownership', async () => {
-  const d = mount([]);
+async function addChannel(canManageInstall) {
+  const d = mount([], canManageInstall);
   await settle();
   d.els.nchanAdd.fire('click');
   await settle();
@@ -175,12 +178,30 @@ check('a new webhook channel sends its URLs and claims install ownership', async
   d.els.nchanEnabled.checked = true;
   d.els.nchanSaveBtn.fire('click');
   await settle();
+  return d;
+}
 
+check('a new webhook channel sends its URLs in order, dropping blanks', async () => {
+  const d = await addChannel(true);
   const post = d.sent.find((s) => s.method === 'POST');
   assert.ok(post, 'nothing was posted: ' + JSON.stringify(d.sent));
-  assert.equal(post.body.owner, 'install');
   assert.deepEqual(post.body.config.urls, ['tgram://1:A/2', 'ntfy://ntfy.example.net/ops'],
     'blank lines must be dropped and the rest kept in order');
+});
+
+// OWNERSHIP IS ASKED FOR, NOT ASSUMED.
+//
+// The form sent `owner: "install"` for everybody, and the server refuses that
+// for anyone who is not an administrator — so a non-administrator pressing Add
+// Channel got a 403 and could not make a channel of their own at all. The 403
+// would have read as a permissions misconfiguration rather than a UI bug.
+check('an administrator claims install ownership, a plain user claims their own', async () => {
+  const admin = await addChannel(true);
+  assert.equal(admin.sent.find((s) => s.method === 'POST').body.owner, 'install');
+
+  const user = await addChannel(false);
+  assert.equal(user.sent.find((s) => s.method === 'POST').body.owner, 'mine',
+    'a non-administrator asked for install ownership, which the server refuses');
 });
 
 // THE CHECK THIS FILE EXISTS FOR.

@@ -161,7 +161,14 @@ func (s *Server) notifyChannelsList(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, s.viewOf(sess, c))
 	}
-	writeJSON(w, map[string]any{"ok": true, "channels": out})
+	// WHETHER THIS VIEWER MAY OWN AN INSTALL CHANNEL.
+	//
+	// Without it the browser has to guess, and the first version guessed
+	// "install" for everybody — so a non-administrator pressing Add Channel got
+	// a 403 and had no way at all to make a channel of their own.
+	writeJSON(w, map[string]any{
+		"ok": true, "channels": out, "canManageInstall": s.isGlobalAdmin(sess),
+	})
 }
 
 // notifyChannelEvents is the catalogue the modal draws its toggles from, with
