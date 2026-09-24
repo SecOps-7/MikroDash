@@ -2898,11 +2898,14 @@
 .nchan-help { font-size: .7rem; color: var(--text-muted); margin: .4rem 0 0; line-height: 1.5; }
 .nchan-help code { font-family: var(--font-mono, monospace); font-size: .68rem; }
 
-/* An event row that carries a gear: the toggle keeps the space it had, the gear
-   sits beside it rather than inside the label, so a click on it does not flip
-   the switch the whole row is a label for. */
+/* An event row: text, then the gear when there is one, then the switch. The
+   switch is a label of its own rather than part of the text's label, which is
+   what lets the gear sit BETWEEN them — immediately left of the toggle it
+   configures rather than on the far side of it. */
 .nchan-event-row { display: flex; align-items: center; gap: .5rem; }
 .nchan-event-row > .nchan-event { flex: 1; min-width: 0; }
+/* It stopped being a child of `.stoggle`, which is what carried the pointer. */
+.nchan-event-switch { cursor: pointer; }
 .nchan-gear {
   display: inline-flex; align-items: center; gap: .3rem;
   background: none; border: 1px solid var(--border); border-radius: 5px;

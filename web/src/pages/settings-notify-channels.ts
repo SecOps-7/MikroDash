@@ -280,10 +280,6 @@ function eventRow(e: EventRow, on: boolean): string {
   // A CPU alert has no interface. Drawing the filter beside every event would
   // suggest it narrows them all, and an operator who set it would reasonably
   // expect their CPU alerts to stop too.
-  //
-  // NOT INSIDE THE <label>: the whole row is a label for the toggle, so a click
-  // anywhere in it flips the switch — including on a button nested within it.
-  // The gear is a sibling, and the two sit in a flex row.
   const gear = e.key === IFACE_EVENT
     ? '<button type="button" class="nchan-gear" data-nchan-ifacebtn'
       + ' title="Choose which interface types this channel is told about">'
@@ -291,14 +287,29 @@ function eventRow(e: EventRow, on: boolean): string {
       + '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
       + '</svg><span data-nchan-ifacesum>' + esc(ifaceSummary()) + '</span></button>'
     : '';
+  // ── THE SWITCH IS A SIBLING OF ITS TEXT, NOT INSIDE ONE LABEL ─────────
+  //
+  // The row reads text, gear, switch, and the gear has to sit BETWEEN the other
+  // two. While the switch lived inside the label that also held the text, the
+  // gear could only be placed before both or after both — it ended up after,
+  // which put it on the far side of the toggle it configures.
+  //
+  // So text and switch are two labels pointing at the same checkbox with `for`,
+  // and the gear is an ordinary button between them. Clicking either label still
+  // flips the toggle; clicking the gear does not, because it is not inside one.
+  // That is also why it is a button rather than a span: it is the only thing in
+  // the row that is not a label.
+  const id = 'nchanEv-' + esc(e.key);
   return '<div class="nchan-event-row">'
-    + '<label class="stoggle stoggle-bare nchan-event">'
+    + '<label class="stoggle stoggle-bare nchan-event" for="' + id + '">'
     + '<span class="stoggle-label"><strong>' + esc(e.label) + '</strong>'
-    + '<span class="nchan-event-desc">' + esc(e.desc) + '</span></span>'
-    + '<span class="stoggle-switch"><input type="checkbox" data-nchan-event="' + esc(e.key) + '"'
+    + '<span class="nchan-event-desc">' + esc(e.desc) + '</span></span></label>'
+    + gear
+    + '<label class="stoggle-switch nchan-event-switch" for="' + id + '">'
+    + '<input type="checkbox" id="' + id + '" data-nchan-event="' + esc(e.key) + '"'
     + (on ? ' checked' : '') + '>'
-    + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>'
-    + gear + '</div>';
+    + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></label>'
+    + '</div>';
 }
 
 function fillModal(c: ChannelView | null): void {
