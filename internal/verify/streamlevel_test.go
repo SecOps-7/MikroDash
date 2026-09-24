@@ -17,7 +17,7 @@ import (
 // collector called its stop.
 //
 // Measured on 2026-09-09, minutes after the counter was deployed: three routers
-// reported 3 open channels and the fourth reported 4 — and the fourth was the
+// reported 3 open channels and the fourth reported 4 - and the fourth was the
 // only one that had reconnected. Forcing a second reconnect took it to 5. One of
 // the three streaming collectors does not release across a redial, so the level
 // grew by one per outage and a flapping router would have inflated it
@@ -54,7 +54,7 @@ func TestTheDropPathClearsTheStreamLevel(t *testing.T) {
 	loc := drop.FindStringIndex(body)
 	if loc == nil {
 		t.Fatal("could not find the drop path inside connectLoop (`s.client = nil` " +
-			"beside `s.connected = false`). This check is measuring nothing — re-aim " +
+			"beside `s.connected = false`). This check is measuring nothing - re-aim " +
 			"it at wherever the connection is now cleared.")
 	}
 	src = body

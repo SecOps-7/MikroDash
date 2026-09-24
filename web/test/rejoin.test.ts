@@ -4,14 +4,14 @@
  * ── THE BUG ─────────────────────────────────────────────────────────────────
  *
  * Reported as "the WiFi Clients table goes stale after watching it for a while",
- * and it was not specific to that page — it was every page-scoped card, on any
+ * and it was not specific to that page - it was every page-scoped card, on any
  * socket that had reconnected. WiFi Clients simply shows it soonest: a 30s poll
  * leaves the longest visible gap.
  *
  * Room membership is per-CONNECTION. A reconnect arrives as a brand-new server
  * `conn` whose `cn.page` is empty, so `rejoinPage` returns immediately; the
  * client re-sends `router:select`, which rejoins the CARDS but has nothing to
- * say about the page. The one thing that could restore it — `page:focus` — was
+ * say about the page. The one thing that could restore it - `page:focus` - was
  * gated on the router id CHANGING, and on a reconnect it has not changed.
  *
  * The browser then sat in no page room at all while the server considered the
@@ -124,7 +124,7 @@ const B = 'router-b';
   assert.strictEqual(rejoin, false, 'an empty activeId asked for a re-join');
   assert.strictEqual(next.lostRooms, true,
     'an empty activeId cleared the lost-rooms flag, swallowing the signal that ' +
-    'a re-join is owed — the next real id would then look like an ordinary one');
+    'a re-join is owed - the next real id would then look like an ordinary one');
   say('ok  an empty id neither re-joins nor eats the pending re-join');
 }
 

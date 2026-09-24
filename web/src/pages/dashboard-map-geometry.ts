@@ -8,7 +8,7 @@
 //
 // The control point is placed along the normal to the chord, and the normal is
 // FLIPPED when it points down (`ny > 0`). So every arc bows upward on screen
-// whichever direction the connection runs — without that, arcs to the east and
+// whichever direction the connection runs - without that, arcs to the east and
 // west of the router would curve opposite ways and the map would look like it
 // was drawing two different things.
 //
@@ -29,7 +29,7 @@
 export function mapArcD(x1: number, y1: number, x2: number, y2: number): string {
   const dx = x2 - x1, dy = y2 - y1;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  // A zero-length chord has no normal, so there is no arc to draw — returning ''
+  // A zero-length chord has no normal, so there is no arc to draw - returning ''
   // rather than a degenerate path, which the caller tests before using.
   if (!dist) return '';
   const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
@@ -39,7 +39,7 @@ export function mapArcD(x1: number, y1: number, x2: number, y2: number): string 
   const cpx = cx + nx * rise, cpy = cy + ny * rise;
   // ONE decimal throughout: the path is compared against the existing attribute
   // to decide whether to rebuild the arc, so more precision would rebuild the
-  // node — and restart its animation — on sub-pixel jitter.
+  // node - and restart its animation - on sub-pixel jitter.
   return 'M' + x1.toFixed(1) + ',' + y1.toFixed(1) +
     ' Q' + cpx.toFixed(1) + ',' + cpy.toFixed(1) +
     ' ' + x2.toFixed(1) + ',' + y2.toFixed(1);
@@ -61,7 +61,7 @@ export function mapMaxCount(counts: Record<string, number>): number {
 /**
  * Apply the highlight classes to a map's country shapes.
  *
- * Every known shape is visited, not only the ones with traffic — a country that
+ * Every known shape is visited, not only the ones with traffic - a country that
  * has gone quiet must LOSE its class, and iterating the counts alone would leave
  * it lit.
  */

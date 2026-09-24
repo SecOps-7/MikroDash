@@ -20,7 +20,7 @@
  *    recomputed it from `sessions` would silently disagree.
  *
  * 4. ROWS ARE ADDRESSABLE. A row with no `data-id` renders fine and does
- *    nothing when clicked — the failure mode is invisible until somebody tries
+ *    nothing when clicked - the failure mode is invisible until somebody tries
  *    to edit a subscriber.
  *
  * 5. THE BADGE COUNTS ACCOUNTS, NOT SEARCH HITS.
@@ -108,7 +108,7 @@ function boot() {
 {
   const { doc, send, restore } = boot();
   // Every string field carries the marker, so a page that rendered ANY of them
-  // as a password-shaped control fails — this does not depend on guessing which
+  // as a password-shaped control fails - this does not depend on guessing which
   // field a regression would leak through.
   send(payload([secret({
     name: NEVER, comment: NEVER, profile: NEVER, callerId: NEVER, routes: NEVER,
@@ -144,7 +144,7 @@ function boot() {
 {
   const { doc, send, restore } = boot();
   // The session list says alice is up; the SECRET says she is not. The page must
-  // believe the secret, because the server already did that join — a page that
+  // believe the secret, because the server already did that join - a page that
   // re-derived it here would disagree with the server the moment the two reads
   // land in different ticks.
   send(payload(
@@ -252,7 +252,7 @@ function boot() {
   click('profiles');
   assert.strictEqual(addRes(), 'pppProfile',
     'the Add slot did not follow the tab to Profiles');
-  assert.ok(announced >= 1, 'no mikrodash:resmount after a tab change — the Add ' +
+  assert.ok(announced >= 1, 'no mikrodash:resmount after a tab change - the Add ' +
     'button keeps the previous tab\'s resource');
   assert.strictEqual(doc.nodes['ppptab-profiles'].hidden, false, 'profiles panel stayed hidden');
   assert.strictEqual(doc.nodes['ppptab-secrets'].hidden, true, 'secrets panel stayed visible');

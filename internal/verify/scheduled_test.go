@@ -10,7 +10,7 @@ import (
 )
 
 // TestScheduledCollectorsAreDeclared records which collectors have moved off
-// their own timers onto the router's scheduler, and — more usefully — which have
+// their own timers onto the router's scheduler, and - more usefully - which have
 // not and why.
 //
 // ── WHY THIS IS A GATE AND NOT A PARAGRAPH ──────────────────────────────────
@@ -74,7 +74,7 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 		//
 		// One collector for every generated page (internal/areas). Its menus are
 		// the areas whose rooms are occupied, chosen per tick, so there is no
-		// single menu to subscribe to and the loop IS the schedule — the
+		// single menu to subscribe to and the loop IS the schedule - the
 		// `firewall` shape, in its strongest form. It takes `scheduled` for the
 		// cache and the start/stop lifecycle every collector shares.
 		"areas.go": "areas",
@@ -96,9 +96,9 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 	//	NOT TRIED    no obstacle found. Just not done.
 	unscheduled := map[string]string{
 		// IMPOSSIBLE.
-		"logs":    "IMPOSSIBLE — /log/listen is a push channel: no result to key, no end to key it until",
-		"ping":    "IMPOSSIBLE — a stream parameterised by address; two consumers are asking about different hosts",
-		"traffic": "IMPOSSIBLE — a monitor stream; same menu as ifStatus's measurement, a different question",
+		"logs":    "IMPOSSIBLE - /log/listen is a push channel: no result to key, no end to key it until",
+		"ping":    "IMPOSSIBLE - a stream parameterised by address; two consumers are asking about different hosts",
+		"traffic": "IMPOSSIBLE - a monitor stream; same menu as ifStatus's measurement, a different question",
 
 		// NEEDS 4.2. Empty. BOTH entries here were WRONG, not merely untried,
 		// and both were wrong in the same way: they described a dependency on
@@ -174,14 +174,14 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 		missing = append(missing, c.Key)
 		if unscheduled[c.Key] == "" {
 			t.Errorf("%s is dormancy-eligible, not scheduled, and has no recorded reason. "+
-				"Either schedule it or say what stops it — 3.3 is blocked on exactly this "+
+				"Either schedule it or say what stops it - 3.3 is blocked on exactly this "+
 				"list and an unexplained entry makes the blockage unreadable.", c.Key)
 		}
 	}
 	for key := range unscheduled {
 		if onScheduler[key] {
 			t.Errorf("%s is listed as unscheduled with reason %q, but it IS on the scheduler "+
-				"now. Drop the entry — and if the list is empty, 3.3 is unblocked.",
+				"now. Drop the entry - and if the list is empty, 3.3 is unblocked.",
 				key, unscheduled[key])
 		}
 	}
@@ -201,7 +201,7 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 	if len(missing) > 0 {
 		t.Errorf("%d of %d dormancy-eligible collectors are no longer scheduled: %v. "+
 			"Per-query backoff covers only scheduled collectors, so this leaves the "+
-			"dormancy supervisor as the only thing watching them — two mechanisms with "+
+			"dormancy supervisor as the only thing watching them - two mechanisms with "+
 			"different semantics, which is what 3.3 exists to remove.",
 			len(missing), len(eligible), missing)
 	}

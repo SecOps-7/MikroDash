@@ -7,7 +7,7 @@
  * fit, on the reasoning that a visible overlapping card beats a silent refusal.
  * Measured on 2026-09-10: the nine cards a default install ships leave 24 free
  * cells of 528, and not one free RECTANGLE big enough for any of the fourteen
- * hidden ones. So the fallback was not the rare case — it was the ONLY case, and
+ * hidden ones. So the fallback was not the rare case - it was the ONLY case, and
  * every card added from the Add Card panel landed on top of the traffic chart.
  *
  * The grid grows downward now, `ROWS` being its floor rather than its ceiling.
@@ -15,7 +15,7 @@
  * ── WHY IT IS DRIVEN THROUGH `addCard` AND NOT `findFreeSlot` ───────────────
  *
  * `grid-wiring.test.ts` opens and closes the Add panel and never clicks a chip,
- * so `addCard` had no coverage at all — which is how a placement bug this total
+ * so `addCard` had no coverage at all - which is how a placement bug this total
  * survived. Testing the arithmetic alone would have passed against the broken
  * build too, because the arithmetic was doing exactly what it was written to do.
  *
@@ -91,7 +91,7 @@ function firstOverlap(layout: any[]): string {
 }
 
 // ── 1. THE PRECONDITION. If this ever stops holding, the bug below cannot be
-//      reproduced and this whole file is measuring nothing — so it is asserted
+//      reproduced and this whole file is measuring nothing - so it is asserted
 //      rather than assumed.
 {
   const { mod, restore } = boot();
@@ -113,7 +113,7 @@ function firstOverlap(layout: any[]): string {
   ok(!fitsInFixedGrid,
     'a hidden card now fits inside the fixed ' + mod.COLS + 'x' + mod.ROWS + ' grid. The ' +
     'default layout has changed, so the fallback this file exists for is no longer ' +
-    'certain — re-measure before trusting the rest of these checks');
+    'certain - re-measure before trusting the rest of these checks');
   restore();
 }
 
@@ -150,7 +150,7 @@ function firstOverlap(layout: any[]): string {
   ok(mod.gridRows(layout) === 30, 'precondition: gridRows should be 30');
   const slot = mod.findFreeSlot(layout, 4, 4);
   ok(slot.x === 1 && slot.y === 23,
-    'a 4x4 card went to ' + slot.x + ',' + slot.y + ' instead of the free hole at 1,23 — ' +
+    'a 4x4 card went to ' + slot.x + ',' + slot.y + ' instead of the free hole at 1,23 - ' +
     'the grid lengthens for a card that had somewhere to go');
   restore();
 }
@@ -164,7 +164,7 @@ function firstOverlap(layout: any[]): string {
   ok(slot.x === 1, 'a card starting a new band went to column ' + slot.x + ', want 1');
   // The old behaviour, pinned so a revert is loud rather than quiet.
   ok(!(slot.x === 1 && slot.y === 1),
-    'a card on a full grid was placed at 1,1 — that is the overlap this file exists to prevent');
+    'a card on a full grid was placed at 1,1 - that is the overlap this file exists to prevent');
   restore();
 }
 
@@ -192,7 +192,7 @@ function firstOverlap(layout: any[]): string {
 // ── 6. Growing writes an explicit track list, and stops when it is not needed ─
 //
 // Implicit tracks are sized by `grid-auto-rows`, not by the explicit `1fr`
-// list, so a card in one would be a different height from every other row — and
+// list, so a card in one would be a different height from every other row - and
 // the drag arithmetic assumes uniform rows.
 {
   const { mod, editor, root, restore } = boot();
@@ -213,7 +213,7 @@ function firstOverlap(layout: any[]): string {
 // ── 7. Bounds follow the grown grid, so the card can be dragged afterwards ──
 //
 // A card placed at row 23 that `inBounds` refuses is a card the operator cannot
-// move — which would be a worse bug than the one being fixed.
+// move - which would be a worse bug than the one being fixed.
 {
   const { mod, restore } = boot();
   ok(mod.inBounds(1, 23, 8, 4, 30), 'a card in the grown area is out of bounds on a 30-row grid');
@@ -253,7 +253,7 @@ function firstOverlap(layout: any[]): string {
 //
 // The case that made this two passes. `c` is the card the bug stacked; `d` sits
 // at row 12 legitimately. A one-pass repair re-places `c` into the first hole it
-// sees — which is row 12, because `d` has not been examined yet — and then finds
+// sees - which is row 12, because `d` has not been examined yet - and then finds
 // `d` "overlapping" and evicts it. An innocent card moves, and the dashboard
 // ends up 33 rows long instead of 28.
 {
@@ -272,13 +272,13 @@ function firstOverlap(layout: any[]): string {
     const now = fixed.find((c: any) => c.id === id);
     ok(now.x === was.x && now.y === was.y,
       'the repair moved `' + id + '` from ' + was.x + ',' + was.y + ' to ' + now.x + ',' + now.y +
-      ' — nothing was wrong with it, and only the card the bug stacked should move');
+      ' - nothing was wrong with it, and only the card the bug stacked should move');
   }
   // A+B fill rows 1-11 and `d` fills 12-22 across the full width, so `c` has
   // genuinely nowhere above row 23. 28 is the floor for this shape; 33 is what
   // the one-pass version produced by evicting `d` as well.
   ok(mod.gridRows(fixed) === 28,
-    'the dashboard is ' + mod.gridRows(fixed) + ' rows, want 28 — longer means a second ' +
+    'the dashboard is ' + mod.gridRows(fixed) + ' rows, want 28 - longer means a second ' +
     'card was displaced');
   restore();
 }
@@ -307,8 +307,8 @@ function firstOverlap(layout: any[]): string {
 // ── 10. THE REPAIR IS `mergeLayout`'s JOB, NOT A CALLER'S ──────────────────
 //
 // This is the check for a failure that reached the running app. The repair was
-// wired into `loadLayout` only, and a layout arrives TWICE — from localStorage
-// and from `/api/dashboard-layout` — with the server path writing what it merged
+// wired into `loadLayout` only, and a layout arrives TWICE - from localStorage
+// and from `/api/dashboard-layout` - with the server path writing what it merged
 // back to localStorage. So the unrepaired path re-poisoned the cache the
 // repaired one had just cleaned, and the overlapping card came straight back on
 // the next load. Repairing at one of two entry points does not half-work; it

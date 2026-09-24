@@ -10,7 +10,7 @@
  *
  * The live app has ONE `_mountCityPicker` (app.js:11225) shared by this dialog
  * and the site form. This port grew the dialog's copy inline first, and added a
- * shared `mountCityPicker` later when the site form needed one — so there are
+ * shared `mountCityPicker` later when the site form needed one - so there are
  * two implementations where the original has one.
  *
  * Migrating the dialog onto the shared mount was REFUSED on 2026-08-26 for a
@@ -218,7 +218,7 @@ function check(name, fn) {
     });
   }
 
-  // 5. A SLOW ANSWER FOR AN OLD QUERY IS DISCARDED — a "ber" landing after
+  // 5. A SLOW ANSWER FOR AN OLD QUERY IS DISCARDED - a "ber" landing after
   //    "bergen" must not repaint the list with the wrong towns.
   {
     const held = { ber: {} };
@@ -257,5 +257,5 @@ function check(name, fn) {
     console.error('\nrouter-modal-picker-check: ' + problems.length + ' of ' + checks + ' failed');
     process.exit(1);
   }
-  console.log('router dialog picker ok (' + checks + ' checks; PORT-ONLY — see the header)');
+  console.log('router dialog picker ok (' + checks + ' checks; PORT-ONLY - see the header)');
 })();

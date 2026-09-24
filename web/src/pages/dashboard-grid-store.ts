@@ -21,7 +21,7 @@
 // load-bearing, and measuring said so: removing either changes nothing, because
 // `mergeLayout` walks DEFAULT_LAYOUT and produces the defaults for an empty list
 // anyway, and a non-array makes its `for...of` throw into the same catch. They
-// are reproduced because the original has them and they state the intent — they
+// are reproduced because the original has them and they state the intent - they
 // are not what protects the dashboard.
 //
 // ── TWO CARDS CAN SHARE A ROOM ──────────────────────────────────────────────
@@ -29,7 +29,7 @@
 // `syncDashRooms` is the piece with teeth: it decides which page-gated
 // collectors run. It dedupes by ROOM rather than by card, so a room is joined
 // once however many of its cards are visible. The corollary is the dangerous
-// half — leaving a room must be a decision about whether ANY visible card still
+// half - leaving a room must be a decision about whether ANY visible card still
 // wants it, never about the one card that was just removed.
 //
 // ── AND `/api/dashboard-layout` IS NOT A GO ENDPOINT ────────────────────────
@@ -67,7 +67,7 @@ export function saveLayout(layout: readonly GridCard[]): void {
     body: JSON.stringify({ cards: layout }),
   })
     .then((r) => {
-      if (!r.ok) console.warn('[MikroDash] dashboard layout save failed — HTTP', r.status);
+      if (!r.ok) console.warn('[MikroDash] dashboard layout save failed - HTTP', r.status);
       else console.log('[MikroDash] dashboard layout saved to server');
     })
     .catch((e) => { console.warn('[MikroDash] dashboard layout save error:', e); });
@@ -86,8 +86,8 @@ export function applyLayout(l: readonly GridCard[]): void {
   // The stylesheet declares 22 rows. A card placed below them lands in an
   // IMPLICIT track, which is sized by `grid-auto-rows` rather than by the
   // explicit `1fr` list, so it would be a different height from every other row
-  // and the arithmetic in `dashboard-grid-layout.ts` — which assumes uniform
-  // rows — would put every drag in the wrong cell.
+  // and the arithmetic in `dashboard-grid-layout.ts` - which assumes uniform
+  // rows - would put every drag in the wrong cell.
   //
   // Declaring the tracks explicitly is what keeps them uniform. The inline style
   // is CLEARED at the floor rather than set to the same value, so the stylesheet
@@ -123,12 +123,12 @@ function notifyRoom(eventName: string, room: string): void {
  * Join or leave the rooms the visible room-gated cards need.
  *
  * Called when the dashboard page gains or loses focus. Deduped by ROOM: two
- * cards sharing one produce a single join, and — the half that matters — a
+ * cards sharing one produce a single join, and - the half that matters - a
  * single leave.
  *
  * `rooms` is a parameter purely so that claim can be TESTED. No two cards in the
  * shipped table currently share a room, so dedupe-by-room and dedupe-by-card
- * agree on every real input — a mutation swapping one for the other SURVIVED
+ * agree on every real input - a mutation swapping one for the other SURVIVED
  * until the gate could supply a table where they differ. The live table's own
  * comment says two cards may share a room, so this is a property that has to
  * keep working, not one that happens to be unobservable today.
@@ -149,7 +149,7 @@ export function syncDashRooms(
 /**
  * Fetch the server's copy of the layout, and warm the local cache with it.
  *
- * Resolves to null whenever there is nothing usable — no response, a bad shape,
+ * Resolves to null whenever there is nothing usable - no response, a bad shape,
  * an empty list, or the server being unavailable at all. The caller has already
  * painted from localStorage by the time this settles, so "nothing usable" means
  * "keep what is on screen", never "clear it".
@@ -167,7 +167,7 @@ export async function mergeLayoutFromServer(): Promise<GridCard[] | null> {
     localStorage.setItem(LS_KEY, JSON.stringify({ cards: merged }));
     return merged;
   } catch {
-    // Server unavailable — the local layout stands.
+    // Server unavailable - the local layout stands.
     return null;
   }
 }

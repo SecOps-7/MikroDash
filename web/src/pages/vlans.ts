@@ -1,4 +1,4 @@
-// The VLANs page — a port of the VLANs IIFE in public/app.js.
+// The VLANs page - a port of the VLANs IIFE in public/app.js.
 //
 // The rate column carries a sparkline per VLAN, and its history is kept HERE
 // rather than server-side: it is presentation state, and the collector already
@@ -36,7 +36,7 @@ function sortVal(v: Vlan, key: string): string | number {
 }
 
 function ports(list: string[]): string {
-  if (!list.length) return '<span style="color:var(--text-muted)">&mdash;</span>';
+  if (!list.length) return '<span style="color:var(--text-muted)">-</span>';
   return list.map((n) => '<span class="wl-band wl-band-5">' + esc(n) + '</span>').join(' ');
 }
 
@@ -104,7 +104,7 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
   // null is "the router did not report a rate", which is not the same as idle.
   function rate(v: Vlan): string {
     if (v.rxMbps === null && v.txMbps === null) {
-      return '<span style="color:var(--text-muted)" title="Interface rates are unavailable">&mdash;</span>';
+      return '<span style="color:var(--text-muted)" title="Interface rates are unavailable">-</span>';
     }
     const h = hist[v.vlanId] || { rx: [], tx: [] };
     return '<div class="vlan-rate">' + rateLine('rx', v.rxMbps, h.rx) +
@@ -136,14 +136,14 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
 
     tbody!.innerHTML = rows.length ? rows.map((v) => {
       const i0 = v.interfaces[0];
-      // A VLAN that exists only at layer 2 — membership via a bridge port's
-      // pvid, with no /interface/vlan row — has nothing to edit, so it gets no
+      // A VLAN that exists only at layer 2 - membership via a bridge port's
+      // pvid, with no /interface/vlan row - has nothing to edit, so it gets no
       // data-id and is simply not clickable.
       return '<tr' + resRow(i0 ? i0.id : '', i0 ? i0.name : null) + '>' +
         '<td><span class="wl-band wl-band-24">' + v.vlanId + '</span></td>' +
         '<td>' + (v.name ? esc(v.name) : '<span style="color:var(--text-muted)">no L3 interface</span>') + '</td>' +
         '<td>' + esc(i0 ? i0.parent : '') + '</td>' +
-        '<td>' + (i0 && i0.mtu ? i0.mtu : '&mdash;') + '</td>' +
+        '<td>' + (i0 && i0.mtu ? i0.mtu : '-') + '</td>' +
         '<td>' + ports(v.tagged) + '</td>' +
         '<td>' + ports(v.untagged) + '</td>' +
         '<td>' + (v.clients || 0) + '</td>' +
@@ -158,7 +158,7 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
     const tb = el('vlansBridgeTable');
     if (!tb || !data) return;
     // Dynamic rows are filtered HERE, at render. They are kept in the join
-    // because on a real router most VLAN membership comes from them —
+    // because on a real router most VLAN membership comes from them -
     // filtering them earlier would show every VLAN with no tagged ports.
     const rows = data.bridgeVlans.filter((r) => showDynamic || !r.dynamic);
     const badge = el('vlansBridgeBadge');
@@ -194,7 +194,7 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
     set('vlSumTagged', String(tagged.size));
     set('vlSumUntagged', String(untagged.size));
     const r = el('vlSumRate');
-    if (r) r.innerHTML = any ? fmtMbps(rx + tx) : '&mdash;';
+    if (r) r.innerHTML = any ? fmtMbps(rx + tx) : '-';
   }
 
   socket.on('vlans:update', (d) => {
@@ -214,7 +214,7 @@ export function initVlansPage(socket: Socket, isVisible: (page: string) => boole
   const dyn = el<HTMLInputElement>('vlansShowDynamic');
   if (dyn) dyn.addEventListener('change', () => { showDynamic = dyn.checked; renderBridge(); });
 
-  // The vlan resource declares guard: 'selfPath' — an edit naming the interface
+  // The vlan resource declares guard: 'selfPath' - an edit naming the interface
   // the router sees us on is refused with a warning that names it.
   mountAdds(socket);
   mountRows(socket);

@@ -1,6 +1,6 @@
   <div class="page-view" id="page-devices">
     <!-- container-FLUID, as every other page uses. This was the one page on
-         `container-xl`, which Tabler caps at max-width:1140px — so on a wide
+         `container-xl`, which Tabler caps at max-width:1140px - so on a wide
          screen the fleet sat in a narrow column with empty space either side
          while every other page filled the window (issue #122). The horizontal
          padding is unchanged: both containers set the same gutter, and
@@ -16,25 +16,25 @@
         <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Total Devices</div>
-            <div class="h1 m-0 mt-1" id="rsTotal">—</div>
+            <div class="h1 m-0 mt-1" id="rsTotal">-</div>
           </div></div>
         </div>
         <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Online</div>
-            <div class="h1 m-0 mt-1" id="rsOnline" style="color:var(--accent-green,#34d399)">—</div>
+            <div class="h1 m-0 mt-1" id="rsOnline" style="color:var(--accent-green,#34d399)">-</div>
           </div></div>
         </div>
         <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Offline</div>
-            <div class="h1 m-0 mt-1" id="rsOffline">—</div>
+            <div class="h1 m-0 mt-1" id="rsOffline">-</div>
           </div></div>
         </div>
         <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Alerting</div>
-            <div class="h1 m-0 mt-1" id="rsAlerting">—</div>
+            <div class="h1 m-0 mt-1" id="rsAlerting">-</div>
           </div></div>
         </div>
         <!-- Sites: how many distinct sites the fleet is spread across. Counted
@@ -44,7 +44,7 @@
         <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Sites</div>
-            <div class="h1 m-0 mt-1" id="rsSites">—</div>
+            <div class="h1 m-0 mt-1" id="rsSites">-</div>
           </div></div>
         </div>
       </div>
@@ -58,7 +58,7 @@
            filter boxes lived in the table head and cost a row of chrome for
            something one box answers. -->
       <div class="card mt-3 routers-toolbar d-flex flex-row align-items-center gap-2">
-        <select id="routersSiteFilter" class="conn-src-filter" title="Filter by site — a device may belong to more than one" style="min-width:150px">
+        <select id="routersSiteFilter" class="conn-src-filter" title="Filter by site - a device may belong to more than one" style="min-width:150px">
           <option value="">All Sites</option>
         </select>
         <input id="routersSearch" type="search" class="sform-input"
@@ -66,7 +66,7 @@
                title="Matches name, host, model, RouterOS version and site. Also understands online, offline and alerting."
                autocomplete="off" style="max-width:22rem">
         <span class="text-muted" id="routersShown" style="font-size:.75rem"></span>
-        <select id="routersView" class="conn-src-filter ms-auto" title="View — Compact fits more cards per row; List adds sortable columns" style="min-width:140px">
+        <select id="routersView" class="conn-src-filter ms-auto" title="View - Compact fits more cards per row; List adds sortable columns" style="min-width:140px">
           <option value="comfortable">Comfortable</option>
           <option value="compact">Compact</option>
           <option value="list">List</option>
@@ -84,7 +84,7 @@
       <!-- `justify-content-center`: a partly filled last row used to pack hard
            against the left edge, so a fleet of two or three devices sat in the
            corner of a wide window with everything else on the page spanning it.
-           A full row is unaffected — the columns already fill it — so this only
+           A full row is unaffected - the columns already fill it - so this only
            changes where the leftover cards sit. -->
       <div class="row row-cards mt-3 justify-content-center" id="routers-grid">
         <div class="col-12 text-muted text-center py-4">Loading…</div>
@@ -119,7 +119,7 @@
       </div>
 
       <!-- Map view (issue #96). Reuses the country geometry the Connections page
-           already builds — no tile server, which the CSP would block anyway.
+           already builds - no tile server, which the CSP would block anyway.
            The tray below the map is not optional: a router with no resolvable
            location must stay discoverable rather than silently vanish. -->
       <div class="card mt-3" id="routersMapWrap" hidden>
@@ -130,10 +130,10 @@
           <div class="rtrmap-zoom">
             <button type="button" data-map-zoom="in"    title="Zoom in">+</button>
             <button type="button" data-map-zoom="out"   title="Zoom out">&#8722;</button>
-            <button type="button" data-map-zoom="reset" title="Reset view — zoom right out to the whole world">&#8634;</button>
+            <button type="button" data-map-zoom="reset" title="Reset view - zoom right out to the whole world">&#8634;</button>
             <button type="button" data-map-zoom="autoframe" id="rtrMapAutoFrame"
                     class="rtrmap-af" aria-pressed="false"
-                    title="Auto Frame — keep every router in view. Panning or zooming turns it off.">AF</button>
+                    title="Auto Frame - keep every router in view. Panning or zooming turns it off.">AF</button>
           </div>
         </div>
         <div class="rtrmap-tray" id="rtrMapTray" hidden></div>

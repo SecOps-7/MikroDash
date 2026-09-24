@@ -1,13 +1,13 @@
 # Contributing to MikroDash
 
-Thanks for your interest in contributing. Small changes are as welcome as large ones — typo fixes, documentation, and a single-line bug fix all count.
+Thanks for your interest in contributing. Small changes are as welcome as large ones - typo fixes, documentation, and a single-line bug fix all count.
 
 ## Before You Start
 
 - Check [open issues](https://github.com/SecOps-7/MikroDash/issues) to avoid duplicating work
 - [Good first issue](https://github.com/SecOps-7/MikroDash/labels/good%20first%20issue) is a reasonable place to start
 - For large changes, open an issue first so we can agree on the approach before you spend time on it
-- If something is unclear, ask in an issue — that is not a bother
+- If something is unclear, ask in an issue - that is not a bother
 
 ## Development Setup
 
@@ -47,7 +47,7 @@ It **discovers** what to check rather than working from a list, so a new check r
 
 | | |
 |---|---|
-| `internal/verify/` | 88 Go tests — static checks over the current source. Picked up by `go test ./...`. |
+| `internal/verify/` | 88 Go tests - static checks over the current source. Picked up by `go test ./...`. |
 | `web/test/` | 83 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
 
 Package tests use the standard library `testing` package only.
@@ -64,15 +64,15 @@ These are deliberate constraints rather than style preferences:
 - **Self-hosted assets.** Everything the browser loads lives in `web/public/vendor/`, so the dashboard works on an isolated network with no internet access. No CDN references.
 - **A small dependency footprint.** There are eight Go dependencies and each has a reason beyond convenience. `esbuild` is used through its Go API, which is why building the frontend needs no JavaScript runtime. New ones are worth discussing first.
 - **Errors are sanitised.** Anything reaching the browser goes through `safe.Message()` first.
-- **Deliberate changes are welcome; silent ones are not.** If your change alters what a page shows, a WebSocket payload or an interaction, say so in the PR. If it makes a check fail, update the check and explain why in the commit — do not delete it.
+- **Deliberate changes are welcome; silent ones are not.** If your change alters what a page shows, a WebSocket payload or an interaction, say so in the PR. If it makes a check fail, update the check and explain why in the commit - do not delete it.
 
-The collector layer — how data is read from the router, turned into payloads and sent to the pages that want it — is described in **[Collector-Architecture.md](Collector-Architecture.md)**. You do not need to read it before starting: copying the closest existing collector in `internal/collect/` is a perfectly good way to begin.
+The collector layer - how data is read from the router, turned into payloads and sent to the pages that want it - is described in **[Collector-Architecture.md](Collector-Architecture.md)**. You do not need to read it before starting: copying the closest existing collector in `internal/collect/` is a perfectly good way to begin.
 
 ## Submitting a Pull Request
 
 1. Fork the repo and create a branch from `main`
 2. Make your changes and check `sh tools/verify.sh` passes
-3. Keep commits focused — one logical change per commit
+3. Keep commits focused - one logical change per commit
 4. Open a PR describing what changed and why
 
 Do not worry about getting the conventions above exactly right first time. If something needs adjusting, that is what review is for, and it will be a conversation rather than a rejection.

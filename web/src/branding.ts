@@ -78,7 +78,7 @@ export function renderWordmark(target: HTMLElement, name: string, font: string):
 
 /**
  * Apply branding to whatever of the app or the login page is on screen.
- * `titleSuffix` is appended to the tab title, e.g. " — Sign In".
+ * `titleSuffix` is appended to the tab title, e.g. " - Sign In".
  */
 export function applyBranding(b: Branding, titleSuffix = ''): void {
   const top = document.getElementById('topbarLogo');

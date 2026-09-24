@@ -32,7 +32,7 @@ func uncomment(s string) string {
 // Landing anywhere else is the first-vertical-slice default outliving the slice.
 // And if `dashboard` is missing from either list, navigating to it hands the
 // browser to a Node that does not exist and the redirect lands back on the
-// default page — the loop the operator originally hit.
+// default page - the loop the operator originally hit.
 func TestAppLandsOnTheDashboard(t *testing.T) {
 	root := repoRoot(t)
 	body := uncomment(mustRead(t, filepath.Join(root, "web", "src", "main.ts")))
@@ -42,11 +42,11 @@ func TestAppLandsOnTheDashboard(t *testing.T) {
 	// names none. The pattern follows it rather than pinning the old shape.
 	land := regexp.MustCompile(`initialPage\(PORTED, '([a-z-]+)'\)`).FindStringSubmatch(body)
 	if land == nil {
-		t.Fatal("the landing-page fallback could not be found — it is " +
+		t.Fatal("the landing-page fallback could not be found - it is " +
 			"`initialPage(PORTED, '<page>')` in select()")
 	}
 	if land[1] != "dashboard" {
-		t.Errorf("the app falls back to %q. It is `dashboard` — the URL decides the page, and "+
+		t.Errorf("the app falls back to %q. It is `dashboard` - the URL decides the page, and "+
 			"this is only reached when the URL names none.", land[1])
 	}
 	// PORTED and webbuild's PAGES both read `internal/pages` now, so the two
@@ -54,7 +54,7 @@ func TestAppLandsOnTheDashboard(t *testing.T) {
 	// package directly is the same question with no pattern to rot.
 	if !pages.Has("dashboard") {
 		t.Error("'dashboard' is not in internal/pages, so it has no markup composed, no URL " +
-			"registered and no nav entry — the landing page would not exist.")
+			"registered and no nav entry - the landing page would not exist.")
 	}
 	t.Log("the app lands on a mounted dashboard")
 }
@@ -78,7 +78,7 @@ func TestReconnectDoesNotNavigateAway(t *testing.T) {
 		t.Fatal("showPage is called in a shape this check cannot read")
 	}
 	if !regexp.MustCompile(`\bcurrentPage\b`).MatchString(strings.TrimSpace(call[1])) {
-		t.Errorf("select() calls showPage(socket, %s) — a fixed page. This runs on every connect, "+
+		t.Errorf("select() calls showPage(socket, %s) - a fixed page. This runs on every connect, "+
 			"so a reconnect would navigate the operator away from whatever they were reading.",
 			strings.TrimSpace(call[1]))
 	}
@@ -89,7 +89,7 @@ func TestReconnectDoesNotNavigateAway(t *testing.T) {
 // arrives, not at module scope.
 //
 // Every page module initialises at BOOT, before the router session has settled.
-// A fetch at that point answers an empty country and the map never draws an arc —
+// A fetch at that point answers an empty country and the map never draws an arc -
 // and it does so silently, because an empty answer is a valid answer.
 func TestLocalCCIsFetchedLazily(t *testing.T) {
 	root := repoRoot(t)
@@ -105,7 +105,7 @@ func TestLocalCCIsFetchedLazily(t *testing.T) {
 	}
 	at := strings.Index(body, "socket.on('conn:update'")
 	if at < 0 {
-		t.Fatal("no socket.on('conn:update') handler — the anchor is gone")
+		t.Fatal("no socket.on('conn:update') handler - the anchor is gone")
 	}
 	handler := body[at:]
 	if next := strings.Index(body[at+10:], "socket.on("); next >= 0 {
@@ -113,7 +113,7 @@ func TestLocalCCIsFetchedLazily(t *testing.T) {
 	}
 	if !strings.Contains(handler, "fetchLocalCCOnce()") {
 		t.Error("the conn:update handler does not call fetchLocalCCOnce. That call is what makes " +
-			"the fetch happen when the session is UP — connection data arriving is the proof of it.")
+			"the fetch happen when the session is UP - connection data arriving is the proof of it.")
 	}
 	t.Log("the arc origin is fetched lazily from conn:update")
 }
@@ -122,7 +122,7 @@ func TestLocalCCIsFetchedLazily(t *testing.T) {
 // puts it back.
 //
 // The failure is invisible in the worst way: every request returns 200, nothing
-// is logged, the app renders correctly — at opacity zero. Each half is asserted
+// is logged, the app renders correctly - at opacity zero. Each half is asserted
 // separately so that removing one is a failure rather than quietly making the
 // other dead code.
 func TestLoginFadeIsRestored(t *testing.T) {
@@ -132,7 +132,7 @@ func TestLoginFadeIsRestored(t *testing.T) {
 	preflight := mustRead(t, filepath.Join(entry, "preflight.ts"))
 	if !regexp.MustCompile(`opacity\s*=\s*'0'`).MatchString(preflight) {
 		t.Error("preflight no longer sets opacity to 0. If the hide is gone the restore is dead " +
-			"code — delete both together, deliberately.")
+			"code - delete both together, deliberately.")
 	}
 	if !strings.Contains(preflight, "justLoggedIn") {
 		t.Error("preflight no longer keys the hide on justLoggedIn; the restore must follow it")
@@ -144,10 +144,10 @@ func TestLoginFadeIsRestored(t *testing.T) {
 	body := uncomment(mustRead(t, filepath.Join(root, "web", "src", "main.ts")))
 	if !regexp.MustCompile(`sessionStorage\.getItem\(\s*'justLoggedIn'\s*\)`).MatchString(body) {
 		t.Error("main.ts never reads justLoggedIn. After a login the app renders correctly and is " +
-			"INVISIBLE — every request 200, nothing logged, nothing to see.")
+			"INVISIBLE - every request 200, nothing logged, nothing to see.")
 	}
 	if !regexp.MustCompile(`documentElement\.style\.opacity\s*=\s*'1'`).MatchString(body) {
-		t.Error("main.ts never restores opacity to 1 — the page stays hidden after login")
+		t.Error("main.ts never restores opacity to 1 - the page stays hidden after login")
 	}
 	t.Log("preflight hides on justLoggedIn, login sets it, main clears the flag and restores opacity")
 }
@@ -172,7 +172,7 @@ var dashboardIDsUnwritten = map[string]string{
 	"ndWanGroup":      "static SVG in the network diagram",
 	"dc-worldMapWrap": "the map's wrapper. The card reaches it as `svg.parentElement` to position " +
 		"the tooltip, which is traversal rather than a lookup, so it has no writer and needs none.",
-	"ndPingSection": "a wrapper whose children are all driven — pingTargetLabel, ndPingRtt, " +
+	"ndPingSection": "a wrapper whose children are all driven - pingTargetLabel, ndPingRtt, " +
 		"ndPingMin, ndPingMax, ndPingLoss and pingChartNet are each written by the ping card. " +
 		"Its only reference was the caps.ts line that hid the section when ping collection was " +
 		"switched off, and ping can no longer be switched off (2026-09-17), so there is nothing " +
@@ -183,7 +183,7 @@ var dashboardIDsUnwritten = map[string]string{
 // TypeScript or styled by CSS.
 //
 // The dashboard is the densest markup in the app. An id nothing references is a
-// card, a stat or a badge that renders its empty initial state forever — and it
+// card, a stat or a badge that renders its empty initial state forever - and it
 // looks completely normal, because an empty dashboard tile is a plausible state.
 func TestDashboardMarkupIsDriven(t *testing.T) {
 	root := repoRoot(t)
@@ -201,7 +201,7 @@ func TestDashboardMarkupIsDriven(t *testing.T) {
 		}
 	}
 	if len(ids) < 100 {
-		t.Fatalf("only %d ids found in the dashboard markup — the scan broke", len(ids))
+		t.Fatalf("only %d ids found in the dashboard markup - the scan broke", len(ids))
 	}
 
 	referenced := func(id string) bool {
@@ -219,13 +219,13 @@ func TestDashboardMarkupIsDriven(t *testing.T) {
 		unwritten++
 		have[id] = true
 		if _, ok := dashboardIDsUnwritten[id]; !ok {
-			t.Errorf("#%s is in the dashboard markup and nothing references it — the element "+
+			t.Errorf("#%s is in the dashboard markup and nothing references it - the element "+
 				"renders its empty initial state forever, which looks like a plausible dashboard", id)
 		}
 	}
 	for id := range dashboardIDsUnwritten {
 		if !have[id] {
-			t.Errorf("#%s is recorded as unwritten, but something references it now — delete the "+
+			t.Errorf("#%s is recorded as unwritten, but something references it now - delete the "+
 				"entry rather than leaving a note that has stopped being true", id)
 		}
 	}
@@ -239,7 +239,7 @@ func TestDashboardMarkupIsDriven(t *testing.T) {
 // blipped; not clearing it on a switch would show one router's pick against
 // another router's data. The original's own rule was the same, and the guarded
 // half of the JavaScript check that asserted it against the deleted source is
-// gone — the port half below is the whole check now.
+// gone - the port half below is the whole check now.
 func TestTrafficPickSurvivesReconnect(t *testing.T) {
 	root := repoRoot(t)
 	traffic := uncomment(mustRead(t, filepath.Join(root, "web", "src", "pages", "dashboard-traffic.ts")))
@@ -270,7 +270,7 @@ func TestTrafficPickSurvivesReconnect(t *testing.T) {
 	// and it must be the narrow reset.
 	handlers := regexp.MustCompile(`socket\.on\('connect',[^\n]*`).FindAllString(dash, -1)
 	if len(handlers) == 0 {
-		t.Fatal("no socket.on('connect') in dashboard.ts — the anchor is gone")
+		t.Fatal("no socket.on('connect') in dashboard.ts - the anchor is gone")
 	}
 	narrow, wide := 0, 0
 	for _, h := range handlers {
@@ -281,11 +281,11 @@ func TestTrafficPickSurvivesReconnect(t *testing.T) {
 		}
 	}
 	if wide > 0 {
-		t.Errorf("%d connect handler(s) call the FULL resetTraffic — every socket blip would "+
+		t.Errorf("%d connect handler(s) call the FULL resetTraffic - every socket blip would "+
 			"silently reset the operator's chart selection", wide)
 	}
 	if narrow != 1 {
-		t.Errorf("%d of %d connect handlers call resetTrafficOnReconnect; exactly one should — "+
+		t.Errorf("%d of %d connect handlers call resetTrafficOnReconnect; exactly one should - "+
 			"without it a reconnect appends new history to samples from before the gap, drawing "+
 			"the chart straight across the outage", narrow, len(handlers))
 	}
@@ -320,10 +320,10 @@ func TestTheUsersPageBusyKeyIsQualifiedAndShowsProgress(t *testing.T) {
 	// id. Anything table-qualified is fine; `busy === id` is not.
 	if regexp.MustCompile(`busy\s*===\s*id\b`).MatchString(src) {
 		t.Error("rosusers.ts compares `busy === id`, so one *N disables the same id in all " +
-			"three tables — ending a session greys out an unrelated user row")
+			"three tables - ending a session greys out an unrelated user row")
 	}
 	if !strings.Contains(src, "busyKey(") {
-		t.Fatal("no busyKey() in rosusers.ts — the busy state is no longer table-qualified, " +
+		t.Fatal("no busyKey() in rosusers.ts - the busy state is no longer table-qualified, " +
 			"and this check has stopped measuring anything")
 	}
 
@@ -347,7 +347,7 @@ func TestTheUsersPageBusyKeyIsQualifiedAndShowsProgress(t *testing.T) {
 // proves the overlay opens. It cannot prove anything CALLS it: deleting the call
 // from `main()` leaves that suite entirely green, verified by mutation. That is
 // the same shape as the Add Device button in this release, which rendered
-// perfectly and was bound to nothing — a thing that works in isolation and is
+// perfectly and was bound to nothing - a thing that works in isolation and is
 // never reached.
 //
 // The `if (!first)` branch is the only place the browser knows the fleet is
@@ -367,7 +367,7 @@ func TestAnEmptyFleetShowsTheSetupWizard(t *testing.T) {
 
 	i := strings.Index(body, "if (!first)")
 	if i < 0 {
-		t.Fatal("the empty-fleet branch could not be found — it is `if (!first)` " +
+		t.Fatal("the empty-fleet branch could not be found - it is `if (!first)` " +
 			"in main(), just before select() is defined. If it was renamed, " +
 			"re-aim this check rather than deleting it.")
 	}
@@ -380,7 +380,7 @@ func TestAnEmptyFleetShowsTheSetupWizard(t *testing.T) {
 	if !strings.Contains(body[i:end], "showSetupOverlayNow()") {
 		t.Error("main() does not show the setup overlay when the fleet is empty. " +
 			"A new install then lands on a fully drawn dashboard with every card " +
-			"blank and nothing saying a router is needed or where to add one — " +
+			"blank and nothing saying a router is needed or where to add one - " +
 			"which is what issue #124 reported, with a screenshot.")
 	}
 	t.Log("an empty fleet reaches the first-run router wizard")
@@ -393,7 +393,7 @@ func TestAnEmptyFleetShowsTheSetupWizard(t *testing.T) {
 // `web/test/settings-save.test.ts` proves the collector builds the right body
 // and that the button, once bound, fires exactly one POST.
 // `TestInteractiveControlsAreBoundBeyondCaps` proves some module names the
-// button. All of them stay green if `main.ts` never mounts the module — a thing
+// button. All of them stay green if `main.ts` never mounts the module - a thing
 // that works perfectly and is never reached, which is precisely how the setup
 // overlay and the Add Device button each shipped broken.
 //
@@ -411,7 +411,7 @@ func TestTheSettingsSaveIsMounted(t *testing.T) {
 	// THE SAME LOADER AS RESET. Save and Reset must repaint the page identically;
 	// handing Save a different reloader is how the two drift.
 	if !strings.Contains(body, "initSettingsSave(loadSettings)") {
-		t.Error("initSettingsSave is not given `loadSettings` — Save and Reset " +
+		t.Error("initSettingsSave is not given `loadSettings` - Save and Reset " +
 			"would refresh the form differently, and the reload after a save is " +
 			"what re-blanks the credential inputs")
 	}

@@ -5,7 +5,7 @@
 //
 // Issue #98 proposed rendering replies as plain text precisely to avoid a parser
 // and a sanitiser. Rendering as nodes gets the tables and code blocks an
-// assistant actually emits without either dependency — but only while every
+// assistant actually emits without either dependency - but only while every
 // branch ends in `textContent`. One branch that built a string and assigned it
 // would undo the argument, silently, and look like a tidy refactor.
 //
@@ -13,7 +13,7 @@
 //
 // The shared shim is an ID REGISTRY: `createElement` is `mk('')` and discards
 // the tag, it has no `createDocumentFragment` at all, and its `querySelectorAll`
-// answers selectors parsed out of an `innerHTML` string — which is exactly what
+// answers selectors parsed out of an `innerHTML` string - which is exactly what
 // this renderer never sets. Asserting "a <pre> was produced" against a node with
 // no tag would be comparing the shim's approximation, which its own rule 8 warns
 // against.

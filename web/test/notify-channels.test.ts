@@ -7,7 +7,7 @@
  * So editing a channel shows an EMPTY url box, and saving with it empty must
  * leave the stored URLs alone. If the form sent `config: {urls: []}` instead of
  * omitting `config`, every edit would silently delete the channel's
- * destinations — a channel that still looks configured and delivers nothing.
+ * destinations - a channel that still looks configured and delivers nothing.
  * That is the failure this file exists for.
  */
 
@@ -190,7 +190,7 @@ check('a new webhook channel sends its URLs in order, dropping blanks', async ()
 // OWNERSHIP IS ASKED FOR, NOT ASSUMED.
 //
 // The form sent `owner: "install"` for everybody, and the server refuses that
-// for anyone who is not an administrator — so a non-administrator pressing Add
+// for anyone who is not an administrator - so a non-administrator pressing Add
 // Channel got a 403 and could not make a channel of their own at all. The 403
 // would have read as a permissions misconfiguration rather than a UI bug.
 check('an administrator claims install ownership, a plain user claims their own', async () => {
@@ -263,7 +263,7 @@ check('testing an unsaved channel says to save it rather than failing silently',
 //
 // The endpoint used to send `raised` per event, and the row appended "not raised
 // install-wide" when it was false. The install-wide gates went when alert types
-// moved onto the channel, so the field went too — and reading the missing field
+// moved onto the channel, so the field went too - and reading the missing field
 // made EVERY event carry that phrase, which is exactly backwards. The web suite
 // passed throughout; it was found by opening the tab.
 check('no event is labelled as not raised install-wide', async () => {
@@ -289,7 +289,7 @@ check('no event is labelled as not raised install-wide', async () => {
 //
 // A tick on one SMTP card named the channel every scheduled report left
 // through. It was an install-wide answer to a question each schedule asks, and
-// a schedule picks its own channel now — on the Reports page, where
+// a schedule picks its own channel now - on the Reports page, where
 // `web/test/reports-schedule-channel.test.ts` checks the picker that replaced
 // it. The rule those checks defended, that exactly one destination is chosen
 // and it is never ambiguous, moved there with the control.

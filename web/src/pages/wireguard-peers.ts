@@ -1,4 +1,4 @@
-// The WireGuard page's Peers tab — a hand-built panel on a generated area.
+// The WireGuard page's Peers tab - a hand-built panel on a generated area.
 //
 // ── WHY THIS IS NOT A GENERATED TABLE ───────────────────────────────────────
 //
@@ -11,7 +11,7 @@
 //     one reading, so a rate is not merely missing but unrepresentable.
 //   - "active / stale / never" is a word DERIVED from the age of
 //     `last-handshake` by `PeerState` in internal/collect/vpn.go. No router
-//     returns it, and `Pills` maps a COLUMN to a kind — it cannot grade a
+//     returns it, and `Pills` maps a COLUMN to a kind - it cannot grade a
 //     duration.
 //
 // A generated table would render `1m33s` in grey beside `8224731432`, which is
@@ -67,7 +67,7 @@ function hsToSecs(s: string): number {
  *
  * WireGuard re-keys about every three minutes while a peer passes traffic, so
  * the age of the last handshake is the only real evidence a tunnel is up. Under
- * 3 minutes is fine, under 10 a warning, older is stale — and a peer that has
+ * 3 minutes is fine, under 10 a warning, older is stale - and a peer that has
  * NEVER handshaken is its own state, because "was never used" and "went away"
  * are different problems with different fixes.
  */
@@ -87,12 +87,12 @@ function hsBadge(handshake: string, state: string): string {
  *
  * WireGuard routes by longest prefix across ALL peers on an interface, so two
  * peers claiming the same address means traffic for it reaches whichever the
- * kernel matched — permanently, and with no error anywhere. The router does not
+ * kernel matched - permanently, and with no error anywhere. The router does not
  * refuse the configuration and RouterOS's own interface says nothing.
  *
  * Only EXACT duplicates are reported, per interface. A genuine overlap between
  * different prefixes (10.0.0.0/24 against 10.0.0.5/32) is frequently deliberate
- * — a site router plus a host route through it — so flagging those would train
+ * - a site router plus a host route through it - so flagging those would train
  * the operator to ignore the warning, which is worse than having none.
  */
 export function overlappingPeers(rows: readonly Tunnel[]): Set<string> {
@@ -124,7 +124,7 @@ const COLS = [
   { key: 'keepalive', label: 'Keepalive' },
   { key: '', label: 'Rx / Tx', style: 'text-align:right' },
   // NOT SORTABLE, and not a field: the Config button. A viewer who may not
-  // reveal a configuration still sees it — the server refuses and audits the
+  // reveal a configuration still sees it - the server refuses and audits the
   // attempt, and hiding a button is not an access control. See
   // internal/server/wireguard.go.
   { key: '', label: '', style: 'text-align:right' },
@@ -141,7 +141,7 @@ export function initWireguardPeers(socket: Socket): void {
   // ── THE CONFIG DIALOG HOLDS A CREDENTIAL, SO IT IS WIPED, NOT HIDDEN ─────
   //
   // A peer's configuration contains its PRIVATE KEY. It is fetched over HTTP
-  // rather than the socket — see internal/server/wireguard.go for why — and it
+  // rather than the socket - see internal/server/wireguard.go for why - and it
   // lives only in these nodes, so closing the dialog empties them rather than
   // setting `hidden`. A router switch and a page change do the same: a key left
   // in the DOM outlives the moment the operator meant to reveal it.
@@ -177,7 +177,7 @@ export function initWireguardPeers(socket: Socket): void {
           : 'The router did not return a configuration.';
         return;
       }
-      if (title) title.textContent = 'Client configuration — ' + String(body.peer || '');
+      if (title) title.textContent = 'Client configuration - ' + String(body.peer || '');
       // THE CONFIG IS TEXT, so it goes in as text. `textContent`, never
       // `innerHTML`: it is the operator's own router data and it is not markup.
       pre.textContent = String(body.config || '');
@@ -232,14 +232,14 @@ export function initWireguardPeers(socket: Socket): void {
           ? '<span class="vpn-hs-badge hs-stale" title="Another peer on this interface claims the same allowed address. WireGuard routes by longest prefix, so only one of them will ever receive that traffic.">overlap</span>'
           : '');
       return '<tr' + resRow(t.id, t.publicKey, 'wgPeer') + '>' +
-        '<td style="font-weight:600">' + esc(t.name || '—') + '</td>' +
-        '<td>' + esc(t.interface || '—') + '</td>' +
+        '<td style="font-weight:600">' + esc(t.name || '-') + '</td>' +
+        '<td>' + esc(t.interface || '-') + '</td>' +
         '<td>' + hsBadge(t.lastHandshake, t.state) + '</td>' +
-        '<td style="font-size:.72rem">' + esc(t.lastHandshake || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(t.allowedIp || '—') +
+        '<td style="font-size:.72rem">' + esc(t.lastHandshake || '-') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(t.allowedIp || '-') +
           (flags ? ' ' + flags : '') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(t.endpoint || '—') + '</td>' +
-        '<td style="font-size:.72rem">' + esc(t.keepalive || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(t.endpoint || '-') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(t.keepalive || '-') + '</td>' +
         '<td style="text-align:right;font-family:var(--font-mono);font-size:.72rem">' + rate + '</td>' +
         '<td style="text-align:right">' + config + '</td>' +
         '</tr>';
@@ -288,7 +288,7 @@ export function initWireguardPeers(socket: Socket): void {
         // `mountRows` delegates from `document`, and this button lives inside a
         // row carrying `data-id`, so without this the click reaches both: the
         // configuration dialog opens ON TOP of an edit form nobody asked for.
-        // Seen in the browser, not by any test — the DOM shim has no document
+        // Seen in the browser, not by any test - the DOM shim has no document
         // level row handler to collide with.
         (e as unknown as { stopPropagation: () => void }).stopPropagation();
         void showConfig(open.getAttribute('data-wg-config') || '');

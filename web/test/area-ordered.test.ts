@@ -3,8 +3,8 @@
  *
  * Routing rules are first-match-wins, so position is part of what a rule does.
  * The generated page draws the Firewall page's arrows for a resource the
- * registry marks Ordered — named `data-res-move`, so the resource engine owns
- * the move — with the first row's up and the last row's down disabled, and
+ * registry marks Ordered - named `data-res-move`, so the resource engine owns
+ * the move - with the first row's up and the last row's down disabled, and
  * none at all for a viewer who may not write. The control is an unordered area
  * rendered by the same module, which gets no arrows for a writer either.
  */

@@ -36,8 +36,8 @@ export interface MapCountry {
  * TopoJSON, decoded here rather than by the vendored client.
  *
  * The live app loads `/vendor/topojson-client.min.js` for one function. That
- * function is an arc-delta decode — quantised integer deltas accumulated along
- * each arc, then assembled into rings — and it is thirty lines. Reimplementing
+ * function is an arc-delta decode - quantised integer deltas accumulated along
+ * each arc, then assembled into rings - and it is thirty lines. Reimplementing
  * it removes a script tag from the page and a dependency from the port, and it
  * is verified against the live output rather than trusted.
  */
@@ -80,7 +80,7 @@ function decodeArc(topo: Topology, i: number): number[][] {
 /**
  * A ring from its arc indexes.
  *
- * A NEGATIVE INDEX MEANS THE ARC RUN BACKWARDS, encoded as `~i` — that is how
+ * A NEGATIVE INDEX MEANS THE ARC RUN BACKWARDS, encoded as `~i` - that is how
  * TopoJSON shares one border between two countries without storing it twice,
  * and getting it wrong turns a shared border inside out.
  */
@@ -160,7 +160,7 @@ export interface WorldMap {
    *
    * The stylesheet has carried `.map-country.pulse{animation:mapPulse ...}`
    * since the CSS was extracted, and until 2026-08-29 NOTHING in this port ever
-   * added the class — the animation existed and could not fire. Reported by the
+   * added the class - the animation existed and could not fire. Reported by the
    * operator: "the connections map animation no longer pulses the country the
    * comet lands on like it does on the live app."
    */
@@ -178,7 +178,7 @@ export interface MapTipInfo {
 /**
  * Build the map into an <svg>, and return the handles that update it.
  *
- * `onReady` fires once the atlas has been fetched and decoded — the page draws
+ * `onReady` fires once the atlas has been fetched and decoded - the page draws
  * whatever it already has at that point, because the payload usually arrives
  * first and a map that waited for the next poll would sit blank for one.
  */
@@ -260,7 +260,7 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
         const g = svgEl('g');
         g.appendChild(svgEl('path', { d, class: 'map-arc' + (hot ? ' hot' : '') }));
         // The comet's duration is JITTERED and its start is negative, so arcs
-        // drawn in the same frame do not pulse in lockstep — which would read as
+        // drawn in the same frame do not pulse in lockstep - which would read as
         // one animation rather than many links.
         const base = hot ? 1.4 : 2.2;
         const dur = Math.max(0.8, base + (Math.random() * 0.6 - 0.3)).toFixed(2) + 's';
@@ -330,7 +330,7 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
       //
       // Neither was published here, so the listener never fired and the fallback
       // was never true: **the dashboard's map card could not initialise at all.**
-      // Found by inventorying the CustomEvent vocabulary — the port listened for
+      // Found by inventorying the CustomEvent vocabulary - the port listened for
       // an announcement it never made, which is the browser twin of the
       // `router:active` bug `event-audit` found in the socket vocabulary.
       //
@@ -430,12 +430,12 @@ export function attachMapZoom(
     // The zoom controls sit INSIDE the wrapper this listens on, so without this
     // pressing Zoom In while zoomed began a drag: the click still worked, and
     // any mouse movement before releasing then panned the map. The live app
-    // refuses the same way and says why — "don't swallow their events"
+    // refuses the same way and says why - "don't swallow their events"
     // (`../MikroDash/public/app.js:4467`).
     //
     // Found on 2026-08-25 by the map-zoom check, which had to give its
     // event target a `tagName` and a `closest` before the live slice would run
-    // at all — the guard was invisible until the shim was real enough to reach it.
+    // at all - the guard was invisible until the shim was real enough to reach it.
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'BUTTON' || (t.closest && t.closest('button')))) return;
     if (scale <= 1) return;
@@ -503,7 +503,7 @@ export function countryLabel(cc: string): string {
  * `getBoundingClientRect` forces a layout, and a mousemove handler that called
  * it on every tick would do so sixty times a second over an SVG that has just
  * been re-diffed. It is measured once and invalidated on two events: a resize,
- * and a change of tooltip content — the second because the box changes size when
+ * and a change of tooltip content - the second because the box changes size when
  * the text does, and a stale rect then places it against the wrong edge.
  *
  * ── THE CONTENT ONLY CHANGES WHEN THE COUNTRY DOES ──────────────────────────
@@ -536,7 +536,7 @@ export function bindMapTooltip(
     }
     const { count, city, proto } = info(cc);
     // UNREACHABLE IN PRACTICE, and reproduced anyway: only country PATHS carry
-    // `data-cc` — arcs and labels do not — so a code read off the target is
+    // `data-cc` - arcs and labels do not - so a code read off the target is
     // always one the map drew. The original carries the same guard.
     if (!count && !hasCountry(cc)) return;
 
@@ -602,7 +602,7 @@ export function bindMapFullscreen(
   // opening twice puts its placeholder inside the overlay beside the SVG already
   // there, and closing before opening dereferences a placeholder with no parent
   // and throws. The button that opens is hidden while the overlay is up and the
-  // one that closes lives inside it, so neither happens — this simply does not
+  // one that closes lives inside it, so neither happens - this simply does not
   // depend on that being true.
   let open = false;
 

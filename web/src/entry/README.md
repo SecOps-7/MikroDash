@@ -1,16 +1,16 @@
-# `web/src/entry/` — the bundles that are NOT the app
+# `web/src/entry/` - the bundles that are NOT the app
 
 Three documents are served, and `web/build.mjs` builds a bundle for each:
 
 | entry | document | format |
 |---|---|---|
-| `src/main.ts` | `index.html` — the dashboard | ESM module, deferred |
-| `src/entry/login.ts` | `login.html` — the sign-in and first-run page | IIFE, classic |
+| `src/main.ts` | `index.html` - the dashboard | ESM module, deferred |
+| `src/entry/login.ts` | `login.html` - the sign-in and first-run page | IIFE, classic |
 | `src/entry/preflight.ts` | the `<head>` of `index.html` | IIFE, **blocking** |
 
 ## Why they live apart
 
-Not tidiness — the tooling asks questions that only make sense per document, and
+Not tidiness - the tooling asks questions that only make sense per document, and
 answering them across all three at once produced four wrong answers the day these
 files arrived:
 
@@ -19,7 +19,7 @@ files arrived:
   dead code. They now read the entry list out of `build.mjs` and walk from each.
 - **`wiring-audit`** asks "does the port touch every element the live app's page
   has". `login.html` has its own `#setupError`, and so does the ROUTER first-run
-  overlay in `index.html` — the same id in two documents. Scanning `login.ts`
+  overlay in `index.html` - the same id in two documents. Scanning `login.ts`
   alongside the app's modules made a recorded gap in the overlay look closed.
 - **`class-hook-audit`** asks whether a toggled class is styled. `.visible` is
   defined in `login.html`'s own `<style>` block, not in `app.css`, so the app's

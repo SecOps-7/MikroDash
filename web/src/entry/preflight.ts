@@ -1,5 +1,5 @@
 /**
- * The <head> script — everything that must happen BEFORE the body paints.
+ * The <head> script - everything that must happen BEFORE the body paints.
  *
  * ── WHY IT IS ITS OWN BUNDLE ────────────────────────────────────────────────
  *
@@ -10,7 +10,7 @@
  *     hides the incoming document so it can fade back in rather than flashing.
  *     Applied a frame late, the flash has already happened.
  *  2. The NAV SHAPE. Grouping is a per-user server-side preference, and the
- *     server's answer arrives over the socket — long after the sidebar paints.
+ *     server's answer arrives over the socket - long after the sidebar paints.
  *     Applying it in `app.js` means the nav paints in the default shape and then
  *     visibly regroups, worst for somebody who chose the flat list and watches
  *     it collapse on every load. `localStorage` is a CACHE of the last known
@@ -20,13 +20,13 @@
  * <script> after </nav> would be the obvious alternative and is blocked: the CSP
  * sets script-src 'self' with no 'unsafe-inline'. Inline STYLE is allowed, which
  * is why the open categories arrive as a generated stylesheet rather than as
- * classes — the elements do not exist yet to put classes on."
+ * classes - the elements do not exist yet to put classes on."
  *
  * ── IT WAS THE LIVE REPO'S FILE UNTIL 2026-08-28 ────────────────────────────
  *
  * `web/public/preflight.js` was a byte-for-byte copy of `../MikroDash/public/preflight.js`,
- * shipped as a static asset. The operator's instruction — "the port should stand
- * on its own without any lingering JS from the live repo" — is what moved it
+ * shipped as a static asset. The operator's instruction - "the port should stand
+ * on its own without any lingering JS from the live repo" - is what moved it
  * here. The preflight check drives THIS module and the live file from one
  * harness and compares what each leaves on the document, so the copy could be
  * deleted without taking the behaviour on trust.
@@ -36,7 +36,7 @@
 //
 // `getItem` and not `removeItem`: the flag is consumed by `main.ts`, which is
 // what restores the opacity. Clearing it here would hide the document with
-// nothing left to say why, and the app would render perfectly and invisibly —
+// nothing left to say why, and the app would render perfectly and invisibly -
 // which is a bug this port shipped once already.
 if (sessionStorage.getItem('justLoggedIn')) {
   document.documentElement.style.opacity = '0';
@@ -53,7 +53,7 @@ try {
   root.setAttribute('data-nav', nav.grouped === false ? 'flat' : 'grouped');
 
   // SHAPE-GUARDED, NEVER VOCABULARY-GUARDED. The live comment: "This file holds
-  // no list of category names and must not gain one — a copy of the taxonomy in
+  // no list of category names and must not gain one - a copy of the taxonomy in
   // a file with no module system is one nothing could keep honest. Unknown
   // tokens simply match no element."
   //
@@ -66,7 +66,7 @@ try {
     const st = document.createElement('style');
     st.id = 'navBoot';
     // LAYOUT ONLY. The live comment: "The tint, the open bar and the chevron
-    // ride on .is-open, which app.js adds — restating their colours here would
+    // ride on .is-open, which app.js adds - restating their colours here would
     // be a second copy free to drift from the stylesheet. What must not flash is
     // rows appearing and disappearing; chrome settling a moment later is not
     // worth that risk."

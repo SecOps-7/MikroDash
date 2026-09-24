@@ -3,9 +3,9 @@
 //
 // In the live app this is ONE file-scope function called from both places
 // (`public/app.js:1695`), and the dashboard card's comment says so explicitly:
-// "portSvg is a file-scope function — safe to call directly". Duplicating it
+// "portSvg is a file-scope function - safe to call directly". Duplicating it
 // here would let the two drawings drift apart, which is the same species of
-// mistake the live repo had just finished fixing in the card next to it — the
+// mistake the live repo had just finished fixing in the card next to it - the
 // card was a COPY of the Interfaces markup and the copy is what drifted.
 //
 // The two callers are NOT identical, and the differences are deliberate rather
@@ -16,7 +16,7 @@
 // it stands rather than unifying them.
 
 export function portSvg(sz: number): string {
-  // Ethernet port — RJ-45 front view. Outer housing, inner socket recess, 8
+  // Ethernet port - RJ-45 front view. Outer housing, inner socket recess, 8
   // contact pins across the bottom of the socket, one LED dot top-right.
   const w = sz, h = Math.round(sz * 1.1);
   const rx = Math.max(2, Math.round(sz * 0.09));

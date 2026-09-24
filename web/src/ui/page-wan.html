@@ -2,10 +2,10 @@
     <div class="container-fluid px-0" style="width:100%">
 
       <div class="wl-summary-row wl-summary-row-4">
-        <div class="wl-summary-card"><div class="wl-summary-title">Uplinks</div><div class="fa-stat-val" id="wanSumCount">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Carrying Traffic</div><div class="fa-stat-val" id="wanSumActive" style="font-size:1.1rem">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Public Address</div><div class="fa-stat-val" id="wanSumPublic" style="font-size:1.1rem">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Throughput</div><div class="fa-stat-val" id="wanSumRate" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Uplinks</div><div class="fa-stat-val" id="wanSumCount">-</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Carrying Traffic</div><div class="fa-stat-val" id="wanSumActive" style="font-size:1.1rem">-</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Public Address</div><div class="fa-stat-val" id="wanSumPublic" style="font-size:1.1rem">-</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Throughput</div><div class="fa-stat-val" id="wanSumRate" style="font-size:1.1rem">-</div></div>
       </div>
 
       <!-- detect-interface-list defaults to none, so a router nobody has
@@ -24,7 +24,7 @@
             <span id="wanActionNote" class="muted-note"></span>
             <!-- Where the uplink list comes from. `detect-interface-list`
                  defaults to none, and a router managed by somebody else is not
-                 always one you may change — so the operator can declare the
+                 always one you may change - so the operator can declare the
                  list here instead. Hidden entirely without write access. -->
             <span class="topo-tools" id="wanSrcBtns" style="display:none" role="group"
                   aria-label="Where the uplink list comes from">

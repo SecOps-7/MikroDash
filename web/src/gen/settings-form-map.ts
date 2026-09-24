@@ -1,4 +1,4 @@
-// GENERATED from testdata/settings-form-map.json — do not edit.
+// GENERATED from testdata/settings-form-map.json - do not edit.
 //
 // Rebuild this file from the committed JSON, which is frozen (its generator
 // read the Node app and was deleted on 2026-09-01): `node tools/settings-form-map-ts.js`.
@@ -14,7 +14,7 @@ export interface ValueDefault {
   fallback?: number;
   /**
    * The assignment expression as the live populate() writes it, kept verbatim.
-   * The renderer does NOT read this — the settings-populate check
+   * The renderer does NOT read this - the settings-populate check
    * evaluates it, so the comparison is against the original text rather than a
    * retyped copy of it.
    */
@@ -188,7 +188,7 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
  *
  * populate() blanks them and uses the PLACEHOLDER to say whether one is stored.
  * `smtpUser` is deliberately NOT here: it is set as an ordinary value, so it
- * receives the mask and hands it back on save — which is what the server's
+ * receives the mask and hands it back on save - which is what the server's
  * isMasked guard exists to catch.
  */
 export const PLACEHOLDER_CREDENTIALS: Record<string, { whenSet: string; whenNot: string }> = {

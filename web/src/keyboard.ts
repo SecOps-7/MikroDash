@@ -50,7 +50,7 @@ export function initKeyboard(navigate: (page: string) => void): void {
     // NO RADIX, deliberately, because the original has none. With `10` a key of
     // "0x3" parses as 0 and does nothing; without it, it parses as hex 3 and
     // opens the third page. No keyboard can produce that key, so this is
-    // unreachable either way — but the differential gate compares the mapping
+    // unreachable either way - but the differential gate compares the mapping
     // for keys `parseInt` will read a number out of, and it caught the
     // difference. Reproducing beats tidying on a line where the two disagree.
     const n = Number.parseInt(e.key);

@@ -1,8 +1,8 @@
 /**
  * THE AI AGENT NAV ITEM WAS NEVER SWEPT.
  *
- * `applyPageVisibility` gates that page on `aiReady` — derived server-side as
- * enabled AND an endpoint AND a model — so a page that can reach no model is not
+ * `applyPageVisibility` gates that page on `aiReady` - derived server-side as
+ * enabled AND an endpoint AND a model - so a page that can reach no model is not
  * offered. The branch was written, reviewed and shipped, and it never ran once:
  * the loop iterates `ALL_NAV_PAGES`, and `ai-agent` was not in it. Switching the
  * agent off, or clearing the endpoint, changed nothing in either direction.
@@ -12,7 +12,7 @@
  * the payload; the consumer never asked about that page.
  *
  * Driven through the real module, because the fault was precisely that a correct
- * expression was never evaluated — a test that called the expression directly
+ * expression was never evaluated - a test that called the expression directly
  * would have passed on the broken build.
  */
 
@@ -62,7 +62,7 @@ const display = (k: string): string | undefined => navItems[k]?.style.display;
 //
 // This is the assertion the original bug would have failed. The harness creates
 // a nav item only when the sweep asks for that page, so an absent entry means
-// the page was never considered — which is indistinguishable, on screen, from
+// the page was never considered - which is indistinguishable, on screen, from
 // "considered and left visible".
 applyPageVisibility({ aiReady: false });
 assert.ok(navItems['ai-agent'],
@@ -90,7 +90,7 @@ assert.strictEqual(display('ai-agent'), 'none',
 say('ok  an absent aiReady fails closed');
 
 // THE CONTROL. Firewall is granted and ungated, so it must stay visible
-// throughout — without this, a sweep that hid everything would pass all three.
+// throughout - without this, a sweep that hid everything would pass all three.
 assert.strictEqual(display('firewall'), '',
   'control: Firewall should be visible, so the assertions above measure aiReady ' +
   'rather than a sweep that hides everything');

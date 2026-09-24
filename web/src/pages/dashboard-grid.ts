@@ -18,7 +18,7 @@
 //
 // The MutationObserver watching `page-dashboard`'s class is what notices a
 // navigation away, and it calls `exitEditMode(false)`. Navigating away mid-edit
-// therefore throws the changes away rather than committing them silently — the
+// therefore throws the changes away rather than committing them silently - the
 // conservative reading, and the live one.
 //
 // ── ROOMS ARE RE-SYNCED ON THREE EVENTS, NOT ONE ────────────────────────────
@@ -36,7 +36,7 @@ import { applyLayout, loadLayout, mergeLayoutFromServer, syncDashRooms } from '.
 
 export function initDashboardGrid(): GridEditor | null {
   const gridRoot = el('dash-grid-root');
-  // The Dashboard's markup is not on the page — nothing to wire. Returns rather
+  // The Dashboard's markup is not on the page - nothing to wire. Returns rather
   // than throwing: the same guard the live `init` uses.
   if (!gridRoot) return null;
 
@@ -62,7 +62,7 @@ export function initDashboardGrid(): GridEditor | null {
     //
     // BELT AND BRACES, measured: this and the `t !== addCardBtn` test in that
     // listener are individually redundant and jointly load-bearing. Removing
-    // either one alone changes nothing — the other still keeps the panel open —
+    // either one alone changes nothing - the other still keeps the panel open -
     // and removing BOTH means the Add button opens a panel that closes again in
     // the same click. Reproduced as the original has it, and recorded here so a
     // later tidy-up removes at most one of them.

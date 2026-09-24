@@ -16,7 +16,7 @@
  *
  * ── `cfg.streamed` IS DEAD AGAINST TODAY'S TABLE ────────────────────────────
  *
- * No row currently carries it — measured, and the generator records it. The
+ * No row currently carries it - measured, and the generator records it. The
  * branch is reproduced anyway because the live app has it and a row could gain
  * the flag at any time; the poll-sliders check injects a synthetic table
  * so BOTH sides actually execute it rather than both skipping it.
@@ -31,7 +31,7 @@ export type PollData = Record<string, unknown>;
  * `fmtMs`: the label beside each slider.
  *
  * The `ms % 1000 === 0` test is what makes 1500ms read "1.5s" and 2000ms read
- * "2s" rather than "2.0s". Reproduced exactly — it is the difference between a
+ * "2s" rather than "2.0s". Reproduced exactly - it is the difference between a
  * row of tidy numbers and a row of trailing zeroes.
  */
 export function fmtMs(ms: number): string {
@@ -46,7 +46,7 @@ export function fmtMs(ms: number): string {
  * A profile matches only if EVERY key it names is already the stored value. The
  * live comment records that `standard` deliberately does not match
  * `Settings.DEFAULTS`, "which is why a fresh install detects Custom rather than
- * Standard — pre-existing, and left alone". Reproduced, quirk included: a port
+ * Standard - pre-existing, and left alone". Reproduced, quirk included: a port
  * that tidied this would change what a fresh install displays.
  */
 export function detectProfile(
@@ -90,7 +90,7 @@ export function applyPollProfile(
     sliders.forEach((cfg) => {
       if (cfg.streamed) return;
       // A profile with no value for this slider LEAVES IT ALONE rather than
-      // writing undefined into it — the live "belt and braces behind the drift
+      // writing undefined into it - the live "belt and braces behind the drift
       // test". The drift test is the poll table generator, which records the
       // coverage gaps per profile.
       if (p[cfg.key] === undefined) return;
@@ -104,7 +104,7 @@ export function applyPollProfile(
   }
   // OUTSIDE the `if`. An unknown profile still becomes the active button and is
   // still remembered, which is what makes `custom` work before it has been
-  // saved — it has no entry in the table until the operator saves one.
+  // saved - it has no entry in the table until the operator saves one.
   setPollProfileUI(name);
 }
 
@@ -146,8 +146,8 @@ export function buildSliders(data: PollData, sliders: PollSlider[] = POLL_SLIDER
       const hdr = document.createElement('div');
       hdr.className = 'poll-group-hdr';
       hdr.textContent = range === 'live'
-        ? 'Live data — 1s to 30s'
-        : 'Slow-changing data — 10s to 10m';
+        ? 'Live data - 1s to 30s'
+        : 'Slow-changing data - 10s to 10m';
       wrap.appendChild(hdr);
     }
     const row = document.createElement('div');
@@ -198,7 +198,7 @@ export function buildSliders(data: PollData, sliders: PollSlider[] = POLL_SLIDER
  * Removing it changes nothing, and a mutant doing so SURVIVES: `buildSliders`
  * never creates an `s_<key>` input for a streamed row, so the lookup below
  * already returns null and the row is already skipped. Kept because the live
- * code has it and because it states the intent at the point of use — but
+ * code has it and because it states the intent at the point of use - but
  * recorded as equivalent rather than left looking like an untested branch that
  * someone should go and write a case for.
  */
@@ -246,7 +246,7 @@ function showCustomStatus(ok: boolean, msg: string): void {
  *
  * `POLL_PROFILES.custom` is filled from the stored blob before `detectProfile`
  * runs, so the detect can MATCH it. Moving the restore after the detect survives
- * the gate, and that is not a missing case — it is provable:
+ * the gate, and that is not a missing case - it is provable:
  * `detectProfile`'s fallback is ITSELF `'custom'`, so a stored set matching the
  * saved profile returns "custom" by match in one ordering and "custom" by
  * fallback in the other. Same answer for every input, and both orderings leave
@@ -338,7 +338,7 @@ export function initPollAndBanner(reloadSettings: () => void): void {
       })
         .then((r) => r.json())
         // CHECKING `d.ok` IS NOT DECORATION. The live comment records that this
-        // reported "✓ Reset to defaults" on a 403 too — "the one thing it must
+        // reported "✓ Reset to defaults" on a 403 too - "the one thing it must
         // never do, claim a destructive change happened when it did not, is
         // exactly what it did".
         .then((d) => {

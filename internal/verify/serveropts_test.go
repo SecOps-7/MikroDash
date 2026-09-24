@@ -6,8 +6,8 @@ package verify
 //
 // `Options.OriginPatterns` existed from the v0.8.0 cutover and NOTHING EVER SET
 // IT. No flag, no env var, no literal. Empty means "same-origin only" to
-// `coder/websocket`, so every install behind a reverse proxy — where the
-// browser's Origin and this process's Host differ by definition — was refused at
+// `coder/websocket`, so every install behind a reverse proxy - where the
+// browser's Origin and this process's Host differ by definition - was refused at
 // the handshake with "request Origin ... is not authorized for Host ...".
 //
 // It shipped in every published Go image, 0.8.1 through 0.8.20, and arrived as
@@ -15,7 +15,7 @@ package verify
 //
 // Nothing could have caught it. The field compiled, the struct was complete, the
 // tests passed, and the doc comment beside the field actively said empty was
-// what a proxied deployment wanted — which is backwards, and is presumably why
+// what a proxied deployment wanted - which is backwards, and is presumably why
 // no flag was ever written.
 //
 // ── WHY THE WHOLE STRUCT AND NOT JUST THAT FIELD ────────────────────────────
@@ -28,7 +28,7 @@ package verify
 //
 // An option that is deliberately left to its zero value belongs in
 // `optionsExpectedUnset` WITH A REASON, and an entry that starts being set is a
-// failure too — otherwise the list becomes an excuse rather than a record.
+// failure too - otherwise the list becomes an excuse rather than a record.
 
 import (
 	"os"
@@ -54,7 +54,7 @@ func between(t *testing.T, src, start, end string) string {
 	t.Helper()
 	i := strings.Index(src, start)
 	if i < 0 {
-		t.Fatalf("could not find %q — this gate is reading the wrong file", start)
+		t.Fatalf("could not find %q - this gate is reading the wrong file", start)
 	}
 	rest := src[i+len(start):]
 	j := strings.Index(rest, end)
@@ -89,11 +89,11 @@ func TestEveryServerOptionIsSetByTheBinary(t *testing.T) {
 	// delimiter that stops matching would leave this test comparing two empty
 	// sets and passing.
 	if len(declared) < 10 {
-		t.Fatalf("found only %d Options fields — the struct scan is broken, "+
+		t.Fatalf("found only %d Options fields - the struct scan is broken, "+
 			"not the code it is checking", len(declared))
 	}
 	if len(set) < 10 {
-		t.Fatalf("found only %d fields set in cmd/mikrodash — the literal scan "+
+		t.Fatalf("found only %d fields set in cmd/mikrodash - the literal scan "+
 			"is broken", len(set))
 	}
 
@@ -113,11 +113,11 @@ func TestEveryServerOptionIsSetByTheBinary(t *testing.T) {
 	for f := range optionsExpectedUnset {
 		if !declared[f] {
 			t.Errorf("optionsExpectedUnset names %q, which is not an Options "+
-				"field any more — delete the entry", f)
+				"field any more - delete the entry", f)
 		}
 		if set[f] {
 			t.Errorf("optionsExpectedUnset says %q is unset, but cmd/mikrodash "+
-				"sets it now — delete the entry rather than leaving a note that "+
+				"sets it now - delete the entry rather than leaving a note that "+
 				"has stopped being true", f)
 		}
 	}

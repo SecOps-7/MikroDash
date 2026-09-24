@@ -36,7 +36,7 @@ assert.strictEqual(mod.fmtTs(T, false, 'UTC'), '2026-01-02 03:04');
 assert.strictEqual(mod.fmtDate(T, 'America/Los_Angeles'), '2026-01-01');
 assert.strictEqual(mod.fmtTime(Date.UTC(2026, 0, 2, 15, 0, 0), true, 'Asia/Tokyo'), '00:00:00',
   'midnight must read 00, not 24');
-assert.strictEqual(mod.fmtTs(0), '—', 'a missing time is a dash, never 1970');
+assert.strictEqual(mod.fmtTs(0), '-', 'a missing time is a dash, never 1970');
 assert.strictEqual(mod.fmtTs(new Date(T).toISOString(), true, 'UTC'), '2026-01-02 03:04:05', 'an ISO string');
 
 // The wiring: the settings payload sets the zone every formatter reads.

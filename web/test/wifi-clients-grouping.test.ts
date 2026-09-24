@@ -19,7 +19,7 @@
  * `198.51.100.9` and `198.51.100.100`. Alphabetically the .100 comes first,
  * which is the bug this column would otherwise have and which a test built from
  * .1/.2/.3 cannot see. The addressless client is the second discriminator: it is
- * unknown rather than lowest, so it belongs at the END ascending — the same rule
+ * unknown rather than lowest, so it belongs at the END ascending - the same rule
  * Band and Standard already follow.
  */
 
@@ -86,7 +86,7 @@ const names = (html: string): string[] =>
   [...html.matchAll(/font-weight:600;font-size:\.78rem">([^<]*)</g)].map((m) => m[1]);
 
 // Distinct signals, because the table's default sort is by signal and equal
-// values would leave the order decided by the input — which proves nothing about
+// values would leave the order decided by the input - which proves nothing about
 // where the grouping put each client.
 const TWO_APS = [
   client({ mac: '02:00:00:00:00:01', name: 'a-one', iface: 'ap-one', signal: -40, ip: '198.51.100.9' }),
@@ -154,7 +154,7 @@ const TWO_APS = [
   assert.ok(!flat.includes('wl-group-row'),
     'group headers survived the toggle, so it did nothing:\n' + flat);
   assert.deepStrictEqual(names(flat), ['a-one', 'b-one', 'c-two'],
-    'turning grouping off dropped rows — it is a view, not a filter: ' +
+    'turning grouping off dropped rows - it is a view, not a filter: ' +
     JSON.stringify(names(flat)));
   assert.strictEqual(label, 'Flat list',
     'the toggle still claims the table is grouped: ' + label);
@@ -188,7 +188,7 @@ const TWO_APS = [
 // ── 5. the address sort is numeric, and the addressless go last ─────────────
 {
   const { send, sortBy, body, restore } = boot();
-  // One interface, so the grouping — which has ordering behaviour of its own —
+  // One interface, so the grouping - which has ordering behaviour of its own -
   // cannot be what produces the result.
   send([
     client({ mac: '02:00:00:00:00:01', name: 'c-100', iface: 'ap', ip: '198.51.100.100' }),
@@ -211,7 +211,7 @@ const TWO_APS = [
 // Reported as "let me switch ascending and descending by pressing the same
 // button". The bar used to reset to the column's natural direction on every
 // press, so the reversed order was reachable from the column headers and not
-// from the buttons — and IP has no header at all, which made half its orders
+// from the buttons - and IP has no header at all, which made half its orders
 // unreachable entirely.
 {
   const { send, sortBy, body, restore } = boot();
@@ -234,7 +234,7 @@ const TWO_APS = [
     'a third press did not go back: ' + JSON.stringify(names(body())));
 
   // A DIFFERENT BUTTON STARTS AT ITS OWN NATURAL DIRECTION rather than
-  // inheriting the one before it — Name is A to Z whatever IP was doing.
+  // inheriting the one before it - Name is A to Z whatever IP was doing.
   sortBy('ip');
   sortBy('name');
   const got = names(body());

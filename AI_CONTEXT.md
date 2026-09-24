@@ -6,7 +6,7 @@ implementation, which replaced the Node one on 2026-08-30.
 **This file does not repeat `CLAUDE.md`.** That one carries the hard constraints,
 the commands, the write guards, the fixture rules and the behavioural guidance,
 and it is the one that outranks this. Two documents making the same claim is how
-one of them goes stale — this project has paid for that repeatedly. Read
+one of them goes stale - this project has paid for that repeatedly. Read
 `CLAUDE.md` first; come here for the shapes it does not describe.
 
 ---
@@ -17,8 +17,8 @@ A real-time dashboard for MikroTik RouterOS v7. It holds a persistent binary-API
 connection to each watched router and streams what it sees to the browser over a
 WebSocket. No agents on the router, no polling from the browser, no page refreshes.
 
-It is read-mostly by design. Writes exist — firewall rules, queues, DNS entries,
-DHCP leases, wireless config, RouterOS users, packages, backups — and every one of
+It is read-mostly by design. Writes exist - firewall rules, queues, DNS entries,
+DHCP leases, wireless config, RouterOS users, packages, backups - and every one of
 them goes through a guard that can refuse it.
 
 ---
@@ -29,7 +29,7 @@ them goes through a guard that can refuse it.
 |---|---|
 | Backend | Go 1.27, standard library plus five dependencies |
 | Frontend | TypeScript, bundled with esbuild, no framework |
-| Database | SQLite via `modernc.org/sqlite` — pure Go, no cgo, which is what keeps the binary static |
+| Database | SQLite via `modernc.org/sqlite` - pure Go, no cgo, which is what keeps the binary static |
 | Transport | `github.com/coder/websocket` |
 | RouterOS | `github.com/go-routeros/routeros/v3`, wrapped by `internal/routeros` |
 | PDF | `github.com/go-pdf/fpdf` |
@@ -44,8 +44,8 @@ corpus generators in `tools/`. Nothing Node-related runs in production.
 
 ```
 cmd/mikrodash/      the server binary
-cmd/conformance/    B1 — protocol conformance against live hardware, read-only
-cmd/compat/         B2 — on-disk compatibility against a real /data, read-only
+cmd/conformance/    B1 - protocol conformance against live hardware, read-only
+cmd/compat/         B2 - on-disk compatibility against a real /data, read-only
 cmd/dnsseed/        a small utility
 
 internal/
@@ -54,16 +54,16 @@ internal/
   session/          one Session per watched router; owns the shared connection
   routers/          background pool for routers nobody is watching
   alertpool/        background pool for routers with alerting enabled
-  alert/            alert rules — pure: rows in, verdict out
+  alert/            alert rules - pure: rows in, verdict out
   alertwire/        adapts collector payloads into the evaluator, files the rows
   alertdispatch/    message assembly, cooldown, delivery fan-out
-  guard/            write guards — pure; a refusal is one testable function
+  guard/            write guards - pure; a refusal is one testable function
   resource/         the declarative resource engine (see below)
   store/            /data as it is on disk: settings, users, routers
   db/               SQLite history and audit
   server/           HTTP routes and the WebSocket protocol
   rbac/             roles, grants, per-router permission checks
-  safe/             error sanitisation — everything browser-bound goes through it
+  safe/             error sanitisation - everything browser-bound goes through it
   reportpdf/        PDF report rendering
   hub/              WebSocket rooms and broadcast
 
@@ -110,7 +110,7 @@ Four things are load-bearing and are easy to leave out:
    browser redraw for nothing.
 3. **`pollLoop` is a self-rescheduling timer, not a goroutine parked on a
    channel.** It arms the next tick at the end of the current one and never
-   consults the session — so a collector that is not explicitly stopped keeps
+   consults the session - so a collector that is not explicitly stopped keeps
    running forever. That was a real defect: nine of fourteen collectors kept
    ticking after their session was released, reading through a closed client.
 4. **Emit goes through one interception point.** `Session`'s `emit` closure is
@@ -123,10 +123,10 @@ Four things are load-bearing and are easy to leave out:
 
 Three gates decide whether a collector runs at all:
 
-- **Nobody watching the router** — nothing polls and no channel is held.
-- **Nobody on the page** — a page-scoped collector runs only while somebody is on
+- **Nobody watching the router** - nothing polls and no channel is held.
+- **Nobody on the page** - a page-scoped collector runs only while somebody is on
   its page. Leave the VLANs page and its poll stops and its `/listen` closes.
-- **Dormancy** — a collector whose data comes back empty, or whose menu the router
+- **Dormancy** - a collector whose data comes back empty, or whose menu the router
   does not have, suspends itself and its card says so instead of going stale. It
   re-probes on a backoff growing to ten minutes, and wakes on page focus or
   reconnect.
@@ -137,11 +137,11 @@ efficient" in this codebase means fewer channels, never faster parsing.
 
 ---
 
-## Writing to RouterOS — the resource engine
+## Writing to RouterOS - the resource engine
 
 `internal/resource` is declarative. A resource declares its fields, their types,
 validation and which guards apply; the generic path in `internal/server/resource.go`
-handles the rest — form generation, validation, the guard verdict, the write, the
+handles the rest - form generation, validation, the guard verdict, the write, the
 audit row and the undo entry.
 
 ```go
@@ -156,7 +156,7 @@ Socket events: `res:new`, `res:row`, `res:schema`, `res:preview`, `res:save`,
 **A resource declaring a guard that is not in `portedGuards` has its writes
 REFUSED**, not logged-and-allowed. The whole point of a guard is that its absence
 is not survivable. `portedGuards` in `internal/server/resource.go` is the
-authority — check the map, never prose about it.
+authority - check the map, never prose about it.
 
 `res:preview` renders the exact RouterOS command a write will issue. It is worth
 using when verifying a write path by hand: it shows the command before anything
@@ -176,13 +176,13 @@ Inbound events are page subscriptions (`dashboard`, `dns`, `firewall`, `queues`,
 
 **Rooms carry the fan-out.** `router-<id>` is router-wide; `router-<id>-<page>` is
 page-scoped. An empty sub means router-wide, which is what the top-bar chrome
-needs — the gauges and the uptime chip belong to no page. A sub naming several
+needs - the gauges and the uptime chip belong to no page. A sub naming several
 rooms comma-separated delivers ONE copy to the union, which matters because a
 viewer can be in two of them.
 
 **Per-connection state does not survive a reconnect.** The server holds the
 selected router on the connection, so the client re-asserts it on every `connect`.
-Anything the operator chose — an interface, a filter, a page — needs somewhere with
+Anything the operator chose - an interface, a filter, a page - needs somewhere with
 a longer life than the socket.
 
 ---
@@ -210,7 +210,7 @@ Two rules that have each caused a real defect:
 - **A setting that is rendered, validated and persisted but never READ is the most
   common defect class in this codebase.** Four have been found:
   `topN`, `topTalkersN`, the retention settings and `rosDebug`. Each looked
-  complete from the UI. The settings-consumer audit now checks the class —
+  complete from the UI. The settings-consumer audit now checks the class -
   but read its own note: a mutation survived it, so it is a net beneath a
   call-site test, not a substitute for one.
 - **Coercion is deliberate and asymmetric.** A boolean arriving from a form may be
@@ -225,7 +225,7 @@ Two rules that have each caused a real defect:
 - Credentials at rest are AES-256-GCM with a key from `DATA_SECRET` or
   `/data/.secret`. The envelope is `iv‖tag‖ciphertext`.
 - Dashboard passwords are scrypt-hashed. **The salt is a string, not decoded
-  bytes** — get this wrong and every existing user is locked out.
+  bytes** - get this wrong and every existing user is locked out.
 - `users.json` must stay a bare JSON array. That is a security property, not a
   formatting preference.
 - **Every error reaching a browser goes through `safe.Message()`**, which redacts
@@ -245,7 +245,7 @@ Two rules that have each caused a real defect:
 These are properties of RouterOS, not of any implementation, and they cost real
 debugging time to find.
 
-### `/ip/route/print` — `.flags` omitted for default-state routes
+### `/ip/route/print` - `.flags` omitted for default-state routes
 
 RouterOS v7 on some firmware builds omits `.flags` for routes in their default
 (active) state, treating active+static as unremarkable. Disabled routes always
@@ -254,16 +254,16 @@ type-inference path: if no type flag is set and the gateway is a real IP address
 (not an interface name like `bridge`), infer `static=true`. `/ip/route/listen`
 events always carry the full row, so this only affects the initial `/print`.
 
-### `=.proplist=` on registration-table calls — can filter rows
+### `=.proplist=` on registration-table calls - can filter rows
 
 On the v7 wifi package, including unknown or absent field names in `=.proplist=`
 for `/interface/wifi/registration-table/print` can make RouterOS **filter rows**
-rather than omit those fields per row — requesting `signal` (which is
+rather than omit those fields per row - requesting `signal` (which is
 `signal-strength` in the new API) may return only clients where it is non-empty.
 **Do not use `=.proplist=` on wireless registration-table calls.** The table is
 small enough that the optimisation is not worth the risk.
 
-### `/queue/*` — units, unlimited, and where statistics come from
+### `/queue/*` - units, unlimited, and where statistics come from
 
 - **Statistics need no flag.** `rate`, `packet-rate`, `bytes`, `packets`,
   `dropped` and the `queued-*` fields all come back on a plain print.
@@ -281,9 +281,9 @@ small enough that the optimisation is not worth the risk.
   simple queues and trees with `parent=global`; an interface-parented tree is
   unaffected. This is the usual reason a queue looks configured and does nothing.
 
-### `/user/group/set` — a positive policy list is ADDITIVE
+### `/user/group/set` - a positive policy list is ADDITIVE
 
-On `add`, RouterOS fills in the negations itself. On **`set` it does not** — a
+On `add`, RouterOS fills in the negations itself. On **`set` it does not** - a
 positive-only list only adds, and a policy is removed only when explicitly named
 with `!`:
 
@@ -307,15 +307,15 @@ hAP ax3. `go.mod` replaces the library with `third_party/go-routeros`, which reg
 first (see its `PATCHES.md`), and `internal/routeros` cancels a command that still times
 out, with `/cancel =tag=`.
 
-### `!empty` and cancelled tags — handled by the adapter, not by you
+### `!empty` and cancelled tags - handled by the adapter, not by you
 
 RouterOS 7.18+ sends `!empty` when a command returns zero results. The Node
 implementation needed a library patch for this; `go-routeros` handles it, and
 `cmd/conformance` asserts the behaviour on real hardware (16 of 16 empty replies
 across three routers sent `!done` 10–30 microseconds later).
 
-A packet arriving for a tag that has already been cleaned up — a trailing sentence
-after `!done`, or a delayed response after a stream is stopped — is discarded by
+A packet arriving for a tag that has already been cleaned up - a trailing sentence
+after `!done`, or a delayed response after a stream is stopped - is discarded by
 the **tag map that async mode maintains**. This is why `Dial` calls `Async()` and
 why synchronous mode is not an option: sync keeps no tag map, so nothing catches
 the sentence, and the failure takes down a connection every collector shares.
@@ -351,7 +351,7 @@ docker run -d --name MikroDash --restart unless-stopped \
   -p 3081:3081 -v mikrodash_data:/data mikrodash:latest
 ```
 
-The feature switches — `-history`, `-backup-scheduler`, `-retention`,
-`-alert-dispatch` — default OFF because each is unsafe to run twice against the
+The feature switches - `-history`, `-backup-scheduler`, `-retention`,
+`-alert-dispatch` - default OFF because each is unsafe to run twice against the
 same routers. The image's `CMD` turns them on, because a normal install is the
 only MikroDash watching its fleet.

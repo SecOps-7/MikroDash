@@ -1,5 +1,5 @@
 /**
- * The Access Management card's wiring — Users, Groups and Roles.
+ * The Access Management card's wiring - Users, Groups and Roles.
  *
  * ── EVERY DECISION IS SOMEWHERE ELSE, AS WITH THE SITES CARD ────────────────
  *
@@ -12,7 +12,7 @@
  * ── THE LOAD ORDER IS LOAD-BEARING ──────────────────────────────────────────
  *
  * ROLES BEFORE USERS AND GROUPS. A grant row names its role by looking it up,
- * and `roleName` answers "unknown role" for one it cannot find — which is a REAL
+ * and `roleName` answers "unknown role" for one it cannot find - which is a REAL
  * answer for a deleted role and a WRONG one for a role that simply has not
  * arrived. `applyAuthModeVisibility` takes `loadRoles` as a promise and
  * `loadUsers` as a plain call for exactly this reason, and
@@ -59,12 +59,12 @@ let deps: Deps = {
 let roles: RoleView[] = [];
 
 /**
- * The caches the forms read back — the live `_allUsers` and `_groupsCache`.
+ * The caches the forms read back - the live `_allUsers` and `_groupsCache`.
  *
  * The edit buttons carry only an ID, so the row's record has to be found
  * somewhere; and the GROUP form's member checkboxes are built from the user list
  * the Users card already loaded. A second fetch for either would be a second
- * cache, and two caches of one thing drift — the same reason `sitesById` is
+ * cache, and two caches of one thing drift - the same reason `sitesById` is
  * imported rather than re-fetched.
  */
 let usersCache: UserView[] = [];
@@ -75,7 +75,7 @@ let groupsCache: GroupView[] = [];
  *
  * `writeCapablePages` is what greys out a Write toggle that would confer
  * nothing. The live comment is explicit that it is "derived from the projection
- * table, never restated in the client" — so it is READ FROM THE RESPONSE here
+ * table, never restated in the client" - so it is READ FROM THE RESPONSE here
  * and not declared, which is what keeps a page gaining write actions from
  * needing a frontend change.
  */
@@ -85,7 +85,7 @@ let writeCapablePages: string[] = [];
 /**
  * The lookups every access summary needs, rebuilt on each render.
  *
- * `sitesById` is IMPORTED from the Sites card rather than fetched again — the
+ * `sitesById` is IMPORTED from the Sites card rather than fetched again - the
  * live app publishes `window._sitesById` for the same reason. Two caches of one
  * thing drift, and the symptom is a grant row naming a site the Sites table says
  * does not exist.
@@ -104,7 +104,7 @@ async function getJSON(path: string): Promise<Record<string, unknown> | null> {
   }
 }
 
-/** Roles FIRST — see the header. Returns a promise so the order can be chained. */
+/** Roles FIRST - see the header. Returns a promise so the order can be chained. */
 export async function loadRoles(): Promise<void> {
   const j = await getJSON('/api/roles');
   roles = j ? ((j.roles as RoleView[]) || []) : [];
@@ -172,7 +172,7 @@ function openForm(wrapId: string, open: boolean): void {
  * Send what a save plan produced.
  *
  * Returns BOTH the HTTP status and the parsed body, because one of the three
- * forms consults each — see `principal-forms.ts` rule 5. A body that does not
+ * forms consults each - see `principal-forms.ts` rule 5. A body that does not
  * parse is null, which every outcome function reads as a failure.
  */
 async function send(plan: { method?: string; url?: string; body?: unknown }): Promise<{
@@ -207,7 +207,7 @@ function showUserForm(user: UserView | null): void {
   if (pass) {
     // ALWAYS CLEARED, and the placeholder says what an empty box means. That is
     // the visible half of the rule that an empty password leaves the credential
-    // alone — without it, somebody editing a username would reasonably think
+    // alone - without it, somebody editing a username would reasonably think
     // they had to retype the password, and typing one re-hashes the account.
     pass.value = '';
     pass.placeholder = user ? 'leave blank to keep current' : 'password';
@@ -295,8 +295,8 @@ async function saveGroup(): Promise<void> {
 /**
  * Set one page row's level, in the only place the level is recorded: the markup.
  *
- * `saveRole` reads the row back out of the DOM — "the segmented control is the
- * state" — so a preset that did not move these classes would be a preset that
+ * `saveRole` reads the row back out of the DOM - "the segmented control is the
+ * state" - so a preset that did not move these classes would be a preset that
  * did nothing on save.
  */
 function setRoleRowLevel(row: Element, level: string): void {
@@ -322,7 +322,7 @@ function setRoleRowLevel(row: Element, level: string): void {
  *
  * `data-role-preset` and `data-bulk` sat in `attrsExpectedUnread` as "markup for
  * a feature this port has not taken on". That was an accurate record, not an
- * oversight — but it is a record of a gap, and the gap is what an operator hits
+ * oversight - but it is a record of a gap, and the gap is what an operator hits
  * when they click Home and nothing happens. Ported now; the entries come out of
  * that list in the same change, because a note that has stopped being true is
  * worse than no note.
@@ -331,7 +331,7 @@ function setRoleRowLevel(row: Element, level: string): void {
  * means one thing in this app: presetTiers() in web/src/presets.ts, where a
  * generated page joins by its declared tier and Advanced takes every page.
  *
- * READ, not write, on the chosen tier — which is what the markup beside the
+ * READ, not write, on the chosen tier - which is what the markup beside the
  * buttons has always promised: "sets read on that tier and clears the rest".
  */
 function mountRolePresets(): void {
@@ -387,7 +387,7 @@ function showRoleForm(role: RoleView | null): void {
 }
 
 async function saveRole(): Promise<void> {
-  // READ BACK OUT OF THE DOM — "the segmented control is the state", as the live
+  // READ BACK OUT OF THE DOM - "the segmented control is the state", as the live
   // comment says, so there is no model to consult. `rolePagesFrom` then drops
   // everything that is not read or write, which is what makes the matrix a
   // REPLACEMENT rather than a patch.
@@ -425,7 +425,7 @@ function renderGrants(
   const box = el(boxId);
   if (!box) return;
   // NARROWED, not cast. The editor's Remove button is built from `g.id`, and the
-  // server sends one on every row — but `GrantView` makes it optional because
+  // server sends one on every row - but `GrantView` makes it optional because
   // the LABEL-only readers (`accessSummary` and friends) never need it. A row
   // that somehow arrived without one is dropped rather than rendered with a
   // Remove button that cannot work, which is the failure a cast would have
@@ -441,7 +441,7 @@ function renderGrants(
   // ── ONE HANDLER PER BOX, REPLACED not added ─────────────────────────────
   //
   // `onclick =` rather than `addEventListener`, exactly as the live editor does
-  // it — and here the assignment is what makes re-rendering safe. This function
+  // it - and here the assignment is what makes re-rendering safe. This function
   // is called again after every add and every remove, so an `addEventListener`
   // would stack a second handler on the same element each time and the third
   // Remove click would fire three requests.
@@ -473,7 +473,7 @@ function grantError(boxId: string, msg: string): void {
  * Send one grant change, then RE-RENDER THE EDITOR FROM THE RELOADED LIST.
  *
  * The live `refresh()` reloads the principal list and then looks the principal
- * up in it — `opts.grantsOf(principalId)` — rather than trusting the response.
+ * up in it - `opts.grantsOf(principalId)` - rather than trusting the response.
  * That matters for an ADD: the server may have stored something different from
  * what was asked for (a global grant discards the scope id it was sent), and the
  * editor showing what was REQUESTED rather than what was STORED is how a
@@ -504,8 +504,8 @@ async function runGrant(
  * ── THE WRITE ACTIONS ARE WIRED AS OF 2026-08-28 ────────────────────────────
  *
  * This header said they were not, and that they "need endpoints this port does
- * not serve yet". All eleven principal write routes are served now —
- * `POST/PUT/DELETE /api/{users,groups,roles}` and `POST/DELETE /api/grants` —
+ * not serve yet". All eleven principal write routes are served now -
+ * `POST/PUT/DELETE /api/{users,groups,roles}` and `POST/DELETE /api/grants` -
  * and the decisions behind the three forms live in `pages/principal-forms.ts`,
  * checked against the live originals from one harness.
  *
@@ -532,7 +532,7 @@ export function initPrincipalsCard(d: Deps): void {
  * The listeners, bound ONCE at mount.
  *
  * DELEGATED on the table bodies rather than per row, because every load replaces
- * their contents — a listener on a button is a listener on an element the next
+ * their contents - a listener on a button is a listener on an element the next
  * refresh throws away.
  */
 function wireForms(): void {
@@ -611,7 +611,7 @@ function wireForms(): void {
  * things an operator must be told and cannot guess: a role still assigned by N
  * grants, a change that would leave nobody with administrator access, and
  * "Cannot delete your own account". The live code surfaces each with an `alert`
- * for that reason — the count "is more useful than a constraint error".
+ * for that reason - the count "is more useful than a constraint error".
  *
  * THE LIST RELOADS EITHER WAY. A refusal means the row is still there, and a
  * stale table after a failed delete is how somebody concludes it worked.

@@ -2,14 +2,14 @@
     <div class="container-fluid px-0" style="width:100%">
 
       <div class="wl-summary-row wl-summary-row-4">
-        <div class="wl-summary-card"><div class="wl-summary-title">Installed</div><div class="fa-stat-val" id="pkgSumInstalled">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Available</div><div class="fa-stat-val" id="pkgSumAvailable">&mdash;</div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Installed</div><div class="fa-stat-val" id="pkgSumInstalled">-</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Available</div><div class="fa-stat-val" id="pkgSumAvailable">-</div>
           <!-- Shown only when the router lists none: RouterOS learns what is
                available from an update check and lists nothing until one has
                succeeded (reported 2026-09-20). -->
           <div class="pkg-avail-hint" id="pkgAvailHint" style="display:none">after an update check</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Disabled</div><div class="fa-stat-val" id="pkgSumDisabled">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">RouterOS</div><div class="fa-stat-val" id="pkgSumUpdate">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Disabled</div><div class="fa-stat-val" id="pkgSumDisabled">-</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">RouterOS</div><div class="fa-stat-val" id="pkgSumUpdate">-</div></div>
       </div>
 
       <div class="card pkg-pending" id="pkgPendingCard" style="margin-bottom:.85rem;display:none">
@@ -70,7 +70,7 @@
         </div>
 
         <!-- RouterBOOT, the bootloader: upgraded apart from RouterOS and applied by
-             a reboot. Hidden until a payload says this device has one at all — a
+             a reboot. Hidden until a payload says this device has one at all - a
              CHR and an x86 install do not. -->
         <div class="card" id="pkgRbCard" style="display:none">
           <div class="card-header"><h3 class="card-title mb-0">RouterBOARD Firmware</h3></div>

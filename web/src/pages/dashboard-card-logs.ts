@@ -2,7 +2,7 @@
 //
 // ── `logs:history` IS AN ARRAY, FROM EVERY SENDER ───────────────────────────
 //
-// Both senders — the collector, and the replay on a card's focus — go through
+// Both senders - the collector, and the replay on a card's focus - go through
 // `EvLogsHistory`, declared `[]LogEntry`. The two once disagreed (a bare array
 // and `{ entries }`), and a `data.entries || data` guard dropped the bare array
 // because `Array.prototype.entries` is truthy. One declared type is what closes
@@ -12,7 +12,7 @@
 //
 // A line topicked `dhcp,wireless` is DHCP, not both and not the later one. The
 // order of the tests is the priority, so it is written as a chain rather than a
-// table — a table would suggest the order does not matter.
+// table - a table would suggest the order does not matter.
 //
 // ── AND A LINE WITH NO MESSAGE IS DROPPED ───────────────────────────────────
 //

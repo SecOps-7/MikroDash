@@ -17,13 +17,13 @@ import (
 // already open.
 //
 // So the whole feature is one call in one handler, and its own unit tests pass
-// with that call deleted — they drive `PrimeStats` directly. What comes back is
+// with that call deleted - they drive `PrimeStats` directly. What comes back is
 // the symptom it was added for: a card with a green badge over an empty CPU,
 // memory and uptime for the two seconds the overview pool takes to dial. Nothing
 // errors, nothing logs, and the page eventually fills in, which is what makes it
 // easy to lose and hard to notice.
 //
-// Read rather than run, like the rejoin check next door — but ONLY as the cheap
+// Read rather than run, like the rejoin check next door - but ONLY as the cheap
 // half. `internal/server`'s TestTheFirstFrameAfterAFocusCarriesThePrimedGauges
 // drives `devicesFocus` and asserts the frame, which is the property that
 // matters and the one a comment cannot satisfy. This one catches the call being
@@ -40,7 +40,7 @@ func TestDevicesFocusPrimesTheAlertPool(t *testing.T) {
 
 	i := strings.Index(src, "func (cn *conn) devicesFocus(")
 	if i < 0 {
-		t.Fatal("devicesFocus is gone from devices.go — this check is reading nothing")
+		t.Fatal("devicesFocus is gone from devices.go - this check is reading nothing")
 	}
 	body := src[i:]
 	if j := regexp.MustCompile(`\n(func|type|var|const) `).FindStringIndex(body[1:]); j != nil {
@@ -57,13 +57,13 @@ func TestDevicesFocusPrimesTheAlertPool(t *testing.T) {
 	// so a rename fails loudly here rather than silently stopping.
 	prime := strings.Index(body, "PrimeStats()")
 	if prime < 0 {
-		t.Fatal("devicesFocus does not call PrimeStats — a router with alerting " +
+		t.Fatal("devicesFocus does not call PrimeStats - a router with alerting " +
 			"and reporting off has no collectors, so its card opens with a green " +
 			"badge and blank gauges until the overview pool finishes dialling.")
 	}
 	send := strings.Index(body, "cn.sendRoutersStats()")
 	if send < 0 {
-		t.Fatal("devicesFocus no longer calls cn.sendRoutersStats() — either the " +
+		t.Fatal("devicesFocus no longer calls cn.sendRoutersStats() - either the " +
 			"send was renamed, in which case fix this check, or the focus sends " +
 			"no first frame at all.")
 	}
@@ -75,7 +75,7 @@ func TestDevicesFocusPrimesTheAlertPool(t *testing.T) {
 	// overview pool is answering. That reads as a working call and fixes nothing.
 	if prime > send {
 		t.Error("devicesFocus primes the sessions AFTER sending the first " +
-			"routers:stats — the frame the fix exists for has already left.")
+			"routers:stats - the frame the fix exists for has already left.")
 	}
 
 	// ── AND AFTER THE SYNCS, WHICH IS THE OTHER ORDERING THAT MATTERS ─────
@@ -87,11 +87,11 @@ func TestDevicesFocusPrimesTheAlertPool(t *testing.T) {
 	// pinned here so the reasoning does not have to be rediscovered.
 	sync := strings.Index(body, "cn.srv.syncFleetHolds()")
 	if sync < 0 {
-		t.Fatal("devicesFocus no longer calls cn.srv.syncFleetHolds() — fix this " +
+		t.Fatal("devicesFocus no longer calls cn.srv.syncFleetHolds() - fix this " +
 			"check, or the fleet holds are no longer being synced on focus.")
 	}
 	if prime < sync {
-		t.Error("devicesFocus primes the sessions BEFORE syncing them — a " +
+		t.Error("devicesFocus primes the sessions BEFORE syncing them - a " +
 			"session PlanSync rebuilds is a new socket, so the reading the " +
 			"prime just took is discarded and the frame goes out with the gap " +
 			"still in it.")

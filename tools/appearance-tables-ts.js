@@ -5,14 +5,14 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'appearance-tables.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'appearance-tables.ts');
-const body = `// GENERATED from testdata/appearance-tables.json — do not edit.
+const body = `// GENERATED from testdata/appearance-tables.json - do not edit.
 // Rebuild with \`node tools/appearance-tables-ts.js\` from the committed JSON.
 // The JSON it reads is a FROZEN artefact: the generator that produced it read the
 // Node app and was deleted with the port-parity harness on 2026-09-01. This
 // transform still runs, so the .ts can be rebuilt from the committed JSON --
 // but the JSON itself can only change by hand, or from \`v0.7.40\` in git history.
 
-/** r, g, b, a — the alpha is carried through brightness scaling unchanged. */
+/** r, g, b, a - the alpha is carried through brightness scaling unchanged. */
 export type RGBA = [number, number, number, number];
 
 export interface PaletteColors { main: RGBA; muted: RGBA; bgDeep: RGBA; bgCard: RGBA }
@@ -30,7 +30,7 @@ export const KEYS = ${JSON.stringify(d.keys, null, 2)} as const;
  *  The appearance table generator pins the two against each other. */
 export const FONTS: { id: string; family: string }[] = ${JSON.stringify(d.fonts, null, 2)};
 
-/** \`px: null\` is the browser default — the layer REMOVES font-size rather than
+/** \`px: null\` is the browser default - the layer REMOVES font-size rather than
  *  setting a number, which is not the same thing as 16px. */
 export const FONT_SIZES: { id: string; px: number | null }[] = ${JSON.stringify(d.fontSizes, null, 2)};
 
@@ -46,7 +46,7 @@ export const PALETTE_COLORS: Record<string, PaletteColors> = ${JSON.stringify(d.
 if (process.argv.includes('--check')) {
   const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
   if (cur !== body) {
-    console.error('web/src/gen/appearance-tables.ts is stale — run: node tools/appearance-tables-ts.js');
+    console.error('web/src/gen/appearance-tables.ts is stale - run: node tools/appearance-tables-ts.js');
     process.exit(1);
   }
   console.log('appearance tables .ts up to date');

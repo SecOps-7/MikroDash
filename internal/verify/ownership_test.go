@@ -17,7 +17,7 @@ import (
 //
 // ── WHY THIS LIVES HERE AND NOT IN internal/pages ───────────────────────────
 //
-// `internal/pages` imports NOTHING, and three commands depend on that — it is
+// `internal/pages` imports NOTHING, and three commands depend on that - it is
 // read by `cmd/webbuild`, `cmd/pagesgen` and `internal/server`, and giving it a
 // dependency on `internal/collection` would drag the registry into the frontend
 // build. So the cross-check goes where cross-checks go.
@@ -26,7 +26,7 @@ import (
 //
 // Checking that an owner names a real registry key proves only that somebody
 // typed a valid string. Checking that the named collector EMITS TO `page-<key>`
-// proves the declaration describes the running app — and that is the property
+// proves the declaration describes the running app - and that is the property
 // phase 4.2 wants to build on, because the whole point of a view declaring its
 // rooms is that nothing else gets to have a second opinion about them.
 func TestPageOwnershipIsReal(t *testing.T) {
@@ -75,13 +75,13 @@ func TestPageOwnershipIsReal(t *testing.T) {
 		}
 		if other, dup := byCollector[p.Collector]; dup {
 			t.Errorf("%q owns both %q and %q. Feeding two pages is normal; OWNING two "+
-				"is not — ownership is the page a collector exists for.",
+				"is not - ownership is the page a collector exists for.",
 				p.Collector, other, p.Key)
 		}
 		byCollector[p.Collector] = p.Key
 	}
 	if owned == 0 {
-		t.Fatal("no page declares an owner — this check is reading nothing")
+		t.Fatal("no page declares an owner - this check is reading nothing")
 	}
 	ownerOf := map[string]string{}
 	for _, p := range pages.All {
@@ -101,12 +101,12 @@ func TestPageOwnershipIsReal(t *testing.T) {
 	// and could not be seen at all.
 	//
 	// Now that every audience is declared, the check asks the declaration
-	// directly. No regex to drift, no filenames to keep, and no exemptions —
+	// directly. No regex to drift, no filenames to keep, and no exemptions -
 	// `logs` is checked like everything else.
 	//
 	// THE FIRST VERSION OF THIS ASSERTION WAS THEATRE, and it is worth
 	// remembering why: it searched EVERY collector file, so re-declaring
-	// `interfaces` as owned by `netwatch` passed — `ifstatus.go` still emitted to
+	// `interfaces` as owned by `netwatch` passed - `ifstatus.go` still emitted to
 	// `page-interfaces` and the scan did not care who did. Reading one
 	// collector's own declaration is what makes it mean something.
 	var unproven []string
@@ -129,7 +129,7 @@ func TestPageOwnershipIsReal(t *testing.T) {
 	sort.Strings(unproven)
 	if len(unproven) > 0 {
 		t.Errorf("these pages declare an owner and nothing emits to their room: %v.\n"+
-			"Either the declaration is wrong, or the collector stopped emitting there — "+
+			"Either the declaration is wrong, or the collector stopped emitting there - "+
 			"and the second is silent, because the page simply never updates.", unproven)
 	}
 	t.Logf("%d of %d pages declare an owner; %d pages own nothing and cannot be emptied "+

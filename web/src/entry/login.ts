@@ -13,7 +13,7 @@
  *
  * `login.html` is served to somebody who has NO SESSION. Bundling this into the
  * app would ship the whole dashboard to an unauthenticated browser, and the app
- * bundle would fail on the first thing it did — there is no socket to open and
+ * bundle would fail on the first thing it did - there is no socket to open and
  * no `/api/*` that would answer. Separate entry point, separate document.
  *
  * ── THE THREE VIEWS ─────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ function clearError(elId: string): void {
  *  2. The URL is PARSED and its ORIGIN compared, rather than the string being
  *     inspected. `//evil.example` and a backslash-smuggled authority both parse
  *     to a foreign origin, and neither looks foreign to a substring test.
- *  3. Only `pathname + search + hash` is returned — never the parsed URL — so
+ *  3. Only `pathname + search + hash` is returned - never the parsed URL - so
  *     even a same-origin absolute URL cannot smuggle credentials or a port.
  *  4. `//` and `/\` at the START are rejected even after all of that, because a
  *     browser reads both as protocol-relative and would leave the origin.
@@ -87,7 +87,7 @@ function safeNext(): string {
 
 function main(): void {
   // The install's own name and icon, before anybody signs in (issue #131).
-  void loadBranding(' — Sign In');
+  void loadBranding(' - Sign In');
   const loginView = byId('loginView');
   const firstRunView = byId('firstRunView');
   const loadingView = byId('loadingView');
@@ -136,7 +136,7 @@ function main(): void {
         if (d.ok) {
           // THE HANDOFF. `preflight.ts` reads this flag on the next document and
           // hides it, and `main.ts` fades it back in once the app has rendered.
-          // All three have to agree or the app renders invisibly — which it did,
+          // All three have to agree or the app renders invisibly - which it did,
           // for one afternoon, when the port had the first two and not the third.
           sessionStorage.setItem('justLoggedIn', '1');
           document.body.style.transition = 'opacity 1s ease';
@@ -205,7 +205,7 @@ function main(): void {
         if (d.ok) {
           // NOT a redirect. The account exists but there is no session yet, so
           // this hands over to the sign-in form with the username already filled
-          // and the cursor in the password — one field to type, rather than a
+          // and the cursor in the password - one field to type, rather than a
           // bounce through a login page that would look like the setup failed.
           if (firstRunView) firstRunView.style.display = 'none';
           if (loginView) loginView.style.display = '';

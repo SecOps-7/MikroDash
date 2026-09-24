@@ -23,7 +23,7 @@ export function el<T extends HTMLElement = HTMLElement>(id: string): T | null {
  * The attributes that make a rendered row editable by the resource engine.
  *
  * `id` addresses the RouterOS row; `identity` is round-tripped so the server can
- * refuse the write if the row no longer carries it — a `.id` survives a rename,
+ * refuse the write if the row no longer carries it - a `.id` survives a rename,
  * which makes it the right key to address a row with and the wrong one to
  * identify it by.
  *
@@ -66,7 +66,7 @@ export interface SortState {
  * its own. That second convention is exactly what broke nine tables in the live
  * app: this helper owns `sortState` and calls back with no arguments, so a
  * caller that recomputed the state from a `key` it never received assigned
- * `undefined` to the column and killed the sort on the first click — while its
+ * `undefined` to the column and killed the sort on the first click - while its
  * numeric `dir` produced a `sort-1` class no stylesheet defines. Fixed upstream;
  * this side follows it.
  */
@@ -81,11 +81,11 @@ export function sortMul(sortState: SortState): number {
  *
  * Not "always last", which is the commoner choice: this follows the value, so
  * flipping the direction genuinely reverses the table. On the ping report that
- * matters — a null `rtt_ms` is a TIMED-OUT probe, and "sort by RTT descending"
+ * matters - a null `rtt_ms` is a TIMED-OUT probe, and "sort by RTT descending"
  * putting the timeouts at the bottom is what an operator means by it.
  *
  * Numbers compare numerically and everything else compares as a lower-cased
- * string, so a column holding both does not throw — it just sorts oddly, which
+ * string, so a column holding both does not throw - it just sorts oddly, which
  * is the original's behaviour and better than a crash on a mixed column.
  */
 export function sortRows<T>(rows: readonly T[], col: string, dir: SortDir): T[] {
@@ -148,7 +148,7 @@ export function renderSortHeader(
 /**
  * A data volume in megabytes, scaled to the unit that reads best.
  *
- * The thresholds are the original's and they are DECIMAL — 1000 MB is a GB here,
+ * The thresholds are the original's and they are DECIMAL - 1000 MB is a GB here,
  * not 1024. Changing that would move every total on the bandwidth report by two
  * and a half percent, which is exactly the size of discrepancy nobody notices
  * and everybody argues about later.
@@ -166,7 +166,7 @@ export function fmtDataMB(mb: number | null | undefined): string {
  *
  * `Math.max(...a)` passes every element as an argument and blows the call stack
  * somewhere past sixty-odd thousand of them. A report query returns up to
- * 100,000 rows, so the spread form is not a style preference here — it is a
+ * 100,000 rows, so the spread form is not a style preference here - it is a
  * crash on a long range, and one that only appears on the ranges an operator
  * reaches for when something has gone wrong.
  *
@@ -190,8 +190,8 @@ export function maxOf(a: readonly (number | null | undefined)[]): number {
 // places are what the rendered cell says, so a "nearly right" byte formatter is
 // a DOM difference on every row that has a size.
 //
-// Lives here rather than in a page, because two pages now render byte counts —
-// Packages and PPP — and the Add buttons already demonstrated what happens when
+// Lives here rather than in a page, because two pages now render byte counts -
+// Packages and PPP - and the Add buttons already demonstrated what happens when
 // one helper acquires a second copy.
 export function fmtBytes(b: number): string {
   if (b >= 1099511627776) return (b / 1099511627776).toFixed(2) + ' TB';
@@ -220,7 +220,7 @@ export function parseUptime(raw: unknown): string {
     const v = (s.match(new RegExp('(\\d+)' + unit)) || ['', '0'])[1] as string;
     if (+v) parts.push(v + unit);
   }
-  return parts.length ? parts.join(' ') : (s || '—');
+  return parts.length ? parts.join(' ') : (s || '-');
 }
 
 // ── SVG, and the browser's own storage ──────────────────────────────────────
@@ -228,12 +228,12 @@ export function parseUptime(raw: unknown): string {
 // These were in `pages/topology.ts`, which was their only caller until the Wi-Fi
 // map needed the same four SVG calls and the same try/catch around
 // `localStorage`. Three pages had grown their own copy of the storage pair by
-// then — each with the same comment about private mode — so they moved here
+// then - each with the same comment about private mode - so they moved here
 // rather than becoming a fourth.
 
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** An SVG element with attributes — the one shape an SVG renderer builds
+/** An SVG element with attributes - the one shape an SVG renderer builds
  *  constantly. */
 export function svgEl(tag: string, attrs?: Record<string, string | number>): SVGElement {
   const e = document.createElementNS(SVG_NS, tag) as SVGElement;
@@ -241,7 +241,7 @@ export function svgEl(tag: string, attrs?: Record<string, string | number>): SVG
   return e;
 }
 
-/** Set an attribute only when it CHANGED — a keyed diff's inner loop. */
+/** Set an attribute only when it CHANGED - a keyed diff's inner loop. */
 export function attr(e: Element | null, k: string, v: string | number): void {
   if (e && e.getAttribute(k) !== String(v)) e.setAttribute(k, String(v));
 }
@@ -256,7 +256,7 @@ export function text(e: Element | null, v: string | number): void {
  * BOTH HALVES ARE GUARDED, and not out of habit: a browser with site data
  * blocked THROWS on access rather than returning null, so an unguarded read
  * takes down whatever was rendering. A corrupt value is the fallback for the
- * same reason `db.Layout` returns nil on one — a saved preference must not be
+ * same reason `db.Layout` returns nil on one - a saved preference must not be
  * able to cost the page that reads it.
  */
 export function lsGet<T>(key: string, fallback: T): T {
@@ -302,7 +302,7 @@ export function bandBadge(band: string): string {
  *
  * "2.4GHz" < "5GHz" < "6GHz" as strings, and that is luck rather than
  * construction: a band written "6E" sorts straight to the wrong place and
- * nothing fails — the column is simply ordered wrongly, which is the quietest
+ * nothing fails - the column is simply ordered wrongly, which is the quietest
  * kind of bug a table can have. The vocabulary is closed and owned by the
  * collector (`BandLabel` emits exactly these three), so ranking is reading a
  * fixed list rather than guessing at free text.
@@ -343,7 +343,7 @@ export function bandRank(band: string): number {
  * with the rest of the wireless pills in CSS and a theme can move it.
  */
 export function standardBadge(standard: string): string {
-  if (!standard) return '<span class="muted-note">&mdash;</span>';
+  if (!standard) return '<span class="muted-note">-</span>';
   // Keyed on the rendered label because that IS the vocabulary: `WifiStandard`
   // in internal/collect emits exactly these six strings and nothing else, and
   // its test pins that list against MikroTik's documented band enum.
@@ -383,7 +383,7 @@ const SSID_COLOURS = [
  *
  * `>>> 0` is carried over verbatim rather than tidied away: it coerces to
  * unsigned 32-bit, which is what keeps the hash positive. Without it `h` goes
- * negative and `h % length` picks a different slot — a different colour for the
+ * negative and `h % length` picks a different slot - a different colour for the
  * same SSID.
  */
 export function ssidColours(names: string[]): Record<string, string> {
@@ -406,7 +406,7 @@ export function ssidColours(names: string[]): Record<string, string> {
 /**
  * Publish both under the names the live app uses.
  *
- * Not for this app's own benefit — its pages import them directly. It is so a
+ * Not for this app's own benefit - its pages import them directly. It is so a
  * renderer a Node-era script LIFTED (since deleted) found them: the lifted Wifi
  * Networks code reads `window._bandBadge` and `window._ssidColours`, and
  * without them it silently takes its fallback path while the port takes the
@@ -447,7 +447,7 @@ export function svcBadge(org: string, cat: string | null): string {
  *  anything else grey. Shared by Bandwidth and Torch, so one protocol reads the
  *  same colour on both. */
 export function protoPill(p: string): string {
-  if (!p) return '—';
+  if (!p) return '-';
   const cls = p === 'tcp' ? 'bw-proto-tcp'
     : p === 'udp' ? 'bw-proto-udp'
       : p.indexOf('icmp') !== -1 ? 'bw-proto-icmp' : 'bw-proto-other';
@@ -469,5 +469,5 @@ export function kv(key: string, val: string, cls?: string): string {
 
 /** A muted dash for "no value", with an optional tooltip saying why. */
 export function mutedDash(title?: string): string {
-  return '<span style="color:var(--text-muted)"' + (title ? ' title="' + esc(title) + '"' : '') + '>&mdash;</span>';
+  return '<span style="color:var(--text-muted)"' + (title ? ' title="' + esc(title) + '"' : '') + '>-</span>';
 }

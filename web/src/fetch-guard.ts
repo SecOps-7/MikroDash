@@ -7,7 +7,7 @@
  * other code can call `fetch`. This port had nothing equivalent, and the
  * consequence is what the operator hit on 2026-08-28: with the SPA already open,
  * the server was restarted, every in-memory session died, and every subsequent
- * request answered 401 — so the page sat there doing nothing, with NO LOGIN
+ * request answered 401 - so the page sat there doing nothing, with NO LOGIN
  * SCREEN and nothing working. The document was never re-requested, so the
  * server's own redirect to the login page never came into it.
  *
@@ -21,7 +21,7 @@
  * The live comment: "403 is handled differently on purpose: it means 'still
  * signed in, but no longer permitted', which a redirect to /login would
  * misreport as a session problem. Instead re-resolve permissions so the UI
- * catches up with whatever changed — a role edited, a grant revoked — rather
+ * catches up with whatever changed - a role edited, a grant revoked - rather
  * than failing silently."
  *
  * THROTTLED, because one denied page can fire several requests at once and each
@@ -76,8 +76,8 @@ export function installFetchGuard(refreshCaps: () => void): void {
  *
  * ── WHY THE FETCH GUARD IS NOT ENOUGH ───────────────────────────────────────
  *
- * The server auth-gates the WebSocket upgrade. Once a session dies — expired, or
- * wiped by a container restart — every reconnect attempt is refused and `open`
+ * The server auth-gates the WebSocket upgrade. Once a session dies - expired, or
+ * wiped by a container restart - every reconnect attempt is refused and `open`
  * never fires. So there is no `connect` to check on, `session:expired` cannot
  * arrive because it needs a live socket, and the fetch guard above never sees it
  * because a WebSocket handshake is not a fetch. The tab retries forever behind a
@@ -89,7 +89,7 @@ export function installFetchGuard(refreshCaps: () => void): void {
  * away from a dashboard that is about to come back. So this ASKS:
  * `/api/auth/status` is public, and if it answers and reports no session the
  * session is genuinely gone. If the fetch itself fails the server is
- * unreachable, which is what the reconnect banner is for — so it does nothing.
+ * unreachable, which is what the reconnect banner is for - so it does nothing.
  *
  * THROTTLED, because reconnect attempts are frequent and each must not cost a
  * request.

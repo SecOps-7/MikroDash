@@ -6,7 +6,7 @@
  * Every decision belongs to `wireless-fa.ts` and is gated there: `spectrumConfig`
  * and `spectrumData` against the live `makeChart` (the fa-chart check),
  * the tooltip body and the band geometry (the fa-spectrum check). What is
- * left — and what stayed unported longest — is constructing a Chart.js instance
+ * left - and what stayed unported longest - is constructing a Chart.js instance
  * against an element and registering a plugin. That needs a browser and a
  * charting library rather than a decision, which is why it is here and why it is
  * thin.
@@ -58,7 +58,7 @@ let chart: ChartLike | null = null;
  *
  * `beforeDatasetsDraw`, so it lands UNDER the bars. The live comment says what
  * that replaced: colouring the current channel's bar blue, which marked it "at
- * the cost of the one congestion colour you most want to see — your own".
+ * the cost of the one congestion colour you most want to see - your own".
  *
  * The geometry is `spectrumBandGeometry`, which is gated: the width comes from
  * the BAR rather than the category, because Chart.js insets bars within their
@@ -74,7 +74,7 @@ function bandPlugin(currentChannelMhz: () => number | null) {
       if (idx < 0) return;
       const bar = (c.getDatasetMeta(0).data || [])[idx] || null;
       const xs = c.scales.x;
-      // The live guard is `if (!el && !xs) return` — both missing. With a scale
+      // The live guard is `if (!el && !xs) return` - both missing. With a scale
       // but no laid-out bar the fallback geometry applies, which is the case
       // that exists on the very first frame.
       if (!bar && !xs) return;
@@ -96,7 +96,7 @@ function bandPlugin(currentChannelMhz: () => number | null) {
  * Build the chart, replacing any previous one.
  *
  * DESTROYED FIRST. Chart.js keeps a registry keyed by canvas, and constructing a
- * second instance over a live one leaves the first attached to the same element —
+ * second instance over a live one leaves the first attached to the same element -
  * two charts drawing the same pixels, and the tooltip belonging to whichever
  * registered last.
  */
@@ -113,7 +113,7 @@ export function makeSpectrumChart(deps: {
   const canvas = el('faSpectrum');
   // NO CHART.JS IS A SUPPORTED STATE, not an error. The dialog's stat boxes and
   // channel grid are rendered from the same rows and are the parts that answer
-  // "which channel should I use" — the live code returns here too rather than
+  // "which channel should I use" - the live code returns here too rather than
   // failing the whole dialog.
   if (!canvas || typeof Chart === 'undefined') return;
   chart = new Chart(canvas, {
@@ -125,7 +125,7 @@ export function makeSpectrumChart(deps: {
 /**
  * Push the current rows into the chart.
  *
- * `update('none')` — no animation. The rows are replaced wholesale on every scan
+ * `update('none')` - no animation. The rows are replaced wholesale on every scan
  * frame, and an animated transition between two unrelated spectra reads as the
  * chart lagging rather than as motion.
  */
@@ -134,7 +134,7 @@ export function renderSpectrum(rows: WifiscanRow[]): void {
   const d = spectrumData(rows);
   const [signal, noise] = chart.data.datasets;
   // BOTH DATASETS OR NEITHER. `spectrumConfig` declares exactly two, so a
-  // missing one means the config and this writer have drifted — and writing only
+  // missing one means the config and this writer have drifted - and writing only
   // the bars would leave the noise floor showing the PREVIOUS scan's line under
   // the current one's bars, which reads as a real measurement.
   if (!signal || !noise) return;

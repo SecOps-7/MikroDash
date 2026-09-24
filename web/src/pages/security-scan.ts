@@ -143,7 +143,7 @@ export function initSecurityScanPage(socket: Socket, isVisible: (page: string) =
     setText('secScanAge', '');
     const val = el('secScoreVal');
     if (val) {
-      val.textContent = '—';
+      val.textContent = '-';
       delete val.dataset.v;
     }
     setText('secScoreLabel', 'Not scanned yet');

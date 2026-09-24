@@ -86,8 +86,8 @@ if (process.argv.includes('--ids')) { console.log(JSON.stringify(COVERS)); proce
 // against: the assertions below name the two lines that make the filters
 // exclusive, so an upstream rewrite fails HERE rather than leaving this gate
 // pinning a behaviour nobody has any more.
-// GUARDED, not frozen: both assertions ask the live SOURCE a question — does it
-// still contain this line — and feed nothing downstream. Once the source is gone
+// GUARDED, not frozen: both assertions ask the live SOURCE a question - does it
+// still contain this line - and feed nothing downstream. Once the source is gone
 // the rule they watch for drift in is fixed, and the question is unanswerable.
 // Everything else in this gate drives the PORT and runs unconditionally.
 // The block that compared this against the deleted implementation was removed
@@ -174,7 +174,7 @@ const P = (o) => Object.assign({
 // It arrives on `conn:source-data`, NOT on `conn:update`: Go sends the light
 // payload there and the heavy indexes on their own events (collect.LightOf).
 // This gate once fed it inside `conn:update`, and passed only because the page
-// also read it from there — a read of a key Go never sent.
+// also read it from there - a read of a key Go never sent.
 const SRC = {
   sourceDests: {
     '198.51.100.10': [{ country: 'US', org: 'Example', cat: 'cdn', count: 5 }],
@@ -337,7 +337,7 @@ mount((w) => {
     escaped: html.includes('&lt;b&gt;pc1&lt;/b&gt;') && !html.includes('<b>pc1</b>'),
     txColoured: html.includes('conn-rate conn-tx'), rxColoured: html.includes('conn-rate conn-rx'),
     statePill: html.includes('conn-st conn-st-ok'), service: html.includes('HTTPS'),
-    lan: html.includes('>LAN<'), noRate: html.includes('>—<'),
+    lan: html.includes('>LAN<'), noRate: html.includes('>-<'),
     status: w.doc.nodes.connListStatus.textContent,
   }, { escaped: true, txColoured: true, rxColoured: true, statePill: true, service: true, lan: true,
     noRate: true, status: '3 connections' });

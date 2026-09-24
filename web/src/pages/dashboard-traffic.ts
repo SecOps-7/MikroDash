@@ -1,4 +1,4 @@
-// The Dashboard's traffic chart — the last of the seven cards.
+// The Dashboard's traffic chart - the last of the seven cards.
 //
 // ── IT DRAWS ON PINNED ARITHMETIC ───────────────────────────────────────────
 //
@@ -16,7 +16,7 @@
 // exactly where the redraw painted rather than snapping sideways.
 //
 // It throttles itself to ~30fps (`now - lastTickMs < 33`) and bails entirely
-// when the tab is hidden, the router is down, or the socket is disconnected —
+// when the tab is hidden, the router is down, or the socket is disconnected -
 // so a backgrounded tab costs nothing and a dead router's chart stops advancing
 // instead of scrolling away from its last data.
 //
@@ -54,7 +54,7 @@ interface ChartLike {
   options: { scales: { x: { min?: number; max?: number }; y: { max?: number } } };
 }
 // Chart.js is loaded by the shell from /vendor, so it is a global here rather
-// than an import — the same arrangement `pages/routing.ts` uses.
+// than an import - the same arrangement `pages/routing.ts` uses.
 declare const Chart: undefined | (new (canvas: HTMLElement, cfg: unknown) => ChartLike);
 
 let chart: ChartLike | null = null;
@@ -72,7 +72,7 @@ let trafficRafId: number | null = null;
  *
  * Reads the axis MIN/MAX rather than the drawn data, so labels snap to the new
  * timestamps immediately while the line animates behind them. The label count
- * scales with width — at narrow sizes it collapses to a single right-aligned
+ * scales with width - at narrow sizes it collapses to a single right-aligned
  * label instead of overlapping.
  */
 export const trafficTickPlugin = {
@@ -181,13 +181,13 @@ function makeChartObj(): void {
 // points from `allPoints`, the same module-scope array the dashboard chart uses,
 // because both live in one file scope. ONE buffer, two readers.
 //
-// This port has them in separate modules, so the sharing has to be deliberate —
+// This port has them in separate modules, so the sharing has to be deliberate -
 // and it must be an ACCESSOR, not the array. `allPoints` is REASSIGNED
 // (`initChart` replaces it from history, `reset` empties it), so a consumer that
 // captured the array once would keep reading a detached copy and quietly diverge
 // the moment either happened. Returning it per call cannot.
 //
-// The alternative — a second buffer fed from the same `traffic:update` — is the
+// The alternative - a second buffer fed from the same `traffic:update` - is the
 // thing the port record warns against: two arrays pruned by two rules drift apart,
 // and the drift only shows up as two charts disagreeing about the same second.
 export function sharedPoints(): TrafficPoint[] { return allPoints; }
@@ -359,7 +359,7 @@ export function onTrafficHistory(data: TrafficHistory): void {
   // cosmetic. The live condition is `_userPickedIf && … && [].some.call(
   // ifaceSelect.options, …)`, which short-circuits: with no pick, the options
   // are never touched. Extracting the decision into a function made the list an
-  // ARGUMENT, so it was built eagerly — and `Array.prototype.map` on a select
+  // ARGUMENT, so it was built eagerly - and `Array.prototype.map` on a select
   // with no `options` throws, which two gates caught immediately on a minimal
   // payload. An extraction that changes evaluation order is not a refactor.
   if (sel && userPickedIf && shouldRestorePick(data.ifName, userPickedIf,
@@ -390,13 +390,13 @@ export function onTrafficHistory(data: TrafficHistory): void {
  * ── WHAT THIS CLEARS, AND WHAT IT DELIBERATELY DOES NOT ─────────────────────
  *
  * `currentIf` and `allPoints`, which is exactly what the live app clears at both
- * of its own sites — `app.js:2957` (socket `connect`) and `app.js:8048`
+ * of its own sites - `app.js:2957` (socket `connect`) and `app.js:8048`
  * (`router:switching`).
  *
  * It used to also zero `lastSampleTs`, `serverOffset` and `pendingTraffic`, and
  * the live app clears none of those ANYWHERE. `serverOffset` is the one that
  * matters: it is an EMA of the server/browser clock skew, and `app.js:2318`
- * says in as many words that keeping it is what makes a resume smooth — "the
+ * says in as many words that keeping it is what makes a resume smooth - "the
  * keepalive bails on !_lastSampleTs and resumes cleanly from the (EMA-smoothed)
  * _serverOffset when the next sample arrives, so there is no resume jump."
  * Zeroing it made the next sample set the offset raw, which moves the first
@@ -408,7 +408,7 @@ export function onTrafficHistory(data: TrafficHistory): void {
  *
  * Deliberately NOT cleared on socket connect, which is the whole point. The
  * server keys its traffic subscription on the socket, and a reconnect is a new
- * socket — so the subscription reverts to `defaultIf` and the operator's choice
+ * socket - so the subscription reverts to `defaultIf` and the operator's choice
  * is simply gone. A network blip silently moved them back to the WAN interface
  * minutes after they picked something else (upstream issue #119, second report).
  * The page has not reloaded, so this survives and the choice can be restored.
@@ -417,7 +417,7 @@ export function onTrafficHistory(data: TrafficHistory): void {
  * interfaces and carrying a name across would be meaningless.
  *
  * Ported from upstream `d7548b0`, found by the reset-contract audit on
- * 2026-08-28 — the audit noticed the live `router:switching` handler clearing a
+ * 2026-08-28 - the audit noticed the live `router:switching` handler clearing a
  * variable this port had nothing to map onto.
  */
 let userPickedIf = '';
@@ -442,7 +442,7 @@ let requestInterface: ((ifName: string) => void) | null = null;
  * `allPoints`; `router:switching` clears those AND `_userPickedIf`.
  *
  * This port had one `resetTraffic` wired to both. That was correct until
- * upstream `d7548b0` added `_userPickedIf` to the switch site only — at which
+ * upstream `d7548b0` added `_userPickedIf` to the switch site only - at which
  * point the single function silently started clearing the operator's chosen
  * interface on every reconnect, which is the exact symptom of issue #119's
  * second report ("it seems to switch to ether2 after some time"). The function's
@@ -452,7 +452,7 @@ let requestInterface: ((ifName: string) => void) | null = null;
  * Splitting is what makes the asymmetry expressible at all.
  */
 export function resetTrafficOnReconnect(): void {
-  // Both of these, and only these — the live `connect` handler's own two
+  // Both of these, and only these - the live `connect` handler's own two
   // statements. A socket gap otherwise leaves `allPoints` holding samples from
   // before it, and the post-reconnect history is appended to them: a chart drawn
   // straight across a period during which nothing was received.
@@ -483,7 +483,7 @@ export function initTraffic(socket: Socket): void {
     sel.addEventListener('change', () => {
       // Recorded here and ONLY here: this is the operator acting. The
       // auto-switch in `rebuildIfaceSelect`, which moves off an interface that
-      // has gone down, must not overwrite it — that is the app coping, not a
+      // has gone down, must not overwrite it - that is the app coping, not a
       // choice, and remembering it would mean a flap permanently rewrote what
       // the operator asked for.
       userPickedIf = sel.value;

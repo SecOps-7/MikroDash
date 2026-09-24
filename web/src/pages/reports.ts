@@ -1,4 +1,4 @@
-// Reports — the range controls, the tab bar, and the formatters every tab shares.
+// Reports - the range controls, the tab bar, and the formatters every tab shares.
 //
 // ── THIS IS THE FIRST PAGE WITH AN HTTP API RATHER THAN A SOCKET ────────────
 //
@@ -31,13 +31,13 @@ import { loadSchedules, wireScheduleActions, wireScheduleForm } from './reports-
 
 /** The saved preset survives a reload, so a range does not have to be re-picked. */
 // THE LIVE APP'S KEY, EXACTLY (`../MikroDash/public/app.js:9583`). This read
-// `'mikrodash.rpt.preset'` until 2026-08-25 — a name in this port's own style,
+// `'mikrodash.rpt.preset'` until 2026-08-25 - a name in this port's own style,
 // and wrong: at cutover every operator's saved Reports preset would have been
 // invisible, the page silently falling back to `last7d`. Nothing breaks, nothing
 // logs, and the setting the operator chose is simply not there any more.
 //
 // A storage key is a CONTRACT WITH THE PAST, not an internal name. The live
-// app's spelling wins even where it is inconsistent — `mkd_` here, `mikrodash_`
+// app's spelling wins even where it is inconsistent - `mkd_` here, `mikrodash_`
 // two lines below in `RPT_CAP_KEY`. The storage-key audit compares every
 // key against the live source for exactly this reason.
 const RPT_PRESET_KEY = 'mkd_rpt_preset';
@@ -53,11 +53,11 @@ const p2 = (n: number): string => String(n).padStart(2, '0');
  * A duration, coarsened as it grows: hours drop the seconds, minutes keep them.
  *
  * `!ms` catches zero as well as null, so an outage under a millisecond reads as
- * "—" rather than "0s". That is the original's behaviour and it is the right
+ * "-" rather than "0s". That is the original's behaviour and it is the right
  * one: a zero-length outage is a rounding artefact, not an event.
  */
 export function fmtDuration(ms: number | null): string {
-  if (!ms || ms < 0) return '—';
+  if (!ms || ms < 0) return '-';
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -92,7 +92,7 @@ export function statCard(val: string | number, lbl: string): string {
 /**
  * A datetime-local value to an instant.
  *
- * `new Date('2026-01-01T00:00')` — no zone — is parsed as LOCAL time, which is
+ * `new Date('2026-01-01T00:00')` - no zone - is parsed as LOCAL time, which is
  * what the operator typed. The `|| 0` catches an unparseable field; an empty one
  * means "unbounded", and which end depends on which field it is.
  */
@@ -103,7 +103,7 @@ export function dateToTs(dateStr: string, endOfDay: boolean): number {
 
 /** A percentage for a stat card: one decimal below ten, whole above it. */
 export function utilPct(v: number | null): string {
-  if (v == null) return '—';
+  if (v == null) return '-';
   return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + '%';
 }
 
@@ -157,7 +157,7 @@ export function dtVal(d: Date): string {
  * wrong, and it is the part with month lengths and week starts in it.
  *
  * Note the two families: the `last*` presets end at NOW, while `this*` and
- * `prev*` end at a period boundary — except the `*SoFar` ones, which end at now
+ * `prev*` end at a period boundary - except the `*SoFar` ones, which end at now
  * on purpose. A "this month" report covering a month that has not finished is
  * empty at the end; "this month so far" is not.
  */
@@ -298,7 +298,7 @@ function getJSON<T>(url: string): Promise<Envelope<T>> {
  *
  * The preservation is the rule worth having: pressing Load re-fetches the
  * interface list, and without it the chosen interface would snap back to the
- * first one on every load — so a report on `ether5` would silently become a
+ * first one on every load - so a report on `ether5` would silently become a
  * report on `bridge` the moment the operator changed the date range.
  *
  * An interface that has GONE cannot be preserved, and then the browser's own
@@ -323,8 +323,8 @@ export function fillIfaceSelect(id: string, ifaces: string[]): string {
  * `/api/reports/<type>/export`, as every report endpoint is under `/api/reports/`.
  *
  * `aggregate` is read from the select at CALL time rather than taken from the
- * load's snapshot, exactly as the original does. In practice they agree — the
- * links are set during the render that follows the load — and reproducing the
+ * load's snapshot, exactly as the original does. In practice they agree - the
+ * links are set during the render that follows the load - and reproducing the
  * read keeps them agreeing for the same reason the original does.
  *
  * `from` and `to` are numbers and go in unencoded; the original does not encode
@@ -346,7 +346,7 @@ export function exportUrl(
  * Point a report's two export buttons at the range now on screen, and reveal
  * them.
  *
- * REVEAL ONLY — there is no hiding path, and that is the original's shape. The
+ * REVEAL ONLY - there is no hiding path, and that is the original's shape. The
  * buttons ship `display:none` in the markup and appear the first time a report
  * renders; an empty report still reveals them, because "no rows in this range"
  * is a legitimate thing to export and the live renderer sets them as its last
@@ -372,8 +372,8 @@ export function setExportLinks(
  * `interface=<name>` when one is chosen, empty otherwise.
  *
  * Exported for the differential gate. It is the encoding boundary for an
- * OPERATOR-SUPPLIED name — RouterOS interface names take spaces, slashes and
- * ampersands — and it encodes exactly once, because `exportUrl` appends `extra`
+ * OPERATOR-SUPPLIED name - RouterOS interface names take spaces, slashes and
+ * ampersands - and it encodes exactly once, because `exportUrl` appends `extra`
  * to the query verbatim.
  */
 export function ifaceExtra(selectId: string): string {

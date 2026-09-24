@@ -1,12 +1,12 @@
 # RouterOS API surface
 
-**Generated from the Node source, which no longer exists — the generator was deleted
+**Generated from the Node source, which no longer exists - the generator was deleted
 with the port-parity harness on 2026-09-01. This file is now maintained BY HAND from
 the RouterOS documentation; see the mikrotik-docs skill.**
 
 Rows added by hand cite the Go file that declares the command, not the deleted
 Node one. The nine `/caps-man` reads below are the legacy CAPsMAN tree, added on
-2026-09-13 — its property names are the half MikroTik's documentation does not
+2026-09-13 - its property names are the half MikroTik's documentation does not
 enumerate, so the three status menus are read whole and the profile menus carry
 proplists checked against a live manager's own export.
 
@@ -203,7 +203,7 @@ for what a ported collector has to cover.
 | `/system/package/uninstall` | src/index.js |
 | `/system/package/unschedule` | src/index.js |
 
-## Composed at runtime — the resource engine
+## Composed at runtime - the resource engine
 
 These menus never appear as a complete command in the source: `res:save` and friends
 build `<menu>/<verb>` from the registry. Listed from `src/routeros/resources.js` so the
@@ -250,7 +250,7 @@ twice, 37,111 rows each way for one address-list entry on a synced blocklist.
 | `/container/config` | containerConfig | containers | set (singleton; password never read) |
 | `/interface/veth` | veth | containers | add, set, remove (selfPath) |
 | `/interface/vrrp` | vrrp | vrrp | add, set, remove (selfPath, codeGate on the scripts; password never read) |
-| `/interface/wireguard/peers/show-client-config` | — | wireguard | read (the client config and its QR; `.id` not `numbers`; `show-sensitive` draws the QR) |
+| `/interface/wireguard/peers/show-client-config` | - | wireguard | read (the client config and its QR; `.id` not `numbers`; `show-sensitive` draws the QR) |
 | `/interface/wireguard` | wgInterface | wireguard | add, set, remove (selfPath; private-key never read) |
 | `/interface/wireguard/peers` | wgPeer | wireguard | add, set, remove (private-key and preshared-key never read) |
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |
@@ -386,7 +386,7 @@ sentences are in `testdata/fixtures/import/probe-7.24.4.json` and
 | `/file/print` | `?name=<n>`, for the id and `size` |
 | `/file/remove` | `=.id=<id>`, or `=numbers=<name>`: removing by NAME works over the API (no trap, file gone; `m10`, 7.24.4). `backups.Sweep` removes that way, and Config Management's sweep shares it |
 | `/import` | `=file-name=<n>`. **The real run is `verbose=no`.** It returns when finished, not before (600 lines, 266 ms, all applied at return). A **runtime** error stops the file at that line with the lines before it applied, and the trap names the line and the command: `input does not match any value of list (/interface/list/member/add (list); line 5)`. `verbose=yes` stops at the same line but its trap drops the line number. A **syntax** error applies nothing: the whole file is parsed first, and the trap is `expected name value (line 7 column 1)` |
-| `/import` (dry-run) | `=file-name=<n> =verbose=yes =dry-run=`, or `=dry-run=yes` — both accepted over the API. **Returns no text over the API**: success is `!done` `ret=true`, a syntax error is the trap `found 1 error(s) in import file` with no line. It checks **syntax only** — a reference to a list that does not exist passes — so it cannot see whether an earlier line creates what a later one uses |
+| `/import` (dry-run) | `=file-name=<n> =verbose=yes =dry-run=`, or `=dry-run=yes` - both accepted over the API. **Returns no text over the API**: success is `!done` `ret=true`, a syntax error is the trap `found 1 error(s) in import file` with no line. It checks **syntax only** - a reference to a list that does not exist passes - so it cannot see whether an earlier line creates what a later one uses |
 | `/execute` | `=script=/import file-name=<n> verbose=yes dry-run =file=<out>`: the ONLY way to get the dry-run's own words back. Writes the console report to `<out>.txt` (CRLF line endings) with `#line N` markers and the error with its line and column. **Console syntax, not API syntax**: in this string `dry-run` is a bare flag, and `dry-run=yes` is "expected end of command" |
 | (tag cancel) | Cancelling `/import`'s API tag **stops it mid-file and leaves it half-applied**: 180 of 950 lines after an 80 ms cancel, stable thereafter. A real import is never cancelled on a short timer, and a timeout is recorded as a partial outcome |
 | (firewall settle) | Measured by `m14` (7.24.4, `probe-7.24.4-m14.json`): an `/import` that **removes a filter rule and adds its replacement returns before the new rule is in force**. New logins from the address it drops got in at 0, 300 and 700 ms and were dropped from 1 s on, three runs alike; a plain add (the control) is in force at once. A deploy's fresh login therefore waits `firewallSettle` (5 s) after the import: every canned lock-class template opens with exactly that remove, and a login inside the hole disarmed a dead-man over a real lockout |
@@ -394,8 +394,8 @@ sentences are in `testdata/fixtures/import/probe-7.24.4.json` and
 | `/system/scheduler/add` (backup load) | `=interval=20s =on-event=/system backup load name=<n>.backup password=<one-time>`: a dead-man that reverts by loading a backup taken just before the change (`m11`, 7.24.4, destructive). **It runs from a scheduler with no prompt to answer**: fired at 20 s, the router was back at 35 s holding the pre-change state (a marker made before the backup present, one made after gone), and **the scheduler was gone**, because it was added after the backup. The backup file itself remains and must be swept |
 | (run-after-reset bootstrap) | Measured by `m12` (7.24.4, destructive): each line wrapped in `:do { <cmd> } on-error={ :log warning "<prefix>bootstrap: line N failed" }` **survives a failing line and logs which one** (the DHCP client a CHR keeps through a reset failed on purpose, and every later line ran); `/certificate add`, `/certificate sign` and `/ip service set api-ssl certificate=` **work inside the script**, so the router came back over api-ssl in 25 s; a closing `:log info "<prefix>bootstrap: done"` marks that the script reached its end. Reset with `no-defaults=yes skip-backup=yes keep-users=yes` |
 | `/user/active/print` | Rows carry `address`, `via`, `group`, `name`, `radius`, `when`: `address` is where MikroDash arrives from, as the router sees it |
-| `/system/reset-configuration` | `=no-defaults=yes =skip-backup=yes =keep-users=yes =run-after-reset=<file>` (`export-reset-7.24.4.json`). The connection drops; the CHR was back in 20 s. **`keep-users=yes` keeps MikroDash's login, password and all**, so a credential never has to be written into the script. The script **may remove its own file on its first line** — it is loaded before it runs. **A reset destroys certificates**: api-ssl came back enabled with `certificate=none`, and TLS clients got `ssl: no common ciphers`. **The first runtime error aborts the rest of the script**, and nothing reports it at the time: it is only in `/log` afterwards, `system,error,critical: error while running run-after-reset script: <msg> (<cmd>; line N)`. On a CHR a DHCP client on ether1 survives a `no-defaults` reset, so a script adding one fails at that line |
-| `/system/backup/save` | `=name=<n> =dont-encrypt=yes` (lab only) — the way back before a reset |
+| `/system/reset-configuration` | `=no-defaults=yes =skip-backup=yes =keep-users=yes =run-after-reset=<file>` (`export-reset-7.24.4.json`). The connection drops; the CHR was back in 20 s. **`keep-users=yes` keeps MikroDash's login, password and all**, so a credential never has to be written into the script. The script **may remove its own file on its first line** - it is loaded before it runs. **A reset destroys certificates**: api-ssl came back enabled with `certificate=none`, and TLS clients got `ssl: no common ciphers`. **The first runtime error aborts the rest of the script**, and nothing reports it at the time: it is only in `/log` afterwards, `system,error,critical: error while running run-after-reset script: <msg> (<cmd>; line N)`. On a CHR a DHCP client on ether1 survives a `no-defaults` reset, so a script adding one fails at that line |
+| `/system/backup/save` | `=name=<n> =dont-encrypt=yes` (lab only) - the way back before a reset |
 | `/system/backup/load` | `=name=<n>.backup =password=`: restored the lab in 10 s, original certificate included |
 
 ## Zero-touch provisioning's bootstrap (measured by cmd/ztpprobe)
@@ -424,7 +424,7 @@ RouterOS 7.24.4 on the lab CHR, 2026-09-22. What the call-home script depends on
 
 ## Proplists
 
-A proplist is the only thing keeping a credential out of a payload — see
+A proplist is the only thing keeping a credential out of a payload - see
 `src/routeros/wifiMenus.js`. Every one of these is part of the port contract.
 
 | Proplist | Used by |

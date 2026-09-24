@@ -77,7 +77,7 @@ import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, 
 import { initIpTip } from './iptip';
 import { initDashboardGrid } from './pages/dashboard-grid';
 
-// The pages this bundle can render, and their header text — both from
+// The pages this bundle can render, and their header text - both from
 // `internal/pages` via cmd/pagesgen, so they cannot drift from the markup
 // cmd/webbuild composes or the URLs internal/server registers.
 //
@@ -106,7 +106,7 @@ function refocusOnReturn(socket: Socket): void {
 }
 
 function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
-  // Hiding the nav link was never a block — showPage('settings') from the
+  // Hiding the nav link was never a block - showPage('settings') from the
   // console opened the whole admin page for anyone. The server refused every
   // write, but the page had no business rendering. Defence in depth, not the
   // boundary. Unknown caps PERMIT; see caps.ts.
@@ -124,7 +124,7 @@ function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
   if (navGrp) {
     navGrp.classList.add('has-active');
     // Auto-expand the category holding this page, and DELIBERATELY DO NOT SAVE
-    // it — see the header of nav.ts. Only when a group was actually found: a
+    // it - see the header of nav.ts. Only when a group was actually found: a
     // page outside every category leaves the sidebar alone.
     navAutoExpand(navGrp.dataset.cat);
   }
@@ -138,7 +138,7 @@ function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
     if (svg) icon.appendChild(svg.cloneNode(true));
   }
 
-  // THE BAR LAST, and with the name AFTER the settings rewrite above — so a
+  // THE BAR LAST, and with the name AFTER the settings rewrite above - so a
   // deep link to a page the operator may not see corrects the URL instead of
   // leaving it describing a page that is not on screen.
   //
@@ -153,7 +153,7 @@ function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
   socket.emit('page:focus', name);
 }
 
-// `host` and `disabled` are what the TOPBAR dropdown needs — the row's subtitle
+// `host` and `disabled` are what the TOPBAR dropdown needs - the row's subtitle
 // and the switchable filter. They were absent from this type while only the
 // mobile <select> was wired, which needs neither.
 /**
@@ -161,7 +161,7 @@ function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
  *
  * ── IT EXTENDS StoredRouter, AND THAT IS THE POINT ──────────────────────────
  *
- * This was four fields — id, label, name, host, disabled — which was everything
+ * This was four fields - id, label, name, host, disabled - which was everything
  * the router picker needed and nothing the Add/Edit modal does. The endpoint has
  * always sent twenty-three (see `store.PublicRouters`); the narrow type simply
  * hid the rest from TypeScript.
@@ -224,11 +224,11 @@ function wireNav(socket: Socket): void {
   // class**: `web/public/app.css` carries six rules on `#sidenav.mobile-open`
   // and one on `#navOverlay.show`, and zero on `nav-open`. So the burger did
   // nothing, the sidenav never opened, and a MOBILE USER COULD NOT NAVIGATE AT
-  // ALL — the shell is the only way to reach another page on a narrow screen.
+  // ALL - the shell is the only way to reach another page on a narrow screen.
   //
   // Found by extending `wiring-audit` to `shell.html`, which had never been
   // scanned: `burgerBtn` was mentioned by this port so it looked wired, and
-  // `sidenav` — the element that actually carries the state — was not.
+  // `sidenav` - the element that actually carries the state - was not.
   //
   // A REMINDER THAT INVENTING A CLASS NAME IS NOT A FREE CHOICE. The stylesheet
   // is the live app's, extracted verbatim; the port does not get to pick its own
@@ -298,14 +298,14 @@ function wireBanners(socket: Socket): void {
  * Move to another router, clearing what the last one left on screen.
  *
  * The live app clears on a `router:switching` event the server sends before the
- * new state; this port's server does not emit one — it announces `router:active`
+ * new state; this port's server does not emit one - it announces `router:active`
  * and `router:switched` AFTER the move. So the clear happens where the client
  * already knows the switch is starting: here, at the moment it asks. Same
  * instant, one fewer round trip, and the rows never outlive the router they
  * belong to.
  *
  * Without it a card keeps the previous router's rows under the new router's
- * name until that router's first payload replaces them — indefinitely if the
+ * name until that router's first payload replaces them - indefinitely if the
  * collector feeding it is slow or switched off.
  */
 // The router this browser is watching. THE ONE PLACE IT IS WRITTEN is
@@ -314,7 +314,7 @@ function wireBanners(socket: Socket): void {
 // Every switch goes through that function, and each caller used to record the
 // id for itself: the desktop dropdown and `select()` did, the mobile select and
 // the `router:disabled` move did not. Nothing noticed while the banner painted
-// every router's frame — and the moment it started trusting this, those two
+// every router's frame - and the moment it started trusting this, those two
 // paths began dropping the NEW router's frames instead, leaving the banner lit
 // over a healthy router. Found by review of the commit that added the guard.
 let activeRouterId = '';
@@ -323,15 +323,15 @@ function switchRouter(socket: Socket, id: string): void {
   activeRouterId = id;
   // The mobile select is the other control that says which router this is; the
   // desktop dropdown reads `activeRouterId` through a thunk. Kept in step here,
-  // so a switch from anywhere — a nav choice, or a disabled router moving the
-  // browser on — leaves both controls agreeing with the guard.
+  // so a switch from anywhere - a nav choice, or a disabled router moving the
+  // browser on - leaves both controls agreeing with the guard.
   const navSel = el<HTMLSelectElement>('navRouterSelect');
   if (navSel && navSel.value !== id) navSel.value = id;
   clearDashboardData();
   resetStaleTimers();
   // The new router is another board. The System card's meta line is written
   // once per connection, so without this it would keep the OLD board's name,
-  // RouterOS version and CPU count under the new router's live gauges — the
+  // RouterOS version and CPU count under the new router's live gauges - the
   // live app resets it here for exactly that reason.
   resetSysMeta();
   // Same reason, different cache: the Connections card skips a redraw when the
@@ -360,7 +360,7 @@ function switchRouter(socket: Socket, id: string): void {
 async function main(): Promise<void> {
   // BEFORE ANYTHING THAT FETCHES, which is why it is the first statement here
   // and the first thing `public/app.js` does. A request made before the wrapper
-  // is in place is a request whose 401 nobody sees — and with the SPA already
+  // is in place is a request whose 401 nobody sees - and with the SPA already
   // open, a dead session then leaves the page sitting there with no login
   // screen. See fetch-guard.ts.
   installFetchGuard(() => { void refreshCaps(); });
@@ -372,7 +372,7 @@ async function main(): Promise<void> {
   // colours between the login redirect and the first paint. The live app fades
   // it back in (`public/app.js`, just below its socket handlers). THIS PORT DID
   // NOT, so after a successful login the whole app rendered correctly and was
-  // completely invisible — an empty page. A plain reload showed it, because
+  // completely invisible - an empty page. A plain reload showed it, because
   // preflight only hides when the flag is set.
   //
   // Reported by the operator on 2026-08-28: "when i log in, I now get
@@ -424,7 +424,7 @@ async function main(): Promise<void> {
     if (typeof page === 'string') navigate(socket, page);
   });
   // The chrome's permission layer. It reaches the router through this host
-  // rather than importing showPage, which would be a cycle — and `go` deliberately
+  // rather than importing showPage, which would be a cycle - and `go` deliberately
   // calls showPage directly, NOT navigate: being moved off a page you may not see
   // must land somewhere, and navigate's bounce to the landing page would lose
   // the session's place.
@@ -459,16 +459,16 @@ async function main(): Promise<void> {
   // `applyCollectionStatus` dims the cards of collectors that have been put to
   // sleep and suppresses their stale countdown, so a paused card reads as paused
   // rather than as broken. Like its sibling it existed, gated and UNCALLED,
-  // until the server had a dormancy supervisor to emit this — see
+  // until the server had a dormancy supervisor to emit this - see
   // `internal/dormancy`. The live listener is `public/app.js:3123`, which guards
   // on `Array.isArray(st.dormant)` the same way.
   socket.on('collection:status', (st) => {
     if (st) applyCollectionStatus(st.dormant);
   });
   // Another administrator adding or removing a site must not leave this tab
-  // stale. Fleet-wide, like perms:changed — sites are not per-router.
+  // stale. Fleet-wide, like perms:changed - sites are not per-router.
   socket.on('sites:update', (list) => onSitesUpdate(list));
-  // A permissions change can take the principals card away — or give it —
+  // A permissions change can take the principals card away - or give it -
   // without a reload. Re-asking is cheap; leaving it on screen is not. A nudge,
   // never the caps themselves: re-asking re-resolves them server-side, so a
   // forged event cannot widen anything. (It was subscribed twice; once is it.)
@@ -477,7 +477,7 @@ async function main(): Promise<void> {
   // ── THE ROUTER YOU ARE LOOKING AT WAS DISABLED ────────────────────────────
   //
   // The server tears its session down and tells everybody in its room. Without
-  // this the page keeps its selection and simply stops updating — which reads as
+  // this the page keeps its selection and simply stops updating - which reads as
   // a hung app rather than as a router that was turned off, and there is nothing
   // on screen to explain it.
   //
@@ -486,7 +486,7 @@ async function main(): Promise<void> {
   // refreshed list has not arrived yet), and `r.id !== data.routerId` because
   // this browser's copy may not have been updated at all.
   //
-  // If there is no such router, NOTHING HAPPENS — deliberately, matching the
+  // If there is no such router, NOTHING HAPPENS - deliberately, matching the
   // live handler. An install with one router that has just been disabled has
   // nowhere to go, and switching to a disabled device would be worse than
   // staying put.
@@ -504,7 +504,7 @@ async function main(): Promise<void> {
   socket.on('router:follow', (d) => {
     if (d && d.activeId && d.activeId !== activeRouterId) switchRouter(socket, d.activeId);
   });
-  // The account modal — opened by the chip, which `wireNav` deliberately skips.
+  // The account modal - opened by the chip, which `wireNav` deliberately skips.
   wireAccount();
   refocusOnReturn(socket);
 
@@ -514,21 +514,21 @@ async function main(): Promise<void> {
   // drops every room this socket was in and joins the new router's BASE room
   // only, so a page-scoped collector goes on emitting into a room this browser
   // has just left. The page then shows nothing at all until the user navigates
-  // away and back — which looks like the new router having no data.
+  // away and back - which looks like the new router having no data.
   //
   // `router:active` is the one signal every path shares: the server sends it on
   // connect, on a switch, and on a hot-swap alike. Reacting to a CHANGE of id
   // re-joins through the ordinary `page:focus` handler, so the role gate is
   // re-applied against the NEW router rather than carried over from the old one.
   //
-  // The FIRST one is skipped deliberately — on a fresh connect the room has
+  // The FIRST one is skipped deliberately - on a fresh connect the room has
   // already been joined by the code that opened the page, and re-emitting would
   // be a second join for the room we are already in.
   //
   // ── AND A RECONNECT IS NOT A CHANGE OF ID, WHICH IS WHY IT WAS MISSED ─────
   //
   // Reacting to a CHANGE of id is right for a switch and silently wrong for a
-  // reconnect, because the router has not changed — so `id === roomsRouterId`
+  // reconnect, because the router has not changed - so `id === roomsRouterId`
   // returned early and `page:focus` was never re-sent. Nothing on the server
   // covers that: room membership is per-CONNECTION, a reconnect arrives as a
   // brand-new `conn` whose `cn.page` is empty, and `rejoinPage` returns
@@ -536,7 +536,7 @@ async function main(): Promise<void> {
   // rejoins the CARDS; the page room had nothing to rejoin it.
   //
   // The result was a browser subscribed to no page room at all, on a socket the
-  // server considers healthy — every page-scoped card going stale while the
+  // server considers healthy - every page-scoped card going stale while the
   // collector polls happily into a room nobody is in. It is the same failure
   // `TestSelectRouterRejoinsEveryPerSocketSubscription` was written for, reached
   // by the other route.
@@ -563,7 +563,7 @@ async function main(): Promise<void> {
   // ── Stale detection ───────────────────────────────────────────────────────
   //
   // One subscription per distinct event, each re-arming every card that event
-  // feeds — `routing:update` feeds four of them. `pollMs` on the payload retunes
+  // feeds - `routing:update` feeds four of them. `pollMs` on the payload retunes
   // that card's threshold, so a collector reporting a slower interval stops
   // being called stale for keeping to it.
   for (const event of [...new Set(STALE_CARDS.map((c) => c.event))]) {
@@ -587,7 +587,7 @@ async function main(): Promise<void> {
   // grid listens for this and re-joins every visible room-gated card; without
   // it a viewer who blinked keeps a dashboard whose gated cards never receive
   // anything again. Dispatched at the same two places the live app dispatches
-  // it — here, and on a router change below.
+  // it - here, and on a router change below.
   socket.on('connect', () => document.dispatchEvent(new CustomEvent('socket:reconnect')));
   startStaleSweep();
   wireAppearance();
@@ -643,14 +643,14 @@ async function main(): Promise<void> {
   // `mountRouters` is the whole of it. What is NOT here is the Add/Edit modal,
   // and that is a finding rather than an omission: the Devices page has no edit
   // affordance of its own. Its table rows carry `data-router-id` and no buttons,
-  // and its cards carry none either — the ONLY way into the router modal from
+  // and its cards carry none either - the ONLY way into the router modal from
   // this page is the fleet map's popover and its no-location tray, both of which
   // go through `window._rtrOpenModal` (routers-map.ts).
   //
   // `rtrAddBtn`, `rtrTbody` and the modal's own trigger live on the SETTINGS
   // page (`web/src/ui/page-settings.html`). An earlier version of this file
   // wired `initRouterModal` from here anyway, complete with a
-  // `[data-edit-router]` handler for an attribute nothing in the app produces —
+  // `[data-edit-router]` handler for an attribute nothing in the app produces -
   // The selector audit is what said so.
   //
   // The Settings page's opener is `settings-routers.ts`'s Edit button, wired
@@ -665,7 +665,7 @@ async function main(): Promise<void> {
   mountZtp(socket);
 
   // The first-run overlay. Mounted 2026-08-29, once
-  // `POST /api/routers/{id}/activate` was ported — until then its Connect button
+  // `POST /api/routers/{id}/activate` was ported - until then its Connect button
   // made a request that 404ed, and mounting it would have put a broken button on
   // the FIRST screen an operator ever sees.
   //
@@ -699,14 +699,14 @@ async function main(): Promise<void> {
     renderRoutersInto();
   }
 
-  // `_broadcastRoutersList` fires on an add, an edit, a delete — and on a
+  // `_broadcastRoutersList` fires on an add, an edit, a delete - and on a
   // background identity write, which is how a router that has just reported its
   // model reaches the picker without a reload.
   socket.on('routers:update', () => { void refreshRouters(); });
 
   // Reports takes no socket: it is the one page fed by HTTP, on demand, from
   // the Go report endpoints. It is mounted AFTER the router list arrives
-  // because its own picker is filled from it — see mountReports.
+  // because its own picker is filled from it - see mountReports.
   mountReports(routers);
   // Audit takes no socket either, and no router list: its rows are filtered
   // server-side per row, so there is nothing for a picker to choose.
@@ -729,7 +729,7 @@ async function main(): Promise<void> {
 
   // Data Cleanup, the dialog the same page's Data Retention card opens. It takes
   // NO accessors: it fetches its own router list, because the names it needs
-  // include routers that have been DELETED and are still holding history — ids
+  // include routers that have been DELETED and are still holding history - ids
   // `routers` no longer carries.
   initDbCleanup();
 
@@ -753,11 +753,11 @@ async function main(): Promise<void> {
 
   // The alert-type toggles and the interface-kind filter card. Mounted BEFORE
   // the poll wiring only because both listen for the settings page change and
-  // this one also restores from localStorage — order between them is otherwise
+  // this one also restores from localStorage - order between them is otherwise
   // immaterial, since they share no state.
 
   // The four Test buttons. Each press SENDS one real message, so the button
-  // locks for the duration of the request — a double-click is two notifications,
+  // locks for the duration of the request - a double-click is two notifications,
   // and a delivered message cannot be withdrawn.
   initNotifTestButtons();
   initNotifyChannels();
@@ -776,7 +776,7 @@ async function main(): Promise<void> {
 
   // The live `loadSettings`: one fetch, then the form and the poll card from the
   // same payload. Called on every visit rather than once, matching the live
-  // comment — "Load settings on every visit to the settings page" — because
+  // comment - "Load settings on every visit to the settings page" - because
   // another tab or another admin can change them underneath this one.
   function loadSettings(): void {
     void fetch('/api/settings', { credentials: 'same-origin' })
@@ -785,7 +785,7 @@ async function main(): Promise<void> {
         populateSettings(data);
         // AFTER `populateSettings`, and it matters: the live `populate` fills
         // the fields first and builds the sliders last, and the sliders read
-        // `data` rather than the fields — so the order is not observable through
+        // `data` rather than the fields - so the order is not observable through
         // the DOM, only through which of the two owns `s_poll*`. Keeping the
         // live order means it stays that way if one of them ever grows a
         // dependency on the other.
@@ -806,12 +806,12 @@ async function main(): Promise<void> {
   // the poll controls beside it; populate fills the box on every load.
   initAiPromptControls();
   // The Save button beside Reset, which was bound to nothing at all until
-  // 0.8.15 — so no server-side setting could be saved from any tab. Given the
+  // 0.8.15 - so no server-side setting could be saved from any tab. Given the
   // SAME loader as Reset, so the two refresh the page identically.
   initSettingsSave(loadSettings);
 
   // THE MOBILE CONTROL. `#navRouterWrap` is display:none until the mobile media
-  // query, so on a desktop browser this select is invisible — which is why
+  // query, so on a desktop browser this select is invisible - which is why
   // wiring only this one left the desktop with no working switcher at all.
   const sel = el<HTMLSelectElement>('navRouterSelect');
   if (sel) {
@@ -834,13 +834,13 @@ async function main(): Promise<void> {
   // ── IT IS MOUNTED *HERE*, BELOW THAT DECLARATION, AND MUST STAY ──────────
   //
   // A thunk defers a READ, not a reference, and `initSettingsRoutersTable` ends
-  // by rendering once — so the thunk fires synchronously during init. Mounted
+  // by rendering once - so the thunk fires synchronously during init. Mounted
   // above `const routerStatus`, that read hits the temporal dead zone and the
   // whole of `main()` dies with "Cannot access 'routerStatus' before
   // initialization": no dashboard, no sockets, nothing. `activeRouterId` was the
   // same hazard until it moved to module scope beside `switchRouter`.
   //
-  // Nothing in the type system says so and no gate caught it — the gate supplies
+  // Nothing in the type system says so and no gate caught it - the gate supplies
   // its own thunks, which are initialised. It was found by opening the page.
   initSettingsRoutersTable({
     routers: () => routers,
@@ -885,8 +885,8 @@ async function main(): Promise<void> {
     if (!d || !d.routerId) return;
     // ── THE FLEET READS `online`, THE ACTIVE ROUTER READS `connected` ──────
     //
-    // `online` is the DEBOUNCED verdict — the device's own Offline threshold,
-    // thirty seconds by default — so a router that blinks during a reconnect
+    // `online` is the DEBOUNCED verdict - the device's own Offline threshold,
+    // thirty seconds by default - so a router that blinks during a reconnect
     // does not flip every badge in the Settings table and every dot in the
     // dropdown to red and back. `connected` is the socket this instant, and
     // everything below the activeRouterId guard uses it: the banner, the two
@@ -896,15 +896,15 @@ async function main(): Promise<void> {
     routerStatus[d.routerId] = !!d.online;
     // The Settings table's badge for THIS router, in place. Without it that
     // table keeps whatever status it was rendered with until the next
-    // `routers:update` — a router that went offline still reading "Online".
+    // `routers:update` - a router that went offline still reading "Online".
     updateRouterStatusBadge(d.routerId, !!d.online);
     // The dropdown's per-router dots, which are about every router.
     dropdown.refresh();
 
     // ── EVERYTHING BELOW IS ABOUT THE ROUTER ON SCREEN ─────────────────────
     //
-    // The server sends a browser the status of every router it may read — the
-    // Settings and Devices tables show them all — and the banner, the two dots and the
+    // The server sends a browser the status of every router it may read - the
+    // Settings and Devices tables show them all - and the banner, the two dots and the
     // switching overlay took ANY router's frame as the watched router's own.
     // CHR Test dropping for six seconds lit the orange "RouterOS not connected"
     // banner over a hAP AX3 that never went down; reported by the operator.
@@ -914,7 +914,7 @@ async function main(): Promise<void> {
     // BOTH dots, because there are two: the topbar one and the mobile nav's.
     // The live app updates them together from the same event, and wiring only
     // the visible-on-desktop one would leave a permanently green dot on a phone
-    // — the same shape as the switcher and the burger before them.
+    // - the same shape as the switcher and the burger before them.
     for (const id of ['rtrStatusDot', 'navRtrStatusDot']) {
       el(id)?.classList.toggle('offline', !d.connected);
     }
@@ -932,7 +932,7 @@ async function main(): Promise<void> {
   // nothing. Only the sidebar worked, because nav clicks are wired elsewhere.
   //
   // That is precisely the state a NEW INSTALL is in, and it is the state in
-  // which an operator most needs to reach Settings — it is where routers are
+  // which an operator most needs to reach Settings - it is where routers are
   // added. Found while fixing the unbound Add Device button on issue #124, which
   // is the same new-install blind spot one layer up.
   //
@@ -946,7 +946,7 @@ async function main(): Promise<void> {
     //
     // Shown from HERE because this is where the answer already is: the fleet has
     // been fetched, and it is empty. The `setup:required` event covers the OTHER
-    // way a fleet empties — someone deleting their last router in another tab —
+    // way a fleet empties - someone deleting their last router in another tab -
     // and reaches browsers that are already open. It cannot cover this one,
     // because a browser arriving at an install that never had a router is never
     // told anything.
@@ -963,8 +963,8 @@ async function main(): Promise<void> {
     // THE DROPDOWN'S LABEL COMES FROM HERE, and nowhere else did.
     //
     // `activeRouterId` was assigned ONLY in the dropdown's own `onChoose`, so
-    // until the operator picked a router by hand it stayed '' — and
-    // `refreshLabel` renders '—' when no router matches. The top-right control
+    // until the operator picked a router by hand it stayed '' - and
+    // `refreshLabel` renders '-' when no router matches. The top-right control
     // showed a dash on every fresh load, which is what the operator reported as
     // "not displaying the active router". `switchRouter` records it now, for
     // this caller and every other.
@@ -978,24 +978,24 @@ async function main(): Promise<void> {
     //
     // `currentPage` is '' until the first call, so the first `select()` lands on
     // `dns` and every later one re-asserts where they actually are. It used to
-    // pass 'dns' unconditionally — and because this runs on EVERY connect, a
+    // pass 'dns' unconditionally - and because this runs on EVERY connect, a
     // network blip navigated the operator off whatever page they were reading
     // and back to DNS.
     //
     // Same shape as the traffic-interface defect upstream fixed in `d7548b0`,
     // and found by taking that report's own generalisation seriously:
     // per-connection state cannot outlive the connection, a reconnect is not a
-    // new user, and anything the operator CHOSE — an interface, a filter, a page
-    // — needs somewhere with a longer life than the socket. The browser is that
+    // new user, and anything the operator CHOSE - an interface, a filter, a page
+    // - needs somewhere with a longer life than the socket. The browser is that
     // place, because the page has not reloaded.
     // THE LANDING PAGE IS THE DASHBOARD, as the live app's is: `_currentPage =
     // 'dashboard'` and `<div class="page-view active" id="page-dashboard">`.
     //
-    // This said 'dns' — a leftover from the first vertical slice, when DNS was
+    // This said 'dns' - a leftover from the first vertical slice, when DNS was
     // the ONLY ported page and landing anywhere else meant landing on nothing.
     // It outlived that by twenty-two pages, and the operator met it as "I land
     // on the DNS page".
-    // THE URL DECIDES THE FIRST PAGE, and `currentPage` every time after — so a
+    // THE URL DECIDES THE FIRST PAGE, and `currentPage` every time after - so a
     // refresh keeps the operator where they were, and a reconnect does not move
     // them. The first paint REPLACES: the load's own entry is the one being
     // corrected, and pushing would leave a phantom behind it.
@@ -1012,7 +1012,7 @@ async function main(): Promise<void> {
   socket.on('connect', select);
   // And once now if the socket is already up. The router list is fetched over
   // HTTP while the socket opens in parallel, so 'connect' has usually already
-  // fired by the time this runs — subscribing alone leaves the page blank until
+  // fired by the time this runs - subscribing alone leaves the page blank until
   // the first reconnect, which is exactly what it did.
   if (socket.isOpen()) select();
 }

@@ -10,7 +10,7 @@
  * ── WHAT THIS FILE IS FOR, AND WHAT IT CANNOT DO ───────────────────────────
  *
  * It drives the real module and asserts the body it builds. It CANNOT prove
- * `main.ts` mounts the module — that stays green with the mount deleted, which
+ * `main.ts` mounts the module - that stays green with the mount deleted, which
  * is exactly how the Add Device button and the setup overlay each shipped. That
  * half is `TestTheSettingsSaveIsMounted` in `internal/verify`.
  *
@@ -117,7 +117,7 @@ check('integers are numbers, not the strings the DOM holds', () => {
 
 // THE `smtpPort` FALLBACK CHECK IS GONE WITH THE FIELD IT GUARDED.
 //
-// It pinned `parseInt(raw, 10) || 587` — a blank port meaning the default rather
+// It pinned `parseInt(raw, 10) || 587` - a blank port meaning the default rather
 // than "leave whatever was there". The mail server became a notification
 // channel, so there is no `s_smtpPort` on this page and no such branch in
 // `collectSettingsForm` any more. The rule now belongs to the channel modal's
@@ -133,7 +133,7 @@ check('updateCheckHours: blank is omitted, out of range is clamped', () => {
     'a blank hours box sent a key; the server would ignore whatever it was');
   els.s_updateCheckHours.value = '500';
   assert.strictEqual(page.collectSettingsForm(POLL).updateCheckHours, 168,
-    'not clamped — the server IGNORES an out-of-range integer, so the typed '
+    'not clamped - the server IGNORES an out-of-range integer, so the typed '
     + 'value would vanish with nothing on screen to explain it');
   els.s_updateCheckHours.value = '0';
   assert.strictEqual(page.collectSettingsForm(POLL).updateCheckHours, 1);
@@ -169,8 +169,8 @@ check('checkboxes send real booleans, never "on" or 1', () => {
 
 // THE CREDENTIAL LIST IS DERIVED, NOT TYPED OUT.
 //
-// It used to name four keys. Three of them — telegramBotToken, pushbulletApiKey
-// and ntfyToken — left the Settings page when those transports became
+// It used to name four keys. Three of them - telegramBotToken, pushbulletApiKey
+// and ntfyToken - left the Settings page when those transports became
 // notification channels, and this check broke on ids that no longer exist. A
 // hardcoded list says nothing about the page it is meant to be testing, so it
 // now reads the generated PLACEHOLDER_CREDENTIALS and tests whichever of them
@@ -178,7 +178,7 @@ check('checkboxes send real booleans, never "on" or 1', () => {
 // and nothing here has to be remembered.
 //
 // PLACEHOLDER_CREDENTIALS rather than CRED_FIELDS: the latter is every ENCRYPTED
-// key, which includes `smtpUser` — a plain text box that is sent like any other
+// key, which includes `smtpUser` - a plain text box that is sent like any other
 // string. The rule being checked here is about the fields whose stored value
 // lives in the PLACEHOLDER, which is exactly what makes a blank box mean
 // "unchanged" instead of "clear it".
@@ -193,7 +193,7 @@ check('a blank credential is OMITTED, never sent as an empty string', () => {
   creds.forEach((k) => {
     assert.ok(!(k in body),
       k + ' was sent while blank. populateSettings blanks these on every load, '
-      + 'so an untouched box is always empty — and the server reads an empty '
+      + 'so an untouched box is always empty - and the server reads an empty '
       + 'string as an explicit DESTRUCTIVE CLEAR. This wipes every stored secret '
       + 'on the first Save.');
   });
@@ -203,7 +203,7 @@ check('a typed credential is sent verbatim', () => {
   const { els, page } = mount();
   els.s_aiApiKey.value = ' hunter2 ';
   assert.strictEqual(page.collectSettingsForm(POLL).aiApiKey, ' hunter2 ',
-    'a typed secret must go exactly as typed, spaces included — a token with a '
+    'a typed secret must go exactly as typed, spaces included - a token with a '
     + 'trailing space is a token the operator pasted');
 });
 
@@ -216,7 +216,7 @@ check('a typed credential is sent verbatim', () => {
 // credential lives in a channel's sealed config and never reaches this form.
 //
 // Every credential this page still holds is a PLACEHOLDER credential, which
-// `populateSettings` blanks on load — so the mask is never in the box, and the
+// `populateSettings` blanks on load - so the mask is never in the box, and the
 // rule that replaces this one is 'a blank credential is OMITTED' above.
 
 check('authMode follows the sign-in toggle, both ways', () => {
@@ -232,7 +232,7 @@ check('a missing element contributes no key', () => {
   const { page } = mount({ drop: ['s_topN'] });
   assert.ok(!('topN' in page.collectSettingsForm(POLL)),
     'a key was sent for an input that does not exist. That guard is what lets '
-    + 'this page carry fewer fields than the form map lists — eight legacy '
+    + 'this page carry fewer fields than the form map lists - eight legacy '
     + 'router keys have no element here.');
 });
 
@@ -278,7 +278,7 @@ check('a refusal does NOT reload, and does not claim success', async () => {
   w.els.settingsSaveBtn.click();
   await new Promise((r) => setTimeout(r, 20));
   assert.strictEqual(w.reloads(), 0,
-    'the form was reloaded after a refusal — that repaints every field from the '
+    'the form was reloaded after a refusal - that repaints every field from the '
     + 'server and blanks the credential boxes, so everything typed is lost and '
     + 'the page looks exactly as it does after a success');
   assert.ok(!/sbanner-ok/.test(w.els.settingsBanner.className),

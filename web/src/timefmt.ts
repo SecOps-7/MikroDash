@@ -38,14 +38,14 @@ function parts(ts: Stamp, tz: string): Parts {
 /** A timestamp for a table cell: `YYYY-MM-DD HH:MM:SS`, or without the seconds.
  *  An em dash for a missing one, never "1970". */
 export function fmtTs(ts: Stamp, seconds = true, tz = getDisplayTimezone()): string {
-  if (!ts) return '—';
+  if (!ts) return '-';
   const x = parts(ts, tz);
   return x.Y + '-' + x.M + '-' + x.D + ' ' + x.h + ':' + x.m + (seconds ? ':' + x.s : '');
 }
 
 /** The date alone: `YYYY-MM-DD`. */
 export function fmtDate(ts: Stamp, tz = getDisplayTimezone()): string {
-  if (!ts) return '—';
+  if (!ts) return '-';
   const x = parts(ts, tz);
   return x.Y + '-' + x.M + '-' + x.D;
 }

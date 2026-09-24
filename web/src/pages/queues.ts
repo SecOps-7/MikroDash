@@ -1,4 +1,4 @@
-// The Queues page — a port of the Queues IIFE in public/app.js.
+// The Queues page - a port of the Queues IIFE in public/app.js.
 //
 // Two menus with genuinely different row shapes: /queue/simple caps a target
 // bidirectionally and is ORDERED, /queue/tree shapes marked traffic in one
@@ -9,11 +9,11 @@
 // Simple queues are walked in list order and the first match wins, so a queue's
 // position changes what it does. The table therefore defaults to router order
 // and offers move up/down. Sorting alphabetically by default would misrepresent
-// the router — which is why the sort state passed to the header helper is a
+// the router - which is why the sort state passed to the header helper is a
 // fresh `{col: '', dir: 'asc'}` every time and the callback does nothing.
 //
 // THAT MAKES FIVE HEADER CELLS LOOK CLICKABLE AND DO NOTHING: `name` and
-// `target` here, `name`, `parent` and `packetMark` on the tree table — four
+// `target` here, `name`, `parent` and `packetMark` on the tree table - four
 // distinct keys, five cells, because `name` appears in both. The helper gives
 // any keyed column `cursor:pointer` and a click handler, which calls the no-op
 // below. Reproduced, because it is what the page does; reported as ToDo.md
@@ -38,11 +38,11 @@ import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { QueuesPayload } from '../gen/payloads';
 
-// Order first, and it is not cosmetic — see the header.
+// Order first, and it is not cosmetic - see the header.
 //
 // EVERY KEY IS BLANK ON PURPOSE. renderSortHeader gives any column with a truthy
 // key a pointer cursor and a click listener, and this page passes a no-op
-// callback with a throwaway sort state — correct, because the order here is the
+// callback with a throwaway sort state - correct, because the order here is the
 // router's. Five of these carried keys anyway, so the header invited a click,
 // mutated a state object discarded on the next render, and called a function
 // that does nothing. That reads as a broken sort.
@@ -93,7 +93,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
 
   /** A configured limit. 0 means explicitly unlimited, which is not "unset". */
   function fmtLimit(bps: number | null | undefined): string {
-    if (bps === null || bps === undefined) return '&mdash;';
+    if (bps === null || bps === undefined) return '-';
     if (bps === 0) return '<span style="color:var(--text-muted)">unlimited</span>';
     return esc(fmtBps(bps));
   }
@@ -145,7 +145,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   /**
    * The rate cell.
    *
-   * null is "the router did not report this", which is not "idle" — the
+   * null is "the router did not report this", which is not "idle" - the
    * distinction the collector goes to some trouble to preserve, so the page must
    * not throw it away at the last step. The title says how the number was
    * arrived at, including the measurement window.
@@ -169,7 +169,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   // too, and here they simply do not open a dialog.
   function lockNote(dynamic: boolean): string {
     return dynamic
-      ? '<span class="muted-note" title="Created automatically by another RouterOS feature — Kid Control, a DHCP lease, or a PPP profile. Change the feature that creates it.">&#128274; dynamic</span>'
+      ? '<span class="muted-note" title="Created automatically by another RouterOS feature - Kid Control, a DHCP lease, or a PPP profile. Change the feature that creates it.">&#128274; dynamic</span>'
       : '';
   }
 
@@ -177,7 +177,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   // drawn while searching, where a move would pass rows the operator cannot see.
   function moveCell(at: number, last: number, dynamic: boolean): string {
     if (dynamic || !writable.simpleQueue || q()) return '';
-    return '<button class="fw-move" data-res-move="up" title="Move earlier — the first matching queue wins"' +
+    return '<button class="fw-move" data-res-move="up" title="Move earlier - the first matching queue wins"' +
       (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
       '<button class="fw-move" data-res-move="down" title="Move later"' +
       (at === last ? ' disabled' : '') + '>&#9660;</button>';
@@ -186,8 +186,8 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   /**
    * The empty state does real work here.
    *
-   * A fresh install has no queues on any router, so this — not a populated table
-   * — is what most people see first. Saying "Waiting for data…" forever would be
+   * A fresh install has no queues on any router, so this - not a populated table
+   * - is what most people see first. Saying "Waiting for data…" forever would be
    * both wrong and unhelpful, so it explains what the tab is for.
    */
   function emptyState(term: string, menu: string): string {
@@ -195,7 +195,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     if (!data) return 'Waiting for queue data&hellip;';
     if (data.denied) return 'This router\'s MikroDash account cannot read queues.';
     return menu === 'simple'
-      ? 'No simple queues on this router. A simple queue caps the bandwidth of one target &mdash; an address, a subnet, or an interface.' +
+      ? 'No simple queues on this router. A simple queue caps the bandwidth of one target - an address, a subnet, or an interface.' +
         (writable.simpleQueue ? ' Use <strong>Add</strong> to create one.' : '')
       : 'No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.';
   }
@@ -244,7 +244,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
         ? ' <span class="wl-band wl-band-24" title="FastTrack bypasses queue trees parented to global">bypassed</span>' : '';
       return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + resRow(x.id, x.name, 'queueTree') + '>' +
         '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
-        '<td>' + esc(x.parent || '—') + ft + '</td>' +
+        '<td>' + esc(x.parent || '-') + ft + '</td>' +
         '<td>' + (x.packetMark ? esc(x.packetMark) : mutedDash()) + '</td>' +
         '<td style="font-size:.72rem">' + fmtLimit(x.maxLimit) + '</td>' +
         '<td>' + rateCell('t' + x.id, x.rateBps, null, x.rateSource, x.rateWindowMs) + '</td>' +
@@ -263,13 +263,13 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
       card.style.display = 'none';
       // A footnote, not an alarm: we cannot check, which is not the same as bad.
       if (nCard) nCard.style.display = '';
-      if (notice) notice.innerHTML = 'Cannot check for a FastTrack rule &mdash; Firewall collection is switched off for this router.';
+      if (notice) notice.innerHTML = 'Cannot check for a FastTrack rule - Firewall collection is switched off for this router.';
       return;
     }
     if (nCard) nCard.style.display = 'none';
 
     // Only warn when something is actually affected. On a router with no queues
-    // — which is every router until somebody makes one — this stays hidden.
+    // - which is every router until somebody makes one - this stays hidden.
     const affected = (data?.simple || []).some((x) => !x.disabled && !x.dynamic) ||
                      (data?.tree || []).some((x) => !x.disabled && x.fasttrackBypassable);
     if (ft.state !== 'active' || !affected) { card.style.display = 'none'; return; }
@@ -282,7 +282,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     banner.innerHTML = '<strong>FastTrack is active on this router.</strong> ' +
       'FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here ' +
       'only shapes the traffic FastTrack did not take' +
-      (ft.scoped ? ' — and this rule is narrowed, so it takes only part of it.' : ', which can be a small fraction of the total.') +
+      (ft.scoped ? ' - and this rule is narrowed, so it takes only part of it.' : ', which can be a small fraction of the total.') +
       ' If a limit looks like it is having no effect, this is usually why. ' +
       'To shape that traffic too, disable the FastTrack rule in <em>IP &rarr; Firewall &rarr; Filter</em>, or exclude the traffic from it.';
   }
@@ -290,24 +290,24 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   function renderSummary(): void {
     const d = data;
     const set = (id: string, v: string) => { const e = el(id); if (e) e.textContent = v; };
-    set('qSumSimple', String((d?.simple || []).length || '—'));
-    set('qSumTree', String((d?.tree || []).length || '—'));
+    set('qSumSimple', String((d?.simple || []).length || '-'));
+    set('qSumTree', String((d?.tree || []).length || '-'));
     const live = (d?.simple || []).filter((x) => x.rateBps && (x.rateBps.up || x.rateBps.down)).length +
                  (d?.tree || []).filter((x) => x.rateBps).length;
-    set('qSumActive', (d && (d.simple || d.tree)) ? String(live) : '—');
+    set('qSumActive', (d && (d.simple || d.tree)) ? String(live) : '-');
     let total = 0, any = false;
     (d?.simple || []).forEach((x) => {
       if (x.bytes.up !== null) { total += x.bytes.up + (x.bytes.down || 0); any = true; }
     });
     (d?.tree || []).forEach((x) => { if (x.bytes !== null) { total += x.bytes; any = true; } });
-    set('qSumBytes', any ? fmtBytes(total) : '—');
+    set('qSumBytes', any ? fmtBytes(total) : '-');
   }
 
   function render(): void {
     renderSimple(); renderTree(); renderFasttrack(); renderSummary();
     const note = el('qActionNote');
     if (note) {
-      note.textContent = !writable[resKey(tab)] ? 'read-only — you do not have write access to this router'
+      note.textContent = !writable[resKey(tab)] ? 'read-only - you do not have write access to this router'
         : (data && data.stats === 'none') ? 'this router reports no queue statistics' : '';
     }
   }

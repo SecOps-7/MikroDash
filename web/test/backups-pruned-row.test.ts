@@ -10,7 +10,7 @@
  * nothing because every backup was inside the window. The Restore points card
  * read 10 and the Disk used card counted only live rows.
  *
- * The HISTORY table listed 19, and it was right to — it is history, and the nine
+ * The HISTORY table listed 19, and it was right to - it is history, and the nine
  * extra rows are runs whose files retention has since removed. What was wrong is
  * what those nine rows SAID:
  *
@@ -20,12 +20,12 @@
  *
  * `outcome` records what the RUN did and never changes afterwards, so a row went
  * on reporting the day it ran. Nine tombstones dressed as backups is not history,
- * it is nine wrong rows — and the arithmetic an operator does at a glance is
+ * it is nine wrong rows - and the arithmetic an operator does at a glance is
  * "count the green badges", which is exactly what produced the report.
  *
  * ── WHAT THIS PINS ──────────────────────────────────────────────────────────
  *
- * Not the retention arithmetic — that lives in internal/backups and has its own
+ * Not the retention arithmetic - that lives in internal/backups and has its own
  * corpus. This pins the CLAIM the table makes about a row whose files are gone.
  *
  * ── AND THESE ROWS ARE NO LONGER PRODUCED ───────────────────────────────────
@@ -38,7 +38,7 @@
  * The rendering and this test are kept anyway, and deliberately: `pruned` is
  * still on the wire, the guards on restore and download still read it, and a
  * database that predates the change is a real thing an operator can arrive with
- * — a /data copied from an older install, or one restored from their own backup
+ * - a /data copied from an older install, or one restored from their own backup
  * of it, before the purge has run. If such a row ever reaches the page again it
  * must not go back to claiming it is a stored 3.3MB backup.
  */
@@ -155,7 +155,7 @@ function boot(rows, summary) {
   ]);
   restore();
   assert.ok(/>No change</.test(html),
-    'an unchanged run no longer reads "No change" — it has been folded into the ' +
+    'an unchanged run no longer reads "No change" - it has been folded into the ' +
     'pruned state, and the two mean different things:\n' + html);
   assert.ok(!/>Pruned</.test(html),
     'an unchanged run is labelled Pruned. Nothing was removed; nothing was ' +

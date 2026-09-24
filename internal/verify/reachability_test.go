@@ -55,7 +55,7 @@ func TestEveryModuleIsReachable(t *testing.T) {
 		t.Fatalf("walking web/src: %v", err)
 	}
 	if len(src) < 80 {
-		t.Fatalf("only %d TypeScript modules found — the walk broke", len(src))
+		t.Fatalf("only %d TypeScript modules found - the walk broke", len(src))
 	}
 
 	rel := func(p string) string {
@@ -107,7 +107,7 @@ func TestEveryModuleIsReachable(t *testing.T) {
 		}
 	}
 	if len(entries) == 0 {
-		t.Fatal("no build entry points found — this test would call every module unreachable")
+		t.Fatal("no build entry points found - this test would call every module unreachable")
 	}
 
 	seen := map[string]bool{}
@@ -142,13 +142,13 @@ func TestEveryModuleIsReachable(t *testing.T) {
 	for _, m := range unreachable {
 		have[m] = true
 		if _, ok := modulesKnownUnreachable[m]; !ok {
-			t.Errorf("%s is imported by nothing reachable from an entry point — it ships nowhere "+
+			t.Errorf("%s is imported by nothing reachable from an entry point - it ships nowhere "+
 				"and runs never", m)
 		}
 	}
 	for m := range modulesKnownUnreachable {
 		if !have[m] {
-			t.Errorf("%s is recorded as unreachable but is reachable now — delete the entry", m)
+			t.Errorf("%s is recorded as unreachable but is reachable now - delete the entry", m)
 		}
 	}
 	t.Logf("%d of %d modules reachable from the %d build entry point(s)",

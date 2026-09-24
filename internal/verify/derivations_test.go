@@ -76,7 +76,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 
 		// `arp` has a derivation and no payload: `BuildARP` turns the table into
 		// the two lookups its four consumers read. That it emits nothing does not
-		// exempt it — the rows-in, value-out half is exactly what 4.1 asks to be
+		// exempt it - the rows-in, value-out half is exactly what 4.1 asks to be
 		// callable without building the collector.
 		"arp.go": "BuildARP",
 		// The two that no `Start()` gate could see until 2026-09-10.
@@ -96,7 +96,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 	// `packages` and `routing` declare no `Start()` at all: both are page-gated,
 	// so the session brings them up with `Resume()` and nothing else. They were
 	// therefore not collectors as far as this gate could see, and their
-	// derivations went unchecked for the life of the ledger — the ledger's own
+	// derivations went unchecked for the life of the ledger - the ledger's own
 	// completeness rule ("a new one joins by existing") quietly excluded them.
 	//
 	// Found while writing Collector-Architecture.md, by generating the

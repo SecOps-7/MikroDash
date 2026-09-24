@@ -4,7 +4,7 @@
 // ── THE CARD IS COALESCED, NOT THROTTLED ────────────────────────────────────
 //
 // `system:update` arrives about once a second. Every payload is STORED and a
-// single animation frame is booked to render whichever one is latest — so a
+// single animation frame is booked to render whichever one is latest - so a
 // burst costs one layout rather than one per payload, and no payload is ever
 // the reason a later one is dropped.
 //
@@ -19,7 +19,7 @@
 // Board name, RouterOS version, CPU count and RAM do not change while a router
 // is connected, so they are written on the first payload that carries any of
 // them and never again. `resetSysMeta` re-arms it, and both callers matter: a
-// reconnect, and a switch to another router — whose board is a different board.
+// reconnect, and a switch to another router - whose board is a different board.
 //
 // ── AND THE ORDER OF THE LAST TWO IS LOAD-BEARING ───────────────────────────
 //
@@ -43,7 +43,7 @@ import type { SystemPayload } from '../gen/payloads';
  * casts it. So the compiler cannot check the seam: the two modules could drift
  * to different shapes and nothing would say so until the dialog showed a dash
  * where a version belongs. They had two separate declarations that happened to
- * agree — the same setup that let `GeoPlace` and `City` disagree about an
+ * agree - the same setup that let `GeoPlace` and `City` disagree about an
  * optional field earlier in this port, where the compiler DID catch it because
  * the value did not pass through an `any`.
  *
@@ -66,14 +66,14 @@ export function resetSysMeta(): void {
   // The row is re-rendered from scratch after a reconnect, and MUST be after a
   // router switch: two routers can report the same versions, so without this the
   // strip would be suppressed as "unchanged" and keep showing the previous
-  // router's row. Both callers — the socket's `connect` and the router switch —
+  // router's row. Both callers - the socket's `connect` and the router switch -
   // already go through here.
   lastUpdateRowHtml = null;
 }
 
 export function flushSysUpdate(): void {
   rafId = null;
-  if (document.hidden) return; // tab backgrounded — skip render, data stays pending
+  if (document.hidden) return; // tab backgrounded - skip render, data stays pending
   const d = pending;
   if (!d) return;
   pending = null;
@@ -123,7 +123,7 @@ export function flushSysUpdate(): void {
   const rosUpdateRow = el('rosUpdateRow');
   if (rosUpdateRow) {
     let ur = '';
-    // Held rather than dispatched here — see the dirty check below.
+    // Held rather than dispatched here - see the dirty check below.
     let updEvent: UpdInfo | null = null;
     // The version the router is RUNNING. Hoisted because BOTH branches need it.
     const installedBase = (d.version || '').replace(/\s*\(.*\)/, '').trim();
@@ -151,7 +151,7 @@ export function flushSysUpdate(): void {
       // `updateVerdict` started ordering versions rather than comparing them
       // (internal/collect/system.go); before, it drew a downgrade arrow instead.
       ur = '<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>' +
-        esc(installedBase || d.latestVersion) + '</strong> &mdash; Up to date</div>';
+        esc(installedBase || d.latestVersion) + '</strong> - Up to date</div>';
     } else if (d.updateStatus) {
       const isUnavail = /unavailable|cannot|error|failed/i.test(d.updateStatus);
       const rowCls = isUnavail ? 'ros-update-row muted' : 'ros-update-row pending';
@@ -183,7 +183,7 @@ export function noteSystemUpdate(d: SystemPayload): void {
   if (!rafId) rafId = requestAnimationFrame(flushSysUpdate);
 }
 
-/** Called when the tab becomes visible again — renders what arrived while hidden. */
+/** Called when the tab becomes visible again - renders what arrived while hidden. */
 export function flushPendingSystem(): void {
   if (pending && !rafId) rafId = requestAnimationFrame(flushSysUpdate);
 }

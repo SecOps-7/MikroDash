@@ -13,7 +13,7 @@
  *
  * It was reported as a bug (issue #121) by an operator whose only device was a
  * CHR: no Devices entry until they added a second router. They read it as the
- * app failing to recognise a virtual router, and it was not — the rule never
+ * app failing to recognise a virtual router, and it was not - the rule never
  * looked at the type, only the count, and any second device would have done it.
  *
  * In the port the rule was already DEAD: its setter lost its last caller when
@@ -73,7 +73,7 @@ function boot() {
   const display = navItem().style.display;
   restore();
   // `=== ''` AND NOT `!== 'none'`. The shim starts `style` as an empty object, so
-  // `style.display` is `undefined` until something writes it — and
+  // `style.display` is `undefined` until something writes it - and
   // `undefined !== 'none'` passes. A page that stopped writing display at all,
   // or a selector that stopped matching, would satisfy the looser assertion
   // while rendering nothing. Assert the value actually written.
@@ -94,7 +94,7 @@ function boot() {
   const display = navItem().style.display;
   restore();
   assert.strictEqual(display, 'none',
-    'switching Devices off in Visible Pages no longer hides it — the install ' +
+    'switching Devices off in Visible Pages no longer hides it - the install ' +
     'toggle has stopped working, which is a worse bug than the one being fixed');
   say('ok  the Visible Pages toggle still hides Devices');
 }

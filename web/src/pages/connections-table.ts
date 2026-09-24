@@ -59,17 +59,17 @@ const STATE_CLS: Record<string, string> = {
 
 /** The TCP state as a pill; a dash for protocols that have none. */
 export function statePill(state: string): string {
-  if (!state) return '<span class="conn-sub">—</span>';
+  if (!state) return '<span class="conn-sub">-</span>';
   return '<span class="conn-st ' + (STATE_CLS[state] ?? 'conn-st-other') + '">' + esc(state) + '</span>';
 }
 
 /** A byte rate as the app writes rates: bits per second. */
 function rate(bytesPerSec: number | null): string {
-  return bytesPerSec === null ? '—' : fmtMbps((bytesPerSec * 8) / 1e6);
+  return bytesPerSec === null ? '-' : fmtMbps((bytesPerSec * 8) / 1e6);
 }
 
 function addr(ip: string, port: string): string {
-  if (!ip) return '—';
+  if (!ip) return '-';
   const host = ip.includes(':') ? '[' + ip + ']' : ip;
   return esc(host) + (port ? '<span class="conn-port">:' + esc(port) + '</span>' : '');
 }
@@ -89,7 +89,7 @@ export function connRowHTML(r: ConnRow): string {
     '<td><div class="conn-who">' + flag + addr(r.dst, r.dstPort) + '</div><div class="conn-sub">' + esc(where) +
     '</div></td>' +
     '<td>' + (svc ? '<span class="conn-svc">' + esc(svc) + '</span>'
-      : (r.dstPort ? '<span class="conn-sub">' + esc(r.dstPort) + '</span>' : '<span class="conn-sub">—</span>')) +
+      : (r.dstPort ? '<span class="conn-sub">' + esc(r.dstPort) + '</span>' : '<span class="conn-sub">-</span>')) +
     '</td>' +
     '<td>' + protoPill(r.proto) + '</td>' +
     '<td>' + statePill(r.state) + '</td>' +

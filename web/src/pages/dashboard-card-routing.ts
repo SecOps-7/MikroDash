@@ -12,8 +12,8 @@
 // ── `connect` IS KNOWN, BUT IT IS NOT A SLICE ───────────────────────────────
 //
 // The doughnut shows static, dynamic, bgp and ospf. `connect` counts toward
-// KNOWN — so it is subtracted from the total when working out what is left over
-// — and is deliberately absent from the ring, because it is already shown in the
+// KNOWN - so it is subtracted from the total when working out what is left over
+// - and is deliberately absent from the ring, because it is already shown in the
 // count grid beside it. "Other" is therefore genuinely unclassified rather than
 // "everything not drawn".
 //
@@ -41,21 +41,21 @@ const DONUT_LABELS: Record<string, string> = {
 };
 
 let donut: ChartLike | null = null;
-// Read by the centre-text plugin at DRAW time, not at construction — which is
+// Read by the centre-text plugin at DRAW time, not at construction - which is
 // why it is module state and not a closure over the first payload.
 let donutTotal = 0;
 
 /** The count grid's setter: absent is an em dash, present-and-null is "null". */
 function setCount(id: string, v: number | null | undefined): void {
   const node = el(id);
-  if (node) node.textContent = v !== undefined ? String(v) : '—';
+  if (node) node.textContent = v !== undefined ? String(v) : '-';
 }
 
 export function donutSlices(rc: RouteCounts): { keys: string[]; vals: number[]; colours: string[]; labels: string[] } {
   const keys = ['static', 'dynamic', 'bgp', 'ospf'];
   const known = keys.reduce((a, k) => a + (rc[k as keyof RouteCounts] || 0), 0) + (rc.connect || 0);
   // `Math.max(0, …)` is REDUNDANT and reproduced anyway: the slice is gated on
-  // `other > 0` below, which already rejects a negative. Measured — a mutation
+  // `other > 0` below, which already rejects a negative. Measured - a mutation
   // removing the clamp changes nothing observable. It stays because the original
   // has it and because it states the intent at the point the subtraction is
   // written, rather than three lines later.
@@ -84,8 +84,8 @@ export function drawDonutCentre(chart: {
     || 'rgba(200,215,240,.9)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // `|| '—'` on a NUMBER: zero routes shows a dash, not a nought.
-  ctx.fillText(String(donutTotal || '—'), cx, cy);
+  // `|| '-'` on a NUMBER: zero routes shows a dash, not a nought.
+  ctx.fillText(String(donutTotal || '-'), cx, cy);
   ctx.restore();
 }
 

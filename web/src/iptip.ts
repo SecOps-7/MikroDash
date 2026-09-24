@@ -1,6 +1,6 @@
 // The IP tooltip: what a `.has-ip-tip` element shows on hover.
 //
-// Document-level and shared, not owned by any one card — the Dashboard's
+// Document-level and shared, not owned by any one card - the Dashboard's
 // Connections card and the Connections page both render elements that carry it.
 // Ported when the Dashboard card landed, because `attr-audit.js` refuses to let
 // a `data-ip` be rendered by something and read by nothing: a control with no
@@ -16,7 +16,7 @@
 //
 // `mousemove` re-positions the tooltip only when it is displayed, and it decides
 // that by READING BACK `style.display`. That is not how this port would write it
-// from scratch — a boolean would be cheaper — but the read is what makes the
+// from scratch - a boolean would be cheaper - but the read is what makes the
 // mouseleave handler's write authoritative, and reproducing it keeps a single
 // source of truth rather than adding a second one that can disagree.
 

@@ -18,15 +18,15 @@
  * month whose counterpart has thirty days. Each is a one-line expression whose
  * wrong version also produces a plausible date.
  *
- * And they are all LOCAL-TIME expressions — `setHours(0,0,0,0)` is midnight
- * where the operator is — so a day containing a DST transition is 23 or 25 hours
+ * And they are all LOCAL-TIME expressions - `setHours(0,0,0,0)` is midnight
+ * where the operator is - so a day containing a DST transition is 23 or 25 hours
  * long and "seven days ago at midnight" is not `now - 7*86400000`.
  *
  * ── HOW IT COMPARES ─────────────────────────────────────────────────────────
  *
  * The live `_applyRptPreset` lives inside a page IIFE, writes into two DOM
  * inputs, and calls `new Date()` itself. So it is LIFTED out of app.js by text,
- * given stub inputs and a frozen clock, and run — rather than reimplemented
+ * given stub inputs and a frozen clock, and run - rather than reimplemented
  * here, which would only ever test a copy against itself.
  *
  * The port's half is the REAL module, bundled by esbuild for the same reason.
@@ -76,7 +76,7 @@ const NOWS = [
   '2026-03-01T00:30:00',   // just after a month boundary
   '2026-03-29T12:00:00',   // European spring forward: a 23-hour day
   '2026-10-25T12:00:00',   // European autumn back: a 25-hour day
-  '2026-08-17T09:00:00',   // a Monday — the week arithmetic's edge
+  '2026-08-17T09:00:00',   // a Monday - the week arithmetic's edge
   '2026-08-23T09:00:00',   // a Sunday, where getDay() is 0 and (day===0?6:day-1) fires
   '2026-08-20T09:00:00',   // an ordinary Thursday
   '2026-12-31T23:00:00',   // the last hour of a year
@@ -96,7 +96,7 @@ function liftApplyPreset(src) {
   const text = frozen('applyRptPreset', () => {
 
   const start = src.indexOf('  function _applyRptPreset(val) {');
-  assert.ok(start > -1, '_applyRptPreset not found in app.js — has it been renamed?');
+  assert.ok(start > -1, '_applyRptPreset not found in app.js - has it been renamed?');
   let depth = 0;
   let i = src.indexOf('{', start);
   const from = i;
@@ -141,15 +141,15 @@ function frozenDateClass(nowMs) {
 /**
  * Lift a named top-level function out of app.js by brace counting.
  *
- * `fmtDataMB` and `maxOf` are NOT inside the reports IIFE — they were hoisted
- * out of it so every page could use one implementation — so they slice cleanly
+ * `fmtDataMB` and `maxOf` are NOT inside the reports IIFE - they were hoisted
+ * out of it so every page could use one implementation - so they slice cleanly
  * on their own declaration.
  */
 // ── THE LIFTED LIVE SOURCE, RECORDED ────────────────────────────────────────
 //
 // Both tests here EXECUTE text lifted from the live `app.js`, so the text is
 // what has to survive the reference going. Recording it keeps the live halves
-// running — a new case added later still gets a live answer, which a recording
+// running - a new case added later still gets a live answer, which a recording
 // of the ANSWERS could not give.
 //
 // Regenerate with MIKRODASH_PRESETS_FREEZE=1 and a reference present.
@@ -172,7 +172,7 @@ function frozen(key, fn) {
     }
     if (recorded[key] !== undefined) {
       assert.strictEqual(fresh, recorded[key],
-        'the recorded live source for ' + key + ' no longer matches app.js — '
+        'the recorded live source for ' + key + ' no longer matches app.js - '
         + 'regenerate with MIKRODASH_PRESETS_FREEZE=1');
     }
     return fresh;
@@ -203,14 +203,14 @@ function liftTopLevelSrc(src, name) {
 function liftTopLevel(src, name) {
   // The RECORDING FIRST: the anchor walk runs only inside `frozen()`, which does
   // not call it without a reference. Computing the anchors before that made this
-  // fail with "not found in app.js" on an empty source — a lift that ran when
+  // fail with "not found in app.js" on an empty source - a lift that ran when
   // there was nothing to lift from.
   const text = frozen('fn:' + name, () => liftTopLevelSrc(src, name));
   return new Function(`${text} return ${name};`)();
 }
 
 test('the shared report formatters match the live page', () => {
-  // NO LONGER FAILS WITHOUT THE REFERENCE — the live halves are recorded below.
+  // NO LONGER FAILS WITHOUT THE REFERENCE - the live halves are recorded below.
   // This assert made the whole file inert the moment the reference went.
 
   fs.mkdirSync(path.dirname(DOM_OUT), { recursive: true });
@@ -225,7 +225,7 @@ test('the shared report formatters match the live page', () => {
   const liveMaxOf = liftTopLevel(src, 'maxOf');
 
   // The unit boundaries and either side of each, plus the shapes that decide
-  // which branch runs. 1000 MB is a GB here, not 1024 — decimal on purpose.
+  // which branch runs. 1000 MB is a GB here, not 1024 - decimal on purpose.
   const volumes = [
     0, 0.0004, 0.5, 0.999, 1, 1.05, 9.95, 99.99, 999, 999.99, 1000, 1000.004,
     1024, 1500, 999999, 1e6, 1e6 + 1, 2.5e6, null, undefined, NaN, -1, -0.5,
@@ -247,7 +247,7 @@ test('the shared report formatters match the live page', () => {
 });
 
 test('the Reports date presets match the live page', () => {
-  // NO LONGER FAILS WITHOUT THE REFERENCE — the live halves are recorded below.
+  // NO LONGER FAILS WITHOUT THE REFERENCE - the live halves are recorded below.
   // This assert made the whole file inert the moment the reference went.
 
   fs.mkdirSync(path.dirname(OUT), { recursive: true });

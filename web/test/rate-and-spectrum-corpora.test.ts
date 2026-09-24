@@ -16,7 +16,7 @@
  *
  * The obvious move was to delete them with the rest. The reason not to is that
  * the FUNCTIONS they record are still here, still shipping, and had NO test at
- * all — not a weaker one, none:
+ * all - not a weaker one, none:
  *
  *	splitRate             web/src/pages/bandwidth.ts
  *	spectrumTooltipLines  web/src/pages/wireless-fa.ts
@@ -36,7 +36,7 @@
  * generated-from field rather than having it stripped to look hand-written.
  *
  * Under CLAUDE.md's rule the surviving claim is "this app agrees with itself",
- * which is weaker than "matches what shipped" — but the table was taken from
+ * which is weaker than "matches what shipped" - but the table was taken from
  * what shipped, so a regression away from the old behaviour still fails here.
  */
 
@@ -49,8 +49,8 @@ const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 /**
- * Neither module touches the DOM at import time — both are declarations only,
- * checked before this test was written — so unlike the other page tests here
+ * Neither module touches the DOM at import time - both are declarations only,
+ * checked before this test was written - so unlike the other page tests here
  * there is deliberately no shim.
  */
 function bundle(rel: string, out: string): string {
@@ -90,7 +90,7 @@ const read = (f: string) =>
       ', corpus recorded ' + JSON.stringify(c.unit));
   }
   assert.ok(sawUndefined,
-    'no case sets inputIsUndefined any more — the no-reading case is the one ' +
+    'no case sets inputIsUndefined any more - the no-reading case is the one ' +
     'that cannot be expressed in JSON, and it has gone missing from the corpus');
 
   fs.rmSync(OUT, { force: true });
@@ -120,8 +120,8 @@ const read = (f: string) =>
   // `pixelFor` is the x scale's own lookup, and the stub has to keep THREE
   // indices apart or the test proves less than it appears to. The recording
   // makes this visible: every no-bar case at `idx: 3` records `x: 30` no matter
-  // what `pixel0` and `pixel1` hold — including the case where they are 0 and
-  // 400 — so the generator deliberately answered the DRAWN index with a value
+  // what `pixel0` and `pixel1` hold - including the case where they are 0 and
+  // 400 - so the generator deliberately answered the DRAWN index with a value
   // distinct from the two the spacing is measured from. Collapsing them (an
   // earlier draft of this file returned `pixel0` for anything but 1) makes the
   // test pass while proving nothing about which index gets asked for.

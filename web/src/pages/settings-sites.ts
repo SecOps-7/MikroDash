@@ -7,14 +7,14 @@
  * against the live implementations by the access-summary check and
  * The site-save check. What is in THIS file is only the parts a gate
  * cannot drive: the fetches, the cache, the listeners and the socket
- * subscription. Keeping it that thin is deliberate — anything with a decision in
+ * subscription. Keeping it that thin is deliberate - anything with a decision in
  * it belongs where it can be compared.
  *
  * ── THE CACHE IS SHARED, AND THAT IS NOT AN OPTIMISATION ────────────────────
  *
  * The live app publishes `window._sitesById` so the device table and the device
  * modal can turn a site id into a name without re-fetching. Reproduced, because
- * a second fetch is not the cost — a second SOURCE is. Two caches drift, and the
+ * a second fetch is not the cost - a second SOURCE is. Two caches drift, and the
  * symptom is a device row naming a site the form says it is not in.
  */
 
@@ -136,7 +136,7 @@ function showForm(site: SiteRecord | null): void {
   nameEl.focus();
 }
 
-/** The ticked boxes, in DOM order — which is fleet order, since that is how the
+/** The ticked boxes, in DOM order - which is fleet order, since that is how the
  *  rows were rendered. */
 function checkedRouterIds(): string[] {
   const box = el('sf_routers');

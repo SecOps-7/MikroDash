@@ -1,11 +1,11 @@
-// GENERATED from testdata/pages-table.json — do not edit.
+// GENERATED from testdata/pages-table.json - do not edit.
 // Rebuild with `node tools/pages-table-ts.js` from the committed JSON, which is frozen:
 // the generator that produced it read the Node app and was deleted on 2026-09-01.
 
 /**
  * Digit -> page: pressing 3 opens PAGE_KEYS[2].
  *
- * ORDER IS THE ENTIRE MEANING, which is why it is generated rather than typed —
+ * ORDER IS THE ENTIRE MEANING, which is why it is generated rather than typed -
  * one transposition sends two shortcuts to each other's pages and reads as
  * completely normal.
  *
@@ -41,7 +41,7 @@ export const PAGE_KEYS: readonly string[] = [
  * Every page the visibility sweep considers, in the order it considers them.
  *
  * THE ORDER IS THE FALLBACK. When the page someone is standing on is taken away
- * from them, they are sent to the first page still visible — so reordering this
+ * from them, they are sent to the first page still visible - so reordering this
  * list silently changes where a demoted user lands. Generated for that reason,
  * and pinned to the nav items that carry the same keys: an entry with no nav
  * item is a page the sweep believes it hid and did not.

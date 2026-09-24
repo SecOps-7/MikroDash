@@ -14,8 +14,8 @@
  * nothing is the defect shape this port has hit six times.
  *
  * So this drives the real thing: `initDashboardGrid` runs against a fake
- * document, and then real events are DISPATCHED at real elements — a pointerdown
- * on a drag handle, a click on a remove button, a class change on the page — and
+ * document, and then real events are DISPATCHED at real elements - a pointerdown
+ * on a drag handle, a click on a remove button, a class change on the page - and
  * the layout is checked for having moved. Grepping for `addEventListener` would
  * prove only that the string is present.
  *
@@ -38,7 +38,7 @@ const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const LIVE = path.resolve(process.env.MIKRODASH_SRC || path.join(ROOT, '..', 'MikroDash'));
 // EVERYTHING ELSE IN THIS GATE DRIVES THE PORT. The reference is consulted for
 // exactly the five assertions below, each of which asks the live SOURCE a
-// question — does it still dispatch this event, does it still use this selector.
+// question - does it still dispatch this event, does it still use this selector.
 // Those are unanswerable without a source, so they are guarded; nothing else
 // here needs a recording (LOOP.md 3n and 3o).
 // The block that compared this against the deleted implementation was removed
@@ -164,7 +164,7 @@ function fire(dom, node, type, extra) {
   // AND ON TO THE DOCUMENT, honouring stopPropagation. Without this leg the Add
   // button's `stopPropagation` is unobservable: the outside-click listener lives
   // on `document`, so a mutation removing the stop looked identical to keeping
-  // it — the panel opened and nothing closed it again.
+  // it - the panel opened and nothing closed it again.
   if (!stopped) {
     for (const l of dom.docListeners.filter((l) => l.t === type)) l.cb(e);
   }
@@ -199,14 +199,14 @@ function boot(layoutOverride) {
   };
   delete require.cache[require.resolve(OUT)];
   const m = require(OUT);
-  // The stored layout is what initDashboardGrid loads, so seed it first — and
+  // The stored layout is what initDashboardGrid loads, so seed it first - and
   // seed EVERY card, not just the ones this page builds elements for.
   //
   // `mergeLayout` walks DEFAULT_LAYOUT and fills in whatever the saved list does
   // not mention, so seeding three cards produced a layout with the other nine
   // defaults still visible in their shipped positions. The grid was then nearly
   // full, every drag target overlapped something, and the snap was correctly
-  // REFUSED — which read as "the handle is not wired". The cards this test does
+  // REFUSED - which read as "the handle is not wired". The cards this test does
   // not use are therefore explicitly hidden.
   const seeded = m.DEFAULT_LAYOUT.map((d) => {
     const mine = LAY.find((c) => c.id === d.id);
@@ -225,14 +225,14 @@ function must(cond, msg) { if (!cond) problems.push(msg); }
   const b = boot();
   must(b.editor, 'initDashboardGrid returned null on a page that HAS a grid root');
   must(b.mutations.includes('page-dashboard'),
-    'no MutationObserver on page-dashboard — the Edit button never appears or hides, and ' +
+    'no MutationObserver on page-dashboard - the Edit button never appears or hides, and ' +
     'leaving the page mid-edit would silently keep the changes');
   must(b.resizes.includes('dash-grid-root'), 'no ResizeObserver on the grid root');
   must(b.dom.docListeners.some((l) => l.t === 'socket:reconnect'),
-    'nothing listens for socket:reconnect — room membership is per-socket, so a viewer who ' +
+    'nothing listens for socket:reconnect - room membership is per-socket, so a viewer who ' +
     'reconnects keeps a dashboard whose gated cards never receive anything again');
   must(b.dom.docListeners.some((l) => l.t === 'click'),
-    'no document click listener — the Add panel never closes on an outside click');
+    'no document click listener - the Add panel never closes on an outside click');
 }
 
 // ── a missing grid root is survivable ──────────────────────────────────────
@@ -267,7 +267,7 @@ function must(cond, msg) { if (!cond) problems.push(msg); }
   fire(b.dom, rh, 'pointerup', { clientX: 420, clientY: 390 });
   fire(b.dom, b.page.handles['card-traffic'].remove, 'click');
   must(JSON.stringify(b.editor.getLayout()) === before,
-    'a drag/resize/remove OUTSIDE edit mode changed the layout — the handles must be inert');
+    'a drag/resize/remove OUTSIDE edit mode changed the layout - the handles must be inert');
   must(!b.editor.isEditing(), 'the editor thinks it is editing before Edit was pressed');
 }
 
@@ -289,7 +289,7 @@ function must(cond, msg) { if (!cond) problems.push(msg); }
   fire(b.dom, b.page.handles['card-traffic'].drag, 'pointermove', { clientX: 600, clientY: 400 });
   fire(b.dom, b.page.handles['card-traffic'].drag, 'pointerup', { clientX: 600, clientY: 400 });
   must(JSON.stringify(b.editor.getLayout()) !== before,
-    'a pointerdown on a drag handle inside edit mode did nothing — the handle is not wired');
+    'a pointerdown on a drag handle inside edit mode did nothing - the handle is not wired');
 }
 
 // ── a pointerdown on a resize handle REACHES startResize ───────────────────
@@ -302,7 +302,7 @@ function must(cond, msg) { if (!cond) problems.push(msg); }
   fire(b.dom, rh, 'pointermove', { clientX: 400, clientY: 380 });
   fire(b.dom, rh, 'pointerup', { clientX: 400, clientY: 380 });
   must(JSON.stringify(b.editor.getLayout()) !== before,
-    'a pointerdown on a resize handle inside edit mode did nothing — the handle is not wired');
+    'a pointerdown on a resize handle inside edit mode did nothing - the handle is not wired');
 }
 
 // ── the remove button hides its card ───────────────────────────────────────
@@ -361,7 +361,7 @@ function must(cond, msg) { if (!cond) problems.push(msg); }
   b.page.page.classList.remove('active');   // navigating away
   must(!b.editor.isEditing(), 'navigating away did not leave edit mode');
   must(JSON.stringify(b.editor.getLayout()) === before,
-    'navigating away mid-edit KEPT the changes — it must discard them');
+    'navigating away mid-edit KEPT the changes - it must discard them');
 }
 
 // ── rooms are re-synced when the PAGE becomes active ───────────────────────
@@ -402,4 +402,4 @@ if (problems.length) {
   process.exit(1);
 }
 fs.rmSync(OUT, { force: true });
-say('grid-wiring-check: the grid is wired — handles, buttons, panel, observers and reconnect');
+say('grid-wiring-check: the grid is wired - handles, buttons, panel, observers and reconnect');

@@ -3,7 +3,7 @@
  *
  * /system/ntp/client and its kind are one row with no `.id`. The server gives
  * that row the synthetic id `singleton`; the page must draw it as a label and a
- * value per declared field — not as a one-row table — with every line carrying
+ * value per declared field - not as a one-row table - with every line carrying
  * the row's engine attributes, so clicking any of them opens the form for the
  * one row. The control is the same area's Servers tab, an ordinary table.
  */

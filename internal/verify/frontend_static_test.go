@@ -45,7 +45,7 @@ func TestRouterStatusRecordsBeforeItPaints(t *testing.T) {
 		i += 1 + next
 	}
 	if len(bodies) == 0 {
-		t.Fatal("no socket.on('router:status') in main.ts — this test is measuring nothing")
+		t.Fatal("no socket.on('router:status') in main.ts - this test is measuring nothing")
 	}
 
 	writesRecord := regexp.MustCompile(`routerStatus\[`)
@@ -69,13 +69,13 @@ func TestRouterStatusRecordsBeforeItPaints(t *testing.T) {
 			"state it had while it was not being painted.")
 	}
 	if paint == nil {
-		t.Fatal("the router:status handler never calls updateRouterStatusBadge — the Settings " +
+		t.Fatal("the router:status handler never calls updateRouterStatusBadge - the Settings " +
 			"table would keep whatever status it was rendered with.")
 	}
 	if record[0] > paint[0] {
 		t.Fatal("routerStatus is written AFTER updateRouterStatusBadge. The paint call returns " +
 			"early for a disabled row, so a record placed after it is a record that does not " +
-			"happen — the same defect with the statements swapped.")
+			"happen - the same defect with the statements swapped.")
 	}
 
 	// UNCONDITIONAL, TOO. A record behind an `if` is a record that some rows do
@@ -88,7 +88,7 @@ func TestRouterStatusRecordsBeforeItPaints(t *testing.T) {
 	line := body[lineStart : record[0]+lineEnd]
 	if regexp.MustCompile(`^\s*(if|\}\s*else)\b`).MatchString(line) ||
 		regexp.MustCompile(`\?\s*[^:]*:`).MatchString(line) {
-		t.Errorf("the routerStatus write looks conditional (%q) — every row must be recorded, "+
+		t.Errorf("the routerStatus write looks conditional (%q) - every row must be recorded, "+
 			"not just the ones taking one branch", strings.TrimSpace(line))
 	}
 	t.Log("router:status records before it paints, unconditionally")
@@ -132,20 +132,20 @@ func TestTemplateIDsAreBound(t *testing.T) {
 		}
 	}
 	if len(made) == 0 {
-		t.Fatal("no ids were found in any template — the pattern stopped matching")
+		t.Fatal("no ids were found in any template - the pattern stopped matching")
 	}
 
 	// ── THE TYPE ARGUMENT IS OPTIONAL ON BOTH SPELLINGS ────────────────────
 	//
-	// `el` and `byId` are the same function — `topology.ts` imports it under the
-	// second name — and either may be called with a type argument. This pattern
+	// `el` and `byId` are the same function - `topology.ts` imports it under the
+	// second name - and either may be called with a type argument. This pattern
 	// allowed one on `el` and not on `byId`, so `byId<HTMLSelectElement>('x')`
 	// read as an unbound id: a control that IS wired, reported as one that is
 	// not. Found on 2026-09-13 by the topology map's cabling picker, which is
 	// bound exactly that way.
 	// AND A HELPER THAT BINDS BY ID IS A BINDING. `renderSortHeader` in
 	// web/src/dom.ts takes a thead's id, calls `el` on it and wires the column
-	// clicks — so passing an id to it wires that element as surely as calling
+	// clicks - so passing an id to it wires that element as surely as calling
 	// `el` here would. Without this the pattern reported the WireGuard page's
 	// sortable header as unbound while it was being sorted on screen, which is
 	// the same shape as the `byId<T>` gap recorded above: the check knowing
@@ -175,13 +175,13 @@ func TestTemplateIDsAreBound(t *testing.T) {
 
 	for _, id := range unbound {
 		if _, ok := templateIDsUnbound[id]; !ok {
-			t.Errorf("id %q is created by a template and nothing binds it — either wire it up or "+
+			t.Errorf("id %q is created by a template and nothing binds it - either wire it up or "+
 				"record why it cannot be bound", id)
 		}
 	}
 	for id := range templateIDsUnbound {
 		if !made[id] {
-			t.Errorf("%q is recorded as unbound but no template creates it any more — delete the "+
+			t.Errorf("%q is recorded as unbound but no template creates it any more - delete the "+
 				"entry rather than leaving a note that describes nothing", id)
 		}
 	}
@@ -193,7 +193,7 @@ func TestTemplateIDsAreBound(t *testing.T) {
 //
 // EMPTY, AND THAT IS THE POINT. An entry here says "this control is enabled and
 // disabled and does nothing when pressed", which is never a state to settle for
-// — so a new one has to be argued for in writing rather than merged quietly.
+// - so a new one has to be argued for in writing rather than merged quietly.
 var capsOnlyButtons = map[string]string{}
 
 // TestInteractiveControlsAreBoundBeyondCaps: a button referenced ONLY by the
@@ -211,20 +211,20 @@ var capsOnlyButtons = map[string]string{}
 //	                  server-side setting could be saved from any tab.
 //
 // Both were found by a person clicking, months apart, and both were reported as
-// something else — "cannot add any device", "Appearance Save not working". The
+// something else - "cannot add any device", "Appearance Save not working". The
 // wiring audit that would have caught them read the deleted Node source and was
 // retired with it.
 //
 // ── WHY BUTTONS, AND WHY THIS RULE AND NOT A STRICTER ONE ───────────────────
 //
 // Measured against the tree when this was written: 92 buttons with ids, 91
-// referenced from a feature module, exactly one — `settingsSaveBtn` — from
+// referenced from a feature module, exactly one - `settingsSaveBtn` - from
 // `caps.ts` alone. Zero false positives, and it catches both known instances.
 //
 // Two stricter rules were measured and rejected. Requiring every id in the
 // markup to be bound gives 240 failures, nearly all labels and layout wrappers:
 // a ledger that size is one nobody reads. Requiring an `addEventListener` near
-// the id gives 23, of which 22 are legitimate table-driven or delegated wiring —
+// the id gives 23, of which 22 are legitimate table-driven or delegated wiring -
 // a 96% false-positive rate.
 //
 // Inputs and selects are deliberately out of scope: the ~78 `s_*` fields are
@@ -242,7 +242,7 @@ func TestInteractiveControlsAreBoundBeyondCaps(t *testing.T) {
 
 	ui := readFiles(t, root, "web/src/ui/", func(r string) bool { return hasExt(r, ".html") })
 	if len(ui) == 0 {
-		t.Fatal("no markup found under web/src/ui — this check would pass over nothing")
+		t.Fatal("no markup found under web/src/ui - this check would pass over nothing")
 	}
 
 	btn := regexp.MustCompile(`(?s)<button\b[^>]*>`)
@@ -291,7 +291,7 @@ func TestInteractiveControlsAreBoundBeyondCaps(t *testing.T) {
 		}
 	}
 	if checked == 0 {
-		t.Fatal("no buttons with ids were found — the markup moved and this check " +
+		t.Fatal("no buttons with ids were found - the markup moved and this check " +
 			"is scanning nothing, which would pass for ever")
 	}
 	sort.Strings(orphans)
@@ -307,7 +307,7 @@ func TestInteractiveControlsAreBoundBeyondCaps(t *testing.T) {
 	// excuse, and stale excuses are how a ledger becomes folklore.
 	for id := range capsOnlyButtons {
 		if strings.Contains(bound, `'`+id+`'`) || strings.Contains(bound, `"`+id+`"`) {
-			t.Errorf("%s is recorded as caps-only and IS now bound — delete the entry", id)
+			t.Errorf("%s is recorded as caps-only and IS now bound - delete the entry", id)
 		}
 	}
 	t.Logf("%d buttons with ids, all bound beyond caps.ts", checked)

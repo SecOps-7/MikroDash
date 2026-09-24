@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestEveryHoldReasonIsTaken — the third instance of one defect class today, and
+// TestEveryHoldReasonIsTaken - the third instance of one defect class today, and
 // the first one with a gate.
 //
 // ── DECLARED AND NEVER FILLED ──────────────────────────────────────────────
@@ -19,12 +19,12 @@ import (
 //	session.Reasons          a field per reason
 //	session.reasonsLocked    reads `s.holds["<reason>"]` into that field
 //	session.Needs            consults the reason's feed list
-//	internal/server          `Retain(id, "<reason>")` — the only thing that sets it
+//	internal/server          `Retain(id, "<reason>")` - the only thing that sets it
 //
 // The first three are inert without the fourth, and NOTHING FAILS when it is
 // missing: `Reasons.Devices` was read, `devicesFeeds` was consulted, and no code
 // path ever took the hold. It cost nothing while `ifStatus` ran from connect on
-// every session, and started costing the moment 4.2b gated it on demand — the
+// every session, and started costing the moment 4.2b gated it on demand - the
 // Devices page's WAN RX/TX column was empty for every router, which is how it was
 // eventually found.
 //
@@ -90,7 +90,7 @@ func TestEveryHoldReasonIsTaken(t *testing.T) {
 	if len(orphan) > 0 {
 		t.Errorf("%v are hold reasons the session reads and nothing in internal/server "+
 			"ever takes. The field is read, the feed list is consulted, and the whole "+
-			"path is dead — which is indistinguishable from a hold that is simply never "+
+			"path is dead - which is indistinguishable from a hold that is simply never "+
 			"wanted, until a collector it feeds gets gated and a page goes blank.", orphan)
 	}
 

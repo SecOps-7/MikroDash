@@ -8,7 +8,7 @@ Run this after every merge that should go into a production container.
 - `curl -fsS http://127.0.0.1:3081/healthz` returns `200`
 - `docker compose logs --tail=100 mikrodash` shows a healthy RouterOS connection
 
-The startup banner states what is switched on — history recording, the backup
+The startup banner states what is switched on - history recording, the backup
 scheduler, alert dispatch, the retention sweep. Read it: each of those lines is the app telling you what it will do,
 and a surprise there is worth resolving before the UI checks.
 

@@ -3,7 +3,7 @@
 //
 // ── A FACTORY, BECAUSE THE STATE IS THE SUBJECT ─────────────────────────────
 //
-// `layout`, `isEditing` and `editSnapshot` are what this layer is ABOUT — every
+// `layout`, `isEditing` and `editSnapshot` are what this layer is ABOUT - every
 // rule below is about how they change together. Module-level state would leak
 // between the gate's cases and make each one depend on the ones before it, so
 // the state lives in a closure and the gate builds a fresh editor per case.
@@ -11,7 +11,7 @@
 //
 // ── LEAVING EDIT MODE IS NOT SYMMETRIC ──────────────────────────────────────
 //
-// Save persists. Discard does NOT reload — it restores the snapshot taken on
+// Save persists. Discard does NOT reload - it restores the snapshot taken on
 // entry and re-applies it. That distinction is the whole point of the snapshot:
 // the layout the user is dragging around is the live one, so without a copy
 // taken on entry there would be nothing to go back to.
@@ -19,7 +19,7 @@
 // ── AND THE ROOM CHECKS ARE NOT SYMMETRIC EITHER ────────────────────────────
 //
 // Both `addCard` and `removeCard` ask whether ANY OTHER visible card wants the
-// room, and both exclude the card in hand — but for opposite reasons. `addCard`
+// room, and both exclude the card in hand - but for opposite reasons. `addCard`
 // sets `visible = true` BEFORE it asks, so without the exclusion the card would
 // always find itself and never join. `removeCard` sets `visible = false` first,
 // so its exclusion is redundant. Reproduced on both sides: the redundant one
@@ -64,8 +64,8 @@ function notifyRoom(eventName: string, room: string): void {
 export function createGridEditor(
   initial: GridCard[],
   // Injectable for the same reason `syncDashRooms` takes it: no two cards in the
-  // shipped table share a room, so the self-exclusion in `addCard` — which is
-  // load-bearing — cannot be distinguished from its absence on any real input.
+  // shipped table share a room, so the self-exclusion in `addCard` - which is
+  // load-bearing - cannot be distinguished from its absence on any real input.
   rooms: Readonly<Record<string, string>> = CARD_ROOMS,
 ): GridEditor {
   let layout = initial;
@@ -82,7 +82,7 @@ export function createGridEditor(
     // count: on a grown dashboard `ROWS` would rule the grid into 22 bands
     // that no card lines up with.
     const sz = getCellSize(r.width, r.height, gridRows(layout));
-    // The overlay draws one line per cell PITCH — cell plus gap — not per cell,
+    // The overlay draws one line per cell PITCH - cell plus gap - not per cell,
     // which is why the gap is added here and not in getCellSize.
     root.style.setProperty('--grid-cell-w', (sz.colW + GAP) + 'px');
     root.style.setProperty('--grid-cell-h', (sz.rowH + GAP) + 'px');
@@ -139,7 +139,7 @@ export function createGridEditor(
   function addCard(id: string): void {
     const c = getCard(id);
     if (!c) return;
-    // `|| 3` and `|| 2` are a floor for a card whose stored size is 0 — not
+    // `|| 3` and `|| 2` are a floor for a card whose stored size is 0 - not
     // reachable from the shipped defaults, and reproduced rather than dropped
     // because a 0×0 card would be invisible and unclickable.
     const defW = c.w || 3, defH = c.h || 2;
@@ -191,7 +191,7 @@ export function createGridEditor(
     resetLink.textContent = 'Reset to default layout';
     resetLink.addEventListener('click', (e) => {
       e.preventDefault();
-      // Applied, NOT saved — see the header. Discard still puts the old one back.
+      // Applied, NOT saved - see the header. Discard still puts the old one back.
       layout = cloneLayout(DEFAULT_LAYOUT);
       applyLayout(layout);
       closeAddPanel();

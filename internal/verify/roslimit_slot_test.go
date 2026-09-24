@@ -11,8 +11,8 @@ import (
 // A ROUTER SLOT IS GIVEN BACK WHEN THE COMMAND IS OVER, NOT WHEN ITS CALLER GIVES UP.
 //
 // `roslimit` caps the commands in flight on one router. A command that times out
-// is still running on the router — routeros.Client.Do no longer cancels it,
-// because cancelling ended the whole connection — so releasing its slot when Do
+// is still running on the router - routeros.Client.Do no longer cancels it,
+// because cancelling ended the whole connection - so releasing its slot when Do
 // returns would let the cap be exceeded by exactly the commands a slow router is
 // already struggling with. Both slot-takers must hand the release to
 // `Cmd.OnFinished` rather than `defer done()`.

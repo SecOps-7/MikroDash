@@ -1,4 +1,4 @@
-// GENERATED from testdata/stale-tables.json — do not edit.
+// GENERATED from testdata/stale-tables.json - do not edit.
 // Rebuild with `node tools/stale-tables-ts.js` from the committed JSON.
 // The JSON it reads is a FROZEN artefact: the generator that produced it read the
 // Node app and was deleted with the port-parity harness on 2026-09-01. This
@@ -168,7 +168,7 @@ export const COLLECTOR_CARDS: Record<string, string[]> = {
  * Nothing to do with staleness: this is what gets emptied on a router switch.
  * Upstream this list exists because switching used to clear each card's
  * in-memory guard and never the rendered rows, so a card kept showing the
- * PREVIOUS router's data until the new one produced a payload — indefinitely if
+ * PREVIOUS router's data until the new one produced a payload - indefinitely if
  * that collector is disabled or slow.
  */
 export const DASH_CARD_TABLES: Record<string, string> = {

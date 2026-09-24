@@ -2,7 +2,7 @@
 // pager.
 //
 // Two tabs in one module because they are the two that read a plain event series
-// and nothing else — no interface picker, no capacity, no volume. Traffic and
+// and nothing else - no interface picker, no capacity, no volume. Traffic and
 // bandwidth share a different set of concerns and get their own.
 
 import { esc, el, maxOf, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
@@ -52,7 +52,7 @@ const pingSort: SortState = { col: 'ts', dir: 'desc' };
  *
  * THE PAGE INDEX IS CLAMPED ON RENDER rather than on the click. Re-sorting or
  * re-loading can shrink the row count under a page the operator is already on,
- * and clamping here covers every route into this function — including the ones
+ * and clamping here covers every route into this function - including the ones
  * that do not go through a button.
  */
 export function renderPingPage(): void {
@@ -75,7 +75,7 @@ export function renderPingPage(): void {
         return '<tr><td style="color:var(--text-muted)">' + esc(fmtTs(r.ts)) + '</td>' +
           '<td style="font-family:var(--font-mono)">' + esc(r.target || '') + '</td>' +
           '<td style="text-align:right;font-family:var(--font-mono)">' +
-          (r.rtt_ms != null ? esc((+r.rtt_ms).toFixed(1)) : '—') + '</td>' +
+          (r.rtt_ms != null ? esc((+r.rtt_ms).toFixed(1)) : '-') + '</td>' +
           '<td style="text-align:right;font-family:var(--font-mono)"' + lossClass + '>' +
           esc((+r.loss_pct).toFixed(1)) + '%</td></tr>';
       }).join('')
@@ -117,28 +117,28 @@ function applyPingSort(): void {
 export function renderPing(rows: PingRow[]): void {
   const rtts = rows.filter((r) => r.rtt_ms != null).map((r) => r.rtt_ms as number);
   const losses = rows.map((r) => r.loss_pct);
-  const avgRtt = rtts.length ? (rtts.reduce((a, b) => a + b, 0) / rtts.length).toFixed(1) : '—';
+  const avgRtt = rtts.length ? (rtts.reduce((a, b) => a + b, 0) / rtts.length).toFixed(1) : '-';
   // `maxOf`, not `Math.max(...rtts)`: the spread passes every element as an
   // argument and overflows the stack past ~65k of them, and a ping query returns
   // up to 100,000 rows. The live app documents this on its own maxOf; this port
   // wrote the spread anyway and it would have crashed on exactly the long ranges
   // an operator opens when something is wrong.
-  const maxRtt = rtts.length ? maxOf(rtts).toFixed(1) : '—';
+  const maxRtt = rtts.length ? maxOf(rtts).toFixed(1) : '-';
   const avgLoss = losses.length
-    ? (losses.reduce((a, b) => a + b, 0) / losses.length).toFixed(1) : '—';
+    ? (losses.reduce((a, b) => a + b, 0) / losses.length).toFixed(1) : '-';
   // UNDER 1% LOSS COUNTS AS UP. Not "zero loss": a single dropped probe in a
   // hundred is normal on a live link, and a strict test would report 60% uptime
   // for a connection nobody noticed a problem with.
   const uptime = losses.length
-    ? ((losses.filter((l) => l < 1).length / losses.length) * 100).toFixed(1) + '%' : '—';
+    ? ((losses.filter((l) => l < 1).length / losses.length) * 100).toFixed(1) + '%' : '-';
 
   const stats = el('rptPingStats');
   if (stats) {
     stats.innerHTML =
       statCard(uptime, 'Uptime') +
-      statCard(avgRtt !== '—' ? avgRtt + ' ms' : '—', 'Avg RTT') +
-      statCard(maxRtt !== '—' ? maxRtt + ' ms' : '—', 'Max RTT') +
-      statCard(avgLoss !== '—' ? avgLoss + '%' : '—', 'Avg Loss') +
+      statCard(avgRtt !== '-' ? avgRtt + ' ms' : '-', 'Avg RTT') +
+      statCard(maxRtt !== '-' ? maxRtt + ' ms' : '-', 'Max RTT') +
+      statCard(avgLoss !== '-' ? avgLoss + '%' : '-', 'Avg Loss') +
       statCard(rows.length.toLocaleString(), 'Samples');
   }
 
@@ -192,7 +192,7 @@ let connAgg = false;
  * Whether these rows are the aggregated shape.
  *
  * DECIDED FROM THE ROWS, NOT FROM THE DROPDOWN. The original tests
- * `agg && rows[0].total !== undefined` — the select says what was ASKED for and
+ * `agg && rows[0].total !== undefined` - the select says what was ASKED for and
  * the rows say what came back, and they disagree for the moment between changing
  * the dropdown and the response arriving. Reading the row is what stops an
  * aggregated header being drawn over raw rows.
@@ -231,14 +231,14 @@ function applyConnSort(): void {
           ? '<span class="rtr-status-badge rtr-status-badge--on">Online</span>'
           : '<span class="rtr-status-badge rtr-status-badge--off">Offline</span>';
         // "ONGOING" IS NOT ZERO. A null duration on an offline row means the
-        // outage has no end yet — the annotation walks backwards and finds no
-        // online event after it — and showing 0s would report a router that is
+        // outage has no end yet - the annotation walks backwards and finds no
+        // online event after it - and showing 0s would report a router that is
         // still down as one that recovered instantly.
         const dur = !r.connected
           ? (r.downtime_ms != null
             ? esc(fmtDuration(r.downtime_ms))
             : '<span style="color:var(--accent-warn)">Ongoing</span>')
-          : '<span style="color:var(--text-muted)">—</span>';
+          : '<span style="color:var(--text-muted)">-</span>';
         return '<tr>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">' +
           esc(fmtTs(r.ts)) + '</td>' +
@@ -263,14 +263,14 @@ export function renderConn(rows: ConnRow[], agg: string): void {
     onlineN = rows.reduce((a, r) => a + +(r.online as number), 0);
     offlineN = rows.reduce((a, r) => a + +(r.offline as number), 0);
     const total = onlineN + offlineN;
-    uptime = total ? ((onlineN / total) * 100).toFixed(1) + '%' : '—';
+    uptime = total ? ((onlineN / total) * 100).toFixed(1) + '%' : '-';
     // No downtime total from buckets: a bucket knows how many samples were
     // offline, not how long any outage lasted.
     totalDownMs = null;
   } else {
     onlineN = rows.filter((r) => r.connected).length;
     offlineN = rows.length - onlineN;
-    uptime = rows.length ? ((onlineN / rows.length) * 100).toFixed(1) + '%' : '—';
+    uptime = rows.length ? ((onlineN / rows.length) * 100).toFixed(1) + '%' : '-';
     totalDownMs = rows.reduce((a, r) => a + (r.downtime_ms || 0), 0);
   }
 

@@ -1,4 +1,4 @@
-// The DNS page — a port of the DNS IIFE in public/app.js.
+// The DNS page - a port of the DNS IIFE in public/app.js.
 //
 // Line for line where it matters. The markup strings, the class names, the em
 // dashes and the order of the key/value rows are the live app's, because the
@@ -39,7 +39,7 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
     if (!s) return;
     const servers = s.servers.length ? s.servers.join(', ')
       : s.dynamicServers.length ? s.dynamicServers.join(', ') + ' (dynamic)'
-      : '—';
+      : '-';
     let html = '';
     html += s.dohEnabled
       ? kv('DNS over HTTPS', esc(s.dohUrl), 'on') +
@@ -49,12 +49,12 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
     html += kv('Servers', esc(servers));
     html += kv('Allow remote requests', s.allowRemoteRequests ? 'yes' : 'no',
       s.allowRemoteRequests ? 'warn' : 'off');
-    html += kv('Cache', (s.cacheUsed === null ? '—' : String(s.cacheUsed)) + ' / ' +
-      (s.cacheSize === null ? '—' : String(s.cacheSize)) + ' KiB');
-    html += kv('Cache max TTL', esc(s.cacheMaxTtl || '—'));
-    html += kv('mDNS repeat', esc(s.mdnsRepeatIfaces.join(', ') || '—'));
-    html += kv('Max UDP packet', s.maxUdpPacketSize === null ? '—' : String(s.maxUdpPacketSize));
-    html += kv('Query timeout', esc(s.queryServerTimeout || '—') + ' / ' + esc(s.queryTotalTimeout || '—'));
+    html += kv('Cache', (s.cacheUsed === null ? '-' : String(s.cacheUsed)) + ' / ' +
+      (s.cacheSize === null ? '-' : String(s.cacheSize)) + ' KiB');
+    html += kv('Cache max TTL', esc(s.cacheMaxTtl || '-'));
+    html += kv('mDNS repeat', esc(s.mdnsRepeatIfaces.join(', ') || '-'));
+    html += kv('Max UDP packet', s.maxUdpPacketSize === null ? '-' : String(s.maxUdpPacketSize));
+    html += kv('Query timeout', esc(s.queryServerTimeout || '-') + ' / ' + esc(s.queryTotalTimeout || '-'));
     settingsBody!.innerHTML = html;
   }
 
@@ -85,7 +85,7 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
         (e.regexp ? ' <span class="wl-band wl-band-24">regexp</span>' : '') + '</td>' +
       '<td class="mono">' + esc(e.address) + '</td>' +
       '<td>' + esc(e.type) + '</td>' +
-      '<td>' + esc(e.ttl || '—') + '</td>' +
+      '<td>' + esc(e.ttl || '-') + '</td>' +
       '<td style="color:var(--text-muted)">' + esc(e.comment || '') + '</td>' +
       '</tr>').join('')
       : '<tr><td colspan="5" class="empty-state">' +
@@ -104,7 +104,7 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
     const cache = el('dnsSumCache');
     if (cache) {
       cache.textContent = (s.cacheUsed === null || s.cacheUsed === undefined)
-        ? '—' : s.cacheUsed + ' / ' + (s.cacheSize || '?');
+        ? '-' : s.cacheUsed + ' / ' + (s.cacheSize || '?');
     }
     const stat = el('dnsSumStatic');
     if (stat) stat.textContent = String((data.staticEntries || []).length);
@@ -112,7 +112,7 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
     if (srv) {
       srv.textContent = s.dohEnabled ? 'DoH'
         : (s.servers && s.servers.length) ? 'static'
-        : (s.dynamicServers && s.dynamicServers.length) ? 'dynamic' : '—';
+        : (s.dynamicServers && s.dynamicServers.length) ? 'dynamic' : '-';
     }
     const remote = el('dnsSumRemote');
     if (remote) remote.textContent = s.allowRemoteRequests ? 'allowed' : 'blocked';

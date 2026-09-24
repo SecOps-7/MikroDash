@@ -5,7 +5,7 @@ with no CDN and no outbound requests. Every one is redistributed under the terms
 reproduced here.
 
 **Verified 2026-08-27 against each project's own LICENSE file**, not from memory
-— the copyright years and licence types below were fetched from upstream rather
+- the copyright years and licence types below were fetched from upstream rather
 than recalled, because a notice that is approximately right is not a notice.
 
 Two things about how this file is meant to be maintained:
@@ -19,19 +19,19 @@ Two things about how this file is meant to be maintained:
 
 ---
 
-## Fonts — SIL Open Font License 1.1
+## Fonts - SIL Open Font License 1.1
 
 `web/public/fonts/` (25 families, 98 files) and `web/public/vendor/fonts/`
 (JetBrains Mono, Syne, Inter).
 
 **The full notice, including the per-family copyright lines the OFL requires to
-accompany the files, is in `web/public/fonts/OFL.txt`** — copied verbatim from
+accompany the files, is in `web/public/fonts/OFL.txt`** - copied verbatim from
 the live repository, where it already states that it covers both directories.
 It is not duplicated here; that file is the notice.
 
 ---
 
-## Tabler — MIT
+## Tabler - MIT
 
 `web/public/vendor/tabler.min.css`, Tabler v1.4.0, https://tabler.io
 
@@ -72,7 +72,7 @@ THE SOFTWARE.
 
 ---
 
-## Chart.js — MIT
+## Chart.js - MIT
 
 `web/public/vendor/chart.umd.min.js`, Chart.js v4.4.2, https://www.chartjs.org
 
@@ -93,11 +93,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---
 
-## topojson-client — NOT VENDORED
+## topojson-client - NOT VENDORED
 
 `/vendor/topojson-client.min.js` is loaded by the live app and **is deliberately
 not shipped here.** `web/src/pages/connections-worldmap.ts` reimplements the one
-function the map needs — a thirty-line arc-delta decode — and is verified against
+function the map needs - a thirty-line arc-delta decode - and is verified against
 the live output rather than trusted.
 
 It was copied in during the vendoring pass on 2026-08-27 and removed again the
@@ -106,12 +106,12 @@ dropped, for two reasons: **a licence notice for something not redistributed is
 as wrong as a missing one**, and the next person to compare the two vendor trees
 will find a file here that is absent and should know it is a decision.
 
-The DATA it decodes — `world-atlas` below — is still vendored and still needs its
+The DATA it decodes - `world-atlas` below - is still vendored and still needs its
 notice.
 
 ---
 
-## world-atlas — ISC
+## world-atlas - ISC
 
 `web/public/vendor/world-atlas/countries-110m.json`,
 https://github.com/topojson/world-atlas
@@ -138,7 +138,7 @@ above covers the TopoJSON packaging of it.
 
 ---
 
-## IP geolocation data — DB-IP City Lite and ASN Lite
+## IP geolocation data - DB-IP City Lite and ASN Lite
 
 **IP Geolocation by [DB-IP](https://db-ip.com)**, used under the
 [Creative Commons Attribution 4.0 International Licence](https://creativecommons.org/licenses/by/4.0/).
@@ -155,10 +155,10 @@ crediting the source, and the credit has to travel with anything that ships the
 data.
 
 `internal/verify/geodata_test.go` pins the credit, the link and BOTH database
-filenames — crediting one while quietly adding a second beside it is how the ASN
+filenames - crediting one while quietly adding a second beside it is how the ASN
 file arrived uncredited.
 
-Both databases are fetched fresh by the `geodata` stage of the `Dockerfile` — no
+Both databases are fetched fresh by the `geodata` stage of the `Dockerfile` - no
 account, no licence key. MaxMind's GeoLite2 is better data and updates more
 often, but it needs an account, a key and a signed EULA, which would make a
 build nobody who clones this repo can run; IPinfo and IP2Location were checked
@@ -175,12 +175,12 @@ same attribution.
 
 MaxMind GeoLite2 was considered and rejected. It is more accurate and updates
 twice weekly, but requires an account, a signed EULA and a licence key that
-expires every 90 days — which would make this a build that nobody without
+expires every 90 days - which would make this a build that nobody without
 credentials could run.
 
 ---
 
-## go-routeros — MIT
+## go-routeros - MIT
 
 `third_party/go-routeros/`, github.com/go-routeros/routeros v3.0.1,
 https://github.com/go-routeros/routeros. Its non-test sources, used through a

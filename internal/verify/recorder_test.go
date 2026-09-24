@@ -12,7 +12,7 @@ import (
 // ── A PORTED STATE MACHINE THAT NOTHING DROVE ──────────────────────────────
 //
 // `internal/historywire` exports the calls that write the history tables. Three
-// of them — `Connected`, `Disconnected` and `Forget` — had NO caller outside
+// of them - `Connected`, `Disconnected` and `Forget` - had NO caller outside
 // their own package for the whole life of the Go port. `Record` did, so ping and
 // traffic kept being written while `connectivity_events` stopped dead at the
 // cutover, and the Reports page, reading a table frozen mid-outage, showed every
@@ -21,7 +21,7 @@ import (
 // Nothing failed. `internal/history/connectivity.go` is complete and pinned by
 // its own corpus; `internal/historywire/conn_test.go` drives the wire directly
 // and passes. Both halves were correct and unconnected, and the whole suite was
-// green — which is exactly the shape a unit test cannot see.
+// green - which is exactly the shape a unit test cannot see.
 //
 // So this asks the one question those tests cannot: is anything in the SHIPPED
 // binary calling this? An exported entry point on a recorder is not a library
@@ -31,14 +31,14 @@ import (
 // ── THE LEDGER FAILS IN BOTH DIRECTIONS ─────────────────────────────────────
 //
 // An unrecorded gap is a failure, and an entry recorded as unwired that HAS
-// acquired a caller is also a failure — otherwise the list becomes a place to
+// acquired a caller is also a failure - otherwise the list becomes a place to
 // file things rather than a record of them. That is the rule the attribute
 // ledger broke: `data-val` sat in it excused as "a feature this port has not
 // taken on" while being a plain bug on a shipped page.
 var recorderUnwired = map[string]string{
 	// `Tick` WAS HERE, excused as "no ticker: both callers use a zero threshold".
-	// The excuse expired in two stages — `startConnTicker` gave it a clock, and
-	// `connDownThresholdSec` reached it — and the method itself has since left
+	// The excuse expired in two stages - `startConnTicker` gave it a clock, and
+	// `connDownThresholdSec` reached it - and the method itself has since left
 	// this package for `internal/connstate`. The entry is deleted rather than
 	// reworded, and the loop below now fails on a ledger entry naming a method
 	// that no longer exists, which is what would have caught it sitting here.
@@ -47,8 +47,8 @@ var recorderUnwired = map[string]string{
 	// this". `Record` consults it on every traffic sample from inside the
 	// package, which the scan cannot see because it excludes the recorder's own
 	// source. It is exported so a caller can ask what a declaration means
-	// without reproducing the empty-list rule — which is the half that is easy
-	// to get backwards — and `SetRecordedInterfaces`, the entry point that
+	// without reproducing the empty-list rule - which is the half that is easy
+	// to get backwards - and `SetRecordedInterfaces`, the entry point that
 	// actually matters, IS called from the fleet syncs and is checked here.
 	"Records": "a predicate consulted by Record inside the package; exported for " +
 		"callers to ask rather than to be driven",
@@ -74,7 +74,7 @@ func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {
 	}
 	sort.Strings(entry)
 	if len(entry) < 4 {
-		t.Fatalf("found %d exported Wire methods — the recorder's shape changed and "+
+		t.Fatalf("found %d exported Wire methods - the recorder's shape changed and "+
 			"this check is scanning nothing, which would pass for ever", len(entry))
 	}
 
@@ -95,10 +95,10 @@ func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {
 	// ── THE RECEIVERS ARE DISCOVERED, NOT LISTED ────────────────────────────
 	//
 	// A bare `\.Tick\(` matches any receiver, and half the collectors have a
-	// `Tick` — which reported the recorder's own `Tick` as wired on the first
+	// `Tick` - which reported the recorder's own `Tick` as wired on the first
 	// run of this check. So the names holding a `*historywire.Wire` are read out
 	// of the source first, and only those count.
-	// STRUCT FIELDS ONLY — anchored to the start of a line, so a PARAMETER
+	// STRUCT FIELDS ONLY - anchored to the start of a line, so a PARAMETER
 	// named `w` in `SetHistoryWire(w *historywire.Wire)` is not collected. It
 	// was on the first run, and `w.Tick()` in half a dozen collectors then
 	// reported the recorder's own Tick as wired. The field names are the ones a
@@ -115,7 +115,7 @@ func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {
 		recvs[m[1]] = true
 	}
 	if len(recvs) == 0 {
-		t.Fatal("no variable of type *historywire.Wire was found — this check " +
+		t.Fatal("no variable of type *historywire.Wire was found - this check " +
 			"would report every entry point as unwired")
 	}
 	names := make([]string, 0, len(recvs))
@@ -144,7 +144,7 @@ func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {
 
 	var missing []string
 	for _, name := range entry {
-		// Optionally qualified — `s.historyWire`, `m.history`, or a bare local.
+		// Optionally qualified - `s.historyWire`, `m.history`, or a bare local.
 		//
 		// A METHOD VALUE COUNTS, which is the second alternative: the server
 		// wires `RecordConn` by handing it to `connstate.New` as the tracker's
@@ -156,7 +156,7 @@ func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {
 		reason, recorded := recorderUnwired[name]
 		switch {
 		case used && recorded:
-			t.Errorf("Wire.%s is recorded as unwired (%q) and something calls it now — "+
+			t.Errorf("Wire.%s is recorded as unwired (%q) and something calls it now - "+
 				"delete the entry rather than leaving a note that has stopped being true",
 				name, reason)
 		case !used && !recorded:

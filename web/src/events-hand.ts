@@ -2,8 +2,8 @@
 //
 // Every other event's payload is a Go struct, and its type is generated into
 // gen/payloads.ts by cmd/tsgen. These are the ones Go builds as
-// `map[string]any` — mostly replies to a request, like `packages:ok` or
-// `res:error` — so there is no struct to generate from. Each type here is read
+// `map[string]any` - mostly replies to a request, like `packages:ok` or
+// `res:error` - so there is no struct to generate from. Each type here is read
 // off the Go that builds it: every send site, with a key that only some of
 // them set marked optional.
 //
@@ -11,12 +11,12 @@
 //
 // HandEventName is generated: exactly the events Go declares with a map
 // payload. The check at the bottom fails tsc, naming the events, if this file
-// misses one or types one that is not a map event — so an event added in Go,
+// misses one or types one that is not a map event - so an event added in Go,
 // or moved from a map to a struct, is a compile error here rather than a
 // silent gap.
 //
 // What it cannot check is the KEYS, which are read from the Go by hand. So a Go
-// struct that a map carries is IMPORTED from gen/payloads.ts, never restated —
+// struct that a map carries is IMPORTED from gen/payloads.ts, never restated -
 // cmd/tsgen's `extraRoots` exists to generate the ones no declaration reaches.
 //
 // ── TWO DISAGREEMENTS, RECORDED RATHER THAN RESOLVED ────────────────────────
@@ -30,7 +30,7 @@ import type {
   AlertRow, ConnsPayload, HandEventName, Hunk, LanPayload, PingPoint, ResFieldError, WifiscanRow,
 } from './gen/payloads';
 
-/** The event carries no data — only the fact that it happened. */
+/** The event carries no data - only the fact that it happened. */
 type Nothing = Record<string, never>;
 
 /** A write refused by a guard: the guard's own detail, and the fingerprint to confirm it with. */
@@ -92,7 +92,7 @@ export interface ResSchema {
  */
 export type RouterRecord = Record<string, unknown> & {
   id: string;
-  /** `""`, or the mask — never the password. */
+  /** `""`, or the mask - never the password. */
   password: string;
   siteIds: string[];
   siteId: string | null;
@@ -117,7 +117,7 @@ export interface PageSettings {
   pageDevices: boolean; pageAudit: boolean; pageBackups: boolean;
   userNotifyEnabled: boolean;
   /** DERIVED, not stored: the assistant is enabled AND has an endpoint and a
-   *  model. The three settings behind it stay on the server — `aiBaseUrl` is
+   *  model. The three settings behind it stay on the server - `aiBaseUrl` is
    *  infrastructure config a viewer has no business reading. */
   aiReady: boolean;
   /** The generated pages this install has switched off; see store.CleanHiddenAreas. */
@@ -132,7 +132,7 @@ export interface PageSettings {
 }
 
 export interface HandEvents {
-  /** One finished answer. Markdown, rendered as DOM nodes — never as markup. */
+  /** One finished answer. Markdown, rendered as DOM nodes - never as markup. */
   'ai:reply': { text: string; model: string };
   /** A refusal, already sanitised: it can carry the endpoint's host. */
   'ai:error': { error: string };
@@ -153,7 +153,7 @@ export interface HandEvents {
    *
    * `text` is MODEL OUTPUT and is set with textContent, never as markup.
    * `error` carries a sanitised refusal instead, so the card can say why it is
-   * blank rather than looking merely quiet — the failure mode the diagnostics
+   * blank rather than looking merely quiet - the failure mode the diagnostics
    * card shipped with for the whole life of the port.
    */
   'ai:overview': { text: string; error: string; model: string; at: number; color: string };
@@ -162,7 +162,7 @@ export interface HandEvents {
    *
    * EVERY FIELD HERE IS BUILT BY THE SERVER. `command` comes from the resource's
    * own PreviewCommand with secrets masked, and `name` from the row the router
-   * actually holds — never from the model's account of what it is doing. The
+   * actually holds - never from the model's account of what it is doing. The
    * model chose the resource and the values; it does not get to narrate them.
    *
    * `token` is single use: approving consumes it, so a dialog cannot be replayed.
@@ -236,7 +236,7 @@ export interface HandEvents {
   };
   'perms:changed': Nothing;
   // minRtt / maxRtt are added only once a ping has landed, and then may be
-  // null — unlike PingPayload, where they are omitted when absent.
+  // null - unlike PingPayload, where they are omitted when absent.
   'ping:history': { target: string; history: PingPoint[]; minRtt?: number | null; maxRtt?: number | null };
   'res:error': {
     code: string; resource?: string; name?: string; message?: string;
@@ -260,7 +260,7 @@ export interface HandEvents {
   // `reason` is "" rather than null when there is no error, and absent from
   // the pooled-status path.
   //
-  // TWO FACTS, NOT ONE. `connected` is the API socket this instant — the banner,
+  // TWO FACTS, NOT ONE. `connected` is the API socket this instant - the banner,
   // the dots and the write path. `online` is the DEBOUNCED verdict, after the
   // device's own Offline threshold, and it is what the fleet's badges read. Both
   // are always sent: `session.StatusFrame` is the only builder.
@@ -292,7 +292,7 @@ export interface HandEvents {
 // ── BOTH DIRECTIONS, AT COMPILE TIME ────────────────────────────────────────
 //
 // If this file and the Go declarations disagree about which events carry a
-// map, the type below stops being `true` and the assignment fails — with the
+// map, the type below stops being `true` and the assignment fails - with the
 // offending event names in the error, under the key that says which way round.
 type Missing = Exclude<HandEventName, keyof HandEvents>;
 type NotAMapEvent = Exclude<keyof HandEvents, HandEventName>;

@@ -14,7 +14,7 @@ import (
 // said "/ppp/secret IS NEVER READ … a test enforces it across both", and that
 // test was the NODE original's: it went at cutover with the rest of the parity
 // harness, so the rule spent the entire port with nothing behind it. Nobody
-// noticed, because nothing failed — which is the shape of every expired premise
+// noticed, because nothing failed - which is the shape of every expired premise
 // this repository has been bitten by.
 //
 // Issue #125 needed `/ppp/secret` read for subscriber management, so the rule
@@ -30,7 +30,7 @@ var proplistRe = regexp.MustCompile(`=\.proplist=([^"]*)`)
 //
 // `"…a," +\n\t"b…"` is two literals to the compiler and one proplist to the
 // router. Without this the scan would see the halves separately and a credential
-// sitting just after a line break would be invisible — a checker that reads less
+// sitting just after a line break would be invisible - a checker that reads less
 // than the code does is worse than none, because it reports success.
 var literalJoin = regexp.MustCompile(`"\s*\+\s*"`)
 
@@ -51,8 +51,8 @@ func TestNoProplistNamesACredential(t *testing.T) {
 				}
 				// REUSING THE AUDIT TRAIL'S DEFINITION, so "credential-shaped
 				// name" has one meaning in this codebase rather than two that
-				// can drift apart. It deliberately leaves `public-key` alone —
-				// a public key is public — so the WireGuard read stays green.
+				// can drift apart. It deliberately leaves `public-key` alone -
+				// a public key is public - so the WireGuard read stays green.
 				if audit.IsCredentialField(f) {
 					t.Errorf("%s asks the router for %q in a proplist.\n"+
 						"A collector payload reaches every viewer of the page. "+
@@ -68,7 +68,7 @@ func TestNoProplistNamesACredential(t *testing.T) {
 	// passing. If the literals are ever reshaped so this regex stops matching,
 	// that must read as a broken checker rather than as a clean bill of health.
 	if found < 30 {
-		t.Fatalf("only %d proplists parsed out of internal/collect — the scan "+
+		t.Fatalf("only %d proplists parsed out of internal/collect - the scan "+
 			"broke, and every credential would then look fine", found)
 	}
 	t.Logf("%d proplists checked across %d files", found, len(files))
@@ -77,13 +77,13 @@ func TestNoProplistNamesACredential(t *testing.T) {
 // ── AND /ppp/secret IS NEVER READ WITHOUT ONE ──────────────────────────────
 //
 // The test above is satisfied by a proplist that omits `password`. It is also
-// satisfied by NO PROPLIST AT ALL — and a bare `/ppp/secret/print` returns every
+// satisfied by NO PROPLIST AT ALL - and a bare `/ppp/secret/print` returns every
 // property the menu has, password included. That is the likelier mistake by far:
 // removing a proplist reads as simplification, and the payload grows a field
 // nobody notices until it is in a browser.
 //
 // This is deliberately about ONE menu rather than a general rule, because a
-// general "every command must carry a proplist" is false — most menus hold
+// general "every command must carry a proplist" is false - most menus hold
 // nothing sensitive and several collectors read them whole on purpose.
 func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 	root := repoRoot(t)
@@ -97,7 +97,7 @@ func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 		joined := literalJoin.ReplaceAllString(src, "")
 		// THE WHOLE Cmd LITERAL, NOT THE LINE. `Path:` and `Args:` sit on
 		// separate lines in every command in this package, so a line-scoped
-		// check reports "no proplist" for a command that has one — which this
+		// check reports "no proplist" for a command that has one - which this
 		// test did on its first run, against code that was correct. The window
 		// runs from the menu to the `}}` that closes the literal.
 		for rest := joined; ; {
@@ -123,7 +123,7 @@ func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 		}
 	}
 	if seen == 0 {
-		t.Fatalf("no read of %s found in internal/collect — either the PPP "+
+		t.Fatalf("no read of %s found in internal/collect - either the PPP "+
 			"secrets feature was removed, in which case delete this check, or "+
 			"the command was reshaped and this check is now reading nothing", menu)
 	}
@@ -137,7 +137,7 @@ func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 // could not fail and was counted as a check (review loop, 2026-09-19).
 //
 //  1. COMMANDS WITH NO PROPLIST ARE NOT CHECKED. Most reads in
-//     `internal/collect` fetch a whole menu, which is correct — a menu holding
+//     `internal/collect` fetch a whole menu, which is correct - a menu holding
 //     nothing sensitive is cheaper to read whole than to enumerate. But it means
 //     the first test can only speak for the menus that DO carry a proplist.
 //     `/ppp/secret` is covered by name in the second test precisely because it
@@ -147,13 +147,13 @@ func TestTheSecretMenuIsOnlyReadThroughAProplist(t *testing.T) {
 //     `audit.IsCredentialField` is too broad to be a gate on them. It is
 //     deliberately broad for MASKING, where a false positive costs one field
 //     name in an audit row. As a gate it fails on three innocent fields already
-//     in the tree — `fasttrackBypassable`, `passwordPolicy` and this feature's
-//     own `secrets` — so a struct-tag version would have to either weaken the
+//     in the tree - `fasttrackBypassable`, `passwordPolicy` and this feature's
+//     own `secrets` - so a struct-tag version would have to either weaken the
 //     pattern or carry an exception list, and both are worse than saying plainly
 //     that the proplist is where this is enforced.
 //
 //  3. THE WRITE PATH READS WHAT IT LIKES. `internal/server`'s `readMenu` prints
-//     a whole menu with no proplist before every save, delete and action —
+//     a whole menu with no proplist before every save, delete and action -
 //     deliberately, because `ReadOnlyWhen` needs properties no page asks for.
 //     So passwords DO enter server memory on a write. They stop there
 //     (`RowValues` drops secret-typed fields, the audit masks them), but "no

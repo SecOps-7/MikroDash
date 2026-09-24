@@ -7,7 +7,7 @@
  * shown on one trigger only: the `setup:required` broadcast, which the server
  * sends when the LAST router is DELETED. So it appeared for an operator who
  * removed their only device, and never for one who had never added a device at
- * all — the case it exists for.
+ * all - the case it exists for.
  *
  * A new operator saw the dashboard instead, drawn in full with every card empty
  * and nothing saying a router was needed. Reported on issue #124 with a

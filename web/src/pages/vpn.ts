@@ -1,4 +1,4 @@
-// The VPN page — an overview of every VPN technology, and a way through to each.
+// The VPN page - an overview of every VPN technology, and a way through to each.
 //
 // ── WHAT THIS PAGE USED TO BE ───────────────────────────────────────────────
 //
@@ -9,18 +9,18 @@
 // IPsec pages it should always have sat with.
 //
 // What is left is the one view none of those pages can give: every technology at
-// once — a table of what is configured, and BELOW IT A CARD PER LIVE
+// once - a table of what is configured, and BELOW IT A CARD PER LIVE
 // CONNECTION, whatever carries it. Each dedicated page manages one protocol and
 // shows its configuration; none of them can answer "who is on the VPN right
 // now", because that question spans all of them. The PPP and IPsec tables stay
-// below that as the per-session detail — caller id, encryption, authentication
-// — that does not fit on a card.
+// below that as the per-session detail - caller id, encryption, authentication
+// - that does not fit on a card.
 //
 // ── ONE HONEST ASYMMETRY, STATED RATHER THAN PAPERED OVER ───────────────────
 //
 // "Configured" is filled for WireGuard and blank for the other three. The
 // payload's `tunnels` is every configured PEER, while `ppp` and `ipsec` are
-// `/ppp/active` and `/ip/ipsec/active-peers` — SESSIONS, not configuration. A
+// `/ppp/active` and `/ip/ipsec/active-peers` - SESSIONS, not configuration. A
 // zero in that column for OpenVPN would say "no servers configured" when it
 // means "nobody is connected right now", so the cell is left empty instead. The
 // asymmetry belongs to the payload, not to this page, and the dedicated pages
@@ -50,7 +50,7 @@ export function overviewRows(d: VPNPayload): OverviewRow[] {
   const ipsec = d.ipsec || [];
   const wg = tunnels.filter((t) => t.type === 'WireGuard');
   // `ParsePppSessions` upper-cases the service, so OpenVPN sessions arrive as
-  // `OVPN` — the spelling RouterOS uses in /ppp/active, not the product name.
+  // `OVPN` - the spelling RouterOS uses in /ppp/active, not the product name.
   const ovpn = ppp.filter((s) => s.service === 'OVPN');
   return [
     { label: 'WireGuard', page: 'wireguard', configured: wg.length, active: wg.filter((t) => t.state === 'active').length },
@@ -66,8 +66,8 @@ export function overviewRows(d: VPNPayload): OverviewRow[] {
  * ── NOT `pageVisible`, AND THE DIFFERENCE IS THE WHOLE BUG ─────────────────
  *
  * The first version of this asked `isVisible(page)`. That function answers
- * "is this page ON SCREEN right now" — it is the blur-suspend guard,
- * `currentPage === name && !document.hidden` — so on the VPN page it is false
+ * "is this page ON SCREEN right now" - it is the blur-suspend guard,
+ * `currentPage === name && !document.hidden` - so on the VPN page it is false
  * for every OTHER page by definition, and not one link ever rendered. The web
  * test could not see it because it stubs `isVisible` itself, which tests the
  * intention rather than the wiring. A browser found it in a second.
@@ -87,7 +87,7 @@ export interface LiveConn {
   /** Unique within a render: the tile's key and its dot's identity. */
   key: string;
   name: string;
-  /** WireGuard, L2TP, OVPN, IPsec — what the operator calls the thing. */
+  /** WireGuard, L2TP, OVPN, IPsec - what the operator calls the thing. */
   tech: string;
   /** Where it lands: an interface, an address, or the peer's side. */
   where: string;
@@ -101,8 +101,8 @@ export interface LiveConn {
    * differences two polls; a PPP session carries bytes since it came up and an
    * IPsec peer carries neither.
    *
-   * Deciding it per reading instead — "print a rate when the rate is non-zero"
-   * — was live on the VPN page for one build, and a quiet WireGuard peer
+   * Deciding it per reading instead - "print a rate when the rate is non-zero"
+   * - was live on the VPN page for one build, and a quiet WireGuard peer
    * flipped between "↓ 10 B/s" and "↓ 9.1 GB" as its traffic came and went.
    * Two different quantities under one label, changing every poll. An idle
    * WireGuard peer really is doing 0 B/s, and saying so is the honest answer.
@@ -119,7 +119,7 @@ export interface LiveConn {
  *
  * ── WHY THIS LIVES ON THE OVERVIEW AND NOT ON A PROTOCOL PAGE ─────────────
  *
- * Each dedicated page manages ONE protocol and shows its configuration —
+ * Each dedicated page manages ONE protocol and shows its configuration -
  * every WireGuard peer including the ones that never connected, every IPsec
  * policy, every OpenVPN server. None of them answers "who is on the VPN right
  * now", because that question spans all of them. This does, from the payload
@@ -128,7 +128,7 @@ export interface LiveConn {
  * ── "LIVE" MEANS THE SAME THING HERE AS IN THE TABLE ABOVE ────────────────
  *
  * A WireGuard peer counts when `PeerState` grades it active, and an IPsec peer
- * when it is established — the same tests `overviewRows` applies, so a card
+ * when it is established - the same tests `overviewRows` applies, so a card
  * cannot appear for a technology the table calls idle. Every `/ppp/active` row
  * is by definition a live session, which is why PPP has no filter.
  */
@@ -150,9 +150,9 @@ export function liveConnections(d: VPNPayload): LiveConn[] {
   for (const s of (d.ppp || [])) {
     out.push({
       key: 'ppp|' + s.name + '|' + s.address,
-      name: s.name || '—',
+      name: s.name || '-',
       // The router's own spelling, upper-cased by ParsePppSessions: L2TP,
-      // SSTP, PPTP, OVPN, PPPOE. Not translated into product names — the
+      // SSTP, PPTP, OVPN, PPPOE. Not translated into product names - the
       // operator matches this against what RouterOS shows them.
       tech: s.service || 'PPP',
       where: s.address || '',
@@ -166,7 +166,7 @@ export function liveConnections(d: VPNPayload): LiveConn[] {
     if (p.state !== 'established') continue;
     out.push({
       key: 'ipsec|' + p.name,
-      name: p.name || '—',
+      name: p.name || '-',
       tech: 'IPsec',
       where: p.side || '',
       age: p.uptime ? 'up ' + p.uptime : '',
@@ -182,7 +182,7 @@ export function liveConnections(d: VPNPayload): LiveConn[] {
 
 /** A dash, not a zero: "the payload cannot say" is not "there are none". */
 function count(n: number | null): string {
-  return n === null ? '<span style="color:var(--text-muted)">&mdash;</span>' : String(n);
+  return n === null ? '<span style="color:var(--text-muted)">-</span>' : String(n);
 }
 
 export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -233,7 +233,7 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
       grid.innerHTML = conns.length
         ? conns.map((c) => {
           // RATES WHERE A RATE WAS MEASURED, TOTALS WHERE ONE WAS NOT, and
-          // the technology decides which — never this reading's values. See
+          // the technology decides which - never this reading's values. See
           // `rated`: choosing per reading made one card swap quantities under
           // the same label every time its peer went quiet.
           const traffic = c.rated
@@ -271,11 +271,11 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
     if (pppBody && ppp.length) {
       pppBody.innerHTML = ppp.map((s) =>
         '<tr>' +
-        '<td style="font-weight:600">' + esc(s.name || '—') + '</td>' +
-        '<td><span class="vpn-proto-pill">' + esc(s.service || '—') + '</span></td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(s.address || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)">' + esc(s.callerId || '—') + '</td>' +
-        '<td style="font-size:.72rem">' + esc(s.uptime || '—') + '</td>' +
+        '<td style="font-weight:600">' + esc(s.name || '-') + '</td>' +
+        '<td><span class="vpn-proto-pill">' + esc(s.service || '-') + '</span></td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(s.address || '-') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)">' + esc(s.callerId || '-') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(s.uptime || '-') + '</td>' +
         '<td style="text-align:right;font-family:var(--font-mono);font-size:.72rem">' +
           '<span style="color:var(--accent-rx)">' + esc(fmtBytes(s.rx || 0)) + '</span> / ' +
           '<span style="color:var(--accent-tx)">' + esc(fmtBytes(s.tx || 0)) + '</span></td>' +
@@ -291,12 +291,12 @@ export function initVpnPage(socket: Socket, isVisible: (page: string) => boolean
     if (ipBody && ipsec.length) {
       ipBody.innerHTML = ipsec.map((p) =>
         '<tr>' +
-        '<td style="font-family:var(--font-mono);font-size:.74rem;font-weight:600">' + esc(p.name || '—') + '</td>' +
-        '<td><span class="vpn-proto-pill">' + esc(p.state || '—') + '</span></td>' +
-        '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(p.side || '—') + '</td>' +
-        '<td style="font-size:.72rem">' + esc(p.uptime || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.enc || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.auth || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.74rem;font-weight:600">' + esc(p.name || '-') + '</td>' +
+        '<td><span class="vpn-proto-pill">' + esc(p.state || '-') + '</span></td>' +
+        '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(p.side || '-') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(p.uptime || '-') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.enc || '-') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.auth || '-') + '</td>' +
         '</tr>').join('');
     }
   });

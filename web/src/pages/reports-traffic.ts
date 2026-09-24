@@ -5,15 +5,15 @@
 // Traffic is about SPEED: peaks, means, the 95th percentile ISPs bill on, and
 // utilisation against the configured line capacity. Bandwidth is about VOLUME:
 // how many bytes moved. They are the same measurement at different scalings, and
-// the live app keeps them rigorously apart — no Mbps on the bandwidth tab, no
-// accumulated totals on the traffic one — because the moment one shows the
+// the live app keeps them rigorously apart - no Mbps on the bandwidth tab, no
+// accumulated totals on the traffic one - because the moment one shows the
 // other's units the two tabs stop meaning different things.
 //
 // ── EVERY FIGURE COMES FROM THE SERVER SUMMARY ──────────────────────────────
 //
 // Not from `rows`, and this is the tab's most important rule. With an
 // aggregation selected the rows are bucket AVERAGES, so a max across them is a
-// peak of averages — which buried a 938 Mbps spike as about 4 Mbps on a daily
+// peak of averages - which buried a 938 Mbps spike as about 4 Mbps on a daily
 // view. The rows are also capped by the query LIMIT, so totals reduced from them
 // silently under-count a long range. The summary is computed in SQL over the
 // whole range and is right regardless of either.
@@ -49,7 +49,7 @@ export interface BandwidthRow {
 export interface IfaceSummary {
   // TWO COUNTS, NAMED APART. Both server-side summaries carry a sample count and
   // the merged object serves BOTH tabs, so a single `samples` key meant whichever
-  // one happened to win the merge — the card under the RATE chart reported how
+  // one happened to win the merge - the card under the RATE chart reported how
   // many volume rows exist. There is deliberately no `samples` any more, so a
   // consumer has to say which it means. See ifaceSummary in internal/server.
   trafficSamples?: number;
@@ -78,13 +78,13 @@ export interface IfaceSummary {
 
 const BW_PAGE_SIZE = 100;
 
-const mbpsOrDash = (v: number | null | undefined): string => (v == null ? '—' : fmtMbps(v));
+const mbpsOrDash = (v: number | null | undefined): string => (v == null ? '-' : fmtMbps(v));
 
 /**
  * Which unit a volume peak is in.
  *
  * NOT THE AGGREGATION. The peak is `MAX(rx_mb)` over the rows the server read,
- * ungrouped, so choosing "by day" in the dropdown does not make it a day —
+ * ungrouped, so choosing "by day" in the dropdown does not make it a day -
  * measured on a real range, the card read 2,684.9 under the label "Busiest Day"
  * while the busiest day in the chart beside it was 36,544.7. The number was the
  * busiest MINUTE the whole time.
@@ -135,7 +135,7 @@ export function renderTraffic(rows: TrafficRow[], summary: IfaceSummary | null, 
   const s = summary || {};
   const sampleLabel = agg ? 'Buckets' : 'Samples';
   // OVER 100% IS A SIGNAL, NOT AN ERROR. The utilisation is deliberately
-  // unclamped — see UtilPct on the server — so a link reporting 177% is telling
+  // unclamped - see UtilPct on the server - so a link reporting 177% is telling
   // you the configured capacity is wrong. The warning triangle says so without
   // hiding the number.
   const over = (s.rxPeakPct ?? 0) > 100 || (s.txPeakPct ?? 0) > 100;
@@ -153,7 +153,7 @@ export function renderTraffic(rows: TrafficRow[], summary: IfaceSummary | null, 
         'Peak Util RX/TX' + (over ? ' ⚠' : '')) +
       // THE COUNT SWITCHES SOURCE with the aggregation: bucket count from the
       // rows, sample count from the summary. `rows.length` is the number of
-      // buckets drawn, while the summary count is every sample behind them — and
+      // buckets drawn, while the summary count is every sample behind them - and
       // with no aggregation the rows are LIMIT-capped, so only the summary is
       // right. `trafficSamples`, because this card sits under the RATE chart and
       // means rows in traffic_samples.
@@ -236,9 +236,9 @@ export function renderBandwidth(
     stats.innerHTML =
       statCard(fmtDataMB(s.rxTotalMb), 'Total Download') +
       statCard(fmtDataMB(s.txTotalMb), 'Total Upload') +
-      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb),
+      statCard(s.rxMaxMb == null ? '-' : fmtDataMB(s.rxMaxMb),
         'Busiest ' + peakNoun(s.resolution) + ' ↓') +
-      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb),
+      statCard(s.txMaxMb == null ? '-' : fmtDataMB(s.txMaxMb),
         'Busiest ' + peakNoun(s.resolution) + ' ↑') +
       // `bandwidthSamples`: this card is under the VOLUME chart.
       statCard((agg ? rows.length : (s.bandwidthSamples || 0)).toLocaleString(), countLabel);
@@ -256,7 +256,7 @@ export function renderBandwidth(
     if (truncated) {
       hint.textContent = 'Chart and table show ' + rows.length.toLocaleString() +
         ' of ' + (s.bandwidthSamples as number).toLocaleString() +
-        ' samples — choose an aggregation to cover the full range. ' +
+        ' samples - choose an aggregation to cover the full range. ' +
         'Totals above are for the full range.';
     }
   }

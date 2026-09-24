@@ -13,7 +13,7 @@ import { esc } from '../dom';
 /** A town as `/api/cities` returns it. */
 export interface City {
   name: string; region?: string; cc?: string; lat?: number; lon?: number;
-  // Only the AUTOMATIC location carries this — it is the WAN address the server
+  // Only the AUTOMATIC location carries this - it is the WAN address the server
   // geolocated, and the hint names it. A searched town has no ip.
   ip?: string;
 }
@@ -29,7 +29,7 @@ export const CITY_DEBOUNCE_MS = 250;
  *
  * TRIMMED FIRST: a box holding two spaces is not a two-character query, and
  * sending it would ask the server to match every town. Below the floor the
- * original CLOSES the list rather than leaving the previous results up — stale
+ * original CLOSES the list rather than leaving the previous results up - stale
  * results under a query that no longer produced them read as matches.
  */
 export function shouldSearchCity(raw: string): boolean {
@@ -81,7 +81,7 @@ export function cityListHtml(
  * The text the box shows for a place.
  *
  * THE REGION IS DROPPED UNLESS IT STARTS WITH A LETTER. Geo databases carry
- * numeric region codes for many countries — "Berlin, 16, DE" reads as noise, so
+ * numeric region codes for many countries - "Berlin, 16, DE" reads as noise, so
  * only a named region earns its slot. And a region is only shown alongside a
  * NAME: a region with no town is not a location anyone recognises.
  */
@@ -95,13 +95,13 @@ export function formatPlace(p: City | null | undefined): string {
 }
 
 /**
- * The picker's state — what is in the box, and whether it counts as a choice.
+ * The picker's state - what is in the box, and whether it counts as a choice.
  *
  * ── `previewOnly` IS THE WHOLE SAFETY PROPERTY ──────────────────────────────
  *
  * `get()` returns null while the box is only PREVIEWING the automatic location,
  * so opening a router, changing its label and saving does not silently convert
- * that automatic location into a manual override — which would freeze it, stop
+ * that automatic location into a manual override - which would freeze it, stop
  * it following the WAN address, and say nothing on screen.
  *
  * This is the mechanism that makes wiring the router modal safe. Without it the
@@ -126,12 +126,12 @@ export class CityPickerState {
   set(place: City | null): void { this.commit(place); }
 
   /**
-   * Show what the server worked out — editable, but not yet an override.
+   * Show what the server worked out - editable, but not yet an override.
    *
    * `!!place` and not `true`: previewing NOTHING is not a preview, so
    * `preview(null)` leaves an empty box that is a committed emptiness. A port
    * setting it unconditionally would make a cleared box report as a preview and
-   * then return null from `get()` either way — invisible until something asked
+   * then return null from `get()` either way - invisible until something asked
    * `isPreview`.
    */
   preview(place: City | null): void {
@@ -143,7 +143,7 @@ export class CityPickerState {
 
   isPreview(): boolean { return this.previewOnly; }
 
-  /** The text the box should show — see `restoreText` above. */
+  /** The text the box should show - see `restoreText` above. */
   text(): string { return formatPlace(this.chosen); }
 
   private commit(place: City | null): void {
@@ -164,7 +164,7 @@ export class CityPickerState {
  * shared one, and the SITE FORM uses it; `router-modal.ts` still has its own.
  *
  * That duplication is deliberate for exactly one reason: the modal's picker
- * wiring is NOT differentially gated — `city-picker-check.js` covers the state
+ * wiring is NOT differentially gated - `city-picker-check.js` covers the state
  * machine below, not the fetch, the debounce or the list. Migrating it would be
  * an ungated refactor of working code, which is a worse trade than two copies
  * with the divergence written down. **The migration is the follow-up**, and when
@@ -235,7 +235,7 @@ export function mountCityPicker(
   });
 
   // LEAVING THE BOX RESTORES the committed text rather than committing what was
-  // typed — typed text must never become a location. And it must not COMMIT, or
+  // typed - typed text must never become a location. And it must not COMMIT, or
   // a previewed automatic location would become an override just from a click in
   // and out. The delay lets a click on a result row land first.
   inputEl.addEventListener('blur', () => {

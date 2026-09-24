@@ -39,7 +39,7 @@ func TestPagesAreFullyMounted(t *testing.T) {
 		keys[k] = true
 	}
 	if len(keys) < 20 {
-		t.Fatalf("internal/pages lists only %d pages — the list is truncated", len(keys))
+		t.Fatalf("internal/pages lists only %d pages - the list is truncated", len(keys))
 	}
 
 	ents, err := os.ReadDir(filepath.Join(root, "web", "src", "ui"))
@@ -69,11 +69,11 @@ func TestPagesAreFullyMounted(t *testing.T) {
 	sort.Strings(orphanMarkup)
 
 	for _, k := range missingMarkup {
-		t.Errorf("internal/pages lists %q but there is no web/src/ui/page-%s.html — the page "+
+		t.Errorf("internal/pages lists %q but there is no web/src/ui/page-%s.html - the page "+
 			"composes an empty shell", k, k)
 	}
 	for _, k := range orphanMarkup {
-		t.Errorf("web/src/ui/page-%s.html exists but %q is not in internal/pages — the markup is "+
+		t.Errorf("web/src/ui/page-%s.html exists but %q is not in internal/pages - the markup is "+
 			"unreachable: no URL, no nav entry, never composed", k, k)
 	}
 	t.Logf("%d pages, each with its markup", len(keys))
@@ -119,7 +119,7 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 		}
 	}
 	if len(produced) < 100 {
-		t.Fatalf("only %d produced ids found — the scan broke", len(produced))
+		t.Fatalf("only %d produced ids found - the scan broke", len(produced))
 	}
 
 	lookedUp := map[string]bool{}
@@ -133,7 +133,7 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 		}
 	}
 	if len(lookedUp) < 50 {
-		t.Fatalf("only %d lookups found — the scan broke", len(lookedUp))
+		t.Fatalf("only %d lookups found - the scan broke", len(lookedUp))
 	}
 
 	// A CONSTRUCTED id cannot be matched literally: `el('s_' + cfg.key)` is a
@@ -152,13 +152,13 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 	for _, id := range orphans {
 		have[id] = true
 		if _, ok := lookupsWithoutProducer[id]; !ok {
-			t.Errorf("the port looks up #%s and nothing in the port produces it — the lookup "+
+			t.Errorf("the port looks up #%s and nothing in the port produces it - the lookup "+
 				"resolves to null and whatever depends on it silently does nothing", id)
 		}
 	}
 	for id := range lookupsWithoutProducer {
 		if !have[id] {
-			t.Errorf("#%s is recorded as having no producer, but something produces it now — "+
+			t.Errorf("#%s is recorded as having no producer, but something produces it now - "+
 				"delete the entry", id)
 		}
 	}
@@ -193,7 +193,7 @@ func stringSetFrom(t *testing.T, src, pattern, what string) map[string]bool {
 	t.Helper()
 	m := regexp.MustCompile(pattern).FindStringSubmatch(src)
 	if m == nil {
-		t.Fatalf("could not read %s — the declaration shape changed", what)
+		t.Fatalf("could not read %s - the declaration shape changed", what)
 	}
 	out := map[string]bool{}
 	for _, q := range regexp.MustCompile(`['"]([a-z]+)['"]`).FindAllStringSubmatch(m[1], -1) {

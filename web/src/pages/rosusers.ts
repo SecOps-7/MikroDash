@@ -1,4 +1,4 @@
-// The Router Users page — a port of the Router Users IIFE in public/app.js.
+// The Router Users page - a port of the Router Users IIFE in public/app.js.
 //
 // RouterOS accounts, not MikroDash accounts. The two are unrelated, which is why
 // this page is called Router Users and lives outside Settings.
@@ -13,7 +13,7 @@
 // manages. Those rows show a padlock and no buttons.
 //
 // That is ALL it is. Every refusal is enforced server-side by the lockout guard,
-// which re-reads from the router rather than trusting anything on this page —
+// which re-reads from the router rather than trusting anything on this page -
 // because a page can be stale, and a request can be crafted.
 //
 // ── USERS AND GROUPS ARE RESOURCES ─────────────────────────────────────────
@@ -25,24 +25,24 @@
 //
 // ── THE STATUS LINE ─────────────────────────────────────────────────────────
 //
-// `setStatus` writes `ruActionNote`, and so does `render()` — which runs again
+// `setStatus` writes `ruActionNote`, and so does `render()` - which runs again
 // on the next payload, and the server calls RefreshNow after every write. The
 // `dataset.status` mark is what stops the second from erasing the first.
 //
 // That mark arrived the long way round, and the route is the point. This closure
-// had no `setStatus` at all until v0.7.33 — a ReferenceError on every write —
+// had no `setStatus` at all until v0.7.33 - a ReferenceError on every write -
 // which this port found and deliberately reproduced. PR #112 defined it; the
 // port then measured that the message STILL never reached the operator, because
 // render() wiped it in the same tick on a failure and one round trip later on a
 // success, and reported that as ToDo item 5. `7e5ac8e` fixed it on all three
-// pages, and this follows. Reproduce, report, follow — three rounds of it.
+// pages, and this follows. Reproduce, report, follow - three rounds of it.
 
 import { esc, el, renderSortHeader, sortMul, resRow, type SortCol, type SortState, mutedDash } from '../dom';
 import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
 import type { RosUsersPayload } from '../gen/payloads';
 
-// A KEYLESS COLUMN IS NOT SORTABLE — see renderSortHeader. The action column is
+// A KEYLESS COLUMN IS NOT SORTABLE - see renderSortHeader. The action column is
 // the only one here that must never be.
 const USER_COLS: SortCol[] = [
   { key: 'name', label: 'User' }, { key: 'group', label: 'Group' },
@@ -91,7 +91,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
   /**
    * One comparator for three tables of different shapes.
    *
-   * An ARRAY sorts by its length — that is the Permissions column, where the
+   * An ARRAY sorts by its length - that is the Permissions column, where the
    * useful order is "how many" rather than any alphabetical reading of the first
    * element. A BOOLEAN sorts false before true. Everything else falls through to
    * localeCompare on the string form, so a null and an empty string land
@@ -113,7 +113,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
   // its `_renderSortHeader` hands the clicked key back; the shared helper here
   // already does the "same column toggles direction, a new one selects it"
   // step against the SortState it was given, and calls back with nothing. The
-  // behaviour is identical and the toggle has one home — which is what the
+  // behaviour is identical and the toggle has one home - which is what the
   // other eight ported pages already rely on.
 
   function q(): string {
@@ -240,8 +240,8 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       '<tr>' +
       '<td>' + esc(x.name) + '</td>' +
       '<td>' + (x.address ? esc(x.address) : mutedDash()) + '</td>' +
-      '<td>' + esc(x.via || '—') + '</td>' +
-      '<td>' + esc(x.group || '—') + '</td>' +
+      '<td>' + esc(x.via || '-') + '</td>' +
+      '<td>' + esc(x.group || '-') + '</td>' +
       '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : mutedDash()) + '</td>' +
       '<td>' + (x.protected ? lockCell('session')
         : !writable.rosUser ? ''
@@ -255,7 +255,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
    *
    * `denied` is the common one: the recommended monitoring group denies `policy`
    * and RouterOS gates /user behind it, so the page shows the exact command
-   * rather than an empty table. `!self.resolved` is the fail-closed case — every
+   * rather than an empty table. `!self.resolved` is the fail-closed case - every
    * change will be refused, and saying so once beats showing buttons that get
    * refused one at a time.
    */
@@ -279,13 +279,13 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
   function renderSummary(): void {
     const d = data;
     const set = (id: string, v: string): void => { const e = el(id); if (e) e.textContent = v; };
-    // `|| '—'` means ZERO renders as a dash, not as "0". That is the live
+    // `|| '-'` means ZERO renders as a dash, not as "0". That is the live
     // behaviour: a router with no sessions reads as "nothing to say" rather than
     // as a measured zero.
-    set('ruSumUsers', String(((d && d.users) || []).length || '—'));
-    set('ruSumGroups', String(((d && d.groups) || []).length || '—'));
-    set('ruSumSessions', String(((d && d.sessions) || []).length || '—'));
-    set('ruSumSelf', (d && d.self && d.self.names && d.self.names[0]) || '—');
+    set('ruSumUsers', String(((d && d.users) || []).length || '-'));
+    set('ruSumGroups', String(((d && d.groups) || []).length || '-'));
+    set('ruSumSessions', String(((d && d.sessions) || []).length || '-'));
+    set('ruSumSelf', (d && d.self && d.self.names && d.self.names[0]) || '-');
   }
 
   function render(): void {
@@ -303,15 +303,15 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const slot = el('ruAddSlot');
     if (slot) slot.style.display = tab === 'sessions' ? 'none' : '';
     const note = el('ruActionNote');
-    // Never clears a message it did not write — see setStatus.
+    // Never clears a message it did not write - see setStatus.
     if (note && !note.dataset.status) {
-      note.textContent = writable.rosUser ? '' : 'read-only — you do not have write access to this router';
+      note.textContent = writable.rosUser ? '' : 'read-only - you do not have write access to this router';
     }
     renderNotice();
     renderSummary();
   }
 
-  // The status line. Eight seconds, then it clears itself — the live helper,
+  // The status line. Eight seconds, then it clears itself - the live helper,
   // shared verbatim by WAN, Queues, Packages and this page. See the header for
   // why what it writes rarely survives to be read.
   let statusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -320,8 +320,8 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     if (!e) return;
     e.textContent = text || '';
     // Marked while a message is showing. render() writes this same element from
-    // caps.permitted and runs again on the next payload — the server calls
-    // RefreshNow after every write — so unmarked it erased the message in the
+    // caps.permitted and runs again on the next payload - the server calls
+    // RefreshNow after every write - so unmarked it erased the message in the
     // same tick on a failure, and one round trip later on a success. The 8 s
     // timer never got to expire and the operator saw nothing either way.
     if (text) e.dataset.status = '1'; else delete e.dataset.status;
@@ -370,7 +370,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       'session-remove': 'Ended the session for ',
     };
     // NO `render()` here, and that is the original's. It is the only reason this
-    // message survives at all — until the next payload, which the write itself
+    // message survives at all - until the next payload, which the write itself
     // asked for.
     setStatus(((d && d.action && what[d.action]) || 'Done: ') + ((d && d.name) || ''));
   });
@@ -399,7 +399,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       // were not tested, because the only ones available were the operator's own
       // and this session's. The wording says what was seen and no more.
       'write-failed': 'The router refused to end that session ("action failed"). ' +
-        'RouterOS keeps some session types — API and REST API sessions among them — ' +
+        'RouterOS keeps some session types - API and REST API sessions among them - ' +
         'and they have to be cleared from the router itself.',
     };
     const text = (code && msg[code]) || (d && d.message) || 'Action failed';
@@ -430,7 +430,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
   // Groups and Sessions tabs could not be reached at all.
   //
   // The same mistake is recorded a few hundred lines away in `firewall.ts`
-  // ("This selected `[data-fwtab]` — an attribute that appears nowhere in the
+  // ("This selected `[data-fwtab]` - an attribute that appears nowhere in the
   // markup"). It was fixed there and repeated here, which is why the fix now
   // matches the LIVE selectors rather than a plausible-looking name.
   //

@@ -19,7 +19,7 @@ const IN = path.join(ROOT, 'testdata', 'settings-form-map.json');
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'settings-form-map.ts');
 
 const d = JSON.parse(fs.readFileSync(IN, 'utf8'));
-const body = `// GENERATED from testdata/settings-form-map.json — do not edit.
+const body = `// GENERATED from testdata/settings-form-map.json - do not edit.
 //
 // Rebuild this file from the committed JSON, which is frozen (its generator
 // read the Node app and was deleted on 2026-09-01): \`node tools/settings-form-map-ts.js\`.
@@ -35,7 +35,7 @@ export interface ValueDefault {
   fallback?: number;
   /**
    * The assignment expression as the live populate() writes it, kept verbatim.
-   * The renderer does NOT read this — the settings-populate check
+   * The renderer does NOT read this - the settings-populate check
    * evaluates it, so the comparison is against the original text rather than a
    * retyped copy of it.
    */
@@ -53,7 +53,7 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = ${JSON.stringify(d.v
  *
  * populate() blanks them and uses the PLACEHOLDER to say whether one is stored.
  * \`smtpUser\` is deliberately NOT here: it is set as an ordinary value, so it
- * receives the mask and hands it back on save — which is what the server's
+ * receives the mask and hands it back on save - which is what the server's
  * isMasked guard exists to catch.
  */
 export const PLACEHOLDER_CREDENTIALS: Record<string, { whenSet: string; whenNot: string }> = ${JSON.stringify(d.placeholderCredentials, null, 2)};
@@ -62,7 +62,7 @@ export const PLACEHOLDER_CREDENTIALS: Record<string, { whenSet: string; whenNot:
 if (process.argv.includes('--check')) {
   const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
   if (cur !== body) {
-    console.error('web/src/gen/settings-form-map.ts is stale — run: node tools/settings-form-map-ts.js');
+    console.error('web/src/gen/settings-form-map.ts is stale - run: node tools/settings-form-map-ts.js');
     process.exit(1);
   }
   console.log('settings form map .ts up to date');

@@ -10,7 +10,7 @@
  *
  * `internal/verify`'s attribute ledger had both attributes recorded as
  * deliberately unread, filed as "markup for a feature this port has not taken
- * on" — which was never true. They are on a shipped dialog. The ledger was
+ * on" - which was never true. They are on a shipped dialog. The ledger was
  * excusing the bug in the words that stop anyone looking again, which is why
  * the entries are gone and this file exists.
  *
@@ -203,7 +203,7 @@ check('opening a router stored in Mbps highlights Mbps', () => {
   assert.equal(m.els.rtrModalBwDownUnit.value, 'mbps');
   assert.equal(m.els.rtrModalBwDown.value, '1500');
   assert.equal(m.down.buttons.mbps.has('active'), true,
-    'the box says 1500 Mbps and the control highlights Gbps — the screen '
+    'the box says 1500 Mbps and the control highlights Gbps - the screen '
     + 'contradicts the value it is showing');
   assert.equal(m.down.buttons.gbps.has('active'), false);
 });

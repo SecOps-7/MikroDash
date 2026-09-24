@@ -71,12 +71,12 @@ func TestEverySharedMenuIsRoutedOrExplained(t *testing.T) {
 		//
 		// B.7's merge is that point. Both collectors hold ONE shared fill, the
 		// command is built in `monitortraffic.go` so neither is the authority on
-		// the other's needs, and the menu is declared once rather than twice — so
+		// the other's needs, and the menu is declared once rather than twice - so
 		// it is not a shared menu any more in the sense this ledger means.
 		//
 		// The `=once=` measurement in `ifstatus.go` survives as the FALLBACK for
 		// an interface the channel has no rows for, which is what keeps that file
-		// in the set B ledger next door — and it is why this menu is still read by
+		// in the set B ledger next door - and it is why this menu is still read by
 		// two files and still belongs here, now as ROUTED rather than exempt.
 		//
 		// "Routed" for a streamed menu means STREAM-FILLED: one channel backs the
@@ -128,8 +128,8 @@ func TestEverySharedMenuIsRoutedOrExplained(t *testing.T) {
 		// ── A STREAMED MENU IS ROUTED BY ITS FILL, NOT BY `readVia` ─────────
 		//
 		// `readVia` is the polled path: ask the cache, and it reads if it must.
-		// A stream-filled menu is routed a different way — one channel keeps the
-		// entry current and every holder reads that entry — and requiring
+		// A stream-filled menu is routed a different way - one channel keeps the
+		// entry current and every holder reads that entry - and requiring
 		// `readVia` of it would demand the one shape it cannot have.
 		//
 		// `JoinStream` is the marker because it is the SHARED form: a menu two
@@ -192,7 +192,7 @@ func sharedMenus(t *testing.T, dir string) map[string][]string {
 	//
 	// This matched a string literal only. `monitortraffic.go` names its menu by
 	// the const both collectors share, so without resolution a menu could move
-	// behind a const and this ledger would read it as no longer shared — a gap
+	// behind a const and this ledger would read it as no longer shared - a gap
 	// closing by going invisible, which is the direction that looks like
 	// progress. The same miss hit `acquisition_test.go` on 2026-09-10 and it is
 	// fixed there too.
@@ -232,7 +232,7 @@ func sharedMenus(t *testing.T, dir string) map[string][]string {
 		out[menu] = list
 	}
 	if len(out) == 0 {
-		t.Fatal("no shared menus found at all — the declaration pattern stopped matching")
+		t.Fatal("no shared menus found at all - the declaration pattern stopped matching")
 	}
 	return out
 }
@@ -269,7 +269,7 @@ func subscribedMenus(t *testing.T, dir string) map[string]string {
 	if err != nil {
 		t.Fatalf("read %s: %v", dir, err)
 	}
-	// `xxxCmd = routeros.Cmd{Path: "/menu"` — the declaration, per file.
+	// `xxxCmd = routeros.Cmd{Path: "/menu"` - the declaration, per file.
 	decl := regexp.MustCompile(`(\w+)\s*=\s*routeros\.Cmd\{\s*Path:\s*"(/[^"]+)"`)
 	// `menu: xxxCmd.Path` inside a scheduled literal, or `cmd: xxxCmd,` inside a
 	// table collector's tableSpec (internal/collect/table.go), which subscribes to

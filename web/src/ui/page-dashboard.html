@@ -137,7 +137,7 @@
                 <line x1="47" y1="31" x2="47" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
                 <line x1="41" y1="45" x2="41" y2="49" stroke="rgba(56,189,248,.4)" stroke-width="1.4" stroke-linecap="round"/>
                 <text x="41" y="59" class="nd-label">Wired</text>
-                <text id="ndWiredCount" x="41" y="71" class="nd-count">—</text>
+                <text id="ndWiredCount" x="41" y="71" class="nd-count">-</text>
               </g>
               <g id="ndWirelessGroup">
                 <rect x="4" y="98" width="74" height="52" rx="7" class="nd-node"/>
@@ -146,7 +146,7 @@
                 <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4" stroke-linecap="round"/>
                 <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)"/>
                 <text x="41" y="127" class="nd-label">Wireless</text>
-                <text id="ndWirelessCount" x="41" y="139" class="nd-count">—</text>
+                <text id="ndWirelessCount" x="41" y="139" class="nd-count">-</text>
               </g>
               <g id="ndRouter">
                 <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg"/>
@@ -165,7 +165,7 @@
                 <ellipse cx="299" cy="68" rx="5"  ry="12" fill="none" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
                 <line x1="287" y1="68" x2="311" y2="68" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
                 <text x="299" y="93" class="nd-label">WAN</text>
-                <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">—</text>
+                <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">-</text>
               </g>
               <circle r="2.5" class="nd-dot nd-dot-l1"><animateMotion dur="2.2s" repeatCount="indefinite" path="M78,52 L148,75"/></circle>
               <circle r="2.5" class="nd-dot nd-dot-l2"><animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85"/></circle>
@@ -222,10 +222,10 @@
               <div class="ping-header">
                 <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
                 <div class="ping-stat">
-                  <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
-                  <span><span class="ping-val" id="ndPingMin">—</span> <span style="color:var(--text-muted)">min</span></span>
-                  <span><span class="ping-val" id="ndPingMax">—</span> <span style="color:var(--text-muted)">max</span></span>
-                  <span><span class="ping-val" id="ndPingLoss">—</span> <span style="color:var(--text-muted)">loss</span></span>
+                  <span><span class="ping-val" id="ndPingRtt">-</span> <span style="color:var(--text-muted)">ms</span></span>
+                  <span><span class="ping-val" id="ndPingMin">-</span> <span style="color:var(--text-muted)">min</span></span>
+                  <span><span class="ping-val" id="ndPingMax">-</span> <span style="color:var(--text-muted)">max</span></span>
+                  <span><span class="ping-val" id="ndPingLoss">-</span> <span style="color:var(--text-muted)">loss</span></span>
                 </div>
               </div>
               <div class="ping-canvas-wrap"><canvas id="pingChartNet"></canvas></div>
@@ -294,7 +294,7 @@
         </div>
       </div>
 
-      <!-- ══ Extra dashboard cards — hidden by default, add via Add Card panel ══ -->
+      <!-- ══ Extra dashboard cards - hidden by default, add via Add Card panel ══ -->
 
       <!-- dc-card-netwatch: NetWatch hosts ──────────────────────────────────── -->
       <div id="dc-card-netwatch" class="dash-card">
@@ -336,7 +336,7 @@
           <div class="card-header"><h3 class="card-title">API Diagnostics</h3></div>
           <div class="card-body" style="padding:.75rem">
             <div class="diag-total-wrap">
-              <span class="diag-total-count" id="dc-diagTotal">—</span>
+              <span class="diag-total-count" id="dc-diagTotal">-</span>
               <span class="diag-total-label">router commands / min</span>
             </div>
             <div id="dc-diagList"></div>
@@ -424,7 +424,7 @@
                   <circle class="sec-ring-bg" cx="60" cy="60" r="52"></circle>
                   <circle class="sec-ring-val" id="dc-secRing" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
                 </svg>
-                <div class="sec-score-num"><span id="dc-secVal">—</span><small>/100</small></div>
+                <div class="sec-score-num"><span id="dc-secVal">-</span><small>/100</small></div>
               </div>
             </div>
             <div class="dc-sec-side">
@@ -514,7 +514,7 @@
               <svg class="dhcp-gauge-svg" id="dc-dhcpGaugeSvg" viewBox="0 0 200 130">
                 <path id="dc-dhcpGaugeTrack" d="" fill="none" stroke="rgba(99,130,190,.12)" stroke-width="16" stroke-linecap="round"/>
                 <path id="dc-dhcpGaugeFill"  d="" fill="none" stroke="#38bdf8"             stroke-width="16" stroke-linecap="round"/>
-                <text id="dc-dhcpGaugePct"   class="dhcp-gauge-pct"   x="100" y="96">—</text>
+                <text id="dc-dhcpGaugePct"   class="dhcp-gauge-pct"   x="100" y="96">-</text>
                 <text id="dc-dhcpGaugeLbl"   class="dhcp-gauge-label" x="100" y="116">used</text>
               </svg>
             </div>
@@ -604,11 +604,11 @@
               </div>
               <div class="rt-proto-grid-wrap">
                 <div class="rt-proto-grid" id="dc-rtProtoGrid">
-                  <div class="rt-proto-item"><span class="rt-proto-label">Connected</span><span class="rt-proto-count rt-connect" id="dc-rtConnect">—</span></div>
-                  <div class="rt-proto-item"><span class="rt-proto-label">Static</span><span class="rt-proto-count rt-static" id="dc-rtStatic">—</span></div>
-                  <div class="rt-proto-item"><span class="rt-proto-label">Dynamic</span><span class="rt-proto-count rt-dynamic" id="dc-rtDynamic">—</span></div>
-                  <div class="rt-proto-item"><span class="rt-proto-label">BGP</span><span class="rt-proto-count rt-bgp" id="dc-rtBgp">—</span></div>
-                  <div class="rt-proto-item"><span class="rt-proto-label">OSPF</span><span class="rt-proto-count rt-ospf" id="dc-rtOspf">—</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">Connected</span><span class="rt-proto-count rt-connect" id="dc-rtConnect">-</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">Static</span><span class="rt-proto-count rt-static" id="dc-rtStatic">-</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">Dynamic</span><span class="rt-proto-count rt-dynamic" id="dc-rtDynamic">-</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">BGP</span><span class="rt-proto-count rt-bgp" id="dc-rtBgp">-</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">OSPF</span><span class="rt-proto-count rt-ospf" id="dc-rtOspf">-</span></div>
                 </div>
               </div>
             </div>
@@ -627,17 +627,17 @@
           <div class="card-body" style="padding:.75rem">
             <div class="rt-bgp-stats-wrap"><div class="rt-bgp-stats">
               <div class="rt-bgp-stat">
-                <span class="rt-bgp-num total" id="dc-rtBgpTotal">—</span>
+                <span class="rt-bgp-num total" id="dc-rtBgpTotal">-</span>
                 <span class="rt-bgp-lbl">Total</span>
               </div>
               <div class="rt-bgp-divider"></div>
               <div class="rt-bgp-stat">
-                <span class="rt-bgp-num established" id="dc-rtBgpEstab">—</span>
+                <span class="rt-bgp-num established" id="dc-rtBgpEstab">-</span>
                 <span class="rt-bgp-lbl">Established</span>
               </div>
               <div class="rt-bgp-divider"></div>
               <div class="rt-bgp-stat">
-                <span class="rt-bgp-num down" id="dc-rtBgpDown">—</span>
+                <span class="rt-bgp-num down" id="dc-rtBgpDown">-</span>
                 <span class="rt-bgp-lbl">Down</span>
               </div>
             </div></div>
@@ -657,23 +657,23 @@
               <!-- Download bar -->
               <div class="dc-bw-bar-col">
                 <div class="dc-bw-label dc-bw-label-rx">&#8595; Download</div>
-                <div class="dc-bw-pct" id="dc-bwPctRx">—</div>
+                <div class="dc-bw-pct" id="dc-bwPctRx">-</div>
                 <div class="dc-bw-track">
                   <div class="dc-bw-fill dc-bw-fill-rx" id="dc-bwBarRx" style="height:0%"></div>
                 </div>
                 <div class="dc-bw-rate">
-                  <span id="dc-bwLiveRxNum">—</span>&thinsp;<span id="dc-bwLiveRxUnit" class="dc-bw-rate-unit"></span>
+                  <span id="dc-bwLiveRxNum">-</span>&thinsp;<span id="dc-bwLiveRxUnit" class="dc-bw-rate-unit"></span>
                 </div>
               </div>
               <!-- Upload bar -->
               <div class="dc-bw-bar-col">
                 <div class="dc-bw-label dc-bw-label-tx">&#8593; Upload</div>
-                <div class="dc-bw-pct" id="dc-bwPctTx">—</div>
+                <div class="dc-bw-pct" id="dc-bwPctTx">-</div>
                 <div class="dc-bw-track">
                   <div class="dc-bw-fill dc-bw-fill-tx" id="dc-bwBarTx" style="height:0%"></div>
                 </div>
                 <div class="dc-bw-rate">
-                  <span id="dc-bwLiveTxNum">—</span>&thinsp;<span id="dc-bwLiveTxUnit" class="dc-bw-rate-unit"></span>
+                  <span id="dc-bwLiveTxNum">-</span>&thinsp;<span id="dc-bwLiveTxUnit" class="dc-bw-rate-unit"></span>
                 </div>
               </div>
             </div>
@@ -691,7 +691,7 @@
           <div class="card-header"><h3 class="card-title">Firewall Actions</h3></div>
           <div class="card-body" style="padding:.75rem">
             <div class="fw-action-list" id="dc-fwActionList">
-              <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">—</span></div>
+              <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">-</span></div>
             </div>
           </div>
         </div>

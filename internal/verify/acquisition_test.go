@@ -63,7 +63,7 @@ func TestSetBIsDeclared(t *testing.T) {
 	//
 	// This matched a STRING LITERAL after `Path:` and nothing else. When the
 	// monitor-traffic command moved into its own file and named its menu by the
-	// const the two collectors share, the ledger simply stopped seeing it — the
+	// const the two collectors share, the ledger simply stopped seeing it - the
 	// entry read as a gap that had CLOSED, which is the one failure direction
 	// that looks like progress. The menu had not gone anywhere.
 	//

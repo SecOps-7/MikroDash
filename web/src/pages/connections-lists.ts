@@ -1,7 +1,7 @@
 // The Connections page's lists: ports, countries, and the sparkline they carry.
 //
 // Kept apart from the map because they are STRING BUILDERS with no DOM state of
-// their own — the map is a keyed diff over live SVG nodes, and mixing the two
+// their own - the map is a keyed diff over live SVG nodes, and mixing the two
 // would make both harder to read. These take what they need as arguments and
 // return markup, which also makes them testable without a page.
 
@@ -17,7 +17,7 @@ export const SPARK_LEN = 20;
 /**
  * A country's recent connection counts, as a 50x12 polyline.
  *
- * Under two readings there is no line to draw — one point is a dot, and a dot
+ * Under two readings there is no line to draw - one point is a dot, and a dot
  * next to a number says nothing the number did not. Empty string, and the row
  * simply has no sparkline until it has a history.
  */
@@ -34,11 +34,11 @@ export function drawSparkSVG(data: number[] | undefined): string {
  * The port list, as bars relative to the BUSIEST port shown.
  *
  * Relative rather than absolute because the question is "what is this router
- * mostly doing" — and on a quiet network the busiest port might be six
+ * mostly doing" - and on a quiet network the busiest port might be six
  * connections, which an absolute scale would draw as nothing at all.
  */
 export function portListHTML(topPorts: ConnPort[]): string {
-  if (!topPorts || !topPorts.length) return '<div class="empty-state">—</div>';
+  if (!topPorts || !topPorts.length) return '<div class="empty-state">-</div>';
   const max = topPorts[0]!.count || 1;
   return topPorts.map((p) => {
     const pct = Math.round((p.count / max) * 100);
@@ -58,7 +58,7 @@ export function portListHTML(topPorts: ConnPort[]): string {
  * One country's row.
  *
  * The protocol bar is three flex weights rather than three percentages, and the
- * third is `100 - tcp - udp` rather than its own rounding — otherwise three
+ * third is `100 - tcp - udp` rather than its own rounding - otherwise three
  * rounded numbers add up to 99 or 101 and the bar is short or overflows.
  */
 export function countryRowHTML(e: ConnCountry, spark: string, selected: boolean): string {
@@ -92,7 +92,7 @@ export function countryRowHTML(e: ConnCountry, spark: string, selected: boolean)
 /**
  * ── BUILD ONCE, SYNC AFTER ──────────────────────────────────────────────────
  *
- * The country list used to be rebuilt wholesale on every tick — `innerHTML =`
+ * The country list used to be rebuilt wholesale on every tick - `innerHTML =`
  * the whole thing, then a click listener bound to each row again. That is what
  * `ToDo #18` reported: a hovered row flickers because `innerHTML` destroys and
  * recreates the subtree, and a click can land on a node that was detached
@@ -100,7 +100,7 @@ export function countryRowHTML(e: ConnCountry, spark: string, selected: boolean)
  *
  * The live app fixed it on 2026-08-25 by keeping the rows and writing only what
  * changed, and this follows it. `countryRowEl` makes the skeleton once;
- * `syncCountryRow` writes a cell only when its value differs — an identical
+ * `syncCountryRow` writes a cell only when its value differs - an identical
  * `innerHTML` assignment still replaces the subtree, which is the whole defect;
  * and `syncCountryList` reconciles, MOVING rows with `insertBefore` rather than
  * recreating them, so identity, listeners and focus survive a reorder.
@@ -110,7 +110,7 @@ export function countryRowHTML(e: ConnCountry, spark: string, selected: boolean)
  * `countryRowHTML` below omitted the spark wrapper and the org rows when they
  * had nothing in them. A synced row cannot: the cell has to exist to be written
  * to. So they are always present and HIDDEN when empty, which is also what the
- * live skeleton does, and for a reason worth keeping — the label row is a flex
+ * live skeleton does, and for a reason worth keeping - the label row is a flex
  * container with a gap, so an empty child still takes one gap of width, and
  * `.svc-sub-rows` carries a margin-top that would leave dead space.
  *
@@ -154,7 +154,7 @@ export function syncCountryRow(
   const lab = q('.conn-map-label');
   if (lab && lab.innerHTML !== labelHtml) lab.innerHTML = labelHtml;
 
-  // The spark genuinely changes every tick — the one write expected to happen
+  // The spark genuinely changes every tick - the one write expected to happen
   // each time, and a leaf, so it costs one subtree.
   const sp = q('.conn-map-spark');
   if (sp) {
@@ -217,7 +217,7 @@ export function syncCountryList(
   }
 
   // RE-SEED WHEN THE DOM NO LONGER MATCHES THE CACHE. Two paths empty this list
-  // without coming through here — the empty state above, and the router-switch
+  // without coming through here - the empty state above, and the router-switch
   // reset that assigns `innerHTML = ''`. Without this the cache would still hold
   // detached rows and the next tick would silently re-attach the previous
   // router's.
@@ -269,7 +269,7 @@ export function countryListHTML(
  *
  * A FALLBACK ONLY. The server sends a per-country port index that counts every
  * connection; this derives one from the capped destination list, so it can
- * undercount. It exists for a payload that predates that index — which is to
+ * undercount. It exists for a payload that predates that index - which is to
  * say, for a browser talking to an older server during a rolling upgrade.
  */
 export function portsFromDests(dests: Array<{ key: string; count: number }>): ConnPort[] {
@@ -294,7 +294,7 @@ export function portsFromDests(dests: Array<{ key: string; count: number }>): Co
  * The PROTOCOL SPLIT AND CITY COME FROM THE UNFILTERED CACHE, because a
  * destination row carries neither: the split is a property of the country as a
  * whole, and showing it unchanged while the counts narrow is the live
- * behaviour — a client's own protocol mix is not something the payload knows.
+ * behaviour - a client's own protocol mix is not something the payload knows.
  */
 export function countriesFromSourceDests(
   dests: ConnDestEntry[],
@@ -341,7 +341,7 @@ export function countriesFromSourceDests(
  * The client picker's options: ACTIVE SOURCES FIRST, then every other device
  * the DHCP server knows.
  *
- * A device with no current traffic is still worth being able to select — that
+ * A device with no current traffic is still worth being able to select - that
  * is how you find out it has none. Active first because a list sorted purely by
  * name buries the four devices doing something among sixty that are not.
  */

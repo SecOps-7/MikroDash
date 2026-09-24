@@ -1,4 +1,4 @@
-// The Wifi Clients page — a port of the `── Wireless` IIFE in public/app.js.
+// The Wifi Clients page - a port of the `── Wireless` IIFE in public/app.js.
 //
 // Who is CONNECTED. What this router broadcasts is the Wifi Networks page, and
 // deliberately a different collector on a different cadence.
@@ -34,7 +34,7 @@ export function signalBars(dbm: number): string {
  * through unchanged rather than being mangled into a number.
  */
 export function parseTxRate(raw: string): string {
-  if (!raw) return '—';
+  if (!raw) return '-';
   const s = String(raw).trim();
   const m = s.match(/^([\d.]+)\s*(G|Gbps|M|Mbps|K|Kbps|k)\b/i);
   if (m) {
@@ -93,7 +93,7 @@ type CmpKey = 'name' | 'signal' | 'txRate' | 'uptime' | 'band' | 'standard' | 'i
  *
  * ANYTHING THAT IS NOT DOTTED-QUAD SORTS LAST, the same rule Band and Standard
  * follow: a client ARP has no address for is unknown, not lowest. That covers
- * IPv6 too — the ARP join this column comes from is v4 — and an IPv6 client
+ * IPv6 too - the ARP join this column comes from is v4 - and an IPv6 client
  * would sit with the addressless rather than being mangled into a number.
  */
 function ipRank(ip: string): number {
@@ -103,7 +103,7 @@ function ipRank(ip: string): number {
 }
 
 /**
- * Standard sorts by GENERATION, never alphabetically — the same rule `bandRank`
+ * Standard sorts by GENERATION, never alphabetically - the same rule `bandRank`
  * states for bands, and for the same reason: "Legacy" < "Wi-Fi 4" < … <
  * "Wi-Fi 7" is right by luck today and a future "Wi-Fi 10" breaks it silently.
  * The vocabulary is closed and owned by the collector: `WifiStandard` emits
@@ -112,7 +112,7 @@ function ipRank(ip: string): number {
  * UNKNOWN RANKS LAST ASCENDING. A CAPsMAN row with no generation is unknown
  * rather than oldest, so the dash belongs at the end of the natural order.
  * Descending reverses the whole array, as every other column here does, so it
- * leads on the way back — the same trade `name` and `signal` already make.
+ * leads on the way back - the same trade `name` and `signal` already make.
  *
  * Bands rank in `dom.ts`, because the Wifi Networks table sorts by them too.
  */
@@ -140,7 +140,7 @@ const WL_CMP: Record<CmpKey, (a: WirelessClient, b: WirelessClient) => number> =
 const WL_DEFAULT_DIR: Record<CmpKey, 'asc' | 'desc'> = {
   name: 'asc', signal: 'desc', txRate: 'desc', uptime: 'desc',
   // Ascending on the first click for both: 2.4GHz before 5GHz, and the OLDEST
-  // standard first. That is the actionable direction — the reason to sort by
+  // standard first. That is the actionable direction - the reason to sort by
   // generation is to find the clients holding a network back, not to admire the
   // Wi-Fi 7 ones.
   band: 'asc', standard: 'asc',
@@ -161,7 +161,7 @@ function sortClients(clients: WirelessClient[], key: string, dir: string): Wirel
  * What this table remembers between visits: whether it groups by access point,
  * and which groups are folded away.
  *
- * `localStorage`, like `nav.ts`'s sidebar state and for the same reason — it is
+ * `localStorage`, like `nav.ts`'s sidebar state and for the same reason - it is
  * a per-browser view preference, not configuration, and nothing on the server
  * has any business holding it. `lsGet`/`lsSet` carry the guards; see dom.ts.
  */
@@ -237,7 +237,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     savePrefs({ grouped, collapsed: [...collapsed] });
   }
 
-  /** One client row. Identical grouped or flat — the grouping decides what sits
+  /** One client row. Identical grouped or flat - the grouping decides what sits
    *  ABOVE these rows, not what is in them. */
   function clientRow(c: WirelessClient): string {
     const sig = parseInt(String(c.signal), 10) || 0;
@@ -250,7 +250,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
         ipStr + macStr +
       '</td>' +
       '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem">' +
-        esc(c.iface || '—') + '</td>' +
+        esc(c.iface || '-') + '</td>' +
       '<td>' + bandBadge(c.band) + '</td>' +
       '<td>' + standardBadge(c.standard) + '</td>' +
       '<td class="text-end">' +
@@ -263,7 +263,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
         (c.rxRate ? '<div class="wl-rate-rx">↑ ' + esc(parseTxRate(c.rxRate)) + '</div>' : '') +
       '</td>' +
       '<td class="wl-col-uptime" style="color:var(--text-muted);font-size:.73rem">' +
-        esc(c.uptime || '—') + '</td>' +
+        esc(c.uptime || '-') + '</td>' +
     '</tr>';
   }
 
@@ -273,7 +273,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     // it would order rows by the thing the grouping has already collapsed.
     //
     // BAND AND STANDARD DO SORT, and the earlier note here that they were
-    // "derived labels" was not a reason — every column in this table is derived
+    // "derived labels" was not a reason - every column in this table is derived
     // from something. What they sort by is ranked rather than alphabetical; see
     // WL_BAND_RANK.
     //
@@ -314,7 +314,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
       groups[key]!.clients.push(c);
     });
 
-    // A single group is not a grouping — the header would just repeat the
+    // A single group is not a grouping - the header would just repeat the
     // interface column on every row, and there is nothing to fold it away from.
     const headers = order.length > 1;
     // Button id -> the interface it folds, and the state folding it MOVES TO.
@@ -374,13 +374,13 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     const ssids = (data && data.ssids) || [];
     if (!ssids.length) {
       // Say WHY it is empty. A CAP takes its configuration from the manager, so
-      // it has no SSID of its own to report — that is not the same as a router
+      // it has no SSID of its own to report - that is not the same as a router
       // with no wireless, and reading as "none" would send someone hunting.
       const managed = (data && data.ssidsManagedElsewhere) || 0;
       list.innerHTML = '<div class="wl-ssid-empty">' +
         (managed
           ? managed + ' radio' + (managed === 1 ? '' : 's') +
-            ' managed by CAPsMAN — SSIDs are set on the manager.'
+            ' managed by CAPsMAN - SSIDs are set on the manager.'
           : 'No SSIDs configured on this router.') +
         '</div>';
       return;
@@ -388,7 +388,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     const colours = ssidColours(ssids.map((sd) => sd.ssid));
     list.innerHTML = ssids.map((sd) => {
       const off = sd.disabled || !sd.running;
-      // A DISABLED network keeps the muted treatment rather than its colour —
+      // A DISABLED network keeps the muted treatment rather than its colour -
       // colouring it would say "this one is special" when it means "this one is
       // off".
       const style = off ? '' : ' style="color:' + colours[sd.ssid] + '"';
@@ -470,7 +470,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
   // direction; toggling is the header's job. Both write the same state, so the
   // header indicator follows the button and vice versa.
   // A SECOND PRESS ON THE SAME BUTTON REVERSES IT, which is what the column
-  // headers have always done — the bar used to reset to the column's natural
+  // headers have always done - the bar used to reset to the column's natural
   // direction on every press, so half the orders it can produce were reachable
   // from the headers and not from the buttons. Pressing a DIFFERENT button still
   // starts at that column's natural direction, because that is the order somebody

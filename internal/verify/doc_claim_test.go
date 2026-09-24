@@ -17,7 +17,7 @@ import (
 // closed blocker still listed as open, a count that drifted, a comment describing
 // a constraint that no longer applies. Three such claims were wrong on the day the
 // JavaScript version of this check was first written, and this migration found
-// four more — including a file header stating the opposite of what its own code
+// four more - including a file header stating the opposite of what its own code
 // did.
 //
 // Prose cannot be compiled. This is the closest available substitute: every
@@ -37,7 +37,7 @@ type docClaim struct {
 	// same count is written in more than one place, and only the places listed
 	// here are measured: CLAUDE.md's table row was pinned while the prose
 	// twenty lines below it was not, so the prose could keep a number the audit
-	// had already corrected in the table — with the audit green. CONTRIBUTING.md
+	// had already corrected in the table - with the audit green. CONTRIBUTING.md
 	// was never read at all and had drifted by eleven and seven.
 	doc string
 	// find must capture exactly one number from the document.
@@ -55,7 +55,7 @@ func verifyGoTests(t *testing.T, root string) int {
 //
 // FILES, NOT CASES, and both documents say "test files" to match. `node --test`
 // reports more cases than files, but no static count reproduces that number
-// reliably — `test(` appears in strings and helpers too — and a claim that
+// reliably - `test(` appears in strings and helpers too - and a claim that
 // cannot be measured exactly is a claim that drifts silently.
 func webTestFiles(t *testing.T, root string) int {
 	dir := filepath.Join(root, "web", "test")
@@ -118,7 +118,7 @@ func TestDocumentedClaimsAreTrue(t *testing.T) {
 		},
 		{
 			label: "go.mod: direct dependencies",
-			// "Seven are in: ..." — spelled, so the digit is derived below.
+			// "Seven are in: ..." - spelled, so the digit is derived below.
 			find: regexp.MustCompile(`(?i)\b(seven|eight|six|nine) are in:`),
 			measure: func(t *testing.T, root string) int {
 				mod := mustRead(t, filepath.Join(root, "go.mod"))
@@ -147,7 +147,7 @@ func TestDocumentedClaimsAreTrue(t *testing.T) {
 			if where == "" {
 				where = "CLAUDE.md"
 			}
-			t.Errorf("%s: the claim is no longer in %s in a shape this can read — either "+
+			t.Errorf("%s: the claim is no longer in %s in a shape this can read - either "+
 				"restate it or drop the claim, do not leave it unmeasured", c.label, where)
 			continue
 		}
@@ -162,7 +162,7 @@ func TestDocumentedClaimsAreTrue(t *testing.T) {
 		}
 		got := c.measure(t, root)
 		if got != want {
-			t.Errorf("%s: the document says %d, measured %d. Fix the document — a number that has "+
+			t.Errorf("%s: the document says %d, measured %d. Fix the document - a number that has "+
 				"drifted is how every expired premise in this repository started.",
 				c.label, want, got)
 		}

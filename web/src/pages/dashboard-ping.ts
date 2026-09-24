@@ -3,7 +3,7 @@
 // ── THREE THRESHOLDS, USED TWICE, IN DIFFERENT UNITS ────────────────────────
 //
 // 50ms and 150ms split good from fair from bad. `rttClass` returns a CSS class
-// for the numbers and `pingColor` returns an rgba string for the chart bars —
+// for the numbers and `pingColor` returns an rgba string for the chart bars -
 // the same two boundaries expressed twice, because one styles text and the other
 // paints a canvas. They are kept as two functions, as the original has them,
 // rather than merged behind a shared table: a table would suggest the two could
@@ -17,7 +17,7 @@
 // ── A REFUSAL IS NOT A BAD READING ──────────────────────────────────────────
 //
 // `permissionDenied` means the RouterOS API user lacks the `test` policy, so the
-// card shows `N/A` with an explanation on hover rather than a zero or a dash —
+// card shows `N/A` with an explanation on hover rather than a zero or a dash -
 // the distinction between "the link is bad" and "we were not allowed to look".
 
 import { el } from '../dom';
@@ -110,21 +110,21 @@ export function renderPingUI(
 ): void {
   const rttEl = el('ndPingRtt'), lossEl = el('ndPingLoss');
   if (rttEl) {
-    rttEl.textContent = rtt != null ? String(rtt) : '—';
+    rttEl.textContent = rtt != null ? String(rtt) : '-';
     rttEl.className = 'ping-val ' + rttClass(rtt);
   }
   if (lossEl) {
     lossEl.textContent = loss + '%';
-    // Loss has its own scale — see the header.
+    // Loss has its own scale - see the header.
     lossEl.className = 'ping-val ' + (loss === 0 ? 'ping-ok' : (loss as number) < 50 ? 'ping-warn' : 'ping-bad');
   }
   const minEl = el('ndPingMin'), maxEl = el('ndPingMax');
   if (minEl) {
-    minEl.textContent = minRtt != null ? String(minRtt) : '—';
+    minEl.textContent = minRtt != null ? String(minRtt) : '-';
     minEl.className = 'ping-val ' + rttClass(minRtt);
   }
   if (maxEl) {
-    maxEl.textContent = maxRtt != null ? String(maxRtt) : '—';
+    maxEl.textContent = maxRtt != null ? String(maxRtt) : '-';
     maxEl.className = 'ping-val ' + rttClass(maxRtt);
   }
   if (!pingChart) pingChart = makePingChart('pingChartNet');
@@ -147,13 +147,13 @@ export function onPingUpdate(data: PingPayload): void {
   // A second `ping:update` handler in the live app does only this, ~100 lines
   // before the renderer. The generated stale table has one event per card and
   // records `lan:overview` for this one, so without this the card is kept alive
-  // by a payload that arrives every few MINUTES rather than every few seconds —
+  // by a payload that arrives every few MINUTES rather than every few seconds -
   // and the ping block, which sits inside that card, would go on updating
   // underneath a stale overlay.
   notePayload('networksCard');
   if (data.permissionDenied) {
     const rttEl = el('ndPingRtt'), lossEl = el('ndPingLoss');
-    if (rttEl) { rttEl.textContent = '—'; rttEl.className = 'ping-val'; }
+    if (rttEl) { rttEl.textContent = '-'; rttEl.className = 'ping-val'; }
     if (lossEl) {
       lossEl.textContent = 'N/A';
       lossEl.className = 'ping-val ping-warn';

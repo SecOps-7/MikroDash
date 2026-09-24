@@ -49,8 +49,8 @@ export function pageForURL(pathname: string): string {
  * The page a fresh load should open.
  *
  * `known` is the set this bundle can actually render. A path can name a real
- * page that this build does not have — during a rolling deploy, or a link from a
- * newer version — and rendering nothing would be worse than landing home.
+ * page that this build does not have - during a rolling deploy, or a link from a
+ * newer version - and rendering nothing would be worse than landing home.
  */
 export function initialPage(known: ReadonlySet<string>, fallback: string): string {
   const key = pageForPath(window.location.pathname);

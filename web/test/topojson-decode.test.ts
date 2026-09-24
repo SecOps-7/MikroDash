@@ -10,15 +10,15 @@
  * The port's TopoJSON decode, against the real topojson-client.
  *
  * WHY THIS EXISTS. The live page loads `/vendor/topojson-client.min.js` for one
- * function — `topojson.feature` — and the port reimplements it in about thirty
+ * function - `topojson.feature` - and the port reimplements it in about thirty
  * lines instead, which removes a script tag from the page and a dependency from
  * the build. That is only a good trade if the reimplementation is RIGHT, and
  * "right" here means: identical country outlines for the actual atlas this app
  * ships, not for a toy input.
  *
  * The failure modes are quiet ones. A negative arc index means "this arc, run
- * backwards" — that is how TopoJSON stores a shared border once instead of
- * twice — and getting it wrong turns a border inside out. The first point of
+ * backwards" - that is how TopoJSON stores a shared border once instead of
+ * twice - and getting it wrong turns a border inside out. The first point of
  * each arc repeats the last of the previous one, and forgetting to drop it
  * leaves a zero-length segment at every join. Neither throws. Both would draw a
  * map that looks almost right.
@@ -36,8 +36,8 @@ import { execFileSync } from 'node:child_process';
 const REPO = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 const LIVE = path.resolve(process.env.MIKRODASH_SRC || path.join(REPO, '..', 'MikroDash'));
-// THE PORT'S OWN COPY. The atlas is self-hosted in `web/public/vendor` — see
-// CONTRIBUTING.md's self-hosted-assets rule — so the thing being decoded never
+// THE PORT'S OWN COPY. The atlas is self-hosted in `web/public/vendor` - see
+// CONTRIBUTING.md's self-hosted-assets rule - so the thing being decoded never
 // depended on the reference. Only the ORACLE did, and that is now recorded.
 const ATLAS = path.join(REPO, 'web', 'public', 'vendor', 'world-atlas',
   'countries-110m.json');
@@ -47,13 +47,13 @@ const OUT = path.join(ROOT, 'web', 'dist', '_compare', 'topo-decode.cjs');
 
 test('the port decodes the shipped world atlas exactly as topojson-client does', () => {
   // THE ATLAS IS THE PORT'S OWN. It is self-hosted in `web/public/vendor`, so the
-  // thing being decoded never depended on the reference — only the ORACLE did.
+  // thing being decoded never depended on the reference - only the ORACLE did.
   if (!fs.existsSync(ATLAS)) {
     assert.fail('the world atlas is missing from ' + ATLAS);
   }
 
   // Bundle the port's decode as CommonJS so this test runs the REAL module
-  // rather than a copy of it — a copy would only ever test itself.
+  // rather than a copy of it - a copy would only ever test itself.
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'), [
     path.join(ROOT, 'web', 'src', 'pages', 'connections-worldmap.ts'),
@@ -69,7 +69,7 @@ test('the port decodes the shipped world atlas exactly as topojson-client does',
   // The port deliberately reimplemented this decode to drop a script tag and a
   // dependency, and this test is the whole of what verifies that reimplementation.
   // The real client lives only in the reference, so its OUTPUT is recorded here
-  // and compared against instead — rounded to 1e-6, which is the tolerance the
+  // and compared against instead - rounded to 1e-6, which is the tolerance the
   // comparison below already uses, so nothing it looks at is lost.
   //
   // With the client present the recording is re-derived and checked, so it cannot
@@ -86,7 +86,7 @@ test('the port decodes the shipped world atlas exactly as topojson-client does',
       fs.writeFileSync(REF_FILE, JSON.stringify(rounded) + '\n');
     } else if (fs.existsSync(REF_FILE)) {
       assert.deepStrictEqual(rounded, JSON.parse(fs.readFileSync(REF_FILE, 'utf8')),
-        'the recorded topojson-client output no longer matches the real client — '
+        'the recorded topojson-client output no longer matches the real client - '
         + 'regenerate with MIKRODASH_TOPO_FREEZE=1');
     }
     ref = rounded;
@@ -96,7 +96,7 @@ test('the port decodes the shipped world atlas exactly as topojson-client does',
       + 'reference present: MIKRODASH_TOPO_FREEZE=1 node --test nodecheck/topojson-decode.test.js');
     ref = JSON.parse(fs.readFileSync(REF_FILE, 'utf8'));
     assert.ok(ref.features && ref.features.length > 100,
-      'the recorded output holds only ' + ((ref.features || []).length) + ' features — '
+      'the recorded output holds only ' + ((ref.features || []).length) + ' features - '
       + 'the recording is short, and the countries it omits would not be compared');
   }
 
@@ -109,7 +109,7 @@ test('the port decodes the shipped world atlas exactly as topojson-client does',
   // six decimals, which is a tenth of a millimetre on the ground and far below
   // anything a 1000x500 picture can show.
   //
-  // Keyed on the atlas's own numeric id, in the ORDER the geometries appear —
+  // Keyed on the atlas's own numeric id, in the ORDER the geometries appear -
   // both decodes walk the same list, so the nth of one is the nth of the other,
   // and matching by index avoids depending on the id mapping the port supplies.
   const refFeatures = ref.features.filter(hasGeometry);

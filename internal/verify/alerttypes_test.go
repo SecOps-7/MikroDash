@@ -18,7 +18,7 @@ import (
 // `alert.Types()` exists so the notification-channel modal can draw a toggle per
 // event. Nothing else consumes it, so nothing else notices when it drifts: a
 // rule that starts raising a new alert type simply has no toggle, and every
-// channel silently fails to subscribe to it. The reverse is quieter still — an
+// channel silently fails to subscribe to it. The reverse is quieter still - an
 // entry for a type no rule raises renders a toggle that can never fire.
 //
 // A round-trip test cannot see either, because the catalogue agrees with itself
@@ -29,7 +29,7 @@ import (
 //
 // `AlertType: "..."` in internal/alert/eval.go and routerstatus.go. `emit` also
 // re-emits `AlertType: f.AlertType` for the supersede path, which is a variable
-// rather than a literal and so never matches — correct, because that path raises
+// rather than a literal and so never matches - correct, because that path raises
 // no NEW type.
 //
 // The two backup events are not in the evaluator at all: they are raised by
@@ -56,7 +56,7 @@ func alertSourceTypes(t *testing.T, root string) map[string]bool {
 	// ever restructured so the literals stop matching, this must fail loudly
 	// rather than report that every catalogue entry is fine.
 	if len(out) == 0 {
-		t.Fatal("no AlertType literals found in the evaluator — this scan has broken, " +
+		t.Fatal("no AlertType literals found in the evaluator - this scan has broken, " +
 			"and an empty result agrees with every assertion below")
 	}
 	return out
@@ -86,7 +86,7 @@ func TestEveryAlertTypeRaisedHasACatalogueEntry(t *testing.T) {
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
-		t.Errorf("the evaluator raises %v, and alert.Types() has no entry for it — "+
+		t.Errorf("the evaluator raises %v, and alert.Types() has no entry for it - "+
 			"a channel cannot subscribe to an event the modal never draws", missing)
 	}
 }
@@ -111,7 +111,7 @@ func TestEveryCatalogueEntryIsRaisedBySomeRule(t *testing.T) {
 	}
 	sort.Strings(stale)
 	if len(stale) > 0 {
-		t.Errorf("alert.Types() lists %v, which no rule raises — the modal draws a toggle "+
+		t.Errorf("alert.Types() lists %v, which no rule raises - the modal draws a toggle "+
 			"that can never fire", stale)
 	}
 }
@@ -123,7 +123,7 @@ func TestEveryCatalogueEntryIsRaisedBySomeRule(t *testing.T) {
 //
 // THE BACKUP EVENTS ARE OUTSIDE THIS RULE, and the first run of this ledger is
 // how that was established: it rejected `backup_fail` against a Down string of
-// "Backup Failed". The identity being asserted here is about a RECORDED alert —
+// "Backup Failed". The identity being asserted here is about a RECORDED alert -
 // the stored type is the row's `alert_type`. A backup notification records no
 // row at all, so it has no display string to derive from; its key is `backup_`
 // plus the runner's kind, pinned by TestTheBackupEventsMatchTheBackupRunner.
@@ -133,7 +133,7 @@ func TestACatalogueKeyIsTheStoredFormOfItsDownType(t *testing.T) {
 			continue
 		}
 		if got := alert.StoredType(ty.Down); got != ty.Key {
-			t.Errorf("catalogue key %q does not match StoredType(%q) = %q — the channel "+
+			t.Errorf("catalogue key %q does not match StoredType(%q) = %q - the channel "+
 				"would subscribe to a value the recorder never writes", ty.Key, ty.Down, got)
 		}
 	}
@@ -150,7 +150,7 @@ func TestTheBackupEventsMatchTheBackupRunner(t *testing.T) {
 
 	kinds := regexp.MustCompile(`Notify\(\s*"([^"]+)"`).FindAllStringSubmatch(string(b), -1)
 	if len(kinds) == 0 {
-		t.Fatal("no cfg.Notify kinds found in the backup runner — this scan has broken")
+		t.Fatal("no cfg.Notify kinds found in the backup runner - this scan has broken")
 	}
 	raised := map[string]bool{}
 	for _, m := range kinds {
@@ -175,7 +175,7 @@ func TestTheBackupEventsMatchTheBackupRunner(t *testing.T) {
 	for kind := range raised {
 		if !listed[kind] {
 			t.Errorf("the backup runner raises kind %q and alert.Types() has no entry for "+
-				"it — no channel can subscribe to it", kind)
+				"it - no channel can subscribe to it", kind)
 		}
 	}
 }
@@ -186,6 +186,6 @@ func TestTheBackupEventsMatchTheBackupRunner(t *testing.T) {
 // an entry gated on a misspelled key would read as "switched off install-wide"
 // for ever. There are no gates now: every alert type is recorded and each
 // notification channel decides what it delivers, so there is no second list for
-// the catalogue to agree with. The two ledgers above — against the evaluator's
-// literals, and against the backup runner's kinds — are what remain, and they
+// the catalogue to agree with. The two ledgers above - against the evaluator's
+// literals, and against the backup runner's kinds - are what remain, and they
 // are the ones that were load-bearing.

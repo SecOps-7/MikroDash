@@ -21,7 +21,7 @@ import (
 // CLAUDE.md names this repository's most expensive recurring defect: "a blocker
 // that has been closed reads exactly like one that never was, and nothing fails
 // when a premise expires". Every working document in this tree has gone stale at
-// least once, and each time it was believed for a while first — a session read a
+// least once, and each time it was believed for a while first - a session read a
 // closed exemption in `sharedmenu_test.go`, believed it, and argued a
 // double-parse objection that had been measured wrong months earlier.
 //
@@ -48,7 +48,7 @@ func sectionOf(t *testing.T, src, heading string) string {
 	t.Helper()
 	i := strings.Index(src, "\n## "+heading)
 	if i < 0 {
-		t.Fatalf("%s has no %q section — the document has been restructured and this "+
+		t.Fatalf("%s has no %q section - the document has been restructured and this "+
 			"gate is reading the wrong thing", archDoc, heading)
 	}
 	rest := src[i+1:]
@@ -265,9 +265,9 @@ func derivationCount(t *testing.T) int {
 func TestTheArchitectureDocumentDescribesThreeLayers(t *testing.T) {
 	src := archSource(t)
 	for _, heading := range []string{
-		"Layer 1 — Acquisition",
-		"Layer 2 — Derivation",
-		"Layer 3 — Views",
+		"Layer 1 - Acquisition",
+		"Layer 2 - Derivation",
+		"Layer 3 - Views",
 		"How the three fit together",
 	} {
 		if !strings.Contains(src, "## "+heading) {
@@ -284,7 +284,7 @@ func TestTheArchitectureDocumentDescribesThreeLayers(t *testing.T) {
 		_ = layer
 	}
 	if n := strings.Count(src, "**Its job:"); n != 3 {
-		t.Errorf("%d layers state their job in %s, want 3 — every layer must say what "+
+		t.Errorf("%d layers state their job in %s, want 3 - every layer must say what "+
 			"it is for, because that is the question the document is answering",
 			n, archDoc)
 	}

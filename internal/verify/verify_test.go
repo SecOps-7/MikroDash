@@ -51,7 +51,7 @@ func repoRoot(t *testing.T) string {
 		t.Fatalf("resolving repo root: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
-		t.Fatalf("repo root %s has no go.mod — this package moved and the ..\\.. is now wrong", root)
+		t.Fatalf("repo root %s has no go.mod - this package moved and the ..\\.. is now wrong", root)
 	}
 	return root
 }
@@ -64,15 +64,15 @@ var pruned = map[string]bool{
 	// ── `.claude` HOLDS CHECKOUTS OF THIS VERY REPOSITORY ─────────────────
 	//
 	// It is gitignored tool state, and the agent tooling puts ISOLATED GIT
-	// WORKTREES under `.claude/worktrees/` — each one a full copy of this repo
+	// WORKTREES under `.claude/worktrees/` - each one a full copy of this repo
 	// at some other commit. Walking into them makes every scan here read a
 	// different version of its own subject: on 2026-09-20 a worktree sitting at
 	// an older commit made `TestCitedPathsExist` report fifteen missing paths,
 	// all of them files that had been renamed since, cited by that checkout's
 	// stale copies.
 	//
-	// That is "a check must not read itself" in a new costume — the trap this
-	// package's own header says it has already been caught by three times — and
+	// That is "a check must not read itself" in a new costume - the trap this
+	// package's own header says it has already been caught by three times - and
 	// it is not this repository's source, so no check should be reading it.
 	".claude": true,
 }
@@ -117,7 +117,7 @@ func tracked(t *testing.T, root string) []string {
 		t.Fatalf("walking %s: %v", root, err)
 	}
 	if len(files) == 0 {
-		t.Fatal("the walk returned nothing — the scan is broken, not the tree")
+		t.Fatal("the walk returned nothing - the scan is broken, not the tree")
 	}
 	return files
 }
@@ -143,7 +143,7 @@ func readFiles(t *testing.T, root, dir string, keep func(string) bool) map[strin
 		out[rel] = string(b)
 	}
 	if len(out) == 0 {
-		t.Fatalf("no files matched under %q — the scan stopped seeing its subject", dir)
+		t.Fatalf("no files matched under %q - the scan stopped seeing its subject", dir)
 	}
 	return out
 }

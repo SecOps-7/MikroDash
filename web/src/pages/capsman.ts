@@ -1,4 +1,4 @@
-// The CAPsMAN page — a port of TWO IIFEs in public/app.js.
+// The CAPsMAN page - a port of TWO IIFEs in public/app.js.
 //
 // The CAP table (app.js 12239-12397) and the configuration card (15953-16154)
 // sit three thousand lines apart there: the card was added later and was filed
@@ -11,7 +11,7 @@
 // renders would change what the page shows before the first update.
 //
 // Clients are attributed to their CAP SERVER-SIDE, from the `cap` field the
-// router reports on each interface — see internal/collect/capsman.go. This file
+// router reports on each interface - see internal/collect/capsman.go. This file
 // draws rows and nothing else.
 //
 // ── PAGE SCOPE IS THE AUTHORISATION BOUNDARY ────────────────────────────────
@@ -75,7 +75,7 @@ const MUTED = 'style="color:var(--text-muted)"';
  * spends a minute clicking one.
  */
 const V1_PILL = '<span class="badge bg-orange-lt" style="margin-left:.35rem;font-size:.6rem"' +
-  ' title="Legacy CAPsMAN (/caps-man) — shown here, configured on the router">v1</span>';
+  ' title="Legacy CAPsMAN (/caps-man) - shown here, configured on the router">v1</span>';
 
 /** The v1 pill, or nothing. */
 function v1(on: boolean): string { return on ? V1_PILL : ''; }
@@ -128,7 +128,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
 
   function render(): void {
     // No payload, no table. The live page leaves whatever is on screen alone
-    // rather than drawing an empty state, INCLUDING after a router switch — the
+    // rather than drawing an empty state, INCLUDING after a router switch - the
     // rows stay until the new router's first update replaces them.
     if (!data || !tbodyEl) return;
     const tbody = tbodyEl;
@@ -160,14 +160,14 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       // search term typed into it is still a CAP, and saying so is more useful
       // than reporting the filter. Without this rung a viewer who filtered on a
       // name none of their CAPs match was told the manager has nothing
-      // connected — a statement about the router rather than about what they
+      // connected - a statement about the router rather than about what they
       // just typed. This port reproduced that faithfully and reported it as
       // ToDo #20; the fix landed live on 2026-08-25 and is adopted here, in the
       // same order.
       const msg = !st.available
-        ? 'This router has neither CAPsMAN menu — no manager and no CAP mode here.'
+        ? 'This router has neither CAPsMAN menu - no manager and no CAP mode here.'
         : (st.role === 'cap'
-          ? 'This router is a CAP, not a manager — it has no CAPs of its own.'
+          ? 'This router is a CAP, not a manager - it has no CAPs of its own.'
           : (q ? 'No CAPs match that search.'
             : 'No CAPs are connected to this manager.'));
       tbody.innerHTML = '<tr><td colspan="8" class="empty-state">' + msg + '</td></tr>';
@@ -176,7 +176,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
         const isOpen = !!open[c.identity];
         // ONLY A ROW WITH CLIENTS OPENS, and only it looks like it does. What a
         // row expands to IS its client list, so a CAP with nobody on it has
-        // nothing to show — but every row carried `cursor:pointer` and invited
+        // nothing to show - but every row carried `cursor:pointer` and invited
         // the click anyway, which reads as a row that is broken rather than a
         // row that is empty. The caret was already the honest marker; the cursor
         // now agrees with it.
@@ -195,7 +195,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
           '<td>' + dash(c.connectedTime) + '</td>' +
           '<td>' + (c.radios.length
             ? c.radios.map((r) => '<span class="wl-band wl-band-5">' + esc(r.interface) + '</span>').join(' ')
-            : '<span ' + MUTED + '>&mdash;</span>') + '</td>' +
+            : '<span ' + MUTED + '>-</span>') + '</td>' +
           '<td>' + String(c.clientCount) + '</td>' +
         '</tr>';
         return head + (isOpen ? c.clients.map(clientRow).join('') : '');
@@ -232,11 +232,11 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
         '<div class="kv-item"><div class="kv-key">Managed by</div><div class="kv-val on">' +
           esc(c.currentIdentity || 'discovering…') + '</div></div>' +
         '<div class="kv-item"><div class="kv-key">Manager address</div><div class="kv-val">' +
-          esc(c.currentAddress || '—') + '</div></div>' +
+          esc(c.currentAddress || '-') + '</div></div>' +
         '<div class="kv-item"><div class="kv-key">Discovery interfaces</div><div class="kv-val">' +
-          esc((c.discoveryInterfaces || []).join(', ') || '—') + '</div></div>' +
+          esc((c.discoveryInterfaces || []).join(', ') || '-') + '</div></div>' +
         '<div class="kv-item"><div class="kv-key">Certificate</div><div class="kv-val">' +
-          esc(c.certificate || '—') + '</div></div>' +
+          esc(c.certificate || '-') + '</div></div>' +
       '</div>';
     } else {
       panel.style.display = 'none';
@@ -256,16 +256,16 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     const trees = data.legacyManager
       ? (data.manager.enabled ? ' (v1 + v2)' : ' (v1)')
       : '';
-    set('capSumMode', data.available ? ((modes[data.role] || '—') + trees) : 'Unsupported');
-    set('capSumCaps', t.caps === undefined ? '—' : String(t.caps));
-    set('capSumRadios', t.radios === undefined ? '—' : String(t.radios));
-    set('capSumClients', t.clients === undefined ? '—' : String(t.clients));
+    set('capSumMode', data.available ? ((modes[data.role] || '-') + trees) : 'Unsupported');
+    set('capSumCaps', t.caps === undefined ? '-' : String(t.caps));
+    set('capSumRadios', t.radios === undefined ? '-' : String(t.radios));
+    set('capSumClients', t.clients === undefined ? '-' : String(t.clients));
   }
 
   // ── The configuration card ────────────────────────────────────────────────
 
   function dash(v: string): string {
-    return v ? esc(v) : '<span class="muted-note">&mdash;</span>';
+    return v ? esc(v) : '<span class="muted-note">-</span>';
   }
 
   function yesNo(v: boolean): string {
@@ -282,7 +282,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
 
   function provRow(p: CapsProvisioning, at: number, last: number, canMove: boolean): string {
     // data-res-move, not a name of this card's own: the engine owns the reorder
-    // flow, including the guard prompt it can raise. Order is meaning here —
+    // flow, including the guard prompt it can raise. Order is meaning here -
     // the first rule whose bands match a joining radio wins.
     const move = canMove
       ? '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
@@ -293,7 +293,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // that has one. See mergeLegacy in internal/collect/capsman.go.
     // THE v1 MARK GOES IN THE HANDLE COLUMN, not in Bands. That column holds the
     // reorder arrows, which a v1 rule does not have, so it is empty on exactly
-    // the rows the mark belongs to — and Bands stays one kind of thing instead of
+    // the rows the mark belongs to - and Bands stays one kind of thing instead of
     // a pill and a badge jammed against each other.
     return '<tr' + resRow(p.id, p.identity, 'capsProvisioning') +
              (p.disabled ? ' style="opacity:.5"' : '') + '>' +
@@ -304,7 +304,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       '<td>' + dash(p.action) + '</td>' +
       '<td>' + dash(p.masterConfiguration) + '</td>' +
       '<td>' + ((p.slaveConfigurations || []).map(esc).join(', ') ||
-        '<span class="muted-note">&mdash;</span>') + '</td>' +
+        '<span class="muted-note">-</span>') + '</td>' +
       '<td>' + dash(p.nameFormat) + '</td>' +
     '</tr>';
   }
@@ -395,7 +395,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // rather than showing five empty tables that look like a failure.
     if (note) {
       note.textContent = (data && data.role === 'cap')
-        ? 'This router is a CAP — these are set on its manager.'
+        ? 'This router is a CAP - these are set on its manager.'
         : (data && data.legacyManager
           ? 'Rows marked v1 belong to the legacy /caps-man tree and are read-only here.'
           : '');
@@ -437,7 +437,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // The two halves differ here and the difference is kept: the table ignores a
     // falsy update, the card treats it as "no data" and redraws its waiting
     // state. One variable serves both, so a falsy update clears it and the table
-    // simply does not render — which is what the live table does with it too.
+    // simply does not render - which is what the live table does with it too.
     data = d || null;
     if (!d) { renderCard(); return; }
     renderSummary();

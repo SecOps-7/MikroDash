@@ -77,7 +77,7 @@ assert.ok(n['dc-secMeta'].classList.contains('is-bad'));
 // NO REPORT YET, and one being taken (the card's own first scan).
 handlers['secscore:state'](state({ has: false, score: 0, issues: 0, running: true, done: 0 }));
 assert.strictEqual(n['dc-secLabel'].textContent, 'Scanning…');
-assert.strictEqual(n['dc-secVal'].textContent, '—');
+assert.strictEqual(n['dc-secVal'].textContent, '-');
 
 // ANOTHER ROUTER'S FRAME is dropped; the switch resets the card.
 handlers['router:switched']({ activeId: 'r2' });

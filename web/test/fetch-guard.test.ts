@@ -14,7 +14,7 @@
  *
  * What that cost, reported by the operator on 2026-08-28: with the SPA already
  * open, the server restarted, every in-memory session died, and every request
- * afterwards answered 401. The page sat there — NO LOGIN SCREEN, nothing
+ * afterwards answered 401. The page sat there - NO LOGIN SCREEN, nothing
  * working. The document was never re-requested, so the server's own 302 on
  * `/next/` never came into it, and `main.ts` catches the `loadRouters()` failure
  * and logs "no routers are readable by this account", which reads as a
@@ -22,7 +22,7 @@
  *
  * ---- WHAT THIS PINS --------------------------------------------------------
  *
- * The behaviour, by DRIVING the wrapper — a source check would only prove the
+ * The behaviour, by DRIVING the wrapper - a source check would only prove the
  * file exists. Four cases, and the two that are easy to get wrong are the ones
  * that must NOT redirect:
  *
@@ -81,13 +81,13 @@ function run(status, mode) {
   const modern401 = await run(401, 'modern');
   if (modern401.redirects[0] !== '/login') {
     problems.push(`401 in modern mode redirected to ${JSON.stringify(modern401.redirects[0])}, `
-      + 'want /login — this is the case the operator hit');
+      + 'want /login - this is the case the operator hit');
   }
 
   const modern403 = await run(403, 'modern');
   if (modern403.refreshes !== 1) {
     problems.push(`403 in modern mode called refreshCaps ${modern403.refreshes} times across two `
-      + 'requests; want exactly 1 — one denied page fires several requests and each must not '
+      + 'requests; want exactly 1 - one denied page fires several requests and each must not '
       + 'trigger its own re-resolve');
   }
   if (modern403.redirects.length) {
@@ -121,7 +121,7 @@ function run(status, mode) {
     // THE FIRST STATEMENT, not merely an early one.
     //
     // "Before anything that fetches today" passed when the call was moved down
-    // to sit just above `initCaps` — nothing between the two happens to fetch,
+    // to sit just above `initCaps` - nothing between the two happens to fetch,
     // so the behaviour was unchanged and the mutation SURVIVED. That is a
     // weaker guarantee than the live app's, which installs the wrapper before
     // any code at all: it holds only until someone adds a fetch above it.
@@ -134,7 +134,7 @@ function run(status, mode) {
       .map((l) => l.trim())
       .find((l) => l.length > 0);
     if (!firstStatement || !firstStatement.startsWith('installFetchGuard(')) {
-      problems.push('installFetchGuard is not the FIRST statement of main() — it is '
+      problems.push('installFetchGuard is not the FIRST statement of main() - it is '
         + JSON.stringify(String(firstStatement).slice(0, 60)) + '. The live app wraps fetch before '
         + 'any code runs; anything less holds only until someone adds a fetch above it.');
     }
@@ -166,7 +166,7 @@ function run(status, mode) {
 
   const gone = await verify({ session: null }, 'modern');
   if (gone.redirects[0] !== '/login') {
-    problems.push('a refused handshake with NO session did not redirect to /login — this is the '
+    problems.push('a refused handshake with NO session did not redirect to /login - this is the '
       + 'case that leaves a tab on an empty dashboard until somebody reloads by hand');
   }
   if (gone.calls !== 1) {
@@ -176,7 +176,7 @@ function run(status, mode) {
 
   const alive = await verify({ session: { username: 'someone' } }, 'modern');
   if (alive.redirects.length) {
-    problems.push('a refused handshake redirected while the session was still ALIVE — the server '
+    problems.push('a refused handshake redirected while the session was still ALIVE - the server '
       + 'being briefly unreachable is not a session problem');
   }
 

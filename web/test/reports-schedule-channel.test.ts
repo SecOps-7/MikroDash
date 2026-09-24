@@ -180,7 +180,7 @@ check('only install-owned SMTP channels are offered', async () => {
     + 'routers they were never granted');
 });
 
-// FOUND IN A BROWSER, NOT HERE — which is why it is here now. `sel.value = ''`
+// FOUND IN A BROWSER, NOT HERE - which is why it is here now. `sel.value = ''`
 // matches no option, so a new schedule opened with an empty box and saving was
 // refused with "a schedule needs a channel to send through", on a form offering
 // exactly one answer. The shim's `value` is a plain property and accepted the
@@ -202,8 +202,8 @@ check('editing selects the channel the schedule already uses', async () => {
 });
 
 // A DELETED CHANNEL IS KEPT AS AN OPTION, labelled, rather than silently
-// replaced by whatever is first. Dropping it would make an unrelated edit —
-// changing the send hour, say — quietly re-route the report, which is the one
+// replaced by whatever is first. Dropping it would make an unrelated edit -
+// changing the send hour, say - quietly re-route the report, which is the one
 // thing this whole change exists to stop.
 check('a deleted channel is kept as a labelled option, not replaced', async () => {
   const d = mount([schedule({ channelId: 'gone' })]);
@@ -241,7 +241,7 @@ check('saving sends channelId and no recipients', async () => {
   assert.equal(posts[0].body.channelId, 'm2',
     'the body did not carry the channel: ' + JSON.stringify(posts[0].body));
   assert.ok(!('recipients' in posts[0].body),
-    'the body still carries a recipient list, which the server no longer reads — '
+    'the body still carries a recipient list, which the server no longer reads - '
     + 'so the addresses an operator typed would vanish without a word: '
     + JSON.stringify(posts[0].body));
 });

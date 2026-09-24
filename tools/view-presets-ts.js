@@ -5,7 +5,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'view-presets.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'view-presets.ts');
-const body = `// GENERATED from testdata/view-presets.json — do not edit.
+const body = `// GENERATED from testdata/view-presets.json - do not edit.
 // Rebuild with \`node tools/view-presets-ts.js\` from the committed JSON, which is frozen:
 // the generator that produced it read the Node app and was deleted on 2026-09-01.
 
@@ -13,7 +13,7 @@ const body = `// GENERATED from testdata/view-presets.json — do not edit.
 export const PAGE_NAV_MAP: Record<string, string> = ${JSON.stringify(d.navMap, null, 2)};
 
 /**
- * The two EXPLICIT presets. \`advanced\` is absent on purpose — it is derived from
+ * The two EXPLICIT presets. \`advanced\` is absent on purpose - it is derived from
  * PAGE_NAV_MAP at use, exactly as the original derives it, "so a page added to
  * the nav joins Advanced by existing". A frozen list here would drop the next
  * page added from the preset, silently.
@@ -26,7 +26,7 @@ export const VIEW_PRESET_KEY = ${JSON.stringify(d.storageKey)};
 if (process.argv.includes('--check')) {
   const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
   if (cur !== body) {
-    console.error('web/src/gen/view-presets.ts is stale — run: node tools/view-presets-ts.js');
+    console.error('web/src/gen/view-presets.ts is stale - run: node tools/view-presets-ts.js');
     process.exit(1);
   }
   console.log('view presets .ts up to date');

@@ -9,7 +9,7 @@
  *
  * which is right for a RouterBOARD, where the level is a bare number and
  * MikroTik itself writes L4 and L6. It is wrong for a Cloud Hosted Router, whose
- * levels are WORDS — so the pill read "Lfree", "Lp1" and "Lp-unlimited", none of
+ * levels are WORDS - so the pill read "Lfree", "Lp1" and "Lp-unlimited", none of
  * which is a licence level any MikroTik product has.
  *
  * ── BOTH SIDES ARE MEASURED, NOT ASSUMED ────────────────────────────────────
@@ -25,7 +25,7 @@
  * ── WHY BOTH A UNIT AND A MARKUP HALF ───────────────────────────────────────
  *
  * `licenseLabel` could be perfectly correct and simply not wired into the render
- * — "written but never called" is a failure this port has shipped before. And
+ * - "written but never called" is a failure this port has shipped before. And
  * the markup half alone would pass against a fix that dropped the prefix
  * entirely, which would break every physical router in the fleet. Each half
  * catches what the other cannot.
@@ -86,12 +86,12 @@ function row(over) {
   assert.ok(/>free</.test(grid),
     'the CHR pill does not read "free":\n' + grid);
   assert.ok(!/>Lfree</.test(grid),
-    'the CHR pill still reads "Lfree" — the hard-coded L is back');
+    'the CHR pill still reads "Lfree" - the hard-coded L is back');
   // THE OTHER DIRECTION, and it is why both devices are rendered together: a
   // fix that simply deleted the prefix would satisfy every assertion above and
   // silently relabel every physical router in the fleet.
   assert.ok(/>L6</.test(grid),
-    'the RouterBOARD pill no longer reads "L6" — the prefix was dropped ' +
+    'the RouterBOARD pill no longer reads "L6" - the prefix was dropped ' +
     'outright rather than made conditional:\n' + grid);
   say('ok  a CHR renders "free" while a RouterBOARD still renders "L6"');
 }

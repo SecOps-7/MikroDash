@@ -18,7 +18,7 @@ export function topoPersist(st: TopoState, deps: {
   // ── the rest of the fleet ────────────────────────────────────────────
   //
   // One router's graph is one router's horizon. With the switch on, every other
-  // router the operator added is read once and folded in — see pages/topo-merge.ts
+  // router the operator added is read once and folded in - see pages/topo-merge.ts
   // for the rule and for what it deliberately does not claim.
   //
   // READ ON DEMAND. The payload on the socket stays the live one; the merge is
@@ -154,7 +154,7 @@ export function topoPersist(st: TopoState, deps: {
     })
       // A REFUSAL IS NOT A SAVE. Without the `r.ok` test a 403 from a read-only
       // grant left the new pin in this browser's map and on the Pins counter,
-      // while the store held nothing — so the panel's choice silently sprang
+      // while the store held nothing - so the panel's choice silently sprang
       // back on the next tick and the button stayed toggled.
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('refused'))))
       .then((d) => {

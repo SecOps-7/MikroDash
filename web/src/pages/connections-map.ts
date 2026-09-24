@@ -2,7 +2,7 @@
 //
 // ── THE TABLES ARE LIFTED, NOT RETYPED ──────────────────────────────────────
 //
-// `PORT_NAMES`, `CC_NAMES` and `CC_CENTROIDS` are 75 lines of pure data — every
+// `PORT_NAMES`, `CC_NAMES` and `CC_CENTROIDS` are 75 lines of pure data - every
 // country's name and a hand-picked centroid for each. They were copied out of
 // public/app.js by a script rather than by hand, because a mistyped centroid
 // draws an arc to the wrong country and nothing would ever fail to tell you.
@@ -93,7 +93,7 @@
  * TopoJSON country ids to ISO-3166 alpha-2.
  *
  * The world atlas identifies countries by their NUMERIC code, and everything
- * else on this page — the geo lookup, the flags, the names — speaks alpha-2.
+ * else on this page - the geo lookup, the flags, the names - speaks alpha-2.
  * Lifted with the other tables, and gated with them: a wrong pair here colours
  * the wrong country and nothing else would notice.
  */
@@ -126,7 +126,7 @@ export function project(lon: number, lat: number): [number, number] {
  *
  * THE ANTIMERIDIAN CHECK IS THE WHOLE TRICK. A ring that crosses 180 degrees
  * jumps from one edge of the map to the other, and drawing a line between those
- * two points streaks a horizontal band across the world — Russia and Fiji both
+ * two points streaks a horizontal band across the world - Russia and Fiji both
  * do it. A jump of more than 180 degrees of longitude is a wrap rather than a
  * move, so the path lifts the pen instead.
  */

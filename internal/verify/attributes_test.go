@@ -22,7 +22,7 @@ var attrsExpectedUnread = map[string]string{
 	"alert-id": "rendered by the live bell too and read by nothing there either; kept as the " +
 		"row handle rather than invented later",
 	"router-id": attrUnshipped,
-	// `bulk` and `role-preset` were here as attrMarkup — "a feature this port
+	// `bulk` and `role-preset` were here as attrMarkup - "a feature this port
 	// has not taken on". Both are wired now (settings-principals.ts), so the
 	// entries are DELETED rather than left as notes that stopped being true.
 	// That is this list's own rule, and the reason it fails in both directions.
@@ -35,8 +35,8 @@ var attrsExpectedUnread = map[string]string{
 //
 // Both were filed as `attrMarkup`: "in extracted markup for a feature this port
 // has not taken on". That reason was FALSE when it was written. They are the
-// Gbps/Mbps toggle in the Add/Edit Router dialog — a shipped page, rendered on
-// every open — and nothing read them because the toggle had simply never been
+// Gbps/Mbps toggle in the Add/Edit Router dialog - a shipped page, rendered on
+// every open - and nothing read them because the toggle had simply never been
 // wired. Clicking it did nothing, which a user reported on issue #124.
 //
 // So the ledger was not recording a gap; it was excusing a bug, in the exact
@@ -87,10 +87,10 @@ func TestRenderedAttributesAreRead(t *testing.T) {
 	// FLOORS. Both halves are regex-found, and a pattern that stopped matching
 	// would leave this comparing two empty sets and passing.
 	if len(rendered) < 60 {
-		t.Fatalf("only %d rendered attributes found — the scan broke", len(rendered))
+		t.Fatalf("only %d rendered attributes found - the scan broke", len(rendered))
 	}
 	if len(read) < 30 {
-		t.Fatalf("only %d read attributes found — the scan broke", len(read))
+		t.Fatalf("only %d read attributes found - the scan broke", len(read))
 	}
 
 	// `dataset.fooBar` is how TypeScript reads `data-foo-bar`.
@@ -110,13 +110,13 @@ func TestRenderedAttributesAreRead(t *testing.T) {
 	for _, a := range unread {
 		have[a] = true
 		if _, ok := attrsExpectedUnread[a]; !ok {
-			t.Errorf("data-%s is rendered and nothing reads it — wire it up, or record why it "+
+			t.Errorf("data-%s is rendered and nothing reads it - wire it up, or record why it "+
 				"cannot be", a)
 		}
 	}
 	for a := range attrsExpectedUnread {
 		if !have[a] {
-			t.Errorf("data-%s is recorded as unread, but something reads it now — delete the "+
+			t.Errorf("data-%s is recorded as unread, but something reads it now - delete the "+
 				"entry rather than leaving a note that has stopped being true", a)
 		}
 	}

@@ -1,4 +1,4 @@
-// The Bandwidth page — a port of the `Bandwidth Page` IIFE in public/app.js.
+// The Bandwidth page - a port of the `Bandwidth Page` IIFE in public/app.js.
 //
 // Per-device throughput, derived from connection byte deltas. The device table,
 // its filters and its sort live here.
@@ -60,8 +60,8 @@ const SORT_COLS: Array<{ id: string; key: SortKey }> = [
  *
  * Every threshold is a boundary where the two halves can disagree with the rest
  * of the page, so the original's exact comparisons are kept: `>= 1000` Gbps,
- * `>= 1` Mbps, `>= 0.001` Kbps, and below that an em dash with an EMPTY unit —
- * a link doing 0.0009 Mbps reads "—" rather than "0.9 Kbps".
+ * `>= 1` Mbps, `>= 0.001` Kbps, and below that an em dash with an EMPTY unit -
+ * a link doing 0.0009 Mbps reads "-" rather than "0.9 Kbps".
  *
  * THE DECIMAL PLACES DIFFER PER UNIT (2, 2, 1) and that is not decoration: it
  * stops a Kbps figure claiming hundredths of a kilobit nothing measured.
@@ -72,7 +72,7 @@ const SORT_COLS: Array<{ id: string; key: SortKey }> = [
  * There is no input that separates them.
  *
  * That is recorded rather than quietly dropped, and the comment here first
- * claimed the opposite — that without `|| 0` a router reporting nothing would
+ * claimed the opposite - that without `|| 0` a router reporting nothing would
  * render "NaN" beside a unit. The mutation check disproved it three minutes
  * later. The `|| 0` stays because this is a port and the original has it; the
  * surviving mutation is the honest note that it cannot be observed.
@@ -83,7 +83,7 @@ const SORT_COLS: Array<{ id: string; key: SortKey }> = [
  * because the citation check enforces that a quoted path exists) went with the
  * parity
  * harness on 2026-09-01, and this line went on citing it for five days while
- * nothing read the corpus at all — the citation named a file that no longer
+ * nothing read the corpus at all - the citation named a file that no longer
  * existed, for a pinning that was no longer happening.
  */
 export function splitRate(mbps: unknown): { num: string; unit: string } {
@@ -96,18 +96,18 @@ export function splitRate(mbps: unknown): { num: string; unit: string } {
 
 /**
  * Everything `_syncBwChart` (app.js:6947) writes onto the compact chart, as
- * DATA — the datasets and the two axis extents — so it can be compared without
+ * DATA - the datasets and the two axis extents - so it can be compared without
  * a canvas or a Chart.js.
  *
  * The arithmetic is the dashboard chart's, deliberately: same max, same anchor
  * formula, same axis window. The ONE difference is which points it seeds from,
- * and that difference is real — see `bandwidthSeedPoints`, which keeps three
+ * and that difference is real - see `bandwidthSeedPoints`, which keeps three
  * seconds more than the dashboard's `windowedPoints` so the first frame agrees
  * with what this chart's own keepalive will retain.
  *
  * The anchor uses the SHARED clock rather than a local one. That is what stops
  * the seeding frame painting at a different X than the keepalive continues from,
- * which the original records as "no forward snap" — and it is why
+ * which the original records as "no forward snap" - and it is why
  * `dashboard-traffic.ts` exports `sharedClock()` at all.
  */
 export function bwSyncState(
@@ -125,7 +125,7 @@ export function bwSyncState(
   }
   // `|| 1` keeps an idle interface's axis at 1 Mbps rather than collapsing to
   // zero, where noise would look like saturation. Unlike the keepalive this
-  // SNAPS rather than easing — a redraw is a new view, not a continuation.
+  // SNAPS rather than easing - a redraw is a new view, not a continuation.
   const yMax = dMax || 1;
   const anchor = anchorMs(clock.lastSampleTs, clock.serverOffset, nowMs, pts);
   const win = axisWindow(anchor, clock.windowSecs, rightBufferMs);
@@ -133,13 +133,13 @@ export function bwSyncState(
 }
 
 /**
- * The compact chart's config — `_makeBwChart` (app.js:6918).
+ * The compact chart's config - `_makeBwChart` (app.js:6918).
  *
  * IT IS NOT THE DASHBOARD'S CONFIG and must not be folded into it. The
  * differences are all deliberate and all visible: no tick plugin (this chart
  * draws no timestamps of its own), no `devicePixelRatio` cap, tooltip fonts at
  * 10 rather than 11, the X axis HIDDEN rather than displayed with an `afterFit`
- * height, and a Y axis that this one actually shows — `beginAtZero`, four ticks
+ * height, and a Y axis that this one actually shows - `beginAtZero`, four ticks
  * at most, each formatted with `fmtMbps`.
  *
  * Returned as data so it can be compared without a Chart.js. Its callbacks
@@ -193,7 +193,7 @@ export function bwChartConfig(nowMs: number, windowSecs: number, rightBufferMs: 
 }
 
 /**
- * One frame of the compact chart's keepalive — `_bwTick` (app.js:6972).
+ * One frame of the compact chart's keepalive - `_bwTick` (app.js:6972).
  *
  * The keepalive owns X scrolling and the Y lerp BETWEEN samples, so the chart
  * slides at 60fps rather than stepping once a second. It mutates `rx`/`tx` in
@@ -201,7 +201,7 @@ export function bwChartConfig(nowMs: number, windowSecs: number, rightBufferMs: 
  * arrays, and returns the three axis values the caller writes.
  *
  * TWO DIFFERENCES FROM THE DASHBOARD'S TICK, both intentional in the original:
- * there is no 33ms throttle here, and no background-alive guard — this chart
+ * there is no 33ms throttle here, and no background-alive guard - this chart
  * self-stops when the page is not being viewed and re-syncs on return, which is
  * why the caller checks visibility before booking the next frame rather than
  * this function doing it.
@@ -291,23 +291,23 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
           (r.country
             ? '<br><span style="font-size:.65rem;color:var(--text-muted)">' + flag + esc(r.country) +
               // A city equal to the country, or a single character, is the geo
-              // database saying it does not know — showing it would be noise.
+              // database saying it does not know - showing it would be noise.
               (r.city && r.city.length > 1 && r.city !== r.country ? ', ' + esc(r.city) : '') +
               '</span>'
             : '')
-        : '—';
+        : '-';
       const devLabel =
         (r.name ? '<div class="bw-name">' + esc(r.name) + '</div>' : '') +
         '<div class="bw-ip">' + esc(r.srcIp) + '</div>' +
         (r.mac ? '<div class="bw-mac">' + esc(r.mac) + '</div>' : '');
-      const orgLabel = r.org ? svcBadge(r.org, r.cat) : '—';
+      const orgLabel = r.org ? svcBadge(r.org, r.cat) : '-';
       return '<tr>' +
         '<td>' + devLabel + '</td>' +
         '<td>' + dstLabel + '</td>' +
         '<td class="bw-rate bw-rate-rx">' + fmtMbps(r.rxMbps) + bar(r.rxMbps, maxBar, 'bw-bar-rx') + '</td>' +
         '<td class="bw-rate bw-rate-tx">' + fmtMbps(r.txMbps) + bar(r.txMbps, maxBar, 'bw-bar-tx') + '</td>' +
         '<td class="bw-rate bw-rate-total">' + fmtMbps(r.totalMbps) + '</td>' +
-        '<td><span class="bw-ip">' + esc(r.iface || '—') + '</span></td>' +
+        '<td><span class="bw-ip">' + esc(r.iface || '-') + '</span></td>' +
         '<td>' + protoPill(r.proto) + '</td>' +
         '<td>' + orgLabel + '</td>' +
       '</tr>';
@@ -346,7 +346,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
 
   /**
    * The interface dropdown is seeded from the INTERFACE collector, not from the
-   * devices — so an interface with no traffic right now is still offered, and
+   * devices - so an interface with no traffic right now is still offered, and
    * choosing it says "nothing here" rather than not being available to ask.
    *
    * Rebuilt only when the set actually changed: rebuilding it on every payload
@@ -403,7 +403,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
   }
 
   function tick(): void {
-    // Self-stops when the page is not being viewed, and re-syncs on return —
+    // Self-stops when the page is not being viewed, and re-syncs on return -
     // unlike the dashboard's chart, which stays alive. The visibility check is
     // HERE rather than in `bwTickState` so that function stays pure.
     if (!chart || !isVisible('bandwidth') || !sharedClock().lastSampleTs) {
@@ -452,7 +452,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
     const tx = chart.data.datasets[1]!.data;
     // A gap means a straight line through time that never happened, so rebuild
     // from the buffer instead of appending. Shared with the dashboard chart,
-    // which uses the identical rule — unlike the SEEDING, which deliberately
+    // which uses the identical rule - unlike the SEEDING, which deliberately
     // differs by three seconds.
     if (needsFullRedraw(rx, sample.ts)) { syncChart(false); startKeepalive(); return; }
     rx.push({ x: sample.ts, y: sample.rx_mbps });

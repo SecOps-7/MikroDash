@@ -17,8 +17,8 @@ import assert from 'node:assert';
 /**
  * THE DOCUMENT SHIM THE PAGE GATES SHARE.
  *
- * Deliberately NOT a DOM library. A real one silently normalises markup —
- * reordering attributes, closing tags, lower-casing — and a comparison of two
+ * Deliberately NOT a DOM library. A real one silently normalises markup -
+ * reordering attributes, closing tags, lower-casing - and a comparison of two
  * NORMALISED strings can pass while the raw markup differs. These nodes store
  * what was assigned.
  *
@@ -30,7 +30,7 @@ import assert from 'node:assert';
  *
  * 1. THE IDL TYPES ARE ENFORCED. `value` and `title` are DOMString; `checked`
  *    and `disabled` are boolean; so are `textContent` and `innerHTML` (string).
- *    A live page assigning `el('bkKeepCount').value = 10` — a NUMBER — is stored
+ *    A live page assigning `el('bkKeepCount').value = 10` - a NUMBER - is stored
  *    by a browser as "10". A shim that kept the number reported ALL 42 cases of
  *    the Backups gate as differing against a port that assigns a string. That is
  *    a false failure of the most damaging kind: it looks like a real find, and
@@ -53,7 +53,7 @@ import assert from 'node:assert';
  * 8. `createElement` / `appendChild` exist so a NODE-BUILDING renderer runs to
  *    completion instead of throwing halfway and skipping everything after it in
  *    the same handler. They do NOT model node identity, so anything built that
- *    way must not be COMPARED — only allowed to happen.
+ *    way must not be COMPARED - only allowed to happen.
  *
  * 7. `children` / `firstElementChild` / `removeChild` work over the stored
  *    markup by a tag-balance scan, so a streaming page's cap
@@ -83,7 +83,7 @@ import assert from 'node:assert';
  * one of the properties listed above.
  */
 
-// value/title are DOMString, checked/disabled are boolean — see rule 1.
+// value/title are DOMString, checked/disabled are boolean - see rule 1.
 const IDL = [
   ['value', String], ['title', String],
   ['checked', Boolean], ['disabled', Boolean], ['indeterminate', Boolean],
@@ -95,8 +95,8 @@ const IDL = [
  * @param {string[]} [opts.pickSelectors]  selectors querySelectorAll must answer,
  *                                         matched against assigned innerHTML
  * @param {string[]} [opts.allowUnknown]   lookups this test knowingly leaves
- *                                         unanswered — see UNKNOWN LOOKUPS FAIL
- * 11. A <select>'s value follows its options — see the innerHTML setter.
+ *                                         unanswered - see UNKNOWN LOOKUPS FAIL
+ * 11. A <select>'s value follows its options - see the innerHTML setter.
  */
 function makeDoc(ids, opts) {
   // ── THE CALLER'S OPTIONS ARE NOT MUTATED ────────────────────────────────
@@ -108,7 +108,7 @@ function makeDoc(ids, opts) {
   // sides differed on a case where neither had touched a tab.
   //
   // Found on 2026-08-25 in `bridges-page-check`, which builds its live and port
-  // documents from one shared constant — the natural way to write it, and the
+  // documents from one shared constant - the natural way to write it, and the
   // way that guarantees both sides get the same shim.
   const o = Object.assign({}, opts || {},
     { elementQuery: Object.assign({}, (opts || {}).elementQuery) });
@@ -151,7 +151,7 @@ function makeDoc(ids, opts) {
         }
         // Rule 11: A <select>'s VALUE FOLLOWS ITS OPTIONS. Replacing the
         // options of a real select resets `value` to the first option, or to ''
-        // when there are none — the old value does not survive unless the code
+        // when there are none - the old value does not survive unless the code
         // puts it back, which is exactly what "keep the current choice if it
         // still exists" means.
         //
@@ -183,13 +183,13 @@ function makeDoc(ids, opts) {
     // Most controls are wired to the element, not to `document`: a search box's
     // `input`, a select's `change`, a button's `click`. A no-op here leaves a
     // gate unable to drive any of them, so filter and sort state can only be
-    // reached by reaching into a closure — which compares a harness against an
+    // reached by reaching into a closure - which compares a harness against an
     // implementation rather than two implementations against each other.
     n._listeners = {};
     n.addEventListener = (ev, fn) => { (n._listeners[ev] = n._listeners[ev] || []).push(fn); };
     // `this` IS THE ELEMENT, as a real addEventListener binds it. Handlers
-    // written `function () { this.value }` are ordinary — the Interfaces type
-    // filter is one — and calling them unbound throws on `this.classList` in
+    // written `function () { this.value }` are ordinary - the Interfaces type
+    // filter is one - and calling them unbound throws on `this.classList` in
     // strict mode, which reads as a port defect rather than a harness gap.
     // ── AND THE EVENT CARRIES WHAT A REAL ONE CARRIES ───────────────────
     //
@@ -197,7 +197,7 @@ function makeDoc(ids, opts) {
     // handler that calls one is ordinary code, not defensive code. Without
     // them the shim throws "not a function" and the failure reads as a page
     // defect. Found by the WireGuard peers panel, which stops a Config click
-    // from also reaching the row's edit handler — a collision a real browser
+    // from also reaching the row's edit handler - a collision a real browser
     // has and this shim, having no document-level row handler, does not.
     //
     // They are no-ops: nothing here models bubbling, so there is nothing to
@@ -209,7 +209,7 @@ function makeDoc(ids, opts) {
           { target: n, preventDefault() {}, stopPropagation() {} }, extra));
       }
     };
-    // Streaming pages APPEND rather than replace — a log line arrives and is
+    // Streaming pages APPEND rather than replace - a log line arrives and is
     // added, which is the whole point of not rewriting 2,000 lines per message.
     // Implemented in terms of innerHTML so the id registration and cell-cache
     // invalidation above apply to inserted markup as well.
@@ -274,13 +274,13 @@ function makeDoc(ids, opts) {
     //
     // NOT node identity, and that distinction is the whole point. A renderer that
     // calls `createElement`/`appendChild` needs these to exist or it throws
-    // halfway and everything AFTER it in the same handler never runs — which is
+    // halfway and everything AFTER it in the same handler never runs - which is
     // how the Interfaces type panel went uncompared. Appending records the
     // child's markup so the parent is not empty.
     //
     // What this does NOT give you is stable identity: a second render creates
     // fresh nodes, so a diffing renderer's "reuse the existing row" path cannot
-    // be exercised. Any element built this way must NOT be compared by a gate —
+    // be exercised. Any element built this way must NOT be compared by a gate -
     // it would be comparing the shim's approximation, not the page.
     n.appendChild = (child) => {
       n.innerHTML = store.innerHTML + (child && child.outerHTML !== undefined
@@ -300,8 +300,8 @@ function makeDoc(ids, opts) {
 
     // ── PARENTS, WHEN THE EXTRACTED MARKUP DESCRIBES ONE ────────────────────
     //
-    // A page that toggles a class on `table.parentElement` — the Firewall page
-    // does, for `fw-noedit` — is unreachable through a shim whose nodes have no
+    // A page that toggles a class on `table.parentElement` - the Firewall page
+    // does, for `fw-noedit` - is unreachable through a shim whose nodes have no
     // parent, and the toggle then happens on NEITHER side and compares equal.
     // `firewall-table-check` recorded exactly that as a surviving mutation, with
     // the note that faking a parent would be inventing structure.
@@ -310,7 +310,7 @@ function makeDoc(ids, opts) {
     // holds the page markup this port serves, and `#firewallTable`'s parent is
     // a `<table>` there. `opts.parents` maps a child id to a NAME for its
     // parent, and the gate reads the result back through `doc.parents[name]`.
-    // The name is the gate's own label — the parent has no id, which is why the
+    // The name is the gate's own label - the parent has no id, which is why the
     // page cannot reach it by one either.
     if ((o.parents || {})[id]) n.parentElement = parentFor(o.parents[id]);
     n.classList = {
@@ -321,7 +321,7 @@ function makeDoc(ids, opts) {
     };
 
     // Elements carrying a data attribute, parsed out of the markup this node was
-    // given. Only the selectors a gate declares are answered — an unrecognised
+    // given. Only the selectors a gate declares are answered - an unrecognised
     // one returns [] rather than pretending, so a gate cannot quietly rely on
     // matching this shim does not do.
     n.querySelectorAll = (sel) => {
@@ -329,7 +329,7 @@ function makeDoc(ids, opts) {
       //
       // A well-written page scopes its lookups: `bar.querySelectorAll('.stab')`
       // rather than `document.querySelectorAll`. The live Routing page says so
-      // explicitly — the switcher it was modelled on queries document-wide,
+      // explicitly - the switcher it was modelled on queries document-wide,
       // which is safe only while exactly one such strip exists. A shim that
       // answers only at document level leaves those pages unswitchable, and
       // everything behind their tabs uncompared.
@@ -340,7 +340,7 @@ function makeDoc(ids, opts) {
       if (scoped && scoped[sel]) return scoped[sel];
       // A BARE TAG SELECTOR, e.g. 'th'. `_renderSortHeader` writes the header
       // cells as a string and then walks them to attach click handlers, so
-      // without this the sort header is written and never wired — and the sort
+      // without this the sort header is written and never wired - and the sort
       // DIRECTION becomes uncomparable on every table that has one. The nodes
       // returned RECORD their listeners so a gate can click one.
       if (/^[a-z]+$/.test(sel)) {
@@ -392,7 +392,7 @@ function makeDoc(ids, opts) {
   // ── DOCUMENT-LEVEL QUERY NODES, DECLARED BY THE GATE ──────────────────────
   //
   // A page that finds its controls with `document.querySelectorAll('[data-x]')`
-  // — tab bars usually do — gets an empty list from a shim that answers []. The
+  // - tab bars usually do - gets an empty list from a shim that answers []. The
   // page then wires nothing, and a gate cannot reach any state behind those
   // controls: the Router Users tabs were unswitchable, so two mutations in the
   // hidden-tab render survived undetected.
@@ -417,7 +417,7 @@ function makeDoc(ids, opts) {
         // a browser and were not here: `dataset` started empty, so a handler
         // written the second way saw `undefined` and looked up `#rtab-undefined`.
         // The Reports tab strip is written that way on BOTH sides, so the panel
-        // switch could not be driven at all — and it failed as "no panel is
+        // switch could not be driven at all - and it failed as "no panel is
         // shown", which reads like a port bug rather than a shim gap.
         if (attr && attr.startsWith('data-') && spec.value !== undefined) {
           const camel = attr.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -429,7 +429,7 @@ function makeDoc(ids, opts) {
         // pattern ends each arrow move with `next.focus()`; without this the
         // handler throws halfway through and the tab never changes, so the gate
         // would report a difference caused by the shim. Focus itself is not
-        // compared — nothing here can observe it — and that is already in the
+        // compared - nothing here can observe it - and that is already in the
         // header's list of what this shim does not model.
         node.focus = () => {};
         return node;
@@ -452,7 +452,7 @@ function makeDoc(ids, opts) {
     // read as `.stab` by the click path and as `[data-rttab]` by the arrow-key
     // path. Declaring both with equal-looking arrays builds TWO SETS of node
     // objects, so one path marks a button active and the other reports it is
-    // not — a gate would then compare state the page never had. Writing the
+    // not - a gate would then compare state the page never had. Writing the
     // other selector's NAME as the value aliases it instead.
     for (const [sel, v] of Object.entries(aliases)) {
       assert.ok(table[v], 'elementQuery alias ' + sel + ' -> ' + v + ': no such selector');
@@ -464,12 +464,12 @@ function makeDoc(ids, opts) {
   const queryNodes = {};
   for (const [sel, values] of Object.entries(o.query || {})) {
     // The attribute is taken from the selector when it names one
-    // (`[data-x]`), or declared explicitly for a CLASS selector — live pages
+    // (`[data-x]`), or declared explicitly for a CLASS selector - live pages
     // often select `#bar .tab` and then read `data-something` off the match.
     const attr = (o.queryAttr && o.queryAttr[sel])
       || (sel.match(/\[([a-z-]+)\]/) || [])[1];
     // A value is either the ATTRIBUTE VALUE the node should carry, or an object
-    // naming an `id` — panes are matched by id, buttons by attribute, and a
+    // naming an `id` - panes are matched by id, buttons by attribute, and a
     // shim that only did one of those left the pane switch uncompared.
     queryNodes[sel] = (values || []).map((v) => {
       const spec = typeof v === 'object' && v !== null ? v : { value: v };
@@ -507,12 +507,12 @@ function makeDoc(ids, opts) {
     querySelector: (sel) => { unknown.add(sel); return null; },
     createElement: () => mk(''),
     // SVG elements are created through a namespaced call. Same node either way
-    // here — the shim does not model namespaces, and a gate that COMPARED SVG
+    // here - the shim does not model namespaces, and a gate that COMPARED SVG
     // built this way would be comparing the shim's approximation (see rule 8).
     createElementNS: () => mk(''),
     dispatch(ev, target) { for (const fn of listeners[ev] || []) fn({ target }); },
-    // A page that ANNOUNCES something — `document.dispatchEvent(new
-    // CustomEvent('mikrodash:...'))` — must be able to, or it throws partway
+    // A page that ANNOUNCES something - `document.dispatchEvent(new
+    // CustomEvent('mikrodash:...'))` - must be able to, or it throws partway
     // through a render and everything after it is lost. The event is delivered
     // to recorded listeners, so a gate driving two pages at once sees the
     // handoff rather than a crash.

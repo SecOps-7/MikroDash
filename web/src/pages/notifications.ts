@@ -2,13 +2,13 @@
  * The notification bell.
  *
  * Five ids and one list, but the rules underneath are what make it usable rather
- * than noisy — and each of them reads as an implementation detail until it is
+ * than noisy - and each of them reads as an implementation detail until it is
  * missing.
  */
 
 import { el, esc } from '../dom';
 import type { Socket } from '../socket';
-// An alert row is the Go struct internal/alert.Row, generated — the bell and
+// An alert row is the Go struct internal/alert.Row, generated - the bell and
 // the server cannot disagree about its fields.
 import type { AlertRow } from '../gen/payloads';
 
@@ -28,7 +28,7 @@ export const isOpen = (a: AlertRow): boolean => !a.resolvedAt;
 /**
  * THE DOT MEANS UNACKNOWLEDGED OPEN ALERTS, and both halves matter.
  *
- * Not "any alert" — a resolved one is history, and a dot for it would never go
+ * Not "any alert" - a resolved one is history, and a dot for it would never go
  * out. Not "any open alert" either: acknowledging is how an operator says they
  * have seen something, and a dot that stayed lit through that would train them
  * to ignore it.
@@ -39,7 +39,7 @@ export const needingAttention = (alerts: AlertRow[]): AlertRow[] =>
 /**
  * Replace the whole list, newest FIRED first, capped.
  *
- * The cap is applied AFTER the merge because the two feeds arrive separately —
+ * The cap is applied AFTER the merge because the two feeds arrive separately -
  * trimming either alone could drop a newer alert while keeping an older one.
  */
 export function setAlerts(open: AlertRow[], recent: AlertRow[]): AlertRow[] {
@@ -94,12 +94,12 @@ export function panelHTML(alerts: AlertRow[], now: number): string {
   const row = (a: AlertRow): string => {
     const cls = `notif-item${isOpen(a) ? ' is-open' : ' is-resolved'}`;
     // COERCED, not trusted. Every other interpolation here goes through esc(),
-    // and the id lands in two ATTRIBUTES where escaping is not what saves you —
+    // and the id lands in two ATTRIBUTES where escaping is not what saves you -
     // a quote would end the attribute. It is declared `number` and arrives from
     // JSON, which does not enforce that, so `Number(...)` makes the declaration
     // true. `|| 0` covers a NaN, which would otherwise print as the word.
     //
-    // The server sends database integers, so this is belt and braces — but it
+    // The server sends database integers, so this is belt and braces - but it
     // costs one call and removes the need to be sure of that.
     const id = Number(a.id) || 0;
     // An OPEN alert is timed from when it FIRED; a resolved one from when it
@@ -108,7 +108,7 @@ export function panelHTML(alerts: AlertRow[], now: number): string {
     const when = isOpen(a) ? a.firedAt : (a.resolvedAt || a.firedAt);
     return `<div class="${cls}" data-alert-id="${id}">` +
       `<div class="notif-item-title">${esc(a.label || a.alertType)}` +
-      `${a.subject ? ` — ${esc(a.subject)}` : ''}</div>` +
+      `${a.subject ? ` - ${esc(a.subject)}` : ''}</div>` +
       `<div class="notif-item-body">${esc(a.detail || '')}</div>` +
       `<div class="notif-item-time">` +
       `${a.routerName ? `<span class="notif-item-router">${esc(a.routerName)}</span> · ` : ''}` +
@@ -132,7 +132,7 @@ export const dotDisplay = (alerts: AlertRow[]): string =>
 /**
  * @param activeRouterId reads the router the shell is showing. The live app
  *   reaches for `window._activeRouterId`; this port passes an accessor instead,
- *   which is the same value without a global — and the same shape `main.ts`
+ *   which is the same value without a global - and the same shape `main.ts`
  *   already hands the router dropdown.
  */
 export function initNotifications(socket: Socket, activeRouterId: () => string): void {
@@ -185,7 +185,7 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
   // ── THE TWO WRITE ACTIONS ARE HTTP, AND THAT WAS A CORRECTION ─────────────
   //
   // An earlier version of this file emitted `alert:ack` and `alerts:clear-all`
-  // over the socket. That was a protocol I INVENTED: the live app does neither —
+  // over the socket. That was a protocol I INVENTED: the live app does neither -
   // it POSTs, and there is no such inbound socket action anywhere in
   // `src/index.js`. `inbound-audit` caught it in one line: "this port EMITS it
   // and ws.go does not answer it. A control wired to an event nobody handles
@@ -194,8 +194,8 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
 
   const clearBtn = el('notifClearBtn');
   if (clearBtn) {
-    // SAY SO WHEN IT DOES NOT WORK. Swallowing the error made a 403 — a user
-    // restricted to another router — look exactly like success: the panel just
+    // SAY SO WHEN IT DOES NOT WORK. Swallowing the error made a 403 - a user
+    // restricted to another router - look exactly like success: the panel just
     // sat there, which is indistinguishable from the button being broken.
     const clearFail = (msg: string): void => {
       const was = clearBtn.textContent;
@@ -218,8 +218,8 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
         .then((res) => {
           if (!res.ok) { clearFail('Failed'); return; }
           // DO NOT WAIT FOR `alerts:cleared-all` TO EMPTY THE PANEL. The server
-          // emits only when it actually cleared something, so a second click —
-          // or a click when nothing is open — would otherwise leave the list
+          // emits only when it actually cleared something, so a second click -
+          // or a click when nothing is open - would otherwise leave the list
           // exactly as it was and read as a broken button.
           const ids = alerts.map((a) => a.id);
           const now = Date.now();
@@ -233,7 +233,7 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
   }
 
   // Per-row acknowledge. DELEGATED, because rows are re-rendered on every event
-  // — a listener bound per button would be lost on the next render.
+  // - a listener bound per button would be lost on the next render.
   const listEl = el('notifList');
   if (listEl) {
     listEl.addEventListener('click', (e: Event) => {
@@ -245,7 +245,7 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
       e.stopPropagation();
       const id = parseInt(btn.getAttribute('data-ack') || '', 10);
       if (!id) return;
-      // NO FAILURE UI, and no optimistic update — a quirk of the live app,
+      // NO FAILURE UI, and no optimistic update - a quirk of the live app,
       // reproduced rather than improved. The row disappears when `alert:acked`
       // comes back, so a refusal simply leaves it there. Unlike Clear all, this
       // is one row among several and a silent no-op is visible: the button the

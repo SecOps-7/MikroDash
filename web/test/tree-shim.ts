@@ -226,12 +226,12 @@ function makeTree() {
       // the live country row and the port's build their SKELETON with one
       // innerHTML assignment and then write into it with `querySelector`. A shim
       // that only stored the string answered every one of those with null, and
-      // the sync threw on the first cell — which reads like the page being
+      // the sync threw on the first cell - which reads like the page being
       // broken and is the shim being thin.
       //
       // It parses the shape these skeletons are: nested tags, double-quoted
-      // attributes, text. Not a browser — `<` inside an attribute value or a
-      // comment would defeat it — and a gate that needs more than that should
+      // attributes, text. Not a browser - `<` inside an attribute value or a
+      // comment would defeat it - and a gate that needs more than that should
       // say so rather than have this quietly guess.
       get innerHTML() { return n._html; },
       set innerHTML(v) {

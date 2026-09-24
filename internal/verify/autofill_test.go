@@ -12,7 +12,7 @@ import (
 //
 // ── A BROWSER FILLED IN A ROUTER PASSWORD AND THE SAVE KEPT IT ──────────────
 //
-// `#rtrModalPass` shipped with no `autocomplete` attribute — the only password
+// `#rtrModalPass` shipped with no `autocomplete` attribute - the only password
 // input in the whole UI without one. That field's entire meaning is "leave blank
 // to keep current": `router-modal.ts` clears it when the Edit dialog opens, and
 // `store` keeps the stored credential only when what arrives is empty or the
@@ -68,7 +68,7 @@ func TestEveryPasswordFieldDeclaresAutocomplete(t *testing.T) {
 		}
 	}
 	if checked == 0 {
-		t.Fatal("no password inputs were found at all — the markup moved and this " +
+		t.Fatal("no password inputs were found at all - the markup moved and this " +
 			"check is scanning nothing, which would pass for ever")
 	}
 	sort.Strings(missing)

@@ -1,4 +1,4 @@
-// GENERATED from testdata/view-presets.json — do not edit.
+// GENERATED from testdata/view-presets.json - do not edit.
 // Rebuild with `node tools/view-presets-ts.js` from the committed JSON, which is frozen:
 // the generator that produced it read the Node app and was deleted on 2026-09-01.
 
@@ -32,7 +32,7 @@ export const PAGE_NAV_MAP: Record<string, string> = {
 };
 
 /**
- * The two EXPLICIT presets. `advanced` is absent on purpose — it is derived from
+ * The two EXPLICIT presets. `advanced` is absent on purpose - it is derived from
  * PAGE_NAV_MAP at use, exactly as the original derives it, "so a page added to
  * the nav joins Advanced by existing". A frozen list here would drop the next
  * page added from the preset, silently.

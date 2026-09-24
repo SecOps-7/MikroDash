@@ -4,7 +4,7 @@
 //
 // Each card was ported with a gate that drives its renderer directly and
 // compares the DOM against the live one. Every one of those passed while
-// NOTHING CALLED THE RENDERER — a function that is never invoked still renders
+// NOTHING CALLED THE RENDERER - a function that is never invoked still renders
 // correctly when a test invokes it, so a DOM gate cannot tell a wired page from
 // an unwired one. That is the same shape as the four defects found earlier in
 // this port (reorder arrows, schedule buttons, firewall sub-tabs, `rptSchedNew`)
@@ -14,7 +14,7 @@
 // ── THE SYSTEM CARD NEEDS THREE SIGNALS, NOT ONE ────────────────────────────
 //
 // Its payload handler is only the first. `_sysMetaWritten` is re-armed on
-// CONNECT and on ROUTER SWITCH in the live app — both, because another router is
+// CONNECT and on ROUTER SWITCH in the live app - both, because another router is
 // another board, and a meta line written once would otherwise keep the old
 // board's name under the new router's data. And a tab that was hidden holds its
 // last payload pending, so coming back into view has to flush it.
@@ -48,7 +48,7 @@ import { renderStreamHealth, renderWanStatus } from './dashboard-stream-health';
 import { initTraffic, resumeTrafficChart, resetTraffic, resetTrafficOnReconnect } from './dashboard-traffic';
 
 // The Connections Map, built once. `worldmap:ready` tells it when the world map
-// module has published its path data — until then a payload is held.
+// module has published its path data - until then a payload is held.
 const connMap = createConnMap();
 
 export function initDashboard(socket: Socket): void {
@@ -92,7 +92,7 @@ export function initDashboard(socket: Socket): void {
   socket.on('wireless:update', (d) => renderWirelessCards(d));
   // Two more EXTRA cards on one event: Routes and BGP Peers.
   socket.on('routing:update', (d) => renderRoutingCards(d));
-  // The Bandwidth card. A SECOND subscriber to traffic:update — the chart takes
+  // The Bandwidth card. A SECOND subscriber to traffic:update - the chart takes
   // only its selected interface, this card takes every sample, because the
   // collector already emits per-socket for the default one.
   socket.on('traffic:update', (d) => renderBandwidthCard(d));
@@ -113,21 +113,21 @@ export function initDashboard(socket: Socket): void {
   //
   // `dashboard-grid-store.ts` and the editor DISPATCH `dashcard:room:focus` and
   // `dashcard:room:blur` on the document; this is what turns them into a
-  // subscription. Without it every room join the grid computes reaches nobody —
+  // subscription. Without it every room join the grid computes reaches nobody -
   // which is exactly what it did until Part 65.
   //
   // A relay rather than a direct call because the grid must not know about the
   // socket: it is driven by pointer events and observers, and the live app keeps
   // the same separation.
   document.addEventListener('worldmap:ready', () => connMap.init());
-  // Already published? Then initialise now — the event has been and gone.
+  // Already published? Then initialise now - the event has been and gone.
   if ((window as unknown as { _worldMapPathDs?: unknown })._worldMapPathDs) connMap.init();
 
   // ── EACH CARD ROOM IS SENT ONCE PER CONNECTION ─────────────────────────────
   //
   // The grid re-syncs its rooms on first paint, on every connect and whenever
   // the dashboard becomes active, and the server replays a card's latest payload
-  // on every `dashcard:focus` — so a page load subscribed each card three times
+  // on every `dashcard:focus` - so a page load subscribed each card three times
   // and received three replays. The server remembers the subscriptions for the
   // connection (`conn.cards`) and re-joins them on a router select, so one send
   // per connection is all it needs. A disconnect ends that connection's
@@ -160,7 +160,7 @@ export function initDashboard(socket: Socket): void {
   // The live `connect` handler clears `currentIf` and `allPoints`
   // (`../MikroDash/public/app.js:2957`) for the same reason it resets the meta
   // line one statement earlier. This port cleared them only on a ROUTER SWITCH,
-  // so a socket gap left the chart holding samples from before it — the new
+  // so a socket gap left the chart holding samples from before it - the new
   // history arrives and is appended to the old, and the window is drawn across
   // a period during which nothing was being received. A chart that bridges its
   // own outage is the traffic equivalent of a dead router looking alive.
@@ -172,7 +172,7 @@ export function initDashboard(socket: Socket): void {
   //
   // Guarded on the ROUTER being up, exactly as the live handler is. Flushing
   // while it is down would repaint the card with the last numbers from before
-  // the outage, which makes a dead router look alive — the one thing the ROS
+  // the outage, which makes a dead router look alive - the one thing the ROS
   // banner exists to prevent.
   //
   // The live handler also unpauses the topology SVG, which belongs to a card

@@ -117,9 +117,9 @@ assert.ok(/T fw.syncookies/.test(String(n.secFindingsRows.innerHTML)), 'the All 
 sent.length = 0;
 handlers['router:switched']({ activeId: 'r2' });
 assert.deepStrictEqual(sent, [['secscan:get', {}]], 'a router switch did not ask the new router');
-assert.strictEqual(String(n.secScoreVal.textContent), '—', 'the old router\'s score survived the switch');
+assert.strictEqual(String(n.secScoreVal.textContent), '-', 'the old router\'s score survived the switch');
 handlers['secscan:result'](frame({ report, scannedAt: Date.now() }));
-assert.strictEqual(String(n.secScoreVal.textContent), '—', 'the old router\'s report was drawn on the new router');
+assert.strictEqual(String(n.secScoreVal.textContent), '-', 'the old router\'s report was drawn on the new router');
 // A fresh report for the new router is drawn and starts no scan.
 handlers['secscan:result'](frame({ routerId: 'r2', report: { ...report, score: 91 }, scannedAt: Date.now() }));
 assert.strictEqual(String(n.secScoreVal.textContent), '91', 'the new router\'s report was not drawn');

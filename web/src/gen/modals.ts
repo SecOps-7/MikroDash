@@ -1,4 +1,4 @@
-// GENERATED from testdata/modal-list.json — do not edit.
+// GENERATED from testdata/modal-list.json - do not edit.
 // Rebuild with `node tools/modal-list-ts.js` from the committed JSON.
 // The JSON it reads was SEEDED by a generator that read the Node app and was
 // deleted with the port-parity harness on 2026-09-01. This transform still runs,

@@ -175,7 +175,7 @@ export function drawerBody(d: TemplateDetail): string {
       d.variables.map((v) => '<tr><td><span class="cfg-var">{{' + esc(v.name) + '}}</span>' +
         (v.label ? '<div class="cfg-meta">' + esc(v.label) + '</div>' : '') + '</td><td>' + esc(v.type) +
         (v.required ? ' <span class="cfg-meta">required</span>' : '') + '</td><td>' +
-        (v.default ? '<code>' + esc(v.default) + '</code>' : '<span class="cfg-meta">—</span>') + '</td></tr>').join('') +
+        (v.default ? '<code>' + esc(v.default) + '</code>' : '<span class="cfg-meta">-</span>') + '</td></tr>').join('') +
       '</tbody></table>'
     : '<div class="cfg-meta">This template has no settings.</div>';
   const findings = d.findings.length

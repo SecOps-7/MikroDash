@@ -15,7 +15,7 @@ import (
 //
 // Set on 2026-09-08: a collector's LIVE reads keep its poll interval, and its
 // reads of things that rarely change go to "a 30 second cadence or longer". The
-// reason is the one CLAUDE.md states — the bottleneck is concurrent API channels
+// reason is the one CLAUDE.md states - the bottleneck is concurrent API channels
 // on the MikroTik, so cost is commands x frequency, and a menu read 51 times a
 // minute that changed once is 50 wasted commands.
 //
@@ -39,7 +39,7 @@ import (
 //
 // IT FAILS IN BOTH DIRECTIONS, which is the discipline CLAUDE.md sets for every
 // ledger here. A fast-polling collector missing from the table fails. A recorded
-// exemption whose named constant no longer exists ALSO fails — so an exemption
+// exemption whose named constant no longer exists ALSO fails - so an exemption
 // cannot outlive the situation it describes, and a `ConfigEvery` deleted in a
 // refactor cannot leave a green comment behind claiming it is still there.
 func TestFastPollCollectorsSplitTheirSlowReads(t *testing.T) {
@@ -73,8 +73,8 @@ func TestFastPollCollectorsSplitTheirSlowReads(t *testing.T) {
 		// The one entry where BOTH halves have to be named, because the fast half
 		// looks like it was missed. `/interface/detect-internet/state` and
 		// `/ip/route` are read EVERY tick, outside the wanConfigEvery block, and
-		// that is deliberate: they carry WAN failover state — which uplink is up,
-		// which default route is active — and failover is the whole reason the
+		// that is deliberate: they carry WAN failover state - which uplink is up,
+		// which default route is active - and failover is the whole reason the
 		// page exists. The interface list, the DHCP clients and the addresses are
 		// the slow half. (The route read is unfiltered, so it is a large payload
 		// on a big table; that is a payload cost, not a command one, and CLAUDE.md

@@ -1,7 +1,7 @@
 // The Tools page: diagnostics run on the selected router (slice 8).
 //
-// Each tool is a form, a Run button and a result. The bounds — how many packets,
-// how many hops, how long — are the server's (internal/diag), so the form offers
+// Each tool is a form, a Run button and a result. The bounds - how many packets,
+// how many hops, how long - are the server's (internal/diag), so the form offers
 // only what the server would run anyway, and a value edited past them is clamped
 // there.
 //
@@ -14,7 +14,7 @@
 // ── LIVE: PROGRESS, THEN THE RESULT, ON ONE EVENT ───────────────────────────
 //
 // The server streams each run: its event arrives with `done: false` as rows come
-// in — the run so far, folded exactly as the finished one is — and once with
+// in - the run so far, folded exactly as the finished one is - and once with
 // `done: true` to end it. Ping, traceroute and bandwidth test draw cards or a
 // map above their tables from the same frames (tools-ping-cards.ts,
 // tools-trace-map.ts, tools-btest-cards.ts).
@@ -126,7 +126,7 @@ const TOOLS: Tool[] = [
 const bps = (v: number): string => fmtMbps(v / 1e6);
 
 function ms(v: number | null | undefined): string {
-  return v == null ? '—' : (v < 1 ? v.toFixed(3) : v.toFixed(1)) + ' ms';
+  return v == null ? '-' : (v < 1 ? v.toFixed(3) : v.toFixed(1)) + ' ms';
 }
 
 function notRun(t: Tool): string {
@@ -185,9 +185,9 @@ function renderPing(r: PingResult): void {
     return '<tr>' +
       '<td>' + p.seq + '</td>' +
       '<td>' + esc(p.host) + '</td>' +
-      '<td>' + (lost ? '—' : ms(p.rttMs)) + '</td>' +
-      '<td>' + (lost ? '—' : p.ttl) + '</td>' +
-      '<td>' + (lost ? '—' : p.size) + '</td>' +
+      '<td>' + (lost ? '-' : ms(p.rttMs)) + '</td>' +
+      '<td>' + (lost ? '-' : p.ttl) + '</td>' +
+      '<td>' + (lost ? '-' : p.size) + '</td>' +
       '<td>' + (lost ? '<span class="wg-down">' + esc(p.status) + '</span>' : '<span class="wg-up">reply</span>') + '</td>' +
       '</tr>';
   }).join('');
@@ -205,7 +205,7 @@ function renderTraceroute(r: TracerouteResult): void {
   rows.innerHTML = r.hops.map((h) =>
     '<tr>' +
     '<td>' + h.hop + '</td>' +
-    '<td>' + (h.address ? esc(h.address) : '—') + '</td>' +
+    '<td>' + (h.address ? esc(h.address) : '-') + '</td>' +
     '<td>' + h.lossPct + '%</td>' +
     '<td>' + (h.timedOut ? '<span class="wg-down">timeout</span>' : ms(h.lastMs)) + '</td>' +
     '<td>' + ms(h.bestMs) + '</td>' +

@@ -17,8 +17,8 @@
 // ── A FAILURE IS SHOWN, NOT SWALLOWED ───────────────────────────────────────
 //
 // The payload carries `error` as well as `text`, and the card says which. An
-// empty card is indistinguishable from a card with nothing to say — the exact
-// state the diagnostics card sat in for the whole life of the port — so a
+// empty card is indistinguishable from a card with nothing to say - the exact
+// state the diagnostics card sat in for the whole life of the port - so a
 // refusal from the endpoint is rendered as a refusal.
 //
 // ── IT TYPES ────────────────────────────────────────────────────────────────

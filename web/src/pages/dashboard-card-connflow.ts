@@ -4,7 +4,7 @@
 //
 // `connections-sankey.ts` already has the renderer; this only points it at the
 // card's own elements and tells it how much height it has. The live app splits
-// it the same way — one `render()` and a `renderDc()` wrapper — which is why the
+// it the same way - one `render()` and a `renderDc()` wrapper - which is why the
 // diagram cannot drift between the page and the card.
 //
 // ── THE HEIGHT COMES FROM THE PARENT, NOT THE SVG ───────────────────────────
@@ -18,7 +18,7 @@
 //
 // The card takes the top eight sources and top ten destinations. The live app
 // slices in the shared `conn:update` handler because its page and card draw from
-// one payload; this side has separate handlers, so the numbers live here — which
+// one payload; this side has separate handlers, so the numbers live here - which
 // is also where they can be read next to the thing they constrain.
 
 import { el } from '../dom';
@@ -33,11 +33,11 @@ export function renderConnFlowCard(
   const empty = el('dc-sankeyEmpty');
   // The live wrapper guards on the SVG alone and would throw if the empty-state
   // element were missing. Both live in the same markup block, so one without the
-  // other is not reachable — guarding both is the same behaviour with one fewer
+  // other is not reachable - guarding both is the same behaviour with one fewer
   // way to crash.
   if (!svg || !empty) return;
   const parent = (svg as unknown as { parentElement: HTMLElement | null }).parentElement;
-  // The `: 0` is belt and braces — `avail || 0` below absorbs an undefined just
+  // The `: 0` is belt and braces - `avail || 0` below absorbs an undefined just
   // as well, and a mutation between the two is not observable. Kept because the
   // original has it and because it states at the measurement what the fallback
   // is, rather than three tokens later.

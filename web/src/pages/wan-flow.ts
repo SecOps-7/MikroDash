@@ -214,7 +214,7 @@ export function createWanFlow(socket: Socket, o: WanFlowOptions): WanFlow {
 
   /** Each node's numbers and the empty state. Text, not geometry: no easing. */
   function writeText(): void {
-    const rate = (v: number | null): string => (v === null ? '—' : fmtMb(v));
+    const rate = (v: number | null): string => (v === null ? '-' : fmtMb(v));
     flow.rows.forEach((r, i) => {
       const d = drawn[i];
       if (!d) return;

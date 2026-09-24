@@ -10,7 +10,7 @@
 //
 // `pageAccess` starts null and the role half is SKIPPED while it is, so the nav
 // is not blanked during the first paint. The server denies anything the role
-// does not allow regardless, so a briefly-extra nav item is cosmetic — whereas a
+// does not allow regardless, so a briefly-extra nav item is cosmetic - whereas a
 // blank sidebar looks broken. The same reasoning runs the other way for
 // Settings: `settingsAllowed()` permits while caps are unknown so a genuine
 // administrator is not bounced out during the gap, and `applyCaps` re-checks
@@ -20,7 +20,7 @@
 // ── CAPABILITY-DRIVEN, NOT ROLE-DRIVEN ──────────────────────────────────────
 //
 // With three roles and per-router scope, "is this person a viewer?" stopped
-// answering "may they press this button" — an operator would have passed the old
+// answering "may they press this button" - an operator would have passed the old
 // viewer check and then collected 403s. Mark an element `data-cap="…"` and it is
 // governed here forever; adding a capability means adding an attribute, not
 // editing this file.
@@ -49,8 +49,8 @@ export interface NavHost {
    * leaves it out instead.
    *
    * A page this build cannot serve is not hidden because it is forbidden or
-   * switched off; it is hidden because it is NOT HERE YET. Both remaining ones —
-   * Settings and Devices — are recorded in the page-mount audit with what
+   * switched off; it is hidden because it is NOT HERE YET. Both remaining ones -
+   * Settings and Devices - are recorded in the page-mount audit with what
    * blocks them, and both reappear the moment they mount.
    */
   serves(page: string): boolean;
@@ -81,7 +81,7 @@ const caps = (): Caps => ((globalThis as unknown as { _caps?: Caps })._caps) || 
  *
  * Deliberately the same condition that shows `#settingsNavItem`, so the nav and
  * the page can never disagree about who Settings is for. Hiding the nav link was
- * never a block on its own — `showPage('settings')` from the console opened the
+ * never a block on its own - `showPage('settings')` from the console opened the
  * whole admin page. This is defence in depth, not the boundary; the server
  * refuses every write regardless.
  */
@@ -89,8 +89,8 @@ const caps = (): Caps => ((globalThis as unknown as { _caps?: Caps })._caps) || 
  * May this viewer manage principals?
  *
  * UNDEFINED WHILE THE CAPS FETCH IS IN FLIGHT, and that is deliberate rather
- * than a missing default. `applyAuthModeVisibility` treats unknown as NO — "the
- * flash is absence rather than exposure" — so collapsing it to `false` here
+ * than a missing default. `applyAuthModeVisibility` treats unknown as NO - "the
+ * flash is absence rather than exposure" - so collapsing it to `false` here
  * would be the same answer today and would quietly remove the distinction the
  * moment somebody wrote a caller that wanted to WAIT for it.
  */
@@ -108,7 +108,7 @@ export function settingsAllowed(): boolean {
 
 /**
  * Re-run the nav sweep. `pages` is the install's settings payload; omitted, the
- * last one is reused — which is what lets caps arriving later re-run it.
+ * last one is reused - which is what lets caps arriving later re-run it.
  */
 export function applyPageVisibility(pages?: Record<string, unknown>): void {
   if (pages) pageInstall = pages;
@@ -135,8 +135,8 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
 
   let firstVisible: string | null = null;
   let currentHidden = false;
-  // THE GENERATED PAGES TOO. `ALL_NAV_PAGES` is frozen — it was read out of the
-  // Node app and its generator is gone — so an area would never be swept, and
+  // THE GENERATED PAGES TOO. `ALL_NAV_PAGES` is frozen - it was read out of the
+  // Node app and its generator is gone - so an area would never be swept, and
   // the nav entry this app composes at runtime would stay visible to a role that
   // may not read it. The same loop gates both kinds.
   // An area is switched off by being IN `hiddenAreas`, not by a `pageX` key of
@@ -150,13 +150,13 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
     // ── THERE WAS A FOURTH TERM HERE AND IT IS NOT COMING BACK ────────────
     //
     // `byCount` hid `devices` unless the install had more than one router, from
-    // `_routers.length > 1` in the live app (`public/app.js:7995`) — a fleet
+    // `_routers.length > 1` in the live app (`public/app.js:7995`) - a fleet
     // page being deemed meaningless for a fleet of one.
     //
     // It was reported as a bug (issue #121) by an operator whose only device
     // was a CHR: no Devices entry at all until they added a second router. They
     // read it as the app failing to recognise a virtual router, which it was
-    // not — the rule never looked at the router's type, only at how many there
+    // not - the rule never looked at the router's type, only at how many there
     // were, and any second device would have revealed the page.
     //
     // In this port the rule was already DEAD: its only setter had no callers
@@ -177,7 +177,7 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
     // to say why, so it is not offered until it can work.
     //
     // NOT VIA PAGE_NAV_MAP, deliberately. The view presets walk that map and
-    // write to `el('s_' + settingsKey)`, which searches the whole document —
+    // write to `el('s_' + settingsKey)`, which searches the whole document -
     // so `aiEnabled` there would let the Advanced preset find the toggle in
     // the AI tab and switch the assistant on as a side effect of choosing a
     // nav layout.
@@ -223,8 +223,8 @@ export function applyCaps(c: Caps | null | undefined): void {
   (globalThis as unknown as { _caps?: Caps })._caps = c || {};
   const cur = caps();
 
-  // Page access is half of the nav decision — the install toggles are the other
-  // half — so hand it over and re-run. Without this the nav showed every page
+  // Page access is half of the nav decision - the install toggles are the other
+  // half - so hand it over and re-run. Without this the nav showed every page
   // regardless of role: the server denied them, but a Read Only user still saw
   // Reports and Settings in the sidebar.
   if (cur.pages) {
@@ -253,7 +253,7 @@ export function applyCaps(c: Caps | null | undefined): void {
     if (!cur.manageSettings) saveSett.title = 'Administrator access required';
   }
   const settingsNav = document.getElementById('settingsNavItem');
-  // Operators still have a reason to open Settings — their own preferences and
+  // Operators still have a reason to open Settings - their own preferences and
   // the read-only view; only hide it from someone who can change nothing.
   if (settingsNav) {
     settingsNav.style.display = (cur.manageSettings || cur.managePrincipals) ? '' : 'none';
@@ -267,13 +267,13 @@ export function applyCaps(c: Caps | null | undefined): void {
 /**
  * Re-ask the server what this session may do.
  *
- * Permissions change while a browser is open — an administrator edits a role,
- * or revokes a grant — and before this nothing refreshed them at runtime, so a
+ * Permissions change while a browser is open - an administrator edits a role,
+ * or revokes a grant - and before this nothing refreshed them at runtime, so a
  * session kept its old UI until reload, which reads as the feature not working.
  *
  * THE SERVER SENDS ONLY A NUDGE, NEVER THE CAPS THEMSELVES. Re-asking
  * re-resolves them server-side, so a forged `perms:changed` cannot widen
- * anything — the worst it can do is make a browser ask a question it is allowed
+ * anything - the worst it can do is make a browser ask a question it is allowed
  * to ask.
  */
 export function refreshCaps(): Promise<void> {
@@ -285,7 +285,7 @@ export function refreshCaps(): Promise<void> {
 
 /**
  * Read the session and apply it. Non-critical: on failure the chip stays hidden
- * and the caps stay unknown, which permits — see the header.
+ * and the caps stay unknown, which permits - see the header.
  */
 export function initCaps(navHost: NavHost): void {
   host = navHost;
@@ -307,5 +307,5 @@ export function initCaps(navHost: NavHost): void {
         applyCaps(d.session.caps);
       }
     })
-    .catch(() => { /* non-critical — the chip stays hidden on failure */ });
+    .catch(() => { /* non-critical - the chip stays hidden on failure */ });
 }

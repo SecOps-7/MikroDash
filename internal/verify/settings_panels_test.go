@@ -13,7 +13,7 @@ import (
 // ── THE BUG THIS EXISTS FOR, WHICH SHIPPED ─────────────────────────────────
 //
 // Removing the Navigation card left one `</div>` behind. It closed
-// `#stab-appearance` early, so "Visible Pages" fell outside every panel — and a
+// `#stab-appearance` early, so "Visible Pages" fell outside every panel - and a
 // card outside them all is subject to no `.stab-panel { display: none }` at all.
 // It therefore appeared on the General tab, the Notifications tab, the About
 // tab, every tab. The operator found it.
@@ -29,7 +29,7 @@ import (
 //
 // The question is about NESTING, which is the thing that broke. Counting cards,
 // or checking each panel contains the ones it should, both pass while a card
-// hangs outside — the count is unchanged and the panel it left still holds the
+// hangs outside - the count is unchanged and the panel it left still holds the
 // rest. Only walking the div depth answers "is this inside that".
 var (
 	reStabPanel = regexp.MustCompile(`<div class="stab-panel[^"]*"[^>]*id="([\w-]+)"`)
@@ -46,7 +46,7 @@ func TestEverySettingsCardIsInsideOneTabPanel(t *testing.T) {
 	// pattern stops matching, this must fail loudly rather than report that
 	// every card is fine.
 	if len(panels) < 5 {
-		t.Fatalf("found %d tab panels in page-settings.html — this scan has broken, "+
+		t.Fatalf("found %d tab panels in page-settings.html - this scan has broken, "+
 			"and an empty result agrees with every assertion below", len(panels))
 	}
 
@@ -67,7 +67,7 @@ func TestEverySettingsCardIsInsideOneTabPanel(t *testing.T) {
 			}
 		}
 		if end < 0 {
-			t.Fatalf("panel %s is never closed — the markup is unbalanced", id)
+			t.Fatalf("panel %s is never closed - the markup is unbalanced", id)
 		}
 		for _, m := range reCardTitle.FindAllStringSubmatch(src[p[0]:end], -1) {
 			title := strings.TrimSpace(m[1])
@@ -88,7 +88,7 @@ func TestEverySettingsCardIsInsideOneTabPanel(t *testing.T) {
 	sort.Strings(orphans)
 	if len(orphans) > 0 {
 		t.Errorf("%v sit outside every tab panel, so no `.stab-panel { display: none }` "+
-			"hides them and they render on EVERY settings tab — which is invisible "+
+			"hides them and they render on EVERY settings tab - which is invisible "+
 			"until a second tab is opened", orphans)
 	}
 	t.Logf("%d card(s) across %d panel(s), each in exactly one", len(home), len(panels))

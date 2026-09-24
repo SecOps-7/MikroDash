@@ -1,5 +1,5 @@
 /**
- * What the User, Group and Role forms DECIDE — separated from what they touch.
+ * What the User, Group and Role forms DECIDE - separated from what they touch.
  *
  * ── THREE FORMS THAT LOOK ALIKE AND ARE NOT ────────────────────────────────
  *
@@ -8,7 +8,7 @@
  * every one of which is invisible until it is wrong:
  *
  *  1. THE REQUIRED-FIELD MESSAGE. "Username required" for the user form and
- *     "Name is required" for the other two — not one shared string.
+ *     "Name is required" for the other two - not one shared string.
  *  2. THE FALLBACK MESSAGE. 'Save failed', 'Could not save the group', 'Could
  *     not save the role'. Three different ones, each shown when the server sent
  *     no `error`.
@@ -16,8 +16,8 @@
  *     not. All three trim the name. NONE trims the password.
  *  4. THE PASSWORD IS OMITTED WHEN EMPTY, rather than sent as "". That is the
  *     client half of the server rule that an empty password means "leave the
- *     credential alone" — send `""` and the account is re-hashed on every edit.
- *  5. THE GROUP FORM CHECKS THE HTTP STATUS TOO — `r.ok && j.ok`, where the
+ *     credential alone" - send `""` and the account is re-hashed on every edit.
+ *  5. THE GROUP FORM CHECKS THE HTTP STATUS TOO - `r.ok && j.ok`, where the
  *     other two look only at `j.ok`. A 500 with an `ok`-less body reads as a
  *     failure there and could read as success on the other two.
  *  6. WHAT HAPPENS AFTER A SUCCESSFUL CREATE. The group and role forms close.
@@ -27,7 +27,7 @@
  *     mode on the returned record and render the editor in place."
  *
  * Splitting the decision out is what lets the principal-forms check drive
- * these and the live functions from one harness and compare — the DOM half needs
+ * these and the live functions from one harness and compare - the DOM half needs
  * a browser, and this half needs nothing.
  */
 
@@ -80,7 +80,7 @@ export function userSavePlan(f: { id: string; username: string; password: string
 
   // NO ROLE AND NO allowedRouterIds. The live comment: "access is grants now,
   // edited below." Sending either would trigger the server's legacy projection,
-  // which DELETES every grant the principal holds and rebuilds them — so a
+  // which DELETES every grant the principal holds and rebuilds them - so a
   // rename would destroy the access an administrator had just granted in the
   // editor immediately below this form.
   const body: Record<string, unknown> = { username };
@@ -94,7 +94,7 @@ export function userSavePlan(f: { id: string; username: string; password: string
 
 export function userSaveOutcome(hadId: boolean, res: SaveResponse): SaveOutcome {
   const d = res.body;
-  // ONLY `d.ok` — the user form does not consult the HTTP status. See rule 5.
+  // ONLY `d.ok` - the user form does not consult the HTTP status. See rule 5.
   if (!d || !d.ok) {
     return { ...FAILED, error: (d && d.error) || 'Save failed' };
   }
@@ -127,7 +127,7 @@ export function groupSavePlan(f: {
 
 export function groupSaveOutcome(res: SaveResponse): SaveOutcome {
   const d = res.body;
-  // `r.ok && j.ok` — THE ONLY ONE OF THE THREE that checks the HTTP status.
+  // `r.ok && j.ok` - THE ONLY ONE OF THE THREE that checks the HTTP status.
   // Reproduced as the asymmetry it is.
   const ok = res.httpOk !== false && !!(d && d.ok);
   if (!ok) {
@@ -149,7 +149,7 @@ export function roleSavePlan(f: {
     description: f.description.trim(),
     // ALWAYS SENT, even when empty. The server reads an absent `pages` key as
     // "leave the role's matrix alone" and an empty array as "this role now
-    // confers nothing" — see `principals.ParseRolePages`. The form always
+    // confers nothing" - see `principals.ParseRolePages`. The form always
     // submits the matrix it is showing, so an operator who cleared every page
     // gets an empty array and the revocation lands.
     pages: f.pages,
@@ -201,7 +201,7 @@ export function groupMembersHtml(
 /**
  * `_collectRolePages`'s decision half.
  *
- * The live comment on it: "Read the matrix back out of the DOM — the segmented
+ * The live comment on it: "Read the matrix back out of the DOM - the segmented
  * control is the state." So there is no model to consult; whichever segment
  * carries `sbtn-primary` IS the answer, and this turns the levels that reading
  * produced into the rows the server wants.
@@ -211,7 +211,7 @@ export function groupMembersHtml(
  * A page set to None produces no row at all, which is what makes the whole
  * matrix a REPLACEMENT: the server takes the list as the complete set, so a page
  * that is absent is a page the role does not confer. Sending `access: 'none'`
- * would be rejected outright — `ParseRolePages` accepts only read and write.
+ * would be rejected outright - `ParseRolePages` accepts only read and write.
  *
  * A row whose segmented control has NOTHING selected reads as `none` on the live
  * side (`on ? ... : 'none'`) and is therefore dropped. That is not a state the
@@ -239,7 +239,7 @@ export function rolePagesFrom(rows: { page: string; level: string }[]): RolePage
 //	var parts = (…value || 'global:').split(':');
 //	… scopeType: parts[0], scopeId: parts[1] || ''
 //
-// `parts[1]`, NOT `parts.slice(1).join(':')` — so a scope id containing a colon
+// `parts[1]`, NOT `parts.slice(1).join(':')` - so a scope id containing a colon
 // is TRUNCATED at the first one. Reproduced rather than fixed: ids here are
 // generated (`crypto.randomUUID` for a site, the router's own id) and none has
 // ever contained a colon, so changing it would be a divergence with no
@@ -252,11 +252,11 @@ export function grantAddPlan(
   unsaved: string,
 ): SavePlan {
   // NO PRINCIPAL, NO GRANT. A user or group that has not been saved has no id
-  // for a grant to name, and the live forms pass this sentence in per form —
+  // for a grant to name, and the live forms pass this sentence in per form -
   // "Save the user first, then grant them access".
   if (!principalId) return { error: unsaved };
 
-  // `|| 'global:'` — an empty picker means every router, not a malformed scope.
+  // `|| 'global:'` - an empty picker means every router, not a malformed scope.
   const parts = (scopeValue || 'global:').split(':');
   return {
     method: 'POST',
@@ -282,7 +282,7 @@ export function grantDeletePlan(grantId: string): SavePlan {
  *
  * TWO DIFFERENT FALLBACKS, matching the two handlers: "Could not grant access"
  * and "Could not remove access". The server's own message wins when it sent one
- * — and it usually did, because the interesting refusals here are the ones only
+ * - and it usually did, because the interesting refusals here are the ones only
  * it can know: "That would leave nobody with administrator access", "No such
  * site", "Invalid role".
  *
@@ -308,7 +308,7 @@ export function grantOutcome(
 //
 // Three different prompts, and the group's carries a reassurance the others do
 // not. They are compared exactly, because a confirmation an operator has learned
-// to read at a glance is one they stop reading — changing the words is a
+// to read at a glance is one they stop reading - changing the words is a
 // user-visible change even though nothing about the request differs.
 
 export function userDeletePrompt(username: string): string {

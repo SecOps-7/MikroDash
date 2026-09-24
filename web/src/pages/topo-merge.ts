@@ -6,9 +6,9 @@
 // router's broadcast domain. `/api/topology/peers` reads every other managed
 // router's `/ip/neighbor` and this folds them in. Two things come out of it:
 //
-//	a device no single router could see  — it is on a peer's other port, or on a
+//	a device no single router could see  - it is on a peer's other port, or on a
 //	                                       segment the core never hears
-//	a device in the wrong place          — the core heard it, but a peer reports
+//	a device in the wrong place          - the core heard it, but a peer reports
 //	                                       it on a port that is NOT the peer's
 //	                                       uplink, which means it is behind that
 //	                                       peer and not beside it
@@ -20,15 +20,15 @@
 // ── AND IT NEEDS THE VIEWED ROUTER'S OWN ADDRESSES, WHICH THE GRAPH HAS NOT ──
 //
 // A peer names the viewed router by MAC, like any other device. The core node
-// carries neither a MAC nor an identity — `BuildTopology` has no source for
-// either — so `/api/topology/peers` answers with them and they arrive here as
+// carries neither a MAC nor an identity - `BuildTopology` has no source for
+// either - so `/api/topology/peers` answers with them and they arrive here as
 // `selfMacs`. WITHOUT THEM THE MERGE DOES NOT RUN: the uplink cannot be found,
 // every device would read as "behind" the peer, and the peer's row for the
 // viewed router would be added to the map as a second copy of it.
 //
 // It moves NOTHING on a flat segment, and that is not a gap to close. Where a
 // switch forwards the discovery protocols, every router sees every other on its
-// uplink port and no hop information exists to recover — the operator's own
+// uplink port and no hop information exists to recover - the operator's own
 // pins are the answer there, and a SwOS box answers no API at all, so it can
 // only ever be a node with a declaration behind it.
 //
@@ -97,7 +97,7 @@ function peerNode(key: string, peer: TopoPeer, now: number): TopoNeighbor {
  *
  * Two peers can each report the other's devices, and nothing in the rule above
  * stops A hanging off B while B hangs off A. The layout caps its recursion, so a
- * cycle does not hang the page — it just draws a lie. Breaking it here keeps the
+ * cycle does not hang the page - it just draws a lie. Breaking it here keeps the
  * graph a tree, which is what every reader of `parent` assumes.
  */
 function breakCycles(nodes: Node[]): void {

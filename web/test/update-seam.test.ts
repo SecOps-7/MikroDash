@@ -6,8 +6,8 @@
 /**
  * DO THE TWO HALVES OF `mikrodash:updateavailable` ACTUALLY FIT?
  *
- * The System card publishes what it drew — installed version, latest version,
- * channel — and the Upgrade dialog listens for it and fills its fields from the
+ * The System card publishes what it drew - installed version, latest version,
+ * channel - and the Upgrade dialog listens for it and fills its fields from the
  * `detail`. Two modules, one event, and NOTHING drove the join:
  *
  *   - `system-card-check` counts DISPATCHES. It proves the card fires once per
@@ -21,7 +21,7 @@
  * ── WHY THE COMPILER CANNOT DO THIS ─────────────────────────────────────────
  *
  * `CustomEvent.detail` is `any`. The dialog casts it (`detail as UpdInfo`), so
- * the two shapes could diverge and TypeScript would say nothing — the dialog
+ * the two shapes could diverge and TypeScript would say nothing - the dialog
  * would simply show a dash where a version belongs. They were separately
  * declared interfaces that happened to agree; they now name one exported type,
  * which closes the drift but not the cast.
@@ -68,7 +68,7 @@ const IDS = ['rosUpdateRow', 'sysUpdateAction', 'sysUpdateBtn', 'updModal',
 // A SUBSET of IDS, not IDS itself. The shim provides thirteen so the page can
 // run; this gate ASSERTS on five and presses one. Claiming the rest would tell
 // `element-coverage-audit` that `#upd_confirm` and `#upd_go` are covered when
-// nothing here looks at them — and that audit is what decides where the next
+// nothing here looks at them - and that audit is what decides where the next
 // gate goes, so an overstatement there costs more than the silence it replaces.
 const COVERS = ['rosUpdateRow', 'updModal', 'upd_from', 'upd_to', 'upd_channel', 'sysUpdateBtn',
   'upd_error', 'upd_go'];
@@ -111,7 +111,7 @@ function run(payload, o) {
     delete require.cache[require.resolve(OUT)];
     const mod = require(OUT);
     mod.resetSysMeta();
-    // The dialog subscribes FIRST, exactly as `main.ts` mounts it — a listener
+    // The dialog subscribes FIRST, exactly as `main.ts` mounts it - a listener
     // registered after the card has already drawn hears nothing, and that
     // ordering bug is one this gate can see.
     mod.initUpgrade({ on: (ev, fn) => { handlers[ev] = fn; },
@@ -201,14 +201,14 @@ const check = (name, got, want) => {
   // BELIEVABILITY FIRST: the card must have drawn the amber row, or the event
   // never fired and every assertion below is about an untouched dialog.
   assert.match(r.row, /ros-update-row/, 'the System card drew no update row');
-  assert.ok(r.open, 'the Update dialog did not open — the click never reached it');
+  assert.ok(r.open, 'the Update dialog did not open - the click never reached it');
   check('an update is offered', r, {
     from: '7.24.1', to: '7.25', channel: 'channel: stable',
   });
   // The dialog asks for permission on hearing the announcement; that emit is
   // the proof the LISTENER ran, not just that the dialog opened.
   assert.ok(r.emits.some((e) => e.ev === 'packages:caps'),
-    'the dialog never asked for caps — its listener did not run');
+    'the dialog never asked for caps - its listener did not run');
 }
 
 // ── NO CHANNEL ──────────────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ const check = (name, got, want) => {
 {
   const r = run(P({ version: '7.24.1 (stable)' }));
   check('a version with a suffix', r, { to: '7.25' });
-  assert.ok(r.from && r.from !== '—',
+  assert.ok(r.from && r.from !== '-',
     'the dialog showed no installed version for a suffixed version string');
 }
 
@@ -236,7 +236,7 @@ const check = (name, got, want) => {
 // versions first.
 {
   const r = run(P({ updateAvailable: false, latestVersion: '7.24.1' }));
-  check('no update available', r, { from: '—', to: '—' });
+  check('no update available', r, { from: '-', to: '-' });
   assert.ok(!r.emits.some((e) => e.ev === 'packages:caps'),
     'the dialog asked for caps although nothing was announced');
 }
@@ -247,7 +247,7 @@ const check = (name, got, want) => {
   check('a refusal', r, { errorShown: '' });
   if (!r.error || !r.error.includes('br-01')) {
     problems.push('the refusal box reads ' + JSON.stringify(r.error) +
-                  ' — the router name the server sent is not in it');
+                  ' - the router name the server sent is not in it');
   }
   // BELIEVABILITY: an empty box and a hidden box are different, and a gate that
   // only checked the text would pass on a box nobody can see.
@@ -267,11 +267,11 @@ const check = (name, got, want) => {
   const r = run(P({}), { error: { code: 'confirm-mismatch', routerName: 'br-01' }, reopen: true });
   // HIDDEN, not cleared. The live app sets `display = 'none'` and leaves the
   // text (`../MikroDash/public/app.js:15287`), so asserting the box is EMPTY
-  // would fail a faithful port — this check said exactly that on its first run,
+  // would fail a faithful port - this check said exactly that on its first run,
   // and the fix was to read the original rather than to change the port.
   if (r.errorShown !== 'none') {
     problems.push('reopening the dialog left the previous refusal VISIBLE (display=' +
-                  JSON.stringify(r.errorShown) + ') — it reads as a refusal of the new attempt');
+                  JSON.stringify(r.errorShown) + ') - it reads as a refusal of the new attempt');
   }
 }
 {
@@ -283,14 +283,14 @@ const check = (name, got, want) => {
   // BELIEVABILITY: Go must actually have fired, or the hidden box above proves
   // nothing about the Go path.
   if (!r.emits.some((e) => e.ev === 'packages:upgrade')) {
-    problems.push('pressing Go issued nothing — the button click did not reach the handler');
+    problems.push('pressing Go issued nothing - the button click did not reach the handler');
   }
 }
 {
   // ONE COMMAND PER DIALOG, not one per click. `apply('issuing')` disables the
   // button, and that disabled check is the only thing between an impatient
   // second click and a second install on a rebooting router. A single press
-  // cannot see it — the guard only matters on the press after.
+  // cannot see it - the guard only matters on the press after.
   const r = run(P({}), { error: { code: 'confirm-mismatch', routerName: 'br-01' }, pressGo: 3 });
   const issued = r.emits.filter((e) => e.ev === 'packages:upgrade').length;
   if (issued !== 1) {
@@ -298,7 +298,7 @@ const check = (name, got, want) => {
   }
 }
 {
-  // A refusal arriving while the dialog is CLOSED must not be painted into it —
+  // A refusal arriving while the dialog is CLOSED must not be painted into it -
   // `packages:error` is shared with the Packages page, and a message written
   // where nobody will see it also leaves the page's own unshown.
   const r = run(P({}), { error: { code: 'denied' }, closeFirst: true });
@@ -358,8 +358,8 @@ const wait = (ms) => ['wait', ms];
 }
 {
   // THE CONNECTION DROPPED UNDER THE INSTALL. The server then replies
-  // `rebooting: true`; the drop has already happened — and its frame may have
-  // arrived before this reply — so the next return starts the window.
+  // `rebooting: true`; the drop has already happened - and its frame may have
+  // arrived before this reply - so the next return starts the window.
   const dropped = { action: 'upgrade', routerId: 'r1', routerName: 'br-01', rebooting: true };
   const r = run(P({}), { frames: [['packages:ok', dropped], st('r1', true), wait(3000)] });
   check('the connection dropped under the install', r, { open: false });
@@ -372,7 +372,7 @@ const wait = (ms) => ['wait', ms];
 }
 {
   // REOPENED DURING THE REBOOT is a fresh, idle dialog, and the old upgrade's
-  // return does not close it out from under the operator — whether the reopen
+  // return does not close it out from under the operator - whether the reopen
   // comes before the return or inside its three seconds.
   check('reopened during the reboot', run(P({}), {
     frames: [['packages:ok', OK], st('r1', false), ['reopen'], st('r1', true), wait(5000)],

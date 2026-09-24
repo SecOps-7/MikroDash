@@ -8,14 +8,14 @@
 // Every dataset, colour, dash pattern, axis, tick callback and tooltip formatter
 // below is reproduced exactly, so a visible difference would have to come from
 // Chart.js itself. The library is the file the live app already serves at
-// /vendor/chart.umd.min.js — the Go server proxies everything outside /next, so
+// /vendor/chart.umd.min.js - the Go server proxies everything outside /next, so
 // it is the identical file rather than a second copy.
 //
 // ── EVERY CHART DOWNSAMPLES TO 300 POINTS ───────────────────────────────────
 //
 // A report can return 100,000 rows and a 140-pixel-high canvas cannot show them.
 // The step is `ceil(n/300)` and the filter keeps every step-th row, which is the
-// original's — NOT an average of each window. That matters: averaging would
+// original's - NOT an average of each window. That matters: averaging would
 // smooth away the spikes the chart exists to show, and the peak datasets below
 // exist precisely because averaging already happened server-side.
 
@@ -78,7 +78,7 @@ let bandwidthChart: ChartLike | null = null;
  *
  * TWO AXES, and the right-hand one is PINNED to 0–100. Loss is a percentage, so
  * an auto-scaled axis would make a link losing 0.4% look identical to one losing
- * 40% — the line would fill the chart either way.
+ * 40% - the line would fill the chart either way.
  *
  * `spanGaps:true` on the RTT series draws THROUGH a null, so a timed-out probe
  * does not cut the line into pieces. The loss line rises at the same instant,
@@ -121,7 +121,7 @@ export function renderPingChart(rows: PingRow[]): void {
         yL: {
           position: 'right', min: 0, max: 100,
           ticks: { color: 'rgba(248,113,113,.7)', font: MONO },
-          // The right axis draws no grid of its own — two grids at different
+          // The right axis draws no grid of its own - two grids at different
           // scales over one plot is unreadable.
           grid: { drawOnChartArea: false },
         },
@@ -178,7 +178,7 @@ export function wireCapacityToggle(): void {
  * ── THE FAINT DASHED LINES ARE THE POINT OF THE AGGREGATED VIEW ─────────────
  *
  * An aggregated point is a bucket AVERAGE, so a spike inside the bucket is
- * invisible — the same failure that once showed a 938 Mbps burst as about
+ * invisible - the same failure that once showed a 938 Mbps burst as about
  * 4 Mbps on a daily chart. The per-bucket peaks are drawn faintly beside the
  * mean so both are readable at once. They are omitted when unaggregated, where
  * the rows already ARE the peaks and a second identical line would be noise.
@@ -186,7 +186,7 @@ export function wireCapacityToggle(): void {
  * ── CAPACITY IS OFF BY DEFAULT, AND BELONGS ON THIS CHART ───────────────────
  *
  * The axis here is already Mbps, so the line is a direct comparison with no
- * conversion — on the volume chart it would be meaningless. Off by default
+ * conversion - on the volume chart it would be meaningless. Off by default
  * because on a 1 Gbps link carrying a few Mbps it rescales the y-axis by orders
  * of magnitude and flattens the real curve onto the baseline.
  */
@@ -290,7 +290,7 @@ export function renderTrafficChart(
 /**
  * The download/upload volume chart.
  *
- * VOLUME ONLY — no capacity line. A capacity in Mbps means nothing against an
+ * VOLUME ONLY - no capacity line. A capacity in Mbps means nothing against an
  * axis of megabytes per bucket, so it lives on the rate chart where the units
  * line up.
  *

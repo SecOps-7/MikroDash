@@ -3,7 +3,7 @@
  *
  * ── WHAT WAS ASKED FOR ──────────────────────────────────────────────────────
  *
- * "The page is confusing — give me other ways to look at it, and keep the one
+ * "The page is confusing - give me other ways to look at it, and keep the one
  * that is there." One row per interface grouped by radio is RouterOS's own
  * model and stays the default; it is the wrong shape for two ordinary questions,
  * which the other three answer:
@@ -184,7 +184,7 @@ const ifaces = (html: string): string[] =>
   assert.deepStrictEqual(groups(html), [],
     'the flat view still draws group headings: ' + JSON.stringify(groups(html)));
   assert.strictEqual(ifaces(html).length, 4,
-    'the flat view lost rows — it is a view, not a filter:\n' + html);
+    'the flat view lost rows - it is a view, not a filter:\n' + html);
   say('ok  the flat view drops the grouping and keeps every row');
 }
 
@@ -192,7 +192,7 @@ const ifaces = (html: string): string[] =>
 //
 // The same rule the Wifi Clients table follows: ranked, never alphabetical. With
 // today's three bands the two agree, so the case that separates them is a row
-// with NO band — which a CAPsMAN-provisioned interface reports when the manager
+// with NO band - which a CAPsMAN-provisioned interface reports when the manager
 // names no channel.
 {
   const { doc, send, view, body, restore } = boot();

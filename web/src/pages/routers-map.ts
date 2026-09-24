@@ -4,8 +4,8 @@
  * ── WHY IT IS A SEPARATE MODULE FROM `routers.ts` ──────────────────────────
  *
  * The map splits cleanly in two, and the split is by what can be CHECKED. The
- * arithmetic — `project`, `layout`, `popHtml`, `groupPopHtml`, `renderTray`,
- * `clampTranslate`, `fitToMarkers` — produces strings and numbers, so it was
+ * arithmetic - `project`, `layout`, `popHtml`, `groupPopHtml`, `renderTray`,
+ * `clampTranslate`, `fitToMarkers` - produces strings and numbers, so it was
  * ported first and is gated by the routers-grid check against the live
  * functions. What is here builds SVG elements, reads `getBoundingClientRect`
  * and listens for pointer events; none of that survives a headless harness
@@ -77,7 +77,7 @@ function svg<T extends SVGElement>(name: string, attrs: Record<string, string | 
 /**
  * `worldmap:ready` AND an immediate call, both.
  *
- * The atlas is fetched by another module and can land either side of this one —
+ * The atlas is fetched by another module and can land either side of this one -
  * the live app registers the listener and then calls `init()` straight away for
  * exactly that reason, and `dc-worldMap` uses the same pattern. Whichever
  * happens second finds `ready` already true and returns.
@@ -141,7 +141,7 @@ let autoFrame = false;
 
 /**
  * `persist` separates a deliberate press of the button from an implicit release
- * caused by panning. Only the former is remembered — the live comment: otherwise
+ * caused by panning. Only the former is remembered - the live comment: otherwise
  * "one accidental drag turns a default-on feature off forever, and the next time
  * you open the map it silently no longer frames anything."
  */
@@ -183,7 +183,7 @@ function showPop(key: string, isPin: boolean): void {
   positionPop();
 }
 
-/** A PINNED popover ignores hide entirely — that is what pinning means. */
+/** A PINNED popover ignores hide entirely - that is what pinning means. */
 function hidePop(): void {
   const pop = el('rtrMapPop');
   if (!pop || pinned) return;
@@ -195,7 +195,7 @@ function hidePop(): void {
  *
  * Measured from the MARKER's client rect rather than from map coordinates,
  * because the marker has been through the CSS transform and the map coordinates
- * have not — computing it from `g.x`/`g.y` would place the popover correctly
+ * have not - computing it from `g.x`/`g.y` would place the popover correctly
  * only at scale 1.
  */
 function positionPop(): void {
@@ -223,7 +223,7 @@ interface PlaceLabel { text: string; x: number; y: number; hw: number; hh: numbe
  *
  * COMPARES THE BOXES, not the anchors. The live comment says why: at world zoom
  * a European fleet writes several names into the same centimetre, and
- * "Berlin, BE, DE" is many times wider than the gap between two capitals — so
+ * "Berlin, BE, DE" is many times wider than the gap between two capitals - so
  * comparing anchor points would keep them all and none would be readable.
  *
  * 0.55em per character is the live app's advance-width estimate for a monospace
@@ -317,7 +317,7 @@ function apply(rows: RouterStatsRow[] | null): void {
     // THE WORST STATE IN THE GROUP. A site with one router down is a site with a
     // problem, and a green dot hiding a red one would defeat the only thing the
     // map is really for.
-    // A router nobody has checked yet is NOT down — `known` carries that, and
+    // A router nobody has checked yet is NOT down - `known` carries that, and
     // without this test every marker on the map went red on first paint.
     const anyDown = g.routers.some((r) => r.known && !r.connected);
     const colour = anyDown ? 'var(--accent-red,#f87171)' : 'var(--accent-green,#2fb344)';
@@ -352,7 +352,7 @@ function apply(rows: RouterStatsRow[] | null): void {
     }
   }
 
-  // Groups that left the payload — filtered out by the search, or no longer
+  // Groups that left the payload - filtered out by the search, or no longer
   // visible to this session. A pin on one of them goes with it.
   for (const key of Object.keys(els)) {
     if (seen[key]) continue;
@@ -397,7 +397,7 @@ function apply(rows: RouterStatsRow[] | null): void {
  * Re-apply the last payload after a zoom.
  *
  * The live `resize()`. Marker radius depends on how many routers are in the
- * group, so the DATA PATH owns it — re-deriving it here would need the group
+ * group, so the DATA PATH owns it - re-deriving it here would need the group
  * sizes and the two could disagree. Re-applying is what keeps every marker a
  * constant size on screen as the zoom changes.
  */
@@ -405,8 +405,8 @@ function resize(): void {
   // ── `lastRows()`, NOT `window._lastRtrRows` ──────────────────────────────
   //
   // The live app reads the payload back off `window._lastRtrRows`, which its own
-  // routers module publishes. THIS PORT NEVER PUBLISHES IT — the rows live in a
-  // module-private `lastRtrRows` — so the window read returned undefined and
+  // routers module publishes. THIS PORT NEVER PUBLISHES IT - the rows live in a
+  // module-private `lastRtrRows` - so the window read returned undefined and
   // `resize()` did nothing: every zoom would have left the markers at their
   // previous screen size, which is the one thing the constant-size arithmetic
   // exists to prevent.
@@ -438,7 +438,7 @@ export function initRoutersMap(): void {
   onMapApply(apply);
   onAfterTransform(() => { resize(); positionPop(); });
 
-  // `passive: false` because this PREVENTS the page scrolling — a wheel over the
+  // `passive: false` because this PREVENTS the page scrolling - a wheel over the
   // map must zoom it, and a passive listener may not call preventDefault.
   s.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -495,7 +495,7 @@ export function initRoutersMap(): void {
       if (what === 'in') { userMovedView(); setScale(v.scale * 1.4); }
       if (what === 'out') { userMovedView(); setScale(v.scale / 1.4); }
       // RESET IS ZOOM-OUT, NOT FRAME. It has to release Auto Frame as well, or
-      // the next payload re-frames immediately and the button looks broken —
+      // the next payload re-frames immediately and the button looks broken -
       // which is exactly how it looked when reset was wired to "frame all
       // routers" and the view was already framed.
       if (what === 'reset') {
@@ -508,7 +508,7 @@ export function initRoutersMap(): void {
   }
 
   // The markup ships in the off state, so a stored "on" has to be reflected on
-  // load — otherwise the button reads as off while the map is still framing.
+  // load - otherwise the button reads as off while the map is still framing.
   if (autoFrame) setAutoFrame(true, false);
 
   const pop = el('rtrMapPop');
@@ -539,7 +539,7 @@ export function initRoutersMap(): void {
     }
   });
 
-  // Clicking empty map releases a pinned popover — but not at the end of a drag.
+  // Clicking empty map releases a pinned popover - but not at the end of a drag.
   s.addEventListener('click', () => {
     if (moved) return;
     if (pinned) {

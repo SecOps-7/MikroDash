@@ -6,7 +6,7 @@
  * `routerFormValues` seeds the dialog and `collectRouterForm` builds the save
  * body, and they are two separate literal field lists. A field present in the
  * first and missing from the second is SHOWN to the operator, edited by them,
- * and thrown away on save — with no error anywhere. This file's own history
+ * and thrown away on save - with no error anywhere. This file's own history
  * records that shape more than once, so both directions are driven here rather
  * than only the one that renders.
  *
@@ -138,7 +138,7 @@ async function check(what, fn) {
     assert.ok(save, 'no save request was sent: ' + JSON.stringify(m.calls.map((c) => c.url)));
     assert.equal(save.body.reportingEnabled, true,
       'the save body is ' + JSON.stringify(save.body.reportingEnabled) +
-      ' — the toggle is shown, edited, and thrown away');
+      ' - the toggle is shown, edited, and thrown away');
   });
 
   await check('turning it OFF is carried too', async () => {

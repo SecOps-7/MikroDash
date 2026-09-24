@@ -39,10 +39,10 @@ export function initNetwatchPage(socket: Socket, isVisible: (page: string) => bo
             : '<span style="color:var(--text-muted);font-size:.7rem">' + esc(h.status || '?') + '</span>';
       return '<tr' + (h.disabled ? ' style="opacity:.55"' : '') + resRow(h.id, h.host) + '>' +
         '<td>' + status + '</td>' +
-        '<td style="font-size:.78rem;font-weight:600">' + esc(h.name || '—') + '</td>' +
-        '<td style="font-size:.76rem">' + esc(h.host || '—') + '</td>' +
+        '<td style="font-size:.78rem;font-weight:600">' + esc(h.name || '-') + '</td>' +
+        '<td style="font-size:.76rem">' + esc(h.host || '-') + '</td>' +
         '<td style="font-size:.72rem">' + esc(h.type) + '</td>' +
-        '<td style="font-size:.72rem">' + esc(h.interval || '—') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(h.interval || '-') + '</td>' +
         '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(h.comment || '') + '</td>' +
         '</tr>';
     }).join('');

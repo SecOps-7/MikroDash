@@ -4,7 +4,7 @@
 //
 // The live app records the bug this rule exists for, and it is worth carrying
 // the reasoning rather than just the code: treating an empty list as "nothing
-// changed" left the previous rows up indefinitely, and INVISIBLY — the stale
+// changed" left the previous rows up indefinitely, and INVISIBLY - the stale
 // timer had just been re-armed by that very payload, so the card looked healthy
 // while showing devices the router had stopped reporting, and kept showing the
 // previous router's devices after a switch.
@@ -30,8 +30,8 @@ export function renderTalkers(data: TalkersPayload): void {
     return;
   }
   table.innerHTML = devices.map((d) =>
-    '<tr><td>' + esc(d.name || '—') + '</td><td style="color:var(--text-muted)">' +
-    esc(d.mac || '—') + '</td>' +
+    '<tr><td>' + esc(d.name || '-') + '</td><td style="color:var(--text-muted)">' +
+    esc(d.mac || '-') + '</td>' +
     '<td class="text-end" style="color:var(--accent-rx)">' + fmtMbps(d.rx_mbps) + '</td>' +
     '<td class="text-end" style="color:var(--accent-tx)">' + fmtMbps(d.tx_mbps) + '</td></tr>').join('');
 }

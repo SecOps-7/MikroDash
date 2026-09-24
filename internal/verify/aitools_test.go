@@ -17,7 +17,7 @@ import (
 // ── WHY THIS IS A LEDGER AND NOT A COUNT ────────────────────────────────────
 //
 // `cmd/toolgen` derives the catalogue from `resource.All()`, so the two cannot
-// disagree at runtime — the generator would have to be broken for that. What can
+// disagree at runtime - the generator would have to be broken for that. What can
 // drift is the COMMITTED RECORD, and the record is the point: the set of tools a
 // model can call is a security surface, and one that changes silently when
 // somebody adds a page is one nobody reviews.
@@ -52,7 +52,7 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 	root := repoRoot(t)
 	b, err := os.ReadFile(filepath.Join(root, "testdata", "ai-tools.json"))
 	if err != nil {
-		t.Fatalf("no tool record — run: go run ./cmd/toolgen: %v", err)
+		t.Fatalf("no tool record - run: go run ./cmd/toolgen: %v", err)
 	}
 	var f struct {
 		Tools []toolRecord `json:"tools"`
@@ -61,7 +61,7 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 		t.Fatal(err)
 	}
 	if len(f.Tools) == 0 {
-		t.Fatal("the tool record is empty — this test would pass against nothing")
+		t.Fatal("the tool record is empty - this test would pass against nothing")
 	}
 	return f.Tools
 }
@@ -161,7 +161,7 @@ func TestEveryResourceHasATool(t *testing.T) {
 		live[r.Key] = r
 	}
 	if len(live) < 20 {
-		t.Fatalf("only %d resources — the registry is not being enumerated", len(live))
+		t.Fatalf("only %d resources - the registry is not being enumerated", len(live))
 	}
 
 	var missing, orphan []string
@@ -179,11 +179,11 @@ func TestEveryResourceHasATool(t *testing.T) {
 	sort.Strings(orphan)
 
 	for _, k := range missing {
-		t.Errorf("resource %q has no tool — the assistant cannot read a page the operator "+
+		t.Errorf("resource %q has no tool - the assistant cannot read a page the operator "+
 			"can. Run: go run ./cmd/toolgen", k)
 	}
 	for _, k := range orphan {
-		t.Errorf("a tool is recorded for resource %q, which no longer exists — the record "+
+		t.Errorf("a tool is recorded for resource %q, which no longer exists - the record "+
 			"describes a surface that is not there. Run: go run ./cmd/toolgen", k)
 	}
 }
@@ -196,7 +196,7 @@ func TestEveryResourceHasATool(t *testing.T) {
 // because data nobody may withhold is a real case elsewhere in this app. It is
 // NOT a real case here: every tool reads a RouterOS menu that some page owns, so
 // an empty page would advertise a tool to a viewer denied the page it reads
-// from — the assistant becoming a way around the permission matrix, which is the
+// from - the assistant becoming a way around the permission matrix, which is the
 // one thing the design forbids.
 //
 // And a page that does not exist is worse than none: `canPage` would refuse it
@@ -231,13 +231,13 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 			// including one denied the page whose menu it reads.
 			ungated++
 			if (r.Name != writeTool && r.Name != actionTool && r.Name != planTool) || r.Access != "write" {
-				t.Errorf("tool %q has no owning page — it would be advertised to every viewer, "+
+				t.Errorf("tool %q has no owning page - it would be advertised to every viewer, "+
 					"including one denied the page whose menu it reads", r.Name)
 			}
 			continue
 		}
 		if !livePages[r.Page] {
-			t.Errorf("tool %q is gated on page %q, which does not exist — canPage refuses it "+
+			t.Errorf("tool %q is gated on page %q, which does not exist - canPage refuses it "+
 				"for everybody, so the tool is invisible to every viewer", r.Name, r.Page)
 		}
 	}
@@ -259,8 +259,8 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 // It required every name to start `list_` and forbade a set of mutating verbs,
 // because nothing advertised could write. It was re-aimed for `change_row`, and
 // is re-aimed again for `run_action` (slice 3 of the MikroMCP parity work): the
-// pages' own verbs — renew a lease, take a backup, schedule a package change,
-// apply and reboot — are not rows, so `change_row` cannot express them.
+// pages' own verbs - renew a lease, take a backup, schedule a package change,
+// apply and reboot - are not rows, so `change_row` cannot express them.
 //
 // The question it answers is unchanged and is still the one that matters: how
 // many tools can change a router, and WHICH. A third writer appearing, or a
@@ -268,7 +268,7 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 // character, and it must not be possible without this failing.
 func TestExactlyThreeToolsCanChangeAnything(t *testing.T) {
 	// Named rather than pattern-matched, so adding one is deliberate. These are
-	// the shapes a per-verb tool would take — the thing `internal/aitools`
+	// the shapes a per-verb tool would take - the thing `internal/aitools`
 	// excludes: a RouterOS verb the model picks, rather than an action this app
 	// declared and gated.
 	forbidden := []string{"create_", "add_", "set_", "update_", "remove_", "delete_",

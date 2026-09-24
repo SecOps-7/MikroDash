@@ -2,10 +2,10 @@
     <div class="container-fluid px-0" style="width:100%">
 
       <div class="topo-stats" id="topoStats">
-        <div class="topo-stat"><span class="topo-stat-num" id="topoStatDevices">—</span><span class="topo-stat-lbl">Devices</span></div>
-        <div class="topo-stat"><span class="topo-stat-num" id="topoStatLinks">—</span><span class="topo-stat-lbl">Links</span></div>
-        <div class="topo-stat"><span class="topo-stat-num" id="topoStatThru">—</span><span class="topo-stat-lbl">Throughput</span></div>
-        <div class="topo-stat"><span class="topo-stat-num" id="topoStatRtt">—</span><span class="topo-stat-lbl">Worst latency</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatDevices">-</span><span class="topo-stat-lbl">Devices</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatLinks">-</span><span class="topo-stat-lbl">Links</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatThru">-</span><span class="topo-stat-lbl">Throughput</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatRtt">-</span><span class="topo-stat-lbl">Worst latency</span></div>
       </div>
 
       <div class="card" id="topologyCard">
@@ -26,7 +26,7 @@
           </select>
           <button class="topo-chip is-on" id="topoFlowBtn" title="Toggle animated traffic flow">Flow</button>
           <button class="topo-chip is-on" id="topoRateBtn" title="Toggle link rate labels">Rates</button>
-          <button class="topo-chip" id="topoClientsBtn" title="Show every client device. Collapsed by default — use the count chip on a device to expand just that one.">Clients</button>
+          <button class="topo-chip" id="topoClientsBtn" title="Show every client device. Collapsed by default - use the count chip on a device to expand just that one.">Clients</button>
           <!-- The operator's own cabling. A discovery protocol cannot see
                through a switch that forwards none of it, so everything behind
                one looks directly attached; this is where that gets corrected by

@@ -27,8 +27,8 @@
  *
  * ── THE CORE NODE CARRIES NO MAC, AND THIS TEST USED TO PRETEND IT DID ─────
  *
- * `BuildTopology` builds the core with neither a MAC nor an identity — it has no
- * source for either — so a fixture that set one made every case below pass while
+ * `BuildTopology` builds the core with neither a MAC nor an identity - it has no
+ * source for either - so a fixture that set one made every case below pass while
  * production took the opposite branch: the uplink set was empty, everything read
  * as "behind" the peer, and the peer's row for the viewed router was added as a
  * second copy of it. The addresses now come in as `selfMacs`, `base()` builds a
@@ -254,7 +254,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
 
 // ── 9. with no addresses for the viewed router, nothing is merged ────────
 //
-// The endpoint could not read them — the router went away, or the grant is gone.
+// The endpoint could not read them - the router went away, or the grant is gone.
 // Guessing without them is what the flat-segment rule exists to prevent, so the
 // map is left exactly as the collector built it.
 {
@@ -271,7 +271,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
 
 // ── 10. a peer that cannot see the viewed router still contributes ───────
 //
-// No uplink to measure against, so nothing MOVES — but a device only that peer
+// No uplink to measure against, so nothing MOVES - but a device only that peer
 // can see is still a device only that peer can see.
 {
   const m = mergePeers(base(), [apPeer([

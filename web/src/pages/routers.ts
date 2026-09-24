@@ -1,5 +1,5 @@
 /**
- * The Routers page — the fleet dashboard.
+ * The Routers page - the fleet dashboard.
  *
  * Summary cards, a search, and three views of the same rows: a card grid, a
  * sortable list, and a map. The CRUD table for adding and editing routers is NOT
@@ -11,7 +11,7 @@
  * The summary, the search and the GRID. `_rtrView` starts at 'comfortable', so
  * the grid is what a default page shows and what `tools/live-renderer.js routers`
  * currently compares. The list and map views are not ported yet and say so
- * loudly rather than falling back to the grid — a view that silently rendered
+ * loudly rather than falling back to the grid - a view that silently rendered
  * the wrong one would be a divergence the DOM gate cannot see, because the gate
  * only ever drives the default view.
  *
@@ -60,7 +60,7 @@ function emptyText(q: string): string {
  * The sortable columns.
  *
  * `str` compares as TEXT. Everything else sorts numerically with NULL LAST
- * however the column is pointing — an unreachable router has no CPU reading, and
+ * however the column is pointing - an unreachable router has no CPU reading, and
  * burying those at the bottom is more useful than treating them as zero.
  */
 /**
@@ -94,7 +94,7 @@ export function setSort(key: string, dir: number): void { rtlSort = { key, dir }
  * already sorted reverses it instead of resetting the direction.
  *
  * Re-renders the LIST directly from the rows already held rather than going
- * through `renderRoutersStats`, exactly as the original does — so a sort does
+ * through `renderRoutersStats`, exactly as the original does - so a sort does
  * not re-run the search or redraw the summary.
  */
 export function sortBy(key: string): void {
@@ -112,7 +112,7 @@ export function getView(): View { return rtrView; }
  * The four fleet totals above the router grid.
  *
  * Counted from the same rows the cards below are drawn from, so the totals
- * cannot disagree with what is on screen — and they inherit the RBAC filter the
+ * cannot disagree with what is on screen - and they inherit the RBAC filter the
  * server already applied rather than claiming a fleet size the viewer cannot
  * see. Alerting is NOT part of the online/offline split: it counts routers with
  * an unresolved alert, which a reachable router can perfectly well have.
@@ -120,7 +120,7 @@ export function getView(): View { return rtrView; }
 /**
  * A device's site membership, the port of `_rtrSiteIds`.
  *
- * The ARRAY WINS OUTRIGHT when present, even when empty — an explicit empty
+ * The ARRAY WINS OUTRIGHT when present, even when empty - an explicit empty
  * `siteIds` means "no sites", not "no answer", and falling through to the
  * singular there would resurrect a membership just cleared.
  */
@@ -138,8 +138,8 @@ export function siteNamesOf(r: { siteNames?: string[]; siteName?: string | null 
 /**
  * The sentinel for "no site at all".
  *
- * A LEADING SPACE, which cannot collide with a real site id — those are
- * `/^[A-Za-z0-9_-]{1,64}$/` — so it needs no separate flag beside the value.
+ * A LEADING SPACE, which cannot collide with a real site id - those are
+ * `/^[A-Za-z0-9_-]{1,64}$/` - so it needs no separate flag beside the value.
  */
 export const RTR_UNASSIGNED = ' unassigned';
 
@@ -164,7 +164,7 @@ export function rtrSiteFilter(): string {
  *
  * Reproduced rather than corrected. Fixing it here would make this port's
  * dropdown disagree with the live one, which is the line this project does not
- * cross — the defect is reported in `../MikroDash/ToDo.md` §1 with a worked
+ * cross - the defect is reported in `../MikroDash/ToDo.md` §1 with a worked
  * example and a suggested fix at the source.
  */
 export function syncRoutersSiteFilter(rows: RouterStatsRow[] | null): void {
@@ -180,7 +180,7 @@ export function syncRoutersSiteFilter(rows: RouterStatsRow[] | null): void {
     //
     // One name per id, with '' for a site it could not resolve, so `nm[i]`
     // always belongs to `ids[i]`. `|| id` is what takes the blank out at the
-    // point of display — a device still listing a DELETED site shows the raw id
+    // point of display - a device still listing a DELETED site shows the raw id
     // rather than a name belonging to somebody else.
     //
     // The server used to DROP unresolvable names instead. That removed an
@@ -267,7 +267,7 @@ export function rtrQuery(): string {
  *
  * EVERY TERM MUST MATCH, and three of them are keywords rather than text:
  * `online`, `offline` and `alerting` filter on state, so "offline mikrotik"
- * means both. The haystack is label, host, board and version — deliberately not
+ * means both. The haystack is label, host, board and version - deliberately not
  * the serial, which the live version also omits.
  */
 export function rtrMatches(r: RouterStatsRow, q: string): boolean {
@@ -297,21 +297,21 @@ export function rtrMatches(r: RouterStatsRow, q: string): boolean {
 function gridUptime(raw: string | null): string {
   const parts = raw ? raw.match(/\d+[wdhm]/g) : null;
   if (parts && parts.length) return parts.join(' ');
-  return raw ? esc(raw) : '—';
+  return raw ? esc(raw) : '-';
 }
 
 /**
  * One usage bar, or an em dash.
  *
  * The thresholds are compared against a possibly-null value, exactly as the
- * original does — `null > 90` is false in JavaScript, so an absent reading takes
+ * original does - `null > 90` is false in JavaScript, so an absent reading takes
  * the base colour. It never reaches the DOM, because the bar is only drawn when
  * the value is present, but computing it the same way keeps the two readable
  * side by side.
  */
 function usageBar(label: string, pct: number | null, colour: string, mb: string): string {
   if (pct == null) {
-    return '<div class="text-muted ' + mb + '" style="font-size:.75rem">' + label + ' —</div>';
+    return '<div class="text-muted ' + mb + '" style="font-size:.75rem">' + label + ' -</div>';
   }
   return '<div class="d-flex align-items-center ' + mb + '">'
     + '<span class="me-2 text-muted" style="width:3rem;font-size:.75rem">' + label + '</span>'
@@ -343,10 +343,10 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
 
     const uptime = gridUptime(r.uptime);
     const rx = r.rxMbps != null
-      ? '<span style="color:var(--accent-rx)">&#8595; ' + r.rxMbps.toFixed(2) + ' Mbps</span>' : '—';
+      ? '<span style="color:var(--accent-rx)">&#8595; ' + r.rxMbps.toFixed(2) + ' Mbps</span>' : '-';
     const tx = r.txMbps != null
-      ? '<span style="color:var(--accent-tx)">&#8593; ' + r.txMbps.toFixed(2) + ' Mbps</span>' : '—';
-    const clients = r.clients != null ? String(r.clients) : '—';
+      ? '<span style="color:var(--accent-tx)">&#8593; ' + r.txMbps.toFixed(2) + ' Mbps</span>' : '-';
+    const clients = r.clients != null ? String(r.clients) : '-';
 
     let footerPills = '';
     const mr = 'margin-right:.3rem';
@@ -356,7 +356,7 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
     if (r.serial) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);' + mr + '">SN: ' + esc(r.serial) + '</span>';
     // THE `L` IS ONLY RIGHT FOR A ROUTERBOARD. A physical router reports a bare
     // number and the pill reads L4 or L6, which is how MikroTik writes it. A CHR
-    // reports a WORD — free, p1, p10, p-unlimited — and the prefix turned those
+    // reports a WORD - free, p1, p10, p-unlimited - and the prefix turned those
     // into "Lfree" and "Lp-unlimited", a licence level no MikroTik product has.
     if (r.licenseLevel) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25)">' + esc(licenseLabel(r.licenseLevel)) + '</span>';
     const footer = footerPills ? '<div class="mt-2">' + footerPills + '</div>' : '';
@@ -374,12 +374,12 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
     const activeBadge = r.isActive
       ? '<span class="badge badge-outline text-blue ms-2">active</span>' : '';
 
-    // Compact fits four across where Comfortable fits three — the same cards,
+    // Compact fits four across where Comfortable fits three - the same cards,
     // more of them in view.
     // ── AND A TIER ABOVE `xl`, WHICH IS ONLY 1200px ───────────────────────
     //
     // Removing the page's `container-xl` cap (issue #122) let the grid have the
-    // whole window, but the columns stopped at `xl` — so a 2500px screen still
+    // whole window, but the columns stopped at `xl` - so a 2500px screen still
     // drew three cards, each about 800px wide and mostly empty. Full width and
     // responsive are not the same thing, and the reporter asked for the second.
     //
@@ -391,7 +391,7 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
       : '<div class="col-md-6 col-xl-4 col-xxl-3">')
       // h-100 so cards in a row match height. Without it a card is only as tall
       // as its content, and one whose identity pills wrap to a second row sat
-      // visibly taller than its neighbours — measured at 297px against 275px.
+      // visibly taller than its neighbours - measured at 297px against 275px.
       + '<div class="card h-100">'
       + '<div class="card-header" style="align-items:flex-start">'
       + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (!r.known ? '#6c7a91' : r.online ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
@@ -430,7 +430,7 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
  * plausible.
  */
 function rtlBar(pct: number | null, colour: string): string {
-  if (pct == null) return '<span class="text-muted">—</span>';
+  if (pct == null) return '<span class="text-muted">-</span>';
   return '<span class="rtl-bar"><i style="width:' + Math.max(0, Math.min(100, pct))
     + '%;background:' + colour + '"></i></span>' + pct + '%';
 }
@@ -440,10 +440,10 @@ function rtlBar(pct: number | null, colour: string): string {
  *
  * ── ITS UPTIME RULE IS A THIRD ONE ─────────────────────────────────────────
  *
- * `(match || []).join(' ') || raw` — an empty join is the empty string, which is
+ * `(match || []).join(' ') || raw` - an empty join is the empty string, which is
  * falsy, so an uptime with no w/d/h/m component falls back to the raw text. It
  * agrees with the grid on "45s" and disagrees on ABSENCE: the grid writes a bare
- * em dash, this writes `<span class="text-muted">—</span>`. Different markup for
+ * em dash, this writes `<span class="text-muted">-</span>`. Different markup for
  * the same idea, in the same file, and both are reproduced rather than
  * harmonised.
  */
@@ -476,7 +476,7 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
     return;
   }
 
-  const dash = '<span class="text-muted">—</span>';
+  const dash = '<span class="text-muted">-</span>';
   body.innerHTML = list.map((r) => {
     const cpuC = (r.cpu as number) > 90 ? '#f87171' : (r.cpu as number) > 75 ? '#f59f00' : '#38bdf8';
     const memC = (r.memPct as number) > 90 ? '#f87171' : (r.memPct as number) > 75 ? '#f59f00' : '#34d399';
@@ -485,7 +485,7 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
     const alerts = r.openAlerts > 0
       ? '<span style="color:var(--accent-amber,#f59f00);font-weight:600">' + r.openAlerts + '</span>'
       : dash;
-    // `rtl-offline` DIMS THE ROW, so an unchecked router must not carry it —
+    // `rtl-offline` DIMS THE ROW, so an unchecked router must not carry it -
     // see the three states on the card badge above.
     return '<tr class="rtl-row' + (r.online || !r.known ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
       + '<td><span class="rtl-dot" style="background:' + (!r.known ? '#6c7a91' : r.online ? '#34d399' : '#f87171') + '" title="'
@@ -520,8 +520,8 @@ function refreshHeaders(): void {
 
 // ── the map's string and arithmetic half ────────────────────────────────────
 //
-// The map is two things in one IIFE. Building and moving the SVG — markers,
-// zoom, drag, the popover's position — needs a browser and is gated by
+// The map is two things in one IIFE. Building and moving the SVG - markers,
+// zoom, drag, the popover's position - needs a browser and is gated by
 // The live-renderer tool against a running stack. Deciding WHERE a marker
 // goes, WHICH routers share a place, and WHAT the popover and tray say is
 // arithmetic and string building, gated by the routers-grid check
@@ -547,12 +547,12 @@ export interface MapGroup { key: string; x: number; y: number; routers: RouterSt
  * Several routers behind one WAN address share a coordinate exactly. An earlier
  * live version fanned them onto a small ring so each stayed clickable; on a real
  * fleet that read as three separate SITES rather than one place with three
- * routers in it — the opposite of the truth. They collapse into a single marker
+ * routers in it - the opposite of the truth. They collapse into a single marker
  * carrying the count, and the popover lists what is inside.
  *
  * THE MEMBER SORT IS THE ORIGINAL'S, comparator quirk included: it returns -1 or
  * 1 and never 0, so equal labels are ordered by whatever the engine does with an
- * inconsistent comparator. Reproduced rather than corrected — "stable order so a
+ * inconsistent comparator. Reproduced rather than corrected - "stable order so a
  * popover list does not reshuffle every two seconds" is the intent, and changing
  * the comparator changes which order that is.
  */
@@ -588,7 +588,7 @@ function canManage(id: string): boolean {
 /**
  * The status dot's colour, in the map's CSS variables.
  *
- * THREE STATES. Grey is "no pool has reached this router yet" — see
+ * THREE STATES. Grey is "no pool has reached this router yet" - see
  * `RouterStatsRow.known`. Both popovers used a red/green ternary on `connected`
  * alone, so opening the map before the overview pool had dialled painted the
  * whole fleet red.
@@ -600,7 +600,7 @@ export function dotColour(r: RouterStatsRow): string {
 
 export function popHtml(r: RouterStatsRow): string {
   const g: Partial<NonNullable<RouterStatsRow['geo']>> = r.geo || {};
-  const up = r.uptime ? String(r.uptime) : '—';
+  const up = r.uptime ? String(r.uptime) : '-';
   // Where the position came from, stated plainly and without alarm. The map
   // itself no longer distinguishes them.
   const from = g.source === 'manual' ? 'set here'
@@ -612,10 +612,10 @@ export function popHtml(r: RouterStatsRow): string {
     + '"></span>' + esc(r.label) + '</div>'
     + '<div class="rmp-grid">'
     + '<span>Host</span><b>' + esc(r.host) + '</b>'
-    + '<span>CPU</span><b>' + (r.cpu == null ? '—' : r.cpu + '%') + '</b>'
+    + '<span>CPU</span><b>' + (r.cpu == null ? '-' : r.cpu + '%') + '</b>'
     + '<span>Uptime</span><b>' + esc(up) + '</b>'
-    + '<span>WAN</span><b>&#8595;' + (r.rxMbps == null ? '—' : r.rxMbps)
-    + ' &#8593;' + (r.txMbps == null ? '—' : r.txMbps) + ' Mbps</b>'
+    + '<span>WAN</span><b>&#8595;' + (r.rxMbps == null ? '-' : r.rxMbps)
+    + ' &#8593;' + (r.txMbps == null ? '-' : r.txMbps) + ' Mbps</b>'
     + (r.openAlerts ? '<span>Alerts</span><b style="color:var(--accent-amber,#f59f00)">' + r.openAlerts + '</b>' : '')
     + '</div>'
     + '<div class="rmp-loc">' + loc + '</div>'
@@ -625,7 +625,7 @@ export function popHtml(r: RouterStatsRow): string {
 /**
  * A cluster's popover.
  *
- * A group of one shows the router. A group of several shows what is IN it — the
+ * A group of one shows the router. A group of several shows what is IN it - the
  * count on the marker says how many, this says which, with a way into each one's
  * settings. Without it a cluster would be a dead end.
  */
@@ -640,7 +640,7 @@ export function groupPopHtml(g: MapGroup): string {
   return '<div class="rmp-name">' + g.routers.length + ' routers</div>'
     + '<div class="rmp-loc" style="margin-top:.2rem;padding-top:0;border-top:0">'
     + esc(place)
-    + (down ? ' <span style="color:var(--accent-err,#f87171)">— ' + down + ' offline</span>' : '')
+    + (down ? ' <span style="color:var(--accent-err,#f87171)">- ' + down + ' offline</span>' : '')
     + '</div>'
     + '<div class="rmp-list">' + g.routers.map((r) => {
         const can = canManage(r.id);
@@ -697,7 +697,7 @@ export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
   // per socket, so the dropdown can only ever offer sites this viewer actually
   // has a device in. The live comment says the same: the site cache it could
   // have used instead comes from an ungated endpoint and would list the whole
-  // install. (That cache's name is deliberately not written out here —
+  // install. (That cache's name is deliberately not written out here -
   // `announcement-audit` text-scans for `window.<name>` reads and cannot tell a
   // comment from code, so naming it reads as a producer this port dropped.)
   syncRoutersSiteFilter(all);
@@ -707,7 +707,7 @@ export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
   // `syncRoutersSiteFilter` above has always filled this dropdown, so it looked
   // alive: it listed the right sites and remembered a selection. Nothing ever
   // read it. `rtrSiteFilter()` was written, exported and never called, and this
-  // line filtered on the search box alone — so choosing a site changed nothing.
+  // line filtered on the search box alone - so choosing a site changed nothing.
   //
   // Neither audit could see it. `selectors_test` asks whether the id the page
   // QUERIES exists in the markup, and `rtrSiteFilter` does query it; nothing
@@ -730,7 +730,7 @@ export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
   if (rtrView === 'list') { renderRoutersList(visible); return; }
   if (rtrView === 'map') {
     // THE FULL ROW SET, not `visible`. The live `apply` takes what the search
-    // left AND splits it itself — the tray lists routers with no location, and
+    // left AND splits it itself - the tray lists routers with no location, and
     // those must still be listed when a search is narrowing the map.
     mapApply(visible);
     return;
@@ -743,7 +743,7 @@ export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
  *
  * The same one-way rule as `onAfterTransform`: `routers-map.ts` imports this
  * module, so this module cannot import it back. Until it registers, drawing the
- * map is a no-op rather than a throw — the view is only reachable once the page
+ * map is a no-op rather than a throw - the view is only reachable once the page
  * has mounted, and a throw here would take `renderRoutersStats` with it.
  */
 let mapApply: (rows: RouterStatsRow[]) => void = () => {};
@@ -765,7 +765,7 @@ export function lastRows(): RouterStatsRow[] { return lastRtrRows; }
 
 const MAP_MIN_SCALE = 1, MAP_MAX_SCALE = 8;
 
-/** The current view. Absolute, not accumulated — `fitToMarkers` sets all three. */
+/** The current view. Absolute, not accumulated - `fitToMarkers` sets all three. */
 const mapView = { scale: 1, tx: 0, ty: 0 };
 
 /**
@@ -789,7 +789,7 @@ export function clampTranslate(s: number, x: number, y: number): [number, number
  * The live `applyTransform` calls `resize()` and `positionPop()` inline; both
  * belong to the SVG half, which lives in `routers-map.ts` because it can only be
  * checked in a browser. A hook rather than an import, because the dependency
- * runs the other way — the SVG module imports this one for `clampTranslate` and
+ * runs the other way - the SVG module imports this one for `clampTranslate` and
  * `fitToMarkers`, and importing back would be a cycle.
  *
  * EMPTY UNTIL THE MAP MOUNTS, which is correct: with no markers drawn there is
@@ -860,7 +860,7 @@ const VIEW_KEY = 'mikrodash_routers_view';
  * Show one view and hide the others, then redraw.
  *
  * AN UNKNOWN STORED VALUE FALLS THROUGH TO THE CARD GRID, so a downgrade that no
- * longer knows 'map' degrades rather than showing nothing — the live comment
+ * longer knows 'map' degrades rather than showing nothing - the live comment
  * says exactly that, and it is why the tests below feed it rubbish.
  *
  * Re-renders from the rows already held, so switching view is instant rather
@@ -903,7 +903,7 @@ export function mountRouters(socket: Socket): void {
   //
   // A `import('./routers-map')` here worked and was wrong twice over: the
   // dependency runs the other way (that module imports this one), so a static
-  // import back would be a cycle — and the dynamic form that avoided the cycle
+  // import back would be a cycle - and the dynamic form that avoided the cycle
   // resolved on a later microtask, so the map mounted at an unpredictable time
   // relative to the first `routers:stats`. The routers-grid check is what
   // exposed it, by finishing its run and tearing down its fake `document` before

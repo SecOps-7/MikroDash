@@ -1,7 +1,7 @@
 /**
  * THE VPN PAGE IS AN OVERVIEW.
  *
- * It was a WireGuard page wearing the wrong name — tiles counting WireGuard
+ * It was a WireGuard page wearing the wrong name - tiles counting WireGuard
  * peers only, and a WireGuard peer grid. That moved to /wireguard, and what is
  * left is the one view none of the dedicated pages can give: every VPN
  * technology at once.
@@ -57,7 +57,7 @@ const doc = makeDoc(['vpnOverviewCount', 'vpnOverviewTbody',
 //
 // An earlier version of this stubbed the page's `isVisible` argument and
 // asserted on that. It passed while NOT ONE LINK rendered in a browser, because
-// the page was asking the wrong question entirely — `isVisible` answers "is
+// the page was asking the wrong question entirely - `isVisible` answers "is
 // this page on screen", which is false for every other page by definition.
 // Stubbing the collaborator tested the intention; this drives the mechanism.
 const navPages = new Set(['wireguard', 'ipsec', 'openvpn', 'ppp']);
@@ -124,7 +124,7 @@ check('"Configured" is a dash where the payload cannot say', () => {
     }
   }
   handlers['vpn:update'](payload({ ppp: [pppSess('L2TP')] }));
-  assert.ok(/&mdash;/.test(String(n.vpnOverviewTbody.innerHTML)),
+  assert.ok(/-/.test(String(n.vpnOverviewTbody.innerHTML)),
     'the unknown counts did not render as a dash');
 });
 
@@ -143,8 +143,8 @@ check('a link is rendered only for a page the nav actually offers', () => {
   assert.ok(/WireGuard/.test(html), 'the row itself disappeared; only its link should');
   hiddenNav.delete('wireguard');
 
-  // AND A PAGE THAT IS NOT IN THE NAV AT ALL — an install where the area was
-  // never mounted — is the same answer by a different route.
+  // AND A PAGE THAT IS NOT IN THE NAV AT ALL - an install where the area was
+  // never mounted - is the same answer by a different route.
   navPages.delete('ipsec');
   handlers['vpn:update'](payload({ tunnels: [wg('active')] }));
   html = String(n.vpnOverviewTbody.innerHTML);
@@ -234,8 +234,8 @@ check('a rate is shown only where a rate was measured', () => {
 });
 
 check('an idle WireGuard peer still shows a rate, not a total', () => {
-  // THE FLICKER THIS PINS. Deciding by the VALUES — "a rate when the rate is
-  // non-zero" — was live for one build, and a quiet peer swapped between
+  // THE FLICKER THIS PINS. Deciding by the VALUES - "a rate when the rate is
+  // non-zero" - was live for one build, and a quiet peer swapped between
   // "10 B/s" and "9.1 GB" under the same label as its traffic came and went.
   // The technology decides, not the reading: WireGuard is differenced, so 0 B/s
   // is a real measurement.

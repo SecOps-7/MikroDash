@@ -259,7 +259,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   // The model's turn has already ended by the time this arrives: it proposed,
   // was told the operator would be asked, and said so. Nothing here is fed back
   // to it. The answer goes to the server, which runs the whole write pipeline
-  // afresh — so approving is not replaying a decision, it is making one.
+  // afresh - so approving is not replaying a decision, it is making one.
   let proposal = '';
 
   // The router name an action proposal wants typed back, "" when it wants none.
@@ -346,7 +346,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
         // `warningText` is the SAME function the resource form's own guard
         // dialog uses, and it escapes every value it interpolates. Writing a
         // second vocabulary for lockout warnings would mean the assistant and
-        // the form describing one danger in two different ways — and the one
+        // the form describing one danger in two different ways - and the one
         // nobody re-reads would be the one that goes stale.
         //
         // Its input is a server-built guard verdict, not model output. Every

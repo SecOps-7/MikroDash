@@ -11,7 +11,7 @@
  * The trap is the HTML string, not the Markdown. Nothing here ever produces one.
  * Every piece of model output reaches the page through `createElement` and
  * `textContent`, so there is no markup to sanitise and no `innerHTML` to get
- * wrong — a model that emits `<img onerror=…>` renders those characters, because
+ * wrong - a model that emits `<img onerror=…>` renders those characters, because
  * that is what they are.
  *
  * ── WHAT IS SUPPORTED, AND WHY THIS MUCH ────────────────────────────────────
@@ -24,7 +24,7 @@
  * ── LINKS ARE NOT CLICKABLE, AND THAT IS THE POINT ──────────────────────────
  *
  * A model can be talked into emitting a link by the very router text it is
- * reading — a DHCP host name is chosen by the device, not by the operator. An
+ * reading - a DHCP host name is chosen by the device, not by the operator. An
  * anchor whose href came from that chain is a phishing target rendered by the
  * operator's own dashboard, so the URL is shown as text and the reader decides.
  */
@@ -57,7 +57,7 @@ function cells(line: string): string[] {
  *
  * FENCED CODE IS TAKEN FIRST AND VERBATIM. Everything between the fences is one
  * string with no inline parsing at all, because a RouterOS command is full of
- * characters this would otherwise read as emphasis — `/ip firewall filter add
+ * characters this would otherwise read as emphasis - `/ip firewall filter add
  * chain=input action=drop` survives only if nothing looks at it.
  *
  * AN UNCLOSED FENCE IS STILL A CODE BLOCK. A truncated reply ends mid-command,
@@ -266,7 +266,7 @@ const INLINE = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/;
  *
  * EVERY BRANCH ENDS IN textContent. There is no path from model output to markup
  * here, which is what makes the whole module safe rather than carefully escaped
- * — escaping is something one can forget in a single branch.
+ * - escaping is something one can forget in a single branch.
  */
 export function inline(text: string): DocumentFragment {
   const frag = document.createDocumentFragment();

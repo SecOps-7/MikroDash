@@ -9,7 +9,7 @@
  *
  * One can now: the notification channel's Events tab has a gear that opens an
  * interface-type picker over it. Pressing Escape in the picker closed the
- * channel dialog with it and threw away every unsaved edit — and it read as the
+ * channel dialog with it and threw away every unsaved edit - and it read as the
  * picker doing something violent rather than Escape doing too much.
  *
  * Found by opening it in a browser. Nothing failed, because every test that
@@ -115,7 +115,7 @@ check('a second Escape then closes the one underneath', () => {
 
 // A dialog with no z-index of its own computes to 'auto', which parses NaN. It
 // must rank as 0 rather than be dropped, or Escape would stop closing every
-// dialog that does not set one — which is most of them.
+// dialog that does not set one - which is most of them.
 check('a dialog with no z-index of its own still closes', () => {
   const d = mount(STACK);
   d.open('accountModal');

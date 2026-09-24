@@ -9,7 +9,7 @@
 /**
  * The Connections page's reference tables, lifted rather than retyped.
  *
- * `PORT_NAMES`, `CC_NAMES` and `CC_CENTROIDS` are 75 lines of pure data — every
+ * `PORT_NAMES`, `CC_NAMES` and `CC_CENTROIDS` are 75 lines of pure data - every
  * country's name and a hand-picked centroid for each. They were copied out of
  * public/app.js by a script, and this is what keeps them copied: a mistyped
  * centroid draws an arc to the wrong country and NOTHING ELSE WOULD EVER FAIL.
@@ -50,7 +50,7 @@ function frozen(key, fn) {
     }
     if (recorded[key] !== undefined) {
       assert.deepStrictEqual(fresh, recorded[key],
-        'the recorded live ' + key + ' no longer matches app.js — '
+        'the recorded live ' + key + ' no longer matches app.js - '
         + 'regenerate with MIKRODASH_CONNTABLES_FREEZE=1');
     }
     return fresh;
@@ -72,8 +72,8 @@ function tableFrom(src, pattern) {
 for (const name of ['PORT_NAMES', 'CC_NAMES', 'CC_CENTROIDS', 'NUM_TO_ISO2']) {
   test('connections ' + name + ' matches the live table exactly', () => {
     const port = fs.readFileSync(PORT, 'utf8');
-    // THE LIVE TABLE, RECORDED. These four are DATA — the port copied them and
-    // must keep matching — so the table itself is what has to survive, not the
+    // THE LIVE TABLE, RECORDED. These four are DATA - the port copied them and
+    // must keep matching - so the table itself is what has to survive, not the
     // file it was cut from. With the reference present the recording is
     // re-derived and compared, so it cannot drift from what it claims to hold.
     const a = frozen(name, () => {
@@ -89,6 +89,6 @@ for (const name of ['PORT_NAMES', 'CC_NAMES', 'CC_CENTROIDS', 'NUM_TO_ISO2']) {
     }
     // A sanity floor, so a regex that silently matched an empty object cannot
     // pass this test by comparing nothing to nothing.
-    assert.ok(ak.length > 10, name + ' has only ' + ak.length + ' entries — did the match fail?');
+    assert.ok(ak.length > 10, name + ' has only ' + ak.length + ' entries - did the match fail?');
   });
 }

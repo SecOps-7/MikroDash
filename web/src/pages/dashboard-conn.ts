@@ -7,7 +7,7 @@
 // card compares a fingerprint of each section against the last one and skips the
 // sections that did not move. The fingerprints are DELIBERATELY NARROW: sources
 // on ip+count, destinations on key+count+country, protocols on the whole count
-// object. `ts` is excluded from all of them — including it would make every
+// object. `ts` is excluded from all of them - including it would make every
 // fingerprint differ every tick and turn the whole mechanism off.
 //
 // Note what that means for destinations: `org`, `cat` and `city` are RENDERED
@@ -17,7 +17,7 @@
 // ── THE TOTAL AND THE BARS ARE NOT DEFERRED; THE LISTS ARE ──────────────────
 //
 // The handler writes the total, pushes history and draws the sparkline
-// immediately, then defers only the two lists to an animation frame — they are
+// immediately, then defers only the two lists to an animation frame - they are
 // the expensive half. A hidden tab keeps the payload pending exactly as the
 // System card does.
 //
@@ -25,7 +25,7 @@
 //
 // `connections-map.ts` exports `iso2Flag`, which looks like the same function
 // and is not: it returns '' for anything that is not two characters, and this
-// call site has no such guard — it maps every character it is given. Reusing it
+// call site has no such guard - it maps every character it is given. Reusing it
 // would silently change what a malformed country renders as. The live formula is
 // reproduced instead, and the difference is pinned by a case.
 
@@ -111,7 +111,7 @@ export function flushConnUpdate(): void {
           '<div class="top-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
           esc(s.name) + '</div></div><div class="top-count">' + s.count + '</div></div>').join('');
       } else {
-        topSources.innerHTML = '<div class="empty-state">—</div>';
+        topSources.innerHTML = '<div class="empty-state">-</div>';
       }
     }
   }
@@ -126,7 +126,7 @@ export function flushConnUpdate(): void {
         topDests.innerHTML = data.topDestinations.map((d) => {
           let flag = '', geoLabel = '';
           if (d.country) {
-            // No length guard — see the header. This is not `iso2Flag`.
+            // No length guard - see the header. This is not `iso2Flag`.
             flag = d.country.split('').map((c) =>
               String.fromCodePoint(0x1F1E6 - 65 + c.toUpperCase().charCodeAt(0))).join('');
             geoLabel = flag + (d.city ? ' ' + esc(d.city) + ' · ' + esc(d.country) : '');
@@ -145,7 +145,7 @@ export function flushConnUpdate(): void {
           '</div>';
         }).join('');
       } else {
-        topDests.innerHTML = '<div class="empty-state">—</div>';
+        topDests.innerHTML = '<div class="empty-state">-</div>';
       }
     }
   }
@@ -163,7 +163,7 @@ export function noteConnUpdate(data: ConnsUpdate): void {
     protoFp = nextProtoFp;
     renderProtoBars(data.protoCounts);
   }
-  // Excludes ts — the payload shape is stable between ticks when nothing moved.
+  // Excludes ts - the payload shape is stable between ticks when nothing moved.
   pending = data;
   if (!rafId) rafId = requestAnimationFrame(flushConnUpdate);
 }
@@ -176,8 +176,8 @@ export function flushPendingConn(): void {
 /**
  * Forget the caches. A switch to another router must redraw everything: the new
  * router's first payload could fingerprint identically to the old router's last
- * one — two routers with the same top talker at the same count is not far-fetched
- * on a fleet — and the card would keep the previous router's rows.
+ * one - two routers with the same top talker at the same count is not far-fetched
+ * on a fleet - and the card would keep the previous router's rows.
  */
 export function resetConnCaches(): void {
   srcFp = ''; dstFp = ''; protoFp = '';

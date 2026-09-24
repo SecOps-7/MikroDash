@@ -27,7 +27,7 @@ func TestEveryIdInTheAppIsDeclaredOnce(t *testing.T) {
 		return base == "shell.html" || (strings.HasPrefix(base, "page-") && hasExt(r, ".html"))
 	})
 	if len(files) < 30 {
-		t.Fatalf("only %d markup files read — the scan broke", len(files))
+		t.Fatalf("only %d markup files read - the scan broke", len(files))
 	}
 	idRe := regexp.MustCompile(`\sid="([^"]+)"`)
 	where := map[string][]string{}
@@ -39,7 +39,7 @@ func TestEveryIdInTheAppIsDeclaredOnce(t *testing.T) {
 		}
 	}
 	if total < 500 {
-		t.Fatalf("only %d ids found — the scan broke", total)
+		t.Fatalf("only %d ids found - the scan broke", total)
 	}
 	var dup []string
 	for id, in := range where {

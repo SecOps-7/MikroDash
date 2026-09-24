@@ -1,4 +1,4 @@
-// The Routing page — a port of the Routing IIFE in public/app.js.
+// The Routing page - a port of the Routing IIFE in public/app.js.
 //
 // The biggest page ported so far, and the first with a CHART. Three things carry
 // the work: a routes table and a BGP peers table, each with its own filters and
@@ -11,7 +11,7 @@
 // the dataset, the colours, the cutout, the centre-label plugin and the
 // exclusions below are reproduced exactly, so a difference would have to come
 // from Chart.js itself. The library is the one the live app already serves at
-// /vendor/chart.umd.min.js — the Go server proxies everything outside /next, so
+// /vendor/chart.umd.min.js - the Go server proxies everything outside /next, so
 // it is the identical file rather than a second copy.
 
 import { esc, el, resRow, sparkPoints } from '../dom';
@@ -45,7 +45,7 @@ const STATE_ORDER: Record<string, number> = {
 };
 
 function fmtUptime(sec: number): string {
-  if (!sec) return '—';
+  if (!sec) return '-';
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -112,7 +112,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
       else if (sortKey === 'as') { av = a.remoteAs; bv = b.remoteAs; }
       else if (sortKey === 'state') {
         // Assigned first: TypeScript will not narrow an index signature through
-        // the ternary the JavaScript original uses. Same answer — an unknown
+        // the ternary the JavaScript original uses. Same answer - an unknown
         // state sorts after every known one.
         const ao = STATE_ORDER[a.state], bo = STATE_ORDER[b.state];
         av = ao === undefined ? 9 : ao;
@@ -133,7 +133,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     const canvas = el<HTMLCanvasElement>('rtDonutCanvas');
     if (!canvas) return;
 
-    // Connected is EXCLUDED from the doughnut and shown in the count grid only —
+    // Connected is EXCLUDED from the doughnut and shown in the count grid only -
     // but it is still counted as "known", so Other means unclassified rather
     // than "everything the four slices left out".
     const keys = ['static', 'dynamic', 'bgp', 'ospf'] as const;
@@ -142,13 +142,13 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     const dataKeys: string[] = other > 0 ? [...keys, 'other'] : [...keys];
     const vals = keys.map((k) => rc[k] || 0).concat(other > 0 ? [other] : []);
     // dataKeys only ever holds keys DONUT_COLORS defines, so the fallback is
-    // unreachable — it is here because the compiler cannot know that.
+    // unreachable - it is here because the compiler cannot know that.
     const colors = dataKeys.map((k) => DONUT_COLORS[k] ?? DONUT_COLORS.other ?? '');
 
     donutTotal = rc.total || 0;
 
     // Chart.js is served by the proxy. Without it the page still renders every
-    // table — a missing chart is a worse page, a thrown ReferenceError is a
+    // table - a missing chart is a worse page, a thrown ReferenceError is a
     // blank one.
     if (typeof Chart === 'undefined') return;
 
@@ -193,7 +193,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
             ctx.textBaseline = 'middle';
             ctx.font = "bold 26px 'JetBrains Mono',ui-monospace,monospace";
             ctx.fillStyle = color;
-            ctx.fillText(String(donutTotal || '—'), cx, cy);
+            ctx.fillText(String(donutTotal || '-'), cx, cy);
             ctx.restore();
           },
         }],
@@ -216,7 +216,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     const sm = d.summary;
     const set = (id: string, v: number | undefined): void => {
       const e = el(id);
-      if (e) e.textContent = v !== undefined ? String(v) : '—';
+      if (e) e.textContent = v !== undefined ? String(v) : '-';
     };
     set('rtTotal', rc.total);
     set('rtConnect', rc.connect);
@@ -238,7 +238,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
 
     if (!peers.length) {
       tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No BGP peers' +
-        ((data.peers || []).length ? ' match current filter' : ' — BGP may not be configured') + '</td></tr>';
+        ((data.peers || []).length ? ' match current filter' : ' - BGP may not be configured') + '</td></tr>';
       return;
     }
 
@@ -258,11 +258,11 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
         (p.description ? '<div class="rt-peer-desc">' + esc(p.description) + '</div>' : '');
       const errCell = p.lastError
         ? '<span title="' + esc(p.lastError) + '" style="font-size:.65rem;color:rgba(251,113,133,.85);cursor:help;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚠ ' + esc(p.lastError) + '</span>'
-        : '<span style="color:var(--text-muted);font-size:.65rem">—</span>';
+        : '<span style="color:var(--text-muted);font-size:.65rem">-</span>';
       return '<tr>' +
         '<td>' + nameCell + '</td>' +
         '<td style="font-family:var(--font-mono);font-size:.7rem">' + esc(p.remoteAddr) + '</td>' +
-        '<td style="font-family:var(--font-mono)">' + (p.remoteAs || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono)">' + (p.remoteAs || '-') + '</td>' +
         '<td>' + stateBadge(p.state, p.flapping) + '</td>' +
         '<td style="font-family:var(--font-mono)">' + fmtUptime(p.uptimeSec) + '</td>' +
         '<td style="font-family:var(--font-mono);text-align:right">' + (p.prefixes || 0).toLocaleString() + '</td>' +
@@ -293,7 +293,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     th.addEventListener('click', () => {
       if (sortKey === col.key) sortDir *= -1;
       // A new column starts ascending for the two textual ones and descending
-      // for the numeric ones — biggest-first is what you want from a prefix
+      // for the numeric ones - biggest-first is what you want from a prefix
       // count, and A-first from a name.
       else { sortKey = col.key; sortDir = col.key === 'state' || col.key === 'name' ? 1 : -1; }
       refreshSortHeaders();
@@ -356,7 +356,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     routesTbody.innerHTML = routes.map((r) => {
       const activeCell = r.active
         ? '<span style="color:rgba(52,211,153,.9);font-size:.7rem">&#10003; Active</span>'
-        : '<span style="color:var(--text-muted);font-size:.7rem">—</span>';
+        : '<span style="color:var(--text-muted);font-size:.7rem">-</span>';
       const typeCell = r.type === 'static'
         ? '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(56,189,248,.1);color:rgba(56,189,248,.8)">Static</span>'
         : '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8)">' +
@@ -367,12 +367,12 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
       // The family picks the RouterOS menu, so a v6 row overrides the table's
       // default resource on itself.
       return '<tr' + resRow(r.id, r.dst, r.family === 'ipv6' ? 'route6' : undefined) + '>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + familyBadge + esc(r.dst || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.gateway || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + familyBadge + esc(r.dst || '-') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.gateway || '-') + '</td>' +
         '<td style="font-family:var(--font-mono);text-align:right">' + r.distance + '</td>' +
         '<td>' + activeCell + '</td>' +
         '<td>' + typeCell + '</td>' +
-        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(r.comment || '—') + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(r.comment || '-') + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -395,7 +395,7 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
     th.addEventListener('click', () => {
       if (routeSort === col.key) routeSortDir *= -1;
       // A NEW COLUMN ALWAYS STARTS ASCENDING. The live line reads
-      // `col.key === 'active' || col.key === 'distance' ? 1 : 1` — both branches
+      // `col.key === 'active' || col.key === 'distance' ? 1 : 1` - both branches
       // are 1, so the condition decides nothing. Reproduced as the behaviour it
       // actually has rather than as the choice it looks like it is making.
       else { routeSort = col.key; routeSortDir = 1; }

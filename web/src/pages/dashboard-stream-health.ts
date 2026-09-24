@@ -11,7 +11,7 @@
 // ── DEGRADED IS A CARD STATE AND A SENTENCE ─────────────────────────────────
 //
 // The card gets `is-degraded` and the warning element gets text naming the
-// restart count. Recovery clears BOTH — a card left tinted after the stream
+// restart count. Recovery clears BOTH - a card left tinted after the stream
 // recovered would be a permanent warning about a transient fault.
 //
 // ── THE WAN BADGE HAS THREE STATES, AND DISABLED WINS ───────────────────────
@@ -40,7 +40,7 @@ export function renderStreamHealth(h: HandEvents['stream:health'] | undefined): 
   // with no explanation, which is worse than neither.
   if (!card || !warn) return;
   if (h.degraded) {
-    warn.textContent = '⚠ Data incomplete — stream restarted ' + h.restarts +
+    warn.textContent = '⚠ Data incomplete - stream restarted ' + h.restarts +
       ' times without recovering';
     card.classList.add('is-degraded');
   } else {
@@ -52,7 +52,7 @@ export function renderStreamHealth(h: HandEvents['stream:health'] | undefined): 
 export function renderWanStatus(s: WanStatus): void {
   const badge = el('wanStatusBadge');
   // The original has no guard here and would throw. The element is in the
-  // Dashboard's own markup, so its absence means the page is not there at all —
+  // Dashboard's own markup, so its absence means the page is not there at all -
   // and this side may render before that markup is injected, which the live app
   // never does.
   if (!badge) return;

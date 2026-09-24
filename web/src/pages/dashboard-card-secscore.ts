@@ -87,7 +87,7 @@ function draw(d: SecScorePayload): void {
   card?.classList.toggle('grade-fair', g === 'fair');
   card?.classList.toggle('grade-poor', g === 'poor');
   el('dc-secRing')?.setAttribute('stroke-dashoffset', (RING_C * (1 - (d.has ? d.score : 0) / 100)).toFixed(1));
-  setText('dc-secVal', d.has ? String(d.score) : '—');
+  setText('dc-secVal', d.has ? String(d.score) : '-');
   setText('dc-secLabel', secScoreLabel(d));
   const sevs = el('dc-secSevs');
   if (sevs) sevs.innerHTML = secScoreSevs(d);
@@ -109,7 +109,7 @@ function draw(d: SecScorePayload): void {
 /** Back to waiting, for a router switch: the new router's state follows. */
 function reset(): void {
   last = null;
-  setText('dc-secVal', '—');
+  setText('dc-secVal', '-');
   setText('dc-secLabel', 'Waiting for the router…');
   setText('dc-secMeta', '');
   const sevs = el('dc-secSevs');

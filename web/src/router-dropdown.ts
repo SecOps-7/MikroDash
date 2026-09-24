@@ -13,14 +13,14 @@
 // says it in as many words: "Mobile nav keeps the native select."
 //
 // **This port wired the SELECT and nothing else**, so on a desktop browser it
-// rendered the dropdown — the markup is extracted verbatim, so it looked
-// live — and clicking it did nothing, while the control that worked was hidden.
+// rendered the dropdown - the markup is extracted verbatim, so it looked
+// live - and clicking it did nothing, while the control that worked was hidden.
 // A desktop user could not change routers, on any page. Found 2026-08-25 by
 // counting the ids in `shell.html`, which no audit had ever scanned.
 //
 // A custom popover rather than a native select, and the original says why: each
 // row carries the router's live status and the list can be searched. The mobile
-// nav keeps its native select deliberately — the OS picker is the better control
+// nav keeps its native select deliberately - the OS picker is the better control
 // on touch.
 
 import { esc, el } from './dom';
@@ -40,7 +40,7 @@ export const DD_SEARCH_MIN = 5;
  *
  * The suffix strip is not cosmetic: a router's label carries a ` · site` tail in
  * some deployments, and the dropdown is narrow. `host` is the fallback and `?`
- * the last resort — a router with neither still gets a row rather than a blank
+ * the last resort - a router with neither still gets a row rather than a blank
  * one nobody can click.
  */
 export function rtrLabel(r: DropdownRouter): string {
@@ -60,7 +60,7 @@ export function selectOptionsHtml(routers: readonly { id: string; label?: string
 /**
  * The rows a query selects.
  *
- * DISABLED ROUTERS ARE DROPPED FIRST, before the query — a disabled router is
+ * DISABLED ROUTERS ARE DROPPED FIRST, before the query - a disabled router is
  * not switchable, so matching one would offer a row that does nothing. The
  * query matches label AND host, joined with a space, so typing an address finds
  * a router whose label does not contain it.
@@ -77,7 +77,7 @@ export function filterRouters(routers: readonly DropdownRouter[], filter: string
  * The list's markup.
  *
  * `status` is TRISTATE and the three cases are different facts: `true` is up,
- * `false` is down, and absent is "not known yet" — which renders a dot with no
+ * `false` is down, and absent is "not known yet" - which renders a dot with no
  * modifier rather than an "off" one, so a router nobody has connected to yet is
  * not shown as broken.
  */
@@ -102,7 +102,7 @@ export function dropdownHtml(
   return html;
 }
 
-/** Where the highlight moves. Clamped at both ends — it does not wrap. */
+/** Where the highlight moves. Clamped at both ends - it does not wrap. */
 export function nextHighlight(key: string, current: number, count: number): number {
   if (key === 'ArrowDown') return Math.min(count - 1, current + 1);
   if (key === 'ArrowUp') return Math.max(0, current - 1);
@@ -121,7 +121,7 @@ export function nextHighlight(key: string, current: number, count: number): numb
  * with no way to pick a different router.
  *
  * A port that dismissed on the first would close the overlay instantly on every
- * successful switch — and look correct, because the switch then succeeds anyway.
+ * successful switch - and look correct, because the switch then succeeds anyway.
  * A port that never dismissed would trap the operator whenever the new router is
  * unreachable, which is exactly when they most need the picker back.
  *
@@ -135,7 +135,7 @@ export function overlayOnSwitch(): SwitchOverlay {
 
 export function overlayOnStatus(s: SwitchOverlay, connected: boolean): SwitchOverlay {
   if (connected) return { open: false, falses: s.falses };
-  // REPRODUCED, NOT NEEDED — and that is measured. The live guard is
+  // REPRODUCED, NOT NEEDED - and that is measured. The live guard is
   // `switchOvl.classList.contains('open')`, and removing it here survives the
   // whole corpus: a status arriving while the overlay is closed can only
   // advance the count, and `overlayOnSwitch` resets the count to zero, so no
@@ -148,7 +148,7 @@ export function overlayOnStatus(s: SwitchOverlay, connected: boolean): SwitchOve
 }
 
 /**
- * Wire the picker. `onChoose` is the caller's switch — this module decides WHICH
+ * Wire the picker. `onChoose` is the caller's switch - this module decides WHICH
  * router, never what switching means.
  */
 export function wireRouterDropdown(
@@ -175,14 +175,14 @@ export function wireRouterDropdown(
   function refreshLabel(): void {
     if (!label) return;
     const r = getRouters().find((x) => x.id === getActiveId());
-    label.textContent = r ? rtrLabel(r) : '—';
+    label.textContent = r ? rtrLabel(r) : '-';
   }
   function openDd(): void {
     if (open || !wrap) return;
     open = true; filter = ''; hl = -1;
     if (search) search.value = '';
     // The search box appears only once the list is long enough to need it, and
-    // the count is of SWITCHABLE routers — a fleet of disabled ones does not
+    // the count is of SWITCHABLE routers - a fleet of disabled ones does not
     // earn a search box.
     const many = getRouters().filter((r) => !r.disabled).length >= DD_SEARCH_MIN;
     const box = panel?.querySelector<HTMLElement>('.rtr-dd-search');

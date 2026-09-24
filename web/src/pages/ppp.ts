@@ -1,8 +1,8 @@
-// The PPP page — a port of the PPP IIFE in public/app.js (issue #32).
+// The PPP page - a port of the PPP IIFE in public/app.js (issue #32).
 //
 // Rates are derived SERVER-SIDE from byte deltas, because RouterOS reports
 // cumulative bytes only. A null rate means "no measurement window yet", not
-// idle, and this page renders that as an em dash rather than as zero — the
+// idle, and this page renders that as an em dash rather than as zero - the
 // distinction is the whole reason the collector makes the field nullable.
 //
 // The markup strings, class names and em dashes are the live app's. The
@@ -13,14 +13,14 @@ import { esc, el, resRow, debounce, renderSortHeader, sortMul, fmtMbps, fmtBytes
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
 /*
- * PPPSecret is one /ppp/secret row — an ACCOUNT, not a session.
+ * PPPSecret is one /ppp/secret row - an ACCOUNT, not a session.
  *
  * THERE IS NO PASSWORD FIELD, AND THERE MUST NEVER BE ONE. The collector's
  * proplist does not ask the router for it, so nothing on this side could carry
  * one; the edit form writes a password through the resource engine's `secret`
  * field type, which travels to the router and never back.
  *
- * `connected` is joined server-side against /ppp/active by name — it is not a
+ * `connected` is joined server-side against /ppp/active by name - it is not a
  * property of the account.
  */
 import type { PPPSession, PPPSecret, PPPPayload } from '../gen/payloads';
@@ -136,7 +136,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
 
     tbody.innerHTML = rows.length ? rows.map((s) => {
       const r = s.rxRate === null
-        ? '<span style="color:var(--text-muted)" title="No measurement window yet">&mdash;</span>'
+        ? '<span style="color:var(--text-muted)" title="No measurement window yet">-</span>'
         : '<span style="color:var(--accent-rx)">' + fmtMbps((s.rxRate * 8) / 1e6) + '</span> / ' +
           '<span style="color:var(--accent-tx,#f59f00)">' + fmtMbps(((s.txRate as number) * 8) / 1e6) + '</span>';
       return '<tr>' +
@@ -269,7 +269,7 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
     const services = el('pppSumServices');
     if (services) {
       services.textContent = svc.length
-        ? svc.map((k) => k + ' ' + byService[k]).join('  ') : '—';
+        ? svc.map((k) => k + ' ' + byService[k]).join('  ') : '-';
     }
 
     const toMbps = (v: number | null): number | null => (v === null ? null : (v * 8) / 1e6);
@@ -279,8 +279,8 @@ export function initPppPage(socket: Socket, isVisible: (page: string) => boolean
     const txEl = el('pppSumTx');
     // innerHTML, not textContent: the placeholder is an entity, and the live app
     // assigns it the same way.
-    if (rxEl) rxEl.innerHTML = rx === null ? '&mdash;' : fmtMbps(rx);
-    if (txEl) txEl.innerHTML = tx === null ? '&mdash;' : fmtMbps(tx);
+    if (rxEl) rxEl.innerHTML = rx === null ? '-' : fmtMbps(rx);
+    if (txEl) txEl.innerHTML = tx === null ? '-' : fmtMbps(tx);
   }
 
   socket.on('ppp:update', (d) => {

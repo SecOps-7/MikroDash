@@ -9,7 +9,7 @@
 // ── THE THRESHOLDS OVERRIDE THE CLASS ───────────────────────────────────────
 //
 // Above 75 the gauge is amber and above 90 it is red, whatever it was asked to
-// be. So a CPU gauge at 95% is not blue-and-crit, it is crit — the caller's
+// be. So a CPU gauge at 95% is not blue-and-crit, it is crit - the caller's
 // class is a default, not an instruction, and the percentage wins.
 //
 // ── THE ROUNDING IS TWO DECIMALS, EVERYWHERE ────────────────────────────────

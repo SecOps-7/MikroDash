@@ -2,7 +2,7 @@
 //
 // The renderers were written against `socket.on(event, cb)` and
 // `socket.emit(event, data)`, and keeping that surface is what lets them be
-// ported almost verbatim instead of rewritten against a different API — which
+// ported almost verbatim instead of rewritten against a different API - which
 // matters because the rewrite is the risk, not the transport.
 //
 // It fits in a page because the app used so little of Socket.IO: named events
@@ -61,8 +61,8 @@ export class Socket {
   }
 
   /**
-   * Listen for an event. `cb` receives exactly the payload declared for it —
-   * see AllEvents — so no handler needs a cast, and one that casts is hiding a
+   * Listen for an event. `cb` receives exactly the payload declared for it -
+   * see AllEvents - so no handler needs a cast, and one that casts is hiding a
    * disagreement with the Go side rather than resolving it.
    */
   on<E extends keyof AllEvents>(event: E, cb: (data: AllEvents[E]) => void): void {
@@ -89,8 +89,8 @@ export class Socket {
     // PLAN.md makes "renders identically to the Node page" the acceptance
     // criterion, and the only exact way to check it is to drive BOTH renderers
     // from ONE payload and compare innerHTML. Without this the comparison has to
-    // fetch its own payload, and any live field — dns cacheUsed moves every
-    // tick — makes the two disagree for reasons that have nothing to do with
+    // fetch its own payload, and any live field - dns cacheUsed moves every
+    // tick - makes the two disagree for reasons that have nothing to do with
     // the port. It is a read-only record of what already arrived, so it
     // discloses nothing the page is not already showing.
     (window as unknown as { __lastEvent?: Record<string, unknown> }).__lastEvent ??= {};
@@ -102,7 +102,7 @@ export class Socket {
     // Needed because a page can render differently depending on an event the
     // comparison cannot provoke. The Packages page hides every action button
     // until `packages:caps` says the session may write, so a comparison that can
-    // only deliver `packages:update` compares the state with no buttons in it —
+    // only deliver `packages:update` compares the state with no buttons in it -
     // and the buttons are the part worth comparing. This delivers exactly what
     // the socket itself would deliver, to the same handlers, so nothing is
     // simulated except the arrival.
@@ -160,7 +160,7 @@ export class Socket {
       // A handshake that NEVER OPENED is a different event from a connection
       // that dropped, and only the first can mean the session is gone. The
       // server auth-gates the upgrade, so once a session dies every attempt is
-      // refused and `open` never fires — no `connect`, no `session:expired`
+      // refused and `open` never fires - no `connect`, no `session:expired`
       // (which needs a live socket), and nothing the fetch guard can see,
       // because a WebSocket handshake is not a fetch.
       //

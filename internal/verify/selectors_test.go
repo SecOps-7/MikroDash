@@ -57,7 +57,7 @@ func TestSelectorsMatchSomethingThePortProduces(t *testing.T) {
 		total += len(sels)
 	}
 	if total < 80 {
-		t.Fatalf("only %d selectors found — the scan broke", total)
+		t.Fatalf("only %d selectors found - the scan broke", total)
 	}
 
 	answered := func(tok selToken) bool {
@@ -101,7 +101,7 @@ func TestSelectorsMatchSomethingThePortProduces(t *testing.T) {
 		for _, sel := range sels {
 			for _, tok := range selectorTokens(sel) {
 				if !answered(tok) {
-					missing = append(missing, rel+": "+sel+" — no "+tok.kind+" "+tok.name)
+					missing = append(missing, rel+": "+sel+" - no "+tok.kind+" "+tok.name)
 				}
 			}
 		}

@@ -41,7 +41,7 @@ All notable changes to MikroDash will be documented in this file.
 
 - One rule for "the router refused this", instead of three copies that disagreed about the
   wording.
-- Settings: Firewall Top N removed — nothing had read it for a long time.
+- Settings: Firewall Top N removed - nothing had read it for a long time.
 
 ## [0.8.67] - Zero-touch provisioning, and a friendlier AI Agent
 
@@ -849,8 +849,8 @@ Four controls that were drawn but never wired now do what they say.
 
 ### Added
 
-- **The Firewall page has an IPv4 | IPv6 switch.** All four IPv6 tables — filter, NAT,
-  mangle and raw — with the same add, edit, reorder and delete as IPv4. The rule
+- **The Firewall page has an IPv4 | IPv6 switch.** All four IPv6 tables - filter, NAT,
+  mangle and raw - with the same add, edit, reorder and delete as IPv4. The rule
   vocabularies are IPv6's own: no `tarpit`, `change-hop-limit` in place of
   `change-ttl`, `icmpv6` rather than `ipv6-icmp`, and a different `reject-with` set.
 - **"Show IPv6 in cards"**, beside the search box, folds IPv6 into Rule Counts, Action
@@ -897,8 +897,8 @@ Devices page review from 0.8.19.
 
 ### Added
 
-- **PPP accounts can be managed, not just watched.** The PPP page gains a Secrets tab —
-  search, add, edit, enable, disable, delete — alongside editable Profiles and read-only
+- **PPP accounts can be managed, not just watched.** The PPP page gains a Secrets tab -
+  search, add, edit, enable, disable, delete - alongside editable Profiles and read-only
   PPPoE Servers, now three tabs on one card above the sessions table. An account's badge
   distinguishes "disabled" from "offline": one was switched off, the other is simply not
   dialled in. (#125)
@@ -912,7 +912,7 @@ Devices page review from 0.8.19.
   device was configured, which is exactly the state a newly started container is meant to be
   in. This deadlocked the RouterOS App install: the App withholds its UI link until the
   container is healthy, and a device can only be added through that UI. There are three
-  states now — no device configured is healthy, a device that has not answered yet is
+  states now - no device configured is healthy, a device that has not answered yet is
   starting, and a device still silent past the grace window is unhealthy. Reported by
   Christoph on #120.
 - **The Devices page was hidden on a one-device install.** A rule inherited from the old app
@@ -922,13 +922,13 @@ Devices page review from 0.8.19.
   RouterOS 7.24.2, which contradicted two assumptions in the code:
   - restoring a backup to a CHR was refused outright, because the restore asked for a
     RouterBOARD serial number that a virtual router does not have;
-  - its licence badge read "Lfree" instead of "free" — the "L" belongs to a RouterBOARD's
+  - its licence badge read "Lfree" instead of "free" - the "L" belongs to a RouterBOARD's
     L4 and L6, not to a CHR's named levels;
   - a stored backup recorded no model for it, so one device was named two different ways;
   - it was labelled as an inferred device type on Network Topology rather than a router.
 - **Three tables still named page keys renamed on 2026-09-01**, and each failed silently
   because an unknown page key is denied rather than reported:
-  - the WiFi Networks page drew no Add button and its rows did not open — not even for an
+  - the WiFi Networks page drew no Add button and its rows did not open - not even for an
     administrator;
   - the WiFi scan permission could not be granted to any role;
   - the Roles editor offered five pages that no longer existed and omitted five that do.
@@ -941,7 +941,7 @@ Devices page review from 0.8.19.
 - **A device card could show "Offline", with a login failure, beside a live CPU reading.** If a
   device's password had been changed or a connection timed out at the wrong moment, the card took
   its status from one connection and its gauges from another. It now waits until both agree, so a
-  device that is down shows empty gauges — which is what "not read yet" is supposed to look like.
+  device that is down shows empty gauges - which is what "not read yet" is supposed to look like.
 - **A device could stop recording silently after its Reporting switch was toggled.** Depending on
   timing, the history collectors could fail to start and stay stopped until the switch was toggled
   again. Nothing reported it; the device simply stopped appearing in new Reports data. Introduced
@@ -964,7 +964,7 @@ Devices page review from 0.8.19.
   rather than hidden by its own last success.
 - Tests for each fix, every one of them failing on the unfixed code first. The documentation audit
   now re-measures `CONTRIBUTING.md` as well as `CLAUDE.md`, and both places each number is written
-  — it had been checking one of two and the unchecked copy had drifted.
+  - it had been checking one of two and the unchecked copy had drifted.
 - The architecture diagram is committed under `docs/archify/`, as a typed spec plus the rendered
   page, so it can be corrected rather than left to rot. It had the write path wrong: writes now go
   server to resource to guard, which is the path the code takes. Nothing regenerates it
@@ -972,7 +972,7 @@ Devices page review from 0.8.19.
 - Two recorded corpora that had gone unread since the parity harness was retired are read again,
   covering three shipping functions that had no test at all. Five deliberate mutations were killed
   by boundary cases a hand-written table would not have included.
-- Two stray scratch files removed, and `tools/capture-fixtures.js` is text rather than binary — four
+- Two stray scratch files removed, and `tools/capture-fixtures.js` is text rather than binary - four
   literal NUL bytes had made every content search skip it silently.
 
 ## [0.8.19] - Choose which devices are reported on, and a crash on the Devices page
@@ -983,7 +983,7 @@ Devices page review from 0.8.19.
   history you actually want and MikroDash records traffic, bandwidth, ping and uptime for them; turn
   it off and nothing is written to disk for that device at all.
 
-  Until now exactly one device was recorded — whichever one was currently selected — and there was no
+  Until now exactly one device was recorded - whichever one was currently selected - and there was no
   way to see that, let alone change it. Several devices can now be recorded at once, and the cost is
   a data stream rather than a new connection, so a device you are not reporting on still shows its
   online state instantly.
@@ -1003,7 +1003,7 @@ Devices page review from 0.8.19.
   two-second refresh could still be running as the page closed.
 - **Reports → Connectivity showed devices flapping online and offline.** A routine reconnect takes
   about five seconds, and every one of them was being written down as an outage. There is a delay
-  before an outage is recorded now — the device's own "offline threshold", 30 seconds by default — so
+  before an outage is recorded now - the device's own "offline threshold", 30 seconds by default - so
   a brief blip no longer appears as one. This corrects a regression introduced in 0.8.18.
 - **The health check could report the active device as disconnected while it was up**, which on some
   setups is enough for the container to be restarted automatically. It consulted two of the three
@@ -1025,7 +1025,7 @@ Devices page review from 0.8.19.
 
 - **Signing in after a restart sometimes gave a dashboard of empty, stale cards.** The router showed
   in the corner with a green dot and the connection was genuinely fine, which is what made it so
-  confusing — everything that still worked was something that did not need the page. A refresh fixed
+  confusing - everything that still worked was something that did not need the page. A refresh fixed
   it, and that was the only cure. The browser sends two messages as it starts up and their order is
   not guaranteed; if they arrived the less common way round, the page was left subscribed to nothing
   for as long as that tab stayed open. Reported twice. Verified against live routers by forcing the
@@ -1066,7 +1066,7 @@ Devices page review from 0.8.19.
 
 - **Saving the Add/Edit Device dialog wiped that router's password.** Not on an unusual path: open
   the dialog, change anything, press Save. The device then failed to authenticate for good, while
-  Test Connection carried on passing — which is what made it look like the app rather than the
+  Test Connection carried on passing - which is what made it look like the app rather than the
   stored credential. On disk the sealed password and the dialog's own password box share one name,
   and the box's contents were written straight over the credential. A blank box, which is the
   normal case because the dialog clears it and promises "leave blank to keep current", replaced it
@@ -1111,10 +1111,10 @@ Devices page review from 0.8.19.
 
 - **A clean install could not connect its first router.** The setup wizard saved the device and
   then reported "could not read the settings". The router really was saved, which made it look
-  like it had half worked — the failure was the step immediately after, which could not cope with
+  like it had half worked - the failure was the step immediately after, which could not cope with
   a settings file that does not exist yet on a brand new install. Issue #127.
 - **The Connections map drew no arcs for a router behind another router.** The arcs start from
-  your own location, which was only ever worked out from the WAN address — and a router behind
+  your own location, which was only ever worked out from the WAN address - and a router behind
   another router has a private address that cannot be placed. The map coloured countries and
   counted them and drew nothing between them, with no setting that helped. It now falls back to
   the location set on the device, so picking a town gives you your arcs. Issue #120.
@@ -1130,7 +1130,7 @@ Devices page review from 0.8.19.
 ### Fixed
 
 - **The Save button on the Settings page did nothing.** It was drawn, it was enabled, and nothing
-  at all was listening for a click on it, so no setting could be saved from any tab — poll
+  at all was listening for a click on it, so no setting could be saved from any tab - poll
   intervals, notification channels, alert thresholds, which pages are shown, session timeout.
   Reset beside it worked, which is what made the page look normal. Reported as "Appearance Save
   not working", which was simply where it was noticed. Issue #126.
@@ -1150,7 +1150,7 @@ Devices page review from 0.8.19.
 
 - **A new install landed on an empty dashboard with no way to know what to do.** MikroDash has a
   first-run wizard that asks for a router's address and credentials, and it could only ever be
-  triggered by deleting your last router — so it never appeared on a genuinely new install, which
+  triggered by deleting your last router - so it never appeared on a genuinely new install, which
   is the one situation it exists for. New installs now open it straight away. Issue #124.
 - **A missing `routers.json` was treated as a fault rather than as an empty fleet**, which logged
   an error on every start of a new install and was what kept the wizard hidden.
@@ -1378,7 +1378,7 @@ The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114)
 Node.js implementation. It has been serving in production since 2026-08-30.
 
 **Nothing user-visible changed, by design.** The frontend reuses the original stylesheet, class
-names, element ids and DOM shape verbatim — only the logic producing them was rewritten. That was
+names, element ids and DOM shape verbatim - only the logic producing them was rewritten. That was
 the acceptance criterion throughout, checked by gates that drive both implementations from one
 payload and compare the rendered HTML.
 
@@ -1392,13 +1392,13 @@ payload and compare the rendered HTML.
 - **Type checking over the whole frontend.** A class of bug that used to fail at click time now
   fails at build time.
 - **Geolocation no longer depends on an npm package.** The city database is DB-IP City Lite,
-  fetched fresh at image build — no account, no licence key, no expiring token. Point `-geo` at a
+  fetched fresh at image build - no account, no licence key, no expiring token. Point `-geo` at a
   volume to supply your own.
 
 ### Changed
 
 - The container is `mikrodash-go` and the image is built from the same `docker-compose.yml` as
-  before. **Your existing `mikrodash_data` volume is used unchanged** — history, alerts, audit
+  before. **Your existing `mikrodash_data` volume is used unchanged** - history, alerts, audit
   rows, settings and users all carry over, and the Node release can still read anything the Go
   release writes.
 - **`docker restart` is not a redeploy.** It keeps the image the container was created from, so a
@@ -1660,7 +1660,7 @@ perform: a round trip through one implementation agrees with itself whatever it 
 - **Should MikroDash be rewritten in Go and TypeScript?** Comments wanted, objections as welcome as
   support. ([#114](https://github.com/SecOps-7/MikroDash/issues/114))
 
-## [0.7.33] — Failures that never announced themselves
+## [0.7.33] - Failures that never announced themselves
 
 Every fix in this release is something that had been quietly not working. None of them logged an
 error, none crashed, and several had been broken for weeks behind a green test suite. Most were
@@ -1675,7 +1675,7 @@ another was drifting a couple of minutes later every day. Weekly and monthly kee
 because "today at 08:00" knows an hour and a minute but not a weekday or a date.
 
 **Clicking a column header sorts the table again.** Nine tables lost their sort on the first click
-and could not recover it for the life of the page — VLANs, PPP, CAPsMAN, the three Bridges tables,
+and could not recover it for the life of the page - VLANs, PPP, CAPsMAN, the three Bridges tables,
 DNS, Packages and Audit. Two incompatible conventions for the sort direction were the cause, and the
 second half of the same mismatch emitted a CSS class no stylesheet defines, so no arrow ever
 appeared to contradict it. A table that had silently stopped sorting looked like one that had never
@@ -1688,7 +1688,7 @@ router, hashed an identical string, and returned without emitting. A comment-onl
 entry wrote the router and never reached the open table. It hid because these collectors also hash
 something that moves on its own, so on a busy router the table caught up a tick or two later and
 merely looked slow; on an idle device the update never arrived at all. Fixed for DNS (`comment` and
-`ttl`), interfaces (`type`, `comment`, MAC), queues (`comment`), and firewall — where the
+`ttl`), interfaces (`type`, `comment`, MAC), queues (`comment`), and firewall - where the
 fingerprint covered only rule counters, so *every* rule field, and rule order with it, reached the
 page only when traffic happened to move a counter in the same tick.
 
@@ -1701,7 +1701,7 @@ recognise into the first item of a list.
 
 **The audit trail records what happened.** Two problems in the one table that cannot be pruned
 selectively. Credential masking knew `private_key` but not `private-key`, `passphrase` but not
-`pre-shared-key` — the settings vocabulary, not the router's. And because row values are real
+`pre-shared-key` - the settings vocabulary, not the router's. And because row values are real
 booleans while form values are the strings `yes`/`no`, every save of every resource carrying a
 checkbox recorded a change nobody made, burying the edit that did happen.
 
@@ -1724,7 +1724,7 @@ Thanks to [@invoker-karl](https://github.com/invoker-karl) for both.
 [#112]: https://github.com/SecOps-7/MikroDash/pull/112
 [#113]: https://github.com/SecOps-7/MikroDash/pull/113
 
-## [0.7.32] — Wireless you can change, not just watch
+## [0.7.32] - Wireless you can change, not just watch
 
 MikroDash could see wireless in detail and change none of it. Every SSID edit, every passphrase
 rotation, every provisioning tweak still meant opening WinBox. Two new surfaces close that: a **Wifi
@@ -1745,18 +1745,18 @@ executed against a router. They are listed under Fixed because that is what they
 ### Added
 - **Wifi Networks page.** Every radio and SSID the router broadcasts, one row per interface grouped
   under the radio carrying it, with colour-coded SSID pills, band, security mode, VLAN and live
-  client count. Works on **both** RouterOS wireless stacks — modern `/interface/wifi` and legacy
-  `/interface/wireless` — and offers exactly the one the router has.
+  client count. Works on **both** RouterOS wireless stacks - modern `/interface/wifi` and legacy
+  `/interface/wireless` - and offers exactly the one the router has.
 - **Editing, in place.** Change an SSID, passphrase, band, width, hidden flag or VLAN; enable and
   disable as one-click row actions; add an extra SSID to an existing radio and remove it again. A
   physical radio is editable but never removable, because it is hardware.
-- **CAPsMAN configuration card.** Five RouterOS menus behind one tab strip — Provisioning,
-  Configuration, Security, Channel and Datapath — all editable, with provisioning reorderable because
+- **CAPsMAN configuration card.** Five RouterOS menus behind one tab strip - Provisioning,
+  Configuration, Security, Channel and Datapath - all editable, with provisioning reorderable because
   the first matching rule wins.
 - **Two new write guards.** Changing an SSID or passphrase on the interface MikroDash is reached
   through now warns before it drops every client on that radio. Overriding a
   `/interface/wifi/configuration` profile that more than one radio shares asks first, because the
-  override silently splits two things that had been moving together — and it stays quiet when the
+  override silently splits two things that had been moving together - and it stays quiet when the
   profile is used by only one radio, since a warning that fires on the innocent case is one people
   learn to click through.
 - **A CAPsMAN edit says what it will reach.** Saving a profile a live provisioning rule references
@@ -1784,9 +1784,9 @@ executed against a router. They are listed under Fixed because that is what they
   clearable emits an empty value on save, and RouterOS refuses an empty value for a typed integer:
   `invalid value for datapath.vlan-id, an integer required`.
 - **An empty RouterOS menu answers with one nameless junk row**, which would have been read as a
-  profile named `''` — exactly what an interface naming no profile looks up.
+  profile named `''` - exactly what an interface naming no profile looks up.
 
-## [0.7.31] — Collectors that know when to stop, and a Backups page you can work in
+## [0.7.31] - Collectors that know when to stop, and a Backups page you can work in
 
 A collector with nothing to report now **stops holding a channel open**, and says so on the card
 instead of counting down to a fault it does not have. Concurrent open channels, not data volume, are
@@ -1857,7 +1857,7 @@ Backup time is the one behaviour change worth knowing: a router whose backup sch
 release has no time recorded, so it moves to **08:00** rather than staying wherever its interval had
 drifted to. Clear the field on the Backups page to keep the old any-time behaviour.
 
-## [0.7.30] — Configuration backups, scheduled email reports, and router writes across the app
+## [0.7.30] - Configuration backups, scheduled email reports, and router writes across the app
 
 MikroDash can now **back up and restore router configurations**, **email reports on a schedule**, and
 **write configuration** from most of the pages that previously only read it.
@@ -1885,7 +1885,7 @@ the new editors reached the router as `???????`.
   Requires the new **Scheduled reports** permission, which a role gets by holding *write* on
   Reports; anyone who can already export a report can see what is scheduled, because a mail-out
   nobody can see is the bad case.
-- **Backups page.** Per-router schedule (hourly, daily, weekly, monthly — daily by default), manual
+- **Backups page.** Per-router schedule (hourly, daily, weekly, monthly - daily by default), manual
   runs, retention by count and by age, and a full run history including the checks that found nothing
   changed. The newest restore point is never pruned, however old it is: a router whose configuration
   has been stable would otherwise age out its only backup precisely because nothing went wrong.
@@ -1917,7 +1917,7 @@ the new editors reached the router as `???????`.
   process. This only started to matter when MikroDash learned to write.
 - **Traffic kept flowing to a socket whose router access had been revoked.** The revocation sweep
   stops data by making the socket leave its rooms, which is correct for every collector except
-  traffic — that one emits straight to each subscriber. A revoked session carried on receiving a
+  traffic - that one emits straight to each subscriber. A revoked session carried on receiving a
   sample per second until it happened to disconnect.
 - Backups no longer refuse on small routers. A fixed 8 MB free-space threshold, extrapolated from one
   busy AX3, refused a hAP ac2 whose entire backup is 46 KB. Backup size tracks configuration, not
@@ -1951,10 +1951,10 @@ Backups are stored under `/data/config-backups/<router>/` and are deliberately u
 the retention sweep and router deletion. Removing a router is exactly when its last known-good
 configuration matters most.
 
-## [0.7.25] — Nine new pages, a grouped sidebar, and a full audit trail
+## [0.7.25] - Nine new pages, a grouped sidebar, and a full audit trail
 
-The biggest release so far. MikroDash gains **nine pages** — VLANs, PPP, Bridges, DNS, CAPsMAN,
-Packages, Queues, Router Users and WAN — and with two dozen pages the flat sidebar had run out of
+The biggest release so far. MikroDash gains **nine pages** - VLANs, PPP, Bridges, DNS, CAPsMAN,
+Packages, Queues, Router Users and WAN - and with two dozen pages the flat sidebar had run out of
 room, so it now **collapses into categories**. Every write action MikroDash performs, on itself or on a
 router, is recorded in a new **Audit** trail.
 
@@ -1980,16 +1980,16 @@ README documents the opt-in tier and what granting it means.
   configured and does nothing: FastTracked connections bypass simple queues entirely.
 - **Router Users page.** RouterOS's own users, groups with the full 17-permission matrix, and the
   sessions logged in right now.
-- **Audit page.** Every write action in one searchable trail — actor, source address, what changed,
+- **Audit page.** Every write action in one searchable trail - actor, source address, what changed,
   and whether it was allowed. Refusals are recorded as well as successes. Credential values never
   are; the field name and the fact it changed do. CSV export.
 - **CAPsMAN, Bridges, DNS and Packages pages**, and **VLANs** and **PPP** pages.
-- **Collapsible sidebar categories.** Twenty-three pages fold into seven groups — Network, Wireless,
-  IP Services, Tunnels, Traffic, Security, System — with Dashboard, Routers, Reports, Audit and
+- **Collapsible sidebar categories.** Twenty-three pages fold into seven groups - Network, Wireless,
+  IP Services, Tunnels, Traffic, Security, System - with Dashboard, Routers, Reports, Audit and
   Settings always at the top level. Which groups are open is remembered against your account, not
   your browser. Turn it off in Settings → Appearance, or in the account dialog if your role has no
   Settings access.
-- **Canned view presets** — Home, Standard and Advanced — as a bulk editor for Visible Pages and for
+- **Canned view presets** - Home, Standard and Advanced - as a bulk editor for Visible Pages and for
   a role's page matrix. A preset can only narrow what an install shows, never widen what a role
   permits.
 - **WiFi Frequency Analyzer** on the Wireless page: RouterOS's own frequency scan, with a per-channel
@@ -2001,18 +2001,18 @@ README documents the opt-in tier and what granting it means.
   startup threw partway through and silently abandoned every collector after them. A drift guard now
   reads the source and fails if the session omits one.
 - **BGP alerts only evaluated for the router you had open.** The headless alert pool built no routing
-  collector, so every other router produced none — a feature that reads as enabled in Settings and
+  collector, so every other router produced none - a feature that reads as enabled in Settings and
   does nothing.
 - **`!empty` closed streaming channels.** RouterOS 7 answers a command with no results yet with a
   bare `!empty`, which closed the channel rather than yielding an empty batch.
 - **Polling profiles wrote `undefined` into seven sliders**, rendering `NaNms`. Nothing failed; the
   page quietly lied.
-- **Page-scoped collectors kept polling from the Dashboard** — four every 5 s, plus six idle
+- **Page-scoped collectors kept polling from the Dashboard** - four every 5 s, plus six idle
   `/listen` channels held open for pages nobody was viewing. They now suspend when you are not on
   their page and refresh the moment you return.
 - **Wireless hostname resolution** now says when it cannot work, instead of showing blanks: a router
   that bridges its clients at layer 2 holds no ARP entry to resolve them from.
-- The test suite reported a different number of tests on every run — four suites never stopped the
+- The test suite reported a different number of tests on every run - four suites never stopped the
   collectors they created, so the process was killed before it finished reporting.
 
 ### Changed
@@ -2029,18 +2029,18 @@ Nothing to do. A database migration widens the per-user preference table to hold
 it copies every existing row and is safe to roll back, since an older build simply never reads the
 new kind.
 
-To use the write features, grant the RouterOS user `write` (and `policy` for Router Users) — see
+To use the write features, grant the RouterOS user `write` (and `policy` for Router Users) - see
 **RouterOS Setup** in the README. Without it, those pages degrade to read-only and show the exact
 command to run rather than failing silently.
 
-## [0.7.8] — A map of your fleet, WiFi SSIDs, and alerts that clear
+## [0.7.8] - A map of your fleet, WiFi SSIDs, and alerts that clear
 
 The Routers page gains a **Map** view plotting each router where it actually is, and the
 Wireless page gains a **WiFi SSIDs** card listing every network a router broadcasts. The
 rest of this release is fixes, several of them to things that looked like they worked.
 
 **Locations resolve themselves.** A router's position comes from its WAN IP, using the
-geo-IP data already bundled in the image — nothing is sent anywhere to resolve it, and the
+geo-IP data already bundled in the image - nothing is sent anywhere to resolve it, and the
 strict CSP would block an outbound lookup regardless. Pick a city or town by hand on any
 router or site to override it. Accuracy is city-level at best, so the map answers "which
 site is dark" rather than "which building".
@@ -2056,24 +2056,24 @@ site is dark" rather than "which building".
   is enough. Set nothing and the WAN IP still answers.
 - **Wireless → WiFi SSIDs card.** Every network the router broadcasts, with its bands and
   live client count. Read from the interface table rather than from connected clients, so a
-  network with nobody on it is still listed — usually the one you opened the card to
+  network with nobody on it is still listed - usually the one you opened the card to
   explain. A CAP whose configuration comes from a manager says so instead of reporting
   nothing. Passphrases are never read, let alone sent.
 - **Routing page tabs.** The route and BGP tables are now tabbed, opening on Routes. The
   protocol doughnut and BGP session summary stay above the tabs, since they describe the
   page rather than one protocol.
-- **Alerts carry the device name** and read as names rather than database keys —
+- **Alerts carry the device name** and read as names rather than database keys -
   "Update Available" instead of `routeros_update`.
 
 ### Fixed
 - **"Clear all" in the notification bell never cleared anything.** It acknowledged alerts,
-  which empties the bell, but the Routers page counts alerts that are *unresolved* — so a
+  which empties the bell, but the Routers page counts alerts that are *unresolved* - so a
   router stayed marked **Alerting** no matter how many times you clicked. It now resolves as
   well, and records who did it. History is kept: nothing is deleted, and Reports still shows
   what happened. This is the only way to clear an alert whose cause disappeared without
   MikroDash ever seeing it recover.
 - **The same alert fired over and over.** The evaluator kept "already reported" in memory,
-  and that memory is wiped whenever a router's session is rebuilt — most often when nobody
+  and that memory is wiped whenever a router's session is rebuilt - most often when nobody
   has looked at it for a while. Each rebuild re-reported every still-true condition, so a
   pending RouterOS update rang the bell repeatedly. At most one unresolved alert per router,
   type and subject now, enforced in the database so it survives restarts and router
@@ -2096,12 +2096,12 @@ Automatic. Migration v10 adds three columns to the sites table and runs at start
 transaction. Existing site coordinates are preserved and keep working; re-pick a site's
 location only if you want it to show a place name. No configuration changes.
 
-## [0.7.7] — Personal alert channels, a My Account page, and a Routers overview
+## [0.7.7] - Personal alert channels, a My Account page, and a Routers overview
 
 Alerting had one destination for the whole install. Since roles arrived that stopped
 matching reality: two people can be scoped to different sites and still share one inbox.
 Each user can now add their own Telegram, Pushbullet, ntfy or email destination, delivered
-in addition to the install-wide channels — and is only ever notified about routers their
+in addition to the install-wide channels - and is only ever notified about routers their
 role lets them read.
 
 **The rule that matters:** a user is never told about a router they cannot see. That is
@@ -2114,18 +2114,18 @@ Turn it on with **Allow personal channels** in Settings → Notifications. Nothi
 for an install that leaves it alone.
 
 ### Added
-- **My Account**, reached from your name in the sidebar. Change your own password — the
-  first self-service credential change in MikroDash, and it signs out your other sessions —
+- **My Account**, reached from your name in the sidebar. Change your own password - the
+  first self-service credential change in MikroDash, and it signs out your other sessions -
   review the roles and scopes you hold, see and revoke your active sessions, and manage
   your own notification channels. Previously the only way to change a password was to ask
   an administrator.
-- **Per-user notification channels** — Telegram, Pushbullet and ntfy with your own
+- **Per-user notification channels** - Telegram, Pushbullet and ntfy with your own
   credentials; email as an opt-in plus an address, sent through the install's mail server.
   Which alert types fire stays an administrator's decision; you choose only where yours go.
-- **Routers page summary** — Total Devices, Online, Offline and Alerting. Alerting counts
+- **Routers page summary** - Total Devices, Online, Offline and Alerting. Alerting counts
   routers with an unresolved alert, so it overlaps the online/offline split rather than
   partitioning it: a reachable router can still have something wrong on it.
-- **Routers page views** — Comfortable and Compact card grids, and a List view: a sortable
+- **Routers page views** - Comfortable and Compact card grids, and a List view: a sortable
   table of status, name, host, model, RouterOS, alerts, CPU/RAM/Disk, clients, WAN Rx/Tx
   and uptime. One search box narrows either view by name, host, model or version, and
   understands `online`, `offline` and `alerting`. The choice is remembered between visits.
@@ -2137,7 +2137,7 @@ for an install that leaves it alone.
   recorded, belled or sent, for anyone.
 - **The username and sign-out button vanished for every non-admin role.** The sidebar chip
   shares its markup with a nav item, so the role-based nav sweep hid it for everyone
-  without Settings access — leaving no way to sign out at all short of clearing the cookie.
+  without Settings access - leaving no way to sign out at all short of clearing the cookie.
   Present since 0.7.5.
 - **Cards showed stale after navigating away and back.** Leaving a page drops its data
   subscriptions, but the stale timers kept counting, so Connections and Top Talkers were
@@ -2147,7 +2147,7 @@ for an install that leaves it alone.
   no permission check at all, so it could be opened from the browser console with every
   field editable. Every write was already refused by the server; the page had no business
   drawing.
-- **Two dialogs that reported success on failure** — "Reset to defaults" and the alert-type
+- **Two dialogs that reported success on failure** - "Reset to defaults" and the alert-type
   toggles both claimed a change had landed without checking whether the server accepted it.
 
 ### Changed
@@ -2163,17 +2163,17 @@ for an install that leaves it alone.
 Automatic. Migration v9 adds one table for per-user channel settings and runs at startup
 inside a transaction. No configuration changes, and the feature stays off until enabled.
 
-## [0.7.6] — Switching routers keeps the dashboard live
+## [0.7.6] - Switching routers keeps the dashboard live
 
 Switching from one router to another left the browser subscribed to nothing. Connections and Top
-Talkers kept showing the router you had just left, and then went stale — while their sidebar badges
+Talkers kept showing the router you had just left, and then went stale - while their sidebar badges
 carried on ticking, which is exactly what made it look like the connection was healthy.
 
 Nothing to do on upgrade; no settings or data change.
 
 ### Fixed
 - **Connections and Top Talkers now follow a router switch.** Room names are per-router, and a
-  switch moved the browser into the new router's base room only — so the two collectors that emit
+  switch moved the browser into the new router's base room only - so the two collectors that emit
   *only* into page and card rooms went on delivering into rooms the browser had just left. The
   lightweight counts behind the nav badges ride the base room, which is why they kept updating while
   the cards did not. The browser now re-joins its page and dashboard-card rooms whenever the active
@@ -2185,17 +2185,17 @@ Nothing to do on upgrade; no settings or data change.
   traffic and bandwidth charts all kept the previous router's state. Both switch paths now announce
   themselves, and the reset is sent before the new router's first payload so it cannot wipe it.
 
-## [0.7.5] — Custom, page-scoped roles
+## [0.7.5] - Custom, page-scoped roles
 
 A role used to be one of three names compiled into the source: `viewer`, `operator`, `admin`. That
-can say *who* and *where* but not *what* — a viewer saw every page of every router they could reach,
+can say *who* and *where* but not *what* - a viewer saw every page of every router they could reach,
 and the only way to hide a page was a per-install toggle that applied to everyone equally. Roles are
 rows now, and a role is a matrix of **page → read/write**, granted to a user or a group over
 everything, one site, or a single router.
 
 **Upgrading is automatic and changes nobody's access.** Migrations v7 and v8 run at startup, each in
 its own transaction. Existing grants are mapped onto three seeded roles that reproduce today's
-behaviour exactly — **Read Only** deliberately has no Reports page, because a viewer holds
+behaviour exactly - **Read Only** deliberately has no Reports page, because a viewer holds
 `router:read` and nothing else, and granting Reports would have handed every existing viewer
 historical data and CSV exports they never had. **Administrator** is built in, carries no page rows
 at all, and stays that way so a permission added in a future release is covered without another
@@ -2208,28 +2208,28 @@ back to 0.7.0 keeps working: the legacy `role` column survives as a write-only m
 a NOT NULL constraint.
 
 ### Added
-- **Roles** — Settings → Authentication → Access Management → Roles. A 14-row page matrix with a
+- **Roles** - Settings → Authentication → Access Management → Roles. A 14-row page matrix with a
   three-way None/Read/Write control per page. Write toggles are disabled on pages that have no write
   action yet, rather than hidden, so the matrix keeps its shape for issue #97.
-- **Access Management** — Users, Groups, Sites and Roles now share one tabbed card that fills the
+- **Access Management** - Users, Groups, Sites and Roles now share one tabbed card that fills the
   viewport and scrolls internally. Add and edit open centre-screen dialogs instead of pushing the
   table down.
 - Users are granted access the same way groups already were: rows of *role over scope*, so one
   person can hold different roles at different sites. The old single-role dropdown and
   all-or-listed-routers picker are gone.
-- Permission changes reach open browsers live — editing a role no longer needs a reload.
+- Permission changes reach open browsers live - editing a role no longer needs a reload.
 
 ### Changed
 - Page visibility is now the conjunction of the install-wide toggle and the session's role. A page
   shows only if both allow it.
 - Collectors deliver page-scoped payloads. Seven collectors were split so global chrome (sidebar
   counts, the traffic interface picker, WAN IP) still reaches every session while the page detail
-  reaches only those permitted — a denied page no longer streams its data to the browser at all.
+  reaches only those permitted - a denied page no longer streams its data to the browser at all.
 - `Users.adminCount()` was removed rather than left unused: a count of user records cannot see an
   administrator whose grant is held through a group. `Rbac.wouldOrphanGlobalAdmin()` answers instead.
 
 ### Fixed
-- The Topology page visibility toggle never worked — the setting existed and the client read it, but
+- The Topology page visibility toggle never worked - the setting existed and the client read it, but
   the server neither persisted nor broadcast it.
 - `.sbtn-outline` was referenced in a dozen places and never defined, so those buttons fell back to
   the browser's default grey instead of the theme.
@@ -2239,11 +2239,11 @@ a NOT NULL constraint.
   levels, throwing as soon as a collector needed three.
 
 ### Security
-- System administration — users, groups, roles, sites — is reachable only by an Administrator at
+- System administration - users, groups, roles, sites - is reachable only by an Administrator at
   global scope. This is enforced in the resolver, which strips those permissions from any role
   however its page matrix is configured, so a site-scoped grant can never reach them.
 - `POST /api/settings` now strips `authMode`, session timeout, credentials and `_reset` unless the
-  caller can manage principals — otherwise a role holding Settings:write could disable authentication.
+  caller can manage principals - otherwise a role holding Settings:write could disable authentication.
 - Deleting the last administrator is refused across every path that can cause it, including removing
   the last member from a group that holds the grant.
 
@@ -2252,7 +2252,7 @@ a NOT NULL constraint.
   shared per router across every viewer. Data for a denied page is not delivered, but a router a user
   can read is still collected in full.
 
-## [0.7.0] — Per-router collection settings, and the poll path made real
+## [0.7.0] - Per-router collection settings, and the poll path made real
 
 Stream-vs-poll and collector enablement used to live once in `settings.json` and apply to every
 router. A hAP ax3 runs all 16 collectors happily; a hAP ac2 acting as an access point received the
@@ -2268,8 +2268,8 @@ why every pollable collector now ships both paths.
 - **Per-router collection settings**, in the Add/Edit Router modal: a Stream/Poll master switch,
   enable/disable for 11 collectors, and interval overrides. Changing any of them rebuilds that one
   router's session; a label-only edit costs nothing.
-- **Poll paths for eight more collectors** — arp, dhcpLeases, dhcpNetworks, firewall, netwatch,
-  routing, vpn, wireless — so Poll genuinely means poll. Logs and the traffic graph stay streamed by
+- **Poll paths for eight more collectors** - arp, dhcpLeases, dhcpNetworks, firewall, netwatch,
+  routing, vpn, wireless - so Poll genuinely means poll. Logs and the traffic graph stay streamed by
   design: polling `/log/print` drops entries between polls, and 1 s `monitor-traffic` polling is
   worse than one stream.
 - **A neutral "collection disabled" scrim** on cards whose collector is switched off, so a disabled
@@ -2285,20 +2285,20 @@ why every pollable collector now ships both paths.
   Global Poll Intervals stay as the fleet-wide default that per-router values override.
 - **Settings always opens on the Routers tab** rather than restoring the last tab used.
 - **The router Add/Edit modal is two columns** and no longer scrolls on a normal desktop window.
-- **Streaming-first is reframed, not abandoned** — streaming remains the default; per-router polling
+- **Streaming-first is reframed, not abandoned** - streaming remains the default; per-router polling
   is a supported escape hatch for constrained hardware.
 
 ### Fixed
 
 - **Interface rates never updated in poll mode.** The poll filtered interfaces with
-  `!iface.disabled`, but RouterOS sends `disabled` as the string `"false"` — truthy — so every
+  `!iface.disabled`, but RouterOS sends `disabled` as the string `"false"` - truthy - so every
   interface was excluded and all rates sat at 0.00.
 - **Ping and Top Talkers died permanently in poll mode** the first time every viewer disconnected:
   `suspend()` cleared the poll timer and `resume()` restarted only the stream.
 - **Connections went silent when switching routers.** `resume()` runs before `start()` sets
   `_started`, so poll mode scheduled nothing. Stream mode hid this because its watchdog resurrects
   the stream; poll mode has no watchdog by design.
-- **Page-gated cards were blank for a full interval** on every visit — 30 s for Wireless — because a
+- **Page-gated cards were blank for a full interval** on every visit - 30 s for Wireless - because a
   poll loop armed its first timer an interval ahead instead of polling immediately.
 - **A router's update info stayed blank after switching to it**, for up to `updateCheckHours`. The
   check's rate-limit slot is shared per router, so background sessions consumed the window and threw
@@ -2309,7 +2309,7 @@ why every pollable collector now ships both paths.
   each router's Alert Monitoring setting; `ifstatus:update` also carried no router id, so a late
   in-flight update from the outgoing router read as interfaces going down and back up.
 - **A wireless collector could latch onto a command tree the board does not have** and never
-  recover — a wifi-only board with its radios disabled answers empty, not with an error.
+  recover - a wifi-only board with its radios disabled answers empty, not with an error.
 - **A settings save no longer overwrites a per-router interval override.**
 - **The Routers page no longer polls every non-active router at 1 s** regardless of configuration.
 
@@ -2320,21 +2320,21 @@ writes an equivalent `collection` block onto any router that needs one, so no ac
 Per-router settings live in `/data/routers.json`; a router with no `collection` block streams, which
 is the previous default.
 
-## [0.6.1] — Settings layout, accessibility, and router identity columns
+## [0.6.1] - Settings layout, accessibility, and router identity columns
 
 The Settings page used to sit in a 720 px column in the middle of the window, and it had grown long enough that finding anything meant scrolling past everything else. It now uses the full width. Alongside that: a keyboard-accessibility pass over the whole UI, and three new columns in the Routers table.
 
 ### Added
 
-- **Model, Serial, and RouterOS version columns** in Settings → Routers. These are learned from RouterOS but stored against the router entry, so they stay populated for a router that is offline or disabled — which is the point of an inventory column. Version renders as a bare `7.23.3` in a violet pill.
+- **Model, Serial, and RouterOS version columns** in Settings → Routers. These are learned from RouterOS but stored against the router entry, so they stay populated for a router that is offline or disabled - which is the point of an inventory column. Version renders as a bare `7.23.3` in a violet pill.
 - **Header sorting on the Wireless client table**, alongside the existing button bar rather than replacing it.
-- **A visible keyboard focus ring** across the whole UI. There was none before, so tabbing gave no indication of position — a WCAG 2.4.7 failure.
+- **A visible keyboard focus ring** across the whole UI. There was none before, so tabbing gave no indication of position - a WCAG 2.4.7 failure.
 - **40 `aria-label`s** on icon-only buttons, which previously announced nothing at all to a screen reader.
 
 ### Changed
 
 - **Settings is full width**, laid out on a two-column grid with equal-height rows. Tables and the tallest cards span the full width. Measured against the old layout, the General tab is 37 % shorter and Notifications 24 % shorter at 1600 px.
-- **The About tab keeps its original stacked, centred column** — its short blurbs read badly as wide, shallow bands.
+- **The About tab keeps its original stacked, centred column** - its short blurbs read badly as wide, shallow bands.
 - **Save Settings is pinned to the bottom** of the scroll container, so it stays reachable however long a tab gets.
 - **Pushbullet and ntfy share a row** inside Notification Channels. Both are short, so a full-width row each was mostly empty; this takes 194 px off the card.
 - **Router cards match heights** within a row instead of each sizing to its own content.
@@ -2342,13 +2342,13 @@ The Settings page used to sit in a 720 px column in the middle of the window, an
 ### Fixed
 
 - **VPN peer alerts fired on the wrong transition.** The collector's peer state became a three-way `never` / `active` / `stale` in 0.5.54 without `alerter.js` being updated to match, so it compared against a boolean that no longer existed. Introduced in 0.5.54 and shipped for a full release.
-- **The wireless sort indicator was invisible** — the arrow never rendered. The test that should have caught it asserted the CSS class rather than the rendered output.
+- **The wireless sort indicator was invisible** - the arrow never rendered. The test that should have caught it asserted the CSS class rather than the rendered output.
 
 ### Notes for upgraders
 
-This adds three optional string fields — `model`, `serial`, `osVersion` — to each entry in `/data/routers.json`. Existing files are untouched until a router connects and reports, and older builds ignore unknown fields, so a rollback is safe.
+This adds three optional string fields - `model`, `serial`, `osVersion` - to each entry in `/data/routers.json`. Existing files are untouched until a router connects and reports, and older builds ignore unknown fields, so a rollback is safe.
 
-## [0.6.0] — Node 24, ARMv7 dropped, and a release pipeline that publishes on tags
+## [0.6.0] - Node 24, ARMv7 dropped, and a release pipeline that publishes on tags
 
 First release with a breaking change, hence the minor bump rather than another 0.5.x. **If you run MikroDash on 32-bit ARM hardware, read the first section before upgrading.**
 
@@ -2366,7 +2366,7 @@ Everything else here is infrastructure: a Node 24 base image, a database driver 
 
   Releases now cover `linux/amd64` and `linux/arm64` only.
 
-  **If you are on ARMv7** — a RouterOS container on 32-bit hardware such as the hEX S (2025), or an older 32-bit Raspberry Pi — pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for you. It will not receive further updates, including security fixes. Do not stay on `:latest`, which now resolves to a manifest with no arm/v7 entry, so your pull will fail rather than degrade gracefully.
+  **If you are on ARMv7** - a RouterOS container on 32-bit hardware such as the hEX S (2025), or an older 32-bit Raspberry Pi - pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for you. It will not receive further updates, including security fixes. Do not stay on `:latest`, which now resolves to a manifest with no arm/v7 entry, so your pull will fail rather than degrade gracefully.
 
   Because this is a minor bump, **anyone pinned to `:0.5` is unaffected and stays on 0.5.54.** That was the reason for choosing 0.6.0 over 0.5.55.
 
@@ -2390,7 +2390,7 @@ Everything else here is infrastructure: a Node 24 base image, a database driver 
 
 ### Fixed
 
-- **A `geoip-lite` load failure was silent.** It was required independently at three call sites, two of which swallowed the error into an empty `catch`. A failure left every geo lookup returning nothing, so the world map, country breakdowns and connection geo data quietly emptied out while the dashboard otherwise looked healthy — indistinguishable from a network with no traffic.
+- **A `geoip-lite` load failure was silent.** It was required independently at three call sites, two of which swallowed the error into an empty `catch`. A failure left every geo lookup returning nothing, so the world map, country breakdowns and connection geo data quietly emptied out while the dashboard otherwise looked healthy - indistinguishable from a network with no traffic.
 
   `src/geo.js` is now the single load point: one require, one warning, and availability is reported in the API Diagnostics card as a `geo lookups / unavailable` row carrying the loader's reason. Part of #101
 
@@ -2401,7 +2401,7 @@ Everything else here is infrastructure: a Node 24 base image, a database driver 
 - Test suite is at 314, up from 311.
 - No application behaviour changed in this release. Every user-visible feature is as it was in 0.5.54.
 
-## [0.5.54] — Interface list view, VPN sessions, and honest bandwidth reports
+## [0.5.54] - Interface list view, VPN sessions, and honest bandwidth reports
 
 Feature release built mostly out of open issues. The Interfaces page gains a table view that surfaces error and drop counters MikroDash has never read, VPN monitoring finally covers PPP and IPsec rather than WireGuard alone, and the Reports page stops conflating link speed with data volume.
 
@@ -2409,7 +2409,7 @@ Several of the fixes below were found while building the features rather than re
 
 ### Added
 
-- **List view on the Interfaces page** (`src/collectors/interfaceStatus.js`, `public/index.html`, `public/app.js`). The card size control becomes a view picker — Compact, Comfortable, Large, List — and the table carries what a tile has no room for: cumulative RX/TX totals, error and drop counters, link flap count, and time since the link last came up. Every column sorts on click, types are colour-coded from the same palette the Interface Types card uses, and unknown values always sort last so a descending sort on Errors surfaces the faulty interfaces rather than burying them under the ones reporting no counter at all.
+- **List view on the Interfaces page** (`src/collectors/interfaceStatus.js`, `public/index.html`, `public/app.js`). The card size control becomes a view picker - Compact, Comfortable, Large, List - and the table carries what a tile has no room for: cumulative RX/TX totals, error and drop counters, link flap count, and time since the link last came up. Every column sorts on click, types are colour-coded from the same palette the Interface Types card uses, and unknown values always sort last so a descending sort on Errors surfaces the faulty interfaces rather than burying them under the ones reporting no counter at all.
 
   Errors and drops are kept as separate columns rather than summed, because they mean different things: errors are link integrity faults (FCS, alignment, collisions), drops are discards (full queue, no buffer). A bad cable and a congested link are not the same problem.
 
@@ -2417,7 +2417,7 @@ Several of the fixes below were found while building the features rather than re
 
   A counter an interface does not report emits `null` and renders as a dimmed dash, never as `0`. A WireGuard peer showing "0 errors" would imply a health check that is not happening.
 
-  Collecting this needed a third metadata stream. Ethernet ports return `tx-queue-drop` but none of the rx/tx error counters — those live at PHY level on `/interface/ethernet` — so without it the Errors column would have been empty on exactly the ports where cabling faults show up. Roughly 4.5 KB/min extra on a 30-interface router, on the existing 60 s stream; the 1 s rate stream is untouched. Closes #56
+  Collecting this needed a third metadata stream. Ethernet ports return `tx-queue-drop` but none of the rx/tx error counters - those live at PHY level on `/interface/ethernet` - so without it the Errors column would have been empty on exactly the ports where cabling faults show up. Roughly 4.5 KB/min extra on a 30-interface router, on the existing 60 s stream; the 1 s rate stream is untouched. Closes #56
 
 - **Interface card sizes** (`public/index.html`, `public/app.js`). Compact, Comfortable and Large, persisted to `localStorage`. Everything scales from two custom properties, so a larger card shows more of a long name rather than rearranging the layout.
 
@@ -2455,7 +2455,7 @@ Several of the fixes below were found while building the features rather than re
 
 - **`fmtBytes` had no terabyte tier**, so any counter past 1 TB rendered as a four-digit GB figure.
 
-- **README overstated the Interfaces page**, claiming the tiles showed cumulative RX/TX totals. They never had — no byte-total field existed anywhere in the codebase. Corrected, and the List view now provides them.
+- **README overstated the Interfaces page**, claiming the tiles showed cumulative RX/TX totals. They never had - no byte-total field existed anywhere in the codebase. Corrected, and the List view now provides them.
 
 ### Security
 
@@ -2469,7 +2469,7 @@ Several of the fixes below were found while building the features rather than re
 
 - Test suite is at 311, up from 283 at 0.5.53.
 
-## [0.5.53] — Socket.IO parser security patch
+## [0.5.53] - Socket.IO parser security patch
 
 Single-fix release, published so the patch below reaches a tagged image. It landed on `main` shortly after v0.5.52 was tagged, so the `0.5.52` image does not contain it. Upgrade if you are running `0.5.52` or earlier.
 
@@ -2477,11 +2477,11 @@ Nothing else changed.
 
 ### Security
 
-- **socket.io-parser 4.2.7** (#102), closing a high severity advisory: [CVE-2026-69185](https://github.com/advisories/GHSA-2m8v-j782-fhvr), "Socket.IO: Zero-attachment Memory Exhaustion". A binary packet declaring zero attachments was accepted and could be used to exhaust memory. 4.2.7 rejects it — the decoder now refuses any attachment count below one, where previously only counts above the maximum were checked.
+- **socket.io-parser 4.2.7** (#102), closing a high severity advisory: [CVE-2026-69185](https://github.com/advisories/GHSA-2m8v-j782-fhvr), "Socket.IO: Zero-attachment Memory Exhaustion". A binary packet declaring zero attachments was accepted and could be used to exhaust memory. 4.2.7 rejects it - the decoder now refuses any attachment count below one, where previously only counts above the maximum were checked.
 
   This is a transitive dependency of `socket.io` and sits in the path of every packet MikroDash sends, so the upgrade was verified rather than taken on trust: the guard was confirmed present in the shipped code, the full suite passes against the upgraded tree, and the app was booted and driven in a browser with the socket connected and live data rendering.
 
-## [0.5.52] — Data cleanup, DHCP lease filtering, a readable light theme
+## [0.5.52] - Data cleanup, DHCP lease filtering, a readable light theme
 
 Housekeeping release. You can now delete stored history on demand instead of waiting for retention to catch up, filter DHCP leases by VLAN, and actually read the light theme.
 
@@ -2489,17 +2489,17 @@ Three of the fixes below were found while building the features rather than repo
 
 ### Added
 
-- **Data Cleanup** (`src/db.js`, `src/index.js`, Settings → Data Cleanup). Delete stored history on demand, scoped three ways: one router or all, by data type (traffic, ping, bandwidth, alerts and connectivity), and by age (1, 7, 30, 90, 365 days, or everything). The card shows current database size, total rows and a per-router breakdown, and a Preview tells you exactly how many rows a selection would remove before you commit to it — the preview runs the same predicate as the delete, so the two cannot disagree. The database is compacted afterwards so the space is genuinely returned to disk. Admin only, and a restricted admin cannot run a global purge, because that would delete history for routers they cannot see. Closes #77
-- **DHCP lease filtering** (`src/collectors/dhcpLeases.js`, DHCP page). Filter the lease table by DHCP server, with the interface and VLAN shown as context on each option, for example `IoT DHCP · IoT · VLAN 10 (27)`. The issue asked for three separate filters — interface, server and VLAN — but on a real configuration they are the same axis: a DHCP server binds to exactly one interface and that interface is the VLAN, so all three select an identical set. One control covers all three. It composes with the existing text search, so you can search within a single VLAN. Leases now carry their server, interface and VLAN, joined from `/ip/dhcp-server` and `/interface/vlan`. Closes #65
+- **Data Cleanup** (`src/db.js`, `src/index.js`, Settings → Data Cleanup). Delete stored history on demand, scoped three ways: one router or all, by data type (traffic, ping, bandwidth, alerts and connectivity), and by age (1, 7, 30, 90, 365 days, or everything). The card shows current database size, total rows and a per-router breakdown, and a Preview tells you exactly how many rows a selection would remove before you commit to it - the preview runs the same predicate as the delete, so the two cannot disagree. The database is compacted afterwards so the space is genuinely returned to disk. Admin only, and a restricted admin cannot run a global purge, because that would delete history for routers they cannot see. Closes #77
+- **DHCP lease filtering** (`src/collectors/dhcpLeases.js`, DHCP page). Filter the lease table by DHCP server, with the interface and VLAN shown as context on each option, for example `IoT DHCP · IoT · VLAN 10 (27)`. The issue asked for three separate filters - interface, server and VLAN - but on a real configuration they are the same axis: a DHCP server binds to exactly one interface and that interface is the VLAN, so all three select an identical set. One control covers all three. It composes with the existing text search, so you can search within a single VLAN. Leases now carry their server, interface and VLAN, joined from `/ip/dhcp-server` and `/interface/vlan`. Closes #65
 - **Redesigned router picker** (`public/index.html`, `public/app.js`). The topbar `<select>` is replaced by a popover listing each router with its host and a live status dot, so you can see what is online *before* switching rather than after. The active router carries a check mark, and a search box appears once you have five or more routers, matching on both label and host. Full keyboard support and ARIA listbox semantics. The mobile nav deliberately keeps its native select, because the OS picker is the better control on touch. Closes #72
 
 ### Fixed
 
 - **The light theme failed WCAG AA everywhere** (`public/index.html`, `public/app.js`). All nine light palettes failed on muted text, between 1.65:1 and 2.97:1 against a 4.5:1 requirement, and cards barely separated from the page behind them at 1.06:1 to 1.16:1. Solarized also failed on main body text at 3.45:1. Muted text is now opaque and lands near 4.8:1 in every palette, main text is at least 8:1, borders reach about 1.9:1, and page backgrounds are darkened a step so cards read as cards. The default light palette was additionally inheriting dark-mode accent colours, which is why the version badge and tagline washed out. Dark mode is untouched. Closes #71
-- **`VACUUM` reclaimed nothing** (`src/db.js`). MikroDash runs SQLite in WAL mode, so the pages freed by a delete sit in the write-ahead log until a checkpoint — leaving `VACUUM` with nothing to compact and the file on disk exactly as large as before. Measured directly: 925,696 bytes before, unchanged after `VACUUM`, then 8,192 bytes once a `wal_checkpoint(TRUNCATE)` ran first. This also means the existing daily retention prune would never have returned space to the filesystem once it started firing
-- **Every outage was reported shorter than it was** (`src/db.js`, `src/db-writer.js`, `src/index.js`, `src/alertSessions.js`). MikroDash waits `connDownThresholdSec` (30 seconds by default) before declaring a router down, so a brief blip is not logged as an outage. That part is correct. The mistake was writing the database row only when that timer expired, while the insert stamped the current time itself — so the stored timestamp was when the outage was *declared*, not when the router actually dropped. Since downtime is measured by pairing offline and online events, every outage came out short by the threshold: about 5% error on a ten-minute outage, 67% on a 45-second one. Existing records keep their original timestamps. Closes #99
-- **An idle tab sat on an empty dashboard instead of returning you to the login page** (`public/app.js`). Once a session was gone — expired, or wiped by a container restart, since sessions are held in memory — the Socket.IO handshake was refused with a 401 and the client retried it silently forever. All three existing redirect paths were structurally unable to fire in that state: the session check lived inside the `connect` handler and so needed the very connection being refused, the expiry event needs a live socket, and the 401 interceptor only wraps `fetch` while Socket.IO polls over `XMLHttpRequest`. A `connect_error` handler now confirms with the server before redirecting, so a genuinely dead session sends you to the login page while a transient outage leaves you where you are
-- **The lease list dropped fields on first connect** (`src/index.js`). Initial state rebuilt the DHCP lease payload by hand instead of replaying the collector's own, which silently discarded any field the collector added — the new server summary among them
+- **`VACUUM` reclaimed nothing** (`src/db.js`). MikroDash runs SQLite in WAL mode, so the pages freed by a delete sit in the write-ahead log until a checkpoint - leaving `VACUUM` with nothing to compact and the file on disk exactly as large as before. Measured directly: 925,696 bytes before, unchanged after `VACUUM`, then 8,192 bytes once a `wal_checkpoint(TRUNCATE)` ran first. This also means the existing daily retention prune would never have returned space to the filesystem once it started firing
+- **Every outage was reported shorter than it was** (`src/db.js`, `src/db-writer.js`, `src/index.js`, `src/alertSessions.js`). MikroDash waits `connDownThresholdSec` (30 seconds by default) before declaring a router down, so a brief blip is not logged as an outage. That part is correct. The mistake was writing the database row only when that timer expired, while the insert stamped the current time itself - so the stored timestamp was when the outage was *declared*, not when the router actually dropped. Since downtime is measured by pairing offline and online events, every outage came out short by the threshold: about 5% error on a ten-minute outage, 67% on a 45-second one. Existing records keep their original timestamps. Closes #99
+- **An idle tab sat on an empty dashboard instead of returning you to the login page** (`public/app.js`). Once a session was gone - expired, or wiped by a container restart, since sessions are held in memory - the Socket.IO handshake was refused with a 401 and the client retried it silently forever. All three existing redirect paths were structurally unable to fire in that state: the session check lived inside the `connect` handler and so needed the very connection being refused, the expiry event needs a live socket, and the 401 interceptor only wraps `fetch` while Socket.IO polls over `XMLHttpRequest`. A `connect_error` handler now confirms with the server before redirecting, so a genuinely dead session sends you to the login page while a transient outage leaves you where you are
+- **The lease list dropped fields on first connect** (`src/index.js`). Initial state rebuilt the DHCP lease payload by hand instead of replaying the collector's own, which silently discarded any field the collector added - the new server summary among them
 
 ### Changed
 
@@ -2507,7 +2507,7 @@ Three of the fixes below were found while building the features rather than repo
 - **The Sign In button** now uses Inter 700. It asked for weight 700 but Syne ships only 400, 600 and 800, so the browser rounded up to 800 and rendered heavy and cramped for a UI control
 - **Dependency updates**: geoip-lite 2.0.3, express-rate-limit 8.6.1, ip-address 10.4.0 (#100). geoip-lite 2.x declares Node 24 while the image is built on Node 20; verified before merging that it installs, loads and looks up correctly on Node 20, that the full suite passes, and that the app boots with live geo lookups working. Geo data is fresher as a result. Tracked in #101
 
-## [0.5.51] — Stream recovery, accurate connectivity history, self-explaining offline routers
+## [0.5.51] - Stream recovery, accurate connectivity history, self-explaining offline routers
 
 Two separate "it says offline but it isn't" reports turned out to be different bugs, and both are fixed.
 
@@ -2541,60 +2541,60 @@ Most of the stream recovery and collector freshness work in this release was con
 
 ### Contributors
 
-- [@invoker-karl](https://github.com/invoker-karl) — traffic stream watchdog, collector freshness checks in `/healthz`, interface poll error reporting, heartbeat emissions, zero-counter handling and explicit three-argument `stream()` support ([#91](https://github.com/SecOps-7/MikroDash/pull/91))
+- [@invoker-karl](https://github.com/invoker-karl) - traffic stream watchdog, collector freshness checks in `/healthz`, interface poll error reporting, heartbeat emissions, zero-counter handling and explicit three-argument `stream()` support ([#91](https://github.com/SecOps-7/MikroDash/pull/91))
 
 ---
 
-## [0.5.50] — Security & stability hardening, collector refactor
+## [0.5.50] - Security & stability hardening, collector refactor
 
 Full-codebase review remediation: 17 P1 bugs fixed across security and stability, plus the first round of the planned refactors.
 
 ### Security
 
-- **RBAC**: `routers:stats`, `router:status` replay and `/api/localcc` now respect `allowedRouterIds` — restricted viewers no longer receive host/serial/license/version/cpu (or the WAN IP) for routers outside their allowed set (`src/index.js`)
-- **Auth mode split-brain fixed**: new `_authMode()`/`_isModern()` helpers replace six call sites that defaulted to the removed `'basic'` mode — a falsy `authMode` could previously hand full settings (SMTP/Telegram/router detail) to viewer-role users via `GET /api/settings`
+- **RBAC**: `routers:stats`, `router:status` replay and `/api/localcc` now respect `allowedRouterIds` - restricted viewers no longer receive host/serial/license/version/cpu (or the WAN IP) for routers outside their allowed set (`src/index.js`)
+- **Auth mode split-brain fixed**: new `_authMode()`/`_isModern()` helpers replace six call sites that defaulted to the removed `'basic'` mode - a falsy `authMode` could previously hand full settings (SMTP/Telegram/router detail) to viewer-role users via `GET /api/settings`
 - **Error sanitization**: unclassified RouterOS connection errors no longer reach the browser as raw `e.message` (`wireRosEvents`, `/api/routers/test`); `sanitizeErr()` additionally redacts email addresses and bot tokens from provider errors
 - **Rate limiting**: `TRUSTED_PROXY=true` no longer trusts the whole X-Forwarded-For chain (would let clients spoof IPs past the login limiter); double `authLimiter` on `/login` removed; `/healthz` returns only `{ok, starting}` to unauthenticated callers (Docker healthcheck unaffected)
 - `firewall:tab` accepted only from sockets actually viewing the firewall page/card; `router:switch` rejects disabled routers; `routers.json` written mode 0600
 
 ### Fixed
 
-- **Reconnect loop could die permanently** — a throwing `connectionError`/`close` listener escaped `connectLoop`'s catch and ended retries forever; listeners are now contained (`_safeEmit`) and all `connectLoop()` call sites log instead of leaking unhandled rejections (`src/routeros/client.js`)
-- **Listener/memory leak per router hot-swap** — collector handlers registered on the global Socket.IO server are now tracked and removed in `teardownSession`; each leaked handler retained the entire dead session
-- **Hot-swap orphaned all modern-auth sockets** — switching or deleting the active router now relocates every socket watching it (previously only legacy no-auth sockets moved, leaving everyone else in a dead room)
-- **VPN disconnect alerts never fired** — the alerter hook only covered `routerIo.emit()`, but `vpn:update` goes through `.to()`; room-scoped emits now feed the alerter, and the alert-session stub gained the `.to()` method whose absence made its VPN collector throw
-- **Phantom wireless clients / stale tables** — RStream's empty-array packets (table emptied) are now handled by wireless, talkers, firewall and dhcpNetworks; departed clients age out and cleared tables actually clear; an empty wifi table now latches the legacy-wireless fallback
-- **Restart-timer leaks defeating idle gating** — bare `setTimeout` restarts in system/connections/ping (and an uncleared overwrite in traffic) are stored and cancelled on stop/suspend; connections gained a `_suspended` flag, its watchdog now recovers a dead stream (previously bailed on exactly that state), and `resume()` no longer reopens the connection-table stream with zero viewers
-- **12 unhandled promise rejections on stream teardown** — `try/catch` around `stream.stop()` cannot catch its promise rejection; all sites use a promise-safe teardown now
-- **PDF/report exports crashed on large ranges** — `Math.max(...rows)` overflowed the call stack above ~65k rows; replaced with a reduce (ping/traffic/bandwidth/connectivity exports)
-- **Credentials could be permanently blanked** — an AES-GCM decrypt failure (key mismatch/corruption) no longer causes the next save to overwrite the stored ciphertext with an empty string; the original ciphertext is preserved until a new credential is explicitly set (`src/settings.js`, `src/routers.js`)
-- **Bad `pingTarget`/`defaultIf` bricked connections** — validated at save time in `Routers.add/update` (previously a persisted bad value made every future browser connection throw, surviving restarts)
-- **`router:switching` wiped every user's UI** — now scoped to the outgoing router's room; `switchRouter`/disable paths drop stale alert-evaluator state; a rejected interface-list fetch is no longer cached forever; firewall's 60 s heartbeat reaches the dashboard card room (stale-badge fix); `/healthz` reports real ping/ifstatus errors
+- **Reconnect loop could die permanently** - a throwing `connectionError`/`close` listener escaped `connectLoop`'s catch and ended retries forever; listeners are now contained (`_safeEmit`) and all `connectLoop()` call sites log instead of leaking unhandled rejections (`src/routeros/client.js`)
+- **Listener/memory leak per router hot-swap** - collector handlers registered on the global Socket.IO server are now tracked and removed in `teardownSession`; each leaked handler retained the entire dead session
+- **Hot-swap orphaned all modern-auth sockets** - switching or deleting the active router now relocates every socket watching it (previously only legacy no-auth sockets moved, leaving everyone else in a dead room)
+- **VPN disconnect alerts never fired** - the alerter hook only covered `routerIo.emit()`, but `vpn:update` goes through `.to()`; room-scoped emits now feed the alerter, and the alert-session stub gained the `.to()` method whose absence made its VPN collector throw
+- **Phantom wireless clients / stale tables** - RStream's empty-array packets (table emptied) are now handled by wireless, talkers, firewall and dhcpNetworks; departed clients age out and cleared tables actually clear; an empty wifi table now latches the legacy-wireless fallback
+- **Restart-timer leaks defeating idle gating** - bare `setTimeout` restarts in system/connections/ping (and an uncleared overwrite in traffic) are stored and cancelled on stop/suspend; connections gained a `_suspended` flag, its watchdog now recovers a dead stream (previously bailed on exactly that state), and `resume()` no longer reopens the connection-table stream with zero viewers
+- **12 unhandled promise rejections on stream teardown** - `try/catch` around `stream.stop()` cannot catch its promise rejection; all sites use a promise-safe teardown now
+- **PDF/report exports crashed on large ranges** - `Math.max(...rows)` overflowed the call stack above ~65k rows; replaced with a reduce (ping/traffic/bandwidth/connectivity exports)
+- **Credentials could be permanently blanked** - an AES-GCM decrypt failure (key mismatch/corruption) no longer causes the next save to overwrite the stored ciphertext with an empty string; the original ciphertext is preserved until a new credential is explicitly set (`src/settings.js`, `src/routers.js`)
+- **Bad `pingTarget`/`defaultIf` bricked connections** - validated at save time in `Routers.add/update` (previously a persisted bad value made every future browser connection throw, surviving restarts)
+- **`router:switching` wiped every user's UI** - now scoped to the outgoing router's room; `switchRouter`/disable paths drop stale alert-evaluator state; a rejected interface-list fetch is no longer cached forever; firewall's 60 s heartbeat reaches the dashboard card room (stale-badge fix); `/healthz` reports real ping/ifstatus errors
 - Traffic `bindSocket` is idempotent (listeners no longer stack on hot-swap/router-switch) and `stop()` releases all socket references
 
 ### Changed (refactors)
 
-- New `src/collectors/util.js`: shared `clampPoll()`, `stopStreamSafe()`, `parseBps()`/`bpsToMbps()` — removes ~10 drifting clamp blocks, 23 hand-rolled stream teardowns and both bps-parser copies; Traffic and Interfaces pages now agree on Mbps precision
+- New `src/collectors/util.js`: shared `clampPoll()`, `stopStreamSafe()`, `parseBps()`/`bpsToMbps()` - removes ~10 drifting clamp blocks, 23 hand-rolled stream teardowns and both bps-parser copies; Traffic and Interfaces pages now agree on Mbps precision
 - `src/index.js`: four `_update*Streams` functions collapsed into one data-driven `_updatePageStream()`; O(n²) connectivity outage pairing replaced by a single-pass helper
 - Collector contract sweep: `lastPayload` declared everywhere, `traffic.pollMs`/`netwatch.pollMs` present, netwatch heartbeat idle-gated, interfaceStatus reports `lastIfStatusErr`, advances its health timestamp on unchanged ticks, keeps `lastPayload` fresh while idle, and recovers monitor-traffic stream errors in 3 s instead of up to 60 s
 - Docs: `CLAUDE.md`/`AI_CONTEXT.md` no longer describe the removed Basic Auth; netwatch documented; traffic idle-gating claim corrected
 
 ### Tests
 
-- New `test/code-review-remediation.test.js` (13 regression tests: connectLoop listener containment, connections suspend/watchdog, traffic bind idempotency, empty-table packets, restart-timer cleanup, router validation, ciphertext preservation) — suite now 247 tests, all passing
+- New `test/code-review-remediation.test.js` (13 regression tests: connectLoop listener containment, connections suspend/watchdog, traffic bind idempotency, empty-table packets, restart-timer cleanup, router validation, ciphertext preservation) - suite now 247 tests, all passing
 
 ---
 
-## [0.5.49] — Router disable/enable, wireless PTR name resolution, routes flicker fix
+## [0.5.49] - Router disable/enable, wireless PTR name resolution, routes flicker fix
 
 ### Added
 
-- **Router disable/enable** (`src/routers.js`, `src/index.js`, `public/app.js`, `public/index.html`) — routers can now be disabled from the Routers page without deleting them; disabled routers are excluded from monitoring sessions, the active-router dropdown, and the Routers stats overview; attempting to disable the currently active router returns a 400 error; disabled rows are visually dimmed with a yellow "Disabled" status badge and an Enable/Disable toggle button in the actions column; a `router:disabled` socket event automatically switches connected clients to the next available router
-- **Wireless client hostname resolution for external DHCP** (`src/collectors/wireless.js`) — when the DHCP server is on an external device (OPNSense, pfSense, Pi-hole, etc.) and RouterOS has no lease entries, the wireless collector now falls back to a reverse-DNS (PTR) lookup using the IP from the ARP table; compatible with any DNS resolver that registers PTR records for its DHCP clients (Unbound, dnsmasq, etc.); results are cached 60 s on success / 15 s on failure; no new dependencies
+- **Router disable/enable** (`src/routers.js`, `src/index.js`, `public/app.js`, `public/index.html`) - routers can now be disabled from the Routers page without deleting them; disabled routers are excluded from monitoring sessions, the active-router dropdown, and the Routers stats overview; attempting to disable the currently active router returns a 400 error; disabled rows are visually dimmed with a yellow "Disabled" status badge and an Enable/Disable toggle button in the actions column; a `router:disabled` socket event automatically switches connected clients to the next available router
+- **Wireless client hostname resolution for external DHCP** (`src/collectors/wireless.js`) - when the DHCP server is on an external device (OPNSense, pfSense, Pi-hole, etc.) and RouterOS has no lease entries, the wireless collector now falls back to a reverse-DNS (PTR) lookup using the IP from the ARP table; compatible with any DNS resolver that registers PTR records for its DHCP clients (Unbound, dnsmasq, etc.); results are cached 60 s on success / 15 s on failure; no new dependencies
 
 ### Fixed
 
-- **Routes page flashing on connect** (`src/collectors/routing.js`) — debounced the emit in both `/ip/route/listen` and `/ipv6/route/listen` stream callbacks (100 ms) to collapse RouterOS's initial-snapshot burst into a single emit, eliminating the visible flicker when navigating to the Routes page. Closes #86
+- **Routes page flashing on connect** (`src/collectors/routing.js`) - debounced the emit in both `/ip/route/listen` and `/ipv6/route/listen` stream callbacks (100 ms) to collapse RouterOS's initial-snapshot burst into a single emit, eliminating the visible flicker when navigating to the Routes page. Closes #86
 
 ---
 
@@ -2620,89 +2620,89 @@ Full-codebase review remediation: 17 P1 bugs fixed across security and stability
 
 ---
 
-## [0.5.47] — Firewall redesign, active router deletion, GPU reduction, security fixes
+## [0.5.47] - Firewall redesign, active router deletion, GPU reduction, security fixes
 
 ### Added
 
-- **Firewall Chain Count card** (`public/index.html`, `public/app.js`) — replaces the Total Hits sparkline; shows rule counts per chain type (forward / input / output / srcnat / dstnat / prerouting / postrouting etc.) aggregated across all four tables, rendered as a colour-coded vertical bar chart that fills the card height. Blue = filter-family chains, green = NAT chains, orange = mangle/raw chains
-- **Active router deletion** (`src/db.js`, `src/index.js`, `public/app.js`) — the active router can now be deleted; MikroDash auto-promotes the next available router (hot-swaps session, emits `router:active`) or enters no-router setup mode when none remain. All historical time-series data for the deleted router is purged via a new `db.deleteRouterData(routerId)` transaction
+- **Firewall Chain Count card** (`public/index.html`, `public/app.js`) - replaces the Total Hits sparkline; shows rule counts per chain type (forward / input / output / srcnat / dstnat / prerouting / postrouting etc.) aggregated across all four tables, rendered as a colour-coded vertical bar chart that fills the card height. Blue = filter-family chains, green = NAT chains, orange = mangle/raw chains
+- **Active router deletion** (`src/db.js`, `src/index.js`, `public/app.js`) - the active router can now be deleted; MikroDash auto-promotes the next available router (hot-swaps session, emits `router:active`) or enters no-router setup mode when none remain. All historical time-series data for the deleted router is purged via a new `db.deleteRouterData(routerId)` transaction
 
 ### Changed
 
-- **Firewall collector stream architecture** (`src/collectors/firewall.js`, `src/index.js`) — reduced from 8 simultaneous streams (4 `/listen` + 4 counter `/print =interval=N`) to a single stream covering only the active tab. Tab switches via a new `firewall:tab` socket event start a fresh stream and stop the previous one; the page suspends the stream entirely when closed. Rule metadata is loaded once via parallel one-shot reads on page open; the ongoing stream uses a trimmed proplist of `.id,packets,bytes` only and merges counter updates into existing rule objects. Closes #67
-- **Firewall UI** (`public/index.html`, `public/app.js`) — removed Top Hits tab and Total Hits sparkline card; Filter is now the default active tab; Chain Count card replaces Total Hits in the summary row
+- **Firewall collector stream architecture** (`src/collectors/firewall.js`, `src/index.js`) - reduced from 8 simultaneous streams (4 `/listen` + 4 counter `/print =interval=N`) to a single stream covering only the active tab. Tab switches via a new `firewall:tab` socket event start a fresh stream and stop the previous one; the page suspends the stream entirely when closed. Rule metadata is loaded once via parallel one-shot reads on page open; the ongoing stream uses a trimmed proplist of `.id,packets,bytes` only and merges counter updates into existing rule objects. Closes #67
+- **Firewall UI** (`public/index.html`, `public/app.js`) - removed Top Hits tab and Total Hits sparkline card; Filter is now the default active tab; Chain Count card replaces Total Hits in the summary row
 
 ### Performance
 
-- **GPU compositing reduction** (`public/index.html`, `public/app.js`) — removed `backdrop-filter` from `#sidenav`, `.card`, `#topbar`, `.scard`, and `#kbdHint` (blur was imperceptible at 70–97% opaque backgrounds but forced each element onto its own GPU compositing layer); traffic chart rAF keepalive throttled to 30 fps; `devicePixelRatio` capped at 1.5 to halve pixel load on HiDPI displays
+- **GPU compositing reduction** (`public/index.html`, `public/app.js`) - removed `backdrop-filter` from `#sidenav`, `.card`, `#topbar`, `.scard`, and `#kbdHint` (blur was imperceptible at 70–97% opaque backgrounds but forced each element onto its own GPU compositing layer); traffic chart rAF keepalive throttled to 30 fps; `devicePixelRatio` capped at 1.5 to halve pixel load on HiDPI displays
 
 ### Fixed
 
-- **CodeQL false positives** (`src/collectors/traffic.js`, `src/collectors/ping.js`, `src/collectors/system.js`, `src/collectors/interfaceStatus.js`) — added `// codeql[js/tainted-format-string]` and `// codeql[js/resource-exhaustion]` suppression comments on 7 flagged lines
+- **CodeQL false positives** (`src/collectors/traffic.js`, `src/collectors/ping.js`, `src/collectors/system.js`, `src/collectors/interfaceStatus.js`) - added `// codeql[js/tainted-format-string]` and `// codeql[js/resource-exhaustion]` suppression comments on 7 flagged lines
 
 ### Security
 
-- **Dependency updates** — `nodemailer` and `ws` patched for reported CVEs; `js-yaml` updated (PR #82)
+- **Dependency updates** - `nodemailer` and `ws` patched for reported CVEs; `js-yaml` updated (PR #82)
 
 ---
 
-## [0.5.46] — Polling Profiles, ping min/max RTT, full streaming conversion, bug fixes
+## [0.5.46] - Polling Profiles, ping min/max RTT, full streaming conversion, bug fixes
 
 ### Added
 
-- **Polling Profiles** (`public/index.html`, `public/app.js`, `src/settings.js`) — Settings → Poll Intervals now shows five named preset buttons: **Fast**, **Faster**, **Standard**, **Slow**, and **Slower**, plus a **Custom** pill that activates when you drag any slider. A **Save Custom Profile** button persists your current slider values as a reusable template. The Custom profile survives settings saves and is restored on page load. Standard is the recommended baseline for most routers. Closes issue #52
-- **Ping card min/max RTT** (`src/collectors/ping.js`, `public/index.html`, `public/app.js`) — the ping stat row now shows four fields: `RTT · min · max · loss`. Min and max are sourced from the RouterOS `min-rtt`/`max-rtt` session counters via the proplist parameter. Values colour-code with the same thresholds as RTT. Present on initial page load via `ping:history`
-- **API Diagnostics dashboard card** (`public/js/dashboard-grid.js`, `public/index.html`, `public/app.js`, `src/index.js`) — a hidden-by-default card showing live stream counts and a per-collector breakdown of active API streams. Activates only while visible; 2 s refresh via `dashcard:focus`/`dashcard:blur` events
-- **Settings banner reserved space** (`public/index.html`) — the Save status banner now uses `visibility` instead of `display` so its space is permanently reserved; clicking Save no longer causes layout shifts
+- **Polling Profiles** (`public/index.html`, `public/app.js`, `src/settings.js`) - Settings → Poll Intervals now shows five named preset buttons: **Fast**, **Faster**, **Standard**, **Slow**, and **Slower**, plus a **Custom** pill that activates when you drag any slider. A **Save Custom Profile** button persists your current slider values as a reusable template. The Custom profile survives settings saves and is restored on page load. Standard is the recommended baseline for most routers. Closes issue #52
+- **Ping card min/max RTT** (`src/collectors/ping.js`, `public/index.html`, `public/app.js`) - the ping stat row now shows four fields: `RTT · min · max · loss`. Min and max are sourced from the RouterOS `min-rtt`/`max-rtt` session counters via the proplist parameter. Values colour-code with the same thresholds as RTT. Present on initial page load via `ping:history`
+- **API Diagnostics dashboard card** (`public/js/dashboard-grid.js`, `public/index.html`, `public/app.js`, `src/index.js`) - a hidden-by-default card showing live stream counts and a per-collector breakdown of active API streams. Activates only while visible; 2 s refresh via `dashcard:focus`/`dashcard:blur` events
+- **Settings banner reserved space** (`public/index.html`) - the Save status banner now uses `visibility` instead of `display` so its space is permanently reserved; clicking Save no longer causes layout shifts
 
 ### Changed
 
-- **Full `=interval=N` streaming conversion** — four remaining polling collectors replaced timer-based `setInterval` + `ros.write()` with router-pushed streams; each stream suspends when its page/card is not visible and resumes on focus:
-  - `src/collectors/vpn.js` — WireGuard peer counter stream (`/interface/wireguard/peers/print =interval=N`)
-  - `src/collectors/firewall.js` — four per-table counter streams (`filter`, `nat`, `mangle`, `raw`)
-  - `src/collectors/wireless.js` — wifi, wireless, and CAPsMAN registration streams
-  - `src/collectors/dhcpNetworks.js` — four streams (networks, leases, pools, addresses)
-- **Connections collector idle-gated** (`src/index.js`) — removed page-gate; connections stream runs whenever any browser client is connected, matching the behaviour of all other streaming collectors
-- **Page-aware stream lifecycle** (`src/index.js`, `src/collectors/vpn.js`, `src/collectors/wireless.js`) — `_updateVpnStreams()` and `_updateWirelessStreams()` helpers wire page and dashboard card room events to `suspend()`/`resume()` so RouterOS serves counter streams only while relevant UI is visible
-- **Standard polling profile** — default intervals aligned to optimised baseline: System 2 s, Connections 3 s, Top Talkers 3 s, Interface Rates 1 s, Bandwidth 3 s, VPN 5 s, Firewall 5 s, Ping 5 s, Wireless 30 s, Interface Metadata 60 s, DHCP Networks ~5 min
-- **Settings slider ranges** (`public/app.js`, `src/settings.js`, `src/index.js`) — eight 30 s-cap sliders changed from 500 ms–30 s to 1 s–30 s; DHCP Networks lower bound raised to 10 s; Ping upper bound raised to 30 s; Wireless upper bound raised to 600 s
+- **Full `=interval=N` streaming conversion** - four remaining polling collectors replaced timer-based `setInterval` + `ros.write()` with router-pushed streams; each stream suspends when its page/card is not visible and resumes on focus:
+  - `src/collectors/vpn.js` - WireGuard peer counter stream (`/interface/wireguard/peers/print =interval=N`)
+  - `src/collectors/firewall.js` - four per-table counter streams (`filter`, `nat`, `mangle`, `raw`)
+  - `src/collectors/wireless.js` - wifi, wireless, and CAPsMAN registration streams
+  - `src/collectors/dhcpNetworks.js` - four streams (networks, leases, pools, addresses)
+- **Connections collector idle-gated** (`src/index.js`) - removed page-gate; connections stream runs whenever any browser client is connected, matching the behaviour of all other streaming collectors
+- **Page-aware stream lifecycle** (`src/index.js`, `src/collectors/vpn.js`, `src/collectors/wireless.js`) - `_updateVpnStreams()` and `_updateWirelessStreams()` helpers wire page and dashboard card room events to `suspend()`/`resume()` so RouterOS serves counter streams only while relevant UI is visible
+- **Standard polling profile** - default intervals aligned to optimised baseline: System 2 s, Connections 3 s, Top Talkers 3 s, Interface Rates 1 s, Bandwidth 3 s, VPN 5 s, Firewall 5 s, Ping 5 s, Wireless 30 s, Interface Metadata 60 s, DHCP Networks ~5 min
+- **Settings slider ranges** (`public/app.js`, `src/settings.js`, `src/index.js`) - eight 30 s-cap sliders changed from 500 ms–30 s to 1 s–30 s; DHCP Networks lower bound raised to 10 s; Ping upper bound raised to 30 s; Wireless upper bound raised to 600 s
 
 ### Fixed
 
-- **WireGuard dashboard card going stale** (`src/collectors/vpn.js`) — `_emit()` and `_startHeartbeat()` passed the already-prefixed room name (`router-<rid>-dash-card-vpn`) to `routerIo.to()`, which auto-prepends `router-<rid>-`, producing a double-prefixed room no client ever joins. Fixed by passing bare names (`page-vpn`, `dash-card-vpn`)
-- **Connections stale after poll interval change** (`src/collectors/connections.js`) — `_restartStream()` now clears `_restarting` (unblocks `_startStream()` if an error-recovery timer was in flight), resets `_rowsPrev`/`_partialStreak` (prevents first batch being misclassified as partial), and re-arms the watchdog with the current `pollMs` (old watchdog kept original thresholds after a slow→fast change)
-- **Stale counter poll method names** (`src/index.js`) — `pollFirewall` and `pollVpn` live-apply blocks referenced methods from the pre-streaming era; renamed to match current `_stopCounterStreams`/`_startCounterStreams`
+- **WireGuard dashboard card going stale** (`src/collectors/vpn.js`) - `_emit()` and `_startHeartbeat()` passed the already-prefixed room name (`router-<rid>-dash-card-vpn`) to `routerIo.to()`, which auto-prepends `router-<rid>-`, producing a double-prefixed room no client ever joins. Fixed by passing bare names (`page-vpn`, `dash-card-vpn`)
+- **Connections stale after poll interval change** (`src/collectors/connections.js`) - `_restartStream()` now clears `_restarting` (unblocks `_startStream()` if an error-recovery timer was in flight), resets `_rowsPrev`/`_partialStreak` (prevents first batch being misclassified as partial), and re-arms the watchdog with the current `pollMs` (old watchdog kept original thresholds after a slow→fast change)
+- **Stale counter poll method names** (`src/index.js`) - `pollFirewall` and `pollVpn` live-apply blocks referenced methods from the pre-streaming era; renamed to match current `_stopCounterStreams`/`_startCounterStreams`
 
 ### Performance
 
-- **Firewall initial load proplist** (`src/collectors/firewall.js`) — `_loadInitial()` now requests only the 11 fields used by `_processRule()` instead of all 20+ per rule, reducing response size on every Firewall page open
-- **Routing heartbeat idle guard** (`src/collectors/routing.js`) — heartbeat returns immediately when `page-routing` room is empty, skipping route/BGP array rebuilds when nobody is watching
-- **VPN emit scoped to rooms** (`src/collectors/vpn.js`) — heartbeat and `_emit()` now use `io.to('page-vpn').to('dash-card-vpn')` instead of `io.emit()` (was broadcasting to all connected clients every 60 s)
-- **Connections fallback poll removed** (`src/collectors/connections.js`) — ~40 lines of dead code (`_startPollFallback`, `_runFallbackTick`, etc.) removed; watchdog is the sole stream-recovery mechanism
+- **Firewall initial load proplist** (`src/collectors/firewall.js`) - `_loadInitial()` now requests only the 11 fields used by `_processRule()` instead of all 20+ per rule, reducing response size on every Firewall page open
+- **Routing heartbeat idle guard** (`src/collectors/routing.js`) - heartbeat returns immediately when `page-routing` room is empty, skipping route/BGP array rebuilds when nobody is watching
+- **VPN emit scoped to rooms** (`src/collectors/vpn.js`) - heartbeat and `_emit()` now use `io.to('page-vpn').to('dash-card-vpn')` instead of `io.emit()` (was broadcasting to all connected clients every 60 s)
+- **Connections fallback poll removed** (`src/collectors/connections.js`) - ~40 lines of dead code (`_startPollFallback`, `_runFallbackTick`, etc.) removed; watchdog is the sole stream-recovery mechanism
 
 ---
 
-## [0.5.45] — Security hardening, bandwidth savings, router card identity pills, log history
+## [0.5.45] - Security hardening, bandwidth savings, router card identity pills, log history
 
 ### Added
 
-- **Router card identity pills** (`src/collectors/system.js`, `src/index.js`, `public/app.js`) — each router card on the Routers page now shows up to three additional footer pills: **Architecture** (violet, e.g. `arm64`), **Serial Number** (amber, `SN: XXXX`), and **License Level** (emerald, `L6`). Architecture comes from `/system/resource/print`; serial and license are fetched once via `/system/routerboard/print` and `/system/license/print` respectively. CHR/virtual routers gracefully omit the serial pill when the routerboard API is unavailable. Closes issue #70
-- **Historical log import on connect** (`src/collectors/logs.js`, `public/app.js`) — when MikroDash first connects to a router (and on every reconnect), it fetches the current RouterOS log buffer via `/log/print` and seeds the ring buffer before starting the `/log/listen` stream. The Logs page and dashboard log card now show existing entries immediately rather than waiting for new events. Ring buffer is cleared on reconnect so stale entries from a prior session are never interleaved with fresh ones. Closes issue #57
+- **Router card identity pills** (`src/collectors/system.js`, `src/index.js`, `public/app.js`) - each router card on the Routers page now shows up to three additional footer pills: **Architecture** (violet, e.g. `arm64`), **Serial Number** (amber, `SN: XXXX`), and **License Level** (emerald, `L6`). Architecture comes from `/system/resource/print`; serial and license are fetched once via `/system/routerboard/print` and `/system/license/print` respectively. CHR/virtual routers gracefully omit the serial pill when the routerboard API is unavailable. Closes issue #70
+- **Historical log import on connect** (`src/collectors/logs.js`, `public/app.js`) - when MikroDash first connects to a router (and on every reconnect), it fetches the current RouterOS log buffer via `/log/print` and seeds the ring buffer before starting the `/log/listen` stream. The Logs page and dashboard log card now show existing entries immediately rather than waiting for new events. Ring buffer is cleared on reconnect so stale entries from a prior session are never interleaved with fresh ones. Closes issue #57
 
 ### Fixed
 
-- **Wireless detection bug — Ethernet rows filtered** (`src/collectors/wireless.js`) — on certain RouterOS builds, the wireless registration-table endpoint returns interface metadata rows (including Ethernet interfaces) alongside genuine wireless clients. The collector now filters to only rows containing at least one wireless-specific field (`signal`, `signal-strength`, `rx-signal`, `ssid`, `tx-rate`, `rx-rate`, `tx-rate-set`). Closes issue #54
-- **Router deletion leaves orphan session** (`src/index.js`) — deleting a router via `DELETE /api/routers/:id` now tears down any live pool entry (cancels idle timer, calls `teardownSession()`, removes from `_routerSessions`), preventing a dangling TCP connection to the deleted router. Closes issue #48
-- **Duplicate Socket.IO connections on page refresh** (`src/index.js`) — Socket.IO ping interval tightened from 25 s / 20 s to 10 s / 5 s, reducing the stale-socket detection window from ~45 s to ~15 s. A concurrent-`sendInitialState()` race on `fetchInterfaces()` is fixed by caching the in-flight Promise in `session._ifacesFetch`. Closes issue #51
-- **First-run wizard bypassed on Basic Auth migration** (`src/index.js`) — `_migrateBasicAuth()` previously fell back to `authMode:'none'` for Basic Auth deployments with no credentials. It now falls back to `authMode:'modern'`, triggering the first-run wizard. Closes issue #47
+- **Wireless detection bug - Ethernet rows filtered** (`src/collectors/wireless.js`) - on certain RouterOS builds, the wireless registration-table endpoint returns interface metadata rows (including Ethernet interfaces) alongside genuine wireless clients. The collector now filters to only rows containing at least one wireless-specific field (`signal`, `signal-strength`, `rx-signal`, `ssid`, `tx-rate`, `rx-rate`, `tx-rate-set`). Closes issue #54
+- **Router deletion leaves orphan session** (`src/index.js`) - deleting a router via `DELETE /api/routers/:id` now tears down any live pool entry (cancels idle timer, calls `teardownSession()`, removes from `_routerSessions`), preventing a dangling TCP connection to the deleted router. Closes issue #48
+- **Duplicate Socket.IO connections on page refresh** (`src/index.js`) - Socket.IO ping interval tightened from 25 s / 20 s to 10 s / 5 s, reducing the stale-socket detection window from ~45 s to ~15 s. A concurrent-`sendInitialState()` race on `fetchInterfaces()` is fixed by caching the in-flight Promise in `session._ifacesFetch`. Closes issue #51
+- **First-run wizard bypassed on Basic Auth migration** (`src/index.js`) - `_migrateBasicAuth()` previously fell back to `authMode:'none'` for Basic Auth deployments with no credentials. It now falls back to `authMode:'modern'`, triggering the first-run wizard. Closes issue #47
 
 ### Changed
 
-- **HTTP Basic Authentication removed** (`src/auth/basicAuth.js`, `src/index.js`, `src/settings.js`, `public/index.html`, `public/app.js`) — the legacy `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` env-var auth layer and `authMode:'basic'` have been removed. The dashboard now supports two modes only: `none` (open, with startup warning) and `modern` (cookie sessions, scrypt-hashed passwords, `admin`/`viewer` roles). Existing Basic Auth deployments are migrated to `modern` on first start. Closes issue #46
+- **HTTP Basic Authentication removed** (`src/auth/basicAuth.js`, `src/index.js`, `src/settings.js`, `public/index.html`, `public/app.js`) - the legacy `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` env-var auth layer and `authMode:'basic'` have been removed. The dashboard now supports two modes only: `none` (open, with startup warning) and `modern` (cookie sessions, scrypt-hashed passwords, `admin`/`viewer` roles). Existing Basic Auth deployments are migrated to `modern` on first start. Closes issue #46
 
 ### Performance
 
-- **Reduced RouterOS API payload size** (`src/collectors/interfaces.js`, `dhcpLeases.js`, `dhcpNetworks.js`) — three collectors now request only the fields they use via `=.proplist=` filtering, reducing per-poll bandwidth on busy routers. Closes issue #49
+- **Reduced RouterOS API payload size** (`src/collectors/interfaces.js`, `dhcpLeases.js`, `dhcpNetworks.js`) - three collectors now request only the fields they use via `=.proplist=` filtering, reducing per-poll bandwidth on busy routers. Closes issue #49
 
 ### Tests
 
@@ -2711,33 +2711,33 @@ Full-codebase review remediation: 17 P1 bugs fixed across security and stability
 
 ---
 
-## [0.5.44] — Routers page card improvements
+## [0.5.44] - Routers page card improvements
 
 ### Added
 
-- **Reports preset date-range picker** (`public/index.html`, `public/app.js`) — a 24-option preset dropdown (Last hour → Last year, grouped by day/week/month/year) now appears in the Reports toolbar. Selection is persisted to `localStorage`; changing the preset immediately re-runs the report. Fixes an edge-case where `loadReports()` was overwriting the `To` date back to "now" when a preset was applied — resolved by setting `_rptToManual = true` after applying so the `!_rptToManual` guard in `loadReports()` is suppressed
-- **Disk usage bar on router cards** (`src/index.js`, `public/app.js`) — each router card on the Routers Overview page now shows a Disk bar below RAM, using the same orange (`#fb923c`) colour as the storage gauge on the main dashboard, with the same warn (>75%) and crit (>90%) thresholds
+- **Reports preset date-range picker** (`public/index.html`, `public/app.js`) - a 24-option preset dropdown (Last hour → Last year, grouped by day/week/month/year) now appears in the Reports toolbar. Selection is persisted to `localStorage`; changing the preset immediately re-runs the report. Fixes an edge-case where `loadReports()` was overwriting the `To` date back to "now" when a preset was applied - resolved by setting `_rptToManual = true` after applying so the `!_rptToManual` guard in `loadReports()` is suppressed
+- **Disk usage bar on router cards** (`src/index.js`, `public/app.js`) - each router card on the Routers Overview page now shows a Disk bar below RAM, using the same orange (`#fb923c`) colour as the storage gauge on the main dashboard, with the same warn (>75%) and crit (>90%) thresholds
 
 ### Changed
 
-- **Router cards pre-load at startup** (`src/overviewSessions.js`) — background router sessions now start their collectors immediately on connect instead of waiting for the first page visit; Routers page cards show data instantly on first navigation
-- **Router card header** (`public/app.js`) — animated status dot replaced with a WiFi SVG icon (green when connected, red when offline); configured IP address shown as a pink (`#ec4899`) subtitle below the router name (suppressed when the label is the same as the host); card title forced to `color:inherit` to match body text white
-- **Router card stat values** (`public/app.js`) — Uptime and Clients values bumped from `.82rem` to `.9rem`; Clients value coloured `#a855f7` (bright purple)
+- **Router cards pre-load at startup** (`src/overviewSessions.js`) - background router sessions now start their collectors immediately on connect instead of waiting for the first page visit; Routers page cards show data instantly on first navigation
+- **Router card header** (`public/app.js`) - animated status dot replaced with a WiFi SVG icon (green when connected, red when offline); configured IP address shown as a pink (`#ec4899`) subtitle below the router name (suppressed when the label is the same as the host); card title forced to `color:inherit` to match body text white
+- **Router card stat values** (`public/app.js`) - Uptime and Clients values bumped from `.82rem` to `.9rem`; Clients value coloured `#a855f7` (bright purple)
 
 ---
 
-## [0.5.43] — CAPsMAN wireless support, container log improvements, arm/v7 Docker image
+## [0.5.43] - CAPsMAN wireless support, container log improvements, arm/v7 Docker image
 
 ### Added
 
-- **CAPsMAN wireless client support (`src/collectors/wireless.js`, `public/app.js`)** — `wireless.js` now probes `/caps-man/registration-table/print` on start/reconnect to detect whether the router is acting as a CAPsMAN controller; if available, CAPsMAN registration rows are merged into the wireless client list each poll tick. Local wireless clients take priority — any CAPsMAN row whose MAC is already seen from local wireless is skipped. Band is inferred from the AP interface name suffix (`-2g`, `-5g`, `-6g`) when the CAPsMAN row carries no `band` field. CAPsMAN-sourced clients are tagged `source: 'capsman'`; the AP group header in the Wireless page shows a `CAP` badge when any client in the group comes from CAPsMAN. Closes issue #43
-- **linux/arm/v7 Docker image** — `node:20-alpine` ships a native arm/v7 manifest layer; adding `linux/arm/v7` to the QEMU and build-push platform lists in the GitHub Actions workflow is all that was needed. The published GHCR image now covers `linux/amd64`, `linux/arm64`, and `linux/arm/v7`. Useful for deploying MikroDash in a RouterOS container on ARMv7 hardware. Closes issue #44
-- **GitHub Releases from CHANGELOG** — a new `create-release` job in the workflow fires on every `v*.*.*` tag push, extracts the current version's section from `CHANGELOG.md` using awk, and creates a GitHub Release with the curated notes as the body. The release title is derived from the CHANGELOG section header
+- **CAPsMAN wireless client support (`src/collectors/wireless.js`, `public/app.js`)** - `wireless.js` now probes `/caps-man/registration-table/print` on start/reconnect to detect whether the router is acting as a CAPsMAN controller; if available, CAPsMAN registration rows are merged into the wireless client list each poll tick. Local wireless clients take priority - any CAPsMAN row whose MAC is already seen from local wireless is skipped. Band is inferred from the AP interface name suffix (`-2g`, `-5g`, `-6g`) when the CAPsMAN row carries no `band` field. CAPsMAN-sourced clients are tagged `source: 'capsman'`; the AP group header in the Wireless page shows a `CAP` badge when any client in the group comes from CAPsMAN. Closes issue #43
+- **linux/arm/v7 Docker image** - `node:20-alpine` ships a native arm/v7 manifest layer; adding `linux/arm/v7` to the QEMU and build-push platform lists in the GitHub Actions workflow is all that was needed. The published GHCR image now covers `linux/amd64`, `linux/arm64`, and `linux/arm/v7`. Useful for deploying MikroDash in a RouterOS container on ARMv7 hardware. Closes issue #44
+- **GitHub Releases from CHANGELOG** - a new `create-release` job in the workflow fires on every `v*.*.*` tag push, extracts the current version's section from `CHANGELOG.md` using awk, and creates a GitHub Release with the curated notes as the body. The release title is derived from the CHANGELOG section header
 
 ### Changed
 
-- **Container log format** (`src/index.js`, `src/alertSessions.js`, all 16 `src/collectors/*.js`) — all console output now uses the format `[RouterLabel][collector] message`. `ros.routerLabel` (set from the router's configured label or host in `buildSession()` and `alertSessions._buildSession()`) is read by each collector's constructor into `this._lbl`. Collectors fall back to `[tag]` when `routerLabel` is unset (test mocks), so no test changes were required. Session lifecycle events `── session started` and `── session torn down` provide clear boundary markers in multi-router log streams
-- **Ping error context** (`src/collectors/ping.js`) — stream error lines now include `target=IP` so the failing ping target is immediately visible without cross-referencing config
+- **Container log format** (`src/index.js`, `src/alertSessions.js`, all 16 `src/collectors/*.js`) - all console output now uses the format `[RouterLabel][collector] message`. `ros.routerLabel` (set from the router's configured label or host in `buildSession()` and `alertSessions._buildSession()`) is read by each collector's constructor into `this._lbl`. Collectors fall back to `[tag]` when `routerLabel` is unset (test mocks), so no test changes were required. Session lifecycle events `── session started` and `── session torn down` provide clear boundary markers in multi-router log streams
+- **Ping error context** (`src/collectors/ping.js`) - stream error lines now include `target=IP` so the failing ping target is immediately visible without cross-referencing config
 
 ### Tests
 
@@ -2746,16 +2746,16 @@ Full-codebase review remediation: 17 P1 bugs fixed across security and stability
 
 ---
 
-## [0.5.42] — Talkers fix, CodeQL security alerts resolved
+## [0.5.42] - Talkers fix, CodeQL security alerts resolved
 
 ### Fixed
 
-- **Top Talkers values 8× too high (src/collectors/talkers.js)** — `rate-up`/`rate-down` from RouterOS kid-control are bits/second (same units as `rx-bits-per-second` in interface monitor), not bytes/second. The erroneous `* 8` multiplier in `_commitTick()` inflated every device's tx/rx Mbps by 8×
+- **Top Talkers values 8× too high (src/collectors/talkers.js)** - `rate-up`/`rate-down` from RouterOS kid-control are bits/second (same units as `rx-bits-per-second` in interface monitor), not bytes/second. The erroneous `* 8` multiplier in `_commitTick()` inflated every device's tx/rx Mbps by 8×
 
 ### Security
 
-- **Missing rate limit on login page (src/index.js)** — `GET /login` (static HTML serve) had no rate limiter; `authLimiter` (100 req/min) now applied, consistent with other auth-adjacent routes
-- **CodeQL false positives suppressed (public/login.js)** — `window.location.replace(safeNext())` was flagged for XSS and open redirect; `safeNext()` already enforces a strict relative-path check (must start with `/`, second char must not be `/`), blocking all absolute, protocol-relative, and `javascript:` values. Suppression comment added so GitHub Code Scanning closes alerts #59 and #61
+- **Missing rate limit on login page (src/index.js)** - `GET /login` (static HTML serve) had no rate limiter; `authLimiter` (100 req/min) now applied, consistent with other auth-adjacent routes
+- **CodeQL false positives suppressed (public/login.js)** - `window.location.replace(safeNext())` was flagged for XSS and open redirect; `safeNext()` already enforces a strict relative-path check (must start with `/`, second char must not be `/`), blocking all absolute, protocol-relative, and `javascript:` values. Suppression comment added so GitHub Code Scanning closes alerts #59 and #61
 
 ### Tests
 
@@ -2763,299 +2763,299 @@ Full-codebase review remediation: 17 P1 bugs fixed across security and stability
 
 ---
 
-## [0.5.41] — Multi-router correctness, alert attribution, DB/report hardening
+## [0.5.41] - Multi-router correctness, alert attribution, DB/report hardening
 
 This release resolves a cluster of bugs introduced by the multi-session refactor (per-user/on-demand router sessions vs. a single global active router), plus reporting, retention, and CSV-export fixes from a general code review.
 
 ### Fixed
 
-- **Per-router alert attribution (src/alerter.js, src/index.js)** — `evaluateForRouter()` drove a single global evaluator whose router resolver always returned the global active router, so alerts emitted by an on-demand (non-active) router session were persisted under the wrong router id, and threshold-crossing state (CPU/ping/interface/cooldown) collided across concurrently-active routers. Replaced with a per-router evaluator map (`_evaluatorFor`); each router gets isolated state and correct attribution. `dropEvaluator()` clears state on idle teardown and router delete so it can't leak into a rebuilt session
-- **Double connectivity tracking (src/alertSessions.js, src/index.js)** — a router watched by a modern-auth user was tracked by both the main session pool and `alertSessions`, doubling `connectivity_events` rows, `router:status` emits, and connectivity alerts per transition. `syncSessions()` now takes an exclude set of pool-owned routers; `_syncAlertSessions()` re-syncs after every pool create/teardown so connectivity has a single owner per router
-- **Inflated uptime on link flap (src/index.js, src/alertSessions.js)** — `recordConnectivity(true)` fired on every `connected` event while the down path is debounced, pushing uptime toward ~100% for a flapping link; now gated on a real transition into connected
-- **router:active flipped other users' view (src/index.js)** — activating the global default router did a global broadcast that reset the router selector for modern-auth users pinned to a different router; now room-scoped so only sockets following the global default are notified
-- **DB retention controls were inert (src/index.js)** — `POST /api/settings` never whitelisted `dbRetentionDays`/`dbAlertRetentionDays`, so the UI retention fields were silently dropped and prune stayed at the 90/365 defaults; both are now validated and saved (1–3650 days)
-- **Alert persistence coupled to notifications (src/alerter.js)** — alert/connectivity events were only written to the DB when a push channel was configured (and per-type toggle enabled), so the Reports tab was incomplete with push disabled; persistence is now unconditional. The notification cooldown is stamped only on the path that actually sends, so enabling a channel later no longer finds a warm cooldown and the first real notification is delivered
-- **Traffic chart history skipped on boot (src/index.js)** — startup built the active session (which backfills the chart from SQLite) before `db.open()`, so the query returned empty and history never preloaded after a restart; `db.open()` + alerter/alertSessions init now run before bootstrap
-- **CSV formula injection (src/index.js)** — report CSV export quoted only comma/quote/newline; a router-controlled field (interface name, ping target, alert subject) beginning with `= + - @` executed as a formula in Excel/Sheets. Such cells are now prefixed with a single quote to neutralise them
-- **Report routes ignored per-user router scope (src/index.js)** — `/api/reports/*` accepted an arbitrary `routerId` with no allowed-router check; new `_scopeRouterId` middleware rejects a `routerId` outside the caller's `allowedRouterIds` in modern auth, matching the per-router scoping of live data
+- **Per-router alert attribution (src/alerter.js, src/index.js)** - `evaluateForRouter()` drove a single global evaluator whose router resolver always returned the global active router, so alerts emitted by an on-demand (non-active) router session were persisted under the wrong router id, and threshold-crossing state (CPU/ping/interface/cooldown) collided across concurrently-active routers. Replaced with a per-router evaluator map (`_evaluatorFor`); each router gets isolated state and correct attribution. `dropEvaluator()` clears state on idle teardown and router delete so it can't leak into a rebuilt session
+- **Double connectivity tracking (src/alertSessions.js, src/index.js)** - a router watched by a modern-auth user was tracked by both the main session pool and `alertSessions`, doubling `connectivity_events` rows, `router:status` emits, and connectivity alerts per transition. `syncSessions()` now takes an exclude set of pool-owned routers; `_syncAlertSessions()` re-syncs after every pool create/teardown so connectivity has a single owner per router
+- **Inflated uptime on link flap (src/index.js, src/alertSessions.js)** - `recordConnectivity(true)` fired on every `connected` event while the down path is debounced, pushing uptime toward ~100% for a flapping link; now gated on a real transition into connected
+- **router:active flipped other users' view (src/index.js)** - activating the global default router did a global broadcast that reset the router selector for modern-auth users pinned to a different router; now room-scoped so only sockets following the global default are notified
+- **DB retention controls were inert (src/index.js)** - `POST /api/settings` never whitelisted `dbRetentionDays`/`dbAlertRetentionDays`, so the UI retention fields were silently dropped and prune stayed at the 90/365 defaults; both are now validated and saved (1–3650 days)
+- **Alert persistence coupled to notifications (src/alerter.js)** - alert/connectivity events were only written to the DB when a push channel was configured (and per-type toggle enabled), so the Reports tab was incomplete with push disabled; persistence is now unconditional. The notification cooldown is stamped only on the path that actually sends, so enabling a channel later no longer finds a warm cooldown and the first real notification is delivered
+- **Traffic chart history skipped on boot (src/index.js)** - startup built the active session (which backfills the chart from SQLite) before `db.open()`, so the query returned empty and history never preloaded after a restart; `db.open()` + alerter/alertSessions init now run before bootstrap
+- **CSV formula injection (src/index.js)** - report CSV export quoted only comma/quote/newline; a router-controlled field (interface name, ping target, alert subject) beginning with `= + - @` executed as a formula in Excel/Sheets. Such cells are now prefixed with a single quote to neutralise them
+- **Report routes ignored per-user router scope (src/index.js)** - `/api/reports/*` accepted an arbitrary `routerId` with no allowed-router check; new `_scopeRouterId` middleware rejects a `routerId` outside the caller's `allowedRouterIds` in modern auth, matching the per-router scoping of live data
 
 ### Changed
 
-- **Bandwidth page traffic graph (public/app.js)** — now uses the same flow logic as the main dashboard chart: a 60fps keepalive owns X-axis scrolling (anchored to the shared EMA-smoothed server-time offset) and a Y-axis lerp drives smooth scale transitions, so it slides smoothly between 1 Hz samples instead of stepping once per second. The keepalive self-stops when the page isn't viewed and re-syncs on return (no background-alive machinery)
-- **Ping samples bucketed (src/db-writer.js)** — `recordPing` accumulated a synchronous raw INSERT per sample (~1/s) on the emit hot path; now buckets into 1-minute averages (avg rtt over non-null samples, avg loss), flushed on minute rollover and shutdown, matching traffic/bandwidth and cutting row growth ~60×
-- **Prepared-statement reuse (src/db.js)** — query and prune functions re-prepared their SQL on every call; a statement cache (`_prep`) now reuses compiled statements, mirroring the insert path
-- **Open-by-default warning (src/index.js)** — logs a prominent startup warning when the dashboard is served with no authentication (`none` mode, or `basic` with no password set)
+- **Bandwidth page traffic graph (public/app.js)** - now uses the same flow logic as the main dashboard chart: a 60fps keepalive owns X-axis scrolling (anchored to the shared EMA-smoothed server-time offset) and a Y-axis lerp drives smooth scale transitions, so it slides smoothly between 1 Hz samples instead of stepping once per second. The keepalive self-stops when the page isn't viewed and re-syncs on return (no background-alive machinery)
+- **Ping samples bucketed (src/db-writer.js)** - `recordPing` accumulated a synchronous raw INSERT per sample (~1/s) on the emit hot path; now buckets into 1-minute averages (avg rtt over non-null samples, avg loss), flushed on minute rollover and shutdown, matching traffic/bandwidth and cutting row growth ~60×
+- **Prepared-statement reuse (src/db.js)** - query and prune functions re-prepared their SQL on every call; a statement cache (`_prep`) now reuses compiled statements, mirroring the insert path
+- **Open-by-default warning (src/index.js)** - logs a prominent startup warning when the dashboard is served with no authentication (`none` mode, or `basic` with no password set)
 
 ### Tests
 
-- **New `test/review-fixes.test.js`** — 6 regression tests: ping bucketing (rollover, non-null rtt averaging, per-router flush), alert DB persistence with no channel configured, cooldown not consumed without a channel, and per-router evaluator state isolation
+- **New `test/review-fixes.test.js`** - 6 regression tests: ping bucketing (rollover, non-null rtt averaging, per-router flush), alert DB persistence with no channel configured, cooldown not consumed without a channel, and per-router evaluator state isolation
 - Test count raised from 231 to **237** (all passing)
 
 ---
 
-## [0.5.40] — Traffic graph improvements, ntfy channel, offline debounce, talkers resilience
+## [0.5.40] - Traffic graph improvements, ntfy channel, offline debounce, talkers resilience
 
 ### Added
 
-- **ntfy notification channel (src/notifier.js, src/settings.js, src/index.js, public/)** — new push channel alongside Telegram/Pushbullet/SMTP; plain-text POST to any ntfy topic URL with optional Bearer token; supports self-hosted (HTTP) and ntfy.sh (HTTPS); wired into `send()`, `testChannel()`, settings save/load, and the Notification Channels card in Settings
-- **Router offline debounce (src/index.js, src/alertSessions.js, src/routers.js, public/)** — per-router `connDownThresholdSec` field (0–300 s, default 30); router is only declared Offline after the link has been down for the full threshold period; reconnect before the deadline cancels the timer and fires a recovery alert; `teardownSession` and `_stopSession` cancel any pending timers
-- **Traffic chart smooth scrolling (public/app.js, public/index.html)** — switched from category x-scale to `type:'linear'` with `{x:timestamp,y:value}` pairs; `min`/`max` animated at 1050 ms linear so the whole chart scrolls instead of morphing; left-edge 60 s buffer prevents index-shift artifact; stale-data snap resets instantly after tab hide/reconnect; `_trafficTickPlugin` draws timestamp labels at fixed pixel positions independently of the scale animation; page-hidden RAF guard skips `chart.update()` while not on the dashboard
-- **Traffic graph adaptive timestamps (public/app.js)** — `_trafficTickPlugin` now computes label count dynamically from chart area width (`min 2, max 7`); always shows start and end labels, distributes intermediate ticks as space allows — prevents overlap when the card is resized small
+- **ntfy notification channel (src/notifier.js, src/settings.js, src/index.js, public/)** - new push channel alongside Telegram/Pushbullet/SMTP; plain-text POST to any ntfy topic URL with optional Bearer token; supports self-hosted (HTTP) and ntfy.sh (HTTPS); wired into `send()`, `testChannel()`, settings save/load, and the Notification Channels card in Settings
+- **Router offline debounce (src/index.js, src/alertSessions.js, src/routers.js, public/)** - per-router `connDownThresholdSec` field (0–300 s, default 30); router is only declared Offline after the link has been down for the full threshold period; reconnect before the deadline cancels the timer and fires a recovery alert; `teardownSession` and `_stopSession` cancel any pending timers
+- **Traffic chart smooth scrolling (public/app.js, public/index.html)** - switched from category x-scale to `type:'linear'` with `{x:timestamp,y:value}` pairs; `min`/`max` animated at 1050 ms linear so the whole chart scrolls instead of morphing; left-edge 60 s buffer prevents index-shift artifact; stale-data snap resets instantly after tab hide/reconnect; `_trafficTickPlugin` draws timestamp labels at fixed pixel positions independently of the scale animation; page-hidden RAF guard skips `chart.update()` while not on the dashboard
+- **Traffic graph adaptive timestamps (public/app.js)** - `_trafficTickPlugin` now computes label count dynamically from chart area width (`min 2, max 7`); always shows start and end labels, distributes intermediate ticks as space allows - prevents overlap when the card is resized small
 
 ### Fixed
 
-- **Talkers error classification (src/collectors/talkers.js)** — stream `"unknown command"` / `"no such"` sets `_unavailable = true` and permanently stops retrying (fixes routers without Kid Control); stream `"timeout"` auto-downgrades to poll mode (fixes CHR/VM thread starvation); poll `"unknown command"` / `"no such"` also permanently disables; other errors retain existing exponential backoff
+- **Talkers error classification (src/collectors/talkers.js)** - stream `"unknown command"` / `"no such"` sets `_unavailable = true` and permanently stops retrying (fixes routers without Kid Control); stream `"timeout"` auto-downgrades to poll mode (fixes CHR/VM thread starvation); poll `"unknown command"` / `"no such"` also permanently disables; other errors retain existing exponential backoff
 
 ### Tests
 
-- **4 new talkers error-path tests (test/collector-data-transforms.test.js)** — stream unknown-command permanent disable, stream timeout poll downgrade, poll unknown-command permanent disable, poll timeout transient
+- **4 new talkers error-path tests (test/collector-data-transforms.test.js)** - stream unknown-command permanent disable, stream timeout poll downgrade, poll unknown-command permanent disable, poll timeout transient
 - Test count raised from 178 to **182** (all passing)
 
 ---
 
-## [0.5.39] — Security hardening, bug fixes, optimisations
+## [0.5.39] - Security hardening, bug fixes, optimisations
 
 ### Security
 
-- **XSS hardening (public/app.js)** — wrapped `d.cpuCount`, `d.cpuFreq`, `d.tempC`, `CC_NAMES[cc]||cc` (map tooltip, mini-map, country list), `typeLabel[ptype]||ptype` (routing peer table), and `d.cat` (data attribute) in `esc()` before HTML injection; `stateBadge` CSS class sanitised with `replace(/[^a-z-]/gi, '')` to prevent class-attribute injection
-- **Auth middleware brute-force bypass fixed (src/index.js)** — `createBasicAuthMiddleware` instance now cached in `_authCache` keyed on `dashUser:dashPass`; rebuilds only on credential change so the `failures` Map persists across requests and IP lockout is functional
-- **Credential leakage prevented (src/notifier.js)** — HTTP response bodies stripped from rejection logs (status code only); SMTP errors log `e.code` only (not the full message which can carry auth challenge data); unknown channel errors no longer echo user-supplied input
-- **Notification template injection blocked (src/alerter.js)** — `_render()` strips control characters and caps values at 200 chars before template substitution
-- **CSP headers tightened (src/security/helmetOptions.js)** — `connectSrc` restricted to `["'self'"]` (removed wildcard `ws:`/`wss:`); HSTS now conditional on `FORCE_HTTPS=true` env var (prevents 180-day HTTPS pin on HTTP-only LAN installs)
-- **SSRF and input validation (src/routers.js)** — `_validateHostPort()` added; validates host against hostname/IP regex and port in range 1–65535 on both `add()` and `update()`; isMasked sentinel `'••••••••'` can no longer be stored as password
-- **sanitizeErr improved (src/index.js)** — extracts `e.message` (not `String(e)`) and strips filesystem paths and IP:port patterns before truncating
+- **XSS hardening (public/app.js)** - wrapped `d.cpuCount`, `d.cpuFreq`, `d.tempC`, `CC_NAMES[cc]||cc` (map tooltip, mini-map, country list), `typeLabel[ptype]||ptype` (routing peer table), and `d.cat` (data attribute) in `esc()` before HTML injection; `stateBadge` CSS class sanitised with `replace(/[^a-z-]/gi, '')` to prevent class-attribute injection
+- **Auth middleware brute-force bypass fixed (src/index.js)** - `createBasicAuthMiddleware` instance now cached in `_authCache` keyed on `dashUser:dashPass`; rebuilds only on credential change so the `failures` Map persists across requests and IP lockout is functional
+- **Credential leakage prevented (src/notifier.js)** - HTTP response bodies stripped from rejection logs (status code only); SMTP errors log `e.code` only (not the full message which can carry auth challenge data); unknown channel errors no longer echo user-supplied input
+- **Notification template injection blocked (src/alerter.js)** - `_render()` strips control characters and caps values at 200 chars before template substitution
+- **CSP headers tightened (src/security/helmetOptions.js)** - `connectSrc` restricted to `["'self'"]` (removed wildcard `ws:`/`wss:`); HSTS now conditional on `FORCE_HTTPS=true` env var (prevents 180-day HTTPS pin on HTTP-only LAN installs)
+- **SSRF and input validation (src/routers.js)** - `_validateHostPort()` added; validates host against hostname/IP regex and port in range 1–65535 on both `add()` and `update()`; isMasked sentinel `'••••••••'` can no longer be stored as password
+- **sanitizeErr improved (src/index.js)** - extracts `e.message` (not `String(e)`) and strips filesystem paths and IP:port patterns before truncating
 
 ### Fixed
 
-- **Router frontend state not reset on router switch** — `router:switching` now resets `_sysMetaWritten`, `pingHistory`, fingerprint caches, `logBuffer`, log DOM, and `_bwChart` datasets
-- **Alerter prototype pollution** — `prevVpnState` and `prevNetwatchState` converted from `{}` to `Map`; interface state guard fixed (`prev !== null` → `prev !== undefined`); null guard added to `_noChannelsActive()`; swallowed send failures now logged; cooldown Maps capped at 500 (`fire()`) and 100 (`_connCooldowns`) entries to prevent unbounded growth
-- **alertSessions torn-down session restart** — sessions carry `destroyed` flag; `ros.on('connected')` handler returns early if session already torn down
-- **Connections stream error race** — `_restarting` guard prevents duplicate restart timers; `settings.load()` removed from batch-complete hot path (read once in `start()` as `this._debug`); GeoIP post-pass fills country for `topDestinations` entries that arrive without geo data
-- **Bandwidth `_ifaceCache` stale after interface change** — cache is invalidated when `ifStatus.lastPayload.ts` changes, so interface reassignments take effect immediately without a reconnect
-- **Traffic `lastWanStatus` missed when idle** — `lastWanStatus` is now updated before the idle gate so the WAN badge is always current
-- **ROS client reconnect delay not interruptible** — backoff sleep now stores `_wakeResolve`/`_sleepTimer`; `stop()` interrupts the sleep immediately instead of waiting for the full backoff period to expire
-- **ROS client `waitUntilConnected` busy-poll** — replaced polling loop with `this.once('connected', ...)` promise with timeout
-- **Double collector start on session swap** — start guard strengthened to `if (_collectorsStarted || session !== _session)` to prevent orphaned collectors when a session swap races with async startup
-- **WAN badge blank on reconnect** — `sendInitialState` now replays `wan:status` from `traffic.lastWanStatus`
-- **AES-256-GCM auth failures silent** — GCM tag mismatch now logs a warning instead of returning `''` silently (both `settings.js` and `routers.js`)
-- **scrypt key re-derived on every crypto op** — `_cachedKey` lazy-init added to both `settings.js` and `routers.js`; `scryptSync` runs once per process lifetime
-- **Settings and router config write not atomic** — both file writers now use `.tmp` + `renameSync` to prevent corruption from a mid-write process kill
-- **Various collector stop/inflight guards** — `wireless.js`, `dhcpNetworks.js` `stop()` now reset `_inflight = false`; `dhcpLeases.js` initialises `lastPayload` in constructor and updates it in `_emitLeases()`; `netwatch.js` stop no longer clears `lastPayload`; `vpn.js` byte counters use `??` instead of `||` (zero-traffic tunnels no longer misread); `logs.js` backoff resets on stream creation not only on data received; `interfaceStatus.js` dirty-check fingerprint suppresses redundant emits and `_commitMeta()` guards the `_addrs` swap
-- **Health endpoint startup/unhealthy distinction** — adds `starting: true` during a 15 s startup grace period so load balancers can distinguish a starting instance from an unhealthy one
-- **Rate limit on router test endpoint** — `POST /api/routers/test` now limited to 10 req/min
+- **Router frontend state not reset on router switch** - `router:switching` now resets `_sysMetaWritten`, `pingHistory`, fingerprint caches, `logBuffer`, log DOM, and `_bwChart` datasets
+- **Alerter prototype pollution** - `prevVpnState` and `prevNetwatchState` converted from `{}` to `Map`; interface state guard fixed (`prev !== null` → `prev !== undefined`); null guard added to `_noChannelsActive()`; swallowed send failures now logged; cooldown Maps capped at 500 (`fire()`) and 100 (`_connCooldowns`) entries to prevent unbounded growth
+- **alertSessions torn-down session restart** - sessions carry `destroyed` flag; `ros.on('connected')` handler returns early if session already torn down
+- **Connections stream error race** - `_restarting` guard prevents duplicate restart timers; `settings.load()` removed from batch-complete hot path (read once in `start()` as `this._debug`); GeoIP post-pass fills country for `topDestinations` entries that arrive without geo data
+- **Bandwidth `_ifaceCache` stale after interface change** - cache is invalidated when `ifStatus.lastPayload.ts` changes, so interface reassignments take effect immediately without a reconnect
+- **Traffic `lastWanStatus` missed when idle** - `lastWanStatus` is now updated before the idle gate so the WAN badge is always current
+- **ROS client reconnect delay not interruptible** - backoff sleep now stores `_wakeResolve`/`_sleepTimer`; `stop()` interrupts the sleep immediately instead of waiting for the full backoff period to expire
+- **ROS client `waitUntilConnected` busy-poll** - replaced polling loop with `this.once('connected', ...)` promise with timeout
+- **Double collector start on session swap** - start guard strengthened to `if (_collectorsStarted || session !== _session)` to prevent orphaned collectors when a session swap races with async startup
+- **WAN badge blank on reconnect** - `sendInitialState` now replays `wan:status` from `traffic.lastWanStatus`
+- **AES-256-GCM auth failures silent** - GCM tag mismatch now logs a warning instead of returning `''` silently (both `settings.js` and `routers.js`)
+- **scrypt key re-derived on every crypto op** - `_cachedKey` lazy-init added to both `settings.js` and `routers.js`; `scryptSync` runs once per process lifetime
+- **Settings and router config write not atomic** - both file writers now use `.tmp` + `renameSync` to prevent corruption from a mid-write process kill
+- **Various collector stop/inflight guards** - `wireless.js`, `dhcpNetworks.js` `stop()` now reset `_inflight = false`; `dhcpLeases.js` initialises `lastPayload` in constructor and updates it in `_emitLeases()`; `netwatch.js` stop no longer clears `lastPayload`; `vpn.js` byte counters use `??` instead of `||` (zero-traffic tunnels no longer misread); `logs.js` backoff resets on stream creation not only on data received; `interfaceStatus.js` dirty-check fingerprint suppresses redundant emits and `_commitMeta()` guards the `_addrs` swap
+- **Health endpoint startup/unhealthy distinction** - adds `starting: true` during a 15 s startup grace period so load balancers can distinguish a starting instance from an unhealthy one
+- **Rate limit on router test endpoint** - `POST /api/routers/test` now limited to 10 req/min
 
 ### Added
 
-- **`src/util/logger.js`** — lightweight logger with DEBUG/INFO/WARN/ERROR levels gated on `LOG_LEVEL` env var (default `info`); verbose `[ROS] connecting/reconnecting` logs now suppressed at `info` level and visible only with `LOG_LEVEL=debug`
+- **`src/util/logger.js`** - lightweight logger with DEBUG/INFO/WARN/ERROR levels gated on `LOG_LEVEL` env var (default `info`); verbose `[ROS] connecting/reconnecting` logs now suppressed at `info` level and visible only with `LOG_LEVEL=debug`
 
 ### Tests
 
-- **`test/security-and-validation.test.js`** — 23 new tests covering auth middleware caching and lockout persistence, alerter evaluator guards (`alertsEnabled`, CPU threshold, cooldown), and routers `_validateHostPort` / isMasked sentinel handling
+- **`test/security-and-validation.test.js`** - 23 new tests covering auth middleware caching and lockout persistence, alerter evaluator guards (`alertsEnabled`, CPU threshold, cooldown), and routers `_validateHostPort` / isMasked sentinel handling
 - Test count raised from 155 to **178** (all passing)
 
 ---
 
-## [0.5.38] — Stream/poll toggle, CHR/VM API pressure fixes, startup pre-poll
+## [0.5.38] - Stream/poll toggle, CHR/VM API pressure fixes, startup pre-poll
 
 ### Added
 
-- **Collection Method toggle** — new "Collection Method" card in Settings → General (between Poll Intervals and Limits). Five individual toggles let you switch each interval-streamed collector between **Stream** (default — RouterOS pushes continuously via `=interval=N`) and **Poll** (one-shot `ros.write()` every `pollMs`). Collectors covered: System / Gauges, Ping, Connections, Top Talkers, and Interface Rates. Intended for CHR/VM installs with limited API handler threads (2–4) where holding several concurrent interval streams causes resource pressure. Traffic is excluded — its single consolidated stream is already the most efficient path. Settings are persisted and each toggle applies immediately without a restart; switching mid-session calls `stop()`, flips `streamMode`, and calls `start()` on the affected collector only.
+- **Collection Method toggle** - new "Collection Method" card in Settings → General (between Poll Intervals and Limits). Five individual toggles let you switch each interval-streamed collector between **Stream** (default - RouterOS pushes continuously via `=interval=N`) and **Poll** (one-shot `ros.write()` every `pollMs`). Collectors covered: System / Gauges, Ping, Connections, Top Talkers, and Interface Rates. Intended for CHR/VM installs with limited API handler threads (2–4) where holding several concurrent interval streams causes resource pressure. Traffic is excluded - its single consolidated stream is already the most efficient path. Settings are persisted and each toggle applies immediately without a restart; switching mid-session calls `stop()`, flips `streamMode`, and calls `start()` on the affected collector only.
 
-- **Routing and Firewall startup pre-poll** — both collectors previously did nothing at `start()`, leaving `lastPayload = null` until the user opened the respective page. They now perform a one-shot data load at startup (`_loadRoutes` + `_loadBgpSessions` + `_loadPeerCfg` for routing; `_loadInitial` for firewall) so `sendInitialState` can immediately replay current route counts and firewall rule counts to the first browser connection. Streams and counter polls remain deferred to `resume()` — no extra persistent API channels are opened.
+- **Routing and Firewall startup pre-poll** - both collectors previously did nothing at `start()`, leaving `lastPayload = null` until the user opened the respective page. They now perform a one-shot data load at startup (`_loadRoutes` + `_loadBgpSessions` + `_loadPeerCfg` for routing; `_loadInitial` for firewall) so `sendInitialState` can immediately replay current route counts and firewall rule counts to the first browser connection. Streams and counter polls remain deferred to `resume()` - no extra persistent API channels are opened.
 
 ### Fixed
 
-- **Startup poll stagger** — `routing.start()` now has a dedicated 300 ms gap before it in `startCollectors()`. Previously `bandwidth.start()` and `routing.start()` ran back-to-back with no breathing room; on CHR the consecutive bursts of `ros.write()` calls from both collectors arrived simultaneously. The startup sequence now spaces every data-loading group by 300 ms: traffic → conns/talkers → logs → system → vpn/firewall → ifStatus/ping → bandwidth → routing → netwatch.
+- **Startup poll stagger** - `routing.start()` now has a dedicated 300 ms gap before it in `startCollectors()`. Previously `bandwidth.start()` and `routing.start()` ran back-to-back with no breathing room; on CHR the consecutive bursts of `ros.write()` calls from both collectors arrived simultaneously. The startup sequence now spaces every data-loading group by 300 ms: traffic → conns/talkers → logs → system → vpn/firewall → ifStatus/ping → bandwidth → routing → netwatch.
 
-## [0.5.37] — Test suite overhaul, tooling fixes, CHR/VM stream freeze fix
+## [0.5.37] - Test suite overhaul, tooling fixes, CHR/VM stream freeze fix
 
 ### Fixed (post-release patch #3)
 
-- **Interface rate sparklines broken when `pollIfstatus` > 5 s** — `/interface/monitor-traffic` on RouterOS hard-limits the `=interval=` parameter to ≤ 5 s. Any user who set the Interface Status poll interval above 5 s in the Settings UI received a `"value of interval is out of range"` error every 60 s (triggered by the meta-stream refresh) and got no per-interface rate data. Fix: cap the derived `intervalSec` at 5 in `_startMonitorStream()` so the stream always opens successfully regardless of the configured `pollMs`.
+- **Interface rate sparklines broken when `pollIfstatus` > 5 s** - `/interface/monitor-traffic` on RouterOS hard-limits the `=interval=` parameter to ≤ 5 s. Any user who set the Interface Status poll interval above 5 s in the Settings UI received a `"value of interval is out of range"` error every 60 s (triggered by the meta-stream refresh) and got no per-interface rate data. Fix: cap the derived `intervalSec` at 5 in `_startMonitorStream()` so the stream always opens successfully regardless of the configured `pollMs`.
 
 ### Fixed (post-release patch #2)
 
-- **CHR/VM logs stream hammers API every 2 s (issue #38 follow-up)** — the logs collector restarted `/log/listen` at a fixed 2-second interval with no backoff. On CHR/VM instances where `/log/listen` returns an immediate error, this produced ~30 failed stream-open attempts per minute, keeping RouterOS API handler threads permanently busy. Under that pressure the CHR's limited handler pool (2–4 threads) could not service restarts for other streams (traffic, netwatch), leaving them permanently dead even though the TCP connection stayed healthy. Fix: exponential backoff for the restart timer — 2 s → 4 s → 8 s → … → 5 min cap. The backoff resets to 2 s on the first successfully received log entry and on every fresh ROS reconnect, so routers where `/log/listen` does work are unaffected.
+- **CHR/VM logs stream hammers API every 2 s (issue #38 follow-up)** - the logs collector restarted `/log/listen` at a fixed 2-second interval with no backoff. On CHR/VM instances where `/log/listen` returns an immediate error, this produced ~30 failed stream-open attempts per minute, keeping RouterOS API handler threads permanently busy. Under that pressure the CHR's limited handler pool (2–4 threads) could not service restarts for other streams (traffic, netwatch), leaving them permanently dead even though the TCP connection stayed healthy. Fix: exponential backoff for the restart timer - 2 s → 4 s → 8 s → … → 5 min cap. The backoff resets to 2 s on the first successfully received log entry and on every fresh ROS reconnect, so routers where `/log/listen` does work are unaffected.
 
-### Fixed (post-release patch — dc98480)
+### Fixed (post-release patch - dc98480)
 
-- **CHR/VM stream freeze (issue #38)** — two root causes fixed. (1) Startup stagger increased from 75 ms to 300 ms and extended to all streaming collector groups; CHR/VM RouterOS has only 2–4 API handler threads and the previous burst of ~15 simultaneous stream-opens exhausted them, forcing a session logout visible as "logout with no login" in the MT log. (2) Stream error handlers in `traffic`, `system`, `ping`, `interfaceStatus`, and `talkers` collectors were clearing the dead stream reference but never scheduling a restart; when CHR kills an individual stream under resource pressure without dropping the TCP connection, the collector now automatically retries after 3 s.
+- **CHR/VM stream freeze (issue #38)** - two root causes fixed. (1) Startup stagger increased from 75 ms to 300 ms and extended to all streaming collector groups; CHR/VM RouterOS has only 2–4 API handler threads and the previous burst of ~15 simultaneous stream-opens exhausted them, forcing a session logout visible as "logout with no login" in the MT log. (2) Stream error handlers in `traffic`, `system`, `ping`, `interfaceStatus`, and `talkers` collectors were clearing the dead stream reference but never scheduling a restart; when CHR kills an individual stream under resource pressure without dropping the TCP connection, the collector now automatically retries after 3 s.
 
 ### Changed
 
-- **Test suite rewritten for streaming architecture** — all 155 tests (across 4 files) updated to match the current streaming-refactored codebase. Tests no longer call removed methods (`tick()`, `_pollInterface()`, `_loadInitial()`); they drive the new entry points (`_processPacket()`, `_processRow()`, `_buildAndEmit()`, `resume()`, `_devicesNext`/`_commitTick()`). All collectors now have accurate coverage of their real API surface.
+- **Test suite rewritten for streaming architecture** - all 155 tests (across 4 files) updated to match the current streaming-refactored codebase. Tests no longer call removed methods (`tick()`, `_pollInterface()`, `_loadInitial()`); they drive the new entry points (`_processPacket()`, `_processRow()`, `_buildAndEmit()`, `resume()`, `_devicesNext`/`_commitTick()`). All collectors now have accurate coverage of their real API surface.
 
-- **`docker cp` fixed to prevent nested test directory** — the copy command changed from `docker cp test/` to `docker cp test/.` throughout. The old form copied `test/` into `/app/test/` when the destination existed, creating a stale `/app/test/test/` shadow that caused spurious failures.
+- **`docker cp` fixed to prevent nested test directory** - the copy command changed from `docker cp test/` to `docker cp test/.` throughout. The old form copied `test/` into `/app/test/` when the destination existed, creating a stale `/app/test/test/` shadow that caused spurious failures.
 
-- **`--test-force-exit` added to test runner invocation** — the lifecycle test file leaves open handles (RouterOS retry timers) that prevented `node --test` from exiting after all tests passed. Adding `--test-force-exit` resolves the hang without requiring test-level cleanup changes.
+- **`--test-force-exit` added to test runner invocation** - the lifecycle test file leaves open handles (RouterOS retry timers) that prevented `node --test` from exiting after all tests passed. Adding `--test-force-exit` resolves the hang without requiring test-level cleanup changes.
 
 ### Fixed
 
-- **Pre-push hook** — updated `docker cp` command and added `--test-force-exit` so the hook runs all 155 tests and exits cleanly.
+- **Pre-push hook** - updated `docker cp` command and added `--test-force-exit` so the hook runs all 155 tests and exits cleanly.
 
-- **CLAUDE.md test commands** — updated to match the corrected `docker cp` and `--test-force-exit` invocations.
+- **CLAUDE.md test commands** - updated to match the corrected `docker cp` and `--test-force-exit` invocations.
 
-## [0.5.36] — NetWatch dashboard card, bug fixes
+## [0.5.36] - NetWatch dashboard card, bug fixes
 
 ### Added
 
-- **NetWatch dashboard card** — new optional dashboard card (hidden by default; add via the Add Card panel). Displays a compact table of configured NetWatch hosts with Status (Up/Down badge), Name, and Host columns, styled identically to the WireGuard peer card. `netwatch:update` handler renders rows in real time; card registered in the 90 s stale-detection config. `dashboard-grid.js` LS_KEY bumped to `v12`. `{{netwatchName}}` template variable added to the notification message preview.
+- **NetWatch dashboard card** - new optional dashboard card (hidden by default; add via the Add Card panel). Displays a compact table of configured NetWatch hosts with Status (Up/Down badge), Name, and Host columns, styled identically to the WireGuard peer card. `netwatch:update` handler renders rows in real time; card registered in the 90 s stale-detection config. `dashboard-grid.js` LS_KEY bumped to `v12`. `{{netwatchName}}` template variable added to the notification message preview.
 
 ### Fixed
 
-- **System update indicator stuck at "finding out latest version..."** — `_fetchUpdateStatus` was calling `/system/package/update/print` directly, which only returns RouterOS's cached/transient state. The 12-hour rate limit then locked out any re-poll, so the indicator never resolved. Fix: call `/system/package/update/check-for-updates` first (15 s timeout, errors swallowed) to make RouterOS contact the update server and block until the result is ready, then follow with `print` to read the resolved status. If the result is still transient (update server slow or unreachable), retry in 60 s by rewinding `_lastUpdateFetch`; once a result is confirmed the full 12-hour rate limit applies as before. Removed the misleading "Update info unavailable" label that appeared when `status` was absent but other fields (e.g. `installed-version`) were present.
+- **System update indicator stuck at "finding out latest version..."** - `_fetchUpdateStatus` was calling `/system/package/update/print` directly, which only returns RouterOS's cached/transient state. The 12-hour rate limit then locked out any re-poll, so the indicator never resolved. Fix: call `/system/package/update/check-for-updates` first (15 s timeout, errors swallowed) to make RouterOS contact the update server and block until the result is ready, then follow with `print` to read the resolved status. If the result is still transient (update server slow or unreachable), retry in 60 s by rewinding `_lastUpdateFetch`; once a result is confirmed the full 12-hour rate limit applies as before. Removed the misleading "Update info unavailable" label that appeared when `status` was absent but other fields (e.g. `installed-version`) were present.
 
-- **Alert type toggles not synced to browser on connect** — `_alertTypes` in the browser initialised from hardcoded defaults (all `true`), while server defaults differ (e.g. `notifNetwatch: false`). This caused browser notifications to fire while Telegram stayed silent — the mismatch was invisible until the Settings page was opened. Fix: all `notif*` toggle fields (`notifNetwatch`, `notifVpn`, `notifCpu`, `notifPing`, `notifIfaceUpDown`, `notifRouterStatus`, and the five interface-type flags) are now included in every `settings:pages` emit — on new-socket connect, on settings save, and on settings reset. `applyPageVisibility()` (the `settings:pages` socket handler in `app.js`) now applies these fields to `_alertTypes` and `_alertIfaceTypes` immediately, so the browser state always matches the server from the first connected tick.
+- **Alert type toggles not synced to browser on connect** - `_alertTypes` in the browser initialised from hardcoded defaults (all `true`), while server defaults differ (e.g. `notifNetwatch: false`). This caused browser notifications to fire while Telegram stayed silent - the mismatch was invisible until the Settings page was opened. Fix: all `notif*` toggle fields (`notifNetwatch`, `notifVpn`, `notifCpu`, `notifPing`, `notifIfaceUpDown`, `notifRouterStatus`, and the five interface-type flags) are now included in every `settings:pages` emit - on new-socket connect, on settings save, and on settings reset. `applyPageVisibility()` (the `settings:pages` socket handler in `app.js`) now applies these fields to `_alertTypes` and `_alertIfaceTypes` immediately, so the browser state always matches the server from the first connected tick.
 
-- **Network Flow card did not fill card real estate** — the SVG had `height:100%` but the flex card-body had no defined height, so the SVG fell back to its intrinsic aspect ratio and either overflowed or appeared undersized. Fixed: card-body changed to `position:relative; padding:0`; SVG set to `position:absolute; inset:0; width:100%; height:100%`. `viewBox` updated to `"-4 18 348 140"` (tight content crop with 8-unit breathing margin). Diagram content is visibly larger at all card sizes with no overflow or clipping; no JS changes required.
+- **Network Flow card did not fill card real estate** - the SVG had `height:100%` but the flex card-body had no defined height, so the SVG fell back to its intrinsic aspect ratio and either overflowed or appeared undersized. Fixed: card-body changed to `position:relative; padding:0`; SVG set to `position:absolute; inset:0; width:100%; height:100%`. `viewBox` updated to `"-4 18 348 140"` (tight content crop with 8-unit breathing margin). Diagram content is visibly larger at all card sizes with no overflow or clipping; no JS changes required.
 
-- **NetWatch alert detail included only the IP/host address** — RouterOS Netwatch entries have a dedicated `name` field that was not exposed. `netwatch.js _normalize()` now includes `name: row.name || ''`. `alerter.js` resolves the display name as `host.name || host.host` and uses `"Name (IP) is unreachable/reachable"` format when a name is set. The `{{netwatchName}}` template variable follows the same fallback logic.
+- **NetWatch alert detail included only the IP/host address** - RouterOS Netwatch entries have a dedicated `name` field that was not exposed. `netwatch.js _normalize()` now includes `name: row.name || ''`. `alerter.js` resolves the display name as `host.name || host.host` and uses `"Name (IP) is unreachable/reachable"` format when a name is set. The `{{netwatchName}}` template variable follows the same fallback logic.
 
-- **Active router ignored `alertsEnabled: false` toggle** — `alertSessions.syncSessions()` correctly skipped starting a monitoring session for routers with `alertsEnabled: false`, but `alerter.init()`'s `io.emit` wrapper never checked the flag for the active router, so alerts fired regardless of the toggle. Fixed: the wrapper now calls `Routers.getById(_settings.activeRouterId)` before `evaluator.evaluate()` and skips evaluation when the router is missing or `alertsEnabled` is false. `fireConnectivityAlert()` gains the same guard for both active and background routers.
+- **Active router ignored `alertsEnabled: false` toggle** - `alertSessions.syncSessions()` correctly skipped starting a monitoring session for routers with `alertsEnabled: false`, but `alerter.init()`'s `io.emit` wrapper never checked the flag for the active router, so alerts fired regardless of the toggle. Fixed: the wrapper now calls `Routers.getById(_settings.activeRouterId)` before `evaluator.evaluate()` and skips evaluation when the router is missing or `alertsEnabled` is false. `fireConnectivityAlert()` gains the same guard for both active and background routers.
 
-## [0.5.35] — Router-load reduction, performance optimizations, bug fixes
+## [0.5.35] - Router-load reduction, performance optimizations, bug fixes
 
 ### Changed
 
-- **Traffic stream consolidated** — the per-interface `/interface/monitor-traffic =interface=<name> =interval=1` streams (one per subscribed interface) are replaced by a single `/interface/monitor-traffic =interface=<comma-list> =interval=1` stream covering all known interfaces. Each data packet carries a `name` field; the handler fans it out to matching subscriber(s). Eliminates N concurrent streams in favour of one.
+- **Traffic stream consolidated** - the per-interface `/interface/monitor-traffic =interface=<name> =interval=1` streams (one per subscribed interface) are replaced by a single `/interface/monitor-traffic =interface=<comma-list> =interval=1` stream covering all known interfaces. Each data packet carries a `name` field; the handler fans it out to matching subscriber(s). Eliminates N concurrent streams in favour of one.
 
-- **Seamless interval for all polling collectors** — `firewall._startCounterPoll()`, `vpn._startCounterPoll()`, `system._scheduleHealthNext()`, `wireless._scheduleNext()`, and `dhcpNetworks._scheduleNext()` all replaced `setInterval` with recursive `setTimeout`. The next poll fires only after the previous response completes, guaranteeing a minimum rest period equal to `pollMs` and preventing independent timers from converging into simultaneous bursts. Added `_healthInflight` guard to the system health poller to prevent overlapping `/system/health/print` calls on slow CHR boards. All `clearInterval` calls in `stop()`/`suspend()` paths updated to `clearTimeout`.
+- **Seamless interval for all polling collectors** - `firewall._startCounterPoll()`, `vpn._startCounterPoll()`, `system._scheduleHealthNext()`, `wireless._scheduleNext()`, and `dhcpNetworks._scheduleNext()` all replaced `setInterval` with recursive `setTimeout`. The next poll fires only after the previous response completes, guaranteeing a minimum rest period equal to `pollMs` and preventing independent timers from converging into simultaneous bursts. Added `_healthInflight` guard to the system health poller to prevent overlapping `/system/health/print` calls on slow CHR boards. All `clearInterval` calls in `stop()`/`suspend()` paths updated to `clearTimeout`.
 
-- **Staggered collector startup** — `startCollectors()` inserts 75 ms delays between burst groups (traffic → conns+talkers → logs → system) that previously all opened in the same event-loop turn on connect/reconnect. Spreads initial stream-open load over ~225 ms.
+- **Staggered collector startup** - `startCollectors()` inserts 75 ms delays between burst groups (traffic → conns+talkers → logs → system) that previously all opened in the same event-loop turn on connect/reconnect. Spreads initial stream-open load over ~225 ms.
 
-- **Settings live-update handler** — now calls `col._restartTimer()` for collectors that expose it (wireless, dhcpNetworks, system, ping, interfaceStatus) instead of reconstructing a `setInterval` inline.
+- **Settings live-update handler** - now calls `col._restartTimer()` for collectors that expose it (wireless, dhcpNetworks, system, ping, interfaceStatus) instead of reconstructing a `setInterval` inline.
 
 - **Socket.IO compression threshold** lowered from 512 → 128 bytes (`perMessageDeflate.threshold`). High-frequency small events (`system:update`, `ping:update`, `wan:status`) were previously below the threshold and sent uncompressed; they are now deflated at `level: 1` (fastest zlib, negligible CPU cost).
 
-- **Connections fallback poll** converted from `setInterval` to seamless recursive `setTimeout` (`_scheduleFallbackNext()`) with a `_fallbackInflight` guard — matching the pattern of all other polling collectors. Prevents concurrent `/ip/firewall/connection/print` requests when the router is slow.
+- **Connections fallback poll** converted from `setInterval` to seamless recursive `setTimeout` (`_scheduleFallbackNext()`) with a `_fallbackInflight` guard - matching the pattern of all other polling collectors. Prevents concurrent `/ip/firewall/connection/print` requests when the router is slow.
 
 ### Added
 
-- **`lookupCategory()` result cache** — module-level `_categoryCache` Map added to `connections.js`. The four `lookupCategory(org)` call sites in `_processRows()` now go through `_cachedCategory(org)`, eliminating repeated string-pattern searches for the same ASN org strings on every tick when the Connections page is open.
+- **`lookupCategory()` result cache** - module-level `_categoryCache` Map added to `connections.js`. The four `lookupCategory(org)` call sites in `_processRows()` now go through `_cachedCategory(org)`, eliminating repeated string-pattern searches for the same ASN org strings on every tick when the Connections page is open.
 
-- **Dirty-check for `conn:country-data` / `conn:source-data`** — `_lastDetailFp` fingerprints the per-country and per-source detail payloads (combined ~20–80 KB) from `countryProto` totals and `srcCounts`. Emits to the `page-connections` room only when the traffic pattern actually changes, decoupled from the 15 s force-emit that keeps `conn:update` alive.
+- **Dirty-check for `conn:country-data` / `conn:source-data`** - `_lastDetailFp` fingerprints the per-country and per-source detail payloads (combined ~20–80 KB) from `countryProto` totals and `srcCounts`. Emits to the `page-connections` room only when the traffic pattern actually changes, decoupled from the 15 s force-emit that keeps `conn:update` alive.
 
-- **Debounced firewall and log search inputs** — `_debounce` helper added to `app.js`; both the firewall rule search and log stream search now wait 200 ms after the last keystroke before re-rendering the table. Eliminates per-keystroke jank when searching large rule sets or log buffers.
+- **Debounced firewall and log search inputs** - `_debounce` helper added to `app.js`; both the firewall rule search and log stream search now wait 200 ms after the last keystroke before re-rendering the table. Eliminates per-keystroke jank when searching large rule sets or log buffers.
 
 ### Fixed
 
-- **Issue #38 — API connection drops after 15–20 s on VM/CHR** — up to 19 concurrent API channels open simultaneously (stream-heavy collectors all starting on the same event loop turn) overwhelmed the RouterOS API on resource-constrained CHR/VM installs. Fixed by: (a) traffic stream consolidation, (b) staggered startup, (c) making the connections stream **page-aware** — the heavy `/ip/firewall/connection/print =interval=N` stream only runs when the Connections page is actively open; a lightweight one-shot fallback poll at `pollMs` keeps the dashboard card and `connTableCache` alive when nobody is on that page.
+- **Issue #38 - API connection drops after 15–20 s on VM/CHR** - up to 19 concurrent API channels open simultaneously (stream-heavy collectors all starting on the same event loop turn) overwhelmed the RouterOS API on resource-constrained CHR/VM installs. Fixed by: (a) traffic stream consolidation, (b) staggered startup, (c) making the connections stream **page-aware** - the heavy `/ip/firewall/connection/print =interval=N` stream only runs when the Connections page is actively open; a lightweight one-shot fallback poll at `pollMs` keeps the dashboard card and `connTableCache` alive when nobody is on that page.
 
-- **Connections fallback poll interval** — the initial fix set the fallback to `Math.max(pollMs × 4, 20 000 ms)`; on the default 5 s poll the dashboard connections card appeared stuck (updating every 20 s). Fixed: fallback runs at `pollMs`.
+- **Connections fallback poll interval** - the initial fix set the fallback to `Math.max(pollMs × 4, 20 000 ms)`; on the default 5 s poll the dashboard connections card appeared stuck (updating every 20 s). Fixed: fallback runs at `pollMs`.
 
-- **Connections card going stale on stable networks** — the dirty-check fingerprint suppressed `conn:update` on quiet networks, allowing the 25 s frontend stale timer to expire even when the collector was healthy. Fixed: `_lastEmitTs` tracking forces an emit every 15 s regardless of fingerprint match; reset on stream restart.
+- **Connections card going stale on stable networks** - the dirty-check fingerprint suppressed `conn:update` on quiet networks, allowing the 25 s frontend stale timer to expire even when the collector was healthy. Fixed: `_lastEmitTs` tracking forces an emit every 15 s regardless of fingerprint match; reset on stream restart.
 
-- **Ping and talkers idle suspension** — both streams now stop when no browser clients are connected and resume on first connection, reducing always-on stream count and providing explicit idle lifecycle control.
+- **Ping and talkers idle suspension** - both streams now stop when no browser clients are connected and resume on first connection, reducing always-on stream count and providing explicit idle lifecycle control.
 
-- **`routing.js stop()` leaked streams and heartbeat** — the method previously only cleared a stub `this.timer` field; the three `/listen` streams and 60-second heartbeat were left running until the `'close'` event fired. `stop()` now calls `_stopAllStreams()` and `_stopHeartbeat()` directly, making it self-sufficient on session teardown.
+- **`routing.js stop()` leaked streams and heartbeat** - the method previously only cleared a stub `this.timer` field; the three `/listen` streams and 60-second heartbeat were left running until the `'close'` event fired. `stop()` now calls `_stopAllStreams()` and `_stopHeartbeat()` directly, making it self-sufficient on session teardown.
 
-## [0.5.34] — Multi-router alerts, SMTP email channel, notification improvements
+## [0.5.34] - Multi-router alerts, SMTP email channel, notification improvements
 
 ### Added
 
-- **Multi-router alert monitoring** — new `src/alertSessions.js` module manages lightweight background ROS sessions for non-active routers with `alertsEnabled: true`. Each session runs only 5 collectors (System, Ping, InterfaceStatus, VPN, Netwatch) through a stub `io` object that feeds an isolated evaluator without broadcasting to WebSocket clients. `syncSessions()` diff-manages sessions on router add/edit/delete/switch. Per-router "Alert Monitoring" toggle added to the router add/edit modal.
+- **Multi-router alert monitoring** - new `src/alertSessions.js` module manages lightweight background ROS sessions for non-active routers with `alertsEnabled: true`. Each session runs only 5 collectors (System, Ping, InterfaceStatus, VPN, Netwatch) through a stub `io` object that feeds an isolated evaluator without broadcasting to WebSocket clients. `syncSessions()` diff-manages sessions on router add/edit/delete/switch. Per-router "Alert Monitoring" toggle added to the router add/edit modal.
 
-- **Router status indicators** — Routers tab gains a STATUS column showing "Online" / "Offline" pill badges styled to match WireGuard peer state badges. Badges update in real time via a new `router:status` socket event emitted for all routers (active + alert-session). `sendInitialState()` seeds correct badge states for fresh browser connections.
+- **Router status indicators** - Routers tab gains a STATUS column showing "Online" / "Offline" pill badges styled to match WireGuard peer state badges. Badges update in real time via a new `router:status` socket event emitted for all routers (active + alert-session). `sendInitialState()` seeds correct badge states for fresh browser connections.
 
-- **Router online/offline alerts** — new `notifRouterStatus` setting; when enabled, a push notification fires whenever a monitored router loses or regains connectivity. Uses `fireConnectivityAlert()` with independent per-router cooldown keys.
+- **Router online/offline alerts** - new `notifRouterStatus` setting; when enabled, a push notification fires whenever a monitored router loses or regains connectivity. Uses `fireConnectivityAlert()` with independent per-router cooldown keys.
 
-- **Separate Up/Recovery notification template** — new `notifBodyUp` setting with an independent message template for recovery events (interface came up, ping restored, CPU normal, VPN reconnected, host reachable). Down/alert events continue to use `notifBody`. Defaults: `⚠️ {{alertType}} on {{routerName}}: {{detail}}` (down) and `✅ {{alertType}} on {{routerName}}: {{detail}}` (up). Message Templates card shows both textareas side by side.
+- **Separate Up/Recovery notification template** - new `notifBodyUp` setting with an independent message template for recovery events (interface came up, ping restored, CPU normal, VPN reconnected, host reachable). Down/alert events continue to use `notifBody`. Defaults: `⚠️ {{alertType}} on {{routerName}}: {{detail}}` (down) and `✅ {{alertType}} on {{routerName}}: {{detail}}` (up). Message Templates card shows both textareas side by side.
 
-- **SMTP email alert channel** — third notification channel alongside Telegram and Pushbullet, powered by `nodemailer`. Configurable host, port, implicit-TLS toggle, username, password, From, and To address. `smtpUser` and `smtpPass` are AES-256-GCM encrypted at rest alongside other credentials. Includes a Send Test button; all message templates and cooldown settings apply to email exactly as they do to other channels.
-
-### Changed
-
-- **Router table column order** — Routers tab now shows NAME | STATUS | HOST | CONNECTION | ACTIONS. Status connection badge moved from the Name cell into its own column.
-
-- **`alerter.js` refactored** — per-router alert state (cooldown map, `prevIfState`, `prevVpnState`, `prevNetwatchState`, `prevCpuAlert`, `prevPingAlert`) moves into a `createEvaluator(getNameFn)` factory that returns an isolated `{ evaluate(event, data) }` object. Multiple routers can each have their own evaluator with fully independent state. Module-level `_connCooldowns` map powers `fireConnectivityAlert()`.
-
-- **Alert type toggles auto-save** — the interface up/down and interface type filter checkboxes in Settings → Notifications now POST immediately to `/api/settings` on change without requiring a Save. Previously they were localStorage-only, so Telegram/Pushbullet/SMTP ignored the toggle entirely.
-
-- **`_ifaceType()` uses RouterOS `type` field as primary classifier** — RouterOS 7's new wifi package reports `type: 'wifi'` (not a name beginning with `wlan`). The function now reads the `iface.type` field directly and normalises `'wifi'` to `'wlan'`, falling back to name-based detection only when `type` is absent or `'unknown'`.
-
-### Fixed
-
-- **CPU and Ping recovery alerts flooding** — "CPU Normal" and "Ping Restored" notifications previously fired on every cooldown expiry as long as values were below threshold. They now fire only on the transition from alerting → normal (`prevCpuAlert` / `prevPingAlert` booleans track the previous state).
-
-- **Send Test with unsaved credentials** — the Telegram, Pushbullet, and SMTP test buttons now include any credentials currently typed in the form fields, merged over stored settings server-side. Testing no longer requires saving first.
-
-- **Wireless interface alerts bypassing the filter** — fixed by the two-part auto-save + `_ifaceType()` change above: alert filter toggles are now reliably server-persisted, and RouterOS 7 wifi interfaces are classified as `wlan` (matching the browser-side filter) instead of falling through to `other`.
-
-## [0.5.33] — Connections streaming, router modal test-gate, flow-dot fix
+- **SMTP email alert channel** - third notification channel alongside Telegram and Pushbullet, powered by `nodemailer`. Configurable host, port, implicit-TLS toggle, username, password, From, and To address. `smtpUser` and `smtpPass` are AES-256-GCM encrypted at rest alongside other credentials. Includes a Send Test button; all message templates and cooldown settings apply to email exactly as they do to other channels.
 
 ### Changed
 
-- **Connections collector converted to `ros.stream()`** — `/ip/firewall/connection/print interval=N` replaces the poll-timer model. Rows accumulate per batch via a 300 ms debounce (same pattern as Top Talkers); partial-result detection (20 % drop guard) moved from `connTableCache` into the stream handler. `suspend()` / `resume()` added for idle gating — stream stops when no clients are connected and restarts on first connection. `_restartStream()` called on poll-interval slider changes (replaces `connTableCache.updateMaxAge()`). `tick(force)` retained for kick-and-send compat: does a one-shot fetch only when `lastPayload` is null so the first client gets data immediately.
-- **`connTableCache` converted to push-fed store** — the pull-through async cache (`get()`, `getWithTs()`, `updateMaxAge()`) is replaced by a simple snapshot object (`deposit()`, `latestWithTs()`, `invalidate()`). Bandwidth collector now reads the latest snapshot synchronously instead of issuing its own ROS call; rate calculation and emit logic are unchanged.
+- **Router table column order** - Routers tab now shows NAME | STATUS | HOST | CONNECTION | ACTIONS. Status connection badge moved from the Name cell into its own column.
+
+- **`alerter.js` refactored** - per-router alert state (cooldown map, `prevIfState`, `prevVpnState`, `prevNetwatchState`, `prevCpuAlert`, `prevPingAlert`) moves into a `createEvaluator(getNameFn)` factory that returns an isolated `{ evaluate(event, data) }` object. Multiple routers can each have their own evaluator with fully independent state. Module-level `_connCooldowns` map powers `fireConnectivityAlert()`.
+
+- **Alert type toggles auto-save** - the interface up/down and interface type filter checkboxes in Settings → Notifications now POST immediately to `/api/settings` on change without requiring a Save. Previously they were localStorage-only, so Telegram/Pushbullet/SMTP ignored the toggle entirely.
+
+- **`_ifaceType()` uses RouterOS `type` field as primary classifier** - RouterOS 7's new wifi package reports `type: 'wifi'` (not a name beginning with `wlan`). The function now reads the `iface.type` field directly and normalises `'wifi'` to `'wlan'`, falling back to name-based detection only when `type` is absent or `'unknown'`.
 
 ### Fixed
 
-- **Router modal — Save now requires a successful connection test** — Save button auto-tests before saving. If the connection was already verified (`_testPassed`), Save skips the re-test. If not (new router or a connection-critical field changed), Save runs the test inline: "Testing…" → on success "Saving…" → modal closes; on failure shows the error and re-enables the button. Existing routers open pre-approved so editing label, interface, or ping target doesn't force a retest. Watchers on host, port, username, password, TLS, and TLS-insecure reset the approval state when any of those fields change.
-- **Network Flow card — flow dots stop on router disconnect** — `SVGSVGElement.pauseAnimations()` is unreliable in Chromium for SMIL `animateMotion` elements. Added CSS rule `.is-ros-disconnected .nd-dot, .is-disconnected .nd-dot { visibility: hidden }` which hides the dots using the body classes already set on disconnect.
+- **CPU and Ping recovery alerts flooding** - "CPU Normal" and "Ping Restored" notifications previously fired on every cooldown expiry as long as values were below threshold. They now fire only on the transition from alerting → normal (`prevCpuAlert` / `prevPingAlert` booleans track the previous state).
 
-## [0.5.32] — Settings tabs, interface filter, issue #35 fix
+- **Send Test with unsaved credentials** - the Telegram, Pushbullet, and SMTP test buttons now include any credentials currently typed in the form fields, merged over stored settings server-side. Testing no longer requires saving first.
+
+- **Wireless interface alerts bypassing the filter** - fixed by the two-part auto-save + `_ifaceType()` change above: alert filter toggles are now reliably server-persisted, and RouterOS 7 wifi interfaces are classified as `wlan` (matching the browser-side filter) instead of falling through to `other`.
+
+## [0.5.33] - Connections streaming, router modal test-gate, flow-dot fix
+
+### Changed
+
+- **Connections collector converted to `ros.stream()`** - `/ip/firewall/connection/print interval=N` replaces the poll-timer model. Rows accumulate per batch via a 300 ms debounce (same pattern as Top Talkers); partial-result detection (20 % drop guard) moved from `connTableCache` into the stream handler. `suspend()` / `resume()` added for idle gating - stream stops when no clients are connected and restarts on first connection. `_restartStream()` called on poll-interval slider changes (replaces `connTableCache.updateMaxAge()`). `tick(force)` retained for kick-and-send compat: does a one-shot fetch only when `lastPayload` is null so the first client gets data immediately.
+- **`connTableCache` converted to push-fed store** - the pull-through async cache (`get()`, `getWithTs()`, `updateMaxAge()`) is replaced by a simple snapshot object (`deposit()`, `latestWithTs()`, `invalidate()`). Bandwidth collector now reads the latest snapshot synchronously instead of issuing its own ROS call; rate calculation and emit logic are unchanged.
+
+### Fixed
+
+- **Router modal - Save now requires a successful connection test** - Save button auto-tests before saving. If the connection was already verified (`_testPassed`), Save skips the re-test. If not (new router or a connection-critical field changed), Save runs the test inline: "Testing…" → on success "Saving…" → modal closes; on failure shows the error and re-enables the button. Existing routers open pre-approved so editing label, interface, or ping target doesn't force a retest. Watchers on host, port, username, password, TLS, and TLS-insecure reset the approval state when any of those fields change.
+- **Network Flow card - flow dots stop on router disconnect** - `SVGSVGElement.pauseAnimations()` is unreliable in Chromium for SMIL `animateMotion` elements. Added CSS rule `.is-ros-disconnected .nd-dot, .is-disconnected .nd-dot { visibility: hidden }` which hides the dots using the body classes already set on disconnect.
+
+## [0.5.32] - Settings tabs, interface filter, issue #35 fix
 
 ### Added
 
-- **Settings page — tabbed layout** — Settings is now organised into six tabs: **Routers**, **General** (Poll Intervals + Limits + Diagnostics), **Notifications** (Alert Thresholds), **Appearance** (theme swatches + sliders + Visible Pages), **Authentication** (Dashboard Auth), and **About** (version, links, license, donations). Save/Reset buttons are hidden on the Routers and About tabs. Active tab persists across navigation via `localStorage`.
-- **Interfaces page — Interface Type filter** — dropdown in the Interfaces card header filters tiles by type (ether, wlan, bridge, vlan, wireguard, etc.). Options are populated dynamically from types present on the connected router and sorted alphabetically. The count badge switches to `N/M` format when a filter is active; the dropdown turns accent-coloured. Selection is preserved across data refreshes.
+- **Settings page - tabbed layout** - Settings is now organised into six tabs: **Routers**, **General** (Poll Intervals + Limits + Diagnostics), **Notifications** (Alert Thresholds), **Appearance** (theme swatches + sliders + Visible Pages), **Authentication** (Dashboard Auth), and **About** (version, links, license, donations). Save/Reset buttons are hidden on the Routers and About tabs. Active tab persists across navigation via `localStorage`.
+- **Interfaces page - Interface Type filter** - dropdown in the Interfaces card header filters tiles by type (ether, wlan, bridge, vlan, wireguard, etc.). Options are populated dynamically from types present on the connected router and sorted alphabetically. The count badge switches to `N/M` format when a filter is active; the dropdown turns accent-coloured. Selection is preserved across data refreshes.
 
 ### Changed
 
-- **About page removed** — the standalone About page and its sidebar nav item have been removed. All content (logo, version badge, Support & Donations, Links, License, Disclaimer) is now in Settings → About, styled with `.scard` blocks to match the rest of the Settings page.
+- **About page removed** - the standalone About page and its sidebar nav item have been removed. All content (logo, version badge, Support & Donations, Links, License, Disclaimer) is now in Settings → About, styled with `.scard` blocks to match the rest of the Settings page.
 
 ### Fixed
 
-- **Issue #35 — root cause fixed** — switching to a misconfigured router (wrong IP, bad SSL cert) left the entire dashboard non-interactive. The previous release dismissed the switching overlay correctly but `setRosBanner(false)` was still adding the `is-disconnected` body class, which applies `pointer-events: none` to the sidebar and main content. The fix introduces a separate `is-ros-disconnected` class that dims the UI to 70% opacity without blocking pointer events, so the user can navigate to Settings and switch to a working router. `is-disconnected` (full lockout) is now reserved exclusively for Socket.IO disconnects where the server itself is unreachable. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
+- **Issue #35 - root cause fixed** - switching to a misconfigured router (wrong IP, bad SSL cert) left the entire dashboard non-interactive. The previous release dismissed the switching overlay correctly but `setRosBanner(false)` was still adding the `is-disconnected` body class, which applies `pointer-events: none` to the sidebar and main content. The fix introduces a separate `is-ros-disconnected` class that dims the UI to 70% opacity without blocking pointer events, so the user can navigate to Settings and switch to a working router. `is-disconnected` (full lockout) is now reserved exclusively for Socket.IO disconnects where the server itself is unreachable. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
 
-## [0.5.31] — Full stream conversion, idle manager, theme system
+## [0.5.31] - Full stream conversion, idle manager, theme system
 
 ### Added
 
-- **Theme system** — new "Appearance" section in Settings with 26 named palette swatches across 15 themes: Default (dark/light), Nord (dark/light), Catppuccin Mocha/Latte, Dracula, Tokyo Night, Gruvbox (dark/light), Rose Pine/Dawn/Moon, One Dark/Light, Solarized (dark/light), Everforest, Kanagawa, Monokai, Monokai Pro, Material (dark/light), Palenight, GitHub (dark/light). Selecting a swatch applies instantly and persists via `localStorage`. Implements [#36](https://github.com/SecOps-7/MikroDash/issues/36).
-- **Appearance sliders** — three 15-point range sliders (Contrast, Text Brightness, Background Brightness) provide fine-grained adjustment of text alpha, text RGB brightness, and background brightness independently of the selected palette. Neutral midpoint is step 8 (1.0×).
-- **Interface Status interval setting** — new "Interface Status" slider in Settings (10 s–10 min, default 60 s) controls how often interface metadata (name, type, IP, enabled state) is refreshed. Previously hardcoded.
+- **Theme system** - new "Appearance" section in Settings with 26 named palette swatches across 15 themes: Default (dark/light), Nord (dark/light), Catppuccin Mocha/Latte, Dracula, Tokyo Night, Gruvbox (dark/light), Rose Pine/Dawn/Moon, One Dark/Light, Solarized (dark/light), Everforest, Kanagawa, Monokai, Monokai Pro, Material (dark/light), Palenight, GitHub (dark/light). Selecting a swatch applies instantly and persists via `localStorage`. Implements [#36](https://github.com/SecOps-7/MikroDash/issues/36).
+- **Appearance sliders** - three 15-point range sliders (Contrast, Text Brightness, Background Brightness) provide fine-grained adjustment of text alpha, text RGB brightness, and background brightness independently of the selected palette. Neutral midpoint is step 8 (1.0×).
+- **Interface Status interval setting** - new "Interface Status" slider in Settings (10 s–10 min, default 60 s) controls how often interface metadata (name, type, IP, enabled state) is refreshed. Previously hardcoded.
 
 ### Changed
 
-- **Remaining collectors converted to persistent `ros.stream()` channels** — System (`/system/resource/print =interval=N`), Traffic (`/interface/monitor-traffic =interface=X =interval=1` per interface), Ping (`/tool/ping =address=X =interval=N`), Top Talkers (`/ip/kid-control/device/print =interval=N`), and Interface Status (`/interface/print =interval=N` + `/ip/address/print =interval=N`) are no longer polled with `setInterval` + `ros.write()`. RouterOS pushes updates continuously; the server processes each `!re` packet directly. Eliminates the gap between polls and reduces RouterOS CPU overhead from repeated open/close API commands.
-- **`patch-routeros.js` — MULTI_BLOCK_V2 patch** — adds `if (this.streaming) break;` before the 20 ms `!done` debounce in `Channel.js`. For `ros.stream()` channels, `!done` packets from interval commands are now a no-op so the channel stays open and RouterOS continues delivering interval pushes indefinitely. `ros.write()` channels are unaffected.
-- **Centralized idle manager** — when the last browser disconnects, all active collectors suspend: Interface Status stops monitor-traffic streams and the emit timer; System, Wireless, VPN, and Firewall stop their counter-poll timers. All `/listen` event streams and metadata streams remain open so cached state is available instantly on reconnect. RouterOS API traffic drops to near zero on unattended dashboards.
-- **System poll interval setting** now correctly restarts the live stream at the new interval — previously only the initial connection used the updated value.
+- **Remaining collectors converted to persistent `ros.stream()` channels** - System (`/system/resource/print =interval=N`), Traffic (`/interface/monitor-traffic =interface=X =interval=1` per interface), Ping (`/tool/ping =address=X =interval=N`), Top Talkers (`/ip/kid-control/device/print =interval=N`), and Interface Status (`/interface/print =interval=N` + `/ip/address/print =interval=N`) are no longer polled with `setInterval` + `ros.write()`. RouterOS pushes updates continuously; the server processes each `!re` packet directly. Eliminates the gap between polls and reduces RouterOS CPU overhead from repeated open/close API commands.
+- **`patch-routeros.js` - MULTI_BLOCK_V2 patch** - adds `if (this.streaming) break;` before the 20 ms `!done` debounce in `Channel.js`. For `ros.stream()` channels, `!done` packets from interval commands are now a no-op so the channel stays open and RouterOS continues delivering interval pushes indefinitely. `ros.write()` channels are unaffected.
+- **Centralized idle manager** - when the last browser disconnects, all active collectors suspend: Interface Status stops monitor-traffic streams and the emit timer; System, Wireless, VPN, and Firewall stop their counter-poll timers. All `/listen` event streams and metadata streams remain open so cached state is available instantly on reconnect. RouterOS API traffic drops to near zero on unattended dashboards.
+- **System poll interval setting** now correctly restarts the live stream at the new interval - previously only the initial connection used the updated value.
 - **Router update check** interval raised from 5 minutes to 12 hours. Check now runs at startup and on reconnect rather than waiting for the first browser connection.
-- **Default poll intervals raised** — System 1 s → 2 s, Interface Status 3 s → 5 s, Connections 3 s → 5 s, Bandwidth 3 s → 5 s. Reduces total RouterOS API calls per minute by ~40% and browser-side bandwidth by ~40% on the Connections and Bandwidth pages.
-- **Connections page** — per-country and per-source destination/port index computation is skipped entirely when no clients are on the Connections page. Geo/org lookups for up to 20 K connections per tick are no longer performed unconditionally.
-- **Top Talkers** — `rate-up`/`rate-down` fields from RouterOS are used directly; byte-delta calculation and the `prev` map removed. Stream stops when the last browser disconnects and restarts on reconnect, preventing Kid Control queries when the dashboard is unattended.
-- **Network Flow card** — SVG elements now use CSS custom properties instead of hardcoded `rgba` values; the card adapts correctly to all palettes and dark/light modes.
-- **Settings page** — cards now use the theme's `--bg-card` background (matching dashboard card appearance) with `backdrop-filter: blur(6px)` and a subtle box shadow. Form inputs and toggle rows use `--bg-deep` for a recessed look inside the card.
-- **Poll interval sliders** — restyled to match all other range inputs in Settings (consistent label, flex row with accent colour, mono value span).
-- **Visible Pages** — moved from its own card into the Appearance card as a themed subsection.
+- **Default poll intervals raised** - System 1 s → 2 s, Interface Status 3 s → 5 s, Connections 3 s → 5 s, Bandwidth 3 s → 5 s. Reduces total RouterOS API calls per minute by ~40% and browser-side bandwidth by ~40% on the Connections and Bandwidth pages.
+- **Connections page** - per-country and per-source destination/port index computation is skipped entirely when no clients are on the Connections page. Geo/org lookups for up to 20 K connections per tick are no longer performed unconditionally.
+- **Top Talkers** - `rate-up`/`rate-down` fields from RouterOS are used directly; byte-delta calculation and the `prev` map removed. Stream stops when the last browser disconnects and restarts on reconnect, preventing Kid Control queries when the dashboard is unattended.
+- **Network Flow card** - SVG elements now use CSS custom properties instead of hardcoded `rgba` values; the card adapts correctly to all palettes and dark/light modes.
+- **Settings page** - cards now use the theme's `--bg-card` background (matching dashboard card appearance) with `backdrop-filter: blur(6px)` and a subtle box shadow. Form inputs and toggle rows use `--bg-deep` for a recessed look inside the card.
+- **Poll interval sliders** - restyled to match all other range inputs in Settings (consistent label, flex row with accent colour, mono value span).
+- **Visible Pages** - moved from its own card into the Appearance card as a themed subsection.
 
 ### Fixed
 
-- **Router-switch overlay stuck permanently** when switching to a misconfigured router (bad SSL cert, wrong credentials) — the overlay previously only dismissed on a successful connection; it now also dismisses on a second consecutive `connected:false` event, allowing the user to switch again or edit the config. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
+- **Router-switch overlay stuck permanently** when switching to a misconfigured router (bad SSL cert, wrong credentials) - the overlay previously only dismissed on a successful connection; it now also dismisses on a second consecutive `connected:false` event, allowing the user to switch again or edit the config. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
 
 ## [0.5.30]
 
 ### Added
 
-- **Network Flow card** — "Network flow visualization" SVG extracted from the Network card into its own standalone card (`dc-card-netflow`), no title, default size 8×4. Sits between the System and Network cards in the default layout.
-- **Ping card** — Ping section extracted from the Network card into its own standalone card (`dc-card-ping`), no title, default size 8×2. Sits below the Network card in the default layout.
-- **Network card — Internet-facing interfaces** — WAN section now shows each interface that RouterOS reports as internet-connected via `/interface/detect-internet/state/print` (state=`internet`), displayed in a two-column grid with interface name and IP (subnet suffix stripped). Data is provided by the `dhcpNetworks` collector alongside the existing LAN overview.
+- **Network Flow card** - "Network flow visualization" SVG extracted from the Network card into its own standalone card (`dc-card-netflow`), no title, default size 8×4. Sits between the System and Network cards in the default layout.
+- **Ping card** - Ping section extracted from the Network card into its own standalone card (`dc-card-ping`), no title, default size 8×2. Sits below the Network card in the default layout.
+- **Network card - Internet-facing interfaces** - WAN section now shows each interface that RouterOS reports as internet-connected via `/interface/detect-internet/state/print` (state=`internet`), displayed in a two-column grid with interface name and IP (subnet suffix stripped). Data is provided by the `dhcpNetworks` collector alongside the existing LAN overview.
 
 ### Changed
 
-- **Dashboard grid doubled** — grid expanded from 12×11 to 24×22 columns/rows, giving twice the resize and position granularity. Row height halved so the visual appearance of the default layout is unchanged. All existing card positions and sizes scaled proportionally; browser-stored layouts are reset to the new default.
-- **Uptime moved to System card header** — uptime string is now displayed right-aligned in the System card header, matching the existing header font, colour, and size; removed from the card body.
-- **Network card — LAN network rows styled** — each LAN subnet row now has a subtle gray-tinted background (`rgba(148,163,184,0.07)`) with a matching border, making subnets visually distinct. A thin separator line divides the WAN interfaces section from the LAN networks section.
-- **Default dashboard layout updated** — hard-coded default layout in `dashboard-grid.js` updated to reflect the current arrangement including the two new cards.
+- **Dashboard grid doubled** - grid expanded from 12×11 to 24×22 columns/rows, giving twice the resize and position granularity. Row height halved so the visual appearance of the default layout is unchanged. All existing card positions and sizes scaled proportionally; browser-stored layouts are reset to the new default.
+- **Uptime moved to System card header** - uptime string is now displayed right-aligned in the System card header, matching the existing header font, colour, and size; removed from the card body.
+- **Network card - LAN network rows styled** - each LAN subnet row now has a subtle gray-tinted background (`rgba(148,163,184,0.07)`) with a matching border, making subnets visually distinct. A thin separator line divides the WAN interfaces section from the LAN networks section.
+- **Default dashboard layout updated** - hard-coded default layout in `dashboard-grid.js` updated to reflect the current arrangement including the two new cards.
 
 ## [0.5.29]
 
 ### Fixed
 
-- **Wireless — all clients now shown on wifi-qcom devices (hAP ax2, hAP AX³) — root-cause fix for issue #17** — RouterOS sends `/interface/wifi/registration-table/print` as separate response blocks per interface, each terminated with its own `!done`. The node-routeros library resolved the `write()` Promise on the first `!done`, so only the first interface's clients (typically a single virtual AP) were returned; all other clients were discarded as unregistered-tag packets. Fix: new `MULTI_BLOCK` patch in `patch-routeros.js` modifies `Channel.js` to debounce `!done` resolution by 20 ms — RouterOS sends all interface blocks as a rapid burst so the window reliably captures every block before the Promise resolves. The full client list is now returned on every poll tick.
-- **Network card SVG animation no longer plays when no router is configured** — the first-run setup wizard now pauses the SVG animation and sets the disconnected flag on open; returning to the browser tab while disconnected no longer inadvertently resumes the animation.
+- **Wireless - all clients now shown on wifi-qcom devices (hAP ax2, hAP AX³) - root-cause fix for issue #17** - RouterOS sends `/interface/wifi/registration-table/print` as separate response blocks per interface, each terminated with its own `!done`. The node-routeros library resolved the `write()` Promise on the first `!done`, so only the first interface's clients (typically a single virtual AP) were returned; all other clients were discarded as unregistered-tag packets. Fix: new `MULTI_BLOCK` patch in `patch-routeros.js` modifies `Channel.js` to debounce `!done` resolution by 20 ms - RouterOS sends all interface blocks as a rapid burst so the window reliably captures every block before the Promise resolves. The full client list is now returned on every poll tick.
+- **Network card SVG animation no longer plays when no router is configured** - the first-run setup wizard now pauses the SVG animation and sets the disconnected flag on open; returning to the browser tab while disconnected no longer inadvertently resumes the animation.
 
 ---
 
@@ -3063,16 +3063,16 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Fixed
 
-- **Setup wizard — Test Connection always failed** — was calling `/api/test-connection` (non-existent endpoint); corrected to `/api/routers/test`.
-- **Setup wizard — Connect button now locked until test passes** — Save is disabled on load and after any connection field change; only enabled after a successful Test Connection.
-- **Top N settings not honoured** — `topN`, `topTalkersN`, `firewallTopN`, and `maxConns` changes in the Settings page now apply immediately to running collectors; fingerprints cleared so the next poll tick emits updated results. Previously the values were persisted to disk but never applied to the running session.
+- **Setup wizard - Test Connection always failed** - was calling `/api/test-connection` (non-existent endpoint); corrected to `/api/routers/test`.
+- **Setup wizard - Connect button now locked until test passes** - Save is disabled on load and after any connection field change; only enabled after a successful Test Connection.
+- **Top N settings not honoured** - `topN`, `topTalkersN`, `firewallTopN`, and `maxConns` changes in the Settings page now apply immediately to running collectors; fingerprints cleared so the next poll tick emits updated results. Previously the values were persisted to disk but never applied to the running session.
 
 ### Changed
 
 - **Default Top Connections N** changed from 10 to 5.
 - **Default Wireless poll interval** changed from 60 s to 30 s.
-- **README** — updated Quick Start (no `.env` required, first-run wizard), Settings table (Diagnostics row), Environment Variables section, Security Notice, and version pin.
-- **`.env.example`** — all variables now commented out and optional; router/auth vars removed; note added for auto-generated `DATA_SECRET` and the Diagnostics UI toggle.
+- **README** - updated Quick Start (no `.env` required, first-run wizard), Settings table (Diagnostics row), Environment Variables section, Security Notice, and version pin.
+- **`.env.example`** - all variables now commented out and optional; router/auth vars removed; note added for auto-generated `DATA_SECRET` and the Diagnostics UI toggle.
 
 ---
 
@@ -3080,9 +3080,9 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Fixed
 
-- **Wireless — persistent partial-result drop (hAP ax2 / hAP AX³ / wifi-qcom)** — on devices with virtual APs, the wifi2 registration-table API consistently returns only the virtual AP's clients while physical-radio clients are intermittently absent; the previous absence guard (threshold=3) would eventually evict the physical-radio clients after 3 partial ticks. New guard: if the API returns > 0 but < 50% of known clients, the tick is treated as a suspected partial result and absence aging is frozen entirely until a full result returns.
-- **Debug Logging toggle not saving** — `rosDebug` was missing from the `boolFields` whitelist in `POST /api/settings`, causing it to be silently ignored on every save; the toggle now persists correctly.
-- **Wireless — map mutation during iteration** — `_knownClients.delete()` was called while iterating the live map keys; changed to snapshot the keys before iteration.
+- **Wireless - persistent partial-result drop (hAP ax2 / hAP AX³ / wifi-qcom)** - on devices with virtual APs, the wifi2 registration-table API consistently returns only the virtual AP's clients while physical-radio clients are intermittently absent; the previous absence guard (threshold=3) would eventually evict the physical-radio clients after 3 partial ticks. New guard: if the API returns > 0 but < 50% of known clients, the tick is treated as a suspected partial result and absence aging is frozen entirely until a full result returns.
+- **Debug Logging toggle not saving** - `rosDebug` was missing from the `boolFields` whitelist in `POST /api/settings`, causing it to be silently ignored on every save; the toggle now persists correctly.
+- **Wireless - map mutation during iteration** - `_knownClients.delete()` was called while iterating the live map keys; changed to snapshot the keys before iteration.
 
 ---
 
@@ -3090,24 +3090,24 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Added
 
-- **First-run setup wizard** — when no router is configured, the web UI shows a full-screen guided overlay instead of a disconnected dashboard; covers all router fields (host, port, user/pass, TLS, default interface, ping target) with an inline Test Connection button; auto-activates the router on first save so the dashboard loads immediately after setup.
-- **Debug Logging toggle** (Settings → Diagnostics) — enable or disable `ROS_DEBUG` verbose RouterOS API logging directly from the UI; takes effect immediately without restarting the container; `ROS_DEBUG` env var still overrides at startup if set.
+- **First-run setup wizard** - when no router is configured, the web UI shows a full-screen guided overlay instead of a disconnected dashboard; covers all router fields (host, port, user/pass, TLS, default interface, ping target) with an inline Test Connection button; auto-activates the router on first save so the dashboard loads immediately after setup.
+- **Debug Logging toggle** (Settings → Diagnostics) - enable or disable `ROS_DEBUG` verbose RouterOS API logging directly from the UI; takes effect immediately without restarting the container; `ROS_DEBUG` env var still overrides at startup if set.
 
 ### Changed
 
-- **`.env` file no longer required** — all user-facing settings (router config, Basic Auth, encryption key) have moved to the UI and auto-generated secrets; only infrastructure-level overrides (PORT, MAX_SOCKETS, TRUSTED_PROXY, ROS_WRITE_TIMEOUT_MS) remain env-configurable. `docker-compose.yml` updated accordingly.
-- **Basic Auth no longer env-driven** — removed `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` from startup defaults; existing values are migrated on first run so deployments upgrade without re-configuring; configure ongoing auth via Settings → Dashboard Auth.
-- **Basic Auth middleware is now dynamic** — changes made in the Settings UI take effect on the next request without restarting the container.
-- **`DATA_SECRET` auto-generated on first run** — a random 64-character key is generated and saved to `/data/.secret` (mode 0o600) if neither the env var nor the file exists; `DATA_SECRET` env var still takes priority when set.
+- **`.env` file no longer required** - all user-facing settings (router config, Basic Auth, encryption key) have moved to the UI and auto-generated secrets; only infrastructure-level overrides (PORT, MAX_SOCKETS, TRUSTED_PROXY, ROS_WRITE_TIMEOUT_MS) remain env-configurable. `docker-compose.yml` updated accordingly.
+- **Basic Auth no longer env-driven** - removed `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` from startup defaults; existing values are migrated on first run so deployments upgrade without re-configuring; configure ongoing auth via Settings → Dashboard Auth.
+- **Basic Auth middleware is now dynamic** - changes made in the Settings UI take effect on the next request without restarting the container.
+- **`DATA_SECRET` auto-generated on first run** - a random 64-character key is generated and saved to `/data/.secret` (mode 0o600) if neither the env var nor the file exists; `DATA_SECRET` env var still takes priority when set.
 
 ### Fixed
 
-- **Fresh installs no longer attempt a phantom RouterOS connection** — previously a dummy session to `127.0.0.1` was started when no router was configured, flooding logs with reconnect noise; server now waits silently for the first router to be added via the setup wizard.
-- **Backwards-compat migration (settings.json → routers.json) no longer runs on new installs** — the seed was incorrectly triggered on fresh deployments where `settings.json` had never existed, inserting a dummy router and blocking no-router mode.
+- **Fresh installs no longer attempt a phantom RouterOS connection** - previously a dummy session to `127.0.0.1` was started when no router was configured, flooding logs with reconnect noise; server now waits silently for the first router to be added via the setup wizard.
+- **Backwards-compat migration (settings.json → routers.json) no longer runs on new installs** - the seed was incorrectly triggered on fresh deployments where `settings.json` had never existed, inserting a dummy router and blocking no-router mode.
 
 ### Upgrade Note
 
-> **Router passwords must be re-entered after upgrading from 0.5.25 or earlier.** The encryption key has changed from a hardcoded insecure default to a randomly generated per-instance key stored in `/data/.secret`. Stored router passwords encrypted with the old key can no longer be decrypted — open Settings → Routers after upgrading and re-enter passwords for each router.
+> **Router passwords must be re-entered after upgrading from 0.5.25 or earlier.** The encryption key has changed from a hardcoded insecure default to a randomly generated per-instance key stored in `/data/.secret`. Stored router passwords encrypted with the old key can no longer be decrypted - open Settings → Routers after upgrading and re-enter passwords for each router.
 
 ---
 
@@ -3115,31 +3115,31 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Added
 
-- **Configurable drag-and-drop dashboard grid** — 12×11 CSS grid with per-card drag, resize (8 handles), and swap-on-hover (1.5 s countdown with pulsing border animation); add/remove cards via the Add Card panel; Save/Discard/Reset controls; layout persists across sessions and devices.
-- **Dashboard layout cross-device sync** — layout saved server-side to `/data/dashboard-layout.json` (same Docker volume as `routers.json`); any browser or device fetches the shared layout on load — no per-device reconfiguration.
-- **14 optional dashboard cards** — hidden by default, user-addable via the Add Card panel: Signal Health, Band Split, Physical Ports, IP Utilisation, Connections Map (world map with animated arcs), Top Countries, Connection Flow (Sankey diagram), Top Ports, Routes by Protocol, BGP Peers, Bandwidth (utilisation bars), Firewall Actions, Total Hits, Logs.
-- **Bandwidth card — utilisation bars** — two vertical fill bars (Download / Upload) showing real-time percentage of configured capacity using a 30-second rolling average; live numeric rate below each bar; animated fill transition.
-- **Bandwidth capacity settings** — per-router Download and Upload capacity fields (Gbps/Mbps) in the router settings modal; drives the Bandwidth dashboard card utilisation bars.
-- **Connections page — Filter by Client** — dropdown in the Connections Map card header filters the map, countries list, connection flow, and top ports to a single LAN device; populated from active connection sources merged with DHCP leases.
-- **Connections page — `countryPorts` server-side index** — per-country top-10 port list built from every matching connection (no destination cap); replaces the previous approach that derived ports from the capped 20-entry `countryDests` list, fixing Top Ports undercounting when a country filter is active.
-- **Connections page — `sourcePorts` server-side index** — per-source-IP top-10 port list built from every matching connection (no cap); used by the client filter, making Top Ports totals consistent with the badge count.
-- **Connections Map card — connection count badge** — live connection count badge next to the card title, always blue when active (matches Wireless Clients, DHCP Leases, and WireGuard Peers badges); honours both country and client filters.
-- **RouterOS UTF-8 encoding patch** — `patch-routeros.js` now patches `node-routeros` Receiver.js to decode API strings as UTF-8 instead of win1252; fixes Cyrillic, Greek, and all other non-Latin characters in device names, DHCP hostnames, interface labels, and comments.
+- **Configurable drag-and-drop dashboard grid** - 12×11 CSS grid with per-card drag, resize (8 handles), and swap-on-hover (1.5 s countdown with pulsing border animation); add/remove cards via the Add Card panel; Save/Discard/Reset controls; layout persists across sessions and devices.
+- **Dashboard layout cross-device sync** - layout saved server-side to `/data/dashboard-layout.json` (same Docker volume as `routers.json`); any browser or device fetches the shared layout on load - no per-device reconfiguration.
+- **14 optional dashboard cards** - hidden by default, user-addable via the Add Card panel: Signal Health, Band Split, Physical Ports, IP Utilisation, Connections Map (world map with animated arcs), Top Countries, Connection Flow (Sankey diagram), Top Ports, Routes by Protocol, BGP Peers, Bandwidth (utilisation bars), Firewall Actions, Total Hits, Logs.
+- **Bandwidth card - utilisation bars** - two vertical fill bars (Download / Upload) showing real-time percentage of configured capacity using a 30-second rolling average; live numeric rate below each bar; animated fill transition.
+- **Bandwidth capacity settings** - per-router Download and Upload capacity fields (Gbps/Mbps) in the router settings modal; drives the Bandwidth dashboard card utilisation bars.
+- **Connections page - Filter by Client** - dropdown in the Connections Map card header filters the map, countries list, connection flow, and top ports to a single LAN device; populated from active connection sources merged with DHCP leases.
+- **Connections page - `countryPorts` server-side index** - per-country top-10 port list built from every matching connection (no destination cap); replaces the previous approach that derived ports from the capped 20-entry `countryDests` list, fixing Top Ports undercounting when a country filter is active.
+- **Connections page - `sourcePorts` server-side index** - per-source-IP top-10 port list built from every matching connection (no cap); used by the client filter, making Top Ports totals consistent with the badge count.
+- **Connections Map card - connection count badge** - live connection count badge next to the card title, always blue when active (matches Wireless Clients, DHCP Leases, and WireGuard Peers badges); honours both country and client filters.
+- **RouterOS UTF-8 encoding patch** - `patch-routeros.js` now patches `node-routeros` Receiver.js to decode API strings as UTF-8 instead of win1252; fixes Cyrillic, Greek, and all other non-Latin characters in device names, DHCP hostnames, interface labels, and comments.
 
 ### Changed
 
-- **Router settings modal — Gbps/Mbps unit toggle** — replaced native `<select>` elements with fully-themed button toggles; the OS-rendered options popup was immune to dark-mode CSS regardless of `appearance` or `color-scheme` overrides.
-- **Connections Map card header** — subtitle text removed; client filter dropdown is the sole right-side element and expands to fill available space.
-- **Dashboard Bandwidth card** — "DL" / "UL" labels renamed to "Download" / "Upload".
-- **Dashboard extra cards** — default sizes refined per card type (Signal Health 4×2, Band Split 2×2, Physical Ports 4×2, IP Utilisation 2×2, Connections Map 4×3, Top Countries 4×3, Connection Flow 4×4, Top Ports 2×3, Routes 3×3, BGP Peers 3×2, Bandwidth 2×3, Firewall Actions 4×3, Total Hits 2×2, Logs 5×3).
+- **Router settings modal - Gbps/Mbps unit toggle** - replaced native `<select>` elements with fully-themed button toggles; the OS-rendered options popup was immune to dark-mode CSS regardless of `appearance` or `color-scheme` overrides.
+- **Connections Map card header** - subtitle text removed; client filter dropdown is the sole right-side element and expands to fill available space.
+- **Dashboard Bandwidth card** - "DL" / "UL" labels renamed to "Download" / "Upload".
+- **Dashboard extra cards** - default sizes refined per card type (Signal Health 4×2, Band Split 2×2, Physical Ports 4×2, IP Utilisation 2×2, Connections Map 4×3, Top Countries 4×3, Connection Flow 4×4, Top Ports 2×3, Routes 3×3, BGP Peers 3×2, Bandwidth 2×3, Firewall Actions 4×3, Total Hits 2×2, Logs 5×3).
 
 ### Fixed
 
-- **Country filter — Top Ports undercount** — ports were derived by parsing destination keys from the 20-entry-capped `countryDests` list; replaced with the new `countryPorts` server-side index which counts every matching connection.
-- **Client filter — mismatched counts** — badge, map, and Top Ports each used a different source (authoritative server total, capped `srcDests` geo subset, key-regex extraction from capped list respectively); badge now uses `topSources` authoritative count, ports use the new uncapped `sourcePorts` index, map reflects geolocated subset as expected.
-- **Dashboard extra cards — IP Utilisation** — field-name mismatch (`n.leases`/`n.poolSize` vs server-emitted `data.totalLeases`/`data.totalPoolSize`) caused the gauge to never render; corrected.
-- **Dashboard extra cards — Routes donut** — rewrote centre-count logic and `connect` exclusion to match the Routing page exactly; donut now renders identically to its page counterpart.
-- **Dashboard extra cards — Connection Flow** — Sankey diagram now renders inside the dashboard card using the same render path as the Connections page (shared `render()` with optional target elements).
+- **Country filter - Top Ports undercount** - ports were derived by parsing destination keys from the 20-entry-capped `countryDests` list; replaced with the new `countryPorts` server-side index which counts every matching connection.
+- **Client filter - mismatched counts** - badge, map, and Top Ports each used a different source (authoritative server total, capped `srcDests` geo subset, key-regex extraction from capped list respectively); badge now uses `topSources` authoritative count, ports use the new uncapped `sourcePorts` index, map reflects geolocated subset as expected.
+- **Dashboard extra cards - IP Utilisation** - field-name mismatch (`n.leases`/`n.poolSize` vs server-emitted `data.totalLeases`/`data.totalPoolSize`) caused the gauge to never render; corrected.
+- **Dashboard extra cards - Routes donut** - rewrote centre-count logic and `connect` exclusion to match the Routing page exactly; donut now renders identically to its page counterpart.
+- **Dashboard extra cards - Connection Flow** - Sankey diagram now renders inside the dashboard card using the same render path as the Connections page (shared `render()` with optional target elements).
 
 ---
 
@@ -3147,26 +3147,26 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Added
 
-- **Settings — "Interface Rates" poll slider** — new slider in Settings → Poll Intervals, placed above Bandwidth, range 500 ms–30 s, 500 ms step. Controls the `InterfaceStatusCollector` poll interval. Changes apply immediately without a restart.
+- **Settings - "Interface Rates" poll slider** - new slider in Settings → Poll Intervals, placed above Bandwidth, range 500 ms–30 s, 500 ms step. Controls the `InterfaceStatusCollector` poll interval. Changes apply immediately without a restart.
 
 ### Changed
 
-- **`pollIfstatus` default lowered to 3,000 ms** — the default interface-rates poll interval has been reduced from 15,000 ms (raised in 0.5.20) to 3,000 ms, giving a responsive rate update cadence out of the box while staying comfortably above the RouterOS 1 s internal byte-counter tick boundary.
-- **Interfaces card — targeted DOM updates** — the `ifstatus:update` handler was rewritten from full `ifaceGrid.innerHTML` replacement to per-tile in-place updates keyed on a `data-iface` attribute. Only changed elements are touched on each poll cycle, eliminating the redraw flash that the previous full-replacement approach produced.
-- **Interfaces card — per-tile peak-relative rate bars** — RX and TX rate bars now scale relative to the highest rate seen per interface since page load, with a 0.5 % per-sample decay so the scale gradually tightens after a traffic burst subsides.
-- **`cachedInterfaces` on session** — `sendInitialState` no longer issues a live `/interface/print` call for every new browser tab connection. The result is cached on the session object and invalidated only on RouterOS reconnect, saving one RouterOS API call per socket open.
-- **Single `Settings.load()` in `sendInitialState`** — `Settings.load()` (which decrypts from disk) was called twice inside the same function. Hoisted to one call at the top, shared by both uses.
-- **`RingBuffer` for logs history** — `LogsCollector` replaced a plain `Array` + O(n) `shift()` with the existing `RingBuffer` class from `src/util/ringbuffer.js`. Meaningful improvement on verbose routers with firewall logging enabled.
-- **Shared `geoOrgCache` between Connections and Bandwidth** — both collectors call `geoip.lookup()` and `lookupOrg()` on the same external IPs drawn from the shared `connTableCache`. A single session-scoped `{ geo, org }` cache object is now passed into both constructors, eliminating duplicate lookups for every carry-over connection.
-- **`countryDests` stripped from global `conn:update`** — the per-country destination index (up to 20 entries × N countries) was included in every `conn:update` broadcast every 3 s regardless of which page clients were viewing. It is now sent only to clients in the `page-connections` Socket.IO room via a separate `conn:country-data` event, shrinking the global payload significantly on nets with many external destinations.
-- **Page-aware Socket.IO rooms** — `firewall:update` is now scoped to the `page-firewall` room, `bandwidth:update` to `page-bandwidth`, and `logs:new` to `page-logs`. Clients not currently viewing those pages no longer receive these high-frequency events. `page:focus` / `page:blur` socket events emitted by `showPage()` in `app.js` manage room membership; the `connect` handler re-joins the active room on reconnect.
+- **`pollIfstatus` default lowered to 3,000 ms** - the default interface-rates poll interval has been reduced from 15,000 ms (raised in 0.5.20) to 3,000 ms, giving a responsive rate update cadence out of the box while staying comfortably above the RouterOS 1 s internal byte-counter tick boundary.
+- **Interfaces card - targeted DOM updates** - the `ifstatus:update` handler was rewritten from full `ifaceGrid.innerHTML` replacement to per-tile in-place updates keyed on a `data-iface` attribute. Only changed elements are touched on each poll cycle, eliminating the redraw flash that the previous full-replacement approach produced.
+- **Interfaces card - per-tile peak-relative rate bars** - RX and TX rate bars now scale relative to the highest rate seen per interface since page load, with a 0.5 % per-sample decay so the scale gradually tightens after a traffic burst subsides.
+- **`cachedInterfaces` on session** - `sendInitialState` no longer issues a live `/interface/print` call for every new browser tab connection. The result is cached on the session object and invalidated only on RouterOS reconnect, saving one RouterOS API call per socket open.
+- **Single `Settings.load()` in `sendInitialState`** - `Settings.load()` (which decrypts from disk) was called twice inside the same function. Hoisted to one call at the top, shared by both uses.
+- **`RingBuffer` for logs history** - `LogsCollector` replaced a plain `Array` + O(n) `shift()` with the existing `RingBuffer` class from `src/util/ringbuffer.js`. Meaningful improvement on verbose routers with firewall logging enabled.
+- **Shared `geoOrgCache` between Connections and Bandwidth** - both collectors call `geoip.lookup()` and `lookupOrg()` on the same external IPs drawn from the shared `connTableCache`. A single session-scoped `{ geo, org }` cache object is now passed into both constructors, eliminating duplicate lookups for every carry-over connection.
+- **`countryDests` stripped from global `conn:update`** - the per-country destination index (up to 20 entries × N countries) was included in every `conn:update` broadcast every 3 s regardless of which page clients were viewing. It is now sent only to clients in the `page-connections` Socket.IO room via a separate `conn:country-data` event, shrinking the global payload significantly on nets with many external destinations.
+- **Page-aware Socket.IO rooms** - `firewall:update` is now scoped to the `page-firewall` room, `bandwidth:update` to `page-bandwidth`, and `logs:new` to `page-logs`. Clients not currently viewing those pages no longer receive these high-frequency events. `page:focus` / `page:blur` socket events emitted by `showPage()` in `app.js` manage room membership; the `connect` handler re-joins the active room on reconnect.
 
 ### Fixed
 
-- **Interfaces card — rate bars flashing to zero at 1 s poll interval** — the hybrid stream + poll approach introduced a race: RouterOS resets its `rx/tx-bits-per-second` field mid-cycle (~1 s), causing stream events to carry `bps=0` unpredictably; at ≤1 s poll rates the poll also sometimes fired before RouterOS updated its internal byte counters, producing a zero delta. The `/interface/listen` stream was removed entirely. The collector is now poll-only, computing rates from the byte-counter delta over the poll window. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race without stalling the display on genuinely idle interfaces.
-- **Ping — sub-millisecond RTT displayed as milliseconds** — RouterOS returns RTTs under 1 ms as `"350us"` (microseconds). The parser was stripping the unit and displaying `350 ms` instead of `0.35 ms`. Fixed by capturing the unit suffix in the regex and dividing by 1000 when `us` is detected. Applied to both the summary-row and individual-reply parsing paths.
-- **Spurious interface / VPN notifications on router switch** — `_notifPrevIface`, `_ifacePending`, and `_notifPrevVpn` retained state from the previous router, causing false up/down alerts (e.g. "ether1 up") immediately after switching because the same interface name on a different router had a different last-known state. All three maps are now cleared on the `router:switching` socket event.
-- **Ping history not suppressed for new connections when ping is disabled** — when `pingEnabled=false`, `sendInitialState` now skips sending the ping history to newly connected sockets, preventing the frontend from briefly rendering stale ping data before the `ping:update { enabled: false }` suppression event arrives.
+- **Interfaces card - rate bars flashing to zero at 1 s poll interval** - the hybrid stream + poll approach introduced a race: RouterOS resets its `rx/tx-bits-per-second` field mid-cycle (~1 s), causing stream events to carry `bps=0` unpredictably; at ≤1 s poll rates the poll also sometimes fired before RouterOS updated its internal byte counters, producing a zero delta. The `/interface/listen` stream was removed entirely. The collector is now poll-only, computing rates from the byte-counter delta over the poll window. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race without stalling the display on genuinely idle interfaces.
+- **Ping - sub-millisecond RTT displayed as milliseconds** - RouterOS returns RTTs under 1 ms as `"350us"` (microseconds). The parser was stripping the unit and displaying `350 ms` instead of `0.35 ms`. Fixed by capturing the unit suffix in the regex and dividing by 1000 when `us` is detected. Applied to both the summary-row and individual-reply parsing paths.
+- **Spurious interface / VPN notifications on router switch** - `_notifPrevIface`, `_ifacePending`, and `_notifPrevVpn` retained state from the previous router, causing false up/down alerts (e.g. "ether1 up") immediately after switching because the same interface name on a different router had a different last-known state. All three maps are now cleared on the `router:switching` socket event.
+- **Ping history not suppressed for new connections when ping is disabled** - when `pingEnabled=false`, `sendInitialState` now skips sending the ping history to newly connected sockets, preventing the frontend from briefly rendering stale ping data before the `ping:update { enabled: false }` suppression event arrives.
 
 ---
 
@@ -3174,15 +3174,15 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Fixed
 
-- **TLS / API-SSL connection failing with self-signed certificate** — connections to the RouterOS `api-ssl` service (port 8729) with "Allow self-signed cert" enabled were being rejected with a TLS handshake error despite the setting being saved. Root cause: `_buildConn()` in the ROS client always converted the `tls` option to a boolean `true` before passing it to `node-routeros`, which then converted `true` → `{}` (empty options object), leaving `rejectUnauthorized` at its Node.js default of `true`. The `tlsOptions` field set as a workaround was never read by the library. Fixed by passing the TLS options object (`{ rejectUnauthorized: false }`) directly through to `node-routeros`, which forwards it unchanged to `tls.connect()`.
+- **TLS / API-SSL connection failing with self-signed certificate** - connections to the RouterOS `api-ssl` service (port 8729) with "Allow self-signed cert" enabled were being rejected with a TLS handshake error despite the setting being saved. Root cause: `_buildConn()` in the ROS client always converted the `tls` option to a boolean `true` before passing it to `node-routeros`, which then converted `true` → `{}` (empty options object), leaving `rejectUnauthorized` at its Node.js default of `true`. The `tlsOptions` field set as a workaround was never read by the library. Fixed by passing the TLS options object (`{ rejectUnauthorized: false }`) directly through to `node-routeros`, which forwards it unchanged to `tls.connect()`.
 
 ### Added
 
-- **Settings — Disable Ping toggle** — new "Ping / Latency" toggle under Settings → Visible Pages → Dashboard widgets. When disabled, the ping section on the Network card is hidden immediately and the ping collector stops making RouterOS `/tool/ping` calls entirely. Re-enabling restarts the collector and restores the section live without a restart.
+- **Settings - Disable Ping toggle** - new "Ping / Latency" toggle under Settings → Visible Pages → Dashboard widgets. When disabled, the ping section on the Network card is hidden immediately and the ping collector stops making RouterOS `/tool/ping` calls entirely. Re-enabling restarts the collector and restores the section live without a restart.
 
 ### Documentation
 
-- **RouterOS TLS setup guide** — new step-by-step section in the README covering how to create a local CA, sign an api-ssl certificate, and bind it to the `api-ssl` service on RouterOS — no external CA or purchased certificate required.
+- **RouterOS TLS setup guide** - new step-by-step section in the README covering how to create a local CA, sign an api-ssl certificate, and bind it to the `api-ssl` service on RouterOS - no external CA or purchased certificate required.
 
 ---
 
@@ -3190,347 +3190,347 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Added
 
-- **Routing — total route count in doughnut centre** — the total route count is now rendered in the centre hole of the Routes by Protocol doughnut chart, making the number visible at a glance without scanning the grid. The redundant Total tile in the grid is hidden (slot preserved to avoid reflowing the remaining tiles).
-- **VPN Dashboard Top N setting** — new "VPN Dashboard Top N" field in Settings → Limits controls how many WireGuard peers are displayed on the main dashboard card (default 5, range 1–50). Configurable at runtime; takes effect on the next `vpn:update` event without a restart.
+- **Routing - total route count in doughnut centre** - the total route count is now rendered in the centre hole of the Routes by Protocol doughnut chart, making the number visible at a glance without scanning the grid. The redundant Total tile in the grid is hidden (slot preserved to avoid reflowing the remaining tiles).
+- **VPN Dashboard Top N setting** - new "VPN Dashboard Top N" field in Settings → Limits controls how many WireGuard peers are displayed on the main dashboard card (default 5, range 1–50). Configurable at runtime; takes effect on the next `vpn:update` event without a restart.
 
 ### Changed
 
-- **Dashboard — WireGuard card sorted by handshake time** — connected peers are now ordered by most recent handshake first, so the most actively communicating peers always appear at the top of the card.
-- **Dashboard — WireGuard peer count badge removed** — the peer count badge in the top-right of the WireGuard card was redundant with the sidebar nav badge and has been removed.
+- **Dashboard - WireGuard card sorted by handshake time** - connected peers are now ordered by most recent handshake first, so the most actively communicating peers always appear at the top of the card.
+- **Dashboard - WireGuard peer count badge removed** - the peer count badge in the top-right of the WireGuard card was redundant with the sidebar nav badge and has been removed.
 
 ### Fixed
 
-- **Dashboard — SVG flow animation runs during disconnect** — the animated flow dots on the network diagram continued moving when the router was disconnected or unreachable. The animation now pauses on both Socket.IO disconnect and RouterOS unreachable states, and resumes only when both connections are restored and the tab is visible.
-- **VPN — peers missing after router reboot** — RouterOS returns a partial peer list when the WireGuard subsystem is still initialising after a reboot. The counter poll now acts as a recovery path: any peer found in `/print` that is not yet in the peer map is added immediately, without waiting for a stream event.
+- **Dashboard - SVG flow animation runs during disconnect** - the animated flow dots on the network diagram continued moving when the router was disconnected or unreachable. The animation now pauses on both Socket.IO disconnect and RouterOS unreachable states, and resumes only when both connections are restored and the tab is visible.
+- **VPN - peers missing after router reboot** - RouterOS returns a partial peer list when the WireGuard subsystem is still initialising after a reboot. The counter poll now acts as a recovery path: any peer found in `/print` that is not yet in the peer map is added immediately, without waiting for a stream event.
 
 ### Security
 
-- **path-to-regexp** updated 0.1.12 → 0.1.13 (CVE-2026-4867 — ReDoS in Express route matching)
-- **socket.io-parser** updated 4.2.5 → 4.2.6 (CVE-2026-33151 — unbounded binary attachment count)
-- **brace-expansion** updated 1.1.12 → 1.1.13 (GHSA-f886-m6hf-6m8v — ReDoS in glob expansion)
+- **path-to-regexp** updated 0.1.12 → 0.1.13 (CVE-2026-4867 - ReDoS in Express route matching)
+- **socket.io-parser** updated 4.2.5 → 4.2.6 (CVE-2026-33151 - unbounded binary attachment count)
+- **brace-expansion** updated 1.1.12 → 1.1.13 (GHSA-f886-m6hf-6m8v - ReDoS in glob expansion)
 
 ## [0.5.20]
 
 ### Added
 
-- **Interfaces page — Physical Ports card** — visual panel above the interface grid showing one RJ-45 port graphic per ethernet interface. Port size auto-scales (44 px for ≤ 8 ports down to 26 px for > 24 ports). Colour matches interface state: green for connected, red for disconnected, grey for disabled. Hover tooltip shows name, IP, and state. Wireless, bridge, VPN, and other non-physical interfaces are excluded.
-- **Interfaces page — Interface Types card** — sits beside the Ports card; shows a colour-coded count tile per interface type (ether, wlan, bridge, vlan, wireguard, pppoe-client, lte, loopback, etc.), styled to match the Routes by Protocol card. The two cards share a responsive row that stacks on narrow viewports.
-- **Wireless page — Band column** — colour-coded band pill (purple 2.4 GHz / blue 5 GHz / green 6 GHz) added between the Interface and Signal columns. Renders `—` when band data is unavailable from the RouterOS API.
-- **VPN page — Summary stats bar** — four stat tiles above the peer grid: Total Peers, Connected, Idle, and Total Throughput (live sum of all active peer RX + TX rates). No additional API calls.
-- **VPN page — Handshake age badge** — each peer tile shows a colour-coded badge: green (< 3 min, actively re-keying), amber (3–10 min, connected but quiet), red (> 10 min, likely stalled), grey (never completed a handshake). Thresholds align with WireGuard's ~3-minute re-key interval.
-- **VPN page — Live RX/TX rates** — WireGuard peer tiles now show real-time per-peer receive and transmit rates. A dedicated counter poll (same pattern as the Firewall collector) re-fetches byte counters on every VPN poll interval and computes rates from byte deltas. The `/listen` stream continues to handle instant structural changes (peer add/remove).
-- **Firewall page — Raw tab** — `/ip/firewall/raw` rules shown in a new Raw tab with the same columns (Chain, Action, Src → Dst, Comment, Packets, Bytes), in-place counter flash animation, search filter, and delta-pulse indicator as the Filter/NAT/Mangle tabs. Raw rule count added to the Rule Counts summary card.
+- **Interfaces page - Physical Ports card** - visual panel above the interface grid showing one RJ-45 port graphic per ethernet interface. Port size auto-scales (44 px for ≤ 8 ports down to 26 px for > 24 ports). Colour matches interface state: green for connected, red for disconnected, grey for disabled. Hover tooltip shows name, IP, and state. Wireless, bridge, VPN, and other non-physical interfaces are excluded.
+- **Interfaces page - Interface Types card** - sits beside the Ports card; shows a colour-coded count tile per interface type (ether, wlan, bridge, vlan, wireguard, pppoe-client, lte, loopback, etc.), styled to match the Routes by Protocol card. The two cards share a responsive row that stacks on narrow viewports.
+- **Wireless page - Band column** - colour-coded band pill (purple 2.4 GHz / blue 5 GHz / green 6 GHz) added between the Interface and Signal columns. Renders `-` when band data is unavailable from the RouterOS API.
+- **VPN page - Summary stats bar** - four stat tiles above the peer grid: Total Peers, Connected, Idle, and Total Throughput (live sum of all active peer RX + TX rates). No additional API calls.
+- **VPN page - Handshake age badge** - each peer tile shows a colour-coded badge: green (< 3 min, actively re-keying), amber (3–10 min, connected but quiet), red (> 10 min, likely stalled), grey (never completed a handshake). Thresholds align with WireGuard's ~3-minute re-key interval.
+- **VPN page - Live RX/TX rates** - WireGuard peer tiles now show real-time per-peer receive and transmit rates. A dedicated counter poll (same pattern as the Firewall collector) re-fetches byte counters on every VPN poll interval and computes rates from byte deltas. The `/listen` stream continues to handle instant structural changes (peer add/remove).
+- **Firewall page - Raw tab** - `/ip/firewall/raw` rules shown in a new Raw tab with the same columns (Chain, Action, Src → Dst, Comment, Packets, Bytes), in-place counter flash animation, search filter, and delta-pulse indicator as the Filter/NAT/Mangle tabs. Raw rule count added to the Rule Counts summary card.
 
 ### Changed
 
-- **VPN poll interval** — Settings VPN slider changed from "Event-driven" badge to an active interval slider (500 ms – 30 s, default 10 s) since the collector now runs a counter poll. Changes apply immediately.
-- **All sub-card title typography unified** — `wl-summary-title`, `fw-scard-title`, `if-scard-title`, `dhcp-card-title`, `rt-card-title`, `bw-chart-card-title`, and `vpn-stat-label` now all match the main `card-title` spec: `font-size: .82rem`, `font-weight: 600`, `letter-spacing: .04em`, `font-family: var(--font-ui)`. Previously each class had slightly different sizes, weights, and spacing.
-- **Wireless poll default raised to 60 s** — wireless clients rarely change faster than once per minute; halving the default interval significantly reduces RouterOS API load on busy networks.
-- **Interface status address poll raised to 15 s** — the address-refresh sub-poll inside `InterfaceStatusCollector` was running every 5 s; IPs rarely change so the interval has been raised to 15 s.
-- **`connTableCache` TTL normalised to 1.0× the faster poll interval** — the shared firewall connection table cache (used by both Connections and Bandwidth collectors) now stays valid for a full poll cycle of the faster collector, eliminating the edge case where the cache expired just before a tick and triggered a redundant fetch.
-- **Firewall counter poll uses `.proplist`** — the counter-refresh poll now requests only `.id`, `packets`, and `bytes` per rule rather than full rows, with an automatic fallback to a full fetch on RouterOS builds where proplist returns empty results.
+- **VPN poll interval** - Settings VPN slider changed from "Event-driven" badge to an active interval slider (500 ms – 30 s, default 10 s) since the collector now runs a counter poll. Changes apply immediately.
+- **All sub-card title typography unified** - `wl-summary-title`, `fw-scard-title`, `if-scard-title`, `dhcp-card-title`, `rt-card-title`, `bw-chart-card-title`, and `vpn-stat-label` now all match the main `card-title` spec: `font-size: .82rem`, `font-weight: 600`, `letter-spacing: .04em`, `font-family: var(--font-ui)`. Previously each class had slightly different sizes, weights, and spacing.
+- **Wireless poll default raised to 60 s** - wireless clients rarely change faster than once per minute; halving the default interval significantly reduces RouterOS API load on busy networks.
+- **Interface status address poll raised to 15 s** - the address-refresh sub-poll inside `InterfaceStatusCollector` was running every 5 s; IPs rarely change so the interval has been raised to 15 s.
+- **`connTableCache` TTL normalised to 1.0× the faster poll interval** - the shared firewall connection table cache (used by both Connections and Bandwidth collectors) now stays valid for a full poll cycle of the faster collector, eliminating the edge case where the cache expired just before a tick and triggered a redundant fetch.
+- **Firewall counter poll uses `.proplist`** - the counter-refresh poll now requests only `.id`, `packets`, and `bytes` per rule rather than full rows, with an automatic fallback to a full fetch on RouterOS builds where proplist returns empty results.
 
 ### Fixed
 
-- **Dashboard — center column cards not scaling on large displays** — the two center column cards (System and Network) did not resize correctly when dragging the browser window to a larger monitor. Root cause: CSS Grid's default `min-width: auto` combined with the SVG network diagram's intrinsic 340 px width prevented the column from shrinking. Fixed by adding `align-self: start` and `min-width: 0` to the center column and all its direct card descendants, including the SVG element itself.
-- **Dashboard — center column cards staying large when dragging to small display** — complementary fix to the above; once the cards had grown larger on a big display, they would not shrink back. Same `min-width: 0` chain resolves both directions.
-- **Wireless — clients flashing on each poll tick** — on `wifi-qcom` hardware with virtual APs, RouterOS occasionally returns a subset of connected clients (e.g. 1 of N) during radio re-association. The previous guard only caught a full-empty result; partial collapses bypassed it. Replaced with a per-MAC absence counter (`_absentTicks` map): a client is only removed after it has been absent for 3 consecutive ticks. New clients appear immediately.
-- **Wireless — card goes stale intermittently** — `lastWirelessTs` was only updated when the collector emitted a new payload. During the transient-hold window while waiting to confirm a client count reduction, no heartbeat was written and the UI card greyed out after ~25 s. Fixed by updating the timestamp on every tick that executes, including hold-window ticks.
-- **VPN — peer rates always zero** — RouterOS returns WireGuard byte counters as `"rx"` and `"tx"` (not `"rx-bytes"` / `"tx-bytes"`). The collector was reading the wrong field names, so `_prev` was never updated and rates were always 0. Field references corrected with firmware-compatibility fallback. Additionally, non-byte-counter stream events (e.g. handshake-only updates) were resetting the rate measurement window, causing the subsequent rate to report near-zero. Fixed by only advancing the timestamp baseline when byte values actually change.
-- **Bandwidth — zero rates at fast poll intervals** — when both Connections and Bandwidth ran at similar intervals, the shared `connTableCache` could return an unchanged snapshot to the bandwidth collector. All byte deltas were zero, producing zero rates. Fixed by timestamping the cached snapshot and skipping the bandwidth tick entirely when the snapshot has not changed since the last tick.
-- **Settings — poll sliders misaligned** — Firewall and Ping sliders had different `min`/`max` ranges (1 000–60 000 ms) from all other sliders (500–30 000 ms), making the same wall-clock value appear at different thumb positions. All six polled sliders normalised to `500–30 000 ms / 500 ms step`.
+- **Dashboard - center column cards not scaling on large displays** - the two center column cards (System and Network) did not resize correctly when dragging the browser window to a larger monitor. Root cause: CSS Grid's default `min-width: auto` combined with the SVG network diagram's intrinsic 340 px width prevented the column from shrinking. Fixed by adding `align-self: start` and `min-width: 0` to the center column and all its direct card descendants, including the SVG element itself.
+- **Dashboard - center column cards staying large when dragging to small display** - complementary fix to the above; once the cards had grown larger on a big display, they would not shrink back. Same `min-width: 0` chain resolves both directions.
+- **Wireless - clients flashing on each poll tick** - on `wifi-qcom` hardware with virtual APs, RouterOS occasionally returns a subset of connected clients (e.g. 1 of N) during radio re-association. The previous guard only caught a full-empty result; partial collapses bypassed it. Replaced with a per-MAC absence counter (`_absentTicks` map): a client is only removed after it has been absent for 3 consecutive ticks. New clients appear immediately.
+- **Wireless - card goes stale intermittently** - `lastWirelessTs` was only updated when the collector emitted a new payload. During the transient-hold window while waiting to confirm a client count reduction, no heartbeat was written and the UI card greyed out after ~25 s. Fixed by updating the timestamp on every tick that executes, including hold-window ticks.
+- **VPN - peer rates always zero** - RouterOS returns WireGuard byte counters as `"rx"` and `"tx"` (not `"rx-bytes"` / `"tx-bytes"`). The collector was reading the wrong field names, so `_prev` was never updated and rates were always 0. Field references corrected with firmware-compatibility fallback. Additionally, non-byte-counter stream events (e.g. handshake-only updates) were resetting the rate measurement window, causing the subsequent rate to report near-zero. Fixed by only advancing the timestamp baseline when byte values actually change.
+- **Bandwidth - zero rates at fast poll intervals** - when both Connections and Bandwidth ran at similar intervals, the shared `connTableCache` could return an unchanged snapshot to the bandwidth collector. All byte deltas were zero, producing zero rates. Fixed by timestamping the cached snapshot and skipping the bandwidth tick entirely when the snapshot has not changed since the last tick.
+- **Settings - poll sliders misaligned** - Firewall and Ping sliders had different `min`/`max` ranges (1 000–60 000 ms) from all other sliders (500–30 000 ms), making the same wall-clock value appear at different thumb positions. All six polled sliders normalised to `500–30 000 ms / 500 ms step`.
 
 ### Performance
 
-- **HTTP response compression** — `compression` middleware added (gzip). Initial page load reduced from ~860 KB to ~150 KB (~5–7× reduction).
-- **Vendor asset caching** — all files under `/vendor/` (Chart.js, Tabler, TopoJSON, fonts) are now served with a 7-day `Cache-Control` header. Returning visitors load these assets from the browser cache.
-- **Idle gates on all collectors** — system resource polls and ping polls now skip their RouterOS API calls entirely when no browser clients are connected, matching the existing behaviour of Connections, Bandwidth, Talkers, Wireless, and Traffic collectors. On an unattended dashboard, RouterOS API traffic is now near zero across all data paths.
-- **`requestAnimationFrame` debouncing** — all high-frequency DOM updates now batch to animation frames: system gauges, traffic chart, connections top sources/destinations, firewall structural re-renders, and bandwidth table. Rapid socket events no longer trigger redundant layout/paint work.
-- **Page Visibility API** — when the browser tab is hidden, SVG network diagram animations are paused (`pauseAnimations()`) and all rAF DOM flushes are skipped. On tab return, animations resume and any data that accumulated while hidden is flushed immediately.
-- **Traffic chart history preserved across navigation** — data points are now buffered into `allPoints` regardless of tab visibility or active page. Navigating away from the dashboard and returning, or switching browser tabs, no longer causes the traffic chart to lose its history. `redrawChart()` is called on dashboard page return and on tab visibility restore to render the full accumulated history.
-- **System update check timeout** — `/system/package/update/print` now has a 5-second timeout guard. On devices that cannot reach the MikroTik upgrade server (CAPsMAN APs, firewalled deployments), the system gauges are no longer delayed.
+- **HTTP response compression** - `compression` middleware added (gzip). Initial page load reduced from ~860 KB to ~150 KB (~5–7× reduction).
+- **Vendor asset caching** - all files under `/vendor/` (Chart.js, Tabler, TopoJSON, fonts) are now served with a 7-day `Cache-Control` header. Returning visitors load these assets from the browser cache.
+- **Idle gates on all collectors** - system resource polls and ping polls now skip their RouterOS API calls entirely when no browser clients are connected, matching the existing behaviour of Connections, Bandwidth, Talkers, Wireless, and Traffic collectors. On an unattended dashboard, RouterOS API traffic is now near zero across all data paths.
+- **`requestAnimationFrame` debouncing** - all high-frequency DOM updates now batch to animation frames: system gauges, traffic chart, connections top sources/destinations, firewall structural re-renders, and bandwidth table. Rapid socket events no longer trigger redundant layout/paint work.
+- **Page Visibility API** - when the browser tab is hidden, SVG network diagram animations are paused (`pauseAnimations()`) and all rAF DOM flushes are skipped. On tab return, animations resume and any data that accumulated while hidden is flushed immediately.
+- **Traffic chart history preserved across navigation** - data points are now buffered into `allPoints` regardless of tab visibility or active page. Navigating away from the dashboard and returning, or switching browser tabs, no longer causes the traffic chart to lose its history. `redrawChart()` is called on dashboard page return and on tab visibility restore to render the full accumulated history.
+- **System update check timeout** - `/system/package/update/print` now has a 5-second timeout guard. On devices that cannot reach the MikroTik upgrade server (CAPsMAN APs, firewalled deployments), the system gauges are no longer delayed.
 
-## [0.5.15] — Firewall summary, Wireless & DHCP summary cards, Connections improvements
+## [0.5.15] - Firewall summary, Wireless & DHCP summary cards, Connections improvements
 
 ### Added
 
-- **Firewall page — summary row** — three cards above the rules table: Rule Counts (Filter / NAT / Mangle totals with disabled count), Action Breakdown (proportional bars per action type with colour coding), and Total Hits (cumulative packet count, total bytes, and a live sparkline of activity).
-- **Firewall page — search bar** — client-side filter across chain, action, src/dst address, comment, protocol, and port. Persists across tab switches.
-- **Firewall page — Bytes column** — formatted byte totals added alongside Packets in all tabs.
-- **Firewall page — in-place counter updates with flash animation** — packet and byte cells update in-place on each poll cycle with a colour flash.
-- **Firewall page — delta pulse indicator** — animated dot beside the packet count on rules that matched traffic in the most recent poll cycle.
-- **Firewall page — live counter polling** — RouterOS 7.x does not push firewall counter updates through `/listen`. A dedicated counter poll re-fetches counts on the Firewall interval setting. The stream still handles structural changes in real time.
-- **Firewall poll interval setting** — Firewall slider added to Settings → Poll Intervals. Changes apply immediately without a restart.
-- **Wireless page — Signal Health card** — horizontal bars showing client count per signal tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
-- **Wireless page — Band Split card** — 2.4 / 5 / 6 GHz client counts with colour-coded band pills. 6 GHz row auto-hides.
-- **DHCP page — Subnets card** — per-network table with gateway, DNS, lease count, pool size, utilisation %, and colour-coded progress bar.
-- **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge driven live from the `leases:list` stream.
-- **Connections page — Map fullscreen on desktop** — fullscreen button always visible, moved inside the map control panel.
-- **Connections page — Sankey renders at correct width on navigation** — re-renders on `mikrodash:pagechange`.
-- **Connections page — country filter** — clicking a country in Top Countries filters the Port Breakdown and Connection Flow to that country.
+- **Firewall page - summary row** - three cards above the rules table: Rule Counts (Filter / NAT / Mangle totals with disabled count), Action Breakdown (proportional bars per action type with colour coding), and Total Hits (cumulative packet count, total bytes, and a live sparkline of activity).
+- **Firewall page - search bar** - client-side filter across chain, action, src/dst address, comment, protocol, and port. Persists across tab switches.
+- **Firewall page - Bytes column** - formatted byte totals added alongside Packets in all tabs.
+- **Firewall page - in-place counter updates with flash animation** - packet and byte cells update in-place on each poll cycle with a colour flash.
+- **Firewall page - delta pulse indicator** - animated dot beside the packet count on rules that matched traffic in the most recent poll cycle.
+- **Firewall page - live counter polling** - RouterOS 7.x does not push firewall counter updates through `/listen`. A dedicated counter poll re-fetches counts on the Firewall interval setting. The stream still handles structural changes in real time.
+- **Firewall poll interval setting** - Firewall slider added to Settings → Poll Intervals. Changes apply immediately without a restart.
+- **Wireless page - Signal Health card** - horizontal bars showing client count per signal tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
+- **Wireless page - Band Split card** - 2.4 / 5 / 6 GHz client counts with colour-coded band pills. 6 GHz row auto-hides.
+- **DHCP page - Subnets card** - per-network table with gateway, DNS, lease count, pool size, utilisation %, and colour-coded progress bar.
+- **DHCP page - IP Utilisation gauge** - semi-circle SVG gauge driven live from the `leases:list` stream.
+- **Connections page - Map fullscreen on desktop** - fullscreen button always visible, moved inside the map control panel.
+- **Connections page - Sankey renders at correct width on navigation** - re-renders on `mikrodash:pagechange`.
+- **Connections page - country filter** - clicking a country in Top Countries filters the Port Breakdown and Connection Flow to that country.
 
 ### Changed
 
-- **Wireless page — Band column removed** from client table; band information moved to the Band Split summary card.
-- **Wireless clients load immediately on startup** — first tick runs with `force=true`, bypassing the idle-gate.
-- **DHCP page — Lease count includes all statuses** — exposes `getAllLeaseIPs()` for bound, waiting, and expired leases.
-- **DHCP page — Pool size matched directly from IP ranges** — more reliable across bridge/VLAN configurations.
-- **DHCP summary card heights** — `min-height: 165px` matching the Routing page.
+- **Wireless page - Band column removed** from client table; band information moved to the Band Split summary card.
+- **Wireless clients load immediately on startup** - first tick runs with `force=true`, bypassing the idle-gate.
+- **DHCP page - Lease count includes all statuses** - exposes `getAllLeaseIPs()` for bound, waiting, and expired leases.
+- **DHCP page - Pool size matched directly from IP ranges** - more reliable across bridge/VLAN configurations.
+- **DHCP summary card heights** - `min-height: 165px` matching the Routing page.
 - **`sendInitialState` sends full `lan:overview` payload** including `totalPoolSize`.
-- **Connections page — Country filter persists across poll ticks** — `conn:update` re-applies the active country filter.
-- **Connections page — map buttons work on desktop and mobile** — `mousedown` / `touchstart` handlers skip `preventDefault` for button targets.
+- **Connections page - Country filter persists across poll ticks** - `conn:update` re-applies the active country filter.
+- **Connections page - map buttons work on desktop and mobile** - `mousedown` / `touchstart` handlers skip `preventDefault` for button targets.
 
 ### Fixed
 
-- **Firewall rule metadata wiped on counter update** — `_applyUpdate` now merges stream deltas into existing rules rather than replacing them, preserving chain/action/comment.
-- **Mangle rules excluded from dirty-check fp** — mangle counter changes now trigger `firewall:update` emit.
-- **`[bandwidth] no such item (4)` log noise** — transient RouterOS error suppressed.
-- **DHCP subnets card — Leases column overflow on mobile** — `white-space:nowrap` removed; `table-layout:fixed` added.
+- **Firewall rule metadata wiped on counter update** - `_applyUpdate` now merges stream deltas into existing rules rather than replacing them, preserving chain/action/comment.
+- **Mangle rules excluded from dirty-check fp** - mangle counter changes now trigger `firewall:update` emit.
+- **`[bandwidth] no such item (4)` log noise** - transient RouterOS error suppressed.
+- **DHCP subnets card - Leases column overflow on mobile** - `white-space:nowrap` removed; `table-layout:fixed` added.
 - **IP Utilisation gauge sub-label removed**.
-- **Connections page — Sankey filter flag fixed** — deselecting a country no longer permanently freezes the Sankey.
+- **Connections page - Sankey filter flag fixed** - deselecting a country no longer permanently freezes the Sankey.
 
 
-## [0.5.14] — Optimisations, alert thresholds & bug fixes
+## [0.5.14] - Optimisations, alert thresholds & bug fixes
 
 ### Added
 
-- **Persistent alert thresholds** — CPU spike and ping loss notification thresholds are now configurable in Settings rather than hardcoded. Two sliders in a new "Alert Thresholds" card let you set the CPU % (default 90) and ping loss % (default 100) that trigger browser notifications. Values are stored in `settings.json` and broadcast to all connected clients via `settings:pages` so thresholds take effect immediately without a page refresh.
-- **Timestamped Docker log output** — all console output is now prefixed with a local-time timestamp in the format `[2026-03-20 09:39:34]`, making `docker logs mikrodash` immediately readable without needing `docker logs --timestamps`.
+- **Persistent alert thresholds** - CPU spike and ping loss notification thresholds are now configurable in Settings rather than hardcoded. Two sliders in a new "Alert Thresholds" card let you set the CPU % (default 90) and ping loss % (default 100) that trigger browser notifications. Values are stored in `settings.json` and broadcast to all connected clients via `settings:pages` so thresholds take effect immediately without a page refresh.
+- **Timestamped Docker log output** - all console output is now prefixed with a local-time timestamp in the format `[2026-03-20 09:39:34]`, making `docker logs mikrodash` immediately readable without needing `docker logs --timestamps`.
 
 ### Changed
 
-- **Idle-gating extended to four more collectors** — `ConnectionsCollector`, `BandwidthCollector`, `TopTalkersCollector`, and `WirelessCollector` now skip their `tick()` entirely when no browser clients are connected, matching the existing behaviour of `TrafficCollector`. On a quiet network with no dashboard open, RouterOS API traffic drops to near zero.
-- **`connTableCache` TTL raised from 40% to 90% of the faster poll interval** — the shared firewall connection table cache used by both `ConnectionsCollector` and `BandwidthCollector` now stays valid for almost a full poll cycle of the faster collector, halving redundant RouterOS API calls when both collectors run at similar intervals.
-- **Ping count reduced from 3 to 2** — each `/tool/ping` tick now sends 2 ICMP packets instead of 3, saving ~200ms of RouterOS API hold time per 10-second poll cycle with no meaningful loss of RTT accuracy.
-- **Dirty-check fingerprinting added to five collectors** — `ConnectionsCollector`, `BandwidthCollector`, `TopTalkersCollector`, `DhcpNetworksCollector`, and `PingCollector` now suppress socket emits when their computed payload is identical to the previous tick. On stable networks this eliminates most redundant browser re-renders.
-- **`stop()` method added to all collectors** — all 15 collectors now have a public `stop()` method. `teardownSession()` and `shutdown()` in `index.js` now call `c.stop()` uniformly rather than reaching into each collector's internal timer or stream fields.
-- **`PingCollector` history uses `RingBuffer`** — the ping history ring buffer is now the same `RingBuffer` class used by `TrafficCollector`, replacing the plain array with manual `shift()`.
+- **Idle-gating extended to four more collectors** - `ConnectionsCollector`, `BandwidthCollector`, `TopTalkersCollector`, and `WirelessCollector` now skip their `tick()` entirely when no browser clients are connected, matching the existing behaviour of `TrafficCollector`. On a quiet network with no dashboard open, RouterOS API traffic drops to near zero.
+- **`connTableCache` TTL raised from 40% to 90% of the faster poll interval** - the shared firewall connection table cache used by both `ConnectionsCollector` and `BandwidthCollector` now stays valid for almost a full poll cycle of the faster collector, halving redundant RouterOS API calls when both collectors run at similar intervals.
+- **Ping count reduced from 3 to 2** - each `/tool/ping` tick now sends 2 ICMP packets instead of 3, saving ~200ms of RouterOS API hold time per 10-second poll cycle with no meaningful loss of RTT accuracy.
+- **Dirty-check fingerprinting added to five collectors** - `ConnectionsCollector`, `BandwidthCollector`, `TopTalkersCollector`, `DhcpNetworksCollector`, and `PingCollector` now suppress socket emits when their computed payload is identical to the previous tick. On stable networks this eliminates most redundant browser re-renders.
+- **`stop()` method added to all collectors** - all 15 collectors now have a public `stop()` method. `teardownSession()` and `shutdown()` in `index.js` now call `c.stop()` uniformly rather than reaching into each collector's internal timer or stream fields.
+- **`PingCollector` history uses `RingBuffer`** - the ping history ring buffer is now the same `RingBuffer` class used by `TrafficCollector`, replacing the plain array with manual `shift()`.
 - **Unused `ArpCollector` import removed** from `test/collector-lifecycle.test.js`.
 
 ### Fixed
 
-- **Ping target label not updating after router settings change** — editing the Ping Target in the Router card and saving now immediately broadcasts a `ping:update` to all connected clients so the dashboard label updates at once. Previously the label only changed after the next scheduled poll cycle (up to 10 seconds later). The fix is in the `PUT /api/routers/:id` handler, which is the correct save path for router-level settings including `pingTarget`.
+- **Ping target label not updating after router settings change** - editing the Ping Target in the Router card and saving now immediately broadcasts a `ping:update` to all connected clients so the dashboard label updates at once. Previously the label only changed after the next scheduled poll cycle (up to 10 seconds later). The fix is in the `PUT /api/routers/:id` handler, which is the correct save path for router-level settings including `pingTarget`.
 
 
-## [0.5.13] — Wireless single-device display fix
-
-### Fixed
-
-- **Wireless page showing only one device on startup** — the 500ms name-resolution retry introduced in v0.5.12 was calling `tick()` again, which made a second RouterOS API call to the registration table. Some RouterOS firmware builds return partial results (1 of N clients) when the wifi registration table is queried within the first few seconds after boot — the same firmware sensitivity that caused the original `=.proplist=` single-client bug. The retry now re-resolves names from the already-fetched raw client rows stored in the closure rather than making any RouterOS API call, then re-emits only if names changed. If DHCP still hasn't loaded after 500ms the retry reschedules itself until all names are resolved.
-
-
-## [0.5.12] — Wireless device names fix
+## [0.5.13] - Wireless single-device display fix
 
 ### Fixed
 
-- **Wireless page showing MAC addresses instead of device names** — `WirelessCollector.resolveName()` was caching empty strings when DHCP leases had not yet loaded on startup. Since `wireless.start()` fires before `dhcpLeases.start()` completes, the first tick resolved every MAC to `''` and stored it in `_nameCache`. All subsequent ticks hit the cache and never retried the DHCP lookup, so names were permanently blank. Fixed by only caching non-empty results: `if (name) this._nameCache.set(mac, name)`. Additionally, `name` is now included in the dirty-check fingerprint so the first tick that gains a resolved name triggers a socket emit to the browser even when MAC, signal, iface and band are unchanged.
+- **Wireless page showing only one device on startup** - the 500ms name-resolution retry introduced in v0.5.12 was calling `tick()` again, which made a second RouterOS API call to the registration table. Some RouterOS firmware builds return partial results (1 of N clients) when the wifi registration table is queried within the first few seconds after boot - the same firmware sensitivity that caused the original `=.proplist=` single-client bug. The retry now re-resolves names from the already-fetched raw client rows stored in the closure rather than making any RouterOS API call, then re-emits only if names changed. If DHCP still hasn't loaded after 500ms the retry reschedules itself until all names are resolved.
 
 
-## [0.5.11] — Bandwidth page flash fix
-
-### Fixed
-
-- **Bandwidth page alternating zeros/real-data flash** — `BandwidthCollector` and `ConnectionsCollector` had a double-start bug introduced in v0.5.10. Moving `ros.on('connected')` listeners to the constructor meant the handler fired on the initial connect and called `stop()` + `start()` — while `startCollectors()` in `index.js` *also* called `start()` explicitly on that same event. Two concurrent `setInterval` loops were created, interleaving ticks at roughly half the configured poll interval. The first tick of each pair always had a sparse `_prev` baseline (near-zero byte deltas → near-zero rates); the second had a full interval's worth of data. This produced the visible flash. Fixed by adding a `_started` flag to both collectors: the `connected` handler now only restarts the poll loop after a genuine reconnect (when `_started` is already true), leaving the initial start entirely to `startCollectors()`.
-
-
-## [0.5.10] — Housekeeping & Test Suite Repair
+## [0.5.12] - Wireless device names fix
 
 ### Fixed
 
-- **`ConnectionsCollector` missing `stop()` method** — added canonical `stop()` that clears the poll timer. `ros.on('close')` and `ros.on('connected')` listeners are now registered once in the constructor rather than on every `start()` call, eliminating the risk of listener accumulation across reconnect cycles.
-- **`BandwidthCollector` missing `stop()` method** — same fix as above. Cache maps (`_prev`, `_geoCache`, `_orgCache`, `_ifaceCache`) are still cleared on reconnect from the constructor listener.
-- **`setInterval`-before-`run()` ordering in `ConnectionsCollector` and `BandwidthCollector`** — the poll timer is now set before the first `run()` call so the `close` event handler can always find and clear it, even if `run()` resolves synchronously in tests.
-- **`BandwidthCollector` not writing to shared state** — `state.lastBandwidthTs` and `state.lastBandwidthErr` are now updated on every tick, consistent with all other collectors. `_freshState()` in `index.js` initialises both fields.
-- **58 pre-existing test failures in `collector-data-transforms.test.js`** — all resolved:
+- **Wireless page showing MAC addresses instead of device names** - `WirelessCollector.resolveName()` was caching empty strings when DHCP leases had not yet loaded on startup. Since `wireless.start()` fires before `dhcpLeases.start()` completes, the first tick resolved every MAC to `''` and stored it in `_nameCache`. All subsequent ticks hit the cache and never retried the DHCP lookup, so names were permanently blank. Fixed by only caching non-empty results: `if (name) this._nameCache.set(mac, name)`. Additionally, `name` is now included in the dirty-check fingerprint so the first tick that gains a resolved name triggers a socket emit to the browser even when MAC, signal, iface and band are unchanged.
+
+
+## [0.5.11] - Bandwidth page flash fix
+
+### Fixed
+
+- **Bandwidth page alternating zeros/real-data flash** - `BandwidthCollector` and `ConnectionsCollector` had a double-start bug introduced in v0.5.10. Moving `ros.on('connected')` listeners to the constructor meant the handler fired on the initial connect and called `stop()` + `start()` - while `startCollectors()` in `index.js` *also* called `start()` explicitly on that same event. Two concurrent `setInterval` loops were created, interleaving ticks at roughly half the configured poll interval. The first tick of each pair always had a sparse `_prev` baseline (near-zero byte deltas → near-zero rates); the second had a full interval's worth of data. This produced the visible flash. Fixed by adding a `_started` flag to both collectors: the `connected` handler now only restarts the poll loop after a genuine reconnect (when `_started` is already true), leaving the initial start entirely to `startCollectors()`.
+
+
+## [0.5.10] - Housekeeping & Test Suite Repair
+
+### Fixed
+
+- **`ConnectionsCollector` missing `stop()` method** - added canonical `stop()` that clears the poll timer. `ros.on('close')` and `ros.on('connected')` listeners are now registered once in the constructor rather than on every `start()` call, eliminating the risk of listener accumulation across reconnect cycles.
+- **`BandwidthCollector` missing `stop()` method** - same fix as above. Cache maps (`_prev`, `_geoCache`, `_orgCache`, `_ifaceCache`) are still cleared on reconnect from the constructor listener.
+- **`setInterval`-before-`run()` ordering in `ConnectionsCollector` and `BandwidthCollector`** - the poll timer is now set before the first `run()` call so the `close` event handler can always find and clear it, even if `run()` resolves synchronously in tests.
+- **`BandwidthCollector` not writing to shared state** - `state.lastBandwidthTs` and `state.lastBandwidthErr` are now updated on every tick, consistent with all other collectors. `_freshState()` in `index.js` initialises both fields.
+- **58 pre-existing test failures in `collector-data-transforms.test.js`** - all resolved:
   - Traffic tests: added missing `io.engine.clientsCount` to stubs.
   - Connections test: added `orgs: []` to `topCountries` deep-equal expected values (field was added in v0.5.8 but test was never updated).
   - Firewall, VPN, InterfaceStatus, ARP tests: these collectors were converted to streaming in prior sessions; tests were still calling the removed `tick()` method. Rewritten to call `_loadInitial()` (the correct entry point) with a minimal `stream` stub.
   - ARP tests: `getByIP`/`getByMAC` return `null` for missing entries; assertions corrected from `undefined` to `null`.
   - Wireless band test: band detection was refactored to read the RouterOS `band` field directly; test updated to supply that field in the ROS row stub.
   - Routing tests: `RoutingCollector` was used in 45 tests but never imported at the top of the routing section.
-- **4 pre-existing test failures in `collector-lifecycle.test.js`** — all resolved:
+- **4 pre-existing test failures in `collector-lifecycle.test.js`** - all resolved:
   - Tests using `ArpCollector` as a "generic polling collector" subject: `ArpCollector` was converted to streaming in a prior session and no longer has `tick()` or a poll timer. Replaced with `DhcpNetworksCollector` (still polling) with a minimal `dhcpLeases` stub.
   - Inflight-reset test: rewrote to assert the correct contract (all collectors catch errors in `tick()` internally; `_inflight` must still reset after a failed tick).
-- **1 pre-existing test failure in `smoke-fixes.test.js`** — `ROS emitter tolerates error events without a custom listener` was calling `ros.emit('error', ...)` directly, which is the standard Node.js `EventEmitter` throw path. Fixed to call `ros._emitConnectionError()` — the guarded method that only forwards to `error` when a listener exists.
+- **1 pre-existing test failure in `smoke-fixes.test.js`** - `ROS emitter tolerates error events without a custom listener` was calling `ros.emit('error', ...)` directly, which is the standard Node.js `EventEmitter` throw path. Fixed to call `ros._emitConnectionError()` - the guarded method that only forwards to `error` when a listener exists.
 
 ### Added
 
 - **14 new lifecycle tests** for `ConnectionsCollector` and `BandwidthCollector` (added in the same session as the production fixes): `stop()` existence and idempotency, close-event teardown, connected-event restart, listener non-accumulation across reconnects, inflight guard, and state timestamp/error tracking.
 
-## [0.5.9] — Multi-Router Support
+## [0.5.9] - Multi-Router Support
 
 ### Added
 
-- **Multi-router management** — MikroDash can now connect to and monitor multiple MikroTik routers from a single instance. A new **Routers card** in Settings replaces the old Router Connection card. All configured routers are listed in a table with Edit and Delete actions. An **Add Router** button opens a modal with a full connection form (host, port, username, password, TLS, WAN interface, ping target, display name) and a **Test Connection** button that validates credentials against the live router before saving — on success the board name is automatically filled into the display name field.
-- **Live router switcher** — a styled dropdown in the top-right of the page header (green pill with status dot) shows the currently active router and allows switching. On mobile, the same selector appears inside the slide-out navigation menu. Selecting a different router triggers an in-process hot-swap with no container restart or browser disconnect.
-- **`/data/routers.json`** — new persistence file on the Docker data volume. Router passwords are encrypted at rest with AES-256-GCM using the same `DATA_SECRET`-derived key as `settings.json`. Existing deployments are migrated automatically: if `routers.json` does not exist on first start, a single entry is seeded from the existing `settings.json` credentials — no manual steps required.
-- **Auto-labelling from board name** — newly added routers default to "My Router". After the first successful connection, MikroDash automatically updates the display name to the RouterOS board name (e.g. "hAP ax³"). The label is cleaned of ROS version suffixes before storage.
-- **Name uniqueness** — if a display name already exists, a numeric suffix is appended: "hAP ax³ - [2]", "hAP ax³ - [3]", etc.
-- **RouterOS update check resilience** — devices that cannot reach the MikroTik upgrade server (e.g. CAPsMAN-managed APs, restricted network positions) now show "Update check unavailable" in the System card instead of remaining stuck on "Checking for updates…" indefinitely.
-- **Mobile navigation router selector** — the router switcher dropdown is included inside the mobile slide-out nav menu, visible only on small screens where the topbar selector is hidden.
-- **Mobile burger menu toggle** — tapping the burger icon a second time now closes the navigation menu (previously it only opened it).
+- **Multi-router management** - MikroDash can now connect to and monitor multiple MikroTik routers from a single instance. A new **Routers card** in Settings replaces the old Router Connection card. All configured routers are listed in a table with Edit and Delete actions. An **Add Router** button opens a modal with a full connection form (host, port, username, password, TLS, WAN interface, ping target, display name) and a **Test Connection** button that validates credentials against the live router before saving - on success the board name is automatically filled into the display name field.
+- **Live router switcher** - a styled dropdown in the top-right of the page header (green pill with status dot) shows the currently active router and allows switching. On mobile, the same selector appears inside the slide-out navigation menu. Selecting a different router triggers an in-process hot-swap with no container restart or browser disconnect.
+- **`/data/routers.json`** - new persistence file on the Docker data volume. Router passwords are encrypted at rest with AES-256-GCM using the same `DATA_SECRET`-derived key as `settings.json`. Existing deployments are migrated automatically: if `routers.json` does not exist on first start, a single entry is seeded from the existing `settings.json` credentials - no manual steps required.
+- **Auto-labelling from board name** - newly added routers default to "My Router". After the first successful connection, MikroDash automatically updates the display name to the RouterOS board name (e.g. "hAP ax³"). The label is cleaned of ROS version suffixes before storage.
+- **Name uniqueness** - if a display name already exists, a numeric suffix is appended: "hAP ax³ - [2]", "hAP ax³ - [3]", etc.
+- **RouterOS update check resilience** - devices that cannot reach the MikroTik upgrade server (e.g. CAPsMAN-managed APs, restricted network positions) now show "Update check unavailable" in the System card instead of remaining stuck on "Checking for updates…" indefinitely.
+- **Mobile navigation router selector** - the router switcher dropdown is included inside the mobile slide-out nav menu, visible only on small screens where the topbar selector is hidden.
+- **Mobile burger menu toggle** - tapping the burger icon a second time now closes the navigation menu (previously it only opened it).
 
 ### Changed
 
-- **In-process hot-swap on router switch** — switching routers tears down the active RouterOS connection and all 15 collectors, builds a fresh session for the new router, and begins connecting — all in-process in ~150ms. The Socket.IO server and HTTP server stay live throughout. All connected browser tabs receive fresh data from the new router automatically without a page refresh, including traffic history, DHCP leases, LAN overview, and all collector snapshots.
-- **Router connection settings removed from Settings API** — host, port, credentials, and WAN interface are now managed exclusively through the Routers card and `/api/routers` endpoints. The global Settings validator no longer accepts these fields.
-- **`settings.json` schema** — `activeRouterId` field added. Stores the UUID of the currently active router. Existing files remain valid.
-- **Wireless poll interval maximum raised to 60 seconds** — previously capped at 30 seconds.
-- **Poll interval sliders reordered** — Ping now appears above Wireless in the Settings poll interval section.
-- **TLS toggle auto-fills port** — toggling Use TLS on/off in the Add/Edit Router modal now automatically fills the API port field (8729 for TLS, 8728 for plain), unless a custom port has already been entered.
-- **Security guidance in `AI_CONTEXT.md`** — expanded Security model section with prescriptive requirements for new development: endpoint auth, input validation, credential handling, `.env` vs Settings boundary, frontend XSS rules, and dependency policy.
+- **In-process hot-swap on router switch** - switching routers tears down the active RouterOS connection and all 15 collectors, builds a fresh session for the new router, and begins connecting - all in-process in ~150ms. The Socket.IO server and HTTP server stay live throughout. All connected browser tabs receive fresh data from the new router automatically without a page refresh, including traffic history, DHCP leases, LAN overview, and all collector snapshots.
+- **Router connection settings removed from Settings API** - host, port, credentials, and WAN interface are now managed exclusively through the Routers card and `/api/routers` endpoints. The global Settings validator no longer accepts these fields.
+- **`settings.json` schema** - `activeRouterId` field added. Stores the UUID of the currently active router. Existing files remain valid.
+- **Wireless poll interval maximum raised to 60 seconds** - previously capped at 30 seconds.
+- **Poll interval sliders reordered** - Ping now appears above Wireless in the Settings poll interval section.
+- **TLS toggle auto-fills port** - toggling Use TLS on/off in the Add/Edit Router modal now automatically fills the API port field (8729 for TLS, 8728 for plain), unless a custom port has already been entered.
+- **Security guidance in `AI_CONTEXT.md`** - expanded Security model section with prescriptive requirements for new development: endpoint auth, input validation, credential handling, `.env` vs Settings boundary, frontend XSS rules, and dependency policy.
 
 ### Fixed
 
-- **Traffic card goes stale after router switch** — after a hot-swap the server now broadcasts `sendInitialState` to all connected sockets once the new router's collectors are running. Previously, existing Socket.IO connections never received a new `traffic:history` event (only new connections did), leaving the chart blank until a manual page refresh.
-- **DHCP page not updated after router switch** — same root cause as the traffic card; resolved by the same `sendInitialState` broadcast.
-- **LAN overview (Network card) not updated after router switch** — `dhcpNetworks.tick()` is now awaited before `sendInitialState` broadcasts so `networks` and `wanIp` are populated immediately. Client-side `lastLanData` guard cleared on switch so incoming data is never silently discarded.
-- **Destination Countries count not reset after router switch** — the connections map IIFE now clears its internal country caches and the card subtitle on `router:switching`, preventing old router's country count from persisting.
-- **Router dropdown showing ROS version info** — the `system:update` handler was overwriting the select option text with `boardName + ' · ROS ' + version` on every system poll. Removed. The dropdown now only ever uses the stored label from `routers.json`. A strip regex also guards against stale labels already on disk.
+- **Traffic card goes stale after router switch** - after a hot-swap the server now broadcasts `sendInitialState` to all connected sockets once the new router's collectors are running. Previously, existing Socket.IO connections never received a new `traffic:history` event (only new connections did), leaving the chart blank until a manual page refresh.
+- **DHCP page not updated after router switch** - same root cause as the traffic card; resolved by the same `sendInitialState` broadcast.
+- **LAN overview (Network card) not updated after router switch** - `dhcpNetworks.tick()` is now awaited before `sendInitialState` broadcasts so `networks` and `wanIp` are populated immediately. Client-side `lastLanData` guard cleared on switch so incoming data is never silently discarded.
+- **Destination Countries count not reset after router switch** - the connections map IIFE now clears its internal country caches and the card subtitle on `router:switching`, preventing old router's country count from persisting.
+- **Router dropdown showing ROS version info** - the `system:update` handler was overwriting the select option text with `boardName + ' · ROS ' + version` on every system poll. Removed. The dropdown now only ever uses the stored label from `routers.json`. A strip regex also guards against stale labels already on disk.
 
 
-## [0.5.8] — Routing & Wireless: Full Streaming, Interface Sparklines
+## [0.5.8] - Routing & Wireless: Full Streaming, Interface Sparklines
 
 ### Added
 
-- **Interface page sparklines** — each interface card now shows a traffic trend sparkline in the top-right corner. Plots combined RX+TX Mbps over the last 30 samples (~2.5 minutes at default 5 s poll). Baseline-anchored at zero. Inline SVG, no additional data source required.
-- **Streaming-first architecture** — all collectors that support a RouterOS `/listen` endpoint now use event-driven streaming instead of polling. New constraint documented in `AI_CONTEXT.md`.
+- **Interface page sparklines** - each interface card now shows a traffic trend sparkline in the top-right corner. Plots combined RX+TX Mbps over the last 30 samples (~2.5 minutes at default 5 s poll). Baseline-anchored at zero. Inline SVG, no additional data source required.
+- **Streaming-first architecture** - all collectors that support a RouterOS `/listen` endpoint now use event-driven streaming instead of polling. New constraint documented in `AI_CONTEXT.md`.
 
 ### Changed
 
-- **`RoutingCollector` fully converted to streaming** — both the route table and BGP sessions are now event-driven with no poll timer:
-  - `/ip/route/listen` — route table maintained as an in-memory `Map`, updated incrementally by delta rows (add/update/delete). Partial delta rows are merged with the stored raw row so unmodified fields are preserved.
-  - `/routing/bgp/session/listen` — BGP session state delivered instantly. Keepalive-only events (uptime/counter tick with unchanged state and prefix count) are fingerprint-suppressed to avoid unnecessary browser re-renders.
-  - `/routing/bgp/peer/print` — peer config (names, descriptions) loaded once on connect; refreshed only when a meaningful session state change is detected.
+- **`RoutingCollector` fully converted to streaming** - both the route table and BGP sessions are now event-driven with no poll timer:
+  - `/ip/route/listen` - route table maintained as an in-memory `Map`, updated incrementally by delta rows (add/update/delete). Partial delta rows are merged with the stored raw row so unmodified fields are preserved.
+  - `/routing/bgp/session/listen` - BGP session state delivered instantly. Keepalive-only events (uptime/counter tick with unchanged state and prefix count) are fingerprint-suppressed to avoid unnecessary browser re-renders.
+  - `/routing/bgp/peer/print` - peer config (names, descriptions) loaded once on connect; refreshed only when a meaningful session state change is detected.
   - 60-second heartbeat re-emit keeps client stale timers alive on stable networks.
   - Graceful fallback when BGP stream endpoint is unavailable (RouterOS v6, non-BGP builds).
-- **Routing poll interval slider removed from Settings** — replaced with an "Event-driven" badge, consistent with Interfaces, VPN, Firewall, and ARP.
-- **`AI_CONTEXT.md` expanded** — collector delivery model table added; RouterOS API quirks section added; streaming collector pattern documented as the default with polling as the explicit fallback.
+- **Routing poll interval slider removed from Settings** - replaced with an "Event-driven" badge, consistent with Interfaces, VPN, Firewall, and ARP.
+- **`AI_CONTEXT.md` expanded** - collector delivery model table added; RouterOS API quirks section added; streaming collector pattern documented as the default with polling as the explicit fallback.
 
 ### Fixed
 
-- **Wireless page shows only one client** — `=.proplist=` on the wifi/wireless registration-table calls was causing some RouterOS v7 firmware builds to *filter rows* (returning only rows where all requested fields are non-empty) rather than silently omitting absent fields. Only the one client that happened to satisfy the full proplist was returned. Fix: `=.proplist=` removed from both registration-table calls.
-- **Routing page data disappears after first poll or reconnect** — `start()` was registering a new `ros.on('connected')` listener on every call, doubling the count on each reconnect cycle (1→2→4→8→…). After a few reconnects multiple concurrent chains raced to call `stop()`, each clearing the timer the previous chain had just created. Fixed by registering listeners exactly once — same pattern as all other collectors.
-- **Active routes disappear, one disabled route remains** — RouterOS v7 omits `.flags` for routes in their default active state on some firmware builds; disabled routes always carry `.flags`. Streaming via `/ip/route/listen` eliminates the inconsistency as stream events always carry the full row.
-- **Connected routes flicker in the routes table every poll cycle** — the IP-gateway fallback inference passed for RouterOS interface-name gateways (`bridge`, `ether1`, `vlan10`). Fixed by requiring the gateway to match an actual IP address pattern.
-- **`pollTalkers` live interval change had no effect** — `talkers` was missing from `collectorMap` in the settings POST handler.
-- **`settings:pages` missing fields** — `sendInitialState()` omitted `pageBandwidth`; the settings reset branch omitted both `pageBandwidth` and `pageRouting`.
-- **Malformed RouterOS field values produced `NaN`** — all numeric field conversions now use a `safeInt()` helper that returns `0` for non-numeric strings.
+- **Wireless page shows only one client** - `=.proplist=` on the wifi/wireless registration-table calls was causing some RouterOS v7 firmware builds to *filter rows* (returning only rows where all requested fields are non-empty) rather than silently omitting absent fields. Only the one client that happened to satisfy the full proplist was returned. Fix: `=.proplist=` removed from both registration-table calls.
+- **Routing page data disappears after first poll or reconnect** - `start()` was registering a new `ros.on('connected')` listener on every call, doubling the count on each reconnect cycle (1→2→4→8→…). After a few reconnects multiple concurrent chains raced to call `stop()`, each clearing the timer the previous chain had just created. Fixed by registering listeners exactly once - same pattern as all other collectors.
+- **Active routes disappear, one disabled route remains** - RouterOS v7 omits `.flags` for routes in their default active state on some firmware builds; disabled routes always carry `.flags`. Streaming via `/ip/route/listen` eliminates the inconsistency as stream events always carry the full row.
+- **Connected routes flicker in the routes table every poll cycle** - the IP-gateway fallback inference passed for RouterOS interface-name gateways (`bridge`, `ether1`, `vlan10`). Fixed by requiring the gateway to match an actual IP address pattern.
+- **`pollTalkers` live interval change had no effect** - `talkers` was missing from `collectorMap` in the settings POST handler.
+- **`settings:pages` missing fields** - `sendInitialState()` omitted `pageBandwidth`; the settings reset branch omitted both `pageBandwidth` and `pageRouting`.
+- **Malformed RouterOS field values produced `NaN`** - all numeric field conversions now use a `safeInt()` helper that returns `0` for non-numeric strings.
 
 
-## [0.5.7] — Routing Page, BGP Monitoring, arm64 Support & Fixes
+## [0.5.7] - Routing Page, BGP Monitoring, arm64 Support & Fixes
 
 ### Added
 
-- **Routing page** — new sidebar page covering the full router routing state:
-  - **Routes by Protocol card** — doughnut chart (Static / Dynamic / BGP / OSPF) embedded in the card alongside a count grid. Connected routes shown in the grid but excluded from the chart.
-  - **Static & Dynamic Routes table** — sortable, filterable table with destination, gateway, distance, active state, type badge, and comment.
-  - **BGP Peers table** — per-peer session state, ASN, uptime, prefix count, updates in/out, last error, and a per-peer prefix trend sparkline. Sortable by all columns. Filterable by state, peer type (Upstream / IX / Private), and IPv4/IPv6. Full-text search.
-  - **BGP Peers summary card** — total, established, and down peer counts.
-  - **Peer type classification** — peers auto-classified as Upstream, IX/Route-Server, or Private using RFC6996 ASN ranges and description keywords.
-  - **Session flap detection** — 3+ state transitions within 5 minutes marks a peer as flapping with a pulsing badge.
-  - **BGP alert notifications** — peer down/up, prefix count change ≥20%, session flapping, and hold-timer warnings integrated into the existing notification system.
-  - **`pollRouting` setting** — dedicated poll interval slider (1s–10min) in Settings. Defaults to 10s.
-- **DHCP page sortable columns** — Hostname, IP, MAC, and Status columns now sortable with sort arrows. Default sort is IP ascending.
-- **`pollTalkers` setting** — Top Talkers has its own independent poll interval, no longer tied to Connections.
-- **Routing nav badge** — live total route count shown next to Routing in the sidebar.
+- **Routing page** - new sidebar page covering the full router routing state:
+  - **Routes by Protocol card** - doughnut chart (Static / Dynamic / BGP / OSPF) embedded in the card alongside a count grid. Connected routes shown in the grid but excluded from the chart.
+  - **Static & Dynamic Routes table** - sortable, filterable table with destination, gateway, distance, active state, type badge, and comment.
+  - **BGP Peers table** - per-peer session state, ASN, uptime, prefix count, updates in/out, last error, and a per-peer prefix trend sparkline. Sortable by all columns. Filterable by state, peer type (Upstream / IX / Private), and IPv4/IPv6. Full-text search.
+  - **BGP Peers summary card** - total, established, and down peer counts.
+  - **Peer type classification** - peers auto-classified as Upstream, IX/Route-Server, or Private using RFC6996 ASN ranges and description keywords.
+  - **Session flap detection** - 3+ state transitions within 5 minutes marks a peer as flapping with a pulsing badge.
+  - **BGP alert notifications** - peer down/up, prefix count change ≥20%, session flapping, and hold-timer warnings integrated into the existing notification system.
+  - **`pollRouting` setting** - dedicated poll interval slider (1s–10min) in Settings. Defaults to 10s.
+- **DHCP page sortable columns** - Hostname, IP, MAC, and Status columns now sortable with sort arrows. Default sort is IP ascending.
+- **`pollTalkers` setting** - Top Talkers has its own independent poll interval, no longer tied to Connections.
+- **Routing nav badge** - live total route count shown next to Routing in the sidebar.
 
 ### Performance & Reliability
 
-- **Routing API efficiency** — all route data (type classification, counts, table rows) derived from a single `/ip/route/print` call using RouterOS `.flags` string parsing. Eliminates up to 8 concurrent API writes per tick that were causing intermittent ROS disconnects.
-- **Route flag parsing** — uses RouterOS's compact `.flags` string (`A`=active, `S`=static, `D`=dynamic, `b`=bgp, `o`=ospf) with fallback to individual boolean fields. Reliable across all RouterOS v7 builds — previous `?static=yes` / `?dynamic=yes` filter approach returned inconsistent results on some firmware versions.
-- **WAN IP on first load** — falls back to extracting the WAN IP from interface status data when the DHCP Networks collector hasn't completed its first tick yet.
+- **Routing API efficiency** - all route data (type classification, counts, table rows) derived from a single `/ip/route/print` call using RouterOS `.flags` string parsing. Eliminates up to 8 concurrent API writes per tick that were causing intermittent ROS disconnects.
+- **Route flag parsing** - uses RouterOS's compact `.flags` string (`A`=active, `S`=static, `D`=dynamic, `b`=bgp, `o`=ospf) with fallback to individual boolean fields. Reliable across all RouterOS v7 builds - previous `?static=yes` / `?dynamic=yes` filter approach returned inconsistent results on some firmware versions.
+- **WAN IP on first load** - falls back to extracting the WAN IP from interface status data when the DHCP Networks collector hasn't completed its first tick yet.
 
 ### Docker
 
-- **`linux/arm64` support** — multi-arch image (`linux/amd64` + `linux/arm64`) published via GitHub Actions on every `v*.*.*` tag. Covers Raspberry Pi 4/5, R5S, and Apple M-series. QEMU used for cross-compilation; native layers at runtime.
-- **`.dockerignore` added** — reduces image build context size.
+- **`linux/arm64` support** - multi-arch image (`linux/amd64` + `linux/arm64`) published via GitHub Actions on every `v*.*.*` tag. Covers Raspberry Pi 4/5, R5S, and Apple M-series. QEMU used for cross-compilation; native layers at runtime.
+- **`.dockerignore` added** - reduces image build context size.
 
 ### Bug Fixes
 
-- **DHCP Networks poll interval** — server-side validator now accepts values up to 10 minutes, matching the Settings UI slider.
-- **Routing page dropdowns** — search and select inputs now correctly follow the dark/light theme using CSS variables with `html[data-theme="light"]` overrides.
-- **Routing stale cards** — stale thresholds now sync from `pollRouting` via the settings payload before the first data event arrives, preventing premature stale state on slow-polling configurations.
+- **DHCP Networks poll interval** - server-side validator now accepts values up to 10 minutes, matching the Settings UI slider.
+- **Routing page dropdowns** - search and select inputs now correctly follow the dark/light theme using CSS variables with `html[data-theme="light"]` overrides.
+- **Routing stale cards** - stale thresholds now sync from `pollRouting` via the settings payload before the first data event arrives, preventing premature stale state on slow-polling configurations.
 
 
-## [0.5.6] — Streaming Architecture, Router CPU Optimisations & Bug Fixes
+## [0.5.6] - Streaming Architecture, Router CPU Optimisations & Bug Fixes
 
-### Streaming — event-driven collectors (replaces polling)
+### Streaming - event-driven collectors (replaces polling)
 
 Four collectors converted from fixed-interval polling to RouterOS `/listen` streams.
 Each opens a persistent stream on connect, receives only delta rows when something
 changes, and falls back to a full `/print` reload on stream error. A 60-second
 heartbeat emit keeps stale-detection timers alive when data is stable.
 
-- **Firewall** (`/ip/firewall/filter/listen`, `/nat/listen`, `/mangle/listen`) —
+- **Firewall** (`/ip/firewall/filter/listen`, `/nat/listen`, `/mangle/listen`) -
   three concurrent streams replace the 10-second poll. Rule changes and counter
   updates appear instantly. Eliminates 18 API calls/min at default interval.
-- **VPN / WireGuard** (`/interface/wireguard/peers/listen`) — stream fires on
+- **VPN / WireGuard** (`/interface/wireguard/peers/listen`) - stream fires on
   handshake and byte-counter updates. Eliminates 6 API calls/min.
-- **Interface Status** (`/interface/listen`) — stream fires on up/down state
+- **Interface Status** (`/interface/listen`) - stream fires on up/down state
   changes for instant tile colour updates. A lightweight 5-second stats poll
   (scoped to counter fields only) runs in parallel to drive the live rate bars,
   since byte counters are not pushed through the listen stream.
-- **ARP** (`/ip/arp/listen`) — stream fires when devices appear, disappear, or
+- **ARP** (`/ip/arp/listen`) - stream fires when devices appear, disappear, or
   change MAC binding. Eliminates 2 API calls/min; new devices now appear
   instantly rather than within the previous 30-second poll window.
 
-### Performance — `.proplist` field scoping
+### Performance - `.proplist` field scoping
 
 RouterOS sends all available fields per row unless told otherwise. Added
 `=.proplist=` to every remaining unscoped collector to request only the fields
 MikroDash actually reads, reducing per-call payload size:
 
-- **Connection table cache** — 7 fields requested instead of ~15 per entry.
+- **Connection table cache** - 7 fields requested instead of ~15 per entry.
   With large connection tables (hundreds to thousands of entries polled at 3s)
   this is the single largest wire-traffic reduction.
-- **Interface Status** — scoped to 10 fields for `/interface/print` and 2 for
+- **Interface Status** - scoped to 10 fields for `/interface/print` and 2 for
   `/ip/address/print`.
-- **Top Talkers** — scoped to 4 fields for `/ip/kid-control/device/print`.
-- **System** — scoped to 11 fields for `/system/resource/print`.
-- **Wireless** — scoped to 12 fields for both registration table APIs
+- **Top Talkers** - scoped to 4 fields for `/ip/kid-control/device/print`.
+- **System** - scoped to 11 fields for `/system/resource/print`.
+- **Wireless** - scoped to 12 fields for both registration table APIs
   (`/interface/wifi/registration-table/print` and
   `/interface/wireless/registration-table/print`).
 
-### Performance — additional optimisations
+### Performance - additional optimisations
 
-- **Socket.IO `perMessageDeflate`** — WebSocket per-message deflate enabled at
+- **Socket.IO `perMessageDeflate`** - WebSocket per-message deflate enabled at
   compression level 1. Repetitive JSON payloads (connection tables, interface
   lists) typically compress 60–80%.
-- **Shared connection table cache** — `ConnectionsCollector` and
+- **Shared connection table cache** - `ConnectionsCollector` and
   `BandwidthCollector` share a single `/ip/firewall/connection/print` fetch
   per cycle. Cache TTL is now **40% of the faster collector's poll interval**
   (previously a fixed 1500ms) so it works correctly at any poll rate including
   1-second bandwidth polling.
-- **Traffic collector idle-gating** — `/interface/monitor-traffic` API calls
+- **Traffic collector idle-gating** - `/interface/monitor-traffic` API calls
   are skipped entirely when no browser clients are connected
   (`io.engine.clientsCount === 0`). Eliminates 60 API calls/min when the
   dashboard is unattended.
-- **Firewall / VPN / wireless emit fingerprinting** — socket emits suppressed
+- **Firewall / VPN / wireless emit fingerprinting** - socket emits suppressed
   when payload content is unchanged between ticks.
-- **System collector** — `/system/package/update/print` decoupled from the
+- **System collector** - `/system/package/update/print` decoupled from the
   resource/health tick into a separate background call with a 5-minute
   sub-interval. RouterOS must reach its update server to resolve this call;
   previously this blocked CPU/RAM gauges from appearing on first load.
   Update status now emits independently when it resolves.
-- **`system:update` static metadata written once** — board name, ROS version,
+- **`system:update` static metadata written once** - board name, ROS version,
   CPU count/frequency, and total RAM never change after boot. `sysMeta`
   is now written to the DOM on the first payload only; subsequent ticks update
   only the dynamic fields (gauges, uptime, temperature).
-- **`ts` excluded from client-side connection fingerprints** — previously the
+- **`ts` excluded from client-side connection fingerprints** - previously the
   `ts` timestamp caused fingerprint mismatches on every tick regardless of
   whether data changed.
-- **`_updateBwStats` page-visibility gated** — bandwidth stat card and chart
+- **`_updateBwStats` page-visibility gated** - bandwidth stat card and chart
   sync only run when the bandwidth page is active.
-- **Country list server-side cap** — `conn:update` slices `topCountries` to
+- **Country list server-side cap** - `conn:update` slices `topCountries` to
   30 entries before emitting.
 
-### Settings page — poll intervals
+### Settings page - poll intervals
 
 - **Streamed collectors** (Interfaces, VPN, Firewall, ARP) no longer show
-  editable sliders — replaced with a green **"Event-driven"** badge since their
+  editable sliders - replaced with a green **"Event-driven"** badge since their
   data delivery is not controlled by a poll interval.
-- **Poll interval sliders reordered** — all configurable (polled) collectors
+- **Poll interval sliders reordered** - all configurable (polled) collectors
   listed first, event-driven badges grouped below.
 - **`pollTalkers`** added as an independent setting for the Top Talkers card.
   Previously it was silently tied to the Connections interval with no way to
@@ -3538,197 +3538,197 @@ MikroDash actually reads, reducing per-call payload size:
 
 ### Bug Fixes
 
-- **Interfaces page traffic counters not updating** — `/interface/listen` fires
+- **Interfaces page traffic counters not updating** - `/interface/listen` fires
   only on structural changes (up/down), not on byte-counter increments. The
   stats poll now fetches counter fields on the configured interval and merges
   them into the stored interface rows, restoring live rate bars.
-- **WireGuard card stale on dashboard** — streamed collectors have no regular
+- **WireGuard card stale on dashboard** - streamed collectors have no regular
   emit cadence when data is unchanged (e.g. idle peers). All three streamed
   collectors (firewall, VPN, ifStatus) now emit a 60-second heartbeat so the
   stale-detection timer never fires while the stream is healthy. Stale
   thresholds for these cards raised to 90s.
-- **Bandwidth table blank on every other tick at 1s poll** — fixed cache TTL
+- **Bandwidth table blank on every other tick at 1s poll** - fixed cache TTL
   mismatch: the shared connection table cache had a fixed 1500ms TTL, so at
   1s bandwidth polling every second tick returned the same cached rows, making
   all byte deltas zero. TTL is now 40% of the minimum poll interval.
-- **"Checking for updates" stuck on dashboard** — `/system/package/update/print`
+- **"Checking for updates" stuck on dashboard** - `/system/package/update/print`
   was bundled into the first resource/health tick. RouterOS must reach its
   update server to resolve this, blocking CPU/RAM gauges from appearing.
   Update check now runs in the background and never delays the gauge emit.
-- **WAN IP slow to appear on page load** — `sendInitialState` emitted
+- **WAN IP slow to appear on page load** - `sendInitialState` emitted
   `lan:overview` without the `wanIp` field. The IP is now included from the
   cached `state.lastWanIp` value so it appears immediately on connect.
-- **Top Talkers poll interval uncontrollable** — talkers was constructed with
+- **Top Talkers poll interval uncontrollable** - talkers was constructed with
   `pollMs: _cfg.pollConns` and had no entry in the live poll-update map.
   Changing the Connections slider silently moved both; there was no way to set
   them independently. Now has its own `pollTalkers` setting.
 
-## [0.5.5] — Bandwidth Page, Performance & Reliability
+## [0.5.5] - Bandwidth Page, Performance & Reliability
 
 ### Added
-- **Bandwidth page** — new dedicated page showing live per-connection bandwidth, accessible from the sidebar. Displays all active firewall connections with real-time RX, TX, and Total Mbps, sortable by any column (default: Total descending)
-- **Compact WAN traffic chart** — a 120 px inline Chart.js graph sits above the bandwidth table, mirroring the dashboard traffic feed with no extra API calls
-- **RX / TX stat card** — a combined card beside the chart shows live WAN receive and transmit rates, split into value and unit spans for stable right-aligned layout
-- **ASN / Org column on Bandwidth page** — uses the same `svcBadge()` colour coding as the Connections page (CDN blue, cloud orange, social purple, etc.)
-- **Destination column with geo flag** — shows country flag, ISO code, and city; city is suppressed when it duplicates the country code or is a single character
-- **Interface column** — resolved server-side via subnet CIDR matching against the live interface list; no RouterOS field read needed
-- **Interface dropdown filter** — seeded from all running interfaces via `ifstatus:update`; DOM only rebuilds when the sorted list actually changes, eliminating per-tick flicker
-- **Search + dropdown toolbar** — search box expands to fill all available space; interface and protocol dropdowns are pinned to the right
-- **`pollBandwidth` and `pageBandwidth` settings** — both fields were previously silently dropped by the settings validator; both are now accepted and applied correctly
+- **Bandwidth page** - new dedicated page showing live per-connection bandwidth, accessible from the sidebar. Displays all active firewall connections with real-time RX, TX, and Total Mbps, sortable by any column (default: Total descending)
+- **Compact WAN traffic chart** - a 120 px inline Chart.js graph sits above the bandwidth table, mirroring the dashboard traffic feed with no extra API calls
+- **RX / TX stat card** - a combined card beside the chart shows live WAN receive and transmit rates, split into value and unit spans for stable right-aligned layout
+- **ASN / Org column on Bandwidth page** - uses the same `svcBadge()` colour coding as the Connections page (CDN blue, cloud orange, social purple, etc.)
+- **Destination column with geo flag** - shows country flag, ISO code, and city; city is suppressed when it duplicates the country code or is a single character
+- **Interface column** - resolved server-side via subnet CIDR matching against the live interface list; no RouterOS field read needed
+- **Interface dropdown filter** - seeded from all running interfaces via `ifstatus:update`; DOM only rebuilds when the sorted list actually changes, eliminating per-tick flicker
+- **Search + dropdown toolbar** - search box expands to fill all available space; interface and protocol dropdowns are pinned to the right
+- **`pollBandwidth` and `pageBandwidth` settings** - both fields were previously silently dropped by the settings validator; both are now accepted and applied correctly
 
 ### Performance
-- **Shared `/ip/firewall/connection/print` cache** — `ConnectionsCollector` and `BandwidthCollector` previously each fetched the full connection table independently every 3 s (~40 API calls/min combined). Both now read from a shared 1.5 s TTL cache in `index.js`, halving RouterOS API load. Cache is invalidated on disconnect
-- **Traffic collector idle-gating** — the 1 s `/interface/monitor-traffic` poll is skipped entirely when no browser clients are connected (`io.engine.clientsCount === 0`), eliminating 60 API calls/min when the dashboard is unattended. The interval continues running so data resumes immediately on reconnect
-- **`perMessageDeflate` on Socket.IO** — WebSocket per-message deflate enabled (compression level 1) reducing repetitive JSON payload sizes by 60–80% with negligible CPU overhead
-- **Fingerprint-gate on `firewall`, `vpn`, and `wireless` emits** — each collector computes a lightweight fingerprint over its structural data before emitting; the socket write is suppressed when nothing has changed. Firewall rules and VPN peers are stable for hours at a time
-- **`_resolveIface` result cache** — bandwidth collector caches subnet-to-interface resolution per source IP in a `Map`, cleared on reconnect. Eliminates repeated CIDR iteration for the same stable LAN hosts every tick
-- **Server-side country list cap** — `conn:update` now slices `topCountries` to 30 entries before emitting; the client never renders more than this
-- **`ts` excluded from client-side fingerprints** — connection source and destination fingerprints previously hashed the full object including `ts`, which changes every tick regardless of data. Fingerprints now hash only the meaningful fields
-- **`_updateBwStats` page-visibility gate** — bandwidth RX/TX stat card and chart sync only run when the bandwidth page is active
+- **Shared `/ip/firewall/connection/print` cache** - `ConnectionsCollector` and `BandwidthCollector` previously each fetched the full connection table independently every 3 s (~40 API calls/min combined). Both now read from a shared 1.5 s TTL cache in `index.js`, halving RouterOS API load. Cache is invalidated on disconnect
+- **Traffic collector idle-gating** - the 1 s `/interface/monitor-traffic` poll is skipped entirely when no browser clients are connected (`io.engine.clientsCount === 0`), eliminating 60 API calls/min when the dashboard is unattended. The interval continues running so data resumes immediately on reconnect
+- **`perMessageDeflate` on Socket.IO** - WebSocket per-message deflate enabled (compression level 1) reducing repetitive JSON payload sizes by 60–80% with negligible CPU overhead
+- **Fingerprint-gate on `firewall`, `vpn`, and `wireless` emits** - each collector computes a lightweight fingerprint over its structural data before emitting; the socket write is suppressed when nothing has changed. Firewall rules and VPN peers are stable for hours at a time
+- **`_resolveIface` result cache** - bandwidth collector caches subnet-to-interface resolution per source IP in a `Map`, cleared on reconnect. Eliminates repeated CIDR iteration for the same stable LAN hosts every tick
+- **Server-side country list cap** - `conn:update` now slices `topCountries` to 30 entries before emitting; the client never renders more than this
+- **`ts` excluded from client-side fingerprints** - connection source and destination fingerprints previously hashed the full object including `ts`, which changes every tick regardless of data. Fingerprints now hash only the meaningful fields
+- **`_updateBwStats` page-visibility gate** - bandwidth RX/TX stat card and chart sync only run when the bandwidth page is active
 
 ### Bug Fixes
-- **Interfaces page stale** — `InterfaceStatusCollector` was fingerprint-suppressing emits when interface up/down state and IPs were unchanged. Because rates change every tick, the stale timer never reset and the page marked itself stale after ~25 s. The collector now always emits unconditionally
-- **Bandwidth table columns shifting on refresh** — added `table-layout:fixed` and a `<colgroup>` with explicit percentage widths for all 8 columns. Cells receive `overflow:hidden; text-overflow:ellipsis` so long content truncates within the fixed width rather than pushing columns
-- **`fmtMbps` HTML injection in bandwidth stat card** — a local `fmtMbps` inside the bandwidth IIFE returned a `<span>` string for zero values; the card used `textContent` so the raw HTML rendered as literal text. Local override removed; global plain-text version handles all cases
-- **`networksCard` false-stale** — stale grace period widened from 20 s to 45 s (300 s poll × 15%) to accommodate slow RouterOS DHCP responses. The stale timer now also resets on `ping:update` (every 10 s), since the card displays live ping data and should never appear stale while the router is reachable
+- **Interfaces page stale** - `InterfaceStatusCollector` was fingerprint-suppressing emits when interface up/down state and IPs were unchanged. Because rates change every tick, the stale timer never reset and the page marked itself stale after ~25 s. The collector now always emits unconditionally
+- **Bandwidth table columns shifting on refresh** - added `table-layout:fixed` and a `<colgroup>` with explicit percentage widths for all 8 columns. Cells receive `overflow:hidden; text-overflow:ellipsis` so long content truncates within the fixed width rather than pushing columns
+- **`fmtMbps` HTML injection in bandwidth stat card** - a local `fmtMbps` inside the bandwidth IIFE returned a `<span>` string for zero values; the card used `textContent` so the raw HTML rendered as literal text. Local override removed; global plain-text version handles all cases
+- **`networksCard` false-stale** - stale grace period widened from 20 s to 45 s (300 s poll × 15%) to accommodate slow RouterOS DHCP responses. The stale timer now also resets on `ping:update` (every 10 s), since the card displays live ping data and should never appear stale while the router is reachable
 
 ### UI
-- **Page-wide disconnect fade** — when either the Socket.IO connection or the RouterOS connection drops and the reconnecting banner appears, the entire page (`#sidenav` and `#main`) fades to 35% opacity with `pointer-events:none` and a 0.35 s transition, matching the visual language of individual stale cards. Cleared immediately on reconnect
+- **Page-wide disconnect fade** - when either the Socket.IO connection or the RouterOS connection drops and the reconnecting banner appears, the entire page (`#sidenav` and `#main`) fades to 35% opacity with `pointer-events:none` and a 0.35 s transition, matching the visual language of individual stale cards. Cleared immediately on reconnect
 
-## [0.5.4] — Performance, Settings & DHCP Improvements
+## [0.5.4] - Performance, Settings & DHCP Improvements
 
 ### Added
-- **Settings page** — new page accessible via a gear icon pinned to the bottom of the sidebar; About moved below Settings
-- **Persistent settings store** (`src/settings.js`) — saves to `/data/settings.json` on the Docker volume; merges over `.env` values on boot so existing deployments are unaffected
-- **AES-256-GCM credential encryption** — router password and dashboard password are encrypted at rest using a key derived from the `DATA_SECRET` env var
-- **`GET /api/settings`** — returns current settings with credentials masked as `••••••••`
-- **`POST /api/settings`** — validates and saves settings; applies poll interval changes live without restart; broadcasts page visibility changes to all connected clients; returns `requiresRestart: true` if router connection fields changed
-- **Live poll interval sliders** — all collector poll intervals adjustable via range sliders; changes take effect immediately without restart
-- **Page visibility toggles** — any page except Dashboard and Settings can be hidden; hidden pages are removed from the sidebar instantly; active page redirects to Dashboard if hidden
-- **Router connection settings** — host, port, username, password, TLS toggle, self-signed cert toggle, default WAN interface, ping target
-- **Dashboard auth settings** — HTTP Basic Auth username and password configurable from the UI
-- **Limits settings** — Top N connections/talkers/firewall rules, max connections, traffic history minutes
-- **Reset to defaults** button — restores all settings to compiled-in defaults
-- **Docker volume** — `docker-compose.yml` now mounts a named `mikrodash-data` volume at `/data`
+- **Settings page** - new page accessible via a gear icon pinned to the bottom of the sidebar; About moved below Settings
+- **Persistent settings store** (`src/settings.js`) - saves to `/data/settings.json` on the Docker volume; merges over `.env` values on boot so existing deployments are unaffected
+- **AES-256-GCM credential encryption** - router password and dashboard password are encrypted at rest using a key derived from the `DATA_SECRET` env var
+- **`GET /api/settings`** - returns current settings with credentials masked as `••••••••`
+- **`POST /api/settings`** - validates and saves settings; applies poll interval changes live without restart; broadcasts page visibility changes to all connected clients; returns `requiresRestart: true` if router connection fields changed
+- **Live poll interval sliders** - all collector poll intervals adjustable via range sliders; changes take effect immediately without restart
+- **Page visibility toggles** - any page except Dashboard and Settings can be hidden; hidden pages are removed from the sidebar instantly; active page redirects to Dashboard if hidden
+- **Router connection settings** - host, port, username, password, TLS toggle, self-signed cert toggle, default WAN interface, ping target
+- **Dashboard auth settings** - HTTP Basic Auth username and password configurable from the UI
+- **Limits settings** - Top N connections/talkers/firewall rules, max connections, traffic history minutes
+- **Reset to defaults** button - restores all settings to compiled-in defaults
+- **Docker volume** - `docker-compose.yml` now mounts a named `mikrodash-data` volume at `/data`
 
 ### Changed
-- **Boot from settings** — `index.js` reads router credentials and all poll intervals from the settings store on startup; `.env` vars still seed the defaults if no `settings.json` exists yet
-- **DHCP Networks poll default raised to 5 min (300,000 ms)** — network definitions and WAN IP are static config that rarely change; lease counts are derived from the in-memory store so are unaffected. Slider range updated to 30 s – 10 min; `.env.example` updated to match
-- **Merged duplicate socket listeners** — `ifstatus:update`, `vpn:update`, `system:update`, and `ping:update` each previously registered two handlers (render + notification); consolidated into single handlers
-- **`system:update` dirty-checking** — gauges, sys-meta, and update row fingerprinted; DOM only rebuilt when values change
-- **`ifstatus:update` dirty-checking** — interface grid skips full `innerHTML` rewrite when name/state/rates are unchanged
-- **Wireless dirty-checking** — wireless table skips rebuild when MAC/signal/tx-rate/uptime are unchanged
-- **`renderCountryList` dirty-checking** — skips rewrite when data and selection are unchanged
-- **`renderPortList` dirty-checking** — skips rebuild when data is unchanged
-- **Page-visibility gating** — country/port lists, interface grid, wireless table, and firewall table skip all DOM work when the tab is hidden or the relevant page is not active
-- **Log count badge debounce** — `updateLogCounts()` debounced to 250 ms during rapid log bursts
-- **Map tooltip `getBoundingClientRect()` cached** — rect cached per hover session, invalidated on resize; eliminates a forced layout reflow on every `mousemove`
-- **Map pulse animation via `rAF` double-frame** — replaces forced synchronous reflow used to restart CSS animations
-- **Per-tick GeoIP dedup** (`connections.js`) — `geoLookup()` called at most once per unique destination IP per tick
-- **Wireless MAC name cache** (`wireless.js`) — `getNameByMAC()` result cached between ticks in a `Map`; cleared on reconnect
+- **Boot from settings** - `index.js` reads router credentials and all poll intervals from the settings store on startup; `.env` vars still seed the defaults if no `settings.json` exists yet
+- **DHCP Networks poll default raised to 5 min (300,000 ms)** - network definitions and WAN IP are static config that rarely change; lease counts are derived from the in-memory store so are unaffected. Slider range updated to 30 s – 10 min; `.env.example` updated to match
+- **Merged duplicate socket listeners** - `ifstatus:update`, `vpn:update`, `system:update`, and `ping:update` each previously registered two handlers (render + notification); consolidated into single handlers
+- **`system:update` dirty-checking** - gauges, sys-meta, and update row fingerprinted; DOM only rebuilt when values change
+- **`ifstatus:update` dirty-checking** - interface grid skips full `innerHTML` rewrite when name/state/rates are unchanged
+- **Wireless dirty-checking** - wireless table skips rebuild when MAC/signal/tx-rate/uptime are unchanged
+- **`renderCountryList` dirty-checking** - skips rewrite when data and selection are unchanged
+- **`renderPortList` dirty-checking** - skips rebuild when data is unchanged
+- **Page-visibility gating** - country/port lists, interface grid, wireless table, and firewall table skip all DOM work when the tab is hidden or the relevant page is not active
+- **Log count badge debounce** - `updateLogCounts()` debounced to 250 ms during rapid log bursts
+- **Map tooltip `getBoundingClientRect()` cached** - rect cached per hover session, invalidated on resize; eliminates a forced layout reflow on every `mousemove`
+- **Map pulse animation via `rAF` double-frame** - replaces forced synchronous reflow used to restart CSS animations
+- **Per-tick GeoIP dedup** (`connections.js`) - `geoLookup()` called at most once per unique destination IP per tick
+- **Wireless MAC name cache** (`wireless.js`) - `getNameByMAC()` result cached between ticks in a `Map`; cleared on reconnect
 
 ### Server
-- **Event-driven DHCP lease updates** (`dhcpLeases.js`) — removed 15-second periodic `leases:list` broadcast; `_applyLease` now emits an updated lease table immediately on any change from the live stream; `_loadInitial` emits once after startup `/print`
-- **Removed `pollMs` from `DhcpLeasesCollector`** — no longer accepts a poll interval; `LEASES_POLL_MS` env var has no effect and can be removed from `.env`
-## [0.5.3] — UI & Accuracy Improvements
+- **Event-driven DHCP lease updates** (`dhcpLeases.js`) - removed 15-second periodic `leases:list` broadcast; `_applyLease` now emits an updated lease table immediately on any change from the live stream; `_loadInitial` emits once after startup `/print`
+- **Removed `pollMs` from `DhcpLeasesCollector`** - no longer accepts a poll interval; `LEASES_POLL_MS` env var has no effect and can be removed from `.env`
+## [0.5.3] - UI & Accuracy Improvements
 
 ### Features
 
-- **Per-band wireless client counts** — the Wireless Clients card header now
+- **Per-band wireless client counts** - the Wireless Clients card header now
   shows live counts per band (`2.4GHz: N`, `5GHz: N`, and `6GHz: N` when
   present), separated from the total count badge by a thin vertical divider
   (`public/index.html`, `public/app.js`)
-- **ASN / org lookup on Connections page** — destination IPs are resolved to
+- **ASN / org lookup on Connections page** - destination IPs are resolved to
   organisation names via a curated CIDR→org table with a 5000-entry LRU cache,
   displayed as a label beneath each IP:port entry; no new runtime dependencies
   (`src/util/asnLookup.js`, `src/collectors/connections.js`,
   `public/index.html`, `public/app.js`)
-- **Service badge colour coding** — destinations are grouped into seven
+- **Service badge colour coding** - destinations are grouped into seven
   categories (cdn, cloud, social, streaming, messaging, video, dns) with
   distinct coloured inline badges in Top Destinations, org sub-rows in Top
   Countries, and IP tooltips on hover (`public/index.html`, `public/app.js`,
   `src/util/asnLookup.js`, `src/collectors/connections.js`)
-- **Connection Flow Sankey diagram** — a pure-SVG source→destination flow
+- **Connection Flow Sankey diagram** - a pure-SVG source→destination flow
   diagram rendered at the bottom of the Connections page, driven by
   `conn:update` data, with proportional ribbon widths, category colours, and
   resize-awareness; no external library (`public/index.html`, `public/app.js`)
-- **Log count indicators** — four clickable severity pill badges (`N errors`,
+- **Log count indicators** - four clickable severity pill badges (`N errors`,
   `N warnings`, `N info`, `N debug`) in the Logs card header tally the buffer
   by severity, toggle the severity filter on click, and remain visible at zero
   count (`public/index.html`, `public/app.js`)
 
 ### Bug Fixes
 
-- **Wireless band detection uses RouterOS registration table directly** —
+- **Wireless band detection uses RouterOS registration table directly** -
   the previous heuristic based on interface name patterns and tx-rate strings
   (`MHT-xxx`, `HE-MCS`) incorrectly reported 5GHz for some 2.4GHz clients.
   The collector now reads the `band` field directly from each registration
-  table entry — the same authoritative source Winbox displays in its Band
+  table entry - the same authoritative source Winbox displays in its Band
   column (`src/collectors/wireless.js`)
-- **Ping target label updates dynamically** — `<span id="pingTargetLabel">`
+- **Ping target label updates dynamically** - `<span id="pingTargetLabel">`
   is now updated from `data.target` in both `ping:history` and `ping:update`
   handlers (`public/app.js`)
-- **Wired client count uses interface type allowlist** — count now derives
+- **Wired client count uses interface type allowlist** - count now derives
   from `type === 'ether'` entries in `ifstatus:update` rather than the talkers
   list, avoiding false positives (`public/app.js`)
 
 ### UI
 
-- **Connections page layout reorganised** — Top Countries now spans the full
+- **Connections page layout reorganised** - Top Countries now spans the full
   page width; Connection Flow and Top Ports share the row below it at a
   `2fr 1fr` split (`public/index.html`)
-- **Sankey diagram taller** — minimum height raised from 180px to 260px and
+- **Sankey diagram taller** - minimum height raised from 180px to 260px and
   per-source row height increased from 24px to 36px (`public/app.js`)
-- **Service badge colours fully distinct** — `svc-video` changed from blue
+- **Service badge colours fully distinct** - `svc-video` changed from blue
   (conflicting with `svc-cdn`) to amber; `svc-dns` changed from green
   (conflicting with `svc-messaging`) to teal; Sankey ribbon colours updated
   to match (`public/index.html`, `public/app.js`)
-- **Log count badges more visible** — background and text opacities raised
+- **Log count badges more visible** - background and text opacities raised
   across all four severity levels; debug badge no longer uses the near-invisible
   `--text-muted` colour (`public/index.html`)
-- **Country list sparklines moved to top-right** — the per-country sparkline
+- **Country list sparklines moved to top-right** - the per-country sparkline
   is repositioned to the top-right of the country name row using a flex
   space-between wrapper (`public/app.js`)
-- **Nav logo no longer jumps on expand/collapse** — logo previously switched
+- **Nav logo no longer jumps on expand/collapse** - logo previously switched
   between `justify-content:center` and `flex-start` mid-transition; it now
   sits permanently left-aligned with `padding:0 14px`, matching the nav icons,
   with no animated properties (`public/index.html`)
-- **Traffic card width on mobile fixed** — removed a redundant inner wrapper
+- **Traffic card width on mobile fixed** - removed a redundant inner wrapper
   div that caused the Traffic card to render slightly narrower than sibling
   cards on mobile viewports (`public/index.html`)
-- **Mobile topbar decluttered** — clock and router tag spans hidden at ≤767px
+- **Mobile topbar decluttered** - clock and router tag spans hidden at ≤767px
   via `.topbar-mobile-hide` (`public/index.html`)
-- **Mobile dashboard scaling** — `.page-view` padding reduced on small screens;
+- **Mobile dashboard scaling** - `.page-view` padding reduced on small screens;
   grid gaps tightened; connections card set to `height:auto` on narrow
   viewports; `connMapList` grid uses `minmax(min(220px,100%),1fr)` to prevent
   horizontal overflow (`public/index.html`)
 
-## [0.5.2] — UI Improvements & Bug Fixes
+## [0.5.2] - UI Improvements & Bug Fixes
 
 ### Features
 
-- **Live interface traffic rates on Interfaces page** — each interface tile now
+- **Live interface traffic rates on Interfaces page** - each interface tile now
   displays real-time RX and TX rates with colour-coded bar indicators (blue for
   RX, green for TX) that scale relative to the session peak. Rates are derived
   from cumulative byte counter deltas between polls, since
   `rx-bits-per-second` is not available from `/interface/print`
   (`src/collectors/interfaceStatus.js`, `public/index.html`, `public/app.js`)
-- **Log persistence across page refreshes** — the server now maintains a
+- **Log persistence across page refreshes** - the server now maintains a
   ring buffer of the last 500 log entries (configurable via `LOG_HISTORY_SIZE`)
   and replays them to each new socket connection, so the Logs page is no longer
   blank after a refresh (`src/collectors/logs.js`, `src/index.js`,
   `public/app.js`)
-- **Self-hosted fonts** — JetBrains Mono and Syne are now bundled as woff2
+- **Self-hosted fonts** - JetBrains Mono and Syne are now bundled as woff2
   files under `public/vendor/fonts/`, eliminating the last remaining external
   requests to Google Fonts and completing the fully air-gapped deployment story
   (`public/vendor/fonts/`, `public/index.html`)
 
 ### UI
 
-- **Item count badges on Interfaces and VPN pages** — the Interfaces card and
+- **Item count badges on Interfaces and VPN pages** - the Interfaces card and
   the WireGuard Peers card now show a count badge matching the style used on
   Wireless Clients and DHCP (`public/index.html`, `public/app.js`)
-- **Consistent card badge styling across all pages** — all five card badges
+- **Consistent card badge styling across all pages** - all five card badges
   (Wireless Clients, DHCP, WireGuard dashboard, WireGuard Peers, Interfaces)
   now use a shared `.card-badge` CSS class with CSS variable-based colours that
   are legible in both dark and light mode, replacing the Tabler `bg-*` classes
@@ -3736,88 +3736,88 @@ MikroDash actually reads, reducing per-call payload size:
 
 ### Bug Fixes
 
-- **Notification bell invisible in light mode** — the bell SVG had an inline
+- **Notification bell invisible in light mode** - the bell SVG had an inline
   `stroke:var(--text-muted)` overriding `currentColor`, a blanket `opacity:.85`
   on the button, and no explicit `width`/`height` on dynamically injected SVGs,
   causing it to be nearly invisible or zero-sized. All three issues resolved
   (`public/index.html`, `public/app.js`)
-- **ROS and reconnect banners stacking** — when the router disconnected,
+- **ROS and reconnect banners stacking** - when the router disconnected,
   both the amber RouterOS banner and the red Socket.IO reconnect banner could
   appear simultaneously. The reconnect banner now suppresses the ROS banner
   while active, and restores it on reconnect only if the router is still
   offline (`public/app.js`)
-- **VPN peer dot hidden on long peer names** — the status dot in WireGuard
+- **VPN peer dot hidden on long peer names** - the status dot in WireGuard
   peer tiles was clipped when the peer name was long due to `overflow:hidden`
   applied to the flex container. The dot is now `flex-shrink:0` and truncation
   applies only to the name text span (`public/index.html`, `public/app.js`)
 
-## [0.5.1] — Production Resilience Hardening
+## [0.5.1] - Production Resilience Hardening
 
 ### Security
 
-- **Self-hosted frontend assets and tightened CSP** — the dashboard now serves
+- **Self-hosted frontend assets and tightened CSP** - the dashboard now serves
   vendored Chart.js, TopoJSON, world-atlas, and Tabler assets locally instead
   of loading them from third-party CDNs. Helmet configuration was extracted
   into a dedicated module and tightened to a self-hosted Content Security
   Policy (`src/security/helmetOptions.js`, `public/index.html`, `public/app.js`,
   `public/vendor/`)
-- **Startup patch verification for `node-routeros`** — application startup now
+- **Startup patch verification for `node-routeros`** - application startup now
   hard-fails if the required MikroDash compatibility markers are missing from
   the patched `node-routeros` files, preventing silent boot with a broken
   runtime (`src/index.js`)
-- **Socket.IO connection cap** — the server now applies a configurable
+- **Socket.IO connection cap** - the server now applies a configurable
   `MAX_SOCKETS` limit and caps Socket.IO message size, reducing abuse surface
   on LAN deployments (`src/index.js`)
 
 ### Reliability
 
-- **Per-command RouterOS write timeout with forced reconnect** — one-shot
+- **Per-command RouterOS write timeout with forced reconnect** - one-shot
   RouterOS API calls now use a configurable timeout budget
   (`ROS_WRITE_TIMEOUT_MS`) and close the active shared connection on timeout so
   the existing reconnect loop can recover cleanly (`src/routeros/client.js`)
-- **Inflight guards across polling collectors** — all interval-based
+- **Inflight guards across polling collectors** - all interval-based
   collectors now skip overlapping runs instead of stacking concurrent RouterOS
   calls when a slow tick exceeds its poll interval (`src/collectors/*.js`)
-- **Graceful shutdown with unref’d fallback timer** — shutdown now stops
+- **Graceful shutdown with unref’d fallback timer** - shutdown now stops
   RouterOS, Socket.IO, and HTTP resources in order and uses an unref’d 5-second
   forced-exit timer so the fallback does not keep the process alive on its own
   (`src/index.js`, `src/shutdown.js`)
 - **RouterOS patch verification and write-timeout helpers extracted for testable
-  runtime behavior** — health/CSP/shutdown support code was split into small
+  runtime behavior** - health/CSP/shutdown support code was split into small
   modules to make the hardening logic independently testable
   (`src/health.js`, `src/security/helmetOptions.js`, `src/shutdown.js`)
 
 ### Operations
 
-- **`/healthz` now behaves like readiness** — the endpoint returns `503` until
+- **`/healthz` now behaves like readiness** - the endpoint returns `503` until
   startup completes or when RouterOS is disconnected, and now includes a
   `startupReady` flag in the JSON body (`src/index.js`, `src/health.js`)
-- **Connection-table processing cap metadata** — the connections collector now
+- **Connection-table processing cap metadata** - the connections collector now
   reports the raw total separately from the number of rows processed, exposing
   `processed` and `processingCapped` to make truncation explicit (`src/collectors/connections.js`)
-- **Auth failure tracking cap** — the in-memory auth failure map now evicts the
+- **Auth failure tracking cap** - the in-memory auth failure map now evicts the
   oldest tracked IPs once it exceeds `maxTrackedIPs`, bounding memory growth
   under probe traffic (`src/auth/basicAuth.js`)
-- **Wireless API probe debug logging** — failed wireless capability probes now
+- **Wireless API probe debug logging** - failed wireless capability probes now
   log at debug level instead of failing silently (`src/collectors/wireless.js`)
 
 ### Bug Fixes
 
-- **Info-page logo path normalized** — the about/info page now uses `/logo.png`
+- **Info-page logo path normalized** - the about/info page now uses `/logo.png`
   like the rest of the app, avoiding broken image resolution on non-root paths
   (`public/index.html`)
-- **Removed stale vendored CSS sourcemap reference** — the checked-in Tabler CSS
+- **Removed stale vendored CSS sourcemap reference** - the checked-in Tabler CSS
   no longer advertises a missing `.map` file, eliminating pointless 404s in
   browser devtools (`public/vendor/tabler.min.css`)
-- **`package.json` version now matches app version** — `package.json` was
+- **`package.json` version now matches app version** - `package.json` was
   still reporting `0.4.8` while `app.js`, the changelog, and `/healthz` all
   reported `0.5.0`; version bumped to `0.5.1` to resolve the mismatch
   (`package.json`)
-- **`.log-line` CSS rule added** — `buildLogHtml()` wraps each entry in
+- **`.log-line` CSS rule added** - `buildLogHtml()` wraps each entry in
   `<div class="log-line">` but no matching rule existed; added `.log-line`
   with `display:block`, `padding`, and a subtle hover highlight
   (`public/index.html`)
-- **Log colours now visible in light mode** — `.log-error`, `.log-warning`,
+- **Log colours now visible in light mode** - `.log-error`, `.log-warning`,
   `.log-debug`, `.log-info` and all topic classes (`.log-dhcp`,
   `.log-wireless`, `.log-firewall`, `.log-system`) had no
   `html[data-theme="light"]` overrides, making several severity levels
@@ -3826,14 +3826,14 @@ MikroDash actually reads, reducing per-call payload size:
 
 ### Features
 
-- **RouterOS offline banner** — a yellow warning banner now appears at the
+- **RouterOS offline banner** - a yellow warning banner now appears at the
   top of the dashboard whenever RouterOS is not reachable, with a plain-
-  English reason (e.g. "Connection refused — is RouterOS reachable at
+  English reason (e.g. "Connection refused - is RouterOS reachable at
   192.168.88.1?"). The banner dismisses automatically when the connection
   is restored. Distinct from the red Socket.IO reconnect banner which fires
   only when the browser loses its connection to the MikroDash server itself
   (`public/index.html`, `public/app.js`, `src/index.js`)
-- **Container no longer blocks on RouterOS availability** — the startup
+- **Container no longer blocks on RouterOS availability** - the startup
   sequence previously called `waitUntilConnected(60000)` in an async IIFE,
   meaning the HTTP server started but collectors never ran if RouterOS was
   unreachable at boot. The startup is now event-driven: collectors start the
@@ -3841,24 +3841,24 @@ MikroDash actually reads, reducing per-call payload size:
   later), and the container stays healthy the entire time. The `ros:status`
   event is broadcast to all connected browser clients on every connection
   state change so the UI always reflects reality (`src/index.js`)
-- **Human-readable RouterOS error messages** — raw Node.js network errors
+- **Human-readable RouterOS error messages** - raw Node.js network errors
   (`ECONNREFUSED`, `ETIMEDOUT`, `ENOTFOUND`, `ECONNRESET`) and RouterOS
   errors (TLS certificate, authentication) are translated to clear
   actionable messages before being sent to the client (`src/index.js`)
 
 ### Tests
 
-- **Added production resilience regression coverage** — new tests cover the
+- **Added production resilience regression coverage** - new tests cover the
   self-hosted asset/CSP contract, readiness health semantics, forced shutdown
   timer unref behavior, RouterOS write timeout recovery, connection collector
   truncation metadata, and auth failure eviction (`test/production-resilience-regressions.test.js`,
   `test/smoke-fixes.test.js`)
 
-## [0.5.0] — UI Fixes & Security Hardening
+## [0.5.0] - UI Fixes & Security Hardening
 
 ### Security
 
-- **Closed `traffic:select` whitelist race** — `_normalizeIfName()` in
+- **Closed `traffic:select` whitelist race** - `_normalizeIfName()` in
   `TrafficCollector` previously allowed `traffic:select` events through when
   `availableIfs` was empty (i.e. before `sendInitialState()` had completed),
   bypassing the interface whitelist entirely. The guard is now inverted: an
@@ -3868,21 +3868,21 @@ MikroDash actually reads, reducing per-call payload size:
 
 ### Bug Fixes
 
-- **Log viewer entries now render on separate lines** — `buildLogHtml()`
+- **Log viewer entries now render on separate lines** - `buildLogHtml()`
   was returning bare `<span>` elements joined with `\n`. Inside a `<div>`
   container, `\n` is collapsed whitespace and produces no visual line break.
   Each entry is now wrapped in a `<div class="log-line">` block element so
   every router log entry occupies its own line. The `flushLogs()` join
   separator is also cleaned up from `'\n'` to `''`
   (`public/app.js`)
-- **Notification bell icon now shown on page load** — `updateNotifBtn()` was
+- **Notification bell icon now shown on page load** - `updateNotifBtn()` was
   only ever called after an async `Notification.requestPermission()` callback,
   leaving the hardcoded crossed-bell SVG from `index.html` in place for the
   entire session on browsers where permission had already been granted. A
   startup IIFE now reads `Notification.permission` synchronously and calls
   `updateNotifBtn()` immediately so the correct icon is rendered before the
   user sees the topbar (`public/app.js`)
-- **SVG network diagram boxes now respect light mode** — `.nd-node`,
+- **SVG network diagram boxes now respect light mode** - `.nd-node`,
   `.nd-count`, `.nd-label`, `.nd-wan-ip`, `.nd-line`, and `.nd-router-bg`
   had hardcoded dark RGBA fill/stroke values with no light-mode override,
   causing the Wired, Wireless, and WAN boxes to remain dark when switching
@@ -3891,7 +3891,7 @@ MikroDash actually reads, reducing per-call payload size:
 
 ### Features
 
-- **`interfaces:error` Socket.IO event** — when `fetchInterfaces()` fails
+- **`interfaces:error` Socket.IO event** - when `fetchInterfaces()` fails
   during `sendInitialState()`, the server now emits `interfaces:error` with
   the reason string instead of silently resolving to an empty list via
   `Promise.allSettled()`. The client handles this event by showing an
@@ -3899,68 +3899,68 @@ MikroDash actually reads, reducing per-call payload size:
   and logging the reason to the browser console, replacing a silent empty
   dropdown with actionable feedback (`src/index.js`, `public/app.js`)
 
-## [0.4.9] — Deep Code Review Hardening Pass
+## [0.4.9] - Deep Code Review Hardening Pass
 
 ### Security
 
-- **HMAC-based timing-safe credential comparison** — authentication now
+- **HMAC-based timing-safe credential comparison** - authentication now
   compares HMAC-SHA256 digests of fixed length via `crypto.timingSafeEqual`,
   eliminating the timing side-channel that leaked credential length through
   the old length-check fast path (`446f2d2`)
-- **Dropped unconditional X-Forwarded-For trust** — `getClientIp()` no longer
+- **Dropped unconditional X-Forwarded-For trust** - `getClientIp()` no longer
   reads `X-Forwarded-For` by default, preventing attackers from spoofing their
   IP to bypass rate limiting (`446f2d2`)
-- **Sanitized /healthz error strings** — error messages are now truncated to
+- **Sanitized /healthz error strings** - error messages are now truncated to
   200 characters with stack traces stripped before being exposed in the health
   endpoint, preventing internal implementation details from leaking (`faba151`)
 
 ### Features
 
-- **Opt-in `TRUSTED_PROXY` env var** — when set to a proxy IP (e.g.
+- **Opt-in `TRUSTED_PROXY` env var** - when set to a proxy IP (e.g.
   `127.0.0.1`), Express `trust proxy` is enabled and `req.ip` correctly
   resolves the real client address from `X-Forwarded-For`. Disabled by default
   for safe out-of-the-box behaviour (`8965a31`)
-- **Incremental ping updates** — server now emits lightweight `ping:update`
+- **Incremental ping updates** - server now emits lightweight `ping:update`
   events with only the latest data point; full history is sent once via
   `ping:history` on client connect, reducing per-tick payload size (`acb8001`)
 
 ### Bug Fixes
 
-- **Unified version strings** — `APP_VERSION` is now sourced from
+- **Unified version strings** - `APP_VERSION` is now sourced from
   `package.json` in one place, fixing inconsistencies between the healthz
   endpoint and startup log messages (`157986e`)
-- **Removed redundant dynamic require** — `geoip-lite` was being required
+- **Removed redundant dynamic require** - `geoip-lite` was being required
   twice (module-level and inside a function); consolidated to module-level
   only (`157986e`)
-- **Fixed /api/localcc polling storm** — client-side code moved the
+- **Fixed /api/localcc polling storm** - client-side code moved the
   `fetch('/api/localcc')` call from inside the `conn:update` handler (fired
   every 3 s) to a once-per-connect pattern (`4b9e862`)
-- **Decoupled wanIface from process.env** — `DhcpNetworksCollector` now
+- **Decoupled wanIface from process.env** - `DhcpNetworksCollector` now
   receives `wanIface` as a constructor parameter instead of reading
   `process.env.WAN_IFACE` directly, improving testability (`4b9e862`)
-- **Pruned stale keys in firewall, VPN, and talkers prev-maps** — all three
+- **Pruned stale keys in firewall, VPN, and talkers prev-maps** - all three
   Maps grew unboundedly as rules/peers/devices were added and removed; each
   collector now tracks seen keys per tick and deletes stale entries
   (`010bb46`)
-- **Error state consistency** — all 7 collectors now set `lastXxxErr = null`
+- **Error state consistency** - all 7 collectors now set `lastXxxErr = null`
   on success instead of `delete`, keeping the state object shape stable and
   matching the initial values in `index.js` (`6df3e92`)
-- **Per-interface traffic error flag** — replaced the single boolean
+- **Per-interface traffic error flag** - replaced the single boolean
   `_hadTrafficErr` with a per-interface `Set`, so an error on one interface
   no longer suppresses first-error logging on others (`6df3e92`)
-- **Extracted PING_COUNT constant** — the magic number `3` used in both the
+- **Extracted PING_COUNT constant** - the magic number `3` used in both the
   RouterOS ping command and the loss-calculation fallback is now a named
   constant (`6df3e92`)
-- **DOM-based log truncation** — replaced `innerHTML.split('\n')` with
+- **DOM-based log truncation** - replaced `innerHTML.split('\n')` with
   `childNodes` counting and `removeChild`, avoiding O(n) re-serialization
   of the log panel on every new log line (`faba151`)
 
 ### Performance
 
-- **Single-pass connections loop** — merged three separate iterations over
+- **Single-pass connections loop** - merged three separate iterations over
   the connections array (src/dst counts, protocol counts, country/port counts)
   into one loop (`acb8001`)
-- **ARP reverse index** — `arp.js` now maintains a `byMAC` Map updated
+- **ARP reverse index** - `arp.js` now maintains a `byMAC` Map updated
   atomically in `tick()`, making `getByMAC()` O(1) instead of O(n)
   (`acb8001`)
 

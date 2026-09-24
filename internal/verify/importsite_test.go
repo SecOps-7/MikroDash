@@ -15,7 +15,7 @@ import (
 //
 // For most of its life MikroDash never executed multi-line RouterOS code:
 // `internal/rawcmd` refuses a newline as its first check. Config Management
-// changed that, deliberately and in one file — `internal/cfgdeploy/deploy.go`
+// changed that, deliberately and in one file - `internal/cfgdeploy/deploy.go`
 // uploads a file MikroDash wrote itself (cfgtpl's Render, never the author's
 // text) and runs `/import` on it, and `/execute` only to read a dry-run's
 // report back. Everything that makes that safe lives around those two calls:
@@ -93,7 +93,7 @@ func TestImportHasOneCallSite(t *testing.T) {
 // In the one app file, no command path can become `/import` at run time. A
 // path is a literal a reader can see; or a menu joined to a literal verb
 // (`m + "/print"`), which ends in that verb whatever the menu; or the
-// `writer` adapter's parameter, which carries Backups' own commands — literals
+// `writer` adapter's parameter, which carries Backups' own commands - literals
 // in internal/backups, which TestImportHasOneCallSite scans.
 func TestTheImportFileBuildsNoCommandPath(t *testing.T) {
 	const rel = "internal/cfgdeploy/deploy.go"

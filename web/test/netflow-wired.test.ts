@@ -3,7 +3,7 @@
  * (issue #132).
  *
  * The count was written only by the Interfaces page's `ifstatus:update` handler,
- * an event the card's `wireless` room never receives, so it stayed "—" after
+ * an event the card's `wireless` room never receives, so it stayed "-" after
  * sign-in until Interfaces or Topology had been opened. Three properties:
  *
  *   1. the count is running, enabled `ether` interfaces and nothing else;
@@ -47,7 +47,7 @@ const N = require(OUT);
 
 // ── 2. it is written into the card ─────────────────────────────────────────
 {
-  const node = { textContent: '—' };
+  const node = { textContent: '-' };
   global.document = { getElementById: (id) => (id === 'ndWiredCount' ? node : null) };
   N.renderWiredCount({ interfaces: [{ type: 'ether', running: true, disabled: false }] });
   assert.strictEqual(node.textContent, '1', 'the Wired count was not written');

@@ -1,7 +1,7 @@
 /**
  * THE IP ADDRESSES PAGE, AS AN AREA (#97; migrated 2026-09-18).
  *
- * The page was hand-built — a module, markup, a collector — and is now a
+ * The page was hand-built - a module, markup, a collector - and is now a
  * declaration rendered by `web/src/pages/area.ts`. What the old page did that an
  * operator relied on is pinned here against the generic renderer, so the
  * migration is held to it rather than trusted:
@@ -171,7 +171,7 @@ function rowHtml(html, id) {
   send(payload());
   // *1 has no comment, which is its last column: the last cell must be the dash.
   const r = rowHtml(body(), '*1');
-  assert.ok(/&mdash;<\/span><\/td><\/tr>$/.test(r), 'a missing comment rendered as an empty cell:\n' + r);
+  assert.ok(/-<\/span><\/td><\/tr>$/.test(r), 'a missing comment rendered as an empty cell:\n' + r);
   // and *2 HAS one, so the probe can tell the two apart.
   assert.ok(/<td>lab<\/td><\/tr>$/.test(rowHtml(body(), '*2')), 'the control row lost its comment');
   restore();

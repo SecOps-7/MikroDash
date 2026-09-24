@@ -7,13 +7,13 @@ const SRC = path.join(ROOT, 'testdata', 'poll-tables.json');
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'poll-tables.ts');
 
 function render(d) {
-  return `// GENERATED from testdata/poll-tables.json — do not edit.
+  return `// GENERATED from testdata/poll-tables.json - do not edit.
 // Rebuild with \`node tools/poll-tables-ts.js\` from the committed JSON, which is frozen:
 // the generator that produced it lifted the tables from the Node app's public/app.js,
 // and that source is gone.
 //
-// Every one of these tables fails SILENTLY when it drifts — a missing slider is
-// simply not drawn, a missing profile key leaves that collector where it was — so
+// Every one of these tables fails SILENTLY when it drifts - a missing slider is
+// simply not drawn, a missing profile key leaves that collector where it was - so
 // the TypeScript is written from the JSON rather than retyped, and verify checks it.
 
 export interface PollSlider {
@@ -42,7 +42,7 @@ if (require.main === module) {
   if (process.argv.includes('--check')) {
     const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
     if (cur !== body) {
-      console.error('web/src/gen/poll-tables.ts is stale — run: node tools/poll-tables-ts.js');
+      console.error('web/src/gen/poll-tables.ts is stale - run: node tools/poll-tables-ts.js');
       process.exit(1);
     }
     console.log('poll tables .ts up to date');

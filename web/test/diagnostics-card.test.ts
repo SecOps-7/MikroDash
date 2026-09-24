@@ -5,7 +5,7 @@
  *
  * The card rendered NOTHING for the entire life of this port. Nothing emitted
  * `diagnostics:update`, so the renderer never ran, and an empty card is
- * indistinguishable from a card with nothing to report —
+ * indistinguishable from a card with nothing to report -
  * `internal/verify/event_test.go` recorded the silence as deliberate and it sat
  * there unchallenged. `dashboard-wiring.test.ts` proves the handler is SUBSCRIBED
  * and writes *an* element. That is exactly the check the old card would have
@@ -99,7 +99,7 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
   const { html } = render(full());
   for (const layer of ['Acquisition', 'Derivation', 'Views']) {
     ok(html.includes('>' + layer + '<'),
-      `the ${layer} heading is missing — the card no longer shows a layer of the architecture`);
+      `the ${layer} heading is missing - the card no longer shows a layer of the architecture`);
   }
   ok((html.match(/class="diag-layer"/g) || []).length >= 3,
     'fewer than three layer headings rendered');
@@ -125,7 +125,7 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
 
 // ── 4. EVERY menu is named, with how it is delivered ────────────────────────
 //
-// This section was first written as "shared reads" — the menus more than one
+// This section was first written as "shared reads" - the menus more than one
 // collector wants. Measured on the live fleet across seven pages on 2026-09-10:
 // no menu ever has more than one subscriber, because this app coalesces a level
 // up (one collector owns a menu, others read its derived index). The section
@@ -135,11 +135,11 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
 {
   const { html } = render(full());
   for (const m of ['/interface/wifi/registration-table/print', '/ip/arp/print', '/ip/dns/static/print']) {
-    ok(html.includes(m), `${m} is missing — a read an operator cannot account for`);
+    ok(html.includes(m), `${m} is missing - a read an operator cannot account for`);
   }
   // ANCHORED TO THE MENU. A bare `includes('pushed')` is satisfied by the
   // "· pushed by router" COUNTS row above, so it passes against a renderer that
-  // labels every menu the same — measured: that mutation survived the loose
+  // labels every menu the same - measured: that mutation survived the loose
   // version of this check.
   ok(html.includes('>/interface/wifi/registration-table/print</span><span class="vpn-hs-badge hs-ok">pushed<'),
     'the streamed menu is not labelled as pushed on its own row');
@@ -171,7 +171,7 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
 
 // ── 6. zero is styled as a resting value, not as a live one ─────────────────
 //
-// Nothing running is a SUCCESS on this card — it means demand correctly stopped
+// Nothing running is a SUCCESS on this card - it means demand correctly stopped
 // asking the router for things nobody is looking at. Painting it like a live
 // figure would teach an operator to read a working idle install as a fault.
 {
@@ -216,15 +216,15 @@ function ok(cond: unknown, msg: string) { assert.ok(cond, msg); checks++; }
 // shape a stale client or a half-built session produces.
 {
   const { total, html } = render({});
-  ok(total === '—', `an empty payload shows ${JSON.stringify(total)}, want an em dash`);
-  ok(html.includes('&mdash;'), 'an absent figure rendered as something other than an em dash');
+  ok(total === '-', `an empty payload shows ${JSON.stringify(total)}, want an em dash`);
+  ok(html.includes('-'), 'an absent figure rendered as something other than an em dash');
   ok(!html.includes('diag-count-active'), 'an absent figure is painted as live');
 }
 
 // ── 9. the row label is escaped ─────────────────────────────────────────────
 //
 // Menu paths are our own constants today, so this is not a live injection route
-// — it is the guard that keeps it from becoming one. `wireless`'s interface-name
+// - it is the guard that keeps it from becoming one. `wireless`'s interface-name
 // injection (0.7.35) started the same way: a value nobody thought was attacker
 // controlled reached innerHTML unescaped.
 {

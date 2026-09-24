@@ -1,10 +1,15 @@
 // GENERATED once, by a Node-era script deleted at the 2026-09-01 cutover; frozen since.
 //
+// EDITED BY HAND on 2026-09-24 to drop an em dash, against the rule that
+// web/src/gen is never hand-edited. That rule exists because the next
+// regeneration reverts the edit; there is no generator left to run, which is
+// what makes this file the one place the rule does not bite.
+//
 // The extra cards' lookup tables, lifted from the Node app's public/app.js.
 
 /**
  * Country code to name. A CONDENSED subset of the connections page's CC_NAMES
- * and deliberately not the same table — the card falls back to the payload's
+ * and deliberately not the same table - the card falls back to the payload's
  * own `country` and then to the bare code, so a country missing here still
  * renders something.
  */

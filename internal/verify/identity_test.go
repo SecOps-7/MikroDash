@@ -48,7 +48,7 @@ var identityColumns = []identityColumn{
 		column: "user_layouts.user_id", kind: "id",
 		file: "internal/server/navprefs_api.go", site: "s.userIDFor(sess.Username)", sites: 1,
 		why: "the nav preference and both saved layouts. Keying on the username gave one account " +
-			"two rows, one per half — found 2026-08-27 by reading the table.",
+			"two rows, one per half - found 2026-08-27 by reading the table.",
 	},
 	{
 		column: "audit_events.actor_name", kind: "username",
@@ -122,7 +122,7 @@ var identityColumns = []identityColumn{
 	{
 		column: "grants.created_by", kind: "caller",
 		file: "internal/db/grantwrite.go", site: "s.CreatedBy", sites: 2,
-		why: "as above, and distinct from principal_id — swapping them is silent.",
+		why: "as above, and distinct from principal_id - swapping them is silent.",
 	},
 }
 
@@ -133,7 +133,7 @@ func TestIdentityColumns(t *testing.T) {
 		full := filepath.Join(root, c.file)
 		b, err := os.ReadFile(full)
 		if err != nil {
-			t.Errorf("%s: %s does not exist — the entry names a file that has moved or been "+
+			t.Errorf("%s: %s does not exist - the entry names a file that has moved or been "+
 				"deleted", c.column, c.file)
 			continue
 		}
@@ -150,7 +150,7 @@ func TestIdentityColumns(t *testing.T) {
 		found := strings.Count(code.String(), c.site)
 		if found != c.sites {
 			t.Errorf("%s (%s): %s has %d site(s) passing %q, recorded as %d.\n"+
-				"    Either a writer was ADDED — check it passes the same kind of identity — or "+
+				"    Either a writer was ADDED - check it passes the same kind of identity - or "+
 				"one changed and now writes the wrong one.\n    %s",
 				c.column, c.kind, c.file, found, c.site, c.sites, c.why)
 		}
@@ -159,7 +159,7 @@ func TestIdentityColumns(t *testing.T) {
 	// The ledger is hand-written, so an empty or truncated one would pass in
 	// silence. Fourteen entries is what this port writes today.
 	if len(identityColumns) < 14 {
-		t.Fatalf("the ledger holds %d entries; it had 14 — entries were removed rather than "+
+		t.Fatalf("the ledger holds %d entries; it had 14 - entries were removed rather than "+
 			"the writers being fixed", len(identityColumns))
 	}
 	t.Logf("%d shared identity columns checked, each at its recorded number of call sites",

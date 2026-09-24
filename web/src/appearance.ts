@@ -2,15 +2,15 @@
 //
 // SHELL-LEVEL, not a Settings page concern, even though every control lives on
 // the Appearance tab. Two blocks run at load on every page so the palette is
-// applied before the first paint; only the third — the one that wires the
-// controls — has anything to do with Settings.
+// applied before the first paint; only the third - the one that wires the
+// controls - has anything to do with Settings.
 //
 // ── IT IS ENTIRELY PER-BROWSER ──────────────────────────────────────────────
 //
 // Nothing here reaches the server. There is no payload, no settings key and no
 // audit row: the whole layer is `localStorage` plus attributes on
 // `<html>`, and the stylesheet does the rest through custom properties. That is
-// why this is a lift-and-run port rather than a collector port — there is no
+// why this is a lift-and-run port rather than a collector port - there is no
 // wire format to agree on, only a DOM to leave in exactly the same state.
 //
 // ── ABSENT IS NOT ZERO, AGAIN ───────────────────────────────────────────────
@@ -26,7 +26,7 @@
 // `parseInt('0')` is 0, which is FALSY, so a stored level of 0 reads back as the
 // default rather than as the bottom of the range. Since the sliders start at 1
 // that state is unreachable through the UI, but a hand-edited localStorage
-// entry lands there — and reproducing it costs nothing while diverging would
+// entry lands there - and reproducing it costs nothing while diverging would
 // make the port disagree with the live app on a value someone can actually set.
 
 import { el } from './dom.js';
@@ -62,7 +62,7 @@ function factor(table: number[], lvl: number): number {
  *
  * Brightening interpolates toward 255 rather than multiplying, so a channel
  * already at 255 stays there instead of overflowing, and a channel at 0 can
- * still lift — multiplying would leave black black at every setting.
+ * still lift - multiplying would leave black black at every setting.
  *
  * ALPHA IS CARRIED THROUGH UNTOUCHED. Text alpha is adjusted afterwards by the
  * contrast factor; background alpha is not adjusted at all.
@@ -86,7 +86,7 @@ function base(): typeof PALETTE_COLORS[string] {
   const palette = root().getAttribute('data-palette') || 'default';
   const scheme = root().getAttribute('data-theme') || 'dark';
   // `default:dark` is the fallback the original uses, and the generator pins
-  // every swatch to an entry — so the miss path is reachable only from a
+  // every swatch to an entry - so the miss path is reachable only from a
   // hand-set attribute, and still lands somewhere real.
   return PALETTE_COLORS[palette + ':' + scheme] || PALETTE_COLORS['default:dark']!;
 }
@@ -94,7 +94,7 @@ function base(): typeof PALETTE_COLORS[string] {
 /**
  * Text colour: brightness moves the channels, contrast moves the ALPHA.
  *
- * Contrast against a background is what alpha controls here — the text sits on
+ * Contrast against a background is what alpha controls here - the text sits on
  * the card colour, so thinning it lowers contrast and thickening raises it.
  * `Math.min(1, …)` is what stops a high setting producing an invalid alpha.
  */
@@ -138,7 +138,7 @@ export function reapplyBgVars(): void {
   r.style.setProperty('--bg-card', scale(b.bgCard));
 }
 
-/** The active swatch is the one matching BOTH palette and mode — the same
+/** The active swatch is the one matching BOTH palette and mode - the same
  *  palette in light and dark are two swatches, and only one is current. */
 export function syncSwatches(): void {
   const palette = root().getAttribute('data-palette') || 'default';
@@ -186,7 +186,7 @@ export function applyPalette(palette: string, scheme?: string): void {
  * Note what it does NOT do: it never calls `syncSwatches`, though `applyPalette`
  * does and the active swatch depends on the scheme just as much as on the
  * palette. So toggling the theme leaves the Appearance tab highlighting the
- * swatch for the scheme you just left, until something else re-syncs it —
+ * swatch for the scheme you just left, until something else re-syncs it -
  * opening Settings does, via the pagechange handler.
  *
  * That is the live behaviour, reproduced rather than corrected. It is a visible
@@ -239,7 +239,7 @@ export function initAppearance(): void {
   // THE THEME FIRST, because that is the order the live file runs them in and
   // the order is load-bearing: `applyTheme` recomputes the text and background
   // variables, and at this point the contrast and brightness attributes have not
-  // been written yet — so it computes them at the defaults, which means removing
+  // been written yet - so it computes them at the defaults, which means removing
   // them. The palette block below then sets the attributes and recomputes for
   // real. Running the two the other way round would leave the first computation
   // standing and the sliders ignored until something else repainted.
@@ -275,8 +275,8 @@ export function initAppearance(): void {
  * would fire once on release and turn a continuous adjustment into guesswork.
  *
  * The pagechange handler pushes the DOM's state back INTO the controls. The
- * attributes are the source of truth — they were set from localStorage at boot,
- * possibly in another tab — so a form that kept its own copy would show a stale
+ * attributes are the source of truth - they were set from localStorage at boot,
+ * possibly in another tab - so a form that kept its own copy would show a stale
  * position the first time Settings is opened.
  */
 export function wireAppearance(): void {
@@ -305,8 +305,8 @@ export function wireAppearance(): void {
   }
 
   // The header's sun/moon button. It reads the CURRENT attribute rather than a
-  // remembered value, so a theme changed from anywhere else — the swatches, or
-  // another tab writing localStorage — still toggles from what is on screen.
+  // remembered value, so a theme changed from anywhere else - the swatches, or
+  // another tab writing localStorage - still toggles from what is on screen.
   el('themeToggle')?.addEventListener('click', () => {
     const cur = root().getAttribute('data-theme') || 'dark';
     applyTheme(cur === 'light' ? 'dark' : 'light');

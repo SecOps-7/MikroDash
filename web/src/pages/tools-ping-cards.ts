@@ -78,7 +78,7 @@ function fmtMs(v: number): string {
 export function tween(node: HTMLElement | null, to: number | null, fmt: (v: number) => string): void {
   if (!node) return;
   if (to == null) {
-    node.textContent = '—';
+    node.textContent = '-';
     delete node.dataset.v;
     return;
   }

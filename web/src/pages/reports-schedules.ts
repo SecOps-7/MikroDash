@@ -2,15 +2,15 @@
 //
 // ── WHICH BUTTONS ARE WIRED, AND WHY THE REST ARE NOT ───────────────────────
 //
-// The server answers `permitted` — whether this principal may create a schedule
-// — and the New/Edit/Send-now/Remove buttons are drawn only when it is true,
+// The server answers `permitted` - whether this principal may create a schedule
+// - and the New/Edit/Send-now/Remove buttons are drawn only when it is true,
 // exactly as the live page draws them.
 //
 // The rule this file has always followed is worth keeping: a button wired to a
 // missing endpoint fails at the worst possible moment, so nothing is bound until
 // the endpoint behind it exists. What changed is which endpoints exist. This
 // header used to say "this port implements the READ endpoints; the write ones
-// are a later slice", and that stopped being true — `internal/server/reports.go`
+// are a later slice", and that stopped being true - `internal/server/reports.go`
 // registers POST, PUT and DELETE on `schedules`.
 //
 //   History      wired. A read.
@@ -21,7 +21,7 @@
 //                below and fills every field, the delegated handler calls it
 //                with the row, and the sched-form check covers the form
 //                across five cases including edit and the reopen paths. Corrected
-//                2026-08-25 — a stale blocker invites the next session to "fix"
+//                2026-08-25 - a stale blocker invites the next session to "fix"
 //                working code.
 //   Send now     WIRED, 2026-08-27. This said "RENDERED BUT DEAD ... there is no
 //                Go handler for `schedules/{id}/run`, because it builds a report
@@ -30,7 +30,7 @@
 //                again: `internal/server/reports_run.go` serves the route with
 //                `internal/reportpdf` and `internal/mailer` behind it. The
 //                button was the only half still missing, and the two "options"
-//                this used to weigh — hide it or leave it dead — were both moot.
+//                this used to weigh - hide it or leave it dead - were both moot.
 //                Pinned by the sched-run check, 11 mutations.
 //
 //                THE THIRD STALE CLAIM IN THIS HEADER, after `rptSchedNew` and
@@ -85,7 +85,7 @@ interface SchedulePayload {
   smtpReady?: boolean;
   permitted?: boolean;
   /** The section vocabulary, sent by the server rather than hardcoded here so
-   *  there is one definition of it — see the note in internal/server/reports.go. */
+   *  there is one definition of it - see the note in internal/server/reports.go. */
   sections?: string[];
   /** Which of those sections make the interface picker relevant. */
   needsInterface?: string[];
@@ -119,7 +119,7 @@ let editing: ScheduleRow | null = null;
 
 /** A last-run summary: when, and how it went. */
 function fmtRun(r: ScheduleRun | null | undefined): string {
-  if (!r) return '—';
+  if (!r) return '-';
   return fmtTs(r.ran_at, false) + ' · ' + r.outcome;
 }
 
@@ -172,7 +172,7 @@ export function renderSchedules(): void {
       (r.iface ? '<div class="bw-mac">' + esc(r.iface) + '</div>' : '') + '</td>' +
       // THE CHANNEL'S NAME, where a count of addresses used to be. The count
       // answered "how many" and never "who", which is the question an operator
-      // actually has — and the channel is a thing they can open and read.
+      // actually has - and the channel is a thing they can open and read.
       //
       // A channel that has been DELETED leaves an id naming nothing, and the row
       // says so rather than rendering an empty cell: the schedule will skip
@@ -209,7 +209,7 @@ export function loadSchedules(): void {
 /**
  * The mail channels a schedule may be sent through.
  *
- * FILTERED HERE AS THE SERVER FILTERS IT at write time — install-owned, SMTP —
+ * FILTERED HERE AS THE SERVER FILTERS IT at write time - install-owned, SMTP -
  * so the picker cannot offer something the save would refuse. The two rules
  * agreeing is worth more than the filter being in one place, because the failure
  * when they disagree is a form that rejects the only option it showed.
@@ -250,7 +250,7 @@ function channelName(id: string): string {
  *
  * A DELETED CHANNEL IS KEPT AS AN OPTION, labelled, rather than silently
  * replaced by whatever happens to be first. Dropping it would make an unrelated
- * edit — changing the send hour, say — quietly re-route the report, which is the
+ * edit - changing the send hour, say - quietly re-route the report, which is the
  * one thing this whole change exists to stop.
  */
 function renderChannelPicker(chosen: string): void {
@@ -265,14 +265,14 @@ function renderChannelPicker(chosen: string): void {
   if (opts.length === 0) {
     // NOT AN EMPTY SELECT. An empty control reads as "still loading"; this says
     // what is missing and where to fix it, and the save refuses it anyway.
-    opts.push('<option value="">No mail channel yet — add one in Settings → Notifications</option>');
+    opts.push('<option value="">No mail channel yet - add one in Settings → Notifications</option>');
   }
   sel.innerHTML = opts.join('');
   // ── A NEW SCHEDULE TAKES THE FIRST CHANNEL, NOT NOTHING ───────────────
   //
   // `sel.value = ''` matches no option, so the select shows an empty box and
   // `selectedIndex` is -1. Saving then fails validation with "a schedule needs a
-  // channel to send through" — a refusal the operator did nothing to earn, on a
+  // channel to send through" - a refusal the operator did nothing to earn, on a
   // form offering exactly one answer. Found by opening it; every test passed.
   //
   // Only when nothing is stored. An EDIT keeps what it had, including a channel
@@ -280,7 +280,7 @@ function renderChannelPicker(chosen: string): void {
   // this change exists to stop.
   //
   // WRITTEN OUT RATHER THAN LEFT TO THE BROWSER. A real `<select>` selects its
-  // first option on its own, so `sel.value = first` looks redundant — but that
+  // first option on its own, so `sel.value = first` looks redundant - but that
   // is an implicit behaviour nothing here states, and the value is read back
   // when the form is saved. Saying it makes the saved body follow from this
   // function rather than from the DOM's defaults.
@@ -292,7 +292,7 @@ function renderChannelPicker(chosen: string): void {
  * Wire the History and Remove buttons.
  *
  * DELEGATED, because renderSchedules replaces the whole tbody. Edit and Send now
- * are deliberately left unbound — see the file header for which endpoint each is
+ * are deliberately left unbound - see the file header for which endpoint each is
  * waiting on.
  */
 export function wireScheduleActions(): void {
@@ -311,8 +311,8 @@ export function wireScheduleActions(): void {
       const router = el<HTMLSelectElement>('rptRouter');
       // ONE STATED DIFFERENCE. With no router selected the live app confirms and
       // then sends `?routerId=`, which the endpoint answers 400. This returns
-      // first. Unreachable either way — the button is drawn from a list that
-      // cannot load without a router — and pinned as a difference in
+      // first. Unreachable either way - the button is drawn from a list that
+      // cannot load without a router - and pinned as a difference in
       // a Node-era check (since deleted) rather than quietly diverging.
       if (!row || !router?.value) return;
       if (!window.confirm('Remove the scheduled report "' + row.name + '"?')) return;
@@ -320,7 +320,7 @@ export function wireScheduleActions(): void {
         encodeURIComponent(router.value), { method: 'DELETE', credentials: 'same-origin' })
         // RELOADS ONLY ON SUCCESS, which is the live app's shape. An earlier
         // version of this reloaded on failure too and claimed that matched the
-        // original — it does not. The live app does that for SEND NOW; its
+        // original - it does not. The live app does that for SEND NOW; its
         // Remove branch has no `.catch` at all.
         //
         // Not reloading is also the right answer on reflection: a DELETE that
@@ -337,8 +337,8 @@ export function wireScheduleActions(): void {
     //
     // Drawn since Part 24 and bound only now: the endpoint it needs
     // (`POST schedules/{id}/run`) built a report and mailed it, and neither
-    // half was ported. Both are — `internal/server/reports_run.go` with the
-    // fpdf renderer and the mailer behind it — so the button is no longer a
+    // half was ported. Both are - `internal/server/reports_run.go` with the
+    // fpdf renderer and the mailer behind it - so the button is no longer a
     // dead control.
     const run = target?.closest?.('[data-rs-run]') as HTMLButtonElement | null;
     if (run) {
@@ -352,7 +352,7 @@ export function wireScheduleActions(): void {
       // not a precedent for one here. There, an id nothing matches means no row
       // to name in the confirmation, so BOTH sides return; here the live app
       // sends `POST …//run` and lets the endpoint answer. An empty id is
-      // unreachable — the attribute is drawn from the row this page rendered —
+      // unreachable - the attribute is drawn from the row this page rendered -
       // but a silent return where the original makes a request is a divergence
       // with nothing to buy it, and the sched-run check compares the
       // empty-id case for exactly that reason.
@@ -363,7 +363,7 @@ export function wireScheduleActions(): void {
       // endpoint answers 400. Pinned as a difference rather than quietly
       // diverging.
       if (!router?.value) return;
-      // RELOADS ON BOTH OUTCOMES, and here that IS the live shape — unlike the
+      // RELOADS ON BOTH OUTCOMES, and here that IS the live shape - unlike the
       // Remove branch above, which has no catch at all. The reason is in the
       // endpoint: a run that did not send answers 200 with `ok:false` and a
       // reason, and the reason reaches the operator through the run HISTORY
@@ -402,7 +402,7 @@ export function wireScheduleActions(): void {
               // A zero size shows a dash rather than "0 B": a run that sent
               // nothing and one with no size recorded read the same to anybody
               // looking, and an absence says that better than a number.
-              '<td>' + esc(r.bytes ? fmtBytes(r.bytes) : '—') + '</td>' +
+              '<td>' + esc(r.bytes ? fmtBytes(r.bytes) : '-') + '</td>' +
               '<td class="bw-mac">' + esc(r.error || '') + '</td></tr>').join('')
             : '<tr><td colspan="5" class="rpt-empty">No runs yet.</td></tr>') +
           '</tbody></table></div>';
@@ -421,7 +421,7 @@ export function wireScheduleActions(): void {
 //
 // The live payload puts `routerId` in the body. This port's endpoints take it
 // from the QUERY and decode the body with `DisallowUnknownFields`, so sending it
-// there would be rejected outright as a malformed request — the server's comment
+// there would be rejected outright as a malformed request - the server's comment
 // says why it refuses unknown fields: "a field the port does not know is a field
 // the operator thinks they set".
 //
@@ -440,7 +440,7 @@ function chosenSections(): string[] {
 /**
  * The interface picker is only relevant to some sections.
  *
- * Which ones comes from the server's `needsInterface`, not from a list here —
+ * Which ones comes from the server's `needsInterface`, not from a list here -
  * the same reasoning as the section vocabulary itself.
  */
 function syncIfaceVisibility(): void {
@@ -463,7 +463,7 @@ export function openSchedModal(row: ScheduleRow | null): void {
   renderChannelPicker(row ? row.channelId : '');
   const enabled = el<HTMLInputElement>('rs_enabled');
   // A NEW schedule defaults to enabled, matching the server's own default for an
-  // absent `enabled` — see the pointer field in reports.ScheduleInput.
+  // absent `enabled` - see the pointer field in reports.ScheduleInput.
   if (enabled) enabled.checked = row ? !!row.enabled : true;
   const err = el('rs_error');
   if (err) err.style.display = 'none';
@@ -513,7 +513,7 @@ function saveSchedule(): void {
     // AN EMPTY VALUE IS SENT, not suppressed. The validator refuses it with a
     // message an operator can read ("a schedule needs a channel to send
     // through"), and pre-filtering here would move that refusal away from the
-    // one place that owns it — which is the same reason the recipient list this
+    // one place that owns it - which is the same reason the recipient list this
     // replaced was sent unfiltered.
     channelId: el<HTMLSelectElement>('rs_channel')?.value ?? '',
     enabled: !!el<HTMLInputElement>('rs_enabled')?.checked,

@@ -7,7 +7,7 @@
  * checkbox is:
  *
  *	res:row     `resource.RowValues` sends a real Go bool
- *	Duplicate   `readValues` sends `String(node.checked)` — the STRING 'false'
+ *	Duplicate   `readValues` sends `String(node.checked)` - the STRING 'false'
  *
  * `fieldHtml` wrote `value ? ' checked' : ''`, and every non-empty string is
  * truthy, so the first render of a row was right and the copy of it came back

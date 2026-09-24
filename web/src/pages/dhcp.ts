@@ -1,9 +1,9 @@
-// The DHCP page — a port of the DHCP renderers in public/app.js.
+// The DHCP page - a port of the DHCP renderers in public/app.js.
 //
 // NOT AN IIFE OVER THERE, and that shapes this file. The live renderer is
 // top-level code in two places: the subnet table and the utilisation gauge live
-// inside the `lan:overview` handler — which also draws the dashboard's LAN card,
-// so one handler serves two pages — and the leases table is a separate block a
+// inside the `lan:overview` handler - which also draws the dashboard's LAN card,
+// so one handler serves two pages - and the leases table is a separate block a
 // thousand lines further down. The live-renderer tool grew a range mode to
 // lift them; this file puts them back together as one page module.
 //
@@ -50,7 +50,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
   // THAT GOES NaN ON AN IPv6 ADDRESS: there are no dots to split on, so the
   // single element is `Number('fe80::1')`, which is NaN. `NaN !== NaN` is true,
   // so the comparator reaches `dir * (NaN - NaN)` and returns NaN, which
-  // Array.prototype.sort treats as zero — every IPv6 lease compares equal to
+  // Array.prototype.sort treats as zero - every IPv6 lease compares equal to
   // every other and they keep their input order. Reproduced rather than fixed:
   // this is a DHCP lease table, the addresses are IPv4 in practice, and a
   // "corrected" order would be a visible difference from the live page for a
@@ -95,7 +95,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
     const table = el('dhcpTable');
     if (!table) return;
 
-    // Server filter first, then free text — the two compose, so you can search
+    // Server filter first, then free text - the two compose, so you can search
     // within one VLAN rather than having to choose between the controls.
     let filtered = leaseServerFilter
       ? leases.filter((l) => (l.server || '') === leaseServerFilter)
@@ -126,9 +126,9 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
       const pillCls = st === 'bound' ? 'bound'
         : (st === 'waiting' || st === 'offered') ? 'waiting' : 'expired';
       return '<tr' + resRow(l.id, l.mac) + '>' +
-        '<td style="font-weight:600">' + esc(l.name || l.hostName || '—') + '</td>' +
+        '<td style="font-weight:600">' + esc(l.name || l.hostName || '-') + '</td>' +
         '<td style="color:var(--accent-rx)">' + esc(l.ip) + '</td>' +
-        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(l.mac || '—') + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(l.mac || '-') + '</td>' +
         '<td><span class="lease-pill ' + pillCls + '">' + esc(l.status || '?') + '</span></td>' +
         '</tr>';
     }).join('');
@@ -136,7 +136,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
 
   // The gauge is a 120° arc from 210° to 330°, centred at (100,105) with r=72.
   //
-  // The coordinates go through `+(...).toFixed(2)` — rounded to two places and
+  // The coordinates go through `+(...).toFixed(2)` - rounded to two places and
   // then read back as a NUMBER, so 37.60 renders as "37.6" and not "37.60". The
   // `d` attribute is compared character by character, so the difference between
   // those two is a failed comparison.
@@ -149,7 +149,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
     // THE SERVER'S COUNT, not the length of the lease TABLE.
     //
     // They answer different questions. The table lists every lease including
-    // `waiting` reservations — addresses nobody currently holds — while the
+    // `waiting` reservations - addresses nobody currently holds - while the
     // gauge asks how much of the pool a new client could NOT be given. Taking
     // the row count made this gauge read 99% directly above per-subnet bars
     // reading 22% (live issue #115), and both numerators must come from the same
@@ -180,7 +180,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
     const colour = usedPct >= 90 ? '#f87171' : usedPct >= 70 ? '#fbbf24' : '#38bdf8';
     fill.setAttribute('stroke', colour);
     if (pctEl) {
-      pctEl.textContent = totalPoolSize > 0 ? (usedPct + '%') : '—';
+      pctEl.textContent = totalPoolSize > 0 ? (usedPct + '%') : '-';
       pctEl.setAttribute('fill', colour);
     }
   }
@@ -234,8 +234,8 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
       const pctLabel = pool > 0 ? (' (' + pct + '%)') : '';
       return '<tr>' +
         '<td style="font-size:.76rem;font-family:var(--font-mono);color:var(--accent-rx)">' + esc(n.cidr) + '</td>' +
-        '<td class="td-label">' + esc(n.gateway || '—') + '</td>' +
-        '<td class="td-label">' + esc(n.dns || '—') + '</td>' +
+        '<td class="td-label">' + esc(n.gateway || '-') + '</td>' +
+        '<td class="td-label">' + esc(n.dns || '-') + '</td>' +
         '<td>' +
           '<span style="font-size:.72rem;color:var(--text-main)">' + poolLabel +
           '<span style="color:var(--text-muted)">' + pctLabel + '</span></span>' +
@@ -251,14 +251,14 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
   // ── the network diagram's WAN readout ─────────────────────────────────────
   //
   // `lan:wan` is emitted ROUTER-WIDE rather than page-scoped (#108), so it
-  // arrives whatever page is open — which is the point: `#ndWanIp` is chrome on
+  // arrives whatever page is open - which is the point: `#ndWanIp` is chrome on
   // the dashboard's diagram, not part of this page.
   //
   // THE LIVE HANDLER DOES THREE THINGS AND ONLY ONE OF THEM EXISTS. It also
   // calls `window._wanGeoDetect`, which is assigned nowhere in the live repo,
   // and writes `wanIpDisplay`, which is in that repo's own KNOWN orphan set.
   // Reproducing either would mean adding a lookup for an element that does not
-  // exist and a call to a function nobody defines — no behaviour, and this
+  // exist and a call to a function nobody defines - no behaviour, and this
   // port's own `lookup-audit` would then have to carry them as orphans it
   // invented. Reported as ToDo.md #23; only the working statement is ported.
   //

@@ -4,7 +4,7 @@
 // ── A MISSING SIGNAL READS AS EXCELLENT ─────────────────────────────────────
 //
 // `parseInt(c.signal, 10) || 0` turns an absent, empty or unparseable signal
-// into 0 — and 0 dBm is stronger than the -55 boundary, so such a client lands
+// into 0 - and 0 dBm is stronger than the -55 boundary, so such a client lands
 // in the EXCELLENT bucket. It is not a plausible reading (0 dBm is a watt at the
 // antenna) but it is what the live card counts, and a client mid-association can
 // arrive without one.
@@ -16,7 +16,7 @@
 // ── THE BAND MATCH IS EXACT, SO A NEW BAND COUNTS NOWHERE ───────────────────
 //
 // `'2.4GHz'`, `'5GHz'`, `'6GHz'` and nothing else. A client whose band is spelt
-// any other way is counted in no bucket at all — the three numbers simply do not
+// any other way is counted in no bucket at all - the three numbers simply do not
 // sum to the client count. Also live behaviour, and the reason the card shows
 // counts rather than percentages.
 //
@@ -24,7 +24,7 @@
 //
 // Zero 6GHz clients hides the row entirely, so a router with no 6GHz radio shows
 // a two-row card rather than a row of zeros. It reappears the moment one
-// associates — the row is hidden on the COUNT, not on whether the radio exists.
+// associates - the row is hidden on the COUNT, not on whether the radio exists.
 
 import { el } from '../dom';
 import type { WirelessPayload } from '../gen/payloads';
@@ -35,7 +35,7 @@ export function renderWirelessCards(data: WirelessPayload): void {
   // ── Signal Health ─────────────────────────────────────────────────────────
   let cntE = 0, cntG = 0, cntF = 0, cntP = 0;
   for (const c of clients) {
-    // `parseInt(…, 10) || 0` — see the header. Note parseInt takes the LEADING
+    // `parseInt(…, 10) || 0` - see the header. Note parseInt takes the LEADING
     // number, so "-58dBm" reads as -58 rather than failing.
     const s = parseInt(String(c.signal), 10) || 0;
     if (s >= -55) cntE++;

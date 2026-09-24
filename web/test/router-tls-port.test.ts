@@ -10,7 +10,7 @@
  *	[session] CHR Test: could not connect to router os:
  *	          tls: first record does not look like a TLS handshake
  *
- * The session DID reconnect — promptly — to the old port, so nothing ever
+ * The session DID reconnect - promptly - to the old port, so nothing ever
  * reached 8729 and the reporter, who was watching `dst-port=8729`, saw no
  * attempt at all. Deleting and re-creating the device worked because a blank
  * port falls back to 8729; editing kept the 8728 already on the record.
@@ -105,7 +105,7 @@ check('turning TLS on moves the plain default to the TLS one', () => {
   setTls(els, true);
   assert.equal(els.rtrModalPort.value, '8729',
     'the port stayed on the plain-API default, so TLS is spoken to the api service '
-    + 'and nothing ever reaches 8729 — issue #137');
+    + 'and nothing ever reaches 8729 - issue #137');
 });
 
 check('turning TLS off moves it back', () => {

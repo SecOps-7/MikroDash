@@ -9,8 +9,8 @@
  *
  * `permitted` comes on the payload rather than being worked out from the role
  * here. The server decides; this only draws. That matters because "may
- * download" is a WRITE-level question — an export describes the whole network
- * and the binary carries every key on the device — and a page inferring it from
+ * download" is a WRITE-level question - an export describes the whole network
+ * and the binary carries every key on the device - and a page inferring it from
  * "can I see this page" would offer both to a viewer.
  *
  * ── A VIEWER GETS NO BUTTONS, NOT DISABLED ONES ─────────────────────────────
@@ -72,7 +72,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     return t ? Array.from(t.querySelectorAll<HTMLInputElement>('[data-bk-pick]:not([disabled])')) : [];
   };
 
-  /** Drop ids that have left the table entirely — deleted, or a router switch. */
+  /** Drop ids that have left the table entirely - deleted, or a router switch. */
   function prunePicked(st: StatePayload): void {
     const live = new Set((st.rows || []).map((r) => r.id));
     Array.from(picked).forEach((id) => { if (!live.has(id)) picked.delete(id); });
@@ -92,7 +92,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
 
   /**
    * An hourly backup that waits for 02:00 is a daily backup, so the time is not
-   * offered for that frequency — greyed WITH THE REASON, rather than silently
+   * offered for that frequency - greyed WITH THE REASON, rather than silently
    * accepted and then ignored by the scheduler.
    *
    * The hint names the clock, because "02:00" is meaningless until you know
@@ -185,7 +185,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
 
       const detail = r.error ? esc(r.error) : (r.stem ? esc(r.stem) : '');
       // EVERY row is selectable, because Delete clears the row itself and a row
-      // with no files — an unchanged run, or one retention took — is still the
+      // with no files - an unchanged run, or one retention took - is still the
       // operator's to remove. Restore is the narrower action, so it is gated on
       // `restorable` rather than on the checkbox.
       const pickable = !!st.permitted;
@@ -200,7 +200,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
           ' aria-label="Select this restore point">' +
         '</td>' +
         // The row id is what an audit entry names and what a support question
-        // quotes — so it needs to be readable, not dug out of the DOM.
+        // quotes - so it needs to be readable, not dug out of the DOM.
         '<td><span class="bk-id-pill">' + esc(String(r.id)) + '</span></td>' +
         '<td>' + esc(fmtWhen(r.takenAt)) +
           (detail ? '<div class="muted-note" style="font-size:.7rem">' + detail + '</div>' : '') + '</td>' +
@@ -213,8 +213,8 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
         // word "pruned" in the actions column.
         //
         // That is why "Keep at most 10" read as broken. This table is HISTORY
-        // and legitimately holds more rows than there are restore points — the
-        // summary card counts those correctly — but nine tombstones claiming to
+        // and legitimately holds more rows than there are restore points - the
+        // summary card counts those correctly - but nine tombstones claiming to
         // be stored 3.3MB backups is not history, it is nine wrong rows. The
         // count in the header is the number of runs; the number of BACKUPS is
         // what the badges have to be honest about.
@@ -226,12 +226,12 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
           (r.pruned ? ' title="Stored at the time, then removed by retention"' : '') +
           '>' + esc(r.pruned ? 'Pruned' : o.label) + '</span></td>' +
         '<td>' + esc(r.source === 'manual' ? ('Manual' + (r.actor ? ' · ' + r.actor : '')) : 'Schedule') + '</td>' +
-        '<td>' + esc(r.osVersion || '—') + '</td>' +
+        '<td>' + esc(r.osVersion || '-') + '</td>' +
         // NO SIZE ON A PRUNED ROW. The bytes are still in the record and are
         // still true of the past, but printing them here claims disk that has
-        // been freed — and contradicts the Disk used card, which already counts
+        // been freed - and contradicts the Disk used card, which already counts
         // live rows only.
-        '<td>' + (r.bytes && !r.pruned ? esc(fmtBytes(r.bytes)) : '—') + '</td>' +
+        '<td>' + (r.bytes && !r.pruned ? esc(fmtBytes(r.bytes)) : '-') + '</td>' +
         '<td class="text-end">' + actions.join(' ') + '</td>' +
       '</tr>';
     }).join('');
@@ -258,7 +258,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       const ok = only !== null && restorable.has(only);
       rst.disabled = !ok || busy;
       rst.title = n === 0 ? 'Select a restore point to restore from'
-        : n > 1 ? 'Restore takes a single restore point — select just one'
+        : n > 1 ? 'Restore takes a single restore point - select just one'
         : !ok ? 'That row has no stored backup to restore from'
         : '';
     }
@@ -309,7 +309,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     const msg = ids.length === 1
       ? 'Delete this restore point?'
       : 'Delete these ' + ids.length + ' restore points?';
-    // BOTH HALVES GO — the files and the row listing them — so say so, and say
+    // BOTH HALVES GO - the files and the row listing them - so say so, and say
     // where the record does survive rather than implying nothing is kept.
     if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\n' +
       'and cannot be recovered. The Audit page keeps the record.')) return;
@@ -325,7 +325,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
 
   /**
    * Restoring replaces the whole configuration and reboots, so the prompt says
-   * so in those words and asks the operator to type the router's name — the same
+   * so in those words and asks the operator to type the router's name - the same
    * confirmation a package upgrade requires.
    *
    * `acceptVersion` carries a second pass: the server refuses once on a RouterOS
@@ -340,7 +340,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       'This REPLACES the entire configuration and reboots the router.',
       'Everything configured since this backup is lost.',
       '',
-      'The API user MikroDash connects as is part of what gets replaced — if',
+      'The API user MikroDash connects as is part of what gets replaced - if',
       'that user did not exist when this backup was taken, MikroDash will lose',
       'access to this router.',
     ];

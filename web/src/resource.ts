@@ -1,4 +1,4 @@
-// The resource edit form — a port of the resource engine at the foot of app.js,
+// The resource edit form - a port of the resource engine at the foot of app.js,
 // rendering into the #resModal markup lifted verbatim from the live page.
 //
 // The schema is FETCHED, never restated. `res:schema` serves the Go registry
@@ -8,7 +8,7 @@
 // than growing a fourteenth one.
 //
 // Over the SOCKET rather than over HTTP, and that is not a style choice. The
-// reply carries `permitted` — may THIS viewer write THIS router — which depends
+// reply carries `permitted` - may THIS viewer write THIS router - which depends
 // on the selected router, and an HTTP request does not have one.
 //
 // Nothing this form decides is trusted. `readOnly` arrives from the server and
@@ -61,7 +61,7 @@ let shown: { schema: Schema; options: Record<string, string[]> } | null = null;
 export interface ExtraContext {
   /** The dialog is read-only: the viewer may look and not write. */
   readOnly: boolean;
-  /** The row's identity — for an interface, its name. Null on an add form. */
+  /** The row's identity - for an interface, its name. Null on an add form. */
   identity: string | null;
 }
 
@@ -111,7 +111,7 @@ let rowsWired = false;
  * served from `/next/api/resources/<key>` until that mattered.
  *
  * A schema that never arrives leaves its caller pending for ever. That is the
- * live behaviour — `need()` has no timeout either — and it is the right one
+ * live behaviour - `need()` has no timeout either - and it is the right one
  * here: the two ways it can fail are a refused read, which the page already
  * reports through res:error, and a disconnect, which re-asks on reconnect.
  */
@@ -126,7 +126,7 @@ function schemaFor(key: string): Promise<Schema> {
   });
 }
 
-// One builder for both option paths — a declared select and a router-supplied
+// One builder for both option paths - a declared select and a router-supplied
 // list render the same control, and two copies would drift.
 function selectHtml(f: SchemaField, id: string, value: unknown, list: string[]): string {
   const opts = list.slice();
@@ -146,7 +146,7 @@ function selectHtml(f: SchemaField, id: string, value: unknown, list: string[]):
  *
  * `res:row` fills a form from `resource.RowValues`, which sends a real bool, so
  * the first render of a row was right. DUPLICATE re-renders from `readValues`,
- * which sends `String(node.checked)` — and a bare `value ?` turned every OFF
+ * which sends `String(node.checked)` - and a bare `value ?` turned every OFF
  * toggle ON. Duplicating a working firewall rule produced a DISABLED one, and a
  * DNS entry came back with Match Subdomains set; both fields are `Clearable`, so
  * the wrong value reached the router on Add.
@@ -215,7 +215,7 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
 
   if (choices && choices.length) {
     // THE ROUTER TOLD US WHAT THIS FIELD MAY BE, so offer that rather than a
-    // blank box — even for a field whose declared type is free text. That is
+    // blank box - even for a field whose declared type is free text. That is
     // what the live form does, and without it the VLAN parent and both
     // bridge-port fields were text boxes here and pickers there.
     //
@@ -228,7 +228,7 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
     // The router's value is kept as an option even when our list does not name
     // it. A required select emits no blank option, so without this nothing
     // matches, the browser falls back to selectedIndex 0, and Save rewrites the
-    // record as whatever option zero happens to be — silently, and with no sign
+    // record as whatever option zero happens to be - silently, and with no sign
     // on screen that the form was not showing the record. A list declared here
     // is no more exhaustive than one the router sent.
     body = selectHtml(f, id, value, f.options || []);
@@ -280,7 +280,7 @@ function buildForm(schema: Schema, values: Record<string, unknown> | null,
       values ? values[f.name] : undefined, options ? options[f.name] : undefined))
     .join('');
   applyShowIf(schema);
-  // A field that controls another's visibility redraws it as it changes — the
+  // A field that controls another's visibility redraws it as it changes - the
   // DNS type picker is the only one today, but the rule is general.
   const seen = new Set<string>();
   for (const f of schema.fields) {
@@ -327,7 +327,7 @@ function close(): void {
 /**
  * The self-cutoff prompt.
  *
- * Rendered into #res_warn — inside the dialog rather than a window.confirm — so
+ * Rendered into #res_warn - inside the dialog rather than a window.confirm - so
  * it can NAME the interface and the address the router sees us from. A warning
  * that says only "this may be dangerous" is one people learn to click through.
  *
@@ -578,7 +578,7 @@ function showWarning(d: HandEvents['res:error']): void {
  * A dynamic DHCP lease is the case this exists for: it cannot be edited, because
  * it belongs to the server rather than to us, and the only useful thing to do
  * with it is make it static. Refusing to open the form would make that verb
- * unreachable — which is why the bar is drawn even when Save is hidden.
+ * unreachable - which is why the bar is drawn even when Save is hidden.
  */
 function actionBar(schema: Schema, avail: string[]): void {
   const host = el('res_actions');
@@ -637,7 +637,7 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   }
   // THE PREVIEW BUTTON, shown on a writable form and hidden on a read-only one.
   //
-  // This was `display = 'none'` unconditionally until 2026-08-25 — which is the
+  // This was `display = 'none'` unconditionally until 2026-08-25 - which is the
   // live app's READ-ONLY branch (app.js:14716) applied to every form; almost
   // certainly the wrong one of its two lines was ported. The writable branch is
   // `app.js:14657`, `ro ? 'none' : ''`. A user-visible control was missing from
@@ -656,13 +656,13 @@ function show(schema: Schema, values: Record<string, unknown> | null,
  * The label is taken from the fetched schema rather than written here, so the
  * text has the same single home the field list does and cannot drift again.
  *
- * A slot names one or more resources — routing's is `route,route6` — and
+ * A slot names one or more resources - routing's is `route,route6` - and
  * renders one button each, in the order the slot lists them.
  *
  * KNOWN GAP, deliberately not papered over: the live slot also gates each
  * button on `schema.permitted` and precedes them with the undo/redo pair from
  * `res:history`. This port serves schemas over HTTP, where the selected router
- * — which `permitted` depends on — is not known, and has not ported
+ * - which `permitted` depends on - is not known, and has not ported
  * `res:history` at all. So a viewer with read-only access sees Add buttons that
  * the server then refuses, and nobody sees undo/redo. Tracked during the port;
  * it is the same on every ported page and is not introduced here.
@@ -681,7 +681,7 @@ function histButton(kind: 'undo' | 'redo', key: string, on: boolean, label: stri
 /**
  * One undo/redo pair per SLOT, not per resource.
  *
- * A slot naming several resources — `route,route6` — gets one pair, pointed at
+ * A slot naming several resources - `route,route6` - gets one pair, pointed at
  * whichever of them has something to undo. Falls back to the first, so the
  * buttons are present and grey rather than absent: a control that appears only
  * once it is usable teaches nobody it exists.
@@ -697,7 +697,7 @@ function histTarget(ready: Schema[]): string {
 /**
  * The row a reorder is about, held between the click and any acknowledgement.
  *
- * A move is a WRITE, so a guard can refuse it and ask for confirmation — and the
+ * A move is a WRITE, so a guard can refuse it and ask for confirmation - and the
  * answer has to reach the SAME request rather than a new one. That is what
  * `retry` is for, and it is why the request is held here rather than rebuilt
  * from the DOM: by the time an operator answers the prompt the table may have
@@ -715,7 +715,7 @@ function doMove(ack: string): void {
 
 // ── Drag to reorder ─────────────────────────────────────────────────────────
 //
-// POINTER EVENTS, not HTML5 drag-and-drop — the choice the live app made, and
+// POINTER EVENTS, not HTML5 drag-and-drop - the choice the live app made, and
 // the one that works on touch.
 //
 // The dragged row is moved in the DOM as the pointer travels, so the table shows
@@ -775,8 +775,8 @@ function makeOriginMarker(row: HTMLElement): HTMLElement {
 /**
  * Show the gap only while the row is actually elsewhere.
  *
- * A row cannot be moved INSIDE its own marker — the DOM offers only before and
- * after — so dragging back leaves the rule beside the gap with the slot still
+ * A row cannot be moved INSIDE its own marker - the DOM offers only before and
+ * after - so dragging back leaves the rule beside the gap with the slot still
  * looking empty, and it never reads as "dropped back where it was". Collapsing
  * the marker whenever the row immediately follows it makes the table look
  * exactly as it did before the drag started.
@@ -790,7 +790,7 @@ function syncOriginMarker(): void {
  * Move the dragged row to wherever the pointer now is.
  *
  * It swaps on the FIRST OVERLAP with a neighbour rather than waiting for the
- * pointer to cross that row's midpoint — waiting means travelling a whole
+ * pointer to cross that row's midpoint - waiting means travelling a whole
  * row-height before anything happens, which reads as lag.
  *
  * That cannot oscillate: after the swap the dragged row is under the cursor
@@ -799,7 +799,7 @@ function syncOriginMarker(): void {
  */
 export function dragTo(x: number, y: number): void {
   if (!drag) return;
-  // The row was re-rendered out from under us — a tab switch, a router switch,
+  // The row was re-rendered out from under us - a tab switch, a router switch,
   // anything that rebuilds the table. Re-inserting the detached node would put a
   // SECOND copy of it beside its replacement, so the drag ends here instead.
   if (!drag.host.contains(drag.row)) { endDrag(); return; }
@@ -814,7 +814,7 @@ export function dragTo(x: number, y: number): void {
 
   if (over === drag.marker) {
     // Back over the gap: immediately after it IS the original slot once the gap
-    // collapses. Settles rather than oscillating — once home the marker hides,
+    // collapses. Settles rather than oscillating - once home the marker hides,
     // so the next lookup finds the row itself.
     drag.host.insertBefore(drag.row, drag.marker.nextSibling);
   } else {
@@ -829,7 +829,7 @@ export function endDrag(): DragState | null {
   const d = drag;
   drag = null;
   if (d.raf) cancelAnimationFrame(d.raf);
-  // The gap closes however the drag ended — dropped elsewhere, dropped back, or
+  // The gap closes however the drag ended - dropped elsewhere, dropped back, or
   // cancelled. Removed BEFORE the caller walks siblings for the anchor, so it can
   // never be mistaken for a neighbour.
   d.marker?.parentNode?.removeChild(d.marker);
@@ -906,7 +906,7 @@ function wireDrag(): void {
 function doHist(kind: string, key: string, ack: string): void {
   if (!kind || !key) return;
   // An undo is a write, so a guard can refuse it and ask for an acknowledgement
-  // — the same retry hook the form uses, because the answer has to reach the
+  // - the same retry hook the form uses, because the answer has to reach the
   // same request rather than a new one.
   retry = (a: string) => doHist(kind, key, a);
   sock?.emit('res:' + kind, ack ? { resource: key, ack } : { resource: key });
@@ -997,7 +997,7 @@ export function mountAdds(socket: Socket): void {
  *
  * A ROW-LEVEL `data-res` WINS over the table's. The Routes table holds both
  * address families in one tbody declared `data-res-rows="route"`, and a v6 row
- * overrides itself to `route6` — the family is what decides which RouterOS menu
+ * overrides itself to `route6` - the family is what decides which RouterOS menu
  * the edit goes to, and editing an IPv6 route through /ip/route would fail at
  * the router with nothing on screen explaining why.
  *
@@ -1022,9 +1022,9 @@ export function mountRows(socket: Socket): void {
     // Reordering, and it lives HERE rather than beside the other buttons.
     //
     // The live app has ONE delegated click handler, so its move branch simply
-    // returns before the row-open code below it. This port has TWO listeners —
+    // returns before the row-open code below it. This port has TWO listeners -
     // `mountAdds` owns the history and action buttons, `mountRows` owns opening
-    // a row — and a `return` in one does not stop the other from running. An
+    // a row - and a `return` in one does not stop the other from running. An
     // arrow sits inside `[data-id]`, so putting this branch in the other
     // listener emitted the move AND opened the edit dialog on the same click.
     //
@@ -1034,7 +1034,7 @@ export function mountRows(socket: Socket): void {
     // Rendered by firewall.ts and capsman.ts, which name the attribute
     // `data-res-move` rather than anything page-specific precisely so this
     // engine owns the behaviour. Until now nothing here read it, so both pages
-    // drew working-looking arrows that did nothing — on Firewall, where rule
+    // drew working-looking arrows that did nothing - on Firewall, where rule
     // ORDER decides what the rule does.
     const mv = target.closest('[data-res-move]');
     if (mv) {
@@ -1043,7 +1043,7 @@ export function mountRows(socket: Socket): void {
       const mhost = target.closest('[data-res-rows]');
       if (!mrow || !mhost) return;
       // A ROW-LEVEL `data-res` WINS over the host's, because one table can hold
-      // two families — Routes carries v4 and v6 — and the family decides which
+      // two families - Routes carries v4 and v6 - and the family decides which
       // RouterOS menu the move goes to.
       const mkey = mrow.getAttribute('data-res') || mhost.getAttribute('data-res-rows') || '';
       const mschema = schemas.get(mkey);
@@ -1079,7 +1079,7 @@ export function mountRows(socket: Socket): void {
  *
  * An existing row is NOT rendered from the list payload. The collector reads
  * with a proplist narrow enough for the page it feeds, so a form filled from it
- * would blank every property the page does not display — on dnsStatic that is
+ * would blank every property the page does not display - on dnsStatic that is
  * match-subdomain, cname, forward-to and text. The server is asked for a fresh
  * read instead, and answers on `res:row`.
  */
@@ -1088,7 +1088,7 @@ export function openResource(socket: Socket, key: string,
   sock = socket;
   wire(socket);
   schemaFor(key).then((schema) => {
-    // No dialog for a viewer who cannot write — the server would refuse it, and
+    // No dialog for a viewer who cannot write - the server would refuse it, and
     // a form that always fails is worse than no form.
     //
     // app.js asks this in each of its CALLERS instead. One check here covers
@@ -1108,7 +1108,7 @@ export function openResource(socket: Socket, key: string,
     current = { key, id: row.id, identity: row.name ?? null };
     // `|| undefined`, NOT `?? ''`. An absent identity is OMITTED from the
     // payload, exactly as the original's `getAttribute('data-identity') ||
-    // undefined` omits it — JSON.stringify drops an undefined value and keeps an
+    // undefined` omits it - JSON.stringify drops an undefined value and keeps an
     // empty string.
     //
     // Harmless today, because `find` in resource.go guards on `expected != ""`
@@ -1151,7 +1151,7 @@ function wire(socket: Socket): void {
 
   // Schemas are PER-ROUTER: switching routers can change whether the viewer may
   // write, so they are dropped and re-asked rather than carried across.
-  // `router:switched` and not `router:active` — the permissions that matter are
+  // `router:switched` and not `router:active` - the permissions that matter are
   // the ones for the router we have arrived at.
   const refreshAll = (): void => {
     routerSelected = true;
@@ -1179,15 +1179,15 @@ function wire(socket: Socket): void {
   // to whichever tab is showing; the WiFi and CAPsMAN cards do the same. Those
   // three pages rewrite `data-res-add` and then announce `mikrodash:resmount`
   // (`firewall.ts`, `wifi.ts`, `capsman.ts`), and the live app listens for it
-  // here — `../MikroDash/public/app.js:15186`.
+  // here - `../MikroDash/public/app.js:15186`.
   //
   // This port announced it three times and listened nowhere, so the Add button
   // on a swapped tab kept the PREVIOUS tab's resource: pressing Add on the NAT
   // table opened the filter-rule form. Found by the announcement audit,
   // which recorded it as one-sided until now.
   //
-  // Schemas are NOT cleared, unlike `refreshAll`. The router has not changed —
-  // only which resource this slot names — so what is already known stays known
+  // Schemas are NOT cleared, unlike `refreshAll`. The router has not changed -
+  // only which resource this slot names - so what is already known stays known
   // and only the newly named keys are asked for.
   document.addEventListener('mikrodash:resmount', () => {
     document.querySelectorAll('[data-res-add]').forEach((host) => {
@@ -1303,7 +1303,7 @@ function wire(socket: Socket): void {
    *
    * It redraws the SAME dialog in Add mode with the values that were in the
    * fields, so the operator edits what differs and presses Add themselves. That
-   * was the requirement — a copy that saved itself would be a second row nobody
+   * was the requirement - a copy that saved itself would be a second row nobody
    * reviewed, on a page where the identity is usually the thing you meant to
    * change.
    *

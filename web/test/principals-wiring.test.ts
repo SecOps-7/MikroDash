@@ -4,7 +4,7 @@
 // root: this test drives the port's OWN TypeScript and asserts what it does, so
 // nothing in it referred to the implementation this app replaced.
 /**
- * The Access Management card's WIRING — the fetches, the caches, the order.
+ * The Access Management card's WIRING - the fetches, the caches, the order.
  *
  * ── PORT-ONLY, like sites-card-check ────────────────────────────────────────
  *
@@ -12,14 +12,14 @@
  * `access-summary-check` (67 cases over the four tables and their summaries),
  * `principals-card-check` (the sizer and the tab strip) and
  * `auth-visibility-check` (who may see it). What is left is glue, and glue has
- * no seam to lift the original through — `loadUsers` and friends sit inside an
+ * no seam to lift the original through - `loadUsers` and friends sit inside an
  * 1,850-line IIFE. This catches a regression, not a divergence, and says so.
  *
  * ── THE ASSERTION IT EXISTS FOR ─────────────────────────────────────────────
  *
  * ROLES LOAD BEFORE USERS AND GROUPS. `roleName` answers "unknown role" for a
- * role it cannot find — correct for a deleted one, WRONG for one that has not
- * arrived — so a card that fired all three fetches at once would render a
+ * role it cannot find - correct for a deleted one, WRONG for one that has not
+ * arrived - so a card that fired all three fetches at once would render a
  * grant table full of "unknown role" and then quietly fix itself. The failure is
  * invisible in a screenshot taken a second later.
  *
@@ -107,7 +107,7 @@ const GROUPS = [{ id: 'g-1', name: 'Ops', description: null, memberUserIds: ['u-
   grants: [{ role_id: 'manager', scope_type: 'global', scope_id: null }] }];
 const PAGES = [{ key: 'devices', title: 'Devices' }, { key: 'logs', title: 'Logs' }];
 // `devices` is write-capable and `logs` is not, so the matrix has one row with
-// three live segments and one whose Write is disabled — the shape the live
+// three live segments and one whose Write is disabled - the shape the live
 // `_rolePageRow` renders, and the reason writeCapablePages is sent at all.
 const WRITE_CAPABLE = ['devices'];
 
@@ -124,7 +124,7 @@ function mount(opts) {
     const body = { roles: ROLES, users: USERS, groups: GROUPS }[name] || [];
     // `/api/roles` carries THREE things, not one: the roles, the page catalogue
     // and the write-capable list. The role FORM's matrix is built from the last
-    // two, and a fixture that sent only the roles produced an empty matrix —
+    // two, and a fixture that sent only the roles produced an empty matrix -
     // which `saveRole` would read back as "revoke every page".
     const extra = name === 'roles'
       ? { pages: PAGES, writeCapablePages: WRITE_CAPABLE }
@@ -160,7 +160,7 @@ function check(name, fn) {
 (async () => {
   // 1. ── THE ORDER ─────────────────────────────────────────────────────────
   //    With a SLOW /api/roles, a chained load and a concurrent one differ. With
-  //    an instant one they do not — which is the trap `auth-visibility-check`'s
+  //    an instant one they do not - which is the trap `auth-visibility-check`'s
   //    header already records, so the delay is not optional here either.
   {
     const { order } = mount({ mayManage: true, slowRoles: 120 });
@@ -181,7 +181,7 @@ function check(name, fn) {
     });
   }
 
-  // 2. The tables render, and the grant summary RESOLVES the role name — which
+  // 2. The tables render, and the grant summary RESOLVES the role name - which
   //    is what proves the roles cache was actually consulted.
   {
     const { doc } = mount({ mayManage: true });
@@ -259,7 +259,7 @@ function check(name, fn) {
   // ── THE THREE FORMS ARE BOUND AND DO SOMETHING ────────────────────────
   //
   // `element-coverage-audit` asked for these. Each one drives a real click and
-  // asserts what it changed — a listener that is registered and does nothing is
+  // asserts what it changed - a listener that is registered and does nothing is
   // the failure this shape of gate exists to catch, and it is exactly what the
   // card had before its write endpoints were served.
   {
@@ -307,7 +307,7 @@ function check(name, fn) {
       assert.strictEqual(doc.els.gf_error.textContent, 'Name is required');
     });
 
-    // AWAITED OUTSIDE `check`, which is synchronous — an async callback passed
+    // AWAITED OUTSIDE `check`, which is synchronous - an async callback passed
     // to it returns a promise nobody looks at, so every assertion inside would
     // be swallowed and the case would always pass.
     const sent = [];
@@ -332,5 +332,5 @@ function check(name, fn) {
     console.error('\nprincipals-wiring-check: ' + problems.length + ' of ' + checks + ' failed');
     process.exit(1);
   }
-  console.log('principals card wiring ok (' + checks + ' checks; PORT-ONLY — see the header)');
+  console.log('principals card wiring ok (' + checks + ' checks; PORT-ONLY - see the header)');
 })();

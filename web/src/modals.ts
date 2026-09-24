@@ -2,14 +2,14 @@
 //
 // SHELL wiring, not page wiring. The extracted markup uses `data-modal-close`
 // on every dialog's × and Cancel, and the live app handles all three routes once
-// with delegated listeners rather than per page — which is why porting the first
+// with delegated listeners rather than per page - which is why porting the first
 // route per page left wanWarnWrap's two buttons dead.
 //
 // ── THE LIST IS GENERATED BECAUSE ITS NAME LIES ─────────────────────────────
 //
 // Upstream it is `_PRINCIPAL_MODALS`, which is a leftover: it began as the
 // Settings principals dialogs and has not been that for a long time. The live
-// source says so in as many words — "Escape and backdrop-click are handled here
+// source says so in as many words - "Escape and backdrop-click are handled here
 // for every dialog in the app". An earlier version of this port read the name,
 // believed it, and skipped both routes on the stated grounds that none of the
 // list was ported. Four of the ten are, so five dialogs here had no Escape and
@@ -46,7 +46,7 @@ export function wireModals(): void {
   // One can now: the notification channel's Events tab has a gear that opens an
   // interface-type picker over it. Escape in the picker closed the channel
   // dialog with it, throwing away every edit the operator had made and not yet
-  // saved — and it looked like the picker doing something violent rather than
+  // saved - and it looked like the picker doing something violent rather than
   // Escape doing too much.
   //
   // BY z-index, NOT DOM ORDER. A dialog stacks above another because its

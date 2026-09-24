@@ -39,7 +39,7 @@
         "Noise floor -95 dBm",
         "Max signal  -60 dBm",
         "Min signal  -70 dBm",
-        "— this radio —"
+        "- this radio -"
       ]
     },
     {
@@ -143,5 +143,6 @@
       "x": 30,
       "w": 44
     }
-  ]
+  ],
+  "note": "RE-AIMED 2026-09-24: the recorded marker for the radio's own channel used an em dash, which the front end no longer uses anywhere. Same string, ASCII hyphen."
 }

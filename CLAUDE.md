@@ -12,8 +12,8 @@ WebSocket.
 
 | Question | Where |
 |---|---|
-| How the collector layer works | `Collector-Architecture.md` — the three layers, gated so it cannot go stale |
-| Which RouterOS commands this app uses | `docs/routeros-api-surface.md` — frozen; extend it by hand from the RouterOS docs |
+| How the collector layer works | `Collector-Architecture.md` - the three layers, gated so it cannot go stale |
+| Which RouterOS commands this app uses | `docs/routeros-api-surface.md` - frozen; extend it by hand from the RouterOS docs |
 | What a RouterOS menu *can* hold | **rosetta** (MCP, configured in `.mcp.json`), or `help.mikrotik.com` |
 | What a collector returns | replay a fixture through its `internal/collect` test, rather than reading the collector and guessing |
 
@@ -29,8 +29,8 @@ supports only its two newest releases, and `golang.org/x/crypto` follows them.
 ```bash
 # Everything the repo can check: gofmt, vet, `go test ./...`, the generated-code
 # checks, the TypeScript type checker and the frontend tests. Nothing is listed in
-# the script — `go test ./...` finds new Go tests and `web/test/run.mjs` globs
-# `*.test.ts` — so a new check runs without being registered anywhere.
+# the script - `go test ./...` finds new Go tests and `web/test/run.mjs` globs
+# `*.test.ts` - so a new check runs without being registered anywhere.
 sh tools/verify.sh
 sh tools/verify.sh --no-docker   # skip the Go half
 
@@ -97,8 +97,8 @@ RouterOS binary API (TCP/TLS)
                        holds routers nobody is watching, for alerting, history or a known status
                        (internal/session/needs.go)
   internal/hub/        WebSocket rooms, and the declared events every send goes through
-  internal/alert/      the alert rules — pure: rows in, verdict out
-  internal/guard/      the write guards — also pure (see "Write guards")
+  internal/alert/      the alert rules - pure: rows in, verdict out
+  internal/guard/      the write guards - also pure (see "Write guards")
   internal/store/      /data: AES-256-GCM settings, scrypt users, routers.json
   internal/db/         SQLite history and audit (modernc.org/sqlite: pure Go, so the binary is static)
   internal/server/     HTTP routes and the WebSocket protocol
@@ -106,7 +106,7 @@ RouterOS binary API (TCP/TLS)
   web/src/             the TypeScript frontend
 ```
 
-The collector layer — acquisition, derivation, views — is described in full in
+The collector layer - acquisition, derivation, views - is described in full in
 `Collector-Architecture.md`.
 
 **Three things about `internal/routeros` are load-bearing:**
@@ -124,7 +124,7 @@ The collector layer — acquisition, derivation, views — is described in full 
    `TestTracingNeverLogsACredential` pins. `PATCHES.md` there has the rest.
 
 **Knowingly accepted:** go-routeros returns on the first `!done`, so block boundaries are invisible
-here. `cmd/conformance` tests completeness instead — the bulk registration-table read against the
+here. `cmd/conformance` tests completeness instead - the bulk registration-table read against the
 sum of per-interface reads.
 
 **`internal/store` must read `/data` exactly as existing installs wrote it**, or users are locked
@@ -137,7 +137,7 @@ bytes; the envelope is `iv‖tag‖ciphertext` while Go's `Open` wants `cipherte
 `user_layouts.user_id`, `report_schedules.created_by`, `cfg_templates.created_by` and
 `cfg_runs.created_by`, `ztp_devices.created_by` and `ztp_batches.created_by` hold the user ID; `alert_events.acknowledged_by` and
 `audit_events.actor_name` hold the username. A writer reaching for the other one is invisible to a
-round-trip test, because one implementation agrees with itself whatever it wrote — read the real
+round-trip test, because one implementation agrees with itself whatever it wrote - read the real
 table.
 
 ---
@@ -169,7 +169,7 @@ table.
 ## Fixtures
 
 `testdata/fixtures/` holds real captures from live hardware, replayed into the collectors by the
-`internal/collect` tests — which is what stops this code re-deriving RouterOS behaviour. Captures
+`internal/collect` tests - which is what stops this code re-deriving RouterOS behaviour. Captures
 are anonymised at source by `tools/capture-fixtures.js`:
 
 - **Preserved** (structural): interface and profile names, bridge names, VLAN ids, RouterOS ids, and
@@ -177,15 +177,15 @@ are anonymised at source by `tools/capture-fixtures.js`:
   out of an interface called "2.4GHz WiFi", so tokenising it breaks a real code path.
 - **Scrubbed**: SSIDs, MACs (into `02:` locally-administered), IPs (into `198.51.100.0/24`,
   TEST-NET-2), serials, router identity, country, comments, DHCP hostnames.
-- **Dropped entirely**: any key ending in a credential — `passphrase`, `password`, `private-key`,
+- **Dropped entirely**: any key ending in a credential - `passphrase`, `password`, `private-key`,
   `pre-shared-key`.
 - **Free text is handled by learning, not by key names.** A log line reads
   `…@5GHz WiFi3(<ssid>) connected`, and no rule about keys catches that. The tool reads the router's
   SSIDs, identity and DHCP hostnames first and replaces them as substrings, so the message keeps its
   shape and only the identifying part moves.
 
-`assertClean()` is a **positive** check — every value under an identifying key must be a token the
-tool minted — because a denylist misses the value nobody thought of.
+`assertClean()` is a **positive** check - every value under an identifying key must be a token the
+tool minted - because a denylist misses the value nobody thought of.
 
 ---
 
@@ -198,7 +198,7 @@ session start, so a session older than that config must be restarted before the 
 **A fixture and the documentation answer different questions, and both are needed.** A fixture
 proves what the code does with the rows one router returned; the docs say which rows a router *may*
 return. `dnsStatic` once offered six of the nine record types RouterOS supports, and because a
-`select` validates against its options, a router holding an MX record opened a form showing "A" —
+`select` validates against its options, a router holding an MX record opened a form showing "A" -
 saving rewrote the record. No fixture could catch that. Enumerated values deserve the closest
 reading.
 
@@ -206,18 +206,18 @@ reading.
 
 ## Write guards
 
-**Every guard in `internal/guard/` is pure** — rows in, verdict out, no router I/O — which makes them
+**Every guard in `internal/guard/` is pure** - rows in, verdict out, no router I/O - which makes them
 the cheapest code here to test. A guard is reached one of two ways:
 
 - **Declared by a resource**, and run by the generic resource write path (`verdictFor` in
   `internal/server/resource.go`). Only names in `portedGuards` in that file can be evaluated; the
   map is the list, not copied here because a copy drifts. **A resource declaring any other guard
-  has its writes refused**, not logged and allowed — pinned by `internal/server/guard_test.go`.
+  has its writes refused**, not logged and allowed - pinned by `internal/server/guard_test.go`.
   Adding a guard to that path means adding it to the map, deliberately.
 - **Called directly by a page handler**: the user and WAN pages call their guards' `Check…`
   functions themselves (`internal/server/rosusers.go`, `wan.go`).
 
-Guard names do not map one-to-one onto file names — `capsmanguard.go` is what provides
+Guard names do not map one-to-one onto file names - `capsmanguard.go` is what provides
 `capsmanPush`. Read `internal/guard/` before concluding one is missing, and read the map rather than
 any summary of it.
 
@@ -246,9 +246,9 @@ rather than plain text.
   a Tx value `var(--accent-tx)` (green), everywhere. A protocol column is `protoPill` in
   `web/src/dom.ts` (tcp blue, udp green, icmp amber, anything else grey), not a second scheme.
 - **An ordered table** (routing rules, IPsec policies, OSPF templates: the first match decides) does
-  **not** sort. It is always in the router's order, with its move arrows — the Queues page's rule.
+  **not** sort. It is always in the router's order, with its move arrows - the Queues page's rule.
 
-## Page keys — one word, six meanings
+## Page keys - one word, six meanings
 
 `internal/pages` is the list. The same string is used as six different things, and they do not all
 move together:
@@ -264,20 +264,20 @@ move together:
 
 - **A rename needs a `pages.Renamed` entry in the same commit.** `rbac.PageKeys` reads
   `internal/pages`, but `role_pages.page` is data in each install's database, and a stored grant
-  naming an old key silently stops conferring that page. `pages.Renamed` is **append-only** — a
-  promise to installed databases — and `(*db.DB).RenamePageGrants` applies it at startup from
+  naming an old key silently stops conferring that page. `pages.Renamed` is **append-only** - a
+  promise to installed databases - and `(*db.DB).RenamePageGrants` applies it at startup from
   `cmd/mikrodash`, not from `db.Open`, because `cmd/compat` opens a real `/data` read-only.
 - **Visibility guards are not found by grepping the pagechange spelling.** The socket still
   delivers and the collector still emits; the handler just declines to render.
   `TestVisibilityGuardsNameRealPages` fails on a stale one.
-- **`web/src/gen/` is generated — never edit it by hand.** `cmd/tsgen` and `cmd/pagesgen` generate
+- **`web/src/gen/` is generated - never edit it by hand.** `cmd/tsgen` and `cmd/pagesgen` generate
   from Go, and `tools/*-ts.js` from JSON under `testdata/`. Edit the source and regenerate: a
   hand-edited `.ts` is reverted by the next regeneration. `TestFrozenPageTablesNameRealPages` checks
   the JSON.
 - **Not a page key, though it looks like one:** `Layout(user, "dashboard")` and
   `Layout(user, "topology")` in `internal/server/layouts_api.go` are row keys in `user_layouts`,
   holding every layout a user has saved. Renaming them orphans that data.
-- **The dashboard is served at `/home`** — the one page whose URL differs from its key, declared as
+- **The dashboard is served at `/home`** - the one page whose URL differs from its key, declared as
   `Path` on its entry.
 
 ---
@@ -286,8 +286,8 @@ move together:
 
 - **Every event is declared once, with its payload type:** `hub.Declare[T]("name")`, in
   `internal/collect/events.go`, `internal/server/events.go`, or beside its sender in
-  `internal/session`. Every send goes through the declared event — `EvX.Send(hub, client, p)`,
-  `EvX.Broadcast(...)`, `EvX.Emit(relay, room, p)` — so the compiler checks each payload, and a
+  `internal/session`. Every send goes through the declared event - `EvX.Send(hub, client, p)`,
+  `EvX.Broadcast(...)`, `EvX.Emit(relay, room, p)` - so the compiler checks each payload, and a
   string cannot reach the wire any other way. See `internal/hub/event.go`.
 - **The browser's types are generated from those declarations** by `cmd/tsgen` into
   `web/src/gen/payloads.ts`: an interface for every struct a payload reaches, and `Events`, which
@@ -312,7 +312,7 @@ move together:
 **Two rules every check follows:**
 
 1. **A ledger fails in BOTH directions.** An unrecorded gap is a failure, and a recorded gap that has
-   closed is also a failure — otherwise a ledger becomes a list of excuses nobody re-measures.
+   closed is also a failure - otherwise a ledger becomes a list of excuses nobody re-measures.
 2. **A check must not read itself.** Ledgers quote the event names, settings keys and paths they
    look for, so a scan that included them would find everything it names. `isTestSource` exists for
    that.
@@ -355,12 +355,12 @@ and Docker tags sort lexically: 0.8.10 follows 0.8.9, and the release after 0.8.
 ## Behavioral guidelines
 
 **Risk appetite: this app is in ACTIVE DEVELOPMENT, not maintenance.** Bias toward making the
-change. The safety here is mechanical — `sh tools/verify.sh`, the ledgers that fail in both
-directions, mutation testing and live verification — and hesitation is not a net: stopping to
+change. The safety here is mechanical - `sh tools/verify.sh`, the ledgers that fail in both
+directions, mutation testing and live verification - and hesitation is not a net: stopping to
 reconsider has not prevented anything the gates did not already catch. A change that is wrong and
 caught is cheaper than one that is never attempted.
 
-**The end state is simple, efficient and uniform** — one mechanism per job; fewer router channels,
+**The end state is simple, efficient and uniform** - one mechanism per job; fewer router channels,
 measured; every part answering the same questions the same way. Efficiency is the only one of the
 three a number can settle, and the other two are first-class reasons to change a design, not taste.
 **Check a step against that end state, not against the step before it.** When a plan's wording stops
@@ -373,15 +373,15 @@ re-scoped.
 
 Before implementing:
 - State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
+- If multiple interpretations exist, present them - don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
 **Ask about the design, not about whether to proceed.** The shape of a mechanism, a contract or
 payload change, anything with more than one reasonable end state, and any time a step's intent no
-longer matches the code — re-scoping a step is a design question, not a local decision. Permission to
+longer matches the code - re-scoping a step is a design question, not a local decision. Permission to
 do work already agreed, or to move to the next step, is not; nor is a change being large, touching
-many files, or removing something old — those are the job. **Always ask** before a push, a tag or a
+many files, or removing something old - those are the job. **Always ask** before a push, a tag or a
 release; before anything that writes to a router; and before deleting operator data.
 
 ## 2. Simplicity First
@@ -401,7 +401,7 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 **Preserving is what needs the justification.**
 
 - **Simplicity, uniformity and coherence are reasons to change a design, equal with efficiency.**
-  Only a preference with no goal behind it — "I would have written it differently" — is taste.
+  Only a preference with no goal behind it - "I would have written it differently" - is taste.
 - **Do not keep a mechanism with no instances** because a future caller might want it. Delete it;
   git history holds the reasoning.
 - **Do not keep two forms of one thing** because unifying them is work. Migrate the callers and

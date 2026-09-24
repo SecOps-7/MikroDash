@@ -183,7 +183,7 @@ func TestNoCommittedCredential(t *testing.T) {
 		for _, o := range oversize {
 			t.Errorf("OVER 8 MB   %s", o)
 		}
-		t.Fatal("an eligible file went unscanned — that is a file no credential check ever saw; " +
+		t.Fatal("an eligible file went unscanned - that is a file no credential check ever saw; " +
 			"fix the cause, do not widen the skip list")
 	}
 	if scanned != eligible {
@@ -195,7 +195,7 @@ func TestNoCommittedCredential(t *testing.T) {
 			t.Errorf("possible credential: %s", f)
 		}
 		// Values are never printed, here or in a failure.
-		t.Fatal("if one of these is real: ROTATE IT FIRST — removing the file does not remove it " +
+		t.Fatal("if one of these is real: ROTATE IT FIRST - removing the file does not remove it " +
 			"from history, and this repository is public. Then replace it with a structurally " +
 			"obvious placeholder. If it is already a placeholder this check did not recognise, " +
 			"widen isPlaceholder rather than narrowing the rule")
@@ -204,7 +204,7 @@ func TestNoCommittedCredential(t *testing.T) {
 	t.Logf("%d rules, full coverage (%d/%d eligible files), no credential shapes found",
 		len(credentialRules), scanned, eligible)
 	for _, s := range credentialSkips {
-		t.Logf("  excluded: %s (%d) — %s", s.prefix, skipCount[s.prefix], s.why)
+		t.Logf("  excluded: %s (%d) - %s", s.prefix, skipCount[s.prefix], s.why)
 	}
 }
 

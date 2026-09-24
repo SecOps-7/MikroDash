@@ -8,7 +8,7 @@ import type { City } from './city-picker';
 // router. Both directions are pure, so both are comparable against the original
 // without a browser.
 //
-// The rest of the modal — the picker and the test button — comes after,
+// The rest of the modal - the picker and the test button - comes after,
 // and will call these.
 
 /** A bandwidth figure as the form holds it: a number and a unit. */
@@ -22,7 +22,7 @@ export interface BwField { value: number; unit: 'mbps' | 'gbps' }
  * 1500 stays 1500 Mbps rather than becoming 1.5 Gbps, because the form's number
  * input holds integers and 1.5 would not survive the round trip.
  *
- * ZERO IS A ROUND THOUSAND, arithmetically — `0 % 1000 === 0` — so a stored 0
+ * ZERO IS A ROUND THOUSAND, arithmetically - `0 % 1000 === 0` - so a stored 0
  * would display as "0 Gbps". It cannot arrive: `splitBw` is only ever called on
  * a value the caller has already defaulted with `|| 1000`, and 0 is falsy. The
  * behaviour is reproduced rather than guarded, because adding a guard the
@@ -79,7 +79,7 @@ export interface RouterFormValues {
  * `ether1` and `1.1.1.1` are the original's too.
  *
  * A SITE THAT HAS SINCE BEEN DELETED falls back to none, rather than leaving the
- * picker showing whatever was selected before — `knownSites` is what the caller
+ * picker showing whatever was selected before - `knownSites` is what the caller
  * has, and a stored id absent from it is treated as no site at all.
  *
  * `connDownThresholdSec` uses an `!== undefined` test and not `||`, because 0 is
@@ -92,18 +92,18 @@ export function routerFormValues(
   const r = router;
   const coll = (r && r.collection) || {};
   return {
-    // 'Device', not 'Router': #117 renamed the page and the dialog with it —
+    // 'Device', not 'Router': #117 renamed the page and the dialog with it -
     // a fleet holds switches too.
     title: r ? 'Edit Device' : 'Add Device',
     id: r ? (r.id || '') : '',
     label: r ? (r.label || '') : '',
     // #117: MEMBERSHIP, not one site. The singular `rtrModalSite` select is gone
-    // from the dialog — upstream replaced it with a multi-select — so what the
+    // from the dialog - upstream replaced it with a multi-select - so what the
     // form seeds is the set of ids to mark selected, plus which one is primary.
     //
     // A site the viewer's cache does not know is NOT selected, exactly as the
     // live seeding tests `_have.indexOf(o.value) !== -1 && !!_sitesById[o.value]`.
-    // That means a device in a DELETED site opens with that membership unshown —
+    // That means a device in a DELETED site opens with that membership unshown -
     // and saving from there drops it. Reproduced, not corrected.
     siteIds: siteIdsForSeed(r, knownSites),
     primarySite: primarySiteForSeed(r, knownSites),
@@ -121,7 +121,7 @@ export function routerFormValues(
     // ── ON BY DEFAULT WHEN ADDING, OFF FOR A RECORD THAT SAYS NOTHING ──────
     //
     // `r` is null on Add, and a device somebody is adding almost certainly wants
-    // its history kept — the Reports page is empty without it.
+    // its history kept - the Reports page is empty without it.
     //
     // For an EDIT the record decides, and absent is off: that is what
     // `store.ReportingOn` answers server-side, and the startup migration is what
@@ -140,7 +140,7 @@ export function routerFormValues(
 /** The raw form values the save reads back. Strings, as the DOM holds them. */
 export interface RouterFormInput {
   // siteIds is the device's STORED membership, already normalised by
-  // `storedSiteIds` — an array (possibly empty) for a known device, and absent
+  // `storedSiteIds` - an array (possibly empty) for a known device, and absent
   // ONLY when this browser has no record for it. The two are different
   // statements; see `siteIdsForSave`.
   id: string; label: string; siteIds?: string[]; primarySite?: string;
@@ -168,21 +168,21 @@ export interface RouterFormInput {
  *    an older install stored is ignored by the server.
  *
  * 3. **`connDownThresholdSec` is clamped to 0..300, falling back to 30.** An
- *    empty box parses to NaN and `NaN >= 0` is false, so it takes the default —
+ *    empty box parses to NaN and `NaN >= 0` is false, so it takes the default -
  *    while an explicit 0 passes, because 0 means "no debounce" and is a value an
  *    operator can legitimately want.
  *
  * The password is the one string NOT trimmed: leading or trailing whitespace in
  * a password is part of the password.
  *
- * `mode` is passed through verbatim — see the assignment for why the original's
+ * `mode` is passed through verbatim - see the assignment for why the original's
  * `'stream'` fallback is not an empty-value default.
  */
 /**
  * The site ids the dialog should show as selected.
  *
- * Normalises the record the way `_rtrSiteIds` does — an ARRAY wins outright,
- * even when empty — and then keeps only the ids the viewer's cache knows,
+ * Normalises the record the way `_rtrSiteIds` does - an ARRAY wins outright,
+ * even when empty - and then keeps only the ids the viewer's cache knows,
  * because an option that does not exist cannot be selected.
  */
 export function siteIdsForSeed(
@@ -197,7 +197,7 @@ export function siteIdsForSeed(
 /**
  * Which site the primary select should show.
  *
- * The FIRST of the device's ids, and only when the cache knows it — the live
+ * The FIRST of the device's ids, and only when the cache knows it - the live
  * seeding guards `_have.length && _sitesById[_have[0]]`. An unknown first site
  * leaves the control alone rather than falling through to the second, which
  * would silently move the geo tier to a different place.
@@ -214,7 +214,7 @@ export function primarySiteForSeed(
 /**
  * The ids to SAVE, ordered with the primary first.
  *
- * THE ORDER IS THE PRIMARY — there is no separate field. The server keeps the
+ * THE ORDER IS THE PRIMARY - there is no separate field. The server keeps the
  * scalar `siteId` in step as a rollback mirror by reading the first entry, so
  * putting the wrong id there moves the device's map location.
  *
@@ -229,7 +229,7 @@ export function primarySiteForSeed(
  *
  * ── IT REORDERS. IT NEVER REBUILDS ─────────────────────────────────────────
  *
- * Upstream 76afa49 took membership out of the device modal — it is an
+ * Upstream 76afa49 took membership out of the device modal - it is an
  * authorization decision and lives in Access Management. What remains is a
  * primary picker offering only the sites the device is already in, so the list
  * saved must come from the RECORD and not from the control. A site deleted since
@@ -240,7 +240,7 @@ export function primarySiteForSeed(
  *
  * The server reads ABSENT as "leave membership alone" and an EMPTY ARRAY as
  * "remove every site this device is in". This function used to take
- * `chosen: string[]` and its caller did `f.siteIds ?? []` — which turned "we do
+ * `chosen: string[]` and its caller did `f.siteIds ?? []` - which turned "we do
  * not know this device" into "remove all its sites". The `??` was the whole bug:
  * the same falsy-versus-absent shape as `limit || 200`.
  *
@@ -266,7 +266,7 @@ export function siteIdsForSave(
 }
 
 /**
- * A record's stored membership, normalised — or `undefined` when there is no
+ * A record's stored membership, normalised - or `undefined` when there is no
  * record at all.
  *
  * `siteId` is the pre-multi-site scalar, so a device filed before #117 still
@@ -287,7 +287,7 @@ export function collectRouterForm(f: RouterFormInput): Record<string, unknown> {
   const body: Record<string, unknown> = {
     id: f.id.trim(),
     label: f.label.trim(),
-    // #117: the membership, ordered with the primary first — that order IS the
+    // #117: the membership, ordered with the primary first - that order IS the
     // primary, and the server derives the scalar `siteId` mirror from the head.
     //
     // NO `?? []` HERE. An absent list must stay absent; see `siteIdsForSave`.
@@ -305,15 +305,15 @@ export function collectRouterForm(f: RouterFormInput): Record<string, unknown> {
     bwUpMbps: joinBw(f.bwUpRaw, f.bwUpUnit),
     alertsEnabled: !!f.alertsEnabled,
     // SEEDED AND COLLECTED, both. A field seeded above and missing here is
-    // shown to the operator, edited, and thrown away on save — the silent-loss
+    // shown to the operator, edited, and thrown away on save - the silent-loss
     // shape this file's own history records.
     reportingEnabled: !!f.reportingEnabled,
     connDownThresholdSec: (thresh >= 0 && thresh <= 300) ? thresh : 30,
   };
   body.collection = {
     // `f.mode` VERBATIM, with no `|| 'stream'`. The original's fallback is
-    // `modalMode ? modalMode.value : 'stream'` — for a MISSING ELEMENT, not an
-    // empty value — so an empty mode is sent as ''. The caller supplies
+    // `modalMode ? modalMode.value : 'stream'` - for a MISSING ELEMENT, not an
+    // empty value - so an empty mode is sent as ''. The caller supplies
     // 'stream' when the element is absent, which is where the original puts that
     // decision.
     mode: f.mode,
@@ -323,7 +323,7 @@ export function collectRouterForm(f: RouterFormInput): Record<string, unknown> {
 
 
 /**
- * A place as the picker holds it — the SAME shape as a searched town.
+ * A place as the picker holds it - the SAME shape as a searched town.
  *
  * They were declared separately at first and disagreed about whether `name` is
  * optional, which the compiler caught the moment the two met at the modal's
@@ -336,8 +336,8 @@ export type GeoPlace = City;
 export interface SiteRow {
   // `name` is what the site is CALLED, and it was missing from this type until
   // the primary-site picker needed it (upstream 76afa49). The live
-  // `window._sitesById` holds whole rows from `db.listSites()` — id, name,
-  // description, coordinates and place fields together — so this type was
+  // `window._sitesById` holds whole rows from `db.listSites()` - id, name,
+  // description, coordinates and place fields together - so this type was
   // narrower than the object it describes, not different from it.
   //
   // Optional because every existing reader wants only the geo half and would
@@ -348,7 +348,7 @@ export interface SiteRow {
   // and `sites:update` puts that null on the wire verbatim. The type said
   // `string | undefined` and the object had always held `string | null`, which
   // is the same "narrower than the object it describes" problem the note above
-  // records for `name` — it only surfaced when the Devices page's modal became
+  // records for `name` - it only surfaced when the Devices page's modal became
   // the second reader.
   //
   // Every reader here already tests truthiness (`place_name ? ... : ...`), so
@@ -369,8 +369,8 @@ export interface SiteRow {
  *   none    nothing known                                 → CLEAR
  *
  * SET AND PREVIEW ARE DIFFERENT STATES, not two words for filled-in. A preview
- * shows what is already true without becoming an override — the original says it
- * "only becomes an override once something else is picked" — so a router already
+ * shows what is already true without becoming an override - the original says it
+ * "only becomes an override once something else is picked" - so a router already
  * on the map does not sit next to an empty box, and merely opening the dialog
  * does not convert an automatic location into a manual one.
  *
@@ -378,7 +378,7 @@ export interface SiteRow {
  * corrected a bad geolocation must not have it silently replaced the next time
  * the background refresh finds something.
  *
- * The last hint explains WHY there is nothing rather than just saying so — a
+ * The last hint explains WHY there is nothing rather than just saying so - a
  * private or CGNAT WAN address cannot be geolocated, and without that sentence
  * the empty box reads as a bug.
  */
@@ -415,8 +415,8 @@ export function seedGeoPicker(
         name: site.place_name, region: site.place_region || '',
         // `?? undefined` because a site row's coordinates are SQLite columns and
         // arrive as null when unset, while the preview's own shape uses
-        // undefined for absent. The two behaved identically here already —
-        // everything downstream tests truthiness — so this narrows the type
+        // undefined for absent. The two behaved identically here already -
+        // everything downstream tests truthiness - so this narrows the type
         // without moving a value.
         cc: site.place_cc || '', lat: site.lat ?? undefined, lon: site.lon ?? undefined,
       },
@@ -435,7 +435,7 @@ export function seedGeoPicker(
 /**
  * The connection-test result message.
  *
- * The board name is appended only when the router reported one — a bare
+ * The board name is appended only when the router reported one - a bare
  * "Connected" is what a device that did not is entitled to, and an empty dash
  * would read as a missing value rather than an absent one.
  */
@@ -465,8 +465,8 @@ export function labelAfterTest(current: string, boardName: string | undefined): 
  * ── EDITING ANY FIELD INVALIDATES A PASSING TEST ────────────────────────────
  *
  * This is the rule worth having. Without it an operator could test against one
- * host, change the host — or the username, or the password, or the TLS
- * checkbox — and save credentials that were never tried against the router they
+ * host, change the host - or the username, or the password, or the TLS
+ * checkbox - and save credentials that were never tried against the router they
  * now name. The live app binds `input` on every text field and `change` on both
  * TLS boxes to exactly this reset.
  *

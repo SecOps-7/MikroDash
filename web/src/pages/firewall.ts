@@ -1,4 +1,4 @@
-// The Firewall page — a port of the firewall block in public/app.js.
+// The Firewall page - a port of the firewall block in public/app.js.
 //
 // ONE CARD SERVES FOUR ROUTEROS TABLES. Which resource the Add button and the
 // row clicks mean depends on the tab, which is what `FW_RES` is for.
@@ -7,7 +7,7 @@
 //
 // A rule below the final drop does nothing; the same rule above an accept
 // blocks everything. So the position column reads the rule's place in the REAL
-// table, never in the filtered view — a search must not renumber it — and
+// table, never in the filtered view - a search must not renumber it - and
 // reordering is suppressed while a search is active, because moving a rule past
 // rules you cannot see is not something anyone can mean to do.
 //
@@ -15,8 +15,8 @@
 //
 // A counter tick rewrites the packet and byte cells IN PLACE rather than
 // rebuilding the table, so the flash animation is visible and the scroll
-// position survives. Only a structural change — a different rule count, a
-// different id order, or a queued pulse — takes the full path.
+// position survives. Only a structural change - a different rule count, a
+// different id order, or a queued pulse - takes the full path.
 
 import { esc, el, resRow, debounce, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
@@ -24,12 +24,12 @@ import type { Socket } from '../socket';
 //
 // `filter6`/`nat6`/`mangle6`/`raw6` are ABSENT unless this session asked for
 // IPv6. `omitempty` on the Go side drops them, so `undefined` here means "not
-// collected" and is not the same as an empty table — the difference is what
+// collected" and is not the same as an empty table - the difference is what
 // keeps dormancy correct server-side.
 //
 // `ipv6Disabled` has THREE STATES. true hides the family switch, false shows
 // it, and undefined/null means the probe has not run yet and the page must
-// change nothing — "not asked" must never look like "this router has no IPv6".
+// change nothing - "not asked" must never look like "this router has no IPv6".
 import type { FirewallRule, FirewallPayload } from '../gen/payloads';
 
 type Fam = 'ip4' | 'ip6';
@@ -62,7 +62,7 @@ const CHAIN_COL: Record<string, string> = {
 /**
  * The composite identity the server round-trips for a firewall rule.
  *
- * This MIRRORS IdentityOf in internal/resource — the one mirror in this file,
+ * This MIRRORS IdentityOf in internal/resource - the one mirror in this file,
  * and it exists because RouterOS REUSES `*N` ids after a delete, so addressing a
  * rule by id alone is not enough to know it is still the rule that was on
  * screen. Separator included: U+0001, a character no RouterOS value contains.
@@ -105,7 +105,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
   const writable: Record<string, boolean> = {};
   // Which row to pulse once the table redraws. A reorder moves a row among
   // thirty near-identical ones, and without a cue the eye has no way to follow
-  // it — including when the move came from undo rather than the operator's hand.
+  // it - including when the move came from undo rather than the operator's hand.
   let pulse: string | null = null;
   let rafId: number | null = null;
 
@@ -148,7 +148,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     setCount('fwCntMangle', 'fwCntMangleDis', mangle);
     setCount('fwCntRaw', 'fwCntRawDis', raw);
 
-    // Action breakdown — what is IN FORCE, so disabled rules are left out. The
+    // Action breakdown - what is IN FORCE, so disabled rules are left out. The
     // Rule Counts card above deliberately keeps them: its "N off" badge is what
     // they are for, and it sat empty for as long as the collector dropped them.
     const actionCounts: Record<string, number> = {};
@@ -213,7 +213,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     const rules = tblOf(d, fam, tab);
     const rows = firewallTable.querySelectorAll<HTMLElement>('tr[data-rule-id]');
     if (!rows.length) return false;
-    if (rows.length !== rules.length) return false; // rule count changed — full re-render
+    if (rows.length !== rules.length) return false; // rule count changed - full re-render
     let idMatch = true;
     rows.forEach((row, i) => {
       if (row.dataset.ruleId !== (rules[i] && rules[i].id)) idMatch = false;
@@ -236,7 +236,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
         }
       }
       if (byteCell) {
-        const newByte = r.bytes > 0 ? fmtBytes(r.bytes) : '—';
+        const newByte = r.bytes > 0 ? fmtBytes(r.bytes) : '-';
         if (byteCell.textContent !== newByte) {
           byteCell.textContent = newByte;
           byteCell.classList.remove('fw-cell-flash');
@@ -253,13 +253,13 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
   function renderTab(): void {
     const full = rulesFor(tab);
     // Position is the rule's place in the REAL table, not in the filtered view
-    // — it is what decides whether the rule ever runs, so a search must not
+    // - it is what decides whether the rule ever runs, so a search must not
     // renumber it.
     const pos: Record<string, number> = {};
     full.forEach((r, i) => { pos[r.id] = i; });
     const resKey = resKeyFor(fam, tab);
     // Two different questions. A viewer who may not write has no use for the
-    // controls at all, so their COLUMNS go — leaving two empty columns would be
+    // controls at all, so their COLUMNS go - leaving two empty columns would be
     // dead space on every row. A search only suppresses the controls:
     // reordering inside a filtered view would move a rule past rules you cannot
     // see, but the columns stay so the table does not reflow on every keystroke.
@@ -297,7 +297,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
         ? '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
           '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button>'
         : '';
-      // U+283F, the six-dot braille cell — the conventional grip, and a single
+      // U+283F, the six-dot braille cell - the conventional grip, and a single
       // character rather than an SVG repeated down thirty rows.
       const dragCell = canMove
         ? '<span class="fw-drag" data-res-drag title="Drag to reorder">&#10303;</span>' : '';
@@ -311,22 +311,22 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
       return '<tr class="' + pulseCls.trim() + '" data-rule-id="' + esc(r.id) + '"' +
         (r.disabled ? ' style="opacity:.4"' : '') +
         (r.dynamic ? '' : resRow(r.id, fwIdentity(r), resKey)) + '>' +
-        // Handle and arrows together — they do the same job, so they sit as one
+        // Handle and arrows together - they do the same job, so they sit as one
         // group of controls with the position reading beside them.
         '<td class="fw-dragcell">' + dragCell + '</td>' +
         '<td class="fw-movecell">' + moveCell + '</td>' +
         '<td class="fw-pos">' + at + '</td>' +
         '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(r.chain) + '</td>' +
         '<td>' + actionBadge(r.action) + '</td>' +
-        '<td style="font-size:.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sd || '—') + '</td>' +
-        '<td style="font-size:.7rem;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.comment || '—') + '</td>' +
+        '<td style="font-size:.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sd || '-') + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.comment || '-') + '</td>' +
         '<td class="fw-pkt text-end" style="font-family:var(--font-mono);white-space:nowrap">' + deltaIndicator + r.packets.toLocaleString() + '</td>' +
-        '<td class="fw-byte text-end" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);white-space:nowrap">' + (r.bytes > 0 ? fmtBytes(r.bytes) : '—') + '</td>' +
+        '<td class="fw-byte text-end" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);white-space:nowrap">' + (r.bytes > 0 ? fmtBytes(r.bytes) : '-') + '</td>' +
       '</tr>';
     }).join('');
 
     // One pulse per move. Cleared after the render that showed it, so a later
-    // redraw for an unrelated counter tick does not flash the row again — and
+    // redraw for an unrelated counter tick does not flash the row again - and
     // the class is stripped once the animation has run, so a row does not keep
     // wearing a state it is no longer in.
     if (pulse) {
@@ -355,13 +355,13 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     updateSummary(d);
     // A DRAG IS IN PROGRESS, and these are the very rows being rearranged.
     // Rebuilding the table underneath the pointer would replace the node being
-    // dragged with a fresh one — leaving the original detached and re-inserted
-    // as a duplicate — and would yank the row out from under the cursor even if
+    // dragged with a fresh one - leaving the original detached and re-inserted
+    // as a duplicate - and would yank the row out from under the cursor even if
     // it did not. The payload is kept; the table catches up on release.
     if (document.body.classList.contains('res-dragging-body')) return;
     // A pending pulse forces the full path. The in-place update rewrites counter
     // cells only, so it would leave the cue queued until some unrelated
-    // structural change flashed the row at the wrong moment — which is what
+    // structural change flashed the row at the wrong moment - which is what
     // happens after undoing an EDIT, where nothing moved and the order is
     // unchanged.
     if (!wasEmpty && !pulse && updateCountersInPlace(d)) return;
@@ -388,7 +388,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
 
   // A drag reorders the table optimistically, before the router has agreed. If
   // the write is refused there is no fresh payload coming to correct it, so the
-  // table is redrawn from the last one — which still holds what the router
+  // table is redrawn from the last one - which still holds what the router
   // actually has.
   socket.on('res:error', (d) => {
     if (!d || resKeyFor(fam, tab) !== d.resource) return;
@@ -409,7 +409,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
    * Tell the server whether this session wants the IPv6 tables read at all.
    *
    * TWO REASONS TO WANT THEM, and either is enough: the IPv6 tab is on screen,
-   * or the cards are folding IPv6 in. Sent on every change and on page entry —
+   * or the cards are folding IPv6 in. Sent on every change and on page entry -
    * the collector releases the want when the page room empties, so re-entering
    * has to re-assert it.
    */
@@ -490,7 +490,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     if (bar) bar.hidden = off;
     if (lbl) lbl.hidden = off;
     if (off && fam !== 'ip4') {
-      // The stored checkbox preference is deliberately left alone — this router
+      // The stored checkbox preference is deliberately left alone - this router
       // has no IPv6, the next one may.
       setFwFamily('ip4');
     }
@@ -498,8 +498,8 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
 
   // `.fw-tab` and `data-fw`, which is what the MARKUP carries.
   //
-  // This selected `[data-fwtab]` — an attribute that appears nowhere in the
-  // extracted page — so it matched nothing, no listener was ever attached, and
+  // This selected `[data-fwtab]` - an attribute that appears nowhere in the
+  // extracted page - so it matched nothing, no listener was ever attached, and
   // the four tabs did nothing at all. The Firewall page could only show Filter.
   // Everything inside the handler was already right; it simply never ran.
   //
@@ -530,7 +530,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     // mean, the other is where you happened to be looking last time.
     if (fam !== 'ip4') setFwFamily('ip4');
     // The collector drops the want when this page's room empties, so re-entering
-    // has to ask again — otherwise a remembered checkbox would show stale or
+    // has to ask again - otherwise a remembered checkbox would show stale or
     // empty IPv6 counts.
     sendWantV6();
     if (data.filter) renderTab();

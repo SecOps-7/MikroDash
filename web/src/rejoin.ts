@@ -16,7 +16,7 @@
  *   - room membership is per-CONNECTION, so a reconnect starts in no rooms;
  *   - the client re-sends `router:select` on connect, and the server's
  *     `rejoinPage` returns immediately because the new `conn` has an empty
- *     `cn.page` — there is nothing for it to rejoin;
+ *     `cn.page` - there is nothing for it to rejoin;
  *   - the id had not changed, so this listener returned early and `page:focus`
  *     was never re-sent.
  *
@@ -27,8 +27,8 @@
  * reconnect that sent only `router:select`.
  *
  * It is the same failure `TestSelectRouterRejoinsEveryPerSocketSubscription`
- * exists for — "a browser subscribed to nothing … every card goes stale, and the
- * server log shows a healthy session throughout" — reached by the other route.
+ * exists for - "a browser subscribed to nothing … every card goes stale, and the
+ * server log shows a healthy session throughout" - reached by the other route.
  */
 export interface RejoinState {
   /** The last active router id this listener acted on. Empty before the first. */
@@ -42,11 +42,11 @@ export interface RejoinState {
  *
  * Three cases, and the third is the one that regressed:
  *
- *   FIRST connect   no — the code that opened the page joined the room already,
+ *   FIRST connect   no - the code that opened the page joined the room already,
  *                   and re-emitting would be a second join for a room we are in.
- *   SWITCH          yes — the id changed, and the room must be re-joined against
+ *   SWITCH          yes - the id changed, and the room must be re-joined against
  *                   the NEW router so the role gate is re-applied to it.
- *   RECONNECT       yes, EVEN THOUGH THE ID IS UNCHANGED — the rooms are gone
+ *   RECONNECT       yes, EVEN THOUGH THE ID IS UNCHANGED - the rooms are gone
  *                   with the old connection and only the client can say which
  *                   page to restore.
  *

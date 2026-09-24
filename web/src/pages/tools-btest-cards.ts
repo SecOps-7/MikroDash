@@ -54,7 +54,7 @@ export function renderBtestCards(r: BtestResult | null): void {
   setGauge('Rx', rx, r ? r.rxBps / 1e6 : 0, scale);
   setGauge('Tx', tx, r ? r.txBps / 1e6 : 0, scale);
   const lost = el('btestLostVal');
-  if (lost) lost.textContent = r ? String(r.lostPackets) : '—';
+  if (lost) lost.textContent = r ? String(r.lostPackets) : '-';
   const cpu = el('btestCpuVal');
-  if (cpu) cpu.textContent = r ? r.localCpu + '% / ' + r.remoteCpu + '%' : '—';
+  if (cpu) cpu.textContent = r ? r.localCpu + '% / ' + r.remoteCpu + '%' : '-';
 }

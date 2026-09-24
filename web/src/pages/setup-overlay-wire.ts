@@ -7,8 +7,8 @@
  * `setupTestResultText` are ported and gated there. What is here is the part a
  * corpus cannot hold: the two fetches, the listeners, and the lock.
  *
- * That module has been complete and UNREACHABLE — recorded in
- * The reachable audit — for the same reason the router modal was: nothing
+ * That module has been complete and UNREACHABLE - recorded in
+ * The reachable audit - for the same reason the router modal was: nothing
  * mounted it. This is the mount.
  *
  * ── SAVE IS LOCKED UNTIL A TEST PASSES, AND ANY CHANGE RE-LOCKS IT ─────────
@@ -16,14 +16,14 @@
  * The interlock is the same shape as the Data Cleanup dialog's preview: a button
  * that acts on a result the operator actually saw. Here the result is "this host
  * answered", and the fields that can make it wrong are exactly
- * `SETUP_WATCH_FIELDS` — not every field, because re-locking on a typo in the
+ * `SETUP_WATCH_FIELDS` - not every field, because re-locking on a typo in the
  * LABEL would make someone re-run a connection test to fix a name.
  *
  * ── IT RUNS WHEN THE FLEET IS EMPTY ────────────────────────────────────────
  *
  * `setup:required` is emitted when no router is configured at all, so this is
  * the one screen an operator sees before anything else works. Hard to reach on
- * an install that already has routers, which is why it stayed unwired so long —
+ * an install that already has routers, which is why it stayed unwired so long -
  * and why the check below drives it rather than a browser.
  */
 
@@ -66,7 +66,7 @@ function clearErr(): void {
 /**
  * Show the overlay.
  *
- * IT ALSO PUTS THE APP INTO ITS DISCONNECTED STATE — the body class, the
+ * IT ALSO PUTS THE APP INTO ITS DISCONNECTED STATE - the body class, the
  * `_rosCurrentlyDisconnected` flag and the paused diagram. Without that the page
  * behind the overlay animates as though it were live, which is exactly what it
  * is not: there is no router at all.
@@ -108,7 +108,7 @@ function setBusy(busy: boolean): void {
   if (test) test.disabled = busy;
   if (save) {
     // NOT JUST `busy`. Clearing the busy state must not hand back a Save the
-    // interlock had locked — the same conditional re-enable the Data Cleanup
+    // interlock had locked - the same conditional re-enable the Data Cleanup
     // dialog needs, and for the same reason.
     save.disabled = busy || !testPassed;
     save.textContent = busy ? 'Connecting…' : 'Connect';
@@ -124,7 +124,7 @@ export interface SetupSocket { on(event: string, cb: () => void): void }
  *
  * `setup:required` is broadcast when the LAST router is deleted, which reaches
  * every browser already open. It says nothing to a browser that arrives at an
- * install which never had a router — and that is a first run, the one case this
+ * install which never had a router - and that is a first run, the one case this
  * overlay exists for. A new operator got the dashboard instead, drawn in full
  * with every card empty and nothing on screen saying a router was needed or
  * where to add one (issue #124).
@@ -171,7 +171,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
   if (tls && port) {
     tls.addEventListener('change', () => {
       const next = flipPortForTls(port.value, tls.checked);
-      // NULL MEANS LEAVE IT — the operator's own port is not overwritten.
+      // NULL MEANS LEAVE IT - the operator's own port is not overwritten.
       if (next !== null) port.value = next;
     });
   }
@@ -212,7 +212,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
       .catch(() => {
         if (test) test.disabled = false;
         if (res) {
-          res.textContent = '✗ Request failed — check browser console';
+          res.textContent = '✗ Request failed - check browser console';
           res.style.color = '#f87171';
         }
         setSaveReady(false);
@@ -231,7 +231,7 @@ export function initSetupOverlay(socket: SetupSocket): void {
     }
     setBusy(true);
     // TWO REQUESTS, and the second depends on the first's id. Adding a router
-    // does not select it — a first-run install with a router nobody activated
+    // does not select it - a first-run install with a router nobody activated
     // would show an empty dashboard and no way to understand why.
     void fetch('/api/routers', {
       method: 'POST',

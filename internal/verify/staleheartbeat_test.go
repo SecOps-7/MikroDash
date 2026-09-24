@@ -20,8 +20,8 @@ import (
 //
 // Reported by the operator on 2026-09-16 for the Packages card, and five others
 // were in the same state: dns, bridges, capsman, vlans and vpn. The six that
-// already had a heartbeat got one the same way — each after somebody noticed a
-// card going stale — which is why this is a gate rather than a sixth fix.
+// already had a heartbeat got one the same way - each after somebody noticed a
+// card going stale - which is why this is a gate rather than a sixth fix.
 //
 // ── WHAT IT ASSERTS ─────────────────────────────────────────────────────────
 //
@@ -95,7 +95,7 @@ func TestEveryStaleCardHasAHeartbeat(t *testing.T) {
 		checked++
 		// USED, not merely declared. A file keeps its `xHeartbeat` constant when
 		// the spec field that applies it is deleted, so looking for the name alone
-		// passes against exactly the bug this gate exists for — which is what the
+		// passes against exactly the bug this gate exists for - which is what the
 		// first version of it did when the mutation was run.
 		if !heartbeatUsed(src) {
 			t.Errorf("card %s waits for %q with a %dms threshold, and %s declares no heartbeat. "+

@@ -12,7 +12,7 @@
  * compares the DOM against the live renderer. All four passed while NOTHING
  * CALLED ANY OF THEM. A renderer that is never invoked still renders correctly
  * when a test invokes it, so a DOM gate cannot tell a wired page from an unwired
- * one — and `event-audit.js` did not catch it either, because the events were
+ * one - and `event-audit.js` did not catch it either, because the events were
  * emitted by the Go side and consumed by no one: a gap in the CONSUMER, not in
  * the vocabulary.
  *
@@ -30,7 +30,7 @@
  * claimed `disconnect`, `settings:pages` and `ros:status` as card events. A
  * check whose expected set is that noisy teaches people to ignore it.
  *
- * So the table is EXPLICIT — and kept honest by discovery instead: every
+ * So the table is EXPLICIT - and kept honest by discovery instead: every
  * `dashboard-*.ts` module in the port must appear in it, so porting a new card
  * fails this gate until its event is named and wired. That is the direction the
  * failure actually comes from.
@@ -55,8 +55,8 @@ const LIVE = path.resolve(process.env.MIKRODASH_SRC || path.join(ROOT, '..', 'Mi
 // `gauge` is deliberately absent and listed as a helper below: it renders no
 // card and subscribes to nothing.
 // A card's entry is the event it renders from, or an object when it needs more:
-//   also    — further events the same module owns, allowed but not probed
-//   prelude — events that must be delivered FIRST for the probe to render
+//   also    - further events the same module owns, allowed but not probed
+//   prelude - events that must be delivered FIRST for the probe to render
 const CARDS = {
   'dashboard-talkers': 'talkers:update',
   'dashboard-netwatch': 'netwatch:update',
@@ -65,7 +65,7 @@ const CARDS = {
   'dashboard-conn': 'conn:update',
   'dashboard-card-physports': 'ifstatus:update',
   'dashboard-networks': 'lan:overview',
-  // The chart IGNORES a sample for an interface it is not showing — `currentIf`
+  // The chart IGNORES a sample for an interface it is not showing - `currentIf`
   // is empty until `traffic:history` names one, and that guard is the whole
   // reason a viewer switching interfaces does not get two streams interleaved.
   // So the probe delivers history first; without the prelude the gate would
@@ -83,7 +83,7 @@ const CARDS = {
   'dashboard-card-fwactions': 'firewall:update',
   'dashboard-card-diagnostics': 'diagnostics:update',
   // The Agent Overview card (#98). Like diagnostics, it is fed by the SERVER
-  // rather than by a collector — there is no menu behind it — so its event
+  // rather than by a collector - there is no menu behind it - so its event
   // arrives on a per-socket ticker that runs only while the card is on a
   // Dashboard.
   'dashboard-card-agent': 'ai:overview',
@@ -114,7 +114,7 @@ const EXTRA_EVENTS = {
   'stream:health': 'the per-card stream-degradation warning (dashboard-stream-health.ts). It ' +
     'tints a card and writes an element whose id is BUILT from the collector name, which is why ' +
     'neither shows up in a search for its literal id',
-  'wan:status': 'the WAN badge (dashboard-stream-health.ts) — chrome on the Dashboard rather ' +
+  'wan:status': 'the WAN badge (dashboard-stream-health.ts) - chrome on the Dashboard rather ' +
     'than one of the grid\'s cards',
 };
 
@@ -131,10 +131,10 @@ const HELPERS = new Set([
   // from it is `dashboard-traffic`, which will need a CARDS entry. Listing this
   // here does not excuse that one.
   'dashboard-traffic-buffer',
-  // Pure grid arithmetic — overlap, bounds, free slots, cell/pixel conversion.
+  // Pure grid arithmetic - overlap, bounds, free slots, cell/pixel conversion.
   // A helper TODAY, for the same reason and with the same caveat: the module
   // that WIRES the grid (drag, resize, the add panel, room bookkeeping) is not
-  // written yet, and it does not subscribe to a card event — it is the page's
+  // written yet, and it does not subscribe to a card event - it is the page's
   // layout, not a card. When it lands it belongs in neither list without a
   // note explaining which.
   'dashboard-grid-layout',
@@ -150,11 +150,11 @@ const HELPERS = new Set([
   // Resizing a card. Same caveat: a helper until the grid's wiring module lands.
   'dashboard-grid-resize',
   // The grid's own wiring module. Not a CARD: it subscribes to no socket event
-  // — the grid is the page's LAYOUT, and its inputs are pointer events, a
+  // - the grid is the page's LAYOUT, and its inputs are pointer events, a
   // MutationObserver and a ResizeObserver. The grid-wiring check is what
   // holds it to account, the way this file does for the cards.
   'dashboard-grid',
-  // Shared helpers for the fourteen EXTRA cards — escaping, flags, rate
+  // Shared helpers for the fourteen EXTRA cards - escaping, flags, rate
   // splitting and the IP Utilisation arc. Pure; the cards that call them are the
   // next slices and each will need a CARDS entry of its own.
   'dashboard-cards-util',
@@ -162,7 +162,7 @@ const HELPERS = new Set([
   // builds the SVG around them is the next slice and will need a CARDS entry.
   'dashboard-map-geometry',
   // The Connections Map card. NOT in CARDS: it does not subscribe an event of
-  // its own — `dashboard.ts` feeds it from the `conn:update` handler alongside
+  // its own - `dashboard.ts` feeds it from the `conn:update` handler alongside
   // the two list cards, and it initialises off a `worldmap:ready` DOM event.
   'dashboard-card-map',
   // The Connection Flow card: a wrapper around the connections page's sankey
@@ -189,8 +189,8 @@ for (const m of modules) {
 
 // ── the live app must still deliver each card on that event ────────────────
 //
-// GUARDED: this asks the live SOURCE a question — does it still register a
-// handler for this event — and exists to catch the CARD TABLE going stale
+// GUARDED: this asks the live SOURCE a question - does it still register a
+// handler for this event - and exists to catch the CARD TABLE going stale
 // against an upstream that moved. With no upstream there is nothing to drift
 // from. Every other check here drives the port and runs unconditionally.
 
@@ -241,7 +241,7 @@ globalThis.window = {
 };
 // QUEUED, not run inline. The traffic chart's keepalive re-books itself every
 // frame, so a stub that executed callbacks synchronously recursed until the
-// stack blew — which looked like the handler throwing. Frames are drained a
+// stack blew - which looked like the handler throwing. Frames are drained a
 // bounded number of rounds instead: enough for the cards that defer their
 // render by one frame, finite for the loop that never ends on its own.
 const frameQueue = [];
@@ -270,7 +270,7 @@ const PROBE = {
   'system:update': { uptimeRaw: '1d00:00:00', cpuLoad: 1, memPct: 1, totalHdd: 0, hddPct: 0 },
   'lan:overview': { internetIfaces: [], networks: [] },
   // The chart ignores a sample for an interface it is not showing, so the probe
-  // must name the one `traffic:history` selected — see the note below.
+  // must name the one `traffic:history` selected - see the note below.
   'traffic:update': { ifName: '__probe__', ts: 1, rx_mbps: 1, tx_mbps: 1 },
   // The three-layer payload, with one menu of each delivery mode so the probe
   // reaches both branches of the menu list.
@@ -300,7 +300,7 @@ const PROBE = {
   'conn:update': { ts: 1, total: 0, protoCounts: { tcp: 0, udp: 0, icmp: 0, other: 0 }, topSources: [], topDestinations: [] },
   // NOT `{}` and not undefined: the live handler dereferences `data` unguarded,
   // and an EMPTY interface list takes the early return before the card writes
-  // anything — which this gate would then report as a handler that touched no
+  // anything - which this gate would then report as a handler that touched no
   // element. One real port is the smallest payload that exercises the card.
   'ifstatus:update': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false, ips: [] }] },
   'ifstatus:names': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false }] },
@@ -317,7 +317,7 @@ for (const [m, entry] of Object.entries(CARDS)) {
   const event = cardEvent(entry);
   const cb = subscribed.get(event);
   if (!cb) {
-    problems.push('nothing subscribes ' + event + ' — ' + m + ' is a renderer nothing calls');
+    problems.push('nothing subscribes ' + event + ' - ' + m + ' is a renderer nothing calls');
     continue;
   }
   touched.clear();
@@ -336,7 +336,7 @@ for (const [m, entry] of Object.entries(CARDS)) {
     continue;
   }
   if (!touched.size) {
-    problems.push(event + ' is subscribed but its handler wrote to no element — ' +
+    problems.push(event + ' is subscribed but its handler wrote to no element - ' +
       'the payload is being swallowed');
   }
 }
@@ -367,7 +367,7 @@ for (const event of subscribed.keys()) {
     emitted.length = 0;
     const handler = docEvents.find((e) => e.type === dispatched);
     if (!handler) {
-      problems.push('nothing listens for ' + dispatched + ' — every room the grid computes ' +
+      problems.push('nothing listens for ' + dispatched + ' - every room the grid computes ' +
         'reaches nobody');
       continue;
     }
@@ -393,7 +393,7 @@ for (const event of subscribed.keys()) {
 //
 // The grid re-syncs its rooms on first paint, on every connect and when the
 // dashboard becomes active, and the server replays each card's latest payload
-// on every `dashcard:focus` — so a page load sent each subscription three times
+// on every `dashcard:focus` - so a page load sent each subscription three times
 // and received three replays. The server already remembers the subscriptions
 // for the connection and re-joins them on a router select, so one send per
 // connection is all it needs; a disconnect starts a new connection.
@@ -430,7 +430,7 @@ for (const event of subscribed.keys()) {
 
 // ── the System card's two non-payload signals ──────────────────────────────
 if (!subscribed.has('connect')) {
-  problems.push('nothing re-arms the System card meta line on connect — a reconnect to a ' +
+  problems.push('nothing re-arms the System card meta line on connect - a reconnect to a ' +
     'different board would keep the old board name under the new gauges');
 }
 // The chart freezes on visibilitychange ONLY, NOT on window blur. It used to
@@ -443,7 +443,7 @@ if (winEvents.some((e) => e.type === 'blur')) {
     'browser loses focus while still on screen, until the next sample fades it in');
 }
 if (!docEvents.some((e) => e.type === 'visibilitychange')) {
-  problems.push('no visibilitychange handler — a tab that was hidden holds its last payload ' +
+  problems.push('no visibilitychange handler - a tab that was hidden holds its last payload ' +
     'pending and would never render it');
 }
 // And the router-switch half, which lives in main.ts because that is where the
@@ -452,13 +452,13 @@ if (!docEvents.some((e) => e.type === 'visibilitychange')) {
 //
 // These pin that a CONNECTION EXISTS, which is structural by nature: booting
 // main.ts needs the whole page, so there is no cheap way to observe the effect.
-// That is a different thing from pinning a behaviour's MECHANISM — the live repo
+// That is a different thing from pinning a behaviour's MECHANISM - the live repo
 // passed back a case where a green test asserted `lastTalkers=null;` appeared in
 // its source, proving an old fix's implementation rather than its effect, and
 // failing on a change no user could see.
 //
 // The distinction is worth keeping, and so is not being fragile about it. This
-// used to be `/switchRouter[\s\S]{0,400}?resetSysMeta\(\)/` — a regex that
+// used to be `/switchRouter[\s\S]{0,400}?resetSysMeta\(\)/` - a regex that
 // would break on a reformat, a longer comment, or a reordered body, none of
 // which change what is wired. Parsing asks the actual question: does the body of
 // `switchRouter` contain a call to `resetSysMeta`?
@@ -484,28 +484,28 @@ if (!docEvents.some((e) => e.type === 'visibilitychange')) {
   findFn(sf);
 
   if (!switchRouterBody) {
-    problems.push('main.ts has no switchRouter function — this check no longer knows what to ask');
+    problems.push('main.ts has no switchRouter function - this check no longer knows what to ask');
   } else {
     if (!callsIn(switchRouterBody).has('resetSysMeta')) {
-      problems.push('switchRouter does not call resetSysMeta — the new router would show the ' +
+      problems.push('switchRouter does not call resetSysMeta - the new router would show the ' +
         'PREVIOUS board name, version and CPU count under its own gauges');
     }
     // The pages that accumulate per router (review loop): without these, B's
     // ether1 sparkline drew A's history and a generated table showed A's rows.
     for (const fn of ['resetInterfacesPage', 'resetVlansPage', 'resetAreaPages']) {
       if (!callsIn(switchRouterBody).has(fn)) {
-        problems.push('switchRouter does not call ' + fn + ' — that page keeps the previous ' +
+        problems.push('switchRouter does not call ' + fn + ' - that page keeps the previous ' +
           "router's data under the new router's name");
       }
     }
   }
   if (!callsIn(sf).has('initDashboard')) {
-    problems.push('main.ts never calls initDashboard — nothing is wired at boot');
+    problems.push('main.ts never calls initDashboard - nothing is wired at boot');
   }
   // A payload that arrives while the tab is hidden is dropped by every page's
   // visibility guard; refocusOnReturn asks for it again (review loop).
   if (!callsIn(sf).has('refocusOnReturn')) {
-    problems.push('main.ts never calls refocusOnReturn — a page stays stale after its tab returns');
+    problems.push('main.ts never calls refocusOnReturn - a page stays stale after its tab returns');
   }
   // perms:changed was subscribed twice, refreshing the caps twice per nudge.
   const permsSubs = (fs.readFileSync(mainPath, 'utf8').match(/socket\.on\('perms:changed'/g) || []).length;

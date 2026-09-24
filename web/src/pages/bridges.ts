@@ -1,8 +1,8 @@
-// The Bridges page — a port of the Bridges IIFE in public/app.js.
+// The Bridges page - a port of the Bridges IIFE in public/app.js.
 //
 // Three tables from one payload: the bridges, their ports and the learned MAC
 // table. The ports/hosts split is a tab strip rather than two cards, and both
-// panels render from the same payload — switching is a class toggle plus a
+// panels render from the same payload - switching is a class toggle plus a
 // re-render, with no second data path to keep in step and no request behind a
 // tab.
 
@@ -46,7 +46,7 @@ function onOff(v: boolean, label: string): string {
 
 function rate(b: Bridge): string {
   if (b.rxMbps === null && b.txMbps === null) {
-    return '<span style="color:var(--text-muted)" title="Interface rates are unavailable">&mdash;</span>';
+    return '<span style="color:var(--text-muted)" title="Interface rates are unavailable">-</span>';
   }
   return '<span style="color:var(--accent-rx)">' + fmtMbps(b.rxMbps || 0) + '</span> / ' +
     '<span style="color:var(--accent-tx,#f59f00)">' + fmtMbps(b.txMbps || 0) + '</span>';
@@ -98,11 +98,11 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
       '<tr' + (b.disabled ? ' style="opacity:.55"' : '') + resRow(b.id, b.name) + '>' +
       '<td>' + esc(b.name) + (b.running ? '' : ' <span class="wl-band wl-band-24">down</span>') + '</td>' +
       '<td>' + (b.protocolMode ? '<span class="wl-band wl-band-5">' + esc(b.protocolMode) + '</span>'
-        : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
+        : '<span style="color:var(--text-muted)">-</span>') + '</td>' +
       '<td>' + onOff(b.vlanFiltering, 'on') + '</td>' +
       '<td>' + onOff(b.igmpSnooping, 'on') + '</td>' +
       '<td class="mono">' + esc(b.macAddress) + '</td>' +
-      '<td>' + (b.mtu || '&mdash;') + '</td>' +
+      '<td>' + (b.mtu || '-') + '</td>' +
       '<td>' + b.portCount + '</td>' +
       '<td>' + rate(b) + '</td>' +
       '</tr>').join('') : '<tr><td colspan="8" class="empty-state">' +
@@ -127,12 +127,12 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
         return '<tr' + resRow(p.id, p.interface) + '>' +
           '<td>' + esc(p.interface) + (p.dynamic ? ' <span class="wl-band wl-band-6">dyn</span>' : '') + '</td>' +
           '<td>' + esc(p.bridge) + '</td>' +
-          '<td>' + (p.pvid === null ? '&mdash;' : '<span class="wl-band wl-band-24">' + p.pvid + '</span>') + '</td>' +
+          '<td>' + (p.pvid === null ? '-' : '<span class="wl-band wl-band-24">' + p.pvid + '</span>') + '</td>' +
           // A bridge with protocol-mode=none reports no role at all, which is
           // not the same as a port whose role is unknown.
           '<td>' + (p.role ? esc(p.role) : '<span style="color:var(--text-muted)">no STP</span>') + '</td>' +
-          '<td>' + esc(p.edge || '—') + '</td>' +
-          '<td>' + esc(p.horizon || '—') + '</td>' +
+          '<td>' + esc(p.edge || '-') + '</td>' +
+          '<td>' + esc(p.horizon || '-') + '</td>' +
           '<td>' + state + '</td>' +
           '</tr>';
       }).join('') : '<tr><td colspan="7" class="empty-state">No bridge ports.</td></tr>';
@@ -174,7 +174,7 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
           '<td class="mono">' + esc(h.mac) + '</td>' +
           '<td>' + esc(h.onInterface) + '</td>' +
           '<td>' + esc(h.bridge) + '</td>' +
-          '<td>' + (h.vid === null ? '&mdash;' : '<span class="wl-band wl-band-24">' + h.vid + '</span>') + '</td>' +
+          '<td>' + (h.vid === null ? '-' : '<span class="wl-band wl-band-24">' + h.vid + '</span>') + '</td>' +
           '<td>' + type + '</td>' +
           '</tr>';
       }).join('') : '<tr><td colspan="5" class="empty-state">' +
@@ -191,7 +191,7 @@ export function initBridgesPage(socket: Socket, isVisible: (page: string) => boo
     set('brSumCount', String((data.bridges || []).length));
     set('brSumPorts', String((data.ports || []).length));
     set('brSumHosts', String(data.hostTotal || 0));
-    set('brSumStp', m.length ? m.join(', ') : '—');
+    set('brSumStp', m.length ? m.join(', ') : '-');
   }
 
   function setTab(key: string): void {

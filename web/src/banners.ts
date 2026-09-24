@@ -13,7 +13,7 @@
 //
 // `rosDisconnected` is remembered across a reconnect. Without it, a browser that
 // reconnects to a server whose router is STILL down clears the red banner and
-// shows nothing at all — the most reassuring possible display of a broken
+// shows nothing at all - the most reassuring possible display of a broken
 // system. The live app keeps that flag for exactly this reason and so does this.
 //
 // ── CLASSES, NOT INLINE STYLES ──────────────────────────────────────────────
@@ -21,14 +21,14 @@
 // The stylesheet says `#rosBanner{display:none}` and `#rosBanner.show{display:flex}`.
 // Toggling `.show` lets the stylesheet decide; writing `style.display` inline
 // wins over it permanently, which is the same absent-versus-set trap the
-// appearance layer documents. The body classes matter too — `is-disconnected`
+// appearance layer documents. The body classes matter too - `is-disconnected`
 // and `is-ros-disconnected` dim the sidebar and main panel and hide the flow
 // dots, so omitting them leaves a live-looking UI over dead data.
 //
 // ── THE EVENT NAME DIFFERS FROM THE LIVE APP, DELIBERATELY ──────────────────
 //
-// The live server emits TWO events: `ros:status` — this session's RouterOS
-// reachability, which drives this banner — and `router:status`, a global
+// The live server emits TWO events: `ros:status` - this session's RouterOS
+// reachability, which drives this banner - and `router:status`, a global
 // per-router announcement for the Routers list. This port's server emits one
 // `router:status` carrying `{routerId, connected, reason}` for EVERY router, to
 // every browser, and main.ts shows it here only when `routerId` is the router on
@@ -53,13 +53,13 @@ function pauseDiagram(): void {
   (el('netDiagram') as SvgAnimations | null)?.pauseAnimations?.();
 }
 /**
- * Only when BOTH the socket and the router are back, and the tab is visible —
+ * Only when BOTH the socket and the router are back, and the tab is visible -
  * resuming an animation nobody is looking at is work for nothing.
  *
  * `socketDown` IS PART OF THE CONDITION, not decoration. This comment claimed
  * "both" while the test was `rosDisconnected` alone, so a resume driven by the
  * tab coming back (below) would have unpaused a diagram whose socket was still
- * down. The CSS hides the dots then, so nothing would have been visible — which
+ * down. The CSS hides the dots then, so nothing would have been visible - which
  * is exactly the kind of accidental cover that turns into a bug the moment the
  * rule changes.
  */
@@ -69,13 +69,13 @@ function resumeDiagram(): void {
 }
 
 /**
- * The tab going away and coming back — the THIRD thing that moves the diagram,
+ * The tab going away and coming back - the THIRD thing that moves the diagram,
  * and leaving it out is what made the card stop for good.
  *
  * Every resume above is refused while `document.hidden`, and until this existed
  * nothing retried one. So a router or socket outage that ENDED while the tab was
  * in the background left the SVG timeline paused with no remaining trigger: the
- * banners came down, the body classes came off, the dots became visible again —
+ * banners came down, the body classes came off, the dots became visible again -
  * and stood still, on a dashboard reporting a healthy router. The operator's
  * report ("sometimes the animation stops") is that state, and a background tab
  * is where it is reached, because `socket.ts` reconnects on a backoff timer that
@@ -98,8 +98,8 @@ export function initDiagramVisibility(): void {
 function blankRates(): void {
   const rx = el('liveRx');
   const tx = el('liveTx');
-  if (rx) rx.textContent = '—';
-  if (tx) tx.textContent = '—';
+  if (rx) rx.textContent = '-';
+  if (tx) tx.textContent = '-';
 }
 
 /**
@@ -125,7 +125,7 @@ export function setRosBanner(connected: boolean, reason?: string | null): void {
     resumeDiagram();
   } else {
     const text = el('rosBannerText');
-    if (text) text.textContent = reason || 'RouterOS not connected — retrying…';
+    if (text) text.textContent = reason || 'RouterOS not connected - retrying…';
     // Suppressed while the red banner is up; see the header.
     if (!reconnect || !reconnect.classList.contains('show')) ros.classList.add('show');
     document.body.classList.add('is-ros-disconnected');

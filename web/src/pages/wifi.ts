@@ -1,4 +1,4 @@
-// The Wifi Networks page — a port of the `wifiPage` IIFE in public/app.js.
+// The Wifi Networks page - a port of the `wifiPage` IIFE in public/app.js.
 //
 // The configuration side of wireless: what this router broadcasts. Who is
 // connected to it is the Wifi Clients page, and deliberately a different
@@ -6,7 +6,7 @@
 //
 // ── ONE ROW PER INTERFACE, GROUPED UNDER ITS RADIO ──────────────────────────
 //
-// That is RouterOS's own model — a master radio plus a virtual-AP interface for
+// That is RouterOS's own model - a master radio plus a virtual-AP interface for
 // each extra SSID. Merging bands into a single "network" row would read more
 // like a consumer router and make the write target ambiguous, which is the one
 // thing an editable table cannot afford.
@@ -76,7 +76,7 @@ interface SsidRow {
  * Security and VLAN are aggregated by AGREEMENT: when every interface carrying
  * an SSID says the same thing, that is the answer; when they disagree, the
  * answer is that they disagree. Picking the first would hide exactly the case
- * worth finding — one AP left on WPA2 while the rest moved to WPA3, or one radio
+ * worth finding - one AP left on WPA2 while the rest moved to WPA3, or one radio
  * on the wrong VLAN.
  *
  * RUNNING IS ANY, NOT ALL. One radio broadcasting the network is enough for the
@@ -109,13 +109,13 @@ function bySsid(nets: WifiNetwork[]): SsidRow[] {
 
 export function initWifiPage(socket: Socket, isVisible: (page: string) => boolean): void {
   // Published under the names the live app uses, so a LIFTED renderer finds
-  // them during a DOM comparison — see installWifiGlobals.
+  // them during a DOM comparison - see installWifiGlobals.
   installWifiGlobals();
 
   let state: WifiPayload | null = null;
   let view: WnView = loadView();
   // NO COLUMN SORT UNTIL A HEADER IS CLICKED. The collector already orders the
-  // rows — each radio's own row first, then its virtual APs — and starting on a
+  // rows - each radio's own row first, then its virtual APs - and starting on a
   // column would silently reorder a page that has always looked one way. An
   // empty key matches no column, so `applySort` hands the list back untouched
   // and the header draws no indicator.
@@ -141,7 +141,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     // An open network is the thing worth noticing on this page, so it is the
     // one value that gets a colour rather than plain text.
     const cls = n.security === 'Open' ? 'bg-red-lt' : 'bg-azure-lt';
-    return '<span class="badge ' + cls + '">' + esc(n.security || '—') + '</span>';
+    return '<span class="badge ' + cls + '">' + esc(n.security || '-') + '</span>';
   }
 
   function radioHeader(radio: Partial<WifiRadio> & { name: string }, count: number): string {
@@ -181,7 +181,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
   function bandCell(n: WifiNetwork): string {
     // Both pages spell the three bands the same way, which is why this needs no
     // translation.
-    if (!n.band) return '<span class="muted-note">&mdash;</span>';
+    if (!n.band) return '<span class="muted-note">-</span>';
     return bandBadge(n.band);
   }
 
@@ -211,7 +211,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
       '<td>' + esc(n.name) + '</td>' +
       '<td>' + bandCell(n) + '</td>' +
       '<td>' + securityCell(n) + '</td>' +
-      '<td>' + esc(n.vlanId || '—') + '</td>' +
+      '<td>' + esc(n.vlanId || '-') + '</td>' +
       '<td>' + esc(String(n.clients)) + '</td>' +
       '<td>' + stateCell(n) + '</td>' +
     '</tr>';
@@ -245,7 +245,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
       '<td>' + esc(String(r.ifaces.length)) +
         '<div class="muted-note" style="font-size:.68rem">' +
           esc(r.ifaces.map((n) => n.name).join(', ')) + '</div></td>' +
-      '<td>' + (r.bands.map(bandBadge).join(' ') || '<span class="muted-note">&mdash;</span>') + '</td>' +
+      '<td>' + (r.bands.map(bandBadge).join(' ') || '<span class="muted-note">-</span>') + '</td>' +
       '<td><span class="badge ' + secCls + '">' + esc(r.security || '\u2014') + '</span></td>' +
       '<td>' + esc(r.vlanId || '\u2014') + '</td>' +
       '<td>' + esc(String(r.clients)) + '</td>' +
@@ -339,8 +339,8 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     colours = ssidColours(unique);
 
     // THE CALLBACK READS `state`, NOT THIS CALL'S PAYLOAD. The header outlives
-    // the render that drew it — a router switch empties the table but leaves the
-    // header row and its listeners — so closing over `st` meant a click on a
+    // the render that drew it - a router switch empties the table but leaves the
+    // header row and its listeners - so closing over `st` meant a click on a
     // column after switching redrew the PREVIOUS router's networks, with their
     // row ids live for the resource dialog.
     renderSortHeader('wnThead', view === 'ssid' ? COLS_SSID : COLS_ROW, sort,
@@ -424,7 +424,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
         '<tr data-id="' + esc(p.id) + '" data-identity="' + esc(p.name) + '"' +
           ' data-res="wlSecProfile">' +
           '<td>' + esc(p.name) + (p.isDefault ? badge('default', 'bg-secondary-lt') : '') + '</td>' +
-          '<td>' + esc(p.mode || '—') + '</td>' +
+          '<td>' + esc(p.mode || '-') + '</td>' +
           '<td>' + esc(p.authTypes || 'none') + '</td>' +
         '</tr>').join('')
       : '<tr><td colspan="3" class="empty-state">No security profiles</td></tr>';
@@ -433,9 +433,9 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
   function renderSummary(st: WifiPayload): void {
     const t = st.totals;
     const set = (id: string, v: string) => { const e = el(id); if (e) e.textContent = v; };
-    set('wnRadioCount', t == null || t.radios == null ? '—' : String(t.radios));
-    set('wnNetCount', t == null || t.networks == null ? '—' : String(t.networks));
-    set('wnClientCount', t == null || t.clients == null ? '—' : String(t.clients));
+    set('wnRadioCount', t == null || t.radios == null ? '-' : String(t.radios));
+    set('wnNetCount', t == null || t.networks == null ? '-' : String(t.networks));
+    set('wnClientCount', t == null || t.clients == null ? '-' : String(t.clients));
 
     // The stack note names where the radios came from, and on a router running a
     // legacy manager that is two places. Counted off the rows rather than from a
@@ -472,7 +472,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     note.style.color = '';
     if (!nets.length || !ro) { note.textContent = ''; return; }
     note.textContent = ro === nets.length
-      ? 'Every network here is provisioned by CAPsMAN — edit them on the CAPsMAN page, not here.'
+      ? 'Every network here is provisioned by CAPsMAN - edit them on the CAPsMAN page, not here.'
       : ro + ' of these are provisioned by CAPsMAN and cannot be edited here.';
   }
 

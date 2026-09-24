@@ -22,7 +22,7 @@
  * ── A ROW CAN OUTLIVE ITS ROUTER ────────────────────────────────────────────
  *
  * History is keyed by router id and a router can be deleted while its rows
- * remain. `routerName` names those explicitly — "Removed router (a1b2c3d4…)" —
+ * remain. `routerName` names those explicitly - "Removed router (a1b2c3d4…)" -
  * and `scopeIds` keeps them SELECTABLE, which is what makes the orphaned data
  * reachable at all. A card that only listed known routers would leave rows no
  * operator could ever purge.
@@ -72,8 +72,8 @@ export const TYPE_LABELS: Record<string, string> = {
 /**
  * The live `routerName`.
  *
- * NOT ESCAPED HERE. Its two callers differ — `renderStats` puts it through
- * `esc`, `renderScope` hands it to `option.text` which escapes on assignment —
+ * NOT ESCAPED HERE. Its two callers differ - `renderStats` puts it through
+ * `esc`, `renderScope` hands it to `option.text` which escapes on assignment -
  * and escaping inside would double-encode an ampersand in a router label on both
  * paths. Reproduced as the live app has it.
  */
@@ -115,7 +115,7 @@ export function byRouterHtml(byRouter: DbRouterRows[], known: DbRouter[]): strin
 /**
  * The three headline stats.
  *
- * `oldestTs` of 0 renders as the em dash rather than 1 January 1970 — `s.oldestTs ?`
+ * `oldestTs` of 0 renders as the em dash rather than 1 January 1970 - `s.oldestTs ?`
  * is falsy for both null and zero, and the server already returns null for an
  * empty database. Kept as the live truthiness test rather than a null check,
  * because the two disagree exactly on zero and the live answer is the dash.
@@ -131,8 +131,8 @@ export function statsText(s: DbStats): { size: string; rows: string; oldest: str
 /**
  * The preview summary.
  *
- * Returns null when nothing matched, which is a DIFFERENT message and — more
- * importantly — leaves the delete button disabled.
+ * Returns null when nothing matched, which is a DIFFERENT message and - more
+ * importantly - leaves the delete button disabled.
  *
  * A type with a zero count is dropped from the breakdown (`filter(t => j.byType[t])`)
  * so "Traffic graphs 0" never appears; the total above it is already the answer.
@@ -166,7 +166,7 @@ export function summaryHtml(
 /**
  * The line after a successful delete.
  *
- * `Math.max(0, before - after)` — a VACUUM can leave the file marginally LARGER,
+ * `Math.max(0, before - after)` - a VACUUM can leave the file marginally LARGER,
  * and "freed -4.0 KB" reads as a bug in the thing that just worked.
  */
 export function deletedText(j: DbPurgeReply): string {
@@ -228,7 +228,7 @@ function say(cls: string, msg: string): void {
 /**
  * Both buttons are locked for the duration of a request.
  *
- * The delete button's re-enable is CONDITIONAL — `on || pendingCount === 0` —
+ * The delete button's re-enable is CONDITIONAL - `on || pendingCount === 0` -
  * so clearing the busy state cannot hand back a delete the interlock had
  * disabled.
  */
@@ -248,7 +248,7 @@ function renderScope(byRouter: DbRouterRows[]): void {
   const scope = nodes().scope!;
   // The current selection is restored AFTER the rebuild. If the selected router
   // is gone from the list the assignment finds no option and the select falls
-  // back to "All routers" — the safe direction to fail, and what the live card
+  // back to "All routers" - the safe direction to fail, and what the live card
   // does.
   const keep = scope.value;
   scope.innerHTML = '<option value="">All routers</option>';
@@ -276,7 +276,7 @@ function renderStats(s: DbStats): void {
  * ORDER MATTERS: `renderStats` turns ids into names, so a stats response that
  * arrived first would render every router as "Removed router (…)". The live
  * chain has the same shape, and its empty `.catch` on the router fetch is
- * deliberate — a failed router list must still let the stats render, just with
+ * deliberate - a failed router list must still let the stats render, just with
  * ids for names.
  */
 function loadStats(): Promise<void> {

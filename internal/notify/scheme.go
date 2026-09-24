@@ -6,8 +6,8 @@ package notify
 //
 // A channel's destination is a URL: `tgram://<token>/<chat_id>`,
 // `discord://<webhook_id>/<token>`, `ntfy://host/topic`. That is the convention
-// Apprise established and other dashboards adopted, and the reason to follow it is not
-// fashion — it is that every provider's credentials then have ONE shape, so the
+// Apprise established, and the reason to follow it is not fashion: it is that
+// every provider's credentials then have ONE shape, so the
 // modal has one textarea instead of a different set of labelled fields per
 // provider, and adding a provider costs a case here rather than a form there.
 //
@@ -314,8 +314,8 @@ func genericFrom(p parts, title, body string) (Request, error) {
 //
 // Everything this file does not implement (Signal, MQTT, Bark, Zabbix, Matrix,
 // Home Assistant…) is reachable by running an Apprise API server and pointing a
-// channel at it. That is the same answer other dashboards give, and it is why the
-// built-in list does not have to be exhaustive to be enough.
+// channel at it. That is why the built-in list does not have to be exhaustive
+// to be enough.
 func appriseFrom(p parts, title, body string) (Request, error) {
 	if err := p.need(2, "apprise://<host>/<config_key>"); err != nil {
 		return Request{}, err

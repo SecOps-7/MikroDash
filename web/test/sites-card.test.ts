@@ -4,14 +4,14 @@
 // root: this test drives the port's OWN TypeScript and asserts what it does, so
 // nothing in it referred to the implementation this app replaced.
 /**
- * The Sites card's WIRING — the parts no differential gate can reach.
+ * The Sites card's WIRING - the parts no differential gate can reach.
  *
  * ── THIS IS A WEAKER GATE THAN THE OTHERS, AND SAYS SO ──────────────────────
  *
  * `access-summary-check` and `site-save-check` drive the LIVE implementations
  * and compare. This one cannot: the card's wiring lives inside `saveSite`,
  * `showSiteForm` and `loadSites`, which between them touch a picker, six form
- * fields, a socket and two fetches — there is no seam to lift them through. So
+ * fields, a socket and two fetches - there is no seam to lift them through. So
  * this gate drives the PORT alone against a DOM shim and asserts what it does.
  * That catches a regression; it does not catch a divergence from the original.
  * Stated here rather than left to be inferred, as `settings-write-tables.js`
@@ -25,7 +25,7 @@
  *
  * `siteSavePlan` reproduces the live `place: picker.get()`, where an EMPTY
  * picker CLEARS the location. The port has no picker wired yet, so a naive
- * caller passes null or undefined — and `?? null` turns both into a clear,
+ * caller passes null or undefined - and `?? null` turns both into a clear,
  * wiping a site's map pin on every unrelated edit. That bug was written and
  * caught in the same tick, by reading `city-picker.ts`'s header, which records
  * the identical trap for the router modal. `an edit re-sends the stored place`
@@ -80,7 +80,7 @@ function makeEl(id) {
       let m;
       while ((m = re.exec(node.innerHTML))) {
         // THE VALUE, not the match. `getAttribute: () => m[1]` closes over the
-        // loop variable, which `exec` sets to null once it stops matching — so
+        // loop variable, which `exec` sets to null once it stops matching - so
         // every attribute read after the loop threw.
         const id = m[1];
         if (/\bchecked\b/.test(m[2])) out.push({ getAttribute: () => id });
@@ -252,8 +252,8 @@ function check(name, fn) {
   // 5. ── THE ONE THIS FILE EXISTS FOR ──────────────────────────────────────
   //    The picker is SEEDED from the site's three place_* columns when the form
   //    opens, and what it holds is what the save sends. Before the picker was
-  //    mounted this case asserted a workaround — the site's stored place was
-  //    re-sent — because `place ?? null` would otherwise have CLEARED the
+  //    mounted this case asserted a workaround - the site's stored place was
+  //    re-sent - because `place ?? null` would otherwise have CLEARED the
   //    location on every unrelated edit. The workaround is gone; the hazard is
   //    not, so the case stays and now watches the real mechanism.
   {
@@ -336,12 +336,12 @@ function check(name, fn) {
   //
   // Added after three mutations SURVIVED: a stale response winning, a blur
   // committing typed text, and picking a row doing nothing. All three live in
-  // the search, and nothing above typed a character — so the picker was gated
+  // the search, and nothing above typed a character - so the picker was gated
   // for its seeding and not for its use.
   const BERLIN = { name: 'Berlin', region: 'BE', cc: 'DE', lat: 52.5, lon: 13.4 };
   const BERGEN = { name: 'Bergen', region: 'VL', cc: 'NO', lat: 60.4, lon: 5.3 };
 
-  // 6c. Typing searches, and PICKING a row commits it — box, and then the save.
+  // 6c. Typing searches, and PICKING a row commits it - box, and then the save.
   {
     const { doc, calls } = await mount({ cities: { berlin: [BERLIN] } });
     doc.els.addSiteBtn.fire('click');
@@ -404,7 +404,7 @@ function check(name, fn) {
   }
 
   // 6e. A SLOW ANSWER FOR AN OLD QUERY IS DISCARDED. "ber" is held, "bergen"
-  //     answers, then "ber" is released — the list must still be Bergen.
+  //     answers, then "ber" is released - the list must still be Bergen.
   {
     const held = { ber: {} };
     const { doc } = await mount({
@@ -481,7 +481,7 @@ function check(name, fn) {
     });
   }
 
-  // 10. `sites:update` re-renders without a fetch — another administrator's
+  // 10. `sites:update` re-renders without a fetch - another administrator's
   //     change must not leave this tab stale, and must not cost a round trip.
   {
     const { doc, calls, mod } = await mount();
@@ -512,5 +512,5 @@ function check(name, fn) {
     console.error('\nsites-card-check: ' + problems.length + ' of ' + checks + ' failed');
     process.exit(1);
   }
-  console.log('sites card wiring ok (' + checks + ' checks; PORT-ONLY — see the header)');
+  console.log('sites card wiring ok (' + checks + ' checks; PORT-ONLY - see the header)');
 })();

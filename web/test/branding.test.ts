@@ -87,7 +87,7 @@ function page() {
 {
   const p = page();
   const name = '<img src=x onerror=alert(1)>';
-  B.applyBranding(B.normaliseBranding({ name, font: 'inter', icon: '/brand/icon.png?v=42' }), ' — Sign In');
+  B.applyBranding(B.normaliseBranding({ name, font: 'inter', icon: '/brand/icon.png?v=42' }), ' - Sign In');
   assert.strictEqual(p.top.children.length, 1, 'a custom name is not a single node');
   assert.strictEqual(p.top.children[0].nodeType, 3, 'a name that looks like markup became an element');
   assert.strictEqual(p.top.textContent, name);
@@ -99,7 +99,7 @@ function page() {
   }
   assert.strictEqual(p.favicon.href, '/brand/icon.png?v=42', 'the tab icon does not follow the branding');
   assert.strictEqual(p.loginName.textContent, name);
-  assert.strictEqual(global.document.title, name + ' — Sign In');
+  assert.strictEqual(global.document.title, name + ' - Sign In');
   say('ok  a custom name is text, and the icon, favicon, title and login name follow it');
 }
 

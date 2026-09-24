@@ -54,7 +54,7 @@ func TestToggledClassesAreAnswered(t *testing.T) {
 		}
 	}
 	if len(css) < 20000 {
-		t.Fatalf("only %d bytes of CSS read — the stylesheets moved, and this test would accuse "+
+		t.Fatalf("only %d bytes of CSS read - the stylesheets moved, and this test would accuse "+
 			"every styled class of hooking into nothing", len(css))
 	}
 
@@ -64,7 +64,7 @@ func TestToggledClassesAreAnswered(t *testing.T) {
 		toggled[m[1]] = true
 	}
 	if len(toggled) < 20 {
-		t.Fatalf("only %d toggled classes found — the scan broke", len(toggled))
+		t.Fatalf("only %d toggled classes found - the scan broke", len(toggled))
 	}
 
 	styled := func(c string) bool {
@@ -93,13 +93,13 @@ func TestToggledClassesAreAnswered(t *testing.T) {
 	for _, c := range dead {
 		have[c] = true
 		if _, ok := classesExpectedDead[c]; !ok {
-			t.Errorf("the port toggles .%s and nothing answers it — no stylesheet rule, no "+
+			t.Errorf("the port toggles .%s and nothing answers it - no stylesheet rule, no "+
 				"markup, no read-back. The class goes on and the page looks identical.", c)
 		}
 	}
 	for c := range classesExpectedDead {
 		if !have[c] {
-			t.Errorf(".%s is recorded as answered by nothing, but something answers it now — "+
+			t.Errorf(".%s is recorded as answered by nothing, but something answers it now - "+
 				"delete the entry", c)
 		}
 	}
@@ -116,7 +116,7 @@ var settingsKeysRecorded = map[string]string{}
 // TestEverySettingsKeyIsRead: a key with a default is a key something consumes.
 //
 // A settings key nothing reads is a control the operator can change that does
-// nothing. It saves, it round-trips, it reloads — and no behaviour follows.
+// nothing. It saves, it round-trips, it reloads - and no behaviour follows.
 func TestEverySettingsKeyIsRead(t *testing.T) {
 	root := repoRoot(t)
 
@@ -129,7 +129,7 @@ func TestEverySettingsKeyIsRead(t *testing.T) {
 	// a shape change fails loudly here instead of silently yielding nothing.
 	defaults := regexp.MustCompile(`"defaults"\s*:\s*\{`).FindStringIndex(string(raw))
 	if defaults == nil {
-		t.Fatal("settings_tables.json has no \"defaults\" object — the generated shape changed")
+		t.Fatal("settings_tables.json has no \"defaults\" object - the generated shape changed")
 	}
 	keys := map[string]bool{}
 	for _, m := range regexp.MustCompile(`"([A-Za-z][A-Za-z0-9_]*)"\s*:`).
@@ -137,7 +137,7 @@ func TestEverySettingsKeyIsRead(t *testing.T) {
 		keys[m[1]] = true
 	}
 	if len(keys) < 20 {
-		t.Fatalf("only %d settings keys read — the parse broke", len(keys))
+		t.Fatalf("only %d settings keys read - the parse broke", len(keys))
 	}
 
 	ignored := func(rel string) bool {
@@ -179,13 +179,13 @@ func TestEverySettingsKeyIsRead(t *testing.T) {
 	for _, k := range unread {
 		have[k] = true
 		if _, ok := settingsKeysRecorded[k]; !ok {
-			t.Errorf("settings key %q has a default and nothing reads it — the operator can "+
+			t.Errorf("settings key %q has a default and nothing reads it - the operator can "+
 				"change a control that does nothing", k)
 		}
 	}
 	for k := range settingsKeysRecorded {
 		if !have[k] {
-			t.Errorf("%q is recorded as unread, but something reads it now — delete the entry", k)
+			t.Errorf("%q is recorded as unread, but something reads it now - delete the entry", k)
 		}
 	}
 	t.Logf("%d settings keys, every one read or recorded", len(keys))

@@ -32,7 +32,7 @@ import (
 //
 // Go grew both. `internal/db/schema_ddl.go` builds a fresh database and
 // `portMigrations` moves an old one, so the frozen file became a hand-kept copy
-// of something the code already states — and it had already drifted FOUR TABLES
+// of something the code already states - and it had already drifted FOUR TABLES
 // behind without anything failing, because this check only ever compared
 // FIXTURES against it. A premise that has expired reads exactly like one that is
 // true.
@@ -51,7 +51,7 @@ func TestFixtureSchemasMatchReality(t *testing.T) {
 	}
 	real := parseTables(t, ddl.String())
 	if len(real) < 20 {
-		t.Fatalf("only %d tables read out of internal/db — the parse broke, and every "+
+		t.Fatalf("only %d tables read out of internal/db - the parse broke, and every "+
 			"fixture would then look fine", len(real))
 	}
 
@@ -74,7 +74,7 @@ func TestFixtureSchemasMatchReality(t *testing.T) {
 				want, ok := realCols[col]
 				if !ok {
 					t.Errorf("%s: fixture table %s declares column %q, which the real schema does "+
-						"not have — the test is exercising a database that cannot exist",
+						"not have - the test is exercising a database that cannot exist",
 						rel, name, col)
 					continue
 				}
@@ -101,7 +101,7 @@ func TestFixtureSchemasMatchReality(t *testing.T) {
 		}
 	}
 	if checked == 0 {
-		t.Fatal("no fixture table matched a real table — either the fixtures moved or the parse " +
+		t.Fatal("no fixture table matched a real table - either the fixtures moved or the parse " +
 			"broke; this test is checking nothing")
 	}
 	sort.Strings(strict)
@@ -208,7 +208,7 @@ func parseTables(t *testing.T, src string) map[string]map[string]colSpec {
 //
 // BEFORE THE SPLIT, not after. `internal/db/schema_ddl.go` documents columns
 // with a comment on the line above, and a comma-separated piece then BEGINS with
-// that comment — so the anchored column regex saw `-- 1 = Administrator...` and
+// that comment - so the anchored column regex saw `-- 1 = Administrator...` and
 // dropped the column behind it. `roles.builtin` and `roles.created_at` went that
 // way, and every fixture that declared them was reported as impossible.
 func stripSQLComments(body string) string {
@@ -242,7 +242,7 @@ func splitColumns(body string) []string {
 		}
 	}
 	// TRIMMED, and it is not cosmetic. The column regex ends `(.*)$`, and `.`
-	// does not match a newline while `$` here means end of text — so a piece
+	// does not match a newline while `$` here means end of text - so a piece
 	// carrying the newline that followed its column could never match, and the
 	// column was silently dropped from the schema this test calls reality.
 	return append(out, strings.TrimSpace(body[start:]))

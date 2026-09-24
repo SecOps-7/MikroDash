@@ -16,7 +16,7 @@ import (
 // The ledgers for `internal/areas`, each failing in BOTH directions.
 //
 // An area is a page, a nav entry, a permission key and a set of tables, all from
-// one declaration — so a declaration that names something absent is a page
+// one declaration - so a declaration that names something absent is a page
 // nobody can open, a nav entry in no group, or a table of nothing. None of that
 // shows up as a compile error, and a generated page fails quietly: it renders,
 // with nothing in it.
@@ -87,7 +87,7 @@ func TestEveryAreaNamesARealNavGroup(t *testing.T) {
 //
 // The resource keeps saying what a row is; an area points at one. A table naming
 // a resource the registry does not have is an empty tab, and a column naming a
-// field the resource does not declare is a header over an empty cell — both of
+// field the resource does not declare is a header over an empty cell - both of
 // which render without complaint.
 func TestEveryAreaTableNamesARealResourceAndRealColumns(t *testing.T) {
 	for _, a := range areas.All() {
@@ -172,7 +172,7 @@ func TestEveryAreaResourceHasAFixtureAndAnAPISurfaceRow(t *testing.T) {
 }
 
 // TestEveryAreaHasItsOwnIcon, both ways: every area declares an icon, no two
-// areas share one, and none repeats a hand-built nav entry's icon — so every
+// areas share one, and none repeats a hand-built nav entry's icon - so every
 // generated page is recognisable in the collapsed nav, rather than all of them
 // wearing the one placeholder they wore until 2026-09-18.
 //
@@ -222,8 +222,8 @@ func TestEveryAreaHasItsOwnIcon(t *testing.T) {
 // cmd/areagen's, so this holds the TEMPLATE: a new area inherits the layout, and
 // a template that moves the tabs back to the right fails here for every area.
 //
-// The pill's colour is not in the markup — area.ts sets `active-blue` when it
-// counts something — so web/test/area-sort.test.ts holds that, and sorting.
+// The pill's colour is not in the markup - area.ts sets `active-blue` when it
+// counts something - so web/test/area-sort.test.ts holds that, and sorting.
 func TestEveryAreaShellHasItsTitleFirstThenItsTabs(t *testing.T) {
 	root := repoRoot(t)
 	type shell struct{ file, tabs, badge string }
@@ -278,7 +278,7 @@ func TestEveryAreaShellHasItsTitleFirstThenItsTabs(t *testing.T) {
 //
 // One way: a Pills entry naming a column the table does not show is a pill that
 // never draws, and one naming a kind outside PillKinds has no colour in
-// web/src/pages/area.ts — tsc catches the second only once it is generated, so
+// web/src/pages/area.ts - tsc catches the second only once it is generated, so
 // it is caught here first, with the area's name on it.
 //
 // The other way: a kind no column uses, or a CommonPills flag no table shows,

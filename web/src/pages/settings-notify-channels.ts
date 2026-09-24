@@ -60,7 +60,7 @@ let canManageInstall = false;
 /**
  * The stored URLs, once the detail read has returned them.
  *
- * `null` means "not loaded" — the read failed or was refused — and in that case
+ * `null` means "not loaded" - the read failed or was refused - and in that case
  * an empty box still means "keep what is stored", as it always did. Once they
  * ARE loaded the box is authoritative: what you see is what gets saved, and
  * clearing it is refused rather than silently ignored.
@@ -69,7 +69,7 @@ let loadedURLs: string[] | null = null;
 
 const INSTALL = '_install';
 
-/** The dimmed examples a new channel shows, one per line, as other dashboards do.
+/** The dimmed examples a new channel shows, one per line.
  *  A placeholder rather than prefilled text: it must not be saved by accident. */
 const URL_EXAMPLES = [
   'tgram://bot_token/chat_id',
@@ -93,7 +93,7 @@ function show(open: boolean): void {
 function card(c: ChannelView): string {
   const where = c.owner === INSTALL ? 'Install' : 'Mine';
   // THE CARD SUMMARISES WHOEVER IT REACHES, To, Cc or Bcc. A channel that only
-  // Bcc's — which is what every carried report channel does — showed
+  // Bcc's - which is what every carried report channel does - showed
   // "not configured" while working perfectly.
   const mailTo = c.smtpTo || c.smtpCc || c.smtpBcc;
   const dest = c.kind === 'smtp'
@@ -189,8 +189,8 @@ async function loadEvents(): Promise<void> {
  *
  * NO "not raised install-wide" ANY MORE. The endpoint carried a `raised` flag
  * saying whether the install raised this event at all, and the row appended that
- * phrase when it was false. The install-wide gates are gone — every alert is
- * recorded and this toggle is the only thing deciding delivery — so the flag
+ * phrase when it was false. The install-wide gates are gone - every alert is
+ * recorded and this toggle is the only thing deciding delivery - so the flag
  * went with them. Reading a field that no longer exists made EVERY event read
  * "not raised install-wide", which is exactly backwards; found by opening the
  * tab, not by a test.
@@ -270,7 +270,7 @@ function readIfacePicker(): void {
  * This channel's own thresholds and cooldown.
  *
  * The server fills a zero from `notify.DefaultTuning`, so a channel that has
- * never been tuned reads back 90/100/60 rather than zeroes — which is why the
+ * never been tuned reads back 90/100/60 rather than zeroes - which is why the
  * dialog can show the numbers without knowing whether they were ever set.
  */
 let tuning = { cpu: 0, pingLoss: 0, cooldownSec: 0 };
@@ -278,7 +278,7 @@ let tuning = { cpu: 0, pingLoss: 0, cooldownSec: 0 };
 /**
  * The gear, drawn once.
  *
- * TWO CALLERS SHARE IT — the interface filter and the two thresholds — and a
+ * TWO CALLERS SHARE IT - the interface filter and the two thresholds - and a
  * second copy of 600 characters of path data is a thing that can drift into
  * being a subtly different icon for the same idea.
  */
@@ -303,7 +303,7 @@ function thresholdValue(key: string): number {
  *
  * AN EMPTY OR UNDER-FLOOR BOX IS LEFT ALONE rather than written as zero. A
  * number input is empty for a moment while it is being retyped, and storing that
- * as 0 would silently mean "use the default" — the operator's half-typed "9" on
+ * as 0 would silently mean "use the default" - the operator's half-typed "9" on
  * the way to "95" would reset their threshold.
  */
 function readThreshold(box: HTMLInputElement): void {
@@ -341,7 +341,7 @@ function eventRow(e: EventRow, on: boolean): string {
   //
   // The two thresholds are one percentage each. A gear opening a dialog with a
   // slider was three interactions and a second window to read one number that
-  // fits in the row it belongs to — the interface filter earns a dialog because
+  // fits in the row it belongs to - the interface filter earns a dialog because
   // it is five independent choices, and these are not.
   //
   // MIN IS THE RECORDING FLOOR. Nothing below it is recorded, so a channel set
@@ -363,7 +363,7 @@ function eventRow(e: EventRow, on: boolean): string {
   //
   // The row reads text, gear, switch, and the gear has to sit BETWEEN the other
   // two. While the switch lived inside the label that also held the text, the
-  // gear could only be placed before both or after both — it ended up after,
+  // gear could only be placed before both or after both - it ended up after,
   // which put it on the far side of the toggle it configures.
   //
   // So text and switch are two labels pointing at the same checkbox with `for`,
@@ -420,7 +420,7 @@ function fillModal(c: ChannelView | null): void {
     // ── A STORED VALUE ABOVE THE SLIDER'S TOP WIDENS IT ─────────────────
     //
     // The slider tops out at 600 seconds, and the install setting this replaced
-    // allowed 3600 — so a carried channel can hold more than the control can
+    // allowed 3600 - so a carried channel can hold more than the control can
     // show. A range input CLAMPS a value past its max, and the readout would
     // then be written back on the next save, silently lowering a cooldown the
     // operator chose. Widening for that one channel keeps their number and still
@@ -544,7 +544,7 @@ function bodyFor(): Record<string, unknown> {
   };
   // OWNERSHIP IS ASKED FOR, NOT ASSUMED. Sending "install" unconditionally is
   // what made Add Channel answer 403 for everybody who is not an administrator.
-  // The server still decides — this only says which of the two to ask for.
+  // The server still decides - this only says which of the two to ask for.
   if (!editing) body.owner = canManageInstall ? 'install' : 'mine';
 
   if (kind === 'webhook') {
@@ -552,14 +552,14 @@ function bodyFor(): Record<string, unknown> {
     // ONCE THE STORED URLS ARE ON SCREEN, THE BOX IS THE TRUTH. Sending nothing
     // would make clearing it a silent no-op, and an operator who deleted a URL
     // would be told it saved while the old one kept delivering. Before the read
-    // returns — or if it was refused — blank still means "keep".
+    // returns - or if it was refused - blank still means "keep".
     if (loadedURLs !== null || raw.length > 0) body.config = { urls: raw };
   } else {
     const host = getValue('nchanSmtpHost').trim();
     const pass = getValue('nchanSmtpPass');
     // ANY RECIPIENT FIELD COUNTS as "the operator filled this in", not just To.
     // A channel configured to Bcc only would otherwise send no `config` at all,
-    // and the save would read as "keep what is stored" — silently discarding
+    // and the save would read as "keep what is stored" - silently discarding
     // everything just typed.
     const anyTo = getValue('nchanSmtpTo').trim() !== ''
       || getValue('nchanSmtpCc').trim() !== ''
@@ -680,7 +680,7 @@ export function initNotifyChannels(): void {
   //
   // DELEGATED ON THE DOCUMENT, because the events list is rebuilt by
   // `renderEvents` every time the dialog opens and the picker's own checkboxes
-  // are rebuilt every time it does — anything bound to either is thrown away
+  // are rebuilt every time it does - anything bound to either is thrown away
   // with the markup and silently stops working after the first open.
   document.addEventListener('click', (ev) => {
     const t = ev.target as HTMLElement | null;
@@ -694,7 +694,7 @@ export function initNotifyChannels(): void {
   });
   // READ BACK ON EVERY TICK, not on Done. The dialog closes by Escape, by the
   // backdrop and by its button, and only one of those three is a place to hang
-  // a read — so a choice made and dismissed with Escape would be lost.
+  // a read - so a choice made and dismissed with Escape would be lost.
   document.addEventListener('change', (ev) => {
     const t = ev.target as HTMLElement | null;
     if (t?.hasAttribute?.('data-nchan-iface')) readIfacePicker();
@@ -702,7 +702,7 @@ export function initNotifyChannels(): void {
   // ── THE TWO SLIDERS, ON `input` RATHER THAN `change` ──────────────────
   //
   // `change` fires only when the drag ENDS, so the readout would sit at the old
-  // number for the whole gesture — the one moment it is being looked at.
+  // number for the whole gesture - the one moment it is being looked at.
   document.addEventListener('input', (ev) => {
     const t = ev.target as HTMLElement | null;
     if (t?.hasAttribute?.('data-nchan-thr')) readThreshold(t as HTMLInputElement);

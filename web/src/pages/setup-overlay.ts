@@ -21,7 +21,7 @@
 //
 // The Add/Edit Router modal has its own collector, `collectModal`, and it is a
 // far bigger function: ids, site membership reordering, backup settings, geo,
-// bandwidth. It also TRIMS every field. This one does not — an overlay host
+// bandwidth. It also TRIMS every field. This one does not - an overlay host
 // typed with a trailing space is posted with the space. Two implementations
 // upstream, two here, and merging them would change one of them.
 
@@ -53,13 +53,13 @@ export interface SetupFields {
 
 // The defaults, which are the part that drifts.
 //
-// EVERY ONE IS A `||` ON A STRING, so the EMPTY STRING takes the default — not
+// EVERY ONE IS A `||` ON A STRING, so the EMPTY STRING takes the default - not
 // only an absent field. An operator who clears the username box gets `admin`,
 // not a login attempt with no user; a port using `??` would send the empty
 // string and fail with a confusing authentication error.
 //
 // `port` is `parseInt(value || '8729', 10)`, so it defaults through falsiness
-// too — and a NON-NUMERIC entry becomes NaN rather than the default. Reproduced
+// too - and a NON-NUMERIC entry becomes NaN rather than the default. Reproduced
 // as written, because that is what the live form posts and what the route then
 // coerces; see internal/routers/endpoint.go for the other half of that story.
 export function collectSetupBody(f: SetupFields): SetupBody {
@@ -80,7 +80,7 @@ export function collectSetupBody(f: SetupFields): SetupBody {
 //
 // `if (checked && p === 8728) '8729'`, and the mirror. A port that assigned
 // unconditionally would overwrite an operator's deliberate 8730 the moment they
-// touched the toggle — which is why the live code tests for the exact previous
+// touched the toggle - which is why the live code tests for the exact previous
 // default instead.
 //
 // Returns the new value, or null when nothing should change. Null rather than
@@ -118,6 +118,6 @@ export const SETUP_WATCH_FIELDS = [
 
 /** The test result line, both outcomes. */
 export function setupTestResultText(ok: boolean, boardName: string, error: string): string {
-  if (ok) return '✓ Connected' + (boardName ? ' — ' + boardName : '');
+  if (ok) return '✓ Connected' + (boardName ? ' - ' + boardName : '');
   return '✗ ' + (error || 'Failed');
 }

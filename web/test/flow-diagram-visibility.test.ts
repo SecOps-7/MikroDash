@@ -12,7 +12,7 @@
  * ── THE RESUME THAT CONSUMED ITSELF ────────────────────────────────────────
  *
  * Every pause was unconditional and every resume was refused while the tab was
- * hidden — with nothing to retry it later. So an outage that ENDED in a
+ * hidden - with nothing to retry it later. So an outage that ENDED in a
  * background tab spent its own resume: `socket.ts` reconnects on a backoff timer
  * that keeps firing while hidden, and `router:status` arrives on that socket. The
  * operator came back to a dashboard with no banners, the dots visible again and
@@ -48,7 +48,7 @@ const IDS = ['netDiagram', 'rosBanner', 'rosBannerText', 'reconnectBanner', 'liv
  * A fresh document AND a fresh module.
  *
  * `rosDisconnected` and `socketDown` are module-level, so a cached require would
- * carry one case's outage into the next — and the case that matters most starts
+ * carry one case's outage into the next - and the case that matters most starts
  * from "everything is up".
  */
 function mount() {
@@ -96,7 +96,7 @@ check('a router outage that ends while the tab is hidden resumes on return', () 
   assert.ok(moves.includes('unpause'),
     'the diagram was never unpaused: the router recovered while the tab was ' +
     'hidden, so the resume was refused, and nothing retried it. The card sits ' +
-    'frozen with no banner and a healthy router — the reported bug');
+    'frozen with no banner and a healthy router - the reported bug');
   assert.equal(moves[moves.length - 1], 'unpause',
     'the last thing done to the diagram was a pause, so it is standing still');
 });
@@ -154,7 +154,7 @@ check('hiding the tab pauses', () => {
   setHidden(true);
 
   assert.deepEqual(moves, ['pause'],
-    'a hidden tab kept animating — the half that pairs with the resume guard');
+    'a hidden tab kept animating - the half that pairs with the resume guard');
 });
 
 // ── AND THAT SOMETHING CALLS IT ────────────────────────────────────────────

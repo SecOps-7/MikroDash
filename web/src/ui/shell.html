@@ -56,7 +56,7 @@
     <div class="nav-group" data-cat="wireless">
       <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-wireless">
         <!-- Swapped with the page below. The classic wifi symbol belongs on the
-             SECTION — it is the one that means "wireless, generally" — while the
+             SECTION - it is the one that means "wireless, generally" - while the
              ascending bars mean signal strength, which is what the page under it
              actually lists, one row per client. -->
         <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
@@ -226,7 +226,7 @@
     <div id="authUserChip" style="display:none">
       <!-- Identity chrome, not navigation. It keeps .nav-item purely for the
            sidebar styling; the click opens the account modal, wired in app.js.
-           It deliberately carries no data-page — it used to say "settings",
+           It deliberately carries no data-page - it used to say "settings",
            which is how an ordinary user ended up on the admin page. -->
       <div class="nav-item" id="authUserChipBtn" style="height:44px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
@@ -273,7 +273,7 @@
       <div id="routerSelectWrap" class="topbar-mobile-hide" style="position:relative">
         <span class="rtr-status-dot" id="rtrStatusDot"></span>
         <button id="routerSelectBtn" type="button" title="Switch router" aria-haspopup="listbox" aria-expanded="false">
-          <span id="routerSelectLabel">—</span>
+          <span id="routerSelectLabel">-</span>
           <svg class="rtr-dd-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="routerDropdown" class="rtr-dd" role="listbox" aria-label="Switch router">
@@ -310,7 +310,7 @@
   <!-- CONNECTIONS MAP -->
 
   <!-- WIRELESS -->
-  <!-- Wifi Networks — what this router broadcasts. The configuration side of
+  <!-- Wifi Networks - what this router broadcasts. The configuration side of
        wireless; who is connected to it lives on #page-wifi-clients below. -->
 
   <!-- DHCP -->
@@ -384,23 +384,23 @@
         <div class="fa-stat-row">
           <div class="fa-stat">
             <div class="fa-stat-label">Current Channel</div>
-            <div class="fa-stat-val" id="faCurChan">&mdash;<span class="fa-stat-unit">MHz</span></div>
+            <div class="fa-stat-val" id="faCurChan">-<span class="fa-stat-unit">MHz</span></div>
           </div>
           <div class="fa-stat">
             <div class="fa-stat-label">Networks</div>
-            <div class="fa-stat-val" id="faNetworks">&mdash;</div>
+            <div class="fa-stat-val" id="faNetworks">-</div>
           </div>
           <div class="fa-stat">
             <div class="fa-stat-label">Congestion</div>
-            <div class="fa-stat-val" id="faCongestion">&mdash;<span class="fa-stat-unit">%</span></div>
+            <div class="fa-stat-val" id="faCongestion">-<span class="fa-stat-unit">%</span></div>
           </div>
           <div class="fa-stat">
             <div class="fa-stat-label">Best Channel</div>
-            <div class="fa-stat-val" id="faBestChan">&mdash;<span class="fa-stat-unit">MHz</span></div>
+            <div class="fa-stat-val" id="faBestChan">-<span class="fa-stat-unit">MHz</span></div>
           </div>
           <div class="fa-stat">
             <div class="fa-stat-label">Noise Floor</div>
-            <div class="fa-stat-val" id="faNoise">&mdash;<span class="fa-stat-unit">dBm</span></div>
+            <div class="fa-stat-val" id="faNoise">-<span class="fa-stat-unit">dBm</span></div>
           </div>
         </div>
 
@@ -436,7 +436,7 @@
             </p>
             <!-- The same preference as Settings → Appearance, mirrored here
                  because Settings is unreachable without manageSettings or
-                 managePrincipals — so a Read Only user could otherwise never
+                 managePrincipals - so a Read Only user could otherwise never
                  turn grouping off for their own sidebar. Same id-free handler,
                  same server round trip; the two checkboxes stay in step. -->
             <hr style="border:none;border-top:1px solid var(--border);margin:.85rem 0">
@@ -606,7 +606,7 @@
           <input type="hidden" id="rtrModalMode" value="stream">
           <p class="rtr-note">
             Poll suits lower-end hardware: it replaces persistent API streams with periodic requests,
-            which is what actually strains a small router. Logs and the traffic graph always stream —
+            which is what actually strains a small router. Logs and the traffic graph always stream -
             polling them would drop log lines and cost more than it saves.
           </p>
         </div>
@@ -617,14 +617,14 @@
         <div class="sform-group">
           <label class="sform-label" for="rtrModalPrimarySite">Primary site</label>
           <!-- MEMBERSHIP IS NOT EDITED HERE. Which sites a device belongs to is
-               an authorization decision — it changes who can reach the device —
+               an authorization decision - it changes who can reach the device -
                so it lives in Access Management with the rest of them, behind the
                same administrator gate. This picker only chooses WHICH of the
                sites it already belongs to places it on the map when it has no
                coordinates of its own, so it offers exactly those and nothing
                else. Saving reorders that list; it never adds or removes. -->
           <select class="sform-input" id="rtrModalPrimarySite" aria-label="Primary site, used for the map location">
-            <option value="">— No site —</option>
+            <option value="">- No site -</option>
           </select>
           <p class="rtr-note">Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.</p>
         </div>
@@ -694,7 +694,7 @@
             <span class="stoggle-label">Reporting</span>
             <span class="stoggle-switch"><input type="checkbox" id="rtrModalReportingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
           </label>
-          <p class="rtr-note">Record traffic, bandwidth, ping and uptime history for this device so it appears in Reports. Off means nothing is written to disk for it — alerts still notify, but leave no history.</p>
+          <p class="rtr-note">Record traffic, bandwidth, ping and uptime history for this device so it appears in Reports. Off means nothing is written to disk for it - alerts still notify, but leave no history.</p>
         </div>
         <div class="sform-group">
           <label class="sform-label" for="rtrModalDownThresh">Offline threshold</label>
@@ -798,7 +798,7 @@
        A SECOND DIALOG OVER THE FIRST, opened by the gear beside the Interface
        Up/Down event. It is a sibling of #notifChanModal rather than nested
        inside it, because a fixed-position box inside another dialog's scrolling
-       body is clipped by it — and because the channel dialog's own Escape
+       body is clipped by it - and because the channel dialog's own Escape
        handler would otherwise close both at once.
 
        It is registered in testdata/modal-list.json like every other dialog, so
@@ -845,7 +845,7 @@
 
              MEASURED RATHER THAN PINNED: a `min-height` in pixels would be the
              obvious alternative and would be wrong the next time an event is
-             added to the Events tab — the number would still look deliberate
+             added to the Events tab - the number would still look deliberate
              while no longer matching anything. -->
         <div class="nchan-panels">
         <div class="nchan-panel active" data-nchanpanel="channel">
@@ -943,7 +943,7 @@
                It used to sit between the Name/Type row and the type-specific
                body, which is where neither belongs: it is not part of naming the
                channel and not part of configuring the transport. Last, on its
-               own, it reads as what it is — whether this channel is in use. -->
+               own, it reads as what it is - whether this channel is in use. -->
           <!-- ── HOW OFTEN THIS CHANNEL MAY REPEAT ITSELF ─────────────────
                On the Channel tab rather than behind a gear, because it is not a
                property of one event: it applies to everything this channel
@@ -1092,7 +1092,7 @@
            to offer beside Delete. -->
       <button class="sbtn sbtn-outline" id="res_dup" style="display:none"
               title="Fill a new entry from this one">Duplicate</button>
-      <!-- Verbs a row still offers when it cannot be edited — "make static" on
+      <!-- Verbs a row still offers when it cannot be edited - "make static" on
            a dynamic DHCP lease is the case this exists for. Filled from the
            action list the server sends, which it re-checks against a fresh
            read before acting on any of them. -->
@@ -1115,9 +1115,9 @@
     </div>
     <div class="rtr-modal-body">
       <div style="display:flex;align-items:center;justify-content:center;gap:.6rem;font-size:1.05rem;margin:.2rem 0 .1rem">
-        <span id="upd_from" style="color:var(--text-muted)">&mdash;</span>
+        <span id="upd_from" style="color:var(--text-muted)">-</span>
         <span style="color:var(--text-muted)">&rarr;</span>
-        <strong id="upd_to" style="color:var(--accent-warn)">&mdash;</strong>
+        <strong id="upd_to" style="color:var(--accent-warn)">-</strong>
       </div>
       <div style="text-align:center;font-size:.72rem;color:var(--text-muted);margin-bottom:.8rem" id="upd_channel"></div>
       <!-- Release notes for the offered version. ABOVE the reboot warning on

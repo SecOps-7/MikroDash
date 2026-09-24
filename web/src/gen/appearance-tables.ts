@@ -1,11 +1,11 @@
-// GENERATED from testdata/appearance-tables.json — do not edit.
+// GENERATED from testdata/appearance-tables.json - do not edit.
 // Rebuild with `node tools/appearance-tables-ts.js` from the committed JSON.
 // The JSON it reads is a FROZEN artefact: the generator that produced it read the
 // Node app and was deleted with the port-parity harness on 2026-09-01. This
 // transform still runs, so the .ts can be rebuilt from the committed JSON --
 // but the JSON itself can only change by hand, or from `v0.7.40` in git history.
 
-/** r, g, b, a — the alpha is carried through brightness scaling unchanged. */
+/** r, g, b, a - the alpha is carried through brightness scaling unchanged. */
 export type RGBA = [number, number, number, number];
 
 export interface PaletteColors { main: RGBA; muted: RGBA; bgDeep: RGBA; bgCard: RGBA }
@@ -141,7 +141,7 @@ export const FONTS: { id: string; family: string }[] = [
   }
 ];
 
-/** `px: null` is the browser default — the layer REMOVES font-size rather than
+/** `px: null` is the browser default - the layer REMOVES font-size rather than
  *  setting a number, which is not the same thing as 16px. */
 export const FONT_SIZES: { id: string; px: number | null }[] = [
   {

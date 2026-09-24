@@ -1,4 +1,4 @@
-// The Logs page — a port of the `── Logs` region in public/app.js.
+// The Logs page - a port of the `── Logs` region in public/app.js.
 //
 // The only page fed by a PUSH STREAM. `logs:history` arrives once with the
 // backlog; `logs:new` arrives one line at a time as the router writes it. The
@@ -29,7 +29,7 @@ interface Buffered { html: string; severity: string; text: string }
 const MAX_LOG_LINES = 2000;
 
 // A topic gets a colour so the eye can group without reading. Substring
-// matching on the whole list, in this order — a line carries several topics and
+// matching on the whole list, in this order - a line carries several topics and
 // the first branch that matches wins.
 function topicClass(t: string): string {
   const s = String(t).toLowerCase();
@@ -77,7 +77,7 @@ export function initLogsPage(socket: Socket, isVisible: (page: string) => boolea
       const e = logCountEls[sev];
       if (!e) return;
       const n = counts[sev]!;
-      // "1 error" but "2 errors", and `info`/`debug` never pluralise — they are
+      // "1 error" but "2 errors", and `info`/`debug` never pluralise - they are
       // the level's name, not a count of things with a plural.
       e.textContent = n + ' ' + (sev === 'error' && n !== 1 ? 'errors'
         : sev === 'warning' && n !== 1 ? 'warnings' : sev);
@@ -121,7 +121,7 @@ export function initLogsPage(socket: Socket, isVisible: (page: string) => boolea
     const entry = bufferedOf(line);
     logBuffer.push(entry);
     if (logBuffer.length > MAX_LOG_LINES) logBuffer.shift();
-    // The COUNTS move even when the line is filtered out — a hidden error is
+    // The COUNTS move even when the line is filtered out - a hidden error is
     // still an error, and the badge is how you find out it happened.
     updateLogCounts();
     if (logLevel && entry.severity !== logLevel) return;

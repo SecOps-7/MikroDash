@@ -12,14 +12,14 @@
  * load-bearing in TWO directions at once, one of which is invisible until it
  * breaks:
  *
- *   too WIDE  — the panel never closes, which is the original bug back again.
- *   too NARROW — the toggle's own click is treated as an outside click, so the
+ *   too WIDE  - the panel never closes, which is the original bug back again.
+ *   too NARROW - the toggle's own click is treated as an outside click, so the
  *                document handler closes the panel in the same tick the toggle
  *                opened it. The bell then looks completely dead: one click does
  *                nothing at all, and nothing is logged.
  *
  * The second is why `openingClickSurvives` exists. It fires the two listeners in
- * the order a real browser fires them — the button's, then the document's — and
+ * the order a real browser fires them - the button's, then the document's - and
  * asserts the panel is still open afterwards. A shim that only ran the button's
  * handler would pass while the real page was broken.
  *
@@ -91,7 +91,7 @@ function mount() {
   const list = makeEl('notifList', panel);
   const dot = makeEl('notifDot', wrap);
   const clear = makeEl('notifClearBtn', panel);
-  // Somewhere else on the page entirely — the "click away" target.
+  // Somewhere else on the page entirely - the "click away" target.
   const elsewhere = makeEl('someCard', null);
 
   const els = { notifToggleBtn: toggle, notifPanel: panel, notifList: list,
@@ -133,7 +133,7 @@ check('the opening click survives the document handler', () => {
   const b = mount();
   b.click(b.toggle);
   assert.equal(b.isOpen(), true,
-    'the panel closed in the same tick it opened — the document listener is '
+    'the panel closed in the same tick it opened - the document listener is '
     + 'treating the toggle as an outside click, and the bell looks dead');
 });
 

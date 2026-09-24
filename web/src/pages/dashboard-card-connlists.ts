@@ -8,7 +8,7 @@
 // ── THE THIRD PROTOCOL BAR IS A REMAINDER, NOT A PERCENTAGE ─────────────────
 //
 // tcp and udp are rounded independently and `other` is `100 - tcp - udp`. So the
-// three always sum to exactly 100 even when the rounding does not — and `other`
+// three always sum to exactly 100 even when the rounding does not - and `other`
 // can come out NEGATIVE when both round up, which flexbox treats as zero. That
 // is the live behaviour; computing the third the same way as the first two would
 // leave a one-pixel gap on some payloads and is not what the card does.
@@ -21,7 +21,7 @@
 //
 // ── AND THE PORT BAR HAS A FLOOR ────────────────────────────────────────────
 //
-// `Math.max(4, pct)` PIXELS — not percent. A port with one connection against a
+// `Math.max(4, pct)` PIXELS - not percent. A port with one connection against a
 // busy one still shows a visible stub rather than nothing.
 
 import { el } from '../dom';
@@ -30,7 +30,7 @@ import { DC_CC_NAMES, DC_PORT_NAMES } from '../gen/dccards-tables';
 // A country's `proto` is REQUIRED, and that is the wire contract rather than
 // optimism: `Proto` is a VALUE type on the Go side (`ConnCountryProto`, not a
 // pointer), so it is always marshalled. The live card reads `e.proto.tcp` with no
-// guard and would throw on an entry without it — killing the whole handler,
+// guard and would throw on an entry without it - killing the whole handler,
 // including the Top Ports list below. The generated type has it required, which
 // keeps this side reading like the original instead of quietly surviving a
 // payload the original cannot.
@@ -70,11 +70,11 @@ export function renderTopPorts(ports: ConnPort[]): void {
   const portsEl = el('dc-connPortList');
   if (!portsEl) return;
   if (!ports.length) {
-    portsEl.innerHTML = '<div class="empty-state">—</div>';
+    portsEl.innerHTML = '<div class="empty-state">-</div>';
     return;
   }
   // The FIRST entry's count is the scale, so the payload's own order decides it.
-  // The card does not sort — it trusts the collector to send them ranked.
+  // The card does not sort - it trusts the collector to send them ranked.
   const maxP = ports[0]!.count || 1;
   portsEl.innerHTML = ports.slice(0, 12).map((p) => {
     const pct = Math.round((p.count / maxP) * 100);

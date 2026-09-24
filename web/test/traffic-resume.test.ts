@@ -92,7 +92,7 @@ const lastX = (c: any, i: number) => c.data.datasets[i].data[c.data.datasets[i].
 // THE SAME GAP THE CHART USES, not the old fixed constant. The right buffer is
 // measured from the samples now (a router in stream mode does not deliver on a
 // metronome), so a test that kept computing it as RIGHT_BUFFER_MS would be
-// asserting against a formula the code no longer uses — and would fail on any
+// asserting against a formula the code no longer uses - and would fail on any
 // fixture whose gaps are not exactly one second.
 const expectedMax = () =>
   Date.now() + m.sharedClock().serverOffset - m.rightBufferFor(m.sharedPoints());

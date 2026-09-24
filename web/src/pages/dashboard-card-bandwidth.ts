@@ -5,15 +5,15 @@
 //
 // The traffic chart above it only accepts samples for the interface it is
 // showing; this card accepts every one. `traffic.js` emits per-socket for the
-// DEFAULT interface, so what arrives is already the WAN — filtering again here
+// DEFAULT interface, so what arrives is already the WAN - filtering again here
 // would drop the card's only input on a router whose default interface is not
 // the one the chart is displaying.
 //
 // ── CAPACITY IS REMEMBERED, NOT RESET ───────────────────────────────────────
 //
 // `syncCapacity` updates only when the active router is FOUND in the list. A
-// switch to a router that is not there yet — the id arrives before the list on a
-// cold connect — keeps the PREVIOUS router's capacity rather than falling back
+// switch to a router that is not there yet - the id arrives before the list on a
+// cold connect - keeps the PREVIOUS router's capacity rather than falling back
 // to the 1000/1000 default. The bars are briefly scaled against the wrong
 // router, and then correct themselves when the list lands. Reproduced: the
 // alternative reads as "capacity unknown" and would make every bar jump on every
@@ -36,7 +36,7 @@ let activeId = '';
 
 function syncCapacity(): void {
   const r = routers.find((x) => x.id === activeId);
-  // ONLY on a hit — see the header.
+  // ONLY on a hit - see the header.
   if (r) {
     bwDown = r.bwDownMbps || 1000;
     bwUp = r.bwUpMbps || 1000;
@@ -55,7 +55,7 @@ export function setBwActiveRouter(id: string | undefined): void {
 
 /** Three states: idle, a trickle, and a real figure. See the header. */
 function fmtPct(pct: number, mbps: number): string {
-  return mbps > 0 ? (pct < 1 ? '<1%' : Math.round(pct) + '%') : '—';
+  return mbps > 0 ? (pct < 1 ? '<1%' : Math.round(pct) + '%') : '-';
 }
 
 export function renderBandwidthCard(sample: TrafficSample): void {

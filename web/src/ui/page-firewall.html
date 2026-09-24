@@ -10,25 +10,25 @@
           <div style="flex:1;display:flex;align-items:center;justify-content:center">
             <div style="display:flex;gap:1.2rem;align-items:center;justify-content:center">
               <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
-                <span class="fw-rc-num" id="fwCntFilter">—</span>
+                <span class="fw-rc-num" id="fwCntFilter">-</span>
                 <span class="fw-rc-dis" id="fwCntFilterDis"></span>
                 <span class="fw-rc-lbl">Filter</span>
               </div>
               <div class="fw-rc-divider"></div>
               <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
-                <span class="fw-rc-num" id="fwCntNat">—</span>
+                <span class="fw-rc-num" id="fwCntNat">-</span>
                 <span class="fw-rc-dis" id="fwCntNatDis"></span>
                 <span class="fw-rc-lbl">NAT</span>
               </div>
               <div class="fw-rc-divider"></div>
               <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
-                <span class="fw-rc-num" id="fwCntMangle">—</span>
+                <span class="fw-rc-num" id="fwCntMangle">-</span>
                 <span class="fw-rc-dis" id="fwCntMangleDis"></span>
                 <span class="fw-rc-lbl">Mangle</span>
               </div>
               <div class="fw-rc-divider"></div>
               <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
-                <span class="fw-rc-num" id="fwCntRaw">—</span>
+                <span class="fw-rc-num" id="fwCntRaw">-</span>
                 <span class="fw-rc-dis" id="fwCntRawDis"></span>
                 <span class="fw-rc-lbl">Raw</span>
               </div>
@@ -40,7 +40,7 @@
         <div class="fw-scard">
           <div class="fw-scard-title">Action Breakdown</div>
           <div class="fw-action-list" id="fwActionList">
-            <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">—</span></div>
+            <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">-</span></div>
           </div>
         </div>
 
@@ -60,7 +60,7 @@
                reads "which firewall, then which table" rather than eight tabs in
                a row. Follows the Routing page's .stab-bar pattern (role=tablist,
                aria-selected, arrow keys) rather than the .fw-tab divs below it,
-               which carry no ARIA at all — a deliberate inconsistency: converting
+               which carry no ARIA at all - a deliberate inconsistency: converting
                those is a separate change with a much wider blast radius, and half
                a fix here would read as thoroughness.
 
@@ -100,7 +100,7 @@
           </div>
           <div class="table-responsive" id="fwRulesPanel" role="tabpanel" aria-labelledby="fwFamBtn-ip4">
             <table class="table table-vcenter mb-0">
-              <thead><tr><th class="fw-dragcell"></th><th class="fw-movecell"></th><th class="fw-pos" title="Position in the chain — a rule below the final drop never runs">#</th><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th><th class="text-end">Bytes</th></tr></thead>
+              <thead><tr><th class="fw-dragcell"></th><th class="fw-movecell"></th><th class="fw-pos" title="Position in the chain - a rule below the final drop never runs">#</th><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th><th class="text-end">Bytes</th></tr></thead>
               <tbody id="firewallTable" data-res-rows="fwFilter"><tr><td colspan="9" class="empty-state">Waiting&#8230;</td></tr></tbody>
             </table>
           </div>

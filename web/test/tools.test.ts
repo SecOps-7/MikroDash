@@ -7,7 +7,7 @@
  *
  * - A lost packet shows its status and no time; a reply shows its time.
  * - Text from the network (a reply host) is escaped.
- * - A result nobody is waiting for — the operator switched router mid-run — is
+ * - A result nobody is waiting for - the operator switched router mid-run - is
  *   dropped, while the same payload arriving for a pending run is drawn.
  * - The output is live: progress frames (`done: false`) are drawn as they come
  *   and leave the run pending; the `done: true` frame settles it. Progress after

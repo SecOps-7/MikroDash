@@ -1,4 +1,4 @@
-// The Interfaces page — a port of SIX adjacent blocks of top-level code in
+// The Interfaces page - a port of SIX adjacent blocks of top-level code in
 // public/app.js (the `── Interface Status` banner through `── Ports panel`).
 //
 // It is one page and six renderers: the tile grid, the list view, the card-size
@@ -35,7 +35,7 @@ const IFACE_SPARK_LEN = 30;
 const IP_PLACEHOLDER = '\u00a0';
 const IFACE_SIZE_KEY = 'mikrodash_iface_size';
 
-// Colour palette for type badges — cycles for types beyond the named set.
+// Colour palette for type badges - cycles for types beyond the named set.
 const IF_TYPE_COLOURS: Record<string, string> = {
   ether: 'rgba(56,189,248,.9)',
   wlan: 'rgba(167,139,250,.9)',
@@ -60,7 +60,7 @@ const IF_TYPE_FALLBACKS = ['rgba(56,189,248,.7)', 'rgba(167,139,250,.7)', 'rgba(
  * The Types card assigns fallbacks BY POSITION within a single render, which is
  * fine for a legend but would make a list-view pill change colour whenever an
  * interface appears or disappears. Hashing the name keeps a type the same colour
- * across every render. `>>> 0` is carried over verbatim — it coerces to unsigned
+ * across every render. `>>> 0` is carried over verbatim - it coerces to unsigned
  * 32-bit, which is what keeps the index positive.
  */
 function ifTypeColour(t: string): string {
@@ -72,7 +72,7 @@ function ifTypeColour(t: string): string {
 
 // The palette is rgba, so the pill background is the same colour at low alpha.
 function ifTypePill(t: string): string {
-  if (!t) return '<span class="ifl-na">&mdash;</span>';
+  if (!t) return '<span class="ifl-na">-</span>';
   const col = ifTypeColour(t);
   const bg = col.replace(/,\s*[\d.]+\)$/, ',.14)');
   return '<span class="ifl-type-pill" style="color:' + col + ';background:' + bg + '">' + esc(t) + '</span>';
@@ -109,7 +109,7 @@ function ifaceRateRow(dir: string, mbps: number, peak: number): string {
  */
 function iflCounter(v: number | null, delta: number | null): string {
   if (v === null || v === undefined) {
-    return '<span class="ifl-na" title="Not reported by this interface type">&mdash;</span>';
+    return '<span class="ifl-na" title="Not reported by this interface type">-</span>';
   }
   const cls = v > 0 ? 'ifl-bad' : 'ifl-zero';
   let body = '<span class="' + cls + '">' + v.toLocaleString() + '</span>';
@@ -121,7 +121,7 @@ function iflCounter(v: number | null, delta: number | null): string {
 }
 
 function iflBytes(v: number | null): string {
-  if (v === null || v === undefined) return '<span class="ifl-na">&mdash;</span>';
+  if (v === null || v === undefined) return '<span class="ifl-na">-</span>';
   return fmtBytes(v);
 }
 
@@ -134,7 +134,7 @@ function iflBytes(v: number | null): string {
  * nonsensical negative age.
  */
 function iflLastUp(s: string): string {
-  if (!s) return '<span class="ifl-na">&mdash;</span>';
+  if (!s) return '<span class="ifl-na">-</span>';
   const t = Date.parse(s.replace(' ', 'T'));
   if (!isFinite(t)) return '<span title="' + esc(s) + '">' + esc(s) + '</span>';
   const sec = (Date.now() - t) / 1000;
@@ -171,7 +171,7 @@ const IFL_COLS: Record<string, IflCol> = {
 
 
 
-// At FILE SCOPE, as in the live app (`public/app.js:1676`) — it was nested here
+// At FILE SCOPE, as in the live app (`public/app.js:1676`) - it was nested here
 // while nothing else needed it, and the Dashboard's Physical Ports card is what
 // showed that nesting had also left it undrivable by a gate. It closes over
 // nothing: `el`, `esc` and `portSvg` are all module-level.
@@ -189,7 +189,7 @@ export function renderIfPorts(ifaces: Interface[]): void {
   panel.innerHTML = ethers.map((i) => {
     const state = i.disabled ? 'dis' : i.running ? 'up' : 'down';
     return '<div class="if-port-item" data-state="' + state + '" title="' + esc(i.name) +
-      (i.ips && i.ips.length ? ' — ' + esc(i.ips[0]!) : '') +
+      (i.ips && i.ips.length ? ' - ' + esc(i.ips[0]!) : '') +
       (i.running ? ' (up)' : i.disabled ? ' (disabled)' : ' (down)') + '">' +
       portSvg(sz) +
       '<span class="if-port-label">' + esc(i.name) + '</span>' +
@@ -317,7 +317,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       const fp = [cls, ipStr, i.comment, i.id, i.rxMbps, i.txMbps, i.rxBytes, i.txBytes,
         i.errors, i.drops, i.errorsDelta, i.dropsDelta, i.linkDowns, i.lastLinkUp].join('|');
       let tr = existing[i.name];
-      // Collected in sorted order either way — an unchanged row still needs its
+      // Collected in sorted order either way - an unchanged row still needs its
       // position known so the reorder pass below can place it.
       if (tr && tr.dataset.fp === fp) { els.push(tr); return; }
       if (!tr) {
@@ -336,7 +336,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
           '<span class="iface-dot ' + dotCls + '"></span>' + esc(i.name) + '</td>' +
         '<td class="ifl-type">' + ifTypePill(i.type) + '</td>' +
         '<td class="ifl-ip" title="' + esc(ipStr) + '">' +
-          (ipStr ? esc(ipStr) : '<span class="ifl-na">&mdash;</span>') + '</td>' +
+          (ipStr ? esc(ipStr) : '<span class="ifl-na">-</span>') + '</td>' +
         '<td class="ifl-num ' + (i.rxMbps ? 'ifl-rx' : 'ifl-zero') + '">' + fmtMbps(i.rxMbps || 0) + '</td>' +
         '<td class="ifl-num ' + (i.txMbps ? 'ifl-tx' : 'ifl-zero') + '">' + fmtMbps(i.txMbps || 0) + '</td>' +
         '<td class="ifl-num">' + iflBytes(i.rxBytes) + '</td>' +
@@ -374,8 +374,8 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       counts[t]!++;
     });
     if (!order.length) {
-      panel.innerHTML = '<div class="if-type-item"><span class="if-type-label">—</span>' +
-        '<span class="if-type-count">—</span></div>';
+      panel.innerHTML = '<div class="if-type-item"><span class="if-type-label">-</span>' +
+        '<span class="if-type-count">-</span></div>';
       return;
     }
     let fallbackIdx = 0;
@@ -398,7 +398,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
     if (!ifaceGrid) return;
     const grid = ifaceGrid;
 
-    // Targeted DOM update — existing tiles in place, new ones created, deleted
+    // Targeted DOM update - existing tiles in place, new ones created, deleted
     // ones removed. A full innerHTML replacement makes the rate bars flash.
     const existing: Record<string, HTMLElement> = {};
     grid.querySelectorAll('.iface-tile[data-iface]').forEach((e) => {
@@ -427,7 +427,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
         div.innerHTML =
           ifaceSparkSvg(history[i.name] || []) +
           // title carries the full text, so a name the CSS had to truncate is
-          // still readable on hover — without letting a long one change the
+          // still readable on hover - without letting a long one change the
           // tile's size.
           '<div class="iface-name" title="' + esc(i.name) + '"><span class="iface-dot ' + dotCls + '"></span>' +
             esc(i.name) + '</div>' +
@@ -440,7 +440,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
           //
           // THE PLACEHOLDER IS U+00A0, NOT A SPACE, and it has to be: a plain
           // space collapses to nothing in HTML, the line takes no height, and
-          // the tile comes up short anyway — the very thing the placeholder is
+          // the tile comes up short anyway - the very thing the placeholder is
           // there to prevent. Written as an escape so it cannot be mistaken for
           // an ordinary space by the next reader, or by a copy.
           '<div class="iface-ip">' + (ipStr ? esc(ipStr) : IP_PLACEHOLDER) + '</div>' +
@@ -452,7 +452,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
         return;
       }
 
-      // Existing tile — only touch what changed.
+      // Existing tile - only touch what changed.
       tile.className = 'iface-tile ' + cls;
       tile.dataset.ifaceType = i.type || '';
       tile.dataset.id = i.id;
@@ -481,8 +481,8 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       const dot = tile.querySelector('.iface-dot');
       if (dot) dot.className = 'iface-dot ' + dotCls;
 
-      // The IP element is NEVER removed — losing a line would make the tile
-      // shorter than its neighbours — so an interface without an address keeps a
+      // The IP element is NEVER removed - losing a line would make the tile
+      // shorter than its neighbours - so an interface without an address keeps a
       // blank placeholder in its place.
       const ipEl = tile.querySelector('.iface-ip');
       const ipText = ipStr || IP_PLACEHOLDER;
@@ -528,7 +528,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
    * Fed from `ifstatus:names`, the router-wide half of the split delivery.
    *
    * It lives here because this is where the names arrive, but the element it
-   * fills is chrome — the traffic chart's interface select — and it is rebuilt
+   * fills is chrome - the traffic chart's interface select - and it is rebuilt
    * only when the set of active names changed, because rebuilding it drops the
    * viewer's own selection.
    */
@@ -545,7 +545,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       opt.textContent = n;
       ifaceSelect.appendChild(opt);
     });
-    // The current interface went down — switch to the first active one.
+    // The current interface went down - switch to the first active one.
     if (currentIf && names.indexOf(currentIf) === -1 && names.length) {
       ifaceSelect.value = names[0]!;
       socket.emit('traffic:select', { ifName: names[0] });
@@ -573,7 +573,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       ifaceCount.className = 'card-badge' + (ifaces.length > 0 ? ' active-blue' : '');
     }
 
-    // The grid is hidden in list view, so its empty state is not enough — the
+    // The grid is hidden in list view, so its empty state is not enough - the
     // table would keep showing the previous poll's rows.
     if (!ifaces.length) {
       if (ifaceGrid) ifaceGrid.innerHTML = '<div class="empty-state">No interfaces</div>';
@@ -641,7 +641,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
     });
     if (ifaceCount) ifaceCount.textContent = typeFilter ? (visible + '/' + total) : String(total);
     // The list view filters its own rows rather than hiding tiles, so it needs
-    // an explicit re-render — the tile visibility sweep above does not reach it.
+    // an explicit re-render - the tile visibility sweep above does not reach it.
     if (view === 'list') renderIfaceList(lastIfaces);
   });
 

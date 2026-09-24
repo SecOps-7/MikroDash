@@ -17,12 +17,12 @@
  * lines but calls `need` and `mountAdds` from inside a large IIFE, so lifting it
  * would mean lifting most of the live resource engine; that is a bigger piece of
  * work than the listener it would check. Said plainly here rather than left for
- * a reader to assume this compares two implementations — it does not.
+ * a reader to assume this compares two implementations - it does not.
  *
  * What it DOES prove is that the announcement changes the buttons, which is the
  * thing that was broken: this port announced `mikrodash:resmount` from three
  * pages and listened nowhere, so the Add button on a swapped tab kept the
- * PREVIOUS tab's resource — pressing Add on the NAT table opened the filter-rule
+ * PREVIOUS tab's resource - pressing Add on the NAT table opened the filter-rule
  * form. `announcement-audit` found it; nothing drove the add-slot path at all.
  *
  *   node tools/resmount-seam-check.js
@@ -44,7 +44,7 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 fs.rmSync(ENTRY, { force: true });
 
 // The payload the server sends: the schema itself, keyed by `key`. Not
-// `{ resource, schema }` — that is the REQUEST's shape, and using it here made
+// `{ resource, schema }` - that is the REQUEST's shape, and using it here made
 // every slot stay empty while the gate looked like it was driving them.
 const SCHEMA = (key, label) => ({ key, label, permitted: true, fields: [], title: label });
 
@@ -134,7 +134,7 @@ const labels = (html) => [...html.matchAll(/data-res-addbtn="([^"]*)"/g)].map((m
   if (labels(r.before).join() !== 'fwFilter') problems.push('before: ' + labels(r.before));
   if (labels(r.after).join() !== 'fwNat') {
     problems.push('after the swap the slot offers ' + JSON.stringify(labels(r.after)) +
-                  ', want ["fwNat"] — the Add button still belongs to the previous tab');
+                  ', want ["fwNat"] - the Add button still belongs to the previous tab');
   }
 }
 
@@ -174,7 +174,7 @@ const labels = (html) => [...html.matchAll(/data-res-addbtn="([^"]*)"/g)].map((m
 //
 // They are per router, and the server answers `unavailable` until one is
 // selected. The mount-time requests and a second set on `connect` were all
-// refused — 28 `res:error` replies on every page load — and `router:switched`,
+// refused - 28 `res:error` replies on every page load - and `router:switched`,
 // which the server sends on every select including after a reconnect, asked
 // for them all again anyway.
 {

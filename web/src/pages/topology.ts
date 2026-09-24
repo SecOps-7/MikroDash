@@ -1,4 +1,4 @@
-// The Network Topology map — a port of public/js/topology.js.
+// The Network Topology map - a port of public/js/topology.js.
 //
 // THE FIRST PAGE WHOSE RENDERER IS NOT IN app.js. The live app loads
 // `/js/topology.js` after app.js so it can close over `socket`, `esc`, `$`,
@@ -11,7 +11,7 @@
 //
 //  1. Layout is a DETERMINISTIC RADIAL grouped by parentage, not a force
 //     simulation. The graph is always a shallow star, so a physics sim would add
-//     a frame loop and non-determinism to solve a problem that does not exist —
+//     a frame loop and non-determinism to solve a problem that does not exist -
 //     and the map would settle differently on every visit.
 //
 //  2. Link bandwidth is joined CLIENT-SIDE against the `ifstatus:update` payload
@@ -22,7 +22,7 @@
 //  3. Rendering is a KEYED DIFF, never innerHTML. Replacing the SVG would cancel
 //     an in-progress drag and restart every SMIL animation.
 //
-// This file was ported in slices — geometry and layout first, then the render
+// This file was ported in slices - geometry and layout first, then the render
 // and interaction halves. All of them landed, and `main.ts` calls
 // `initTopologyPage`; the sentence that used to sit here saying it was not wired
 // yet outlived the slice it described.
@@ -39,7 +39,7 @@ import type { TopoEdge, TopologyPayload, TopoClient } from '../gen/payloads';
 
 // A node is one of three Go structs: the core carries gauges, a neighbour
 // carries discovery fields, a client carries its association. `kind` is a
-// plain string in all three, so testing it does not narrow the union — the
+// plain string in all three, so testing it does not narrow the union - the
 // fields only one kind carries do: `'attrib' in n` for a client, `'cpuLoad' in
 // n` for the core, `'clientCount' in n` for the core or a neighbour. Each sits
 // beside the `kind` test it narrows for, so the runtime test is still the kind.
@@ -60,7 +60,7 @@ export interface TopoState {
   fleetOn: boolean;
   fleetBusy: boolean;
   fleetStat: { added: number; moved: number; answered: number; failed: number };
-  /** Which peer contributed or moved a node, by key — shown in its panel. */
+  /** Which peer contributed or moved a node, by key - shown in its panel. */
   fleetOwner: Record<string, string>;
   /** The viewed router's own addresses, which only the endpoint can answer. */
   selfMacs: string[];
@@ -126,7 +126,7 @@ export const TYPE_LABEL: Record<string, string> = {
  * ring inside it.
  *
  * `saved` holds user-dragged positions and takes precedence everywhere: the core
- * is NOT pinned to the origin — it can be dragged like anything else, and
+ * is NOT pinned to the origin - it can be dragged like anything else, and
  * everything below is positioned RELATIVE to wherever it is. A hardcoded origin
  * left the whole map fanned around the core's original spot after it was moved.
  */
@@ -160,7 +160,7 @@ export function computeLayout(nodes: LayoutNode[], saved: Record<string, Pos>): 
 
   // Tier 1 fans around the core on a CAPPED angular step. Dividing a full circle
   // would place two devices exactly opposite and make the core read as a
-  // pass-through in a chain — the one thing a star must not look like.
+  // pass-through in a chain - the one thing a star must not look like.
   const MAX_ARC = Math.PI * 1.7;
   const STEP = 0.62;
   let step = STEP;
@@ -226,8 +226,8 @@ export function computeLayout(nodes: LayoutNode[], saved: Record<string, Pos>): 
     });
   }
 
-  // Anything whose parent never resolved — which should not happen, but the
-  // layout must not drop a node on the floor — gets a slot on the outer ring.
+  // Anything whose parent never resolved - which should not happen, but the
+  // layout must not drop a node on the floor - gets a slot on the outer ring.
   let orphan = 0;
   neighbours.forEach((n) => {
     if (out[n.key]) return;
@@ -286,7 +286,7 @@ export function fmtShort(mbps: number): string {
  *
  * `pos` is where things are NOW; `saved` is only what the user dragged, and is
  * persisted; `placed` is the last laid-out spot and is what makes a node
- * independent once it is on screen — dragging a device moves only that device,
+ * independent once it is on screen - dragging a device moves only that device,
  * and its already-expanded children stay put. The pin is dropped when a node
  * leaves the canvas, so re-expanding lays out afresh around wherever the parent
  * is by then.
@@ -336,7 +336,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   /**
    * Is this node dimmed by the current filters?
    *
-   * A VLAN is a property of a CLIENT, so infrastructure is never dimmed by one —
+   * A VLAN is a property of a CLIENT, so infrastructure is never dimmed by one -
    * dimming the switch a filtered client hangs off would hide the answer the
    * filter was asked for.
    */
@@ -355,7 +355,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   /**
    * Is this client drawn at all?
    *
-   * Its parent must be expanded (or the global toggle on) — and a search or VLAN
+   * Its parent must be expanded (or the global toggle on) - and a search or VLAN
    * match FORCES it into view, so filtering works from the collapsed state
    * rather than appearing to find nothing.
    */
@@ -373,7 +373,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
    * Edges whose BOTH ends are on screen.
    *
    * Rendering the raw edge list draws links to collapsed clients, which have no
-   * position and so anchor at the origin — the stray grey lines that used to fan
+   * position and so anchor at the origin - the stray grey lines that used to fan
    * out during a drag and when toggling Flow or Rates.
    */
   function visibleEdges(): TopoEdge[] {
@@ -434,7 +434,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     g.appendChild(gl);
 
     // The count chip rides the BOTTOM edge of the ring, mirroring the latency
-    // pill at the top-right, so the labels start below it — otherwise the chip
+    // pill at the top-right, so the labels start below it - otherwise the chip
     // lands on top of the device name.
     const ringR = n.kind === 'core' ? 34 : 26;
     const y = ringR + 24;
@@ -453,7 +453,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     chip.appendChild(svgEl('text', { class: 'topo-chip-tx', y: 3 }));
     g.appendChild(chip);
 
-    // Native tooltip via textContent — no escaping concern, and free.
+    // Native tooltip via textContent - no escaping concern, and free.
     g.appendChild(svgEl('title'));
     gNodes?.appendChild(g);
     nodeEls[n.key] = g;
@@ -568,13 +568,13 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       // Say plainly that this link is DEDUCED, and from what: the router can see
       // that the device is behind this switch, but not which switch port.
       let tip = 'behind this device on ' + (e.viaPort || 'the same port') +
-        ' — inferred: seen via MNDP/CDP only, so it is not directly attached';
+        ' - inferred: seen via MNDP/CDP only, so it is not directly attached';
       if (e.remoteIface) tip += '\nits port: ' + e.remoteIface;
       return tip;
     }
     let tip = e.iface || 'link';
     if (e.remoteIface) tip += '  →  ' + e.remoteIface;
-    if (e.shared) tip += '  (shared segment — more than one device on this port)';
+    if (e.shared) tip += '  (shared segment - more than one device on this port)';
     if (r) tip += '  ↓' + fmtMbps(r.rx) + '  ↑' + fmtMbps(r.tx);
     return tip;
   }
@@ -642,7 +642,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   //
   // THE THROTTLE IS THE WHOLE POINT. `ifstatus:update` lands every ~5 s, and
   // rebuilding <animateMotion> nodes each time restarts every animation at once
-  // — the entire canvas visibly jumps. So dot count and duration are bucketed
+  // - the entire canvas visibly jumps. So dot count and duration are bucketed
   // into a signature and the DOM is rebuilt only when that signature changes.
 
   function flowBudget(): number {
@@ -721,26 +721,26 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     // The INFRASTRUCTURE count stays the headline and clients ride along, so the
     // number does not silently jump when the client tier is expanded.
     text(byId('topoStatDevices'),
-      infra.length ? String(infra.length) + (clients ? ' + ' + clients : '') : '—');
+      infra.length ? String(infra.length) + (clients ? ' + ' + clients : '') : '-');
 
     const links = st.data ? st.data.edges.filter((e) => !e.client).length : 0;
-    text(byId('topoStatLinks'), links ? String(links) : '—');
+    text(byId('topoStatLinks'), links ? String(links) : '-');
 
     let thru = 0;
     (st.data ? st.data.edges : []).forEach((e) => {
       const r = rateFor(e.iface);
       if (r) thru += r.rx + r.tx;
     });
-    text(byId('topoStatThru'), thru > 0 ? fmtMbps(thru) : '—');
+    text(byId('topoStatThru'), thru > 0 ? fmtMbps(thru) : '-');
 
     let worst: number | null = null;
     infra.forEach((n) => {
       if (n.rtt !== null && isFinite(n.rtt) && (worst === null || n.rtt > worst)) worst = n.rtt;
     });
-    // `n/a` and `—` say different things: the first is "this API user may not
+    // `n/a` and `-` say different things: the first is "this API user may not
     // measure it", the second is "nothing has answered yet".
     if (st.data && st.data.pingDenied) text(byId('topoStatRtt'), 'n/a');
-    else if (worst === null) text(byId('topoStatRtt'), '—');
+    else if (worst === null) text(byId('topoStatRtt'), '-');
     else text(byId('topoStatRtt'), (worst as number).toFixed((worst as number) < 10 ? 1 : 0) + ' ms');
   }
 
@@ -942,7 +942,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
 
   /**
    * Forget the placement of nodes LEAVING the canvas, so they are laid out again
-   * relative to their parent's current position next time — rather than
+   * relative to their parent's current position next time - rather than
    * reappearing where the parent used to be.
    */
   function unpinClientsOf(parentKey: string | null): void {
@@ -1226,7 +1226,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   });
 
   // Link rates ride in on the INTERFACE collector, which the browser already
-  // receives router-wide — no extra subscription and no extra router load.
+  // receives router-wide - no extra subscription and no extra router load.
   socket.on('ifstatus:update',
     (p) => {
       if (!p || !Array.isArray(p.interfaces)) return;

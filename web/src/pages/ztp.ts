@@ -310,7 +310,7 @@ function renderSettings(p: ZTPPayload): void {
   const inst = el('ztpInstanceId');
   if (inst) inst.textContent = s.instanceId || 'Made when provisioning is first switched on';
   const key = el('ztpPublicKey');
-  if (key) key.textContent = s.publicKey || '—';
+  if (key) key.textContent = s.publicKey || '-';
   const body = el('ztpBatchBody');
   if (body) body.innerHTML = V.batchRows(p.batches, Date.now());
   const lan = el<HTMLInputElement>('s_ztpLanUrl');

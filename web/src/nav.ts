@@ -1,6 +1,6 @@
 // The sidebar's grouping: 23 pages collapsed into 7 categories.
 //
-// Two things are remembered per user, SERVER-SIDE — whether grouping is on at
+// Two things are remembered per user, SERVER-SIDE - whether grouping is on at
 // all, and which categories are open. That makes this different from the
 // appearance layer next door, which never leaves the browser: localStorage here
 // is only a cache, read before the nav paints so the sidebar never renders in
@@ -14,7 +14,7 @@
 // itself. So the rendered open set is the saved set PLUS this one.
 //
 // It has to be stored rather than re-derived from the active page at render
-// time, and the live comment says why — deriving it is what made collapsing the
+// time, and the live comment says why - deriving it is what made collapsing the
 // group you are standing in a no-op, because the click removed it from the
 // saved set and the very next render put it straight back. Reproduced as state
 // for exactly that reason.
@@ -23,7 +23,7 @@
 //
 // A header click asks "is this category open?", not "is it in the saved set?".
 // An auto-expanded category is open without being saved, so keying on
-// membership made the first click PUSH it — expanding an already-open group and
+// membership made the first click PUSH it - expanding an already-open group and
 // taking two clicks to shut it.
 
 import { el } from './dom.js';
@@ -40,7 +40,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
  * Paint the nav from the three pieces of state.
  *
  * Takes over from preflight's `#navBoot` stylesheet, which exists only because
- * the elements it needed to class did not exist yet when it ran — so the first
+ * the elements it needed to class did not exist yet when it ran - so the first
  * thing this does is remove it. Leaving it would pin the sidebar to whatever
  * the cache said and make every toggle below inert.
  */
@@ -54,7 +54,7 @@ export function navRender(): void {
     const open = (cat !== undefined && expanded.indexOf(cat) !== -1) ||
       (autoCat !== null && cat === autoCat);
     g.classList.toggle('is-open', open);
-    // Set next to the class toggle, the way the router dropdown does it — it is
+    // Set next to the class toggle, the way the router dropdown does it - it is
     // the whole disclosure contract for a screen reader, where the collapsed and
     // expanded widths do not exist.
     const hdr = g.querySelector('.nav-group-hdr');
@@ -85,7 +85,7 @@ export function navSave(): void {
 /**
  * Called by showPage: open the category holding the page just navigated to.
  *
- * Renders only when there is a category — a page outside every group leaves the
+ * Renders only when there is a category - a page outside every group leaves the
  * sidebar exactly as it was rather than collapsing whatever was auto-open.
  */
 export function navAutoExpand(cat: string | null | undefined): void {
@@ -126,7 +126,7 @@ export function initNav(): void {
         if (at !== -1) expanded.splice(at, 1);
         // Collapsing the category holding the current page is allowed, and holds
         // until you navigate into it again. Clearing the auto-expand is what
-        // makes that stick — otherwise the next render puts it straight back.
+        // makes that stick - otherwise the next render puts it straight back.
         if (autoCat === cat) autoCat = null;
       } else {
         expanded.push(cat);

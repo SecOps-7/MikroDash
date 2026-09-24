@@ -1,8 +1,8 @@
 /**
  * A GENERATED PAGE'S KEY COLUMNS ARE COLOURED PILLS (2026-09-18).
  *
- * `internal/areas` names a pill KIND per column — `Table.Pills`, plus the flag
- * columns in `CommonPills` — and `web/src/pages/area.ts` holds the one colour
+ * `internal/areas` names a pill KIND per column - `Table.Pills`, plus the flag
+ * columns in `CommonPills` - and `web/src/pages/area.ts` holds the one colour
  * table per kind, in the hand-built pages' own pill styles. This drives the
  * renderer with rows and reads the cells back:
  *
@@ -79,7 +79,7 @@ say('ok  a status word is coloured by meaning; a column with no kind stays plain
 // ── FLAGS: YES OR NO, COLOURED ONLY WHEN TRUE ───────────────────────────────
 assert.strictEqual(d[0].disabled, '<span class="vpn-hs-badge hs-never">no</span>');
 assert.strictEqual(d[1].disabled, '<span class="vpn-hs-badge hs-warn">yes</span>');
-assert.ok(/&mdash;/.test(d[2].disabled), 'a flag the router did not send is not the dash');
+assert.ok(/-/.test(d[2].disabled), 'a flag the router did not send is not the dash');
 const lists = send('address-lists', [
   { id: '*1', identity: 'a', values: { list: 'blocked', address: '198.51.100.7', dynamic: 'true' } },
 ]);

@@ -7,7 +7,7 @@
  * ask for the same thing, and must not send an approval that omits it.
  *
  * The server checks the word again against the router's own label, so this box
- * is the prompt rather than the check — which is exactly why it is worth a test:
+ * is the prompt rather than the check - which is exactly why it is worth a test:
  * a prompt that never appears leaves a one-press reboot behind a button labelled
  * "Run it", and nothing on the server would fail.
  *
@@ -74,7 +74,7 @@ ok(/reboot/i.test(el('aiProposeApprove').textContent),
 ok(el('aiProposeWhat').textContent.startsWith('Apply package changes and reboot'),
   `an action reads as a row change: ${JSON.stringify(el('aiProposeWhat').textContent)}`);
 
-// A WRONG name is not enough — the control for the assert below.
+// A WRONG name is not enough - the control for the assert below.
 el('aiProposeConfirm').value = 'some other router';
 el('aiProposeConfirm').fire('input');
 ok(el('aiProposeApprove').disabled === true, 'Approve went live for the wrong router name');

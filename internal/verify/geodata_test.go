@@ -1,6 +1,6 @@
 package verify
 
-// THE GEO DATA LEDGER — that what the app reads is what the image ships.
+// THE GEO DATA LEDGER - that what the app reads is what the image ships.
 //
 // ── THE FAILURE THIS EXISTS FOR ────────────────────────────────────────────
 //
@@ -8,7 +8,7 @@ package verify
 // absent: no country flags, no organisation badges, every other number intact.
 // That is the right behaviour at runtime and it is a terrible way to find out
 // that a build stopped shipping a file. Nothing fails, no page errors, and the
-// data simply stops appearing — which reads exactly like a router with boring
+// data simply stops appearing - which reads exactly like a router with boring
 // traffic.
 //
 // So the filenames each package looks for, and the paths the Dockerfile puts
@@ -102,7 +102,7 @@ func TestEveryGeoFetchFallsBackAMonth(t *testing.T) {
 
 // CC BY 4.0 REQUIRES ATTRIBUTION, and THIRD_PARTY_NOTICES.md is where this app
 // gives it. Nothing in the interface credits DB-IP, so that file and the README
-// are the whole of it — which makes a check that they actually name both
+// are the whole of it - which makes a check that they actually name both
 // databases the only thing standing between shipping the data and shipping it
 // uncredited.
 func TestBothGeoDatabasesAreCreditedInTheNotices(t *testing.T) {
@@ -142,7 +142,7 @@ func TestBothGeoDatabasesAreCreditedInTheNotices(t *testing.T) {
 // Both directions matter, and each has already gone wrong once:
 //
 //	a category with no colour   renders an unstyled word on the badge
-//	a colour with no category   is dead paint — `.svc-dns` sat in app.css and
+//	a colour with no category   is dead paint - `.svc-dns` sat in app.css and
 //	                            in CAT_COLOUR for months while no organisation
 //	                            could ever carry that class, because the org
 //	                            table it was written for never had a resolver
@@ -205,7 +205,7 @@ var (
 	reCategory = regexp.MustCompile(`(?m)^\s*\d+:\s*"([a-z]+)"`)
 	// `  cdn: '#38bdf8',` inside CAT_COLOUR
 	reSankeyCategory = regexp.MustCompile(`(?m)^  ([a-z]+): '#[0-9a-fA-F]{6}',`)
-	// `.svc-cdn      {background:…}` — the dark-theme rules only; the
+	// `.svc-cdn      {background:…}` - the dark-theme rules only; the
 	// light-theme overrides repeat the same names behind a selector prefix.
 	reCSSCategory = regexp.MustCompile(`(?m)^\s{4}\.svc-([a-z]+)\s`)
 )

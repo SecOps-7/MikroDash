@@ -32,7 +32,7 @@ const CAT_COLOUR: Record<string, string> = {
 /** Source nodes cycle a palette: they are hosts, with no category to colour by. */
 const SRC_COLOURS = ['#38bdf8', '#818cf8', '#a78bfa', '#67e8f9', '#93c5fd', '#6ee7b7'];
 
-/** A source bar: a `topSources` row — or, under a client filter, one the page
+/** A source bar: a `topSources` row - or, under a client filter, one the page
  *  BUILDS by summing that client's destinations, which has no MAC. */
 export type SankeySource = Pick<ConnSource, 'ip' | 'name' | 'count'>;
 
@@ -68,7 +68,7 @@ export function linkPath(x0: number, y0: number, x1: number, y1: number,
 /**
  * Destinations, folded onto the label the diagram actually shows.
  *
- * An ORG first — "Cloudflare" is what someone recognises — then the country,
+ * An ORG first - "Cloudflare" is what someone recognises - then the country,
  * then the raw key. Two destinations at the same organisation are one node,
  * because a diagram with nine Google rows tells you less than one that says
  * Google is nine.
@@ -159,7 +159,7 @@ export function renderSankey(
   folded.forEach((d) => {
     // Rescaled against the SOURCE total, so both columns fill the same height
     // even though the folded destinations count fewer connections than the
-    // sources do — the two sides are different views of one flow.
+    // sources do - the two sides are different views of one flow.
     const h = Math.max(4, (d.count / dstTotal) * total * dstScale);
     dstNodes.push({ label: d.label, count: d.count, cat: d.cat, x: dstX, y: dy, h, side: 'dst', cursor: dy });
     dy += h + GAP;
@@ -226,7 +226,7 @@ export function renderSankey(
  *
  * A full redraw builds up to eighty ribbon paths and two columns of nodes.
  * Doing that on every payload would be visible work for a picture that changes
- * shape slowly, so a render happens at most every five seconds — and an
+ * shape slowly, so a render happens at most every five seconds - and an
  * unchanged fingerprint skips it entirely.
  *
  * While a COUNTRY OR CLIENT FILTER is active the caller owns the rendering: the
@@ -278,7 +278,7 @@ export function createSankeyThrottle(
      * The caller's own view, drawn NOW and without the throttle.
      *
      * A filter is a direct response to a click, so it must not wait up to five
-     * seconds — the throttle exists to pace a poll nobody asked for, not to
+     * seconds - the throttle exists to pace a poll nobody asked for, not to
      * delay something somebody did.
      */
     redrawWith(sources, destinations) {

@@ -1,4 +1,4 @@
-// The Connections page — the module that wires the four pieces together.
+// The Connections page - the module that wires the four pieces together.
 //
 //   connections-map.ts        the tables, the projection, the arc geometry
 //   connections-worldmap.ts   the SVG map: paths, arcs, labels, zoom
@@ -13,7 +13,7 @@
 //
 // A country filter answers "who talks to Germany"; a client filter answers
 // "where does this laptop go". Both at once would answer "does this laptop talk
-// to Germany" — a question the payload cannot answer without the cross-matrix
+// to Germany" - a question the payload cannot answer without the cross-matrix
 // nobody sends. So selecting one clears the other, in both directions.
 
 import { el, iso2Flag, lsGet, lsSet, renderSortHeader, sortRows, type SortState } from '../dom';
@@ -156,7 +156,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     selectedCC = cc;
     listPage = 0;
     drawList();
-    // The two filters are mutually exclusive — see the header.
+    // The two filters are mutually exclusive - see the header.
     if (cc && filteredBySrc) {
       filteredBySrc = '';
       const sel = el<HTMLSelectElement>('connSrcFilter');
@@ -190,7 +190,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     renderPorts(ports);
     sankey.setFiltered(true);
     sankey.redrawWith(srcs, dests.slice(0, 10));
-    setSub(iso2Flag(cc) + ' ' + (CC_NAMES[cc] || cc) + ' — ' + dests.length +
+    setSub(iso2Flag(cc) + ' ' + (CC_NAMES[cc] || cc) + ' - ' + dests.length +
       ' destination' + (dests.length !== 1 ? 's' : ''));
   }
 
@@ -256,7 +256,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     devices.forEach((d) => {
       const opt = document.createElement('option');
       opt.value = d.ip;
-      opt.textContent = (d.name && d.name !== d.ip) ? (d.name + ' — ' + d.ip) : d.ip;
+      opt.textContent = (d.name && d.name !== d.ip) ? (d.name + ' - ' + d.ip) : d.ip;
       sel.appendChild(opt);
     });
     if (current && devices.some((d) => d.ip === current)) sel.value = current;
@@ -269,7 +269,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
   socket.on('conn:update', (data) => {
     if (!data) return;
 
-    // Asked for HERE rather than at init — see fetchLocalCCOnce. Connection
+    // Asked for HERE rather than at init - see fetchLocalCCOnce. Connection
     // data arriving is the proof that the session is up and has reported.
     fetchLocalCCOnce();
 
@@ -340,7 +340,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
   });
 
   // The DHCP leases fill the client picker with devices that have no traffic
-  // right now — which is how you find out they have none.
+  // right now - which is how you find out they have none.
   socket.on('leases:list', (d) => {
     leases = (d && d.leases) || [];
     populateClients();
@@ -353,7 +353,7 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
    *
    * This used to run once at module init and never again. Every page module is
    * initialised at BOOT, and at boot the router session has not settled and
-   * `dhcpNetworks` has not produced a payload — so `/api/localcc` answers
+   * `dhcpNetworks` has not produced a payload - so `/api/localcc` answers
    * `{"cc":""}`, the guard below fails, and `localCC` stays `ZZ` FOREVER. `ZZ`
    * has no centroid, so `arcs()` returns immediately: the map colours countries
    * and counts them and draws no arcs or comets at all, which reads as a

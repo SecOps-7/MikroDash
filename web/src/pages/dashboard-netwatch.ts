@@ -9,7 +9,7 @@
 // lands.
 //
 // The raw value is escaped because it comes off the router. Nothing else on this
-// card does anything clever — it is a status, a name and an address.
+// card does anything clever - it is a status, a name and an address.
 
 import { esc, el } from '../dom';
 import type { NetwatchPayload } from '../gen/payloads';
@@ -32,8 +32,8 @@ export function renderNetwatch(data: NetwatchPayload): void {
         : '<span style="color:var(--text-muted);font-size:.7rem">' + esc(h.status || '?') + '</span>';
     return '<tr>' +
       '<td>' + statusHtml + '</td>' +
-      '<td style="font-size:.78rem;font-weight:600">' + esc(h.name || '—') + '</td>' +
-      '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(h.host || '—') + '</td>' +
+      '<td style="font-size:.78rem;font-weight:600">' + esc(h.name || '-') + '</td>' +
+      '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(h.host || '-') + '</td>' +
       '</tr>';
   }).join('');
 }

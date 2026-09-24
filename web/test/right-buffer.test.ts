@@ -6,7 +6,7 @@
  * `RIGHT_BUFFER_MS` is documented as "one sample interval", which is true when
  * a sample arrives every second. A router in STREAM mode does not keep that
  * promise: measured on the operator's hAP ax^3 (2026-09-23), 55 points over 63
- * seconds with a mean gap of 1,170 ms — 22 near 1,000, 27 near 1,250, four near
+ * seconds with a mean gap of 1,170 ms - 22 near 1,000, 27 near 1,250, four near
  * 1,500 and one of 2,000.
  *
  * With a fixed 1,000 the axis edge runs ahead of the newest sample whenever one

@@ -5,7 +5,7 @@
 //
 // `window._worldMapPathDs` and `_worldMapCentroids` are published by the
 // connections page's world map, and `worldmap:ready` says when. Until then a
-// `conn:update` is held in `pending` rather than dropped — the card is on the
+// `conn:update` is held in `pending` rather than dropped - the card is on the
 // Dashboard and the map data arrives with a page the viewer may not have opened.
 //
 // ── AN ARC IS REBUILT ONLY WHEN ITS PATH CHANGES ────────────────────────────
@@ -69,7 +69,7 @@ export function createConnMap(rng: () => number = Math.random): ConnMap {
     const localCC = w()._worldMapLocalCC || 'ZZ';
     const src = centroids[localCC];
 
-    // Removed FIRST, and for every arc whose country has dropped out — including
+    // Removed FIRST, and for every arc whose country has dropped out - including
     // when `src` is missing below, so a map that cannot draw still tidies up.
     for (const cc of Object.keys(arcEls)) {
       if (!cc2n[cc] && arcEls[cc]) {
@@ -101,7 +101,7 @@ export function createConnMap(rng: () => number = Math.random): ConnMap {
 
       const durSecs = hot ? 1.4 : 2.2;
       // `.toFixed(2)` returns a STRING, and the unary minus below coerces it
-      // back — so `begin` is a negative offset in seconds, which starts the
+      // back - so `begin` is a negative offset in seconds, which starts the
       // comet mid-flight rather than at the router.
       const finalDur = Math.max(0.8, durSecs + (rng() * 0.6 - 0.3)).toFixed(2) + 's';
       const beginDelay = -Number((rng() * durSecs).toFixed(2)) + 's';
@@ -190,7 +190,7 @@ export function createConnMap(rng: () => number = Math.random): ConnMap {
         const tgt = (e as MouseEvent).target as HTMLElement | null;
         if (!tgt || !tgt.dataset || !tgt.dataset.cc) { tip.style.display = 'none'; return; }
         const cc = tgt.dataset.cc, n = counts[cc] || 0;
-        // `esc`, not `dcEsc` — this is the page's escaper and the original uses
+        // `esc`, not `dcEsc` - this is the page's escaper and the original uses
         // it here, which is right: the value is interpolated into markup.
         tip.innerHTML = esc(DC_CC_NAMES[cc] || cc) +
           (n ? ' &nbsp;<span style="color:var(--accent-rx)">' + esc(String(n)) + ' conns</span>' : '');

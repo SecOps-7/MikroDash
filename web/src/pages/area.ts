@@ -2,7 +2,7 @@
 //
 // `internal/areas` declares a RouterOS menu as a page; `cmd/areagen` writes that
 // declaration into `gen/areas.ts` and each page's markup shell. This fills the
-// shell: the tabs, the header row, the rows, and the Add slot — for every area
+// shell: the tabs, the header row, the rows, and the Add slot - for every area
 // there is and every area there will be.
 //
 // ── IT OWNS NO WRITE PATH ───────────────────────────────────────────────────
@@ -28,7 +28,7 @@
 // EXCEPT AN ORDERED RESOURCE (routing rules, IPsec policies, OSPF interface
 // templates): the first row that matches decides, so the router's order IS what
 // the table means, and a sorted view of it reads as a different rule set. It
-// does not sort at all, as the Queues page's first-match tables do not — the
+// does not sort at all, as the Queues page's first-match tables do not - the
 // operator's choice on 2026-09-18.
 //
 // ── KEY COLUMNS ARE PILLS, BY KIND ──────────────────────────────────────────
@@ -181,7 +181,7 @@ function syncPanels(area: Area, panel: AreaPanel | null): void {
 
 /** A dash, not an empty cell: "the router said nothing" is not "the value is ''". */
 function cell(v: string | undefined): string {
-  return v === undefined || v === '' ? '<span style="color:var(--text-muted)">&mdash;</span>' : esc(v);
+  return v === undefined || v === '' ? '<span style="color:var(--text-muted)">-</span>' : esc(v);
 }
 
 /** A status word's colour, by the vocabulary the router reports. Lower-cased and
@@ -300,7 +300,7 @@ function render(area: Area): void {
   }
 
   // A SETTINGS MENU (a singleton) is one row with no id of its own, so it is
-  // drawn as a card — a label and a value per field — rather than as a one-row
+  // drawn as a card - a label and a value per field - rather than as a one-row
   // table. Every line carries the row's engine attributes, so clicking any of
   // them opens the one form, which edits the one row.
   if (table?.singleton) {
@@ -455,7 +455,7 @@ function drawRows(area: Area, at: number, list: AreaPayload['tables'][number]['r
  * A column header from a field name: `nextPool` reads as "Next Pool".
  *
  * The RESOURCE's own labels are the better source and the browser does not have
- * them — `res:schema` carries them, but only once a form has been opened, which
+ * them - `res:schema` carries them, but only once a form has been opened, which
  * is after the table has been drawn. Splitting the camelCase name is the honest
  * approximation, and it is what the field is called in the tool catalogue too.
  */

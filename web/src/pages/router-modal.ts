@@ -5,7 +5,7 @@
 // Every decision this dialog makes lives in a pinned pure function:
 // `routerFormValues`, `collectRouterForm`, `seedGeoPicker`,
 // `splitBw`/`joinBw`, `TestGate`, `testResultMessage` and
-// `labelAfterTest` in router-form.ts, and the town picker — now mounted from
+// `labelAfterTest` in router-form.ts, and the town picker - now mounted from
 // the SHARED `mountCityPicker` in city-picker.ts, as the live app mounts it for
 // this dialog and the site form alike. What is left here is
 // elements, listeners and two fetches.
@@ -14,7 +14,7 @@
 //
 // The save sends `geo: { place: picker.get() }`, and the store reads a null
 // `place` as "clear the override". `CityPickerState.get()` returns null while
-// the box is only PREVIEWING the automatic location — so an operator editing a
+// the box is only PREVIEWING the automatic location - so an operator editing a
 // label does not convert that location into a manual override. Wiring this
 // dialog before that guard existed would have wiped a hand-set location on every
 // unrelated edit, with nothing on screen to say so.
@@ -41,7 +41,7 @@ import {
  * edited in Access Management now, so another tab can change it underneath this
  * one, and a snapshot would write back a list that is already stale.
  *
- * `undefined` for a device this browser does not know is load-bearing —
+ * `undefined` for a device this browser does not know is load-bearing -
  * `siteIdsForSave` turns that into an ABSENT `siteIds`, and the server reads
  * absent as "leave membership alone" where an empty array means "remove every
  * site".
@@ -56,7 +56,7 @@ export function initRouterModal(opts: {
   // The fleet as the page currently knows it, read at SAVE time rather than
   // captured when the modal opened. `siteIdsToSave` reorders the STORED
   // membership, and the store is what another tab's Access Management edit would
-  // have changed underneath this one — a snapshot taken at open would then write
+  // have changed underneath this one - a snapshot taken at open would then write
   // back a list that is already out of date.
   routers: () => StoredRouter[];
   onSaved: () => void;
@@ -68,14 +68,14 @@ export function initRouterModal(opts: {
 
   // ── the town picker ───────────────────────────────────────────────────────
   //
-  // MOUNTED FROM THE SHARED FUNCTION, as the live app does — `_mountCityPicker`
+  // MOUNTED FROM THE SHARED FUNCTION, as the live app does - `_mountCityPicker`
   // (app.js:11225) serves this dialog and the site form alike. This file carried
   // its own copy for as long as it was the only caller; the site form made a
   // second one, and two implementations of one thing drift.
   //
   // The migration waited for the router-modal-picker check, which was
-  // written and passing against the INLINE version first — six mutations killed
-  // — so this change had something to be checked against rather than being an
+  // written and passing against the INLINE version first - six mutations killed
+  // - so this change had something to be checked against rather than being an
   // unverifiable refactor of working code.
   //
   // ── NO `onChange`, AND THAT IS A CORRECTION ───────────────────────────────
@@ -83,14 +83,14 @@ export function initRouterModal(opts: {
   // This file used to call `gate.invalidate()` when a town was picked, so
   // Test → pick a town → Save re-tested instead of writing. **The live app does
   // not do that**: `_geoPickerEnsure` mounts with `{ clearEl }` only
-  // (app.js:8266), and so does the site form (app.js:5461) — nothing in the
+  // (app.js:8266), and so does the site form (app.js:5461) - nothing in the
   // original passes `onChange` at all. The location is not part of what
   // `/api/routers/test` checks, so there is nothing for a changed town to
   // invalidate.
   //
   // Found by a mutation that SURVIVED: deleting the `onChange` call from the
   // shared mount broke no gate, which sent me to the live source to ask what
-  // should have been asserting it. The answer was that nothing should — the code
+  // should have been asserting it. The answer was that nothing should - the code
   // was the addition, not the test the gap. The option stays on
   // `mountCityPicker` because the live `_mountCityPicker` declares it too.
   const geoInput = el<HTMLInputElement>('rtrModalGeo');
@@ -130,7 +130,7 @@ export function initRouterModal(opts: {
   //
   // TWO FAILURES, and the second is the quieter one. Clicking did nothing, which
   // is visible. But `open()` also writes the seeded unit into the hidden input
-  // WITHOUT moving the highlight — so editing a router stored as 1500 Mbps drew
+  // WITHOUT moving the highlight - so editing a router stored as 1500 Mbps drew
   // "Gbps" highlighted over a field that meant Mbps. The control disagreed with
   // the value it was displaying, and saving without touching it was correct
   // while the screen said otherwise. `setBwUnit` is therefore called from
@@ -242,13 +242,13 @@ export function initRouterModal(opts: {
     // remove a membership by accident.
     //
     // A site deleted since the device was filed has no name to show and is left
-    // OUT of the picker — but it is not dropped from the device: see
+    // OUT of the picker - but it is not dropped from the device: see
     // `siteIdsToSave`, which reorders the stored list rather than rebuilding it
     // from these options.
     const primary = el<HTMLSelectElement>('rtrModalPrimarySite');
     if (primary) {
       const all = opts.sites();
-      primary.innerHTML = '<option value="">— No site —</option>';
+      primary.innerHTML = '<option value="">- No site -</option>';
       (f.siteIds || []).filter((id) => all[id]).forEach((id) => {
         const o = document.createElement('option');
         o.value = id;
@@ -286,7 +286,7 @@ export function initRouterModal(opts: {
 
 
     hideTestResult();
-    // An EDIT starts ready — its stored credentials already worked. An ADD must
+    // An EDIT starts ready - its stored credentials already worked. An ADD must
     // test first.
     if (router) gate.pass();
     el('rtrModalBg')?.classList.add('open');
@@ -299,7 +299,7 @@ export function initRouterModal(opts: {
     if (!box) return;
     box.style.display = '';
     // `className` is REPLACED, not toggled, and the failure class is `err`.
-    // I wrote `classList.toggle('ok'/'bad')` — wrong on both counts, and
+    // I wrote `classList.toggle('ok'/'bad')` - wrong on both counts, and
     // `class-hook-audit` caught it because nothing styles `bad`. Replacing is
     // what the original does and it also clears whatever the previous result
     // left behind, which a toggle pair does not.
@@ -316,7 +316,7 @@ export function initRouterModal(opts: {
       id: input('rtrModalId')?.value || '',
       label: input('rtrModalLabel')?.value || '',
       // The device's STORED membership, straight from the record this browser
-      // holds — `collectRouterForm` reorders it and leaves it ABSENT when there
+      // holds - `collectRouterForm` reorders it and leaves it ABSENT when there
       // is no record. See `siteIdsForSave`.
       siteIds: storedSiteIds(storedRecord(opts.routers)),
       primarySite: el<HTMLSelectElement>('rtrModalPrimarySite')?.value || '',
@@ -408,7 +408,7 @@ export function initRouterModal(opts: {
     }
   });
 
-  // Any edit invalidates a passing test — see TestGate.
+  // Any edit invalidates a passing test - see TestGate.
   for (const id of ['rtrModalHost', 'rtrModalPort', 'rtrModalUser', 'rtrModalPass', 'rtrModalGeo']) {
     input(id)?.addEventListener('input', () => { if (gate.invalidate()) hideTestResult(); });
   }
@@ -420,13 +420,13 @@ export function initRouterModal(opts: {
   //
   // `api` listens on 8728 and `api-ssl` on 8729. Turning TLS on and leaving the
   // port at 8728 speaks TLS to the plain service, which fails with "first
-  // record does not look like a TLS handshake" — and nothing ever reaches 8729.
+  // record does not look like a TLS handshake" - and nothing ever reaches 8729.
   //
   // That is issue #137: a device created on plain API could not be switched to
   // TLS by editing it, while deleting and re-creating it worked. Re-creating
   // works because a blank port falls back to 8729; editing kept the 8728 the
   // record already had. Reproduced on a test router, where the session did
-  // reconnect promptly — to the old port.
+  // reconnect promptly - to the old port.
   //
   // ONLY A DEFAULT IS MOVED. A port somebody typed is theirs: an operator
   // running api-ssl on 8443 must not have it rewritten because they ticked a

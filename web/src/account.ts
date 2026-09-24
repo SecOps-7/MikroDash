@@ -7,7 +7,7 @@
 // ── ONLY THE PURE HALF IS HERE ──────────────────────────────────────────────
 //
 // Four functions that take data and write DOM. The loader and the four write
-// actions — change password, revoke other sessions, sign out, log out — are not
+// actions - change password, revoke other sessions, sign out, log out - are not
 // ported yet. Splitting on that line is deliberate: these
 // four can be compared against the live ones by DOM equality, which is the
 // strongest gate available, and the writes cannot.
@@ -32,7 +32,7 @@ export interface SessionRow {
  *
  * The clear-after-5s checks that the text is STILL the message it scheduled.
  * Without that, a second action inside the window would have its result wiped by
- * the first one's timer — the operator sees "saved", does something else, and
+ * the first one's timer - the operator sees "saved", does something else, and
  * the confirmation for that vanishes a moment later for no visible reason.
  */
 export function acctSay(target: HTMLElement | null, ok: boolean, msg: string): void {
@@ -60,7 +60,7 @@ export function renderAccess(a: AccessGrants): void {
               '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(r.roles.join(', ')) + '</div></div>');
   });
   body.innerHTML = rows.length ? rows.join('')
-    : '<span style="color:var(--text-muted);font-size:.78rem">No access granted yet — ask an administrator.</span>';
+    : '<span style="color:var(--text-muted);font-size:.78rem">No access granted yet - ask an administrator.</span>';
 }
 
 /**
@@ -94,7 +94,7 @@ export function renderSessions(list: SessionRow[] | null | undefined): void {
  *
  * The prompt returns to `flex`, not the empty string. It is a flex row, and
  * clearing the property to its stylesheet value would be equivalent only as
- * long as the stylesheet agrees — the original writes the value, so this does.
+ * long as the stylesheet agrees - the original writes the value, so this does.
  */
 export function setPwFormOpen(open: boolean): void {
   const form = el('acct_pwForm');
@@ -119,12 +119,12 @@ export function setPwFormOpen(open: boolean): void {
  *
  * `/api/settings` is asked for the install switch rather than waiting for the
  * `settings:pages` broadcast: that fires on connect and on save, so whether it
- * has landed by the time somebody opens this is a matter of timing — and for a
+ * has landed by the time somebody opens this is a matter of timing - and for a
  * non-admin it is the only signal, with the Settings page now out of reach. The
  * endpoint answers every role; a viewer gets the allowlisted subset, which
  * carries this flag and no credentials.
  *
- * The version is fetched ONCE — guarded on the element still being empty —
+ * The version is fetched ONCE - guarded on the element still being empty -
  * because it cannot change while the page is open. Same source the About tab
  * uses; non-admins can no longer reach that tab, so this is where they find out
  * what they are running.
@@ -166,7 +166,7 @@ export function openAccountModal(): void {
   loadAccount();
 }
 
-/** Both paths go to /login — a logout whose request failed still ends the
+/** Both paths go to /login - a logout whose request failed still ends the
  *  session as far as this browser is concerned, and leaving someone on a
  *  dashboard they believe they have left is worse than a redundant redirect. */
 function toLogin(): void {
@@ -181,7 +181,7 @@ function toLogin(): void {
  * ── ONE DELIBERATE DIFFERENCE, STATED ───────────────────────────────────────
  *
  * The live password handler reads `cur.value` without checking `cur` exists, so
- * a missing field throws a TypeError inside the click handler — which the
+ * a missing field throws a TypeError inside the click handler - which the
  * browser swallows, leaving the button doing nothing. This returns early
  * instead. The operator-visible result is identical (nothing happens); the port
  * simply does not raise. The fields are in the extracted shell markup, so
@@ -189,7 +189,7 @@ function toLogin(): void {
  */
 export function wireAccount(): void {
   // The My Alerts tab. Its own module because the account modal is otherwise
-  // about identity — password, session — and personal notification channels are
+  // about identity - password, session - and personal notification channels are
   // a separate feature that happens to live in the same dialog.
   el('authUserChip')?.addEventListener('click', () => { openAccountModal(); });
   el('acct_pwToggleBtn')?.addEventListener('click', () => { setPwFormOpen(true); });
@@ -218,7 +218,7 @@ export function wireAccount(): void {
         if (!d.ok) return acctSay(out, false, d.error || 'Failed');
         cur.value = nw.value = cf.value = '';
         acctSay(out, true, d.revokedOtherSessions
-          ? '✓ Password changed — signed out of ' + d.revokedOtherSessions + ' other session(s)'
+          ? '✓ Password changed - signed out of ' + d.revokedOtherSessions + ' other session(s)'
           : '✓ Password changed');
         loadAccount();
       })

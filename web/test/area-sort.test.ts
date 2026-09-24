@@ -10,7 +10,7 @@
  * An ORDERED resource does not sort at all: the first row that matches decides,
  * so the router's order is what the table means. Its headers carry no sort, a
  * click on one changes nothing, and its arrows stay, with the right ends
- * disabled — the Queues page's rule for its first-match tables.
+ * disabled - the Queues page's rule for its first-match tables.
  *
  * The count pill beside the title is blue (`active-blue`) when it counts
  * something, as every hand-built page's is, and plain at zero.

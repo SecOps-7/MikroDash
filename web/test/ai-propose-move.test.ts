@@ -4,7 +4,7 @@
  * `change_row`'s `before` reorders a firewall rule, and the proposal that asks
  * the operator to confirm it is the last thing between a model and a reordered
  * chain. Its wording is derived from `action`, and every value it does not know
- * falls through to "Change the …" with an "Apply this change" button — which
+ * falls through to "Change the …" with an "Apply this change" button - which
  * describes a FIELD edit. A rule whose fields are untouched and whose position
  * moved is not that, and in an ordered table position IS the configuration: the
  * operator confirming it has to be able to tell the two apart.

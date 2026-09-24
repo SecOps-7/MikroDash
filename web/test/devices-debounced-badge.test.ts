@@ -3,8 +3,8 @@
  *
  * ── THE DEFECT THIS PINS ────────────────────────────────────────────────────
  *
- * Every device carries an "Offline threshold" — `connDownThresholdSec`, thirty
- * seconds by default — and the field's own help said "Status badge and alerts
+ * Every device carries an "Offline threshold" - `connDownThresholdSec`, thirty
+ * seconds by default - and the field's own help said "Status badge and alerts
  * only change after the router has been unreachable for this long". Neither was
  * true. The badge came straight from `Session.Connected()`, so a routine
  * five-second reconnect painted the card red and back, and a router in a dial
@@ -12,9 +12,9 @@
  *
  * The frame now carries BOTH facts and they are not interchangeable:
  *
- *   connected — the API socket this instant. The banner, the header dots and
+ *   connected - the API socket this instant. The banner, the header dots and
  *               the write path; those must react at once.
- *   online    — the debounced verdict, decided by `internal/connstate`. Every
+ *   online    - the debounced verdict, decided by `internal/connstate`. Every
  *               badge, dot, tile, search term and marker on the fleet's pages.
  *
  * ── AND IT IS CHECKED IN BOTH DIRECTIONS ────────────────────────────────────
@@ -22,8 +22,8 @@
  * A row where the two agree proves nothing: the page passed for a year reading
  * the wrong one. Every case below feeds a row where they DISAGREE, so reverting
  * any single ternary to `connected` fails here. Each place the page draws
- * status is a separate expression in the source — tiles, card badge, card icon,
- * list row, search terms, popover dot — and they were separately wrong once
+ * status is a separate expression in the source - tiles, card badge, card icon,
+ * list row, search terms, popover dot - and they were separately wrong once
  * already (see devices-unknown-state.test.ts).
  */
 
@@ -132,7 +132,7 @@ say('devices: the badge follows the Offline threshold, not the socket');
 // Driven with BLIP and SETTLING the tiles read 1 and 1 whichever field they
 // count, because the two rows are mirror images: swapping the field swaps which
 // router lands in which tile and the NUMBERS do not move. Planting the failure
-// is what showed it — every other check here failed and this one passed. Two
+// is what showed it - every other check here failed and this one passed. Two
 // blips against one settled outage makes the counts asymmetric, so the tiles
 // read 2/1 on the verdict and 1/2 on the socket.
 const TILES = [BLIP, row({ id: 'b2', label: 'Blip2', connected: false, online: true }), SETTLING];

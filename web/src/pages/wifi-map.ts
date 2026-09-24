@@ -1,10 +1,10 @@
-// The Wi-Fi Map — where the access points physically are, and who is on them.
+// The Wi-Fi Map - where the access points physically are, and who is on them.
 //
 // ── IT IS A DRAWING, AND THE DRAWING IS THE OPERATOR'S ──────────────────────
 //
 // Nothing on a router knows where anything is. So this page has two halves: an
-// EDIT mode where somebody draws the site — buildings with a number of storeys,
-// open areas, walls, labels — and pins each access point where it actually
+// EDIT mode where somebody draws the site - buildings with a number of storeys,
+// open areas, walls, labels - and pins each access point where it actually
 // stands, and a VIEW mode that hangs the live client list off those pins.
 //
 // The plan is shared per router rather than per user, because where a hAP is
@@ -17,7 +17,7 @@
 // Triangulation needs three simultaneous readings of one client. RouterOS gives
 // exactly ONE: the registration table lists the clients ASSOCIATED with a radio,
 // and reports the signal that radio sees. A second access point in the same room
-// does not report an unassociated client at all — there is no menu that does —
+// does not report an unassociated client at all - there is no menu that does -
 // so fifteen access points still produce one number per client. Two readings
 // short, and no amount of arithmetic makes that up.
 //
@@ -50,7 +50,7 @@ import type { WifiPayload, WirelessPayload, WirelessClient } from '../gen/payloa
 //
 // Mirrors internal/sitedoc. Declared here rather than generated, because it
 // travels over HTTP as an opaque document rather than through the payload
-// vocabulary — `cmd/tsgen` types what crosses the WebSocket.
+// vocabulary - `cmd/tsgen` types what crosses the WebSocket.
 
 interface MapPoint { x: number; y: number }
 
@@ -62,7 +62,7 @@ interface MapObject {
    *  any, so hit-testing and the Fit button ask one question and not two. */
   x: number; y: number; w: number; h: number;
   points: MapPoint[];
-  /** Storeys. BUILDINGS ONLY — see objectPanel. */
+  /** Storeys. BUILDINGS ONLY - see objectPanel. */
   floors: number;
   colour: string;
 }
@@ -163,7 +163,7 @@ const DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
 // depends on the site: a floor of named laptops wants the host name, a yard of
 // cameras wants the note somebody wrote on the DHCP lease, a signal survey wants
 // neither. So they are switches rather than a format, and each one is its own
-// line — a single run of `name · ip · -54 dBm` is what the tooltip is for.
+// line - a single run of `name · ip · -54 dBm` is what the tooltip is for.
 interface LabelFields {
   name: boolean; comment: boolean; ip: boolean; mac: boolean; signal: boolean;
 }
@@ -173,7 +173,7 @@ const LABEL_DEFAULT: LabelFields =
 // ── how big things are drawn ───────────────────────────────────────────
 //
 // Everything on the canvas is POSITIONED in map units, and a zoom scales those
-// with the drawing — which is right for a building and wrong for a name. Zoomed
+// with the drawing - which is right for a building and wrong for a name. Zoomed
 // out to fit a site, a 9px label is under two pixels tall and a client dot is a
 // speck: the map is there and nothing on it can be read.
 //
@@ -331,7 +331,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
    * Every access point that COULD be pinned.
    *
    * Keyed on the AP identity where there is one, so a dual-band CAP is one
-   * candidate and not two — it is one box on one wall. A local radio belongs to
+   * candidate and not two - it is one box on one wall. A local radio belongs to
    * no manager and has no identity, so it is keyed on its own interface.
    */
   function candidates(): Candidate[] {
@@ -550,7 +550,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
    * ── TWO PASSES, BECAUSE A DOT AND ITS LABEL FAIL DIFFERENTLY ─────────────
    *
    * Two dots in the same place are one dot, and no amount of label shuffling
-   * separates them — so the first pass places every dot and nudges the angle
+   * separates them - so the first pass places every dot and nudges the angle
    * until it has room. Only then does the second pass hang the labels, choosing
    * from `LABEL_SPOTS` the first side that clears everything already on the
    * canvas: the other clients, the other access points, and its own.
@@ -705,7 +705,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
             'or press Enter to close it; Esc throws it away.');
       }
       if (clientMode === 'ring' && doc.metresPerUnit <= 0) {
-        bits.push('Signal ring needs a scale — set one in Edit mode. ' +
+        bits.push('Signal ring needs a scale - set one in Edit mode. ' +
           'Drawing at a fixed radius until then.');
       }
       if (clientMode === 'ring' && doc.metresPerUnit > 0) {
@@ -743,7 +743,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     // field takes the focus and the half-typed label with it. Same guard the
     // topology map's detail panel carries, for the same reason.
     if (panel.contains(document.activeElement)) return;
-    // `.open` is what slides it in — the panel is parked off-canvas otherwise,
+    // `.open` is what slides it in - the panel is parked off-canvas otherwise,
     // which is how the topology map's detail panel works and why this reuses it.
     panel.classList.toggle('open', mode === 'edit');
     if (mode !== 'edit') {
@@ -819,7 +819,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       field('Label', '<input class="sform-input" id="wmfApLabel" value="' + esc(a.label) + '">') +
       field('Floor', '<input class="sform-input" id="wmfApFloor" type="number" min="1" max="64" value="' +
         String(a.floor) + '">') +
-      '<div class="wm-panel-note">Radios: ' + esc(a.ifaces.join(', ') || '—') + '</div>' +
+      '<div class="wm-panel-note">Radios: ' + esc(a.ifaces.join(', ') || '-') + '</div>' +
       '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">Take off the map</button>';
   }
 
@@ -967,7 +967,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         render();
       })
       .catch(() => {
-        // A PLAN THAT WILL NOT LOAD LEAVES THE PAGE EMPTY, NOT BROKEN — and not
+        // A PLAN THAT WILL NOT LOAD LEAVES THE PAGE EMPTY, NOT BROKEN - and not
         // saveable, because an empty canvas and a failed read look the same and
         // one Save would replace the site plan with whatever is on screen.
         loaded = false;
@@ -987,13 +987,13 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       body: JSON.stringify({ routerId: routerID, kind: 'wifi-map', doc }),
     })
       // A REFUSAL IS NOT A SAVE. `r.ok` was not tested, so a 403 from a
-      // read-only grant — or a 500 — landed on the success branch: the star came
+      // read-only grant - or a 500 - landed on the success branch: the star came
       // off the button, `saved` became the unsaved document, and Discard could no
       // longer get the work back. The plan was gone on the next reload.
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('refused'))))
       .then((d) => {
         // THE SERVER'S COPY WINS. `sitedoc.Clean` bounds and normalises, so what
-        // comes back is what every other viewer will see — keeping the local one
+        // comes back is what every other viewer will see - keeping the local one
         // would leave this browser rendering a document the store does not hold.
         const got = (d && d.doc) as WifiMapDoc | undefined;
         if (got) doc = adopt(got);
@@ -1357,7 +1357,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     if (!id || id === routerID) return;
     // A PLAN BELONGS TO ONE ROUTER, on this path too. `router:active` arrives
     // without `router:switched` when somebody else activates a router, or when
-    // the active one is removed and the next is promoted — and leaving the old
+    // the active one is removed and the next is promoted - and leaving the old
     // drawing on screen invited a Save that wrote one site's buildings over
     // another's.
     switchTo(id);

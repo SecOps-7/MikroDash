@@ -34,9 +34,9 @@
        through the UI gave no indication of position (WCAG 2.4.7). Uses
        :focus-visible so a mouse click does not leave a ring behind. */
     /* !important is deliberate and load-bearing here. A dozen component classes
-       set `outline:none` in their *base* rule rather than a :focus rule —
+       set `outline:none` in their *base* rule rather than a :focus rule -
        .conn-src-filter, .sform-input, .rt-sel, .rpt-select, .bw-toolbar
-       input/select among them — so those apply in every state, and
+       input/select among them - so those apply in every state, and
        #navRouterSelect / #routerSelectBtn are ID selectors that outrank any
        class-based focus rule outright. Without it the ring is suppressed across
        most of the interactive surface. An accessibility guarantee should not be
@@ -77,7 +77,7 @@
     .nav-items::-webkit-scrollbar{width:6px}
     .nav-items::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
     .nav-items::-webkit-scrollbar-track{background:transparent}
-    /* One rule, two element types — a category header is chrome but wears the
+    /* One rule, two element types - a category header is chrome but wears the
        same row. flex-shrink:0 because these are flex children of a column: 44px
        is a basis, not a floor, so on a short viewport the rows were already
        squashing rather than clipping, and more rows makes that visible. */
@@ -95,8 +95,8 @@
        The rail is 52px at rest and 190px on hover, so a category has to read at
        both widths. Headers keep an icon, because a bare 44px row at 52px is dead
        space that looks like a rendering fault. The open-group cue is an inset bar
-       plus a tint — inset rather than border-left so opening a group shifts
-       nothing — because it is the only cue that survives with no labels. The
+       plus a tint - inset rather than border-left so opening a group shifts
+       nothing - because it is the only cue that survives with no labels. The
        chevron and the indent are opacity/width-gated exactly as .nav-label is,
        appearing only once there is something to read.
 
@@ -111,14 +111,14 @@
     .nav-group-chev svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     #sidenav:hover .nav-group-chev,#sidenav.mobile-open .nav-group-chev{opacity:.55}
     .nav-group.is-open>.nav-group-hdr .nav-group-chev{transform:rotate(90deg)}
-    /* Indent only once the labels exist. At 52px the icon column stays centred —
+    /* Indent only once the labels exist. At 52px the icon column stays centred -
        an off-centre icon rail reads as broken. */
     .nav-group-body>.nav-item{transition:color .15s,background .15s,padding-left .22s cubic-bezier(.4,0,.2,1)}
     #sidenav:hover .nav-group-body>.nav-item,#sidenav.mobile-open .nav-group-body>.nav-item{padding-left:22px}
     /* "You are here" has to survive collapsing the group you are standing in. */
     .nav-group.has-active>.nav-group-hdr{color:var(--accent-rx)}
     .nav-group.has-active:not(.is-open)>.nav-group-hdr{background:rgba(56,189,248,.08);border-right:2px solid var(--accent-rx)}
-    /* Flat mode — same markup, groups dissolved. Set on <html> by preflight.js so
+    /* Flat mode - same markup, groups dissolved. Set on <html> by preflight.js so
        the nav never paints grouped and then flattens. */
     html[data-nav="flat"] .nav-group{background:none;box-shadow:none}
     html[data-nav="flat"] .nav-group-hdr{display:none}
@@ -134,7 +134,7 @@
     #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
     #topbarLogo{font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(40vw,22rem)}
     #topbarLogo span{color:var(--accent-rx)}
-    /* Shown only on a phone — see the max-width:767px block. */
+    /* Shown only on a phone - see the max-width:767px block. */
     #topbarMark{display:none;width:24px;height:24px;object-fit:contain;border-radius:4px;flex-shrink:0}
     .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
     #pageTitleWrap{display:flex;align-items:center;gap:.45rem;min-width:0}
@@ -185,7 +185,7 @@
     html[data-theme="light"] .bw-toolbar input,html[data-theme="light"] .bw-toolbar select{background:rgba(255,255,255,.95);color:var(--text-main)}
     .bw-table-wrap{background:var(--bg-card)}
     .conn-src-filter{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.25rem .5rem;padding-right:1.7rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.5)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center;cursor:pointer;min-width:160px;transition:border-color .15s,color .15s}
-    /* outline:none removed — it suppressed the global focus ring on every
+    /* outline:none removed - it suppressed the global focus ring on every
        filter dropdown in the app, which is most of them. */
     .conn-src-filter:focus{border-color:var(--accent-rx);color:var(--text-main)}
     .conn-src-filter.active{border-color:var(--accent-rx);color:var(--accent-rx)}
@@ -303,7 +303,7 @@
     .sbtn:active{transform:scale(.97)}
     .sbtn-primary{background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.3)}
     .sbtn-primary:hover{background:rgba(56,189,248,.25)}
-    /* For a button sitting ON a warn surface — the RouterOS update banner.
+    /* For a button sitting ON a warn surface - the RouterOS update banner.
        Its background is rgba(245,159,0,.10), so this is deliberately a step
        stronger in both fill and border, or the button dissolves into the
        banner it is standing on. */
@@ -344,13 +344,13 @@
     tr.bk-row-picked{background:rgba(56,189,248,.07)}
     /* .sbtn-outline shares the ghost treatment. It was referenced in a dozen
        places but never defined, so those buttons fell through to the bare .sbtn
-       — which sets border:none and no background — and picked up the browser's
+       - which sets border:none and no background - and picked up the browser's
        default grey chrome instead of the theme. */
     .sbtn-ghost,.sbtn-outline{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
     .sbtn-ghost:hover,.sbtn-outline:hover{color:var(--text-main);border-color:var(--text-muted);background:rgba(99,130,190,.07)}
     .sbtn-outline:disabled,.sbtn-primary:disabled{opacity:.4;cursor:not-allowed}
     .sbtn-outline:disabled:hover{color:var(--text-muted);border-color:var(--border);background:transparent}
-    /* Principal tabs — Users / Groups / Sites / Roles share one card, because
+    /* Principal tabs - Users / Groups / Sites / Roles share one card, because
        four full cards made the Authentication panel a long scroll of tables.
        Same visual language as the settings tabs above them (.stab), one level in. */
     .ptabs{display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:none}
@@ -373,14 +373,14 @@
     @media (min-width:820px){.auth-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     /* Each column is label → control → hint, so the two read as one row. The
        toggle pill and the select are separate components with different
-       padding (.55rem vs .45rem), which left them a few pixels out of line —
+       padding (.55rem vs .45rem), which left them a few pixels out of line -
        one height for both fixes it. */
     .auth-grid .stoggle,.auth-grid .sform-input{min-height:2.4rem}
     .auth-grid .stoggle{padding-top:0;padding-bottom:0}
     .auth-hint{font-size:.72rem;color:var(--text-muted);margin-top:.4rem;line-height:1.5}
     /* The principals card runs to the bottom of the viewport and scrolls its own
        body, so the tab strip stays put while a long table moves under it. Its
-       height is set in JS from the card's actual top offset — a CSS calc() would
+       height is set in JS from the card's actual top offset - a CSS calc() would
        need to hardcode the topbar, tab strip, Authentication card and save bar,
        and go wrong the moment any of them changes. */
     #principalsCard{display:flex;flex-direction:column;min-height:0}
@@ -391,17 +391,17 @@
     .ptabs-bar{padding:.4rem 1rem 0;border-bottom:1px solid var(--border)}
     /* Narrower than the router modal: these forms are a single column.
        Qualified with .rtr-modal so it beats that rule's width regardless of
-       source order — both are one class otherwise, and .rtr-modal is declared
+       source order - both are one class otherwise, and .rtr-modal is declared
        further down the sheet. */
     .rtr-modal.pmodal{width:min(640px,94vw)}
     /* The router modal splits its body into two .rtr-modal-col children at wide
-       viewports. These forms have no columns — their fields go straight into the
-       body — so that grid would slice the form in half. */
+       viewports. These forms have no columns - their fields go straight into the
+       body - so that grid would slice the form in half. */
     .rtr-modal.pmodal>.rtr-modal-body{display:block}
     /* Same opt-out as pmodal: the base .rtr-modal-body is a two-column grid
        for the router form, and the analyzer stacks full-width sections. */
     .rtr-modal.fa-modal>.rtr-modal-body{display:block}
-    /* The account modal is not a form like the four above — it holds five
+    /* The account modal is not a form like the four above - it holds five
        unrelated sections, and stacking them made a tall narrow ribbon that had
        to be scrolled past to reach anything. It takes the width instead and
        lays the sections out two-up, so the whole thing is visible at once.
@@ -480,7 +480,7 @@
        otherwise leave a large gap beside it), and tabs holding only one card. */
     .scard--wide{grid-column:1/-1}
     /* Grid items already stretch to their row, so a card only looks short when
-       it is alone on its row with nothing to stretch against — which is exactly
+       it is alone on its row with nothing to stretch against - which is exactly
        what happens to Sites and Users once Users spans the grid. A min-height on
        the body (not the card) keeps the table area from collapsing while still
        letting the card grow past it as rows are added. */
@@ -538,7 +538,7 @@
     /* Pushbullet and ntfy sit side by side inside Notification Channels: both
        are short (a key, or a URL and token, plus a test button), so a full row
        each was mostly empty. auto-fit rather than a media query because the
-       width here follows the card, not the viewport — the card is full-width in
+       width here follows the card, not the viewport - the card is full-width in
        a settings grid that itself changes column count. With two children the
        third track collapses, giving two equal columns, and one column once the
        card is too narrow for two 22rem tracks. */
@@ -602,7 +602,7 @@
     .card.is-collector-off .stale-overlay{opacity:1;pointer-events:auto;
       background:rgba(7,9,15,.62);color:rgba(148,163,190,.75)}
     /* Dormant deliberately has NO visual treatment. The card already says what it
-       needs to from inside its own body — "No devices", "No active peers" — and a
+       needs to from inside its own body - "No devices", "No active peers" - and a
        scrim on top made an otherwise ordinary empty card stand out against its
        neighbours, which reads as a fault rather than as "there is nothing here".
        .is-dormant is therefore a state marker for the stale sweep and for QA, not
@@ -803,7 +803,7 @@
     .pkg-pending{border-color:rgba(245,159,0,.5)}
     .pkg-pending-title{font-family:var(--font-ui);font-weight:600;font-size:.75rem;color:var(--accent-tx,#f59f00)}
     .pkg-pending-body{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-top:.2rem}
-    /* Shared by the Packages and Router Users row actions — the same control in
+    /* Shared by the Packages and Router Users row actions - the same control in
        two tables, so one rule rather than a second one that drifts. */
     .pkg-act,.ru-act{font-family:var(--font-mono);font-size:.62rem;padding:1px 6px;border-radius:3px;
              border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
@@ -819,17 +819,17 @@
     /* .iface-grid sets display:grid, which outranks the user-agent [hidden]
        rule, so the attribute needs an explicit counterpart to take effect. */
     .iface-grid[hidden],.iface-list-wrap[hidden]{display:none}
-    /* Routers list view. Same table idiom as the Interfaces list — monospace,
-       tabular numerals, click-to-sort headers — with a filter row beneath the
+    /* Routers list view. Same table idiom as the Interfaces list - monospace,
+       tabular numerals, click-to-sort headers - with a filter row beneath the
        headers so each control sits under the column it narrows. */
-    /* NOT .rtr-list — that class already belongs to #rtrTable, the router
+    /* NOT .rtr-list - that class already belongs to #rtrTable, the router
        admin table on the Settings page. Reusing it silently restyled that
        table and made a document-order accident decide which thead the sort
        handler bound to. */
     .routers-list{font-family:var(--font-mono);font-size:.72rem;margin-bottom:0;white-space:nowrap}
     /* `thead th`, not a bare `th`: Tabler styles headers via `.table thead th`,
        which carries one more element than `.routers-list th` and so wins the
-       cascade. That rule paints a flat #1f2937 band and a neutral grey text —
+       cascade. That rule paints a flat #1f2937 band and a neutral grey text -
        neither belongs on a translucent card in a blue-tinted palette. Matching
        its shape lets source order decide, and this sheet loads after Tabler. */
     .routers-list thead th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem;background:transparent}
@@ -837,13 +837,13 @@
     .routers-list th[data-sort]{cursor:pointer;user-select:none}
     .routers-list th[data-sort]:hover{color:var(--text-main)}
     .rtl-num{text-align:right;font-variant-numeric:tabular-nums}
-    /* An offline router keeps its identity legible and lets its metrics recede —
+    /* An offline router keeps its identity legible and lets its metrics recede -
        they are all em dashes anyway. */
     .routers-list tr.rtl-offline td{opacity:.62}
     .routers-list tr.rtl-row{cursor:pointer}
     .routers-list tr.rtl-row:hover td{background:rgba(56,189,248,.06)}
     /* The page's own header bar. Sits above both views because the search
-       narrows both — a control that did nothing in card view would be worse
+       narrows both - a control that did nothing in card view would be worse
        than no control. */
     .routers-toolbar{padding:.3rem .6rem}
     /* .sform-input is sized for a settings form, which made it 9px taller than
@@ -869,7 +869,7 @@
     .rtrmap-marker{cursor:pointer}
     .rtrmap-marker circle{transition:opacity .12s}
     /* The only place names drawn are the ones a router stands on, so they can
-       afford full contrast — --text-main is near-white in dark themes and
+       afford full contrast - --text-main is near-white in dark themes and
        near-black in light ones, and tracks all nine palettes rather than
        hardcoding two colours that would be wrong in seven of them. The halo is
        the page background, painted under the glyphs so a name stays readable
@@ -893,7 +893,7 @@
       .rtrmap-ripple{animation:none;opacity:0}
     }
     /* The count sits inside its marker, so it is painted against the marker's own
-       fill rather than the map — white reads on both the green and the red. */
+       fill rather than the map - white reads on both the green and the red. */
     .rtrmap-clustern{fill:#fff;font-family:var(--font-mono);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}
     .rtrmap-pop{position:absolute;z-index:5;min-width:12rem;max-width:17rem;padding:.5rem .6rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.35);font-size:.72rem;pointer-events:none}
     .rtrmap-pop.is-pinned{pointer-events:auto}
@@ -965,7 +965,7 @@
        an unsupported counter never reads as a clean bill of health. */
     .ifl-na{color:var(--text-muted);opacity:.4}
     .ifl-bad{color:var(--accent-err)}
-    /* Movement since the previous poll — the part that says a fault is live
+    /* Movement since the previous poll - the part that says a fault is live
        rather than historical. */
     .ifl-delta{margin-left:.3rem;font-size:.6rem;padding:0 .25rem;border-radius:3px;
                background:rgba(248,113,113,.16);color:var(--accent-err)}
@@ -980,8 +980,8 @@
     .rtr-modal-close:hover{color:var(--text-main)}
     .rtr-modal-body{padding:1rem 1.1rem}
     /* The router form is ten field groups deep, which made a 520px modal a long
-       scroll on every edit. Above 900px it splits into two columns — device,
-       connection and collection left; location, network and monitoring right —
+       scroll on every edit. Above 900px it splits into two columns - device,
+       connection and collection left; location, network and monitoring right -
        so the whole form fits without scrolling. Below that it falls back to one
        column, where a narrow screen has no side space to fill anyway. */
     .rtr-modal-col{min-width:0}
@@ -1037,7 +1037,7 @@
     #routerSelectWrap:hover{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
     .rtr-status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-tx);flex-shrink:0;box-shadow:0 0 5px rgba(52,211,153,.6)}
     .rtr-status-dot.offline{background:rgba(248,113,113,.9);box-shadow:0 0 5px rgba(248,113,113,.5)}
-    /* Router picker — a custom popover replaces the native select so the list can
+    /* Router picker - a custom popover replaces the native select so the list can
        show per-router status and be styled with the app. The mobile nav keeps its
        native select on purpose: the OS picker is the better control on touch. */
     #routerSelectBtn{display:flex;align-items:center;gap:.35rem;background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;max-width:200px;padding:0}
@@ -1088,7 +1088,7 @@
     @media(max-width:700px){.fw-summary-row{grid-template-columns:1fr}}
     .fw-scard{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
     .fw-scard-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
-    /* Rule counts — BGP-style large centred numbers */
+    /* Rule counts - BGP-style large centred numbers */
     .fw-rc-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
     .fw-rc-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
     .fw-rc-dis{font-size:.62rem;font-family:var(--font-mono);color:rgba(248,113,113,.8);min-height:.85rem;line-height:1}
@@ -1125,17 +1125,17 @@
     html[data-theme="light"] #fwSearch{background:rgba(255,255,255,.9)}
     /* scroll */
     /* A TABLE WIDER THAN ITS CARD SCROLLS SIDEWAYS. Without overflow-x the
-       columns past the card's edge are simply unreachable — not clipped
+       columns past the card's edge are simply unreachable - not clipped
        visibly, just gone, which is how a phone loses the right-hand half of
        every table. Unconditional rather than inside a media query: a table
        that does not fit is wrong at any width, and `auto` shows nothing when
        it does fit.
        Most `.data-scroll` wrappers already carry an inline `overflow-y:auto`,
        which makes the browser compute overflow-x to `auto` for them as a side
-       effect. The ones WITHOUT a max-height — WiFi Networks, CAPsMAN — kept
+       effect. The ones WITHOUT a max-height - WiFi Networks, CAPsMAN - kept
        `visible` and leaked 309px and 441px off the page. */
     .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    /* `.table-responsive` had NO RULE AT ALL — the class was carried by nine
+    /* `.table-responsive` had NO RULE AT ALL - the class was carried by nine
        pages and styled nothing. It means what its name says now. */
     .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch}
     /* Pin the header row inside any scrolling table body. Without this the
@@ -1149,9 +1149,9 @@
        header is painted as the card tint OVER the page colour: the same
        composite the row shows when it is not pinned, but opaque, so the rows
        sliding under it do not ghost through. */
-    /* Position only. The header already has an opaque background of its own —
+    /* Position only. The header already has an opaque background of its own -
        tabler.min.css sets `.table thead th{background:var(--tblr-bg-surface-tertiary)}`,
-       which resolves to #1f2937 — so it hides the rows passing beneath it
+       which resolves to #1f2937 - so it hides the rows passing beneath it
        without any help. An earlier version of this rule set its own background
        and silently replaced that colour on EVERY table in a scroll wrapper,
        including pages this change never touched. Do not paint here. */
@@ -1272,7 +1272,7 @@
       .page-view{padding:.65rem .6rem}
       /* A CARD HEADER WRAPS INSTEAD OF PUSHING ITS ACTIONS OFF THE SCREEN.
          The Interfaces header ran 158px past the edge and the Containers tab
-         bar 193px — the tab bar scrolls on its own, but a flex child defaults
+         bar 193px - the tab bar scrolls on its own, but a flex child defaults
          to min-width:auto and will not shrink below its content, so the
          scrollport never got narrow enough to engage. */
       .card-header{flex-wrap:wrap;row-gap:.4rem}
@@ -1402,7 +1402,7 @@
        should not read as part of the timestamp. */
     .notif-item-router{color:var(--text-main);font-weight:600}
     /* An open alert is still happening; a resolved one is history. The bell now
-       shows both, so they have to be tellable apart at a glance — the left bar
+       shows both, so they have to be tellable apart at a glance - the left bar
        carries that, not colour alone, which the dot already spends. */
     .notif-item.is-open{border-left:2px solid var(--accent-err);padding-left:calc(.75rem - 2px)}
     .notif-item.is-resolved{border-left:2px solid var(--accent-ok);padding-left:calc(.75rem - 2px);opacity:.6}
@@ -1427,7 +1427,7 @@
     .wl-summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:.85rem}
     /* FOUR TILES, AS A CLASS RATHER THAN AN INLINE STYLE. Eleven pages wrote
        `style="grid-template-columns:repeat(4,1fr)"` on the row, and an inline
-       style beats any stylesheet rule — so the mobile collapse below never
+       style beats any stylesheet rule - so the mobile collapse below never
        applied to them and four tiles stayed four tiles on a 390px screen, each
        84px wide holding a label needing 107px. */
     .wl-summary-row-4{grid-template-columns:repeat(4,1fr)}
@@ -1470,7 +1470,7 @@
     .fa-stat{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;min-width:0}
     .fa-stat-label{font-family:var(--font-ui);font-weight:600;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .fa-stat-val{font-family:var(--font-mono);font-size:1.15rem;font-weight:700;line-height:1.1}
-    /* These two are read as a pair — where you are, and where to move to — so
+    /* These two are read as a pair - where you are, and where to move to - so
        they carry the same blue and green as the chart marks them with. */
     #faCurChan{color:var(--accent-rx)}
     /* Each page's key metric carries the accent the same way the current channel
@@ -1492,11 +1492,11 @@
     /* The + Add button is pinned to the top right corner of its card. The auto
        margin absorbs the free space before justify-content can distribute it,
        so whatever else is in the header packs to the left and the button sits
-       hard against the right edge — the same place on every card. */
-    /* gap, because a slot may hold more than one button — the Routes card has
+       hard against the right edge - the same place on every card. */
+    /* gap, because a slot may hold more than one button - the Routes card has
        two, one per address family, and they read as one control without it. */
-    /* Not scoped to .card-header: the firewall card has none — its tabs and
-       search sit straight in the body — and the button belongs in that card's
+    /* Not scoped to .card-header: the firewall card has none - its tabs and
+       search sit straight in the body - and the button belongs in that card's
        top right corner like every other. `data-res-add` appears nowhere else,
        so dropping the ancestor widens nothing in practice. */
     [data-res-add]{margin-left:auto;display:flex;align-items:center;gap:.45rem}
@@ -1506,11 +1506,11 @@
       text-align:right;width:2.2rem;padding-right:.2rem}
     .fw-movecell{width:2.6rem;white-space:nowrap}
     /* Tabler pads every cell 12px each side via `.table > :not(caption) > * > *`,
-       which outranks a bare class — so a plain `padding:0` here did nothing and
+       which outranks a bare class - so a plain `padding:0` here did nothing and
        24px of it was most of these columns' width. Matched on td/th to win. */
     .table td.fw-dragcell,.table th.fw-dragcell{padding-left:.3rem;padding-right:.35rem}
     .table td.fw-movecell,.table th.fw-movecell{padding-left:.25rem;padding-right:.25rem}
-    /* Bigger glyph, original padding — the size was the ask, the padding was me
+    /* Bigger glyph, original padding - the size was the ask, the padding was me
        widening the column on the way past. */
     .fw-move{background:none;border:none;cursor:pointer;color:var(--text-muted);
       font-size:.78rem;line-height:1;padding:.12rem .14rem;border-radius:4px}
@@ -1546,23 +1546,23 @@
        actionBadge() builds those from rgba(248,113,113,.9), filling at 0.1 and
        bordering at 0.25. Same red, same translucency, so the gap belongs to the
        page rather than introducing a second red. Dashed rather than the pill's
-       solid edge is the one deliberate difference — it is a hole, not a chip. */
+       solid edge is the one deliberate difference - it is a hole, not a chip. */
     /* Colour alone, no outline: the wash IS the marker. Same red as the
-       drop/reject pill in the Action column — rgb(248,113,113), so the page
-       carries one red — but far more translucent, because this is an absence and
+       drop/reject pill in the Action column - rgb(248,113,113), so the page
+       carries one red - but far more translucent, because this is an absence and
        the pills are values. The cell keeps the table's ordinary grey rule top and
        bottom, so the gap reads as an empty row rather than a boxed callout. */
     tr.res-drag-origin{background:rgba(248,113,113,.09)}
     tr.res-drag-origin td{padding:0}
-    /* Home again. The engine cannot put the row INSIDE the gap — a row is either
-       above it or below it — so as you dragged back the rule ended up beside its
+    /* Home again. The engine cannot put the row INSIDE the gap - a row is either
+       above it or below it - so as you dragged back the rule ended up beside its
        own marker and the slot never looked reoccupied. Collapsing the gap while
        the row sits home makes the table read exactly as it did before the drag,
        which is what "drop it back where it was" is supposed to look like. It
        reappears the moment the row leaves again. */
     tr.res-drag-origin.is-home{display:none}
     /* A reorder moves a row among thirty near-identical ones. Without a cue the
-       eye has no way to follow it — including when the move came from undo. */
+       eye has no way to follow it - including when the move came from undo. */
     @keyframes fwPulse{
       0%{background:rgba(56,189,248,.34)}
       100%{background:transparent}
@@ -1575,7 +1575,7 @@
     .res-hist:disabled{opacity:.38;cursor:default;pointer-events:none}
     /* The right-hand end of a card header: whatever already lived there, plus
        the Add button, as ONE group. The auto margin belongs to the group, not
-       to the button — on the button it swallowed all the free space and shoved
+       to the button - on the button it swallowed all the free space and shoved
        the search boxes over to the title. Inside the group the button's own
        auto margin has nothing left to absorb, so it is a harmless no-op.
        NOT named `card-actions`: Tabler already defines that class with
@@ -1749,7 +1749,7 @@
        class matters: the Reports switcher queries .rtab-panel document-wide.
        The #rtTabBar{margin-bottom:.85rem} that used to sit here separated the bar
        from the card below it. Inside a card header there is nothing to separate
-       from, and being an id it outranked .rttab-bar — leaving a phantom 13.6px
+       from, and being an id it outranked .rttab-bar - leaving a phantom 13.6px
        under the tabs that pushed their centre above the title beside them. */
     .rttab-panel{display:none}
     .rttab-panel.active{display:block}
@@ -1776,7 +1776,7 @@
        take a flex gap in front of the title. */
     .rttab-bar:empty{display:none}
     /* routingRoutesCard and routingPeersCard stay .card so the stale and
-       collector-off overlays keep working unchanged — staleConfig names them —
+       collector-off overlays keep working unchanged - staleConfig names them -
        but nested inside the outer frame they must not draw a second one. */
     #routingTablesCard .rttab-panel > .card{border:none;background:transparent;
       border-radius:0;margin:0;box-shadow:none}
@@ -2904,7 +2904,7 @@
 
 /* An event row: text, then the gear when there is one, then the switch. The
    switch is a label of its own rather than part of the text's label, which is
-   what lets the gear sit BETWEEN them — immediately left of the toggle it
+   what lets the gear sit BETWEEN them - immediately left of the toggle it
    configures rather than on the far side of it. */
 .nchan-event-row { display: flex; align-items: center; gap: .5rem; }
 .nchan-event-row > .nchan-event { flex: 1; min-width: 0; }
@@ -2934,7 +2934,7 @@
 .nchan-thr input:focus { outline: none; border-color: var(--accent-rx); }
 .nchan-gear svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; }
 /* ABOVE THE DIALOG THAT OPENED IT. `.rtr-modal-bg` is z-index 900, so this has
-   to beat that number and not merely be positive — 60 was written first and put
+   to beat that number and not merely be positive - 60 was written first and put
    the picker UNDERNEATH the dialog whose gear opens it, which reads as the gear
    doing nothing at all. */
 .nchan-iface-modal { z-index: 901; }
@@ -2957,7 +2957,7 @@
 
 .nchan-actions { margin-left: auto; }
 
-/* `.rtr-modal-body` is a TWO-COLUMN GRID — the router modal's form wants that,
+/* `.rtr-modal-body` is a TWO-COLUMN GRID - the router modal's form wants that,
    and this dialog does not: its tab wrapper landed in column one and left the
    other half of the dialog empty. Measured, not guessed: the body computed to
    `grid-template-columns: 273px 273px` while the textarea inside it was 273px
@@ -2969,7 +2969,7 @@
 #nchanIfaceModal .rtr-modal-body { display: block; }
 
 /* THE MODAL'S TABS. `.stab-panel.active` is a two-column grid at page width,
-   which would columnise a form that is one column wide — so the panels inside
+   which would columnise a form that is one column wide - so the panels inside
    the dialog are their own class rather than a reuse of that one. */
 /* ── EVERY TAB IS THE SAME SIZE ──────────────────────────────────────────
    The panels stack in ONE grid cell, so the wrapper is as tall as the tallest
@@ -3013,7 +3013,7 @@
    The heading and the footnote used to sit INSIDE the panel with the variables,
    which made the panel a mixed thing: a label, a reference and a caveat sharing
    one border. The heading now reads as a field label like the ones opposite it,
-   and the note reads as the hint under a control — so the bordered box contains
+   and the note reads as the hint under a control - so the bordered box contains
    only what it is a box of. */
 .msg-vars-title {
   font-size: .72rem; font-weight: 600; color: var(--text-muted);
@@ -3022,7 +3022,7 @@
 }
 /* AS MANY COLUMNS AS FIT, rather than one. `auto-fill` with a floor wide enough
    for the longest name means the list reflows with the card instead of leaving
-   the right half of its own box empty — and it needs no number here that has to
+   the right half of its own box empty - and it needs no number here that has to
    be revisited when a variable is added or renamed. */
 .msg-vars-list {
   display: grid;
@@ -3036,9 +3036,9 @@
   padding: .6rem .7rem; border-radius: 6px;
   /* ── NO BACKGROUND, ON PURPOSE ────────────────────────────────────────
      The card's own surface shows through, and the border alone marks the box.
-     This began as an accident — the original inline style asked for
+     This began as an accident - the original inline style asked for
      `var(--bg-alt)`, which is defined by no theme here, so it resolved to
-     transparent — but it is what the box has always looked like and the
+     transparent - but it is what the box has always looked like and the
      operator asked for it back after seeing the alternative.
      `--bg-deep` was that alternative, and it is the wrong one: it is DARKER
      than `--bg-card`, so the reference read as a hole punched in the card

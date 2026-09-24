@@ -8,7 +8,7 @@
  *
  * ── WHY THIS EXISTS ─────────────────────────────────────────────────────────
  *
- * The port reported `lastLanData` — assigned at three sites, read at none — as a
+ * The port reported `lastLanData` - assigned at three sites, read at none - as a
  * cosmetic finding in the live repo's ToDo.md. The reply corrected it in two
  * directions and both are the reason this file exists:
  *
@@ -59,7 +59,7 @@ function walk(dir, acc = []) {
 const EXPECTED = {};
 
 const files = walk(SRC);
-if (files.length < 30) throw new Error('only ' + files.length + ' sources found — the scan broke');
+if (files.length < 30) throw new Error('only ' + files.length + ' sources found - the scan broke');
 
 const problems = [];
 let scanned = 0, declared = 0;
@@ -87,7 +87,7 @@ for (const file of files) {
 
   // Every identifier occurrence, classified. An occurrence is a WRITE when it is
   // the left of an assignment or the operand of ++/--; anything else counts as a
-  // read — including a read that is part of a compound assignment (`x += 1`
+  // read - including a read that is part of a compound assignment (`x += 1`
   // reads x), which is why those are counted as reads too.
   const reads = new Map(names.map((n) => [n, 0]));
   const writes = new Map(names.map((n) => [n, 0]));
@@ -104,7 +104,7 @@ for (const file of files) {
       // The declaration itself is neither.
       const isDecl = p && is.isVariableDeclaration(p) && p.name === node;
       // A property access `foo.bar` reads `foo`, not a same-named module var,
-      // unless the identifier IS the object — handled by only skipping the name
+      // unless the identifier IS the object - handled by only skipping the name
       // half of a property access.
       const isPropName = p && is.isPropertyAccessExpression(p) && p.name === node;
       if (!isDecl && !isPropName) {
@@ -121,7 +121,7 @@ for (const file of files) {
     if (reads.get(n) === 0 && writes.get(n) > 0) {
       const key = rel + ':' + n;
       if (EXPECTED[key]) continue;
-      problems.push('  ' + rel + ' — `' + n + '` is written ' + writes.get(n) +
+      problems.push('  ' + rel + ' - `' + n + '` is written ' + writes.get(n) +
         ' time(s) and never read');
     }
   }
@@ -146,12 +146,12 @@ for (const file of files) {
   visit(sf);
   if (!(reads === 0 && writes === 1)) {
     throw new Error('the detector cannot see a planted orphan (reads=' + reads +
-      ' writes=' + writes + ') — a clean run would prove nothing');
+      ' writes=' + writes + ') - a clean run would prove nothing');
   }
 }
 
 for (const key of Object.keys(EXPECTED)) {
-  problems.push('  EXPECTED names ' + key + ', which is not an orphan any more — remove the entry');
+  problems.push('  EXPECTED names ' + key + ', which is not an orphan any more - remove the entry');
 }
 
 if (problems.length) {

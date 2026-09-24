@@ -50,14 +50,14 @@ function applyAlertSort(): void {
         const res = r.resolved_at
           ? esc(fmtTs(r.resolved_at))
           : '<span style="color:var(--accent-warn)">Open</span>';
-        const dt = r.resolved_at ? fmtDuration(r.resolved_at - r.fired_at) : '—';
+        const dt = r.resolved_at ? fmtDuration(r.resolved_at - r.fired_at) : '-';
         // An open alert offers the button; a resolved one that was never
         // acknowledged shows a dash, because acknowledging something already
         // over is not a thing anyone needs to do.
         const ack = r.acknowledged_at
           ? esc(fmtTs(r.acknowledged_at)) +
             (r.acknowledged_by ? ' · ' + esc(r.acknowledged_by) : '')
-          : (r.resolved_at ? '—'
+          : (r.resolved_at ? '-'
             : '<button class="sbtn sbtn-ghost" style="padding:.15rem .5rem;font-size:.65rem"' +
               ' data-ack-id="' + esc(String(r.id)) + '">Acknowledge</button>');
         return '<tr>' +
@@ -65,9 +65,9 @@ function applyAlertSort(): void {
           esc(fmtTs(r.fired_at)) + '</td>' +
           '<td style="font-size:.71rem">' + esc(r.alert_label || r.alert_type || '') + '</td>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">' +
-          esc(r.subject || '—') + '</td>' +
+          esc(r.subject || '-') + '</td>' +
           '<td style="font-size:.71rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-          esc(r.detail || '—') + '</td>' +
+          esc(r.detail || '-') + '</td>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem">' + res + '</td>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">' + ack + '</td>' +
           '<td style="font-family:var(--font-mono);font-size:.71rem;text-align:right">' +
@@ -84,7 +84,7 @@ function applyAlertSort(): void {
  * ── downtime_ms IS DERIVED HERE, BECAUSE THE QUERY NEVER SENDS IT ───────────
  *
  * The "Down Time" header sorts on `downtime_ms`, and `queryAlertEvents` returns
- * no such column — so clicking it compared undefined against undefined and did
+ * no such column - so clicking it compared undefined against undefined and did
  * nothing at all. The live app fixed that by deriving the value from the two
  * columns the row does carry, matching exactly what the cell renders, and this
  * follows it.
@@ -102,10 +102,10 @@ export function renderAlerts(rows: AlertRow[]): void {
     typeCounts[r.alert_type] = (typeCounts[r.alert_type] || 0) + 1;
   });
   // `sort` on the keys, then take the first: the original's, and it inherits
-  // JavaScript's stable sort, so ties keep insertion order — which for an object
+  // JavaScript's stable sort, so ties keep insertion order - which for an object
   // built by iterating the rows is the order they first fired.
   const topType = Object.keys(typeCounts)
-    .sort((a, b) => (typeCounts[b] as number) - (typeCounts[a] as number))[0] || '—';
+    .sort((a, b) => (typeCounts[b] as number) - (typeCounts[a] as number))[0] || '-';
 
   const stats = el('rptAlertStats');
   if (stats) {
@@ -128,7 +128,7 @@ export function renderAlerts(rows: AlertRow[]): void {
 /**
  * Wire the acknowledge button once.
  *
- * DELEGATED, because every sort replaces the whole tbody — a handler bound to a
+ * DELEGATED, because every sort replaces the whole tbody - a handler bound to a
  * button would be thrown away the first time anyone clicked a column header.
  */
 export function wireAlertAck(): void {

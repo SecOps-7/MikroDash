@@ -14,7 +14,7 @@ import (
 // ── WHERE THESE ANSWERS COME FROM ───────────────────────────────────────────
 //
 // The operator's instruction on 2026-09-08 was to derive the missing keys from
-// the test CHR — a genuinely empty router — on the reasoning that any payload
+// the test CHR - a genuinely empty router - on the reasoning that any payload
 // field coming back as an empty array there is a field that CAN be empty, which
 // is what `emptyKey` means.
 //
@@ -35,18 +35,18 @@ import (
 func TestCollectorsWithoutAnEmptyKeyHaveAMeasuredReason(t *testing.T) {
 	// key -> why it cannot have one. Measured on the CHR, 2026-09-08.
 	reasons := map[string]string{
-		"dns": "MEASURED: `staticEntries` is its only array and reads 0 on the CHR — but " +
+		"dns": "MEASURED: `staticEntries` is its only array and reads 0 on the CHR - but " +
 			"`settings` carries CACHE USED, live at 44/2048 KiB on that same router. An " +
 			"emptyKey naming staticEntries would sleep the collector and freeze the one " +
 			"number on the DNS page that moves.",
-		"ping": "STRUCTURAL: PingPayload has NO array field at all — rtt, loss, min, max. It " +
+		"ping": "STRUCTURAL: PingPayload has NO array field at all - rtt, loss, min, max. It " +
 			"is a measurement, not a list, and its empty state means the host is DOWN, " +
 			"which is exactly when it must keep asking.",
 		"logs": "STRUCTURAL: no payload object exists. It emits `logs:history` and `logs:new` " +
 			"as events, so `Last()` returns entries rather than a payload and there is " +
 			"nothing for PayloadEmpty to read.",
 		"areas": "STRUCTURAL, twice over. `PayloadEmpty` reads ONE payload's array by its " +
-			"json tag, and this collector holds one payload PER AREA — so an emptyKey " +
+			"json tag, and this collector holds one payload PER AREA - so an emptyKey " +
 			"naming `tables` would judge every generated page by whichever area the " +
 			"dormancy target happened to return. And an area with no rows is the ordinary " +
 			"state, not an idle one: a router with no IP pools has none until somebody " +
@@ -80,7 +80,7 @@ func TestCollectorsWithoutAnEmptyKeyHaveAMeasuredReason(t *testing.T) {
 	sort.Strings(unexplained)
 	if len(unexplained) > 0 {
 		t.Errorf("%v are disableable with no emptyKey and no recorded reason. Dormancy can "+
-			"never judge them, silently and forever — measure one against the CHR and "+
+			"never judge them, silently and forever - measure one against the CHR and "+
 			"either give it a key or say here why it cannot have one.", unexplained)
 	}
 	for key, why := range reasons {

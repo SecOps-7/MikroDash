@@ -14,7 +14,7 @@ import (
 //
 // `pageBlur` held a 19-case switch that stopped a page's collectors when the
 // operator navigated away. That is correct only while the page is the
-// collector's ONLY audience, and several collectors also feed a dashboard card —
+// collector's ONLY audience, and several collectors also feed a dashboard card -
 // so blurring the page starved the card. This test matched
 // `cn.rsession.X().Suspend()` inside that switch and objected when the collector
 // behind X emitted to more than one room, insisting on the guarded form.
@@ -26,7 +26,7 @@ import (
 //
 // Phase 4.2b deleted the switchboard. `applyDemand` asks
 // `collect.DemandRooms(key)` for every collector at once, so a page can no
-// longer suspend a collector it does not own — the shape that made the defect
+// longer suspend a collector it does not own - the shape that made the defect
 // possible is gone rather than guarded.
 //
 // The old assertion would now pass by inspecting an empty switch, which is worse
@@ -43,7 +43,7 @@ func TestNoPageSuspendsACollectorByName(t *testing.T) {
 
 	// The two shapes the switchboard used. Comments are stripped first, or this
 	// test fails on the paragraphs above the call sites that describe what was
-	// removed — the third-time-hit trap `stripGoComments` exists for.
+	// removed - the third-time-hit trap `stripGoComments` exists for.
 	byName := regexp.MustCompile(`(?:cn\.rsession|rs)\.(\w+)\(\)\.Suspend\(\)`)
 	byKey := regexp.MustCompile(`\.SuspendCollector\("(\w+)"\)`)
 
@@ -53,7 +53,7 @@ func TestNoPageSuspendsACollectorByName(t *testing.T) {
 		flat := strings.Join(strings.Fields(stripGoComments(f.src)), " ")
 		for _, m := range byName.FindAllStringSubmatch(flat, -1) {
 			t.Errorf("%s suspends %s() by name. A page or card handler must not decide "+
-				"which collectors stop — it leaves its room, and applyDemand re-asks "+
+				"which collectors stop - it leaves its room, and applyDemand re-asks "+
 				"collect.DemandRooms for every collector. Naming one here is how a "+
 				"dashboard card silently stopped updating five times.", f.name, m[1])
 		}
@@ -76,7 +76,7 @@ func TestNoPageSuspendsACollectorByName(t *testing.T) {
 		{"dashcard.go", cardSrc, "func (cn *conn) dashCardBlur("},
 	} {
 		if !strings.Contains(f.src, f.fn) {
-			t.Fatalf("%s no longer holds %s — this test is reading the wrong file", f.name, f.fn)
+			t.Fatalf("%s no longer holds %s - this test is reading the wrong file", f.name, f.fn)
 		}
 		if !strings.Contains(f.src, "applyDemand(") {
 			t.Fatalf("%s does not call applyDemand; the handlers have stopped driving "+
@@ -108,15 +108,15 @@ func TestDemandIsTheOnlyCallerOfSuspendCollector(t *testing.T) {
 		}
 	}
 	if found == 0 {
-		t.Fatal("no call to SuspendCollector was found anywhere in internal/server — " +
+		t.Fatal("no call to SuspendCollector was found anywhere in internal/server - " +
 			"the scan has stopped matching and this check is measuring nothing")
 	}
 }
 
 // `collectorRooms`, `suspendReceivers` and `sessionAccessors` lived here and
 // were deleted with the audits they served. They resolved a `X().Suspend()` call
-// in `pageBlur` back to the collector behind it — accessor to Go type to source
-// file to emit strings — so the audit could ask how many rooms that collector
+// in `pageBlur` back to the collector behind it - accessor to Go type to source
+// file to emit strings - so the audit could ask how many rooms that collector
 // fed. Nothing suspends by accessor any more, and the room question is answered
 // by `collect.RoomsOf` directly.
 
@@ -146,7 +146,7 @@ func mustRead(t *testing.T, path string) string {
 }
 
 // sliceBetween returns the text from `from` up to `to`, failing loudly when
-// either anchor is gone — an anchor that silently misses would leave every
+// either anchor is gone - an anchor that silently misses would leave every
 // assertion below inspecting the wrong code.
 func sliceBetween(t *testing.T, src, from, to string) string {
 	t.Helper()
@@ -173,7 +173,7 @@ func sliceBetween(t *testing.T, src, from, to string) string {
 // `Wireless().Suspend` compiled, read perfectly, and consulted the wrong
 // collector's rooms. Before that it asserted the room LIST was complete, after
 // `suspendConnsIfIdle` passed the two page rooms and not
-// `dash-card-connections` — so returning to the dashboard from either page
+// `dash-card-connections` - so returning to the dashboard from either page
 // suspended the collector with a viewer still watching the card.
 //
 // ── WHERE THE PROPERTY WENT ─────────────────────────────────────────────────
@@ -186,5 +186,5 @@ func sliceBetween(t *testing.T, src, from, to string) string {
 // What is DRIVEN rather than derived is in `internal/server/demand_behaviour_test.go`:
 // `TestEveryDeclaredRoomAloneIsEnough` puts one viewer in each declared room in
 // turn and asserts the collector is wanted, which is the same question this test
-// asked — can a room be dropped without anybody noticing — asked of the rule
+// asked - can a room be dropped without anybody noticing - asked of the rule
 // that replaced the guards.

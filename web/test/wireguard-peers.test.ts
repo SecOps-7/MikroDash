@@ -16,7 +16,7 @@
  *                     against a client that left. Rendering both as "not
  *                     connected" hides which one is on screen.
  *   overlap           two peers claiming one address is silent in RouterOS and
- *                     silently breaks routing — WireGuard routes by longest
+ *                     silently breaks routing - WireGuard routes by longest
  *                     prefix, so only one of them ever receives the traffic.
  *   hidden            `vpn:update` arrives every few seconds whether or not this
  *                     tab is up. Drawing while hidden is work charged to every
@@ -131,7 +131,7 @@ const at = area.tables.length;
 check('the Peers tab follows the tables, and choosing it shows the panel', () => {
   const tabs = String(n['areaTabs-' + KEY].innerHTML);
   assert.ok(new RegExp('data-areatabindex="' + at + '">Peers</button>').test(tabs),
-    'no Peers tab after the tables — a panel with no registered module has none: ' + tabs);
+    'no Peers tab after the tables - a panel with no registered module has none: ' + tabs);
   doc.dispatchEvent({ type: 'click', target: target({ '[data-areatab]': { 'data-areatab': KEY, 'data-areatabindex': String(at) } }) });
   assert.strictEqual(n['areaBody-' + KEY].style.display, 'none', 'the Interfaces table is still shown');
   assert.strictEqual(host.style.display, '', 'the Peers panel is not shown');
@@ -144,12 +144,12 @@ const rows = () => String(n.wgPeerRows.innerHTML);
 // THIS CASE IS PLACED HERE DELIBERATELY. Written before the tab was ever
 // opened it passed against a panel with its `shown` guard removed, because the
 // panel's `host` was still null and the early return fired for that reason
-// instead — a check measuring something other than what it names. Found by
+// instead - a check measuring something other than what it names. Found by
 // planting exactly that removal. After a visit `host` is set, so only the
 // `shown` flag can stop the draw.
 check('leaving the tab stops it rebuilding on every payload', () => {
   update([peer({ publicKey: 'a', name: 'before' })]);
-  assert.ok(/before/.test(rows()), 'the panel did not draw while it was shown — ' +
+  assert.ok(/before/.test(rows()), 'the panel did not draw while it was shown - ' +
     'the rest of this case would then prove nothing');
   doc.dispatchEvent({ type: 'click', target: target({ '[data-areatab]': { 'data-areatab': KEY, 'data-areatabindex': '0' } }) });
   n.wgPeerRows.innerHTML = '';
@@ -229,7 +229,7 @@ check('an empty peer list says what to do about it', () => {
 //
 // What matters here is not that it renders but that it does not LINGER. The
 // config holds the peer's private key and lives only in these nodes, so closing
-// must empty them rather than hide them — a key left in the DOM outlives the
+// must empty them rather than hide them - a key left in the DOM outlives the
 // moment the operator meant to reveal it.
 const CONF = '[Interface]\nPrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEA=\n';
 let asked = '';

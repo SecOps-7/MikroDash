@@ -14,12 +14,12 @@ import (
 // `roscache.Subscribe` reads an empty field list as "every field", and
 // all-fields STICKS: once one subscriber asks for it, the menu's proplist is
 // dropped for the rest of the session and no narrower caller can shrink it back.
-// So a subscription that omits `fields` does not merely fail to narrow a read —
+// So a subscription that omits `fields` does not merely fail to narrow a read -
 // it WIDENS it, permanently, for every collector sharing that menu.
 //
 // Eighteen collectors were migrated onto the scheduler in 3.2 and every one of
-// them omitted it. `/ip/firewall/connection` — the heaviest read in the app, and
-// the one phase 1 spent its effort on — was being asked for with a seven-field
+// them omitted it. `/ip/firewall/connection` - the heaviest read in the app, and
+// the one phase 1 spent its effort on - was being asked for with a seven-field
 // proplist and served with all of them, on a router with thousands of rows.
 //
 // NOTHING FAILED. The payloads were right, every test was green, and the only
@@ -28,8 +28,8 @@ import (
 //
 // ── WHY IT DEMANDS THE WORD RATHER THAN A VALUE ─────────────────────────────
 //
-// A menu with no proplist of its own — `/tool/netwatch`, `/ip/neighbor`,
-// `/ip/dns` — genuinely wants every field, and `fields: nil` is the right
+// A menu with no proplist of its own - `/tool/netwatch`, `/ip/neighbor`,
+// `/ip/dns` - genuinely wants every field, and `fields: nil` is the right
 // answer there. Since the correct value is sometimes nil, this cannot check the
 // value; it checks that the author WROTE THE FIELD DOWN, which is the decision
 // that was actually skipped. `fieldsOf(cmd)` makes the common case one call.
@@ -81,7 +81,7 @@ func TestSubscriptionsDeclareTheirFields(t *testing.T) {
 			if !strings.Contains(m, "fields:") {
 				t.Errorf("%s subscribes without declaring fields:\n\t%s\n"+
 					"An omitted field list means EVERY field, and all-fields sticks for the "+
-					"session — so this widens the menu's read for every collector sharing it. "+
+					"session - so this widens the menu's read for every collector sharing it. "+
 					"Use fieldsOf(<the command>), or write `fields: nil` with the reason.",
 					name, m)
 			}
@@ -102,7 +102,7 @@ func TestSubscriptionsDeclareTheirFields(t *testing.T) {
 		}
 		// A COLLECTOR THAT SUBSCRIBES TO NO MENU HAS NO FIELDS TO DECLARE. The
 		// areas collector takes the helper for the cache and the lifecycle, and
-		// chooses its menus per tick from the declarations — `scheduled{loop:
+		// chooses its menus per tick from the declarations - `scheduled{loop:
 		// ...}` with no cmd. Counting it here would make this floor unreachable
 		// and the check would fail for ever on a file that has nothing to say.
 		if strings.Contains(src, "a.sched = scheduled{loop: a.poll}") {

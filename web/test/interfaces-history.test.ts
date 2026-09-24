@@ -11,7 +11,7 @@
  * ── AND IT MUST RENDER FOR A READ-ONLY VIEWER ───────────────────────────────
  *
  * The dialog used to skip its extras slot entirely when the form was read-only.
- * Reading history is a read, so each extra now decides for itself — but the
+ * Reading history is a read, so each extra now decides for itself - but the
  * switch inside this one is a WRITE, and that stays behind `mayRecord`, which
  * the server answers rather than the browser guessing.
  *
@@ -101,7 +101,7 @@ function open(reply, readOnly, identity, rangeKey) {
    *
    * A range is chosen by CLICKING, which is the only way an operator has. It
    * used to be seeded through `localStorage`, and that stopped being a path at
-   * all when the remembered range was removed — a harness that kept seeding it
+   * all when the remembered range was removed - a harness that kept seeding it
    * would have gone on "selecting" ranges that the panel ignored, and every
    * range-specific assertion would have been made against Live.
    *
@@ -139,7 +139,7 @@ function open(reply, readOnly, identity, rangeKey) {
   global.window = { confirm: () => true };
   // A REAL STORE, shared by every `open` in this file, because a browser's is.
   //
-  // The panel no longer reads or writes it — `deliverRow` picks a range by
+  // The panel no longer reads or writes it - `deliverRow` picks a range by
   // clicking. Backing it with a live object anyway is what lets "a reload opens
   // on Live" fail: with a stub that always answered null, reintroducing the
   // remembered range would have been invisible, and the check would have been
@@ -151,7 +151,7 @@ function open(reply, readOnly, identity, rangeKey) {
   };
   global.getComputedStyle = () => ({ getPropertyValue: () => '#38bdf8' });
   // A Chart stub that keeps the config, so the AXIS is assertable. Without it
-  // the panel silently skips drawing and a mislabelled axis is invisible here —
+  // the panel silently skips drawing and a mislabelled axis is invisible here -
   // which is how "12:59 … 13:53" came to mean fifty-four seconds.
   const charts = [];
   // A frame loop that is COUNTED and never actually runs: a real one would
@@ -163,7 +163,7 @@ function open(reply, readOnly, identity, rangeKey) {
   global.Chart = function (canvas, cfg) {
     const inst = {
       // `options` is the live object a real Chart exposes, and the panel writes
-      // its animation onto it every tick — so the stub shares it with cfg
+      // its animation onto it every tick - so the stub shares it with cfg
       // rather than copying, or the assertions would read a stale snapshot.
       cfg, data: cfg.data, options: cfg.options, destroyed: false,
       destroy() { this.destroyed = true; },
@@ -214,7 +214,7 @@ function open(reply, readOnly, identity, rangeKey) {
      *
      * A PREVIOUS test's fetch can resolve after this one has installed its own
      * globals, and the stale module then repaints through THIS test's Chart and
-     * requestAnimationFrame — one stray chart and one stray frame, attributed
+     * requestAnimationFrame - one stray chart and one stray frame, attributed
      * to the wrong panel. Measuring from a drained, zeroed point makes the
      * count mean "what this panel did", which is what is being asserted.
      */
@@ -282,7 +282,7 @@ function open(reply, readOnly, identity, rangeKey) {
  * The recording toggle as rendered: absent, or on/off and movable or not.
  *
  * Read out of the markup rather than by asking the panel, because the question
- * is what an operator is shown — a toggle drawn in the wrong state is exactly
+ * is what an operator is shown - a toggle drawn in the wrong state is exactly
  * the bug worth catching, and it would agree with the panel's own view of
  * itself.
  */
@@ -418,7 +418,7 @@ check('an add form draws no history panel', async () => {
  * Only meaningful straight after a render. A click toggles `active` on the
  * button elements themselves, and in this shim those are detached stubs rather
  * than nodes inside `res_extra`, so a click never shows up here. That is a
- * limit of the harness, not of the panel — to prove a click took, read a signal
+ * limit of the harness, not of the panel - to prove a click took, read a signal
  * the click actually produces, such as the range it then asks the server for.
  */
 const activeRange = (html) => {
@@ -426,7 +426,7 @@ const activeRange = (html) => {
   return m ? m[1] : null;
 };
 
-/** The range the last history request named — what a click really does. */
+/** The range the last history request named - what a click really does. */
 const lastAskedRange = (fetched) => {
   const url = fetched.filter((u) => u.indexOf('/api/interfaces/history') === 0).pop() || '';
   const m = url.match(/[?&]range=([^&]+)/);
@@ -444,7 +444,7 @@ check('Live is the default range', async () => {
 // ── AND LIVE IS THE DEFAULT *EVERY* TIME ───────────────────────────────────
 //
 // The range used to be remembered in `localStorage`, so one look at "1 hour"
-// made every interface opened afterwards — on that browser, for ever — open on
+// made every interface opened afterwards - on that browser, for ever - open on
 // a flat historical chart. The operator's words: "it remembers the last range
 // tab I was on the last time like 1 hour and when i click on the card it goes
 // back to that. it should default to Live every time".
@@ -610,7 +610,7 @@ check('a live window spans its whole range even with one sample', async () => {
 
 // THE NEWEST SECOND IS HELD OFF-SCREEN.
 //
-// The right-hand end of the line is the part still being drawn — a sample
+// The right-hand end of the line is the part still being drawn - a sample
 // lands, its segment appears, another follows. Flush against the frame that is
 // a twitching stub at the edge, so the window ends one sample interval short of
 // now and the leading edge is complete by the time it is visible. The same gap
@@ -635,7 +635,7 @@ check('the visible window stops short of now, hiding the leading edge', async ()
 //
 // `windowedPoints` cuts at `>= cutoff` and the cutoff IS the axis minimum, so
 // the oldest point it returns sits up to one sample inside the plot and the
-// trace visibly ends before the frame does — about nine pixels on a 60-second
+// trace visibly ends before the frame does - about nine pixels on a 60-second
 // window, growing and snapping shut as each point falls out. Points are kept
 // past the edge so Chart.js can clip the line at it.
 check('the drawn points reach past the left edge', async () => {
@@ -645,7 +645,7 @@ check('the drawn points reach past the left edge', async () => {
   d.deliverRow();
   // AGE THE BUFFER. Samples are stamped with the clock when they arrive, so
   // without moving it every one lands in the same millisecond and there is
-  // nothing older than the window for the overhang to keep — the assertion
+  // nothing older than the window for the overhang to keep - the assertion
   // below would then be testing an empty history.
   const realNow = Date.now;
   const start = realNow() - 70000;
@@ -688,7 +688,7 @@ check('the live peak ignores the points beyond the left edge', async () => {
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 4, txMbps: 1 }], Date.now());
 
   // READ THE STATS ELEMENT, not the body. A tick rewrites the contents of
-  // #ifhStats, and the shim never parses innerHTML into nodes — so the body
+  // #ifhStats, and the shim never parses innerHTML into nodes - so the body
   // string still holds whatever the FIRST paint wrote, and asserting on it
   // measured nothing. (Proven: the filter could be deleted and this passed.)
   const statsHtml = d.els.ifhStats.innerHTML;
@@ -705,7 +705,7 @@ check('the window scrolls on animation frames, not on samples', async () => {
   await d.settle();
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }], Date.now());
   assert.ok(d.frames.requested > 0,
-    'no frame was requested, so the window only moves when a sample lands — '
+    'no frame was requested, so the window only moves when a sample lands - '
     + 'which is the once-a-second jump this replaced');
 });
 
@@ -748,7 +748,7 @@ check('the 15-minute window is fifteen minutes wide', async () => {
 // The axis is linear over epoch milliseconds, because Chart.js's time scale
 // needs a date adapter this build does not ship. Chart.js's DEFAULT tooltip
 // title on a linear axis is the raw x value, so the heading above Rx and Tx
-// read "1790000000000" — reported as "a very long number. not sure what that
+// read "1790000000000" - reported as "a very long number. not sure what that
 // is". Nothing else would have caught it: every number in the chart was right.
 
 check('a live tooltip is headed by a clock time, not the raw axis value', async () => {
@@ -823,7 +823,7 @@ check('seeding keeps live samples newer than the ring', async () => {
   await Promise.resolve();
   // THE TICK ARRIVES BEFORE THE REPLY, which is the only ordering that tests
   // the merge at all. Pushing it afterwards appends to an already-seeded buffer
-  // and would pass with the tail thrown away — it did, until a mutation that
+  // and would pass with the tail thrown away - it did, until a mutation that
   // discarded the tail failed to break this check.
   const fresh = now - 1000;
   d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 42, txMbps: 7 }], fresh);

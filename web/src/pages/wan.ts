@@ -1,9 +1,9 @@
-// The WAN page — a port of the WAN IIFE in public/app.js.
+// The WAN page - a port of the WAN IIFE in public/app.js.
 //
 // RENEW AND RELEASE ARE WIRED, as of 2026-08-24. They were held back until
 // `wanGuard` was ported, because that guard answers a different question from
-// selfPath — not "which interface carries us" but "which UPLINK carries this
-// session" — and an unguarded Release button on somebody's only WAN is not a
+// selfPath - not "which interface carries us" but "which UPLINK carries this
+// session" - and an unguarded Release button on somebody's only WAN is not a
 // button worth shipping early. The guard is now `internal/guard/wanguard.go`
 // and the server half is `internal/server/wan.go`.
 //
@@ -17,12 +17,12 @@
 // The uplink set is RouterOS's by default: an interface reporting
 // `state=internet` to `/interface/detect-internet`. That is the right default
 // and it is empty on most routers, because `detect-interface-list` ships as
-// `none` — so the page has spent its life explaining a command the operator has
+// `none` - so the page has spent its life explaining a command the operator has
 // to run on the ROUTER before a DASHBOARD will show anything.
 //
 // Manual mode is the other answer: the operator names the interfaces, MikroDash
 // stores that per router (`/api/router-doc`, kind `wan-uplinks`), and every join
-// below the set — address, lease, which default route is live, rates — is
+// below the set - address, lease, which default route is live, rates - is
 // unchanged. The router's own opinion is still shown on each row, so a declared
 // uplink RouterOS does not call `internet` is visible as exactly that.
 
@@ -237,9 +237,9 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     }).join('') : '<tr><td colspan="7" class="empty-state">' + emptyState() + '</td></tr>';
 
     const note = el('wanActionNote');
-    // Never clears a message it did not write — see setStatus.
+    // Never clears a message it did not write - see setStatus.
     if (note && !note.dataset.status) {
-      note.textContent = caps.permitted ? '' : 'read-only — you do not have write access to this router';
+      note.textContent = caps.permitted ? '' : 'read-only - you do not have write access to this router';
     }
     renderNotice();
     renderSummary();
@@ -263,7 +263,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     body.innerHTML = '<strong>Internet detection is switched off on this router.</strong> ' +
       'RouterOS decides which interfaces reach the internet, and it is not looking. ' +
       'This page shows what it reports, so it has nothing to show until detection is on. Enable it with ' +
-      '<code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic ' +
+      '<code>/interface detect-internet set detect-interface-list=all</code> - it is read-only and adds no traffic ' +
       'beyond an occasional probe.';
   }
 
@@ -271,13 +271,13 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     const d: Partial<WANPayload> = data || {};
     const wans = d.wans || [];
     const set = (id: string, v: string) => { const n = el(id); if (n) n.textContent = v; };
-    set('wanSumCount', String(wans.length || '—'));
-    set('wanSumActive', d.activeDefaultWan || (wans.length ? 'none active' : '—'));
-    set('wanSumPublic', (d.publicIp || '').split('/')[0] || '—');
+    set('wanSumCount', String(wans.length || '-'));
+    set('wanSumActive', d.activeDefaultWan || (wans.length ? 'none active' : '-'));
+    set('wanSumPublic', (d.publicIp || '').split('/')[0] || '-');
     const rateEl = el('wanSumRate');
     if (!rateEl) return;
     const any = wans.some((w) => w.rxMbps !== null || w.txMbps !== null);
-    if (!any) { rateEl.innerHTML = '&mdash;'; return; }
+    if (!any) { rateEl.innerHTML = '-'; return; }
     let rx = 0, tx = 0;
     wans.forEach((w) => { rx += w.rxMbps || 0; tx += w.txMbps || 0; });
     // Coloured per direction rather than as one figure, so the summary reads
@@ -309,7 +309,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     // will drop your own connection". Conflating them would train the operator
     // to dismiss both with one habit.
     const msg = verb === 'release'
-      ? 'Release the DHCP lease on "' + name + '"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.'
+      ? 'Release the DHCP lease on "' + name + '"?\n\nThe uplink goes down until the client rebinds - usually seconds, but it is a real outage.'
       : 'Renew the DHCP lease on "' + name + '"?\n\nThe uplink blips briefly while the lease is renewed.';
     if (!window.confirm(msg)) return;
     send(verb, id, name);
@@ -368,7 +368,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       set('wanWarnAck', (d && d.fingerprint) || '');
       // THE ID COMES FROM THE PAYLOAD, NOT FROM THE ERROR. The server answers
       // with the interface NAME, so the row it refers to is looked up here and
-      // its lease id taken from that — the same id the button carried. An empty
+      // its lease id taken from that - the same id the button carried. An empty
       // one means the uplink went away between the click and the answer, and
       // the retry then fails `stale-row` rather than acting on the wrong lease.
       const row = ((data && data.wans) || []).find((x) => x.name === (d && d.name));
@@ -378,13 +378,13 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       if (body) {
         body.innerHTML =
           '<p>MikroDash reaches ' + esc(caps.routerName || 'this router') + ' from <code>' +
-            esc(w.address || '') + '</code>, which is not on any of its connected subnets — so that ' +
+            esc(w.address || '') + '</code>, which is not on any of its connected subnets - so that ' +
             'traffic arrives over a WAN.</p>' +
           (w.certain
             ? '<p><strong>' + esc(w.wan || '') + ' is the uplink carrying the active default route</strong>, ' +
               'which means it is carrying this session.</p>'
             : '<p>This router has more than one active default route, so which uplink carries this ' +
-              'session cannot be determined — <strong>' + esc(w.wan || '') + ' may be the one.</strong></p>') +
+              'session cannot be determined - <strong>' + esc(w.wan || '') + ' may be the one.</strong></p>') +
           '<p>' + (((el<HTMLInputElement>('wanWarnVerb')?.value) || '') === 'release'
             ? 'Releasing the lease takes the uplink down until the client rebinds.'
             : 'Renewing blips the uplink briefly.') +
@@ -400,7 +400,7 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       denied: 'You do not have write access to this router',
       unavailable: 'WAN collection is not running for this router',
       'bad-request': 'Invalid request',
-      'stale-row': 'That uplink changed on the router — the page has been refreshed',
+      'stale-row': 'That uplink changed on the router - the page has been refreshed',
       'router-write-policy': 'The RouterOS user needs write permission for this',
       unsupported: 'This router does not support that command',
     };

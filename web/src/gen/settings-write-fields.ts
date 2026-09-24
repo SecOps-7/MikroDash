@@ -1,11 +1,11 @@
-// GENERATED from internal/store/settings_write_tables.json — do not edit.
+// GENERATED from internal/store/settings_write_tables.json - do not edit.
 //
 // Rebuild: `go run ./cmd/settingswritegen`. `-check` runs in tools/verify.sh.
 //
 // This is the SERVER's own classification of every settings key, so the form
 // collector can send a number where a number is expected and a boolean where a
 // boolean is expected. The server accepts only a real `true` or the string
-// "true" for a boolean — `1` and "on" both read as FALSE — and it IGNORES an
+// "true" for a boolean - `1` and "on" both read as FALSE - and it IGNORES an
 // invalid value rather than clamping it, so a key of the wrong type does not
 // error, it silently fails to save.
 //
@@ -105,7 +105,7 @@ export const CRED_FIELDS: readonly string[] = [
   "aiApiKey",
 ];
 
-/** Validated outside the four tables — see internal/store/settings_write.go. */
+/** Validated outside the four tables - see internal/store/settings_write.go. */
 export const SPECIAL_CASES: readonly string[] = [
   "aiHeaders",
   "aiOverviewPrompt",

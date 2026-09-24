@@ -11,7 +11,7 @@
  *
  * ── THE ROW IS A STRING, AND THE BUTTONS CARRY THEIR OWN ARGUMENTS ──────────
  *
- * `data-rtr-id`, `data-rtr-action` and `data-rtr-label` — one delegated listener
+ * `data-rtr-id`, `data-rtr-action` and `data-rtr-label` - one delegated listener
  * on the tbody rather than a handler per row, so a re-render does not leak
  * listeners. `data-rtr-label` exists ONLY for the delete confirmation, which
  * names the router being destroyed; reading the label out of the row's DOM
@@ -20,7 +20,7 @@
  * ── THE ACTIVE ROUTER CANNOT BE DISABLED ────────────────────────────────────
  *
  * Its toggle is rendered `disabled` with a title saying why. That is a UI
- * courtesy, not the enforcement — the server decides — but it is the difference
+ * courtesy, not the enforcement - the server decides - but it is the difference
  * between a button that explains itself and one that fails.
  */
 
@@ -79,16 +79,16 @@ export function renderRouterRow(
   const certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
   const connState = status[r.id];
   const badgeCls = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
-  const badgeTxt = connState === true ? 'Online' : connState === false ? 'Offline' : '—';
+  const badgeTxt = connState === true ? 'Online' : connState === false ? 'Offline' : '-';
   const statusCell = r.disabled
     ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="' + esc(r.id) + '">Disabled</span>'
     : '<span class="rtr-status-badge ' + badgeCls + '" data-rtr-conn="' + esc(r.id) + '">' + badgeTxt + '</span>';
   // Identity is persisted on the router entry rather than read from the live
   // stats feed, so these stay populated while a router is offline or disabled.
-  const unknown = '<span style="color:var(--text-muted)">—</span>';
+  const unknown = '<span style="color:var(--text-muted)">-</span>';
   // Site membership goes UNDER the label rather than in its own column, so the
   // table keeps its eight columns and the empty-state colspan above stays right.
-  // A site-less router renders nothing — an explicit "no site" chip on every row
+  // A site-less router renders nothing - an explicit "no site" chip on every row
   // would be noise for the installs that never create one.
   const siteNames = (Array.isArray(r.siteIds) ? r.siteIds : (r.siteId ? [r.siteId] : []))
     .map((id) => (sitesById && sitesById[id] ? sitesById[id].name : null))
@@ -146,12 +146,12 @@ export function deleteRouterPrompt(label: string): string {
  * text selection or focus inside the table. The live app updates the one badge;
  * `data-rtr-conn` carries the router id for exactly this lookup, and porting the
  * attribute without this reader is what left the port rendering it and reading
- * nothing — the attr audit is what said so.
+ * nothing - the attr audit is what said so.
  *
  * ── IT DOES NOT PAINT A DISABLED ROW ───────────────────────────────────────
  *
  * The disabled badge carries `data-rtr-conn` too, so an unguarded selector
- * matched it and replaced "Disabled" with "Offline" — or worse, "Online" —
+ * matched it and replaced "Disabled" with "Offline" - or worse, "Online" -
  * leaving a dimmed row with an Enable button and an Online badge until the next
  * full render put it back. A disabled router still has its session torn down and
  * re-established around a switch, and `router:status` is emitted per router
@@ -213,7 +213,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
   // into the router modal, so an operator who dismissed it, or who reached
   // Settings before it appeared, had no route to adding their first router at
   // all. Reported on issue #124: "the button DOESNT work. cannot add any
-  // device!!" — from someone who had just got the container running and created
+  // device!!" - from someone who had just got the container running and created
   // an account.
   //
   // It was not a deliberate omission either, and nothing recorded it as one. The
@@ -235,7 +235,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
 
   // ONE delegated listener, registered once. The rows are replaced wholesale on
   // every repaint, so a listener per button would be re-attached to new nodes
-  // each time and the old ones would go with their rows — which works, and
+  // each time and the old ones would go with their rows - which works, and
   // quietly costs a handler per row per repaint until it does not.
   tbody.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement | null)?.closest?.('[data-rtr-action]') as HTMLElement | null;

@@ -16,7 +16,7 @@ import (
 // CLAUDE.md's page-key table lists six things a page key is at once. The sixth is
 // the one that bit, and the reason this check exists: a VISIBILITY GUARD.
 // `isVisible('rosusers')` and `pageVisible('topology')` ask "is this page the one on screen?", comparing
-// against `currentPage` — so a key renamed anywhere else turns the guard
+// against `currentPage` - so a key renamed anywhere else turns the guard
 // permanently false.
 //
 // Nothing fails when that happens. The socket still delivers, the collector
@@ -39,14 +39,14 @@ func TestVisibilityGuardsNameRealPages(t *testing.T) {
 		for _, m := range guard.FindAllStringSubmatch(uncomment(body), -1) {
 			seen++
 			if !pages.Has(m[1]) {
-				t.Errorf("%s guards on %q, which is not a page key — "+
+				t.Errorf("%s guards on %q, which is not a page key - "+
 					"the guard is permanently false and that page never re-renders", rel, m[1])
 			}
 		}
 	}
 	// Believability: a regexp that matched nothing would pass this test forever.
 	if seen < 10 {
-		t.Fatalf("found only %d visibility guards — the scan stopped seeing its subject", seen)
+		t.Fatalf("found only %d visibility guards - the scan stopped seeing its subject", seen)
 	}
 }
 
@@ -58,7 +58,7 @@ func TestVisibilityGuardsNameRealPages(t *testing.T) {
 //
 // THE JSON IS CHECKED, NOT THE .ts. The .ts is regenerated from it, so a .ts
 // edited by hand is ahead of its own source and the next regeneration silently
-// reverts it — which is the state this repository was actually in.
+// reverts it - which is the state this repository was actually in.
 func TestFrozenPageTablesNameRealPages(t *testing.T) {
 	root := repoRoot(t)
 
@@ -111,7 +111,7 @@ func TestFrozenPageTablesNameRealPages(t *testing.T) {
 	}
 
 	if len(pt.PageKeys) < 20 || len(vp.NavMap) < 20 {
-		t.Fatalf("pageKeys=%d navMap=%d — a table went empty and this check stopped asking anything",
+		t.Fatalf("pageKeys=%d navMap=%d - a table went empty and this check stopped asking anything",
 			len(pt.PageKeys), len(vp.NavMap))
 	}
 }
@@ -132,13 +132,13 @@ func TestRenamedNamesNoLivePage(t *testing.T) {
 	}
 }
 
-// TestEveryNavItemIsSwept — the direction the ledger was missing.
+// TestEveryNavItemIsSwept - the direction the ledger was missing.
 //
 // ── A CORRECT EXPRESSION THAT NEVER RUNS ────────────────────────────────────
 //
 // `applyPageVisibility` iterates `ALL_NAV_PAGES` and hides the nav items for
 // pages a role denies, an install toggles off, or a feature gate refuses. A nav
-// item whose page is NOT in that list is never visited, so nothing can hide it —
+// item whose page is NOT in that list is never visited, so nothing can hide it -
 // and on screen that is indistinguishable from "considered and allowed".
 //
 // `TestFrozenPageTablesNameRealPages` checks that every entry in the table names
@@ -166,7 +166,7 @@ func TestEveryNavItemIsSwept(t *testing.T) {
 		nav = append(nav, m[1])
 	}
 	if len(nav) < 20 {
-		t.Fatalf("found %d nav items in shell.html — the pattern stopped matching", len(nav))
+		t.Fatalf("found %d nav items in shell.html - the pattern stopped matching", len(nav))
 	}
 
 	var pt struct {
@@ -202,7 +202,7 @@ func TestEveryNavItemIsSwept(t *testing.T) {
 	// guarantee: an entry with no nav item is a page the sweep believes it hid.
 	for _, key := range pt.AllNavPages {
 		if !seen[key] {
-			t.Errorf("allNavPages carries %q, which has no nav item in shell.html — the sweep "+
+			t.Errorf("allNavPages carries %q, which has no nav item in shell.html - the sweep "+
 				"hides something that is not there", key)
 		}
 	}

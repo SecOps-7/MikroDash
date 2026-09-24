@@ -68,7 +68,7 @@ export interface CertInfo {
  *
  * The AI Agent tab's button posts to a different route with a different body, so
  * it would have been easy to give it a module of its own. That would also have
- * given it a second mount point in `main.ts` to forget — and a Test button bound
+ * given it a second mount point in `main.ts` to forget - and a Test button bound
  * by a module nothing mounts is precisely the shape
  * `TestInteractiveControlsAreBoundBeyondCaps` exists to catch, having shipped
  * twice already as `rtrAddBtn` and `settingsSaveBtn`.
@@ -84,7 +84,7 @@ export const TEST_CHANNELS: TestChannelSpec[] = [
   // became notification channels: a channel is tested through
   // `/api/notify-channels/{id}/test`, against what is STORED, from its own card.
   // Their buttons are gone from the markup too, so leaving the rows here would
-  // only mean `el()` lookups that never find anything — which is exactly what
+  // only mean `el()` lookups that never find anything - which is exactly what
   // `TestEveryLookupHasAProducer` caught when the mail server card went.
   //
   // The table is kept for the one row rather than inlined, because what it
@@ -108,7 +108,7 @@ export const TEST_CHANNELS: TestChannelSpec[] = [
  *
  * Text fields go only when non-empty, so an untouched box falls back to what is
  * stored and Test works before a Save. The checkbox goes whether or not it is
- * empty, because an empty `aiTlsPin` is a value an operator sets deliberately —
+ * empty, because an empty `aiTlsPin` is a value an operator sets deliberately -
  * guarding it on truthiness would make it impossible to test with the pin
  * cleared without saving first. `aiConfigFor` on the server is the other
  * half of this pair.
@@ -137,7 +137,7 @@ const val = (id: string): string => el<HTMLInputElement>(id)?.value ?? '';
  * ── NOT NULL-GUARDED, AND THAT IS DELIBERATE ───────────────────────────────
  *
  * The live code is `data.ok ? … : …` with no guard, so a reply body of literal
- * `null` throws a TypeError and lands in the request's `.catch` — which prints
+ * `null` throws a TypeError and lands in the request's `.catch` - which prints
  * the TypeError as the result line. A guarded version showing "✗ failed" is
  * NICER and is a different app: the notif-test check drives a null reply
  * through both and compares, and the guard was what it caught.
@@ -179,7 +179,7 @@ function wire(spec: TestChannelSpec): void {
         btn.disabled = false;
         if (!result) return;
         // `resultText` FIRST, so a null body throws before anything is written
-        // — exactly as the live code does, where the throw happens on `data.ok`
+        // - exactly as the live code does, where the throw happens on `data.ok`
         // in the same expression. Reading `d.ok` for the colour first would
         // write a colour and then throw, leaving a coloured empty line.
         const text = resultText(d, spec.okText);

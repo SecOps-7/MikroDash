@@ -5,7 +5,7 @@
 // `snapX`/`snapY` are updated ONLY when the cell under the pointer is in bounds
 // and free. Drag over an occupied area and the placeholder stays where it last
 // legally was; let go there and the card lands THERE, not under the cursor.
-// That is what makes an illegal drop impossible without a modal or a rejection —
+// That is what makes an illegal drop impossible without a modal or a rejection -
 // the drop cannot fail, because the position it commits was validated when it
 // was chosen.
 //
@@ -13,7 +13,7 @@
 //
 // Dwell over another card for 1.5s and the two exchange position AND size. The
 // timer's closure captures the hovered id rather than reading `swapTarget` when
-// it fires — the pointer can move to a third card inside those 1.5 seconds, and
+// it fires - the pointer can move to a third card inside those 1.5 seconds, and
 // reading the state at fire time would swap with whichever card is hovered THEN,
 // which is not the one whose highlight the user was watching.
 //
@@ -107,7 +107,7 @@ export function createGridDrag(editor: GridEditor): GridDrag {
     ds.handle.removeEventListener('pointermove', onDragMove as EventListener);
     ds.handle.removeEventListener('pointerup', onDragEnd as EventListener);
     ds.handle.removeEventListener('pointercancel', onDragEnd as EventListener);
-    // Throws if the capture was already released — by a pointercancel, or by the
+    // Throws if the capture was already released - by a pointercancel, or by the
     // element being detached. Swallowed, as the original swallows it: the drag is
     // over either way and there is nothing to tell the user.
     try { ds.handle.releasePointerCapture(ds.ptId); } catch { /* already gone */ }
@@ -131,7 +131,7 @@ export function createGridDrag(editor: GridEditor): GridDrag {
 
     // The original computes `relLeft = ghostLeft - gridRect.left - PAD` and then
     // passes `relLeft + PAD`, so the padding cancels exactly. Written the same
-    // way rather than folded, so this reads as the original does — the two
+    // way rather than folded, so this reads as the original does - the two
     // halves belong to different ideas (the card's inner-area offset, and
     // ptrToCell's own padding handling) and collapsing them hides that.
     const relLeft = ghostLeft - gridRect.left - PAD;
@@ -150,7 +150,7 @@ export function createGridDrag(editor: GridEditor): GridDrag {
     }
     updatePlaceholder(ds.snapX, ds.snapY, c.w, c.h);
 
-    // Which visible card the ghost's CENTRE is over — the centre, not the
+    // Which visible card the ghost's CENTRE is over - the centre, not the
     // pointer, so a swap is about where the card would land rather than where
     // the user happens to be holding it.
     const ghostCx = ghostLeft + parseFloat(ghost.style.width) / 2;

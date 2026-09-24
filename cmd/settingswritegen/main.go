@@ -79,7 +79,7 @@ func main() {
 			os.Exit(1)
 		}
 		if !bytes.Equal(bytes.TrimSpace(have), bytes.TrimSpace(body)) {
-			fmt.Fprintf(os.Stderr, "settingswritegen: %s is STALE — the write tables "+
+			fmt.Fprintf(os.Stderr, "settingswritegen: %s is STALE - the write tables "+
 				"changed and the TypeScript was not regenerated.\n"+
 				"Run: go run ./cmd/settingswritegen\n", *out)
 			os.Exit(1)
@@ -98,14 +98,14 @@ func main() {
 
 func render(t writeTables) []byte {
 	var b strings.Builder
-	b.WriteString("// GENERATED from " + srcRel + " — do not edit.\n" +
+	b.WriteString("// GENERATED from " + srcRel + " - do not edit.\n" +
 		"//\n" +
 		"// Rebuild: `go run ./cmd/settingswritegen`. `-check` runs in tools/verify.sh.\n" +
 		"//\n" +
 		"// This is the SERVER's own classification of every settings key, so the form\n" +
 		"// collector can send a number where a number is expected and a boolean where a\n" +
 		"// boolean is expected. The server accepts only a real `true` or the string\n" +
-		"// \"true\" for a boolean — `1` and \"on\" both read as FALSE — and it IGNORES an\n" +
+		"// \"true\" for a boolean - `1` and \"on\" both read as FALSE - and it IGNORES an\n" +
 		"// invalid value rather than clamping it, so a key of the wrong type does not\n" +
 		"// error, it silently fails to save.\n" +
 		"//\n" +
@@ -142,7 +142,7 @@ func render(t writeTables) []byte {
 		"Sealed at rest and NOT trimmed. A masked value is dropped; an EMPTY STRING is a destructive clear.",
 		t.CredFields)
 	list("SPECIAL_CASES",
-		"Validated outside the four tables — see internal/store/settings_write.go.",
+		"Validated outside the four tables - see internal/store/settings_write.go.",
 		t.SpecialCases)
 	return []byte(b.String())
 }

@@ -7,7 +7,7 @@
  * The three client rules upstream recorded with `packages:notes`.
  *
  * `wiring-audit`'s `upd_notes` entry carried them for a day before the event was
- * ported — "three client rules worth taking from upstream rather than
+ * ported - "three client rules worth taking from upstream rather than
  * rediscovering". This is what took them.
  *
  *   1. ASK ON MODAL OPEN, never on the per-tick update event. The
@@ -17,11 +17,11 @@
  *   2. DISCARD a reply whose version is not the one on screen, or switching
  *      routers with the dialog open paints the previous router's changelog under
  *      the new router's numbers.
- *   3. ESCAPE BEFORE INSERTION — it is the only third-party content this app
+ *   3. ESCAPE BEFORE INSERTION - it is the only third-party content this app
  *      renders into the DOM.
  *
  * Rule 2 is a pure function and is driven directly. Rules 1 and 3 are about
- * WHERE code sits, so they are source checks — anchored on structure, not on a
+ * WHERE code sits, so they are source checks - anchored on structure, not on a
  * character window.
  *
  *   node tools/notes-rules-check.js
@@ -59,7 +59,7 @@ let painted = 0;
 for (const [why, showing, reply, want] of CASES) {
   const got = m.notesAreForThisDialog(showing, reply);
   if (got) painted++;
-  if (got !== want) problems.push(`rule 2 — ${why}: got ${got}, want ${want}`);
+  if (got !== want) problems.push(`rule 2 - ${why}: got ${got}, want ${want}`);
 }
 if (painted === 0) problems.push('rule 2: no case paints; the corpus agrees with `false`');
 if (painted === CASES.length) problems.push('rule 2: every case paints; the guard is not exercised');
@@ -91,7 +91,7 @@ if (tickAt >= 0) {
 // And exactly one place emits it.
 const emits = (body.match(/emit\('packages:notes'/g) || []).length;
 if (emits !== 1) {
-  problems.push(`rule 1: packages:notes is emitted from ${emits} places; there is exactly one — `
+  problems.push(`rule 1: packages:notes is emitted from ${emits} places; there is exactly one - `
     + 'the modal-open branch');
 }
 
@@ -103,7 +103,7 @@ if (setAt < 0) {
   const setBody = body.slice(setAt, body.indexOf('\n  };', setAt));
   if (/innerHTML/.test(setBody) && !/esc\(/.test(setBody)) {
     problems.push('rule 3: setNotes writes innerHTML without esc(). This is the ONLY third-party '
-      + 'content this app renders into the DOM — fetched from mikrotik.com, not produced by this '
+      + 'content this app renders into the DOM - fetched from mikrotik.com, not produced by this '
       + 'app or a router.');
   }
 }

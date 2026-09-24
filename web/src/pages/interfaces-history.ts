@@ -16,7 +16,7 @@
  *
  * ── TWO SOURCES, AND A RANGE NEVER CHANGES WHICH ONE IT USES ────────────────
  *
- * The short ranges — Live to 30 min — come from a 1 Hz buffer fed by the
+ * The short ranges - Live to 30 min - come from a 1 Hz buffer fed by the
  * same `ifstatus:update` the page already receives, held per interface. The
  * long ones come from the database. A range that read one place on a recorded
  * interface and another on an unrecorded one would show two different pictures
@@ -27,7 +27,7 @@
  * doing right now" is a question the page can already answer for anything.
  *
  * The buffer fills while the Interfaces page is open and is capped at 30
- * minutes — the longest live range — by `MAX_CLIENT_POINTS`, reused from the
+ * minutes - the longest live range - by `MAX_CLIENT_POINTS`, reused from the
  * dashboard's chart rather than counted out a second time.
  *
  * ── AN EMPTY CHART AND A SWITCHED-OFF INTERFACE LOOK IDENTICAL ──────────────
@@ -105,7 +105,7 @@ let activeID = '';
 let iface = '';
 
 /**
- * The range on show. RESET TO LIVE EVERY TIME THE PANEL OPENS — see `render`.
+ * The range on show. RESET TO LIVE EVERY TIME THE PANEL OPENS - see `render`.
  *
  * It used to be remembered in `localStorage` under `md.ifaceHistoryRange`, on
  * the reasoning that an operator working in 7-day views wants the next
@@ -124,7 +124,7 @@ let last: HistoryReply | null = null;
  *
  * EVERY interface is buffered rather than only the open one, because a panel
  * that started filling when it opened would show Live with one point in it and
- * "30 min" with almost nothing — the window has to already exist by the time
+ * "30 min" with almost nothing - the window has to already exist by the time
  * the question is asked. Each is capped at MAX_CLIENT_POINTS by `pushSample`.
  */
 const liveBuf = new Map<string, TrafficPoint[]>();
@@ -138,7 +138,7 @@ const liveBuf = new Map<string, TrafficPoint[]>();
  * the only source. It stopped being harmless when the panel started seeding
  * itself from the server's ring: those points carry the SERVER's timestamps,
  * and a browser clock even a few seconds off would put the seed and the tail on
- * two different timelines — a visible jump or gap exactly where they meet, in a
+ * two different timelines - a visible jump or gap exactly where they meet, in a
  * chart that otherwise looks perfectly reasonable.
  *
  * `ifstatus:update` already carries `ts`, so the whole series is one clock.
@@ -172,7 +172,7 @@ function isLive(key: string): boolean {
  * over the following half hour, so the first interface an operator opened drew
  * almost nothing: "the live graphs only start populating after i sign in".
  *
- * The server has had the samples all along — `collect.Traffic` keeps a 1 Hz
+ * The server has had the samples all along - `collect.Traffic` keeps a 1 Hz
  * ring per interface, fed by rows that were already arriving for the Interfaces
  * page itself. This copies them in.
  *
@@ -184,7 +184,7 @@ function isLive(key: string): boolean {
  * holds ticks the ring's snapshot predates. Taking either one alone loses the
  * other's samples.
  *
- * Both sides carry the SERVER's timestamps — see `recordLiveSamples` — so `>`
+ * Both sides carry the SERVER's timestamps - see `recordLiveSamples` - so `>`
  * is a real comparison rather than two clocks being guessed at.
  */
 function seedLive(name: string, rows: readonly TrafficPoint[]): void {
@@ -210,7 +210,7 @@ function smoothRange(): boolean {
  * instead of stopping short of it.
  *
  * `windowedPoints` cuts at `>= cutoff`, and the cutoff is exactly the axis
- * minimum — so the oldest point it returns sits up to one sample interval
+ * minimum - so the oldest point it returns sits up to one sample interval
  * INSIDE the plot, and the trace visibly ends before the frame does. On a
  * 60-second window that is about nine pixels of gap, and it grows and snaps
  * shut as each point falls out. Keeping a few seconds more lets Chart.js clip
@@ -259,8 +259,8 @@ function statsInner(d: HistoryReply): string {
   return '' +
     statBox(fmtDataMB(d.rxTotalMb), 'Downloaded', 'ifh-rx') +
     statBox(fmtDataMB(d.txTotalMb), 'Uploaded', 'ifh-tx') +
-    statBox(d.rxMaxMbps == null ? '—' : fmtMbps(d.rxMaxMbps), 'Peak down', 'ifh-rx') +
-    statBox(d.txMaxMbps == null ? '—' : fmtMbps(d.txMaxMbps), 'Peak up', 'ifh-tx');
+    statBox(d.rxMaxMbps == null ? '-' : fmtMbps(d.rxMaxMbps), 'Peak down', 'ifh-rx') +
+    statBox(d.txMaxMbps == null ? '-' : fmtMbps(d.txMaxMbps), 'Peak up', 'ifh-tx');
 }
 
 /** The LIVE stat line: the current rate and the peak inside the window.
@@ -275,7 +275,7 @@ function liveStats(all: readonly TrafficPoint[]): string {
 /**
  * The boxes alone, so a tick can replace the CONTENTS of the stats row.
  *
- * It used to assign `outerHTML`, which swaps the node itself — the id then has
+ * It used to assign `outerHTML`, which swaps the node itself - the id then has
  * to be re-found on the replacement, and anything holding the old element is
  * holding a detached one. Writing into a stable wrapper is the same picture
  * with none of that.
@@ -315,8 +315,8 @@ function rangeBar(): string {
  * instead of carrying a second panel background.
  *
  * THE DEFAULT INTERFACE'S TOGGLE IS ON AND DISABLED. It is recorded because it
- * is the WAN — Reports, the capacity lines and the WAN badge all read that
- * series — and the resolver puts it back whatever the stored list says, so a
+ * is the WAN - Reports, the capacity lines and the WAN badge all read that
+ * series - and the resolver puts it back whatever the stored list says, so a
  * switch that could be moved would lie about what happens next.
  */
 function recordControl(d: HistoryReply): string {
@@ -395,7 +395,7 @@ function body(d: HistoryReply | null): string {
  * A LIVE RANGE IS ALWAYS ITS FULL WIDTH, whether or not there is enough history
  * to fill it. The axis used to be one category per sample, so five seconds of
  * traffic stretched across the whole chart and the trace sat hard against the
- * left edge from the first tick — it looked full when it was nearly empty.
+ * left edge from the first tick - it looked full when it was nearly empty.
  * Fixing the window instead means new data enters at the RIGHT and the line
  * grows leftwards until it fills, which is what a live graph is expected to do.
  */
@@ -423,7 +423,7 @@ function xWindow(): { min: number; max: number } {
  * is visible.
  *
  * `rightBufferFor` is the dashboard's own helper, read by both of its charts
- * for exactly this — a second copy here is the drift that file says it exists
+ * for exactly this - a second copy here is the drift that file says it exists
  * to prevent. It MEASURES the gap from the samples rather than assuming a
  * second, which matters here too: the interface poll is an operator setting.
  */
@@ -441,7 +441,7 @@ function series(rows: readonly TrafficPoint[], key: 'rx_mbps' | 'tx_mbps'): XY[]
  * A live tick: hand the chart the new points, and let the SCROLL move them.
  *
  * NOTHING IS TWEENED. Chart.js animation interpolates each point's value
- * towards the next one, and on an index-based axis that is not a scroll — it
+ * towards the next one, and on an index-based axis that is not a scroll - it
  * is every point in the line sliding vertically at once, which reads as the
  * whole chart morphing. With the points at their true timestamps the movement
  * is the window advancing, so the shape is rigid and only the view moves.
@@ -479,7 +479,7 @@ function scrollTo(now: number): void {
  * sample.
  *
  * A window that only moved when a sample arrived would jump a second's worth of
- * pixels at a time — the "tick" this replaced. Driven by requestAnimationFrame,
+ * pixels at a time - the "tick" this replaced. Driven by requestAnimationFrame,
  * which also means the browser stops it while the tab is hidden, so a dashboard
  * left open in a background tab costs nothing.
  *
@@ -592,7 +592,7 @@ function cssVar(name: string): string {
  * It was `mm:ss`, and on the 60-second view that reads as a time of day: the
  * axis ran "12:59 … 13:53" for fifty-four SECONDS of traffic, which anybody
  * would take for fifty-four minutes. Found by looking at the rendered chart,
- * not by reading the code — the numbers were right and the axis was a lie.
+ * not by reading the code - the numbers were right and the axis was a lie.
  *
  * So a live range says how long ago each point was, and the recorded ranges
  * keep the clock and the date, where a wall-clock time is what an operator is
@@ -624,7 +624,7 @@ function tick(ts: number, now: number): string {
  * they answer different questions about the same point.
  *
  * The detail follows the resolution the range is drawn at, because a stamp more
- * precise than its sample invents accuracy — a 30-day chart is daily buckets,
+ * precise than its sample invents accuracy - a 30-day chart is daily buckets,
  * and printing "14:37" over one would be a lie about the bucket's shape.
  */
 function stamp(ts: number): string {
@@ -652,7 +652,7 @@ function load(): void {
   // server had no live ranges and the request existed only to carry the
   // recording note. It has them now, and leaving that substitution in place
   // would have seeded the LIVE chart with the database's per-minute rows for
-  // the last hour — a plausible-looking line made of the wrong data.
+  // the last hour - a plausible-looking line made of the wrong data.
   const ask = range;
   fetch('/api/interfaces/history?routerId=' + encodeURIComponent(activeID) +
         '&interface=' + encodeURIComponent(iface) +
@@ -669,7 +669,7 @@ function load(): void {
 }
 
 /**
- * Turn recording on or off for this interface, through the ROUTER record —
+ * Turn recording on or off for this interface, through the ROUTER record -
  * where the setting lives and where its permission is enforced.
  *
  * The whole list is sent because the field is an array, and it is the STORED
@@ -750,7 +750,7 @@ export function initInterfaceHistory(socket: {
           // MOVING BETWEEN LIVE RANGES ASKS AGAIN, because each one is a
           // different span of the server's ring now: the reply used to be
           // identical for all of them, which is what made skipping it correct.
-          // Nothing flickers — `paint` has already drawn from the buffer, and
+          // Nothing flickers - `paint` has already drawn from the buffer, and
           // the reply only tops it up.
           load();
         });

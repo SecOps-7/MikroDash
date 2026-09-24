@@ -3,7 +3,7 @@
  *
  * Rows are filtered SERVER-SIDE, per row: app-scope events need system
  * administration, router events need history on that router. This page shows
- * whatever came back and says so when that is nothing — an empty trail for a
+ * whatever came back and says so when that is nothing - an empty trail for a
  * reader who may not see it is a legitimate answer, not an error, so there is no
  * error state to distinguish here.
  *
@@ -63,7 +63,7 @@ const COLS: SortCol[] = [
   { key: 'detail', label: 'Detail' },
 ];
 
-const MUTED = '<span style="color:var(--text-muted)">&mdash;</span>';
+const MUTED = '<span style="color:var(--text-muted)">-</span>';
 
 function outcomeCell(o: string): string {
   if (o === 'denied') return '<span class="wl-band wl-band-24">refused</span>';
@@ -73,14 +73,14 @@ function outcomeCell(o: string): string {
 
 /** A value, shortened. Not a string becomes its JSON, as `String(v)` would not. */
 function short(v: unknown): string {
-  if (v === null || v === undefined) return '—';
+  if (v === null || v === undefined) return '-';
   const s = typeof v === 'string' ? v : JSON.stringify(v);
   return s.length > 40 ? s.slice(0, 40) + '…' : s;
 }
 
 /**
  * The stored detail is JSON. Rendered as "field: from → to" so a settings change
- * reads as a change rather than as a blob — and a redacted credential shows the
+ * reads as a change rather than as a blob - and a redacted credential shows the
  * marker the server wrote, never a value.
  *
  * A detail that will not parse falls back to its first 120 characters ESCAPED,
@@ -105,7 +105,7 @@ function detailCell(raw: unknown): string {
   //
   // ToDo #21: live's `try` wrapped only the PARSE, so `null.changes` threw, the
   // exception escaped `detailCell` into `render`, and `load`'s empty `.catch`
-  // swallowed it — one row whose `detail` held the four characters `null`
+  // swallowed it - one row whose `detail` held the four characters `null`
   // blanked the ENTIRE audit table with the filters above it looking normal.
   //
   // This port refused to reproduce that (a crash that hides the page is not
@@ -113,13 +113,13 @@ function detailCell(raw: unknown): string {
   // reached live's em dash by the ordinary route. That was true and is no
   // longer: the fix landed on 2026-08-25 as `!d || typeof d !== 'object'`, which
   // also changes what a STRING renders. `Object.keys("abc")` is `['0','1','2']`,
-  // so a detail stored as `"a string"` used to print `0 a · 1 b · 2 c` — the
+  // so a detail stored as `"a string"` used to print `0 a · 1 b · 2 c` - the
   // port faithfully reproduced that, and `audit-page-check` went red the moment
   // the live side stopped.
   //
   // Widened to match. The port had the narrower half of this right first, which
   // is why the entry was filed at all.
-  if (!d || typeof d !== 'object') return '<span style="color:var(--text-muted)">&mdash;</span>';
+  if (!d || typeof d !== 'object') return '<span style="color:var(--text-muted)">-</span>';
 
   const bits: string[] = [];
   const changes = (d.changes as { field: string; from: unknown; to: unknown }[]) || [];
@@ -186,10 +186,10 @@ export function initAuditPage(): void {
       '<td>' + esc(fmtTs(r.ts)) + '</td>' +
       '<td>' + (r.actor === 'system'
         ? '<span style="color:var(--text-muted)">system</span>' : esc(r.actor)) + '</td>' +
-      '<td class="mono" style="color:var(--text-muted)">' + esc(r.ip || '—') + '</td>' +
+      '<td class="mono" style="color:var(--text-muted)">' + esc(r.ip || '-') + '</td>' +
       '<td>' + esc(r.action) + '</td>' +
       '<td>' + (r.target ? esc(r.target) : MUTED) +
-        // The pill names the DEVICE. It used to read the literal word "router" —
+        // The pill names the DEVICE. It used to read the literal word "router" -
         // a scope marker telling the reader nothing the Action column did not.
         // A router deleted since the event was recorded has no name left, so it
         // falls back to that old generic marker rather than to a bare uuid.
@@ -222,9 +222,9 @@ export function initAuditPage(): void {
     set('auSumTotal', String(total));
     set('auSumDenied', String(rows.filter((r) => r.outcome === 'denied').length));
     set('auSumActors', String(facets.actors.length));
-    // The NEWEST row, which is rows[0] because the query orders ts DESC — not
+    // The NEWEST row, which is rows[0] because the query orders ts DESC - not
     // the newest of the sorted view, which the operator may have reversed.
-    set('auSumNewest', rows.length ? fmtTs(rows[0]!.ts) : '—');
+    set('auSumNewest', rows.length ? fmtTs(rows[0]!.ts) : '-');
   }
 
   function query(): URLSearchParams {
@@ -246,7 +246,7 @@ export function initAuditPage(): void {
       if (!sel) return;
       // The current choice is restored after the rebuild. A facet list that no
       // longer contains it leaves the select on its first option, which is the
-      // "all" entry — the filter clears rather than silently keeping a value the
+      // "all" entry - the filter clears rather than silently keeping a value the
       // dropdown no longer shows.
       const keep = sel.value;
       sel.innerHTML = '<option value="">' + all + '</option>' +

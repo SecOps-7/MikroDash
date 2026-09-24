@@ -1,4 +1,4 @@
-// THE THREE PRESETS — Home, Standard, Advanced — ONCE.
+// THE THREE PRESETS - Home, Standard, Advanced - ONCE.
 //
 // Settings → Visible Pages applies and detects them, and a role's page matrix
 // applies them. They were built in three places from the frozen VIEW_PRESETS and

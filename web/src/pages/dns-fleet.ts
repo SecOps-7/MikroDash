@@ -1,11 +1,11 @@
-// The DNS page's fleet comparison — the same static entries, across routers.
+// The DNS page's fleet comparison - the same static entries, across routers.
 //
 // ── WHY IT IS A SEPARATE MODULE ─────────────────────────────────────────────
 //
 // `dns.ts` renders what the DNS collector sends for the ACTIVE router, on the
 // socket, continuously. This renders what `/api/dns/fleet` answers for SEVERAL
 // routers, over HTTP, when asked. Different source, different cadence, different
-// table shape — one column per router — and the only thing they share is the
+// table shape - one column per router - and the only thing they share is the
 // card they sit under. Folding them together would mean one render deciding
 // which of two data flows it was in on every line.
 //
@@ -18,7 +18,7 @@
 // ── WHAT "SYNCHRONISE" WRITES, AND WHAT IT DOES NOT ─────────────────────────
 //
 // It ADDS a record that is missing. It never edits and never deletes, and the
-// two columns that would need it — a record that exists on both and DIFFERS —
+// two columns that would need it - a record that exists on both and DIFFERS -
 // are marked and left alone. Making "make them the same" a one-click action
 // means choosing which router is right, and nothing here knows that.
 
@@ -38,7 +38,7 @@ interface FleetEntry {
   ttl: string;
   disabled: boolean;
   comment: string;
-  /** The resource descriptor's view of the row — every field the form has. */
+  /** The resource descriptor's view of the row - every field the form has. */
   values: Record<string, unknown>;
 }
 
@@ -136,7 +136,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
    * Every writer here reloads the table when it is done, and `render` paints the
    * same element with the read's own status. So a refusal was written into the
    * note and taken straight back out a frame later, which looks exactly like the
-   * button doing nothing — the symptom the write path was just fixed for.
+   * button doing nothing - the symptom the write path was just fixed for.
    */
   let notice = '';
   /** Which other routers the open dialog should also reach. CLEARED EVERY TIME
@@ -149,7 +149,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
    *
    * ── `routers:update` IS NOT AN ARRIVAL EVENT ────────────────────────────
    *
-   * It is sent when the fleet CHANGES — an edit, a removal, an identity read —
+   * It is sent when the fleet CHANGES - an edit, a removal, an identity read -
    * and not on connect. A page that only ever listened for it holds an empty
    * list until something happens to a router, and every name it draws is an id.
    * That is what the Add dialog's picker was showing.
@@ -186,7 +186,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
    * How a router is named on screen.
    *
    * ITS ID IS NOT A NAME. A router the operator never labelled fell through to
-   * its UUID, which says nothing about which box is about to be written to —
+   * its UUID, which says nothing about which box is about to be written to -
    * reported from the Add dialog's picker. The address is what a label is short
    * for, so it is the fallback and it is shown beside the label either way.
    */
@@ -334,8 +334,8 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
    *
    * ── A SILENT WRITE IS WHY THIS WENT UNNOTICED ─────────────────────────
    *
-   * The endpoint refused every copy with a 400 — it decoded a checkbox as a
-   * string — and this threw the answer away and reloaded the table, which looks
+   * The endpoint refused every copy with a 400 - it decoded a checkbox as a
+   * string - and this threw the answer away and reloaded the table, which looks
    * exactly like a button that does nothing. The per-router result now goes in
    * the card's note, the same place the Add dialog puts it.
    */
@@ -353,7 +353,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
           // without saying which property the descriptor would not take.
           const errs = (d.errors || []) as Array<{ field?: string; message?: string }>;
           notice = 'the write was refused' + (d.code ? ': ' + d.code : '') +
-            (errs.length ? ' — ' + errs.map((e) => e.message || e.field).join('; ') : '');
+            (errs.length ? ' - ' + errs.map((e) => e.message || e.field).join('; ') : '');
           return;
         }
         const bad = (((d && d.results) || []) as Array<{ id: string; ok: boolean; code: string }>)
@@ -455,9 +455,9 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
 
   el('dnsFleetReload')?.addEventListener('click', load);
   el('dnsFleetSyncAll')?.addEventListener('click', () => {
-    // EVERY MISSING PAIR, IN ONE REQUEST PER RECORD. The server is idempotent —
+    // EVERY MISSING PAIR, IN ONE REQUEST PER RECORD. The server is idempotent -
     // a record already present answers `already-present` rather than adding a
-    // second — so a second press is safe.
+    // second - so a second press is safe.
     const work = rows.filter((r) => r.missing.length);
     if (!work.length) return;
     if (!window.confirm('Copy ' + work.length + ' record' + (work.length === 1 ? '' : 's') +

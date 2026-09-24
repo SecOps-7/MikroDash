@@ -27,7 +27,7 @@
               Add Device
             </button>
           </div>
-          <!-- overflow-x here because .scard is overflow:hidden — without it the
+          <!-- overflow-x here because .scard is overflow:hidden - without it the
                extra identity columns are clipped on a narrow window, not scrolled. -->
           <div class="scard-body" style="padding:.5rem;overflow-x:auto">
             <table class="rtr-list" id="rtrTable">
@@ -124,7 +124,7 @@
             <!-- The Diagnostics card was one toggle and a paragraph, sitting on
                  its own in the two-column grid. Both are here verbatim; the
                  setting key is unchanged. -->
-            <p style="font-size:.74rem;color:var(--text-muted);margin:1.1rem 0 .75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:1.1rem 0 .75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately - no restart required.</p>
             <div class="stoggle-grid">
               <label class="stoggle"><span class="stoggle-label">Debug Logging</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
@@ -255,9 +255,9 @@
           <div class="rtr-modal-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history on demand. The retention limits prune automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.</p>
             <div class="dbc-stats" id="dbcStats">
-              <div class="dbc-stat"><span class="dbc-stat-label">Database size</span><span class="dbc-stat-value" id="dbcSize">—</span></div>
-              <div class="dbc-stat"><span class="dbc-stat-label">Stored rows</span><span class="dbc-stat-value" id="dbcRows">—</span></div>
-              <div class="dbc-stat"><span class="dbc-stat-label">Oldest record</span><span class="dbc-stat-value" id="dbcOldest">—</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Database size</span><span class="dbc-stat-value" id="dbcSize">-</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Stored rows</span><span class="dbc-stat-value" id="dbcRows">-</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Oldest record</span><span class="dbc-stat-value" id="dbcOldest">-</span></div>
             </div>
             <div id="dbcByRouter" class="dbc-routers"></div>
             <div class="sform-row" style="margin-top:.9rem">
@@ -337,7 +337,7 @@
 
         <!-- ── ALERT TYPES AND THE INTERFACE FILTER LIVE ON THE CHANNEL ──
              They were two cards here and a third list in the channel dialog,
-             which is two places for one idea — the page needed a paragraph
+             which is two places for one idea - the page needed a paragraph
              explaining how they differed, and a paragraph explaining a design
              is usually the design being wrong.
 
@@ -352,8 +352,8 @@
              heard and how often, which is the same shape the alert types and the
              router scope had before they moved.
 
-             They are in the channel dialog now — the two thresholds behind gears
-             on their own event rows, the cooldown on the Channel tab — so a
+             They are in the channel dialog now - the two thresholds behind gears
+             on their own event rows, the cooldown on the Channel tab - so a
              pager that must not repeat and a log that should record every
              crossing can be the same event at two different rates.
 
@@ -386,11 +386,11 @@
                   <input type="text" id="s_notifTitle" class="sform-input" maxlength="256" placeholder="MikroDash Alert">
                 </div>
                 <div class="sform-group" style="margin-top:.6rem">
-                  <label class="sform-label">Body &mdash; Down / Alert</label>
+                  <label class="sform-label">Body - Down / Alert</label>
                   <textarea id="s_notifBody" class="sform-input" rows="4" maxlength="512" placeholder="⚠️ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
                 </div>
                 <div class="sform-group" style="margin-top:.6rem;margin-bottom:0">
-                  <label class="sform-label">Body &mdash; Up / Recovery</label>
+                  <label class="sform-label">Body - Up / Recovery</label>
                   <textarea id="s_notifBodyUp" class="sform-input" rows="4" maxlength="512" placeholder="✅ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
                 </div>
               </div>
@@ -419,7 +419,7 @@
                 </div>
                 <p class="msg-vars-note">A variable that does not apply to an alert renders as empty.
                   <code>{{comment}}</code> is the comment set on the router for whatever the alert is
-                  about &mdash; an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
+                  about - an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
               </aside>
             </div>
           </div>
@@ -544,7 +544,7 @@
 
             <!-- ── THE SIDEBAR TOGGLE, AT THE FOOT OF THE THEMES ─────────────
                  It had a card of its own called "Navigation", holding one
-                 switch — a header, an icon and a border around a single
+                 switch - a header, an icon and a border around a single
                  control, sitting in the space under the swatch grid rather than
                  beside anything. It belongs here: the swatches decide how the
                  app LOOKS and so does this.
@@ -553,7 +553,7 @@
                  Unlike the other Appearance controls it persists SERVER-SIDE
                  per user rather than in localStorage, so it follows you between
                  browsers; localStorage is only the pre-paint cache. It is
-                 deliberately not a Settings.DEFAULTS field — it is a personal
+                 deliberately not a Settings.DEFAULTS field - it is a personal
                  preference, not an install-wide one, which keeps it clear of
                  the settings machinery and its drift tests. -->
             <div class="theme-navgroup">
@@ -729,7 +729,7 @@
             <!-- Two columns: the card spans the full grid width, so stacking two
                  short controls left a lot of empty space to their right. -->
             <div class="auth-grid">
-              <!-- Both columns follow the same shape — heading, control, hint —
+              <!-- Both columns follow the same shape - heading, control, hint -
                    so the controls sit on one line and the hints start together. -->
               <div>
                 <span class="sform-label">Sign-in</span>
@@ -751,11 +751,11 @@
               </div>
             </div>
 
-            <!-- Warning: open access. Full width beneath both columns — it is the
+            <!-- Warning: open access. Full width beneath both columns - it is the
                  loudest thing on the card when it shows, and must not be a
                  narrow strip beside the toggle. -->
             <div id="authNoneWarn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn);margin-top:.75rem">
-              ⚠ Dashboard is publicly accessible — anyone on the network can view it.
+              ⚠ Dashboard is publicly accessible - anyone on the network can view it.
             </div>
           </div>
         </div>
@@ -782,7 +782,7 @@
 
           <div class="ptab-panel" id="ptab-sites" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.</span>
+              <span class="ptab-desc">A site groups devices by location. Since #117 a device may belong to several sites, or none - assign them in the device's settings.</span>
               <button class="sbtn sbtn-primary" id="addSiteBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Site</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="siteTable">
@@ -801,7 +801,7 @@
 
             <!-- Add/Edit site inline form -->
             <!-- Centre-screen dialog rather than an inline panel that pushed the
-                 table down. Reuses the router modal's treatment — the rtr- prefix
+                 table down. Reuses the router modal's treatment - the rtr- prefix
                  is historical; it is the app's only modal styling. -->
             <div class="rtr-modal-bg" id="siteFormWrap">
              <div class="rtr-modal pmodal">
@@ -853,7 +853,7 @@
 
           <div class="ptab-panel" id="ptab-groups" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.</span>
+              <span class="ptab-desc">A group collects users so a role can be granted to all of them at once - for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.</span>
               <button class="sbtn sbtn-primary" id="addGroupBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Group</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="groupTable">
@@ -908,7 +908,7 @@
 
           <div class="ptab-panel" id="ptab-roles" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says <em>what</em>, the scope says <em>which devices</em>. Administrator is built in and always sees everything.</span>
+              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope - the role says <em>what</em>, the scope says <em>which devices</em>. Administrator is built in and always sees everything.</span>
               <button class="sbtn sbtn-primary" id="addRoleBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Role</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="roleTable">
@@ -1263,8 +1263,8 @@
               wizard suggests it.
             </p>
             <dl class="ztp-facts ztp-facts-wide" style="margin-top:.6rem">
-              <dt>Instance</dt><dd><code id="ztpInstanceId">—</code></dd>
-              <dt>Public key</dt><dd><code id="ztpPublicKey">—</code></dd>
+              <dt>Instance</dt><dd><code id="ztpInstanceId">-</code></dd>
+              <dt>Public key</dt><dd><code id="ztpPublicKey">-</code></dd>
             </dl>
             <p class="ztp-help">Every script carries this instance's key, so a router can only ever call
               home to this MikroDash.</p>
@@ -1313,7 +1313,7 @@
             </div>
             <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Open-source command center for RouterOS</div>
             <div style="margin:.35rem 0 .5rem">
-              <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
+              <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v-</span>
             </div>
             <div style="font-size:.72rem;color:var(--text-muted)">Built with Go · TypeScript · WebSockets · Chart.js · Tabler</div>
             <div style="margin-top:.7rem">
@@ -1373,7 +1373,7 @@
            THE BANNER IS INSIDE THE BAR, and that is the whole point of the
            nesting. It used to be the next sibling BELOW a bar that is stuck to
            the bottom of the viewport, so "✓ Settings saved" rendered off-screen
-           unless the operator happened to be scrolled to the very end — the one
+           unless the operator happened to be scrolled to the very end - the one
            message that exists to be seen, in the one place it could not be. In
            here it inherits the bar's sticky position and is always on screen.
 

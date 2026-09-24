@@ -5,7 +5,7 @@
 //
 // `dashboard-grid.js` is 763 lines of drag handlers, resize handles, an add
 // panel and room bookkeeping. This is the part underneath all of it that is
-// arithmetic — rects in, rects out — and therefore the part that can be
+// arithmetic - rects in, rects out - and therefore the part that can be
 // compared against the live implementation exactly rather than driven through
 // a DOM.
 //
@@ -13,7 +13,7 @@
 //
 // The original's `hasOverlap` and `findFreeSlot` close over a module-level
 // `layout`. Here it is a parameter. That is a mechanism change with no
-// behavioural one — and it is what lets the gate ask the same question of both
+// behavioural one - and it is what lets the gate ask the same question of both
 // implementations a few hundred times without rebuilding a page each time.
 //
 // ── THE MERGE IS DEFAULT-DRIVEN, WHICH IS THE POINT ─────────────────────────
@@ -39,8 +39,8 @@ export function cloneLayout(l: readonly GridCard[]): GridCard[] {
  *
  * ── THE REPAIR LIVES HERE BECAUSE THERE ARE TWO ENTRY POINTS ───────────────
  *
- * A layout reaches this app twice — `loadLayout` from localStorage, and
- * `mergeLayoutFromServer` from `/api/dashboard-layout` — and the second WRITES
+ * A layout reaches this app twice - `loadLayout` from localStorage, and
+ * `mergeLayoutFromServer` from `/api/dashboard-layout` - and the second WRITES
  * WHAT IT MERGED BACK to localStorage. Repairing at one call site and not the
  * other therefore does not half-work; it does not work at all, because the
  * server path re-poisons the cache the local path just cleaned. Measured live:
@@ -61,7 +61,7 @@ export function mergeLayout(saved: readonly GridCard[]): GridCard[] {
 }
 
 export function rectOverlaps(a: Rect, b: Rect): boolean {
-  // Strict on both edges, so cards that merely TOUCH do not overlap — which is
+  // Strict on both edges, so cards that merely TOUCH do not overlap - which is
   // what makes a full row of adjacent cards legal.
   return a.x < b.x + b.w && a.x + a.w > b.x &&
          a.y < b.y + b.h && a.y + a.h > b.y;
@@ -87,7 +87,7 @@ export function hasOverlap(
  * the nine cards a default install ships leave 24 free cells of 528, and none
  * of them form a rectangle big enough for ANY of the fourteen hidden ones.
  * `findFreeSlot` therefore always took its fallback and every card added from
- * the Add Card panel landed at 1,1 on top of the traffic chart — not an edge
+ * the Add Card panel landed at 1,1 on top of the traffic chart - not an edge
  * case, the only outcome. Measured 2026-09-10.
  *
  * So the grid extends to cover its deepest card and the page scrolls. `ROWS`
@@ -120,7 +120,7 @@ export function inBounds(x: number, y: number, w: number, h: number, rows: numbe
  *
  * The whole CURRENT grid is scanned first, grown rows included, so a card fills
  * a hole before it extends the dashboard. Only when there is genuinely no room
- * does it go below everything — at column 1, where the eye already is.
+ * does it go below everything - at column 1, where the eye already is.
  *
  * This used to return 1,1 instead, with the reasoning that a visible overlapping
  * card beats a silent refusal. That was a fair trade for a rare case and this is
@@ -157,14 +157,14 @@ export function findFreeSlot(layout: readonly GridCard[], w: number, h: number):
  * moved here only when it was never placed deliberately.
  *
  * The FIRST card of a pair keeps its place and the later one moves, which makes
- * the repair deterministic — and puts the burden on the card the bug added
+ * the repair deterministic - and puts the burden on the card the bug added
  * rather than on the one that was already there.
  *
  * ── TWO PASSES, AND THE SECOND ONE IS WHY ──────────────────────────────────
  *
  * Finding the damaged cards BEFORE moving any of them is what keeps that
  * promise. A single pass re-places a damaged card into the first hole it finds,
- * which can be space an innocent card legitimately occupies later in the list —
+ * which can be space an innocent card legitimately occupies later in the list -
  * and then that card is itself found "overlapping" and evicted. Caught by
  * mutation testing: A(1,1,12x11) B(13,1,12x11) C(1,1,10x6 stacked)
  * D(1,12,24x11) moved D, which nothing was wrong with, and left the dashboard
@@ -172,7 +172,7 @@ export function findFreeSlot(layout: readonly GridCard[], w: number, h: number):
  *
  * So pass one decides who is damaged and pass two moves only those, treating
  * every undamaged card as an obstacle wherever it stands. A damaged card's own
- * position is never an obstacle — it is about to move, and reserving it would
+ * position is never an obstacle - it is about to move, and reserving it would
  * lengthen the page for space nobody will use.
  */
 export function repairOverlaps(layout: GridCard[]): GridCard[] {

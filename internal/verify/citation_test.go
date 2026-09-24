@@ -39,7 +39,7 @@ var citePattern = regexp.MustCompile(
 	// comment citing a test file as the thing that keeps a rule honest is a
 	// citation like any other, and six of them were already in the tree
 	// unchecked. `web/src/caps.ts` now names the test that replaced a deleted
-	// gate — precisely the citation that must not be allowed to rot into a
+	// gate - precisely the citation that must not be allowed to rot into a
 	// reference to a file nobody wrote.
 	"`(?:[a-z]+ )*((?:web/src|web/test|internal|tools|cmd|testdata|docs)/[A-Za-z0-9_./-]+\\.(?:ts|go|js|mjs|json|md|sh|css|html))`")
 
@@ -54,15 +54,15 @@ var barePattern = regexp.MustCompile(
 // `internal/.../thing.go`. Nothing is claimed to exist, so nothing is checked.
 func isIllustrative(p string) bool { return strings.Contains(p, "...") }
 
-// expectedAbsent are paths cited that are EXPECTED not to exist — a note about
+// expectedAbsent are paths cited that are EXPECTED not to exist - a note about
 // something deleted, or a file a later change will add. Each needs a reason, and
 // an entry that starts existing is itself a failure, so the list cannot rot.
 var expectedAbsent = map[string]string{
 	"docs/architecture-next.md": "cited by CHANGELOG.md's release notes, which are history and " +
 		"name files as they were when released. Deleted 2026-09-11: its three items were " +
 		"delivered or overtaken, bar the frontend's move onto cmd/tsgen's generated payload types.",
-	// MikroMCP parity slice 5's two entries — the generated area table and the
-	// renderer — were deleted on 2026-09-17 when both files landed, which is
+	// MikroMCP parity slice 5's two entries - the generated area table and the
+	// renderer - were deleted on 2026-09-17 when both files landed, which is
 	// what this ledger is for.
 }
 
@@ -109,7 +109,7 @@ func TestCitedPathsExist(t *testing.T) {
 		}
 	}
 	if len(cited) == 0 {
-		t.Fatal("no citations were found at all — the pattern has stopped matching, and this " +
+		t.Fatal("no citations were found at all - the pattern has stopped matching, and this " +
 			"test is passing by looking at nothing")
 	}
 
@@ -127,7 +127,7 @@ func TestCitedPathsExist(t *testing.T) {
 
 		switch {
 		case exists && declared:
-			t.Errorf("%s is listed as expected-absent (%s) but now EXISTS — remove the entry "+
+			t.Errorf("%s is listed as expected-absent (%s) but now EXISTS - remove the entry "+
 				"rather than leaving a note that has stopped being true", p, reason)
 		case !exists && !declared:
 			missing++
@@ -135,7 +135,7 @@ func TestCitedPathsExist(t *testing.T) {
 		}
 	}
 	if missing > 0 {
-		t.Fatalf("%d cited path(s) do not exist — fix the citation or the file, do not delete "+
+		t.Fatalf("%d cited path(s) do not exist - fix the citation or the file, do not delete "+
 			"the comment", missing)
 	}
 	t.Logf("%d source paths cited across %d files, all present", len(paths), len(sources))

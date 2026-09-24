@@ -22,7 +22,7 @@ import (
 //
 // That is two unrelated mechanisms holding up a third. Turn either off, or move
 // when a probe fires, and VPN and BGP alerts stop firing for the router somebody
-// is actually watching — with nothing anywhere to say so.
+// is actually watching - with nothing anywhere to say so.
 //
 // So the dependency is declared as `session.AlertFeeds` and checked here against
 // the events `alertwire` really dispatches on. BOTH DIRECTIONS: a rule reading a
@@ -52,7 +52,7 @@ func TestAlertFeedsMatchesWhatTheRulesConsume(t *testing.T) {
 		}
 	}
 	if len(consumed) == 0 {
-		t.Fatal("no alert dispatch cases were found — the switch has changed shape and " +
+		t.Fatal("no alert dispatch cases were found - the switch has changed shape and " +
 			"this check is reading nothing")
 	}
 
@@ -78,7 +78,7 @@ func TestAlertFeedsMatchesWhatTheRulesConsume(t *testing.T) {
 	if len(unfed) > 0 {
 		t.Errorf("the alert rules read %v and session.AlertFeeds does not list them.\n"+
 			"Nothing starts those collectors for alerting, so the rule fires only while "+
-			"somebody happens to have the right page open — silently, because a rule that "+
+			"somebody happens to have the right page open - silently, because a rule that "+
 			"is never fed looks exactly like a rule with nothing to report.", unfed)
 	}
 	if len(unused) > 0 {
@@ -113,7 +113,7 @@ func TestTheAlertFeedIsStartedBecauseAlertingIsOn(t *testing.T) {
 	// somebody merely opening a page, not only by leaving the one it feeds.
 	// IT MOVED AGAIN IN 6.3, from internal/server to internal/session, because
 	// the rule was being stated on both sides. `Wants` asks `Needs`, which is
-	// where the alert feeds are named — so the question is now whether the one
+	// where the alert feeds are named - so the question is now whether the one
 	// rule consults them at all.
 	dem := stripGoComments(mustRead(t, filepath.Join(repoRoot(t), "internal", "session", "needs.go")))
 	flat2 := strings.Join(strings.Fields(dem), " ")

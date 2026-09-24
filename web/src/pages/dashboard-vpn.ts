@@ -10,7 +10,7 @@
 //
 // `parseDurationSec` returns Infinity for a missing or `never` handshake so an
 // unconnected peer sorts to the bottom. It also ends `return m || Infinity`,
-// which sends a parsed ZERO to the bottom as well — a handshake of `0s` is the
+// which sends a parsed ZERO to the bottom as well - a handshake of `0s` is the
 // most recent one possible and lands where the oldest go.
 //
 // Reproduced rather than corrected: it is reachable, since a peer that handshook
@@ -22,7 +22,7 @@ import { getVpnDashTopN } from '../caps';
 import type { VPNPayload } from '../gen/payloads';
 
 /**
- * A RouterOS duration — `2w3d4h5m6s` — as seconds.
+ * A RouterOS duration - `2w3d4h5m6s` - as seconds.
  *
  * Units may appear in any order and any may be missing, because the regex simply
  * accumulates every `<number><unit>` pair it finds. A bare number with no unit
@@ -32,7 +32,7 @@ export function parseDurationSec(s: string | undefined | null): number {
   // The `=== 'never'` half is REDUNDANT and kept because the original has it:
   // "never" contains no digit-unit pair, so the loop below adds nothing and the
   // `total || Infinity` at the end returns the same answer. Removing it is a
-  // mutation no case can catch, which was measured rather than assumed — the two
+  // mutation no case can catch, which was measured rather than assumed - the two
   // differ only for a string that is exactly "never", and there they agree.
   if (!s || s === 'never') return Infinity;
   let total = 0;
@@ -74,8 +74,8 @@ export function renderVpnCard(data: VPNPayload): void {
       : '';
     return '<tr>' +
       '<td><span class="wg-up">Up</span></td>' +
-      '<td><div style="font-size:.78rem;font-weight:600">' + esc(t.name || t.interface || '—') + '</div>' + endStr + '</td>' +
-      '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.lastHandshake || '—') + '</td>' +
+      '<td><div style="font-size:.78rem;font-weight:600">' + esc(t.name || t.interface || '-') + '</div>' + endStr + '</td>' +
+      '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.lastHandshake || '-') + '</td>' +
       '</tr>';
   }).join('');
 }

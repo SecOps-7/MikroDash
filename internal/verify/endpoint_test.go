@@ -51,8 +51,8 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 	// ── AND A URL BUILT INTO AN href, WHICH IS HOW TWO ROUTES WENT MISSING ──
 	//
 	// The Backups page draws its .rsc and .backup download links as plain
-	// `<a href>` — deliberately, so the browser saves the file rather than the
-	// page holding several MB in memory — and builds the URL by concatenation:
+	// `<a href>` - deliberately, so the browser saves the file rather than the
+	// page holding several MB in memory - and builds the URL by concatenation:
 	//
 	//	'... href="/api/backups/' + r.id + '/rsc' + q + '">'
 	//
@@ -64,7 +64,7 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 	// ── THE CONCATENATION HAS TO BE COLLAPSED FIRST ─────────────────────────
 	//
 	// Capturing up to the first quote yields `/api/backups/`, and `isServed`
-	// treats a prefix of a registered route as covered — so the naive version of
+	// treats a prefix of a registered route as covered - so the naive version of
 	// this passed against the missing routes. The interpolations are folded into
 	// `{}` so the whole path survives, and wildcards are compared shape-to-shape
 	// against the `{id}` in the registration.
@@ -93,7 +93,7 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 		}
 	}
 	if len(called) < 15 {
-		t.Fatalf("only %d called endpoints found — the scan broke, and this test would report "+
+		t.Fatalf("only %d called endpoints found - the scan broke, and this test would report "+
 			"every route as served by looking at nothing", len(called))
 	}
 
@@ -135,7 +135,7 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 		served[e] = true
 	}
 	if len(served) < 20 {
-		t.Fatalf("only %d served routes read out of internal/server — the registration shape "+
+		t.Fatalf("only %d served routes read out of internal/server - the registration shape "+
 			"changed", len(served))
 	}
 
@@ -180,13 +180,13 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 	for _, u := range unserved {
 		have[u] = true
 		if _, ok := endpointsProxied[u]; !ok {
-			t.Errorf("the frontend calls %s and this server does not serve it — a 404 the page "+
+			t.Errorf("the frontend calls %s and this server does not serve it - a 404 the page "+
 				"handles by rendering nothing", u)
 		}
 	}
 	for u := range endpointsProxied {
 		if !have[u] {
-			t.Errorf("%s is recorded as proxied, but it is served now — delete the entry", u)
+			t.Errorf("%s is recorded as proxied, but it is served now - delete the entry", u)
 		}
 	}
 	t.Logf("%d endpoints called by the frontend; %d served, %d recorded",

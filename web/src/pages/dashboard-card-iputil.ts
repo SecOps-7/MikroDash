@@ -5,7 +5,7 @@
 // The DHCP page's headline gauge takes `totalLeases` and falls back to the
 // lease-table length before the first `lan:overview` arrives; the per-subnet
 // bars use each network's own count. This card takes `totalLeases` and NOTHING
-// ELSE — `|| 0` on an absent one, so a cold card reads 0% rather than borrowing
+// ELSE - `|| 0` on an absent one, so a cold card reads 0% rather than borrowing
 // a number from somewhere.
 //
 // That is a real difference between two gauges of the same quantity, and it is
@@ -15,7 +15,7 @@
 //
 // ── THE LABEL DROPS ITS NUMBERS WITH NO POOL ────────────────────────────────
 //
-// With no pool the label is the bare word `used` — not `0 / 0 used`, which would
+// With no pool the label is the bare word `used` - not `0 / 0 used`, which would
 // read as a fact rather than an absence.
 
 import { el } from '../dom';

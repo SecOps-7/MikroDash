@@ -2,7 +2,7 @@
  * The Frequency Analyser dialog.
  *
  * A WiFi channel scan that takes the chosen radio off the air and drops every
- * client on it — the one deliberately disruptive thing this application does.
+ * client on it - the one deliberately disruptive thing this application does.
  * Almost everything here is shaped by that: the warning states which of two
  * situations the operator is about to cause, the picker names each radio's
  * client count, and the button does not exist for someone who may not scan.
@@ -39,7 +39,7 @@ export function congestionColour(load: number | null, alpha = 0.85): string {
  *
  * NOTHING IS INFERRED ON TOP OF THE MEASUREMENT. On 2.4GHz the channels overlap,
  * so the lowest-load channel can sit between two busy ones, and restricting the
- * pick to 1/6/11 would avoid that — the live code deliberately does not, because
+ * pick to 1/6/11 would avoid that - the live code deliberately does not, because
  * the number shown is exactly what the router measured.
  *
  * A STABLE sort: JavaScript's is, and Go's would not be. Two channels with the
@@ -95,12 +95,12 @@ export function statsHTML(rows: WifiscanRow[], currentChannelMhz: number | null)
   const nets = rows.reduce((n, r) => n + (r.nets || 0), 0);
   const median = noiseFloor(rows);
   return {
-    faCurChan: `${currentChannelMhz || '&mdash;'}${unit('MHz')}`,
+    faCurChan: `${currentChannelMhz || '-'}${unit('MHz')}`,
     // The TOTAL across every channel, not the count of channels.
-    faNetworks: rows.length ? String(nets) : '&mdash;',
-    faCongestion: `${cur && cur.load != null ? cur.load : '&mdash;'}${unit('%')}`,
-    faBestChan: `${best ? best.ch : '&mdash;'}${unit('MHz')}`,
-    faNoise: `${median == null ? '&mdash;' : median}${unit('dBm')}`,
+    faNetworks: rows.length ? String(nets) : '-',
+    faCongestion: `${cur && cur.load != null ? cur.load : '-'}${unit('%')}`,
+    faBestChan: `${best ? best.ch : '-'}${unit('MHz')}`,
+    faNoise: `${median == null ? '-' : median}${unit('dBm')}`,
   };
 }
 
@@ -120,10 +120,10 @@ export function gridHTML(rows: WifiscanRow[], currentChannelMhz: number | null):
       ` style="background:${congestionColour(load, 0.22)}` +
       `;border-color:${congestionColour(load, 0.5)}"` +
       ` title="${esc(String(r.chRaw || r.ch))}${r.nets != null ? ` · ${r.nets} networks` : ''}">` +
-      `<div class="fa-chan-num">${r.chNum == null ? '&mdash;' : `ch ${r.chNum}`}</div>` +
+      `<div class="fa-chan-num">${r.chNum == null ? '-' : `ch ${r.chNum}`}</div>` +
       `<div class="fa-chan-freq">${r.ch}</div>` +
       `<div class="fa-chan-load" style="color:${congestionColour(load, 1)}">` +
-      `${load == null ? '&mdash;' : `${load}%`}</div>` +
+      `${load == null ? '-' : `${load}%`}</div>` +
       `</div>`;
   }).join('');
 }
@@ -131,7 +131,7 @@ export function gridHTML(rows: WifiscanRow[], currentChannelMhz: number | null):
 /**
  * The warning above the picker.
  *
- * MEASURED, NOT ASSUMED — the live comment records the experiment: scanning a
+ * MEASURED, NOT ASSUMED - the live comment records the experiment: scanning a
  * radio with clients on it dropped all 15 within 2 seconds, held them at zero
  * for the full 30, and they took over 15 seconds to start returning. Scanning an
  * idle radio dropped nothing. So the warning states which of the two the
@@ -175,7 +175,7 @@ export function ifaceOptionsHTML(ifaces: FaIface[]): string {
  * Extracted as a value rather than left as four element writes so it can be
  * compared against the live behaviour: `element-coverage-audit` called the
  * first version of this module's gate "the shape that hid the VPN and Logs
- * pages" — a gate covering the rendered HTML and none of the interaction.
+ * pages" - a gate covering the rendered HTML and none of the interaction.
  *
  * The picker and the duration are DISABLED mid-scan, not merely ignored: a
  * change to either would apply to the next scan and read as applying to this
@@ -204,7 +204,7 @@ export function scanStatus(endsAt: number, now: number): string {
   const left = Math.max(0, Math.ceil((endsAt - now) / 1000));
   // Past zero the router owes us a result; say we are waiting rather than
   // counting into negative numbers.
-  return left > 0 ? `Scanning… ${left}s — clients disconnected` : 'Finishing…';
+  return left > 0 ? `Scanning… ${left}s - clients disconnected` : 'Finishing…';
 }
 
 // ── the dialog itself ───────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
     //
     // A loop is shorter and hides which elements this page owns: `wiring-audit`
     // scans the TypeScript for the ids the live app writes, so ids that only
-    // ever exist as map keys read as unwired — and an id that stopped being
+    // ever exist as map keys read as unwired - and an id that stopped being
     // written would read as wired for exactly as long as the key survived.
     // Being greppable is the point.
     setHTML('faCurChan', stats.faCurChan);
@@ -286,7 +286,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
     const congestion = el('faCongestion');
     if (congestion) congestion.style.color = congestionColourFor(rows, state.currentChannelMhz);
     gridEl!.innerHTML = gridHTML(rows, state.currentChannelMhz);
-    // THE CANVAS, last — the live `render()` calls `renderStats(); renderGrid();
+    // THE CANVAS, last - the live `render()` calls `renderStats(); renderGrid();
     // renderChart();` in that order. It is a no-op until the dialog has been
     // opened and the chart built, and on an install without Chart.js it stays
     // one: the stat boxes and the grid above are what answer "which channel
@@ -310,7 +310,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
     state.scanId = null;
     // BUILT ON OPEN, not at mount. The canvas is inside a dialog that is
     // `display:none` until now, and Chart.js measures its element at
-    // construction — built while hidden it comes up zero-sized and stays that
+    // construction - built while hidden it comes up zero-sized and stays that
     // way until something forces a resize.
     //
     // The two legend callbacks are the ones `spectrumConfig` declares and
@@ -361,8 +361,8 @@ export function initFrequencyAnalyser(socket: Socket): void {
   socket.on('wifiscan:interfaces', (d) => {
     if (!d) return;
     // THE BUTTON EXISTS ONLY FOR SOMEONE WHO MAY ACTUALLY SCAN, and only when
-    // there is something to scan. Hiding it is not the security boundary — the
-    // server refuses — but offering a disruptive action that will be refused is
+    // there is something to scan. Hiding it is not the security boundary - the
+    // server refuses - but offering a disruptive action that will be refused is
     // a worse answer than not offering it.
     openBtn!.style.display = d.permitted && (d.interfaces || []).length ? '' : 'none';
     ifaces = d.interfaces || [];
@@ -403,7 +403,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
     // end of a timed burst and must not read as a warning.
     const n = d.sampleCount || 0;
     setStatus(d.reason === 'complete'
-      ? `Done — ${rows.length} channels from ${n} samples`
+      ? `Done - ${rows.length} channels from ${n} samples`
       : d.reason === 'disconnected' ? 'Router disconnected mid-scan'
         : d.reason === 'aborted' ? 'Stopped' : `Ended: ${d.reason || 'unknown'}`, false);
   });
@@ -421,7 +421,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
   //
   // WITHOUT IT THE FEATURE IS UNREACHABLE, not merely stale, and the loop is
   // the whole bug. `faOpenBtn` ships `style="display:none"` in the extracted
-  // markup and is unhidden by exactly one line — the `wifiscan:interfaces`
+  // markup and is unhidden by exactly one line - the `wifiscan:interfaces`
   // handler above. This port asked for that payload in ONE place: `open()`,
   // which runs when the modal opens. The modal opens from the button. So the
   // button waited for an answer that only a click on the button could request.
@@ -429,12 +429,12 @@ export function initFrequencyAnalyser(socket: Socket): void {
   // Live asks in three places and this port had one of them. Nothing failed:
   // every pure renderer here is gated by the fa-dialog check against the
   // live originals and all of it passes, because the defect is not in any of
-  // them — it is that the entry point is never shown. Found by driving both
+  // them - it is that the entry point is never shown. Found by driving both
   // apps and diffing the visible buttons, which is the check that sees a
   // feature nobody can reach.
   //
-  // It is ALSO a per-router question — a radio the caller may scan on one
-  // router may be CAPsMAN-managed on the next — which is why live re-asks on
+  // It is ALSO a per-router question - a radio the caller may scan on one
+  // router may be CAPsMAN-managed on the next - which is why live re-asks on
   // entry rather than once at startup.
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent<string>).detail === 'wifi-clients') socket.emit('wifiscan:interfaces');
@@ -450,14 +450,14 @@ export function initFrequencyAnalyser(socket: Socket): void {
 export function scanErrorText(d: Pick<HandEvents['wifiscan:error'], 'code' | 'message' | 'iface'>): string {
   switch (d.code) {
     case 'busy': return `Already scanning ${d.iface || 'this router'}`;
-    case 'fleet-busy': return 'Too many scans running across the fleet — try again shortly';
-    case 'cooldown': return 'Scanned very recently — wait a few seconds';
+    case 'fleet-busy': return 'Too many scans running across the fleet - try again shortly';
+    case 'cooldown': return 'Scanned very recently - wait a few seconds';
     case 'denied': return 'Not permitted to scan this router';
     case 'router-offline': return 'Router is offline';
     case 'capsman-managed': return 'That radio is managed by CAPsMAN';
     case 'not-a-radio': return 'That interface is not a radio';
     case 'no-such-interface': return 'No such radio on this router';
-    case 'unavailable': return 'Radio list not ready yet — try again in a moment';
+    case 'unavailable': return 'Radio list not ready yet - try again in a moment';
     default: return d.message || 'Scan failed';
   }
 }
@@ -466,7 +466,7 @@ export function scanErrorText(d: Pick<HandEvents['wifiscan:error'], 'code' | 'me
  * The spectrum chart's tooltip body: what one channel row contributes.
  *
  * Six measurements, in the order the live app pushes them, with its exact
- * labels — the column padding is part of the string, because the tooltip is
+ * labels - the column padding is part of the string, because the tooltip is
  * monospaced and the columns line up only if the spaces are reproduced.
  *
  * ── `!= null`, NOT TRUTHINESS ───────────────────────────────────────────────
@@ -486,7 +486,7 @@ export function spectrumTooltipLines(
   if (row.nf != null) out.push('Noise floor ' + row.nf + ' dBm');
   if (row.maxSig != null) out.push('Max signal  ' + row.maxSig + ' dBm');
   if (row.minSig != null) out.push('Min signal  ' + row.minSig + ' dBm');
-  if (row.ch === currentChannelMhz) out.push('— this radio —');
+  if (row.ch === currentChannelMhz) out.push('- this radio -');
   return out;
 }
 
@@ -496,11 +496,11 @@ export function spectrumTooltipLines(
  * ── THE WIDTH COMES FROM THE BAR, NOT THE CATEGORY ──────────────────────────
  *
  * The live comment: "Take the width from the bar itself so the band lines up
- * exactly, rather than from the category spacing — Chart.js insets bars within
+ * exactly, rather than from the category spacing - Chart.js insets bars within
  * their category, so a category-wide band would sit visibly proud of them."
  *
  * The fallback, for when the bar element has not been laid out yet, is the
- * category spacing clamped to [10, 44] — and 18 when there is only one column,
+ * category spacing clamped to [10, 44] - and 18 when there is only one column,
  * because there is then no spacing to measure at all.
  *
  * `bar` is the laid-out element, `pixelFor` the x scale's own lookup.
@@ -538,7 +538,7 @@ export function spectrumData(rows: WifiscanRow[]): {
   return {
     labels: rows.map((r) => r.ch),
     // FLOATING BARS `[base, top]`. A channel where nothing was detected gets NO
-    // BAR rather than a fabricated one — `null`, not the floor, which would draw
+    // BAR rather than a fabricated one - `null`, not the floor, which would draw
     // a zero-height bar indistinguishable from a very weak signal.
     signal: rows.map((r) => (r.maxSig == null ? null : [FA_FLOOR_DBM, r.maxSig])),
     // Bar height is signal strength; its COLOUR carries congestion, so one
@@ -556,7 +556,7 @@ export function spectrumData(rows: WifiscanRow[]): {
  * for key, and a function-valued option can only be compared by calling it.
  *
  * `rows` and `currentChannelMhz` are read through getters rather than captured,
- * because the live config closes over `_rows` and `_state` — both of which are
+ * because the live config closes over `_rows` and `_state` - both of which are
  * reassigned by every scan, so a snapshot taken at construction would freeze the
  * tooltip on the first result.
  */
@@ -573,7 +573,7 @@ export function spectrumConfig(deps: {
       datasets: [
         // Signal power as bars, each coloured by that channel's congestion.
         // Congestion stays on the chart as the bar colour and is readable as a
-        // number in the tooltip and the grid above — it does not need a line of
+        // number in the tooltip and the grid above - it does not need a line of
         // its own competing with the signal trace.
         { label: 'Signal power', data: [], yAxisID: 'y', order: 3,
           backgroundColor: [], borderRadius: 2, borderSkipped: false },
@@ -635,7 +635,7 @@ export function spectrumConfig(deps: {
  *
  * ── THE BAND HAS NO DATASET, SO IT HAS NO LEGEND ITEM ──────────────────────
  *
- * It is drawn by a plugin, and the legend is built from datasets — so without
+ * It is drawn by a plugin, and the legend is built from datasets - so without
  * this the one mark people ask about is the one nothing explains. Appended
  * AFTER the defaults so it reads last, matching the draw order.
  *
@@ -647,7 +647,7 @@ export function spectrumConfig(deps: {
 export function faLegendLabels(chart: unknown): LegendItem[] {
   const C = (globalThis as unknown as { Chart?: ChartDefaults }).Chart;
   const gen = C?.defaults?.plugins?.legend?.labels?.generateLabels;
-  // NO CHART.JS, NO DEFAULTS — and the band item alone is still the right
+  // NO CHART.JS, NO DEFAULTS - and the band item alone is still the right
   // answer, not an empty legend: it is the item this function exists to add.
   const items = typeof gen === 'function' ? gen(chart) : [];
   items.push(FA_BAND_LEGEND);

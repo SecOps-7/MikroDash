@@ -6,7 +6,7 @@
 // is that it does not own its state: `allPoints`, `_lastSampleTs` and the
 // EMA-smoothed `_serverOffset` are read by the BANDWIDTH page too, which anchors
 // its own X axis to them. Everything in this file is the part of that which is
-// pure — buffer in, numbers out, no Chart.js and no DOM — so it can be pinned
+// pure - buffer in, numbers out, no Chart.js and no DOM - so it can be pinned
 // against the live formulas exactly before any drawing code depends on it.
 //
 // ── THE CLOCK IS SMOOTHED BECAUSE ARRIVAL TIME IS NOISY ─────────────────────
@@ -19,7 +19,7 @@
 // ── AND THE SEED TEST IS `FALSY`, WHICH IS A QUIRK WORTH KEEPING ────────────
 //
 // `_serverOffset = _serverOffset ? smoothed : raw` re-seeds whenever the current
-// offset is exactly 0 — which is not only the initial state: an offset that
+// offset is exactly 0 - which is not only the initial state: an offset that
 // smooths its way to precisely zero, or a client whose clock agrees with the
 // router's to the millisecond, lands there too and takes the seed branch again.
 // The effect is invisible (re-seeding to a raw offset near zero) but it is what
@@ -30,7 +30,7 @@ import type { TrafficPoint } from '../gen/payloads';
 
 export interface XYPoint { x: number; y: number }
 
-/** 30 min at 1 Hz — matches the server's HISTORY_MINUTES default. */
+/** 30 min at 1 Hz - matches the server's HISTORY_MINUTES default. */
 export const MAX_CLIENT_POINTS = 1800;
 
 /** Append a sample, holding the buffer at its cap. Mutates, as the original does. */
@@ -47,7 +47,7 @@ export function windowedPoints(
   // A FORWARD FILTER, following the live app's fix.
   //
   // It used to walk backwards and `break` at the first point older than the
-  // cutoff — same result on a monotonic buffer and cheaper, but ONE out-of-order
+  // cutoff - same result on a monotonic buffer and cheaper, but ONE out-of-order
   // sample truncated everything before it. Reachable two ways: `traffic:history`
   // loads a server-supplied array wholesale, and the timestamps are the ROUTER's,
   // so a clock stepping backwards after NTP corrects a drifted RTC produces one.
@@ -55,7 +55,7 @@ export function windowedPoints(
   // This port reproduced the quirk deliberately and pinned it with three
   // non-monotonic cases, which is what made the flip safe: reported as ToDo #14
   // on 2026-08-24, fixed there the same day, and the pinned cases turned red
-  // the moment it was — which is how the change was noticed rather than
+  // the moment it was - which is how the change was noticed rather than
   // discovered later.
   //
   // The live fix scans the whole buffer rather than keeping the early exit. At
@@ -93,7 +93,7 @@ export function axisWindow(
 
 /**
  * Drop points that have scrolled off the left, and report the tallest that is
- * left. RX and TX are shifted TOGETHER — they are two datasets of one sample
+ * left. RX and TX are shifted TOGETHER - they are two datasets of one sample
  * stream, and pruning them independently would misalign the pair.
  *
  * The 3-second slack past the visible edge is deliberate: a point is kept a
@@ -103,19 +103,19 @@ export function axisWindow(
 /**
  * The tail the KEEPALIVE keeps beyond the visible window, in milliseconds.
  *
- * It was written twice as a bare `3000` — once in the prune below and once in
- * the Bandwidth chart's seeding — and the two have to agree or the chart snaps
+ * It was written twice as a bare `3000` - once in the prune below and once in
+ * the Bandwidth chart's seeding - and the two have to agree or the chart snaps
  * on its first frame. Named so they cannot drift apart.
  */
 export const KEEPALIVE_SLACK_MS = 3000;
 
 /**
- * The gap held open at the RIGHT edge, in milliseconds — one sample interval,
+ * The gap held open at the RIGHT edge, in milliseconds - one sample interval,
  * so the newest point is never drawn flush against the frame.
  *
  * A single global in the live app (`app.js:249`), read by BOTH charts. It was
  * briefly declared twice here, once per chart module, which is the drift this
- * file's other shared constant exists to prevent — so it lives beside it.
+ * file's other shared constant exists to prevent - so it lives beside it.
  */
 export const RIGHT_BUFFER_MS = 1000;
 
@@ -131,11 +131,11 @@ const BUFFER_MAX_MS = 2500;
  * `RIGHT_BUFFER_MS` is documented as "one sample interval", which is true when
  * a sample arrives every second. A router in STREAM mode does not keep that
  * promise: measured on the operator's hAP ax^3 (2026-09-23), 55 points over 63
- * seconds with a mean gap of 1,170 ms — 22 gaps near 1,000, 27 near 1,250, four
+ * seconds with a mean gap of 1,170 ms - 22 gaps near 1,000, 27 near 1,250, four
  * near 1,500 and one of 2,000.
  *
  * With a fixed 1,000 the axis edge runs ahead of the newest sample whenever one
- * arrives late, and the line visibly falls short of the frame — the trailing gap
+ * arrives late, and the line visibly falls short of the frame - the trailing gap
  * swung between −1,424 ms (drawn past the edge and clipped, as intended) and
  * +535 ms (a visible hole).
  *
@@ -143,7 +143,7 @@ const BUFFER_MAX_MS = 2500;
  *
  * The newest sample's age ranges from nothing, just after one lands, to a whole
  * interval, just before the next. A buffer of the MEAN interval is therefore
- * too small about half the time — the hole would appear half as often instead
+ * too small about half the time - the hole would appear half as often instead
  * of going away. Covering the recent worst case is what makes the line reach
  * the edge, so this takes a high quantile of the recent gaps.
  *
@@ -179,7 +179,7 @@ export function rightBufferFor(points: readonly TrafficPoint[]): number {
  *
  * That is not an inconsistency to tidy away. The keepalive prunes at
  * `viewLeft - 3000` on BOTH charts, so seeding with the same slack hands the
- * bandwidth chart exactly the set its own keepalive would retain — no point is
+ * bandwidth chart exactly the set its own keepalive would retain - no point is
  * drawn on the seeding frame and dropped on the next. Reusing `windowedPoints`
  * here would look correct, pass any test written from the dashboard's
  * behaviour, and show up as a one-frame flicker at the left edge that nobody
@@ -193,7 +193,7 @@ export function bandwidthSeedPoints(
   // second copy.
   //
   // This walked backwards from the newest point and stopped at the first one
-  // older than the cutoff — the same answer on a monotonic buffer and cheaper,
+  // older than the cutoff - the same answer on a monotonic buffer and cheaper,
   // but ONE out-of-order sample (an NTP correction on a router with a drifted
   // RTC) truncated everything before it. The live repo had fixed that in
   // `windowedPoints` after this port reported it, and `_syncBwChart` still
@@ -202,7 +202,7 @@ export function bandwidthSeedPoints(
   // ToDo #24.
   //
   // #24 is fixed now, and the gate said so: `bandwidth-chart-check` went red
-  // within minutes of the edit landing in the live working tree — which is the
+  // within minutes of the edit landing in the live working tree - which is the
   // outcome the note that used to sit here predicted, in as many words.
   //
   // The THREE-SECOND SLACK STAYS, and the live fix kept it too, folded into the
@@ -235,7 +235,7 @@ export function smoothMax(current: number, target: number): number {
  * A gap means the tab was hidden, the page was elsewhere or the router went
  * away; appending across it draws a straight line through time that never
  * happened, so the chart is rebuilt from the buffer instead. An EMPTY dataset
- * also forces the rebuild — there is nothing to append to.
+ * also forces the rebuild - there is nothing to append to.
  */
 export function needsFullRedraw(rx: readonly XYPoint[], sampleTs: number): boolean {
   return !rx.length || sampleTs - rx[rx.length - 1]!.x > 2000;

@@ -5,7 +5,7 @@
 //
 // The renderer, the listener and the room all existed from the start and nothing
 // ever emitted `diagnostics:update`. The card rendered empty, which looks exactly
-// like a card with nothing to say — so it read as "quiet" rather than "broken"
+// like a card with nothing to say - so it read as "quiet" rather than "broken"
 // for the whole life of the port. `internal/server/diagnostics.go` feeds it now.
 //
 // ── IT COSTS THE ROUTER NOTHING ─────────────────────────────────────────────
@@ -33,7 +33,7 @@
 // Every other card on this page escapes with `dcEsc`, and does so for a reason
 // that does not apply here: `dcEsc` reproduces the live app's helper exactly,
 // quirks included, because those cards had live markup to match. THIS CARD NEVER
-// RENDERED, so there is nothing to reproduce and no parity to lose — and two of
+// RENDERED, so there is nothing to reproduce and no parity to lose - and two of
 // `dcEsc`'s documented quirks are actively wrong for it. It leaves `"` alone, so
 // it must not reach a `title=` attribute, which this card uses on every row; and
 // it renders a falsy value as the EMPTY STRING, on a card whose whole subject is
@@ -41,7 +41,7 @@
 //
 // The tell that made the choice concrete: `dcEsc` escapes by round-tripping
 // through a text node, and the test DOM shim keeps `textContent` and `innerHTML`
-// in separate stores — so under `web/test/` it returns `''` and the card renders
+// in separate stores - so under `web/test/` it returns `''` and the card renders
 // nothing. `esc` is a string replace and needs no DOM.
 
 import { el, esc, renderSortHeader, sortRows } from '../dom';
@@ -50,7 +50,7 @@ import type { Diagnostics, MenuRate, SourceLoad } from '../gen/payloads';
 
 /** A number, or an em dash when the server said nothing rather than zero. */
 function num(v: number | undefined): string {
-  return v != null ? String(v) : '&mdash;';
+  return v != null ? String(v) : '-';
 }
 
 /**
@@ -138,7 +138,7 @@ export function renderDiagnosticsCard(data: Diagnostics): void {
   // what this app costs the device. It used to be "active streams", which is a
   // level rather than a load and reads as zero on a perfectly busy router.
   const totalEl = el('dc-diagTotal');
-  if (totalEl) totalEl.textContent = a.commandsPerMin != null ? String(a.commandsPerMin) : '—';
+  if (totalEl) totalEl.textContent = a.commandsPerMin != null ? String(a.commandsPerMin) : '-';
 
   const listEl = el('dc-diagList');
   if (!listEl) return;

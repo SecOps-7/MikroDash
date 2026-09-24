@@ -5,7 +5,7 @@
 // Staleness is cosmetic-adjacent: a card holds its last payload and says so with
 // an amber scrim. The router switch is not. Without `clearDashboardData`, moving
 // to another router leaves every rendered row exactly where it was, under the
-// new router's name, until that router's first payload replaces them — and
+// new router's name, until that router's first payload replaces them - and
 // indefinitely if the collector feeding that card is disabled or slow. That is
 // wrong data attributed to the wrong device, which is a different category from
 // old data labelled old. Upstream fixed it and left the reason in a comment;
@@ -13,7 +13,7 @@
 //
 // ── ZERO MEANS "DO NOT COUNT" ───────────────────────────────────────────────
 //
-// A timer of 0 is not "stale since the epoch" — the sweep skips it. That is how
+// A timer of 0 is not "stale since the epoch" - the sweep skips it. That is how
 // a collector the operator switched off, or one the server has put to sleep,
 // stops counting down toward a fault it cannot commit.
 //
@@ -21,8 +21,8 @@
 //
 // A collector the OPERATOR disabled needs to announce itself: nothing else
 // distinguishes that card from one that is merely empty, so its overlay is
-// rewritten to "collection disabled". A DORMANT collector — the server found no
-// such menu, or nothing configured — needs no announcement, because the card
+// rewritten to "collection disabled". A DORMANT collector - the server found no
+// such menu, or nothing configured - needs no announcement, because the card
 // body already reads "No devices". A marker class and nothing else: an earlier
 // treatment there made an ordinary empty card stand out from its neighbours and
 // read as a fault.
@@ -73,7 +73,7 @@ export function clearDashboardData(): void {
 /**
  * Give every card a fresh window before it may be called stale.
  *
- * Staleness means "this data stopped arriving", measured from the last payload —
+ * Staleness means "this data stopped arriving", measured from the last payload -
  * but payloads only arrive while the socket is in the card's room, and rooms are
  * left whenever the connection drops or the page changes. After either, the
  * elapsed time says nothing about the collector; it is how long nobody was
@@ -95,7 +95,7 @@ export function resetStaleTimers(): void {
 export function notePayload(cardId: string, pollMs?: number): void {
   timers[cardId] = Date.now();
   mark(cardId)?.classList.remove('is-stale');
-  // pollMs === 0 means STREAMED, not polled — the fixed threshold stays, because
+  // pollMs === 0 means STREAMED, not polled - the fixed threshold stays, because
   // the heartbeat cadence is what stale detection is measuring against.
   if (pollMs) thresholds[cardId] = pollMs + STALE_GRACE;
 }
@@ -161,7 +161,7 @@ export function sweepStale(now: number): void {
       card.classList.remove('is-stale');
       timers[c.cardId] = 0;
       const ov = card.querySelector('.stale-overlay');
-      // Only when it does not already say so — rewriting an unchanged string
+      // Only when it does not already say so - rewriting an unchanged string
       // every three seconds is work for nothing.
       if (ov && (ov.textContent || '').indexOf('disabled') === -1) {
         ov.textContent = '● collection disabled';

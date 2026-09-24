@@ -5,7 +5,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'modal-list.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'modals.ts');
-const body = `// GENERATED from testdata/modal-list.json — do not edit.
+const body = `// GENERATED from testdata/modal-list.json - do not edit.
 // Rebuild with \`node tools/modal-list-ts.js\` from the committed JSON.
 // The JSON it reads was SEEDED by a generator that read the Node app and was
 // deleted with the port-parity harness on 2026-09-01. This transform still runs,
@@ -27,7 +27,7 @@ export const CLOSABLE_MODALS: readonly string[] = ${JSON.stringify(d.all, null, 
 if (process.argv.includes('--check')) {
   const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
   if (cur !== body) {
-    console.error('web/src/gen/modals.ts is stale — run: node tools/modal-list-ts.js');
+    console.error('web/src/gen/modals.ts is stale - run: node tools/modal-list-ts.js');
     process.exit(1);
   }
   console.log('modal list .ts up to date');

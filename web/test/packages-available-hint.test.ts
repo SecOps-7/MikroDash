@@ -63,7 +63,7 @@ assert.strictEqual(n.pkgAvailHint.style.display, 'none', 'the line stayed after 
 // A payload that never reached the router shows a dash, and explains nothing:
 // "unknown" is not "none".
 handlers['packages:update']({ ...payload(0, []), counts: { installed: 0, disabled: 0, scheduled: 0, unknown: 0 } });
-assert.strictEqual(n.pkgSumAvailable.textContent, '—');
+assert.strictEqual(n.pkgSumAvailable.textContent, '-');
 
 console.log('ok  the Packages page says an empty Available count waits on an update check');
 fs.rmSync(OUT, { force: true });

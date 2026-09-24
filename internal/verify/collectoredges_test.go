@@ -77,8 +77,8 @@ func TestCollectorEdgesAreDeclared(t *testing.T) {
 		// put a name or an address on a device.
 		//
 		// The `what` field decides whether phase 2 could remove an edge by
-		// having the consumer read the menu itself. Here it could — `/ip/arp/print`
-		// is an ordinary cacheable table — and it still should not: four
+		// having the consumer read the menu itself. Here it could - `/ip/arp/print`
+		// is an ordinary cacheable table - and it still should not: four
 		// consumers reading it separately is four subscriptions and four copies
 		// of the same index, which is exactly what the coalescing cache and this
 		// collector exist to avoid.
@@ -86,7 +86,7 @@ func TestCollectorEdgesAreDeclared(t *testing.T) {
 			"conns":     "IP→MAC, so a lease keyed by the MAC can name an address the lease table does not list",
 			"bandwidth": "IP→MAC, the same chain on the same table",
 			"wireless":  "MAC→IP: a registration row carries no address, and this is the `ip` the page renders",
-			"topology":  "MAC→IP, for an MNDP neighbour whose own row has no address — without it there is nothing to ping, so no status",
+			"topology":  "MAC→IP, for an MNDP neighbour whose own row has no address - without it there is nothing to ping, so no status",
 		},
 		// ── `connTable` WAS HERE, AND ITS REMOVAL IS THE POINT ──────────────
 		//

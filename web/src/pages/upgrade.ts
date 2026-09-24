@@ -9,7 +9,7 @@
 // `template-id-audit` recorded `sysUpdateAction` as an unbound slot and
 // `wiring-audit` recorded the eight `upd_*` ids as an unported group; both are
 // this module. `inbound-audit` recorded `packages:upgrade` as an action the
-// live app answered and this port did not — the HANDLER landed first
+// live app answered and this port did not - the HANDLER landed first
 // (`internal/server/packagesUpgrade`), and this is the control that finally
 // sends it.
 //
@@ -24,7 +24,7 @@ import { el, esc } from '../dom';
 import type { Socket } from '../socket';
 
 import type { HandEvents } from '../events-hand';
-// The producer's type, not a copy of it — see the note beside the declaration
+// The producer's type, not a copy of it - see the note beside the declaration
 // in `dashboard-system.ts`. The cast below still cannot be checked (detail is
 // `any`), but the two modules can no longer drift to different shapes in silence.
 import type { UpdInfo } from './dashboard-system';
@@ -75,8 +75,8 @@ export interface UpdView {
   // NULL MEANS "LEAVE IT ALONE", and that is the original's behaviour rather
   // than a convenience. `issuing` writes ONLY the go button and
   // `confirm.disabled`; it does not touch Cancel or the pending box, which keep
-  // whatever `idle` left there. Expressing that as absolute values — "Cancel",
-  // hidden — looks identical in every real sequence, because `idle` always runs
+  // whatever `idle` left there. Expressing that as absolute values - "Cancel",
+  // hidden - looks identical in every real sequence, because `idle` always runs
   // first, and diverges the moment it does not.
   //
   // The gate caught exactly that: it drives `updState('issuing')` on untouched
@@ -102,7 +102,7 @@ export function updView(state: 'idle' | 'issuing' | 'rebooting'): UpdView {
       goText: '<span class="sbtn-spin"></span>Issuing&hellip;',
       goIsHtml: true,
       confirmDisabled: true,
-      // Untouched — see the interface.
+      // Untouched - see the interface.
       cancelText: null, confirmHidden: null, pendingText: null, pendingHidden: null,
     };
   }
@@ -204,8 +204,8 @@ export function initUpgrade(socket: Socket): void {
     if (!box) return;
     box.className = 'upd-notes' + (muted ? ' muted' : '');
     // ESCAPED BEFORE INSERTION. This is the only THIRD-PARTY content this app
-    // renders into the DOM — fetched from mikrotik.com, not produced by this
-    // app or by a router — so it goes through `esc` per the hard constraint in
+    // renders into the DOM - fetched from mikrotik.com, not produced by this
+    // app or by a router - so it goes through `esc` per the hard constraint in
     // CLAUDE.md. `white-space: pre-wrap` in the stylesheet keeps the
     // "*) area - what changed;" layout without parsing or trusting a line of it.
     box.innerHTML = esc(text);
@@ -230,8 +230,8 @@ export function initUpgrade(socket: Socket): void {
     // it. Matching on the id would have meant duplicating the id or the dialog.
     if (t.closest('[data-upgrade-open]')) {
       const set = (id: string, v: string): void => { const n = el(id); if (n) n.textContent = v; };
-      set('upd_from', upd.installed || '—');
-      set('upd_to', upd.latest || '—');
+      set('upd_from', upd.installed || '-');
+      set('upd_to', upd.latest || '-');
       set('upd_channel', upd.channel ? 'channel: ' + upd.channel : '');
       // ASKED FOR HERE, ON OPEN, and never on the update-available path: that
       // fires on every poll tick, and the unconditional rebuild is what made the
@@ -283,7 +283,7 @@ export function initUpgrade(socket: Socket): void {
     if (!d || d.action !== 'upgrade') return;
     // NOT CLOSED ON SUCCESS. The command has been accepted and the router is
     // about to disappear; closing now would throw away the only moment we can
-    // say so. It closes when the router is back — see `router:status` below.
+    // say so. It closes when the router is back - see `router:status` below.
     //
     // `rebooting: true` is the server saying the connection dropped under the
     // install, so the router is already down.

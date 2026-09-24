@@ -15,13 +15,13 @@ import (
 //
 // Until 4.2 it compared two lists: the rooms `pageBlur` waited on, spelled out by
 // hand at each call site, against the rooms the collector emitted to. They had
-// disagreed FIVE times — dhcpNetworks, bandwidth, vpn, firewall, and routing on
-// 2026-08-31 — each time as a dashboard card that silently stopped updating for
+// disagreed FIVE times - dhcpNetworks, bandwidth, vpn, firewall, and routing on
+// 2026-08-31 - each time as a dashboard card that silently stopped updating for
 // anybody who had visited the owning page and left.
 //
 // 4.2 made the wait list derived, so the two could not disagree, and this test
 // became a refusal: no call site may go back to writing its own list. 4.2b
-// deleted the call sites entirely — there is one question now,
+// deleted the call sites entirely - there is one question now,
 // `collect.DemandRooms(key)`, asked in one place. The refusal is unchanged and
 // simply covers more ground: no handler in `internal/server` may name a room a
 // collector feeds.
@@ -34,7 +34,7 @@ func TestNoServerHandlerNamesARoomItself(t *testing.T) {
 
 	// A `page-` or `dash-card-` room written as a literal. The room PREFIX
 	// (`"router-" + routerID + "-page-" + page`) is how a handler joins and
-	// leaves its own room and is not what this forbids — that is a room name
+	// leaves its own room and is not what this forbids - that is a room name
 	// being BUILT, not a collector's audience being restated.
 	lit := regexp.MustCompile(`"(page-[a-z-]+|dash-card-[a-z]+)"`)
 
@@ -52,7 +52,7 @@ func TestNoServerHandlerNamesARoomItself(t *testing.T) {
 
 	// And the derivation must actually be in use, or this check passes by
 	// looking at a package that no longer decides anything.
-	// THE RULE MOVED TO internal/session IN 6.3. It was stated on both sides —
+	// THE RULE MOVED TO internal/session IN 6.3. It was stated on both sides -
 	// the server asked about rooms, the session asked about holds, and for a
 	// session with no viewer those are the same question.
 	rule := stripGoComments(mustRead(t, filepath.Join(repoRoot(t), "internal", "session", "needs.go")))

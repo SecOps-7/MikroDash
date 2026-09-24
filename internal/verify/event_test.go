@@ -31,7 +31,7 @@ import (
 
 // eventsUnconsumed: emitted by the server, deliberately nobody listens.
 var eventsUnconsumed = map[string]string{
-	"packages:applying": "vestigial in the live app too — it was emitted and nothing listened. " +
+	"packages:applying": "vestigial in the live app too - it was emitted and nothing listened. " +
 		"Reproduced rather than dropped, so a future reader finds this note instead of " +
 		"'fixing' a consumer into existence.",
 }
@@ -40,13 +40,13 @@ var eventsUnconsumed = map[string]string{
 // `stream:health` LEFT THIS LIST ON 2026-09-04, and the entry was right when it
 // was written: nothing reported stream health, so the Dashboard's warning
 // element stayed empty, which is honest. What the note could not say is that the
-// MECHANISM behind it was missing too — the traffic stream had no watchdog, so a
+// MECHANISM behind it was missing too - the traffic stream had no watchdog, so a
 // stream that silently stalled was never restarted and never reported. The
 // entry described the quiet half of a real fault. Both halves are ported now.
 //
 // `diagnostics:update` LEFT ON 2026-09-10, and its note had the same defect. It
 // said "there is no diagnostics collector... the card renders empty", which reads
-// as a deliberate omission — and the card DID render empty, so nothing ever
+// as a deliberate omission - and the card DID render empty, so nothing ever
 // contradicted it. What it could not say is that there is no diagnostics
 // collector BY DESIGN: the numbers are in this process, so a collector would be
 // the wrong mechanism, and what was actually missing was a sender.
@@ -72,7 +72,7 @@ var eventTypeSources = map[string]bool{
 
 var (
 	// An event the Go side sends is an event it DECLARES. Every send takes a
-	// hub.Event — a string cannot reach the wire any other way — so the
+	// hub.Event - a string cannot reach the wire any other way - so the
 	// declarations are the complete list, and each names its event once where
 	// the call sites might name it many times. See internal/hub/event.go.
 	//
@@ -113,16 +113,16 @@ func TestWebSocketVocabulary(t *testing.T) {
 	// FLOORS. Both sides are found by regex, and a regex that stops matching
 	// would leave this test comparing two empty sets and passing.
 	if len(emits) < 40 {
-		t.Fatalf("only %d Go emits found — the match broke, and this test is comparing nothing", len(emits))
+		t.Fatalf("only %d Go emits found - the match broke, and this test is comparing nothing", len(emits))
 	}
 	if len(subs) < 40 {
-		t.Fatalf("only %d subscriptions found — the match broke", len(subs))
+		t.Fatalf("only %d subscriptions found - the match broke", len(subs))
 	}
 
 	var unconsumed, unserved []string
 	for e := range emits {
-		// A name may be referenced in TypeScript without a socket.on — a
-		// re-dispatch, or a table keyed by it — and that still counts as consumed.
+		// A name may be referenced in TypeScript without a socket.on - a
+		// re-dispatch, or a table keyed by it - and that still counts as consumed.
 		if !subs[e] && !strings.Contains(tsSrc, "'"+e+"'") {
 			unconsumed = append(unconsumed, e)
 		}
@@ -143,7 +143,7 @@ func TestWebSocketVocabulary(t *testing.T) {
 }
 
 // checkLedger fails in BOTH directions: a gap with no entry, and an entry whose
-// gap has closed. The second half is what stops the ledger becoming folklore —
+// gap has closed. The second half is what stops the ledger becoming folklore -
 // a note that has stopped being true is deleted rather than inherited.
 func checkLedger(t *testing.T, heading string, found []string, record map[string]string) {
 	t.Helper()
@@ -156,7 +156,7 @@ func checkLedger(t *testing.T, heading string, found []string, record map[string
 	}
 	for e := range record {
 		if !have[e] {
-			t.Errorf("%q is recorded as %q, but that is no longer true — delete the entry rather "+
+			t.Errorf("%q is recorded as %q, but that is no longer true - delete the entry rather "+
 				"than leaving a note that has stopped describing anything.", e, heading)
 		}
 	}

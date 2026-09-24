@@ -158,8 +158,8 @@ export function topoPanel(st: TopoState, deps: {
     if (!panel) return;
     // ── NEVER REBUILD A PANEL SOMEBODY IS USING ────────────────────────────
     //
-    // The graph republishes between structure polls — the ping loop rebuilds and
-    // emits every few seconds — and a full render replaces this panel's markup.
+    // The graph republishes between structure polls - the ping loop rebuilds and
+    // emits every few seconds - and a full render replaces this panel's markup.
     // With the cabling picker open that destroys the `<select>` mid-choice, so
     // the dropdown snapped shut every couple of seconds and the control was
     // unusable. Reported, and it is the same hazard any future input here would
@@ -202,7 +202,7 @@ export function topoPanel(st: TopoState, deps: {
     // A GUESS IS LABELLED A GUESS. `caps` means the device advertised what it
     // is; anything else means the type came from its board name or platform.
     if (n.kind !== 'core' && n.typeSource !== 'caps') {
-      badges += '<span class="topo-badge is-guess" title="Inferred from the board or platform — this ' +
+      badges += '<span class="topo-badge is-guess" title="Inferred from the board or platform - this ' +
         'device did not advertise LLDP capabilities">guessed</span>';
     }
     if (n.gone) {
@@ -213,8 +213,8 @@ export function topoPanel(st: TopoState, deps: {
     let live = '';
     if (n.kind !== 'core') {
       live += row('Latency', st.data.pingDenied ? 'unavailable (test policy)'
-        : (n.rtt !== null && isFinite(n.rtt) ? n.rtt.toFixed(1) + ' ms' : '—'));
-      live += row('Loss', n.loss !== null && isFinite(n.loss) ? n.loss + '%' : '—');
+        : (n.rtt !== null && isFinite(n.rtt) ? n.rtt.toFixed(1) + ' ms' : '-'));
+      live += row('Loss', n.loss !== null && isFinite(n.loss) ? n.loss + '%' : '-');
     } else if ('cpuLoad' in n) {
       live += row('CPU', n.cpuLoad !== null && isFinite(n.cpuLoad) ? n.cpuLoad + '%' : '');
       live += row('Memory', n.memPct !== null && isFinite(n.memPct) ? n.memPct + '%' : '');
@@ -224,7 +224,7 @@ export function topoPanel(st: TopoState, deps: {
       live += row('Link up', fmtMbps((rate as Rate).tx));
     }
 
-    // What the device ENABLES, falling back to what it merely supports — the
+    // What the device ENABLES, falling back to what it merely supports - the
     // same preference the collector applies when classifying it.
     const caps = (n.capsEnabled && n.capsEnabled.length ? n.capsEnabled : (n.caps || [])).join(', ');
 

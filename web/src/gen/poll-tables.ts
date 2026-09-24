@@ -1,10 +1,10 @@
-// GENERATED from testdata/poll-tables.json — do not edit.
+// GENERATED from testdata/poll-tables.json - do not edit.
 // Rebuild with `node tools/poll-tables-ts.js` from the committed JSON, which is frozen:
 // the generator that produced it lifted the tables from the Node app's public/app.js,
 // and that source is gone.
 //
-// Every one of these tables fails SILENTLY when it drifts — a missing slider is
-// simply not drawn, a missing profile key leaves that collector where it was — so
+// Every one of these tables fails SILENTLY when it drifts - a missing slider is
+// simply not drawn, a missing profile key leaves that collector where it was - so
 // the TypeScript is written from the JSON rather than retyped, and verify checks it.
 
 export interface PollSlider {

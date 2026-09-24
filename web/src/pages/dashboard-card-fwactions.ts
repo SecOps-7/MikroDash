@@ -4,18 +4,18 @@
 // ── ENABLED RULES ONLY ──────────────────────────────────────────────────────
 //
 // A disabled rule is skipped. The card is about what the firewall IS doing, not
-// what it could do if switched on — so a ruleset with forty disabled drop rules
+// what it could do if switched on - so a ruleset with forty disabled drop rules
 // shows the accepts, which is the honest picture of live traffic handling.
 //
 // ── SEVEN, AND THE BAR IS RELATIVE TO THE BIGGEST ───────────────────────────
 //
 // Top seven by count, and each bar is a percentage OF THE LARGEST rather than of
 // the total. So the top action is always a full bar and the rest are read
-// against it — a shape comparison, not a share-of-total one.
+// against it - a shape comparison, not a share-of-total one.
 //
 // ── AN UNNAMED ACTION IS `?` ────────────────────────────────────────────────
 //
-// `r.action || '?'` — a rule whose action the router did not report is counted
+// `r.action || '?'` - a rule whose action the router did not report is counted
 // under a literal question mark rather than dropped, so the totals still add up.
 
 import { el } from '../dom';
@@ -41,7 +41,7 @@ export function renderFwActionsCard(data: FirewallPayload): void {
     counts[a] = (counts[a] || 0) + 1;
   }
   // `Object.entries` order is insertion order for string keys, and the sort is
-  // NOT stable-broken by anything else — two actions with the same count keep
+  // NOT stable-broken by anything else - two actions with the same count keep
   // the order the rules were read in. That is the live behaviour and it is why
   // the sort compares counts only.
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);

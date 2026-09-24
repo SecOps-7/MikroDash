@@ -4,7 +4,7 @@
 //
 // `origX/origY/origW/origH` are captured once at pointer-down and every move
 // recomputes from them plus the total pointer delta. Dragging a handle out and
-// back therefore returns the card EXACTLY to where it started — an incremental
+// back therefore returns the card EXACTLY to where it started - an incremental
 // implementation would accumulate rounding on every frame and leave the card a
 // cell off after a long wiggle.
 //
@@ -13,7 +13,7 @@
 // This is the opposite of dragging, and deliberately so. A drag keeps its last
 // VALID cell and commits that on drop; a resize simply RETURNS when the result
 // would overlap or leave the grid, so the card stops growing and the pointer
-// carries on without it. Applied live, with no placeholder — there is nothing to
+// carries on without it. Applied live, with no placeholder - there is nothing to
 // commit later, so there is nothing to hold back.
 //
 // ── WEST AND NORTH MOVE THE ORIGIN ──────────────────────────────────────────
@@ -21,7 +21,7 @@
 // Dragging the left edge does not move the card: it computes a new x and
 // derives the width from it, so the RIGHT edge stays put. The clamp is on the
 // new origin rather than on the width, which is what stops the left edge
-// crossing the right one — `origX + origW - MIN_W` is the furthest right it may
+// crossing the right one - `origX + origW - MIN_W` is the furthest right it may
 // go, leaving a card exactly MIN_W wide.
 //
 // ── THE DIRECTION IS A SUBSTRING TEST ───────────────────────────────────────
@@ -64,8 +64,8 @@ export function createGridResize(editor: GridEditor): GridResize {
     const rs = resizeState;
     const c = getCard(rs.cardId);
     // The original has no such guard and would throw. A card cannot be removed
-    // mid-resize — that needs the Add panel, which is not reachable while a
-    // pointer is captured — so this is unreachable either way, and returning is
+    // mid-resize - that needs the Add panel, which is not reachable while a
+    // pointer is captured - so this is unreachable either way, and returning is
     // the harmless reading of an impossible state.
     if (!c) return;
     const root = el('dash-grid-root');

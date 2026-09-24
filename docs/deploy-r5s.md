@@ -74,7 +74,7 @@ Create a dedicated read-only API user and only allow the `R5S` host to reach the
 ```
 
 Read-only is the right default here. If you want the Packages page add `write`; if you also want the
-Router Users page add `policy` as well — `policy` is what governs RouterOS user management, so an
+Router Users page add `policy` as well - `policy` is what governs RouterOS user management, so an
 account holding it can create router users. Scheduled backups additionally need `ftp`, because that
 is the policy RouterOS requires to read a backup file off the device. See the README for the full
 trade-off.

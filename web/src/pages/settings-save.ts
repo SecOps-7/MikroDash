@@ -5,7 +5,7 @@
  *
  * `#settingsSaveBtn` existed, was enabled and disabled by `caps.ts`, and had no
  * listener anywhere in the app. Clicking it made no request and showed no
- * banner, so NO server-side setting could be saved from the UI on any tab —
+ * banner, so NO server-side setting could be saved from the UI on any tab -
  * poll intervals, notification channels, thresholds, page visibility, session
  * timeout. `settingsResetBtn` beside it was wired, which is what made the page
  * look alive. Reported on issue #126 as "Appearance Save not working", which was
@@ -32,8 +32,8 @@ export type SettingsPatch = Record<string, unknown>;
  * Trimmed on the way out, as the live collector trims them.
  *
  * `STR_FIELDS` is the server's own list and the server trims those itself, so
- * doing it here is belt and braces. The two template bodies are NOT in it —
- * they are `specialCases` server-side, trimmed and cut to 512 — so they are
+ * doing it here is belt and braces. The two template bodies are NOT in it -
+ * they are `specialCases` server-side, trimmed and cut to 512 - so they are
  * named here or they would go out with the operator's stray newline.
  */
 const TRIMMED = new Set<string>([...STR_FIELDS, 'notifBody', 'notifBodyUp']);
@@ -47,14 +47,14 @@ const TRIMMED = new Set<string>([...STR_FIELDS, 'notifBody', 'notifBodyUp']);
  * each field by id `'s_' + key`. A `[id^="s_"]` sweep would be shorter and
  * wrong: it would pick up the three `s_*Val` readout SPANS, which have no
  * `.value`, and it would need a hand-written exclusion list to keep out
- * anything added later — a second copy of a generated table, which is the thing
+ * anything added later - a second copy of a generated table, which is the thing
  * this repo is organised against.
  *
  * ── EVERY LOOKUP IS GUARDED, AND THAT IS THE LOAD-BEARING RULE ──────────────
  *
  * `if (!input) continue`, exactly as the live collector did it. Eight keys in
- * the form map have no element on this page — the legacy single-router fields,
- * `routerHost` and friends, which moved to the per-router modal — and the guard
+ * the form map have no element on this page - the legacy single-router fields,
+ * `routerHost` and friends, which moved to the per-router modal - and the guard
  * is the whole reason the narrower markup needs no special case. Pinned by a
  * test, because it looks like a redundant null check and is not.
  */
@@ -66,7 +66,7 @@ export function collectSettingsForm(
   // ── BOOLEANS MUST BE BOOLEANS ─────────────────────────────────────────────
   //
   // The server accepts a literal `true` or the string "true" and NOTHING else,
-  // so a checkbox serialised the HTML-form way — "on" — would read as false and
+  // so a checkbox serialised the HTML-form way - "on" - would read as false and
   // switch every page off. `.checked` is already the right type; this comment is
   // here so nobody "simplifies" it into a string.
   //
@@ -96,7 +96,7 @@ export function collectSettingsForm(
 
   for (const key of FORM_FIELDS.value) {
     // The write-only credentials are handled below; `smtpUser` is NOT one of
-    // them and belongs here — see the note on it there.
+    // them and belongs here - see the note on it there.
     if (PLACEHOLDER_CREDENTIALS[key]) continue;
     const input = el<HTMLInputElement>('s_' + key);
     if (!input) continue;
@@ -144,7 +144,7 @@ export function collectSettingsForm(
   //
   // `populateSettings` clears these on every load and puts the meaning in the
   // placeholder, so an untouched box is ALWAYS empty. The server reads an empty
-  // string as an explicit destructive clear — so sending them unconditionally
+  // string as an explicit destructive clear - so sending them unconditionally
   // would wipe every stored secret on the first Save, and the page would still
   // render "not set" afterwards, making it look deliberate.
   //
@@ -153,9 +153,9 @@ export function collectSettingsForm(
   // Telling the two empties apart needs a per-field dirty flag or an explicit
   // Clear control, and any shortcut is the bug above.
   //
-  // `routerPass` is in this table and has no input here — router credentials
+  // `routerPass` is in this table and has no input here - router credentials
   // belong to the per-router modal, and the server does not accept it on this
-  // route at all — so the guard drops it.
+  // route at all - so the guard drops it.
   //
   // THIS IS NOW THE WHOLE CREDENTIAL SURFACE. `smtpUser` used to sit outside it
   // as an ordinary value field that received the MASK from the server and handed
@@ -172,7 +172,7 @@ export function collectSettingsForm(
   // ── THE ONE ID THAT IS NOT `s_<key>` ──────────────────────────────────────
   //
   // The control is `s_authEnabled`; the setting is `authMode`, a two-valued
-  // string. `populateSettings` sets the box from `authModeOf(data)` — it did not
+  // string. `populateSettings` sets the box from `authModeOf(data)` - it did not
   // until 0.8.15, and collecting an unpopulated box would have posted
   // `authMode: 'none'` and switched sign-in off for the whole install on the
   // first Save from any tab.
@@ -182,7 +182,7 @@ export function collectSettingsForm(
   // ── THE POLL SLIDERS ──────────────────────────────────────────────────────
   //
   // Built at runtime into `#pollSlidersWrap`, so they are absent from the form
-  // map and would otherwise be missed — and a Save that ignored them would make
+  // map and would otherwise be missed - and a Save that ignored them would make
   // the Polling tab's button do nothing, which is this bug one tab over.
   //
   // `customValues()` is reused rather than the loop retyped. `customPollProfile`
@@ -204,7 +204,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
   if (!btn) return;
 
   // CAPTURED ONCE, AS MARKUP. The label carries an inline SVG, and the live code
-  // restored it with `textContent` on the network-error path — so one failed
+  // restored it with `textContent` on the network-error path - so one failed
   // request permanently deleted the icon. Keeping the original innerHTML makes
   // every path restore the same button.
   //
@@ -236,7 +236,7 @@ export function initSettingsSave(reloadSettings: () => void): void {
           showBanner('ok', '✓ Settings saved');
           // LOAD-BEARING, not cosmetic. It re-blanks the credential inputs so a
           // second Save does not re-post a secret typed for the first, and it
-          // re-reads what the server actually stored — which, because invalid
+          // re-reads what the server actually stored - which, because invalid
           // values are ignored rather than clamped, is not always what was sent.
           reloadSettings();
           return;
@@ -246,8 +246,8 @@ export function initSettingsSave(reloadSettings: () => void): void {
         // Reloading here would repaint every field from the server and blank the
         // credential boxes, so everything the operator typed would vanish and
         // the page would look exactly as it does after a success. The sibling
-        // Reset button carries the scar for the other half of this — it once
-        // reported "✓ Reset to defaults" on a 403 — and this is the worse half,
+        // Reset button carries the scar for the other half of this - it once
+        // reported "✓ Reset to defaults" on a 403 - and this is the worse half,
         // because it destroys work rather than merely lying about it.
         showBanner('err', 'Save failed: ' + ((d && d.error) || 'unknown error'));
       })

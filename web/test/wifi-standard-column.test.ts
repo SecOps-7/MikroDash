@@ -12,7 +12,7 @@
  * ── DRIVEN THROUGH THE PAGE, NOT THROUGH THE BADGE ──────────────────────────
  *
  * `standardBadge` could be perfectly correct and simply not wired into the row,
- * which is a failure this port has shipped before — "written but never called".
+ * which is a failure this port has shipped before - "written but never called".
  * So this boots the real page module and feeds it a real `wireless:update`,
  * which exercises the collector's field name, the row builder and the badge in
  * one go. A unit test on the badge alone would pass against a table that never
@@ -88,7 +88,7 @@ function boot() {
 
   // THE CLASS IS THE COLOUR. A distinct class per generation is what was asked
   // for, so asserting the label alone would pass against six identical grey
-  // pills — which is the version of this feature that is not worth having.
+  // pills - which is the version of this feature that is not worth having.
   const want = [
     ['Wi-Fi 4', 'wl-std-4'], ['Wi-Fi 5', 'wl-std-5'], ['Wi-Fi 6', 'wl-std-6'],
     ['Wi-Fi 6E', 'wl-std-6e'], ['Wi-Fi 7', 'wl-std-7'], ['Legacy', 'wl-std-legacy'],
@@ -108,7 +108,7 @@ function boot() {
 
 // ── 2. an unknown generation is a DASH, not a blank pill ────────────────────
 //
-// A CAPsMAN row carries no band at all — `wlBandOf` falls back to the interface
+// A CAPsMAN row carries no band at all - `wlBandOf` falls back to the interface
 // name for the band, and there is nothing to fall back to for the generation. An
 // empty pill reads as a value; the dash matches every other column's absence.
 {
@@ -116,7 +116,7 @@ function boot() {
   send([client({ standard: '', band: '5GHz' })]);
   const html = String(doc.nodes['wirelessTable'].innerHTML);
   restore();
-  assert.ok(/&mdash;|—/.test(html),
+  assert.ok(/-|-/.test(html),
     'a client with no known standard rendered nothing at all; the cell must say ' +
     '"not known" rather than look like a rendering failure:\n' + html);
   assert.ok(!/wl-std\s/.test(html) && !/wl-std"/.test(html),
@@ -132,7 +132,7 @@ function boot() {
 // ── 3. the column is in the header, to the RIGHT of Band ────────────────────
 //
 // That position was asked for specifically, and the markup comment on the static
-// header says it "must match renderWireless()'s column list" — two places that
+// header says it "must match renderWireless()'s column list" - two places that
 // can disagree silently.
 {
   const { doc, send, restore } = boot();
@@ -151,8 +151,8 @@ function boot() {
 
 // ── 4. the row still has as many cells as the header has columns ────────────
 //
-// Adding a column means several edits — colgroup, thead, the row, and two
-// colspans — and a missed one shifts every later cell under the wrong heading
+// Adding a column means several edits - colgroup, thead, the row, and two
+// colspans - and a missed one shifts every later cell under the wrong heading
 // without throwing anything.
 {
   const { doc, send, restore } = boot();
@@ -172,7 +172,7 @@ function boot() {
 //
 // Reported as "I can't sort by Band or Standard by clicking the header names".
 // Both columns were declared without a sort key, on the stated grounds that they
-// are "derived labels" — which is not a reason, since every column in this table
+// are "derived labels" - which is not a reason, since every column in this table
 // is derived from something.
 //
 // ── THE DISCRIMINATING CASE IS THE UNKNOWN ONE ──────────────────────────────
@@ -189,7 +189,7 @@ function boot() {
 //
 // ONE INTERFACE FOR EVERY CLIENT, deliberately. The table groups by interface
 // and only draws group headers when there is more than one, so a single
-// interface isolates the comparator from the grouping — which has its own
+// interface isolates the comparator from the grouping - which has its own
 // ordering behaviour and is not what was reported.
 {
   const IFACE = 'wifi1';

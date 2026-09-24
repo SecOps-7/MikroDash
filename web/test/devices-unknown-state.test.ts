@@ -6,7 +6,7 @@
  * `connected` is a boolean, so "we asked and it is down" and "nothing has asked"
  * arrived at the browser identically. Open the Devices page and every device but
  * the selected one sat in the second state for the few seconds the overview pool
- * took to dial — and the page rendered all of them as red "Offline" cards, with
+ * took to dial - and the page rendered all of them as red "Offline" cards, with
  * an Offline tile counting the whole fleet, until the first payload landed and
  * they all flipped to green at once.
  *
@@ -97,7 +97,7 @@ const page = require(OUT);
  *
  * `online` is the DEBOUNCED verdict and `connected` the live socket; the page's
  * badges read the first and its login-failure box the second. These fixtures
- * are about the THIRD state — "nothing has asked" — so the two agree in every
+ * are about the THIRD state - "nothing has asked" - so the two agree in every
  * row here, and `row()` mirrors `connected` into `online` unless a case says
  * otherwise. A fixture that set only `connected` would leave `online` undefined,
  * which reads as Offline and is a different bug from the one under test.

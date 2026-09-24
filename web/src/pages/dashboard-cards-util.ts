@@ -1,7 +1,7 @@
 // Shared helpers for the Dashboard's fourteen EXTRA cards.
 //
 // These sit under a ~570-line section of the live `app.js` that this port had
-// not touched — the cards hidden by default, which is why nothing missed them
+// not touched - the cards hidden by default, which is why nothing missed them
 // until an id sweep counted them.
 //
 // ── THEY LOOK LIKE HELPERS THIS PORT ALREADY HAS, AND THEY ARE NOT ──────────
@@ -19,7 +19,7 @@ import { el } from '../dom';
  * Escape by round-tripping through a text node, NOT by substitution.
  *
  * `esc()` in `dom.ts` replaces five characters. This sets `textContent` and reads
- * `innerHTML` back, which is what the browser's own escaper does — and the two
+ * `innerHTML` back, which is what the browser's own escaper does - and the two
  * disagree: the browser leaves `'` and `"` alone in text position, so
  * `O'Brien` survives as `O'Brien` here and becomes `O&#039;Brien` there.
  *
@@ -29,7 +29,7 @@ import { el } from '../dom';
 // ── DO NOT PUT THIS IN AN ATTRIBUTE ─────────────────────────────────────────
 //
 // It escapes `&`, `<` and `>` and leaves `"` and `'` alone, because that is what
-// a text node does. Correct for text position and WRONG inside `title="…"` — a
+// a text node does. Correct for text position and WRONG inside `title="…"` - a
 // value containing a double quote closes the attribute early.
 //
 // The live app has exactly that defect in two `title` attributes on the Physical
@@ -67,10 +67,10 @@ export function dcFlag(cc: string | null | undefined): string {
  *
  * The thresholds step at 1000, 1 and 0.001 Mbps, and the PRECISION changes with
  * them: two decimals for Gbps and Mbps, one for Kbps. Below 0.001 there is no
- * number at all — an em dash and an empty unit, so the card shows a dash rather
+ * number at all - an em dash and an empty unit, so the card shows a dash rather
  * than `0.00 Kbps` on an idle link.
  *
- * `+mbps || 0` coerces, so a non-numeric value reads as zero rather than NaN —
+ * `+mbps || 0` coerces, so a non-numeric value reads as zero rather than NaN -
  * and note that it also turns a legitimate `0` into `0`, which is the same
  * answer, so nothing is lost by the sloppiness.
  */
@@ -79,18 +79,18 @@ export function dcSplitRate(mbps: unknown): { num: string; unit: string } {
   if (n >= 1000) return { num: (n / 1000).toFixed(2), unit: 'Gbps' };
   if (n >= 1) return { num: n.toFixed(2), unit: 'Mbps' };
   if (n >= 0.001) return { num: (n * 1000).toFixed(1), unit: 'Kbps' };
-  return { num: '—', unit: '' };
+  return { num: '-', unit: '' };
 }
 
 /**
  * The IP Utilisation card's arc gauge.
  *
- * Same geometry as the DHCP page's — centre (100,105), r=72, 120° from 210° —
+ * Same geometry as the DHCP page's - centre (100,105), r=72, 120° from 210° -
  * and NOT the same function. Two differences, both visible:
  *
  *  1. It writes the `dc-`prefixed ids, which are a different card.
- *  2. Its percentage text is `pct > 0 ? pct+'%' : '—'`, where the page's is
- *     `totalPool > 0 ? ... : '—'`. So a router at genuinely 0% utilisation shows
+ *  2. Its percentage text is `pct > 0 ? pct+'%' : '-'`, where the page's is
+ *     `totalPool > 0 ? ... : '-'`. So a router at genuinely 0% utilisation shows
  *     an em dash on this card and `0%` on the page. That is the live behaviour
  *     of both, and they disagree with each other.
  *
@@ -104,7 +104,7 @@ export function dcDrawGauge(pct: number): void {
   if (!gaugeFill || !gaugeTrack) return;
 
   const cx = 100, cy = 105, r = 72, startDeg = 210, totalDeg = 120;
-  // `+(...).toFixed(2)` — two places, then back to a NUMBER, so 37.60 renders as
+  // `+(...).toFixed(2)` - two places, then back to a NUMBER, so 37.60 renders as
   // "37.6". The `d` attribute is compared character by character.
   const xy = (deg: number): { x: number; y: number } => {
     const rad = deg * Math.PI / 180;
@@ -128,7 +128,7 @@ export function dcDrawGauge(pct: number): void {
   const colour = pct >= 90 ? '#f87171' : pct >= 70 ? '#fbbf24' : '#38bdf8';
   gaugeFill.setAttribute('stroke', colour);
   if (gaugePct) {
-    gaugePct.textContent = pct > 0 ? (pct + '%') : '—';
+    gaugePct.textContent = pct > 0 ? (pct + '%') : '-';
     gaugePct.setAttribute('fill', colour);
   }
 }

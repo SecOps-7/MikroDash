@@ -1,14 +1,14 @@
-// The Packages page — a port of the Packages IIFE in public/app.js.
+// The Packages page - a port of the Packages IIFE in public/app.js.
 //
 // The page that writes router configuration in a way no other page does.
-// enable/disable/uninstall do not act — they SCHEDULE, undoable with
+// enable/disable/uninstall do not act - they SCHEDULE, undoable with
 // unschedule, and inert until apply-changes reboots the router. The page is
 // built around that: pending changes lead, every one has an Undo, and the reboot
 // is a separate button.
 //
 // THE TYPED CONFIRMATION IS THE LIVE APP'S, NOT AN ADDITION. `window.prompt`
 // asking for the router name back is what the live page does, and it is
-// reproduced exactly — cancel behaviour included, since a null return is
+// reproduced exactly - cancel behaviour included, since a null return is
 // silent. It is what makes "the wrong router" a hard mistake rather than an easy
 // one.
 
@@ -55,7 +55,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
   let busy = '';
   let statusTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // No global toast exists in app.js — the frequency analyzer uses a local
+  // No global toast exists in app.js - the frequency analyzer uses a local
   // status line for the same reason, and so does this.
   function setStatus(text: string): void {
     const e = el('pkgStatus');
@@ -120,16 +120,16 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     const an = el('pkgActionNote');
     if (an) {
       an.textContent = caps.permitted
-        ? '' : 'read-only — you do not have write access to this router';
+        ? '' : 'read-only - you do not have write access to this router';
     }
 
     tbody!.innerHTML = rows.length
       ? rows.map((p) =>
         '<tr>' +
         '<td>' + esc(p.name) + '</td>' +
-        '<td>' + (p.version ? esc(p.version) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
-        '<td>' + (p.size ? fmtBytes(p.size) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
-        '<td style="color:var(--text-muted)">' + esc((p.buildTime || '').split(' ')[0] || '—') + '</td>' +
+        '<td>' + (p.version ? esc(p.version) : '<span style="color:var(--text-muted)">-</span>') + '</td>' +
+        '<td>' + (p.size ? fmtBytes(p.size) : '<span style="color:var(--text-muted)">-</span>') + '</td>' +
+        '<td style="color:var(--text-muted)">' + esc((p.buildTime || '').split(' ')[0] || '-') + '</td>' +
         '<td>' + stateCell(p) + '</td>' +
         '<td>' + actionsFor(p) + '</td>' +
         '</tr>').join('')
@@ -157,7 +157,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     if (!pending.length) { card.style.display = 'none'; return; }
     card.style.display = '';
     list.innerHTML = pending
-      .map((p) => esc(p.name) + ' — ' + esc(p.scheduledAction || 'change'))
+      .map((p) => esc(p.name) + ' - ' + esc(p.scheduledAction || 'change'))
       .join(' · ') + ' · nothing has happened yet; the router applies these on reboot';
     const btn = el<HTMLButtonElement>('pkgApplyBtn');
     if (btn) btn.disabled = !caps.permitted;
@@ -172,7 +172,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     // The same dialog the System card opens, not a second one: the button
     // carries `data-upgrade-open` and `upgrade.ts` fills it from what the card
     // published. Drawn only with write permission and a known newer version,
-    // for the reason `updateSlotHtml` gives — a button with nothing to do, or
+    // for the reason `updateSlotHtml` gives - a button with nothing to do, or
     // one that refuses on click, is worse than none.
     const updateBtn = (caps.permitted && u.updateAvailable && u.latestVersion)
       ? ' <button class="sbtn sbtn-warn" data-upgrade-open'
@@ -180,11 +180,11 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       : '';
 
     let html = '';
-    html += kv('RouterOS', esc(u.installedVersion || '—') +
+    html += kv('RouterOS', esc(u.installedVersion || '-') +
       (u.updateAvailable ? ' → ' + esc(u.latestVersion) : '') + updateBtn,
       u.updateAvailable ? 'warn' : 'on');
     if (f.isRouterboard) {
-      html += kv('Firmware', esc(f.currentFirmware || '—') +
+      html += kv('Firmware', esc(f.currentFirmware || '-') +
         (f.upgradeAvailable ? ' → ' + esc(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
     }
     // THE ROUTER'S STATUS TEXT IS NOT ALWAYS TRUE, and saying it anyway made
@@ -194,17 +194,17 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     // update and this row still announced one.
     //
     // Same order as the dashboard's `rosUpdateRow` (web/src/pages/dashboard-system.ts):
-    // available, then up to date, then whatever the router is still saying —
+    // available, then up to date, then whatever the router is still saying -
     // which is what a transient "finding out latest version..." or an
     // "unavailable" needs to reach the operator. Kept in step by hand; the two
     // render differently enough that one function would not serve both.
     const upToDate = !u.updateAvailable && !!u.latestVersion;
-    html += kv('Update status', esc(upToDate ? 'Up to date' : (u.status || '—')),
+    html += kv('Update status', esc(upToDate ? 'Up to date' : (u.status || '-')),
       u.updateAvailable ? 'warn' : 'off');
-    html += kv('Channel', esc(u.channel || '—'));
+    html += kv('Channel', esc(u.channel || '-'));
     if (f.isRouterboard) {
-      html += kv('Minimum firmware', esc(f.minimumFirmware || '—'));
-      html += kv('Board', esc(f.boardName || '—') + (f.model ? ' (' + esc(f.model) + ')' : ''));
+      html += kv('Minimum firmware', esc(f.minimumFirmware || '-'));
+      html += kv('Board', esc(f.boardName || '-') + (f.model ? ' (' + esc(f.model) + ')' : ''));
     }
     body.innerHTML = html;
     renderRouterboard();
@@ -222,7 +222,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
    *
    * ── auto-upgrade HAS THREE STATES ─────────────────────────────────────────
    *
-   * On, off, and unknown — the collector could not read the settings menu, which
+   * On, off, and unknown - the collector could not read the settings menu, which
    * a read-only API user can be refused. The switch is drawn only for the first
    * two; the third says so instead of showing a switch that claims the router
    * said no.
@@ -244,7 +244,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     let html = '<div class="pkg-rb-row">';
     html += '<div class="kv-grid">';
     html += '<div class="kv-item"><div class="kv-key">RouterBOOT</div><div class="kv-val' +
-      (pending ? ' warn' : ' on') + '">' + esc(f.currentFirmware || '—') +
+      (pending ? ' warn' : ' on') + '">' + esc(f.currentFirmware || '-') +
       (pending ? ' → ' + esc(f.upgradeFirmware) : '') + '</div></div>';
     html += '<div class="kv-item"><div class="kv-key">Status</div><div class="kv-val' +
       (pending ? ' warn' : ' on') + '">' +
@@ -286,7 +286,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
           'This writes the RouterBOOT firmware and REBOOTS the router.\n\n' +
           'Type the router name to confirm: ' + name);
         if (typed === null) return;
-        setStatus('Upgrading RouterBOOT — the router will reboot');
+        setStatus('Upgrading RouterBOOT - the router will reboot');
         socket.emit('packages:fwupgrade', { confirm: typed });
       });
     }
@@ -308,22 +308,22 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     if (!data) return;
     const c = data.counts;
     const set = (id: string, v: string): void => { const e = el(id); if (e) e.textContent = v; };
-    set('pkgSumInstalled', c.installed === undefined ? '—' : String(c.installed));
-    set('pkgSumAvailable', c.available === undefined ? '—' : String(c.available));
+    set('pkgSumInstalled', c.installed === undefined ? '-' : String(c.installed));
+    set('pkgSumAvailable', c.available === undefined ? '-' : String(c.available));
     // ── WHY "AVAILABLE" CAN READ ZERO ──────────────────────────────────────
     //
     // RouterOS lists the packages it could install only after a successful
-    // `check-for-updates`, and lists none until then — so a router whose checks
+    // `check-for-updates`, and lists none until then - so a router whose checks
     // have been failing shows its installed packages and nothing else, with no
     // way to tell that from "this build has no extras". Reported 2026-09-20 as
     // "available packages are missing". The Check for updates button above
     // fills it in.
     const hint = el('pkgAvailHint');
     if (hint) hint.style.display = c.available ? 'none' : '';
-    set('pkgSumDisabled', c.disabled === undefined ? '—' : String(c.disabled));
+    set('pkgSumDisabled', c.disabled === undefined ? '-' : String(c.disabled));
     set('pkgSumUpdate', data.update && data.update.updateAvailable
       ? (data.update.latestVersion || 'update')
-      : (data.update && data.update.installedVersion) || '—');
+      : (data.update && data.update.installedVersion) || '-');
   }
 
   socket.on('packages:update', (d) => {
@@ -342,9 +342,9 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
 
   socket.on('packages:ok', (d) => {
     busy = '';
-    if (d && d.action === 'apply') setStatus('Applying changes — the router is rebooting');
+    if (d && d.action === 'apply') setStatus('Applying changes - the router is rebooting');
     else if (d && d.action === 'check') setStatus('Update check finished');
-    else if (d && d.action === 'fwupgrade') setStatus('RouterBOOT written — the router is rebooting');
+    else if (d && d.action === 'fwupgrade') setStatus('RouterBOOT written - the router is rebooting');
     else if (d && d.action === 'reboot') setStatus('The router is rebooting');
     else if (d && d.action === 'autoupgrade') {
       setStatus(d.on ? 'Auto-upgrade is on' : 'Auto-upgrade is off');
@@ -360,7 +360,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       'no-such-package': 'That package is no longer listed',
       'router-write-policy': 'The RouterOS user needs write permission for this',
       unsupported: 'This router does not support that command',
-      'confirm-mismatch': 'The router name did not match — nothing was applied',
+      'confirm-mismatch': 'The router name did not match - nothing was applied',
       'nothing-scheduled': 'There are no scheduled changes to apply',
       'no-routerboard': 'This device has no RouterBOOT to upgrade',
       'firmware-current': 'The bootloader already matches the firmware on the board',
@@ -388,7 +388,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       if (!caps.permitted) { setStatus('You do not have write access to this router'); return; }
       setStatus('Checking for updates…');
       // NO PAYLOAD, matching the live page (`../MikroDash/public/app.js:13027`).
-      // The Go handler ignores `in.Data` for this event, so `{}` did nothing —
+      // The Go handler ignores `in.Data` for this event, so `{}` did nothing -
       // but an argument the original does not send is still a difference on the
       // wire, and `packages-page-check` compares the emit trail now.
       socket.emit('packages:check');
