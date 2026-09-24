@@ -32,8 +32,8 @@ func TestOnlyEnabledAndCredentialedTransportsBecomeChannels(t *testing.T) {
 			name: "enabled but not credentialed",
 			cfg: map[string]any{
 				"telegramEnabled": true, "telegramBotToken": "111:AAA", // no chat id
-				"pushbulletEnabled": true, // no key
-				"ntfyEnabled":       true, // no url
+				"pushbulletEnabled": true,                                 // no key
+				"ntfyEnabled":       true,                                 // no url
 				"smtpEnabled":       true, "smtpHost": "mail.example.net", // no recipient
 			},
 			want: []string{},
@@ -82,7 +82,7 @@ func TestOnlyEnabledAndCredentialedTransportsBecomeChannels(t *testing.T) {
 func TestEveryCarriedURLIsSendable(t *testing.T) {
 	cfg := map[string]any{
 		"telegramEnabled": true, "telegramBotToken": "8123456789:AAH-token",
-		"telegramChatId":  "-1001",
+		"telegramChatId":    "-1001",
 		"pushbulletEnabled": true, "pushbulletApiKey": "o.ABCDEF",
 		"ntfyEnabled": true, "ntfyUrl": "https://ntfy.example.net/mikrodash",
 		"ntfyToken": "tk_1",

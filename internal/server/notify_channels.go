@@ -123,3 +123,28 @@ func (s *Server) channelRecipients(routerID, event string) []alertdispatch.Recip
 	}
 	return out
 }
+
+// haveChannels reports whether this install has adopted channels.
+//
+// ── THE SWITCH BETWEEN TWO DELIVERY MODELS ─────────────────────────────────
+//
+// `SeedNotifyChannels` copies the flat transports into channels on first start,
+// so from then on the same credentials exist in both places. Delivering through
+// both would send every alert twice. This is the one question that decides
+// which model is live, asked in one place so the two dispatch paths cannot
+// answer it differently.
+//
+// A read error answers FALSE, which keeps the legacy recipients working: an
+// unreadable channels table must degrade to the behaviour that existed before
+// channels, not to silence.
+func (s *Server) haveChannels() bool {
+	if s.auditDB == nil {
+		return false
+	}
+	n, err := s.auditDB.CountNotifyChannels()
+	if err != nil {
+		log.Printf("[alert] could not count notification channels: %v", err)
+		return false
+	}
+	return n > 0
+}

@@ -41,10 +41,21 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 	if s.dispatch == nil || !s.dispatch.Enabled() || len(fired) == 0 {
 		return
 	}
-	recipients := s.dispatch.Recipients(routerID, s.perUserRecipients)
-	if len(recipients) == 0 {
-		log.Printf("[alert] %d alert(s) on %s reached no recipient", len(fired), routerID)
-		return
+	// ── CHANNELS REPLACE THE FLAT TRANSPORTS, THEY DO NOT JOIN THEM ──────
+	//
+	// `SeedNotifyChannels` copies an install's configured transports into
+	// channels on first start. Delivering to both afterwards would send every
+	// alert TWICE — once to the `_install` recipient built from the flat
+	// settings, once to the channel built from the same credentials. So the
+	// legacy recipients are used only while there are no channels at all, which
+	// is exactly the window before the seed has run.
+	recipients := []alertdispatch.Recipient{}
+	if !s.haveChannels() {
+		recipients = s.dispatch.Recipients(routerID, s.perUserRecipients)
+		if len(recipients) == 0 {
+			log.Printf("[alert] %d alert(s) on %s reached no recipient", len(fired), routerID)
+			return
+		}
 	}
 	stamp := s.alertTimestamp()
 	var settings notify.Settings
@@ -108,7 +119,11 @@ func (s *Server) dispatchBackup(routerID, kind, title, body string) {
 	if s.dispatch == nil || !s.dispatch.Enabled() || title == "" {
 		return
 	}
-	recipients := s.dispatch.Recipients(routerID, s.perUserRecipients)
+	// Legacy recipients only while there are no channels — see `dispatchFired`.
+	recipients := []alertdispatch.Recipient{}
+	if !s.haveChannels() {
+		recipients = s.dispatch.Recipients(routerID, s.perUserRecipients)
+	}
 	// THE CHANNELS THAT SUBSCRIBE TO THIS BACKUP EVENT.
 	//
 	// `backup_drift` and `backup_fail` are catalogue entries like any other, so
