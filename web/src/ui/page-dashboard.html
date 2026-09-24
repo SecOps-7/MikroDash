@@ -36,11 +36,11 @@
               <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem" title="Time window">
                 <option value="1m" selected>1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option>
               </select>
-              <span id="wanStatusBadge" class="wan-badge wan-disabled" style="white-space:nowrap;flex-shrink:0">&#8212;</span>
+              <span id="wanStatusBadge" class="wan-badge wan-disabled" style="white-space:nowrap;flex-shrink:0">-</span>
             </div>
             <div class="chart-legend">
-              <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rx)"></div><span style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">&#8212;</span></div>
-              <div class="legend-item"><div class="legend-dot" style="background:var(--accent-tx)"></div><span style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">&#8212;</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rx)"></div><span style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">-</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--accent-tx)"></div><span style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">-</span></div>
             </div>
           </div>
           <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></div>
@@ -69,14 +69,14 @@
           </div>
           <div class="card-body" style="padding:.75rem">
             <div class="conn-stats mb-2">
-              <div><div class="conn-stat-val" id="connTotal">&#8212;</div><div class="conn-stat-lbl">total</div></div>
+              <div><div class="conn-stat-val" id="connTotal">-</div><div class="conn-stat-lbl">total</div></div>
               <canvas id="connSparkCanvas" width="120" height="40"></canvas>
             </div>
             <div id="protoBars" class="mb-3"></div>
             <div class="section-sep">Top Sources</div>
-            <div id="topSources"><div class="empty-state">&#8212;</div></div>
+            <div id="topSources"><div class="empty-state">-</div></div>
             <div class="section-sep mt-2">Top Destinations</div>
-            <div id="topDests"><div class="empty-state">&#8212;</div></div>
+            <div id="topDests"><div class="empty-state">-</div></div>
           </div>
         </div>
       </div>
@@ -99,7 +99,7 @@
           <div class="stale-overlay">&#9679; stale</div>
           <div class="card-header d-flex align-items-center gap-2">
             <h3 class="card-title">System</h3>
-            <span id="uptimeDisplay" class="card-title" style="margin-left:auto">&#8212;</span>
+            <span id="uptimeDisplay" class="card-title" style="margin-left:auto">-</span>
           </div>
           <div class="card-body" style="padding:.75rem">
             <div class="gauge-row" id="gaugeRow"><div class="empty-state">Waiting&#8230;</div></div>
@@ -195,9 +195,9 @@
             <h3 class="card-title">Network</h3>
           </div>
           <div class="card-body net-diagram-body">
-            <div id="netInternetIfaces" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
+            <div id="netInternetIfaces" style="margin-bottom:.3rem"><div class="empty-state">-</div></div>
             <div style="border-top:1px solid var(--border);margin-bottom:.3rem"></div>
-            <div id="lanOverview"><div class="empty-state">&#8212;</div></div>
+            <div id="lanOverview"><div class="empty-state">-</div></div>
           </div>
         </div>
       </div>

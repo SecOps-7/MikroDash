@@ -35,7 +35,7 @@ mkdirSync(out, { recursive: true });
 
 const tests = readdirSync(here).filter((f) => f.endsWith('.test.ts')).sort();
 if (tests.length === 0) {
-  console.error('web tests: no *.test.ts found — the suite is empty, which is not a pass');
+  console.error('web tests: no *.test.ts found - the suite is empty, which is not a pass');
   process.exit(1);
 }
 
