@@ -30,8 +30,6 @@ import { PLACEHOLDER_CREDENTIALS } from '../src/gen/settings-form-map';
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
-const MASK = '••••••••';
-
 /** Every `s_*` id the real Settings markup carries, with its kind. */
 function markupFields(): { id: string; checkbox: boolean }[] {
   const html = fs.readFileSync(
@@ -117,11 +115,16 @@ check('integers are numbers, not the strings the DOM holds', () => {
   assert.strictEqual(body.maxConns, 20000);
 });
 
-check('smtpPort blank falls back to 587', () => {
-  const { els, page } = mount();
-  els.s_smtpPort.value = '';
-  assert.strictEqual(page.collectSettingsForm(POLL).smtpPort, 587);
-});
+// THE `smtpPort` FALLBACK CHECK IS GONE WITH THE FIELD IT GUARDED.
+//
+// It pinned `parseInt(raw, 10) || 587` — a blank port meaning the default rather
+// than "leave whatever was there". The mail server became a notification
+// channel, so there is no `s_smtpPort` on this page and no such branch in
+// `collectSettingsForm` any more. The rule now belongs to the channel modal's
+// own port field and is checked there.
+//
+// Recorded rather than silently dropped, because a check that vanishes reads
+// exactly like one that never existed.
 
 check('updateCheckHours: blank is omitted, out of range is clamped', () => {
   const { els, page } = mount();
@@ -136,17 +139,19 @@ check('updateCheckHours: blank is omitted, out of range is clamped', () => {
   assert.strictEqual(page.collectSettingsForm(POLL).updateCheckHours, 1);
 });
 
-check('strings are trimmed, but a credential and a timezone are not', () => {
+check('strings are trimmed, but a timezone is not', () => {
   const { els, page } = mount();
   els.s_notifTitle.value = '  hello  ';
-  els.s_smtpUser.value = '  bob  ';
   els.s_displayTimezone.value = ' Europe/Berlin ';
   const body = page.collectSettingsForm(POLL);
   assert.strictEqual(body.notifTitle, 'hello');
-  assert.strictEqual(body.smtpUser, '  bob  ',
-    'smtpUser was trimmed; the server deliberately does not trim credentials, '
-    + 'because a token with a trailing space is a token the operator pasted');
-  assert.strictEqual(body.displayTimezone, ' Europe/Berlin ');
+  // The credential half of this check moved to 'a typed credential is sent
+  // verbatim' below, where `aiApiKey` is now the only field it can be made
+  // against: `smtpUser` was the untrimmed value field and it is a channel
+  // secret now.
+  assert.strictEqual(body.displayTimezone, ' Europe/Berlin ',
+    'the timezone was trimmed; it comes from a select rather than a typed box, '
+    + 'so a trim here is a rule with no case behind it');
 });
 
 check('checkboxes send real booleans, never "on" or 1', () => {
@@ -196,18 +201,23 @@ check('a blank credential is OMITTED, never sent as an empty string', () => {
 
 check('a typed credential is sent verbatim', () => {
   const { els, page } = mount();
-  els.s_smtpPass.value = ' hunter2 ';
-  assert.strictEqual(page.collectSettingsForm(POLL).smtpPass, ' hunter2 ',
-    'a typed secret must go exactly as typed, spaces included');
+  els.s_aiApiKey.value = ' hunter2 ';
+  assert.strictEqual(page.collectSettingsForm(POLL).aiApiKey, ' hunter2 ',
+    'a typed secret must go exactly as typed, spaces included — a token with a '
+    + 'trailing space is a token the operator pasted');
 });
 
-check('the smtpUser mask is handed straight back', () => {
-  const { els, page } = mount();
-  els.s_smtpUser.value = MASK;
-  assert.strictEqual(page.collectSettingsForm(POLL).smtpUser, MASK,
-    'the server masks smtpUser on read and drops the mask on write; changing '
-    + 'this end silently clears the SMTP username on every save');
-});
+// THE MASK ROUND TRIP HAS NO FIELD LEFT TO CHECK.
+//
+// `smtpUser` was the one value field the server masked on read: the page handed
+// the mask straight back and `store.IsMasked` dropped it from the updates.
+// Changing that end silently cleared the SMTP username on every save, which is
+// why it was pinned here. The mail server is a notification channel now, so that
+// credential lives in a channel's sealed config and never reaches this form.
+//
+// Every credential this page still holds is a PLACEHOLDER credential, which
+// `populateSettings` blanks on load — so the mask is never in the box, and the
+// rule that replaces this one is 'a blank credential is OMITTED' above.
 
 check('authMode follows the sign-in toggle, both ways', () => {
   const on = mount();

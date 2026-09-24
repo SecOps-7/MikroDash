@@ -284,9 +284,9 @@ func TestTheAuditRowNamesTheChangedFieldsOnly(t *testing.T) {
 func TestACredentialValueNeverReachesTheTrail(t *testing.T) {
 	s, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
 
-	// `smtpPass`: smtpPass left the settings page with its transport.
+	// `aiApiKey`: aiApiKey left the settings page with its transport.
 	const secret = "REDACTED-smtp-password-value"
-	if w := settingsPost(mux, `{"smtpPass":"`+secret+`"}`, authed); w.Code != 200 {
+	if w := settingsPost(mux, `{"aiApiKey":"`+secret+`"}`, authed); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
 
@@ -294,7 +294,7 @@ func TestACredentialValueNeverReachesTheTrail(t *testing.T) {
 	if detail == "" {
 		t.Fatal("settings.update recorded nothing, so this proves nothing")
 	}
-	if !strings.Contains(detail, "smtpPass") {
+	if !strings.Contains(detail, "aiApiKey") {
 		t.Errorf("the field NAME should be recorded; detail is %s", detail)
 	}
 	if strings.Contains(detail, secret) {
@@ -302,7 +302,7 @@ func TestACredentialValueNeverReachesTheTrail(t *testing.T) {
 	}
 
 	// And it is SEALED on disk, not stored in the clear.
-	if raw := readSettingsFile(t, dir); raw["smtpPass"] == secret {
+	if raw := readSettingsFile(t, dir); raw["aiApiKey"] == secret {
 		t.Error("the token was written to settings.json in plaintext")
 	}
 }
@@ -325,12 +325,12 @@ func TestAnUnreadableCredentialSurvivesAnUnrelatedSave(t *testing.T) {
 	// Not valid ciphertext under this .secret, which is the whole point.
 	const opaque = "NOT-DECRYPTABLE-CIPHERTEXT"
 	_, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"},
-		`{"topN":25,"smtpPass":"`+opaque+`"}`)
+		`{"topN":25,"aiApiKey":"`+opaque+`"}`)
 
 	// Believability: the store really cannot read it, or `kept` would be empty
 	// and this test would pass for the wrong reason.
-	if before := readSettingsFile(t, dir); before["smtpPass"] != opaque {
-		t.Fatalf("the fixture did not land: %#v", before["smtpPass"])
+	if before := readSettingsFile(t, dir); before["aiApiKey"] != opaque {
+		t.Fatalf("the fixture did not land: %#v", before["aiApiKey"])
 	}
 
 	if w := settingsPost(mux, `{"topN":30}`, authed); w.Code != 200 {
@@ -342,10 +342,10 @@ func TestAnUnreadableCredentialSurvivesAnUnrelatedSave(t *testing.T) {
 		t.Errorf("topN = %#v; the save did not happen, so the check below is vacuous",
 			after["topN"])
 	}
-	if after["smtpPass"] != opaque {
-		t.Errorf("smtpPass = %#v after saving an UNRELATED key; want the "+
+	if after["aiApiKey"] != opaque {
+		t.Errorf("aiApiKey = %#v after saving an UNRELATED key; want the "+
 			"original ciphertext preserved. A credential this process cannot read must "+
-			"not be destroyed by a save that never touched it", after["smtpPass"])
+			"not be destroyed by a save that never touched it", after["aiApiKey"])
 	}
 }
 

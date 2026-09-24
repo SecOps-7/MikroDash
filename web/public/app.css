@@ -2898,9 +2898,6 @@
 .nchan-event { align-items: flex-start; }
 .nchan-event .stoggle-label { display: flex; flex-direction: column; gap: .15rem; }
 .nchan-event-desc { font-size: .68rem; color: var(--text-muted); font-weight: 400; }
-/* An event the install does not raise at all: still choosable, because the
-   operator may switch it on above and expect the channel to already want it. */
-.nchan-event.is-gated .stoggle-label strong { color: var(--text-muted); }
 
 .nchan-routers { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
 .nchan-router { display: flex; align-items: center; gap: .35rem; font-size: .74rem; }

@@ -57,11 +57,11 @@ const EVENTS = {
   events: [
     {
       key: 'ping_loss', label: 'Ping loss', desc: 'loss crossed the threshold',
-      raised: true, backup: false,
+      backup: false,
     },
     {
       key: 'host_down', label: 'NetWatch host', desc: 'a host stopped responding',
-      raised: false, backup: false,
+      backup: false,
     },
   ],
   schemes: ['tgram', 'ntfy'],
@@ -259,6 +259,32 @@ check('testing an unsaved channel says to save it rather than failing silently',
     'an unsaved test said: ' + JSON.stringify(d.els.nchanTestResult.textContent));
   assert.ok(!d.sent.some((s) => s.url.includes('/test')),
     'an unsaved channel was tested against the server');
+});
+
+// THE EVENTS TAB SAYS NOTHING ABOUT A GATE THAT NO LONGER EXISTS.
+//
+// The endpoint used to send `raised` per event, and the row appended "not raised
+// install-wide" when it was false. The install-wide gates went when alert types
+// moved onto the channel, so the field went too — and reading the missing field
+// made EVERY event carry that phrase, which is exactly backwards. The web suite
+// passed throughout; it was found by opening the tab.
+check('no event is labelled as not raised install-wide', async () => {
+  const d = mount([CHANNEL], true);
+  await settle();
+  d.els.nchanGrid.fire('click', {
+    target: { closest: () => ({ getAttribute: (k) => (k === 'data-nchan-act' ? 'edit' : 'c1') }) },
+  });
+  await settle();
+  await settle();
+
+  const html = d.els.nchanEvents.innerHTML;
+  assert.ok(html.includes('Ping loss'),
+    'the event list did not render, so this check is reading an empty string: ' + html);
+  assert.ok(!/not raised/.test(html),
+    'an event is labelled "not raised install-wide", which describes a gate that no '
+    + 'longer exists: ' + html);
+  assert.ok(!/is-gated/.test(html),
+    'an event row is greyed as gated, and there is nothing left to gate it: ' + html);
 });
 
 (async () => {

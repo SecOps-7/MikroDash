@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"mikrodash/internal/mailer"
@@ -117,12 +118,22 @@ func (s *Server) testNotification(w http.ResponseWriter, r *http.Request) {
 // honour what the operator typed.
 func smtpFromSettings(cfg notify.Settings) (mailer.Config, string) {
 	str := func(k string) string { v, _ := cfg[k].(string); return v }
+	// A STRING IS A REAL CASE, and leaving it out was a live bug.
+	//
+	// `notify.DecodeChannel` writes an SMTP channel's port with `strconv.Itoa`,
+	// because the flat `smtp*` keys it mirrors were form values and those are
+	// strings. Parsing only the numeric forms left every SMTP channel on port 0,
+	// so a channel configured for 465 dialled somewhere else entirely — silently,
+	// since the connection error reads the same as an unreachable server. Caught
+	// by TestAnEmailAlertDialsTheMailServer once it was pointed at a channel.
 	port := 0
 	switch p := cfg["smtpPort"].(type) {
 	case float64:
 		port = int(p)
 	case int:
 		port = p
+	case string:
+		port, _ = strconv.Atoi(p)
 	}
 	secure, _ := cfg["smtpSecure"].(bool)
 	return mailer.Config{

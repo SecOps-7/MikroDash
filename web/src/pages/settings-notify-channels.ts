@@ -39,7 +39,6 @@ interface EventRow {
   key: string;
   label: string;
   desc: string;
-  raised: boolean;
   backup: boolean;
 }
 
@@ -53,8 +52,32 @@ let editing: ChannelView | null = null;
 /** Whether this viewer may own install-wide channels. Told by the server; a
  *  non-administrator makes channels for themselves instead. */
 let canManageInstall = false;
+/**
+ * The stored URLs, once the detail read has returned them.
+ *
+ * `null` means "not loaded" — the read failed or was refused — and in that case
+ * an empty box still means "keep what is stored", as it always did. Once they
+ * ARE loaded the box is authoritative: what you see is what gets saved, and
+ * clearing it is refused rather than silently ignored.
+ */
+let loadedURLs: string[] | null = null;
 
 const INSTALL = '_install';
+
+/** The dimmed examples a new channel shows, one per line, as other dashboards do.
+ *  A placeholder rather than prefilled text: it must not be saved by accident. */
+const URL_EXAMPLES = [
+  'tgram://bot_token/chat_id',
+  'discord://webhook_id/webhook_token',
+  'slack://token_a/token_b/token_c',
+  'ntfy://ntfy.sh/my-topic',
+  'ntfys://host/topic?token=tk_abc',
+  'gotify://host/app-token',
+  'pover://user_key/api_token',
+  'pbul://access_token',
+  'jsons://hooks.example.com/path',
+  'apprise://host/config-key',
+].join('\n');
 
 function show(open: boolean): void {
   const m = el('notifChanModal');
@@ -93,7 +116,27 @@ function card(c: ChannelView): string {
     + '</div></div>';
 }
 
+/**
+ * Fill the "reports are sent through" picker from the SMTP channels.
+ *
+ * Reports need a real mail server, so only SMTP channels are offered — a
+ * webhook cannot carry a PDF attachment. The blank option is not "none": it
+ * means the first enabled install SMTP channel, which is the right answer for
+ * an install with exactly one and is what makes an upgrade need no migration.
+ */
+function renderReportPicker(): void {
+  const sel = el<HTMLSelectElement>('s_reportChannelId');
+  if (!sel) return;
+  const chosen = sel.value;
+  const smtp = channels.filter((c) => c.kind === 'smtp' && c.owner === INSTALL);
+  sel.innerHTML = '<option value="">First enabled SMTP channel</option>'
+    + smtp.map((c) => '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>').join('');
+  // Keep a stored choice selected even before the settings load repaints it.
+  if (chosen) sel.value = chosen;
+}
+
 function render(): void {
+  renderReportPicker();
   const grid = el('nchanGrid');
   if (grid) {
     grid.innerHTML = channels.length
@@ -117,6 +160,28 @@ async function load(): Promise<void> {
   render();
 }
 
+/** Read one channel's stored configuration, which the list deliberately omits. */
+async function loadDetail(id: string): Promise<void> {
+  loadedURLs = null;
+  try {
+    const r = await fetch('/api/notify-channels/' + encodeURIComponent(id),
+      { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j && Array.isArray(j.urls)) loadedURLs = j.urls;
+    if (j && j.smtp) {
+      setValue('nchanSmtpHost', String(j.smtp.host || ''));
+      setValue('nchanSmtpPort', String(j.smtp.port || ''));
+      setChecked('nchanSmtpSecure', j.smtp.secure === true);
+      setValue('nchanSmtpUser', String(j.smtp.user || ''));
+      setValue('nchanSmtpPass', String(j.smtp.pass || ''));
+      setValue('nchanSmtpFrom', String(j.smtp.from || ''));
+      setValue('nchanSmtpTo', String(j.smtp.to || ''));
+    }
+  } catch { /* the box stays empty and keep-on-blank still applies */ }
+  if (loadedURLs) setValue('nchanUrls', loadedURLs.join('\n'));
+}
+
 async function loadEvents(): Promise<void> {
   try {
     const r = await fetch('/api/notify-channels/events', { credentials: 'same-origin' });
@@ -133,12 +198,21 @@ async function loadEvents(): Promise<void> {
   } catch { routers = []; }
 }
 
-/** One event toggle. `raised` false means the install does not raise it at all. */
+/**
+ * One event toggle.
+ *
+ * NO "not raised install-wide" ANY MORE. The endpoint carried a `raised` flag
+ * saying whether the install raised this event at all, and the row appended that
+ * phrase when it was false. The install-wide gates are gone — every alert is
+ * recorded and this toggle is the only thing deciding delivery — so the flag
+ * went with them. Reading a field that no longer exists made EVERY event read
+ * "not raised install-wide", which is exactly backwards; found by opening the
+ * tab, not by a test.
+ */
 function eventRow(e: EventRow, on: boolean): string {
-  return '<label class="stoggle stoggle-bare nchan-event' + (e.raised ? '' : ' is-gated') + '">'
+  return '<label class="stoggle stoggle-bare nchan-event">'
     + '<span class="stoggle-label"><strong>' + esc(e.label) + '</strong>'
-    + '<span class="nchan-event-desc">' + esc(e.desc)
-    + (e.raised ? '' : ' &mdash; not raised install-wide') + '</span></span>'
+    + '<span class="nchan-event-desc">' + esc(e.desc) + '</span></span>'
     + '<span class="stoggle-switch"><input type="checkbox" data-nchan-event="' + esc(e.key) + '"'
     + (on ? ' checked' : '') + '>'
     + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>';
@@ -146,6 +220,7 @@ function eventRow(e: EventRow, on: boolean): string {
 
 function fillModal(c: ChannelView | null): void {
   editing = c;
+  loadedURLs = null;
   const t = el('nchanTitle');
   if (t) t.textContent = c ? 'Edit notification channel' : 'Add notification channel';
 
@@ -157,10 +232,11 @@ function fillModal(c: ChannelView | null): void {
   if (urls) {
     // THE PLACEHOLDER CARRIES THE PROMISE. An empty box that silently keeps the
     // stored URLs is how an operator deletes their own configuration.
+    // Only reached before the detail read returns, or when it could not.
     urls.placeholder = c && c.urlCount > 0
       ? 'Leave blank to keep the ' + c.urlCount + ' stored URL'
         + (c.urlCount === 1 ? '' : 's') + ', or type new ones to replace them'
-      : 'tgram://bot_token/chat_id\ndiscord://webhook_id/webhook_token\nntfys://ntfy.sh/my-topic';
+      : URL_EXAMPLES;
   }
   setValue('nchanSmtpHost', (c && c.smtpHost) || '');
   setValue('nchanSmtpPort', '');
@@ -182,8 +258,8 @@ function fillModal(c: ChannelView | null): void {
   }
   const note = el('nchanEventNote');
   if (note) {
-    note.textContent = 'Which of the alerts MikroDash raises this channel receives. '
-      + 'An event switched off in Alert Types is never raised, so no channel can receive it.';
+    note.textContent = 'MikroDash records every alert. Choose which of them this channel '
+      + 'delivers; the rest are still visible on the Alerts page and in the bell.';
   }
 
   const scope = new Set(c ? c.routers : []);
@@ -283,7 +359,11 @@ function bodyFor(): Record<string, unknown> {
 
   if (kind === 'webhook') {
     const raw = getValue('nchanUrls').split('\n').map((s) => s.trim()).filter((s) => s !== '');
-    if (raw.length > 0) body.config = { urls: raw };
+    // ONCE THE STORED URLS ARE ON SCREEN, THE BOX IS THE TRUTH. Sending nothing
+    // would make clearing it a silent no-op, and an operator who deleted a URL
+    // would be told it saved while the old one kept delivering. Before the read
+    // returns — or if it was refused — blank still means "keep".
+    if (loadedURLs !== null || raw.length > 0) body.config = { urls: raw };
   } else {
     const host = getValue('nchanSmtpHost').trim();
     const pass = getValue('nchanSmtpPass');
@@ -386,6 +466,7 @@ export function initNotifyChannels(): void {
           await loadEvents();
           fillModal(c);
           show(true);
+          await loadDetail(c.id);
         } else if (act === 'delete') {
           await remove(c);
         } else if (act === 'test') {

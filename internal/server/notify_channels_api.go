@@ -40,6 +40,7 @@ func (s *Server) registerNotifyChannels(mux *http.ServeMux) {
 	rw := newRateLimiter(60, time.Minute).limit
 	mux.HandleFunc("GET /api/notify-channels", rw(s.notifyChannelsList))
 	mux.HandleFunc("GET /api/notify-channels/events", rw(s.notifyChannelEvents))
+	mux.HandleFunc("GET /api/notify-channels/{id}", rw(s.notifyChannelOne))
 	mux.HandleFunc("POST /api/notify-channels", rw(s.notifyChannelCreate))
 	mux.HandleFunc("PUT /api/notify-channels/{id}", rw(s.notifyChannelUpdate))
 	mux.HandleFunc("DELETE /api/notify-channels/{id}", rw(s.notifyChannelDelete))
@@ -195,6 +196,57 @@ func (s *Server) notifyChannelEvents(w http.ResponseWriter, r *http.Request) {
 		"ok": true, "events": out, "schemes": notify.Schemes,
 		"defaults": alert.DefaultEvents(),
 	})
+}
+
+// notifyChannelOne returns ONE channel WITH its configuration, including the
+// webhook URLs and the SMTP password.
+//
+// ── WHY THIS IS A SEPARATE ROUTE FROM THE LIST ────────────────────────────
+//
+// The list is shown to every signed-in viewer — it carries the install's
+// channels so anyone can see what exists — so it must never contain a
+// credential. This one is gated on `mayTouchChannel`: the same test that decides
+// who may EDIT the channel. Somebody who can rewrite the URL gains nothing by
+// being shown it, and cannot manage a destination they are not allowed to read.
+//
+// The alternative, masking the secret inside the URL, was considered and
+// rejected: `tgram://••••••••/-100` cannot be copied, corrected or diffed, so an
+// operator fixing a typo would have to retype a token they cannot see.
+func (s *Server) notifyChannelOne(w http.ResponseWriter, r *http.Request) {
+	sess, ok := s.channelSession(w, r)
+	if !ok {
+		return
+	}
+	cur, found, err := s.auditDB.NotifyChannelByID(r.PathValue("id"))
+	if err != nil {
+		writeJSONErrFrom(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !found {
+		writeJSONErr(w, http.StatusNotFound, "no such channel")
+		return
+	}
+	if !s.mayTouchChannel(sess, cur.Owner) {
+		writeJSONErr(w, http.StatusForbidden, "not permitted")
+		return
+	}
+	spec := notify.DecodeChannel(cur.ID, cur.Name, cur.Kind, cur.Enabled == 1,
+		s.openChannelConfig(cur.Config), cur.Events, cur.Routers)
+
+	out := map[string]any{"ok": true, "channel": s.viewOf(sess, cur)}
+	if spec.URLs == nil {
+		spec.URLs = []string{}
+	}
+	out["urls"] = spec.URLs
+	if cur.Kind == notify.KindSMTP {
+		out["smtp"] = map[string]any{
+			"host": spec.Settings["smtpHost"], "port": spec.Settings["smtpPort"],
+			"secure": spec.Settings["smtpSecure"], "user": spec.Settings["smtpUser"],
+			"pass": spec.Settings["smtpPass"],
+			"from": spec.Settings["smtpFrom"], "to": spec.Settings["smtpTo"],
+		}
+	}
+	writeJSON(w, out)
 }
 
 func (s *Server) notifyChannelCreate(w http.ResponseWriter, r *http.Request) {
@@ -412,16 +464,26 @@ func validateChannel(b channelBody) error {
 		if err := json.Unmarshal(b.Config, &cfg); err != nil {
 			return errors.New("malformed webhook configuration")
 		}
+		usable := 0
 		for _, u := range cfg.URLs {
 			if strings.TrimSpace(u) == "" {
 				continue
 			}
+			usable++
 			// REFUSED HERE, while the operator is looking at the form. A URL
 			// nothing can send would otherwise be stored and deliver silently
 			// nothing until an incident.
 			if err := notify.Validate(u); err != nil {
 				return err
 			}
+		}
+		// A CONFIG THAT CLEARS EVERY URL IS REFUSED. The form shows the stored
+		// URLs now, so an empty box is a deliberate act rather than the
+		// "unchanged" it used to mean — and a webhook channel with no
+		// destination is one that reports every alert as delivered while
+		// sending nothing.
+		if usable == 0 {
+			return errors.New("a webhook channel needs at least one URL")
 		}
 	}
 	return nil

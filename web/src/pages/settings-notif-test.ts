@@ -1,22 +1,21 @@
 /**
- * Settings → the four notification Test buttons.
+ * Settings → the Test buttons.
  *
- * ── THEY SEND, AND THAT SHAPES EVERY DECISION HERE ─────────────────────────
+ * ── THEY REACH OUT, AND THAT SHAPES EVERY DECISION HERE ────────────────────
  *
- * A press delivers one real message to the operator's real Telegram, mailbox,
- * Pushbullet or ntfy topic. So the button is disabled for the duration of the
- * request: a double-click is two messages, and unlike a duplicated render that
- * cannot be undone.
+ * A press makes one real request to the operator's real endpoint. So the button
+ * is disabled for the duration: a double-click is two requests, and unlike a
+ * duplicated render that cannot be undone.
  *
  * ── THE TYPED CREDENTIALS GO WITH IT ───────────────────────────────────────
  *
  * The live comment: "Include any credentials the user has currently typed so
- * Test works without requiring a Save first." Which fields are collected depends
- * on the channel, and the collection is NOT uniform — `smtpSecure` is sent from
- * a checkbox whether or not it is ticked, while every text field is sent only
- * when non-empty. That difference is load-bearing on the server, where an absent
- * field falls back to what is stored and a present one overrides even when
- * false. See `notify.MergeForAdminTest`.
+ * Test works without requiring a Save first." A text field goes only when
+ * non-empty, so an untouched box falls back to what is stored; the checkbox goes
+ * whether or not it is ticked. That difference is load-bearing on the server,
+ * where an absent field falls back to what is stored and a present one overrides
+ * even when false. See `notify.MergeForAdminTest`, which the notification
+ * channels' own test endpoint still goes through.
  *
  * ── THE RESULT LINE CLEARS ITSELF ONLY ON A REPLY ──────────────────────────
  *
@@ -29,11 +28,14 @@ import { el } from '../dom';
 export interface TestChannelSpec {
   btnId: string;
   resultId: string;
-  channel: string;
-  /** Where to post. Defaults to the notification route. */
-  url?: string;
-  /** What to post. Defaults to `testPayload(channel)`. */
-  payload?: () => Record<string, unknown>;
+  /**
+   * Where to post, and what to post. BOTH REQUIRED, where they used to default
+   * to the notification route and `testPayload(channel)`. Those defaults served
+   * the four transport rows, and the transports are channels now: a default
+   * with no caller is a second way to do one job, kept alive by nothing.
+   */
+  url: string;
+  payload: () => Record<string, unknown>;
   /** The word for a success. A notification is SENT; a connection is not. */
   okText?: string;
   /** Called with every reply, after the result line is written. */
@@ -76,20 +78,21 @@ export interface CertInfo {
  * which is worth a second copy.
  */
 export const TEST_CHANNELS: TestChannelSpec[] = [
-  // ── ONLY THE MAIL SERVER AND THE AI ENDPOINT REMAIN ───────────────────
+  // ── ONLY THE AI ENDPOINT REMAINS ──────────────────────────────────────
   //
-  // Telegram, Pushbullet and ntfy left this table when they became notification
-  // channels: a channel is tested through `/api/notify-channels/{id}/test`,
-  // against what is STORED, from its own card. Their buttons are gone from the
-  // markup too, so leaving the rows here would only mean four `el()` lookups
-  // that never find anything.
+  // Telegram, Pushbullet, ntfy and the mail server all left this table when they
+  // became notification channels: a channel is tested through
+  // `/api/notify-channels/{id}/test`, against what is STORED, from its own card.
+  // Their buttons are gone from the markup too, so leaving the rows here would
+  // only mean `el()` lookups that never find anything — which is exactly what
+  // `TestEveryLookupHasAProducer` caught when the mail server card went.
   //
-  // SMTP stays because the mail server is not a channel: scheduled reports send
-  // through it, and testing it is the only way to find out it works before a
-  // report is due.
-  { btnId: 'btn-test-smtp', resultId: 'test-smtp-result', channel: 'smtp' },
+  // The table is kept for the one row rather than inlined, because what it
+  // carries is the MOUNT: `initNotifTestButtons` is already called from
+  // `main.ts`, and a Test button bound by a module nothing mounts is the shape
+  // `TestInteractiveControlsAreBoundBeyondCaps` exists to catch.
   {
-    btnId: 'btn-test-ai', resultId: 'test-ai-result', channel: 'ai',
+    btnId: 'btn-test-ai', resultId: 'test-ai-result',
     url: '/api/settings/test-ai', payload: aiTestPayload,
     // NOT "Sent!". Nothing was delivered to anybody: the endpoint answered, the
     // key was accepted and the model name exists, which is a different claim.
@@ -129,46 +132,6 @@ export function aiTestPayload(): Record<string, unknown> {
 const val = (id: string): string => el<HTMLInputElement>(id)?.value ?? '';
 
 /**
- * What to send for a channel, read off the form as it stands.
- *
- * THREE DIFFERENT RULES, and they are the live ones:
- *
- *   plain text fields   sent only when non-empty (`if (x && x.value)`)
- *   trimmed fields      host, from, to and the ntfy url are `.trim()`ed —
- *                       the tokens and passwords are NOT, because leading or
- *                       trailing space can be part of a secret
- *   smtpSecure          sent whenever the checkbox EXISTS, ticked or not
- *   smtpPort            parsed to a number, and only when non-empty
- */
-export function testPayload(channel: string): Record<string, unknown> {
-  const p: Record<string, unknown> = { channel };
-  if (channel === 'telegram') {
-    if (val('s_telegramBotToken')) p.botToken = val('s_telegramBotToken');
-    if (val('s_telegramChatId')) p.chatId = val('s_telegramChatId');
-  } else if (channel === 'pushbullet') {
-    if (val('s_pushbulletApiKey')) p.apiKey = val('s_pushbulletApiKey');
-  } else if (channel === 'smtp') {
-    if (val('s_smtpHost')) p.smtpHost = val('s_smtpHost').trim();
-    if (val('s_smtpPort')) p.smtpPort = parseInt(val('s_smtpPort'), 10);
-    // NO `if (value)` GUARD. The live code checks the ELEMENT exists and then
-    // sends `.checked` — so an unticked box sends `false`, which the server
-    // treats as an explicit "no TLS" rather than falling back to the stored
-    // value. Guarding on truthiness here would make it impossible to test with
-    // TLS off once it had been saved on.
-    const secure = el<HTMLInputElement>('s_smtpSecure');
-    if (secure) p.smtpSecure = secure.checked;
-    if (val('s_smtpUser')) p.smtpUser = val('s_smtpUser');
-    if (val('s_smtpPass')) p.smtpPass = val('s_smtpPass');
-    if (val('s_smtpFrom')) p.smtpFrom = val('s_smtpFrom').trim();
-    if (val('s_smtpTo')) p.smtpTo = val('s_smtpTo').trim();
-  } else if (channel === 'ntfy') {
-    if (val('s_ntfyUrl')) p.ntfyUrl = val('s_ntfyUrl').trim();
-    if (val('s_ntfyToken')) p.ntfyToken = val('s_ntfyToken');
-  }
-  return p;
-}
-
-/**
  * The line under the button, after a reply.
  *
  * ── NOT NULL-GUARDED, AND THAT IS DELIBERATE ───────────────────────────────
@@ -205,11 +168,11 @@ function wire(spec: TestChannelSpec): void {
       result.textContent = 'Sending…';
       result.style.color = 'var(--text-muted)';
     }
-    void fetch(spec.url || '/api/settings/test-notification', {
+    void fetch(spec.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify(spec.payload ? spec.payload() : testPayload(spec.channel)),
+      body: JSON.stringify(spec.payload()),
     })
       .then((r) => r.json())
       .then((d) => {

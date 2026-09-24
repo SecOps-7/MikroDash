@@ -97,10 +97,6 @@
       1,
       168
     ],
-    "smtpPort": [
-      1,
-      65535
-    ],
     "dbRetentionDays": [
       1,
       3650
@@ -173,12 +169,10 @@
   "strFields": [
     "pingTarget",
     "notifTitle",
-    "smtpHost",
-    "smtpFrom",
-    "smtpTo",
     "aiBaseUrl",
     "aiModel",
-    "ztpEndpoint"
+    "ztpEndpoint",
+    "reportChannelId"
   ],
   "boolFields": [
     "pageAudit",
@@ -207,8 +201,6 @@
     "pageWifiMap",
     "pageWireless",
     "rosDebug",
-    "smtpEnabled",
-    "smtpSecure",
     "userNotifyEnabled",
     "aiEnabled",
     "aiOverviewEnabled",
@@ -217,8 +209,6 @@
     "ztpEnabled"
   ],
   "credFields": [
-    "smtpUser",
-    "smtpPass",
     "aiApiKey"
   ],
   "specialCases": [

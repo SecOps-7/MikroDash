@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"mikrodash/internal/db"
 	"mikrodash/internal/mailer"
+	"mikrodash/internal/notify"
 	"mikrodash/internal/reportpdf"
 	"mikrodash/internal/reports"
 	"mikrodash/internal/safe"
@@ -258,29 +260,75 @@ func splitList(s string) []string {
 
 // smtpConfig reads the install's mail settings. The bool is the live
 // `!settings.smtpHost || !settings.smtpFrom` test.
+// smtpConfig is the mail server scheduled reports send through.
+//
+// ── REPORTS SUBSCRIBE TO AN EMAIL CHANNEL ─────────────────────────────────
+//
+// There was an install-wide SMTP block in the settings, separate from the
+// notification channels, so a mail server could be configured in two places
+// that knew nothing about each other. There is one place now: an SMTP channel.
+// Reports take its SERVER — host, port, TLS, credentials, from — and keep their
+// own recipient list, because a schedule says who a report goes to and a channel
+// says who an alert goes to, and those are different questions.
+//
+// WHICH CHANNEL: the one named by `reportChannelId` when the operator has
+// picked one, and otherwise the first enabled install-owned SMTP channel. The
+// fallback is what makes an upgrade need no migration at all — the seeded
+// "Email" channel is found on its own — and it is also the right answer for the
+// common install that has exactly one.
 func (s *Server) smtpConfig() (mailer.Config, string, bool) {
-	if s.store == nil {
+	if s.auditDB == nil {
 		return mailer.Config{}, "", false
 	}
-	// MERGED: `smtpUser` and `smtpPass` are stored sealed, so the raw file hands
-	// this an AES-GCM blob to authenticate with.
-	cfg, err := s.mergedSettings()
+	rows, err := s.auditDB.NotifyChannels()
 	if err != nil {
 		return mailer.Config{}, "", false
 	}
-	str := func(k string) string { v, _ := cfg[k].(string); return v }
+
+	// `mergedSettings`, not `store.Settings`: this file consumes credentials, and
+	// `TestCredentialConsumersUseTheMergedSettings` refuses a raw read here on
+	// exactly that ground. `reportChannelId` is not itself a secret, but the rule
+	// is about the FILE, and a raw read in a credential consumer is the shape of
+	// the bug it exists to catch.
+	want := ""
+	if cfg, cerr := s.mergedSettings(); cerr == nil {
+		want, _ = cfg["reportChannelId"].(string)
+	}
+
+	var chosen *db.NotifyChannel
+	for i := range rows {
+		c := &rows[i]
+		if c.Kind != notify.KindSMTP {
+			continue
+		}
+		if want != "" {
+			if c.ID == want {
+				chosen = c
+				break
+			}
+			continue
+		}
+		// THE FALLBACK IS DELIBERATELY NARROW: enabled, and owned by the
+		// install. A user's personal email channel must not become the server
+		// every scheduled report in the install goes out through.
+		if c.Enabled == 1 && c.Owner == db.InstallOwner {
+			chosen = c
+			break
+		}
+	}
+	if chosen == nil {
+		return mailer.Config{}, "", false
+	}
+
+	spec := notify.DecodeChannel(chosen.ID, chosen.Name, chosen.Kind, true,
+		s.openChannelConfig(chosen.Config), chosen.Events, chosen.Routers)
+	str := func(k string) string { v, _ := spec.Settings[k].(string); return v }
 	host, from := str("smtpHost"), str("smtpFrom")
 	if host == "" || from == "" {
 		return mailer.Config{}, "", false
 	}
-	port := 0
-	switch p := cfg["smtpPort"].(type) {
-	case float64:
-		port = int(p)
-	case int:
-		port = p
-	}
-	secure, _ := cfg["smtpSecure"].(bool)
+	port, _ := strconv.Atoi(str("smtpPort"))
+	secure, _ := spec.Settings["smtpSecure"].(bool)
 	return mailer.Config{
 		Host: host, Port: port, Secure: secure,
 		User: str("smtpUser"), Pass: str("smtpPass"), From: from,

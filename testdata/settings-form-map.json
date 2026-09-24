@@ -12,8 +12,6 @@
       "rosDebug",
       "routerTls",
       "routerTlsInsecure",
-      "smtpEnabled",
-      "smtpSecure",
       "userNotifyEnabled"
     ],
     "checkOn": [
@@ -48,11 +46,6 @@
     ],
     "value": [
       "aiBaseUrl",
-      "ztpEndpoint",
-      "ztpListenPort",
-      "ztpSubnet",
-      "ztpLanUrl",
-      "aiTlsPin",
       "aiHeaders",
       "aiMaxTokens",
       "aiModel",
@@ -61,6 +54,7 @@
       "aiOverviewTextColor",
       "aiSystemPrompt",
       "aiTimeoutMs",
+      "aiTlsPin",
       "alertCpuThreshold",
       "alertPingLoss",
       "dbAiRetentionDays",
@@ -75,19 +69,19 @@
       "notifCooldownSec",
       "notifTitle",
       "pingTarget",
+      "reportChannelId",
       "routerHost",
       "routerPort",
       "routerUser",
       "sessionTimeoutMs",
-      "smtpFrom",
-      "smtpHost",
-      "smtpPort",
-      "smtpTo",
-      "smtpUser",
       "topN",
       "topTalkersN",
       "updateCheckHours",
-      "vpnDashTopN"
+      "vpnDashTopN",
+      "ztpEndpoint",
+      "ztpLanUrl",
+      "ztpListenPort",
+      "ztpSubnet"
     ],
     "checkGuarded": []
   },
@@ -168,31 +162,6 @@
       "kind": "stringOf",
       "expr": "String(data.sessionTimeoutMs)"
     },
-    "smtpFrom": {
-      "kind": "orEmpty",
-      "expr": "data.smtpFrom  || ''"
-    },
-    "smtpHost": {
-      "kind": "orEmpty",
-      "expr": "data.smtpHost  || ''"
-    },
-    "smtpPass": {
-      "kind": "blank",
-      "expr": "''"
-    },
-    "smtpPort": {
-      "kind": "orNumber",
-      "fallback": 587,
-      "expr": "data.smtpPort  || 587"
-    },
-    "smtpTo": {
-      "kind": "orEmpty",
-      "expr": "data.smtpTo    || ''"
-    },
-    "smtpUser": {
-      "kind": "orEmpty",
-      "expr": "data.smtpUser  || ''"
-    },
     "topN": {
       "kind": "undefinedToEmpty",
       "expr": "data[f] !== undefined ? data[f] : ''"
@@ -218,10 +187,6 @@
     "routerPass": {
       "whenSet": "leave blank to keep current",
       "whenNot": "not set"
-    },
-    "smtpPass": {
-      "whenSet": "leave blank to keep current",
-      "whenNot": "optional"
     }
   },
   "touchedIds": [

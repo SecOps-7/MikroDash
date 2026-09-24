@@ -29,8 +29,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "rosDebug",
     "routerTls",
     "routerTlsInsecure",
-    "smtpEnabled",
-    "smtpSecure",
     "userNotifyEnabled"
   ],
   "checkOn": [
@@ -65,11 +63,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   ],
   "value": [
     "aiBaseUrl",
-    "ztpEndpoint",
-    "ztpListenPort",
-    "ztpSubnet",
-    "ztpLanUrl",
-    "aiTlsPin",
     "aiHeaders",
     "aiMaxTokens",
     "aiModel",
@@ -78,6 +71,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "aiOverviewTextColor",
     "aiSystemPrompt",
     "aiTimeoutMs",
+    "aiTlsPin",
     "alertCpuThreshold",
     "alertPingLoss",
     "dbAiRetentionDays",
@@ -92,19 +86,19 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "notifCooldownSec",
     "notifTitle",
     "pingTarget",
+    "reportChannelId",
     "routerHost",
     "routerPort",
     "routerUser",
     "sessionTimeoutMs",
-    "smtpFrom",
-    "smtpHost",
-    "smtpPort",
-    "smtpTo",
-    "smtpUser",
     "topN",
     "topTalkersN",
     "updateCheckHours",
-    "vpnDashTopN"
+    "vpnDashTopN",
+    "ztpEndpoint",
+    "ztpLanUrl",
+    "ztpListenPort",
+    "ztpSubnet"
   ],
   "checkGuarded": []
 };
@@ -187,31 +181,6 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
     "kind": "stringOf",
     "expr": "String(data.sessionTimeoutMs)"
   },
-  "smtpFrom": {
-    "kind": "orEmpty",
-    "expr": "data.smtpFrom  || ''"
-  },
-  "smtpHost": {
-    "kind": "orEmpty",
-    "expr": "data.smtpHost  || ''"
-  },
-  "smtpPass": {
-    "kind": "blank",
-    "expr": "''"
-  },
-  "smtpPort": {
-    "kind": "orNumber",
-    "fallback": 587,
-    "expr": "data.smtpPort  || 587"
-  },
-  "smtpTo": {
-    "kind": "orEmpty",
-    "expr": "data.smtpTo    || ''"
-  },
-  "smtpUser": {
-    "kind": "orEmpty",
-    "expr": "data.smtpUser  || ''"
-  },
   "topN": {
     "kind": "undefinedToEmpty",
     "expr": "data[f] !== undefined ? data[f] : ''"
@@ -246,9 +215,5 @@ export const PLACEHOLDER_CREDENTIALS: Record<string, { whenSet: string; whenNot:
   "routerPass": {
     "whenSet": "leave blank to keep current",
     "whenNot": "not set"
-  },
-  "smtpPass": {
-    "whenSet": "leave blank to keep current",
-    "whenNot": "optional"
   }
 };

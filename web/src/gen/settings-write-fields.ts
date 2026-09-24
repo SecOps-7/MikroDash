@@ -51,7 +51,6 @@ export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
   "pollWifi": [10000, 600000],
   "pollWireless": [10000, 600000],
   "routerPort": [1, 65535],
-  "smtpPort": [1, 65535],
   "topN": [1, 50],
   "topTalkersN": [1, 20],
   "updateCheckHours": [1, 168],
@@ -65,9 +64,7 @@ export const STR_FIELDS: readonly string[] = [
   "aiModel",
   "notifTitle",
   "pingTarget",
-  "smtpFrom",
-  "smtpHost",
-  "smtpTo",
+  "reportChannelId",
   "ztpEndpoint",
 ];
 
@@ -103,8 +100,6 @@ export const BOOL_FIELDS: readonly string[] = [
   "pageWifiMap",
   "pageWireless",
   "rosDebug",
-  "smtpEnabled",
-  "smtpSecure",
   "userNotifyEnabled",
   "ztpEnabled",
 ];
@@ -112,8 +107,6 @@ export const BOOL_FIELDS: readonly string[] = [
 /** Sealed at rest and NOT trimmed. A masked value is dropped; an EMPTY STRING is a destructive clear. */
 export const CRED_FIELDS: readonly string[] = [
   "aiApiKey",
-  "smtpPass",
-  "smtpUser",
 ];
 
 /** Validated outside the four tables — see internal/store/settings_write.go. */

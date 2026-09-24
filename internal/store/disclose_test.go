@@ -147,7 +147,10 @@ func TestPublicAndViewerMatchTheLiveModule(t *testing.T) {
 	// FIVE since notification channels took three credentials out of the
 	// disclosure surface. Still a floor, and still the check that would catch a
 	// corpus which stopped exercising the mask.
-	if masked < 5 {
+	// TWO since the mail server became a channel: routerPass and aiApiKey are
+	// the only credentials the settings endpoint still discloses. Still a floor,
+	// and still the check that would catch a corpus which stopped masking.
+	if masked < 2 {
 		t.Errorf("only %d masked values across the whole corpus — the mask branch is "+
 			"barely exercised, so a port that never masked would pass", masked)
 	}
@@ -162,20 +165,26 @@ func sameJSON(a, b any) bool {
 // TestAnEmptyCredentialIsNotMasked — a page showing "configured" for a
 // credential nobody set sends an operator looking for a value that is not there.
 func TestAnEmptyCredentialIsNotMasked(t *testing.T) {
-	got := Settings{"routerPass": "", "smtpPass": "x"}.Public()
+	got := Settings{"routerPass": "", "aiApiKey": "x"}.Public()
 	if got["routerPass"] != "" {
 		t.Errorf("an empty credential came back as %#v", got["routerPass"])
 	}
-	if got["smtpPass"] != Mask {
-		t.Errorf("a set credential came back as %#v", got["smtpPass"])
+	if got["aiApiKey"] != Mask {
+		t.Errorf("a set credential came back as %#v", got["aiApiKey"])
 	}
 	// A MISSING key is the same as an empty one, and must still be present in
 	// the output: the page reads the key to decide what to draw.
-	// `aiApiKey` rather than `ntfyToken`: the latter stopped being a disclosed
-	// credential when ntfy became a notification channel, so asking about it
-	// here would assert the absence of a field nothing sends. It has to be a
-	// credential the input above does NOT set, or this asserts the mask instead.
-	if v, ok := got["aiApiKey"]; !ok || v != "" {
+	//
+	// THIS NEEDS ITS OWN CALL NOW. It used to read a third credential out of the
+	// map above, but `routerPass` and `aiApiKey` are the only two left — every
+	// notification credential became a channel secret — and both are set there.
+	// Reading either one back would assert the mask, not the absence, and pass
+	// for the wrong reason.
+	bare := Settings{"topN": 10}.Public()
+	if v, ok := bare["routerPass"]; !ok || v != "" {
+		t.Errorf("a missing credential came back as %#v (present=%v)", v, ok)
+	}
+	if v, ok := bare["aiApiKey"]; !ok || v != "" {
 		t.Errorf("a missing credential came back as %#v (present=%v)", v, ok)
 	}
 }

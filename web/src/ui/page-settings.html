@@ -284,6 +284,44 @@
       <!-- ── Notifications tab ─────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-notifications">
 
+        <!-- Notification channels -->
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="scard-title">Notification channels</span>
+            <span id="nchanCount" class="card-badge">0</span>
+            <div class="hdr-actions nchan-actions">
+              <button type="button" class="sbtn sbtn-primary" id="nchanAdd">+ Add channel</button>
+            </div>
+          </div>
+          <div class="scard-body">
+            <p class="nchan-intro">Configure notification channels to receive alerts about your
+              routers. Supports SMTP email and webhook URLs (Telegram, Discord, Slack, ntfy, Gotify,
+              Pushover, Pushbullet, and anything else through an Apprise server).</p>
+            <!-- IT NAMED A CARD THAT NO LONGER EXISTS. This said "Alert Types
+                 above decides which alerts MikroDash raises", which was true
+                 while there were two lists. There is one now: the install-wide
+                 gate went when alert types moved onto the channel, so what is
+                 left to say is what the channel decides. -->
+            <p class="nchan-note">MikroDash records every alert. Each channel chooses which of them
+              it delivers, and which routers it covers.</p>
+            <div id="nchanGrid" class="apps-grid"></div>
+            <!-- ── REPORTS SUBSCRIBE TO AN EMAIL CHANNEL ────────────────────
+                 The install-wide SMTP block is gone: a mail server is a channel
+                 like any other destination. Scheduled reports borrow one's
+                 SERVER and keep their own recipient list, because a schedule
+                 says who a report goes to and a channel says who an alert goes
+                 to. Empty means the first enabled install SMTP channel, which
+                 is the right answer for an install that has exactly one. -->
+            <div class="sform-group" style="margin-top:1rem;max-width:26rem">
+              <label class="sform-label" for="s_reportChannelId">Scheduled reports are sent through</label>
+              <select class="sform-input" id="s_reportChannelId"></select>
+              <p class="nchan-help">Reports need an SMTP channel; a webhook cannot carry a PDF.
+                Their recipients come from each schedule, not from the channel.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- ── ALERT TYPES AND THE INTERFACE FILTER LIVE ON THE CHANNEL ──
              They were two cards here and a third list in the channel dialog,
              which is two places for one idea — the page needed a paragraph
@@ -337,82 +375,6 @@
                 <span id="s_notifCooldownSecVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- ── THE INSTALL'S MAIL SERVER ──────────────────────────────────
-             NOT a notification channel, and kept out of the channel model on
-             purpose: scheduled reports mail through this (reports_run.go), and a
-             user's email channel is carried by it rather than by its own server.
-             Deleting it with the four transport boxes would have silently broken
-             report delivery. -->
-        <div class="scard scard--wide">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            <span class="scard-title">Mail server</span>
-          </div>
-          <div class="scard-body">
-            <p class="nchan-intro">Used by scheduled reports, and by any email channel. A channel of
-              type SMTP (Email) may instead carry its own server settings.</p>
-            <label class="stoggle stoggle-bare"><span class="stoggle-label">Enabled</span>
-              <span class="stoggle-switch"><input type="checkbox" id="s_smtpEnabled">
-                <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <div class="sform-row">
-              <div class="sform-group">
-                <label class="sform-label" for="s_smtpHost">SMTP host</label>
-                <input type="text" id="s_smtpHost" class="sform-input" placeholder="smtp.example.com" autocomplete="off">
-              </div>
-              <div class="sform-group">
-                <label class="sform-label" for="s_smtpPort">Port</label>
-                <input type="number" id="s_smtpPort" class="sform-input" min="1" max="65535" placeholder="587" autocomplete="off">
-              </div>
-            </div>
-            <label class="stoggle stoggle-bare"><span class="stoggle-label">Implicit TLS (port 465)</span>
-              <span class="stoggle-switch"><input type="checkbox" id="s_smtpSecure">
-                <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <div class="sform-row">
-              <div class="sform-group">
-                <label class="sform-label" for="s_smtpUser">Username</label>
-                <input type="text" id="s_smtpUser" class="sform-input" placeholder="optional" autocomplete="off">
-              </div>
-              <div class="sform-group">
-                <label class="sform-label" for="s_smtpPass">Password</label>
-                <input type="password" id="s_smtpPass" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
-              </div>
-            </div>
-            <div class="sform-row">
-              <div class="sform-group">
-                <label class="sform-label" for="s_smtpFrom">From address</label>
-                <input type="email" id="s_smtpFrom" class="sform-input" placeholder="alerts@example.com" autocomplete="off">
-              </div>
-              <div class="sform-group">
-                <label class="sform-label" for="s_smtpTo">Default recipients</label>
-                <input type="email" id="s_smtpTo" class="sform-input" placeholder="you@example.com" autocomplete="off">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Notification channels -->
-        <div class="scard scard--wide">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span class="scard-title">Notification channels</span>
-            <span id="nchanCount" class="card-badge">0</span>
-            <div class="hdr-actions nchan-actions">
-              <button type="button" class="sbtn sbtn-primary" id="nchanAdd">+ Add channel</button>
-            </div>
-          </div>
-          <div class="scard-body">
-            <p class="nchan-intro">Configure notification channels to receive alerts about your
-              routers. Supports SMTP email and webhook URLs (Telegram, Discord, Slack, ntfy, Gotify,
-              Pushover, Pushbullet, and anything else through an Apprise server).</p>
-            <!-- THE TWO HALVES, SAID PLAINLY. Alert Types decides what MikroDash
-                 raises at all; a channel then chooses which of those it wants.
-                 Without this line the two lists read as duplicates of each other. -->
-            <p class="nchan-note">Alert Types above decides which alerts MikroDash raises. Each
-              channel chooses which of those it receives, and which routers it covers.</p>
-            <div id="nchanGrid" class="apps-grid"></div>
           </div>
         </div>
 

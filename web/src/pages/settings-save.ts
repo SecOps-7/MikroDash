@@ -113,12 +113,6 @@ export function collectSettingsForm(
       out[key] = Math.max(1, Math.min(168, n));
       continue;
     }
-    if (key === 'smtpPort') {
-      // `|| 587`, as the live collector has it: a blank SMTP port means the
-      // default, not "leave whatever was there".
-      out[key] = parseInt(raw, 10) || 587;
-      continue;
-    }
     if (key === 'aiSystemPrompt' || key === 'aiOverviewPrompt') {
       // ── AN UNCHANGED DEFAULT IS SAVED AS "USE THE DEFAULT" ───────────────
       //
@@ -140,9 +134,9 @@ export function collectSettingsForm(
       if (Number.isFinite(n)) out[key] = n;
       continue;
     }
-    // `displayTimezone` and `smtpUser` fall through UNTRIMMED, deliberately.
-    // The server does not trim credentials, and a timezone is chosen from a
-    // select rather than typed.
+    // `displayTimezone` falls through UNTRIMMED, deliberately: a timezone is
+    // chosen from a select rather than typed, so there is nothing to trim and
+    // trimming it would only be a rule with no case behind it.
     out[key] = TRIMMED.has(key) ? raw.trim() : raw;
   }
 
@@ -163,11 +157,12 @@ export function collectSettingsForm(
   // belong to the per-router modal, and the server does not accept it on this
   // route at all — so the guard drops it.
   //
-  // `smtpUser` is NOT here. It is an ordinary value field that receives the MASK
-  // from the server and hands it straight back, and `store.IsMasked` drops it
-  // from the updates. That round trip is what keeps it safe, and it holds only
-  // while all three of `disclose.go`'s mask list, the form map's kinds and the
-  // server's mask test agree — which is why both ends of it are tested.
+  // THIS IS NOW THE WHOLE CREDENTIAL SURFACE. `smtpUser` used to sit outside it
+  // as an ordinary value field that received the MASK from the server and handed
+  // it straight back, with `store.IsMasked` dropping it from the updates. The
+  // mail server became a notification channel, so its credentials live in a
+  // channel's sealed config and never reach this form. There is no masked value
+  // field left, and a second mechanism kept alive for no field is worse than one.
   for (const key of Object.keys(PLACEHOLDER_CREDENTIALS)) {
     const input = el<HTMLInputElement>('s_' + key);
     if (!input || input.value === '') continue;

@@ -19,26 +19,34 @@ import (
 // with eight bullets, the channel would stop working, and the page would still
 // show it as configured.
 func TestAMaskedCredentialIsNeverWritten(t *testing.T) {
-	// `smtpPass` and `smtpUser` stand in for what used to be
+	// `aiApiKey` and `aiApiKey` stand in for what used to be
 	// `telegramBotToken` and `ntfyToken`: those stopped being settings
 	// credentials when their transports became notification channels. The rule
 	// is unchanged and still the one that matters — a mask handed back must not
 	// overwrite the stored value.
-	up, _ := SettingsUpdate(map[string]any{
-		"smtpPass": Mask,
-		"smtpUser": "NOT-A-REAL-NEW-USER",
-	})
-	if _, present := up["smtpPass"]; present {
-		t.Error("a masked smtpPass reached the updates — saving the form " +
-			"would overwrite the real password with the mask")
+	// ONE CALL PER CASE, because there is only one settable credential left.
+	//
+	// This used two keys — a masked one and a genuinely changed one — from a
+	// list that had six. Every notification credential became a channel secret,
+	// and `routerPass` is deliberately not settable through this endpoint, so
+	// `aiApiKey` is the whole surface. The rule is unchanged and is still the
+	// one that matters: a mask handed back must not overwrite the stored value,
+	// and a real value must get through.
+	masked, _ := SettingsUpdate(map[string]any{"aiApiKey": Mask})
+	if _, present := masked["aiApiKey"]; present {
+		t.Error("a masked aiApiKey reached the updates — saving the form would " +
+			"overwrite the real key with the mask")
 	}
-	if up["smtpUser"] != "NOT-A-REAL-NEW-USER" {
-		t.Errorf("a genuinely changed credential was dropped: %#v", up["smtpUser"])
+
+	changed, _ := SettingsUpdate(map[string]any{"aiApiKey": "NOT-A-REAL-NEW-KEY"})
+	if changed["aiApiKey"] != "NOT-A-REAL-NEW-KEY" {
+		t.Errorf("a genuinely changed credential was dropped: %#v", changed["aiApiKey"])
 	}
+
 	// AN EMPTY STRING IS A DELIBERATE CLEAR and must go through — it is how an
 	// operator removes a credential.
-	up, _ = SettingsUpdate(map[string]any{"smtpPass": ""})
-	if v, present := up["smtpPass"]; !present || v != "" {
+	cleared, _ := SettingsUpdate(map[string]any{"aiApiKey": ""})
+	if v, present := cleared["aiApiKey"]; !present || v != "" {
 		t.Errorf("clearing a credential was refused: %#v present=%v", v, present)
 	}
 }
@@ -184,19 +192,19 @@ func TestCustomPollProfileMustBeJSONOrEmpty(t *testing.T) {
 // one the operator pasted, and trimming it produces an authentication failure
 // nothing on the page explains.
 func TestStringsAreTrimmedAndCredentialsAreNot(t *testing.T) {
-	// `smtpPass` rather than `ntfyToken`, which stopped being a settings
+	// `aiApiKey` rather than `ntfyToken`, which stopped being a settings
 	// credential when ntfy became a notification channel. The rule is the same:
 	// a password may legitimately begin or end with a space, so trimming one
 	// would silently break an operator's login.
 	up, _ := SettingsUpdate(map[string]any{
 		"pingTarget": "  198.51.100.9  ",
-		"smtpPass":   "  NOT-A-REAL-TOKEN  ",
+		"aiApiKey":   "  NOT-A-REAL-TOKEN  ",
 	})
 	if up["pingTarget"] != "198.51.100.9" {
 		t.Errorf("a string field was not trimmed: %#v", up["pingTarget"])
 	}
-	if up["smtpPass"] != "  NOT-A-REAL-TOKEN  " {
-		t.Errorf("a credential was trimmed: %#v", up["smtpPass"])
+	if up["aiApiKey"] != "  NOT-A-REAL-TOKEN  " {
+		t.Errorf("a credential was trimmed: %#v", up["aiApiKey"])
 	}
 }
 
@@ -246,20 +254,26 @@ func TestTheTablesCoverTheRealSurface(t *testing.T) {
 	// rest, and neither is inferred from this table. So the number moves only
 	// when somebody has added one deliberately and checked both places.
 	//
-	// SIX since `aiApiKey` (#98); THREE since notification channels.
+	// SIX since `aiApiKey` (#98); THREE since notification channels; ONE since
+	// the mail server became a channel too.
 	//
-	// `telegramBotToken`, `pushbulletApiKey` and `ntfyToken` left this table
-	// when those transports became channels: their credentials live in a
-	// channel's sealed `config` now, not in a settings key, so the Settings page
-	// neither writes nor discloses them. They remain in `encrypted` in
-	// settings_tables.json, and only there, so an install upgrading from before
-	// channels can still DECRYPT them for `SeedNotifyChannels` — which is the
-	// one thing that would otherwise read ciphertext and build a channel that
-	// cannot send.
+	// `telegramBotToken`, `pushbulletApiKey`, `ntfyToken`, `smtpUser` and
+	// `smtpPass` all left this table when their transports became channels:
+	// those credentials live in a channel's sealed `config` now, not in a
+	// settings key, so the Settings page neither writes nor discloses them. They
+	// remain in `encrypted` in settings_tables.json, and only there, so an
+	// install upgrading from before channels can still DECRYPT them for
+	// `SeedNotifyChannels` — which is the one thing that would otherwise read
+	// ciphertext and build a channel that cannot send.
+	//
+	// ONE IS NOT ZERO, and the difference matters: `aiApiKey` is what keeps the
+	// credential branch of this endpoint exercised at all. If it ever leaves too,
+	// this check has nothing left to count and should be deleted deliberately
+	// rather than relaxed to `>= 0`.
 	//
 	// Relaxing this to a floor would delete the one check that notices a
 	// credential arriving.
-	if len(wtables.CredFields) != 3 || len(wtables.StrFields) < 5 {
+	if len(wtables.CredFields) != 1 || len(wtables.StrFields) < 5 {
 		t.Errorf("cred=%d str=%d", len(wtables.CredFields), len(wtables.StrFields))
 	}
 }
@@ -335,21 +349,21 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 // server does with it. Each half is harmless alone and the pair is what keeps a
 // Save from destroying something.
 func TestTheFormsSaveCannotClearSmtpUserOrOpenTheDoor(t *testing.T) {
-	t.Run("the smtpUser mask is dropped, not stored", func(t *testing.T) {
-		// The collector sends `smtpUser` unconditionally, because it is an
+	t.Run("the aiApiKey mask is dropped, not stored", func(t *testing.T) {
+		// The collector sends `aiApiKey` unconditionally, because it is an
 		// ordinary value field rather than one of the blanked credentials. What
 		// makes that safe is a three-module invariant nothing else asserts:
 		// `disclose.go` masks it on read, `populateSettings` writes the mask into
 		// the visible box, and this drops it again. Break any link and every Save
 		// clears the SMTP username.
-		updates, reset := SettingsUpdate(map[string]any{"smtpUser": Mask})
+		updates, reset := SettingsUpdate(map[string]any{"aiApiKey": Mask})
 		if reset {
 			t.Fatal("a plain body was read as a reset")
 		}
-		if _, ok := updates["smtpUser"]; ok {
-			t.Errorf("smtpUser = %q reached the updates; handing the mask back "+
+		if _, ok := updates["aiApiKey"]; ok {
+			t.Errorf("aiApiKey = %q reached the updates; handing the mask back "+
 				"must be a no-op, or opening Settings and pressing Save wipes "+
-				"the stored username", updates["smtpUser"])
+				"the stored username", updates["aiApiKey"])
 		}
 	})
 

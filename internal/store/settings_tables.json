@@ -45,14 +45,6 @@
     "historyMinutes": 30,
     "alertCpuThreshold": 90,
     "alertPingLoss": 100,
-    "smtpEnabled": false,
-    "smtpHost": "",
-    "smtpPort": 587,
-    "smtpSecure": false,
-    "smtpUser": "",
-    "smtpPass": "",
-    "smtpFrom": "",
-    "smtpTo": "",
     "backupBaseUrl": "",
     "notifTitle": "MikroDash Alert",
     "notifBody": "\u26a0\ufe0f {{alertType}} on {{routerName}}: {{detail}}",
@@ -113,7 +105,8 @@
     "ztpLanUrl": "",
     "ztpPrivateKey": "",
     "ztpInstanceId": "",
-    "hiddenAreas": []
+    "hiddenAreas": [],
+    "reportChannelId": ""
   },
   "defaultsOrder": [
     "routerHost",
@@ -160,14 +153,6 @@
     "historyMinutes",
     "alertCpuThreshold",
     "alertPingLoss",
-    "smtpEnabled",
-    "smtpHost",
-    "smtpPort",
-    "smtpSecure",
-    "smtpUser",
-    "smtpPass",
-    "smtpFrom",
-    "smtpTo",
     "backupBaseUrl",
     "notifTitle",
     "notifBody",
@@ -228,12 +213,11 @@
     "ztpLanUrl",
     "ztpPrivateKey",
     "ztpInstanceId",
-    "hiddenAreas"
+    "hiddenAreas",
+    "reportChannelId"
   ],
   "encrypted": [
     "routerPass",
-    "smtpUser",
-    "smtpPass",
     "aiApiKey",
     "ztpPrivateKey"
   ],

@@ -32,34 +32,21 @@ func TestASettingsSaveReachesTheAlerts(t *testing.T) {
 	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 60}); len(got) != 0 {
 		t.Fatalf("60%% fired %v under the default threshold", got)
 	}
-	if notify.HasConfigured(s.dispatch.Recipients("", nil)[0].Settings) {
-		t.Fatal("setup: the install has a channel before any was saved")
-	}
-
-	// SMTP rather than Telegram: Telegram stopped being a settings-page
-	// transport when it became a notification channel, so saving those keys
-	// would now change nothing and this check would pass on a dispatcher that
-	// had never refreshed. The rule under test is unchanged — a settings save
-	// must reach the live dispatcher rather than leaving it on its startup
-	// copy.
-	w := settingsPost(mux, `{"alertCpuThreshold":50,"smtpEnabled":true,`+
-		`"smtpHost":"mail.example.net","smtpFrom":"md@example.net",`+
-		`"smtpTo":"ops@example.net","smtpPass":"123:abc"}`, authed)
+	// ── WHAT IS LEFT TO PROPAGATE ────────────────────────────────────────
+	//
+	// This used to save a TRANSPORT and check the dispatcher saw it. No
+	// transport lives in the settings any more: Telegram, Pushbullet and ntfy
+	// became notification channels, and the mail server followed when reports
+	// began subscribing to an email channel. What a settings save must still
+	// reach the live evaluator is the THRESHOLD, which is the half that decides
+	// when an event exists at all.
+	w := settingsPost(mux, `{"alertCpuThreshold":50}`, authed)
 	if w.Code != http.StatusOK {
 		t.Fatalf("save: status %d: %s", w.Code, w.Body.String())
 	}
 	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 61}); len(got) != 1 {
 		t.Errorf("61%% fired %v after the threshold was saved as 50; the evaluator kept "+
 			"its startup settings", got)
-	}
-	install := s.dispatch.Recipients("", nil)[0].Settings
-	if got := notify.Channels(install); !reflect.DeepEqual(got, []notify.Channel{notify.SMTP}) {
-		t.Errorf("the dispatcher sees channels %v after SMTP was saved; it kept its "+
-			"startup settings", got)
-	}
-	// MERGED, not raw: the file holds the password sealed.
-	if tok := install["smtpPass"]; tok != "123:abc" {
-		t.Errorf("the dispatcher holds password %q, not the decrypted one", tok)
 	}
 
 	if w := settingsPost(mux, `{"_reset":true}`, authed); w.Code != http.StatusOK {
@@ -110,11 +97,13 @@ func TestAUserRecipientIsReadLikeItsTestButton(t *testing.T) {
 	}
 }
 
-// THE SERVER GIVES THE DISPATCHER A MAILER. An email alert reaches the
-// configured mail server; with the nil it was built with, it never dialled.
+// AN EMAIL CHANNEL REALLY DIALS THE MAIL SERVER.
 //
-// The "server" is a local listener that refuses at the greeting, so the send
-// fails fast and the only question asked is whether a connection was made.
+// It used to build the mailer from the install-wide `smtp*` settings. Those are
+// gone: a mail server is an SMTP CHANNEL now, and reports subscribe to one. The
+// behaviour under test is unchanged and is the one that matters — a channel
+// whose kind is smtp must reach `internal/mailer` and open a socket, not fail
+// quietly the way a webhook with no scheme would.
 func TestAnEmailAlertDialsTheMailServer(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -133,18 +122,20 @@ func TestAnEmailAlertDialsTheMailServer(t *testing.T) {
 	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port
-	s, _, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"},
-		fmt.Sprintf(`{"smtpEnabled":true,"smtpHost":"127.0.0.1","smtpPort":%d,`+
-			`"smtpFrom":"md@example.com","smtpTo":"ops@example.com"}`, port))
+	s, _, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, `{}`)
 	s.dispatch = s.buildAlertDispatch(true)
 
-	recipients := s.dispatch.Recipients("", nil)
-	s.dispatch.Deliver(context.Background(), &recipients[0], "cpu",
+	// The recipient `channelRecipients` would build for an SMTP channel.
+	spec := notify.DecodeChannel("c1", "Email", notify.KindSMTP, true,
+		fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"from":"md@example.com",`+
+			`"to":"ops@example.com"}`, port), `["high_cpu"]`, `[]`)
+	rec := alertdispatch.Recipient{ID: "chan:c1", Settings: spec.Settings}
+	s.dispatch.Deliver(context.Background(), &rec, "cpu",
 		alertdispatch.Message{Title: "T", Body: "B"})
 
 	select {
 	case <-dialled:
 	case <-time.After(3 * time.Second):
-		t.Error("an email alert never dialled the mail server; the dispatcher has no mailer")
+		t.Error("an email channel never dialled the mail server; the dispatcher has no mailer")
 	}
 }
