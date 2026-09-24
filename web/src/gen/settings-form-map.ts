@@ -24,16 +24,13 @@ export interface ValueDefault {
 /** Inputs filled from a settings key, by how an ABSENT value is treated. */
 export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   "checkOff": [
-    "ntfyEnabled",
     "aiEnabled",
     "aiOverviewEnabled",
-    "pushbulletEnabled",
     "rosDebug",
     "routerTls",
     "routerTlsInsecure",
     "smtpEnabled",
     "smtpSecure",
-    "telegramEnabled",
     "userNotifyEnabled"
   ],
   "checkOn": [
@@ -96,7 +93,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "notifBodyUp",
     "notifCooldownSec",
     "notifTitle",
-    "ntfyUrl",
     "pingTarget",
     "routerHost",
     "routerPort",
@@ -107,7 +103,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "smtpPort",
     "smtpTo",
     "smtpUser",
-    "telegramChatId",
     "topN",
     "topTalkersN",
     "updateCheckHours",
@@ -184,21 +179,9 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
     "kind": "undefinedToEmpty",
     "expr": "data.notifTitle  !== undefined ? data.notifTitle  : ''"
   },
-  "ntfyToken": {
-    "kind": "blank",
-    "expr": "''"
-  },
-  "ntfyUrl": {
-    "kind": "orEmpty",
-    "expr": "data.ntfyUrl || ''"
-  },
   "pingTarget": {
     "kind": "undefinedToEmpty",
     "expr": "data[f] !== undefined ? data[f] : ''"
-  },
-  "pushbulletApiKey": {
-    "kind": "blank",
-    "expr": "''"
   },
   "routerHost": {
     "kind": "undefinedToEmpty",
@@ -245,14 +228,6 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
     "kind": "orEmpty",
     "expr": "data.smtpUser  || ''"
   },
-  "telegramBotToken": {
-    "kind": "blank",
-    "expr": "''"
-  },
-  "telegramChatId": {
-    "kind": "orEmpty",
-    "expr": "data.telegramChatId || ''"
-  },
   "topN": {
     "kind": "undefinedToEmpty",
     "expr": "data[f] !== undefined ? data[f] : ''"
@@ -288,19 +263,7 @@ export const PLACEHOLDER_CREDENTIALS: Record<string, { whenSet: string; whenNot:
     "whenSet": "leave blank to keep current",
     "whenNot": "not set"
   },
-  "telegramBotToken": {
-    "whenSet": "leave blank to keep current",
-    "whenNot": "paste token here"
-  },
-  "pushbulletApiKey": {
-    "whenSet": "leave blank to keep current",
-    "whenNot": "paste API key here"
-  },
   "smtpPass": {
-    "whenSet": "leave blank to keep current",
-    "whenNot": "optional"
-  },
-  "ntfyToken": {
     "whenSet": "leave blank to keep current",
     "whenNot": "optional"
   }

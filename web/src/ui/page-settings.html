@@ -370,159 +370,79 @@
           </div>
         </div>
 
-        <!-- Notification Channels -->
+        <!-- ── THE INSTALL'S MAIL SERVER ──────────────────────────────────
+             NOT a notification channel, and kept out of the channel model on
+             purpose: scheduled reports mail through this (reports_run.go), and a
+             user's email channel is carried by it rather than by its own server.
+             Deleting it with the four transport boxes would have silently broken
+             report delivery. -->
         <div class="scard scard--wide">
           <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-            <span class="scard-title">Notification Channels</span>
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span class="scard-title">Mail server</span>
           </div>
           <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">Configure push notification services. Save settings before using the test button.</p>
-
-            <!-- Per-user channels (#109). Off by default and deliberately an
-                 explicit choice: a personal ntfy topic or SMTP host is a
-                 destination the user picks, so this widens what an ordinary
-                 account can make the server connect to. -->
-            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem;background:var(--bg-alt)">
-              <label class="stoggle" style="margin:0">
-                <span class="stoggle-label">
-                  Allow personal channels
-                  <span style="display:block;font-weight:400;font-size:.72rem;color:var(--text-muted);margin-top:.15rem;max-width:52ch">
-                    Lets each user add their own Telegram, Pushbullet, ntfy or email destination under
-                    <strong>My Alerts</strong>, in addition to the channels here. Users are only ever notified
-                    about routers they have access to. Because ntfy and SMTP let a user choose the destination
-                    host, enabling this allows any account to make this server send to an address it picks.
-                  </span>
-                </span>
-                <span class="stoggle-switch"><input type="checkbox" id="s_userNotifyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
-              </label>
-            </div>
-
-            <!-- Telegram -->
-            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                <div style="display:flex;align-items:center;gap:.55rem">
-                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.555l-2.95-.924c-.64-.204-.657-.64.136-.954l11.57-4.46c.532-.194 1 .13.966.004z"/></svg>
-                  <strong style="font-size:.82rem">Telegram</strong>
-                </div>
-                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_telegramEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <p class="nchan-intro">Used by scheduled reports, and by any email channel. A channel of
+              type SMTP (Email) may instead carry its own server settings.</p>
+            <label class="stoggle stoggle-bare"><span class="stoggle-label">Enabled</span>
+              <span class="stoggle-switch"><input type="checkbox" id="s_smtpEnabled">
+                <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="s_smtpHost">SMTP host</label>
+                <input type="text" id="s_smtpHost" class="sform-input" placeholder="smtp.example.com" autocomplete="off">
               </div>
-              <div class="sform-row">
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Bot Token</label>
-                  <input type="password" id="s_telegramBotToken" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
-                </div>
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Chat ID</label>
-                  <input type="text" id="s_telegramChatId" class="sform-input" placeholder="e.g. -100123456789" autocomplete="off">
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                <button id="btn-test-telegram" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                <span id="test-telegram-result" style="font-size:.75rem"></span>
+              <div class="sform-group">
+                <label class="sform-label" for="s_smtpPort">Port</label>
+                <input type="number" id="s_smtpPort" class="sform-input" min="1" max="65535" placeholder="587" autocomplete="off">
               </div>
             </div>
-
-            <div class="nchan-pair">
-              <!-- Pushbullet -->
-              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                  <div style="display:flex;align-items:center;gap:.55rem">
-                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
-                    <strong style="font-size:.82rem">Pushbullet</strong>
-                  </div>
-                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                </div>
-                <div class="sform-row">
-                  <div class="sform-group" style="margin-bottom:.55rem">
-                    <label class="sform-label">API Key</label>
-                    <input type="password" id="s_pushbulletApiKey" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
-                  </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                  <button id="btn-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                  <span id="test-pushbullet-result" style="font-size:.75rem"></span>
-                </div>
+            <label class="stoggle stoggle-bare"><span class="stoggle-label">Implicit TLS (port 465)</span>
+              <span class="stoggle-switch"><input type="checkbox" id="s_smtpSecure">
+                <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="s_smtpUser">Username</label>
+                <input type="text" id="s_smtpUser" class="sform-input" placeholder="optional" autocomplete="off">
               </div>
-
-              <!-- ntfy -->
-              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                  <div style="display:flex;align-items:center;gap:.55rem">
-                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                    <strong style="font-size:.82rem">ntfy</strong>
-                  </div>
-                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                </div>
-                <div class="sform-row">
-                  <div class="sform-group" style="margin-bottom:.55rem">
-                    <label class="sform-label">Topic URL</label>
-                    <input type="url" id="s_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/my-topic" autocomplete="off">
-                  </div>
-                </div>
-                <div class="sform-row">
-                  <div class="sform-group" style="margin-bottom:.55rem">
-                    <label class="sform-label">Access Token <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
-                    <input type="password" id="s_ntfyToken" class="sform-input" placeholder="optional" autocomplete="off">
-                  </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                  <button id="btn-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                  <span id="test-ntfy-result" style="font-size:.75rem"></span>
-                </div>
+              <div class="sform-group">
+                <label class="sform-label" for="s_smtpPass">Password</label>
+                <input type="password" id="s_smtpPass" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
               </div>
             </div>
-
-            <!-- SMTP Email -->
-            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-top:.9rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                <div style="display:flex;align-items:center;gap:.55rem">
-                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  <strong style="font-size:.82rem">Email (SMTP)</strong>
-                </div>
-                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_smtpEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="s_smtpFrom">From address</label>
+                <input type="email" id="s_smtpFrom" class="sform-input" placeholder="alerts@example.com" autocomplete="off">
               </div>
-              <div class="sform-row">
-                <div class="sform-group" style="flex:2">
-                  <label class="sform-label">SMTP Host</label>
-                  <input type="text" id="s_smtpHost" class="sform-input" placeholder="smtp.example.com" autocomplete="off">
-                </div>
-                <div class="sform-group" style="flex:1">
-                  <label class="sform-label">Port</label>
-                  <input type="number" id="s_smtpPort" class="sform-input" min="1" max="65535" placeholder="587" autocomplete="off">
-                </div>
-              </div>
-              <div class="sform-group" style="margin-top:.5rem">
-                <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
-                  <input type="checkbox" id="s_smtpSecure">
-                  <span>Use implicit TLS (port 465) — leave unchecked for STARTTLS (port 587)</span>
-                </label>
-              </div>
-              <div class="sform-row" style="margin-top:.5rem">
-                <div class="sform-group">
-                  <label class="sform-label">Username</label>
-                  <input type="text" id="s_smtpUser" class="sform-input" placeholder="optional" autocomplete="off">
-                </div>
-                <div class="sform-group">
-                  <label class="sform-label">Password</label>
-                  <input type="password" id="s_smtpPass" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
-                </div>
-              </div>
-              <div class="sform-row" style="margin-top:.5rem">
-                <div class="sform-group">
-                  <label class="sform-label">From</label>
-                  <input type="email" id="s_smtpFrom" class="sform-input" placeholder="alerts@example.com" autocomplete="off">
-                </div>
-                <div class="sform-group">
-                  <label class="sform-label">To</label>
-                  <input type="email" id="s_smtpTo" class="sform-input" placeholder="you@example.com" autocomplete="off">
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.6rem">
-                <button id="btn-test-smtp" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                <span id="test-smtp-result" style="font-size:.75rem"></span>
+              <div class="sform-group">
+                <label class="sform-label" for="s_smtpTo">Default recipients</label>
+                <input type="email" id="s_smtpTo" class="sform-input" placeholder="you@example.com" autocomplete="off">
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Notification channels -->
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="scard-title">Notification channels</span>
+            <span id="nchanCount" class="card-badge">0</span>
+            <div class="hdr-actions nchan-actions">
+              <button type="button" class="sbtn sbtn-primary" id="nchanAdd">+ Add channel</button>
+            </div>
+          </div>
+          <div class="scard-body">
+            <p class="nchan-intro">Configure notification channels to receive alerts about your
+              routers. Supports SMTP email and webhook URLs (Telegram, Discord, Slack, ntfy, Gotify,
+              Pushover, Pushbullet, and anything else through an Apprise server).</p>
+            <!-- THE TWO HALVES, SAID PLAINLY. Alert Types decides what MikroDash
+                 raises at all; a channel then chooses which of those it wants.
+                 Without this line the two lists read as duplicates of each other. -->
+            <p class="nchan-note">Alert Types above decides which alerts MikroDash raises. Each
+              channel chooses which of those it receives, and which routers it covers.</p>
+            <div id="nchanGrid" class="apps-grid"></div>
           </div>
         </div>
 

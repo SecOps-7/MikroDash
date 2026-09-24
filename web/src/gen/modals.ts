@@ -15,14 +15,15 @@
  * are. Generated so the port cannot hold an opinion about the contents.
  */
 export const CLOSABLE_MODALS: readonly string[] = [
-  "userFormWrap",
-  "groupFormWrap",
-  "siteFormWrap",
-  "roleFormWrap",
   "accountModal",
   "faModal",
-  "ruUserFormWrap",
-  "ruGroupFormWrap",
+  "groupFormWrap",
+  "notifChanModal",
   "qFormWrap",
+  "roleFormWrap",
+  "ruGroupFormWrap",
+  "ruUserFormWrap",
+  "siteFormWrap",
+  "userFormWrap",
   "wanWarnWrap"
 ];

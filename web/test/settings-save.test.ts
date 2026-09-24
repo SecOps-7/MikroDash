@@ -23,6 +23,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
+// The same generated table the server's own validator is built from, so this
+// test cannot disagree with it about which keys are credentials.
+import { PLACEHOLDER_CREDENTIALS } from '../src/gen/settings-form-map';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
@@ -159,12 +162,30 @@ check('checkboxes send real booleans, never "on" or 1', () => {
     + 'true or the string "true", so "on" would switch every page OFF');
 });
 
+// THE CREDENTIAL LIST IS DERIVED, NOT TYPED OUT.
+//
+// It used to name four keys. Three of them — telegramBotToken, pushbulletApiKey
+// and ntfyToken — left the Settings page when those transports became
+// notification channels, and this check broke on ids that no longer exist. A
+// hardcoded list says nothing about the page it is meant to be testing, so it
+// now reads the generated PLACEHOLDER_CREDENTIALS and tests whichever of them
+// the markup actually renders. Add one to the page and it is covered; remove one
+// and nothing here has to be remembered.
+//
+// PLACEHOLDER_CREDENTIALS rather than CRED_FIELDS: the latter is every ENCRYPTED
+// key, which includes `smtpUser` — a plain text box that is sent like any other
+// string. The rule being checked here is about the fields whose stored value
+// lives in the PLACEHOLDER, which is exactly what makes a blank box mean
+// "unchanged" instead of "clear it".
 check('a blank credential is OMITTED, never sent as an empty string', () => {
   const { els, page } = mount();
-  ['s_telegramBotToken', 's_pushbulletApiKey', 's_smtpPass', 's_ntfyToken']
-    .forEach((id) => { els[id].value = ''; });
+  const creds = Object.keys(PLACEHOLDER_CREDENTIALS).filter((k) => els['s_' + k]);
+  assert.ok(creds.length > 0,
+    'no credential field was found on the settings page, so this check is '
+    + 'asserting nothing: ' + JSON.stringify(Object.keys(PLACEHOLDER_CREDENTIALS)));
+  creds.forEach((k) => { els['s_' + k].value = ''; });
   const body = page.collectSettingsForm(POLL);
-  ['telegramBotToken', 'pushbulletApiKey', 'smtpPass', 'ntfyToken'].forEach((k) => {
+  creds.forEach((k) => {
     assert.ok(!(k in body),
       k + ' was sent while blank. populateSettings blanks these on every load, '
       + 'so an untouched box is always empty — and the server reads an empty '

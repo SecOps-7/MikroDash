@@ -172,12 +172,10 @@
   },
   "strFields": [
     "pingTarget",
-    "telegramChatId",
     "notifTitle",
     "smtpHost",
     "smtpFrom",
     "smtpTo",
-    "ntfyUrl",
     "aiBaseUrl",
     "aiModel",
     "ztpEndpoint"
@@ -199,7 +197,6 @@
     "notifRouterStatus",
     "notifRouterUpdate",
     "notifVpn",
-    "ntfyEnabled",
     "pageAudit",
     "pageBackups",
     "pageBandwidth",
@@ -225,11 +222,9 @@
     "pageWifi",
     "pageWifiMap",
     "pageWireless",
-    "pushbulletEnabled",
     "rosDebug",
     "smtpEnabled",
     "smtpSecure",
-    "telegramEnabled",
     "userNotifyEnabled",
     "aiEnabled",
     "aiOverviewEnabled",
@@ -238,11 +233,8 @@
     "ztpEnabled"
   ],
   "credFields": [
-    "telegramBotToken",
-    "pushbulletApiKey",
     "smtpUser",
     "smtpPass",
-    "ntfyToken",
     "aiApiKey"
   ],
   "specialCases": [

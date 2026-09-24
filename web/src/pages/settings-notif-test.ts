@@ -76,10 +76,18 @@ export interface CertInfo {
  * which is worth a second copy.
  */
 export const TEST_CHANNELS: TestChannelSpec[] = [
-  { btnId: 'btn-test-telegram', resultId: 'test-telegram-result', channel: 'telegram' },
-  { btnId: 'btn-test-pushbullet', resultId: 'test-pushbullet-result', channel: 'pushbullet' },
+  // ── ONLY THE MAIL SERVER AND THE AI ENDPOINT REMAIN ───────────────────
+  //
+  // Telegram, Pushbullet and ntfy left this table when they became notification
+  // channels: a channel is tested through `/api/notify-channels/{id}/test`,
+  // against what is STORED, from its own card. Their buttons are gone from the
+  // markup too, so leaving the rows here would only mean four `el()` lookups
+  // that never find anything.
+  //
+  // SMTP stays because the mail server is not a channel: scheduled reports send
+  // through it, and testing it is the only way to find out it works before a
+  // report is due.
   { btnId: 'btn-test-smtp', resultId: 'test-smtp-result', channel: 'smtp' },
-  { btnId: 'btn-test-ntfy', resultId: 'test-ntfy-result', channel: 'ntfy' },
   {
     btnId: 'btn-test-ai', resultId: 'test-ai-result', channel: 'ai',
     url: '/api/settings/test-ai', payload: aiTestPayload,

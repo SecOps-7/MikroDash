@@ -890,6 +890,111 @@
   <!-- Configuration diff. Wide and monospaced, because a config diff is only
        readable if the columns line up. -->
   <!-- Create or edit a scheduled report. -->
+  <!-- ── ADD / EDIT NOTIFICATION CHANNEL ────────────────────────────────────
+       THE FIRST TABBED MODAL IN THIS APP. The tab markup is the page-level
+       idiom (.stab-bar / .stab / .stab-panel) reused inside a dialog, with a
+       `nchan-tabs` wrapper so the Settings page's two-column .stab-panel grid
+       cannot reach in and columnise a form that is one column wide. -->
+  <div class="rtr-modal-bg" id="notifChanModal">
+   <div class="rtr-modal" style="max-width:38rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="nchanTitle">Add notification channel</span>
+      <button class="rtr-modal-close" data-modal-close="notifChanModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div class="nchan-tabs">
+        <div class="stab-bar" role="tablist">
+          <button type="button" class="stab active" role="tab" data-nchantab="channel">Channel</button>
+          <button type="button" class="stab" role="tab" data-nchantab="events">Events</button>
+        </div>
+        <div class="nchan-panel active" data-nchanpanel="channel">
+          <div class="sform-row">
+            <div class="sform-group">
+              <label class="sform-label" for="nchanName">Name <span style="color:var(--accent-err)">*</span></label>
+              <input class="sform-input" id="nchanName" placeholder="My notification channel">
+            </div>
+            <div class="sform-group">
+              <label class="sform-label" for="nchanKind">Type</label>
+              <select class="sform-input" id="nchanKind">
+                <option value="webhook">Webhooks</option>
+                <option value="smtp">SMTP (Email)</option>
+              </select>
+            </div>
+          </div>
+          <label class="stoggle stoggle-bare"><span class="stoggle-label">Enabled</span>
+            <span class="stoggle-switch"><input type="checkbox" id="nchanEnabled" checked>
+              <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+
+          <div id="nchanWebhookBody">
+            <div class="sform-group">
+              <label class="sform-label" for="nchanUrls">Webhook URLs <span style="color:var(--accent-err)">*</span> (one per line)</label>
+              <textarea class="sform-input" id="nchanUrls" rows="6" spellcheck="false"
+                placeholder="tgram://bot_token/chat_id&#10;discord://webhook_id/webhook_token&#10;ntfys://ntfy.sh/my-topic&#10;gotify://host/app-token"></textarea>
+              <p class="nchan-help" id="nchanSchemes"></p>
+              <p class="nchan-help">Need a provider that is not listed? Run an Apprise API server,
+                configure the provider there, and point a channel at it with
+                <code>apprise://host/key</code>.</p>
+            </div>
+          </div>
+
+          <div id="nchanSmtpBody" hidden>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpHost">SMTP host <span style="color:var(--accent-err)">*</span></label>
+                <input class="sform-input" id="nchanSmtpHost" placeholder="smtp.example.com">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpPort">Port</label>
+                <input class="sform-input" id="nchanSmtpPort" placeholder="587">
+              </div>
+            </div>
+            <label class="stoggle stoggle-bare"><span class="stoggle-label">Implicit TLS (port 465)</span>
+              <span class="stoggle-switch"><input type="checkbox" id="nchanSmtpSecure">
+                <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpUser">Username</label>
+                <input class="sform-input" id="nchanSmtpUser" autocomplete="off" placeholder="user@example.com">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpPass">Password</label>
+                <input class="sform-input" id="nchanSmtpPass" type="password" autocomplete="new-password">
+              </div>
+            </div>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpFrom">From address</label>
+                <input class="sform-input" id="nchanSmtpFrom" placeholder="alerts@example.com">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpTo">Recipients <span style="color:var(--accent-err)">*</span></label>
+                <input class="sform-input" id="nchanSmtpTo" placeholder="ops@example.com">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="nchan-panel" data-nchanpanel="events">
+          <p class="nchan-help" id="nchanEventNote"></p>
+          <div id="nchanEvents"></div>
+          <div class="sform-group" style="margin-top:1rem">
+            <label class="sform-label">Routers</label>
+            <p class="nchan-help">No selection means every router, now and in future.</p>
+            <div id="nchanRouters" class="nchan-routers"></div>
+          </div>
+        </div>
+      </div>
+      <div id="nchanError" class="login-error" style="display:none;margin-top:.75rem"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <span id="nchanTestResult" class="rtr-test-result" style="display:none"></span>
+      <button class="sbtn sbtn-ghost" id="nchanTestBtn">Test</button>
+      <button class="sbtn sbtn-ghost" data-modal-close="notifChanModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="nchanSaveBtn">Save</button>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg" id="rptSchedModal">
    <div class="rtr-modal pmodal" style="max-width:30rem">
     <div class="rtr-modal-hdr">

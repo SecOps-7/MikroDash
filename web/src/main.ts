@@ -71,6 +71,7 @@ import { initSettingsSave } from './pages/settings-save';
 import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } from './pages/settings-routers';
 import { initRouterModal } from './pages/router-modal';
 import { initAlertFilters } from './pages/settings-alert-filters';
+import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
 import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
@@ -760,6 +761,7 @@ async function main(): Promise<void> {
   // locks for the duration of the request — a double-click is two notifications,
   // and a delivered message cannot be withdrawn.
   initNotifTestButtons();
+  initNotifyChannels();
 
   // ── THE SETTINGS PAGE'S SHELL AND ITS LOADER ────────────────────────────
   //

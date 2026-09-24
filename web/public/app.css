@@ -2870,3 +2870,30 @@
       .wf-dot{display:none}
       .wf-lane,.wf-node-bar{transition:none}
     }
+
+/* ── NOTIFICATION CHANNELS ──────────────────────────────────────────────────
+   The card grid reuses .apps-grid/.apps-card wholesale (see
+   containers-apps-cards.ts); only the bits with no existing equivalent are
+   here. */
+.nchan-intro { font-size: .74rem; color: var(--text-muted); margin: 0 0 .5rem; line-height: 1.5; }
+.nchan-note { font-size: .72rem; color: var(--accent-warn, #f0b429); margin: 0 0 1rem; }
+.nchan-help { font-size: .7rem; color: var(--text-muted); margin: .4rem 0 0; line-height: 1.5; }
+.nchan-help code { font-family: var(--font-mono, monospace); font-size: .68rem; }
+.nchan-actions { margin-left: auto; }
+
+/* THE MODAL'S TABS. `.stab-panel.active` is a two-column grid at page width,
+   which would columnise a form that is one column wide — so the panels inside
+   the dialog are their own class rather than a reuse of that one. */
+.nchan-panel { display: none; padding-top: .9rem; }
+.nchan-panel.active { display: block; }
+.nchan-tabs .stab-bar { margin-bottom: 0; }
+
+.nchan-event { align-items: flex-start; }
+.nchan-event .stoggle-label { display: flex; flex-direction: column; gap: .15rem; }
+.nchan-event-desc { font-size: .68rem; color: var(--text-muted); font-weight: 400; }
+/* An event the install does not raise at all: still choosable, because the
+   operator may switch it on above and expect the channel to already want it. */
+.nchan-event.is-gated .stoggle-label strong { color: var(--text-muted); }
+
+.nchan-routers { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
+.nchan-router { display: flex; align-items: center; gap: .35rem; font-size: .74rem; }

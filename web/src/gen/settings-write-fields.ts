@@ -64,12 +64,10 @@ export const STR_FIELDS: readonly string[] = [
   "aiBaseUrl",
   "aiModel",
   "notifTitle",
-  "ntfyUrl",
   "pingTarget",
   "smtpFrom",
   "smtpHost",
   "smtpTo",
-  "telegramChatId",
   "ztpEndpoint",
 ];
 
@@ -95,7 +93,6 @@ export const BOOL_FIELDS: readonly string[] = [
   "notifRouterStatus",
   "notifRouterUpdate",
   "notifVpn",
-  "ntfyEnabled",
   "pageAudit",
   "pageBackups",
   "pageBandwidth",
@@ -121,11 +118,9 @@ export const BOOL_FIELDS: readonly string[] = [
   "pageWifi",
   "pageWifiMap",
   "pageWireless",
-  "pushbulletEnabled",
   "rosDebug",
   "smtpEnabled",
   "smtpSecure",
-  "telegramEnabled",
   "userNotifyEnabled",
   "ztpEnabled",
 ];
@@ -133,11 +128,8 @@ export const BOOL_FIELDS: readonly string[] = [
 /** Sealed at rest and NOT trimmed. A masked value is dropped; an EMPTY STRING is a destructive clear. */
 export const CRED_FIELDS: readonly string[] = [
   "aiApiKey",
-  "ntfyToken",
-  "pushbulletApiKey",
   "smtpPass",
   "smtpUser",
-  "telegramBotToken",
 ];
 
 /** Validated outside the four tables — see internal/store/settings_write.go. */
