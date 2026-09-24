@@ -804,6 +804,32 @@
        It is registered in testdata/modal-list.json like every other dialog, so
        Escape and a backdrop click close it, and its z-index is above the
        channel dialog so it is not opened underneath the thing that opened it. -->
+  <!-- ── THE THRESHOLD PICKER ────────────────────────────────────────────
+       One dialog for both numeric events; `#nchanThrTitle` and the input's own
+       floor are set from whichever gear opened it. Two near-identical dialogs
+       would be two places to fix the next time the wording changes. -->
+  <div class="rtr-modal-bg nchan-iface-modal" id="nchanThrModal">
+   <div class="rtr-modal" style="max-width:22rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="nchanThrTitle">Threshold</span>
+      <button class="rtr-modal-close" data-modal-close="nchanThrModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <p class="nchan-help nchan-panel-note" id="nchanThrNote"></p>
+      <div class="sform-group" style="margin-bottom:0">
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <input type="range" id="nchanThrRange" min="1" max="100" step="1"
+                 style="flex:1;accent-color:var(--accent-rx)" aria-label="Threshold, percent">
+          <span id="nchanThrVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.8rem;text-align:right;color:var(--text-main)">90%</span>
+        </div>
+      </div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-primary" data-modal-close="nchanThrModal">Done</button>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg nchan-iface-modal" id="nchanIfaceModal">
    <div class="rtr-modal" style="max-width:22rem">
     <div class="rtr-modal-hdr">
@@ -944,6 +970,19 @@
                body, which is where neither belongs: it is not part of naming the
                channel and not part of configuring the transport. Last, on its
                own, it reads as what it is — whether this channel is in use. -->
+          <!-- ── HOW OFTEN THIS CHANNEL MAY REPEAT ITSELF ─────────────────
+               On the Channel tab rather than behind a gear, because it is not a
+               property of one event: it applies to everything this channel
+               sends. A pager that must not repeat and a log that should record
+               every crossing are the same events at two different rates. -->
+          <div class="sform-group nchan-cooldown">
+            <label class="sform-label" for="nchanCooldown">Repeat no more than once every</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <input type="range" id="nchanCooldown" min="10" max="3600" step="10"
+                     style="flex:1;accent-color:var(--accent-rx)" aria-label="Cooldown, seconds">
+              <span id="nchanCooldownVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
+            </div>
+          </div>
           <label class="stoggle stoggle-bare nchan-enabled"><span class="stoggle-label">Enabled</span>
             <span class="stoggle-switch"><input type="checkbox" id="nchanEnabled" checked>
               <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

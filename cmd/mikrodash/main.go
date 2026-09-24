@@ -298,6 +298,16 @@ func main() {
 		log.Printf("[mikrodash] carried report recipients into %d channel(s)", n)
 	}
 
+	// AFTER both seeders, so every channel that is going to exist exists before
+	// the install's thresholds are written onto it. A channel created by either
+	// step above arrives untuned and is picked up here.
+	if n, terr := srv.SeedChannelTuning(); terr != nil {
+		log.Printf("[mikrodash] WARNING: could not carry alert thresholds onto channels: %v",
+			terr)
+	} else if n > 0 {
+		log.Printf("[mikrodash] carried alert thresholds onto %d channel(s)", n)
+	}
+
 	hs := &http.Server{
 		Addr:    *listen,
 		Handler: srv.Handler(),

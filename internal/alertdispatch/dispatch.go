@@ -45,6 +45,14 @@ const cooldownMax = 1000
 type Recipient struct {
 	ID       string
 	Settings notify.Settings
+	// CooldownSec is how long this recipient stays quiet about one subject after
+	// mentioning it. ZERO MEANS THE INSTALL DEFAULT, which is what a recipient
+	// that is not a channel — and so has no tuning of its own — leaves it at.
+	//
+	// It is per recipient because a notification channel carries its own now: a
+	// pager that must not repeat and a log that should record every crossing are
+	// the same event at two different rates, and one number could not be both.
+	CooldownSec int
 	// URLs is a webhook channel's destinations, already decrypted.
 	//
 	// ── A CHANNEL IS A RECIPIENT, NOT A NEW MECHANISM ──────────────────────
@@ -210,13 +218,23 @@ func (d *Dispatcher) allow(r *Recipient, subjectKey string) (bool, string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	// ── THE RECIPIENT'S OWN COOLDOWN, ELSE THE INSTALL'S ─────────────────
+	//
+	// A notification channel carries its own; anything else leaves it zero and
+	// falls through to the setting, which is the behaviour every recipient had
+	// before channels could be tuned.
+	//
 	// `notifCooldownSec || 60` — a zero, an absent key and a non-number all mean
 	// sixty seconds. Zero is NOT "no cooldown"; the live expression treats it as
 	// falsy, and a port reading it as "send every time" would turn a flapping
-	// interface into a message per poll.
+	// interface into a message per poll. The same reading applies to the
+	// recipient's own value, which is why it is `> 0` rather than `!= 0`.
 	secs := 60.0
 	if v, ok := d.settings["notifCooldownSec"].(float64); ok && v != 0 {
 		secs = v
+	}
+	if r.CooldownSec > 0 {
+		secs = float64(r.CooldownSec)
 	}
 	key := r.ID + "|" + subjectKey
 	now := d.now()

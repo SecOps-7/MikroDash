@@ -62,16 +62,15 @@ func (f *fakeHist) ResolveAlertEvent(r, t, s string, now int64) []int64 {
 	return []int64{1}
 }
 
-func onSettings() alert.Settings {
-	// The notif* gates are gone: every alert type is recorded, and what is
-	// DELIVERED is a notification channel's decision.
-	return alert.Settings{CPUThreshold: 80, PingLoss: 20}
-}
+// `onSettings` IS GONE, and so is `alert.Settings`. The notif* gates went when
+// alert types moved onto the notification channel; the two thresholds went the
+// same way, and the evaluator now records against `alert.FloorCPU` and
+// `alert.FloorPingLoss` while each channel decides what it is told about.
 
 func wireOn(t *testing.T) (*Wire, *fakeHist) {
 	t.Helper()
 	h := newHist()
-	w := New(h, onSettings())
+	w := New(h)
 	// A FIXED CLOCK, so "one instant per event" is assertable.
 	var tick int64 = 1699996400000
 	w.now = func() int64 { tick += 1000; return tick }
@@ -391,42 +390,23 @@ func TestSettingsChangeKeepsTheEdgeState(t *testing.T) {
 	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Fatalf("first firing produced %v", got)
 	}
-	before := w.Routers()
-	// A THRESHOLD CHANGE, since the toggles are gone. This test is about the
-	// evaluators being updated IN PLACE rather than rebuilt — rebuilding would
-	// lose the edge state and re-fire an alert that is already open.
-	raised := onSettings()
-	raised.CPUThreshold = 99
-	w.SetSettings(raised)
-	if w.Routers() != before {
-		t.Errorf("%d evaluator(s) after a settings change, was %d — they were rebuilt",
-			w.Routers(), before)
-	}
-	// AND THE EVALUATOR IS STILL THE SAME ONE, holding the open alert: dropping
-	// to 10 produces exactly one RECOVERY. A rebuilt evaluator would have
-	// forgotten it was alerting and produced nothing at all.
-	got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 10})
-	if len(got) != 1 || !got[0].Up {
-		t.Errorf("after a settings change the recovery was %v, want one Up — a "+
-			"rebuilt evaluator forgets it was alerting and never resolves", got)
-	}
-
-	// AND THE EDGE STATE SURVIVED. Turn the toggle back on and send a reading
-	// that is STILL high: the evaluator remembers it was already alerting, so
-	// nothing new fires. A rebuild would have cleared that memory and re-fired,
-	// which is the burst this exists to prevent — and the row-count check above
-	// cannot see it, because a rebuild keeps the count identical.
-	w2, h2 := wireOn(t)
-	if got := w2.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
-		t.Fatalf("setup: first firing produced %v", got)
-	}
-	h2.open = map[string]bool{} // forget the row, so ONLY the edge state can suppress
-	on := onSettings()
-	on.PingLoss = 33 // an unrelated change, so the cpu toggle itself is untouched
-	w2.SetSettings(on)
-	if got := w2.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 95}); len(got) != 0 {
-		t.Errorf("a settings change made a still-true condition re-fire (%v) — the "+
-			"evaluators were rebuilt and lost their edge state", got)
+	// ── THE REST OF THIS TEST WENT WITH `SetSettings` ────────────────────
+	//
+	// It changed a threshold, then checked that the evaluator count was
+	// unchanged, that the open alert still resolved, and that a still-true
+	// condition did not re-fire — all proving the evaluators were updated IN
+	// PLACE rather than dropped and rebuilt, which would clear the edge state
+	// and produce a burst of alerts on every settings save.
+	//
+	// Nothing an evaluator reads changes at runtime any more, so there is no
+	// swap to get wrong and nothing for those three assertions to distinguish.
+	// Recorded rather than quietly deleted, and the rule they defended is
+	// written on `alert.Evaluator` for whatever is added next: it must be
+	// swapped in place, never picked up by rebuilding.
+	//
+	// What is left is the firing above, which still proves the wire evaluates.
+	if w.Routers() == 0 {
+		t.Error("no evaluator was created for a router that fired")
 	}
 }
 
@@ -478,7 +458,7 @@ func TestANilWireIsInert(t *testing.T) {
 // signal is the test binary dying rather than a neat assertion — which is
 // exactly what happened in production.
 func TestOneRoutersRulesAreNotEvaluatedConcurrently(t *testing.T) {
-	w := New(newHist(), alert.Settings{})
+	w := New(newHist())
 	r := alert.Router{ID: "r-1", AlertsEnabled: true}
 
 	// Payloads for four different rule families, so the goroutines write

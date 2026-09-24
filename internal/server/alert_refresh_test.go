@@ -18,35 +18,40 @@ import (
 	"mikrodash/internal/notify"
 )
 
-// A SETTINGS SAVE REACHES BOTH HALVES OF ALERTING, and so does a reset.
+// A SETTINGS SAVE REACHES THE DISPATCHER, and so does a reset.
 //
-// Nothing called `refreshAlertSettings`, so the evaluator kept its startup
-// thresholds and the dispatcher its startup channels: turning Telegram off kept
-// sending to it until a restart.
+// Nothing called `refreshAlertSettings`, so the dispatcher kept its startup
+// channels: turning Telegram off kept sending to it until a restart.
+//
+// ── THE EVALUATOR HALF IS GONE, AND THAT IS THE CHANGE ────────────────────
+//
+// This also saved a THRESHOLD and checked the live evaluator picked it up,
+// because a threshold decided when an event existed. It does not any more: the
+// CPU and ping-loss thresholds are a property of each notification channel, read
+// at delivery from the channel's own row, and the evaluator records against
+// `alert.FloorCPU` and `alert.FloorPingLoss` — constants, which no save can
+// move.
+//
+// So there is nothing left for a save to propagate to an evaluator, and the
+// assertion that it did would now be asserting that a constant changed. The
+// dispatcher half below is what remains, and it is the half that was broken.
 func TestASettingsSaveReachesTheAlerts(t *testing.T) {
 	s, mux, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, `{}`)
 	s.alerts = s.buildAlertWire()
 	s.dispatch = s.buildAlertDispatch(true)
 	r := alert.Router{ID: "r-1", AlertsEnabled: true}
 
+	// THE FLOOR IS REAL AND IS NOT A SETTING. 60% is under `alert.FloorCPU`, so
+	// nothing is recorded; 80% is over it, so something is — and no settings save
+	// between them changes either answer.
 	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 60}); len(got) != 0 {
-		t.Fatalf("60%% fired %v under the default threshold", got)
+		t.Fatalf("60%% fired %v, under the recording floor", got)
 	}
-	// ── WHAT IS LEFT TO PROPAGATE ────────────────────────────────────────
-	//
-	// This used to save a TRANSPORT and check the dispatcher saw it. No
-	// transport lives in the settings any more: Telegram, Pushbullet and ntfy
-	// became notification channels, and the mail server followed when reports
-	// began subscribing to an email channel. What a settings save must still
-	// reach the live evaluator is the THRESHOLD, which is the half that decides
-	// when an event exists at all.
-	w := settingsPost(mux, `{"alertCpuThreshold":50}`, authed)
-	if w.Code != http.StatusOK {
+	if w := settingsPost(mux, `{"topN":7}`, authed); w.Code != http.StatusOK {
 		t.Fatalf("save: status %d: %s", w.Code, w.Body.String())
 	}
-	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 61}); len(got) != 1 {
-		t.Errorf("61%% fired %v after the threshold was saved as 50; the evaluator kept "+
-			"its startup settings", got)
+	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 80}); len(got) != 1 {
+		t.Errorf("80%% fired %v, over the recording floor", got)
 	}
 
 	if w := settingsPost(mux, `{"_reset":true}`, authed); w.Code != http.StatusOK {
@@ -128,7 +133,7 @@ func TestAnEmailAlertDialsTheMailServer(t *testing.T) {
 	// The recipient `channelRecipients` would build for an SMTP channel.
 	spec := notify.DecodeChannel("c1", "Email", notify.KindSMTP, true,
 		fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"from":"md@example.com",`+
-			`"to":"ops@example.com"}`, port), `["high_cpu"]`, `[]`, `[]`)
+			`"to":"ops@example.com"}`, port), `["high_cpu"]`, `[]`, `[]`, `{}`)
 	rec := alertdispatch.Recipient{ID: "chan:c1", Settings: spec.Settings}
 	s.dispatch.Deliver(context.Background(), &rec, "cpu",
 		alertdispatch.Message{Title: "T", Body: "B"})

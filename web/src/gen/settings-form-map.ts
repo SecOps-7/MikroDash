@@ -72,8 +72,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "aiSystemPrompt",
     "aiTimeoutMs",
     "aiTlsPin",
-    "alertCpuThreshold",
-    "alertPingLoss",
     "dbAiRetentionDays",
     "dbAlertRetentionDays",
     "dbRetentionDays",
@@ -83,7 +81,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "maxConns",
     "notifBody",
     "notifBodyUp",
-    "notifCooldownSec",
     "notifTitle",
     "pingTarget",
     "routerHost",
@@ -104,14 +101,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
 
 /** Per-field rule for an absent value; see the generator's valueKind(). */
 export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
-  "alertCpuThreshold": {
-    "kind": "bare",
-    "expr": "data.alertCpuThreshold"
-  },
-  "alertPingLoss": {
-    "kind": "bare",
-    "expr": "data.alertPingLoss"
-  },
   "dbAiRetentionDays": {
     "kind": "undefinedToEmpty",
     "expr": "data[f] !== undefined ? data[f] : ''"
@@ -147,10 +136,6 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
   "notifBodyUp": {
     "kind": "undefinedToEmpty",
     "expr": "data.notifBodyUp !== undefined ? data.notifBodyUp : ''"
-  },
-  "notifCooldownSec": {
-    "kind": "bare",
-    "expr": "data.notifCooldownSec"
   },
   "notifTitle": {
     "kind": "undefinedToEmpty",

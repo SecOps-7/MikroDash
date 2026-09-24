@@ -81,18 +81,6 @@
       5,
       120
     ],
-    "alertCpuThreshold": [
-      1,
-      100
-    ],
-    "alertPingLoss": [
-      1,
-      100
-    ],
-    "notifCooldownSec": [
-      10,
-      3600
-    ],
     "updateCheckHours": [
       1,
       168

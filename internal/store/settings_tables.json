@@ -43,13 +43,10 @@
     "vpnDashTopN": 5,
     "maxConns": 20000,
     "historyMinutes": 30,
-    "alertCpuThreshold": 90,
-    "alertPingLoss": 100,
     "backupBaseUrl": "",
     "notifTitle": "MikroDash Alert",
     "notifBody": "\u26a0\ufe0f {{alertType}} on {{routerName}}: {{detail}}",
     "notifBodyUp": "\u2705 {{alertType}} on {{routerName}}: {{detail}}",
-    "notifCooldownSec": 60,
     "userNotifyEnabled": false,
     "rosDebug": false,
     "activeRouterId": "",
@@ -150,13 +147,10 @@
     "vpnDashTopN",
     "maxConns",
     "historyMinutes",
-    "alertCpuThreshold",
-    "alertPingLoss",
     "backupBaseUrl",
     "notifTitle",
     "notifBody",
     "notifBodyUp",
-    "notifCooldownSec",
     "userNotifyEnabled",
     "rosDebug",
     "activeRouterId",
@@ -366,14 +360,6 @@
     },
     "historyMinutes": {
       "env": "HISTORY_MINUTES",
-      "kind": "int"
-    },
-    "alertCpuThreshold": {
-      "env": "ALERT_CPU_THRESHOLD",
-      "kind": "int"
-    },
-    "alertPingLoss": {
-      "env": "ALERT_PING_LOSS",
       "kind": "int"
     },
     "rosDebug": {

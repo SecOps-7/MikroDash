@@ -35,59 +35,24 @@ func alertSettingsServer(t *testing.T, json string) *Server {
 	return &Server{store: st}
 }
 
-// AN EMPTY SETTINGS FILE gives the install's defaults, not zeroes.
+// ── `alertSettings` IS GONE, AND ITS QUESTION MOVED ───────────────────────
 //
-// `store.Settings()` merges the file over `Settings.DEFAULTS`, so this asserts
-// the merge is actually happening — a port reading the raw file would get 0 for
-// the threshold, and a CPU threshold of zero alerts on every router at every
-// poll, forever.
-func TestAnEmptySettingsFileGivesTheDefaults(t *testing.T) {
-	s := alertSettingsServer(t, `{}`)
-	got := s.alertSettings()
-
-	if got.CPUThreshold != 90 {
-		t.Errorf("CPUThreshold = %v, want 90 — a zero threshold alerts on everything",
-			got.CPUThreshold)
-	}
-	if got.PingLoss != 100 {
-		t.Errorf("PingLoss = %v, want 100", got.PingLoss)
-	}
-}
-
-// THE GATE DEFAULTS ARE GONE, AND SO ARE THEIR TESTS.
+// Three tests stood here, on the read from settings.json that decided what
+// alerted at all: the defaults when the file is empty, an operator's explicit
+// values (including a zero they chose), and an unreadable file falling back
+// rather than to zeroes.
 //
-// Two checks lived here: that the four families shipping ON were read as ON
-// when their key was absent, and that the interface filters kept their own
-// non-uniform defaults. Both described the install-wide notif* gates, which
-// notification channels replaced — every alert type is recorded now, and a
-// channel's Events tab decides what is delivered. What is left to verify about
-// `alertSettings` is the two thresholds, above.
-
-// THE THRESHOLDS come through as numbers, including a zero the operator chose.
+// The thresholds are a property of each notification channel now. The same
+// question survives one step along — `SeedChannelTuning` reads those same three
+// keys once and carries them onto every channel — so the cases are there, in
+// `tuning_migrate_test.go`, rather than deleted.
 //
-// Zero is a legitimate `alertPingLoss` — "alert on any loss at all" — so the
-// number reader must not treat it as absent and substitute 100. That is the one
-// case where "absent means default" and "present but falsy" genuinely differ.
-func TestAnExplicitZeroThresholdIsNotTheDefault(t *testing.T) {
-	s := alertSettingsServer(t, `{"alertPingLoss":0,"alertCpuThreshold":50}`)
-	got := s.alertSettings()
-	if got.PingLoss != 0 {
-		t.Errorf("PingLoss = %v, want 0 — an operator asking to alert on ANY loss got "+
-			"the default instead", got.PingLoss)
-	}
-	if got.CPUThreshold != 50 {
-		t.Errorf("CPUThreshold = %v, want 50", got.CPUThreshold)
-	}
-}
-
-// A settings file that is not an object at all must not take the server down.
-func TestUnreadableSettingsFallBackToTheDefaults(t *testing.T) {
-	s := alertSettingsServer(t, `not json`)
-	got := s.alertSettings()
-	if got.CPUThreshold != 90 || got.PingLoss != 100 {
-		t.Errorf("an unreadable file produced %+v; the built-in thresholds should stand", got)
-	}
-}
+// ONE OF THEM COULD NOT SURVIVE, and it is worth saying which. A zero
+// `alertPingLoss` meant "alert on any loss at all", and there is no way to ask
+// for that any more: `alert.FloorPingLoss` records nothing under 50%, and a zero
+// in a channel's tuning reads as "use the default". An install that had set it
+// to zero is carried to the default. That is a real loss of reach, accepted
+// with the fixed floor.
 
 // NO DATABASE, NO EVALUATOR — and no panic.
 func TestTheWireIsNilWithoutAHistoryDatabase(t *testing.T) {
@@ -95,7 +60,9 @@ func TestTheWireIsNilWithoutAHistoryDatabase(t *testing.T) {
 	if w := s.buildAlertWire(); w != nil {
 		t.Error("an evaluator was built with no history database")
 	}
-	// And refreshing settings on a nil wire is a no-op rather than a crash.
+	// And refreshing on a nil wire is a no-op rather than a crash. It no longer
+	// touches the evaluators at all — nothing they read is a setting — but the
+	// dispatcher half still runs and must survive a half-built server.
 	s.alerts = nil
 	s.refreshAlertSettings()
 }

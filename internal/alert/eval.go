@@ -29,25 +29,17 @@ package alert
 
 import "strconv"
 
-// Settings is the subset of the install settings the covered rules read.
-// Settings is what the rules need from the install's configuration.
-//
-// ── THE notif* GATES ARE GONE ─────────────────────────────────────────────
+// ── THE notif* GATES ARE GONE, AND SO IS `Settings` ───────────────────────
 //
 // It carried NotifCPU, NotifPing, NotifIfaceUpDown, IfaceTypeFilters and the
 // rest: one boolean per alert type deciding whether that type was raised at
 // all. Notification channels replaced them. Every alert is recorded now, and a
 // channel's Events tab decides what is DELIVERED — see `emit`.
 //
-// What is left is the two numbers that define when an event EXISTS, which is a
-// different question from who hears about it and is the reason they stayed
-// install-wide: a threshold per channel would leave `alert_events` with no
-// single truth about whether an alert fired, and acknowledging one would mean
-// nothing.
-type Settings struct {
-	CPUThreshold float64
-	PingLoss     float64
-}
+// NOTHING IS LEFT, AND `Settings` IS GONE WITH IT. The two thresholds were the
+// last of it, and they are a property of the notification channel now: each one
+// decides what IT is told about, and the evaluator records against a fixed floor
+// without deciding for anybody. See `FloorCPU` below.
 
 // Router is what the evaluator needs to know about the device.
 //
@@ -72,6 +64,17 @@ type Fired struct {
 	ResolveType string
 	Subject     string
 	Detail      string
+	// Value is the MEASURED NUMBER an alert is about: the CPU percentage, the
+	// ping-loss percentage. Zero for every alert that is not about a number.
+	//
+	// ── WHY IT TRAVELS WITH THE ALERT ─────────────────────────────────────
+	//
+	// Thresholds are a property of the notification CHANNEL now, so the decision
+	// "is this bad enough to tell you about" is made at delivery, per channel —
+	// and the only way delivery can make it is if the number comes with the
+	// alert. The evaluator records against a fixed floor and does not decide for
+	// anybody.
+	Value float64
 	// IfaceType is ether/wlan/bridge/vlan/other for an alert about an interface,
 	// and EMPTY for everything else.
 	//
@@ -130,8 +133,7 @@ type Store interface {
 // Evaluator holds the per-router edge state. One per router, as the live
 // `createEvaluator` is.
 type Evaluator struct {
-	settings Settings
-	store    Store
+	store Store
 
 	// prevCPUAlert is THREE-STATE: unknown, was alerting, was normal. The live
 	// value starts `null`, and that matters — a first reading above the
@@ -230,8 +232,8 @@ func capMap[V any](m map[string]V, live map[string]bool) {
 }
 
 // NewEvaluator returns an evaluator with no prior verdicts.
-func NewEvaluator(s Settings, store Store) *Evaluator {
-	return &Evaluator{settings: s, store: store,
+func NewEvaluator(store Store) *Evaluator {
+	return &Evaluator{store: store,
 		prevPingAlert:     map[string]bool{},
 		prevNetwatchState: map[string]string{},
 		prevNetwatchSince: map[string]string{},
@@ -245,22 +247,19 @@ func NewEvaluator(s Settings, store Store) *Evaluator {
 	}
 }
 
-// SetSettings replaces the thresholds and toggles WITHOUT touching the edge
-// state.
+// ── THE EVALUATOR MUST NEVER BE REBUILT TO PICK UP A CHANGE ───────────────
 //
-// ── THE EVALUATOR IS NOT REBUILT ON A SETTINGS SAVE, AND THAT IS THE POINT ─
+// `SetSettings` lived here and is gone with the settings it set, but the reason
+// it existed still governs this type and is worth more than the method was.
 //
 // Every `prev*` map above is edge-detection memory: the rules fire when a value
-// CROSSES a line, not while it sits past one. Rebuilding the evaluator to pick
-// up new settings would clear that memory, so every currently-true condition
-// would read as a fresh crossing — ticking one checkbox on the Settings page
-// would produce a burst of alerts for things that had been true and quiet for
-// hours.
+// CROSSES a line, not while it sits past one. Dropping and recreating an
+// evaluator to pick something up clears that memory, so every currently-true
+// condition reads as a fresh crossing — and one save on the Settings page
+// produces a burst of alerts for things that had been true and quiet for hours.
 //
-// The live `updateSettings` replaces the settings object in place for the same
-// reason. This exists so the port can do it too rather than dropping and
-// recreating, which is the obvious-looking alternative.
-func (e *Evaluator) SetSettings(s Settings) { e.settings = s }
+// Nothing the evaluator reads changes at runtime any more, which is what made
+// the method removable. Anything added later that does must be swapped IN PLACE.
 
 // PingUpdate evaluates one `ping:update` event.
 //
@@ -295,7 +294,7 @@ func (e *Evaluator) PingUpdate(r Router, target *string, loss, rtt *float64) []F
 	// answer. It matches the live `data.target || 'host'` and stays for that
 	// reason, not because a test defends it.
 
-	isLoss := *loss >= e.settings.PingLoss
+	isLoss := *loss >= FloorPingLoss
 	prev, seen := e.prevPingAlert[key]
 
 	var out []Fired
@@ -305,6 +304,7 @@ func (e *Evaluator) PingUpdate(r Router, target *string, loss, rtt *float64) []F
 			AlertType: "Ping Loss",
 			Subject:   subject,
 			Detail:    "Ping loss to " + rawTarget(target) + " is " + trimNum(*loss) + "%",
+			Value:     *loss,
 		})
 	case !isLoss && seen && prev:
 		out = e.emit(r, Fired{
@@ -676,20 +676,49 @@ func (e *Evaluator) SystemCPUOnly(r Router, cpuLoad *float64) []Fired {
 	return e.cpuRule(r, cpuLoad)
 }
 
+// THE RECORDING FLOOR. Below these, nothing is recorded at all.
+//
+// ── A CONSTANT, NOT A SETTING, AND THAT IS THE DECISION ───────────────────
+//
+// `alertCpuThreshold` and `alertPingLoss` were install-wide settings that
+// decided both what was RECORDED and what was DELIVERED. They are per-channel
+// thresholds now, which leaves the recording side needing an answer of its own,
+// and the operator chose this one on 2026-09-24: a fixed floor, so the Alerts
+// page and the bell do not change what they contain when somebody edits a
+// channel.
+//
+// The accepted cost, stated rather than discovered: the log carries alerts that
+// no channel delivered. That is the price of a log whose meaning does not move.
+//
+// IT IS ALSO THE LOWEST A CHANNEL MAY ASK FOR. Nothing below the floor is
+// recorded, so a channel set under it would never fire and would look configured
+// while being silent — the exact failure this whole feature exists to make
+// visible. `validateChannel` refuses one, rather than clamping it quietly.
+//
+// 75 and 50 on the operator's decision of 2026-09-24.
+const (
+	FloorCPU      = 75.0
+	FloorPingLoss = 50.0
+)
+
 func (e *Evaluator) cpuRule(r Router, cpuLoad *float64) []Fired {
 	if cpuLoad == nil {
 		return nil
 	}
 	// `>=`, so exactly the threshold alerts.
-	isHigh := *cpuLoad >= e.settings.CPUThreshold
+	isHigh := *cpuLoad >= FloorCPU
 
 	var out []Fired
 	switch {
 	case isHigh && (e.prevCPUAlert == nil || !*e.prevCPUAlert):
 		out = e.emit(r, Fired{
 			AlertType: "High CPU",
-			Detail: "CPU at " + trimNum(*cpuLoad) + "% (threshold: " +
-				trimNum(e.settings.CPUThreshold) + "%)",
+			// NO THRESHOLD IN THE TEXT ANY MORE. There is no single
+			// threshold to name: each channel has its own, and the one
+			// number this row could quote is the recording floor, which is
+			// not what any recipient is being alerted at.
+			Detail: "CPU at " + trimNum(*cpuLoad) + "%",
+			Value:  *cpuLoad,
 		})
 	case !isHigh && e.prevCPUAlert != nil && *e.prevCPUAlert:
 		out = e.emit(r, Fired{

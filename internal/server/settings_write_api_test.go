@@ -458,7 +458,7 @@ func TestTheSaveBroadcastsPageSettingsToEveryone(t *testing.T) {
 func TestThePageSettingsPayloadCarriesEveryKeyEvenWhenTheFileDoesNot(t *testing.T) {
 	// A settings.json with ONE key in it. Everything else must come from the
 	// defaults, which is exactly what the raw read failed to do.
-	s, _, _ := settingsWriteServer(t, &Session{AuthMode: "none"}, `{"alertCpuThreshold":77}`)
+	s, _, _ := settingsWriteServer(t, &Session{AuthMode: "none"}, `{"vpnDashTopN":77}`)
 
 	// THROUGH `sendPageSettings`, the function ws.go actually calls — not through
 	// `mergedSettings`, which is where the first draft of this test looked.
@@ -506,8 +506,8 @@ func TestThePageSettingsPayloadCarriesEveryKeyEvenWhenTheFileDoesNot(t *testing.
 	}
 	// And the one key the file DID set survives the merge rather than being
 	// replaced by its default.
-	if payload["alertCpuThreshold"] != float64(77) {
-		t.Errorf("the file's own value was lost: %v", payload["alertCpuThreshold"])
+	if payload["vpnDashTopN"] != float64(77) {
+		t.Errorf("the file's own value was lost: %v", payload["vpnDashTopN"])
 	}
 
 	// THE RAW READ IS THE BUG, asserted so the fix cannot be quietly reverted:

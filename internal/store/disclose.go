@@ -56,7 +56,10 @@ var ViewerFields = []string{
 	"authMode",
 	"pingTarget",
 	"topN", "topTalkersN", "vpnDashTopN", "maxConns", "historyMinutes",
-	"alertCpuThreshold", "alertPingLoss",
+	// THE TWO ALERT THRESHOLDS LEFT THIS LIST WITH THE SETTINGS THEMSELVES.
+	// They are a property of each notification channel now, read from its own
+	// row by whoever may see that channel, and are no longer install-wide
+	// numbers for every viewer to learn.
 	"activeRouterId",
 	"pageWifi", "pageWireless", "pageWifiMap", "pageNetwatch", "pageInterfaces", "pageDhcp", "pageVpn", "pageConnections",
 	"pageFirewall", "pageLogs", "pageBandwidth", "pageRouting", "pageTopology",

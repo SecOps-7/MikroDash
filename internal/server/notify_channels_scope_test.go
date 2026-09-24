@@ -43,7 +43,11 @@ func TestAUserChannelIsScopedByRouterPermission(t *testing.T) {
 	// u-1 holds a grant on r1 in this harness; this user holds none.
 	seed("mine", "u-no-grants")
 
-	got := s.channelRecipients("r1", "ping_loss", "")
+	// 100% LOSS, not 0. This test is about the RBAC scope, and a value below the
+	// channel's own ping-loss threshold is refused before the scope is ever
+	// consulted — so a zero here would make it pass for the wrong reason on the
+	// user's channel and fail on the install's.
+	got := s.channelRecipients("r1", "ping_loss", "", 100, false)
 
 	var sawInstall, sawUser bool
 	for _, r := range got {

@@ -31,6 +31,7 @@ interface ChannelView {
   smtpHost?: string;
   smtpFrom?: string;
   ifaceTypes?: string[];
+  tuning?: { cpu: number; pingLoss: number; cooldownSec: number };
   smtpTo?: string;
   smtpCc?: string;
   smtpBcc?: string;
@@ -265,6 +266,88 @@ function readIfacePicker(): void {
   if (sum) sum.textContent = ifaceSummary();
 }
 
+/**
+ * This channel's own thresholds and cooldown.
+ *
+ * The server fills a zero from `notify.DefaultTuning`, so a channel that has
+ * never been tuned reads back 90/100/60 rather than zeroes — which is why the
+ * dialog can show the numbers without knowing whether they were ever set.
+ */
+let tuning = { cpu: 0, pingLoss: 0, cooldownSec: 0 };
+
+/**
+ * The gear, drawn once.
+ *
+ * TWO CALLERS SHARE IT — the interface filter and the two thresholds — and a
+ * second copy of 600 characters of path data is a thing that can drift into
+ * being a subtly different icon for the same idea.
+ */
+const GEAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<circle cx="12" cy="12" r="3"/>'
+  + '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+
+/** What the threshold gear's label says. */
+function thresholdSummary(key: string): string {
+  const v = key === 'high_cpu' ? tuning.cpu : tuning.pingLoss;
+  return (v || (key === 'high_cpu' ? 90 : 100)) + '%';
+}
+
+/** The floor below which nothing is recorded, so nothing can be asked for. */
+const FLOOR = { high_cpu: 75, ping_loss: 50 } as Record<string, number>;
+
+/**
+ * Open the threshold picker for one event.
+ *
+ * THE FLOOR IS THE SLIDER'S MINIMUM, not a message after the fact. Nothing below
+ * `alert.FloorCPU` or `alert.FloorPingLoss` is recorded, so a channel set under
+ * it would look configured and stay silent — the server refuses it, and the
+ * control simply cannot express it.
+ */
+function openThreshold(key: string): void {
+  thrKey = key;
+  const floor = FLOOR[key] || 1;
+  const range = el<HTMLInputElement>('nchanThrRange');
+  const title = el('nchanThrTitle');
+  const note = el('nchanThrNote');
+  if (title) title.textContent = key === 'high_cpu' ? 'CPU threshold' : 'Ping loss threshold';
+  if (note) {
+    note.textContent = key === 'high_cpu'
+      ? 'Tell this channel when a router\u2019s CPU load reaches this.'
+      : 'Tell this channel when packet loss to the ping target reaches this.';
+  }
+  if (range) {
+    range.min = String(floor);
+    range.value = String(Math.max(floor,
+      key === 'high_cpu' ? (tuning.cpu || 90) : (tuning.pingLoss || 100)));
+  }
+  showThresholdValue();
+  el('nchanThrModal')?.classList.add('open');
+}
+
+/** Mirror the slider into its readout and into the gear that opened it. */
+function showThresholdValue(): void {
+  const range = el<HTMLInputElement>('nchanThrRange');
+  if (!range) return;
+  const v = Number(range.value);
+  if (thrKey === 'high_cpu') tuning.cpu = v; else tuning.pingLoss = v;
+  const out = el('nchanThrVal');
+  if (out) out.textContent = v + '%';
+  const sum = document.querySelector('[data-nchan-thrsum="' + thrKey + '"]');
+  if (sum) sum.textContent = thresholdSummary(thrKey);
+}
+
+/** Which event's threshold the picker is currently showing. */
+let thrKey = 'high_cpu';
+
+/** Mirror the cooldown slider into its readout. */
+function showCooldown(): void {
+  const range = el<HTMLInputElement>('nchanCooldown');
+  if (!range) return;
+  tuning.cooldownSec = Number(range.value);
+  const out = el('nchanCooldownVal');
+  if (out) out.textContent = tuning.cooldownSec + ' s';
+}
+
 /** The event the interface filter narrows. Nothing else has an interface. */
 const IFACE_EVENT = 'interface_down';
 
@@ -280,12 +363,21 @@ function eventRow(e: EventRow, on: boolean): string {
   // A CPU alert has no interface. Drawing the filter beside every event would
   // suggest it narrows them all, and an operator who set it would reasonably
   // expect their CPU alerts to stop too.
+  // ── A THRESHOLD GEAR, ON THE TWO EVENTS THAT HAVE A NUMBER ────────────
+  //
+  // Same control as the interface filter beside it, and deliberately so: both
+  // answer "narrow this event for this channel", and two different affordances
+  // for one idea would be two things to learn.
+  const thr = e.key === 'high_cpu' || e.key === 'ping_loss'
+    ? '<button type="button" class="nchan-gear" data-nchan-thrbtn="' + esc(e.key) + '"'
+      + ' title="Choose how high this has to get before this channel is told">'
+      + GEAR_SVG + '<span data-nchan-thrsum="' + esc(e.key) + '">'
+      + esc(thresholdSummary(e.key)) + '</span></button>'
+    : '';
   const gear = e.key === IFACE_EVENT
     ? '<button type="button" class="nchan-gear" data-nchan-ifacebtn'
       + ' title="Choose which interface types this channel is told about">'
-      + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/>'
-      + '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
-      + '</svg><span data-nchan-ifacesum>' + esc(ifaceSummary()) + '</span></button>'
+      + GEAR_SVG + '<span data-nchan-ifacesum>' + esc(ifaceSummary()) + '</span></button>'
     : '';
   // ── THE SWITCH IS A SIBLING OF ITS TEXT, NOT INSIDE ONE LABEL ─────────
   //
@@ -304,7 +396,7 @@ function eventRow(e: EventRow, on: boolean): string {
     + '<label class="stoggle stoggle-bare nchan-event" for="' + id + '">'
     + '<span class="stoggle-label"><strong>' + esc(e.label) + '</strong>'
     + '<span class="nchan-event-desc">' + esc(e.desc) + '</span></span></label>'
-    + gear
+    + gear + thr
     + '<label class="stoggle-switch nchan-event-switch" for="' + id + '">'
     + '<input type="checkbox" id="' + id + '" data-nchan-event="' + esc(e.key) + '"'
     + (on ? ' checked' : '') + '>'
@@ -339,6 +431,13 @@ function fillModal(c: ChannelView | null): void {
   setValue('nchanSmtpPass', '');
   setValue('nchanSmtpFrom', (c && c.smtpFrom) || '');
   ifaceTypes = (c && c.ifaceTypes) ? c.ifaceTypes.slice() : [];
+  // The server fills a zero from its own defaults, so an untuned channel arrives
+  // with 90/100/60 rather than zeroes and the dialog needs no second copy of
+  // them.
+  tuning = (c && c.tuning) ? { ...c.tuning } : { cpu: 90, pingLoss: 100, cooldownSec: 60 };
+  const cool = el<HTMLInputElement>('nchanCooldown');
+  if (cool) cool.value = String(tuning.cooldownSec || 60);
+  showCooldown();
   setValue('nchanSmtpTo', (c && c.smtpTo) || '');
   setValue('nchanSmtpCc', (c && c.smtpCc) || '');
   setValue('nchanSmtpBcc', (c && c.smtpBcc) || '');
@@ -448,6 +547,7 @@ function bodyFor(): Record<string, unknown> {
     enabled: isChecked('nchanEnabled'),
     events: checkedValues('data-nchan-event'),
     ifaceTypes,
+    tuning,
     routers: checkedValues('data-nchan-router'),
   };
   // OWNERSHIP IS ASKED FOR, NOT ASSUMED. Sending "install" unconditionally is
@@ -596,7 +696,10 @@ export function initNotifyChannels(): void {
     if (t.closest('[data-nchan-ifacebtn]')) {
       renderIfacePicker();
       el('nchanIfaceModal')?.classList.add('open');
+      return;
     }
+    const thr = t.closest('[data-nchan-thrbtn]');
+    if (thr) openThreshold(thr.getAttribute('data-nchan-thrbtn') || 'high_cpu');
   });
   // READ BACK ON EVERY TICK, not on Done. The dialog closes by Escape, by the
   // backdrop and by its button, and only one of those three is a place to hang
@@ -604,6 +707,15 @@ export function initNotifyChannels(): void {
   document.addEventListener('change', (ev) => {
     const t = ev.target as HTMLElement | null;
     if (t?.hasAttribute?.('data-nchan-iface')) readIfacePicker();
+  });
+  // ── THE TWO SLIDERS, ON `input` RATHER THAN `change` ──────────────────
+  //
+  // `change` fires only when the drag ENDS, so the readout would sit at the old
+  // number for the whole gesture — the one moment it is being looked at.
+  document.addEventListener('input', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    if (t?.id === 'nchanThrRange') showThresholdValue();
+    if (t?.id === 'nchanCooldown') showCooldown();
   });
 
   document.querySelectorAll('[data-nchantab]').forEach((b) => {

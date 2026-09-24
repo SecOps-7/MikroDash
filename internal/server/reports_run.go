@@ -333,7 +333,7 @@ func (s *Server) scheduleMail(channelID string) (mailer.Config, mailer.Message, 
 	}
 
 	spec := notify.DecodeChannel(row.ID, row.Name, row.Kind, true,
-		s.openChannelConfig(row.Config), row.Events, row.Routers, row.IfaceTypes)
+		s.openChannelConfig(row.Config), row.Events, row.Routers, row.IfaceTypes, row.Tuning)
 	str := func(k string) string { v, _ := spec.Settings[k].(string); return v }
 	host, from := str("smtpHost"), str("smtpFrom")
 	if host == "" || from == "" {
@@ -498,7 +498,7 @@ func (s *Server) installMailServer() (mailer.Config, string, bool) {
 		return mailer.Config{}, "", false
 	}
 	spec := notify.DecodeChannel(chosen.ID, chosen.Name, chosen.Kind, true,
-		s.openChannelConfig(chosen.Config), chosen.Events, chosen.Routers, chosen.IfaceTypes)
+		s.openChannelConfig(chosen.Config), chosen.Events, chosen.Routers, chosen.IfaceTypes, chosen.Tuning)
 	str := func(k string) string { v, _ := spec.Settings[k].(string); return v }
 	host, from := str("smtpHost"), str("smtpFrom")
 	if host == "" || from == "" {

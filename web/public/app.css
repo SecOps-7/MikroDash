@@ -2970,6 +2970,8 @@
 /* A panel's opening sentence, with room under it: the router list sat directly
    against this line with nothing between them. */
 .nchan-panel-note { margin: 0 0 .9rem; }
+/* The cooldown sits above the Enabled divider, with air of its own. */
+.nchan-cooldown { margin: 1rem 0 0; }
 .nchan-tabs .stab-bar { margin-bottom: 0; }
 
 .nchan-event { align-items: flex-start; }

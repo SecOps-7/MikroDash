@@ -24,8 +24,6 @@
   "pageDevices",
   "pageAudit",
   "pageBackups",
-  "alertCpuThreshold",
-  "alertPingLoss",
   "vpnDashTopN",
   "displayTimezone",
   "userNotifyEnabled",

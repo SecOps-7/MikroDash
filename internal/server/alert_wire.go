@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"mikrodash/internal/alert"
 	"mikrodash/internal/alertdispatch"
 	"mikrodash/internal/alertwire"
 	"mikrodash/internal/notify"
@@ -38,7 +37,7 @@ func (s *Server) buildAlertWire() *alertwire.Wire {
 		log.Printf("[alert] no history database; alert evaluation is off")
 		return nil
 	}
-	w := alertwire.New(s.auditDB, s.alertSettings())
+	w := alertwire.New(s.auditDB)
 	// SAYS ONLY WHAT IT KNOWS. This claimed "NOTHING is dispatched"
 	// unconditionally, and printed one line above the dispatch banner saying
 	// "notifications will be SENT" — both true-looking, one of them wrong,
@@ -52,52 +51,19 @@ func (s *Server) buildAlertWire() *alertwire.Wire {
 	return w
 }
 
-// alertSettings reads the thresholds and per-type toggles out of settings.json.
+// ── `alertSettings` IS GONE ───────────────────────────────────────────────
 //
-// ── THE DEFAULTS ARE THE MERGED ONES, NOT ZERO ─────────────────────────────
+// It read `alertCpuThreshold` and `alertPingLoss` out of the merged settings and
+// handed them to every evaluator. Both are a property of the notification
+// channel now: each one decides what IT is told about, and the evaluator records
+// against `alert.FloorCPU` and `alert.FloorPingLoss` without deciding for
+// anybody.
 //
-// `mergedSettings()` returns the file merged over `Settings.DEFAULTS`, so a key
-// the operator never touched arrives with the install's default rather than
-// missing. That matters most for `alertCpuThreshold`: absent would read as 0
-// here, and a threshold of zero alerts on every router at every poll forever.
-//
-// ── THE INTERFACE FILTERS ARE A MAP BECAUSE THE KEY IS COMPUTED ────────────
-//
-// `alert.IfaceTypeKey` derives `notifIfaceEther` and friends from the
-// interface's own type string. Five named fields would mean a second switch here
-// restating that one, and the two would drift the first time RouterOS gained an
-// interface kind.
-func (s *Server) alertSettings() alert.Settings {
-	// Merged for the ENV OVERRIDES rather than for credentials — no threshold
-	// here is sealed. `load()` applies them and the raw file does not, so an
-	// operator setting a threshold by environment variable would have been
-	// ignored on this path alone.
-	cfg, err := s.mergedSettings()
-	if err != nil {
-		// THE DEFAULTS, not silence. An unreadable settings file is a reason to
-		// alert on the built-in thresholds, not a reason to stop watching — the
-		// same judgement `session.go` makes when it logs "settings unreadable;
-		// using collector defaults".
-		log.Printf("[alert] settings unreadable (%v); using built-in thresholds", err)
-		cfg = map[string]any{}
-	}
-	num := func(k string, def float64) float64 {
-		switch v := cfg[k].(type) {
-		case float64:
-			return v
-		case int:
-			return float64(v)
-		}
-		return def
-	}
-	// THE notif* GATES ARE GONE. Every alert type is recorded now and each
-	// notification channel chooses what it delivers, so the only settings the
-	// rules still need are the two numbers that decide when an event EXISTS.
-	return alert.Settings{
-		CPUThreshold: num("alertCpuThreshold", 90),
-		PingLoss:     num("alertPingLoss", 100),
-	}
-}
+// Its last comment is worth keeping because the trap it names outlived it: the
+// merge was used for the ENV OVERRIDES rather than for credentials, and reading
+// the raw file instead would have ignored an operator who set a threshold by
+// environment variable. Anything here that grows a settings read again wants
+// `mergedSettings`, not `store.Settings`.
 
 // refreshAlertSettings re-reads them after a settings save, for BOTH halves.
 //
@@ -116,9 +82,9 @@ func (s *Server) alertSettings() alert.Settings {
 // The dispatcher gets the MERGED settings, as `buildAlertDispatch` does: the raw
 // file holds the tokens sealed.
 func (s *Server) refreshAlertSettings() {
-	if s.alerts != nil {
-		s.alerts.SetSettings(s.alertSettings())
-	}
+	// THE EVALUATORS ARE NOT REFRESHED, because nothing they read is a setting
+	// any more. They fire against a fixed floor; the thresholds that used to
+	// arrive here are read per channel, at delivery, from the channel's own row.
 	if s.dispatch != nil {
 		if cfg, err := s.mergedSettings(); err == nil {
 			s.dispatch.SetSettings(notify.Settings(cfg))

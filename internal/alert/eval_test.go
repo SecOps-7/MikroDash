@@ -235,10 +235,7 @@ func TestEvaluatorMatchesLive(t *testing.T) {
 			// types moved onto the notification channel: every alert is
 			// recorded now, and what is DELIVERED is a channel's decision. The
 			// ten corpus cases that pinned those gates were removed with them.
-			ev := NewEvaluator(Settings{
-				CPUThreshold: tc.Settings.CPUThreshold,
-				PingLoss:     tc.Settings.PingLoss,
-			}, store)
+			ev := NewEvaluator(store)
 			router := Router{ID: tc.Router.ID, AlertsEnabled: tc.Router.AlertsEnabled}
 
 			var got []Fired
@@ -344,7 +341,7 @@ func TestEvaluatorMatchesLive(t *testing.T) {
 // the operator continuously while a CPU stayed busy.
 func TestTheCPURuleIsAnEdgeNotALevel(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{CPUThreshold: 80}, store)
+	ev := NewEvaluator(store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 
 	load := func(v float64) []Fired {
@@ -372,7 +369,7 @@ func TestTheCPURuleIsAnEdgeNotALevel(t *testing.T) {
 // reading as 0, decides the CPU recovered, and fires a spurious resolution.
 func TestAMissingCPUReadingDoesNotResetTheEdge(t *testing.T) {
 	store := &memStore{}
-	ev := NewEvaluator(Settings{CPUThreshold: 80}, store)
+	ev := NewEvaluator(store)
 	r := Router{ID: "r1", AlertsEnabled: true}
 
 	high := 90.0
@@ -479,8 +476,7 @@ func TestEveryCappedMapIsActuallyPruned(t *testing.T) {
 		}
 	}
 	r := Router{ID: "r1", AlertsEnabled: true}
-	set := Settings{}
-	ev := NewEvaluator(set, &memStore{})
+	ev := NewEvaluator(&memStore{})
 
 	var ifaces []Interface
 	var hosts []NetwatchHost

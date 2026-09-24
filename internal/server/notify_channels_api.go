@@ -63,6 +63,9 @@ type channelBody struct {
 	Routers []string        `json:"routers"`
 	// IfaceTypes narrows Interface Up/Down. EMPTY IS ALL, like Routers.
 	IfaceTypes []string `json:"ifaceTypes"`
+	// Tuning is this channel's own thresholds and cooldown. A zero in any of
+	// them means "the default", which is what `notify.decodeTuning` reads back.
+	Tuning notify.Tuning `json:"tuning"`
 	// Owner is accepted only as the word "install"; anything else, including a
 	// user id, is ignored. The server decides ownership.
 	Owner string `json:"owner"`
@@ -75,22 +78,23 @@ type channelBody struct {
 // what the card and the form need: how many URLs there are, and for SMTP the
 // parts that are not secret.
 type channelView struct {
-	ID         string   `json:"id"`
-	Owner      string   `json:"owner"`
-	Name       string   `json:"name"`
-	Kind       string   `json:"kind"`
-	Enabled    bool     `json:"enabled"`
-	Events     []string `json:"events"`
-	Routers    []string `json:"routers"`
-	IfaceTypes []string `json:"ifaceTypes"`
-	URLCount   int      `json:"urlCount"`
-	SMTPHost   string   `json:"smtpHost,omitempty"`
-	SMTPFrom   string   `json:"smtpFrom,omitempty"`
-	SMTPTo     string   `json:"smtpTo,omitempty"`
-	SMTPCc     string   `json:"smtpCc,omitempty"`
-	SMTPBcc    string   `json:"smtpBcc,omitempty"`
-	HasSecret  bool     `json:"hasSecret"`
-	Mine       bool     `json:"mine"`
+	ID         string        `json:"id"`
+	Owner      string        `json:"owner"`
+	Name       string        `json:"name"`
+	Kind       string        `json:"kind"`
+	Enabled    bool          `json:"enabled"`
+	Events     []string      `json:"events"`
+	Routers    []string      `json:"routers"`
+	IfaceTypes []string      `json:"ifaceTypes"`
+	Tuning     notify.Tuning `json:"tuning"`
+	URLCount   int           `json:"urlCount"`
+	SMTPHost   string        `json:"smtpHost,omitempty"`
+	SMTPFrom   string        `json:"smtpFrom,omitempty"`
+	SMTPTo     string        `json:"smtpTo,omitempty"`
+	SMTPCc     string        `json:"smtpCc,omitempty"`
+	SMTPBcc    string        `json:"smtpBcc,omitempty"`
+	HasSecret  bool          `json:"hasSecret"`
+	Mine       bool          `json:"mine"`
 }
 
 func (s *Server) channelSession(w http.ResponseWriter, r *http.Request) (*Session, bool) {
@@ -117,13 +121,14 @@ func (s *Server) mayTouchChannel(sess *Session, owner string) bool {
 
 func (s *Server) viewOf(sess *Session, c db.NotifyChannel) channelView {
 	spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, c.Enabled == 1,
-		s.openChannelConfig(c.Config), c.Events, c.Routers, c.IfaceTypes)
+		s.openChannelConfig(c.Config), c.Events, c.Routers, c.IfaceTypes, c.Tuning)
 	v := channelView{
 		ID: c.ID, Owner: c.Owner, Name: c.Name, Kind: c.Kind,
 		Enabled: c.Enabled == 1, Mine: c.Owner == s.webUserID(sess),
 		// NEVER NIL: a null array in a payload is what
 		// TestNoServerPayloadSendsANullArray exists to stop.
 		Events: spec.Events, Routers: spec.Routers, IfaceTypes: spec.IfaceTypes,
+		Tuning: spec.Tuning,
 	}
 	if v.Events == nil {
 		v.Events = []string{}
@@ -247,7 +252,7 @@ func (s *Server) notifyChannelOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	spec := notify.DecodeChannel(cur.ID, cur.Name, cur.Kind, cur.Enabled == 1,
-		s.openChannelConfig(cur.Config), cur.Events, cur.Routers, cur.IfaceTypes)
+		s.openChannelConfig(cur.Config), cur.Events, cur.Routers, cur.IfaceTypes, cur.Tuning)
 
 	out := map[string]any{"ok": true, "channel": s.viewOf(sess, cur)}
 	if spec.URLs == nil {
@@ -307,8 +312,8 @@ func (s *Server) notifyChannelCreate(w http.ResponseWriter, r *http.Request) {
 		ID: id, Owner: owner, Name: strings.TrimSpace(body.Name), Kind: body.Kind,
 		Enabled: boolInt(body.Enabled), Config: cfg,
 		Events: jsonList(body.Events), Routers: jsonList(body.Routers),
-		IfaceTypes: jsonList(body.IfaceTypes),
-		CreatedBy:  s.webUserID(sess), CreatedAt: now, UpdatedAt: now,
+		IfaceTypes: jsonList(body.IfaceTypes), Tuning: jsonTuning(body.Tuning),
+		CreatedBy: s.webUserID(sess), CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.auditDB.UpsertNotifyChannel(rec); err != nil {
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
@@ -371,6 +376,7 @@ func (s *Server) notifyChannelUpdate(w http.ResponseWriter, r *http.Request) {
 	cur.Events = jsonList(body.Events)
 	cur.Routers = jsonList(body.Routers)
 	cur.IfaceTypes = jsonList(body.IfaceTypes)
+	cur.Tuning = jsonTuning(body.Tuning)
 	cur.UpdatedAt = time.Now().UnixMilli()
 	if err := s.auditDB.UpsertNotifyChannel(cur); err != nil {
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
@@ -439,7 +445,7 @@ func (s *Server) notifyChannelTest(w http.ResponseWriter, r *http.Request) {
 	// Enabled is forced on: testing a switched-off channel is exactly what an
 	// operator does while setting one up.
 	spec := notify.DecodeChannel(cur.ID, cur.Name, cur.Kind, true,
-		s.openChannelConfig(cur.Config), cur.Events, cur.Routers, cur.IfaceTypes)
+		s.openChannelConfig(cur.Config), cur.Events, cur.Routers, cur.IfaceTypes, cur.Tuning)
 	if !spec.Deliverable() {
 		writeJSONErr(w, http.StatusBadRequest, "this channel has no destination configured")
 		return
@@ -505,6 +511,31 @@ func validateChannel(b channelBody) error {
 			return errors.New("a webhook channel needs at least one URL")
 		}
 	}
+	// ── A THRESHOLD UNDER THE RECORDING FLOOR WOULD NEVER FIRE ───────────
+	//
+	// Nothing below `alert.FloorCPU` or `alert.FloorPingLoss` is recorded at
+	// all, so a channel asking for less would look configured and stay silent
+	// for ever — the exact failure the whole per-channel design exists to make
+	// visible. REFUSED, not clamped: clamping stores a number the operator did
+	// not choose and never tells them.
+	//
+	// Zero is not refused, because zero means "use the default" everywhere else
+	// in this feature and `decodeTuning` reads it that way.
+	if b.Tuning.CPU != 0 && b.Tuning.CPU < alert.FloorCPU {
+		return fmt.Errorf("the CPU threshold cannot be below %.0f%%, which is where "+
+			"MikroDash starts recording", alert.FloorCPU)
+	}
+	if b.Tuning.PingLoss != 0 && b.Tuning.PingLoss < alert.FloorPingLoss {
+		return fmt.Errorf("the ping loss threshold cannot be below %.0f%%, which is "+
+			"where MikroDash starts recording", alert.FloorPingLoss)
+	}
+	if b.Tuning.CPU > 100 || b.Tuning.PingLoss > 100 {
+		return errors.New("a threshold is a percentage and cannot be above 100")
+	}
+	if b.Tuning.CooldownSec < 0 || b.Tuning.CooldownSec > 86400 {
+		return errors.New("the cooldown must be between 0 seconds and a day")
+	}
+
 	// ── A MAIL CHANNEL'S RECIPIENTS ARE THE ONLY RECIPIENT LIST THERE IS ──
 	//
 	// A scheduled report names a channel and these are the people who get it, so
@@ -566,4 +597,13 @@ func jsonList(v []string) string {
 		return "[]"
 	}
 	return string(out)
+}
+
+// jsonTuning marshals a channel's tuning, never as `null`.
+func jsonTuning(t notify.Tuning) string {
+	b, err := json.Marshal(t)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }

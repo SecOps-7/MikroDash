@@ -184,7 +184,7 @@ func TestActivatingOnAFreshInstall(t *testing.T) {
 // thresholds would be a very expensive way to switch routers.
 func TestActivateLeavesOtherSettingsAlone(t *testing.T) {
 	s, mux, dir := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
-	const seeded = `{"activeRouterId":"r-one","alertCpuThreshold":55,"notifTitle":"Mine",` +
+	const seeded = `{"activeRouterId":"r-one","topN":55,"notifTitle":"Mine",` +
 		`"somethingFuture":"keep me"}`
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(seeded), 0o600); err != nil {
 		t.Fatal(err)
@@ -203,9 +203,9 @@ func TestActivateLeavesOtherSettingsAlone(t *testing.T) {
 	if got["activeRouterId"] != "r-two" {
 		t.Errorf("activeRouterId = %v", got["activeRouterId"])
 	}
-	if got["alertCpuThreshold"] != float64(55) {
-		t.Errorf("alertCpuThreshold = %v, want 55 — an unrelated setting was rewritten",
-			got["alertCpuThreshold"])
+	if got["topN"] != float64(55) {
+		t.Errorf("topN = %v, want 55 — an unrelated setting was rewritten",
+			got["topN"])
 	}
 	if got["notifTitle"] != "Mine" {
 		t.Errorf("notifTitle = %v", got["notifTitle"])

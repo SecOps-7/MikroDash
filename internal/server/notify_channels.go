@@ -94,7 +94,12 @@ func eventKeyFor(f alert.Fired) string {
 // `ifaceType` narrows Interface Up/Down to the kinds of interface a channel
 // asked for. EMPTY means "this alert has no interface", which every channel
 // accepts — a CPU or BGP alert must not be silenced by an interface filter.
-func (s *Server) channelRecipients(routerID, event, ifaceType string) []alertdispatch.Recipient {
+// `value` is the measured number for the two events that have one — the CPU
+// percentage, the ping-loss percentage — and `up` says this is a recovery. A
+// channel is told only about a crossing loud enough for ITS threshold, and about
+// every recovery regardless: see `ChannelSpec.WantsValue`.
+func (s *Server) channelRecipients(routerID, event, ifaceType string,
+	value float64, up bool) []alertdispatch.Recipient {
 	if s.auditDB == nil {
 		return nil
 	}
@@ -106,11 +111,14 @@ func (s *Server) channelRecipients(routerID, event, ifaceType string) []alertdis
 	out := []alertdispatch.Recipient{}
 	for _, r := range rows {
 		spec := notify.DecodeChannel(r.ID, r.Name, r.Kind, r.Enabled == 1,
-			s.openChannelConfig(r.Config), r.Events, r.Routers, r.IfaceTypes)
+			s.openChannelConfig(r.Config), r.Events, r.Routers, r.IfaceTypes, r.Tuning)
 		if !spec.Wants(event, routerID) {
 			continue
 		}
 		if !spec.WantsIface(ifaceType) {
+			continue
+		}
+		if !spec.WantsValue(event, value, up) {
 			continue
 		}
 		// ── A USER'S CHANNEL ONLY HEARS ABOUT ROUTERS THEY MAY READ ──────
@@ -140,9 +148,10 @@ func (s *Server) channelRecipients(routerID, event, ifaceType string) []alertdis
 		out = append(out, alertdispatch.Recipient{
 			// `chan:` so a channel's cooldown can never collide with the
 			// install's or a user's.
-			ID:       "chan:" + r.ID,
-			URLs:     spec.URLs,
-			Settings: spec.Settings,
+			ID:          "chan:" + r.ID,
+			URLs:        spec.URLs,
+			Settings:    spec.Settings,
+			CooldownSec: spec.Tuning.CooldownSec,
 		})
 	}
 	return out

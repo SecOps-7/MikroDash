@@ -139,11 +139,15 @@ func TestCredentialsAreNotProjected(t *testing.T) {
 // zero values, would drop exactly the settings an operator turned off — and the
 // page would come back on after a reload.
 func TestFalsyValuesSurvive(t *testing.T) {
+	// `vpnDashTopN` rather than `alertCpuThreshold`: the alert thresholds left
+	// this whitelist with the settings themselves, and a numeric key is what
+	// makes the zero case meaningful — a boolean and a string alone would not
+	// show that 0 survives.
 	out := PageSettings(Settings{
-		"pageWifi": false, "alertCpuThreshold": 0, "displayTimezone": "",
+		"pageWifi": false, "vpnDashTopN": 0, "displayTimezone": "",
 	})
 	for k, want := range map[string]any{
-		"pageWifi": false, "alertCpuThreshold": 0, "displayTimezone": "",
+		"pageWifi": false, "vpnDashTopN": 0, "displayTimezone": "",
 	} {
 		got, ok := out[k]
 		if !ok {

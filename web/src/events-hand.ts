@@ -127,7 +127,7 @@ export interface PageSettings {
   notifBackupFail: boolean; notifReportFail: boolean; notifRouterUpdate: boolean;
   notifBgp: boolean; notifIfaceEther: boolean; notifIfaceWlan: boolean;
   notifIfaceBridge: boolean; notifIfaceVlan: boolean; notifIfaceOther: boolean;
-  alertCpuThreshold: number; alertPingLoss: number; vpnDashTopN: number;
+  vpnDashTopN: number;
   displayTimezone: string;
 }
 

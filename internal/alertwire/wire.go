@@ -99,7 +99,6 @@ type timedStore interface {
 type Wire struct {
 	mu     sync.Mutex
 	hist   History
-	set    alert.Settings
 	evals  map[string]*alert.Evaluator
 	stores map[string]timedStore
 	// persist is, per router, whether alerts reach the database. Undeclared
@@ -112,9 +111,9 @@ type Wire struct {
 	now func() int64
 }
 
-func New(hist History, set alert.Settings) *Wire {
+func New(hist History) *Wire {
 	return &Wire{
-		hist: hist, set: set,
+		hist:   hist,
 		evals:  map[string]*alert.Evaluator{},
 		stores: map[string]timedStore{},
 		locks:  map[string]*sync.Mutex{},
@@ -122,23 +121,18 @@ func New(hist History, set alert.Settings) *Wire {
 	}
 }
 
-// SetSettings replaces the thresholds and the per-type toggles on every live
-// evaluator, WITHOUT dropping their edge state. See `alert.Evaluator.SetSettings`
-// for why rebuilding would be wrong.
-func (w *Wire) SetSettings(set alert.Settings) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.set = set
-	// UNDER EACH ROUTER'S LOCK: a rule run reads the settings under it, and
-	// swapping them under the wire's alone raced that read. The order, wire then
-	// router, is the order forRouter and Evaluate take them in.
-	for id, e := range w.evals {
-		l := w.locks[id]
-		l.Lock()
-		e.SetSettings(set)
-		l.Unlock()
-	}
-}
+// ── `SetSettings` IS GONE, AND NOTHING REPLACES IT ────────────────────────
+//
+// It swapped the thresholds onto every live evaluator without dropping its edge
+// state, taking each router's lock to do it. There is nothing left to swap: the
+// thresholds are a property of the notification channel now and the evaluator
+// records against a fixed floor, so no evaluator reads anything that changes at
+// runtime.
+//
+// The rule it protected still stands and is recorded on `alert.Evaluator`:
+// anything added later that DOES change at runtime must be swapped in place,
+// never picked up by rebuilding, or one save produces a burst of alerts for
+// conditions that had been true and quiet for hours.
 
 // Drop forgets a router's edge state. The live `dropEvaluator`.
 func (w *Wire) Drop(routerID string) {
@@ -176,7 +170,7 @@ func (w *Wire) forRouter(routerID string) (*alert.Evaluator, *sync.Mutex, timedS
 			st = newMemStore()
 		}
 		w.stores[routerID] = st
-		w.evals[routerID] = alert.NewEvaluator(w.set, st)
+		w.evals[routerID] = alert.NewEvaluator(st)
 		w.locks[routerID] = &sync.Mutex{}
 	}
 	return w.evals[routerID], w.locks[routerID], st

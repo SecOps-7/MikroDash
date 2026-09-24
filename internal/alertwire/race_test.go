@@ -33,12 +33,14 @@ func TestEvaluationRacesNeitherTheClockNorTheSettings(t *testing.T) {
 			}
 		}(g)
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 50; i++ {
-			w.SetSettings(onSettings())
-		}
-	}()
+	// ── THE SETTINGS RACER IS GONE, WITH THE SETTINGS ────────────────────
+	//
+	// A third goroutine hammered `SetSettings` here, because it replaced an
+	// evaluator's settings under the wire's lock while a rule read them under
+	// the router's. There is nothing to replace now: the thresholds are a
+	// property of each notification channel, read at delivery, and no evaluator
+	// holds anything that changes at runtime.
+	//
+	// The CLOCK half above is untouched and is the half that still races.
 	wg.Wait()
 }

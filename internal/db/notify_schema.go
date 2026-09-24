@@ -61,6 +61,15 @@ CREATE TABLE IF NOT EXISTS notify_channels (
   -- wants an alert.
   -- (No backticks in this comment: it sits inside a Go raw string.)
   iface_types TEXT NOT NULL DEFAULT '[]',
+  -- HOW LOUD THIS CHANNEL IS: the CPU and ping-loss percentages it wants to be
+  -- told about, and how long it stays quiet about a subject it has just
+  -- mentioned. JSON, and EMPTY MEANS THE DEFAULTS -- see notify.ChannelSpec.
+  --
+  -- ONE COLUMN FOR THREE NUMBERS, because they are one idea and they arrive and
+  -- leave together. Three columns would be three migrations the next time the
+  -- set changes, for values nothing joins or filters on.
+  -- (No backticks in this comment: it sits inside a Go raw string.)
+  tuning TEXT NOT NULL DEFAULT '{}',
   created_by TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

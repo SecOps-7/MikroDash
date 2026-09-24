@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 26
+const schemaVersion = 27
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -175,6 +175,16 @@ var portMigrations = map[int][]string{
 	// channel keeps covering everything it covered before.
 	26: {
 		`ALTER TABLE notify_channels ADD COLUMN iface_types TEXT NOT NULL DEFAULT '[]'`,
+	},
+	// 27: the CPU and ping-loss thresholds, and the cooldown, as properties of
+	// the channel. They were three install-wide settings that decided what every
+	// destination heard; a channel decides for itself now.
+	//
+	// DEFAULT '{}' is "the defaults", so an existing channel behaves as it did.
+	// `SeedChannelTuning` then carries the install's own three numbers onto every
+	// channel, so an operator who had changed them keeps what they chose.
+	27: {
+		`ALTER TABLE notify_channels ADD COLUMN tuning TEXT NOT NULL DEFAULT '{}'`,
 	},
 }
 

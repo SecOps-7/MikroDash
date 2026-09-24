@@ -346,50 +346,21 @@
              DELIVERS. That also dissolves the issue #109 problem rather than
              picking a side in it: there is no global gate left to move. -->
 
-        <!-- Alert Thresholds -->
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span class="scard-title">Alert Thresholds</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Send alerts when these thresholds are reached.</p>
-            <div class="sform-row">
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">CPU Alert Threshold (%)</label>
-                <div style="display:flex;align-items:center;gap:.6rem">
-                  <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="CPU alert threshold, percent">
-                  <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
-                </div>
-              </div>
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Ping Loss Alert (%)</label>
-                <div style="display:flex;align-items:center;gap:.6rem">
-                  <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Ping loss alert threshold, percent">
-                  <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- ── THRESHOLDS AND COOLDOWN ARE PROPERTIES OF A CHANNEL ───────────
+             Two cards stood here: "Alert Thresholds" (CPU and ping loss) and
+             "Alert Cooldown". All three numbers decided what EVERY destination
+             heard and how often, which is the same shape the alert types and the
+             router scope had before they moved.
 
-        <!-- Alert Cooldown -->
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span class="scard-title">Alert Cooldown</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Minimum time between repeated push alerts for the same event. Prevents notification flooding.</p>
-            <div class="sform-group" style="margin-bottom:0">
-              <label class="sform-label">Cooldown (seconds)</label>
-              <div style="display:flex;align-items:center;gap:.6rem">
-                <input type="range" id="s_notifCooldownSec" min="10" max="3600" step="10" style="flex:1;accent-color:var(--accent-rx)" aria-label="Notification cooldown, seconds">
-                <span id="s_notifCooldownSecVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
-              </div>
-            </div>
-          </div>
-        </div>
+             They are in the channel dialog now — the two thresholds behind gears
+             on their own event rows, the cooldown on the Channel tab — so a
+             pager that must not repeat and a log that should record every
+             crossing can be the same event at two different rates.
+
+             What stayed behind is a floor, in `alert.FloorCPU` and
+             `alert.FloorPingLoss`, which decides only what is RECORDED. It is a
+             constant rather than a setting, so the Alerts page and the bell do
+             not change what they contain when somebody edits a channel. -->
 
         <!-- Message Templates -->
         <div class="scard scard--wide">

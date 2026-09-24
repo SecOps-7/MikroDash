@@ -56,6 +56,9 @@ type ChannelSpec struct {
 	// It applies to ONE event. A CPU alert has no interface, and narrowing a
 	// channel's interfaces must not quietly stop its CPU alerts.
 	IfaceTypes []string
+	// Tuning is how loud this channel is: the thresholds it wants to hear about
+	// and how long it stays quiet after mentioning a subject.
+	Tuning Tuning
 	// Routers is the set of router ids this channel accepts. EMPTY MEANS ALL,
 	// which is the opposite default and the right one — a channel created
 	// without touching the picker should cover the fleet, and a fleet that
@@ -88,11 +91,12 @@ type channelConfig struct {
 // A column that will not parse yields an empty field rather than an error: one
 // corrupt channel must not stop the others loading, which is the same choice
 // `usernotify_api.go` makes when a credential will not decrypt.
-func DecodeChannel(id, name, kind string, enabled bool, config, events, routers, ifaceTypes string) ChannelSpec {
+func DecodeChannel(id, name, kind string, enabled bool, config, events, routers, ifaceTypes, tuning string) ChannelSpec {
 	c := ChannelSpec{ID: id, Name: name, Kind: kind, Enabled: enabled}
 	_ = json.Unmarshal([]byte(events), &c.Events)
 	_ = json.Unmarshal([]byte(routers), &c.Routers)
 	_ = json.Unmarshal([]byte(ifaceTypes), &c.IfaceTypes)
+	c.Tuning = decodeTuning(tuning)
 
 	var cfg channelConfig
 	_ = json.Unmarshal([]byte(config), &cfg)
@@ -206,4 +210,86 @@ func (c ChannelSpec) Deliverable() bool {
 		return strings.TrimSpace(host) != "" && anyone
 	}
 	return false
+}
+
+// Tuning is a channel's own thresholds and cooldown.
+//
+// ── THEY WERE THREE INSTALL-WIDE SETTINGS ─────────────────────────────────
+//
+// `alertCpuThreshold`, `alertPingLoss` and `notifCooldownSec` decided what every
+// destination heard and how often. A channel decides for itself now, which is
+// the same move the alert types and the router scope made: the install records,
+// the channel chooses.
+//
+// ── THE DEFAULTS ARE THE OLD INSTALL DEFAULTS ─────────────────────────────
+//
+// 90, 100 and 60 are exactly what the settings shipped, so a channel nobody has
+// tuned behaves as the whole install did. `SeedChannelTuning` then carries an
+// install's OWN three numbers across, so an operator who had changed them keeps
+// what they chose rather than being reset to the defaults.
+type Tuning struct {
+	// CPU is the load percentage this channel wants to be told about.
+	CPU float64 `json:"cpu"`
+	// PingLoss is the loss percentage this channel wants to be told about.
+	PingLoss float64 `json:"pingLoss"`
+	// CooldownSec is how long this channel stays quiet about one subject after
+	// mentioning it.
+	CooldownSec int `json:"cooldownSec"`
+}
+
+// DefaultTuning is what the install settings used to ship.
+var DefaultTuning = Tuning{CPU: 90, PingLoss: 100, CooldownSec: 60}
+
+// decodeTuning reads the column, filling anything missing from the defaults.
+//
+// A ZERO IS TREATED AS ABSENT, deliberately. A stored `{}` and a stored
+// `{"cpu":0}` both mean "this channel has not been tuned" as far as anyone can
+// tell from the row — and a CPU threshold of zero would alert on every router at
+// every poll for ever, which is the one reading that cannot be what was meant.
+// A cooldown of zero is the same shape: it would notify on every evaluation.
+func decodeTuning(raw string) Tuning {
+	t := Tuning{}
+	_ = json.Unmarshal([]byte(raw), &t)
+	if t.CPU <= 0 {
+		t.CPU = DefaultTuning.CPU
+	}
+	if t.PingLoss <= 0 {
+		t.PingLoss = DefaultTuning.PingLoss
+	}
+	if t.CooldownSec <= 0 {
+		t.CooldownSec = DefaultTuning.CooldownSec
+	}
+	return t
+}
+
+// WantsValue reports whether a measured alert is loud enough for this channel.
+//
+// ── ONLY THE TWO EVENTS THAT HAVE A NUMBER ────────────────────────────────
+//
+// Everything else returns true. An interface going down has no percentage, and
+// comparing its zero Value against a threshold would silence every alert that is
+// not about a measurement.
+//
+// ── A RESOLUTION IS ALWAYS DELIVERED ──────────────────────────────────────
+//
+// `up` skips the comparison, and the asymmetry is deliberate and costs
+// something. A recovery's value is BELOW the threshold by definition — that is
+// what makes it a recovery — so comparing it would suppress every all-clear and
+// leave a channel believing an alert is still open for ever.
+//
+// The cost, accepted rather than hidden: a channel whose threshold was never
+// crossed can be told an alert recovered when it was never told the alert
+// fired. A stray all-clear is noise; a missing one is somebody still worried
+// about a router that is fine.
+func (c ChannelSpec) WantsValue(event string, value float64, up bool) bool {
+	if up {
+		return true
+	}
+	switch event {
+	case "high_cpu":
+		return value >= c.Tuning.CPU
+	case "ping_loss":
+		return value >= c.Tuning.PingLoss
+	}
+	return true
 }

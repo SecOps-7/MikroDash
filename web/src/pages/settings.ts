@@ -139,73 +139,19 @@ export function populateSettings(data: SettingsPayload): void {
     if (input) input.checked = !!data[key];
   }
 
-  // ── THE SLIDERS CARRY A COMPANION LABEL ──────────────────────────────────
+  // ── THE SLIDER READOUTS ARE GONE WITH THEIR SLIDERS ─────────────────────
   //
-  // `s_alertCpuThreshold` is a range input and `s_alertCpuThresholdVal` is the
-  // "72%" beside it. The map generator captures the `s_<key>` assignments driven
-  // by populate()'s field LISTS; these are one-off statements and were not in it,
-  // so the port set the sliders and left both readouts blank. The 518-case gate
-  // could not see it either — it only inspects ids the map names.
+  // A loop stood here writing "72%" beside three range inputs: the CPU
+  // threshold, the ping-loss threshold and the notification cooldown. All three
+  // are properties of a notification channel now and their cards left the page,
+  // so the loop had nothing to iterate.
   //
-  // The label is only written when the value is PRESENT, matching the original's
-  // `!= null` guard: an absent threshold leaves the markup's own default rather
-  // than rendering "undefined%".
-  // ── GUARDED CHECKBOXES: ABSENT MEANS "LEAVE IT ALONE" ────────────────────
-  //
-  // The alert-type toggles are written only when the setting is PRESENT. Unlike
-  // `checkOff`, an absent value does not write `false` — the checkbox keeps the
-  // markup's own default. On a fresh install the difference is every alert type
-  // showing as switched off while the server still has it enabled, with the push
-  // channel firing and the notification bell staying empty. The live comment on
-  // `_PAGE_SETTING_KEYS` records that exact failure happening once already.
-  for (const key of FORM_FIELDS.checkGuarded) {
-    if (data[key] === undefined) continue;
-    const input = el<HTMLInputElement>('s_' + key);
-    if (input) input.checked = !!data[key];
-  }
-
-  // ── THE SYSTEM PROMPT BOX SHOWS THE DEFAULT RATHER THAN NOTHING ──────────
-  //
-  // The stored value is empty until somebody edits it, and the server reads
-  // empty as "use the built-in prompt". An empty box would therefore be honest
-  // about the stored value and useless about the behaviour: the operator could
-  // not see what the assistant is being told, let alone adjust it.
-  //
-  // So an unset prompt renders as the default the server would use. Saving then
-  // stores that text verbatim, which is the readable outcome — what you see is
-  // what is sent.
-  //
-  // THE DEFAULT IS CARRIED ON THE ELEMENT, not in a module variable, so Reset
-  // needs no shared state and no import back into this half of the page. It
-  // arrives as a derived key on the settings payload; see settings_api.go.
-  // The refresh interval is stored in seconds and shown as hours and seconds.
-  showOverviewInterval();
-
-  // The Agent Overview card's prompt box works the same way.
-  for (const p of AI_PROMPT_BOXES) {
-    const promptBox = el<HTMLTextAreaElement>(p.box);
-    if (!promptBox) continue;
-    const def = data[p.defaultKey];
-    const fallback = typeof def === 'string' ? def : '';
-    promptBox.dataset.default = fallback;
-    const raw = data[p.key];
-    const stored = typeof raw === 'string' ? raw : '';
-    promptBox.value = stored.trim() === '' ? fallback : stored;
-    updateAiPromptCount(p);
-  }
-
-  // THREE SLIDERS, TWO SUFFIXES. The two thresholds read as a percentage and the
-  // cooldown reads as seconds — `' s'`, with the space. Assuming one suffix for
-  // all three would put "30%" beside a control measured in seconds.
-  for (const [key, labelId, suffix] of [
-    ['alertCpuThreshold', 's_alertCpuThresholdVal', '%'],
-    ['alertPingLoss', 's_alertPingLossVal', '%'],
-    ['notifCooldownSec', 's_notifCooldownSecVal', ' s'],
-  ] as const) {
-    if (data[key] == null) continue;
-    const label = el(labelId);
-    if (label) label.textContent = String(data[key]) + suffix;
-  }
+  // What it recorded is worth keeping, because the next such control will meet
+  // it: the map generator captures the `s_<key>` assignments driven by
+  // populate()'s field LISTS, and a one-off statement is not in it — so a slider
+  // wired that way sets its input and leaves its readout blank, and the
+  // 518-case gate cannot see it either, because it only inspects ids the map
+  // names.
 
   // ── THE SIGN-IN TOGGLE, WHICH NOTHING SET UNTIL 0.8.15 ───────────────────
   //
