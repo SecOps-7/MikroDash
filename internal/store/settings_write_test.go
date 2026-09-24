@@ -19,25 +19,26 @@ import (
 // with eight bullets, the channel would stop working, and the page would still
 // show it as configured.
 func TestAMaskedCredentialIsNeverWritten(t *testing.T) {
+	// `smtpPass` and `smtpUser` stand in for what used to be
+	// `telegramBotToken` and `ntfyToken`: those stopped being settings
+	// credentials when their transports became notification channels. The rule
+	// is unchanged and still the one that matters — a mask handed back must not
+	// overwrite the stored value.
 	up, _ := SettingsUpdate(map[string]any{
-		"telegramBotToken": Mask,
-		"smtpPass":         Mask,
-		"ntfyToken":        "NOT-A-REAL-NEW-TOKEN",
+		"smtpPass": Mask,
+		"smtpUser": "NOT-A-REAL-NEW-USER",
 	})
-	if _, present := up["telegramBotToken"]; present {
-		t.Error("a masked telegramBotToken reached the updates — saving the form " +
-			"would overwrite the real token with the mask")
-	}
 	if _, present := up["smtpPass"]; present {
-		t.Error("a masked smtpPass reached the updates")
+		t.Error("a masked smtpPass reached the updates — saving the form " +
+			"would overwrite the real password with the mask")
 	}
-	if up["ntfyToken"] != "NOT-A-REAL-NEW-TOKEN" {
-		t.Errorf("a genuinely changed credential was dropped: %#v", up["ntfyToken"])
+	if up["smtpUser"] != "NOT-A-REAL-NEW-USER" {
+		t.Errorf("a genuinely changed credential was dropped: %#v", up["smtpUser"])
 	}
 	// AN EMPTY STRING IS A DELIBERATE CLEAR and must go through — it is how an
 	// operator removes a credential.
-	up, _ = SettingsUpdate(map[string]any{"ntfyToken": ""})
-	if v, present := up["ntfyToken"]; !present || v != "" {
+	up, _ = SettingsUpdate(map[string]any{"smtpPass": ""})
+	if v, present := up["smtpPass"]; !present || v != "" {
 		t.Errorf("clearing a credential was refused: %#v present=%v", v, present)
 	}
 }
@@ -183,15 +184,19 @@ func TestCustomPollProfileMustBeJSONOrEmpty(t *testing.T) {
 // one the operator pasted, and trimming it produces an authentication failure
 // nothing on the page explains.
 func TestStringsAreTrimmedAndCredentialsAreNot(t *testing.T) {
+	// `smtpPass` rather than `ntfyToken`, which stopped being a settings
+	// credential when ntfy became a notification channel. The rule is the same:
+	// a password may legitimately begin or end with a space, so trimming one
+	// would silently break an operator's login.
 	up, _ := SettingsUpdate(map[string]any{
 		"pingTarget": "  198.51.100.9  ",
-		"ntfyToken":  "  NOT-A-REAL-TOKEN  ",
+		"smtpPass":   "  NOT-A-REAL-TOKEN  ",
 	})
 	if up["pingTarget"] != "198.51.100.9" {
 		t.Errorf("a string field was not trimmed: %#v", up["pingTarget"])
 	}
-	if up["ntfyToken"] != "  NOT-A-REAL-TOKEN  " {
-		t.Errorf("a credential was trimmed: %#v", up["ntfyToken"])
+	if up["smtpPass"] != "  NOT-A-REAL-TOKEN  " {
+		t.Errorf("a credential was trimmed: %#v", up["smtpPass"])
 	}
 }
 
@@ -241,9 +246,20 @@ func TestTheTablesCoverTheRealSurface(t *testing.T) {
 	// rest, and neither is inferred from this table. So the number moves only
 	// when somebody has added one deliberately and checked both places.
 	//
-	// SIX since `aiApiKey` (#98). Relaxing this to a floor would delete the one
-	// check that notices a credential arriving.
-	if len(wtables.CredFields) != 6 || len(wtables.StrFields) < 5 {
+	// SIX since `aiApiKey` (#98); THREE since notification channels.
+	//
+	// `telegramBotToken`, `pushbulletApiKey` and `ntfyToken` left this table
+	// when those transports became channels: their credentials live in a
+	// channel's sealed `config` now, not in a settings key, so the Settings page
+	// neither writes nor discloses them. They remain in `encrypted` in
+	// settings_tables.json, and only there, so an install upgrading from before
+	// channels can still DECRYPT them for `SeedNotifyChannels` — which is the
+	// one thing that would otherwise read ciphertext and build a channel that
+	// cannot send.
+	//
+	// Relaxing this to a floor would delete the one check that notices a
+	// credential arriving.
+	if len(wtables.CredFields) != 3 || len(wtables.StrFields) < 5 {
 		t.Errorf("cred=%d str=%d", len(wtables.CredFields), len(wtables.StrFields))
 	}
 }

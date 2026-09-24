@@ -21,8 +21,15 @@ package store
 
 // CredentialFields are never sent, only their masked presence.
 var CredentialFields = []string{
-	"routerPass", "telegramBotToken", "pushbulletApiKey",
-	"smtpUser", "smtpPass", "ntfyToken",
+	// `telegramBotToken`, `pushbulletApiKey` and `ntfyToken` left this list when
+	// those transports became notification channels. This list masks what is
+	// DISCLOSED, and they are no longer disclosed at all — the Settings page
+	// does not offer them and `getPublic` does not carry them. They stay in
+	// `encrypted` in settings_tables.json, which is a different list for a
+	// different job: sealing them at rest so `SeedNotifyChannels` can still
+	// decrypt an upgrading install's stored values.
+	"routerPass",
+	"smtpUser", "smtpPass",
 	// The AI provider's key (#98). Being in `encrypted` seals it on DISK; this
 	// is what masks it on the way OUT, and the two lists are separate — a field
 	// in one and not the other is stored safely and disclosed in full.

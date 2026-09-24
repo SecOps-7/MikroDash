@@ -60,7 +60,7 @@ func TestOnlyEnabledAndCredentialedTransportsBecomeChannels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := installChannels(c.cfg)
+			got := installChannels(c.cfg, func(v string) string { return v })
 			if len(got) != len(c.want) {
 				names := []string{}
 				for _, g := range got {
@@ -87,7 +87,7 @@ func TestEveryCarriedURLIsSendable(t *testing.T) {
 		"ntfyEnabled": true, "ntfyUrl": "https://ntfy.example.net/mikrodash",
 		"ntfyToken": "tk_1",
 	}
-	for _, c := range installChannels(cfg) {
+	for _, c := range installChannels(cfg, func(v string) string { return v }) {
 		wc, ok := c.cfg.(webhookConfig)
 		if !ok {
 			continue
@@ -134,7 +134,7 @@ func TestTheEmailChannelCarriesTheWholeMailSetup(t *testing.T) {
 		"smtpSecure": true, "smtpUser": "u", "smtpPass": "p",
 		"smtpFrom": "md@example.net", "smtpTo": "ops@example.net",
 	}
-	got := installChannels(cfg)
+	got := installChannels(cfg, func(v string) string { return v })
 	if len(got) != 1 {
 		t.Fatalf("made %d channels, want 1", len(got))
 	}

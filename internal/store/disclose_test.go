@@ -144,7 +144,10 @@ func TestPublicAndViewerMatchTheLiveModule(t *testing.T) {
 	// ever regressed to plaintext, every value would decrypt to "" and every
 	// case would report the empty string — which is what happened the first time
 	// this corpus was generated.
-	if masked < 6 {
+	// FIVE since notification channels took three credentials out of the
+	// disclosure surface. Still a floor, and still the check that would catch a
+	// corpus which stopped exercising the mask.
+	if masked < 5 {
 		t.Errorf("only %d masked values across the whole corpus — the mask branch is "+
 			"barely exercised, so a port that never masked would pass", masked)
 	}
@@ -168,7 +171,11 @@ func TestAnEmptyCredentialIsNotMasked(t *testing.T) {
 	}
 	// A MISSING key is the same as an empty one, and must still be present in
 	// the output: the page reads the key to decide what to draw.
-	if v, ok := got["ntfyToken"]; !ok || v != "" {
+	// `aiApiKey` rather than `ntfyToken`: the latter stopped being a disclosed
+	// credential when ntfy became a notification channel, so asking about it
+	// here would assert the absence of a field nothing sends. It has to be a
+	// credential the input above does NOT set, or this asserts the mask instead.
+	if v, ok := got["aiApiKey"]; !ok || v != "" {
 		t.Errorf("a missing credential came back as %#v (present=%v)", v, ok)
 	}
 }

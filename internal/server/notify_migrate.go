@@ -66,10 +66,29 @@ func (s *Server) SeedNotifyChannels() (int, error) {
 		return 0, err
 	}
 	events := alert.DefaultEvents(s.eventGate())
+	// THE THREE LEGACY CREDENTIALS ARE DECRYPTED HERE, EXPLICITLY.
+	//
+	// They are no longer in `encrypted` in settings_tables.json, so
+	// `mergedSettings` hands them back sealed. Leaving them in that list would
+	// have been simpler and was wrong: `SaveSettings` writes every `kept`
+	// credential back, so three keys nothing reads would have been re-added to
+	// settings.json on every save, for ever.
+	dec := func(v string) string {
+		if v == "" || s.store == nil {
+			return v
+		}
+		if plain, err := s.store.Decrypt(v); err == nil {
+			return plain
+		}
+		// NOT AN ERROR. An install that stored the value in the clear — or one
+		// whose key has changed — still has a string, and carrying it is better
+		// than dropping the destination silently.
+		return v
+	}
 	now := time.Now().UnixMilli()
 
 	made := 0
-	for _, c := range installChannels(cfg) {
+	for _, c := range installChannels(cfg, dec) {
 		if err := s.writeSeeded(db.InstallOwner, c, events, now); err != nil {
 			// ONE FAILURE DOES NOT ABANDON THE REST. A channel that cannot be
 			// sealed is one lost destination; stopping here would lose all of
@@ -126,23 +145,25 @@ func (s *Server) writeSeeded(owner string, c seeded, events []string, now int64)
 // conditions `notify.Channels` uses to decide a transport is usable. A
 // half-filled Telegram section that never sent anything must not become a
 // channel that looks configured.
-func installChannels(cfg map[string]any) []seeded {
+func installChannels(cfg map[string]any, dec func(string) string) []seeded {
 	out := []seeded{}
 	str := func(k string) string { v, _ := cfg[k].(string); return strings.TrimSpace(v) }
+	// The three that are no longer in `encrypted` arrive sealed.
+	secret := func(k string) string { v, _ := cfg[k].(string); return strings.TrimSpace(dec(v)) }
 	on := func(k string) bool { return notify.Truthy(cfg[k]) }
 
-	if on("telegramEnabled") && str("telegramBotToken") != "" && str("telegramChatId") != "" {
+	if on("telegramEnabled") && secret("telegramBotToken") != "" && str("telegramChatId") != "" {
 		out = append(out, seeded{"Telegram", notify.KindWebhook, webhookConfig{
-			URLs: []string{"tgram://" + str("telegramBotToken") + "/" + str("telegramChatId")},
+			URLs: []string{"tgram://" + secret("telegramBotToken") + "/" + str("telegramChatId")},
 		}})
 	}
-	if on("pushbulletEnabled") && str("pushbulletApiKey") != "" {
+	if on("pushbulletEnabled") && secret("pushbulletApiKey") != "" {
 		out = append(out, seeded{"Pushbullet", notify.KindWebhook, webhookConfig{
-			URLs: []string{"pbul://" + str("pushbulletApiKey")},
+			URLs: []string{"pbul://" + secret("pushbulletApiKey")},
 		}})
 	}
 	if on("ntfyEnabled") && str("ntfyUrl") != "" {
-		if u := ntfyURLToScheme(str("ntfyUrl"), str("ntfyToken")); u != "" {
+		if u := ntfyURLToScheme(str("ntfyUrl"), secret("ntfyToken")); u != "" {
 			out = append(out, seeded{"ntfy", notify.KindWebhook, webhookConfig{URLs: []string{u}}})
 		}
 	}

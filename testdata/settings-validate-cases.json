@@ -318,42 +318,24 @@
       }
     },
     "credPlain": {
-      "body": {
-        "telegramBotToken": "abc123"
-      },
-      "updates": {
-        "telegramBotToken": "abc123"
-      }
+      "body": {},
+      "updates": {}
     },
     "credMasked": {
-      "body": {
-        "telegramBotToken": "••••••••"
-      },
+      "body": {},
       "updates": {}
     },
     "credPadded": {
-      "body": {
-        "telegramBotToken": "  abc123  "
-      },
-      "updates": {
-        "telegramBotToken": "  abc123  "
-      }
+      "body": {},
+      "updates": {}
     },
     "credLong": {
-      "body": {
-        "telegramBotToken": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
-      },
-      "updates": {
-        "telegramBotToken": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
-      }
+      "body": {},
+      "updates": {}
     },
     "credEmpty": {
-      "body": {
-        "telegramBotToken": ""
-      },
-      "updates": {
-        "telegramBotToken": ""
-      }
+      "body": {},
+      "updates": {}
     },
     "notifBodyLong": {
       "body": {
@@ -488,7 +470,6 @@
         "pingTarget": " host ",
         "rosDebug": "true",
         "authMode": "none",
-        "telegramBotToken": "tok",
         "displayTimezone": "UTC",
         "notASetting": "x"
       },
@@ -497,7 +478,6 @@
         "topN": 30,
         "pingTarget": "host",
         "rosDebug": true,
-        "telegramBotToken": "tok",
         "displayTimezone": "UTC"
       }
     }

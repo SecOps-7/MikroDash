@@ -36,8 +36,15 @@ func TestASettingsSaveReachesTheAlerts(t *testing.T) {
 		t.Fatal("setup: the install has a channel before any was saved")
 	}
 
-	w := settingsPost(mux, `{"alertCpuThreshold":50,"telegramEnabled":true,`+
-		`"telegramBotToken":"123:abc","telegramChatId":"42"}`, authed)
+	// SMTP rather than Telegram: Telegram stopped being a settings-page
+	// transport when it became a notification channel, so saving those keys
+	// would now change nothing and this check would pass on a dispatcher that
+	// had never refreshed. The rule under test is unchanged — a settings save
+	// must reach the live dispatcher rather than leaving it on its startup
+	// copy.
+	w := settingsPost(mux, `{"alertCpuThreshold":50,"smtpEnabled":true,`+
+		`"smtpHost":"mail.example.net","smtpFrom":"md@example.net",`+
+		`"smtpTo":"ops@example.net","smtpPass":"123:abc"}`, authed)
 	if w.Code != http.StatusOK {
 		t.Fatalf("save: status %d: %s", w.Code, w.Body.String())
 	}
@@ -46,13 +53,13 @@ func TestASettingsSaveReachesTheAlerts(t *testing.T) {
 			"its startup settings", got)
 	}
 	install := s.dispatch.Recipients("", nil)[0].Settings
-	if got := notify.Channels(install); !reflect.DeepEqual(got, []notify.Channel{notify.Telegram}) {
-		t.Errorf("the dispatcher sees channels %v after Telegram was saved; it kept its "+
+	if got := notify.Channels(install); !reflect.DeepEqual(got, []notify.Channel{notify.SMTP}) {
+		t.Errorf("the dispatcher sees channels %v after SMTP was saved; it kept its "+
 			"startup settings", got)
 	}
-	// MERGED, not raw: the file holds the token sealed.
-	if tok := install["telegramBotToken"]; tok != "123:abc" {
-		t.Errorf("the dispatcher holds token %q, not the decrypted one", tok)
+	// MERGED, not raw: the file holds the password sealed.
+	if tok := install["smtpPass"]; tok != "123:abc" {
+		t.Errorf("the dispatcher holds password %q, not the decrypted one", tok)
 	}
 
 	if w := settingsPost(mux, `{"_reset":true}`, authed); w.Code != http.StatusOK {

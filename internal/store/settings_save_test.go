@@ -125,10 +125,14 @@ func TestSettingsJSONIsOwnerOnly(t *testing.T) {
 // would destroy it on the first save of any unrelated setting, and a restored
 // key would then recover nothing.
 func TestAnUnreadableCredentialSurvivesAnUnrelatedSave(t *testing.T) {
-	stored := Settings{"telegramBotToken": "CIPHERTEXT-FROM-ANOTHER-KEY", "topN": float64(10)}
+	// `smtpPass` rather than `telegramBotToken`: the latter stopped being an
+	// encrypted settings key when Telegram became a notification channel, so it
+	// is no longer in `kept` and this precondition could never hold. The rule
+	// being checked is unchanged; only the credential standing in for it moved.
+	stored := Settings{"smtpPass": "CIPHERTEXT-FROM-ANOTHER-KEY", "topN": float64(10)}
 	next, kept := Merge(stored, func(string) (string, bool) { return "", false },
 		fakeDec{err: os.ErrInvalid})
-	if kept["telegramBotToken"] == "" {
+	if kept["smtpPass"] == "" {
 		t.Fatal("precondition: the merge did not preserve the ciphertext")
 	}
 
@@ -143,9 +147,9 @@ func TestAnUnreadableCredentialSurvivesAnUnrelatedSave(t *testing.T) {
 	if err := json.Unmarshal(raw, &onDisk); err != nil {
 		t.Fatal(err)
 	}
-	if onDisk["telegramBotToken"] != "CIPHERTEXT-FROM-ANOTHER-KEY" {
+	if onDisk["smtpPass"] != "CIPHERTEXT-FROM-ANOTHER-KEY" {
 		t.Errorf("the unreadable credential was written as %#v — a restored key "+
-			"would now recover nothing", onDisk["telegramBotToken"])
+			"would now recover nothing", onDisk["smtpPass"])
 	}
 }
 
@@ -153,7 +157,7 @@ func TestAnUnreadableCredentialSurvivesAnUnrelatedSave(t *testing.T) {
 // operator sets or clears the field, they have spoken about it, and the old
 // bytes must not come back.
 func TestAnExplicitUpdateDiscardsPreservedCiphertext(t *testing.T) {
-	kept := Kept{"telegramBotToken": "CIPHERTEXT-FROM-ANOTHER-KEY"}
+	kept := Kept{"smtpPass": "CIPHERTEXT-FROM-ANOTHER-KEY"}
 
 	for _, tc := range []struct {
 		name string
@@ -166,16 +170,16 @@ func TestAnExplicitUpdateDiscardsPreservedCiphertext(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			next, _ := Merge(Settings{}, func(string) (string, bool) { return "", false }, nil)
-			next["telegramBotToken"] = tc.val
-			updates := Settings{"telegramBotToken": tc.val}
+			next["smtpPass"] = tc.val
+			updates := Settings{"smtpPass": tc.val}
 			if err := SaveSettings(dir, next, updates, kept, fixedEnc{}); err != nil {
 				t.Fatal(err)
 			}
 			var onDisk map[string]any
 			raw, _ := os.ReadFile(filepath.Join(dir, "settings.json"))
 			_ = json.Unmarshal(raw, &onDisk)
-			if onDisk["telegramBotToken"] != tc.want {
-				t.Errorf("wrote %#v, want %#v", onDisk["telegramBotToken"], tc.want)
+			if onDisk["smtpPass"] != tc.want {
+				t.Errorf("wrote %#v, want %#v", onDisk["smtpPass"], tc.want)
 			}
 		})
 	}

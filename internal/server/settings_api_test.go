@@ -129,14 +129,14 @@ func TestTheHandlerNeverSendsACredential(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sealing in a store this helper built: %v", err)
 	}
-	raw := `{"telegramBotToken":` + jsonString(sealed) + `}`
+	raw := `{"smtpPass":` + jsonString(sealed) + `}`
 	if err := os.WriteFile(filepath.Join(s.store.Dir, "settings.json"), []byte(raw), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	got := getSettings(t, s, &Session{AuthMode: "none"})
-	if got["telegramBotToken"] != store.Mask {
-		t.Errorf("telegramBotToken = %#v, want the mask", got["telegramBotToken"])
+	if got["smtpPass"] != store.Mask {
+		t.Errorf("smtpPass = %#v, want the mask", got["smtpPass"])
 	}
 	body, _ := json.Marshal(got)
 	if containsStr(string(body), "NOT-A-REAL-TOKEN") {

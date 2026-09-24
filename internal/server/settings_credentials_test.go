@@ -56,7 +56,7 @@ func TestSealedCredentialsAreDecryptedForTheTransports(t *testing.T) {
 		t.Fatal("Encrypt returned the plaintext — this fixture would prove nothing")
 	}
 	body, _ := json.Marshal(map[string]any{
-		"telegramEnabled": true, "telegramBotToken": sealed, "telegramChatId": "42",
+		"telegramEnabled": true, "smtpPass": sealed, "telegramChatId": "42",
 	})
 	if err := os.WriteFile(filepath.Join(s.store.Dir, "settings.json"), body, 0o600); err != nil {
 		t.Fatal(err)
@@ -67,7 +67,7 @@ func TestSealedCredentialsAreDecryptedForTheTransports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if raw["telegramBotToken"] == plain {
+	if raw["smtpPass"] == plain {
 		t.Fatal("store.Settings() decrypted — this test's premise is gone; " +
 			"if the raw read now decrypts, the merged/raw distinction has changed")
 	}
@@ -76,9 +76,9 @@ func TestSealedCredentialsAreDecryptedForTheTransports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := merged["telegramBotToken"].(string); got != plain {
+	if got, _ := merged["smtpPass"].(string); got != plain {
 		t.Errorf("mergedSettings gave %q, want the decrypted token. A transport handed "+
-			"this posts ciphertext as its credential; Telegram answers HTTP 404.", got)
+			"this posts ciphertext as its credential; the mail server rejects the login.", got)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestSealedCredentialsAreDecryptedForTheTransports(t *testing.T) {
 func TestCredentialConsumersUseTheMergedSettings(t *testing.T) {
 	// Each file, and the encrypted field it ends up handing to a transport.
 	for _, f := range []struct{ file, why string }{
-		{"test_notif_api.go", "the Test buttons post telegramBotToken / ntfyToken / smtpPass"},
+		{"test_notif_api.go", "the Test buttons post smtpPass / ntfyToken / smtpPass"},
 		{"alert_wire.go", "every dispatched alert authenticates with them"},
 		{"reports_run.go", "the report mailer authenticates with smtpUser and smtpPass"},
 	} {

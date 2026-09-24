@@ -70,8 +70,10 @@ function card(c: ChannelView): string {
   const scope = c.routers.length === 0
     ? 'all routers'
     : c.routers.length + (c.routers.length === 1 ? ' router' : ' routers');
-  return '<div class="apps-card' + (c.enabled ? ' st-running' : '') + '" data-nchan-card="'
-    + esc(c.id) + '">'
+  // No `data-nchan-card`: the actions carry `data-nchan` and the delegated
+  // handler reads that. An id on the card too would be an attribute nothing
+  // queries, which `TestRenderedAttributesAreRead` exists to catch.
+  return '<div class="apps-card' + (c.enabled ? ' st-running' : '') + '">'
     + '<div class="apps-card-head"><div class="apps-card-titles">'
     + '<strong>' + esc(c.name) + '</strong>'
     + '<span class="apps-card-sub">' + esc(where) + ' &middot; ' + esc(c.kind) + '</span>'
