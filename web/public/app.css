@@ -2941,7 +2941,11 @@
    other half of the dialog empty. Measured, not guessed: the body computed to
    `grid-template-columns: 273px 273px` while the textarea inside it was 273px
    wide in a 608px dialog. */
-#notifChanModal .rtr-modal-body { display: block; }
+#notifChanModal .rtr-modal-body,
+/* The picker needs it for the same reason: `.rtr-modal-body` is a two-column
+   grid at page width, so its help text took one column and its toggles the
+   other, leaving the sentence in a 5cm-wide ribbon beside them. */
+#nchanIfaceModal .rtr-modal-body { display: block; }
 
 /* THE MODAL'S TABS. `.stab-panel.active` is a two-column grid at page width,
    which would columnise a form that is one column wide — so the panels inside

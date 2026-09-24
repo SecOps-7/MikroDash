@@ -36,11 +36,40 @@ export function wireModals(): void {
     }
   });
 
-  // Escape closes every one of them, open or not — removing a class an element
-  // does not have is a no-op, and checking first would be more code for the same
-  // result.
+  // ── ESCAPE CLOSES THE TOPMOST ONE, NOT ALL OF THEM ────────────────────
+  //
+  // It used to close every dialog in the list, open or not, on the stated
+  // grounds that "removing a class an element does not have is a no-op, and
+  // checking first would be more code for the same result". That was true while
+  // no dialog could open over another.
+  //
+  // One can now: the notification channel's Events tab has a gear that opens an
+  // interface-type picker over it. Escape in the picker closed the channel
+  // dialog with it, throwing away every edit the operator had made and not yet
+  // saved — and it looked like the picker doing something violent rather than
+  // Escape doing too much.
+  //
+  // BY z-index, NOT DOM ORDER. A dialog stacks above another because its
+  // z-index says so, and that is the same thing the operator sees; DOM order
+  // agrees today and is not what decides what is on top.
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    for (const id of CLOSABLE_MODALS) el(id)?.classList.remove('open');
+    let top: HTMLElement | null = null;
+    let topZ = -Infinity;
+    for (const id of CLOSABLE_MODALS) {
+      const m = el(id);
+      if (!m || !m.classList.contains('open')) continue;
+      // A dialog with no z-index of its own reads as 'auto' and parses NaN; it
+      // sits at the shared default, so treat it as 0 rather than dropping it.
+      const z = parseInt(getComputedStyle(m).zIndex, 10);
+      const rank = Number.isNaN(z) ? 0 : z;
+      // `>=` so that, among equals, the LAST one wins: later in the list is
+      // later in the document, which is what sits on top when z-indexes tie.
+      if (rank >= topZ) {
+        topZ = rank;
+        top = m;
+      }
+    }
+    top?.classList.remove('open');
   });
 }
