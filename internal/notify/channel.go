@@ -63,7 +63,14 @@ type channelConfig struct {
 	User   string   `json:"user"`
 	Pass   string   `json:"pass"`
 	From   string   `json:"from"`
-	To     string   `json:"to"`
+	// To, Cc and Bcc, each a comma list. THREE FIELDS RATHER THAN ONE, because
+	// who is addressed, who is copied and who is copied invisibly are three
+	// different decisions and only the operator can make them. A single
+	// recipient list forced one of the three on every message sent through the
+	// channel.
+	To  string `json:"to"`
+	Cc  string `json:"cc"`
+	Bcc string `json:"bcc"`
 }
 
 // DecodeChannel turns the stored columns into a spec. `config` must already be
@@ -100,6 +107,8 @@ func DecodeChannel(id, name, kind string, enabled bool, config, events, routers 
 			"smtpPass":    cfg.Pass,
 			"smtpFrom":    cfg.From,
 			"smtpTo":      cfg.To,
+			"smtpCc":      cfg.Cc,
+			"smtpBcc":     cfg.Bcc,
 		}
 	}
 	return c
@@ -153,8 +162,16 @@ func (c ChannelSpec) Deliverable() bool {
 		return false
 	case KindSMTP:
 		host, _ := c.Settings["smtpHost"].(string)
+		// ANY OF THE THREE IS ENOUGH. A message addressed only to Bcc is a
+		// normal and deliberate thing to send — it is how a list reaches people
+		// without disclosing them to each other — so requiring To would refuse a
+		// channel that works.
 		to, _ := c.Settings["smtpTo"].(string)
-		return strings.TrimSpace(host) != "" && strings.TrimSpace(to) != ""
+		cc, _ := c.Settings["smtpCc"].(string)
+		bcc, _ := c.Settings["smtpBcc"].(string)
+		anyone := strings.TrimSpace(to) != "" || strings.TrimSpace(cc) != "" ||
+			strings.TrimSpace(bcc) != ""
+		return strings.TrimSpace(host) != "" && anyone
 	}
 	return false
 }

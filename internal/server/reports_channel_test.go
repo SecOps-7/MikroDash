@@ -123,22 +123,54 @@ func TestAScheduleTakesItsServerAndItsRecipientsFromOneChannel(t *testing.T) {
 	}, smtpConfigJSON{
 		Host: "mail.example.net", Port: 587, Secure: true, User: "u", Pass: "p",
 		From: "md@example.net", To: "ops@example.net, noc@example.net",
+		Cc: "cc@example.net", Bcc: "bcc@example.net",
 	})
 
-	cfg, from, to, ok := s.scheduleMail("ok")
+	cfg, who, ok := s.scheduleMail("ok")
 	if !ok {
 		t.Fatal("a fully configured mail channel was refused")
 	}
 	if cfg.Host != "mail.example.net" || cfg.Port != 587 || !cfg.Secure ||
-		cfg.User != "u" || cfg.Pass != "p" || from != "md@example.net" {
-		t.Errorf("the server config did not survive the round trip: %+v from=%q", cfg, from)
+		cfg.User != "u" || cfg.Pass != "p" || cfg.From != "md@example.net" {
+		t.Errorf("the server config did not survive the round trip: %+v", cfg)
 	}
-	// THE To IS A LIST. It is one stored string, and a reader that took it whole
-	// would try to mail a single address literally named
-	// "ops@example.net, noc@example.net" — so the report would fail outright
-	// rather than reach one of the two, and either way it does not arrive.
-	if len(to) != 2 || to[0] != "ops@example.net" || to[1] != "noc@example.net" {
-		t.Errorf("recipients came back as %#v, want both addresses split", to)
+	// EACH FIELD IS A LIST. Each is one stored string, and a reader that took one
+	// whole would try to mail a single address literally named
+	// "ops@example.net, noc@example.net" — so the report fails outright rather
+	// than reaching one of the two, and either way it does not arrive.
+	if len(who.To) != 2 || who.To[0] != "ops@example.net" || who.To[1] != "noc@example.net" {
+		t.Errorf("To came back as %#v, want both addresses split", who.To)
+	}
+	if len(who.Cc) != 1 || who.Cc[0] != "cc@example.net" {
+		t.Errorf("Cc came back as %#v", who.Cc)
+	}
+	if len(who.Bcc) != 1 || who.Bcc[0] != "bcc@example.net" {
+		t.Errorf("Bcc came back as %#v", who.Bcc)
+	}
+}
+
+// ANY ONE OF THE THREE IS ENOUGH. A report addressed only to Bcc is how a list
+// reaches people without disclosing them to each other, and it is what every
+// scheduled report did before the choice existed — so a channel configured that
+// way must not be read as having no recipients.
+func TestAChannelWithOnlyBccStillSends(t *testing.T) {
+	s := mailServer(t)
+	for _, tc := range []struct {
+		name string
+		cfg  smtpConfigJSON
+	}{
+		{"only To", smtpConfigJSON{Host: "h", From: "f@example.net", To: "a@example.net"}},
+		{"only Cc", smtpConfigJSON{Host: "h", From: "f@example.net", Cc: "a@example.net"}},
+		{"only Bcc", smtpConfigJSON{Host: "h", From: "f@example.net", Bcc: "a@example.net"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			id := "c-" + tc.name
+			writeChannel(t, s, db.NotifyChannel{ID: id, Owner: db.InstallOwner,
+				Kind: notify.KindSMTP, Enabled: 1}, tc.cfg)
+			if _, _, ok := s.scheduleMail(id); !ok {
+				t.Error("refused — a channel that names somebody was read as naming nobody")
+			}
+		})
 	}
 }
 
@@ -170,10 +202,10 @@ func TestAScheduleWithNowhereToSendIsRefused(t *testing.T) {
 		{"a webhook, which cannot carry a PDF", "hook"},
 		{"a mail channel with no host", "nohost"},
 		{"a mail channel with no From", "nofrom"},
-		{"a mail channel with no recipients", "noto"},
+		{"a mail channel with nobody in To, Cc or Bcc", "noto"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, _, _, ok := s.scheduleMail(tc.id); ok {
+			if _, _, ok := s.scheduleMail(tc.id); ok {
 				t.Error("accepted — the schedule would try to send, and the failure " +
 					"would surface as a mail error a month later, if at all")
 			}

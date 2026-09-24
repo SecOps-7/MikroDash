@@ -62,14 +62,19 @@ type Attachment struct {
 
 // Message is one email.
 //
-// To and Bcc are kept apart all the way to the wire, and that separation is the
-// point: BCC RECIPIENTS MUST NOT APPEAR IN THE HEADERS. They are named in the
-// SMTP envelope (RCPT TO) and nowhere else. Writing them into a Bcc: header —
-// which some libraries do, and which looks harmless because the header's name
+// To, Cc and Bcc are kept apart all the way to the wire, and that separation is
+// the point: BCC RECIPIENTS MUST NOT APPEAR IN THE HEADERS. They are named in
+// the SMTP envelope (RCPT TO) and nowhere else. Writing them into a Bcc: header
+// — which some libraries do, and which looks harmless because the header's name
 // says "blind" — discloses every customer's address to every other customer on
 // the same schedule.
+//
+// Cc is the opposite and is meant to be: it appears in a header AND in the
+// envelope, so everyone can see who else was copied. An operator choosing
+// between the two is choosing exactly that.
 type Message struct {
 	To          []string
+	Cc          []string
 	Bcc         []string
 	Subject     string
 	Text        string
@@ -110,7 +115,7 @@ func Compose(from string, m Message, boundary string) ([]byte, error) {
 	if err := checkAddress(from); err != nil {
 		return nil, err
 	}
-	for _, a := range append(append([]string{}, m.To...), m.Bcc...) {
+	for _, a := range allRecipients(m) {
 		if err := checkAddress(a); err != nil {
 			return nil, err
 		}
@@ -130,6 +135,12 @@ func Compose(from string, m Message, boundary string) ([]byte, error) {
 	h.WriteString("From: " + from + "\r\n")
 	if len(m.To) > 0 {
 		h.WriteString("To: " + strings.Join(m.To, ", ") + "\r\n")
+	}
+	// A Cc HEADER, AND DELIBERATELY SO: a copied recipient is meant to be
+	// visible to the others. That is the whole difference between Cc and Bcc,
+	// and it is the operator's choice to make.
+	if len(m.Cc) > 0 {
+		h.WriteString("Cc: " + strings.Join(m.Cc, ", ") + "\r\n")
 	}
 	// NO Bcc HEADER. See Message.
 	//
@@ -215,7 +226,7 @@ func Send(cfg Config, m Message) error {
 	}
 
 	// Every recipient the envelope names, whether or not it is in a header.
-	rcpt := append(append([]string{}, m.To...), m.Bcc...)
+	rcpt := allRecipients(m)
 	if len(rcpt) == 0 {
 		return errors.New("mailer: no recipients")
 	}
@@ -295,4 +306,18 @@ func Send(cfg Config, m Message) error {
 		return err
 	}
 	return c.Quit()
+}
+
+// allRecipients is every address the envelope must name: To, Cc and Bcc.
+//
+// ONE FUNCTION, USED BY BOTH `Compose` AND `Send`, because the two must agree.
+// They were two copies of `append(append(..., m.To...), m.Bcc...)`, and adding
+// Cc to one and not the other would either send to an address that was never
+// checked for header injection, or check one that is never sent to.
+func allRecipients(m Message) []string {
+	out := make([]string, 0, len(m.To)+len(m.Cc)+len(m.Bcc))
+	out = append(out, m.To...)
+	out = append(out, m.Cc...)
+	out = append(out, m.Bcc...)
+	return out
 }

@@ -97,7 +97,12 @@ func installMail(t *testing.T, s *Server) {
 	}
 }
 
-// channelFor reads back the name and To of the channel a schedule now names.
+// channelFor reads back the name and the CARRIED LIST of the channel a schedule
+// now names.
+//
+// THE LIST IS IN Bcc, NOT To, and that is the privacy property this migration
+// has to preserve — see `SeedReportChannels`. Reading To here would report the
+// sending address and pass whatever the addresses did.
 func channelFor(t *testing.T, s *Server, scheduleID string) (string, string) {
 	t.Helper()
 	rows, err := s.auditDB.ReportSchedulesFor("r1")
@@ -117,8 +122,8 @@ func channelFor(t *testing.T, s *Server, scheduleID string) (string, string) {
 		}
 		spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, true,
 			s.openChannelConfig(c.Config), c.Events, c.Routers)
-		to, _ := spec.Settings["smtpTo"].(string)
-		return c.Name, to
+		bcc, _ := spec.Settings["smtpBcc"].(string)
+		return c.Name, bcc
 	}
 	t.Fatalf("schedule %s vanished", scheduleID)
 	return "", ""
@@ -172,11 +177,42 @@ func TestEveryDistinctRecipientListBecomesItsOwnChannel(t *testing.T) {
 		t.Error("the later schedule's capitalisation overwrote the first one's")
 	}
 
+	// ── THE UPGRADE DISCLOSES NOBODY ────────────────────────────────────
+	//
+	// `reports.MailEnvelope` put every recipient of a schedule into Bcc and
+	// addressed the message to the sending account, because these are frequently
+	// different customers and a To list would show each of them all the others.
+	// Carrying a list into To would have leaked every address on the first
+	// upgrade, silently and to everyone at once. So: the addresses in Bcc, the
+	// message addressed to the sender, and nothing in To or Cc.
+	for _, id := range []string{"s1", "s3"} {
+		rows, _ := s.auditDB.ReportSchedulesFor("r1")
+		for _, r := range rows {
+			if r.ID != id {
+				continue
+			}
+			c, _, _ := s.auditDB.NotifyChannelByID(r.ChannelID)
+			spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, true,
+				s.openChannelConfig(c.Config), c.Events, c.Routers)
+			to, _ := spec.Settings["smtpTo"].(string)
+			cc, _ := spec.Settings["smtpCc"].(string)
+			if to != "md@example.net" {
+				t.Errorf("%s's channel addresses %q; the carried list must be Bcc'd "+
+					"with the message addressed to the sender, exactly as it was "+
+					"before, or the upgrade shows every recipient to all the others",
+					id, to)
+			}
+			if cc != "" {
+				t.Errorf("%s's channel copies %q visibly", id, cc)
+			}
+		}
+	}
+
 	// THE SERVER IS COPIED FROM THE INSTALL'S MAIL CHANNEL, so a carried list can
 	// actually be delivered rather than merely recorded.
 	rows, _ := s.auditDB.ReportSchedulesFor("r1")
 	for _, r := range rows {
-		if _, _, _, ok := s.scheduleMail(r.ChannelID); !ok {
+		if _, _, ok := s.scheduleMail(r.ChannelID); !ok {
 			t.Errorf("%s was carried onto a channel that cannot send", r.Name)
 		}
 	}

@@ -410,3 +410,46 @@ func atoi(s string) int {
 	}
 	return n
 }
+
+// Cc IS VISIBLE AND Bcc IS NOT, and the difference is the whole reason a channel
+// offers both.
+//
+// A Cc recipient appears in a header AND in the envelope, so everyone can see
+// who else was copied. A Bcc recipient appears ONLY in the envelope. Writing Bcc
+// into a header — which some libraries do, because the header's name says
+// "blind" — discloses every address to every other recipient at once.
+func TestCcIsHeaderedAndBccIsNot(t *testing.T) {
+	body, err := Compose("from@example.com", Message{
+		To:      []string{"to@example.com"},
+		Cc:      []string{"cc1@example.com", "cc2@example.com"},
+		Bcc:     []string{"secret@example.com"},
+		Subject: "s", Text: "t",
+	}, "B")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+	if !strings.Contains(got, "Cc: cc1@example.com, cc2@example.com\r\n") {
+		t.Errorf("no Cc header — a copied recipient is meant to be visible:\n%s", got)
+	}
+	if strings.Contains(got, "secret@example.com") {
+		t.Errorf("a Bcc address reached the headers, disclosing it to every other "+
+			"recipient:\n%s", got)
+	}
+	if strings.Contains(strings.ToLower(got), "bcc:") {
+		t.Errorf("a Bcc header was written:\n%s", got)
+	}
+}
+
+// EVERY ADDRESS IS CHECKED FOR INJECTION, whichever field it came from. Cc was
+// added after this check existed, and a field the validator does not know about
+// is a field an attacker can put a newline in.
+func TestACcAddressCannotInjectAHeader(t *testing.T) {
+	_, err := Compose("from@example.com", Message{
+		To: []string{"to@example.com"},
+		Cc: []string{"ok@example.com\r\nBcc: victim@example.com"},
+	}, "B")
+	if err == nil {
+		t.Error("a Cc address carrying a line break was accepted")
+	}
+}

@@ -128,7 +128,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 	// server, the schedule's own list for the addresses — which is how a report
 	// could go out through a server that knew nothing about the people it was
 	// being sent to.
-	cfg, from, recipients, mailOK := s.scheduleMail(row.ChannelID)
+	cfg, who, mailOK := s.scheduleMail(row.ChannelID)
 	if !mailOK {
 		// NOT disabled, and that is deliberate: a channel that is missing,
 		// switched off or half-configured is a condition of the CHANNEL, and
@@ -195,7 +195,6 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 	}
 
 	sch := reports.Schedule{Name: row.Name, Frequency: row.Frequency}
-	to, bcc := reports.MailEnvelope(from, recipients)
 
 	truncated := false
 	for _, s := range keptSections {
@@ -205,7 +204,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 	}
 
 	msg := mailer.Message{
-		To: []string{to}, Bcc: bcc,
+		To: who.To, Cc: who.Cc, Bcc: who.Bcc,
 		Subject: reports.MailSubject(sch, label, period, tz),
 		Text: reports.MailBody(reports.MailBodyInput{
 			AppName:  s.appName(),
@@ -229,7 +228,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 
 	res.Outcome = "sent"
 	res.Bytes = int64(bytes)
-	res.Recipients = len(recipients)
+	res.Recipients = len(who.To) + len(who.Cc) + len(who.Bcc)
 	for _, a := range kept {
 		res.Sections = append(res.Sections, a.Section)
 	}
@@ -317,9 +316,13 @@ func splitList(s string) []string {
 // send mail. From the operator's side they are one condition — this schedule
 // has nowhere to send — and six messages would be six ways to describe a
 // channel they are about to open and look at anyway.
-func (s *Server) scheduleMail(channelID string) (mailer.Config, string, []string, bool) {
-	none := func() (mailer.Config, string, []string, bool) {
-		return mailer.Config{}, "", nil, false
+// IT RETURNS NO SEPARATE `from`. It used to, because `MailEnvelope` needed the
+// sending address to put in the To line; nothing needs it now that the channel
+// names its own recipients, and `cfg.From` is where the sender lives. Two ways
+// to ask who sent it is one more than there should be.
+func (s *Server) scheduleMail(channelID string) (mailer.Config, mailer.Message, bool) {
+	none := func() (mailer.Config, mailer.Message, bool) {
+		return mailer.Config{}, mailer.Message{}, false
 	}
 	if s.auditDB == nil || channelID == "" {
 		return none()
@@ -336,11 +339,23 @@ func (s *Server) scheduleMail(channelID string) (mailer.Config, string, []string
 	if host == "" || from == "" {
 		return none()
 	}
-	// THE CHANNEL'S To IS THE RECIPIENT LIST: one string holding one or more
-	// addresses, which is what a To field is, split by the same `splitList` the
-	// schedule's own list went through before this moved.
-	recipients := splitList(str("smtpTo"))
-	if len(recipients) == 0 {
+	// ── THE CHANNEL DECIDES To, Cc AND Bcc ───────────────────────────────
+	//
+	// Each is a comma list, split by the same `splitList` the schedule's own
+	// recipient list went through before this moved. ANY of the three is enough
+	// to send: a report addressed only to Bcc is a normal thing to want, and it
+	// is how a list reaches people without disclosing them to each other.
+	//
+	// `reports.MailEnvelope` used to force that shape on everybody — every
+	// recipient into Bcc, the message addressed to the sending account — because
+	// a schedule had one undifferentiated list and no way to say what it meant.
+	// The channel says it now, so the choice belongs to the operator.
+	who := mailer.Message{
+		To:  splitList(str("smtpTo")),
+		Cc:  splitList(str("smtpCc")),
+		Bcc: splitList(str("smtpBcc")),
+	}
+	if len(who.To)+len(who.Cc)+len(who.Bcc) == 0 {
 		return none()
 	}
 	port, _ := strconv.Atoi(str("smtpPort"))
@@ -348,7 +363,7 @@ func (s *Server) scheduleMail(channelID string) (mailer.Config, string, []string
 	return mailer.Config{
 		Host: host, Port: port, Secure: secure,
 		User: str("smtpUser"), Pass: str("smtpPass"), From: from,
-	}, from, recipients, true
+	}, who, true
 }
 
 func (s *Server) displayTZ() string {

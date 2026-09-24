@@ -271,12 +271,14 @@ func (s *Server) userRecipientSettings(row map[string]any, install notify.Settin
 // builds its own, reported the same settings working. It sends the way that
 // button does, so what the operator tested is what an alert uses.
 func (s *Server) alertMailer(set notify.Settings) notify.Mailer {
-	cfg, to := smtpFromSettings(set)
-	if cfg.Host == "" || cfg.From == "" || to == "" {
+	cfg, who := smtpFromSettings(set)
+	if cfg.Host == "" || cfg.From == "" ||
+		len(who.To)+len(who.Cc)+len(who.Bcc) == 0 {
 		return nil
 	}
 	return func(title, text string) error {
-		return mailer.Send(cfg, mailer.Message{To: []string{to}, Subject: title, Text: text})
+		who.Subject, who.Text = title, text
+		return mailer.Send(cfg, who)
 	}
 }
 

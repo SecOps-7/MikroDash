@@ -31,6 +31,8 @@ interface ChannelView {
   smtpHost?: string;
   smtpFrom?: string;
   smtpTo?: string;
+  smtpCc?: string;
+  smtpBcc?: string;
   hasSecret: boolean;
   mine: boolean;
 }
@@ -88,8 +90,12 @@ function show(open: boolean): void {
 /** The card for one channel. */
 function card(c: ChannelView): string {
   const where = c.owner === INSTALL ? 'Install' : 'Mine';
+  // THE CARD SUMMARISES WHOEVER IT REACHES, To, Cc or Bcc. A channel that only
+  // Bcc's — which is what every carried report channel does — showed
+  // "not configured" while working perfectly.
+  const mailTo = c.smtpTo || c.smtpCc || c.smtpBcc;
   const dest = c.kind === 'smtp'
-    ? 'SMTP: ' + esc(c.smtpTo || c.smtpHost || 'not configured')
+    ? 'SMTP: ' + esc(mailTo || c.smtpHost || 'not configured')
     : 'Webhook: ' + c.urlCount + (c.urlCount === 1 ? ' URL' : ' URLs');
   const evs = c.events.length === 0
     ? 'no events'
@@ -153,6 +159,8 @@ async function loadDetail(id: string): Promise<void> {
       setValue('nchanSmtpPass', String(j.smtp.pass || ''));
       setValue('nchanSmtpFrom', String(j.smtp.from || ''));
       setValue('nchanSmtpTo', String(j.smtp.to || ''));
+      setValue('nchanSmtpCc', String(j.smtp.cc || ''));
+      setValue('nchanSmtpBcc', String(j.smtp.bcc || ''));
     }
   } catch { /* the box stays empty and keep-on-blank still applies */ }
   if (loadedURLs) setValue('nchanUrls', loadedURLs.join('\n'));
@@ -221,6 +229,8 @@ function fillModal(c: ChannelView | null): void {
   setValue('nchanSmtpPass', '');
   setValue('nchanSmtpFrom', (c && c.smtpFrom) || '');
   setValue('nchanSmtpTo', (c && c.smtpTo) || '');
+  setValue('nchanSmtpCc', (c && c.smtpCc) || '');
+  setValue('nchanSmtpBcc', (c && c.smtpBcc) || '');
 
   const schemeHelp = el('nchanSchemes');
   if (schemeHelp) schemeHelp.textContent = schemes.length ? 'Schemes: ' + schemes.join(', ') : '';
@@ -343,7 +353,14 @@ function bodyFor(): Record<string, unknown> {
   } else {
     const host = getValue('nchanSmtpHost').trim();
     const pass = getValue('nchanSmtpPass');
-    if (host !== '' || pass !== '' || getValue('nchanSmtpTo').trim() !== '') {
+    // ANY RECIPIENT FIELD COUNTS as "the operator filled this in", not just To.
+    // A channel configured to Bcc only would otherwise send no `config` at all,
+    // and the save would read as "keep what is stored" — silently discarding
+    // everything just typed.
+    const anyTo = getValue('nchanSmtpTo').trim() !== ''
+      || getValue('nchanSmtpCc').trim() !== ''
+      || getValue('nchanSmtpBcc').trim() !== '';
+    if (host !== '' || pass !== '' || anyTo) {
       body.config = {
         host,
         port: Number(getValue('nchanSmtpPort')) || 0,
@@ -352,6 +369,8 @@ function bodyFor(): Record<string, unknown> {
         pass,
         from: getValue('nchanSmtpFrom').trim(),
         to: getValue('nchanSmtpTo').trim(),
+        cc: getValue('nchanSmtpCc').trim(),
+        bcc: getValue('nchanSmtpBcc').trim(),
       };
     }
   }

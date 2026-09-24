@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -83,6 +84,8 @@ type channelView struct {
 	SMTPHost  string   `json:"smtpHost,omitempty"`
 	SMTPFrom  string   `json:"smtpFrom,omitempty"`
 	SMTPTo    string   `json:"smtpTo,omitempty"`
+	SMTPCc    string   `json:"smtpCc,omitempty"`
+	SMTPBcc   string   `json:"smtpBcc,omitempty"`
 	HasSecret bool     `json:"hasSecret"`
 	Mine      bool     `json:"mine"`
 }
@@ -137,8 +140,11 @@ func (s *Server) viewOf(sess *Session, c db.NotifyChannel) channelView {
 		host, _ := spec.Settings["smtpHost"].(string)
 		from, _ := spec.Settings["smtpFrom"].(string)
 		to, _ := spec.Settings["smtpTo"].(string)
+		cc, _ := spec.Settings["smtpCc"].(string)
+		bcc, _ := spec.Settings["smtpBcc"].(string)
 		pass, _ := spec.Settings["smtpPass"].(string)
-		v.SMTPHost, v.SMTPFrom, v.SMTPTo = host, from, to
+		v.SMTPHost, v.SMTPFrom = host, from
+		v.SMTPTo, v.SMTPCc, v.SMTPBcc = to, cc, bcc
 		v.HasSecret = pass != ""
 	}
 	return v
@@ -245,6 +251,7 @@ func (s *Server) notifyChannelOne(w http.ResponseWriter, r *http.Request) {
 			"secure": spec.Settings["smtpSecure"], "user": spec.Settings["smtpUser"],
 			"pass": spec.Settings["smtpPass"],
 			"from": spec.Settings["smtpFrom"], "to": spec.Settings["smtpTo"],
+			"cc": spec.Settings["smtpCc"], "bcc": spec.Settings["smtpBcc"],
 		}
 	}
 	writeJSON(w, out)
@@ -499,13 +506,33 @@ func validateChannel(b channelBody) error {
 	// possible; validating an absent field would refuse every such edit.
 	if b.Kind == notify.KindSMTP && len(b.Config) > 0 {
 		var cfg struct {
-			To string `json:"to"`
+			To  string `json:"to"`
+			Cc  string `json:"cc"`
+			Bcc string `json:"bcc"`
 		}
 		if err := json.Unmarshal(b.Config, &cfg); err != nil {
 			return errors.New("malformed mail configuration")
 		}
-		if _, err := reports.CleanRecipients(splitList(cfg.To)); err != nil {
-			return err
+		// EACH LIST IS CHECKED SEPARATELY, so the message names the field the
+		// operator has to fix rather than "a recipient is not an email address"
+		// against three boxes.
+		filled := 0
+		for _, f := range []struct{ label, raw string }{
+			{"To", cfg.To}, {"Cc", cfg.Cc}, {"Bcc", cfg.Bcc},
+		} {
+			if strings.TrimSpace(f.raw) == "" {
+				continue
+			}
+			filled++
+			if _, err := reports.CleanRecipients(splitList(f.raw)); err != nil {
+				return fmt.Errorf("%s: %w", f.label, err)
+			}
+		}
+		// ANY ONE OF THE THREE IS ENOUGH. A message addressed only to Bcc is how
+		// a list reaches people without disclosing them to each other, and it is
+		// what every scheduled report did before the choice existed.
+		if filled == 0 {
+			return errors.New("a mail channel needs at least one recipient in To, Cc or Bcc")
 		}
 	}
 	return nil

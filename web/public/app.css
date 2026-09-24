@@ -2898,6 +2898,20 @@
 .nchan-help { font-size: .7rem; color: var(--text-muted); margin: .4rem 0 0; line-height: 1.5; }
 .nchan-help code { font-family: var(--font-mono, monospace); font-size: .68rem; }
 
+/* A toggle standing in a form row beside text inputs. It needs the height of an
+   input so the three cells of the host/port/encryption row line up on their
+   baselines rather than the toggle floating at the top of its cell. */
+.nchan-inline-toggle {
+  display: flex; align-items: center; gap: .5rem;
+  min-height: 2.05rem;
+}
+/* The channel's state, last and separated from the configuration above it. */
+.nchan-enabled {
+  display: flex; align-items: center; gap: .6rem;
+  margin-top: 1rem; padding-top: .85rem;
+  border-top: 1px solid var(--border);
+}
+
 .nchan-actions { margin-left: auto; }
 
 /* `.rtr-modal-body` is a TWO-COLUMN GRID — the router modal's form wants that,

@@ -104,10 +104,28 @@ func (s *Server) SeedReportChannels() (int, error) {
 			if made > 1 {
 				name = "Report recipients " + strconv.Itoa(made)
 			}
+			// ── THE CARRIED LIST GOES IN Bcc, NOT To ──────────────────
+			//
+			// This is a PRIVACY PROPERTY and carrying it is not optional.
+			// `reports.MailEnvelope` put every recipient of a schedule into Bcc
+			// and addressed the message to the sending account, for the reason
+			// it recorded: "'Customer email groups' means these are frequently
+			// different customers, and a `to:` array would disclose every
+			// address to all of them."
+			//
+			// Putting a carried list into To would newly disclose every address
+			// on it to every other, on the first upgrade, silently and to
+			// everyone at once. So the shape is reproduced exactly: the
+			// addresses in Bcc, the message addressed to the sender.
+			//
+			// An operator who WANTS them visible can move them to To or Cc on
+			// the channel, which is the whole point of the three fields — but
+			// that is now a thing they chose rather than a thing that happened
+			// to them.
 			newID, cerr := s.writeSeededID(db.InstallOwner, seeded{name, notify.KindSMTP, smtpConfigJSON{
 				Host: mail.Host, Port: mail.Port, Secure: mail.Secure,
 				User: mail.User, Pass: mail.Pass, From: from,
-				To: strings.Join(addrs, ", "),
+				To: from, Bcc: strings.Join(addrs, ", "),
 			}},
 				// NO EVENTS. This channel exists to receive reports, and an
 				// alert subscription would start mailing these people things

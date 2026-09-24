@@ -148,39 +148,6 @@ func TestMailBodyMatchesLive(t *testing.T) {
 	}
 }
 
-func TestMailEnvelopePutsEveryRecipientInBcc(t *testing.T) {
-	c := loadMailerCorpus(t)
-	for _, tc := range c.Envelope {
-		to, bcc := MailEnvelope(tc.Settings.SMTPFrom, tc.Recipients)
-		if to != tc.Out.To {
-			t.Errorf("to %q, live %q", to, tc.Out.To)
-		}
-		if !eqStrings(bcc, tc.Out.BCC) {
-			t.Errorf("bcc %v, live %v", bcc, tc.Out.BCC)
-		}
-		// Independent of the corpus, because this one is a privacy property and
-		// not a formatting detail: no recipient may appear in `to`.
-		for _, r := range tc.Recipients {
-			if to == r && r != tc.Settings.SMTPFrom {
-				t.Errorf("recipient %q was placed in `to` -- every other recipient would see it", r)
-			}
-		}
-	}
-}
-
-// TestTheEnvelopeCopiesItsRecipients guards against the caller's slice being
-// aliased into the message: a later append by the caller would otherwise reach
-// into an envelope already built, and mail to the wrong people is not
-// retractable.
-func TestTheEnvelopeCopiesItsRecipients(t *testing.T) {
-	src := []string{"a@example.net"}
-	_, bcc := MailEnvelope("from@example.com", src)
-	src[0] = "attacker@example.net"
-	if bcc[0] != "a@example.net" {
-		t.Errorf("the envelope aliased its caller's slice: bcc is now %v", bcc)
-	}
-}
-
 func eqStrings(a, b []string) bool {
 	if len(a) == 0 && len(b) == 0 {
 		return true

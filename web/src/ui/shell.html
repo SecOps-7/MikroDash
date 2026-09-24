@@ -820,10 +820,6 @@
               </select>
             </div>
           </div>
-          <label class="stoggle stoggle-bare"><span class="stoggle-label">Enabled</span>
-            <span class="stoggle-switch"><input type="checkbox" id="nchanEnabled" checked>
-              <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-
           <div id="nchanWebhookBody">
             <div class="sform-group">
               <label class="sform-label" for="nchanUrls">Webhook URLs <span style="color:var(--accent-err)">*</span> (one per line)</label>
@@ -837,7 +833,13 @@
           </div>
 
           <div id="nchanSmtpBody" hidden>
-            <div class="sform-row">
+            <!-- ── TLS SITS WITH THE PORT, because it is about the port ──────
+                 It was a bare toggle between the host row and the credentials
+                 row, with no label of its own, so it read as belonging to
+                 neither and was the narrowest thing on the form. Implicit TLS
+                 IS the difference between 465 and 587: it belongs beside the
+                 number it changes, with a label like its neighbours. -->
+            <div class="sform-row3">
               <div class="sform-group">
                 <label class="sform-label" for="nchanSmtpHost">SMTP host <span style="color:var(--accent-err)">*</span></label>
                 <input class="sform-input" id="nchanSmtpHost" placeholder="smtp.example.com">
@@ -846,10 +848,13 @@
                 <label class="sform-label" for="nchanSmtpPort">Port</label>
                 <input class="sform-input" id="nchanSmtpPort" placeholder="587">
               </div>
+              <div class="sform-group">
+                <label class="sform-label">Encryption</label>
+                <label class="stoggle stoggle-bare nchan-inline-toggle"><span class="stoggle-label">Implicit TLS</span>
+                  <span class="stoggle-switch"><input type="checkbox" id="nchanSmtpSecure">
+                    <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
             </div>
-            <label class="stoggle stoggle-bare"><span class="stoggle-label">Implicit TLS (port 465)</span>
-              <span class="stoggle-switch"><input type="checkbox" id="nchanSmtpSecure">
-                <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <div class="sform-row">
               <div class="sform-group">
                 <label class="sform-label" for="nchanSmtpUser">Username</label>
@@ -860,22 +865,46 @@
                 <input class="sform-input" id="nchanSmtpPass" type="password" autocomplete="new-password">
               </div>
             </div>
+            <!-- ── To, Cc AND Bcc, BECAUSE THEY ARE THREE DECISIONS ─────────
+                 This was one "Recipients" box, which forced the same treatment
+                 on everybody an alert or a report reached. Who is addressed, who
+                 is copied and who is copied invisibly are different questions,
+                 and this is the only place either is answered now.
+
+                 ANY ONE OF THE THREE IS ENOUGH to send: a message addressed only
+                 to Bcc is how a list reaches people without disclosing them to
+                 each other, and that is what scheduled reports did for everyone
+                 before the choice existed. -->
             <div class="sform-row">
               <div class="sform-group">
                 <label class="sform-label" for="nchanSmtpFrom">From address</label>
                 <input class="sform-input" id="nchanSmtpFrom" placeholder="alerts@example.com">
               </div>
-              <!-- SEVERAL ADDRESSES, because this is the only place recipients are
-                   configured now: a scheduled report names this channel and
-                   these are the people who receive it. The placeholder carries
-                   that on its own; a hint underneath was a paragraph explaining
-                   a field that explains itself. -->
               <div class="sform-group">
-                <label class="sform-label" for="nchanSmtpTo">Recipients <span style="color:var(--accent-err)">*</span></label>
-                <input class="sform-input" id="nchanSmtpTo" placeholder="ops@example.com, noc@example.com">
+                <label class="sform-label" for="nchanSmtpTo">To</label>
+                <input class="sform-input" id="nchanSmtpTo" placeholder="ops@example.com">
+              </div>
+            </div>
+            <div class="sform-row">
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpCc">Cc</label>
+                <input class="sform-input" id="nchanSmtpCc" placeholder="noc@example.com">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label" for="nchanSmtpBcc">Bcc</label>
+                <input class="sform-input" id="nchanSmtpBcc" placeholder="archive@example.com">
               </div>
             </div>
           </div>
+
+          <!-- ── THE CHANNEL'S STATE, AFTER ITS CONFIGURATION ──────────────
+               It used to sit between the Name/Type row and the type-specific
+               body, which is where neither belongs: it is not part of naming the
+               channel and not part of configuring the transport. Last, on its
+               own, it reads as what it is — whether this channel is in use. -->
+          <label class="stoggle stoggle-bare nchan-enabled"><span class="stoggle-label">Enabled</span>
+            <span class="stoggle-switch"><input type="checkbox" id="nchanEnabled" checked>
+              <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
         </div>
 
         <div class="nchan-panel" data-nchanpanel="events">
@@ -944,8 +973,7 @@
       <div class="sform-group">
         <label class="sform-label" for="rs_channel">Send through</label>
         <select class="sform-input" id="rs_channel"></select>
-        <div class="form-hint">Recipients come from the channel. Sent as Bcc, so they cannot see
-          each other. Add or edit a mail channel in Settings &rarr; Notifications.</div>
+        <div class="form-hint">Add or edit a mail channel in Settings &rarr; Notifications.</div>
       </div>
       <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="rs_enabled" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
       <div class="login-error" id="rs_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>

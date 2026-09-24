@@ -49,6 +49,8 @@ type smtpConfigJSON struct {
 	Pass   string `json:"pass"`
 	From   string `json:"from"`
 	To     string `json:"to"`
+	Cc     string `json:"cc"`
+	Bcc    string `json:"bcc"`
 }
 
 // SeedNotifyChannels converts the install's configured transports, and each

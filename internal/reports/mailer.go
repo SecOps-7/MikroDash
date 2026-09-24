@@ -180,14 +180,20 @@ func MailBody(in MailBodyInput) string {
 	return strings.Join(lines, "\n")
 }
 
-// MailEnvelope puts every recipient in BCC and addresses the message to the
-// sending account.
+// MAILENVELOPE IS GONE, AND ITS REASON MOVED RATHER THAN DISAPPEARED.
 //
-// A PRIVACY PROPERTY, NOT A FORMATTING CHOICE. The live comment names the
-// reason: "'Customer email groups' means these are frequently different
-// customers, and a `to:` array would disclose every address to all of them."
-// Collapsing this into a `to:` list would leak one customer's address to every
-// other on the same schedule, silently and to everyone at once.
-func MailEnvelope(smtpFrom string, recipients []string) (to string, bcc []string) {
-	return smtpFrom, append([]string(nil), recipients...)
-}
+// It put every recipient of a schedule into Bcc and addressed the message to
+// the sending account, because "'Customer email groups' means these are
+// frequently different customers, and a `to:` array would disclose every address
+// to all of them."
+//
+// A schedule has no recipient list any more: it names a notification channel,
+// and that channel carries To, Cc and Bcc as three separate fields. So the shape
+// this function forced on everybody is now one an operator chooses — and the
+// migration that carried the old lists across reproduces it exactly, putting
+// them in Bcc with the message addressed to the sender, so nobody's addresses
+// were disclosed by the upgrade. See `SeedReportChannels`.
+//
+// Deleted rather than left with no callers: git history holds the reasoning, and
+// a function nothing calls is a thing the next reader has to work out the status
+// of.

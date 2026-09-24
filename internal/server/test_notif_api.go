@@ -81,18 +81,21 @@ func (s *Server) testNotification(w http.ResponseWriter, r *http.Request) {
 	// never tried.
 	var mail notify.Mailer
 	if channel == string(notify.SMTP) {
-		cfg, to := smtpFromSettings(settings)
-		if cfg.Host == "" || cfg.From == "" || to == "" {
+		cfg, who := smtpFromSettings(settings)
+		if cfg.Host == "" || cfg.From == "" ||
+			len(who.To)+len(who.Cc)+len(who.Bcc) == 0 {
 			// Left to `Precondition` inside TestChannel rather than answered
 			// here, so the refusal wording is the live module's own and stays in
 			// one place. This branch only avoids building a mailer that cannot
 			// be used.
 			mail = nil
 		} else {
+			// THE TEST REACHES EVERYONE THE CHANNEL WOULD, To, Cc and Bcc alike.
+			// A test that only mailed To would report a channel working while
+			// half its recipients never receive anything from it.
 			mail = func(title, text string) error {
-				return mailer.Send(cfg, mailer.Message{
-					To: []string{to}, Subject: title, Text: text,
-				})
+				who.Subject, who.Text = title, text
+				return mailer.Send(cfg, who)
 			}
 		}
 	}
@@ -116,7 +119,11 @@ func (s *Server) testNotification(w http.ResponseWriter, r *http.Request) {
 // Separate from `s.smtpConfig()` on purpose: that one reads the file and is
 // right for the scheduler, which has no form in front of it. This one must
 // honour what the operator typed.
-func smtpFromSettings(cfg notify.Settings) (mailer.Config, string) {
+// IT RETURNS THE WHOLE RECIPIENT SET, not one To string. An SMTP channel names
+// To, Cc and Bcc separately, and an alert that only ever honoured To would
+// silently drop everyone an operator had copied — while the channel's own page
+// showed them configured.
+func smtpFromSettings(cfg notify.Settings) (mailer.Config, mailer.Message) {
 	str := func(k string) string { v, _ := cfg[k].(string); return v }
 	// A STRING IS A REAL CASE, and leaving it out was a live bug.
 	//
@@ -139,5 +146,9 @@ func smtpFromSettings(cfg notify.Settings) (mailer.Config, string) {
 	return mailer.Config{
 		Host: str("smtpHost"), Port: port, Secure: secure,
 		User: str("smtpUser"), Pass: str("smtpPass"), From: str("smtpFrom"),
-	}, str("smtpTo")
+	}, mailer.Message{
+		To:  splitList(str("smtpTo")),
+		Cc:  splitList(str("smtpCc")),
+		Bcc: splitList(str("smtpBcc")),
+	}
 }
