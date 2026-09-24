@@ -61,6 +61,8 @@ type channelBody struct {
 	Config  json.RawMessage `json:"config"`
 	Events  []string        `json:"events"`
 	Routers []string        `json:"routers"`
+	// IfaceTypes narrows Interface Up/Down. EMPTY IS ALL, like Routers.
+	IfaceTypes []string `json:"ifaceTypes"`
 	// Owner is accepted only as the word "install"; anything else, including a
 	// user id, is ignored. The server decides ownership.
 	Owner string `json:"owner"`
@@ -73,21 +75,22 @@ type channelBody struct {
 // what the card and the form need: how many URLs there are, and for SMTP the
 // parts that are not secret.
 type channelView struct {
-	ID        string   `json:"id"`
-	Owner     string   `json:"owner"`
-	Name      string   `json:"name"`
-	Kind      string   `json:"kind"`
-	Enabled   bool     `json:"enabled"`
-	Events    []string `json:"events"`
-	Routers   []string `json:"routers"`
-	URLCount  int      `json:"urlCount"`
-	SMTPHost  string   `json:"smtpHost,omitempty"`
-	SMTPFrom  string   `json:"smtpFrom,omitempty"`
-	SMTPTo    string   `json:"smtpTo,omitempty"`
-	SMTPCc    string   `json:"smtpCc,omitempty"`
-	SMTPBcc   string   `json:"smtpBcc,omitempty"`
-	HasSecret bool     `json:"hasSecret"`
-	Mine      bool     `json:"mine"`
+	ID         string   `json:"id"`
+	Owner      string   `json:"owner"`
+	Name       string   `json:"name"`
+	Kind       string   `json:"kind"`
+	Enabled    bool     `json:"enabled"`
+	Events     []string `json:"events"`
+	Routers    []string `json:"routers"`
+	IfaceTypes []string `json:"ifaceTypes"`
+	URLCount   int      `json:"urlCount"`
+	SMTPHost   string   `json:"smtpHost,omitempty"`
+	SMTPFrom   string   `json:"smtpFrom,omitempty"`
+	SMTPTo     string   `json:"smtpTo,omitempty"`
+	SMTPCc     string   `json:"smtpCc,omitempty"`
+	SMTPBcc    string   `json:"smtpBcc,omitempty"`
+	HasSecret  bool     `json:"hasSecret"`
+	Mine       bool     `json:"mine"`
 }
 
 func (s *Server) channelSession(w http.ResponseWriter, r *http.Request) (*Session, bool) {
@@ -114,19 +117,25 @@ func (s *Server) mayTouchChannel(sess *Session, owner string) bool {
 
 func (s *Server) viewOf(sess *Session, c db.NotifyChannel) channelView {
 	spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, c.Enabled == 1,
-		s.openChannelConfig(c.Config), c.Events, c.Routers)
+		s.openChannelConfig(c.Config), c.Events, c.Routers, c.IfaceTypes)
 	v := channelView{
 		ID: c.ID, Owner: c.Owner, Name: c.Name, Kind: c.Kind,
 		Enabled: c.Enabled == 1, Mine: c.Owner == s.webUserID(sess),
 		// NEVER NIL: a null array in a payload is what
 		// TestNoServerPayloadSendsANullArray exists to stop.
-		Events: spec.Events, Routers: spec.Routers,
+		Events: spec.Events, Routers: spec.Routers, IfaceTypes: spec.IfaceTypes,
 	}
 	if v.Events == nil {
 		v.Events = []string{}
 	}
 	if v.Routers == nil {
 		v.Routers = []string{}
+	}
+	// NEVER NULL, for the same reason the two above are not: a Go nil slice
+	// marshals as JSON `null`, and the page would then have to handle a third
+	// state that means exactly what the empty array means.
+	if v.IfaceTypes == nil {
+		v.IfaceTypes = []string{}
 	}
 	switch c.Kind {
 	case notify.KindWebhook:
@@ -238,7 +247,7 @@ func (s *Server) notifyChannelOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	spec := notify.DecodeChannel(cur.ID, cur.Name, cur.Kind, cur.Enabled == 1,
-		s.openChannelConfig(cur.Config), cur.Events, cur.Routers)
+		s.openChannelConfig(cur.Config), cur.Events, cur.Routers, cur.IfaceTypes)
 
 	out := map[string]any{"ok": true, "channel": s.viewOf(sess, cur)}
 	if spec.URLs == nil {
@@ -298,7 +307,8 @@ func (s *Server) notifyChannelCreate(w http.ResponseWriter, r *http.Request) {
 		ID: id, Owner: owner, Name: strings.TrimSpace(body.Name), Kind: body.Kind,
 		Enabled: boolInt(body.Enabled), Config: cfg,
 		Events: jsonList(body.Events), Routers: jsonList(body.Routers),
-		CreatedBy: s.webUserID(sess), CreatedAt: now, UpdatedAt: now,
+		IfaceTypes: jsonList(body.IfaceTypes),
+		CreatedBy:  s.webUserID(sess), CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.auditDB.UpsertNotifyChannel(rec); err != nil {
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
@@ -360,6 +370,7 @@ func (s *Server) notifyChannelUpdate(w http.ResponseWriter, r *http.Request) {
 	cur.Config = cfg
 	cur.Events = jsonList(body.Events)
 	cur.Routers = jsonList(body.Routers)
+	cur.IfaceTypes = jsonList(body.IfaceTypes)
 	cur.UpdatedAt = time.Now().UnixMilli()
 	if err := s.auditDB.UpsertNotifyChannel(cur); err != nil {
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
@@ -428,7 +439,7 @@ func (s *Server) notifyChannelTest(w http.ResponseWriter, r *http.Request) {
 	// Enabled is forced on: testing a switched-off channel is exactly what an
 	// operator does while setting one up.
 	spec := notify.DecodeChannel(cur.ID, cur.Name, cur.Kind, true,
-		s.openChannelConfig(cur.Config), cur.Events, cur.Routers)
+		s.openChannelConfig(cur.Config), cur.Events, cur.Routers, cur.IfaceTypes)
 	if !spec.Deliverable() {
 		writeJSONErr(w, http.StatusBadRequest, "this channel has no destination configured")
 		return

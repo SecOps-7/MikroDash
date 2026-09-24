@@ -47,6 +47,15 @@ type ChannelSpec struct {
 	// NONE, deliberately: a channel that subscribed to everything by accident
 	// would page somebody at three in the morning about a prefix count.
 	Events []string
+	// IfaceTypes narrows the Interface Up/Down event to particular kinds of
+	// interface: ether, wlan, bridge, vlan, other. EMPTY MEANS ALL, like
+	// Routers below and for the same reason — a channel nobody has narrowed
+	// covers everything, which is what every channel did before the filter
+	// existed.
+	//
+	// It applies to ONE event. A CPU alert has no interface, and narrowing a
+	// channel's interfaces must not quietly stop its CPU alerts.
+	IfaceTypes []string
 	// Routers is the set of router ids this channel accepts. EMPTY MEANS ALL,
 	// which is the opposite default and the right one — a channel created
 	// without touching the picker should cover the fleet, and a fleet that
@@ -79,10 +88,11 @@ type channelConfig struct {
 // A column that will not parse yields an empty field rather than an error: one
 // corrupt channel must not stop the others loading, which is the same choice
 // `usernotify_api.go` makes when a credential will not decrypt.
-func DecodeChannel(id, name, kind string, enabled bool, config, events, routers string) ChannelSpec {
+func DecodeChannel(id, name, kind string, enabled bool, config, events, routers, ifaceTypes string) ChannelSpec {
 	c := ChannelSpec{ID: id, Name: name, Kind: kind, Enabled: enabled}
 	_ = json.Unmarshal([]byte(events), &c.Events)
 	_ = json.Unmarshal([]byte(routers), &c.Routers)
+	_ = json.Unmarshal([]byte(ifaceTypes), &c.IfaceTypes)
 
 	var cfg channelConfig
 	_ = json.Unmarshal([]byte(config), &cfg)
@@ -112,6 +122,28 @@ func DecodeChannel(id, name, kind string, enabled bool, config, events, routers 
 		}
 	}
 	return c
+}
+
+// WantsIface reports whether this channel covers an interface of this type.
+//
+// ── ABSENT AND EMPTY BOTH MEAN YES ────────────────────────────────────────
+//
+// An empty list is "every type", so a channel nobody has narrowed keeps
+// behaving as it did before the filter existed. An EMPTY `ifaceType` also means
+// yes, and that is the important half: it is what a CPU alert, a ping alert or a
+// BGP alert carries, and an interface filter must not silence an event that has
+// no interface in it. Only a fired alert that actually names an interface type
+// is ever narrowed.
+func (c ChannelSpec) WantsIface(ifaceType string) bool {
+	if ifaceType == "" || len(c.IfaceTypes) == 0 {
+		return true
+	}
+	for _, t := range c.IfaceTypes {
+		if t == ifaceType {
+			return true
+		}
+	}
+	return false
 }
 
 // Wants reports whether this channel should receive `event` from `routerID`.

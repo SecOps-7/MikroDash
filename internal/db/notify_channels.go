@@ -33,21 +33,24 @@ const InstallOwner = "_install"
 // `cfg_runs.values_json`). `Enabled` is an INTEGER for the same reason
 // `report_schedules.enabled` is.
 type NotifyChannel struct {
-	ID        string `json:"id"`
-	Owner     string `json:"owner"`
-	Name      string `json:"name"`
-	Kind      string `json:"kind"`
-	Enabled   int    `json:"enabled"`
-	Config    string `json:"config"`
-	Events    string `json:"events"`
-	Routers   string `json:"routers"`
-	CreatedBy string `json:"created_by"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
+	ID      string `json:"id"`
+	Owner   string `json:"owner"`
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Enabled int    `json:"enabled"`
+	Config  string `json:"config"`
+	Events  string `json:"events"`
+	Routers string `json:"routers"`
+	// IfaceTypes is a JSON array of ether/wlan/bridge/vlan/other. EMPTY IS ALL,
+	// exactly as Routers is, so a channel nobody has narrowed covers everything.
+	IfaceTypes string `json:"iface_types"`
+	CreatedBy  string `json:"created_by"`
+	CreatedAt  int64  `json:"created_at"`
+	UpdatedAt  int64  `json:"updated_at"`
 }
 
 const notifyChannelCols = `id, owner, name, kind, enabled, config, events, routers,
-	COALESCE(created_by, ''), created_at, updated_at`
+	COALESCE(iface_types, '[]'), COALESCE(created_by, ''), created_at, updated_at`
 
 func scanNotifyChannels(rows *sql.Rows) ([]NotifyChannel, error) {
 	defer rows.Close()
@@ -58,7 +61,7 @@ func scanNotifyChannels(rows *sql.Rows) ([]NotifyChannel, error) {
 	for rows.Next() {
 		var c NotifyChannel
 		if err := rows.Scan(&c.ID, &c.Owner, &c.Name, &c.Kind, &c.Enabled,
-			&c.Config, &c.Events, &c.Routers, &c.CreatedBy,
+			&c.Config, &c.Events, &c.Routers, &c.IfaceTypes, &c.CreatedBy,
 			&c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -108,7 +111,7 @@ func (d *DB) NotifyChannelByID(id string) (NotifyChannel, bool, error) {
 	err := d.sql.QueryRow(`SELECT `+notifyChannelCols+
 		` FROM notify_channels WHERE id = ?`, id).
 		Scan(&c.ID, &c.Owner, &c.Name, &c.Kind, &c.Enabled, &c.Config,
-			&c.Events, &c.Routers, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt)
+			&c.Events, &c.Routers, &c.IfaceTypes, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return NotifyChannel{}, false, nil
 	}
@@ -131,15 +134,16 @@ func (d *DB) UpsertNotifyChannel(c NotifyChannel) error {
 	}
 	_, err := d.sql.Exec(`
     INSERT INTO notify_channels
-      (id, owner, name, kind, enabled, config, events, routers,
+      (id, owner, name, kind, enabled, config, events, routers, iface_types,
        created_by, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name, kind = excluded.kind, enabled = excluded.enabled,
       config = excluded.config, events = excluded.events,
-      routers = excluded.routers, updated_at = excluded.updated_at
+      routers = excluded.routers, iface_types = excluded.iface_types,
+      updated_at = excluded.updated_at
   `, c.ID, c.Owner, c.Name, c.Kind, c.Enabled, c.Config, c.Events, c.Routers,
-		nullIfEmpty(c.CreatedBy), c.CreatedAt, c.UpdatedAt)
+		c.IfaceTypes, nullIfEmpty(c.CreatedBy), c.CreatedAt, c.UpdatedAt)
 	return err
 }
 

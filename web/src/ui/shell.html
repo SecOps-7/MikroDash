@@ -794,6 +794,33 @@
        idiom (.stab-bar / .stab / .stab-panel) reused inside a dialog, with a
        `nchan-tabs` wrapper so the Settings page's two-column .stab-panel grid
        cannot reach in and columnise a form that is one column wide. -->
+  <!-- ── THE INTERFACE-TYPE PICKER ──────────────────────────────────────────
+       A SECOND DIALOG OVER THE FIRST, opened by the gear beside the Interface
+       Up/Down event. It is a sibling of #notifChanModal rather than nested
+       inside it, because a fixed-position box inside another dialog's scrolling
+       body is clipped by it — and because the channel dialog's own Escape
+       handler would otherwise close both at once.
+
+       It is registered in testdata/modal-list.json like every other dialog, so
+       Escape and a backdrop click close it, and its z-index is above the
+       channel dialog so it is not opened underneath the thing that opened it. -->
+  <div class="rtr-modal-bg nchan-iface-modal" id="nchanIfaceModal">
+   <div class="rtr-modal" style="max-width:22rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title">Interface types</span>
+      <button class="rtr-modal-close" data-modal-close="nchanIfaceModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <p class="nchan-help" style="margin:0 0 .7rem">Which kinds of interface this channel is told
+        about when one goes up or down. Everything is covered until you choose.</p>
+      <div id="nchanIfaceList" class="nchan-iface-list"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-primary" data-modal-close="nchanIfaceModal">Done</button>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg" id="notifChanModal">
    <div class="rtr-modal" style="max-width:38rem">
     <div class="rtr-modal-hdr">

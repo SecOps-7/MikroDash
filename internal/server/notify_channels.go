@@ -91,7 +91,10 @@ func eventKeyFor(f alert.Fired) string {
 // Built per event rather than per router, because which channels want an alert
 // is a question about the alert. The cost is one table read per fired alert,
 // against a table with as many rows as an operator has channels.
-func (s *Server) channelRecipients(routerID, event string) []alertdispatch.Recipient {
+// `ifaceType` narrows Interface Up/Down to the kinds of interface a channel
+// asked for. EMPTY means "this alert has no interface", which every channel
+// accepts — a CPU or BGP alert must not be silenced by an interface filter.
+func (s *Server) channelRecipients(routerID, event, ifaceType string) []alertdispatch.Recipient {
 	if s.auditDB == nil {
 		return nil
 	}
@@ -103,8 +106,11 @@ func (s *Server) channelRecipients(routerID, event string) []alertdispatch.Recip
 	out := []alertdispatch.Recipient{}
 	for _, r := range rows {
 		spec := notify.DecodeChannel(r.ID, r.Name, r.Kind, r.Enabled == 1,
-			s.openChannelConfig(r.Config), r.Events, r.Routers)
+			s.openChannelConfig(r.Config), r.Events, r.Routers, r.IfaceTypes)
 		if !spec.Wants(event, routerID) {
+			continue
+		}
+		if !spec.WantsIface(ifaceType) {
 			continue
 		}
 		// ── A USER'S CHANNEL ONLY HEARS ABOUT ROUTERS THEY MAY READ ──────

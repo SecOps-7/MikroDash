@@ -51,6 +51,16 @@ CREATE TABLE IF NOT EXISTS notify_channels (
   config     TEXT NOT NULL,
   events     TEXT NOT NULL,
   routers    TEXT NOT NULL,
+  -- WHICH INTERFACE TYPES the Interface Up/Down event covers, as a JSON array
+  -- of ether/wlan/bridge/vlan/other. EMPTY MEANS ALL, exactly as the routers
+  -- column does, so a channel nobody has narrowed covers everything -- which is
+  -- what every channel did before the question existed.
+  --
+  -- A PLAIN COLUMN, not part of the sealed config: it is not a secret, and
+  -- putting it there would mean decrypting a channel to find out whether it
+  -- wants an alert.
+  -- (No backticks in this comment: it sits inside a Go raw string.)
+  iface_types TEXT NOT NULL DEFAULT '[]',
   created_by TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

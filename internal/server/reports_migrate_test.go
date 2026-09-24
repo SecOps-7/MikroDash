@@ -121,7 +121,7 @@ func channelFor(t *testing.T, s *Server, scheduleID string) (string, string) {
 			t.Fatalf("%s names channel %q, which does not exist", scheduleID, r.ChannelID)
 		}
 		spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, true,
-			s.openChannelConfig(c.Config), c.Events, c.Routers)
+			s.openChannelConfig(c.Config), c.Events, c.Routers, c.IfaceTypes)
 		bcc, _ := spec.Settings["smtpBcc"].(string)
 		return c.Name, bcc
 	}
@@ -193,7 +193,7 @@ func TestEveryDistinctRecipientListBecomesItsOwnChannel(t *testing.T) {
 			}
 			c, _, _ := s.auditDB.NotifyChannelByID(r.ChannelID)
 			spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, true,
-				s.openChannelConfig(c.Config), c.Events, c.Routers)
+				s.openChannelConfig(c.Config), c.Events, c.Routers, c.IfaceTypes)
 			to, _ := spec.Settings["smtpTo"].(string)
 			cc, _ := spec.Settings["smtpCc"].(string)
 			if to != "md@example.net" {
@@ -319,7 +319,7 @@ func TestACarriedChannelDeliversNoAlerts(t *testing.T) {
 		}
 		names = append(names, c.Name)
 		spec := notify.DecodeChannel(c.ID, c.Name, c.Kind, true,
-			s.openChannelConfig(c.Config), c.Events, c.Routers)
+			s.openChannelConfig(c.Config), c.Events, c.Routers, c.IfaceTypes)
 		if spec.Wants("high_cpu", "r1") {
 			t.Errorf("%q would deliver alerts to people who subscribed to a report", c.Name)
 		}

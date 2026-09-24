@@ -30,6 +30,7 @@ interface ChannelView {
   urlCount: number;
   smtpHost?: string;
   smtpFrom?: string;
+  ifaceTypes?: string[];
   smtpTo?: string;
   smtpCc?: string;
   smtpBcc?: string;
@@ -193,13 +194,111 @@ async function loadEvents(): Promise<void> {
  * "not raised install-wide", which is exactly backwards; found by opening the
  * tab, not by a test.
  */
+/**
+ * The interface categories `alert.IfaceType` sorts every interface into.
+ *
+ * FIVE, AND THEY ARE THE SERVER'S. `IfaceType` in internal/alert/format.go
+ * classifies a RouterOS interface into exactly these, so a sixth here would be a
+ * filter that matches nothing and a missing one would be a kind of interface an
+ * operator cannot ask about.
+ */
+const IFACE_TYPES: Array<[string, string]> = [
+  ['ether', 'Ethernet'],
+  ['wlan', 'Wireless'],
+  ['bridge', 'Bridge'],
+  ['vlan', 'VLAN'],
+  ['other', 'Other'],
+];
+
+/**
+ * The interface types the channel being edited covers.
+ *
+ * EMPTY IS ALL, matching the server: a channel nobody has narrowed covers every
+ * kind, which is what every channel did before this filter existed. Held in the
+ * module rather than read off checkboxes, because the picker is a second dialog
+ * that is only in the DOM while it is open.
+ */
+let ifaceTypes: string[] = [];
+
+/**
+ * Draw the picker's checkboxes from the current selection.
+ *
+ * AN EMPTY SELECTION DRAWS EVERY BOX TICKED, because empty means "all types" on
+ * the server and a dialog showing five empty boxes for a channel that covers
+ * everything would be a lie an operator would then "fix".
+ */
+function renderIfacePicker(): void {
+  const wrap = el('nchanIfaceList');
+  if (!wrap) return;
+  const all = ifaceTypes.length === 0;
+  wrap.innerHTML = IFACE_TYPES.map(([key, label]) =>
+    '<label class="stoggle stoggle-bare nchan-iface-row">'
+    + '<span class="stoggle-label">' + esc(label) + '</span>'
+    + '<span class="stoggle-switch"><input type="checkbox" data-nchan-iface="' + esc(key) + '"'
+    + (all || ifaceTypes.indexOf(key) !== -1 ? ' checked' : '') + '>'
+    + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>').join('');
+}
+
+/**
+ * Read the picker back into the module.
+ *
+ * ── EVERY BOX TICKED IS STORED AS EMPTY ───────────────────────────────────
+ *
+ * "all five" and "none chosen" mean the same thing to the server, and storing
+ * the explicit five would freeze today's list: add a sixth interface category
+ * later and every channel that had meant "everything" would silently stop
+ * covering the new one. Empty keeps meaning everything.
+ *
+ * NONE ticked is also stored as empty, and that is the honest reading of an
+ * impossible state: a channel subscribed to Interface Up/Down that covers no
+ * kind of interface would never deliver, which nobody means to configure.
+ */
+function readIfacePicker(): void {
+  const boxes = [...document.querySelectorAll('[data-nchan-iface]')] as HTMLInputElement[];
+  if (boxes.length === 0) return;
+  const picked = boxes.filter((b) => b.checked)
+    .map((b) => b.getAttribute('data-nchan-iface') || '');
+  ifaceTypes = (picked.length === 0 || picked.length === IFACE_TYPES.length) ? [] : picked;
+  // The gear's label is inside markup `render()` does not rebuild while the
+  // dialog is open, so it is updated in place.
+  const sum = document.querySelector('[data-nchan-ifacesum]');
+  if (sum) sum.textContent = ifaceSummary();
+}
+
+/** The event the interface filter narrows. Nothing else has an interface. */
+const IFACE_EVENT = 'interface_down';
+
+/** What the gear's label says the filter is currently doing. */
+function ifaceSummary(): string {
+  if (ifaceTypes.length === 0 || ifaceTypes.length === IFACE_TYPES.length) return 'all types';
+  return ifaceTypes.length + ' of ' + IFACE_TYPES.length + ' types';
+}
+
 function eventRow(e: EventRow, on: boolean): string {
-  return '<label class="stoggle stoggle-bare nchan-event">'
+  // ── THE GEAR SITS ON ONE EVENT, AND ONLY ONE ──────────────────────────
+  //
+  // A CPU alert has no interface. Drawing the filter beside every event would
+  // suggest it narrows them all, and an operator who set it would reasonably
+  // expect their CPU alerts to stop too.
+  //
+  // NOT INSIDE THE <label>: the whole row is a label for the toggle, so a click
+  // anywhere in it flips the switch — including on a button nested within it.
+  // The gear is a sibling, and the two sit in a flex row.
+  const gear = e.key === IFACE_EVENT
+    ? '<button type="button" class="nchan-gear" data-nchan-ifacebtn'
+      + ' title="Choose which interface types this channel is told about">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/>'
+      + '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
+      + '</svg><span data-nchan-ifacesum>' + esc(ifaceSummary()) + '</span></button>'
+    : '';
+  return '<div class="nchan-event-row">'
+    + '<label class="stoggle stoggle-bare nchan-event">'
     + '<span class="stoggle-label"><strong>' + esc(e.label) + '</strong>'
     + '<span class="nchan-event-desc">' + esc(e.desc) + '</span></span>'
     + '<span class="stoggle-switch"><input type="checkbox" data-nchan-event="' + esc(e.key) + '"'
     + (on ? ' checked' : '') + '>'
-    + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>';
+    + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>'
+    + gear + '</div>';
 }
 
 function fillModal(c: ChannelView | null): void {
@@ -228,6 +327,7 @@ function fillModal(c: ChannelView | null): void {
   setValue('nchanSmtpUser', '');
   setValue('nchanSmtpPass', '');
   setValue('nchanSmtpFrom', (c && c.smtpFrom) || '');
+  ifaceTypes = (c && c.ifaceTypes) ? c.ifaceTypes.slice() : [];
   setValue('nchanSmtpTo', (c && c.smtpTo) || '');
   setValue('nchanSmtpCc', (c && c.smtpCc) || '');
   setValue('nchanSmtpBcc', (c && c.smtpBcc) || '');
@@ -336,6 +436,7 @@ function bodyFor(): Record<string, unknown> {
     kind,
     enabled: isChecked('nchanEnabled'),
     events: checkedValues('data-nchan-event'),
+    ifaceTypes,
     routers: checkedValues('data-nchan-router'),
   };
   // OWNERSHIP IS ASKED FOR, NOT ASSUMED. Sending "install" unconditionally is
@@ -471,6 +572,28 @@ export function initNotifyChannels(): void {
     });
 
   }
+
+  // ── THE GEAR AND ITS PICKER ───────────────────────────────────────────
+  //
+  // DELEGATED ON THE DOCUMENT, because the events list is rebuilt by
+  // `renderEvents` every time the dialog opens and the picker's own checkboxes
+  // are rebuilt every time it does — anything bound to either is thrown away
+  // with the markup and silently stops working after the first open.
+  document.addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    if (!t?.closest) return;
+    if (t.closest('[data-nchan-ifacebtn]')) {
+      renderIfacePicker();
+      el('nchanIfaceModal')?.classList.add('open');
+    }
+  });
+  // READ BACK ON EVERY TICK, not on Done. The dialog closes by Escape, by the
+  // backdrop and by its button, and only one of those three is a place to hang
+  // a read — so a choice made and dismissed with Escape would be lost.
+  document.addEventListener('change', (ev) => {
+    const t = ev.target as HTMLElement | null;
+    if (t?.hasAttribute?.('data-nchan-iface')) readIfacePicker();
+  });
 
   document.querySelectorAll('[data-nchantab]').forEach((b) => {
     b.addEventListener('click', () =>

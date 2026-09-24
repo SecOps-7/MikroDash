@@ -2898,6 +2898,28 @@
 .nchan-help { font-size: .7rem; color: var(--text-muted); margin: .4rem 0 0; line-height: 1.5; }
 .nchan-help code { font-family: var(--font-mono, monospace); font-size: .68rem; }
 
+/* An event row that carries a gear: the toggle keeps the space it had, the gear
+   sits beside it rather than inside the label, so a click on it does not flip
+   the switch the whole row is a label for. */
+.nchan-event-row { display: flex; align-items: center; gap: .5rem; }
+.nchan-event-row > .nchan-event { flex: 1; min-width: 0; }
+.nchan-gear {
+  display: inline-flex; align-items: center; gap: .3rem;
+  background: none; border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text-muted); cursor: pointer;
+  font-family: var(--font-ui); font-size: .66rem;
+  padding: .2rem .4rem; white-space: nowrap;
+}
+.nchan-gear:hover { color: var(--accent-rx); border-color: var(--accent-rx); }
+.nchan-gear svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; }
+/* ABOVE THE DIALOG THAT OPENED IT. `.rtr-modal-bg` is z-index 900, so this has
+   to beat that number and not merely be positive — 60 was written first and put
+   the picker UNDERNEATH the dialog whose gear opens it, which reads as the gear
+   doing nothing at all. */
+.nchan-iface-modal { z-index: 901; }
+.nchan-iface-list { display: flex; flex-direction: column; gap: .15rem; }
+.nchan-iface-row { padding: .3rem 0; }
+
 /* A toggle standing in a form row beside text inputs. It needs the height of an
    input so the three cells of the host/port/encryption row line up on their
    baselines rather than the toggle floating at the top of its cell. */

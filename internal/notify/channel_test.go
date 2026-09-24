@@ -4,7 +4,7 @@ import "testing"
 
 func webhookSpec(events, routers string) ChannelSpec {
 	return DecodeChannel("c1", "Ops", KindWebhook, true,
-		`{"urls":["ntfy://ntfy.example.net/ops"]}`, events, routers)
+		`{"urls":["ntfy://ntfy.example.net/ops"]}`, events, routers, `[]`)
 }
 
 // EMPTY ROUTERS MEANS EVERY ROUTER, and empty events means none. The two
@@ -44,7 +44,7 @@ func TestAScopedChannelOnlyWantsItsOwnRouters(t *testing.T) {
 
 func TestADisabledChannelWantsNothing(t *testing.T) {
 	c := DecodeChannel("c1", "Ops", KindWebhook, false,
-		`{"urls":["ntfy://ntfy.example.net/ops"]}`, `["ping_loss"]`, `[]`)
+		`{"urls":["ntfy://ntfy.example.net/ops"]}`, `["ping_loss"]`, `[]`, `[]`)
 	if c.Wants("ping_loss", "r1") {
 		t.Error("a disabled channel still wanted its events")
 	}
@@ -53,7 +53,7 @@ func TestADisabledChannelWantsNothing(t *testing.T) {
 // A CORRUPT COLUMN LOSES ONE CHANNEL, NOT ALL OF THEM. The same choice
 // usernotify_api.go makes when a credential will not decrypt.
 func TestUnparseableColumnsDegradeQuietly(t *testing.T) {
-	c := DecodeChannel("c1", "Ops", KindWebhook, true, `{not json`, `{not json`, `{not json`)
+	c := DecodeChannel("c1", "Ops", KindWebhook, true, `{not json`, `{not json`, `{not json`, `{not json`)
 	if c.ID != "c1" || c.Kind != KindWebhook {
 		t.Error("a corrupt column lost the fields that did parse")
 	}
@@ -70,7 +70,7 @@ func TestAnSMTPChannelBecomesTransportSettings(t *testing.T) {
 	c := DecodeChannel("c2", "Ops mail", KindSMTP, true,
 		`{"host":"mail.example.net","port":465,"secure":true,"user":"u","pass":"p",
 		  "from":"md@example.net","to":"ops@example.net"}`,
-		`["ping_loss"]`, `[]`)
+		`["ping_loss"]`, `[]`, `[]`)
 
 	want := map[string]any{
 		"smtpEnabled": true, "smtpHost": "mail.example.net", "smtpPort": "465",
@@ -94,7 +94,7 @@ func TestAnSMTPChannelBecomesTransportSettings(t *testing.T) {
 // it.
 func TestAnSMTPChannelWithoutAPortGetsTheDefault(t *testing.T) {
 	c := DecodeChannel("c2", "M", KindSMTP, true,
-		`{"host":"mail.example.net","to":"ops@example.net"}`, `[]`, `[]`)
+		`{"host":"mail.example.net","to":"ops@example.net"}`, `[]`, `[]`, `[]`)
 	if c.Settings["smtpPort"] != "587" {
 		t.Errorf("smtpPort = %v, want 587", c.Settings["smtpPort"])
 	}
@@ -110,20 +110,61 @@ func TestDeliverableNeedsSomewhereToSend(t *testing.T) {
 	}{
 		{"webhook with a url", webhookSpec(`[]`, `[]`), true},
 		{"webhook with no urls",
-			DecodeChannel("c", "n", KindWebhook, true, `{"urls":[]}`, `[]`, `[]`), false},
+			DecodeChannel("c", "n", KindWebhook, true, `{"urls":[]}`, `[]`, `[]`, `[]`), false},
 		{"webhook with only blanks",
-			DecodeChannel("c", "n", KindWebhook, true, `{"urls":["","  "]}`, `[]`, `[]`), false},
+			DecodeChannel("c", "n", KindWebhook, true, `{"urls":["","  "]}`, `[]`, `[]`, `[]`), false},
 		{"smtp with host and recipient",
 			DecodeChannel("c", "n", KindSMTP, true,
-				`{"host":"mail.example.net","to":"ops@example.net"}`, `[]`, `[]`), true},
+				`{"host":"mail.example.net","to":"ops@example.net"}`, `[]`, `[]`, `[]`), true},
 		{"smtp with no recipient",
 			DecodeChannel("c", "n", KindSMTP, true,
-				`{"host":"mail.example.net"}`, `[]`, `[]`), false},
-		{"unknown kind", DecodeChannel("c", "n", "carrier-pigeon", true, `{}`, `[]`, `[]`), false},
+				`{"host":"mail.example.net"}`, `[]`, `[]`, `[]`), false},
+		{"unknown kind", DecodeChannel("c", "n", "carrier-pigeon", true, `{}`, `[]`, `[]`, `[]`), false},
 	}
 	for _, c := range cases {
 		if got := c.spec.Deliverable(); got != c.want {
 			t.Errorf("%s: Deliverable() = %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+// THE PER-INTERFACE FILTER, which narrows Interface Up/Down to particular kinds
+// of interface.
+//
+// ── THE TWO WAYS TO GET IT WRONG ARE BOTH SILENT ──────────────────────────
+//
+// Reading an empty list as "no types" silences every interface alert on every
+// channel nobody has narrowed, which is all of them after an upgrade. Reading an
+// empty `ifaceType` as something to match silences CPU, ping and BGP alerts,
+// which have no interface at all — a filter about interfaces quietly switching
+// off events that are not about interfaces.
+func TestWhichInterfaceTypesAChannelIsToldAbout(t *testing.T) {
+	spec := func(list string) ChannelSpec {
+		return DecodeChannel("c", "n", KindWebhook, true,
+			`{"urls":["tgram://t/1"]}`, `["interface_down"]`, `[]`, list)
+	}
+	for _, tc := range []struct {
+		name string
+		list string
+		kind string
+		want bool
+	}{
+		{"an empty list covers every type", `[]`, "ether", true},
+		{"and every other type too", `[]`, "vlan", true},
+		{"a narrowed channel takes what it asked for", `["ether","wlan"]`, "ether", true},
+		{"and refuses what it did not", `["ether","wlan"]`, "bridge", false},
+		// THE ONE THAT WOULD SILENCE UNRELATED ALERTS. A CPU alert carries no
+		// interface type, and a channel narrowed to Ethernet must still get it.
+		{"an alert with no interface is never narrowed", `["ether"]`, "", true},
+		{"even by a channel narrowed to one type", `["vlan"]`, "", true},
+		// A list that is not JSON decodes to nothing, which means "all" — the
+		// safe direction. A corrupt row must not silence a channel.
+		{"an unreadable list covers everything", `{not json`, "bridge", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := spec(tc.list).WantsIface(tc.kind); got != tc.want {
+				t.Errorf("WantsIface(%q) with %s = %v, want %v", tc.kind, tc.list, got, tc.want)
+			}
+		})
 	}
 }

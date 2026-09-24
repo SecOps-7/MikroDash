@@ -90,7 +90,7 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 			// channels want it is a question about the alert: its event key and
 			// the router it came from. They are ordinary recipients from here
 			// on, so they get the same cooldown treatment and the same logging.
-			chans := s.channelRecipients(routerID, eventKeyFor(f))
+			chans := s.channelRecipients(routerID, eventKeyFor(f), f.IfaceType)
 			for i := range chans {
 				s.dispatch.Deliver(ctx, &chans[i], key, msg)
 			}
@@ -130,7 +130,9 @@ func (s *Server) dispatchBackup(routerID, kind, title, body string) {
 	// a channel can take failures and leave drift. Until channels, the settings
 	// keys for these two existed, reached the browser, and had no Go reader at
 	// all — this is the first thing that honours them.
-	chans := s.channelRecipients(routerID, "backup_"+kind)
+	// A BACKUP HAS NO INTERFACE, so it passes the empty type and every
+	// channel's interface filter accepts it.
+	chans := s.channelRecipients(routerID, "backup_"+kind, "")
 	if len(recipients) == 0 && len(chans) == 0 {
 		return
 	}

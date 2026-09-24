@@ -43,7 +43,7 @@ func TestAUserChannelIsScopedByRouterPermission(t *testing.T) {
 	// u-1 holds a grant on r1 in this harness; this user holds none.
 	seed("mine", "u-no-grants")
 
-	got := s.channelRecipients("r1", "ping_loss")
+	got := s.channelRecipients("r1", "ping_loss", "")
 
 	var sawInstall, sawUser bool
 	for _, r := range got {

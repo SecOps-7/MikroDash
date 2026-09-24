@@ -20,6 +20,7 @@ export const CLOSABLE_MODALS: readonly string[] = [
   "dbcModal",
   "faModal",
   "groupFormWrap",
+  "nchanIfaceModal",
   "notifChanModal",
   "qFormWrap",
   "roleFormWrap",

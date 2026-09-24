@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 25
+const schemaVersion = 26
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -163,6 +163,18 @@ var portMigrations = map[int][]string{
 	// else in this feature, and a nullable column would make it mean two things.
 	25: {
 		`ALTER TABLE report_schedules ADD COLUMN channel_id TEXT NOT NULL DEFAULT ''`,
+	},
+	// 26: the per-interface-type filter, back as a property of the CHANNEL.
+	//
+	// It was an install-wide card and it went when alert types moved onto the
+	// channel. Same reasoning as the alert types themselves: which interfaces
+	// matter is a question about a destination, not about the whole install, and
+	// two channels can reasonably disagree.
+	//
+	// DEFAULT '[]' is "every type", matching `routers`, so every existing
+	// channel keeps covering everything it covered before.
+	26: {
+		`ALTER TABLE notify_channels ADD COLUMN iface_types TEXT NOT NULL DEFAULT '[]'`,
 	},
 }
 

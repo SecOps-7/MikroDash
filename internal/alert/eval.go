@@ -72,6 +72,18 @@ type Fired struct {
 	ResolveType string
 	Subject     string
 	Detail      string
+	// IfaceType is ether/wlan/bridge/vlan/other for an alert about an interface,
+	// and EMPTY for everything else.
+	//
+	// ── CLASSIFIED HERE, WHERE ROUTEROS'S OWN TYPE IS KNOWN ───────────────
+	//
+	// A notification channel can narrow Interface Up/Down to particular kinds of
+	// interface, and that filter runs at DELIVERY, long after this row is built.
+	// By then only the interface's NAME survives, and `IfaceType` falls back to
+	// guessing from the name when it has no type — so a bridge called
+	// "office-link" would be filtered as "other". The rule below has the real
+	// `.type` from the router, so it decides once, here, and carries the answer.
+	IfaceType string
 	// Supersede resolves an alert of the SAME type and subject before filing
 	// this one, instead of the dedup guard returning early because it is
 	// already open. Only the RouterOS-update rule sets it — see below.
@@ -425,11 +437,13 @@ func (e *Evaluator) IfstatusUpdate(r Router, ifaces []Interface) []Fired {
 		// `prev !== undefined` and because both of those props could move --
 		// change the zero value or the resolve behaviour and it starts mattering.
 		if seen && prev.Running != i.Running && !adminToggled {
+			kind := IfaceType(i.Name, i.Type)
 			if !i.Running {
 				out = append(out, e.emit(r, Fired{
 					AlertType: "Interface Down",
 					Subject:   i.Name,
 					Detail:    i.Name + " went down",
+					IfaceType: kind,
 				})...)
 			} else {
 				out = append(out, e.emit(r, Fired{
@@ -438,6 +452,7 @@ func (e *Evaluator) IfstatusUpdate(r Router, ifaces []Interface) []Fired {
 					ResolveType: "interface_down",
 					Subject:     i.Name,
 					Detail:      i.Name + " came up",
+					IfaceType:   kind,
 				})...)
 			}
 		}

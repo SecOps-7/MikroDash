@@ -128,7 +128,7 @@ func TestAnEmailAlertDialsTheMailServer(t *testing.T) {
 	// The recipient `channelRecipients` would build for an SMTP channel.
 	spec := notify.DecodeChannel("c1", "Email", notify.KindSMTP, true,
 		fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"from":"md@example.com",`+
-			`"to":"ops@example.com"}`, port), `["high_cpu"]`, `[]`)
+			`"to":"ops@example.com"}`, port), `["high_cpu"]`, `[]`, `[]`)
 	rec := alertdispatch.Recipient{ID: "chan:c1", Settings: spec.Settings}
 	s.dispatch.Deliver(context.Background(), &rec, "cpu",
 		alertdispatch.Message{Title: "T", Body: "B"})
