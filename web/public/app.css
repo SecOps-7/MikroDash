@@ -569,6 +569,10 @@
     /* Left of the buttons, and it keeps its reserved height so the bar does not
        change size when a message appears. */
     #settingsActions .sbanner{margin:0 auto 0 0}
+    /* The sidebar toggle at the foot of the Theme card, separated from the
+       swatches it follows so it does not read as a fifteenth swatch. */
+    .theme-navgroup{margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)}
+    .theme-navgroup-note{font-size:.74rem;color:var(--text-muted);margin:.4rem 0 0;line-height:1.5}
     .theme-swatch-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
     .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;border-radius:8px;padding:.4rem;border:2px solid transparent;transition:border-color .15s}
     .theme-swatch:hover{border-color:rgba(99,130,190,.3)}
