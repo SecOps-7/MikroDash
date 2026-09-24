@@ -324,19 +324,14 @@
                  gate went when alert types moved onto the channel, so what is
                  left to say is what the channel decides. -->
             <p class="nchan-note">MikroDash records every alert. Each channel chooses which of them
-              it delivers, and which routers it covers. Scheduled reports go out through the SMTP
-              channel ticked below; their recipients come from each schedule, not from the channel.</p>
+              it delivers, and which routers it covers.</p>
             <div id="nchanGrid" class="apps-grid"></div>
-            <!-- ── REPORTS SUBSCRIBE FROM THE CARD, NOT FROM A PICKER ───────
-                 This was a select underneath the grid naming which channel the
-                 reports go through. A second control listing the same channels
-                 the grid is already showing is two places for one idea, and it
-                 sat below the fold once there were a few cards.
-
-                 The choice is a tick on the SMTP card itself now, rendered in
-                 `card()`. Only one can be ticked because the state is one
-                 setting, `reportChannelId`, not a flag per channel — the
-                 exclusivity is structural rather than enforced by a handler. -->
+            <!-- ── NOTHING HERE DECIDES WHERE REPORTS GO ────────────────────
+                 There was a select under the grid, then a tick on one SMTP card,
+                 and both were the same mistake in different clothes: an
+                 install-wide answer to a question each schedule asks. A schedule
+                 picks its own channel now, on the Reports page, and its
+                 recipients are that channel's To. -->
           </div>
         </div>
 

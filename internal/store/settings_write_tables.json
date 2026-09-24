@@ -171,8 +171,7 @@
     "notifTitle",
     "aiBaseUrl",
     "aiModel",
-    "ztpEndpoint",
-    "reportChannelId"
+    "ztpEndpoint"
   ],
   "boolFields": [
     "pageAudit",

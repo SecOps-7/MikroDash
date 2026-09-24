@@ -105,8 +105,7 @@
     "ztpLanUrl": "",
     "ztpPrivateKey": "",
     "ztpInstanceId": "",
-    "hiddenAreas": [],
-    "reportChannelId": ""
+    "hiddenAreas": []
   },
   "defaultsOrder": [
     "routerHost",
@@ -213,8 +212,7 @@
     "ztpLanUrl",
     "ztpPrivateKey",
     "ztpInstanceId",
-    "hiddenAreas",
-    "reportChannelId"
+    "hiddenAreas"
   ],
   "encrypted": [
     "routerPass",

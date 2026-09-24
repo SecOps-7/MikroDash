@@ -64,7 +64,6 @@ export const STR_FIELDS: readonly string[] = [
   "aiModel",
   "notifTitle",
   "pingTarget",
-  "reportChannelId",
   "ztpEndpoint",
 ];
 

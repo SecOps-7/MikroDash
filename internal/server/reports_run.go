@@ -120,20 +120,21 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 		return s.disableAndSkip(&res, row, v.Reason)
 	}
 
-	cfg, from, recipientsOK := s.smtpConfig()
-	if !recipientsOK {
-		// NOT disabled: an unconfigured mail server is a condition of the install,
-		// not of this schedule, and switching every schedule off when SMTP is
-		// unset would leave the operator with nothing to re-enable once they
-		// configure it. Recorded once per period rather than retried every five
-		// minutes.
-		res.Outcome, res.Err = "skipped", "SMTP is not configured"
-		return res
-	}
-
-	recipients := splitList(row.Recipients)
-	if len(recipients) == 0 {
-		res.Outcome, res.Err = "skipped", "the schedule has no recipients"
+	// ── THE SCHEDULE'S OWN CHANNEL CARRIES BOTH HALVES ───────────────────
+	//
+	// The mail server AND the recipients come from the one channel this schedule
+	// names. They used to come from two places — an install-wide channel for the
+	// server, the schedule's own list for the addresses — which is how a report
+	// could go out through a server that knew nothing about the people it was
+	// being sent to.
+	cfg, from, recipients, mailOK := s.scheduleMail(row.ChannelID)
+	if !mailOK {
+		// NOT disabled, and that is deliberate: a channel that is missing,
+		// switched off or half-configured is a condition of the CHANNEL, and
+		// disabling the schedule would leave the operator re-enabling schedules
+		// after fixing a channel with nothing telling them that is required.
+		// Recorded once per period rather than retried every five minutes.
+		res.Outcome, res.Err = "skipped", "the schedule's channel cannot send mail"
 		return res
 	}
 
@@ -260,59 +261,60 @@ func splitList(s string) []string {
 
 // smtpConfig reads the install's mail settings. The bool is the live
 // `!settings.smtpHost || !settings.smtpFrom` test.
-// smtpConfig is the mail server scheduled reports send through.
+// scheduleMail is the mail server AND the recipients for one schedule, read
+// from the single channel that schedule names.
 //
-// ── REPORTS SUBSCRIBE TO AN EMAIL CHANNEL ─────────────────────────────────
+// ── ONE CHANNEL CARRIES BOTH HALVES ───────────────────────────────────────
 //
-// There was an install-wide SMTP block in the settings, separate from the
-// notification channels, so a mail server could be configured in two places
-// that knew nothing about each other. There is one place now: an SMTP channel.
-// Reports take its SERVER — host, port, TLS, credentials, from — and keep their
-// own recipient list, because a schedule says who a report goes to and a channel
-// says who an alert goes to, and those are different questions.
+// There was an install-wide SMTP block in the settings, then an install-wide
+// CHANNEL, and either way a schedule kept its own list of addresses. So a
+// report's server and its recipients were configured in two places that knew
+// nothing about each other, and "who receives this" had two answers depending
+// on whether you asked about an alert or a report.
 //
-// WHICH CHANNEL: the one named by `reportChannelId` when the operator has
-// picked one, and otherwise the first enabled install-owned SMTP channel. The
-// fallback is what makes an upgrade need no migration at all — the seeded
-// "Email" channel is found on its own — and it is also the right answer for the
-// common install that has exactly one.
-func (s *Server) smtpConfig() (mailer.Config, string, bool) {
-	if s.auditDB == nil {
-		return mailer.Config{}, "", false
+// A channel answers both now: its config is the server, its To is who receives.
+// A schedule chooses a channel and nothing else about delivery.
+//
+// ── EVERY REFUSAL IS THE SAME REFUSAL ─────────────────────────────────────
+//
+// No channel named, a channel that is gone, a webhook rather than a mail
+// server, one switched off, one with no host or no From, one with no
+// recipients: all return false, and the caller records that the channel cannot
+// send mail. From the operator's side they are one condition — this schedule
+// has nowhere to send — and six messages would be six ways to describe a
+// channel they are about to open and look at anyway.
+func (s *Server) scheduleMail(channelID string) (mailer.Config, string, []string, bool) {
+	none := func() (mailer.Config, string, []string, bool) {
+		return mailer.Config{}, "", nil, false
 	}
-	rows, err := s.auditDB.NotifyChannels()
-	if err != nil {
-		return mailer.Config{}, "", false
+	if s.auditDB == nil || channelID == "" {
+		return none()
+	}
+	row, found, err := s.auditDB.NotifyChannelByID(channelID)
+	if err != nil || !found || row.Enabled != 1 || row.Kind != notify.KindSMTP {
+		return none()
 	}
 
-	// `mergedSettings`, not `store.Settings`: this file consumes credentials, and
-	// `TestCredentialConsumersUseTheMergedSettings` refuses a raw read here on
-	// exactly that ground. `reportChannelId` is not itself a secret, but the rule
-	// is about the FILE, and a raw read in a credential consumer is the shape of
-	// the bug it exists to catch.
-	want := ""
-	if cfg, cerr := s.mergedSettings(); cerr == nil {
-		want, _ = cfg["reportChannelId"].(string)
-	}
-
-	chosen := chooseReportChannel(rows, want)
-	if chosen == nil {
-		return mailer.Config{}, "", false
-	}
-
-	spec := notify.DecodeChannel(chosen.ID, chosen.Name, chosen.Kind, true,
-		s.openChannelConfig(chosen.Config), chosen.Events, chosen.Routers)
+	spec := notify.DecodeChannel(row.ID, row.Name, row.Kind, true,
+		s.openChannelConfig(row.Config), row.Events, row.Routers)
 	str := func(k string) string { v, _ := spec.Settings[k].(string); return v }
 	host, from := str("smtpHost"), str("smtpFrom")
 	if host == "" || from == "" {
-		return mailer.Config{}, "", false
+		return none()
+	}
+	// THE CHANNEL'S To IS THE RECIPIENT LIST: one string holding one or more
+	// addresses, which is what a To field is, split by the same `splitList` the
+	// schedule's own list went through before this moved.
+	recipients := splitList(str("smtpTo"))
+	if len(recipients) == 0 {
+		return none()
 	}
 	port, _ := strconv.Atoi(str("smtpPort"))
 	secure, _ := spec.Settings["smtpSecure"].(bool)
 	return mailer.Config{
 		Host: host, Port: port, Secure: secure,
 		User: str("smtpUser"), Pass: str("smtpPass"), From: from,
-	}, from, true
+	}, from, recipients, true
 }
 
 func (s *Server) displayTZ() string {
@@ -403,43 +405,26 @@ func (s *Server) creatorMayRead(creatorID, routerID string) bool {
 	return ok
 }
 
-// chooseReportChannel picks the mail channel a scheduled report leaves through:
-// the one named, else the first enabled install-owned SMTP channel.
+// installMailServer is the install's mail server: the first enabled
+// install-owned SMTP channel.
 //
-// ── PURE, BECAUSE THE RULE IS THE PART THAT BREAKS ─────────────────────────
+// ── IT NO LONGER PICKS A CHANNEL FOR REPORTS ──────────────────────────────
 //
-// `smtpConfig` around it needs a database and a settings store. The decision it
-// makes needs neither, and it is the decision that has to agree with what the
-// Settings page draws — the page ticks a card by running this same rule in
-// TypeScript. Rows in, channel out, so both ends can be tested against the same
-// cases.
+// This was `chooseReportChannel`, and it took a `want` id because the install
+// named ONE channel that every scheduled report went through. A schedule names
+// its own channel now, so there is nothing install-wide left to choose and the
+// parameter went with the setting. `scheduleMail` reads the schedule's channel
+// directly; nothing needs a search.
 //
-// ── TWO PASSES, AND THE SECOND IS NOT A NICETY ────────────────────────────
+// What remains is the one question that is genuinely install-wide: which mail
+// server a USER's own alert destination borrows, when they have configured an
+// email address but no server of their own. That has exactly one sensible
+// answer and it is the first one the install has.
 //
-// A single pass that returned nothing when `want` matched nothing meant DELETING
-// the chosen channel stopped every scheduled report, with the page still showing
-// a mail server configured and nothing anywhere saying why.
-//
-// BOTH PASSES REQUIRE AN INSTALL-OWNED SMTP CHANNEL. A user's personal email
-// channel must not become the server every scheduled report in the install goes
-// out through, and that holds however the id got stored — the page never offers
-// one, so a stored id naming one arrived some other way and is not to be
-// honoured just because it is specific.
-//
-// ENABLED IS CHECKED ONLY ON THE FALLBACK, and the asymmetry is deliberate. An
-// operator who ticked a channel and later disabled it made two decisions, and
-// silently re-routing their reports to a different mail server would be worse
-// than not sending them: the mail arrives, from the wrong address, looking
-// right. The fallback has no such decision behind it, so it skips what is off.
-func chooseReportChannel(rows []db.NotifyChannel, want string) *db.NotifyChannel {
-	if want != "" {
-		for i := range rows {
-			c := &rows[i]
-			if c.Kind == notify.KindSMTP && c.Owner == db.InstallOwner && c.ID == want {
-				return c
-			}
-		}
-	}
+// DELIBERATELY NARROW: enabled, and owned by the install. A user's personal
+// email channel must not become the server another user's alerts go out
+// through.
+func installMailChannel(rows []db.NotifyChannel) *db.NotifyChannel {
 	for i := range rows {
 		c := &rows[i]
 		if c.Kind == notify.KindSMTP && c.Enabled == 1 && c.Owner == db.InstallOwner {
@@ -447,4 +432,33 @@ func chooseReportChannel(rows []db.NotifyChannel, want string) *db.NotifyChannel
 		}
 	}
 	return nil
+}
+
+// installMailServer is that channel's server config, for the per-user email
+// destinations that borrow it.
+func (s *Server) installMailServer() (mailer.Config, string, bool) {
+	if s.auditDB == nil {
+		return mailer.Config{}, "", false
+	}
+	rows, err := s.auditDB.NotifyChannels()
+	if err != nil {
+		return mailer.Config{}, "", false
+	}
+	chosen := installMailChannel(rows)
+	if chosen == nil {
+		return mailer.Config{}, "", false
+	}
+	spec := notify.DecodeChannel(chosen.ID, chosen.Name, chosen.Kind, true,
+		s.openChannelConfig(chosen.Config), chosen.Events, chosen.Routers)
+	str := func(k string) string { v, _ := spec.Settings[k].(string); return v }
+	host, from := str("smtpHost"), str("smtpFrom")
+	if host == "" || from == "" {
+		return mailer.Config{}, "", false
+	}
+	port, _ := strconv.Atoi(str("smtpPort"))
+	secure, _ := spec.Settings["smtpSecure"].(bool)
+	return mailer.Config{
+		Host: host, Port: port, Secure: secure,
+		User: str("smtpUser"), Pass: str("smtpPass"), From: from,
+	}, from, true
 }

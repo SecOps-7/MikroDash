@@ -72,7 +72,7 @@ CREATE TABLE report_schedules (
   sections        TEXT    NOT NULL,
   interface       TEXT,
   aggregate       TEXT    NOT NULL DEFAULT '',
-  recipients      TEXT    NOT NULL,
+  channel_id      TEXT    NOT NULL DEFAULT '',
   frequency       TEXT    NOT NULL CHECK (frequency IN ('daily','weekly','monthly')),
   send_hour       INTEGER NOT NULL DEFAULT 7,
   enabled         INTEGER NOT NULL DEFAULT 1,
@@ -225,10 +225,10 @@ func seededDB(t *testing.T, c historyCases) *DB {
 	}
 	for _, r := range c.Seed.Schedules {
 		if _, err := h.Exec(`INSERT INTO report_schedules
-			(id, router_id, name, sections, interface, aggregate, recipients, frequency,
+			(id, router_id, name, sections, interface, aggregate, channel_id, frequency,
 			 send_hour, enabled, disabled_reason, created_by, created_at, updated_at)
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			r.ID, r.RouterID, r.Name, r.Sections, r.Interface, r.Aggregate, r.Recipients,
+			r.ID, r.RouterID, r.Name, r.Sections, r.Interface, r.Aggregate, r.ChannelID,
 			r.Frequency, r.SendHour, r.Enabled, r.DisabledReason, r.CreatedBy,
 			r.CreatedAt, r.UpdatedAt); err != nil {
 			t.Fatal(err)

@@ -69,7 +69,7 @@ const EVENTS = {
 };
 
 /** Mount the module with a DOM shim, and hand back what it did. */
-function mount(channels, canManageInstall, reportChannelId) {
+function mount(channels, canManageInstall) {
   const els = {};
   const get = (id) => {
     if (!els[id]) els[id] = makeEl(id);
@@ -101,10 +101,7 @@ function mount(channels, canManageInstall, reportChannelId) {
     if (u.startsWith('/api/notify-channels')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({
-          ok: true, channels, canManageInstall: !!canManageInstall,
-          reportChannelId: reportChannelId || '',
-        }),
+        json: () => Promise.resolve({ ok: true, channels, canManageInstall: !!canManageInstall }),
       });
     }
     if (u.startsWith('/api/routers')) {
@@ -288,158 +285,17 @@ check('no event is labelled as not raised install-wide', async () => {
     'an event row is greyed as gated, and there is nothing left to gate it: ' + html);
 });
 
-// ── THE SCHEDULED REPORTS TICK ─────────────────────────────────────────────
+// ── THE SCHEDULED REPORTS TICK IS GONE, AND SO ARE ITS ELEVEN CHECKS ──────
 //
-// It replaced a `<select>` under the grid naming which channel the reports go
-// through. The rule that matters is EXACTLY ONE: the state is a single
-// `reportChannelId` setting rather than a flag per channel, so two cards can
-// never both be ticked — but only if the page derives the tick rather than
-// storing one. These pin the derivation, because the failure is silent: two
-// ticks read as "reports go to both", and none reads as "reports go nowhere",
-// while the server carries on sending through exactly one.
-
-const SMTP_A = {
-  id: 'm1', owner: '_install', name: 'Mail A', kind: 'smtp', enabled: true,
-  events: [], routers: [], urlCount: 0, hasSecret: true, mine: false,
-  smtpHost: 'a.example.net', smtpTo: 'ops@example.net',
-};
-const SMTP_B = { ...SMTP_A, id: 'm2', name: 'Mail B', smtpHost: 'b.example.net' };
-
-/** Which ids are drawn ticked, read off the rendered grid. */
-function ticked(html) {
-  const out = [];
-  const re = /data-nchan-report="([^"]+)"([^>]*)>/g;
-  let m;
-  while ((m = re.exec(html))) if (/\bchecked\b/.test(m[2])) out.push(m[1]);
-  return out;
-}
-
-/** Every id that has a tick at all, ticked or not. */
-function offered(html) {
-  return [...html.matchAll(/data-nchan-report="([^"]+)"/g)].map((m) => m[1]);
-}
-
-check('exactly one SMTP channel is ticked, and it is the first when none is stored', async () => {
-  const d = mount([SMTP_A, SMTP_B], true);
-  await settle();
-  const html = d.els.nchanGrid.innerHTML;
-  assert.deepEqual(ticked(html), ['m1'],
-    'an empty reportChannelId must tick the FIRST enabled install SMTP channel, '
-    + 'because that is what the server falls back to: ' + html);
-});
-
-check('a stored choice is ticked instead of the first', async () => {
-  const d = mount([SMTP_A, SMTP_B], true, 'm2');
-  await settle();
-  assert.deepEqual(ticked(d.els.nchanGrid.innerHTML), ['m2']);
-});
-
-// THE SILENT ONE. Delete the chosen channel and the stored id names nothing.
-// The server's second pass falls through to the first enabled install SMTP
-// channel and keeps sending; a page that showed no tick would disagree with it.
-check('a stored id naming a deleted channel falls through to the first', async () => {
-  const d = mount([SMTP_A, SMTP_B], true, 'gone');
-  await settle();
-  assert.deepEqual(ticked(d.els.nchanGrid.innerHTML), ['m1'],
-    'a stale reportChannelId left no tick at all, while reports carry on going '
-    + 'out through Mail A');
-});
-
-// THE TWO SIDES DISAGREED HERE. This page filters to install-owned SMTP BEFORE
-// looking for the stored id; `chooseReportChannel` in reports_run.go matched the
-// id against any SMTP channel and took the user's. The page never offers a
-// user-owned channel, so a stored id naming one arrived some other way and is
-// not honoured for being specific. The server was narrowed to match.
-check('a stored id naming a USER\'s mail channel is not honoured', async () => {
-  const d = mount([{ ...SMTP_A, id: 'mine', owner: 'user:7', mine: true }, SMTP_A], true, 'mine');
-  await settle();
-  assert.deepEqual(ticked(d.els.nchanGrid.innerHTML), ['m1']);
-});
-
-check('a disabled install channel is skipped by the fallback', async () => {
-  const d = mount([{ ...SMTP_A, id: 'off', enabled: false }, SMTP_A], true);
-  await settle();
-  assert.deepEqual(ticked(d.els.nchanGrid.innerHTML), ['m1'],
-    'a channel that is switched off was drawn as the reports sender');
-});
-
-// ENABLED IS CHECKED ONLY ON THE FALLBACK. An operator who ticked a channel and
-// later disabled it made two decisions; silently re-routing their reports to
-// another mail server would be worse than not sending them, because the mail
-// arrives from the wrong address looking right.
-check('a disabled but explicitly chosen channel keeps the tick', async () => {
-  const d = mount([SMTP_A, { ...SMTP_B, enabled: false }], true, 'm2');
-  await settle();
-  assert.deepEqual(ticked(d.els.nchanGrid.innerHTML), ['m2']);
-});
-
-check('only install-owned SMTP channels are offered', async () => {
-  const d = mount([
-    CHANNEL,                                   // a webhook: cannot carry a PDF
-    { ...SMTP_A, id: 'mine', owner: 'user:7', mine: true },  // a user's own
-    SMTP_A,
-  ], true);
-  await settle();
-  assert.deepEqual(offered(d.els.nchanGrid.innerHTML), ['m1'],
-    'a webhook or a user-owned mail channel was offered as the install\'s '
-    + 'reports sender: ' + d.els.nchanGrid.innerHTML);
-});
-
-// IT DOES NOT UNTICK. An untick would store "", which the server reads as "the
-// first enabled install SMTP channel" — this one again. A control whose off
-// state is its on state is worse than one that does not turn off.
-check('the ticked box is disabled, and the others are not', async () => {
-  const d = mount([SMTP_A, SMTP_B], true);
-  await settle();
-  const html = d.els.nchanGrid.innerHTML;
-  const on = /data-nchan-report="m1"([^>]*)>/.exec(html)[1];
-  const off = /data-nchan-report="m2"([^>]*)>/.exec(html)[1];
-  assert.ok(/disabled/.test(on), 'the ticked box can be unticked: ' + on);
-  assert.ok(!/disabled/.test(off), 'the untickd box is disabled too: ' + off);
-});
-
-check('a non-admin cannot move the reports channel', async () => {
-  const d = mount([SMTP_A, SMTP_B], false);
-  await settle();
-  const html = d.els.nchanGrid.innerHTML;
-  assert.ok(/data-nchan-report="m2"[^>]*disabled/.test(html),
-    'a plain user was offered a live box for an install-wide setting: ' + html);
-});
-
-/** Fire the delegated change handler as a click on one box would. */
-function tick(d, id) {
-  d.els.nchanGrid.fire('change', {
-    target: { closest: (sel) => (sel === '[data-nchan-report]'
-      ? { getAttribute: () => id } : null) },
-  });
-}
-
-check('ticking another channel posts exactly the one settings key', async () => {
-  const d = mount([SMTP_A, SMTP_B], true);
-  await settle();
-  tick(d, 'm2');
-  await settle();
-  const posts = d.sent.filter((x) => x.url === '/api/settings');
-  assert.equal(posts.length, 1, 'posted ' + posts.length + ' times: '
-    + JSON.stringify(d.sent));
-  assert.deepEqual(posts[0].body, { reportChannelId: 'm2' },
-    'the body carried more than the one key, so an unrelated setting would be '
-    + 'rewritten from a stale page: ' + JSON.stringify(posts[0].body));
-  assert.deepEqual(ticked(d.els.nchanGrid.innerHTML), ['m2'],
-    'the tick did not move after the server accepted it');
-});
-
-// TICKING THE TICKED ONE SENDS NOTHING. It is disabled, so this cannot happen
-// through the UI — but the guard is in the handler, and a guard nothing tests is
-// a guard that gets deleted as redundant.
-check('ticking the already-chosen channel posts nothing', async () => {
-  const d = mount([SMTP_A, SMTP_B], true);
-  await settle();
-  tick(d, 'm1');
-  await settle();
-  assert.equal(d.sent.filter((x) => x.url === '/api/settings').length, 0,
-    'a no-op write reached the server: ' + JSON.stringify(d.sent));
-});
+// A tick on one SMTP card named the channel every scheduled report left
+// through. It was an install-wide answer to a question each schedule asks, and
+// a schedule picks its own channel now — on the Reports page, where
+// `web/test/reports-schedule-channel.test.ts` checks the picker that replaced
+// it. The rule those checks defended, that exactly one destination is chosen
+// and it is never ambiguous, moved there with the control.
+//
+// Recorded rather than quietly deleted: eleven checks disappearing from a file
+// reads exactly like eleven that were never written.
 
 (async () => {
   for (const c of checks) {

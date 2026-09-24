@@ -24,7 +24,7 @@ type writeCases struct {
 			Sections       []string `json:"sections"`
 			Iface          *string  `json:"iface"`
 			Aggregate      string   `json:"aggregate"`
-			Recipients     []string `json:"recipients"`
+			ChannelID      string   `json:"channelId"`
 			Frequency      string   `json:"frequency"`
 			SendHour       int      `json:"sendHour"`
 			Enabled        bool     `json:"enabled"`
@@ -65,7 +65,6 @@ func TestScheduleWritesMatchLive(t *testing.T) {
 	for _, w := range c.Writes {
 		in := w.In
 		sections, _ := json.Marshal(in.Sections)
-		recipients, _ := json.Marshal(in.Recipients)
 		enabled := 0
 		if in.Enabled {
 			enabled = 1
@@ -73,7 +72,7 @@ func TestScheduleWritesMatchLive(t *testing.T) {
 		row := ReportSchedule{
 			ID: in.ID, RouterID: in.RouterID, Name: in.Name,
 			Sections: string(sections), Interface: in.Iface, Aggregate: in.Aggregate,
-			Recipients: string(recipients), Frequency: in.Frequency,
+			ChannelID: in.ChannelID, Frequency: in.Frequency,
 			SendHour: in.SendHour, Enabled: enabled,
 			DisabledReason: in.DisabledReason, CreatedBy: in.CreatedBy,
 			CreatedAt: in.CreatedAt, UpdatedAt: in.UpdatedAt,
@@ -160,7 +159,6 @@ func TestScheduleToggleMatchesLive(t *testing.T) {
 	for _, w := range wc.Writes {
 		in := w.In
 		sections, _ := json.Marshal(in.Sections)
-		recipients, _ := json.Marshal(in.Recipients)
 		enabled := 0
 		if in.Enabled {
 			enabled = 1
@@ -168,7 +166,7 @@ func TestScheduleToggleMatchesLive(t *testing.T) {
 		if err := d.UpsertReportSchedule(ReportSchedule{
 			ID: in.ID, RouterID: in.RouterID, Name: in.Name,
 			Sections: string(sections), Interface: in.Iface, Aggregate: in.Aggregate,
-			Recipients: string(recipients), Frequency: in.Frequency,
+			ChannelID: in.ChannelID, Frequency: in.Frequency,
 			SendHour: in.SendHour, Enabled: enabled,
 			DisabledReason: in.DisabledReason, CreatedBy: in.CreatedBy,
 			CreatedAt: in.CreatedAt, UpdatedAt: in.UpdatedAt,

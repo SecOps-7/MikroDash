@@ -33,7 +33,7 @@ CREATE TABLE connectivity_events (id INTEGER PRIMARY KEY, router_id TEXT NOT NUL
   connected INTEGER NOT NULL, ts INTEGER NOT NULL);
 CREATE TABLE report_schedules (id TEXT PRIMARY KEY, router_id TEXT NOT NULL,
   name TEXT NOT NULL, sections TEXT NOT NULL, interface TEXT, aggregate TEXT NOT NULL,
-  recipients TEXT NOT NULL, frequency TEXT NOT NULL, send_hour INTEGER NOT NULL,
+  channel_id TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL, send_hour INTEGER NOT NULL,
   enabled INTEGER NOT NULL, disabled_reason TEXT, created_by TEXT,
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 -- id IS A TEXT UUID, matching the live schema: grants.id is TEXT PRIMARY KEY
@@ -237,8 +237,8 @@ func purgeDB(t *testing.T) *DB {
 			t.Fatal(err)
 		}
 		if _, err := h.Exec(`INSERT INTO report_schedules (id, router_id, name, sections,
-		    aggregate, recipients, frequency, send_hour, enabled, created_at, updated_at)
-		  VALUES (?, ?, 'n', '[]', 'sum', '[]', 'daily', 8, 1, 1, 1)`,
+		    aggregate, channel_id, frequency, send_hour, enabled, created_at, updated_at)
+		  VALUES (?, ?, 'n', '[]', 'sum', 'chan-1', 'daily', 8, 1, 1, 1)`,
 			"sched-"+rid, rid); err != nil {
 			t.Fatal(err)
 		}

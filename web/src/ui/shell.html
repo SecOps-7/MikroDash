@@ -865,9 +865,14 @@
                 <label class="sform-label" for="nchanSmtpFrom">From address</label>
                 <input class="sform-input" id="nchanSmtpFrom" placeholder="alerts@example.com">
               </div>
+              <!-- SEVERAL ADDRESSES, because this is the only place recipients are
+                   configured now: a scheduled report names this channel and
+                   these are the people who receive it. -->
               <div class="sform-group">
                 <label class="sform-label" for="nchanSmtpTo">Recipients <span style="color:var(--accent-err)">*</span></label>
-                <input class="sform-input" id="nchanSmtpTo" placeholder="ops@example.com">
+                <input class="sform-input" id="nchanSmtpTo" placeholder="ops@example.com, noc@example.com">
+                <div class="form-hint">Comma separated. Everything sent through this channel, alerts
+                  and scheduled reports alike, goes to these addresses.</div>
               </div>
             </div>
           </div>
@@ -928,10 +933,19 @@
         <input class="sform-input" id="rs_iface" type="text" placeholder="ether1">
         <div class="form-hint">Traffic and bandwidth reports cover one interface.</div>
       </div>
+      <!-- ── A CHANNEL, NOT A LIST OF ADDRESSES ───────────────────────────
+           This was a textarea of recipients belonging to the schedule. Who
+           receives a notification is configured on a channel and nowhere else,
+           so a schedule names one and the channel's To is the recipient list.
+           Only install-owned SMTP channels are offered: a webhook cannot carry
+           a PDF, and a report can cover every router a schedule reaches, so
+           routing one through a user's personal mail channel would hand them
+           routers they were never granted. -->
       <div class="sform-group">
-        <label class="sform-label" for="rs_recipients">Recipients</label>
-        <textarea class="sform-input" id="rs_recipients" rows="3" placeholder="ops@example.com&#10;noc@example.com"></textarea>
-        <div class="form-hint">One address per line. Sent as Bcc, so recipients cannot see each other.</div>
+        <label class="sform-label" for="rs_channel">Send through</label>
+        <select class="sform-input" id="rs_channel"></select>
+        <div class="form-hint">Recipients come from the channel. Sent as Bcc, so they cannot see
+          each other. Add or edit a mail channel in Settings &rarr; Notifications.</div>
       </div>
       <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="rs_enabled" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
       <div class="login-error" id="rs_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>

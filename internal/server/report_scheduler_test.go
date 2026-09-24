@@ -35,7 +35,7 @@ func TestADailyScheduleSendsOncePerDayOnItsOwn(t *testing.T) {
 
 	created := time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)
 	if err := d.UpsertReportSchedule(db.ReportSchedule{ID: "s1", RouterID: "r1", Name: "daily",
-		Sections: "ping", Aggregate: "hour", Recipients: "ops@example.com", Frequency: "daily",
+		Sections: "ping", Aggregate: "hour", ChannelID: "chan-1", Frequency: "daily",
 		SendHour: 7, Enabled: 1, CreatedAt: created.UnixMilli(), UpdatedAt: created.UnixMilli()}); err != nil {
 		t.Fatal(err)
 	}

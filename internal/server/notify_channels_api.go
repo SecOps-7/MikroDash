@@ -30,6 +30,7 @@ import (
 	"mikrodash/internal/audit"
 	"mikrodash/internal/db"
 	"mikrodash/internal/notify"
+	"mikrodash/internal/reports"
 	"mikrodash/internal/safe"
 )
 
@@ -169,17 +170,6 @@ func (s *Server) notifyChannelsList(w http.ResponseWriter, r *http.Request) {
 	// a 403 and had no way at all to make a channel of their own.
 	writeJSON(w, map[string]any{
 		"ok": true, "channels": out, "canManageInstall": s.isGlobalAdmin(sess),
-		// ── WHICH CHANNEL SENDS THE REPORTS, IN THE SAME REPLY ───────────
-		//
-		// The page draws a tick on one SMTP card, so it needs this to render a
-		// card at all. It used to come from `/api/settings`, which the settings
-		// page loads separately — so the grid painted before the answer arrived
-		// and the tick appeared a beat later, on whichever card the fallback
-		// would have chosen anyway. One request, one paint, no race.
-		//
-		// EMPTY IS NOT "NONE". It means the first enabled install SMTP channel,
-		// which is what `smtpConfig` falls back to, and the page ticks that one.
-		"reportChannelId": s.reportChannelID(),
 	})
 }
 
@@ -497,6 +487,27 @@ func validateChannel(b channelBody) error {
 			return errors.New("a webhook channel needs at least one URL")
 		}
 	}
+	// ── A MAIL CHANNEL'S RECIPIENTS ARE THE ONLY RECIPIENT LIST THERE IS ──
+	//
+	// A scheduled report names a channel and these are the people who get it, so
+	// the address rules that used to guard a schedule's own list now guard this
+	// field. Same rules, same limits, same injection check — `reports` still owns
+	// them, and the corpus that records them still pins them.
+	//
+	// ONLY WHEN A CONFIG IS SENT. An absent `config` means "keep what is stored",
+	// which is what makes editing a channel without retyping its password
+	// possible; validating an absent field would refuse every such edit.
+	if b.Kind == notify.KindSMTP && len(b.Config) > 0 {
+		var cfg struct {
+			To string `json:"to"`
+		}
+		if err := json.Unmarshal(b.Config, &cfg); err != nil {
+			return errors.New("malformed mail configuration")
+		}
+		if _, err := reports.CleanRecipients(splitList(cfg.To)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -517,18 +528,4 @@ func jsonList(v []string) string {
 		return "[]"
 	}
 	return string(out)
-}
-
-// reportChannelID is the operator's chosen mail channel for scheduled reports,
-// or "" for the first enabled install SMTP channel.
-//
-// A read failure is "" rather than an error: the list is still worth drawing
-// without a tick, and the reports path reads this for itself anyway.
-func (s *Server) reportChannelID() string {
-	cfg, err := s.mergedSettings()
-	if err != nil {
-		return ""
-	}
-	v, _ := cfg["reportChannelId"].(string)
-	return v
 }

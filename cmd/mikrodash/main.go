@@ -283,6 +283,21 @@ func main() {
 		log.Printf("[mikrodash] carried %d notification destination(s) into channels", n)
 	}
 
+	// AFTER the channel seeding above, and the order is load-bearing: this one
+	// copies the install's mail SERVER onto each channel it makes, and on an
+	// upgrade that server only becomes a channel in the step above.
+	//
+	// Same placement rule, and the same reason: it needs the Server to seal a
+	// credential, and `cmd/compat` opens a real /data read-only and never builds
+	// one. Not fatal either — an install whose lists cannot be carried keeps its
+	// schedules and its recipients, and tries again next start.
+	if n, rerr := srv.SeedReportChannels(); rerr != nil {
+		log.Printf("[mikrodash] WARNING: could not carry report recipients into channels: %v",
+			rerr)
+	} else if n > 0 {
+		log.Printf("[mikrodash] carried report recipients into %d channel(s)", n)
+	}
+
 	hs := &http.Server{
 		Addr:    *listen,
 		Handler: srv.Handler(),

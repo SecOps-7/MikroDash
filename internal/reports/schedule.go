@@ -107,7 +107,21 @@ func CleanName(raw string) (string, error) {
 	return s, nil
 }
 
-// CleanRecipients normalises and checks the recipient list.
+// CleanRecipients normalises and checks a recipient list.
+//
+// ── IT CLEANS A CHANNEL'S ADDRESSES NOW, NOT A SCHEDULE'S ─────────────────
+//
+// A schedule used to carry its own list. Recipients are configured on a
+// notification channel and nowhere else, and a schedule names the channel it
+// sends through, so this is called from the channel write path
+// (`validateChannel`) rather than from `Validate` below. The RULES are
+// unchanged — same shape check, same length cap, same injection guard, and the
+// same corpus still pins them — because what an email address may contain did
+// not change when the list moved.
+//
+// It stays in this package rather than moving to internal/notify: the rules are
+// recorded against `testdata/report-history-cases.json`, and a move would
+// re-point a corpus for a reason that is filing, not behaviour.
 //
 // De-duplicated CASE-INSENSITIVELY, because the same address twice is one
 // delivery and two chances to trip a rate limit — but the FIRST spelling is what
@@ -141,10 +155,10 @@ func CleanRecipients(raw []string) ([]string, error) {
 		}
 	}
 	if len(out) == 0 {
-		return nil, errors.New("a schedule needs at least one recipient")
+		return nil, errors.New("a mail channel needs at least one recipient")
 	}
 	if len(out) > MaxRecipients {
-		return nil, fmt.Errorf("at most %d recipients per schedule", MaxRecipients)
+		return nil, fmt.Errorf("at most %d recipients per channel", MaxRecipients)
 	}
 	return out, nil
 }
@@ -176,13 +190,16 @@ func CleanSections(raw []string) ([]string, error) {
 
 // ScheduleInput is a schedule as a browser submits it.
 type ScheduleInput struct {
-	Name       string   `json:"name"`
-	Sections   []string `json:"sections"`
-	Iface      string   `json:"iface"`
-	Aggregate  string   `json:"aggregate"`
-	Recipients []string `json:"recipients"`
-	Frequency  string   `json:"frequency"`
-	SendHour   float64  `json:"sendHour"`
+	Name      string   `json:"name"`
+	Sections  []string `json:"sections"`
+	Iface     string   `json:"iface"`
+	Aggregate string   `json:"aggregate"`
+	// ChannelID REPLACED A RECIPIENT LIST. Who receives a report is the To of
+	// the notification channel it goes through, so a schedule names one instead
+	// of carrying addresses of its own.
+	ChannelID string  `json:"channelId"`
+	Frequency string  `json:"frequency"`
+	SendHour  float64 `json:"sendHour"`
 	// Enabled is a POINTER so "absent" is distinguishable from "false". The
 	// original's `r.enabled === undefined ? true : !!r.enabled` defaults a missing
 	// field to TRUE, and a plain bool would default it to false — silently
@@ -198,7 +215,7 @@ type ValidSchedule struct {
 	Sections       []string
 	Iface          string
 	Aggregate      string
-	Recipients     []string
+	ChannelID      string
 	Frequency      string
 	SendHour       int
 	Enabled        bool
@@ -263,9 +280,19 @@ func Validate(
 		aggregate = in.Aggregate
 	}
 
-	recipients, err := CleanRecipients(in.Recipients)
-	if err != nil {
-		return out, err
+	// A SCHEDULE WITH NO CHANNEL CANNOT SEND, so it is refused at the door
+	// rather than stored and skipped every period — which is what a schedule
+	// with an empty recipient list used to do.
+	//
+	// The id is only checked for being present and sane here. Whether it names a
+	// channel that exists, is an SMTP one, and is one this user may use is a
+	// question about rows the validator has no access to, so the handler asks it.
+	channelID := strings.TrimSpace(in.ChannelID)
+	if channelID == "" {
+		return out, errors.New("a schedule needs a channel to send through")
+	}
+	if len(channelID) > MaxAddress {
+		return out, errors.New("that is not a channel id")
 	}
 	name, err := CleanName(in.Name)
 	if err != nil {
@@ -282,7 +309,7 @@ func Validate(
 	}
 	return ValidSchedule{
 		ID: id, RouterID: routerID, Name: name, Sections: sections,
-		Iface: iface, Aggregate: aggregate, Recipients: recipients,
+		Iface: iface, Aggregate: aggregate, ChannelID: channelID,
 		Frequency: in.Frequency, SendHour: sendHour, Enabled: enabled,
 		DisabledReason: "", CreatedBy: createdBy,
 		CreatedAt: createdAt, UpdatedAt: ms,

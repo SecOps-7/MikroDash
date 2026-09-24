@@ -776,10 +776,17 @@ func (d *DB) percentileCol(table, col, routerID, iface string, from, to int64, n
 
 // ReportSchedule is one row of report_schedules.
 //
-// `sections` and `recipients` are JSON ARRAYS STORED AS TEXT, so they stay
-// strings at this layer and are decoded where the shape is known. A column that
-// holds JSON is still a column; parsing it in the query layer would make every
-// caller inherit whatever the parse decided about a malformed value.
+// `sections` is a JSON ARRAY STORED AS TEXT, so it stays a string at this layer
+// and is decoded where the shape is known. A column that holds JSON is still a
+// column; parsing it in the query layer would make every caller inherit whatever
+// the parse decided about a malformed value.
+//
+// `ChannelID` REPLACED A `Recipients` LIST. A schedule used to carry its own
+// addresses, which meant recipients were configured in two places — here and on
+// every notification channel — and the two never agreed about what a
+// "destination" was. A schedule now names the channel it sends through, and that
+// channel's To is who receives it. `SeedReportChannels` carried the old lists
+// across, one channel per distinct list, so nobody's report changed hands.
 type ReportSchedule struct {
 	ID             string  `json:"id"`
 	RouterID       string  `json:"router_id"`
@@ -787,7 +794,7 @@ type ReportSchedule struct {
 	Sections       string  `json:"sections"`
 	Interface      *string `json:"interface"`
 	Aggregate      string  `json:"aggregate"`
-	Recipients     string  `json:"recipients"`
+	ChannelID      string  `json:"channel_id"`
 	Frequency      string  `json:"frequency"`
 	SendHour       int     `json:"send_hour"`
 	Enabled        int     `json:"enabled"`
@@ -807,7 +814,7 @@ func (d *DB) ReportSchedulesFor(routerID string) ([]ReportSchedule, error) {
 		return nil, nil
 	}
 	rows, err := d.sql.Query(`
-    SELECT id, router_id, name, sections, interface, aggregate, recipients,
+    SELECT id, router_id, name, sections, interface, aggregate, channel_id,
            frequency, send_hour, enabled, disabled_reason, created_by,
            created_at, updated_at
     FROM   report_schedules WHERE router_id = ? ORDER BY created_at
@@ -821,7 +828,7 @@ func (d *DB) ReportSchedulesFor(routerID string) ([]ReportSchedule, error) {
 	for rows.Next() {
 		var s ReportSchedule
 		if err := rows.Scan(&s.ID, &s.RouterID, &s.Name, &s.Sections, &s.Interface,
-			&s.Aggregate, &s.Recipients, &s.Frequency, &s.SendHour, &s.Enabled,
+			&s.Aggregate, &s.ChannelID, &s.Frequency, &s.SendHour, &s.Enabled,
 			&s.DisabledReason, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -926,12 +933,12 @@ func (d *DB) ReportSchedule(id string) (*ReportSchedule, error) {
 	}
 	var s ReportSchedule
 	err := d.sql.QueryRow(`
-    SELECT id, router_id, name, sections, interface, aggregate, recipients,
+    SELECT id, router_id, name, sections, interface, aggregate, channel_id,
            frequency, send_hour, enabled, disabled_reason, created_by,
            created_at, updated_at
     FROM   report_schedules WHERE id = ?
   `, id).Scan(&s.ID, &s.RouterID, &s.Name, &s.Sections, &s.Interface,
-		&s.Aggregate, &s.Recipients, &s.Frequency, &s.SendHour, &s.Enabled,
+		&s.Aggregate, &s.ChannelID, &s.Frequency, &s.SendHour, &s.Enabled,
 		&s.DisabledReason, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 24
+const schemaVersion = 25
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -148,6 +149,21 @@ var portMigrations = map[int][]string{
 	// 24: notification channels. Shared with the fresh schema for the same
 	// reason as 20, 21 and 23.
 	24: {notifyTablesDDL},
+	// 25: A SCHEDULE NAMES THE CHANNEL IT SENDS THROUGH.
+	//
+	// Recipients are configured on a channel now and nowhere else, so the
+	// schedule's own `recipients` list has to become a channel. That conversion
+	// needs the settings store to seal the mail credentials into the new
+	// channel's config, which plain SQL cannot do — so this step only adds the
+	// column, and `SeedReportChannels` in internal/server does the carrying and
+	// then drops `recipients`. Same division, and the same reason, as
+	// `SeedNotifyChannels`: a migration that needs to encrypt cannot live here.
+	//
+	// DEFAULT '' rather than NULL: "" already means "no channel" everywhere
+	// else in this feature, and a nullable column would make it mean two things.
+	25: {
+		`ALTER TABLE report_schedules ADD COLUMN channel_id TEXT NOT NULL DEFAULT ''`,
+	},
 }
 
 // createSchema builds a new database at `path`.
@@ -238,6 +254,27 @@ func (d *DB) Migrate() (int, error) {
 		}
 		for _, stmt := range portMigrations[v] {
 			if _, eerr := tx.Exec(stmt); eerr != nil {
+				// ── AN ADD COLUMN THAT IS ALREADY THERE IS NOT A FAILURE ────
+				//
+				// Every other step here is written idempotently —
+				// `CREATE TABLE IF NOT EXISTS`, `INSERT OR IGNORE` — because a
+				// migration must survive being replayed. SQLite has no
+				// `ADD COLUMN IF NOT EXISTS`, so the only way to say the same
+				// thing about a column is to accept the error it raises when the
+				// column is there.
+				//
+				// It is not theoretical: a FRESH database is built from
+				// `schemaDDL`, which already has every column, and the migration
+				// tests roll its version back and replay from an earlier one.
+				// Migration 25 failed on exactly that and nothing else in the
+				// list did, because nothing else in the list adds a column.
+				//
+				// Narrow on purpose: only this message, and only for an ALTER.
+				// Any other error still rolls the transaction back.
+				if isDuplicateColumn(eerr) && strings.HasPrefix(
+					strings.ToUpper(strings.TrimSpace(stmt)), "ALTER TABLE") {
+					continue
+				}
 				_ = tx.Rollback()
 				return applied, fmt.Errorf("migration v%d: %w", v, eerr)
 			}
@@ -352,4 +389,15 @@ func seedRoles(tx *sql.Tx, now int64) error {
 		}
 	}
 	return nil
+}
+
+// isDuplicateColumn recognises SQLite's complaint that a column already exists.
+//
+// BY MESSAGE, because modernc.org/sqlite does not export a typed error for it
+// and the driver's own error struct carries the same string. Matched on the
+// stable part of the wording — SQLite has said "duplicate column name" since
+// long before this app existed — rather than on the whole sentence, which also
+// names the column.
+func isDuplicateColumn(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate column name")
 }

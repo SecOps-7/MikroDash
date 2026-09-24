@@ -887,9 +887,16 @@ func seedPurgeables(t *testing.T, s *Server) {
 		   interface TEXT NOT NULL, ts INTEGER NOT NULL, rx_mb REAL NOT NULL,
 		   tx_mb REAL NOT NULL, samples INTEGER NOT NULL,
 		   PRIMARY KEY (router_id, interface, ts))`,
+		// NO `channel_id`, and `IF NOT EXISTS` is why. `alertTestDDL` has already
+		// created this table in most of the harnesses that reach here, so this
+		// statement is a no-op there and whatever THAT definition says is what
+		// the table has. Naming a column here that the other copy lacks made the
+		// seed below fail with "no such column" in exactly those harnesses.
+		// Neither copy needs it: this seeds a row so the purge has something to
+		// remove, and the column it sends through is irrelevant to that.
 		`CREATE TABLE IF NOT EXISTS report_schedules (id TEXT PRIMARY KEY,
 		   router_id TEXT NOT NULL, name TEXT NOT NULL, sections TEXT NOT NULL,
-		   interface TEXT, aggregate TEXT NOT NULL, recipients TEXT NOT NULL,
+		   interface TEXT, aggregate TEXT NOT NULL,
 		   frequency TEXT NOT NULL, send_hour INTEGER NOT NULL, enabled INTEGER NOT NULL,
 		   disabled_reason TEXT, created_by TEXT,
 		   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
@@ -924,9 +931,9 @@ func seedPurgeables(t *testing.T, s *Server) {
 			`INSERT INTO bandwidth_hourly (router_id, interface, ts, rx_mb, tx_mb, samples)
 			   VALUES ('`+rid+`', 'ether1', 0, 1, 1, 60)`)
 		stmts = append(stmts,
-			`INSERT INTO report_schedules (id, router_id, name, sections, aggregate, recipients,
+			`INSERT INTO report_schedules (id, router_id, name, sections, aggregate,
 			   frequency, send_hour, enabled, created_at, updated_at)
-			   VALUES ('s-`+rid+`','`+rid+`','n','[]','sum','[]','daily',8,1,1,1)`,
+			   VALUES ('s-`+rid+`','`+rid+`','n','[]','sum','daily',8,1,1,1)`,
 			`INSERT INTO grants (principal_type, principal_id, scope_type, scope_id, role_id,
 			   created_at) VALUES ('user','u-1','router','`+rid+`','role',1)`,
 			`INSERT INTO config_backups (router_id, taken_at, outcome, source, stem,

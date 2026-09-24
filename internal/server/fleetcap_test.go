@@ -49,7 +49,7 @@ CREATE TABLE grants (
 CREATE TABLE group_members (group_id TEXT NOT NULL, user_id TEXT NOT NULL);
 INSERT INTO roles (id, name, builtin) VALUES ('role-r','r',0);
 INSERT INTO role_pages (role_id, page, access) VALUES ('role-r','dns','read');
-`
+` + reportSchedulesPreMigrationDDL
 
 // fleetCapServer builds a server holding `n` routers, with the caller granted
 // dns:read on all but the last. Ids sort as r00, r01 … so the order the request

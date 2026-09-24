@@ -86,7 +86,6 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "notifCooldownSec",
     "notifTitle",
     "pingTarget",
-    "reportChannelId",
     "routerHost",
     "routerPort",
     "routerUser",

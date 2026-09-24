@@ -32,16 +32,16 @@ func (d *DB) UpsertReportSchedule(s ReportSchedule) error {
 	}
 	_, err := d.sql.Exec(`
     INSERT INTO report_schedules
-      (id, router_id, name, sections, interface, aggregate, recipients, frequency,
+      (id, router_id, name, sections, interface, aggregate, channel_id, frequency,
        send_hour, enabled, disabled_reason, created_by, created_at, updated_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name, sections = excluded.sections,
       interface = excluded.interface, aggregate = excluded.aggregate,
-      recipients = excluded.recipients, frequency = excluded.frequency,
+      channel_id = excluded.channel_id, frequency = excluded.frequency,
       send_hour = excluded.send_hour, enabled = excluded.enabled,
       disabled_reason = excluded.disabled_reason, updated_at = excluded.updated_at
-  `, s.ID, s.RouterID, s.Name, s.Sections, s.Interface, s.Aggregate, s.Recipients,
+  `, s.ID, s.RouterID, s.Name, s.Sections, s.Interface, s.Aggregate, s.ChannelID,
 		s.Frequency, s.SendHour, s.Enabled, s.DisabledReason, s.CreatedBy,
 		s.CreatedAt, s.UpdatedAt)
 	return err

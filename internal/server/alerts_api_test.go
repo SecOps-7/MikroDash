@@ -26,6 +26,40 @@ import (
 	"mikrodash/internal/store"
 )
 
+// reportSchedulesPreMigrationDDL is `report_schedules` WITHOUT `channel_id`.
+//
+// ── WHY EVERY HAND-BUILT HARNESS NEEDS IT ─────────────────────────────────
+//
+// These fixtures stamp themselves at 14 and then call Migrate(), so every step
+// from 15 replays against them. Step 25 is an ALTER TABLE on this table, and a
+// harness that did not create it failed with "no such table" and took five
+// unrelated tests down with it.
+//
+// WITHOUT `channel_id`, so the migration has something to do; and WITHOUT the
+// `recipients` column it replaced, because `TestFixtureSchemasMatchReality`
+// refuses a fixture declaring a column the real schema does not have — a test
+// against a database that cannot exist is the defect that check is for. The
+// migration only needs the table, not its history.
+//
+// Shared by `alertTestDDL` and `fleetCapRoles` rather than pasted into both,
+// because two copies of a schema are two things to keep true.
+const reportSchedulesPreMigrationDDL = `
+CREATE TABLE IF NOT EXISTS report_schedules (
+  id              TEXT PRIMARY KEY,
+  router_id       TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
+  sections        TEXT    NOT NULL,
+  interface       TEXT,
+  aggregate       TEXT    NOT NULL DEFAULT '',
+  frequency       TEXT    NOT NULL,
+  send_hour       INTEGER NOT NULL DEFAULT 7,
+  enabled         INTEGER NOT NULL DEFAULT 1,
+  disabled_reason TEXT,
+  created_by      TEXT,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL
+);`
+
 const alertTestDDL = `
 -- db.Open reads this before anything else, and reports "is this the right
 -- /data?" when it is missing. Version 14 is what the live migrations have
@@ -55,7 +89,8 @@ CREATE TABLE IF NOT EXISTS alert_events (
   resolved_at     INTEGER,
   acknowledged_at INTEGER,
   acknowledged_by TEXT
-);`
+);
+` + reportSchedulesPreMigrationDDL
 
 // alertServer builds a server with an alert store, a hub and a primed session.
 //

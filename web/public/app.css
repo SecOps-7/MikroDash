@@ -2898,22 +2898,6 @@
 .nchan-help { font-size: .7rem; color: var(--text-muted); margin: .4rem 0 0; line-height: 1.5; }
 .nchan-help code { font-family: var(--font-mono, monospace); font-size: .68rem; }
 
-/* The "scheduled reports go out through this one" tick, on SMTP cards.
-   Sits between the meta line and the actions, muted until it is the chosen one
-   so a grid of cards does not read as a row of decisions to make. */
-.nchan-reports {
-  display: flex; align-items: center; gap: .4rem;
-  margin: .5rem 0 0; font-size: .7rem; color: var(--text-muted);
-  cursor: pointer;
-}
-.nchan-reports input { cursor: pointer; margin: 0; accent-color: var(--accent-rx); }
-/* DISABLED BECAUSE IT IS ON, not because it is unavailable — so it keeps the
-   lit colour rather than taking the browser's greyed-out default, which would
-   read as "this channel cannot send reports", the opposite of what it means. */
-.nchan-reports.is-on { color: var(--accent-rx); font-weight: 600; }
-.nchan-reports.is-on input { opacity: 1; }
-.nchan-reports input:disabled { cursor: default; }
-.nchan-reports:not(.is-on) input:disabled { opacity: .45; }
 .nchan-actions { margin-left: auto; }
 
 /* `.rtr-modal-body` is a TWO-COLUMN GRID — the router modal's form wants that,

@@ -31,6 +31,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -40,6 +41,7 @@ import (
 
 	"mikrodash/internal/audit"
 	"mikrodash/internal/db"
+	"mikrodash/internal/notify"
 	"mikrodash/internal/reportpdf"
 	"mikrodash/internal/reports"
 )
@@ -494,10 +496,12 @@ func (s *Server) reportSchedules(w http.ResponseWriter, _ *http.Request, q repor
 		out = append(out, map[string]any{
 			"id": r.ID, "routerId": r.RouterID, "name": r.Name,
 			"sections": jsonArray(r.Sections), "iface": iface, "aggregate": r.Aggregate,
-			// RECIPIENTS ARE SENT. The original's comment is explicit that they are
-			// not secrets — and a schedule whose destinations cannot be seen is the
-			// case that gate exists to prevent.
-			"recipients": jsonArray(r.Recipients), "frequency": r.Frequency,
+			// THE CHANNEL ID IS SENT, and it is what the recipient list used to be.
+			// A schedule whose destination cannot be seen is the case that gate
+			// exists to prevent; the id names the channel the page already lists,
+			// so the page can show who receives it without this endpoint carrying
+			// addresses at all.
+			"channelId": r.ChannelID, "frequency": r.Frequency,
 			"sendHour": r.SendHour, "enabled": r.Enabled != 0,
 			"disabledReason": disabledReason,
 			"createdAt":      r.CreatedAt, "updatedAt": r.UpdatedAt,
@@ -636,10 +640,6 @@ func (s *Server) storeSchedule(v reports.ValidSchedule) (map[string]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	recipients, err := json.Marshal(v.Recipients)
-	if err != nil {
-		return nil, err
-	}
 	enabled := 0
 	if v.Enabled {
 		enabled = 1
@@ -647,7 +647,7 @@ func (s *Server) storeSchedule(v reports.ValidSchedule) (map[string]any, error) 
 	row := db.ReportSchedule{
 		ID: v.ID, RouterID: v.RouterID, Name: v.Name,
 		Sections: string(sections), Aggregate: v.Aggregate,
-		Recipients: string(recipients), Frequency: v.Frequency,
+		ChannelID: v.ChannelID, Frequency: v.Frequency,
 		SendHour: v.SendHour, Enabled: enabled,
 		CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt,
 	}
@@ -666,7 +666,7 @@ func (s *Server) storeSchedule(v reports.ValidSchedule) (map[string]any, error) 
 	}
 	return map[string]any{
 		"id": v.ID, "routerId": v.RouterID, "name": v.Name, "sections": v.Sections,
-		"iface": v.Iface, "aggregate": v.Aggregate, "recipients": v.Recipients,
+		"iface": v.Iface, "aggregate": v.Aggregate, "channelId": v.ChannelID,
 		"frequency": v.Frequency, "sendHour": v.SendHour, "enabled": v.Enabled,
 		"disabledReason": nil, "createdAt": v.CreatedAt, "updatedAt": v.UpdatedAt,
 	}, nil
@@ -698,21 +698,26 @@ func (s *Server) reportScheduleCreate(w http.ResponseWriter, r *http.Request, q 
 		writeJSONErrFrom(w, http.StatusBadRequest, err)
 		return
 	}
+	if err := s.channelCanSendReports(v.ChannelID); err != nil {
+		writeJSONErrFrom(w, http.StatusBadRequest, err)
+		return
+	}
 	pub, err := s.storeSchedule(v)
 	if err != nil {
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
 		return
 	}
-	// RECIPIENTS GO INTO THE TRAIL. They are not secrets — the read endpoint
-	// sends them — and who a schedule mails to is the single most useful thing
-	// this record can carry.
+	// THE CHANNEL GOES INTO THE TRAIL, where the recipient list used to. Who a
+	// schedule mails to is the single most useful thing this record can carry,
+	// and the channel is now where that is decided — an entry naming addresses
+	// would be a copy that stops being true the moment the channel is edited.
 	s.httpRecorder(r, q.Sess).Record(audit.Event{
 		Action: "report.schedule.create", TargetType: "report-schedule",
 		Scope: "router", RouterID: q.RouterID, TargetID: v.ID, TargetName: v.Name,
 		Extra: []audit.KV{
 			{Key: "frequency", Value: v.Frequency},
 			{Key: "sections", Value: v.Sections},
-			{Key: "recipients", Value: v.Recipients},
+			{Key: "channelId", Value: v.ChannelID},
 		},
 	})
 	writeJSON(w, map[string]any{"ok": true, "schedule": pub})
@@ -739,6 +744,10 @@ func (s *Server) reportScheduleUpdate(w http.ResponseWriter, r *http.Request, q 
 		writeJSONErrFrom(w, http.StatusBadRequest, err)
 		return
 	}
+	if err := s.channelCanSendReports(v.ChannelID); err != nil {
+		writeJSONErrFrom(w, http.StatusBadRequest, err)
+		return
+	}
 	pub, err := s.storeSchedule(v)
 	if err != nil {
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
@@ -750,7 +759,7 @@ func (s *Server) reportScheduleUpdate(w http.ResponseWriter, r *http.Request, q 
 		Extra: []audit.KV{
 			{Key: "frequency", Value: v.Frequency},
 			{Key: "sections", Value: v.Sections},
-			{Key: "recipients", Value: v.Recipients},
+			{Key: "channelId", Value: v.ChannelID},
 			{Key: "enabled", Value: v.Enabled},
 		},
 	})
@@ -1093,4 +1102,38 @@ func (s *Server) pdfSummary(q reportReq) (reports.IfaceSummary, error) {
 		CapacityDown: down,
 		CapacityUp:   up,
 	}, nil
+}
+
+// channelCanSendReports refuses a schedule whose channel could never deliver it.
+//
+// ── WHY IT IS CHECKED AT WRITE TIME AND NOT ONLY AT SEND TIME ─────────────
+//
+// `scheduleMail` already refuses the same cases, so a bad channel would be
+// caught — a month later, as a skipped run in a log nobody is reading, for a
+// report somebody was waiting for. Refusing it while the operator is looking at
+// the form turns a silent monthly non-delivery into a sentence they can act on.
+//
+// It is not a substitute for the send-time check, and both stay: a channel can
+// be deleted or switched to a webhook after the schedule is written, and only
+// the send path is there when that happens.
+//
+// INSTALL-OWNED ONLY, matching `scheduleMail`. A report is an install-wide
+// artefact — it can reach every router a schedule covers — so routing one
+// through a user's personal mail channel would let that user receive reports on
+// routers they were never granted.
+func (s *Server) channelCanSendReports(id string) error {
+	if s.auditDB == nil {
+		return errors.New("notification channels are unavailable")
+	}
+	row, found, err := s.auditDB.NotifyChannelByID(id)
+	if err != nil {
+		return errors.New("that channel could not be read")
+	}
+	if !found || row.Owner != db.InstallOwner {
+		return errors.New("that channel does not exist")
+	}
+	if row.Kind != notify.KindSMTP {
+		return errors.New("a report needs a mail channel; a webhook cannot carry a PDF")
+	}
+	return nil
 }

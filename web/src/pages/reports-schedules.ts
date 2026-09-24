@@ -63,7 +63,15 @@ export interface ScheduleRow {
   sections: string[];
   iface?: string;
   aggregate?: string;
-  recipients: string[];
+  /**
+   * The notification channel this report goes out through.
+   *
+   * IT REPLACED A `recipients` LIST. Who receives a notification is configured
+   * on a channel and nowhere else, so the schedule names one and the channel's
+   * To is the recipient list. The server carried every existing list onto a
+   * channel on upgrade, one per distinct list, so nobody's report changed hands.
+   */
+  channelId: string;
   frequency: string;
   sendHour: number;
   enabled: boolean;
@@ -93,7 +101,18 @@ const state = {
   // sent them and nothing here kept them, so the form had no vocabulary to draw.
   sections: [] as string[],
   needsInterface: [] as string[],
+  // THE MAIL CHANNELS A SCHEDULE MAY USE. Loaded alongside the list rather than
+  // when the dialog opens: the TABLE names each schedule's channel too, so the
+  // page needs them to draw a row, not only to draw a form.
+  channels: [] as MailChannel[],
 };
+
+/** One install-owned SMTP channel: a schedule can send through it. */
+export interface MailChannel {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
 
 /** The row being edited, or null for a new schedule. */
 let editing: ScheduleRow | null = null;
@@ -151,10 +170,15 @@ export function renderSchedules(): void {
       '<td>' + esc(r.frequency) + ' at ' + String(r.sendHour).padStart(2, '0') + ':00</td>' +
       '<td>' + esc(r.sections.join(', ')) +
       (r.iface ? '<div class="bw-mac">' + esc(r.iface) + '</div>' : '') + '</td>' +
-      // THE COUNT, NOT THE ADDRESSES. They are not secrets — the server sends
-      // them — but a column of six addresses makes the table unreadable, and the
-      // edit dialog is where they belong.
-      '<td>' + esc(String(r.recipients.length)) + '</td>' +
+      // THE CHANNEL'S NAME, where a count of addresses used to be. The count
+      // answered "how many" and never "who", which is the question an operator
+      // actually has — and the channel is a thing they can open and read.
+      //
+      // A channel that has been DELETED leaves an id naming nothing, and the row
+      // says so rather than rendering an empty cell: the schedule will skip
+      // every period until it is pointed somewhere, and a blank column is how
+      // that goes unnoticed.
+      '<td>' + esc(channelName(r.channelId)) + '</td>' +
       '<td class="bw-mac">' + esc(fmtRun(r.lastRun)) + '</td>' +
       '<td class="text-end">' + acts.join(' ') + '</td>' +
       '</tr>';
@@ -179,6 +203,72 @@ export function loadSchedules(): void {
       renderSchedules();
     })
     .catch(() => { /* the rest of the page is unaffected */ });
+  loadMailChannels();
+}
+
+/**
+ * The mail channels a schedule may be sent through.
+ *
+ * FILTERED HERE AS THE SERVER FILTERS IT at write time — install-owned, SMTP —
+ * so the picker cannot offer something the save would refuse. The two rules
+ * agreeing is worth more than the filter being in one place, because the failure
+ * when they disagree is a form that rejects the only option it showed.
+ *
+ * A failure leaves the list EMPTY rather than stale, and the picker says so. A
+ * stale list offers channels that may have been deleted, which is how a schedule
+ * ends up pointing at nothing.
+ */
+function loadMailChannels(): void {
+  fetch('/api/notify-channels', { credentials: 'same-origin' })
+    .then((r) => r.json())
+    .then((d: { channels?: Array<{ id: string; name: string; kind: string;
+      owner: string; enabled: boolean }> }) => {
+      state.channels = (d?.channels || [])
+        .filter((c) => c.kind === 'smtp' && c.owner === '_install')
+        .map((c) => ({ id: c.id, name: c.name, enabled: !!c.enabled }));
+      renderSchedules();
+    })
+    .catch(() => { state.channels = []; });
+}
+
+/**
+ * A channel's name for the table, by id.
+ *
+ * AN ID THAT NAMES NOTHING IS SAID OUT LOUD. The channel was deleted, the
+ * schedule will skip every period until it is pointed somewhere, and an empty
+ * cell is how that goes unnoticed for a month.
+ */
+function channelName(id: string): string {
+  if (!id) return 'no channel';
+  const c = state.channels.find((x) => x.id === id);
+  if (!c) return 'channel deleted';
+  return c.enabled ? c.name : c.name + ' (off)';
+}
+
+/**
+ * Fill the dialog's channel picker, selecting `chosen`.
+ *
+ * A DELETED CHANNEL IS KEPT AS AN OPTION, labelled, rather than silently
+ * replaced by whatever happens to be first. Dropping it would make an unrelated
+ * edit — changing the send hour, say — quietly re-route the report, which is the
+ * one thing this whole change exists to stop.
+ */
+function renderChannelPicker(chosen: string): void {
+  const sel = el<HTMLSelectElement>('rs_channel');
+  if (!sel) return;
+  const opts = state.channels.map((c) =>
+    '<option value="' + esc(c.id) + '">' + esc(c.enabled ? c.name : c.name + ' (off)')
+    + '</option>');
+  if (chosen && !state.channels.some((c) => c.id === chosen)) {
+    opts.unshift('<option value="' + esc(chosen) + '">(the channel this used, now deleted)</option>');
+  }
+  if (opts.length === 0) {
+    // NOT AN EMPTY SELECT. An empty control reads as "still loading"; this says
+    // what is missing and where to fix it, and the save refuses it anyway.
+    opts.push('<option value="">No mail channel yet — add one in Settings → Notifications</option>');
+  }
+  sel.innerHTML = opts.join('');
+  sel.value = chosen;
 }
 
 /**
@@ -353,8 +443,7 @@ export function openSchedModal(row: ScheduleRow | null): void {
   if (freq) freq.value = row ? row.frequency : 'daily';
   const iface = el<HTMLInputElement>('rs_iface');
   if (iface) iface.value = row ? (row.iface || '') : '';
-  const recips = el<HTMLTextAreaElement>('rs_recipients');
-  if (recips) recips.value = row ? row.recipients.join('\n') : '';
+  renderChannelPicker(row ? row.channelId : '');
   const enabled = el<HTMLInputElement>('rs_enabled');
   // A NEW schedule defaults to enabled, matching the server's own default for an
   // absent `enabled` — see the pointer field in reports.ScheduleInput.
@@ -404,11 +493,12 @@ function saveSchedule(): void {
     sendHour: Number(el<HTMLSelectElement>('rs_hour')?.value ?? '0'),
     sections: chosenSections(),
     iface: el<HTMLInputElement>('rs_iface')?.value ?? '',
-    // `split(/\n+/)` on an empty field yields [''], which the original sends and
-    // the validator refuses with a message an operator can read. Reproduced
-    // rather than pre-filtered here, so the refusal keeps coming from the one
-    // place that owns it.
-    recipients: (el<HTMLTextAreaElement>('rs_recipients')?.value ?? '').split(/\n+/),
+    // AN EMPTY VALUE IS SENT, not suppressed. The validator refuses it with a
+    // message an operator can read ("a schedule needs a channel to send
+    // through"), and pre-filtering here would move that refusal away from the
+    // one place that owns it — which is the same reason the recipient list this
+    // replaced was sent unfiltered.
+    channelId: el<HTMLSelectElement>('rs_channel')?.value ?? '',
     enabled: !!el<HTMLInputElement>('rs_enabled')?.checked,
   };
   const q = '?routerId=' + encodeURIComponent(router.value);

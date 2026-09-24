@@ -21,23 +21,37 @@ import (
 // and would have answered 500 for any site without a description, which is most
 // of them.
 //
-// ── WHY THE SCHEMA IS FROZEN DATA AND NOT READ FROM GO ──────────────────────
+// ── THE AUTHORITY IS THE REAL DDL, AND IT USED TO BE A FROZEN COPY ──────────
 //
-// This was meant to be rewritten to compare fixtures against Go's own migrations.
-// THERE ARE NONE. `internal/db` opens an existing database and refuses one below
-// `MinSchema`; nothing in this repository creates a table outside a test. So the
-// authority is `testdata/schema.sql`, extracted from the migrations that actually
-// built the file on disk.
+// This read `internal/verify/testdata/schema.sql`, on a premise stated in full
+// at the time: "This was meant to be rewritten to compare fixtures against Go's
+// own migrations. THERE ARE NONE. `internal/db` opens an existing database and
+// refuses one below `MinSchema`; nothing in this repository creates a table
+// outside a test." It ended "If Go ever grows migrations, this should read them
+// instead."
 //
-// That is a legitimate frozen artefact rather than a parity recording: it does
-// not describe how anything LOOKED, it describes the database this code reads. If
-// Go ever grows migrations, this should read them instead.
+// Go grew both. `internal/db/schema_ddl.go` builds a fresh database and
+// `portMigrations` moves an old one, so the frozen file became a hand-kept copy
+// of something the code already states — and it had already drifted FOUR TABLES
+// behind without anything failing, because this check only ever compared
+// FIXTURES against it. A premise that has expired reads exactly like one that is
+// true.
+//
+// So it reads the real thing now, and `testdata/schema.sql` is gone. The parse
+// is the same: `freshSchemaDDL` and the four table constants it concatenates are
+// plain CREATE TABLE text in Go raw strings.
 func TestFixtureSchemasMatchReality(t *testing.T) {
 	root := repoRoot(t)
 
-	real := parseTables(t, mustRead(t, filepath.Join(root, "internal", "verify", "testdata", "schema.sql")))
-	if len(real) < 15 {
-		t.Fatalf("only %d tables read out of the frozen schema — the parse broke, and every "+
+	var ddl strings.Builder
+	for _, rel := range []string{"schema_ddl.go", "cfg_schema.go", "ztp_schema.go",
+		"rollup.go", "notify_schema.go"} {
+		ddl.WriteString(mustRead(t, filepath.Join(root, "internal", "db", rel)))
+		ddl.WriteString("\n")
+	}
+	real := parseTables(t, ddl.String())
+	if len(real) < 20 {
+		t.Fatalf("only %d tables read out of internal/db — the parse broke, and every "+
 			"fixture would then look fine", len(real))
 	}
 
@@ -136,7 +150,18 @@ func parseTables(t *testing.T, src string) map[string]map[string]colSpec {
 			continue
 		}
 		cols := map[string]colSpec{}
-		for _, line := range strings.Split(src[loc[1]:end], "\n") {
+		// ── SPLIT ON TOP-LEVEL COMMAS, NOT ON NEWLINES ───────────────────
+		//
+		// One column per line is a convention, not a rule, and
+		// `internal/db/schema_ddl.go` does not follow it: it continues a table
+		// with `, acknowledged_at INTEGER, acknowledged_by TEXT);` on one line.
+		// A newline split read that as a single unparseable line and dropped BOTH
+		// columns, so the real schema looked as though it lacked them and every
+		// fixture that declared them was reported as impossible.
+		//
+		// Depth-aware, because `NUMERIC(10,2)` and `CHECK (x IN ('a','b'))` both
+		// contain commas that do not separate columns.
+		for _, line := range splitColumns(stripSQLComments(src[loc[1]:end])) {
 			trimmed := strings.TrimSpace(strings.ToUpper(line))
 			if strings.HasPrefix(trimmed, "PRIMARY KEY") || strings.HasPrefix(trimmed, "FOREIGN KEY") ||
 				strings.HasPrefix(trimmed, "UNIQUE") || strings.HasPrefix(trimmed, "CHECK") {
@@ -177,4 +202,48 @@ func parseTables(t *testing.T, src string) map[string]map[string]colSpec {
 		}
 	}
 	return out
+}
+
+// stripSQLComments removes `-- ...` to end of line.
+//
+// BEFORE THE SPLIT, not after. `internal/db/schema_ddl.go` documents columns
+// with a comment on the line above, and a comma-separated piece then BEGINS with
+// that comment — so the anchored column regex saw `-- 1 = Administrator...` and
+// dropped the column behind it. `roles.builtin` and `roles.created_at` went that
+// way, and every fixture that declared them was reported as impossible.
+func stripSQLComments(body string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(body, "\n") {
+		if i := strings.Index(line, "--"); i >= 0 {
+			line = line[:i]
+		}
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// splitColumns cuts a CREATE TABLE body into one string per column definition,
+// on commas that are not inside parentheses.
+func splitColumns(body string) []string {
+	out := []string{}
+	depth, start := 0, 0
+	for i, r := range body {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				out = append(out, strings.TrimSpace(body[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	// TRIMMED, and it is not cosmetic. The column regex ends `(.*)$`, and `.`
+	// does not match a newline while `$` here means end of text — so a piece
+	// carrying the newline that followed its column could never match, and the
+	// column was silently dropped from the schema this test calls reality.
+	return append(out, strings.TrimSpace(body[start:]))
 }

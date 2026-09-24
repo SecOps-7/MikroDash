@@ -169,19 +169,31 @@ type seeded struct {
 }
 
 func (s *Server) writeSeeded(owner string, c seeded, events []string, now int64) error {
+	_, err := s.writeSeededID(owner, c, events, now)
+	return err
+}
+
+// writeSeededID is the same write, handing back the id it minted.
+//
+// `SeedReportChannels` needs it: a carried recipient list is only half a
+// migration until the schedules that held it point at the channel it became.
+func (s *Server) writeSeededID(owner string, c seeded, events []string, now int64) (string, error) {
 	sealed, err := s.sealChannelConfig(c.cfg)
 	if err != nil {
-		return err
+		return "", err
 	}
 	id, err := newUUID()
 	if err != nil {
-		return err
+		return "", err
 	}
-	return s.auditDB.UpsertNotifyChannel(db.NotifyChannel{
+	if err := s.auditDB.UpsertNotifyChannel(db.NotifyChannel{
 		ID: id, Owner: owner, Name: c.name, Kind: c.kind, Enabled: 1,
 		Config: sealed, Events: jsonList(events), Routers: "[]",
 		CreatedAt: now, UpdatedAt: now,
-	})
+	}); err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 // installChannels reads the four flat transports out of the decrypted settings.
@@ -299,7 +311,7 @@ func userChannels(s *Server, data map[string]any) []seeded {
 		}
 	}
 	if on("emailEnabled") && plain("emailTo") != "" {
-		if mc, from, ok := s.smtpConfig(); ok {
+		if mc, from, ok := s.installMailServer(); ok {
 			out = append(out, seeded{"Email", notify.KindSMTP, smtpConfigJSON{
 				Host: mc.Host, Port: mc.Port, Secure: mc.Secure,
 				User: mc.User, Pass: mc.Pass, From: from, To: plain("emailTo"),

@@ -158,7 +158,7 @@ CREATE TABLE report_schedules (
           sections        TEXT    NOT NULL,
           interface       TEXT,
           aggregate       TEXT    NOT NULL DEFAULT '',
-          recipients      TEXT    NOT NULL,
+          channel_id      TEXT    NOT NULL DEFAULT '',
           frequency       TEXT    NOT NULL CHECK (frequency IN ('daily','weekly','monthly')),
           send_hour       INTEGER NOT NULL DEFAULT 7,
           enabled         INTEGER NOT NULL DEFAULT 1,
