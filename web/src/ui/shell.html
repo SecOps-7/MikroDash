@@ -832,6 +832,10 @@
         <div class="stab-bar" role="tablist">
           <button type="button" class="stab active" role="tab" data-nchantab="channel">Channel</button>
           <button type="button" class="stab" role="tab" data-nchantab="events">Events</button>
+          <!-- DEVICES, not "Routers", because that is what this app calls them
+               everywhere an operator reads: the Settings page's own first tab,
+               the nav entry and the `devices` page key. -->
+          <button type="button" class="stab" role="tab" data-nchantab="devices">Devices</button>
         </div>
         <div class="nchan-panel active" data-nchanpanel="channel">
           <div class="sform-row">
@@ -937,11 +941,19 @@
         <div class="nchan-panel" data-nchanpanel="events">
           <p class="nchan-help" id="nchanEventNote"></p>
           <div id="nchanEvents"></div>
-          <div class="sform-group" style="margin-top:1rem">
-            <label class="sform-label">Routers</label>
-            <p class="nchan-help">No selection means every router, now and in future.</p>
-            <div id="nchanRouters" class="nchan-routers"></div>
-          </div>
+        </div>
+
+        <!-- ── WHICH ROUTERS, ON ITS OWN TAB ─────────────────────────────────
+             It was the last thing in the Events tab, under thirteen event
+             toggles, so on any normal window it sat below the fold of a list
+             that looks finished without it. It is also a different question:
+             Events is what this channel is told about, Devices is where it is
+             told about it, and stacking the second under the first made it read
+             as a property of the event list. -->
+        <div class="nchan-panel" data-nchanpanel="devices">
+          <p class="nchan-help">Which routers this channel is told about. No selection means every
+            router, now and in future.</p>
+          <div id="nchanRouters" class="nchan-routers"></div>
         </div>
       </div>
       <div id="nchanError" class="login-error" style="display:none;margin-top:.75rem"></div>
