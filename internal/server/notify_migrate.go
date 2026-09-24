@@ -61,7 +61,18 @@ func (s *Server) SeedNotifyChannels() (int, error) {
 	if err != nil || have > 0 {
 		return 0, err
 	}
-	cfg, err := s.mergedSettings()
+	// ── THE RAW FILE, NOT THE MERGED MAP ─────────────────────────────────
+	//
+	// `mergedSettings` runs `store.Merge`, which DROPS any key that is not a
+	// default — and `telegram*`, `pushbullet*` and `ntfy*` stopped being
+	// defaults when they became channels. Reading the merged map here found
+	// nothing to carry on an install that had Telegram configured and working,
+	// which is the exact upgrade this function exists for. Found by deploying
+	// it and looking, not by any test: every unit here had a map handed to it.
+	//
+	// The raw file still holds them, sealed, which is why `dec` is applied to
+	// every credential below rather than relying on the merge to unseal them.
+	cfg, err := s.store.Settings()
 	if err != nil {
 		return 0, err
 	}
@@ -171,7 +182,7 @@ func installChannels(cfg map[string]any, dec func(string) string) []seeded {
 		port, _ := strconv.Atoi(str("smtpPort"))
 		out = append(out, seeded{"Email", notify.KindSMTP, smtpConfigJSON{
 			Host: str("smtpHost"), Port: port, Secure: on("smtpSecure"),
-			User: str("smtpUser"), Pass: str("smtpPass"),
+			User: secret("smtpUser"), Pass: secret("smtpPass"),
 			From: str("smtpFrom"), To: str("smtpTo"),
 		}})
 	}

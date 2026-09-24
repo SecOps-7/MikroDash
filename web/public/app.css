@@ -2881,6 +2881,13 @@
 .nchan-help code { font-family: var(--font-mono, monospace); font-size: .68rem; }
 .nchan-actions { margin-left: auto; }
 
+/* `.rtr-modal-body` is a TWO-COLUMN GRID — the router modal's form wants that,
+   and this dialog does not: its tab wrapper landed in column one and left the
+   other half of the dialog empty. Measured, not guessed: the body computed to
+   `grid-template-columns: 273px 273px` while the textarea inside it was 273px
+   wide in a 608px dialog. */
+#notifChanModal .rtr-modal-body { display: block; }
+
 /* THE MODAL'S TABS. `.stab-panel.active` is a two-column grid at page width,
    which would columnise a form that is one column wide — so the panels inside
    the dialog are their own class rather than a reuse of that one. */

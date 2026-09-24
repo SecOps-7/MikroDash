@@ -150,3 +150,62 @@ func TestTheEmailChannelCarriesTheWholeMailSetup(t *testing.T) {
 		t.Errorf("carried\n%+v\nwant\n%+v", sc, want)
 	}
 }
+
+// THE MIGRATION READS THE RAW FILE, NOT THE MERGED MAP.
+//
+// ── THE BUG THIS EXISTS FOR ────────────────────────────────────────────────
+//
+// `store.Merge` drops any key that is not a default, and `telegram*`,
+// `pushbullet*` and `ntfy*` stopped being defaults the moment they became
+// channels. `SeedNotifyChannels` read `mergedSettings()`, so on a real install
+// with Telegram configured and working it found nothing at all and carried
+// nothing across — the notifications simply stopped.
+//
+// Every unit test passed, because each one hands `installChannels` a map
+// directly and never goes through the merge. It was found by deploying the
+// build and asking the API how many channels existed: zero, against a
+// settings.json that plainly had `"telegramEnabled": true`.
+//
+// This pins the half a unit test can reach: that the credentials are taken
+// through `dec`, because in the raw file they are sealed.
+func TestTheMigrationUnsealsCredentialsFromTheRawFile(t *testing.T) {
+	// The raw file's shape: enable flags in the clear, credentials sealed.
+	raw := map[string]any{
+		"telegramEnabled": true, "telegramBotToken": "SEALED", "telegramChatId": "-100",
+		"smtpEnabled": true, "smtpHost": "mail.example.net", "smtpTo": "ops@example.net",
+		"smtpUser": "SEALED-USER", "smtpPass": "SEALED-PASS",
+	}
+	unseal := func(v string) string {
+		switch v {
+		case "SEALED":
+			return "111:AAA"
+		case "SEALED-USER":
+			return "postmaster"
+		case "SEALED-PASS":
+			return "hunter2"
+		}
+		return v
+	}
+
+	got := installChannels(raw, unseal)
+	if len(got) != 2 {
+		t.Fatalf("carried %d channels, want Telegram and Email", len(got))
+	}
+
+	wc, ok := got[0].cfg.(webhookConfig)
+	if !ok || len(wc.URLs) != 1 {
+		t.Fatalf("the Telegram channel is %+v", got[0].cfg)
+	}
+	if wc.URLs[0] != "tgram://111:AAA/-100" {
+		t.Errorf("carried %q — the token was not unsealed, so the channel would "+
+			"post ciphertext as its bot token and Telegram would answer 404", wc.URLs[0])
+	}
+
+	sc, ok := got[1].cfg.(smtpConfigJSON)
+	if !ok {
+		t.Fatalf("the email channel is %T", got[1].cfg)
+	}
+	if sc.User != "postmaster" || sc.Pass != "hunter2" {
+		t.Errorf("the mail credentials were not unsealed: user=%q pass=%q", sc.User, sc.Pass)
+	}
+}
