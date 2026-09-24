@@ -264,6 +264,25 @@ func main() {
 		log.Fatalf("cannot build the server: %v", err)
 	}
 
+	// ── THE FOUR FIXED TRANSPORTS BECOME CHANNELS, ONCE ──────────────────
+	//
+	// Delivery reads channels now. An install with Telegram and SMTP working
+	// would otherwise stop notifying on upgrade — silently, which is the worst
+	// failure available to the feature whose job is to say when something
+	// stopped. Runs only on an install with no channels at all.
+	//
+	// Here rather than in `db.Open` for the reason `RenamePageGrants` gives,
+	// and after `server.New` because only the server can decrypt a stored
+	// credential and seal a new one. NOT FATAL: an install this cannot write is
+	// still able to serve every page, and the operator sees an empty channel
+	// list rather than a dead app.
+	if n, nerr := srv.SeedNotifyChannels(); nerr != nil {
+		log.Printf("[mikrodash] WARNING: could not carry notification settings into channels: %v",
+			nerr)
+	} else if n > 0 {
+		log.Printf("[mikrodash] carried %d notification destination(s) into channels", n)
+	}
+
 	hs := &http.Server{
 		Addr:    *listen,
 		Handler: srv.Handler(),

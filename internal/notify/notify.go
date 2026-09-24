@@ -71,6 +71,13 @@ func HasConfigured(s Settings) bool { return len(Channels(s)) > 0 }
 // which is not a mistake here — `!!"false"` is `true` in JavaScript, so a
 // checkbox stored as text is enabled either way, and a port that special-cased
 // it would refuse to send where the original sends.
+// Truthy is `truthy` for callers outside this package.
+//
+// Exported rather than copied, because the rule it implements is a JS one — the
+// STRING "false" is true — and a second implementation that got that backwards
+// would read a disabled transport as enabled.
+func Truthy(v any) bool { return truthy(v) }
+
 func truthy(v any) bool {
 	switch x := v.(type) {
 	case nil:

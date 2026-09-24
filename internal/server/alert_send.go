@@ -73,6 +73,16 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 				// unreachable destination must not stop the others.
 				s.dispatch.Deliver(ctx, &recipients[i], key, msg)
 			}
+			// AND THE CHANNELS THAT SUBSCRIBE TO THIS EVENT.
+			//
+			// Resolved per alert rather than once per router, because which
+			// channels want it is a question about the alert: its event key and
+			// the router it came from. They are ordinary recipients from here
+			// on, so they get the same cooldown treatment and the same logging.
+			chans := s.channelRecipients(routerID, eventKeyFor(f))
+			for i := range chans {
+				s.dispatch.Deliver(ctx, &chans[i], key, msg)
+			}
 		}
 	}()
 }
@@ -99,7 +109,14 @@ func (s *Server) dispatchBackup(routerID, kind, title, body string) {
 		return
 	}
 	recipients := s.dispatch.Recipients(routerID, s.perUserRecipients)
-	if len(recipients) == 0 {
+	// THE CHANNELS THAT SUBSCRIBE TO THIS BACKUP EVENT.
+	//
+	// `backup_drift` and `backup_fail` are catalogue entries like any other, so
+	// a channel can take failures and leave drift. Until channels, the settings
+	// keys for these two existed, reached the browser, and had no Go reader at
+	// all — this is the first thing that honours them.
+	chans := s.channelRecipients(routerID, "backup_"+kind)
+	if len(recipients) == 0 && len(chans) == 0 {
 		return
 	}
 	msg := alertdispatch.Message{Title: title, Body: body}
@@ -112,6 +129,9 @@ func (s *Server) dispatchBackup(routerID, kind, title, body string) {
 			// Per recipient, result ignored: `Deliver` logs its own failure, and
 			// one unreachable destination must not stop the others.
 			s.dispatch.Deliver(ctx, &recipients[i], key, msg)
+		}
+		for i := range chans {
+			s.dispatch.Deliver(ctx, &chans[i], key, msg)
 		}
 	}()
 }
