@@ -1240,8 +1240,14 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// does not exist — which looks identical to a router that is simply quiet.
 	// The global setting is honoured here now too, so the badge, the history and
 	// the page all name the same interface.
+	// THIRTY MINUTES, because that is the longest window the Interfaces panel
+	// draws from this ring (`LIVE_RANGES` in web/src/pages/interfaces-history.ts,
+	// and the live keys in `ifaceHistoryRanges`). It was five, which was right
+	// while the only consumer was the Dashboard's traffic card; a panel offering
+	// a 30-minute view served from a 5-minute ring would draw a quarter of a
+	// chart and read as an outage. About 43 KB per interface.
 	s.traffic = collect.NewTraffic(reader{s: s}, emit,
-		defaultIfOr(rec.DefaultIf, defaultIfOr(globalDefaultIf(cfgSettings), "ether1")), 5)
+		defaultIfOr(rec.DefaultIf, defaultIfOr(globalDefaultIf(cfgSettings), "ether1")), 30)
 
 	// ── WHO SHARES A MENU WITH WHOM ────────────────────────────────────────
 	//

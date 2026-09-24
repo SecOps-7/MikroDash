@@ -39,7 +39,9 @@
 
 import { registerExtra } from '../resource';
 import { el, esc, fmtDataMB, fmtMbps } from '../dom';
-import { pushSample, windowedPoints, rightBufferFor } from './dashboard-traffic-buffer';
+import {
+  pushSample, windowedPoints, rightBufferFor, MAX_CLIENT_POINTS,
+} from './dashboard-traffic-buffer';
 import type { Interface, TrafficPoint } from '../gen/payloads';
 
 declare const Chart: undefined | (new (canvas: HTMLCanvasElement, cfg: unknown) => ChartLike);
@@ -127,9 +129,21 @@ let last: HistoryReply | null = null;
  */
 const liveBuf = new Map<string, TrafficPoint[]>();
 
-/** Feed the buffers. Called by the Interfaces page on every update. */
-export function recordLiveSamples(ifaces: readonly Interface[]): void {
-  const ts = Date.now();
+/**
+ * Feed the buffers. Called by the Interfaces page on every update.
+ *
+ * ── `ts` IS THE SERVER'S, NOT `Date.now()` ─────────────────────────────────
+ *
+ * It used to be the browser's clock, which was harmless while the buffer was
+ * the only source. It stopped being harmless when the panel started seeding
+ * itself from the server's ring: those points carry the SERVER's timestamps,
+ * and a browser clock even a few seconds off would put the seed and the tail on
+ * two different timelines — a visible jump or gap exactly where they meet, in a
+ * chart that otherwise looks perfectly reasonable.
+ *
+ * `ifstatus:update` already carries `ts`, so the whole series is one clock.
+ */
+export function recordLiveSamples(ifaces: readonly Interface[], ts: number): void {
   const seen = new Set<string>();
   ifaces.forEach((i) => {
     seen.add(i.name);
@@ -147,6 +161,42 @@ export function recordLiveSamples(ifaces: readonly Interface[]): void {
 
 function isLive(key: string): boolean {
   return LIVE_RANGES.some((r) => r.key === key);
+}
+
+/**
+ * Fill one interface's buffer from the server's ring.
+ *
+ * ── WHY THE PANEL NO LONGER STARTS BLANK ───────────────────────────────────
+ *
+ * The buffer used to begin empty at every sign-in and fill from `ifstatus`
+ * over the following half hour, so the first interface an operator opened drew
+ * almost nothing: "the live graphs only start populating after i sign in".
+ *
+ * The server has had the samples all along — `collect.Traffic` keeps a 1 Hz
+ * ring per interface, fed by rows that were already arriving for the Interfaces
+ * page itself. This copies them in.
+ *
+ * ── THE MERGE RULE ─────────────────────────────────────────────────────────
+ *
+ * The server's rows are the base and anything NEWER already buffered is kept on
+ * the end. Both halves matter: on a fresh sign-in the buffer is empty and the
+ * ring is everything, while on a panel reopened after ten minutes the buffer
+ * holds ticks the ring's snapshot predates. Taking either one alone loses the
+ * other's samples.
+ *
+ * Both sides carry the SERVER's timestamps — see `recordLiveSamples` — so `>`
+ * is a real comparison rather than two clocks being guessed at.
+ */
+function seedLive(name: string, rows: readonly TrafficPoint[]): void {
+  if (!rows.length) return;
+  const buf = liveBuf.get(name) || [];
+  const newest = rows[rows.length - 1];
+  if (!newest) return;
+  const tail = buf.filter((p) => p.ts > newest.ts);
+  const merged = rows.concat(tail);
+  liveBuf.set(name, merged.length > MAX_CLIENT_POINTS
+    ? merged.slice(merged.length - MAX_CLIENT_POINTS)
+    : merged);
 }
 
 /** Is this range one that scrolls? See `scroll` below for why 30 min is not. */
@@ -598,7 +648,12 @@ function stamp(ts: number): string {
 function load(): void {
   if (!activeID || !iface) return;
   const want = iface;
-  const ask = isLive(range) ? '1h' : range;
+  // EVERY RANGE ASKS FOR ITSELF. A live range used to ask for "1h", because the
+  // server had no live ranges and the request existed only to carry the
+  // recording note. It has them now, and leaving that substitution in place
+  // would have seeded the LIVE chart with the database's per-minute rows for
+  // the last hour — a plausible-looking line made of the wrong data.
+  const ask = range;
   fetch('/api/interfaces/history?routerId=' + encodeURIComponent(activeID) +
         '&interface=' + encodeURIComponent(iface) +
         '&range=' + encodeURIComponent(ask), { credentials: 'same-origin' })
@@ -607,6 +662,7 @@ function load(): void {
       // The dialog may have moved to another interface while this was in flight.
       if (want !== iface) return;
       last = j && j.ok ? j : null;
+      if (last && isLive(range)) seedLive(want, last.rows || []);
       paint();
     })
     .catch(() => { last = null; paint(); });
@@ -684,7 +740,6 @@ export function initInterfaceHistory(socket: {
         b.addEventListener('click', () => {
           const want = (b as HTMLElement).getAttribute('data-ifh-range') || 'live';
           if (want === range) return;
-          const wasLive = isLive(range);
           range = want;
           document.querySelectorAll('[data-ifh-range]').forEach((o) => {
             o.classList.toggle('active',
@@ -692,9 +747,12 @@ export function initInterfaceHistory(socket: {
           });
           destroyChart();
           paint();
-          // The reply is the same whichever live range is chosen and is already
-          // in hand, so moving between them costs no request.
-          if (!(wasLive && isLive(range))) load();
+          // MOVING BETWEEN LIVE RANGES ASKS AGAIN, because each one is a
+          // different span of the server's ring now: the reply used to be
+          // identical for all of them, which is what made skipping it correct.
+          // Nothing flickers — `paint` has already drawn from the buffer, and
+          // the reply only tops it up.
+          load();
         });
       });
       const host = el('ifhBody');

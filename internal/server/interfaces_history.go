@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"time"
 
+	"mikrodash/internal/collect"
 	"mikrodash/internal/db"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/store"
@@ -41,14 +42,37 @@ import (
 // minute rows and needs none, while thirty days by hour would be 720 points a
 // few hundred pixels wide. A browser picking its own aggregation would be
 // asking the database a question about layout.
+//
+// ── THE LIVE RANGES ARE ANSWERED FROM MEMORY, NOT FROM THE DATABASE ────────
+//
+// They used to be answered by the BROWSER, out of a buffer it filled from
+// `ifstatus:update` while the Interfaces page was open. That buffer started
+// empty at every sign-in, so the first chart an operator opened was blank and
+// filled over the following minutes — "the live graphs only start populating
+// after i sign in".
+//
+// The server already had the answer. `collect.Traffic` keeps a per-interface
+// ring filled from `/interface/monitor-traffic`, and because `ifStatus` claims
+// EVERY enabled interface on that same shared channel (`rateNames`) and a
+// shared fill hands every row to every holder (`streamFill.absorb`), the ring
+// fills for every interface rather than only the watched ones. Serving these
+// from it costs no router channel at all: the rows were already arriving.
+//
+// `Live` therefore means "the 1 Hz ring", not "recent". It names a SOURCE,
+// which is why it is a field of its own and not another `Agg` value.
 var ifaceHistoryRanges = map[string]struct {
 	Span time.Duration
 	Agg  string
+	Live bool
 }{
-	"1h":  {time.Hour, ""},
-	"24h": {24 * time.Hour, "hour"},
-	"7d":  {7 * 24 * time.Hour, "hour"},
-	"30d": {30 * 24 * time.Hour, "day"},
+	"live": {60 * time.Second, "", true},
+	"5m":   {5 * time.Minute, "", true},
+	"15m":  {15 * time.Minute, "", true},
+	"30m":  {30 * time.Minute, "", true},
+	"1h":   {time.Hour, "", false},
+	"24h":  {24 * time.Hour, "hour", false},
+	"7d":   {7 * 24 * time.Hour, "hour", false},
+	"30d":  {30 * 24 * time.Hour, "day", false},
 }
 
 // ifaceHistoryReply is the whole panel in one response: the series, what it is
@@ -106,13 +130,6 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
 		return
 	}
-	if s.auditDB == nil {
-		// An empty series would read as "this interface was idle" rather than
-		// "there is no history to read", which is the distinction this panel
-		// exists to draw.
-		writeJSONErr(w, http.StatusServiceUnavailable, "history unavailable")
-		return
-	}
 	rng, ok := ifaceHistoryRanges[q.Get("range")]
 	if !ok {
 		// NOT a default. An unknown range is the caller asking for something
@@ -124,6 +141,19 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	from, to := now.Add(-rng.Span).UnixMilli(), now.UnixMilli()
+
+	if rng.Live {
+		s.writeLiveHistory(w, sess, routerID, iface, from)
+		return
+	}
+	if s.auditDB == nil {
+		// An empty series would read as "this interface was idle" rather than
+		// "there is no history to read", which is the distinction this panel
+		// exists to draw. A LIVE range is answered above and never reaches
+		// here, because the ring is not the database and is there either way.
+		writeJSONErr(w, http.StatusServiceUnavailable, "history unavailable")
+		return
+	}
 
 	var rows []db.TrafficSample
 	if rng.Agg != "" {
@@ -155,6 +185,61 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 		DefaultIf: defaultIf,
 		RxTotalMb: b.RxTotalMb, TxTotalMb: b.TxTotalMb,
 		RxMaxMbps: t.RxMaxMbps, TxMaxMbps: t.TxMaxMbps,
+	}
+	for _, n := range rec {
+		if n == iface {
+			out.Recorded = true
+		}
+	}
+	if s.mayManageRouter(sess, routerID) {
+		out.MayRecord = true
+		out.RecordedIfaces = stored
+		if out.RecordedIfaces == nil {
+			out.RecordedIfaces = []string{}
+		}
+	}
+	writeJSON(w, out)
+}
+
+// writeLiveHistory answers a live range from the collector's 1 Hz ring.
+//
+// ── AN EXISTING SESSION ONLY, NEVER A NEW ONE ──────────────────────────────
+//
+// `Live()` is read rather than `Acquire`, which would DIAL a router nobody is
+// watching just because a panel was opened. A router with no session has no
+// ring, and the honest answer is an empty series: the panel then fills from the
+// socket exactly as it did before, rather than the page blocking on a connect.
+//
+// ── AND NO DATABASE SUMMARY ────────────────────────────────────────────────
+//
+// The totals and peaks under the chart are computed by the panel from these
+// points, because the ring is the whole truth for a live range. Asking the
+// database for a summary of the last sixty seconds would answer from minute
+// rows that exist only for recorded interfaces — a second, coarser number
+// under a chart drawn from a finer one.
+func (s *Server) writeLiveHistory(w http.ResponseWriter, sess *Session, routerID, iface string,
+	from int64) {
+	var pts []collect.TrafficPoint
+	if live := s.sessions.Live()[routerID]; live != nil {
+		if tr := live.Traffic(); tr != nil {
+			pts = tr.History(iface).Points
+		}
+	}
+	rows := make([]db.TrafficSample, 0, len(pts))
+	for _, p := range pts {
+		// The ring is longer than most windows, so it is trimmed here rather
+		// than sent whole and thrown away by the browser.
+		if p.TS < from {
+			continue
+		}
+		rows = append(rows, db.TrafficSample{
+			TS: p.TS, Interface: iface, RxMbps: p.RxMbps, TxMbps: p.TxMbps,
+		})
+	}
+
+	rec, stored, defaultIf := s.recordedFor(routerID)
+	out := ifaceHistoryReply{
+		OK: true, Rows: rows, Resolution: "second", DefaultIf: defaultIf,
 	}
 	for _, n := range rec {
 		if n == iface {

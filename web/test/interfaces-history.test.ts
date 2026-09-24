@@ -357,7 +357,21 @@ check('the request names the interface and the range', async () => {
   assert.ok(call, 'the panel never asked for any history: ' + JSON.stringify(d.fetched));
   assert.ok(call.includes('interface=ether%205'),
     'the interface name was not encoded into the query: ' + call);
-  assert.ok(/range=(1h|24h|7d|30d)/.test(call), 'no range was sent: ' + call);
+
+  // ── EVERY RANGE ASKS FOR ITSELF ────────────────────────────────────────
+  //
+  // A live range used to ask for "1h", because the server had no live ranges
+  // and the request existed only to carry the recording note. It has them now,
+  // and that substitution would seed the LIVE chart with the database's
+  // per-minute rows for the last hour: a plausible line made of the wrong data,
+  // which no assertion about "a range was sent" could see.
+  //
+  // The panel opens on Live, so the FIRST call is the live one and the last is
+  // the 24 hours this test clicked.
+  assert.ok(/[?&]range=live(&|$)/.test(call),
+    'the first request did not ask for the range on screen: ' + call);
+  assert.equal(lastAskedRange(d.fetched), '24h',
+    'the 24-hour view asked for something else: ' + JSON.stringify(d.fetched));
 });
 
 // AN INTERFACE THAT USED TO BE RECORDED STILL HAS A HISTORY, and it must be
@@ -490,14 +504,14 @@ check('Live draws for an interface that is not recorded', async () => {
   d.mod.recordLiveSamples([
     { name: 'ether5', rxMbps: 12, txMbps: 3 },
     { name: 'ether1', rxMbps: 1, txMbps: 1 },
-  ]);
+  ], Date.now());
   // The chart is drawn from the buffer alone and does not wait for the server.
   assert.ok(d.body().includes('ifhChart'),
     'Live waited for the history reply before drawing: ' + d.body());
   // The recording NOTE does wait for it, since only the server knows. Let the
   // reply land before asking about it.
   await new Promise((r) => setImmediate(r));
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 12, txMbps: 3 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 12, txMbps: 3 }], Date.now());
   const body = d.body();
   assert.ok(body.includes('ifhChart'),
     'Live drew no chart for an unrecorded interface, which is the one thing it '
@@ -514,7 +528,7 @@ check('a live sample for another interface does not draw here', async () => {
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  d.mod.recordLiveSamples([{ name: 'ether9', rxMbps: 99, txMbps: 99 }]);
+  d.mod.recordLiveSamples([{ name: 'ether9', rxMbps: 99, txMbps: 99 }], Date.now());
   assert.ok(d.body().includes('Waiting for the first live sample'),
     'another interface\'s traffic was drawn under this one: ' + d.body());
 });
@@ -529,7 +543,7 @@ check('a live window is labelled by age', async () => {
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }], Date.now());
   const x = d.charts.last().cfg.options.scales.x;
   const labels = [x.min, (x.min + x.max) / 2, x.max].map((v) => x.ticks.callback(v));
   labels.forEach((l) => {
@@ -569,7 +583,7 @@ check('nothing is tweened, because a tween on this axis morphs the line', async 
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }], Date.now());
   assert.equal(d.charts.last().cfg.options.animation, false,
     'an animation on a value axis morphs the line instead of scrolling it');
 });
@@ -583,7 +597,7 @@ check('a live window spans its whole range even with one sample', async () => {
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 7, txMbps: 2 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 7, txMbps: 2 }], Date.now());
   const x = d.charts.last().cfg.options.scales.x;
   assert.equal(x.type, 'linear', 'an index axis cannot hold a point at its real time');
   assert.equal(x.max - x.min, 60000, 'the Live window is not 60 seconds wide');
@@ -607,7 +621,7 @@ check('the visible window stops short of now, hiding the leading edge', async ()
   await Promise.resolve();
   d.deliverRow();
   const before = Date.now();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 9, txMbps: 3 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 9, txMbps: 3 }], Date.now());
   const x = d.charts.last().cfg.options.scales.x;
   assert.ok(before - x.max >= 900,
     'the window runs right up to now, so the segment being drawn is on screen: '
@@ -637,10 +651,10 @@ check('the drawn points reach past the left edge', async () => {
   const start = realNow() - 70000;
   for (let i = 0; i <= 70; i += 1) {
     Date.now = () => start + i * 1000;
-    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 1 }]);
+    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 1 }], Date.now());
   }
   Date.now = realNow;
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 1 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 1 }], Date.now());
 
   const c = d.charts.last();
   const x = c.cfg.options.scales.x;
@@ -668,10 +682,10 @@ check('the live peak ignores the points beyond the left edge', async () => {
   // the check passed whether or not the peak filtered anything.
   for (let i = 0; i <= 70; i += 1) {
     Date.now = () => start + i * 1000;
-    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: i === 7 ? 900 : 4, txMbps: 1 }]);
+    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: i === 7 ? 900 : 4, txMbps: 1 }], Date.now());
   }
   Date.now = realNow;
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 4, txMbps: 1 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 4, txMbps: 1 }], Date.now());
 
   // READ THE STATS ELEMENT, not the body. A tick rewrites the contents of
   // #ifhStats, and the shim never parses innerHTML into nodes — so the body
@@ -689,7 +703,7 @@ check('the window scrolls on animation frames, not on samples', async () => {
   await Promise.resolve();
   d.deliverRow();
   await d.settle();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }], Date.now());
   assert.ok(d.frames.requested > 0,
     'no frame was requested, so the window only moves when a sample lands — '
     + 'which is the once-a-second jump this replaced');
@@ -707,7 +721,7 @@ check('the window scrolls on animation frames, not on samples', async () => {
     await Promise.resolve();
     d.deliverRow();
     await d.settle();
-    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }], Date.now());
     assert.equal(d.frames.requested, 0,
       'the ' + slow.key + ' window is redrawing every frame for ' + slow.pxPerSec
       + ' px/s of movement');
@@ -723,7 +737,7 @@ check('the 15-minute window is fifteen minutes wide', async () => {
   await Promise.resolve();
   d.deliverRow();
   await d.settle();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 3, txMbps: 1 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 3, txMbps: 1 }], Date.now());
   const x = d.charts.last().cfg.options.scales.x;
   assert.equal(x.max - x.min, 900000,
     'the 15 min button draws a ' + Math.round((x.max - x.min) / 1000) + '-second window');
@@ -742,7 +756,7 @@ check('a live tooltip is headed by a clock time, not the raw axis value', async 
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }], Date.now());
   const o = d.charts.last().cfg.options;
   const title = String(o.plugins.tooltip.callbacks.title([{ parsed: { x: 1790000000000 } }]));
   assert.ok(!/^\d{6,}$/.test(title),
@@ -773,12 +787,78 @@ check('a 24-hour tooltip carries the date as well as the clock', async () => {
 
 // AN EMPTY ITEM LIST IS NOT A CRASH. Chart.js calls the title callback with
 // whatever it has, and a heading that threw would take the whole tooltip down.
+// ── THE SERVER'S RING IS WHAT FILLS THE CHART ──────────────────────────────
+//
+// The buffer began empty at every sign-in and filled from `ifstatus` over the
+// next half hour, so the first interface opened drew almost nothing: "the live
+// graphs only start populating after i sign in". The server has kept a 1 Hz
+// ring per interface all along, fed by rows that were already arriving; the
+// panel now seeds itself from it.
+
+check('a live chart is drawn from the server ring before any sample arrives', async () => {
+  const now = Date.now();
+  const rows = [];
+  for (let i = 30; i >= 1; i -= 1) rows.push({ ts: now - i * 1000, rx_mbps: 5, tx_mbps: 2 });
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1', rows },
+    false, 'ether7');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  // NOT ONE `recordLiveSamples` call: this is exactly the fresh-sign-in case,
+  // where the browser has seen no tick yet.
+  const c = d.charts.last();
+  assert.ok(c, 'no chart was drawn, so the seeded ring drew nothing');
+  assert.ok(c.data.datasets[0].data.length >= 25,
+    'the chart has ' + c.data.datasets[0].data.length + ' points from a 30-point ring, '
+    + 'so the reply was not seeded into the live buffer');
+});
+
+// AND THE BUFFER'S NEWER SAMPLES SURVIVE THE SEED. A panel reopened after ten
+// minutes holds ticks the ring's snapshot predates; taking the server's rows
+// alone would throw them away.
+check('seeding keeps live samples newer than the ring', async () => {
+  const now = Date.now();
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1',
+    rows: [{ ts: now - 30000, rx_mbps: 5, tx_mbps: 2 }] }, false, 'ether5');
+  await Promise.resolve();
+  // THE TICK ARRIVES BEFORE THE REPLY, which is the only ordering that tests
+  // the merge at all. Pushing it afterwards appends to an already-seeded buffer
+  // and would pass with the tail thrown away — it did, until a mutation that
+  // discarded the tail failed to break this check.
+  const fresh = now - 1000;
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 42, txMbps: 7 }], fresh);
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  const pts = d.charts.last().data.datasets[0].data;
+  assert.ok(pts.some((p) => p.x === fresh),
+    'the newer live sample was dropped by the seed: ' + JSON.stringify(pts.slice(-3)));
+  assert.ok(pts.some((p) => p.x === now - 30000),
+    'the seeded ring point is gone: ' + JSON.stringify(pts.slice(0, 3)));
+});
+
+// ONE CLOCK. The seed carries the SERVER's timestamps; if live samples were
+// stamped with `Date.now()` the two halves would sit on different timelines and
+// meet in a jump. Nothing about the drawn line would look wrong.
+check('a live sample is stamped with the payload clock, not the browser clock', async () => {
+  const d = open({ ok: true, recorded: false, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  await d.settle();
+  const t = Date.now() - 5000;
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 4, txMbps: 1 }], t);
+  const pts = d.charts.last().data.datasets[0].data;
+  assert.ok(pts.some((p) => p.x === t),
+    'the sample was stamped with the browser clock instead of the payload ts: '
+    + JSON.stringify(pts.slice(-3)));
+});
+
 check('a tooltip with no items is headed by nothing, not by an error', async () => {
   const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
     false, 'ether5');
   await Promise.resolve();
   d.deliverRow();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }], Date.now());
   const o = d.charts.last().cfg.options;
   assert.equal(o.plugins.tooltip.callbacks.title([]), '');
 });

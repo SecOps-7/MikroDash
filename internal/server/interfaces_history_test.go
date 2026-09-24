@@ -46,8 +46,12 @@ func TestTheOfferedRangesAreTheAcceptedRanges(t *testing.T) {
 	history := rangeKeys(t, ts, "HISTORY_RANGES")
 	live := rangeKeys(t, ts, "LIVE_RANGES")
 
+	// A RANGE THE SERVER ACCEPTS MUST BE OFFERED BY ONE OF THE TWO TABLES.
+	// Which table is checked below; here the only question is whether any
+	// button at all leads to it, since one that leads nowhere is dead code that
+	// reads as a feature.
 	for k := range ifaceHistoryRanges {
-		if !history[k] {
+		if !history[k] && !live[k] {
 			t.Errorf("the server accepts range %q and the panel offers no button for it", k)
 		}
 	}
@@ -57,13 +61,35 @@ func TestTheOfferedRangesAreTheAcceptedRanges(t *testing.T) {
 				"with a 400, so the button does nothing", k)
 		}
 	}
-	// AND A LIVE RANGE IS NOT A SERVER RANGE. If one ever became both, the
-	// panel would draw the buffer for it while the server answered something
-	// else for the same key — two pictures under one label.
+	// AND A LIVE RANGE IS A SERVER RANGE TOO, NOW.
+	//
+	// ── THIS ASSERTION USED TO SAY THE OPPOSITE, DELIBERATELY ──────────────
+	//
+	// It read: a live key must NOT be accepted by the server, because the panel
+	// drew its own browser buffer for it and a key answered by both would mean
+	// whichever source ran last. That was true while there were two sources.
+	//
+	// There is one now. The live ranges are served from `collect.Traffic`'s 1 Hz
+	// ring (see `ifaceHistoryRanges`), and the browser seeds its buffer from
+	// that reply instead of starting empty — which is the whole point of the
+	// change: a chart opened one second after signing in is already full.
+	//
+	// So the invariant inverts rather than relaxes: EVERY offered range must be
+	// accepted, live or recorded. A live button the server refuses would 400 and
+	// draw nothing at all, which is worse than the blank it replaced.
 	for k := range live {
-		if _, ok := ifaceHistoryRanges[k]; ok {
-			t.Errorf("%q is declared as a live range AND accepted by the server; it has two "+
-				"sources and the button would mean whichever one ran last", k)
+		if _, ok := ifaceHistoryRanges[k]; !ok {
+			t.Errorf("the panel offers live range %q and the server refuses it with a 400, "+
+				"so the button draws nothing — the live ranges are served from the "+
+				"collector's ring now, not from a buffer in the browser", k)
+		}
+	}
+	// AND THE SERVER'S LIVE KEYS ARE THE PANEL'S. A range the server answers
+	// from the ring that no button offers is a source with no consumer.
+	for k, r := range ifaceHistoryRanges {
+		if r.Live && !live[k] {
+			t.Errorf("the server answers %q from the live ring and the panel offers no live "+
+				"button for it", k)
 		}
 	}
 	if len(live) == 0 {
@@ -109,15 +135,26 @@ func TestEveryRangeIsDrawnAtAKnownAggregation(t *testing.T) {
 	known := map[string]bool{"": true, "hour": true, "day": true, "week": true, "month": true}
 	raw := []string{}
 	for k, r := range ifaceHistoryRanges {
+		// EVERY range needs a real span, live or not: it is the window either
+		// source is trimmed to.
+		if r.Span <= 0 {
+			t.Errorf("range %q has a span of %v", k, r.Span)
+		}
+		// A LIVE RANGE NEVER REACHES THE DATABASE. It is served from
+		// `collect.Traffic`'s ring, so it has no aggregation to know and it is
+		// not one of the "raw" ranges this ledger is counting — that list is
+		// about how many ROWS a query puts on the wire, and this one runs no
+		// query. Skipping it here rather than giving it a fake `Agg` keeps the
+		// ledger's subject the database.
+		if r.Live {
+			continue
+		}
 		if !known[r.Agg] {
 			t.Errorf("range %q is drawn at aggregation %q, which aggBucket does not know: "+
 				"the query returns no rows and the panel shows an empty chart", k, r.Agg)
 		}
 		if r.Agg == "" {
 			raw = append(raw, k)
-		}
-		if r.Span <= 0 {
-			t.Errorf("range %q has a span of %v", k, r.Span)
 		}
 	}
 	// ONLY THE SHORTEST IS RAW. Recorded as a list so widening it is a

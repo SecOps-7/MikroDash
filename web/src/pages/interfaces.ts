@@ -567,7 +567,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
     // The modal's live ranges are drawn from this same payload, buffered per
     // interface (#59). Fed here rather than by a second subscription, so the
     // panel cannot be looking at a different tick from the page behind it.
-    recordLiveSamples(ifaces);
+    recordLiveSamples(ifaces, data.ts);
     if (ifaceCount) {
       ifaceCount.textContent = String(ifaces.length);
       ifaceCount.className = 'card-badge' + (ifaces.length > 0 ? ' active-blue' : '');
