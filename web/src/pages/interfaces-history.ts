@@ -16,7 +16,7 @@
  *
  * ── TWO SOURCES, AND A RANGE NEVER CHANGES WHICH ONE IT USES ────────────────
  *
- * The short ranges — Live, 5 min, 30 min — come from a 1 Hz buffer fed by the
+ * The short ranges — Live to 30 min — come from a 1 Hz buffer fed by the
  * same `ifstatus:update` the page already receives, held per interface. The
  * long ones come from the database. A range that read one place on a recorded
  * interface and another on an unrecorded one would show two different pictures
@@ -74,12 +74,19 @@ interface HistoryReply {
  * interface to ask is almost always about now.
  */
 const LIVE_RANGES: Array<{ key: string; label: string; secs: number; smooth: boolean }> = [
-  // `smooth` animates each tick so the line SLIDES rather than stepping. It is
-  // off for the 30-minute window on purpose: at 1800 points across a few
-  // hundred pixels a sample is sub-pixel, so tweening 1800 values every second
-  // buys nothing anyone can see and costs it every second.
+  // `smooth` scrolls the window every frame so the line SLIDES rather than
+  // stepping once a second. Whether that is worth paying for is decided by ONE
+  // number: how far the window travels in a second, across a plot about 700px
+  // wide. Above a pixel there is a visible step to smooth away; below one there
+  // is nothing to see and a frame-rate redraw of every point to pay for.
+  //
+  //	Live  60s   ~11.7 px/s   smoothed
+  //	5m   300s    ~2.3 px/s   smoothed
+  //	15m  900s    ~0.8 px/s   stepped
+  //	30m 1800s    ~0.4 px/s   stepped
   { key: 'live', label: 'Live', secs: 60, smooth: true },
   { key: '5m', label: '5 min', secs: 300, smooth: true },
+  { key: '15m', label: '15 min', secs: 900, smooth: false },
   { key: '30m', label: '30 min', secs: 1800, smooth: false },
 ];
 
@@ -484,7 +491,19 @@ function paint(): void {
       // line rather than scrolling it, and the scroll is the window moving.
       animation: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } } },
+      plugins: {
+        legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } },
+        // THE HEADING OVER Rx AND Tx IS A CLOCK TIME. Chart.js's default title
+        // on a linear axis is the raw x value, so it read "1790000000000".
+        tooltip: {
+          callbacks: {
+            title: (items: Array<{ parsed: { x: number } }>): string => {
+              const first = items[0];
+              return first ? stamp(first.parsed.x) : '';
+            },
+          },
+        },
+      },
       scales: {
         x: {
           // LINEAR OVER MILLISECONDS, not a time axis: Chart.js's time scale
@@ -533,9 +552,10 @@ function cssVar(name: string): string {
  * keep the clock and the date, where a wall-clock time is what an operator is
  * actually trying to line something up against.
  */
+const p2 = (n: number): string => (n < 10 ? '0' + n : String(n));
+
 function tick(ts: number, now: number): string {
   const d = new Date(ts);
-  const p2 = (n: number): string => (n < 10 ? '0' + n : String(n));
   if (isLive(range)) {
     const age = Math.round((now - ts) / 1000);
     if (age <= 0) return 'now';
@@ -544,6 +564,31 @@ function tick(ts: number, now: number): string {
   }
   if (range === '1h' || range === '24h') return p2(d.getHours()) + ':' + p2(d.getMinutes());
   return p2(d.getDate()) + '/' + p2(d.getMonth() + 1);
+}
+
+/**
+ * The heading over one tooltip: a wall-clock time, in every range.
+ *
+ * ── WHY IT DOES NOT FOLLOW THE AXIS ────────────────────────────────────────
+ *
+ * `tick` labels a live window by AGE, and that is right for an axis, which
+ * describes a span. A tooltip names a single instant, and "-12s" is the one
+ * thing an operator cannot line up against a log line or an alert. So the axis
+ * says how long ago and the tooltip says when, and they are not in conflict:
+ * they answer different questions about the same point.
+ *
+ * The detail follows the resolution the range is drawn at, because a stamp more
+ * precise than its sample invents accuracy — a 30-day chart is daily buckets,
+ * and printing "14:37" over one would be a lie about the bucket's shape.
+ */
+function stamp(ts: number): string {
+  const d = new Date(ts);
+  const clock = p2(d.getHours()) + ':' + p2(d.getMinutes());
+  const day = p2(d.getDate()) + '/' + p2(d.getMonth() + 1);
+  if (isLive(range)) return clock + ':' + p2(d.getSeconds());  // 1 Hz samples
+  if (range === '1h') return clock;                            // per minute
+  if (range === '30d') return day;                             // per day
+  return day + ' ' + clock;                                    // per hour
 }
 
 /**

@@ -36,7 +36,7 @@ func TestTheInterfaceHistoryRouteIsRegistered(t *testing.T) {
 //
 // ── EXCEPT THE LIVE ONES, WHICH THE SERVER NEVER SEES ──────────────────────
 //
-// Live, 5 min and 30 min are drawn from a buffer in the browser, fed by the
+// Live through 30 min are drawn from a buffer in the browser, fed by the
 // payload the page already receives, so they work for an interface nothing is
 // recording. They are declared in their own array for exactly this reason: the
 // two sets are checked against different things, and one list holding both

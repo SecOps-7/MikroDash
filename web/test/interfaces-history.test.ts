@@ -555,17 +555,92 @@ check('the window scrolls on animation frames, not on samples', async () => {
     + 'which is the once-a-second jump this replaced');
 });
 
-// NOT FOR THE 30-MINUTE WINDOW: it advances about a third of a pixel a second,
-// so a frame-rate redraw of 1800 points would be paid for motion no one sees.
-check('the 30-minute window does not run a frame loop', async () => {
+// NOT FOR THE SLOW WINDOWS. 15 min advances about 0.8 of a pixel a second and
+// 30 min about 0.4, so a 1 Hz step is already sub-pixel: there is no visible
+// stepping to smooth, and a frame-rate redraw of 900 or 1800 points would be
+// paid for motion no one can see. Both are listed, because adding a range and
+// leaving it out of this check is how the cost creeps back in unnoticed.
+[{ key: '15m', pxPerSec: '0.8' }, { key: '30m', pxPerSec: '0.4' }].forEach((slow) => {
+  check('the ' + slow.key + ' window does not run a frame loop', async () => {
+    const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+      false, 'ether5', slow.key);
+    await Promise.resolve();
+    d.deliverRow();
+    await d.settle();
+    d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
+    assert.equal(d.frames.requested, 0,
+      'the ' + slow.key + ' window is redrawing every frame for ' + slow.pxPerSec
+      + ' px/s of movement');
+  });
+});
+
+// AND THE BUTTON DRAWS THE WINDOW IT NAMES. A range whose label and width
+// disagree is invisible in a screenshot: the line looks plausible either way,
+// and only the axis arithmetic tells fifteen minutes from five.
+check('the 15-minute window is fifteen minutes wide', async () => {
   const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
-    false, 'ether5', '30m');
+    false, 'ether5', '15m');
   await Promise.resolve();
   d.deliverRow();
   await d.settle();
-  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 1, txMbps: 1 }]);
-  assert.equal(d.frames.requested, 0,
-    'the 30-minute window is redrawing every frame for 0.3 px/s of movement');
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 3, txMbps: 1 }]);
+  const x = d.charts.last().cfg.options.scales.x;
+  assert.equal(x.max - x.min, 900000,
+    'the 15 min button draws a ' + Math.round((x.max - x.min) / 1000) + '-second window');
+});
+
+// ── THE TOOLTIP SAYS WHEN ──────────────────────────────────────────────────
+//
+// The axis is linear over epoch milliseconds, because Chart.js's time scale
+// needs a date adapter this build does not ship. Chart.js's DEFAULT tooltip
+// title on a linear axis is the raw x value, so the heading above Rx and Tx
+// read "1790000000000" — reported as "a very long number. not sure what that
+// is". Nothing else would have caught it: every number in the chart was right.
+
+check('a live tooltip is headed by a clock time, not the raw axis value', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
+  const o = d.charts.last().cfg.options;
+  const title = String(o.plugins.tooltip.callbacks.title([{ parsed: { x: 1790000000000 } }]));
+  assert.ok(!/^\d{6,}$/.test(title),
+    'the tooltip heading is still the raw millisecond value: ' + JSON.stringify(title));
+  assert.ok(/^\d\d:\d\d:\d\d$/.test(title),
+    'a live tooltip is not a clock time to the second: ' + JSON.stringify(title));
+  // AND IT IS NOT THE AXIS LABEL. The axis says "-12s" deliberately, which is
+  // right for a span and is the one thing you cannot line up against a log.
+  assert.ok(!/^(now|-\d+[sm])$/.test(title),
+    'the tooltip repeats the axis age instead of naming the instant: ' + JSON.stringify(title));
+});
+
+// A RECORDED RANGE CARRIES THE DATE, because a point twenty days back that says
+// only "14:00" names nothing an operator can go and find.
+check('a 24-hour tooltip carries the date as well as the clock', async () => {
+  const d = open({
+    ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1', recordedIfaces: ['ether5'],
+    rows: [{ ts: 1790000000000, rx_mbps: 5, tx_mbps: 2 }],
+  }, false, 'ether5', '24h');
+  await Promise.resolve();
+  d.deliverRow();
+  await new Promise((r) => setImmediate(r));
+  const o = d.charts.last().cfg.options;
+  const title = String(o.plugins.tooltip.callbacks.title([{ parsed: { x: 1790000000000 } }]));
+  assert.ok(/^\d\d\/\d\d \d\d:\d\d$/.test(title),
+    'a 24-hour tooltip is not dd/mm hh:mm: ' + JSON.stringify(title));
+});
+
+// AN EMPTY ITEM LIST IS NOT A CRASH. Chart.js calls the title callback with
+// whatever it has, and a heading that threw would take the whole tooltip down.
+check('a tooltip with no items is headed by nothing, not by an error', async () => {
+  const d = open({ ok: true, recorded: true, mayRecord: true, defaultIf: 'ether1' },
+    false, 'ether5');
+  await Promise.resolve();
+  d.deliverRow();
+  d.mod.recordLiveSamples([{ name: 'ether5', rxMbps: 5, txMbps: 2 }]);
+  const o = d.charts.last().cfg.options;
+  assert.equal(o.plugins.tooltip.callbacks.title([]), '');
 });
 
 // ── THE SWITCH GOES BOTH WAYS ──────────────────────────────────────────────
