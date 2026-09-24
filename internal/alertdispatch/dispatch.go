@@ -45,6 +45,21 @@ const cooldownMax = 1000
 type Recipient struct {
 	ID       string
 	Settings notify.Settings
+	// URLs is a webhook channel's destinations, already decrypted.
+	//
+	// ── A CHANNEL IS A RECIPIENT, NOT A NEW MECHANISM ──────────────────────
+	//
+	// When this is non-empty the recipient is delivered by URL scheme instead
+	// of by the four flat transports in `Settings`. Everything else about it is
+	// unchanged, which is the point: the cooldown key is built from `ID`, so a
+	// channel gets its own cooldown for free and one channel's suppression
+	// cannot mute another's. The alternative — a second delivery loop beside
+	// this one — would have needed its own cooldowns, its own logging and its
+	// own reason to be trusted.
+	//
+	// These are CREDENTIALS. A webhook URL carries its token in the path, so
+	// nothing here may log one; `notify.SendURLs` reports only the scheme.
+	URLs []string
 }
 
 // Message is what one alert says. Rendered ONCE and fanned out — templates are
@@ -118,8 +133,10 @@ type Dispatcher struct {
 	mailFor func(notify.Settings) notify.Mailer
 	now     func() int64
 	// sendFn is the transport, injectable so the tests can assert what WOULD
-	// have gone without a network.
-	sendFn func(ctx context.Context, s notify.Settings, title, body string) error
+	// have gone without a network. It takes the whole RECIPIENT rather than its
+	// settings, because a webhook channel carries its destinations in `URLs`
+	// and there is nothing in `notify.Settings` to put them in.
+	sendFn func(ctx context.Context, r *Recipient, title, body string) error
 }
 
 func New(enabled bool, settings notify.Settings, client notify.Doer, mailFor func(notify.Settings) notify.Mailer,
@@ -128,12 +145,18 @@ func New(enabled bool, settings notify.Settings, client notify.Doer, mailFor fun
 		enabled: enabled, cooldowns: map[string]int64{}, settings: settings,
 		client: client, mailFor: mailFor, now: now,
 	}
-	d.sendFn = func(ctx context.Context, s notify.Settings, title, body string) error {
+	d.sendFn = func(ctx context.Context, r *Recipient, title, body string) error {
+		// A WEBHOOK CHANNEL GOES BY SCHEME. Checked first because such a
+		// recipient has no flat transport settings at all, and `notify.Send`
+		// would find nothing configured and report success having sent nothing.
+		if len(r.URLs) > 0 {
+			return notify.SendURLs(ctx, d.client, r.URLs, title, body)
+		}
 		var mail notify.Mailer
 		if d.mailFor != nil {
-			mail = d.mailFor(s)
+			mail = d.mailFor(r.Settings)
 		}
-		return notify.Send(ctx, d.client, s, mail, title, body)
+		return notify.Send(ctx, d.client, r.Settings, mail, title, body)
 	}
 	return d
 }
@@ -175,7 +198,13 @@ func (d *Dispatcher) allow(r *Recipient, subjectKey string) (bool, string) {
 	if r == nil {
 		return false, "no recipient"
 	}
-	if !notify.HasConfigured(r.Settings) {
+	// A WEBHOOK CHANNEL IS "CONFIGURED" BY HAVING URLS. `HasConfigured` asks
+	// whether any of the four flat transports has both its enable flag and its
+	// credentials, which a channel recipient has none of — so without this it
+	// would be refused here, before the cooldown, and every webhook channel
+	// would silently deliver nothing while the log said "no channel is
+	// configured" about a channel that is entirely configured.
+	if len(r.URLs) == 0 && !notify.HasConfigured(r.Settings) {
 		return false, "no channel is configured"
 	}
 	d.mu.Lock()
@@ -220,7 +249,7 @@ func (d *Dispatcher) Deliver(ctx context.Context, r *Recipient, subjectKey strin
 		log.Printf("[alert] not sent to %s (%s): %s", r.ID, subjectKey, why)
 		return false
 	}
-	if err := d.sendFn(ctx, r.Settings, m.Title, m.Body); err != nil {
+	if err := d.sendFn(ctx, r, m.Title, m.Body); err != nil {
 		// LOGGED AND SWALLOWED, per recipient. The live `.catch` does the same:
 		// one unreachable destination must not stop the others, and it must not
 		// stop the alert row that has already been filed.

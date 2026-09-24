@@ -34,6 +34,7 @@ package notify
 // incident it was meant to tell them about.
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,6 +147,54 @@ func (p parts) need(n int, form string) error {
 		return fmt.Errorf("%w: %s expects %s", ErrUnknownScheme, p.scheme, form)
 	}
 	return nil
+}
+
+// SendURLs posts one message to every URL in a webhook channel.
+//
+// ── EVERY URL IS TRIED, AND THE FAILURES ARE COLLECTED ─────────────────────
+//
+// The same rule `Send` follows for the four fixed transports, and for the same
+// reason: a channel with three destinations must not lose the other two because
+// the first is unreachable. The error names which URL's SCHEME failed, never the
+// URL itself — the URL is a credential.
+func SendURLs(ctx context.Context, c Doer, urls []string, title, body string) error {
+	var failures []string
+	sent := 0
+	for _, raw := range urls {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		req, err := Parse(raw, title, body)
+		if err != nil {
+			// The scheme is safe to name; the rest of the URL is not.
+			failures = append(failures, schemeOf(raw)+": "+err.Error())
+			continue
+		}
+		if err := Post(ctx, c, req); err != nil {
+			failures = append(failures, schemeOf(raw)+": "+err.Error())
+			continue
+		}
+		sent++
+	}
+	if len(failures) > 0 {
+		return errors.New(strings.Join(failures, "; "))
+	}
+	if sent == 0 {
+		// NOT SILENT SUCCESS. A channel whose URL list is empty or all blank
+		// would otherwise report every alert as delivered.
+		return errors.New("no webhook URLs configured")
+	}
+	return nil
+}
+
+// schemeOf is what may appear in an error. Everything after the scheme is a
+// credential.
+func schemeOf(raw string) string {
+	if i := strings.Index(raw, "://"); i > 0 {
+		return raw[:i]
+	}
+	return "url"
 }
 
 // Validate reports whether a URL can be sent, without caring about the payload.

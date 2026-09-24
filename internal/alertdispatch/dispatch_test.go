@@ -121,7 +121,7 @@ func TestADisabledDispatcherLeavesNoTrace(t *testing.T) {
 	sent := 0
 	d := New(false, notify.Settings{"telegramEnabled": true, "telegramBotToken": "x",
 		"telegramChatId": "1"}, nil, nil, func() int64 { return realInstant })
-	d.sendFn = func(context.Context, notify.Settings, string, string) error { sent++; return nil }
+	d.sendFn = func(context.Context, *Recipient, string, string) error { sent++; return nil }
 
 	r := &Recipient{ID: "_install", Settings: d.settings}
 	for i := 0; i < 3; i++ {
@@ -174,7 +174,7 @@ func TestAnEnabledDispatcherSends(t *testing.T) {
 	sent := 0
 	s := notify.Settings{"telegramEnabled": true, "telegramBotToken": "x", "telegramChatId": "1"}
 	d := New(true, s, nil, nil, func() int64 { return realInstant })
-	d.sendFn = func(_ context.Context, _ notify.Settings, title, body string) error {
+	d.sendFn = func(_ context.Context, _ *Recipient, title, body string) error {
 		sent++
 		got = Message{Title: title, Body: body}
 		return nil
@@ -199,7 +199,7 @@ func TestAnEnabledDispatcherSends(t *testing.T) {
 func TestATransportFailureIsReportedNotPanicked(t *testing.T) {
 	s := notify.Settings{"telegramEnabled": true, "telegramBotToken": "x", "telegramChatId": "1"}
 	d := New(true, s, nil, nil, func() int64 { return realInstant })
-	d.sendFn = func(context.Context, notify.Settings, string, string) error {
+	d.sendFn = func(context.Context, *Recipient, string, string) error {
 		return context.DeadlineExceeded
 	}
 	if d.Deliver(context.Background(), &Recipient{ID: "_install", Settings: s}, "cpu", Message{}) {
