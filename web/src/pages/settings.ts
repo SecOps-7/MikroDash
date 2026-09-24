@@ -153,6 +153,50 @@ export function populateSettings(data: SettingsPayload): void {
   // 518-case gate cannot see it either, because it only inspects ids the map
   // names.
 
+  // ── GUARDED CHECKBOXES: ABSENT MEANS "LEAVE IT ALONE" ────────────────────
+  //
+  // The alert-type toggles are written only when the setting is PRESENT. Unlike
+  // `checkOff`, an absent value does not write `false` — the checkbox keeps the
+  // markup's own default. On a fresh install the difference is every alert type
+  // showing as switched off while the server still has it enabled, with the push
+  // channel firing and the notification bell staying empty. The live comment on
+  // `_PAGE_SETTING_KEYS` records that exact failure happening once already.
+  for (const key of FORM_FIELDS.checkGuarded) {
+    if (data[key] === undefined) continue;
+    const input = el<HTMLInputElement>('s_' + key);
+    if (input) input.checked = !!data[key];
+  }
+
+  // ── THE SYSTEM PROMPT BOX SHOWS THE DEFAULT RATHER THAN NOTHING ──────────
+  //
+  // The stored value is empty until somebody edits it, and the server reads
+  // empty as "use the built-in prompt". An empty box would therefore be honest
+  // about the stored value and useless about the behaviour: the operator could
+  // not see what the assistant is being told, let alone adjust it.
+  //
+  // So an unset prompt renders as the default the server would use. Saving then
+  // stores that text verbatim, which is the readable outcome — what you see is
+  // what is sent.
+  //
+  // THE DEFAULT IS CARRIED ON THE ELEMENT, not in a module variable, so Reset
+  // needs no shared state and no import back into this half of the page. It
+  // arrives as a derived key on the settings payload; see settings_api.go.
+  // The refresh interval is stored in seconds and shown as hours and seconds.
+  showOverviewInterval();
+
+  // The Agent Overview card's prompt box works the same way.
+  for (const p of AI_PROMPT_BOXES) {
+    const promptBox = el<HTMLTextAreaElement>(p.box);
+    if (!promptBox) continue;
+    const def = data[p.defaultKey];
+    const fallback = typeof def === 'string' ? def : '';
+    promptBox.dataset.default = fallback;
+    const raw = data[p.key];
+    const stored = typeof raw === 'string' ? raw : '';
+    promptBox.value = stored.trim() === '' ? fallback : stored;
+    updateAiPromptCount(p);
+  }
+
   // ── THE SIGN-IN TOGGLE, WHICH NOTHING SET UNTIL 0.8.15 ───────────────────
   //
   // `s_authEnabled` has no `checked` attribute, so an unpopulated box reads OFF
