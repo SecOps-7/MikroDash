@@ -268,7 +268,24 @@ function renderChannelPicker(chosen: string): void {
     opts.push('<option value="">No mail channel yet — add one in Settings → Notifications</option>');
   }
   sel.innerHTML = opts.join('');
-  sel.value = chosen;
+  // ── A NEW SCHEDULE TAKES THE FIRST CHANNEL, NOT NOTHING ───────────────
+  //
+  // `sel.value = ''` matches no option, so the select shows an empty box and
+  // `selectedIndex` is -1. Saving then fails validation with "a schedule needs a
+  // channel to send through" — a refusal the operator did nothing to earn, on a
+  // form offering exactly one answer. Found by opening it; every test passed.
+  //
+  // Only when nothing is stored. An EDIT keeps what it had, including a channel
+  // that has since been deleted, because silently moving it is the one thing
+  // this change exists to stop.
+  //
+  // WRITTEN OUT RATHER THAN LEFT TO THE BROWSER. A real `<select>` selects its
+  // first option on its own, so `sel.value = first` looks redundant — but that
+  // is an implicit behaviour nothing here states, and the value is read back
+  // when the form is saved. Saying it makes the saved body follow from this
+  // function rather than from the DOM's defaults.
+  const first = state.channels.find((c) => c.enabled) || state.channels[0];
+  sel.value = chosen || (first ? first.id : '');
 }
 
 /**

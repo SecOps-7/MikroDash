@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -147,7 +148,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 
 	var atts []reports.Attachment
 	var mailSections []reports.MailSection
-	for _, section := range splitList(row.Sections) {
+	for _, section := range sectionList(row.Sections) {
 		q := reportReq{Params: reports.Params{
 			RouterID: row.RouterID, From: period.From, To: period.To, Aggregate: aggregate,
 		}, Iface: iface}
@@ -249,6 +250,39 @@ func (s *Server) disableAndSkip(res *runResult, row *db.ReportSchedule, reason s
 }
 
 // splitList reads one of the comma-separated columns a schedule stores.
+// sectionList decodes a column that holds a JSON array of strings.
+//
+// ── THE BUG THIS FIXES: NO SCHEDULED REPORT HAS EVER SENT ─────────────────
+//
+// `report_schedules.sections` is written by `json.Marshal` of a []string, so it
+// holds `["ping","traffic"]`. It was being read with `splitList`, which splits
+// on COMMAS — so a single-section schedule produced one "section" spelled
+// `["ping"]`, which matches nothing, and every run ended
+// "no section could be produced: unknown report section". A multi-section
+// schedule produced `["ping"` and `"traffic"]`, which is no better.
+//
+// `recipients` had exactly the same defect until it became a channel's To, and
+// a To genuinely is comma-separated, so that half fixed itself. This half did
+// not, and nothing failed: the suite never ran a schedule end to end, and the
+// symptom is a report that does not arrive — which looks like every other reason
+// a report does not arrive.
+//
+// Found by pressing "Send now" on a real install.
+//
+// A COMMA FALLBACK, deliberately: a value that is not JSON is read the old way
+// rather than discarded, so a hand-edited row still produces its sections
+// instead of silently producing none.
+func sectionList(s string) []string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "[") {
+		var out []string
+		if err := json.Unmarshal([]byte(s), &out); err == nil {
+			return out
+		}
+	}
+	return splitList(s)
+}
+
 func splitList(s string) []string {
 	var out []string
 	for _, p := range strings.Split(s, ",") {

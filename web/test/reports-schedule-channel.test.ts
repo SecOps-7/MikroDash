@@ -180,6 +180,20 @@ check('only install-owned SMTP channels are offered', async () => {
     + 'routers they were never granted');
 });
 
+// FOUND IN A BROWSER, NOT HERE — which is why it is here now. `sel.value = ''`
+// matches no option, so a new schedule opened with an empty box and saving was
+// refused with "a schedule needs a channel to send through", on a form offering
+// exactly one answer. The shim's `value` is a plain property and accepted the
+// empty string happily, so nothing failed.
+check('a new schedule preselects the first channel rather than nothing', async () => {
+  const d = mount([schedule()]);
+  await settle();
+  d.mod.openSchedModal(null);
+  assert.equal(d.els.rs_channel.value, 'm1',
+    'a new schedule opened with no channel selected, so saving it would be '
+    + 'refused for a choice the operator was never asked to make');
+});
+
 check('editing selects the channel the schedule already uses', async () => {
   const d = mount([schedule({ channelId: 'm2' })]);
   await settle();

@@ -217,3 +217,44 @@ func TestAScheduleCannotBeSavedAgainstAChannelThatCannotSendIt(t *testing.T) {
 		})
 	}
 }
+
+// A SCHEDULE'S SECTIONS ARE JSON, AND WERE READ AS A COMMA LIST.
+//
+// `report_schedules.sections` is written by `json.Marshal` of a []string. It was
+// read with `splitList`, which splits on commas, so a one-section schedule
+// produced a single "section" spelled `["ping"]` — matching nothing — and every
+// run ended "no section could be produced". No scheduled report has ever sent.
+//
+// Nothing failed, because the suite never ran a schedule end to end and the
+// symptom is a report that does not arrive, which looks like every other reason
+// a report does not arrive. Found by pressing "Send now" on a real install.
+func TestASchedulesSectionsAreReadAsJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{"one section, as json.Marshal writes it", `["ping"]`, []string{"ping"}},
+		{"several", `["ping","traffic","alerts"]`, []string{"ping", "traffic", "alerts"}},
+		{"empty", `[]`, nil},
+		// A COMMA FALLBACK, deliberately: a hand-edited row still produces its
+		// sections rather than silently producing none.
+		{"a legacy comma list is still read", `ping,traffic`, []string{"ping", "traffic"}},
+		{"unparseable json falls back rather than vanishing", `["ping"`, []string{`["ping"`}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sectionList(tc.in)
+			if len(got) != len(tc.want) {
+				t.Fatalf("read %#v, want %#v — a section that does not match a known "+
+					"name produces nothing, and the run ends \"no section could be "+
+					"produced\"", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("read %#v, want %#v", got, tc.want)
+					return
+				}
+			}
+		})
+	}
+}
