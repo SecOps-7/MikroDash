@@ -182,10 +182,12 @@
                   <!-- The tile and its glyph move TOGETHER: the glyph is drawn in
                        absolute coordinates, so shifting the tile alone would leave
                        it behind. Icon right, text left, each by 8 - the pair closes
-                       up by 16 and stays centred in the box. -->
-                  <g transform="translate(8 0)">
+                       up by 16 and stays centred in the box.
+                       The scale is about the tile's OWN centre (58 84), so making
+                       it bigger does not also move it. -->
+                  <g transform="translate(8 0) translate(58 84) scale(1.22) translate(-58 -84)">
                     <rect x="36" y="62" width="44" height="44" rx="12" fill="#38bdf8" fill-opacity=".12"/>
-                    <g fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <g fill="none" stroke="#38bdf8" stroke-width="1.48" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M48 76h20v14H48z M53 76v-3h10v3"/>
                       <path d="M53 80v3 M56.3 80v3 M59.7 80v3 M63 80v3"/>
                     </g>
@@ -197,9 +199,10 @@
                 <g transform="translate(-14 16)">
                   <rect id="nf-glow-wireless" x="20" y="150" width="170" height="132" rx="16" fill="none" stroke="#a78bfa" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
                   <rect class="nf-node" x="20" y="150" width="170" height="132" rx="16"/>
-                  <g transform="translate(8 0)">
+                  <!-- Same again about (58 216), this tile's own centre. -->
+                  <g transform="translate(8 0) translate(58 216) scale(1.22) translate(-58 -216)">
                     <rect x="36" y="194" width="44" height="44" rx="12" fill="#a78bfa" fill-opacity=".12"/>
-                    <g fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round">
+                    <g fill="none" stroke="#a78bfa" stroke-width="1.48" stroke-linecap="round">
                       <path d="M46.7 211.7A16 16 0 0 1 69.3 211.7"/>
                       <path d="M50.6 215.6A10.5 10.5 0 0 1 65.4 215.6"/>
                     </g>
@@ -238,7 +241,13 @@
                 <g transform="translate(14 0)">
                   <rect id="nf-glow-wan" x="570" y="84" width="170" height="132" rx="16" fill="none" stroke="#34d399" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
                   <rect class="nf-node" x="570" y="84" width="170" height="132" rx="16"/>
-                  <g fill="none" stroke="#7dd3fc" stroke-width="1.7">
+                  <!-- The globe scales about its own centre too. `stroke-width` is
+                       divided by the same factor so the outline keeps the weight it
+                       had: a scale multiplies the stroke as well as the geometry,
+                       and a heavier globe beside two unchanged icons would read as
+                       a different style rather than a bigger one. -->
+                  <g transform="translate(655 126) scale(1.22) translate(-655 -126)"
+                     fill="none" stroke="#7dd3fc" stroke-width="1.39">
                     <circle cx="655" cy="126" r="17"/>
                     <path d="M638 126h34" stroke-opacity=".6"/>
                     <ellipse cx="655" cy="126" rx="7" ry="17"><animate attributeName="rx" values="17;0;17" dur="7s" repeatCount="indefinite"/></ellipse>
