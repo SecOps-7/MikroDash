@@ -553,12 +553,23 @@
           <label class="sform-label" for="rtrModalLabel">Display Name</label>
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
         </div>
-        <!-- The device's own name (System Identity), written to the device, not
-             to MikroDash. Shown only when editing a device MikroDash can reach. -->
-        <div class="sform-group" id="rtrModalIdentityWrap" style="display:none">
-          <label class="sform-label" for="rtrModalIdentity">Device identity</label>
-          <input class="sform-input" id="rtrModalIdentity" type="text" maxlength="255" placeholder="MikroTik" disabled>
-          <div class="cpick-hint" id="rtrModalIdentityHint"></div>
+        <!-- Identity on the left, Primary on the right. THEY HIDE SEPARATELY:
+             the identity field is shown only for a device MikroDash can reach,
+             and the Primary tick must not disappear with it - an unreachable
+             device is still one you may want opened at sign-in. -->
+        <div class="rtr-identity-row" id="rtrModalIdentityRow" style="display:none">
+          <!-- The device's own name (System Identity), written to the device, not
+               to MikroDash. Shown only when editing a device MikroDash can reach. -->
+          <div class="sform-group" id="rtrModalIdentityWrap" style="display:none">
+            <label class="sform-label" for="rtrModalIdentity">Device identity</label>
+            <input class="sform-input" id="rtrModalIdentity" type="text" maxlength="255" placeholder="MikroTik" disabled>
+            <div class="cpick-hint" id="rtrModalIdentityHint"></div>
+          </div>
+          <div class="sform-group rtr-primary-wrap" id="rtrModalPrimaryDeviceWrap">
+            <label class="sform-label" for="rtrModalPrimaryDevice">Primary</label>
+            <input type="checkbox" id="rtrModalPrimaryDevice" class="rtr-primary-box">
+            <div class="cpick-hint" id="rtrModalPrimaryDeviceHint">Opened when you sign in</div>
+          </div>
         </div>
 
         <div class="rtr-sec">Connection</div>

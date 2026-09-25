@@ -45,7 +45,10 @@ export interface RouterRow {
 export interface SiteName { name?: string }
 
 /** The eight-column colspan of the empty state. Kept beside the row it must match. */
-export const ROUTER_TABLE_COLUMNS = 8;
+// NINE since the order column landed. The empty-state colspan reads this, and
+// the header in page-settings.html must agree - `TestTheDeviceTableHeaderMatchesItsColumns`
+// is what stops the two drifting.
+export const ROUTER_TABLE_COLUMNS = 9;
 
 /**
  * One row.
@@ -61,9 +64,34 @@ export function renderRouterRow(
   activeId: string,
   status: Record<string, boolean | undefined>,
   sitesById: Record<string, SiteName>,
+  primaryId = '',
+  pos: { index: number; total: number } = { index: 0, total: 1 },
 ): string {
   const isActive = r.id === activeId;
+  // ── ACTIVE AND PRIMARY ARE DIFFERENT FACTS ────────────────────────────
+  //
+  // ACTIVE is what THIS browser is looking at right now: client-side, changes
+  // with the picker, and different in another tab. PRIMARY is the install's
+  // choice of which router a fresh session opens on: server-side, the same for
+  // everyone. They coincide most of the time, which is exactly why they were
+  // one badge and why the one badge was wrong.
+  const isPrimary = !!primaryId && r.id === primaryId;
   const activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
+  const primaryBadge = isPrimary ? '<span class="rtr-primary-badge" title="Loaded when you sign in">Primary</span>' : '';
+  // ── MOVE ARROWS, NOT SORTING ──────────────────────────────────────────
+  //
+  // This table is ordered by the operator, so it does not sort: the rule the
+  // Queues page already follows. The arrows are always DRAWN and the one at
+  // each end is disabled rather than hidden, so the column keeps its width and
+  // rows do not shift sideways as they move.
+  const arrow = (dir: 'up' | 'down', glyph: string, off: boolean) =>
+    '<button class="sbtn sbtn-ghost rtr-move" data-rtr-id="' + esc(r.id) + '"'
+    + ' data-rtr-action="move" data-rtr-dir="' + dir + '"'
+    + (off ? ' disabled' : '') + ' title="Move ' + dir + '">' + glyph + '</button>';
+  const orderCell = '<td class="rtr-order">'
+    + arrow('up', '&#9650;', pos.index === 0)
+    + arrow('down', '&#9660;', pos.index >= pos.total - 1)
+    + '</td>';
   // A router that came in by zero-touch provisioning says so, and how.
   const ztp = ztpDeviceForRouter(r.id);
   const ztpBadge = ztp ? '<span class="rtr-ztp-badge" title="Added by zero-touch provisioning (' +
@@ -101,7 +129,8 @@ export function renderRouterRow(
   const serialCell = r.serial ? '<span class="rtr-host">' + esc(r.serial) + '</span>' : unknown;
   const versionCell = r.osVersion ? '<span class="rtr-ver-pill">' + esc(r.osVersion) + '</span>' : unknown;
   return '<tr' + (r.disabled ? ' style="opacity:.55"' : '') + '>' +
-    '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + ztpBadge + '</div>' + activeBadge + siteChip + '</td>' +
+    orderCell +
+    '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + ztpBadge + '</div>' + primaryBadge + activeBadge + siteChip + '</td>' +
     '<td>' + statusCell + '</td>' +
     '<td><span class="rtr-host">' + esc(r.host) + '</span></td>' +
     '<td>' + modelCell + '</td>' +
@@ -124,11 +153,17 @@ export function renderRouterTable(
   activeId: string,
   status: Record<string, boolean | undefined>,
   sitesById: Record<string, SiteName>,
+  primaryId = '',
 ): string {
   if (!routers.length) {
     return '<tr><td colspan="' + ROUTER_TABLE_COLUMNS + '" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
   }
-  return routers.map((r) => renderRouterRow(r, activeId, status, sitesById)).join('');
+  // The position is passed IN rather than worked out per row, because the ends
+  // of the list are what decide which arrow is disabled and only the caller
+  // knows how long the list is.
+  return routers.map((r, i) =>
+    renderRouterRow(r, activeId, status, sitesById, primaryId, { index: i, total: routers.length }))
+    .join('');
 }
 
 /** The delete confirmation, which names what is about to be destroyed. */
@@ -182,6 +217,10 @@ export function updateRouterStatusBadge(routerId: string, connected: boolean): v
 export interface RouterTableDeps {
   routers: () => RouterRow[];
   activeId: () => string;
+  // The install's choice of which router a fresh session opens on. A THUNK like
+  // the rest: it changes when another admin ticks Primary elsewhere, and the
+  // table must read it at paint time rather than capture it at mount.
+  primaryId: () => string;
   status: () => Record<string, boolean | undefined>;
   sitesById: () => Record<string, SiteName>;
   openModal: (r: RouterRow | null) => void;
@@ -193,7 +232,8 @@ let deps: RouterTableDeps | null = null;
 export function renderRoutersInto(): void {
   const tbody = el('rtrTbody');
   if (!tbody || !deps) return;
-  tbody.innerHTML = renderRouterTable(deps.routers(), deps.activeId(), deps.status(), deps.sitesById());
+  tbody.innerHTML = renderRouterTable(deps.routers(), deps.activeId(), deps.status(),
+    deps.sitesById(), deps.primaryId());
 }
 
 export function initSettingsRoutersTable(d: RouterTableDeps): void {
@@ -242,6 +282,20 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
     if (!btn) return;
     const action = btn.dataset.rtrAction;
     const id = btn.dataset.rtrId || '';
+
+    // ── MOVE ──────────────────────────────────────────────────────────
+    //
+    // Fire and forget: the server broadcasts `routers:update` when something
+    // moved, and that is what repaints this table. Re-rendering from the reply
+    // as well would paint the same rows twice, and painting from a LOCAL guess
+    // at the new order would disagree with the file the moment two admins
+    // clicked at once.
+    if (action === 'move') {
+      const dir = btn.dataset.rtrDir === 'up' ? 'up' : 'down';
+      void fetch('/api/routers/' + encodeURIComponent(id) + '/move?dir=' + dir,
+        { method: 'POST', credentials: 'same-origin' });
+      return;
+    }
 
     if (action === 'edit') {
       const r = d.routers().find((x) => x.id === id);

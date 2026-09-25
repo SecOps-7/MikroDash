@@ -59,6 +59,9 @@ export function initRouterModal(opts: {
   // have changed underneath this one - a snapshot taken at open would then write
   // back a list that is already out of date.
   routers: () => StoredRouter[];
+  // The install's primary device: the one a fresh session opens on. A thunk,
+  // because another admin can change it while this modal is open.
+  primaryId: () => string;
   onSaved: () => void;
 }): { open: (router: StoredRouter | null) => void } {
   const gate = new TestGate();
@@ -226,6 +229,29 @@ export function initRouterModal(opts: {
   }
 
   // ── open ──────────────────────────────────────────────────────────────────
+  // TICKING ACTS AT ONCE, not on Save.
+  //
+  // Primary is its own endpoint - `POST /routers/{id}/activate`, which existed
+  // long before this checkbox - and routing it through the modal's Save would
+  // mean one control writing through two paths, with the tick silently lost if
+  // the operator cancelled. Acting here also means the confirmation is the row
+  // repainting behind the dialog.
+  input('rtrModalPrimaryDevice')?.addEventListener('change', () => {
+    const box = input('rtrModalPrimaryDevice');
+    const id = input('rtrModalId')?.value || '';
+    if (!box || !box.checked || !id) return;
+    // Disabled straight away: there is no "no primary", so once this is ticked
+    // the only way out is to tick another device.
+    box.disabled = true;
+    void fetch('/api/routers/' + encodeURIComponent(id) + '/activate',
+      { method: 'POST', credentials: 'same-origin' })
+      .then((r) => {
+        if (!r.ok) { box.checked = false; box.disabled = false; return; }
+        opts.onSaved();
+      })
+      .catch(() => { box.checked = false; box.disabled = false; });
+  });
+
   function open(router: StoredRouter | null): void {
     const f = routerFormValues(router, opts.sites());
     const set = (id: string, val: string): void => { const n = input(id); if (n) n.value = val; };
@@ -235,6 +261,32 @@ export function initRouterModal(opts: {
     set('rtrModalId', f.id); set('rtrModalLabel', f.label);
     const identityWrap = el('rtrModalIdentityWrap');
     if (identityWrap) identityWrap.style.display = f.id ? '' : 'none';
+    // ── PRIMARY ───────────────────────────────────────────────────────────
+    //
+    // EDITING ONLY. A device being added does not exist yet, so there is
+    // nothing to make primary and no id to send; it can be ticked the moment
+    // the Save lands and the row appears.
+    //
+    // It hides with the ROW, not with the identity field beside it: identity is
+    // shown only for a device MikroDash can reach, and an unreachable device is
+    // still one an operator may want opened at sign-in.
+    const identityRow = el('rtrModalIdentityRow');
+    if (identityRow) identityRow.style.display = f.id ? '' : 'none';
+    const primaryBox = input('rtrModalPrimaryDevice');
+    if (primaryBox) {
+      const isPrimary = !!f.id && f.id === opts.primaryId();
+      primaryBox.checked = isPrimary;
+      // DISABLED WHEN TICKED, because there is no such state as "no primary":
+      // clearing it would leave a fresh session with nowhere to open. Another
+      // device is made primary by ticking THAT one, which moves the tick.
+      primaryBox.disabled = isPrimary;
+      const hint = el('rtrModalPrimaryDeviceHint');
+      if (hint) {
+        hint.textContent = isPrimary
+          ? 'Opened when you sign in'
+          : 'Tick to open this device at sign-in';
+      }
+    }
     if (f.id) void loadIdentity(f.id);
     else resetIdentity('');
     // THE PRIMARY PICKER OFFERS ONLY THE SITES THIS DEVICE IS ALREADY IN, so it

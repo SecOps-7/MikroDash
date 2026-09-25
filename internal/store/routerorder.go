@@ -78,3 +78,50 @@ func (s *Store) MoveRouter(id string, up bool) (moved bool, err error) {
 	}
 	return true, nil
 }
+
+// AdoptPrimaryRouter names the first router as primary when nothing is, and
+// reports whether it wrote.
+//
+// ── WHY AN INSTALL CAN HAVE NO PRIMARY ─────────────────────────────────────
+//
+// `activeRouterId` is written by the activate route, and an install where
+// nobody ever pressed Activate has never had one. That was invisible while the
+// browser opened on `routers[0]` regardless; now that the primary decides the
+// landing router, an unset one would send every session to the fallback and
+// make the new checkbox look like it does nothing.
+//
+// SO THE MIGRATION IS EXACTLY THE OLD BEHAVIOUR, WRITTEN DOWN: the router at
+// the top of the list becomes the primary, which is the router those installs
+// were already getting.
+//
+// It also repairs a primary naming a router that has since been DELETED, which
+// is the same state by a different route and has the same remedy.
+//
+// IDEMPOTENT: it writes only when there is no usable primary, so a second start
+// changes nothing. Run from `cmd/mikrodash` rather than `Open`, for the reason
+// `MigrateReportingDefaults` records - `cmd/compat` opens a real /data
+// read-only.
+func (s *Store) AdoptPrimaryRouter() (id string, wrote bool, err error) {
+	routers, _ := s.Routers()
+	if len(routers) == 0 {
+		return "", false, nil
+	}
+	current := s.ActiveRouterID()
+	for _, r := range routers {
+		if r.ID == current {
+			return current, false, nil
+		}
+	}
+
+	first := routers[0].ID
+	cfg, err := s.Settings()
+	if err != nil {
+		return "", false, err
+	}
+	merged, kept := Merge(cfg, os.LookupEnv, s)
+	merged["activeRouterId"] = first
+	if err := SaveSettings(s.Dir, merged, Settings{"activeRouterId": first}, kept, s); err != nil {
+		return "", false, err
+	}
+	return first, true, nil
+}

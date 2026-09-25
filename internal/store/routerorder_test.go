@@ -142,3 +142,77 @@ func TestMovingARouterThatIsNotThereIsAnError(t *testing.T) {
 		t.Error("moving an empty id succeeded")
 	}
 }
+
+// THE MIGRATION RUNS TWICE AND WRITES ONCE.
+//
+// It is the old behaviour written down: an install where nobody pressed
+// Activate opened on `routers[0]`, so `routers[0]` becomes its primary. A
+// second start must change nothing, or every restart would drag the primary
+// back to the top of the list and undo the operator's choice.
+func TestAdoptingAPrimaryIsIdempotent(t *testing.T) {
+	s := orderFixture(t)
+	if err := os.WriteFile(filepath.Join(s.Dir, "settings.json"), []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	id, wrote, err := s.AdoptPrimaryRouter()
+	if err != nil || !wrote || id != "a" {
+		t.Fatalf("first run: id=%q wrote=%v err=%v, want a/true/nil", id, wrote, err)
+	}
+	if got := s.ActiveRouterID(); got != "a" {
+		t.Fatalf("the primary was not recorded: %q", got)
+	}
+
+	// The operator now chooses a different one, as the checkbox does.
+	cfg, _ := s.Settings()
+	merged, kept := Merge(cfg, os.LookupEnv, s)
+	merged["activeRouterId"] = "c"
+	if err := SaveSettings(s.Dir, merged, Settings{"activeRouterId": "c"}, kept, s); err != nil {
+		t.Fatal(err)
+	}
+
+	id, wrote, err = s.AdoptPrimaryRouter()
+	if err != nil || wrote {
+		t.Fatalf("second run: wrote=%v err=%v - a restart must not move the primary", wrote, err)
+	}
+	if got := s.ActiveRouterID(); got != "c" {
+		t.Errorf("a restart dragged the primary back to %q, losing the operator's choice", got)
+	}
+}
+
+// A PRIMARY NAMING A DELETED ROUTER IS REPAIRED.
+//
+// Same broken state by a different route: the setting survives the router it
+// names. Left alone, every session would fall back and the checkbox would show
+// nothing ticked on any row.
+func TestAPrimaryThatNoLongerExistsIsReplaced(t *testing.T) {
+	s := orderFixture(t)
+	if err := os.WriteFile(filepath.Join(s.Dir, "settings.json"),
+		[]byte(`{"activeRouterId":"deleted-long-ago"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	id, wrote, err := s.AdoptPrimaryRouter()
+	if err != nil || !wrote || id != "a" {
+		t.Fatalf("id=%q wrote=%v err=%v, want a/true/nil", id, wrote, err)
+	}
+}
+
+// AN EMPTY FLEET IS NOT AN ERROR AND MUST NOT WRITE.
+//
+// A first run has no routers at all. Writing an empty primary would put a key
+// in settings.json that names nothing, and the adoption would then think it had
+// already run.
+func TestAdoptingAPrimaryOnAnEmptyFleetDoesNothing(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "routers.json"), []byte(`[]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := &Store{Dir: dir}
+	id, wrote, err := s.AdoptPrimaryRouter()
+	if err != nil || wrote || id != "" {
+		t.Fatalf("id=%q wrote=%v err=%v, want \"\"/false/nil", id, wrote, err)
+	}
+	if _, serr := os.Stat(filepath.Join(dir, "settings.json")); serr == nil {
+		t.Error("adopting on an empty fleet created settings.json")
+	}
+}

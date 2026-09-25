@@ -70,6 +70,7 @@ function mount(withTbody) {
   page.initSettingsRoutersTable({
     routers: () => [{ id: 'r1', label: 'One', host: '198.51.100.1' }],
     activeId: () => 'r1',
+    primaryId: () => 'r1',
     status: () => ({ r1: true }),
     sitesById: () => ({}),
     openModal: (r) => opened.push(r),

@@ -181,10 +181,18 @@ interface RouterRow extends StoredRouter {
 }
 
 /** The router list, already filtered to this principal's grants by `/api/routers`. */
+// THE INSTALL'S PRIMARY ROUTER: the one a fresh session opens on.
+//
+// `/api/routers` has always returned it as `activeId` and the client has always
+// thrown it away, opening on `routers[0]` instead - which is why "the first
+// device you add" was the one you got at every sign-in, whatever you chose.
+let primaryRouterId = '';
+
 async function loadRouters(): Promise<RouterRow[]> {
   const res = await fetch('/api/routers', { credentials: 'same-origin' });
   if (!res.ok) throw new Error('cannot list routers: ' + res.status);
   const body = await res.json();
+  primaryRouterId = (body && typeof body.activeId === 'string') ? body.activeId : '';
   return (body.routers || body || []) as RouterRow[];
 }
 
@@ -330,6 +338,14 @@ function switchRouter(socket: Socket, id: string): void {
   if (navSel && navSel.value !== id) navSel.value = id;
   clearDashboardData();
   resetStaleTimers();
+  // ── THE SETTINGS TABLE'S "ACTIVE" PILL ────────────────────────────────
+  //
+  // It is drawn from `activeRouterId`, which the line above has just changed,
+  // but the table was repainted only by `routers:update` - an add, an edit or a
+  // delete. So switching routers moved the dashboard and left the pill on the
+  // row it was on, which is what the operator saw. Repainted here, where the
+  // value it reads is written.
+  renderRoutersInto();
   // The new router is another board. The System card's meta line is written
   // once per connection, so without this it would keep the OLD board's name,
   // RouterOS version and CPU count under the new router's live gauges - the
@@ -705,6 +721,23 @@ async function main(): Promise<void> {
       return;
     }
     dropdown.refresh();
+    // ── THE MOBILE SELECT'S OPTIONS ───────────────────────────────────────
+    //
+    // Built once at mount and never rebuilt, so it kept the fleet as it was
+    // when the page loaded: a rename, a delete and now a REORDER all left it
+    // stale. The desktop dropdown never had this - it renders from a thunk each
+    // time it opens - which is why the gap survived: on a desktop browser this
+    // control is hidden behind a media query.
+    //
+    // The SELECTION is carried across the rebuild by hand. Replacing the
+    // options resets a select to its first entry, which would silently point
+    // the control at a different router from the one on screen.
+    const navSel = el<HTMLSelectElement>('navRouterSelect');
+    if (navSel) {
+      const was = navSel.value;
+      navSel.innerHTML = selectOptionsHtml(routers);
+      if (was && routers.some((r) => r.id === was)) navSel.value = was;
+    }
     renderRoutersStats(null);
     // The Settings table too. The live app repaints it from the same event; a
     // port that refreshed only the picker would leave the table showing a
@@ -761,6 +794,7 @@ async function main(): Promise<void> {
   const routerModal = initRouterModal({
     sites: () => sitesById as never,
     routers: () => routers as never,
+    primaryId: () => primaryRouterId,
     onSaved: () => { void refreshRouters(); },
   });
 
@@ -859,6 +893,7 @@ async function main(): Promise<void> {
   initSettingsRoutersTable({
     routers: () => routers,
     activeId: () => activeRouterId,
+    primaryId: () => primaryRouterId,
     status: () => routerStatus,
     sitesById: () => sitesById,
     openModal: (r) => routerModal.open(r as never),
@@ -969,8 +1004,43 @@ async function main(): Promise<void> {
     // overlay, it does not replace the wiring that makes its buttons work.
     showSetupOverlayNow();
   }
+  // ── WHICH ROUTER A FRESH SESSION OPENS ON ─────────────────────────────────
+  //
+  // The install's PRIMARY, when this account can read it. It was `routers[0]`,
+  // which is why "the first device you add" was the one you got at every
+  // sign-in whatever you chose, and why the choice could only be changed by
+  // re-adding routers in a different order.
+  //
+  // THE FALLBACK IS NOT COSMETIC. `routers` is already filtered to this
+  // principal's grants, so an operator who may not read the primary would
+  // otherwise be sent to a router that is not in their list: the picker would
+  // show a blank label and every card would wait for payloads that never come.
+  // Falling back to the first router they CAN read is the difference between a
+  // restricted account working and appearing broken.
+  const primary = routers.find((r) => r.id === primaryRouterId);
+  const landing = primary || first;
+  // ── THE FIRST SELECTION IS THE LANDING ONE; LATER ONES ARE NOT ────────────
+  //
+  // `select()` runs on first load AND on every reconnect, and `sel.value` is
+  // what the operator is currently on. Reading it first is right for a
+  // reconnect and wrong for the first load - and it was ALWAYS truthy there,
+  // because a <select> defaults to its first option. So the landing router was
+  // computed, and then never used: the browser opened on routers[0] exactly as
+  // before. Found in the browser; tsc and the unit tests were green.
+  //
+  // The latch is what tells the two calls apart. On the first, the landing
+  // router is chosen and the control is moved to match it; on every later one,
+  // the operator's own choice stands.
+  let landed = false;
   const select = () => {
-    const id = sel?.value || (first ? first.id : '');
+    let id: string;
+    if (!landed) {
+      landed = true;
+      id = landing ? landing.id : (sel?.value || '');
+      if (sel && id) sel.value = id;
+    } else {
+      id = sel?.value || (landing ? landing.id : '');
+    }
     // NOTHING TO SELECT is not the same as selecting nothing: `switchRouter`
     // with an empty id would ask the server to make '' the active router.
     if (id) switchRouter(socket, id);

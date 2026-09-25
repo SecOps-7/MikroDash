@@ -1021,6 +1021,27 @@
     .rtr-list tr:last-child td{border-bottom:none}
     .rtr-active-badge{font-size:.6rem;font-family:var(--font-ui);padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);white-space:nowrap}
     .rtr-host{font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
+    /* PRIMARY reads as the stronger statement of the two, so it is the filled
+       amber pill and Active stays the outlined blue one. They sit side by side
+       on the same row often - the primary device is usually the one you are
+       looking at - so they must not look like two of the same thing. */
+    .rtr-primary-badge{font-size:.6rem;font-family:var(--font-ui);padding:.1rem .45rem;border-radius:4px;background:rgba(251,191,36,.15);color:rgba(251,191,36,.95);border:1px solid rgba(251,191,36,.3);white-space:nowrap;margin-right:.25rem}
+    /* The order column: two arrows, no heading, and a fixed width so the rows
+       do not shift sideways as a device moves up or down the list. */
+    .rtr-order-th{width:3.4rem}
+    .rtr-order{white-space:nowrap;width:3.4rem}
+    .rtr-move{padding:.05rem .3rem;font-size:.6rem;line-height:1.4;min-width:1.4rem}
+    /* DISABLED, NOT HIDDEN, at the ends of the list: hiding one would change the
+       cell's width and jog every row beside it. */
+    .rtr-move:disabled{opacity:.25;cursor:default}
+    /* Identity left, Primary right. `1fr auto` rather than two equal halves: the
+       tick needs only its own width, and the identity field should keep the rest
+       even when it is the only thing in the row. */
+    .rtr-identity-row{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:start}
+    .rtr-primary-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem}
+    .rtr-primary-box{width:1rem;height:1rem;accent-color:var(--accent-rx);cursor:pointer}
+    .rtr-primary-box:disabled{cursor:default}
+
     /* Same purple the rest of the UI uses, at low alpha for the pill ground.
        Literal rather than a var because this colour is a literal everywhere else. */
     .rtr-ver-pill{display:inline-block;padding:.05rem .38rem;border-radius:3px;font-family:var(--font-mono);

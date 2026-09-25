@@ -225,6 +225,23 @@ func main() {
 	// NOT FATAL. A /data this cannot rewrite is still perfectly able to serve
 	// every page; the consequence is that reporting stays off until the operator
 	// sets it, which is visible in the UI rather than silent.
+	// ── THE PRIMARY DEVICE ────────────────────────────────────────────────
+	//
+	// An install where nobody ever pressed Activate has no primary, which was
+	// invisible while the browser opened on `routers[0]` regardless. Now that
+	// the primary decides the landing router, this writes down the behaviour
+	// those installs already had: the top of the list becomes the primary.
+	// Idempotent, and it also repairs a primary naming a deleted router.
+	//
+	// BEFORE the reporting defaults, which read `ActiveRouterID()` on the next
+	// line: an install adopting its primary here gets the reporting default on
+	// that same router instead of on none.
+	if id, wrote, aerr := st.AdoptPrimaryRouter(); aerr != nil {
+		log.Printf("[mikrodash] WARNING: could not set the primary device: %v", aerr)
+	} else if wrote {
+		log.Printf("[mikrodash] primary device set to %s (the first in the list)", id)
+	}
+
 	if n, merr := st.MigrateReportingDefaults(st.ActiveRouterID()); merr != nil {
 		log.Printf("[mikrodash] WARNING: could not set reporting defaults: %v", merr)
 	} else if n > 0 {
