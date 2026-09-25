@@ -57,7 +57,9 @@ function client(over) {
 }
 
 function boot() {
-  const doc = makeDoc(IDS, { allowUnknown: ['faModal', 'faOpenBtn', 'wlBand24', 'wlBand5', 'wlBand6'] });
+  const doc = makeDoc(IDS, { allowUnknown: [
+    'nf-cnt-wireless', // the Wifi page pushes its client count to the Dashboard's Network Flow card, which is not in this page's document
+    'faModal', 'faOpenBtn', 'wlBand24', 'wlBand5', 'wlBand6'] });
   const handlers = {};
   const socket = { on: (ev, fn) => { handlers[ev] = fn; }, emit: () => {} };
   const prevDoc = global.document;

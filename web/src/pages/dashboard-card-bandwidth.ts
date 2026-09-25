@@ -88,6 +88,22 @@ export function renderBandwidthCard(sample: TrafficSample): void {
 }
 
 /** Forget the fleet. A switch re-syncs from the next `routers:update`. */
+/**
+ * The router's CONFIGURED capacity, in Mbps.
+ *
+ * Exported for the Network Flow card, which scales its animation against what
+ * this link can actually carry rather than against an absolute curve: 40 Mbps
+ * is most of a 50 Mbps line and a rounding error on a 1 Gbps one, and the
+ * operator asked for the one that means something to them.
+ *
+ * A FUNCTION, not the numbers: `syncCapacity` rewrites them when the router
+ * list or the active router changes, and a caller that captured them at mount
+ * would scale every router against the first one's line.
+ */
+export function bwCapacityMbps(): { down: number; up: number } {
+  return { down: bwDown, up: bwUp };
+}
+
 export function resetBandwidthCard(): void {
   bwDown = 1000;
   bwUp = 1000;

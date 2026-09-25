@@ -1779,18 +1779,30 @@
     @media(max-width:650px){.vpn-tile-grid{grid-template-columns:1fr}}
     /* Network diagram */
     .net-diagram-body{padding:.35rem .5rem .4rem!important;display:flex;flex-direction:column}
-    .nd-line{stroke:var(--accent-rx);stroke-opacity:.25;stroke-width:1.5;stroke-dasharray:4 3}
-    .nd-line-wan{stroke:var(--accent-tx);stroke-opacity:.25}
-    .nd-node{fill:var(--bg-card);stroke:var(--border);stroke-width:1}
-    .nd-router-bg{fill:var(--accent-rx);fill-opacity:.06;stroke:var(--accent-rx);stroke-opacity:.3;stroke-width:1.2}
-    .nd-led{fill:#4ade80;filter:drop-shadow(0 0 3px #4ade80)}
-    .nd-label{font-family:var(--font-ui);font-size:7.5px;fill:var(--text-muted);text-anchor:middle;dominant-baseline:middle}
-    .nd-count{font-family:var(--font-mono);font-size:11px;font-weight:700;fill:var(--text-main);text-anchor:middle;dominant-baseline:middle}
-    .nd-wan-ip{font-family:var(--font-mono);font-size:6.5px;fill:var(--accent-rx);text-anchor:middle;dominant-baseline:middle}
-    .nd-dot{fill:var(--accent-rx);fill-opacity:.7}
-    .nd-dot-wan{fill:var(--accent-tx);fill-opacity:.7}
-    .nd-dot-l2{fill:rgba(167,139,250,.7)}
-    .is-ros-disconnected .nd-dot,.is-disconnected .nd-dot{visibility:hidden}
+    /* ── THE NETWORK FLOW CARD ────────────────────────────────────────────
+       The `.nd-*` rules the old diagram used are gone with it. Nothing here
+       touches `:root`: the drop-in this came from redefined --bg, --card,
+       --text and --muted, which are the APP's names for other things - taking
+       them would have retinted every page. The palette is written out instead,
+       and the two colours MikroDash already owns come from its own variables. */
+    .nf-body{padding:0;position:relative}
+    .nf-svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
+    .nf-node{fill:var(--bg-card);stroke:rgba(148,163,184,.14)}
+    .nf-lbl{fill:var(--text-muted);font-family:var(--font-ui);font-size:13px;font-weight:500}
+    .nf-num{fill:var(--text-main);font-family:var(--font-ui);font-size:28px;font-weight:650;
+            font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+    .nf-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+    .nf-ip{font-size:12.5px;fill:#7dd3fc}
+    .nf-halo{transform-origin:380px 150px;animation:nf-halo 3.2s ease-out infinite}
+    .nf-halo.nf-h2{animation-delay:1.6s}
+    @keyframes nf-halo{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.5);opacity:0}}
+    .nf-wave{animation:nf-wave 2.4s ease-in-out infinite}
+    .nf-wave.nf-w2{animation-delay:.3s}
+    @keyframes nf-wave{0%,100%{opacity:.15}50%{opacity:.9}}
+    /* The dots are hidden while nothing is arriving, exactly as the old ones
+       were: a diagram still flowing over a dead socket reads as live data. */
+    .is-ros-disconnected .nf-svg g[filter],.is-disconnected .nf-svg g[filter]{visibility:hidden}
+    @media (prefers-reduced-motion:reduce){.nf-halo,.nf-wave{animation:none}}
     /* Networks card */
 
     .net-wan-row{display:flex;align-items:baseline;justify-content:space-between;padding:.25rem .45rem;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.14);border-radius:6px}

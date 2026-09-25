@@ -124,52 +124,99 @@
         <div class="dash-resize sw" data-dir="sw"></div>
         <button class="dash-remove-btn" data-card="dc-card-netflow" type="button" title="Remove card">&#x2715;</button>
         <div class="card">
-          <div class="card-body" style="padding:0;position:relative">
-            <svg id="netDiagram" viewBox="-4 18 348 140" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;display:block">
-              <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
-              <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
-              <line id="ndLineWan"      x1="262" y1="80"  x2="192" y2="80"  class="nd-line nd-line-wan"/>
-              <g id="ndWiredGroup">
-                <rect x="4" y="26" width="74" height="52" rx="7" class="nd-node"/>
-                <rect x="30" y="31" width="22" height="14" rx="2" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4"/>
-                <line x1="35" y1="31" x2="35" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                <line x1="41" y1="31" x2="41" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                <line x1="47" y1="31" x2="47" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                <line x1="41" y1="45" x2="41" y2="49" stroke="rgba(56,189,248,.4)" stroke-width="1.4" stroke-linecap="round"/>
-                <text x="41" y="59" class="nd-label">Wired</text>
-                <text id="ndWiredCount" x="41" y="71" class="nd-count">-</text>
+          <div class="card-body nf-body">
+            <!-- The SVG keeps the id `netDiagram`: `banners.ts` and
+                 `setup-overlay-wire.ts` call pauseAnimations() on it when the
+                 socket or the router goes away, and both are right to. Every
+                 id INSIDE it is `nf-` prefixed, because these are generic
+                 words (`glow-wan`, `led-wired`) that would otherwise be the
+                 kind of collision nothing reports. -->
+            <svg id="netDiagram" class="nf-svg" viewBox="0 20 760 260" xmlns="http://www.w3.org/2000/svg"
+                 role="img" aria-label="Network traffic flow">
+              <defs>
+                <filter id="nf-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2.2" result="b"/>
+                  <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="nf-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+                <pattern id="nf-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+                  <circle cx="1" cy="1" r=".9" fill="rgba(148,163,184,.10)"/>
+                </pattern>
+                <radialGradient id="nf-fade" cx="50%" cy="50%" r="60%">
+                  <stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
+                </radialGradient>
+                <mask id="nf-mask"><rect width="760" height="300" fill="url(#nf-fade)"/></mask>
+                <linearGradient id="nf-router-stroke" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#7dd3fc" stop-opacity=".7"/><stop offset="1" stop-color="#34d399" stop-opacity=".35"/>
+                </linearGradient>
+              </defs>
+
+              <rect width="760" height="300" fill="url(#nf-grid)" mask="url(#nf-mask)"/>
+
+              <!-- links and particles are injected before this group by the controller -->
+              <g id="nf-nodes">
+                <g transform="translate(-14 0)">
+                  <rect id="nf-glow-wired" x="20" y="28" width="170" height="112" rx="16" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
+                  <rect class="nf-node" x="20" y="28" width="170" height="112" rx="16"/>
+                  <rect x="36" y="62" width="44" height="44" rx="12" fill="#38bdf8" fill-opacity=".12"/>
+                  <g fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M48 76h20v14H48z M53 76v-3h10v3"/>
+                    <path d="M53 80v3 M56.3 80v3 M59.7 80v3 M63 80v3"/>
+                  </g>
+                  <text class="nf-lbl" x="94" y="70">Wired</text>
+                  <text class="nf-num" x="94" y="101"><tspan id="nf-cnt-wired">0</tspan></text>
+
+                  <rect id="nf-glow-wireless" x="20" y="160" width="170" height="112" rx="16" fill="none" stroke="#a78bfa" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
+                  <rect class="nf-node" x="20" y="160" width="170" height="112" rx="16"/>
+                  <rect x="36" y="194" width="44" height="44" rx="12" fill="#a78bfa" fill-opacity=".12"/>
+                  <g fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round">
+                    <path d="M46.7 211.7A16 16 0 0 1 69.3 211.7"/>
+                    <path d="M50.6 215.6A10.5 10.5 0 0 1 65.4 215.6"/>
+                  </g>
+                  <circle cx="58" cy="222" r="2.2" fill="#a78bfa"/>
+                  <text class="nf-lbl" x="94" y="202">Wireless</text>
+                  <text class="nf-num" x="94" y="233"><tspan id="nf-cnt-wireless">0</tspan></text>
+                </g>
+
+                <g transform="translate(380 150) scale(1.18) translate(-380 -150)">
+                  <circle class="nf-halo" cx="380" cy="150" r="60" fill="none" stroke="#7dd3fc" stroke-opacity=".35"/>
+                  <circle class="nf-halo nf-h2" cx="380" cy="150" r="60" fill="none" stroke="#7dd3fc" stroke-opacity=".35"/>
+                  <rect id="nf-glow-router" x="322" y="100" width="116" height="100" rx="24" fill="none" stroke="#7dd3fc" stroke-width="3" filter="url(#nf-soft)" opacity="0"/>
+                  <rect x="322" y="100" width="116" height="100" rx="24" fill="#101a2a" stroke="url(#nf-router-stroke)" stroke-width="1.4"/>
+                  <g transform="translate(0 4)">
+                    <g stroke="#7dd3fc" stroke-width="3" stroke-linecap="round">
+                      <path d="M352 140l-6-25"/><path d="M408 140l6-25"/>
+                    </g>
+                    <g fill="none" stroke="#7dd3fc" stroke-width="1.6" stroke-linecap="round">
+                      <path class="nf-wave" d="M373 125a10 10 0 0 1 14 0"/>
+                      <path class="nf-wave nf-w2" d="M368.8 120.8a16 16 0 0 1 22.4 0"/>
+                    </g>
+                    <path d="M350 140h60l7 9h-74z" fill="#16243a" stroke="#7dd3fc" stroke-width="1.6" stroke-linejoin="round"/>
+                    <rect x="343" y="149" width="74" height="24" rx="4" fill="#0c1422" stroke="#7dd3fc" stroke-width="1.6"/>
+                    <circle id="nf-led-wired"    cx="352" cy="161" r="2.6" fill="#38bdf8" opacity=".25"/>
+                    <circle id="nf-led-wireless" cx="360" cy="161" r="2.6" fill="#a78bfa" opacity=".25"/>
+                    <circle id="nf-led-wan"      cx="368" cy="161" r="2.6" fill="#34d399" opacity=".25"/>
+                    <g fill="#0a101b" stroke="#5b7fa3" stroke-width="1">
+                      <rect x="377" y="156" width="7" height="7" rx="1"/><rect x="387" y="156" width="7" height="7" rx="1"/>
+                      <rect x="397" y="156" width="7" height="7" rx="1"/><rect x="407" y="156" width="7" height="7" rx="1"/>
+                    </g>
+                    <path d="M351 173v3 M409 173v3" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round"/>
+                  </g>
+                </g>
+
+                <g transform="translate(14 0)">
+                  <rect id="nf-glow-wan" x="570" y="84" width="170" height="132" rx="16" fill="none" stroke="#34d399" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
+                  <rect class="nf-node" x="570" y="84" width="170" height="132" rx="16"/>
+                  <g fill="none" stroke="#7dd3fc" stroke-width="1.7">
+                    <circle cx="655" cy="126" r="17"/>
+                    <path d="M638 126h34" stroke-opacity=".6"/>
+                    <ellipse cx="655" cy="126" rx="7" ry="17"><animate attributeName="rx" values="17;0;17" dur="7s" repeatCount="indefinite"/></ellipse>
+                    <ellipse cx="655" cy="126" rx="0" ry="17" stroke-opacity=".5"><animate attributeName="rx" values="0;17;0" dur="7s" repeatCount="indefinite"/></ellipse>
+                  </g>
+                  <text class="nf-lbl" x="655" y="170" text-anchor="middle">WAN</text>
+                  <text id="nf-wan-ip" class="nf-mono nf-ip" x="655" y="191" text-anchor="middle">-</text>
+                </g>
               </g>
-              <g id="ndWirelessGroup">
-                <rect x="4" y="98" width="74" height="52" rx="7" class="nd-node"/>
-                <path d="M29,111 Q41,101 53,111" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.4" stroke-linecap="round"/>
-                <path d="M33,115 Q41,108 49,115" fill="none" stroke="rgba(167,139,250,.65)" stroke-width="1.4" stroke-linecap="round"/>
-                <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4" stroke-linecap="round"/>
-                <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)"/>
-                <text x="41" y="127" class="nd-label">Wireless</text>
-                <text id="ndWirelessCount" x="41" y="139" class="nd-count">-</text>
-              </g>
-              <g id="ndRouter">
-                <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg"/>
-                <rect x="155" y="70" width="30" height="22" rx="3" fill="none" stroke="rgba(56,189,248,.7)" stroke-width="1.5"/>
-                <line x1="161" y1="70" x2="158" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
-                <line x1="179" y1="70" x2="182" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
-                <circle cx="161" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
-                <circle cx="167" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
-                <circle cx="173" cy="85" r="2" fill="rgba(52,211,153,.5)"/>
-                <circle cx="179" cy="85" r="2" fill="rgba(52,211,153,.3)"/>
-                <circle cx="170" cy="97" r="3" class="nd-led"/>
-              </g>
-              <g id="ndWanGroup">
-                <rect x="262" y="52" width="74" height="56" rx="7" class="nd-node"/>
-                <ellipse cx="299" cy="68" rx="12" ry="12" fill="none" stroke="rgba(56,189,248,.5)" stroke-width="1.2"/>
-                <ellipse cx="299" cy="68" rx="5"  ry="12" fill="none" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
-                <line x1="287" y1="68" x2="311" y2="68" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
-                <text x="299" y="93" class="nd-label">WAN</text>
-                <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">-</text>
-              </g>
-              <circle r="2.5" class="nd-dot nd-dot-l1"><animateMotion dur="2.2s" repeatCount="indefinite" path="M78,52 L148,75"/></circle>
-              <circle r="2.5" class="nd-dot nd-dot-l2"><animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85"/></circle>
-              <circle r="2.5" class="nd-dot nd-dot-wan"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80"/></circle>
             </svg>
           </div>
         </div>

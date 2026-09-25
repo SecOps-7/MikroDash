@@ -125,6 +125,14 @@ const cardPrelude = (v) => (typeof v === 'string' ? [] : (v.prelude || []));
 // through as "probably a helper".
 const HELPERS = new Set([
   'dashboard-gauge',
+  // The Network Flow card's RENDERER, and a helper for a real reason rather
+  // than a convenient one: it subscribes to nothing. Its inputs are PUSHED in -
+  // the wired count from `dashboard-netflow` (ifstatus:names), the wireless
+  // count from `wireless.ts` (wireless:update), the WAN address from `dhcp.ts`
+  // (lan:wan) and the WAN rates from `dashboard.ts`'s traffic:update handler.
+  // Each of those IS wired and is checked as its own entry. A CARDS entry here
+  // would mean inventing an event this module does not listen to.
+  'dashboard-card-netflow',
   'dashboard',
   // Pure buffer and clock arithmetic for the traffic chart, with no DOM and no
   // Chart.js. It is a helper TODAY and must not stay one: the card that draws

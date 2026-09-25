@@ -163,13 +163,6 @@ var dashboardIDsUnwritten = map[string]string{
 	"connCardWarn":    "built at runtime, as trafficCardWarn",
 	"dc-dhcpGaugeSvg": "static SVG in the network diagram; nothing writes it",
 	"dc-rtProtoGrid":  "static SVG, as above",
-	"ndLineWired":     "static SVG in the network diagram",
-	"ndLineWireless":  "static SVG in the network diagram",
-	"ndLineWan":       "static SVG in the network diagram",
-	"ndWiredGroup":    "static SVG in the network diagram",
-	"ndWirelessGroup": "static SVG in the network diagram",
-	"ndRouter":        "static SVG in the network diagram",
-	"ndWanGroup":      "static SVG in the network diagram",
 	"dc-worldMapWrap": "the map's wrapper. The card reaches it as `svg.parentElement` to position " +
 		"the tooltip, which is traversal rather than a lookup, so it has no writer and needs none.",
 	"ndPingSection": "a wrapper whose children are all driven - pingTargetLabel, ndPingRtt, " +
@@ -204,10 +197,23 @@ func TestDashboardMarkupIsDriven(t *testing.T) {
 		t.Fatalf("only %d ids found in the dashboard markup - the scan broke", len(ids))
 	}
 
+	// ── AN SVG `defs` ID IS REFERENCED BY THE MARKUP, NOT BY CODE ───────────
+	//
+	// `filter="url(#nf-glow)"`, `mask="url(#nf-mask)"`, `fill="url(#nf-grid)"`:
+	// a gradient, a mask or a filter is wired up inside the same document and
+	// no TypeScript ever names it. Without this the check reports every such id
+	// as dead, which is the opposite of true - and the remedy would have been
+	// to list them as "unwritten", turning a ledger of real gaps into a list of
+	// things that are fine.
+	//
+	// It stays strict about what it is FOR: an id that nothing references at
+	// all, from code, from CSS or from the markup, still fails.
 	referenced := func(id string) bool {
 		return strings.Contains(ts, "'"+id+"'") ||
 			strings.Contains(ts, `"`+id+`"`) ||
-			strings.Contains(css, "#"+id)
+			strings.Contains(css, "#"+id) ||
+			strings.Contains(html, "url(#"+id+")") ||
+			strings.Contains(ts, "url(#"+id+")")
 	}
 
 	have := map[string]bool{}

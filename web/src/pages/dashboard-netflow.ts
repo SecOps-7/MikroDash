@@ -16,7 +16,7 @@
  * the Interfaces page used, so the number means what it always meant.
  */
 
-import { el } from '../dom';
+import { netFlowUpdate } from './dashboard-card-netflow';
 
 /** An interface as `ifstatus:names` carries it. */
 export interface NamedInterface {
@@ -32,6 +32,5 @@ export function wiredCount(interfaces: readonly NamedInterface[] | null | undefi
 
 /** Write the count into the Network Flow card. */
 export function renderWiredCount(payload: { interfaces?: readonly NamedInterface[] } | null | undefined): void {
-  const node = el('ndWiredCount');
-  if (node) node.textContent = String(wiredCount(payload?.interfaces));
+  netFlowUpdate({ wired: { clients: wiredCount(payload?.interfaces) } });
 }

@@ -32,6 +32,7 @@ import { renderWirelessCards } from './dashboard-card-wireless';
 import { renderIpUtilCard } from './dashboard-card-iputil';
 import { renderPhysPortsCard } from './dashboard-card-physports';
 import { renderWiredCount } from './dashboard-netflow';
+import { mountNetFlow, netFlowWan } from './dashboard-card-netflow';
 import { renderRoutingCards, resetRoutingCards } from './dashboard-card-routing';
 import { renderBandwidthCard, setBwRouters, setBwActiveRouter, resetBandwidthCard }
   from './dashboard-card-bandwidth';
@@ -52,6 +53,15 @@ import { initTraffic, resumeTrafficChart, resetTraffic, resetTrafficOnReconnect 
 const connMap = createConnMap();
 
 export function initDashboard(socket: Socket): void {
+  // ── THE NETWORK FLOW CARD, MOUNTED ONCE ─────────────────────────────────
+  //
+  // It injects its lanes and particle groups into the SVG and starts a
+  // requestAnimationFrame loop, so a second instance would inject a second set
+  // and run a second loop over the same nodes - the card would animate at
+  // double speed and there would be no way to stop the first. `mountNetFlow`
+  // latches internally; this call site is the only one.
+  mountNetFlow();
+
   // ROUTER-WIDE, like the collector that sends it: these are the top bar's
   // gauges and the uptime chip, which a viewer sees on every page.
   socket.on('system:update', (d) => noteSystemUpdate(d));
@@ -95,7 +105,13 @@ export function initDashboard(socket: Socket): void {
   // The Bandwidth card. A SECOND subscriber to traffic:update - the chart takes
   // only its selected interface, this card takes every sample, because the
   // collector already emits per-socket for the default one.
-  socket.on('traffic:update', (d) => renderBandwidthCard(d));
+  socket.on('traffic:update', (d) => {
+    renderBandwidthCard(d);
+    // The Network Flow card, in bits per second. It scales the animation
+    // against the capacity configured for this device, so the dots mean "how
+    // full is the link" rather than "how big is the number".
+    netFlowWan(Math.max(0, d.rx_mbps || 0) * 1e6, Math.max(0, d.tx_mbps || 0) * 1e6);
+  });
   socket.on('firewall:update', (d) => renderFwActionsCard(d));
   socket.on('diagnostics:update', (d) => renderDiagnosticsCard(d));
   socket.on('ai:overview', (d) => renderAgentCard(d));

@@ -11,6 +11,7 @@
 // The acceptance criterion is that it renders identically, not that it renders
 // correctly.
 
+import { netFlowUpdate } from './dashboard-card-netflow';
 import { esc, el, resRow } from '../dom';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
@@ -266,9 +267,7 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
   // prefix and the diagram shows a bare address; the em dash is the original's
   // empty case, not a guard added here.
   socket.on('lan:wan', (d) => {
-    const node = el('ndWanIp');
-    if (!node) return;
-    node.textContent = ((d && d.wanIp) || '').split('/')[0] || '\u2014';
+    netFlowUpdate({ wan: { ip: ((d && d.wanIp) || '').split('/')[0] || '-' } });
   });
 
   socket.on('lan:overview', (d) => {

@@ -8,8 +8,16 @@
  *
  *   1. the count is running, enabled `ether` interfaces and nothing else;
  *   2. the Dashboard draws it from `ifstatus:names`, which every browser gets;
- *   3. nothing else writes `#ndWiredCount`, so it cannot drift back to a page
- *      the card does not subscribe to.
+ *   3. nothing else writes the count, so it cannot drift back to a page the
+ *      card does not subscribe to.
+ *
+ * ── RE-AIMED 2026-09-25, WHEN THE CARD WAS REPLACED ────────────────────────
+ *
+ * The count used to be written straight into `#ndWiredCount`. The new card
+ * owns its own text node and is fed through `netFlowUpdate`, so property 2 is
+ * now about the ROUTE rather than the element, and property 3 scans for the new
+ * id. What issue #132 was about - the count filling on first paint, from an
+ * event every browser receives - is unchanged and still checked.
  */
 
 import fs from 'node:fs';
@@ -45,15 +53,34 @@ const N = require(OUT);
   say('ok  the count is running, enabled ether ports');
 }
 
-// ── 2. it is written into the card ─────────────────────────────────────────
+// ── 2. it reaches the card through netFlowUpdate, and never throws ─────────
+//
+// `netFlowUpdate` is a no-op until the card mounts, and this handler runs on an
+// event every browser receives - including browsers that are not on the
+// Dashboard and have never built the SVG. Calling it before the mount must be
+// silent rather than fatal, which is the property worth pinning: a throw here
+// would take down the `ifstatus:names` handler for every page.
 {
-  const node = { textContent: '-' };
-  global.document = { getElementById: (id) => (id === 'ndWiredCount' ? node : null) };
+  const src = fs.readFileSync(
+    path.join(ROOT, 'web', 'src', 'pages', 'dashboard-netflow.ts'), 'utf8');
+  assert.ok(/netFlowUpdate\(\{\s*wired:\s*\{\s*clients:\s*wiredCount\(/.test(src),
+    'renderWiredCount no longer feeds the card through netFlowUpdate');
+  assert.ok(!src.includes('ndWiredCount'),
+    'the old element id is still referenced - the card that owned it is gone');
+
+  // Called with no card mounted, which is the common case. A document is
+  // needed because the unmounted path writes the static text nodes rather than
+  // dropping the payload - which is the behaviour that keeps the numbers
+  // readable where the animation cannot run.
+  const nodes = { 'nf-cnt-wired': { textContent: '0' } };
+  global.document = { getElementById: (id) => nodes[id] || null };
   N.renderWiredCount({ interfaces: [{ type: 'ether', running: true, disabled: false }] });
-  assert.strictEqual(node.textContent, '1', 'the Wired count was not written');
+  assert.strictEqual(nodes['nf-cnt-wired'].textContent, '1',
+    'the unmounted path did not write the count into the card');
   N.renderWiredCount(undefined);
-  assert.strictEqual(node.textContent, '0', 'an empty payload did not reset the count');
-  say('ok  the count is written into #ndWiredCount');
+  assert.strictEqual(nodes['nf-cnt-wired'].textContent, '0',
+    'an empty payload did not reset the count');
+  say('ok  the count is pushed through netFlowUpdate, and still renders unmounted');
 }
 
 // ── 3. the Dashboard owns it, from ifstatus:names ──────────────────────────
@@ -67,13 +94,13 @@ const N = require(OUT);
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) { if (e.name !== 'gen') walk(p); continue; }
-      if (e.name.endsWith('.ts') && fs.readFileSync(p, 'utf8').includes("'ndWiredCount'")) {
+      if (e.name.endsWith('.ts') && fs.readFileSync(p, 'utf8').includes("nf-cnt-wired")) {
         writers.push(path.relative(ROOT, p));
       }
     }
   };
   walk(path.join(ROOT, 'web', 'src'));
-  assert.deepStrictEqual(writers, [path.join('web', 'src', 'pages', 'dashboard-netflow.ts')],
-    'ndWiredCount is referenced outside the Network Flow module: ' + writers.join(', '));
+  assert.deepStrictEqual(writers, [path.join('web', 'src', 'pages', 'dashboard-card-netflow.ts')],
+    'the counter text node is written outside the Network Flow card: ' + writers.join(', '));
   say('ok  only the Network Flow module writes the Wired count, from ifstatus:names');
 }

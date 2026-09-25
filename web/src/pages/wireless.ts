@@ -12,6 +12,7 @@
 // comparison. Two copies would mean one network wearing two colours depending on
 // which page you were looking at.
 
+import { netFlowUpdate } from './dashboard-card-netflow';
 import { esc, el, bandBadge, standardBadge, bandRank, ssidColours, installWifiGlobals,
   renderSortHeader, lsGet, lsSet, type SortState } from '../dom';
 import type { Socket } from '../socket';
@@ -404,8 +405,10 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
   }
 
   function renderCards(data: WirelessPayload): void {
-    const ndWC = el('ndWirelessCount');
-    if (ndWC) ndWC.textContent = String(clients.length);
+    // The Dashboard's Network Flow card, which is chrome on every page: this
+    // handler runs wherever the operator is, which is why the count is pushed
+    // rather than read by that card.
+    netFlowUpdate({ wireless: { clients: clients.length } });
     if (wirelessTabBadge) {
       wirelessTabBadge.textContent = String(clients.length);
       wirelessTabBadge.className = 'card-badge' + (clients.length > 0 ? ' active-blue' : '');
