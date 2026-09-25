@@ -44,14 +44,6 @@ services:
       # committed file carries nobody's location. Set TZ in a local .env (which
       # is gitignored) to read the logs in your own time.
       - TZ=${TZ:-UTC}
-      # ── WHAT THE ABOUT PAGE CALLS THIS DEPLOYMENT ────────────────────────
-      #
-      # Docker tells a process nothing about the image it was started from, so
-      # the About page can detect that it is IN a container but not what the
-      # container is. This is the operator saying so. Left unset, the page
-      # shows the container badge with no name beside it, which is honest;
-      # it never guesses.
-      - MIKRODASH_IMAGE=${MIKRODASH_IMAGE:-mikrodash:latest}
       # ── BEHIND A REVERSE PROXY, SET THIS ──────────────────────────────────
       #
       # The WebSocket handshake is refused unless the browser's Origin matches

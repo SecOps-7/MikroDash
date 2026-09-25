@@ -23,10 +23,7 @@ interface AboutDep { name: string; version: string; licence: string; url?: strin
 interface AboutPayload {
   ok?: boolean;
   version?: string; commit?: string; branch?: string; built?: string;
-  runtime?: {
-    go: string; platform: string; memoryMb: number;
-    kernel?: string; container?: string; image?: string; uptimeSec: number;
-  };
+  runtime?: { go: string; platform: string; memoryMb: number; kernel?: string; uptimeSec: number };
   database?: { engine: string; schema: number };
   update?: { latest?: string; current?: boolean; checkedAt?: number };
   releases?: AboutRelease[];
@@ -133,15 +130,6 @@ function renderSystem(d: AboutPayload): void {
       fact(r.platform, 'server'),
       fact(r.memoryMb ? r.memoryMb + ' MB' : '', 'memory'),
       fact(r.kernel, 'kernel'),
-      // THE CONTAINER LINE. The badge is detected from inside the sandbox and
-      // the name beside it is declared by the operator, so the badge can
-      // appear alone: that is a container nobody named, not a missing value.
-      r.container
-        ? '<span class="about-line">'
-          + '<span class="about-pill about-pill-docker">' + esc(r.container) + '</span>'
-          + (r.image ? '<span class="about-fact about-dim">' + esc(r.image) + '</span>' : '')
-          + '</span>'
-        : '',
     ].filter(Boolean).join('');
   }
   const db = el('aboutDatabase');
