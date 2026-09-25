@@ -3109,9 +3109,18 @@
 .about-note { font-size: .72rem; color: var(--text-muted); line-height: 1.6; margin: .8rem 0 0; }
 .about-disclaimer { opacity: .75; }
 
-/* The tab bar is `.stab-bar` / `.stab` now, styled once in the settings block.
-   All that is left here is the icon inside each tab and the gap around it. */
-#aboutTabBar .stab { display: inline-flex; align-items: center; gap: .4rem; }
+/* The tab bar is `.stab-bar` / `.stab` now, styled once in the settings block:
+   the underline, the colours and the active state all come from there.
+
+   TWO EQUAL HALVES, which is the one thing kept from the grid it replaced. A
+   flex bar packs both tabs against the left edge, and with only two of them
+   under a full-width card that leaves most of the bar empty and the pair
+   reading as a fragment of a longer list. A settings or reports bar has six or
+   seven tabs and fills itself; this one does not, so it is told to. */
+#aboutTabBar { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+#aboutTabBar .stab {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+}
 .about-count {
   font-family: var(--font-mono); font-size: .68rem;
   background: rgba(99,130,190,.15); color: var(--text-muted);
