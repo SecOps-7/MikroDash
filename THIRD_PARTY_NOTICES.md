@@ -195,6 +195,48 @@ The licence shipped with v3.0.1 is kept beside the sources as
 
 ---
 
+## Go modules linked into the binary
+
+Every module the linker puts into `cmd/mikrodash`, with the licence read from
+that module's **own LICENSE file in the module cache on 2026-09-25**, not from
+memory. Each BSD entry was checked for the third clause ("may be used to endorse
+or promote"): BSD-2-Clause and BSD-3-Clause are different licences and naming
+the wrong one is a false statement about somebody else's terms.
+
+The sections above describe what is vendored into the repository and shipped to
+the browser. This table is the other half, and it was missing until now: the
+eight direct dependencies were documented and the modules they pull in were not.
+
+| Module | Licence |
+|---|---|
+| github.com/coder/websocket | ISC |
+| github.com/dustin/go-humanize | MIT |
+| github.com/go-pdf/fpdf | MIT |
+| github.com/go-routeros/routeros/v3 | MIT |
+| github.com/google/btree | Apache-2.0 |
+| github.com/google/uuid | BSD-3-Clause |
+| github.com/oschwald/maxminddb-golang/v2 | ISC |
+| github.com/remyoudompheng/bigfft | BSD-3-Clause |
+| golang.org/x/crypto | BSD-3-Clause |
+| golang.org/x/net | BSD-3-Clause |
+| golang.org/x/sys | BSD-3-Clause |
+| golang.org/x/time | BSD-3-Clause |
+| golang.zx2c4.com/wireguard | MIT |
+| gvisor.dev/gvisor | Apache-2.0 |
+| modernc.org/libc | BSD-3-Clause |
+| modernc.org/mathutil | BSD-3-Clause |
+| modernc.org/memory | BSD-3-Clause |
+| modernc.org/sqlite | BSD-3-Clause |
+
+**This list is not maintained by hand.** `internal/server/deps.go` holds the same
+table, joined to the module list the binary reports about itself, and
+`TestEveryLinkedModuleHasARecordedLicence` fails in BOTH directions: a module
+with no licence recorded, and a licence recorded for a module no longer linked.
+Add a dependency and the check names it; remove one and the check names the
+entry left behind.
+
+---
+
 ## Not third-party
 
 For the avoidance of doubt, these are MikroDash's own and are not covered above:
