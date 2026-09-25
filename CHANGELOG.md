@@ -23,6 +23,10 @@ All notable changes to MikroDash will be documented in this file.
   version, and every dependency with its licence.
 - **Per-interface traffic history opens on Live**, with a 15 minute range and a tooltip that says
   when each point was taken.
+- **A redesigned Network Flow card.** Particles flow between your wired and wireless clients, the
+  router and the WAN, at a speed and density that follow real traffic. Wired and wireless are
+  measured per interface rather than guessed, and everything is scaled against the Download and
+  Upload capacity you set for that device, so a busy 50 Mb line looks busy.
 
 ### Fixed
 
@@ -35,6 +39,10 @@ All notable changes to MikroDash will be documented in this file.
 - Escape closed every open dialog instead of the top one, discarding the dialog underneath.
 - The traffic chart no longer redraws itself with a one second sweep when you come back to the
   Dashboard.
+- **The Download and Upload capacity set per device was ignored.** Every rate was measured against
+  1000 Mbps instead, so an operator with a 50 Mbps upload saw it scaled against a gigabit. It
+  appeared to correct itself after editing any device, which made it easy to miss.
+- The traffic chart could tick briefly backwards before resuming, when a slow sample arrived.
 - The sidebar starts with every category collapsed instead of reopening the last ones.
 
 ### Internal
