@@ -81,6 +81,7 @@ func (s *Server) registerRouters(mux *http.ServeMux) {
 	// one list — the audit compares METHOD and PATH, and a route registered
 	// somewhere else is exactly how `GET /api/routers` went missing.
 	s.registerRouterActivate(mux)
+	s.registerRouterReorder(mux)
 }
 
 // routerCreate is `POST /api/routers`.
