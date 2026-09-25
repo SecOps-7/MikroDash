@@ -131,7 +131,7 @@
                  id INSIDE it is `nf-` prefixed, because these are generic
                  words (`glow-wan`, `led-wired`) that would otherwise be the
                  kind of collision nothing reports. -->
-            <svg id="netDiagram" class="nf-svg" viewBox="0 20 760 260" xmlns="http://www.w3.org/2000/svg"
+            <svg id="netDiagram" class="nf-svg" viewBox="0 -20 760 340" xmlns="http://www.w3.org/2000/svg"
                  role="img" aria-label="Network traffic flow">
               <defs>
                 <filter id="nf-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -155,7 +155,17 @@
 
               <!-- links and particles are injected before this group by the controller -->
               <g id="nf-nodes">
-                <g transform="translate(-14 0)">
+                <!-- ── PUSHED TO THE EDGES, AND THE DRAWING MADE TALLER ──────
+                     The boxes sat at 28..140 and 160..272 in a 20..280 view, so
+                     each had 8 units spare. That was not the real waste: the
+                     drawing was 760x260 (aspect 2.9) inside a card nearer 2, so
+                     `meet` scaled it to the WIDTH and centred it, leaving about
+                     31px dead above and below whatever the boxes did.
+                     The view is 340 tall now and the two boxes are spread to
+                     its edges, which is the only thing that actually fills the
+                     space: a wider-than-tall drawing in a squarer box is
+                     letterboxed however its contents are arranged. -->
+                <g transform="translate(-14 -48)">
                   <rect id="nf-glow-wired" x="20" y="28" width="170" height="112" rx="16" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
                   <rect class="nf-node" x="20" y="28" width="170" height="112" rx="16"/>
                   <rect x="36" y="62" width="44" height="44" rx="12" fill="#38bdf8" fill-opacity=".12"/>
@@ -166,6 +176,8 @@
                   <text class="nf-lbl" x="94" y="70">Wired</text>
                   <text class="nf-num" x="94" y="101"><tspan id="nf-cnt-wired">0</tspan></text>
 
+                </g>
+                <g transform="translate(-14 48)">
                   <rect id="nf-glow-wireless" x="20" y="160" width="170" height="112" rx="16" fill="none" stroke="#a78bfa" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
                   <rect class="nf-node" x="20" y="160" width="170" height="112" rx="16"/>
                   <rect x="36" y="194" width="44" height="44" rx="12" fill="#a78bfa" fill-opacity=".12"/>

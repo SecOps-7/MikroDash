@@ -58,8 +58,11 @@ interface Lane {
 }
 
 const LINKS: Record<LinkKey, { color: string; a: [number, number]; b: [number, number]; ends: [string, string] }> = {
-  wired: { color: '#38bdf8', a: [176, 84], b: [312, 140], ends: ['wired', 'router'] },
-  wireless: { color: '#a78bfa', a: [176, 216], b: [312, 160], ends: ['wireless', 'router'] },
+  // The LAN endpoints follow their boxes: the markup translates them by -48 and
+  // +48 to reach the edges of the taller view, and a curve left behind would
+  // start in mid-air beside the node it belongs to.
+  wired: { color: '#38bdf8', a: [176, 36], b: [312, 140], ends: ['wired', 'router'] },
+  wireless: { color: '#a78bfa', a: [176, 264], b: [312, 160], ends: ['wireless', 'router'] },
   wan: { color: '#34d399', a: [448, 150], b: [584, 150], ends: ['router', 'wan'] },
 };
 
@@ -272,12 +275,33 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
       // ── LOAD, NOT AN ABSOLUTE RATE ────────────────────────────────────
       //
       // `load` is already 0..1 against the configured capacity, so a saturated
-      // 50 Mbps line and a saturated gigabit one both run at full tilt. The
-      // square root front-loads the low end: the difference between idle and
-      // lightly busy is the one an operator glances for.
-      const a = Math.sqrt(l.load);
-      const pps = a * 6;                         // particles per second, 0..6
-      l.speed = 60 + a * 170;                    // px/s, 60..230
+      // 50 Mbps line and a saturated gigabit one both run at full tilt.
+      //
+      // ── AND A STEEP LOW END, WHICH IS THE WHOLE DIFFICULTY ────────────
+      //
+      // A real link spends almost all its time in the bottom thousandth of its
+      // capacity: 490 kb/s on a gigabit line is a load of 0.0005. A linear
+      // response, or even a square root, renders that as a dot every eight
+      // seconds - technically faithful and useless to look at. The 0.3 power
+      // lifts 0.0005 to 0.13 and 0.1 to 0.50, so ordinary traffic reads as
+      // moving and saturation still reads as faster.
+      //
+      // FLOOR AND CEILING ARE DELIBERATE: any traffic at all gets a visible
+      // rate, because "some" and "none" is the distinction the card is for,
+      // and nothing exceeds the top because a busier link must not become an
+      // unreadable blur.
+      // The exponent is chosen so this tracks the reference design's own curve
+      // across the range, while staying relative to capacity rather than
+      // absolute. Worked through at three points, taking a gigabit line:
+      //
+      //   490 kb/s  load .0005  a .26   ->  101 px/s   (reference: 110)
+      //    60 Mb/s  load .06    a .61   ->  158 px/s   (reference: 161)
+      //     1 Gb/s  load 1      a 1     ->  220 px/s   (reference: 220)
+      //
+      // so the speed range is the reference's 60..220 exactly.
+      const a = l.load > 0 ? Math.pow(l.load, .18) : 0;
+      const pps = l.load > 0 ? 1 + a * 4 : 0;        // particles/s, 1..5
+      l.speed = 60 + a * 160;                        // px/s, 60..220
       if (!reduce && pps > 0) {
         l.acc += pps * dt * (.6 + Math.random() * .8);
         while (l.acc >= 1) { l.acc -= 1; spawn(l); }
