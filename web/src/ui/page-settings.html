@@ -4,8 +4,11 @@
          full-width idiom, with .stab-panel.active doing the columnising. -->
     <div class="container-fluid px-0" style="width:100%">
 
-      <!-- Tab bar -->
-      <div class="stab-bar">
+      <!-- Tab bar. IT HAS AN ID because it is no longer the only `.stab-bar`
+           inside `#page-settings`: the About panel has one too, and a page-wide
+           `.stab` query would toggle both. Every other page already scopes to
+           its bar's id (`#rptTabBar`, `#qTabBar`, `#ruTabBar`); this now does. -->
+      <div class="stab-bar" id="settingsTabBar">
         <button class="stab active" data-tab="routers">Devices</button>
         <button class="stab" data-tab="general">General</button>
         <button class="stab" data-tab="notifications">Notifications</button>
@@ -1381,12 +1384,19 @@
 
         <div class="scard scard--wide">
           <div class="scard-body">
-            <div class="about-tabs" role="tablist">
-              <button type="button" class="about-tab active" role="tab" data-abouttab="notes">
-                <svg viewBox="0 0 24 24" class="about-tab-ico"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Release notes <span id="aboutNotesCount" class="about-count">0</span>
+            <!-- THE APP'S TAB BAR, not a bespoke one. It was a two-column grid of
+                 large buttons, which is a control this app uses nowhere else; these
+                 are `.stab-bar` / `.stab`, the same underline tabs as Settings,
+                 Reports, Queues and the rest. The counts stay, as `card-badge`,
+                 which is the app's own count pill. -->
+            <div class="stab-bar" id="aboutTabBar" role="tablist">
+              <button type="button" class="stab active" role="tab" data-abouttab="notes">
+                <svg viewBox="0 0 24 24" class="about-tab-ico"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Release notes <span id="aboutNotesCount" class="card-badge">0</span>
               </button>
-              <button type="button" class="about-tab" role="tab" data-abouttab="deps">
-                <svg viewBox="0 0 24 24" class="about-tab-ico"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Dependencies <span id="aboutDepsCount" class="about-count">0</span>
+              <button type="button" class="stab" role="tab" data-abouttab="deps">
+                <svg viewBox="0 0 24 24" class="about-tab-ico"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                Dependencies <span id="aboutDepsCount" class="card-badge">0</span>
               </button>
             </div>
             <div class="about-panel active" data-aboutpanel="notes">

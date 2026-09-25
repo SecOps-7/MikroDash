@@ -268,7 +268,7 @@ let aboutFetched = false;
  * inner tab click happened to re-run the sizer.
  */
 export function activateSettingsTab(tabName: string): void {
-  document.querySelectorAll('#page-settings .stab').forEach((t) => {
+  document.querySelectorAll('#settingsTabBar .stab').forEach((t) => {
     (t as HTMLElement).classList.toggle('active', (t as HTMLElement).dataset.tab === tabName);
   });
   document.querySelectorAll('#page-settings .stab-panel').forEach((p) => {
@@ -305,7 +305,7 @@ export function activateSettingsTab(tabName: string): void {
  * it removed rather than reintroducing it as a "nice to have".
  */
 export function mountSettingsTabs(): void {
-  document.querySelectorAll('#page-settings .stab').forEach((t) => {
+  document.querySelectorAll('#settingsTabBar .stab').forEach((t) => {
     t.addEventListener('click', () => {
       activateSettingsTab((t as HTMLElement).dataset.tab || '');
     });

@@ -3109,18 +3109,9 @@
 .about-note { font-size: .72rem; color: var(--text-muted); line-height: 1.6; margin: .8rem 0 0; }
 .about-disclaimer { opacity: .75; }
 
-/* The two tabs under the fold. Same idiom as the notification channel dialog's
-   tabs, scoped here so a page-width `.stab-panel` grid is not inherited. */
-.about-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; margin-bottom: 1rem; }
-.about-tab {
-  display: flex; align-items: center; justify-content: center; gap: .5rem;
-  background: none; border: 1px solid transparent; border-radius: 7px;
-  color: var(--text-muted); cursor: pointer;
-  font-family: var(--font-ui); font-size: .8rem; padding: .6rem;
-}
-.about-tab.active {
-  background: var(--bg-deep); border-color: var(--border); color: var(--text-main);
-}
+/* The tab bar is `.stab-bar` / `.stab` now, styled once in the settings block.
+   All that is left here is the icon inside each tab and the gap around it. */
+#aboutTabBar .stab { display: inline-flex; align-items: center; gap: .4rem; }
 .about-count {
   font-family: var(--font-mono); font-size: .68rem;
   background: rgba(99,130,190,.15); color: var(--text-muted);
