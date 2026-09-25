@@ -58,11 +58,14 @@ interface Lane {
 }
 
 const LINKS: Record<LinkKey, { color: string; a: [number, number]; b: [number, number]; ends: [string, string] }> = {
-  // The LAN endpoints follow their boxes: the markup translates them by -48 and
-  // +48 to reach the edges of the taller view, and a curve left behind would
-  // start in mid-air beside the node it belongs to.
-  wired: { color: '#38bdf8', a: [176, 36], b: [312, 140], ends: ['wired', 'router'] },
-  wireless: { color: '#a78bfa', a: [176, 264], b: [312, 160], ends: ['wireless', 'router'] },
+  // The LAN endpoints follow their boxes: the markup translates them by -24 and
+  // +24 into the taller view, and a curve left behind would start in mid-air
+  // beside the node it belongs to.
+  // The LAN curves start at the boxes' right edge. That edge moved twice: the
+  // markup translates each box by 16 into the taller view, and scales it by
+  // 1.12 about its own centre, which pushes 190 out to 200.
+  wired: { color: '#38bdf8', a: [200, 68], b: [312, 140], ends: ['wired', 'router'] },
+  wireless: { color: '#a78bfa', a: [200, 232], b: [312, 160], ends: ['wireless', 'router'] },
   wan: { color: '#34d399', a: [448, 150], b: [584, 150], ends: ['router', 'wan'] },
 };
 
@@ -135,40 +138,64 @@ export function netFlowUpdate(d: NetFlowUpdate): void {
   if (d.wan?.ip) put(WAN_IP_ID, d.wan.ip);
 }
 
-/**
- * Drive every lane from the WAN pair, in bits per second.
- *
- * ── THE SPLIT HAPPENS HERE BECAUSE THE COUNTS ARE HERE ────────────────────
- *
- * The two LAN lanes are the WAN pair apportioned BY CLIENT COUNT, not measured.
- * Doing it in the caller would mean keeping a second copy of the wired and
- * wireless counts in the Dashboard module, updated from two more handlers, and
- * the two copies would disagree the first time one of them missed an event.
- *
- * TODO: per-interface rates do exist - `ifstatus:update` carries `rxMbps` and
- * `txMbps` per interface - but that event goes to the Interfaces room, and
- * subscribing the Dashboard to it would open a second stream for a decoration.
- * If those numbers are ever on the Dashboard for another reason, read them
- * here instead of apportioning.
- *
- * NO CLIENTS ON EITHER SIDE is an even split rather than nothing: the traffic
- * is real and is crossing one of them, and showing both idle while the WAN is
- * busy is the reading that is certainly wrong.
- */
+/** Drive the WAN lane, in bits per second. */
 export function netFlowWan(downBits: number, upBits: number): void {
-  if (!live) return;
-  const w = liveCounts.wired, l = liveCounts.wireless;
-  const total = w + l;
-  const share = total > 0 ? w / total : .5;
-  live({
-    wan: { down: downBits, up: upBits },
-    wired: { down: downBits * share, up: upBits * share },
-    wireless: { down: downBits * (1 - share), up: upBits * (1 - share) },
-  });
+  netFlowUpdate({ wan: { down: downBits, up: upBits } });
 }
 
-/** The counts the apportioning reads, mirrored out of the mounted instance. */
-const liveCounts = { wired: 0, wireless: 0 };
+/** One interface as `ifstatus:update` carries it. */
+export interface FlowInterface {
+  name: string;
+  type: string;
+  running: boolean;
+  disabled: boolean;
+  rxMbps: number;
+  txMbps: number;
+}
+
+/**
+ * The LAN lanes, MEASURED per interface.
+ *
+ * ── WHAT THIS REPLACED ─────────────────────────────────────────────────────
+ *
+ * The two LAN lanes were once the WAN pair split by CLIENT COUNT. With 5 wired
+ * ports and 31 wireless clients that gave wired 13.9% of the traffic whatever
+ * it was actually carrying, and it showed: measurement found the ports moving
+ * 1.06 Mb/s down against wireless's 0.42, so the count had the busier side
+ * backwards. One desktop out-carries thirty idle phones and a count cannot know
+ * that.
+ *
+ * `ifstatus:update` carries `rxMbps` and `txMbps` per interface and the
+ * Dashboard ALREADY subscribes to it for the Physical Ports card, so the real
+ * numbers cost no extra stream.
+ *
+ * ── THE WAN PORT IS EXCLUDED, AND THAT IS THE TRICK ────────────────────────
+ *
+ * The WAN is an `ether` port like the rest, so summing every ether would count
+ * the internet link as a LAN one: roughly doubling the wired lane and making it
+ * track the WAN exactly. `wanName` is the traffic sample's own `ifName`, which
+ * is the interface those WAN rates describe.
+ *
+ * DIRECTION: on a LAN port the router's TX goes toward the clients, so that is
+ * `down` and RX is `up` - the opposite of the WAN side, which is why they are
+ * not one formula.
+ */
+export function netFlowInterfaces(ifaces: readonly FlowInterface[] | null | undefined,
+  wanName: string): void {
+  let wRx = 0, wTx = 0, lRx = 0, lTx = 0;
+  for (const i of ifaces || []) {
+    if (!i.running || i.disabled) continue;
+    const rx = i.rxMbps || 0, tx = i.txMbps || 0;
+    if (i.type === 'ether' && i.name !== wanName) { wRx += rx; wTx += tx; continue; }
+    // Both spellings: RouterOS reports the newer drivers as `wifi` and the
+    // older ones as `wlan`, and one router can carry each on different bands.
+    if (i.type === 'wlan' || i.type === 'wifi') { lRx += rx; lTx += tx; }
+  }
+  netFlowUpdate({
+    wired: { down: wTx * 1e6, up: wRx * 1e6 },
+    wireless: { down: lTx * 1e6, up: lRx * 1e6 },
+  });
+}
 
 export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
   if (mounted) return null;
@@ -350,22 +377,34 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
     (['wired', 'wireless', 'wan'] as LinkKey[]).forEach((k) => {
       const x = d[k];
       if (!x) return;
-      // `down` is toward the clients, so it is measured against the DOWNLOAD
-      // capacity on every link; `up` against the upload one.
-      const dl = loadFraction(x.down, cap.down);
-      const ul = loadFraction(x.up, cap.up);
-      lanes.forEach((l) => { if (l.key === k) l.load = l.dir > 0 ? ul : dl; });
-      const a = Math.max(dl, ul);
-      pick(LED_ID[k])?.setAttribute('opacity', (.2 + .8 * Math.sqrt(a)).toFixed(2));
-      const tr = tracks[k];
-      if (tr) {
-        tr.tube.setAttribute('opacity', (.03 + .09 * a).toFixed(3));
-        tr.lines.forEach((p) => p.setAttribute('opacity', (.14 + .3 * a).toFixed(2)));
+      // ── AN ABSENT FIELD MEANS UNCHANGED, NOT ZERO ─────────────────────
+      //
+      // THE BUG THIS EXISTS FOR. The three client-count writers push
+      // `{ wired: { clients: n } }` with no rates at all, and this used to read
+      // the missing `down` and `up` as zero and wipe the lane. `ifstatus:names`
+      // lands just after `ifstatus:update`, so the wired rate was set from the
+      // real per-port sums and then zeroed a moment later, every second: the
+      // operator saw a wired lane that never moved while the wireless one did.
+      //
+      // Measured while chasing it: the ports were carrying 1.06 Mb/s down
+      // against wireless's 0.42 - the busier lane was the dead one.
+      if (x.down != null || x.up != null) {
+        // `down` is toward the clients, so it is measured against the DOWNLOAD
+        // capacity on every link; `up` against the upload one.
+        const dl = loadFraction(x.down, cap.down);
+        const ul = loadFraction(x.up, cap.up);
+        lanes.forEach((l) => { if (l.key === k) l.load = l.dir > 0 ? ul : dl; });
+        const a = Math.max(dl, ul);
+        pick(LED_ID[k])?.setAttribute('opacity', (.2 + .8 * Math.sqrt(a)).toFixed(2));
+        const tr = tracks[k];
+        if (tr) {
+          tr.tube.setAttribute('opacity', (.03 + .09 * a).toFixed(3));
+          tr.lines.forEach((p) => p.setAttribute('opacity', (.14 + .3 * a).toFixed(2)));
+        }
       }
       if (x.clients != null && k !== 'wan') {
         const ck = k as 'wired' | 'wireless';
         counts[ck] = x.clients;
-        liveCounts[ck] = x.clients;
       }
     });
     if (d.wan?.ip) {

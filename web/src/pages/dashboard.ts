@@ -32,7 +32,7 @@ import { renderWirelessCards } from './dashboard-card-wireless';
 import { renderIpUtilCard } from './dashboard-card-iputil';
 import { renderPhysPortsCard } from './dashboard-card-physports';
 import { renderWiredCount } from './dashboard-netflow';
-import { mountNetFlow, netFlowWan } from './dashboard-card-netflow';
+import { mountNetFlow, netFlowWan, netFlowInterfaces } from './dashboard-card-netflow';
 import { renderRoutingCards, resetRoutingCards } from './dashboard-card-routing';
 import { renderBandwidthCard, setBwRouters, setBwActiveRouter, resetBandwidthCard }
   from './dashboard-card-bandwidth';
@@ -51,6 +51,9 @@ import { initTraffic, resumeTrafficChart, resetTraffic, resetTrafficOnReconnect 
 // The Connections Map, built once. `worldmap:ready` tells it when the world map
 // module has published its path data - until then a payload is held.
 const connMap = createConnMap();
+
+/** The WAN interface's name, learned from the traffic sample that describes it. */
+let netFlowWanIf = '';
 
 export function initDashboard(socket: Socket): void {
   // ── THE NETWORK FLOW CARD, MOUNTED ONCE ─────────────────────────────────
@@ -90,7 +93,12 @@ export function initDashboard(socket: Socket): void {
     // card: the IP Utilisation extra card.
     renderIpUtilCard(d);
   });
-  socket.on('ifstatus:update', (d) => renderPhysPortsCard(d));
+  socket.on('ifstatus:update', (d) => {
+    renderPhysPortsCard(d);
+    // The Network Flow card's LAN lanes, measured per interface. This event was
+    // already subscribed for the card above, so the real rates cost no stream.
+    netFlowInterfaces(d.interfaces, netFlowWanIf);
+  });
   // The Network Flow card's Wired count, from the names event every browser
   // receives and gets on router select. It was written by the Interfaces page
   // from `ifstatus:update`, which this card never subscribes to, so it stayed
@@ -110,6 +118,10 @@ export function initDashboard(socket: Socket): void {
     // The Network Flow card, in bits per second. It scales the animation
     // against the capacity configured for this device, so the dots mean "how
     // full is the link" rather than "how big is the number".
+    // The WAN port's NAME, so the LAN sums can exclude it: it is an `ether`
+    // port like the others, and counting it as a LAN link would roughly double
+    // the wired lane and make it mirror the WAN.
+    netFlowWanIf = d.ifName || netFlowWanIf;
     netFlowWan(Math.max(0, d.rx_mbps || 0) * 1e6, Math.max(0, d.tx_mbps || 0) * 1e6);
   });
   socket.on('firewall:update', (d) => renderFwActionsCard(d));
