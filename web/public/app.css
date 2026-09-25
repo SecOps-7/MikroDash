@@ -1034,14 +1034,23 @@
     /* DISABLED, NOT HIDDEN, at the ends of the list: hiding one would change the
        cell's width and jog every row beside it. */
     .rtr-move:disabled{opacity:.25;cursor:default}
+    /* Sites: one chip per membership, wrapping inside its own cell. */
+    .rtr-site-cell{display:flex;flex-wrap:wrap;gap:.2rem}
+    .rtr-site-chip{font-size:.6rem;padding:.1rem .4rem;border-radius:4px;
+                   background:rgba(99,130,190,.12);color:var(--text-muted);
+                   border:1px solid var(--border);white-space:nowrap}
     /* Identity left, Primary right. `1fr auto` rather than two equal halves: the
        tick needs only its own width, and the identity field should keep the rest
        even when it is the only thing in the row. */
     .rtr-identity-row{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:start}
-    /* The tick sits on the identity input's own line rather than at the top of
-       the row, so the two read as one row of controls instead of a field and a
-       floating checkbox. */
-    .rtr-primary-wrap{display:flex;align-items:center;align-self:end;padding-bottom:.35rem}
+    /* IN LINE WITH THE INPUT ITSELF, not with the row.
+       `align-self:end` put it level with the HINT under the input, because the
+       identity group is label + input + hint and the hint is what ends the
+       column. The label's height and the gap below it are what the tick has to
+       clear, so it is pushed down by that much and then centred on the input's
+       own height - which is what "in line with the text box" means. */
+    .rtr-primary-wrap{display:flex;align-items:center;align-self:start;
+                      height:2.1rem;margin-top:1.35rem}
     .rtr-primary-label{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;
                        font-family:var(--font-ui);font-size:.74rem;color:var(--text-main);white-space:nowrap}
     /* BLUE IN BOTH STATES, WHICH NEEDS `appearance:none`.

@@ -54,6 +54,24 @@ function ensurePicker(): CityPickerState | null {
 /** The fleet, as the device checkboxes need it. Supplied by the caller. */
 let fleetOf: () => SiteMemberDevice[] = () => [];
 
+/**
+ * Told whenever `sitesById` changes.
+ *
+ * ── THE BUG THIS EXISTS FOR ────────────────────────────────────────────────
+ *
+ * `sitesById` is shared with the DEVICE table, which renders a pill per site a
+ * device belongs to. Both `load()` and `onSitesUpdate()` repainted the sites
+ * table and nothing else, so the device table kept whatever it had drawn before
+ * the sites arrived - which on a fresh page is nothing. The pills appeared only
+ * when something ELSE repainted that table: a router switch, or an add or
+ * delete. The operator saw "the site pills do not render until another router
+ * is selected".
+ *
+ * A callback rather than an import, so this module still knows nothing about
+ * the device table and the two can be mounted independently.
+ */
+let onCacheChanged: () => void = () => {};
+
 /** Site ids to names, shared with the device table and modal. */
 export const sitesById: Record<string, SiteRecord> = {};
 
@@ -61,6 +79,10 @@ function cache(list: SiteRecord[]): void {
   sites = Array.isArray(list) ? list : [];
   for (const k of Object.keys(sitesById)) delete sitesById[k];
   for (const s of sites) sitesById[s.id] = s;
+  // EVERY path into the cache goes through here, which is why the notification
+  // lives here rather than beside each caller: `load()` on mount, and
+  // `onSitesUpdate()` when another administrator changes a site.
+  onCacheChanged();
 }
 
 function renderTable(): void {
@@ -220,7 +242,13 @@ async function remove(id: string, name: string, count: number): Promise<void> {
  * the device list changes under this page and a snapshot taken at mount would
  * make the checkboxes stale within a minute.
  */
-export function initSitesCard(fleet: () => SiteMemberDevice[]): void {
+export function initSitesCard(fleet: () => SiteMemberDevice[], onChanged?: () => void): void {
+  // WIRED BEFORE THE EARLY RETURN BELOW. The sites card's own tbody may be
+  // absent - a principal who cannot manage sites does not get the card - but
+  // that principal still sees the device table, and its pills still need the
+  // names. Returning first would have left them unnotified on exactly the
+  // installs where the card is hidden.
+  if (onChanged) onCacheChanged = onChanged;
   const tbody = el('siteTbody');
   if (!tbody) return;
   fleetOf = fleet;

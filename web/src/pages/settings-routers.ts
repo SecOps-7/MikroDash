@@ -45,10 +45,10 @@ export interface RouterRow {
 export interface SiteName { name?: string }
 
 /** The eight-column colspan of the empty state. Kept beside the row it must match. */
-// NINE since the order column landed. The empty-state colspan reads this, and
-// the header in page-settings.html must agree - `TestTheDeviceTableHeaderMatchesItsColumns`
-// is what stops the two drifting.
-export const ROUTER_TABLE_COLUMNS = 9;
+// TEN: the order column, then Site as its own column between Name and Status.
+// The empty-state colspan reads this and the header in page-settings.html must
+// agree.
+export const ROUTER_TABLE_COLUMNS = 10;
 
 /**
  * One row.
@@ -121,16 +121,24 @@ export function renderRouterRow(
   const siteNames = (Array.isArray(r.siteIds) ? r.siteIds : (r.siteId ? [r.siteId] : []))
     .map((id) => (sitesById && sitesById[id] ? sitesById[id].name : null))
     .filter(Boolean) as string[];
-  const siteChip = siteNames.length
-    ? '<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">' + siteNames.map((n) =>
-        '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(99,130,190,.12);color:var(--text-muted);border:1px solid var(--border)">' + esc(n) + '</span>').join('') + '</div>'
-    : '';
+  // ── SITES ARE THEIR OWN COLUMN ────────────────────────────────────────
+  //
+  // They used to sit under the label inside the Name cell, which kept the table
+  // at eight columns and made that cell carry three things at once: the name,
+  // the ZTP badge, and now Primary and Active as well. A device in two sites
+  // pushed its row taller than every other. A column of its own is what the
+  // rest of this table already does with one fact per cell.
+  const siteCell = siteNames.length
+    ? '<div class="rtr-site-cell">' + siteNames.map((n) =>
+        '<span class="rtr-site-chip">' + esc(n) + '</span>').join('') + '</div>'
+    : unknown;
   const modelCell = r.model ? esc(r.model) : unknown;
   const serialCell = r.serial ? '<span class="rtr-host">' + esc(r.serial) + '</span>' : unknown;
   const versionCell = r.osVersion ? '<span class="rtr-ver-pill">' + esc(r.osVersion) + '</span>' : unknown;
   return '<tr' + (r.disabled ? ' style="opacity:.55"' : '') + '>' +
     orderCell +
-    '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + ztpBadge + '</div>' + primaryBadge + activeBadge + siteChip + '</td>' +
+    '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + ztpBadge + '</div>' + primaryBadge + activeBadge + '</td>' +
+    '<td>' + siteCell + '</td>' +
     '<td>' + statusCell + '</td>' +
     '<td><span class="rtr-host">' + esc(r.host) + '</span></td>' +
     '<td>' + modelCell + '</td>' +

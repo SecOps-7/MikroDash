@@ -761,7 +761,9 @@ async function main(): Promise<void> {
   // The Sites card, on the Settings page. `routers` is passed as a THUNK rather
   // than a value: the device checkboxes are rendered every time the form opens,
   // and a list captured here would be whatever the fleet was at page load.
-  initSitesCard(() => routers);
+  // The second argument repaints the DEVICE table when the site cache changes:
+  // it renders a pill per site and had no way of knowing the names had arrived.
+  initSitesCard(() => routers, () => renderRoutersInto());
 
   // Access Management, on the same page. The two accessors are THUNKS because
   // both arrive after mount: `_caps` from its own fetch and `_authMode` from
