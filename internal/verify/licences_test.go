@@ -146,3 +146,117 @@ func TestEveryVendoredLibraryIsInTheNotices(t *testing.T) {
 	}
 	t.Logf("%d vendored librar(ies) checked against the notices", len(names))
 }
+
+// EVERY DIRECT REQUIREMENT IS RECORDED AS DIRECT, AND EVERY RECORD IS ONE.
+//
+// ── THE BUG THIS EXISTS FOR ────────────────────────────────────────────────
+//
+// The About page lists what MikroDash depends on, and it gets that list by
+// filtering the build's module graph through `directModules`. A module missing
+// from that map is simply not shown - no error, no blank row, nothing. A new
+// dependency would be argued for in CLAUDE.md, linked into the binary, credited
+// in the notices, and invisible on the page that exists to name it.
+//
+// The reverse is the one that rots: an entry for something no longer required
+// costs nothing at runtime, because the join just never matches, so it sits
+// there reading like a decision.
+//
+// ── GO.MOD IS THE RIGHT SOURCE HERE, UNLIKE ABOVE ──────────────────────────
+//
+// `linkedModules` deliberately refuses to read go.mod, because "what the binary
+// links" is a question only the toolchain can answer. This is the OTHER
+// question - "what did this project ask for" - and go.mod's first require block
+// is its literal definition. `go list -m` would answer it too, but it resolves
+// the whole graph to do so, and the file states it directly.
+func TestEveryDirectRequirementIsRecordedAsDirect(t *testing.T) {
+	root := repoRoot(t)
+	src := mustRead(t, filepath.Join(root, "go.mod"))
+
+	// The require blocks, in order. The FIRST is the direct one: `go mod tidy`
+	// writes direct requirements into one block and indirect into another, and
+	// marks every line of the second `// indirect`. Both facts are checked
+	// below rather than assumed, because relying on either alone would let a
+	// reformatted file pass while meaning something else.
+	inBlock := false
+	direct := map[string]bool{}
+	indirect := 0
+	for _, line := range strings.Split(src, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "require (" {
+			inBlock = true
+			continue
+		}
+		if inBlock && trimmed == ")" {
+			inBlock = false
+			continue
+		}
+		if !inBlock || trimmed == "" || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		if strings.Contains(trimmed, "// indirect") {
+			indirect++
+			continue
+		}
+		direct[strings.Fields(trimmed)[0]] = true
+	}
+
+	// AN EMPTY SCAN IS A BROKEN SCAN, and an empty `direct` would agree that
+	// every recorded module is spurious while reporting nothing missing.
+	if len(direct) < 3 || indirect < 3 {
+		t.Fatalf("parsed %d direct and %d indirect requirements from go.mod - "+
+			"this scan has broken", len(direct), indirect)
+	}
+
+	recorded := recordedDirect(t, root)
+	var missing, spurious []string
+	for path := range direct {
+		if !recorded[path] {
+			missing = append(missing, path)
+		}
+	}
+	for path := range recorded {
+		if !direct[path] {
+			spurious = append(spurious, path)
+		}
+	}
+	sort.Strings(missing)
+	sort.Strings(spurious)
+
+	if len(missing) > 0 {
+		t.Errorf("go.mod requires %v directly, and `directModules` in "+
+			"internal/server/deps.go does not list them - so they are filtered out of "+
+			"Dependencies() and never appear on the About page, silently", missing)
+	}
+	if len(spurious) > 0 {
+		t.Errorf("`directModules` lists %v, which go.mod no longer requires directly - "+
+			"a stale entry matches nothing and reads like a decision", spurious)
+	}
+	t.Logf("%d direct requirement(s), %d indirect, all accounted for", len(direct), indirect)
+}
+
+// reDirectEntry reads the keys of `directModules`. The map is quoted-path to
+// bool, one per line, which is how gofmt keeps it.
+var reDirectEntry = regexp.MustCompile(`^\s*"([^"]+)":\s*true,\s*$`)
+
+func recordedDirect(t *testing.T, root string) map[string]bool {
+	t.Helper()
+	src := mustRead(t, filepath.Join(root, "internal", "server", "deps.go"))
+	_, rest, ok := strings.Cut(src, "var directModules = map[string]bool{")
+	if !ok {
+		t.Fatal("`directModules` is not in internal/server/deps.go in the shape this " +
+			"ledger reads - it was renamed or restructured, and a ledger that cannot " +
+			"find its subject must say so rather than pass")
+	}
+	body, _, _ := strings.Cut(rest, "}")
+	out := map[string]bool{}
+	for _, line := range strings.Split(body, "\n") {
+		if m := reDirectEntry.FindStringSubmatch(line); m != nil {
+			out[m[1]] = true
+		}
+	}
+	if len(out) == 0 {
+		t.Fatal("read zero entries from `directModules` - an empty result agrees " +
+			"with every assertion")
+	}
+	return out
+}

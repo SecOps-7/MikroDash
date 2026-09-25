@@ -545,7 +545,12 @@
     .nchan-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:.9rem}
     /* About is a read-only page of short blurbs. Grid stretched them into wide
        shallow bands, so it keeps the original stacked single column. */
-    #stab-about.stab-panel.active{display:block;max-width:46rem;margin:0 auto}
+    /* WIDER THAN THE OTHER TABS, and deliberately so. The top row is two cards
+       of EQUAL width, and at 46rem an equal split left the System information
+       card too narrow for its own paragraphs: the cards matched and the page
+       got taller to pay for it. The content sets the width here, not the other
+       way round. */
+    #stab-about.stab-panel.active{display:block;max-width:58rem;margin:0 auto}
     #stab-about .scard{margin-bottom:1rem}
     /* Save bar pinned to the bottom of .page-view (the scroll container) so it
        stays reachable however long the panel gets. app.js sets display on this
@@ -3002,7 +3007,11 @@
    equal weight; the history card is full width because a release note is a
    sentence and a sentence wants room. */
 .about-top {
-  display: grid; grid-template-columns: 1fr 1.35fr;
+  /* EQUAL, not weighted. The two cards are peers: what this is on the left,
+     what it is running on to the right, and one wider than the other made the
+     narrower read as subordinate. `stretch` keeps their heights matched too,
+     so the row is a row rather than two cards that happen to be adjacent. */
+  display: grid; grid-template-columns: 1fr 1fr;
   gap: 1rem; align-items: stretch; grid-column: 1 / -1;
 }
 @media (max-width: 900px) { .about-top { grid-template-columns: 1fr; } }
@@ -3097,8 +3106,21 @@
   border-radius: 20px; padding: .05rem .5rem;
 }
 /* PUSHED RIGHT so every row's date lines up down the column, whatever the
-   version string's length. */
-.about-rel-when { margin-left: auto; font-size: .7rem; color: var(--text-muted); }
+   version string's length.
+
+   TRUNCATED, because a release title is free text and some are long. Without
+   `min-width:0` a flex item refuses to shrink below its content, so the title
+   squeezed the pills to its left until "12 changes" wrapped onto two lines and
+   the whole row grew. The title is the one thing in the row that can be cut
+   without losing information the row is FOR, so it is the one that gets the
+   ellipsis. */
+.about-rel-when {
+  margin-left: auto; font-size: .7rem; color: var(--text-muted);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The version, the Latest badge and the count are fixed facts: they are never
+   the thing that gives way. */
+.about-rel-v, .about-latest, .about-count { flex-shrink: 0; white-space: nowrap; }
 .about-notes { list-style: none; margin: 0; padding: 0 .75rem .6rem; }
 .about-note-row { display: flex; align-items: flex-start; gap: .55rem; padding: .22rem 0; }
 .about-kind {

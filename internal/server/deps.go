@@ -75,6 +75,39 @@ var moduleLicences = map[string]string{
 	"modernc.org/sqlite":                      "BSD-3-Clause",
 }
 
+// directModules is what `go.mod` REQUIRES BY NAME, as opposed to what those
+// requirements drag in behind them.
+//
+// ── WHY THE PAGE SHOWS THESE AND NOT THE FULL GRAPH ────────────────────────
+//
+// The binary links 18 modules. Seven of them are choices this project made and
+// `CLAUDE.md` argues for one by one; the other eleven are `modernc.org/sqlite`
+// and `wireguard` bringing their own transitive closure, and nobody chose them.
+// Listing all 18 answers "what is in the binary", which is a licence question
+// and is what `THIRD_PARTY_NOTICES.md` is for. The About page answers "what
+// does MikroDash depend on", and eleven modules the operator has never heard of
+// are noise in front of that.
+//
+// `github.com/evanw/esbuild` is in this list and NOT on the page: it is a
+// direct requirement that `cmd/webbuild` uses to build the front end and the
+// server binary never links. The filter falls out of `Dependencies()` reading
+// the BUILD's own module list rather than this one, so nothing has to remember
+// it.
+//
+// LEDGERED against go.mod's own require block, both ways, by
+// `TestEveryDirectRequirementIsRecordedAsDirect`. A new direct dependency that
+// is not here would silently never appear on the page.
+var directModules = map[string]bool{
+	"github.com/coder/websocket":              true,
+	"github.com/evanw/esbuild":                true,
+	"github.com/go-pdf/fpdf":                  true,
+	"github.com/go-routeros/routeros/v3":      true,
+	"github.com/oschwald/maxminddb-golang/v2": true,
+	"golang.org/x/crypto":                     true,
+	"golang.zx2c4.com/wireguard":              true,
+	"modernc.org/sqlite":                      true,
+}
+
 // webLibraries is what the BROWSER loads and the Go build info knows nothing
 // about: vendored files under `web/public`, credited in
 // `THIRD_PARTY_NOTICES.md` and listed here so the About page can show them
@@ -96,8 +129,13 @@ var webLibraries = []Dependency{
 		URL: "https://db-ip.com/db/download/ip-to-city-lite", Kind: KindWeb},
 }
 
-// Dependencies is everything this build ships, Go modules first, each with the
-// licence it is under.
+// Dependencies is what this project DEPENDS ON: the modules `go.mod` names and
+// the libraries the browser loads, each with the licence it is under.
+//
+// NOT THE WHOLE MODULE GRAPH. The transitive closure is a licence question and
+// `THIRD_PARTY_NOTICES.md` answers it; this answers a different one, and the
+// eleven modules `sqlite` and `wireguard` bring with them would bury the seven
+// that were chosen.
 //
 // SORTED BY NAME WITHIN EACH HALF, because the page lists them and the linker's
 // own order means nothing to a reader.
@@ -105,6 +143,9 @@ func Dependencies() []Dependency {
 	out := []Dependency{}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, m := range info.Deps {
+			if !directModules[m.Path] {
+				continue
+			}
 			// A REPLACED MODULE IS REPORTED UNDER ITS ORIGINAL PATH, which is
 			// what `go.mod` and the licence table both name. `go-routeros` is
 			// replaced by the patched copy in third_party and would otherwise
