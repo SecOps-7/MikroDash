@@ -25,7 +25,7 @@ import { renderTalkers } from './dashboard-talkers';
 import { renderNetwatch } from './dashboard-netwatch';
 import { renderVpnCard } from './dashboard-vpn';
 import { noteSystemUpdate, flushPendingSystem, resetSysMeta } from './dashboard-system';
-import { noteConnUpdate, flushPendingConn, resetConnCaches } from './dashboard-conn';
+import { noteConnUpdate, flushPendingConn, setConnRouter } from './dashboard-conn';
 import { renderNetworks } from './dashboard-networks';
 import { onPingUpdate, onPingHistory, resetPing } from './dashboard-ping';
 import { renderWirelessCards } from './dashboard-card-wireless';
@@ -193,5 +193,5 @@ export function initDashboard(socket: Socket): void {
 }
 
 /** The router-switch half of the card resets. See the header. */
-export { resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard,
+export { resetSysMeta, setConnRouter, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard,
   switchSecScoreCard };

@@ -33,7 +33,42 @@ import { esc, el, svcBadge } from '../dom';
 import type { ConnsUpdate } from '../gen/payloads';
 
 const MAX_CONN_HIST = 60;
-const connHistory: { ts?: number; total?: number }[] = [];
+
+type ConnPoint = { ts?: number; total?: number };
+
+/**
+ * The sparkline's history, PER ROUTER.
+ *
+ * ── THE BUG THIS EXISTS FOR ────────────────────────────────────────────────
+ *
+ * It was one array, and the router switch emptied it along with the fingerprint
+ * caches. Switch to a router with no connections and the line went flat; switch
+ * back and it STAYED flat, because the history that drew the old shape had been
+ * thrown away and the canvas still held the flat line nobody had cleared.
+ *
+ * The fingerprints genuinely must not survive a switch - two routers can agree
+ * on their top talker and its count, and the card would keep the wrong rows.
+ * The history is the opposite: it is the one thing on this card that BELONGS to
+ * a router, so it is kept under that router's id and swapped in, not discarded.
+ *
+ * Unbounded by router id on purpose. Each buffer is at most 60 points of two
+ * numbers, so a large fleet costs a few thousand small objects; evicting them
+ * would be a mechanism guarding nothing.
+ */
+const connHistories = new Map<string, ConnPoint[]>();
+
+// The router whose payloads `noteConnUpdate` is recording. Written only by
+// `setConnRouter`.
+let connRouterId = '';
+
+function connHistory(): ConnPoint[] {
+  let h = connHistories.get(connRouterId);
+  if (!h) {
+    h = [];
+    connHistories.set(connRouterId, h);
+  }
+  return h;
+}
 
 let srcFp = '', dstFp = '', protoFp = '';
 let pending: ConnsUpdate | null = null;
@@ -56,9 +91,14 @@ function sparkCtx(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D 
 
 export function drawSparkline(history: { total?: number }[]): void {
   const c = sparkCtx();
-  if (!c || !history || history.length < 2) return;
+  if (!c) return;
   const w = c.canvas.width, h = c.canvas.height;
+  // CLEARED FIRST, AND EVEN WHEN THERE IS NOTHING TO DRAW. Returning early left
+  // the previous router's line on the canvas, which is most of why switching
+  // back looked like the history had gone: it had, and what remained on screen
+  // was the other router's.
   c.ctx.clearRect(0, 0, w, h);
+  if (!history || history.length < 2) return;
   const vals = history.map((p) => p.total as number);
   // `|| 1` catches an all-zero history, which would otherwise divide by zero and
   // put every point at NaN.
@@ -155,9 +195,10 @@ export function flushConnUpdate(): void {
 export function noteConnUpdate(data: ConnsUpdate): void {
   const connTotal = el('connTotal');
   if (connTotal) connTotal.textContent = String(data.total);
-  connHistory.push({ ts: data.ts, total: data.total });
-  if (connHistory.length > MAX_CONN_HIST) connHistory.shift();
-  drawSparkline(connHistory);
+  const hist = connHistory();
+  hist.push({ ts: data.ts, total: data.total });
+  if (hist.length > MAX_CONN_HIST) hist.shift();
+  drawSparkline(hist);
   const nextProtoFp = JSON.stringify(data.protoCounts);
   if (nextProtoFp !== protoFp) {
     protoFp = nextProtoFp;
@@ -174,13 +215,29 @@ export function flushPendingConn(): void {
 }
 
 /**
- * Forget the caches. A switch to another router must redraw everything: the new
- * router's first payload could fingerprint identically to the old router's last
- * one - two routers with the same top talker at the same count is not far-fetched
- * on a fleet - and the card would keep the previous router's rows.
+ * Point the card at a router: forget the caches, and swap the sparkline to that
+ * router's own history.
+ *
+ * The caches must go. The new router's first payload could fingerprint
+ * identically to the old router's last one - two routers with the same top
+ * talker at the same count is not far-fetched on a fleet - and the card would
+ * keep the previous router's rows.
+ *
+ * The history must NOT. It is kept per router and swapped in, so coming back to
+ * a router shows the shape it had rather than starting from nothing.
+ *
+ * IDEMPOTENT, because two paths call it: `switchRouter` at the instant the
+ * browser asks, so the key changes before any payload can be misfiled, and
+ * `router:active`, which the server sends on connect, on a switch and on a
+ * hot-swap alike - and which is what keys the very first router correctly. A
+ * repeat for the router already showing is a reconnect, not a switch, and must
+ * not wipe the rows that are on screen.
  */
-export function resetConnCaches(): void {
+export function setConnRouter(routerId: string): void {
+  if (routerId === connRouterId) return;
+  connRouterId = routerId;
   srcFp = ''; dstFp = ''; protoFp = '';
-  connHistory.length = 0;
   pending = null;
+  // Draws the new router's shape, or clears the canvas when it has none.
+  drawSparkline(connHistory());
 }

@@ -74,7 +74,7 @@ import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { initAbout } from './pages/about';
 import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
-import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
+import { initDashboard, resetSysMeta, setConnRouter, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
 import { initIpTip } from './iptip';
 import { initDashboardGrid } from './pages/dashboard-grid';
 
@@ -339,7 +339,12 @@ function switchRouter(socket: Socket, id: string): void {
   // payload fingerprints the same as the last one, and two routers can easily
   // agree on their top talker and its count. Without this the new router would
   // keep showing the previous router's lists.
-  resetConnCaches();
+  //
+  // It takes the ID because that card's SPARKLINE is per router: the caches are
+  // forgotten, the history is swapped to the router being moved to. Called here,
+  // at the instant the browser asks, so the key changes before any payload can
+  // be filed under the wrong router.
+  setConnRouter(id);
   // The chart too: another router's history is not this one's, and `currentIf`
   // names an interface that may not exist on the new device.
   resetTraffic();
@@ -554,6 +559,13 @@ async function main(): Promise<void> {
   let rejoinState: RejoinState = { lastId: '', lostRooms: false };
   socket.on('disconnect', () => { rejoinState = { ...rejoinState, lostRooms: true }; });
   socket.on('router:active', (d) => {
+    // THE CONNECTIONS SPARKLINE'S KEY, set here as well as in `switchRouter`.
+    // This is the signal that names the router on a FRESH CONNECT, where
+    // nothing switched and the card would otherwise file the first router's
+    // history under an empty id. It is idempotent, so the switch path calling
+    // it first costs nothing, and a reconnect - same id - is correctly not a
+    // switch and leaves the rows alone.
+    setConnRouter((d && d.activeId) || '');
     const { rejoin, next } = rejoinDecision((d && d.activeId) || '', rejoinState);
     rejoinState = next;
     if (!rejoin) return;
