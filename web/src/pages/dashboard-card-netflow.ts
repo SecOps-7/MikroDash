@@ -309,30 +309,32 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
       // `load` is already 0..1 against the configured capacity, so a saturated
       // 50 Mbps line and a saturated gigabit one both run at full tilt.
       //
-      // ── AND A STEEP LOW END, WHICH IS THE WHOLE DIFFICULTY ────────────
+      // ── A STEEP LOW END, BUT NOT SO STEEP THAT EVERYTHING LOOKS BUSY ──
       //
-      // A real link spends almost all its time in the bottom thousandth of its
-      // capacity: 490 kb/s on a gigabit line is a load of 0.0005. A linear
-      // response, or even a square root, renders that as a dot every eight
-      // seconds - technically faithful and useless to look at. The 0.3 power
-      // lifts 0.0005 to 0.13 and 0.1 to 0.50, so ordinary traffic reads as
-      // moving and saturation still reads as faster.
+      // A real link spends nearly all its time in the bottom thousandth of its
+      // capacity - 490 kb/s on a gigabit line is a load of 0.0005 - so a linear
+      // response renders ordinary traffic as one dot every eight seconds. The
+      // low end has to be stretched.
       //
-      // FLOOR AND CEILING ARE DELIBERATE: any traffic at all gets a visible
-      // rate, because "some" and "none" is the distinction the card is for,
-      // and nothing exceeds the top because a busier link must not become an
-      // unreadable blur.
-      // The exponent is chosen so this tracks the reference design's own curve
-      // across the range, while staying relative to capacity rather than
-      // absolute. Worked through at three points, taking a gigabit line:
+      // IT WAS STRETCHED TOO FAR. At 0.18, and with a floor of a whole dot per
+      // second, an idle link still produced 1.9 dots/s against a saturated
+      // link's 5: a range of 2.6x across the entire useful span, which reads as
+      // "always busy". The operator said so.
       //
-      //   490 kb/s  load .0005  a .26   ->  101 px/s   (reference: 110)
-      //    60 Mb/s  load .06    a .61   ->  158 px/s   (reference: 161)
-      //     1 Gb/s  load 1      a 1     ->  220 px/s   (reference: 220)
+      // 0.35 with a smaller floor spans 0.6/s to 5/s - eight times - so quiet
+      // looks quiet and full looks full:
       //
-      // so the speed range is the reference's 60..220 exactly.
-      const a = l.load > 0 ? Math.pow(l.load, .18) : 0;
-      const pps = l.load > 0 ? 1 + a * 4 : 0;        // particles/s, 1..5
+      //   200 kb/s on 1G   load .0002   0.6 dots/s    68 px/s
+      //   490 kb/s on 1G   load .0005   0.7 dots/s    72 px/s
+      //    60 Mb/s on 1G   load .06     2.1 dots/s   120 px/s
+      //    20 Mb/s on 50M  load .4      3.7 dots/s   176 px/s
+      //   saturated        load 1       5.0 dots/s   220 px/s
+      //
+      // THE FLOOR IS NOT ZERO, and that is deliberate: "some traffic" and "no
+      // traffic" is the one distinction this card must never blur, so any load
+      // at all still moves something. It is just no longer a stream.
+      const a = l.load > 0 ? Math.pow(l.load, .35) : 0;
+      const pps = l.load > 0 ? .4 + a * 4.6 : 0;     // particles/s, 0.4..5
       l.speed = 60 + a * 160;                        // px/s, 60..220
       if (!reduce && pps > 0) {
         l.acc += pps * dt * (.6 + Math.random() * .8);
