@@ -1038,9 +1038,31 @@
        tick needs only its own width, and the identity field should keep the rest
        even when it is the only thing in the row. */
     .rtr-identity-row{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:start}
-    .rtr-primary-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem}
-    .rtr-primary-box{width:1rem;height:1rem;accent-color:var(--accent-rx);cursor:pointer}
-    .rtr-primary-box:disabled{cursor:default}
+    /* The tick sits on the identity input's own line rather than at the top of
+       the row, so the two read as one row of controls instead of a field and a
+       floating checkbox. */
+    .rtr-primary-wrap{display:flex;align-items:center;align-self:end;padding-bottom:.35rem}
+    .rtr-primary-label{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;
+                       font-family:var(--font-ui);font-size:.74rem;color:var(--text-main);white-space:nowrap}
+    /* BLUE IN BOTH STATES, WHICH NEEDS `appearance:none`.
+       `accent-color` alone - what `.bk-pick` and `.dbc-type input` use - colours
+       only the CHECKED fill, and a native checkbox IGNORES `border` outright:
+       the UA paints its own box. So an unticked box stayed the browser's grey,
+       which is how it looks on every device but the primary one. Taking the
+       native rendering off is the only way to colour the empty state, so the
+       tick is drawn here too. */
+    .rtr-primary-box{appearance:none;-webkit-appearance:none;
+                     width:1rem;height:1rem;margin:0;cursor:pointer;flex-shrink:0;
+                     background:transparent;border:1px solid var(--accent-rx);border-radius:3px;
+                     display:inline-grid;place-content:center;transition:background .12s}
+    .rtr-primary-box::before{content:"";width:.5rem;height:.5rem;transform:scale(0);
+                             box-shadow:inset 1rem 1rem #fff;transition:transform .12s;
+                             clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0,43% 62%)}
+    .rtr-primary-box:checked{background:var(--accent-rx)}
+    .rtr-primary-box:checked::before{transform:scale(1)}
+    .rtr-primary-box:focus-visible{outline:2px solid var(--accent-rx);outline-offset:2px}
+    .rtr-primary-label:has(.rtr-primary-box:disabled){cursor:default}
+    .rtr-primary-box:disabled{cursor:default;opacity:.75}
 
     /* Same purple the rest of the UI uses, at low alpha for the pill ground.
        Literal rather than a var because this colour is a literal everywhere else. */

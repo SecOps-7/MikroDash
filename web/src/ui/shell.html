@@ -565,10 +565,14 @@
             <input class="sform-input" id="rtrModalIdentity" type="text" maxlength="255" placeholder="MikroTik" disabled>
             <div class="cpick-hint" id="rtrModalIdentityHint"></div>
           </div>
+          <!-- BOX FIRST, WORD SECOND, on one line: this is a tick with a name,
+               not a field with a caption, so it does not take the stacked
+               label-above-control shape the inputs beside it use. -->
           <div class="sform-group rtr-primary-wrap" id="rtrModalPrimaryDeviceWrap">
-            <label class="sform-label" for="rtrModalPrimaryDevice">Primary</label>
-            <input type="checkbox" id="rtrModalPrimaryDevice" class="rtr-primary-box">
-            <div class="cpick-hint" id="rtrModalPrimaryDeviceHint">Opened when you sign in</div>
+            <label class="rtr-primary-label" for="rtrModalPrimaryDevice">
+              <input type="checkbox" id="rtrModalPrimaryDevice" class="rtr-primary-box">
+              <span>Primary</span>
+            </label>
           </div>
         </div>
 

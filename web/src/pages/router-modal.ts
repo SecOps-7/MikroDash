@@ -280,12 +280,6 @@ export function initRouterModal(opts: {
       // clearing it would leave a fresh session with nowhere to open. Another
       // device is made primary by ticking THAT one, which moves the tick.
       primaryBox.disabled = isPrimary;
-      const hint = el('rtrModalPrimaryDeviceHint');
-      if (hint) {
-        hint.textContent = isPrimary
-          ? 'Opened when you sign in'
-          : 'Tick to open this device at sign-in';
-      }
     }
     if (f.id) void loadIdentity(f.id);
     else resetIdentity('');
