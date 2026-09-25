@@ -138,7 +138,7 @@ func (s *Server) aboutInfo(w http.ResponseWriter, r *http.Request) {
 		"database": map[string]any{"engine": "SQLite", "schema": schema},
 		"update":   s.updateStatus(),
 		"releases": loadReleases(),
-		"deps":     Dependencies(s.geoDir),
+		"deps":     Dependencies(s.geoDir, s.staticDir),
 	})
 }
 

@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,8 +132,81 @@ var webLibraries = []Dependency{
 		URL: "https://github.com/tabler/tabler-icons", Kind: KindWeb},
 	{Name: "world-atlas", Version: "2.0.2", Licence: "ISC",
 		URL: "https://github.com/topojson/world-atlas", Kind: KindWeb},
-	{Name: "Fonts", Version: "JetBrains Mono, Oxanium", Licence: "SIL Open Font License 1.1",
-		URL: "https://github.com/JetBrains/JetBrainsMono", Kind: KindWeb},
+}
+
+// fontLibraries is the vendored font bundle: ONE row, counted rather than named.
+//
+// ── THE ROW USED TO NAME TWO OF TWENTY-SIX ─────────────────────────────────
+//
+// It read "JetBrains Mono, Oxanium", which was true when two families shipped
+// and wrong by twenty-four from the moment the branding font picker landed. A
+// hand-written list of what a directory holds is a claim nothing in the build
+// contradicts, so it rots in silence - the same failure the geo row had, for
+// the same reason, and the reason the count is read from disk below.
+//
+// ── WHY A COUNT, WHEN EVERY FILE CARRIES A REAL VERSION ────────────────────
+//
+// Each .woff2 does hold its family's version in its `name` table. Reading it
+// would mean decompressing the table directory, which WOFF2 stores with
+// BROTLI: the standard library has none, no current dependency provides one,
+// and a ninth direct dependency for a cosmetic column is not a reason better
+// than convenience. The count is the property that changes when the bundle
+// changes, which is what the column is for.
+//
+// The link goes to the OFL notice that ships beside the files, not to any one
+// family's repository, because that file carries the per-family copyright lines
+// the licence requires and is what somebody following this link wants. It is
+// also the only path from the running app to that notice.
+var fontLibraries = []Dependency{
+	{Name: "Fonts", Licence: "SIL Open Font License 1.1",
+		URL:  "https://github.com/SecOps-7/MikroDash/blob/main/web/public/fonts/OFL.txt",
+		Kind: KindWeb},
+}
+
+// fontDirs are the two places fonts ship, RELATIVE TO THE STATIC TREE.
+//
+// BOTH, because Syne ships only from the second one: counting just `fonts/`
+// reports 25 where 26 ship, which is the same off-by-one in a new place.
+var fontDirs = []string{"fonts", filepath.Join("vendor", "fonts")}
+
+// fontBundle is `fontLibraries` with the family count filled in.
+//
+// A bundle that cannot be read is still LISTED with no version, for the reason
+// the geo rows are: the page must not quietly drop something that ships.
+func fontBundle(staticDir string) []Dependency {
+	out := make([]Dependency, len(fontLibraries))
+	copy(out, fontLibraries)
+	if n := fontFamilies(staticDir); n > 0 {
+		word := " families"
+		if n == 1 {
+			word = " family"
+		}
+		out[0].Version = strconv.Itoa(n) + word
+	}
+	return out
+}
+
+// fontFamilies counts the distinct families across `fontDirs`.
+//
+// The files are `<family>-<weight>.woff2`, so a NUMERIC suffix is trimmed and
+// the rest deduplicated. Numeric, because a family called `dm-sans` must not
+// collapse to `dm`; only `-400` and its kind are weights.
+func fontFamilies(staticDir string) int {
+	fam := map[string]bool{}
+	for _, dir := range fontDirs {
+		names, err := filepath.Glob(filepath.Join(staticDir, dir, "*.woff2"))
+		if err != nil {
+			continue
+		}
+		for _, n := range names {
+			base := strings.TrimSuffix(filepath.Base(n), ".woff2")
+			if i := strings.LastIndex(base, "-"); i > 0 && isAllDigits(base[i+1:]) {
+				base = base[:i]
+			}
+			fam[base] = true
+		}
+	}
+	return len(fam)
 }
 
 // geoLibraries is the two DB-IP databases, SEPARATELY.
@@ -192,7 +266,7 @@ func geoDatabases(dir string) []Dependency {
 //
 // SORTED BY NAME WITHIN EACH HALF, because the page lists them and the linker's
 // own order means nothing to a reader.
-func Dependencies(geoDir string) []Dependency {
+func Dependencies(geoDir, staticDir string) []Dependency {
 	out := []Dependency{}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, m := range info.Deps {
@@ -210,6 +284,7 @@ func Dependencies(geoDir string) []Dependency {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	out = append(out, webLibraries...)
+	out = append(out, fontBundle(staticDir)...)
 	return append(out, geoDatabases(geoDir)...)
 }
 
