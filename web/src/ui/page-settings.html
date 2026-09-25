@@ -1319,7 +1319,11 @@
           <div class="scard about-id">
             <div class="scard-body">
               <img src="/logo.png" class="about-logo" alt="">
-              <div class="about-name">MikroDash</div>
+              <!-- THE WORDMARK, spelled the way `#topbarLogo` in shell.html spells it:
+                   the name as text with the accented half in a span. Same convention,
+                   same two rules, so the product name cannot drift between the top bar
+                   and this page. -->
+              <div class="about-name">Mikro<span>Dash</span></div>
               <div class="about-slogan">Open-source command center for RouterOS</div>
               <div class="about-version"><span id="aboutVersion">v-</span></div>
               <!-- Filled only when the update check answered. An empty badge is
@@ -1340,15 +1344,15 @@
             </div>
             <div class="scard-body">
               <div class="about-group">
-                <div class="about-group-label">Runtime</div>
+                <div class="about-group-label"><svg viewBox="0 0 24 24" class="about-grp-ico"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>Runtime</div>
                 <div id="aboutRuntime" class="about-facts"></div>
               </div>
               <div class="about-group">
-                <div class="about-group-label">Database</div>
+                <div class="about-group-label"><svg viewBox="0 0 24 24" class="about-grp-ico"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Database</div>
                 <div id="aboutDatabase" class="about-facts"></div>
               </div>
               <div class="about-group">
-                <div class="about-group-label">Licence</div>
+                <div class="about-group-label"><svg viewBox="0 0 24 24" class="about-grp-ico"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Licence</div>
                 <div class="about-facts">
                   <span class="about-pill about-pill-ok">MIT</span>
                   <a href="https://github.com/SecOps-7/MikroDash/blob/main/LICENSE"
@@ -1379,10 +1383,10 @@
           <div class="scard-body">
             <div class="about-tabs" role="tablist">
               <button type="button" class="about-tab active" role="tab" data-abouttab="notes">
-                Release notes <span id="aboutNotesCount" class="about-count">0</span>
+                <svg viewBox="0 0 24 24" class="about-tab-ico"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Release notes <span id="aboutNotesCount" class="about-count">0</span>
               </button>
               <button type="button" class="about-tab" role="tab" data-abouttab="deps">
-                Dependencies <span id="aboutDepsCount" class="about-count">0</span>
+                <svg viewBox="0 0 24 24" class="about-tab-ico"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Dependencies <span id="aboutDepsCount" class="about-count">0</span>
               </button>
             </div>
             <div class="about-panel active" data-aboutpanel="notes">

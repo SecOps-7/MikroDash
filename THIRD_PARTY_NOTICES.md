@@ -138,21 +138,31 @@ above covers the TopoJSON packaging of it.
 
 ---
 
-## IP geolocation data - DB-IP City Lite and ASN Lite
+## DB-IP City Lite - CC BY 4.0
 
 **IP Geolocation by [DB-IP](https://db-ip.com)**, used under the
 [Creative Commons Attribution 4.0 International Licence](https://creativecommons.org/licenses/by/4.0/).
 
-Two databases, same vendor and same terms:
+Ships as `dbip-city-lite.mmdb` and answers country, region, city and
+coordinates. Read by `internal/geo`.
 
-| file | answers | read by |
-|---|---|---|
-| `dbip-city-lite.mmdb` | country, region, city, coordinates | `internal/geo` |
-| `dbip-asn-lite.mmdb` | the organisation owning an address | `internal/asn` |
+## DB-IP ASN Lite - CC BY 4.0
 
-The attribution above is a LICENCE CONDITION, not a courtesy: CC BY 4.0 requires
-crediting the source, and the credit has to travel with anything that ships the
-data.
+**IP Geolocation by [DB-IP](https://db-ip.com)**, used under the
+[Creative Commons Attribution 4.0 International Licence](https://creativecommons.org/licenses/by/4.0/).
+
+Ships as `dbip-asn-lite.mmdb` and answers which organisation owns an address.
+Read by `internal/asn`.
+
+### Why the credit is repeated
+
+The two databases come from one vendor under one licence and were once one
+section here. They are separate now because the attribution is a LICENCE
+CONDITION rather than a courtesy: CC BY 4.0 requires crediting the source, and
+the credit has to travel with anything that ships the data. A section that
+covers two files credits neither of them on its own, and either file can be
+shipped without the other - the Dockerfile fetches them independently, and they
+can be from different months.
 
 `internal/verify/geodata_test.go` pins the credit, the link and BOTH database
 filenames - crediting one while quietly adding a second beside it is how the ASN

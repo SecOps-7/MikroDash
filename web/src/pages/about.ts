@@ -19,15 +19,50 @@ import { el, esc } from '../dom';
 
 interface AboutNote { kind: string; text: string }
 interface AboutRelease { version: string; title?: string; date?: string; entries: AboutNote[] }
-interface AboutDep { name: string; version: string; licence: string; url?: string; kind: string }
+interface AboutDep { name: string; version: string; licence: string; url?: string; kind: string; note?: string }
 interface AboutPayload {
   ok?: boolean;
   version?: string; commit?: string; branch?: string; built?: string;
-  runtime?: { go: string; platform: string; memoryMb: number; container?: string; uptimeSec: number };
+  runtime?: {
+    go: string; platform: string; memoryMb: number;
+    kernel?: string; container?: string; image?: string; uptimeSec: number;
+  };
   database?: { engine: string; schema: number };
   update?: { latest?: string; current?: boolean; checkedAt?: number };
   releases?: AboutRelease[];
   deps?: AboutDep[];
+}
+
+/**
+ * The icons this page draws, as raw 24x24 stroke paths.
+ *
+ * INLINE, like every other icon in this app: there is no sprite and no icon
+ * module, and adding one for six glyphs would be a mechanism with one caller.
+ * They are stroke-only so `currentColor` carries the theme, which is why none
+ * of them sets a fill.
+ */
+const ICONS: Record<string, string> = {
+  branch: '<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/>'
+    + '<circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  commit: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  date: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>'
+    + '<line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  server: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>'
+    + '<line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
+  memory: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>'
+    + '<line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>'
+    + '<line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>'
+    + '<line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>'
+    + '<line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>',
+  kernel: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><polyline points="2 17 12 22 22 17"/>'
+    + '<polyline points="2 12 12 17 22 12"/>',
+};
+
+/** One icon, sized by CSS. Returns nothing for a name that is not in the set. */
+function ico(name: string, cls = 'about-ico'): string {
+  const d = ICONS[name];
+  return d ? '<svg viewBox="0 0 24 24" class="' + cls + '">' + d + '</svg>' : '';
 }
 
 let loaded = false;
@@ -43,12 +78,17 @@ function uptime(sec: number): string {
   return m + 'm';
 }
 
-/** A fact with an optional pill, skipped entirely when it has no value. */
-function fact(value: string | undefined, pill = false): string {
+/**
+ * A fact, with an optional leading icon, SKIPPED ENTIRELY when it has no value.
+ *
+ * Skipping rather than rendering an empty row is the rule for this whole page:
+ * a label with nothing after it reads as a value that failed to load, and half
+ * of what is shown here is genuinely absent on some installs.
+ */
+function fact(value: string | undefined, icon = '', pill = false): string {
   if (!value) return '';
-  return pill
-    ? '<span class="about-pill">' + esc(value) + '</span>'
-    : '<span class="about-fact">' + esc(value) + '</span>';
+  if (pill) return '<span class="about-pill">' + esc(value) + '</span>';
+  return '<span class="about-fact">' + ico(icon) + esc(value) + '</span>';
 }
 
 function renderHead(d: AboutPayload): void {
@@ -73,31 +113,42 @@ function renderHead(d: AboutPayload): void {
   }
 
   // Branch, commit and build date are stamped at image build time and absent
-  // from a local build. Each is dropped rather than shown empty.
+  // from a local build. Each is dropped rather than shown empty, and each
+  // carries its own icon so the line reads without separators doing the work.
   const bits: string[] = [];
-  if (d.branch) bits.push(esc(d.branch));
-  if (d.commit) bits.push(esc(d.commit.slice(0, 7)));
-  if (d.built) bits.push(esc(d.built));
-  if (d.runtime) bits.push('up ' + esc(uptime(d.runtime.uptimeSec)));
+  if (d.branch) bits.push(fact(d.branch, 'branch'));
+  if (d.commit) bits.push(fact(d.commit.slice(0, 7), 'commit'));
+  if (d.built) bits.push(fact(d.built, 'date'));
+  if (d.runtime) bits.push(fact('up ' + uptime(d.runtime.uptimeSec), 'clock'));
   const b = el('aboutBuild');
-  if (b) b.innerHTML = bits.join('<span class="about-sep">/</span>');
+  if (b) b.innerHTML = bits.join('');
 }
 
 function renderSystem(d: AboutPayload): void {
   const rt = el('aboutRuntime');
   if (rt && d.runtime) {
+    const r = d.runtime;
     rt.innerHTML = [
-      fact(d.runtime.go, true),
-      fact(d.runtime.platform),
-      fact(d.runtime.memoryMb ? d.runtime.memoryMb + ' MB' : ''),
-      fact(d.runtime.container),
+      fact(r.go, '', true),
+      fact(r.platform, 'server'),
+      fact(r.memoryMb ? r.memoryMb + ' MB' : '', 'memory'),
+      fact(r.kernel, 'kernel'),
+      // THE CONTAINER LINE. The badge is detected from inside the sandbox and
+      // the name beside it is declared by the operator, so the badge can
+      // appear alone: that is a container nobody named, not a missing value.
+      r.container
+        ? '<span class="about-line">'
+          + '<span class="about-pill about-pill-docker">' + esc(r.container) + '</span>'
+          + (r.image ? '<span class="about-fact about-dim">' + esc(r.image) + '</span>' : '')
+          + '</span>'
+        : '',
     ].filter(Boolean).join('');
   }
   const db = el('aboutDatabase');
   if (db && d.database) {
     db.innerHTML = [
-      fact(d.database.engine, true),
-      fact(d.database.schema ? 'Schema v' + d.database.schema : ''),
+      fact(d.database.engine, '', true),
+      fact(d.database.schema ? 'Schema v' + d.database.schema : '', ''),
     ].filter(Boolean).join('');
   }
 }
@@ -143,7 +194,12 @@ function depRow(d: AboutDep): string {
     : '';
   return '<div class="about-dep">'
     + '<span class="about-dep-name">' + esc(d.name) + '</span>'
-    + '<span class="about-dep-ver">' + esc(d.version) + '</span>'
+    + '<span class="about-dep-ver">' + esc(d.version || '-')
+      // `patched` for a module go.mod replaces with a local copy: the version
+      // is the upstream release this is a patch OF, and without the note the
+      // row claims to ship stock v3.0.1, which it does not.
+      + (d.note ? '<span class="about-dep-note">' + esc(d.note) + '</span>' : '')
+      + '</span>'
     + '<span class="about-dep-lic">' + esc(d.licence) + '</span>'
     + link + '</div>';
 }

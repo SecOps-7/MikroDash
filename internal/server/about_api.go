@@ -70,10 +70,20 @@ type aboutRuntime struct {
 	Go       string `json:"go"`
 	Platform string `json:"platform"`
 	MemoryMB int    `json:"memoryMb"`
-	// Container is the image this runs as, when something says so. Docker does
-	// not tell a process its own image name, so this is what the operator set
-	// in compose; empty when nothing did.
+	// Kernel is what the host is running, which is the one runtime fact a
+	// container shares with its host and the operator cannot get from the page
+	// any other way.
+	Kernel string `json:"kernel,omitempty"`
+	// Container names the runtime this process is INSIDE - "docker" or
+	// "podman" - and is empty when it is not in one. Detected, not declared,
+	// because an operator running the binary directly would otherwise see a
+	// docker badge for a process that has nothing to do with Docker.
 	Container string `json:"container,omitempty"`
+	// Image is what that container was started from. DOCKER DOES NOT TELL A
+	// PROCESS ITS OWN IMAGE, so unlike Container this cannot be detected: it is
+	// whatever the operator declared in compose, and empty when nothing did.
+	// The page then shows the badge alone rather than inventing a name.
+	Image     string `json:"image,omitempty"`
 	UptimeSec int64  `json:"uptimeSec"`
 }
 
@@ -132,13 +142,15 @@ func (s *Server) aboutInfo(w http.ResponseWriter, r *http.Request) {
 			Go:        runtime.Version(),
 			Platform:  runtime.GOOS + "/" + runtime.GOARCH,
 			MemoryMB:  int(mem.Sys / 1024 / 1024),
-			Container: os.Getenv("MIKRODASH_IMAGE"),
+			Kernel:    kernelRelease(),
+			Container: containerRuntime(),
+			Image:     strings.TrimSpace(os.Getenv("MIKRODASH_IMAGE")),
 			UptimeSec: int64(time.Since(s.startedAt).Seconds()),
 		},
 		"database": map[string]any{"engine": "SQLite", "schema": schema},
 		"update":   s.updateStatus(),
 		"releases": loadReleases(),
-		"deps":     Dependencies(),
+		"deps":     Dependencies(s.geoDir),
 	})
 }
 
@@ -339,4 +351,41 @@ func plainText(s string) string {
 	s = reMdLink.ReplaceAllString(s, "$1")
 	s = strings.ReplaceAll(s, "`", "")
 	return strings.TrimSpace(s)
+}
+
+// ── WHAT THIS IS RUNNING INSIDE ────────────────────────────────────────────
+
+// containerRuntime names the container runtime, or "" when there is none.
+//
+// ── A MARKER FILE, NOT AN ENVIRONMENT VARIABLE ─────────────────────────────
+//
+// Docker creates `/.dockerenv` in every container and Podman creates
+// `/run/.containerenv`. Both are the runtime describing the sandbox from
+// inside it, so neither can be wrong the way a declared variable can: an
+// operator who copies a compose file into a systemd unit carries the variable
+// with them and gets a docker badge on a process that is not in a container.
+//
+// It reports the SANDBOX, not the image. Docker tells a process nothing about
+// the image it came from, which is why `Image` is declared and this is not.
+func containerRuntime() string {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return "docker"
+	}
+	if _, err := os.Stat("/run/.containerenv"); err == nil {
+		return "podman"
+	}
+	return ""
+}
+
+// kernelRelease is the host kernel, read from /proc.
+//
+// A container shares the host's kernel, so this is the one line on the page
+// that describes the machine rather than the sandbox. Absent on anything
+// without procfs, and then simply omitted.
+func kernelRelease() string {
+	b, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }

@@ -127,15 +127,26 @@ func TestEveryVendoredLibraryIsInTheNotices(t *testing.T) {
 	notices := mustRead(t, filepath.Join(root, "THIRD_PARTY_NOTICES.md"))
 	src := mustRead(t, filepath.Join(root, "internal", "server", "deps.go"))
 
-	start := strings.Index(src, "var webLibraries = []Dependency{")
-	if start < 0 {
-		t.Fatal("webLibraries is gone from internal/server/deps.go")
-	}
-	end := strings.Index(src[start:], "\n}")
-	names := regexp.MustCompile(`\{Name: "([^"]+)"`).
-		FindAllStringSubmatch(src[start:start+end], -1)
-	if len(names) == 0 {
-		t.Fatal("no vendored libraries parsed — this scan has broken")
+	// BOTH LISTS. The geo databases moved out of `webLibraries` into their own
+	// var when they were split into two rows, and a scan that still read only
+	// the first would have stopped checking them the moment they moved -
+	// silently, because the remaining entries all still passed.
+	var names [][]string
+	for _, decl := range []string{
+		"var webLibraries = []Dependency{",
+		"var geoLibraries = []Dependency{",
+	} {
+		start := strings.Index(src, decl)
+		if start < 0 {
+			t.Fatalf("%s is gone from internal/server/deps.go", decl)
+		}
+		end := strings.Index(src[start:], "\n}")
+		found := regexp.MustCompile(`\{Name: "([^"]+)"`).
+			FindAllStringSubmatch(src[start:start+end], -1)
+		if len(found) == 0 {
+			t.Fatalf("no libraries parsed from %s - this scan has broken", decl)
+		}
+		names = append(names, found...)
 	}
 
 	for _, n := range names {

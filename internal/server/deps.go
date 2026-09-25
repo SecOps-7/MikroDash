@@ -23,9 +23,14 @@ package server
 // and the next person adds to the list rather than checking it.
 
 import (
+	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/oschwald/maxminddb-golang/v2"
 )
 
 // Dependency is one thing this build ships.
@@ -39,6 +44,9 @@ type Dependency struct {
 	// Kind separates what the Go binary links from what the browser loads, so
 	// the page can say which is which rather than mixing them into one list.
 	Kind string `json:"kind"`
+	// Note qualifies the version when the version alone would mislead: the one
+	// case is `patched`, for a module `go.mod` replaces with a local copy.
+	Note string `json:"note,omitempty"`
 }
 
 // KindGo and KindWeb are the two halves of what ships.
@@ -125,8 +133,53 @@ var webLibraries = []Dependency{
 		URL: "https://github.com/topojson/world-atlas", Kind: KindWeb},
 	{Name: "Fonts", Version: "JetBrains Mono, Oxanium", Licence: "SIL Open Font License 1.1",
 		URL: "https://github.com/JetBrains/JetBrainsMono", Kind: KindWeb},
-	{Name: "IP geolocation data", Version: "DB-IP City and ASN Lite", Licence: "CC BY 4.0",
+}
+
+// geoLibraries is the two DB-IP databases, SEPARATELY.
+//
+// They were one row reading "IP geolocation data / DB-IP City and ASN Lite",
+// which put a description where every other row has a version and hid the fact
+// that they are two files, fetched independently, that can be from different
+// months.
+//
+// ── THE VERSION IS READ OUT OF THE FILE ────────────────────────────────────
+//
+// DB-IP publishes monthly and the Dockerfile fetches whichever month is
+// available at build time, trying the current one and then the one before. So
+// no constant here could be right: the version is whatever was actually
+// fetched, and every MMDB carries its own build date in its metadata. Reading
+// it is the only answer that cannot drift, and it costs one open per request
+// on a page opened once.
+var geoLibraries = []Dependency{
+	{Name: "DB-IP City Lite", Licence: "CC BY 4.0",
 		URL: "https://db-ip.com/db/download/ip-to-city-lite", Kind: KindWeb},
+	{Name: "DB-IP ASN Lite", Licence: "CC BY 4.0",
+		URL: "https://db-ip.com/db/download/ip-to-asn-lite", Kind: KindWeb},
+}
+
+// geoFiles maps each database to the file it ships as, in `geoLibraries` order.
+var geoFiles = []string{"dbip-city-lite.mmdb", "dbip-asn-lite.mmdb"}
+
+// geoDatabases is `geoLibraries` with each version read from its own file.
+//
+// A database that is missing or unreadable is still LISTED, with no version.
+// The geo features degrade rather than fail when a file is absent, and a page
+// that silently dropped the row would disagree with the rest of the app about
+// what shipped.
+func geoDatabases(dir string) []Dependency {
+	out := make([]Dependency, len(geoLibraries))
+	copy(out, geoLibraries)
+	for i := range out {
+		r, err := maxminddb.Open(filepath.Join(dir, geoFiles[i]))
+		if err != nil {
+			continue
+		}
+		if t := r.Metadata.BuildTime(); !t.IsZero() {
+			out[i].Version = t.UTC().Format("2006-01-02")
+		}
+		r.Close()
+	}
+	return out
 }
 
 // Dependencies is what this project DEPENDS ON: the modules `go.mod` names and
@@ -139,23 +192,16 @@ var webLibraries = []Dependency{
 //
 // SORTED BY NAME WITHIN EACH HALF, because the page lists them and the linker's
 // own order means nothing to a reader.
-func Dependencies() []Dependency {
+func Dependencies(geoDir string) []Dependency {
 	out := []Dependency{}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, m := range info.Deps {
 			if !directModules[m.Path] {
 				continue
 			}
-			// A REPLACED MODULE IS REPORTED UNDER ITS ORIGINAL PATH, which is
-			// what `go.mod` and the licence table both name. `go-routeros` is
-			// replaced by the patched copy in third_party and would otherwise
-			// show a filesystem path and no version at all.
-			version := m.Version
-			if m.Replace != nil && m.Replace.Version != "" {
-				version = m.Replace.Version
-			}
+			version, note := moduleVersion(m)
 			out = append(out, Dependency{
-				Name: m.Path, Version: version,
+				Name: m.Path, Version: version, Note: note,
 				Licence: moduleLicences[m.Path],
 				URL:     moduleURL(m.Path),
 				Kind:    KindGo,
@@ -163,7 +209,68 @@ func Dependencies() []Dependency {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return append(out, webLibraries...)
+	out = append(out, webLibraries...)
+	return append(out, geoDatabases(geoDir)...)
+}
+
+// moduleVersion is what to SHOW for a module, which is not always what the
+// build info holds.
+//
+// ── A REPLACED MODULE REPORTS "(devel)", WHICH IS NOT A VERSION ────────────
+//
+// `go.mod` replaces `go-routeros/v3` with the patched copy in `third_party`,
+// and a filesystem replacement has no version of its own, so the build info
+// carries the literal string `(devel)`. Shown on the page that is not a
+// version, it is a build mode, and it hides the thing the reader wants: WHICH
+// upstream release this is a patch of. The required version is `m.Version` and
+// is right there; the replacement becomes a note instead.
+//
+// ── A PSEUDO-VERSION IS A DATE AND A COMMIT WEARING A SEMVER COSTUME ───────
+//
+// `golang.zx2c4.com/wireguard` has no tagged releases, so the module system
+// invents `v0.0.0-20260522210424-ecfc5a8d5446`. The `v0.0.0` is a placeholder
+// meaning "untagged", the middle is a UTC timestamp and the tail is a commit.
+// Printed whole it reads as a broken version string; printed as its date and
+// short commit it reads as what it is.
+func moduleVersion(m *debug.Module) (version, note string) {
+	version = m.Version
+	if m.Replace != nil {
+		// The replacement's own version, when it has one (a module replaced by
+		// another MODULE rather than a directory). A directory replacement has
+		// none, and `m.Version` already holds what go.mod requires.
+		if m.Replace.Version != "" && m.Replace.Version != devel {
+			version = m.Replace.Version
+		}
+		note = "patched"
+	}
+	if version == devel {
+		// Nothing better to show. Empty beats a build mode masquerading as a
+		// release, and the page omits what is empty.
+		version = ""
+	}
+	if p := prettyPseudoVersion(version); p != "" {
+		version = p
+	}
+	return version, note
+}
+
+// devel is what the toolchain reports for a module with no released version.
+const devel = "(devel)"
+
+// rePseudo matches a module pseudo-version: a placeholder semver, a 14 digit
+// UTC timestamp and a 12 character commit prefix.
+var rePseudo = regexp.MustCompile(`^v.*-(\d{14})-([0-9a-f]{12})$`)
+
+func prettyPseudoVersion(v string) string {
+	m := rePseudo.FindStringSubmatch(v)
+	if m == nil {
+		return ""
+	}
+	t, err := time.Parse("20060102150405", m[1])
+	if err != nil {
+		return ""
+	}
+	return t.Format("2006-01-02") + " " + m[2][:7]
 }
 
 // moduleURL turns a module path into a link, for the paths that are one.

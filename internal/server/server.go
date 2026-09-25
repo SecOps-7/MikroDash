@@ -258,6 +258,10 @@ type Server struct {
 	forceHTTPS   bool
 	// staticDir is the shared asset tree; see Options.StaticDir.
 	staticDir string
+	// geoDir is where the two DB-IP databases ship. Kept as a field, not just
+	// passed to the city holder, because the About page reads each database's
+	// own build date out of its metadata to report its version.
+	geoDir string
 	// cities is the location picker's gazetteer: built on first search and
 	// dropped after ten idle minutes. See internal/geo/cityholder.go.
 	cities *geo.CityHolder
@@ -318,6 +322,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		auth:         NewAuth(),
 		staticDir:    strings.TrimSpace(opts.StaticDir),
 		cities:       geo.NewCityHolder(opts.GeoDir),
+		geoDir:       opts.GeoDir,
 		sessions4Web: websession.New(),
 		forceHTTPS:   os.Getenv("FORCE_HTTPS") == "true",
 		auditDB:      opts.AuditDB,

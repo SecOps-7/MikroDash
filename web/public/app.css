@@ -3018,10 +3018,16 @@
 
 .about-id > .scard-body { text-align: center; padding: 1.75rem 1.25rem; }
 .about-logo { width: 54px; height: 54px; border-radius: 12px; opacity: .92; }
+/* ORBITRON, which is what `#topbarLogo` already uses for the same word. The
+   product name should not be set in two faces depending on which corner of the
+   app it appears in, and the font is already vendored: no new asset, no CDN. */
 .about-name {
+  font-family: 'Orbitron', sans-serif;
   font-size: 1.3rem; font-weight: 700; color: var(--text-main);
   letter-spacing: .01em; margin-top: .6rem;
 }
+/* The accented half, exactly as `#topbarLogo span` does it. */
+.about-name span { color: var(--accent-rx); }
 .about-slogan { font-family: var(--font-mono); font-size: .72rem; color: var(--accent-rx); margin-top: .2rem; }
 .about-version { margin: .9rem 0 .35rem; }
 .about-version span {
@@ -3032,11 +3038,16 @@
 .about-update { font-family: var(--font-mono); font-size: .72rem; }
 .about-update.is-current { color: var(--accent-ok); }
 .about-update.is-behind { color: var(--accent-warn); }
+/* FLEX AND CENTRED, because each fact now carries its own icon and they must
+   wrap as units. It was a single text node joined by separator spans; the icons
+   are what group the line now, which is what the reference does. */
 .about-build {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  align-items: center; gap: .3rem .9rem;
   font-family: var(--font-mono); font-size: .68rem;
   color: var(--text-muted); margin-top: .7rem;
 }
-.about-sep { opacity: .4; padding: 0 .45rem; }
+.about-build .about-fact { font-size: .68rem; color: var(--text-muted); }
 .about-link {
   display: inline-block; margin-top: .9rem;
   font-family: var(--font-mono); font-size: .72rem;
@@ -3045,15 +3056,39 @@
 .about-link:hover { text-decoration: underline; }
 
 .about-hdr-ico { width: 14px; height: 14px; fill: none; stroke: var(--accent-rx); stroke-width: 2; }
+/* STROKE ONLY, so `currentColor` carries whatever the surrounding text is. An
+   icon with a fill would need a second rule per theme. */
+.about-ico {
+  width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  flex-shrink: 0; opacity: .65; vertical-align: -1px; margin-right: .3rem;
+}
+.about-grp-ico, .about-tab-ico {
+  width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
+}
+.about-grp-ico { margin-right: .35rem; vertical-align: -2px; opacity: .7; }
 .about-group { margin-bottom: .9rem; }
 .about-group-label {
+  display: flex; align-items: center;
   font-size: .68rem; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: .35rem;
 }
 /* WRAPS RATHER THAN TRUNCATES: an image name is long and is the one fact here
    somebody copies. */
 .about-facts { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; }
-.about-fact { font-family: var(--font-mono); font-size: .74rem; color: var(--text-main); }
+.about-fact {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  font-family: var(--font-mono); font-size: .74rem; color: var(--text-main);
+}
+.about-dim { color: var(--text-muted); }
+/* THE CONTAINER LINE takes the full width of the facts row, because the image
+   name is long and belongs under the runtime facts rather than wrapped into
+   the middle of them. */
+.about-line { flex-basis: 100%; display: flex; align-items: center; gap: .5rem; }
+.about-pill-docker {
+  background: rgba(59,130,246,.14); color: #60a5fa; border-color: rgba(59,130,246,.3);
+}
 .about-pill {
   font-family: var(--font-mono); font-size: .72rem;
   background: rgba(56,189,248,.1); color: var(--accent-rx);
@@ -3152,6 +3187,13 @@
 .about-dep:hover { background: rgba(99,130,190,.06); }
 .about-dep-name { color: var(--text-main); overflow-wrap: anywhere; }
 .about-dep-ver, .about-dep-lic { color: var(--text-muted); }
+/* Beside the version, not instead of it: the version is the upstream release
+   this is a patch OF, and the note is what stops the row claiming to ship it
+   stock. */
+.about-dep-note {
+  font-size: .62rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--accent-warn); margin-left: .4rem;
+}
 .about-dep-link { color: var(--text-muted); text-decoration: none; }
 .about-dep-link:hover { color: var(--accent-rx); }
 @media (max-width: 700px) {
