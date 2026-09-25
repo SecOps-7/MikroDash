@@ -74,7 +74,7 @@ import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { initAbout } from './pages/about';
 import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
-import { initDashboard, resetSysMeta, setConnRouter, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
+import { initDashboard, resetSysMeta, setConnRouter, setBwRouters, setBwActiveRouter, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
 import { initIpTip } from './iptip';
 import { initDashboardGrid } from './pages/dashboard-grid';
 
@@ -361,6 +361,17 @@ function switchRouter(socket: Socket, id: string): void {
   // at the instant the browser asks, so the key changes before any payload can
   // be filed under the wrong router.
   setConnRouter(id);
+  // ── AND THE BANDWIDTH CARD'S CAPACITY ─────────────────────────────────
+  //
+  // Its percentages are against the Download/Upload figures set on THIS device,
+  // so it has to know which device is on screen. It learned that only from the
+  // `router:active` announcement, which is about the socket rather than about
+  // what this browser is looking at - so a viewer's own selection never reached
+  // it and every rate was measured against the 1000 Mbps default.
+  //
+  // Set HERE because this function is the one place the viewed router is
+  // written, which is the same reason `setConnRouter` is on the line above.
+  setBwActiveRouter(id);
   // The chart too: another router's history is not this one's, and `currentIf`
   // names an interface that may not exist on the new device.
   resetTraffic();
@@ -666,6 +677,10 @@ async function main(): Promise<void> {
   } catch (e) {
     console.error(e);
   }
+  // THE BOOT PATH, which is the one that was broken. `refreshRouters` below
+  // does the same on every later change; this is the first load, where the
+  // Bandwidth card would otherwise never learn the per-device capacity at all.
+  setBwRouters(routers as never);
 
   // ── The Devices page ────────────────────────────────────────────────────
   //
@@ -720,6 +735,9 @@ async function main(): Promise<void> {
       console.error(e);
       return;
     }
+    // The Bandwidth card's capacity figures, which are per device and come from
+    // this list. Its own `routers:update` never fires on connect.
+    setBwRouters(routers as never);
     dropdown.refresh();
     // ── THE MOBILE SELECT'S OPTIONS ───────────────────────────────────────
     //

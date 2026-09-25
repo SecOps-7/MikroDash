@@ -83,9 +83,13 @@ const GLOW_ID: Record<string, string> = {
   wired: 'nf-glow-wired', wireless: 'nf-glow-wireless',
   router: 'nf-glow-router', wan: 'nf-glow-wan',
 };
-const LED_ID: Record<LinkKey, string> = {
-  wired: 'nf-led-wired', wireless: 'nf-led-wireless', wan: 'nf-led-wan',
-};
+// ── THE ROUTER LEDs ARE CONSTANT ──────────────────────────────────────────
+//
+// They used to dim with the lane's load. A real router's port lights are on
+// while the link is up; dimming them made an idle line look like a fault, and
+// the card already says how busy a link is three other ways - the particles,
+// their speed, and the lane opacity. The markup sets them lit and nothing
+// touches them, so the ids are no longer read from here.
 const CNT_ID = { wired: 'nf-cnt-wired', wireless: 'nf-cnt-wireless' } as const;
 const WAN_IP_ID = 'nf-wan-ip';
 
@@ -396,7 +400,6 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
         const ul = loadFraction(x.up, cap.up);
         lanes.forEach((l) => { if (l.key === k) l.load = l.dir > 0 ? ul : dl; });
         const a = Math.max(dl, ul);
-        pick(LED_ID[k])?.setAttribute('opacity', (.2 + .8 * Math.sqrt(a)).toFixed(2));
         const tr = tracks[k];
         if (tr) {
           tr.tube.setAttribute('opacity', (.03 + .09 * a).toFixed(3));

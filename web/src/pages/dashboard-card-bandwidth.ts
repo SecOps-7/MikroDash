@@ -104,9 +104,27 @@ export function bwCapacityMbps(): { down: number; up: number } {
   return { down: bwDown, up: bwUp };
 }
 
+/**
+ * What a ROUTER SWITCH forgets.
+ *
+ * ── THE FLEET AND THE SELECTION ARE NOT PER-ROUTER STATE ───────────────────
+ *
+ * This used to clear `routers` and `activeId` as well, and that is what made
+ * the configured capacity never apply. The fleet list is the SAME for every
+ * router - it is the list of all of them - so throwing it away on a switch left
+ * the card unable to resolve ANY router's capacity. It came back only on
+ * `routers:update`, which the server broadcasts on an add, an edit, a delete
+ * and a reorder, and never on connect. Since a switch happens at boot, the card
+ * spent every session measuring against the 1000 Mbps default: an operator with
+ * 50 Mbps upload saw their traffic scaled against a gigabit, and it appeared to
+ * fix itself after any device edit.
+ *
+ * So only the DERIVED figures reset here, and they are immediately re-derived
+ * for whichever router is now selected. A router with nothing recorded still
+ * falls back to 1000, which is what the reset was for.
+ */
 export function resetBandwidthCard(): void {
   bwDown = 1000;
   bwUp = 1000;
-  routers = [];
-  activeId = '';
+  syncCapacity();
 }

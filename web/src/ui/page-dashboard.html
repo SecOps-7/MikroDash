@@ -227,9 +227,16 @@
                     </g>
                     <path d="M350 140h60l7 9h-74z" fill="#16243a" stroke="#7dd3fc" stroke-width="1.6" stroke-linejoin="round"/>
                     <rect x="343" y="149" width="74" height="24" rx="4" fill="#0c1422" stroke="#7dd3fc" stroke-width="1.6"/>
-                    <circle id="nf-led-wired"    cx="352" cy="161" r="2.6" fill="#38bdf8" opacity=".25"/>
-                    <circle id="nf-led-wireless" cx="360" cy="161" r="2.6" fill="#a78bfa" opacity=".25"/>
-                    <circle id="nf-led-wan"      cx="368" cy="161" r="2.6" fill="#34d399" opacity=".25"/>
+                    <!-- LIT, AND NOTHING DIMS THEM. A real router's port lights are
+                         on while the link is up; dimming them with the rate made an
+                         idle line look like a fault, and the card already says how
+                         busy a link is three other ways.
+                         THE IDS ARE GONE WITH THE DIMMING. Nothing addresses these
+                         any more, and an id nothing uses is what
+                         `TestDashboardMarkupIsDriven` exists to catch. -->
+                    <circle cx="352" cy="161" r="2.6" fill="#38bdf8"/>
+                    <circle cx="360" cy="161" r="2.6" fill="#a78bfa"/>
+                    <circle cx="368" cy="161" r="2.6" fill="#34d399"/>
                     <g fill="#0a101b" stroke="#5b7fa3" stroke-width="1">
                       <rect x="377" y="156" width="7" height="7" rx="1"/><rect x="387" y="156" width="7" height="7" rx="1"/>
                       <rect x="397" y="156" width="7" height="7" rx="1"/><rect x="407" y="156" width="7" height="7" rx="1"/>

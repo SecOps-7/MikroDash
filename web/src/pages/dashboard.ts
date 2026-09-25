@@ -222,4 +222,17 @@ export function initDashboard(socket: Socket): void {
 
 /** The router-switch half of the card resets. See the header. */
 export { resetSysMeta, setConnRouter, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard,
-  switchSecScoreCard };
+  switchSecScoreCard,
+  // ── THE FLEET, FOR THE CAPACITY FIGURES ─────────────────────────────────
+  //
+  // `routers:update` is broadcast on an add, an edit, a delete and a reorder -
+  // and NEVER on connect. So the Bandwidth card's copy of the fleet was empty
+  // on every fresh page load, `syncCapacity` never found the active router, and
+  // both figures sat at the 1000 Mbps default: an operator who had set 50 Mbps
+  // upload saw their traffic measured against a gigabit. It appeared to fix
+  // itself after any device edit, which is the broadcast arriving.
+  //
+  // `main.ts` fetches the fleet over HTTP at boot and on every refresh, so it
+  // hands it over there. Re-exported rather than imported directly because
+  // `main.ts` takes the whole dashboard surface from this module.
+  setBwRouters, setBwActiveRouter };
