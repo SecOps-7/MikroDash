@@ -265,9 +265,6 @@ Create a dedicated, **read-only** API user. Every page, chart and alert works wi
 /user add name=mikrodash group=mikrodash password=<a-strong-password>
 ```
 
-> [!NOTE]
-> **`test` is what `/tool/ping` needs**, and it is in the policy above - the ping card and Reports → Ping stay blank without it. If the router refuses it, the log now says so in one line and names the policy instead of retrying in silence ([#138](https://github.com/SecOps-7/MikroDash/issues/138)). That issue was reported as also needing `local`; it did not reproduce on an hAP ac² running RouterOS 7.24.3, where `read,api,test,!local` pings fine - so `local` stays denied here.
-
 <details>
 <summary><strong>Optional: enable the write features</strong></summary>
 
