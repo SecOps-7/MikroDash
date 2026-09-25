@@ -36,7 +36,7 @@ import { el, fmtMbps } from '../dom';
 import { notePayload } from '../stale';
 import { isRosDisconnected } from '../banners';
 import {
-  MAX_CLIENT_POINTS, RIGHT_BUFFER_MS, rightBufferFor, anchorMs, axisWindow,
+  MAX_CLIENT_POINTS, RIGHT_BUFFER_MS, rightBufferFor, easeBuffer, anchorMs, axisWindow,
   needsFullRedraw, pruneAndMax,
   pushSample, smoothMax, smoothOffset, windowedPoints,
   type XYPoint,
@@ -63,6 +63,11 @@ let currentIf = '';
 let windowSecs = 60;
 let lastSampleTs = 0, serverOffset = 0;
 let yMaxTarget = 0, yMaxCurrent = 0, lastTickMs = 0;
+// The right buffer AS DRAWN, eased toward `rightBufferFor`'s step function so
+// the axis edge can neither reverse nor stall. See `easeBuffer`. It sits beside
+// `yMaxCurrent` because it is the same idea on the other axis, and it follows
+// the same split: eased on the keepalive, SNAPPED on a redraw.
+let rbCurrent = RIGHT_BUFFER_MS;
 let keepaliveId: number | null = null;
 let pendingTraffic: TrafficSample | null = null;
 let trafficRafId: number | null = null;
@@ -236,6 +241,10 @@ export function redrawChart(): void {
   // from the old scale would animate a change the data did not make.
   yMaxCurrent = yMaxTarget;
   chart.options.scales.y.max = yMaxCurrent;
+  // SNAPPED, like `yMaxCurrent` two lines up and for the same reason: a redraw
+  // is a discontinuity already - a new interface, a new router, a new window -
+  // so easing the edge across it would animate a change the data did not make.
+  rbCurrent = rb;
   const anchor = anchorMs(lastSampleTs, serverOffset, Date.now(), pts);
   const win = axisWindow(anchor, windowSecs, rb);
   chart.options.scales.x.min = win.min;
@@ -282,9 +291,15 @@ function keepaliveTick(): void {
       document.body.classList.contains('is-disconnected')) return;
   const now = Date.now();
   if (now - lastTickMs < 33) return;
+  const prevTickMs = lastTickMs;
   lastTickMs = now;
   const sn = now + serverOffset;
-  const rb = rightBufferFor(allPoints);
+  // EASED, NOT TAKEN. `lastTickMs` was read above, so `elapsed` is the real gap
+  // between frames and the bound is against wall time rather than frame count -
+  // a slow frame may move the buffer further, and a fast one less.
+  const elapsed = now - prevTickMs;
+  rbCurrent = easeBuffer(rbCurrent, rightBufferFor(allPoints), elapsed);
+  const rb = rbCurrent;
   const vl = sn - windowSecs * 1000 - rb;
   const rd = chart.data.datasets[0]!.data, td = chart.data.datasets[1]!.data;
   yMaxTarget = pruneAndMax(rd, td, vl) || 1;

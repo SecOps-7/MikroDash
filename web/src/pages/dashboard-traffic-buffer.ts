@@ -222,6 +222,62 @@ export function pruneAndMax(rx: XYPoint[], tx: XYPoint[], viewLeft: number): num
 }
 
 /**
+ * How fast the right buffer may move, as a FRACTION OF REAL TIME.
+ *
+ * This is the whole mechanism, so it is worth stating as an inequality. The
+ * axis edge is `anchor - rb`, and `anchor` advances with the wall clock, so
+ *
+ *     edge velocity = 1 - d(rb)/dt
+ *
+ * Bounding `|d(rb)/dt|` at 0.25 bounds the edge to between 0.75x and 1.25x real
+ * time. It can therefore never stop and never reverse - which is the property
+ * being bought, and it is a property of the BOUND, not of any particular
+ * smoothing curve.
+ */
+const BUFFER_RATE = 0.25;
+
+/**
+ * Ease the right buffer toward its measured target at a bounded rate.
+ *
+ * ── THE BUG THIS EXISTS FOR ────────────────────────────────────────────────
+ *
+ * `rightBufferFor` is a 90th percentile over a TRAILING WINDOW of gaps, so it
+ * is a step function: when a slow sample enters that window the quantile jumps,
+ * and twenty samples later it drops back. Fed straight into the axis, each step
+ * moved `min` and `max` together - the whole window slid backwards in time, and
+ * a point that had not moved slid RIGHT across the screen. The operator saw the
+ * graph tick briefly backwards and then resume.
+ *
+ * ── WHY RATE-LIMIT THE BUFFER RATHER THAN CLAMP THE EDGE ───────────────────
+ *
+ * Clamping the edge to be non-decreasing also fixes the reversal, and was the
+ * first thing tried. It buys monotonicity at the price of a STALL: while the
+ * buffer catches up the edge sits still, and a live graph that stops looks
+ * broken in its own way. Bounding the rate keeps the edge moving through the
+ * correction, which is the difference between a change of pace and a stutter.
+ *
+ * ── AND WHY BOTH DIRECTIONS ───────────────────────────────────────────────
+ *
+ * Only growth can reverse the edge, so only growth has to be limited for
+ * correctness. Shrinking is limited too because an unbounded shrink lurches the
+ * edge FORWARD by the same amount - not a reversal, but just as visible, and
+ * the symmetric rule is one number instead of two cases.
+ *
+ * `elapsedMs` is passed in rather than read from a clock so this stays pure and
+ * the bound can be asserted directly.
+ */
+export function easeBuffer(current: number, target: number, elapsedMs: number): number {
+  // A FIRST FRAME, A RESUMED TAB OR A CLOCK JUMP. With no elapsed time there is
+  // no budget to move, and a negative or absurd delta must not be spent as one.
+  if (!(elapsedMs > 0)) return current;
+  const budget = Math.min(elapsedMs, 1000) * BUFFER_RATE;
+  const delta = target - current;
+  if (delta > budget) return current + budget;
+  if (delta < -budget) return current - budget;
+  return target;
+}
+
+/**
  * The Y axis easing. `|| 1` keeps an idle interface's axis at 1 Mbps rather
  * than collapsing to zero, which would make noise look like saturation.
  */

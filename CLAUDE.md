@@ -306,7 +306,7 @@ move together:
 | | |
 |---|---|
 | `internal/verify/` | 94 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every font family that ships is credited in the OFL notice, counted truthfully and offered by the branding picker, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `docs/Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 84 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `web/test/` | 85 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**
