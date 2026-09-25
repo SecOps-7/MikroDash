@@ -179,26 +179,34 @@
                 <g transform="translate(-14 -16)">
                   <rect id="nf-glow-wired" x="20" y="18" width="170" height="132" rx="16" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
                   <rect class="nf-node" x="20" y="18" width="170" height="132" rx="16"/>
-                  <rect x="36" y="62" width="44" height="44" rx="12" fill="#38bdf8" fill-opacity=".12"/>
-                  <g fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M48 76h20v14H48z M53 76v-3h10v3"/>
-                    <path d="M53 80v3 M56.3 80v3 M59.7 80v3 M63 80v3"/>
+                  <!-- The tile and its glyph move TOGETHER: the glyph is drawn in
+                       absolute coordinates, so shifting the tile alone would leave
+                       it behind. Icon right, text left, each by 8 - the pair closes
+                       up by 16 and stays centred in the box. -->
+                  <g transform="translate(8 0)">
+                    <rect x="36" y="62" width="44" height="44" rx="12" fill="#38bdf8" fill-opacity=".12"/>
+                    <g fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M48 76h20v14H48z M53 76v-3h10v3"/>
+                      <path d="M53 80v3 M56.3 80v3 M59.7 80v3 M63 80v3"/>
+                    </g>
                   </g>
-                  <text class="nf-lbl" x="142" y="72" text-anchor="middle">Wired</text>
-                  <text class="nf-num" x="142" y="103" text-anchor="middle"><tspan id="nf-cnt-wired">0</tspan></text>
+                  <text class="nf-lbl" x="134" y="72" text-anchor="middle">Wired</text>
+                  <text class="nf-num" x="134" y="103" text-anchor="middle"><tspan id="nf-cnt-wired">0</tspan></text>
 
                 </g>
                 <g transform="translate(-14 16)">
                   <rect id="nf-glow-wireless" x="20" y="150" width="170" height="132" rx="16" fill="none" stroke="#a78bfa" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
                   <rect class="nf-node" x="20" y="150" width="170" height="132" rx="16"/>
-                  <rect x="36" y="194" width="44" height="44" rx="12" fill="#a78bfa" fill-opacity=".12"/>
-                  <g fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round">
-                    <path d="M46.7 211.7A16 16 0 0 1 69.3 211.7"/>
-                    <path d="M50.6 215.6A10.5 10.5 0 0 1 65.4 215.6"/>
+                  <g transform="translate(8 0)">
+                    <rect x="36" y="194" width="44" height="44" rx="12" fill="#a78bfa" fill-opacity=".12"/>
+                    <g fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round">
+                      <path d="M46.7 211.7A16 16 0 0 1 69.3 211.7"/>
+                      <path d="M50.6 215.6A10.5 10.5 0 0 1 65.4 215.6"/>
+                    </g>
+                    <circle cx="58" cy="222" r="2.2" fill="#a78bfa"/>
                   </g>
-                  <circle cx="58" cy="222" r="2.2" fill="#a78bfa"/>
-                  <text class="nf-lbl" x="142" y="204" text-anchor="middle">Wireless</text>
-                  <text class="nf-num" x="142" y="235" text-anchor="middle"><tspan id="nf-cnt-wireless">0</tspan></text>
+                  <text class="nf-lbl" x="134" y="204" text-anchor="middle">Wireless</text>
+                  <text class="nf-num" x="134" y="235" text-anchor="middle"><tspan id="nf-cnt-wireless">0</tspan></text>
                 </g>
 
                 <g transform="translate(380 150) scale(1.18) translate(-380 -150)">
