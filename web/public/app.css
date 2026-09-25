@@ -1785,7 +1785,18 @@
        --text and --muted, which are the APP's names for other things - taking
        them would have retinted every page. The palette is written out instead,
        and the two colours MikroDash already owns come from its own variables. */
-    .nf-body{padding:0;position:relative}
+    /* ── IT MUST HAVE A HEIGHT OF ITS OWN WHEN NOTHING GIVES IT ONE ───────
+       The SVG is absolutely positioned so it fills whatever the dashboard grid
+       allots, which is right on a desktop where every card has an explicit
+       height. Stacked on a phone the cards size to their CONTENT, and an
+       absolutely positioned child contributes none - the card collapsed to 2px
+       and read as missing entirely.
+
+       `aspect-ratio` is the fix rather than a fixed `min-height` because it is
+       ignored the moment the height is definite: the grid still wins on a
+       desktop, and on a phone the card is exactly as tall as the drawing needs
+       at whatever width it got. The ratio is the viewBox's own, 760 by 344. */
+    .nf-body{padding:0;position:relative;aspect-ratio:760/344;min-height:120px}
     .nf-svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
     .nf-node{fill:var(--bg-card);stroke:rgba(148,163,184,.14)}
     .nf-lbl{fill:var(--text-muted);font-family:var(--font-ui);font-size:14px;font-weight:500}
