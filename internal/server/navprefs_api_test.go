@@ -47,21 +47,14 @@ func loadNavCorpus(t *testing.T) navCorpus {
 	return c
 }
 
-// TestTheCategoryAllowListIsTheLiveOne. The filter is a stored-XSS boundary, so
-// the list it filters against is compared to the live registry rather than
-// assumed to have been copied correctly.
-func TestTheCategoryAllowListIsTheLiveOne(t *testing.T) {
-	c := loadNavCorpus(t)
-	if len(navCategoryKeys) != len(c.CategoryKeys) {
-		t.Fatalf("%d category keys embedded, %d live", len(navCategoryKeys), len(c.CategoryKeys))
-	}
-	for _, k := range c.CategoryKeys {
-		if !navCategoryKeys[k] {
-			t.Errorf("%q is a live category and is not in the allow-list -- expanding it would "+
-				"silently stop being remembered", k)
-		}
-	}
-}
+// THE CATEGORY ALLOW-LIST TEST IS GONE WITH THE ALLOW-LIST, 2026-09-25.
+//
+// It compared the embedded list against the live registry, because the filter
+// was a stored-XSS boundary: `expanded` was arbitrary strings going into a blob
+// that is later rendered. `expanded` is no longer accepted or stored, so the
+// blob holds one bool and there is nothing to filter. The check is removed
+// because its SUBJECT is, not to quiet a failure - the distinction this repo
+// insists on, recorded here so the next reader does not have to infer it.
 
 // TestNavPrefsMatchesLive drives every recorded body through the REAL mux and
 // compares the stored blob by reading it back.
@@ -80,15 +73,28 @@ func TestNavPrefsMatchesLive(t *testing.T) {
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)
 
+			// ── THE EXPECTATION IS DERIVED, NOT REPLAYED ──────────────
+			//
+			// `tc.Accepted` records what the LIVE route answered, and that
+			// route refused a body whose `expanded` was the wrong type. This
+			// one does not read `expanded` at all, so the only question left is
+			// whether `grouped` arrived as a real bool. Recomputing from the
+			// body keeps every recorded case exercising the route instead of
+			// deleting the ones whose recorded answer changed.
+			_, groupedIsBool := tc.Body["grouped"].(bool)
 			wantStatus := http.StatusOK
-			if !tc.Accepted {
+			if !groupedIsBool {
 				wantStatus = http.StatusBadRequest
 			}
 			if rec.Code != wantStatus {
 				t.Fatalf("status %d, live would answer %d: %s",
 					rec.Code, wantStatus, rec.Body.String())
 			}
-			if !tc.Accepted {
+			// DERIVED HERE TOO. Reading `tc.Accepted` on this branch while the
+			// status came from `groupedIsBool` is what made the four
+			// `expanded is ...` cases fail: the route now accepts them, quite
+			// correctly, and the test then demanded nothing had been stored.
+			if wantStatus != http.StatusOK {
 				// A REFUSAL MUST NOT HAVE WRITTEN. Checked rather than assumed:
 				// a handler that validated after saving would answer 400 and
 				// still have stored the payload, which is the worst of both.
@@ -102,19 +108,16 @@ func TestNavPrefsMatchesLive(t *testing.T) {
 			if got == nil {
 				t.Fatal("an accepted body stored nothing")
 			}
-			if got.Grouped != tc.Stored.Grouped {
-				t.Errorf("grouped = %v, live %v", got.Grouped, tc.Stored.Grouped)
+			if want, _ := tc.Body["grouped"].(bool); got.Grouped != want {
+				t.Errorf("grouped = %v, sent %v", got.Grouped, want)
 			}
-			if len(got.Expanded) != len(tc.Stored.Expanded) {
-				t.Fatalf("expanded %v, live %v", got.Expanded, tc.Stored.Expanded)
-			}
-			for i := range got.Expanded {
-				if got.Expanded[i] != tc.Stored.Expanded[i] {
-					t.Errorf("expanded %v, live %v -- the order is part of the answer, so two "+
-						"clients expanding the same categories store the same blob",
-						got.Expanded, tc.Stored.Expanded)
-					break
-				}
+			// NOTHING IS STORED UNDER `expanded` ANY MORE, in either direction:
+			// a body that sends one must not have it written, which is what
+			// stops the field creeping back in through a record nobody reads.
+			if len(got.Expanded) != 0 {
+				t.Errorf("`expanded` was stored as %v - it is not part of this contract, and a "+
+					"blob that still carries it is a stored-XSS surface with no filter left",
+					got.Expanded)
 			}
 		})
 	}

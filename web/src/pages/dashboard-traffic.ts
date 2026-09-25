@@ -130,7 +130,23 @@ export function chartConfig(nowMs: number): unknown {
       // Capped at 1.5: a 3x display would quadruple the fill cost of a chart
       // that repaints every frame, for a line nobody can see the extra detail in.
       devicePixelRatio: Math.min(window.devicePixelRatio, 1.5),
-      animation: { duration: 1000, easing: 'linear' },
+      // ── NO ANIMATION, AND IT WAS NEVER ASKED FOR ──────────────────────
+      //
+      // This was `{ duration: 1000, easing: 'linear' }`, and NOTHING in this
+      // module ever used it: both `chart.update` call sites pass `'none'`. So
+      // the only renders it could reach were ones the app does not ask for -
+      // the first build, and whatever Chart.js re-renders on its own, such as
+      // when the canvas comes back from zero size after its page was hidden.
+      //
+      // That is the reported artefact: the lines sweeping in from the left
+      // over about a second on returning to the Dashboard, then behaving. The
+      // duration and the linear easing are this line's, exactly.
+      //
+      // THE TRIGGER IS NOT PROVEN - it could not be reproduced on demand -
+      // but the SOURCE is: no other setting here can draw a one-second linear
+      // sweep. Removing it cannot regress anything, because no code path in
+      // this module wants an animated update.
+      animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },

@@ -1,10 +1,21 @@
 // The sidebar's grouping: 23 pages collapsed into 7 categories.
 //
-// Two things are remembered per user, SERVER-SIDE - whether grouping is on at
-// all, and which categories are open. That makes this different from the
-// appearance layer next door, which never leaves the browser: localStorage here
-// is only a cache, read before the nav paints so the sidebar never renders in
-// one shape and then rearranges.
+// ONE thing is remembered per user, SERVER-SIDE: whether grouping is on at all.
+// That makes this different from the appearance layer next door, which never
+// leaves the browser: localStorage here is only a cache, read before the nav
+// paints so the sidebar never renders in one shape and then rearranges.
+//
+// ── WHICH CATEGORIES ARE OPEN IS *NOT* REMEMBERED ───────────────────────────
+//
+// It was, and the app opened on whatever had been left open last time. It
+// starts fully collapsed now, by operator decision on 2026-09-25: the point of
+// grouping 23 pages into 7 is a short sidebar, and a session that restores four
+// open categories has none of that.
+//
+// The open set is therefore SESSION STATE. It is still kept while the tab
+// lives - expanding a category and walking around inside it has to work - and
+// it is simply never written down, so it cannot come back. The `grouped` flag
+// is still saved both ways, because that one IS a preference.
 //
 // ── THE AUTO-EXPANDED CATEGORY IS STATE, NOT A DERIVATION ───────────────────
 //
@@ -64,9 +75,14 @@ export function navRender(): void {
     .forEach((cb) => { cb.checked = grouped; });
 }
 
-/** Cache locally now, tell the server shortly. */
+/**
+ * Cache locally now, tell the server shortly.
+ *
+ * `expanded` IS NOT SENT and is not cached: it is session state, and writing it
+ * anywhere is what made the sidebar open half-unfolded. See the header.
+ */
 export function navSave(): void {
-  const payload = { grouped, expanded: expanded.slice().sort() };
+  const payload = { grouped };
   try { localStorage.setItem(NAV_KEY, JSON.stringify(payload)); } catch { /* private mode */ }
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -102,7 +118,9 @@ function readCache(): void {
       // `!== false` rather than truthiness: a blob with no `grouped` key at all
       // means grouped, which is the default the sidebar ships in.
       grouped = cached.grouped !== false;
-      expanded = Array.isArray(cached.expanded) ? cached.expanded.slice() : [];
+      // `cached.expanded` is deliberately ignored, and older caches still carry
+      // it: this reads the one key it wants rather than the whole blob, so a
+      // browser that stored the old shape simply starts collapsed.
     }
   } catch { /* a corrupt blob is the same as no blob */ }
 }
@@ -155,9 +173,11 @@ export function initNav(): void {
     .then((d) => {
       if (!d) return;
       grouped = d.grouped !== false;
-      expanded = Array.isArray(d.expanded) ? d.expanded.slice() : [];
+      // Same as the cache: an older server record may still hold `expanded`
+      // and it is not read. Nothing writes it any more, so it decays on the
+      // next save rather than being migrated.
       try {
-        localStorage.setItem(NAV_KEY, JSON.stringify({ grouped, expanded }));
+        localStorage.setItem(NAV_KEY, JSON.stringify({ grouped }));
       } catch { /* private mode */ }
       navRender();
     })

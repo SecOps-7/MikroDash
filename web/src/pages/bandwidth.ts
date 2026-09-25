@@ -157,7 +157,11 @@ export function bwChartConfig(nowMs: number, windowSecs: number, rightBufferMs: 
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 1000, easing: 'linear' },
+      // Off, for the reason the Dashboard's chart records: `syncChart` is
+      // called only ever with `animated === false`, so this could reach no
+      // update the app asks for - only the first build and Chart.js's own
+      // re-renders.
+      animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
@@ -384,7 +388,12 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
   let yCurrent = 0;
   let keepaliveId: number | null = null;
 
-  function syncChart(animated: boolean): void {
+  // ── NO `animated` PARAMETER ───────────────────────────────────────────
+  //
+  // It took one, and all three call sites passed `false`: a branch no caller
+  // could reach, selecting an animation the chart no longer has. Deleted rather
+  // than left for a future caller - git history holds the reasoning.
+  function syncChart(): void {
     if (!chart) return;
     // The same measured gap the dashboard's chart uses; they share the buffer
     // these points come from, so a different edge on each would be two answers
@@ -399,7 +408,7 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
     chart.options.scales.y.max = st.yMax;
     chart.options.scales.x.min = st.xMin;
     chart.options.scales.x.max = st.xMax;
-    chart.update(animated ? undefined : 'none');
+    chart.update('none');
   }
 
   function tick(): void {
@@ -447,14 +456,14 @@ export function initBandwidthPage(socket: Socket, isVisible: (page: string) => b
     // clock warm when the page is returned to. So this one may bail early.
     if (!isVisible('bandwidth')) return;
     updateStats(sample.rx_mbps, sample.tx_mbps);
-    if (!chart) { makeChart(); syncChart(false); startKeepalive(); return; }
+    if (!chart) { makeChart(); syncChart(); startKeepalive(); return; }
     const rx = chart.data.datasets[0]!.data;
     const tx = chart.data.datasets[1]!.data;
     // A gap means a straight line through time that never happened, so rebuild
     // from the buffer instead of appending. Shared with the dashboard chart,
     // which uses the identical rule - unlike the SEEDING, which deliberately
     // differs by three seconds.
-    if (needsFullRedraw(rx, sample.ts)) { syncChart(false); startKeepalive(); return; }
+    if (needsFullRedraw(rx, sample.ts)) { syncChart(); startKeepalive(); return; }
     rx.push({ x: sample.ts, y: sample.rx_mbps });
     tx.push({ x: sample.ts, y: sample.tx_mbps });
     startKeepalive();

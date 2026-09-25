@@ -11,46 +11,22 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"sort"
-	"strconv"
 
 	"mikrodash/internal/db"
 )
 
-// navCategoryKeys is the allow-list `POST` filters against, generated from the
-// LIVE `src/pages.js` into `pages_table.json`.
+// ── THE CATEGORY ALLOW-LIST IS GONE, AND SO IS WHAT IT GUARDED ─────────────
 //
-// ── THE FILTER IS A SECURITY PROPERTY, NOT TIDINESS ─────────────────────────
+// There was one, generated from `pages_table.json`, and its own comment called
+// it a security property rather than tidiness: `expanded` was an unbounded list
+// of arbitrary strings stored in a blob that is later rendered, which is how a
+// preference becomes a stored-XSS vector. Filtering through the registry is
+// what stopped that.
 //
-// The live comment: "Filtered through the registry rather than stored as sent.
-// An unbounded list of arbitrary strings inside a blob that later gets rendered
-// is how a preference becomes a stored-XSS vector; there are only ever a handful
-// of category keys, and they are all known here."
-//
-// So it is GENERATED rather than typed. A hand-copied allow-list that gained an
-// entry upstream would silently start rejecting a real category; one that lost
-// an entry would silently start accepting anything.
-var navCategoryKeys = mustCategoryKeys()
-
-func mustCategoryKeys() map[string]bool {
-	var f struct {
-		CategoryKeys []string `json:"categoryKeys"`
-	}
-	if err := json.Unmarshal(pagesTableJSON, &f); err != nil {
-		panic("server: pages_table.json: " + err.Error())
-	}
-	if len(f.CategoryKeys) == 0 {
-		// A GENERATED ALLOW-LIST THAT ARRIVED EMPTY REFUSES EVERYTHING, which
-		// would be a silent feature removal. Better to refuse to start: the
-		// table is embedded at build time, so this can only be a build fault.
-		panic("server: pages_table.json has no categoryKeys")
-	}
-	out := make(map[string]bool, len(f.CategoryKeys))
-	for _, k := range f.CategoryKeys {
-		out[k] = true
-	}
-	return out
-}
+// `expanded` is no longer stored at all - the sidebar starts collapsed and the
+// open set never leaves the tab - so this blob holds a single bool. The vector
+// is removed BY CONSTRUCTION rather than left unguarded, which is why the
+// filter goes with it instead of being kept for a field that no longer exists.
 
 func (s *Server) registerNavPrefs(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/nav-prefs", s.navPrefsGet)
@@ -85,9 +61,12 @@ func (s *Server) navPrefsSave(w http.ResponseWriter, r *http.Request) {
 	}
 	// POINTERS, so "absent" is distinguishable from `false` and from `[]`. A
 	// plain bool would read a missing `grouped` as an explicit false and save it.
+	// `expanded` IS GONE FROM THIS CONTRACT. Which categories are open stopped
+	// being a preference: the sidebar starts fully collapsed every time. It is
+	// not merely ignored here - the check below REQUIRED it, so a client that
+	// stopped sending it got a 400 and its `grouped` never saved either.
 	var body struct {
-		Grouped  *bool  `json:"grouped"`
-		Expanded *[]any `json:"expanded"`
+		Grouped *bool `json:"grouped"`
 	}
 	// ── THE DECODE ERROR IS NOT OPTIONAL, AND A NIL CHECK IS NOT ENOUGH ──
 	//
@@ -111,34 +90,21 @@ func (s *Server) navPrefsSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON400OK(w)
 		return
 	}
-	if body.Grouped == nil || body.Expanded == nil {
+	if body.Grouped == nil {
 		// `{ ok: false }` with no message, exactly as the live route answers.
 		writeJSON400OK(w)
 		return
 	}
-
-	// DEDUPLICATED, FILTERED AND SORTED, in that order — `[...new Set(...)]
-	// .filter(...).sort()`. The sort is what makes two clients that expanded the
-	// same categories in a different order store the same blob.
-	seen := map[string]bool{}
-	expanded := []string{}
-	for _, raw := range *body.Expanded {
-		k := jsString(raw)
-		if seen[k] || !navCategoryKeys[k] {
-			continue
-		}
-		seen[k] = true
-		expanded = append(expanded, k)
-	}
-	sort.Strings(expanded)
 
 	user := s.layoutUser(sess)
 	if user == "" {
 		writeJSONErr(w, http.StatusUnauthorized, "not signed in")
 		return
 	}
+	// REPLACED, not merged, so a record written before this change loses its
+	// `expanded` list on the next save rather than carrying it for ever.
 	if serr := s.auditDB.SetLayout(user, "nav", map[string]any{
-		"grouped": *body.Grouped, "expanded": expanded,
+		"grouped": *body.Grouped,
 	}); serr != nil {
 		writeJSONErr(w, http.StatusInternalServerError, "could not save")
 		return
@@ -147,51 +113,6 @@ func (s *Server) navPrefsSave(w http.ResponseWriter, r *http.Request) {
 	// up to 60 events a minute per user, and a trail that records sidebar clicks
 	// is one nobody will read the important rows in."
 	writeJSON(w, map[string]any{"ok": true})
-}
-
-// jsString is `String(v)` for a decoded JSON value, and `[]any` is what the
-// field above decodes into BECAUSE of it.
-//
-// ── `.map(String)` RUNS BEFORE THE FILTER, SO A NUMBER IS NOT A REFUSAL ─────
-//
-// `[...new Set(body.expanded.map(String))].filter(...)`. A `[]string` field
-// looks like the obvious port and is wrong in the visible direction: it cannot
-// decode `[7, null, true]` or `[{...}]`, so the decode fails and the whole
-// request is refused — where the live route COERCES each element, gets "7",
-// "null", "true", finds none of them in the registry and stores an empty list
-// with `ok: true`. Caught by `numbers and nulls` and `a nested object`, which
-// exist in the corpus for exactly this.
-//
-// NOTE `String(null)` IS "null", four characters — not "". `jsval.String` maps
-// nil to "" for its own callers, which is right there and wrong here.
-//
-// IT IS AN EQUIVALENT MUTANT AND THAT WAS MEASURED, not assumed: replacing
-// "null" with "" leaves every case in the corpus green, because neither string
-// is a category key and both are filtered out. It is written correctly anyway,
-// and recorded as undefended rather than left looking tested — a port that
-// agrees by accident stops agreeing the moment somebody adds a category called
-// "null", or moves the coercion after the filter instead of before it.
-func jsString(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return "null"
-	case string:
-		return x
-	case bool:
-		if x {
-			return "true"
-		}
-		return "false"
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	default:
-		// An object or an array. JavaScript gives "[object Object]" and
-		// "a,b"; neither is a category key and neither ever will be, so the
-		// exact text is not worth reproducing — what matters is that it is a
-		// STRING that the filter then rejects, rather than a decode failure
-		// that rejects the whole request.
-		return "[object Object]"
-	}
 }
 
 // writeJSON400OK is the live `res.status(400).json({ ok: false })` — a refusal
