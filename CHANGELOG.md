@@ -2,6 +2,48 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.69] - Notification channels, a Primary device, and a new About page
+
+### New
+
+- **Notification channels replace the four fixed transports.** Create a channel, name it, enable
+  it and test it. Each one carries its own delivery settings, the alert types it wants, the devices
+  it covers, its own CPU and ping thresholds and its own cooldown. Your existing Telegram,
+  Pushbullet, ntfy and SMTP settings are migrated into channels on first start.
+- **A webhook URL is all a provider needs.** `tgram://`, `pbul://`, `ntfy://`, `discord://`,
+  `slack://`, `gotify://`, `pover://` and a generic `json://`, plus `apprise://` to reach anything
+  else through an Apprise server. One field instead of a different form per provider.
+- **SMTP channels have To, Cc and Bcc.** Recipients live on the channel, so a scheduled report
+  chooses a channel rather than repeating an address list.
+- **Reorder your devices.** Move arrows in Settings -> Devices set the order, and the device picker
+  follows it.
+- **Pick a Primary device.** A tick on the device editor says which one loads when you sign in. It
+  used to be whichever device you added first, and there was no way to change it.
+- **A new About page.** What you are running, what it is running on, the release notes for every
+  version, and every dependency with its licence.
+- **Per-interface traffic history opens on Live**, with a 15 minute range and a tooltip that says
+  when each point was taken.
+
+### Fixed
+
+- **Scheduled reports had never sent.** The section list was stored as JSON and read as a comma
+  separated string, so every scheduled report failed before it was built.
+- The Connections sparkline lost its shape when you switched devices, and did not get it back on
+  the way home. Each device keeps its own history now.
+- The "Active" pill in Settings -> Devices stayed on the previous device after a switch.
+- Site labels did not appear in Settings -> Devices until something else redrew the table.
+- Escape closed every open dialog instead of the top one, discarding the dialog underneath.
+- The traffic chart no longer redraws itself with a one second sweep when you come back to the
+  Dashboard.
+- The sidebar starts with every category collapsed instead of reopening the last ones.
+
+### Internal
+
+- Every Go module linked into the binary now has its licence recorded, checked both ways against
+  what the build actually links.
+- Every shipped font family is checked against the OFL notice, the file count and the font picker.
+- Repository hygiene: file modes, working documents and stray build artefacts.
+
 ## [0.8.68] - Traffic history per interface, and WAN Flow
 
 ### New
