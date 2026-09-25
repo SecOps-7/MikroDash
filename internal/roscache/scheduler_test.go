@@ -106,7 +106,7 @@ func TestSchedulerForgetsMenusNobodyWants(t *testing.T) {
 	}
 }
 
-// TestSchedulerIsOneGoroutinePerRouter is the count Collectors-Rewrite.md asks
+// TestSchedulerIsOneGoroutinePerRouter is the count the collector rewrite asks
 // for by name: constant per router, not a multiple of the collectors.
 //
 // TODAY'S BASELINE, for the honesty of the comparison: 30 poll loops across 25

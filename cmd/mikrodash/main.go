@@ -231,7 +231,7 @@ func main() {
 		log.Printf("[mikrodash] set the reporting default on %d router(s)", n)
 	}
 
-	// The command-rate instrument for Collectors-Rewrite.md phase 1. A no-op
+	// The command-rate instrument for the collector rewrite's phase 1. A no-op
 	// unless MIKRODASH_CMD_STATS is set, so this costs a nil check on every
 	// install that is not being measured.
 	roslimit.StartStats(time.Minute)

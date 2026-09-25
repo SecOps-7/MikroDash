@@ -13,7 +13,7 @@ import (
 	"mikrodash/internal/session"
 )
 
-// Collector-Architecture.md is a LIVING document, and this is what makes that
+// docs/Collector-Architecture.md is a LIVING document, and this is what makes
 // true rather than aspirational.
 //
 // ── WHY A DOCUMENT NEEDS A GATE AT ALL ─────────────────────────────────────
@@ -30,7 +30,7 @@ import (
 // directions, which is the rule every ledger here follows: a claim that has gone
 // stale is a failure, and so is a collector that exists and is undescribed.
 
-const archDoc = "Collector-Architecture.md"
+const archDoc = "docs/Collector-Architecture.md"
 
 // archTable pulls the "Every collector" table's first column.
 var archRowRe = regexp.MustCompile("(?m)^\\| `(\\w+)` \\|")

@@ -27,7 +27,7 @@ package collect
 // ── WHAT IS DELIBERATELY NOT HERE ───────────────────────────────────────────
 //
 // The collectors that cannot be scheduled keep their own mechanism, for the four
-// reasons Collector-Architecture.md records: derived (vlans, bandwidth), set B
+// reasons docs/Collector-Architecture.md records: derived (vlans, bandwidth),
 // streams (logs, ping, traffic), two cadences in one collector (vpn) and a menu
 // chosen at runtime (firewall, wifi, wireless). So do the table collectors whose lifecycle
 // genuinely differs: a residual loop beside its subscription (ifStatus), two

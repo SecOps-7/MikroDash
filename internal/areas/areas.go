@@ -5,7 +5,7 @@
 //
 // MikroMCP reaches perhaps sixty RouterOS menus MikroDash does not. Each one, as
 // a hand-built page, is a collector (the 21-row checklist in
-// Collector-Architecture.md), a page key in six places, a nav entry, a visibility
+// docs/Collector-Architecture.md), a page key in six places, a nav entry, a
 // setting, a module, markup, and a tool — for a table of rows the resource engine
 // could already render. Sixty of those is not a roadmap, it is a rewrite.
 //

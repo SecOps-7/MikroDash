@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// The verification Collectors-Rewrite.md asks for at 3.1: subscribing twice and
+// The verification the collector rewrite asks for at 3.1: subscribing twice and
 // releasing once keeps the query alive; releasing both stops it.
 func TestDemandSurvivesUntilTheLastSubscriberLeaves(t *testing.T) {
 	c := New(nil)

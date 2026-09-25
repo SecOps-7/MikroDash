@@ -24,13 +24,6 @@ web/node_modules/
 # Working notes for the current iteration. Cleared after every push.
 Changes.md
 
-# A working document for a job that has not started, kept out of the repo the
-# same way `Changes.md` is: it is a plan to be executed and ticked off, not a
-# statement about what this code IS. If the rewrite happens, what survives it
-# belongs in CLAUDE.md, and this file goes.
-Collectors-Rewrite.md
-Unscheduled_Collectors.md
-
 # ── Agent tooling ─────────────────────────────────────────────────────────
 #
 # Ignored WHOLESALE, which is this repo's long-standing rule and deliberately

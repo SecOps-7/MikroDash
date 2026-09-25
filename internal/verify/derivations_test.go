@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestEveryCollectorDeclaresItsDerivation is the ledger for phase 4.1 of
-// Collectors-Rewrite.md: turning each collector's "rows in, payload out" half
+// TestEveryCollectorDeclaresItsDerivation is the ledger for phase 4.1 of the
+// collector rewrite: turning each collector's "rows in, payload out" half
 // into a function with no receiver and no I/O.
 //
 // ── WHY A LEDGER, WHEN THE WORK IS JUST REFACTORING ─────────────────────────
@@ -99,7 +99,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 	// derivations went unchecked for the life of the ledger - the ledger's own
 	// completeness rule ("a new one joins by existing") quietly excluded them.
 	//
-	// Found while writing Collector-Architecture.md, by generating the
+	// Found while writing docs/Collector-Architecture.md, by generating the
 	// per-collector table from the source and noticing two blanks.
 	//
 	// AND A FILE EMBEDDING THE TABLE CORE, whose lifecycle is promoted rather

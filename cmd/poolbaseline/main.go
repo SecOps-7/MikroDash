@@ -2,7 +2,7 @@
 //
 // ── WHY THIS EXISTS ─────────────────────────────────────────────────────────
 //
-// Phase 4.3 of Collectors-Rewrite.md collapses the three pools into one engine
+// Phase 4.3 of the collector rewrite collapses the three pools into one engine
 // per router, and the plan calls it the step most likely to break alerting and
 // history SILENTLY. Both are things nobody is watching: a router nobody has open
 // still has to have its alerts evaluated and its traffic recorded, and if that

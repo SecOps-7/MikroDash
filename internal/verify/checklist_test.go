@@ -10,7 +10,7 @@ import (
 )
 
 // TestTheCollectorChecklistIsComplete holds "Adding a collector" in
-// Collector-Architecture.md to the code, in both directions.
+// docs/Collector-Architecture.md to the code, in both directions.
 //
 // ── WHY A CHECKLIST NEEDS A GATE ────────────────────────────────────────────
 //
@@ -26,7 +26,7 @@ import (
 //  3. The table-collector list must be exactly the files embedding `tableCore`.
 func TestTheCollectorChecklistIsComplete(t *testing.T) {
 	root := repoRoot(t)
-	doc := mustRead(t, filepath.Join(root, "Collector-Architecture.md"))
+	doc := mustRead(t, filepath.Join(root, "docs", "Collector-Architecture.md"))
 
 	checklist := sectionAfter(t, doc, "### Adding a collector")
 	named := map[string]bool{}
@@ -134,7 +134,7 @@ func sectionAfter(t *testing.T, doc, heading string) string {
 	t.Helper()
 	i := strings.Index(doc, heading)
 	if i < 0 {
-		t.Fatalf("Collector-Architecture.md has no %q heading", heading)
+		t.Fatalf("docs/Collector-Architecture.md has no %q heading", heading)
 	}
 	level := strings.Count(strings.Fields(heading)[0], "#")
 	rest := doc[i+len(heading):]

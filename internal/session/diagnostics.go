@@ -14,7 +14,7 @@ package session
 //
 // Three sections, one per layer, because that is what a reader is trying to
 // understand: how much is being asked of the router, how much is being turned
-// into payloads, and who is listening. See `Collector-Architecture.md`.
+// into payloads, and who is listening. See `docs/Collector-Architecture.md`.
 //
 //	acquisition  what leaves this process for the router
 //	derivation   what those rows are turned into

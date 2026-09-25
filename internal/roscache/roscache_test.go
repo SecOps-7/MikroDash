@@ -1,6 +1,6 @@
 package roscache
 
-// The four properties Collectors-Rewrite.md step 1.2 names, plus the two traps
+// The four properties the collector rewrite's step 1.2 names, plus the two traps
 // that make this package dangerous if it is subtly wrong.
 //
 // Every test counts ROUTER READS, because that is the only number this package

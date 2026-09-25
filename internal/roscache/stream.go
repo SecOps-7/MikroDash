@@ -1,6 +1,6 @@
 package roscache
 
-// B.1 of Collectors-Rewrite.md: a SECOND WAY OF FILLING AN ENTRY.
+// B.1 of the collector rewrite: a SECOND WAY OF FILLING AN ENTRY.
 //
 // ── THE ASSUMPTION THIS FILE EXISTS TO RETIRE ───────────────────────────────
 //

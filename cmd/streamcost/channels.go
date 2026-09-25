@@ -1,6 +1,6 @@
 package main
 
-// B.0b of Collectors-Rewrite.md: HOW MANY CONCURRENT CHANNELS DOES ONE ROUTER
+// B.0b of the collector rewrite: HOW MANY CONCURRENT CHANNELS DOES ONE ROUTER
 // TOLERATE.
 //
 // ── WHY THIS IS A DIFFERENT QUESTION FROM B.0 ───────────────────────────────

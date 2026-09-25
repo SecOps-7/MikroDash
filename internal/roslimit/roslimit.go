@@ -101,7 +101,7 @@ var (
 	// menus is commands per RouterOS menu since the last report.
 	//
 	// The per-router total says how much this app costs a device; this says
-	// WHERE it goes. Step 1.3 of Collectors-Rewrite.md needed it: the static
+	// WHERE it goes. Step 1.3 of the collector rewrite needed it: the static
 	// count of duplicated menus (26 per sweep) turned out not to predict the
 	// per-minute cost at all, because the duplicated menus are read at very
 	// different cadences. Optimising the static count optimises the wrong thing.
@@ -373,7 +373,7 @@ func InFlight(routerID string) int {
 //
 // ── WHY THIS EXISTS, AND WHY IT IS OFF BY DEFAULT ───────────────────────────
 //
-// `Collectors-Rewrite.md` phase 1 rests on a measurement: the collectors issue
+// The collector rewrite's phase 1 rests on a measurement: the collectors issue
 // 98 commands per full sweep against 72 distinct ones, so 26 are redundant. That
 // figure is a static count of the code and an UPPER BOUND — it assumes every
 // consumer is active at once, which the gating already prevents some of the

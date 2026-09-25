@@ -34,9 +34,9 @@ func TestCollectorEdgesAreDeclared(t *testing.T) {
 
 	// ── the declared graph ───────────────────────────────────────────────────
 	//
-	// TWELVE, NOT THE NINE Collectors-Rewrite.md claims in its prose. The
-	// document's own table lists these same twelve and then calls them nine, and
-	// nothing anywhere re-counted them. That is what this test is for.
+	// TWELVE, NOT THE NINE the collector rewrite's prose claimed. Its own table
+	// listed these same twelve and then called them nine, and nothing anywhere
+	// re-counted them. That is what this test is for.
 	//
 	// The `what` is not decoration. It is the field that decides whether an edge
 	// CAN be removed the way phase 2 proposes -- by having the consumer read the

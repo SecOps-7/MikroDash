@@ -49,8 +49,8 @@ import (
 // Five call sites, two menus, and between them they carry the app's most
 // expensive acquisition. They need their own model: shared subscriptions with
 // fan-out rather than a shared answer, and a cadence that belongs to the channel
-// rather than to a poll loop. That model is NOT designed yet -- see
-// Collectors-Rewrite.md, which carries it as its own track.
+// rather than to a poll loop. That model is NOT designed yet: it is carried
+// as its own track in the collector rewrite.
 //
 // ── WHY THIS IS A TYPE AND NOT A COMMENT ────────────────────────────────────
 //

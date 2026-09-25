@@ -83,8 +83,8 @@ type Session struct {
 	// a fetch must not still be in flight against a socket about to shut.
 	sched *roscache.Scheduler
 
-	// roscache coalesces reads two collectors share. See Collectors-Rewrite.md
-	// phase 1; nil until Acquire builds the collectors.
+	// roscache coalesces reads two collectors share; phase 1 of the collector
+	// rewrite. Nil until Acquire builds the collectors.
 	roscache *roscache.Cache
 
 	// dormancy decides which collectors are asleep. Nil until Acquire builds it,

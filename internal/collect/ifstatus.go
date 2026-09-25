@@ -624,7 +624,7 @@ type IfStatusInput struct {
 }
 
 // BuildIfStatus turns three menus into the interface list, and is the worked
-// example for phase 4.1 of Collectors-Rewrite.md.
+// example for phase 4.1 of the collector rewrite.
 //
 // ── PRIOR STATE IS A PARAMETER, NOT A RECEIVER ──────────────────────────────
 //

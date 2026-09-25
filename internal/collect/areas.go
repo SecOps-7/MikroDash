@@ -6,7 +6,7 @@ package collect
 //
 // `internal/areas` declares a RouterOS menu as a page. Sixty of those, each with
 // its own collector, is sixty passes through the 21-row checklist in
-// Collector-Architecture.md — sixty registry rows, sixty session fields, sixty
+// docs/Collector-Architecture.md - sixty registry rows, sixty session fields,
 // dormancy targets. This is that checklist paid ONCE: the collector is in the
 // registry as `areas`, and an area added tomorrow is a declaration and a fixture.
 //

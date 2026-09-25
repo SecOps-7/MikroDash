@@ -12,7 +12,7 @@ WebSocket.
 
 | Question | Where |
 |---|---|
-| How the collector layer works | `Collector-Architecture.md` - the three layers, gated so it cannot go stale |
+| How the collector layer works | `docs/Collector-Architecture.md` - the three layers, gated so it cannot go stale |
 | Which RouterOS commands this app uses | `docs/routeros-api-surface.md` - frozen; extend it by hand from the RouterOS docs |
 | What a RouterOS menu *can* hold | **rosetta** (MCP, configured in `.mcp.json`), or `help.mikrotik.com` |
 | What a collector returns | replay a fixture through its `internal/collect` test, rather than reading the collector and guessing |
@@ -107,7 +107,7 @@ RouterOS binary API (TCP/TLS)
 ```
 
 The collector layer - acquisition, derivation, views - is described in full in
-`Collector-Architecture.md`.
+`docs/Collector-Architecture.md`.
 
 **Three things about `internal/routeros` are load-bearing:**
 
@@ -305,7 +305,7 @@ move together:
 
 | | |
 |---|---|
-| `internal/verify/` | 91 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
+| `internal/verify/` | 91 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `docs/Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
 | `web/test/` | 83 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
@@ -322,7 +322,7 @@ against an external reference, which is a weaker claim than "matches what shippe
 stated here rather than left to be discovered.
 
 **A premise that has expired reads exactly like one that is true, and nothing fails.** That is why
-the numbers in this file and in `Collector-Architecture.md` are re-measured by tests rather than
+the numbers in this file and in `docs/Collector-Architecture.md` are re-measured by tests rather than
 trusted.
 
 **Live verification is mandatory.** A green suite has hidden real bugs that only appeared when a

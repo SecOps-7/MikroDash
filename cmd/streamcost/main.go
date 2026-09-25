@@ -1,4 +1,4 @@
-// streamcost is B.0 of Collectors-Rewrite.md: measure what it would cost to
+// streamcost is B.0 of the collector rewrite: measure what it would cost to
 // stream EVERY interface, before designing anything on top of the idea.
 //
 // ── THE QUESTION ────────────────────────────────────────────────────────────

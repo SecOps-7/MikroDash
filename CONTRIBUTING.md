@@ -66,7 +66,7 @@ These are deliberate constraints rather than style preferences:
 - **Errors are sanitised.** Anything reaching the browser goes through `safe.Message()` first.
 - **Deliberate changes are welcome; silent ones are not.** If your change alters what a page shows, a WebSocket payload or an interaction, say so in the PR. If it makes a check fail, update the check and explain why in the commit - do not delete it.
 
-The collector layer - how data is read from the router, turned into payloads and sent to the pages that want it - is described in **[Collector-Architecture.md](Collector-Architecture.md)**. You do not need to read it before starting: copying the closest existing collector in `internal/collect/` is a perfectly good way to begin.
+The collector layer - how data is read from the router, turned into payloads and sent to the pages that want it - is described in **[Collector-Architecture.md](docs/Collector-Architecture.md)**. You do not need to read it before starting: copying the closest existing collector in `internal/collect/` is a perfectly good way to begin.
 
 ## Submitting a Pull Request
 

@@ -17,7 +17,7 @@
  *
  * ── THE THREE LAYERS ARE THE CONTRACT ───────────────────────────────────────
  *
- * `Collector-Architecture.md` names acquisition, derivation and views. The card
+ * `docs/Collector-Architecture.md` names acquisition, derivation and views. The
  * exists to make those three legible on a running install, so a section going
  * missing is a real regression even though every individual number is still
  * right.

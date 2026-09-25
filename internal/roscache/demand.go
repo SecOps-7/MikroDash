@@ -6,7 +6,7 @@ package roscache
 //
 // Today a collector owns a timer and decides for itself whether to read, and
 // five separate gates decide whether that decision counts. Phase 3 of
-// Collectors-Rewrite.md inverts it: a query runs if and only if something
+// The collector rewrite inverts it: a query runs if and only if something
 // currently wants it, and "should this run" has ONE answer instead of five.
 //
 // This file is the bookkeeping half. It records demand and computes what the

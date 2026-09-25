@@ -6,7 +6,7 @@ package roscache
 //
 // Today every collector owns a timer: 30 poll loops across 25 files, each
 // deciding for itself when to read, and five separate gates deciding whether
-// that decision counts. Phase 3 of Collectors-Rewrite.md inverts it. The demand
+// that decision counts. Phase 3 of the collector rewrite inverts it. The demand
 // set in demand.go says WHAT is wanted and how fresh; this says WHEN, once, for
 // the whole router.
 //
