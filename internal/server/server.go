@@ -626,6 +626,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerRouterTest(mux)
 	s.registerSites(mux)
 	s.registerNotifyChannels(mux)
+	s.registerAbout(mux)
 
 	// ── THE SHARED ASSETS, AND AN HONEST 404 FOR EVERYTHING ELSE ─────────
 	//

@@ -90,13 +90,29 @@ FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 # Supplied by buildx per target. GOARM wants the bare number, hence the ${..#v}.
 ARG TARGETOS TARGETARCH TARGETVARIANT
 WORKDIR /src
+# ── WHAT BUILT THIS, FOR THE ABOUT PAGE ────────────────────────────────────
+#
+# `.git` is in `.dockerignore`, so `debug.ReadBuildInfo` carries no VCS stamp
+# and the binary cannot work these out for itself. They arrive as build
+# arguments instead: the release workflow passes them, a plain `docker build`
+# does not, and the About page omits whatever is empty rather than rendering a
+# blank where a commit should be.
+ARG BUILD_COMMIT=""
+ARG BUILD_BRANCH=""
+ARG BUILD_DATE=""
+
 COPY go.mod go.sum ./
 # The patched go-routeros go.mod points at; `go mod download` needs it present.
 COPY third_party ./third_party
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
-    go build -trimpath -ldflags="-s -w" -o /out/mikrodash ./cmd/mikrodash
+    go build -trimpath \
+      -ldflags="-s -w \
+        -X mikrodash/internal/server.BuildCommit=${BUILD_COMMIT} \
+        -X mikrodash/internal/server.BuildBranch=${BUILD_BRANCH} \
+        -X mikrodash/internal/server.BuildDate=${BUILD_DATE}" \
+      -o /out/mikrodash ./cmd/mikrodash
 
 # THE FRONTEND, from the same stage and built for the BUILDER, not the target:
 # JavaScript and JSON are the same bytes everywhere. `cmd/webbuild` composes index.html from the
@@ -123,6 +139,10 @@ WORKDIR /app
 COPY --from=build /out/mikrodash /usr/local/bin/mikrodash
 COPY --from=build /src/web/dist  /app/web/dist
 COPY web/public                  /app/web/public
+# THE RELEASE NOTES ARE READ FROM THIS FILE at runtime. `go:embed` cannot reach
+# outside its own package directory, so embedding would mean a second copy of
+# the changelog inside internal/server.
+COPY CHANGELOG.md                /app/CHANGELOG.md
 COPY --from=build /geo/dbip-city-lite.mmdb /app/geo/dbip-city-lite.mmdb
 COPY --from=build /geo/dbip-asn-lite.mmdb  /app/geo/dbip-asn-lite.mmdb
 COPY --from=build /geo/cities.json            /app/geo/cities.json

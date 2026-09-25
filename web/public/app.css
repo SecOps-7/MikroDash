@@ -2991,6 +2991,145 @@
 /* The cooldown sits above the Enabled divider, with air of its own. */
 .nchan-cooldown { margin: 1rem 0 0; }
 
+/* ── THE ABOUT PAGE ──────────────────────────────────────────────────────────
+   Identity left, facts right, history underneath. The top row is two cards of
+   equal weight; the history card is full width because a release note is a
+   sentence and a sentence wants room. */
+.about-top {
+  display: grid; grid-template-columns: 1fr 1.35fr;
+  gap: 1rem; align-items: stretch; grid-column: 1 / -1;
+}
+@media (max-width: 900px) { .about-top { grid-template-columns: 1fr; } }
+
+.about-id > .scard-body { text-align: center; padding: 1.75rem 1.25rem; }
+.about-logo { width: 54px; height: 54px; border-radius: 12px; opacity: .92; }
+.about-name {
+  font-size: 1.3rem; font-weight: 700; color: var(--text-main);
+  letter-spacing: .01em; margin-top: .6rem;
+}
+.about-slogan { font-family: var(--font-mono); font-size: .72rem; color: var(--accent-rx); margin-top: .2rem; }
+.about-version { margin: .9rem 0 .35rem; }
+.about-version span {
+  font-family: var(--font-mono); font-size: .78rem;
+  background: rgba(56,189,248,.1); color: var(--accent-rx);
+  border: 1px solid rgba(56,189,248,.25); border-radius: 6px; padding: .2rem .7rem;
+}
+.about-update { font-family: var(--font-mono); font-size: .72rem; }
+.about-update.is-current { color: var(--accent-ok); }
+.about-update.is-behind { color: var(--accent-warn); }
+.about-build {
+  font-family: var(--font-mono); font-size: .68rem;
+  color: var(--text-muted); margin-top: .7rem;
+}
+.about-sep { opacity: .4; padding: 0 .45rem; }
+.about-link {
+  display: inline-block; margin-top: .9rem;
+  font-family: var(--font-mono); font-size: .72rem;
+  color: var(--accent-rx); text-decoration: none;
+}
+.about-link:hover { text-decoration: underline; }
+
+.about-hdr-ico { width: 14px; height: 14px; fill: none; stroke: var(--accent-rx); stroke-width: 2; }
+.about-group { margin-bottom: .9rem; }
+.about-group-label {
+  font-size: .68rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: .35rem;
+}
+/* WRAPS RATHER THAN TRUNCATES: an image name is long and is the one fact here
+   somebody copies. */
+.about-facts { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; }
+.about-fact { font-family: var(--font-mono); font-size: .74rem; color: var(--text-main); }
+.about-pill {
+  font-family: var(--font-mono); font-size: .72rem;
+  background: rgba(56,189,248,.1); color: var(--accent-rx);
+  border: 1px solid rgba(56,189,248,.25); border-radius: 5px; padding: .1rem .45rem;
+}
+.about-pill-ok {
+  background: rgba(52,211,153,.1); color: var(--accent-tx); border-color: rgba(52,211,153,.3);
+}
+.about-inline-link { font-size: .74rem; color: var(--accent-rx); text-decoration: none; }
+.about-inline-link:hover { text-decoration: underline; }
+.about-coffee { color: var(--accent-warn); }
+.about-actions { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
+.about-note { font-size: .72rem; color: var(--text-muted); line-height: 1.6; margin: .8rem 0 0; }
+.about-disclaimer { opacity: .75; }
+
+/* The two tabs under the fold. Same idiom as the notification channel dialog's
+   tabs, scoped here so a page-width `.stab-panel` grid is not inherited. */
+.about-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; margin-bottom: 1rem; }
+.about-tab {
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  background: none; border: 1px solid transparent; border-radius: 7px;
+  color: var(--text-muted); cursor: pointer;
+  font-family: var(--font-ui); font-size: .8rem; padding: .6rem;
+}
+.about-tab.active {
+  background: var(--bg-deep); border-color: var(--border); color: var(--text-main);
+}
+.about-count {
+  font-family: var(--font-mono); font-size: .68rem;
+  background: rgba(99,130,190,.15); color: var(--text-muted);
+  border-radius: 20px; padding: .05rem .45rem;
+}
+.about-panel { display: none; }
+.about-panel.active { display: block; }
+.about-empty { font-size: .74rem; color: var(--text-muted); margin: 1rem 0; text-align: center; }
+
+/* ── RELEASE NOTES ─────────────────────────────────────────────────────────── */
+.about-releases { max-height: 26rem; overflow-y: auto; }
+.about-release { border: 1px solid var(--border); border-radius: 7px; margin-bottom: .45rem; }
+.about-release > summary {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .6rem .75rem; cursor: pointer; list-style: none;
+  font-family: var(--font-mono); font-size: .8rem; color: var(--text-main);
+}
+.about-release > summary::-webkit-details-marker { display: none; }
+.about-rel-v { font-weight: 600; }
+.about-latest {
+  font-family: var(--font-mono); font-size: .66rem;
+  background: rgba(56,189,248,.15); color: var(--accent-rx);
+  border-radius: 20px; padding: .05rem .5rem;
+}
+/* PUSHED RIGHT so every row's date lines up down the column, whatever the
+   version string's length. */
+.about-rel-when { margin-left: auto; font-size: .7rem; color: var(--text-muted); }
+.about-notes { list-style: none; margin: 0; padding: 0 .75rem .6rem; }
+.about-note-row { display: flex; align-items: flex-start; gap: .55rem; padding: .22rem 0; }
+.about-kind {
+  flex-shrink: 0; min-width: 3.6rem; text-align: center;
+  font-family: var(--font-mono); font-size: .64rem;
+  border-radius: 4px; padding: .1rem .3rem;
+  background: rgba(99,130,190,.15); color: var(--text-muted);
+}
+/* BY KIND, NOT BY COLOUR AT THE CALL SITE: the section heading in the changelog
+   decides, so a new heading gets the neutral pill rather than a wrong one. */
+.about-kind-new { background: rgba(52,211,153,.12); color: var(--accent-tx); }
+.about-kind-fixed { background: rgba(245,159,0,.12); color: var(--accent-warn); }
+.about-kind-internal { background: rgba(167,139,250,.12); color: var(--accent-alt); }
+.about-note-text { font-size: .74rem; color: var(--text-main); line-height: 1.55; }
+
+/* ── DEPENDENCIES ──────────────────────────────────────────────────────────── */
+.about-dep-search { margin-bottom: .75rem; }
+.about-dep-head, .about-dep {
+  display: grid; grid-template-columns: 1fr 8rem 9rem 1.5rem;
+  gap: .5rem; align-items: center;
+}
+.about-dep-head {
+  font-size: .68rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 0 .5rem .4rem; border-bottom: 1px solid var(--border);
+}
+.about-deps { max-height: 26rem; overflow-y: auto; }
+.about-dep { padding: .35rem .5rem; font-family: var(--font-mono); font-size: .72rem; }
+.about-dep:hover { background: rgba(99,130,190,.06); }
+.about-dep-name { color: var(--text-main); overflow-wrap: anywhere; }
+.about-dep-ver, .about-dep-lic { color: var(--text-muted); }
+.about-dep-link { color: var(--text-muted); text-decoration: none; }
+.about-dep-link:hover { color: var(--accent-rx); }
+@media (max-width: 700px) {
+  .about-dep-head, .about-dep { grid-template-columns: 1fr 5rem 5rem 1.2rem; }
+}
+
 /* Message Templates: the fields on the left, the variable list on the right, in
    equal halves. The fields are the work and take the side the eye starts on; the
    list is the reference and sits where it can be glanced at without leaving the

@@ -1305,66 +1305,98 @@
       </div>
 
       <div class="stab-panel" id="stab-about">
-        <div class="scard">
-          <div class="scard-body" style="text-align:center;padding:1.75rem 1.5rem">
-            <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
-              <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"/>
-              <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
+
+        <!-- ── IDENTITY, THEN FACTS, THEN HISTORY ────────────────────────────
+             Three cards where there were five. What this IS goes left, what it
+             is RUNNING ON goes right, and what CHANGED goes underneath in a
+             card of its own, because the release notes are long and everything
+             above them is a glance.
+
+             The four small cards this replaced (identity, Support, Links, and a
+             disclaimer) said their piece in four borders stacked down the page;
+             the links now sit with the facts they belong to. -->
+        <div class="about-top">
+          <div class="scard about-id">
+            <div class="scard-body">
+              <img src="/logo.png" class="about-logo" alt="">
+              <div class="about-name">MikroDash</div>
+              <div class="about-slogan">Open-source command center for RouterOS</div>
+              <div class="about-version"><span id="aboutVersion">v-</span></div>
+              <!-- Filled only when the update check answered. An empty badge is
+                   the honest rendering of a check that could not reach GitHub;
+                   a green tick that means "the request failed" is the one
+                   answer worse than none. -->
+              <div id="aboutUpdate" class="about-update" hidden></div>
+              <div id="aboutBuild" class="about-build"></div>
+              <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener"
+                 class="about-link">github.com/SecOps-7/MikroDash</a>
             </div>
-            <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Open-source command center for RouterOS</div>
-            <div style="margin:.35rem 0 .5rem">
-              <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v-</span>
+          </div>
+
+          <div class="scard about-sys">
+            <div class="scard-header">
+              <svg viewBox="0 0 24 24" class="about-hdr-ico"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+              <span class="scard-title">System information</span>
             </div>
-            <div style="font-size:.72rem;color:var(--text-muted)">Built with Go · TypeScript · WebSockets · Chart.js · Tabler</div>
-            <div style="margin-top:.7rem">
-              <a href="https://github.com/SecOps-7/MikroDash/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" title="Read the full licence"
-                 style="font-family:var(--font-mono);font-size:.72rem;background:rgba(52,211,153,.1);color:var(--accent-tx);border:1px solid rgba(52,211,153,.3);border-radius:5px;padding:.15rem .55rem;text-decoration:none">MIT License</a>
+            <div class="scard-body">
+              <div class="about-group">
+                <div class="about-group-label">Runtime</div>
+                <div id="aboutRuntime" class="about-facts"></div>
+              </div>
+              <div class="about-group">
+                <div class="about-group-label">Database</div>
+                <div id="aboutDatabase" class="about-facts"></div>
+              </div>
+              <div class="about-group">
+                <div class="about-group-label">Licence</div>
+                <div class="about-facts">
+                  <span class="about-pill about-pill-ok">MIT</span>
+                  <a href="https://github.com/SecOps-7/MikroDash/blob/main/LICENSE"
+                     target="_blank" rel="noopener" class="about-inline-link">Full licence</a>
+                  <a href="https://github.com/SecOps-7/MikroDash/blob/main/THIRD_PARTY_NOTICES.md"
+                     target="_blank" rel="noopener" class="about-inline-link">Third-party notices</a>
+                </div>
+              </div>
+              <div class="about-group about-actions">
+                <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank"
+                   rel="noopener" class="about-inline-link">Report a bug or idea</a>
+                <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener"
+                   class="about-inline-link about-coffee">Buy me a coffee</a>
+                <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener"
+                   class="about-inline-link">PayPal</a>
+              </div>
+              <p class="about-note">MikroDash is free and open source, and always will be. If it
+                saves you time, fuelling the developer with caffeine is welcome and never
+                expected.</p>
+              <p class="about-note about-disclaimer">An independent, community-built project, not
+                affiliated with or endorsed by MikroTik SIA. MikroTik and RouterOS are trademarks of
+                MikroTik SIA.</p>
             </div>
           </div>
         </div>
-        <div class="scard">
-          <div class="scard-header">
-            <span class="scard-title">Support &amp; Donations</span>
-          </div>
+
+        <div class="scard scard--wide">
           <div class="scard-body">
-            <div style="font-size:.78rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
-              MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.
+            <div class="about-tabs" role="tablist">
+              <button type="button" class="about-tab active" role="tab" data-abouttab="notes">
+                Release notes <span id="aboutNotesCount" class="about-count">0</span>
+              </button>
+              <button type="button" class="about-tab" role="tab" data-abouttab="deps">
+                Dependencies <span id="aboutDepsCount" class="about-count">0</span>
+              </button>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:.6rem">
-              <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">
-                <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
-                GitHub
-              </a>
-              <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener" class="info-btn info-btn-coffee">
-                ☕ Buy me a coffee
-              </a>
-              <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener" class="info-btn info-btn-outline">
-                💳 PayPal
-              </a>
+            <div class="about-panel active" data-aboutpanel="notes">
+              <div id="aboutReleases" class="about-releases"></div>
             </div>
-          </div>
-        </div>
-        <div class="scard">
-          <div class="scard-header">
-            <span class="scard-title">Links</span>
-          </div>
-          <div class="scard-body" style="display:flex;flex-wrap:wrap;gap:.5rem">
-            <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">Documentation</a>
-            <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener" class="info-btn info-btn-outline">Report a Bug</a>
-            <a href="https://mikrotik.com/software" target="_blank" rel="noopener" class="info-btn info-btn-outline">MikroTik RouterOS</a>
-          </div>
-        </div>
-        <div class="scard" style="border-color:rgba(251,191,36,.15)">
-          <div class="scard-body" style="display:flex;gap:.75rem;align-items:flex-start">
-            <span style="font-size:1rem;flex-shrink:0">⚠️</span>
-            <div style="font-size:.74rem;color:var(--text-muted);line-height:1.65">
-              <strong style="color:rgba(200,215,240,.75)">Disclaimer</strong><br>
-              MikroDash is an independent, community-built project and is <strong style="color:rgba(200,215,240,.75)">not affiliated with, endorsed by, or associated with MikroTik SIA</strong> in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
+            <div class="about-panel" data-aboutpanel="deps">
+              <input type="search" id="aboutDepSearch" class="sform-input about-dep-search"
+                     placeholder="Search packages or licences" aria-label="Search dependencies">
+              <div class="about-dep-head">
+                <span>Package</span><span>Version</span><span>Licence</span><span></span>
+              </div>
+              <div id="aboutDeps" class="about-deps"></div>
             </div>
           </div>
-        </div>
-        <div style="text-align:center;font-family:var(--font-mono);font-size:.65rem;color:rgba(148,163,190,.35);padding:.5rem 0 1.5rem">
-          MikroDash · MIT License · Made with ♥ for the MikroTik community
         </div>
       </div>
 

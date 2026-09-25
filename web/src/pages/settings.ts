@@ -27,6 +27,7 @@
  */
 
 import { el, esc } from '../dom';
+import { loadAbout } from './about';
 // `siteIdsOf` is the ARRAY-WINS-OUTRIGHT rule, ported once in `routers.ts` and
 // reused rather than restated: a second copy here would drift, and the half that
 // drifts silently is the empty array - an explicit `siteIds: []` means "no
@@ -285,16 +286,13 @@ export function activateSettingsTab(tabName: string): void {
   // ONCE PER PAGE LIFETIME. The latch is what stops a tab the operator clicks
   // between panes from re-fetching on every visit; the version cannot change
   // while the page is open.
-  if (tabName === 'about' && !aboutFetched) {
-    aboutFetched = true;
-    fetch('/healthz')
-      .then((r) => r.json())
-      .then((d: { version?: string }) => {
-        const v = el('stabAboutVersion');
-        if (v && d.version) v.textContent = 'v' + d.version;
-      })
-      .catch(() => { /* the version line simply stays as it is */ });
-  }
+  // ── THE ABOUT TAB OWNS ITS OWN LOAD ──────────────────────────────────────
+  //
+  // It used to fetch `/healthz` here for one string, the version. The tab now
+  // shows the build, the runtime, the dependencies and the release notes, which
+  // is a module's worth of rendering rather than a line, and `loadAbout` has its
+  // own once-per-lifetime latch.
+  if (tabName === 'about') loadAbout();
 }
 
 /**
