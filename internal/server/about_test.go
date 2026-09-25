@@ -21,7 +21,9 @@ func TestTheChangelogParsesIntoReleases(t *testing.T) {
 		"",
 		"### New",
 		"",
-		"- **Traffic history (#59).** Click an interface and see its traffic.",
+		"- **Traffic history (#59).** Click an interface and see its traffic, in the",
+		"  dialog that already opens. **Live** (last 60 seconds) and **30 min** come",
+		"  from the page's own stream.",
 		"  - A **Record** switch on each interface.",
 		"  - Totals and peak for the range.",
 		"- A [linked thing](https://example.invalid/x) in a bullet.",
@@ -80,6 +82,25 @@ func TestTheChangelogParsesIntoReleases(t *testing.T) {
 	first := rels[0].Entries[0].Text
 	if strings.Contains(first, "*") || !strings.HasPrefix(first, "Traffic history") {
 		t.Errorf("bold was not stripped: %q", first)
+	}
+
+	// ── A WRAPPED BULLET IS ONE BULLET ───────────────────────────────────
+	//
+	// THE BUG THIS EXISTS FOR, WHICH SHIPPED TO A BROWSER. The changelog wraps
+	// at column 96, and a continuation line is indented exactly like a nested
+	// bullet. Dropping it left every entry on the About page ending mid
+	// sentence, and nothing upstream complained: the payload was valid JSON
+	// and each string was plausible prose. Only the rendered page showed it.
+	want := "Traffic history (#59). Click an interface and see its traffic, in the " +
+		"dialog that already opens. Live (last 60 seconds) and 30 min come " +
+		"from the page's own stream."
+	if first != want {
+		t.Errorf("a wrapped bullet did not come back whole:\n got %q\nwant %q", first, want)
+	}
+	// The continuation must be JOINED, not concatenated: the line break stood
+	// for a space, and losing it welds two words together.
+	if strings.Contains(first, "thedialog") {
+		t.Error("lines were joined with no space")
 	}
 	if got := rels[0].Entries[1].Text; strings.Contains(got, "http") ||
 		!strings.Contains(got, "A linked thing in a bullet") {

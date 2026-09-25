@@ -1873,8 +1873,14 @@
     .rpt-select:focus,.rpt-date-input:focus{border-color:var(--accent-rx)}
     #rptPreset optgroup{font-family:var(--font-ui);font-size:.78rem;font-weight:600}
     html[data-theme="light"] .rpt-select,html[data-theme="light"] .rpt-date-input{background:rgba(255,255,255,.95)}
-    .rpt-stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.65rem;margin-bottom:.9rem}
-    .rpt-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem}
+    /* Flex, not a grid of fixed tracks: a stat value is free text (the Alerts
+       tab's "Top Type" is a stored alert_type such as bgp_hold_timer_warning,
+       one unbreakable word), and a 160px grid track cannot grow for it - the
+       value simply overflowed the card onto its neighbour. A flex item's
+       automatic minimum size is its min-content width, so the card floors at
+       the text, starts from a 160px basis and shares the spare width. */
+    .rpt-stat-row{display:flex;flex-wrap:wrap;gap:.65rem;margin-bottom:.9rem}
+    .rpt-stat-card{flex:1 1 160px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem}
     .rpt-stat-val{font-family:var(--font-mono);font-size:1.35rem;font-weight:700;color:var(--text-main);line-height:1}
     .rpt-stat-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:.25rem}
     .rpt-chart-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem 1rem;position:relative;height:190px;margin-bottom:.85rem}
@@ -1890,7 +1896,7 @@
     .rpt-pager-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:.28rem .65rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);cursor:pointer;transition:color .15s,border-color .15s}
     .rpt-pager-btn:hover:not(:disabled){color:var(--text-main);border-color:var(--accent-rx)}
     .rpt-pager-btn:disabled{opacity:.35;cursor:default}
-    @media(max-width:600px){.rpt-bar{gap:.4rem}.rpt-stat-row{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:600px){.rpt-bar{gap:.4rem}}
     .poll-profile-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:.22rem .65rem;font-size:.72rem;font-family:var(--font-ui);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
     .poll-profile-btn.active{background:var(--accent-rx);border-color:var(--accent-rx);color:#fff}
     /* View presets. A separate class from .poll-profile-btn on purpose: that one

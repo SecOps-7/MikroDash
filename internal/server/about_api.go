@@ -225,12 +225,20 @@ var (
 
 // loadReleases parses CHANGELOG.md once.
 //
-// ── ONLY THE TOP-LEVEL BULLETS ─────────────────────────────────────────────
+// ── ONLY THE TOP-LEVEL BULLETS, AND ALL OF EACH ONE ────────────────────────
 //
 // The changelog nests detail under many of its entries, two and three levels
-// deep. The page shows a scannable list of what changed, so an indented line is
+// deep. The page shows a scannable list of what changed, so a NESTED BULLET is
 // skipped rather than flattened into a sibling of the thing it qualifies, which
 // would read as a separate change that did not happen.
+//
+// It also WRAPS its bullets across source lines at column 96, and a wrapped
+// continuation is indented exactly like a nested bullet. Telling them apart is
+// what `-` after the indent is for: with the two conflated, every entry on the
+// page ended mid-sentence ("Click an interface and see its traffic, in the"),
+// which reads as a truncation bug in the browser rather than a parser dropping
+// four fifths of the text. Found by looking at the rendered page; the payload
+// was valid JSON and the endpoint dump was ten lines of plausible prose.
 func loadReleases() []Release {
 	releasesOnce.Do(func() { releasesVal = parseChangelog(readChangelog()) })
 	return releasesVal
@@ -255,9 +263,23 @@ func readChangelog() string {
 func parseChangelog(src string) []Release {
 	out := []Release{}
 	var cur *Release
-	section := ""
+	section, open := "", ""
+
+	// flush finishes the bullet being accumulated. Markdown is stripped HERE and
+	// not per line, because the file wraps mid-emphasis: `**Live** (last 60
+	// seconds)` begins on one line and `**1 hour** to **30 days**` spans two, and
+	// a pattern applied to half a pair matches nothing and leaves the asterisks.
+	flush := func() {
+		if open == "" || cur == nil {
+			return
+		}
+		cur.Entries = append(cur.Entries, ReleaseNote{Kind: section, Text: plainText(open)})
+		open = ""
+	}
+
 	for _, line := range strings.Split(src, "\n") {
 		if m := reReleaseHead.FindStringSubmatch(line); m != nil {
+			flush()
 			if cur != nil {
 				out = append(out, *cur)
 			}
@@ -275,17 +297,34 @@ func parseChangelog(src string) []Release {
 			continue
 		}
 		if m := reSection.FindStringSubmatch(line); m != nil {
+			flush()
 			section = strings.TrimSpace(m[1])
 			continue
 		}
-		// TOP-LEVEL ONLY: an indented bullet is detail about the line above it.
-		if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+		if indented := strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t"); indented {
+			trimmed := strings.TrimSpace(line)
+			// A NESTED BULLET ends the entry above it and is itself dropped: it
+			// is detail about that entry, not a change of its own.
+			if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+				flush()
+				continue
+			}
+			// A CONTINUATION is the rest of the sentence, joined with the single
+			// space the line break stood for.
+			if open != "" && trimmed != "" {
+				open += " " + trimmed
+			}
 			continue
 		}
+		// A blank line, or any unindented prose, closes the entry.
 		if m := reBullet.FindStringSubmatch(line); m != nil {
-			cur.Entries = append(cur.Entries, ReleaseNote{Kind: section, Text: plainText(m[1])})
+			flush()
+			open = m[1]
+			continue
 		}
+		flush()
 	}
+	flush()
 	if cur != nil {
 		out = append(out, *cur)
 	}
