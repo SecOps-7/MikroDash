@@ -155,7 +155,14 @@
 
               <!-- links and particles are injected before this group by the controller -->
               <g id="nf-nodes">
-                <!-- ── PUSHED TO THE EDGES, AND THE DRAWING MADE TALLER ──────
+                <!-- ── TALLER, NOT WIDER ──────────────────────────────────────
+                     A uniform scale grew both dimensions, and the width was not
+                     the problem. Each box rect grows 10 units up and 10 down
+                     instead: its CENTRE does not move, so the icon, the label
+                     and the value all stay where they are, and the curve that
+                     leaves its right edge does not have to move either.
+
+                     ── PUSHED TO THE EDGES, AND THE DRAWING MADE TALLER ──────
                      The boxes sat at 28..140 and 160..272 in a 20..280 view, so
                      each had 8 units spare. That was not the real waste: the
                      drawing was 760x260 (aspect 2.9) inside a card nearer 2, so
@@ -170,9 +177,8 @@
                      around them, which reads as clipped rather than full. The
                      view ends 10 units past each box, not on it. -->
                 <g transform="translate(-14 -16)">
-                  <g transform="translate(105 84) scale(1.12) translate(-105 -84)">
-                  <rect id="nf-glow-wired" x="20" y="28" width="170" height="112" rx="16" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
-                  <rect class="nf-node" x="20" y="28" width="170" height="112" rx="16"/>
+                  <rect id="nf-glow-wired" x="20" y="18" width="170" height="132" rx="16" fill="none" stroke="#38bdf8" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
+                  <rect class="nf-node" x="20" y="18" width="170" height="132" rx="16"/>
                   <rect x="36" y="62" width="44" height="44" rx="12" fill="#38bdf8" fill-opacity=".12"/>
                   <g fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M48 76h20v14H48z M53 76v-3h10v3"/>
@@ -180,13 +186,11 @@
                   </g>
                   <text class="nf-lbl" x="142" y="72" text-anchor="middle">Wired</text>
                   <text class="nf-num" x="142" y="103" text-anchor="middle"><tspan id="nf-cnt-wired">0</tspan></text>
-                  </g>
 
                 </g>
                 <g transform="translate(-14 16)">
-                  <g transform="translate(105 216) scale(1.12) translate(-105 -216)">
-                  <rect id="nf-glow-wireless" x="20" y="160" width="170" height="112" rx="16" fill="none" stroke="#a78bfa" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
-                  <rect class="nf-node" x="20" y="160" width="170" height="112" rx="16"/>
+                  <rect id="nf-glow-wireless" x="20" y="150" width="170" height="132" rx="16" fill="none" stroke="#a78bfa" stroke-width="2" filter="url(#nf-soft)" opacity="0"/>
+                  <rect class="nf-node" x="20" y="150" width="170" height="132" rx="16"/>
                   <rect x="36" y="194" width="44" height="44" rx="12" fill="#a78bfa" fill-opacity=".12"/>
                   <g fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round">
                     <path d="M46.7 211.7A16 16 0 0 1 69.3 211.7"/>
@@ -195,7 +199,6 @@
                   <circle cx="58" cy="222" r="2.2" fill="#a78bfa"/>
                   <text class="nf-lbl" x="142" y="204" text-anchor="middle">Wireless</text>
                   <text class="nf-num" x="142" y="235" text-anchor="middle"><tspan id="nf-cnt-wireless">0</tspan></text>
-                  </g>
                 </g>
 
                 <g transform="translate(380 150) scale(1.18) translate(-380 -150)">

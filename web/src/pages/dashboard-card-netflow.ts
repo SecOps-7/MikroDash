@@ -61,11 +61,12 @@ const LINKS: Record<LinkKey, { color: string; a: [number, number]; b: [number, n
   // The LAN endpoints follow their boxes: the markup translates them by -24 and
   // +24 into the taller view, and a curve left behind would start in mid-air
   // beside the node it belongs to.
-  // The LAN curves start at the boxes' right edge. That edge moved twice: the
-  // markup translates each box by 16 into the taller view, and scales it by
-  // 1.12 about its own centre, which pushes 190 out to 200.
-  wired: { color: '#38bdf8', a: [200, 68], b: [312, 140], ends: ['wired', 'router'] },
-  wireless: { color: '#a78bfa', a: [200, 232], b: [312, 160], ends: ['wireless', 'router'] },
+  // The LAN curves start at the boxes' right edge, which is 176 once the markup's
+  // `translate(-14)` is applied. Only the vertical moved: each box is translated
+  // 16 into the taller view, and growing the rects changed their height about a
+  // fixed centre, so this is the centre plus that translate.
+  wired: { color: '#38bdf8', a: [176, 68], b: [312, 140], ends: ['wired', 'router'] },
+  wireless: { color: '#a78bfa', a: [176, 232], b: [312, 160], ends: ['wireless', 'router'] },
   wan: { color: '#34d399', a: [448, 150], b: [584, 150], ends: ['router', 'wan'] },
 };
 
