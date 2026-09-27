@@ -138,10 +138,27 @@ var All = []Page{
 	{Key: "dhcp-clients", Title: "DHCP Clients", Collector: "areas"},
 	{Key: "dhcp-servers", Title: "DHCP Servers", Collector: "areas"},
 	{Key: "containers", Title: "Containers", Collector: "areas"},
-	// The Tools page: diagnostics run on the selected router when somebody asks.
-	// NO COLLECTOR: nothing runs until a tool is started, so there is nothing to
-	// switch off, and hiding the page is a permission rather than a load question.
-	{Key: "tools", Title: "Tools"},
+	// ── THE TOOLS: ONE PAGE EACH, UNDER ONE NAV CATEGORY ────────────────────
+	//
+	// These were four tabs on a single `tools` page until 2026-09-27. Tools is a
+	// nav CATEGORY now, like Network or System, and each diagnostic is its own
+	// page - which is what makes each one addressable (`/tools-torch`),
+	// deep-linkable, and separately grantable.
+	//
+	// SEPARATELY GRANTABLE IS THE REAL CHANGE. The page key is the permission
+	// key, so "may run a bandwidth test" and "may ping" used to be the one
+	// grant, split only by read-versus-write on it. They are four grants now.
+	// `pages.Renamed` cannot express a one-to-four split, so migration 27 in
+	// internal/db/schema.go copies every stored `tools` grant onto all four at
+	// the access it had - see the note on Renamed below.
+	//
+	// NO COLLECTOR, all four: nothing runs until a tool is started, so there is
+	// nothing to switch off, and hiding one is a permission rather than a load
+	// question.
+	{Key: "tools-ping", Title: "Ping"},
+	{Key: "tools-traceroute", Title: "Traceroute"},
+	{Key: "tools-torch", Title: "Torch"},
+	{Key: "tools-btest", Title: "Bandwidth Test"},
 	// The Terminal page. NO COLLECTOR, for the same reason Tools has none: nothing
 	// runs until an operator types a line.
 	//
@@ -215,6 +232,27 @@ var Renamed = map[string]string{
 	// last hop ever reached a release, but a dev build could hold either.
 	"rosusers":     "users",
 	"router-users": "users",
+	// ── `tools` WAS A SPLIT, AND THIS ENTRY IS ONLY ITS SWEEP ──────────────
+	//
+	// The Tools page became four pages on 2026-09-27 (ping, traceroute, torch,
+	// bandwidth test). This table maps one old key to ONE new one, so it cannot
+	// carry a split: an install's `tools` grant has to reach all four or the
+	// role silently loses three diagnostics. Migration 19 set the precedent for
+	// that -- a split is a COPY, and copying is a migration's job -- so
+	// migration 27 does the fan-out, at the access the grant already had.
+	//
+	// What is left for this table is the stale row. `RenamePageGrants` runs
+	// AFTER the migrations, finds the `tools` row, tries to move it onto
+	// `tools-ping` (which the migration has already written, at the same
+	// access), collides on `PRIMARY KEY (role_id, page)`, ignores -- and then
+	// deletes the row naming a page that no longer exists. Without the entry the
+	// dead row sits in every upgraded database for ever, conferring nothing and
+	// explaining nothing.
+	//
+	// It reads as "tools became tools-ping", which is a quarter of the truth;
+	// the whole of it is above and in migration 27, and the two are written in
+	// the same commit for that reason.
+	"tools": "tools-ping",
 }
 
 // URL is the path this page is served at, without the leading slash.

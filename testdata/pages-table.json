@@ -165,6 +165,14 @@
     {
       "key": "system",
       "title": "System"
+    },
+    {
+      "key": "tools",
+      "title": "Tools"
+    },
+    {
+      "key": "admin",
+      "title": "Admin"
     }
   ],
   "pageKeys": [
@@ -217,7 +225,10 @@
     "packages",
     "devices",
     "config-management",
-    "tools",
+    "tools-ping",
+    "tools-traceroute",
+    "tools-torch",
+    "tools-btest",
     "terminal",
     "ai-agent",
     "reports",

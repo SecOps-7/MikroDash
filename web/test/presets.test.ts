@@ -36,7 +36,7 @@ const mod = require(OUT);
 // ── THE TIERS ───────────────────────────────────────────────────────────────
 const t = mod.presetTiers();
 const has = (list, k) => list.includes(k);
-const STANDARD_NEW = ['tools', 'ip-addresses', 'address-lists', 'interface-lists', 'ip-pools', 'dhcp-servers'];
+const STANDARD_NEW = ['tools-ping', 'tools-traceroute', 'tools-torch', 'tools-btest', 'ip-addresses', 'address-lists', 'interface-lists', 'ip-pools', 'dhcp-servers'];
 
 assert.deepStrictEqual([...t.home].sort(), [...mod.VIEW_PRESETS.home].sort(), 'Home changed; the operator kept it as it was');
 for (const k of STANDARD_NEW) assert.ok(has(t.standard, k), 'Standard lacks ' + k);
@@ -47,7 +47,7 @@ for (const k of ['ospf', 'containers', 'ipsec', 'ai-agent', 'routing-rules']) {
   assert.ok(has(t.advanced, k), k + ' is not in Advanced');
 }
 // Advanced is every page a preset can name: all hand-built toggles, every
-// generated page, Tools and the AI Agent.
+// generated page, the four tool pages and the AI Agent.
 for (const a of mod.AREAS) assert.ok(has(t.advanced, a.key), 'Advanced lacks the generated page ' + a.key);
 for (const sKey of Object.keys(mod.PAGE_NAV_MAP)) assert.ok(has(t.advanced, mod.PAGE_NAV_MAP[sKey]), 'Advanced lost ' + sKey);
 for (const k of t.home) assert.ok(has(t.standard, k), 'Home has ' + k + ' and Standard does not');

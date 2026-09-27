@@ -246,9 +246,14 @@ rather than plain text.
   (the scrollback is a conversation, not a set of rows), no tab strip (one view), no sortable
   headers and no pills (no table). The furniture exists to make a table of device rows legible and
   this page has no rows. **It is recorded here because nothing else records it:**
-  `TestEveryAreaShellHasItsTitleFirstThenItsTabs` takes the areas plus `page-tools.html` and
-  `page-security-scan.html` by name, so a bare hand-built page fails nothing, and an unrecorded
-  exception would leave the next author reading a rule that a shipped page visibly disobeys.
+  `TestEveryAreaShellHasItsTitleFirstThenItsTabs` takes the areas plus `page-security-scan.html` by
+  name, so a bare hand-built page fails nothing, and an unrecorded exception would leave the next
+  author reading a rule that a shipped page visibly disobeys.
+- **The four tool pages have no tab strip, and that is the point of the split.** Ping, Traceroute,
+  Torch and Bandwidth Test were four tabs on one Tools page until 2026-09-27; they are four pages
+  under a Tools nav CATEGORY now, so restoring a tab strip on each would be the nav twice. Three of
+  them keep the count pill - replies, hops, flows - and Bandwidth Test has none, for the Terminal's
+  reason: a pill counts the rows a page lists, and it lists one run's four measurements.
 - **Rx and Tx have fixed colours, and so do protocols.** An Rx value is `var(--accent-rx)` (blue) and
   a Tx value `var(--accent-tx)` (green), everywhere. A protocol column is `protoPill` in
   `web/src/dom.ts` (tcp blue, udp green, icmp amber, anything else grey), not a second scheme.

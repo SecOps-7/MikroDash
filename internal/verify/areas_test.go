@@ -216,9 +216,18 @@ func TestEveryAreaHasItsOwnIcon(t *testing.T) {
 }
 
 // TestEveryAreaShellHasItsTitleFirstThenItsTabs: every generated page's header,
-// and the Tools page's, reads left to right as the title at the far left, the
-// count pill beside it, then the tab strip, with only the actions (the Add slot)
-// in the right-hand `.hdr-actions` corner. The shells are
+// and the Security Scan page's, reads left to right as the title at the far
+// left, the count pill beside it, then the tab strip, with only the actions
+// (the Add slot) in the right-hand `.hdr-actions` corner.
+//
+// ── page-tools.html LEFT THIS LIST ON 2026-09-27, AND WHY ────────────────────
+//
+// The Tools page held four tabs and was checked here for them. Its tabs became
+// four PAGES under a Tools nav category, so there is no tab strip left to hold
+// in the right place: each of the four shows one tool. It is not an unchecked
+// page -- it is not a page at all any more -- and the rule it was held to has
+// no subject. What replaces the check is the recorded exception in CLAUDE.md's
+// "A new page's furniture", beside the Terminal's. The shells are
 // cmd/areagen's, so this holds the TEMPLATE: a new area inherits the layout, and
 // a template that moves the tabs back to the right fails here for every area.
 //
@@ -231,7 +240,6 @@ func TestEveryAreaShellHasItsTitleFirstThenItsTabs(t *testing.T) {
 	for _, a := range areas.All() {
 		shells = append(shells, shell{"page-" + a.Key + ".html", `id="areaTabs-` + a.Key + `"`, `id="areaBadge-` + a.Key + `"`})
 	}
-	shells = append(shells, shell{"page-tools.html", `id="toolsTabs"`, ""})
 	shells = append(shells, shell{"page-security-scan.html", `id="secScanTabs"`, `id="secScanBadge"`})
 	for _, s := range shells {
 		b, err := os.ReadFile(filepath.Join(root, "web", "src", "ui", s.file))

@@ -197,10 +197,34 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="M3 12l9 4.5 3-1.5"/><path d="M3 16.5 12 21l3-1.5"/><path d="M19 13v8"/><path d="m16 18 3 3 3-3"/></svg></span>
       <span class="nav-label">Config Management</span>
     </a>
-    <a class="nav-item" data-page="tools" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
-      <span class="nav-label">Tools</span>
-    </a>
+    <div class="nav-group" data-cat="tools">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-tools">
+        <!-- The wrench stays on the SECTION, which is what it always meant: the
+             four diagnostics were tabs on one Tools page until 2026-09-27 and
+             are a page each now. -->
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
+        <span class="nav-label">Tools</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-tools" role="group" aria-label="Tools">
+        <a class="nav-item" data-page="tools-ping" data-cat="tools" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M8.6 15.4a4.8 4.8 0 0 1 0-6.8"/><path d="M15.4 8.6a4.8 4.8 0 0 1 0 6.8"/><path d="M5.6 18.4a8.9 8.9 0 0 1 0-12.8"/><path d="M18.4 5.6a8.9 8.9 0 0 1 0 12.8"/></svg></span>
+          <span class="nav-label">Ping</span>
+        </a>
+        <a class="nav-item" data-page="tools-traceroute" data-cat="tools" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="3 20 9 20 9 12 15 12 15 4 21 4"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="12" r="1.5"/></svg></span>
+          <span class="nav-label">Traceroute</span>
+        </a>
+        <a class="nav-item" data-page="tools-torch" data-cat="tools" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="9" y="8" width="6" height="13" rx="1"/><path d="M8 8l2-5h4l2 5"/><line x1="10.5" y1="12" x2="13.5" y2="12"/></svg></span>
+          <span class="nav-label">Torch</span>
+        </a>
+        <a class="nav-item" data-page="tools-btest" data-cat="tools" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M7 20V9"/><path d="M4 12l3-3 3 3"/><path d="M17 4v11"/><path d="M14 12l3 3 3-3"/><line x1="3" y1="22" x2="21" y2="22"/></svg></span>
+          <span class="nav-label">Bandwidth Test</span>
+        </a>
+      </div>
+    </div>
     <a class="nav-item" data-page="terminal" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="5 7 10 12 5 17"/><line x1="12" y1="17" x2="19" y2="17"/></svg></span>
       <span class="nav-label">Terminal</span>
@@ -209,18 +233,27 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M10 3c.6 3.9 3.1 6.4 7 7-3.9.6-6.4 3.1-7 7-.6-3.9-3.1-6.4-7-7 3.9-.6 6.4-3.1 7-7z"/><path d="M18.5 2.5c.25 1.4 1.1 2.25 2.5 2.5-1.4.25-2.25 1.1-2.5 2.5-.25-1.4-1.1-2.25-2.5-2.5 1.4-.25 2.25-1.1 2.5-2.5z"/><path d="M18.5 16.5c.2 1 .8 1.6 1.8 1.8-1 .2-1.6.8-1.8 1.8-.2-1-.8-1.6-1.8-1.8 1-.2 1.6-.8 1.8-1.8z"/></svg></span>
       <span class="nav-label">AI Agent</span>
     </a>
-    <a class="nav-item" data-page="reports" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
-      <span class="nav-label">Reports</span>
-    </a>
-    <a class="nav-item" data-page="audit-trail" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 12h5"/><path d="M8 16h8"/></svg></span>
-      <span class="nav-label">Audit</span>
-    </a>
-    <a class="nav-item" data-page="backups" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
-      <span class="nav-label">Backups</span>
-    </a>
+    <div class="nav-group" data-cat="admin">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-admin">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg></span>
+        <span class="nav-label">Admin</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-admin" role="group" aria-label="Admin">
+        <a class="nav-item" data-page="reports" data-cat="admin" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+          <span class="nav-label">Reports</span>
+        </a>
+        <a class="nav-item" data-page="audit-trail" data-cat="admin" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 12h5"/><path d="M8 16h8"/></svg></span>
+          <span class="nav-label">Audit</span>
+        </a>
+        <a class="nav-item" data-page="backups" data-cat="admin" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
+          <span class="nav-label">Backups</span>
+        </a>
+      </div>
+    </div>
     <a class="nav-item" data-page="settings" href="#" id="settingsNavItem">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
       <span class="nav-label">Settings</span>

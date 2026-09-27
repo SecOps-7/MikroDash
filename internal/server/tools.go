@@ -19,15 +19,25 @@ import (
 	"mikrodash/internal/session"
 )
 
-// The Tools page's diagnostics (slice 8 of the MikroMCP parity work).
+// The Tools pages' diagnostics (slice 8 of the MikroMCP parity work).
+//
+// ── FOUR PAGES UNDER ONE NAV CATEGORY, AND FOUR PERMISSIONS ─────────────────
+//
+// Ping, Traceroute, Torch and Bandwidth Test were four tabs on one `tools` page
+// until 2026-09-27 and are four pages now (internal/pages). A page key is a
+// permission key, so each tool is gated on ITS OWN page rather than on one
+// shared key -- which is what makes "may trace a route but may not saturate the
+// link" expressible at all.
 //
 // ── WHO MAY RUN WHICH, DECIDED BY THE OPERATOR ──────────────────────────────
 //
-// Read access to Tools runs ping and traceroute: they send a few probes and
-// change nothing. Torch and a bandwidth test load the router or a link, so they
-// need write access. The assistant's tools follow the page exactly: the same
-// permission, the same bounds, the same code — `runPing` below is the one
-// implementation both call.
+// Read access runs ping and traceroute: they send a few probes and change
+// nothing. Torch and a bandwidth test load the router or a link, so they need
+// WRITE access on their page. That split is unchanged by the page split: it
+// used to be read-versus-write on `tools` and is now read-versus-write on
+// `tools-torch` and `tools-btest`. The assistant's tools follow the pages
+// exactly: the same permission, the same bounds, the same code — `runPing`
+// below is the one implementation both call.
 //
 // ── ONE RUN AT A TIME PER CONNECTION ────────────────────────────────────────
 //
@@ -105,8 +115,8 @@ type toolsTracerouteReq struct {
 // OFF THE READ LOOP because a run lasts up to thirty-five seconds, and this
 // socket's page focus, blur and every other message would wait behind it.
 // `page` is the page key whose permission is checked. It is a PARAMETER rather
-// than the constant "tools" because the Terminal page wants this exact
-// lifecycle - one run at a time, the session pinned, a quit channel closed by
+// than one constant because the four tool pages and the Terminal page each want
+// this exact lifecycle - one run at a time, the session pinned, a quit channel closed by
 // releaseRouter, the work off the read loop - and a second copy of it would be
 // a second thing to keep right. One busy flag across both pages is also correct
 // rather than incidental: a terminal command and a traceroute are two channels
@@ -146,11 +156,11 @@ func (cn *conn) stopTool() {
 	}
 }
 
-// toolsPing answers `tools:ping` from the Tools page.
+// toolsPing answers `tools:ping` from the Ping page.
 func (cn *conn) toolsPing(raw json.RawMessage) {
 	var req toolsPingReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("tools", "read",
+	cn.startTool("tools-ping", "read",
 		func(code string) { EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: code, Done: true}) },
 		func(rs *session.Session, quit <-chan struct{}) {
 			res, code, msg := runPing(rs, req.Address, req.Count, req.Continuous, quit, func(p *diag.PingResult) {
@@ -160,11 +170,11 @@ func (cn *conn) toolsPing(raw json.RawMessage) {
 		})
 }
 
-// toolsTraceroute answers `tools:traceroute` from the Tools page.
+// toolsTraceroute answers `tools:traceroute` from the Traceroute page.
 func (cn *conn) toolsTraceroute(raw json.RawMessage) {
 	var req toolsTracerouteReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("tools", "read",
+	cn.startTool("tools-traceroute", "read",
 		func(code string) {
 			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Code: code, Done: true})
 		},
@@ -490,11 +500,22 @@ func (cn *conn) runDiagTool(sc connScope, t aitools.Tool, tc aiprovider.ToolCall
 // ToolsCapsPayload is `tools:caps`: what this viewer may run on the selected
 // router, and the interfaces torch can watch.
 //
-// MayWrite is a SEPARATE field from the list, as the wifi scan's `permitted`
-// is, and the write tools' Run buttons are drawn from it: a reader of the page
-// still sees the interfaces, and no button that would only be refused.
+// ── ONE FLAG PER WRITE TOOL, NOT ONE FOR BOTH ───────────────────────────────
+//
+// This carried a single `mayWrite` while the four tools shared the `tools`
+// page. They have a page each now, so a role can hold write on one and not the
+// other, and a single flag would have to pick: either it means "both", and the
+// torch button is refused to somebody who may torch, or it means "either", and
+// a button is offered that the server will only deny. Two flags say what is
+// true. Ping and traceroute need no flag -- a viewer who may not read their
+// page never sees it.
+//
+// They are SEPARATE fields from the list, as the wifi scan's `permitted` is: a
+// reader of the Torch page still sees the interfaces, and no button that would
+// only be refused.
 type ToolsCapsPayload struct {
-	MayWrite   bool     `json:"mayWrite"`
+	MayTorch   bool     `json:"mayTorch"`
+	MayBtest   bool     `json:"mayBtest"`
 	Interfaces []string `json:"interfaces"`
 }
 
@@ -514,15 +535,23 @@ type toolsTorchReq struct {
 }
 
 // toolsCaps answers `tools:caps`.
+//
+// ONE ANSWER FOR ALL FOUR PAGES, because one module draws all four (see
+// web/src/pages/tools.ts) and asks once when any of them opens. The interface
+// list is read only for somebody who may read the Torch page: it is the only
+// page that uses it, and it costs a command on the router.
 func (cn *conn) toolsCaps() {
 	out := ToolsCapsPayload{Interfaces: []string{}}
-	if cn.routerID == "" || cn.rsession == nil || !cn.canPage("tools", "read") {
+	if cn.routerID == "" || cn.rsession == nil {
 		EvToolsCaps.Send(cn.srv.hub, cn.c, out)
 		return
 	}
-	out.MayWrite = cn.canPage("tools", "write")
-	if names, err := interfaceNames(cn.rsession); err == nil {
-		out.Interfaces = names
+	out.MayTorch = cn.canPage("tools-torch", "write")
+	out.MayBtest = cn.canPage("tools-btest", "write")
+	if cn.canPage("tools-torch", "read") {
+		if names, err := interfaceNames(cn.rsession); err == nil {
+			out.Interfaces = names
+		}
 	}
 	EvToolsCaps.Send(cn.srv.hub, cn.c, out)
 }
@@ -542,7 +571,7 @@ func interfaceNames(rs *session.Session) ([]string, error) {
 	return out, nil
 }
 
-// toolsTorch answers `tools:torch` from the Tools page.
+// toolsTorch answers `tools:torch` from the Torch page.
 //
 // WRITE ACCESS, and AUDITED — both the run and a refusal — because torch loads
 // the router's CPU for as long as it watches, and who did that when is what an
@@ -550,7 +579,7 @@ func interfaceNames(rs *session.Session) ([]string, error) {
 func (cn *conn) toolsTorch(raw json.RawMessage) {
 	var req toolsTorchReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("tools", "write",
+	cn.startTool("tools-torch", "write",
 		func(code string) {
 			if code == "denied" {
 				cn.recorder().Denied(audit.Event{Action: "tools.torch", TargetType: "interface",
@@ -689,12 +718,12 @@ type toolsBtestReq struct {
 	Direction string `json:"direction"`
 }
 
-// toolsBtest answers `tools:btest` from the Tools page: write access, audited,
-// as torch is.
+// toolsBtest answers `tools:btest` from the Bandwidth Test page: write access,
+// audited, as torch is.
 func (cn *conn) toolsBtest(raw json.RawMessage) {
 	var req toolsBtestReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("tools", "write",
+	cn.startTool("tools-btest", "write",
 		func(code string) {
 			if code == "denied" {
 				cn.recorder().Denied(btestAudit(cn.routerID, req, ""))

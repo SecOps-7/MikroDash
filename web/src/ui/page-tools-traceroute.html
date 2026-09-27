@@ -1,0 +1,58 @@
+  <!-- The Traceroute page. One of the four diagnostics that were tabs on a
+       single Tools page until 2026-09-27; rendered by web/src/pages/tools.ts and
+       web/src/pages/tools-trace-map.ts. -->
+  <div class="page-view" id="page-tools-traceroute">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="toolsTraceCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Traceroute</h3>
+            <span id="traceBadge" class="card-badge" title="Hops found">0</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="traceForm">
+            <div>
+              <label class="form-label" for="traceAddress">Address</label>
+              <input class="form-control form-control-sm" id="traceAddress" type="text" maxlength="253"
+                placeholder="IP address or host name" autocomplete="off" spellcheck="false" required>
+            </div>
+            <div>
+              <label class="form-label" for="traceHops">Max hops</label>
+              <select class="form-select form-select-sm" id="traceHops">
+                <option>5</option><option>10</option><option selected>15</option>
+                <option>20</option><option>25</option><option>30</option>
+              </select>
+            </div>
+            <button class="sbtn sbtn-primary" id="traceRun" type="submit">Trace</button>
+            <span class="muted-note" id="traceStatus"></span>
+          </form>
+          <!-- The route on a map, drawn as it is found: tools-trace-map.ts. -->
+          <div class="trace-card" id="traceMapCard">
+            <div class="trace-map-wrap" id="traceMapWrap">
+              <svg class="trace-map" id="traceMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-label="The route on a world map"></svg>
+              <div class="trace-map-empty" id="traceMapEmpty">Run a trace to draw its route</div>
+              <!-- Wheel, drag and these: the Connections map's zoom. Fit hands the
+                   view back to the route. -->
+              <div class="trace-map-ctrls">
+                <button class="trace-map-btn" id="traceZoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+                <button class="trace-map-btn" id="traceZoomOut" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+                <button class="trace-map-btn" id="traceZoomFit" type="button" title="Fit the route" aria-label="Fit the route">⤢</button>
+              </div>
+              <div class="trace-tip" id="traceTip"></div>
+            </div>
+            <div class="trace-hops" id="traceHopList"></div>
+          </div>
+          <div id="traceSummary" class="muted-note mb-2"></div>
+          <div class="tool-panel">
+            <div class="data-scroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Hop</th><th>Address</th><th>Loss</th><th>Last</th><th>Best</th><th>Worst</th><th>Status</th></tr></thead>
+                <tbody id="traceRows"><tr><td colspan="7" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

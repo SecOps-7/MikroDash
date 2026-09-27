@@ -46,12 +46,14 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   // The live cards (tools-ping-cards.ts, tools-btest-cards.ts).
   'pingScoreRing', 'pingCardScore', 'pingScoreVal', 'pingLastVal', 'pingMinVal', 'pingMaxVal', 'pingLossVal',
   'pingCardLoss', 'pingSpark', 'pingCardLast', 'btestScaleRx', 'btestScaleTx', 'btestArcRx', 'btestNeedleRx',
-  'btestValRx', 'btestAvgRx', 'btestArcTx', 'btestNeedleTx', 'btestValTx', 'btestAvgTx', 'btestLostVal', 'btestCpuVal', 'pingScroll', 'torchScroll'],
+  'btestValRx', 'btestAvgRx', 'btestArcTx', 'btestNeedleTx', 'btestValTx', 'btestAvgTx', 'btestLostVal', 'btestCpuVal', 'pingScroll', 'torchScroll',
+  // The count pills beside each page's title. Bandwidth Test has none.
+  'pingBadge', 'traceBadge', 'torchBadge'],
   // traceMap: an <svg> the trace map draws into with path geometry
   // (getTotalLength, getPointAtLength) this shim does not have. Its planner is
   // tested in tools-cards.test.ts, and the drawing is checked in a browser.
   // traceHopList is only read when traceMap exists, which it does not here.
-  { allowUnknown: ['toolsTabs', 'traceMap', 'traceHopList', 'traceMapWrap'] });
+  { allowUnknown: ['traceMap', 'traceHopList', 'traceMapWrap'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
@@ -167,17 +169,23 @@ assert.ok(!/<i>h<\/i>/.test(trace), 'a hop address was not escaped:\n' + trace);
 assert.ok(/2 hops · Too many hops/.test(String(n.traceSummary.textContent)), 'the router\'s note on the run is missing');
 assert.strictEqual(n.pingRun.disabled, false, 'Ping stays disabled after the traceroute');
 
-// TORCH needs write access. Until `tools:caps` says this viewer has it, its
-// button is disabled; a reader is told why; a writer can run it.
+// TORCH needs write access ON ITS OWN PAGE. Until `tools:caps` says this viewer
+// has it, its button is disabled; a reader is told why; a writer can run it.
 assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered before the permission is known');
-handlers['tools:caps']({ mayWrite: false, interfaces: ['ether1', '<b>w</b>'] });
-assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered to a viewer who may not write Tools');
+handlers['tools:caps']({ mayTorch: false, mayBtest: false, interfaces: ['ether1', '<b>w</b>'] });
+assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered to a viewer who may not write the Torch page');
 assert.ok(/write access/.test(String(n.torchStatus.textContent)), 'a reader is not told why Watch is off');
 assert.ok(/<option>ether1<\/option>/.test(String(n.torchInterface.innerHTML)) && !/<b>w<\/b>/.test(String(n.torchInterface.innerHTML)),
   'the interface list is missing or unescaped:\n' + n.torchInterface.innerHTML);
 assert.strictEqual(n.pingRun.disabled, false, 'a read tool was disabled for a reader');
-handlers['tools:caps']({ mayWrite: true, interfaces: ['ether1'] });
-assert.strictEqual(n.torchRun.disabled, false, 'Watch stays disabled for a viewer who may write Tools');
+// ONE FLAG PER WRITE TOOL, which is the whole reason the four are separate
+// pages: Torch and Bandwidth Test are separate grants, so a frame can permit one
+// and refuse the other. A single `mayWrite` could not tell these two apart.
+handlers['tools:caps']({ mayTorch: true, mayBtest: false, interfaces: ['ether1'] });
+assert.strictEqual(n.torchRun.disabled, false, 'Watch stays disabled for a viewer who may write the Torch page');
+assert.strictEqual(n.btestRun.disabled, true, 'Test is offered to a viewer who may not write the Bandwidth Test page');
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, interfaces: ['ether1'] });
+assert.strictEqual(n.btestRun.disabled, false, 'Test stays disabled for a viewer who may write its page');
 sent.length = 0;
 n.torchInterface.value = 'ether1';
 n.torchSeconds.value = '3';
@@ -194,6 +202,11 @@ assert.ok(/<td style="color:var\(--accent-rx\)">2\.00 Mbps<\/td>/.test(String(n.
 assert.ok(/<span class="bw-proto bw-proto-tcp">tcp<\/span>/.test(String(n.torchRows.innerHTML)),
   'the protocol is not a pill:\n' + n.torchRows.innerHTML);
 assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 'omitted flows are not admitted to');
+// THE COUNT PILL beside each page's title counts what that page lists, and goes
+// blue when it counts something - the furniture every generated page has.
+assert.strictEqual(String(n.torchBadge.textContent), '1', 'the Torch pill does not count its flows');
+assert.strictEqual(String(n.torchBadge.className), 'card-badge active-blue', 'a pill counting something is not blue');
+assert.strictEqual(String(n.traceBadge.textContent), '2', 'the Traceroute pill does not count its hops');
 
 // STOP. Pressing the running tool's button asks the server to stop, and sends
 // no second run; the stopped frame draws the run so far and settles it.
@@ -221,6 +234,28 @@ n.pingForm.fire('submit', { preventDefault: () => {} });
 sent.length = 0;
 doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'dashboard' });
 assert.deepStrictEqual(sent, [['tools:stop', {}]], 'leaving the page did not stop the run');
+handlers['tools:ping']({ ...frame(1, true), code: 'stopped' });
+
+// AND A SIBLING TOOL PAGE IS LEAVING TOO (2026-09-27). The four diagnostics are
+// four pages now, so going from Ping to Torch leaves the Ping page as surely as
+// going to the Dashboard does; the run must stop, and the new page's caps must
+// be asked for. Arriving on a tool page with nothing running asks only for caps,
+// which is the control that separates the two sends.
+sent.length = 0;
+doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'tools-ping' });
+assert.deepStrictEqual(sent, [['tools:caps', {}]], 'opening a tool page with nothing running did more than ask for caps');
+n.pingForm.fire('submit', { preventDefault: () => {} });
+sent.length = 0;
+doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'tools-torch' });
+assert.deepStrictEqual(sent, [['tools:stop', {}], ['tools:caps', {}]],
+  'moving from Ping to Torch did not stop the ping and ask for the new page\'s caps');
+handlers['tools:ping']({ ...frame(1, true), code: 'stopped' });
+// AND THE RUN'S OWN PAGE IS NOT LEAVING: a pagechange back to the page the run
+// is on must not stop it. The control for the rule above.
+n.pingForm.fire('submit', { preventDefault: () => {} });
+sent.length = 0;
+doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: 'tools-ping' });
+assert.deepStrictEqual(sent, [['tools:caps', {}]], 'a pagechange to the running tool\'s own page stopped it');
 handlers['tools:ping']({ ...frame(1, true), code: 'stopped' });
 
 // THE BANDWIDTH TEST sends the password once, then empties its field; a failed

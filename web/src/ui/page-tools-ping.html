@@ -1,0 +1,67 @@
+  <!-- The Ping page: one of the four diagnostics that were tabs on a single
+       Tools page until 2026-09-27. Rendered by web/src/pages/tools.ts, which
+       draws all four; the bounds are internal/diag's. -->
+  <div class="page-view" id="page-tools-ping">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="toolsPingCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Ping</h3>
+            <span id="pingBadge" class="card-badge" title="Replies shown">0</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="pingForm">
+            <div>
+              <label class="form-label" for="pingAddress">Address</label>
+              <input class="form-control form-control-sm" id="pingAddress" type="text" maxlength="253"
+                placeholder="IP address, host name or MAC" autocomplete="off" spellcheck="false" required>
+            </div>
+            <div>
+              <label class="form-label" for="pingCount">Packets</label>
+              <select class="form-select form-select-sm" id="pingCount">
+                <option selected>10</option><option>20</option><option>30</option><option>40</option>
+                <option>50</option><option>60</option><option>70</option><option>80</option>
+                <option>90</option><option>100</option>
+                <option value="continuous">Continuous ping</option>
+              </select>
+            </div>
+            <button class="sbtn sbtn-primary" id="pingRun" type="submit">Ping</button>
+            <span class="muted-note" id="pingStatus"></span>
+          </form>
+          <!-- The run's live cards. tools-ping-cards.ts fills them; the Score is
+               an R-factor out of 100 from latency, jitter and loss. -->
+          <div class="tool-cards" id="pingCards">
+            <div class="tool-card tool-card-score" id="pingCardScore">
+              <svg class="tool-ring" viewBox="0 0 80 80" aria-hidden="true">
+                <circle class="tool-ring-bg" cx="40" cy="40" r="34"></circle>
+                <circle class="tool-ring-val" id="pingScoreRing" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="213.6"></circle>
+              </svg>
+              <div class="tool-card-body"><div class="tool-card-label">Score</div>
+                <div class="tool-card-value"><span id="pingScoreVal">-</span><small>/100</small></div></div>
+            </div>
+            <div class="tool-card" id="pingCardLast">
+              <div class="tool-card-label">Latency</div>
+              <div class="tool-card-value"><span id="pingLastVal">-</span><small>ms</small></div>
+              <svg class="tool-spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="pingSpark" points=""></polyline></svg>
+            </div>
+            <div class="tool-card"><div class="tool-card-label">Min</div>
+              <div class="tool-card-value"><span id="pingMinVal">-</span><small>ms</small></div></div>
+            <div class="tool-card"><div class="tool-card-label">Max</div>
+              <div class="tool-card-value"><span id="pingMaxVal">-</span><small>ms</small></div></div>
+            <div class="tool-card" id="pingCardLoss"><div class="tool-card-label">Loss</div>
+              <div class="tool-card-value"><span id="pingLossVal">-</span><small>%</small></div></div>
+          </div>
+          <div id="pingSummary" class="muted-note mb-2"></div>
+          <div class="tool-panel">
+            <div class="data-scroll" id="pingScroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Seq</th><th>Host</th><th>Time</th><th>TTL</th><th>Size</th><th>Status</th></tr></thead>
+                <tbody id="pingRows"><tr><td colspan="6" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

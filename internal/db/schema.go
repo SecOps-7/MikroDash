@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 27
+const schemaVersion = 28
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -185,6 +185,44 @@ var portMigrations = map[int][]string{
 	// channel, so an operator who had changed them keeps what they chose.
 	27: {
 		`ALTER TABLE notify_channels ADD COLUMN tuning TEXT NOT NULL DEFAULT '{}'`,
+	},
+	// 28: the four tool pages' grants, carried across from the Tools page's.
+	//
+	// ── A SPLIT IS NOT A RENAME, AND THIS ONE IS ONE-TO-FOUR ──────────────
+	//
+	// Ping, traceroute, torch and the bandwidth test were four tabs on a single
+	// `tools` page and are four pages now, so a stored `tools` grant is the only
+	// record of who could run a diagnostic. `pages.Renamed` maps one key to ONE
+	// key, so it cannot carry this: it would move the grant onto one of the four
+	// and silently take the other three away. Migration 19 is the precedent --
+	// the WireGuard page's grants copied from the VPN page's -- and the reason
+	// is the same: NOTHING FAILS when a role quietly loses a page.
+	//
+	// AT THE ACCESS IT HAD, which preserves the old split exactly. Torch and the
+	// bandwidth test needed WRITE on `tools` and still need write on their own
+	// page, so a role with `tools` read keeps ping and traceroute and still
+	// cannot torch; a role with `tools` write keeps all four.
+	//
+	// EVERY ROLE, not just the builtin two, for migration 19's reason: this
+	// PRESERVES reach that already existed rather than granting something new.
+	// Neither builtin role is seeded with `tools`, so in practice this touches
+	// only roles an administrator wrote.
+	//
+	// `pages.Renamed["tools"]` then deletes the row this read from, on the same
+	// startup and just after: see the note there.
+	//
+	// Safe to run twice: the primary key makes the second insert a no-op. FROM
+	// role_pages rather than VALUES, so a deleted role cannot fail it on the
+	// foreign key -- the trap migration 17 records at length.
+	28: {
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 SELECT role_id, 'tools-ping', access FROM role_pages WHERE page = 'tools'`,
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 SELECT role_id, 'tools-traceroute', access FROM role_pages WHERE page = 'tools'`,
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 SELECT role_id, 'tools-torch', access FROM role_pages WHERE page = 'tools'`,
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 SELECT role_id, 'tools-btest', access FROM role_pages WHERE page = 'tools'`,
 	},
 }
 

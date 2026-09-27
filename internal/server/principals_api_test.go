@@ -172,9 +172,26 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// that table writing to `el('s_' + key)` across the whole document, so the
 	// Advanced preset would have switched the terminal on for somebody who only
 	// chose a nav layout.
-	if noToggle != 8 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 8 (dashboard, reports, "+
-			"settings, ai-agent, tools, security-scan, config-management, terminal)", noToggle)
+	// ELEVEN SINCE TOOLS BECAME FOUR PAGES (2026-09-27), and the count moved by
+	// three rather than by four: `tools` left the catalogue and `tools-ping`,
+	// `tools-traceroute`, `tools-torch` and `tools-btest` joined it.
+	//
+	// THE REASON IS THE TOOLS PAGE'S, FOUR TIMES, and it did not change when the
+	// page did: each one runs nothing until somebody starts it, so hiding it is
+	// a question of who may run that diagnostic — the permission matrix — and
+	// not of router load, which is what the Visible Pages toggles exist to
+	// answer. What the split DID change is that the question is now asked four
+	// times instead of once: a role can be given Traceroute and refused the
+	// bandwidth test, which one `tools` key could never express.
+	//
+	// Four `pageToolsPing`-style toggles would be worse than one was. They would
+	// be a second mechanism beside the four grants, and the Visible Pages
+	// presets walk that table writing to `el('s_' + key)` across the whole
+	// document — the trap the Terminal paragraph above records.
+	if noToggle != 11 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 11 (dashboard, reports, "+
+			"settings, ai-agent, security-scan, config-management, terminal, tools-ping, "+
+			"tools-traceroute, tools-torch, tools-btest)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

@@ -1,9 +1,22 @@
-// The Tools page: diagnostics run on the selected router (slice 8).
+// The Tools pages: diagnostics run on the selected router (slice 8).
 //
 // Each tool is a form, a Run button and a result. The bounds - how many packets,
 // how many hops, how long - are the server's (internal/diag), so the form offers
 // only what the server would run anyway, and a value edited past them is clamped
 // there.
+//
+// ── FOUR PAGES, ONE MODULE, AND THAT IS NOT AN OVERSIGHT ────────────────────
+//
+// Ping, Traceroute, Torch and Bandwidth Test were four tabs on one `tools` page
+// until 2026-09-27 and are four pages under a Tools nav category now. They are
+// still ONE module because the state they share is real and not incidental: the
+// server runs one diagnostic per CONNECTION, not per page, so the pending run,
+// the busy slot and the caps frame belong to all four at once. Four modules
+// would need a fifth to hold that, which is the same code with a seam in it.
+//
+// Every page's markup is composed into the one document, so all four forms exist
+// whatever page is on screen; the ids below find them the same way they always
+// did.
 //
 // ── ONE RUN AT A TIME ───────────────────────────────────────────────────────
 //
@@ -49,11 +62,13 @@ const REFUSED: Record<string, string> = {
   busy: 'Another tool is still running.',
 };
 
-/** One tool: the ids its markup uses, spelled out so each can be found, and
- *  what its form asks the server for. */
+/** One tool: the page it lives on, the ids its markup uses, spelled out so each
+ *  can be found, and what its form asks the server for. */
 interface Tool {
   key: 'ping' | 'traceroute' | 'torch' | 'btest';
-  /** Needs write access to Tools: loads the router or a link. */
+  /** The page key - the URL, the markup id and the PERMISSION key. */
+  page: string;
+  /** Needs write access to its own page: loads the router or a link. */
   write: boolean;
   form: string;
   run: string;
@@ -61,6 +76,11 @@ interface Tool {
   summary: string;
   rows: string;
   cols: number;
+  /**
+   * The count pill beside the title, or '' for the Bandwidth Test page, which
+   * lists one run's measurements rather than a set of rows and has none.
+   */
+  badge: string;
   /** The Run button's own word, which it goes back to after Stop. */
   label: string;
   request(): Record<string, unknown> | null;
@@ -75,8 +95,8 @@ function pick(id: string, fallback: number): { n: number; continuous: boolean } 
 
 const TOOLS: Tool[] = [
   {
-    key: 'ping', write: false, form: 'pingForm', run: 'pingRun', status: 'pingStatus', summary: 'pingSummary', rows: 'pingRows', cols: 6,
-    label: 'Ping',
+    key: 'ping', page: 'tools-ping', write: false, form: 'pingForm', run: 'pingRun', status: 'pingStatus',
+    summary: 'pingSummary', rows: 'pingRows', cols: 6, badge: 'pingBadge', label: 'Ping',
     request: () => {
       const address = (el<HTMLInputElement>('pingAddress')?.value || '').trim();
       const c = pick('pingCount', 10);
@@ -84,16 +104,16 @@ const TOOLS: Tool[] = [
     },
   },
   {
-    key: 'traceroute', write: false, form: 'traceForm', run: 'traceRun', status: 'traceStatus', summary: 'traceSummary',
-    rows: 'traceRows', cols: 7, label: 'Trace',
+    key: 'traceroute', page: 'tools-traceroute', write: false, form: 'traceForm', run: 'traceRun',
+    status: 'traceStatus', summary: 'traceSummary', rows: 'traceRows', cols: 7, badge: 'traceBadge', label: 'Trace',
     request: () => {
       const address = (el<HTMLInputElement>('traceAddress')?.value || '').trim();
       return address ? { address, maxHops: Number(el<HTMLSelectElement>('traceHops')?.value || 15) } : null;
     },
   },
   {
-    key: 'torch', write: true, form: 'torchForm', run: 'torchRun', status: 'torchStatus', summary: 'torchSummary',
-    rows: 'torchRows', cols: 5, label: 'Watch',
+    key: 'torch', page: 'tools-torch', write: true, form: 'torchForm', run: 'torchRun', status: 'torchStatus',
+    summary: 'torchSummary', rows: 'torchRows', cols: 5, badge: 'torchBadge', label: 'Watch',
     request: () => {
       const iface = el<HTMLSelectElement>('torchInterface')?.value || '';
       const c = pick('torchSeconds', 5);
@@ -101,8 +121,8 @@ const TOOLS: Tool[] = [
     },
   },
   {
-    key: 'btest', write: true, form: 'btestForm', run: 'btestRun', status: 'btestStatus', summary: 'btestSummary',
-    rows: 'btestRows', cols: 2, label: 'Test',
+    key: 'btest', page: 'tools-btest', write: true, form: 'btestForm', run: 'btestRun', status: 'btestStatus',
+    summary: 'btestSummary', rows: 'btestRows', cols: 2, badge: '', label: 'Test',
     request: () => {
       const address = (el<HTMLInputElement>('btestAddress')?.value || '').trim();
       if (!address) return null;
@@ -135,11 +155,22 @@ function notRun(t: Tool): string {
 
 let traceMap: TraceMap | null = null;
 
+/** The count pill beside a page's title: blue when it counts something, as
+ *  every generated page's is (web/src/pages/area.ts). */
+function setBadge(t: Tool, n: number): void {
+  if (!t.badge) return;
+  const badge = el(t.badge);
+  if (!badge) return;
+  badge.textContent = String(n);
+  badge.className = 'card-badge' + (n > 0 ? ' active-blue' : '');
+}
+
 function clearResult(t: Tool): void {
   const summary = el(t.summary);
   if (summary) summary.textContent = '';
   const rows = el(t.rows);
   if (rows) rows.innerHTML = notRun(t);
+  setBadge(t, 0);
   if (t.key === 'ping') renderPingCards(null);
   if (t.key === 'btest') renderBtestCards(null);
   if (t.key === 'traceroute') traceMap?.clear();
@@ -255,9 +286,11 @@ function renderBtest(r: BtestResult): void {
 
 export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let pending: Tool | null = null;
-  // WHETHER THIS VIEWER MAY RUN THE WRITE TOOLS, from `tools:caps`. False until
-  // it arrives, so a Run button that would only be refused is never offered.
-  let mayWrite = false;
+  // WHETHER THIS VIEWER MAY RUN EACH WRITE TOOL, from `tools:caps`. ONE FLAG
+  // PER TOOL, because torch and the bandwidth test are separate pages and so
+  // separate grants. False until the frame arrives, so a Run button that would
+  // only be refused is never offered.
+  const mayRun: Record<string, boolean> = { torch: false, btest: false };
 
   // THE RUNNING TOOL'S BUTTON IS ITS STOP; every other Run button is disabled,
   // as is a write tool's for a viewer who may not write.
@@ -267,7 +300,7 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       const btn = el<HTMLButtonElement>(x.run);
       if (!btn) continue;
       const running = x === t;
-      btn.disabled = t !== null ? !running : (x.write && !mayWrite);
+      btn.disabled = t !== null ? !running : (x.write && !mayRun[x.key]);
       btn.textContent = running ? 'Stop' : x.label;
       btn.classList.toggle('sbtn-danger', running);
       btn.classList.toggle('sbtn-primary', !running);
@@ -340,15 +373,19 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     const r = d.result;
     drawBounded('pingScroll', true, () => renderPing(r));
     renderPingCards(r);
+    setBadge(ping, r.replies.length);
   }));
   socket.on('tools:traceroute', (d) => settle(trace, d, () => {
     if (!d.result) return;
     renderTraceroute(d.result);
     traceMap?.update(d.result);
+    setBadge(trace, d.result.hops.length);
   }));
   socket.on('tools:torch', (d) => settle(torch, d, () => {
     const r = d.result;
-    if (r) drawBounded('torchScroll', false, () => renderTorch(r));
+    if (!r) return;
+    drawBounded('torchScroll', false, () => renderTorch(r));
+    setBadge(torch, r.flows.length);
   }));
   socket.on('tools:btest', (d) => settle(btest, d, () => {
     if (!d.result) return;
@@ -357,25 +394,32 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   }));
 
   socket.on('tools:caps', (d) => {
-    mayWrite = d.mayWrite;
+    mayRun.torch = d.mayTorch;
+    mayRun.btest = d.mayBtest;
     const sel = el<HTMLSelectElement>('torchInterface');
     if (sel) sel.innerHTML = d.interfaces.map((n) => '<option>' + esc(n) + '</option>').join('');
     setRunning(pending, '');
     if (!pending) {
       for (const t of TOOLS) {
         const status = el(t.status);
-        if (t.write && status) status.textContent = mayWrite ? '' : 'Needs write access to Tools.';
+        if (t.write && status) status.textContent = mayRun[t.key] ? '' : 'Needs write access to this page.';
       }
     }
   });
-  // ASKED FOR WHEN THE PAGE OPENS, and again on a router switch while it is
-  // open: the permission and the interfaces are both per router.
+  // ASKED FOR WHEN ANY OF THE FOUR PAGES OPENS, and again on a router switch
+  // while one is open: the permissions and the interfaces are both per router,
+  // and one frame answers all four.
   const askCaps = (): void => socket.emit('tools:caps', {});
+  const isToolPage = (page: string): boolean => TOOLS.some((t) => t.page === page);
   document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent).detail === 'tools') askCaps();
-    // LEAVING THE PAGE STOPS THE RUN (decided 2026-09-19): nobody is watching
-    // it, and a continuous one would hold its channel for the hour.
-    else stop();
+    const to = (e as CustomEvent).detail as string;
+    // LEAVING THE RUNNING TOOL'S OWN PAGE STOPS THE RUN (decided 2026-09-19):
+    // nobody is watching it, and a continuous one would hold its channel for
+    // the hour. Moving from Ping to Torch leaves the ping page as surely as
+    // moving to Settings does, which is why this compares the PENDING tool's
+    // page rather than asking whether the destination is a tool page at all.
+    if (pending && pending.page !== to) stop();
+    if (isToolPage(to)) askCaps();
   });
 
   socket.on('router:switched', () => {
@@ -383,25 +427,10 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       const status = el(pending.status);
       if (status) status.textContent = '';
     }
-    mayWrite = false;
+    mayRun.torch = false;
+    mayRun.btest = false;
     setRunning(null, '');
     for (const t of TOOLS) clearResult(t);
-    if (isVisible('tools')) askCaps();
-  });
-
-  // The tab strip: one panel shown at a time.
-  el('toolsTabs')?.addEventListener('click', (e) => {
-    const tab = (e.target as HTMLElement | null)?.closest?.('[data-tooltab]');
-    const key = tab?.getAttribute('data-tooltab');
-    if (!key) return;
-    for (const t of TOOLS) {
-      const panel = el('toolPanel-' + t.key);
-      if (panel) panel.style.display = t.key === key ? '' : 'none';
-    }
-    document.querySelectorAll('#toolsTabs [data-tooltab]').forEach((b) => {
-      const on = b.getAttribute('data-tooltab') === key;
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
+    if (TOOLS.some((t) => isVisible(t.page))) askCaps();
   });
 }

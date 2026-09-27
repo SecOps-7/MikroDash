@@ -76,17 +76,34 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 // here. An unbounded "skip anything with no resource" would quietly absorb a
 // read tool that had lost its key, so exactly these two are allowed and their
 // names are checked.
-// diagnosticPages is each diagnostic tool gated on a page other than Tools,
-// and that page.
+// diagnosticPages is EVERY diagnostic tool and the page it is gated on.
+//
+// ── IT BECAME COMPLETE WHEN TOOLS BECAME FOUR PAGES (2026-09-27) ────────────
+//
+// It used to list only the diagnostics gated somewhere other than the one
+// `tools` page, with "tools" as the default for the rest. There is no such
+// default any more -- ping and traceroute have a page each -- so a default
+// would be a value nothing uses, and a ledger with a default is one a new tool
+// can join without saying anything. Every diagnostic names its page here, and
+// the check below fails in both directions: an unlisted tool, and a listing for
+// a tool that no longer exists.
+//
 // read_file (2026-09-21) reads a file: a read of the Files page.
 // export_config is a read of Backups, which shows exports; list_routers of Devices.
-var diagnosticPages = map[string]string{"security_scan": "security-scan", "read_file": "files",
-	"export_config": "backups", "list_routers": "devices"}
+var diagnosticPages = map[string]string{
+	"security_scan": "security-scan",
+	"read_file":     "files",
+	"export_config": "backups",
+	"list_routers":  "devices",
+	"ping":          "tools-ping",
+	"traceroute":    "tools-traceroute",
+}
 
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}
 	unbound := 0
 	liveTools, diagTools := 0, 0
+	namedDiag := map[string]bool{}
 	for _, r := range loadToolArtefact(t) {
 		// ── A LIVE TOOL NAMES A COLLECTOR INSTEAD OF A RESOURCE ─────────────
 		//
@@ -109,21 +126,24 @@ func TestEveryResourceHasATool(t *testing.T) {
 		// ── A DIAGNOSTIC TOOL RUNS A TOOLS PAGE DIAGNOSTIC ──────────────────
 		//
 		// Slice 8. It reads no menu: it probes from the router, gated on the
-		// Tools page with the access the page itself needs. internal/server's
-		// TestEveryDiagnosticToolHasARunner holds each one to its runner.
+		// page whose check it runs, with the access that page itself needs.
+		// internal/server's TestEveryDiagnosticToolHasARunner holds each one to
+		// its runner.
 		if r.Diagnostic != "" {
 			diagTools++
+			namedDiag[r.Name] = true
 			if r.Resource != "" || r.Collector != "" {
 				t.Errorf("diagnostic tool %q also names a resource or a collector", r.Name)
 			}
-			// Re-aimed 2026-09-19 for `security_scan`, which runs the Security
-			// Scan page's check: a diagnostic is gated on the page whose check it
-			// runs, pinned per tool so a new one must say which.
-			want := "tools"
-			if p, ok := diagnosticPages[r.Name]; ok {
-				want = p
-			}
-			if r.Page != want {
+			// Re-aimed 2026-09-19 for `security_scan`, and again 2026-09-27 when
+			// the Tools page became four pages and the "tools" default died with
+			// it: a diagnostic is gated on the page whose check it runs, and
+			// every one says which.
+			want, listed := diagnosticPages[r.Name]
+			if !listed {
+				t.Errorf("diagnostic tool %q names no page in diagnosticPages; add it, so the "+
+					"page its permission is read from is written down rather than assumed", r.Name)
+			} else if r.Page != want {
 				t.Errorf("diagnostic tool %q is gated on page %q, not %s", r.Name, r.Page, want)
 			}
 			continue
@@ -154,6 +174,14 @@ func TestEveryResourceHasATool(t *testing.T) {
 	if diagTools == 0 {
 		t.Error("no diagnostic tools are recorded; ping has gone, or the record no longer " +
 			"carries `diagnostic`")
+	}
+	// AND BACK THE OTHER WAY: a listing for a diagnostic that no longer exists
+	// is an excuse nobody re-measures.
+	for name := range diagnosticPages {
+		if !namedDiag[name] {
+			t.Errorf("diagnosticPages lists %q, which is not a diagnostic tool any more - "+
+				"delete the entry", name)
+		}
 	}
 
 	live := map[string]*resource.Resource{}

@@ -26,7 +26,13 @@ const RANK: Record<Tier, number> = { home: 0, standard: 1, advanced: 2 };
 
 /** Hand-built pages with no Visible Pages toggle, placed by the operator. */
 const HAND_TIERS: Record<string, Tier> = {
-  tools: 'standard',
+  // The four diagnostics, one page each since 2026-09-27. They were one `tools`
+  // entry at Standard; four entries at Standard keep every preset offering
+  // exactly what it offered before the split.
+  'tools-ping': 'standard',
+  'tools-traceroute': 'standard',
+  'tools-torch': 'standard',
+  'tools-btest': 'standard',
   'ai-agent': 'advanced',
   // Advanced, and never below it: the Terminal runs whatever is typed, and a
   // preset called Standard should not switch that on for somebody who chose a

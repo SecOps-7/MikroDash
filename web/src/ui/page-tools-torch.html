@@ -1,0 +1,43 @@
+  <!-- The Torch page: one interface's live flows. It needs WRITE access on this
+       page - torch loads the router's CPU while it watches - and the run is
+       audited. Rendered by web/src/pages/tools.ts. -->
+  <div class="page-view" id="page-tools-torch">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="toolsTorchCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Torch</h3>
+            <span id="torchBadge" class="card-badge" title="Flows shown">0</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="torchForm">
+            <div>
+              <label class="form-label" for="torchInterface">Interface</label>
+              <select class="form-select form-select-sm" id="torchInterface" required></select>
+            </div>
+            <div>
+              <label class="form-label" for="torchSeconds">Seconds</label>
+              <select class="form-select form-select-sm" id="torchSeconds">
+                <option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option>
+                <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+                <option>15</option><option>20</option><option>30</option><option>45</option><option>60</option>
+                <option value="continuous">Continuous torch</option>
+              </select>
+            </div>
+            <button class="sbtn sbtn-primary" id="torchRun" type="submit">Watch</button>
+            <span class="muted-note" id="torchStatus"></span>
+          </form>
+          <div id="torchSummary" class="muted-note mb-2"></div>
+          <div class="tool-panel">
+            <div class="data-scroll" id="torchScroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Protocol</th><th>Source</th><th>Destination</th><th>Rx</th><th>Tx</th></tr></thead>
+                <tbody id="torchRows"><tr><td colspan="5" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

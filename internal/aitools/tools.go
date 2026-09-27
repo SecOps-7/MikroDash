@@ -464,7 +464,7 @@ func diagTools() []Tool {
 			"additionalProperties": false,
 		},
 		Diagnostic: "ping",
-		Page:       "tools",
+		Page:       "tools-ping",
 		Access:     AccessRead,
 	}, {
 		Name: "traceroute",
@@ -490,7 +490,7 @@ func diagTools() []Tool {
 			"additionalProperties": false,
 		},
 		Diagnostic: "traceroute",
-		Page:       "tools",
+		Page:       "tools-traceroute",
 		Access:     AccessRead,
 	}, {
 		// THE ROUTER'S SECURITY POSTURE IN ONE CALL: the Security Scan page's

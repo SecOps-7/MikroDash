@@ -1274,6 +1274,19 @@ export interface TalkersPayload {
   available: boolean;
 }
 
+export interface TermCompletion {
+  text: string;
+  offset: number;
+  help: string;
+  style: string;
+}
+
+export interface TermCompletePayload {
+  line: string;
+  candidates: TermCompletion[];
+  code: string;
+}
+
 export interface TermEntry {
   seq: number;
   at: number;
@@ -1325,7 +1338,8 @@ export interface ToolsBtestPayload {
 }
 
 export interface ToolsCapsPayload {
-  mayWrite: boolean;
+  mayTorch: boolean;
+  mayBtest: boolean;
   interfaces: string[];
 }
 
@@ -2032,6 +2046,7 @@ export interface Events {
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
+  'term:complete': TermCompletePayload;
   'term:output': TermOutputPayload;
   'term:scrollback': TermScrollbackPayload;
   'tools:btest': ToolsBtestPayload;

@@ -576,7 +576,7 @@
       "access": "read",
       "resource": "",
       "diagnostic": "ping",
-      "page": "tools"
+      "page": "tools-ping"
     },
     {
       "name": "read_file",
@@ -597,7 +597,7 @@
       "access": "read",
       "resource": "",
       "diagnostic": "traceroute",
-      "page": "tools"
+      "page": "tools-traceroute"
     },
     {
       "name": "change_row",

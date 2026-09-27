@@ -142,8 +142,23 @@
       "settingsKey": null
     },
     {
-      "key": "tools",
-      "title": "Tools",
+      "key": "tools-ping",
+      "title": "Ping",
+      "settingsKey": null
+    },
+    {
+      "key": "tools-traceroute",
+      "title": "Traceroute",
+      "settingsKey": null
+    },
+    {
+      "key": "tools-torch",
+      "title": "Torch",
+      "settingsKey": null
+    },
+    {
+      "key": "tools-btest",
+      "title": "Bandwidth Test",
       "settingsKey": null
     },
     {
