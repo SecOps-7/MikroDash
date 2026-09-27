@@ -783,10 +783,17 @@ func (cn *conn) packagesAutoUpgrade(raw json.RawMessage) {
 		if rerr != nil {
 			// The write was accepted and the read was not, so what the router
 			// holds is unknown. Said plainly rather than reported as success.
+			//
+			// `failed` because that is what the table accepts, and the reason
+			// is in the note. It used to say "outcome-unknown", which the
+			// audit_events CHECK does not admit - so the row that was trying
+			// hardest to be honest was the one that was never written at all.
+			// See TestEveryAuditOutcomeIsOneTheSchemaAdmits.
 			cn.recorder().Record(audit.Event{
 				Action: "package.autoupgrade", TargetType: "router",
 				TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
-				Outcome: "outcome-unknown",
+				Outcome: "failed",
+				Note:    "the device accepted the change but it could not be confirmed",
 				Before:  map[string]any{"autoUpgrade": before},
 				After:   map[string]any{"autoUpgrade": want},
 			})

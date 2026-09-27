@@ -96,6 +96,7 @@ export const BOOL_FIELDS: readonly string[] = [
   "pageWifiMap",
   "pageWireless",
   "rosDebug",
+  "terminalEnabled",
   "userNotifyEnabled",
   "ztpEnabled",
 ];

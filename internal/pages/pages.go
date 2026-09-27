@@ -142,6 +142,15 @@ var All = []Page{
 	// NO COLLECTOR: nothing runs until a tool is started, so there is nothing to
 	// switch off, and hiding the page is a permission rather than a load question.
 	{Key: "tools", Title: "Tools"},
+	// The Terminal page. NO COLLECTOR, for the same reason Tools has none: nothing
+	// runs until an operator types a line.
+	//
+	// It is the one page whose input MikroDash DOES NOT PARSE AT ALL. The text goes
+	// to the router's own console through /execute, so neither the resource
+	// registry nor internal/rawcmd sees it and no guard can be consulted. What
+	// gates it instead is in internal/server/terminal.go, which is the file to read
+	// before changing anything here.
+	{Key: "terminal", Title: "Terminal"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},

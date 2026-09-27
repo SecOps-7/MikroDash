@@ -46,7 +46,7 @@ func (s *Server) reportScheduleRun(w http.ResponseWriter, r *http.Request, req s
 
 	outcome := "ok"
 	if res.Outcome != "sent" {
-		outcome = "error"
+		outcome = "failed"
 	}
 	s.httpRecorder(r, req.Sess).Record(audit.Event{
 		Action: "report.schedule.send", TargetType: "report-schedule",

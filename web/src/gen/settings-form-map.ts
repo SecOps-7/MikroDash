@@ -29,6 +29,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "rosDebug",
     "routerTls",
     "routerTlsInsecure",
+    "terminalEnabled",
     "userNotifyEnabled"
   ],
   "checkOn": [

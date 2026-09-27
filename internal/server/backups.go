@@ -410,7 +410,7 @@ func (cn *conn) runBackupNow(via string) writeOutcome {
 
 	outcome := "ok"
 	if res.Outcome == backups.OutcomeFailed {
-		outcome = "error"
+		outcome = "failed"
 	}
 	cn.recorder().Record(audit.Event{
 		Action: "backup.run", TargetType: "router", Scope: "router",

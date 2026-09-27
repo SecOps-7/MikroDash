@@ -104,12 +104,19 @@ type toolsTracerouteReq struct {
 //
 // OFF THE READ LOOP because a run lasts up to thirty-five seconds, and this
 // socket's page focus, blur and every other message would wait behind it.
-func (cn *conn) startTool(access string, refuse func(code string), work func(rs *session.Session, quit <-chan struct{})) {
+// `page` is the page key whose permission is checked. It is a PARAMETER rather
+// than the constant "tools" because the Terminal page wants this exact
+// lifecycle - one run at a time, the session pinned, a quit channel closed by
+// releaseRouter, the work off the read loop - and a second copy of it would be
+// a second thing to keep right. One busy flag across both pages is also correct
+// rather than incidental: a terminal command and a traceroute are two channels
+// on the same router, which is the bottleneck this app is built around.
+func (cn *conn) startTool(page, access string, refuse func(code string), work func(rs *session.Session, quit <-chan struct{})) {
 	if cn.routerID == "" || cn.rsession == nil {
 		refuse("unavailable")
 		return
 	}
-	if !cn.canPage("tools", access) {
+	if !cn.canPage(page, access) {
 		refuse("denied")
 		return
 	}
@@ -143,7 +150,7 @@ func (cn *conn) stopTool() {
 func (cn *conn) toolsPing(raw json.RawMessage) {
 	var req toolsPingReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("read",
+	cn.startTool("tools", "read",
 		func(code string) { EvToolsPing.Send(cn.srv.hub, cn.c, ToolsPingPayload{Code: code, Done: true}) },
 		func(rs *session.Session, quit <-chan struct{}) {
 			res, code, msg := runPing(rs, req.Address, req.Count, req.Continuous, quit, func(p *diag.PingResult) {
@@ -157,7 +164,7 @@ func (cn *conn) toolsPing(raw json.RawMessage) {
 func (cn *conn) toolsTraceroute(raw json.RawMessage) {
 	var req toolsTracerouteReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("read",
+	cn.startTool("tools", "read",
 		func(code string) {
 			EvToolsTraceroute.Send(cn.srv.hub, cn.c, ToolsTraceroutePayload{Code: code, Done: true})
 		},
@@ -543,7 +550,7 @@ func interfaceNames(rs *session.Session) ([]string, error) {
 func (cn *conn) toolsTorch(raw json.RawMessage) {
 	var req toolsTorchReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("write",
+	cn.startTool("tools", "write",
 		func(code string) {
 			if code == "denied" {
 				cn.recorder().Denied(audit.Event{Action: "tools.torch", TargetType: "interface",
@@ -687,7 +694,7 @@ type toolsBtestReq struct {
 func (cn *conn) toolsBtest(raw json.RawMessage) {
 	var req toolsBtestReq
 	_ = json.Unmarshal(raw, &req)
-	cn.startTool("write",
+	cn.startTool("tools", "write",
 		func(code string) {
 			if code == "denied" {
 				cn.recorder().Denied(btestAudit(cn.routerID, req, ""))

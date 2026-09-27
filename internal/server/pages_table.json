@@ -147,6 +147,11 @@
       "settingsKey": null
     },
     {
+      "key": "terminal",
+      "title": "Terminal",
+      "settingsKey": null
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

@@ -241,7 +241,7 @@ CREATE TABLE audit_events (
   actor_id TEXT, actor_name TEXT NOT NULL, actor_ip TEXT, action TEXT NOT NULL,
   scope TEXT NOT NULL CHECK (scope IN ('app','router')), router_id TEXT,
   target_type TEXT, target_id TEXT, target_name TEXT,
-  outcome TEXT NOT NULL CHECK (outcome IN ('ok','denied','error')), detail TEXT);
+  outcome TEXT NOT NULL CHECK (outcome IN ('ok','denied','failed')), detail TEXT);
 CREATE TABLE roles (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
   builtin INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE role_pages (role_id TEXT NOT NULL, page TEXT NOT NULL, access TEXT NOT NULL);

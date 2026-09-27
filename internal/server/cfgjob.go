@@ -509,7 +509,7 @@ func (s *Server) cfgRunOne(r *cfgRun, t *cfgTargetRun) cfgdeploy.Outcome {
 
 	outcome := "ok"
 	if out.State != cfgdeploy.StateApplied {
-		outcome = "error"
+		outcome = "failed"
 	}
 	audit.New(auditSinkOf(s), audit.ForUser(s.userIDFor(r.actor.Username), r.actor.Username, r.actorIP), nowMillis).
 		Record(audit.Event{Action: "config.deploy", TargetType: "config-template", Scope: "router",

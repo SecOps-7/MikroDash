@@ -218,6 +218,7 @@
     "devices",
     "config-management",
     "tools",
+    "terminal",
     "ai-agent",
     "reports",
     "audit-trail",

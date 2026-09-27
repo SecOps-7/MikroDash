@@ -183,7 +183,7 @@ func (cn *conn) approveAIRawCommand(p *aiWriteProposal, confirm string) {
 	// model typed.
 	outcome := "ok"
 	if err != nil {
-		outcome = "error"
+		outcome = "failed"
 	}
 	cn.recorder().Record(audit.Event{
 		Action: "raw.command", TargetType: "router", TargetID: cn.routerID,
@@ -375,7 +375,7 @@ func (cn *conn) approveAIPlan(p *aiWriteProposal, confirm string) {
 		})
 		outcome := "ok"
 		if err != nil {
-			outcome = "error"
+			outcome = "failed"
 			failed = true
 		}
 		// EVERY STEP IS AUDITED WITH ITS OWN TEXT, as a single command is: a

@@ -209,8 +209,24 @@ func (d *DB) InsertAuditEvent(ev Event) error {
 	if ev.Scope != "router" {
 		ev.Scope = "app"
 	}
-	if ev.Outcome == "" {
+	// THE OUTCOME IS CLAMPED TO A VALUE THE CHECK ADMITS, and an unrecognised
+	// one becomes `failed` rather than `ok`.
+	//
+	// The schema says `CHECK (outcome IN ('ok','denied','failed'))`. Only the
+	// empty case was defaulted here, so a writer that said anything else - and
+	// six of them said "error" - produced an INSERT the constraint rejected,
+	// which lost the row. The lost rows were the FAILURES: a backup that did
+	// not run, a deploy that did not apply, a raw command the router refused.
+	// Exactly the events this table exists for.
+	//
+	// `failed` and not `ok`, because a lost failure is worse than a mislabelled
+	// one and `ok` is never a safe guess for a value the writer got wrong.
+	switch ev.Outcome {
+	case "":
 		ev.Outcome = "ok"
+	case "ok", "denied", "failed":
+	default:
+		ev.Outcome = "failed"
 	}
 	_, err := d.sql.Exec(insertAuditSQL,
 		ev.TS, nul(ev.ActorID), ev.ActorName, nul(ev.ActorIP), ev.Action,

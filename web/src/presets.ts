@@ -28,6 +28,10 @@ const RANK: Record<Tier, number> = { home: 0, standard: 1, advanced: 2 };
 const HAND_TIERS: Record<string, Tier> = {
   tools: 'standard',
   'ai-agent': 'advanced',
+  // Advanced, and never below it: the Terminal runs whatever is typed, and a
+  // preset called Standard should not switch that on for somebody who chose a
+  // nav layout. Its own gates still apply on top.
+  terminal: 'advanced',
 };
 
 function upTo(tier: Tier): string[] {

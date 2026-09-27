@@ -45,6 +45,26 @@ func (cn *conn) inWriteQueue(fn func() error) error {
 	return cn.rsession.InWriteQueue(fn)
 }
 
+// inWriteQueueOn is inWriteQueue for a SNAPSHOT, for work that is not on the
+// read loop.
+//
+// The version above reads cn.sess, cn.routerID and cn.rsession directly, and
+// ws.go's header says only the loop may do that; background work takes a
+// connScope from scope() instead. The Terminal's command runs off the loop
+// because it blocks for up to thirty seconds, so it needs this one.
+func (cn *conn) inWriteQueueOn(sc connScope, fn func() error) error {
+	if l := cn.srv.writeLimit; l != nil {
+		name := ""
+		if sc.sess != nil {
+			name = sc.sess.Username
+		}
+		if ok, _, _ := l.take(writeLimitKey(name, sc.routerID)); !ok {
+			return errWriteRateLimited
+		}
+	}
+	return sc.rs.InWriteQueue(fn)
+}
+
 func newWriteLimiter() *rateLimiter {
 	return newRateLimiter(routerWritesPerMinute, time.Minute)
 }

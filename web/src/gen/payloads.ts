@@ -1274,6 +1274,34 @@ export interface TalkersPayload {
   available: boolean;
 }
 
+export interface TermEntry {
+  seq: number;
+  at: number;
+  command: string;
+  lines: string[];
+  truncated: boolean;
+  ms: number;
+  code: string;
+  message: string;
+}
+
+export interface TermOutputPayload {
+  entry: TermEntry;
+  running: boolean;
+  done: boolean;
+}
+
+export interface TermScrollbackPayload {
+  routerId: string;
+  entries: TermEntry[];
+  mayRun: boolean;
+  why: string;
+  identity: string;
+  user: string;
+  trimmed: boolean;
+  running: boolean;
+}
+
 export interface BtestResult {
   address: string;
   done: boolean;
@@ -2004,6 +2032,8 @@ export interface Events {
   'sites:update': Site[];
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
+  'term:output': TermOutputPayload;
+  'term:scrollback': TermScrollbackPayload;
   'tools:btest': ToolsBtestPayload;
   'tools:caps': ToolsCapsPayload;
   'tools:ping': ToolsPingPayload;

@@ -242,6 +242,13 @@ rather than plain text.
   kind on one side only fails tsc. Held by `TestEveryAreaPillNamesARealColumnAndKind` and
   `web/test/area-pills.test.ts`.
 - **A hand-built page must copy the same markup and helpers**; nothing generates them for it.
+- **One page has none of it, on purpose: Terminal.** A title and nothing else - no count pill
+  (the scrollback is a conversation, not a set of rows), no tab strip (one view), no sortable
+  headers and no pills (no table). The furniture exists to make a table of device rows legible and
+  this page has no rows. **It is recorded here because nothing else records it:**
+  `TestEveryAreaShellHasItsTitleFirstThenItsTabs` takes the areas plus `page-tools.html` and
+  `page-security-scan.html` by name, so a bare hand-built page fails nothing, and an unrecorded
+  exception would leave the next author reading a rule that a shipped page visibly disobeys.
 - **Rx and Tx have fixed colours, and so do protocols.** An Rx value is `var(--accent-rx)` (blue) and
   a Tx value `var(--accent-tx)` (green), everywhere. A protocol column is `protoPill` in
   `web/src/dom.ts` (tcp blue, udp green, icmp amber, anything else grey), not a second scheme.
@@ -305,8 +312,8 @@ move together:
 
 | | |
 |---|---|
-| `internal/verify/` | 94 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every font family that ships is credited in the OFL notice, counted truthfully and offered by the branding picker, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `docs/Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 86 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `internal/verify/` | 96 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every font family that ships is credited in the OFL notice, counted truthfully and offered by the branding picker, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `docs/Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
+| `web/test/` | 88 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

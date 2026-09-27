@@ -1,0 +1,46 @@
+  <!-- The Terminal page: type a RouterOS console line, read the device's own
+       answer. The server runs it through `/execute ... as-string=yes` and sends
+       the console text back verbatim; web/src/pages/terminal.ts renders it as
+       TEXT NODES and never as markup.
+
+       BARE ON PURPOSE - no count pill, no tab strip, no sortable headers, no
+       coloured pills. That furniture exists to make a table of device rows
+       legible and this page has no rows; the exception is recorded in
+       CLAUDE.md's "A new page's furniture" so it reads as a decision rather
+       than an omission. -->
+  <div class="page-view" id="page-terminal">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="terminalCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Terminal</h3>
+          </div>
+          <div class="hdr-actions">
+            <span class="term-status" id="terminalStatus"></span>
+            <button id="terminalClear" class="sbtn sbtn-ghost" type="button"
+                    title="Clear what is on screen. The device is not touched.">Clear</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <!-- The scrollback. Filled only by createElement and textContent in
+               terminal.ts: the text is the device's, and an interface name
+               could otherwise inject markup (0.7.35). -->
+          <div id="terminalScroll" class="term-scroll data-scroll" tabindex="0"
+               role="log" aria-live="polite" aria-label="Device console output"></div>
+          <div class="term-inputrow">
+            <span class="term-prompt" id="terminalPrompt">&gt;</span>
+            <input id="terminalInput" class="term-input" type="text" autocomplete="off"
+                   autocapitalize="off" autocorrect="off" spellcheck="false"
+                   aria-label="RouterOS command"
+                   placeholder="Type a RouterOS command and press Enter" disabled>
+            <button id="terminalRun" class="sbtn sbtn-primary" type="button" disabled>Run</button>
+          </div>
+          <p class="term-note" id="terminalNote">
+            This runs on the device itself, exactly as typed. MikroDash does not check the line,
+            so what you may do here is whatever the RouterOS account it signs in with may do.
+            Every line is recorded in the Audit Trail.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>

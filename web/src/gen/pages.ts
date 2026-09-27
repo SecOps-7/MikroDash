@@ -62,6 +62,7 @@ export const PAGES: readonly Page[] = [
   { key: "dhcp-servers", title: "DHCP Servers", path: "dhcp-servers" },
   { key: "containers", title: "Containers", path: "containers" },
   { key: "tools", title: "Tools", path: "tools" },
+  { key: "terminal", title: "Terminal", path: "terminal" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },
   { key: "wifi-clients", title: "Wifi Clients", path: "wifi-clients" },

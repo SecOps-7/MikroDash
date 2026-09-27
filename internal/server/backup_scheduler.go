@@ -276,7 +276,7 @@ func (s *Server) runScheduledBackup(r backups.SchedRouter) error {
 	// attribution the /raw route uses for a router fetching its own backup.
 	outcome := "ok"
 	if runErr != nil || res.Outcome == backups.OutcomeFailed {
-		outcome = "error"
+		outcome = "failed"
 	}
 	extra := []audit.KV{
 		{Key: "outcome", Value: res.Outcome},

@@ -130,6 +130,7 @@ A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/
 | 🧩 **Config Management** | A library of 20 ready-made configuration templates (firewalls, VLANs, a guest network, WireGuard, DNS, queues, monitoring) plus your own, captured from a router or written in the editor. Every setting has a working default. Deploy to one router or the fleet: a syntax check first, a restore point, a canary router before the rest, an automatic revert if a change cuts MikroDash off, and History and Drift afterwards. |
 | 💾 **Backups** | Scheduled configuration backups kept only when something changed, with a unified diff of what moved, retention rules, and a guarded restore. |
 | 🛠️ **Tools** | Ping, traceroute with an animated world map of the hops, torch and bandwidth test, run from the router with live output and a Stop button. |
+| ⌨️ **Terminal** | A RouterOS console in the browser, for the device you have selected. The line you type goes to the router's own parser, so `where`, `:put [...]` and everything else the CLI understands works, and what comes back is the router's own text. Off until you switch it on, then offered only to a signed-in global administrator - and bounded by what the RouterOS account MikroDash signs in with may do. Every line is in the audit trail. |
 | 🛡️ **Security Scan** | Audits the router's configuration (management access, firewall, exposed services, accounts, system, wireless and certificates), scores it, and links each finding to the page where it is fixed. The score is also a Dashboard card, and the AI Agent can run the scan when you ask how secure a router is. |
 | 🤖 **AI Agent** | An optional assistant that answers questions from live router data and makes changes through the same checks, audit trail and undo as the forms: one row, or several as a plan you approve once. It can reboot, upgrade, sign a certificate, set the clock, run a script, read a file or an export, and undo its own change, always with your confirmation. Works with any OpenAI-compatible endpoint, including local models. |
 | 📦 **Containers** | RouterOS containers with their env lists, mounts and interfaces, plus an **Apps** tab that browses RouterOS's app store and installs an app in one click. |
@@ -150,7 +151,7 @@ MikroDash has more than fifty pages. Here they are by area (the sidebar can grou
 | **Traffic** | Connections (a world map, or a list of every connection), Bandwidth, Queues, Logs |
 | **Security** | Firewall (Filter, NAT, Mangle and Raw, with reorder, undo and redo), Address Lists, Certificates, Security Scan |
 | **System** | Users (RouterOS accounts and groups), Services, Packages, Scripts, Scheduler, NTP Client, Clock, Logging, SNMP, Files, Containers, NetWatch |
-| **MikroDash** | Tools, AI Agent, Reports, Backups, Audit Trail, Settings |
+| **MikroDash** | Tools, Terminal, AI Agent, Reports, Backups, Audit Trail, Settings |
 
 Every table sorts by its headers, except the ones where order is meaning (firewall rules, queues, routing rules, IPsec policies): those always show the router's order, with move arrows.
 
@@ -277,6 +278,7 @@ Pages that change the router need more than `read`:
 | Configuration pages (Firewall, Routing, DNS, DHCP, VLANs, Bridges, Interfaces, VPN, Queues, Packages and the rest) | `write` |
 | Users (RouterOS accounts and groups) | `write` and `policy` |
 | Backups | `write` and `ftp` |
+| Terminal | whatever the line you type needs - see below |
 
 `ftp` governs reading and writing files on the router, which `/export file=` and `/system/backup/save` need; it does not enable the FTP service. **`policy` governs user management, so an account holding it can create router users.** Grant it deliberately, not by default.
 
@@ -285,6 +287,10 @@ Pages that change the router need more than `read`:
 ```
 
 Without these nothing breaks: a page that is refused drops to read-only and shows the command it needs. MikroDash never lets you edit the account it signs in with, or that account's group.
+
+**The Terminal page is the exception to that whole table**, because it does not know what your line will do. It sends what you type to the router's own console and shows the reply, so the policies above are not a list it consults - they are the limit the *router* enforces on it. On the read-only account at the top of this section it can read and nothing else, because RouterOS refuses the rest.
+
+It is off until you switch it on, in **Settings -> Authentication -> Terminal**, and it is then offered only to a signed-in global administrator who also has write access to the page. Every line is recorded in the Audit Trail whether it worked or not. There is no guard, no read-back and no undo on this page, which is the point of it and the reason for the three switches in front of it.
 
 > [!NOTE]
 > If a queue seems to do nothing, check FastTrack. FastTracked connections bypass simple queues, and the Queues page tells you when that is happening.

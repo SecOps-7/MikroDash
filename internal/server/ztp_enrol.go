@@ -290,7 +290,7 @@ func (s *Server) ztpOnboard(id string) {
 		d.State, d.Error = db.ZTPFailed, &why
 		_ = s.auditDB.SaveZTPDevice(*d)
 		s.auditSystem(audit.Event{Action: "ztp.onboard", TargetType: "ztp-device", TargetID: d.ID, TargetName: d.Label,
-			Outcome: "failure", Note: why})
+			Outcome: "failed", Note: why})
 		s.ztpChanged()
 	}
 	if d.Secret == nil {

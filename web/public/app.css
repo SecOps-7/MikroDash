@@ -3362,3 +3362,27 @@
 
 .nchan-routers { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
 .nchan-router { display: flex; align-items: center; gap: .35rem; font-size: .74rem; }
+
+    /* ── THE TERMINAL ─────────────────────────────────────────────────────────
+       A console built out of the app's own tokens rather than a scheme of its
+       own. The #logs pane above hardcodes two colours, so it needs a
+       [data-theme="light"] twin and is wrong under all nine palettes. This
+       needs neither, because every value here is a variable the theme sets. */
+    .term-scroll{font-family:var(--font-mono);font-size:12px;line-height:1.55;background:var(--bg-deep);color:var(--text-main);height:calc(100vh - 250px);min-height:220px;overflow-y:auto;padding:.7rem .8rem;outline:none}
+    .term-scroll:focus-visible{box-shadow:inset 0 0 0 1px var(--accent-rx)}
+    .term-scroll::-webkit-scrollbar{width:4px} .term-scroll::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
+    .term-block{padding:.1rem 0 .45rem}
+    .term-echo{display:flex;gap:.4rem;white-space:pre-wrap;word-break:break-word}
+    .term-prompt{color:var(--accent-tx);flex:0 0 auto;user-select:none;font-family:var(--font-mono);font-size:12px}
+    .term-cmd{color:var(--text-main);font-weight:600}
+    /* PRE, NOT A DIV: RouterOS aligns `/interface print` with spaces, so
+       collapsing whitespace would destroy the answer, not just its look. */
+    .term-out{margin:.15rem 0 0;font:inherit;background:none;border:0;padding:0;white-space:pre-wrap;word-break:break-word;color:var(--text-muted)}
+    .term-error{margin-top:.2rem;color:var(--accent-err)}
+    .term-trim{margin-top:.2rem;color:var(--accent-warn);font-size:11px}
+    .term-inputrow{display:flex;align-items:center;gap:.45rem;border-top:1px solid var(--border);background:var(--bg-deep);padding:.45rem .8rem}
+    .term-input{flex:1;min-width:0;font-family:var(--font-mono);font-size:12px;background:none;border:0;outline:none;color:var(--text-main);caret-color:var(--accent-tx)}
+    .term-input::placeholder{color:var(--text-muted)}
+    .term-input:disabled{color:var(--text-muted)}
+    .term-status{font-size:.72rem;color:var(--text-muted);margin-right:.5rem}
+    .term-note{margin:0;padding:.5rem .8rem;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border)}

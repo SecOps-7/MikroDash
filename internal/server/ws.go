@@ -155,6 +155,10 @@ type conn struct {
 	// a closed socket: see apps.go.
 	appsMu   sync.Mutex
 	appsQuit chan struct{}
+	// term is the Terminal page's scrollback and its run in flight, with its
+	// own lock. See termState in terminal.go for why the server keeps the pane
+	// at all and why this is not loop-owned like the fields above.
+	term termState
 	// groups keeps this browser's last grouped-table read, so a search filters
 	// it rather than reading a large list again (area_group.go).
 	groups groupMemo
@@ -612,6 +616,12 @@ func (cn *conn) dispatch(in inbound) {
 	// frame, with code "stopped", carries the run so far.
 	case "tools:stop":
 		cn.stopTool()
+	// The Terminal page. The line is NOT parsed here or anywhere else; what is
+	// checked is the gate, and that is in internal/server/terminal.go.
+	case "term:run":
+		cn.termRun(in.Data)
+	case "term:stop":
+		cn.termStop()
 	// The Security Scan page: see internal/server/secscan.go.
 	case "secscan:get":
 		cn.secScanGet()
@@ -1308,6 +1318,12 @@ func (cn *conn) resumePage(page string) {
 		if last := cn.rsession.Logs().Last(); last != nil {
 			collect.EvLogsHistory.Send(cn.srv.hub, cn.c, last)
 		}
+	// The one replay in this switch that is not a collector's last payload.
+	// The Terminal has no collector; what is replayed is state this server kept
+	// for this socket, and replaying it is how a frame the hub dropped is
+	// recovered as well as how the pane survives a page switch. See termState.
+	case "terminal":
+		cn.termResume()
 	case "wifi-networks":
 		if last := cn.rsession.Wifi().Last(); last != nil {
 			replay := *last
@@ -1595,6 +1611,12 @@ func (cn *conn) releaseRouter() {
 	cn.stopTool()
 	cn.stopSecScan()
 	cn.stopApps()
+	// The terminal's pane belongs to the router being left, and its line in
+	// flight was typed at that router. Both go. This is the single choke point
+	// for a deliberate switch, a revoked grant and a closed tab, which sends no
+	// blur - so a pane cannot outlive the router it describes.
+	cn.term.disarm()
+	cn.term.clear()
 	// ── THE ROOMS GO FIRST, AND THE ORDER IS THE WHOLE POINT ──────────────
 	//
 	// Both switch call sites already left every room immediately after calling

@@ -193,6 +193,7 @@
     "aiOverviewEnabled",
     "aiConfirmWrites",
     "aiAllowRawCommands",
+    "terminalEnabled",
     "ztpEnabled"
   ],
   "credFields": [

@@ -160,9 +160,20 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// reads nothing from any router until it is opened and asked, and every
 	// change it can make is an administrator's, so who sees it is the
 	// permission matrix's question, not router load's.
-	if noToggle != 7 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 7 (dashboard, reports, "+
-			"settings, ai-agent, tools, security-scan, config-management)", noToggle)
+	// EIGHT SINCE THE TERMINAL (2026-09-27), and it is the strongest case of the
+	// lot. It touches a device only when somebody types a line, so there is no
+	// load for a Visible Pages toggle to answer; and who may type one is as
+	// squarely a permissions question as this app has. It IS hidden when the
+	// install has it switched off, by `terminalReady` derived from
+	// `terminalEnabled` — the AI Agent's shape, and for the AI Agent's reason: a
+	// `pageTerminal` toggle beside it would be a second switch for one page, and
+	// the Visible Pages presets walk that table writing to `el('s_' + key)`
+	// across the whole document, so the Advanced preset would have found the
+	// enable switch and turned the terminal on as a side effect of choosing a
+	// nav layout.
+	if noToggle != 8 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 8 (dashboard, reports, "+
+			"settings, ai-agent, tools, security-scan, config-management, terminal)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

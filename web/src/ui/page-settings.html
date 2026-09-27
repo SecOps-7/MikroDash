@@ -1037,6 +1037,32 @@
           </div><!-- /scard-body -->
         </div><!-- /principalsCard -->
 
+        <!-- ── Terminal ────────────────────────────────────────────────────
+             Here rather than in the AI tab: this is an access decision, and it
+             is a SEPARATE key from `aiAllowRawCommands` because the two answer
+             different questions - may a model compose a command, may a person
+             type one. See internal/store/terminal.go. -->
+        <div class="scard" id="terminalCardSettings">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><polyline points="5 7 10 12 5 17"/><line x1="12" y1="17" x2="19" y2="17"/></svg>
+            <span class="scard-title">Terminal</span>
+          </div>
+          <div class="scard-body">
+            <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
+              <input type="checkbox" id="s_terminalEnabled">
+              <span>Enable the Terminal page</span>
+            </label>
+            <p style="font-size:.7rem;color:var(--text-muted);margin:.35rem 0 0">
+              A console that sends what you type straight to the device and shows its own reply.
+              <strong>MikroDash does not check the line</strong> - there is no guard, no read-back
+              and no undo, so what you can do here is whatever the RouterOS account MikroDash signs
+              in with may do. On the read-only account the setup guide recommends, that is reading
+              only. Offered to signed-in global administrators who also have write access to the
+              Terminal page, and every line is recorded in the Audit Trail.
+            </p>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── About tab ──────────────────────────────────────────────────── -->

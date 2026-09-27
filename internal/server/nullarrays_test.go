@@ -47,6 +47,10 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 		"diagnostics:update": func() any { return session.NewForTest(hub.New(), "r1").Diagnostics(0) },
 		"routers:stats":      func() any { return routers.BuildStats(routers.StatsSources{}) },
 		"sites:update":       func() any { return sites },
+		"term:output": func() any {
+			return TermOutputPayload{Entry: TermEntry{Lines: []string{}}}
+		},
+		"term:scrollback": func() any { return TermScrollbackPayload{Entries: []TermEntry{}} },
 		"tools:ping": func() any {
 			r := diag.FoldPing("198.51.100.1", nil)
 			return ToolsPingPayload{Result: &r}
