@@ -90,8 +90,17 @@ n.terminalInput.focus = () => { focused++; };
 let focused = 0;
 
 (global as any).document = doc;
-(global as any).window = { addEventListener: () => {}, setTimeout, clearTimeout, getSelection: () => selection };
 let selection = '';
+// ONE selection stub for both readers. The page stringifies it for the Ctrl-C
+// check and calls removeAllRanges after a right-click copy, so it has to be an
+// object that does both rather than a bare string.
+(global as any).window = {
+  addEventListener: () => {}, setTimeout, clearTimeout,
+  getSelection: () => ({
+    toString: () => selection,
+    removeAllRanges: () => { selection = ''; },
+  }),
+};
 
 // The page listens on `document` for the type-anywhere path, so the harness
 // needs a way to fire there and an `activeElement` for it to compare against.
@@ -106,6 +115,27 @@ function fireDoc(ev: string, e: any): void {
   for (const fn of docHandlers[ev] || []) fn({ preventDefault() {}, ...e });
 }
 
+// A clipboard the tests can inspect, and a contextmenu hook on the card.
+const clip = { text: '', reads: 0, writes: 0, allowRead: true };
+// ── A CLIPBOARD THAT SETTLES SYNCHRONOUSLY ──────────────────────────────────
+//
+// `check()` does not await, so an async check prints "ok" before its
+// assertions have run and a failure surfaces later as an unhandled rejection -
+// which is exactly what happened: the checks passed run alone and the full
+// suite failed. Rather than make every check in this file async, the stub
+// returns a THENABLE that calls back immediately, so the page's `.then(...)`
+// runs before the check returns and the assertions are ordinary and synchronous.
+//
+// Node's own `navigator` global is getter-only, so it is redefined rather than
+// assigned.
+const settled = (v?: unknown): any => ({ then: (ok: any) => { ok(v); return settled(v); } });
+const rejected = (): any => ({ then: (_ok: any, no: any) => { if (no) no(new Error('denied')); return rejected(); } });
+Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+  clipboard: {
+    writeText: (t: string) => { clip.writes++; clip.text = t; return settled(); },
+    readText: () => { clip.reads++; return clip.allowRead ? settled(clip.text) : rejected(); },
+  },
+} });
 const handlers: Record<string, any> = {};
 const sent: any[] = [];
 mod.initTerminalPage(
@@ -489,7 +519,8 @@ check('a multi-line paste runs as one block; a single-line paste does not', () =
   inp.value = '';
   let prevented = 0;
   const before = sent.length;
-  inp.fire('paste', {
+  fireDoc('paste', {
+    target: inp,
     clipboardData: { getData: () => '/ip address print\r\n/interface print\n' },
     preventDefault: () => { prevented++; },
   });
@@ -502,7 +533,8 @@ check('a multi-line paste runs as one block; a single-line paste does not', () =
     ms: 0, code: '', message: '' }, running: false, done: true });
 
   const single = sent.length;
-  inp.fire('paste', {
+  fireDoc('paste', {
+    target: inp,
     clipboardData: { getData: () => '/ip address print' },
     preventDefault: () => { prevented++; },
   });
@@ -567,6 +599,76 @@ check('the prompt shows the menu the session is in', () => {
              ms: 0, code: '', message: '' } });
   assert.strictEqual(String(n.terminalPrompt.textContent), '[claude@CHR Test] > ',
     'climbing out left the menu in the prompt');
+});
+
+// PASTE REACHES THE TERMINAL WHEREVER FOCUS IS. It used to be bound to the
+// input alone, so Ctrl-V did nothing unless focus happened to be sitting in it
+// - which it is not after a right-click, or after clicking anything but the
+// scrollback. Reported as "pasting multiple lines does not execute", and that
+// was the whole of it: the event never reached the handler.
+check('a paste with focus elsewhere on the page still runs the block', () => {
+  const inp = n.terminalInput;
+  inp.value = '';
+  const before = sent.length;
+  let prevented = 0;
+  fireDoc('paste', {
+    target: n.terminalCard,                    // NOT the input
+    clipboardData: { getData: () => '/tool mac-server set allowed-interface-list=LAN\n/tool bandwidth-server set enabled=no' },
+    preventDefault: () => { prevented++; },
+  });
+  assert.strictEqual(sent.length, before + 1, 'a paste from outside the input did nothing');
+  assert.deepStrictEqual(sent[sent.length - 1], ['term:run', { line:
+    '/tool mac-server set allowed-interface-list=LAN\n/tool bandwidth-server set enabled=no' }]);
+  assert.strictEqual(prevented, 1, 'the browser was left to paste it as well');
+  handlers['term:output']({ entry: { seq: 0, at: 0, command: '', lines: [], truncated: false,
+    ms: 0, code: '', message: '' }, running: false, done: true, cwd: '' });
+});
+
+check('another text field on the page keeps its own paste', () => {
+  const before = sent.length;
+  let prevented = 0;
+  fireDoc('paste', {
+    target: { tagName: 'INPUT', id: 'somethingElse' },
+    clipboardData: { getData: () => 'a\nb' },
+    preventDefault: () => { prevented++; },
+  });
+  assert.strictEqual(sent.length, before, 'the terminal stole another field\'s paste');
+  assert.strictEqual(prevented, 0, 'and cancelled it');
+});
+
+// TERMINAL MOUSE BUTTONS: select then right-click copies, right-click with
+// nothing selected pastes. PuTTY's convention, and what was asked for.
+check('right-click copies the selection, then pastes when there is none', () => {
+  const card = n.terminalCard;
+  selection = 'Flags: D - DYNAMIC';
+  let prevented = 0;
+  card.fire('contextmenu', { preventDefault: () => { prevented++; } });
+  assert.strictEqual(clip.writes, 1, 'the selection was not copied');
+  assert.strictEqual(clip.text, 'Flags: D - DYNAMIC', 'the wrong text was copied');
+  assert.strictEqual(prevented, 1, 'the browser menu was left to open over it');
+  // COLLAPSED AFTERWARDS, so the next right-click pastes rather than copying
+  // the same thing again - the console's own behaviour.
+  assert.strictEqual(selection, '', 'the selection survived the copy');
+
+  const inp = n.terminalInput;
+  inp.value = '';
+  const readsBefore = clip.reads;
+  card.fire('contextmenu', { preventDefault: () => { prevented++; } });
+  assert.strictEqual(clip.reads, readsBefore + 1, 'right-click with no selection did not paste');
+  assert.strictEqual(inp.value, 'Flags: D - DYNAMIC', 'the clipboard did not reach the line');
+  inp.value = '';
+});
+
+// BOTH HALVES MUST WORK OR PEOPLE HAVE NO WAY TO MOVE TEXT, since the browser's
+// own menu is suppressed inside the card. A refused clipboard says which keys
+// still do it rather than failing silently.
+check('a refused clipboard read says so instead of doing nothing', () => {
+  clip.allowRead = false;
+  selection = '';
+  n.terminalCard.fire('contextmenu', { preventDefault: () => {} });
+  assert.ok(/Ctrl-V/.test(String(n.terminalStatus.textContent)),
+    'a refused paste left no hint at all: ' + n.terminalStatus.textContent);
+  clip.allowRead = true;
 });
 
 check('a refusal code becomes a sentence, and no device text', () => {

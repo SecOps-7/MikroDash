@@ -336,21 +336,86 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
    * a console: no bracketed-paste quirks, no line-length ceiling, and the
    * device sees the block the way the author wrote it.
    *
-   * A SINGLE-LINE paste is left alone and just lands in the input, because
-   * running on paste would be a surprise. Only a block - something with a
-   * newline in it, which is unambiguously more than one command - runs.
+   * A SINGLE-LINE paste just lands on the line, because running on paste would
+   * be a surprise. Only a block - something with a newline in it, which is
+   * unambiguously more than one command - runs.
    */
-  el<HTMLInputElement>('terminalInput')?.addEventListener('paste', (e) => {
-    const ev = e as ClipboardEvent;
-    const pasted = ev.clipboardData?.getData('text') ?? '';
-    if (!/[\r\n]/.test(pasted)) return; // ordinary paste; let the browser do it
-    ev.preventDefault();
+  function handlePaste(pasted: string): boolean {
+    if (!mayRun || running || !pasted) return false;
     const box = el<HTMLInputElement>('terminalInput');
+    if (!/[\r\n]/.test(pasted)) {
+      if (box) { box.value += pasted; box.focus(); }
+      return true;
+    }
     const whole = ((box?.value ?? '') + pasted)
       .replace(/\r\n?/g, '\n')
       .replace(/\n+$/, '');
     if (box) box.value = '';
     send(whole);
+    return true;
+  }
+
+  /**
+   * ON THE DOCUMENT, NOT ON THE INPUT.
+   *
+   * It used to be bound to `#terminalInput`, so Ctrl-V only worked when focus
+   * happened to be sitting in it - which it is not after a right-click, or
+   * after clicking anything that is not the scrollback. Reported as "pasting
+   * multiple lines does not execute", and that was the whole of it: the event
+   * never reached the handler.
+   *
+   * Another text field on the page still owns its own paste.
+   */
+  document.addEventListener('paste', (e) => {
+    if (!isVisible('terminal')) return;
+    const ev = e as ClipboardEvent;
+    const tag = ((ev.target as HTMLElement | null)?.tagName || '').toUpperCase();
+    const own = (ev.target as HTMLElement | null)?.id === 'terminalInput';
+    if (!own && (tag === 'INPUT' || tag === 'TEXTAREA')) return;
+    const pasted = ev.clipboardData?.getData('text') ?? '';
+    if (!/[\r\n]/.test(pasted) && own) return; // ordinary paste, let the browser do it
+    if (handlePaste(pasted)) ev.preventDefault();
+  });
+
+  /**
+   * TERMINAL MOUSE BUTTONS: select to have something to copy, right-click to
+   * copy it, right-click with nothing selected to paste.
+   *
+   * This is the convention PuTTY and the Windows console use, and it is what
+   * the operator asked for. It replaces the browser's own menu inside the
+   * terminal card, so both halves have to work or people are left with no way
+   * to move text at all - which is why the failure path writes a line into the
+   * pane saying which keys still do it rather than failing silently.
+   *
+   * Reading the clipboard needs permission and can be refused; writing is
+   * reliable. A right-click is a user gesture, which is what the browser wants
+   * before it will hand the clipboard over.
+   */
+  el('terminalCard')?.addEventListener('contextmenu', (e) => {
+    const ev = e as MouseEvent;
+    const sel = typeof window !== 'undefined' && window.getSelection
+      ? String(window.getSelection() || '') : '';
+    ev.preventDefault();
+    if (sel) {
+      navigator.clipboard?.writeText(sel).then(
+        () => {
+          // Collapse it, so the next right-click pastes rather than copying
+          // the same thing again - the console's own behaviour.
+          window.getSelection()?.removeAllRanges();
+          note('Copied.');
+        },
+        () => note('Could not copy. Ctrl-C still works.'),
+      );
+      return;
+    }
+    if (!navigator.clipboard?.readText) {
+      note('Paste with Ctrl-V.');
+      return;
+    }
+    navigator.clipboard.readText().then(
+      (text) => { handlePaste(text); note(''); },
+      () => note('Could not read the clipboard. Paste with Ctrl-V.'),
+    );
   });
 
   el<HTMLButtonElement>('terminalStop')?.addEventListener('click', () => stop());
