@@ -93,6 +93,19 @@ let focused = 0;
 (global as any).window = { addEventListener: () => {}, setTimeout, clearTimeout, getSelection: () => selection };
 let selection = '';
 
+// The page listens on `document` for the type-anywhere path, so the harness
+// needs a way to fire there and an `activeElement` for it to compare against.
+const docHandlers: Record<string, any[]> = {};
+const origAdd = doc.addEventListener?.bind(doc);
+doc.activeElement = null;
+doc.addEventListener = (ev: string, fn: any) => {
+  (docHandlers[ev] = docHandlers[ev] || []).push(fn);
+  if (origAdd) origAdd(ev, fn);
+};
+function fireDoc(ev: string, e: any): void {
+  for (const fn of docHandlers[ev] || []) fn({ preventDefault() {}, ...e });
+}
+
 const handlers: Record<string, any> = {};
 const sent: any[] = [];
 mod.initTerminalPage(
@@ -249,6 +262,67 @@ check('Clear tells the server as well as the screen', () => {
   assert.deepStrictEqual(sent[sent.length - 1], ['term:clear', {}],
     'the server still holds the pane, so walking away and back would undo the Clear');
   assert.ok(before >= 0);
+});
+
+// TYPING ANYWHERE ON THE PAGE TYPES AT THE PROMPT.
+//
+// Reported as "hitting enter does nothing", and that is exactly how it looks:
+// focus lands on the card header or the page background, nothing brings it
+// back, and every keystroke goes nowhere while the page works perfectly.
+check('a keystroke with focus elsewhere reaches the prompt, and is kept', () => {
+  const inp = n.terminalInput;
+  inp.value = '';
+  doc.activeElement = n.terminalCard;          // focus is NOT in the input
+  fireDoc('keydown', { key: '/', target: n.terminalCard });
+  fireDoc('keydown', { key: 'i', target: n.terminalCard });
+  assert.strictEqual(inp.value, '/i',
+    'the keystrokes were swallowed rather than kept; focusing alone loses the first character');
+});
+
+check('Enter from outside the input runs the line', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip address print';
+  doc.activeElement = n.terminalCard;
+  const before = sent.length;
+  fireDoc('keydown', { key: 'Enter', target: n.terminalCard });
+  assert.strictEqual(sent.length, before + 1, 'Enter outside the input did nothing');
+  assert.deepStrictEqual(sent[sent.length - 1], ['term:run', { line: '/ip address print' }]);
+  handlers['term:output']({ entry: { seq: 0, at: 0, command: '', lines: [], truncated: false,
+    ms: 0, code: '', message: '' }, running: false, done: true });
+});
+
+// WHAT IT MUST NOT TAKE. Each of these would break something else on the page.
+check('it does not steal from other controls, or the browser', () => {
+  const inp = n.terminalInput;
+  inp.value = '';
+  doc.activeElement = n.terminalCard;
+
+  // Another text field on the page owns its own typing.
+  fireDoc('keydown', { key: 'x', target: { tagName: 'INPUT' } });
+  // Browser and OS keys pass through untouched.
+  fireDoc('keydown', { key: 'r', ctrlKey: true, target: n.terminalCard });
+  fireDoc('keydown', { key: 'c', metaKey: true, target: n.terminalCard });
+  // TAB ABOVE ALL: stealing it strands a keyboard user on this page.
+  fireDoc('keydown', { key: 'Tab', target: n.terminalCard });
+  fireDoc('keydown', { key: 'Escape', target: n.terminalCard });
+  fireDoc('keydown', { key: 'F5', target: n.terminalCard });
+
+  assert.strictEqual(inp.value, '',
+    'the page took a key that belongs to another control or to the browser: ' + inp.value);
+
+  // ENTER ON A BUTTON OR A LINK MUST STILL ACTIVATE IT, and that cannot be
+  // seen in `inp.value` - Enter runs the line rather than typing a character.
+  // Asserting on the value alone let a dropped BUTTON guard survive a mutation
+  // sweep, so this watches what Enter actually does.
+  inp.value = '/should-not-run';
+  const before = sent.length;
+  fireDoc('keydown', { key: 'Enter', target: { tagName: 'BUTTON' } });
+  fireDoc('keydown', { key: 'Enter', target: { tagName: 'A' } });
+  fireDoc('keydown', { key: ' ', target: { tagName: 'BUTTON' } });
+  assert.strictEqual(sent.length, before,
+    'Enter or Space on a button ran a terminal line instead of activating the button');
+  assert.strictEqual(inp.value, '/should-not-run', 'Space on a button typed into the prompt');
+  inp.value = '';
 });
 
 check('a refusal code becomes a sentence, and no device text', () => {

@@ -232,6 +232,63 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     if (!sel) el<HTMLInputElement>('terminalInput')?.focus();
   });
 
+  /**
+   * TYPING ANYWHERE ON THIS PAGE TYPES AT THE PROMPT.
+   *
+   * The click handler above only covers the scroller. Focus lands outside it
+   * easily - the card header, the page background, a drag that selected a
+   * character - and once it does, nothing brings it back: keys go nowhere and
+   * the page looks broken while working perfectly. Reported as "hitting enter
+   * does nothing", which is exactly what it would look like.
+   *
+   * So the page takes the keystroke the way a terminal does: it focuses the
+   * prompt AND KEEPS THE CHARACTER, rather than focusing and swallowing the
+   * first one.
+   *
+   * What it deliberately does NOT take:
+   *
+   *	another field        an input, textarea or select has its own text
+   *	a button or a link   Enter and Space must still activate what you tabbed to
+   *	Ctrl / Cmd / Alt     reload, copy, the browser's own keys
+   *	anything multi-char  Tab, Escape, F-keys, arrows - so the page is still
+   *	                     navigable by keyboard, which Tab in particular needs
+   *
+   * The app's digit and `/` shortcuts therefore do not fire while this page is
+   * up, and that is correct rather than a casualty: they already do not fire
+   * when the prompt has focus (see keyboard.ts, which skips INPUT), and a
+   * terminal where `1` changed the page instead of typing `1` would be a
+   * terminal you could not use.
+   */
+  document.addEventListener('keydown', (e) => {
+    const ev = e as KeyboardEvent;
+    if (!isVisible('terminal')) return;
+    const inp = el<HTMLInputElement>('terminalInput');
+    if (!inp || inp.disabled) return;
+    if (document.activeElement === inp) return; // its own handler has this
+    const tag = ((ev.target as HTMLElement | null)?.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        tag === 'BUTTON' || tag === 'A') return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      inp.focus();
+      send();
+      return;
+    }
+    if (ev.key === 'Backspace') {
+      ev.preventDefault();
+      inp.focus();
+      inp.value = inp.value.slice(0, -1);
+      return;
+    }
+    if (ev.key.length === 1) {
+      ev.preventDefault();
+      inp.focus();
+      inp.value += ev.key; // KEPT, not dropped
+    }
+  });
+
   el<HTMLInputElement>('terminalInput')?.addEventListener('keydown', (e) => {
     const ev = e as KeyboardEvent;
     if (ev.key === 'Enter') { ev.preventDefault(); send(); return; }
