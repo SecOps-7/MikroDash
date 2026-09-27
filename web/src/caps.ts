@@ -182,17 +182,12 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
     // the AI tab and switch the assistant on as a side effect of choosing a
     // nav layout.
     //
-    // THE TERMINAL IS GATED THE SAME WAY, on `terminalReady` derived from
-    // `terminalEnabled`. Not via PAGE_NAV_MAP for the reason just given: the
-    // presets walk that map writing to `el('s_' + settingsKey)` across the whole
-    // document, so the Advanced preset would find the switch in the Access tab
-    // and turn the terminal on as a side effect of choosing a nav layout.
-    //
-    // A page that is switched off renders an input that only ever refuses, so it
-    // is not offered rather than offered and then bounced. Whether the PERSON
-    // may run anything is a second question and arrives on `term:scrollback`.
-    const byFeature = (pageName !== 'ai-agent' || p.aiReady === true) &&
-      (pageName !== 'terminal' || p.terminalReady === true);
+    // THE TERMINAL IS NOT HERE, and that is deliberate. It had a derived flag of
+    // its own for a while, from an install-wide switch; both are gone. A page
+    // key in this app is a permission key, so `byRole` above already answers
+    // "may this person use the Terminal", and a second term would have been a
+    // second mechanism for the one job.
+    const byFeature = pageName !== 'ai-agent' || p.aiReady === true;
     const visible = byInstall && byRole && byBuild && byFeature;
 
     document.querySelectorAll<HTMLElement>('.nav-item[data-page="' + pageName + '"]')

@@ -129,12 +129,7 @@ func (s *Server) settingsPayload(sess *Session) store.Settings {
 // usable on connect and not after a save, so the page would appear and then
 // vanish when the operator pressed Save, which reads as the save having failed.
 func pageSettingsFor(s store.Settings) store.Settings {
-	// TWO DERIVED FLAGS, ONE CHOKEPOINT, for the reason the paragraph above
-	// gives: a flag injected at two of the three senders is worse than one
-	// injected at none. `terminalReady` carries the install-wide half of the
-	// Terminal gate; whether the person reading it may run anything arrives
-	// per-connection on `term:caps`.
-	return store.PageSettings(store.WithTerminalReady(store.WithAIReady(s)))
+	return store.PageSettings(store.WithAIReady(s))
 }
 
 // maySeeAllSettings answers `Rbac.can(session, 'system:settings')`.

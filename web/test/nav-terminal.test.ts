@@ -1,19 +1,19 @@
 /**
- * THE TERMINAL NAV ITEM WAS OFFERED WITH THE FEATURE SWITCHED OFF.
+ * THE TERMINAL NAV ITEM IS GATED BY THE ROLE, AND BY NOTHING ELSE.
  *
- * `terminalEnabled` is off until an install turns it on, and the server derives
- * `terminalReady` from it and sends it with the page settings. The payload was
- * right from the first build. `applyPageVisibility` simply never asked about
- * that page: `byFeature` named `ai-agent` and nothing else, so the nav item was
- * visible on an install where every line would be refused.
+ * It briefly had a feature flag of its own, derived from an install-wide
+ * `terminalEnabled` switch, and that switch is gone: a page key in this app is
+ * a permission key, so "may this person use the Terminal" already had an
+ * answer and the flag was a second mechanism for the one job.
  *
- * Found in a browser on 2026-09-27 with the whole suite green, which is the
- * shape this file exists to stop repeating - the sibling next door
- * (nav-ai-agent.test.ts) records the same failure one page over, where the
- * expression was correct and never evaluated.
+ * Which leaves one thing to prove, and it is worth proving on this page above
+ * all others: the sweep actually VISITS it. The failure this file's sibling
+ * records (nav-ai-agent.test.ts) is a correct expression that is never
+ * evaluated - `ALL_NAV_PAGES` not carrying the key, so no role, toggle or gate
+ * can hide the item however right the rest of the code is. That shipped once
+ * for the AI Agent and was found in a browser, with the suite green.
  *
- * Driven through the real module for that reason: a test that called the
- * expression directly would have passed on the broken build.
+ * Driven through the real module for that reason.
  */
 
 import fs from 'node:fs';
@@ -52,47 +52,45 @@ global.fetch = (() => new Promise(() => {})) as never;
 const { initCaps, applyCaps, applyPageVisibility } = require(OUT);
 
 initCaps({ current: () => 'dashboard', go: () => {}, serves: () => true });
-// A role that grants everything, so ROLE never explains a hidden nav item and
-// only `terminalReady` can.
-applyCaps({ pages: { dashboard: true, terminal: true, firewall: true } });
 
 const display = (k: string): string | undefined => navItems[k]?.style.display;
 
-// THE SWEEP MUST VISIT IT AT ALL. The harness creates a nav item only when the
-// sweep asks about that page, so an absent entry means it was never considered -
-// indistinguishable on screen from "considered and left visible".
-applyPageVisibility({ terminalReady: false });
+// ── THE SWEEP MUST VISIT IT AT ALL ────────────────────────────────────────
+//
+// The harness creates a nav item only when the sweep asks about that page, so
+// an absent entry means it was never considered - which is indistinguishable,
+// on screen, from "considered and left visible".
+applyCaps({ pages: { dashboard: true, firewall: true } });
+applyPageVisibility({});
 assert.ok(navItems['terminal'],
-  'the sweep never asked about terminal, so no setting can hide it. It is missing ' +
+  'the sweep never asked about terminal, so no role can hide it. It is missing ' +
   'from ALL_NAV_PAGES in testdata/pages-table.json.');
 say('ok  the visibility sweep considers the Terminal page');
 
 assert.strictEqual(display('terminal'), 'none',
-  'terminalReady false left the Terminal nav item visible - the page would offer an ' +
-  'input that only ever refuses');
-say('ok  terminalReady false hides it');
+  'a role without the Terminal page still saw the nav item');
+say('ok  no Terminal permission hides it');
 
 // BOTH DIRECTIONS. A sweep that hid it unconditionally would pass the assertion
-// above and be just as wrong: the page would never appear once switched on.
-applyPageVisibility({ terminalReady: true });
+// above and be just as wrong: nobody could ever be granted the page.
+applyCaps({ pages: { dashboard: true, firewall: true, terminal: true } });
+applyPageVisibility({});
 assert.strictEqual(display('terminal'), '',
-  'terminalReady true did not bring the Terminal nav item back');
-say('ok  terminalReady true shows it');
+  'a role WITH the Terminal page did not get the nav item');
+say('ok  the Terminal permission shows it');
 
-// ABSENT IS NOT READY. `terminalReady` is derived and always sent; a payload
-// without it means an older server or a projection that dropped it, and this is
-// the page where offering it anyway is least acceptable.
-applyPageVisibility({ terminalReady: undefined });
-assert.strictEqual(display('terminal'), 'none',
-  'an absent terminalReady left the page visible; it must fail closed');
-say('ok  an absent terminalReady fails closed');
+// AND NO SETTING CAN OVERRIDE THE ROLE in either direction. The install-wide
+// switch is gone; a payload still carrying one must change nothing.
+applyPageVisibility({ terminalReady: false, terminalEnabled: false });
+assert.strictEqual(display('terminal'), '',
+  'a stale terminalEnabled/terminalReady in the payload hid a page the role grants');
+say('ok  a leftover setting in the payload does not override the role');
 
-// AND IT MUST NOT GATE ANYTHING ELSE. The two feature terms are ANDed in one
-// expression, so a mistake there could hide every page but the terminal.
-applyPageVisibility({ terminalReady: true, aiReady: true });
+// THE CONTROL. Firewall is granted and ungated, so it must stay visible
+// throughout - without this, a sweep that hid everything would pass the rest.
 assert.strictEqual(display('firewall'), '',
-  'control: Firewall should be visible, so the assertions above measure terminalReady ' +
-  'rather than a sweep that hides everything');
+  'control: Firewall should be visible, so the assertions above measure the ' +
+  'Terminal grant rather than a sweep that hides everything');
 say('ok  control: an ungated page stays visible');
 
 say('nav-terminal: all checks passed');

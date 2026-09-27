@@ -29,7 +29,6 @@
     "displayTimezone",
     "userNotifyEnabled",
     "aiReady",
-    "terminalReady",
     "hiddenAreas"
   ],
   "cases": {

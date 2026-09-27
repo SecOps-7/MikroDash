@@ -622,6 +622,8 @@ func (cn *conn) dispatch(in inbound) {
 		cn.termRun(in.Data)
 	case "term:stop":
 		cn.termStop()
+	case "term:clear":
+		cn.termClear()
 	// The Security Scan page: see internal/server/secscan.go.
 	case "secscan:get":
 		cn.secScanGet()
@@ -1616,7 +1618,7 @@ func (cn *conn) releaseRouter() {
 	// for a deliberate switch, a revoked grant and a closed tab, which sends no
 	// blur - so a pane cannot outlive the router it describes.
 	cn.term.disarm()
-	cn.term.clear()
+	cn.term.reset()
 	// ── THE ROOMS GO FIRST, AND THE ORDER IS THE WHOLE POINT ──────────────
 	//
 	// Both switch call sites already left every room immediately after calling

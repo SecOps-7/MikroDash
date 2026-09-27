@@ -25,10 +25,9 @@ package server
 // So there is no guard, no read-back, no undo and no page in the permission
 // matrix that maps the menu it reaches. What there is instead:
 //
-//	a SIGNED-IN GLOBAL ADMINISTRATOR   not merely someone who may write a page,
-//	                                   and not "sign-in is off, so everyone is"
-//	the terminalEnabled SETTING        default false; see store.TerminalEnabled
-//	WRITE ACCESS TO THE terminal PAGE  per router, through the normal matrix
+//	WRITE ACCESS TO THE terminal PAGE, per device, through the normal matrix -
+//	and that is the whole of it. See terminalGateNote for what that one check
+//	already carries and why it replaced three.
 //
 // ── AND A FOURTH GATE THAT IS NOT OURS, WHICH IS THE STRONGEST ──────────────
 //
@@ -66,6 +65,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -74,7 +74,6 @@ import (
 	"mikrodash/internal/rawcmd"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
-	"mikrodash/internal/store"
 )
 
 const (
@@ -107,9 +106,7 @@ const (
 // terminalRefusal is the SAME sentence whichever of the three gates stopped it,
 // so nobody can map an installation by watching which refusal they get. Which
 // gate it was goes in the audit row.
-const terminalRefusal = "The Terminal is not available. It is off unless a global " +
-	"administrator has switched it on for this installation and granted you write " +
-	"access to this page on this device."
+const terminalRefusal = "You do not have permission to run commands on this device."
 
 // TermEntry is one line somebody typed and what came back.
 type TermEntry struct {
@@ -208,45 +205,58 @@ type termState struct {
 	quit    chan struct{}
 	running bool
 	trimmed bool
+	// identity is the device's own `/system/identity`, read once with the
+	// greeting rather than on every page focus. The browser has no other
+	// source: the device dropdown carries MikroDash's LABEL, which is a
+	// different string, and a prompt quietly showing the wrong one is a
+	// plausible-looking wrong answer.
+	identity string
+	// greeted latches the opening banner, so it is written once per device
+	// session and not again on every focus. Cleared by reset (a device switch
+	// or a closed socket) and NOT by wipe, because a terminal you have cleared
+	// does not print its login banner again until you reconnect.
+	greeted bool
 }
 
 // ── the gate ────────────────────────────────────────────────────────────────
 
-// terminalGateNote is the three checks, answered WITHOUT auditing: "" when this
-// viewer passes all of them, otherwise the note saying which one refused.
+// terminalGateNote is the gate, answered WITHOUT auditing: "" when this viewer
+// may use the page here, otherwise the note saying why not.
 //
-// SIGNED IN, AND A GLOBAL ADMINISTRATOR. `(*Server).isGlobalAdmin` answers true
-// when sign-in is switched off entirely, which is right for reading the
-// principal graph and wrong here for the reason ai_raw.go's rawGateNote gives:
-// a command nobody can be held to is one nobody should be able to send. The
-// AuthMode clause is that same compensation, borrowed rather than reinvented.
+// ── ONE CHECK, AND IT IS THE PERMISSION MATRIX ──────────────────────────────
 //
-// The order refuses earliest: identity first (no I/O), then the install setting
-// (one settings read), then the per-router grant (three indexed selects).
-func (cn *conn) terminalGateNote(sc connScope) (store.Settings, string) {
-	if sc.sess == nil || sc.sess.AuthMode == "none" || !cn.srv.isGlobalAdmin(sc.sess) {
-		return nil, "not a signed-in global administrator"
-	}
-	settings, err := cn.srv.mergedSettings()
-	if err != nil {
-		return nil, "unreadable"
-	}
-	if !store.TerminalEnabled(settings) {
-		return nil, "terminalEnabled is off"
-	}
+// There was an install-wide `terminalEnabled` switch here as well, and a
+// requirement that the caller be a global administrator. Both are gone, at the
+// operator's direction, and removing them made this more coherent rather than
+// less: a page key in this app IS a permission key, so "may this person use the
+// Terminal on this device" already had an answer, and the other two were a
+// second and third mechanism for the one job. Worse, keeping the administrator
+// clause would have made GRANTING somebody the Terminal permission do nothing
+// at all, which is the most confusing of the three possible designs.
+//
+// What that one check already carries, from canPageIn:
+//
+//	sign-in switched off      write is refused outright, so a command nobody
+//	                          can be held to is one nobody can send
+//	RBAC unavailable          write fails CLOSED
+//	no audit database         write is refused: no trail, no writes
+//	the coarse page union     ANDed with the resolver, never substituted
+//
+// So the properties the old gate spelled out by hand are properties of the
+// matrix, and they hold for this page the same way they hold for every other.
+// The page is not granted to anyone by default; an Administrator has it because
+// builtin roles carry every page, and anybody else has it because somebody
+// deliberately said so.
+func (cn *conn) terminalGateNote(sc connScope) string {
 	if !cn.canPageIn(sc, "terminal", "write") {
-		return nil, "no terminal write access on this router"
+		return "no terminal write access on this device"
 	}
-	return settings, ""
+	return ""
 }
 
 // terminalGate is terminalGateNote plus the audit row a refusal earns.
 func (cn *conn) terminalGate(rec *audit.Recorder, sc connScope) string {
-	_, note := cn.terminalGateNote(sc)
-	if note == "unreadable" {
-		return "The settings could not be read, so nothing was run."
-	}
-	if note != "" {
+	if note := cn.terminalGateNote(sc); note != "" {
 		rec.Denied(audit.Event{
 			Action: "terminal.run", TargetType: "router",
 			TargetID: sc.routerID, RouterID: sc.routerID, Note: note,
@@ -506,23 +516,41 @@ func (cn *conn) termStop() {
 	})
 }
 
+// termClear answers `term:clear`: the operator emptied the pane.
+//
+// THE SERVER MUST FORGET IT TOO. The browser clearing its own screen is not
+// enough, because the pane it draws is replayed from here on the next page
+// focus - so a Clear that only reached the browser would be undone by walking
+// to another page and back, which is exactly the kind of quiet nonsense that
+// makes people stop trusting a control.
+func (cn *conn) termClear() {
+	cn.term.wipe()
+	cn.termResume()
+}
+
 // termResume sends the pane and what this viewer may do with it. Called from
 // resumePage, so it is how a dropped frame is recovered as well as how the pane
 // survives a page switch.
 func (cn *conn) termResume() {
 	sc := cn.scope()
 	// NO AUDIT: opening a page is not an attempt to run anything.
-	_, note := cn.terminalGateNote(sc)
+	note := cn.terminalGateNote(sc)
+	// THE GREETING IS WRITTEN ONCE PER DEVICE SESSION, and only for somebody who
+	// may actually use the page - reading a device's version to decorate a pane
+	// that is about to say "not available" would be two channels spent on a
+	// refusal.
+	if note == "" && sc.rs != nil && cn.term.claimGreeting(sc.routerID) {
+		identity, lines := terminalGreeting(sc.rs)
+		cn.term.greet(sc.routerID, identity, TermEntry{
+			Seq: cn.term.nextSeq(), At: nowMillis(), Lines: lines,
+		})
+	}
 	routerID, entries, trimmed, running := cn.term.snapshot()
 	out := TermScrollbackPayload{
 		RouterID: sc.routerID, Entries: entries, MayRun: note == "",
 		Trimmed: trimmed, Running: running,
 	}
-	switch note {
-	case "":
-	case "unreadable":
-		out.Why = "The settings could not be read."
-	default:
+	if note != "" {
 		out.Why = terminalRefusal
 	}
 	// A pane kept for a router this socket has since left is not this pane.
@@ -532,21 +560,92 @@ func (cn *conn) termResume() {
 	if sc.sess != nil {
 		out.User = sc.sess.Username
 	}
-	if out.MayRun && sc.rs != nil {
-		out.Identity = terminalIdentity(sc.rs)
-	}
+	out.Identity = cn.term.who()
 	EvTermScrollback.Send(cn.srv.hub, cn.c, out)
 }
 
-// terminalIdentity reads the router's own name for the prompt. One cheap read
-// per page focus, and "" on failure - the page falls back rather than showing a
-// name that might be another device's.
-func terminalIdentity(rs terminalExec) string {
-	rows, err := rs.Exec(routeros.Cmd{Path: "/system/identity/print"})
-	if err != nil || len(rows) == 0 {
-		return ""
+// terminalGreeting is what the pane says before anybody types: the device's
+// name for the prompt, and the opening banner.
+//
+// TWO READS, ONCE PER DEVICE SESSION, not once per page focus. An earlier
+// version read the identity every time `resumePage` ran, which is every time
+// somebody moved to this page; latching it here is fewer channels on the
+// device, which is the bottleneck this app is built around.
+//
+// Neither read is fatal. A device that will not answer still gets a banner and
+// a prompt, with the parts that could not be read simply absent - a terminal
+// that refuses to open because it could not print its own version would be a
+// worse answer than one that opens without it.
+func terminalGreeting(rs terminalExec) (identity string, lines []string) {
+	if rows, err := rs.Exec(routeros.Cmd{Path: "/system/identity/print"}); err == nil && len(rows) > 0 {
+		identity = rows[0]["name"]
 	}
-	return rows[0]["name"]
+	var res routeros.Reply
+	if rows, err := rs.Exec(routeros.Cmd{
+		Path: "/system/resource/print",
+		Args: []string{"=.proplist=version,board-name,architecture-name,uptime"},
+	}); err == nil && len(rows) > 0 {
+		res = rows[0]
+	}
+	return identity, terminalBanner(identity, res, time.Now().Year())
+}
+
+// mikrotikLogo is the block-letter wordmark a RouterOS console prints when you
+// sign in.
+//
+// ── REPRODUCED, NOT RELAYED, AND THAT IS WORTH SAYING ───────────────────────
+//
+// A real console prints this itself. The RouterOS API cannot: the banner is
+// written by the login path of the serial, telnet and SSH consoles, and no menu
+// returns it - checked against a live device's serial console, which shows it
+// only after a console login that the API account's policy does not permit. So
+// these lines are ours, laid out to match what the device shows rather than
+// read back from it, and a future reader should not go looking for the read
+// that produces them.
+var mikrotikLogo = []string{
+	`  MMM      MMM       KKK                          TTTTTTTTTTT      KKK`,
+	`  MMMM    MMMM       KKK                          TTTTTTTTTTT      KKK`,
+	`  MMM MMMM MMM  III  KKK  KKK  RRRRRR     OOOOOO      TTT     III  KKK  KKK`,
+	`  MMM  MM  MMM  III  KKKKK     RRR  RRR  OOO  OOO     TTT     III  KKKKK`,
+	`  MMM      MMM  III  KKK KKK   RRRRRR    OOO  OOO     TTT     III  KKK KKK`,
+	`  MMM      MMM  III  KKK  KKK  RRR  RRR   OOOOOO      TTT     III  KKK  KKK`,
+}
+
+// terminalBanner composes the opening lines. Every field is optional, because
+// every one of them comes off a device that may not have answered.
+func terminalBanner(identity string, res routeros.Reply, year int) []string {
+	out := make([]string, 0, len(mikrotikLogo)+8)
+	out = append(out, "")
+	out = append(out, mikrotikLogo...)
+	out = append(out, "")
+
+	title := "  MikroTik RouterOS"
+	if v := res["version"]; v != "" {
+		title += " " + v
+	}
+	out = append(out, title+"  (c) 1999-"+strconv.Itoa(year)+"       https://help.mikrotik.com/")
+
+	// The device's own line, built from whatever came back. Joined with a
+	// separator only between the parts that exist, so a device that answered
+	// half the read does not render a row of empty bullets.
+	var facts []string
+	for _, v := range []string{identity, res["board-name"], res["architecture-name"]} {
+		if v != "" {
+			facts = append(facts, v)
+		}
+	}
+	if u := res["uptime"]; u != "" {
+		facts = append(facts, "up "+u)
+	}
+	if len(facts) > 0 {
+		out = append(out, "", "  "+strings.Join(facts, "  ·  "))
+	}
+
+	out = append(out, "",
+		"  Lines typed here go to the device exactly as written. MikroDash does not check them,",
+		"  and each one is recorded in the Audit Trail.",
+		"")
+	return out
 }
 
 // ── the scrollback ──────────────────────────────────────────────────────────
@@ -631,12 +730,59 @@ func (s *termState) snapshot() (string, []TermEntry, bool, bool) {
 	return s.router, out, s.trimmed, s.running
 }
 
-// clear drops everything, on a router switch and on disconnect.
-func (s *termState) clear() {
+// reset drops everything, on a device switch and on disconnect. The greeting
+// latch goes with it, so the next device prints its own banner.
+func (s *termState) reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.router = ""
 	s.entries = nil
 	s.bytes = 0
 	s.trimmed = false
+	s.identity = ""
+	s.greeted = false
+}
+
+// wipe is the operator pressing Clear. The pane empties and the greeting latch
+// STAYS SET: a terminal you have just cleared does not print its login banner
+// again, and one that did would undo the clear you asked for.
+func (s *termState) wipe() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.entries = nil
+	s.bytes = 0
+	s.trimmed = false
+}
+
+// claimGreeting reports whether this call owns writing the banner, and takes
+// that right in the same breath. Taken under the lock so two focuses landing
+// together cannot both read the device and both append.
+func (s *termState) claimGreeting(routerID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.greeted {
+		return false
+	}
+	if s.router != "" && s.router != routerID {
+		return false
+	}
+	s.greeted = true
+	return true
+}
+
+// greet records the device's name and writes the banner as the pane's first
+// entry. It carries a real seq, like any other entry, so a replay REPLACES it
+// rather than drawing a second copy.
+func (s *termState) greet(routerID, identity string, e TermEntry) {
+	s.mu.Lock()
+	s.identity = identity
+	s.mu.Unlock()
+	s.append(routerID, e)
+}
+
+// who is the device's own name, for the prompt.
+func (s *termState) who() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.identity
 }

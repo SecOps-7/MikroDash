@@ -3,6 +3,12 @@
        the console text back verbatim; web/src/pages/terminal.ts renders it as
        TEXT NODES and never as markup.
 
+       THE PROMPT LIVES INSIDE THE SCROLLBACK, as its last child, and
+       terminal.ts moves it back there after every write. That is the whole of
+       what makes this read as a terminal rather than a log with a search box:
+       you type where the output stopped, the caret scrolls with the content,
+       and there is no second region with a border of its own.
+
        BARE ON PURPOSE - no count pill, no tab strip, no sortable headers, no
        coloured pills. That furniture exists to make a table of device rows
        legible and this page has no rows; the exception is recorded in
@@ -17,29 +23,25 @@
           </div>
           <div class="hdr-actions">
             <span class="term-status" id="terminalStatus"></span>
+            <button id="terminalStop" class="sbtn sbtn-danger" type="button" hidden
+                    title="Stop waiting for this command. Ctrl-C does the same.">Stop</button>
             <button id="terminalClear" class="sbtn sbtn-ghost" type="button"
-                    title="Clear what is on screen. The device is not touched.">Clear</button>
+                    title="Clear the pane. The device is not touched.">Clear</button>
           </div>
         </div>
         <div class="card-body p-0">
-          <!-- The scrollback. Filled only by createElement and textContent in
-               terminal.ts: the text is the device's, and an interface name
-               could otherwise inject markup (0.7.35). -->
-          <div id="terminalScroll" class="term-scroll data-scroll" tabindex="0"
-               role="log" aria-live="polite" aria-label="Device console output"></div>
-          <div class="term-inputrow">
-            <span class="term-prompt" id="terminalPrompt">&gt;</span>
-            <input id="terminalInput" class="term-input" type="text" autocomplete="off"
-                   autocapitalize="off" autocorrect="off" spellcheck="false"
-                   aria-label="RouterOS command"
-                   placeholder="Type a RouterOS command and press Enter" disabled>
-            <button id="terminalRun" class="sbtn sbtn-primary" type="button" disabled>Run</button>
+          <!-- Filled only by createElement and textContent in terminal.ts: the
+               text is the device's, and an interface name could otherwise
+               inject markup (0.7.35). -->
+          <div id="terminalScroll" class="term-scroll data-scroll"
+               role="log" aria-live="polite" aria-label="Device console output">
+            <div class="term-live" id="terminalLive">
+              <span class="term-prompt" id="terminalPrompt">&gt;</span>
+              <input id="terminalInput" class="term-input" type="text" autocomplete="off"
+                     autocapitalize="off" autocorrect="off" spellcheck="false"
+                     aria-label="RouterOS command" disabled>
+            </div>
           </div>
-          <p class="term-note" id="terminalNote">
-            This runs on the device itself, exactly as typed. MikroDash does not check the line,
-            so what you may do here is whatever the RouterOS account it signs in with may do.
-            Every line is recorded in the Audit Trail.
-          </p>
         </div>
       </div>
     </div>

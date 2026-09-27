@@ -15,6 +15,16 @@ import type { TermEntry, TermOutputPayload, TermScrollbackPayload } from '../gen
  * markup itself, and it is the wrong shape for arbitrary multi-line console
  * output.
  *
+ * ── IT READS AS A TERMINAL BECAUSE THE PROMPT IS IN THE SCROLLBACK ──────────
+ *
+ * The live line is the scroller's LAST CHILD, and `draw` moves it back there
+ * after every write - `appendChild` relocates an element that is already in the
+ * document, so that one call is the whole mechanism. Output lands above the
+ * line you are typing on, the caret scrolls with the content, and there is no
+ * separate bordered region at the foot of the card. Clicking the pane puts the
+ * caret back, unless something is selected, because copying output is most of
+ * what anyone does with a terminal.
+ *
  * ── THE SERVER OWNS THE SCROLLBACK ──────────────────────────────────────────
  *
  * The hub drops a frame a slow browser cannot take, which is safe for every
@@ -131,29 +141,38 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     if (prev && prev.parentNode === box) box.replaceChild(node, prev);
     else box.appendChild(node);
     if (e.seq > 0) shown.set(e.seq, node);
+    // THE PROMPT GOES BACK TO THE END. appendChild MOVES an element that is
+    // already in the document, so this is the whole mechanism: output is added
+    // above the line you are typing on, exactly as a console does it.
+    const live = el('terminalLive');
+    if (live) box.appendChild(live);
     if (atBottom) box.scrollTop = box.scrollHeight;
   }
 
+  /** Empty the pane on screen. The live prompt is not output and survives. */
   function clearScreen(): void {
     shown.clear();
     const box = scrollBox();
+    const live = el('terminalLive');
     if (!box) return;
     while (box.firstChild) box.removeChild(box.firstChild);
+    if (live) box.appendChild(live);
   }
 
   function setRunning(on: boolean): void {
     running = on;
-    const btn = el<HTMLButtonElement>('terminalRun');
+    // NO RUN BUTTON. Enter runs a line, the way a console does; a button beside
+    // the prompt is the thing that made this read as a form. Stop is here
+    // because Ctrl-C alone is not an affordance anybody can see, and it appears
+    // only while there is something to stop.
+    const stop = el<HTMLButtonElement>('terminalStop');
+    if (stop) stop.hidden = !on;
     const box = el<HTMLInputElement>('terminalInput');
-    if (btn) {
-      btn.disabled = !mayRun;
-      btn.textContent = on ? 'Stop' : 'Run';
-      btn.classList.toggle('sbtn-danger', on);
-      btn.classList.toggle('sbtn-primary', !on);
-    }
     // The latch: a second line sent before the first answers would interleave
     // two blobs with no way to tell which answered what.
     if (box) box.disabled = on || !mayRun;
+    const live = el('terminalLive');
+    if (live) live.classList.toggle('is-busy', on);
   }
 
   function pushHistory(text: string): void {
@@ -194,13 +213,23 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     socket.emit('term:stop', {});
   }
 
-  el<HTMLButtonElement>('terminalRun')?.addEventListener('click', () => {
-    if (running) stop();
-    else send();
-  });
+  el<HTMLButtonElement>('terminalStop')?.addEventListener('click', () => stop());
   el<HTMLButtonElement>('terminalClear')?.addEventListener('click', () => {
     clearScreen();
     note('');
+    // THE SERVER MUST FORGET IT TOO, or walking to another page and back
+    // replays the pane this just emptied and undoes the clear.
+    socket.emit('term:clear', {});
+    el<HTMLInputElement>('terminalInput')?.focus();
+  });
+
+  // CLICKING THE PANE PUTS THE CARET BACK ON THE PROMPT, which is what a
+  // terminal does - but not while text is selected, or copying output would
+  // be impossible: mousedown-drag-release ends in a click.
+  el('terminalScroll')?.addEventListener('mouseup', () => {
+    const sel = typeof window !== 'undefined' && window.getSelection
+      ? String(window.getSelection() || '') : '';
+    if (!sel) el<HTMLInputElement>('terminalInput')?.focus();
   });
 
   el<HTMLInputElement>('terminalInput')?.addEventListener('keydown', (e) => {

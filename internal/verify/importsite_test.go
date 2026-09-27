@@ -52,9 +52,9 @@ import (
 // read it, and there is nothing for an analyser to tell them that they do not
 // already know. So the controls are different in kind rather than absent:
 //
-//   - a SIGNED-IN GLOBAL ADMINISTRATOR, not merely someone who may write a page
-//   - the terminalEnabled SETTING, off unless an install turned it on
-//   - WRITE ACCESS TO THE terminal PAGE, per router
+//   - WRITE ACCESS TO THE terminal PAGE, per device, through the ordinary
+//     permission matrix — which is the whole gate, and carries sign-in-off,
+//     RBAC-unavailable and no-audit-database as fail-closed cases of its own
 //   - the ROUTER'S OWN USER POLICY, which is the real backstop: the README's
 //     recommended credential is `read,api,test`, so on a default install the
 //     page cannot write at all because the router refuses
@@ -209,7 +209,23 @@ func TestTheTerminalFileRunsOnlyWhatWasTyped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed := map[string]bool{"/execute": true, "/system/identity/print": true}
+	// The complete set of menus this file may name, and it is a LIST rather
+	// than a rule so that widening it is a deliberate edit somebody has to make
+	// and explain:
+	//
+	//	/execute                 the typed line, and nothing else goes through it
+	//	/system/identity/print   the device's name, for the prompt
+	//	/system/resource/print   version, board and uptime, for the opening banner
+	//
+	// The two reads are plain reads that any page could make; they are listed
+	// because the point of this check is that the ONE file allowed to run code
+	// does not quietly grow the ability to reach anywhere else, and "it was only
+	// a print" is how that starts.
+	allowed := map[string]bool{
+		"/execute":               true,
+		"/system/identity/print": true,
+		"/system/resource/print": true,
+	}
 
 	paths, scripts := 0, 0
 	ast.Inspect(f, func(n ast.Node) bool {

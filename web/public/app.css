@@ -3367,9 +3367,11 @@
        A console built out of the app's own tokens rather than a scheme of its
        own. The #logs pane above hardcodes two colours, so it needs a
        [data-theme="light"] twin and is wrong under all nine palettes. This
-       needs neither, because every value here is a variable the theme sets. */
-    .term-scroll{font-family:var(--font-mono);font-size:12px;line-height:1.55;background:var(--bg-deep);color:var(--text-main);height:calc(100vh - 250px);min-height:220px;overflow-y:auto;padding:.7rem .8rem;outline:none}
-    .term-scroll:focus-visible{box-shadow:inset 0 0 0 1px var(--accent-rx)}
+       needs neither, because every value here is a variable the theme sets.
+
+       THE PROMPT IS INSIDE THE SCROLLER, as its last child, so there is no
+       second bordered region and the line you type scrolls with the output. */
+    .term-scroll{font-family:var(--font-mono);font-size:12px;line-height:1.55;background:var(--bg-deep);color:var(--text-main);height:calc(100vh - 190px);min-height:240px;overflow-y:auto;padding:.7rem .8rem;cursor:text}
     .term-scroll::-webkit-scrollbar{width:4px} .term-scroll::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
     .term-block{padding:.1rem 0 .45rem}
     .term-echo{display:flex;gap:.4rem;white-space:pre-wrap;word-break:break-word}
@@ -3380,9 +3382,9 @@
     .term-out{margin:.15rem 0 0;font:inherit;background:none;border:0;padding:0;white-space:pre-wrap;word-break:break-word;color:var(--text-muted)}
     .term-error{margin-top:.2rem;color:var(--accent-err)}
     .term-trim{margin-top:.2rem;color:var(--accent-warn);font-size:11px}
-    .term-inputrow{display:flex;align-items:center;gap:.45rem;border-top:1px solid var(--border);background:var(--bg-deep);padding:.45rem .8rem}
-    .term-input{flex:1;min-width:0;font-family:var(--font-mono);font-size:12px;background:none;border:0;outline:none;color:var(--text-main);caret-color:var(--accent-tx)}
-    .term-input::placeholder{color:var(--text-muted)}
+    /* The live line: the prompt and the caret, in the flow of the output. */
+    .term-live{display:flex;align-items:baseline;gap:.4rem;padding:.1rem 0 .5rem}
+    .term-live.is-busy .term-prompt{opacity:.45}
+    .term-input{flex:1;min-width:0;font-family:var(--font-mono);font-size:12px;background:none;border:0;outline:none;padding:0;color:var(--text-main);caret-color:var(--accent-tx)}
     .term-input:disabled{color:var(--text-muted)}
     .term-status{font-size:.72rem;color:var(--text-muted);margin-right:.5rem}
-    .term-note{margin:0;padding:.5rem .8rem;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border)}

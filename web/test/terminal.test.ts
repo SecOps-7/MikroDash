@@ -58,8 +58,8 @@ function node(tag: string): any {
 }
 let htmlWrites = 0;
 
-const doc = makeDoc(['terminalCard', 'terminalScroll', 'terminalInput', 'terminalRun',
-  'terminalClear', 'terminalPrompt', 'terminalStatus', 'terminalNote']);
+const doc = makeDoc(['terminalCard', 'terminalScroll', 'terminalInput', 'terminalStop',
+  'terminalClear', 'terminalPrompt', 'terminalStatus', 'terminalLive']);
 doc.createElement = (tag: string) => node(tag);
 
 // The scrollback is one of OUR nodes, substituted into the registry that
@@ -77,6 +77,12 @@ scroll.classList = { add: () => {}, remove: () => {}, toggle: () => {}, contains
 scroll.focus = () => {};
 scroll.addEventListener = () => {};
 n.terminalScroll = scroll;
+// The live prompt line is a real node, because the page MOVES it to the end of
+// the scroller after every write and that move is the thing under test.
+const live = node('div');
+live.classList = { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false };
+n.terminalLive = live;
+scroll.appendChild(live);
 // The shim's nodes have no `focus`; the page focuses its input when the pane
 // arms, which is right in a browser. Added here rather than dropped from the
 // page, and rather than widened in the shared shim for one caller.
@@ -105,7 +111,12 @@ function byTag(root: any, tag: string): any[] {
   for (const c of root.children || []) walk(c);
   return out;
 }
-const blocks = () => scroll.children.length;
+/** Output blocks only: the live prompt line lives in the scroller too. */
+const blocks = () => scroll.children.filter((c: any) => c !== live).length;
+const lastBlock = () => {
+  const out = scroll.children.filter((c: any) => c !== live);
+  return out[out.length - 1];
+};
 
 let failed = 0;
 function check(what: string, fn: () => void): void {
@@ -129,9 +140,9 @@ check('the prompt carries the identity as text, never as markup', () => {
   assert.strictEqual(htmlWrites, 0, 'something assigned innerHTML');
 });
 
-check('caps enable the input and the button', () => {
+check('caps enable the input, and there is no Run button to enable', () => {
   assert.strictEqual(n.terminalInput.disabled, false, 'the input is still disabled after mayRun');
-  assert.strictEqual(n.terminalRun.disabled, false, 'the Run button is still disabled after mayRun');
+  assert.strictEqual(n.terminalStop.hidden, true, 'Stop is offered when nothing is running');
 });
 
 check('Enter sends the line and latches the input', () => {
@@ -141,8 +152,7 @@ check('Enter sends the line and latches the input', () => {
     'the line was not sent');
   assert.strictEqual(n.terminalInput.disabled, true,
     'a second line can be typed while the first is running');
-  assert.strictEqual(String(n.terminalRun.textContent), 'Stop', 'Run did not become Stop');
-  assert.ok(n.terminalRun.classList.contains('sbtn-danger'), 'Stop is not the danger colour');
+  assert.strictEqual(n.terminalStop.hidden, false, 'Stop is not offered while a line is running');
 });
 
 check('ROUTER OUTPUT IS TEXT, NEVER MARKUP', () => {
@@ -160,7 +170,7 @@ check('ROUTER OUTPUT IS TEXT, NEVER MARKUP', () => {
     'the device text was altered on its way to the page');
   assert.strictEqual(htmlWrites, 0, 'innerHTML was assigned somewhere in this page');
   assert.strictEqual(n.terminalInput.disabled, false, 'the input stayed latched after the answer');
-  assert.strictEqual(String(n.terminalRun.textContent), 'Run', 'Stop did not become Run again');
+  assert.strictEqual(n.terminalStop.hidden, true, 'Stop is still offered after the answer arrived');
 });
 
 // THE ECHO AND THE ANSWER ARE ONE BLOCK, NOT TWO.
@@ -179,7 +189,7 @@ check('the answer replaces the echo instead of printing the command twice', () =
   handlers['term:output']({ entry: { ...entry, lines: ['uptime: 1h'] }, running: false, done: true });
   assert.strictEqual(blocks(), before + 1,
     'the answer appended a second block, so the command is printed twice');
-  const b = scroll.children[scroll.children.length - 1];
+  const b = lastBlock();
   const cmds = [...(b.children || [])].flatMap((c: any) =>
     (c.children || []).filter((x: any) => x.className === 'term-cmd'));
   assert.strictEqual(cmds.length, 1, 'the command is echoed more than once in its own block');
@@ -199,6 +209,48 @@ check('a replay REPLACES the pane and cannot draw anything twice', () => {
   assert.ok(before >= 0);
 });
 
+// THE PROMPT STAYS AT THE END. This is the whole of what makes the page read as
+// a terminal rather than a log with a search box: output is added ABOVE the
+// line being typed on. `appendChild` moves a node already in the document, and
+// a refactor that built the block list some other way would silently leave the
+// caret stranded halfway up the pane.
+check('the live prompt is always the last thing in the pane', () => {
+  assert.strictEqual(scroll.children[scroll.children.length - 1], live,
+    'output was appended below the prompt, so the caret is no longer at the end');
+  handlers['term:output']({
+    entry: { seq: 7, at: 0, command: '/x', lines: ['out'], truncated: false, ms: 1, code: '', message: '' },
+    running: false, done: true,
+  });
+  assert.strictEqual(scroll.children[scroll.children.length - 1], live,
+    'a new answer was drawn below the prompt');
+});
+
+// THE OPENING BANNER is just an entry with no command, so it draws as output
+// with no echo line above it - which is what a login banner looks like.
+check('the banner draws as output with no command echoed above it', () => {
+  const banner = { seq: 99, at: 0, command: '', lines: ['', '  MMM      MMM       KKK', '',
+    '  MikroTik RouterOS 7.24.4  (c) 1999-2026'], truncated: false, ms: 0, code: '', message: '' };
+  handlers['term:scrollback']({ routerId: 'r1', entries: [banner], mayRun: true, why: '',
+    identity: 'CHR Test', user: 'admin', trimmed: false, running: false });
+  const b = lastBlock();
+  assert.strictEqual(b.children.filter((c: any) => c.className === 'term-echo').length, 0,
+    'the banner drew a prompt line above itself');
+  assert.ok(/MikroTik RouterOS/.test(String(b.textContent)), 'the banner text was lost');
+  assert.strictEqual(scroll.children[scroll.children.length - 1], live,
+    'the banner was drawn below the prompt');
+});
+
+check('Clear tells the server as well as the screen', () => {
+  const before = sent.length;
+  n.terminalClear.fire('click', {});
+  assert.strictEqual(blocks(), 0, 'the pane was not emptied');
+  assert.strictEqual(scroll.children[scroll.children.length - 1], live,
+    'clearing removed the prompt as well as the output');
+  assert.deepStrictEqual(sent[sent.length - 1], ['term:clear', {}],
+    'the server still holds the pane, so walking away and back would undo the Clear');
+  assert.ok(before >= 0);
+});
+
 check('a refusal code becomes a sentence, and no device text', () => {
   handlers['term:output']({
     entry: { seq: 0, at: 0, command: '', lines: [], truncated: false, ms: 0,
@@ -207,7 +259,7 @@ check('a refusal code becomes a sentence, and no device text', () => {
   });
   // Scoped to the LAST block: earlier checks left their own output in the pane,
   // and counting across all of it would assert about them instead.
-  const last = scroll.children[scroll.children.length - 1];
+  const last = lastBlock();
   const txt = String(last.textContent);
   assert.ok(/not available to you/.test(txt), 'the refusal code was not turned into a sentence: ' + txt);
   assert.strictEqual(byTag({ children: [last] }, 'pre').length, 0,
@@ -263,7 +315,7 @@ check('without mayRun the controls are never offered', () => {
   handlers['term:scrollback']({ routerId: 'r2', entries: [], mayRun: false,
     why: 'The Terminal is not available.', identity: '', user: '', trimmed: false, running: false });
   assert.strictEqual(n.terminalInput.disabled, true, 'the input is offered to somebody who may not run');
-  assert.strictEqual(n.terminalRun.disabled, true, 'the button is offered to somebody who may not run');
+  assert.strictEqual(n.terminalStop.hidden, true, 'Stop is offered to somebody who may not run');
   assert.ok(/not available/.test(String(n.terminalStatus.textContent)), 'no reason was shown');
   const before = sent.length;
   n.terminalInput.value = '/system reboot';

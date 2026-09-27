@@ -12,7 +12,6 @@
       "rosDebug",
       "routerTls",
       "routerTlsInsecure",
-      "terminalEnabled",
       "userNotifyEnabled"
     ],
     "checkOn": [

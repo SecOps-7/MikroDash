@@ -2,13 +2,11 @@ package server
 
 import (
 	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"mikrodash/internal/hub"
+	"mikrodash/internal/rbac"
 	"mikrodash/internal/routeros"
 )
 
@@ -26,78 +24,103 @@ func (f *fakeExec) Exec(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	return f.reply(cmd)
 }
 
-// termAdminConn is rawAdminConn's sibling: a signed-in global administrator,
-// with `terminalEnabled` set as the test asks. It reuses that file's grant
-// graph deliberately rather than restating one, so the two gates are proved
-// against the same fixture and cannot drift apart.
-func termAdminConn(t *testing.T, enabled bool) *conn {
+// termGrantedConn is a connection whose viewer HAS terminal write access on the
+// selected device. It reuses ai_raw_test.go's grant graph deliberately rather
+// than restating one, so the two paths that leave the resource registry are
+// proved against the same fixture and cannot drift apart.
+func termGrantedConn(t *testing.T) *conn {
 	t.Helper()
 	cn := rawAdminConn(t, false)
-	dir := cn.srv.store.Dir
-	if err := os.WriteFile(filepath.Join(dir, "settings.json"),
-		[]byte(fmt.Sprintf(`{"terminalEnabled": %v}`, enabled)), 0o600); err != nil {
-		t.Fatal(err)
+
+	// A DEVICE THE RESOLVER KNOWS. `rbac.CanPage` refuses outright when the
+	// router id is empty, because a page permission in this app is per device -
+	// "may they use the Terminal" has no answer until you say where. The
+	// fixture next door has no router because the raw-command gate never needed
+	// one, so this adds it rather than weakening the question.
+	const routerID = "r1"
+	cn.srv.rbac = rbac.New(cn.srv.auditDB, func() []rbac.Router { return []rbac.Router{{ID: routerID}} })
+
+	// Everything else canPageIn actually checks. A control refused for an
+	// unrelated reason would let the refusals above pass against a build that
+	// refuses everybody, which is the one failure this page must not have.
+	//
+	//	Readable   CanReadRouter, the coarse session's device list
+	//	Pages      the coarse union, ANDed with the resolver and never replaced
+	//	userID     the grant graph's key, which the resolver is asked about
+	cn.routerID = routerID
+	cn.sess.Readable = []string{routerID}
+	cn.sess.Pages = map[string]string{"terminal": "write"}
+	cn.userID = cn.srv.userIDFor(cn.sess.Username)
+	if cn.userID == "" {
+		t.Fatal("the fixture's user has no grant-graph id")
 	}
 	return cn
 }
 
-// TestTheTerminalRefusesTheSameWayWhicheverGateFired.
+// TestTheTerminalIsGatedByThePermissionMatrixAndNothingElse.
 //
-// The refusal an operator sees must not say WHICH of the three gates stopped
-// them, or a viewer can map an installation - whether the setting is on, and
-// whether they are an administrator - by reading the wording. The audit note
-// carries the real reason, which is the half nobody outside can see.
+// The gate used to be three checks - an install switch, a global-administrator
+// clause, and the page grant. It is now the grant alone, so what this pins is
+// that the grant is genuinely load-bearing and that the refusal says the same
+// thing however it was reached.
 //
-// Each case is driven against a connection that fails ONE gate, so this proves
-// the wording is shared rather than that everything refuses identically.
-func TestTheTerminalRefusesTheSameWayWhicheverGateFired(t *testing.T) {
-	notAdmin := &conn{srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "modern"}}
-	signInOff := &conn{srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "none"}}
-	settingOff := termAdminConn(t, false)
-
-	cases := map[string]struct {
-		cn       *conn
-		wantNote string
-	}{
-		"not an administrator": {notAdmin, "not a signed-in global administrator"},
-		"sign-in is off":       {signInOff, "not a signed-in global administrator"},
-		"the setting is off":   {settingOff, "terminalEnabled is off"},
+// The properties below are not this file's to implement: they belong to
+// canPageIn, and they are asserted here because the Terminal is the page where
+// getting them wrong costs the most.
+func TestTheTerminalIsGatedByThePermissionMatrixAndNothingElse(t *testing.T) {
+	cases := map[string]*conn{
+		// No session at all.
+		"nobody": {srv: &Server{hub: hub.New()}},
+		// SIGN-IN SWITCHED OFF. canPageIn refuses `write` outright in this
+		// mode, which is what stops a command nobody can be held to. The old
+		// gate spelled this out by hand; it is the matrix's property now, and
+		// pinned here so a change to that path is noticed on this page.
+		"sign-in off": {srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "none"}},
+		// SIGNED IN, NO GRANT, and no RBAC resolver behind it: fails closed.
+		"no grant": {srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "modern"}},
 	}
-	for name, tc := range cases {
+	for name, cn := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, note := tc.cn.terminalGateNote(tc.cn.scope())
-			if note != tc.wantNote {
-				t.Errorf("audit note = %q, want %q", note, tc.wantNote)
+			if note := cn.terminalGateNote(cn.scope()); note == "" {
+				t.Fatal("the gate let this viewer through")
 			}
-			got := tc.cn.terminalGate(tc.cn.recorder(), tc.cn.scope())
-			if got != terminalRefusal {
+			if got := cn.terminalGate(cn.recorder(), cn.scope()); got != terminalRefusal {
 				t.Errorf("refusal = %q, want the shared sentence %q", got, terminalRefusal)
-			}
-			// The wording must not leak the reason.
-			for _, leak := range []string{"administrator", "terminalEnabled", "setting"} {
-				if strings.Contains(strings.ToLower(note), strings.ToLower(leak)) &&
-					strings.Contains(got, leak) && leak != "administrator" {
-					t.Errorf("the refusal repeats %q from the audit note", leak)
-				}
 			}
 		})
 	}
+
+	// THE CONTROL. Without it, every assertion above would pass against a build
+	// that refused everybody, which is the failure this whole page must not have.
+	granted := termGrantedConn(t)
+	if note := granted.terminalGateNote(granted.scope()); note != "" {
+		t.Errorf("a viewer WITH the grant was refused (%q); the assertions above "+
+			"would then be measuring a build that refuses everyone", note)
+	}
+
+	// AND IT IS PER DEVICE, which is the whole reason the permission is a page
+	// key rather than a switch. Somebody trusted with a console on the lab CHR
+	// is not thereby trusted with one on the edge router, and `rbac.CanPage`
+	// refuses a device its resolver has never heard of.
+	elsewhere := granted.scope()
+	elsewhere.routerID = "some-other-device"
+	if note := granted.terminalGateNote(elsewhere); note == "" {
+		t.Error("a grant on one device let the terminal run on another")
+	}
 }
 
-// TestSignInOffCannotRunATerminalLine.
+// TestTheRefusalDoesNotSayWhyItRefused.
 //
-// `(*Server).isGlobalAdmin` answers TRUE when sign-in is switched off, which is
-// right where it is used and wrong here. The AuthMode clause in
-// terminalGateNote is the compensation, and it is pinned on its own so a
-// refactor that drops it fails here rather than only inside a combined case.
-func TestSignInOffCannotRunATerminalLine(t *testing.T) {
-	cn := termAdminConn(t, true)
-	cn.sess = &Session{Username: "boss", AuthMode: "none"}
-	if !cn.srv.isGlobalAdmin(cn.sess) {
-		t.Fatal("isGlobalAdmin no longer returns true with sign-in off; this test now proves nothing")
+// A viewer who may not use the page learns that and nothing else. The audit row
+// carries the reason, which is the half nobody outside can read.
+func TestTheRefusalDoesNotSayWhyItRefused(t *testing.T) {
+	cn := &conn{srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "none"}}
+	note := cn.terminalGateNote(cn.scope())
+	if note == "" {
+		t.Fatal("this viewer was not refused, so there is nothing to compare")
 	}
-	if _, note := cn.terminalGateNote(cn.scope()); note != "not a signed-in global administrator" {
-		t.Errorf("note = %q, want the terminal to refuse when nobody can be held to the command", note)
+	if strings.Contains(terminalRefusal, note) {
+		t.Errorf("the refusal %q repeats the audit note %q", terminalRefusal, note)
 	}
 }
 
@@ -254,7 +277,7 @@ func TestTheScrollbackSurvivesAPageSwitchAndIsBoundedBothWays(t *testing.T) {
 func TestAResultThatLandsAfterARouterSwitchIsDiscarded(t *testing.T) {
 	var s termState
 	s.append("r1", TermEntry{Seq: 1, Lines: []string{"from r1"}})
-	s.clear()
+	s.reset()
 	s.append("r2", TermEntry{Seq: 2, Lines: []string{"from r2"}})
 	// The late frame from the router we have left.
 	s.append("r1", TermEntry{Seq: 1, Lines: []string{"stale"}})
@@ -302,5 +325,94 @@ func TestStoppingIsHonestAboutWhatItStops(t *testing.T) {
 	}
 	if s.disarm() {
 		t.Error("disarm reported the same run twice; a second close would panic")
+	}
+}
+
+// TestTheBannerIsBuiltFromWhateverTheDeviceAnswered.
+//
+// Every field in the greeting comes off a device that may not have answered, so
+// the interesting case is not the complete one - it is the empty one. A banner
+// that renders "  ·  ·  " for a device that said nothing, or that refuses to
+// open at all, would be worse than one that simply says less.
+func TestTheBannerIsBuiltFromWhateverTheDeviceAnswered(t *testing.T) {
+	full := terminalBanner("CHR Test", routeros.Reply{
+		"version": "7.24.4", "board-name": "CHR", "architecture-name": "x86_64", "uptime": "2h13m",
+	}, 2026)
+	joined := strings.Join(full, "\n")
+	for _, want := range []string{"MikroTik RouterOS 7.24.4", "(c) 1999-2026", "CHR Test", "x86_64", "up 2h13m"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("the banner is missing %q:\n%s", want, joined)
+		}
+	}
+	// The wordmark is there and spells the name, rather than being six lines of
+	// whatever a refactor left behind.
+	if !strings.Contains(joined, "MMM") || !strings.Contains(joined, "KKK") {
+		t.Error("the banner carries no wordmark")
+	}
+
+	// NOTHING CAME BACK. A device that answered neither read still gets a
+	// banner, and it must not contain a dangling separator.
+	bare := strings.Join(terminalBanner("", routeros.Reply{}, 2026), "\n")
+	if strings.Contains(bare, "\u00b7") {
+		t.Errorf("a device that answered nothing rendered a separator with nothing around it:\n%s", bare)
+	}
+	if !strings.Contains(bare, "MikroTik RouterOS") {
+		t.Error("a device that answered nothing got no banner at all")
+	}
+	if strings.Contains(bare, "up ") {
+		t.Error("an uptime was rendered for a device that reported none")
+	}
+
+	// HALF AN ANSWER. Only the parts that exist are joined.
+	half := strings.Join(terminalBanner("edge1", routeros.Reply{"version": "7.20"}, 2026), "\n")
+	if !strings.Contains(half, "edge1") || strings.Contains(half, "\u00b7") {
+		t.Errorf("a partial answer did not join cleanly:\n%s", half)
+	}
+
+	// The year is the caller's, so the copyright line does not silently age.
+	if !strings.Contains(strings.Join(terminalBanner("", routeros.Reply{}, 2031), "\n"), "1999-2031") {
+		t.Error("the banner hardcodes its year")
+	}
+}
+
+// TestTheGreetingIsWrittenOncePerDeviceSession.
+//
+// The banner is two router reads. Writing it on every page focus would spend
+// them every time somebody walked onto the page, and would stack banners up the
+// pane; writing it never would leave the terminal blank. The latch is the whole
+// of the difference, and the two kinds of clear treat it differently on purpose.
+func TestTheGreetingIsWrittenOncePerDeviceSession(t *testing.T) {
+	var s termState
+	if !s.claimGreeting("r1") {
+		t.Fatal("the first focus did not claim the greeting")
+	}
+	if s.claimGreeting("r1") {
+		t.Error("a second focus claimed it again; the banner would be printed twice")
+	}
+	s.greet("r1", "CHR Test", TermEntry{Seq: 1, Lines: []string{"banner"}})
+	if s.who() != "CHR Test" {
+		t.Errorf("identity = %q, want the name the greeting read", s.who())
+	}
+
+	// WIPE IS THE OPERATOR PRESSING CLEAR. A terminal you have just cleared does
+	// not print its login banner again.
+	s.wipe()
+	if _, got, _, _ := s.snapshot(); len(got) != 0 {
+		t.Errorf("wipe left %d entries", len(got))
+	}
+	if s.claimGreeting("r1") {
+		t.Error("Clear made the banner come back, which undoes the clear")
+	}
+	if s.who() != "CHR Test" {
+		t.Error("Clear forgot the device's name, so the prompt would lose it")
+	}
+
+	// RESET IS A DEVICE SWITCH. The next device prints its own.
+	s.reset()
+	if s.who() != "" {
+		t.Error("a device switch kept the previous device's name in the prompt")
+	}
+	if !s.claimGreeting("r2") {
+		t.Error("a device switch did not re-arm the greeting, so the new device gets no banner")
 	}
 }
