@@ -5,18 +5,27 @@
 // only what the server would run anyway, and a value edited past them is clamped
 // there.
 //
-// ── FOUR PAGES, ONE MODULE, AND THAT IS NOT AN OVERSIGHT ────────────────────
+// ── FIVE PAGES, ONE MODULE, AND THAT IS NOT AN OVERSIGHT ────────────────────
 //
 // Ping, Traceroute, Torch and Bandwidth Test were four tabs on one `tools` page
-// until 2026-09-27 and are four pages under a Tools nav category now. They are
-// still ONE module because the state they share is real and not incidental: the
-// server runs one diagnostic per CONNECTION, not per page, so the pending run,
-// the busy slot and the caps frame belong to all four at once. Four modules
-// would need a fifth to hold that, which is the same code with a seam in it.
+// until 2026-09-27 and are pages under a Tools nav category now, with the Packet
+// Sniffer beside them. They are still ONE module because the state they share is
+// real and not incidental: the server runs one diagnostic per CONNECTION, not per
+// page, so the pending run, the busy slot and the caps frame belong to all five
+// at once. Five modules would need a sixth to hold that, which is the same code
+// with a seam in it.
 //
-// Every page's markup is composed into the one document, so all four forms exist
+// Every page's markup is composed into the one document, so all five forms exist
 // whatever page is on screen; the ids below find them the same way they always
 // did.
+//
+// ── THE SNIFFER IS THE ONE THAT RUNS UNTIL IT IS STOPPED ────────────────────
+//
+// The other four have a length: a packet count, a hop limit, a number of
+// seconds. A capture has none - it is on until Stop, or until the hour cap every
+// continuous run has - so its Start button is a Stop for the whole capture
+// rather than for an overrun, and its frames are whole snapshots rather than
+// increments. Everything else about it is the shared lifecycle.
 //
 // ── ONE RUN AT A TIME ───────────────────────────────────────────────────────
 //
@@ -50,22 +59,31 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { esc, el, fmtMbps, protoPill } from '../dom';
-import type { PingResult, TracerouteResult, TorchResult, BtestResult } from '../gen/payloads';
+import { esc, el, fmtMbps, protoPill, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import type { PingResult, TracerouteResult, TorchResult, BtestResult, SnifferResult } from '../gen/payloads';
 import { renderPingCards } from './tools-ping-cards';
 import { renderBtestCards } from './tools-btest-cards';
+import { renderSnifferCards } from './tools-sniffer-cards';
 import { createTraceMap, type TraceMap } from './tools-trace-map';
+
+/** What the page says when the DEVICE refuses the sniffer, which is not a
+ *  permission and cannot be granted from here. */
+const DEVICE_REFUSES = 'This device does not allow the packet sniffer: it is switched off in ' +
+  'device-mode, which can only be changed at the device itself.';
+
+const NEEDS_WRITE = 'Needs write access to this page.';
 
 const REFUSED: Record<string, string> = {
   denied: 'You may not run this tool on this router.',
   unavailable: 'No router is connected.',
   busy: 'Another tool is still running.',
+  'device-mode': DEVICE_REFUSES,
 };
 
 /** One tool: the page it lives on, the ids its markup uses, spelled out so each
  *  can be found, and what its form asks the server for. */
 interface Tool {
-  key: 'ping' | 'traceroute' | 'torch' | 'btest';
+  key: 'ping' | 'traceroute' | 'torch' | 'btest' | 'sniffer';
   /** The page key - the URL, the markup id and the PERMISSION key. */
   page: string;
   /** Needs write access to its own page: loads the router or a link. */
@@ -141,7 +159,42 @@ const TOOLS: Tool[] = [
       return req;
     },
   },
+  {
+    key: 'sniffer', page: 'tools-sniffer', write: true, form: 'snifferForm', run: 'snifferRun',
+    status: 'snifferStatus', summary: 'snifferSummary', rows: 'snifferRows', cols: 8,
+    badge: 'snifferBadge', label: 'Start',
+    // FIVE FILTERS OUT OF ROUTEROS'S TWENTY-FIVE. Which five, and why the rest
+    // are left out, is internal/diag/sniffer.go's - the server validates them
+    // and is the only place that can say what the router will accept.
+    request: () => ({
+      interface: el<HTMLSelectElement>('snifferInterface')?.value || '',
+      ipProtocol: el<HTMLSelectElement>('snifferProtocol')?.value || '',
+      port: (el<HTMLInputElement>('snifferPort')?.value || '').trim(),
+      address: (el<HTMLInputElement>('snifferAddress')?.value || '').trim(),
+      direction: el<HTMLSelectElement>('snifferDirection')?.value || 'any',
+    }),
+  },
 ];
+
+// ── THE CAPTURE TABLE SORTS, AND STARTS NEWEST FIRST ────────────────────────
+//
+// The server hands the packets over newest first, which is the order somebody
+// watching a capture wants; `num` descending is that same order stated as a
+// sort, so the first click on the column reverses it rather than appearing to
+// do nothing. It is not an ORDERED table in the Queues sense - no rule here
+// decides anything by being first - so it sorts like every other table.
+const SNIFF_COLS: SortCol[] = [
+  { key: 'num', label: '#' },
+  { key: 'time', label: 'Time' },
+  { key: 'interface', label: 'Interface' },
+  { key: 'direction', label: 'Dir' },
+  { key: 'source', label: 'Source' },
+  { key: 'dest', label: 'Destination' },
+  { key: 'protocol', label: 'Protocol' },
+  { key: 'size', label: 'Size' },
+];
+const sniffSort: SortState = { col: 'num', dir: 'desc' };
+let sniffRows: SnifferResult | null = null;
 
 const bps = (v: number): string => fmtMbps(v / 1e6);
 
@@ -174,6 +227,10 @@ function clearResult(t: Tool): void {
   if (t.key === 'ping') renderPingCards(null);
   if (t.key === 'btest') renderBtestCards(null);
   if (t.key === 'traceroute') traceMap?.clear();
+  if (t.key === 'sniffer') {
+    sniffRows = null;
+    renderSnifferCards(null);
+  }
 }
 
 // ── A LONG RUN SCROLLS INSIDE ITS TABLE ─────────────────────────────────────
@@ -284,13 +341,64 @@ function renderBtest(r: BtestResult): void {
     line('CPU load', 'this router ' + r.localCpu + '%, the far one ' + r.remoteCpu + '%');
 }
 
-export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean): void {
+/** The file name out of a Content-Disposition, or '' when there is none.
+ *  The server chose it from the capture's own magic bytes, so it is the one
+ *  thing that knows whether this is a .pcapng or a .pcap. */
+export function filenameOf(header: string | null): string {
+  const m = /filename="([^"]+)"/.exec(header || '');
+  return m ? m[1]! : '';
+}
+
+/** The capture's packet table, in the current sort. */
+function renderSniffer(r: SnifferResult): void {
+  const summary = el('snifferSummary');
+  if (summary) {
+    // THE TABLE IS USUALLY SHORTER THAN THE CAPTURE, for two reasons at once -
+    // the frame carries the latest few hundred rows, and the router's own memory
+    // buffer has already dropped the oldest - so it says which rows these are
+    // rather than claiming to know why the rest are missing.
+    summary.textContent = (r.running ? 'Capturing' : 'Capture stopped') + ' \u00b7 ' +
+      r.totalPackets + (r.totalPackets === 1 ? ' packet' : ' packets') + ' seen' +
+      (r.packets.length < r.totalPackets ? ' \u00b7 showing the latest ' + r.packets.length : '');
+  }
+  const rows = el('snifferRows');
+  if (!rows) return;
+  if (!r.packets.length) {
+    rows.innerHTML = '<tr><td colspan="8" class="empty-state">No packets yet</td></tr>';
+    return;
+  }
+  // rx blue and tx green, the app's fixed directions, as a pill rather than a
+  // bare word - a direction is a state, which is what a pill is for.
+  const dirPill = (d: string): string => '<span class="sniff-dir sniff-dir-' +
+    (d === 'tx' ? 'tx' : 'rx') + '">' + esc(d) + '</span>';
+  rows.innerHTML = sortRows(r.packets, sniffSort.col, sniffSort.dir).map((p) =>
+    '<tr>' +
+    '<td>' + p.num + '</td>' +
+    '<td>' + p.time.toFixed(3) + '</td>' +
+    '<td>' + esc(p.interface) + '</td>' +
+    '<td>' + dirPill(p.direction) + '</td>' +
+    '<td>' + esc(p.source) + '</td>' +
+    '<td>' + esc(p.dest) + '</td>' +
+    '<td>' + protoPill(p.protocol) + (p.tcpFlags ? ' <small>' + esc(p.tcpFlags) + '</small>' : '') + '</td>' +
+    '<td>' + p.size + '</td>' +
+    '</tr>').join('');
+}
+
+export function initToolsPage(socket: Socket, isVisible: (page: string) => boolean,
+  activeId: () => string): void {
   let pending: Tool | null = null;
   // WHETHER THIS VIEWER MAY RUN EACH WRITE TOOL, from `tools:caps`. ONE FLAG
-  // PER TOOL, because torch and the bandwidth test are separate pages and so
-  // separate grants. False until the frame arrives, so a Run button that would
-  // only be refused is never offered.
-  const mayRun: Record<string, boolean> = { torch: false, btest: false };
+  // PER TOOL, because torch, the bandwidth test and the sniffer are separate
+  // pages and so separate grants. False until the frame arrives, so a Run button
+  // that would only be refused is never offered.
+  //
+  // `blocked` is the SENTENCE for a button that is off, and it is separate
+  // because the sniffer has two ways to be off that need different words: the
+  // viewer may not write this page, or the DEVICE refuses the tool - which is
+  // nobody's permission and cannot be granted from here. One flag holding both
+  // would have to pick one of them to be wrong about.
+  const mayRun: Record<string, boolean> = { torch: false, btest: false, sniffer: false };
+  const blocked: Record<string, string> = {};
 
   // THE RUNNING TOOL'S BUTTON IS ITS STOP; every other Run button is disabled,
   // as is a write tool's for a viewer who may not write.
@@ -309,6 +417,14 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       const status = el(t.status);
       if (status) status.textContent = note;
     }
+  }
+
+  // The export asks the router to write the capture to a file, so it needs the
+  // same write access the capture did - and there is no point offering it until
+  // there is something captured to write.
+  function setExportEnabled(): void {
+    const btn = el<HTMLButtonElement>('snifferExport');
+    if (btn) btn.disabled = !mayRun.sniffer || !sniffRows || sniffRows.totalPackets === 0;
   }
 
   function stop(): void {
@@ -348,10 +464,50 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       // THE LAST RESULT GOES AT ONCE, so a run that fails does not leave the
       // previous address's result standing under its error.
       clearResult(t);
+      setExportEnabled();
       setRunning(t, 'Running…');
       socket.emit('tools:' + t.key, req);
     });
   }
+  // ── THE CAPTURE'S SORTABLE HEADER AND ITS EXPORT BUTTON ──────────────────
+  //
+  // The header is drawn once and redrawn by the helper on every click; the sort
+  // is applied when the table is rendered, so re-sorting does not wait for the
+  // next poll.
+  renderSortHeader('snifferHead', SNIFF_COLS, sniffSort, () => {
+    if (sniffRows) renderSniffer(sniffRows);
+  });
+  el('snifferExport')?.addEventListener('click', () => {
+    const rid = activeId();
+    if (!rid) return;
+    const status = el('snifferStatus');
+    if (status) status.textContent = 'Preparing the capture…';
+    // FETCHED RATHER THAN LINKED, unlike the Backups page's two download links.
+    // A capture is at most the router's memory buffer, so holding it here costs
+    // nothing, and it buys the one thing a plain <a href> cannot do: a refusal
+    // shown in the page's own status line instead of a JSON error rendered as a
+    // page. The file's NAME comes from the server, which read the magic bytes -
+    // RouterOS 7.20 and later write PCAPNG whatever the file is called.
+    void fetch('/api/tools/sniffer/pcap?routerId=' + encodeURIComponent(rid),
+      { credentials: 'same-origin' })
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().catch(() => ({ error: '' }))
+            .then((d: { error?: string }) => { throw new Error(d.error || 'The capture could not be exported.'); });
+        }
+        const name = filenameOf(res.headers.get('content-disposition')) || 'capture.pcapng';
+        return res.blob().then((b) => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(b);
+          a.download = name;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          if (status) status.textContent = 'Saved ' + name + '.';
+        });
+      })
+      .catch((e: Error) => { if (status) status.textContent = e.message; });
+  });
+
   const svg = el('traceMap') as unknown as SVGSVGElement | null;
   const hops = el('traceHopList');
   const wrap = el('traceMapWrap');
@@ -361,13 +517,13 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => {
-      for (const id of ['pingScroll', 'torchScroll']) {
+      for (const id of ['pingScroll', 'torchScroll', 'snifferScroll']) {
         const wrap = el(id);
         if (wrap) fitHeight(wrap);
       }
     });
   }
-  const [ping, trace, torch, btest] = TOOLS as [Tool, Tool, Tool, Tool];
+  const [ping, trace, torch, btest, sniffer] = TOOLS as [Tool, Tool, Tool, Tool, Tool];
   socket.on('tools:ping', (d) => settle(ping, d, () => {
     if (!d.result) return;
     const r = d.result;
@@ -392,23 +548,48 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     renderBtest(d.result);
     renderBtestCards(d.result);
   }));
+  socket.on('tools:sniffer', (d) => settle(sniffer, d, () => {
+    const r = d.result;
+    if (!r) return;
+    sniffRows = r;
+    drawBounded('snifferScroll', false, () => renderSniffer(r));
+    renderSnifferCards(r);
+    setBadge(sniffer, r.packets.length);
+    setExportEnabled();
+  }));
 
   socket.on('tools:caps', (d) => {
     mayRun.torch = d.mayTorch;
     mayRun.btest = d.mayBtest;
+    // TWO CONDITIONS FOR THE SNIFFER, and the device's is the one that is not a
+    // grant: a device whose device-mode sniffer flag is off refuses the tool
+    // however the permissions read, and only the reset button changes that.
+    mayRun.sniffer = d.maySniff && d.snifferAllowed;
+    blocked.torch = d.mayTorch ? '' : NEEDS_WRITE;
+    blocked.btest = d.mayBtest ? '' : NEEDS_WRITE;
+    blocked.sniffer = !d.snifferAllowed ? DEVICE_REFUSES : (d.maySniff ? '' : NEEDS_WRITE);
     const sel = el<HTMLSelectElement>('torchInterface');
     if (sel) sel.innerHTML = d.interfaces.map((n) => '<option>' + esc(n) + '</option>').join('');
+    // The sniffer's picker keeps its "All interfaces" entry, which is what an
+    // empty `filter-interface` means to RouterOS and is the useful default for
+    // a capture.
+    const sniffSel = el<HTMLSelectElement>('snifferInterface');
+    if (sniffSel) {
+      sniffSel.innerHTML = '<option value="">All interfaces</option>' +
+        d.interfaces.map((n) => '<option>' + esc(n) + '</option>').join('');
+    }
+    setExportEnabled();
     setRunning(pending, '');
     if (!pending) {
       for (const t of TOOLS) {
         const status = el(t.status);
-        if (t.write && status) status.textContent = mayRun[t.key] ? '' : 'Needs write access to this page.';
+          if (t.write && status) status.textContent = mayRun[t.key] ? '' : (blocked[t.key] || NEEDS_WRITE);
       }
     }
   });
-  // ASKED FOR WHEN ANY OF THE FOUR PAGES OPENS, and again on a router switch
-  // while one is open: the permissions and the interfaces are both per router,
-  // and one frame answers all four.
+  // ASKED FOR WHEN ANY OF THE FIVE PAGES OPENS, and again on a router switch
+  // while one is open: the permissions, the interfaces and the device's own
+  // sniffer flag are all per router, and one frame answers all five.
   const askCaps = (): void => socket.emit('tools:caps', {});
   const isToolPage = (page: string): boolean => TOOLS.some((t) => t.page === page);
   document.addEventListener('mikrodash:pagechange', (e) => {
@@ -429,8 +610,10 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     }
     mayRun.torch = false;
     mayRun.btest = false;
+    mayRun.sniffer = false;
     setRunning(null, '');
     for (const t of TOOLS) clearResult(t);
+    setExportEnabled();
     if (TOOLS.some((t) => isVisible(t.page))) askCaps();
   });
 }

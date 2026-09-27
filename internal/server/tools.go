@@ -21,13 +21,14 @@ import (
 
 // The Tools pages' diagnostics (slice 8 of the MikroMCP parity work).
 //
-// ── FOUR PAGES UNDER ONE NAV CATEGORY, AND FOUR PERMISSIONS ─────────────────
+// ── FIVE PAGES UNDER ONE NAV CATEGORY, AND FIVE PERMISSIONS ─────────────────
 //
 // Ping, Traceroute, Torch and Bandwidth Test were four tabs on one `tools` page
-// until 2026-09-27 and are four pages now (internal/pages). A page key is a
-// permission key, so each tool is gated on ITS OWN page rather than on one
-// shared key -- which is what makes "may trace a route but may not saturate the
-// link" expressible at all.
+// until 2026-09-27 and are four pages now (internal/pages), with the Packet
+// Sniffer (internal/server/sniffer.go) beside them. A page key is a permission
+// key, so each tool is gated on ITS OWN page rather than on one shared key --
+// which is what makes "may trace a route but may not saturate the link"
+// expressible at all, and "may torch but may not capture the traffic itself".
 //
 // ── WHO MAY RUN WHICH, DECIDED BY THE OPERATOR ──────────────────────────────
 //
@@ -35,7 +36,9 @@ import (
 // nothing. Torch and a bandwidth test load the router or a link, so they need
 // WRITE access on their page. That split is unchanged by the page split: it
 // used to be read-versus-write on `tools` and is now read-versus-write on
-// `tools-torch` and `tools-btest`. The assistant's tools follow the pages
+// `tools-torch` and `tools-btest`. The Packet Sniffer needs write for a
+// stronger reason again -- it rewrites the router's sniffer filters and fills
+// its memory with other people's traffic. The assistant's tools follow the pages
 // exactly: the same permission, the same bounds, the same code — `runPing`
 // below is the one implementation both call.
 //
@@ -513,10 +516,25 @@ func (cn *conn) runDiagTool(sc connScope, t aitools.Tool, tc aiprovider.ToolCall
 // They are SEPARATE fields from the list, as the wifi scan's `permitted` is: a
 // reader of the Torch page still sees the interfaces, and no button that would
 // only be refused.
+//
+// ── AND ONE FLAG THAT IS NOT A PERMISSION AT ALL ────────────────────────────
+//
+// `SnifferAllowed` is the DEVICE's answer, not this app's: `/system/device-mode`
+// carries a `sniffer` flag, and a device whose flag is false refuses the tool
+// however the grants read. It is separate from `MaySniff` because the two want
+// different sentences - "you may not do this here" and "this device will not
+// allow it, and only the reset button changes that" - and one flag holding both
+// would have to pick one of them to be wrong about.
 type ToolsCapsPayload struct {
 	MayTorch   bool     `json:"mayTorch"`
 	MayBtest   bool     `json:"mayBtest"`
+	MaySniff   bool     `json:"maySniff"`
 	Interfaces []string `json:"interfaces"`
+	// SnifferAllowed is true until something says otherwise, including for a
+	// viewer who may not read the Sniffer page and is never shown it: the
+	// pessimistic default would have the page claim a refusal it never asked
+	// about. See snifferAllowedOn.
+	SnifferAllowed bool `json:"snifferAllowed"`
 }
 
 // ToolsTorchPayload is `tools:torch`, shaped as ToolsPingPayload is.
@@ -536,21 +554,30 @@ type toolsTorchReq struct {
 
 // toolsCaps answers `tools:caps`.
 //
-// ONE ANSWER FOR ALL FOUR PAGES, because one module draws all four (see
+// ONE ANSWER FOR ALL FIVE PAGES, because one module draws all five (see
 // web/src/pages/tools.ts) and asks once when any of them opens. The interface
-// list is read only for somebody who may read the Torch page: it is the only
-// page that uses it, and it costs a command on the router.
+// list is read for somebody who may read the Torch or the Sniffer page - the
+// two that pick an interface - and it costs a command on the router.
+//
+// The device-mode read costs a second one, and only for a reader of the Sniffer
+// page: it is the only page the answer means anything to.
 func (cn *conn) toolsCaps() {
-	out := ToolsCapsPayload{Interfaces: []string{}}
+	out := ToolsCapsPayload{Interfaces: []string{}, SnifferAllowed: true}
 	if cn.routerID == "" || cn.rsession == nil {
 		EvToolsCaps.Send(cn.srv.hub, cn.c, out)
 		return
 	}
 	out.MayTorch = cn.canPage("tools-torch", "write")
 	out.MayBtest = cn.canPage("tools-btest", "write")
-	if cn.canPage("tools-torch", "read") {
+	out.MaySniff = cn.canPage("tools-sniffer", "write")
+	if cn.canPage("tools-torch", "read") || cn.canPage("tools-sniffer", "read") {
 		if names, err := interfaceNames(cn.rsession); err == nil {
 			out.Interfaces = names
+		}
+	}
+	if cn.canPage("tools-sniffer", "read") {
+		if allowed, err := snifferAllowedOn(cn.rsession); err == nil {
+			out.SnifferAllowed = allowed
 		}
 	}
 	EvToolsCaps.Send(cn.srv.hub, cn.c, out)

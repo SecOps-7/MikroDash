@@ -42,12 +42,16 @@ assert.deepStrictEqual([...t.home].sort(), [...mod.VIEW_PRESETS.home].sort(), 'H
 for (const k of STANDARD_NEW) assert.ok(has(t.standard, k), 'Standard lacks ' + k);
 for (const k of mod.VIEW_PRESETS.standard) assert.ok(has(t.standard, k), 'Standard lost ' + k);
 // The control: the Advanced-only pages are NOT in Standard.
-for (const k of ['ospf', 'containers', 'ipsec', 'ai-agent', 'routing-rules']) {
+// `tools-sniffer` is in this list and its four siblings are in STANDARD_NEW
+// above, which is the whole point of listing it: a capture is the traffic
+// itself rather than a probe, so the preset that only chooses a nav layout does
+// not hand it out.
+for (const k of ['ospf', 'containers', 'ipsec', 'ai-agent', 'routing-rules', 'tools-sniffer']) {
   assert.ok(!has(t.standard, k), k + ' is in Standard; the operator put it in Advanced');
   assert.ok(has(t.advanced, k), k + ' is not in Advanced');
 }
 // Advanced is every page a preset can name: all hand-built toggles, every
-// generated page, the four tool pages and the AI Agent.
+// generated page, the five tool pages and the AI Agent.
 for (const a of mod.AREAS) assert.ok(has(t.advanced, a.key), 'Advanced lacks the generated page ' + a.key);
 for (const sKey of Object.keys(mod.PAGE_NAV_MAP)) assert.ok(has(t.advanced, mod.PAGE_NAV_MAP[sKey]), 'Advanced lost ' + sKey);
 for (const k of t.home) assert.ok(has(t.standard, k), 'Home has ' + k + ' and Standard does not');

@@ -55,6 +55,7 @@ var commandSources = map[string]string{
 	"secscan.go":          "Security Scan",
 	"apps.go":             "Apps",
 	"tools.go":            "Tools",
+	"sniffer.go":          "Tools",
 	"terminal.go":         "Terminal",
 	"wifiscan.go":         "WiFi scan",
 	"wireguard.go":        "Pages",

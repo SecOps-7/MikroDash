@@ -2252,6 +2252,16 @@
     .tool-spark polyline{fill:none;stroke:var(--accent-rx);stroke-width:1.5;vector-effect:non-scaling-stroke}
     #pingCardLoss.is-bad .tool-card-value span{color:var(--accent-err)}
     #pingCardLoss.is-bad{border-color:rgba(248,113,113,.4)}
+    /* The sniffer's two text-valued cards. A protocol pill and an IP address do
+       not want the 1.45rem monospace a packet count does, and an address that
+       is too long is cut rather than pushing the card wide. */
+    .tool-card-text .tool-card-value{font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .tool-card-foot{font-size:.66rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:.15rem;min-height:1em}
+    /* rx blue and tx green, the app's fixed directions, on the capture table. */
+    .sniff-dir{display:inline-block;padding:.05rem .4rem;border-radius:5px;font-size:.68rem;font-weight:600;
+      font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+    .sniff-dir-rx{background:rgba(56,189,248,.14);color:var(--accent-rx);border:1px solid rgba(56,189,248,.3)}
+    .sniff-dir-tx{background:rgba(52,211,153,.14);color:var(--accent-tx);border:1px solid rgba(52,211,153,.3)}
 
     .trace-card{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:.6rem;margin:0 0 .8rem}
     .trace-map-wrap{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;

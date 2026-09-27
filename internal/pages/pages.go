@@ -159,6 +159,14 @@ var All = []Page{
 	{Key: "tools-traceroute", Title: "Traceroute"},
 	{Key: "tools-torch", Title: "Torch"},
 	{Key: "tools-btest", Title: "Bandwidth Test"},
+	// The Packet Sniffer (2026-09-27). A fifth page rather than a tab on one of
+	// the four, for the reason the split was made: it is its own grant, and
+	// "may capture packets" is a far bigger thing to hand out than "may ping".
+	//
+	// NO COLLECTOR either, and one gate this app does not own: /system/device-mode
+	// carries a `sniffer` flag, and a device whose flag is false refuses the tool
+	// whatever the grants say. See internal/server/sniffer.go.
+	{Key: "tools-sniffer", Title: "Packet Sniffer"},
 	// The Terminal page. NO COLLECTOR, for the same reason Tools has none: nothing
 	// runs until an operator types a line.
 	//

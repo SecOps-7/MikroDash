@@ -5,7 +5,11 @@ with the port-parity harness on 2026-09-01. This file is now maintained BY HAND 
 the RouterOS documentation; see the mikrotik-docs skill.**
 
 Rows added by hand cite the Go file that declares the command, not the deleted
-Node one. The nine `/caps-man` reads below are the legacy CAPsMAN tree, added on
+Node one. The Packet Sniffer's eight rows were added on 2026-09-27 and were
+measured against a RouterOS 7.24.4 CHR before they were written down, because two
+of its facts are not in the `save` command's own documentation: the file is
+PCAPNG whatever it is called, and the memory buffer drops the oldest packets so
+the packet table holds fewer than the protocol table counts. The nine `/caps-man` reads below are the legacy CAPsMAN tree, added on
 2026-09-13 - its property names are the half MikroTik's documentation does not
 enumerate, so the three status menus are read whole and the profile menus carry
 proplists checked against a live manager's own export.
@@ -14,14 +18,17 @@ Every RouterOS command MikroDash issues, derived from the source. This is the in
 for the fixture capture (plan A1), the specification for the Go client, and the checklist
 for what a ported collector has to cover.
 
+The counts below are of the tables in this file; they are maintained by hand with
+the rows, since the generator that once produced them is gone.
+
 | Kind | Count |
 |---|---|
-| read | 75 |
+| read | 79 |
 | stream | 16 |
-| write | 12 |
-| action | 16 |
+| write | 13 |
+| action | 19 |
 | menu | 34 |
-| distinct proplists | 70 |
+| distinct proplists | 73 |
 
 ## Reads
 
@@ -99,6 +106,10 @@ for what a ported collector has to cover.
 | `/system/routerboard/print` | src/backups/runner.js, src/collectors/packages.js, src/collectors/system.js, src/index.js |
 | `/system/routerboard/settings/print` | internal/collect/packages.go, internal/server/packages.go |
 | `/tool/netwatch/print` | src/collectors/netwatch.js |
+| `/tool/sniffer/print` | internal/server/sniffer.go (Packet Sniffer page - `running`) |
+| `/tool/sniffer/packet/print` | internal/server/sniffer.go (Packet Sniffer page - `data`, the per-packet hex dump, is deliberately NOT in the proplist) |
+| `/tool/sniffer/protocol/print` | internal/server/sniffer.go (Packet Sniffer page - nests three levels; only the top-level rows partition the capture) |
+| `/tool/sniffer/host/print` | internal/server/sniffer.go (Packet Sniffer page - `rate`, `peak-rate` and `total` are each formatted `rx/tx`) |
 | `/user/active/print` | src/collectors/rosusers.js, src/index.js |
 | `/user/group/print` | src/collectors/rosusers.js, src/index.js |
 | `/user/print` | src/collectors/rosusers.js, src/index.js |
@@ -143,6 +154,9 @@ for what a ported collector has to cover.
 | `/tool/bandwidth-test` | internal/diag/btest.go (Tools page) |
 | `/tool/fetch` | src/index.js, internal/server/files.go (an http(s) GET into a file MikroDash names) |
 | `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js, internal/diag/ping.go (Tools page) |
+| `/tool/sniffer/save` | internal/server/sniffer.go (Packet Sniffer page - writes the capture to `file-name` exactly, with no extension appended; RouterOS 7.20 and later write PCAPNG whatever the name) |
+| `/tool/sniffer/start` | internal/server/sniffer.go (Packet Sniffer page - refused with "not allowed by device-mode" when `/system/device-mode`'s `sniffer` is false) |
+| `/tool/sniffer/stop` | internal/server/sniffer.go (Packet Sniffer page) |
 | `/tool/torch` | internal/diag/torch.go (Tools page) |
 | `/tool/traceroute` | internal/diag/traceroute.go (Tools page) |
 
@@ -156,6 +170,7 @@ for what a ported collector has to cover.
 | `/system/package/disable` | src/index.js |
 | `/system/package/enable` | src/index.js |
 | `/system/routerboard/settings/set` | internal/server/packages.go |
+| `/tool/sniffer/set` | internal/diag/sniffer.go (Packet Sniffer page - writes EVERY filter entry, the offered ones with their values and the rest empty, so nothing left on the router narrows a capture silently) |
 | `/user/active/remove` | src/index.js |
 | `/user/add` | src/index.js |
 | `/user/group/add` | src/index.js |
@@ -430,6 +445,9 @@ A proplist is the only thing keeping a credential out of a payload - see
 | Proplist | Used by |
 |---|---|
 | `=.proplist=.id` | src/index.js |
+| `=.proplist=.id,num,interface,direction,src-mac,dst-mac,src-address,dst-address,protocol,ip-protocol,size,tcp-flags,time` | internal/diag/sniffer.go (the sniffer's packet table, without `data`) |
+| `=.proplist=running` | internal/server/sniffer.go (the sniffer's own state, so `running` on a frame is the router's answer) |
+| `=.proplist=sniffer` | internal/server/sniffer.go (`/system/device-mode`, the gate this app does not own) |
 | `=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server,dynamic` | src/collectors/dhcpLeases.js |
 | `=.proplist=.id,address,identity,board-name,serial,version,base-mac,common-name,state,connected-time,uptime` | src/collectors/capsman.js |
 | `=.proplist=.id,bridge,interface,pvid,frame-types,disabled` | src/collectors/vlans.js |

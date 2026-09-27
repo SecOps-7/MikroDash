@@ -75,6 +75,7 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "tools-traceroute",
   "tools-torch",
   "tools-btest",
+  "tools-sniffer",
   "reports",
   "audit-trail",
   "backups",

@@ -65,6 +65,7 @@ export const PAGES: readonly Page[] = [
   { key: "tools-traceroute", title: "Traceroute", path: "tools-traceroute" },
   { key: "tools-torch", title: "Torch", path: "tools-torch" },
   { key: "tools-btest", title: "Bandwidth Test", path: "tools-btest" },
+  { key: "tools-sniffer", title: "Packet Sniffer", path: "tools-sniffer" },
   { key: "terminal", title: "Terminal", path: "terminal" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },

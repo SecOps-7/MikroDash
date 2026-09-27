@@ -162,6 +162,11 @@
       "settingsKey": null
     },
     {
+      "key": "tools-sniffer",
+      "title": "Packet Sniffer",
+      "settingsKey": null
+    },
+    {
       "key": "terminal",
       "title": "Terminal",
       "settingsKey": null

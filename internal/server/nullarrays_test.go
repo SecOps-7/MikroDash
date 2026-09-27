@@ -73,6 +73,10 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			r := diag.FoldTorch("ether1", nil)
 			return ToolsTorchPayload{Result: &r}
 		},
+		"tools:sniffer": func() any {
+			r := diag.FoldSniffer(false, nil, nil, nil)
+			return ToolsSnifferPayload{Result: &r}
+		},
 		// Provisioning off, no database: nothing enrolled, nothing issued.
 		"ztp:state": func() any { return (&Server{}).ztpPayload() },
 		"tools:traceroute": func() any {

@@ -33,6 +33,7 @@ var (
 	EvToolsTraceroute   = hub.Declare[ToolsTraceroutePayload]("tools:traceroute")
 	EvToolsTorch        = hub.Declare[ToolsTorchPayload]("tools:torch")
 	EvToolsBtest        = hub.Declare[ToolsBtestPayload]("tools:btest")
+	EvToolsSniffer      = hub.Declare[ToolsSnifferPayload]("tools:sniffer")
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
 	EvTermOutput        = hub.Declare[TermOutputPayload]("term:output")
 	EvTermScrollback    = hub.Declare[TermScrollbackPayload]("term:scrollback")

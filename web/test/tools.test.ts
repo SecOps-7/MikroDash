@@ -30,7 +30,7 @@ import { makeDoc } from './dom-shim.js';
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.tools-entry.ts');
-fs.writeFileSync(ENTRY, "export { initToolsPage } from '../web/src/pages/tools.js';\n");
+fs.writeFileSync(ENTRY, "export { initToolsPage, filenameOf } from '../web/src/pages/tools.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.tools.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -48,7 +48,14 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'pingCardLoss', 'pingSpark', 'pingCardLast', 'btestScaleRx', 'btestScaleTx', 'btestArcRx', 'btestNeedleRx',
   'btestValRx', 'btestAvgRx', 'btestArcTx', 'btestNeedleTx', 'btestValTx', 'btestAvgTx', 'btestLostVal', 'btestCpuVal', 'pingScroll', 'torchScroll',
   // The count pills beside each page's title. Bandwidth Test has none.
-  'pingBadge', 'traceBadge', 'torchBadge'],
+  'pingBadge', 'traceBadge', 'torchBadge',
+  // The Packet Sniffer (2026-09-27): its form, its sortable header, its four
+  // cards and the Export button.
+  'snifferForm', 'snifferInterface', 'snifferProtocol', 'snifferPort', 'snifferAddress',
+  'snifferDirection', 'snifferRun', 'snifferStatus', 'snifferSummary', 'snifferHead',
+  'snifferRows', 'snifferBadge', 'snifferScroll', 'snifferExport',
+  'snifferPacketsVal', 'snifferBytesVal', 'snifferProtoVal', 'snifferProtoFoot',
+  'snifferTalkerVal', 'snifferTalkerFoot'],
   // traceMap: an <svg> the trace map draws into with path geometry
   // (getTotalLength, getPointAtLength) this shim does not have. Its planner is
   // tested in tools-cards.test.ts, and the drawing is checked in a browser.
@@ -58,7 +65,16 @@ global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const handlers = {};
 const sent = [];
-mod.initToolsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => sent.push([ev, d]) }, () => true);
+// THE EXPORT'S fetch IS STUBBED WITH A SYNCHRONOUS THENABLE, deliberately. A
+// real promise resolves in a microtask, which has not run by the time the next
+// assertion in this file executes, so a test that "awaited" it would be reading
+// the state before the handler wrote it. What is pinned here is the REQUEST -
+// the URL and the router it names - and the response half is `filenameOf`,
+// tested directly below, plus the live check in a browser.
+const fetched = [];
+global.fetch = (url) => { fetched.push(url); return { then: () => ({ catch: () => {} }) }; };
+mod.initToolsPage({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, d) => sent.push([ev, d]) },
+  () => true, () => 'r-live');
 
 const n = doc.nodes;
 const rows = () => String(n.pingRows.innerHTML);
@@ -172,7 +188,7 @@ assert.strictEqual(n.pingRun.disabled, false, 'Ping stays disabled after the tra
 // TORCH needs write access ON ITS OWN PAGE. Until `tools:caps` says this viewer
 // has it, its button is disabled; a reader is told why; a writer can run it.
 assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered before the permission is known');
-handlers['tools:caps']({ mayTorch: false, mayBtest: false, interfaces: ['ether1', '<b>w</b>'] });
+handlers['tools:caps']({ mayTorch: false, mayBtest: false, maySniff: false, snifferAllowed: true, interfaces: ['ether1', '<b>w</b>'] });
 assert.strictEqual(n.torchRun.disabled, true, 'Watch is offered to a viewer who may not write the Torch page');
 assert.ok(/write access/.test(String(n.torchStatus.textContent)), 'a reader is not told why Watch is off');
 assert.ok(/<option>ether1<\/option>/.test(String(n.torchInterface.innerHTML)) && !/<b>w<\/b>/.test(String(n.torchInterface.innerHTML)),
@@ -181,10 +197,10 @@ assert.strictEqual(n.pingRun.disabled, false, 'a read tool was disabled for a re
 // ONE FLAG PER WRITE TOOL, which is the whole reason the four are separate
 // pages: Torch and Bandwidth Test are separate grants, so a frame can permit one
 // and refuse the other. A single `mayWrite` could not tell these two apart.
-handlers['tools:caps']({ mayTorch: true, mayBtest: false, interfaces: ['ether1'] });
+handlers['tools:caps']({ mayTorch: true, mayBtest: false, maySniff: false, snifferAllowed: true, interfaces: ['ether1'] });
 assert.strictEqual(n.torchRun.disabled, false, 'Watch stays disabled for a viewer who may write the Torch page');
 assert.strictEqual(n.btestRun.disabled, true, 'Test is offered to a viewer who may not write the Bandwidth Test page');
-handlers['tools:caps']({ mayTorch: true, mayBtest: true, interfaces: ['ether1'] });
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, maySniff: false, snifferAllowed: true, interfaces: ['ether1'] });
 assert.strictEqual(n.btestRun.disabled, false, 'Test stays disabled for a viewer who may write its page');
 sent.length = 0;
 n.torchInterface.value = 'ether1';
@@ -287,6 +303,136 @@ assert.ok(/avg 4\.61 Mbps/.test(String(n.btestAvgRx.textContent)) && /avg 1\.70 
 handlers['router:switched']({ activeId: 'r4' });
 assert.strictEqual(n.torchRun.disabled, true, 'a router switch kept the old router\'s write permission');
 assert.ok(sent.some(([ev]) => ev === 'tools:caps'), 'a router switch on the open page did not ask for the new caps');
+
+// ── THE PACKET SNIFFER (2026-09-27) ─────────────────────────────────────────
+//
+// The fifth tool, and the one whose gate has TWO failing modes: the viewer may
+// not write the page, or the DEVICE refuses the sniffer in device-mode, which is
+// nobody's permission. Each is checked against the other as its control, because
+// a single flag would pass whichever message it happened to pick.
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, maySniff: false, snifferAllowed: true,
+  interfaces: ['ether1', '<b>w</b>'] });
+assert.strictEqual(n.snifferRun.disabled, true, 'Start is offered to a viewer who may not write the Sniffer page');
+assert.ok(/write access/.test(String(n.snifferStatus.textContent)),
+  'a reader is not told why Start is off: ' + n.snifferStatus.textContent);
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, maySniff: true, snifferAllowed: false, interfaces: ['ether1'] });
+assert.strictEqual(n.snifferRun.disabled, true, 'Start is offered on a device whose sniffer is switched off');
+assert.ok(/device-mode/.test(String(n.snifferStatus.textContent)),
+  'a device-mode refusal is reported as a permission problem: ' + n.snifferStatus.textContent);
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, maySniff: true, snifferAllowed: true,
+  interfaces: ['ether1', '<b>w</b>'] });
+assert.strictEqual(n.snifferRun.disabled, false, 'Start stays off for a viewer who may write and a device that allows it');
+assert.strictEqual(String(n.snifferStatus.textContent), '', 'a permitted viewer is still told they are blocked');
+// The picker keeps its All interfaces entry - an empty filter-interface is what
+// RouterOS means by every interface - and escapes the names.
+assert.ok(/<option value="">All interfaces<\/option>/.test(String(n.snifferInterface.innerHTML)) &&
+  /<option>ether1<\/option>/.test(String(n.snifferInterface.innerHTML)) &&
+  !/<b>w<\/b>/.test(String(n.snifferInterface.innerHTML)),
+  'the sniffer interface picker is wrong:\n' + n.snifferInterface.innerHTML);
+// Nothing captured, so nothing to export - the control for the assertion below.
+assert.strictEqual(n.snifferExport.disabled, true, 'Export is offered before anything has been captured');
+
+sent.length = 0;
+n.snifferInterface.value = 'ether1';
+n.snifferProtocol.value = 'tcp';
+n.snifferPort.value = '443';
+n.snifferAddress.value = '198.51.100.0/24';
+n.snifferDirection.value = 'rx';
+n.snifferForm.fire('submit', { preventDefault: () => {} });
+assert.deepStrictEqual(sent, [['tools:sniffer', { interface: 'ether1', ipProtocol: 'tcp', port: '443',
+  address: '198.51.100.0/24', direction: 'rx' }]], 'the sniffer form did not ask for one capture');
+assert.ok(isStop(n.snifferRun), 'the running capture\'s button is not a red, enabled Stop');
+
+const capture = {
+  running: true, totalPackets: 332, totalBytes: 101208,
+  topProtocol: 'tcp', topProtocolShare: 96.76, topTalker: '198.51.100.10', topTalkerBytes: 100896,
+  packets: [
+    { num: 9, time: 10.5, interface: 'ether1', direction: 'tx', source: '198.51.100.10:8728',
+      dest: '<i>x</i>', protocol: 'tcp', size: 1400, tcpFlags: 'psh,ack' },
+    { num: 8, time: 9.25, interface: 'ether1', direction: 'rx', source: '198.51.100.11',
+      dest: '198.51.100.10', protocol: 'icmp', size: 70, tcpFlags: '' },
+  ],
+};
+handlers['tools:sniffer']({ code: '', message: '', done: false, result: capture });
+const sniff = () => String(n.snifferRows.innerHTML);
+assert.ok(/198\.51\.100\.10:8728/.test(sniff()), 'the capture was not drawn:\n' + sniff());
+assert.ok(!/<i>x<\/i>/.test(sniff()) && /&lt;i&gt;/.test(sniff()), 'an address was not escaped:\n' + sniff());
+assert.ok(/<span class="sniff-dir sniff-dir-tx">tx<\/span>/.test(sniff()) &&
+  /<span class="sniff-dir sniff-dir-rx">rx<\/span>/.test(sniff()),
+  'the direction is not a pill:\n' + sniff());
+assert.ok(/<span class="bw-proto bw-proto-tcp">tcp<\/span>/.test(sniff()) &&
+  /<span class="bw-proto bw-proto-icmp">icmp<\/span>/.test(sniff()),
+  'the protocol is not the shared pill:\n' + sniff());
+assert.ok(isStop(n.snifferRun), 'a progress frame settled the capture');
+// ── THE CARDS COUNT THE CAPTURE, NOT THE ROWS ─────────────────────────────
+//
+// 332 packets against 2 rows on screen. Counting the rows is the plausible wrong
+// answer, and it looks entirely reasonable on the card, so it is asserted
+// against the row count explicitly.
+assert.strictEqual(String(n.snifferPacketsVal.textContent), '332', 'the Packets card does not count the capture');
+assert.notStrictEqual(String(n.snifferPacketsVal.textContent), String(capture.packets.length),
+  'the Packets card counted the rows on screen');
+assert.strictEqual(String(n.snifferBytesVal.textContent), '98.8 KB', 'the Captured card is wrong');
+assert.ok(/bw-proto-tcp/.test(String(n.snifferProtoVal.innerHTML)), 'the Top protocol card has no pill');
+assert.strictEqual(String(n.snifferProtoFoot.textContent), '96.76% of bytes', 'the Top protocol share is wrong');
+assert.strictEqual(String(n.snifferTalkerVal.textContent), '198.51.100.10', 'the Top talker card is wrong');
+assert.ok(/98\.5 KB both ways/.test(String(n.snifferTalkerFoot.textContent)),
+  'the Top talker total is wrong: ' + n.snifferTalkerFoot.textContent);
+// The count pill counts the rows the page LISTS, as every other page's does.
+assert.strictEqual(String(n.snifferBadge.textContent), '2', 'the Sniffer pill does not count its packets');
+assert.strictEqual(String(n.snifferBadge.className), 'card-badge active-blue', 'a pill counting something is not blue');
+assert.ok(/332 packets seen \u00b7 showing the latest 2/.test(String(n.snifferSummary.textContent)),
+  'the summary does not say the table is only the latest rows: ' + n.snifferSummary.textContent);
+
+// SORTING. Newest first to begin with, and a click on a column reorders the
+// table without waiting for the next poll. Size ascending puts the 70-byte
+// packet first, which is the opposite of the default order - so a sort that
+// silently did nothing would fail here.
+const firstNum = () => /<tr><td>(\d+)<\/td>/.exec(sniff())[1];
+assert.strictEqual(firstNum(), '9', 'the capture does not start newest first');
+const th = n.snifferHead.querySelectorAll('th');
+assert.strictEqual(th.length, 8, 'the sortable header was not drawn: ' + th.length + ' cells');
+th[7].click();
+assert.strictEqual(firstNum(), '8', 'clicking Size did not reorder the table');
+th[7].click();
+assert.strictEqual(firstNum(), '9', 'a second click on Size did not reverse it');
+th[0].click();
+assert.strictEqual(firstNum(), '8', 'clicking # did not sort ascending');
+th[0].click();
+
+// EXPORT. Enabled once there is something captured, and it asks for the ACTIVE
+// router's capture.
+assert.strictEqual(n.snifferExport.disabled, false, 'Export is still off with a capture on screen');
+fetched.length = 0;
+n.snifferExport.fire('click', {});
+assert.deepStrictEqual(fetched, ['/api/tools/sniffer/pcap?routerId=r-live'],
+  'Export did not ask for the active router\'s capture: ' + JSON.stringify(fetched));
+// THE NAME COMES FROM THE SERVER, which read the capture's magic bytes; the page
+// never decides whether it is a .pcapng or a .pcap.
+assert.strictEqual(mod.filenameOf('attachment; filename="chr-test-capture.pcapng"'), 'chr-test-capture.pcapng',
+  'the download name was not read out of the Content-Disposition');
+assert.strictEqual(mod.filenameOf(null), '', 'a missing Content-Disposition produced a name anyway');
+
+// A device that refuses says so, and the capture settles.
+handlers['tools:sniffer']({ code: 'device-mode', message: '', done: true, result: null });
+assert.ok(/device-mode/.test(String(n.snifferStatus.textContent)),
+  'a device-mode refusal mid-run was not explained: ' + n.snifferStatus.textContent);
+assert.ok(n.snifferRun.textContent === 'Start' && !n.snifferRun.disabled, 'the refusal left the button as Stop');
+// A filter the router would refuse carries the reason, which is the server's
+// words rather than one of this page's canned ones.
+n.snifferForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:sniffer']({ code: 'filter', message: 'the ports must be up to 16 comma-separated numbers, 1 to 65535',
+  done: true, result: null });
+assert.ok(/comma-separated numbers/.test(String(n.snifferStatus.textContent)),
+  'a refused filter did not say what was wrong: ' + n.snifferStatus.textContent);
+// And a router switch clears the capture and puts Export back.
+n.snifferForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:sniffer']({ code: '', message: '', done: true, result: capture });
+assert.ok(/198\.51\.100\.10/.test(sniff()), 'the control capture was not drawn');
+handlers['router:switched']({ activeId: 'r5' });
+assert.ok(/Not run yet/.test(sniff()), 'a router switch did not clear the capture');
+assert.strictEqual(n.snifferExport.disabled, true, 'Export survived a router switch');
+assert.strictEqual(String(n.snifferPacketsVal.textContent), '-', 'the cards survived a router switch');
 
 fs.rmSync(OUT, { force: true });
 say('tools: ok');

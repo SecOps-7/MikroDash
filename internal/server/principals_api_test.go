@@ -188,10 +188,20 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// be a second mechanism beside the four grants, and the Visible Pages
 	// presets walk that table writing to `el('s_' + key)` across the whole
 	// document — the trap the Terminal paragraph above records.
-	if noToggle != 11 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 11 (dashboard, reports, "+
+	// TWELVE SINCE THE PACKET SNIFFER (2026-09-27), and it is the four tool
+	// pages' reason once more rather than a new one: it captures nothing until
+	// somebody presses Start, so hiding it is a question of who may run it -
+	// the permission matrix - and not of router load.
+	//
+	// A `pageSniffer` toggle would be worse here than anywhere. The page has a
+	// SECOND gate this app does not own: /system/device-mode's `sniffer` flag,
+	// which the device decides and the reset button changes. Three mechanisms
+	// for one question, two of them ours, is how an operator ends up unable to
+	// work out why a page is not there.
+	if noToggle != 12 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 12 (dashboard, reports, "+
 			"settings, ai-agent, security-scan, config-management, terminal, tools-ping, "+
-			"tools-traceroute, tools-torch, tools-btest)", noToggle)
+			"tools-traceroute, tools-torch, tools-btest, tools-sniffer)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

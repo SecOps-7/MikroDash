@@ -1343,7 +1343,9 @@ export interface ToolsBtestPayload {
 export interface ToolsCapsPayload {
   mayTorch: boolean;
   mayBtest: boolean;
+  maySniff: boolean;
   interfaces: string[];
+  snifferAllowed: boolean;
 }
 
 export interface PingReply {
@@ -1368,6 +1370,36 @@ export interface PingResult {
 
 export interface ToolsPingPayload {
   result: PingResult | null;
+  code: string;
+  message: string;
+  done: boolean;
+}
+
+export interface SniffPacket {
+  num: number;
+  time: number;
+  interface: string;
+  direction: string;
+  source: string;
+  dest: string;
+  protocol: string;
+  size: number;
+  tcpFlags: string;
+}
+
+export interface SnifferResult {
+  running: boolean;
+  packets: SniffPacket[];
+  totalPackets: number;
+  totalBytes: number;
+  topProtocol: string;
+  topProtocolShare: number;
+  topTalker: string;
+  topTalkerBytes: number;
+}
+
+export interface ToolsSnifferPayload {
+  result: SnifferResult | null;
   code: string;
   message: string;
   done: boolean;
@@ -2055,6 +2087,7 @@ export interface Events {
   'tools:btest': ToolsBtestPayload;
   'tools:caps': ToolsCapsPayload;
   'tools:ping': ToolsPingPayload;
+  'tools:sniffer': ToolsSnifferPayload;
   'tools:torch': ToolsTorchPayload;
   'tools:traceroute': ToolsTraceroutePayload;
   'topology:update': TopologyPayload;

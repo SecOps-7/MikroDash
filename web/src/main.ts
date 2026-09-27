@@ -668,7 +668,7 @@ async function main(): Promise<void> {
   initConnectionsPage(socket, pageVisible);
   initBandwidthPage(socket, pageVisible);
   initBackupsPage(socket, pageVisible);
-  initToolsPage(socket, pageVisible);
+  initToolsPage(socket, pageVisible, () => activeRouterId);
   initSecurityScanPage(socket, pageVisible);
   initTerminalPage(socket, pageVisible);
   initConfigManagementPage(socket, pageVisible);

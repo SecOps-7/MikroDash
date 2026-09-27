@@ -33,6 +33,16 @@ const HAND_TIERS: Record<string, Tier> = {
   'tools-traceroute': 'standard',
   'tools-torch': 'standard',
   'tools-btest': 'standard',
+  // ── AND THE PACKET SNIFFER AT ADVANCED, WHICH THE OTHER FOUR ARE NOT ──────
+  //
+  // The four diagnostics probe: they send packets, or watch a counter, and the
+  // most they learn about somebody else's traffic is which addresses are busy.
+  // A capture is the traffic itself, headers and payload, exported as a file
+  // that opens in Wireshark - so a preset called Standard, which an operator
+  // picks to choose a NAV LAYOUT, should not be what hands that out. Advanced
+  // is where the Terminal sits and for the same reason. Its own grant still
+  // applies on top, and so does the device's own sniffer flag.
+  'tools-sniffer': 'advanced',
   'ai-agent': 'advanced',
   // Advanced, and never below it: the Terminal runs whatever is typed, and a
   // preset called Standard should not switch that on for somebody who chose a

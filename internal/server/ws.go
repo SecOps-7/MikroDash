@@ -610,6 +610,8 @@ func (cn *conn) dispatch(in inbound) {
 		cn.toolsTorch(in.Data)
 	case "tools:btest":
 		cn.toolsBtest(in.Data)
+	case "tools:sniffer":
+		cn.toolsSniffer(in.Data)
 	case "tools:caps":
 		cn.toolsCaps()
 	// Stop: the run's own quit, exactly as a router switch ends it. Its last

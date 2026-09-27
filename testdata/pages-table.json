@@ -227,6 +227,7 @@
     "tools-traceroute",
     "tools-torch",
     "tools-btest",
+    "tools-sniffer",
     "reports",
     "audit-trail",
     "backups",

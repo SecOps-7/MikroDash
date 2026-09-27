@@ -1,0 +1,96 @@
+  <!-- The Packet Sniffer page: the fifth of the Tools diagnostics, and the only
+       one whose tool is STATE ON THE ROUTER rather than a command that streams
+       and ends. WRITE access on this page and audited: starting a capture
+       rewrites the router's sniffer filters and fills its memory.
+
+       NO TAB STRIP, like the other four - Tools is the nav category, and a tab
+       strip here would be the nav twice. Rendered by web/src/pages/tools.ts;
+       the cards by web/src/pages/tools-sniffer-cards.ts.
+
+       Five filters, out of RouterOS's twenty-five. See
+       internal/diag/sniffer.go for which are left out and why. -->
+  <div class="page-view" id="page-tools-sniffer">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="toolsSnifferCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Packet Sniffer</h3>
+            <span id="snifferBadge" class="card-badge" title="Packets shown">0</span>
+          </div>
+          <div class="hdr-actions">
+            <!-- The capture leaves the router as a file: see the pcap export in
+                 internal/server/sniffer.go. Disabled until a capture has
+                 something in it. -->
+            <button class="sbtn" id="snifferExport" type="button" disabled
+              title="Download the captured packets">Export capture</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="snifferForm" autocomplete="off">
+            <div>
+              <label class="form-label" for="snifferInterface">Interface</label>
+              <select class="form-select form-select-sm" id="snifferInterface">
+                <option value="">All interfaces</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="snifferProtocol">Protocol</label>
+              <select class="form-select form-select-sm" id="snifferProtocol">
+                <option value="" selected>Any</option>
+                <option>tcp</option><option>udp</option><option>icmp</option>
+                <option>icmpv6</option><option>igmp</option><option>gre</option>
+                <option>ospf</option><option>ipsec-esp</option><option>ipsec-ah</option>
+                <option>vrrp</option><option>pim</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="snifferPort">Port</label>
+              <input class="form-control form-control-sm" id="snifferPort" type="text" maxlength="120"
+                placeholder="443 or 53,443" autocomplete="off" spellcheck="false" size="12">
+            </div>
+            <div>
+              <label class="form-label" for="snifferAddress">Address</label>
+              <input class="form-control form-control-sm" id="snifferAddress" type="text" maxlength="400"
+                placeholder="198.51.100.7 or 198.51.100.0/24" autocomplete="off" spellcheck="false" size="20">
+            </div>
+            <div>
+              <label class="form-label" for="snifferDirection">Direction</label>
+              <select class="form-select form-select-sm" id="snifferDirection">
+                <option value="any" selected>Any</option>
+                <option value="rx">Received</option>
+                <option value="tx">Transmitted</option>
+              </select>
+            </div>
+            <button class="sbtn sbtn-primary" id="snifferRun" type="submit">Start</button>
+            <span class="muted-note" id="snifferStatus"></span>
+          </form>
+          <!-- The capture's key numbers, live: tools-sniffer-cards.ts. Packets
+               and Bytes are the CAPTURE's totals, which is more than the table
+               below shows once the router's buffer starts dropping the oldest. -->
+          <div class="tool-cards" id="snifferCards">
+            <div class="tool-card" id="snifferCardPackets">
+              <div class="tool-card-label">Packets</div>
+              <div class="tool-card-value"><span id="snifferPacketsVal">-</span></div>
+            </div>
+            <div class="tool-card"><div class="tool-card-label">Captured</div>
+              <div class="tool-card-value"><span id="snifferBytesVal">-</span></div></div>
+            <div class="tool-card tool-card-text"><div class="tool-card-label">Top protocol</div>
+              <div class="tool-card-value"><span id="snifferProtoVal">-</span></div>
+              <div class="tool-card-foot" id="snifferProtoFoot"></div></div>
+            <div class="tool-card tool-card-text"><div class="tool-card-label">Top talker</div>
+              <div class="tool-card-value"><span id="snifferTalkerVal">-</span></div>
+              <div class="tool-card-foot" id="snifferTalkerFoot"></div></div>
+          </div>
+          <div id="snifferSummary" class="muted-note mb-2"></div>
+          <div class="tool-panel">
+            <div class="data-scroll" id="snifferScroll">
+              <table class="table table-vcenter mb-0">
+                <thead><tr id="snifferHead"></tr></thead>
+                <tbody id="snifferRows"><tr><td colspan="8" class="empty-state">Not run yet</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
