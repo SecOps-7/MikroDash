@@ -29,6 +29,7 @@ package backups
 
 import (
 	"errors"
+	"io"
 	"time"
 )
 
@@ -204,6 +205,13 @@ func Run(cfg RunConfig) (res RunResult) {
 // /file/read chunks. Config Management reads its dry-run reports this way.
 func ReadRouterFile(w Writer, name string, size int) ([]byte, error) {
 	return ReadFile(chunkReaderOf(w), name, size)
+}
+
+// ReadRouterFileTo is ReadRouterFile streaming to `dst`. The capture export
+// uses it so the browser sees the file arriving rather than waiting on a read
+// that takes about a second per 800 KB.
+func ReadRouterFileTo(w Writer, name string, size int, dst io.Writer) error {
+	return ReadFileTo(chunkReaderOf(w), name, size, dst)
 }
 
 // chunkReaderOf adapts a Writer to the ChunkReader ReadFile wants.

@@ -26,6 +26,9 @@
           </div>
         </div>
         <div class="card-body">
+          <!-- The export's progress, fed by Content-Length and the bytes that
+               have arrived: a megabyte off a busy router is about 39 seconds. -->
+          <div class="thin-progress" id="snifferExportProgress" aria-hidden="true"><div class="thin-progress-bar" id="snifferExportBar"></div></div>
           <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="snifferForm" autocomplete="off">
             <div>
               <label class="form-label" for="snifferInterface">Interface</label>

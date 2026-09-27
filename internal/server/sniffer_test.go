@@ -2,6 +2,8 @@ package server
 
 import (
 	"errors"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +22,15 @@ type fakeSniffer struct {
 	packets []routeros.Reply
 	// deviceMode is what /system/device-mode/print answers for `sniffer`.
 	deviceMode string
+	// file is what /tool/sniffer/save wrote, handed back by /file/read in
+	// `chunk`-byte pieces. Empty means the capture was empty and `save` wrote
+	// nothing, which is what a real router does.
+	file  string
+	chunk int
+	// onRead runs before each /file/read answers, so a test can look at what
+	// has already reached the browser.
+	onRead func(nth int)
+	reads  int
 }
 
 func (f *fakeSniffer) exec(cmd routeros.Cmd) ([]routeros.Reply, error) {
@@ -40,6 +51,27 @@ func (f *fakeSniffer) exec(cmd routeros.Cmd) ([]routeros.Reply, error) {
 		return []routeros.Reply{{"protocol": "ip", "packets": "7", "bytes": "900", "share": "100"}}, nil
 	case "/tool/sniffer/host/print":
 		return []routeros.Reply{{"address": "198.51.100.10", "total": "500/400"}}, nil
+	case "/file/print":
+		if f.file == "" {
+			return nil, nil
+		}
+		return []routeros.Reply{{"size": strconv.Itoa(len(f.file))}}, nil
+	case "/file/read":
+		f.reads++
+		if f.onRead != nil {
+			f.onRead(f.reads)
+		}
+		off := 0
+		for _, a := range cmd.Args {
+			if v, ok := strings.CutPrefix(a, "=offset="); ok {
+				off, _ = strconv.Atoi(v)
+			}
+		}
+		if off >= len(f.file) {
+			return []routeros.Reply{{}}, nil
+		}
+		end := min(off+f.chunk, len(f.file))
+		return []routeros.Reply{{"data": f.file[off:end]}}, nil
 	}
 	return nil, nil
 }
@@ -185,7 +217,7 @@ func TestTheCaptureIsNamedFromItsMagicBytes(t *testing.T) {
 func TestTheExportRemovesItsFileOnEveryPath(t *testing.T) {
 	// The read fails after the save has written the file.
 	f := &fakeSniffer{fail: map[string]error{"/file/print": errors.New("no")}}
-	if _, err := saveAndReadCapture(f.session(t), "md-cap"); err == nil {
+	if err := saveAndStreamCapture(f.session(t), "md-cap", testSink()); err == nil {
 		t.Fatal("a failed read reported success")
 	}
 	if indexOf(f.sent, "/file/remove") < 0 {
@@ -194,14 +226,85 @@ func TestTheExportRemovesItsFileOnEveryPath(t *testing.T) {
 	// AND WHEN NOTHING WAS CAPTURED: `save` writes no file, which is not a
 	// failure - the caller answers "nothing to export" - and there is still
 	// nothing left behind.
-	g := &fakeSniffer{}
-	body, err := saveAndReadCapture(g.session(t), "md-cap")
-	if err != nil || body != nil {
-		t.Errorf("an empty capture gave %d bytes and %v, want nothing and no error", len(body), err)
+	g, sink := &fakeSniffer{}, testSink()
+	if err := saveAndStreamCapture(g.session(t), "md-cap", sink); err != nil || sink.n != 0 {
+		t.Errorf("an empty capture wrote %d bytes and gave %v, want nothing and no error", sink.n, err)
 	}
 	if indexOf(g.sent, "/file/remove") < 0 {
 		t.Errorf("an empty export left no remove behind it: %v", g.sent)
 	}
+}
+
+// ── THE CAPTURE IS FORWARDED AS IT ARRIVES, WHICH IS WHAT FEEDS THE BAR ─────
+//
+// A megabyte measured 39 seconds off a router the poll is also using, so the
+// export streams: `Content-Length` is declared from `/file/print` and each
+// 32 KB chunk goes on as it lands. The browser counts what has arrived against
+// that header and draws a real progress bar.
+//
+// THE THIRD ASSERTION IS THE ONE THAT WOULD ROT: a handler that buffered the
+// whole file and wrote it at the end passes the first two and shows the
+// operator nothing for 39 seconds. So the fake looks, from inside the second
+// read, at what the browser already has.
+func TestTheCaptureReachesTheBrowserWhileItIsStillBeingRead(t *testing.T) {
+	rec := httptest.NewRecorder()
+	body := string([]byte{0x0a, 0x0d, 0x0d, 0x0a}) + strings.Repeat("x", 26)
+	var midway int
+	f := &fakeSniffer{file: body, chunk: 10, onRead: func(nth int) {
+		if nth == 3 {
+			midway = rec.Body.Len()
+		}
+	}}
+	sink := &pcapSink{w: rec, base: "router-capture"}
+	if err := saveAndStreamCapture(f.session(t), "md-cap", sink); err != nil {
+		t.Fatalf("the export failed: %v", err)
+	}
+	if rec.Body.String() != body {
+		t.Errorf("the browser got %d bytes, want the file's %d", rec.Body.Len(), len(body))
+	}
+	if got, want := rec.Header().Get("Content-Length"), strconv.Itoa(len(body)); got != want {
+		t.Errorf("Content-Length %q, want %q - without it a short read is a download that saves", got, want)
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, `"router-capture.pcapng"`) {
+		t.Errorf("Content-Disposition %q, want the name the magic bytes chose", got)
+	}
+	if midway != 20 {
+		t.Errorf("the browser held %d bytes when the third chunk was asked for, want the 20 already read - "+
+			"the export is buffering, and nothing moves until it finishes", midway)
+	}
+}
+
+// A short read is discovered only after some of the file has gone, so what makes
+// it safe is that the response stops short of the Content-Length it promised.
+// This pins that the handler still reports the failure rather than completing.
+func TestAShortReadFailsTheExportRatherThanTruncatingIt(t *testing.T) {
+	rec := httptest.NewRecorder()
+	// /file/print says 30 bytes, /file/read has 12: the router disagrees with
+	// itself, which is exactly what the length check exists for.
+	f := &fakeSniffer{file: "123456789012", chunk: 6}
+	f.fail = nil
+	sink := &pcapSink{w: rec, base: "router-capture", size: 0}
+	// Report a size larger than the file by answering /file/print from a longer
+	// string, then shortening what /file/read will give.
+	f.file = strings.Repeat("y", 30)
+	f.onRead = func(nth int) {
+		if nth == 2 {
+			f.file = f.file[:6]
+		}
+	}
+	if err := saveAndStreamCapture(f.session(t), "md-cap", sink); err == nil {
+		t.Fatal("a capture that read short reported success")
+	}
+	if rec.Header().Get("Content-Length") != "30" {
+		t.Errorf("Content-Length %q, want the 30 promised - the browser must see the response stop short",
+			rec.Header().Get("Content-Length"))
+	}
+}
+
+// testSink is a pcapSink writing to a recorder, so a test can read what the
+// export actually put on the wire - the bytes, the status and the headers.
+func testSink() *pcapSink {
+	return &pcapSink{w: httptest.NewRecorder(), base: "router-capture"}
 }
 
 // testConn is a connection with nothing on it but the server the write queue

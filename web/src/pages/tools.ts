@@ -59,7 +59,7 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { esc, el, fmtMbps, protoPill, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { esc, el, fmtBytes, fmtMbps, protoPill, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
 import type { PingResult, TracerouteResult, TorchResult, BtestResult, SnifferResult } from '../gen/payloads';
 import { renderPingCards } from './tools-ping-cards';
 import { renderBtestCards } from './tools-btest-cards';
@@ -349,6 +349,40 @@ export function filenameOf(header: string | null): string {
   return m ? m[1]! : '';
 }
 
+/** The response body, counted as it arrives.
+ *
+ *  A SHORT READ IS A FAILED FETCH, NOT A SHORTER FILE. The server declares
+ *  Content-Length before the first chunk and stops writing the moment the
+ *  router's own length check fails, so a truncated capture rejects here and
+ *  never reaches the download - which is the whole reason the server may stream
+ *  a file it has not finished verifying (internal/backups/read.go).
+ *
+ *  `res.body` is absent in a few places - some older browsers, and the test
+ *  shim - so the whole-blob read stays as the fallback. It shows no progress,
+ *  which is exactly what the page did before, rather than nothing at all. A
+ *  second guard on `getReader` was written and then removed: a Response that
+ *  has a body always has one, and a mutation sweep found the branch unreachable
+ *  rather than untested. */
+export function readWithProgress(res: Response, total: number,
+  onProgress: (got: number, total: number) => void): Promise<Blob> {
+  const body = res.body;
+  if (!body) return res.blob();
+  const reader = body.getReader();
+  const parts: BlobPart[] = [];
+  let got = 0;
+  onProgress(0, total);
+  const pump = (): Promise<Blob> => reader.read().then(({ done, value }) => {
+    if (done) return new Blob(parts);
+    if (value) {
+      parts.push(value as unknown as BlobPart);
+      got += value.length;
+      onProgress(got, total);
+    }
+    return pump();
+  });
+  return pump();
+}
+
 /** The capture's packet table, in the current sort. */
 function renderSniffer(r: SnifferResult): void {
   const summary = el('snifferSummary');
@@ -480,14 +514,39 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   el('snifferExport')?.addEventListener('click', () => {
     const rid = activeId();
     if (!rid) return;
+    const btn = el<HTMLButtonElement>('snifferExport');
     const status = el('snifferStatus');
-    if (status) status.textContent = 'Preparing the capture…';
+    const track = el('snifferExportProgress');
+    const fill = el('snifferExportBar');
+    // ── THE BAR HAS TWO PHASES, AND THEY ARE DIFFERENT CLAIMS ───────────────
+    //
+    // `is-wait` is before the response headers: the router is still writing the
+    // capture to a file and nothing knows how big it will be. `is-on` alone is
+    // the read, where Content-Length is known and the width is real. A bar that
+    // sat at 0% through the first phase would be indistinguishable from one
+    // that had stalled.
+    const showProgress = (got: number, total: number): void => {
+      track?.classList.add('is-on');
+      track?.classList.toggle('is-wait', total <= 0);
+      if (fill && total > 0) fill.style.width = Math.min(100, Math.round((got / total) * 100)) + '%';
+      if (status) {
+        status.textContent = total > 0
+          ? 'Downloading the capture… ' + fmtBytes(got) + ' of ' + fmtBytes(total)
+          : 'Preparing the capture…';
+      }
+    };
+    const clearProgress = (): void => {
+      track?.classList.remove('is-on', 'is-wait');
+      if (fill) fill.style.width = '0%';
+      if (btn) btn.disabled = false;
+    };
+    if (btn) btn.disabled = true;
+    showProgress(0, 0);
     // FETCHED RATHER THAN LINKED, unlike the Backups page's two download links.
-    // A capture is at most the router's memory buffer, so holding it here costs
-    // nothing, and it buys the one thing a plain <a href> cannot do: a refusal
-    // shown in the page's own status line instead of a JSON error rendered as a
-    // page. The file's NAME comes from the server, which read the magic bytes -
-    // RouterOS 7.20 and later write PCAPNG whatever the file is called.
+    // A plain <a href> cannot show a refusal in the page's own status line, and
+    // cannot count what has arrived. The file's NAME comes from the server,
+    // which read the magic bytes - RouterOS 7.20 and later write PCAPNG
+    // whatever the file is called.
     void fetch('/api/tools/sniffer/pcap?routerId=' + encodeURIComponent(rid),
       { credentials: 'same-origin' })
       .then((res) => {
@@ -496,16 +555,18 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
             .then((d: { error?: string }) => { throw new Error(d.error || 'The capture could not be exported.'); });
         }
         const name = filenameOf(res.headers.get('content-disposition')) || 'capture.pcapng';
-        return res.blob().then((b) => {
+        const total = Number(res.headers.get('content-length')) || 0;
+        return readWithProgress(res, total, showProgress).then((blob) => {
           const a = document.createElement('a');
-          a.href = URL.createObjectURL(b);
+          a.href = URL.createObjectURL(blob);
           a.download = name;
           a.click();
           URL.revokeObjectURL(a.href);
+          clearProgress();
           if (status) status.textContent = 'Saved ' + name + '.';
         });
       })
-      .catch((e: Error) => { if (status) status.textContent = e.message; });
+      .catch((e: Error) => { clearProgress(); if (status) status.textContent = e.message; });
   });
 
   const svg = el('traceMap') as unknown as SVGSVGElement | null;

@@ -30,7 +30,7 @@ import { makeDoc } from './dom-shim.js';
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.tools-entry.ts');
-fs.writeFileSync(ENTRY, "export { initToolsPage, filenameOf } from '../web/src/pages/tools.js';\n");
+fs.writeFileSync(ENTRY, "export { initToolsPage, filenameOf, readWithProgress } from '../web/src/pages/tools.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.tools.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -54,6 +54,7 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'snifferForm', 'snifferInterface', 'snifferProtocol', 'snifferPort', 'snifferAddress',
   'snifferDirection', 'snifferRun', 'snifferStatus', 'snifferSummary', 'snifferHead',
   'snifferRows', 'snifferBadge', 'snifferScroll', 'snifferExport',
+  'snifferExportProgress', 'snifferExportBar',
   'snifferPacketsVal', 'snifferBytesVal', 'snifferProtoVal', 'snifferProtoFoot',
   'snifferTalkerVal', 'snifferTalkerFoot'],
   // traceMap: an <svg> the trace map draws into with path geometry
@@ -433,6 +434,42 @@ handlers['router:switched']({ activeId: 'r5' });
 assert.ok(/Not run yet/.test(sniff()), 'a router switch did not clear the capture');
 assert.strictEqual(n.snifferExport.disabled, true, 'Export survived a router switch');
 assert.strictEqual(String(n.snifferPacketsVal.textContent), '-', 'the cards survived a router switch');
+
+// ── THE PCAP EXPORT'S PROGRESS BAR ──────────────────────────────────────────
+//
+// A megabyte of capture is about 39 seconds off a busy router, so the server
+// streams it with Content-Length declared and the page counts what has arrived.
+// Two claims, and the second needs a control: the bar is INDETERMINATE until
+// the headers land (nothing yet knows how big the file will be) and DETERMINATE
+// after, because "waiting" and "stalled at 0%" must not look the same.
+n.snifferExport.disabled = false;
+n.snifferExport.fire('click', {});
+assert.ok(n.snifferExportProgress.classList.contains('is-on'),
+  'the export bar never appeared');
+assert.ok(n.snifferExportProgress.classList.contains('is-wait'),
+  'the bar was determinate before Content-Length was known, so waiting looks like stalled');
+assert.strictEqual(String(n.snifferStatus.textContent), 'Preparing the capture…',
+  'the wait phase did not say what it was waiting for: ' + n.snifferStatus.textContent);
+
+// readWithProgress counts each chunk against the total. `now` is a synchronous
+// thenable, so the pump unrolls before the next statement - the same trick the
+// clipboard stub uses, because these checks do not await.
+const now = (v) => ({ then: (f) => f(v) });
+const chunks = [new Uint8Array(30), new Uint8Array(70)];
+let at = -1;
+const res = { body: { getReader: () => ({ read: () => { at++; return now(at < chunks.length ? { done: false, value: chunks[at] } : { done: true }); } }) } };
+const seen = [];
+const blob = mod.readWithProgress(res, 100, (got, total) => seen.push([got, total]));
+assert.deepStrictEqual(seen, [[0, 100], [30, 100], [100, 100]],
+  'the reader did not report progress per chunk: ' + JSON.stringify(seen));
+assert.strictEqual(blob.size, 100, 'the assembled blob lost bytes: ' + blob.size);
+
+// THE FALLBACK: a response with no readable body reads whole, which is what the
+// page did before. No progress is not the same as no download.
+let blobbed = 0;
+const whole = mod.readWithProgress({ blob: () => { blobbed++; return now('the file'); } }, 0, () => {});
+assert.strictEqual(blobbed, 1, 'a response with no body did not fall back to reading it whole');
+whole.then((b) => assert.strictEqual(b, 'the file', 'the fallback did not hand back what blob() gave'));
 
 fs.rmSync(OUT, { force: true });
 say('tools: ok');

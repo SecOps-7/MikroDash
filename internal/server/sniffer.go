@@ -298,11 +298,26 @@ func snifferAllowedOn(rs *session.Session) (bool, error) {
 //
 // ── HOW THE BYTES COME OFF THE ROUTER ───────────────────────────────────────
 //
-// `internal/backups.ReadRouterFile`, unchanged. Its package comment records what
-// was tried and does not work: `/export` returns an empty array, `/file/print`'s
+// `internal/backups.ReadRouterFileTo`. Its package comment records what was
+// tried and does not work: `/export` returns an empty array, `/file/print`'s
 // `contents` is populated only for a few KB, and `/tool/fetch upload=yes`
 // refuses anything but [s]ftp. `/file/read` in 32768-byte chunks is what works,
 // and a short read is an error rather than a shorter file.
+//
+// ── AND THEY ARE FORWARDED AS THEY ARRIVE, NOT BUFFERED ─────────────────────
+//
+// 32 KB a time at about 795 KB/s is a second per 800 KB, and a megabyte of
+// capture measured 39 seconds on a router the 2-second poll is also using. Held
+// until complete, that is 39 seconds of a page with nothing to show; streamed,
+// with `Content-Length` declared from `/file/print`, the browser can count what
+// has arrived and draw a real progress bar.
+//
+// THE PRICE IS THAT A SHORT READ IS DISCOVERED AFTER BYTES HAVE GONE. There is
+// no checksum from the router and nothing to check until the loop ends, so this
+// cannot be avoided by ordering. What makes it safe is `Content-Length`: a
+// response that stops short of it is one the browser rejects outright, so a
+// truncated capture arrives as a failed download rather than as a shorter file
+// somebody opens in Wireshark. `pcapSink` below sets it.
 //
 // ── AND THE FILE IS REMOVED AGAIN ───────────────────────────────────────────
 //
@@ -357,42 +372,86 @@ func (s *Server) snifferPcap(w http.ResponseWriter, r *http.Request) {
 	// NAMED FOR THIS DOWNLOAD, not a fixed name: two operators exporting at once
 	// would otherwise save over each other's file and read each other's bytes.
 	name := "mikrodash-sniffer-" + strconv.FormatInt(time.Now().UnixMilli(), 10)
-	var body []byte
+	sink := &pcapSink{w: w, base: backups.SlugFor(routerLabelFor(s, routerID)) + "-capture"}
 	err = s.inRouterWriteQueueWith(routerID, func(sn *session.Session) error {
-		var rerr error
-		body, rerr = saveAndReadCapture(sn, name)
-		return rerr
+		return saveAndStreamCapture(sn, name, sink)
 	})
 	if err != nil {
 		log.Printf("[sniffer] export from %s: %v", routerID, err)
-		writeJSONErr(w, http.StatusBadGateway, safe.Message(err.Error()))
+		// ONCE A BYTE HAS GONE THE STATUS IS ALREADY 200 and the headers are
+		// already the file's, so there is no JSON to send: the response simply
+		// stops short of the Content-Length it promised and the browser refuses
+		// the download. Only a failure before the first chunk can still explain
+		// itself.
+		if sink.n == 0 {
+			writeJSONErr(w, http.StatusBadGateway, safe.Message(err.Error()))
+		}
 		return
 	}
-	if len(body) == 0 {
+	if sink.n == 0 {
 		writeJSONErr(w, http.StatusNotFound, "Nothing has been captured to export.")
 		return
 	}
 
-	file := backups.SlugFor(routerLabelFor(s, routerID)) + "-capture" + captureExt(body)
 	s.httpRecorder(r, sess).Record(audit.Event{
 		Action: "tools.sniffer.export", TargetType: "file", Scope: "router",
-		RouterID: routerID, TargetName: file,
-		Extra: []audit.KV{{Key: "bytes", Value: len(body)}},
+		RouterID: routerID, TargetName: sink.name(),
+		Extra: []audit.KV{{Key: "bytes", Value: sink.n}},
 		Note:  "downloaded the captured packets and removed the file from the router",
 	})
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+file+`"`)
-	_, _ = w.Write(body)
 }
 
-// saveAndReadCapture has the router write its captured packets to `name`, reads
-// them back, and removes the file whatever happened.
-func saveAndReadCapture(sn *session.Session, name string) ([]byte, error) {
+// pcapSink forwards the capture to the browser and names the download from
+// the first bytes that arrive.
+//
+// THE NAME CANNOT BE CHOSEN UP FRONT: RouterOS 7.20 and later write PCAPNG
+// whatever the file is called, so the extension is read out of the magic
+// (captureExt below). Go flushes the response headers on the first Write, so
+// inside that first Write is the last moment they can still be set - which is
+// why this is a sink rather than a header written before the read begins.
+//
+// It also flushes after every chunk. Without that the bytes sit in the server's
+// bufio until it fills, and the progress bar this exists to feed would move in
+// steps rather than with the read.
+type pcapSink struct {
+	w    http.ResponseWriter
+	base string // the download's name without its extension
+	size int    // what /file/print said, for Content-Length
+	ext  string // read from the magic, with the headers
+	n    int    // bytes written so far
+}
+
+// begin records the size /file/print reported, before any chunk is asked for.
+func (c *pcapSink) begin(size int) { c.size = size }
+
+// name is what the download was called, for the audit row.
+func (c *pcapSink) name() string { return c.base + c.ext }
+
+func (c *pcapSink) Write(p []byte) (int, error) {
+	if c.n == 0 && len(p) > 0 {
+		c.ext = captureExt(p)
+		c.w.Header().Set("Content-Type", "application/octet-stream")
+		c.w.Header().Set("Content-Length", strconv.Itoa(c.size))
+		c.w.Header().Set("Content-Disposition", `attachment; filename="`+c.name()+`"`)
+	}
+	n, err := c.w.Write(p)
+	c.n += n
+	if f, ok := c.w.(http.Flusher); ok {
+		f.Flush()
+	}
+	return n, err
+}
+
+// saveAndStreamCapture has the router write its captured packets to `name`,
+// forwards them to `sink` as each chunk arrives, and removes the file whatever
+// happened. Nothing captured writes nothing to the sink and is not an error -
+// the caller answers that as "nothing to export" rather than as a fault.
+func saveAndStreamCapture(sn *session.Session, name string, sink *pcapSink) error {
 	exec := func(path string, args ...string) ([]routeros.Reply, error) {
 		return sn.Exec(routeros.Cmd{Path: path, Args: args, Timeout: snifferCmdTimeout})
 	}
 	if _, err := exec("/tool/sniffer/save", "=file-name="+name); err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		if _, err := exec("/file/remove", "=numbers="+name); err != nil {
@@ -402,25 +461,25 @@ func saveAndReadCapture(sn *session.Session, name string) ([]byte, error) {
 
 	rows, err := exec("/file/print", "?name="+name, "=.proplist=size")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	// NO FILE IS NOT A FAILURE. `save` with nothing captured writes nothing, and
-	// the caller answers that as "nothing to export" rather than as a fault.
+	// NO FILE IS NOT A FAILURE. `save` with nothing captured writes nothing.
 	if len(rows) == 0 {
-		return nil, nil
+		return nil
 	}
 	size, _ := strconv.Atoi(strings.ReplaceAll(rows[0]["size"], " ", ""))
 	if size == 0 {
-		return nil, nil
+		return nil
 	}
-	return backups.ReadRouterFile(func(cmd string, args ...string) ([]map[string]string, error) {
+	sink.begin(size)
+	return backups.ReadRouterFileTo(func(cmd string, args ...string) ([]map[string]string, error) {
 		replies, err := exec(cmd, args...)
 		out := make([]map[string]string, 0, len(replies))
 		for _, r := range replies {
 			out = append(out, map[string]string(r))
 		}
 		return out, err
-	}, name, size)
+	}, name, size, sink)
 }
 
 // captureExt names the download from the bytes that actually came back.

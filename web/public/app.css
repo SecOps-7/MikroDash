@@ -2316,14 +2316,26 @@
       .tool-ring-val,.tool-gauge-arc,.tool-gauge-needle{transition:none}
     }
 
+    /* ── The thin progress bar, shared ───────────────────────────────────────
+       Three pixels under a card header, for work whose end is known: the
+       Security Scan's settings read, and the Packet Sniffer's pcap export. It
+       was named sec-progress while the scan was its only user; a second page
+       made that name a lie.
+
+       `is-wait` is the phase before the total is known - the router still
+       writing the capture out - and slides rather than filling, because a bar
+       stuck at 0% and a bar that is waiting look the same and are not. */
+    .thin-progress{height:3px;border-radius:2px;background:transparent;overflow:hidden;margin:-.25rem 0 .6rem;opacity:0;transition:opacity .3s}
+    .thin-progress.is-on{opacity:1;background:var(--border)}
+    .thin-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent-rx),var(--accent-tx));transition:width .35s ease}
+    .thin-progress.is-wait .thin-progress-bar{width:32%;transition:none;animation:thin-slide 1.2s ease-in-out infinite}
+    @keyframes thin-slide{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+
     /* ── The Security Scan page (security-scan.ts) ───────────────────────────
        A grid of cards with the score first, so it sits top left. Colours are
        tokens; the pills are the vpn-hs-badge kinds, with high its own orange
        between critical's red and medium's amber. */
     .vpn-hs-badge.sec-sev-high{background:rgba(251,146,60,.12);color:rgba(251,146,60,.95);border:1px solid rgba(251,146,60,.3)}
-    .sec-progress{height:3px;border-radius:2px;background:transparent;overflow:hidden;margin:-.25rem 0 .6rem;opacity:0;transition:opacity .3s}
-    .sec-progress.is-on{opacity:1;background:var(--border)}
-    .sec-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent-rx),var(--accent-tx));transition:width .35s ease}
     /* dense: the wide cards fill the gaps a two-row score card leaves. */
     .sec-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:row dense;gap:.75rem}
     @media (max-width:1300px){.sec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -2436,7 +2448,8 @@
     .sec-fix{font-size:.72rem;color:var(--text-main);max-width:26rem}
     @media (prefers-reduced-motion: reduce){
       .sec-panel.sec-in .sec-card{animation:none;opacity:1;transform:none}
-      .sec-ring-val,.sec-bar-fill,.sec-progress-bar{transition:none}
+      .sec-ring-val,.sec-bar-fill,.thin-progress-bar{transition:none}
+      .thin-progress.is-wait .thin-progress-bar{animation:none}
       .sec-top-row.sev-critical .sec-top-dot{animation:none}
     }
 
