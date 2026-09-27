@@ -3385,6 +3385,24 @@
     /* The live line: the prompt and the caret, in the flow of the output. */
     .term-live{display:flex;align-items:baseline;gap:.4rem;padding:.1rem 0 .5rem}
     .term-live.is-busy .term-prompt{opacity:.45}
-    .term-input{flex:1;min-width:0;font-family:var(--font-mono);font-size:12px;background:none;border:0;outline:none;padding:0;color:var(--text-main);caret-color:var(--accent-tx)}
+    .term-input{flex:1;min-width:0;font-family:var(--font-mono);font-size:12px;background:none;border:0;padding:0;color:var(--text-main);caret-color:var(--accent-tx)}
     .term-input:disabled{color:var(--text-muted)}
+    /* ── THE FOCUS RING IS REPLACED HERE, NOT SWITCHED OFF ────────────────────
+       The app-wide `:focus-visible` rule near the top of this file draws a 2px
+       blue ring and uses !important on purpose, so that a decorative
+       `outline:none` in a component cannot defeat an accessibility guarantee
+       (WCAG 2.4.7). That reasoning is right and this is not an exception to it.
+
+       But on this one element the ring is drawn around the terminal's own
+       caret line, which is the thing you are typing on - a box around the
+       cursor, in a console. So the indicator is REPLACED by one that suits the
+       control: the text caret, in the prompt's own colour, plus the prompt
+       itself lifting to full strength while focus is here. Both are visible in
+       every theme and palette, because both are theme tokens.
+
+       Scoped to the id deliberately. A class would invite reuse, and the next
+       person to want a borderless input should have to make this argument
+       again rather than inherit it. */
+    #terminalInput:focus,#terminalInput:focus-visible{outline:none !important}
+    .term-live:focus-within .term-prompt{color:var(--accent-rx);font-weight:700}
     .term-status{font-size:.72rem;color:var(--text-muted);margin-right:.5rem}
