@@ -638,37 +638,72 @@ check('another text field on the page keeps its own paste', () => {
 
 // TERMINAL MOUSE BUTTONS: select then right-click copies, right-click with
 // nothing selected pastes. PuTTY's convention, and what was asked for.
-check('right-click copies the selection, then pastes when there is none', () => {
-  const card = n['page-terminal'];
+check('right-click copies the selection and collapses it', () => {
   selection = 'Flags: D - DYNAMIC';
   let prevented = 0;
-  card.fire('contextmenu', { preventDefault: () => { prevented++; } });
+  n['page-terminal'].fire('contextmenu', { preventDefault: () => { prevented++; } });
   assert.strictEqual(clip.writes, 1, 'the selection was not copied');
   assert.strictEqual(clip.text, 'Flags: D - DYNAMIC', 'the wrong text was copied');
   assert.strictEqual(prevented, 1, 'the browser menu was left to open over it');
   // COLLAPSED AFTERWARDS, so the next right-click pastes rather than copying
   // the same thing again - the console's own behaviour.
   assert.strictEqual(selection, '', 'the selection survived the copy');
-
-  const inp = n.terminalInput;
-  inp.value = '';
-  const readsBefore = clip.reads;
-  card.fire('contextmenu', { preventDefault: () => { prevented++; } });
-  assert.strictEqual(clip.reads, readsBefore + 1, 'right-click with no selection did not paste');
-  assert.strictEqual(inp.value, 'Flags: D - DYNAMIC', 'the clipboard did not reach the line');
-  inp.value = '';
 });
 
-// BOTH HALVES MUST WORK OR PEOPLE HAVE NO WAY TO MOVE TEXT, since the browser's
-// own menu is suppressed inside the card. A refused clipboard says which keys
-// still do it rather than failing silently.
+// PASTE IS THE BROWSER'S OWN MENU, the only one that works without a secure
+// origin or a permission. It offers Paste for the element UNDER THE POINTER,
+// so the input is moved there for the instant the menu is built.
+check('right-click with nothing selected puts the input under the pointer', () => {
+  const inp = n.terminalInput;
+  const view = n['page-terminal'];
+  selection = '';
+  view.fire('mousedown', { button: 2, clientX: 300, clientY: 200 });
+  assert.strictEqual(inp.style.position, 'fixed', 'the input was not taken out of the flow');
+  assert.strictEqual(inp.style.left, '294px', 'it was not placed under the pointer');
+  assert.strictEqual(inp.style.top, '194px', 'it was not placed under the pointer');
+  assert.strictEqual(inp.style.opacity, '0', 'the input was moved but left visible');
+
+  // The page defers putting the input back with setTimeout, so the browser has
+  // built its menu first. `check()` does not await, so rather than make this
+  // async - which would print "ok" before the assertions ran, the trap this
+  // file has already fallen into once - the timer is made to fire inline.
+  const realTimeout = globalThis.setTimeout;
+  (globalThis as any).setTimeout = (fn: () => void) => { fn(); return 0 as never; };
+  let prevented = 0;
+  try {
+    view.fire('contextmenu', { preventDefault: () => { prevented++; } });
+  } finally {
+    (globalThis as any).setTimeout = realTimeout;
+  }
+  assert.strictEqual(prevented, 0,
+    'it cancelled the browser menu, which IS the paste - right-click paste would be dead');
+
+  // AND IT GOES BACK. A terminal whose caret line had quietly moved to wherever
+  // the last right-click was would be worse than one that cannot paste.
+  assert.strictEqual(inp.style.position, '', 'the input was left floating where the menu opened');
+  assert.strictEqual(inp.style.opacity, '', 'the input was left invisible');
+});
+
+check('an ordinary click never moves the input, and nor does a copy right-click', () => {
+  const inp = n.terminalInput;
+  const view = n['page-terminal'];
+  selection = '';
+  view.fire('mousedown', { button: 0, clientX: 10, clientY: 10 });
+  assert.strictEqual(inp.style.position, '', 'an ordinary click moved the input');
+  selection = 'something';
+  view.fire('mousedown', { button: 2, clientX: 10, clientY: 10 });
+  assert.strictEqual(inp.style.position, '',
+    'a copy right-click moved the input, so the menu would offer Paste instead of copying');
+  selection = '';
+});
+
 // AN INSECURE ORIGIN HAS NO `navigator.clipboard` AT ALL, and reaching a router
 // dashboard over its LAN address rather than localhost is an insecure origin.
-// The first version wrote `navigator.clipboard?.writeText(x).then(...)`, which
+// An earlier version wrote `navigator.clipboard?.writeText(x).then(...)`, which
 // reads as guarded and is not - the `?.` skips writeText and `.then` is then
 // called on undefined. Every right-click threw, so right-click did nothing AND
 // no browser menu appeared, because the handler had already cancelled it.
-check('with no clipboard API at all, right-click still does not throw or go dead', () => {
+check('with no clipboard API at all, copy falls back and does not throw', () => {
   const real = (globalThis as any).navigator;
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} });
   let execCalled = 0;
@@ -679,28 +714,11 @@ check('with no clipboard API at all, right-click still does not throw or go dead
     n['page-terminal'].fire('contextmenu', { preventDefault: () => { prevented++; } });
     assert.strictEqual(execCalled, 1, 'it did not fall back to the older copy route');
     assert.strictEqual(prevented, 1, 'a copy it could do did not cancel the browser menu');
-
-    // WITH NOTHING TO COPY AND NO CLIPBOARD TO READ, the browser's own menu is
-    // LEFT ALONE. A dead right-click is worse than an imperfect menu.
     selection = '';
-    prevented = 0;
-    n['page-terminal'].fire('contextmenu', { preventDefault: () => { prevented++; } });
-    assert.strictEqual(prevented, 0,
-      'it cancelled the browser menu while being unable to replace it, leaving right-click dead');
-    assert.ok(/Ctrl-V/.test(String(n.terminalStatus.textContent)), 'no hint was given');
   } finally {
     Object.defineProperty(globalThis, 'navigator', { configurable: true, value: real });
     delete (doc as any).execCommand;
   }
-});
-
-check('a refused clipboard read says so instead of doing nothing', () => {
-  clip.allowRead = false;
-  selection = '';
-  n['page-terminal'].fire('contextmenu', { preventDefault: () => {} });
-  assert.ok(/Ctrl-V/.test(String(n.terminalStatus.textContent)),
-    'a refused paste left no hint at all: ' + n.terminalStatus.textContent);
-  clip.allowRead = true;
 });
 
 check('a refusal code becomes a sentence, and no device text', () => {

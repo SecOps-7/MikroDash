@@ -421,23 +421,59 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
 
   /**
    * TERMINAL MOUSE BUTTONS: select and right-click to copy, right-click with
-   * nothing selected to paste. The convention PuTTY and the Windows console
-   * use, and what was asked for.
+   * nothing selected to paste.
    *
-   * ── ON THE WHOLE PAGE, NOT JUST THE CARD ───────────────────────────────
+   * ── PASTE IS THE BROWSER'S OWN, AND THAT IS THE ONLY ONE THAT ALWAYS WORKS ─
    *
-   * It was bound to `#terminalCard`, so a right-click anywhere else on the
-   * page got the browser's own menu, which offers nothing useful over a
-   * scrollback: no selection means no Copy, and a non-editable element means
-   * no Paste. That is what "the right click context menu has no copy or paste
-   * option" looks like.
+   * Reading the clipboard from script needs `navigator.clipboard.readText`,
+   * which does not exist on an insecure origin - and reaching a router
+   * dashboard at `http://10.0.0.5:3081` rather than localhost IS an insecure
+   * origin, which is how this app is normally used. Asking for it also needs a
+   * permission the browser may simply refuse.
    *
-   * ── AND IT ONLY CANCELS THE BROWSER'S MENU WHEN IT CAN REPLACE IT ──────
+   * The browser's own Paste needs neither. But it offers it only for the
+   * element actually UNDER THE POINTER, and the scrollback is a plain div, so
+   * right-clicking it gets a menu with nothing on it worth having.
    *
-   * If neither copying nor pasting is possible here - no selection and no
-   * readable clipboard - the native menu is LEFT ALONE. A dead right-click is
-   * worse than the browser's imperfect menu.
+   * So the input is moved under the pointer for the instant the menu is built,
+   * and put back immediately afterwards. The menu is then the input's, Paste
+   * is on it, and choosing it fires an ordinary paste event that the handler
+   * above already knows what to do with - including running a pasted block.
+   *
+   * One mechanism rather than two: there is no `readText` path any more, so
+   * there is no second behaviour that only appears on some origins.
    */
+  let restoreInput: (() => void) | null = null;
+
+  el('page-terminal')?.addEventListener('mousedown', (e) => {
+    const ev = e as MouseEvent;
+    if (ev.button !== 2) return; // the right button only
+    const sel = typeof window !== 'undefined' && window.getSelection
+      ? String(window.getSelection() || '') : '';
+    if (sel) return; // a copy right-click; the handler below takes it
+    const inp = el<HTMLInputElement>('terminalInput');
+    if (!inp || inp.disabled) return;
+    // Small, invisible and exactly under the cursor, so the hit test finds it
+    // and the menu that opens is a text field's. Set as properties rather than
+    // one `style` attribute, so only what is touched is restored and the
+    // stylesheet keeps everything else.
+    const keys = ['position', 'left', 'top', 'width', 'height', 'opacity', 'zIndex'] as const;
+    const was: Record<string, string> = {};
+    for (const k of keys) was[k] = inp.style[k];
+    inp.style.position = 'fixed';
+    inp.style.left = (ev.clientX - 6) + 'px';
+    inp.style.top = (ev.clientY - 6) + 'px';
+    inp.style.width = '14px';
+    inp.style.height = '14px';
+    inp.style.opacity = '0';
+    inp.style.zIndex = '99999';
+    inp.focus();
+    restoreInput = () => {
+      for (const k of keys) inp.style[k] = was[k] ?? '';
+      restoreInput = null;
+    };
+  });
+
   el('page-terminal')?.addEventListener('contextmenu', (e) => {
     const ev = e as MouseEvent;
     const sel = typeof window !== 'undefined' && window.getSelection
@@ -456,24 +492,10 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
       return;
     }
 
-    const c = (navigator as Navigator & { clipboard?: Clipboard }).clipboard;
-    if (!c || typeof c.readText !== 'function') {
-      // Nothing we can do that the browser cannot do better. Put the caret
-      // where a paste will land and let its own menu open.
-      el<HTMLInputElement>('terminalInput')?.focus();
-      note('Paste with Ctrl-V.');
-      return;
-    }
-    ev.preventDefault();
-    c.readText().then(
-      (text) => { handlePaste(text); note(''); },
-      () => {
-        // Refused, which the browser is entitled to do. Leave the caret ready
-        // so the keystroke that always works is one press away.
-        el<HTMLInputElement>('terminalInput')?.focus();
-        note('The browser would not share the clipboard. Paste with Ctrl-V.');
-      },
-    );
+    // NOT PREVENTED: the browser's menu is the paste. The input is under the
+    // pointer by now, so that menu carries Paste; it goes back where it
+    // belongs once the menu has been built.
+    setTimeout(() => restoreInput?.(), 0);
   });
 
   el<HTMLButtonElement>('terminalStop')?.addEventListener('click', () => stop());
