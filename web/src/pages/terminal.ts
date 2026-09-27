@@ -245,6 +245,39 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
    */
   let lastListed = '';
 
+  /**
+   * A CYCLE, so pressing Tab again actually completes something.
+   *
+   * When the candidates agree no further the first press can only list them.
+   * A second press used to do nothing at all - swallowed by the "already
+   * listed" guard here and, if it was quick, by the server's one-at-a-time
+   * latch as well. In a console Tab always does something.
+   *
+   * So the candidates are kept and each further press puts the next one on
+   * the line, wrapping round. It is answered from what the device already
+   * sent, so cycling costs no round trip and cannot be swallowed.
+   */
+  interface Cycle { base: string; off: number; texts: string[]; idx: number; }
+  let cycle: Cycle | null = null;
+
+  /** What the line looks like with candidate `i` on it. */
+  const cycled = (c: Cycle, i: number): string => c.base.slice(0, c.off) + c.texts[i];
+
+  /** Advance the cycle if one is running and the line is still its doing. */
+  function stepCycle(): boolean {
+    const box = el<HTMLInputElement>('terminalInput');
+    if (!box || !cycle || cycle.texts.length < 2) return false;
+    // Only ours to advance if the line is either what we were asked about or
+    // what we last put there. Anything else means the operator has typed since.
+    if (box.value !== cycle.base && box.value !== cycled(cycle, cycle.idx)) {
+      cycle = null;
+      return false;
+    }
+    cycle.idx = (cycle.idx + 1) % cycle.texts.length;
+    box.value = cycled(cycle, cycle.idx);
+    return true;
+  }
+
   function longestCommonPrefix(xs: string[]): string {
     if (!xs.length) return '';
     let p = xs[0]!;
@@ -398,13 +431,16 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
 
   el<HTMLInputElement>('terminalInput')?.addEventListener('keydown', (e) => {
     const ev = e as KeyboardEvent;
+    // ANY KEY BUT TAB ENDS THE CYCLE. Carrying it across a keystroke would let
+    // a later Tab replace a word the operator had since edited.
+    if (ev.key !== 'Tab') cycle = null;
     if (ev.key === 'Enter') { ev.preventDefault(); send(); return; }
     if (ev.key === 'Tab') {
       // The browser's own job for Tab is to move focus. On a terminal it is
       // completion, and the page gives keyboard users the header buttons and
       // the nav to tab through instead.
       ev.preventDefault();
-      askComplete();
+      if (!stepCycle()) askComplete();
       return;
     }
     if (ev.key === 'ArrowUp') { ev.preventDefault(); recall(-1); return; }
@@ -494,10 +530,12 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     if (common.length > stem.length) {
       box.value = d.line.slice(0, off) + common;
       lastListed = '';
+      cycle = null;
       return;
     }
-    // They agree no further, so list them - once. Pressing again does not
-    // reprint the same block.
+    // They agree no further, so list them - once - and ARM THE CYCLE, so the
+    // next press puts a candidate on the line instead of doing nothing.
+    cycle = { base: d.line, off, texts: cands.map((c) => c.text), idx: -1 };
     if (lastListed === d.line) return;
     lastListed = d.line;
     draw(completionsBlock(d.line, cands));

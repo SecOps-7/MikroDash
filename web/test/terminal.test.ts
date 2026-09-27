@@ -389,6 +389,77 @@ check('candidates that agree no further are listed at once, and only once', () =
   assert.strictEqual(blocks(), before + 1, 'pressing Tab again reprinted the same list');
 });
 
+// PRESSING TAB AGAIN COMPLETES. It used to do nothing at all: swallowed by the
+// "already listed" guard, and by the server's one-at-a-time latch if it was
+// quick. In a console Tab always does something.
+check('a second Tab puts a candidate on the line, and further presses cycle', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip a';
+  const cands = [
+    { text: 'address', offset: 4, help: 'Address management', style: 'dir' },
+    { text: 'address-list', offset: 4, help: '', style: 'dir' },
+    { text: 'arp', offset: 4, help: '', style: 'dir' },
+  ];
+  // First press lists and leaves the line alone.
+  handlers['term:complete']({ line: '/ip a', code: '', candidates: cands });
+  assert.strictEqual(inp.value, '/ip a', 'the first press moved the line');
+
+  const before = sent.length;
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip address', 'the second press did not complete');
+  assert.strictEqual(sent.length, before,
+    'cycling asked the device again; it should use the candidates it already has');
+
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip address-list', 'the third press did not advance');
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip arp', 'the fourth press did not advance');
+  // AND IT WRAPS, rather than sticking on the last one.
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip address', 'the cycle did not wrap round');
+});
+
+// TYPING ENDS THE CYCLE, or a later Tab would replace a word that has since
+// been edited.
+check('typing abandons the cycle', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip a';
+  handlers['term:complete']({ line: '/ip a', code: '', candidates: [
+    { text: 'address', offset: 4, help: '', style: 'dir' },
+    { text: 'arp', offset: 4, help: '', style: 'dir' },
+  ] });
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip address', 'the cycle did not start');
+
+  inp.fire('keydown', { key: 'x', preventDefault: () => {} });
+  inp.value = '/ip addressx';                 // what the keystroke would do
+  const before = sent.length;
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip addressx',
+    'Tab after typing replaced the edited word from a stale cycle');
+  assert.strictEqual(sent.length, before + 1, 'it should ask the device afresh instead');
+
+  // THE CASE THE VALUE CHECK ALONE CANNOT SEE, and the only reason the
+  // keystroke reset is not redundant: an edit that lands BACK on a value the
+  // cycle would recognise. Backspacing `/ip addressx` to `/ip address` leaves
+  // the line looking exactly like the cycle's first candidate, so without the
+  // reset the next Tab would quietly resume cycling a sequence the operator
+  // had abandoned.
+  inp.value = '/ip a';
+  handlers['term:complete']({ line: '/ip a', code: '', candidates: [
+    { text: 'address', offset: 4, help: '', style: 'dir' },
+    { text: 'arp', offset: 4, help: '', style: 'dir' },
+  ] });
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip address', 'the cycle did not start');
+  inp.fire('keydown', { key: 'Backspace', preventDefault: () => {} });
+  const asked = sent.length;
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(inp.value, '/ip address',
+    'Tab resumed an abandoned cycle after an edit landed back on its candidate');
+  assert.strictEqual(sent.length, asked + 1, 'it should ask the device afresh');
+});
+
 check('two candidates sharing a longer prefix extend to it', () => {
   const inp = n.terminalInput;
   inp.value = '/ip ad';
