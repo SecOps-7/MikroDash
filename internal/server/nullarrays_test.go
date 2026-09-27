@@ -51,6 +51,9 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			return TermOutputPayload{Entry: TermEntry{Lines: []string{}}}
 		},
 		"term:scrollback": func() any { return TermScrollbackPayload{Entries: []TermEntry{}} },
+		"term:complete": func() any {
+			return TermCompletePayload{Candidates: []TermCompletion{}}
+		},
 		"tools:ping": func() any {
 			r := diag.FoldPing("198.51.100.1", nil)
 			return ToolsPingPayload{Result: &r}

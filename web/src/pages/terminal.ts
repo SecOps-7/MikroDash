@@ -1,6 +1,7 @@
 import type { Socket } from '../socket';
 import { el } from '../dom';
-import type { TermEntry, TermOutputPayload, TermScrollbackPayload } from '../gen/payloads';
+import type { TermCompletePayload, TermCompletion, TermEntry, TermOutputPayload,
+  TermScrollbackPayload } from '../gen/payloads';
 
 /**
  * The Terminal page.
@@ -130,23 +131,49 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
    */
   const shown = new Map<number, HTMLElement>();
 
-  function draw(e: TermEntry): void {
+  /** Put a block in the pane, keeping the prompt at the end. */
+  function place(node: HTMLElement, replacing?: HTMLElement): void {
     const box = scrollBox();
     if (!box) return;
     // Follow only when already at the bottom, so reading back through the
     // scrollback is not yanked away by an answer arriving.
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-    const node = blockNode(e);
-    const prev = e.seq > 0 ? shown.get(e.seq) : undefined;
-    if (prev && prev.parentNode === box) box.replaceChild(node, prev);
+    if (replacing && replacing.parentNode === box) box.replaceChild(node, replacing);
     else box.appendChild(node);
-    if (e.seq > 0) shown.set(e.seq, node);
     // THE PROMPT GOES BACK TO THE END. appendChild MOVES an element that is
     // already in the document, so this is the whole mechanism: output is added
     // above the line you are typing on, exactly as a console does it.
     const live = el('terminalLive');
     if (live) box.appendChild(live);
     if (atBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function draw(e: TermEntry): void {
+    const node = blockNode(e);
+    place(node, e.seq > 0 ? shown.get(e.seq) : undefined);
+    if (e.seq > 0) shown.set(e.seq, node);
+  }
+
+  /**
+   * A BARE ENTER STILL MOVES THE LINE ON.
+   *
+   * Pressing Enter on an empty line used to do nothing at all, which is the
+   * one thing a console never does: it prints a fresh prompt and moves down.
+   * Drawn here rather than sent, because an empty line has nothing to run - it
+   * costs the device nothing, earns no audit row, and is purely the terminal
+   * behaving like one.
+   */
+  function blankLine(): void {
+    const wrap = document.createElement('div');
+    wrap.className = 'term-block';
+    const echo = document.createElement('div');
+    echo.className = 'term-echo';
+    const p = document.createElement('span');
+    p.className = 'term-prompt';
+    p.textContent = promptText();
+    echo.appendChild(p);
+    wrap.appendChild(echo);
+    place(wrap);
   }
 
   /** Empty the pane on screen. The live prompt is not output and survives. */
@@ -195,11 +222,56 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     if (box.setSelectionRange) box.setSelectionRange(n, n);
   }
 
-  function send(): void {
+  /**
+   * TAB COMPLETION, DONE BY THE DEVICE.
+   *
+   * The browser sends the partial line and the device answers with its own
+   * candidates - the same engine an SSH session uses - each carrying the text,
+   * the offset it splices at, its help and its style. Nothing here knows the
+   * RouterOS command tree, which is why it cannot drift from the device in
+   * front of it or miss a value that only that device has.
+   *
+   * Two presses, like a console: the first extends as far as the candidates
+   * agree, the second lists them.
+   */
+  let lastListed = '';
+
+  function longestCommonPrefix(xs: string[]): string {
+    if (!xs.length) return '';
+    let p = xs[0]!;
+    for (const x of xs) {
+      let i = 0;
+      while (i < p.length && i < x.length && p[i] === x[i]) i++;
+      p = p.slice(0, i);
+    }
+    return p;
+  }
+
+  function completionsBlock(line: string, cands: TermCompletion[]): TermEntry {
+    // Rendered as an ordinary output block, so it scrolls with everything else
+    // and the prompt stays below it.
+    const width = Math.min(28, Math.max(...cands.map((c) => c.text.length)) + 2);
+    const lines = cands.map((c) =>
+      '  ' + c.text.padEnd(width) + (c.help ? ' ' + c.help : ''));
+    return { seq: 0, at: Date.now(), command: '', lines, truncated: false, ms: 0,
+             code: '', message: '' } as TermEntry;
+  }
+
+  function askComplete(): void {
+    const box = el<HTMLInputElement>('terminalInput');
+    if (!box || !mayRun || running) return;
+    socket.emit('term:complete', { line: box.value });
+  }
+
+  function send(line?: string): void {
     if (running || !mayRun) return;
     const box = el<HTMLInputElement>('terminalInput');
-    const text = (box?.value || '').trim();
-    if (!text) return;
+    const text = (line ?? box?.value ?? '').trim();
+    if (!text) {
+      if (box) box.value = '';
+      blankLine();
+      return;
+    }
     if (box) box.value = '';
     pushHistory(text);
     setRunning(true);
@@ -212,6 +284,32 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     note('Stopping…');
     socket.emit('term:stop', {});
   }
+
+  /**
+   * A PASTED BLOCK RUNS AS ONE.
+   *
+   * `/execute` takes a whole script - up to 64 kB - so a block of commands does
+   * not need splitting into lines and feeding in one at a time. It goes to the
+   * device intact and runs there, which is both simpler and better behaved than
+   * a console: no bracketed-paste quirks, no line-length ceiling, and the
+   * device sees the block the way the author wrote it.
+   *
+   * A SINGLE-LINE paste is left alone and just lands in the input, because
+   * running on paste would be a surprise. Only a block - something with a
+   * newline in it, which is unambiguously more than one command - runs.
+   */
+  el<HTMLInputElement>('terminalInput')?.addEventListener('paste', (e) => {
+    const ev = e as ClipboardEvent;
+    const pasted = ev.clipboardData?.getData('text') ?? '';
+    if (!/[\r\n]/.test(pasted)) return; // ordinary paste; let the browser do it
+    ev.preventDefault();
+    const box = el<HTMLInputElement>('terminalInput');
+    const whole = ((box?.value ?? '') + pasted)
+      .replace(/\r\n?/g, '\n')
+      .replace(/\n+$/, '');
+    if (box) box.value = '';
+    send(whole);
+  });
 
   el<HTMLButtonElement>('terminalStop')?.addEventListener('click', () => stop());
   el<HTMLButtonElement>('terminalClear')?.addEventListener('click', () => {
@@ -292,8 +390,32 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
   el<HTMLInputElement>('terminalInput')?.addEventListener('keydown', (e) => {
     const ev = e as KeyboardEvent;
     if (ev.key === 'Enter') { ev.preventDefault(); send(); return; }
+    if (ev.key === 'Tab') {
+      // The browser's own job for Tab is to move focus. On a terminal it is
+      // completion, and the page gives keyboard users the header buttons and
+      // the nav to tab through instead.
+      ev.preventDefault();
+      askComplete();
+      return;
+    }
     if (ev.key === 'ArrowUp') { ev.preventDefault(); recall(-1); return; }
     if (ev.key === 'ArrowDown') { ev.preventDefault(); recall(1); return; }
+    if (ev.key === '?') {
+      // `?` LISTS HELP, BUT ONLY AT A TOKEN BOUNDARY.
+      //
+      // The console pops help on any `?`, which means it cannot be typed into
+      // a comment or a regex without a fight. Here it only lists when the line
+      // is empty or ends in a space or a slash - where help is what you meant -
+      // and is an ordinary character everywhere else. A deliberate difference
+      // from the console, in the direction of not losing what you typed.
+      const v = (el<HTMLInputElement>('terminalInput')?.value ?? '');
+      if (v === '' || /[\s/]$/.test(v)) {
+        ev.preventDefault();
+        lastListed = '';       // force the list rather than an extension
+        askComplete();
+        return;
+      }
+    }
     if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'c' || ev.key === 'C')) {
       // CTRL-C IS STILL COPY WHEN SOMETHING IS SELECTED. Taking it
       // unconditionally would break copying the device's own output, which is
@@ -324,6 +446,48 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
       setRunning(false);
       note('');
     }
+  });
+
+  socket.on('term:complete', (d: TermCompletePayload) => {
+    const box = el<HTMLInputElement>('terminalInput');
+    if (!box) return;
+    // A REPLY TO AN OLDER LINE IS DROPPED. Completion is a round trip to the
+    // device; splicing a candidate computed for what used to be typed would
+    // corrupt the line rather than complete it.
+    if (d.line !== box.value) return;
+    const all = d.candidates || [];
+    if (!all.length) return;
+
+    // ── ONLY THE CANDIDATES FOR THE TOKEN BEING TYPED ──────────────────────
+    //
+    // The device answers about more than one position at once. For `/ip add`
+    // it offers `address` at offset 4 - the word being typed - AND `/` at
+    // offset 7, which is not an alternative to it but a thing that could come
+    // NEXT. Treating the two as one set makes their common prefix empty, so
+    // the line never completes and a list appears instead.
+    //
+    // The token being typed is the earliest position offered, so the lowest
+    // offset wins and the rest are what-comes-next. Found in a browser against
+    // a real device; every unit test here had been written with candidates
+    // that shared one offset, which the device never does.
+    const off = Math.min(...all.map((c) => c.offset));
+    const cands = all.filter((c) => c.offset === off);
+    const stem = d.line.slice(off);
+    const common = longestCommonPrefix(cands.map((c) => c.text));
+    // EXTEND AS FAR AS THEY AGREE. With a single candidate the common prefix
+    // IS that candidate, so this covers it too - there was a separate
+    // `cands.length === 1` branch here and a mutation sweep proved it
+    // unreachable, which is the only reason anyone would have noticed.
+    if (common.length > stem.length) {
+      box.value = d.line.slice(0, off) + common;
+      lastListed = '';
+      return;
+    }
+    // They agree no further, so list them - once. Pressing again does not
+    // reprint the same block.
+    if (lastListed === d.line) return;
+    lastListed = d.line;
+    draw(completionsBlock(d.line, cands));
   });
 
   socket.on('term:scrollback', (d: TermScrollbackPayload) => {

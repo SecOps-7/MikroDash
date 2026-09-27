@@ -624,6 +624,8 @@ func (cn *conn) dispatch(in inbound) {
 		cn.termStop()
 	case "term:clear":
 		cn.termClear()
+	case "term:complete":
+		cn.termComplete(in.Data)
 	// The Security Scan page: see internal/server/secscan.go.
 	case "secscan:get":
 		cn.secScanGet()

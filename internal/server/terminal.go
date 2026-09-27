@@ -65,6 +65,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -77,10 +78,12 @@ import (
 )
 
 const (
-	// terminalMaxLine bounds the TYPED LINE, not its meaning. RouterOS refuses a
-	// script over 64 kB; 4 KiB is far under that and far over what a person
-	// types. A length bound is not vetting - nothing here reads the characters.
-	terminalMaxLine = 4096
+	// terminalMaxLine bounds what arrives in one go, not its meaning. RouterOS
+	// refuses a script over 64 kB, and this is a quarter of that - generous for
+	// a PASTED BLOCK, which is the case that made 4 KiB too tight, and still far
+	// under what the device will take. A length bound is not vetting: nothing
+	// here reads the characters.
+	terminalMaxLine = 16 * 1024
 
 	// terminalTimeout bounds one command. `reader.Do` defaults to 15s, which is
 	// sized for a collector's menu print; a typed line is not. `/ping count=10`
@@ -101,6 +104,13 @@ const (
 	// marshal without being dropped.
 	terminalScrollbackEntries = 50
 	terminalScrollbackBytes   = 256 * 1024
+
+	// Completion is interactive: a person is waiting with a finger on Tab, so
+	// it gets a short bound of its own rather than a command's thirty seconds.
+	terminalCompleteTimeout = 5 * time.Second
+	// What one Tab may list. The console shows every candidate; at the root
+	// that is 83 rows, and past a screenful nobody is reading anyway.
+	terminalMaxCandidates = 120
 )
 
 // terminalRefusal is the SAME sentence whichever of the three gates stopped it,
@@ -210,7 +220,10 @@ type termState struct {
 	// source: the device dropdown carries MikroDash's LABEL, which is a
 	// different string, and a prompt quietly showing the wrong one is a
 	// plausible-looking wrong answer.
-	identity string
+	// completing is the one-at-a-time latch for Tab. A held key repeats, and
+	// each repeat is a read on the device.
+	completing bool
+	identity   string
 	// greeted latches the opening banner, so it is written once per device
 	// session and not again on every focus. Cleared by reset (a device switch
 	// or a closed socket) and NOT by wipe, because a terminal you have cleared
@@ -648,6 +661,117 @@ func terminalBanner(identity string, res routeros.Reply, year int) []string {
 	return out
 }
 
+// ── completion, which the DEVICE does for us ────────────────────────────────
+
+// TermCompletion is one candidate, exactly as the device offered it.
+type TermCompletion struct {
+	// Text is what to insert. Offset is where it goes in the line, which the
+	// device tells us rather than the browser inferring it from the prefix -
+	// quoting and `[` substitution make that inference wrong.
+	Text   string `json:"text"`
+	Offset int    `json:"offset"`
+	// Help is the device's own one-line description, and Style is how the
+	// console would colour it: dir, cmd, arg, and so on.
+	Help  string `json:"help"`
+	Style string `json:"style"`
+}
+
+// TermCompletePayload answers `term:complete`.
+type TermCompletePayload struct {
+	// Line is the input the candidates were computed for. The browser drops an
+	// answer that is not for what is currently typed, because a slow reply to
+	// an older line would otherwise splice the wrong word in.
+	Line       string           `json:"line"`
+	Candidates []TermCompletion `json:"candidates"`
+	Code       string           `json:"code"`
+}
+
+// terminalComplete asks the device to complete a partial line.
+//
+// ── THE COMPLETION IS THE DEVICE'S, NOT OURS ────────────────────────────────
+//
+// `/console/inspect request=completion` runs the console's own completion
+// engine - the same one an SSH session uses - and hands back the candidates.
+// That matters more than it sounds:
+//
+//   - it is RIGHT FOR THIS DEVICE'S VERSION, by construction. A table shipped
+//     in MikroDash would drift the moment a router upgraded, and would drift
+//     silently, offering a menu that is not there;
+//   - it knows DYNAMIC values. `interface=` answers with this device's own
+//     interfaces, comments and all. Nothing shipped here could;
+//   - it carries the help text and the style, so the list reads like the
+//     console's rather than like a list of strings we invented.
+//
+// Measured on a RouterOS 7.24.4 CHR before this was written: `/ip add` offers
+// `address` at offset 4; `/ip address add interface=` offers that device's six
+// interfaces, two of them annotated with their comments.
+//
+// Rows whose `show` is not true are the console's own syntax furniture -
+// whitespace, `{`, `;`, `[` - which it uses for highlighting rather than for a
+// completion list, so they are dropped. `preference` is its ranking, highest
+// first.
+func terminalComplete(rs terminalExec, line string) ([]TermCompletion, error) {
+	rows, err := rs.Exec(routeros.Cmd{
+		Path:    "/console/inspect",
+		Args:    []string{"=request=completion", "=input=" + line},
+		Timeout: terminalCompleteTimeout,
+	})
+	if err != nil {
+		return []TermCompletion{}, err
+	}
+	type ranked struct {
+		c    TermCompletion
+		pref int
+	}
+	out := make([]ranked, 0, len(rows))
+	for _, r := range rows {
+		if r["show"] != "true" || r["completion"] == "" {
+			continue
+		}
+		pref, _ := strconv.Atoi(r["preference"])
+		off, _ := strconv.Atoi(r["offset"])
+		out = append(out, ranked{TermCompletion{
+			Text: r["completion"], Offset: off, Help: r["text"], Style: r["style"],
+		}, pref})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].pref > out[j].pref })
+	cands := make([]TermCompletion, 0, len(out))
+	for _, r := range out {
+		if len(cands) >= terminalMaxCandidates {
+			break
+		}
+		cands = append(cands, r.c)
+	}
+	return cands, nil
+}
+
+// termComplete answers `term:complete`. On the read loop; the device read is not.
+func (cn *conn) termComplete(raw json.RawMessage) {
+	var req terminalRunReq
+	if json.Unmarshal(raw, &req) != nil {
+		return
+	}
+	line := req.Line
+	sc := cn.scope()
+	if cn.terminalGateNote(sc) != "" || sc.rs == nil {
+		return // no candidates, and no audit: pressing Tab is not an attempt
+	}
+	// ONE AT A TIME. Tab repeats easily and each press is a channel on the
+	// device; a held key would otherwise queue a read per repeat.
+	if !cn.term.claimComplete() {
+		return
+	}
+	go func() {
+		defer cn.term.releaseComplete()
+		cands, err := terminalComplete(sc.rs, line)
+		out := TermCompletePayload{Line: line, Candidates: cands}
+		if err != nil {
+			out.Code = "failed"
+		}
+		EvTermComplete.Send(cn.srv.hub, cn.c, out)
+	}()
+}
+
 // ── the scrollback ──────────────────────────────────────────────────────────
 
 func (s *termState) begin() bool {
@@ -778,6 +902,24 @@ func (s *termState) greet(routerID, identity string, e TermEntry) {
 	s.identity = identity
 	s.mu.Unlock()
 	s.append(routerID, e)
+}
+
+// claimComplete takes the right to ask the device for candidates, if it is
+// free. Tab repeats; without this a held key queues one read per repeat.
+func (s *termState) claimComplete() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.completing {
+		return false
+	}
+	s.completing = true
+	return true
+}
+
+func (s *termState) releaseComplete() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.completing = false
 }
 
 // who is the device's own name, for the prompt.

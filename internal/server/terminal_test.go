@@ -416,3 +416,101 @@ func TestTheGreetingIsWrittenOncePerDeviceSession(t *testing.T) {
 		t.Error("a device switch did not re-arm the greeting, so the new device gets no banner")
 	}
 }
+
+// TestCompletionIsTheDevicesOwnAnswer.
+//
+// The candidates come from `/console/inspect request=completion`, which runs
+// the console's own engine. What this file has to get right is the asking and
+// the filtering, so that is what is pinned - with rows shaped exactly as a
+// RouterOS 7.24.4 CHR answered them when this was measured.
+func TestCompletionIsTheDevicesOwnAnswer(t *testing.T) {
+	// Measured: `/ip address add interface=` on the lab CHR.
+	rows := []routeros.Reply{
+		{"completion": " ", "offset": "26", "preference": "-1", "show": "false", "style": "none", "text": "whitespace"},
+		{"completion": "[", "offset": "26", "preference": "75", "show": "false", "style": "syntax-meta", "text": "start of command substitution"},
+		{"completion": "ether1", "offset": "26", "preference": "96", "show": "true", "style": "none", "text": ""},
+		{"completion": "wg-test-a", "offset": "26", "preference": "96", "show": "true", "style": "none", "text": "lab peer pair"},
+		{"completion": "zzz-low", "offset": "26", "preference": "10", "show": "true", "style": "none", "text": ""},
+	}
+	f := &fakeExec{reply: func(routeros.Cmd) ([]routeros.Reply, error) { return rows, nil }}
+
+	got, err := terminalComplete(f, "/ip address add interface=")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// THE ASK IS VERBATIM. The partial line goes to the device unaltered; a
+	// trimmed or quoted one completes something the operator is not typing.
+	if len(f.got) != 1 || f.got[0].Path != "/console/inspect" {
+		t.Fatalf("sent %d commands to %q, want one to /console/inspect", len(f.got), f.got[0].Path)
+	}
+	wantArgs := []string{"=request=completion", "=input=/ip address add interface="}
+	if len(f.got[0].Args) != 2 || f.got[0].Args[0] != wantArgs[0] || f.got[0].Args[1] != wantArgs[1] {
+		t.Errorf("args = %q, want %q", f.got[0].Args, wantArgs)
+	}
+
+	// THE CONSOLE'S SYNTAX FURNITURE IS NOT A COMPLETION. Whitespace and `[`
+	// come back with show=false; offering them would fill the list with
+	// punctuation nobody is choosing between.
+	if len(got) != 3 {
+		t.Fatalf("got %d candidates, want the 3 with show=true: %+v", len(got), got)
+	}
+	// RANKED BY THE DEVICE'S OWN PREFERENCE, highest first.
+	if got[len(got)-1].Text != "zzz-low" {
+		t.Errorf("order = %v, want the low-preference candidate last", got)
+	}
+	// AND EVERY FIELD CARRIED, because the browser splices by offset rather
+	// than by guessing the prefix, and shows the device's own help.
+	var wg TermCompletion
+	for _, c := range got {
+		if c.Text == "wg-test-a" {
+			wg = c
+		}
+	}
+	if wg.Offset != 26 || wg.Help != "lab peer pair" {
+		t.Errorf("wg-test-a = %+v, want offset 26 and the device's help text", wg)
+	}
+
+	t.Run("an error is not a silent empty list", func(t *testing.T) {
+		bad := &fakeExec{reply: func(routeros.Cmd) ([]routeros.Reply, error) {
+			return nil, errors.New("boom")
+		}}
+		out, err := terminalComplete(bad, "/ip")
+		if err == nil {
+			t.Error("want the error through")
+		}
+		if out == nil {
+			t.Error("out is nil; the null-array rule holds for this payload too")
+		}
+	})
+
+	t.Run("the list is capped", func(t *testing.T) {
+		many := make([]routeros.Reply, 0, terminalMaxCandidates+50)
+		for i := 0; i < terminalMaxCandidates+50; i++ {
+			many = append(many, routeros.Reply{
+				"completion": "c", "offset": "0", "preference": "96", "show": "true",
+			})
+		}
+		f := &fakeExec{reply: func(routeros.Cmd) ([]routeros.Reply, error) { return many, nil }}
+		out, _ := terminalComplete(f, "/")
+		if len(out) != terminalMaxCandidates {
+			t.Errorf("got %d candidates, want the cap of %d", len(out), terminalMaxCandidates)
+		}
+	})
+}
+
+// TestOnlyOneCompletionAsksTheDeviceAtATime: Tab repeats when held, and each
+// press is a read on the device.
+func TestOnlyOneCompletionAsksTheDeviceAtATime(t *testing.T) {
+	var s termState
+	if !s.claimComplete() {
+		t.Fatal("the first Tab was refused")
+	}
+	if s.claimComplete() {
+		t.Error("a held Tab queued a second read on the device")
+	}
+	s.releaseComplete()
+	if !s.claimComplete() {
+		t.Error("the slot was never given back")
+	}
+}

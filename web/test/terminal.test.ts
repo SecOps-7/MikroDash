@@ -325,6 +325,147 @@ check('it does not steal from other controls, or the browser', () => {
   inp.value = '';
 });
 
+// TAB COMPLETION IS THE DEVICE'S. Nothing here knows the RouterOS command
+// tree; the browser asks, splices at the offset the device gave, and shows the
+// device's own help. These pin the asking and the splicing.
+check('Tab asks the device for candidates for exactly what is typed', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip add';
+  const before = sent.length;
+  inp.fire('keydown', { key: 'Tab', preventDefault: () => {} });
+  assert.strictEqual(sent.length, before + 1, 'Tab asked for nothing');
+  assert.deepStrictEqual(sent[sent.length - 1], ['term:complete', { line: '/ip add' }]);
+});
+
+// THE DEVICE ANSWERS ABOUT MORE THAN ONE POSITION AT ONCE, and this payload is
+// copied from what a real RouterOS 7.24.4 CHR actually returned for `/ip add`.
+// `address` is the word being typed; `/` is a thing that could come next, at a
+// different offset. Treating them as one set makes the common prefix empty and
+// the line never completes - which is exactly what shipped, because every test
+// here had been written with candidates that shared one offset.
+check('candidates for what comes NEXT do not block completing the current word', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip add';
+  const before = blocks();
+  handlers['term:complete']({ line: '/ip add', code: '', candidates: [
+    { text: 'address', offset: 4, help: 'Address management', style: 'dir' },
+    { text: '/', offset: 7, help: 'top of command hierarchy', style: 'dir' },
+  ] });
+  assert.strictEqual(inp.value, '/ip address',
+    'a next-position candidate stopped the current word completing');
+  assert.strictEqual(blocks(), before, 'it listed instead of completing');
+});
+
+check('one candidate splices at the offset the device gave', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip add';
+  // offset 4 is where `add` starts, which is the device's answer - NOT
+  // something the browser worked out from the prefix. Quoting and `[`
+  // substitution make that inference wrong, which is why the offset is carried.
+  handlers['term:complete']({ line: '/ip add', code: '',
+    candidates: [{ text: 'address', offset: 4, help: 'Address management', style: 'dir' }] });
+  assert.strictEqual(inp.value, '/ip address', 'the candidate was not spliced at its offset');
+});
+
+check('candidates that agree no further are listed at once, and only once', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip a';
+  const cands = [
+    { text: 'address', offset: 4, help: 'Address management', style: 'dir' },
+    { text: 'address-list', offset: 4, help: '', style: 'dir' },
+    { text: 'arp', offset: 4, help: '', style: 'dir' },
+  ];
+  const before = blocks();
+  handlers['term:complete']({ line: '/ip a', code: '', candidates: cands });
+  assert.strictEqual(inp.value, '/ip a', 'they agree no further than `a`, so nothing should move');
+  // LISTED ON THE FIRST PRESS. bash makes you press twice; there is nothing to
+  // be gained by hiding what the device already told us.
+  assert.strictEqual(blocks(), before + 1, 'the candidates were not listed');
+  const listed = String(lastBlock().textContent);
+  assert.ok(/address-list/.test(listed) && /Address management/.test(listed),
+    'the list lost a candidate or the device help: ' + listed);
+
+  handlers['term:complete']({ line: '/ip a', code: '', candidates: cands });
+  assert.strictEqual(blocks(), before + 1, 'pressing Tab again reprinted the same list');
+});
+
+check('two candidates sharing a longer prefix extend to it', () => {
+  const inp = n.terminalInput;
+  inp.value = '/ip ad';
+  handlers['term:complete']({ line: '/ip ad', code: '', candidates: [
+    { text: 'address', offset: 4, help: '', style: 'dir' },
+    { text: 'address-list', offset: 4, help: '', style: 'dir' },
+  ] });
+  assert.strictEqual(inp.value, '/ip address', 'the common prefix was not taken');
+});
+
+// A REPLY TO AN OLDER LINE MUST BE DROPPED. Completion is a round trip; by the
+// time it lands the operator may have typed on, and splicing then corrupts the
+// line instead of completing it.
+check('a stale reply is ignored', () => {
+  const inp = n.terminalInput;
+  inp.value = '/system reboot';
+  handlers['term:complete']({ line: '/ip add', code: '',
+    candidates: [{ text: 'address', offset: 4, help: '', style: 'dir' }] });
+  assert.strictEqual(inp.value, '/system reboot',
+    'a candidate computed for an older line was spliced into the current one');
+});
+
+// PASTING A BLOCK RUNS IT. /execute takes a whole script, so the block goes to
+// the device intact rather than being fed in a line at a time.
+check('a multi-line paste runs as one block; a single-line paste does not', () => {
+  const inp = n.terminalInput;
+  inp.value = '';
+  let prevented = 0;
+  const before = sent.length;
+  inp.fire('paste', {
+    clipboardData: { getData: () => '/ip address print\r\n/interface print\n' },
+    preventDefault: () => { prevented++; },
+  });
+  assert.strictEqual(sent.length, before + 1, 'the pasted block did not run');
+  assert.deepStrictEqual(sent[sent.length - 1],
+    ['term:run', { line: '/ip address print\n/interface print' }],
+    'the block was not normalised to newlines, or the trailing newline was kept');
+  assert.strictEqual(prevented, 1, 'the browser also pasted it into the input');
+  handlers['term:output']({ entry: { seq: 0, at: 0, command: '', lines: [], truncated: false,
+    ms: 0, code: '', message: '' }, running: false, done: true });
+
+  const single = sent.length;
+  inp.fire('paste', {
+    clipboardData: { getData: () => '/ip address print' },
+    preventDefault: () => { prevented++; },
+  });
+  assert.strictEqual(sent.length, single,
+    'a single-line paste ran on its own, which is a surprise rather than a terminal');
+});
+
+// A BARE ENTER MOVES THE LINE ON, which is the one thing a console always does
+// and this page used to not do at all: `if (!text) return` meant pressing Enter
+// on an empty line did nothing whatsoever.
+check('Enter on an empty line prints a fresh prompt and asks the device nothing', () => {
+  const inp = n.terminalInput;
+  inp.value = '';
+  const before = blocks();
+  const sentBefore = sent.length;
+  inp.fire('keydown', { key: 'Enter', preventDefault: () => {} });
+  assert.strictEqual(blocks(), before + 1, 'a bare Enter did not move the line on');
+  assert.strictEqual(sent.length, sentBefore,
+    'an empty line was sent to the device, which has nothing to run and earns an audit row');
+  // Just the prompt, no output and no error.
+  const b = lastBlock();
+  assert.strictEqual(byTag({ children: [b] }, 'pre').length, 0, 'a blank line drew an output block');
+  assert.ok(/>/.test(String(b.textContent)), 'the blank line has no prompt on it');
+  assert.strictEqual(scroll.children[scroll.children.length - 1], live,
+    'the blank line was drawn below the live prompt');
+
+  // WHITESPACE ONLY IS STILL BLANK, the way a console treats it.
+  inp.value = '   ';
+  inp.fire('keydown', { key: 'Enter', preventDefault: () => {} });
+  assert.strictEqual(blocks(), before + 2, 'a whitespace-only line did not move on');
+  assert.strictEqual(sent.length, sentBefore, 'whitespace was sent to the device');
+  assert.strictEqual(inp.value, '', 'the input kept its whitespace');
+});
+
 check('a refusal code becomes a sentence, and no device text', () => {
   handlers['term:output']({
     entry: { seq: 0, at: 0, command: '', lines: [], truncated: false, ms: 0,

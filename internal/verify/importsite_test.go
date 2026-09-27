@@ -216,6 +216,8 @@ func TestTheTerminalFileRunsOnlyWhatWasTyped(t *testing.T) {
 	//	/execute                 the typed line, and nothing else goes through it
 	//	/system/identity/print   the device's name, for the prompt
 	//	/system/resource/print   version, board and uptime, for the opening banner
+	//	/console/inspect         the DEVICE's own tab completion: asked for a
+	//	                         partial line, answered with its candidates
 	//
 	// The two reads are plain reads that any page could make; they are listed
 	// because the point of this check is that the ONE file allowed to run code
@@ -225,6 +227,7 @@ func TestTheTerminalFileRunsOnlyWhatWasTyped(t *testing.T) {
 		"/execute":               true,
 		"/system/identity/print": true,
 		"/system/resource/print": true,
+		"/console/inspect":       true,
 	}
 
 	paths, scripts := 0, 0

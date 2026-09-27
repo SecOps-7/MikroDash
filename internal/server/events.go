@@ -36,6 +36,7 @@ var (
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
 	EvTermOutput        = hub.Declare[TermOutputPayload]("term:output")
 	EvTermScrollback    = hub.Declare[TermScrollbackPayload]("term:scrollback")
+	EvTermComplete      = hub.Declare[TermCompletePayload]("term:complete")
 	EvSecScanResult     = hub.Declare[SecScanPayload]("secscan:result")
 	EvSecScore          = hub.Declare[SecScorePayload]("secscore:state")
 	EvAppsState         = hub.Declare[AppsPayload]("apps:state")
