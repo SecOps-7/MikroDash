@@ -54,7 +54,7 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'snifferForm', 'snifferInterface', 'snifferProtocol', 'snifferPort', 'snifferAddress',
   'snifferDirection', 'snifferRun', 'snifferStatus', 'snifferSummary', 'snifferHead',
   'snifferRows', 'snifferBadge', 'snifferScroll', 'snifferExport',
-  'snifferExportProgress', 'snifferExportBar',
+  'snifferExportProgress', 'snifferExportBar', 'snifferExportStatus',
   'snifferPacketsVal', 'snifferBytesVal', 'snifferProtoVal', 'snifferProtoFoot',
   'snifferTalkerVal', 'snifferTalkerFoot'],
   // traceMap: an <svg> the trace map draws into with path geometry
@@ -448,8 +448,13 @@ assert.ok(n.snifferExportProgress.classList.contains('is-on'),
   'the export bar never appeared');
 assert.ok(n.snifferExportProgress.classList.contains('is-wait'),
   'the bar was determinate before Content-Length was known, so waiting looks like stalled');
-assert.strictEqual(String(n.snifferStatus.textContent), 'Preparing the capture…',
-  'the wait phase did not say what it was waiting for: ' + n.snifferStatus.textContent);
+assert.strictEqual(String(n.snifferExportStatus.textContent), 'Preparing the capture…',
+  'the wait phase did not say what it was waiting for: ' + n.snifferExportStatus.textContent);
+// AND IT IS THE EXPORT'S OWN LINE. A capture writes "Running…" to the form's
+// status on every frame; sharing it meant the byte count was overwritten about
+// twice a second while the bar carried on moving.
+assert.notStrictEqual(String(n.snifferStatus.textContent), 'Preparing the capture…',
+  'the export wrote to the capture\'s status line, which a running capture overwrites');
 
 // readWithProgress counts each chunk against the total. `now` is a synchronous
 // thenable, so the pump unrolls before the next statement - the same trick the

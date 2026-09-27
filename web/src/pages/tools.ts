@@ -515,7 +515,10 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
     const rid = activeId();
     if (!rid) return;
     const btn = el<HTMLButtonElement>('snifferExport');
-    const status = el('snifferStatus');
+    // ITS OWN LINE, NOT THE FORM'S: a running capture writes "Running…" to
+    // snifferStatus on every frame, which overwrote the byte count about twice
+    // a second while the bar carried on moving.
+    const status = el('snifferExportStatus');
     const track = el('snifferExportProgress');
     const fill = el('snifferExportBar');
     // ── THE BAR HAS TWO PHASES, AND THEY ARE DIFFERENT CLAIMS ───────────────

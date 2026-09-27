@@ -27,8 +27,15 @@
         </div>
         <div class="card-body">
           <!-- The export's progress, fed by Content-Length and the bytes that
-               have arrived: a megabyte off a busy router is about 39 seconds. -->
+               have arrived: a megabyte off a busy router is about 39 seconds.
+
+               IT HAS ITS OWN STATUS LINE and does not share the form's. A
+               capture writes "Running…" to that one on every frame, so an
+               export started while one is live had its byte count overwritten
+               about twice a second - the bar moved and the number did not. Two
+               activities, two lines. -->
           <div class="thin-progress" id="snifferExportProgress" aria-hidden="true"><div class="thin-progress-bar" id="snifferExportBar"></div></div>
+          <div class="muted-note mb-2" id="snifferExportStatus"></div>
           <form class="d-flex align-items-end flex-wrap gap-2 mb-3" id="snifferForm" autocomplete="off">
             <div>
               <label class="form-label" for="snifferInterface">Interface</label>
