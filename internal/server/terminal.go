@@ -129,6 +129,12 @@ type TermEntry struct {
 	Lines     []string `json:"lines"`
 	Truncated bool     `json:"truncated"`
 	Ms        int      `json:"ms"`
+	// Cwd is the menu the line was TYPED AT, which is not always the menu the
+	// session is in afterwards: `/ip address` is typed at the root and lands
+	// somewhere else. Carried per entry so the echo shows the prompt you
+	// actually typed at, and so a replayed scrollback is still faithful after
+	// walking about.
+	Cwd string `json:"cwd"`
 	// Code is "" for a line that reached the router, and otherwise one of
 	// denied, unavailable, busy, empty, toolong, limited, timeout, failed,
 	// stopped. The browser turns it into a sentence; the server does not write
@@ -145,6 +151,11 @@ type TermOutputPayload struct {
 	// only when it answers.
 	Running bool `json:"running"`
 	Done    bool `json:"done"`
+	// Cwd is the menu the session is in, so the prompt can show it. Carried on
+	// every frame rather than sent as its own event: it changes only when a
+	// frame is being sent anyway, and a separate event could arrive out of
+	// order with the line that caused it.
+	Cwd string `json:"cwd"`
 }
 
 // TermScrollbackPayload is `term:scrollback`: the whole pane, and what this
@@ -166,7 +177,8 @@ type TermScrollbackPayload struct {
 	Trimmed  bool   `json:"trimmed"`
 	// Running is whether a command is in flight, so a reconnect mid-command
 	// does not draw an idle prompt.
-	Running bool `json:"running"`
+	Running bool   `json:"running"`
+	Cwd     string `json:"cwd"`
 }
 
 // terminalExec is the one method this file needs of a session, so a test can
@@ -220,6 +232,11 @@ type termState struct {
 	// source: the device dropdown carries MikroDash's LABEL, which is a
 	// different string, and a prompt quietly showing the wrong one is a
 	// plausible-looking wrong answer.
+	// cwd is the menu the operator has walked into, in display form
+	// ("/ip/address") or "" at the root. The SERVER keeps it, not the browser:
+	// it is part of the session, so it survives a page switch the same way the
+	// scrollback does, and the browser only has to draw it.
+	cwd string
 	// completing is the one-at-a-time latch for Tab. A held key repeats, and
 	// each repeat is a read on the device.
 	completing bool
@@ -316,6 +333,93 @@ func maskTypedLine(s string) string {
 		}
 		return tok[:i+1] + audit.Set
 	})
+}
+
+// ── walking the menus ───────────────────────────────────────────────────────
+
+// terminalPathRe is what a line must look like to be worth asking about.
+//
+// A SOUND filter, not a clever one: every menu path is letters, digits, `/`,
+// `-`, `_`, `.` and spaces, so anything carrying `=`, a bracket, a quote, a `$`
+// or a leading `:` is certainly a command and needs no question asked of the
+// device. That is what keeps the extra read off `/ip address add address=...`
+// and onto the handful of lines that might be navigation.
+var terminalPathRe = regexp.MustCompile(`^[A-Za-z0-9/._\- ]+$`)
+
+func terminalPathShaped(line string) bool { return terminalPathRe.MatchString(line) }
+
+// terminalResolve turns what was typed into what will run, against the menu the
+// session is in. A leading `/` is absolute, as it is in the console.
+func terminalResolve(cwd, line string) string {
+	if cwd == "" || strings.HasPrefix(line, "/") {
+		return line
+	}
+	return cwd + "/" + line
+}
+
+// terminalMenuPath is the display form of a menu: slash-separated, however it
+// was typed.
+//
+// The console takes `/ip address` and `/ip/address` as the same place, and
+// people type both. Showing back exactly what was typed would put `/ip address`
+// in the prompt, which reads as a command rather than a location. Safe to do
+// unconditionally here because this is only ever called for a line the device
+// has already said IS a menu, and a menu path has no arguments to mangle.
+func terminalMenuPath(resolved string) string {
+	out := strings.Join(strings.Fields(strings.ReplaceAll(resolved, "/", " ")), "/")
+	if out == "" {
+		return ""
+	}
+	return "/" + out
+}
+
+// terminalUp is what `..` does.
+func terminalUp(cwd string) string {
+	i := strings.LastIndex(cwd, "/")
+	if i <= 0 {
+		return ""
+	}
+	return cwd[:i]
+}
+
+// terminalIsMenu asks the device whether a line names a menu rather than a
+// command.
+//
+// ── THE DEVICE ANSWERS THIS TOO, AND THE SIGNAL IS MEASURED ─────────────────
+//
+// Completion for the line WITH A TRAILING SPACE says what could come next, and
+// that is the whole tell. Measured on a RouterOS 7.24.4 CHR:
+//
+//	`/ip address `        12 cmd + 1 dir   the verbs of a menu
+//	`/ip address print `  19 arg           the arguments of a command
+//	`ip `                 30 dir           the submenus of a menu
+//	`/system reboot `     nothing shown    a leaf command
+//
+// So a menu offers commands or directories and never arguments. `request=self`
+// and `request=child` were tried first and return nothing at all over the API,
+// which is why this is read off completion rather than asked directly.
+func terminalIsMenu(rs terminalExec, resolved string) (bool, error) {
+	rows, err := rs.Exec(routeros.Cmd{
+		Path:    "/console/inspect",
+		Args:    []string{"=request=completion", "=input=" + resolved + " "},
+		Timeout: terminalCompleteTimeout,
+	})
+	if err != nil {
+		return false, err
+	}
+	var verbs, args int
+	for _, r := range rows {
+		if r["show"] != "true" {
+			continue
+		}
+		switch r["style"] {
+		case "cmd", "dir":
+			verbs++
+		case "arg":
+			args++
+		}
+	}
+	return verbs > 0 && args == 0, nil
 }
 
 // ── running one line ────────────────────────────────────────────────────────
@@ -421,23 +525,59 @@ func (cn *conn) termRun(raw json.RawMessage) {
 		cn.termRefuse("busy", "A command is still running.")
 		return
 	}
+	// WHERE THE LINE WAS TYPED, captured before navigation can move it.
+	from := cn.term.where()
+
+	// ── NAVIGATION IS NOT A COMMAND ────────────────────────────────────────
+	//
+	// `/` and `..` are answered here without touching the device at all, and a
+	// path-shaped line costs one read to ask whether it is a menu. Anything
+	// carrying `=`, a bracket or a quote is certainly a command and is not
+	// asked about, which is what keeps this off the lines people actually run.
+	//
+	// Walking into a menu writes NO AUDIT ROW. Nothing ran on the device: the
+	// one read it costs is the same kind of read Tab makes, and auditing a
+	// change of prompt would fill the trail with rows that record nothing
+	// having been done. The command that eventually runs is audited in full,
+	// with the resolved path, so the trail still says what happened and where.
+	if line == "/" || line == ".." {
+		cn.term.end()
+		at := cn.term.where()
+		if line == "/" {
+			at = ""
+		} else {
+			at = terminalUp(at)
+		}
+		cn.term.goTo(at)
+		cn.termEcho(line, from, at)
+		return
+	}
+	resolved := terminalResolve(from, line)
+	if terminalPathShaped(line) {
+		if menu, err := terminalIsMenu(sc.rs, resolved); err == nil && menu {
+			cn.term.end()
+			cn.term.goTo(terminalMenuPath(resolved))
+			cn.termEcho(line, from, cn.term.where())
+			return
+		}
+	}
 
 	shown := maskTypedLine(line)
 	seq := cn.term.nextSeq()
 	quit := cn.term.arm()
 	// The echo first, so a long command shows as soon as it is sent.
 	EvTermOutput.Send(cn.srv.hub, cn.c, TermOutputPayload{
-		Entry:   TermEntry{Seq: seq, At: nowMillis(), Command: shown, Lines: []string{}},
-		Running: true,
+		Entry:   TermEntry{Seq: seq, At: nowMillis(), Command: shown, Lines: []string{}, Cwd: from},
+		Running: true, Cwd: from,
 	})
 	go func() {
 		defer cn.term.end()
-		cn.termWork(sc, rec, seq, line, shown, quit)
+		cn.termWork(sc, rec, seq, resolved, shown, from, quit)
 	}()
 }
 
 // termWork is the off-loop half: the command, the audit row, the result.
-func (cn *conn) termWork(sc connScope, rec *audit.Recorder, seq int, line, shown string, quit <-chan struct{}) {
+func (cn *conn) termWork(sc connScope, rec *audit.Recorder, seq int, line, shown, from string, quit <-chan struct{}) {
 	started := time.Now()
 	var out []string
 	var truncated bool
@@ -492,13 +632,14 @@ func (cn *conn) termWork(sc connScope, rec *audit.Recorder, seq int, line, shown
 	}
 	entry := TermEntry{
 		Seq: seq, At: nowMillis(), Command: shown, Lines: out,
-		Truncated: truncated, Ms: ms,
+		Truncated: truncated, Ms: ms, Cwd: from,
 	}
 	if err != nil {
 		entry.Code, entry.Message = terminalFailure(err)
 	}
 	cn.term.append(sc.routerID, entry)
-	EvTermOutput.Send(cn.srv.hub, cn.c, TermOutputPayload{Entry: entry, Done: true})
+	EvTermOutput.Send(cn.srv.hub, cn.c, TermOutputPayload{
+		Entry: entry, Done: true, Cwd: cn.term.where()})
 }
 
 // termRefuse sends a refusal the page can render in the pane, so a command that
@@ -506,8 +647,18 @@ func (cn *conn) termWork(sc connScope, rec *audit.Recorder, seq int, line, shown
 func (cn *conn) termRefuse(code, msg string) {
 	EvTermOutput.Send(cn.srv.hub, cn.c, TermOutputPayload{
 		Entry: TermEntry{At: nowMillis(), Lines: []string{}, Code: code, Message: msg},
-		Done:  true,
+		Done:  true, Cwd: cn.term.where(),
 	})
+}
+
+// termEcho draws a prompt line for something that changed the menu rather than
+// running anything. It carries a seq so a replay replaces it rather than
+// stacking a second copy, and it is appended to the pane like any other line.
+func (cn *conn) termEcho(line, from, at string) {
+	e := TermEntry{Seq: cn.term.nextSeq(), At: nowMillis(), Command: line,
+		Lines: []string{}, Cwd: from}
+	cn.term.append(cn.term.deviceID(), e)
+	EvTermOutput.Send(cn.srv.hub, cn.c, TermOutputPayload{Entry: e, Done: true, Cwd: at})
 }
 
 // termStop answers `term:stop`.
@@ -525,7 +676,7 @@ func (cn *conn) termStop() {
 		Entry: TermEntry{At: nowMillis(), Lines: []string{}, Code: "stopped",
 			Message: "Stopped waiting. The command may still be running on the device; " +
 				"its output will not be shown."},
-		Done: true,
+		Done: true, Cwd: cn.term.where(),
 	})
 }
 
@@ -561,7 +712,7 @@ func (cn *conn) termResume() {
 	routerID, entries, trimmed, running := cn.term.snapshot()
 	out := TermScrollbackPayload{
 		RouterID: sc.routerID, Entries: entries, MayRun: note == "",
-		Trimmed: trimmed, Running: running,
+		Trimmed: trimmed, Running: running, Cwd: cn.term.where(),
 	}
 	if note != "" {
 		out.Why = terminalRefusal
@@ -865,6 +1016,7 @@ func (s *termState) reset() {
 	s.trimmed = false
 	s.identity = ""
 	s.greeted = false
+	s.cwd = ""
 }
 
 // wipe is the operator pressing Clear. The pane empties and the greeting latch
@@ -920,6 +1072,27 @@ func (s *termState) releaseComplete() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.completing = false
+}
+
+// where is the menu the operator is in, for the prompt.
+func (s *termState) where() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cwd
+}
+
+func (s *termState) goTo(p string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cwd = p
+}
+
+// deviceID is the device the pane belongs to. Named apart from the `router`
+// field it reads, which is what a first attempt collided with.
+func (s *termState) deviceID() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.router
 }
 
 // who is the device's own name, for the prompt.

@@ -1294,6 +1294,7 @@ export interface TermEntry {
   lines: string[];
   truncated: boolean;
   ms: number;
+  cwd: string;
   code: string;
   message: string;
 }
@@ -1302,6 +1303,7 @@ export interface TermOutputPayload {
   entry: TermEntry;
   running: boolean;
   done: boolean;
+  cwd: string;
 }
 
 export interface TermScrollbackPayload {
@@ -1313,6 +1315,7 @@ export interface TermScrollbackPayload {
   user: string;
   trimmed: boolean;
   running: boolean;
+  cwd: string;
 }
 
 export interface BtestResult {

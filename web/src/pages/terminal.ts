@@ -56,12 +56,17 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
   let identity = '';
   let user = '';
   let running = false;
+  /** The menu the session is in, as the SERVER reports it. Never guessed here:
+   *  the server resolves the path and decides what is a menu, so the prompt
+   *  cannot drift from what a command would actually run against. */
+  let cwd = '';
   const history: string[] = [];
   let histIdx = -1;
   let draft = '';
 
-  const promptText = (): string =>
-    identity ? '[' + (user || 'admin') + '@' + identity + '] > ' : '> ';
+  const promptAt = (at: string): string =>
+    (identity ? '[' + (user || 'admin') + '@' + identity + '] ' : '') + (at || '') + '> ';
+  const promptText = (): string => promptAt(cwd);
 
   function setPrompt(): void {
     const p = el('terminalPrompt');
@@ -83,7 +88,11 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
       echo.className = 'term-echo';
       const p = document.createElement('span');
       p.className = 'term-prompt';
-      p.textContent = promptText();
+      // THE PROMPT THIS LINE WAS TYPED AT, not the one we are at now. A line
+      // that walks into a menu is typed at the old prompt and lands at a new
+      // one, and rendering the live prompt here would rewrite history every
+      // time you moved - including on a replayed scrollback.
+      p.textContent = promptAt(e.cwd);
       const c = document.createElement('span');
       c.className = 'term-cmd';
       c.textContent = e.command;
@@ -435,6 +444,10 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
   });
 
   socket.on('term:output', (d: TermOutputPayload) => {
+    // The menu rides on every frame rather than arriving as its own event: it
+    // only ever changes when a frame is being sent anyway, and a separate
+    // event could land out of order with the line that caused it.
+    if (d.cwd !== cwd) { cwd = d.cwd; setPrompt(); }
     if (d.running) {
       // The echo, sent before the command leaves, so a long command shows up
       // as soon as it is sent.
@@ -494,6 +507,7 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     mayRun = d.mayRun;
     identity = d.identity || '';
     user = d.user || '';
+    cwd = d.cwd || '';
     setPrompt();
     // REPLACE, never merge: the server's copy is the authority, so replaying it
     // cannot draw anything twice.
@@ -511,6 +525,7 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
     mayRun = false;
     identity = '';
     user = '';
+    cwd = '';
     history.length = 0;
     histIdx = -1;
     draft = '';

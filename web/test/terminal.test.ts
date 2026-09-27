@@ -466,6 +466,38 @@ check('Enter on an empty line prints a fresh prompt and asks the device nothing'
   assert.strictEqual(inp.value, '', 'the input kept its whitespace');
 });
 
+// THE PROMPT SHOWS THE MENU, which is what the operator asked for. The value
+// comes off the payload rather than being tracked here: the server resolves the
+// path and decides what is a menu, so the prompt cannot drift from what a
+// command would actually run against.
+check('the prompt shows the menu the session is in', () => {
+  handlers['term:scrollback']({ routerId: 'r1', entries: [], mayRun: true, why: '',
+    identity: 'CHR Test', user: 'claude', trimmed: false, running: false, cwd: '' });
+  assert.strictEqual(String(n.terminalPrompt.textContent), '[claude@CHR Test] > ',
+    'the root prompt changed shape');
+
+  const before = blocks();
+  handlers['term:output']({ cwd: '/ip/address', running: false, done: true,
+    entry: { seq: 5, at: 0, command: '/ip address', lines: [], truncated: false,
+             ms: 0, code: '', message: '', cwd: '' } });
+  assert.strictEqual(String(n.terminalPrompt.textContent), '[claude@CHR Test] /ip/address> ',
+    'the prompt does not say which menu you are in');
+
+  // AND THE LINE REMEMBERS WHERE IT WAS TYPED. `/ip address` is typed at the
+  // ROOT and lands somewhere else; echoing it under the new prompt rewrites
+  // history, and does it again to the whole pane every time you move.
+  assert.strictEqual(blocks(), before + 1, 'the line did not draw');
+  const echoed = String(lastBlock().textContent);
+  assert.ok(/\[claude@CHR Test\] > \/ip address/.test(echoed),
+    'the echo used the menu it landed in rather than the one it was typed at: ' + echoed);
+
+  handlers['term:output']({ cwd: '', running: false, done: true,
+    entry: { seq: 6, at: 0, command: '..', lines: [], truncated: false,
+             ms: 0, code: '', message: '' } });
+  assert.strictEqual(String(n.terminalPrompt.textContent), '[claude@CHR Test] > ',
+    'climbing out left the menu in the prompt');
+});
+
 check('a refusal code becomes a sentence, and no device text', () => {
   handlers['term:output']({
     entry: { seq: 0, at: 0, command: '', lines: [], truncated: false, ms: 0,
@@ -516,8 +548,17 @@ check('Ctrl-C copies when there is a selection and interrupts when there is not'
     ms: 0, code: 'stopped', message: 'Stopped waiting.' }, running: false, done: true });
 });
 
-check('switching device clears the pane, the history and the prompt', () => {
+check('switching device clears the pane, the history, the menu and the prompt', () => {
+  // Walk into a menu first, so the reset has something to undo.
+  handlers['term:output']({ cwd: '/ip/address', running: false, done: true,
+    entry: { seq: 77, at: 0, command: '/ip address', lines: [], truncated: false,
+             ms: 0, code: '', message: '' } });
+  assert.ok(/ip\/address/.test(String(n.terminalPrompt.textContent)),
+    'the menu never showed, so the reset below would prove nothing');
+
   handlers['router:switched']({ activeId: 'r2' });
+  assert.ok(!/ip\/address/.test(String(n.terminalPrompt.textContent)),
+    'one device\'s menu survived into another\'s prompt');
   assert.strictEqual(blocks(), 0, 'one device\'s output survived into another\'s pane');
   assert.strictEqual(String(n.terminalPrompt.textContent), '> ', 'the prompt kept the old identity');
   assert.strictEqual(n.terminalInput.disabled, true,

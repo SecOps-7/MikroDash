@@ -514,3 +514,114 @@ func TestOnlyOneCompletionAsksTheDeviceAtATime(t *testing.T) {
 		t.Error("the slot was never given back")
 	}
 }
+
+// TestWalkingTheMenus: `/ip address` then a bare `print`, which is what makes
+// this read as a console rather than a command box.
+func TestWalkingTheMenus(t *testing.T) {
+	t.Run("a path is resolved against the menu you are in", func(t *testing.T) {
+		cases := []struct{ cwd, line, want string }{
+			{"", "/ip address print", "/ip address print"},
+			{"/ip/address", "print", "/ip/address/print"},
+			{"/ip/address", "print detail", "/ip/address/print detail"},
+			{"/ip/address", "add address=1.1.1.1/24", "/ip/address/add address=1.1.1.1/24"},
+			// A LEADING SLASH IS ABSOLUTE, as it is in the console: it escapes
+			// the menu rather than nesting under it.
+			{"/ip/address", "/system/identity/print", "/system/identity/print"},
+		}
+		for _, c := range cases {
+			if got := terminalResolve(c.cwd, c.line); got != c.want {
+				t.Errorf("resolve(%q, %q) = %q, want %q", c.cwd, c.line, got, c.want)
+			}
+		}
+	})
+
+	t.Run("`..` climbs one level and stops at the root", func(t *testing.T) {
+		if got := terminalUp("/ip/address"); got != "/ip" {
+			t.Errorf("up(/ip/address) = %q, want /ip", got)
+		}
+		if got := terminalUp("/ip"); got != "" {
+			t.Errorf("up(/ip) = %q, want the root", got)
+		}
+		if got := terminalUp(""); got != "" {
+			t.Errorf("up(root) = %q, want to stay at the root", got)
+		}
+	})
+
+	// THE FILTER IS SOUND, WHICH IS THE PROPERTY THAT MATTERS. It may ask about
+	// a line that turns out to be a command - one wasted read - but it must
+	// never skip one that is a menu, or navigation silently stops working.
+	t.Run("only path-shaped lines are worth asking about", func(t *testing.T) {
+		for _, yes := range []string{"/ip address", "ip", "print", "/system/identity/print", ".."} {
+			if !terminalPathShaped(yes) {
+				t.Errorf("%q is path-shaped and was skipped; a menu would never be entered", yes)
+			}
+		}
+		for _, no := range []string{
+			"/ip address add address=1.1.1.1/24",
+			`:put [/system resource get uptime]`,
+			`/interface print detail where name~"ether"`,
+			":put 1; :put 2",
+		} {
+			if terminalPathShaped(no) {
+				t.Errorf("%q is plainly a command and cost a read to ask about", no)
+			}
+		}
+	})
+
+	// The signal, with rows shaped as the CHR actually answered them.
+	t.Run("a menu offers verbs, a command offers arguments", func(t *testing.T) {
+		menu := []routeros.Reply{
+			{"completion": "..", "show": "true", "style": "dir", "text": "up to ip"},
+			{"completion": "add", "show": "true", "style": "cmd", "text": "Create a new item"},
+			{"completion": "print", "show": "true", "style": "cmd", "text": "Print values"},
+			{"completion": ";", "show": "false", "style": "syntax-meta"},
+		}
+		cmd := []routeros.Reply{
+			{"completion": "detail", "show": "true", "style": "arg", "text": "Displays detail"},
+			{"completion": "brief", "show": "true", "style": "arg", "text": ""},
+		}
+		leaf := []routeros.Reply{{"completion": " ", "show": "false", "style": "none"}}
+
+		for name, tc := range map[string]struct {
+			rows []routeros.Reply
+			want bool
+		}{
+			"a menu":         {menu, true},
+			"a command":      {cmd, false},
+			"a leaf command": {leaf, false},
+		} {
+			f := &fakeExec{reply: func(routeros.Cmd) ([]routeros.Reply, error) { return tc.rows, nil }}
+			got, err := terminalIsMenu(f, "/ip address")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Errorf("%s: isMenu = %v, want %v", name, got, tc.want)
+			}
+			// AND IT ASKS WITH THE TRAILING SPACE, which is the whole signal:
+			// without it the device answers about the word being typed instead
+			// of about what could come next.
+			if want := "=input=/ip address "; f.got[0].Args[1] != want {
+				t.Errorf("%s: asked %q, want %q", name, f.got[0].Args[1], want)
+			}
+		}
+	})
+}
+
+// TestAMenuIsShownAsAPath: the console takes `/ip address` and `/ip/address` as
+// the same place and people type both, but only one of them reads as a location
+// rather than a command when it is sitting in the prompt.
+func TestAMenuIsShownAsAPath(t *testing.T) {
+	for in, want := range map[string]string{
+		"/ip address":                "/ip/address",
+		"/ip/address":                "/ip/address",
+		"ip address":                 "/ip/address",
+		"/ip  address ":              "/ip/address",
+		"/interface/wireguard/peers": "/interface/wireguard/peers",
+		"":                           "",
+	} {
+		if got := terminalMenuPath(in); got != want {
+			t.Errorf("menuPath(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
