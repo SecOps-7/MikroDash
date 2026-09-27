@@ -58,8 +58,8 @@ function node(tag: string): any {
 }
 let htmlWrites = 0;
 
-const doc = makeDoc(['terminalCard', 'terminalScroll', 'terminalInput', 'terminalStop',
-  'terminalClear', 'terminalPrompt', 'terminalStatus', 'terminalLive']);
+const doc = makeDoc(['page-terminal', 'terminalCard', 'terminalScroll', 'terminalInput',
+  'terminalStop', 'terminalClear', 'terminalPrompt', 'terminalStatus', 'terminalLive']);
 doc.createElement = (tag: string) => node(tag);
 
 // The scrollback is one of OUR nodes, substituted into the registry that
@@ -639,7 +639,7 @@ check('another text field on the page keeps its own paste', () => {
 // TERMINAL MOUSE BUTTONS: select then right-click copies, right-click with
 // nothing selected pastes. PuTTY's convention, and what was asked for.
 check('right-click copies the selection, then pastes when there is none', () => {
-  const card = n.terminalCard;
+  const card = n['page-terminal'];
   selection = 'Flags: D - DYNAMIC';
   let prevented = 0;
   card.fire('contextmenu', { preventDefault: () => { prevented++; } });
@@ -662,10 +662,42 @@ check('right-click copies the selection, then pastes when there is none', () => 
 // BOTH HALVES MUST WORK OR PEOPLE HAVE NO WAY TO MOVE TEXT, since the browser's
 // own menu is suppressed inside the card. A refused clipboard says which keys
 // still do it rather than failing silently.
+// AN INSECURE ORIGIN HAS NO `navigator.clipboard` AT ALL, and reaching a router
+// dashboard over its LAN address rather than localhost is an insecure origin.
+// The first version wrote `navigator.clipboard?.writeText(x).then(...)`, which
+// reads as guarded and is not - the `?.` skips writeText and `.then` is then
+// called on undefined. Every right-click threw, so right-click did nothing AND
+// no browser menu appeared, because the handler had already cancelled it.
+check('with no clipboard API at all, right-click still does not throw or go dead', () => {
+  const real = (globalThis as any).navigator;
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} });
+  let execCalled = 0;
+  (doc as any).execCommand = () => { execCalled++; return true; };
+  try {
+    selection = 'some output';
+    let prevented = 0;
+    n['page-terminal'].fire('contextmenu', { preventDefault: () => { prevented++; } });
+    assert.strictEqual(execCalled, 1, 'it did not fall back to the older copy route');
+    assert.strictEqual(prevented, 1, 'a copy it could do did not cancel the browser menu');
+
+    // WITH NOTHING TO COPY AND NO CLIPBOARD TO READ, the browser's own menu is
+    // LEFT ALONE. A dead right-click is worse than an imperfect menu.
+    selection = '';
+    prevented = 0;
+    n['page-terminal'].fire('contextmenu', { preventDefault: () => { prevented++; } });
+    assert.strictEqual(prevented, 0,
+      'it cancelled the browser menu while being unable to replace it, leaving right-click dead');
+    assert.ok(/Ctrl-V/.test(String(n.terminalStatus.textContent)), 'no hint was given');
+  } finally {
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: real });
+    delete (doc as any).execCommand;
+  }
+});
+
 check('a refused clipboard read says so instead of doing nothing', () => {
   clip.allowRead = false;
   selection = '';
-  n.terminalCard.fire('contextmenu', { preventDefault: () => {} });
+  n['page-terminal'].fire('contextmenu', { preventDefault: () => {} });
   assert.ok(/Ctrl-V/.test(String(n.terminalStatus.textContent)),
     'a refused paste left no hint at all: ' + n.terminalStatus.textContent);
   clip.allowRead = true;

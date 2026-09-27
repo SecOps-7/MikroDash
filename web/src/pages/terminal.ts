@@ -391,30 +391,88 @@ export function initTerminalPage(socket: Socket, isVisible: (page: string) => bo
    * reliable. A right-click is a user gesture, which is what the browser wants
    * before it will hand the clipboard over.
    */
-  el('terminalCard')?.addEventListener('contextmenu', (e) => {
+  /**
+   * COPY WITHOUT THE ASYNC CLIPBOARD, when there is no async clipboard.
+   *
+   * `navigator.clipboard` is undefined on an INSECURE ORIGIN, and reaching a
+   * router dashboard over its LAN address rather than localhost is an insecure
+   * origin. So the modern API cannot be assumed present, and the older
+   * selection-and-execCommand route is the fallback that still works there.
+   *
+   * An earlier version wrote `navigator.clipboard?.writeText(x).then(...)`,
+   * which reads as guarded and is not: the `?.` skips `writeText` and then
+   * `.then` is called on undefined, so every right-click threw. On an insecure
+   * origin that meant right-click did nothing AND no browser menu appeared,
+   * because the handler had already cancelled it.
+   */
+  function copyText(text: string): boolean {
+    const c = (navigator as Navigator & { clipboard?: Clipboard }).clipboard;
+    if (c && typeof c.writeText === 'function') {
+      c.writeText(text).then(() => note('Copied.'), () => note('Could not copy.'));
+      return true;
+    }
+    try {
+      // The selection is already what we want to copy, so `copy` takes it.
+      return document.execCommand && document.execCommand('copy');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * TERMINAL MOUSE BUTTONS: select and right-click to copy, right-click with
+   * nothing selected to paste. The convention PuTTY and the Windows console
+   * use, and what was asked for.
+   *
+   * ── ON THE WHOLE PAGE, NOT JUST THE CARD ───────────────────────────────
+   *
+   * It was bound to `#terminalCard`, so a right-click anywhere else on the
+   * page got the browser's own menu, which offers nothing useful over a
+   * scrollback: no selection means no Copy, and a non-editable element means
+   * no Paste. That is what "the right click context menu has no copy or paste
+   * option" looks like.
+   *
+   * ── AND IT ONLY CANCELS THE BROWSER'S MENU WHEN IT CAN REPLACE IT ──────
+   *
+   * If neither copying nor pasting is possible here - no selection and no
+   * readable clipboard - the native menu is LEFT ALONE. A dead right-click is
+   * worse than the browser's imperfect menu.
+   */
+  el('page-terminal')?.addEventListener('contextmenu', (e) => {
     const ev = e as MouseEvent;
     const sel = typeof window !== 'undefined' && window.getSelection
       ? String(window.getSelection() || '') : '';
-    ev.preventDefault();
+
     if (sel) {
-      navigator.clipboard?.writeText(sel).then(
-        () => {
-          // Collapse it, so the next right-click pastes rather than copying
-          // the same thing again - the console's own behaviour.
-          window.getSelection()?.removeAllRanges();
-          note('Copied.');
-        },
-        () => note('Could not copy. Ctrl-C still works.'),
-      );
+      ev.preventDefault();
+      if (copyText(sel)) {
+        // Collapse it, so the next right-click pastes rather than copying the
+        // same thing again - the console's own behaviour.
+        window.getSelection()?.removeAllRanges();
+        note('Copied.');
+      } else {
+        note('Could not copy. Use Ctrl-C.');
+      }
       return;
     }
-    if (!navigator.clipboard?.readText) {
+
+    const c = (navigator as Navigator & { clipboard?: Clipboard }).clipboard;
+    if (!c || typeof c.readText !== 'function') {
+      // Nothing we can do that the browser cannot do better. Put the caret
+      // where a paste will land and let its own menu open.
+      el<HTMLInputElement>('terminalInput')?.focus();
       note('Paste with Ctrl-V.');
       return;
     }
-    navigator.clipboard.readText().then(
+    ev.preventDefault();
+    c.readText().then(
       (text) => { handlePaste(text); note(''); },
-      () => note('Could not read the clipboard. Paste with Ctrl-V.'),
+      () => {
+        // Refused, which the browser is entitled to do. Leave the caret ready
+        // so the keystroke that always works is one press away.
+        el<HTMLInputElement>('terminalInput')?.focus();
+        note('The browser would not share the clipboard. Paste with Ctrl-V.');
+      },
     );
   });
 
