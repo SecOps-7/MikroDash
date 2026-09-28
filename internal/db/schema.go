@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 28
+const schemaVersion = 29
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -224,6 +224,10 @@ var portMigrations = map[int][]string{
 		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
 		 SELECT role_id, 'tools-btest', access FROM role_pages WHERE page = 'tools'`,
 	},
+	// 29: the SSO / OIDC tables. One DDL constant, shared with freshSchemaDDL,
+	// so a migrated database and a new one cannot describe different tables.
+	// See internal/db/sso_schema.go for what each table is for.
+	29: {ssoTablesDDL},
 }
 
 // createSchema builds a new database at `path`.

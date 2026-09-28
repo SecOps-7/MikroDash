@@ -38,14 +38,14 @@ import (
 // true.
 //
 // So it reads the real thing now, and `testdata/schema.sql` is gone. The parse
-// is the same: `freshSchemaDDL` and the four table constants it concatenates are
+// is the same: `freshSchemaDDL` and the table constants it concatenates are
 // plain CREATE TABLE text in Go raw strings.
 func TestFixtureSchemasMatchReality(t *testing.T) {
 	root := repoRoot(t)
 
 	var ddl strings.Builder
 	for _, rel := range []string{"schema_ddl.go", "cfg_schema.go", "ztp_schema.go",
-		"rollup.go", "notify_schema.go"} {
+		"rollup.go", "notify_schema.go", "sso_schema.go"} {
 		ddl.WriteString(mustRead(t, filepath.Join(root, "internal", "db", rel)))
 		ddl.WriteString("\n")
 	}
