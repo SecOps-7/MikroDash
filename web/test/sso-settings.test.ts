@@ -103,7 +103,8 @@ function mount(providers, baseUrlSet = true) {
     if (u.startsWith('/api/sso/providers')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ ok: true, providers, baseUrlSet }),
+        json: () => Promise.resolve({ ok: true, providers, baseUrlSet,
+          redirectUri: baseUrlSet ? 'https://dash.example/api/auth/sso/callback' : '' }),
       });
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
@@ -177,6 +178,22 @@ check('an install with no base URL is told to set one', async () => {
   await settle();
   assert.strictEqual(on.els.ssoBaseWarn.style.display, 'none',
     'the base URL warning showed although one is set');
+});
+
+// ── THE FIRST PROVIDER STILL LEARNS ITS REDIRECT URI ───────────────────────
+//
+// It is shown read-only and has to be pasted into the identity provider. The
+// first provider on an install has NO ROW to read it from, so a version that
+// took it only from the rows would tell a correctly configured operator to go
+// and set a base URL they already have.
+check('the dialog shows the redirect URI before any provider exists', async () => {
+  const d = mount([]);
+  await settle();
+  d.els.addSsoBtn.fire('click');
+  await settle();
+  assert.strictEqual(d.els.so_redirectUri.value,
+    'https://dash.example/api/auth/sso/callback',
+    'the first provider was not shown its redirect URI: ' + d.els.so_redirectUri.value);
 });
 
 // ── THE SAVE BODY ──────────────────────────────────────────────────────────

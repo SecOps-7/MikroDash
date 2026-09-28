@@ -119,7 +119,17 @@ func (s *Server) ssoList(w http.ResponseWriter, _ *http.Request, _ *Session) {
 	for _, p := range rows {
 		out = append(out, s.providerView(p))
 	}
-	writeJSON(w, map[string]any{"providers": out, "baseUrlSet": s.ssoBaseURL() != ""})
+	// `redirectUri` at the TOP LEVEL as well as on each row: the dialog shows it
+	// read-only, and the FIRST provider on an install has no row to read it
+	// from. Without this a correctly configured install would tell the operator
+	// to go and set a base URL it already has.
+	base := s.ssoBaseURL()
+	redirect := ""
+	if base != "" {
+		redirect = base + ssoCallbackPath
+	}
+	writeJSON(w, map[string]any{"providers": out, "baseUrlSet": base != "",
+		"redirectUri": redirect})
 }
 
 func (s *Server) ssoCreate(w http.ResponseWriter, r *http.Request, sess *Session) {

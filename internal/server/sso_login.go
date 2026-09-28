@@ -109,13 +109,22 @@ func (st *ssoState) forget(id string) {
 }
 
 func (s *Server) registerSSOLogin(mux *http.ServeMux) {
-	// The same ten a minute the password form has, and for the same reason:
-	// these routes are unauthenticated, and `start` mints four random values
-	// and a map entry per call.
-	lim := newRateLimiter(10, time.Minute).limit
-	mux.HandleFunc("GET /api/auth/sso/providers", lim(s.ssoProviders))
-	mux.HandleFunc("GET /api/auth/sso/{id}/start", lim(s.ssoStart))
-	mux.HandleFunc("GET "+ssoCallbackPath, lim(s.ssoCallback))
+	// ── TWO LIMITS, BECAUSE THESE ARE TWO KINDS OF ROUTE ───────────────────
+	//
+	// `start` and `callback` get the password form's ten a minute: each `start`
+	// mints four random values and a map entry, and `callback` is where a
+	// forged state would be guessed at.
+	//
+	// `providers` MUST NOT share that. The login page fetches it on EVERY page
+	// load, exactly as it fetches /api/auth/status - which has no limiter at
+	// all for that reason. At ten a minute the eleventh reload would answer 429
+	// and the SSO buttons would vanish, which presents as "the button is
+	// sometimes not there" and sends somebody looking at the provider.
+	flow := newRateLimiter(10, time.Minute).limit
+	read := newRateLimiter(60, time.Minute).limit
+	mux.HandleFunc("GET /api/auth/sso/providers", read(s.ssoProviders))
+	mux.HandleFunc("GET /api/auth/sso/{id}/start", flow(s.ssoStart))
+	mux.HandleFunc("GET "+ssoCallbackPath, flow(s.ssoCallback))
 }
 
 // ssoProviders tells the login page which buttons to draw.

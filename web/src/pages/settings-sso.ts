@@ -50,6 +50,11 @@ let editing: ProviderView | null = null;
  *  has an id, so a new provider's icon goes up after the first save. */
 let pendingIcon: File | null = null;
 let selectTab: (which: string) => void = () => {};
+/** The redirect URI as the SERVER builds it, for the read-only box. Held
+ *  separately from the rows because the FIRST provider has no row to read it
+ *  from, and a blank box there reads as "no base URL is set" on an install
+ *  where one is. */
+let redirectUri = '';
 
 async function getJSON(path: string): Promise<Record<string, unknown> | null> {
   try {
@@ -101,6 +106,7 @@ function rowHtml(p: ProviderView): string {
 export async function loadSSOProviders(): Promise<void> {
   const j = await getJSON('/api/sso/providers');
   providers = j ? ((j.providers as ProviderView[]) || []) : [];
+  redirectUri = j && typeof j.redirectUri === 'string' ? j.redirectUri : '';
   const warn = el('ssoBaseWarn');
   if (warn) warn.style.display = j && j.baseUrlSet === false ? '' : 'none';
   const tb = el('ssoTbody');
@@ -198,7 +204,7 @@ function fillModal(p: ProviderView | null): void {
   // The redirect URI comes from the SERVER's view of the Base URL setting, not
   // from location.origin: it must be the string the server will actually send,
   // or the operator registers one URI and the flow uses another.
-  set('so_redirectUri', p?.redirectUri || providers[0]?.redirectUri
+  set('so_redirectUri', p?.redirectUri || redirectUri
     || 'Set a Base URL on the Authentication card first');
   const en = el<HTMLInputElement>('so_enabled');
   if (en) en.checked = !!p?.enabled;
