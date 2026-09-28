@@ -18,6 +18,11 @@ import (
 // ssoServer builds a server with a real database, a real user store and a real
 // session store, because every refusal below turns on what those three actually
 // hold. Faking any of them would test the fake.
+// testRedirect is the origin a pending login records. The value itself does not
+// matter to these cases; that it RIDES ON THE RECORD does, because the token
+// exchange sends this rather than re-deriving it.
+const testRedirect = "https://dash.example/api/auth/sso/callback"
+
 func ssoServer(t *testing.T) (*Server, *http.ServeMux, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -248,7 +253,7 @@ func TestAnUnmatchedCallbackSaysNothingAboutWhichHalfFailed(t *testing.T) {
 	s, mux, _ := ssoServer(t)
 	seedSSOProvider(t, s, true)
 
-	id, rec, err := s.sso.logins().Create("abc123def456", "/home")
+	id, rec, err := s.sso.logins().Create("abc123def456", "/home", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +291,7 @@ func TestAnUnmatchedCallbackSaysNothingAboutWhichHalfFailed(t *testing.T) {
 // from one that never did.
 func TestAPendingLoginIsSingleUse(t *testing.T) {
 	s, _, _ := ssoServer(t)
-	id, rec, err := s.sso.logins().Create("p", "/home")
+	id, rec, err := s.sso.logins().Create("p", "/home", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +307,7 @@ func TestAPendingLoginIsSingleUse(t *testing.T) {
 func TestAHostileNextNeverReachesTheRecord(t *testing.T) {
 	s, _, _ := ssoServer(t)
 	for _, raw := range []string{"//evil.example/", "https://evil.example/", `/\evil.example`} {
-		_, rec, err := s.sso.logins().Create("p", raw)
+		_, rec, err := s.sso.logins().Create("p", raw, testRedirect)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -310,7 +315,7 @@ func TestAHostileNextNeverReachesTheRecord(t *testing.T) {
 			t.Errorf("Create(%q) stored next=%q; safeNext did not run", raw, rec.Next)
 		}
 	}
-	if _, rec, _ := s.sso.logins().Create("p", "/home"); rec.Next != "/home" {
+	if _, rec, _ := s.sso.logins().Create("p", "/home", "https://dash.example/api/auth/sso/callback"); rec.Next != "/home" {
 		t.Error("safeNext rejected an ordinary same-origin path; the check is too strict to be " +
 			"the one the login page also applies")
 	}
@@ -338,4 +343,179 @@ func asOIDC(err error, target **oidc.Err) bool {
 		err = u.Unwrap()
 	}
 	return false
+}
+
+// ── WHERE THE REDIRECT URI COMES FROM ──────────────────────────────────────
+//
+// The Base URL setting is an OVERRIDE. Empty means "follow the address this
+// request arrived on", so single sign-on works with nothing typed - which is
+// the whole point of removing the requirement to type it.
+func TestTheBaseURLSettingOverridesTheDerivedOrigin(t *testing.T) {
+	s, _, dir := ssoServer(t)
+
+	// The harness writes a baseUrl, so the stored value must win.
+	req := httptest.NewRequest("GET", "http://10.0.0.5:3081/api/auth/sso/x/start", nil)
+	if got := s.baseURLFor(req); got != "https://dash.example" {
+		t.Errorf("with a stored base URL the derived one was used: %q", got)
+	}
+
+	// Clear it, and the request decides.
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"baseUrl":""}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.store = st
+	if got := s.baseURLFor(req); got != "http://10.0.0.5:3081" {
+		t.Errorf("with no stored base URL, got %q, want the request's own origin", got)
+	}
+	if got := s.redirectURIFor(req); got != "http://10.0.0.5:3081/api/auth/sso/callback" {
+		t.Errorf("redirect URI is %q", got)
+	}
+}
+
+// ── THE SCHEME IS THE HALF A PROXY BREAKS ──────────────────────────────────
+//
+// A TLS-terminating proxy hands the backend plain http, so without
+// X-Forwarded-Proto every redirect URI behind a proxy would say `http://` and
+// the provider would refuse it. The header is read through an ALLOW-LIST
+// because this string is pasted straight into a URL.
+func TestTheOriginReadsTheForwardedSchemeSafely(t *testing.T) {
+	for _, c := range []struct {
+		name, header string
+		tls, force   bool
+		want         string
+	}{
+		{name: "plain http", want: "http://host.example"},
+		{name: "FORCE_HTTPS", force: true, want: "https://host.example"},
+		{name: "a proxy in front of TLS", header: "https", want: "https://host.example"},
+		{name: "a chain names the client first", header: "https, http", want: "https://host.example"},
+		{name: "a proxy that did not terminate TLS", header: "http", force: true,
+			want: "http://host.example"},
+		{
+			// THE INJECTION ATTEMPT. Anything but the two known schemes is
+			// ignored, so a header cannot smuggle `javascript:` or a whole
+			// second URL into the redirect this app hands the provider.
+			name: "a header that is not a scheme", header: "javascript:alert(1)//",
+			want: "http://host.example",
+		},
+		{name: "an empty header changes nothing", header: "", want: "http://host.example"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "http://host.example/x", nil)
+			if c.header != "" {
+				req.Header.Set("X-Forwarded-Proto", c.header)
+			}
+			if got := originOf(req, c.force); got != c.want {
+				t.Errorf("originOf = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// ── START AND CALLBACK MUST SEND THE SAME BYTES ────────────────────────────
+//
+// The provider compares the redirect URI in the token exchange against the one
+// in the authorization request. Re-deriving it at the callback would differ the
+// moment a proxy header or the host differed between the two hops - and the
+// failure is an `invalid_grant` that reads like a problem with the code. It
+// rides on the pending record so the two agree BY CONSTRUCTION.
+func TestTheRedirectURIRidesOnThePendingLogin(t *testing.T) {
+	s, _, _ := ssoServer(t)
+	_, rec, err := s.sso.logins().Create("p", "/", "https://one.example/api/auth/sso/callback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.RedirectURI != "https://one.example/api/auth/sso/callback" {
+		t.Fatalf("the pending login does not carry the redirect URI: %q", rec.RedirectURI)
+	}
+}
+
+// A provider can be started with no base URL stored at all. Before this it was
+// refused with "no base URL is configured", which is the requirement that was
+// removed.
+func TestAProviderStartsWithNoBaseURLStored(t *testing.T) {
+	s, mux, dir := ssoServer(t)
+	p := seedSSOProvider(t, s, true)
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"baseUrl":""}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.store = st
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/auth/sso/"+p.ID+"/start", nil))
+	loc := rec.Header().Get("Location")
+
+	// ── WHAT IS AND IS NOT BEING ASSERTED ──────────────────────────────────
+	//
+	// The seeded issuer does not exist, so this WILL fail with `err=provider`
+	// once it tries to fetch the discovery document. That is fine and expected.
+	// The claim is narrower and is the one that changed: it is no longer
+	// refused as `err=config` before any request is made, which is what
+	// "no base URL is configured" used to do.
+	if strings.Contains(loc, "err=config") {
+		t.Fatalf("starting with no base URL stored was refused as a configuration "+
+			"error: %q\n    The base URL is an OVERRIDE now - empty means follow the "+
+			"request's own origin.", loc)
+	}
+	// And a pending login WAS minted, which only happens past the point the old
+	// code refused at. The cookie is the wrong observable here: it is set after
+	// the authorization URL is built, and building it fails against a seeded
+	// issuer that does not exist.
+	if s.sso.logins().Len() != 1 {
+		t.Errorf("%d pending logins; the start never got past the configuration check",
+			s.sso.logins().Len())
+	}
+}
+
+// ── THE CALLBACK MUST NOT RE-DERIVE THE REDIRECT URI ───────────────────────
+//
+// A SOURCE CHECK, AND IT IS SAYING SO. Proving this behaviourally needs a fake
+// identity provider serving discovery, a key set and a token endpoint over TLS
+// inside this package, and the one that exists lives in internal/oidc. Until
+// that is worth duplicating, this reads the handler instead.
+//
+// It earns its place because a MUTATION SURVIVED here: swapping
+// `rec.RedirectURI` for `s.redirectURIFor(r)` in the exchange broke nothing,
+// and the failure it would cause is an `invalid_grant` from the provider that
+// reads like a problem with the authorization code rather than with this line.
+// A check that cannot fail is the failure mode this repository is built around,
+// so an honest weak check beats a silent gap.
+func TestTheCallbackSendsTheRecordedRedirectURI(t *testing.T) {
+	src, err := os.ReadFile("sso_login.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var code strings.Builder
+	for _, line := range strings.Split(string(src), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "//") {
+			continue
+		}
+		code.WriteString(line)
+		code.WriteString("\n")
+	}
+	body := code.String()
+
+	// THE CONTROL: a string known to be in this file's code. Without it a
+	// broken reader reports success for everything it looks for.
+	if !strings.Contains(body, "prov.Exchange(") {
+		t.Fatal("the control string is missing, so this scan proves nothing about the rest")
+	}
+	if !strings.Contains(body, "rec.Verifier,\n\t\trec.RedirectURI)") &&
+		!strings.Contains(body, "rec.RedirectURI)") {
+		t.Error("the token exchange does not send the redirect URI off the pending record.\n" +
+			"    Re-deriving it from the callback request differs from the authorization\n" +
+			"    request the moment a proxy header or the host differs between the two\n" +
+			"    hops, and the provider answers invalid_grant.")
+	}
+	// And it must not reach for the request-derived one in the exchange.
+	if strings.Contains(body, "Exchange(r.Context(), q.Get(\"code\"), rec.Verifier,\n\t\ts.redirectURIFor(r))") {
+		t.Error("the exchange re-derives the redirect URI from this request")
+	}
 }

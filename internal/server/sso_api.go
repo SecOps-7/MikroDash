@@ -90,7 +90,7 @@ type providerView struct {
 	RedirectURI string `json:"redirectUri"`
 }
 
-func (s *Server) providerView(p db.SSOProvider) providerView {
+func (s *Server) providerView(p db.SSOProvider, redirectURI string) providerView {
 	v := providerView{SSOProvider: p, HasSecret: p.ClientSecret != "",
 		RoleMap: []db.SSORoleMapping{}}
 	// The sealed secret must not travel even inside the embedded struct. It is
@@ -102,34 +102,32 @@ func (s *Server) providerView(p db.SSOProvider) providerView {
 	if m, err := s.auditDB.SSORoleMap(p.ID); err == nil {
 		v.RoleMap = m
 	}
-	if base := s.ssoBaseURL(); base != "" {
-		v.RedirectURI = base + ssoCallbackPath
-	}
+	v.RedirectURI = redirectURI
 	return v
 }
 
-func (s *Server) ssoList(w http.ResponseWriter, _ *http.Request, _ *Session) {
+func (s *Server) ssoList(w http.ResponseWriter, r *http.Request, _ *Session) {
 	rows, err := s.auditDB.SSOProviders()
 	if err != nil {
 		log.Printf("[sso] listing: %v", err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not read the providers")
 		return
 	}
+	base := s.baseURLFor(r)
+	redirect := base + ssoCallbackPath
 	out := []providerView{}
 	for _, p := range rows {
-		out = append(out, s.providerView(p))
+		out = append(out, s.providerView(p, redirect))
 	}
-	// `redirectUri` at the TOP LEVEL as well as on each row: the dialog shows it
-	// read-only, and the FIRST provider on an install has no row to read it
-	// from. Without this a correctly configured install would tell the operator
-	// to go and set a base URL it already has.
-	base := s.ssoBaseURL()
-	redirect := ""
-	if base != "" {
-		redirect = base + ssoCallbackPath
-	}
-	writeJSON(w, map[string]any{"providers": out, "baseUrlSet": base != "",
-		"redirectUri": redirect})
+	// `baseUrl` and `redirectUri` at the TOP LEVEL as well as on each row.
+	//
+	// The dialog shows the redirect URI read-only, and the FIRST provider on an
+	// install has no row to read it from. `baseUrl` is what the Authentication
+	// card pre-fills its box with: the EFFECTIVE value, stored or derived, so
+	// the operator sees what will actually be sent rather than an empty field
+	// that looks unconfigured while working perfectly.
+	writeJSON(w, map[string]any{"providers": out,
+		"baseUrl": base, "redirectUri": redirect})
 }
 
 func (s *Server) ssoCreate(w http.ResponseWriter, r *http.Request, sess *Session) {
@@ -199,7 +197,7 @@ func (s *Server) ssoWrite(w http.ResponseWriter, r *http.Request, sess *Session,
 		writeJSONErr(w, http.StatusInternalServerError, "could not read the provider back")
 		return
 	}
-	writeJSON(w, s.providerView(saved))
+	writeJSON(w, s.providerView(saved, s.redirectURIFor(r)))
 }
 
 // buildProvider validates the body and returns the row to store.
@@ -392,7 +390,7 @@ func (s *Server) ssoIconSave(w http.ResponseWriter, r *http.Request, sess *Sessi
 		Action: "sso.provider.icon", TargetType: "sso_provider",
 		TargetID: id, TargetName: prev.Name,
 	})
-	writeJSON(w, s.providerView(prev))
+	writeJSON(w, s.providerView(prev, s.redirectURIFor(r)))
 }
 
 func (s *Server) ssoIconClear(w http.ResponseWriter, r *http.Request, sess *Session) {
@@ -412,7 +410,7 @@ func (s *Server) ssoIconClear(w http.ResponseWriter, r *http.Request, sess *Sess
 		Action: "sso.provider.icon", TargetType: "sso_provider",
 		TargetID: id, TargetName: prev.Name, Note: "icon removed",
 	})
-	writeJSON(w, s.providerView(prev))
+	writeJSON(w, s.providerView(prev, s.redirectURIFor(r)))
 }
 
 func (s *Server) removeSSOIcon(id string) {

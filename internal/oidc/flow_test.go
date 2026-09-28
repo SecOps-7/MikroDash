@@ -92,7 +92,7 @@ func containsControl(s string) bool {
 
 func TestAPendingLoginIsConsumedExactlyOnce(t *testing.T) {
 	p := NewPending(func() time.Time { return testNow })
-	id, rec, err := p.Create("prov-1", "/logs")
+	id, rec, err := p.Create("prov-1", "/logs", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestAPendingLoginIsConsumedExactlyOnce(t *testing.T) {
 // would leave it alive for somebody holding a valid id to keep guessing against.
 func TestAWrongStateBurnsThePendingLogin(t *testing.T) {
 	p := NewPending(func() time.Time { return testNow })
-	id, rec, err := p.Create("prov-1", "/")
+	id, rec, err := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestAWrongStateBurnsThePendingLogin(t *testing.T) {
 func TestAPendingLoginExpires(t *testing.T) {
 	now := testNow
 	p := NewPending(func() time.Time { return now })
-	id, rec, err := p.Create("prov-1", "/")
+	id, rec, err := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestAPendingLoginExpires(t *testing.T) {
 	// THE CONTROL: inside the TTL it works, so the check above is about the
 	// clock and not about Consume being broken.
 	now = testNow
-	id2, rec2, _ := p.Create("prov-1", "/")
+	id2, rec2, _ := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback")
 	now = now.Add(pendingTTL - time.Second)
 	if _, ok := p.Consume(id2, rec2.State); !ok {
 		t.Error("a login inside the TTL was refused")
@@ -152,7 +152,7 @@ func TestThePendingMapIsCapped(t *testing.T) {
 	p := NewPending(func() time.Time { return now })
 	for i := 0; i < maxPending*3; i++ {
 		now = now.Add(time.Millisecond)
-		if _, _, err := p.Create("prov-1", "/"); err != nil {
+		if _, _, err := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -166,7 +166,7 @@ func TestExpiredLoginsArePruned(t *testing.T) {
 	now := testNow
 	p := NewPending(func() time.Time { return now })
 	for i := 0; i < 5; i++ {
-		if _, _, err := p.Create("prov-1", "/"); err != nil {
+		if _, _, err := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -183,7 +183,7 @@ func TestExpiredLoginsArePruned(t *testing.T) {
 // who saw the authorization request can complete the exchange.
 func TestTheChallengeIsTheSHA256OfTheVerifier(t *testing.T) {
 	p := NewPending(func() time.Time { return testNow })
-	_, rec, err := p.Create("prov-1", "/")
+	_, rec, err := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestEveryLoginSecretIsDistinct(t *testing.T) {
 	p := NewPending(func() time.Time { return testNow })
 	seen := map[string]string{}
 	for i := 0; i < 20; i++ {
-		id, rec, err := p.Create("prov-1", "/")
+		id, rec, err := p.Create("prov-1", "/", "https://dash.example/api/auth/sso/callback")
 		if err != nil {
 			t.Fatal(err)
 		}

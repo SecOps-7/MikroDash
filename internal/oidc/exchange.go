@@ -53,7 +53,7 @@ type tokenError struct {
 }
 
 // Exchange trades the code for an id token, and returns only that.
-func (p *Provider) Exchange(ctx context.Context, code, verifier string) (string, error) {
+func (p *Provider) Exchange(ctx context.Context, code, verifier, redirectURI string) (string, error) {
 	if code == "" || verifier == "" {
 		return "", Refuse(CodeToken, "the callback carried no code")
 	}
@@ -68,7 +68,7 @@ func (p *Provider) Exchange(ctx context.Context, code, verifier string) (string,
 	// BYTE-IDENTICAL TO THE ONE SENT AT THE START. The provider compares them,
 	// and a mismatch produces an `invalid_grant` that reads like a problem with
 	// the code rather than with this field.
-	form.Set("redirect_uri", p.cfg.RedirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("code_verifier", verifier)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, doc.TokenEndpoint, nil)

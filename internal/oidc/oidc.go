@@ -47,11 +47,19 @@ type Config struct {
 	Issuer       string
 	ClientID     string
 	ClientSecret string
-	// RedirectURI is registered at the provider and must be byte-identical in
-	// the authorization request and the token exchange, or the provider answers
-	// a mismatch with an error that reads like a problem with the code.
-	RedirectURI string
 }
+
+// ── THE REDIRECT URI IS NOT HERE, AND THAT IS DELIBERATE ────────────────────
+//
+// It belongs to a LOGIN, not to a provider. One install can be reached at more
+// than one address - a LAN IP, a hostname, a tunnel - and the redirect URI has
+// to be the origin THIS sign-in started from, or the provider refuses it.
+//
+// Keeping it on Config would also make it part of the caller's provider-cache
+// key, so a second origin would rebuild the provider and refetch its discovery
+// document and keys. It rides on the pending login instead, which is what makes
+// the token exchange byte-identical to the authorization request BY
+// CONSTRUCTION rather than by two call sites agreeing.
 
 // Expect is what the caller already knows before it reads a token.
 //

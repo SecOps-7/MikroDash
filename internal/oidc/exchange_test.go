@@ -79,7 +79,7 @@ func TestTheAccessAndRefreshTokensAreDiscarded(t *testing.T) {
 	now := testNow
 	p := ti.provider(t, &now, []string{"client_secret_basic"})
 
-	idToken, err := p.Exchange(context.Background(), "the-code", "the-verifier")
+	idToken, err := p.Exchange(context.Background(), "the-code", "the-verifier", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatalf("a good exchange failed: %v", err)
 	}
@@ -134,14 +134,14 @@ func TestTheExchangeSendsTheVerifierAndTheFixedRedirectURI(t *testing.T) {
 	ti := newTokenIdP(t)
 	now := testNow
 	p := ti.provider(t, &now, []string{"client_secret_basic"})
-	if _, err := p.Exchange(context.Background(), "the-code", "the-verifier"); err != nil {
+	if _, err := p.Exchange(context.Background(), "the-code", "the-verifier", "https://dash.example/api/auth/sso/callback"); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ key, wantV, why string }{
 		{"grant_type", "authorization_code", ""},
 		{"code", "the-code", ""},
 		{"code_verifier", "the-verifier", "without it PKCE proves nothing"},
-		{"redirect_uri", p.cfg.RedirectURI, "the provider compares this byte for byte"},
+		{"redirect_uri", "https://dash.example/api/auth/sso/callback", "the provider compares this byte for byte"},
 	} {
 		if got := ti.gotForm.Get(tc.key); got != tc.wantV {
 			t.Errorf("%s = %q, want %q %s", tc.key, got, tc.wantV, tc.why)
@@ -163,7 +163,7 @@ func TestAProviderOfferingOnlyPostGetsTheSecretInTheForm(t *testing.T) {
 	ti := newTokenIdP(t)
 	now := testNow
 	p := ti.provider(t, &now, []string{"client_secret_post"})
-	if _, err := p.Exchange(context.Background(), "c", "v"); err != nil {
+	if _, err := p.Exchange(context.Background(), "c", "v", "https://dash.example/api/auth/sso/callback"); err != nil {
 		t.Fatal(err)
 	}
 	if ti.gotForm.Get("client_secret") == "" {
@@ -205,7 +205,7 @@ func TestATokenResponseWithNoIDTokenIsNamed(t *testing.T) {
 	ti.body = `{"access_token":"x","token_type":"bearer"}`
 	now := testNow
 	p := ti.provider(t, &now, []string{"client_secret_basic"})
-	_, err := p.Exchange(context.Background(), "c", "v")
+	_, err := p.Exchange(context.Background(), "c", "v", "https://dash.example/api/auth/sso/callback")
 	if err == nil {
 		t.Fatal("a response with no id token was accepted")
 	}
@@ -220,7 +220,7 @@ func TestATokenEndpointRefusalIsReported(t *testing.T) {
 	ti.body = `{"error":"invalid_grant","error_description":"code already used"}`
 	now := testNow
 	p := ti.provider(t, &now, []string{"client_secret_basic"})
-	_, err := p.Exchange(context.Background(), "c", "v")
+	_, err := p.Exchange(context.Background(), "c", "v", "https://dash.example/api/auth/sso/callback")
 	if err == nil {
 		t.Fatal("a 400 from the token endpoint was accepted")
 	}
@@ -251,7 +251,7 @@ func TestAnExchangeWithNoCodeIsRefusedBeforeAnythingIsSent(t *testing.T) {
 	now := testNow
 	p := ti.provider(t, &now, []string{"client_secret_basic"})
 	ti.gotForm = nil
-	if _, err := p.Exchange(context.Background(), "", "v"); err == nil {
+	if _, err := p.Exchange(context.Background(), "", "v", "https://dash.example/api/auth/sso/callback"); err == nil {
 		t.Fatal("an empty code was exchanged")
 	}
 	if ti.gotForm != nil {

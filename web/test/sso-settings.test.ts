@@ -69,12 +69,15 @@ const PROVIDER = {
   roleMap: [{ claimValue: 'netops', roleId: 'operator' }],
 };
 
-function mount(providers, baseUrlSet = true) {
+function mount(providers, baseUrlSet = true, before) {
   const els = {};
   const get = (id) => {
     if (!els[id]) els[id] = makeEl(id);
     return els[id];
   };
+  // A seam for the case that matters: a field the operator has already typed
+  // into, before the module loads.
+  if (before) before(get);
   // The mapping rows are written with innerHTML, so this shim cannot discover
   // them. `mapRows` is served for the one selector that reads them back, built
   // from what the test intends the operator to have typed - the harness's
@@ -103,7 +106,8 @@ function mount(providers, baseUrlSet = true) {
     if (u.startsWith('/api/sso/providers')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ ok: true, providers, baseUrlSet,
+        json: () => Promise.resolve({ ok: true, providers,
+          baseUrl: baseUrlSet ? 'https://dash.example' : '',
           redirectUri: baseUrlSet ? 'https://dash.example/api/auth/sso/callback' : '' }),
       });
     }
@@ -169,15 +173,25 @@ check('an empty list says so rather than drawing nothing', async () => {
     'an empty table rendered silently: ' + d.els.ssoTbody.innerHTML);
 });
 
-check('an install with no base URL is told to set one', async () => {
-  const off = mount([], false);
+// ── THE BASE URL BOX PRE-FILLS FROM THE EFFECTIVE VALUE ────────────────────
+//
+// The server sends what it will actually use: the stored setting, or the
+// address the request arrived on. An empty box on an install where SSO works
+// reads as unconfigured and invites somebody to "fix" it.
+check('the base URL box pre-fills from the effective value', async () => {
+  const d = mount([PROVIDER]);
   await settle();
-  assert.strictEqual(off.els.ssoBaseWarn.style.display, '',
-    'the base URL warning stayed hidden with no base URL set');
-  const on = mount([PROVIDER], true);
+  assert.strictEqual(d.els.s_baseUrl.value, 'https://dash.example',
+    'the base URL box was left empty: ' + d.els.s_baseUrl.value);
+});
+
+// A half-typed value is not overwritten. Clobbering what somebody is in the
+// middle of typing gets noticed once and never forgiven.
+check('a value already in the box is not overwritten', async () => {
+  const d = mount([PROVIDER], true, (els) => { els('s_baseUrl').value = 'https://typed.example'; });
   await settle();
-  assert.strictEqual(on.els.ssoBaseWarn.style.display, 'none',
-    'the base URL warning showed although one is set');
+  assert.strictEqual(d.els.s_baseUrl.value, 'https://typed.example',
+    'the pre-fill overwrote what the operator had typed');
 });
 
 // ── THE FIRST PROVIDER STILL LEARNS ITS REDIRECT URI ───────────────────────

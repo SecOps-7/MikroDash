@@ -303,7 +303,7 @@ func (p *Provider) AuthorizeURL(ctx context.Context, l *login, scopes string) (s
 	q := u.Query()
 	q.Set("response_type", "code")
 	q.Set("client_id", p.cfg.ClientID)
-	q.Set("redirect_uri", p.cfg.RedirectURI)
+	q.Set("redirect_uri", l.RedirectURI)
 	q.Set("scope", scopes)
 	q.Set("state", l.State)
 	q.Set("nonce", l.Nonce)

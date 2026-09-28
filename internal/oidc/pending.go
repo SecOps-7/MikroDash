@@ -68,6 +68,11 @@ type login struct {
 	State      string
 	Nonce      string
 	Verifier   string
+	// RedirectURI is the origin this sign-in started from, plus the callback
+	// path. Held here so the token exchange sends the SAME bytes the
+	// authorization request did - the provider compares them, and a mismatch
+	// produces an `invalid_grant` that reads like a problem with the code.
+	RedirectURI string
 	// Next is where to go afterwards, already validated by safeNext at the
 	// start. It rides here rather than through the provider, so nothing that
 	// round-trips through a third party can influence it.
@@ -105,7 +110,7 @@ func NewPending(now func() time.Time) *Pending {
 //
 // The id goes in a cookie and the state goes through the provider. They are
 // DIFFERENT VALUES on purpose - see Consume.
-func (p *Pending) Create(providerID, next string) (string, *login, error) {
+func (p *Pending) Create(providerID, next, redirectURI string) (string, *login, error) {
 	id, err := randomToken()
 	if err != nil {
 		return "", nil, err
@@ -124,7 +129,7 @@ func (p *Pending) Create(providerID, next string) (string, *login, error) {
 	}
 	rec := &login{
 		ProviderID: providerID, State: state, Nonce: nonce,
-		Verifier: verifier,
+		Verifier: verifier, RedirectURI: redirectURI,
 		// ── THE next GUARD RUNS HERE, NOT IN THE HANDLER ────────────────────
 		//
 		// `next` arrives from a query string on an unauthenticated route and

@@ -72,8 +72,11 @@ type ssoState struct {
 
 // runtime returns the oidc.Provider for a configured row, rebuilding it when
 // the configuration is new or has changed.
-func (st *ssoState) runtime(row db.SSOProvider, secret, redirectURI string) *oidc.Provider {
-	fp := row.Issuer + "\x00" + row.ClientID + "\x00" + secret + "\x00" + redirectURI
+func (st *ssoState) runtime(row db.SSOProvider, secret string) *oidc.Provider {
+	// NO REDIRECT URI IN THE KEY. It is per-login now, so one install reached at
+	// two addresses keeps ONE provider and one cached discovery document rather
+	// than rebuilding both whenever the origin changes.
+	fp := row.Issuer + "\x00" + row.ClientID + "\x00" + secret
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.byID == nil {
@@ -83,8 +86,7 @@ func (st *ssoState) runtime(row db.SSOProvider, secret, redirectURI string) *oid
 		return e.provider
 	}
 	p := oidc.NewProvider(oidc.Config{
-		Issuer: row.Issuer, ClientID: row.ClientID,
-		ClientSecret: secret, RedirectURI: redirectURI,
+		Issuer: row.Issuer, ClientID: row.ClientID, ClientSecret: secret,
 	})
 	st.byID[row.ID] = &ssoEntry{fingerprint: fp, provider: p}
 	return p
@@ -164,21 +166,22 @@ func (s *Server) ssoProviders(w http.ResponseWriter, _ *http.Request) {
 
 // ssoStart sends the browser to the identity provider.
 func (s *Server) ssoStart(w http.ResponseWriter, r *http.Request) {
-	row, secret, redirectURI, err := s.ssoConfigFor(r.PathValue("id"))
+	row, secret, err := s.ssoConfigFor(r.PathValue("id"))
 	if err != nil {
 		s.ssoFail(w, r, "", err, "")
 		return
 	}
 	// `next` is NOT validated here: oidc.Pending.Create runs safeNext on it, at
 	// the one point every login passes through. See the comment there.
-	id, rec, err := s.sso.logins().Create(row.ID, r.URL.Query().Get("next"))
+	id, rec, err := s.sso.logins().Create(row.ID, r.URL.Query().Get("next"),
+		s.redirectURIFor(r))
 	if err != nil {
 		// A random-source failure is a refusal, never a weaker token - the rule
 		// websession.Create states.
 		s.ssoFail(w, r, "", err, "")
 		return
 	}
-	authURL, err := s.sso.runtime(row, secret, redirectURI).
+	authURL, err := s.sso.runtime(row, secret).
 		AuthorizeURL(r.Context(), rec, row.Scopes)
 	if err != nil {
 		s.ssoFail(w, r, "", err, "")
@@ -214,14 +217,19 @@ func (s *Server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	// THE PROVIDER COMES FROM THE PENDING RECORD, never from the query string.
 	// Taking it from the URL would let a caller pair one provider's code with
 	// another provider's configuration.
-	row, secret, redirectURI, err := s.ssoConfigFor(rec.ProviderID)
+	row, secret, err := s.ssoConfigFor(rec.ProviderID)
 	if err != nil {
 		s.ssoFail(w, r, "", err, "")
 		return
 	}
-	prov := s.sso.runtime(row, secret, redirectURI)
+	prov := s.sso.runtime(row, secret)
 
-	idToken, err := prov.Exchange(r.Context(), q.Get("code"), rec.Verifier)
+	// THE REDIRECT URI COMES OFF THE PENDING RECORD, not from this request.
+	// The provider compares it byte for byte against the authorization request,
+	// and re-deriving it here would differ the moment a proxy header or the
+	// host differed between the two hops.
+	idToken, err := prov.Exchange(r.Context(), q.Get("code"), rec.Verifier,
+		rec.RedirectURI)
 	if err != nil {
 		s.ssoFail(w, r, "", err, "")
 		return
@@ -291,52 +299,87 @@ func (s *Server) ssoVerify(ctx context.Context, prov *oidc.Provider, idToken str
 }
 
 // ssoConfigFor reads a provider row and unseals its secret.
-func (s *Server) ssoConfigFor(id string) (db.SSOProvider, string, string, error) {
+func (s *Server) ssoConfigFor(id string) (db.SSOProvider, string, error) {
 	if s.auditDB == nil {
-		return db.SSOProvider{}, "", "", oidc.Refuse(oidc.CodeConfig,
+		return db.SSOProvider{}, "", oidc.Refuse(oidc.CodeConfig,
 			"single sign-on needs the database, which is unavailable")
 	}
 	row, err := s.auditDB.SSOProviderByID(id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return db.SSOProvider{}, "", "", oidc.Refuse(oidc.CodeConfig, "no such provider")
+		return db.SSOProvider{}, "", oidc.Refuse(oidc.CodeConfig, "no such provider")
 	}
 	if err != nil {
-		return db.SSOProvider{}, "", "", err
+		return db.SSOProvider{}, "", err
 	}
 	// AN ENABLED CHECK ON EVERY PATH, not only in the listing. Otherwise a
 	// disabled provider stays usable by anyone who kept its id, which makes the
 	// toggle a suggestion rather than a switch.
 	if !row.Enabled {
-		return db.SSOProvider{}, "", "", oidc.Refuse(oidc.CodeConfig,
+		return db.SSOProvider{}, "", oidc.Refuse(oidc.CodeConfig,
 			"that provider is switched off")
 	}
-	base := s.ssoBaseURL()
-	if base == "" {
-		return db.SSOProvider{}, "", "", oidc.Refuse(oidc.CodeConfig,
-			"no base URL is configured, so the redirect URI cannot be built")
-	}
-	return row, s.openSSOSecret(row.ClientSecret), base + ssoCallbackPath, nil
+	return row, s.openSSOSecret(row.ClientSecret), nil
 }
 
-// ssoBaseURL is the URL browsers reach this install at, as the operator typed
-// it.
+// baseURLFor is the address browsers reach this install at.
 //
-// ── NEVER r.Host ───────────────────────────────────────────────────────────
+// ── THE SETTING IS AN OVERRIDE, NOT A REQUIREMENT ──────────────────────────
 //
-// The redirect URI is exact-matched by the provider, and deriving it from a
-// request header is the classic host-header-injection footgun: whoever can set
-// Host would choose where the authorization code is delivered. It is a setting
-// precisely so that it cannot come from the request.
-func (s *Server) ssoBaseURL() string {
-	if s.store == nil {
-		return ""
+// Empty means "follow whatever URL this request arrived on", so single sign-on
+// works with nothing typed. An operator only fills it in when the derived value
+// is wrong - behind a proxy that rewrites the host, or when the address users
+// reach is not the address the server sees.
+//
+// ── ON DERIVING IT FROM THE REQUEST ────────────────────────────────────────
+//
+// Taking a URL from the Host header is normally the host-header-injection
+// footgun: whoever can set Host chooses where a link points. OIDC has a backstop
+// that the classic case lacks - THE PROVIDER EXACT-MATCHES the redirect URI
+// against the list registered with it, so a forged Host produces
+// `invalid_redirect_uri` at the provider rather than a delivered authorization
+// code. That match is required by the protocol, not a courtesy, which is what
+// makes this safe here and would not make it safe for a password-reset link.
+func (s *Server) baseURLFor(r *http.Request) string {
+	if s.store != nil {
+		if cfg, err := s.store.Settings(); err == nil {
+			if v, _ := cfg["baseUrl"].(string); strings.TrimSpace(v) != "" {
+				return strings.TrimRight(strings.TrimSpace(v), "/")
+			}
+		}
 	}
-	cfg, err := s.store.Settings()
-	if err != nil {
-		return ""
+	return originOf(r, s.forceHTTPS)
+}
+
+// redirectURIFor is where this sign-in comes back to.
+func (s *Server) redirectURIFor(r *http.Request) string {
+	return s.baseURLFor(r) + ssoCallbackPath
+}
+
+// originOf is the scheme and host this request arrived on.
+//
+// ── X-Forwarded-Proto IS READ, X-Forwarded-Host IS NOT ─────────────────────
+//
+// The scheme is the half a proxy actually breaks: it terminates TLS and the
+// backend sees plain http, so without this header every redirect URI behind a
+// proxy would say `http://` and the provider would refuse it. The HOST survives
+// a normal proxy configuration untouched, so there is no matching reason to
+// trust a header for it - and each header trusted is one more thing a caller
+// can set.
+func originOf(r *http.Request, forceHTTPS bool) string {
+	scheme := "http"
+	switch {
+	case forceHTTPS, r.TLS != nil:
+		scheme = "https"
 	}
-	v, _ := cfg["baseUrl"].(string)
-	return strings.TrimRight(strings.TrimSpace(v), "/")
+	// A comma-separated chain lists the ORIGINAL client first.
+	if p := r.Header.Get("X-Forwarded-Proto"); p != "" {
+		first := strings.TrimSpace(strings.Split(p, ",")[0])
+		// An allow-list, not a copy: this string is pasted into a URL.
+		if first == "https" || first == "http" {
+			scheme = first
+		}
+	}
+	return scheme + "://" + r.Host
 }
 
 // ssoResolveUser decides which local account an external identity is.

@@ -95,7 +95,6 @@ func (f *fakeIdP) writeJSON(w http.ResponseWriter, v any) {
 func providerFor(f *fakeIdP, now *time.Time) *Provider {
 	p := NewProvider(Config{
 		Issuer: f.srv.URL, ClientID: testClient, ClientSecret: "s",
-		RedirectURI: "https://mikrodash.example/api/auth/sso/callback",
 	})
 	p.HTTP = f.srv.Client()
 	// The fake's own client follows redirects; refusing them is the rule under
@@ -365,7 +364,7 @@ func TestTheAuthorizationRequestCarriesS256AndTheFixedRedirectURI(t *testing.T) 
 	now := testNow
 	p := providerFor(f, &now)
 	pend := NewPending(func() time.Time { return now })
-	_, rec, err := pend.Create("prov-1", "/logs")
+	_, rec, err := pend.Create("prov-1", "/logs", "https://dash.example/api/auth/sso/callback")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +384,7 @@ func TestTheAuthorizationRequestCarriesS256AndTheFixedRedirectURI(t *testing.T) 
 		{"state", rec.State, "the state is what the callback is matched against"},
 		{"nonce", rec.Nonce, "the nonce binds the token to this request"},
 		{"client_id", testClient, ""},
-		{"redirect_uri", p.cfg.RedirectURI, "the provider exact-matches this"},
+		{"redirect_uri", "https://dash.example/api/auth/sso/callback", "the provider exact-matches this"},
 	} {
 		if got := q.Get(tc.key); got != tc.wantV {
 			t.Errorf("%s = %q, want %q — %s", tc.key, got, tc.wantV, tc.why)
