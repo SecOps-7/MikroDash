@@ -1047,9 +1047,17 @@
                       <input class="sform-input" id="so_issuer" type="url" autocomplete="off" spellcheck="false" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0">
                     </div>
                   </div>
+                  <!-- THE APP'S OWN SWITCH, not a bare checkbox. `.stoggle` is a
+                       labelled row with the control on the right, exactly as
+                       "Require sign-in" is on the card above - and a boolean
+                       that looked different here would read as a different kind
+                       of setting. -->
                   <label class="stoggle" style="margin-top:.6rem">
-                    <input type="checkbox" id="so_enabled">
                     <span class="stoggle-label">Enable this provider</span>
+                    <span class="stoggle-switch">
+                      <input type="checkbox" id="so_enabled" aria-label="Enable this provider">
+                      <span class="stoggle-track"></span><span class="stoggle-thumb"></span>
+                    </span>
                   </label>
 
                   <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Client credentials</div>
