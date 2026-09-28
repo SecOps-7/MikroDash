@@ -319,6 +319,12 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		// call-home URL (empty clears it).
 		"ztpSubnet": {"10.249.0.0/16"},
 		"ztpLanUrl": {"", "http://192.0.2.10:3081"},
+		// The URL browsers reach this install at, which an OIDC redirect URI is
+		// built from. Empty clears it; a bare origin sets it. BOTH PROBES
+		// MATTER: a handler that dropped the empty one would leave a stale
+		// origin in place for ever, and the redirect URI shown in the SSO form
+		// would name a host the operator had already moved off.
+		"baseUrl": {"", "https://mikrodash.example"},
 		// BOTH PROBES MATTER for the generated pages too. An EMPTY list is not a
 		// rejected write: it is "nothing is hidden", which is exactly what an
 		// operator does by ticking the last box back on, and a handler that

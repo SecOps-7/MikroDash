@@ -72,6 +72,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "aiSystemPrompt",
     "aiTimeoutMs",
     "aiTlsPin",
+    "baseUrl",
     "dbAiRetentionDays",
     "dbAlertRetentionDays",
     "dbRetentionDays",
