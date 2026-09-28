@@ -1,0 +1,62 @@
+[
+  {
+    "in": "/logs",
+    "want": "/logs",
+    "why": "the ordinary deep link this exists to preserve"
+  },
+  {
+    "in": "/logs?level=error#tail",
+    "want": "/logs?level=error#tail",
+    "why": "query and fragment survive, or a deep link loses half of itself"
+  },
+  {
+    "in": "logs",
+    "want": "/logs",
+    "why": "a bare relative path resolves, as new URL(raw, origin) does in the browser"
+  },
+  {
+    "in": "",
+    "want": "/",
+    "why": "no next at all is the commonest case"
+  },
+  {
+    "in": "//evil.example/x",
+    "want": "/",
+    "why": "protocol-relative: a browser reads this as another origin"
+  },
+  {
+    "in": "/\\evil.example/x",
+    "want": "/",
+    "why": "a backslash-smuggled authority, which no substring test catches"
+  },
+  {
+    "in": "https://evil.example/x",
+    "want": "/",
+    "why": "an absolute URL to somewhere else"
+  },
+  {
+    "in": "http://mikrodash.invalid/x",
+    "want": "/",
+    "why": "an absolute URL is refused outright; the server is stricter than the page here, in the safe direction"
+  },
+  {
+    "in": "javascript:alert(1)",
+    "want": "/",
+    "why": "a scheme that is not navigation at all"
+  },
+  {
+    "in": "/logs\nLocation: https://evil.example",
+    "want": "/",
+    "why": "response splitting: a newline must never reach a Location header"
+  },
+  {
+    "in": "/logs\rSet-Cookie: a=b",
+    "want": "/",
+    "why": "the carriage return half of the same attack"
+  },
+  {
+    "in": "not:a/url",
+    "want": "/",
+    "why": "an opaque scheme-like value is not a path"
+  }
+]
