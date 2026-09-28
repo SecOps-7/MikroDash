@@ -2,6 +2,54 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.70] - Single sign-on, a Terminal, a Packet Sniffer and a migration export
+
+### New
+
+- **Sign in with an existing account.** Single sign-on against any OpenID Connect provider - Entra
+  ID, Okta, Keycloak, Authentik. Add one under Settings -> Authentication -> Access Management ->
+  **SSO / OIDC**, map a claim to a MikroDash role, and each enabled provider gets its own button on
+  the sign-in screen. You can upload an icon so the button carries your provider's mark.
+- **The password form never goes away.** Your local administrator is always a way back in, even if
+  the provider is down. A username that collides with an existing local account is refused rather
+  than merged, and somebody whose claims map to no role cannot sign in at all.
+- **Roles follow your provider.** The role is worked out on every sign-in, so moving someone
+  between groups moves their access here, and removing them removes it.
+- **A Terminal page.** The device's own console in the browser, with tab completion done by the
+  router, `?` help, pasted blocks, and a prompt that says which menu you are in. Granted per device
+  and recorded in the Audit Trail line by line.
+- **A Packet Sniffer page.** Run the router's own capture, watch the packet table fill, and export
+  it as a pcap for Wireshark, with a progress bar for the download.
+- **Tools is a category, not a page.** Ping, Traceroute, Torch, Bandwidth Test and Packet Sniffer
+  are five pages in the sidebar now, with a new Admin category beside them.
+- **Five cards on the Torch page**: total rate, the busiest protocol and its share, the busiest
+  talker, and the flow count - so a torch run answers "what is using the line" without reading the
+  table.
+- **A migration export for backups**, off by default and set per device. A `.backup` restores onto
+  the *same* device; to rebuild on a different one you need the export, and an ordinary export has
+  every password masked. Switch this on and each backup keeps a second export with them included,
+  encrypted at rest, downloadable from the history as `.rsc (secrets)`.
+  Thanks to **@eltionb** for raising it.
+
+### Changed
+
+- **Backup exports are terse.** Each command is one line instead of being wrapped across
+  continuations, so changing one rule shows as a one-line diff rather than a dozen. On the first
+  run after upgrading, each device stores a fresh backup and its next diff shows the whole
+  configuration as changed, once. Thanks to **@eltionb**.
+
+### Fixed
+
+- Right-click paste did not work on the Terminal page over plain HTTP.
+- Dropdowns, buttons and text boxes could render unstyled in some browsers, showing the browser's
+  own default rather than the theme.
+
+### Internal
+
+- The ID token is verified against the provider's key set with the standard library alone - no new
+  dependencies - with PKCE, a nonce, an algorithm allow-list and bounded key refetches.
+- Schema v30 adds the migration export's size to the backup history.
+
 ## [0.8.69] - Notification channels, a Primary device, and a new About page
 
 ### New
