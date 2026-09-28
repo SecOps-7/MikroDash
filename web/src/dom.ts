@@ -480,3 +480,35 @@ export function kv(key: string, val: string, cls?: string): string {
 export function mutedDash(title?: string): string {
   return '<span style="color:var(--text-muted)"' + (title ? ' title="' + esc(title) + '"' : '') + '>-</span>';
 }
+
+// ── TABS INSIDE A DIALOG ────────────────────────────────────────────────────
+//
+// The page-level idiom (.stab-bar / .stab) reused inside a modal, with the
+// panels sharing ONE grid cell so the box is as tall as the tallest of them and
+// switching tabs does not resize the dialog. An inactive panel is hidden with
+// `visibility`, not `display`, which is what keeps it occupying that cell.
+//
+// SCOPED TO ONE DIALOG, AND THAT IS THE POINT OF THE HELPER. The notification
+// channel modal did this with `document.querySelectorAll('[data-nchantab]')`,
+// which was correct only while it was the only tabbed dialog in the app - an
+// invariant of its callers rather than a property of the code. The moment a
+// second one existed, clicking a tab in either would have switched both. Every
+// query here starts from the dialog element.
+export function modalTabs(wrapId: string, initial: string): (which: string) => void {
+  const select = (which: string): void => {
+    const wrap = el(wrapId);
+    if (!wrap) return;
+    wrap.querySelectorAll('[data-modaltab]').forEach((b) => {
+      b.classList.toggle('active', b.getAttribute('data-modaltab') === which);
+    });
+    wrap.querySelectorAll('[data-modalpanel]').forEach((p) => {
+      p.classList.toggle('active', p.getAttribute('data-modalpanel') === which);
+    });
+  };
+  const wrap = el(wrapId);
+  wrap?.querySelectorAll('[data-modaltab]').forEach((b) => {
+    b.addEventListener('click', () => select(b.getAttribute('data-modaltab') || initial));
+  });
+  select(initial);
+  return select;
+}

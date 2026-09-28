@@ -848,7 +848,7 @@
   <!-- ── ADD / EDIT NOTIFICATION CHANNEL ────────────────────────────────────
        THE FIRST TABBED MODAL IN THIS APP. The tab markup is the page-level
        idiom (.stab-bar / .stab / .stab-panel) reused inside a dialog, with a
-       `nchan-tabs` wrapper so the Settings page's two-column .stab-panel grid
+       `modal-tabs` wrapper so the Settings page's two-column .stab-panel grid
        cannot reach in and columnise a form that is one column wide. -->
   <!-- ── THE INTERFACE-TYPE PICKER ──────────────────────────────────────────
        A SECOND DIALOG OVER THE FIRST, opened by the gear beside the Interface
@@ -884,14 +884,14 @@
       <button class="rtr-modal-close" data-modal-close="notifChanModal" aria-label="Close">&#10005;</button>
     </div>
     <div class="rtr-modal-body">
-      <div class="nchan-tabs">
+      <div class="modal-tabs">
         <div class="stab-bar" role="tablist">
-          <button type="button" class="stab active" role="tab" data-nchantab="channel">Channel</button>
-          <button type="button" class="stab" role="tab" data-nchantab="events">Events</button>
+          <button type="button" class="stab active" role="tab" data-modaltab="channel">Channel</button>
+          <button type="button" class="stab" role="tab" data-modaltab="events">Events</button>
           <!-- DEVICES, not "Routers", because that is what this app calls them
                everywhere an operator reads: the Settings page's own first tab,
                the nav entry and the `devices` page key. -->
-          <button type="button" class="stab" role="tab" data-nchantab="devices">Devices</button>
+          <button type="button" class="stab" role="tab" data-modaltab="devices">Devices</button>
         </div>
         <!-- ── ONE SIZE FOR EVERY TAB ────────────────────────────────────
              The three panels share a single grid cell, so the box is as tall as
@@ -903,8 +903,8 @@
              obvious alternative and would be wrong the next time an event is
              added to the Events tab - the number would still look deliberate
              while no longer matching anything. -->
-        <div class="nchan-panels">
-        <div class="nchan-panel active" data-nchanpanel="channel">
+        <div class="modal-panels">
+        <div class="modal-panel active" data-modalpanel="channel">
           <div class="sform-row">
             <div class="sform-group">
               <label class="sform-label" for="nchanName">Name <span style="color:var(--accent-err)">*</span></label>
@@ -1018,7 +1018,7 @@
               <span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
         </div>
 
-        <div class="nchan-panel" data-nchanpanel="events">
+        <div class="modal-panel" data-modalpanel="events">
           <p class="nchan-help" id="nchanEventNote"></p>
           <div id="nchanEvents"></div>
         </div>
@@ -1030,8 +1030,8 @@
              Events is what this channel is told about, Devices is where it is
              told about it, and stacking the second under the first made it read
              as a property of the event list. -->
-        <div class="nchan-panel" data-nchanpanel="devices">
-          <p class="nchan-help nchan-panel-note">Which routers this channel is told about. No
+        <div class="modal-panel" data-modalpanel="devices">
+          <p class="nchan-help modal-panel-note">Which routers this channel is told about. No
             selection means every router, now and in future.</p>
           <div id="nchanRouters" class="nchan-routers"></div>
         </div>

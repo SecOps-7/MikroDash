@@ -756,6 +756,19 @@
               </div>
             </div>
 
+            <!-- ── THE URL BROWSERS REACH THIS INSTALL AT ──────────────────
+                 Install-wide, not SSO-specific, which is why it is `baseUrl` and
+                 not `ssoBaseUrl`. It is a SETTING rather than something derived
+                 from the Host header precisely so it cannot come from a request:
+                 an OIDC redirect URI is exact-matched by the provider, and
+                 deriving it from Host would let whoever can set that header
+                 choose where the authorization code is delivered. -->
+            <div class="sform-group" style="margin-top:.9rem">
+              <label class="sform-label" for="s_baseUrl">Base URL</label>
+              <input type="text" id="s_baseUrl" class="sform-input" placeholder="https://mikrodash.example.com" autocomplete="off" spellcheck="false">
+              <p class="auth-hint">The address people open this dashboard at, with no path. Single sign-on builds its redirect URI from it; leave it empty if you do not use SSO.</p>
+            </div>
+
             <!-- Warning: open access. Full width beneath both columns - it is the
                  loudest thing on the card when it shows, and must not be a
                  narrow strip beside the toggle. -->
@@ -781,6 +794,7 @@
               <button class="ptab"        data-ptab="groups" role="tab" aria-selected="false">Groups</button>
               <button class="ptab"        data-ptab="sites"  role="tab" aria-selected="false">Sites</button>
               <button class="ptab"        data-ptab="roles"  role="tab" aria-selected="false">Roles</button>
+              <button class="ptab"        data-ptab="sso"    role="tab" aria-selected="false">SSO / OIDC</button>
             </div>
           </div>
           <div class="scard-body">
@@ -971,6 +985,160 @@
               <div class="rtr-modal-footer">
                 <button class="sbtn sbtn-outline" id="rf_cancel">Cancel</button>
                 <button class="sbtn sbtn-primary" id="rf_save">Save Role</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+
+          <!-- ── SSO / OIDC ────────────────────────────────────────────────
+               Sign-in through an identity provider. It sits in Access
+               Management, not in Authentication, because a provider decides WHO
+               MAY SIGN IN and WITH WHAT ROLE - the same question Users, Groups
+               and Roles answer. See internal/server/sso_api.go, which puts the
+               API behind the same `system:principals` gate for that reason. -->
+          <div class="ptab-panel" id="ptab-sso" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">Let people sign in with an existing account - Entra ID, Okta, Keycloak, anything that speaks OpenID Connect. The provider decides who gets in and which role they arrive with. <strong>The password form never goes away</strong>, so the local administrator is always a way back in.</span>
+              <button class="sbtn sbtn-primary" id="addSsoBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add provider</button>
+            </div>
+            <div id="ssoBaseWarn" class="nchan-help" style="display:none;margin:0 0 .6rem;padding:.45rem .65rem;border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.08);border-radius:6px">
+              Set <strong>Base URL</strong> on the Authentication card first. It is the address browsers reach this install at, and the redirect URI is built from it - without one a provider has nowhere to send people back to.
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="ssoTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Issuer</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Status</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Role mapping</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="ssoTbody">
+                <tr><td colspan="5" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading&#8230;</td></tr>
+              </tbody>
+            </table>
+
+            <div class="rtr-modal-bg" id="ssoFormWrap">
+             <div class="rtr-modal pmodal" style="max-width:38rem">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="so_title">Add OIDC provider</span>
+                <button class="rtr-modal-close" data-modal-close="ssoFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="so_id">
+              <div class="modal-tabs">
+                <div class="stab-bar" role="tablist">
+                  <button type="button" class="stab active" role="tab" data-modaltab="general">General</button>
+                  <button type="button" class="stab" role="tab" data-modaltab="roles">Role mapping</button>
+                </div>
+                <div class="modal-panels">
+
+                <div class="modal-panel active" data-modalpanel="general">
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Basic settings</div>
+                  <div class="sform-row">
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_name">Name <span style="color:var(--accent-err)">*</span></label>
+                      <input class="sform-input" id="so_name" type="text" autocomplete="off" maxlength="64" placeholder="Entra ID, Okta, Keycloak&#8230;">
+                    </div>
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_issuer">Issuer URL <span style="color:var(--accent-err)">*</span></label>
+                      <input class="sform-input" id="so_issuer" type="url" autocomplete="off" spellcheck="false" placeholder="https://login.microsoftonline.com/&lt;tenant&gt;/v2.0">
+                    </div>
+                  </div>
+                  <label class="stoggle" style="margin-top:.6rem">
+                    <input type="checkbox" id="so_enabled">
+                    <span class="stoggle-label">Enable this provider</span>
+                  </label>
+
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Client credentials</div>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin:0 0 .5rem">Get these from the application you registered at your identity provider.</p>
+                  <div class="sform-row">
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_clientId">Client ID <span style="color:var(--accent-err)">*</span></label>
+                      <input class="sform-input" id="so_clientId" type="text" autocomplete="off" spellcheck="false" placeholder="your-client-id">
+                    </div>
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_clientSecret">Client secret</label>
+                      <!-- new-password, not off: Chrome ignores `off` on a
+                           password field and offers a saved credential. The
+                           autofill gate in internal/verify pins this. -->
+                      <input class="sform-input" id="so_clientSecret" type="password" autocomplete="new-password" spellcheck="false" placeholder="your-client-secret">
+                      <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" id="so_secretNote"></p>
+                    </div>
+                  </div>
+
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Redirect settings</div>
+                  <div class="sform-group">
+                    <label class="sform-label" for="so_redirectUri">Redirect URI</label>
+                    <!-- READ-ONLY, and built from the Base URL setting. Deriving
+                         it from the Host header would be host-header injection:
+                         whoever could set Host would choose where the
+                         authorization code is delivered. -->
+                    <input class="sform-input" id="so_redirectUri" type="text" readonly spellcheck="false" style="font-family:var(--font-mono);font-size:.72rem">
+                    <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5">Add this exact URI to the application's allowed callback URLs. It must match byte for byte.</p>
+                  </div>
+                  <div class="sform-group" style="margin-top:.6rem">
+                    <label class="sform-label" for="so_scopes">Scopes</label>
+                    <input class="sform-input" id="so_scopes" type="text" autocomplete="off" spellcheck="false" placeholder="openid profile email">
+                    <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5"><code>openid</code> is added whether or not you type it - without it the provider returns no ID token at all.</p>
+                  </div>
+
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Claim mapping</div>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin:0 0 .5rem">Which claim in the ID token holds each attribute. The defaults suit most providers.</p>
+                  <div class="sform-row">
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_claimUsername">Username claim</label>
+                      <input class="sform-input" id="so_claimUsername" type="text" autocomplete="off" spellcheck="false" placeholder="preferred_username">
+                    </div>
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_claimEmail">Email claim</label>
+                      <input class="sform-input" id="so_claimEmail" type="text" autocomplete="off" spellcheck="false" placeholder="email">
+                    </div>
+                    <div class="sform-group">
+                      <label class="sform-label" for="so_claimName">Display name claim</label>
+                      <input class="sform-input" id="so_claimName" type="text" autocomplete="off" spellcheck="false" placeholder="name">
+                    </div>
+                  </div>
+
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Button icon</div>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin:0 0 .5rem">An optional mark beside the label on the sign-in button. Square PNG or JPEG, 64 to 512 px.</p>
+                  <div style="display:flex;align-items:center;gap:.6rem">
+                    <img id="so_iconPreview" alt="" style="width:32px;height:32px;border-radius:6px;display:none;background:var(--bg-deep)">
+                    <input type="file" id="so_iconFile" accept="image/png,image/jpeg" style="display:none">
+                    <button type="button" class="sbtn sbtn-outline" id="so_iconPick" style="padding:.2rem .6rem;font-size:.72rem">Choose image&#8230;</button>
+                    <button type="button" class="sbtn sbtn-outline" id="so_iconClear" style="padding:.2rem .6rem;font-size:.72rem;display:none">Remove</button>
+                    <span id="so_iconNote" style="font-size:.68rem;color:var(--text-muted)"></span>
+                  </div>
+                </div>
+
+                <div class="modal-panel" data-modalpanel="roles">
+                  <!-- ── NO MAPPING, NO SIGN-IN ──────────────────────────────
+                       This tab is not optional decoration: a person whose claims
+                       match nothing here is refused, and an existing account's
+                       grant is removed. That is what makes removing somebody
+                       from a group at the provider actually reach this app. -->
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem" style="margin-top:0">Which claim carries the roles</div>
+                  <div class="sform-group">
+                    <label class="sform-label" for="so_claimRoles">Roles claim</label>
+                    <input class="sform-input" id="so_claimRoles" type="text" autocomplete="off" spellcheck="false" placeholder="groups">
+                    <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5">On Entra ID, prefer <code>roles</code> (app roles) over <code>groups</code>: groups are capped at 200 in a token, and past that the claim is left out entirely.</p>
+                  </div>
+                  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Mappings</div>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin:0 0 .5rem">The first match wins. Somebody matching none of these cannot sign in, and loses any access they had.</p>
+                  <div id="so_mapRows"></div>
+                  <button type="button" class="sbtn sbtn-outline" id="so_addMap" style="padding:.2rem .6rem;font-size:.72rem;margin-top:.5rem">+ Add mapping</button>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin-top:.7rem">The role is re-evaluated on <strong>every</strong> sign-in, so a role changed here by hand is overwritten the next time that person signs in. Change it at the provider.</p>
+                </div>
+
+                </div>
+              </div>
+              <div class="login-error" id="so_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="so_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="so_save">Add provider</button>
               </div>
              </div>
             </div>

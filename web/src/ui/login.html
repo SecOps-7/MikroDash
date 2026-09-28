@@ -157,6 +157,33 @@
     .btn-primary:active { transform: scale(.98); }
     .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
+    /* ── SIGN IN SOMEWHERE ELSE ──────────────────────────────────────────────
+       Secondary on purpose: outlined, not filled. The password form is the way
+       in that ALWAYS works, so it keeps the primary button and single sign-on
+       sits under it. A separator says the two are different routes rather than
+       two buttons doing one job.
+
+       app.css is not loaded on this page, so `.sbtn` is unavailable and these
+       rules are written here - the same reason `.btn-primary` is. */
+    .sso-sep {
+      display: flex; align-items: center; gap: .6rem;
+      margin: 1.1rem 0 .8rem; color: var(--text-muted);
+      font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+    }
+    .sso-sep::before, .sso-sep::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .btn-sso {
+      width: 100%; margin-top: .5rem; padding: .6rem 1rem;
+      display: flex; align-items: center; justify-content: center; gap: .55rem;
+      background: transparent; color: var(--text-main);
+      border: 1px solid var(--border); border-radius: 6px;
+      font-family: var(--font-btn); font-size: .85rem; font-weight: 600;
+      cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .btn-sso:hover { border-color: var(--accent-rx); background: rgba(99,130,190,.07); }
+    .btn-sso img { width: 18px; height: 18px; border-radius: 3px; flex: 0 0 auto; }
+
     .login-error {
       display: none;
       background: rgba(248,113,113,.1);
@@ -226,6 +253,10 @@
         </div>
         <button class="btn-primary" id="loginBtn" type="button">Sign In</button>
         <div class="login-error" id="loginError"></div>
+        <!-- Filled by login.ts from /api/auth/sso/providers. EMPTY unless a
+             provider is enabled, so an install that never configures one sees
+             exactly the page it saw before. -->
+        <div id="ssoButtons"></div>
       </div>
 
       <!-- First-run: create admin account -->

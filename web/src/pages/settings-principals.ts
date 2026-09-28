@@ -34,6 +34,7 @@ import {
   type EditableGrant, type GrantView,
 } from './settings';
 import { sitesById } from './settings-sites';
+import { initSSOCard, loadSSOProviders } from './settings-sso';
 import { presetTiers } from '../presets';
 import {
   userSavePlan, userSaveOutcome, groupSavePlan, groupSaveOutcome,
@@ -57,6 +58,13 @@ let deps: Deps = {
 };
 
 let roles: RoleView[] = [];
+
+/** The loaded roles, for the SSO role-mapping <select>. A GETTER rather than an
+ *  export of the array, so a second module cannot hold a stale reference across
+ *  a reload - the bug two caches of one list always produce. */
+export function allRoles(): RoleView[] {
+  return roles;
+}
 
 /**
  * The caches the forms read back - the live `_allUsers` and `_groupsCache`.
@@ -519,11 +527,17 @@ export function initPrincipalsCard(d: Deps): void {
 
   mountPrincipalTabs();
   wireForms();
+  // The SSO tab is part of this card and behind the same capability, so it is
+  // mounted here rather than from main.ts. `allRoles` is passed as a GETTER, not
+  // as a value: the dialog reads the roles when it opens, which is always after
+  // loadRoles has run, and a value captured at mount would be the empty array.
+  initSSOCard(allRoles);
 
   applyAuthModeVisibility(d.authMode(), {
     mayManage: d.mayManage(),
     loadRoles,
     loadUsers: () => { void loadUsers(); void loadGroups(); },
+    loadSSO: () => { void loadSSOProviders(); },
     sizeCard: sizePrincipalsCard,
   });
 }
@@ -633,6 +647,7 @@ export function refreshPrincipalsVisibility(): void {
     mayManage: deps.mayManage(),
     loadRoles,
     loadUsers: () => { void loadUsers(); void loadGroups(); },
+    loadSSO: () => { void loadSSOProviders(); },
     sizeCard: sizePrincipalsCard,
   });
 }

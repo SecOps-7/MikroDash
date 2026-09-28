@@ -13,6 +13,7 @@
     "ruGroupFormWrap",
     "ruUserFormWrap",
     "siteFormWrap",
+    "ssoFormWrap",
     "userFormWrap",
     "wanWarnWrap"
   ]

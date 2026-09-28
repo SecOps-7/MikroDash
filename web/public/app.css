@@ -3141,12 +3141,24 @@
    No pixel height anywhere. A `min-height` would have been the obvious fix and
    would be wrong the next time an event is added to the Events tab, while still
    looking deliberate. */
-.nchan-panels { display: grid; }
-.nchan-panel { grid-area: 1 / 1; visibility: hidden; padding-top: .9rem; }
-.nchan-panel.active { visibility: visible; }
+/* ── TABS INSIDE A DIALOG ────────────────────────────────────────────────
+   ONE GRID CELL FOR EVERY PANEL, so the box is as tall as the TALLEST of them
+   and switching tabs does not resize the dialog. An inactive panel is hidden
+   with `visibility`, not `display`, which is what keeps it occupying the cell.
+
+   MEASURED RATHER THAN PINNED: a `min-height` in pixels would be the obvious
+   alternative and would be wrong the next time a field is added - the number
+   would still look deliberate while no longer matching anything.
+
+   Named for what it is rather than for the first dialog to use it: the SSO
+   provider modal is the second, and a `.nchan-` class on it would have read as
+   a notification channel. See modalTabs() in web/src/dom.ts. */
+.modal-panels { display: grid; }
+.modal-panel { grid-area: 1 / 1; visibility: hidden; padding-top: .9rem; }
+.modal-panel.active { visibility: visible; }
 /* A panel's opening sentence, with room under it: the router list sat directly
    against this line with nothing between them. */
-.nchan-panel-note { margin: 0 0 .9rem; }
+.modal-panel-note { margin: 0 0 .9rem; }
 /* The cooldown sits above the Enabled divider, with air of its own. */
 .nchan-cooldown { margin: 1rem 0 0; }
 
@@ -3427,7 +3439,7 @@
 @media (max-width: 860px) {
   .msg-templates { grid-template-columns: 1fr; }
 }
-.nchan-tabs .stab-bar { margin-bottom: 0; }
+.modal-tabs .stab-bar { margin-bottom: 0; }
 
 .nchan-event { align-items: flex-start; }
 .nchan-event .stoggle-label { display: flex; flex-direction: column; gap: .15rem; }

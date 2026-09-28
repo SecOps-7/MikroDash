@@ -17,7 +17,7 @@
  * silently keeps a value is how an operator deletes their own configuration.
  */
 
-import { el, esc } from '../dom';
+import { el, esc, modalTabs } from '../dom';
 
 interface ChannelView {
   id: string;
@@ -474,14 +474,10 @@ function applyKind(): void {
   if (smtp) smtp.hidden = kind !== 'smtp';
 }
 
-function selectTab(which: string): void {
-  document.querySelectorAll('[data-nchantab]').forEach((b) => {
-    b.classList.toggle('active', (b as HTMLElement).getAttribute('data-nchantab') === which);
-  });
-  document.querySelectorAll('[data-nchanpanel]').forEach((p) => {
-    p.classList.toggle('active', (p as HTMLElement).getAttribute('data-nchanpanel') === which);
-  });
-}
+// selectTab is set by wireTabs() on first init. It is a variable rather than a
+// function because the shared helper owns the wiring, and this dialog's own code
+// still needs to force the Channel tab when it opens.
+let selectTab: (which: string) => void = () => {};
 
 function getValue(id: string): string {
   const e = el<HTMLInputElement>(id);
@@ -709,10 +705,10 @@ export function initNotifyChannels(): void {
     if (t?.id === 'nchanCooldown') showCooldown();
   });
 
-  document.querySelectorAll('[data-nchantab]').forEach((b) => {
-    b.addEventListener('click', () =>
-      selectTab((b as HTMLElement).getAttribute('data-nchantab') || 'channel'));
-  });
+  // SCOPED TO THIS DIALOG. The previous version queried the whole document,
+  // which was correct only while this was the app's only tabbed modal - see
+  // modalTabs() in dom.ts.
+  selectTab = modalTabs('notifChanModal', 'channel');
 
   const kind = el('nchanKind');
   if (kind) kind.addEventListener('change', applyKind);

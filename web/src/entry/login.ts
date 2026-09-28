@@ -85,6 +85,113 @@ function safeNext(): string {
   return '/';
 }
 
+/**
+ * The handoff into the app, after a session exists.
+ *
+ * ── ONE COPY, BECAUSE THERE ARE NOW TWO WAYS IN ────────────────────────────
+ *
+ * `preflight.ts` reads `justLoggedIn` on the next document and hides it, and
+ * `main.ts` fades it back in once the app has rendered. All three have to agree
+ * or THE APP RENDERS INVISIBLY - which it did, for one afternoon, when the port
+ * had the first two and not the third. internal/verify pins the three.
+ *
+ * Single sign-in arrives back here by redirect and never runs the password
+ * form, so it calls this rather than repeating it. A second copy of a
+ * three-way handshake is a second thing to keep in step.
+ */
+function enterApp(): void {
+  sessionStorage.setItem('justLoggedIn', '1');
+  document.body.style.transition = 'opacity 1s ease';
+  document.body.style.opacity = '0';
+  // `replace`, not `assign`: the back button must not return to a login form
+  // for a session that now exists.
+  //
+  // The 1000ms matches the transition exactly, so the navigation happens as the
+  // fade completes rather than partway through it.
+  setTimeout(() => { window.location.replace(safeNext()); }, 1000);
+}
+
+/**
+ * The icon URL a provider button may load.
+ *
+ * ALLOW-LISTED BY SHAPE, exactly as branding.ts does its own. The URL comes
+ * from the server, but this page draws it into an `src`, and a check by shape
+ * costs nothing while making the list of things that can appear there finite.
+ */
+const SSO_ICON = /^\/brand\/sso\/[0-9a-f]{8,64}\.png\?v=\d+$/;
+
+interface SSOButton { id: string; name: string; icon: string }
+
+/**
+ * Draw a button per enabled provider.
+ *
+ * NOTHING IS DRAWN when there are none, when the fetch fails, or when the
+ * answer is not the shape expected. The password form is unaffected in every
+ * one of those cases, which is the break-glass guarantee as this page sees it.
+ */
+function renderSSO(): void {
+  const host = byId('ssoButtons');
+  if (!host) return;
+  void fetch('/api/auth/sso/providers', { credentials: 'same-origin' })
+    .then((r) => r.json())
+    .then((d: { providers?: SSOButton[] }) => {
+      const list = Array.isArray(d.providers) ? d.providers : [];
+      if (!list.length) return;
+      const next = new URLSearchParams(window.location.search).get('next') || '';
+      host.innerHTML = '<div class="sso-sep">or</div>';
+      list.forEach((p) => {
+        if (!p || typeof p.id !== 'string' || typeof p.name !== 'string') return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-sso';
+        if (typeof p.icon === 'string' && SSO_ICON.test(p.icon)) {
+          const img = document.createElement('img');
+          img.src = p.icon;
+          img.alt = '';
+          btn.appendChild(img);
+        }
+        // textContent, never innerHTML: the name is operator-supplied and this
+        // page renders it before anybody has signed in.
+        const label = document.createElement('span');
+        label.textContent = 'Sign in with ' + p.name;
+        btn.appendChild(label);
+        btn.addEventListener('click', () => {
+          window.location.href = '/api/auth/sso/' + encodeURIComponent(p.id)
+            + '/start' + (next ? '?next=' + encodeURIComponent(next) : '');
+        });
+        host.appendChild(btn);
+      });
+    })
+    .catch(() => {
+      // Silent. A provider list that cannot be fetched means no SSO buttons,
+      // never a broken login page.
+    });
+}
+
+/**
+ * The refusal a failed sign-in comes back with.
+ *
+ * The server sends a SHORT CODE and a reference, because it will not tell a
+ * stranger which check failed. The reference is what joins this message to the
+ * log line that explains it - without it the operator has a generic message
+ * about a remote system they cannot see into.
+ */
+function showSSOError(): void {
+  const q = new URLSearchParams(window.location.search);
+  const code = q.get('err');
+  if (!code) return;
+  const said: Record<string, string> = {
+    denied: 'Your identity provider did not let you in, or you have no role here.',
+    expired: 'That sign-in took too long, or was already used. Please try again.',
+    config: 'This provider is not configured in a way that can work yet.',
+    provider: 'The identity provider could not be reached.',
+    token: 'The identity provider\'s answer could not be trusted.',
+  };
+  const ref = q.get('ref');
+  showError('loginError', (said[code] || 'Sign in failed.')
+    + (ref ? ' (reference ' + ref + ')' : ''));
+}
+
 function main(): void {
   // The install's own name and icon, before anybody signs in (issue #131).
   void loadBranding(' - Sign In');
@@ -95,13 +202,30 @@ function main(): void {
   // ── Which view ────────────────────────────────────────────────────────────
   void fetch('/api/auth/status')
     .then((r) => r.json())
-    .then((d: { firstRun?: boolean }) => {
+    .then((d: { firstRun?: boolean; session?: unknown }) => {
       if (loadingView) loadingView.style.display = 'none';
       if (d.firstRun) {
         if (firstRunView) firstRunView.style.display = '';
         byId('setupUser')?.focus();
       } else {
         if (loginView) loginView.style.display = '';
+        // ── BACK FROM A PROVIDER ────────────────────────────────────────
+        //
+        // The callback set the session cookie and redirected here, so the
+        // browser never ran the password form and never did the handshake.
+        // SCOPED TO ?sso=1 on purpose: a plain /login while already signed in
+        // keeps showing the form exactly as it does today, so this adds a path
+        // instead of changing one.
+        // `session`, NOT an `authenticated` flag: this route has no such field
+        // and never had one. A branch reading it would be permanently false,
+        // the page would sit on the login form with a valid cookie, and nothing
+        // would say why.
+        if (new URLSearchParams(window.location.search).get('sso') === '1' && d.session) {
+          enterApp();
+          return;
+        }
+        showSSOError();
+        renderSSO();
         byId('loginUser')?.focus();
       }
     })
@@ -134,19 +258,7 @@ function main(): void {
       .then((r) => r.json())
       .then((d: { ok?: boolean; error?: string }) => {
         if (d.ok) {
-          // THE HANDOFF. `preflight.ts` reads this flag on the next document and
-          // hides it, and `main.ts` fades it back in once the app has rendered.
-          // All three have to agree or the app renders invisibly - which it did,
-          // for one afternoon, when the port had the first two and not the third.
-          sessionStorage.setItem('justLoggedIn', '1');
-          document.body.style.transition = 'opacity 1s ease';
-          document.body.style.opacity = '0';
-          // `replace`, not `assign`: the back button must not return to a login
-          // form for a session that now exists.
-          //
-          // The 1000ms matches the transition exactly, so the navigation happens
-          // as the fade completes rather than partway through it.
-          setTimeout(() => { window.location.replace(safeNext()); }, 1000);
+          enterApp();
         } else {
           if (btn) {
             btn.disabled = false;

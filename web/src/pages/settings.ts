@@ -447,6 +447,10 @@ export interface AuthVisibilityDeps {
   /** Load the roles, then the users. Kept injectable so the ORDER can be gated. */
   loadRoles: () => Promise<void>;
   loadUsers: () => void;
+  /** Load the SSO providers. AFTER the roles, for the same reason the users
+   *  wait: the role-mapping rows draw a <select> of roles, and one built before
+   *  they arrive is an empty list the operator reads as "there are no roles". */
+  loadSSO: () => void;
   sizeCard: () => void;
 }
 
@@ -499,6 +503,9 @@ export function applyAuthModeVisibility(mode: string, deps: AuthVisibilityDeps):
   if (mayManage) {
     void deps.loadRoles().then(() => {
       if (usersUsable) deps.loadUsers();
+      // NOT gated on `usersUsable`: SSO providers are configurable whatever the
+      // auth mode, and a provider cannot be edited from a tab that never loaded.
+      deps.loadSSO();
     });
   }
 }
