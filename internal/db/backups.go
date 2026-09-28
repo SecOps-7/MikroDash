@@ -35,10 +35,15 @@ type BackupRow struct {
 	Fingerprint *string `json:"fingerprint"`
 	RscBytes    int64   `json:"rsc_bytes"`
 	BackupBytes int64   `json:"backup_bytes"`
-	Model       *string `json:"model"`
-	Serial      *string `json:"serial"`
-	OSVersion   *string `json:"os_version"`
-	MS          int64   `json:"ms"`
+	// SecretsBytes is the migration export's size, or 0 when the router has
+	// none. The Backups page draws its download link from this being non-zero,
+	// so a row from before the feature and a row from a router that never
+	// enabled it read the same - which is what they are.
+	SecretsBytes int64   `json:"secrets_bytes"`
+	Model        *string `json:"model"`
+	Serial       *string `json:"serial"`
+	OSVersion    *string `json:"os_version"`
+	MS           int64   `json:"ms"`
 	// PrunedAt is set when retention removed the FILES. The row stays, so the
 	// History table can explain the disappearance rather than the pair simply
 	// vanishing from the list.
@@ -47,7 +52,8 @@ type BackupRow struct {
 }
 
 const backupCols = `id, router_id, taken_at, outcome, source, actor, stem, dir,
-	fingerprint, rsc_bytes, backup_bytes, model, serial, os_version, ms, pruned_at, error`
+	fingerprint, rsc_bytes, backup_bytes, secrets_bytes, model, serial, os_version, ms,
+	pruned_at, error`
 
 func scanBackups(rows *sql.Rows) ([]BackupRow, error) {
 	out := []BackupRow{}
@@ -55,7 +61,8 @@ func scanBackups(rows *sql.Rows) ([]BackupRow, error) {
 		var r BackupRow
 		if err := rows.Scan(&r.ID, &r.RouterID, &r.TakenAt, &r.Outcome, &r.Source,
 			&r.Actor, &r.Stem, &r.Dir, &r.Fingerprint, &r.RscBytes, &r.BackupBytes,
-			&r.Model, &r.Serial, &r.OSVersion, &r.MS, &r.PrunedAt, &r.Error); err != nil {
+			&r.SecretsBytes, &r.Model, &r.Serial, &r.OSVersion, &r.MS, &r.PrunedAt,
+			&r.Error); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -235,7 +242,7 @@ func (d *DB) GetBackupSummary(routerID string) (BackupSummary, error) {
     SELECT COUNT(*) AS runs,
            SUM(CASE WHEN stem IS NOT NULL AND pruned_at IS NULL THEN 1 ELSE 0 END) AS stored,
            SUM(CASE WHEN stem IS NOT NULL AND pruned_at IS NULL
-                    THEN rsc_bytes + backup_bytes ELSE 0 END) AS bytes
+                    THEN rsc_bytes + backup_bytes + secrets_bytes ELSE 0 END) AS bytes
     FROM config_backups WHERE router_id = ?`, routerID).Scan(&runs, &stored, &bytes)
 	if err != nil {
 		return s, err

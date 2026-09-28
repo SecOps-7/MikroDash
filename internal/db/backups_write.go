@@ -78,11 +78,13 @@ type BackupRun struct {
 	Fingerprint *string
 	RscBytes    int64
 	BackupBytes int64
-	Model       *string
-	Serial      *string
-	OSVersion   *string
-	MS          int64
-	Error       *string
+	// SecretsBytes is 0 unless this router keeps a migration export.
+	SecretsBytes int64
+	Model        *string
+	Serial       *string
+	OSVersion    *string
+	MS           int64
+	Error        *string
 }
 
 // RecordBackup writes one run and returns its id.
@@ -101,11 +103,11 @@ func (d *DB) RecordBackup(r BackupRun) (int64, error) {
 	res, err := d.sql.Exec(`
     INSERT INTO config_backups
       (router_id, taken_at, outcome, source, actor, stem, dir, fingerprint,
-       rsc_bytes, backup_bytes, model, serial, os_version, ms, error)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       rsc_bytes, backup_bytes, secrets_bytes, model, serial, os_version, ms, error)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		r.RouterID, r.TakenAt, r.Outcome, source, r.Actor, r.Stem, r.Dir,
-		r.Fingerprint, r.RscBytes, r.BackupBytes, r.Model, r.Serial, r.OSVersion,
-		r.MS, r.Error)
+		r.Fingerprint, r.RscBytes, r.BackupBytes, r.SecretsBytes, r.Model, r.Serial,
+		r.OSVersion, r.MS, r.Error)
 	if err != nil {
 		return 0, err
 	}

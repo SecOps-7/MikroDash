@@ -35,6 +35,9 @@ type Settings struct {
 	Timezone  string `json:"timezone"`
 	KeepCount int    `json:"keepCount"`
 	KeepDays  int    `json:"keepDays"`
+	// MigrationExport is whether this router keeps a migration export beside each pair.
+	// Off unless asked for; see store.BackupBlock for what it costs.
+	MigrationExport bool `json:"migrationExport"`
 }
 
 // Row is one history row as the page renders it.
@@ -48,12 +51,16 @@ type Row struct {
 	Pruned  bool    `json:"pruned"`
 	// Bytes is the PAIR's size, both halves together — what the page's Size
 	// column shows and what the disk total is built from.
-	Bytes     int64   `json:"bytes"`
-	OSVersion *string `json:"osVersion"`
-	Model     *string `json:"model"`
-	Serial    *string `json:"serial"`
-	MS        int64   `json:"ms"`
-	Error     *string `json:"error"`
+	Bytes int64 `json:"bytes"`
+	// HasSecrets is whether this row has a migration export to download. It is
+	// per ROW, not per router: switching the setting on does not retrofit the
+	// backups taken before it, and a link that 404s is worse than no link.
+	HasSecrets bool    `json:"hasSecrets"`
+	OSVersion  *string `json:"osVersion"`
+	Model      *string `json:"model"`
+	Serial     *string `json:"serial"`
+	MS         int64   `json:"ms"`
+	Error      *string `json:"error"`
 }
 
 // StatePayload is the whole `backups:state` body.
@@ -90,6 +97,7 @@ func SettingsFrom(b *Backup, keepCount, keepDays *int, timezone string) Settings
 	}
 	if b != nil {
 		s.Enabled = b.Enabled
+		s.MigrationExport = b.MigrationExport
 		if b.Schedule != "" {
 			s.Schedule = b.Schedule
 		}
@@ -113,8 +121,11 @@ func RowsFrom(rows []db.BackupRow) []Row {
 		out = append(out, Row{
 			ID: r.ID, TakenAt: r.TakenAt, Outcome: r.Outcome, Source: r.Source,
 			Actor: r.Actor, Stem: r.Stem, Pruned: r.PrunedAt != nil,
-			Bytes:     r.RscBytes + r.BackupBytes,
-			OSVersion: r.OSVersion, Model: r.Model, Serial: r.Serial,
+			// The migration export counts toward the size, because it is on
+			// disk and retention counts it too.
+			Bytes:      r.RscBytes + r.BackupBytes + r.SecretsBytes,
+			HasSecrets: r.SecretsBytes > 0,
+			OSVersion:  r.OSVersion, Model: r.Model, Serial: r.Serial,
 			MS: r.MS, Error: r.Error,
 		})
 	}

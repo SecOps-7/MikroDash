@@ -330,3 +330,124 @@ func keysOf(m map[string][]byte) []string {
 	}
 	return out
 }
+
+// runWithSecrets is runWith with the migration export switched on, returning
+// how many times it was written and with what text.
+func runWithSecrets(t *testing.T, f *fakeRouter, on bool,
+	write func(dir, stem, rsc string) (int64, error)) RunResult {
+	t.Helper()
+	clock := &fakeClock{t: time.Unix(1787000000, 0)}
+	return Run(RunConfig{
+		Label: "Mikrotik hAP AX3", Password: "s3cret", DataDir: "/data",
+		Connect: func() (Writer, func(), error) {
+			return f.write, func() { f.stopped++ }, nil
+		},
+		WritePair: func(dir, stem, rsc string, binary []byte) (int64, int64, error) {
+			return int64(len(rsc)), int64(len(binary)), nil
+		},
+		MigrationExport: on, WriteSecrets: write,
+		Now: clock.now, Sleep: clock.sleep, Log: func(string) {},
+	})
+}
+
+func exportCount(f *fakeRouter) int {
+	n := 0
+	for _, c := range f.cmds {
+		if c == "/export" {
+			n++
+		}
+	}
+	return n
+}
+
+// ── THE SECOND EXPORT IS OPT-IN, AND COSTS NOTHING WHEN OFF ────────────────
+//
+// `/export` is either sensitive or it is not, so this cannot share the diffable
+// export's run. The router CHANNEL it costs is the thing this app spends
+// carefully - "more efficient means fewer router channels" - so a router that
+// has not asked for it must issue exactly the commands it issued before.
+func TestTheSensitiveExportRunsOnlyWhenAsked(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		on      bool
+		exports int
+	}{
+		{"off", false, 1},
+		{"on", true, 2},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFake([]byte("/ip dns set servers=1.1.1.1"), []byte{1, 2, 3})
+			wrote := 0
+			res := runWithSecrets(t, f, c.on, func(dir, stem, rsc string) (int64, error) {
+				wrote++
+				return 42, nil
+			})
+			if res.Outcome != OutcomeChanged {
+				t.Fatalf("outcome %q (%s)", res.Outcome, res.Error)
+			}
+			if got := exportCount(f); got != c.exports {
+				t.Errorf("%d /export command(s), want %d", got, c.exports)
+			}
+			want := 0
+			if c.on {
+				want = 1
+			}
+			if wrote != want {
+				t.Errorf("wrote %d migration export(s), want %d", wrote, want)
+			}
+			// The LAST export carries show-sensitive only when it is on.
+			sensitive := false
+			for _, a := range f.exportArgs {
+				if a == "=show-sensitive=" {
+					sensitive = true
+				}
+			}
+			if sensitive != c.on {
+				t.Errorf("show-sensitive present = %v, want %v (args %v)",
+					sensitive, c.on, f.exportArgs)
+			}
+			if c.on && res.SecretsBytes != 42 {
+				t.Errorf("SecretsBytes is %d, want the writer's 42", res.SecretsBytes)
+			}
+		})
+	}
+}
+
+// ── A FAILED MIGRATION EXPORT DOES NOT FAIL THE BACKUP ─────────────────────
+//
+// The pair is already on disk and is what restores and diffs. Failing the whole
+// run over the optional extra would turn it into a way to LOSE restore points.
+func TestAFailedSensitiveExportKeepsThePair(t *testing.T) {
+	f := newFake([]byte("/ip dns set servers=1.1.1.1"), []byte{1, 2, 3})
+	res := runWithSecrets(t, f, true, func(dir, stem, rsc string) (int64, error) {
+		return 0, errors.New("the envelope is unavailable")
+	})
+	if res.Outcome != OutcomeChanged {
+		t.Fatalf("a failed migration export failed the whole backup: %q (%s)",
+			res.Outcome, res.Error)
+	}
+	if res.RscBytes == 0 || res.BackupBytes == 0 {
+		t.Errorf("the pair was lost: rsc %d backup %d", res.RscBytes, res.BackupBytes)
+	}
+	if res.SecretsBytes != 0 {
+		t.Errorf("SecretsBytes is %d after a failed write; the row would claim a file "+
+			"that is not there and the page would draw a link that 404s", res.SecretsBytes)
+	}
+}
+
+// The migration export is TERSE too. It exists to be imported, and a wrapped
+// export is harder to read and no easier to import - but more to the point, two
+// formats for one config is the thing terse was made the default to avoid.
+func TestTheSensitiveExportIsTerseToo(t *testing.T) {
+	f := newFake([]byte("/ip dns set servers=1.1.1.1"), []byte{1, 2, 3})
+	runWithSecrets(t, f, true, func(dir, stem, rsc string) (int64, error) { return 1, nil })
+	terse := false
+	for _, a := range f.exportArgs {
+		if a == "=terse=" {
+			terse = true
+		}
+	}
+	if !terse {
+		t.Errorf("the sensitive export is not terse: %v", f.exportArgs)
+	}
+}

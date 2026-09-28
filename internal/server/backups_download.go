@@ -49,13 +49,17 @@ import (
 )
 
 const (
-	backupRscPath  = "/api/backups/{id}/rsc"
-	backupFilePath = "/api/backups/{id}/backup"
+	backupRscPath     = "/api/backups/{id}/rsc"
+	backupFilePath    = "/api/backups/{id}/backup"
+	backupSecretsPath = "/api/backups/{id}/secrets"
 )
 
 func (s *Server) registerBackupDownloads(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+backupRscPath, s.backupPart("rsc"))
 	mux.HandleFunc("GET "+backupFilePath, s.backupPart("backup"))
+	// The migration export. SAME GATE as the other two - see the header: this
+	// is the most sensitive of the three, so it cannot be the laxest.
+	mux.HandleFunc("GET "+backupSecretsPath, s.backupPart("secrets"))
 }
 
 // mayDownloadBackup is `backups` at write on THIS router, both gates, matching
@@ -130,6 +134,24 @@ func (s *Server) backupPart(part string) http.HandlerFunc {
 			body = []byte(text)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			name += ".rsc"
+		case "secrets":
+			// ── THE ONE THAT CARRIES CREDENTIALS IN THE CLEAR ──────────────
+			//
+			// Unsealed only here, on an authenticated, permitted, audited
+			// request, and streamed straight out. It is never held decrypted on
+			// disk and never reaches a WebSocket payload, which is the rule the
+			// backup password and the WireGuard client config already follow.
+			//
+			// A row from before the setting was switched on has no such file;
+			// `secrets_bytes` is 0 for it and the page draws no link, so this
+			// answering 404 is the honest result rather than a broken link.
+			text, rerr := s.openSecretsExport(dir, *row.Stem)
+			if rerr != nil {
+				err = rerr
+			}
+			body = []byte(text)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			name += "-secrets.rsc"
 		default:
 			body, err = backups.ReadBackup(dir, *row.Stem)
 			w.Header().Set("Content-Type", "application/octet-stream")

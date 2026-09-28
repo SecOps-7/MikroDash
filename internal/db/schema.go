@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 29
+const schemaVersion = 30
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -228,6 +228,15 @@ var portMigrations = map[int][]string{
 	// so a migrated database and a new one cannot describe different tables.
 	// See internal/db/sso_schema.go for what each table is for.
 	29: {ssoTablesDDL},
+	// 30: the migration export's size. NOT a boolean: 0 means "no such file",
+	// which is also what every existing row gets, so an install that never
+	// enables it is indistinguishable from one that predates the column. The
+	// Backups page draws the third download link from this being non-zero.
+	// `config_backups`, NOT `backups` - the Go type is BackupRow and the reads
+	// say "backups", but the table has always been config_backups. Getting this
+	// wrong fails at startup on every existing install and on none of the fresh
+	// ones, because a fresh database is built from schema_ddl.go instead.
+	30: {`ALTER TABLE config_backups ADD COLUMN secrets_bytes INTEGER NOT NULL DEFAULT 0`},
 }
 
 // createSchema builds a new database at `path`.

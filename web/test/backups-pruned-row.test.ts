@@ -63,6 +63,9 @@ fs.rmSync(ENTRY, { force: true });
 const IDS = [
   'bkBadge', 'bkDelete', 'bkDiffBody', 'bkDiffModal', 'bkDiffSummary', 'bkDiffTitle',
   'bkEnabled', 'bkHistoryActions', 'bkKeepCount', 'bkKeepDays', 'bkNote', 'bkPickAll',
+  // The migration-export toggle. Declared rather than allowed: the settings
+  // form reads it on every render, so it is a real id this page uses.
+  'bkSecrets',
   'bkRestore', 'bkRun', 'bkSave', 'bkSchedule', 'bkSettingsActions', 'bkTable',
   'bkTime', 'bkTimeHint', 'bkSumLast', 'bkSumStored', 'bkSumBytes', 'bkSumSchedule',
 ];

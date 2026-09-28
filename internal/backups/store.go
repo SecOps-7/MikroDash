@@ -88,6 +88,20 @@ func DirFor(dataDir, slug string) string { return filepath.Join(BaseDir(dataDir)
 func RscPath(dir, stem string) string    { return filepath.Join(dir, stem+".rsc.gz") }
 func BackupPath(dir, stem string) string { return filepath.Join(dir, stem+".backup") }
 
+// SecretsPath is the MIGRATION export - `/export show-sensitive`, sealed.
+//
+// ── NOT PART OF THE PAIR, AND THE SUFFIX SAYS SO ───────────────────────────
+//
+// `.enc`, not `.rsc.gz`, for two reasons. ListPairs finds a pair by cutting
+// `.rsc.gz` off a filename, so a third file ending that way would be read as a
+// pair of its own with no `.backup` beside it. And a reader that opens this
+// expecting gzip gets a decryption envelope instead - the extension is the only
+// warning the filesystem can give that these bytes are not the diffable export.
+//
+// It is OPTIONAL: a router without the setting has no such file, and neither
+// does any row written before the setting existed.
+func SecretsPath(dir, stem string) string { return filepath.Join(dir, stem+".secrets.rsc.enc") }
+
 // StemFor is the filename stem for a moment in time, IN UTC.
 //
 // UTC because a local-time stem repeats itself for an hour every autumn, and two
@@ -135,6 +149,32 @@ func WritePair(dir, stem, rscText string, binary []byte) (rscBytes, backupBytes 
 }
 
 // ReadRsc is the stored export, gunzipped.
+// WriteSecrets stores the sealed migration export beside a pair.
+//
+// ── IT ARRIVES SEALED; THIS PACKAGE OWNS NO KEY ────────────────────────────
+//
+// The caller encrypts, exactly as `internal/db` is handed an already-sealed
+// client secret. A backup package that also held a key would be a second place
+// to look when a secret turns out to be readable, and the envelope already
+// lives in internal/store.
+//
+// Written AFTER the pair, so a crash between the two leaves a complete pair with
+// no migration export rather than an export with no restore point.
+func WriteSecrets(dir, stem string, sealed []byte) (int64, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, err
+	}
+	if err := os.WriteFile(SecretsPath(dir, stem), sealed, 0o600); err != nil {
+		return 0, err
+	}
+	return int64(len(sealed)), nil
+}
+
+// ReadSecrets reads the sealed migration export. The caller unseals it.
+func ReadSecrets(dir, stem string) ([]byte, error) {
+	return os.ReadFile(SecretsPath(dir, stem))
+}
+
 func ReadRsc(dir, stem string) (string, error) {
 	f, err := os.Open(RscPath(dir, stem))
 	if err != nil {
@@ -176,9 +216,18 @@ func HasPair(dir, stem string) bool {
 // MISSING HALVES ARE NOT AN ERROR. Pruning has to be idempotent, because it runs
 // after a crash as readily as after a success — and a crash is exactly what
 // leaves one half behind.
+//
+// ── THE MIGRATION EXPORT GOES WITH THEM, AND THAT IS THE POINT ─────────────
+//
+// It is not part of the pair and most rows do not have one, so it is counted
+// with the absent halves rather than required. But leaving it behind would make
+// retention a promise the secrets file does not keep: every other trace of that
+// backup would be gone while a sealed copy of every credential on the router
+// stayed on disk for ever. `TestRetentionTakesTheSecretsFileToo` pins it.
 func RemovePair(dir, stem string) (int, error) {
 	removed := 0
-	for _, p := range []string{RscPath(dir, stem), BackupPath(dir, stem)} {
+	for _, p := range []string{RscPath(dir, stem), BackupPath(dir, stem),
+		SecretsPath(dir, stem)} {
 		err := os.Remove(p)
 		switch {
 		case err == nil:

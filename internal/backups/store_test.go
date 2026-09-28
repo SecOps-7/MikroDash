@@ -135,3 +135,82 @@ func TestPathHelpersAgainstLive(t *testing.T) {
 		}
 	}
 }
+
+// ── RETENTION TAKES THE MIGRATION EXPORT TOO ───────────────────────────────
+//
+// It is not part of the pair, so it is easy to leave out of RemovePair - and
+// leaving it behind would make retention a promise this file does not keep:
+// every other trace of that backup gone, while a sealed copy of every
+// credential on the router stayed on disk for ever.
+func TestRetentionTakesTheSecretsFileToo(t *testing.T) {
+	dir := t.TempDir()
+	stem := "2026-08-19T203521"
+	if _, _, err := WritePair(dir, stem, "/ip address add address=1.1.1.1", []byte{1, 2, 3}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteSecrets(dir, stem, []byte("sealed-bytes")); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{RscPath(dir, stem), BackupPath(dir, stem), SecretsPath(dir, stem)} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("setup did not write %s: %v", filepath.Base(p), err)
+		}
+	}
+
+	n, err := RemovePair(dir, stem)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Errorf("RemovePair removed %d files, want 3 (pair + migration export)", n)
+	}
+	if _, err := os.Stat(SecretsPath(dir, stem)); !os.IsNotExist(err) {
+		t.Error("the migration export survived retention.\n" +
+			"    Every other trace of this backup is gone and a sealed copy of the " +
+			"router's credentials is still on disk.")
+	}
+}
+
+// A pair with no migration export prunes cleanly. Most rows have none, so
+// requiring it would make retention fail on the common case.
+func TestRemovePairToleratesNoSecretsFile(t *testing.T) {
+	dir := t.TempDir()
+	stem := "2026-08-19T203521"
+	if _, _, err := WritePair(dir, stem, "x", []byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	n, err := RemovePair(dir, stem)
+	if err != nil {
+		t.Fatalf("pruning a pair without a migration export failed: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("removed %d files, want 2", n)
+	}
+}
+
+// ── THE MIGRATION EXPORT IS NOT READ AS A PAIR ─────────────────────────────
+//
+// ListPairs finds a pair by cutting `.rsc.gz` off a filename. A third file
+// ending that way would be read as a pair of its own with no `.backup` beside
+// it, which is why this one ends `.enc`.
+func TestTheSecretsFileIsNotMistakenForAPair(t *testing.T) {
+	dir := t.TempDir()
+	stem := "2026-08-19T203521"
+	if _, _, err := WritePair(dir, stem, "x", []byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteSecrets(dir, stem, []byte("sealed")); err != nil {
+		t.Fatal(err)
+	}
+	pairs, err := ListPairs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pairs) != 1 {
+		t.Errorf("ListPairs found %d pairs, want 1 - the migration export was counted "+
+			"as a backup of its own", len(pairs))
+	}
+	if !strings.HasSuffix(SecretsPath(dir, stem), ".enc") {
+		t.Error("the migration export no longer ends .enc, so ListPairs will read it as a pair")
+	}
+}

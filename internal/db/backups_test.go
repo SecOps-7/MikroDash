@@ -75,7 +75,8 @@ func seededBackupDB(t *testing.T, c bkCases) *DB {
 		taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
 		source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
 		fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
-		backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
+		backup_bytes INTEGER NOT NULL DEFAULT 0,
+		secrets_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
 		os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT);`); err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +254,8 @@ func TestListBackupsClampIsUnreachableFromTheCorpus(t *testing.T) {
 		taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
 		source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
 		fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
-		backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
+		backup_bytes INTEGER NOT NULL DEFAULT 0,
+		secrets_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
 		os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT);`); err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +315,8 @@ func TestListBackupsKeepsOnlyTheNewestUnchangedRun(t *testing.T) {
 		taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
 		source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
 		fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
-		backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
+		backup_bytes INTEGER NOT NULL DEFAULT 0,
+		secrets_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
 		os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT);`); err != nil {
 		t.Fatal(err)
 	}
@@ -397,7 +400,8 @@ func TestRecordBackupRoundTripsEveryOutcome(t *testing.T) {
 		taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
 		source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
 		fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
-		backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
+		backup_bytes INTEGER NOT NULL DEFAULT 0,
+		secrets_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
 		os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT);`); err != nil {
 		t.Fatal(err)
 	}
@@ -512,7 +516,8 @@ func TestLatestFingerprintIgnoresFailedRuns(t *testing.T) {
 		taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
 		source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
 		fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
-		backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
+		backup_bytes INTEGER NOT NULL DEFAULT 0,
+		secrets_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
 		os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT);`); err != nil {
 		t.Fatal(err)
 	}

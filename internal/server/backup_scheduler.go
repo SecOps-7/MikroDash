@@ -252,9 +252,10 @@ func (s *Server) runScheduledBackup(r backups.SchedRouter) error {
 				return out, nil
 			}, func() {}, nil
 		},
-		WritePair: backups.WritePair,
-		Now:       func() int64 { return time.Now().UnixMilli() },
-		Log:       func(m string) { log.Printf("[backup][%s] %s", r.Label, m) },
+		WritePair:       backups.WritePair,
+		MigrationExport: s.migrationExportEnabledFor(r.ID), WriteSecrets: s.sealSecretsExport,
+		Now: func() int64 { return time.Now().UnixMilli() },
+		Log: func(m string) { log.Printf("[backup][%s] %s", r.Label, m) },
 	})
 
 	// ── A SCHEDULED RUN IS AUDITED TOO, AND WAS NOT ─────────────────────────

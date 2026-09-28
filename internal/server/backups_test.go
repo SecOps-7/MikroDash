@@ -65,13 +65,17 @@ func TestSettingsPayloadShape(t *testing.T) {
 	if err := json.Unmarshal(blob, &got); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"enabled", "schedule", "time", "timezone", "keepCount", "keepDays"} {
+	// `migrationExport` joined them when the schedule card gained its toggle.
+	// A DELIBERATE payload change: the page reads this key by name to draw the
+	// switch, so it is pinned here like the rest.
+	for _, k := range []string{"enabled", "schedule", "time", "timezone", "keepCount",
+		"keepDays", "migrationExport"} {
 		if _, ok := got[k]; !ok {
 			t.Errorf("settings payload is missing %q", k)
 		}
 	}
-	if len(got) != 6 {
-		t.Errorf("settings payload has %d keys, want exactly 6: %v", len(got), got)
+	if len(got) != 7 {
+		t.Errorf("settings payload has %d keys, want exactly 7: %v", len(got), got)
 	}
 }
 
@@ -83,8 +87,10 @@ func TestRowPayloadShape(t *testing.T) {
 	if err := json.Unmarshal(blob, &got); err != nil {
 		t.Fatal(err)
 	}
+	// `hasSecrets` joined them with the migration export: the Actions column
+	// draws its third download link from it, per ROW rather than per router.
 	for _, k := range []string{"id", "takenAt", "outcome", "source", "actor", "stem",
-		"pruned", "bytes", "osVersion", "model", "serial", "ms", "error"} {
+		"pruned", "bytes", "hasSecrets", "osVersion", "model", "serial", "ms", "error"} {
 		if _, ok := got[k]; !ok {
 			t.Errorf("row payload is missing %q", k)
 		}

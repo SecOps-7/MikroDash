@@ -52,7 +52,8 @@ CREATE TABLE grants (id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
 CREATE TABLE config_backups (id INTEGER PRIMARY KEY, router_id TEXT NOT NULL,
   taken_at INTEGER NOT NULL, outcome TEXT NOT NULL, source TEXT NOT NULL, actor TEXT,
   stem TEXT, dir TEXT, fingerprint TEXT, rsc_bytes INTEGER NOT NULL,
-  backup_bytes INTEGER NOT NULL, model TEXT, serial TEXT, os_version TEXT,
+  backup_bytes INTEGER NOT NULL, secrets_bytes INTEGER NOT NULL DEFAULT 0,
+  model TEXT, serial TEXT, os_version TEXT,
   ms INTEGER NOT NULL, pruned_at INTEGER, error TEXT);
 ` + rollupTablesDDL
 

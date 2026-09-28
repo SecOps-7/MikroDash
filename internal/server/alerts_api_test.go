@@ -60,6 +60,37 @@ CREATE TABLE IF NOT EXISTS report_schedules (
   updated_at      INTEGER NOT NULL
 );`
 
+// configBackupsPreMigrationDDL is the same story one table along.
+//
+// Migration 30 ALTERs `config_backups`, and NO migration creates it - it
+// predates them all - so a genuine database of any vintage has it. A fixture
+// that stamps an old schema_version and replays the migrations has to have it
+// too, or 30 fails there and nowhere else, which reads as a broken migration
+// rather than as an incomplete fixture.
+//
+// Shared for the reason above: two copies of a schema are two things to keep
+// true.
+const configBackupsPreMigrationDDL = `
+CREATE TABLE IF NOT EXISTS config_backups (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  router_id    TEXT    NOT NULL,
+  taken_at     INTEGER NOT NULL,
+  outcome      TEXT    NOT NULL,
+  source       TEXT    NOT NULL DEFAULT 'schedule',
+  actor        TEXT,
+  stem         TEXT,
+  dir          TEXT,
+  fingerprint  TEXT,
+  rsc_bytes    INTEGER NOT NULL DEFAULT 0,
+  backup_bytes INTEGER NOT NULL DEFAULT 0,
+  model        TEXT,
+  serial       TEXT,
+  os_version   TEXT,
+  ms           INTEGER NOT NULL DEFAULT 0,
+  pruned_at    INTEGER,
+  error        TEXT
+);`
+
 const alertTestDDL = `
 -- db.Open reads this before anything else, and reports "is this the right
 -- /data?" when it is missing. Version 14 is what the live migrations have
@@ -90,7 +121,7 @@ CREATE TABLE IF NOT EXISTS alert_events (
   acknowledged_at INTEGER,
   acknowledged_by TEXT
 );
-` + reportSchedulesPreMigrationDDL
+` + reportSchedulesPreMigrationDDL + configBackupsPreMigrationDDL
 
 // alertServer builds a server with an alert store, a hub and a primed session.
 //

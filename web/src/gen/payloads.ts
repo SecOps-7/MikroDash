@@ -132,6 +132,7 @@ export interface Settings {
   timezone: string;
   keepCount: number;
   keepDays: number;
+  migrationExport: boolean;
 }
 
 export interface BackupSummary {
@@ -151,6 +152,7 @@ export interface BackupRow {
   stem: string | null;
   pruned: boolean;
   bytes: number;
+  hasSecrets: boolean;
   osVersion: string | null;
   model: string | null;
   serial: string | null;

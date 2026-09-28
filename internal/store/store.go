@@ -563,6 +563,22 @@ type BackupBlock struct {
 	KeepCount *int    `json:"keepCount"`
 	KeepDays  *int    `json:"keepDays"`
 
+	// MigrationExport keeps one beside each pair: `/export
+	// show-sensitive`, sealed with the settings envelope.
+	//
+	// ── OFF UNLESS ASKED FOR, AND FOR TWO SEPARATE REASONS ────────────────
+	//
+	// It costs a SECOND `/export` on every changed backup, on a router whose
+	// concurrent channels are the bottleneck this app spends carefully. And it
+	// means this install starts holding that router's credentials at rest -
+	// sealed, but beside the key in /data, so it survives a stolen volume and
+	// not somebody who already has /data.
+	//
+	// A plain bool, not a pointer: absent and false mean the same thing here,
+	// because the default is off and there is nothing to distinguish "never
+	// chosen" from "chosen off".
+	MigrationExport bool `json:"migrationExport"`
+
 	// Encrypted is what the file holds: the backup password, sealed the same way
 	// the router credential is. It encrypts the .backup binary, so it is a
 	// credential in its own right.

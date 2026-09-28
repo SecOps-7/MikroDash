@@ -87,16 +87,21 @@ type BackupInput struct {
 	Time      *string `json:"time"`
 	KeepCount *string `json:"keepCount"`
 	KeepDays  *string `json:"keepDays"`
+	// MigrationExport follows Enabled's shape - `any`, coerced by Truthy - so a client
+	// sending the string "true" is read the same way, and an ABSENT field keeps
+	// what is stored rather than silently switching it off.
+	MigrationExport any `json:"migrationExport"`
 }
 
 // Normalized is a backup block ready to store.
 type Normalized struct {
-	Enabled   bool
-	Schedule  string
-	Time      string
-	KeepCount int
-	KeepDays  int
-	Password  string
+	Enabled         bool
+	Schedule        string
+	Time            string
+	KeepCount       int
+	KeepDays        int
+	MigrationExport bool
+	Password        string
 	// PasswordGenerated reports that this call minted one, so the caller can
 	// record that in the audit trail — a credential coming into existence is
 	// worth a row even though its value is not.
@@ -106,12 +111,13 @@ type Normalized struct {
 // Prev is what is currently stored, or nil for a router that has never had a
 // backup block.
 type Prev struct {
-	Enabled   bool
-	Schedule  string
-	Time      *string
-	KeepCount *int
-	KeepDays  *int
-	Password  string
+	Enabled         bool
+	Schedule        string
+	Time            *string
+	KeepCount       *int
+	KeepDays        *int
+	MigrationExport bool
+	Password        string
 }
 
 // NormalizeBackup applies the contract above.
@@ -127,6 +133,7 @@ func NormalizeBackup(in BackupInput, prev *Prev, mint func() (string, error)) (N
 	}
 	if prev != nil {
 		out.Enabled = prev.Enabled
+		out.MigrationExport = prev.MigrationExport
 		if prev.Schedule != "" {
 			out.Schedule = prev.Schedule
 		}
@@ -144,6 +151,12 @@ func NormalizeBackup(in BackupInput, prev *Prev, mint func() (string, error)) (N
 
 	if in.Enabled != nil {
 		out.Enabled = Truthy(in.Enabled)
+	}
+	// ABSENT KEEPS THE STORED VALUE. A form that saves the schedule without
+	// sending this field must not switch off a migration export the operator
+	// turned on - the same rule the password follows.
+	if in.MigrationExport != nil {
+		out.MigrationExport = Truthy(in.MigrationExport)
 	}
 	// AN UNKNOWN SCHEDULE KEEPS THE STORED ONE, never the default: a typo must
 	// not silently move a weekly backup to daily.

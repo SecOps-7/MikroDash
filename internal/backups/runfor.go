@@ -48,11 +48,14 @@ type RunRow struct {
 	Fingerprint *string
 	RscBytes    int64
 	BackupBytes int64
-	Model       *string
-	Serial      *string
-	OSVersion   *string
-	MS          int64
-	Error       *string
+	// SecretsBytes is 0 for every router that keeps no migration export, which
+	// is every router until one is switched on.
+	SecretsBytes int64
+	Model        *string
+	Serial       *string
+	OSVersion    *string
+	MS           int64
+	Error        *string
 }
 
 // RunForConfig is one recorded run.
@@ -72,8 +75,12 @@ type RunForConfig struct {
 
 	Connect   func() (Writer, func(), error)
 	WritePair func(dir, stem, rsc string, binary []byte) (rscBytes, backupBytes int64, err error)
-	Now       func() int64
-	Log       func(string)
+	// MigrationExport and WriteSecrets carry it through. See
+	// RunConfig for why it is per-router rather than always on.
+	MigrationExport bool
+	WriteSecrets    func(dir, stem, rsc string) (int64, error)
+	Now             func() int64
+	Log             func(string)
 
 	// Notify tells someone about a run, and only about the two outcomes worth
 	// interrupting for. Nil sends nothing, which is what every caller without a
@@ -135,6 +142,7 @@ func RunFor(cfg RunForConfig) (RunResult, int64, error) {
 	res := Run(RunConfig{
 		Label: cfg.Label, Password: cfg.Password, PrevFingerprint: previous,
 		DataDir: cfg.DataDir, Connect: cfg.Connect, WritePair: cfg.WritePair,
+		MigrationExport: cfg.MigrationExport, WriteSecrets: cfg.WriteSecrets,
 		Log: log,
 	})
 
@@ -142,6 +150,7 @@ func RunFor(cfg RunForConfig) (RunResult, int64, error) {
 		RouterID: cfg.RouterID, TakenAt: now(), Outcome: res.Outcome,
 		Source: cfg.Source, MS: res.MS,
 		RscBytes: res.RscBytes, BackupBytes: res.BackupBytes,
+		SecretsBytes: res.SecretsBytes,
 	}
 	if cfg.Actor != "" {
 		row.Actor = &cfg.Actor

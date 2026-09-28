@@ -121,8 +121,11 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     if (kc) kc.value = String(st.settings.keepCount);
     const kd = el<HTMLInputElement>('bkKeepDays');
     if (kd) kd.value = String(st.settings.keepDays);
+    const sec = el<HTMLInputElement>('bkSecrets');
+    if (sec) sec.checked = !!st.settings.migrationExport;
 
-    ['bkEnabled', 'bkSchedule', 'bkTime', 'bkKeepCount', 'bkKeepDays'].forEach((id) => {
+    ['bkEnabled', 'bkSchedule', 'bkTime', 'bkKeepCount', 'bkKeepDays',
+      'bkSecrets'].forEach((id) => {
       const e = el<HTMLInputElement>(id);
       if (e) e.disabled = !st.permitted;
     });
@@ -176,6 +179,17 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
           const q = '?routerId=' + encodeURIComponent(st.routerId);
           actions.push('<a class="sbtn sbtn-ghost" style="' + BTN +
             '" href="/api/backups/' + r.id + '/rsc' + q + '">.rsc</a>');
+          // ── ONLY WHEN THE ROW HAS ONE ───────────────────────────────
+          //
+          // Per ROW, not per router: switching the setting on does not
+          // retrofit backups taken before it, so a link drawn from the
+          // router's setting would 404 on every older row.
+          if (r.hasSecrets) {
+            actions.push('<a class="sbtn sbtn-ghost" style="' + BTN +
+              '" title="Full export INCLUDING passwords and keys - for rebuilding ' +
+              'on a different device" href="/api/backups/' + r.id + '/secrets' + q +
+              '">.rsc (secrets)</a>');
+          }
           actions.push('<a class="sbtn sbtn-ghost" style="' + BTN +
             '" href="/api/backups/' + r.id + '/backup' + q + '">.backup</a>');
         }
@@ -294,6 +308,7 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       time: el<HTMLInputElement>('bkTime')?.value,
       keepCount: el<HTMLInputElement>('bkKeepCount')?.value,
       keepDays: el<HTMLInputElement>('bkKeepDays')?.value,
+      migrationExport: el<HTMLInputElement>('bkSecrets')?.checked,
     });
   }
 

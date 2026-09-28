@@ -579,9 +579,10 @@ func (s *Server) cfgRestorePoint(sn *session.Session, routerID, label, actor str
 				return out, err
 			}, func() {}, nil
 		},
-		WritePair: backups.WritePair,
-		Now:       func() int64 { return time.Now().UnixMilli() },
-		Log:       func(m string) { log.Printf("[backup][%s] %s", label, m) },
+		WritePair:       backups.WritePair,
+		MigrationExport: s.migrationExportEnabledFor(routerID), WriteSecrets: s.sealSecretsExport,
+		Now: func() int64 { return time.Now().UnixMilli() },
+		Log: func(m string) { log.Printf("[backup][%s] %s", label, m) },
 	})
 	if err != nil {
 		return 0, err

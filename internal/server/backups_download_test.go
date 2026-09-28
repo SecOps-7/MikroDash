@@ -35,20 +35,13 @@ func dlServer(t *testing.T) (*Server, *http.ServeMux, int64) {
 func dlServerAs(t *testing.T, sess *Session) (*Server, *http.ServeMux, int64) {
 	t.Helper()
 	s, mux, _ := routersServer(t, sess, "")
-	// `routersServer` creates the database file with the ALERT fixture's DDL, and
-	// `db.Open` builds the full schema only for a file that does not exist yet —
-	// so `config_backups` is absent here and has to be made. Copied from
-	// `internal/db/schema_ddl.go`; the columns this route reads are the ones that
-	// matter, and `GetBackup` selects them by name.
-	if err := execOn(t, routerDBDir[s], `
-CREATE TABLE config_backups (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, router_id TEXT NOT NULL,
-  taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
-  source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
-  fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
-  backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
-  os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT
-);`); err != nil {
+	// `routersServer` builds the database from the alert fixture's DDL, which
+	// carries `config_backups` in its PRE-MIGRATION shape. This route reads
+	// `secrets_bytes`, which migration 30 adds - and the full migration cannot
+	// run against this fixture, which has no `role_pages` for v17. So the one
+	// column is added here, with the SAME statement migration 30 uses.
+	if err := execOn(t, routerDBDir[s],
+		`ALTER TABLE config_backups ADD COLUMN secrets_bytes INTEGER NOT NULL DEFAULT 0;`); err != nil {
 		t.Fatal(err)
 	}
 

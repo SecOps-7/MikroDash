@@ -46,6 +46,7 @@ CREATE TABLE config_backups (
   fingerprint  TEXT,
   rsc_bytes    INTEGER NOT NULL DEFAULT 0,
   backup_bytes INTEGER NOT NULL DEFAULT 0,
+  secrets_bytes INTEGER NOT NULL DEFAULT 0,
   model        TEXT,
   serial       TEXT,
   os_version   TEXT,

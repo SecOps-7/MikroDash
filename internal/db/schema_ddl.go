@@ -83,6 +83,9 @@ CREATE TABLE config_backups (
           fingerprint  TEXT,
           rsc_bytes    INTEGER NOT NULL DEFAULT 0,
           backup_bytes INTEGER NOT NULL DEFAULT 0,
+          -- The migration export, when a router has one enabled. 0 means there
+          -- is no such file, which is what every row has until it is turned on.
+          secrets_bytes INTEGER NOT NULL DEFAULT 0,
           model        TEXT,
           serial       TEXT,
           os_version   TEXT,

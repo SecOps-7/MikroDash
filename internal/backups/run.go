@@ -58,10 +58,13 @@ type RunResult struct {
 	Identity    Identity `json:"identity"`
 	// FreeBytes is kept OFF Identity deliberately: that is what gets recorded as
 	// the device's identity, and free space is a fact about this moment.
-	FreeBytes int64  `json:"freeBytes"`
-	MS        int64  `json:"ms"`
-	Error     string `json:"error"`
-	Dir       string `json:"dir"`
+	// SecretsBytes is the sealed migration export's size, 0 when this router
+	// keeps none.
+	SecretsBytes int64  `json:"secretsBytes"`
+	FreeBytes    int64  `json:"freeBytes"`
+	MS           int64  `json:"ms"`
+	Error        string `json:"error"`
+	Dir          string `json:"dir"`
 }
 
 // RunConfig is everything one run needs. Connect and WritePair are injected so
@@ -80,6 +83,19 @@ type RunConfig struct {
 	// its lifetime, which is what keeps this testable with a fake.
 	Connect   func() (Writer, func(), error)
 	WritePair func(dir, stem, rsc string, binary []byte) (rscBytes, backupBytes int64, err error)
+
+	// ── THE MIGRATION EXPORT, OFF UNLESS A ROUTER ASKS FOR IT ──────────────
+	//
+	// `/export` is either sensitive or it is not, so this cannot share the
+	// diffable export's run: enabling it costs a SECOND export per changed
+	// backup - one more command on a router whose concurrent channels are the
+	// bottleneck this app exists to spend carefully. That cost is why it is a
+	// per-router setting rather than always on.
+	//
+	// WriteSecrets receives the PLAIN text and is expected to seal it. Nil, or
+	// MigrationExport false, and no second export is run at all.
+	MigrationExport bool
+	WriteSecrets    func(dir, stem, rsc string) (int64, error)
 
 	Now   func() time.Time
 	Sleep func(time.Duration)
@@ -219,6 +235,33 @@ func Run(cfg RunConfig) (res RunResult) {
 		return fail(err)
 	}
 	res.RscBytes, res.BackupBytes, res.Dir = rscBytes, backupBytes, dir
+
+	// ── The migration export, for rebuilding on a different device ──────────
+	//
+	// AFTER the pair, and after the unchanged check above, so an idle router
+	// never pays for it. A SEPARATE BASE on the router: two exports to one
+	// filename would have the second overwrite the first, and the sweep takes
+	// both because it matches on FilePrefix rather than on the whole name.
+	//
+	// A FAILURE HERE DOES NOT FAIL THE RUN. The pair is already on disk and is
+	// what restores and diffs; losing the migration export costs one download
+	// that can be taken again next time, and failing the whole backup over it
+	// would turn an optional extra into a way to lose restore points.
+	if cfg.MigrationExport && cfg.WriteSecrets != nil {
+		secText, serr := ExportText(w, "/export", base+"-s", now, sleep,
+			"=terse=", "=show-sensitive=")
+		if serr == nil {
+			n, werr := cfg.WriteSecrets(dir, stem, Normalize(secText))
+			if werr != nil {
+				serr = werr
+			} else {
+				res.SecretsBytes = n
+			}
+		}
+		if serr != nil {
+			say("migration export skipped: " + serr.Error())
+		}
+	}
 	res.Outcome, res.Changed = OutcomeChanged, true
 	say("stored " + stem + " (" + itoaKB(rscBytes) + " KB export, " +
 		itoaKB(backupBytes) + " KB binary)")

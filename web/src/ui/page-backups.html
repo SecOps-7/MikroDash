@@ -47,6 +47,24 @@
               <div class="form-hint">days, 0 for no limit</div>
             </div>
           </div>
+          <div class="row g-3 mt-1">
+            <div class="col-sm-12">
+              <label class="form-label" for="bkSecrets">Migration export</label>
+              <label class="stoggle" style="max-width:32rem"><span class="stoggle-label">Also keep a full export including passwords and keys</span><span class="stoggle-switch"><input type="checkbox" id="bkSecrets"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <!-- SAYS WHAT IT COSTS, not just what it does. Switching this on
+                   changes what this install holds at rest and adds a second
+                   export per changed backup. An operator turning it on should
+                   be told both, at the switch, rather than in a doc. -->
+              <div class="form-hint">
+                A <code>.backup</code> restores onto the <strong>same</strong> device - it even carries its MAC
+                addresses. To rebuild on a <strong>different</strong> one you need the export, and an ordinary
+                export has every password masked. This keeps a second export with them included,
+                encrypted at rest and downloadable from the history below.
+                It costs one extra export per changed backup, and it means this server
+                stores that router&#8217;s credentials. Off unless you need it.
+              </div>
+            </div>
+          </div>
           <div class="form-hint mt-3" id="bkExplain">
             A backup is stored only when the configuration actually changed, so a
             frequent schedule costs a short check rather than disk. Each restore point

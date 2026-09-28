@@ -40,6 +40,10 @@ type Backup struct {
 	Enabled  bool
 	Schedule string
 	Time     *string
+	// MigrationExport keeps a migration export beside each pair. It has no bearing on
+	// whether a backup is DUE - it only changes what one run writes - but it
+	// rides here because this is the shape the settings form round-trips.
+	MigrationExport bool
 }
 
 // backupTime is `/^([01]\d|2[0-3]):([0-5]\d)$/`, and it is STRICTER than the

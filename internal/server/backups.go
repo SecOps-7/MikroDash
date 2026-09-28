@@ -32,6 +32,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -135,6 +136,7 @@ func (cn *conn) backupRecordFor(routerID string) backupRecord {
 		return backupRecord{
 			block: &backups.Backup{
 				Enabled: r.Backup.Enabled, Schedule: r.Backup.Schedule, Time: r.Backup.Time,
+				MigrationExport: r.Backup.MigrationExport,
 			},
 			keepCount: r.Backup.KeepCount,
 			keepDays:  r.Backup.KeepDays,
@@ -177,7 +179,9 @@ func (cn *conn) backupsSettings(raw json.RawMessage) {
 	if rec.block != nil {
 		prev = &backups.Prev{
 			Enabled: rec.block.Enabled, Schedule: rec.block.Schedule, Time: rec.block.Time,
-			KeepCount: rec.keepCount, KeepDays: rec.keepDays, Password: rec.password,
+			KeepCount: rec.keepCount, KeepDays: rec.keepDays,
+			MigrationExport: rec.block.MigrationExport,
+			Password:        rec.password,
 		}
 	}
 
@@ -191,11 +195,12 @@ func (cn *conn) backupsSettings(raw json.RawMessage) {
 	}
 
 	patch := map[string]any{
-		"enabled":   norm.Enabled,
-		"schedule":  norm.Schedule,
-		"time":      norm.Time,
-		"keepCount": norm.KeepCount,
-		"keepDays":  norm.KeepDays,
+		"enabled":         norm.Enabled,
+		"schedule":        norm.Schedule,
+		"time":            norm.Time,
+		"keepCount":       norm.KeepCount,
+		"keepDays":        norm.KeepDays,
+		"migrationExport": norm.MigrationExport,
 	}
 	// THE PASSWORD IS ONLY WRITTEN WHEN IT WAS JUST MINTED. Writing the carried
 	// one back on every save would re-seal it with a fresh IV each time — churn
@@ -221,6 +226,11 @@ func (cn *conn) backupsSettings(raw json.RawMessage) {
 	// came into existence, which is worth a row even though its value is not.
 	extra := []audit.KV{
 		{Key: "enabled", Value: norm.Enabled},
+		// WORTH A ROW OF ITS OWN: switching this on changes what this install
+		// holds at rest, from a config with its secrets masked to one with them
+		// in it. That is a security-relevant decision and the trail should say
+		// who made it.
+		{Key: "migrationExport", Value: norm.MigrationExport},
 		{Key: "schedule", Value: norm.Schedule},
 		{Key: "time", Value: norm.Time},
 	}
@@ -252,7 +262,8 @@ func (r bkRecorder) Record(row backups.RunRow) (int64, error) {
 		RouterID: row.RouterID, TakenAt: row.TakenAt, Outcome: row.Outcome,
 		Source: row.Source, Actor: row.Actor, Stem: row.Stem, Dir: row.Dir,
 		Fingerprint: row.Fingerprint, RscBytes: row.RscBytes, BackupBytes: row.BackupBytes,
-		Model: row.Model, Serial: row.Serial, OSVersion: row.OSVersion,
+		SecretsBytes: row.SecretsBytes,
+		Model:        row.Model, Serial: row.Serial, OSVersion: row.OSVersion,
 		MS: row.MS, Error: row.Error,
 	})
 }
@@ -393,9 +404,11 @@ func (cn *conn) runBackupNow(via string) writeOutcome {
 			Connect: func() (backups.Writer, func(), error) {
 				return cn.bkWriter(), func() {}, nil
 			},
-			WritePair: backups.WritePair,
-			Now:       func() int64 { return time.Now().UnixMilli() },
-			Log:       func(m string) { log.Printf("[backup][%s] %s", label, m) },
+			WritePair:       backups.WritePair,
+			MigrationExport: cn.srv.migrationExportEnabledFor(cn.routerID),
+			WriteSecrets:    cn.srv.sealSecretsExport,
+			Now:             func() int64 { return time.Now().UnixMilli() },
+			Log:             func(m string) { log.Printf("[backup][%s] %s", label, m) },
 		})
 		return runErr
 	})
@@ -678,4 +691,59 @@ func (cn *conn) bkStoredRow(id int64) *db.BackupRow {
 		return nil
 	}
 	return row
+}
+
+// ── THE MIGRATION EXPORT'S ENVELOPE ─────────────────────────────────────────
+//
+// `/export show-sensitive` is the router's whole configuration with every
+// credential in the clear. It is sealed before it touches disk, with the same
+// AES-256-GCM envelope the settings and the backup password use, so the bytes
+// beside the pair are not greppable plaintext.
+//
+// ── WHAT THIS DOES AND DOES NOT PROTECT ────────────────────────────────────
+//
+// It protects a COPY of the volume: a lifted `config-backups` directory, a
+// snapshot, a stray tarball. It does NOT protect somebody who already has
+// `/data`, because the key lives there too. That is the same guarantee the
+// backup password has, and saying so here is better than letting "encrypted at
+// rest" be read as more than it is.
+
+// sealSecretsExport writes one sealed migration export.
+func (s *Server) sealSecretsExport(dir, stem, rscText string) (int64, error) {
+	if s.store == nil {
+		// NEVER IN THE CLEAR. A refusal costs one download; a fallback would
+		// put every credential on the router on disk as plain text.
+		return 0, errors.New("settings storage is unavailable, so the export cannot be sealed")
+	}
+	sealed, err := s.store.Encrypt(rscText)
+	if err != nil {
+		return 0, err
+	}
+	return backups.WriteSecrets(dir, stem, []byte(sealed))
+}
+
+// openSecretsExport reads one back.
+func (s *Server) openSecretsExport(dir, stem string) (string, error) {
+	raw, err := backups.ReadSecrets(dir, stem)
+	if err != nil {
+		return "", err
+	}
+	if s.store == nil {
+		return "", errors.New("settings storage is unavailable")
+	}
+	return s.store.Decrypt(string(raw))
+}
+
+// migrationExportEnabledFor reports whether this router keeps a migration export.
+func (s *Server) migrationExportEnabledFor(routerID string) bool {
+	if s.store == nil {
+		return false
+	}
+	list, _ := s.store.Routers()
+	for _, r := range list {
+		if r.ID == routerID {
+			return r.Backup.MigrationExport
+		}
+	}
+	return false
 }
