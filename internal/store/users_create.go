@@ -163,6 +163,56 @@ func (s *Store) CreateUser(in NewUser) (map[string]any, error) {
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
+	return s.appendUser(rec)
+}
+
+// CreateExternalUser appends an account that signs in somewhere else.
+//
+// ── EMPTY HASH AND EMPTY SALT, WRITTEN ON PURPOSE ──────────────────────────
+//
+// `VerifyPassword` fails when either is empty, while still burning a full scrypt
+// so the timing says nothing. That is what makes such an account unable to use
+// the password form AT ALL — including with an empty password, which is the trap
+// here: `CreateUser` always hashes, so passing "" through it would store
+// `HashPassword("")`, and a submitted empty password would then MATCH.
+//
+// So this does not call CreateUser with an empty password. It writes the two
+// fields empty, and `TestAnExternalUserCannotSignInWithAnyPassword` pins both
+// halves of that.
+//
+// The account is otherwise ordinary: it appears in users.json, `userIDFor` finds
+// it, and its grants work like anyone else's. What makes it external is a row in
+// `sso_identities`, not anything in this file — see internal/db/sso_schema.go on
+// why the binding lives there rather than as a field here.
+func (s *Store) CreateExternalUser(username, role string) (map[string]any, error) {
+	r, err := validRole(role)
+	if err != nil {
+		return nil, err
+	}
+	id, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	return s.appendUser(newUserRecord{
+		ID:           id,
+		Username:     strings.TrimSpace(username),
+		PasswordHash: "",
+		Salt:         "",
+		Role:         r,
+		// Empty means UNRESTRICTED once it reaches rbac.PlanUserGrants. An SSO
+		// user's reach is decided by the role their claims mapped to, and
+		// narrowing it by router here would be a second, invisible rule.
+		AllowedRouterIDs: []string{},
+		CreatedAt:        time.Now().UnixMilli(),
+	})
+}
+
+// appendUser writes one record to users.json.
+//
+// Shared by both creation paths so the file semantics below - and in particular
+// the refusal to overwrite a file that will not parse - have one implementation
+// rather than two that must be kept in step.
+func (s *Store) appendUser(rec newUserRecord) (map[string]any, error) {
 	path := filepath.Join(s.Dir, "users.json")
 	// `[]json.RawMessage`, so every existing record reaches disk exactly as it
 	// was read — the rule `users_write.go` and the router writers follow.
