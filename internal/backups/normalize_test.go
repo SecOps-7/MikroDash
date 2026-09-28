@@ -227,3 +227,51 @@ func TestAMintFailureIsNotSwallowed(t *testing.T) {
 		t.Fatalf("got %v, want the mint failure", err)
 	}
 }
+
+// ── AN ABSENT migrationExport KEEPS WHAT IS STORED ─────────────────────────
+//
+// The Backups page always sends the field, so this looks untestable in
+// practice - which is exactly why it is worth a test. The rule is the one the
+// password already follows: a save that does not mention a setting must not
+// change it. Without this, any client that omits the field - a future form, a
+// script, a partial patch - would silently switch off a migration export the
+// operator turned on, and the only sign would be the third download link
+// quietly failing to appear on later backups.
+//
+// Found by a mutation: replacing the `!= nil` check with `true` passed the
+// whole suite.
+func TestAnAbsentMigrationExportKeepsTheStoredValue(t *testing.T) {
+	on := &Prev{Enabled: true, Schedule: "daily", MigrationExport: true, Password: "pw"}
+
+	// Absent: the field is not in the body at all.
+	got, err := NormalizeBackup(BackupInput{}, on, func() (string, error) { return "", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.MigrationExport {
+		t.Error("a save that did not mention migrationExport switched it OFF.\n" +
+			"    Every later backup would quietly stop keeping one, and the only " +
+			"sign would be a download link that stopped appearing.")
+	}
+
+	// Explicitly false: that IS a change, and must apply.
+	got, err = NormalizeBackup(BackupInput{MigrationExport: false}, on,
+		func() (string, error) { return "", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MigrationExport {
+		t.Error("an explicit false did not switch it off")
+	}
+
+	// And the string form, because Truthy is what reads it.
+	got, err = NormalizeBackup(BackupInput{MigrationExport: "true"},
+		&Prev{Schedule: "daily", Password: "pw"}, func() (string, error) { return "", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.MigrationExport {
+		t.Error(`the string "true" did not switch it on; a client that stringifies ` +
+			"its booleans would be unable to enable this at all")
+	}
+}
