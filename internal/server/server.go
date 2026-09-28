@@ -256,6 +256,11 @@ type Server struct {
 	//
 	sessions4Web *websession.Store
 	forceHTTPS   bool
+	// sso is the runtime half of single sign-on: the per-provider discovery and
+	// key caches, and the logins in flight. Zero-valued is usable - both halves
+	// build themselves on first use - so nothing has to be constructed for an
+	// install that never configures a provider. See sso_login.go.
+	sso ssoState
 	// staticDir is the shared asset tree; see Options.StaticDir.
 	staticDir string
 	// geoDir is where the two DB-IP databases ship. Kept as a field, not just
@@ -595,6 +600,13 @@ func (s *Server) Handler() http.Handler {
 	// life of the tab. See internal/server/wireguard.go.
 	s.registerWireguard(mux)
 	s.registerAuthLogin(mux)
+	// Signing in through an identity provider. Registered beside the password
+	// form because it is the same question asked a different way, and because
+	// the password form must never stop being registered alongside it - that is
+	// the break-glass guarantee. See sso_login.go.
+	s.registerSSOLogin(mux)
+	// Configuring them, behind the Access Management gate. See sso_api.go.
+	s.registerSSOAPI(mux)
 	// The first-run wizard. See setup_api.go.
 	s.registerSetup(mux)
 	// The account modal: sessions, access, permissions, password. See

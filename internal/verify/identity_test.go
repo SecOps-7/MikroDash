@@ -120,6 +120,21 @@ var identityColumns = []identityColumn{
 			"someone approves it; copied, never re-resolved, so it stays an id.",
 	},
 	{
+		column: "sso_identities.user_id", kind: "id",
+		file: "internal/server/sso_login.go", site: "UpsertSSOIdentity(row.ID, v.Subject, userID)",
+		sites: 1,
+		why: "the binding between an identity provider's `sub` and a local account. The id, " +
+			"because every later sign-in resolves it straight into a session and a grant - a " +
+			"username here would rebind the moment somebody renamed an account.",
+	},
+	{
+		column: "grants.principal_id", kind: "id",
+		file: "internal/server/sso_login.go", site: "PrincipalID: userID", sites: 1,
+		why: "the grant an SSO sign-in rewrites from the role mapping, on EVERY sign-in. The " +
+			"same column principals writes, reached by a second path - which is exactly the " +
+			"case the header warns is invisible to a round-trip test.",
+	},
+	{
 		column: "grants.created_by", kind: "caller",
 		file: "internal/db/grantwrite.go", site: "s.CreatedBy", sites: 2,
 		why: "as above, and distinct from principal_id - swapping them is silent.",
@@ -158,8 +173,8 @@ func TestIdentityColumns(t *testing.T) {
 
 	// The ledger is hand-written, so an empty or truncated one would pass in
 	// silence. Fourteen entries is what this port writes today.
-	if len(identityColumns) < 14 {
-		t.Fatalf("the ledger holds %d entries; it had 14 - entries were removed rather than "+
+	if len(identityColumns) < 16 {
+		t.Fatalf("the ledger holds %d entries; it had 16 - entries were removed rather than "+
 			"the writers being fixed", len(identityColumns))
 	}
 	t.Logf("%d shared identity columns checked, each at its recorded number of call sites",

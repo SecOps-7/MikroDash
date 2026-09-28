@@ -55,7 +55,7 @@ type tokenError struct {
 // Exchange trades the code for an id token, and returns only that.
 func (p *Provider) Exchange(ctx context.Context, code, verifier string) (string, error) {
 	if code == "" || verifier == "" {
-		return "", refuse(CodeToken, "the callback carried no code")
+		return "", Refuse(CodeToken, "the callback carried no code")
 	}
 	doc, err := p.Discovery(ctx)
 	if err != nil {
@@ -73,7 +73,7 @@ func (p *Provider) Exchange(ctx context.Context, code, verifier string) (string,
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, doc.TokenEndpoint, nil)
 	if err != nil {
-		return "", refuse(CodeConfig, "the token endpoint is not a usable URL")
+		return "", Refuse(CodeConfig, "the token endpoint is not a usable URL")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
@@ -91,18 +91,18 @@ func (p *Provider) Exchange(ctx context.Context, code, verifier string) (string,
 			// Named separately from an unreachable provider: this one is a
 			// configuration problem with a specific fix, and it is the
 			// credential-leaking case.
-			return "", refuse(CodeConfig, redir.Error())
+			return "", Refuse(CodeConfig, redir.Error())
 		}
-		return "", refuse(CodeProvider, "the identity provider could not be reached")
+		return "", Refuse(CodeProvider, "the identity provider could not be reached")
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(res.Body, bodyLimit+1))
 	if err != nil {
-		return "", refuse(CodeProvider, "the identity provider's answer could not be read")
+		return "", Refuse(CodeProvider, "the identity provider's answer could not be read")
 	}
 	if len(body) > bodyLimit {
-		return "", refuse(CodeProvider, "the identity provider's answer is too large")
+		return "", Refuse(CodeProvider, "the identity provider's answer is too large")
 	}
 	if res.StatusCode != http.StatusOK {
 		// The OAuth error CODE only. error_description is free text from a
@@ -110,25 +110,25 @@ func (p *Provider) Exchange(ctx context.Context, code, verifier string) (string,
 		var te tokenError
 		_ = json.Unmarshal(body, &te)
 		if te.Error != "" {
-			return "", refuse(CodeDenied, fmt.Sprintf("the identity provider refused the code: %s",
+			return "", Refuse(CodeDenied, fmt.Sprintf("the identity provider refused the code: %s",
 				safeErrorCode(te.Error)))
 		}
-		return "", refuse(CodeProvider, fmt.Sprintf("the identity provider answered %d", res.StatusCode))
+		return "", Refuse(CodeProvider, fmt.Sprintf("the identity provider answered %d", res.StatusCode))
 	}
 	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
-		return "", refuse(CodeProvider, fmt.Sprintf("the identity provider answered %q, not JSON", ct))
+		return "", Refuse(CodeProvider, fmt.Sprintf("the identity provider answered %q, not JSON", ct))
 	}
 
 	var tr tokenResponse
 	if err := json.Unmarshal(body, &tr); err != nil {
-		return "", refuse(CodeProvider, "the identity provider's answer is not JSON")
+		return "", Refuse(CodeProvider, "the identity provider's answer is not JSON")
 	}
 	if tr.IDToken == "" {
 		// THE FAILURE WORTH NAMING: a plain OAuth 2.0 server with no OpenID
 		// support returns a perfectly valid token response with no id_token. An
 		// implementation that then verified "" would report a parse error
 		// instead of "this is not an OpenID Provider".
-		return "", refuse(CodeConfig, "the provider returned no id token; it may not be an OpenID Provider")
+		return "", Refuse(CodeConfig, "the provider returned no id token; it may not be an OpenID Provider")
 	}
 	return tr.IDToken, nil
 }

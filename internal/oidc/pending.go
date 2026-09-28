@@ -124,7 +124,16 @@ func (p *Pending) Create(providerID, next string) (string, *login, error) {
 	}
 	rec := &login{
 		ProviderID: providerID, State: state, Nonce: nonce,
-		Verifier: verifier, Next: next, at: p.now(),
+		Verifier: verifier,
+		// ── THE next GUARD RUNS HERE, NOT IN THE HANDLER ────────────────────
+		//
+		// `next` arrives from a query string on an unauthenticated route and
+		// ends up in a Location header. Validating it at the one point every
+		// login must pass through means a handler cannot forget it, which is
+		// the only version of this check that stays true. It is why safeNext is
+		// unexported: there is nothing for a caller to remember.
+		Next: safeNext(next),
+		at:   p.now(),
 	}
 
 	p.mu.Lock()

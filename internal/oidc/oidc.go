@@ -128,10 +128,16 @@ func (e *Err) Error() string {
 
 func (e *Err) Unwrap() error { return e.Err }
 
-// refuse builds an Err. Every refusal in this package goes through it, so
+// Refuse builds an Err. Every refusal in this package goes through it, so
 // "which codes exist" is answered by reading the constants above rather than by
 // grepping for string literals.
-func refuse(code, detail string) *Err { return &Err{Code: code, Detail: detail} }
+//
+// EXPORTED because internal/server refuses in the same vocabulary: a provider
+// that is switched off, or an install with no base URL, are configuration
+// refusals that reach the browser as the same short code a protocol failure
+// does. A second spelling of this helper on the server side would be two forms
+// of one thing, and the codes would drift.
+func Refuse(code, detail string) *Err { return &Err{Code: code, Detail: detail} }
 
 // ErrNoKey says a token named a signing key this process does not hold. The
 // caller may refetch the key set ONCE and try again - see jwks.go for why that

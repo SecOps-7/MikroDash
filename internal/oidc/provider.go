@@ -184,7 +184,7 @@ func (p *Provider) Discovery(ctx context.Context) (*discovery, error) {
 		if p.disco != nil {
 			return p.disco, nil
 		}
-		return nil, refuse(CodeProvider, "the identity provider could not be reached")
+		return nil, Refuse(CodeProvider, "the identity provider could not be reached")
 	}
 
 	var doc discovery
@@ -205,11 +205,11 @@ func (p *Provider) Discovery(ctx context.Context) (*discovery, error) {
 	// case: two tenants of one provider differ only in this string.
 	if doc.Issuer != p.cfg.Issuer {
 		p.discoErrAt = now
-		return nil, refuse(CodeConfig, "the provider's metadata declares a different issuer")
+		return nil, Refuse(CodeConfig, "the provider's metadata declares a different issuer")
 	}
 	if doc.AuthorizationEndpoint == "" || doc.TokenEndpoint == "" || doc.JWKSURI == "" {
 		p.discoErrAt = now
-		return nil, refuse(CodeConfig, "the provider's metadata is missing an endpoint")
+		return nil, Refuse(CodeConfig, "the provider's metadata is missing an endpoint")
 	}
 	// The endpoints are NOT required to share the issuer's host. Google's issuer
 	// is accounts.google.com and its keys are on www.googleapis.com; Entra's
@@ -219,7 +219,7 @@ func (p *Provider) Discovery(ctx context.Context) (*discovery, error) {
 	for _, ep := range []string{doc.AuthorizationEndpoint, doc.TokenEndpoint, doc.JWKSURI} {
 		if err := httpsURL(ep); err != nil {
 			p.discoErrAt = now
-			return nil, refuse(CodeConfig, err.Error())
+			return nil, Refuse(CodeConfig, err.Error())
 		}
 	}
 	p.disco, p.discoAt = &doc, now
@@ -249,7 +249,7 @@ func (p *Provider) Keys(ctx context.Context, stale bool) (*keySet, error) {
 			if p.keys != nil {
 				return p.keys, nil
 			}
-			return nil, refuse(CodeProvider, "the provider's signing keys are not available")
+			return nil, Refuse(CodeProvider, "the provider's signing keys are not available")
 		}
 		p.lastKidAt = now
 	} else if fresh {
@@ -276,11 +276,11 @@ func (p *Provider) Keys(ctx context.Context, stale bool) (*keySet, error) {
 	}
 	if len(set.Keys) == 0 {
 		p.keysErrAt = now
-		return nil, refuse(CodeProvider, "the provider published no signing keys")
+		return nil, Refuse(CodeProvider, "the provider published no signing keys")
 	}
 	if len(set.Keys) > maxKeys {
 		p.keysErrAt = now
-		return nil, refuse(CodeProvider, fmt.Sprintf("the provider published %d keys", len(set.Keys)))
+		return nil, Refuse(CodeProvider, fmt.Sprintf("the provider published %d keys", len(set.Keys)))
 	}
 	p.keys, p.keysAt = &set, now
 	p.keysErrAt = time.Time{}
@@ -295,7 +295,7 @@ func (p *Provider) AuthorizeURL(ctx context.Context, l *login, scopes string) (s
 	}
 	u, err := url.Parse(doc.AuthorizationEndpoint)
 	if err != nil {
-		return "", refuse(CodeConfig, "the provider's authorization endpoint is not a URL")
+		return "", Refuse(CodeConfig, "the provider's authorization endpoint is not a URL")
 	}
 	if strings.TrimSpace(scopes) == "" {
 		scopes = "openid profile email"
@@ -321,7 +321,7 @@ func (p *Provider) AuthorizeURL(ctx context.Context, l *login, scopes string) (s
 func (p *Provider) getJSON(ctx context.Context, rawURL string, into any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return refuse(CodeConfig, "the metadata URL is not usable")
+		return Refuse(CodeConfig, "the metadata URL is not usable")
 	}
 	req.Header.Set("Accept", "application/json")
 	res, err := p.client().Do(req)
@@ -331,26 +331,26 @@ func (p *Provider) getJSON(ctx context.Context, rawURL string, into any) error {
 		// message depends on it.
 		var redir *RedirectError
 		if errors.As(err, &redir) {
-			return refuse(CodeConfig, redir.Error())
+			return Refuse(CodeConfig, redir.Error())
 		}
-		return refuse(CodeProvider, "the identity provider could not be reached")
+		return Refuse(CodeProvider, "the identity provider could not be reached")
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return refuse(CodeProvider, fmt.Sprintf("the identity provider answered %d", res.StatusCode))
+		return Refuse(CodeProvider, fmt.Sprintf("the identity provider answered %d", res.StatusCode))
 	}
 	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
-		return refuse(CodeProvider, fmt.Sprintf("the identity provider answered %q, not JSON", ct))
+		return Refuse(CodeProvider, fmt.Sprintf("the identity provider answered %q, not JSON", ct))
 	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, bodyLimit+1))
 	if err != nil {
-		return refuse(CodeProvider, "the identity provider's answer could not be read")
+		return Refuse(CodeProvider, "the identity provider's answer could not be read")
 	}
 	if len(body) > bodyLimit {
-		return refuse(CodeProvider, "the identity provider's answer is too large")
+		return Refuse(CodeProvider, "the identity provider's answer is too large")
 	}
 	if err := json.Unmarshal(body, into); err != nil {
-		return refuse(CodeProvider, "the identity provider's answer is not JSON")
+		return Refuse(CodeProvider, "the identity provider's answer is not JSON")
 	}
 	return nil
 }

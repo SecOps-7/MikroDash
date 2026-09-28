@@ -87,45 +87,45 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 	// caller that knew none of it would be asking this function to check a
 	// token against itself.
 	if want.Issuer == "" || want.ClientID == "" || want.Nonce == "" {
-		return nil, refuse(CodeConfig, "the caller supplied no issuer, client id or nonce to check against")
+		return nil, Refuse(CodeConfig, "the caller supplied no issuer, client id or nonce to check against")
 	}
 	if keys == nil || len(keys.Keys) == 0 {
-		return nil, refuse(CodeProvider, "the provider published no signing keys")
+		return nil, Refuse(CodeProvider, "the provider published no signing keys")
 	}
 
 	// ── 0. STRUCTURE ────────────────────────────────────────────────────────
 	if len(raw) > maxTokenBytes {
-		return nil, refuse(CodeToken, fmt.Sprintf("the token is %d bytes", len(raw)))
+		return nil, Refuse(CodeToken, fmt.Sprintf("the token is %d bytes", len(raw)))
 	}
 	parts := strings.Split(raw, ".")
 	// FIVE PARTS IS A JWE, not an attack - but a splitter that took parts[0],
 	// parts[1] and "the rest" would verify something that is not what it then
 	// interprets. Exactly three, or nothing.
 	if len(parts) != 3 {
-		return nil, refuse(CodeToken, fmt.Sprintf("the token has %d segments, not 3", len(parts)))
+		return nil, Refuse(CodeToken, fmt.Sprintf("the token has %d segments, not 3", len(parts)))
 	}
 	for i, p := range parts {
 		if p == "" {
-			return nil, refuse(CodeToken, fmt.Sprintf("segment %d is empty", i))
+			return nil, Refuse(CodeToken, fmt.Sprintf("segment %d is empty", i))
 		}
 	}
 
 	// ── 1. THE HEADER, AND THE KEYS IT MAY NOT NOMINATE ────────────────────
 	hb, err := b64.DecodeString(parts[0])
 	if err != nil {
-		return nil, refuse(CodeToken, "the header is not base64url")
+		return nil, Refuse(CodeToken, "the header is not base64url")
 	}
 	var h header
 	if err := json.Unmarshal(hb, &h); err != nil {
-		return nil, refuse(CodeToken, "the header is not JSON")
+		return nil, Refuse(CodeToken, "the header is not JSON")
 	}
 	if len(h.JWK) > 0 || h.JKU != "" || h.X5U != "" || len(h.X5C) > 0 {
-		return nil, refuse(CodeToken, "the header tries to nominate its own signing key")
+		return nil, Refuse(CodeToken, "the header tries to nominate its own signing key")
 	}
 	// `typ` is optional. When present it must say this is a JWT: a weak check
 	// that costs nothing and keeps a token minted for another purpose out.
 	if h.Typ != "" && !strings.EqualFold(h.Typ, "JWT") {
-		return nil, refuse(CodeToken, fmt.Sprintf("the header typ is %q", h.Typ))
+		return nil, Refuse(CodeToken, fmt.Sprintf("the header typ is %q", h.Typ))
 	}
 
 	// ── 2. THE ALGORITHM ALLOW-LIST ────────────────────────────────────────
@@ -146,7 +146,7 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 	// public by definition - and HMACs a token using its bytes as the secret.
 	// With only asymmetric algorithms there is no branch to confuse.
 	if h.Alg != algRS256 && h.Alg != algES256 {
-		return nil, refuse(CodeToken, fmt.Sprintf("the token is signed with %q; this verifies %s and %s",
+		return nil, Refuse(CodeToken, fmt.Sprintf("the token is signed with %q; this verifies %s and %s",
 			h.Alg, algRS256, algES256))
 	}
 
@@ -172,7 +172,7 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 		// No kid in the header. One usable key is unambiguous; more than one is
 		// a guess, and guessing is what this block exists to refuse.
 		if chosen != nil {
-			return nil, refuse(CodeToken, "the token names no key and the provider publishes several")
+			return nil, Refuse(CodeToken, "the token names no key and the provider publishes several")
 		}
 		chosen = &keys.Keys[i]
 	}
@@ -188,7 +188,7 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 	// ES256 or the reverse.
 	pub, err := chosen.publicKey(h.Alg)
 	if err != nil {
-		return nil, refuse(CodeToken, err.Error())
+		return nil, Refuse(CodeToken, err.Error())
 	}
 
 	// ── 5. THE SIGNATURE ───────────────────────────────────────────────────
@@ -200,26 +200,26 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 	signing := parts[0] + "." + parts[1]
 	sig, err := b64.DecodeString(parts[2])
 	if err != nil {
-		return nil, refuse(CodeToken, "the signature is not base64url")
+		return nil, Refuse(CodeToken, "the signature is not base64url")
 	}
 	if err := checkSignature(h.Alg, pub, []byte(signing), sig); err != nil {
-		return nil, refuse(CodeToken, err.Error())
+		return nil, Refuse(CodeToken, err.Error())
 	}
 
 	// ── 6 ONWARD. THE CLAIMS, NOW THAT THEY ARE THE PROVIDER'S WORDS ───────
 	cb, err := b64.DecodeString(parts[1])
 	if err != nil {
-		return nil, refuse(CodeToken, "the claims are not base64url")
+		return nil, Refuse(CodeToken, "the claims are not base64url")
 	}
 	var claims map[string]any
 	if err := json.Unmarshal(cb, &claims); err != nil {
-		return nil, refuse(CodeToken, "the claims are not JSON")
+		return nil, Refuse(CodeToken, "the claims are not JSON")
 	}
 
 	// 6. iss - exact, against the CONFIGURED issuer. Stops a token from another
 	// provider, or from another tenant of the same one.
 	if iss, _ := claims["iss"].(string); iss != want.Issuer {
-		return nil, refuse(CodeToken, "the token was issued by a different issuer")
+		return nil, Refuse(CodeToken, "the token was issued by a different issuer")
 	}
 
 	// 7. aud - stops TOKEN SUBSTITUTION. Without it, an id token the provider
@@ -227,42 +227,42 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 	// a client there - replays at our callback as that user.
 	aud := audienceOf(claims)
 	if len(aud) == 0 {
-		return nil, refuse(CodeToken, "the token names no audience")
+		return nil, Refuse(CodeToken, "the token names no audience")
 	}
 	if !contains(aud, want.ClientID) {
-		return nil, refuse(CodeToken, "the token was issued for a different client")
+		return nil, Refuse(CodeToken, "the token was issued for a different client")
 	}
 
 	// 8. azp - when several audiences are present the authorised party must be
 	// us. Stops another client in a shared audience list replaying its token.
 	azp, hasAzp := claims["azp"].(string)
 	if len(aud) > 1 && !hasAzp {
-		return nil, refuse(CodeToken, "the token has several audiences and no authorised party")
+		return nil, Refuse(CodeToken, "the token has several audiences and no authorised party")
 	}
 	if hasAzp && azp != want.ClientID {
-		return nil, refuse(CodeToken, "the token was authorised for a different party")
+		return nil, Refuse(CodeToken, "the token was authorised for a different party")
 	}
 
 	// 9-11. The clock. exp and iat are required; nbf is optional.
 	exp, ok := claimTime(claims, "exp")
 	if !ok {
-		return nil, refuse(CodeToken, "the token has no expiry")
+		return nil, Refuse(CodeToken, "the token has no expiry")
 	}
 	if now.After(exp.Add(clockLeeway)) {
-		return nil, refuse(CodeExpired, "the token has expired")
+		return nil, Refuse(CodeExpired, "the token has expired")
 	}
 	iat, ok := claimTime(claims, "iat")
 	if !ok {
-		return nil, refuse(CodeToken, "the token has no issued-at")
+		return nil, Refuse(CodeToken, "the token has no issued-at")
 	}
 	if iat.After(now.Add(clockLeeway)) {
-		return nil, refuse(CodeToken, "the token was issued in the future")
+		return nil, Refuse(CodeToken, "the token was issued in the future")
 	}
 	if now.Sub(iat) > maxTokenAge+clockLeeway {
-		return nil, refuse(CodeExpired, "the token is too old to be arriving now")
+		return nil, Refuse(CodeExpired, "the token is too old to be arriving now")
 	}
 	if nbf, ok := claimTime(claims, "nbf"); ok && now.Before(nbf.Add(-clockLeeway)) {
-		return nil, refuse(CodeToken, "the token is not valid yet")
+		return nil, Refuse(CodeToken, "the token is not valid yet")
 	}
 
 	// 12. nonce - binds THIS token to THIS authentication request, which is the
@@ -271,14 +271,14 @@ func Verify(raw string, keys *keySet, want Expect, now time.Time) (*Verified, er
 	// process generated.
 	nonce, _ := claims["nonce"].(string)
 	if subtle.ConstantTimeCompare([]byte(nonce), []byte(want.Nonce)) != 1 {
-		return nil, refuse(CodeToken, "the token does not answer this sign-in")
+		return nil, Refuse(CodeToken, "the token does not answer this sign-in")
 	}
 
 	// 13. sub - it is the identity. See the package header on why it, and not
 	// the email or the username, is what an account is found by.
 	sub, _ := claims["sub"].(string)
 	if sub == "" {
-		return nil, refuse(CodeToken, "the token names no subject")
+		return nil, Refuse(CodeToken, "the token names no subject")
 	}
 
 	return &Verified{Subject: sub, Issuer: want.Issuer, Claims: claims}, nil
