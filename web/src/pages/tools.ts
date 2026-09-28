@@ -59,11 +59,12 @@
 // and clears what is shown, and a result nobody is waiting for is dropped.
 
 import type { Socket } from '../socket';
-import { esc, el, fmtBytes, fmtMbps, protoPill, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { esc, el, fmtBps, fmtBytes, fmtMbps, protoPill, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
 import type { PingResult, TracerouteResult, TorchResult, BtestResult, SnifferResult } from '../gen/payloads';
 import { renderPingCards } from './tools-ping-cards';
 import { renderBtestCards } from './tools-btest-cards';
 import { renderSnifferCards } from './tools-sniffer-cards';
+import { renderTorchCards } from './tools-torch-cards';
 import { createTraceMap, type TraceMap } from './tools-trace-map';
 
 /** What the page says when the DEVICE refuses the sniffer, which is not a
@@ -199,7 +200,7 @@ let sniffRows: SnifferResult | null = null;
 // press cannot send a second set of three commands into the write queue.
 let clearing = false;
 
-const bps = (v: number): string => fmtMbps(v / 1e6);
+const bps = fmtBps;
 
 function ms(v: number | null | undefined): string {
   return v == null ? '-' : (v < 1 ? v.toFixed(3) : v.toFixed(1)) + ' ms';
@@ -229,6 +230,7 @@ function clearResult(t: Tool): void {
   setBadge(t, 0);
   if (t.key === 'ping') renderPingCards(null);
   if (t.key === 'btest') renderBtestCards(null);
+  if (t.key === 'torch') renderTorchCards(null);
   if (t.key === 'traceroute') traceMap?.clear();
   if (t.key === 'sniffer') {
     sniffRows = null;
@@ -306,6 +308,7 @@ function renderTraceroute(r: TracerouteResult): void {
 }
 
 function renderTorch(r: TorchResult): void {
+  renderTorchCards(r);
   const summary = el('torchSummary');
   if (summary) {
     summary.textContent = (r.continuous ? 'Watching ' + r.interface + ' · the last ' + r.reports + ' s'

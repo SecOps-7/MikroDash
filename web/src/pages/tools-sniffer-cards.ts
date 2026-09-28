@@ -23,6 +23,16 @@ function setText(id: string, text: string): void {
   if (node) node.textContent = text;
 }
 
+// An address card is ellipsised by .tool-card-text, and an IPv6 address is
+// exactly the case where the hidden half is the half that identifies the host.
+// The full value goes in the title so hovering still answers the question.
+function setAddr(id: string, text: string): void {
+  const node = el(id);
+  if (!node) return;
+  node.textContent = text || '-';
+  if (typeof node.setAttribute === 'function') node.setAttribute('title', text || '');
+}
+
 // The one card whose value is markup rather than text: the protocol pill, which
 // `protoPill` builds and escapes. Nothing else here goes near innerHTML - the
 // address on the Top talker card is text from the router and is set as text.
@@ -46,6 +56,6 @@ export function renderSnifferCards(r: SnifferResult | null): void {
   // other protocol column in the app uses.
   setPill('snifferProtoVal', r.topProtocol ? protoPill(r.topProtocol) : '-');
   setText('snifferProtoFoot', r.topProtocol ? r.topProtocolShare + '% of bytes' : '');
-  setText('snifferTalkerVal', r.topTalker || '-');
+  setAddr('snifferTalkerVal', r.topTalker || '-');
   setText('snifferTalkerFoot', r.topTalker ? fmtBytes(r.topTalkerBytes) + ' both ways' : '');
 }

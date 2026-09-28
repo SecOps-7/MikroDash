@@ -279,6 +279,15 @@ export function fmtMbps(v: number | null | undefined): string {
   return (n * 1000).toFixed(1) + ' Kbps';
 }
 
+/** A rate in BITS per second, the unit torch and the sniffer report in.
+ *
+ *  `fmtMbps` takes megabits, so every caller holding bits divided by 1e6 first.
+ *  Two of them now sit on the same page - the Torch table and its cards - and
+ *  they must not disagree about what 2000000 reads as. */
+export function fmtBps(bits: number | null | undefined): string {
+  return fmtMbps((Number(bits) || 0) / 1e6);
+}
+
 // ── Shared with the Wifi Clients page ───────────────────────────────────────
 //
 // Both pages show bands and SSIDs, and two copies of the palette would mean one

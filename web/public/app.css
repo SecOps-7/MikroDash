@@ -2352,8 +2352,11 @@
     .tool-gauge-bg,.tool-gauge-arc{fill:none;stroke-width:9;stroke-linecap:round}
     .tool-gauge-bg{stroke:var(--border)}
     .tool-gauge-arc{transition:stroke-dashoffset .9s cubic-bezier(.2,.7,.3,1)}
-    .tool-gauge-rx .tool-gauge-arc,.tool-gauge-rx .tool-card-value{stroke:var(--accent-rx);color:var(--accent-rx)}
-    .tool-gauge-tx .tool-gauge-arc,.tool-gauge-tx .tool-card-value{stroke:var(--accent-tx);color:var(--accent-tx)}
+    /* Rx is blue and Tx is green EVERYWHERE, so the plain value cards on Torch
+       share the gauges' rule rather than restating the colour beside it. The
+       `stroke` is inert on a card that has no arc to draw. */
+    .tool-card-rx .tool-card-value,.tool-gauge-rx .tool-gauge-arc,.tool-gauge-rx .tool-card-value{stroke:var(--accent-rx);color:var(--accent-rx)}
+    .tool-card-tx .tool-card-value,.tool-gauge-tx .tool-gauge-arc,.tool-gauge-tx .tool-card-value{stroke:var(--accent-tx);color:var(--accent-tx)}
     .tool-gauge-needle{stroke:var(--text-main);stroke-width:2.5;stroke-linecap:round;transform-origin:60px 62px;transform:rotate(-90deg);
       transition:transform .9s cubic-bezier(.2,.7,.3,1)}
     .tool-gauge-hub{fill:var(--text-main)}

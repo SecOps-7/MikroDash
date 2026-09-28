@@ -47,6 +47,9 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'pingScoreRing', 'pingCardScore', 'pingScoreVal', 'pingLastVal', 'pingMinVal', 'pingMaxVal', 'pingLossVal',
   'pingCardLoss', 'pingSpark', 'pingCardLast', 'btestScaleRx', 'btestScaleTx', 'btestArcRx', 'btestNeedleRx',
   'btestValRx', 'btestAvgRx', 'btestArcTx', 'btestNeedleTx', 'btestValTx', 'btestAvgTx', 'btestLostVal', 'btestCpuVal', 'pingScroll', 'torchScroll',
+  // The Torch page's five cards (tools-torch-cards.ts).
+  'torchRxVal', 'torchRxFoot', 'torchTxVal', 'torchTxFoot', 'torchProtoVal', 'torchProtoFoot',
+  'torchFlowsVal', 'torchFlowsFoot', 'torchTalkerVal', 'torchTalkerFoot',
   // The count pills beside each page's title. Bandwidth Test has none.
   'pingBadge', 'traceBadge', 'torchBadge',
   // The Packet Sniffer (2026-09-27): its form, its sortable header, its four
@@ -209,6 +212,7 @@ n.torchSeconds.value = '3';
 n.torchForm.fire('submit', { preventDefault: () => {} });
 assert.deepStrictEqual(sent, [['tools:torch', { interface: 'ether1', seconds: 3, continuous: false }]], 'the torch form did not ask for one run');
 handlers['tools:torch']({ code: '', message: '', done: true, result: { interface: 'ether1', seconds: 3, reports: 2, omitted: 2, totalRxBps: 2000000, totalTxBps: 0,
+  topProtocol: 'tcp', topProtocolShare: 93.5, topTalker: '198.51.100.1', topTalkerBps: 2000000,
   flows: [{ protocol: 'tcp', srcAddress: '198.51.100.1', srcPort: '443', dstAddress: '198.51.100.2', dstPort: '50000', rxBps: 2000000, txBps: 0 }] } });
 assert.ok(/2\.00 Mbps/.test(String(n.torchRows.innerHTML)) && /198\.51\.100\.1:443/.test(String(n.torchRows.innerHTML)),
   'the flow was not drawn:\n' + n.torchRows.innerHTML);
@@ -224,6 +228,62 @@ assert.ok(/2 quieter flows not shown/.test(String(n.torchSummary.textContent)), 
 assert.strictEqual(String(n.torchBadge.textContent), '1', 'the Torch pill does not count its flows');
 assert.strictEqual(String(n.torchBadge.className), 'card-badge active-blue', 'a pill counting something is not blue');
 assert.strictEqual(String(n.traceBadge.textContent), '2', 'the Traceroute pill does not count its hops');
+// ── THE TORCH CARDS (tools-torch-cards.ts) ──────────────────────────────────
+//
+// Each one is an aggregate over EVERY flow, the quieter ones cut from the table
+// included, so they describe the interface rather than the page.
+assert.strictEqual(String(n.torchRxVal.textContent), '2.00 Mbps', 'the Rx card is not the interface total');
+assert.strictEqual(String(n.torchTxVal.textContent), '0.0 Kbps', 'the Tx card is not the interface total');
+// THE CLAIM MOST LIKELY TO ROT, and the reason this card is not the count pill:
+// Flows counts the conversations the INTERFACE had (1 shown + 2 cut = 3) while
+// the pill four lines above counts the rows on screen (1). If these two ever
+// agree on this fixture, one of them has started answering the other's question.
+assert.strictEqual(String(n.torchFlowsVal.textContent), '3',
+  'the Flows card does not count the flows cut from the table: ' + n.torchFlowsVal.textContent);
+assert.strictEqual(String(n.torchBadge.textContent), '1', 'the pill stopped counting the rows on screen');
+assert.strictEqual(String(n.torchFlowsFoot.textContent), '1 shown',
+  'the Flows card does not say how many of them are on screen');
+// The averaging window, because a bounded run and a continuous one mean
+// different things by "2.00 Mbps".
+assert.strictEqual(String(n.torchRxFoot.textContent), 'over 3 s', 'the Rx card does not say what it averaged over');
+assert.strictEqual(String(n.torchProtoFoot.textContent), '93.5% of the rate', 'the protocol share is missing');
+assert.strictEqual(String(n.torchTalkerVal.textContent), '198.51.100.1', 'the Top talker card is empty');
+// THE FULL ADDRESS IS IN THE TITLE. The card ellipsises, and a truncated IPv6
+// address - "fe80::2ec8:1bff:fe5..." on a real bridge - names no host at all.
+assert.strictEqual(String(n.torchTalkerVal.attributes?.title ?? ''), '198.51.100.1',
+  'the Top talker card does not carry its full address as a title');
+assert.ok(/<span class="bw-proto bw-proto-tcp">tcp<\/span>/.test(String(n.torchProtoVal.innerHTML)),
+  'the Top protocol card is not the shared pill: ' + n.torchProtoVal.innerHTML);
+
+// A CONTINUOUS RUN SAYS SO. Its rate is the last few seconds, not the run.
+// A run must be pending for a progress frame to be drawn at all - a frame for a
+// run nobody is waiting on is dropped, which is the rule three checks above.
+n.torchForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:torch']({ code: '', message: '', done: false, result: { interface: 'ether1', seconds: 0, continuous: true,
+  reports: 5, omitted: 0, totalRxBps: 1000000, totalTxBps: 500000, topProtocol: 'udp', topProtocolShare: 12,
+  topTalker: '198.51.100.9', topTalkerBps: 1500000, flows: [] } });
+assert.strictEqual(String(n.torchRxFoot.textContent), 'last 5 s',
+  'a continuous run still claims to average over its duration: ' + n.torchRxFoot.textContent);
+assert.strictEqual(String(n.torchFlowsFoot.textContent), '',
+  'a run with nothing cut still claims some rows are hidden');
+
+// TEXT FROM THE ROUTER IS NOT MARKUP. 0.7.35 shipped because an interface name
+// could inject some; a protocol name reaches innerHTML through protoPill, which
+// is the only thing standing between the router and the page here. Still the
+// same pending run, so this frame is drawn.
+handlers['tools:torch']({ code: '', message: '', done: false, result: { interface: 'ether1', seconds: 0, continuous: true,
+  reports: 1, omitted: 0, totalRxBps: 0, totalTxBps: 0, topProtocol: '<img src=x onerror=alert(1)>', topProtocolShare: 1,
+  topTalker: '<b>evil</b>', topTalkerBps: 0, flows: [] } });
+assert.ok(!/<img/.test(String(n.torchProtoVal.innerHTML)),
+  'a protocol name reached the page as markup: ' + n.torchProtoVal.innerHTML);
+assert.strictEqual(String(n.torchTalkerVal.textContent), '<b>evil</b>',
+  'the talker address was not set as text');
+// SETTLED, so the run started for those two progress frames does not hold the
+// one-at-a-time slot against the checks that follow.
+handlers['tools:torch']({ code: '', message: '', done: true, result: null });
+assert.strictEqual(String(n.torchRun.textContent), 'Watch', 'the torch run was left pending');
+
+
 
 // STOP. Pressing the running tool's button asks the server to stop, and sends
 // no second run; the stopped frame draws the run so far and settles it.

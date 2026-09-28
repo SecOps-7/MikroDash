@@ -1429,6 +1429,10 @@ export interface TorchResult {
   omitted: number;
   totalRxBps: number;
   totalTxBps: number;
+  topProtocol: string;
+  topProtocolShare: number;
+  topTalker: string;
+  topTalkerBps: number;
 }
 
 export interface ToolsTorchPayload {

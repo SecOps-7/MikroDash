@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -75,6 +76,71 @@ func TestTorchKeepsOnlyTheBusiestFlows(t *testing.T) {
 	if r.Flows[len(r.Flows)-1].RxBps != 5 {
 		t.Errorf("the quietest kept flow reads %d bit/s, want 5: the quietest were not the ones dropped",
 			r.Flows[len(r.Flows)-1].RxBps)
+	}
+}
+
+// ── THE CARDS DESCRIBE THE INTERFACE, NOT THE TABLE ─────────────────────────
+//
+// TotalRxBps and TotalTxBps already cover every flow, including those dropped
+// past TorchMaxFlows. If the top protocol and top talker were taken from the 25
+// that survived, they would disagree with those totals on any busy interface -
+// "udp, 90% of rate" would mean 90% of the part that happens to be on screen.
+//
+// So this builds a run whose BUSIEST flows are all one protocol and one pair of
+// addresses, and whose CUT flows are a different protocol carrying more in
+// total. Reading only the survivors gets a different answer to reading them all,
+// which is what makes this test able to fail.
+func TestTorchTopsCountTheFlowsThatWereCut(t *testing.T) {
+	var rows []map[string]string
+	// 25 kept flows: tcp, 100 bit/s each = 2500 between 10.0.0.1 and 10.0.0.2.
+	for i := 0; i < TorchMaxFlows; i++ {
+		rows = append(rows, map[string]string{".section": "1", "ip-protocol": "tcp",
+			"src-address": "10.0.0.1", "src-port": strconv.Itoa(1000 + i),
+			"dst-address": "10.0.0.2", "dst-port": "443", "rx": "100", "tx": "0"})
+	}
+	// 60 cut flows: udp, 60 bit/s each = 3600 between 10.0.0.3 and 10.0.0.4.
+	// Each is quieter than any tcp flow, so every one of them is dropped.
+	for i := 0; i < 60; i++ {
+		rows = append(rows, map[string]string{".section": "1", "ip-protocol": "udp",
+			"src-address": "10.0.0.3", "src-port": strconv.Itoa(2000 + i),
+			"dst-address": "10.0.0.4", "dst-port": "53", "rx": "60", "tx": "0"})
+	}
+	r := FoldTorch("ether1", toReplies(rows))
+	if len(r.Flows) != TorchMaxFlows || r.Omitted != 60 {
+		t.Fatalf("kept %d omitted %d, want %d and 60 - the fixture no longer cuts anything",
+			len(r.Flows), r.Omitted, TorchMaxFlows)
+	}
+	// THE CONTROL: every flow still on screen is tcp, so a top read from the
+	// table would say tcp. The right answer is udp.
+	for _, f := range r.Flows {
+		if f.Protocol != "udp" {
+			continue
+		}
+		t.Fatal("a udp flow survived the cut; this test can no longer tell the two readings apart")
+	}
+	if r.TopProtocol != "udp" {
+		t.Errorf("top protocol = %q, want udp: 3600 bit/s of it was cut from the table and 2500 of tcp was not",
+			r.TopProtocol)
+	}
+	if want := math.Round(3600.0/6100.0*1000) / 10; r.TopProtocolShare != want {
+		t.Errorf("top protocol share = %v, want %v of the interface's 6100 bit/s", r.TopProtocolShare, want)
+	}
+	if r.TopTalker != "10.0.0.3" && r.TopTalker != "10.0.0.4" {
+		t.Errorf("top talker = %q, want one of the cut flows' addresses (3600 bit/s each)", r.TopTalker)
+	}
+	if r.TopTalkerBps != 3600 {
+		t.Errorf("top talker rate = %d, want 3600", r.TopTalkerBps)
+	}
+}
+
+// An address at BOTH ends of a flow is counted once. Loopback traffic would
+// otherwise read as twice the rate it is.
+func TestTorchDoesNotCountAnAddressTwiceInOneFlow(t *testing.T) {
+	r := FoldTorch("lo", toReplies([]map[string]string{{".section": "1", "ip-protocol": "tcp",
+		"src-address": "127.0.0.1", "src-port": "5000", "dst-address": "127.0.0.1", "dst-port": "80",
+		"rx": "400", "tx": "600"}}))
+	if r.TopTalker != "127.0.0.1" || r.TopTalkerBps != 1000 {
+		t.Errorf("top talker = %q at %d bit/s, want 127.0.0.1 at 1000 (not 2000)", r.TopTalker, r.TopTalkerBps)
 	}
 }
 

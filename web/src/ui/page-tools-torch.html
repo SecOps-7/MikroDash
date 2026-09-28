@@ -28,6 +28,32 @@
             <button class="sbtn sbtn-primary" id="torchRun" type="submit">Watch</button>
             <span class="muted-note" id="torchStatus"></span>
           </form>
+          <!-- ── THE FIVE CARDS (tools-torch-cards.ts) ────────────────────
+               Rx and Tx are the INTERFACE's totals, which cover every flow
+               including the quieter ones cut from the table below, so they do
+               not match adding the rows up on a busy link. Top protocol and
+               Top talker are folded in Go over the same full set, for the same
+               reason - see TorchResult in internal/diag/torch.go.
+
+               Five rather than the four every other tool page shows, by
+               request. The grid is auto-fit, so they wrap rather than crush. -->
+          <div class="tool-cards" id="torchCards">
+            <div class="tool-card tool-card-rx"><div class="tool-card-label">Rx</div>
+              <div class="tool-card-value"><span id="torchRxVal">-</span></div>
+              <div class="tool-card-foot" id="torchRxFoot"></div></div>
+            <div class="tool-card tool-card-tx"><div class="tool-card-label">Tx</div>
+              <div class="tool-card-value"><span id="torchTxVal">-</span></div>
+              <div class="tool-card-foot" id="torchTxFoot"></div></div>
+            <div class="tool-card tool-card-text"><div class="tool-card-label">Top protocol</div>
+              <div class="tool-card-value"><span id="torchProtoVal">-</span></div>
+              <div class="tool-card-foot" id="torchProtoFoot"></div></div>
+            <div class="tool-card"><div class="tool-card-label">Flows</div>
+              <div class="tool-card-value"><span id="torchFlowsVal">-</span></div>
+              <div class="tool-card-foot" id="torchFlowsFoot"></div></div>
+            <div class="tool-card tool-card-text"><div class="tool-card-label">Top talker</div>
+              <div class="tool-card-value"><span id="torchTalkerVal">-</span></div>
+              <div class="tool-card-foot" id="torchTalkerFoot"></div></div>
+          </div>
           <div id="torchSummary" class="muted-note mb-2"></div>
           <div class="tool-panel">
             <div class="data-scroll" id="torchScroll">
