@@ -50,7 +50,11 @@
           <div class="row g-3 mt-1">
             <div class="col-sm-12">
               <label class="form-label" for="bkSecrets">Migration export</label>
-              <label class="stoggle" style="max-width:32rem"><span class="stoggle-label">Include credentials</span><span class="stoggle-switch"><input type="checkbox" id="bkSecrets"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <!-- SHRINK-WRAPPED, not 32rem wide. `.stoggle` is space-between, so a wide
+                   box pushes the switch to the far edge and strands the label.
+                   `width:fit-content` leaves space-between nothing to distribute, so the
+                   switch sits one `gap` from its label. -->
+              <label class="stoggle" style="width:fit-content"><span class="stoggle-label">Include credentials</span><span class="stoggle-switch"><input type="checkbox" id="bkSecrets"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <!-- AMBER, AND ONE LINE. It names the consequence an operator is
                    accepting - this server starts holding that router's
                    credentials - rather than explaining the feature, which the
