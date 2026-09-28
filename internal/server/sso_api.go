@@ -119,15 +119,10 @@ func (s *Server) ssoList(w http.ResponseWriter, r *http.Request, _ *Session) {
 	for _, p := range rows {
 		out = append(out, s.providerView(p, redirect))
 	}
-	// `baseUrl` and `redirectUri` at the TOP LEVEL as well as on each row.
-	//
-	// The dialog shows the redirect URI read-only, and the FIRST provider on an
-	// install has no row to read it from. `baseUrl` is what the Authentication
-	// card pre-fills its box with: the EFFECTIVE value, stored or derived, so
-	// the operator sees what will actually be sent rather than an empty field
-	// that looks unconfigured while working perfectly.
-	writeJSON(w, map[string]any{"providers": out,
-		"baseUrl": base, "redirectUri": redirect})
+	// `redirectUri` at the TOP LEVEL as well as on each row: the dialog shows it
+	// read-only, and the FIRST provider on an install has no row to read it
+	// from.
+	writeJSON(w, map[string]any{"providers": out, "redirectUri": redirect})
 }
 
 func (s *Server) ssoCreate(w http.ResponseWriter, r *http.Request, sess *Session) {

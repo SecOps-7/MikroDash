@@ -107,16 +107,6 @@ export async function loadSSOProviders(): Promise<void> {
   const j = await getJSON('/api/sso/providers');
   providers = j ? ((j.providers as ProviderView[]) || []) : [];
   redirectUri = j && typeof j.redirectUri === 'string' ? j.redirectUri : '';
-  // ── THE BASE URL BOX PRE-FILLS ─────────────────────────────────────────
-  //
-  // The server sends the EFFECTIVE value - what the operator stored, or the
-  // address this request arrived on when they stored nothing. Showing it beats
-  // an empty box, which reads as unconfigured on an install where SSO works.
-  //
-  // ONLY WHEN EMPTY. Overwriting a value the operator is part-way through
-  // typing is the kind of thing that gets noticed once and never forgiven.
-  const base = el<HTMLInputElement>('s_baseUrl');
-  if (base && !base.value && j && typeof j.baseUrl === 'string') base.value = j.baseUrl;
   const tb = el('ssoTbody');
   if (!tb) return;
   tb.innerHTML = providers.length

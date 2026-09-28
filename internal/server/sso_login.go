@@ -323,12 +323,13 @@ func (s *Server) ssoConfigFor(id string) (db.SSOProvider, string, error) {
 
 // baseURLFor is the address browsers reach this install at.
 //
-// ── THE SETTING IS AN OVERRIDE, NOT A REQUIREMENT ──────────────────────────
+// ── THERE IS NO SETTING, AND THAT IS THE DESIGN ────────────────────────────
 //
-// Empty means "follow whatever URL this request arrived on", so single sign-on
-// works with nothing typed. An operator only fills it in when the derived value
-// is wrong - behind a proxy that rewrites the host, or when the address users
-// reach is not the address the server sees.
+// It always follows the URL the request arrived on, so single sign-on works
+// with nothing configured and keeps working when the install is reached at a
+// second address. A stored override existed briefly; it was removed because a
+// value an operator has to keep correct is a value that goes stale, and the
+// derived one cannot.
 //
 // ── ON DERIVING IT FROM THE REQUEST ────────────────────────────────────────
 //
@@ -340,13 +341,6 @@ func (s *Server) ssoConfigFor(id string) (db.SSOProvider, string, error) {
 // code. That match is required by the protocol, not a courtesy, which is what
 // makes this safe here and would not make it safe for a password-reset link.
 func (s *Server) baseURLFor(r *http.Request) string {
-	if s.store != nil {
-		if cfg, err := s.store.Settings(); err == nil {
-			if v, _ := cfg["baseUrl"].(string); strings.TrimSpace(v) != "" {
-				return strings.TrimRight(strings.TrimSpace(v), "/")
-			}
-		}
-	}
 	return originOf(r, s.forceHTTPS)
 }
 

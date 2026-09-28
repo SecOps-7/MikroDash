@@ -107,8 +107,7 @@ function mount(providers, baseUrlSet = true, before) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ ok: true, providers,
-          baseUrl: baseUrlSet ? 'https://dash.example' : '',
-          redirectUri: baseUrlSet ? 'https://dash.example/api/auth/sso/callback' : '' }),
+          redirectUri: 'https://dash.example/api/auth/sso/callback' }),
       });
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
@@ -171,27 +170,6 @@ check('an empty list says so rather than drawing nothing', async () => {
   await settle();
   assert.ok(d.els.ssoTbody.innerHTML.includes('No providers yet'),
     'an empty table rendered silently: ' + d.els.ssoTbody.innerHTML);
-});
-
-// ── THE BASE URL BOX PRE-FILLS FROM THE EFFECTIVE VALUE ────────────────────
-//
-// The server sends what it will actually use: the stored setting, or the
-// address the request arrived on. An empty box on an install where SSO works
-// reads as unconfigured and invites somebody to "fix" it.
-check('the base URL box pre-fills from the effective value', async () => {
-  const d = mount([PROVIDER]);
-  await settle();
-  assert.strictEqual(d.els.s_baseUrl.value, 'https://dash.example',
-    'the base URL box was left empty: ' + d.els.s_baseUrl.value);
-});
-
-// A half-typed value is not overwritten. Clobbering what somebody is in the
-// middle of typing gets noticed once and never forgiven.
-check('a value already in the box is not overwritten', async () => {
-  const d = mount([PROVIDER], true, (els) => { els('s_baseUrl').value = 'https://typed.example'; });
-  await settle();
-  assert.strictEqual(d.els.s_baseUrl.value, 'https://typed.example',
-    'the pre-fill overwrote what the operator had typed');
 });
 
 // ── THE FIRST PROVIDER STILL LEARNS ITS REDIRECT URI ───────────────────────

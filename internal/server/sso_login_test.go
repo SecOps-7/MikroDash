@@ -347,32 +347,29 @@ func asOIDC(err error, target **oidc.Err) bool {
 
 // ── WHERE THE REDIRECT URI COMES FROM ──────────────────────────────────────
 //
-// The Base URL setting is an OVERRIDE. Empty means "follow the address this
-// request arrived on", so single sign-on works with nothing typed - which is
-// the whole point of removing the requirement to type it.
-func TestTheBaseURLSettingOverridesTheDerivedOrigin(t *testing.T) {
-	s, _, dir := ssoServer(t)
+// It always follows the URL the request arrived on. There is no setting to get
+// wrong and none to go stale, which is the point: an install reached at a
+// second address gets the right redirect URI there too, with nothing typed.
+func TestTheRedirectURIFollowsTheRequest(t *testing.T) {
+	s, _, _ := ssoServer(t)
 
-	// The harness writes a baseUrl, so the stored value must win.
-	req := httptest.NewRequest("GET", "http://10.0.0.5:3081/api/auth/sso/x/start", nil)
-	if got := s.baseURLFor(req); got != "https://dash.example" {
-		t.Errorf("with a stored base URL the derived one was used: %q", got)
+	for _, c := range []struct{ host, want string }{
+		{"10.0.0.5:3081", "http://10.0.0.5:3081/api/auth/sso/callback"},
+		{"dash.example.com", "http://dash.example.com/api/auth/sso/callback"},
+	} {
+		req := httptest.NewRequest("GET", "http://"+c.host+"/api/auth/sso/x/start", nil)
+		if got := s.redirectURIFor(req); got != c.want {
+			t.Errorf("on %s the redirect URI is %q, want %q", c.host, got, c.want)
+		}
 	}
 
-	// Clear it, and the request decides.
-	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"baseUrl":""}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	st, err := store.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.store = st
+	// AND NOTHING STORED CAN CHANGE IT. A leftover `baseUrl` in an install's
+	// settings.json - this harness writes one - must not resurrect the override
+	// that was removed, or upgrading would pin the redirect URI to whatever was
+	// stored months ago.
+	req := httptest.NewRequest("GET", "http://10.0.0.5:3081/x", nil)
 	if got := s.baseURLFor(req); got != "http://10.0.0.5:3081" {
-		t.Errorf("with no stored base URL, got %q, want the request's own origin", got)
-	}
-	if got := s.redirectURIFor(req); got != "http://10.0.0.5:3081/api/auth/sso/callback" {
-		t.Errorf("redirect URI is %q", got)
+		t.Errorf("a stored baseUrl still overrides the request: %q", got)
 	}
 }
 
@@ -433,20 +430,12 @@ func TestTheRedirectURIRidesOnThePendingLogin(t *testing.T) {
 	}
 }
 
-// A provider can be started with no base URL stored at all. Before this it was
-// refused with "no base URL is configured", which is the requirement that was
-// removed.
-func TestAProviderStartsWithNoBaseURLStored(t *testing.T) {
-	s, mux, dir := ssoServer(t)
+// A provider starts with nothing configured beyond the provider itself. Before
+// this it was refused with "no base URL is configured", which is the
+// requirement that was removed.
+func TestAProviderStartsWithNothingElseConfigured(t *testing.T) {
+	s, mux, _ := ssoServer(t)
 	p := seedSSOProvider(t, s, true)
-	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"baseUrl":""}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	st, err := store.Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.store = st
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/auth/sso/"+p.ID+"/start", nil))
@@ -455,19 +444,13 @@ func TestAProviderStartsWithNoBaseURLStored(t *testing.T) {
 	// ── WHAT IS AND IS NOT BEING ASSERTED ──────────────────────────────────
 	//
 	// The seeded issuer does not exist, so this WILL fail with `err=provider`
-	// once it tries to fetch the discovery document. That is fine and expected.
-	// The claim is narrower and is the one that changed: it is no longer
-	// refused as `err=config` before any request is made, which is what
-	// "no base URL is configured" used to do.
+	// once it tries to fetch the discovery document. That is expected. The
+	// claim is narrower and is the one that changed: it is no longer refused as
+	// `err=config` before any request is made.
 	if strings.Contains(loc, "err=config") {
-		t.Fatalf("starting with no base URL stored was refused as a configuration "+
-			"error: %q\n    The base URL is an OVERRIDE now - empty means follow the "+
-			"request's own origin.", loc)
+		t.Fatalf("the start was refused as a configuration error: %q\n"+
+			"    The redirect URI follows the request now; there is nothing to configure.", loc)
 	}
-	// And a pending login WAS minted, which only happens past the point the old
-	// code refused at. The cookie is the wrong observable here: it is set after
-	// the authorization URL is built, and building it fails against a seeded
-	// issuer that does not exist.
 	if s.sso.logins().Len() != 1 {
 		t.Errorf("%d pending logins; the start never got past the configuration check",
 			s.sso.logins().Len())

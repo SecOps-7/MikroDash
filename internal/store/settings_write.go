@@ -189,24 +189,6 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 			updates["ztpSubnet"] = p.Masked().String()
 		}
 	}
-	// ── THE URL BROWSERS REACH THIS INSTALL AT ─────────────────────────────
-	//
-	// Typed rather than derived, and that is the point. An OIDC redirect URI is
-	// EXACT-MATCHED by the identity provider, so it has to be one fixed string -
-	// and building it from the request's Host header would mean an attacker who
-	// can set that header decides where the provider is told to send people.
-	// Host-header injection is a well-worn way into exactly this flow.
-	//
-	// Validated as ztpLanUrl is, and for the same reasons: http or https, a
-	// host, no credentials, no path, no query. A trailing slash is trimmed so
-	// the redirect URI built from it cannot end up with two.
-	if raw, ok := body["baseUrl"]; ok {
-		v := strings.TrimRight(strings.TrimSpace(asString(raw)), "/")
-		if u, err := url.Parse(v); v == "" || (err == nil && (u.Scheme == "http" || u.Scheme == "https") &&
-			u.Host != "" && u.User == nil && (u.Path == "" || u.Path == "/") && u.RawQuery == "") {
-			updates["baseUrl"] = cut(v, 256)
-		}
-	}
 	if raw, ok := body["ztpLanUrl"]; ok {
 		v := strings.TrimRight(strings.TrimSpace(asString(raw)), "/")
 		if u, err := url.Parse(v); v == "" || (err == nil && (u.Scheme == "http" || u.Scheme == "https") &&
