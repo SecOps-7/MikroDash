@@ -28,6 +28,32 @@
     .card-badge{font-family:var(--font-mono);font-size:.68rem;font-weight:600;padding:.15em .55em;border-radius:5px;background:var(--card-badge-bg);color:var(--card-badge-color);border:none;line-height:1.5}
     .card-badge.active-blue{background:var(--card-badge-bg-active-blue);color:var(--card-badge-color-active-blue)}
     *,*::before,*::after{box-sizing:border-box}
+
+    /* ── NO CONTROL FALLS THROUGH TO BROWSER CHROME ──────────────────────────
+       A form control that no rule paints is drawn by the user agent in its
+       system colours - `ButtonFace`/`Field` - which resolve to rgb(107,107,107)
+       under color-scheme dark and to a pale beige under light. Neither is in
+       any palette, so such a control reads as a washed-out slab whatever theme
+       is chosen, and it appears the moment somebody adds markup without a
+       painting class. That is how it kept coming back.
+
+       WRAPPED IN :where() SO ITS SPECIFICITY IS ZERO. This is a floor, not a
+       style: every class rule in this file beats it, including the ones that
+       deliberately paint a control transparent. It changes the appearance of
+       exactly those controls that had no appearance of their own.
+
+       It sets background and colour only. A border would move layout on
+       controls that never asked for one, and the user agent's own border is
+       already drawn in the right scheme.
+
+       The input types with native appearance are excluded: a checkbox, radio,
+       range, colour or file control draws its own widget, and giving it a
+       background paints over that widget rather than behind it. */
+    :where(button, select, textarea,
+           input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden])) {
+      background-color: var(--bg-card);
+      color: var(--text-main);
+    }
     html,body{height:100%;margin:0}
     /* Keyboard focus. Before this there were seven :focus rules in the whole
        app, all border-colour on inputs and none at all on buttons, so tabbing
@@ -299,7 +325,28 @@
        border and padding, which is right in a form and reads as a black slab
        when one sits inside a card. This drops the box and keeps the switch. */
     .stoggle-bare{background:none;border:none;padding:0}
-    .sbtn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:opacity .15s,transform .1s}
+    /* ── .sbtn PAINTS ITSELF, so a missing variant is not browser chrome ─────
+       It used to declare layout and `border:none` and NO background or colour,
+       leaving both to the user agent: `ButtonFace`/`ButtonText`, which resolve
+       to rgb(107,107,107) under color-scheme dark and to pale beige under
+       light. A button written as `class="sbtn"` - the obvious thing to write -
+       therefore came out in system colours on a page that has none.
+
+       That had already happened once and was patched one level too shallow:
+       see .sbtn-outline below, "referenced in a dozen places but never defined,
+       so those buttons fell through to the bare .sbtn". Defining the variant
+       fixed those dozen and left the hole.
+
+       The base now carries the neutral treatment, so a bare .sbtn degrades to a
+       themed ghost button and a variant overrides it. CHANGING THE BORDER HERE
+       IS SAFE: all five variants (-primary, -warn, -danger, -purple, and
+       -ghost/-outline) declare their own `border:1px solid`, so `border:none`
+       was dead for every one of them and only ever reached a bare .sbtn. */
+    .sbtn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s,background .15s,color .15s,border-color .15s;background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+    /* GUARDED WITH :not - a bare .sbtn:hover would otherwise reach every variant.
+       -primary's hover declares only `background`, so an unguarded base hover
+       would repaint its text and border on the way past. */
+    .sbtn:not([class*="sbtn-"]):hover{color:var(--text-main);border-color:var(--text-muted);background:rgba(99,130,190,.07)}
     .sbtn:active{transform:scale(.97)}
     .sbtn-primary{background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.3)}
     .sbtn-primary:hover{background:rgba(56,189,248,.25)}
