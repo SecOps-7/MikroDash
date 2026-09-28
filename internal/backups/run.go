@@ -158,7 +158,31 @@ func Run(cfg RunConfig) (res RunResult) {
 	base := FilePrefix + stem
 
 	// ── The export, for diffing ─────────────────────────────────────────────
-	rscText, err := ExportText(w, "/export", base, now, sleep)
+	//
+	// TERSE, ALWAYS. RouterOS's default export wraps a long command across
+	// continuation lines, and where it wraps depends on the whole line's length:
+	// change one property and the rest of the block re-wraps, so a one-rule edit
+	// shows up as a dozen changed lines in the diff. Measured on a near-empty
+	// 7.24.4 CHR, the default export had 34 continuations in 102 lines; `terse`
+	// had none in 45, at 4% more bytes because each line repeats its menu path.
+	//
+	// This file exists to be diffed - `store.go` calls it the diffable half of
+	// the pair - so one command per line is the format it wants. It is not a
+	// setting: "wrapped, harder to read, noisier to diff" is not an option worth
+	// offering, and two formats in one archive would mean every diff first
+	// asking which era each side came from.
+	//
+	// `terse` does NOT reveal anything hidden. Sensitive values stay masked
+	// exactly as before; that is `show-sensitive`, which this deliberately does
+	// not pass. A terse export still imports - verified on the CHR by exporting
+	// one menu, deleting its rows and importing the file back.
+	//
+	// THE PRICE IS ONE RE-BASELINE. Fingerprint is taken over this text, so the
+	// first run after this change differs from the stored one for every router:
+	// each writes a new pair and its next diff shows the whole configuration as
+	// changed, once. That is the cost of the format moving, and it is paid once
+	// rather than on every toggle.
+	rscText, err := ExportText(w, "/export", base, now, sleep, "=terse=")
 	if err != nil {
 		return fail(err)
 	}

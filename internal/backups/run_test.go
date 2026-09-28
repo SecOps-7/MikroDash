@@ -18,6 +18,10 @@ type fakeRouter struct {
 	failOn  string
 	stopped int
 	swept   []string
+	// exportArgs is what the LAST /export carried. The flags decide the file's
+	// format and what it does and does not contain, so they are worth recording
+	// rather than only the command name.
+	exportArgs []string
 }
 
 func newFake(rsc, bak []byte) *fakeRouter {
@@ -36,6 +40,7 @@ func (f *fakeRouter) write(cmd string, args ...string) ([]map[string]string, err
 	case cmd == "/system/routerboard/print":
 		return []map[string]string{{"serial-number": "HDF08J96K1M"}}, nil
 	case cmd == "/export":
+		f.exportArgs = append([]string(nil), args...)
 		f.files[argVal(args, "=file=")+".rsc"] = f.rscBody
 		return nil, nil
 	case cmd == "/system/backup/save":
@@ -234,6 +239,48 @@ func TestNoPasswordRefusesBeforeWritingAnything(t *testing.T) {
 	}
 	if len(f.files) != 0 {
 		t.Errorf("left %v behind", keysOf(f.files))
+	}
+}
+
+// ── THE EXPORT IS TERSE, AND IS NOT show-sensitive ──────────────────────────
+//
+// Two decisions in one place, because they are easy to confuse and one of them
+// is a security property.
+//
+// TERSE, because this file exists to be diffed. RouterOS's default wraps a long
+// command across continuation lines and where it wraps depends on the line's
+// whole length, so changing one property re-wraps the rest of the block and a
+// one-rule edit reads as a dozen changed lines. Measured on a 7.24.4 CHR: 34
+// continuations in 102 lines by default, none in 45 with terse.
+//
+// NOT show-sensitive, deliberately, and this is the check that keeps it that
+// way. The .rsc is stored gzipped rather than encrypted, it is rendered into a
+// browser by the diff view, and it is read as text by anything downstream -
+// so a credential in it is greppable plaintext rather than something behind a
+// decrypt. The secrets are already retained in the .backup binary, which the
+// router encrypts, and that is where they belong. github.com/SecOps-7/MikroDash
+// issue #140 asked for the flag and this is the answer.
+func TestTheExportIsTerseAndNeverShowsSensitive(t *testing.T) {
+	f := newFake([]byte("cfg"), []byte("bin"))
+	runWith(t, f, "")
+
+	var terse bool
+	for _, a := range f.exportArgs {
+		if a == "=terse=" {
+			terse = true
+		}
+		if strings.Contains(a, "show-sensitive") {
+			t.Errorf("the backup export passed %q.\n"+
+				"The .rsc is stored gzipped, not encrypted, and the diff view renders it into a\n"+
+				"browser, so a credential in it is plaintext somebody can grep. The .backup binary\n"+
+				"already retains the secrets and the router encrypts that one.", a)
+		}
+	}
+	if !terse {
+		t.Errorf("the backup export carried %v, with no =terse=.\n"+
+			"Without it RouterOS wraps long commands across continuation lines, and a one-rule\n"+
+			"change re-wraps the block around it - so the diff this file exists for shows a dozen\n"+
+			"lines changed for one edit.", f.exportArgs)
 	}
 }
 
