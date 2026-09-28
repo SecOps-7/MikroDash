@@ -612,6 +612,10 @@ func (cn *conn) dispatch(in inbound) {
 		cn.toolsBtest(in.Data)
 	case "tools:sniffer":
 		cn.toolsSniffer(in.Data)
+	// Clear: the router keeps a capture until something replaces it, and only
+	// `/tool/sniffer/start` empties it. See toolsSnifferClear.
+	case "tools:sniffer-clear":
+		cn.toolsSnifferClear()
 	case "tools:caps":
 		cn.toolsCaps()
 	// Stop: the run's own quit, exactly as a router switch ends it. Its last

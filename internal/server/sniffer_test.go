@@ -124,8 +124,17 @@ func TestACaptureIsStoppedAndThenReadOneLastTime(t *testing.T) {
 	if i, j := indexOf(f.sent, "/system/device-mode/print"), indexOf(f.sent, "/tool/sniffer/set"); i < 0 || i > j {
 		t.Errorf("device-mode was read at %d and the set was at %d:\n%s", i, j, order)
 	}
-	if !strings.Contains(order, "/tool/sniffer/set /tool/sniffer/start") {
-		t.Errorf("the filters were not written immediately before the start:\n%s", order)
+	// ── STOPPED, THEN CONFIGURED, THEN STARTED ──────────────────────────────
+	//
+	// The leading stop is not tidiness. RouterOS refuses both of the next two
+	// while the sniffer is running - `set` traps "cannot set, sniffer running"
+	// and `start` traps "already running" - so a capture left on the device by
+	// a previous run made EVERY later Start fail, with a RouterOS message the
+	// page could not act on. Reproduced on a 7.24.4 CHR before this line
+	// existed. A stop on an already-stopped sniffer is accepted, so it is
+	// unconditional rather than behind an "is it running" read.
+	if !strings.Contains(order, "/tool/sniffer/stop /tool/sniffer/set /tool/sniffer/start") {
+		t.Errorf("the run did not stop, configure and then start in that order:\n%s", order)
 	}
 	stop := lastIndexOf(f.sent, "/tool/sniffer/stop")
 	if stop < 0 {

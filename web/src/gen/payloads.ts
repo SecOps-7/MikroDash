@@ -1405,6 +1405,11 @@ export interface ToolsSnifferPayload {
   done: boolean;
 }
 
+export interface ToolsSnifferClearPayload {
+  code: string;
+  message: string;
+}
+
 export interface Flow {
   protocol: string;
   srcAddress: string;
@@ -2088,6 +2093,7 @@ export interface Events {
   'tools:caps': ToolsCapsPayload;
   'tools:ping': ToolsPingPayload;
   'tools:sniffer': ToolsSnifferPayload;
+  'tools:sniffer-cleared': ToolsSnifferClearPayload;
   'tools:torch': ToolsTorchPayload;
   'tools:traceroute': ToolsTraceroutePayload;
   'topology:update': TopologyPayload;

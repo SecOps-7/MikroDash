@@ -18,9 +18,15 @@
             <span id="snifferBadge" class="card-badge" title="Packets shown">0</span>
           </div>
           <div class="hdr-actions">
+            <!-- CLEAR IS A WRITE TO THE ROUTER, not a wipe of this page: the
+                 capture lives in the device's memory and only
+                 `/tool/sniffer/start` empties it. See toolsSnifferClear in
+                 internal/server/sniffer.go for why that takes three commands. -->
+            <button class="sbtn sbtn-ghost" id="snifferClear" type="button" disabled
+              title="Discard the packets captured on the router">Clear</button>
             <!-- The capture leaves the router as a file: see the pcap export in
-                 internal/server/sniffer.go. Disabled until a capture has
-                 something in it. -->
+                 internal/server/sniffer.go. Both are disabled until a capture
+                 has something in it. -->
             <button class="sbtn sbtn-primary" id="snifferExport" type="button" disabled
               title="Download the captured packets">Export capture</button>
           </div>

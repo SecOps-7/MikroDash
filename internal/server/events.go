@@ -34,6 +34,7 @@ var (
 	EvToolsTorch        = hub.Declare[ToolsTorchPayload]("tools:torch")
 	EvToolsBtest        = hub.Declare[ToolsBtestPayload]("tools:btest")
 	EvToolsSniffer      = hub.Declare[ToolsSnifferPayload]("tools:sniffer")
+	EvToolsSnifferClear = hub.Declare[ToolsSnifferClearPayload]("tools:sniffer-cleared")
 	EvToolsCaps         = hub.Declare[ToolsCapsPayload]("tools:caps")
 	EvTermOutput        = hub.Declare[TermOutputPayload]("term:output")
 	EvTermScrollback    = hub.Declare[TermScrollbackPayload]("term:scrollback")

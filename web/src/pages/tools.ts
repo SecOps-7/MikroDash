@@ -195,6 +195,9 @@ const SNIFF_COLS: SortCol[] = [
 ];
 const sniffSort: SortState = { col: 'num', dir: 'desc' };
 let sniffRows: SnifferResult | null = null;
+// clearing latches the Clear button while the router is being asked, so a second
+// press cannot send a second set of three commands into the write queue.
+let clearing = false;
 
 const bps = (v: number): string => fmtMbps(v / 1e6);
 
@@ -438,6 +441,8 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   // as is a write tool's for a viewer who may not write.
   function setRunning(t: Tool | null, note: string): void {
     pending = t;
+    // Clear reads `pending`, so its state is refreshed at the end of this
+    // function - after every button above has been settled.
     for (const x of TOOLS) {
       const btn = el<HTMLButtonElement>(x.run);
       if (!btn) continue;
@@ -451,14 +456,30 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
       const status = el(t.status);
       if (status) status.textContent = note;
     }
+    setExportEnabled();
   }
 
   // The export asks the router to write the capture to a file, so it needs the
   // same write access the capture did - and there is no point offering it until
   // there is something captured to write.
   function setExportEnabled(): void {
+    const off = !mayRun.sniffer || !sniffRows || sniffRows.totalPackets === 0;
     const btn = el<HTMLButtonElement>('snifferExport');
-    if (btn) btn.disabled = !mayRun.sniffer || !sniffRows || sniffRows.totalPackets === 0;
+    if (btn) btn.disabled = off;
+    // ── CLEAR IS NOT GATED ON HAVING SOMETHING ON SCREEN ─────────────────────
+    //
+    // The capture lives in the ROUTER's memory, and this page may be showing
+    // nothing at all while the device still holds one - after a reload, or
+    // after this app restarted mid-run. Disabling Clear until a capture is on
+    // screen would hide the button in exactly the state it is needed. It is
+    // gated on write access and on nothing else.
+    //
+    // IT IS OFF WHILE ANY RUN IS PENDING, though. A tool holds the router one
+    // at a time, so a clear sent mid-capture comes back "Another tool is still
+    // running" - true, and baffling when the other tool is this page's own
+    // capture. While one is running the button to press is Stop.
+    const clr = el<HTMLButtonElement>('snifferClear');
+    if (clr) clr.disabled = !mayRun.sniffer || clearing || pending !== null;
   }
 
   function stop(): void {
@@ -510,6 +531,30 @@ export function initToolsPage(socket: Socket, isVisible: (page: string) => boole
   // next poll.
   renderSortHeader('snifferHead', SNIFF_COLS, sniffSort, () => {
     if (sniffRows) renderSniffer(sniffRows);
+  });
+  el('snifferClear')?.addEventListener('click', () => {
+    if (clearing) return;
+    clearing = true;
+    setExportEnabled();
+    const status = el('snifferExportStatus');
+    if (status) status.textContent = 'Clearing the capture on the router…';
+    socket.emit('tools:sniffer-clear', {});
+  });
+  socket.on('tools:sniffer-cleared', (d) => {
+    clearing = false;
+    const status = el('snifferExportStatus');
+    if (d.code) {
+      if (status) status.textContent = d.message || REFUSED[d.code] || 'The capture could not be cleared.';
+      setExportEnabled();
+      return;
+    }
+    // THE ROUTER IS EMPTY, SO THE PAGE IS TOO. Drawing the last frame under a
+    // "cleared" message would be a table of packets the device no longer has.
+    clearResult(sniffer);
+    setExportEnabled();
+    if (status) status.textContent = 'Cleared.';
+    const runStatus = el('snifferStatus');
+    if (runStatus) runStatus.textContent = '';
   });
   el('snifferExport')?.addEventListener('click', () => {
     const rid = activeId();

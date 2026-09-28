@@ -67,6 +67,19 @@ type ToolsSnifferPayload struct {
 	Done    bool   `json:"done"`
 }
 
+// ToolsSnifferClearPayload answers `tools:sniffer-clear`.
+//
+// ITS OWN EVENT RATHER THAN A CODE ON `tools:sniffer`: a clear and a run are two
+// features, and a shared reply channel is how a release once told an operator
+// who could update perfectly well that they lacked permission. Nothing here
+// settles a pending run.
+type ToolsSnifferClearPayload struct {
+	// Code is empty when the capture was cleared, and otherwise one of the
+	// shared tool codes.
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 type toolsSnifferReq struct {
 	Interface  string `json:"interface"`
 	IPProtocol string `json:"ipProtocol"`
@@ -114,6 +127,75 @@ func (cn *conn) toolsSniffer(raw json.RawMessage) {
 				EvToolsSniffer.Send(cn.srv.hub, cn.c, ToolsSnifferPayload{Result: r})
 			})
 			EvToolsSniffer.Send(cn.srv.hub, cn.c, ToolsSnifferPayload{Result: res, Code: code, Message: msg, Done: true})
+		})
+}
+
+// toolsSnifferClear answers `tools:sniffer-clear`: it throws away whatever the
+// router has captured and leaves the sniffer stopped.
+//
+// ── WHY THIS IS THREE COMMANDS AND NOT ONE ──────────────────────────────────
+//
+// RouterOS has no command that empties the capture. Measured on a 7.24.4 CHR,
+// from a sniffer holding 763 packets, 12 protocol rows and 6 hosts:
+//
+//	/tool/sniffer/reset          left all three UNCHANGED
+//	/tool/sniffer/packet/remove  refused outright
+//	/tool/sniffer/start          zeroed all three
+//
+// So `start` is the only thing that clears, and clearing without capturing
+// means starting and immediately stopping. The leading `stop` is what makes
+// that safe from any state: `start` on a running sniffer traps "already
+// running", while `stop` on a stopped one is simply accepted.
+//
+// `reset` is left alone deliberately rather than sent as well. It resets the
+// sniffer's SETTINGS, and this is a clear of captured data, not of the filters
+// the operator typed into the form.
+//
+// ── IT CLEARS TO NEARLY ZERO, NOT TO ZERO, AND THAT IS ACCEPTED ─────────────
+//
+// The start and the stop are two round trips, so whatever crosses the wire in
+// between is captured: measured on a busy CHR, a clear took 268 packets down to
+// 4. Filtering to a MAC that cannot appear does reach a true 0/0/0 - measured -
+// but only by rewriting the operator's filters and restoring them afterwards,
+// and by reasoning about `filter-operator-between-entries`, since the default
+// `or` would let an interface or protocol filter admit traffic anyway.
+//
+// That complexity buys nothing visible. The residue cannot be reached from the
+// page: Export is disabled until a capture has been drawn, and drawing one
+// means a Start, which clears. So the simple three commands stay, and the
+// number is written down here rather than left for somebody to rediscover.
+func (cn *conn) toolsSnifferClear() {
+	sc := cn.scope()
+	rec := cn.recorder()
+	cn.startTool("tools-sniffer", "write",
+		func(code string) {
+			if code == "denied" {
+				cn.recorder().Denied(audit.Event{Action: "tools.sniffer.clear",
+					TargetType: "interface", RouterID: cn.routerID})
+			}
+			EvToolsSnifferClear.Send(cn.srv.hub, cn.c, ToolsSnifferClearPayload{Code: code})
+		},
+		func(rs *session.Session, _ <-chan struct{}) {
+			// BEFORE THE COMMANDS, as every other run on this page records: a
+			// clear that then fails still stopped the operator's capture.
+			rec.Record(audit.Event{
+				Action: "tools.sniffer.clear", TargetType: "interface", Scope: "router",
+				RouterID: sc.routerID,
+				Note:     "discarded the packets captured in the router's memory and left the sniffer stopped",
+			})
+			err := cn.inWriteQueueOn(sc, func() error {
+				for _, path := range []string{"/tool/sniffer/stop", "/tool/sniffer/start", "/tool/sniffer/stop"} {
+					if _, e := rs.Exec(routeros.Cmd{Path: path, Timeout: snifferCmdTimeout}); e != nil {
+						return e
+					}
+				}
+				return nil
+			})
+			p := ToolsSnifferClearPayload{}
+			if err != nil {
+				p.Code, p.Message = diagFailure(err)
+			}
+			EvToolsSnifferClear.Send(cn.srv.hub, cn.c, p)
 		})
 }
 
@@ -178,9 +260,30 @@ func (cn *conn) runSniffer(sc connScope, rec *audit.Recorder, rs *session.Sessio
 	})
 
 	if err := cn.inWriteQueueOn(sc, func() error {
+		// ── STOPPED FIRST, ALWAYS, EVEN THOUGH THIS RUN DID NOT START IT ────
+		//
+		// RouterOS refuses both of the next two commands while the sniffer is
+		// running: `set` traps "cannot set, sniffer running" and `start` traps
+		// "already running". So a capture left on the device - this app
+		// restarted mid-run, a poll that failed, or somebody's Winbox session -
+		// made every later Start fail with a RouterOS message the page could
+		// not act on and no way to clear it. Measured on a 7.24.4 CHR.
+		//
+		// A stop on a sniffer that is ALREADY stopped is accepted rather than
+		// trapped (measured the same way), so this costs one command and needs
+		// no "is it running" read to decide.
+		if _, e := rs.Exec(routeros.Cmd{Path: "/tool/sniffer/stop", Timeout: snifferCmdTimeout}); e != nil {
+			return e
+		}
 		if _, e := rs.Exec(routeros.Cmd{Path: "/tool/sniffer/set", Args: args, Timeout: snifferCmdTimeout}); e != nil {
 			return e
 		}
+		// AND THE START IS WHAT CLEARS THE PREVIOUS CAPTURE. `/tool/sniffer/reset`
+		// does NOT - measured: 763 packets, 12 protocol rows and 6 hosts were
+		// all still there after it - and `/tool/sniffer/packet/remove` is
+		// refused outright. `start` zeroes the packet buffer and the protocol
+		// and host tables together, which is why a capture begun here always
+		// counts from nothing.
 		_, e := rs.Exec(routeros.Cmd{Path: "/tool/sniffer/start", Timeout: snifferCmdTimeout})
 		return e
 	}); err != nil {

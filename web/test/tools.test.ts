@@ -54,7 +54,7 @@ const doc = makeDoc(['pingForm', 'pingAddress', 'pingCount', 'pingRun', 'pingSta
   'snifferForm', 'snifferInterface', 'snifferProtocol', 'snifferPort', 'snifferAddress',
   'snifferDirection', 'snifferRun', 'snifferStatus', 'snifferSummary', 'snifferHead',
   'snifferRows', 'snifferBadge', 'snifferScroll', 'snifferExport',
-  'snifferExportProgress', 'snifferExportBar', 'snifferExportStatus',
+  'snifferExportProgress', 'snifferExportBar', 'snifferExportStatus', 'snifferClear',
   'snifferPacketsVal', 'snifferBytesVal', 'snifferProtoVal', 'snifferProtoFoot',
   'snifferTalkerVal', 'snifferTalkerFoot'],
   // traceMap: an <svg> the trace map draws into with path geometry
@@ -475,6 +475,65 @@ let blobbed = 0;
 const whole = mod.readWithProgress({ blob: () => { blobbed++; return now('the file'); } }, 0, () => {});
 assert.strictEqual(blobbed, 1, 'a response with no body did not fall back to reading it whole');
 whole.then((b) => assert.strictEqual(b, 'the file', 'the fallback did not hand back what blob() gave'));
+
+// ── CLEAR: THE CAPTURE LIVES ON THE ROUTER, SO CLEARING IS A WRITE ──────────
+//
+// Three claims. It asks the ROUTER rather than just blanking the page; it is
+// offered even when this page is showing nothing, because the device can hold
+// a capture the page never drew (a reload, or this app restarting mid-run);
+// and a refusal says so instead of pretending the capture went away.
+// Write access on this page is what offers Clear at all, so it is granted here
+// rather than by forcing the button's disabled flag - the gate is the claim.
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, maySniff: true, snifferAllowed: true, interfaces: ['ether1'] });
+// A CAPTURE IS PUT ON SCREEN FIRST. Without it the "the page is empty after a
+// clear" assertion below passes against a page that was already empty, which a
+// mutation sweep caught: deleting the clear left the test green.
+n.snifferForm.fire('submit', { preventDefault: () => {} });
+handlers['tools:sniffer']({ code: '', message: '', done: true, result: capture });
+assert.ok(/198\.51\.100\.10/.test(sniff()), 'the control capture was not drawn before the clear');
+assert.notStrictEqual(String(n.snifferPacketsVal.textContent), '-', 'the control capture left the cards empty');
+assert.strictEqual(n.snifferClear.disabled, false,
+  'Clear is not offered to a viewer who may capture, with nothing on screen - which is exactly when the router may still hold one');
+sent.length = 0;
+n.snifferClear.fire('click', {});
+assert.deepStrictEqual(sent.map((s) => s[0]), ['tools:sniffer-clear'],
+  'Clear did not ask the router: ' + JSON.stringify(sent));
+assert.strictEqual(n.snifferClear.disabled, true, 'Clear stayed pressable while the router was being asked');
+
+// A SECOND PRESS WHILE IT IS IN FLIGHT SENDS NOTHING. Three commands go into
+// the write queue per clear, and a double press would queue six.
+sent.length = 0;
+n.snifferClear.fire('click', {});
+assert.deepStrictEqual(sent, [], 'a second press mid-clear sent another clear: ' + JSON.stringify(sent));
+
+// The answer empties the page, because the router is now empty.
+handlers['tools:sniffer-cleared']({ code: '', message: '' });
+assert.ok(/Not run yet/.test(sniff()), 'a cleared capture left its packets on screen');
+assert.strictEqual(String(n.snifferPacketsVal.textContent), '-', 'the cards survived a clear');
+assert.strictEqual(n.snifferExport.disabled, true, 'Export stayed offered with nothing left to export');
+assert.strictEqual(String(n.snifferExportStatus.textContent), 'Cleared.',
+  'the clear did not say it had happened: ' + n.snifferExportStatus.textContent);
+
+// A REFUSAL CARRIES THE ROUTER'S WORDS and leaves Clear pressable again.
+n.snifferClear.fire('click', {});
+handlers['tools:sniffer-cleared']({ code: 'failed', message: 'the router said: no' });
+assert.ok(/the router said: no/.test(String(n.snifferExportStatus.textContent)),
+  'a refused clear did not say why: ' + n.snifferExportStatus.textContent);
+assert.strictEqual(n.snifferClear.disabled, false, 'a refused clear left the button latched off');
+
+// AND IT IS OFF WHILE A CAPTURE IS RUNNING. A tool holds the router one at a
+// time, so a clear sent mid-capture comes back "Another tool is still running",
+// which is baffling when the other tool is this page's own capture.
+n.snifferForm.fire('submit', { preventDefault: () => {} });
+assert.strictEqual(n.snifferClear.disabled, true, 'Clear was offered while a capture was running');
+handlers['tools:sniffer']({ code: '', message: '', done: true, result: capture });
+assert.strictEqual(n.snifferClear.disabled, false, 'Clear stayed off after the capture settled');
+
+// THE CONTROL for the assertion above: a viewer who may not capture is not
+// offered Clear either, so "enabled with nothing on screen" is about the write
+// gate rather than about the button never being disabled.
+handlers['tools:caps']({ mayTorch: true, mayBtest: true, maySniff: false, snifferAllowed: true, interfaces: ['ether1'] });
+assert.strictEqual(n.snifferClear.disabled, true, 'Clear was offered to a viewer who may not capture');
 
 fs.rmSync(OUT, { force: true });
 say('tools: ok');
