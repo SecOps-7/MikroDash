@@ -3099,6 +3099,23 @@
 .nchan-iface-modal { z-index: 901; }
 /* Above the device dialog it opens from, for the same reason. */
 .apissl-modal { z-index: 901; }
+
+/* ── THE BUSY ROW'S SPINNER ──────────────────────────────────────────────
+   `flex-shrink` DEFAULTS TO 1, so a spinner sitting beside a sentence in a
+   26rem dialog is squeezed by it: measured at 23.2 x 21.9 against the real
+   "Generating keys on the device..." text, which reads as an oval because the
+   two axes end up unequal on a rotating bordered square. `flex: 0 0 auto` is
+   what keeps a fixed-size indicator fixed.
+
+   The size lives here rather than in a style attribute on the element: the
+   shared `.rtr-switching-spinner` declares 28px, and an inline width that the
+   class overrides looks deliberate while doing nothing. */
+.apissl-spinner {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
 .nchan-iface-list { display: flex; flex-direction: column; gap: .15rem; }
 .nchan-iface-row { padding: .3rem 0; }
 
