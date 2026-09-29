@@ -355,9 +355,23 @@ func (s *Server) ztpOnboard(id string) {
 	}
 }
 
-// ztpFindAPI signs in on the plain API, then on API-SSL, until one works or
-// the window closes. A tunnel address goes through the tunnel (routeros.Dial's
+// ztpFindAPI signs in on API-SSL, then on the plain API, until one works or the
+// window closes. A tunnel address goes through the tunnel (routeros.Dial's
 // route); a LAN one does not.
+//
+// ── API-SSL FIRST, AND THE ORDER IS THE WHOLE POINT ────────────────────────
+//
+// Whichever port answers first is written into the router record and used for
+// that device's entire life; nothing re-probes later. Trying plain first
+// therefore SILENTLY DOWNGRADED a router that already had a certificate,
+// because `apiService` in the enrolment script guarantees the plain service is
+// up and plain would always answer.
+//
+// MikroTik's API documentation is explicit that "the password is sent in plain
+// text", so the choice is not cosmetic. A factory-fresh router still has no
+// certificate and still lands on 8728 - that is what the fallback is for, and
+// for a remote device that traffic runs inside the WireGuard tunnel. What
+// changes is that a router which CAN do better now does.
 func ztpFindAPI(host, password string, window time.Duration) (int, bool, error) {
 	deadline := time.Now().Add(window)
 	var last error
@@ -365,7 +379,7 @@ func ztpFindAPI(host, password string, window time.Duration) (int, bool, error) 
 		for _, try := range []struct {
 			port int
 			tls  bool
-		}{{8728, false}, {8729, true}} {
+		}{{8729, true}, {8728, false}} {
 			c, err := routeros.Dial(routeros.Config{Host: host, Port: try.port, TLS: try.tls, InsecureTLS: try.tls,
 				Username: ztp.UserName, Password: password, DialTimeout: 8 * time.Second, Label: host + " (ztp)"})
 			if err == nil {
