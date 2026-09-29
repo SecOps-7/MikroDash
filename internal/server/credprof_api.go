@@ -76,6 +76,7 @@ type credProfileIn struct {
 	GroupName   string   `json:"groupName"`
 	Policies    []string `json:"policies"`
 	Password    string   `json:"password"`
+	IsDefault   bool     `json:"isDefault"`
 }
 
 func (s *Server) registerCredProfileAPI(mux *http.ServeMux) {
@@ -325,6 +326,25 @@ func (s *Server) credProfileSave(w http.ResponseWriter, r *http.Request, sess *S
 		return
 	}
 
+	// THE DEFAULT IS SET SEPARATELY, because it is a claim about the SET of
+	// profiles rather than about this one: marking this the default has to
+	// clear whichever profile held it before, in one transaction.
+	//
+	// Unticking clears the default outright rather than picking another. No
+	// default at all is a legitimate state, and guessing a replacement would be
+	// the app deciding something the operator just declined to.
+	if in.IsDefault {
+		if err := s.auditDB.SetDefaultCredProfile(id); err != nil {
+			writeJSONErr(w, http.StatusInternalServerError, "the default could not be set")
+			return
+		}
+	} else if existing.IsDefault {
+		if err := s.auditDB.SetDefaultCredProfile(""); err != nil {
+			writeJSONErr(w, http.StatusInternalServerError, "the default could not be cleared")
+			return
+		}
+	}
+
 	saved, err := s.auditDB.CredProfileByID(id)
 	if err != nil {
 		writeJSONErr(w, http.StatusInternalServerError,
@@ -368,7 +388,7 @@ func credAuditValues(p db.CredProfile) map[string]any {
 	}
 	return map[string]any{
 		"name": p.Name, "username": p.Username, "groupName": p.GroupName,
-		"policies": p.PolicyJSON, "revision": p.Revision,
+		"policies": p.PolicyJSON, "revision": p.Revision, "isDefault": p.IsDefault,
 	}
 }
 

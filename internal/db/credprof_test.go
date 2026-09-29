@@ -340,3 +340,87 @@ func TestRemovingARouterTakesItsLinksAndNotItsProfile(t *testing.T) {
 		t.Errorf("removing a router removed the profile itself: %v", err)
 	}
 }
+
+// TestUnlinkingTheLastSiteStillLeavesSomethingToReconcile.
+//
+// ── THE BUG THIS PINS, WHICH A LIVE UNLINK FOUND ───────────────────────────
+//
+// `credExpandSites` iterated the map of site links and returned early when it
+// was empty. Removing a profile's LAST site link therefore left its accounts on
+// every router that site had covered, FOR EVER: with no site links left there
+// was nothing to iterate, so the loop that removes an orphaned via=site link
+// never ran.
+//
+// Nothing in the suite noticed, because every test had at least one site link
+// in play. It was found by unticking a site on the CHR and reading /user back -
+// the link still said applied/via=site and the account was still there.
+//
+// The storage half of that is here: after the last site link goes, the via=site
+// router link SURVIVES, so there is still something for the reconciler to act
+// on. A test that asserted the link vanished with the site would be pinning the
+// bug rather than the fix - the row has to outlive the site link, because
+// MikroDash has to take the account off the ROUTER before it forgets it.
+func TestUnlinkingTheLastSiteStillLeavesSomethingToReconcile(t *testing.T) {
+	d := openTest(t, t.TempDir())
+	seedProfile(t, d, "cp1", "NOC", "noc")
+
+	if err := d.LinkCredProfileSite("cp1", "site-a", "u-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.LinkCredProfile("cp1", "r-1", "site", "u-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.MarkCredLink("cp1", "r-1", "applied", "", "", 1, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// The last site link goes.
+	if err := d.UnlinkCredProfileSite("cp1", "site-a"); err != nil {
+		t.Fatal(err)
+	}
+	sites, err := d.CredProfileSites("cp1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sites) != 0 {
+		t.Fatalf("the site link survived the unlink: %v", sites)
+	}
+
+	// THE ROUTER LINK MUST STILL BE THERE. It is MikroDash's only record that
+	// an account is on that device, and dropping it here would be forgetting
+	// the account rather than removing it.
+	direct, viaSite, err := d.CredLinksByVia("cp1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !viaSite["r-1"] {
+		t.Error("the via=site link went with the site link; the account on that router " +
+			"would stay there with nothing left that knows about it")
+	}
+	if direct["r-1"] {
+		t.Error("the link changed to direct, so unlinking the site would never remove it")
+	}
+
+	// AND THE RECONCILER MUST HAVE A PROFILE TO LOOK AT. The bug was that it
+	// iterated site links rather than profiles, so a profile with none was
+	// skipped entirely - which is exactly this state.
+	profiles, err := d.CredProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected the profile to still exist, got %d", len(profiles))
+	}
+	all, err := d.AllCredProfileSites()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 0 {
+		t.Fatalf("expected no site links at all, got %v", all)
+	}
+	// THE CONTROL, and the whole point: the map the old code iterated is EMPTY,
+	// while the work that still has to happen is not.
+	if len(viaSite) == 0 {
+		t.Error("no via=site links remain, so this test proves nothing about the empty-map case")
+	}
+}

@@ -1837,8 +1837,32 @@
     .cp-site-x:hover{opacity:1}
     /* Delete removes accounts from routers, so it is coloured like the other
        destructive actions rather than like Edit. */
-    .cfg-btn-danger{color:var(--accent-err);border-color:color-mix(in srgb,var(--accent-err) 35%,transparent)}
-    .cfg-btn-danger:hover{background:color-mix(in srgb,var(--accent-err) 12%,transparent)}
+    /* ── A NOTE THAT BELONGS TO THE FIELD ABOVE IT ────────────────────────
+       `.sform-group` carries .9rem below each field, which leaves a note
+       floating midway between the field it explains and the next one. This
+       tucks it up - but two notes in a row then sat flush against each other
+       and read as one paragraph, which is what the inline -.5rem did before it
+       was a class. The adjacent rule is the half that fixes that, and it could
+       not be written inline at all: an inline style has no way to ask what
+       precedes it. */
+    .cp-note{margin-top:-.5rem}
+    .cp-note + .cp-note{margin-top:.55rem}
+    /* THE ROUTEROS ACCOUNT, in the app's purple - the colour-mix on --accent-alt
+       that .rtr-ztp-badge and .cfg-pill-full already use, so there is one purple
+       rather than a second one defined here. */
+    .cp-user{display:inline-flex;align-items:center;font-size:.66rem;font-family:var(--font-mono);padding:.12rem .45rem;border-radius:4px;white-space:nowrap;background:color-mix(in srgb,var(--accent-alt) 14%,transparent);color:var(--accent-alt);border:1px solid color-mix(in srgb,var(--accent-alt) 32%,transparent)}
+    /* A profile on no routers has no state to colour, so it gets the neutral
+       pill rather than bare text - the column then reads as one kind of thing
+       all the way down. */
+    .cp-pill.cp-none{background:rgba(99,130,190,.07);color:var(--text-muted);border:1px solid var(--border)}
+    /* ── THE PERMISSIONS COLUMN, AND WHY IT IS CAPPED ──────────────────────
+       A custom set can name all seventeen policies. Left to itself the cell
+       grew, the row grew with it, and the action buttons wrapped onto separate
+       lines - so the fix is on BOTH cells: this one may not run away, and the
+       actions may not wrap whatever happens beside them. The full list is in
+       the title attribute, which is where a truncated value belongs. */
+    .cp-perms{display:block;max-width:22rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cp-actions{white-space:nowrap}
     .cp-policies{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));gap:.25rem .6rem;margin:.35rem 0 .2rem}
     .cp-policy{display:flex;align-items:center;gap:.35rem;font-size:.7rem;font-family:var(--font-mono);color:var(--text-main);cursor:pointer}
     .cp-policy input{margin:0}
@@ -2727,6 +2751,16 @@
     .cfg-btn-go{color:var(--cfg-c,var(--accent-rx));background:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 14%,transparent);
       border-color:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 38%,transparent)}
     .cfg-btn-go:hover{background:color-mix(in srgb,var(--cfg-c,var(--accent-rx)) 24%,transparent);color:var(--cfg-c,var(--accent-rx))}
+    /* ── BESIDE .cfg-btn, AND THAT POSITION IS THE WHOLE FIX ───────────────
+       The same red as .sbtn-danger, values and all. It first sat 900 lines
+       EARLIER in this file, next to the other credential-profile rules where
+       it was convenient to write. `.cfg-btn` and `.cfg-btn-danger` are one
+       class each, so they have equal specificity and the LATER one wins - the
+       base button simply overwrote the colour and the button rendered grey,
+       identical to Edit beside it. A modifier belongs next to what it
+       modifies, not next to the feature that uses it. */
+    .cfg-btn-danger{background:rgba(248,113,113,.12);color:rgba(248,113,113,.9);border-color:rgba(248,113,113,.25)}
+    .cfg-btn-danger:hover{background:rgba(248,113,113,.22);border-color:rgba(248,113,113,.45);color:rgba(248,113,113,1)}
     .cfg-empty{padding:2rem 1rem;text-align:center;color:var(--text-muted);font-size:.82rem}
 
     /* Pills, by meaning. */

@@ -207,23 +207,55 @@ export function configProblem(tpl: OpenTemplate | null, chosen: string, values: 
   return '';
 }
 
+/** A credential profile the wizard can offer. */
+export interface CredOpt { id: string; name: string; username: string; isDefault: boolean }
+
+/**
+ * The credential picker.
+ *
+ * ── THE DEFAULT IS PRE-SELECTED, NOT PRE-APPLIED ───────────────────────────
+ *
+ * `chosen` arrives already set to the default profile, so the common case is
+ * one the operator does not have to think about - but it is a SELECT, visible
+ * and changeable, rather than something applied silently. An account appearing
+ * on a device because a box the operator never saw was ticked is the thing to
+ * avoid.
+ *
+ * None is always offered and is what shows when no default is set.
+ */
+export function credPick(creds: CredOpt[], chosen: string): string {
+  if (!creds.length) return '';
+  return '<div class="sform-group"><label class="sform-label" for="ztpCred">Credential</label>' +
+    '<select id="ztpCred" class="sform-input"><option value="">None: no extra account</option>' +
+    creds.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === chosen ? ' selected' : '') + '>' +
+      esc(c.name) + ' (' + esc(c.username) + ')' + (c.isDefault ? ' - default' : '') +
+      '</option>').join('') + '</select>' +
+    '<div class="ztp-help">A credential profile, created on the device once it arrives. It is a login for ' +
+    'people; MikroDash keeps signing in as itself.</div></div>';
+}
+
 /** Step 3: a template to apply on arrival, its settings and its checks. */
 export function configStep(templates: TemplateOpt[], chosen: string, tpl: OpenTemplate | null, label: string,
-  values: Record<string, string>, acked: Set<string>, reveal: boolean): string {
+  values: Record<string, string>, acked: Set<string>, reveal: boolean,
+  creds: CredOpt[] = [], cred = ''): string {
   const pick = '<div class="sform-group"><label class="sform-label" for="ztpTpl">Apply on arrival</label>' +
     '<select id="ztpTpl" class="sform-input"><option value="">Nothing: just add it to the fleet</option>' +
     templates.map((t) => '<option value="' + esc(t.id) + '"' + (t.id === chosen ? ' selected' : '') + '>' +
       esc(t.name) + (t.canned ? ' (built in)' : '') + '</option>').join('') + '</select>' +
     '<div class="ztp-help">A Config Management template that adds configuration. It is previewed on the router ' +
     'itself when it arrives, and deployed with a restore point and the auto-revert, as any deploy is.</div></div>';
-  if (!chosen) return pick;
-  if (!tpl || tpl.id !== chosen) return pick + '<div class="ztp-help">Opening the template…</div>';
+  // APPENDED TO `pick` ITSELF rather than to each return below: this function
+  // has three exits and a credential that appeared on only one of them would be
+  // a setting that vanishes when a template is chosen.
+  const head = pick + credPick(creds, cred);
+  if (!chosen) return head;
+  if (!tpl || tpl.id !== chosen) return head + '<div class="ztp-help">Opening the template…</div>';
   const one: RouterOpt[] = [{ id: 'device', label: label || 'This device' }];
   const grid = valuesGrid(tpl.defs, one, { device: values }, reveal);
   const refused = tpl.findings.filter((f) => f.level === 'refuse');
   const acks = ackCodes(tpl.findings);
   const notes = tpl.findings.filter((f) => f.level !== 'ack' && f.level !== 'refuse');
-  return pick + '<div class="ztp-sub">Settings</div>' + grid +
+  return head + '<div class="ztp-sub">Settings</div>' + grid +
     (refused.length ? '<div class="cfg-banner is-bad">' + refused.map((f) => esc(f.message)).join('<br>') + '</div>' : '') +
     (acks.length ? '<div class="ztp-sub">Checks that need your OK</div><ul class="cfg-findings">' + acks.map((f) =>
       '<li class="cfg-finding cfg-lvl-ack"><label class="cfg-ack"><input type="checkbox" data-ztp-ack="' + esc(f.code) +

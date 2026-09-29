@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 32
+const schemaVersion = 33
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -254,6 +254,7 @@ var portMigrations = map[int][]string{
 	// and says nothing about a missing COLUMN. That asymmetry is exactly how
 	// migration 30 shipped against a table name that had never existed - fine
 	// on every fresh install, broken at startup on every real one.
+	//
 	// 32: the credential profile tables take their FINAL shape - sites, the
 	// `via` column, `pending_delete`, and a group owned by every profile rather
 	// than RouterOS's own read/write/full shared between them.
@@ -285,25 +286,14 @@ var portMigrations = map[int][]string{
 		`DROP TABLE IF EXISTS cred_profiles`,
 		credProfTablesDDL,
 	},
-	// 33: EVERY PROFILE OWNS ITS GROUP.
+	// 33: one profile may be marked the DEFAULT, which is what the ZTP wizard
+	// offers first.
 	//
-	// A profile could previously join RouterOS's own read/write/full group. That
-	// let it collide with the group MikroDash signs in with - the lockout guard
-	// then refused it, and the operator was told to link it and find out which
-	// devices objected - and it made two profiles sharing a group share its
-	// permissions silently, each edit changing the other. Owning a group removes
-	// all of it, and the collision cannot arise at all.
-	//
-	// The old rows are CONVERTED rather than dropped: a profile that used a
-	// built-in gets a group of its own, named after its account, holding the
-	// policies that built-in grants on RouterOS 7.24.4. That IS a real change on
-	// the device - the account moves out of `read` and into `md-<user>` - and
-	// the revision bump is what makes every linked router pick it up.
-	//
-	// SQLite cannot drop a column on the versions this runs on, so the table is
-	// rebuilt. `Migrate` already runs one version's statements in a
-	// transaction, so a failure part way leaves the old table under its own
-	// name rather than half a new one.
+	// A bare ADD COLUMN is not idempotent, and it does not need to be here: the
+	// runner recognises SQLite's duplicate-column complaint and carries on (see
+	// isDuplicateColumn), which is what makes this safe to replay over a
+	// database that already has the column from freshSchemaDDL.
+	33: {`ALTER TABLE cred_profiles ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`},
 }
 
 // createSchema builds a new database at `path`.

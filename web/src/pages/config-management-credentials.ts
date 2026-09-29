@@ -31,6 +31,8 @@ export interface CredProfile {
   hasSecret: boolean;
   links: number;
   revision: number;
+  /** Offered first when a device is provisioned. At most one profile has it. */
+  isDefault: boolean;
   /** Set when Delete was pressed while routers still held the account. */
   pendingDelete: boolean;
 }
@@ -73,6 +75,7 @@ const STATE_KIND: Record<string, string> = {
 
 /** What each state means, in the operator's terms rather than the code's. */
 const STATE_TITLE: Record<string, string> = {
+  'not linked': 'This profile is not on any router yet. Open Routers to put it on one.',
   applied: 'The account is on this router, in the right group.',
   pending: 'Queued. It will be applied the next time the router answers.',
   applying: 'Being applied now.',
@@ -88,7 +91,10 @@ const STATE_TITLE: Record<string, string> = {
 };
 
 export function statePill(state: string): string {
-  const kind = STATE_KIND[state] ?? 'bad';
+  // AN UNKNOWN STATE IS NEUTRAL, NOT RED. `not linked` is the ordinary case for
+  // a profile nobody has put anywhere yet, and colouring it like a failure
+  // would make an untouched profile look broken.
+  const kind = STATE_KIND[state] ?? 'none';
   const title = STATE_TITLE[state] ?? '';
   return `<span class="cp-pill cp-${kind}" title="${esc(title)}">${esc(state)}</span>`;
 }
@@ -143,13 +149,22 @@ export function profileRow(p: CredProfile, links: readonly CredLink[]): string {
   // recognise it".)
   return '<tr>'
     + `<td><strong>${esc(p.name)}</strong>`
+    // THE DEFAULT IS MARKED IN THE LIST, because "which one is the default" is
+    // otherwise only visible by opening each profile in turn.
+    + (p.isDefault ? ' <span class="cp-pill cp-wait" title="Offered first when a device '
+      + 'is provisioned">default</span>' : '')
     + (p.description ? `<div class="cfg-meta">${esc(p.description)}</div>` : '')
     + '</td>'
-    + `<td><code>${esc(p.username)}</code></td>`
-    + `<td>${esc(permissionText(p))}</td>`
+    // THE ACCOUNT, as a pill: it is the thing this profile puts on a router,
+    // and the column reads as a set of accounts rather than a run of text.
+    + `<td><span class="cp-user">${esc(p.username)}</span></td>`
+    // TRUNCATED, WITH THE WHOLE LIST IN title. Seventeen policies used to wrap
+    // the cell, grow the row, and push the buttons beside it onto two lines.
+    + `<td><span class="cp-perms" title="${esc(permissionText(p))}">`
+    + `${esc(permissionText(p))}</span></td>`
     + `<td>${p.links}</td>`
-    + `<td>${state ? statePill(state) : '<span class="cfg-meta">not linked</span>'}</td>`
-    + '<td class="text-end">'
+    + `<td>${state ? statePill(state) : statePill('not linked')}</td>`
+    + '<td class="text-end cp-actions">'
     + `<button class="cfg-btn" type="button" data-cp-edit="${esc(p.id)}">Edit</button> `
     + `<button class="cfg-btn" type="button" data-cp-links="${esc(p.id)}">Routers</button> `
     // DELETE IS NOT INSTANT when routers hold the account, and the label says

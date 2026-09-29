@@ -64,17 +64,34 @@ async function loadSites(): Promise<V.SiteOpt[]> {
 interface ConfigState {
   templates: V.TemplateOpt[]; chosen: string; tpl: V.OpenTemplate | null;
   values: Record<string, string>; acked: Set<string>; reveal: boolean;
+  creds: V.CredOpt[]; cred: string;
 }
 
 const newConfig = (): ConfigState =>
-  ({ templates: [], chosen: '', tpl: null, values: {}, acked: new Set(), reveal: false });
+  ({ templates: [], chosen: '', tpl: null, values: {}, acked: new Set(), reveal: false,
+    creds: [], cred: '' });
+
+/**
+ * The credential profiles a device can be given, and which one is the default.
+ *
+ * A PENDING-DELETE PROFILE IS NOT OFFERED: its accounts are being taken off
+ * routers, and provisioning a device with it would put one straight back.
+ */
+async function loadCreds(): Promise<V.CredOpt[]> {
+  const r = await fetch('/api/credentials/profiles', { credentials: 'same-origin' });
+  if (!r.ok) return [];
+  const body = await r.json() as { profiles?: (V.CredOpt & { pendingDelete?: boolean })[] };
+  return (body.profiles ?? []).filter((p) => !p.pendingDelete)
+    .map((p) => ({ id: p.id, name: p.name, username: p.username, isDefault: p.isDefault }));
+}
 
 function configStep(c: ConfigState, label: () => string, next: string,
   leave: () => Promise<string>): WizardStep {
   return {
     title: 'Configuration',
     next,
-    render: () => V.configStep(c.templates, c.chosen, c.tpl, label(), c.values, c.acked, c.reveal),
+    render: () => V.configStep(c.templates, c.chosen, c.tpl, label(), c.values, c.acked, c.reveal,
+      c.creds, c.cred),
     check: () => V.configProblem(c.tpl, c.chosen, c.values, c.acked),
     leave,
     bind(body, redraw, recheck) {
@@ -97,6 +114,9 @@ function configStep(c: ConfigState, label: () => string, next: string,
           c.chosen = '';
           redraw();
         });
+      });
+      body.querySelector<HTMLSelectElement>('#ztpCred')?.addEventListener('change', (e) => {
+        c.cred = (e.target as HTMLSelectElement).value;
       });
       body.querySelectorAll<HTMLInputElement>('[data-dep-val]').forEach((i) => i.addEventListener('input', () => {
         c.values[i.dataset.depVar ?? ''] = i.value;
@@ -164,6 +184,12 @@ function openAddDevice(): void {
   let sites: V.SiteOpt[] = [];
   let result: V.ScriptResult | null = null;
   void loadTemplates().then((t) => { c.templates = t; }, () => { /* the picker offers nothing but None */ });
+  // THE DEFAULT IS PRE-SELECTED, so the common case needs no thought - and it
+  // is a visible select, not something applied silently.
+  void loadCreds().then((cs) => {
+    c.creds = cs;
+    c.cred = cs.find((x) => x.isDefault)?.id ?? '';
+  }, () => { /* the picker offers None only */ });
   void loadSites().then((s) => { sites = s; });
 
   openWizard({
@@ -187,6 +213,7 @@ function openAddDevice(): void {
             mode, label: form.label.trim(), serial: form.serial.trim(), siteIds: form.siteIds, days: form.days,
             lanUrl: mode === 'local' ? form.lanUrl.trim().replace(/\/$/, '') : '',
             templateId: c.chosen, values: c.chosen ? c.values : {}, acked: [...c.acked],
+            credProfileIds: c.cred ? [c.cred] : [],
           });
           return '';
         } catch (e) {
@@ -240,6 +267,7 @@ function openOnboard(d: ZTPDeviceView): void {
           await api('POST', '/api/ztp/devices/' + encodeURIComponent(d.id) + '/approve', {
             label: form.label.trim(), siteIds: form.siteIds, templateId: c.chosen,
             values: c.chosen ? c.values : {}, acked: [...c.acked],
+            credProfileIds: c.cred ? [c.cred] : [],
           });
           return '';
         } catch (e) {

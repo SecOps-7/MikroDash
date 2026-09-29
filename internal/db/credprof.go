@@ -27,6 +27,7 @@ type CredProfile struct {
 	PolicyJSON    string `json:"-"`
 	Secret        string `json:"-"`
 	Revision      int64  `json:"revision"`
+	IsDefault     bool   `json:"isDefault"`
 	PendingDelete bool   `json:"pendingDelete"`
 	CreatedBy     string `json:"-"`
 	CreatedAt     int64  `json:"createdAt"`
@@ -51,7 +52,8 @@ type CredLink struct {
 }
 
 const credProfileCols = `id, name, description, ros_username,
-	group_name, policy_json, secret, revision, pending_delete, created_by, created_at, updated_at`
+	group_name, policy_json, secret, revision, is_default, pending_delete,
+	created_by, created_at, updated_at`
 
 const credLinkCols = `profile_id, router_id, state, code, error, applied_revision,
 	attempts, next_attempt_at, last_attempt_at, applied_at, via, linked_by, linked_at`
@@ -59,7 +61,7 @@ const credLinkCols = `profile_id, router_id, state, code, error, applied_revisio
 func scanCredProfile(rows *sql.Rows) (CredProfile, error) {
 	var p CredProfile
 	err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Username,
-		&p.GroupName, &p.PolicyJSON, &p.Secret, &p.Revision, &p.PendingDelete,
+		&p.GroupName, &p.PolicyJSON, &p.Secret, &p.Revision, &p.IsDefault, &p.PendingDelete,
 		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
 	return p, err
 }
@@ -133,6 +135,10 @@ func (d *DB) UpsertCredProfile(p CredProfile) error {
 	p.Revision = 1
 	if old, err := d.CredProfileByID(p.ID); err == nil {
 		p.Revision = old.Revision
+		// `is_default` is DELIBERATELY ABSENT from this comparison. It changes
+		// nothing a router can observe, so bumping the revision for it would
+		// re-write the account on every linked device because somebody ticked a
+		// box about which profile a wizard offers first.
 		if old.Username != p.Username || old.Secret != p.Secret ||
 			old.GroupName != p.GroupName || old.PolicyJSON != p.PolicyJSON {
 			p.Revision++
@@ -143,7 +149,7 @@ func (d *DB) UpsertCredProfile(p CredProfile) error {
 
 	_, err := d.sql.Exec(`
 		INSERT INTO cred_profiles (`+credProfileCols+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT (id) DO UPDATE SET
 		  name = excluded.name,
 		  description = excluded.description,
@@ -152,9 +158,10 @@ func (d *DB) UpsertCredProfile(p CredProfile) error {
 		  policy_json = excluded.policy_json,
 		  secret = excluded.secret,
 		  revision = excluded.revision,
+		  is_default = excluded.is_default,
 		  updated_at = excluded.updated_at`,
 		p.ID, p.Name, p.Description, p.Username,
-		p.GroupName, p.PolicyJSON, p.Secret, p.Revision, p.PendingDelete,
+		p.GroupName, p.PolicyJSON, p.Secret, p.Revision, p.IsDefault, p.PendingDelete,
 		p.CreatedBy, p.CreatedAt, now)
 	return err
 }

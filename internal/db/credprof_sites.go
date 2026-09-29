@@ -15,7 +15,11 @@ package db
 // added to the site tomorrow silently without the account — the failure that
 // reads as "the feature does not work" rather than as a design choice.
 
-import "time"
+import (
+	"database/sql"
+	"errors"
+	"time"
+)
 
 // CredProfileSites is the sites one profile is linked to.
 func (d *DB) CredProfileSites(profileID string) ([]string, error) {
@@ -162,4 +166,54 @@ func (d *DB) CredLinksByVia(profileID string) (direct, site map[string]bool, err
 		}
 	}
 	return direct, site, rows.Err()
+}
+
+// SetDefaultCredProfile makes one profile the default and clears every other.
+//
+// ── EXACTLY ONE, ENFORCED IN A TRANSACTION ─────────────────────────────────
+//
+// "Default" is a claim about the SET of profiles, not about one of them, so it
+// cannot be written as a plain column update: two profiles both carrying it is
+// a state the wizard has no answer for, and it would be reached by the ordinary
+// act of ticking the box on a second profile.
+//
+// Clearing first and setting second, in one transaction, is what makes the
+// invariant hold under concurrent saves. A caller that merely wrote
+// `is_default = 1` would leave whichever profile was ticked earlier still
+// carrying it.
+//
+// An EMPTY id clears the default without setting another, which is what
+// unticking the box means: no default at all is a legitimate state, and the
+// wizard then offers "None" first.
+func (d *DB) SetDefaultCredProfile(id string) error {
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`UPDATE cred_profiles SET is_default = 0 WHERE is_default = 1`); err != nil {
+		return err
+	}
+	if id != "" {
+		if _, err := tx.Exec(
+			`UPDATE cred_profiles SET is_default = 1 WHERE id = ?`, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// DefaultCredProfileID is the default profile, or "" when none is set.
+//
+// A PENDING-DELETE PROFILE IS NOT OFFERED. Its accounts are being taken off
+// routers, and handing it to a wizard as the thing to provision next would put
+// one straight back.
+func (d *DB) DefaultCredProfileID() (string, error) {
+	var id string
+	err := d.sql.QueryRow(
+		`SELECT id FROM cred_profiles WHERE is_default = 1 AND pending_delete = 0`).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }

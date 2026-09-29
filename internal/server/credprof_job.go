@@ -190,12 +190,28 @@ func (s *Server) credExpandSites() {
 		log.Printf("[credprofile] reading site links: %v", err)
 		return
 	}
-	if len(bySite) == 0 {
+	// ── EVERY PROFILE, NOT ONLY THE ONES WITH SITE LINKS ────────────────────
+	//
+	// This iterated `bySite` and returned early when it was empty, which meant
+	// UNLINKING THE LAST SITE LEFT THE ACCOUNT ON THE ROUTER FOR EVER: with no
+	// site links left there was nothing to iterate, so the loop that removes an
+	// orphaned via=site link never ran. Found by unlinking a site on the CHR
+	// and reading /user back - the link still said applied/via=site, and the
+	// account was still there.
+	//
+	// The set to reconcile is every profile: one with no site links wants NO
+	// routers through sites, and that is an answer rather than a reason to skip
+	// it. `want` being empty is the case that does the removing.
+	profiles, err := s.auditDB.CredProfiles()
+	if err != nil {
+		log.Printf("[credprofile] reading profiles: %v", err)
 		return
 	}
 	routers, _ := s.store.Routers()
 
-	for profileID, siteLinks := range bySite {
+	for _, prof := range profiles {
+		profileID := prof.ID
+		siteLinks := bySite[profileID]
 		// THE ROUTER INHERITS WHOEVER LINKED THE SITE. That id is the audit
 		// actor for every apply this causes, and nobody presses anything when a
 		// router joins a site.

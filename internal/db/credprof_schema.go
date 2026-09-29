@@ -102,6 +102,19 @@ CREATE TABLE IF NOT EXISTS cred_profiles (
   -- can observe - a bump there would re-write every linked router for nothing.
   -- (No backticks in this comment: it sits inside a Go raw string.)
   revision      INTEGER NOT NULL DEFAULT 1,
+  -- ── THE DEFAULT, AND WHY IT IS A FLAG RATHER THAN A SETTING ─────────────
+  --
+  -- Exactly one profile may carry it, and the write clears every other one in
+  -- the same transaction. It lives here rather than in settings.json because
+  -- "which profile is the default" is a fact ABOUT a profile: deleting that
+  -- profile must take the default with it, and a settings key pointing at a
+  -- row that no longer exists is the shape of a stale pointer nothing notices.
+  --
+  -- It changes NOTHING on a router, so it does not move the revision - see
+  -- UpsertCredProfile. A device picks it up when it is provisioned, not when
+  -- the flag moves.
+  -- (No backticks in this comment: it sits inside a Go raw string.)
+  is_default    INTEGER NOT NULL DEFAULT 0,
   -- Set when Delete was pressed while routers still held the account. The
   -- accounts are taken off first and the profile goes when the last link has
   -- CONFIRMED its removal, so a router that is switched off holds the delete

@@ -452,6 +452,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   /** Sites this profile is linked to, and every site there is. */
   let cpSiteLinks: string[] = [];
   let cpAllSites: { id: string; name: string }[] = [];
+  /** Router id -> the sites it belongs to, for the "via <site>" label. */
+  let cpRouterSites: Record<string, string[]> = {};
 
   async function credApi<T>(path: string, init?: RequestInit): Promise<T> {
     const r = await fetch('/api/credentials/' + path, { credentials: 'same-origin', ...init });
@@ -542,6 +544,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     // there is nothing to prefill, and blank means "leave it alone".
     set('cpPass', '');
     set('cpGroup', p?.groupName ?? '');
+    const dflt = el<HTMLInputElement>('cpDefault');
+    if (dflt) dflt.checked = p?.isDefault ?? false;
     // AN EDIT SHOWS THE POLICIES THE PROFILE HAS, not a preset: the operator
     // may have changed them, and re-applying one would silently undo that.
     const perm = el<HTMLSelectElement>('cpPerm');
@@ -564,6 +568,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       groupName: el<HTMLInputElement>('cpGroup')?.value ?? '',
       policies: cpReadPolicies(),
       password: el<HTMLInputElement>('cpPass')?.value ?? '',
+      isDefault: el<HTMLInputElement>('cpDefault')?.checked ?? false,
     };
     try {
       const path = cpEditing ? 'profiles/' + cpEditing.id : 'profiles';
@@ -575,33 +580,48 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
   }
 
+  /**
+   * The routers, as a tick list carrying each one's state.
+   *
+   * ── A SITE-DERIVED ROW IS TICKED AND LOCKED ────────────────────────────
+   *
+   * That is the whole point of showing them together: a router covered by a
+   * ticked site IS in scope, and unticking it individually would be a request
+   * the model cannot honour - the next sweep would put it straight back. So it
+   * is disabled and says which site it comes from, and the way to remove it is
+   * to untick that site.
+   */
   function cpDrawLinks(): void {
-    const body = el('cpLinksBody');
+    const host = el('cpLinksBody');
     const empty = el('cpLinksEmpty');
-    if (!body || !empty) return;
-    const mine = cpLinks.filter((l) => l.profileId === cpLinksFor);
-    body.innerHTML = mine.map((l) => {
-      const name = routerName(l.routerId);
-      // RETRY IS OFFERED ONLY WHERE IT MEANS SOMETHING: a terminal refusal is
-      // the one state nothing retries on a timer, so it is the one state with a
-      // button. Offering it everywhere would suggest the others are stuck.
-      const retry = l.state === 'refused' || l.state === 'conflict'
-        ? `<button class="cfg-btn" type="button" data-cp-retry="${esc(l.routerId)}">Retry</button> `
-        : '';
-      return `<tr><td>${esc(name)}</td><td>${statePill(l.state)}</td>`
-        + `<td class="cfg-meta">${esc(l.error || l.code)}</td>`
-        + `<td class="text-end">${retry}`
-        + `<button class="cfg-btn" type="button" data-cp-unlink="${esc(l.routerId)}">Remove</button>`
-        + '</td></tr>';
-    }).join('');
-    empty.hidden = mine.length > 0;
+    if (!host || !empty) return;
+    empty.hidden = dep.routers.length > 0;
 
-    const pick = el<HTMLSelectElement>('cpAddRouter');
-    if (pick) {
-      const on = new Set(mine.map((l) => l.routerId));
-      pick.innerHTML = dep.routers.filter((r) => !on.has(r.id))
-        .map((r) => `<option value="${esc(r.id)}">${esc(r.label)}</option>`).join('');
-    }
+    const byRouter = new Map(cpLinks.filter((l) => l.profileId === cpLinksFor)
+      .map((l) => [l.routerId, l]));
+    const bySite = new Map(cpAllSites.map((st) => [st.id, st.name]));
+
+    host.innerHTML = dep.routers.map((r) => {
+      const l = byRouter.get(r.id);
+      const viaSite = l?.via === 'site';
+      // Which linked site pulls this router in, for the label.
+      const from = (cpRouterSites[r.id] ?? []).filter((sid) => cpSiteLinks.includes(sid))
+        .map((sid) => bySite.get(sid) ?? sid);
+      const retry = l && (l.state === 'refused' || l.state === 'conflict')
+        ? `<button class="cfg-btn" type="button" data-cp-retry="${esc(r.id)}">Retry</button>`
+        : '';
+      return `<label class="cfg-pick-item${l ? ' is-on' : ''}">`
+        + `<input type="checkbox" data-cp-router="${esc(r.id)}"${l ? ' checked' : ''}`
+        + (viaSite ? ' disabled title="In scope through a site. Untick the site to remove it."' : '')
+        + '>'
+        + `<span class="cfg-pick-name">${esc(r.label)}</span>`
+        + (viaSite && from.length
+          ? `<span class="cp-pill cp-wait">via ${esc(from.join(', '))}</span>` : '')
+        + (l ? statePill(l.state) : '')
+        + (l && l.error ? `<span class="cfg-meta" title="${esc(l.error)}">${esc(l.code)}</span>` : '')
+        + retry
+        + '</label>';
+    }).join('');
   }
 
   function routerName(id: string): string {
@@ -633,8 +653,23 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
   }
 
+  /** Which sites each router belongs to, for the "via <site>" label. */
+  async function loadRouterSites(): Promise<void> {
+    try {
+      const r = await fetch('/api/routers', { credentials: 'same-origin' });
+      const b = (await r.json()) as { routers?: { id: string; siteIds?: string[] }[] };
+      cpRouterSites = {};
+      for (const x of b.routers ?? []) cpRouterSites[x.id] = x.siteIds ?? [];
+    } catch {
+      cpRouterSites = {};
+    }
+  }
+
   /** Re-reads everything the links dialog shows, after any change to it. */
   async function cpReloadLinks(): Promise<void> {
+    // MEMBERSHIP FIRST: ticking a site changes which routers it covers, and the
+    // label that says which site a locked router comes from is read from here.
+    await loadRouterSites();
     await loadCredentials();
     try {
       const mine = await credApi<{ sites: string[] }>('profiles/' + cpLinksFor + '/sites');
@@ -647,31 +682,46 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     cpDrawSites();
   }
 
-  /** The sites this profile is linked to, listed under the routers they mean. */
+  /**
+   * The sites, as a tick list.
+   *
+   * Ticked means linked. There is no Add button and nothing to press twice:
+   * the previous design had a dropdown per kind and ONE Link button, so both
+   * selects always carried a value and pressing it added a router and a site
+   * whether or not both were wanted.
+   */
   function cpDrawSites(): void {
     const host = el('cpSiteList');
-    const note = el('cpSiteNote');
-    if (!host || !note) return;
-    const byId = new Map(cpAllSites.map((s2) => [s2.id, s2.name]));
-    host.innerHTML = cpSiteLinks.map((sid) => '<span class="cp-site">'
-      + esc(byId.get(sid) ?? sid)
-      + `<button class="cp-site-x" type="button" data-cp-unsite="${esc(sid)}" `
-      + 'aria-label="Unlink this site">&#10005;</button></span>').join('');
-    note.style.display = cpSiteLinks.length ? '' : 'none';
-
-    const pick = el<HTMLSelectElement>('cpAddSite');
-    if (pick) {
-      const on = new Set(cpSiteLinks);
-      pick.innerHTML = cpAllSites.filter((s2) => !on.has(s2.id))
-        .map((s2) => `<option value="${esc(s2.id)}">${esc(s2.name)}</option>`).join('');
+    if (!host) return;
+    if (!cpAllSites.length) {
+      host.innerHTML = '<div class="cfg-meta">No sites are defined.</div>';
+      return;
     }
+    const on = new Set(cpSiteLinks);
+    host.innerHTML = cpAllSites.map((st) => {
+      const n = dep.routers.filter((r) => (cpRouterSites[r.id] ?? []).includes(st.id)).length;
+      return `<label class="cfg-pick-item${on.has(st.id) ? ' is-on' : ''}">`
+        + `<input type="checkbox" data-cp-site="${esc(st.id)}"${on.has(st.id) ? ' checked' : ''}>`
+        + `<span class="cfg-pick-name">${esc(st.name)}</span>`
+        + `<span class="cfg-meta">${n} router${n === 1 ? '' : 's'}</span></label>`;
+    }).join('');
   }
 
   async function cpOpenLinks(id: string): Promise<void> {
     cpLinksFor = id;
     const p = cps.find((x) => x.id === id);
     const title = el('cpLinksTitle');
-    if (title) title.textContent = p ? 'Routers - ' + p.name : 'Routers';
+    // NOT "Routers": the dialog decides sites too, and a heading naming only
+    // half of it is how the two dropdowns read as one choice in the first place.
+    if (title) title.textContent = p ? 'Where "' + p.name + '" applies' : 'Where this profile applies';
+    // ── THE ROUTER LIST IS RE-READ EVERY TIME, AND THAT IS NOT WASTE ────────
+    //
+    // `loadRouters` returns early once `dep.routers` is populated, which is
+    // right for the Deploy tab: the names do not move. But SITE MEMBERSHIP does
+    // - it is the whole subject of this dialog - and the cached copy left the
+    // "via <site>" label blank on exactly the router a site had just pulled in.
+    // So the membership is refetched here rather than trusted.
+    await loadRouterSites();
     if (!dep.routers.length) await loadRouters();
     // THE SITES, AND WHICH OF THEM THIS PROFILE USES. Both come fresh: a site
     // added since the dialog last opened should be pickable.
@@ -699,19 +749,6 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   el('cpCancel')?.addEventListener('click', () => cpOpen('cpModal', false));
   el('cpSave')?.addEventListener('click', () => void cpSave());
   el('cpLinksClose')?.addEventListener('click', () => cpOpen('cpLinksModal', false));
-  // ONE BUTTON, BOTH PICKERS. A router and a site are different kinds of
-  // intent, but "Link" means the same thing for each, and two buttons side by
-  // side would only invite picking one and pressing the other.
-  el('cpLinkAdd')?.addEventListener('click', () => {
-    const rid = el<HTMLSelectElement>('cpAddRouter')?.value ?? '';
-    const sid = el<HTMLSelectElement>('cpAddSite')?.value ?? '';
-    if (!rid && !sid) return;
-    void (async () => {
-      if (rid) await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: [rid] }));
-      if (sid) await credApi('profiles/' + cpLinksFor + '/sites', json({ siteIds: [sid] }));
-      await cpReloadLinks();
-    })();
-  });
   el('cpBody')?.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const edit = t.closest('[data-cp-edit]')?.getAttribute('data-cp-edit');
@@ -727,32 +764,54 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const del = t.closest('[data-cp-del]')?.getAttribute('data-cp-del');
     if (del) void cpDelete(del);
   });
-  el('cpSiteList')?.addEventListener('click', (e) => {
-    const sid = (e.target as HTMLElement).closest('[data-cp-unsite]')
-      ?.getAttribute('data-cp-unsite');
-    if (!sid) return;
+  // ── TICK TO LINK, UNTICK TO UNLINK ──────────────────────────────────────
+  //
+  // No Add button, and nothing that can be half-pressed: the state of the box
+  // IS the state of the link. The previous design had a dropdown per kind and
+  // one Link button, so both selects always carried a value and pressing it
+  // added a router AND a site whether or not both were meant.
+  el('cpSiteList')?.addEventListener('change', (e) => {
+    const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-cp-site]');
+    const sid = box?.getAttribute('data-cp-site');
+    if (!box || !sid) return;
     void (async () => {
-      await credApi('profiles/' + cpLinksFor + '/sites/' + sid, { method: 'DELETE' });
-      await cpReloadLinks();
+      try {
+        if (box.checked) {
+          await credApi('profiles/' + cpLinksFor + '/sites', json({ siteIds: [sid] }));
+        } else {
+          await credApi('profiles/' + cpLinksFor + '/sites/' + sid, { method: 'DELETE' });
+        }
+      } finally {
+        // REDRAWN FROM THE SERVER EITHER WAY. A failed write must not leave the
+        // box showing a state the server does not have.
+        await cpReloadLinks();
+      }
+    })();
+  });
+  el('cpLinksBody')?.addEventListener('change', (e) => {
+    const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-cp-router]');
+    const rid = box?.getAttribute('data-cp-router');
+    if (!box || !rid) return;
+    void (async () => {
+      try {
+        if (box.checked) {
+          await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: [rid] }));
+        } else {
+          await credApi('profiles/' + cpLinksFor + '/links/' + rid, { method: 'DELETE' });
+        }
+      } finally {
+        await cpReloadLinks();
+      }
     })();
   });
   el('cpLinksBody')?.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement;
-    const retry = t.closest('[data-cp-retry]')?.getAttribute('data-cp-retry');
-    if (retry) {
-      void (async () => {
-        await credApi('profiles/' + cpLinksFor + '/links/' + retry + '/retry', { method: 'POST' });
-        await cpReloadLinks();
-      })();
-      return;
-    }
-    const drop = t.closest('[data-cp-unlink]')?.getAttribute('data-cp-unlink');
-    if (drop) {
-      void (async () => {
-        await credApi('profiles/' + cpLinksFor + '/links/' + drop, { method: 'DELETE' });
-        await cpReloadLinks();
-      })();
-    }
+    const rid = (e.target as HTMLElement).closest('[data-cp-retry]')?.getAttribute('data-cp-retry');
+    if (!rid) return;
+    e.preventDefault();
+    void (async () => {
+      await credApi('profiles/' + cpLinksFor + '/links/' + rid + '/retry', { method: 'POST' });
+      await cpReloadLinks();
+    })();
   });
 
   el('cfgTabs')?.addEventListener('click', (e) => {
@@ -879,10 +938,17 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     if (dep.routers.length) return;
     try {
       const r = await fetch('/api/routers', { credentials: 'same-origin' });
-      const b = (await r.json()) as { routers?: { id: string; label?: string; host?: string; disabled?: boolean }[] };
-      dep.routers = (b.routers ?? []).filter((x) => !x.disabled).map((x) => ({ id: x.id, label: x.label || x.host || x.id }));
+      const b = (await r.json()) as { routers?: { id: string; label?: string; host?: string;
+        disabled?: boolean; siteIds?: string[] }[] };
+      const live = (b.routers ?? []).filter((x) => !x.disabled);
+      dep.routers = live.map((x) => ({ id: x.id, label: x.label || x.host || x.id }));
+      // WHICH SITES EACH ROUTER IS IN, so the picker can say which linked site
+      // pulls a router in rather than leaving a locked checkbox unexplained.
+      cpRouterSites = {};
+      for (const x of live) cpRouterSites[x.id] = x.siteIds ?? [];
     } catch {
       dep.routers = [];
+      cpRouterSites = {};
     }
   }
 

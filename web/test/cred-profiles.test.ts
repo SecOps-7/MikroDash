@@ -117,7 +117,10 @@ say('  a custom permission set names its policies');
 {
   const row = mod.profileRow(profile({ links: 2 }), [link('r1', 'applied'), link('r2', 'refused')]);
   assert.ok(row.includes('NOC read-only'), 'the row does not name the profile');
-  assert.ok(row.includes('<code>noc</code>'), 'the RouterOS username is not shown as a name');
+  // A PURPLE PILL, not bare text: the column is a set of accounts, and the
+  // pill is what makes it read as one.
+  assert.ok(row.includes('class="cp-user">noc<'),
+    'the RouterOS username is not shown as its own pill');
   assert.ok(row.includes('cp-warn'), 'the row does not show the refused router');
   assert.ok(row.includes('data-cp-edit="cp1"') && row.includes('data-cp-links="cp1"'),
     'the row has no way into the profile or its routers');
@@ -132,9 +135,28 @@ say('  a custom permission set names its policies');
 
   // A PROFILE ON NO ROUTERS says so rather than showing an empty pill, which
   // would read as a state that failed to load.
+  // AN UNLINKED PROFILE STILL GETS A PILL, in the neutral colour. The column
+  // then reads as one kind of thing all the way down, and "not linked" is the
+  // ordinary case rather than a failure - so it must not be coloured like one.
   const lonely = mod.profileRow(profile(), []);
   assert.ok(lonely.includes('not linked'), 'an unlinked profile shows no state at all');
-  assert.ok(!lonely.includes('cp-pill'), 'an unlinked profile was given a state pill');
+  assert.ok(lonely.includes('cp-none'),
+    'an unlinked profile was not given the neutral pill');
+  for (const bad of ['cp-bad', 'cp-warn']) {
+    assert.ok(!lonely.includes(bad),
+      'an untouched profile is coloured like a failure (' + bad + ')');
+  }
+
+  // THE PERMISSIONS CELL IS CAPPED, with the full list in the title. Seventeen
+  // policies used to wrap the cell, grow the row, and stack the buttons beside
+  // it onto separate lines.
+  const wide = mod.profileRow(
+    profile({ groupName: 'g', policies: ['local', 'telnet', 'ssh', 'ftp', 'reboot',
+      'read', 'write', 'policy', 'test', 'winbox', 'password', 'web', 'sniff',
+      'sensitive', 'api', 'romon', 'rest-api'] }), []);
+  assert.ok(wide.includes('class="cp-perms"'), 'the permissions cell is not capped');
+  assert.ok(wide.includes('title="g: local, telnet'), 'the full policy list is not in the title');
+  assert.ok(wide.includes('cp-actions'), 'the action cell is not held on one line');
 
   // ESCAPING, on every value that reaches the row. A profile name and a
   // username are operator input.

@@ -1240,7 +1240,7 @@
         <label class="sform-label" for="cpDesc">Description</label>
         <input class="sform-input" id="cpDesc" type="text" placeholder="What this account is for" autocomplete="off" maxlength="200">
       </div>
-      <p class="rtr-note" id="cpUserNote" style="margin-top:-.5rem">The account created on every linked router.
+      <p class="rtr-note cp-note" id="cpUserNote">The account created on every linked router.
         It cannot be the account MikroDash signs in with.</p>
       <div class="sform-row">
         <div class="sform-group">
@@ -1257,9 +1257,9 @@
           </select>
         </div>
       </div>
-      <p class="rtr-note" id="cpPassNote" style="margin-top:-.5rem">Required for a new profile. Leave blank when
+      <p class="rtr-note cp-note" id="cpPassNote">Required for a new profile. Leave blank when
         editing to keep the current password.</p>
-      <p class="rtr-note" id="cpPermNote" style="margin-top:-.5rem">A starting point. Every permission is
+      <p class="rtr-note cp-note" id="cpPermNote">A starting point. Every permission is
         yours to change, and the profile gets a RouterOS group of its own holding exactly what you tick - it
         never joins one of the router's existing groups.</p>
       <div id="cpCustom">
@@ -1267,13 +1267,21 @@
           <label class="sform-label" for="cpGroup">Group name <span style="color:var(--accent-err)">*</span></label>
           <input class="sform-input" id="cpGroup" type="text" placeholder="noc-readonly" autocomplete="off" maxlength="64" spellcheck="false">
         </div>
-        <p class="rtr-note" style="margin-top:-.5rem">Created on each linked router, and used by this profile
+        <p class="rtr-note cp-note">Created on each linked router, and used by this profile
           alone. It cannot be renamed later: that would be a migration across every linked device, not an edit.</p>
         <div class="sform-group">
           <label class="sform-label">Policies</label>
           <div id="cpPolicies" class="cp-policies"></div>
         </div>
       </div>
+      <div class="sform-group" style="margin-bottom:.4rem">
+        <label class="cp-policy" for="cpDefault" style="font-size:.72rem">
+          <input type="checkbox" id="cpDefault">
+          <span>Use this profile by default</span>
+        </label>
+      </div>
+      <p class="rtr-note cp-note">Offered first when a device is provisioned. Only one profile can be the
+        default, so ticking this clears it from whichever profile holds it now.</p>
       <div id="cpError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
     </div>
     <div class="rtr-modal-footer">
@@ -1283,38 +1291,30 @@
    </div>
   </div>
 
-  <!-- Which routers a profile is on, and what happened on each. -->
+  <!-- Where a profile applies.
+       ── TICK WHAT YOU WANT, RATHER THAN PICK-AND-PRESS ────────────────────
+       This was two dropdowns and one Link button, and it was ambiguous in the
+       worst way: both selects always carry a value, so pressing Link added a
+       router AND a site whether or not the operator meant both. A checkbox
+       list has no such state - what is ticked is what applies. -->
   <div class="rtr-modal-bg" id="cpLinksModal">
-   <div class="rtr-modal" style="max-width:40rem">
+   <div class="rtr-modal" style="max-width:44rem">
     <div class="rtr-modal-hdr">
-      <span class="rtr-modal-title" id="cpLinksTitle">Routers</span>
+      <span class="rtr-modal-title" id="cpLinksTitle">Where this profile applies</span>
     </div>
     <div class="rtr-modal-body">
-      <div class="cfg-scroll" style="max-height:22rem"><table class="table table-sm cfg-hist">
-        <thead><tr><th>Router</th><th>State</th><th>Detail</th><th></th></tr></thead>
-        <tbody id="cpLinksBody"></tbody>
-      </table></div>
-      <div class="cfg-empty" id="cpLinksEmpty" hidden>This profile is not on any router yet.</div>
-      <div class="sform-row" style="margin-top:.6rem">
-        <div class="sform-group" style="margin-bottom:0">
-          <label class="sform-label" for="cpAddRouter">Add a router</label>
-          <select class="sform-input" id="cpAddRouter"></select>
-        </div>
-        <div class="sform-group" style="margin-bottom:0">
-          <label class="sform-label" for="cpAddSite">Add a site</label>
-          <select class="sform-input" id="cpAddSite"></select>
-        </div>
-      </div>
-      <!-- SITES ARE LISTED SEPARATELY from the routers they resolve to, because
-           they are not the same kind of thing: a site is a standing rule, and
-           the rows above are what it currently means. -->
-      <div id="cpSiteList" class="cp-sites"></div>
-      <p class="rtr-note" id="cpSiteNote" style="display:none">A site applies this profile to every router in it.
-        A router that joins the site gets the account; one that leaves has it taken off.</p>
+      <div class="ztp-sub">Sites</div>
+      <p class="rtr-note cp-note" style="margin-top:0">Every router in a ticked site gets the account, now and
+        as the site changes. A router that leaves the site has it taken off.</p>
+      <div id="cpSiteList" class="cfg-pick"></div>
+      <div class="ztp-sub" style="margin-top:.9rem">Routers</div>
+      <p class="rtr-note cp-note" style="margin-top:0">Tick a router to put the account on it directly. One
+        covered by a site above is ticked and locked - untick the site to remove it.</p>
+      <div id="cpLinksBody" class="cfg-pick"></div>
+      <div class="cfg-empty" id="cpLinksEmpty" hidden>No routers are available.</div>
     </div>
     <div class="rtr-modal-footer">
-      <button class="sbtn sbtn-outline" id="cpLinksClose">Close</button>
-      <button class="sbtn sbtn-primary" id="cpLinkAdd">Link</button>
+      <button class="sbtn sbtn-primary" id="cpLinksClose">Done</button>
     </div>
    </div>
   </div>
