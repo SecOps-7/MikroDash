@@ -75,14 +75,42 @@ func Terminal(state string) bool {
 	return state == StateRefused || state == StateConflict
 }
 
-// PermBuiltin uses one of RouterOS's own groups; PermCustom makes one.
-const (
-	PermBuiltin = "builtin"
-	PermCustom  = "custom"
-)
+// ── EVERY PROFILE OWNS ITS GROUP. NONE SHARE ONE. ──────────────────────────
+//
+// An earlier version let a profile use RouterOS's own `read`, `write` or `full`
+// group directly. That had one advantage - nothing to create - and three costs,
+// and the costs are the reason this is the way it is:
+//
+//  1. A PROFILE COULD COLLIDE WITH MIKRODASH. The lockout guard refuses putting
+//     any user into the group MikroDash signs in with. Where MikroDash used
+//     `full`, a `full` profile was refused - and the operator was told to link
+//     it and find out which devices objected. Owning its own group means a
+//     profile never names MikroDash's, so the refusal cannot arise.
+//  2. TWO PROFILES SHARING A GROUP SHARE ITS PERMISSIONS. Editing one silently
+//     changed the other, and neither said so.
+//  3. EDITING A BUILT-IN GROUP CHANGES ACCOUNTS NOBODY IN THIS FEATURE MADE.
+//     `read` is used by whatever else the operator has put in it.
+//
+// So `Presets` are STARTING POINTS for the policy set, not groups to join. They
+// are RouterOS's own defaults, measured on 7.24.4, and the operator edits them
+// freely: what a profile may grant is the whole vocabulary, never a function of
+// what MikroDash itself holds.
+var Presets = map[string][]string{
+	"read": {"local", "telnet", "ssh", "reboot", "read", "test", "winbox",
+		"password", "web", "sniff", "sensitive", "api", "romon", "rest-api"},
+	"write": {"local", "telnet", "ssh", "reboot", "read", "write", "test", "winbox",
+		"password", "web", "sniff", "sensitive", "api", "romon", "rest-api"},
+	"full": {"local", "telnet", "ssh", "ftp", "reboot", "read", "write", "policy",
+		"test", "winbox", "password", "web", "sniff", "sensitive", "api", "romon", "rest-api"},
+}
 
-// BuiltinGroups are the three RouterOS ships with.
-var BuiltinGroups = []string{"read", "write", "full"}
+// PresetNames is the order the picker offers them in.
+var PresetNames = []string{"read", "write", "full"}
+
+// reservedGroupNames are RouterOS's own three. A profile must not name its
+// group after one: it would not be creating a group, it would be REDEFINING a
+// built-in that other accounts already use.
+var reservedGroupNames = []string{"read", "write", "full"}
 
 // Spec is one profile as the applier needs it: the password already unsealed,
 // and nothing about which routers it is linked to.
@@ -90,10 +118,8 @@ type Spec struct {
 	ID       string
 	Name     string
 	Username string
-	PermKind string
-	// Builtin is read, write or full when PermKind is PermBuiltin.
-	Builtin string
-	// Group and Policies describe the group to make when PermKind is PermCustom.
+	// Group is the RouterOS group this profile creates and owns. EVERY profile
+	// has one - see the header on Presets for why none of them share.
 	Group    string
 	Policies []string
 	Password string
@@ -142,29 +168,30 @@ func CheckSpec(s Spec) error {
 			return fmt.Errorf("%w: %s", ErrReservedName, s.Username)
 		}
 	}
-	switch s.PermKind {
-	case PermBuiltin:
-		if !contains(BuiltinGroups, s.Builtin) {
-			return fmt.Errorf("%q is not a RouterOS built-in group", s.Builtin)
+	g := strings.ToLower(strings.TrimSpace(s.Group))
+	if g == "" {
+		return errors.New("a profile needs a group name")
+	}
+	// NOT one of RouterOS's own three. Naming a group `read` would not create a
+	// group - it would REDEFINE a built-in that other accounts already use, and
+	// this feature has no business changing those.
+	if contains(reservedGroupNames, g) {
+		return fmt.Errorf("%q is one of RouterOS's own groups; this profile needs a group "+
+			"of its own, so choose another name", s.Group)
+	}
+	if len(s.Policies) == 0 {
+		// An account in a group granting nothing can sign in and do nothing,
+		// which reads as a broken profile rather than a deliberate one.
+		return errors.New("a profile needs at least one permission")
+	}
+	// THE WHOLE VOCABULARY IS AVAILABLE, and deliberately so: what a profile may
+	// grant is not a function of what MikroDash itself holds. Measured on
+	// RouterOS 7.24.4 - a user holding `policy` but not `sniff` created a group
+	// granting `sniff`, and the router stored it.
+	for _, p := range s.Policies {
+		if !contains(resource.UserPolicies, p) {
+			return fmt.Errorf("%q is not a RouterOS policy", p)
 		}
-	case PermCustom:
-		g := strings.ToLower(strings.TrimSpace(s.Group))
-		if g == "" {
-			return errors.New("a custom permission set needs a group name")
-		}
-		// A custom group must not be named after a built-in one: RouterOS would
-		// refuse the add, and that refusal would arrive per device rather than
-		// here.
-		if contains(BuiltinGroups, g) {
-			return fmt.Errorf("%q is a RouterOS built-in group; choose another name", s.Group)
-		}
-		for _, p := range s.Policies {
-			if !contains(resource.UserPolicies, p) {
-				return fmt.Errorf("%q is not a RouterOS policy", p)
-			}
-		}
-	default:
-		return fmt.Errorf("unknown permission kind %q", s.PermKind)
 	}
 	if s.Password == "" {
 		// The same rule, and the same reason, as resource.RequiredOnCreate: a
@@ -230,17 +257,13 @@ func Apply(ex Execer, s Spec, selfNames []string) Outcome {
 		return fail(StateRefused, "invalid-profile", err)
 	}
 
-	group := s.Builtin
-	if s.PermKind == PermCustom {
-		group = s.Group
-		if o := ensureGroup(ex, s, groups, self); o.State != StateApplied {
-			return o
-		}
-	}
-
-	// THE GUARD, on the values this write actually carries. A `full` profile
-	// dies here on a ZTP device, where MikroDash itself sits in `full`:
-	// protected-group-value, and nothing was sent.
+	// ── EVERY REFUSAL IS DECIDED BEFORE ANYTHING IS WRITTEN ─────────────────
+	//
+	// The group used to be created first, and a conflicting USER was only found
+	// afterwards - so a refused apply still left a group on the router that
+	// nothing would ever use. Every check that can say no now runs against the
+	// rows already read, and the first write happens once they have all passed.
+	group := s.Group
 	existing := rowByName(users, s.Username)
 	act := guard.UserAction{
 		Verb:     "add",
@@ -268,6 +291,11 @@ func Apply(ex Execer, s Spec, selfNames []string) Outcome {
 			detail += ", placed by another credential profile"
 		}
 		return fail(StateConflict, "conflict", errors.New(detail))
+	}
+
+	// NOW the writes. The group first, because the user names it.
+	if o := ensureGroup(ex, s, groups, self); o.State != StateApplied {
+		return o
 	}
 
 	vals := map[string]string{
@@ -307,8 +335,7 @@ func Apply(ex Execer, s Spec, selfNames []string) Outcome {
 	return Outcome{State: StateApplied}
 }
 
-// ensureGroup creates or updates a custom profile's group. A builtin profile
-// never reaches it.
+// ensureGroup creates or updates the profile's own group.
 func ensureGroup(ex Execer, s Spec, groups []routeros.Reply, self guard.Self) Outcome {
 	existing := rowByName(groups, s.Group)
 
@@ -424,7 +451,7 @@ func Remove(ex Execer, s Spec, selfNames []string) Outcome {
 	// An empty group left behind is untidy. An account left behind is a
 	// credential nobody knows about. Only the second is worth failing a removal
 	// over, so a group that will not go is not reported as a failure.
-	if s.PermKind == PermCustom {
+	{
 		if g := rowByName(groups, s.Group); g != nil && ownedBy(g["comment"], s.ID) {
 			if after, err := rows(ex, "/user/print"); err == nil && !groupInUse(after, s.Group) {
 				_ = run(ex, "/user/group/remove", []string{"=.id=" + g[".id"]})

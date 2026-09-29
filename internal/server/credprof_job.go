@@ -39,6 +39,7 @@ import (
 	"mikrodash/internal/audit"
 	"mikrodash/internal/credprof"
 	"mikrodash/internal/db"
+	"mikrodash/internal/store"
 	"mikrodash/internal/ztp"
 )
 
@@ -117,12 +118,21 @@ func (s *Server) runCredJob(ctx context.Context) {
 // credSweep takes everything due and works through it, at most credWorkers at
 // a time and never two on one router.
 func (s *Server) credSweep(ctx context.Context) {
+	// SITES FIRST, because expanding them is what decides which links exist.
+	// Doing it after would leave a router that joined a site this minute
+	// waiting a full sweep for an account it should already have.
+	s.credExpandSites()
+
 	due, err := s.auditDB.CredLinksDue(time.Now().UnixMilli())
 	if err != nil {
 		log.Printf("[credprofile] reading the queue: %v", err)
 		return
 	}
 	if len(due) == 0 {
+		// NOTHING DUE STILL FINISHES A DELETE. A profile whose last link has
+		// gone is deletable now, and the sweep that removed it may have had no
+		// work left to notice.
+		s.credFinishDeletes()
 		return
 	}
 
@@ -145,6 +155,90 @@ func (s *Server) credSweep(ctx context.Context) {
 		}(link)
 	}
 	wg.Wait()
+	s.credFinishDeletes()
+}
+
+// credFinishDeletes removes every pending-delete profile whose accounts have
+// all come off their routers.
+func (s *Server) credFinishDeletes() {
+	n, err := s.auditDB.FinishPendingDeletes()
+	if err != nil {
+		log.Printf("[credprofile] finishing deletes: %v", err)
+		return
+	}
+	if n > 0 {
+		log.Printf("[credprofile] %d profile(s) deleted once their accounts were off", n)
+	}
+}
+
+// credExpandSites turns site links into router links, and takes away the ones a
+// site no longer covers.
+//
+// ── MEMBERSHIP IS THE GRANT, IN BOTH DIRECTIONS ────────────────────────────
+//
+// A router in a linked site gets the account; a router that leaves loses it.
+// The expansion runs on every sweep rather than at link time, because the
+// answer changes when somebody edits a SITE - nothing in this feature is called
+// when that happens.
+//
+// A link the operator made by hand is `via = direct` and is NEVER touched here.
+// That is the difference that stops a site edit undoing an explicit choice, and
+// it is why the column exists.
+func (s *Server) credExpandSites() {
+	bySite, err := s.auditDB.AllCredProfileSites()
+	if err != nil {
+		log.Printf("[credprofile] reading site links: %v", err)
+		return
+	}
+	if len(bySite) == 0 {
+		return
+	}
+	routers, _ := s.store.Routers()
+
+	for profileID, siteLinks := range bySite {
+		// THE ROUTER INHERITS WHOEVER LINKED THE SITE. That id is the audit
+		// actor for every apply this causes, and nobody presses anything when a
+		// router joins a site.
+		want := map[string]string{}
+		for _, r := range routers {
+			if r.Disabled {
+				continue
+			}
+			for _, rs := range store.RouterSiteIDs(r) {
+				for _, sl := range siteLinks {
+					if rs == sl.SiteID {
+						want[r.ID] = sl.LinkedBy
+					}
+				}
+			}
+		}
+		direct, viaSite, err := s.auditDB.CredLinksByVia(profileID)
+		if err != nil {
+			log.Printf("[credprofile] reading links for %s: %v", profileID, err)
+			continue
+		}
+		// IN THE SITE AND NOT LINKED: link it, as site-derived.
+		for rid, by := range want {
+			if direct[rid] || viaSite[rid] {
+				continue
+			}
+			if err := s.auditDB.LinkCredProfile(profileID, rid, "site", by); err != nil {
+				log.Printf("[credprofile] linking %s to %s: %v", profileID, rid, err)
+			}
+		}
+		// LINKED BY A SITE AND NO LONGER IN ONE: take the account off. Marked
+		// `removing` rather than deleted, so the account comes off the ROUTER
+		// and the row survives until that is confirmed.
+		for rid := range viaSite {
+			if _, in := want[rid]; in {
+				continue
+			}
+			if err := s.auditDB.MarkCredLink(profileID, rid,
+				credprof.StateRemoving, "left-site", "", 0, 0); err != nil {
+				log.Printf("[credprofile] unlinking %s from %s: %v", profileID, rid, err)
+			}
+		}
+	}
 }
 
 func (j *credJob) claim(routerID string) bool {

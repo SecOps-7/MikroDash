@@ -17,19 +17,20 @@ import (
 // CredProfile is one profile. Secret is the SEALED form; nothing in this
 // package can read it, and nothing here should try.
 type CredProfile struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Username    string `json:"username"`
-	PermKind    string `json:"permKind"`
-	Builtin     string `json:"builtinGroup"`
-	GroupName   string `json:"groupName"`
-	PolicyJSON  string `json:"-"`
-	Secret      string `json:"-"`
-	Revision    int64  `json:"revision"`
-	CreatedBy   string `json:"-"`
-	CreatedAt   int64  `json:"createdAt"`
-	UpdatedAt   int64  `json:"updatedAt"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Username      string `json:"username"`
+	PermKind      string `json:"permKind"`
+	Builtin       string `json:"builtinGroup"`
+	GroupName     string `json:"groupName"`
+	PolicyJSON    string `json:"-"`
+	Secret        string `json:"-"`
+	Revision      int64  `json:"revision"`
+	PendingDelete bool   `json:"pendingDelete"`
+	CreatedBy     string `json:"-"`
+	CreatedAt     int64  `json:"createdAt"`
+	UpdatedAt     int64  `json:"updatedAt"`
 }
 
 // CredLink is one profile's standing on one router.
@@ -44,20 +45,21 @@ type CredLink struct {
 	NextAttemptAt   int64  `json:"nextAttemptAt"`
 	LastAttemptAt   int64  `json:"lastAttemptAt"`
 	AppliedAt       int64  `json:"appliedAt"`
+	Via             string `json:"via"`
 	LinkedBy        string `json:"-"`
 	LinkedAt        int64  `json:"linkedAt"`
 }
 
-const credProfileCols = `id, name, description, ros_username, perm_kind, builtin_group,
-	group_name, policy_json, secret, revision, created_by, created_at, updated_at`
+const credProfileCols = `id, name, description, ros_username,
+	group_name, policy_json, secret, revision, pending_delete, created_by, created_at, updated_at`
 
 const credLinkCols = `profile_id, router_id, state, code, error, applied_revision,
-	attempts, next_attempt_at, last_attempt_at, applied_at, linked_by, linked_at`
+	attempts, next_attempt_at, last_attempt_at, applied_at, via, linked_by, linked_at`
 
 func scanCredProfile(rows *sql.Rows) (CredProfile, error) {
 	var p CredProfile
-	err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Username, &p.PermKind,
-		&p.Builtin, &p.GroupName, &p.PolicyJSON, &p.Secret, &p.Revision,
+	err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Username,
+		&p.GroupName, &p.PolicyJSON, &p.Secret, &p.Revision, &p.PendingDelete,
 		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
 	return p, err
 }
@@ -66,7 +68,7 @@ func scanCredLink(rows *sql.Rows) (CredLink, error) {
 	var l CredLink
 	err := rows.Scan(&l.ProfileID, &l.RouterID, &l.State, &l.Code, &l.Error,
 		&l.AppliedRevision, &l.Attempts, &l.NextAttemptAt, &l.LastAttemptAt,
-		&l.AppliedAt, &l.LinkedBy, &l.LinkedAt)
+		&l.AppliedAt, &l.Via, &l.LinkedBy, &l.LinkedAt)
 	return l, err
 }
 
@@ -132,7 +134,6 @@ func (d *DB) UpsertCredProfile(p CredProfile) error {
 	if old, err := d.CredProfileByID(p.ID); err == nil {
 		p.Revision = old.Revision
 		if old.Username != p.Username || old.Secret != p.Secret ||
-			old.PermKind != p.PermKind || old.Builtin != p.Builtin ||
 			old.GroupName != p.GroupName || old.PolicyJSON != p.PolicyJSON {
 			p.Revision++
 		}
@@ -142,20 +143,18 @@ func (d *DB) UpsertCredProfile(p CredProfile) error {
 
 	_, err := d.sql.Exec(`
 		INSERT INTO cred_profiles (`+credProfileCols+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT (id) DO UPDATE SET
 		  name = excluded.name,
 		  description = excluded.description,
 		  ros_username = excluded.ros_username,
-		  perm_kind = excluded.perm_kind,
-		  builtin_group = excluded.builtin_group,
 		  group_name = excluded.group_name,
 		  policy_json = excluded.policy_json,
 		  secret = excluded.secret,
 		  revision = excluded.revision,
 		  updated_at = excluded.updated_at`,
-		p.ID, p.Name, p.Description, p.Username, p.PermKind, p.Builtin,
-		p.GroupName, p.PolicyJSON, p.Secret, p.Revision,
+		p.ID, p.Name, p.Description, p.Username,
+		p.GroupName, p.PolicyJSON, p.Secret, p.Revision, p.PendingDelete,
 		p.CreatedBy, p.CreatedAt, now)
 	return err
 }
@@ -258,13 +257,13 @@ func (d *DB) credLinks(query string, args ...any) ([]CredLink, error) {
 // An existing link is left ALONE rather than reset: pressing Link on a device
 // that already has it should not throw away the state that says it refused, nor
 // restart a backoff that is deliberately long.
-func (d *DB) LinkCredProfile(profileID, routerID, by string) error {
+func (d *DB) LinkCredProfile(profileID, routerID, via, by string) error {
 	now := time.Now().UnixMilli()
 	_, err := d.sql.Exec(`
 		INSERT INTO cred_profile_links (`+credLinkCols+`)
-		VALUES (?,?,'pending','','',0,0,0,0,0,?,?)
+		VALUES (?,?,'pending','','',0,0,0,0,0,?,?,?)
 		ON CONFLICT (profile_id, router_id) DO NOTHING`,
-		profileID, routerID, by, now)
+		profileID, routerID, via, by, now)
 	return err
 }
 

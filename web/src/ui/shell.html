@@ -1248,27 +1248,27 @@
           <input class="sform-input" id="cpPass" type="password" autocomplete="new-password">
         </div>
         <div class="sform-group">
-          <label class="sform-label" for="cpPerm">Permissions</label>
+          <label class="sform-label" for="cpPerm">Start from</label>
           <select class="sform-input" id="cpPerm">
-            <option value="read">read - view the configuration</option>
-            <option value="write">write - change it</option>
-            <option value="full">full - everything, including users</option>
-            <option value="custom">Custom permission set</option>
+            <option value="read">Read-only - view the configuration</option>
+            <option value="write">Read-write - change it</option>
+            <option value="full">Full access - everything, including users</option>
+            <option value="">Nothing - choose each permission</option>
           </select>
         </div>
       </div>
       <p class="rtr-note" id="cpPassNote" style="margin-top:-.5rem">Required for a new profile. Leave blank when
         editing to keep the current password.</p>
-      <p class="rtr-note" id="cpFullNote" style="display:none;color:var(--accent-warn)">A full profile is refused on
-        any router where MikroDash itself is in the full group, which is every device onboarded by ZTP. It works
-        where MikroDash has its own group. Link it and the Routers view will say which devices refused.</p>
-      <div id="cpCustom" style="display:none">
+      <p class="rtr-note" id="cpPermNote" style="margin-top:-.5rem">A starting point. Every permission is
+        yours to change, and the profile gets a RouterOS group of its own holding exactly what you tick - it
+        never joins one of the router's existing groups.</p>
+      <div id="cpCustom">
         <div class="sform-group">
           <label class="sform-label" for="cpGroup">Group name <span style="color:var(--accent-err)">*</span></label>
           <input class="sform-input" id="cpGroup" type="text" placeholder="noc-readonly" autocomplete="off" maxlength="64" spellcheck="false">
         </div>
-        <p class="rtr-note" style="margin-top:-.5rem">Created on each router. It cannot be renamed later: that would
-          be a migration across every linked device, not an edit.</p>
+        <p class="rtr-note" style="margin-top:-.5rem">Created on each linked router, and used by this profile
+          alone. It cannot be renamed later: that would be a migration across every linked device, not an edit.</p>
         <div class="sform-group">
           <label class="sform-label">Policies</label>
           <div id="cpPolicies" class="cp-policies"></div>
@@ -1295,10 +1295,22 @@
         <tbody id="cpLinksBody"></tbody>
       </table></div>
       <div class="cfg-empty" id="cpLinksEmpty" hidden>This profile is not on any router yet.</div>
-      <div class="sform-group" style="margin-bottom:0">
-        <label class="sform-label" for="cpAddRouter">Add a router</label>
-        <select class="sform-input" id="cpAddRouter"></select>
+      <div class="sform-row" style="margin-top:.6rem">
+        <div class="sform-group" style="margin-bottom:0">
+          <label class="sform-label" for="cpAddRouter">Add a router</label>
+          <select class="sform-input" id="cpAddRouter"></select>
+        </div>
+        <div class="sform-group" style="margin-bottom:0">
+          <label class="sform-label" for="cpAddSite">Add a site</label>
+          <select class="sform-input" id="cpAddSite"></select>
+        </div>
       </div>
+      <!-- SITES ARE LISTED SEPARATELY from the routers they resolve to, because
+           they are not the same kind of thing: a site is a standing rule, and
+           the rows above are what it currently means. -->
+      <div id="cpSiteList" class="cp-sites"></div>
+      <p class="rtr-note" id="cpSiteNote" style="display:none">A site applies this profile to every router in it.
+        A router that joins the site gets the account; one that leaves has it taken off.</p>
     </div>
     <div class="rtr-modal-footer">
       <button class="sbtn sbtn-outline" id="cpLinksClose">Close</button>

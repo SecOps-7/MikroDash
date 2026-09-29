@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 31
+const schemaVersion = 32
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -247,6 +247,63 @@ var portMigrations = map[int][]string{
 	// profile ids has no business travelling with it.
 	31: {credProfTablesDDL,
 		`ALTER TABLE ztp_devices ADD COLUMN cred_profiles TEXT NOT NULL DEFAULT '[]'`},
+	// 32: a profile can be linked to a SITE, and Delete finishes the job.
+	//
+	// `credProfTablesDDL` carries all three for a fresh database; an existing
+	// one needs the two ALTERs, because IF NOT EXISTS covers a missing TABLE
+	// and says nothing about a missing COLUMN. That asymmetry is exactly how
+	// migration 30 shipped against a table name that had never existed - fine
+	// on every fresh install, broken at startup on every real one.
+	// 32: the credential profile tables take their FINAL shape - sites, the
+	// `via` column, `pending_delete`, and a group owned by every profile rather
+	// than RouterOS's own read/write/full shared between them.
+	//
+	// ── WHY THIS REBUILDS RATHER THAN CONVERTS ──────────────────────────────
+	//
+	// The obvious migration renames the old table, copies the rows across with
+	// a CASE over `perm_kind`, and drops the original. It cannot be written
+	// here, and the reason is the rule at the top of this map: EVERY STATEMENT
+	// MUST BE SAFE TO RUN TWICE, because a database built by `freshSchemaDDL`
+	// already has the final shape and the migration tests replay from an old
+	// stamp over exactly that. A copy referencing `perm_kind` fails to prepare
+	// against the new table, and `map[int][]string` cannot express "only if
+	// that column exists".
+	//
+	// So it rebuilds. The cost is the rows, and the reason that is acceptable
+	// is specific rather than general: credential profiles had not shipped when
+	// this was written - no tag, no push - so the only rows anywhere were test
+	// data, and a profile carries nothing a router needs. A profile WITH links
+	// would be a different question, because its link rows are MikroDash's only
+	// record of accounts it put on devices; those were empty too.
+	//
+	// THIS REASONING DOES NOT TRANSFER. Once a version ships, the answer is the
+	// awkward conversion, or a Go-level migration step that can ask what shape
+	// it is looking at.
+	32: {
+		`DROP TABLE IF EXISTS cred_profile_sites`,
+		`DROP TABLE IF EXISTS cred_profile_links`,
+		`DROP TABLE IF EXISTS cred_profiles`,
+		credProfTablesDDL,
+	},
+	// 33: EVERY PROFILE OWNS ITS GROUP.
+	//
+	// A profile could previously join RouterOS's own read/write/full group. That
+	// let it collide with the group MikroDash signs in with - the lockout guard
+	// then refused it, and the operator was told to link it and find out which
+	// devices objected - and it made two profiles sharing a group share its
+	// permissions silently, each edit changing the other. Owning a group removes
+	// all of it, and the collision cannot arise at all.
+	//
+	// The old rows are CONVERTED rather than dropped: a profile that used a
+	// built-in gets a group of its own, named after its account, holding the
+	// policies that built-in grants on RouterOS 7.24.4. That IS a real change on
+	// the device - the account moves out of `read` and into `md-<user>` - and
+	// the revision bump is what makes every linked router pick it up.
+	//
+	// SQLite cannot drop a column on the versions this runs on, so the table is
+	// rebuilt. `Migrate` already runs one version's statements in a
+	// transaction, so a failure part way leaves the old table under its own
+	// name rather than half a new one.
 }
 
 // createSchema builds a new database at `path`.

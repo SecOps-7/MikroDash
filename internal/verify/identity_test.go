@@ -147,11 +147,22 @@ var identityColumns = []identityColumn{
 			"NOT re-resolved on an edit: an edit changes what a profile is, never who made it.",
 	},
 	{
-		column: "cred_profile_links.linked_by", kind: "id",
-		file: "internal/server/credprof_api.go", site: "by := s.userIDFor(sess.Username)", sites: 1,
-		why: "who asked for a profile to go on a router. It is ALSO the audit actor for the " +
-			"apply, which may happen hours later on a device that was switched off - so a " +
-			"username here would render the trail against whoever holds that name now.",
+		column: "cred_profile_links.linked_by, cred_profile_sites.linked_by", kind: "id",
+		file: "internal/server/credprof_api.go", site: "by := s.userIDFor(sess.Username)", sites: 2,
+		why: "who asked for a profile to go on a router, and who linked the SITE that puts it " +
+			"on one. Both are the audit actor for the apply, which may happen hours later on a " +
+			"device that was switched off - so a username here would render the trail against " +
+			"whoever holds that name now. TWO SITES IS THE POINT: the site writer was added " +
+			"second and this ledger is what noticed.",
+	},
+	{
+		column: "cred_profile_links.linked_by", kind: "caller",
+		file: "internal/server/credprof_job.go", site: `LinkCredProfile(profileID, rid, "site", by)`,
+		sites: 1,
+		why: "a link the reconciler derives from a site membership inherits the id of whoever " +
+			"linked the site, rather than resolving anything itself - nobody presses a button " +
+			"when a router joins a site, and an apply with no actor is a login appearing on a " +
+			"device with nobody named.",
 	},
 	{
 		column: "audit_events.actor_name", kind: "username",
@@ -193,9 +204,9 @@ func TestIdentityColumns(t *testing.T) {
 	}
 
 	// The ledger is hand-written, so an empty or truncated one would pass in
-	// silence. Nineteen entries is what this port writes today.
-	if len(identityColumns) < 19 {
-		t.Fatalf("the ledger holds %d entries; it had 19 - entries were removed rather than "+
+	// silence. Twenty entries is what this port writes today.
+	if len(identityColumns) < 20 {
+		t.Fatalf("the ledger holds %d entries; it had 20 - entries were removed rather than "+
 			"the writers being fixed", len(identityColumns))
 	}
 	t.Logf("%d shared identity columns checked, each at its recorded number of call sites",

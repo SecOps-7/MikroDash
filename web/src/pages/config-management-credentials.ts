@@ -26,13 +26,13 @@ export interface CredProfile {
   name: string;
   description: string;
   username: string;
-  permKind: 'builtin' | 'custom';
-  builtinGroup: string;
   groupName: string;
   policies: string[];
   hasSecret: boolean;
   links: number;
   revision: number;
+  /** Set when Delete was pressed while routers still held the account. */
+  pendingDelete: boolean;
 }
 
 /** One profile's standing on one router. */
@@ -44,6 +44,8 @@ export interface CredLink {
   error: string;
   appliedRevision: number;
   attempts: number;
+  /** 'direct' if somebody picked this router, 'site' if a site did. */
+  via: string;
 }
 
 /**
@@ -99,7 +101,6 @@ export function statePill(state: string): string {
  * question the column exists to answer.
  */
 export function permissionText(p: CredProfile): string {
-  if (p.permKind === 'builtin') return p.builtinGroup;
   if (!p.policies.length) return `${p.groupName} (no permissions)`;
   return `${p.groupName}: ${p.policies.join(', ')}`;
 }
@@ -150,7 +151,12 @@ export function profileRow(p: CredProfile, links: readonly CredLink[]): string {
     + `<td>${state ? statePill(state) : '<span class="cfg-meta">not linked</span>'}</td>`
     + '<td class="text-end">'
     + `<button class="cfg-btn" type="button" data-cp-edit="${esc(p.id)}">Edit</button> `
-    + `<button class="cfg-btn" type="button" data-cp-links="${esc(p.id)}">Routers</button>`
+    + `<button class="cfg-btn" type="button" data-cp-links="${esc(p.id)}">Routers</button> `
+    // DELETE IS NOT INSTANT when routers hold the account, and the label says
+    // which it will be. A button that reads "Delete" and then leaves the row in
+    // place for a minute reads as a failure.
+    + `<button class="cfg-btn cfg-btn-danger" type="button" data-cp-del="${esc(p.id)}">`
+    + (p.links > 0 ? 'Remove &amp; delete' : 'Delete') + '</button>'
     + '</td></tr>';
 }
 

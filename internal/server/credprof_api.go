@@ -73,8 +73,6 @@ type credProfileIn struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Username    string   `json:"username"`
-	PermKind    string   `json:"permKind"`
-	Builtin     string   `json:"builtinGroup"`
 	GroupName   string   `json:"groupName"`
 	Policies    []string `json:"policies"`
 	Password    string   `json:"password"`
@@ -98,6 +96,106 @@ func (s *Server) registerCredProfileAPI(mux *http.ServeMux) {
 		s.cfgWrite("credprofile.unlink", s.credLinkRemove))
 	mux.HandleFunc("POST /api/credentials/profiles/{id}/links/{routerId}/retry",
 		s.cfgWrite("credprofile.retry", s.credLinkRetry))
+
+	// SITES. A site link is intent that EXPANDS on every sweep, so these two
+	// routes only record it; the reconciler decides which routers it means now.
+	mux.HandleFunc("GET /api/credentials/profiles/{id}/sites", s.cfgRead(s.credSitesList))
+	mux.HandleFunc("POST /api/credentials/profiles/{id}/sites",
+		s.cfgWrite("credprofile.link-site", s.credSiteAdd))
+	mux.HandleFunc("DELETE /api/credentials/profiles/{id}/sites/{siteId}",
+		s.cfgWrite("credprofile.unlink-site", s.credSiteRemove))
+}
+
+func (s *Server) credSitesList(w http.ResponseWriter, r *http.Request, sess *Session) {
+	sites, err := s.auditDB.CredProfileSites(r.PathValue("id"))
+	if err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "could not read the site links")
+		return
+	}
+	writeJSON(w, map[string]any{"sites": sites})
+}
+
+// credSiteAdd links a profile to a site.
+//
+// ── MEMBERSHIP IS THE GRANT, AND THAT IS A PRIVILEGE DECISION ──────────────
+//
+// From here on, a router joining the site GAINS this account and a router
+// leaving it LOSES one. Editing a site's membership is now a credential change
+// on real devices, so the audit row names the site and the RouterOS username it
+// confers, and every per-device apply is audited on its own besides.
+func (s *Server) credSiteAdd(w http.ResponseWriter, r *http.Request, sess *Session) {
+	id := r.PathValue("id")
+	p, err := s.auditDB.CredProfileByID(id)
+	if err != nil {
+		writeJSONErr(w, http.StatusNotFound, "no such profile")
+		return
+	}
+	var in struct {
+		SiteIDs []string `json:"siteIds"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSONErr(w, http.StatusBadRequest, "could not read the request")
+		return
+	}
+	known, err := s.auditDB.ListSites()
+	if err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "could not read the sites")
+		return
+	}
+	real := map[string]string{}
+	for _, st := range known {
+		real[st.ID] = st.Name
+	}
+
+	by := s.userIDFor(sess.Username)
+	linked := []string{}
+	for _, sid := range in.SiteIDs {
+		// A SITE THAT DOES NOT EXIST IS DROPPED, not refused - the same rule as
+		// an unreachable router id, for the same reason (#108): refusing would
+		// confirm which ids are real.
+		if _, ok := real[sid]; !ok {
+			continue
+		}
+		if err := s.auditDB.LinkCredProfileSite(id, sid, by); err != nil {
+			continue
+		}
+		linked = append(linked, sid)
+	}
+	if len(linked) > 0 {
+		names := make([]string, 0, len(linked))
+		for _, sid := range linked {
+			names = append(names, real[sid])
+		}
+		s.httpRecorder(r, sess).Record(audit.Event{
+			Action: "credprofile.link-site", TargetType: "credential-profile",
+			TargetID: id, TargetName: p.Name,
+			After: map[string]any{"sites": names, "username": p.Username},
+		})
+		s.wakeCredJob()
+	}
+	writeJSON(w, map[string]any{"linked": linked})
+}
+
+// credSiteRemove drops a site link. The accounts come off the routers that were
+// only in scope through it, confirmed per device by the reconciler.
+func (s *Server) credSiteRemove(w http.ResponseWriter, r *http.Request, sess *Session) {
+	id, sid := r.PathValue("id"), r.PathValue("siteId")
+	p, err := s.auditDB.CredProfileByID(id)
+	if err != nil {
+		writeJSONErr(w, http.StatusNotFound, "no such profile")
+		return
+	}
+	if err := s.auditDB.UnlinkCredProfileSite(id, sid); err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "the site could not be unlinked")
+		return
+	}
+	s.httpRecorder(r, sess).Record(audit.Event{
+		Action: "credprofile.unlink-site", TargetType: "credential-profile",
+		TargetID: id, TargetName: p.Name,
+		After: map[string]any{"site": sid, "username": p.Username},
+	})
+	s.wakeCredJob()
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func (s *Server) credProfilesList(w http.ResponseWriter, r *http.Request, sess *Session) {
@@ -127,9 +225,15 @@ func (s *Server) credProfilesList(w http.ResponseWriter, r *http.Request, sess *
 	// RouterOS supports, so a router holding an MX record opened a form showing
 	// "A", and saving rewrote the record. A policy missing from a hand-kept copy
 	// would be one a custom group could never be given, invisibly.
+	// THE PRESETS TRAVEL WITH THE LIST, for the same reason the vocabulary does:
+	// one definition, in Go, so the picker cannot offer a set the applier would
+	// not write. They are starting points the operator edits, never groups to
+	// join - every profile owns its own.
 	writeJSON(w, map[string]any{
 		"profiles":         out,
 		"policyVocabulary": resource.UserPolicies,
+		"presets":          credprof.Presets,
+		"presetNames":      credprof.PresetNames,
 	})
 }
 
@@ -191,7 +295,6 @@ func (s *Server) credProfileSave(w http.ResponseWriter, r *http.Request, sess *S
 	spec := credprof.Spec{
 		ID: id, Name: strings.TrimSpace(in.Name),
 		Username: strings.TrimSpace(in.Username),
-		PermKind: in.PermKind, Builtin: in.Builtin,
 		Group:    strings.TrimSpace(in.GroupName),
 		Policies: in.Policies, Password: plain,
 	}
@@ -210,7 +313,7 @@ func (s *Server) credProfileSave(w http.ResponseWriter, r *http.Request, sess *S
 
 	row := db.CredProfile{
 		ID: id, Name: spec.Name, Description: strings.TrimSpace(in.Description),
-		Username: spec.Username, PermKind: spec.PermKind, Builtin: spec.Builtin,
+		Username:  spec.Username,
 		GroupName: spec.Group, PolicyJSON: credprof.MarshalPolicies(spec.Policies),
 		Secret: sealed, CreatedBy: existing.CreatedBy, CreatedAt: existing.CreatedAt,
 	}
@@ -264,8 +367,7 @@ func credAuditValues(p db.CredProfile) map[string]any {
 		return map[string]any{}
 	}
 	return map[string]any{
-		"name": p.Name, "username": p.Username, "permKind": p.PermKind,
-		"builtinGroup": p.Builtin, "groupName": p.GroupName,
+		"name": p.Name, "username": p.Username, "groupName": p.GroupName,
 		"policies": p.PolicyJSON, "revision": p.Revision,
 	}
 }
@@ -300,10 +402,32 @@ func (s *Server) credProfileDelete(w http.ResponseWriter, r *http.Request, sess 
 		writeJSONErr(w, http.StatusInternalServerError, "could not read the links")
 		return
 	}
+	// ── A DELETE THAT FINISHES, RATHER THAN ONE THAT REFUSES ────────────────
+	//
+	// Deleting the row while routers still hold the account would leave a login
+	// on each device with nothing left that knows it is there. So the accounts
+	// come off FIRST - each confirmed on its own router - and the profile goes
+	// when the last one has gone.
+	//
+	// It is therefore NOT INSTANT, and the response says so: a router that is
+	// switched off holds the delete open, which is the honest outcome, because
+	// the profile still exists exactly as long as the account does.
 	if len(links) > 0 {
-		writeJSONErr(w, http.StatusConflict,
-			"this profile is still on routers. Unlink it from them first, or use Forget "+
-				"to drop it and leave the accounts where they are.")
+		if err := s.auditDB.MarkCredProfileForDelete(id); err != nil {
+			writeJSONErr(w, http.StatusInternalServerError, "the removal could not be queued")
+			return
+		}
+		s.httpRecorder(r, sess).Record(audit.Event{
+			Action: "credprofile.delete", TargetType: "credential-profile",
+			TargetID: id, TargetName: p.Name,
+			Before: credAuditValues(p), After: map[string]any{},
+			Extra: []audit.KV{
+				{Key: "removingFromRouters", Value: len(links)},
+				{Key: "rosUsername", Value: p.Username},
+			},
+		})
+		s.wakeCredJob()
+		writeJSON(w, map[string]any{"ok": true, "pending": len(links)})
 		return
 	}
 	if err := s.auditDB.DeleteCredProfile(id); err != nil {
@@ -315,7 +439,7 @@ func (s *Server) credProfileDelete(w http.ResponseWriter, r *http.Request, sess 
 		TargetID: id, TargetName: p.Name,
 		Before: credAuditValues(p), After: map[string]any{},
 	})
-	writeJSON(w, map[string]any{"ok": true})
+	writeJSON(w, map[string]any{"ok": true, "pending": 0})
 }
 
 // credProfileForget drops the profile and its links WITHOUT touching a router.
@@ -396,7 +520,7 @@ func (s *Server) credLinkAdd(w http.ResponseWriter, r *http.Request, sess *Sessi
 	by := s.userIDFor(sess.Username)
 	linked := []string{}
 	for _, rid := range s.credRoutersFor(sess, in.RouterIDs) {
-		if err := s.auditDB.LinkCredProfile(id, rid, by); err != nil {
+		if err := s.auditDB.LinkCredProfile(id, rid, "direct", by); err != nil {
 			continue
 		}
 		linked = append(linked, rid)
@@ -561,7 +685,7 @@ func (s *Server) credSpecFor(p db.CredProfile) (credprof.Spec, error) {
 	}
 	return credprof.Spec{
 		ID: p.ID, Name: p.Name, Username: p.Username,
-		PermKind: p.PermKind, Builtin: p.Builtin, Group: p.GroupName,
+		Group:    p.GroupName,
 		Policies: credprof.ParsePolicies(p.PolicyJSON),
 		Password: plain, Revision: p.Revision,
 	}, nil

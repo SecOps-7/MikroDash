@@ -54,14 +54,13 @@ CREATE TABLE grants (id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
 -- (No backticks in this comment: it sits inside a Go raw string.)
 CREATE TABLE cred_profiles (
   id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '',
-  ros_username TEXT NOT NULL UNIQUE, perm_kind TEXT NOT NULL,
-  builtin_group TEXT NOT NULL DEFAULT '', group_name TEXT NOT NULL DEFAULT '',
+  ros_username TEXT NOT NULL UNIQUE, group_name TEXT NOT NULL,
   policy_json TEXT NOT NULL DEFAULT '[]', secret TEXT NOT NULL,
   revision INTEGER NOT NULL DEFAULT 1, created_by TEXT NOT NULL,
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-INSERT INTO cred_profiles (id, name, ros_username, perm_kind, builtin_group, secret,
+INSERT INTO cred_profiles (id, name, ros_username, group_name, secret,
   created_by, created_at, updated_at)
-  VALUES ('cp1', 'NOC', 'noc', 'builtin', 'read', 'sealed', 'u-1', 1, 1);
+  VALUES ('cp1', 'NOC', 'noc', 'grp-noc', 'sealed', 'u-1', 1, 1);
 CREATE TABLE cred_profile_links (
   profile_id TEXT NOT NULL REFERENCES cred_profiles(id) ON DELETE RESTRICT,
   router_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',

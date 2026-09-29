@@ -923,14 +923,13 @@ func seedPurgeables(t *testing.T, s *Server) {
 		// because a fixture looser than the real table is not evidence.
 		`CREATE TABLE IF NOT EXISTS cred_profiles (id TEXT PRIMARY KEY,
 		   name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '',
-		   ros_username TEXT NOT NULL UNIQUE, perm_kind TEXT NOT NULL,
-		   builtin_group TEXT NOT NULL DEFAULT '', group_name TEXT NOT NULL DEFAULT '',
+		   ros_username TEXT NOT NULL UNIQUE, group_name TEXT NOT NULL,
 		   policy_json TEXT NOT NULL DEFAULT '[]', secret TEXT NOT NULL,
 		   revision INTEGER NOT NULL DEFAULT 1, created_by TEXT NOT NULL,
 		   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
-		`INSERT OR IGNORE INTO cred_profiles (id, name, ros_username, perm_kind,
-		   builtin_group, secret, created_by, created_at, updated_at)
-		   VALUES ('cp1', 'NOC', 'noc', 'builtin', 'read', 'sealed', 'u-1', 1, 1)`,
+		`INSERT OR IGNORE INTO cred_profiles (id, name, ros_username, group_name,
+		   secret, created_by, created_at, updated_at)
+		   VALUES ('cp1', 'NOC', 'noc', 'grp-noc', 'sealed', 'u-1', 1, 1)`,
 		`CREATE TABLE IF NOT EXISTS cred_profile_links (
 		   profile_id TEXT NOT NULL REFERENCES cred_profiles(id) ON DELETE RESTRICT,
 		   router_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',

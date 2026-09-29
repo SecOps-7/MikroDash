@@ -50,6 +50,7 @@ func TestMigrationThirtyOneBuildsWhatAFreshDatabaseHas(t *testing.T) {
 	cfgExec(t, d,
 		`DROP INDEX idx_cred_links_due`,
 		`DROP INDEX idx_cred_links_router`,
+		`DROP TABLE cred_profile_sites`,
 		`DROP TABLE cred_profile_links`,
 		`DROP TABLE cred_profiles`,
 		`DELETE FROM schema_version WHERE version >= 31`)
@@ -153,9 +154,9 @@ func TestDeletingAProfileWithLinksIsRefused(t *testing.T) {
 	now := strconv.FormatInt(1759000000000, 10)
 
 	cfgExec(t, d,
-		`INSERT INTO cred_profiles (id, name, ros_username, perm_kind, builtin_group,
-		   secret, created_by, created_at, updated_at)
-		 VALUES ('cp1', 'NOC Read-only', 'noc', 'builtin', 'read', 'sealed', 'u-1', `+now+`, `+now+`)`,
+		`INSERT INTO cred_profiles (id, name, ros_username, group_name,
+	    secret, created_by, created_at, updated_at)
+		 VALUES ('cp1', 'NOC Read-only', 'noc', 'grp-noc', 'sealed', 'u-1', `+now+`, `+now+`)`,
 		`INSERT INTO cred_profile_links (profile_id, router_id, linked_by, linked_at)
 		 VALUES ('cp1', 'r-1', 'u-1', `+now+`)`)
 
@@ -179,9 +180,9 @@ func TestOneProfileCannotBeLinkedToARouterTwice(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	now := strconv.FormatInt(1759000000000, 10)
 	cfgExec(t, d,
-		`INSERT INTO cred_profiles (id, name, ros_username, perm_kind, builtin_group,
-		   secret, created_by, created_at, updated_at)
-		 VALUES ('cp1', 'NOC', 'noc', 'builtin', 'read', 'sealed', 'u-1', `+now+`, `+now+`)`,
+		`INSERT INTO cred_profiles (id, name, ros_username, group_name,
+	    secret, created_by, created_at, updated_at)
+		 VALUES ('cp1', 'NOC', 'noc', 'grp-noc', 'sealed', 'u-1', `+now+`, `+now+`)`,
 		`INSERT INTO cred_profile_links (profile_id, router_id, linked_by, linked_at)
 		 VALUES ('cp1', 'r-1', 'u-1', `+now+`)`)
 
@@ -206,20 +207,20 @@ func TestOneProfileCannotBeLinkedToARouterTwice(t *testing.T) {
 func TestTwoProfilesCannotClaimOneRouterOSUsername(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	now := strconv.FormatInt(1759000000000, 10)
-	cfgExec(t, d, `INSERT INTO cred_profiles (id, name, ros_username, perm_kind,
-	    builtin_group, secret, created_by, created_at, updated_at)
-	  VALUES ('cp1', 'NOC Read', 'noc', 'builtin', 'read', 'sealed', 'u-1', `+now+`, `+now+`)`)
+	cfgExec(t, d, `INSERT INTO cred_profiles (id, name, ros_username, group_name,
+	    secret, created_by, created_at, updated_at)
+	  VALUES ('cp1', 'NOC Read', 'noc', 'grp-noc', 'sealed', 'u-1', `+now+`, `+now+`)`)
 
-	if _, err := d.sql.Exec(`INSERT INTO cred_profiles (id, name, ros_username, perm_kind,
-	    builtin_group, secret, created_by, created_at, updated_at)
-	  VALUES ('cp2', 'NOC Write', 'noc', 'builtin', 'write', 'sealed', 'u-1', ` + now + `, ` + now + `)`); err == nil {
+	if _, err := d.sql.Exec(`INSERT INTO cred_profiles (id, name, ros_username, group_name,
+	    secret, created_by, created_at, updated_at)
+	  VALUES ('cp2', 'NOC Write', 'noc', 'grp-nocw', 'sealed', 'u-1', ` + now + `, ` + now + `)`); err == nil {
 		t.Error("two profiles claimed the RouterOS username 'noc'")
 	}
 	// THE CONTROL: a different username is fine, so the refusal is about the
 	// collision rather than about the second insert being malformed.
-	if _, err := d.sql.Exec(`INSERT INTO cred_profiles (id, name, ros_username, perm_kind,
-	    builtin_group, secret, created_by, created_at, updated_at)
-	  VALUES ('cp2', 'NOC Write', 'nocw', 'builtin', 'write', 'sealed', 'u-1', ` + now + `, ` + now + `)`); err != nil {
+	if _, err := d.sql.Exec(`INSERT INTO cred_profiles (id, name, ros_username, group_name,
+	    secret, created_by, created_at, updated_at)
+	  VALUES ('cp2', 'NOC Write', 'nocw', 'grp-nocw', 'sealed', 'u-1', ` + now + `, ` + now + `)`); err != nil {
 		t.Errorf("a second profile with its own username was refused: %v", err)
 	}
 }

@@ -59,7 +59,7 @@ package db
 // only once every link has been resolved, and the one way to drop them anyway
 // is the explicit Forget action, which audits every device it abandons.
 //
-// ── NO CHECK CONSTRAINT ON state OR perm_kind ──────────────────────────────
+// ── NO CHECK CONSTRAINT ON state ───────────────────────────────────────────
 //
 // The vocabulary lives in Go, for the reason `cfgTablesDDL` gives: a CHECK
 // makes adding a state a table rebuild, and the states here will change as the
@@ -77,18 +77,22 @@ CREATE TABLE IF NOT EXISTS cred_profiles (
   -- would silently win, per device, depending on apply order.
   -- (No backticks in this comment: it sits inside a Go raw string.)
   ros_username  TEXT NOT NULL UNIQUE,
-  -- 'builtin' uses one of RouterOS's own read/write/full groups; 'custom'
-  -- creates a group from policy_json. Which one decides whether the applier
-  -- touches /user/group at all.
+  -- ── EVERY PROFILE OWNS ITS GROUP. NONE SHARE ONE. ───────────────────────
+  --
+  -- There is no "use RouterOS's read group" option, and its absence is the
+  -- design. A profile that joined a built-in group could collide with the one
+  -- MikroDash signs in with (the lockout guard then refuses it), would share
+  -- its permissions with every other profile that joined it, and would change
+  -- accounts this feature never made when the policies were edited.
+  --
+  -- NOT editable after creation: renaming a group across every linked device is
+  -- a migration, not an edit.
   -- (No backticks in this comment: it sits inside a Go raw string.)
-  perm_kind     TEXT NOT NULL,
-  -- builtin only: read, write or full.
-  builtin_group TEXT NOT NULL DEFAULT '',
-  -- custom only, and NOT editable after creation: renaming a group across every
-  -- linked device is a migration, not an edit.
-  -- (No backticks in this comment: it sits inside a Go raw string.)
-  group_name    TEXT NOT NULL DEFAULT '',
-  -- custom only: a JSON array of names from resource.UserPolicies.
+  group_name    TEXT NOT NULL,
+  -- A JSON array of names from resource.UserPolicies. The WHOLE vocabulary is
+  -- available: what a profile may grant is not a function of what MikroDash
+  -- itself holds. Measured on RouterOS 7.24.4 - a user holding policy but not
+  -- sniff created a group granting sniff, and the router stored it.
   -- (No backticks in this comment: it sits inside a Go raw string.)
   policy_json   TEXT NOT NULL DEFAULT '[]',
   -- Sealed with the settings envelope before it reaches this table.
@@ -98,6 +102,11 @@ CREATE TABLE IF NOT EXISTS cred_profiles (
   -- can observe - a bump there would re-write every linked router for nothing.
   -- (No backticks in this comment: it sits inside a Go raw string.)
   revision      INTEGER NOT NULL DEFAULT 1,
+  -- Set when Delete was pressed while routers still held the account. The
+  -- accounts are taken off first and the profile goes when the last link has
+  -- CONFIRMED its removal, so a router that is switched off holds the delete
+  -- open rather than stranding an account nobody knows about.
+  pending_delete INTEGER NOT NULL DEFAULT 0,
   -- A store.User.ID. See the header.
   created_by    TEXT NOT NULL,
   created_at    INTEGER NOT NULL,
@@ -125,11 +134,42 @@ CREATE TABLE IF NOT EXISTS cred_profile_links (
   next_attempt_at  INTEGER NOT NULL DEFAULT 0,
   last_attempt_at  INTEGER NOT NULL DEFAULT 0,
   applied_at       INTEGER NOT NULL DEFAULT 0,
+  -- HOW this router came to be linked: 'direct' means somebody picked it,
+  -- 'site' means it is in a site the profile is linked to.
+  --
+  -- The difference decides what happens when a router LEAVES a site. A 'site'
+  -- link is membership-derived, so it goes with the membership. A 'direct' one
+  -- was an explicit choice and survives. A router that is both stays 'direct',
+  -- because the explicit choice is the stronger claim and losing it to a site
+  -- edit would be the surprise.
+  -- (No backticks in this comment: it sits inside a Go raw string.)
+  via              TEXT NOT NULL DEFAULT 'direct',
   -- A store.User.ID. See the header.
   linked_by        TEXT NOT NULL,
   linked_at        INTEGER NOT NULL,
   PRIMARY KEY (profile_id, router_id)
 );
+-- ── SITES: MEMBERSHIP IS THE GRANT ─────────────────────────────────────────
+--
+-- A profile linked to a site applies to every router in that site, and STOPS
+-- applying to a router that leaves it. That is the operator's choice, and it
+-- has a consequence worth stating where the table is: editing a site's
+-- membership now adds and removes LOGINS on devices. Every one is audited per
+-- device, and a link the operator made by hand is via=direct and survives.
+-- (No backticks in this comment: it sits inside a Go raw string.)
+--
+-- The site id is NOT a foreign key to the sites table. That one is written by a
+-- different subsystem and a deleted site must not fail this delete; the
+-- reconciler treats a site it cannot resolve as holding no routers, which
+-- removes the accounts - the same answer as the site being emptied.
+CREATE TABLE IF NOT EXISTS cred_profile_sites (
+  profile_id TEXT NOT NULL REFERENCES cred_profiles(id) ON DELETE CASCADE,
+  site_id    TEXT NOT NULL,
+  linked_by  TEXT NOT NULL,
+  linked_at  INTEGER NOT NULL,
+  PRIMARY KEY (profile_id, site_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_cred_links_router ON cred_profile_links(router_id);
 -- The reconciler's own query: everything owing work, soonest first.
 CREATE INDEX IF NOT EXISTS idx_cred_links_due ON cred_profile_links(state, next_attempt_at);

@@ -48,9 +48,22 @@ package guard
 // missed interface warning is a warning nobody saw, while a missed user refusal
 // is a site visit.
 //
-// RouterOS has its own backstops — a user cannot grant policies it does not hold,
-// and the last full-access user cannot be removed. Those are defence in depth.
-// Nothing here relies on them.
+// ── ONE ROUTEROS BACKSTOP, NOT TWO. MEASURED. ───────────────────────────────
+//
+// This said there were two: "a user cannot grant policies it does not hold, and
+// the last full-access user cannot be removed". The second is real and
+// documented. THE FIRST IS NOT TRUE, at least on RouterOS 7.24.4, and it was
+// tested rather than reasoned about: a user holding `policy` but NOT `sniff`
+// created a group granting `sniff`, and reading the group back showed the
+// policy stored rather than stripped.
+//
+// The line mattered because it reads like a reason to relax something here.
+// Nothing did rely on it — the sentence after it always said so, and still does
+// — but a premise that has expired reads exactly like one that is true, which
+// is why it is corrected rather than quietly dropped.
+//
+// So: the last full-access user cannot be removed, and that is the whole of
+// RouterOS's help. Everything else is this file's job.
 
 import (
 	"strings"

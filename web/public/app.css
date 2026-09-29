@@ -1828,6 +1828,17 @@
     /* The seventeen policies, as a wrapped grid rather than a seventeen-row
        column: the dialog is already tall and a list that long pushes Save off
        the screen on a laptop. */
+    /* A linked site, shown as a removable chip: a site is a STANDING RULE and
+       the router rows above it are what that rule currently means, so the two
+       are listed separately rather than mixed. */
+    .cp-sites{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0 .2rem}
+    .cp-site{display:inline-flex;align-items:center;gap:.35rem;font-size:.68rem;font-family:var(--font-mono);padding:.2rem .3rem .2rem .5rem;border-radius:5px;background:rgba(167,139,250,.1);color:var(--accent-alt);border:1px solid rgba(167,139,250,.25)}
+    .cp-site-x{background:none;border:none;color:inherit;cursor:pointer;padding:0 .15rem;line-height:1;opacity:.65}
+    .cp-site-x:hover{opacity:1}
+    /* Delete removes accounts from routers, so it is coloured like the other
+       destructive actions rather than like Edit. */
+    .cfg-btn-danger{color:var(--accent-err);border-color:color-mix(in srgb,var(--accent-err) 35%,transparent)}
+    .cfg-btn-danger:hover{background:color-mix(in srgb,var(--accent-err) 12%,transparent)}
     .cp-policies{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));gap:.25rem .6rem;margin:.35rem 0 .2rem}
     .cp-policy{display:flex;align-items:center;gap:.35rem;font-size:.7rem;font-family:var(--font-mono);color:var(--text-main);cursor:pointer}
     .cp-policy input{margin:0}

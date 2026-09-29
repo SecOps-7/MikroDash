@@ -388,7 +388,10 @@ func (s *Server) ztpLinkCredProfiles(d *db.ZTPDevice, routerID string) {
 		// THE DEVICE'S CREATOR IS THE ACTOR, as it is for the template deploy:
 		// they chose these profiles in the wizard, days before the device
 		// arrived, and the trail should say so rather than naming the system.
-		if err := s.auditDB.LinkCredProfile(id, routerID, d.CreatedBy); err != nil {
+		// DIRECT, not site-derived: the operator picked these profiles for THIS
+		// device in the wizard. A site link would come and go with the device's
+		// site membership, and that is not what was asked for here.
+		if err := s.auditDB.LinkCredProfile(id, routerID, "direct", d.CreatedBy); err != nil {
 			log.Printf("[ztp] %s: linking credential profile %s: %v", d.ID, id, err)
 		}
 	}

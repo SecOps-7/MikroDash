@@ -101,7 +101,7 @@ func mdSelf() *fakeRouter {
 
 func readSpec() Spec {
 	return Spec{ID: "cp1", Name: "NOC Read-only", Username: "noc",
-		PermKind: PermBuiltin, Builtin: "read", Password: "a-real-password", Revision: 1}
+		Group: "noc-grp", Policies: Presets["read"], Password: "a-real-password", Revision: 1}
 }
 
 // TestApplyCreatesTheAccountWithItsOwnershipMarker: the ordinary case, and the
@@ -114,11 +114,18 @@ func TestApplyCreatesTheAccountWithItsOwnershipMarker(t *testing.T) {
 	if o := Apply(f, readSpec(), []string{"mikrodash"}); o.State != StateApplied {
 		t.Fatalf("a plain read-only profile did not apply: %s %s %v", o.State, o.Code, o.Err)
 	}
+	// A GROUP THEN A USER, for every profile - none of them join a group
+	// somebody else made.
 	w := f.writes()
-	if len(w) != 1 || !strings.HasPrefix(w[0], "/user/add ") {
-		t.Fatalf("expected one /user/add, got %v", w)
+	if len(w) != 2 || !strings.HasPrefix(w[0], "/user/group/add ") ||
+		!strings.HasPrefix(w[1], "/user/add ") {
+		t.Fatalf("expected a group add then a user add, got %v", w)
 	}
-	for _, want := range []string{"=name=noc", "=group=read", "=password=a-real-password",
+	if !strings.Contains(w[0], "=name=noc-grp") {
+		t.Errorf("the profile did not create its own group: %s", w[0])
+	}
+	w = w[1:]
+	for _, want := range []string{"=name=noc", "=group=noc-grp", "=password=a-real-password",
 		"[mdp:cp1]"} {
 		if !strings.Contains(w[0], want) {
 			t.Errorf("the add does not carry %q: %s", want, w[0])
@@ -191,47 +198,67 @@ func TestRefusalsAreTerminalAndFailuresAreNot(t *testing.T) {
 	}
 }
 
-// TestAFullProfileIsRefusedWhereMikroDashItselfIsFull.
+// TestAFullAccessProfileAppliesEvenWhereMikroDashIsFull.
 //
-// ── THE ZTP INTERACTION, MEASURED RATHER THAN ASSUMED ───────────────────────
+// ── THE REDESIGN THIS TEST EXISTS TO PIN ────────────────────────────────────
 //
-// ZTP creates `mikrodash-ztp` with group=full (internal/ztp/script.go), so on
-// every ZTP-onboarded device MikroDash's own group IS `full` — and the guard
-// refuses moving any user into MikroDash's group, which is the
-// privilege-escalation rule rather than the lockout one.
+// A profile used to be able to JOIN one of RouterOS's own groups. ZTP puts
+// `mikrodash-ztp` in `full`, so on every ZTP-onboarded device a `full` profile
+// named the group MikroDash signs in with — and the guard refuses putting any
+// user into that group, which is the privilege-escalation rule. The operator
+// was told to link it and find out which devices objected.
 //
-// The rule is therefore NOT "no full profiles". It is "a profile cannot use
-// whichever group MikroDash occupies on THAT device", which varies per device.
-// The control below is the same profile on a router where MikroDash sits in a
-// custom group, where `full` is perfectly fine.
-func TestAFullProfileIsRefusedWhereMikroDashItselfIsFull(t *testing.T) {
-	ztp := &fakeRouter{
-		users: []routeros.Reply{
-			{".id": "*1", "name": "admin", "group": "full"},
-			{".id": "*2", "name": "mikrodash-ztp", "group": "full"},
-		},
-		groups: []routeros.Reply{},
-		active: []routeros.Reply{{"name": "mikrodash-ztp", "group": "full"}},
+// Now every profile owns its group, so a full-ACCESS profile is a group of its
+// own holding all seventeen policies. It never names MikroDash's group, so the
+// refusal cannot arise, and the account still gets exactly the rights asked
+// for. Verified on a real CHR, where MikroDash sits in `full`: the account
+// applied and could read /user, which needs `policy`.
+//
+// The guard is UNCHANGED. It still refuses MikroDash's own group — the test
+// below proves that — and the redesign simply stopped asking it to.
+func TestAFullAccessProfileAppliesEvenWhereMikroDashIsFull(t *testing.T) {
+	ztp := func() *fakeRouter {
+		return &fakeRouter{
+			users: []routeros.Reply{
+				{".id": "*1", "name": "admin", "group": "full"},
+				{".id": "*2", "name": "mikrodash-ztp", "group": "full"},
+			},
+			groups: []routeros.Reply{},
+			active: []routeros.Reply{{"name": "mikrodash-ztp", "group": "full"}},
+		}
 	}
 	s := readSpec()
-	s.Builtin = "full"
+	s.Group, s.Policies = "noc-full", Presets["full"]
 
-	o := Apply(ztp, s, []string{"mikrodash-ztp"})
-	if o.State != StateRefused || o.Code != "protected-group-value" {
-		t.Errorf("a full profile on a ZTP device gave %s/%s, want refused/protected-group-value",
-			o.State, o.Code)
-	}
-	if w := ztp.writes(); len(w) != 0 {
-		t.Errorf("the refusal still wrote to the router: %v", w)
-	}
-
-	// THE CONTROL: the same full profile on a README-configured router, where
-	// MikroDash is in its own group, applies.
-	ok := mdSelf()
-	ok.onWrite = applying("full")
-	if o := Apply(ok, s, []string{"mikrodash"}); o.State != StateApplied {
-		t.Errorf("a full profile was refused where MikroDash is not full: %s %s %v",
+	f := ztp()
+	f.onWrite = applying("noc-full")
+	if o := Apply(f, s, []string{"mikrodash-ztp"}); o.State != StateApplied {
+		t.Fatalf("a full-access profile was refused on a ZTP device: %s/%s %v",
 			o.State, o.Code, o.Err)
+	}
+	w := f.writes()
+	if len(w) != 2 || !strings.Contains(w[0], "=name=noc-full") {
+		t.Fatalf("expected its own group then the user, got %v", w)
+	}
+	// EVERY policy granted, none negated - the whole point of "full access".
+	for _, p := range Presets["full"] {
+		if !strings.Contains(w[0], p) || strings.Contains(w[0], "!"+p) {
+			t.Errorf("the group does not grant %q: %s", p, w[0])
+		}
+	}
+
+	// ── AND THE GUARD IS STILL THERE ────────────────────────────────────────
+	//
+	// A profile that DOES name MikroDash's group is still refused, with nothing
+	// written. Without this the test above would pass just as well on a build
+	// that had removed the protection instead of designing around it.
+	bad := ztp()
+	s.Group = "full"
+	if o := Apply(bad, s, []string{"mikrodash-ztp"}); o.State != StateRefused {
+		t.Errorf("a profile naming MikroDash's own group was allowed: %s/%s", o.State, o.Code)
+	}
+	if w := bad.writes(); len(w) != 0 {
+		t.Errorf("that refusal still wrote to the router: %v", w)
 	}
 }
 
@@ -289,15 +316,18 @@ func TestAnAccountWeDoNotOwnIsAConflictAndIsNeverAdopted(t *testing.T) {
 	// is re-sent - the only way a device whose password drifted converges, since
 	// RouterOS never reads one back to compare.
 	f := mdSelf()
-	f.users = append(f.users, routeros.Reply{".id": "*7", "name": "noc", "group": "read",
+	f.users = append(f.users, routeros.Reply{".id": "*7", "name": "noc", "group": "noc-grp",
+		"comment": markerPrefix + " NOC Read-only [mdp:cp1]"})
+	f.groups = append(f.groups, routeros.Reply{".id": "*g9", "name": "noc-grp",
 		"comment": markerPrefix + " NOC Read-only [mdp:cp1]"})
 	if o := Apply(f, readSpec(), []string{"mikrodash"}); o.State != StateApplied {
 		t.Fatalf("our own account was not updated: %s %s %v", o.State, o.Code, o.Err)
 	}
 	w := f.writes()
-	if len(w) != 1 || !strings.HasPrefix(w[0], "/user/set ") {
-		t.Fatalf("expected one /user/set, got %v", w)
+	if len(w) != 2 || !strings.HasPrefix(w[1], "/user/set ") {
+		t.Fatalf("expected the group then a /user/set, got %v", w)
 	}
+	w = w[1:]
 	if !strings.Contains(w[0], "=password=a-real-password") {
 		t.Errorf("the update did not re-send the password: %s", w[0])
 	}
@@ -314,7 +344,7 @@ func TestACustomGroupNamesEveryPolicyNegated(t *testing.T) {
 	f := mdSelf()
 	f.onWrite = applying("noc-group")
 	s := readSpec()
-	s.PermKind, s.Group, s.Policies = PermCustom, "noc-group", []string{"read", "api", "winbox"}
+	s.Group, s.Policies = "noc-group", []string{"read", "api", "winbox"}
 
 	if o := Apply(f, s, []string{"mikrodash"}); o.State != StateApplied {
 		t.Fatalf("a custom profile did not apply: %s %s %v", o.State, o.Code, o.Err)
@@ -408,7 +438,7 @@ func TestAWriteThatDidNotLandIsUnknownNotApplied(t *testing.T) {
 // legible instead of a bare router-denied.
 func TestRemovingTheLastFullUserIsRefusedBeforeItIsAttempted(t *testing.T) {
 	s := readSpec()
-	s.Builtin = "full"
+	s.Group = "full-ish"
 	mine := routeros.Reply{".id": "*7", "name": "noc", "group": "full",
 		"comment": markerPrefix + " NOC Read-only [mdp:cp1]"}
 
@@ -621,7 +651,7 @@ func TestMarshalPoliciesNeverWritesNull(t *testing.T) {
 // is one list rather than two that can drift.
 func TestCheckSpecRefusesAPolicyRouterOSDoesNotHave(t *testing.T) {
 	s := readSpec()
-	s.PermKind, s.Group, s.Policies = PermCustom, "noc-group", []string{"read", "superuser"}
+	s.Group, s.Policies = "noc-group", []string{"read", "superuser"}
 	if err := CheckSpec(s); err == nil {
 		t.Error("a policy outside RouterOS's vocabulary was accepted")
 	}

@@ -447,6 +447,11 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
    * vocabulary and it cannot drift.
    */
   let cpVocabulary: string[] = [];
+  /** The presets, as the server defines them. Never a copy typed here. */
+  let cpPresets: Record<string, string[]> = {};
+  /** Sites this profile is linked to, and every site there is. */
+  let cpSiteLinks: string[] = [];
+  let cpAllSites: { id: string; name: string }[] = [];
 
   async function credApi<T>(path: string, init?: RequestInit): Promise<T> {
     const r = await fetch('/api/credentials/' + path, { credentials: 'same-origin', ...init });
@@ -460,9 +465,11 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   async function loadCredentials(): Promise<void> {
     if (!visible()) return;
     try {
-      const got = await credApi<{ profiles: CredProfile[]; policyVocabulary: string[] }>('profiles');
+      const got = await credApi<{ profiles: CredProfile[]; policyVocabulary: string[];
+        presets: Record<string, string[]> }>('profiles');
       cps = got.profiles;
       cpVocabulary = got.policyVocabulary;
+      cpPresets = got.presets ?? {};
       const all: CredLink[] = [];
       for (const p of cps) {
         const l = await credApi<{ links: CredLink[] }>('profiles/' + p.id + '/links');
@@ -504,13 +511,19 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       .map((b) => b.getAttribute('data-cp-policy') ?? '');
   }
 
-  /** Shows the custom fields and the `full` warning for the chosen permission. */
-  function cpPermChanged(): void {
-    const perm = el<HTMLSelectElement>('cpPerm')?.value ?? 'read';
-    const custom = el('cpCustom');
-    if (custom) custom.style.display = perm === 'custom' ? '' : 'none';
-    const warn = el('cpFullNote');
-    if (warn) warn.style.display = perm === 'full' ? '' : 'none';
+  /**
+   * A preset TICKS BOXES; it does not choose a group.
+   *
+   * Every profile creates a group of its own, so the picker is a starting
+   * point and nothing more - the checkboxes it fills are immediately editable,
+   * and what a profile may grant is never a function of what MikroDash itself
+   * holds. The presets come from the server (`resource.UserPolicies` and
+   * `credprof.Presets`), so there is one definition rather than a copy here
+   * that can drift.
+   */
+  function cpApplyPreset(): void {
+    const name = el<HTMLSelectElement>('cpPerm')?.value ?? '';
+    cpDrawPolicies(name ? (cpPresets[name] ?? []) : []);
   }
 
   function cpOpenForm(p: CredProfile | null): void {
@@ -529,29 +542,27 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     // there is nothing to prefill, and blank means "leave it alone".
     set('cpPass', '');
     set('cpGroup', p?.groupName ?? '');
+    // AN EDIT SHOWS THE POLICIES THE PROFILE HAS, not a preset: the operator
+    // may have changed them, and re-applying one would silently undo that.
     const perm = el<HTMLSelectElement>('cpPerm');
-    if (perm) perm.value = p ? (p.permKind === 'custom' ? 'custom' : p.builtinGroup) : 'read';
+    if (perm) perm.value = p ? '' : 'read';
     const note = el('cpPassNote');
     if (note) {
       note.textContent = p
         ? 'Leave blank to keep the current password. A new one is applied to every linked router.'
         : 'Required for a new profile.';
     }
-    cpDrawPolicies(p?.policies ?? []);
-    cpPermChanged();
+    cpDrawPolicies(p ? p.policies : (cpPresets.read ?? []));
     cpOpen('cpModal', true);
   }
 
   async function cpSave(): Promise<void> {
-    const perm = el<HTMLSelectElement>('cpPerm')?.value ?? 'read';
     const body = {
       name: el<HTMLInputElement>('cpName')?.value ?? '',
       description: el<HTMLInputElement>('cpDesc')?.value ?? '',
       username: el<HTMLInputElement>('cpUser')?.value ?? '',
-      permKind: perm === 'custom' ? 'custom' : 'builtin',
-      builtinGroup: perm === 'custom' ? '' : perm,
-      groupName: perm === 'custom' ? (el<HTMLInputElement>('cpGroup')?.value ?? '') : '',
-      policies: perm === 'custom' ? cpReadPolicies() : [],
+      groupName: el<HTMLInputElement>('cpGroup')?.value ?? '',
+      policies: cpReadPolicies(),
       password: el<HTMLInputElement>('cpPass')?.value ?? '',
     };
     try {
@@ -597,30 +608,108 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     return dep.routers.find((r) => r.id === id)?.label ?? id;
   }
 
+  /**
+   * Deleting a profile takes its accounts OFF the routers first.
+   *
+   * It is therefore not instant, and the confirmation says so rather than
+   * leaving the operator to wonder why the row is still there. A router that is
+   * switched off holds the delete open, which is the honest outcome: the
+   * profile exists exactly as long as the account does.
+   */
+  async function cpDelete(id: string): Promise<void> {
+    const p = cps.find((x) => x.id === id);
+    if (!p) return;
+    const msg = p.links > 0
+      ? `Delete "${p.name}"?\n\nThe account "${p.username}" will be removed from `
+        + `${p.links} router${p.links === 1 ? '' : 's'} first. The profile goes when they have `
+        + 'all confirmed, so a router that is switched off holds it open.'
+      : `Delete "${p.name}"?\n\nIt is not on any router, so nothing is changed on a device.`;
+    if (!window.confirm(msg)) return;
+    try {
+      await credApi('profiles/' + id, { method: 'DELETE' });
+      await loadCredentials();
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : 'The profile could not be deleted');
+    }
+  }
+
+  /** Re-reads everything the links dialog shows, after any change to it. */
+  async function cpReloadLinks(): Promise<void> {
+    await loadCredentials();
+    try {
+      const mine = await credApi<{ sites: string[] }>('profiles/' + cpLinksFor + '/sites');
+      cpSiteLinks = mine.sites ?? [];
+    } catch {
+      // The routers half still redraws: a failed site read should not blank the
+      // rows the operator is looking at.
+    }
+    cpDrawLinks();
+    cpDrawSites();
+  }
+
+  /** The sites this profile is linked to, listed under the routers they mean. */
+  function cpDrawSites(): void {
+    const host = el('cpSiteList');
+    const note = el('cpSiteNote');
+    if (!host || !note) return;
+    const byId = new Map(cpAllSites.map((s2) => [s2.id, s2.name]));
+    host.innerHTML = cpSiteLinks.map((sid) => '<span class="cp-site">'
+      + esc(byId.get(sid) ?? sid)
+      + `<button class="cp-site-x" type="button" data-cp-unsite="${esc(sid)}" `
+      + 'aria-label="Unlink this site">&#10005;</button></span>').join('');
+    note.style.display = cpSiteLinks.length ? '' : 'none';
+
+    const pick = el<HTMLSelectElement>('cpAddSite');
+    if (pick) {
+      const on = new Set(cpSiteLinks);
+      pick.innerHTML = cpAllSites.filter((s2) => !on.has(s2.id))
+        .map((s2) => `<option value="${esc(s2.id)}">${esc(s2.name)}</option>`).join('');
+    }
+  }
+
   async function cpOpenLinks(id: string): Promise<void> {
     cpLinksFor = id;
     const p = cps.find((x) => x.id === id);
     const title = el('cpLinksTitle');
     if (title) title.textContent = p ? 'Routers - ' + p.name : 'Routers';
     if (!dep.routers.length) await loadRouters();
+    // THE SITES, AND WHICH OF THEM THIS PROFILE USES. Both come fresh: a site
+    // added since the dialog last opened should be pickable.
+    try {
+      const [all, mine] = await Promise.all([
+        fetch('/api/sites', { credentials: 'same-origin' })
+          .then((r) => r.json() as Promise<{ sites?: { id: string; name: string }[] }>),
+        credApi<{ sites: string[] }>('profiles/' + id + '/sites').catch(() => ({ sites: [] })),
+      ]);
+      cpAllSites = all.sites ?? [];
+      cpSiteLinks = mine.sites ?? [];
+    } catch {
+      cpAllSites = [];
+      cpSiteLinks = [];
+    }
     cpDrawLinks();
+    cpDrawSites();
     cpOpen('cpLinksModal', true);
   }
 
   // ── Wiring ───────────────────────────────────────────────────────────────
 
   el('cpNew')?.addEventListener('click', () => cpOpenForm(null));
-  el('cpPerm')?.addEventListener('change', cpPermChanged);
+  el('cpPerm')?.addEventListener('change', cpApplyPreset);
   el('cpCancel')?.addEventListener('click', () => cpOpen('cpModal', false));
   el('cpSave')?.addEventListener('click', () => void cpSave());
   el('cpLinksClose')?.addEventListener('click', () => cpOpen('cpLinksModal', false));
+  // ONE BUTTON, BOTH PICKERS. A router and a site are different kinds of
+  // intent, but "Link" means the same thing for each, and two buttons side by
+  // side would only invite picking one and pressing the other.
   el('cpLinkAdd')?.addEventListener('click', () => {
-    const id = el<HTMLSelectElement>('cpAddRouter')?.value ?? '';
-    if (!id) return;
+    const rid = el<HTMLSelectElement>('cpAddRouter')?.value ?? '';
+    const sid = el<HTMLSelectElement>('cpAddSite')?.value ?? '';
+    if (!rid && !sid) return;
     void (async () => {
-      await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: [id] }));
-      await loadCredentials();
-      cpDrawLinks();
+      if (rid) await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: [rid] }));
+      if (sid) await credApi('profiles/' + cpLinksFor + '/sites', json({ siteIds: [sid] }));
+      await cpReloadLinks();
     })();
   });
   el('cpBody')?.addEventListener('click', (e) => {
@@ -631,7 +720,21 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       return;
     }
     const links = t.closest('[data-cp-links]')?.getAttribute('data-cp-links');
-    if (links) void cpOpenLinks(links);
+    if (links) {
+      void cpOpenLinks(links);
+      return;
+    }
+    const del = t.closest('[data-cp-del]')?.getAttribute('data-cp-del');
+    if (del) void cpDelete(del);
+  });
+  el('cpSiteList')?.addEventListener('click', (e) => {
+    const sid = (e.target as HTMLElement).closest('[data-cp-unsite]')
+      ?.getAttribute('data-cp-unsite');
+    if (!sid) return;
+    void (async () => {
+      await credApi('profiles/' + cpLinksFor + '/sites/' + sid, { method: 'DELETE' });
+      await cpReloadLinks();
+    })();
   });
   el('cpLinksBody')?.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
@@ -639,8 +742,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     if (retry) {
       void (async () => {
         await credApi('profiles/' + cpLinksFor + '/links/' + retry + '/retry', { method: 'POST' });
-        await loadCredentials();
-        cpDrawLinks();
+        await cpReloadLinks();
       })();
       return;
     }
@@ -648,8 +750,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     if (drop) {
       void (async () => {
         await credApi('profiles/' + cpLinksFor + '/links/' + drop, { method: 'DELETE' });
-        await loadCredentials();
-        cpDrawLinks();
+        await cpReloadLinks();
       })();
     }
   });

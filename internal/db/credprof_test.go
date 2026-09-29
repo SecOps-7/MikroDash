@@ -8,8 +8,8 @@ import (
 
 func seedProfile(t *testing.T, d *DB, id, name, user string) CredProfile {
 	t.Helper()
-	p := CredProfile{ID: id, Name: name, Username: user, PermKind: "builtin",
-		Builtin: "read", PolicyJSON: "[]", Secret: "sealed-v1", CreatedBy: "u-1"}
+	p := CredProfile{ID: id, Name: name, Username: user,
+		GroupName: "grp-" + user, PolicyJSON: `["read"]`, Secret: "sealed-v1", CreatedBy: "u-1"}
 	if err := d.UpsertCredProfile(p); err != nil {
 		t.Fatalf("seeding %s: %v", id, err)
 	}
@@ -60,10 +60,8 @@ func TestTheRevisionMovesOnlyForWhatARouterCanSee(t *testing.T) {
 	}{
 		{"the password", func(p *CredProfile) { p.Secret = "sealed-v2" }},
 		{"the username", func(p *CredProfile) { p.Username = "noc2" }},
-		{"the built-in group", func(p *CredProfile) { p.Builtin = "write" }},
-		{"the permission kind", func(p *CredProfile) {
-			p.PermKind, p.GroupName, p.PolicyJSON = "custom", "noc-grp", `["read"]`
-		}},
+		{"the group name", func(p *CredProfile) { p.GroupName = "grp-renamed" }},
+
 		{"the policy set", func(p *CredProfile) { p.PolicyJSON = `["read","api"]` }},
 	} {
 		before, _ := d.CredProfileByID("cp1")
@@ -98,14 +96,14 @@ func TestALinkIsNeverResetByLinkingAgain(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	seedProfile(t, d, "cp1", "NOC", "noc")
 
-	if err := d.LinkCredProfile("cp1", "r-1", "u-1"); err != nil {
+	if err := d.LinkCredProfile("cp1", "r-1", "direct", "u-1"); err != nil {
 		t.Fatal(err)
 	}
 	if err := d.MarkCredLink("cp1", "r-1", "refused", "protected-group-value",
 		"the guard said no", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.LinkCredProfile("cp1", "r-1", "u-2"); err != nil {
+	if err := d.LinkCredProfile("cp1", "r-1", "direct", "u-2"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -136,7 +134,7 @@ func TestTheReconcilerIsOfferedWorkAndNotRefusals(t *testing.T) {
 
 	for _, rid := range []string{"r-pending", "r-applied", "r-refused", "r-conflict",
 		"r-stale", "r-backoff"} {
-		if err := d.LinkCredProfile("cp1", rid, "u-1"); err != nil {
+		if err := d.LinkCredProfile("cp1", rid, "direct", "u-1"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -215,7 +213,7 @@ func TestTheReconcilerIsOfferedWorkAndNotRefusals(t *testing.T) {
 func TestAProfileCannotBeDeletedWhileARouterStillHasIt(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	seedProfile(t, d, "cp1", "NOC", "noc")
-	if err := d.LinkCredProfile("cp1", "r-1", "u-1"); err != nil {
+	if err := d.LinkCredProfile("cp1", "r-1", "direct", "u-1"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -250,7 +248,7 @@ func TestEnqueueLeavesTerminalRefusalsAlone(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	seedProfile(t, d, "cp1", "NOC", "noc")
 	for _, rid := range []string{"r-ok", "r-refused"} {
-		if err := d.LinkCredProfile("cp1", rid, "u-1"); err != nil {
+		if err := d.LinkCredProfile("cp1", rid, "direct", "u-1"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -287,7 +285,7 @@ func TestEnqueueLeavesTerminalRefusalsAlone(t *testing.T) {
 func TestAnAppliedLinkClearsItsAttemptsAndAFailureCountsUp(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	seedProfile(t, d, "cp1", "NOC", "noc")
-	if err := d.LinkCredProfile("cp1", "r-1", "u-1"); err != nil {
+	if err := d.LinkCredProfile("cp1", "r-1", "direct", "u-1"); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 3; i++ {
@@ -324,7 +322,7 @@ func TestRemovingARouterTakesItsLinksAndNotItsProfile(t *testing.T) {
 	d := openTest(t, t.TempDir())
 	seedProfile(t, d, "cp1", "NOC", "noc")
 	for _, rid := range []string{"r-1", "r-2"} {
-		if err := d.LinkCredProfile("cp1", rid, "u-1"); err != nil {
+		if err := d.LinkCredProfile("cp1", rid, "direct", "u-1"); err != nil {
 			t.Fatal(err)
 		}
 	}

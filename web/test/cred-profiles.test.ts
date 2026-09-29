@@ -43,11 +43,12 @@ const mod = require(OUT);
 
 const profile = (over = {}) => ({
   id: 'cp1', name: 'NOC read-only', description: '', username: 'noc',
-  permKind: 'builtin', builtinGroup: 'read', groupName: '', policies: [],
-  hasSecret: true, links: 0, revision: 1, ...over,
+  groupName: 'grp-noc', policies: ['read'],
+  hasSecret: true, links: 0, revision: 1, pendingDelete: false, ...over,
 });
 const link = (routerId, state) => ({
   profileId: 'cp1', routerId, state, code: '', error: '', appliedRevision: 1, attempts: 0,
+  via: 'direct',
 });
 
 // ── THE WORST STATE WINS ────────────────────────────────────────────────────
@@ -97,16 +98,17 @@ say('  refusals are amber and explain themselves');
 
 // ── A CUSTOM SET NAMES ITS POLICIES ─────────────────────────────────────────
 {
-  assert.strictEqual(mod.permissionText(profile()), 'read');
+  // EVERY profile names its own group and its policies - there is no longer a
+  // form that borrows one of RouterOS's.
+  assert.strictEqual(mod.permissionText(profile()), 'grp-noc: read');
   assert.strictEqual(
-    mod.permissionText(profile({ permKind: 'custom', groupName: 'noc-grp', policies: ['read', 'api'] })),
+    mod.permissionText(profile({ groupName: 'noc-grp', policies: ['read', 'api'] })),
     'noc-grp: read, api',
-    'a custom set does not name its policies, so the column cannot answer what the '
-    + 'account can do');
+    'the column does not name the policies, so it cannot answer what the account can do');
   // A group with nothing granted is a real thing to make, and it must not read
   // as though it simply has not loaded.
   assert.strictEqual(
-    mod.permissionText(profile({ permKind: 'custom', groupName: 'locked', policies: [] })),
+    mod.permissionText(profile({ groupName: 'locked', policies: [] })),
     'locked (no permissions)');
 }
 say('  a custom permission set names its policies');
@@ -119,6 +121,14 @@ say('  a custom permission set names its policies');
   assert.ok(row.includes('cp-warn'), 'the row does not show the refused router');
   assert.ok(row.includes('data-cp-edit="cp1"') && row.includes('data-cp-links="cp1"'),
     'the row has no way into the profile or its routers');
+  // DELETE SAYS WHICH KIND IT IS. On a linked profile the accounts come off
+  // routers first, and a button reading "Delete" that then leaves the row in
+  // place for a minute reads as a failure rather than as the design.
+  assert.ok(row.includes('data-cp-del="cp1"'), 'the row offers no way to delete the profile');
+  assert.ok(row.includes('Remove &amp; delete'),
+    'a profile that is on routers does not say the accounts come off first');
+  assert.ok(mod.profileRow(profile(), []).includes('>Delete<'),
+    'an unlinked profile should just say Delete');
 
   // A PROFILE ON NO ROUTERS says so rather than showing an empty pill, which
   // would read as a state that failed to load.
