@@ -21,8 +21,11 @@ import {
   defaultsFromValues, findingKey, newSecret, previewCard, readyToStart, rolloutView, routerPicker, valuesGrid,
   type RouterOpt, type RouterPreview,
 } from './config-management-deploy';
+import {
+  drawProfiles, statePill, type CredLink, type CredProfile,
+} from './config-management-credentials';
 
-const TABS = ['library', 'editor', 'deploy', 'history', 'drift'] as const;
+const TABS = ['library', 'editor', 'deploy', 'history', 'drift', 'credentials'] as const;
 type Tab = (typeof TABS)[number];
 
 /** A stored template as GET /api/config/templates lists it. */
@@ -133,6 +136,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
     if (next === 'history') void loadHistory();
     else if (next === 'drift') void loadDrift();
+    else if (next === 'credentials') void loadCredentials();
   }
 
   // ── The Library ──────────────────────────────────────────────────────────
@@ -421,7 +425,234 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
   }
 
+  // ── Credential profiles (#143) ───────────────────────────────────────────
+  //
+  // RouterOS accounts MikroDash puts on routers and keeps in step. NOT
+  // MikroDash's own login: the server refuses that per router
+  // (internal/guard/selfguard.go), and the copy on the panel says so.
+
+  let cps: CredProfile[] = [];
+  let cpLinks: CredLink[] = [];
+  /** The profile open in the dialog; null when creating. */
+  let cpEditing: CredProfile | null = null;
+  /** The profile whose routers are open. */
+  let cpLinksFor = '';
+  /**
+   * The seventeen RouterOS policies, AS THE SERVER SENDS THEM.
+   *
+   * Never a copy typed here. CLAUDE.md records what a second list costs:
+   * `dnsStatic` offered six of the nine DNS record types, so a router holding an
+   * MX record opened a form showing "A" and saving rewrote the record. The
+   * server sends `resource.UserPolicies` with the profile list, so there is one
+   * vocabulary and it cannot drift.
+   */
+  let cpVocabulary: string[] = [];
+
+  async function credApi<T>(path: string, init?: RequestInit): Promise<T> {
+    const r = await fetch('/api/credentials/' + path, { credentials: 'same-origin', ...init });
+    const body = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
+    if (!r.ok || body.ok === false) {
+      throw new ApiError(body.error || 'The request failed (' + r.status + ')', r.status);
+    }
+    return body;
+  }
+
+  async function loadCredentials(): Promise<void> {
+    if (!visible()) return;
+    try {
+      const got = await credApi<{ profiles: CredProfile[]; policyVocabulary: string[] }>('profiles');
+      cps = got.profiles;
+      cpVocabulary = got.policyVocabulary;
+      const all: CredLink[] = [];
+      for (const p of cps) {
+        const l = await credApi<{ links: CredLink[] }>('profiles/' + p.id + '/links');
+        all.push(...l.links);
+      }
+      cpLinks = all;
+      drawProfiles(cps, cpLinks);
+    } catch {
+      cps = [];
+      cpLinks = [];
+      drawProfiles(cps, cpLinks);
+    }
+  }
+
+  const cpOpen = (id: string, on: boolean): void => {
+    el(id)?.classList.toggle('open', on);
+  };
+
+  function cpShowError(msg: string): void {
+    const n = el('cpError');
+    if (!n) return;
+    n.textContent = msg;
+    n.style.display = msg ? '' : 'none';
+  }
+
+  /** The seventeen RouterOS policies, rendered as checkboxes. */
+  function cpDrawPolicies(chosen: readonly string[]): void {
+    const host = el('cpPolicies');
+    if (!host) return;
+    host.innerHTML = cpVocabulary.map((p) => '<label class="cp-policy">'
+      + `<input type="checkbox" data-cp-policy="${esc(p)}"${chosen.includes(p) ? ' checked' : ''}>`
+      + `<span>${esc(p)}</span></label>`).join('');
+  }
+
+  function cpReadPolicies(): string[] {
+    return Array.from(
+      document.querySelectorAll<HTMLInputElement>('#cpPolicies [data-cp-policy]'))
+      .filter((b) => b.checked)
+      .map((b) => b.getAttribute('data-cp-policy') ?? '');
+  }
+
+  /** Shows the custom fields and the `full` warning for the chosen permission. */
+  function cpPermChanged(): void {
+    const perm = el<HTMLSelectElement>('cpPerm')?.value ?? 'read';
+    const custom = el('cpCustom');
+    if (custom) custom.style.display = perm === 'custom' ? '' : 'none';
+    const warn = el('cpFullNote');
+    if (warn) warn.style.display = perm === 'full' ? '' : 'none';
+  }
+
+  function cpOpenForm(p: CredProfile | null): void {
+    cpEditing = p;
+    cpShowError('');
+    const title = el('cpModalTitle');
+    if (title) title.textContent = p ? 'Edit credential profile' : 'New credential profile';
+    const set = (id: string, v: string): void => {
+      const n = el<HTMLInputElement>(id);
+      if (n) n.value = v;
+    };
+    set('cpName', p?.name ?? '');
+    set('cpDesc', p?.description ?? '');
+    set('cpUser', p?.username ?? '');
+    // EMPTY EVEN WHEN ONE IS SET. The server never sends the password back, so
+    // there is nothing to prefill, and blank means "leave it alone".
+    set('cpPass', '');
+    set('cpGroup', p?.groupName ?? '');
+    const perm = el<HTMLSelectElement>('cpPerm');
+    if (perm) perm.value = p ? (p.permKind === 'custom' ? 'custom' : p.builtinGroup) : 'read';
+    const note = el('cpPassNote');
+    if (note) {
+      note.textContent = p
+        ? 'Leave blank to keep the current password. A new one is applied to every linked router.'
+        : 'Required for a new profile.';
+    }
+    cpDrawPolicies(p?.policies ?? []);
+    cpPermChanged();
+    cpOpen('cpModal', true);
+  }
+
+  async function cpSave(): Promise<void> {
+    const perm = el<HTMLSelectElement>('cpPerm')?.value ?? 'read';
+    const body = {
+      name: el<HTMLInputElement>('cpName')?.value ?? '',
+      description: el<HTMLInputElement>('cpDesc')?.value ?? '',
+      username: el<HTMLInputElement>('cpUser')?.value ?? '',
+      permKind: perm === 'custom' ? 'custom' : 'builtin',
+      builtinGroup: perm === 'custom' ? '' : perm,
+      groupName: perm === 'custom' ? (el<HTMLInputElement>('cpGroup')?.value ?? '') : '',
+      policies: perm === 'custom' ? cpReadPolicies() : [],
+      password: el<HTMLInputElement>('cpPass')?.value ?? '',
+    };
+    try {
+      const path = cpEditing ? 'profiles/' + cpEditing.id : 'profiles';
+      await credApi(path, { ...json(body), method: cpEditing ? 'PUT' : 'POST' });
+      cpOpen('cpModal', false);
+      await loadCredentials();
+    } catch (e) {
+      cpShowError(e instanceof ApiError ? e.message : 'The profile could not be saved');
+    }
+  }
+
+  function cpDrawLinks(): void {
+    const body = el('cpLinksBody');
+    const empty = el('cpLinksEmpty');
+    if (!body || !empty) return;
+    const mine = cpLinks.filter((l) => l.profileId === cpLinksFor);
+    body.innerHTML = mine.map((l) => {
+      const name = routerName(l.routerId);
+      // RETRY IS OFFERED ONLY WHERE IT MEANS SOMETHING: a terminal refusal is
+      // the one state nothing retries on a timer, so it is the one state with a
+      // button. Offering it everywhere would suggest the others are stuck.
+      const retry = l.state === 'refused' || l.state === 'conflict'
+        ? `<button class="cfg-btn" type="button" data-cp-retry="${esc(l.routerId)}">Retry</button> `
+        : '';
+      return `<tr><td>${esc(name)}</td><td>${statePill(l.state)}</td>`
+        + `<td class="cfg-meta">${esc(l.error || l.code)}</td>`
+        + `<td class="text-end">${retry}`
+        + `<button class="cfg-btn" type="button" data-cp-unlink="${esc(l.routerId)}">Remove</button>`
+        + '</td></tr>';
+    }).join('');
+    empty.hidden = mine.length > 0;
+
+    const pick = el<HTMLSelectElement>('cpAddRouter');
+    if (pick) {
+      const on = new Set(mine.map((l) => l.routerId));
+      pick.innerHTML = dep.routers.filter((r) => !on.has(r.id))
+        .map((r) => `<option value="${esc(r.id)}">${esc(r.label)}</option>`).join('');
+    }
+  }
+
+  function routerName(id: string): string {
+    return dep.routers.find((r) => r.id === id)?.label ?? id;
+  }
+
+  async function cpOpenLinks(id: string): Promise<void> {
+    cpLinksFor = id;
+    const p = cps.find((x) => x.id === id);
+    const title = el('cpLinksTitle');
+    if (title) title.textContent = p ? 'Routers - ' + p.name : 'Routers';
+    if (!dep.routers.length) await loadRouters();
+    cpDrawLinks();
+    cpOpen('cpLinksModal', true);
+  }
+
   // ── Wiring ───────────────────────────────────────────────────────────────
+
+  el('cpNew')?.addEventListener('click', () => cpOpenForm(null));
+  el('cpPerm')?.addEventListener('change', cpPermChanged);
+  el('cpCancel')?.addEventListener('click', () => cpOpen('cpModal', false));
+  el('cpSave')?.addEventListener('click', () => void cpSave());
+  el('cpLinksClose')?.addEventListener('click', () => cpOpen('cpLinksModal', false));
+  el('cpLinkAdd')?.addEventListener('click', () => {
+    const id = el<HTMLSelectElement>('cpAddRouter')?.value ?? '';
+    if (!id) return;
+    void (async () => {
+      await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: [id] }));
+      await loadCredentials();
+      cpDrawLinks();
+    })();
+  });
+  el('cpBody')?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const edit = t.closest('[data-cp-edit]')?.getAttribute('data-cp-edit');
+    if (edit) {
+      cpOpenForm(cps.find((p) => p.id === edit) ?? null);
+      return;
+    }
+    const links = t.closest('[data-cp-links]')?.getAttribute('data-cp-links');
+    if (links) void cpOpenLinks(links);
+  });
+  el('cpLinksBody')?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const retry = t.closest('[data-cp-retry]')?.getAttribute('data-cp-retry');
+    if (retry) {
+      void (async () => {
+        await credApi('profiles/' + cpLinksFor + '/links/' + retry + '/retry', { method: 'POST' });
+        await loadCredentials();
+        cpDrawLinks();
+      })();
+      return;
+    }
+    const drop = t.closest('[data-cp-unlink]')?.getAttribute('data-cp-unlink');
+    if (drop) {
+      void (async () => {
+        await credApi('profiles/' + cpLinksFor + '/links/' + drop, { method: 'DELETE' });
+        await loadCredentials();
+        cpDrawLinks();
+      })();
+    }
+  });
 
   el('cfgTabs')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-cfgtab]');

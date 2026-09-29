@@ -210,8 +210,13 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   'cfgDepTpl', 'cfgDepRouters', 'cfgDepValues', 'cfgDepPreview', 'cfgDepPreviews', 'cfgDepStart', 'cfgRollout',
   'cfgDepTplMeta', 'cfgDepConfirm', 'cfgDepWhy', 'cfgDep', 'cfgHistHead', 'cfgHistBody', 'cfgHistEmpty',
   'cfgHistRefresh', 'cfgDriftHead', 'cfgDriftBody', 'cfgDriftEmpty', 'cfgDriftRefresh', 'cfgDepSaveDefaults',
-  'cfgDepSaveWhy'],
-  { allowUnknown: ['#cfgTabs [data-cfgtab]'] });
+  'cfgDepSaveWhy',
+  // The Credentials tab (#143). Declared here rather than allowed, because the
+  // module wires these at load: an id the page reaches for and the test does
+  // not know about is exactly what this shim is strict in order to catch.
+  'cfgPanel-credentials', 'cpBody', 'cpEmpty', 'cpNew', 'cpPerm', 'cpCancel', 'cpSave',
+  'cpLinksClose', 'cpLinkAdd', 'cpLinksBody'],
+  { allowUnknown: ['#cfgTabs [data-cfgtab]', '#cpPolicies [data-cp-policy]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };
 const fetched = [];

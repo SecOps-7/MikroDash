@@ -837,6 +837,11 @@ func TestRemovingARouterPurgesWhatOnlyMadeSenseWithIt(t *testing.T) {
 		"grants": "scope_id", "report_schedules": "router_id", "ping_samples": "router_id",
 		// AND THE ROLLUPS, or a removed router keeps its traffic history (#59).
 		"traffic_hourly": "router_id", "bandwidth_hourly": "router_id",
+		// AND THE CREDENTIAL LINKS (#143): with no session left to reconcile
+		// through, a surviving row is retried against a router that does not
+		// exist, for ever. What was left on the device is recorded in the audit
+		// trail instead, which no purge path touches.
+		"cred_profile_links": "router_id",
 	} {
 		if n := countRows(t, s, name, table, "r1"); n != 0 {
 			t.Errorf("%s still has %d rows for the removed router", name, n)
@@ -909,6 +914,33 @@ func seedPurgeables(t *testing.T, s *Server) {
 		   principal_type TEXT NOT NULL, principal_id TEXT NOT NULL, role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
 		   role TEXT, scope_type TEXT NOT NULL, scope_id TEXT NOT NULL DEFAULT '',
 		   created_at INTEGER NOT NULL, created_by TEXT)`,
+		// CREDENTIAL PROFILE LINKS (#143), for the reason the rollups above give:
+		// the purge is ONE transaction, so a fixture missing this table does not
+		// skip an assertion, it fails the DELETE and rolls every other table
+		// back with it. That is exactly how its absence was noticed here.
+		//
+		// Declared as credprof_schema.go declares it, including the foreign key,
+		// because a fixture looser than the real table is not evidence.
+		`CREATE TABLE IF NOT EXISTS cred_profiles (id TEXT PRIMARY KEY,
+		   name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '',
+		   ros_username TEXT NOT NULL UNIQUE, perm_kind TEXT NOT NULL,
+		   builtin_group TEXT NOT NULL DEFAULT '', group_name TEXT NOT NULL DEFAULT '',
+		   policy_json TEXT NOT NULL DEFAULT '[]', secret TEXT NOT NULL,
+		   revision INTEGER NOT NULL DEFAULT 1, created_by TEXT NOT NULL,
+		   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
+		`INSERT OR IGNORE INTO cred_profiles (id, name, ros_username, perm_kind,
+		   builtin_group, secret, created_by, created_at, updated_at)
+		   VALUES ('cp1', 'NOC', 'noc', 'builtin', 'read', 'sealed', 'u-1', 1, 1)`,
+		`CREATE TABLE IF NOT EXISTS cred_profile_links (
+		   profile_id TEXT NOT NULL REFERENCES cred_profiles(id) ON DELETE RESTRICT,
+		   router_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
+		   code TEXT NOT NULL DEFAULT '', error TEXT NOT NULL DEFAULT '',
+		   applied_revision INTEGER NOT NULL DEFAULT 0,
+		   attempts INTEGER NOT NULL DEFAULT 0,
+		   next_attempt_at INTEGER NOT NULL DEFAULT 0,
+		   last_attempt_at INTEGER NOT NULL DEFAULT 0,
+		   applied_at INTEGER NOT NULL DEFAULT 0, linked_by TEXT NOT NULL,
+		   linked_at INTEGER NOT NULL, PRIMARY KEY (profile_id, router_id))`,
 		`CREATE TABLE IF NOT EXISTS config_backups (id INTEGER PRIMARY KEY,
 		   router_id TEXT NOT NULL, taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
 		   source TEXT NOT NULL, actor TEXT, stem TEXT, dir TEXT, fingerprint TEXT,
@@ -920,6 +952,8 @@ func seedPurgeables(t *testing.T, s *Server) {
 		stmts = append(stmts,
 			`INSERT INTO ping_samples (router_id, target, loss_pct, ts)
 			   VALUES ('`+rid+`', '1.1.1.1', 0, 1)`,
+			`INSERT OR IGNORE INTO cred_profile_links (profile_id, router_id, linked_by, linked_at)
+			   VALUES ('cp1', '`+rid+`', 'u-1', 1)`,
 			`INSERT INTO traffic_samples (router_id, interface, rx_mbps, tx_mbps, ts)
 			   VALUES ('`+rid+`', 'ether1', 1, 1, 1)`,
 			`INSERT INTO bandwidth_usage (router_id, interface, rx_mb, tx_mb, ts)

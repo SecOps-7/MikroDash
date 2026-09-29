@@ -1812,6 +1812,25 @@
     .vpn-hs-badge.hs-stale {background:rgba(248,113,113,.1);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
     .vpn-hs-badge.hs-never {background:rgba(99,130,190,.07);color:var(--text-muted);   border:1px solid var(--border)}
     .vpn-hs-badge.hs-info  {background:rgba(56,189,248,.1); color:rgba(56,189,248,.95); border:1px solid rgba(56,189,248,.25)}
+    /* Credential profile state pills (#143). The same five-colour vocabulary as
+       .vpn-hs-badge above, which is where CLAUDE.md says the hand-built pages'
+       pill colours live - one scheme, not a second.
+
+       refused and conflict are AMBER, not red. Neither is a fault: both are
+       MikroDash declining to do something, and a red row for "the guard
+       protected your login" reads as a bug report rather than as the feature
+       working. */
+    .cp-pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.62rem;font-family:var(--font-mono);padding:.15rem .45rem;border-radius:4px;white-space:nowrap}
+    .cp-pill.cp-ok  {background:rgba(74,222,128,.1); color:rgba(74,222,128,.95);border:1px solid rgba(74,222,128,.25)}
+    .cp-pill.cp-warn{background:rgba(245,159,0,.1);  color:rgba(245,159,0,.95); border:1px solid rgba(245,159,0,.25)}
+    .cp-pill.cp-bad {background:rgba(248,113,113,.1);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
+    .cp-pill.cp-wait{background:rgba(56,189,248,.1); color:rgba(56,189,248,.95); border:1px solid rgba(56,189,248,.25)}
+    /* The seventeen policies, as a wrapped grid rather than a seventeen-row
+       column: the dialog is already tall and a list that long pushes Save off
+       the screen on a laptop. */
+    .cp-policies{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr));gap:.25rem .6rem;margin:.35rem 0 .2rem}
+    .cp-policy{display:flex;align-items:center;gap:.35rem;font-size:.7rem;font-family:var(--font-mono);color:var(--text-main);cursor:pointer}
+    .cp-policy input{margin:0}
     .vpn-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.45rem}
     .vpn-tile{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s}
     .vpn-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}

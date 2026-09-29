@@ -2,6 +2,8 @@
   "note": "Seeded by tools/modal-list.js from the LIVE public/app.js, which was deleted with the port-parity harness. A dialog added after the port is appended HERE, by hand, and tools/modal-list-ts.js regenerates web/src/gen/modals.ts from it.",
   "all": [
     "accountModal",
+    "cpLinksModal",
+    "cpModal",
     "dbcModal",
     "faModal",
     "groupFormWrap",

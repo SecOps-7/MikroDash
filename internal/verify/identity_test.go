@@ -139,6 +139,27 @@ var identityColumns = []identityColumn{
 		file: "internal/db/grantwrite.go", site: "s.CreatedBy", sites: 2,
 		why: "as above, and distinct from principal_id - swapping them is silent.",
 	},
+	{
+		column: "cred_profiles.created_by", kind: "id",
+		file: "internal/server/credprof_api.go", site: "row.CreatedBy = s.userIDFor(sess.Username)",
+		sites: 1,
+		why: "who made a credential profile. The id, as cfg_templates.created_by is, and it is " +
+			"NOT re-resolved on an edit: an edit changes what a profile is, never who made it.",
+	},
+	{
+		column: "cred_profile_links.linked_by", kind: "id",
+		file: "internal/server/credprof_api.go", site: "by := s.userIDFor(sess.Username)", sites: 1,
+		why: "who asked for a profile to go on a router. It is ALSO the audit actor for the " +
+			"apply, which may happen hours later on a device that was switched off - so a " +
+			"username here would render the trail against whoever holds that name now.",
+	},
+	{
+		column: "audit_events.actor_name", kind: "username",
+		file: "internal/server/credprof_job.go", site: "s.usernameForID(l.LinkedBy)", sites: 1,
+		why: "the reconciler resolves the linking user's ID back to a name, because actor_id " +
+			"holds the id and actor_name holds the username - the split this ledger exists " +
+			"for, reached here by the only path in the app that goes id-to-name.",
+	},
 }
 
 func TestIdentityColumns(t *testing.T) {
@@ -172,9 +193,9 @@ func TestIdentityColumns(t *testing.T) {
 	}
 
 	// The ledger is hand-written, so an empty or truncated one would pass in
-	// silence. Fourteen entries is what this port writes today.
-	if len(identityColumns) < 16 {
-		t.Fatalf("the ledger holds %d entries; it had 16 - entries were removed rather than "+
+	// silence. Nineteen entries is what this port writes today.
+	if len(identityColumns) < 19 {
+		t.Fatalf("the ledger holds %d entries; it had 19 - entries were removed rather than "+
 			"the writers being fixed", len(identityColumns))
 	}
 	t.Logf("%d shared identity columns checked, each at its recorded number of call sites",

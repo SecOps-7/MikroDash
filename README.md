@@ -276,7 +276,7 @@ Pages that change the router need more than `read`:
 | Page | Needs |
 |---|---|
 | Configuration pages (Firewall, Routing, DNS, DHCP, VLANs, Bridges, Interfaces, VPN, Queues, Packages and the rest) | `write` |
-| Users (RouterOS accounts and groups) | `write` and `policy` |
+| Users (RouterOS accounts and groups), and credential profiles | `write` and `policy` |
 | Backups | `write` and `ftp` |
 | Terminal | whatever the line you type needs - see below |
 
@@ -287,6 +287,8 @@ Pages that change the router need more than `read`:
 ```
 
 Without these nothing breaks: a page that is refused drops to read-only and shows the command it needs. MikroDash never lets you edit the account it signs in with, or that account's group.
+
+**Credential profiles need the same two policies**, for the same reason: a profile creates a RouterOS account on every router you link it to, which is user management. A profile can never take MikroDash's own account or its group - that is refused per router, by the same guard - so a profile using the built-in `full` group is refused on any router where MikroDash itself is in `full`, which is every device onboarded by zero-touch provisioning. On a router set up as above, where MikroDash has its own `mikrodash` group, `full` works. See `SECURITY.md` on what a fleet-wide password is worth.
 
 **The Terminal page is the exception to that whole table**, because it does not know what your line will do. It sends what you type to the router's own console and shows the reply, so the policies above are not a list it consults - they are the limit the *router* enforces on it. On the read-only account at the top of this section it can read and nothing else, because RouterOS refuses the rest.
 

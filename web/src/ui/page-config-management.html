@@ -15,6 +15,7 @@
               <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="deploy">Deploy</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="history">History</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="drift">Drift</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-cfgtab="credentials">Credentials</button>
             </span>
           </div>
           <div class="hdr-actions d-flex align-items-center gap-2" id="cfgActions">
@@ -128,6 +129,21 @@
               <thead><tr id="cfgDriftHead"></tr></thead><tbody id="cfgDriftBody"></tbody></table></div>
             <div class="cfg-empty" id="cfgDriftEmpty" hidden>No baselines yet. Each successful deploy records one for
               every router it reached.</div>
+          </div>
+          <!-- Credential profiles (#143): RouterOS accounts MikroDash puts on
+               routers and keeps up to date. NOT MikroDash's own login, which is
+               refused per router by internal/guard/selfguard.go. -->
+          <div class="cfg-panel" id="cfgPanel-credentials" hidden>
+            <div class="cfg-hist-bar"><span class="cfg-meta">Accounts for people, created on every router a profile is
+              linked to and kept in step with it. MikroDash always signs in as itself; a profile can never take its
+              account or its group.</span>
+              <button class="cfg-btn cfg-btn-go" type="button" id="cpNew">New profile</button></div>
+            <div class="cfg-scroll"><table class="table table-sm cfg-hist">
+              <thead><tr>
+                <th>Name</th><th>RouterOS user</th><th>Permissions</th><th>Routers</th><th>State</th><th></th>
+              </tr></thead><tbody id="cpBody"></tbody></table></div>
+            <div class="cfg-empty" id="cpEmpty" hidden>No credential profiles yet. One defines an account - a name, a
+              password and a permission level - and every router you link it to gets that account.</div>
           </div>
         </div>
       </div>

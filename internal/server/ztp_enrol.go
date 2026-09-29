@@ -350,9 +350,49 @@ func (s *Server) ztpOnboard(id string) {
 	s.syncPool()
 	s.syncFleetHolds()
 	s.ztpChanged()
+	s.ztpLinkCredProfiles(d, rid)
 	if d.State == db.ZTPProvisioning {
 		s.ztpProvision(d.ID)
 	}
+}
+
+// ztpLinkCredProfiles queues the device's credential profiles (#143).
+//
+// ── NOT SERIALISED BEHIND THE TEMPLATE DEPLOY ───────────────────────────────
+//
+// A template that fails must not mean the device gets no accounts: the two are
+// independent requests about the same router, and the router's own write queue
+// serialises the commands. Chaining them would make a bad template the reason
+// nobody can log in.
+//
+// ── AND NOTHING HERE DECIDES WHETHER A PROFILE IS ALLOWED ───────────────────
+//
+// The applier does, per router, from a fresh read. A `full` profile on a ZTP
+// device is refused there because `mikrodash-ztp` lands in `full` and the guard
+// refuses moving any user into MikroDash's own group - which is exactly the
+// check that must not be second-guessed by a caller. The wizard warns; the
+// guard decides.
+func (s *Server) ztpLinkCredProfiles(d *db.ZTPDevice, routerID string) {
+	if s.auditDB == nil || d.CredProfiles == "" {
+		return
+	}
+	var ids []string
+	if err := json.Unmarshal([]byte(d.CredProfiles), &ids); err != nil {
+		log.Printf("[ztp] %s: unreadable credential profile list", d.ID)
+		return
+	}
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+		// THE DEVICE'S CREATOR IS THE ACTOR, as it is for the template deploy:
+		// they chose these profiles in the wizard, days before the device
+		// arrived, and the trail should say so rather than naming the system.
+		if err := s.auditDB.LinkCredProfile(id, routerID, d.CreatedBy); err != nil {
+			log.Printf("[ztp] %s: linking credential profile %s: %v", d.ID, id, err)
+		}
+	}
+	s.wakeCredJob()
 }
 
 // ztpFindAPI signs in on API-SSL, then on the plain API, until one works or the

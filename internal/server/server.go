@@ -15,6 +15,7 @@ package server
 // taken on the Node port is already valid here.
 
 import (
+	"context"
 	"log"
 	"mikrodash/internal/alertdispatch"
 	"mikrodash/internal/alertwire"
@@ -209,6 +210,14 @@ type Server struct {
 	// connTick drives that debounce. See connstate.Tracker.TickAll.
 	connTick *time.Ticker
 	connStop chan struct{}
+
+	// credJob applies credential profiles to routers in the background, and
+	// credStop ends its loop. STOPPED IN Shutdown, which is not decoration: the
+	// comment on pruneSched three fields below records a ticker that was
+	// assigned and never stopped, leaking a goroutine in every test that built
+	// a Server. See credprof_job.go.
+	credJob  *credJob
+	credStop context.CancelFunc
 	// startedAt is when this process began serving, for /healthz's uptime and
 	// its starting-vs-failing distinction.
 	startedAt time.Time
@@ -453,6 +462,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// The cadence and why it is no longer gated on `-history` are on
 	// startConnTicker itself.
 	srv.startConnTicker()
+	srv.startCredJob()
 	// ── AND AGAIN WHEN A SESSION FINALLY GOES ─────────────────────────────
 	//
 	// A session now outlives its last viewer by `session.DefaultIdleGrace`, so
@@ -607,6 +617,10 @@ func (s *Server) Handler() http.Handler {
 	s.registerSSOLogin(mux)
 	// Configuring them, behind the Access Management gate. See sso_api.go.
 	s.registerSSOAPI(mux)
+	// Credential profiles: RouterOS accounts provisioned across the fleet
+	// (#143). Behind the Config Management gate, and per router behind the same
+	// `users`/`write` grant the Router Users page needs. See credprof_api.go.
+	s.registerCredProfileAPI(mux)
 	// The first-run wizard. See setup_api.go.
 	s.registerSetup(mux)
 	// The account modal: sessions, access, permissions, password. See
@@ -853,6 +867,12 @@ func (s *Server) Shutdown() {
 	// 24-hour ticker.
 	if s.pruneSched != nil {
 		s.pruneSched.Stop()
+	}
+	// AND THE RECONCILER, for that same reason: its loop holds a ticker and
+	// would outlive every Server a test builds.
+	if s.credStop != nil {
+		s.credStop()
+		s.credStop = nil
 	}
 	s.ztpShutdown()
 	s.sessions.Shutdown()

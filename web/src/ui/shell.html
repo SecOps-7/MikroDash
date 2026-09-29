@@ -1212,6 +1212,76 @@
        while it is working - the device is generating keys and there is nothing
        to cancel. Its own buttons are the only way out, and they are disabled
        for the duration. -->
+  <!-- A credential profile (#143). The password box is EMPTY on open even when
+       one is set: the server sends `hasSecret` and never the value, so blank
+       means "leave it alone" - the same contract resource.TypeSecret has. -->
+  <div class="rtr-modal-bg" id="cpModal">
+   <div class="rtr-modal" style="max-width:32rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="cpModalTitle">New credential profile</span>
+    </div>
+    <div class="rtr-modal-body">
+      <label class="rtr-lbl" for="cpName">Name</label>
+      <input class="rtr-inp" id="cpName" type="text" placeholder="NOC read-only" autocomplete="off">
+      <label class="rtr-lbl" for="cpDesc">Description</label>
+      <input class="rtr-inp" id="cpDesc" type="text" placeholder="What this account is for" autocomplete="off">
+      <label class="rtr-lbl" for="cpUser">RouterOS username</label>
+      <input class="rtr-inp" id="cpUser" type="text" placeholder="noc" autocomplete="off">
+      <p class="rtr-note" id="cpUserNote">The account created on every linked router. It cannot be the account
+        MikroDash signs in with.</p>
+      <label class="rtr-lbl" for="cpPass">Password</label>
+      <input class="rtr-inp" id="cpPass" type="password" autocomplete="new-password">
+      <p class="rtr-note" id="cpPassNote">Required for a new profile. Leave blank when editing to keep the
+        current password.</p>
+      <label class="rtr-lbl" for="cpPerm">Permissions</label>
+      <select class="rtr-inp" id="cpPerm">
+        <option value="read">read - view the configuration</option>
+        <option value="write">write - change it</option>
+        <option value="full">full - everything, including users</option>
+        <option value="custom">Custom permission set</option>
+      </select>
+      <p class="rtr-note" id="cpFullNote" style="display:none">A full profile is refused on any router where
+        MikroDash itself is in the full group, which is every device onboarded by ZTP. It works where MikroDash
+        has its own group. Link it and the Routers view will say which devices refused.</p>
+      <div id="cpCustom" style="display:none">
+        <label class="rtr-lbl" for="cpGroup">Group name</label>
+        <input class="rtr-inp" id="cpGroup" type="text" placeholder="noc-readonly" autocomplete="off">
+        <p class="rtr-note">Created on each router. It cannot be renamed later: that would be a migration across
+          every linked device, not an edit.</p>
+        <label class="rtr-lbl">Policies</label>
+        <div id="cpPolicies" class="cp-policies"></div>
+      </div>
+      <div id="cpError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="cpCancel">Cancel</button>
+      <button class="sbtn sbtn-primary" id="cpSave">Save</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- Which routers a profile is on, and what happened on each. -->
+  <div class="rtr-modal-bg" id="cpLinksModal">
+   <div class="rtr-modal" style="max-width:40rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="cpLinksTitle">Routers</span>
+    </div>
+    <div class="rtr-modal-body">
+      <div class="cfg-scroll" style="max-height:22rem"><table class="table table-sm cfg-hist">
+        <thead><tr><th>Router</th><th>State</th><th>Detail</th><th></th></tr></thead>
+        <tbody id="cpLinksBody"></tbody>
+      </table></div>
+      <div class="cfg-empty" id="cpLinksEmpty" hidden>This profile is not on any router yet.</div>
+      <label class="rtr-lbl" for="cpAddRouter">Add a router</label>
+      <select class="rtr-inp" id="cpAddRouter"></select>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="cpLinksClose">Close</button>
+      <button class="sbtn sbtn-primary" id="cpLinkAdd">Link</button>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg apissl-modal" id="apiSslModal">
    <div class="rtr-modal" style="max-width:26rem">
     <div class="rtr-modal-hdr">

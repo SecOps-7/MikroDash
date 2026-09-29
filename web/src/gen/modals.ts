@@ -17,6 +17,8 @@
  */
 export const CLOSABLE_MODALS: readonly string[] = [
   "accountModal",
+  "cpLinksModal",
+  "cpModal",
   "dbcModal",
   "faModal",
   "groupFormWrap",

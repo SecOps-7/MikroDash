@@ -45,14 +45,18 @@ type ZTPDevice struct {
 	ValuesJSON string
 	AckedJSON  string
 	SiteIDs    string
-	RouterID   *string
-	FactsJSON  string
-	RunID      *string
-	CreatedBy  string // the user ID
-	CreatedAt  int64
-	FirstSeen  *int64
-	LastSeen   *int64
-	Error      *string
+	// CredProfiles is the credential profile ids to apply when this device
+	// arrives, as a JSON array. SEPARATE from ValuesJSON, which is the
+	// template's variable bag and is unsealed and handed to cfgdeploy.
+	CredProfiles string
+	RouterID     *string
+	FactsJSON    string
+	RunID        *string
+	CreatedBy    string // the user ID
+	CreatedAt    int64
+	FirstSeen    *int64
+	LastSeen     *int64
+	Error        *string
 }
 
 // ZTPBatch is one generic script's batch.
@@ -71,15 +75,15 @@ type ZTPBatch struct {
 var ErrZTPNotFound = errors.New("no such provisioning record")
 
 const ztpDeviceCols = `id, mode, state, label, serial, token_hash, batch_id, expires_at, tunnel_ip,
-	peer_key, lan_from, secret, template_id, values_json, acked_json, site_ids, router_id,
-	facts_json, run_id, created_by, created_at, first_seen, last_seen, error`
+	peer_key, lan_from, secret, template_id, values_json, acked_json, site_ids, cred_profiles,
+	router_id, facts_json, run_id, created_by, created_at, first_seen, last_seen, error`
 
 func scanZTPDevice(sc interface{ Scan(...any) error }) (ZTPDevice, error) {
 	var d ZTPDevice
 	err := sc.Scan(&d.ID, &d.Mode, &d.State, &d.Label, &d.Serial, &d.TokenHash, &d.BatchID, &d.ExpiresAt,
 		&d.TunnelIP, &d.PeerKey, &d.LANFrom, &d.Secret, &d.TemplateID, &d.ValuesJSON, &d.AckedJSON,
-		&d.SiteIDs, &d.RouterID, &d.FactsJSON, &d.RunID, &d.CreatedBy, &d.CreatedAt, &d.FirstSeen,
-		&d.LastSeen, &d.Error)
+		&d.SiteIDs, &d.CredProfiles, &d.RouterID, &d.FactsJSON, &d.RunID, &d.CreatedBy, &d.CreatedAt,
+		&d.FirstSeen, &d.LastSeen, &d.Error)
 	return d, err
 }
 
@@ -99,11 +103,11 @@ func (d *DB) CreateZTPDevice(v ZTPDevice) error {
 		v.CreatedAt = time.Now().UnixMilli()
 	}
 	_, err := d.sql.Exec(`INSERT INTO ztp_devices (`+ztpDeviceCols+`)
-	    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		v.ID, v.Mode, v.State, v.Label, v.Serial, v.TokenHash, v.BatchID, v.ExpiresAt, v.TunnelIP,
 		v.PeerKey, v.LANFrom, v.Secret, v.TemplateID, orJSONObject(v.ValuesJSON), orJSONArray(v.AckedJSON),
-		orJSONArray(v.SiteIDs), v.RouterID, orJSONObject(v.FactsJSON), v.RunID, v.CreatedBy, v.CreatedAt,
-		v.FirstSeen, v.LastSeen, v.Error)
+		orJSONArray(v.SiteIDs), orJSONArray(v.CredProfiles), v.RouterID, orJSONObject(v.FactsJSON),
+		v.RunID, v.CreatedBy, v.CreatedAt, v.FirstSeen, v.LastSeen, v.Error)
 	return err
 }
 
@@ -115,12 +119,13 @@ func (d *DB) SaveZTPDevice(v ZTPDevice) error {
 	}
 	res, err := d.sql.Exec(`UPDATE ztp_devices SET state = ?, label = ?, serial = ?, token_hash = ?,
 	    batch_id = ?, expires_at = ?, tunnel_ip = ?, peer_key = ?, lan_from = ?, secret = ?,
-	    template_id = ?, values_json = ?, acked_json = ?, site_ids = ?, router_id = ?, facts_json = ?,
+	    template_id = ?, values_json = ?, acked_json = ?, site_ids = ?, cred_profiles = ?,
+	    router_id = ?, facts_json = ?,
 	    run_id = ?, first_seen = ?, last_seen = ?, error = ? WHERE id = ?`,
 		v.State, v.Label, v.Serial, v.TokenHash, v.BatchID, v.ExpiresAt, v.TunnelIP, v.PeerKey,
 		v.LANFrom, v.Secret, v.TemplateID, orJSONObject(v.ValuesJSON), orJSONArray(v.AckedJSON),
-		orJSONArray(v.SiteIDs), v.RouterID, orJSONObject(v.FactsJSON), v.RunID, v.FirstSeen, v.LastSeen,
-		v.Error, v.ID)
+		orJSONArray(v.SiteIDs), orJSONArray(v.CredProfiles), v.RouterID, orJSONObject(v.FactsJSON),
+		v.RunID, v.FirstSeen, v.LastSeen, v.Error, v.ID)
 	if err != nil {
 		return err
 	}

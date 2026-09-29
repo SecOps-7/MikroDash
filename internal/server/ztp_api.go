@@ -246,6 +246,10 @@ type ztpDeviceIn struct {
 	Acked      []string          `json:"acked"` // finding codes the operator accepted
 	Days       int               `json:"days"`
 	LANURL     string            `json:"lanUrl"` // local: MikroDash's address as the router reaches it
+	// CredProfileIDs are the credential profiles to apply when the device
+	// arrives (#143). NOT folded into Values: that is the template's variable
+	// bag, which is sealed whole and handed to cfgdeploy.
+	CredProfileIDs []string `json:"credProfileIds"`
 }
 
 var ztpSerialRe = regexp.MustCompile(`^[A-Za-z0-9+/=._-]{0,64}$`)
@@ -453,6 +457,14 @@ func (s *Server) ztpApplyChoice(d *db.ZTPDevice, in ztpDeviceIn) error {
 	}
 	acked, _ := json.Marshal(nonNil(in.Acked))
 	d.AckedJSON = string(acked)
+	// ── PROFILE IDS ONLY, AND NOT SEALED ────────────────────────────────────
+	//
+	// A profile id is not a secret; the password it points at is, and that one
+	// stays in `cred_profiles.secret` where it is sealed once for every device.
+	// Copying the password into each ZTP record would be a second place to hold
+	// it and a second place to forget to rotate it.
+	profiles, _ := json.Marshal(nonNil(in.CredProfileIDs))
+	d.CredProfiles = string(profiles)
 	return nil
 }
 
