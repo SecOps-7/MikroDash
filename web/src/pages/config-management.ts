@@ -22,7 +22,8 @@ import {
   type RouterOpt, type RouterPreview,
 } from './config-management-deploy';
 import {
-  drawProfiles, statePill, type CredLink, type CredProfile,
+  drawProfiles, linkDiff, statePill,
+  type CredLink, type CredProfile, type LinkDiff,
 } from './config-management-credentials';
 
 const TABS = ['library', 'editor', 'deploy', 'history', 'drift', 'credentials'] as const;
@@ -451,6 +452,19 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   let cpPresets: Record<string, string[]> = {};
   /** Sites this profile is linked to, and every site there is. */
   let cpSiteLinks: string[] = [];
+  /**
+   * WHAT THE DIALOG WOULD DO, not what the server has.
+   *
+   * Ticking a box used to link immediately, which put an account on a router
+   * the moment the mouse came up - no way to change your mind, and a mis-click
+   * was a write to a device. These two hold the DESIRED state; Apply diffs them
+   * against the server and sends only what actually differs.
+   *
+   * `cpWantSites` also drives the preview: ticking a site locks its routers in
+   * the list straight away, so the consequence is visible before it is real.
+   */
+  let cpWantSites = new Set<string>();
+  let cpWantRouters = new Set<string>();
   let cpAllSites: { id: string; name: string }[] = [];
   /** Router id -> the sites it belongs to, for the "via <site>" label. */
   let cpRouterSites: Record<string, string[]> = {};
@@ -603,25 +617,29 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
 
     host.innerHTML = dep.routers.map((r) => {
       const l = byRouter.get(r.id);
-      const viaSite = l?.via === 'site';
-      // Which linked site pulls this router in, for the label.
-      const from = (cpRouterSites[r.id] ?? []).filter((sid) => cpSiteLinks.includes(sid))
+      // WHICH TICKED SITE PULLS THIS ROUTER IN - from the wanted set, so a site
+      // just ticked locks its routers before Apply rather than after.
+      const from = (cpRouterSites[r.id] ?? []).filter((sid) => cpWantSites.has(sid))
         .map((sid) => bySite.get(sid) ?? sid);
+      const viaSite = from.length > 0;
+      const on = viaSite || cpWantRouters.has(r.id);
+      // RETRY ACTS NOW, not on Apply: it re-queues work the server already has,
+      // which is a different thing from changing what this dialog would do.
       const retry = l && (l.state === 'refused' || l.state === 'conflict')
         ? `<button class="cfg-btn" type="button" data-cp-retry="${esc(r.id)}">Retry</button>`
         : '';
-      return `<label class="cfg-pick-item${l ? ' is-on' : ''}">`
-        + `<input type="checkbox" data-cp-router="${esc(r.id)}"${l ? ' checked' : ''}`
+      return `<label class="cfg-pick-item${on ? ' is-on' : ''}">`
+        + `<input type="checkbox" data-cp-router="${esc(r.id)}"${on ? ' checked' : ''}`
         + (viaSite ? ' disabled title="In scope through a site. Untick the site to remove it."' : '')
         + '>'
         + `<span class="cfg-pick-name">${esc(r.label)}</span>`
-        + (viaSite && from.length
-          ? `<span class="cp-pill cp-wait">via ${esc(from.join(', '))}</span>` : '')
+        + (viaSite ? `<span class="cp-pill cp-wait">via ${esc(from.join(', '))}</span>` : '')
         + (l ? statePill(l.state) : '')
         + (l && l.error ? `<span class="cfg-meta" title="${esc(l.error)}">${esc(l.code)}</span>` : '')
         + retry
         + '</label>';
     }).join('');
+    cpDrawApply();
   }
 
   function routerName(id: string): string {
@@ -665,6 +683,67 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
   }
 
+  /** What Apply would send. The rule lives in `linkDiff`; this supplies it. */
+  function cpDiff(): LinkDiff {
+    return linkDiff(cpWantSites, cpWantRouters, cpSiteLinks,
+      cpLinks.filter((l) => l.profileId === cpLinksFor && l.via !== 'site').map((l) => l.routerId),
+      cpRouterSites, dep.routers.map((r) => r.id));
+  }
+
+  /** Apply says how much it would do, and is dead when that is nothing. */
+  function cpDrawApply(): void {
+    const btn = el<HTMLButtonElement>('cpApply');
+    if (!btn) return;
+    const d = cpDiff();
+    const n = d.addSites.length + d.dropSites.length + d.addRouters.length + d.dropRouters.length;
+    btn.disabled = n === 0;
+    btn.textContent = n === 0 ? 'Apply' : `Apply (${n} change${n === 1 ? '' : 's'})`;
+  }
+
+  /**
+   * Commits the staged changes.
+   *
+   * ── NOTHING REACHES A ROUTER UNTIL THIS RUNS ────────────────────────────
+   *
+   * Ticking a box used to link immediately, so a mis-click put an account on a
+   * device before the mouse came up. The boxes now stage; this is the only path
+   * that writes, and closing the dialog any other way discards.
+   *
+   * REMOVALS GO FIRST. A router moving from a direct link to a site-covered one
+   * would otherwise briefly hold two claims, and the order costs nothing.
+   */
+  async function cpApply(): Promise<void> {
+    const d = cpDiff();
+    const btn = el<HTMLButtonElement>('cpApply');
+    if (btn) btn.disabled = true;
+    try {
+      for (const rid of d.dropRouters) {
+        await credApi('profiles/' + cpLinksFor + '/links/' + rid, { method: 'DELETE' });
+      }
+      for (const sid of d.dropSites) {
+        await credApi('profiles/' + cpLinksFor + '/sites/' + sid, { method: 'DELETE' });
+      }
+      for (const sid of d.addSites) {
+        await credApi('profiles/' + cpLinksFor + '/sites', json({ siteIds: [sid] }));
+      }
+      if (d.addRouters.length) {
+        await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: d.addRouters }));
+      }
+      cpOpen('cpLinksModal', false);
+      await loadCredentials();
+    } catch (e) {
+      cpLinksError(e instanceof ApiError ? e.message : 'The changes could not be applied');
+      await cpReloadLinks();
+    }
+  }
+
+  function cpLinksError(msg: string): void {
+    const n = el('cpLinksError');
+    if (!n) return;
+    n.textContent = msg;
+    n.style.display = msg ? '' : 'none';
+  }
+
   /** Re-reads everything the links dialog shows, after any change to it. */
   async function cpReloadLinks(): Promise<void> {
     // MEMBERSHIP FIRST: ticking a site changes which routers it covers, and the
@@ -678,8 +757,16 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       // The routers half still redraws: a failed site read should not blank the
       // rows the operator is looking at.
     }
+    cpSeedWanted();
     cpDrawLinks();
     cpDrawSites();
+  }
+
+  /** The staged state starts as whatever the server currently has. */
+  function cpSeedWanted(): void {
+    cpWantSites = new Set(cpSiteLinks);
+    cpWantRouters = new Set(cpLinks
+      .filter((l) => l.profileId === cpLinksFor && l.via !== 'site').map((l) => l.routerId));
   }
 
   /**
@@ -697,7 +784,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       host.innerHTML = '<div class="cfg-meta">No sites are defined.</div>';
       return;
     }
-    const on = new Set(cpSiteLinks);
+    const on = cpWantSites;
     host.innerHTML = cpAllSites.map((st) => {
       const n = dep.routers.filter((r) => (cpRouterSites[r.id] ?? []).includes(st.id)).length;
       return `<label class="cfg-pick-item${on.has(st.id) ? ' is-on' : ''}">`
@@ -737,6 +824,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       cpAllSites = [];
       cpSiteLinks = [];
     }
+    cpLinksError('');
+    cpSeedWanted();
     cpDrawLinks();
     cpDrawSites();
     cpOpen('cpLinksModal', true);
@@ -748,6 +837,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   el('cpPerm')?.addEventListener('change', cpApplyPreset);
   el('cpCancel')?.addEventListener('click', () => cpOpen('cpModal', false));
   el('cpSave')?.addEventListener('click', () => void cpSave());
+  // CLOSING DISCARDS. The staged sets are rebuilt from the server every time
+  // the dialog opens, so there is nothing to undo.
   el('cpLinksClose')?.addEventListener('click', () => cpOpen('cpLinksModal', false));
   el('cpBody')?.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
@@ -764,45 +855,27 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const del = t.closest('[data-cp-del]')?.getAttribute('data-cp-del');
     if (del) void cpDelete(del);
   });
-  // ── TICK TO LINK, UNTICK TO UNLINK ──────────────────────────────────────
+  // ── TICKING STAGES; ONLY APPLY WRITES ───────────────────────────────────
   //
-  // No Add button, and nothing that can be half-pressed: the state of the box
-  // IS the state of the link. The previous design had a dropdown per kind and
-  // one Link button, so both selects always carried a value and pressing it
-  // added a router AND a site whether or not both were meant.
+  // These handlers touch no router. They move a box in and out of the desired
+  // set and redraw, so the consequence of a tick is visible - a ticked site
+  // locks its routers immediately - while nothing has happened on a device yet.
   el('cpSiteList')?.addEventListener('change', (e) => {
     const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-cp-site]');
     const sid = box?.getAttribute('data-cp-site');
     if (!box || !sid) return;
-    void (async () => {
-      try {
-        if (box.checked) {
-          await credApi('profiles/' + cpLinksFor + '/sites', json({ siteIds: [sid] }));
-        } else {
-          await credApi('profiles/' + cpLinksFor + '/sites/' + sid, { method: 'DELETE' });
-        }
-      } finally {
-        // REDRAWN FROM THE SERVER EITHER WAY. A failed write must not leave the
-        // box showing a state the server does not have.
-        await cpReloadLinks();
-      }
-    })();
+    if (box.checked) cpWantSites.add(sid); else cpWantSites.delete(sid);
+    // BOTH LISTS REDRAW: a site decides which routers are locked, so leaving
+    // the router list alone would show a tick the site no longer justifies.
+    cpDrawSites();
+    cpDrawLinks();
   });
   el('cpLinksBody')?.addEventListener('change', (e) => {
     const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-cp-router]');
     const rid = box?.getAttribute('data-cp-router');
     if (!box || !rid) return;
-    void (async () => {
-      try {
-        if (box.checked) {
-          await credApi('profiles/' + cpLinksFor + '/links', json({ routerIds: [rid] }));
-        } else {
-          await credApi('profiles/' + cpLinksFor + '/links/' + rid, { method: 'DELETE' });
-        }
-      } finally {
-        await cpReloadLinks();
-      }
-    })();
+    if (box.checked) cpWantRouters.add(rid); else cpWantRouters.delete(rid);
+    cpDrawLinks();
   });
   el('cpLinksBody')?.addEventListener('click', (e) => {
     const rid = (e.target as HTMLElement).closest('[data-cp-retry]')?.getAttribute('data-cp-retry');
@@ -813,6 +886,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       await cpReloadLinks();
     })();
   });
+  el('cpApply')?.addEventListener('click', () => void cpApply());
 
   el('cfgTabs')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-cfgtab]');

@@ -215,7 +215,8 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   // module wires these at load: an id the page reaches for and the test does
   // not know about is exactly what this shim is strict in order to catch.
   'cfgPanel-credentials', 'cpBody', 'cpEmpty', 'cpNew', 'cpPerm', 'cpCancel', 'cpSave',
-  'cpLinksClose', 'cpLinksBody', 'cpSiteList', 'cpLinksEmpty', 'cpDefault'],
+  'cpLinksClose', 'cpLinksBody', 'cpSiteList', 'cpLinksEmpty', 'cpDefault',
+  'cpApply', 'cpLinksError'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]', '#cpPolicies [data-cp-policy]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };

@@ -75,7 +75,7 @@ const STATE_KIND: Record<string, string> = {
 
 /** What each state means, in the operator's terms rather than the code's. */
 const STATE_TITLE: Record<string, string> = {
-  'not linked': 'This profile is not on any router yet. Open Routers to put it on one.',
+  'not linked': 'This profile is not on any device yet. Open Devices to put it on one.',
   applied: 'The account is on this router, in the right group.',
   pending: 'Queued. It will be applied the next time the router answers.',
   applying: 'Being applied now.',
@@ -166,7 +166,7 @@ export function profileRow(p: CredProfile, links: readonly CredLink[]): string {
     + `<td>${state ? statePill(state) : statePill('not linked')}</td>`
     + '<td class="text-end cp-actions">'
     + `<button class="cfg-btn" type="button" data-cp-edit="${esc(p.id)}">Edit</button> `
-    + `<button class="cfg-btn" type="button" data-cp-links="${esc(p.id)}">Routers</button> `
+    + `<button class="cfg-btn" type="button" data-cp-links="${esc(p.id)}">Devices</button> `
     // DELETE IS NOT INSTANT when routers hold the account, and the label says
     // which it will be. A button that reads "Delete" and then leaves the row in
     // place for a minute reads as a failure.
@@ -183,4 +183,49 @@ export function drawProfiles(profiles: readonly CredProfile[],
   if (!body || !empty) return;
   body.innerHTML = profiles.map((p) => profileRow(p, links)).join('');
   empty.hidden = profiles.length > 0;
+}
+
+/** What a links-dialog Apply would send. */
+export interface LinkDiff {
+  addSites: string[];
+  dropSites: string[];
+  addRouters: string[];
+  dropRouters: string[];
+}
+
+/**
+ * The staged state, minus what the server already has.
+ *
+ * ── A SITE-COVERED ROUTER IS IN NEITHER LIST, AND THAT IS THE RULE ─────────
+ *
+ * A router pulled in by a ticked site comes and goes WITH that site. Sending a
+ * direct link for it as well would create a second, independent claim on the
+ * same device - and unticking the site later would not withdraw it, so the
+ * account would stay with nothing on screen explaining why. Equally it must not
+ * appear in `dropRouters`: it is not a direct link, and deleting it would fight
+ * the reconciler, which would put it straight back on the next sweep.
+ *
+ * Pure, and separate from the dialog, because this is the part with a rule in
+ * it - the rendering around it is obvious and this is not.
+ */
+export function linkDiff(
+  wantSites: ReadonlySet<string>,
+  wantRouters: ReadonlySet<string>,
+  haveSites: readonly string[],
+  haveDirect: readonly string[],
+  routerSites: Readonly<Record<string, string[]>>,
+  routerIDs: readonly string[],
+): LinkDiff {
+  const have = new Set(haveSites);
+  const direct = new Set(haveDirect);
+  const covered = new Set<string>();
+  for (const id of routerIDs) {
+    if ((routerSites[id] ?? []).some((sid) => wantSites.has(sid))) covered.add(id);
+  }
+  return {
+    addSites: [...wantSites].filter((x) => !have.has(x)),
+    dropSites: [...have].filter((x) => !wantSites.has(x)),
+    addRouters: [...wantRouters].filter((x) => !direct.has(x) && !covered.has(x)),
+    dropRouters: [...direct].filter((x) => !wantRouters.has(x) && !covered.has(x)),
+  };
 }

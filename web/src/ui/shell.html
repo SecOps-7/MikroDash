@@ -1312,9 +1312,13 @@
         covered by a site above is ticked and locked - untick the site to remove it.</p>
       <div id="cpLinksBody" class="cfg-pick"></div>
       <div class="cfg-empty" id="cpLinksEmpty" hidden>No routers are available.</div>
+      <div id="cpLinksError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
     </div>
     <div class="rtr-modal-footer">
-      <button class="sbtn sbtn-primary" id="cpLinksClose">Done</button>
+      <!-- CANCEL EXISTS BECAUSE APPLY COMMITS. With one button there would be
+           no way out of the dialog that did not write to a router. -->
+      <button class="sbtn sbtn-outline" id="cpLinksClose">Cancel</button>
+      <button class="sbtn sbtn-primary" id="cpApply" disabled>Apply</button>
     </div>
    </div>
   </div>

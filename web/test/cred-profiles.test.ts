@@ -31,7 +31,7 @@ const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.cred-profiles-entry.ts');
 fs.writeFileSync(ENTRY,
-  "export { drawProfiles, permissionText, profileRow, statePill, worstState }\n"
+  "export { drawProfiles, linkDiff, permissionText, profileRow, statePill, worstState }\n"
   + "  from '../web/src/pages/config-management-credentials.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.cred-profiles.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -183,6 +183,52 @@ say('  the row names the profile, its worst state, and escapes what it shows');
   assert.ok(doc.nodes.cpBody.innerHTML.includes('NOC read-only'), 'the profile was not drawn');
 }
 say('  the table draws its rows and its empty state');
+
+// ── WHAT APPLY WOULD SEND ───────────────────────────────────────────────────
+//
+// The dialog stages: ticking a box changes nothing on a router, and Apply sends
+// the difference. This is that difference, and the rule worth pinning is the
+// one about site-covered routers - it is in NEITHER list, for two different
+// reasons that both end in an account nobody asked for.
+{
+  const S = (...x) => new Set(x);
+  // Nothing staged, nothing held: nothing to send.
+  let d = mod.linkDiff(S(), S(), [], [], {}, ['r1', 'r2']);
+  assert.deepStrictEqual(d, { addSites: [], dropSites: [], addRouters: [], dropRouters: [] },
+    'an untouched dialog would still send something');
+
+  // A router ticked on its own is a direct link.
+  d = mod.linkDiff(S(), S('r1'), [], [], {}, ['r1', 'r2']);
+  assert.deepStrictEqual(d.addRouters, ['r1']);
+  assert.deepStrictEqual(d.addSites, []);
+
+  // Unticking a router that IS linked drops it.
+  d = mod.linkDiff(S(), S(), [], ['r1'], {}, ['r1', 'r2']);
+  assert.deepStrictEqual(d.dropRouters, ['r1']);
+
+  // A SITE-COVERED ROUTER IS IN NEITHER LIST.
+  //
+  // Not in addRouters: a direct link beside the site link would be a second
+  // claim on the device that unticking the site could not withdraw.
+  // Not in dropRouters: it is not a direct link, and deleting it would fight
+  // the reconciler, which puts it back on the next sweep.
+  const sites = { r1: ['site-a'], r2: [] };
+  d = mod.linkDiff(S('site-a'), S('r1'), [], [], sites, ['r1', 'r2']);
+  assert.deepStrictEqual(d.addSites, ['site-a']);
+  assert.deepStrictEqual(d.addRouters, [],
+    'a router covered by a ticked site was also linked directly');
+  d = mod.linkDiff(S('site-a'), S(), [], ['r1'], sites, ['r1', 'r2']);
+  assert.deepStrictEqual(d.dropRouters, [],
+    'a router covered by a ticked site was dropped, which the next sweep undoes');
+
+  // THE CONTROL: with the site UNticked the same router is an ordinary one.
+  d = mod.linkDiff(S(), S('r1'), [], [], sites, ['r1', 'r2']);
+  assert.deepStrictEqual(d.addRouters, ['r1'],
+    'without the site ticked the router is a plain direct link');
+  d = mod.linkDiff(S(), S(), ['site-a'], [], sites, ['r1', 'r2']);
+  assert.deepStrictEqual(d.dropSites, ['site-a'], 'unticking a linked site does not drop it');
+}
+say('  Apply sends the difference, and never both claims on one router');
 
 fs.rmSync(OUT, { force: true });
 say('cred-profiles: ok');
