@@ -655,7 +655,6 @@
              router-modal.ts sets the display. -->
         <div id="rtrApiSslWrap" style="display:none;margin-top:.5rem">
           <button type="button" class="sbtn sbtn-outline" id="rtrApiSslBtn" style="padding:.3rem .7rem;font-size:.75rem">Auto Switch to API-SSL</button>
-          <p class="rtr-note" id="rtrApiSslNote" style="margin-top:.35rem">Creates a certificate authority and a server certificate on the device, turns on API-SSL, and moves this device onto port 8729. The plain API is left enabled as a way back in.</p>
         </div>
 
         <!-- Collection (#105). Delivery only: every collector runs, gated by who is
@@ -1198,6 +1197,46 @@
     <div class="rtr-modal-footer">
       <button class="sbtn sbtn-outline" id="upd_cancel" data-modal-close="updModal">Cancel</button>
       <button class="sbtn sbtn-primary" id="upd_go">Update &amp; Reboot</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── AUTO SWITCH TO API-SSL ──────────────────────────────────────────
+       A SECOND DIALOG OVER THE DEVICE ONE, and a sibling of it rather than
+       nested inside, for the reason #nchanIfaceModal records: a fixed-position
+       box inside another dialog's scrolling body is clipped by it, and the
+       outer dialog's own close handling would otherwise take both at once.
+
+       IT IS DELIBERATELY NOT IN testdata/modal-list.json. Everything in that
+       list closes on Escape and on a backdrop click, and this one must not
+       while it is working - the device is generating keys and there is nothing
+       to cancel. Its own buttons are the only way out, and they are disabled
+       for the duration. -->
+  <div class="rtr-modal-bg apissl-modal" id="apiSslModal">
+   <div class="rtr-modal" style="max-width:26rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title">Switch to API-SSL</span>
+    </div>
+    <div class="rtr-modal-body">
+      <p class="rtr-note" id="apiSslWhat" style="margin-top:0">
+        On <strong id="apiSslDevice">this device</strong> this creates a certificate authority and a
+        server certificate, then enables API-SSL on port 8729 and moves MikroDash onto it.
+      </p>
+      <p class="rtr-note">
+        Generating two keys can take a minute or two on small hardware. The plain API is left
+        enabled as a way back in, and MikroDash moves only after the device answers on 8729.
+      </p>
+      <!-- The busy row. One spinner, the app's own, beside a line that says
+           which step is running rather than a bare "please wait". -->
+      <div id="apiSslBusy" style="display:none;align-items:center;gap:.6rem;margin-top:.9rem">
+        <div class="rtr-switching-spinner" style="width:20px;height:20px;border-width:2px"></div>
+        <span class="rtr-note" id="apiSslBusyText" style="margin:0">Working&#8230;</span>
+      </div>
+      <div id="apiSslResult" style="display:none;margin-top:.9rem;font-size:.78rem;line-height:1.5"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="apiSslCancel">Cancel</button>
+      <button class="sbtn sbtn-primary" id="apiSslGo">Switch to API-SSL</button>
     </div>
    </div>
   </div>

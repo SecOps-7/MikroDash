@@ -467,52 +467,106 @@ export function initRouterModal(opts: {
 
   // ── AUTO SWITCH TO API-SSL ──────────────────────────────────────────────
   //
-  // CONFIRMED FIRST, because this writes to the device: it creates a
-  // certificate authority and a server certificate there, and generating two
-  // RSA keys is minutes of work on small hardware. The prompt says what it will
-  // do rather than asking "are you sure".
+  // ITS OWN DIALOG, not `window.confirm`. This writes to the device - two RSA
+  // keys, minutes of work on small hardware - and the browser prompt could say
+  // what it was about to do but then vanished, leaving a button that looked
+  // idle while the router ground away. So the dialog CONFIRMS, then STAYS OPEN
+  // as the progress report, then becomes the result.
   //
-  // It does NOT save the form. The endpoint moves the stored port and TLS flags
-  // itself once the device answers on 8729, so saving a half-edited dialog over
-  // the top of that would undo it.
-  el('rtrApiSslBtn')?.addEventListener('click', () => {
-    const id = input('rtrModalId')?.value || '';
-    if (!id) return;
-    const label = input('rtrModalLabel')?.value || 'this device';
-    if (!window.confirm('Switch ' + label + ' to API-SSL?\n\n'
-      + 'On the device this creates a certificate authority and a server '
-      + 'certificate, then enables API-SSL on port 8729. Key generation can take '
-      + 'a minute or two on small hardware.\n\n'
-      + 'The plain API stays enabled as a way back in. MikroDash moves to 8729 '
-      + 'only after the device answers there.')) return;
+  // It is not in the closable-modal list: while the device is generating keys
+  // there is nothing to cancel, so Escape and a backdrop click must not take
+  // it. Its own two buttons are the only way out and both are disabled for the
+  // duration.
+  {
+    const dlg = () => el('apiSslModal');
+    const show = (id: string, on: boolean): void => {
+      const n = el(id);
+      if (n) n.style.display = on ? (id === 'apiSslBusy' ? 'flex' : '') : 'none';
+    };
+    const busyText = (t: string): void => {
+      const n = el('apiSslBusyText');
+      if (n) n.textContent = t;
+    };
+    const enable = (on: boolean): void => {
+      const go = el<HTMLButtonElement>('apiSslGo');
+      const cancel = el<HTMLButtonElement>('apiSslCancel');
+      if (go) go.disabled = !on;
+      if (cancel) cancel.disabled = !on;
+    };
+    const result = (ok: boolean, msg: string): void => {
+      const n = el('apiSslResult');
+      if (!n) return;
+      n.style.display = '';
+      n.style.color = ok ? 'var(--accent-ok)' : 'var(--accent-err)';
+      n.textContent = (ok ? '\u2713 ' : '\u2715 ') + msg;
+    };
 
-    const btn = el<HTMLButtonElement>('rtrApiSslBtn');
-    const note = el('rtrApiSslNote');
-    const say = (msg: string): void => { if (note) note.textContent = msg; };
-    if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
-    say('Generating keys on the device. This can take a minute or two.');
-    void fetch('/api/routers/' + encodeURIComponent(id) + '/api-ssl',
-      { method: 'POST', credentials: 'same-origin' })
-      .then((r) => r.json().then((d: { ok?: boolean; error?: string; message?: string }) =>
-        ({ ok: r.ok, d })))
-      .then(({ ok, d }) => {
-        if (ok && d.ok) {
-          say(d.message || 'This device is now on API-SSL.');
-          // The record moved server-side, so the form is reloaded from it
-          // rather than patched here - two places deciding the port is how
-          // they disagree.
-          opts.onSaved();
-          el('rtrModalBg')?.classList.remove('open');
-          return;
-        }
-        say(d.error || 'The switch did not complete. The device is unchanged.');
-        if (btn) { btn.disabled = false; btn.textContent = 'Auto Switch to API-SSL'; }
-      })
-      .catch((e) => {
-        say('Request failed: ' + String(e));
-        if (btn) { btn.disabled = false; btn.textContent = 'Auto Switch to API-SSL'; }
-      });
-  });
+    el('rtrApiSslBtn')?.addEventListener('click', () => {
+      const id = input('rtrModalId')?.value || '';
+      if (!id) return;
+      const name = el('apiSslDevice');
+      if (name) name.textContent = input('rtrModalLabel')?.value || 'this device';
+      show('apiSslBusy', false);
+      show('apiSslResult', false);
+      show('apiSslWhat', true);
+      enable(true);
+      const go = el<HTMLButtonElement>('apiSslGo');
+      const cancel = el<HTMLButtonElement>('apiSslCancel');
+      // RESTORED, not assumed: a previous success HID this button and renamed
+      // Cancel, so reopening without resetting both leaves a dialog whose only
+      // action is gone.
+      if (go) { go.textContent = 'Switch to API-SSL'; go.style.display = ''; }
+      if (cancel) cancel.textContent = 'Cancel';
+      dlg()?.classList.add('open');
+    });
+
+    el('apiSslCancel')?.addEventListener('click', () => {
+      dlg()?.classList.remove('open');
+    });
+
+    el('apiSslGo')?.addEventListener('click', () => {
+      const id = input('rtrModalId')?.value || '';
+      if (!id) return;
+      const go = el<HTMLButtonElement>('apiSslGo');
+      // ── IN PROGRESS ────────────────────────────────────────────────────
+      enable(false);
+      show('apiSslResult', false);
+      show('apiSslBusy', true);
+      busyText('Generating keys on the device. This can take a minute or two.');
+
+      void fetch('/api/routers/' + encodeURIComponent(id) + '/api-ssl',
+        { method: 'POST', credentials: 'same-origin' })
+        .then((r) => r.json().then((d: { ok?: boolean; error?: string; message?: string }) =>
+          ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          show('apiSslBusy', false);
+          enable(true);
+          if (ok && d.ok) {
+            show('apiSslWhat', false);
+            result(true, d.message || 'This device is now on API-SSL.');
+            // The dialog stays open on the RESULT. Cancel becomes Close, and
+            // the device dialog behind it is refreshed from the record the
+            // server just moved rather than patched here.
+            if (go) go.style.display = 'none';
+            const cancel = el<HTMLButtonElement>('apiSslCancel');
+            if (cancel) cancel.textContent = 'Close';
+            opts.onSaved();
+            el('rtrModalBg')?.classList.remove('open');
+            return;
+          }
+          result(false, d.error || 'The switch did not complete. The device is unchanged.');
+          // RETRYABLE: the enrolment picks up whatever it already finished, so
+          // a second press is cheap rather than two more keys.
+          if (go) go.textContent = 'Try again';
+        })
+        .catch((e) => {
+          show('apiSslBusy', false);
+          enable(true);
+          result(false, 'Request failed: ' + String(e));
+          if (go) go.textContent = 'Try again';
+        });
+    });
+  }
 
   // Any edit invalidates a passing test - see TestGate.
   for (const id of ['rtrModalHost', 'rtrModalPort', 'rtrModalUser', 'rtrModalPass', 'rtrModalGeo']) {

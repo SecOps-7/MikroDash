@@ -3097,6 +3097,8 @@
    the picker UNDERNEATH the dialog whose gear opens it, which reads as the gear
    doing nothing at all. */
 .nchan-iface-modal { z-index: 901; }
+/* Above the device dialog it opens from, for the same reason. */
+.apissl-modal { z-index: 901; }
 .nchan-iface-list { display: flex; flex-direction: column; gap: .15rem; }
 .nchan-iface-row { padding: .3rem 0; }
 
