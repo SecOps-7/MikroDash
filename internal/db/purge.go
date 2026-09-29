@@ -54,9 +54,23 @@ var routerDataTables = []string{
 // retention, so leaving them is not a smaller version of the omission: it is
 // the whole history, for up to the full retention, belonging to a router the
 // operator asked to be gone.
+//
+// `cred_profile_links` is here for a DIFFERENT reason from the two rollups, and
+// the difference is worth stating because the wrong reading of it is tempting.
+// A link row is MikroDash's record that it put an account on a router, and
+// everywhere else in this feature deleting one is the worst thing that can
+// happen — the login stays on the device and nothing is left that knows.
+//
+// A router being REMOVED FROM THE FLEET is the one case where keeping it is
+// worse. There is no session to reconcile through any more, so the reconciler
+// would retry the row against a router that does not exist, for ever. The
+// record has to live somewhere that outlives the router, and that place already
+// exists: the caller audits every account it is leaving behind BEFORE calling
+// this, and `audit_events` is absent from every purge path by design.
 var routerDataTablesPortAdded = []string{
 	"traffic_hourly",
 	"bandwidth_hourly",
+	"cred_profile_links",
 }
 
 // routerPurgeExcluded is what a router purge must NEVER touch, with the reason.

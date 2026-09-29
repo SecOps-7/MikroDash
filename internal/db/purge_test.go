@@ -48,6 +48,28 @@ INSERT INTO roles (id, name) VALUES ('role','role');
 CREATE TABLE grants (id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
   principal_type TEXT, principal_id TEXT, scope_type TEXT, scope_id TEXT,
   role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE RESTRICT);
+-- Declared exactly as credprof_schema.go does, not loosely: a fixture looser
+-- than the real table checks the code against a database that cannot exist,
+-- which TestFixtureSchemasMatchReality is there to catch.
+-- (No backticks in this comment: it sits inside a Go raw string.)
+CREATE TABLE cred_profiles (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '',
+  ros_username TEXT NOT NULL UNIQUE, perm_kind TEXT NOT NULL,
+  builtin_group TEXT NOT NULL DEFAULT '', group_name TEXT NOT NULL DEFAULT '',
+  policy_json TEXT NOT NULL DEFAULT '[]', secret TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1, created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+INSERT INTO cred_profiles (id, name, ros_username, perm_kind, builtin_group, secret,
+  created_by, created_at, updated_at)
+  VALUES ('cp1', 'NOC', 'noc', 'builtin', 'read', 'sealed', 'u-1', 1, 1);
+CREATE TABLE cred_profile_links (
+  profile_id TEXT NOT NULL REFERENCES cred_profiles(id) ON DELETE RESTRICT,
+  router_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
+  code TEXT NOT NULL DEFAULT '', error TEXT NOT NULL DEFAULT '',
+  applied_revision INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at INTEGER NOT NULL DEFAULT 0, last_attempt_at INTEGER NOT NULL DEFAULT 0,
+  applied_at INTEGER NOT NULL DEFAULT 0, linked_by TEXT NOT NULL,
+  linked_at INTEGER NOT NULL, PRIMARY KEY (profile_id, router_id));
 -- The one that must SURVIVE a purge.
 CREATE TABLE config_backups (id INTEGER PRIMARY KEY, router_id TEXT NOT NULL,
   taken_at INTEGER NOT NULL, outcome TEXT NOT NULL, source TEXT NOT NULL, actor TEXT,
@@ -138,6 +160,12 @@ var portAddedRouterPurgeTables = map[string]string{
 		"is the same history as traffic_samples at lower resolution and a longer retention, " +
 		"so omitting it would leave a removed router's traffic behind for the full retention",
 	"bandwidth_hourly": "the hourly volume rollup (#59), the same arrangement as traffic_hourly",
+	"cred_profile_links": "a credential profile's standing on this router (#143). Everywhere " +
+		"else, deleting one of these is the worst thing this feature can do - the account " +
+		"stays on the device and nothing is left that knows. A router leaving the fleet is " +
+		"the exception: there is no session to reconcile through, so the row would be " +
+		"retried against a router that does not exist for ever. The record moves to " +
+		"audit_events, which no purge path touches, and the caller writes it BEFORE this runs",
 }
 
 // TestPortAddedRouterPurgeTablesAreRecorded — BOTH DIRECTIONS.
@@ -206,6 +234,10 @@ var purgeInsert = map[string]string{
 	   VALUES (?, 1, 1)`,
 	"alert_events": `INSERT INTO alert_events (router_id, alert_type, subject, detail, fired_at)
 	   VALUES (?, 'x', 's', 'd', 1)`,
+	// One profile, linked to BOTH routers, so the purge has to be scoped by
+	// router rather than by profile to leave r2 alone.
+	"cred_profile_links": `INSERT INTO cred_profile_links
+	   (profile_id, router_id, linked_by, linked_at) VALUES ('cp1', ?, 'u-1', 1)`,
 }
 
 func purgeDB(t *testing.T) *DB {
