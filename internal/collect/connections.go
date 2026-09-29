@@ -775,12 +775,8 @@ func (c *Connections) nameOf(ip string) (string, string) {
 	if c.leases != nil {
 		leases = c.leases.Last()
 	}
-	if leases != nil {
-		for _, l := range leases.Leases {
-			if l.IP == ip {
-				return firstNonEmptyStr(l.Name, l.HostName), l.MAC
-			}
-		}
+	if l := LeaseForIP(leases, ip); l != nil {
+		return firstNonEmptyStr(l.Name, l.HostName), l.MAC
 	}
 	if c.arp == nil {
 		return "", ""
@@ -789,12 +785,8 @@ func (c *Connections) nameOf(ip string) (string, string) {
 	if mac == "" {
 		return "", ""
 	}
-	if leases != nil {
-		for _, l := range leases.Leases {
-			if strings.EqualFold(l.MAC, mac) {
-				return firstNonEmptyStr(l.Name, l.HostName), mac
-			}
-		}
+	if l := LeaseForMAC(leases, mac); l != nil {
+		return firstNonEmptyStr(l.Name, l.HostName), mac
 	}
 	return "", mac
 }

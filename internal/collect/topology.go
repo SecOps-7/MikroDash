@@ -1487,10 +1487,8 @@ func (t *Topology) leaseName(mac string) (string, string) {
 	if p == nil {
 		return "", ""
 	}
-	for _, l := range p.Leases {
-		if strings.EqualFold(l.MAC, mac) {
-			return firstNonEmptyStr(l.Name, l.HostName, l.Comment), l.IP
-		}
+	if l := LeaseForMAC(p, mac); l != nil {
+		return firstNonEmptyStr(l.Name, l.HostName, l.Comment), l.IP
 	}
 	return "", ""
 }

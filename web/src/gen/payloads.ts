@@ -746,6 +746,7 @@ export interface Lease {
   vlanId: string;
   id: string;
   dynamic: boolean;
+  disabled: boolean;
 }
 
 export interface LeaseServer {

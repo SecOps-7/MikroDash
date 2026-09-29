@@ -52,7 +52,7 @@ var (
 		Args: []string{"=.proplist=name,vlan-id"}}
 	dhcpLeasesCmd = routeros.Cmd{Path: "/ip/dhcp-server/lease/print",
 		Args: []string{"=.proplist=.id,.dead,address,active-address,mac-address," +
-			"active-mac-address,status,comment,host-name,server,dynamic"}}
+			"active-mac-address,status,comment,host-name,server,dynamic,disabled"}}
 )
 
 // Lease is one row as the page renders it. FIELD ORDER IS THE EMITTED KEY ORDER
@@ -73,6 +73,10 @@ type Lease struct {
 	// between an editable row and one that only offers "make static".
 	ID      string `json:"id"`
 	Dynamic bool   `json:"dynamic"`
+	// Disabled is the operator having switched the reservation off. The row is
+	// still LISTED - the lease table is where you go to see it and turn it back
+	// on - but it no longer resolves a hostname anywhere. See LeaseForIP.
+	Disabled bool `json:"disabled"`
 }
 
 // LeaseServer is one entry in the filter above the table.
@@ -196,14 +200,37 @@ func (d *DHCPLeases) applyLease(l routeros.Reply) {
 	meta := d.server[l["server"]]
 
 	if ip != "" {
-		if _, seen := d.byIP[ip]; !seen {
+		prev, seen := d.byIP[ip]
+		if !seen {
 			d.order = append(d.order, ip)
+		}
+		// ── AN ENABLED LEASE KEEPS THE ADDRESS ───────────────────────────────
+		//
+		// `byIP` holds ONE lease per address and the last row written used to
+		// win. An operator who disables an old reservation and makes a new
+		// active one for the same IP - the case reported in #139 - has two rows
+		// on that address, and whichever RouterOS mentioned second took the
+		// slot. Half the time that was the disabled one, and the active host
+		// then had no lease at all: not a wrong name, NO name.
+		//
+		// Filtering at lookup time cannot fix that, because by then the active
+		// lease has already been thrown away. So the choice is made here, and
+		// it is made once: a disabled row never displaces an enabled one.
+		//
+		// Found by replaying both orders in a test. A single order would have
+		// passed on the broken code half the time.
+		if seen && boolOf(l["disabled"]) && !prev.Disabled {
+			if mac != "" {
+				d.byMAC[mac] = ip
+			}
+			return
 		}
 		d.byIP[ip] = Lease{
 			IP: ip, Name: name, MAC: mac, HostName: l["host-name"],
 			Comment: l["comment"], Status: status, Server: l["server"],
 			Iface: meta.iface, VlanID: meta.vlanID,
 			ID: l[".id"], Dynamic: boolOf(l["dynamic"]),
+			Disabled: boolOf(l["disabled"]),
 		}
 	}
 	if mac != "" && ip != "" {
@@ -414,4 +441,64 @@ func (d *DHCPLeases) UsedLeaseIPs() []string {
 		out = append(out, ip)
 	}
 	return out
+}
+
+// ── A DISABLED LEASE NEVER RESOLVES A NAME ──────────────────────────────────
+//
+// Issue #139. A disabled reservation kept resolving hostnames, and the way it
+// went wrong was worse than a stale label: every lookup returned the FIRST row
+// matching the address, and the payload is in the order the router first
+// mentioned each IP. So an old disabled lease for 10.0.0.50 beat the new active
+// one for the same address, and live traffic was labelled with the name of the
+// device it replaced.
+//
+// The operator's own words on the issue: "MikroDash should strictly ignore a
+// disabled lease if there is an active lease already occupying that same IP."
+// Skipping disabled rows outright is the simpler rule with the same effect - the
+// active lease is then the only candidate, and where there is no active lease
+// the row simply shows no hostname rather than a wrong one.
+//
+// ── FILTERED HERE, NOT IN THE COLLECTOR ─────────────────────────────────────
+//
+// `LeasesPayload` also draws the DHCP Leases page, and an operator who disabled
+// a reservation still needs to SEE it there to turn it back on. So the row keeps
+// travelling and stops being an answer to "what is this address called".
+//
+// Both lookups live here so the rule is written once. Four callers had their own
+// copy of the scan - Connections, Bandwidth, Wireless and Topology - and a rule
+// applied in three of them is a bug report from whichever card was missed.
+
+// LeaseForIP is the lease naming an address, or nil. Disabled rows are skipped.
+func LeaseForIP(p *LeasesPayload, ip string) *Lease {
+	if p == nil || ip == "" {
+		return nil
+	}
+	for i := range p.Leases {
+		if p.Leases[i].Disabled {
+			continue
+		}
+		if p.Leases[i].IP == ip {
+			return &p.Leases[i]
+		}
+	}
+	return nil
+}
+
+// LeaseForMAC is the lease naming a MAC, or nil. Disabled rows are skipped.
+//
+// Case-insensitive, because RouterOS reports a MAC upper-case here and the ARP
+// table is not guaranteed to agree with it.
+func LeaseForMAC(p *LeasesPayload, mac string) *Lease {
+	if p == nil || mac == "" {
+		return nil
+	}
+	for i := range p.Leases {
+		if p.Leases[i].Disabled {
+			continue
+		}
+		if strings.EqualFold(p.Leases[i].MAC, mac) {
+			return &p.Leases[i]
+		}
+	}
+	return nil
 }

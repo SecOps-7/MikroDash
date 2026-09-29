@@ -634,12 +634,7 @@ func (w *Wireless) lease(mac string) *Lease {
 	if p == nil {
 		return nil
 	}
-	for i := range p.Leases {
-		if strings.EqualFold(p.Leases[i].MAC, mac) {
-			return &p.Leases[i]
-		}
-	}
-	return nil
+	return LeaseForMAC(p, mac)
 }
 
 func (w *Wireless) leaseName(mac string) string {

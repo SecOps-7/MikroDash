@@ -424,6 +424,22 @@ var addedSinceNode = map[string][]addedField{
 	// alert rule had nothing to compare; `since` moving is the evidence that the
 	// outage happened. Purely additive, and the capture read the full row, so it
 	// is filled from the recording.
+	// Whether a DHCP reservation is switched off, added 2026-09-29 for issue
+	// #139: a disabled lease was still resolving hostnames, and because every
+	// lookup returned the FIRST row matching an address, an old disabled lease
+	// beat the active one for the same IP - live traffic wore the name of the
+	// device it replaced.
+	//
+	// The row is still LISTED, so the lease page can show it and turn it back
+	// on; it just stops being an answer to "what is this address called".
+	//
+	// PROVEN BY A NAMED TEST, because this corpus cannot exercise it: the AX3
+	// capture has no disabled lease, so every replayed row carries `false` and
+	// presence alone would prove nothing - deleting the assignment still
+	// marshals `"disabled": false`.
+	"dhcpLeases": {
+		{Spec: "leases[].disabled", ProvenBy: "TestADisabledLeaseIsCarriedAndNeverResolvesAName"},
+	},
 	"netwatch": {
 		added("hosts[].disabled"), added("hosts[].interval"), added("hosts[].since"),
 	},
