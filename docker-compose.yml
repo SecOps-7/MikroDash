@@ -27,8 +27,14 @@ services:
       # on (Settings, Provisioning), and it is userspace, so the container needs
       # no NET_ADMIN and no /dev/net/tun. Remote routers dial it, so it must be
       # reachable from the internet (forwarded on your firewall) to be useful.
-      # If you change the port in Settings, change it here to match.
-      - "13231:13231/udp"
+      #
+      # IT MUST MATCH "Listen port" IN SETTINGS, and the failure when it does not
+      # is silent: MikroDash binds the port from the SETTING inside the
+      # container, Docker publishes the one named here, and a mismatch leaves
+      # every handshake arriving at a port nothing is listening on. The tunnel
+      # logs "tunnel up" either way. Set ZTP_PORT in .env and the two follow each
+      # other; the default is the default in Settings.
+      - "${ZTP_PORT:-13231}:${ZTP_PORT:-13231}/udp"
     volumes:
       - data:/data
     restart: unless-stopped
