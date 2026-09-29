@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS ztp_devices (
           secret      TEXT,
           template_id TEXT,
           values_json TEXT    NOT NULL DEFAULT '{}',
+          -- Credential profile ids to apply when this device arrives. SEPARATE
+          -- from values_json, which is the template's variable bag: that one is
+          -- unsealed and handed to cfgdeploy.
+          cred_profiles TEXT  NOT NULL DEFAULT '[]',
           acked_json  TEXT    NOT NULL DEFAULT '[]',
           site_ids    TEXT    NOT NULL DEFAULT '[]',
           router_id   TEXT,

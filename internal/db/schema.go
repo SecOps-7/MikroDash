@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 30
+const schemaVersion = 31
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -237,6 +237,16 @@ var portMigrations = map[int][]string{
 	// wrong fails at startup on every existing install and on none of the fresh
 	// ones, because a fresh database is built from schema_ddl.go instead.
 	30: {`ALTER TABLE config_backups ADD COLUMN secrets_bytes INTEGER NOT NULL DEFAULT 0`},
+	// 31: the credential profile tables, plus the ZTP column that says which
+	// profiles a device gets when it arrives. One DDL constant, shared with
+	// freshSchemaDDL, so a migrated database and a new one cannot describe
+	// different tables. See internal/db/credprof_schema.go.
+	//
+	// The ZTP column is SEPARATE from values_json, which is the template's
+	// variable bag: that one is unsealed and handed to cfgdeploy, and a list of
+	// profile ids has no business travelling with it.
+	31: {credProfTablesDDL,
+		`ALTER TABLE ztp_devices ADD COLUMN cred_profiles TEXT NOT NULL DEFAULT '[]'`},
 }
 
 // createSchema builds a new database at `path`.

@@ -45,7 +45,7 @@ func TestFixtureSchemasMatchReality(t *testing.T) {
 
 	var ddl strings.Builder
 	for _, rel := range []string{"schema_ddl.go", "cfg_schema.go", "ztp_schema.go",
-		"rollup.go", "notify_schema.go", "sso_schema.go"} {
+		"rollup.go", "notify_schema.go", "sso_schema.go", "credprof_schema.go"} {
 		ddl.WriteString(mustRead(t, filepath.Join(root, "internal", "db", rel)))
 		ddl.WriteString("\n")
 	}
@@ -53,6 +53,29 @@ func TestFixtureSchemasMatchReality(t *testing.T) {
 	if len(real) < 20 {
 		t.Fatalf("only %d tables read out of internal/db - the parse broke, and every "+
 			"fixture would then look fine", len(real))
+	}
+
+	// ── AND THE FILE LIST ABOVE IS ITSELF A HAND-KEPT COPY ───────────────────
+	//
+	// This test's header describes a frozen schema file that drifted four tables
+	// behind without anything failing. The list of filenames has the SAME shape:
+	// add a table constant in a new file, forget to name it here, and the check
+	// silently stops covering it - passing, because a fixture of a table it never
+	// read looks like a test's own scratch table.
+	//
+	// So the list is checked against the source rather than trusted. Every table
+	// declared anywhere in internal/db must be one this test read. A file that is
+	// listed but has gone is caught by `mustRead` above, so the ledger fails in
+	// both directions.
+	for rel, body := range readFiles(t, root, "internal/db/", func(r string) bool {
+		return strings.HasSuffix(r, ".go") && !strings.HasSuffix(r, "_test.go")
+	}) {
+		for name := range parseTables(t, body) {
+			if _, ok := real[name]; !ok {
+				t.Errorf("%s declares table %q, which this test does not read - add its file "+
+					"to the list above, or every fixture of %q goes unchecked", rel, name, name)
+			}
+		}
 	}
 
 	fixtures := readFiles(t, root, "internal/", func(r string) bool {

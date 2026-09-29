@@ -278,4 +278,4 @@ CREATE INDEX idx_report_schedules_router ON report_schedules (router_id);
 
 CREATE INDEX idx_traffic_router_iface_ts
           ON traffic_samples(router_id, interface, ts);
-` + cfgTablesDDL + ztpTablesDDL + rollupTablesDDL + notifyTablesDDL + ssoTablesDDL
+` + cfgTablesDDL + ztpTablesDDL + rollupTablesDDL + notifyTablesDDL + ssoTablesDDL + credProfTablesDDL
