@@ -48,6 +48,8 @@ export interface ResSchemaField {
   type: string;
   input: string;
   required: boolean;
+  /** Required on Add and optional on Edit: what a password is. */
+  requiredOnCreate: boolean;
   options: string[] | null;
   placeholder: string;
   help: string;

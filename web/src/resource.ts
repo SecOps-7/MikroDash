@@ -268,6 +268,12 @@ function applyShowIf(schema: Schema): void {
   }
 }
 
+/** How a field renders differs between Add and Edit; `values` says which. */
+function decorate(f: SchemaField, values: Record<string, unknown> | null): SchemaField {
+  if (values) return f.createOnly ? { ...f, display: true } : f;
+  return f.requiredOnCreate ? { ...f, required: true } : f;
+}
+
 function buildForm(schema: Schema, values: Record<string, unknown> | null,
                    options?: Record<string, string[]>): void {
   const host = el('res_fields');
@@ -275,9 +281,14 @@ function buildForm(schema: Schema, values: Record<string, unknown> | null,
   // A CREATE-ONLY field is an input on Add and a locked box on Edit (`values`
   // is the row being edited, null for a new one): the server does not send it
   // on an edit, so an input there would look like it counted.
+  //
+  // REQUIRED-ON-CREATE is the mirror of that: a password is required on Add and
+  // optional on Edit, so the asterisk appears only when `values` is null. The
+  // server refuses it either way - this is the label agreeing with the refusal
+  // rather than the operator finding out on save.
   host.innerHTML = schema.fields
-    .map((f) => fieldHtml(values && f.createOnly ? { ...f, display: true } : f,
-      values ? values[f.name] : undefined, options ? options[f.name] : undefined))
+    .map((f) => fieldHtml(decorate(f, values), values ? values[f.name] : undefined,
+      options ? options[f.name] : undefined))
     .join('');
   applyShowIf(schema);
   // A field that controls another's visibility redraws it as it changes - the

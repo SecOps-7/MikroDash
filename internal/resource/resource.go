@@ -148,6 +148,25 @@ type Field struct {
 	NegateUnset bool
 
 	Required bool
+	// RequiredOnCreate is Required on an ADD and optional on a SET, which is the
+	// only shape a secret can take.
+	//
+	// ── THE BUG THIS EXISTS FOR ───────────────────────────────────────────────
+	//
+	// BuildArgs drops a blank TypeSecret, because on a `set` a blank one means
+	// "leave the stored value alone" — the browser never reads a secret back, so
+	// an empty box is an omission rather than an instruction. On an `add` there is
+	// nothing to leave alone, and MikroTik documents what /user does with the
+	// property missing: "If not specified, it is left blank (hit Enter when
+	// logging in)". So the Router Users page, with the password box empty, CREATED
+	// A ROUTEROS ACCOUNT ANYONE COULD LOG IN TO. Nothing failed; the row appeared
+	// and looked ordinary.
+	//
+	// `Required` cannot express this: Validate applies it in both directions (an
+	// edit sends the whole form, not a patch), so a required password would refuse
+	// every edit that did not retype it. Hence a second flag, checked only when
+	// `editing` is false.
+	RequiredOnCreate bool
 	// Default is the value RouterOS holds when it does not REPORT the property:
 	// some menus omit a property that is at its default. Measured on
 	// /ip/dhcp-server: `conflict-detection` (default yes) is absent from print
@@ -575,8 +594,12 @@ func (f Field) Applies(values map[string]string) bool {
 // Validate checks a submission against the resource's own fields.
 //
 // A required field is required in both directions — an edit sends the whole
-// form, not a patch — so `editing` changes nothing here. It is carried through
-// to BuildArgs, which is where the two differ.
+// form, not a patch — so `editing` changes nothing for `Required`. It DOES for
+// `RequiredOnCreate`, which is the flag a secret uses: see the field's comment
+// for the passwordless account that shape produced.
+//
+// `editing` is carried through to BuildArgs, which is where the two differ
+// again.
 func (r *Resource) Validate(values map[string]string, editing bool) (Validated, []Error) {
 	var errs []Error
 	clean := map[string]string{}
@@ -599,7 +622,7 @@ func (r *Resource) Validate(values map[string]string, editing bool) (Validated, 
 				clean[f.Name] = v
 				continue
 			}
-			if f.Required {
+			if f.Required || (!editing && f.RequiredOnCreate) {
 				errs = append(errs, Error{f.Name, f.Label + " is required"})
 			}
 			continue
@@ -626,7 +649,11 @@ func (r *Resource) BuildArgs(v Validated) []string {
 	for _, f := range r.Fields {
 		val, has := v.Values[f.Name]
 		if f.Type == TypeSecret && (!has || val == "") {
-			continue // blank secret means "leave it alone"
+			// Blank means "leave the stored value alone" — right on a `set`,
+			// and on an `add` there is nothing to leave alone. A secret that
+			// must not be blank on a create declares RequiredOnCreate, and
+			// Validate has already refused it before reaching here.
+			continue
 		}
 		if has && f.Type == TypeMulti && f.NegateUnset {
 			args = append(args, "="+f.ROS+"="+negateUnset(f.Options, val))
@@ -701,7 +728,31 @@ func negateUnset(options []string, chosen string) string {
 // the verb.
 // UndoesRemoval reports whether undoing this resource's removal, which is an
 // add, would restore the row.
-func (r *Resource) UndoesRemoval() bool { return !r.NoCreate && !r.RemovalIsFinal }
+//
+// ── A REQUIRED-ON-CREATE SECRET MAKES A REMOVAL FINAL ───────────────────────
+//
+// The undo stack holds RowValues(row), and RowValues drops every Unread field —
+// a secret is never read back from the router, so it was never there to store.
+// Replaying the delete as an `add` therefore submits the row WITHOUT its
+// password, which is the same passwordless create RequiredOnCreate exists to
+// refuse. Validate refuses it, so the undo fails at the last moment with a
+// field error about a box the operator never saw.
+//
+// Offering an undo that cannot succeed is worse than offering none: the button
+// says the delete is reversible. So a resource whose create demands a value its
+// read drops has no undo at all — the same conclusion RemovalIsFinal reaches for
+// a certificate, by the same argument, from a different direction.
+func (r *Resource) UndoesRemoval() bool {
+	if r.NoCreate || r.RemovalIsFinal {
+		return false
+	}
+	for _, f := range r.Fields {
+		if f.RequiredOnCreate && f.Unread() {
+			return false
+		}
+	}
+	return true
+}
 
 // SingletonID is the id a singleton's one row is given. Not a RouterOS id
 // (those are `*N`), so it can never collide with one.
@@ -832,7 +883,8 @@ func (r *Resource) Describe() map[string]any {
 		}
 		fields = append(fields, map[string]any{
 			"name": f.Name, "label": f.Label, "type": string(f.Type), "input": f.input(),
-			"required": f.Required, "options": opts, "placeholder": f.Placeholder,
+			"required": f.Required, "requiredOnCreate": f.RequiredOnCreate,
+			"options": opts, "placeholder": f.Placeholder,
 			"help": f.Help, "showIf": showIf, "min": minv, "max": maxv, "display": f.Display,
 			"createOnly": f.CreateOnly,
 		})
@@ -2279,8 +2331,13 @@ var RosUser = &Resource{
 		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "username"},
 		{Name: "group", ROS: "group", Label: "Group", Type: TypeText, Required: true,
 			OptionsFrom: &OptionsFrom{Menu: "/user/group", Value: "name"}},
+		// REQUIRED ON CREATE ONLY. RouterOS documents that a /user added with no
+		// password "is left blank (hit Enter when logging in)", so an empty box
+		// on Add used to mint an account anyone could sign in to. An edit still
+		// takes a blank, which is how the stored password is kept.
 		{Name: "password", ROS: "password", Label: "Password", Type: TypeSecret,
-			Help: "Leave blank to keep the current password. The router enforces its own minimum length."},
+			RequiredOnCreate: true,
+			Help:             "Required for a new user. Leave blank when editing to keep the current password. The router enforces its own minimum length."},
 		{Name: "address", ROS: "address", Label: "Allowed Address", Type: TypeText, Clearable: true,
 			Placeholder: "10.0.0.0/24", Help: "Only log in from these addresses. Empty allows any."},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
