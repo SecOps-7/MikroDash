@@ -649,6 +649,14 @@
           </label>
         </div>
         <p class="rtr-note">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
+        <!-- ── THE WAY OFF THE PLAIN API ────────────────────────────────────
+             Shown only when this device is NOT already on API-SSL, because the
+             only thing it can do for one that is, is generate two more keys.
+             router-modal.ts sets the display. -->
+        <div id="rtrApiSslWrap" style="display:none;margin-top:.5rem">
+          <button type="button" class="sbtn sbtn-outline" id="rtrApiSslBtn" style="padding:.3rem .7rem;font-size:.75rem">Auto Switch to API-SSL</button>
+          <p class="rtr-note" id="rtrApiSslNote" style="margin-top:.35rem">Creates a certificate authority and a server certificate on the device, turns on API-SSL, and moves this device onto port 8729. The plain API is left enabled as a way back in.</p>
+        </div>
 
         <!-- Collection (#105). Delivery only: every collector runs, gated by who is
              watching and by dormancy, so there is nothing per collector to switch

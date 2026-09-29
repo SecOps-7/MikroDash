@@ -310,6 +310,17 @@ export function initRouterModal(opts: {
     if (pass) pass.placeholder = f.passPlaceholder;
     set('rtrModalIf', f.defaultIf); set('rtrModalPing', f.pingTarget);
     check('rtrModalTls', f.tls); check('rtrModalTlsInsecure', f.tlsInsecure);
+    // ── THE API-SSL BUTTON ────────────────────────────────────────────────
+    //
+    // Only for a SAVED device - a new one has no id to act on and no
+    // credentials stored to reach it with - and only when it is not already
+    // there, because the one thing it could do for such a device is generate
+    // two more RSA keys on it for nothing.
+    const sslWrap = el('rtrApiSslWrap');
+    if (sslWrap) {
+      const already = f.tls && String(f.port) === '8729';
+      sslWrap.style.display = f.id && !already ? '' : 'none';
+    }
     check('rtrModalAlertsEnabled', f.alertsEnabled);
     check('rtrModalReportingEnabled', f.reportingEnabled);
     set('rtrModalDownThresh', String(f.downThreshold));
@@ -452,6 +463,55 @@ export function initRouterModal(opts: {
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
     }
+  });
+
+  // ── AUTO SWITCH TO API-SSL ──────────────────────────────────────────────
+  //
+  // CONFIRMED FIRST, because this writes to the device: it creates a
+  // certificate authority and a server certificate there, and generating two
+  // RSA keys is minutes of work on small hardware. The prompt says what it will
+  // do rather than asking "are you sure".
+  //
+  // It does NOT save the form. The endpoint moves the stored port and TLS flags
+  // itself once the device answers on 8729, so saving a half-edited dialog over
+  // the top of that would undo it.
+  el('rtrApiSslBtn')?.addEventListener('click', () => {
+    const id = input('rtrModalId')?.value || '';
+    if (!id) return;
+    const label = input('rtrModalLabel')?.value || 'this device';
+    if (!window.confirm('Switch ' + label + ' to API-SSL?\n\n'
+      + 'On the device this creates a certificate authority and a server '
+      + 'certificate, then enables API-SSL on port 8729. Key generation can take '
+      + 'a minute or two on small hardware.\n\n'
+      + 'The plain API stays enabled as a way back in. MikroDash moves to 8729 '
+      + 'only after the device answers there.')) return;
+
+    const btn = el<HTMLButtonElement>('rtrApiSslBtn');
+    const note = el('rtrApiSslNote');
+    const say = (msg: string): void => { if (note) note.textContent = msg; };
+    if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+    say('Generating keys on the device. This can take a minute or two.');
+    void fetch('/api/routers/' + encodeURIComponent(id) + '/api-ssl',
+      { method: 'POST', credentials: 'same-origin' })
+      .then((r) => r.json().then((d: { ok?: boolean; error?: string; message?: string }) =>
+        ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (ok && d.ok) {
+          say(d.message || 'This device is now on API-SSL.');
+          // The record moved server-side, so the form is reloaded from it
+          // rather than patched here - two places deciding the port is how
+          // they disagree.
+          opts.onSaved();
+          el('rtrModalBg')?.classList.remove('open');
+          return;
+        }
+        say(d.error || 'The switch did not complete. The device is unchanged.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Auto Switch to API-SSL'; }
+      })
+      .catch((e) => {
+        say('Request failed: ' + String(e));
+        if (btn) { btn.disabled = false; btn.textContent = 'Auto Switch to API-SSL'; }
+      });
   });
 
   // Any edit invalidates a passing test - see TestGate.

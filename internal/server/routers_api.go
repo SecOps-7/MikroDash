@@ -82,6 +82,9 @@ func (s *Server) registerRouters(mux *http.ServeMux) {
 	// somewhere else is exactly how `GET /api/routers` went missing.
 	s.registerRouterActivate(mux)
 	s.registerRouterReorder(mux)
+	// Giving a router a certificate and moving this install onto API-SSL. A
+	// router write rather than a record edit, like the identity route above.
+	s.registerRouterAPISSL(mux)
 }
 
 // routerCreate is `POST /api/routers`.
