@@ -182,7 +182,7 @@ func (s *Server) credProfileSave(w http.ResponseWriter, r *http.Request, sess *S
 		plain = s.openCredSecret(existing.Secret)
 	} else if plain != "" {
 		var err error
-		if sealed, err = s.sealChannelConfig(plain); err != nil {
+		if sealed, err = s.sealCredSecret(plain); err != nil {
 			writeJSONErr(w, http.StatusServiceUnavailable, "settings storage is unavailable")
 			return
 		}
@@ -499,6 +499,36 @@ func (s *Server) credRoutersFor(sess *Session, ids []string) []string {
 	return out
 }
 
+// ── SEALING A BARE STRING, AND WHY NOT sealChannelConfig ───────────────────
+//
+// `sealChannelConfig` marshals its argument to JSON before encrypting, because
+// what it seals is a CONFIG OBJECT. A password is a bare string, and
+// `json.Marshal("hunter2")` is `"hunter2"` WITH THE QUOTE CHARACTERS — so a
+// password sealed that way comes back with two extra characters in it and is
+// written to the router like that.
+//
+// THAT SHIPPED AND WAS CAUGHT BY A LIVE WRITE, not by the suite. Every unit
+// test builds a `credprof.Spec` directly and never crosses this seam, so the
+// account appeared on the router, in the right group, carrying the right
+// marker, and the state read `applied` — and the password was wrong. The only
+// thing that found it was signing in to the router as the account.
+//
+// So this pair does the envelope without the marshalling. `TestACredentialProfilePasswordSurvivesTheRoundTrip`
+// pins it with a value containing the characters JSON would escape.
+func (s *Server) sealCredSecret(plain string) (string, error) {
+	if s.store == nil {
+		// NEVER IN THE CLEAR, the rule sealChannelConfig states: a missing store
+		// refuses the save rather than writing a credential unencrypted.
+		return "", errors.New("settings storage is unavailable")
+	}
+	enc, err := s.store.Encrypt(plain)
+	if err != nil {
+		return "", err
+	}
+	out, err := json.Marshal(sealedConfig{Sealed: enc})
+	return string(out), err
+}
+
 // openCredSecret unseals a stored password for the applier.
 //
 // "" means it could not be read, which every caller treats as a failure rather
@@ -508,7 +538,18 @@ func (s *Server) openCredSecret(stored string) string {
 	if stored == "" {
 		return ""
 	}
-	return s.openChannelConfig(stored)
+	var env sealedConfig
+	if err := json.Unmarshal([]byte(stored), &env); err != nil || env.Sealed == "" {
+		return ""
+	}
+	if s.store == nil {
+		return ""
+	}
+	plain, err := s.store.Decrypt(env.Sealed)
+	if err != nil {
+		return ""
+	}
+	return plain
 }
 
 // credSpecFor builds an applier spec from a stored profile, unsealing as it
