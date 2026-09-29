@@ -512,3 +512,47 @@ export function modalTabs(wrapId: string, initial: string): (which: string) => v
   select(initial);
   return select;
 }
+
+// ── COPYING TEXT WHERE THERE IS NO ASYNC CLIPBOARD ──────────────────────────
+//
+// `navigator.clipboard` is UNDEFINED ON AN INSECURE ORIGIN, and reaching a
+// router dashboard over its LAN address rather than localhost is an insecure
+// origin. So the modern API cannot be assumed present, and every call site that
+// assumed it silently did nothing for the people most likely to be using it.
+//
+// ── THE SHAPE THAT LOOKS GUARDED AND IS NOT ────────────────────────────────
+//
+//	navigator.clipboard?.writeText(text).then(ok, fail)
+//
+// The `?.` short-circuits the WHOLE chain, so with no clipboard neither `ok`
+// nor `fail` runs: no copy, no error, no feedback. The button appears dead,
+// which is exactly how it was reported. Three call sites had this.
+//
+// The fallback is a temporary off-screen textarea and `execCommand('copy')`,
+// which still works on an insecure origin. It is synchronous, so the caller
+// gets a definite answer either way rather than a promise that never settles.
+export function copyText(text: string, done?: (ok: boolean) => void): void {
+  const nav = navigator as Navigator & { clipboard?: Clipboard };
+  if (nav.clipboard && typeof nav.clipboard.writeText === 'function') {
+    nav.clipboard.writeText(text).then(() => done?.(true), () => done?.(false));
+    return;
+  }
+  let ok = false;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    // OFF SCREEN RATHER THAN HIDDEN: `display:none` and `visibility:hidden`
+    // are not selectable, and an unselectable textarea copies nothing.
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ok = !!(document.execCommand && document.execCommand('copy'));
+    document.body.removeChild(ta);
+  } catch {
+    ok = false;
+  }
+  done?.(ok);
+}

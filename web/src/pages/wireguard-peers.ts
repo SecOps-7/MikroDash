@@ -31,7 +31,7 @@
 // peer count itself while it is shown, and `render` in area.ts takes the badge
 // back on the way to a table tab.
 
-import { esc, el, resRow, fmtBytes, renderSortHeader, sortRows } from '../dom';
+import { copyText, el, esc, fmtBytes, renderSortHeader, resRow, sortRows } from '../dom';
 import type { SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Tunnel } from '../gen/payloads';
@@ -301,7 +301,10 @@ export function initWireguardPeers(socket: Socket): void {
       if (t.closest('[data-wg-copy]')) {
         const pre = el('wgConfText');
         const text = pre ? pre.textContent || '' : '';
-        if (text && navigator.clipboard) void navigator.clipboard.writeText(text);
+        // Guarded, so it never threw - but on an insecure origin it copied
+        // NOTHING and said nothing, which for a client configuration means an
+        // operator pastes an empty file and wonders why the tunnel is down.
+        if (text) copyText(text);
       }
     });
     // THE ADD SLOT IS NEW MARKUP, so the resource engine has to be told: it

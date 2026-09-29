@@ -16,7 +16,7 @@
 // with write on Containers); without it the cards show what is installed and
 // how to open it, and no buttons.
 
-import { el, esc } from '../dom';
+import { copyText, el, esc } from '../dom';
 import type { Socket } from '../socket';
 import type { AppsPayload } from '../gen/payloads';
 import { registerAreaPanel } from './area';
@@ -242,10 +242,11 @@ export function initContainersApps(socket: Socket): void {
       }
       const copy = t.closest?.('[data-app-copy]');
       if (copy) {
-        navigator.clipboard?.writeText(copy.getAttribute('data-app-copy') || '').then(() => {
-          copy.textContent = 'Copied';
+        // Same insecure-origin trap as the ZTP script's button - see copyText.
+        copyText(copy.getAttribute('data-app-copy') || '', (ok) => {
+          copy.textContent = ok ? 'Copied' : 'Copy failed';
           setTimeout(() => { copy.textContent = 'Copy'; }, 1500);
-        }, () => {});
+        });
         return;
       }
       if (t.closest?.('[data-app-close]')) {

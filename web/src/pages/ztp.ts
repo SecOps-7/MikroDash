@@ -10,7 +10,7 @@
 // on every connect, not per page: membership is per connection, and a
 // reconnect starts in no rooms.
 
-import { el, esc } from '../dom';
+import { copyText, el, esc } from '../dom';
 import type { Socket } from '../socket';
 import type { ZTPDeviceView, ZTPPayload } from '../gen/payloads';
 import { onZtpState, setZtpState, ztpState } from '../ztp-state';
@@ -127,8 +127,14 @@ function scriptStep(get: () => V.ScriptResult | null, what: string): WizardStep 
       if (!r) return;
       const copy = body.querySelector<HTMLButtonElement>('[data-ztp-copy]');
       copy?.addEventListener('click', () => {
-        void navigator.clipboard?.writeText(r.script).then(() => { copy.textContent = 'Copied'; },
-          () => { copy.textContent = 'Select the text and copy it'; });
+        // `copyText` falls back to a textarea when there is no async clipboard,
+        // which is every insecure origin - see dom.ts. The previous version
+        // used `navigator.clipboard?.writeText(...).then(...)`, whose `?.`
+        // short-circuits the whole chain, so neither callback ran and the
+        // button looked dead.
+        copyText(r.script, (ok) => {
+          copy.textContent = ok ? 'Copied' : 'Select the text and copy it';
+        });
       });
       body.querySelector('[data-ztp-download]')?.addEventListener('click', () => {
         const a = document.createElement('a');
