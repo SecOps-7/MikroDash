@@ -294,6 +294,46 @@ check('the mapping row offers role ids, not role names', async () => {
   assert.ok(html.includes('>NOC Tier 1<'), 'the role name is not shown: ' + html);
 });
 
+// ── THE ICON PREVIEW GIVES ITS OBJECT URL BACK ─────────────────────────────
+//
+// `createObjectURL` pins the file until it is revoked, and choosing an icon is
+// something an operator repeats while deciding. A file the browser cannot
+// decode raises `error` and never `load`, so both outcomes are checked.
+function pickIcon(d, event) {
+  const revoked = [];
+  const realURL = global.URL;
+  global.URL = { createObjectURL: () => 'blob:sso-icon', revokeObjectURL: (u) => revoked.push(u) };
+  try {
+    d.els.so_iconFile.files = [{ name: 'logo.png', type: 'image/png', size: 100 }];
+    d.els.so_iconFile.fire('change');
+    const img = d.els.so_iconPreview;
+    assert.strictEqual(img.src, 'blob:sso-icon', 'the preview did not show the chosen file');
+    assert.deepStrictEqual(revoked, [], 'the URL was revoked before the image was drawn');
+    img[event]();
+    return revoked;
+  } finally {
+    global.URL = realURL;
+  }
+}
+
+check('a previewed icon releases its object URL once drawn', async () => {
+  const d = mount([PROVIDER]);
+  await settle();
+  d.els.addSsoBtn.fire('click');
+  await settle();
+  assert.deepStrictEqual(pickIcon(d, 'onload'), ['blob:sso-icon'],
+    'the preview never revoked its object URL');
+});
+
+check('an icon the browser cannot draw releases its object URL too', async () => {
+  const d = mount([PROVIDER]);
+  await settle();
+  d.els.addSsoBtn.fire('click');
+  await settle();
+  assert.deepStrictEqual(pickIcon(d, 'onerror'), ['blob:sso-icon'],
+    'a file that failed to decode left its object URL pinned');
+});
+
 (async () => {
   for (const c of checks) {
     try {

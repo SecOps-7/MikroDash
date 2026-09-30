@@ -317,7 +317,26 @@ export function initSSOCard(rolesOf: () => RoleView[]): void {
     setText('so_iconNote', chosen.name + ' - saved when you save the provider.');
     const img = el<HTMLImageElement>('so_iconPreview');
     if (img) {
-      img.src = URL.createObjectURL(chosen);
+      // ── THE PREVIEW IS RELEASED ONCE IT HAS BEEN DRAWN ──────────────────
+      //
+      // `createObjectURL` pins the file in memory until it is revoked, and
+      // choosing an icon is something an operator does repeatedly while
+      // deciding. Every other `createObjectURL` in this app revokes; this one
+      // did not. Both outcomes are covered, because a file the browser cannot
+      // decode raises `error` and never `load` - and the handlers are cleared
+      // with the URL, so the next `showIcon` does not fire them.
+      //
+      // What reaches `src` is therefore always a `blob:` URL this line minted,
+      // never a string the operator supplied.
+      const url = URL.createObjectURL(chosen);
+      const release = (): void => {
+        img.onload = null;
+        img.onerror = null;
+        URL.revokeObjectURL(url);
+      };
+      img.onload = release;
+      img.onerror = release;
+      img.src = url;
       img.style.display = '';
     }
     el('so_iconClear')!.style.display = '';
