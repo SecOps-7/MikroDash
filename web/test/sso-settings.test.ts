@@ -130,8 +130,11 @@ check('the table lists each provider with its issuer and state', async () => {
   const d = mount([PROVIDER]);
   await settle();
   const html = d.els.ssoTbody.innerHTML;
-  assert.ok(html.includes('Entra ID'), 'the name is missing: ' + html);
-  assert.ok(html.includes('login.microsoftonline.com'), 'the issuer is missing: ' + html);
+  assert.ok(html.includes(PROVIDER.name), 'the name is missing: ' + html);
+  // The WHOLE issuer, read from the fixture rather than copied into the
+  // assertion: a copied host name still passes when the cell renders only part
+  // of the URL, and it is a second place to keep in step when the fixture moves.
+  assert.ok(html.includes(PROVIDER.issuer), 'the issuer is missing: ' + html);
   assert.ok(html.includes('>Enabled<'), 'an enabled provider did not read Enabled: ' + html);
   assert.ok(html.includes('1 rule'), 'the mapping count is missing: ' + html);
 });
