@@ -19,6 +19,18 @@
 // `permissionDenied` means the RouterOS API user lacks the `test` policy, so the
 // card shows `N/A` with an explanation on hover rather than a zero or a dash -
 // the distinction between "the link is bad" and "we were not allowed to look".
+//
+// ── THE AXIS IS CLIPPED, AND ONE SPIKE NO LONGER FLATTENS THE CHART ─────────
+//
+// Chart.js scales `y` to the largest value it is given. A single 1500ms reply
+// among fifty 20ms ones therefore drew every ordinary bar under a pixel tall:
+// the card went blank apart from the spike, which is the opposite of what a
+// latency strip is for. `pingAxisMax` caps the axis at half again the window's
+// 90th percentile, so the everyday range keeps the height and a spike runs off
+// the top - already red, because it is over 150ms.
+//
+// NOTHING IS HIDDEN BY THIS. The true value is still in the `max` figure in the
+// card header and in the bar's own tooltip; only the drawn height is bounded.
 
 import { el } from '../dom';
 import { notePayload } from '../stale';
@@ -29,6 +41,7 @@ interface ChartLike {
   destroy(): void;
   update(mode?: string): void;
   data: { labels: string[]; datasets: { data: (number | null)[]; backgroundColor: string[] }[] };
+  options: { scales: { y: { max?: number } } };
 }
 declare const Chart: undefined | (new (canvas: HTMLElement, cfg: unknown) => ChartLike);
 
@@ -92,12 +105,54 @@ function makePingChart(canvasId: string): ChartLike | null {
   return new Chart(ctx, pingChartConfig());
 }
 
+/**
+ * The lowest the clipped axis will ever sit, in ms.
+ *
+ * A LAN that answers in under a millisecond would otherwise get an axis of 1 or
+ * 2, where a single millisecond of jitter fills the card and reads as a problem.
+ * It is also what an empty window gets, so the chart has a scale before the
+ * first reply lands.
+ */
+export const PING_AXIS_FLOOR = 20;
+
+/**
+ * The top of the latency axis for a window of points: half again the 90th
+ * percentile, floored.
+ *
+ * ── WHY THE 90TH AND NOT THE MAXIMUM ───────────────────────────────────────
+ *
+ * The maximum IS the thing being defended against - one spike owning the whole
+ * scale. The 90th percentile tolerates up to a tenth of the window being
+ * outliers, and stops tolerating beyond that: a link where a fifth of the
+ * replies really are slow scales to show them, because then that is the picture.
+ *
+ * ── AND WHY THE EXTRA HALF ─────────────────────────────────────────────────
+ *
+ * Without it a steady link clips its own top tenth every frame, giving a row of
+ * flat-topped bars that looks like a fault. The headroom keeps ordinary traffic
+ * clear of the ceiling, so a bar that reaches it means something.
+ *
+ * Timeouts (`rtt == null`) are not values and take no part in the percentile.
+ */
+export function pingAxisMax(pts: readonly PingPoint[]): number {
+  const rtts = pts
+    .map((p) => p.rtt)
+    .filter((r): r is number => r != null)
+    .sort((a, b) => a - b);
+  if (!rtts.length) return PING_AXIS_FLOOR;
+  const p90 = rtts[Math.ceil(rtts.length * 0.9) - 1]!;
+  return Math.max(PING_AXIS_FLOOR, Math.ceil(p90 * 1.5));
+}
+
 export function updatePingChart(chart: ChartLike | null, history: PingPoint[]): void {
   if (!chart) return;
   // The LAST FIFTY, where the history holds sixty: the chart is narrower than
   // the buffer, and the extra ten are what a viewer scrolls back to see in the
   // tooltip rather than what is drawn.
   const pts = history.slice(-50);
+  // The axis is recomputed from the DRAWN window, not the buffer, so a spike
+  // stops owning the scale as soon as it has scrolled off the chart.
+  chart.options.scales.y.max = pingAxisMax(pts);
   chart.data.labels = pts.map(() => '');
   chart.data.datasets[0]!.data = pts.map((p) => (p.rtt == null ? null : p.rtt));
   chart.data.datasets[0]!.backgroundColor = pts.map((p) => pingColor(p.rtt));

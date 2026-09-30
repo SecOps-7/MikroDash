@@ -93,6 +93,22 @@
   position: relative;
 }
 
+/* Ping card: the chart fills the card body, exactly as the Traffic card above.
+   `.ping-canvas-wrap` is 40px tall in app.css, which is the whole card at its
+   default height - so without this the card grew and the chart did not, and the
+   extra height an operator dragged out became dead space under the bars. */
+#dc-card-ping #ndPingSection {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+#dc-card-ping .ping-canvas-wrap {
+  flex: 1;
+  height: auto !important;
+  min-height: 40px;
+}
+
 
 /* ── Edit mode card border ───────────────────────────────────────────────── */
 .dashboard--editing .dash-card {
@@ -575,7 +591,14 @@ html[data-theme="light"] #dc-logs {
   letter-spacing: .04em;
   text-transform: uppercase;
   flex-shrink: 0;
+  /* NEVER WRAPPED. "DOWNLOAD" broke onto a second line in a narrow card, and
+     because the label is `flex-shrink: 0` that second line came straight out of
+     the track's height - the bars squashed to their 40px minimum and the card
+     read as broken. It abbreviates instead, below. */
+  white-space: nowrap;
+  overflow: hidden;
 }
+.dc-bw-label .dc-bw-short { display: none; }
 .dc-bw-label-rx { color: var(--accent-rx, #38bdf8); }
 .dc-bw-label-tx { color: var(--accent-tx, #34d399); }
 .dc-bw-pct {
@@ -632,6 +655,18 @@ html[data-theme="light"] #dc-logs {
 }
 
 /* ── Container queries: narrow cards hide secondary text ─────────────────── */
+
+/* The Bandwidth card says UP and DOWN once the words no longer fit.
+   168px IS MEASURED, not chosen: the full labels need 70px per column, and two
+   columns plus the .75rem gap and the body's .75rem padding is 164px of card.
+   Rounded up, so a card wide enough for the words always shows them. On a 24
+   column grid that is four columns on any ordinary window - three is where it
+   used to wrap. `container-type: size` on `.dash-card` is what this measures. */
+@container (max-width: 168px) {
+  .dc-bw-label .dc-bw-long { display: none; }
+  .dc-bw-label .dc-bw-short { display: inline; }
+}
+
 @container (max-width: 260px) {
   .conn-stat-lbl,
   .chart-legend .legend-item > span:first-of-type {
