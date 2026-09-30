@@ -319,6 +319,9 @@
         </button>
         <div id="routerDropdown" class="rtr-dd" role="listbox" aria-label="Switch router">
           <div class="rtr-dd-search"><input id="routerDropdownSearch" type="text" placeholder="Search devices…" autocomplete="off" spellcheck="false"/></div>
+          <!-- Site chips (#144). Empty and display:none until the fleet spans
+               more than one site; router-dropdown.ts fills it on open. -->
+          <div id="routerDropdownChips" class="rtr-dd-chips" style="display:none"></div>
           <div id="routerDropdownList" class="rtr-dd-list"></div>
         </div>
       </div>

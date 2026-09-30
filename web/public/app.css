@@ -1171,6 +1171,28 @@
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .rtr-dd-check{flex-shrink:0;color:var(--accent-tx);font-size:.78rem;line-height:1}
     .rtr-dd-empty{padding:.7rem;text-align:center;font-size:.7rem;color:var(--text-muted)}
+    /* Site chips and headings (#144). The strip wraps: 15 sites do not fit on
+       one line of a 330px popover, and a horizontal scroller hides the chips
+       that do not fit behind a gesture nobody looks for. */
+    .rtr-dd-chips{display:flex;flex-wrap:wrap;gap:.25rem;padding:.4rem .5rem;
+      border-bottom:1px solid var(--border);max-height:104px;overflow-y:auto}
+    .rtr-dd-chip{display:inline-flex;align-items:center;gap:.28rem;cursor:pointer;
+      background:var(--bg-deep);border:1px solid var(--border);border-radius:999px;
+      color:var(--text-muted);font-family:var(--font-ui);font-size:.64rem;
+      padding:.18rem .48rem;max-width:100%;white-space:nowrap;overflow:hidden;
+      text-overflow:ellipsis;transition:color .15s,border-color .15s,background .15s}
+    .rtr-dd-chip:hover{color:var(--text-main);border-color:rgba(52,211,153,.4)}
+    .rtr-dd-chip.on{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.5);
+      color:var(--text-main)}
+    .rtr-dd-chip-n{font-family:var(--font-mono);font-size:.58rem;opacity:.7}
+    /* STICKY, so the site a row belongs to stays readable while a long list
+       scrolls past. `.rtr-dd-list` is the scroll container. */
+    .rtr-dd-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;
+      justify-content:space-between;gap:.5rem;padding:.3rem .5rem .22rem;
+      background:var(--bg-card);font-family:var(--font-ui);font-size:.6rem;
+      font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--text-muted);white-space:nowrap;overflow:hidden}
+    .rtr-dd-head-n{font-family:var(--font-mono);font-weight:600;opacity:.75}
     /* tables */
     .table{font-family:var(--font-mono);font-size:.76rem}
     .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}

@@ -936,6 +936,10 @@ async function main(): Promise<void> {
       socket.emit('page:focus', currentPage);
       dropdown.refresh();
     },
+    // The site chips resolve their names through the SAME cache the device
+    // table and the device modal read, for the reason settings-sites.ts gives:
+    // a second source drifts, a second fetch only costs.
+    () => sitesById as Readonly<Record<string, { name?: string }>>,
   );
   // The dot on each row is the live status, so a status arriving while the panel
   // is open must repaint it.

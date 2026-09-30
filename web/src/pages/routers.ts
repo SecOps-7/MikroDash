@@ -19,7 +19,7 @@
  * PORTED until all three views and the socket wiring land.
  */
 
-import { esc, el } from '../dom';
+import { esc, el, SITE_UNASSIGNED } from '../dom';
 import type { Socket } from '../socket';
 /*
  * RouterStatsRow is one row of the `routers:stats` payload. Absent is null,
@@ -135,13 +135,10 @@ export function siteNamesOf(r: { siteNames?: string[]; siteName?: string | null 
   return r.siteName ? [r.siteName] : [];
 }
 
-/**
- * The sentinel for "no site at all".
- *
- * A LEADING SPACE, which cannot collide with a real site id - those are
- * `/^[A-Za-z0-9_-]{1,64}$/` - so it needs no separate flag beside the value.
- */
-export const RTR_UNASSIGNED = ' unassigned';
+// The sentinel for "no site at all" is `SITE_UNASSIGNED`, imported from
+// `dom.ts`. It lived here until the topbar picker gained a site filter of its
+// own and needed the same value: two copies of one documented magic string is
+// the shape that put the localStorage pair in three files.
 
 /** The site filter's current value. */
 export function rtrSiteFilter(): string {
@@ -200,14 +197,14 @@ export function syncRoutersSiteFilter(rows: RouterStatsRow[] | null): void {
     ids.map((id) => '<option value="' + esc(id) + '">' + esc(names[id]!) + '</option>').join('') +
     // Only offered when such devices exist, so a fully assigned fleet keeps a
     // clean list.
-    (anyLoose ? '<option value="' + RTR_UNASSIGNED + '">Unassigned</option>' : '');
+    (anyLoose ? '<option value="' + SITE_UNASSIGNED + '">Unassigned</option>' : '');
 
   if (sel.innerHTML !== html) {
     const keep = sel.value;
     sel.innerHTML = html;
     // Restoring an option that no longer exists would silently reset the filter
     // to All Sites while the list still looked filtered.
-    sel.value = keep === RTR_UNASSIGNED ? (anyLoose ? keep : '') : (names[keep] ? keep : '');
+    sel.value = keep === SITE_UNASSIGNED ? (anyLoose ? keep : '') : (names[keep] ? keep : '');
   }
   sel.classList.toggle('active', !!sel.value);
 }
@@ -713,7 +710,7 @@ export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
   // QUERIES exists in the markup, and `rtrSiteFilter` does query it; nothing
   // notices that the querying function is itself never called.
   const site = rtrSiteFilter();
-  const pool = !site ? all : all.filter((r) => (site === RTR_UNASSIGNED
+  const pool = !site ? all : all.filter((r) => (site === SITE_UNASSIGNED
     ? siteIdsOf(r).length === 0
     : siteIdsOf(r).indexOf(site) !== -1));
 

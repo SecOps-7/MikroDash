@@ -231,6 +231,18 @@ export function parseUptime(raw: unknown): string {
 // then - each with the same comment about private mode - so they moved here
 // rather than becoming a fourth.
 
+/**
+ * The value that means "no site at all" in a site filter.
+ *
+ * A LEADING SPACE, which cannot collide with a real site id - those are
+ * `/^[A-Za-z0-9_-]{1,64}$/` - so a filter needs no separate flag beside the
+ * value. It lives here rather than beside either of its two readers: the
+ * Devices page's `<select>` and the topbar picker's chips both need it, and a
+ * documented magic string copied into two files is how the localStorage pair
+ * above ended up in three.
+ */
+export const SITE_UNASSIGNED = ' unassigned';
+
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** An SVG element with attributes - the one shape an SVG renderer builds
