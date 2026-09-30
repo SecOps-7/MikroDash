@@ -78,8 +78,20 @@ function sitesOf(r: DropdownRouter): string[] {
   return Array.isArray(r.siteIds) ? r.siteIds.filter((x) => !!x) : [];
 }
 
-/** Only surface the search box once the list is long enough to need it. */
-export const DD_SEARCH_MIN = 5;
+/**
+ * How many switchable routers earn a search box.
+ *
+ * WAS 5, LOWERED TO 2 when the picker gained its site chips (#144). The rule
+ * was "only surface it once the list is long enough to need it", and at five it
+ * was invisible on ordinary installs - a four-device fleet got no box at all.
+ * That read as "this picker has no search" rather than "not yet", and it read
+ * that way harder once a chip strip occupied the row the box would have been
+ * on.
+ *
+ * Not removed outright: with one switchable router there is nothing to search
+ * BETWEEN, and a box over a single row is furniture.
+ */
+export const DD_SEARCH_MIN = 2;
 
 /**
  * The name a row shows.
@@ -216,11 +228,20 @@ export function flattenGroups(groups: readonly DropdownGroup[]): DropdownRouter[
  * query matches label AND host, joined with a space, so typing an address finds
  * a router whose label does not contain it.
  */
-export function filterRouters(routers: readonly DropdownRouter[], filter: string): DropdownRouter[] {
+export function filterRouters(
+  routers: readonly DropdownRouter[], filter: string,
+  names: Readonly<Record<string, string>> = {},
+): DropdownRouter[] {
   const q = filter.trim().toLowerCase();
   return routers.filter((r) => !r.disabled).filter((r) => {
     if (!q) return true;
-    return ((r.label || '') + ' ' + (r.host || '')).toLowerCase().indexOf(q) !== -1;
+    // SITE NAMES TOO, since #144. In a picker organised by site, typing the
+    // site is the obvious thing to try, and matching only the label and the
+    // host made it the one query that found nothing. An unresolvable id is
+    // matched under the id itself, which is what the chip shows for it.
+    const sites = sitesOf(r).map((id) => names[id] || id).join(' ');
+    return ((r.label || '') + ' ' + (r.host || '') + ' ' + sites)
+      .toLowerCase().indexOf(q) !== -1;
   });
 }
 
@@ -378,7 +399,7 @@ export function wireRouterDropdown(
   /** The blocks the list draws: chip first, then the search, then grouped. */
   function groups(): DropdownGroup[] {
     const all = chips();
-    const picked = filterRouters(routersInSite(getRouters(), site), filter);
+    const picked = filterRouters(routersInSite(getRouters(), site), filter, siteNames());
     // WHEN A CHIP IS SELECTED the list is that one site, so it is one group and
     // `dropdownHtml` draws no heading. `groupRoutersBySite` would produce the
     // same single group from the full chip list, but passing only the selected

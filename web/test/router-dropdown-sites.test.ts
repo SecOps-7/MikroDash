@@ -28,8 +28,8 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.rtr-dd-sites-entry.ts');
 fs.writeFileSync(ENTRY,
-  "export { siteChips, routersInSite, groupRoutersBySite, flattenGroups, dropdownHtml, chipsHtml }\n"
-  + "  from '../web/src/router-dropdown.js';\n"
+  "export { siteChips, routersInSite, groupRoutersBySite, flattenGroups, dropdownHtml, chipsHtml,\n"
+  + "  filterRouters, DD_SEARCH_MIN } from '../web/src/router-dropdown.js';\n"
   + "export { SITE_UNASSIGNED } from '../web/src/dom.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.rtr-dd-sites.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -44,7 +44,7 @@ interface Chip { id: string; name: string; count: number }
 interface Group { site: Chip | null; rows: R[] }
 const {
   siteChips, routersInSite, groupRoutersBySite, flattenGroups, dropdownHtml, chipsHtml,
-  SITE_UNASSIGNED,
+  filterRouters, DD_SEARCH_MIN, SITE_UNASSIGNED,
 } = mod as {
   siteChips(rows: R[], names: Record<string, string>): Chip[];
   routersInSite(rows: R[], siteId: string): R[];
@@ -52,6 +52,8 @@ const {
   flattenGroups(groups: Group[]): R[];
   dropdownHtml(g: Group[], activeId: string, st: Record<string, boolean | undefined>, hl: number): string;
   chipsHtml(chips: Chip[], selected: string): string;
+  filterRouters(rows: R[], filter: string, names?: Record<string, string>): R[];
+  DD_SEARCH_MIN: number;
   SITE_UNASSIGNED: string;
 };
 
@@ -197,6 +199,59 @@ const LIVE = FLEET.filter((r) => !r.disabled);
 
   assert.ok(/class="rtr-dd-chip on" data-site=""/.test(chipsHtml(two, '')),
     'with no site chosen it is All that is marked, not nothing');
+}
+
+// ── THE SEARCH FINDS A SITE ────────────────────────────────────────────────
+//
+// In a picker organised by site, typing the site is the obvious thing to try,
+// and it was the one query that found nothing: the filter read the label and
+// the host only.
+{
+  assert.deepStrictEqual(filterRouters(FLEET, 'frankfurt', NAMES).map((r) => r.id),
+    ['r3', 'both'],
+    'typing a site name found nothing, which is the query a site-grouped '
+    + 'picker invites first');
+  assert.deepStrictEqual(filterRouters(FLEET, 'berlin', NAMES).map((r) => r.id),
+    ['r1', 'r2', 'both'],
+    'the site match must reach every member, the device shared with Frankfurt '
+    + 'included');
+  // THE CONTROL FOR THE MATCHES ABOVE: Vienna is in the name map and no device
+  // is in it, so a filter that matched on the map rather than on MEMBERSHIP
+  // would return the whole fleet here.
+  assert.deepStrictEqual(filterRouters(FLEET, 'vienna', NAMES).map((r) => r.id), [],
+    'a site no device belongs to matched something');
+
+  // THE CONTROLS: the two things it always matched still match, and a name map
+  // is not required to use it.
+  assert.deepStrictEqual(filterRouters(FLEET, 'hap', NAMES).map((r) => r.id), ['r1', 'r2'],
+    'the label stopped matching');
+  assert.deepStrictEqual(filterRouters(FLEET, '10.1.0', NAMES).map((r) => r.id), ['r3'],
+    'the host stopped matching');
+  assert.deepStrictEqual(filterRouters(FLEET, 'hap').map((r) => r.id), ['r1', 'r2'],
+    'the name map is optional, so an existing caller keeps working');
+
+  // A site that no longer resolves is matched under the id the chip shows for
+  // it, or the device would be reachable from the strip but not the search.
+  assert.deepStrictEqual(filterRouters([{ id: 'r9', siteIds: ['ghost'] }], 'ghost', {})
+    .map((r) => r.id), ['r9'], 'an unresolvable site id is not searchable');
+
+  // Disabled routers are dropped before the query, unchanged: Retired is in
+  // Berlin DC and must not come back through a site match.
+  assert.deepStrictEqual(filterRouters(FLEET, 'retired', NAMES).map((r) => r.id), [],
+    'a disabled router came back through the search');
+}
+
+// ── the search box is offered on an ordinary fleet ─────────────────────────
+//
+// Not a restatement of the constant: the claim is that a fleet of two or three
+// devices gets a box, which at the old value of 5 it did not.
+{
+  assert.ok(DD_SEARCH_MIN <= 2,
+    'a three-device fleet gets no search box, so on an ordinary install the '
+    + 'picker looks like it has no search at all');
+  assert.ok(DD_SEARCH_MIN >= 2,
+    'a single switchable router has nothing to search between, and a box over '
+    + 'one row is furniture');
 }
 
 console.log('router-dropdown-sites: ok');
