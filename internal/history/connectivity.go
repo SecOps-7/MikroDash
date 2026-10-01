@@ -18,10 +18,22 @@ package history
 //     observed time so downtime is not under-reported by threshMs." The
 //     captured moment travels through the timer; the firing moment is discarded.
 //
-//  3. THE COLD-START DISCONNECT SKIPS THE DEBOUNCE (alertSessions.js:168).
-//     With no prior observation there is nothing to debounce against, so a
-//     router that is already down when the session opens is recorded at once.
+//  3. THE COLD-START DISCONNECT: STATUS AT ONCE, ROW AFTER THE DEBOUNCE.
+//     With no prior observation there is nothing to debounce the VERDICT
+//     against, so a router that is already down when the session opens is
+//     known to be down at once - the badge says Offline rather than Checking.
 //     It is also the only down path that never sets declaredOffline.
+//
+//     AMENDED 2026-10-01, deliberately, from the live app's rule
+//     (alertSessions.js:168), which also wrote the ROW at once. That made
+//     MikroDash's own startup look like an outage: a router behind a tunnel
+//     that fails its first dial and connects six seconds later - measured on
+//     the dev install, every restart - got a red sliver on the Devices page's
+//     connectivity strip, while the same six-second blip mid-run is absorbed by
+//     the debounce and writes nothing. The row now goes through the same
+//     debounce as every other disconnect, stamped at the OBSERVED moment
+//     (rule 2), so a router genuinely down at startup still has its outage
+//     recorded with the right start, thirty seconds later.
 //
 //  4. A ZERO THRESHOLD IS ITS OWN BRANCH, not a debounce of length zero. It
 //     records on EVERY close, because the repeat guard there is on the alert
@@ -57,6 +69,10 @@ type Connectivity struct {
 	timerAt   int64
 	timerObs  int64
 	timerLive bool
+	// timerCold marks a pending debounce armed by a COLD-START disconnect
+	// (rule 3). Its status was emitted at the close and its verdict already
+	// set, so when it fires it writes only the row, and declares nothing.
+	timerCold bool
 
 	// declaredOffline gates the recovery alert in the live app. Carried here
 	// so the alert port has it, and because leaving it out would make the
@@ -85,6 +101,7 @@ func falsePtr() *bool { b := false; return &b }
 // Connected handles a ROS 'connected' event.
 func (c *Connectivity) Connected(now int64) ConnEffect {
 	c.timerLive = false // rule: a connect cancels a pending debounce outright
+	c.timerCold = false
 	e := ConnEffect{Status: []bool{true}}
 	if c.prev == nil || !*c.prev {
 		// Rule 1: only a real transition writes.
@@ -107,7 +124,16 @@ func (c *Connectivity) Disconnected(now int64) ConnEffect {
 	if c.prev == nil {
 		// Rule 3. Note what is NOT set: declaredOffline stays false.
 		c.prev = falsePtr()
-		return ConnEffect{Rows: []Row{c.row(false, now, false)}, Status: []bool{false}}
+		if c.ThreshMs <= 0 {
+			// No debounce to defer into: rule 4's world, written at once.
+			return ConnEffect{Rows: []Row{c.row(false, now, false)}, Status: []bool{false}}
+		}
+		// THE VERDICT NOW, THE ROW LATER. See rule 3 in the header.
+		c.timerObs = now
+		c.timerAt = now + c.ThreshMs
+		c.timerLive = true
+		c.timerCold = true
+		return ConnEffect{Status: []bool{false}}
 	}
 	if c.ThreshMs <= 0 {
 		// Rule 4. The row is written every time; only the alert is guarded.
@@ -131,6 +157,13 @@ func (c *Connectivity) Tick(now int64) ConnEffect {
 		return ConnEffect{}
 	}
 	c.timerLive = false
+	if c.timerCold {
+		// A cold-start outage that outlasted the debounce. The status went out
+		// at the close and declaredOffline stays false (rule 3), so this is the
+		// row and nothing else - stamped at the observed moment, explicitly.
+		c.timerCold = false
+		return ConnEffect{Rows: []Row{c.row(false, c.timerObs, true)}}
+	}
 	c.declaredOffline = true
 	c.prev = falsePtr()
 	// The row carries timerObs — the moment the link was seen to go — and the

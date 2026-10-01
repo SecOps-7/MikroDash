@@ -280,14 +280,52 @@ func TestAZeroThresholdStillRecordsAtOnce(t *testing.T) {
 	}
 }
 
-// A FIRST SIGHTING THAT IS ALREADY DOWN writes immediately — rule 3. There is no
-// previous state to debounce against.
-func TestAFirstSightingDownWritesAtOnce(t *testing.T) {
+// A FIRST SIGHTING THAT IS ALREADY DOWN — rule 3, as amended 2026-10-01: the
+// VERDICT is immediate, the ROW waits out the debounce.
+//
+// RE-AIMED from `TestAFirstSightingDownWritesAtOnce`, which pinned the live
+// app's rule of writing the row at once too. That drew a red sliver on the
+// Devices page's connectivity strip after every MikroDash restart for a router
+// behind a tunnel that fails its first dial and connects seconds later -
+// measured on the dev install - while the same blip mid-run writes nothing.
+func TestAFirstSightingDownIsKnownAtOnceAndRecordedAfterTheDebounce(t *testing.T) {
 	tr, rec := on(t)
 	tr.SetThreshold("r-1", 30_000)
 	tr.Disconnected("r-1", t0)
+
+	// THE VERDICT IS IMMEDIATE: the badge says Offline, not Checking.
+	if up, known := tr.Online("r-1"); up || !known {
+		t.Errorf("Online = (%v, %v) after a first-sighting close, want (false, true): "+
+			"a router down at startup must not read as 'not checked yet'", up, known)
+	}
+	// THE ROW IS NOT - yet.
+	if got := states(rec); len(got) != 0 {
+		t.Errorf("wrote %v at the close; the row must wait out the debounce", got)
+	}
+
+	tr.TickAll(t0 + 30_000)
 	if got := states(rec); len(got) != 1 || got[0] != "connectivity:down" {
-		t.Errorf("wrote %v, want one down row without waiting for the debounce", got)
+		t.Fatalf("wrote %v after the debounce, want one down row", got)
+	}
+	// STAMPED AT THE OBSERVED MOMENT (rule 2), so the outage starts when the
+	// router was seen to be down, not thirty seconds later.
+	if ts := rec.rows[0].TS; ts != t0 {
+		t.Errorf("the cold-start down row is stamped %d, want the observed %d", ts, t0)
+	}
+}
+
+// THE CASE THE AMENDMENT IS FOR: a first dial that fails and a connect inside
+// the threshold write ONLY the up row. The control above is what stops this
+// passing for a tracker that never writes a cold-start row at all.
+func TestAColdStartBlipWritesOnlyTheUpRow(t *testing.T) {
+	tr, rec := on(t)
+	tr.SetThreshold("r-1", 30_000)
+	tr.Disconnected("r-1", t0)
+	tr.Connected("r-1", t0+6_000)
+	tr.TickAll(t0 + 60_000)
+	if got := states(rec); len(got) != 1 || got[0] != "connectivity:up" {
+		t.Errorf("wrote %v, want only the up row: a six-second blip at startup is "+
+			"MikroDash starting, not the router going down", got)
 	}
 }
 

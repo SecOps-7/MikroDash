@@ -257,8 +257,8 @@
       ]
     },
     {
-      "name": "COLD-START disconnect records immediately, bypassing the debounce",
-      "note": "alertSessions.js:168 — _prevConnected === null takes the immediate branch",
+      "name": "COLD-START disconnect: status at once, the row after the debounce at the observed moment",
+      "note": "RE-AIMED 2026-10-01, deliberately diverging from alertSessions.js:168, which wrote the row at once. The STATUS is still immediate (Offline, not Checking); the ROW waits out the debounce like every other disconnect and is stamped at the observed moment (rule 2), so it is passed explicitly. A router still down after the threshold gets the same row, with the same timestamp, 30s later.",
       "thresholdSec": 30,
       "steps": [
         [
@@ -272,9 +272,9 @@
       "rows": [
         {
           "connected": false,
-          "tsArg": null,
+          "tsArg": 0,
           "rowTs": 0,
-          "atClock": 0
+          "atClock": 30000
         }
       ],
       "statusEmits": [
@@ -285,8 +285,8 @@
       ]
     },
     {
-      "name": "cold-start disconnect then connect writes the up row",
-      "note": null,
+      "name": "cold-start blip shorter than the debounce writes only the up row",
+      "note": "RE-AIMED 2026-10-01. The live app wrote a down row at 0 and an up row at 1000. A one-second blip mid-run is absorbed by the debounce and writes nothing, so the same blip at startup must not either: it drew a red sliver on the connectivity strip after every MikroDash restart for a router reached through a tunnel that fails its first dial (measured on the dev install). The status still says down at 0 and up at 1000.",
       "thresholdSec": 30,
       "steps": [
         [
@@ -301,12 +301,6 @@
         ]
       ],
       "rows": [
-        {
-          "connected": false,
-          "tsArg": null,
-          "rowTs": 0,
-          "atClock": 0
-        },
         {
           "connected": true,
           "tsArg": null,
