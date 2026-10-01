@@ -17,25 +17,26 @@ import (
 // would have been dead on any install that had not opted into recording.
 //
 // So `internal/connstate` owns the machine, and this owns only the decision it
-// was always the right place for: WHETHER TO WRITE. A router with reporting off
-// keeps its live Online/Offline status and its alerts; nothing about it is
-// written down.
+// was always the right place for: WHETHER TO WRITE.
 //
-// ── CHECKED AT WRITE TIME, WHICH IS STRICTLY BETTER THAN BEFORE ────────────
+// ── CONNECTIVITY IS NOT GATED ON REPORTING, SINCE 2026-10-01 ───────────────
 //
-// The old `apply` skipped the state machine outright when reporting was off,
-// and `TickAll` repeated the check so that a router switched off mid-debounce
-// did not have that one outage written when the timer expired. One check here
-// covers both cases, because this is the only place a row becomes a row.
+// It used to be. A router with reporting off kept its live Online/Offline
+// status and its alerts, and nothing about its reachability was written down -
+// so the Devices page's connectivity strip had nothing to draw for it, and on
+// the dev install that was three routers of four. Measured: zero rows in seven
+// days for every reporting-off router.
+//
+// Reporting still governs TRAFFIC and PING history, which are minute series and
+// the reason the toggle exists. Connectivity is not a series. It is one row per
+// state CHANGE, so a router that never drops writes one row per process start
+// and nothing else, and the cost of recording it for every router is the cost
+// of recording its outages - which is the thing an operator looks at a strip to
+// see. So the only gate left is the one that means "this install records
+// nothing at all": `-history`.
 func (w *Wire) RecordConn(rows []history.Row) {
 	if w == nil || !w.enabled || len(rows) == 0 {
 		return
 	}
-	keep := rows[:0:0]
-	for _, r := range rows {
-		if w.Reporting(r.RouterID) {
-			keep = append(keep, r)
-		}
-	}
-	w.persist(keep)
+	w.persist(rows)
 }

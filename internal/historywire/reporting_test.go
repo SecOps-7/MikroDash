@@ -7,16 +7,18 @@ import (
 	"mikrodash/internal/history"
 )
 
-// Per-router reporting: whether ANY history is written for a router.
+// Per-router reporting: whether TRAFFIC and PING history is written for a router.
+// Connectivity is not gated by it any more - see conn.go and the two tests below
+// that say so.
 //
-// ── THE POOLS ARE NOT ENOUGH ───────────────────────────────────────────────
+// ── THE HOLDS ARE NOT ENOUGH ───────────────────────────────────────────────
 //
-// A router with reporting off has no traffic or ping collector built, so
-// normally it produces nothing to record. This gate exists for the path the
-// pools do not own: the INTERACTIVE session records for any router a browser
-// has open, through its own emit seam, and has never been gated by the
-// history-router set. Without this, opening a reporting-off router would write
-// rows for as long as somebody looked at it.
+// A router with reporting off has no `history` hold, so normally its traffic
+// and ping collectors are not running and it produces nothing to record. This
+// gate exists for the path the hold does not own: the INTERACTIVE session
+// records for any router a browser has open, through its own emit seam.
+// Without this, opening a reporting-off router would write rows for as long as
+// somebody looked at it.
 
 func TestAReportingOffRouterWritesNoTraffic(t *testing.T) {
 	w, s := on(t)
@@ -47,46 +49,44 @@ func connRow(routerID string, connected bool, ts int64) history.Row {
 	return history.Row{Table: "connectivity", RouterID: routerID, Connected: connected, TS: ts}
 }
 
-// TestAReportingOffRouterWritesNoConnectivity — connectivity is report data
-// too. Its live Online/Offline status is unaffected: that is the debounce's
-// verdict and the `router:status` frame, not this table.
-func TestAReportingOffRouterWritesNoConnectivity(t *testing.T) {
+// TestAReportingOffRouterStillWritesConnectivity — RE-AIMED 2026-10-01, and the
+// inversion is the change, not a regression.
+//
+// This was `TestAReportingOffRouterWritesNoConnectivity`. The Devices page's
+// connectivity strip needs every router's reachability, and three of four
+// routers on the dev install had written no row in seven days because their
+// reporting was off. A connectivity row is one per state CHANGE, not a minute
+// series, so recording it for every router costs only the outages themselves.
+//
+// `TestAPendingDebounceIsNotWrittenAfterReportingIsTurnedOff` was DELETED with
+// this, deliberately: it guarded a reporting-off router's armed outage from
+// landing after the toggle changed, and there is no longer a toggle for it to
+// respect.
+func TestAReportingOffRouterStillWritesConnectivity(t *testing.T) {
 	w, s := on(t)
 	w.SetReporting("r-1", false)
 	w.RecordConn([]history.Row{connRow("r-1", true, min1), connRow("r-1", false, min1+1000)})
-	if len(s.rows) != 0 {
-		t.Errorf("wrote %d connectivity row(s) for a router with reporting off", len(s.rows))
+	if len(s.rows) != 2 {
+		t.Errorf("wrote %d connectivity row(s) for a router with reporting off, want 2 - "+
+			"its strip on the Devices page would be empty", len(s.rows))
 	}
 }
 
-// TestAPendingDebounceIsNotWrittenAfterReportingIsTurnedOff — the gate used to
-// live inside the state machine's entry points, so `TickAll` needed its own
-// copy of it. Checked at WRITE time there is one gate, and an outage that armed
-// while recording was on still must not land after the operator turned it off.
-func TestAPendingDebounceIsNotWrittenAfterReportingIsTurnedOff(t *testing.T) {
-	w, s := on(t)
-	w.SetReporting("r-1", false)
-	// The row the debounce produced when it expired, carrying the observed
-	// moment from before the setting changed.
-	w.RecordConn([]history.Row{connRow("r-1", false, min1+1000)})
-	if len(s.rows) != 0 {
-		t.Errorf("a debounce armed before reporting was turned off still wrote %d row(s)",
-			len(s.rows))
-	}
-}
-
-// TestConnectivityIsGatedPerRouter — one router with reporting off must not
-// silence another's outage in the same sweep. `TickAll` hands the whole fleet's
-// rows over in one call, so the filter has to be per row rather than per call.
-func TestConnectivityIsGatedPerRouter(t *testing.T) {
+// TestConnectivityIgnoresReporting — was `TestConnectivityIsGatedPerRouter`.
+// `TickAll` hands the whole fleet's rows over in one call, so the old filter was
+// per row; now there is no filter, and BOTH routers' outages must land whatever
+// their reporting says. The two settings differ on purpose: a write that still
+// consulted the flag would keep exactly one.
+func TestConnectivityIgnoresReporting(t *testing.T) {
 	w, s := on(t)
 	w.SetReporting("r-off", false)
 	w.SetReporting("r-on", true)
 	w.RecordConn([]history.Row{
 		connRow("r-off", false, min1), connRow("r-on", false, min1),
 	})
-	if len(s.rows) != 1 || s.rows[0].RouterID != "r-on" {
-		t.Errorf("wrote %v, want only r-on's row", s.rows)
+	if len(s.rows) != 2 {
+		t.Errorf("wrote %v, want both routers' rows - reporting no longer decides "+
+			"whether reachability is recorded", s.rows)
 	}
 }
 
