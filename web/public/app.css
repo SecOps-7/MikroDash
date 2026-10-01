@@ -1038,6 +1038,10 @@
     .dvm-clients td{padding:.32rem .6rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle;color:var(--text-main)}
     .dvm-clients tbody tr:hover td{background:rgba(56,189,248,.05)}
     .dvm-client-host{max-width:16rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    /* Violet, the colour the old cards gave clients; a theme token, so the light
+       palette's darker value applies. A missing hostname's dash stays muted. */
+    .dvm-clients td.dvm-client-host{color:var(--accent-alt);font-weight:600}
+    .dvm-clients td.dvm-client-host .text-muted{font-weight:400}
     #dvmTabsCard[hidden],#dvmClientsPane[hidden],#dvmAlerts[hidden]{display:none}
     .dvm-alerts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
     .dvm-alerts li{display:grid;grid-template-columns:4.6rem minmax(0,9rem) minmax(0,1fr) auto;gap:.6rem;align-items:center;font-size:.74rem;padding:.3rem 0;border-bottom:1px dashed var(--border)}
