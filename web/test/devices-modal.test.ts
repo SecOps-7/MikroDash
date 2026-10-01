@@ -39,11 +39,13 @@ function node(id) {
       toggle: () => {},
     },
     addEventListener: () => {}, querySelector: () => null, querySelectorAll: () => [],
+    setAttribute: (k, v) => { n['attr_' + k] = v; }, textContent: '',
   };
   return n;
 }
 const nodes = {};
 ['deviceModal', 'dvmHdr', 'dvmDetails', 'dvmConn', 'dvmUsage', 'dvmRes', 'dvmPorts', 'dvmAlerts',
+  'dvmTabsCard', 'dvmTabClients', 'dvmTabAlerts', 'dvmClientsPane', 'dvmClientsCount', 'dvmClientsBody',
   'routers-grid', 'routersListBody', 'page-devices'].forEach((id) => { nodes[id] = node(id); });
 global.document = {
   getElementById: (id) => nodes[id] || null,
@@ -67,7 +69,8 @@ const socket = {
 M.mountDeviceModal(socket, { openDashboard: () => {}, canEdit: () => false, edit: () => {} });
 
 const frame = (id, extra) => Object.assign({ routerId: id, connected: true, cpu: 12, memPct: 30, hddPct: 40,
-  tempC: null, uptime: '1d', wanIf: 'ether1', points: [], ports: [], portsRead: false, leases: null }, extra || {});
+  tempC: null, uptime: '1d', wanIf: 'ether1', points: [], ports: [], portsRead: false, leases: null,
+  clientsAllowed: true, clientsSent: false, clients: [] }, extra || {});
 
 // ── open, switch, close ─────────────────────────────────────────────────────
 {
@@ -91,6 +94,29 @@ const frame = (id, extra) => Object.assign({ routerId: id, connected: true, cpu:
   handlers['device:live'](frame('r2', { cpu: 12 }));
   assert.ok(/12%/.test(nodes.dvmRes.innerHTML), 'the open device’s frame was not drawn');
   say('ok  a frame for another device is ignored');
+}
+
+// ── the Clients tab ─────────────────────────────────────────────────────────
+//
+// The list arrives only when it CHANGED (clientsSent), so a frame without it must
+// keep the table, not blank it. Sorted by address NUMERICALLY by default: .10
+// after .9. A viewer without DHCP read gets no Clients tab, and the card falls
+// back to Recent alerts.
+{
+  const c = (ip, host) => ({ hostName: host, ip, mac: '02:00:00:00:00:01', vlanId: '' });
+  handlers['device:live'](frame('r2', { clientsSent: true,
+    clients: [c('198.51.100.10', 'ten'), c('198.51.100.9', 'nine')] }));
+  const body = nodes.dvmClientsBody.innerHTML;
+  assert.ok(body.indexOf('nine') < body.indexOf('ten') && body.indexOf('nine') !== -1,
+    'the client list is not ordered by address numerically (.9 before .10)');
+  assert.strictEqual(nodes.dvmClientsCount.textContent, '2', 'the Clients tab does not count the list');
+  handlers['device:live'](frame('r2'));
+  assert.strictEqual(nodes.dvmClientsBody.innerHTML, body, 'a frame without the list blanked or redrew the table');
+  assert.strictEqual(nodes.dvmClientsPane.hidden, false, 'the Clients pane is not showing');
+  handlers['device:live'](frame('r2', { clientsAllowed: false }));
+  assert.strictEqual(nodes.dvmTabClients.hidden, true, 'a viewer without DHCP read still has a Clients tab');
+  assert.strictEqual(nodes.dvmClientsPane.hidden, true, 'the Clients pane stayed open without DHCP read');
+  say('ok  clients: ordered by address, kept between lists, gone without DHCP read');
 }
 
 // ── every close converges on one unpeek ─────────────────────────────────────
@@ -131,6 +157,11 @@ const V = require(VOUT);
   const head = V.usageHeadHtml(frame('r1'), { ts: now, rx_mbps: 12, tx_mbps: 3 });
   assert.match(head, /12\.00 Mbps/);
   assert.match(head, /3\.00 Mbps/);
+  // An empty client list says so, and differently when offline.
+  assert.match(V.clientsBodyHtml([], true), /No active DHCP leases/);
+  assert.match(V.clientsBodyHtml([], false), /Offline/);
+  assert.ok(!/<img/.test(V.clientsBodyHtml(V.clientRows([{ hostName: '<img src=x>', ip: '1.2.3.4', mac: '', vlanId: '<b>' }]), true)),
+    'a client hostname reached the markup unescaped');
   // A viewer who may not read reports gets no alerts section at all.
   assert.strictEqual(V.alertsHtml(null), '');
   assert.match(V.alertsHtml([]), /No alerts in the last 7 days/);

@@ -56,6 +56,7 @@ func (cn *conn) peek(id string) {
 	cn.unpeek()
 	cn.peekID = id
 	cn.peekSince = 0
+	cn.peekClients = "\x00" // matches no list, so the first frame carries one
 	cn.srv.hub.Join(cn.c, session.RoomFor(id, collect.DevicePeekRoom))
 	if rs := cn.peekSession(); rs != nil {
 		cn.srv.applyDemand(rs, id)
@@ -131,6 +132,15 @@ func (cn *conn) sendLive() {
 		}
 		if c := rs.DHCPLeases(); c != nil {
 			in.Leases = c.Last()
+		}
+	}
+	// LEASES ARE DHCP DATA, gated where the DHCP page gates them: on this
+	// router, for this viewer. The list goes out only when it changed.
+	in.ClientsAllowed = cn.canPageIn(connScope{sess: cn.sess, routerID: id}, "dhcp", "read")
+	if in.ClientsAllowed && in.Leases != nil {
+		if key := routers.ClientsKey(routers.ActiveClients(in.Leases)); key != cn.peekClients {
+			in.SendClients = true
+			cn.peekClients = key
 		}
 	}
 	live := routers.BuildLive(in)

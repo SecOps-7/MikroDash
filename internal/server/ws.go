@@ -117,6 +117,9 @@ type conn struct {
 	peekID    string
 	peekStop  chan struct{}
 	peekSince int64
+	// peekClients fingerprints the client list last sent, so it is resent only
+	// when it changes.
+	peekClients string
 
 	// diagTick is this viewer's API Diagnostics refresh, and it is PER SOCKET
 	// for the same reason the Devices one is: the card reports on the router

@@ -544,6 +544,13 @@ export interface LivePort {
   disabled: boolean;
 }
 
+export interface LiveClient {
+  hostName: string;
+  ip: string;
+  mac: string;
+  vlanId: string;
+}
+
 export interface Live {
   routerId: string;
   connected: boolean;
@@ -557,6 +564,9 @@ export interface Live {
   ports: LivePort[];
   portsRead: boolean;
   leases: number | null;
+  clientsAllowed: boolean;
+  clientsSent: boolean;
+  clients: LiveClient[];
 }
 
 export interface MenuLoad {

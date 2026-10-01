@@ -17,15 +17,15 @@
 // be in flight. Each frame names its router; one that is not the open device is
 // dropped rather than drawn under the wrong name.
 
-import { el } from '../dom';
+import { el, renderSortHeader, sortRows, type SortState } from '../dom';
 import type { Socket } from '../socket';
 import type { Live } from '../gen/payloads';
 import { detailsHtml } from './devices-card';
 import type { DeviceOverview } from './devices-strip';
 import type { AlertRow } from './reports-alerts';
 import {
-  RANGE_MS, alertsHtml, connectivityHtml, headerHtml, portsSectionHtml,
-  resourcesHtml, usageHeadHtml, type Range,
+  RANGE_MS, alertsHtml, clientRows, clientsBodyHtml, connectivityHtml, headerHtml,
+  portsSectionHtml, resourcesHtml, usageHeadHtml, type ClientRow, type Range,
 } from './devices-modal-views';
 import { pushWanPoints, startWanChart, stopWanChart, wanPoints } from './devices-modal-chart';
 import { lastRows, onOpenDevice, overviewOf } from './routers';
@@ -48,7 +48,21 @@ interface State {
   live: Live | null;
   overview: DeviceOverview | undefined;
   alerts: AlertRow[] | null | undefined;
+  /** Null until the first list arrives; the server resends it only on change. */
+  clients: ClientRow[] | null;
 }
+
+type Tab = 'clients' | 'alerts';
+// Remembered across opens, like the range: an operator who reads alerts first
+// keeps landing there.
+let tab: Tab = 'clients';
+const clientSort: SortState = { col: 'ipSort', dir: 'asc' };
+const CLIENT_COLS = [
+  { key: 'hostName', label: 'Hostname', style: '' },
+  { key: 'ipSort', label: 'IP', style: '' },
+  { key: 'mac', label: 'MAC', style: '' },
+  { key: 'vlanId', label: 'VLAN', style: '' },
+];
 
 let st: State | null = null;
 let socketRef: Socket | null = null;
@@ -81,9 +95,45 @@ function paint(): void {
   if (wrap) wrap.hidden = !pts.length;
   set('dvmRes', resourcesHtml(st.live));
   set('dvmPorts', portsSectionHtml(st.live));
-  const alerts = el('dvmAlerts');
-  if (alerts) alerts.hidden = st.alerts === null;
   set('dvmAlerts', alertsHtml(st.alerts));
+  paintTabs();
+}
+
+/**
+ * The Clients / Recent alerts card. A tab whose data this viewer may not read
+ * is hidden (DHCP read for clients, Reports for alerts), the chosen tab falls
+ * back to the other when that happens, and the card goes when neither is left.
+ */
+function paintTabs(): void {
+  if (!st) return;
+  // Before the first frame the DHCP answer is unknown: offer the tab, the
+  // frame settles it.
+  const clientsOk = st.live ? st.live.clientsAllowed : true;
+  const alertsOk = st.alerts !== null;
+  const shown: Tab | null = tab === 'clients' && clientsOk ? 'clients'
+    : tab === 'alerts' && alertsOk ? 'alerts'
+    : clientsOk ? 'clients' : alertsOk ? 'alerts' : null;
+  const card = el('dvmTabsCard');
+  if (card) card.hidden = shown === null;
+  const tc = el('dvmTabClients'), ta = el('dvmTabAlerts');
+  if (tc) { tc.hidden = !clientsOk; tc.classList.toggle('active', shown === 'clients'); tc.setAttribute('aria-selected', String(shown === 'clients')); }
+  if (ta) { ta.hidden = !alertsOk; ta.classList.toggle('active', shown === 'alerts'); ta.setAttribute('aria-selected', String(shown === 'alerts')); }
+  const pc = el('dvmClientsPane'), pa = el('dvmAlerts');
+  if (pc) pc.hidden = shown !== 'clients';
+  if (pa) pa.hidden = shown !== 'alerts';
+  const count = el('dvmClientsCount');
+  if (count) count.textContent = st.clients ? String(st.clients.length) : '';
+}
+
+/** The client table, redrawn only when the list or the sort changes, so the
+ *  operator's scroll position survives the once-a-second repaint. */
+function paintClients(): void {
+  if (!st) return;
+  renderSortHeader('dvmClientsHead', CLIENT_COLS, clientSort, paintClients);
+  const body = el('dvmClientsBody');
+  const html = clientsBodyHtml(st.clients ? sortRows(st.clients, clientSort.col, clientSort.dir) : null,
+    !!st.live && st.live.connected);
+  if (body && body.innerHTML !== html) body.innerHTML = html;
 }
 
 async function loadOverview(): Promise<void> {
@@ -126,9 +176,10 @@ export function openDeviceModal(id: string): void {
   if (st && st.id === id && modal.classList.contains('open')) return;
   if (st && st.id !== id) socketRef.emit('device:unpeek');
   stopWanChart();
-  st = { id, range: st ? st.range : '24h', live: null, overview: undefined, alerts: undefined };
+  st = { id, range: st ? st.range : '24h', live: null, overview: undefined, alerts: undefined, clients: null };
   socketRef.emit('device:peek', id);
   paint();
+  paintClients();
   modal.classList.add('open');
   void loadOverview();
   void loadAlerts();
@@ -166,6 +217,12 @@ export function applyLive(f: Live): void {
   } else {
     pushWanPoints(f.points);
   }
+  if (f.clientsSent) {
+    st.clients = clientRows(f.clients);
+    paintClients();
+  } else if (fresh) {
+    paintClients(); // connected state known now, for the empty message
+  }
   paint();
 }
 
@@ -185,6 +242,12 @@ export function mountDeviceModal(socket: Socket, deps: DeviceModalDeps): void {
 
   modal.addEventListener('click', (e) => {
     const t = e.target as HTMLElement | null;
+    const tb = t && t.closest ? t.closest('[data-dvm-tab]') as HTMLElement | null : null;
+    if (tb) {
+      tab = tb.dataset.dvmTab === 'alerts' ? 'alerts' : 'clients';
+      paintTabs();
+      return;
+    }
     const r = t && t.closest ? t.closest('[data-range]') as HTMLElement | null : null;
     if (r && st) {
       const range = r.dataset.range as Range;

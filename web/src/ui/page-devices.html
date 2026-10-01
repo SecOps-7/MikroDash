@@ -161,7 +161,26 @@
                    loop, never rebuilt by the once-a-second repaint. -->
               <div class="dvm-chart" id="dvmChartWrap" hidden><canvas id="dvmWanChart"></canvas></div>
             </section>
-            <section class="dvm-card" id="dvmAlerts"></section>
+            <!-- Clients and Recent alerts share one card as two tabs. A tab is
+                 hidden when this viewer may not read what it lists (DHCP, Reports),
+                 and the card when neither is readable. -->
+            <section class="dvm-card" id="dvmTabsCard">
+              <div class="dvm-sec-head">
+                <div class="dvm-ranges dvm-tabs" role="tablist" aria-label="Device lists">
+                  <button type="button" class="dvm-range" role="tab" data-dvm-tab="clients" id="dvmTabClients">Clients <span class="dvm-tab-count" id="dvmClientsCount"></span></button>
+                  <button type="button" class="dvm-range" role="tab" data-dvm-tab="alerts" id="dvmTabAlerts">Recent alerts</button>
+                </div>
+              </div>
+              <div id="dvmClientsPane" role="tabpanel" aria-labelledby="dvmTabClients">
+                <div class="dvm-clients-scroll">
+                  <table class="table table-sm dvm-clients">
+                    <thead><tr id="dvmClientsHead"></tr></thead>
+                    <tbody id="dvmClientsBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div id="dvmAlerts" role="tabpanel" aria-labelledby="dvmTabAlerts" hidden></div>
+            </section>
           </div>
         </div>
       </div>

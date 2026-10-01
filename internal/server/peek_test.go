@@ -115,3 +115,37 @@ func TestThePeekRoomKeepsThePortsAndLeasesRunning(t *testing.T) {
 		t.Error("control: the device modal keeps the firewall collector running")
 	}
 }
+
+// THE CLIENT LIST IS DHCP DATA, AND THE CALL SITE GATES IT. `BuildLive` honours
+// `ClientsAllowed`; this checks the server actually asks the DHCP page's read
+// before setting it, rather than trusting the Devices page alone.
+func TestTheModalsClientsNeedDHCPRead(t *testing.T) {
+	frameAllows := func(sess *Session) bool {
+		cn, _, me := peekConn(sess)
+		cn.peek("r1")
+		for {
+			select {
+			case b := <-me.Send:
+				var f struct {
+					Event string `json:"event"`
+					Data  struct {
+						ClientsAllowed bool `json:"clientsAllowed"`
+					} `json:"data"`
+				}
+				if json.Unmarshal(b, &f) == nil && f.Event == "device:live" {
+					return f.Data.ClientsAllowed
+				}
+			default:
+				t.Fatal("no device:live frame was sent")
+			}
+		}
+	}
+	if frameAllows(&Session{AuthMode: "password", Readable: []string{"r1"},
+		Pages: map[string]string{"devices": "read"}}) {
+		t.Error("a viewer with the Devices page and no DHCP read was offered the client list")
+	}
+	// THE CONTROL: sign-in off reads everything, so the list is offered.
+	if !frameAllows(&Session{AuthMode: "none"}) {
+		t.Error("control: with sign-in off the client list was withheld")
+	}
+}

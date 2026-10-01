@@ -1027,6 +1027,18 @@
     .dvm-chart[hidden]{display:none}
     .dvm-gauges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
     .dvm-ports{justify-content:flex-start}
+    .dvm-tabs .dvm-range{font-family:var(--font-ui);font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.25rem .8rem}
+    .dvm-tabs .dvm-range[hidden]{display:none}
+    .dvm-tab-count{display:inline-block;min-width:1.2rem;margin-left:.3rem;padding:0 .35rem;border-radius:20px;font-family:var(--font-mono);font-size:.62rem;
+      background:color-mix(in srgb,var(--accent-rx) 18%,transparent);color:var(--accent-rx)}
+    .dvm-tab-count:empty{display:none}
+    .dvm-clients-scroll{max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px}
+    .dvm-clients{margin:0;font-size:.74rem}
+    .dvm-clients thead th{position:sticky;top:0;z-index:1;background:var(--bg-card);backdrop-filter:blur(6px);font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.4rem .6rem}
+    .dvm-clients td{padding:.32rem .6rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle;color:var(--text-main)}
+    .dvm-clients tbody tr:hover td{background:rgba(56,189,248,.05)}
+    .dvm-client-host{max-width:16rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #dvmTabsCard[hidden],#dvmClientsPane[hidden],#dvmAlerts[hidden]{display:none}
     .dvm-alerts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
     .dvm-alerts li{display:grid;grid-template-columns:4.6rem minmax(0,9rem) minmax(0,1fr) auto;gap:.6rem;align-items:center;font-size:.74rem;padding:.3rem 0;border-bottom:1px dashed var(--border)}
     .dvm-alerts li:last-child{border-bottom:0}

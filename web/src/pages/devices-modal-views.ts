@@ -4,7 +4,7 @@
 
 import { esc, fmtMbps } from '../dom';
 import { fmtTs } from '../timefmt';
-import type { RouterStatsRow, Live, TrafficPoint } from '../gen/payloads';
+import type { RouterStatsRow, Live, LiveClient, TrafficPoint } from '../gen/payloads';
 import { cardState, type CardState } from './devices-card';
 import { fmtDuration, outages, stripHtml, uptimeLabel, type DeviceOverview } from './devices-strip';
 import { gauge } from './dashboard-gauge';
@@ -118,7 +118,7 @@ export function portsSectionHtml(live: Live | null): string {
   const head = '<div class="dvm-sec-head"><h3>Ports</h3>'
     + (live && live.portsRead && live.ports.length
       ? '<span class="dvm-pill">' + up + ' of ' + live.ports.length + ' up</span>' : '')
-    + (live && live.leases != null ? '<span class="dvm-pill">' + live.leases + ' DHCP lease' + (live.leases === 1 ? '' : 's') + '</span>' : '')
+    + (live && live.leases != null ? '<span class="dvm-pill">' + live.leases + ' client' + (live.leases === 1 ? '' : 's') + '</span>' : '')
     + '</div>';
   if (!live || !live.portsRead) {
     return head + (live && !live.connected
@@ -129,18 +129,49 @@ export function portsSectionHtml(live: Live | null): string {
   return head + '<div class="if-ports-scroll dvm-ports">' + portsHtml(live.ports) + '</div>';
 }
 
-/** The newest alerts on this router; null is "may not read reports". */
+/** The newest alerts on this router; null is "may not read reports". The tab
+ *  above it is the heading. */
 export function alertsHtml(rows: AlertRow[] | null | undefined): string {
   if (rows === null) return '';
-  const head = '<div class="dvm-sec-head"><h3>Recent alerts</h3></div>';
-  if (rows === undefined) return head + '<div class="dvm-skel" style="height:64px"></div>';
-  if (!rows.length) return head + '<div class="dvm-none">No alerts in the last 7 days.</div>';
+  if (rows === undefined) return '<div class="dvm-skel" style="height:64px"></div>';
+  if (!rows.length) return '<div class="dvm-none">No alerts in the last 7 days.</div>';
   const newest = rows.slice().sort((a, b) => b.fired_at - a.fired_at).slice(0, 6);
-  return head + '<ul class="dvm-alerts">' + newest.map((r) => {
+  return '<ul class="dvm-alerts">' + newest.map((r) => {
     const open = !r.resolved_at;
     return '<li><span class="' + (open ? 'dv-alerts' : 'dvm-pill') + '">' + (open ? 'Open' : 'Resolved') + '</span>'
       + '<span class="dvm-alert-type">' + esc(r.alert_label || r.alert_type) + '</span>'
       + '<span class="dvm-alert-sub">' + esc(r.subject || r.detail || '') + '</span>'
       + '<span class="dvm-mono text-muted">' + esc(fmtTs(r.fired_at, false)) + '</span></li>';
   }).join('') + '</ul>';
+}
+
+/** One client row, with a numeric address key so 10 sorts after 9. */
+export interface ClientRow extends LiveClient { ipSort: number | null }
+
+/** IPv4 as a number for sorting; anything else sorts by its text after them. */
+export function ipSortKey(ip: string): number | null {
+  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(ip);
+  return m ? ((+m[1]! * 256 + +m[2]!) * 256 + +m[3]!) * 256 + +m[4]! : null;
+}
+
+export function clientRows(cs: readonly LiveClient[]): ClientRow[] {
+  return cs.map((c) => ({ ...c, ipSort: ipSortKey(c.ip) }));
+}
+
+/** The client table's body. `rows` is null until the first list arrives. */
+export function clientsBodyHtml(rows: readonly ClientRow[] | null, connected: boolean): string {
+  if (rows === null) {
+    return '<tr><td colspan="4"><div class="dvm-skel" style="height:64px"></div></td></tr>';
+  }
+  if (!rows.length) {
+    return '<tr><td colspan="4" class="dvm-none">' + (connected
+      ? 'No active DHCP leases on this device.' : 'Offline: no lease reading.') + '</td></tr>';
+  }
+  const dash = '<span class="text-muted">-</span>';
+  return rows.map((c) => '<tr>'
+    + '<td class="dvm-client-host">' + (c.hostName ? esc(c.hostName) : dash) + '</td>'
+    + '<td class="dvm-mono">' + esc(c.ip) + '</td>'
+    + '<td class="dvm-mono">' + (c.mac ? esc(c.mac) : dash) + '</td>'
+    + '<td>' + (c.vlanId ? '<span class="dvm-pill">' + esc(c.vlanId) + '</span>' : dash) + '</td>'
+    + '</tr>').join('');
 }
