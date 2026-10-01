@@ -284,12 +284,18 @@ reason is a **hold** naming the collectors it needs:
 |---|---|---|
 | `alerts` | the rules must be evaluated | `session.AlertFeeds` |
 | `history` | traffic and ping are being recorded | `historyFeeds` |
-| `devices` | the Devices page reads a payload per router | `devicesFeeds` |
+| `devices` | the Devices page is open: its cards read each router's system reading | `devicesFeeds` (`system` only) |
 | `warm` | **every enabled router**, always: its session is what keeps it observed - a debounced online verdict and a connectivity record - whoever is looking | **nothing** - a connection only |
 
 **A hold is inert unless something takes it.** A reason with a feed list runs
 nothing until some caller `Retain`s it. `internal/verify/holds_test.go` fails in
 both directions: a reason read and never taken, and a reason taken and never read.
+
+**A room is a reason on every session, not only a viewed one.** `mayRun`, the veto
+every resume passes, accepts an occupied demand room as well as a hold. The Devices
+page's device modal depends on it: it streams a router nobody has selected by
+joining that router's `device-peek` room, which keeps `ifStatus` and `dhcpLeases`
+running for exactly as long as the modal is open - no hold, no extra session.
 
 **The holds are asked without the viewer term.** `Needs` returns true for
 everything while a viewer is present, because it answers "what is this session
@@ -305,9 +311,11 @@ in-process dependency no emit can express:
   pages it sends nothing to. Gating on its own audience alone would blank every
   throughput column on Bridges, VLANs, WAN and Bandwidth. It is also kept awake by
   the Dashboard's Network Flow card (`dash-card-wireless`), whose Wired count reads
-  the interface list it sends router-wide (issue #132).
+  the interface list it sends router-wide (issue #132), and by the device modal's
+  `device-peek` room, which draws the ports.
 - **`dhcpLeases`** emits *router-wide*, so it has no guardable audience at all,
-  while the DHCP and Connections pages render it directly.
+  while the DHCP and Connections pages render it directly. The device modal's
+  `device-peek` room keeps it for the client count.
 - **`arp`** emits nothing whatsoever. Its rooms are its four consumers'.
 
 ---
