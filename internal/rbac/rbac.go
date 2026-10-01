@@ -113,11 +113,26 @@ func (r *Resolver) CanPage(userID, page, access, routerID string) (bool, error) 
 	if sets == nil {
 		return false, nil // the router does not exist
 	}
+	return r.setsConfer(sets, page, need, map[string]*db.Role{})
+}
 
+// setsConfer is the ONE decision both `CanPage` and `PageRouterIDs` make: does
+// any of these roles confer `page` at `need`? A single function so the per-router
+// answer and the batch answer cannot drift - `TestPageRouterIDsAgreesWithCanPage`
+// holds them to it.
+//
+// `cache` spares a batch call from reading the same role once per router; a
+// single call passes a fresh one.
+func (r *Resolver) setsConfer(sets []string, page string, need int, cache map[string]*db.Role) (bool, error) {
 	for _, roleID := range sets {
-		role, err := r.db.RoleByID(roleID)
-		if err != nil {
-			return false, err
+		role, seen := cache[roleID]
+		if !seen {
+			var err error
+			role, err = r.db.RoleByID(roleID)
+			if err != nil {
+				return false, err
+			}
+			cache[roleID] = role
 		}
 		if role == nil {
 			// A grant naming a role that no longer exists confers nothing.
@@ -138,6 +153,47 @@ func (r *Resolver) CanPage(userID, page, access, routerID string) (bool, error) 
 		}
 	}
 	return false, nil
+}
+
+// PageRouterIDs is `CanPage` for EVERY router at once: the set of router ids on
+// which this user may use `page` at `access`.
+//
+// ── WHY A BATCH FORM EXISTS ─────────────────────────────────────────────────
+//
+// `CanPage` resolves the fleet and the user's grants on EVERY call. Asked once
+// per router - as the Devices overview must, for its backup field - that is the
+// fleet read N times and the grants read N times per request. This reads each
+// once and caches roles for the call, and then makes exactly `CanPage`'s
+// decision per router through `setsConfer`.
+//
+// Same refusals as `CanPage`, in the same order: an unavailable resolver, no
+// user, an unknown page and an unknown access level all answer NOTHING, never
+// everything.
+func (r *Resolver) PageRouterIDs(userID, page, access string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if !r.Available() || userID == "" || !r.pages[page] {
+		return out, nil
+	}
+	need := accessRank[access]
+	if need == 0 {
+		return out, nil
+	}
+	grants, err := r.db.GrantsForUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	cache := map[string]*db.Role{}
+	for _, rt := range r.routers() {
+		sets := scopedRoles(grants, rt)
+		ok, err := r.setsConfer(sets, page, need, cache)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			out[rt.ID] = true
+		}
+	}
+	return out, nil
 }
 
 // roleSetsInScope returns every role id that applies to a router, or nil when
@@ -163,7 +219,13 @@ func (r *Resolver) roleSetsInScope(userID, routerID string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scopedRoles(grants, *router), nil
+}
 
+// scopedRoles is every role a user's grants confer on ONE router: global grants,
+// a grant on ANY of its sites, and a grant on the router itself. Shared by the
+// single and batch paths so the scope rule is written once.
+func scopedRoles(grants []db.Grant, router Router) []string {
 	out := []string{}
 	for _, g := range grants {
 		switch g.ScopeType {
@@ -179,12 +241,12 @@ func (r *Resolver) roleSetsInScope(userID, routerID string) ([]string, error) {
 				}
 			}
 		case "router":
-			if g.ScopeID == routerID {
+			if g.ScopeID == router.ID {
 				out = append(out, g.RoleID)
 			}
 		}
 	}
-	return out, nil
+	return out
 }
 
 // CanPageAnywhere is `canPageAnywhere(session, page, access)`: may this
