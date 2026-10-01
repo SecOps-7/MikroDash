@@ -2,6 +2,51 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.71] - A Devices page that shows the fleet at a glance, and Credential Profiles
+
+### New
+
+- **Device cards are an overview now.** Each one shows a 24-hour connectivity bar (green up, red
+  down, grey where MikroDash was not watching) with an uptime figure, the last backup and whether
+  it failed, open alerts, and an **Update** marker when newer RouterOS is out. The list view gains
+  the same columns. Thanks to **@ToniRos** for the ideas in #145.
+- **Click a device for its own overview.** Connectivity over 24 hours, 7 or 30 days with every
+  outage listed, live WAN traffic, CPU, RAM, disk and temperature, its ports, a **Clients** list
+  from active DHCP leases and its recent alerts. It opens from a card, a list row or the map, and
+  never changes the device you have selected.
+- **Credential Profiles** (Config Management -> Credentials). Define a username and password once
+  and link it to devices or whole sites; MikroDash creates and keeps the account on each one, and
+  shows per device whether it applied. A default profile can be picked in the zero-touch wizard.
+  Thanks to **@eltionb** for #143.
+- **Auto Switch to API-SSL** in a device's edit dialog: certificates, the service and the
+  connection, in one confirmed step.
+- **The device picker groups by site**, with site chips and a search that finds sites too.
+  Thanks to **@eltionb** for #144.
+
+### Changed
+
+- Opening the Devices page no longer adds any load on your routers. The live readings moved into
+  the device overview, which reads only the one device it shows, only while it is open.
+- Connectivity is recorded for every enabled device, whether or not Reporting is on.
+- The Ping card's chart fills its card, and one latency spike no longer flattens the rest.
+- Zero-touch provisioning uses API-SSL when the router already offers it.
+- The "No devices are waiting" line is gone from the Devices page.
+
+### Fixed
+
+- The arm/v7 image crashed on the first command it sent to a router on 32-bit ARM. Fixed by
+  **@TastyHeadphones** (#147), reported by **@mvdteam** (#146).
+- A disabled DHCP lease could still name a host on the dashboard, and could hide the active lease
+  for the same address. Thanks to **@ToniRos** for #139.
+- Adding a RouterOS user with the password box left empty created an account with no password.
+- Copy buttons did nothing when MikroDash was opened on its LAN address.
+- Restarting MikroDash was recorded as an outage on every device.
+
+### Internal
+
+- Schema v31 to v34: Credential Profiles (v31-v33) and a record of when each device was being watched (v34).
+- The background overview pool is gone; every enabled device keeps one connection.
+
 ## [0.8.70] - Single sign-on, a Terminal, a Packet Sniffer and a migration export
 
 ### New

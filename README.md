@@ -122,7 +122,7 @@ A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/
 | | |
 |---|---|
 | 📊 **Dashboard** | A drag-and-drop grid of cards (traffic, system health, network flow, network topology, connections, top talkers, WireGuard, and optional cards such as a world connections map, BGP peers, NetWatch, logs, a Security Score, and API diagnostics that show every router command by who asked for it). Layouts are saved to your account, so every browser shows the same arrangement. |
-| 🛰️ **Multi-router fleet** | Manage many routers from one install. Switch from the header with no reload; the **Devices** page shows the whole fleet as cards, a sortable list or a world map, filterable by site. |
+| 🛰️ **Multi-router fleet** | Manage many routers from one install. Switch from the header, where devices are grouped by site, with no reload. The **Devices** page shows the whole fleet as cards, a sortable list or a world map, filterable by site: each device's 24-hour connectivity, last backup, open alerts and available updates at a glance. Click one for its own overview - connectivity history and outages, live usage, ports, clients and recent alerts - without leaving the device you are on. |
 | 🔐 **Users and access control** | Per-user accounts with editable roles (a read and write matrix per page), granted to users or groups over everything, a site, or a single router. Or sign in with an existing account: **single sign-on** against any OpenID Connect provider (Entra ID, Okta, Keycloak, Authentik), with the role decided by a claim your provider sends. The password form never goes away, so the local administrator is always a way back in. |
 | 🔔 **Alerts and notifications** | Interface up/down, WireGuard peers, CPU, ping loss, NetWatch hosts, router online/offline, RouterOS updates, configuration drift and backup failures, delivered through notification **channels** you create: SMTP, or a webhook URL for Telegram, Pushbullet, ntfy, Discord, Slack, Gotify, Pushover, a generic JSON endpoint, or an Apprise server for everything else. Each channel picks its own alert types, devices, thresholds and cooldown, and scheduled reports go out through one. |
 | 📈 **History and reports** | Traffic, ping, bandwidth, alerts and connectivity recorded to SQLite, viewable by date range, exported to CSV or PDF, and emailed on a daily, weekly or monthly schedule. Click any interface for its own traffic: live for the last minute, or up to thirty days back for the interfaces you choose to record. |
@@ -288,7 +288,7 @@ Pages that change the router need more than `read`:
 
 Without these nothing breaks: a page that is refused drops to read-only and shows the command it needs. MikroDash never lets you edit the account it signs in with, or that account's group.
 
-**Credential profiles need the same two policies**, for the same reason: a profile creates a RouterOS account on every router you link it to, which is user management. A profile can never take MikroDash's own account or its group - that is refused per router, by the same guard - so a profile using the built-in `full` group is refused on any router where MikroDash itself is in `full`, which is every device onboarded by zero-touch provisioning. On a router set up as above, where MikroDash has its own `mikrodash` group, `full` works. See `SECURITY.md` on what a fleet-wide password is worth.
+**Credential profiles need the same two policies**, for the same reason: a profile (Config Management -> Credentials) creates a RouterOS account on every device you link it to, which is user management. Each profile creates its own group with the policies you choose, so it never shares a group with MikroDash's own account, and that account can never be taken by a profile - the same guard refuses it per device. See `SECURITY.md` on what a fleet-wide password is worth.
 
 **The Terminal page is the exception to that whole table**, because it does not know what your line will do. It sends what you type to the router's own console and shows the reply, so the policies above are not a list it consults - they are the limit the *router* enforces on it. On the read-only account at the top of this section it can read and nothing else, because RouterOS refuses the rest.
 
@@ -315,6 +315,8 @@ A self-signed certificate is enough:
 ```
 
 Then edit the router in MikroDash, enable **TLS** and **Allow self-signed cert**, and set the port to `8729`.
+
+Or let MikroDash do all of the above: **Auto Switch to API-SSL** in the device's edit dialog creates the certificates, enables the service, and moves the connection across once the device answers on `8729`. The plain API is left on.
 
 </details>
 
