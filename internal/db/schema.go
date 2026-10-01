@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 33
+const schemaVersion = 34
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -294,6 +294,10 @@ var portMigrations = map[int][]string{
 	// isDuplicateColumn), which is what makes this safe to replay over a
 	// database that already has the column from freshSchemaDDL.
 	33: {`ALTER TABLE cred_profiles ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`},
+	// 34: per-router monitoring coverage, so the Devices page's connectivity strip
+	// can draw "not monitored" instead of inferring "up" across time MikroDash
+	// was not running. See monitorruns_schema.go.
+	34: {monitorRunsDDL},
 }
 
 // createSchema builds a new database at `path`.

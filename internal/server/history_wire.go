@@ -37,3 +37,32 @@ func (s *Server) buildHistoryWire(enabled bool) *historywire.Wire {
 	log.Printf("[history] recording on — traffic, ping and connectivity history is being written")
 	return historywire.New(true, s.auditDB)
 }
+
+// buildCoverage is the monitoring-coverage writer, under the same switch and
+// over the same database as the history wire: "monitored" on the Devices page's
+// connectivity strip means "recorded", so an install that records nothing has no
+// coverage either and its strips are honestly grey. Nil without a database,
+// and nil is inert.
+func (s *Server) buildCoverage(enabled bool) *historywire.Coverage {
+	if s.auditDB == nil {
+		return nil
+	}
+	return historywire.NewCoverage(enabled, s.auditDB)
+}
+
+// coveredRouters is every router OBSERVED right now: held by a session whose
+// state the debounce has judged. A session that exists but whose first dial has
+// not been judged is not yet observing anything, and a disabled router has no
+// session at all - both are exactly the time the strip must draw grey.
+func (s *Server) coveredRouters() map[string]bool {
+	out := map[string]bool{}
+	if s.sessions == nil || s.connTrack == nil {
+		return out
+	}
+	for id := range s.sessions.Live() {
+		if _, known := s.connTrack.Online(id); known {
+			out[id] = true
+		}
+	}
+	return out
+}

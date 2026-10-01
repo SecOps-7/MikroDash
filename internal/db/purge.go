@@ -71,6 +71,9 @@ var routerDataTablesPortAdded = []string{
 	"traffic_hourly",
 	"bandwidth_hourly",
 	"cred_profile_links",
+	// When this router was being watched (2026-10-01). Meaningless without the
+	// connectivity rows it qualifies, which go with the router too.
+	"monitor_runs",
 }
 
 // routerPurgeExcluded is what a router purge must NEVER touch, with the reason.

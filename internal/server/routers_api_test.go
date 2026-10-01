@@ -842,6 +842,9 @@ func TestRemovingARouterPurgesWhatOnlyMadeSenseWithIt(t *testing.T) {
 		// exist, for ever. What was left on the device is recorded in the audit
 		// trail instead, which no purge path touches.
 		"cred_profile_links": "router_id",
+		// AND ITS MONITORING COVERAGE: meaningless without the connectivity rows
+		// it qualifies, which go too.
+		"monitor_runs": "router_id",
 	} {
 		if n := countRows(t, s, name, table, "r1"); n != 0 {
 			t.Errorf("%s still has %d rows for the removed router", name, n)
@@ -946,9 +949,17 @@ func seedPurgeables(t *testing.T, s *Server) {
 		   rsc_bytes INTEGER NOT NULL, backup_bytes INTEGER NOT NULL,
 		   secrets_bytes INTEGER NOT NULL DEFAULT 0, model TEXT,
 		   serial TEXT, os_version TEXT, ms INTEGER NOT NULL, pruned_at INTEGER, error TEXT)`,
+		// MONITORING COVERAGE (2026-10-01). Purged with the router, so it must
+		// exist here: the purge is one transaction, and a missing table fails it
+		// and rolls back every other table with it - exactly how this was found.
+		`CREATE TABLE IF NOT EXISTS monitor_runs (id INTEGER PRIMARY KEY,
+		   router_id TEXT NOT NULL, started_at INTEGER NOT NULL,
+		   last_seen_at INTEGER NOT NULL)`,
 	}
 	for _, rid := range []string{"r1", "r2"} {
 		stmts = append(stmts,
+			`INSERT INTO monitor_runs (router_id, started_at, last_seen_at)
+			   VALUES ('`+rid+`', 1, 2)`,
 			`INSERT INTO ping_samples (router_id, target, loss_pct, ts)
 			   VALUES ('`+rid+`', '1.1.1.1', 0, 1)`,
 			`INSERT OR IGNORE INTO cred_profile_links (profile_id, router_id, linked_by, linked_at)

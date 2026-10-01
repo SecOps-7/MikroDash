@@ -138,6 +138,10 @@ var portAddedPrunes = map[string]string{
 		"so the recording has no counterpart. It ages on the same policy as traffic_samples: " +
 		"the rollups exist to keep the history at lower resolution, not to keep it longer",
 	"bandwidth_hourly": "the hourly volume rollup (#59), the same arrangement as traffic_hourly",
+	"monitor_runs": "when each router was being observed (2026-10-01), so the Devices page's " +
+		"connectivity strip can draw time nobody was watching as not-monitored. Live had no such " +
+		"record. It ages on the connectivity policy because a run only means anything beside the " +
+		"connectivity rows it qualifies, and on last_seen_at so an open run is never pruned",
 }
 
 // TestPortAddedPruneRulesAreRecorded — BOTH DIRECTIONS.
@@ -248,6 +252,12 @@ func TestPruneDeletesOnlyWhatIsOlderThanItsOwnPolicy(t *testing.T) {
 		{"bandwidth_hourly", 10,
 			`INSERT INTO bandwidth_hourly (router_id, interface, ts, rx_mb, tx_mb, samples)
 			 VALUES ('r1','ether1',?,1,2,60)`, nil},
+		// Monitoring coverage ages with the connectivity rows it qualifies, and
+		// on the run's END. The start is placed far outside every window, so a
+		// rule that aged on `started_at` would delete the run being kept and
+		// fail the one-left count below.
+		{"monitor_runs", 100,
+			`INSERT INTO monitor_runs (router_id, started_at, last_seen_at) VALUES ('r1', 0, ?)`, nil},
 	}
 
 	for _, s := range seeds {
@@ -306,7 +316,9 @@ func openTestDB(t *testing.T) *DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Exec(historyDDL); err != nil {
+	// AND THE REAL `monitorRunsDDL`, the constant itself rather than a retyped
+	// copy, for the same reason as the line above.
+	if _, err := h.Exec(historyDDL + monitorRunsDDL); err != nil {
 		t.Fatal(err)
 	}
 	_ = h.Close()

@@ -188,6 +188,14 @@ var pruneRules = []pruneRule{
 	// rather than compacting it.
 	{"traffic_hourly", "ts", PruneDays.MetricDays, true},
 	{"bandwidth_hourly", "ts", PruneDays.MetricDays, true},
+
+	// ── MONITORING COVERAGE (2026-10-01), ON THE CONNECTIVITY POLICY ─────────
+	//
+	// A run says when a router was being watched, which only means anything
+	// beside the connectivity rows it qualifies - so it ages exactly as they do.
+	// Keyed on `last_seen_at`, the run's END: a run is old once it stopped, not
+	// once it started, or a long-lived run would be pruned while still open.
+	{"monitor_runs", "last_seen_at", PruneDays.AlertDays, true},
 }
 
 const msPerDay = 86400000

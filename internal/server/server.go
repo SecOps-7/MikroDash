@@ -200,6 +200,10 @@ type Server struct {
 	// every enabled router at startup and each session takes it when it is built
 	// — see New.
 	historyWire *historywire.Wire
+	// coverage records WHEN each router was observed (`monitor_runs`), so the
+	// connectivity strip can draw "not monitored" rather than infer a colour
+	// across time nobody was watching. Driven by the connectivity ticker.
+	coverage *historywire.Coverage
 	// connTrack is the fleet's connectivity debounce: who is OFFLINE, as
 	// opposed to whose socket is shut this instant. See internal/connstate.
 	connTrack *connstate.Tracker
@@ -391,6 +395,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// something forces a rebuild. Wiring it two hundred lines further down, next
 	// to the session manager's copy, is exactly that bug.
 	srv.historyWire = srv.buildHistoryWire(opts.History)
+	srv.coverage = srv.buildCoverage(opts.History)
 	// ── AND THE DEBOUNCE, HERE RATHER THAN WITH THE RECORDER ──────────────
 	//
 	// A session takes the tracker when it is BUILT, and `syncFleetHolds` below
@@ -799,6 +804,9 @@ func (s *Server) startConnTicker() {
 				return
 			case t := <-s.connTick.C:
 				s.connTrack.TickAll(t.UnixMilli())
+				// AFTER the debounce has run, so a verdict that just became
+				// known opens its run on this tick rather than the next.
+				s.coverage.Update(s.coveredRouters(), t.UnixMilli())
 			}
 		}
 	}()
@@ -813,6 +821,10 @@ func (s *Server) Shutdown() {
 		close(s.connStop)
 		s.connTick = nil
 	}
+	// EVERY RUN ENDS NOW, once the ticker can no longer reopen one and while the
+	// database is still open. A clean stop is then recorded to the second; only
+	// a crash loses anything, and at most the minute since the last heartbeat.
+	s.coverage.CloseAll(time.Now().UnixMilli())
 	if s.backupSched != nil {
 		s.backupSched.Stop()
 	}

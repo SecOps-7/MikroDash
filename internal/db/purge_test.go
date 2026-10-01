@@ -165,6 +165,9 @@ var portAddedRouterPurgeTables = map[string]string{
 		"the exception: there is no session to reconcile through, so the row would be " +
 		"retried against a router that does not exist for ever. The record moves to " +
 		"audit_events, which no purge path touches, and the caller writes it BEFORE this runs",
+	"monitor_runs": "when this router was being watched (2026-10-01), for the Devices page's " +
+		"connectivity strip. Live had no such record. It goes with the router because it only " +
+		"qualifies that router's connectivity rows, which are purged too",
 }
 
 // TestPortAddedRouterPurgeTablesAreRecorded — BOTH DIRECTIONS.
@@ -237,6 +240,8 @@ var purgeInsert = map[string]string{
 	// router rather than by profile to leave r2 alone.
 	"cred_profile_links": `INSERT INTO cred_profile_links
 	   (profile_id, router_id, linked_by, linked_at) VALUES ('cp1', ?, 'u-1', 1)`,
+	"monitor_runs": `INSERT INTO monitor_runs (router_id, started_at, last_seen_at)
+	   VALUES (?, 1, 2)`,
 }
 
 func purgeDB(t *testing.T) *DB {
@@ -246,7 +251,7 @@ func purgeDB(t *testing.T) *DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Exec(alertEventsDDL + purgeDDL); err != nil {
+	if _, err := h.Exec(alertEventsDDL + purgeDDL + monitorRunsDDL); err != nil {
 		t.Fatal(err)
 	}
 	for _, table := range append([]string{"ping_samples", "traffic_samples", "bandwidth_usage",
