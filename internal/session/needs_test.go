@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"mikrodash/internal/collect"
+	"mikrodash/internal/hub"
 )
 
 // The decision that keeps 4.3 from being a regression.
@@ -228,7 +231,10 @@ func TestResumeCollectorRefusesWhatTheSessionHasNoReasonToRun(t *testing.T) {
 	// RE-AIMED 2026-09-12: the rule moved into `mayRun`, which the dormancy probe
 	// now asks too, so it is stated once rather than copied beside the probe.
 	if !contains(src, "if !s.mayRun(key) { return }") ||
-		!contains(src, "why := s.reasonsLocked()") || !contains(src, "return Needs(key, why)") ||
+		!contains(src, "why := s.reasonsLocked()") ||
+		// RE-AIMED 2026-10-01: an occupied demand room is a reason too, on every
+		// session - see TestAnOccupiedDemandRoomIsAReasonToRun for the behaviour.
+		!contains(src, "return Needs(key, why) || s.roomsOccupied(collect.DemandRooms(key))") ||
 		!contains(src, "if !s.CollectorEnabled(key) { return false }") {
 		t.Error("ResumeCollector no longer refuses a collector the session has no reason " +
 			"to run (via mayRun), so a resume talks a held session back into running what " +
@@ -380,5 +386,36 @@ func TestWantsConsultsTheHoldsEvenWithAViewer(t *testing.T) {
 	if s.Wants("queues") {
 		t.Error("a viewer makes `queues` wanted with nobody on its page; `Needs` " +
 			"returning true for everything under a viewer has leaked into the rule")
+	}
+}
+
+// AN OCCUPIED DEMAND ROOM IS A REASON TO RUN, ON A SESSION NOBODY HAS SELECTED.
+//
+// The Devices page's device modal streams a router by joining its
+// `collect.DevicePeekRoom`. Before 2026-10-01 `mayRun` asked only `Needs`, which
+// says yes to everything for a viewer and only to the holds otherwise - so on
+// the warm session of a router nobody had selected, demand asked to resume
+// `ifStatus`, `Wants` agreed, and this refused. Found live: the modal's ports
+// never arrived.
+func TestAnOccupiedDemandRoomIsAReasonToRun(t *testing.T) {
+	h := hub.New()
+	s := NewForTest(h, "r1")
+	if s.mayRun("ifStatus") {
+		t.Fatal("control: an unwatched, unheld session may run ifStatus")
+	}
+	c := hub.NewClient("modal", 4)
+	h.Add(c)
+	h.Join(c, RoomFor("r1", collect.DevicePeekRoom))
+	if !s.mayRun("ifStatus") || !s.mayRun("dhcpLeases") {
+		t.Error("the device modal's room did not let its collectors run")
+	}
+	if s.mayRun("firewall") {
+		t.Error("the device modal's room let a collector it does not read run")
+	}
+	// ANOTHER ROUTER'S ROOM IS NOT THIS SESSION'S REASON.
+	h.Leave(c, RoomFor("r1", collect.DevicePeekRoom))
+	h.Join(c, RoomFor("r2", collect.DevicePeekRoom))
+	if s.mayRun("ifStatus") {
+		t.Error("a modal open on r2 let r1's ifStatus run")
 	}
 }

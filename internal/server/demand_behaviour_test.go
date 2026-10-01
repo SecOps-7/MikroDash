@@ -160,10 +160,12 @@ func TestWantsCollectorRefusesIncompleteInput(t *testing.T) {
 func TestApplyDemandSuspendsWhatNothingWants(t *testing.T) {
 	h := hub.New()
 	suspended := make(chan string, 64)
+	var resumed []string
 	s := &Server{
 		hub:        h,
 		idleGrace:  time.Millisecond,
 		suspendOne: func(_ *session.Session, key string) { suspended <- key },
+		resumeOne:  func(_ *session.Session, key string) { resumed = append(resumed, key) },
 	}
 	cl := hub.NewClient("viewer", 4)
 	h.Add(cl)
@@ -193,6 +195,11 @@ func TestApplyDemandSuspendsWhatNothingWants(t *testing.T) {
 	}
 	if got["vpn"] {
 		t.Error("vpn was suspended with a viewer on its page")
+	}
+	// AND THE OTHER HALF OF THE ANSWER IS ACTED ON: the page's collector is
+	// resumed. (Re-aimed 2026-10-01 - see Server.resumeOne.)
+	if len(resumed) != 1 || resumed[0] != "vpn" {
+		t.Errorf("applyDemand resumed %v, want exactly vpn", resumed)
 	}
 }
 
@@ -286,6 +293,9 @@ func TestAClosedTabIsIndistinguishableFromABlur(t *testing.T) {
 			s.idleGrace = time.Millisecond
 			suspended := make(chan string, 64)
 			s.suspendOne = func(_ *session.Session, key string) { suspended <- key }
+			// The second viewer's room now RESUMES on this collector-less test
+			// session as well (Server.resumeOne, 2026-10-01); recorded, not run.
+			s.resumeOne = func(*session.Session, string) {}
 
 			leaving := devicesConn(s, "leaving")
 			leaving.routerID = "r1"

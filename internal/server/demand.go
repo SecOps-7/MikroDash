@@ -80,6 +80,10 @@ func (s *Server) applyDemand(rs *session.Session, routerID string) {
 			// THROUGH ResumeCollector, so the enablement check and the dormancy
 			// latch still apply. A collector the operator turned off must not
 			// come back because somebody opened a page.
+			if s.resumeOne != nil {
+				s.resumeOne(rs, key)
+				continue
+			}
 			rs.ResumeCollector(key)
 			continue
 		}

@@ -176,6 +176,11 @@ type Server struct {
 	// that helper records — a Session a unit test can build has no collectors
 	// behind the table, so the real call panics rather than reporting anything.
 	suspendOne func(rs *session.Session, key string)
+	// resumeOne is the same seam for `applyDemand`'s resume. It was not needed
+	// while a session with no viewer refused every room-driven resume; since
+	// 2026-10-01 an occupied room is a reason on any session (the device modal),
+	// so a test's collector-less session now reaches the resume.
+	resumeOne func(rs *session.Session, key string)
 
 	// changelog fetches RouterOS release notes for the Update dialog. One per
 	// server so its cache is shared across sockets — a changelog is immutable

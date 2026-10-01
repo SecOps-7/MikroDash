@@ -977,7 +977,7 @@
     .rtl-conn-pct{min-width:3.6rem;text-align:right}
     .routers-list tr.rtl-row:focus-visible td{outline:none;background:rgba(56,189,248,.1)}
     /* ── The device modal (devices-modal.ts) ─────────────────────────────── */
-    .dvm{width:min(1240px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+    .rtr-modal.dvm{width:min(1240px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
     .dvm-hdr{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border);
       background:linear-gradient(180deg,color-mix(in srgb,var(--accent-rx) 6%,transparent),transparent)}
     .dvm-title{display:flex;align-items:flex-start;gap:.7rem;min-width:0}
@@ -1039,7 +1039,7 @@
     .dvm-skel{border-radius:8px;background:linear-gradient(90deg,var(--dv-unmon) 25%,rgba(148,163,190,.32) 50%,var(--dv-unmon) 75%);background-size:200% 100%;animation:dv-shimmer 1.4s linear infinite}
     @media (prefers-reduced-motion:reduce){.dvm-skel,.dv-strip-loading{animation:none}}
     @media (max-width:899px){
-      .dvm{width:100vw;max-height:100vh;height:100vh;border-radius:0}
+      .rtr-modal.dvm{width:100vw;max-height:100vh;height:100vh;border-radius:0}
       .dvm-body{grid-template-columns:minmax(0,1fr)}
       .dvm-rail{border-right:0;border-bottom:1px solid var(--border);order:2}
       .dvm-main{order:1}

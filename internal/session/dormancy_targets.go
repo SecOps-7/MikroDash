@@ -1,6 +1,9 @@
 package session
 
-import "mikrodash/internal/areas"
+import (
+	"mikrodash/internal/areas"
+	"mikrodash/internal/collect"
+)
 
 // The one place a collector is suspended or resumed by NAME.
 //
@@ -379,7 +382,17 @@ func (s *Session) mayRun(key string) bool {
 	s.mu.Lock()
 	why := s.reasonsLocked()
 	s.mu.Unlock()
-	return Needs(key, why)
+	// ── AN OCCUPIED DEMAND ROOM IS A REASON TOO ────────────────────────────
+	//
+	// Added 2026-10-01 for the Devices page's device modal, which streams a
+	// router nobody has SELECTED by joining its `collect.DevicePeekRoom`. Until
+	// then a room could only matter on a session with a viewer, because `Needs`
+	// says yes to everything for one - so on any other session `applyDemand`
+	// asked `Wants`, got yes from the room, and this refused the resume. Room
+	// demand is now the same rule on every session: a collector somebody is in
+	// a room for may run. The probe-resurrection this clause exists to stop is
+	// still stopped - an unwanted collector has no occupied room either.
+	return Needs(key, why) || s.roomsOccupied(collect.DemandRooms(key))
 }
 
 // SuspendCollector stops one collector by key, the mirror of ResumeCollector.
