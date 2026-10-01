@@ -124,3 +124,19 @@ func TestADisabledCoverageWritesNothing(t *testing.T) {
 	nilCov.Update(cov("a"), 1) // nil is inert, not a panic
 	nilCov.CloseAll(1)
 }
+
+// TestOpenRoutersIsWhatIsOpenNow — the reader extends exactly these runs to
+// "now", so a closed run reported here would draw a router as watched after it
+// stopped being watched.
+func TestOpenRoutersIsWhatIsOpenNow(t *testing.T) {
+	c := NewCoverage(true, &fakeCoverage{})
+	c.Update(cov("a", "b"), 1_000)
+	c.Update(cov("a"), 2_000)
+	if got := c.OpenRouters(); !reflect.DeepEqual(got, cov("a")) {
+		t.Errorf("OpenRouters = %v, want only a: b's run closed at 2000", got)
+	}
+	var nilCov *Coverage
+	if got := nilCov.OpenRouters(); got == nil || len(got) != 0 {
+		t.Errorf("a nil writer answered %v, want an empty set", got)
+	}
+}

@@ -108,3 +108,23 @@ func (c *Coverage) CloseAll(now int64) {
 	}
 	c.open = map[string]int64{}
 }
+
+// OpenRouters is every router with a run open RIGHT NOW.
+//
+// A run's `last_seen_at` moves only on the minute heartbeat, so read back from
+// the database an open run ends up to a minute in the past - and a strip drawn
+// from it ends in a grey "not monitored" sliver on a router being watched at
+// this very moment. The reader asks this, in the same process, and extends those
+// runs to now: exact, rather than a guess about how recent "recent" is.
+func (c *Coverage) OpenRouters() map[string]bool {
+	out := map[string]bool{}
+	if c == nil {
+		return out
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for id := range c.open {
+		out[id] = true
+	}
+	return out
+}

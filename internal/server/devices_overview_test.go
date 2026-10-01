@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"mikrodash/internal/history"
+	"mikrodash/internal/historywire"
 )
 
 // overviewServer is the routers test server with the overview route and the
@@ -129,4 +130,26 @@ func TestTheOverviewWindowIsBoundedAndDefaulted(t *testing.T) {
 func msStr(v int64) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+// TestAnOpenRunReachesTheEndOfTheWindow — found live: a run's stored
+// `last_seen_at` moves only on the minute heartbeat, so every watched router's
+// strip ended in a grey "not monitored" tail. A run open NOW reaches the end of
+// the window; the control is r2, whose run is not open and keeps its tail.
+func TestAnOpenRunReachesTheEndOfTheWindow(t *testing.T) {
+	s, mux := overviewServer(t, &Session{AuthMode: "none", Username: "admin"})
+	s.coverage = historywire.NewCoverage(true, s.auditDB)
+	s.coverage.Update(map[string]bool{"r1": true}, 2)
+
+	_, rows := getOverview(t, mux, "?from=1&to=1000")
+	by := map[string][]history.Span{}
+	for _, r := range rows {
+		by[r.RouterID] = r.Spans
+	}
+	if sp := by["r1"]; len(sp) == 0 || sp[len(sp)-1].State != history.SpanUp || sp[len(sp)-1].To != 1000 {
+		t.Errorf("r1 is being watched now and its strip ends %+v; it must reach 1000 up", sp)
+	}
+	if sp := by["r2"]; len(sp) == 0 || sp[len(sp)-1].State != history.SpanUnmonitored {
+		t.Errorf("r2's run is NOT open, yet its strip ends %+v - the extension is not per router", sp)
+	}
 }

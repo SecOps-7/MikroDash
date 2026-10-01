@@ -95,6 +95,12 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 		backups = map[string]db.BackupBrief{} // a strip without backups beats no strip
 	}
 
+	// RUNS OPEN NOW reach `to`. Their stored `last_seen_at` lags by up to the
+	// heartbeat interval, and without this every watched router's strip ended in
+	// a grey sliver - measured on the dev install right after deploying the
+	// endpoint, all four strips ended "unmonitored" with all four runs open.
+	openNow := s.coverage.OpenRouters()
+
 	all, _ := s.store.Routers()
 	out := []DeviceOverview{}
 	for _, rt := range all {
@@ -108,8 +114,16 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 		if v, ok := before[rt.ID]; ok {
 			in.Before = &v
 		}
+		var lastSeen int64
 		for _, run := range runs[rt.ID] {
 			in.Runs = append(in.Runs, history.Run{From: run.StartedAt, To: run.LastSeenAt})
+			if run.LastSeenAt > lastSeen {
+				lastSeen = run.LastSeenAt
+			}
+		}
+		if openNow[rt.ID] && lastSeen > 0 {
+			// Unioned with the run it continues, so no seam is drawn.
+			in.Runs = append(in.Runs, history.Run{From: lastSeen, To: to})
 		}
 		row := DeviceOverview{RouterID: rt.ID, SpanResult: history.Spans(in)}
 		if b, ok := backups[rt.ID]; ok && backupsOK != nil && (backupsOK[""] || backupsOK[rt.ID]) {
