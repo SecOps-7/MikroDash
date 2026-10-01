@@ -967,6 +967,10 @@
     .dv-compact{gap:.55rem;padding:.7rem .8rem}
     .dv-compact .dv-strip{height:16px}
     .dv-compact .dv-foot{padding-top:.4rem}
+    /* Compact drops the status WORD: the dot and the accent bar carry the state,
+       the card's aria-label says it, and at six across the word was eating the
+       name ("M..." for "Mikrotik hAP AX3"). */
+    .dv-compact .dv-status{display:none}
     /* The list's Connectivity column: a mini strip and its figure. */
     .rtl-conn{display:inline-flex;align-items:center;gap:.5rem}
     .rtl-conn .dv-strip{width:140px;height:12px;border-radius:3px}
