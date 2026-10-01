@@ -61,9 +61,25 @@ which is why MikroDash never passes one.
 `TestAStreamLeavesNoGoroutineBehind` in `internal/routeros` says whether a
 replacement library still needs this.
 
-## Atomic tag counter alignment (2026-10-01)
+## Change 4: the tag counter cannot be unaligned (2026-10-01)
 
-`Client.nextTag` is updated with 64-bit atomics. On 32-bit ARM (e.g. MikroTik
-hAP ac3 containers) an unaligned `int64` panics with
-`unaligned 64-bit atomic operation`. Store it as `atomic.Int64` at the top of
-the struct so the field is always 8-byte aligned.
+`Client.nextTag` is updated with 64-bit atomics. On 32-bit ARM an `int64` is
+only 4-byte aligned, and a 64-bit atomic on an unaligned address PANICS with
+`unaligned 64-bit atomic operation` rather than merely being slow. The field sat
+after a run of mixed-size fields, so on linux/arm it landed at a 4-mod-8 offset
+and the first command the client sent took the whole process down. Reported by
+mvdteam against the arm/v7 image running in a container on a hAP ac3, where it
+fired on "Test API Connection" every time (issue #146); fixed by
+TastyHeadphones (#147).
+
+It is an `atomic.Int64` now. That type embeds `align64`, which the compiler
+special-cases to force 8-byte alignment WHEREVER the field sits - so the type is
+the fix, and its position at the top of the struct is belt and braces.
+
+`TestTheTagCounterCannotBeUnaligned` in `internal/routeros` says whether a
+replacement library still needs this. It asserts the field's TYPE rather than
+its offset, because `unsafe.Offsetof(nextTag)%8 == 0` is a tautology once the
+type carries `align64` - measured by moving the field back to its original slot
+and watching that assertion still pass - and on amd64 it holds for a plain
+`int64` too, so it could not have failed for the original bug on the only
+architecture the suite runs on.
