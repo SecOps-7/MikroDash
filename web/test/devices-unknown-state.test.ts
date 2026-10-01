@@ -108,7 +108,7 @@ function row(over) {
     connected: false, known: false, lastError: null, openAlerts: 0,
     cpu: null, uptime: null, memPct: null, hddPct: null,
     version: null, boardName: null, arch: null, serial: null, licenseLevel: null,
-    rxMbps: null, txMbps: null, clients: null,
+    clients: null, updateAvailable: null, latestVersion: null,
     siteIds: [], siteNames: [], siteId: null, siteName: null, geo: null,
   }, over);
   if (!('online' in r)) r.online = r.connected;
@@ -165,20 +165,22 @@ check('the card badge has three states, not two', () => {
     'expected exactly one Offline badge across three routers');
   assert.equal((grid.match(/>Online</g) || []).length, 1);
 });
+// RE-AIMED 2026-10-01 for the overview cards. The colour is no longer a second
+// ternary in an icon stroke: ONE state class on the card (`dv-unknown`,
+// `dv-online`, `dv-offline`) drives the accent bar, the dot and the badge, so
+// the class is what is checked.
 check('the unasked card is not painted in the offline red', () => {
-  // The badge and the icon are separate ternaries and were separately wrong.
-  const cards = grid.split('<div class="card h-100">');
+  const cards = grid.split('class="card h-100 dv-card');
   const unasked = cards.find((c) => c.indexOf('Unasked') !== -1);
   assert.ok(unasked, 'the unasked router did not render');
-  assert.ok(unasked.indexOf('#d63939') === -1,
-    'the unasked card still carries the offline red; the wifi icon stroke is a '
-    + 'second ternary on `connected` and is easy to miss');
-  assert.ok(unasked.indexOf('bg-red-lt') === -1);
+  assert.ok(/^ dv-unknown/.test(unasked), 'the unasked card is not in the neutral state: '
+    + unasked.slice(0, 40));
+  assert.ok(unasked.indexOf('dv-why') === -1, 'the unasked card shows an offline reason');
 });
 check('a genuinely offline card keeps its red and its reason', () => {
-  const cards = grid.split('<div class="card h-100">');
+  const cards = grid.split('class="card h-100 dv-card');
   const down = cards.find((c) => c.indexOf('Down') !== -1);
-  assert.ok(down.indexOf('#d63939') !== -1, 'the observed-down card lost its red');
+  assert.ok(/^ dv-offline/.test(down), 'the observed-down card lost its offline state');
   assert.ok(down.indexOf('dial: connection refused') !== -1,
     'the reason a router is down must still be shown; suppressing it would be '
     + 'the opposite failure to the one this file exists for');

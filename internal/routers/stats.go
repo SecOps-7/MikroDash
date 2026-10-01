@@ -70,12 +70,10 @@ type Input struct {
 	// the input is untrusted JSON rather than a struct.
 	Geo map[string]any
 
-	// DefaultIf is the interface whose rates the card shows, already resolved
-	// through the router record and then the global setting by the caller.
-	DefaultIf string
-
+	// No interface payload any more: the card's WAN RX/TX left with the
+	// overview-only redesign (2026-10-01), and the live rates are the device
+	// modal's, streamed while it is open.
 	System     *collect.SystemPayload
-	IfStatus   *collect.IfStatusPayload
 	DHCPLeases *collect.LeasesPayload
 }
 
@@ -125,8 +123,12 @@ type Row struct {
 	Serial       *string `json:"serial"`
 	LicenseLevel *string `json:"licenseLevel"`
 
-	RxMbps *float64 `json:"rxMbps"`
-	TxMbps *float64 `json:"txMbps"`
+	// UpdateAvailable and LatestVersion are the router's own update check (the
+	// system collector asks every 12 hours). NULL until that check has answered,
+	// so "not checked" never reads as "up to date" on a card.
+	UpdateAvailable *bool   `json:"updateAvailable"`
+	LatestVersion   *string `json:"latestVersion"`
+
 	// Clients is the DHCP lease count, null when that payload has not arrived.
 	Clients *int `json:"clients"`
 
@@ -192,11 +194,17 @@ func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySee
 		// caught — but the subtler error is flattening them to `""`, which
 		// renders as nothing while claiming to be an answer.
 		r.Arch, r.Serial, r.LicenseLevel = p.Arch, p.Serial, p.LicenseLevel
-	}
-
-	if wan := wanIface(in.IfStatus, in.DefaultIf); wan != nil {
-		rx, tx := wan.RxMbps, wan.TxMbps
-		r.RxMbps, r.TxMbps = &rx, &tx
+		// ONLY ONCE THE CHECK HAS ANSWERED. A reading with neither a latest
+		// version nor a status has not asked yet, and `false` would claim the
+		// router is up to date.
+		if p.LatestVersion != "" || p.UpdateStatus != "" {
+			ua := p.UpdateAvailable
+			r.UpdateAvailable = &ua
+			if p.LatestVersion != "" {
+				lv := p.LatestVersion
+				r.LatestVersion = &lv
+			}
+		}
 	}
 
 	if p := in.DHCPLeases; p != nil {
@@ -266,19 +274,6 @@ func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySee
 		r.Geo = loc
 	}
 	return r
-}
-
-// wanIface finds the interface whose rates the card shows.
-func wanIface(p *collect.IfStatusPayload, name string) *collect.Interface {
-	if p == nil || name == "" {
-		return nil
-	}
-	for i := range p.Interfaces {
-		if p.Interfaces[i].Name == name {
-			return &p.Interfaces[i]
-		}
-	}
-	return nil
 }
 
 // WanIPFor is `_wanIpFor`: the address the automatic location is derived from.

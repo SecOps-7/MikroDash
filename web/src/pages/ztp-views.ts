@@ -89,15 +89,13 @@ export function deviceCard(d: ZTPDeviceView, now: number): string {
 }
 
 /** The Devices page's Provisioning section: its count and its cards, or '' when
- *  there is nothing to show and provisioning is off. */
+ *  no device is on its way in. An empty section used to explain itself while
+ *  provisioning was on; it was a permanent paragraph above the fleet, and the
+ *  Add device button beside the search says the same thing. */
 export function sectionHtml(p: ZTPPayload, now: number): string {
   const list = sectionDevices(p);
   const pending = list.filter((d) => d.state === 'pending').length;
-  if (!list.length) {
-    if (!p.status.enabled) return '';
-    return '<div class="ztp-empty">No devices are waiting. <strong>Add device</strong> makes a script for a new router; ' +
-      'a router running a generic script from Settings → Provisioning appears here to be onboarded.</div>';
-  }
+  if (!list.length) return '';
   return '<div class="ztp-sec-head"><span class="ztp-sec-title">Provisioning</span>' +
     '<span class="card-badge active-blue">' + list.length + '</span>' +
     (pending ? '<span class="ztp-sec-note">' + pending + (pending === 1 ? ' device is' : ' devices are') +

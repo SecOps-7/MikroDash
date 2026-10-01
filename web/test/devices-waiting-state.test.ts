@@ -108,7 +108,7 @@ page.renderRoutersStats([{
   connected: true, known: true, lastError: null, openAlerts: 0,
   cpu: null, uptime: null, memPct: null, hddPct: null,
   version: null, boardName: null, arch: null, serial: null, licenseLevel: null,
-  rxMbps: null, txMbps: null, clients: null,
+  clients: null, updateAvailable: null, latestVersion: null,
   siteIds: [], siteNames: [], siteId: null, siteName: null, geo: null,
 }]);
 page.renderRoutersStats(null);

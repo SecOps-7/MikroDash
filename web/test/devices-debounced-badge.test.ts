@@ -101,7 +101,7 @@ function row(over) {
     connected: false, online: false, known: true, lastError: null, openAlerts: 0,
     cpu: null, uptime: null, memPct: null, hddPct: null,
     version: null, boardName: null, arch: null, serial: null, licenseLevel: null,
-    rxMbps: null, txMbps: null, clients: null,
+    clients: null, updateAvailable: null, latestVersion: null,
     siteIds: [], siteNames: [], siteId: null, siteName: null, geo: null,
   }, over);
 }
@@ -158,33 +158,29 @@ check('the online and offline searches use the verdict', () => {
 page.setView('comfortable');
 page.renderRoutersStats(ALL);
 const grid = doc.els['routers-grid'].innerHTML;
-const cards = grid.split('<div class="card h-100">');
+const cards = grid.split('class="card h-100 dv-card');
 const cardFor = (label) => cards.find((c) => c.indexOf(label) !== -1);
 
+// RE-AIMED 2026-10-01 for the overview cards: the word and the colour were two
+// ternaries (the badge class and the icon stroke) and both were checked. Now the
+// word is one lookup and the colour one state class, `dv-online`/`dv-offline`,
+// which drives the dot, the accent bar and the badge together - so both halves
+// are still checked, as the word and the class.
 check('the card badge names the verdict', () => {
-  // ── THE WORD AND THE COLOUR ARE TWO TERNARIES, AND BOTH ARE CHECKED ─────
-  //
-  // Found by planting the failure: reverting the CLASS to `connected` left the
-  // badge reading "Online" on a red pill, and an assertion on the word alone
-  // passed. Two expressions, two assertions, or half of this is decorative.
   const blip = cardFor('Blip');
   assert.ok(blip, 'the blipping router did not render');
-  assert.ok(blip.indexOf('bg-green-lt">Online<') !== -1,
-    'a router whose socket is shut inside its threshold was not badged a green '
-    + 'Online; the badge is: ' + (blip.match(/<span class="badge[^<]*<\/span>/) || [''])[0]);
+  assert.ok(blip.indexOf('class="dv-status">Online<') !== -1,
+    'a router whose socket is shut inside its threshold was not badged Online');
   const settling = cardFor('Settling');
-  assert.ok(settling.indexOf('bg-red-lt">Offline<') !== -1,
-    'a declared-offline router was not badged a red Offline; the badge is: '
-    + (settling.match(/<span class="badge[^<]*<\/span>/) || [''])[0]);
+  assert.ok(settling.indexOf('class="dv-status">Offline<') !== -1,
+    'a declared-offline router was not badged Offline');
 });
 
-check('the card icon is coloured by the verdict', () => {
-  // A SECOND TERNARY, in the wifi icon's stroke. It was missed the last time
-  // this page grew a state.
-  assert.ok(cardFor('Blip').indexOf('#d63939') === -1,
-    'the blipping card carries the offline red in its icon stroke');
-  assert.ok(cardFor('Settling').indexOf('#2fb344') === -1,
-    'the declared-offline card carries the online green in its icon stroke');
+check('the card is coloured by the verdict', () => {
+  assert.ok(/^ dv-online/.test(cardFor('Blip')),
+    'the blipping card is not in the online state: ' + cardFor('Blip').slice(0, 40));
+  assert.ok(/^ dv-offline/.test(cardFor('Settling')),
+    'the declared-offline card is not in the offline state');
 });
 
 // ── the list ────────────────────────────────────────────────────────────────

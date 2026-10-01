@@ -47,7 +47,7 @@ func TestAnAbsentPayloadSendsNullNotZero(t *testing.T) {
 
 	for _, k := range []string{
 		"cpu", "uptime", "memPct", "hddPct", "version", "boardName", "arch",
-		"serial", "licenseLevel", "rxMbps", "txMbps", "clients", "geo",
+		"serial", "licenseLevel", "updateAvailable", "latestVersion", "clients", "geo",
 		"siteId", "siteName", "lastError",
 	} {
 		v, present := m[k]
@@ -109,23 +109,28 @@ func TestThePayloadsOwnNullsAreCarriedThrough(t *testing.T) {
 	}
 }
 
-// TestOnlyTheDefaultInterfacesRatesAreShown — the card shows one interface, and
-// picking the wrong one reports a quiet LAN port as the WAN link.
-func TestOnlyTheDefaultInterfacesRatesAreShown(t *testing.T) {
-	ifs := &collect.IfStatusPayload{Interfaces: []collect.Interface{
-		{Name: "ether1", RxMbps: 1.5, TxMbps: 0.25},
-		{Name: "ether2", RxMbps: 940, TxMbps: 880},
-	}}
-	m := fields(t, BuildRow(Input{ID: "r-A", DefaultIf: "ether1", IfStatus: ifs}, nil, nil, true))
-	if m["rxMbps"] != 1.5 || m["txMbps"] != 0.25 {
-		t.Errorf("rx/tx = %v/%v, want the DEFAULT interface's 1.5/0.25", m["rxMbps"], m["txMbps"])
+// TestTheUpdateVerdictIsNullUntilChecked — the card's "Update" pill reads this,
+// and the three states are different facts. Not yet checked is NULL; checked and
+// current is FALSE; checked and behind is TRUE with the version. A port that sent
+// false before the check had answered would tell an operator their router was
+// current when nothing had asked.
+//
+// (Replaces `TestOnlyTheDefaultInterfacesRatesAreShown`, deleted 2026-10-01 with
+// the card's WAN RX/TX.)
+func TestTheUpdateVerdictIsNullUntilChecked(t *testing.T) {
+	m := fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24"}}, nil, nil, true))
+	if m["updateAvailable"] != nil || m["latestVersion"] != nil {
+		t.Errorf("unchecked: updateAvailable=%v latestVersion=%v, want both null", m["updateAvailable"], m["latestVersion"])
 	}
-
-	// A default interface that is not in the payload yields nulls, not the
-	// first interface's numbers.
-	m = fields(t, BuildRow(Input{ID: "r-A", DefaultIf: "sfp-sfpplus1", IfStatus: ifs}, nil, nil, true))
-	if m["rxMbps"] != nil || m["txMbps"] != nil {
-		t.Errorf("rx/tx = %v/%v for an absent interface, want null", m["rxMbps"], m["txMbps"])
+	m = fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24",
+		LatestVersion: "7.24", UpdateStatus: "System is already up to date"}}, nil, nil, true))
+	if m["updateAvailable"] != false {
+		t.Errorf("checked and current: updateAvailable=%v, want false (not null)", m["updateAvailable"])
+	}
+	m = fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24",
+		LatestVersion: "7.25", UpdateStatus: "New version is available", UpdateAvailable: true}}, nil, nil, true))
+	if m["updateAvailable"] != true || m["latestVersion"] != "7.25" {
+		t.Errorf("behind: updateAvailable=%v latestVersion=%v, want true and 7.25", m["updateAvailable"], m["latestVersion"])
 	}
 }
 

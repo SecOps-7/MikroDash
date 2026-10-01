@@ -1081,8 +1081,8 @@ export interface RouterStatsRow {
   arch: string | null;
   serial: string | null;
   licenseLevel: string | null;
-  rxMbps: number | null;
-  txMbps: number | null;
+  updateAvailable: boolean | null;
+  latestVersion: string | null;
   clients: number | null;
   siteIds: string[];
   siteNames: string[];

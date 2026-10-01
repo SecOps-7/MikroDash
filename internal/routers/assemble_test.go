@@ -2,8 +2,6 @@ package routers
 
 import (
 	"testing"
-
-	"mikrodash/internal/collect"
 )
 
 func sr(id string) StatsRouter {
@@ -84,37 +82,10 @@ func TestNilVisibleIsNotEmptyVisible(t *testing.T) {
 	}
 }
 
-// r.defaultIf, then the global setting, then "ether1".
-func TestDefaultInterfacePrecedence(t *testing.T) {
-	rates := &collect.IfStatusPayload{Interfaces: []collect.Interface{
-		{Name: "ether1", RxMbps: 1},
-		{Name: "sfp1", RxMbps: 2},
-		{Name: "wan9", RxMbps: 3},
-	}}
-	cases := []struct {
-		name, routerIf, globalIf string
-		wantRx                   float64
-	}{
-		{"the router's own choice wins", "wan9", "sfp1", 3},
-		{"the global setting is next", "", "sfp1", 2},
-		{"ether1 is the last resort", "", "", 1},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			r := sr("a")
-			r.DefaultIf = c.routerIf
-			got := BuildStats(StatsSources{
-				Routers:   []StatsRouter{r},
-				DefaultIf: c.globalIf,
-				Main:      map[string]MainSession{"a": {Connected: true, Known: true, IfStatus: rates}},
-			})
-			f := fields(t, got[0])
-			if f["rxMbps"] != c.wantRx {
-				t.Errorf("rxMbps = %v, want %v (watched the wrong interface)", f["rxMbps"], c.wantRx)
-			}
-		})
-	}
-}
+// `TestDefaultInterfacePrecedence` lived here and was DELETED on 2026-10-01: it
+// pinned which interface supplied the card's WAN RX/TX, and the card no longer
+// shows one. `DefaultIfFor`'s own precedence is still pinned in defaultif_test.go,
+// because the recorders resolve the interface through it.
 
 // A router the fleet knows and NO SESSION holds yet - added a moment ago,
 // before the next fleet sync holds it: offline, with nothing to say. Not an

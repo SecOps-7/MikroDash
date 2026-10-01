@@ -29,26 +29,26 @@
  * the markup half alone would pass against a fix that dropped the prefix
  * entirely, which would break every physical router in the fleet. Each half
  * catches what the other cannot.
+ *
+ * RE-AIMED 2026-10-01: the pill moved off the Devices card (now an overview)
+ * into the device modal's Details rail, `detailsHtml` in `devices-card.ts`. The markup half
+ * follows it there.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { makeDoc } from './dom-shim.js';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 const OUT = path.join(ROOT, 'testdata', '.lic.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
-  [path.join(ROOT, 'web', 'src', 'pages', 'routers.ts'),
+  [path.join(ROOT, 'web', 'src', 'pages', 'devices-card.ts'),
    '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
   { stdio: 'inherit' });
 
-const doc = makeDoc(['routers-grid'], { allowUnknown: ['rsTotal', 'rsOnline', 'rsOffline', 'rsAlerting', 'routersSiteFilter', 'routersSearch', 'routersShown'] });
-global.document = doc;
-global.window = { addEventListener: () => {}, location: { pathname: '/devices' } };
 const page = require(OUT);
 
 function row(over) {
@@ -57,7 +57,7 @@ function row(over) {
     connected: true, known: true, lastError: null, openAlerts: 0,
     cpu: 1, uptime: '1d', memPct: 1, hddPct: 1,
     version: '7.24', boardName: 'x', arch: null, serial: null,
-    licenseLevel: null, rxMbps: null, txMbps: null, clients: null,
+    licenseLevel: null, clients: null, updateAvailable: null, latestVersion: null,
     siteIds: [], siteNames: [], siteId: null, siteName: null, geo: null,
   }, over || {});
 }
@@ -76,12 +76,8 @@ function row(over) {
 
 // ── the markup half ─────────────────────────────────────────────────────────
 {
-  page.setView('comfortable');
-  page.renderRoutersStats([
-    row({ id: 'chr', label: 'CHR', licenseLevel: 'free' }),
-    row({ id: 'hap', label: 'hAP', licenseLevel: '6' }),
-  ]);
-  const grid = String(doc.nodes['routers-grid'].innerHTML);
+  const grid = page.detailsHtml(row({ id: 'chr', label: 'CHR', licenseLevel: 'free' }), undefined, 0)
+    + page.detailsHtml(row({ id: 'hap', label: 'hAP', licenseLevel: '6' }), undefined, 0);
 
   assert.ok(/>free</.test(grid),
     'the CHR pill does not read "free":\n' + grid);

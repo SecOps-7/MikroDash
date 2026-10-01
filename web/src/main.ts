@@ -686,21 +686,10 @@ async function main(): Promise<void> {
 
   // ── The Devices page ────────────────────────────────────────────────────
   //
-  // `mountRouters` is the whole of it. What is NOT here is the Add/Edit modal,
-  // and that is a finding rather than an omission: the Devices page has no edit
-  // affordance of its own. Its table rows carry `data-router-id` and no buttons,
-  // and its cards carry none either - the ONLY way into the router modal from
-  // this page is the fleet map's popover and its no-location tray, both of which
-  // go through `window._rtrOpenModal` (routers-map.ts).
-  //
-  // `rtrAddBtn`, `rtrTbody` and the modal's own trigger live on the SETTINGS
-  // page (`web/src/ui/page-settings.html`). An earlier version of this file
-  // wired `initRouterModal` from here anyway, complete with a
-  // `[data-edit-router]` handler for an attribute nothing in the app produces -
-  // The selector audit is what said so.
-  //
-  // The Settings page's opener is `settings-routers.ts`'s Edit button, wired
-  // below.
+  // `mountRouters` is the whole of it. Every card, list row, map popover and
+  // tray pill carries `data-device` and opens the device overview through the
+  // one opener `mountRouters` delegates; the router editor itself lives on the
+  // SETTINGS page (`settings-routers.ts`).
   mountRouters(socket);
   // The fleet map's SVG half, mounted from HERE so the dependency stays
   // one-way: `routers-map.ts` imports `routers.ts`, never the reverse. See the

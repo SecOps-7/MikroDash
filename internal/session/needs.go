@@ -75,9 +75,17 @@ type Reasons struct {
 // else in the app writes a history row from a collector payload.
 var historyFeeds = []string{"traffic", "ping"}
 
-// devicesFeeds are what the Devices page reads per router. It matches what
-// `internal/routers` builds for its overview sessions.
-var devicesFeeds = []string{"system", "ifStatus", "traffic", "ping", "dhcpLeases"}
+// devicesFeeds are what the Devices page reads per router: the system reading
+// only - uptime, version, model, the update check, and the CPU/RAM/disk the AI
+// agent's fleet tool still reads.
+//
+// SLIMMED 2026-10-01 from {system, ifStatus, traffic, ping, dhcpLeases}. The
+// cards became overview-only and the live numbers moved to the device modal,
+// which streams one router while it is open; so opening the page no longer puts
+// an interface poll, a traffic STREAM, a ping and a lease poll on every router
+// in the fleet. Measured before the change: the page alone cost ~41 commands a
+// minute and 7 open streams across four routers.
+var devicesFeeds = []string{"system"}
 
 // Needs reports whether a collector should run, given why the session is alive.
 //

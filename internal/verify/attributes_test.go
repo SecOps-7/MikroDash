@@ -21,7 +21,8 @@ const (
 var attrsExpectedUnread = map[string]string{
 	"alert-id": "rendered by the live bell too and read by nothing there either; kept as the " +
 		"row handle rather than invented later",
-	"router-id": attrUnshipped,
+	// `router-id` was the Devices list row's handle, rendered and never read.
+	// The row now carries `data-device`, which the page's one opener reads.
 	// `bulk` and `role-preset` were here as attrMarkup - "a feature this port
 	// has not taken on". Both are wired now (settings-principals.ts), so the
 	// entries are DELETED rather than left as notes that stopped being true.

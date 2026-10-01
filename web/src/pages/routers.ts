@@ -39,6 +39,8 @@ import type { Socket } from '../socket';
  * resolve but keeps the id, so nothing may zip them.
  */
 import type { RouterStatsRow } from '../gen/payloads';
+import { deviceCardHtml, updatePill, ago, cardState } from './devices-card';
+import { stripHtml, uptimeLabel, type DeviceOverview } from './devices-strip';
 
 type View = 'comfortable' | 'compact' | 'list' | 'map';
 
@@ -49,6 +51,31 @@ let lastRtrRows: RouterStatsRow[] = [];
 // empty list above, and a WebSocket that never connected read as an install
 // with no devices (issue #129).
 let haveRtrRows = false;
+
+// ── THE OVERVIEW: STRIPS AND BACKUPS, ONCE A MINUTE ─────────────────────────
+//
+// `GET /api/devices/overview` is four fleet-wide queries however large the
+// fleet, so one fetch serves every card. It changes on the scale of minutes, so
+// it is fetched when the page is shown and every minute while it stays visible,
+// and merged by router id with the 2s `routers:stats` rows at render time.
+let overview: Record<string, DeviceOverview> = {};
+
+export function overviewOf(id: string): DeviceOverview | undefined { return overview[id]; }
+
+/** Replace the held overview. Exported for tests. */
+export function setOverview(rows: DeviceOverview[]): void {
+  const next: Record<string, DeviceOverview> = {};
+  rows.forEach((o) => { next[o.routerId] = o; });
+  overview = next;
+}
+
+/**
+ * The opener every `[data-device]` on the page goes through: a card, a list row,
+ * a map popover's "Open overview" and a tray pill. Registered by the device
+ * modal; a no-op until then.
+ */
+let openDevice: (id: string) => void = () => {};
+export function onOpenDevice(fn: (id: string) => void): void { openDevice = fn; }
 
 /** What an empty grid or list says. */
 function emptyText(q: string): string {
@@ -63,23 +90,22 @@ function emptyText(q: string): string {
  * however the column is pointing - an unreachable router has no CPU reading, and
  * burying those at the bottom is more useful than treating them as zero.
  */
-/**
- * How a licence level is written on a pill.
- *
- * `4` becomes `L4`, MikroTik's own notation for a RouterBOARD licence. `free`,
- * `p1`, `p10` and `p-unlimited` are CHR licence levels and are already words, so
- * they are left exactly as the router said them: `Lfree` is not a thing.
- */
-export function licenseLabel(level: string): string {
-  return /^\d+$/.test(level) ? 'L' + level : level;
-}
-
 const RTL_COLS: Record<string, { str?: boolean }> = {
   online: {}, label: { str: true }, host: { str: true },
   boardName: { str: true }, version: { str: true },
-  openAlerts: {}, cpu: {}, memPct: {}, hddPct: {}, clients: {},
-  rxMbps: {}, txMbps: {}, uptime: { str: true },
+  openAlerts: {}, uptimePct: {}, backup: {}, uptime: { str: true },
 };
+
+/**
+ * The value a column sorts on. Two columns are not on the row: Connectivity and
+ * Backup come from the overview, keyed by router id, so they are looked up here
+ * rather than copied onto a row the server owns.
+ */
+function sortValue(r: RouterStatsRow, key: string): unknown {
+  if (key === 'uptimePct') return overviewOf(r.id)?.uptimePct ?? null;
+  if (key === 'backup') return overviewOf(r.id)?.backup?.lastAt ?? null;
+  return (r as unknown as Record<string, unknown>)[key];
+}
 
 let rtlSort: { key: string; dir: number } = { key: 'label', dir: 1 };
 
@@ -280,44 +306,6 @@ export function rtrMatches(r: RouterStatsRow, q: string): boolean {
   });
 }
 
-/**
- * The grid's uptime rule, which is NOT `parseUptime` from ../dom.
- *
- * Three differences, every one of them visible:
- *   - SOURCE ORDER is preserved (`match(/\d+[wdhm]/g)`), where parseUptime
- *     forces w, d, h, m.
- *   - A ZERO COMPONENT SURVIVES: "0m" is kept here and dropped there.
- *   - THE FALLBACK IS ESCAPED here and is not there.
- * Reusing the shared helper would have been a silent divergence on a value the
- * router itself supplies.
- */
-function gridUptime(raw: string | null): string {
-  const parts = raw ? raw.match(/\d+[wdhm]/g) : null;
-  if (parts && parts.length) return parts.join(' ');
-  return raw ? esc(raw) : '-';
-}
-
-/**
- * One usage bar, or an em dash.
- *
- * The thresholds are compared against a possibly-null value, exactly as the
- * original does - `null > 90` is false in JavaScript, so an absent reading takes
- * the base colour. It never reaches the DOM, because the bar is only drawn when
- * the value is present, but computing it the same way keeps the two readable
- * side by side.
- */
-function usageBar(label: string, pct: number | null, colour: string, mb: string): string {
-  if (pct == null) {
-    return '<div class="text-muted ' + mb + '" style="font-size:.75rem">' + label + ' -</div>';
-  }
-  return '<div class="d-flex align-items-center ' + mb + '">'
-    + '<span class="me-2 text-muted" style="width:3rem;font-size:.75rem">' + label + '</span>'
-    + '<div class="progress flex-grow-1" style="height:6px">'
-    + '<div class="progress-bar" style="width:' + pct + '%;background:' + colour + '"></div></div>'
-    + '<span class="ms-2 text-muted" style="font-size:.75rem;width:2.5rem;text-align:right">'
-    + pct + '%</span></div>';
-}
-
 /** The card grid. */
 function renderGrid(rows: RouterStatsRow[], q: string): void {
   const grid = el('routers-grid');
@@ -327,109 +315,10 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
       + emptyText(q) + '</div>';
     return;
   }
-
-  let html = '';
-  rows.forEach((r) => {
-    const cpuColour = (r.cpu as number) > 90 ? '#f87171' : (r.cpu as number) > 75 ? '#f59f00' : '#38bdf8';
-    const memColour = (r.memPct as number) > 90 ? '#f87171' : (r.memPct as number) > 75 ? '#f59f00' : '#34d399';
-    const hddColour = (r.hddPct as number) > 90 ? '#f87171' : (r.hddPct as number) > 75 ? '#f59f00' : '#fb923c';
-
-    const cpuBar = usageBar('CPU', r.cpu, cpuColour, 'mb-1');
-    const memBar = usageBar('RAM', r.memPct, memColour, 'mb-1');
-    const hddBar = usageBar('Disk', r.hddPct, hddColour, 'mb-2');
-
-    const uptime = gridUptime(r.uptime);
-    const rx = r.rxMbps != null
-      ? '<span style="color:var(--accent-rx)">&#8595; ' + r.rxMbps.toFixed(2) + ' Mbps</span>' : '-';
-    const tx = r.txMbps != null
-      ? '<span style="color:var(--accent-tx)">&#8593; ' + r.txMbps.toFixed(2) + ' Mbps</span>' : '-';
-    const clients = r.clients != null ? String(r.clients) : '-';
-
-    let footerPills = '';
-    const mr = 'margin-right:.3rem';
-    if (r.boardName) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);' + mr + '">' + esc(r.boardName) + '</span>';
-    if (r.version) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);' + mr + '">ROS ' + esc(r.version) + '</span>';
-    if (r.arch) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);' + mr + '">' + esc(r.arch) + '</span>';
-    if (r.serial) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);' + mr + '">SN: ' + esc(r.serial) + '</span>';
-    // THE `L` IS ONLY RIGHT FOR A ROUTERBOARD. A physical router reports a bare
-    // number and the pill reads L4 or L6, which is how MikroTik writes it. A CHR
-    // reports a WORD - free, p1, p10, p-unlimited - and the prefix turned those
-    // into "Lfree" and "Lp-unlimited", a licence level no MikroTik product has.
-    if (r.licenseLevel) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25)">' + esc(licenseLabel(r.licenseLevel)) + '</span>';
-    const footer = footerPills ? '<div class="mt-2">' + footerPills + '</div>' : '';
-
-    const hostSub = r.host && r.host !== r.label
-      ? '<div style="font-size:.72rem;margin-top:.1rem;color:#ec4899">' + esc(r.host) + '</div>' : '';
-
-    // Explain an offline card rather than leaving the user to read container
-    // logs. The server sends this already sanitized; esc() it like any other.
-    const offlineWhy = !r.online && r.lastError
-      ? '<div style="font-size:.72rem;line-height:1.35;color:#d63939;background:rgba(214,57,57,.08);'
-        + 'border:1px solid rgba(214,57,57,.22);border-radius:6px;padding:.35rem .55rem;margin-bottom:.75rem">'
-        + esc(r.lastError) + '</div>' : '';
-
-    const activeBadge = r.isActive
-      ? '<span class="badge badge-outline text-blue ms-2">active</span>' : '';
-
-    // Compact fits four across where Comfortable fits three - the same cards,
-    // more of them in view.
-    // ── AND A TIER ABOVE `xl`, WHICH IS ONLY 1200px ───────────────────────
-    //
-    // Removing the page's `container-xl` cap (issue #122) let the grid have the
-    // whole window, but the columns stopped at `xl` - so a 2500px screen still
-    // drew three cards, each about 800px wide and mostly empty. Full width and
-    // responsive are not the same thing, and the reporter asked for the second.
-    //
-    // Tabler carries `xxl` (>=1400px) and nothing used it. Comfortable goes to
-    // four per row and compact to six, which is where a card stops gaining
-    // anything from the extra width.
-    html += (rtrView === 'compact'
-      ? '<div class="col-md-4 col-xl-3 col-xxl-2">'
-      : '<div class="col-md-6 col-xl-4 col-xxl-3">')
-      // h-100 so cards in a row match height. Without it a card is only as tall
-      // as its content, and one whose identity pills wrap to a second row sat
-      // visibly taller than its neighbours - measured at 297px against 275px.
-      + '<div class="card h-100">'
-      + '<div class="card-header" style="align-items:flex-start">'
-      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (!r.known ? '#6c7a91' : r.online ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
-      + '<div class="me-auto">'
-      + '<div class="d-flex align-items-center"><strong class="card-title mb-0 me-1" style="color:inherit">' + esc(r.label) + '</strong>' + activeBadge + '</div>'
-      + hostSub
-      + '</div>'
-      // THREE STATES, not two. `!known` means no pool has reached this router
-      // yet, and saying "Offline" about it in red was alarming and wrong.
-      + '<span class="badge ms-2 ' + (!r.known ? 'bg-secondary-lt' : r.online ? 'bg-green-lt' : 'bg-red-lt') + '">'
-      + (!r.known ? 'Checking…' : r.online ? 'Online' : 'Offline') + '</span>'
-      + '</div>'
-      + '<div class="card-body">'
-      + offlineWhy
-      + cpuBar + memBar + hddBar
-      + '<div class="row g-2 text-center">'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Uptime</div><div style="font-size:.9rem;font-weight:500;letter-spacing:.02em">' + uptime + '</div></div>'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Clients</div><div style="font-size:.9rem;font-weight:500;color:#a855f7">' + clients + '</div></div>'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">WAN Rx</div><div style="font-size:.82rem;font-weight:500">' + rx + '</div></div>'
-      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">WAN Tx</div><div style="font-size:.82rem;font-weight:500">' + tx + '</div></div>'
-      + '</div>'
-      + footer
-      + '</div>'
-      + '</div>'
-      + '</div>';
-  });
-  grid.innerHTML = html;
-}
-
-/**
- * One usage cell in the list.
- *
- * THE WIDTH IS CLAMPED AND THE NUMBER IS NOT, which is the original's behaviour
- * and worth keeping: a router reporting 150% shows a full bar and still says
- * "150%", so the reading is visible rather than quietly trimmed to something
- * plausible.
- */
-function rtlBar(pct: number | null, colour: string): string {
-  if (pct == null) return '<span class="text-muted">-</span>';
-  return '<span class="rtl-bar"><i style="width:' + Math.max(0, Math.min(100, pct))
-    + '%;background:' + colour + '"></i></span>' + pct + '%';
+  // Compact fits more across; both reach `xxl` so a wide screen keeps gaining
+  // cards rather than stretching three (issue #122).
+  const now = Date.now();
+  grid.innerHTML = rows.map((r) => deviceCardHtml(r, overviewOf(r.id), rtrView === 'compact', now)).join('');
 }
 
 /**
@@ -452,8 +341,8 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
 
   const col = RTL_COLS[rtlSort.key] || {};
   list.sort((a, b) => {
-    const av = (a as unknown as Record<string, unknown>)[rtlSort.key];
-    const bv = (b as unknown as Record<string, unknown>)[rtlSort.key];
+    const av = sortValue(a, rtlSort.key);
+    const bv = sortValue(b, rtlSort.key);
     if (col.str) {
       return String(av == null ? '' : av).localeCompare(
         String(bv == null ? '' : bv), undefined,
@@ -467,37 +356,44 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
   });
 
   if (!list.length) {
-    body.innerHTML = '<tr><td colspan="13" class="text-muted text-center py-3">'
+    body.innerHTML = '<tr><td colspan="9" class="text-muted text-center py-3">'
       + emptyText(rtrQuery()) + '</td></tr>';
     refreshHeaders();
     return;
   }
 
   const dash = '<span class="text-muted">-</span>';
+  const now = Date.now();
   body.innerHTML = list.map((r) => {
-    const cpuC = (r.cpu as number) > 90 ? '#f87171' : (r.cpu as number) > 75 ? '#f59f00' : '#38bdf8';
-    const memC = (r.memPct as number) > 90 ? '#f87171' : (r.memPct as number) > 75 ? '#f59f00' : '#34d399';
-    const hddC = (r.hddPct as number) > 90 ? '#f87171' : (r.hddPct as number) > 75 ? '#f59f00' : '#fb923c';
     const up = r.uptime ? ((r.uptime.match(/\d+[wdhm]/g) || []).join(' ') || r.uptime) : null;
     const alerts = r.openAlerts > 0
       ? '<span style="color:var(--accent-amber,#f59f00);font-weight:600">' + r.openAlerts + '</span>'
       : dash;
+    const o = overviewOf(r.id);
+    const conn = o
+      ? '<span class="rtl-conn">' + stripHtml(o.spans, o.spans[0]?.from ?? 0,
+          o.spans[o.spans.length - 1]?.to ?? 0, { uptimePct: o.uptimePct })
+        + '<span class="rtl-conn-pct">' + uptimeLabel(o.uptimePct) + '</span></span>'
+      : dash;
+    const bk = o && o.backup
+      ? (o.backup.lastOutcome === 'changed' || o.backup.lastOutcome === 'unchanged'
+        ? '<span class="dv-backup dv-backup-ok">' + ago(o.backup.lastAt, now) + '</span>'
+        : '<span class="dv-backup dv-backup-bad">Failed ' + ago(o.backup.lastAt, now) + '</span>')
+      : dash;
+    const st = cardState(r);
     // `rtl-offline` DIMS THE ROW, so an unchecked router must not carry it -
-    // see the three states on the card badge above.
-    return '<tr class="rtl-row' + (r.online || !r.known ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
-      + '<td><span class="rtl-dot" style="background:' + (!r.known ? '#6c7a91' : r.online ? '#34d399' : '#f87171') + '" title="'
-        + (!r.known ? 'Checking…' : r.online ? 'Online' : 'Offline') + '"></span></td>'
+    // see the three states on the card badge.
+    return '<tr class="rtl-row' + (st === 'offline' ? ' rtl-offline' : '') + '" data-device="' + esc(r.id)
+      + '" tabindex="0" role="button" aria-label="' + esc('Open overview of ' + r.label) + '">'
+      + '<td><span class="rtl-dot" style="background:' + (st === 'unknown' ? '#6c7a91' : st === 'online' ? '#34d399' : '#f87171') + '" title="'
+        + (st === 'unknown' ? 'Checking\u2026' : st === 'online' ? 'Online' : 'Offline') + '"></span></td>'
       + '<td>' + esc(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
       + '<td class="text-muted">' + esc(r.host || '') + '</td>'
       + '<td>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
-      + '<td>' + (r.version ? esc(r.version) : dash) + '</td>'
+      + '<td>' + (r.version ? esc(r.version) : dash) + ' ' + updatePill(r) + '</td>'
       + '<td class="rtl-num">' + alerts + '</td>'
-      + '<td class="rtl-num">' + rtlBar(r.cpu, cpuC) + '</td>'
-      + '<td class="rtl-num">' + rtlBar(r.memPct, memC) + '</td>'
-      + '<td class="rtl-num">' + rtlBar(r.hddPct, hddC) + '</td>'
-      + '<td class="rtl-num">' + (r.clients != null ? r.clients : dash) + '</td>'
-      + '<td class="rtl-num">' + (r.rxMbps != null ? r.rxMbps.toFixed(2) : dash) + '</td>'
-      + '<td class="rtl-num">' + (r.txMbps != null ? r.txMbps.toFixed(2) : dash) + '</td>'
+      + '<td>' + conn + '</td>'
+      + '<td>' + bk + '</td>'
       + '<td class="text-muted">' + (up ? esc(up) : dash) + '</td>'
       + '</tr>';
   }).join('');
@@ -575,12 +471,6 @@ export function layout(located: RouterStatsRow[]): MapGroup[] {
   });
 }
 
-/** Whether this viewer may manage a router, as the live popover asks. */
-function canManage(id: string): boolean {
-  const caps = (globalThis as unknown as { _caps?: { routers?: { manageable?: string[] } } })._caps;
-  return !!(caps && caps.routers && (caps.routers.manageable || []).indexOf(id) !== -1);
-}
-
 /** One router's popover. */
 /**
  * The status dot's colour, in the map's CSS variables.
@@ -609,14 +499,12 @@ export function popHtml(r: RouterStatsRow): string {
     + '"></span>' + esc(r.label) + '</div>'
     + '<div class="rmp-grid">'
     + '<span>Host</span><b>' + esc(r.host) + '</b>'
-    + '<span>CPU</span><b>' + (r.cpu == null ? '-' : r.cpu + '%') + '</b>'
     + '<span>Uptime</span><b>' + esc(up) + '</b>'
-    + '<span>WAN</span><b>&#8595;' + (r.rxMbps == null ? '-' : r.rxMbps)
-    + ' &#8593;' + (r.txMbps == null ? '-' : r.txMbps) + ' Mbps</b>'
+    + '<span>24h up</span><b>' + uptimeLabel(overviewOf(r.id)?.uptimePct ?? null) + '</b>'
     + (r.openAlerts ? '<span>Alerts</span><b style="color:var(--accent-amber,#f59f00)">' + r.openAlerts + '</b>' : '')
     + '</div>'
     + '<div class="rmp-loc">' + loc + '</div>'
-    + (canManage(r.id) ? '<button type="button" data-open-router="' + esc(r.id) + '">Open settings</button>' : '');
+    + '<button type="button" data-device="' + esc(r.id) + '">Open overview</button>';
 }
 
 /**
@@ -624,7 +512,7 @@ export function popHtml(r: RouterStatsRow): string {
  *
  * A group of one shows the router. A group of several shows what is IN it - the
  * count on the marker says how many, this says which, with a way into each one's
- * settings. Without it a cluster would be a dead end.
+ * overview. Without it a cluster would be a dead end.
  */
 export function groupPopHtml(g: MapGroup): string {
   const first = g.routers[0];
@@ -640,8 +528,7 @@ export function groupPopHtml(g: MapGroup): string {
     + (down ? ' <span style="color:var(--accent-err,#f87171)">- ' + down + ' offline</span>' : '')
     + '</div>'
     + '<div class="rmp-list">' + g.routers.map((r) => {
-        const can = canManage(r.id);
-        return '<div class="rmp-row"' + (can ? ' data-open-router="' + esc(r.id) + '"' : '')
+        return '<div class="rmp-row" data-device="' + esc(r.id) + '"'
           + '><span class="rtl-dot" style="background:' + dotColour(r)
           + '"></span><span class="rmp-rl">' + esc(r.label) + '</span>'
           + '<span class="rmp-rh">' + esc(r.host) + '</span></div>';
@@ -662,7 +549,7 @@ export function renderTray(unlocated: RouterStatsRow[]): void {
   tray.hidden = false;
   tray.innerHTML = '<span class="rmt-label">No location ('
     + unlocated.length + '):</span>'
-    + unlocated.map((r) => '<span class="rmt-pill" data-open-router="' + esc(r.id) + '" title="'
+    + unlocated.map((r) => '<span class="rmt-pill" data-device="' + esc(r.id) + '" title="'
         + esc(r.host) + '"><span class="rtl-dot" style="background:'
         + (r.online ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
         + '"></span>' + esc(r.label) + '</span>').join('')
@@ -940,4 +827,53 @@ export function mountRouters(socket: Socket): void {
   let saved = 'comfortable';
   try { saved = localStorage.getItem(VIEW_KEY) || 'comfortable'; } catch { /* site data blocked */ }
   applyView(saved);
+
+  // ONE OPENER for every `[data-device]` on the page, delegated so the cards,
+  // rows and popovers rebuilt every two seconds need no listeners of their own.
+  const page = el('page-devices');
+  if (page) {
+    page.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement | null;
+      const d = t && t.closest ? t.closest('[data-device]') as HTMLElement | null : null;
+      if (d && d.dataset.device) openDevice(d.dataset.device);
+    });
+    page.addEventListener('keydown', (e) => {
+      const k = (e as KeyboardEvent).key;
+      if (k !== 'Enter' && k !== ' ') return;
+      const t = e.target as HTMLElement | null;
+      if (!t || !t.dataset || !t.dataset.device) return;
+      e.preventDefault();
+      openDevice(t.dataset.device);
+    });
+  }
+
+  document.addEventListener('mikrodash:pagechange', (e) => {
+    if ((e as CustomEvent).detail === 'devices') void loadOverview();
+  });
+  document.addEventListener('visibilitychange', () => { if (devicesShown()) void loadOverview(); });
+  setInterval(() => { if (devicesShown()) void loadOverview(); }, OVERVIEW_EVERY_MS);
+}
+
+const OVERVIEW_EVERY_MS = 60_000;
+
+/** The Devices page is on screen. */
+function devicesShown(): boolean {
+  return !document.hidden && !!el('page-devices')?.classList.contains('active');
+}
+
+/**
+ * Fetch the overview and repaint from the rows already held.
+ *
+ * A failure keeps what was held: a strip a minute old beats a page of
+ * placeholders, and a 403 (no Devices page) cannot happen on a page that is
+ * showing.
+ */
+export async function loadOverview(): Promise<void> {
+  try {
+    const res = await fetch('/api/devices/overview');
+    if (!res.ok) return;
+    const rows = await res.json() as DeviceOverview[];
+    setOverview(Array.isArray(rows) ? rows : []);
+    renderRoutersStats(null);
+  } catch { /* offline: keep what is held */ }
 }

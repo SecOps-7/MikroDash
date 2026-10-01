@@ -61,9 +61,8 @@ type StatsRouter struct {
 	// SiteIDs is the device's site membership (#117). A record carrying only the
 	// older singular `siteId` is normalised into a one-element slice by the
 	// caller, exactly as the live `_rtrSiteIds` does.
-	SiteIDs   []string
-	DefaultIf string
-	Geo       map[string]any
+	SiteIDs []string
+	Geo     map[string]any
 }
 
 // MainSession is what a router's session knows. Since 2026-10-01 every enabled
@@ -79,7 +78,6 @@ type MainSession struct {
 	Known      bool
 	LastError  string
 	System     *collect.SystemPayload
-	IfStatus   *collect.IfStatusPayload
 	DHCPLeases *collect.LeasesPayload
 }
 
@@ -111,10 +109,6 @@ type StatsSources struct {
 	// were two sources here, `Main` and the pool's `Background` disagreeing about
 	// `Connected` is exactly the confusion this separation stopped.
 	Online map[string]bool
-
-	// DefaultIf is the GLOBAL setting, used when a router names no interface of
-	// its own. The original falls back again to "ether1" after it.
-	DefaultIf string
 
 	OpenAlerts map[string]int
 	Sites      map[string]Site
@@ -150,20 +144,19 @@ func BuildStats(src StatsSources) []Row {
 		main, hasMain := src.Main[r.ID]
 
 		in := Input{
-			ID:        r.ID,
-			Label:     r.Label,
-			Host:      r.Host,
-			IsActive:  src.ActiveID != "" && r.ID == src.ActiveID,
-			SiteIDs:   r.SiteIDs,
-			Geo:       r.Geo,
-			DefaultIf: DefaultIfFor(r.DefaultIf, src.DefaultIf),
+			ID:       r.ID,
+			Label:    r.Label,
+			Host:     r.Host,
+			IsActive: src.ActiveID != "" && r.ID == src.ActiveID,
+			SiteIDs:  r.SiteIDs,
+			Geo:      r.Geo,
 		}
 
 		if hasMain {
 			in.Known = main.Known
 			in.Connected = main.Connected
 			in.LastError = main.LastError
-			in.System, in.IfStatus, in.DHCPLeases = main.System, main.IfStatus, main.DHCPLeases
+			in.System, in.DHCPLeases = main.System, main.DHCPLeases
 		} else {
 			// Known to the fleet and held by NO session yet - a router added a
 			// moment ago, before the next fleet sync has held it - so nothing has

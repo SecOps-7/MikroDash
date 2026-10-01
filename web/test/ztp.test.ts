@@ -78,7 +78,11 @@ assert.match(sec, /card-badge active-blue">3</, 'the count pill does not count w
 assert.match(sec, /1 device is waiting to be onboarded/);
 assert.strictEqual(V.sectionHtml({ status: status({ enabled: false }), batches: [], devices: [] }, NOW), '',
   'an install not using provisioning shows an empty section');
-assert.match(V.sectionHtml({ status: status(), batches: [], devices: [] }, NOW), /No devices are waiting/);
+// RE-AIMED 2026-10-01: with provisioning ON and nothing on its way in, the
+// section is empty too. It used to say "No devices are waiting", a permanent
+// paragraph above the fleet that the Add device button already says.
+assert.strictEqual(V.sectionHtml({ status: status(), batches: [], devices: [] }, NOW), '',
+  'an empty provisioning section still draws something');
 
 // ── STEP 1: remote needs a running tunnel with an address ───────────────────
 assert.strictEqual(V.remoteBlocked(status()), '');

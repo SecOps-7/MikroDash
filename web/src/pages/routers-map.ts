@@ -511,24 +511,8 @@ export function initRoutersMap(): void {
   // load - otherwise the button reads as off while the map is still framing.
   if (autoFrame) setAutoFrame(true, false);
 
-  const pop = el('rtrMapPop');
-  if (pop) {
-    pop.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement | null;
-      const b = t && t.closest ? t.closest('[data-open-router]') : null;
-      if (!b) return;
-      openRouter(b.getAttribute('data-open-router') || '');
-    });
-  }
-
-  const tray = el('rtrMapTray');
-  if (tray) {
-    tray.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement | null;
-      const p = t && t.closest ? t.closest('[data-open-router]') : null;
-      if (p) openRouter(p.getAttribute('data-open-router') || '');
-    });
-  }
+  // A popover's "Open overview" and a tray pill carry `data-device`, which the
+  // Devices page's one delegated opener handles (routers.ts `mountRouters`).
 
   document.addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key === 'Escape' && pinned) {
@@ -548,19 +532,6 @@ export function initRoutersMap(): void {
       if (p) p.hidden = true;
     }
   });
-}
-
-/**
- * Open the router modal from a popover or a tray pill.
- *
- * `window._rtrOpenModal` is the live app's own hand-off, published by the
- * routers page so the map's inner IIFE can reach a dialog it does not own. The
- * port keeps the same name because it is the documented producer/consumer pair
- * that `announcement-audit` checks.
- */
-function openRouter(id: string): void {
-  const open = (globalThis as unknown as { _rtrOpenModal?: (id: string) => void })._rtrOpenModal;
-  if (id && open) open(id);
 }
 
 /** Exported for the label-collision gate below; the rest is browser-verified. */

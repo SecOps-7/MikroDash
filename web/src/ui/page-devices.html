@@ -90,9 +90,9 @@
         <div class="col-12 text-muted text-center py-4">Loading…</div>
       </div>
 
-      <!-- List view. Every column sorts; the row under the headers filters.
-           Filters live in the header rather than a toolbar so it is obvious
-           which column each one narrows. -->
+      <!-- List view. Every column sorts, and a row opens the device overview
+           as a card does. Connectivity and Backup come from the overview fetch,
+           not the row. -->
       <div class="card mt-3 routers-list-wrap" id="routersListWrap" hidden>
         <div class="table-responsive">
           <table class="table table-sm routers-list">
@@ -104,12 +104,8 @@
                 <th data-sort="boardName">Model</th>
                 <th data-sort="version">RouterOS</th>
                 <th class="rtl-num" data-sort="openAlerts" title="Unresolved alerts on this device">Alerts</th>
-                <th class="rtl-num" data-sort="cpu">CPU</th>
-                <th class="rtl-num" data-sort="memPct">RAM</th>
-                <th class="rtl-num" data-sort="hddPct">Disk</th>
-                <th class="rtl-num" data-sort="clients" title="DHCP leases">Clients</th>
-                <th class="rtl-num" data-sort="rxMbps">WAN Rx</th>
-                <th class="rtl-num" data-sort="txMbps">WAN Tx</th>
+                <th data-sort="uptimePct" title="Reachability over the last 24 hours">Connectivity</th>
+                <th data-sort="backup" title="The newest configuration backup">Backup</th>
                 <th data-sort="uptime">Uptime</th>
               </tr>
             </thead>

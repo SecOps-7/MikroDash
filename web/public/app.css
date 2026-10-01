@@ -903,10 +903,77 @@
        select's metrics so the bar is only as tall as its controls. */
     .routers-toolbar .sform-input{flex:1 1 auto;min-width:0;padding:.25rem .55rem;font-size:.72rem}
     .rtl-dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+    /* ── Devices page cards: an overview, opened into the device modal ──────
+       The strip's colours are tokens of their own so the light theme can
+       darken them: --accent-ok/--accent-err are not overridden there, and a
+       #4ade80 percentage on white is unreadable. */
+    :root{--dv-up:#34d399;--dv-down:#f87171;--dv-unmon:rgba(148,163,190,.22);--dv-good:#4ade80;--dv-warn:#f59f00;--dv-bad:#f87171}
+    html[data-theme="light"]{--dv-up:#22a06b;--dv-down:#d63939;--dv-unmon:rgba(95,113,150,.22);--dv-good:#1d8a57;--dv-warn:#b26b00;--dv-bad:#c42b2b}
+    .dv-card{cursor:pointer;padding:.85rem .95rem .8rem;display:flex;flex-direction:column;gap:.7rem;position:relative;overflow:hidden;
+      transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+    .dv-card::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--dv-st,transparent);opacity:.85}
+    .dv-card.dv-online{--dv-st:var(--dv-up)}
+    .dv-card.dv-offline{--dv-st:var(--dv-down)}
+    .dv-card.dv-unknown{--dv-st:var(--dv-unmon)}
+    .dv-card:hover{transform:translateY(-2px);border-color:rgba(56,189,248,.35);box-shadow:0 8px 24px -12px rgba(0,0,0,.55)}
+    .dv-card:focus-visible{outline:2px solid var(--accent-rx);outline-offset:2px}
+    .dv-card:active{transform:translateY(0)}
+    .dv-head{display:flex;align-items:flex-start;gap:.6rem;min-width:0}
+    .dv-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;margin-top:.38rem;background:var(--dv-st)}
+    .dv-online .dv-dot{box-shadow:0 0 0 3px color-mix(in srgb,var(--dv-up) 22%,transparent)}
+    .dv-offline .dv-dot{animation:dv-pulse 1.8s ease-in-out infinite}
+    @keyframes dv-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--dv-down) 55%,transparent)}50%{box-shadow:0 0 0 5px transparent}}
+    @media (prefers-reduced-motion:reduce){.dv-offline .dv-dot{animation:none}.dv-card{transition:none}.dv-card:hover{transform:none}}
+    .dv-id{flex:1 1 auto;min-width:0}
+    .dv-name{display:flex;align-items:center;gap:.4rem;min-width:0}
+    .dv-name strong{font-size:.95rem;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dv-active{flex:0 0 auto;font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;padding:.05rem .4rem;border-radius:20px;
+      color:var(--accent-rx);border:1px solid color-mix(in srgb,var(--accent-rx) 45%,transparent)}
+    .dv-sub{font-size:.72rem;color:var(--text-muted);margin-top:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono)}
+    .dv-badges{flex:0 0 auto;display:flex;align-items:center;gap:.35rem}
+    .dv-status{font-size:.68rem;font-weight:600;padding:.12rem .55rem;border-radius:20px;
+      color:var(--dv-st);background:color-mix(in srgb,var(--dv-st) 14%,transparent);border:1px solid color-mix(in srgb,var(--dv-st) 32%,transparent)}
+    .dv-unknown .dv-status{color:var(--text-muted)}
+    .dv-alerts{display:inline-flex;align-items:center;gap:.2rem;font-size:.68rem;font-weight:700;padding:.12rem .45rem;border-radius:20px;
+      color:var(--dv-warn);background:color-mix(in srgb,var(--dv-warn) 14%,transparent);border:1px solid color-mix(in srgb,var(--dv-warn) 32%,transparent)}
+    .dv-alerts svg,.dv-update svg,.dv-backup svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+    .dv-why{font-size:.72rem;line-height:1.35;color:var(--dv-down);background:color-mix(in srgb,var(--dv-down) 8%,transparent);
+      border:1px solid color-mix(in srgb,var(--dv-down) 22%,transparent);border-radius:6px;padding:.35rem .55rem}
+    .dv-conn-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.3rem}
+    .dv-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:600}
+    .dv-pct{font-family:var(--font-mono);font-size:.82rem;font-weight:600}
+    .dv-pct-good{color:var(--dv-good)} .dv-pct-warn{color:var(--dv-warn)} .dv-pct-bad{color:var(--dv-bad)} .dv-pct-none{color:var(--text-muted);font-weight:500;font-size:.72rem}
+    /* The strip: percentage-positioned segments. A DOWN segment sits above the
+       rest with a floor width, so a one-minute outage on a 24h strip still
+       shows; the tooltip carries the true time (devices-strip.ts). */
+    .dv-strip{position:relative;height:22px;border-radius:5px;overflow:hidden;background:var(--dv-unmon)}
+    .dv-seg{position:absolute;top:0;bottom:0;display:block}
+    .dv-seg.dv-up{background:var(--dv-up)}
+    .dv-seg.dv-unmonitored{background:var(--dv-unmon)}
+    .dv-seg.dv-down{background:var(--dv-down);min-width:3px;z-index:1}
+    .dv-seg:hover{filter:brightness(1.18)}
+    .dv-strip-loading{background:linear-gradient(90deg,var(--dv-unmon) 25%,rgba(148,163,190,.38) 50%,var(--dv-unmon) 75%);background-size:200% 100%;animation:dv-shimmer 1.4s linear infinite}
+    @keyframes dv-shimmer{to{background-position:-200% 0}}
+    .dv-axis{display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-muted);margin-top:.25rem;font-family:var(--font-mono)}
+    .dv-foot{margin-top:auto;display:flex;flex-direction:column;gap:.3rem;padding-top:.55rem;border-top:1px solid var(--border)}
+    .dv-foot-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;font-size:.72rem;min-width:0}
+    .dv-model{color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dv-up{color:var(--text-muted);font-family:var(--font-mono)}
+    .dv-update{flex:0 0 auto;display:inline-flex;align-items:center;gap:.2rem;font-size:.64rem;font-weight:600;padding:.08rem .45rem;border-radius:20px;
+      color:var(--accent-alt);background:color-mix(in srgb,var(--accent-alt) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent-alt) 32%,transparent)}
+    .dv-backup{flex:0 0 auto;display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem}
+    .dv-backup-ok{color:var(--text-muted)} .dv-backup-ok svg{color:var(--dv-good)}
+    .dv-backup-bad{color:var(--dv-bad);font-weight:600}
+    .dv-compact{gap:.55rem;padding:.7rem .8rem}
+    .dv-compact .dv-strip{height:16px}
+    .dv-compact .dv-foot{padding-top:.4rem}
+    /* The list's Connectivity column: a mini strip and its figure. */
+    .rtl-conn{display:inline-flex;align-items:center;gap:.5rem}
+    .rtl-conn .dv-strip{width:140px;height:12px;border-radius:3px}
+    .rtl-conn-pct{min-width:3.6rem;text-align:right}
+    .routers-list tr.rtl-row:focus-visible td{outline:none;background:rgba(56,189,248,.1)}
     /* A tiny inline bar, so a busy router is visible without reading the number.
        Same thresholds the cards use. */
-    .rtl-bar{display:inline-block;width:34px;height:4px;border-radius:2px;background:rgba(99,130,190,.18);vertical-align:middle;margin-right:.35rem;overflow:hidden}
-    .rtl-bar>i{display:block;height:100%;border-radius:2px}
 
     /* ── Map view (issue #96) ────────────────────────────────────────────────
        The SVG carries the pan/zoom transform; the popover and the controls sit
@@ -2978,7 +3045,6 @@
     .ztp-sec-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}
     .ztp-sec-title{font-size:.82rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em}
     .ztp-sec-note{font-size:.74rem;color:var(--accent-warn)}
-    .ztp-empty{font-size:.76rem;color:var(--text-muted)}
     .ztp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem}
     .ztp-card{border:1px solid var(--border);border-radius:10px;padding:.75rem .85rem;display:flex;flex-direction:column;gap:.45rem;min-width:0;transition:border-color .2s}
     .ztp-card.state-pending{border-color:color-mix(in srgb,var(--accent-warn) 45%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent-warn) 12%,transparent) inset}

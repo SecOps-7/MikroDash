@@ -87,20 +87,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		out.Routers = append(out.Routers, routers.StatsRouter{
 			ID: r.ID, Label: r.Label, Host: r.Host, Disabled: r.Disabled,
 			SiteIDs: store.RouterSiteIDs(r),
-			// ── WITHOUT THIS THE WAN RX/TX COLUMN IS EMPTY ────────────────
-			//
-			// `BuildStats` resolves the WAN interface as
-			// `DefaultIfFor(r.DefaultIf, global)` and looks it up by NAME in the
-			// interface payload. Unset, every router fell through to the global
-			// default — and this is the second field on this struct to be
-			// declared and never filled, after `Geo` below.
-			//
-			// IT HID BEHIND THE FALLBACK, which is the same accident this file
-			// already records for the `defaultIf` setting key: three of four
-			// routers here are configured as `ether1` and so is the global, so
-			// they matched anyway. The one router with a real WAN name showed no
-			// throughput at all, which is how the operator found it.
-			DefaultIf: r.DefaultIf,
 			// ── WITHOUT THIS THE MAP PLOTS NOTHING ────────────────────────
 			//
 			// `BuildStats` copies this into the row's `Geo`, and
@@ -118,21 +104,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		})
 	}
 
-	// The GLOBAL default interface, the low half of the precedence a row
-	// resolves. `BuildStats` falls back again to "ether1" after it.
-	//
-	// ── THE KEY IS `defaultIf`, AND IT WAS `defaultInterface` HERE ─────────
-	//
-	// `Merge` DROPS a key that is not in the defaults table — deliberately, so a
-	// retired setting left on disk cannot reappear — so this read returned
-	// nothing on every install and the global setting was silently ignored. It
-	// looked harmless because the table's default for `defaultIf` is "ether1"
-	// and so is `DefaultIfFor`'s fallback, so the two agreed by accident
-	// wherever nobody had changed the setting. An operator who DID change it was
-	// overruled, everywhere, with no error. Found while wiring the same read
-	// into the recorders (#126).
-	out.DefaultIf = s.globalDefaultIf()
-
 	// EVERY SESSION, which since 2026-10-01 means every enabled router: each is
 	// held WARM from startup (fleet_holds.go). Presence decides which rows read a
 	// payload; `Connected()` decides what the row says, because a session exists
@@ -147,9 +118,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 				// the one-shot prime is what stops the card drawing a green
 				// badge over blank gauges in between.
 				System: sn.SystemOrPrimed(),
-			}
-			if c := sn.IfStatus(); c != nil {
-				m.IfStatus = c.Last()
 			}
 			if c := sn.DHCPLeases(); c != nil {
 				m.DHCPLeases = c.Last()
