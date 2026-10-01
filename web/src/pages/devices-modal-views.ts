@@ -18,9 +18,6 @@ export const RANGE_MS: Record<Range, number> = {
 };
 const RANGE_WORD: Record<Range, string> = { '24h': '24 hours', '7d': '7 days', '30d': '30 days' };
 
-/** The chart's window: the first frame's ring, five minutes at one second. */
-export const CHART_MS = 300_000;
-
 const STATE_TEXT: Record<CardState, string> = {
   unknown: 'Checking…', online: 'Online', offline: 'Offline',
 };
@@ -82,54 +79,24 @@ export function connectivityHtml(o: DeviceOverview | undefined, range: Range): s
 }
 
 /**
- * The WAN chart: two filled areas over the last five minutes, as SVG.
- *
- * Inline rather than Chart.js: one small chart repainted once a second needs no
- * library lifecycle to create and destroy with the modal. Rx is `--accent-rx`
- * and Tx `--accent-tx`, the app's fixed pair. The y axis starts at zero and
- * tops out a little above the highest sample, so a flat line is not drawn as a
- * full-height wall.
+ * Live usage's header: the interface, and the current Rx/Tx large. The chart
+ * under it is a canvas the modal keeps for as long as it is open
+ * (`devices-modal-chart.ts`), so it is not part of this markup - repainting it
+ * every second is exactly the ticking the chart's frame loop exists to avoid.
  */
-export function wanChartSvg(points: readonly TrafficPoint[], now: number): string {
-  const W = 600, H = 150;
-  const from = now - CHART_MS;
-  const pts = points.filter((p) => p.ts >= from);
-  let max = 0;
-  pts.forEach((p) => { max = Math.max(max, p.rx_mbps, p.tx_mbps); });
-  const top = max > 0 ? max * 1.15 : 1;
-  const x = (ts: number): string => (((ts - from) / CHART_MS) * W).toFixed(1);
-  const y = (v: number): string => (H - (v / top) * H).toFixed(1);
-  const area = (key: 'rx_mbps' | 'tx_mbps'): string => {
-    if (pts.length < 2) return '';
-    const line = pts.map((p, i) => (i ? 'L' : 'M') + x(p.ts) + ',' + y(p[key])).join('');
-    return '<path class="dvm-' + (key === 'rx_mbps' ? 'rx' : 'tx') + '-fill" d="' + line
-      + 'L' + x(pts[pts.length - 1]!.ts) + ',' + H + 'L' + x(pts[0]!.ts) + ',' + H + 'Z"/>'
-      + '<path class="dvm-' + (key === 'rx_mbps' ? 'rx' : 'tx') + '-line" d="' + line + '"/>';
-  };
-  const grid = [0.25, 0.5, 0.75].map((f) =>
-    '<line class="dvm-grid" x1="0" x2="' + W + '" y1="' + (H * f) + '" y2="' + (H * f) + '"/>').join('');
-  return '<div class="dvm-chart"><span class="dvm-chart-max">' + esc(fmtMbps(top)) + '</span>'
-    + '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="WAN throughput, last five minutes">'
-    + grid + area('rx_mbps') + area('tx_mbps') + '</svg>'
-    + '<div class="dv-axis"><span>5m ago</span><span>now</span></div></div>';
-}
-
-/** Live usage: the current WAN rates large, the chart under them. */
-export function usageHtml(live: Live | null, points: readonly TrafficPoint[], now: number): string {
-  const last = points[points.length - 1];
+export function usageHeadHtml(live: Live | null, last: TrafficPoint | undefined): string {
   const head = '<div class="dvm-sec-head"><h3>Live usage</h3>'
     + (live && live.wanIf ? '<span class="dvm-pill">' + esc(live.wanIf) + '</span>' : '') + '</div>';
-  if (!live) return head + '<div class="dvm-skel" style="height:190px"></div>';
-  if (!points.length) {
+  if (!live) return head + '<div class="dvm-skel" style="height:56px"></div>';
+  if (!last) {
     return head + '<div class="dvm-none">' + (live.connected
-      ? 'Waiting for the first throughput sample…' : 'Offline: no live throughput.') + '</div>';
+      ? 'Waiting for the first throughput sample\u2026' : 'Offline: no live throughput.') + '</div>';
   }
   return head + '<div class="dvm-rates">'
     + '<div><span class="dvm-rate-lbl">Rx</span><span class="dvm-rate" style="color:var(--accent-rx)">'
-    + esc(last ? fmtMbps(last.rx_mbps) : '-') + '</span></div>'
+    + esc(fmtMbps(last.rx_mbps)) + '</span></div>'
     + '<div><span class="dvm-rate-lbl">Tx</span><span class="dvm-rate" style="color:var(--accent-tx)">'
-    + esc(last ? fmtMbps(last.tx_mbps) : '-') + '</span></div></div>'
-    + wanChartSvg(points, now);
+    + esc(fmtMbps(last.tx_mbps)) + '</span></div></div>';
 }
 
 /** CPU, RAM and disk as the dashboard's gauges, plus temperature. */

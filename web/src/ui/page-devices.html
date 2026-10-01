@@ -150,12 +150,17 @@
             <div id="dvmDetails"></div>
           </aside>
           <div class="dvm-main">
-            <section class="dvm-card" id="dvmConn"></section>
-            <section class="dvm-card" id="dvmUsage"></section>
             <div class="dvm-pair">
               <section class="dvm-card" id="dvmRes"></section>
               <section class="dvm-card" id="dvmPorts"></section>
             </div>
+            <section class="dvm-card" id="dvmConn"></section>
+            <section class="dvm-card">
+              <div id="dvmUsage"></div>
+              <!-- Kept for as long as the modal is open and scrolled by a frame
+                   loop, never rebuilt by the once-a-second repaint. -->
+              <div class="dvm-chart" id="dvmChartWrap" hidden><canvas id="dvmWanChart"></canvas></div>
+            </section>
             <section class="dvm-card" id="dvmAlerts"></section>
           </div>
         </div>

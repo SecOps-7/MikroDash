@@ -1023,12 +1023,8 @@
     .dvm-rates{display:flex;gap:2rem;margin-bottom:.5rem}
     .dvm-rate-lbl{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
     .dvm-rate{font-family:var(--font-mono);font-size:1.35rem;font-weight:700;line-height:1.15}
-    .dvm-chart{position:relative}
-    .dvm-chart svg{display:block;width:100%;height:150px}
-    .dvm-chart-max{position:absolute;top:0;left:.2rem;font-size:.6rem;font-family:var(--font-mono);color:var(--text-muted)}
-    .dvm-grid{stroke:var(--border);stroke-width:1;vector-effect:non-scaling-stroke}
-    .dvm-rx-fill{fill:color-mix(in srgb,var(--accent-rx) 18%,transparent)} .dvm-rx-line{fill:none;stroke:var(--accent-rx);stroke-width:1.6;vector-effect:non-scaling-stroke}
-    .dvm-tx-fill{fill:color-mix(in srgb,var(--accent-tx) 14%,transparent)} .dvm-tx-line{fill:none;stroke:var(--accent-tx);stroke-width:1.6;vector-effect:non-scaling-stroke}
+    .dvm-chart{position:relative;height:190px}
+    .dvm-chart[hidden]{display:none}
     .dvm-gauges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
     .dvm-ports{justify-content:flex-start}
     .dvm-alerts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}

@@ -122,16 +122,15 @@ const V = require(VOUT);
   const off = frame('r1', { connected: false, cpu: null, memPct: null, hddPct: null });
   assert.match(V.resourcesHtml(off), /Offline: no reading/);
   assert.match(V.portsSectionHtml(off), /Offline: no port reading/);
-  assert.match(V.usageHtml(off, [], now), /Offline: no live throughput/);
+  assert.match(V.usageHeadHtml(off, undefined), /Offline: no live throughput/);
   // Ports "read and none" is not "not read".
   assert.match(V.portsSectionHtml(frame('r1', { portsRead: true })), /No ethernet ports/);
-  // The chart draws Rx and Tx, and only the last five minutes.
-  const pts = [{ ts: now - 400_000, rx_mbps: 999, tx_mbps: 999 },
-    { ts: now - 2000, rx_mbps: 10, tx_mbps: 2 }, { ts: now - 1000, rx_mbps: 12, tx_mbps: 3 }];
-  const svg = V.wanChartSvg(pts, now);
-  assert.match(svg, /dvm-rx-line/);
-  assert.match(svg, /dvm-tx-line/);
-  assert.ok(!/999/.test(svg) && !/1\.15 Gbps/.test(svg), 'a sample older than the window set the scale');
+  // RE-AIMED 2026-10-01: the chart is a Chart.js canvas scrolled by a frame
+  // loop now (devices-modal-chart.ts), not SVG in the repaint; the header
+  // carries the current rates.
+  const head = V.usageHeadHtml(frame('r1'), { ts: now, rx_mbps: 12, tx_mbps: 3 });
+  assert.match(head, /12\.00 Mbps/);
+  assert.match(head, /3\.00 Mbps/);
   // A viewer who may not read reports gets no alerts section at all.
   assert.strictEqual(V.alertsHtml(null), '');
   assert.match(V.alertsHtml([]), /No alerts in the last 7 days/);
@@ -139,7 +138,33 @@ const V = require(VOUT);
   const evil = '<img src=x>';
   const html = V.alertsHtml([{ id: 1, alert_type: evil, subject: evil, fired_at: now }]);
   assert.ok(!/<img/.test(html), 'an alert subject reached the markup unescaped');
-  say('ok  the views: offline is said, not zeroed; the chart keeps its window; alerts escape');
+  say('ok  the views: offline is said, not zeroed; the rates are drawn; alerts escape');
 }
 fs.rmSync(VOUT, { force: true });
+// ── the chart's buffer ──────────────────────────────────────────────────────
+//
+// No Chart.js under node, so this is the buffer half: the first frame seeds it,
+// later frames append, points older than the window are dropped, and a stop
+// empties it - so a modal reopened on another device never inherits a line.
+const COUT = path.join(ROOT, 'testdata', '.dvchart.cjs');
+execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
+  [path.join(ROOT, 'web', 'src', 'pages', 'devices-modal-chart.ts'),
+   '--bundle', '--format=cjs', '--platform=node', '--outfile=' + COUT, '--log-level=warning'],
+  { stdio: 'inherit' });
+const W = require(COUT);
+{
+  const now = Date.now();
+  W.startWanChart({}, [{ ts: now - 2000, rx_mbps: 1, tx_mbps: 1 }, { ts: now - 1000, rx_mbps: 2, tx_mbps: 1 }]);
+  assert.strictEqual(W.wanPoints().length, 2, 'the first frame did not seed the buffer');
+  W.pushWanPoints([{ ts: now, rx_mbps: 3, tx_mbps: 1 }]);
+  assert.strictEqual(W.wanPoints().length, 3, 'a later frame was not appended');
+  W.pushWanPoints([{ ts: now + 1000, rx_mbps: 3, tx_mbps: 1 }]);
+  W.startWanChart({}, [{ ts: now - 400_000, rx_mbps: 9, tx_mbps: 9 }, { ts: now, rx_mbps: 1, tx_mbps: 1 }]);
+  W.pushWanPoints([{ ts: now + 1000, rx_mbps: 1, tx_mbps: 1 }]);
+  assert.ok(W.wanPoints().every((p) => p.ts > now - 320_000), 'a point older than the window was kept');
+  W.stopWanChart();
+  assert.strictEqual(W.wanPoints().length, 0, 'stopping left the old device\u2019s line in the buffer');
+  say('ok  the chart buffer: seeded, appended, windowed, emptied on stop');
+}
+fs.rmSync(COUT, { force: true });
 say('devices-modal: all checks passed');

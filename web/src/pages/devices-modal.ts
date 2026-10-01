@@ -19,14 +19,15 @@
 
 import { el } from '../dom';
 import type { Socket } from '../socket';
-import type { Live, TrafficPoint } from '../gen/payloads';
+import type { Live } from '../gen/payloads';
 import { detailsHtml } from './devices-card';
 import type { DeviceOverview } from './devices-strip';
 import type { AlertRow } from './reports-alerts';
 import {
-  CHART_MS, RANGE_MS, alertsHtml, connectivityHtml, headerHtml, portsSectionHtml,
-  resourcesHtml, usageHtml, type Range,
+  RANGE_MS, alertsHtml, connectivityHtml, headerHtml, portsSectionHtml,
+  resourcesHtml, usageHeadHtml, type Range,
 } from './devices-modal-views';
+import { pushWanPoints, startWanChart, stopWanChart, wanPoints } from './devices-modal-chart';
 import { lastRows, onOpenDevice, overviewOf } from './routers';
 
 export interface DeviceModalDeps {
@@ -45,7 +46,6 @@ interface State {
   id: string;
   range: Range;
   live: Live | null;
-  points: TrafficPoint[];
   overview: DeviceOverview | undefined;
   alerts: AlertRow[] | null | undefined;
 }
@@ -75,7 +75,10 @@ function paint(): void {
     set('dvmDetails', detailsHtml(r, overviewOf(st.id), now));
   }
   set('dvmConn', connectivityHtml(st.overview, st.range));
-  set('dvmUsage', usageHtml(st.live, st.points, now));
+  const pts = wanPoints();
+  set('dvmUsage', usageHeadHtml(st.live, pts[pts.length - 1]));
+  const wrap = el('dvmChartWrap');
+  if (wrap) wrap.hidden = !pts.length;
   set('dvmRes', resourcesHtml(st.live));
   set('dvmPorts', portsSectionHtml(st.live));
   const alerts = el('dvmAlerts');
@@ -122,7 +125,8 @@ export function openDeviceModal(id: string): void {
   if (!modal || !socketRef) return;
   if (st && st.id === id && modal.classList.contains('open')) return;
   if (st && st.id !== id) socketRef.emit('device:unpeek');
-  st = { id, range: st ? st.range : '24h', live: null, points: [], overview: undefined, alerts: undefined };
+  stopWanChart();
+  st = { id, range: st ? st.range : '24h', live: null, overview: undefined, alerts: undefined };
   socketRef.emit('device:peek', id);
   paint();
   modal.classList.add('open');
@@ -142,18 +146,26 @@ export function closeDeviceModal(): void {
 function closed(): void {
   if (!st) return;
   st = null;
+  stopWanChart();
   if (timer) { clearInterval(timer); timer = null; }
   socketRef?.emit('device:unpeek');
 }
 
-/** Merge a live frame: newer points are appended, the ring trimmed to the chart. */
-export function applyLive(f: Live, now = Date.now()): void {
+/**
+ * Merge a live frame. The FIRST frame for a device carries the ring and builds
+ * the chart; later ones carry only newer points, which the chart appends and
+ * its frame loop scrolls in.
+ */
+export function applyLive(f: Live): void {
   if (!st || f.routerId !== st.id) return;
   const fresh = st.live === null;
   st.live = f;
-  st.points = fresh ? f.points.slice() : st.points.concat(f.points);
-  const from = now - CHART_MS;
-  st.points = st.points.filter((p) => p.ts >= from);
+  const canvas = el('dvmWanChart');
+  if (fresh) {
+    if (canvas) startWanChart(canvas, f.points);
+  } else {
+    pushWanPoints(f.points);
+  }
   paint();
 }
 
