@@ -71,6 +71,7 @@ import { initPollAndBanner, applyPollSettings } from './pages/settings-poll';
 import { initSettingsSave } from './pages/settings-save';
 import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } from './pages/settings-routers';
 import { initRouterModal } from './pages/router-modal';
+import { mountDeviceModal } from './pages/devices-modal';
 import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { initAbout } from './pages/about';
@@ -807,6 +808,22 @@ async function main(): Promise<void> {
     routers: () => routers as never,
     primaryId: () => primaryRouterId,
     onSaved: () => { void refreshRouters(); },
+  });
+
+  // The Devices page's device modal. "Open dashboard" is a real switch - the
+  // one thing the modal does to the selected router, and only when asked - and
+  // Edit is the same router editor the Settings table opens, offered to the
+  // viewers who can reach that table.
+  mountDeviceModal(socket, {
+    openDashboard: (id) => {
+      if (id !== activeRouterId) switchRouter(socket, id);
+      showPage(socket, 'dashboard');
+    },
+    canEdit: settingsAllowed,
+    edit: (id) => {
+      const r = routers.find((x) => x.id === id);
+      if (r) routerModal.open(r as never);
+    },
   });
 
   // The alert-type toggles and the interface-kind filter card. Mounted BEFORE

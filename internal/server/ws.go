@@ -112,6 +112,12 @@ type conn struct {
 	devicesTick *time.Ticker
 	devicesStop chan struct{}
 
+	// peekID is the router this socket's device modal is streaming, if any;
+	// see peek.go. Loop-owned, like the router state.
+	peekID    string
+	peekStop  chan struct{}
+	peekSince int64
+
 	// diagTick is this viewer's API Diagnostics refresh, and it is PER SOCKET
 	// for the same reason the Devices one is: the card reports on the router
 	// THIS connection has selected, and two browsers on two routers want two
@@ -277,6 +283,8 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	// grace expires. `releaseRouter` leaves the rooms and re-asks demand, which
 	// is what makes a closed tab indistinguishable from a blur.
 	cn.devicesBlur()
+	// The device modal's stream, which a closed tab never says goodbye to.
+	cn.unpeek()
 	// The diagnostics ticker too: it is per socket, so a closing connection that
 	// left it running would repaint a card nobody has, for ever.
 	cn.diagBlur()
@@ -482,6 +490,15 @@ func (cn *conn) dispatch(in inbound) {
 			return
 		}
 		cn.dashCardBlur(key)
+	// The Devices page's device modal: stream one router without selecting it.
+	case "device:peek":
+		var id string
+		if json.Unmarshal(in.Data, &id) != nil {
+			return
+		}
+		cn.peek(id)
+	case "device:unpeek":
+		cn.unpeek()
 	case "res:save":
 		cn.resSave(in.Data)
 	case "res:remove":
@@ -1406,6 +1423,7 @@ func (cn *conn) pageBlur(page string) {
 	// connection to every router indefinitely.
 	if page == "devices" {
 		cn.devicesBlur()
+		cn.unpeek()
 	}
 	// FORGOTTEN HERE TOO, or a later `router:select` would replay a page this
 	// viewer has left and re-wake its collectors. Only when it is the page we
@@ -1627,9 +1645,7 @@ func (cn *conn) releaseRouter() {
 	//
 	// `hub.Remove` in the disconnect path drops the same rooms a moment later
 	// and is then a no-op for them.
-	for _, room := range cn.c.Rooms() {
-		cn.srv.hub.Leave(cn.c, room)
-	}
+	cn.leaveRouterRooms()
 	cn.srv.applyDemand(cn.rsession, cn.routerID)
 	cn.srv.sessions.Release(cn.routerID)
 	cn.setRouter("", nil)
@@ -1647,6 +1663,24 @@ func (cn *conn) releaseRouter() {
 	// `Release` is ref-counted, so this runs when the LAST watcher goes; a second
 	// browser on the same router keeps the session and the exclusion.
 	cn.srv.syncFleetHolds()
+}
+
+// leaveRouterRooms leaves every room this connection is in, EXCEPT the device
+// modal's: that room is about a router this socket has not selected, and
+// peeking is independent of the selection, so switching router with the modal
+// open must not stop its stream (peek.go). Teardown unpeeks first, so a closing
+// socket leaves that room too.
+func (cn *conn) leaveRouterRooms() {
+	peekRoom := ""
+	if cn.peekID != "" {
+		peekRoom = session.RoomFor(cn.peekID, collect.DevicePeekRoom)
+	}
+	for _, room := range cn.c.Rooms() {
+		if room == peekRoom {
+			continue
+		}
+		cn.srv.hub.Leave(cn.c, room)
+	}
 }
 
 func itoa(n uint64) string {

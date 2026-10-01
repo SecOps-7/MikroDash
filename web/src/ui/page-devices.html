@@ -135,4 +135,30 @@
         <div class="rtrmap-tray" id="rtrMapTray" hidden></div>
       </div>
     </div>
+
+    <!-- The device modal (devices-modal.ts): a mini dashboard for one device,
+         opened from a card, a list row or the map. Its live sections stream only
+         while it is open, without changing the selected router. The body is a
+         rail and a main column of its own - NOT `.rtr-modal-body`, which is a
+         two-column grid above 900px and has caught three dialogs already. -->
+    <div class="rtr-modal-bg" id="deviceModal" role="dialog" aria-modal="true" aria-labelledby="dvmName">
+      <div class="rtr-modal dvm">
+        <div class="dvm-hdr" id="dvmHdr"></div>
+        <div class="dvm-body">
+          <aside class="dvm-rail">
+            <div class="dvm-sec-head"><h3>Details</h3></div>
+            <div id="dvmDetails"></div>
+          </aside>
+          <div class="dvm-main">
+            <section class="dvm-card" id="dvmConn"></section>
+            <section class="dvm-card" id="dvmUsage"></section>
+            <div class="dvm-pair">
+              <section class="dvm-card" id="dvmRes"></section>
+              <section class="dvm-card" id="dvmPorts"></section>
+            </div>
+            <section class="dvm-card" id="dvmAlerts"></section>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>

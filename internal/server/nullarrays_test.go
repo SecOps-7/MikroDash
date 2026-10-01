@@ -77,6 +77,8 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 			r := diag.FoldSniffer(false, nil, nil, nil)
 			return ToolsSnifferPayload{Result: &r}
 		},
+		// The device modal's frame before anything has been read.
+		"device:live": func() any { return routers.BuildLive(routers.LiveInput{}) },
 		// Provisioning off, no database: nothing enrolled, nothing issued.
 		"ztp:state": func() any { return (&Server{}).ztpPayload() },
 		"tools:traceroute": func() any {

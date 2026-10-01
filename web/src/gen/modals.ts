@@ -20,6 +20,7 @@ export const CLOSABLE_MODALS: readonly string[] = [
   "cpLinksModal",
   "cpModal",
   "dbcModal",
+  "deviceModal",
   "faModal",
   "groupFormWrap",
   "nchanIfaceModal",

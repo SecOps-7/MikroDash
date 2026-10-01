@@ -28,6 +28,7 @@ var (
 	EvBackupsState      = hub.Declare[backups.StatePayload]("backups:state")
 	EvDiagnosticsUpdate = hub.Declare[session.Diagnostics]("diagnostics:update")
 	EvRoutersStats      = hub.Declare[[]routers.Row]("routers:stats")
+	EvDeviceLive        = hub.Declare[routers.Live]("device:live")
 	EvSitesUpdate       = hub.Declare[[]db.Site]("sites:update")
 	EvToolsPing         = hub.Declare[ToolsPingPayload]("tools:ping")
 	EvToolsTraceroute   = hub.Declare[ToolsTraceroutePayload]("tools:traceroute")

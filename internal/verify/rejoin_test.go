@@ -27,6 +27,17 @@ import (
 // Driving `selectRouter` needs a session manager, a store, a pool and a live
 // router. The property is one line of wiring, so it is read rather than run -
 // the same trade `TestEveryCardRoomIsEmittedTo` makes next door.
+// funcEnd is where the function starting at src[0] ends: the next top-level
+// declaration. It replaced a fixed 2000-character window, which a longer
+// comment in releaseRouter pushed the Leave out of (2026-10-01) - the
+// proximity anchor this repo's traps document warns about.
+func funcEnd(src string) int {
+	if j := regexp.MustCompile(`\n(func|type|var|const) `).FindStringIndex(src[1:]); j != nil {
+		return j[0] + 1
+	}
+	return len(src)
+}
+
 func TestSelectRouterRejoinsEveryPerSocketSubscription(t *testing.T) {
 	root := repoRoot(t)
 	src := mustRead(t, root+"/internal/server/ws.go")
@@ -66,7 +77,9 @@ func TestSelectRouterRejoinsEveryPerSocketSubscription(t *testing.T) {
 	rel := mustRead(t, root+"/internal/server/ws.go")
 	if k := strings.Index(rel, "func (cn *conn) releaseRouter("); k < 0 {
 		t.Fatal("releaseRouter is gone from ws.go")
-	} else if !strings.Contains(rel[k:k+2000], "hub.Leave(cn.c, room)") {
+	} else if fn := rel[k:]; !strings.Contains(fn[:funcEnd(fn)], "cn.leaveRouterRooms()") ||
+		!strings.Contains(rel, "func (cn *conn) leaveRouterRooms()") ||
+		!strings.Contains(rel[strings.Index(rel, "func (cn *conn) leaveRouterRooms()"):], "hub.Leave(cn.c, room)") {
 		t.Fatal("releaseRouter no longer leaves every room, so selectRouter's " +
 			"rejoin has nothing to rejoin and this check asserts a dead rule")
 	}

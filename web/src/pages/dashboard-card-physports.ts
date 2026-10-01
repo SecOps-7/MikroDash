@@ -30,6 +30,31 @@ import type { IfStatusPayload } from '../gen/payloads';
 
 const PHYSICAL = ['ether', 'sfp', 'sfp-sfpplus'];
 
+/** One port as the drawing needs it. `ips` is optional: the device modal's
+ *  ports come from `device:live`, which does not carry addresses. */
+export interface PortLike { name: string; running: boolean; disabled: boolean; ips?: string[] }
+
+/**
+ * The port row's markup, shared by this card and the Devices page's device
+ * modal so the two cannot drift - the very thing this file's header records
+ * happening to the Interfaces panel's copy. The caller filters to physical
+ * ports; an empty list is the caller's message, not this function's.
+ */
+export function portsHtml(ifaces: readonly PortLike[]): string {
+  // The drawing shrinks as ports multiply so the row still fits the card.
+  const n = ifaces.length;
+  const sz = n <= 8 ? 44 : n <= 16 ? 36 : n <= 24 ? 30 : 26;
+  return ifaces.map((i) => {
+    const state = i.disabled ? 'dis' : i.running ? 'up' : 'down';
+    return '<div class="if-port-item" data-state="' + state + '" title="' +
+      esc(i.name) + (i.ips && i.ips.length ? ' - ' + esc(i.ips[0]!) : '') +
+      (i.running ? ' (up)' : i.disabled ? ' (disabled)' : ' (down)') + '">' +
+      portSvg(sz) +
+      '<span class="if-port-label">' + dcEsc(i.name) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
 export function renderPhysPortsCard(data: IfStatusPayload): void {
   const panel = document.getElementById('dc-ifPortsPanel');
   if (!panel) return;
@@ -44,18 +69,5 @@ export function renderPhysPortsCard(data: IfStatusPayload): void {
     panel.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted)">No ethernet ports</div>';
     return;
   }
-
-  // The drawing shrinks as ports multiply so the row still fits the card.
-  const n = ifaces.length;
-  const sz = n <= 8 ? 44 : n <= 16 ? 36 : n <= 24 ? 30 : 26;
-
-  panel.innerHTML = ifaces.map((i) => {
-    const state = i.disabled ? 'dis' : i.running ? 'up' : 'down';
-    return '<div class="if-port-item" data-state="' + state + '" title="' +
-      esc(i.name) + (i.ips && i.ips.length ? ' - ' + esc(i.ips[0]!) : '') +
-      (i.running ? ' (up)' : i.disabled ? ' (disabled)' : ' (down)') + '">' +
-      portSvg(sz) +
-      '<span class="if-port-label">' + dcEsc(i.name) + '</span>' +
-    '</div>';
-  }).join('');
+  panel.innerHTML = portsHtml(ifaces);
 }

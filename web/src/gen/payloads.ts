@@ -531,6 +531,34 @@ export interface ConnsPayload {
   pollMs: number;
 }
 
+export interface TrafficPoint {
+  ts: number;
+  rx_mbps: number;
+  tx_mbps: number;
+}
+
+export interface LivePort {
+  name: string;
+  type: string;
+  running: boolean;
+  disabled: boolean;
+}
+
+export interface Live {
+  routerId: string;
+  connected: boolean;
+  cpu: number | null;
+  memPct: number | null;
+  hddPct: number | null;
+  tempC: number | null;
+  uptime: string | null;
+  wanIf: string;
+  points: TrafficPoint[];
+  ports: LivePort[];
+  portsRead: boolean;
+  leases: number | null;
+}
+
 export interface MenuLoad {
   menu: string;
   streamed: boolean;
@@ -1637,12 +1665,6 @@ export interface TopologyPayload {
   edges: TopoEdge[];
 }
 
-export interface TrafficPoint {
-  ts: number;
-  rx_mbps: number;
-  tx_mbps: number;
-}
-
 export interface TrafficHistory {
   ifName: string;
   windowMinutes: number;
@@ -2068,6 +2090,7 @@ export interface Events {
   'cfgdeploy:state': CfgDeployPayload;
   'conn:list': ConnListPayload;
   'conn:update': ConnsUpdate;
+  'device:live': Live;
   'diagnostics:update': Diagnostics;
   'dns:update': DNSPayload;
   'files:content': FilesContentPayload;

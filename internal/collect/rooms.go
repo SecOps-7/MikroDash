@@ -238,6 +238,20 @@ func RoomsOf(key string) Rooms {
 // The rooms named are its real consumers: the DHCP page (through `dhcpNetworks`,
 // which shares it), and the four collectors that take it as a source — conns,
 // wireless, topology and bandwidth, wired in session.go.
+// DevicePeekRoom is joined, per router, by a browser with the Devices page's
+// device modal open on that router (`internal/server/peek.go`).
+//
+// ── A ROOM NOTHING IS SENT TO, ON PURPOSE ──────────────────────────────────
+//
+// The modal's `device:live` is built per socket from the session's last
+// payloads, so no collector emits here. The room exists for DEMAND: its
+// occupancy is what keeps the two collectors the modal reads and a warm session
+// does not run - `ifStatus` for the ports, `dhcpLeases` for the client count -
+// running for exactly as long as somebody has the modal open, counted by the
+// hub across every viewer, and nothing longer. `system` and the WAN traffic
+// stream already run on every connected session.
+const DevicePeekRoom = "device-peek"
+
 var keepAliveFor = map[string]Rooms{
 	// ALSO THE NETWORK FLOW CARD (issue #132). Its Wired count is drawn from the
 	// router-wide `ifstatus:names`, which only a RUNNING ifStatus sends. On a
@@ -247,9 +261,9 @@ var keepAliveFor = map[string]Rooms{
 	// joins, so ifStatus now polls while a Network Flow card is on a Dashboard,
 	// and sleeps again when none is.
 	"ifStatus": union(bridgesRooms, vlansRooms, wanRooms, bandwidthRooms,
-		Rooms{"dash-card-wireless"}),
+		Rooms{"dash-card-wireless", DevicePeekRoom}),
 	"dhcpLeases": union(dhcpNetworksRooms, connsRooms, connsDetailRooms,
-		wirelessRooms, topologyRooms, bandwidthRooms),
+		wirelessRooms, topologyRooms, bandwidthRooms, Rooms{DevicePeekRoom}),
 	// ── `arp` HAS NO AUDIENCE AT ALL, NOT EVEN A ROUTER-WIDE ONE ───────────
 	//
 	// It emits nothing. Its whole output is an in-memory IP<->MAC index that

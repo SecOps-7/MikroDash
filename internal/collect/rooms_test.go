@@ -138,6 +138,8 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 			// are ifStatus's: it keeps ifStatus alive as the WAN page does.
 			"dash-card-wan",
 			"page-bandwidth", "dash-card-wireless",
+			// The Devices page's device modal draws the ports (2026-10-01).
+			"device-peek",
 		}},
 		// ── AND THE COLLECTOR WITH NO AUDIENCE AT ALL ──────────────────────
 		//
@@ -150,6 +152,8 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 			"page-wifi-clients", "page-wifi-map", "dash-card-wireless",
 			"page-network-topology",
 			"page-bandwidth",
+			// The device modal's client count (2026-10-01).
+			"device-peek",
 		}},
 		// A collector with no keep-alive entry gets its audience back unchanged.
 		{"dns", []string{"page-dns"}},
@@ -183,6 +187,10 @@ func TestKeepAliveRoomsAreRealAndNotAlreadyTheAudience(t *testing.T) {
 			real[r] = true
 		}
 	}
+	// THE ONE ROOM A SOCKET OCCUPIES WITHOUT A COLLECTOR FEEDING IT: the device
+	// modal joins `DevicePeekRoom` for demand alone (see its declaration), so it
+	// is occupiable although nothing is emitted there.
+	real[DevicePeekRoom] = true
 	if len(keepAliveFor) == 0 {
 		t.Fatal("keepAliveFor is empty; this test is asserting nothing. If the last " +
 			"entry closed, say so here rather than leaving a check that cannot fail.")

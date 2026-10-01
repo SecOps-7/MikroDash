@@ -106,6 +106,7 @@ var templateIDsUnbound = map[string]string{
 	// sharing one id, or two dialogs. The id stays because it is the slot
 	// button's handle in the markup and in web/test/update-seam.test.ts.
 	"sysUpdateBtn":     "found by [data-upgrade-open], which two buttons carry",
+	"dvmName":          "the device modal's heading; #deviceModal's aria-labelledby names it, which is markup's binding rather than code's",
 	"s_":               "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
 	"sv_":              "constructed: `sv_<pollKey>` per slider label, written by the same loop",
 	"areaThead-":       "constructed: `areaThead-<area key>` per generated table, bound by renderSortHeader('areaThead-' + area.key, …) in area.ts",

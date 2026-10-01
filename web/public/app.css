@@ -976,6 +976,79 @@
     .rtl-conn .dv-strip{width:140px;height:12px;border-radius:3px}
     .rtl-conn-pct{min-width:3.6rem;text-align:right}
     .routers-list tr.rtl-row:focus-visible td{outline:none;background:rgba(56,189,248,.1)}
+    /* ── The device modal (devices-modal.ts) ─────────────────────────────── */
+    .dvm{width:min(1240px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+    .dvm-hdr{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,color-mix(in srgb,var(--accent-rx) 6%,transparent),transparent)}
+    .dvm-title{display:flex;align-items:flex-start;gap:.7rem;min-width:0}
+    .dvm-title.dv-online{--dv-st:var(--dv-up)} .dvm-title.dv-offline{--dv-st:var(--dv-down)} .dvm-title.dv-unknown{--dv-st:var(--dv-unmon)}
+    .dvm-title .dv-dot{width:11px;height:11px;margin-top:.45rem}
+    .dvm-id{min-width:0}
+    .dvm-name{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+    .dvm-name h2{margin:0;font-size:1.2rem;font-weight:700;color:var(--text-main);font-family:var(--font-ui)}
+    .dvm-sub{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.25rem;font-size:.74rem;color:var(--text-muted)}
+    .dvm-actions{display:flex;align-items:center;gap:.5rem;flex:0 0 auto}
+    /* EXPLICITLY not a grid of two equal columns: see the markup note. */
+    .dvm-body{display:grid;grid-template-columns:270px minmax(0,1fr);gap:0;overflow-y:auto;min-height:0}
+    .dvm-rail{padding:1rem 1.1rem;border-right:1px solid var(--border);background:color-mix(in srgb,var(--bg-deep) 35%,transparent)}
+    .dvm-main{padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.85rem;min-width:0}
+    .dvm-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.85rem}
+    .dvm-card{border:1px solid var(--border);border-radius:10px;padding:.85rem .95rem;min-width:0;background:color-mix(in srgb,var(--bg-card) 60%,transparent)}
+    .dvm-card[hidden]{display:none}
+    .dvm-sec-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;flex-wrap:wrap}
+    .dvm-sec-head h3{margin:0 auto 0 0;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-muted)}
+    .dvm-pill{display:inline-flex;align-items:center;font-size:.66rem;padding:.08rem .5rem;border-radius:20px;color:var(--text-main);
+      background:color-mix(in srgb,var(--text-muted) 14%,transparent);border:1px solid var(--border)}
+    .dvm-mono{font-family:var(--font-mono)}
+    .dvm-current{font-size:.64rem;color:var(--dv-good)}
+    .dvm-details{margin:0;display:flex;flex-direction:column}
+    .dvm-kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:.5rem;padding:.42rem 0;border-bottom:1px dashed var(--border);font-size:.76rem}
+    .dvm-kv:last-child{border-bottom:0}
+    .dvm-kv dt{color:var(--text-muted);font-weight:500}
+    .dvm-kv dd{margin:0;color:var(--text-main);min-width:0;overflow-wrap:anywhere;display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
+    .dvm-ranges{display:inline-flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+    .dvm-range{background:none;border:0;padding:.2rem .65rem;font-size:.7rem;font-family:var(--font-mono);color:var(--text-muted);cursor:pointer}
+    .dvm-range+.dvm-range{border-left:1px solid var(--border)}
+    .dvm-range.active{background:color-mix(in srgb,var(--accent-rx) 18%,transparent);color:var(--accent-rx);font-weight:600}
+    .dvm-range:focus-visible{outline:2px solid var(--accent-rx);outline-offset:-2px}
+    .dvm-strip .dv-strip{height:34px;border-radius:7px}
+    .dvm-card .dv-axis span{flex:1;text-align:center} .dvm-card .dv-axis span:first-child{text-align:left} .dvm-card .dv-axis span:last-child{text-align:right}
+    .dvm-legend{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1rem;margin-top:.55rem;font-size:.68rem;color:var(--text-muted)}
+    .dvm-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:.3rem;vertical-align:-1px}
+    .dvm-legend i.dv-up{background:var(--dv-up)} .dvm-legend i.dv-down{background:var(--dv-down)} .dvm-legend i.dv-unmonitored{background:var(--dv-unmon)}
+    .dvm-legend-note{margin-left:auto}
+    .dvm-outages{list-style:none;margin:.65rem 0 0;padding:0;display:flex;flex-direction:column;gap:.25rem}
+    .dvm-outages li{display:grid;grid-template-columns:3.2rem 1fr auto;gap:.6rem;font-size:.74rem;padding:.3rem .5rem;border-radius:6px;background:color-mix(in srgb,var(--dv-down) 6%,transparent)}
+    .dvm-none{font-size:.76rem;color:var(--text-muted);padding:.4rem 0}
+    .dvm-rates{display:flex;gap:2rem;margin-bottom:.5rem}
+    .dvm-rate-lbl{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+    .dvm-rate{font-family:var(--font-mono);font-size:1.35rem;font-weight:700;line-height:1.15}
+    .dvm-chart{position:relative}
+    .dvm-chart svg{display:block;width:100%;height:150px}
+    .dvm-chart-max{position:absolute;top:0;left:.2rem;font-size:.6rem;font-family:var(--font-mono);color:var(--text-muted)}
+    .dvm-grid{stroke:var(--border);stroke-width:1;vector-effect:non-scaling-stroke}
+    .dvm-rx-fill{fill:color-mix(in srgb,var(--accent-rx) 18%,transparent)} .dvm-rx-line{fill:none;stroke:var(--accent-rx);stroke-width:1.6;vector-effect:non-scaling-stroke}
+    .dvm-tx-fill{fill:color-mix(in srgb,var(--accent-tx) 14%,transparent)} .dvm-tx-line{fill:none;stroke:var(--accent-tx);stroke-width:1.6;vector-effect:non-scaling-stroke}
+    .dvm-gauges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
+    .dvm-ports{justify-content:flex-start}
+    .dvm-alerts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
+    .dvm-alerts li{display:grid;grid-template-columns:4.6rem minmax(0,9rem) minmax(0,1fr) auto;gap:.6rem;align-items:center;font-size:.74rem;padding:.3rem 0;border-bottom:1px dashed var(--border)}
+    .dvm-alerts li:last-child{border-bottom:0}
+    .dvm-alert-type{font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dvm-alert-sub{color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dvm-skel{border-radius:8px;background:linear-gradient(90deg,var(--dv-unmon) 25%,rgba(148,163,190,.32) 50%,var(--dv-unmon) 75%);background-size:200% 100%;animation:dv-shimmer 1.4s linear infinite}
+    @media (prefers-reduced-motion:reduce){.dvm-skel,.dv-strip-loading{animation:none}}
+    @media (max-width:899px){
+      .dvm{width:100vw;max-height:100vh;height:100vh;border-radius:0}
+      .dvm-body{grid-template-columns:minmax(0,1fr)}
+      .dvm-rail{border-right:0;border-bottom:1px solid var(--border);order:2}
+      .dvm-main{order:1}
+      .dvm-pair{grid-template-columns:minmax(0,1fr)}
+      .dvm-hdr{flex-wrap:wrap}
+      .dvm-legend-note{margin-left:0;flex-basis:100%}
+      .dvm-alerts li{grid-template-columns:4.6rem minmax(0,1fr);}
+      .dvm-alert-sub,.dvm-alerts li>.dvm-mono{grid-column:2}
+    }
     /* A tiny inline bar, so a busy router is visible without reading the number.
        Same thresholds the cards use. */
 
