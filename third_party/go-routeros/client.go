@@ -23,6 +23,10 @@ import (
 
 // Client is a RouterOS API client.
 type Client struct {
+	// nextTag must be 64-bit-aligned for atomic ops on 32-bit ARM (RouterOS
+	// containers on hAP ac3 etc.). atomic.Int64 guarantees that alignment.
+	nextTag atomic.Int64
+
 	Queue int
 
 	log      *slog.Logger
@@ -31,7 +35,6 @@ type Client struct {
 	rwc     io.ReadWriteCloser
 	closing bool
 	async   bool
-	nextTag int64
 	tags    map[string]sentenceProcessor
 	mu      sync.Mutex
 
@@ -62,7 +65,7 @@ func NewClient(rwc io.ReadWriteCloser) (*Client, error) {
 
 // incrementTag atomically increments tag number and returns result
 func (c *Client) incrementTag() int64 {
-	return atomic.AddInt64(&c.nextTag, 1)
+	return c.nextTag.Add(1)
 }
 
 // IsAsync return true if client run in async mode.

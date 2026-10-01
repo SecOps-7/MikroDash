@@ -60,3 +60,10 @@ which is why MikroDash never passes one.
 
 `TestAStreamLeavesNoGoroutineBehind` in `internal/routeros` says whether a
 replacement library still needs this.
+
+## Atomic tag counter alignment (2026-10-01)
+
+`Client.nextTag` is updated with 64-bit atomics. On 32-bit ARM (e.g. MikroTik
+hAP ac3 containers) an unaligned `int64` panics with
+`unaligned 64-bit atomic operation`. Store it as `atomic.Int64` at the top of
+the struct so the field is always 8-byte aligned.
