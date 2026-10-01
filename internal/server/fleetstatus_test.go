@@ -17,7 +17,7 @@ import (
 // connection state and last error. It is now sent per socket, filtered by that
 // socket's `visibleRouters`, the way the router list already was.
 func TestTheFleetStatusIsSentOnlyToThoseWhoMayReadTheRouter(t *testing.T) {
-	s := devicesServerWithPool(t)
+	s := devicesServerWithFleet(t)
 
 	unrestricted := devicesConn(s, "a")
 	// A connection whose session may read NOTHING.

@@ -15,7 +15,7 @@ import (
 // is an empty chart rather than an error.
 //
 // SOURCE-READ, in the house style of `connthresh_test.go`: reaching this live
-// needs a store, a session manager, a pool and a router, and the mutations worth
+// needs a store, a session manager and a router, and the mutations worth
 // killing are all in the wiring — a declaration no save path reaches, a raw
 // list where the resolved one belongs, or one half of the pair dropped.
 func TestTheRecordedInterfacesReachTheRecorderAndTheStream(t *testing.T) {
@@ -32,19 +32,15 @@ func TestTheRecordedInterfacesReachTheRecorderAndTheStream(t *testing.T) {
 	// THE RESOLVED LIST, NEVER THE RAW FIELD. `store.RecordedIfacesFor` puts the
 	// default interface in and can never answer empty; an empty list tells the
 	// recorder to record EVERY interface in the stream.
-	for _, f := range []string{"devices.go", "fleet_holds.go"} {
+	// ONE FILE NOW. `devices.go` resolved its own copy for the overview pool's
+	// `syncPool`, deleted on 2026-10-01; `syncFleetHolds` is the one place the
+	// recorded set is declared from, for every router.
+	for _, f := range []string{"fleet_holds.go"} {
 		src := read(t, f)
 		if !strings.Contains(src, "store.RecordedIfacesFor(r,") {
 			t.Errorf("%s declares a recorded set that is not store.RecordedIfacesFor's; "+
 				"a raw list drops the default interface, and an empty one records everything", f)
 		}
-	}
-
-	// AND THE POOL'S SESSIONS GET THE SAME LIST. They are the ones that run when
-	// nobody is watching, which is exactly when recording has to keep working.
-	if !strings.Contains(devices, "RecordedIfaces: recorded") {
-		t.Error("syncPool no longer carries the recorded set into RouterConfig, so a " +
-			"pooled session would stream only the default interface")
 	}
 
 	// The anchor these read by, so a rename re-aims this test rather than
@@ -55,24 +51,10 @@ func TestTheRecordedInterfacesReachTheRecorderAndTheStream(t *testing.T) {
 	}
 }
 
-// TestThePoolAppliesTheRecordedSetOnEverySync is the other end of the same wire:
-// the list is config, and config that is only read at build time is the
-// restart-required bug the threshold had (see connthresh_test.go).
-func TestThePoolAppliesTheRecordedSetOnEverySync(t *testing.T) {
-	src, err := os.ReadFile("../routers/pool.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := string(src)
-	if !strings.Contains(body, "traffic.SetRecorded(cfg.RecordedIfaces)") {
-		t.Error("applyReporting no longer pushes the recorded set onto live pool " +
-			"sessions; a ticked interface would wait for a reconnect")
-	}
-	if !strings.Contains(body, "s.traffic.SetRecorded(cfg.RecordedIfaces)") {
-		t.Error("a pool session no longer declares its recorded set when it is built, " +
-			"so a router that joins the pool later records only its default interface")
-	}
-}
+// `TestThePoolAppliesTheRecordedSetOnEverySync` lived here and was DELETED with
+// the overview pool on 2026-10-01: it read `internal/routers/pool.go` for the
+// pool pushing the recorded set onto its own sessions. The router's session gets
+// it from `declareRecordedInterfaces` -> `ApplyRecordedIfaces`, asserted above.
 
 func read(t *testing.T, name string) string {
 	t.Helper()

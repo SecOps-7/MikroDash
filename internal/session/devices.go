@@ -1,66 +1,33 @@
 package session
 
 import (
-	"sort"
-
 	"mikrodash/internal/collect"
 )
 
-// What the Devices page reads about routers NOBODY IS WATCHING.
+// What the Devices page reads from a session it is not otherwise driving.
 //
-// ── THIS IS WHAT `internal/alertpool` WAS STILL FOR ─────────────────────────
+// ── THERE USED TO BE A WHOLE SNAPSHOT TYPE HERE ─────────────────────────────
 //
-// After 4.3 moved alerting and history onto held sessions, the alert pool built
-// no collectors at all for the routers it still held: `buildCollectors`
-// returned early unless the router had alerting or reporting on, and those
-// routers are exactly the ones sessions now hold. `roslimit` confirmed it --
-// 127 commands a minute across ONE router with three others connected.
-//
-// So the pool's whole remaining value was the SOCKET: a router it had dialled
-// reported Connected, and the Devices page could say "up" the moment it
-// rendered instead of showing a fleet of red Offline cards while the overview
-// pool worked through them.
-//
-// `session.Reasons.Warm` is that socket, and these two methods are the reads
-// that used to go to the pool. The payload fields stay in the shape the page
-// already consumes, because a warm session has nil `System` and nil `IfStatus`
-// for exactly the same reason the pool did.
+// `Snapshot` and `Manager.Snapshots` carried a session's reading to the Devices
+// page's BACKGROUND half, which merged it into the overview pool's summaries for
+// routers the pool held. The pool was deleted on 2026-10-01 and every enabled
+// router is held WARM now, so the page reads every session directly through
+// `Manager.Live` and the merge had nothing left to merge. What the snapshot did
+// that the plain read does not was one thing - fall back to the primed reading
+// when the session's own collector has none - and that is this method.
 
-// Snapshot is what the Devices page needs to know about a router it is not
-// watching: is it reachable, and whatever the session already has.
+// SystemOrPrimed is the session's system reading: its own collector's when it
+// has one, otherwise the one-shot reading `PrimeStats` took on the open socket.
 //
-// The same four fields `alertpool.Snapshot` carried, from the session that
-// replaced it. `System` and `IfStatus` are nil for a WARM session, exactly as
-// they were nil in the pool for a router with alerts and reporting off — the
-// page's cold-open fix was always `Connected`, not the payloads.
-type Snapshot struct {
-	RouterID  string
-	Connected bool
-	System    *collect.SystemPayload
-	IfStatus  *collect.IfStatusPayload
-}
-
-// Snapshots is every live session's view, for the Devices page.
-func (m *Manager) Snapshots() []Snapshot {
-	live := m.Live()
-	out := make([]Snapshot, 0, len(live))
-	for id, s := range live {
-		snap := Snapshot{RouterID: id, Connected: s.Connected()}
-		snap.System = s.systemReading()
-		if snap.System == nil {
-			// THE PRIME IS READ HERE OR NOWHERE. A warm session's system
-			// collector is suspended and holds nothing, and prime.go's one-shot
-			// reading is the only thing standing between that and a card with a
-			// green badge over blank gauges.
-			snap.System = s.primedSystem()
-		}
-		if ifs := s.IfStatus(); ifs != nil {
-			snap.IfStatus = ifs.Last()
-		}
-		out = append(out, snap)
+// THE PRIME IS READ HERE OR NOWHERE. A warm session's system collector holds
+// nothing until the `devices` hold starts it and it ticks, and the prime is the
+// only thing standing between that gap and a card with a green badge over blank
+// gauges. Nil when neither exists.
+func (s *Session) SystemOrPrimed() *collect.SystemPayload {
+	if p := s.systemReading(); p != nil {
+		return p
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].RouterID < out[j].RouterID })
-	return out
+	return s.primedSystem()
 }
 
 // Status is connected-or-not per router, for /healthz and the Devices page.

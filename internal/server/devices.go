@@ -6,10 +6,8 @@ import (
 	"os"
 	"time"
 
-	"mikrodash/internal/collection"
 	"mikrodash/internal/connstate"
 	"mikrodash/internal/routers"
-	"mikrodash/internal/session"
 	"mikrodash/internal/store"
 )
 
@@ -62,7 +60,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 	out := routers.StatsSources{
 		ActiveID:   activeID,
 		Main:       map[string]routers.MainSession{},
-		Background: map[string]routers.Summary{},
 		Online:     map[string]bool{},
 		OpenAlerts: map[string]int{},
 		Sites:      map[string]routers.Site{},
@@ -79,8 +76,8 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		log.Printf("[devices] %v", p)
 	}
 	for _, r := range all {
-		// THE DEBOUNCED VERDICT, asked per router rather than taken off either
-		// pool's summary. An absent entry is left absent: `BuildStats` falls
+		// THE DEBOUNCED VERDICT, asked per router rather than taken off the
+		// session's socket state. An absent entry is left absent: `BuildStats` falls
 		// back to the live socket for a router nothing has judged yet, and
 		// writing `false` here would be the "every card is red on first open"
 		// defect again, in a new place.
@@ -136,16 +133,20 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 	// into the recorders (#126).
 	out.DefaultIf = s.globalDefaultIf()
 
-	// INTERACTIVE sessions. Presence decides which rows read a main payload;
-	// `Connected()` decides what the row says, because a session exists before it
-	// connects.
+	// EVERY SESSION, which since 2026-10-01 means every enabled router: each is
+	// held WARM from startup (fleet_holds.go). Presence decides which rows read a
+	// payload; `Connected()` decides what the row says, because a session exists
+	// before it connects.
 	if s.sessions != nil {
 		for id, sn := range s.sessions.Live() {
 			m := routers.MainSession{
 				Connected: sn.Connected(), Known: sn.Observed(), LastError: sn.LastError(),
-			}
-			if c := sn.System(); c != nil {
-				m.System = c.Last()
+				// THE PRIMED READING WHEN THE COLLECTOR HAS NONE YET. A warm
+				// session runs no system collector; the `devices` hold starts one
+				// on focus and its first tick is a couple of seconds away, and
+				// the one-shot prime is what stops the card drawing a green
+				// badge over blank gauges in between.
+				System: sn.SystemOrPrimed(),
 			}
 			if c := sn.IfStatus(); c != nil {
 				m.IfStatus = c.Last()
@@ -155,32 +156,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 			}
 			out.Main[id] = m
 		}
-	}
-
-	for _, sum := range s.poolSummaries() {
-		out.Background[sum.RouterID] = sum
-	}
-
-	// ── THEN THE ALERT POOL, FOR ROUTERS NEITHER OF THE ABOVE COVERS ────────
-	//
-	// FILL, NOT OVERWRITE. The overview pool's summary is the richer one — it
-	// carries DHCP leases and this does not — so an id it already answered for
-	// keeps its entry. A router with an interactive session ignores `Background`
-	// entirely (`routers.BuildStats` picks one source per row, `Main` first), so
-	// nothing here can mix two connections' readings into one card.
-	//
-	// This is what stops the page opening with a fleet of red "Offline" cards:
-	// every enabled router is held WARM from startup and already has a
-	// connection, while the overview pool is synced from this page and takes a
-	// few seconds to dial. See session.Snapshot for the full argument and for
-	// what a snapshot does NOT carry.
-	//
-	// THE SOURCE MOVED AND THE GUARANTEE DID NOT. This read the alert pool until
-	// that package was deleted; `session.Reasons.Warm` is the hold that replaced
-	// it, and it holds the same thing the pool did for these routers -- the
-	// socket, and no collectors.
-	if s.sessions != nil {
-		fillFromSessions(out.Background, s.sessions.Snapshots())
 	}
 
 	if s.auditDB != nil {
@@ -205,81 +180,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 	out.MaySeeWanIp = s.maySaveSettings(sess)
 	out.Visible = s.visibleRouters(sess)
 	return out
-}
-
-// fillFromSessions adds a summary for every snapshotted router the overview
-// pool did not answer for, and leaves the ones it did alone.
-//
-// A free function over the map rather than a method, so the precedence can be
-// asserted without a pool, a store or a socket — the same argument
-// `internal/routers` makes for being pure. The precedence is the part worth
-// testing: getting it backwards is not a crash, it is a card that quietly loses
-// its Clients count.
-func fillFromSessions(bg map[string]routers.Summary, snaps []session.Snapshot) {
-	for _, snap := range snaps {
-		// PRESENT IS NOT THE SAME AS ANSWERED, and getting that wrong is what
-		// made the first version of this fix do nothing at all. `Summaries`
-		// returns an entry for every session the overview pool HOLDS, including
-		// one built moments ago whose dial has not returned. So on first open of
-		// the Devices page the key was ALWAYS already here, this loop always
-		// skipped, and the alert pool's real answer was discarded in favour of a
-		// zero value that rendered as a red "Offline" — the exact symptom the
-		// merge was added to remove.
-		if cur, have := bg[snap.RouterID]; have && cur.Known {
-			// ── ANSWERED IS NOT THE SAME AS COMPLETE ────────────────────────
-			//
-			// The overview pool reports `Known` the moment its dial returns, and
-			// its collectors have not necessarily ticked yet — so its summary
-			// can be an observation with a nil System. Skipping outright threw
-			// the primed reading away in exactly that window and put the blank
-			// card back, measured on a cold open: rx from the overview pool,
-			// CPU and uptime from nothing.
-			//
-			// Filling a nil field is still FILL, NOT OVERWRITE — the rule the
-			// header states. A field the overview pool has answered is never
-			// touched.
-			//
-			// ── AND ONLY WHILE BOTH SOCKETS AGREE THE ROUTER IS UP ──────────
-			//
-			// This is the one place a row can end up holding two connections'
-			// readings, so it is the one place that has to check they are
-			// talking about the same router in the same state. `Connected` here
-			// is the OVERVIEW pool's, `snap.Connected` the ALERT pool's, and
-			// they can disagree in both directions:
-			//
-			//   - the overview dial failed on a rotated password while the
-			//     alert pool's older socket is still up and primed. `BuildRow`
-			//     draws the login-failure box from `!Connected && LastError`
-			//     and the gauges from `System != nil` INDEPENDENTLY, so filling
-			//     here puts a live CPU reading beside an Offline badge;
-			//   - the alert pool's own socket dropped, which leaves its last
-			//     reading in `Snapshots` beside `Connected: false` — stale by
-			//     its own account, and no better than the nil it would replace.
-			//
-			// A router that is genuinely down therefore keeps its empty gauges,
-			// which is what "not read" is supposed to look like.
-			if cur.Connected && snap.Connected {
-				if cur.System == nil && snap.System != nil {
-					cur.System = snap.System
-				}
-				if cur.IfStatus == nil && snap.IfStatus != nil {
-					cur.IfStatus = snap.IfStatus
-				}
-				bg[snap.RouterID] = cur
-			}
-			continue
-		}
-		bg[snap.RouterID] = routers.Summary{
-			RouterID:  snap.RouterID,
-			Connected: snap.Connected,
-			// A snapshot is only ever built from an observation — see
-			// session.Manager.Snapshots, which omits a session that has not
-			// answered rather than reporting it as down.
-			Known:    true,
-			System:   snap.System,
-			IfStatus: snap.IfStatus,
-		}
-	}
 }
 
 // The router list ONE principal may see, in TWO shapes — because the live app
@@ -469,84 +369,6 @@ func (s *Server) visibleRouters(sess *Session) map[string]bool {
 	return out
 }
 
-// poolSummaries is the background pool's cache, or nothing when no pool runs.
-func (s *Server) poolSummaries() []routers.Summary {
-	if s.pool == nil {
-		return nil
-	}
-	return s.pool.Summaries()
-}
-
-// syncPool brings the background pool in line with the fleet.
-//
-// `excluded` is every router with an interactive session — derived here on every
-// call rather than tracked, because a second record of who is watching what
-// drifts from the first.
-func (s *Server) syncPool() {
-	if s.pool == nil || s.store == nil {
-		return
-	}
-	all, _ := s.store.Routers()
-	global := s.globalDefaultIf()
-	cfgs := make([]routers.RouterConfig, 0, len(all))
-	for _, r := range all {
-		if r.Disabled {
-			continue // a disabled router is not connected to at all
-		}
-		recorded := store.RecordedIfacesFor(r, routers.DefaultIfFor(r.DefaultIf, global))
-		s.declareRecordedInterfaces(r.ID, recorded)
-		s.declareReporting(r)
-		cfgs = append(cfgs, routers.RouterConfig{
-			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
-			TLS: r.TLS, InsecureTLS: r.TLSInsecure, RecordedIfaces: recorded,
-			User: r.Username, Password: r.Password,
-			// The record's own collection block (#105). A nil one resolves to the
-			// fleet defaults, so a router that has never been configured is not a
-			// special case here.
-			Collection: collection.ParseRouter(r.Collection),
-			// For the history pair only — the same two values Session passes to
-			// NewTraffic and NewPing, so a pooled recording and a page-driven one
-			// measure the same interface and target.
-			// RESOLVED, not raw. A router with no default interface produced an
-			// EMPTY stream here — `syncStream` opens nothing for an empty
-			// interface list — so the background recorder wrote no traffic at
-			// all until a browser attached and added one. That is the reported
-			// "no data unless I have the Dashboard open".
-			DefaultIf:  routers.DefaultIfFor(r.DefaultIf, global),
-			PingTarget: r.PingTarget,
-			// See the note in `syncFleetHolds`: a hand-written field list, so a
-			// flag left out here is invisible to the pool.
-			ReportingEnabled: store.ReportingOn(r),
-		})
-	}
-
-	excluded := map[string]bool{}
-	if s.sessions != nil {
-		for id := range s.sessions.Live() {
-			excluded[id] = true
-		}
-	}
-	s.pool.Sync(cfgs, excluded)
-	// ── AND HAND IT BACK IF NOBODY IS WATCHING ────────────────────────────
-	//
-	// `Sync` DIALS. Most callers here are not the Devices page — a router edit,
-	// a create, a delete, a site change — and each one woke the overview pool
-	// against the whole fleet and left it there for the life of the process,
-	// because a release is only ever scheduled when somebody stops watching a
-	// page they never started watching.
-	//
-	// Two costs, and the second is the one that was reported: a connection to
-	// every router nobody asked for, and `/healthz` reporting the active router
-	// disconnected — `warmExclusions` hands those routers to the overview
-	// pool and the alert pool forgets their status. Measured against 0.8.18: one
-	// router edit, then `ok:false` for as long as the process ran.
-	//
-	// `scheduleDevicesRelease` re-reads the watcher set when it fires, so this
-	// is a no-op while the Devices page IS open — which is why it can live here,
-	// once, rather than at each of the five callers.
-	s.scheduleDevicesRelease()
-}
-
 // globalDefaultIf is the install-wide default interface, the low half of the
 // precedence `routers.DefaultIfFor` resolves. Empty when unset or unreadable,
 // which lets the fallback take over rather than making settings a hard
@@ -660,45 +482,27 @@ func connDownSecOf(r store.Router) (int, bool) {
 
 // devicesFocus is what a browser opening the Devices page sets in motion.
 //
-// The pool RESUMES on the first watcher and suspends on the last, matching
-// `_routersPageSockets`: nobody looking at the page means nothing needs the
-// background rows, and holding a connection to every router for a page no one
-// has open is the cost this design exists to avoid.
+// Joining the watcher set is what makes `syncFleetHolds` take the `devices`
+// hold on every router, which runs the collectors the cards read. There is no
+// pool to resume any more: every enabled router is already held WARM, so the
+// connection the page reads is open before the page is.
 func (cn *conn) devicesFocus() {
 	cn.srv.devicesMu.Lock()
-	first := len(cn.srv.devicesWatchers) == 0
 	cn.srv.devicesWatchers[cn.c] = true
 	cn.srv.devicesMu.Unlock()
 
-	if first && cn.srv.pool != nil {
-		cn.srv.pool.Resume()
-	}
-	// ── BEFORE THE FIRST PAYLOAD, AFTER THE SYNCS ──────────────────────────
+	// ── BEFORE THE FIRST PAYLOAD, AFTER THE SYNC ───────────────────────────
 	//
-	// A router with alerting and reporting both off holds a bare socket and runs
-	// no collectors, so the alert pool can say it is UP and nothing more: the
-	// card drew a green badge over blank gauges until the overview pool finished
-	// dialling, about two seconds later. `PrimeStats` reads the gauges once on
+	// A warm session runs no collectors, so before the `devices` hold's system
+	// collector has ticked, a router can say it is UP and nothing more: the card
+	// drew a green badge over blank gauges. `PrimeStats` reads the gauges once on
 	// the socket that is already open, which is why this is here and not in the
-	// two-second tick — by the second frame the overview pool is answering, and
-	// re-reading would be a command channel spent on a question already asked.
+	// two-second tick.
 	//
-	// AFTER THE SYNCS, and the order is load-bearing rather than incidental —
-	// it was questioned in review precisely because nothing here said why.
-	//
-	// `syncFleetHolds` is what DECIDES THE SESSION SET: `PlanSync` rebuilds a
-	// session whose flags changed and drops one the overview pool has taken
-	// over, and a rebuilt session is a new socket with no reading on it. Priming
-	// ahead of that spends a command on sessions that are then discarded, and
-	// the frame goes out with the gap still in it. Priming after means every
-	// reading taken belongs to a session that is still there when
-	// `Snapshots()` is read a few lines below.
-	//
-	// The cost of this order is the one `fillFromAlertPool` handles: `syncPool`
-	// has started the overview dials by now and they return in 130 ms to 2 s, so
-	// a summary can be `Known` with a nil `System` when the frame is built. That
-	// is a gap to fill, not two sources to mix — see the guard there.
-	cn.srv.syncPool()
+	// AFTER THE SYNC, and the order is load-bearing: `syncFleetHolds` decides
+	// the session set and can rebuild a session whose flags changed, and a
+	// rebuilt session is a new socket with no reading on it. Priming first would
+	// spend a command on a session that is then discarded.
 	cn.srv.syncFleetHolds()
 	if cn.srv.sessions != nil {
 		cn.srv.sessions.PrimeStats()
@@ -804,10 +608,8 @@ func (cn *conn) startDevicesTick() {
 				return
 			case <-t.C:
 				// RE-SYNCED every tick, not just on focus. A router added,
-				// removed or re-enabled from another tab has to reach the pool,
-				// and the live app rebuilds its summaries from a pool that its
-				// own `syncSessions` keeps current on every routers.json write.
-				cn.srv.syncPool()
+				// removed or re-enabled from another tab has to be held, and
+				// the rows are read from the held sessions.
 				cn.srv.syncFleetHolds()
 				// ── AND ANY SESSION THAT WENT COLLECTOR-LESS SINCE ────
 				//
@@ -816,8 +618,7 @@ func (cn *conn) startDevicesTick() {
 				// WHILE the page is open, and a warm session runs no
 				// collectors at all -- so its reading goes stale and the
 				// card is the green badge over blank gauges all over
-				// again, well before the overview pool has dialled and
-				// ticked.
+				// again, until the `devices` hold's collector ticks.
 				//
 				// UNREAD ONLY: this is a timer, and re-reading a session
 				// that already answered is the poll the toggle exists to
@@ -864,70 +665,17 @@ func (cn *conn) devicesBlur() {
 	cn.srv.devicesMu.Lock()
 	_, had := cn.srv.devicesWatchers[cn.c]
 	delete(cn.srv.devicesWatchers, cn.c)
-	// `had &&` IS UNKILLABLE, and recorded rather than counted. Dropping it
-	// survives the suite, and the reason is a property of the caller rather than
-	// a gap in the tests: the ONLY thing that resumes the pool is `devicesFocus`,
-	// and that always adds to this set. So an empty set implies the pool is
-	// already suspended, and suspending it again changes nothing observable.
-	//
-	// It stays because that invariant belongs to a different function. If
-	// anything else ever resumes the pool — a warm start, an admin action — an
-	// unrelated connection's teardown would suspend it out from under a watcher,
-	// and this line is what makes that impossible rather than merely unlikely.
 	last := had && len(cn.srv.devicesWatchers) == 0
 	cn.srv.devicesMu.Unlock()
 
 	// THE HOLD GOES WITH THE LAST WATCHER. `holdOne` reads `devicesWatched`, so
-	// re-running the sync is what drops it — and it must run BEFORE the pool
-	// grace below, because a router the pool takes back needs its session
-	// released first.
+	// re-running the sync is what drops it, and the session falls back to its
+	// WARM hold: still connected, still observed, running no collectors. There
+	// is no pool to suspend or release any more - the connection was never the
+	// page's to give back.
 	if last {
 		cn.srv.syncFleetHolds()
 	}
-
-	if last && cn.srv.pool != nil {
-		// ── STOP COLLECTING NOW, LET THE SOCKETS GO AFTER A GRACE ─────────
-		//
-		// Suspending is the part that must be immediate: it is what stops
-		// costing the routers anything the moment nobody is looking.
-		//
-		// RELEASING is what hands the fleet back to the alert pool, and it was
-		// immediate too until this grace. That was correct and too eager. The
-		// overview pool's whole reason for keeping its sockets is that returning
-		// to the page should be instant, and dropping them on every blur made
-		// each visit re-dial the fleet — which is exactly the several-second
-		// wait where the page has no data and reports every device offline.
-		//
-		// So the same shape as the session's idle grace: leave and come back
-		// inside the window and the sockets are still there; stay away and the
-		// alert pool takes the fleet, which is the coverage half that mattered.
-		// Re-checked when the timer fires, so a viewer who returned keeps them.
-		cn.srv.pool.Suspend()
-		cn.srv.scheduleDevicesRelease()
-	}
-}
-
-// scheduleDevicesRelease hands the fleet to the alert pool once the Devices page
-// has been unwatched for a whole grace period.
-//
-// Several timers can be in flight after repeated visits; each re-reads the
-// watcher set, so all but the last find somebody watching and do nothing. That
-// is the same reasoning `suspendIfNoRoomOccupied` uses, and it is why this needs
-// no timer bookkeeping of its own.
-func (s *Server) scheduleDevicesRelease() {
-	time.AfterFunc(s.graceFor(), func() {
-		s.devicesMu.Lock()
-		gone := len(s.devicesWatchers) == 0
-		s.devicesMu.Unlock()
-		if !gone || s.pool == nil {
-			return
-		}
-		// BOTH HALVES, still: releasing without the re-sync would leave these
-		// routers covered by nothing at all, which is worse than the bug this
-		// release exists to fix.
-		s.pool.ReleaseAll()
-		s.syncFleetHolds()
-	})
 }
 
 // sendRoutersStats builds and sends this viewer's rows.

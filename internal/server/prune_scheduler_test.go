@@ -188,12 +188,11 @@ func TestEveryStartupActionIsGated(t *testing.T) {
 	s := string(src)
 
 	for _, c := range []struct{ what, mustMatch, why string }{
-		{"the background pool", `buildPool\(!opts\.NoPool\)`,
-			"it holds a connection to every router"},
-		// WAS `buildAlertPool(...)`. The alert pool is gone; the same switch now
-		// sets `holdFleet`, which is what decides whether a session is held for
-		// every router nobody is watching. Same gate, same consequence, one
-		// implementation instead of two.
+		// WAS `buildAlertPool(...)`, and there was a `buildPool(!opts.NoPool)` row
+		// above it for the overview pool. Both pools are gone (the overview one
+		// on 2026-10-01); the same switch sets `holdFleet`, which is what decides
+		// whether a session is held for every router nobody is watching. Same
+		// gate, same consequence, one implementation instead of three.
 		{"the always-on fleet holds", `srv\.holdFleet = !opts\.NoPool`,
 			"it holds a connection to every router"},
 		// TWO FLAGS SINCE 2026-09-23 (#59). The same builder now carries the
@@ -257,31 +256,30 @@ func TestBothHistoryRecordersAreFlushedOnShutdown(t *testing.T) {
 	// would lose the open minute for every other on each restart — the same data
 	// loss this test exists for, narrowed to one router by accident.
 	if !regexp.MustCompile(`historyWire\.FlushAll\(\)`).Match(srv) {
-		t.Error("Shutdown does not flush the overview pool's history. That pool " +
-			"records while the Devices page is open, so every restart loses the " +
-			"minute in progress.")
+		t.Error("Shutdown does not flush the history wire, so every restart loses " +
+			"the minute in progress for every recording router.")
 	}
-	// AND BEFORE THE POOL IS CLOSED, or the flush has nothing to flush from.
+	// AND BEFORE THE DATABASE IS CLOSED, or the flush has nowhere to write.
 	// THE RECEIVER IS PART OF THE PATTERN. Without `s\.` the first match is the
 	// COMMENT above the flush, so the first version of this test reported the
 	// order was wrong when the code was right, and would have had somebody "fix"
 	// correct code.
 	//
-	// ── AGAINST `pool.Close()`, NOT THE SESSIONS ──────────────────────────
+	// ── RE-AIMED 2026-10-01, FROM `pool.Close()` ──────────────────────────
 	//
-	// This used to name `s.alertPool.Close()`. That package is gone and the
-	// background recorder is a HELD SESSION; `sessions.Shutdown()` flushes each
-	// session as it tears it down, so that half is the manager's own invariant
-	// and not something a source read of `Shutdown` can see. The overview pool
-	// has no flush of its own, which is what leaves this line load-bearing.
+	// This compared the flush against `s.pool.Close()`, because the overview
+	// pool recorded with no flush of its own. The pool is gone. What still has
+	// an order is the write itself: the flush lands rows in the history database,
+	// so a flush after `auditDB.Close()` loses the open minute exactly as a
+	// missing flush would, and reads as correct in a diff.
 	flush := regexp.MustCompile(`s\.historyWire\.FlushAll\(`).FindIndex(srv)
-	closed := regexp.MustCompile(`s\.pool\.Close\(\)`).FindIndex(srv)
+	closed := regexp.MustCompile(`s\.auditDB\.Close\(\)`).FindIndex(srv)
 	if flush == nil || closed == nil {
-		t.Fatal("could not locate both the flush and the close")
+		t.Fatal("could not locate both the flush and the database close")
 	}
 	if flush[0] > closed[0] {
-		t.Error("the history flush runs AFTER pool.Close(); the collectors it " +
-			"draws from are gone by then")
+		t.Error("the history flush runs AFTER the database is closed; the open " +
+			"minute has nowhere to be written")
 	}
 }
 
@@ -450,7 +448,6 @@ func TestEveryBackgroundComponentIsStoppedOnShutdown(t *testing.T) {
 	for _, c := range []struct{ field, call string }{
 		{"backupSched", "s.backupSched.Stop()"},
 		{"pruneSched", "s.pruneSched.Stop()"},
-		{"pool", "s.pool.Close()"},
 		{"auditDB", "s.auditDB.Close()"},
 	} {
 		if !strings.Contains(body, c.call) {

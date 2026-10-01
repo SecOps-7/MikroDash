@@ -38,7 +38,6 @@ import (
 	"mikrodash/internal/hub"
 	"mikrodash/internal/pages"
 	"mikrodash/internal/rbac"
-	"mikrodash/internal/routers"
 	"mikrodash/internal/session"
 	"mikrodash/internal/store"
 	"mikrodash/internal/wifiscan"
@@ -50,11 +49,13 @@ type Options struct {
 	// gazetteer. Empty means the picker reports itself unavailable, which is a
 	// supported state rather than an error.
 	GeoDir string
-	// NoPool turns OFF the background pool and the fleet holds: the connection
-	// to every router nobody has open, which answers the Devices page and keeps
-	// alerting running. For a second process pointed at a fleet another
-	// MikroDash already polls, where two pools would double the channels held
-	// on the same hardware (API channels are the documented bottleneck).
+	// NoPool turns OFF the fleet holds: the session held for every enabled
+	// router nobody has open, which keeps its status, its alerting and its
+	// connectivity record running. For a second process pointed at a fleet
+	// another MikroDash already polls, where two sets of connections would double
+	// the channels held on the same hardware (API channels are the documented
+	// bottleneck). The name is historical: the overview pool it once also
+	// switched off was deleted on 2026-10-01.
 	NoPool bool
 	// AlertDispatch turns alert NOTIFICATIONS on; the evaluator and its database
 	// rows run either way. Off unless passed (the image passes it), because a
@@ -181,12 +182,6 @@ type Server struct {
 	// and per-connection caches would fetch the same text once per viewer.
 	changelog *changelog.Client
 
-	// pool holds a connection to every router NOBODY has open, running the three
-	// collectors the Devices page's rows need. Nil until a caller builds one.
-	//
-	// SUSPENDED WHENEVER NOBODY IS ON THE PAGE, which is what keeps it cheap: the
-	// rows are only wanted while somebody is looking at them.
-	pool *routers.Pool
 	// alerts evaluates collector payloads into alert rows. Nil without a history
 	// database, and nil is inert. It DOES NOT DISPATCH — see alert_wire.go.
 	alerts *alertwire.Wire
@@ -201,8 +196,9 @@ type Server struct {
 	reportSched *reportScheduler
 	// The daily retention sweep. Nil unless -retention was passed.
 	pruneSched *pruneScheduler
-	// historyWire is built early, because the always-on pool must be given it
-	// BEFORE its first Sync — see New.
+	// historyWire is built early, because the fleet holds build a session for
+	// every enabled router at startup and each session takes it when it is built
+	// — see New.
 	historyWire *historywire.Wire
 	// connTrack is the fleet's connectivity debounce: who is OFFLINE, as
 	// opposed to whose socket is shut this instant. See internal/connstate.
@@ -236,9 +232,9 @@ type Server struct {
 	connsMu sync.Mutex
 	conns   map[*hub.Client]*conn
 
-	// devicesWatchers is who currently has the Devices page open. The pool
-	// resumes on the FIRST and suspends on the LAST, so this is a count that
-	// happens to name its members rather than a registry.
+	// devicesWatchers is who currently has the Devices page open. While it is
+	// non-empty `holdOne` takes the `devices` hold on every router, so this is a
+	// count that happens to name its members rather than a registry.
 	devicesMu       sync.Mutex
 	devicesWatchers map[*hub.Client]bool
 
@@ -366,15 +362,12 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// Installed AFTER construction because it closes over the server. It is the
 	// whole of authentication.
 	srv.auth.SetLocal(srv.localSession)
-	// The background pool. AFTER construction too — its identity hook closes
-	// over the server, to write the record, record the audit event and broadcast
-	// the new router list. See pool_wire.go for what gates it.
-	// ── THE #105 ONE-SHOT, AT STARTUP AND BEFORE ANY POOL ─────────────────
+	// ── THE #105 ONE-SHOT, AT STARTUP AND BEFORE ANY SESSION ──────────────
 	//
 	// Live's `_migrateCollectionMode` is an IIFE that runs while index.js loads,
 	// before any session is built. The order matters here for the same reason:
-	// both pools resolve each router's collection config when they build their
-	// sessions, so a migration running after them would leave the whole first
+	// the fleet holds resolve each router's collection config when they build its
+	// session, so a migration running after them would leave the whole first
 	// run on the pre-migration answer — the operator's Poll silently served as
 	// Stream until the next restart.
 	if srv.store != nil {
@@ -383,10 +376,8 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		}
 	}
 	srv.startedAt = time.Now()
-	srv.pool = srv.buildPool(!opts.NoPool)
-	// THE ALWAYS-ON HOLDS, sharing the same switch — see fleet_holds.go for why.
-	// Unlike the overview pool these connect as soon as they are synced, so the
-	// sync happens once here rather than waiting for a page.
+	// THE ALWAYS-ON HOLDS — see fleet_holds.go. They connect as soon as they are
+	// synced, so the sync happens once at startup rather than waiting for a page.
 	srv.holdFleet = !opts.NoPool
 	if !srv.holdFleet {
 		log.Printf("[holds] off; routers nobody is watching are neither connected " +
@@ -445,11 +436,10 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		}
 		return blob
 	})
-	// SYNCED AT STARTUP. `New` connects to nothing; `Sync` does. The overview
-	// pool can wait for `devicesFocus` because its rows are only wanted while
-	// that page is open — this one exists so a router nobody is watching is
-	// still known to be up and still has its alerts evaluated, which is a claim
-	// about the whole uptime of the process.
+	// SYNCED AT STARTUP, because the holds exist so a router nobody is watching
+	// is still known to be up, still has its alerts evaluated and still has its
+	// outages recorded — a claim about the whole uptime of the process, not
+	// about whether a page is open.
 	srv.syncFleetHolds()
 	// ── AND THE CLOCK THE DEBOUNCE NEEDS ──────────────────────────────────
 	//
@@ -467,10 +457,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	//
 	// A session now outlives its last viewer by `session.DefaultIdleGrace`, so
 	// "the browser closed" and "this router is uncovered" are two moments up to
-	// two minutes apart. The pool must reclaim the router at the SECOND one:
-	// `syncFleetHolds` excludes anything in `sessions.Live()`, so calling it at
-	// Release time skips the very router that is about to need covering, and
-	// nothing would call it again.
+	// two minutes apart. The holds must be re-derived at the SECOND one: calling
+	// `syncFleetHolds` at Release time sees the router still live and decides
+	// nothing, and nothing would call it again.
 	srv.sessions.SetOnIdle(func(string) { srv.syncFleetHolds() })
 	// The alert evaluator, for the same reason and in the same place: it needs
 	// the settings and the history database, both of which exist only now.
@@ -539,44 +528,20 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// New, where the ordering is correct.
 	hw := srv.historyWire
 	srv.sessions.SetHistoryWire(hw)
-	// ── AND THE POOL RECORDS TOO, WHEN -history IS ON ─────────────────────
-	//
-	// Under `-history` the port used to record ONLY while a browser had the
-	// router selected, because `historywire` is fed from the session's emit
-	// closure and a `Session` exists only while a socket wants one. MEASURED
-	// 2026-08-29: live wrote a steady 60 traffic rows an hour with nobody
-	// logged in and this port wrote between 5 and 44, tracking browser activity.
-	//
-	// NO NEW FLAG, on the operator's decision of 2026-08-30: `-history` meaning
-	// "incomplete history" was the real defect, so completeness comes with the
-	// flag that is already there.
-	//
-	// It costs no new connection. `syncPool` excludes exactly the routers that
-	// have a live `Session`, so the ACTIVE router is pooled precisely when no
-	// browser is watching it — the window where history was missing — and the
-	// socket is already established. Two command channels, one router, and only
-	// while nobody is looking; the moment a browser attaches, the session takes
-	// the router out of the pool and records it itself.
 	// ── CONTINUOUS HISTORY GOES ON THE ALWAYS-ON HOLD ─────────────────────
 	//
-	// `syncFleetHolds` runs at startup and holds a session for every enabled
-	// router whether or not anyone is looking. `internal/routers.Pool` is synced
-	// from the Devices page and the routers API only, so it idles until somebody
-	// looks at something — wiring history there recorded nothing after a restart
-	// with no browser, measured 2026-08-30.
+	// Under `-history` the port once recorded ONLY while a browser had the router
+	// selected, because `historywire` is fed from the session's emit closure and
+	// a `Session` existed only while a socket wanted one. MEASURED 2026-08-29:
+	// live wrote a steady 60 traffic rows an hour with nobody logged in and this
+	// port wrote between 5 and 44, tracking browser activity.
 	//
-	// Both are wired: the `history` hold is what makes history CONTINUOUS, and
-	// the routers pool covers the window where the Devices page is open. The
-	// hold used to be a session in `internal/alertpool`; a session that records
-	// its own history is the same seam with one implementation instead of two.
-	if hw.Enabled() {
-		if srv.pool != nil {
-			srv.pool.WithHistory(hw.Record)
-			// `syncHistoryRouter` was here. Recording is each router's own
-			// setting now, applied by `Pool.Sync` itself, so there is nothing
-			// to push separately at startup.
-		}
-	}
+	// `syncFleetHolds` runs at startup and holds a session for every enabled
+	// router whether or not anyone is looking, and the `history` hold runs the
+	// traffic and ping collectors for every router with reporting on. That is
+	// the whole of continuous history: one seam, the session's emit, with no
+	// second recorder. (The overview pool was a second one until it was deleted
+	// on 2026-10-01; it only ever covered the window the Devices page was open.)
 	// ZERO-TOUCH PROVISIONING'S TUNNEL, when the setting is on. A tunnelled
 	// router's session that dials before this is up simply retries, as every
 	// session does on a failed dial.
@@ -899,9 +864,6 @@ func (s *Server) Shutdown() {
 		// back when a single router recorded; with several, naming one would
 		// lose the open minute for all the others on every restart.
 		s.historyWire.FlushAll()
-	}
-	if s.pool != nil {
-		s.pool.Close()
 	}
 	if s.auditDB != nil {
 		if err := s.auditDB.Close(); err != nil {

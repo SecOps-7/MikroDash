@@ -2,77 +2,69 @@ package server
 
 import (
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+
+	"mikrodash/internal/session"
 )
 
-// The two pools are synced together.
+// ── EVERY ENABLED ROUTER IS HELD WARM ───────────────────────────────────────
 //
-// ── AN INVARIANT ACROSS EIGHT CALL SITES ──────────────────────────────────
+// The rule the Devices page's connectivity strip rests on, so it is pinned by
+// behaviour, not by reading the source.
 //
-// `syncPool` and `syncFleetHolds` answer the same question — who is watching
-// what — so a change that affects one affects the other. The overview pool
-// excludes routers with an interactive session; the warm hold is dropped for those
-// AND the overview pool's. Sync one without the other and the two disagree about
-// who owns a router, which shows up as two connections to one device or none.
+// Until 2026-10-01 `warm` was dropped for every router the overview pool had
+// answered for, and the pool never fed `connTrack`: those routers lost their
+// debounced Online verdict and wrote no connectivity rows. Measured on the dev
+// install, three routers of four had none in seven days. The pool is gone and
+// the hold is unconditional for an enabled router.
 //
-// This is the shape that has failed repeatedly in this port: an invariant
-// enforced by remembering, across sites that grow. So it is counted rather than
-// remembered.
-func TestEverySyncPoolSiteAlsoSyncsTheAlertPool(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
+// `TestEverySyncPoolSiteAlsoSyncsTheAlertPool` lived here and was DELETED with
+// the pool: it counted that every `syncPool()` was followed by
+// `syncFleetHolds()`, because two pools dividing the fleet had to be synced
+// together. There is one sync now, and no second thing for it to agree with.
+func TestEveryEnabledRouterIsHeldWarm(t *testing.T) {
+	s := schedServer(t, `[
+	  {"id":"quiet","label":"Quiet","host":"198.51.100.1","port":8728,"username":"u","password":""},
+	  {"id":"off","label":"Off","host":"198.51.100.2","port":8728,"username":"u","password":"",
+	   "disabled":true}]`)
+	s.sessions = session.NewManager(s.store, s.hub)
+	t.Cleanup(func() { s.sessions.Shutdown() })
+	s.holdFleet = true
+
+	s.syncFleetHolds()
+
+	// ALERTS OFF, REPORTING OFF, NOBODY WATCHING: the router the old rule
+	// abandoned. Nothing else holds it, so warm is the only reason it is
+	// connected at all.
+	if !hasHold(s.sessions.Held("quiet"), "warm") {
+		t.Errorf("an enabled router with alerts and reporting off is held %v, not warm. "+
+			"Nothing then observes it: no debounced status, and no outage is ever "+
+			"written to its connectivity strip", s.sessions.Held("quiet"))
 	}
-	callSite := regexp.MustCompile(`(?m)^(\s*)((?:cn\.srv|s|srv)\.)syncPool\(\)`)
-	total := 0
-	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") {
-			continue
-		}
-		b, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		src := string(b)
-		for _, m := range callSite.FindAllStringSubmatchIndex(src, -1) {
-			total++
-			// The twin must be the NEXT statement. Anywhere else in the file is
-			// not the same thing: these run inside conditionals, and a twin
-			// outside the branch syncs when the original did not.
-			rest := src[m[1]:]
-			line := rest
-			if i := strings.Index(rest, "\n"); i >= 0 {
-				line = rest[:i+1]
-			}
-			next := rest[len(line):]
-			if i := strings.Index(next, "\n"); i >= 0 {
-				next = next[:i]
-			}
-			if !strings.Contains(next, "syncFleetHolds()") {
-				t.Errorf("%s: a syncPool() call is not followed by syncFleetHolds().\n"+
-					"  next line: %q\n"+
-					"The two pools divide the fleet between them; syncing one without the "+
-					"other leaves them disagreeing about who owns a router.", f, strings.TrimSpace(next))
-			}
-		}
+	// THE CONTROL: a disabled router is not connected to at all. Without this a
+	// rule that held everything, disabled included, would pass above.
+	if h := s.sessions.Held("off"); len(h) != 0 {
+		t.Errorf("a DISABLED router is held %v; it must not be connected to", h)
 	}
-	if total == 0 {
-		t.Fatal("no syncPool() call sites found — this test is measuring nothing")
-	}
-	t.Logf("%d syncPool call site(s) checked", total)
 }
 
-// AND THE ALERT POOL IS SYNCED AT STARTUP, which the overview pool is not.
-//
-// `New` connects to nothing; `Sync` does. The overview pool can wait for
-// `devicesFocus` because its rows are only wanted while that page is open. This
-// one exists so a router nobody is watching is still known to be up and still
-// has its alerts evaluated — a claim about the whole uptime of the process, not
-// about a page.
-func TestTheAlertPoolIsSyncedAtStartup(t *testing.T) {
+func hasHold(holds []string, want string) bool {
+	for _, h := range holds {
+		if h == want {
+			return true
+		}
+	}
+	return false
+}
+
+// AND THE HOLDS ARE SYNCED AT STARTUP, not when a page first opens. They exist
+// so a router nobody is watching is still known to be up, still has its alerts
+// evaluated and still has its outages recorded - a claim about the whole uptime
+// of the process, not about a page. (Was `TestTheAlertPoolIsSyncedAtStartup`,
+// from when these holds were a pool.)
+func TestTheFleetHoldsAreSyncedAtStartup(t *testing.T) {
 	b, err := os.ReadFile("server.go")
 	if err != nil {
 		t.Fatal(err)

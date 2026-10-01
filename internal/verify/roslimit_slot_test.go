@@ -14,11 +14,15 @@ import (
 // is still running on the router - routeros.Client.Do no longer cancels it,
 // because cancelling ended the whole connection - so releasing its slot when Do
 // returns would let the cap be exceeded by exactly the commands a slow router is
-// already struggling with. Both slot-takers must hand the release to
+// already struggling with. Every slot-taker must hand the release to
 // `Cmd.OnFinished` rather than `defer done()`.
+//
+// ONE FILE SINCE 2026-10-01. `internal/routers/pool.go` was the second slot-taker,
+// with a `reader.Do` of its own; it was deleted with the overview pool. A new
+// file that takes a slot belongs in this list.
 func TestRouterSlotsAreReleasedWhenTheCommandFinishes(t *testing.T) {
 	root := repoRoot(t)
-	for _, file := range []string{"internal/session/session.go", "internal/routers/pool.go"} {
+	for _, file := range []string{"internal/session/session.go"} {
 		f, err := parser.ParseFile(token.NewFileSet(), filepath.Join(root, file), nil, 0)
 		if err != nil {
 			t.Fatal(err)

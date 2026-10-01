@@ -36,7 +36,7 @@ package rbac
 //
 // `POST /api/users/setup` is the caller and is the remaining half of the same
 // queue item. This repo already holds pure decisions ahead of their callers —
-// `internal/routers/pool.go` and `internal/history.Bucketer` — because the
+// `internal/history.Bucketer` is one — because the
 // DECISION is what needs pinning against the live implementation while the
 // wiring is what needs a running server. `db.UpsertGrant` and
 // `db.DeleteGrantsForPrincipal` are the effects, already exist, and likewise

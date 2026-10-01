@@ -822,6 +822,36 @@ func (m *Manager) docsFor(routerID string) collect.DocSource {
 	return func(kind string) []byte { return fn(routerID, kind) }
 }
 
+// adoptConnection makes a freshly dialled client this session's connection, or
+// reports false when the session was released while the dial was in flight
+// (the caller closes the client then).
+//
+// A METHOD, not inline in the connect loop, so what a new connection resets can
+// be asserted without a router that answers: the loop's other states all dial
+// unreachable hosts in tests.
+//
+// ── A NEW CONNECTION INVALIDATES THE PRIMED READING ────────────────────────
+//
+// `primedSys` is a one-shot `/system/resource` reading, and `PrimeUnread` skips
+// every session that already holds one. It was never cleared, so a router that
+// REBOOTED and reconnected kept its pre-reboot uptime on the Devices page
+// indefinitely - and its pre-upgrade RouterOS version, since the same prime is
+// what reports a warm session's identity. Cleared here, the next prime pass
+// reads the router as it is now. TestAReconnectInvalidatesThePrimedReading.
+func (s *Session) adoptConnection(c *routeros.Client) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return false
+	}
+	s.client = c
+	s.connected = true
+	s.lastErr = ""
+	s.observed = true
+	s.primedSys = nil
+	return true
+}
+
 // identityFor binds the identity writer to one router, or returns nil.
 func (m *Manager) identityFor(routerID string) collect.IdentityFunc {
 	fn := m.onIdentity
@@ -1975,17 +2005,10 @@ func (s *Session) connectLoop() {
 			continue
 		}
 
-		s.mu.Lock()
-		if s.closed { // released while dialling
-			s.mu.Unlock()
+		if !s.adoptConnection(c) { // released while dialling
 			_ = c.Close()
 			return
 		}
-		s.client = c
-		s.connected = true
-		s.lastErr = ""
-		s.observed = true
-		s.mu.Unlock()
 		// THE RUN IS OVER. Without this a router that was rejecting logins keeps
 		// its climb, so the next unrelated drop waits out a five-minute sleep.
 		authBackoff.Reset()

@@ -153,7 +153,6 @@ func (s *Server) routerCreate(w http.ResponseWriter, r *http.Request) {
 	})
 	EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
 	s.broadcastRouterList()
-	s.syncPool()
 	s.syncFleetHolds()
 
 	// THE PASSWORD IS MASKED, not sent back. The live route returns the record
@@ -369,7 +368,6 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 	// password wrote the file and changed nothing: the session went on dialling
 	// the old credential every five seconds. See `Manager.Reconfigure`.
 	s.reconfigureLiveSession(id)
-	s.syncPool()
 	s.syncFleetHolds()
 	writeJSON(w, map[string]any{"ok": true})
 }
@@ -524,7 +522,6 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 		s.promoteAfterRemoval(id)
 	}
 	s.broadcastRouterList()
-	s.syncPool()
 	s.syncFleetHolds()
 	writeJSON(w, map[string]any{"ok": true})
 }

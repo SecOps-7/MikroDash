@@ -254,3 +254,15 @@ func TestShutdownReleasesEverythingInOrder(t *testing.T) {
 		}
 	}
 }
+
+// healthzCode serves one `/healthz` request and returns its status. It lived in
+// `health_pool_test.go`, which was deleted with the overview pool on 2026-10-01;
+// the tests above are what still use it.
+func healthzCode(t *testing.T, s *Server) int {
+	t.Helper()
+	mux := http.NewServeMux()
+	s.registerHealth(mux)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", "/healthz", nil))
+	return w.Code
+}

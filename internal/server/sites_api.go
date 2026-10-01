@@ -275,7 +275,6 @@ func (s *Server) siteDelete(w http.ResponseWriter, r *http.Request) {
 	s.broadcastSites()
 	if detached > 0 {
 		s.broadcastRouterList()
-		s.syncPool()
 		s.syncFleetHolds()
 	}
 	writeJSON(w, map[string]any{"ok": true, "detached": detached})
@@ -377,7 +376,6 @@ func (s *Server) siteRoutersSet(w http.ResponseWriter, r *http.Request) {
 		// Filed upstream rather than reproduced.
 		EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
 		s.broadcastRouterList()
-		s.syncPool()
 		s.syncFleetHolds()
 	}
 	writeJSON(w, map[string]any{"ok": true, "changed": changed})

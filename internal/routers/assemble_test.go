@@ -10,44 +10,25 @@ func sr(id string) StatsRouter {
 	return StatsRouter{ID: id, Label: id, Host: "198.51.100.1"}
 }
 
-// The trap the header names. An interactive session exists but has not polled
-// yet; the background pool still holds good numbers. The original reads the
-// SESSION, nulls and all, because its ternary tests whether a session exists.
+// THE ROW READS THE ROUTER'S SESSION.
 //
-// A port that "improved" this would show a CPU figure the live page does not,
-// and would mix two connections' readings in one row.
-func TestAnInteractiveSessionWinsEvenWithNoPayload(t *testing.T) {
+// Re-aimed 2026-10-01 from `TestABackgroundOnlyRouterReadsThePool`, and
+// `TestAnInteractiveSessionWinsEvenWithNoPayload` beside it was DELETED: it
+// pinned which of TWO sources won, the interactive session or the overview
+// pool, and the pool is gone. Every enabled router is held by exactly one
+// session, so there is no choice left to pin - only that the session's payload
+// reaches the row.
+func TestASessionsPayloadIsWhatTheRowReads(t *testing.T) {
 	got := BuildStats(StatsSources{
 		Routers: []StatsRouter{sr("a")},
-		Main:    map[string]MainSession{"a": {Connected: true}},
-		Background: map[string]Summary{"a": {
-			RouterID: "a", Connected: true, System: fullSystem(),
-		}},
-	})
-	if len(got) != 1 {
-		t.Fatalf("want one row, got %d", len(got))
-	}
-	f := fields(t, got[0])
-	if f["cpu"] != nil {
-		t.Errorf("cpu = %v; the interactive session has no payload, so the row must be null "+
-			"rather than falling back to the background pool's reading", f["cpu"])
-	}
-}
-
-// With NO interactive session the background pool is what the row reads.
-func TestABackgroundOnlyRouterReadsThePool(t *testing.T) {
-	got := BuildStats(StatsSources{
-		Routers: []StatsRouter{sr("a")},
-		Background: map[string]Summary{"a": {
-			RouterID: "a", Connected: true, System: fullSystem(),
-		}},
+		Main:    map[string]MainSession{"a": {Connected: true, Known: true, System: fullSystem()}},
 	})
 	f := fields(t, got[0])
 	if f["cpu"] == nil {
-		t.Error("cpu is null; the background pool had a payload")
+		t.Error("cpu is null; the router's session had a payload")
 	}
 	if f["isActive"] != false {
-		t.Error("isActive must be false for a router nobody has open")
+		t.Error("isActive must be false for a router this viewer has not selected")
 	}
 }
 
@@ -123,9 +104,9 @@ func TestDefaultInterfacePrecedence(t *testing.T) {
 			r := sr("a")
 			r.DefaultIf = c.routerIf
 			got := BuildStats(StatsSources{
-				Routers:    []StatsRouter{r},
-				DefaultIf:  c.globalIf,
-				Background: map[string]Summary{"a": {RouterID: "a", Connected: true, IfStatus: rates}},
+				Routers:   []StatsRouter{r},
+				DefaultIf: c.globalIf,
+				Main:      map[string]MainSession{"a": {Connected: true, Known: true, IfStatus: rates}},
 			})
 			f := fields(t, got[0])
 			if f["rxMbps"] != c.wantRx {
@@ -135,9 +116,10 @@ func TestDefaultInterfacePrecedence(t *testing.T) {
 	}
 }
 
-// A router the fleet knows and NEITHER pool serves: offline, with nothing to
-// say. Not an error, and not a crash.
-func TestARouterInNeitherPoolIsQuietlyOffline(t *testing.T) {
+// A router the fleet knows and NO SESSION holds yet - added a moment ago,
+// before the next fleet sync holds it: offline, with nothing to say. Not an
+// error, and not a crash. (Was `TestARouterInNeitherPoolIsQuietlyOffline`.)
+func TestARouterWithNoSessionIsQuietlyOffline(t *testing.T) {
 	got := BuildStats(StatsSources{Routers: []StatsRouter{sr("a")}})
 	f := fields(t, got[0])
 	if f["connected"] != false {
@@ -168,7 +150,7 @@ func TestOrderIsPreserved(t *testing.T) {
 func TestOpenAlertsAreIndependentOfConnected(t *testing.T) {
 	got := BuildStats(StatsSources{
 		Routers:    []StatsRouter{sr("a")},
-		Background: map[string]Summary{"a": {RouterID: "a", Connected: true}},
+		Main:       map[string]MainSession{"a": {Connected: true, Known: true}},
 		OpenAlerts: map[string]int{"a": 3},
 	})
 	if f := fields(t, got[0]); f["openAlerts"] != float64(3) {
@@ -307,21 +289,18 @@ func TestNoSitesSendsAnEmptyArrayNotNull(t *testing.T) {
 // what stops a later change zeroing the field and quietly restoring the bug.
 func TestKnownSeparatesUnaskedFromOffline(t *testing.T) {
 	got := BuildStats(StatsSources{
-		Routers: []StatsRouter{sr("unasked"), sr("bg"), sr("main"), sr("down")},
-		// `Known: true` is STATED on each source, because holding a session is
+		Routers: []StatsRouter{sr("unasked"), sr("main"), sr("down")},
+		// `Known: true` is STATED on each session, because holding a session is
 		// not the same as having heard from one — see
-		// TestAPoolSessionThatHasNotDialledYetIsNotOffline, which is the case
-		// that distinction exists for.
-		Main: map[string]MainSession{"main": {Connected: true, Known: true}},
-		Background: map[string]Summary{
-			"bg": {RouterID: "bg", Connected: true, Known: true},
-			"down": {RouterID: "down", Connected: false, Known: true,
-				LastError: "dial: refused"},
+		// TestASessionThatHasNotDialledYetIsNotOffline, which is the case that
+		// distinction exists for.
+		Main: map[string]MainSession{
+			"main": {Connected: true, Known: true},
+			"down": {Connected: false, Known: true, LastError: "dial: refused"},
 		},
 	})
 	want := map[string]struct{ known, connected bool }{
 		"unasked": {false, false},
-		"bg":      {true, true},
 		"main":    {true, true},
 		// SERVED AND GENUINELY DOWN. This is the only row entitled to the red
 		// "Offline", and it is the one the flag must not suppress.
@@ -348,22 +327,25 @@ func TestKnownSeparatesUnaskedFromOffline(t *testing.T) {
 // selected one show Offline for a few seconds, then all come online at once.
 //
 // Adding `known` was not enough, because the flag was being set from "a source
-// answered for this router" — and `Pool.Summaries` returns an entry for every
-// session it HOLDS, including one built moments ago whose dial has not returned.
-// That entry reads `Connected: false, LastError: ""`, so the row said
-// known-and-down and the card drew the same red Offline as before.
+// answered for this router" - and a source returns an entry for every session it
+// HOLDS, including one built moments ago whose dial has not returned. That entry
+// reads `Connected: false, LastError: ""`, so the row said known-and-down and the
+// card drew the same red Offline as before.
 //
-// This is the exact shape of that summary, asserted directly. It is
-// deterministic: no timing, no pool, no browser.
-func TestAPoolSessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
+// MERGED 2026-10-01 from `TestAPoolSessionThatHasNotDialledYetIsNotOffline` and
+// `TestAnInteractiveSessionThatHasNotDialledYetIsNotOffline`, which asserted the
+// same rule against the overview pool's summary and the session respectively.
+// The pool is gone and the session is the only source, so one test holds both
+// directions: a session still dialling is not known, and one that reported a
+// failure stays known and keeps its reason.
+func TestASessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
 	got := BuildStats(StatsSources{
 		Routers: []StatsRouter{sr("dialling"), sr("answered")},
-		Background: map[string]Summary{
-			// What Summaries returns for a session Sync built a moment ago.
-			"dialling": {RouterID: "dialling", Connected: false, Known: false},
+		Main: map[string]MainSession{
+			// A session the fleet sync built a moment ago.
+			"dialling": {Connected: false, Known: false},
 			// And one that has actually reported.
-			"answered": {RouterID: "answered", Connected: false, Known: true,
-				LastError: "Connection failed"},
+			"answered": {Connected: false, Known: true, LastError: "Connection failed"},
 		},
 	})
 	by := map[string]Row{}
@@ -381,19 +363,6 @@ func TestAPoolSessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
 	}
 	if by["answered"].LastError == nil {
 		t.Error("the observed-down router lost the reason it is down")
-	}
-}
-
-// The same for the INTERACTIVE session, which has the identical shape and whose
-// own field comment already said so: "a session is created before it connects".
-func TestAnInteractiveSessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
-	got := BuildStats(StatsSources{
-		Routers: []StatsRouter{sr("a")},
-		Main:    map[string]MainSession{"a": {Connected: false, Known: false}},
-	})
-	if got[0].Known {
-		t.Error("the watched router claims a known-offline state before its " +
-			"session has dialled")
 	}
 }
 

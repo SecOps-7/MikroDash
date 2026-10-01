@@ -3,6 +3,9 @@ package session
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"mikrodash/internal/collect"
 )
 
 // TestEveryTargetCanBeRefreshed is the gate that makes phase 5.2 real.
@@ -86,5 +89,82 @@ func TestPrimeSkipsWhatAlreadyReported(t *testing.T) {
 				"collectors that already have data, and reads ones the operator turned "+
 				"off for this router.", want)
 		}
+	}
+}
+
+// TestAReconnectInvalidatesThePrimedReading.
+//
+// `primedSys` is the one `/system/resource` reading a warm session takes, and
+// `PrimeUnread` skips every session that already holds one. It was never
+// cleared, so a router that rebooted and reconnected kept its PRE-REBOOT uptime
+// on the Devices page for as long as the session lived, and its pre-upgrade
+// RouterOS version with it - the prime is also what reports a warm session's
+// identity.
+//
+// Driven through `adoptConnection` rather than a dial: it is the ONLY place in
+// this package a session becomes connected (grep `connected = true`), so a test
+// of it covers every connect, first or re-.
+func TestAReconnectInvalidatesThePrimedReading(t *testing.T) {
+	m := graceManager(t, time.Hour)
+	s, err := m.Acquire("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := &collect.SystemPayload{UptimeRaw: "3w2d"}
+	s.mu.Lock()
+	s.primedSys = stale
+	s.mu.Unlock()
+
+	if !s.adoptConnection(nil) {
+		t.Fatal("a live session refused a new connection")
+	}
+	if got := s.primedSystem(); got != nil {
+		t.Errorf("the primed reading survived a reconnect (uptime %q): a rebooted "+
+			"router keeps its old uptime and version on the Devices page", got.UptimeRaw)
+	}
+	if !s.Connected() {
+		t.Error("adoptConnection did not mark the session connected")
+	}
+
+	// THE CONTROL. A session released while its dial was in flight must refuse
+	// the client and change NOTHING - otherwise the assertion above would pass
+	// for a method that clears the field on every call whatever it decides.
+	s.mu.Lock()
+	s.closed = true
+	s.connected = false
+	s.primedSys = stale
+	s.mu.Unlock()
+	if s.adoptConnection(nil) {
+		t.Error("a closed session adopted a connection")
+	}
+	if s.primedSystem() != stale || s.Connected() {
+		t.Error("a refused connection still changed the session's state")
+	}
+}
+
+// TestSystemOrPrimedFallsBackToThePrimedReading — the one thing the deleted
+// `Manager.Snapshots` did that a plain read does not: hand out the primed
+// reading when the session's own system collector has none. A warm session runs
+// no collector until the Devices page's hold starts one, and this is what fills
+// the card in between.
+func TestSystemOrPrimedFallsBackToThePrimedReading(t *testing.T) {
+	m := graceManager(t, time.Hour)
+	s, err := m.Acquire("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// THE CONTROL FIRST: nothing primed and nothing collected is nil, not a
+	// zeroed payload that would draw 0% gauges and an empty uptime as if read.
+	if got := s.SystemOrPrimed(); got != nil {
+		t.Fatalf("a session with no reading at all returned %+v", got)
+	}
+
+	primed := &collect.SystemPayload{CPULoad: 42}
+	s.mu.Lock()
+	s.primedSys = primed
+	s.mu.Unlock()
+	if got := s.SystemOrPrimed(); got != primed {
+		t.Errorf("SystemOrPrimed = %+v, want the primed reading; a warm router's card "+
+			"is a green badge over blank gauges", got)
 	}
 }

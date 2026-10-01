@@ -285,7 +285,7 @@ reason is a **hold** naming the collectors it needs:
 | `alerts` | the rules must be evaluated | `session.AlertFeeds` |
 | `history` | traffic and ping are being recorded | `historyFeeds` |
 | `devices` | the Devices page reads a payload per router | `devicesFeeds` |
-| `warm` | the page must be able to say "up" instantly | **nothing** - a connection only |
+| `warm` | **every enabled router**, always: its session is what keeps it observed - a debounced online verdict and a connectivity record - whoever is looking | **nothing** - a connection only |
 
 **A hold is inert unless something takes it.** A reason with a feed list runs
 nothing until some caller `Retain`s it. `internal/verify/holds_test.go` fails in

@@ -161,9 +161,14 @@ func (s *Server) routerEnableAPISSL(w http.ResponseWriter, r *http.Request) {
 
 	s.apiSSLAudit(r, sess, rec, "ok", "")
 	log.Printf("[api-ssl] %s moved to API-SSL on %d", rec.Label, apiSSLPort)
-	// The session has to be rebuilt on the new endpoint, exactly as a port edit
-	// through the dialog does it.
-	s.syncPool()
+	// THE SESSION IS REPOINTED, exactly as a port edit through the dialog does
+	// it - `reconfigureLiveSession` is that same call. This used to be
+	// `syncPool()`, which rebuilt only the OVERVIEW POOL's copy of the router:
+	// the router's own session kept dialling the old port, and went on working
+	// only because the plain API is deliberately left enabled. With the pool
+	// deleted (2026-10-01) every router is a session, so without this the move
+	// would have changed nothing that connects.
+	s.reconfigureLiveSession(id)
 	s.syncFleetHolds()
 	s.broadcastRouterList()
 	writeJSON(w, map[string]any{"ok": true, "port": apiSSLPort,

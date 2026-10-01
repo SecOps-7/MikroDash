@@ -231,39 +231,19 @@ func (s *Server) activeRouterHealth() (bool, string) {
 			return up, activeID
 		}
 	}
-	// ── AND THE OVERVIEW POOL, THE THIRD HOLDER ───────────────────────────
+	// ── THERE USED TO BE A THIRD HOLDER TO ASK ────────────────────────────
 	//
-	// This asked the two sources it knew about and then gave up, reporting the
-	// active router DISCONNECTED whenever the component actually holding it was
-	// the third one.
+	// The overview pool, and asking it was a fix for a real defect: while
+	// anybody had the Devices page open, `warmExclusions` handed every router
+	// the pool had answered for over to the pool, the manager forgot that
+	// router's status, and this returned DISCONNECTED for a router that was up.
+	// After a router edit it never recovered - measured against 0.8.18,
+	// `/healthz` stayed `ok:false` for as long as the process ran, and that is
+	// how an orchestrator decides to restart a container.
 	//
-	// That is not a rare state. `warmExclusions` removes from the alert
-	// pool every router the overview pool has ANSWERED for — deliberately, so
-	// one router is never held by both — and the manager forgets the status
-	// of a router it drops. So while anybody has the Devices page open, the
-	// manager has no entry for the active router and this returned false for
-	// a router that was up and being watched.
-	//
-	// Worse, it never recovered after a router edit: `routerUpdate` calls
-	// `syncPool`, which dials the whole fleet, and nothing schedules a release
-	// because nobody was watching the Devices page to stop watching it. Measured
-	// against the shipped 0.8.18: `/healthz` went to `ok:false` after one edit
-	// and stayed there.
-	//
-	// `/healthz` answering 503 for a healthy install is not cosmetic — it is how
-	// an orchestrator decides to restart the container.
-	//
-	// KNOWN IS THE GATE, as it is in `warmExclusions` and on the Devices
-	// page: a summary exists as soon as `Sync` builds the session, so
-	// `Connected: false` is the zero value until the first dial returns. Reading
-	// it before then would report a router as down for the second it takes to
-	// answer.
-	if s.pool != nil {
-		for _, sum := range s.pool.Summaries() {
-			if sum.RouterID == activeID && sum.Known {
-				return sum.Connected, activeID
-			}
-		}
-	}
+	// The pool was deleted on 2026-10-01 and every enabled router is held WARM
+	// for the whole life of the process, so `Live` above always has the active
+	// router's session. What falls through to here is a router with no session
+	// at all - disabled, or not yet held - and DOWN is the honest answer.
 	return false, activeID
 }

@@ -347,7 +347,6 @@ func (s *Server) ztpOnboard(id string) {
 	s.auditSystem(audit.Event{Action: "ztp.onboard", TargetType: "router", TargetID: rid, TargetName: rec.Label,
 		RouterID: rid, Note: fmt.Sprintf("onboarded by zero-touch provisioning (%s, port %d)", d.Mode, port)})
 	s.broadcastRouterList()
-	s.syncPool()
 	s.syncFleetHolds()
 	s.ztpChanged()
 	s.ztpLinkCredProfiles(d, rid)

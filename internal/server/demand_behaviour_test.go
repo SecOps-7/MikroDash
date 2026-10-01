@@ -280,7 +280,7 @@ func TestAClosedTabIsIndistinguishableFromABlur(t *testing.T) {
 	} {
 		c := c
 		t.Run(c.why, func(t *testing.T) {
-			s := devicesServerWithPool(t)
+			s := devicesServerWithFleet(t)
 			s.sessions = session.NewManager(s.store, s.hub)
 			t.Cleanup(s.sessions.Shutdown)
 			s.idleGrace = time.Millisecond

@@ -17,7 +17,6 @@ import (
 	"mikrodash/internal/db"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/rbac"
-	"mikrodash/internal/routeros"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/session"
 	"mikrodash/internal/store"
@@ -128,13 +127,13 @@ func TestTheStatsPayloadIsBuiltPerViewer(t *testing.T) {
 
 // TestBuildStatsSourcesSurvivesAnEmptyServer.
 //
-// Every source is optional: no store, no sessions, no pool, no database. A
+// Every source is optional: no store, no sessions, no database. A
 // Devices page on a fresh install must render an empty fleet rather than panic.
 func TestBuildStatsSourcesSurvivesAnEmptyServer(t *testing.T) {
 	s := devicesServer(t)
 	src := s.buildStatsSources(&Session{AuthMode: "none"}, "")
 
-	if src.Main == nil || src.Background == nil || src.OpenAlerts == nil || src.Sites == nil {
+	if src.Main == nil || src.OpenAlerts == nil || src.Sites == nil {
 		t.Fatalf("a nil map reached BuildStats: %+v", src)
 	}
 	// And it produces a payload rather than panicking.
@@ -162,58 +161,20 @@ func TestTheStatsMarkOnlyTheViewersRouterActive(t *testing.T) {
 	}
 }
 
-// ── WITH A REAL POOL ────────────────────────────────────────────────────────
+// ── WITH A REAL FLEET ───────────────────────────────────────────────────────
 //
-// Every test above runs with `s.pool == nil`, where Resume and Suspend are
-// no-ops and `syncPool` returns early. Four mutations survived on that: a blur
-// from a connection that never focused suspending the pool, an RBAC error
-// granting the whole fleet, a disabled router being connected to, and the pool
-// never being told which routers are already open. None of them is observable
-// without a pool that records what it was asked to do.
+// The tests above run against a server with no store. The ones below need a
+// fleet to filter, mask or hold. They once also needed a real overview pool -
+// four mutations survived without one - and that pool, with the tests that
+// were about it alone, was deleted on 2026-10-01. The two that guarded the
+// watcher count now assert the `devices` hold directly, which is what the count
+// was ever for.
 
-// stubConn is a Conn that never connects. Enough for the pool to build a session
-// and be asked about it; no router is contacted.
-type stubConn struct{}
-
-func (stubConn) Do(routeros.Cmd) ([]routeros.Reply, error) { return nil, nil }
-
-// Stream: the pool's Conn gained it with continuous history. This stub opens
-// nothing and reports success, which is what the pool tests here need — they
-// assert which routers are TRACKED, not what was streamed.
-func (stubConn) Stream(routeros.Cmd, func(routeros.Reply)) (func(), error) {
-	return func() {}, nil
-}
-
-func (stubConn) Connected() bool { return false }
-func (stubConn) Close() error    { return nil }
-
-// connectedStub is the same stub that reports itself UP. `stubConn` never
-// connects, which is right for the tests that only ask which routers are
-// tracked, and useless for one asserting what a pool REPORTS about them.
-type connectedStub struct{ stubConn }
-
-func (connectedStub) Connected() bool { return true }
-
-// gaugeStub is a connected stub that ANSWERS the gauge read, so a prime taken
-// over it produces a real payload. Everything else answers emptily, which a
-// collector reads as "nothing to report".
-type gaugeStub struct{ connectedStub }
-
-func (gaugeStub) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
-	if cmd.Path != "/system/resource/print" {
-		return nil, nil
-	}
-	return []routeros.Reply{{
-		"cpu-load": "42", "total-memory": "100", "free-memory": "40",
-		"total-hdd-space": "100", "free-hdd-space": "90",
-		"version": "7.24 (stable)", "board-name": "hAP ax^3", "uptime": "9d9h9m",
-	}}, nil
-}
-
-// devicesServerWithPool gives the server a real pool and a store holding three
-// routers: one ordinary, one DISABLED, and one that an interactive session is
-// about to claim.
-func devicesServerWithPool(t *testing.T) *Server {
+// devicesServerWithFleet gives the server a store holding three routers: one
+// ordinary, one DISABLED, and a third. It was `devicesServerWithPool` and also
+// built an overview pool, which was deleted on 2026-10-01; what its callers
+// actually use is the fleet.
+func devicesServerWithFleet(t *testing.T) *Server {
 	t.Helper()
 	dir := t.TempDir()
 	// r1 CARRIES geo.auto.ip, which is a WAN address and the thing the socket
@@ -241,100 +202,73 @@ func devicesServerWithPool(t *testing.T) *Server {
 
 	s := devicesServer(t)
 	s.store = st
-	s.pool = routers.NewPool(
-		func(routeros.Config) (routers.Conn, error) { return stubConn{}, nil },
-		time.Hour, // never retry during a test
-		nil, nil,
-	)
-	t.Cleanup(s.pool.Close)
 	return s
 }
 
-// TestADisabledRouterIsNeverConnectedTo.
-func TestADisabledRouterIsNeverConnectedTo(t *testing.T) {
-	s := devicesServerWithPool(t)
-	s.syncPool()
-
-	tracked := s.pool.Tracked()
-	if len(tracked) == 0 {
-		t.Fatal("the pool tracked nothing, so the assertions below prove nothing")
-	}
-	if tracked["r2"] {
-		t.Error("the pool opened a session to a DISABLED router")
-	}
-	for _, id := range []string{"r1", "r3"} {
-		if !tracked[id] {
-			t.Errorf("%s is enabled and untracked", id)
-		}
-	}
-}
-
-// TestARouterWithAnInteractiveSessionIsExcluded.
-//
-// Two connections to one router is the visible cost; recording every up/down
-// transition TWICE is the one that corrupts history.
-func TestARouterWithAnInteractiveSessionIsExcluded(t *testing.T) {
-	s := devicesServerWithPool(t)
-	s.syncPool()
-	if !s.pool.Tracked()["r1"] {
-		t.Fatal("r1 was not tracked before the exclusion, so nothing below is a change")
-	}
-
-	// A manager whose live set contains r1.
+// heldFleet is `devicesServerWithFleet` with a real session manager and the
+// fleet holds switched on, so `syncFleetHolds` actually takes and drops holds.
+// The routers are TEST-NET addresses: the sessions dial nothing that answers,
+// and a hold is asserted, never a reading.
+func heldFleet(t *testing.T) *Server {
+	t.Helper()
+	s := devicesServerWithFleet(t)
 	s.sessions = session.NewManager(s.store, s.hub)
-	if _, err := s.sessions.Acquire("r1"); err != nil {
-		t.Skipf("cannot acquire a session in this environment: %v", err)
-	}
 	t.Cleanup(func() { s.sessions.Shutdown() })
-
-	s.syncPool()
-	if s.pool.Tracked()["r1"] {
-		t.Error("r1 has an interactive session AND a background one -- two connections " +
-			"to one router, and every up/down transition recorded twice")
-	}
-	if !s.pool.Tracked()["r3"] {
-		t.Error("r3 was dropped; only the excluded router should have been")
-	}
+	s.holdFleet = true
+	return s
 }
 
-// TestOnlyTheLastWatcherLeavingSuspendsThePool.
-func TestOnlyTheLastWatcherLeavingSuspendsThePool(t *testing.T) {
-	s := devicesServerWithPool(t)
+// TestTheDevicesHoldGoesWithTheLastWatcher.
+//
+// The `devices` hold runs collectors on EVERY router while it is taken, so it
+// must be taken while anybody has the page open and dropped the moment nobody
+// does - and not a moment sooner, or the second viewer's cards go blank.
+//
+// RE-AIMED 2026-10-01 from `TestOnlyTheLastWatcherLeavingSuspendsThePool`. It
+// asserted the overview pool's suspend, which was a proxy for exactly this; the
+// pool is gone, so the hold is asserted directly. The WARM hold must survive the
+// last blur: it is what keeps the router observed when nobody is looking.
+func TestTheDevicesHoldGoesWithTheLastWatcher(t *testing.T) {
+	s := heldFleet(t)
 	a, b := devicesConn(s, "a"), devicesConn(s, "b")
 
 	a.devicesFocus()
-	if s.pool.Suspended() {
-		t.Fatal("the pool is suspended with a watcher on the page")
+	if !hasHold(s.sessions.Held("r1"), "devices") {
+		t.Fatalf("r1 is held %v with a watcher on the page, want devices", s.sessions.Held("r1"))
 	}
 	b.devicesFocus()
 
 	a.devicesBlur()
-	if s.pool.Suspended() {
-		t.Error("the pool suspended while b is still watching")
+	if !hasHold(s.sessions.Held("r1"), "devices") {
+		t.Error("the devices hold went while b is still watching; b's cards lose their readings")
 	}
 	b.devicesBlur()
-	if !s.pool.Suspended() {
-		t.Error("the pool is still running with nobody on the page -- a connection to " +
-			"every router, held indefinitely, for a page no one has open")
+	held := s.sessions.Held("r1")
+	if hasHold(held, "devices") {
+		t.Error("the devices hold outlived the last watcher: collectors on every router, " +
+			"for a page nobody has open")
+	}
+	if !hasHold(held, "warm") {
+		t.Errorf("r1 is held %v after the page closed, want warm: nothing observes it now", held)
 	}
 }
 
-// TestABlurFromANonWatcherDoesNotSuspendAnEmptyPool.
+// TestABlurFromANonWatcherKeepsTheDevicesHold.
 //
-// `devicesBlur` runs at teardown for EVERY connection whatever page it was on.
-// With nobody watching, the pool is already suspended and must stay that way —
-// but the guard that matters is the other order: a passer-by's blur must not be
-// treated as "the last watcher left".
-func TestABlurFromANonWatcherDoesNotSuspendAnEmptyPool(t *testing.T) {
-	s := devicesServerWithPool(t)
+// `devicesBlur` runs at teardown for EVERY connection, whatever page it was on.
+// A passer-by's blur must not be treated as "the last watcher left". (Was
+// `TestABlurFromANonWatcherDoesNotSuspendAnEmptyPool`.)
+func TestABlurFromANonWatcherKeepsTheDevicesHold(t *testing.T) {
+	s := heldFleet(t)
 	watcher, passerby := devicesConn(s, "w"), devicesConn(s, "p")
 
 	watcher.devicesFocus()
 	passerby.devicesBlur()
-	if s.pool.Suspended() {
-		t.Error("a blur from a connection that never focused suspended the pool while " +
-			"a real watcher is still on the page")
+	if !hasHold(s.sessions.Held("r1"), "devices") {
+		t.Error("a blur from a connection that never focused dropped the devices hold " +
+			"while a real watcher is still on the page")
 	}
+	watcher.devicesBlur()
 }
 
 // TestAnRBACErrorIsNotAPermission.
@@ -343,7 +277,7 @@ func TestABlurFromANonWatcherDoesNotSuspendAnEmptyPool(t *testing.T) {
 // because a partial allow-list is indistinguishable from a smaller legitimate
 // one. What this pins is what the CALLER does with that: an empty set, not nil.
 func TestAnRBACErrorIsNotAPermission(t *testing.T) {
-	s := devicesServerWithPool(t)
+	s := devicesServerWithFleet(t)
 
 	dir := t.TempDir()
 	h, err := sql.Open("sqlite", filepath.Join(dir, "mikrodash.db"))
@@ -413,7 +347,7 @@ func TestAnRBACErrorIsNotAPermission(t *testing.T) {
 // `routers:update` carries addresses and usernames, so a viewer restricted to
 // two routers must not receive the fleet because somebody else made an edit.
 func TestTheRouterListIsFilteredPerPrincipal(t *testing.T) {
-	s := devicesServerWithPool(t) // r1, r2 (disabled), r3
+	s := devicesServerWithFleet(t) // r1, r2 (disabled), r3
 
 	// Unrestricted: everything, including the DISABLED one — the dropdown shows
 	// it so an operator can re-enable it.
@@ -451,7 +385,7 @@ func TestTheRouterListIsFilteredPerPrincipal(t *testing.T) {
 // promise about a credential the page has to know EXISTS. So the property is not
 // absence, it is that the value is never a real one.
 func TestThePasswordIsMaskedNeverReal(t *testing.T) {
-	s := devicesServerWithPool(t)
+	s := devicesServerWithFleet(t)
 	list := s.routerListForSocket(&Session{AuthMode: "none"})
 	if len(list) == 0 {
 		t.Fatal("the list is empty, so the checks below prove nothing")
@@ -487,7 +421,7 @@ func TestThePasswordIsMaskedNeverReal(t *testing.T) {
 // `store.PublicRouters` keeps everything by spreading, so this fails only if
 // somebody reintroduces a field list.
 func TestTheFieldsTheLivePayloadCarriesAreAllThere(t *testing.T) {
-	s := devicesServerWithPool(t)
+	s := devicesServerWithFleet(t)
 	list := s.routerListForSocket(&Session{AuthMode: "none"})
 	if len(list) == 0 {
 		t.Fatal("the list is empty")
@@ -562,7 +496,7 @@ func httpRouterList(t *testing.T, s *Server, sess *Session) []map[string]any {
 // settings and is never stripped either way. The first version of this test did
 // that and a mutation making the paths differ survived it.
 func TestEveryShapeStripsTheWanAddress(t *testing.T) {
-	s := devicesServerWithPool(t)
+	s := devicesServerWithFleet(t)
 	// A principal with no session cannot save settings, so it must not see the
 	// address in the socket payload.
 	viewer := &Session{Username: "viewer", AuthMode: "modern"}
@@ -590,7 +524,7 @@ func TestEveryShapeStripsTheWanAddress(t *testing.T) {
 	unrestricted := s.routerListForSocket(&Session{AuthMode: "none"})
 	if !wan(unrestricted) {
 		t.Fatal("no router in the fixture carries geo.auto.ip, so this test would prove " +
-			"nothing. Put it back in devicesServerWithPool rather than skipping.")
+			"nothing. Put it back in devicesServerWithFleet rather than skipping.")
 	}
 
 	// THE SOCKET SHAPE STRIPS IT from a principal who cannot save settings.
@@ -666,7 +600,7 @@ func TestEveryShapeStripsTheWanAddress(t *testing.T) {
 // One payload per connection, built from that connection's session. A single
 // `BroadcastAll` would send one marshalled list to everybody.
 func TestTheListBroadcastIsPerSocket(t *testing.T) {
-	s := devicesServerWithPool(t)
+	s := devicesServerWithFleet(t)
 
 	unrestricted := devicesConn(s, "a")
 	// A connection whose session may read NOTHING.
@@ -828,208 +762,42 @@ func TestDevicesFocusStartsTheTick(t *testing.T) {
 	}
 }
 
-// ── THE ALERT POOL AS A SECOND SOURCE FOR THE DEVICES PAGE ──────────────────
-//
-// The alert pool is synced at startup and already holds the fleet; the overview
-// pool is synced from this page and takes seconds to dial. Reading the first
-// where the second has nothing is what stops every card claiming "Offline" on
-// first paint.
-//
-// The property worth pinning is that it FILLS and does not OVERWRITE. A snapshot
-// carries no DHCP leases, so a snapshot winning would blank the Clients count on
-// a card that already had one — not a crash, and not visible in a green suite.
-func TestTheHeldSessionsFillOnlyWhatTheOverviewPoolLeftEmpty(t *testing.T) {
-	leases := &collect.LeasesPayload{Leases: []collect.Lease{{}, {}}}
-	bg := map[string]routers.Summary{
-		// ANSWERED: richer than a snapshot, and must survive.
-		"r1": {RouterID: "r1", Connected: true, Known: true, DHCPLeases: leases},
-		// PRESENT BUT UNANSWERED — the session exists and its dial has not
-		// returned. This is the case the first version of this function got
-		// wrong: it skipped on presence alone, so the held session's real answer
-		// was thrown away and the card drew a red Offline.
-		"r2": {RouterID: "r2", Connected: false, Known: false},
-	}
-	// r1 is CONTRADICTED on purpose: a wrong precedence then shows up as a
-	// changed value, not merely as a missing one.
-	fillFromSessions(bg, []session.Snapshot{
-		{RouterID: "r1", Connected: false},
-		{RouterID: "r2", Connected: true},
-		{RouterID: "r3", Connected: true},
-	})
-
-	if got := bg["r1"]; !got.Connected || got.DHCPLeases == nil {
-		t.Errorf("r1 = %+v; the overview pool ANSWERED for it, so its richer "+
-			"summary must survive rather than being replaced by a snapshot", got)
-	}
-	if got := bg["r2"]; !got.Connected || !got.Known {
-		t.Errorf("r2 = %+v; the overview pool holds it but has not heard from "+
-			"it, so the held session's answer must WIN — skipping on presence "+
-			"alone is what left the page drawing Offline cards", got)
-	}
-	if got := bg["r3"]; !got.Connected || !got.Known {
-		t.Errorf("r3 = %+v; the overview pool has nothing for it and a held "+
-			"session does, which is the whole point of reading the sessions", got)
-	}
-	if len(bg) != 3 {
-		t.Errorf("%d entries, want 3 — the fill invented a router", len(bg))
-	}
-}
-
-// ── ANSWERED IS NOT THE SAME AS COMPLETE ────────────────────────────────────
-//
-// The overview pool reports `Known` the moment its dial returns, and its
-// collectors have not necessarily produced anything yet. Skipping such a router
-// outright is how the primed system reading was thrown away on a cold open,
-// putting the blank card straight back: rx from the overview pool, and CPU,
-// memory and uptime from nothing.
-//
-// The rule stays FILL, NOT OVERWRITE — a field the overview pool has ALREADY
-// answered must survive, which is the other half asserted here.
-func TestAHeldSessionFillsAGapInAnAnsweredSummary(t *testing.T) {
-	poolSys := &collect.SystemPayload{CPULoad: 11}
-	snapSys := &collect.SystemPayload{CPULoad: 22}
-	ifs := &collect.IfStatusPayload{}
-
-	bg := map[string]routers.Summary{
-		// ANSWERED, BUT EMPTY: dialled, nothing collected yet. This is the
-		// window a cold Devices page opens in.
-		"gap": {RouterID: "gap", Connected: true, Known: true},
-		// ANSWERED AND FULL: nothing here may move.
-		"full": {RouterID: "full", Connected: true, Known: true, System: poolSys},
-		// HALF ANSWERED, which is its own branch and had no test: the overview
-		// pool's System collector has ticked and its IfStatus one has not. The
-		// two fields are filled independently, so a fill keyed on System alone
-		// would leave this row's rx and tx blank for no reason.
-		"half": {RouterID: "half", Connected: true, Known: true, System: poolSys},
-	}
-	fillFromSessions(bg, []session.Snapshot{
-		{RouterID: "gap", Connected: true, System: snapSys, IfStatus: ifs},
-		{RouterID: "full", Connected: true, System: snapSys},
-		{RouterID: "half", Connected: true, System: snapSys, IfStatus: ifs},
-	})
-
-	if got := bg["half"]; got.IfStatus != ifs {
-		t.Errorf("half.IfStatus = %+v, want the held session's; System being "+
-			"answered must not stop IfStatus being filled", got.IfStatus)
-	}
-	if got := bg["half"]; got.System != poolSys {
-		t.Errorf("half.System = %+v, want the overview pool's — filling the "+
-			"other field must not disturb this one", got.System)
-	}
-
-	if got := bg["gap"]; got.System != snapSys || got.IfStatus != ifs {
-		t.Errorf("gap = %+v; the overview pool had dialled but collected "+
-			"nothing, so the held session's reading must fill the hole — "+
-			"otherwise the card shows a green badge over blank gauges", got)
-	}
-	if got := bg["full"]; got.System != poolSys {
-		t.Errorf("full.System = %+v, want the overview pool's %+v; filling a "+
-			"gap must never become overwriting an answer", got.System, poolSys)
-	}
-}
-
-// ── A GAP IS ONLY A GAP WHILE BOTH SIDES AGREE THE ROUTER IS UP ─────────────
-//
-// The fill copies gauges from the HELD SESSION's socket onto a summary whose
-// `Connected` and `LastError` came from the OVERVIEW pool's — two different
-// connections to the same router. While both say "up" that is a gap being
-// filled. The moment they disagree it is the mixing `routers.assemble` forbids,
-// and it renders as a row that is self-contradictory rather than merely
-// incomplete: `BuildRow` draws the login-failure box from `!Connected &&
-// LastError` and the gauges from `System != nil`, independently, so the card
-// shows an Offline badge over a live CPU reading.
-//
-// Both directions are reachable and both are asserted:
-//
-//   - the overview dial FAILED (rotated password, refused connection) inside
-//     the window where the held session's earlier socket is still up and primed;
-//   - the held session's socket DROPPED while the overview pool's is fine, which
-//     leaves `Snapshots` reporting `Connected: false` beside a `System` its
-//     collector read before the drop.
-func TestTheFillStopsAtADisagreementAboutTheConnection(t *testing.T) {
-	snapSys := &collect.SystemPayload{CPULoad: 22}
-	snapIfs := &collect.IfStatusPayload{}
-
-	bg := map[string]routers.Summary{
-		// The overview pool has an ANSWER, and the answer is "it is down".
-		"refused": {RouterID: "refused", Known: true, Connected: false,
-			LastError: "cannot log in"},
-		// The overview pool is fine; the held session's own socket is the one
-		// that went.
-		"dropped": {RouterID: "dropped", Known: true, Connected: true},
-	}
-	fillFromSessions(bg, []session.Snapshot{
-		{RouterID: "refused", Connected: true, System: snapSys, IfStatus: snapIfs},
-		{RouterID: "dropped", Connected: false, System: snapSys, IfStatus: snapIfs},
-	})
-
-	if got := bg["refused"]; got.System != nil || got.IfStatus != nil {
-		t.Errorf("refused = %+v; the overview pool said this router is DOWN "+
-			"and gave a reason, so filling its gauges from the session's "+
-			"socket draws an Offline badge and a login failure beside a live "+
-			"CPU gauge", got)
-	}
-	if got := bg["refused"]; got.Connected || got.LastError != "cannot log in" {
-		t.Errorf("refused = %+v; the fill must not disturb the answer the "+
-			"overview pool gave either", got)
-	}
-	if got := bg["dropped"]; got.System != nil || got.IfStatus != nil {
-		t.Errorf("dropped = %+v; the held session's own snapshot says its socket "+
-			"is down, so its last reading is stale by its own account and has "+
-			"no business on a row the overview pool is answering for", got)
-	}
-}
-
 // ── THE FRAME THE FIX EXISTS FOR CARRIES THE GAUGES ────────────────────────
 //
 // The symptom the prime was added for is a card with a green badge over an
-// empty CPU, memory and uptime for the two seconds the overview pool takes to
-// dial. Nothing errors and nothing logs, so the property has to be asserted
-// where it is visible: the `routers:stats` frame a browser receives.
+// empty CPU, memory and uptime until a collector ticks. Nothing errors and
+// nothing logs, so the property has to be asserted where it is visible: the
+// row a browser receives.
 //
-// ── WHAT THIS TEST LOST WHEN `internal/alertpool` WAS DELETED ──────────────
+// ── THE COVERAGE IS SPLIT, AND EVERY HALF IS NAMED ─────────────────────────
 //
-// It used to drive the WHOLE path: build a pool over a stub connection that
-// answers `/system/resource/print`, sync it, wait for the sessions to observe,
-// then call `devicesFocus` and read the FIRST frame off the socket. That
-// asserted three things at once — the prime ran, it ran BEFORE the frame, and
-// its reading reached the row.
-//
-// `session.Manager` has no dial seam. It calls `routeros.Dial` directly and
-// holds a concrete `*routeros.Client`, so a test cannot give it a stub
-// connection the way `alertpool.New` took a dialler; giving it one means putting
-// the client behind an interface, which is a change to the hottest file in the
-// tree and not something to do inside a deletion.
-//
-// SO THE COVERAGE IS SPLIT, DELIBERATELY, AND BOTH HALVES ARE NAMED:
+// `session.Manager` has no dial seam - it calls `routeros.Dial` directly - so a
+// server test cannot plant a primed session in the manager's live set. So:
 //
 //	the prime RUNS, on a focus, before the frame   `internal/verify/prime_test.go`
-//	                                               (a source read of devicesFocus)
-//	its reading REACHES the row                    here
+//	the session hands it out when it has nothing   `session.TestSystemOrPrimed...`
+//	the stats read ASKS for it                     `TestTheStatsReadAsksForThePrimedReading`
+//	a primed reading REACHES the row               here
 //
-// The middle claim -- that a real primed session produces a real reading -- is
-// no longer covered by any test, and that is a genuine loss rather than a
-// re-aiming. It is written here rather than left to be discovered.
+// RE-AIMED 2026-10-01. This drove the reading in through `fillFromSessions` and
+// the overview pool's `Background` map. Both are gone; every router is a session
+// in `Main`, which reads `SystemOrPrimed`. That is also a fix: `BuildStats`
+// always preferred `Main`, so the snapshot's primed fallback had never reached a
+// row for any router that had a session - only pool-only rows were ever patched.
 func TestAPrimedReadingReachesTheStatsRow(t *testing.T) {
-	// EXACTLY WHAT `Manager.Snapshots` PRODUCES for a warm session that has been
-	// primed: connected, a system reading, and no IfStatus, because the prime is
-	// one `/system/resource/print` and nothing else.
+	// What `SystemOrPrimed` returns for a warm session that has been primed:
+	// the prime is one `/system/resource/print` and nothing else.
 	primed := &collect.SystemPayload{CPULoad: 42, UptimeRaw: "9d9h9m"}
-
-	// The overview pool has not reached these routers, which is the state a cold
-	// Devices page opens in and the only state the prime exists for.
-	bg := map[string]routers.Summary{}
-	fillFromSessions(bg, []session.Snapshot{
-		{RouterID: "r1", Connected: true, System: primed},
-		{RouterID: "r3", Connected: true, System: primed},
-	})
 
 	rows := routers.BuildStats(routers.StatsSources{
 		Routers: []routers.StatsRouter{
 			{ID: "r1", Label: "One"},
 			{ID: "r3", Label: "Three"},
 		},
-		Background: bg,
+		Main: map[string]routers.MainSession{
+			"r1": {Connected: true, Known: true, System: primed},
+			"r3": {Connected: true, Known: true, System: primed},
+		},
 	})
 	if len(rows) != 2 {
 		t.Fatalf("%d row(s), want 2", len(rows))
@@ -1048,53 +816,26 @@ func TestAPrimedReadingReachesTheStatsRow(t *testing.T) {
 	}
 }
 
-// ── THE HANDOVER BETWEEN THE TWO POOLS ──────────────────────────────────────
-//
-// `syncPool` builds an overview session per router and `syncFleetHolds` runs
-// immediately after it. If the warm hold were dropped on the mere EXISTENCE of an
-// overview session, it would tear down a live connected session and hand the
-// router to one that has not dialled — leaving the Devices page with nothing to
-// report and, worse, leaving the router's alerts unevaluated for the gap.
-//
-// So: a router the overview pool holds but has not heard from keeps its WARM
-// hold, and gives it up only once the overview session has ANSWERED.
-func TestAWarmHoldIsKeptUntilTheOverviewPoolHasAnswered(t *testing.T) {
-	s := devicesServerWithPool(t)
-
-	// A dialler that never returns: every overview session stays un-answered,
-	// which is the state this test is about, held indefinitely and without a race.
-	block := make(chan struct{})
-	defer close(block)
-	s.pool = routers.NewPool(
-		func(routeros.Config) (routers.Conn, error) { <-block; return stubConn{}, nil },
-		time.Hour, nil, nil,
-	)
-	t.Cleanup(s.pool.Close)
-	s.syncPool()
-
-	// r1 and r3 are the enabled routers in this fixture; r2 is disabled.
-	waitFor := time.Now().Add(3 * time.Second)
-	for time.Now().Before(waitFor) && len(s.pool.Summaries()) < 2 {
-		time.Sleep(5 * time.Millisecond)
+// TestTheStatsReadAsksForThePrimedReading — the call site, read from the source,
+// because the defect it guards is an omission: reading `System().Last()` instead
+// of `SystemOrPrimed()` compiles, runs, and quietly blanks every warm router's
+// gauges until its collector ticks.
+func TestTheStatsReadAsksForThePrimedReading(t *testing.T) {
+	b, err := os.ReadFile("devices.go")
+	if err != nil {
+		t.Fatal(err)
 	}
-	sums := s.pool.Summaries()
-	if len(sums) < 2 {
-		t.Fatalf("the overview pool built %d sessions, want 2", len(sums))
+	src := string(b)
+	i := strings.Index(src, "func (s *Server) buildStatsSources(")
+	if i < 0 {
+		t.Fatal("buildStatsSources is gone; this check is reading nothing")
 	}
-	for _, sum := range sums {
-		if sum.Known {
-			t.Fatalf("%s answered despite a blocked dialler; the test is not "+
-				"exercising the un-answered state it claims to", sum.RouterID)
-		}
+	body := src[i:]
+	if j := strings.Index(body[1:], "\nfunc "); j >= 0 {
+		body = body[:j+1]
 	}
-
-	excluded := s.warmExclusions()
-	for _, sum := range sums {
-		if excluded[sum.RouterID] {
-			t.Errorf("%s was taken from the alert pool while the overview pool "+
-				"had only just started dialling it; that is the coverage gap, "+
-				"and it is what left the Devices page with nothing to show",
-				sum.RouterID)
-		}
+	if !strings.Contains(body, "sn.SystemOrPrimed()") {
+		t.Error("buildStatsSources does not read SystemOrPrimed(): a warm router's card " +
+			"shows a green badge over blank gauges until its collector ticks")
 	}
 }

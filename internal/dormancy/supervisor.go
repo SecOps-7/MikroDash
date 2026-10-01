@@ -6,10 +6,10 @@ package dormancy
 //
 // `Tick` performs nothing. It takes what each collector last produced and
 // returns the operations the caller should carry out, in order. Same shape as
-// `internal/routers/overview.go`'s `SyncPool` — "one pure SyncPool with no
-// RouterOS in it" — and for the same reason: the decisions are the part worth
-// pinning, and a decision that can only be observed through a live router is a
-// decision nothing tests.
+// the write guards in `internal/guard/` — rows in, verdict out, no RouterOS in
+// it — and for the same reason: the decisions are the part worth pinning, and a
+// decision that can only be observed through a live router is a decision
+// nothing tests.
 //
 // The supervisor holds one `State` per collector across ticks, so it is stateful;
 // it is `Tick` that is free of I/O.

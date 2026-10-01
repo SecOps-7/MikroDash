@@ -40,70 +40,30 @@ import (
 // minute and a held session costs ~127, against the 264-287 an unpruned session
 // would.
 //
-// ── IT SHARES `-no-pool` WITH THE OVERVIEW POOL, DELIBERATELY ──────────────
+// ── AND THE OVERVIEW POOL WENT THE SAME WAY, 2026-10-01 ────────────────────
 //
-// Live gates the two separately, because one is bound to a page and the other is
-// not. Here they share a switch because the switch means one thing — "do not
-// hold background connections to routers nobody is watching" — and somebody
-// passing it wants exactly that from both. Documented rather than assumed; if
-// finer control is ever needed, splitting the flag is a small change and this
-// comment is where to start.
-
-// warmExclusions is the set of routers that need no WARM hold, because
-// something else is already answering for them.
+// `internal/routers.Pool` was the other duplicate: one connection per router the
+// Devices page could see, built when somebody opened the page and released after
+// they left. While it existed, `warm` was DROPPED for every router the pool had
+// answered for - so the pool, which never fed `connTrack`, became the only thing
+// holding those routers. They lost their debounced online verdict and wrote no
+// connectivity rows, and once the page closed and the pool released them they
+// were held by nothing at all. Measured: three routers of four on the dev
+// install had no connectivity row in seven days.
 //
-// A method rather than a local, so the handover rule below can be asserted
-// without driving a whole sync against a fleet.
-//
-// ── ONLY WARM IS EXCLUDED, AND THAT IS THE WHOLE DISTINCTION ───────────────
-//
-// `alerts` and `history` are holds for WORK: collectors this app must run
-// wherever the router is otherwise held, because the overview pool does not run
-// them. `warm` is a hold for a FACT — is this router up — and any source that
-// can state the fact makes it redundant.
-func (s *Server) warmExclusions() map[string]bool {
-	excluded := map[string]bool{}
-
-	// ── THE OVERVIEW POOL'S ROUTERS — ONCE IT HAS ANSWERED FOR THEM ─────────
-	//
-	// Excluded when the overview session has ANSWERED, not merely when it
-	// exists. `syncPool` builds a session per router and `syncFleetHolds` runs
-	// immediately after it, so excluding on existence dropped a live, connected
-	// hold and handed the router to a pool that had not dialled yet. The Devices
-	// page then lost the only source that could answer for those routers, so
-	// they showed as not-yet-known for the ~2s the overview pool took to connect
-	// — measured on this install, cold open, 130ms to 2150ms. Before `Known`
-	// existed they showed as OFFLINE, in red, which is the defect the operator
-	// reported twice.
-	//
-	// The overlap this costs is bounded and short. `Known` goes true on the
-	// first connect AND on the first error, so a router that is genuinely down
-	// is excluded as soon as the overview pool finds that out, rather than being
-	// held by both for ever.
-	//
-	// THE INTERACTIVE-SESSION CLAUSE IS GONE, and its absence is not an
-	// oversight. It excluded routers with a live `Session` because a second pool
-	// would have opened a second socket to them. A hold is taken on THAT SAME
-	// session — `Retain` adds a reason to it, it does not build anything — so
-	// there is nothing left to exclude it from.
-	if s.pool != nil {
-		for _, sum := range s.pool.Summaries() {
-			if sum.Known {
-				excluded[sum.RouterID] = true
-			}
-		}
-	}
-	return excluded
-}
+// Now every enabled router is held `warm` from startup, the session is the only
+// connection, and the Devices page reads it. `-no-pool` keeps its name for the
+// operators who pass it, and means what it always meant from the outside: do
+// not hold connections to routers nobody is watching.
 
 // syncFleetHolds is `_syncAlertSessions()`: hold a session for every
 // non-disabled router that needs one, and let go of the ones that do not.
 //
-// Called from the same places as `syncPool`, because the two answer the same
-// question — "who is watching what" — and a change that affects one affects the
-// other. The exclusion set is derived on every call rather than tracked, for the
-// reason `syncPool` gives: a second record of who is watching what drifts from
-// the first.
+// Called wherever the fleet or who is watching it changes: a router added,
+// edited, enabled, disabled or deleted, the Devices page focused or left, a
+// peek opened or closed. The holds are derived on every call rather than
+// tracked, because a second record of who is watching what drifts from the
+// first.
 func (s *Server) syncFleetHolds() {
 	if !s.holdFleet || s.store == nil {
 		return
@@ -129,12 +89,11 @@ func (s *Server) syncFleetHolds() {
 	// Measured 2026-08-29: with no browser open, `/healthz` reported the active
 	// router down because neither the session nor the pool held it.
 
-	// THE SAME RESOLUTION THE POOL AND THE PAGE USE. Taken raw, a router with
-	// no default interface recorded an empty traffic stream — and these are the
-	// sessions that run when nobody is watching, so their history simply did not
-	// exist. See `syncPool`.
+	// THE SAME RESOLUTION THE PAGE USES (`routers.DefaultIfFor`). Taken raw, a
+	// router with no default interface recorded an empty traffic stream — and
+	// these are the sessions that run when nobody is watching, so their history
+	// simply did not exist.
 	global := s.globalDefaultIf()
-	warmSkip := s.warmExclusions()
 
 	for _, r := range all {
 		s.declareRecordedInterfaces(r.ID, store.RecordedIfacesFor(r, routers.DefaultIfFor(r.DefaultIf, global)))
@@ -147,7 +106,7 @@ func (s *Server) syncFleetHolds() {
 		// anything, and the only symptom was history recording every interface
 		// instead of the default one.
 		if s.sessions != nil {
-			s.holdOne(r, warmSkip[r.ID])
+			s.holdOne(r)
 		}
 	}
 }
@@ -157,7 +116,7 @@ func (s *Server) syncFleetHolds() {
 // BOTH DIRECTIONS MATTER. A router that loses alerting keeps a held session for
 // ever unless the hold is dropped, and a held session is a connection and a
 // collector set — the exact cost phase 4.3 exists to remove.
-func (s *Server) holdOne(r store.Router, warmCovered bool) {
+func (s *Server) holdOne(r store.Router) {
 	for _, h := range []struct {
 		reason string
 		want   bool
@@ -167,18 +126,18 @@ func (s *Server) holdOne(r store.Router, warmCovered bool) {
 		// setting; asking the flag directly is how a router whose reporting was
 		// never set silently stopped recording.
 		{"history", store.ReportingOn(r) && !r.Disabled},
-		// ── THE CONNECTION, FOR THE DEVICES PAGE ────────────────────────
+		// ── THE CONNECTION, FOR EVERY ENABLED ROUTER ────────────────────
 		//
-		// Every enabled router nothing else answers for. This is the last thing
-		// the deleted `alertpool` package was doing: holding a socket so the page
-		// can say "up" the moment it renders, instead of a fleet of red Offline
-		// cards while the overview pool dials.
+		// EVERY enabled router, unconditionally, since 2026-10-01. This hold is
+		// what keeps each router observed: its session feeds `connTrack`, so the
+		// Online/Offline verdict stays debounced and every outage is written to
+		// `connectivity_events` - which the Devices page's connectivity strip
+		// draws. It used to be skipped once the overview pool had answered for a
+		// router, and that pool never fed `connTrack`; see the header.
 		//
-		// A warm hold runs NO collectors — see `session.Reasons.Warm` — which is
-		// exactly what the pool ran for these routers: `buildCollectors`
-		// returned before making any unless the router had alerting or reporting
-		// on, and those are the two rows above.
-		{"warm", !r.Disabled && !warmCovered},
+		// A warm hold runs NO collectors — see `session.Reasons.Warm`. The cost
+		// is one idle API login per enabled router, and no commands.
+		{"warm", !r.Disabled},
 		// ── THE DEVICES PAGE IS A CONSUMER, AND IT NEVER SAID SO ──────────
 		//
 		// `Reasons.Devices` and `session.devicesFeeds` have existed since 4.3

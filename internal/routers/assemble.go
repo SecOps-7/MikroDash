@@ -4,24 +4,23 @@ package routers
 // `_buildRoutersStats` (`src/index.js`).
 //
 // `BuildRow` maps ONE router's data to one row. This decides, for every router,
-// WHICH data that is: the interactive session's if somebody has the router open,
-// the background pool's otherwise. That choice is the whole of this file, and it
-// has one trap in it worth the reading.
+// WHICH data that is: its session's.
 //
-// ── THE TRAP: AN INTERACTIVE SESSION WINS EVEN WHEN IT KNOWS NOTHING ────────
+// ── ONE SOURCE, SINCE 2026-10-01 ────────────────────────────────────────────
 //
-// The original is `s ? s.system.lastPayload : (bg ? bg.systemPayload : null)`.
-// The ternary tests whether a SESSION EXISTS, not whether it has a payload — so
-// a router someone just opened reports nulls until its first poll lands, even
-// though the background pool may still hold perfectly good numbers from a second
-// ago.
+// There used to be two - the interactive session's if somebody had the router
+// open, the background pool's otherwise - and the trap worth reading was that a
+// session WON even when it knew nothing yet, because the original tests whether
+// a session exists rather than whether it has a payload. That rule existed so a
+// row never mixed two connections' readings, a CPU figure from one and an uptime
+// from the other.
 //
-// That reads like a bug and is not one to fix here. The two sources are
-// different connections to the same router, and a row that mixed them would show
-// a CPU figure from one and an uptime from the other. A port that "improved" it
-// would also make the Routers page flicker differently from the live one, which
-// is the line this project does not cross. Reproduced deliberately, and pinned.
-//
+// The overview pool is gone. Every enabled router is held WARM from startup, so
+// it has exactly one session and one connection, and there is nothing to choose
+// between or mix. A router with no session yet - added a moment ago, before the
+// next fleet sync holds it - is the only other case, and it is reported as not
+// yet known rather than as offline.
+
 // ── RESOLVED ONCE, NOT PER ROUTER ───────────────────────────────────────────
 //
 // Open alerts, the site list and the WAN-address permission are resolved once
@@ -36,9 +35,8 @@ package routers
 // `AutoGeoAction` is already ported and pure; wiring it belongs to the handler
 // that owns the store, not to the assembler.
 //
-// ── MUTATIONS (2026-08-25), six of six killed ───────────────────────────────
+// ── MUTATIONS (2026-08-25), five of the original six still apply, all killed ─
 //
-//   fall back to the pool when the session has no payload   the trap above
 //   treat a nil Visible as an empty one                     2 tests
 //   include disabled routers
 //   global default interface beats the router's own
@@ -52,9 +50,8 @@ import "mikrodash/internal/collect"
 
 // StatsRouter is the slice of a router record this payload needs.
 //
-// Deliberately not `store.Router`, for the reason `RouterConfig` gives in
-// pool.go: this package does no store I/O, and taking the record would drag the
-// store in. `Geo` is the record's geo block as decoded JSON, which is what
+// Deliberately not `store.Router`: this package does no store I/O, and taking
+// the record would drag the store in. `Geo` is the record's geo block as decoded JSON, which is what
 // `geoplace.ResolveLocation` validates.
 type StatsRouter struct {
 	ID       string
@@ -69,8 +66,9 @@ type StatsRouter struct {
 	Geo       map[string]any
 }
 
-// MainSession is what an INTERACTIVE session knows. One exists only for a router
-// somebody currently has open.
+// MainSession is what a router's session knows. Since 2026-10-01 every enabled
+// router has one - each is held WARM from startup - so this is the one source a
+// row reads; the overview pool's `Background` summaries are gone.
 type MainSession struct {
 	// Connected is the live `mainEntry.rosConnected`, not "a session object
 	// exists" — a session is created before it connects.
@@ -103,17 +101,15 @@ type StatsSources struct {
 	// connection, so the caller passes it rather than this package guessing it
 	// from who holds what.
 	ActiveID string
-	// Background is the pool's cache, keyed by router id.
-	Background map[string]Summary
 	// Online is the DEBOUNCED verdict per router — `internal/connstate`, driven
 	// by each router's own "Offline threshold". An absent entry means the
 	// debounce has not judged this router yet, which is NOT the same as down:
 	// the row then falls back to the live socket state.
 	//
-	// A map rather than a field on the two session shapes above, because the
-	// verdict is not either pool's to report. It is one answer per router
-	// whichever socket happens to be holding it, which is exactly the confusion
-	// `Main` and `Background` disagreeing about `Connected` used to cause.
+	// A map rather than a field on `MainSession`, because the verdict is not the
+	// socket's to report: it is the debounce's, one answer per router. When there
+	// were two sources here, `Main` and the pool's `Background` disagreeing about
+	// `Connected` is exactly the confusion this separation stopped.
 	Online map[string]bool
 
 	// DefaultIf is the GLOBAL setting, used when a router names no interface of
@@ -152,7 +148,6 @@ func BuildStats(src StatsSources) []Row {
 		}
 
 		main, hasMain := src.Main[r.ID]
-		bg, hasBG := src.Background[r.ID]
 
 		in := Input{
 			ID:        r.ID,
@@ -164,33 +159,21 @@ func BuildStats(src StatsSources) []Row {
 			DefaultIf: DefaultIfFor(r.DefaultIf, src.DefaultIf),
 		}
 
-		// ONE SOURCE PER ROW, chosen by whether a session EXISTS — see the
-		// header. Mixing them would put one connection's CPU beside another's
-		// uptime.
-		switch {
-		case hasMain:
+		if hasMain {
 			in.Known = main.Known
 			in.Connected = main.Connected
 			in.LastError = main.LastError
 			in.System, in.IfStatus, in.DHCPLeases = main.System, main.IfStatus, main.DHCPLeases
-		case hasBG:
-			// FROM THE SUMMARY, not hardcoded. A pool session exists before it
-			// has dialled; see Input.Known.
-			in.Known = bg.Known
-			in.Connected = bg.Connected
-			in.LastError = bg.LastError
-			in.System, in.IfStatus, in.DHCPLeases = bg.System, bg.IfStatus, bg.DHCPLeases
-		default:
-			// Known to the fleet, served by NEITHER pool — so nothing has asked
-			// this router anything yet, and `Connected = false` is the zero
-			// value rather than an observation.
+		} else {
+			// Known to the fleet and held by NO session yet - a router added a
+			// moment ago, before the next fleet sync has held it - so nothing has
+			// asked it anything, and `Connected = false` is the zero value rather
+			// than an observation.
 			//
 			// `Known` is what carries that difference to the page. The original
 			// produces `connected: false, lastError: null` here and the card
 			// rendered it as a red "Offline", which is a claim the server is in
-			// no position to make: on first open of the Devices page every
-			// router but the selected one lands in this branch until the
-			// overview pool has dialled it.
+			// no position to make.
 			in.Known = false
 			in.Connected = false
 		}
