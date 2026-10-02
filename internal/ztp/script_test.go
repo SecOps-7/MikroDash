@@ -76,8 +76,19 @@ func TestTheScriptsKeepWhatWasMeasured(t *testing.T) {
 			t.Errorf("%s reads a service with get [find …]", name)
 		}
 		// The user is never the one a router managed by hand already has.
+		// EXACT: RouterOS names are case-sensitive, so `MikroDash` is not it.
 		if strings.Contains(s, `name="mikrodash"`) || UserName == "mikrodash" {
 			t.Errorf("%s uses the user name a hand-managed router already has", name)
+		}
+		// THE ACCOUNT IS `MikroDash` IN GROUP `MikroDash`, the group made first
+		// (2026-10-02, the operator's decision: one account across the fleet).
+		g := strings.Index(s, `/user group`)
+		u := strings.Index(s, `add name="MikroDash" group="MikroDash"`)
+		if g < 0 || u < 0 || g > u {
+			t.Errorf("%s does not create the MikroDash group and then the MikroDash user in it", name)
+		}
+		if strings.Contains(s, "group=full") {
+			t.Errorf("%s still puts the account in group full", name)
 		}
 		// Every interface created is also explicitly enabled (z8: created over
 		// the API it can come up disabled).

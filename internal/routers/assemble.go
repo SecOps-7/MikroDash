@@ -63,6 +63,8 @@ type StatsRouter struct {
 	// caller, exactly as the live `_rtrSiteIds` does.
 	SiteIDs []string
 	Geo     map[string]any
+	// LoginProfile names the login profile the device signs in with, or "".
+	LoginProfile string
 }
 
 // MainSession is what a router's session knows. Since 2026-10-01 every enabled
@@ -150,6 +152,8 @@ func BuildStats(src StatsSources) []Row {
 			IsActive: src.ActiveID != "" && r.ID == src.ActiveID,
 			SiteIDs:  r.SiteIDs,
 			Geo:      r.Geo,
+
+			LoginProfile: r.LoginProfile,
 		}
 
 		if hasMain {

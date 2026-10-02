@@ -25,6 +25,7 @@ import {
   drawProfiles, linkDiff, statePill,
   type CredLink, type CredProfile, type LinkDiff,
 } from './config-management-credentials';
+import { mountLoginProfiles } from './config-management-logins';
 
 const TABS = ['library', 'editor', 'deploy', 'history', 'drift', 'credentials'] as const;
 type Tab = (typeof TABS)[number];
@@ -137,7 +138,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
     if (next === 'history') void loadHistory();
     else if (next === 'drift') void loadDrift();
-    else if (next === 'credentials') void loadCredentials();
+    else if (next === 'credentials') { void loadCredentials(); void logins.load(); }
   }
 
   // ── The Library ──────────────────────────────────────────────────────────
@@ -834,6 +835,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   // ── Wiring ───────────────────────────────────────────────────────────────
 
   el('cpNew')?.addEventListener('click', () => cpOpenForm(null));
+  // The MikroDash login profiles above the credential profiles on the same tab.
+  const logins = mountLoginProfiles();
   el('cpPerm')?.addEventListener('change', cpApplyPreset);
   el('cpCancel')?.addEventListener('click', () => cpOpen('cpModal', false));
   el('cpSave')?.addEventListener('click', () => void cpSave());

@@ -1109,6 +1109,7 @@ export interface RouterStatsRow {
   online: boolean;
   known: boolean;
   lastError: string | null;
+  loginProfile: string | null;
   openAlerts: number;
   cpu: number | null;
   uptime: string | null;

@@ -6,10 +6,12 @@
 
 /ip firewall filter
 :if ([:len [find comment="MikroDash ZTP"]] = 0) do={ :local first [:pick [find] 0]; :if ([:len $first] > 0) do={ add chain=input action=accept src-address="192.0.2.10" comment="MikroDash ZTP" place-before=$first } else={ add chain=input action=accept src-address="192.0.2.10" comment="MikroDash ZTP" } }
+/user group
+:if ([:len [find name="MikroDash"]] = 0) do={ add name="MikroDash" policy=local,telnet,ssh,ftp,reboot,read,write,policy,test,winbox,password,web,sniff,sensitive,api,romon,rest-api comment="MikroDash ZTP" }
 /user
-:if ([:len [find name="mikrodash-ztp"]] = 0) do={ add name="mikrodash-ztp" group=full address="192.0.2.10/32" password="pw-FakeFakeFake" comment="MikroDash ZTP" }
-set [find name="mikrodash-ztp"] address="192.0.2.10/32"
-set [find name="mikrodash-ztp"] password="pw-FakeFakeFake"
+:if ([:len [find name="MikroDash"]] = 0) do={ add name="MikroDash" group="MikroDash" address="192.0.2.10/32" password="pw-FakeFakeFake" comment="MikroDash ZTP" }
+set [find name="MikroDash"] address="192.0.2.10/32"
+set [find name="MikroDash"] password="pw-FakeFakeFake"
 /ip service
 :foreach i in=[find where (name="api" || name="api-ssl")] do={ :local l [get $i address]; :if ([:len $l] > 0 && [:typeof [:find $l "192.0.2.10/32"]] = "nil") do={ set $i address=($l, "192.0.2.10/32") } }
 :if ([:len [find where (name="api" || name="api-ssl") && disabled=no]] = 0) do={ :foreach i in=[find where name="api"] do={ set $i disabled=no address="192.0.2.10/32" } }

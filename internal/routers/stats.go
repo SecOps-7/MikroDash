@@ -59,6 +59,8 @@ type Input struct {
 	// LastError explains why it is offline, so the card can speak for itself.
 	// Ignored while connected, exactly as the original ignores it.
 	LastError string
+	// LoginProfile is the login profile the device signs in with, or "".
+	LoginProfile string
 
 	// SiteIDs is the device's site membership (#117). A device may belong to
 	// SEVERAL sites; the live builder normalises the record's `siteIds` array
@@ -108,6 +110,9 @@ type Row struct {
 	// a field old code ignores.
 	Known     bool    `json:"known"`
 	LastError *string `json:"lastError"`
+	// LoginProfile names the login profile the device signs in with - null for
+	// its own login - so a card failing to sign in says whose password it used.
+	LoginProfile *string `json:"loginProfile"`
 	// OpenAlerts is a plain int: the original spells it `openAlerts[r.id] || 0`,
 	// so a router with nothing open reports 0 rather than null. Independent of
 	// `connected` — a router can be reachable and still have something wrong.
@@ -177,6 +182,10 @@ func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySee
 	if !in.Connected && in.LastError != "" {
 		e := in.LastError
 		r.LastError = &e
+	}
+	if in.LoginProfile != "" {
+		lp := in.LoginProfile
+		r.LoginProfile = &lp
 	}
 
 	if p := in.System; p != nil {

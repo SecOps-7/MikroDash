@@ -315,7 +315,7 @@ func (s *Server) ztpOnboard(id string) {
 		fail("there is no address to reach the device on")
 		return
 	}
-	port, tls, err := ztpFindAPI(host, password, ztpOnboardWindow)
+	port, tls, user, err := ztpFindAPI(host, password, ztpOnboardWindow)
 	if err != nil {
 		fail("could not sign in to the router: " + safe.Message(err.Error()))
 		return
@@ -329,7 +329,7 @@ func (s *Server) ztpOnboard(id string) {
 		label = f.Identity
 	}
 	body := map[string]any{"label": label, "host": host, "port": float64(port), "tls": tls, "tlsInsecure": tls,
-		"username": ztp.UserName, "password": password, "siteIds": sites}
+		"username": user, "password": password, "siteIds": sites}
 	rec, err := s.store.AddRouter(body)
 	if err != nil {
 		fail("the router could not be added: " + err.Error())
@@ -367,8 +367,9 @@ func (s *Server) ztpOnboard(id string) {
 // ── AND NOTHING HERE DECIDES WHETHER A PROFILE IS ALLOWED ───────────────────
 //
 // The applier does, per router, from a fresh read. A `full` profile on a ZTP
-// device is refused there because `mikrodash-ztp` lands in `full` and the guard
-// refuses moving any user into MikroDash's own group - which is exactly the
+// device is refused there because the guard refuses moving any user into
+// MikroDash's own group (`MikroDash`, or `full` on a device onboarded before
+// 2026-10-02) - which is exactly the
 // check that must not be second-guessed by a caller. The wizard warns; the
 // guard decides.
 func (s *Server) ztpLinkCredProfiles(d *db.ZTPDevice, routerID string) {
@@ -414,7 +415,7 @@ func (s *Server) ztpLinkCredProfiles(d *db.ZTPDevice, routerID string) {
 // certificate and still lands on 8728 - that is what the fallback is for, and
 // for a remote device that traffic runs inside the WireGuard tunnel. What
 // changes is that a router which CAN do better now does.
-func ztpFindAPI(host, password string, window time.Duration) (int, bool, error) {
+func ztpFindAPI(host, password string, window time.Duration) (int, bool, string, error) {
 	deadline := time.Now().Add(window)
 	var last error
 	for {
@@ -422,16 +423,21 @@ func ztpFindAPI(host, password string, window time.Duration) (int, bool, error) 
 			port int
 			tls  bool
 		}{{8729, true}, {8728, false}} {
-			c, err := routeros.Dial(routeros.Config{Host: host, Port: try.port, TLS: try.tls, InsecureTLS: try.tls,
-				Username: ztp.UserName, Password: password, DialTimeout: 8 * time.Second, Label: host + " (ztp)"})
-			if err == nil {
-				c.Close()
-				return try.port, try.tls, nil
+			// THE CURRENT NAME, THEN THE ONE SCRIPTS MADE BEFORE 2026-10-02.
+			// A script downloaded before the rename and run after it created
+			// `mikrodash-ztp`, and that device must still onboard.
+			for _, user := range []string{ztp.UserName, ztp.LegacyUserName} {
+				c, err := routeros.Dial(routeros.Config{Host: host, Port: try.port, TLS: try.tls, InsecureTLS: try.tls,
+					Username: user, Password: password, DialTimeout: 8 * time.Second, Label: host + " (ztp)"})
+				if err == nil {
+					c.Close()
+					return try.port, try.tls, user, nil
+				}
+				last = err
 			}
-			last = err
 		}
 		if time.Now().After(deadline) {
-			return 0, false, last
+			return 0, false, "", last
 		}
 		time.Sleep(5 * time.Second)
 	}

@@ -221,8 +221,10 @@ type Server struct {
 	// comment on pruneSched three fields below records a ticker that was
 	// assigned and never stopped, leaking a goroutine in every test that built
 	// a Server. See credprof_job.go.
-	credJob  *credJob
-	credStop context.CancelFunc
+	credJob *credJob
+	// loginJobs is the last or running job per login profile (loginprof_api.go).
+	loginJobs loginOps
+	credStop  context.CancelFunc
 	// startedAt is when this process began serving, for /healthz's uptime and
 	// its starting-vs-failing distinction.
 	startedAt time.Time
@@ -599,6 +601,7 @@ func (s *Server) Handler() http.Handler {
 	// (#143). Behind the Config Management gate, and per router behind the same
 	// `users`/`write` grant the Router Users page needs. See credprof_api.go.
 	s.registerCredProfileAPI(mux)
+	s.registerLoginProfileAPI(mux)
 	// The first-run wizard. See setup_api.go.
 	s.registerSetup(mux)
 	// The account modal: sessions, access, permissions, password. See

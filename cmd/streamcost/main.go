@@ -287,9 +287,11 @@ func fromStore(dir, name string) (routeros.Config, error) {
 		if !strings.EqualFold(r.Label, name) && r.Host != name {
 			continue
 		}
-		pw, err := st.Decrypt(r.Encrypted)
-		if err != nil {
-			return routeros.Config{}, fmt.Errorf("decrypt %s: %w", r.Label, err)
+		// The credential `Routers()` resolved - a login profile's, when the
+		// router signs in with one, which its own (empty) field would miss.
+		pw := r.Password
+		if pw == "" {
+			return routeros.Config{}, fmt.Errorf("%s has no usable credential (see the warnings above)", r.Label)
 		}
 		return routeros.Config{
 			Host: r.Host, Port: r.Port, Username: r.Username, Password: pw,

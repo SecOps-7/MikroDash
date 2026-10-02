@@ -55,6 +55,8 @@ export interface StoredRouter {
   alertsEnabled?: boolean; reportingEnabled?: boolean; connDownThresholdSec?: number;
   bwDownMbps?: number; bwUpMbps?: number;
   collection?: { mode?: string };
+  /** Set when the device signs in with a MikroDash login profile. */
+  loginProfileId?: string;
 }
 
 /** Every value the form shows, for one router or for a fresh Add. */
@@ -63,6 +65,8 @@ export interface RouterFormValues {
   id: string; label: string; siteIds?: string[]; primarySite?: string;
   host: string; port: string; username: string;
   passPlaceholder: string;
+  /** The device signs in with a login profile: its own login fields are hidden. */
+  usesLoginProfile: boolean;
   defaultIf: string; pingTarget: string;
   tls: boolean; tlsInsecure: boolean;
   alertsEnabled: boolean; reportingEnabled: boolean; downThreshold: number;
@@ -113,6 +117,7 @@ export function routerFormValues(
     // An edit never shows the stored password and says so; an Add has nothing
     // to explain.
     passPlaceholder: r ? 'leave blank to keep current' : '',
+    usesLoginProfile: !!(r && r.loginProfileId),
     defaultIf: r ? (r.defaultIf || '') : 'ether1',
     pingTarget: r ? (r.pingTarget || '') : '1.1.1.1',
     tls: r ? !!r.tls : true,

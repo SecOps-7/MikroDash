@@ -80,12 +80,14 @@ func fromStore(dir, name string) (routeros.Config, error) {
 		// dashboard-side flag meaning "do not collect from this"; it says
 		// nothing about whether the hardware answers, and a conformance run is
 		// exactly the case where you might want the one that is switched off.
-		pw, err := st.Decrypt(r.Encrypted)
-		if err != nil {
-			return routeros.Config{}, fmt.Errorf("decrypt %s: %w", r.Label, err)
+		// `Routers()` has already decrypted the credential - and resolved a
+		// login profile, which a direct Decrypt of the router's own field would
+		// miss: that field is empty on a router signing in with a profile.
+		if r.Password == "" {
+			return routeros.Config{}, fmt.Errorf("%s has no usable credential (see the warnings above)", r.Label)
 		}
 		return routeros.Config{
-			Host: r.Host, Port: r.Port, Username: r.Username, Password: pw,
+			Host: r.Host, Port: r.Port, Username: r.Username, Password: r.Password,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
 		}, nil
 	}

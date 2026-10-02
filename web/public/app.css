@@ -1027,6 +1027,12 @@
     .dvm-chart[hidden]{display:none}
     .dvm-gauges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
     .dvm-ports{justify-content:flex-start}
+    /* MikroDash login profiles (config-management-logins.ts). */
+    .lp-fixed{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:.35rem .7rem;align-items:baseline;margin:.2rem 0 .9rem;
+      padding:.55rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.76rem}
+    .lp-fixed span{color:var(--text-muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em}
+    .lp-fixed strong{font-family:var(--font-mono);color:var(--text-main)}
+    .cfg-pick-item .lp-err{flex-basis:100%;color:var(--accent-err);white-space:normal}
     .dvm-tabs .dvm-range{font-family:var(--font-ui);font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.25rem .8rem}
     .dvm-tabs .dvm-range[hidden]{display:none}
     .dvm-tab-count{display:inline-block;min-width:1.2rem;margin-left:.3rem;padding:0 .35rem;border-radius:20px;font-family:var(--font-mono);font-size:.62rem;

@@ -131,6 +131,9 @@ func (s *Server) routerCreate(w http.ResponseWriter, r *http.Request) {
 	if body == nil {
 		body = map[string]any{}
 	}
+	// A LOGIN PROFILE IS NEVER SET BY A ROUTER WRITE. Linking one creates the
+	// account on the device and proves it signs in first; see loginprof_api.go.
+	delete(body, "loginProfileId")
 	// The live route checks this BEFORE reaching the normaliser, and answers 400
 	// where the normaliser's own refusals become a 500. Same message.
 	if strings.TrimSpace(jsStringOf(body["host"])) == "" {
@@ -301,6 +304,9 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 	before := s.routerRecord(id)
 	if before == nil {
 		writeJSONErr(w, http.StatusNotFound, "Router not found")
+		return
+	}
+	if !s.loginProfileEditAllowed(w, sess, before, body) {
 		return
 	}
 	if err := s.store.UpdateRouter(id, body); err != nil {
@@ -661,4 +667,54 @@ func routerAuditView(r *store.Router) map[string]any {
 		"tls": r.TLS, "tlsInsecure": r.TLSInsecure, "username": r.Username,
 		"disabled": r.Disabled, "siteIds": store.RouterSiteIDs(*r),
 	}
+}
+
+// loginProfileEditAllowed applies the two rules a device signing in with a
+// login profile adds to an edit, and reports whether the edit may go on.
+//
+//  1. The profile link and the device's own credential are not a router write's
+//     to change. The link moves only through /api/credentials/logins, which
+//     puts the account on the device and proves it first; and the device's own
+//     username and password are deliberately empty while a profile supplies
+//     them, so a value posted here would sit unused at rest.
+//  2. WHERE THE DEVICE IS REACHED is an administrator's to change. MikroDash
+//     sends the profile's password to whatever host and port the record names,
+//     so anybody who could edit those could aim a device at a host they run and
+//     receive the password that opens every linked device. The same goes for
+//     turning TLS or its certificate check off, which hands it to the path in
+//     between.
+func (s *Server) loginProfileEditAllowed(w http.ResponseWriter, sess *Session,
+	before *store.Router, body map[string]any) bool {
+	delete(body, "loginProfileId")
+	if before.LoginProfileID == "" {
+		return true
+	}
+	delete(body, "username")
+	delete(body, "password")
+	if cfgMayChange(sess, s.isGlobalAdmin(sess)) {
+		return true
+	}
+	moved := false
+	if v, ok := body["host"]; ok && strings.TrimSpace(jsStringOf(v)) != before.Host {
+		moved = true
+	}
+	if v, ok := body["port"]; ok {
+		if n, isNum := v.(int); isNum && n != before.Port {
+			moved = true
+		} else if f, isF := v.(float64); isF && int(f) != before.Port {
+			moved = true
+		}
+	}
+	if v, ok := body["tls"].(bool); ok && !v && before.TLS {
+		moved = true
+	}
+	if v, ok := body["tlsInsecure"].(bool); ok && v && !before.TLSInsecure {
+		moved = true
+	}
+	if moved {
+		writeJSONErr(w, http.StatusForbidden, "This device signs in with the login profile \""+
+			before.LoginProfileName+"\". Only a signed-in administrator may change where it connects.")
+		return false
+	}
+	return true
 }

@@ -223,7 +223,10 @@ func (s *Server) storedPasswordFor(id string, submitted *routers.Endpoint) strin
 		if rec.ID != id {
 			continue
 		}
-		if rec.Encrypted == "" {
+		// THE RESOLVED CREDENTIAL, so a device signing in with a login profile
+		// is tested with the profile's password - and, because the endpoint must
+		// match first, only against the host it is stored with.
+		if rec.Password == "" {
 			return ""
 		}
 		stored := routers.Endpoint{
@@ -233,17 +236,7 @@ func (s *Server) storedPasswordFor(id string, submitted *routers.Endpoint) strin
 		if !routers.SameEndpoint(&stored, submitted) {
 			return ""
 		}
-		// DECRYPTED ONLY AFTER THE MATCH, which is a departure from the live
-		// side: `Routers.loadAll()` decrypts every password eagerly when it fills
-		// its cache, so the plaintext is already in hand there before the
-		// comparison happens. Same observable answer, one less place a secret
-		// exists — and the ordering here is what makes a log line added between
-		// these two statements harmless rather than a leak.
-		pw, err := s.store.Decrypt(rec.Encrypted)
-		if err != nil {
-			return ""
-		}
-		return pw
+		return rec.Password
 	}
 	return ""
 }

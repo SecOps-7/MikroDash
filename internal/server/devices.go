@@ -87,6 +87,8 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		out.Routers = append(out.Routers, routers.StatsRouter{
 			ID: r.ID, Label: r.Label, Host: r.Host, Disabled: r.Disabled,
 			SiteIDs: store.RouterSiteIDs(r),
+			// The profile's name, resolved by `Routers()`; "" for an own login.
+			LoginProfile: r.LoginProfileName,
 			// ── WITHOUT THIS THE MAP PLOTS NOTHING ────────────────────────
 			//
 			// `BuildStats` copies this into the row's `Geo`, and

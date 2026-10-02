@@ -631,7 +631,9 @@
             <input class="sform-input" id="rtrModalPort" type="number" min="1" max="65535" value="8729" placeholder="8729">
           </div>
         </div>
-        <div class="sform-row sform-group">
+        <p class="rtr-note" id="rtrModalLoginNote" hidden>Signs in as <strong>MikroDash</strong> with a login
+          profile. Change its password, or give it a login of its own, in Config Management &rarr; Credentials.</p>
+        <div class="sform-row sform-group" id="rtrModalCredRow">
           <div>
             <label class="sform-label" for="rtrModalUser">Username</label>
             <input class="sform-input" id="rtrModalUser" type="text" placeholder="admin">
@@ -1322,6 +1324,94 @@
            no way out of the dialog that did not write to a router. -->
       <button class="sbtn sbtn-outline" id="cpLinksClose">Cancel</button>
       <button class="sbtn sbtn-primary" id="cpApply" disabled>Apply</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- A MikroDash login profile (#143): a name and the password. The account
+       and group are fixed, so they are shown, not asked for. -->
+  <div class="rtr-modal-bg" id="lpModal">
+   <div class="rtr-modal" style="max-width:30rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="lpModalTitle">New login profile</span>
+    </div>
+    <div class="rtr-modal-body" style="display:block">
+      <div class="sform-group">
+        <label class="sform-label" for="lpName">Name <span style="color:var(--accent-err)">*</span></label>
+        <input class="sform-input" id="lpName" type="text" placeholder="Fleet login" autocomplete="off" maxlength="64">
+      </div>
+      <div class="lp-fixed"><span>Account</span><strong>MikroDash</strong><span>Group</span><strong>MikroDash</strong></div>
+      <div class="sform-row">
+        <div class="sform-group">
+          <label class="sform-label" for="lpPass" id="lpPassLabel">Password</label>
+          <input class="sform-input" id="lpPass" type="password" autocomplete="new-password">
+        </div>
+        <div class="sform-group">
+          <label class="sform-label" for="lpPass2">Repeat it</label>
+          <input class="sform-input" id="lpPass2" type="password" autocomplete="new-password">
+        </div>
+      </div>
+      <p class="rtr-note cp-note" id="lpPassNote">At least 12 characters. It signs in to every linked device with
+        every permission, so treat it like the devices' admin password.</p>
+      <div id="lpError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="lpCancel">Cancel</button>
+      <button class="sbtn sbtn-primary" id="lpSave">Save</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- Which devices sign in with a login profile. Ticking stages; Apply links,
+       one device at a time, each switching only after its new login works. -->
+  <div class="rtr-modal-bg" id="lpDevModal">
+   <div class="rtr-modal" style="max-width:44rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="lpDevTitle">Devices</span>
+    </div>
+    <div class="rtr-modal-body" style="display:block">
+      <div class="ztp-sub">Sites</div>
+      <p class="rtr-note cp-note" style="margin-top:0">Ticking a site ticks every device in it now. It is a
+        shortcut, not a rule: a device that joins the site later is not linked by it.</p>
+      <div id="lpDevSites" class="cfg-pick"></div>
+      <div class="ztp-sub" style="margin-top:.9rem">Devices</div>
+      <p class="rtr-note cp-note" style="margin-top:0">Linking creates user MikroDash in group MikroDash on the
+        device, signs in with it to prove it works, and only then switches MikroDash over. If it does not work the
+        device is put back as it was.</p>
+      <div id="lpDevList" class="cfg-pick"></div>
+      <div id="lpDevError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="lpDevClose">Close</button>
+      <button class="sbtn sbtn-primary" id="lpDevApply" disabled>Link</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- Switching one device back to a login of its own. -->
+  <div class="rtr-modal-bg" id="lpOwnModal">
+   <div class="rtr-modal" style="max-width:26rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title">Use its own login</span>
+    </div>
+    <div class="rtr-modal-body" style="display:block">
+      <p class="rtr-note" style="margin-top:0"><strong id="lpOwnDevice">This device</strong> will sign in with the
+        account below instead of the profile. The MikroDash account stays on the router.</p>
+      <div class="sform-row">
+        <div class="sform-group">
+          <label class="sform-label" for="lpOwnUser">Username</label>
+          <input class="sform-input" id="lpOwnUser" type="text" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="sform-group">
+          <label class="sform-label" for="lpOwnPass">Password</label>
+          <input class="sform-input" id="lpOwnPass" type="password" autocomplete="new-password">
+        </div>
+      </div>
+      <div id="lpOwnError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="lpOwnCancel">Cancel</button>
+      <button class="sbtn sbtn-primary" id="lpOwnSave">Switch</button>
     </div>
    </div>
   </div>

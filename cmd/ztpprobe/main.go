@@ -378,10 +378,13 @@ func z7SelfRemovingScheduler(p *probe) {
 // ztp's fixed names), and puts the API services back as they were.
 func (p *probe) cleanupZTP(services []routeros.Reply) {
 	for _, m := range []string{"/system/scheduler", "/system/script", "/ip/firewall/filter", "/ip/address",
-		"/interface/wireguard/peers", "/interface/wireguard", "/user"} {
+		"/interface/wireguard/peers", "/interface/wireguard", "/user", "/user/group"} {
 		rows, _ := p.c.Do(routeros.Cmd{Path: m + "/print", Args: []string{"=.proplist=.id,comment,name"}, Timeout: 15 * time.Second})
 		for _, r := range rows {
-			if r["comment"] == ztp.Comment || r["name"] == ztp.UserName || r["name"] == ztp.IfaceName ||
+			// `MikroDash` is matched by COMMENT only: since 2026-10-02 it is also the
+			// account a login profile puts on a device, and a probe must not take
+			// that one away. The legacy name is ZTP's alone.
+			if r["comment"] == ztp.Comment || r["name"] == ztp.LegacyUserName || r["name"] == ztp.IfaceName ||
 				r["name"] == ztp.EnrolIface || r["name"] == ztp.EnrolScript {
 				_, _ = p.c.Do(routeros.Cmd{Path: m + "/remove", Args: []string{"=.id=" + r[".id"]}, Timeout: 15 * time.Second})
 			}
@@ -649,9 +652,11 @@ func fromStore(dir, name string) (routeros.Config, error) {
 		if !strings.EqualFold(r.Label, name) && r.Host != name {
 			continue
 		}
-		pw, err := st.Decrypt(r.Encrypted)
-		if err != nil {
-			return routeros.Config{}, fmt.Errorf("decrypt %s: %w", r.Label, err)
+		// The credential `Routers()` resolved - a login profile's, when the
+		// router signs in with one, which its own (empty) field would miss.
+		pw := r.Password
+		if pw == "" {
+			return routeros.Config{}, fmt.Errorf("%s has no usable credential (see the warnings above)", r.Label)
 		}
 		return routeros.Config{Host: r.Host, Port: r.Port, Username: r.Username, Password: pw,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure}, nil

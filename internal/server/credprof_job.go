@@ -354,7 +354,8 @@ func (s *Server) credSelfNames(liveName, routerID string) []string {
 			}
 		}
 	}
-	return append(names, ztp.UserName)
+	// Both ZTP names: a device onboarded before 2026-10-02 signs in as the old.
+	return append(names, ztp.UserName, ztp.LegacyUserName)
 }
 
 func credActionFor(removing bool) string {

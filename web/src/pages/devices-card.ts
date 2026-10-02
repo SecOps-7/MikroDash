@@ -124,8 +124,12 @@ export function deviceCardHtml(
       + r.openAlerts + '</span>'
     : '';
   // The server sends this already sanitized; esc() it like any other value.
+  // A device on a login profile says so when it is down: "invalid user name or
+  // password" then points at the profile, not at the device.
   const why = st === 'offline' && r.lastError
-    ? '<div class="dv-why">' + esc(r.lastError) + '</div>' : '';
+    ? '<div class="dv-why">' + esc(r.lastError)
+      + (r.loginProfile ? ' <span class="dv-why-via">(login profile ' + esc(r.loginProfile) + ')</span>' : '')
+      + '</div>' : '';
   const up = uptimeText(r.uptime);
 
   let foot = '';
@@ -214,6 +218,8 @@ export function detailsHtml(r: RouterStatsRow, o: DeviceOverview | undefined, no
     // Derived, so it moves by a second or two between refreshes; minutes hide it.
     + row('Last boot', up != null ? esc(fmtTs(now - up, false)) : dash)
     + row('Host', '<span class="dvm-mono">' + esc(r.host) + '</span>')
+    + (r.loginProfile ? row('Login', '<span class="dvm-mono">MikroDash</span> <span class="dvm-pill">'
+      + esc(r.loginProfile) + '</span>') : '')
     + row('Sites', sites.length ? sites.map((s) => '<span class="dvm-pill">' + esc(s) + '</span>').join(' ') : dash)
     + row('Backup', backup)
     + row('Open alerts', r.openAlerts > 0

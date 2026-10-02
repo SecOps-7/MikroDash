@@ -421,19 +421,22 @@ func TestThePasswordIsDecryptedOnlyAfterTheMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := string(src)
+	// RE-AIMED 2026-10-02. `Routers()` now resolves login profiles, so the
+	// credential is already decrypted when this function sees it - there is no
+	// decrypt here to order. What the check protects is unchanged: the stored
+	// password LEAVES this function only after the submitted endpoint matched.
 	match := strings.Index(body, "routers.SameEndpoint(&stored, submitted)")
-	dec := strings.Index(body, "s.store.Decrypt(rec.Encrypted)")
-	if match < 0 || dec < 0 {
-		t.Fatal("the endpoint match or the decrypt is gone from storedPasswordFor")
+	ret := strings.Index(body, "return rec.Password")
+	if match < 0 || ret < 0 {
+		t.Fatal("the endpoint match or the release of the password is gone from storedPasswordFor")
 	}
-	if dec < match {
-		t.Error("the stored password is decrypted BEFORE the endpoint match. Nothing " +
-			"observable changes today, which is the problem: the next line added between " +
-			"them is a plaintext credential in a log")
+	if ret < match {
+		t.Error("the stored password is returned BEFORE the endpoint match, so a test " +
+			"against any host would be handed this device's credential")
 	}
-	if strings.Count(body, "s.store.Decrypt(") != 1 {
-		t.Error("storedPasswordFor decrypts in more than one place; only the post-match " +
-			"call may exist")
+	if strings.Count(body, "return rec.Password") != 1 || strings.Contains(body, "s.store.Decrypt(") {
+		t.Error("storedPasswordFor releases or decrypts a password in more than one place; " +
+			"only the post-match return may exist")
 	}
 }
 

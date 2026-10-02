@@ -536,6 +536,15 @@ type Router struct {
 	// should ever write a plaintext credential to disk.
 	Password string `json:"-"`
 
+	// LoginProfileID names the login profile this router signs in with, or ""
+	// for its own `username`/`password`. When set, `Routers()` fills Username
+	// and Password FROM THE PROFILE, so every reader gets the credential the
+	// router actually uses without knowing profiles exist. See loginprofiles.go.
+	LoginProfileID string `json:"loginProfileId"`
+	// LoginProfileName is the profile's name, resolved at read, for messages
+	// that should say where a credential came from. Never stored.
+	LoginProfileName string `json:"-"`
+
 	// Backup is the per-router backup block. ABSENT ENTIRELY for a router that
 	// has never been configured — `cAP AX` in the live /data carries
 	// `"backup": null` — which is why every field below distinguishes absent
@@ -641,6 +650,8 @@ func (s *Store) Routers() ([]Router, []error) {
 				"it, the FILE is unchanged. It is repaired permanently by the next write "+
 				"that names the field", err))
 	}
+	var profiles map[string]resolvedLogin
+	var profErr error
 	for i := range out {
 		plain, err := s.Decrypt(out[i].Encrypted)
 		if err != nil {
@@ -648,6 +659,34 @@ func (s *Store) Routers() ([]Router, []error) {
 			continue
 		}
 		out[i].Password = plain
+
+		// A LOGIN PROFILE REPLACES THE ROUTER'S OWN CREDENTIAL. Resolved here,
+		// the one read every caller goes through, so a session, a backup, the
+		// connection test and cmd/conformance all sign in the same way. A
+		// profile that is missing or cannot be opened leaves the router with NO
+		// credential rather than a stale one: it then fails to log in, loudly,
+		// instead of quietly using something nobody chose.
+		if id := out[i].LoginProfileID; id != "" {
+			if profiles == nil {
+				profiles, profErr = s.loginProfileMap()
+			}
+			lp, ok := profiles[id]
+			switch {
+			case profErr != nil:
+				problems = append(problems, fmt.Errorf("router %s login profile: %w", out[i].Label, profErr))
+				out[i].Username, out[i].Password = "", ""
+			case !ok:
+				problems = append(problems, fmt.Errorf("router %s: login profile %s does not exist", out[i].Label, id))
+				out[i].Username, out[i].Password = "", ""
+			case lp.err != nil:
+				problems = append(problems, fmt.Errorf("router %s login profile %q: %w", out[i].Label, lp.Name, lp.err))
+				out[i].Username, out[i].Password = "", ""
+				out[i].LoginProfileName = lp.Name
+			default:
+				out[i].Username, out[i].Password = lp.Username, lp.Password
+				out[i].LoginProfileName = lp.Name
+			}
+		}
 
 		// The backup password is sealed the same way. A router with no backup
 		// block has an empty one, which is not a failure — most routers have

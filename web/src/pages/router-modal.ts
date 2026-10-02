@@ -308,6 +308,13 @@ export function initRouterModal(opts: {
     set('rtrModalPass', '');
     const pass = input('rtrModalPass');
     if (pass) pass.placeholder = f.passPlaceholder;
+    // A DEVICE ON A LOGIN PROFILE has no login of its own to edit: the profile
+    // supplies it, and the server ignores these two fields for it. The note
+    // says where the login is changed instead.
+    const credRow = el('rtrModalCredRow');
+    if (credRow) credRow.style.display = f.usesLoginProfile ? 'none' : '';
+    const loginNote = el('rtrModalLoginNote');
+    if (loginNote) loginNote.hidden = !f.usesLoginProfile;
     set('rtrModalIf', f.defaultIf); set('rtrModalPing', f.pingTarget);
     check('rtrModalTls', f.tls); check('rtrModalTlsInsecure', f.tlsInsecure);
     // ── THE API-SSL BUTTON ────────────────────────────────────────────────

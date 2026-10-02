@@ -42,16 +42,37 @@ import (
 const (
 	IfaceName  = "mikrodash-ztp"       // the device's own tunnel interface
 	EnrolIface = "mikrodash-ztp-enrol" // a generic script's shared-key interface
-	// UserName is the API user MikroDash signs in as. NOT "mikrodash": that is
-	// the name a router already managed by hand usually has, and the script
-	// restricts this user's address and sets its password, which would lock the
-	// existing connection out.
-	UserName    = "mikrodash-ztp"
-	EnrolScript = "mikrodash-ztp-enrol" // the stored enrolment script and its scheduler
-	Comment     = "MikroDash ZTP"
-	EnrolPath   = "/enrol" // the enrolment route, on the server's tunnel address
-	LANPath     = "/api/ztp/enrol"
+	// UserName and GroupName are the API user MikroDash signs in as and its
+	// group: `MikroDash`, the same account a login profile puts on a device
+	// added by hand (store.LoginUserName/LoginGroupName), so the fleet carries
+	// one account whichever way a device arrived. The operator's decision,
+	// 2026-10-02.
+	//
+	// STILL NOT "mikrodash": that is the name a router already managed by hand
+	// usually has, and the script restricts this user's address and sets its
+	// password, which would lock the existing connection out. RouterOS user
+	// names are CASE-SENSITIVE (measured on RouterOS 7.24: `ZzCaseProbe` and
+	// `zzcaseprobe` were two accounts, and a login in the other case was
+	// refused), so `MikroDash` is a different account from `mikrodash`.
+	UserName  = "MikroDash"
+	GroupName = "MikroDash"
+	// LegacyUserName is what scripts made before 2026-10-02 create, in group
+	// `full`. A device running one of those still onboards, and every device
+	// already onboarded keeps signing in with it.
+	LegacyUserName = "mikrodash-ztp"
+	EnrolScript    = "mikrodash-ztp-enrol" // the stored enrolment script and its scheduler
+	Comment        = "MikroDash ZTP"
+	EnrolPath      = "/enrol" // the enrolment route, on the server's tunnel address
+	LANPath        = "/api/ztp/enrol"
 )
+
+// GroupPolicies is every RouterOS policy, which the `MikroDash` group is
+// created with. It must equal `resource.UserPolicies`, which a test holds; it is
+// spelled out here so this package needs nothing from the resource registry.
+var GroupPolicies = []string{
+	"local", "telnet", "ssh", "ftp", "reboot", "read", "write", "policy", "test",
+	"winbox", "password", "web", "sniff", "sensitive", "api", "romon", "rest-api",
+}
 
 // passwordAlphabet has no look-alikes (0/O, 1/l/I), so a password read aloud
 // from a router's log survives it.
@@ -172,9 +193,15 @@ func firstAccept(b *strings.Builder, match string) {
 // apiUser creates the API user, limited to `from`, with `password` (a literal
 // or a script expression).
 func apiUser(b *strings.Builder, from netip.Addr, password string) {
+	// THE GROUP FIRST, because the user names it. Every policy, as `full` gave
+	// the account before it had a group of its own; one that is already there is
+	// left alone.
+	b.WriteString("/user group\n")
+	fmt.Fprintf(b, ":if ([:len [find name=%s]] = 0) do={ add name=%s policy=%s comment=%s }\n",
+		q(GroupName), q(GroupName), strings.Join(GroupPolicies, ","), q(Comment))
 	b.WriteString("/user\n")
-	fmt.Fprintf(b, ":if ([:len [find name=%s]] = 0) do={ add name=%s group=full address=%s password=%s comment=%s }\n",
-		q(UserName), q(UserName), q(from.String()+"/32"), password, q(Comment))
+	fmt.Fprintf(b, ":if ([:len [find name=%s]] = 0) do={ add name=%s group=%s address=%s password=%s comment=%s }\n",
+		q(UserName), q(UserName), q(GroupName), q(from.String()+"/32"), password, q(Comment))
 	fmt.Fprintf(b, "set [find name=%s] address=%s\n", q(UserName), q(from.String()+"/32"))
 }
 
