@@ -123,23 +123,32 @@ func TestAnImportAddsReadyRowsAndCreatesTheirSites(t *testing.T) {
 	}
 }
 
-// A profile row with no password adds NOTHING unless MikroDash can sign in with
-// the profile first. Port 1 on loopback refuses at once.
-func TestAProfileRowThatCannotSignInIsNotAdded(t *testing.T) {
+// A profile row with no password is added and linked WITHOUT signing in, so an
+// unreachable device costs no timeout (the operator's call: 100 offline rows
+// took about 20 minutes when each waited out a 12 s sign-in). 192.0.2.80 is
+// TEST-NET: a sign-in there would hang until the timeout, so the time bound is
+// the proof that none was attempted.
+func TestAProfileRowIsAddedWithoutSigningIn(t *testing.T) {
 	s, mux := importServer(t, &Session{AuthMode: "none"})
-	if _, err := s.store.AddLoginProfile("MikroDash login", "a-long-enough-password"); err != nil {
+	p, err := s.store.AddLoginProfile("MikroDash login", "a-long-enough-password")
+	if err != nil {
 		t.Fatal(err)
 	}
+	start := time.Now()
 	w := importCall(mux, "POST", "/api/routers/bulk",
-		`{"rows":[{"line":2,"host":"127.0.0.1","port":"1","tls":"no","credentialProfile":"MikroDash login"}]}`)
+		`{"rows":[{"line":2,"host":"192.0.2.80","tls":"no","credentialProfile":"MikroDash login"}]}`)
 	if w.Code != 200 {
 		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 	job := waitImport(t, mux)
-	if job.Rows[0].State != "failed" || !strings.Contains(job.Rows[0].Message, "not added") {
-		t.Errorf("%+v", job.Rows[0])
+	if took := time.Since(start); took > 5*time.Second {
+		t.Errorf("the row took %v: something waited on a sign-in", took)
 	}
-	if all, _ := s.store.Routers(); len(all) != 1 {
-		t.Errorf("a device that could not sign in was added: %d", len(all))
+	if job.Rows[0].State != "added" {
+		t.Fatalf("%+v", job.Rows[0])
+	}
+	all, _ := s.store.Routers()
+	if len(all) != 2 || all[1].LoginProfileID != p.ID || all[1].Password != p.Password {
+		t.Errorf("the device was not added on the profile: %+v", all[len(all)-1])
 	}
 }

@@ -56,9 +56,9 @@ type Row struct {
 const (
 	// ModePlain: the row's own username and password, as Add Device stores them.
 	ModePlain = "plain"
-	// ModeVerify: a credential profile and no password. The account already
-	// exists on the router; MikroDash signs in with the profile to prove it and
-	// writes nothing to the router.
+	// ModeVerify: a credential profile and no password. The account is expected
+	// to exist on the router already; the device is added on the profile without
+	// a sign-in check (see routers_import.go), and nothing is written to it.
 	ModeVerify = "verify"
 	// ModeLink: a credential profile AND the router's current login. The device
 	// is added with that login, then linked, which creates the account.

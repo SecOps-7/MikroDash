@@ -29,9 +29,16 @@ package server
 // ── THREE WAYS IN, ONE OF WHICH WRITES TO THE ROUTER ────────────────────────
 //
 //   - plain:  added with the row's own login, exactly as Add Device does.
-//   - verify: a profile and no password. The account must already exist, so a
-//     fresh sign-in as mikrodash with the profile's password comes FIRST and
-//     nothing is saved unless it works. Nothing is written to the router.
+//   - verify: a profile and no password. The account is expected to exist
+//     already, and the device is added and switched to the profile WITHOUT a
+//     sign-in check. Nothing is written to the router.
+//
+//     NOT CHECKED, ON THE OPERATOR'S CALL (2026-10-02). A first version signed
+//     in first and added nothing if that failed, which is the rule linking
+//     follows. But a sign-in to an unreachable device waits out the 12 s
+//     timeout, so 100 offline rows took about 20 minutes. A migration imports
+//     devices that are not all up, and a wrong profile shows on the Devices page
+//     as a sign-in error, so the import adds and moves on.
 //   - link:   a profile and the router's current login. Added with that login,
 //     then `loginLinkOne`, the Credential Profiles page's own path: it creates
 //     the account, proves it signs in, and undoes the change if it does not. A
@@ -338,18 +345,6 @@ func (s *Server) importOne(v fleetimport.Verdict, siteIDs, siteErr map[string]st
 		profile = p
 	}
 
-	// VERIFY BEFORE ANYTHING IS SAVED: a device whose account is not there, or
-	// whose profile password is wrong, is not added at all.
-	if v.Mode == fleetimport.ModeVerify {
-		tls, _ := body["tls"].(bool)
-		insecure, _ := body["tlsInsecure"].(bool)
-		probe := store.Router{Host: v.Host, Port: v.Port, TLS: tls, TLSInsecure: insecure, Label: v.Label}
-		if err := s.loginVerify(probe, profile.Password); err != nil {
-			return "failed", "Could not sign in as " + store.LoginUserName + " with " + profile.Name +
-				" (" + safe.Message(err.Error()) + "), so it was not added"
-		}
-	}
-
 	rt, err := s.store.AddRouter(body)
 	if err != nil {
 		return "failed", safe.Message(err.Error())
@@ -367,7 +362,7 @@ func (s *Server) importOne(v fleetimport.Verdict, siteIDs, siteErr map[string]st
 				safe.Message(err.Error()) + "); it has no login until you link it"
 		}
 		s.loginAudit(rec, "loginprofile.link", profile, rt.ID, nil)
-		return "added", "Signs in with " + profile.Name
+		return "added", "Signs in with " + profile.Name + " (not checked during the import)"
 	case fleetimport.ModeLink:
 		err := s.loginLinkOne(profile, rt.ID)
 		s.loginAudit(rec, "loginprofile.link", profile, rt.ID, err)
