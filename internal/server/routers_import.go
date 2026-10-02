@@ -40,9 +40,16 @@ package server
 //     devices that are not all up, and a wrong profile shows on the Devices page
 //     as a sign-in error, so the import adds and moves on.
 //   - link:   a profile and the router's current login. Added with that login,
-//     then `loginLinkOne`, the Credential Profiles page's own path: it creates
-//     the account, proves it signs in, and undoes the change if it does not. A
-//     failure there leaves the device added on its own login, said as such.
+//     and once every row is in, handed to the profile's own link job
+//     (`loginLinkAll`, the Credential Profiles page's path): it creates the
+//     account, proves it signs in, and undoes the change if it does not. A
+//     failure there leaves the device on its own login, and the Credential
+//     Profiles page says so.
+//
+//     AFTER THE IMPORT, NOT DURING IT, on the operator's call (2026-10-02): the
+//     link has to reach the router, and an unreachable one held the whole import
+//     until it timed out. The import adds every row at once and the account
+//     creation follows in the background.
 //
 // ── ONE REFRESH AT THE END ──────────────────────────────────────────────────
 //
@@ -237,6 +244,13 @@ func (s *Server) importRun(job *importJob, plan fleetimport.Result, rec *audit.R
 	}
 
 	added, warned, failed := 0, 0, 0
+	// links holds the link rows by profile, for the profile's link job.
+	type linkRow struct {
+		row      int
+		routerID string
+	}
+	links := map[string][]linkRow{}
+	var linkOrder []string
 	i := -1
 	for _, v := range plan.Rows {
 		if v.Status != "ready" {
@@ -244,7 +258,13 @@ func (s *Server) importRun(job *importJob, plan fleetimport.Result, rec *audit.R
 		}
 		i++
 		s.importSet(job, i, "working", "")
-		state, msg := s.importOne(v, siteIDs, siteErr, profileOf, rec)
+		state, msg, routerID := s.importOne(v, siteIDs, siteErr, profileOf, rec)
+		if v.Mode == fleetimport.ModeLink && routerID != "" {
+			if _, seen := links[v.ProfileID()]; !seen {
+				linkOrder = append(linkOrder, v.ProfileID())
+			}
+			links[v.ProfileID()] = append(links[v.ProfileID()], linkRow{i, routerID})
+		}
 		switch state {
 		case "added":
 			added++
@@ -261,6 +281,31 @@ func (s *Server) importRun(job *importJob, plan fleetimport.Result, rec *audit.R
 		EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
 		s.broadcastRouterList()
 		s.syncFleetHolds()
+	}
+
+	// The link rows' accounts, one job per profile, started now and not waited
+	// for. A profile already mid-change cannot take a second job; those rows
+	// stay on their own login and say so.
+	for _, pid := range linkOrder {
+		rows := links[pid]
+		targets := make([]string, len(rows))
+		for k, lr := range rows {
+			targets[k] = lr.routerID
+		}
+		p, err := profileOf(pid)
+		op, ok := (*loginOp)(nil), false
+		if err == nil {
+			op, ok = s.loginStart(pid, "link", targets)
+		}
+		if !ok {
+			for _, lr := range rows {
+				s.importSet(job, lr.row, "warning", "Added with its own login. "+
+					"The profile was busy, so link it from Credential Profiles")
+				warned++
+			}
+			continue
+		}
+		go s.loginLinkAll(op, p, targets, rec)
 	}
 	summary := fmt.Sprintf("%d of %d device(s) added", added, len(job.Rows))
 	if warned > 0 {
@@ -326,12 +371,13 @@ func (s *Server) importSites(names []string, rec *audit.Recorder) (map[string]st
 	return ids, errs
 }
 
-// importOne adds one ready row and says how it went.
+// importOne adds one ready row and says how it went, with the new device's id.
+// It never waits on the router.
 func (s *Server) importOne(v fleetimport.Verdict, siteIDs, siteErr map[string]string,
-	profileOf func(string) (store.LoginProfile, error), rec *audit.Recorder) (string, string) {
+	profileOf func(string) (store.LoginProfile, error), rec *audit.Recorder) (string, string, string) {
 	for _, n := range v.Sites {
 		if msg := siteErr[strings.ToLower(n)]; msg != "" {
-			return "failed", fmt.Sprintf("Site %q could not be created (%s)", n, msg)
+			return "failed", fmt.Sprintf("Site %q could not be created (%s)", n, msg), ""
 		}
 	}
 	body := v.Body(siteIDs)
@@ -340,14 +386,14 @@ func (s *Server) importOne(v fleetimport.Verdict, siteIDs, siteErr map[string]st
 	if v.Mode != fleetimport.ModePlain {
 		p, err := profileOf(v.ProfileID())
 		if err != nil {
-			return "failed", fmt.Sprintf("The credential profile %q is gone", v.Profile)
+			return "failed", fmt.Sprintf("The credential profile %q is gone", v.Profile), ""
 		}
 		profile = p
 	}
 
 	rt, err := s.store.AddRouter(body)
 	if err != nil {
-		return "failed", safe.Message(err.Error())
+		return "failed", safe.Message(err.Error()), ""
 	}
 	rec.Record(audit.Event{
 		Action: "router.create", TargetType: "router", TargetID: rt.ID,
@@ -359,18 +405,13 @@ func (s *Server) importOne(v fleetimport.Verdict, siteIDs, siteErr map[string]st
 	case fleetimport.ModeVerify:
 		if err := s.store.UseLoginProfile(rt.ID, profile.ID); err != nil {
 			return "warning", "Added, but it could not be switched to " + profile.Name + " (" +
-				safe.Message(err.Error()) + "); it has no login until you link it"
+				safe.Message(err.Error()) + "); it has no login until you link it", rt.ID
 		}
 		s.loginAudit(rec, "loginprofile.link", profile, rt.ID, nil)
-		return "added", "Signs in with " + profile.Name + " (not checked during the import)"
+		return "added", "Signs in with " + profile.Name + " (not checked during the import)", rt.ID
 	case fleetimport.ModeLink:
-		err := s.loginLinkOne(profile, rt.ID)
-		s.loginAudit(rec, "loginprofile.link", profile, rt.ID, err)
-		if err != nil {
-			return "warning", "Added with its own login. Linking " + profile.Name + " failed: " +
-				safe.Message(err.Error())
-		}
-		return "added", "Account created; signs in with " + profile.Name
+		return "added", "Added with its own login. Creating the " + store.LoginUserName + " account for " +
+			profile.Name + " follows in the background; Credential Profiles shows how it went", rt.ID
 	}
-	return "added", ""
+	return "added", "", rt.ID
 }
