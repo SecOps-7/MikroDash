@@ -39,13 +39,14 @@ const loginProfilesFile = "login-profiles.json"
 // the fleet carries the same account whether it was added by hand or by
 // zero-touch provisioning (`internal/ztp` uses the same two names).
 //
-// RouterOS user names are CASE-SENSITIVE - measured on RouterOS 7.24 (CHR):
-// `ZzCaseProbe` and `zzcaseprobe` were two accounts, and signing in with an
-// existing name in another case was refused. So this is a different account
-// from the `mikrodash` the README has operators create by hand.
+// LOWER CASE, and so the SAME account the README has operators create by hand
+// (operator's decision, 2026-10-02, replacing `MikroDash` the same day). On a
+// router already set up that way, linking adopts that account and its group.
+// RouterOS user names are case-sensitive - measured on RouterOS 7.24 (CHR):
+// `ZzCaseProbe` and `zzcaseprobe` were two accounts - so the case matters.
 const (
-	LoginUserName  = "MikroDash"
-	LoginGroupName = "MikroDash"
+	LoginUserName  = "mikrodash"
+	LoginGroupName = "mikrodash"
 )
 
 // LoginProfile is one stored login.

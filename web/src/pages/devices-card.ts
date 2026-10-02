@@ -218,7 +218,7 @@ export function detailsHtml(r: RouterStatsRow, o: DeviceOverview | undefined, no
     // Derived, so it moves by a second or two between refreshes; minutes hide it.
     + row('Last boot', up != null ? esc(fmtTs(now - up, false)) : dash)
     + row('Host', '<span class="dvm-mono">' + esc(r.host) + '</span>')
-    + (r.loginProfile ? row('Login', '<span class="dvm-mono">MikroDash</span> <span class="dvm-pill">'
+    + (r.loginProfile ? row('Login', '<span class="dvm-mono">mikrodash</span> <span class="dvm-pill">'
       + esc(r.loginProfile) + '</span>') : '')
     + row('Sites', sites.length ? sites.map((s) => '<span class="dvm-pill">' + esc(s) + '</span>').join(' ') : dash)
     + row('Backup', backup)

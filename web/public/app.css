@@ -1032,6 +1032,8 @@
       padding:.55rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.76rem}
     .lp-fixed span{color:var(--text-muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em}
     .lp-fixed strong{font-family:var(--font-mono);color:var(--text-main)}
+    /* Pinned first in the profiles table, and marked as different in kind. */
+    tr.lp-pinned td{background:color-mix(in srgb,var(--accent-rx) 6%,transparent);border-bottom:1px solid var(--border)}
     .cfg-pick-item .lp-err{flex-basis:100%;color:var(--accent-err);white-space:normal}
     .dvm-tabs .dvm-range{font-family:var(--font-ui);font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.25rem .8rem}
     .dvm-tabs .dvm-range[hidden]{display:none}

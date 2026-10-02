@@ -3,8 +3,9 @@
  *
  * ── WHAT THIS IS NOT ─────────────────────────────────────────────────────────
  *
- * It is not where MikroDash's own login is kept. A profile creates accounts for
- * PEOPLE; MikroDash signs in as itself throughout, and the server refuses per
+ * A profile here is not where MikroDash's own login is kept - that is the pinned
+ * "MikroDash login" row, `config-management-logins.ts`. A profile creates
+ * accounts for PEOPLE; MikroDash signs in as itself throughout, and the server refuses per
  * router - `internal/guard/selfguard.go` - any write that could disturb that.
  * The copy on the page says so, because an operator who believes otherwise will
  * eventually try to use a profile to change MikroDash's own password.
@@ -177,12 +178,13 @@ export function profileRow(p: CredProfile, links: readonly CredLink[]): string {
 
 /** Draws the whole table, or the empty state. */
 export function drawProfiles(profiles: readonly CredProfile[],
-  links: readonly CredLink[]): void {
+  links: readonly CredLink[], pinned = ''): void {
   const body = el('cpBody');
   const empty = el('cpEmpty');
   if (!body || !empty) return;
-  body.innerHTML = profiles.map((p) => profileRow(p, links)).join('');
-  empty.hidden = profiles.length > 0;
+  // THE PINNED ROW FIRST: the MikroDash login (config-management-logins.ts).
+  body.innerHTML = pinned + profiles.map((p) => profileRow(p, links)).join('');
+  empty.hidden = profiles.length > 0 || pinned !== '';
 }
 
 /** What a links-dialog Apply would send. */

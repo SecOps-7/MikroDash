@@ -1,7 +1,14 @@
 /**
- * The Credentials tab's MikroDash login profiles (#143): the account MikroDash
- * ITSELF signs in with - user `MikroDash` in group `MikroDash` - one password
- * for every linked device.
+ * The Credentials tab's pinned "MikroDash login" row (#143): the account
+ * MikroDash ITSELF signs in with - user `mikrodash` in group `mikrodash` - one
+ * password for every linked device.
+ *
+ * ── ONE LOGIN, PINNED IN THE PROFILES TABLE ─────────────────────────────────
+ *
+ * The operator's layout: not a table of its own, but the first row of the
+ * credential profiles table, always there. So the page holds ONE login,
+ * created as `MIKRODASH_LOGIN` the first time a password is set; the server
+ * keeps a list (`/data/login-profiles.json`) and the page uses its first entry.
  *
  * ── LINKING WRITES TO THE DEVICE, AND PROVES IT FIRST ───────────────────────
  *
@@ -43,8 +50,12 @@ export interface LoginProfileView {
 interface Device { id: string; label: string; siteIds: string[]; loginProfileId: string }
 
 /** The status cell: the job's state while it runs, then its summary. */
-export function opStatus(op: LoginOp | null): string {
-  if (!op) return '<span class="cp-pill cp-none">idle</span>';
+export function opStatus(op: LoginOp | null, devices = 0): string {
+  // NO JOB IN MEMORY (none run yet, or the server restarted): the device
+  // records are the truth, in the words the other rows use.
+  if (!op) {
+    return devices ? '<span class="cp-pill cp-ok">applied</span>' : '<span class="cp-pill cp-none">not linked</span>';
+  }
   const vals = Object.values(op.results);
   const failed = vals.filter((r) => r.state === 'failed').length;
   if (op.running) {
@@ -52,25 +63,35 @@ export function opStatus(op: LoginOp | null): string {
     const what = op.kind === 'password' ? 'Changing password' : 'Linking';
     return `<span class="cp-pill cp-wait">${what} ${done}/${vals.length}</span>`;
   }
-  const kind = failed ? 'warn' : 'ok';
-  return `<span class="cp-pill cp-${kind}" title="${esc(op.summary)}">${esc(op.summary || 'done')}</span>`;
+  // SHORT, in the table's own state words; the sentence is the tooltip. The
+  // whole summary in the cell pushed the row's buttons out of the table.
+  const word = failed ? `${failed} failed` : 'applied';
+  return `<span class="cp-pill cp-${failed ? 'warn' : 'ok'}" title="${esc(op.summary)}">${esc(word)}</span>`;
 }
 
-/** One table row. */
-export function loginRow(p: LoginProfileView): string {
-  const busy = !!(p.op && p.op.running);
-  return '<tr>'
-    + `<td><strong>${esc(p.name)}</strong></td>`
-    + `<td><span class="cp-user">${esc(p.username)}</span> <span class="cfg-meta">in ${esc(p.group)}</span></td>`
-    + `<td>${p.devices.length}</td>`
-    + `<td>${opStatus(p.op)}</td>`
-    + '<td class="text-end cp-actions">'
-    + `<button class="cfg-btn" type="button" data-lp-edit="${esc(p.id)}"${busy ? ' disabled' : ''}>Edit</button> `
-    + `<button class="cfg-btn" type="button" data-lp-devices="${esc(p.id)}">Devices</button> `
-    + `<button class="cfg-btn cfg-btn-danger" type="button" data-lp-del="${esc(p.id)}"`
-    + (p.devices.length ? ' disabled title="Switch its devices to their own login first"' : '')
-    + '>Delete</button>'
-    + '</td></tr>';
+/** The name the pinned login is created with. */
+export const MIKRODASH_LOGIN = 'MikroDash login';
+
+/**
+ * The pinned row, in the credential profiles table's columns: name, RouterOS
+ * user, permissions, devices, state, actions. `null` is a login not set up yet,
+ * which still shows - pinned means always there - offering to set it.
+ */
+export function pinnedRow(p: LoginProfileView | null): string {
+  const busy = !!(p && p.op && p.op.running);
+  const actions = p
+    ? `<button class="cfg-btn" type="button" data-lp-edit="${esc(p.id)}"${busy ? ' disabled' : ''}>Edit</button> `
+      + `<button class="cfg-btn" type="button" data-lp-devices="${esc(p.id)}">Devices</button>`
+    : '<button class="cfg-btn cfg-btn-go" type="button" data-lp-new="1">Set password</button>';
+  return '<tr class="lp-pinned">'
+    + `<td><strong>${esc(p ? p.name : MIKRODASH_LOGIN)}</strong> `
+    + '<span class="cp-pill cp-wait" title="The account MikroDash itself signs in with. Always first, never deleted.">'
+    + 'pinned</span></td>'
+    + `<td><span class="cp-user">${esc(p ? p.username : 'mikrodash')}</span></td>`
+    + `<td><span class="cp-perms">${esc(p ? p.group : 'mikrodash')}: every permission</span></td>`
+    + `<td>${p ? p.devices.length : 0}</td>`
+    + `<td>${p ? opStatus(p.op, p.devices.length) : '<span class="cp-pill cp-none">not set</span>'}</td>`
+    + `<td class="text-end cp-actions">${actions}</td></tr>`;
 }
 
 /**
@@ -85,8 +106,7 @@ export function linkTargets(sites: ReadonlySet<string>, picked: ReadonlySet<stri
 }
 
 /** Checks the form before anything is sent. "" when it is fine. */
-export function formError(name: string, pass: string, pass2: string, creating: boolean): string {
-  if (!name.trim()) return 'A name is required.';
+export function formError(pass: string, pass2: string, creating: boolean): string {
   if (creating && !pass) return 'A password is required.';
   if (pass && pass.length < 12) return 'The password needs at least 12 characters.';
   if (pass !== pass2) return 'The two passwords differ.';
@@ -104,7 +124,7 @@ const send = (method: string, v: unknown): RequestInit => ({
   method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v),
 });
 
-export function mountLoginProfiles(): { load: () => Promise<void> } {
+export function mountLoginProfiles(redraw: (row: string) => void): { load: () => Promise<void> } {
   let list: LoginProfileView[] = [];
   let devices: Device[] = [];
   let sites: { id: string; name: string }[] = [];
@@ -144,10 +164,7 @@ export function mountLoginProfiles(): { load: () => Promise<void> } {
     } catch {
       list = [];
     }
-    const body = el('lpBody');
-    const empty = el('lpEmpty');
-    if (body) body.innerHTML = list.map(loginRow).join('');
-    if (empty) empty.hidden = list.length > 0;
+    redraw(pinnedRow(list[0] ?? null));
     if (devFor) {
       await loadDevices();
       drawDevices();
@@ -157,18 +174,15 @@ export function mountLoginProfiles(): { load: () => Promise<void> } {
     poll = list.some((p) => p.op && p.op.running) ? setTimeout(() => void load(), 2000) : null;
   }
 
-  // ── the profile form ────────────────────────────────────────────────────
+  // ── the password form ───────────────────────────────────────────────────
   function openForm(p: LoginProfileView | null): void {
     editing = p;
     showErr('lpError', '');
-    const t = el('lpModalTitle');
-    if (t) t.textContent = p ? 'Edit login profile' : 'New login profile';
     const set = (id: string, v: string): void => { const n = el<HTMLInputElement>(id); if (n) n.value = v; };
-    set('lpName', p?.name ?? '');
     set('lpPass', '');
     set('lpPass2', '');
     const lbl = el('lpPassLabel');
-    if (lbl) lbl.textContent = p ? 'New password (blank keeps it)' : 'Password';
+    if (lbl) lbl.textContent = p ? 'New password' : 'Password';
     const note = el('lpPassNote');
     if (note) {
       note.textContent = p && p.devices.length
@@ -181,32 +195,20 @@ export function mountLoginProfiles(): { load: () => Promise<void> } {
   }
 
   async function save(): Promise<void> {
-    const name = el<HTMLInputElement>('lpName')?.value ?? '';
     const pass = el<HTMLInputElement>('lpPass')?.value ?? '';
     const pass2 = el<HTMLInputElement>('lpPass2')?.value ?? '';
-    const bad = formError(name, pass, pass2, !editing);
+    const bad = formError(pass, pass2, true);
     if (bad) { showErr('lpError', bad); return; }
     try {
       if (editing) {
-        await lpApi('/' + editing.id, send('PUT', { name, password: pass }));
+        await lpApi('/' + editing.id, send('PUT', { name: editing.name, password: pass }));
       } else {
-        await lpApi('', send('POST', { name, password: pass }));
+        await lpApi('', send('POST', { name: MIKRODASH_LOGIN, password: pass }));
       }
       open('lpModal', false);
       await load();
     } catch (e) {
-      showErr('lpError', e instanceof Error ? e.message : 'The profile could not be saved');
-    }
-  }
-
-  async function remove(id: string): Promise<void> {
-    const p = list.find((x) => x.id === id);
-    if (!p || !window.confirm(`Delete the login profile "${p.name}"?`)) return;
-    try {
-      await lpApi('/' + id, { method: 'DELETE' });
-      await load();
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'The profile could not be deleted');
+      showErr('lpError', e instanceof Error ? e.message : 'The password could not be saved');
     }
   }
 
@@ -214,7 +216,7 @@ export function mountLoginProfiles(): { load: () => Promise<void> } {
   function drawDevices(): void {
     const p = list.find((x) => x.id === devFor);
     const t = el('lpDevTitle');
-    if (t && p) t.textContent = 'Devices signing in with ' + p.name;
+    if (t) t.textContent = 'Devices signing in with the MikroDash login';
     const sitesHost = el('lpDevSites');
     if (sitesHost) {
       sitesHost.innerHTML = sites.length ? sites.map((s) => `<label class="cfg-pick-item${wantSites.has(s.id) ? ' is-on' : ''}">`
@@ -273,8 +275,8 @@ export function mountLoginProfiles(): { load: () => Promise<void> } {
     const ids = linkTargets(wantSites, wantDevices, devices, devFor);
     const p = list.find((x) => x.id === devFor);
     if (!ids.length || !p) return;
-    const msg = `Link ${ids.length} device(s) to "${p.name}"?\n\nOn each one this creates user MikroDash in group `
-      + 'MikroDash (every permission) with the profile\'s password, checks it signs in, and switches MikroDash '
+    const msg = `Link ${ids.length} device(s) to "${p.name}"?\n\nOn each one this creates user mikrodash in group `
+      + 'mikrodash (every permission, if the group is new) with the profile\'s password, checks it signs in, and switches MikroDash '
       + 'over. A device where that fails is put back as it was.';
     if (!window.confirm(msg)) return;
     try {
@@ -312,16 +314,16 @@ export function mountLoginProfiles(): { load: () => Promise<void> } {
   }
 
   // ── wiring ──────────────────────────────────────────────────────────────
-  el('lpNew')?.addEventListener('click', () => openForm(null));
   el('lpCancel')?.addEventListener('click', () => open('lpModal', false));
   el('lpSave')?.addEventListener('click', () => void save());
-  el('lpBody')?.addEventListener('click', (e) => {
+  // THE PINNED ROW LIVES IN THE PROFILES TABLE, so its buttons are found there.
+  el('cpBody')?.addEventListener('click', (e) => {
     const t = e.target as HTMLElement | null;
     const b = t?.closest?.('button') as HTMLElement | null;
     if (!b) return;
+    if (b.dataset.lpNew) openForm(null);
     if (b.dataset.lpEdit) openForm(list.find((p) => p.id === b.dataset.lpEdit) ?? null);
     if (b.dataset.lpDevices) void openDevices(b.dataset.lpDevices);
-    if (b.dataset.lpDel) void remove(b.dataset.lpDel);
   });
   el('lpDevClose')?.addEventListener('click', () => { devFor = ''; open('lpDevModal', false); });
   el('lpDevApply')?.addEventListener('click', () => void link());

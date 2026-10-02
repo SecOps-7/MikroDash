@@ -216,7 +216,7 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   // not know about is exactly what this shim is strict in order to catch.
   'cfgPanel-credentials', 'cpBody', 'cpEmpty', 'cpNew', 'cpPerm', 'cpCancel', 'cpSave',
   // The MikroDash login profiles share the tab (config-management-logins.ts).
-  'lpNew', 'lpCancel', 'lpSave', 'lpBody', 'lpDevClose', 'lpDevApply', 'lpDevSites', 'lpDevList',
+  'lpCancel', 'lpSave', 'lpDevClose', 'lpDevApply', 'lpDevSites', 'lpDevList',
   'lpOwnCancel', 'lpOwnSave',
   'cpLinksClose', 'cpLinksBody', 'cpSiteList', 'cpLinksEmpty', 'cpDefault',
   'cpApply', 'cpLinksError'],

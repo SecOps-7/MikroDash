@@ -2,8 +2,8 @@ package server
 
 // MikroDash login profiles: /api/credentials/logins/…
 //
-// One password for the account MikroDash signs in with - user `MikroDash` in
-// group `MikroDash` - shared by every device linked to the profile. Linking a
+// One password for the account MikroDash signs in with - user `mikrodash` in
+// group `mikrodash` - shared by every device linked to the profile. Linking a
 // device CREATES that account on it; changing the password CHANGES it on every
 // linked device. See `internal/loginprof` for why this is the one path allowed
 // to write MikroDash's own account, and `store/loginprofiles.go` for how a

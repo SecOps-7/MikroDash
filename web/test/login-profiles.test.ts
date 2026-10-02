@@ -4,10 +4,10 @@
  *   - LINK TARGETS: a device ticked directly or through a site, minus those
  *     already on this profile. A device on ANOTHER profile is a target (linking
  *     moves it); one already linked is not (nothing to do).
- *   - THE FORM refuses a short or mismatched password before anything is sent,
- *     and an edit may leave the password blank (it keeps the current one).
- *   - THE ROW never offers Delete while devices sign in with the profile, and
- *     everything the server supplies is escaped.
+ *   - THE FORM refuses a missing, short or mismatched password before anything
+ *     is sent.
+ *   - THE PINNED ROW is always drawn - "not set" with Set password before the
+ *     login exists - never offers Delete, and escapes what the server sends.
  *   - A DOWN DEVICE ON A PROFILE says which profile's password it used.
  */
 
@@ -42,27 +42,35 @@ const devices = [
 }
 
 {
-  assert.match(L.formError('', 'x'.repeat(12), 'x'.repeat(12), true), /name/);
-  assert.match(L.formError('Fleet', '', '', true), /required/);
-  assert.match(L.formError('Fleet', 'short', 'short', true), /12/);
-  assert.match(L.formError('Fleet', 'x'.repeat(12), 'y'.repeat(12), true), /differ/);
-  assert.strictEqual(L.formError('Fleet', '', '', false), '', 'an edit could not keep the password');
-  assert.strictEqual(L.formError('Fleet', 'x'.repeat(12), 'x'.repeat(12), true), '');
-  say('ok  the form: name, length, match; blank keeps it on edit');
+  assert.match(L.formError('', '', true), /required/);
+  assert.match(L.formError('short', 'short', true), /12/);
+  assert.match(L.formError('x'.repeat(12), 'y'.repeat(12), true), /differ/);
+  assert.strictEqual(L.formError('x'.repeat(12), 'x'.repeat(12), true), '');
+  say('ok  the form: required, length, match');
 }
 
 {
-  const p = { id: 'p1', name: '<img src=x>', username: 'MikroDash', group: 'MikroDash', hasSecret: true,
+  const none = L.pinnedRow(null);
+  assert.match(none, /MikroDash login/);
+  assert.match(none, /not set/);
+  assert.match(none, /data-lp-new="1"/, 'a login not set up yet offers no way to set it');
+  const p = { id: 'p1', name: '<img src=x>', username: 'mikrodash', group: 'mikrodash', hasSecret: true,
     devices: ['b'], updatedAt: 0, op: null };
-  const row = L.loginRow(p);
-  assert.ok(!/<img/.test(row), 'a profile name reached the row unescaped');
-  assert.match(row, /data-lp-del="p1" disabled/, 'Delete was offered while a device signs in with the profile');
-  assert.ok(!/data-lp-del="p1" disabled/.test(L.loginRow({ ...p, devices: [] })),
-    'control: an unused profile could not be deleted');
+  const row = L.pinnedRow(p);
+  assert.ok(!/<img/.test(row), 'the login name reached the row unescaped');
+  assert.ok(!/data-lp-del|Delete/.test(row), 'the pinned login offers Delete');
+  assert.match(row, /data-lp-edit="p1"/);
+  assert.match(row, /<td>1<\/td>/, 'the device count is wrong');
   const running = L.opStatus({ kind: 'password', running: true, started: 0, summary: '',
     results: { b: { state: 'done', message: '' }, c: { state: 'pending', message: '' } } });
   assert.match(running, /Changing password 1\/2/);
-  say('ok  the row: escaped, Delete held while in use, the job shows progress');
+  assert.match(L.opStatus(null, 2), />applied</, 'a linked login with no job in memory does not say applied');
+  assert.match(L.opStatus(null, 0), />not linked</);
+  const failed = L.opStatus({ kind: 'link', running: false, started: 0, summary: 'a long sentence',
+    results: { b: { state: 'failed', message: 'x' }, c: { state: 'done', message: '' } } });
+  assert.match(failed, />1 failed</, 'a finished job does not say how many failed');
+  assert.match(failed, /title="a long sentence"/, 'the summary is not in the tooltip');
+  say('ok  the pinned row: always drawn, never deletable, escaped; the job shows progress');
 }
 fs.rmSync(OUT, { force: true });
 

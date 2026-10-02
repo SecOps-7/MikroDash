@@ -26,12 +26,13 @@ func (f *fake) Exec(c routeros.Cmd) ([]routeros.Reply, error) {
 	}
 	f.sent = append(f.sent, c.Path+" "+strings.Join(c.Args, " "))
 	if c.Path == "/user/add" {
-		f.users = append(f.users, routeros.Reply{".id": "*99", "name": "MikroDash"})
+		f.users = append(f.users, routeros.Reply{".id": "*99", "name": "mikrodash"})
 	}
 	return nil, nil
 }
 
 func base(live string) *fake {
+	// THE NAMES ARE STORE'S; the tests below spell them out.
 	return &fake{
 		users:  []routeros.Reply{{".id": "*1", "name": live, "group": "full"}},
 		groups: []routeros.Reply{{".id": "*g1", "name": "full"}},
@@ -54,10 +55,10 @@ func TestPutCreatesAndUndoRemoves(t *testing.T) {
 	if !strings.Contains(all, "/user/group/add") || !strings.Contains(all, "policy=local,telnet") {
 		t.Errorf("the group was not created with every policy:\n%s", all)
 	}
-	if !strings.Contains(all, "/user/add =name=MikroDash =group=MikroDash =password=a-long-fleet-password") {
+	if !strings.Contains(all, "/user/add =name=mikrodash =group=mikrodash =password=a-long-fleet-password") {
 		t.Errorf("the account was not created in the group:\n%s", all)
 	}
-	f.groups = append(f.groups, routeros.Reply{".id": "*g9", "name": "MikroDash"})
+	f.groups = append(f.groups, routeros.Reply{".id": "*g9", "name": "mikrodash"})
 	f.sent = nil
 	if err := Undo(f, c, "unused"); err != nil {
 		t.Fatal(err)
@@ -71,9 +72,9 @@ func TestPutCreatesAndUndoRemoves(t *testing.T) {
 // OUR OWN ACCOUNT: Undo puts the OLD PASSWORD back, or MikroDash is locked out
 // at its next connect.
 func TestUndoRestoresOurOwnPassword(t *testing.T) {
-	f := base("MikroDash")
-	f.groups = append(f.groups, routeros.Reply{".id": "*g9", "name": "MikroDash"})
-	c, err := Put(f, "Fleet", "a-long-fleet-password", "MikroDash")
+	f := base("mikrodash")
+	f.groups = append(f.groups, routeros.Reply{".id": "*g9", "name": "mikrodash"})
+	c, err := Put(f, "Fleet", "a-long-fleet-password", "mikrodash")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,19 +90,20 @@ func TestUndoRestoresOurOwnPassword(t *testing.T) {
 	}
 }
 
-// `mikrodash` IS SOMEBODY ELSE: RouterOS names are case-sensitive.
-func TestALowerCaseMikrodashIsNotOurAccount(t *testing.T) {
-	f := base("mikrodash")
-	c, err := Put(f, "Fleet", "a-long-fleet-password", "mikrodash")
+// `MikroDash` IS SOMEBODY ELSE: RouterOS names are case-sensitive, so an
+// account differing only in case is never taken for ours.
+func TestAnUpperCaseMikroDashIsNotOurAccount(t *testing.T) {
+	f := base("MikroDash")
+	c, err := Put(f, "Fleet", "a-long-fleet-password", "MikroDash")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !c.UserAdded {
-		t.Error("an existing `mikrodash` was taken for `MikroDash`")
+		t.Error("an existing `MikroDash` was taken for `mikrodash`")
 	}
 	for _, s := range f.sent {
 		if strings.Contains(s, "=.id=*1") {
-			t.Errorf("the lower-case account was written: %s", s)
+			t.Errorf("the differently-cased account was written: %s", s)
 		}
 	}
 }

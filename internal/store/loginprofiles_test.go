@@ -81,7 +81,7 @@ func TestALoginProfileAlwaysSignsInAsMikroDash(t *testing.T) {
 	if strings.Contains(string(b), "a-long-fleet-password") {
 		t.Fatal("the profile's password is in the file in clear")
 	}
-	_ = os.WriteFile(path, []byte(strings.Replace(string(b), `"username": "MikroDash"`, `"username": "admin"`, 1)), 0o600)
+	_ = os.WriteFile(path, []byte(strings.Replace(string(b), `"username": "mikrodash"`, `"username": "admin"`, 1)), 0o600)
 	if a := routerByID(t, st, "a"); a.Username != LoginUserName {
 		t.Errorf("an edited file made the profile sign in as %q", a.Username)
 	}

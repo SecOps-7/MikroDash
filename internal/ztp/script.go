@@ -43,19 +43,21 @@ const (
 	IfaceName  = "mikrodash-ztp"       // the device's own tunnel interface
 	EnrolIface = "mikrodash-ztp-enrol" // a generic script's shared-key interface
 	// UserName and GroupName are the API user MikroDash signs in as and its
-	// group: `MikroDash`, the same account a login profile puts on a device
-	// added by hand (store.LoginUserName/LoginGroupName), so the fleet carries
-	// one account whichever way a device arrived. The operator's decision,
-	// 2026-10-02.
+	// group: `mikrodash`, the same account a login profile puts on a device and
+	// the README has operators create by hand (store.LoginUserName/
+	// LoginGroupName), so the fleet carries one account whichever way a device
+	// arrived. The operator's decision, 2026-10-02.
 	//
-	// STILL NOT "mikrodash": that is the name a router already managed by hand
-	// usually has, and the script restricts this user's address and sets its
-	// password, which would lock the existing connection out. RouterOS user
-	// names are CASE-SENSITIVE (measured on RouterOS 7.24: `ZzCaseProbe` and
-	// `zzcaseprobe` were two accounts, and a login in the other case was
-	// refused), so `MikroDash` is a different account from `mikrodash`.
-	UserName  = "MikroDash"
-	GroupName = "MikroDash"
+	// ── AND THAT IS WHY THE SCRIPT REFUSES A `mikrodash` IT DID NOT MAKE ────
+	//
+	// It used to be named `mikrodash-ztp` precisely to stay clear of a
+	// hand-made `mikrodash`: the script restricts its user's address and sets
+	// its password, which on an account somebody else made would lock that
+	// connection out. With one name for both, the script now touches only a
+	// `mikrodash` carrying its own comment, and stops with an error on a router
+	// where a different one is already there (`apiUser`).
+	UserName  = "mikrodash"
+	GroupName = "mikrodash"
 	// LegacyUserName is what scripts made before 2026-10-02 create, in group
 	// `full`. A device running one of those still onboards, and every device
 	// already onboarded keeps signing in with it.
@@ -193,6 +195,12 @@ func firstAccept(b *strings.Builder, match string) {
 // apiUser creates the API user, limited to `from`, with `password` (a literal
 // or a script expression).
 func apiUser(b *strings.Builder, from netip.Addr, password string) {
+	// A `mikrodash` THIS SCRIPT DID NOT MAKE stops it, before anything below:
+	// restricting its address and resetting its password would cut off
+	// whoever uses it - most likely an install already managing this router.
+	fmt.Fprintf(b, ":if ([:len [/user find name=%s comment!=%s]] > 0) do={ :error %s }\n",
+		q(UserName), q(Comment), q("MikroDash: this router already has a "+UserName+
+			" account that zero-touch provisioning did not create; it was left alone and enrolment stopped"))
 	// THE GROUP FIRST, because the user names it. Every policy, as `full` gave
 	// the account before it had a group of its own; one that is already there is
 	// left alone.
@@ -202,7 +210,7 @@ func apiUser(b *strings.Builder, from netip.Addr, password string) {
 	b.WriteString("/user\n")
 	fmt.Fprintf(b, ":if ([:len [find name=%s]] = 0) do={ add name=%s group=%s address=%s password=%s comment=%s }\n",
 		q(UserName), q(UserName), q(GroupName), q(from.String()+"/32"), password, q(Comment))
-	fmt.Fprintf(b, "set [find name=%s] address=%s\n", q(UserName), q(from.String()+"/32"))
+	fmt.Fprintf(b, "set [find name=%s comment=%s] address=%s\n", q(UserName), q(Comment), q(from.String()+"/32"))
 }
 
 // apiService makes sure MikroDash can reach the API from `from`: an address
@@ -272,7 +280,7 @@ func remoteEnrol(inst Instance, d Remote) string {
 	s.WriteString(":onerror e in={\n")
 	// THE PASSWORD IS SET ONLY ONCE THE ENROLMENT IS ACCEPTED, so a refused
 	// attempt never leaves the router with a password MikroDash does not have.
-	finish(&s, fmt.Sprintf("  /user set [find name=%s] password=$pw\n", q(UserName)))
+	finish(&s, fmt.Sprintf("  /user set [find name=%s comment=%s] password=$pw\n", q(UserName), q(Comment)))
 	return s.String()
 }
 
@@ -285,7 +293,7 @@ func LocalScript(inst Instance, d Local) string {
 	header(&b, d.Label+" (local network)", inst.ID, d.Expires, "this device's API password and a one-time token")
 	firstAccept(&b, "src-address="+q(d.From.String()))
 	apiUser(&b, d.From, q(d.Password))
-	fmt.Fprintf(&b, "set [find name=%s] password=%s\n", q(UserName), q(d.Password))
+	fmt.Fprintf(&b, "set [find name=%s comment=%s] password=%s\n", q(UserName), q(Comment), q(d.Password))
 	apiService(&b, d.From)
 	installEnrol(&b, localEnrol(inst, d))
 	return b.String()
@@ -349,7 +357,7 @@ func genericEnrol(inst Instance, bt Batch) string {
 	// ON ACCEPTANCE: the password, then the address MikroDash gave this key,
 	// then the shared interface goes (its address and peer with it).
 	var x strings.Builder
-	fmt.Fprintf(&x, "  /user set [find name=%s] password=$pw\n", q(UserName))
+	fmt.Fprintf(&x, "  /user set [find name=%s comment=%s] password=$pw\n", q(UserName), q(Comment))
 	x.WriteString("  :local j [:deserialize from=json value=($r->\"data\")]\n")
 	fmt.Fprintf(&x, "  /ip address add address=(($j->\"address\") . \"/32\") network=%s interface=%s comment=%s\n",
 		q(inst.Server.String()), q(IfaceName), q(Comment))

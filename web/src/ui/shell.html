@@ -631,7 +631,7 @@
             <input class="sform-input" id="rtrModalPort" type="number" min="1" max="65535" value="8729" placeholder="8729">
           </div>
         </div>
-        <p class="rtr-note" id="rtrModalLoginNote" hidden>Signs in as <strong>MikroDash</strong> with a login
+        <p class="rtr-note" id="rtrModalLoginNote" hidden>Signs in as <strong>mikrodash</strong> with a login
           profile. Change its password, or give it a login of its own, in Config Management &rarr; Credentials.</p>
         <div class="sform-row sform-group" id="rtrModalCredRow">
           <div>
@@ -1328,19 +1328,15 @@
    </div>
   </div>
 
-  <!-- A MikroDash login profile (#143): a name and the password. The account
-       and group are fixed, so they are shown, not asked for. -->
+  <!-- The MikroDash login (#143): its password. The account and group are
+       fixed, so they are shown, not asked for. -->
   <div class="rtr-modal-bg" id="lpModal">
    <div class="rtr-modal" style="max-width:30rem">
     <div class="rtr-modal-hdr">
-      <span class="rtr-modal-title" id="lpModalTitle">New login profile</span>
+      <span class="rtr-modal-title" id="lpModalTitle">MikroDash login</span>
     </div>
     <div class="rtr-modal-body" style="display:block">
-      <div class="sform-group">
-        <label class="sform-label" for="lpName">Name <span style="color:var(--accent-err)">*</span></label>
-        <input class="sform-input" id="lpName" type="text" placeholder="Fleet login" autocomplete="off" maxlength="64">
-      </div>
-      <div class="lp-fixed"><span>Account</span><strong>MikroDash</strong><span>Group</span><strong>MikroDash</strong></div>
+      <div class="lp-fixed"><span>Account</span><strong>mikrodash</strong><span>Group</span><strong>mikrodash</strong></div>
       <div class="sform-row">
         <div class="sform-group">
           <label class="sform-label" for="lpPass" id="lpPassLabel">Password</label>
@@ -1375,7 +1371,7 @@
         shortcut, not a rule: a device that joins the site later is not linked by it.</p>
       <div id="lpDevSites" class="cfg-pick"></div>
       <div class="ztp-sub" style="margin-top:.9rem">Devices</div>
-      <p class="rtr-note cp-note" style="margin-top:0">Linking creates user MikroDash in group MikroDash on the
+      <p class="rtr-note cp-note" style="margin-top:0">Linking creates user mikrodash in group mikrodash on the
         device, signs in with it to prove it works, and only then switches MikroDash over. If it does not work the
         device is put back as it was.</p>
       <div id="lpDevList" class="cfg-pick"></div>

@@ -75,17 +75,22 @@ func TestTheScriptsKeepWhatWasMeasured(t *testing.T) {
 		if regexp.MustCompile(`/ip service\n[^/]*get \[find`).MatchString(s) {
 			t.Errorf("%s reads a service with get [find …]", name)
 		}
-		// The user is never the one a router managed by hand already has.
-		// EXACT: RouterOS names are case-sensitive, so `MikroDash` is not it.
-		if strings.Contains(s, `name="mikrodash"`) || UserName == "mikrodash" {
-			t.Errorf("%s uses the user name a hand-managed router already has", name)
-		}
-		// THE ACCOUNT IS `MikroDash` IN GROUP `MikroDash`, the group made first
-		// (2026-10-02, the operator's decision: one account across the fleet).
+		// RE-AIMED 2026-10-02: the account IS `mikrodash` now, the name a router
+		// managed by hand already has (operator's decision). So the property the
+		// old "never that name" rule protected is held another way: the script
+		// STOPS before anything else on a `mikrodash` it did not create, and
+		// every write to the account names its own comment, so a hand-made one
+		// is never restricted or given a new password.
+		guard := strings.Index(s, `:if ([:len [/user find name="mikrodash" comment!="MikroDash ZTP"]] > 0) do={ :error`)
 		g := strings.Index(s, `/user group`)
-		u := strings.Index(s, `add name="MikroDash" group="MikroDash"`)
-		if g < 0 || u < 0 || g > u {
-			t.Errorf("%s does not create the MikroDash group and then the MikroDash user in it", name)
+		u := strings.Index(s, `add name="mikrodash" group="mikrodash"`)
+		if guard < 0 || g < 0 || u < 0 || guard > g || g > u {
+			t.Errorf("%s does not refuse a foreign mikrodash, then create the group, then the user in it", name)
+		}
+		for _, line := range strings.Split(s, "\n") {
+			if strings.Contains(line, `set [find name="mikrodash"`) && !strings.Contains(line, `comment="MikroDash ZTP"`) {
+				t.Errorf("%s writes to any mikrodash account, not only its own: %s", name, line)
+			}
 		}
 		if strings.Contains(s, "group=full") {
 			t.Errorf("%s still puts the account in group full", name)

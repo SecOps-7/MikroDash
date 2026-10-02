@@ -381,7 +381,7 @@ func (p *probe) cleanupZTP(services []routeros.Reply) {
 		"/interface/wireguard/peers", "/interface/wireguard", "/user", "/user/group"} {
 		rows, _ := p.c.Do(routeros.Cmd{Path: m + "/print", Args: []string{"=.proplist=.id,comment,name"}, Timeout: 15 * time.Second})
 		for _, r := range rows {
-			// `MikroDash` is matched by COMMENT only: since 2026-10-02 it is also the
+			// `mikrodash` is matched by COMMENT only: since 2026-10-02 it is also the
 			// account a login profile puts on a device, and a probe must not take
 			// that one away. The legacy name is ZTP's alone.
 			if r["comment"] == ztp.Comment || r["name"] == ztp.LegacyUserName || r["name"] == ztp.IfaceName ||

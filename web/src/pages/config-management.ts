@@ -434,6 +434,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   // (internal/guard/selfguard.go), and the copy on the panel says so.
 
   let cps: CredProfile[] = [];
+  /** The MikroDash login's row, drawn first in the profiles table. */
+  let pinnedLogin = '';
   let cpLinks: CredLink[] = [];
   /** The profile open in the dialog; null when creating. */
   let cpEditing: CredProfile | null = null;
@@ -493,11 +495,11 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         all.push(...l.links);
       }
       cpLinks = all;
-      drawProfiles(cps, cpLinks);
+      drawProfiles(cps, cpLinks, pinnedLogin);
     } catch {
       cps = [];
       cpLinks = [];
-      drawProfiles(cps, cpLinks);
+      drawProfiles(cps, cpLinks, pinnedLogin);
     }
   }
 
@@ -835,8 +837,12 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   // ── Wiring ───────────────────────────────────────────────────────────────
 
   el('cpNew')?.addEventListener('click', () => cpOpenForm(null));
-  // The MikroDash login profiles above the credential profiles on the same tab.
-  const logins = mountLoginProfiles();
+  // THE PINNED "MikroDash login" ROW, first in the same table. The login module
+  // owns it and asks for a redraw when it changes.
+  const logins = mountLoginProfiles((row) => {
+    pinnedLogin = row;
+    drawProfiles(cps, cpLinks, pinnedLogin);
+  });
   el('cpPerm')?.addEventListener('change', cpApplyPreset);
   el('cpCancel')?.addEventListener('click', () => cpOpen('cpModal', false));
   el('cpSave')?.addEventListener('click', () => void cpSave());

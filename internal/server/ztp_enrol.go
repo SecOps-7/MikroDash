@@ -368,7 +368,7 @@ func (s *Server) ztpOnboard(id string) {
 //
 // The applier does, per router, from a fresh read. A `full` profile on a ZTP
 // device is refused there because the guard refuses moving any user into
-// MikroDash's own group (`MikroDash`, or `full` on a device onboarded before
+// MikroDash's own group (`mikrodash`, or `full` on a device onboarded before
 // 2026-10-02) - which is exactly the
 // check that must not be second-guessed by a caller. The wizard warns; the
 // guard decides.

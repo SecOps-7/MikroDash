@@ -1,5 +1,5 @@
 // Package loginprof puts a login profile's account on one router: the group
-// and user MikroDash itself signs in with, both called `MikroDash`
+// and user MikroDash itself signs in with, both called `mikrodash`
 // (store.LoginUserName / store.LoginGroupName).
 //
 // ── THIS WRITES MIKRODASH'S OWN ACCOUNT, ON PURPOSE ────────────────────────
