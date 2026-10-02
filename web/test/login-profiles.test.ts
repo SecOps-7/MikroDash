@@ -1,9 +1,8 @@
 /**
  * MIKRODASH LOGIN PROFILES, THE BROWSER HALF.
  *
- *   - LINK TARGETS: a device ticked directly or through a site, minus those
- *     already on this profile. A device on ANOTHER profile is a target (linking
- *     moves it); one already linked is not (nothing to do).
+ *   - LINK TARGETS: the picked devices minus those already on this login. A
+ *     device on ANOTHER login is a target (linking moves it).
  *   - THE FORM refuses a missing, short or mismatched password before anything
  *     is sent.
  *   - THE PINNED ROW is always drawn - "not set" with Set password before the
@@ -33,12 +32,12 @@ const devices = [
 ];
 
 {
-  assert.deepStrictEqual(L.linkTargets(new Set(['s1']), new Set(), devices, 'p1'), ['a'],
-    'a site did not tick its devices, or re-linked one already on the profile');
-  assert.deepStrictEqual(L.linkTargets(new Set(), new Set(['c', 'd']), devices, 'p1'), ['c', 'd'],
-    'a device on another profile, or a directly ticked one, was not a target');
-  assert.deepStrictEqual(L.linkTargets(new Set(), new Set(), devices, 'p1'), []);
-  say('ok  link targets: by site or directly, never one already linked');
+  // RE-AIMED 2026-10-02: a site is the picker's shortcut now, adding its devices
+  // as picked ones, so Link acts on the picked devices minus the linked.
+  assert.deepStrictEqual(L.linkTargets(['a', 'b', 'c'], devices, 'p1'), ['a', 'c'],
+    'a device already on the login was a target, or one on another login was not');
+  assert.deepStrictEqual(L.linkTargets([], devices, 'p1'), []);
+  say('ok  link targets: the picked devices, never one already linked');
 }
 
 {

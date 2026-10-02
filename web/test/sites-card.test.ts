@@ -229,10 +229,13 @@ function check(name, fn) {
       assert.equal(doc.els.sf_title.textContent, 'Edit Site');
       assert.ok(doc.els.siteFormWrap.has('open'), 'the form was not opened');
     });
-    check('the right device is ticked', () => {
+    // RE-AIMED 2026-10-02: the members are the shared picker's pills
+    // (device-picker.ts), not ticked boxes. A picked device is a pill with a
+    // remove button naming it.
+    check('the right device is picked', () => {
       const html = doc.els.sf_routers.innerHTML;
-      assert.match(html, /data-site-router="r1" checked/, 'r1 not ticked: ' + html);
-      assert.ok(!/data-site-router="r2" checked/.test(html), 'r2 wrongly ticked');
+      assert.match(html, /data-dp-rm="r1"/, 'r1 not picked: ' + html);
+      assert.ok(!/data-dp-rm="r2"/.test(html), 'r2 wrongly picked');
     });
   }
 
@@ -245,7 +248,7 @@ function check(name, fn) {
       assert.equal(doc.els.sf_id.value, '');
       assert.equal(doc.els.sf_name.value, '');
       assert.equal(doc.els.sf_title.textContent, 'Add Site');
-      assert.ok(!/checked/.test(doc.els.sf_routers.innerHTML), 'a device was pre-ticked');
+      assert.ok(!/data-dp-rm=/.test(doc.els.sf_routers.innerHTML), 'a device was pre-picked');
     });
   }
 

@@ -1034,7 +1034,6 @@
     .lp-fixed strong{font-family:var(--font-mono);color:var(--text-main)}
     /* Pinned first in the profiles table, and marked as different in kind. */
     tr.lp-pinned td{background:color-mix(in srgb,var(--accent-rx) 6%,transparent);border-bottom:1px solid var(--border)}
-    .cfg-pick-item .lp-err{flex-basis:100%;color:var(--accent-err);white-space:normal}
     .dvm-tabs .dvm-range{font-family:var(--font-ui);font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.25rem .8rem}
     .dvm-tabs .dvm-range[hidden]{display:none}
     .dvm-tab-count{display:inline-block;min-width:1.2rem;margin-left:.3rem;padding:0 .35rem;border-radius:20px;font-family:var(--font-mono);font-size:.62rem;
@@ -2333,10 +2332,6 @@
    thing; ≠ means it is there and does not. */
 .dns-fleet-pick{display:flex;flex-wrap:wrap;gap:.35rem;padding:.5rem .85rem;
   border-top:1px solid var(--border)}
-.dns-fleet-router{display:flex;align-items:center;gap:.3rem;padding:.15rem .5rem;
-  border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:.7rem;
-  background:rgba(99,130,190,.06)}
-.dns-fleet-router.is-on{border-color:rgba(56,189,248,.45);background:rgba(56,189,248,.12)}
 .dns-fleet-col{text-align:center;width:5.5rem}
 .dns-fleet-yes{color:rgba(52,211,153,.9);font-weight:700}
 .dns-fleet-yes.is-odd{color:var(--accent-warn)}
@@ -2348,8 +2343,6 @@
 .dns-extra{margin-top:.7rem;padding:.55rem .7rem;border:1px solid var(--border);
   border-radius:6px;background:rgba(99,130,190,.05)}
 .dns-extra-title{font-size:.72rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem}
-.dns-extra-pick{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.35rem}
-.dns-extra-host{font-family:var(--font-mono);font-size:.62rem;color:var(--text-muted)}
 
 /* ── THE INTERFACES MODAL'S TRAFFIC HISTORY (#59) ───────────────────────────
    The same extras slot the DNS picker uses, so the spacing and the border
@@ -3044,12 +3037,6 @@
     .cfg-dep-save{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
     .cfg-dep-save .is-ok{color:var(--accent-ok)}
     .cfg-dep-tpl{max-width:28rem}
-    .cfg-pick-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
-    .cfg-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.4rem}
-    .cfg-pick-item{display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border-radius:9px;cursor:pointer;
-      border:1px solid var(--border);background:color-mix(in srgb,var(--text-muted) 5%,transparent);transition:border-color .2s,background .2s}
-    .cfg-pick-item.is-on{border-color:color-mix(in srgb,var(--accent-rx) 45%,var(--border));background:color-mix(in srgb,var(--accent-rx) 9%,transparent)}
-    .cfg-pick-name{flex:1;min-width:0;font-size:.8rem;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .vpn-hs-badge.cfg-pill-canary{background:color-mix(in srgb,var(--accent-alt) 15%,transparent);color:var(--accent-alt);border:1px solid color-mix(in srgb,var(--accent-alt) 34%,transparent)}
     .cfg-scroll{overflow-x:auto}
     .cfg-grid-vals td,.cfg-grid-vals th{font-size:.74rem;vertical-align:middle;min-width:9rem}
@@ -3724,8 +3711,6 @@
 .nchan-event .stoggle-label { display: flex; flex-direction: column; gap: .15rem; }
 .nchan-event-desc { font-size: .68rem; color: var(--text-muted); font-weight: 400; }
 
-.nchan-routers { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
-.nchan-router { display: flex; align-items: center; gap: .35rem; font-size: .74rem; }
 
     /* ── THE TERMINAL ─────────────────────────────────────────────────────────
        A console built out of the app's own tokens rather than a scheme of its
@@ -3770,3 +3755,48 @@
     #terminalInput:focus,#terminalInput:focus-visible{outline:none !important}
     .term-live:focus-within .term-prompt{color:var(--accent-rx);font-weight:700}
     .term-status{font-size:.72rem;color:var(--text-muted);margin-right:.5rem}
+
+/* ── The device picker (web/src/device-picker.ts) ───────────────────────────
+   A search box over the fleet; what is picked sits below as pills. Every
+   dialog that chooses devices uses it. */
+.dp { display: flex; flex-direction: column; gap: .55rem; }
+.dp-box { position: relative; }
+.dp-q { width: 100%; }
+/* INLINE, not floating: a floating list is clipped by the scrolling body of the
+   dialog it sits in, and every picker lives in one. */
+.dp-results { margin-top: 4px; max-height: 16rem; overflow-y: auto;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 9px; padding: .3rem; }
+.dp-opt { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .15rem .55rem; padding: .4rem .55rem;
+  border-radius: 6px; cursor: pointer; font-size: .78rem; }
+.dp-opt:hover, .dp-opt.is-active { background: color-mix(in srgb, var(--accent-rx) 12%, transparent); }
+.dp-opt-name { color: var(--text-main); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; grid-column: 1 / 3; }
+.dp-opt .dp-pill-kind + .dp-opt-name { grid-column: 2; }
+.dp-opt-meta { color: var(--text-muted); font-family: var(--font-mono); font-size: .66rem; text-align: right; white-space: nowrap; }
+.dp-opt-detail { grid-column: 1 / -1; color: var(--text-muted); font-size: .66rem; }
+.dp-none { padding: .45rem .55rem; color: var(--text-muted); font-size: .72rem; }
+.dp-all { width: 100%; margin-top: .25rem; padding: .4rem; border-radius: 6px; border: 1px dashed var(--border);
+  background: none; color: var(--accent-rx); font-size: .74rem; cursor: pointer; }
+.dp-all:hover { background: color-mix(in srgb, var(--accent-rx) 10%, transparent); }
+.dp-pills { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.dp-pill { display: inline-flex; align-items: center; gap: .35rem; max-width: 100%; padding: .2rem .25rem .2rem .55rem;
+  border-radius: 20px; font-size: .74rem; color: var(--text-main);
+  background: color-mix(in srgb, var(--accent-rx) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-rx) 32%, var(--border)); }
+.dp-pill.dp-ok { border-color: color-mix(in srgb, var(--accent-ok) 45%, var(--border)); background: color-mix(in srgb, var(--accent-ok) 9%, transparent); }
+.dp-pill.dp-warn { border-color: color-mix(in srgb, var(--accent-warn) 55%, var(--border)); background: color-mix(in srgb, var(--accent-warn) 11%, transparent); }
+.dp-pill.dp-bad { border-color: color-mix(in srgb, var(--accent-err) 55%, var(--border)); background: color-mix(in srgb, var(--accent-err) 11%, transparent); }
+.dp-pill.dp-site { background: color-mix(in srgb, var(--accent-alt) 11%, transparent); border-color: color-mix(in srgb, var(--accent-alt) 38%, var(--border)); }
+.dp-pill-kind { font-size: .58rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); font-weight: 700; }
+.dp-canary { color: var(--accent-alt); }
+.dp-pill-n { font-family: var(--font-mono); font-size: .64rem; color: var(--text-muted); }
+.dp-pill-state { font-size: .62rem; font-weight: 600; text-transform: lowercase; color: var(--text-muted); }
+.dp-pill.dp-warn .dp-pill-state { color: var(--accent-warn); }
+.dp-pill.dp-bad .dp-pill-state { color: var(--accent-err); }
+.dp-x { border: 0; background: none; color: var(--text-muted); cursor: pointer; font-size: .9rem; line-height: 1;
+  width: 1.25rem; height: 1.25rem; border-radius: 50%; padding: 0; }
+.dp-x:hover, .dp-x:focus-visible { color: var(--text-main); background: color-mix(in srgb, var(--text-muted) 22%, transparent); }
+.dp-act { border: 1px solid var(--border); background: none; color: var(--accent-rx); font-size: .64rem; border-radius: 10px;
+  padding: .05rem .45rem; cursor: pointer; }
+.dp-more, .dp-clear { border: 0; background: none; color: var(--accent-rx); font-size: .72rem; cursor: pointer; padding: .2rem .35rem; }
+.dp-clear { color: var(--text-muted); margin-left: auto; }
+.dp-empty { color: var(--text-muted); font-size: .74rem; padding: .3rem 0; }
+

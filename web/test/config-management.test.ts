@@ -184,9 +184,8 @@ assert.strictEqual(deploy.readyToStart(['r1'], { r1: ok }, new Set(['r1|lockout-
 assert.strictEqual(deploy.readyToStart(['r1'], { r1: { routerId: 'r1', hash: 'h', findings: [{ level: 'refuse', code: 'x', message: 'no' }] } },
   new Set()), 'A check refuses this template on a router');
 assert.strictEqual(deploy.findingKey(ack), 'lockout-firewall@13', 'the key must be the one cfgdeploy.FindingKey writes');
-// The canary is the first picked, and marked.
-const picker = deploy.routerPicker([{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], ['b', 'a']);
-assert.ok(/data-dep-router="b"[^]*?cfg-pill-canary/.test(picker.slice(picker.indexOf('data-dep-router="b"'))), 'the canary is marked');
+// The canary marking moved to the shared picker's ordered mode (2026-10-02);
+// web/test/device-picker.test.ts checks it there.
 // A secret is entered as one, and a label stays text.
 const vgrid = deploy.valuesGrid([{ name: 'pw', type: 'secret' }], [{ id: 'r', label: '<b>x</b>' }], {});
 assert.ok(/data-dep-var="pw" type="password"/.test(vgrid), 'a secret is entered in the clear');
@@ -216,9 +215,9 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   // not know about is exactly what this shim is strict in order to catch.
   'cfgPanel-credentials', 'cpBody', 'cpEmpty', 'cpNew', 'cpPerm', 'cpCancel', 'cpSave',
   // The MikroDash login profiles share the tab (config-management-logins.ts).
-  'lpCancel', 'lpSave', 'lpDevClose', 'lpDevApply', 'lpDevSites', 'lpDevList',
+  'lpCancel', 'lpSave', 'lpDevClose', 'lpDevApply', 'lpDevList',
   'lpOwnCancel', 'lpOwnSave',
-  'cpLinksClose', 'cpLinksBody', 'cpSiteList', 'cpLinksEmpty', 'cpDefault',
+  'cpLinksClose', 'cpLinksBody', 'cpDefault',
   'cpApply', 'cpLinksError'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]', '#cpPolicies [data-cp-policy]'] });
 global.document = doc;

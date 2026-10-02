@@ -91,6 +91,12 @@ const STATE_TITLE: Record<string, string> = {
   unknown: 'The write was accepted but could not be confirmed. It will be re-checked.',
 };
 
+/** The picker pill kind for a link state (see `PillInfo`). */
+export function stateKind(state: string): 'ok' | 'wait' | 'warn' | 'bad' | undefined {
+  const k = STATE_KIND[state];
+  return k === 'ok' || k === 'wait' || k === 'warn' || k === 'bad' ? k : undefined;
+}
+
 export function statePill(state: string): string {
   // AN UNKNOWN STATE IS NEUTRAL, NOT RED. `not linked` is the ordinary case for
   // a profile nobody has put anywhere yet, and colouring it like a failure

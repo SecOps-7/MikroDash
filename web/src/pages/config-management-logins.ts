@@ -24,6 +24,7 @@
  */
 
 import { el, esc } from '../dom';
+import { mountPicker, type Picker } from '../device-picker';
 
 export interface LoginOpResult { state: string; message: string }
 
@@ -47,7 +48,7 @@ export interface LoginProfileView {
   op: LoginOp | null;
 }
 
-interface Device { id: string; label: string; siteIds: string[]; loginProfileId: string }
+interface Device { id: string; label: string; host: string; model: string; siteIds: string[]; loginProfileId: string }
 
 /** The status cell: the job's state while it runs, then its summary. */
 export function opStatus(op: LoginOp | null, devices = 0): string {
@@ -95,14 +96,14 @@ export function pinnedRow(p: LoginProfileView | null): string {
 }
 
 /**
- * The devices Link would act on: every device ticked directly or through a
- * site, minus those already on this profile. A site is a shortcut that ticks
- * its devices, not a lasting rule - see the dialog's note.
+ * The devices Link would act on: the picked ones not already on this profile.
+ * A site here is a shortcut that adds its devices as they are now (the picker's
+ * `shortcut` mode), so there is no site set to expand.
  */
-export function linkTargets(sites: ReadonlySet<string>, picked: ReadonlySet<string>,
-  devices: readonly Device[], profileId: string): string[] {
-  return devices.filter((d) => d.loginProfileId !== profileId
-    && (picked.has(d.id) || d.siteIds.some((s) => sites.has(s)))).map((d) => d.id);
+export function linkTargets(picked: readonly string[], devices: readonly Pick<Device, 'id' | 'loginProfileId'>[],
+  profileId: string): string[] {
+  const on = new Set(picked);
+  return devices.filter((d) => d.loginProfileId !== profileId && on.has(d.id)).map((d) => d.id);
 }
 
 /** Checks the form before anything is sent. "" when it is fine. */
@@ -131,8 +132,7 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
   let editing: LoginProfileView | null = null;
   let devFor = '';
   let ownFor = '';
-  const wantSites = new Set<string>();
-  const wantDevices = new Set<string>();
+  let picker: Picker | null = null;
   let poll: ReturnType<typeof setTimeout> | null = null;
 
   const open = (id: string, on: boolean): void => { el(id)?.classList.toggle('open', on); };
@@ -148,10 +148,10 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
     try {
       const r = await fetch('/api/routers', { credentials: 'same-origin' });
       const b = (await r.json()) as { routers?: { id: string; label?: string; host?: string; disabled?: boolean;
-        siteIds?: string[]; loginProfileId?: string }[] };
+        siteIds?: string[]; loginProfileId?: string; model?: string }[] };
       devices = (b.routers ?? []).filter((x) => !x.disabled).map((x) => ({
-        id: x.id, label: x.label || x.host || x.id, siteIds: x.siteIds ?? [],
-        loginProfileId: x.loginProfileId ?? '',
+        id: x.id, label: x.label || x.host || x.id, host: x.host ?? '', model: x.model ?? '',
+        siteIds: x.siteIds ?? [], loginProfileId: x.loginProfileId ?? '',
       }));
     } catch {
       devices = [];
@@ -167,6 +167,7 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
     redraw(pinnedRow(list[0] ?? null));
     if (devFor) {
       await loadDevices();
+      picker?.refresh();
       drawDevices();
     }
     // POLLED WHILE A JOB RUNS, and only then.
@@ -213,40 +214,45 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
   }
 
   // ── the devices dialog ──────────────────────────────────────────────────
+  //
+  // The shared picker (`device-picker.ts`). Devices already on this login are
+  // LOCKED pills with "Use own login"; a device on another login says so, and
+  // linking moves it. The last job's result per device colours its pill.
+  function pickerFor(): Picker | null {
+    if (picker) return picker;
+    const host = el('lpDevList');
+    if (!host) return null;
+    picker = mountPicker(host, {
+      items: () => devices.map((d) => ({ id: d.id, label: d.label, host: d.host, model: d.model, siteIds: d.siteIds })),
+      sites: () => sites,
+      siteMode: 'shortcut',
+      fixed: () => devices.filter((d) => d.loginProfileId === devFor).map((d) => d.id),
+      info: (id) => {
+        const d = devices.find((x) => x.id === id);
+        if (d && d.loginProfileId === devFor) {
+          return { kind: 'ok', text: 'linked', locked: true,
+            action: `<button class="dp-act" type="button" data-lp-own="${esc(id)}">Use own login</button>` };
+        }
+        const r = list.find((x) => x.id === devFor)?.op?.results[id];
+        if (r) {
+          const kind = r.state === 'failed' ? 'bad' : r.state === 'done' ? 'ok' : 'wait';
+          return { kind, text: r.state, title: r.message };
+        }
+        if (d && d.loginProfileId) return { kind: 'wait', text: 'other login', title: 'Signs in with another login; linking moves it' };
+        return undefined;
+      },
+      placeholder: 'Search devices or sites',
+      emptyText: 'No devices sign in with this login yet. Search to add some.',
+      onChange: drawDevices,
+    });
+    return picker;
+  }
+
   function drawDevices(): void {
     const p = list.find((x) => x.id === devFor);
     const t = el('lpDevTitle');
     if (t) t.textContent = 'Devices signing in with the MikroDash login';
-    const sitesHost = el('lpDevSites');
-    if (sitesHost) {
-      sitesHost.innerHTML = sites.length ? sites.map((s) => `<label class="cfg-pick-item${wantSites.has(s.id) ? ' is-on' : ''}">`
-        + `<input type="checkbox" data-lp-site="${esc(s.id)}"${wantSites.has(s.id) ? ' checked' : ''}>`
-        + `<span class="cfg-pick-name">${esc(s.name)}</span></label>`).join('')
-        : '<div class="cfg-meta">No sites.</div>';
-    }
-    const host = el('lpDevList');
-    const results = p?.op?.results ?? {};
-    if (host) {
-      host.innerHTML = devices.map((d) => {
-        const linked = d.loginProfileId === devFor;
-        const other = !linked && d.loginProfileId !== '';
-        const viaSite = d.siteIds.some((s) => wantSites.has(s));
-        const on = linked || viaSite || wantDevices.has(d.id);
-        const r = results[d.id];
-        const pill = linked ? '<span class="cp-pill cp-ok">linked</span>'
-          : other ? '<span class="cp-pill cp-wait" title="Signs in with another login profile; linking moves it">other profile</span>'
-          : '';
-        const res = r && !linked ? `<span class="cp-pill cp-${r.state === 'failed' ? 'bad' : r.state === 'done' ? 'ok' : 'wait'}"`
-          + ` title="${esc(r.message)}">${esc(r.state)}</span>` : '';
-        return `<label class="cfg-pick-item${on ? ' is-on' : ''}">`
-          + `<input type="checkbox" data-lp-device="${esc(d.id)}"${on ? ' checked' : ''}${linked || viaSite ? ' disabled' : ''}>`
-          + `<span class="cfg-pick-name">${esc(d.label)}</span>${pill}${res}`
-          + (r && r.state === 'failed' && r.message ? `<span class="cfg-meta lp-err">${esc(r.message)}</span>` : '')
-          + (linked ? `<button class="cfg-btn" type="button" data-lp-own="${esc(d.id)}">Use own login</button>` : '')
-          + '</label>';
-      }).join('') || '<div class="cfg-meta">No devices.</div>';
-    }
-    const n = linkTargets(wantSites, wantDevices, devices, devFor).length;
+    const n = linkTargets(picker?.get().items ?? [], devices, devFor).length;
     const btn = el<HTMLButtonElement>('lpDevApply');
     const running = !!(p && p.op && p.op.running);
     if (btn) {
@@ -257,8 +263,6 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
 
   async function openDevices(id: string): Promise<void> {
     devFor = id;
-    wantSites.clear();
-    wantDevices.clear();
     showErr('lpDevError', '');
     await loadDevices();
     try {
@@ -267,12 +271,13 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
     } catch {
       sites = [];
     }
+    pickerFor()?.set({ items: [], sites: [] });
     drawDevices();
     open('lpDevModal', true);
   }
 
   async function link(): Promise<void> {
-    const ids = linkTargets(wantSites, wantDevices, devices, devFor);
+    const ids = linkTargets(picker?.get().items ?? [], devices, devFor);
     const p = list.find((x) => x.id === devFor);
     if (!ids.length || !p) return;
     const msg = `Link ${ids.length} device(s) to "${p.name}"?\n\nOn each one this creates user mikrodash in group `
@@ -281,8 +286,7 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
     if (!window.confirm(msg)) return;
     try {
       await lpApi('/' + devFor + '/devices', send('POST', { routerIds: ids }));
-      wantSites.clear();
-      wantDevices.clear();
+      picker?.set({ items: [], sites: [] });
       await load();
     } catch (e) {
       showErr('lpDevError', e instanceof Error ? e.message : 'Linking could not start');
@@ -327,17 +331,6 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
   });
   el('lpDevClose')?.addEventListener('click', () => { devFor = ''; open('lpDevModal', false); });
   el('lpDevApply')?.addEventListener('click', () => void link());
-  for (const id of ['lpDevSites', 'lpDevList']) {
-    el(id)?.addEventListener('change', (e) => {
-      const t = e.target as HTMLInputElement | null;
-      if (!t) return;
-      const set = t.dataset.lpSite ? wantSites : wantDevices;
-      const key = t.dataset.lpSite || t.dataset.lpDevice || '';
-      if (!key) return;
-      if (t.checked) set.add(key); else set.delete(key);
-      drawDevices();
-    });
-  }
   el('lpDevList')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement | null)?.closest?.('[data-lp-own]') as HTMLElement | null;
     if (!b) return;

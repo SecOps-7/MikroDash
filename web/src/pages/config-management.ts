@@ -18,14 +18,15 @@ import {
   type RunRow, type SortableRun,
 } from './config-management-history';
 import {
-  defaultsFromValues, findingKey, newSecret, previewCard, readyToStart, rolloutView, routerPicker, valuesGrid,
+  defaultsFromValues, findingKey, newSecret, previewCard, readyToStart, rolloutView, valuesGrid,
   type RouterOpt, type RouterPreview,
 } from './config-management-deploy';
 import {
-  drawProfiles, linkDiff, statePill,
+  drawProfiles, linkDiff, stateKind,
   type CredLink, type CredProfile, type LinkDiff,
 } from './config-management-credentials';
 import { mountLoginProfiles } from './config-management-logins';
+import { mountPicker, type Picker } from '../device-picker';
 
 const TABS = ['library', 'editor', 'deploy', 'history', 'drift', 'credentials'] as const;
 type Tab = (typeof TABS)[number];
@@ -598,50 +599,48 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   }
 
   /**
-   * The routers, as a tick list carrying each one's state.
+   * The picker for where a profile applies (`device-picker.ts`).
    *
-   * ── A SITE-DERIVED ROW IS TICKED AND LOCKED ────────────────────────────
+   * ── A SITE IS A RULE HERE ──────────────────────────────────────────────
    *
-   * That is the whole point of showing them together: a router covered by a
-   * ticked site IS in scope, and unticking it individually would be a request
-   * the model cannot honour - the next sweep would put it straight back. So it
-   * is disabled and says which site it comes from, and the way to remove it is
-   * to untick that site.
+   * A picked site stays a site: every router in it has the account, now and
+   * as the site changes. Its routers are not listed one by one - the site pill
+   * counts them - except one whose link needs attention (refused, conflict,
+   * failed...), which shows as a locked pill with its state and Retry, first.
+   *
+   * Picking STAGES: the picker's selection is the desired state, and Apply
+   * sends only what differs from the server, as the tick lists did.
    */
-  function cpDrawLinks(): void {
+  let cpPicker: Picker | null = null;
+  function cpPickerFor(): Picker | null {
+    if (cpPicker) return cpPicker;
     const host = el('cpLinksBody');
-    const empty = el('cpLinksEmpty');
-    if (!host || !empty) return;
-    empty.hidden = dep.routers.length > 0;
+    if (!host) return null;
+    cpPicker = mountPicker(host, {
+      items: () => dep.routers.map((r) => ({ ...r, siteIds: cpRouterSites[r.id] ?? r.siteIds ?? [] })),
+      sites: () => cpAllSites,
+      siteMode: 'rule',
+      info: (id) => {
+        const l = cpLinks.find((x) => x.profileId === cpLinksFor && x.routerId === id);
+        if (!l) return undefined;
+        const retry = l.state === 'refused' || l.state === 'conflict'
+          ? `<button class="dp-act" type="button" data-cp-retry="${esc(id)}">Retry</button>` : '';
+        return { kind: stateKind(l.state), text: l.state, title: l.error || '', action: retry };
+      },
+      emptyText: 'Not on any router. Search for a router or a site to add it.',
+      placeholder: 'Search routers or sites',
+      onChange: () => {
+        const sel = cpPicker!.get();
+        cpWantSites = new Set(sel.sites);
+        cpWantRouters = new Set(sel.items);
+        cpDrawApply();
+      },
+    });
+    return cpPicker;
+  }
 
-    const byRouter = new Map(cpLinks.filter((l) => l.profileId === cpLinksFor)
-      .map((l) => [l.routerId, l]));
-    const bySite = new Map(cpAllSites.map((st) => [st.id, st.name]));
-
-    host.innerHTML = dep.routers.map((r) => {
-      const l = byRouter.get(r.id);
-      // WHICH TICKED SITE PULLS THIS ROUTER IN - from the wanted set, so a site
-      // just ticked locks its routers before Apply rather than after.
-      const from = (cpRouterSites[r.id] ?? []).filter((sid) => cpWantSites.has(sid))
-        .map((sid) => bySite.get(sid) ?? sid);
-      const viaSite = from.length > 0;
-      const on = viaSite || cpWantRouters.has(r.id);
-      // RETRY ACTS NOW, not on Apply: it re-queues work the server already has,
-      // which is a different thing from changing what this dialog would do.
-      const retry = l && (l.state === 'refused' || l.state === 'conflict')
-        ? `<button class="cfg-btn" type="button" data-cp-retry="${esc(r.id)}">Retry</button>`
-        : '';
-      return `<label class="cfg-pick-item${on ? ' is-on' : ''}">`
-        + `<input type="checkbox" data-cp-router="${esc(r.id)}"${on ? ' checked' : ''}`
-        + (viaSite ? ' disabled title="In scope through a site. Untick the site to remove it."' : '')
-        + '>'
-        + `<span class="cfg-pick-name">${esc(r.label)}</span>`
-        + (viaSite ? `<span class="cp-pill cp-wait">via ${esc(from.join(', '))}</span>` : '')
-        + (l ? statePill(l.state) : '')
-        + (l && l.error ? `<span class="cfg-meta" title="${esc(l.error)}">${esc(l.code)}</span>` : '')
-        + retry
-        + '</label>';
-    }).join('');
+  function cpDrawLinks(): void {
+    cpPickerFor()?.refresh();
     cpDrawApply();
   }
 
@@ -762,7 +761,6 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     }
     cpSeedWanted();
     cpDrawLinks();
-    cpDrawSites();
   }
 
   /** The staged state starts as whatever the server currently has. */
@@ -770,31 +768,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     cpWantSites = new Set(cpSiteLinks);
     cpWantRouters = new Set(cpLinks
       .filter((l) => l.profileId === cpLinksFor && l.via !== 'site').map((l) => l.routerId));
-  }
-
-  /**
-   * The sites, as a tick list.
-   *
-   * Ticked means linked. There is no Add button and nothing to press twice:
-   * the previous design had a dropdown per kind and ONE Link button, so both
-   * selects always carried a value and pressing it added a router and a site
-   * whether or not both were wanted.
-   */
-  function cpDrawSites(): void {
-    const host = el('cpSiteList');
-    if (!host) return;
-    if (!cpAllSites.length) {
-      host.innerHTML = '<div class="cfg-meta">No sites are defined.</div>';
-      return;
-    }
-    const on = cpWantSites;
-    host.innerHTML = cpAllSites.map((st) => {
-      const n = dep.routers.filter((r) => (cpRouterSites[r.id] ?? []).includes(st.id)).length;
-      return `<label class="cfg-pick-item${on.has(st.id) ? ' is-on' : ''}">`
-        + `<input type="checkbox" data-cp-site="${esc(st.id)}"${on.has(st.id) ? ' checked' : ''}>`
-        + `<span class="cfg-pick-name">${esc(st.name)}</span>`
-        + `<span class="cfg-meta">${n} router${n === 1 ? '' : 's'}</span></label>`;
-    }).join('');
+    cpPickerFor()?.set({ sites: [...cpWantSites], items: [...cpWantRouters] });
   }
 
   async function cpOpenLinks(id: string): Promise<void> {
@@ -830,7 +804,6 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     cpLinksError('');
     cpSeedWanted();
     cpDrawLinks();
-    cpDrawSites();
     cpOpen('cpLinksModal', true);
   }
 
@@ -864,28 +837,11 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const del = t.closest('[data-cp-del]')?.getAttribute('data-cp-del');
     if (del) void cpDelete(del);
   });
-  // ── TICKING STAGES; ONLY APPLY WRITES ───────────────────────────────────
+  // ── PICKING STAGES; ONLY APPLY WRITES ───────────────────────────────────
   //
-  // These handlers touch no router. They move a box in and out of the desired
-  // set and redraw, so the consequence of a tick is visible - a ticked site
-  // locks its routers immediately - while nothing has happened on a device yet.
-  el('cpSiteList')?.addEventListener('change', (e) => {
-    const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-cp-site]');
-    const sid = box?.getAttribute('data-cp-site');
-    if (!box || !sid) return;
-    if (box.checked) cpWantSites.add(sid); else cpWantSites.delete(sid);
-    // BOTH LISTS REDRAW: a site decides which routers are locked, so leaving
-    // the router list alone would show a tick the site no longer justifies.
-    cpDrawSites();
-    cpDrawLinks();
-  });
-  el('cpLinksBody')?.addEventListener('change', (e) => {
-    const box = (e.target as HTMLElement).closest<HTMLInputElement>('[data-cp-router]');
-    const rid = box?.getAttribute('data-cp-router');
-    if (!box || !rid) return;
-    if (box.checked) cpWantRouters.add(rid); else cpWantRouters.delete(rid);
-    cpDrawLinks();
-  });
+  // The picker touches no router: it holds the desired set and redraws. The
+  // one write from inside the dialog is Retry, which re-queues work the server
+  // already has.
   el('cpLinksBody')?.addEventListener('click', (e) => {
     const rid = (e.target as HTMLElement).closest('[data-cp-retry]')?.getAttribute('data-cp-retry');
     if (!rid) return;
@@ -1022,13 +978,19 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     try {
       const r = await fetch('/api/routers', { credentials: 'same-origin' });
       const b = (await r.json()) as { routers?: { id: string; label?: string; host?: string;
-        disabled?: boolean; siteIds?: string[] }[] };
+        disabled?: boolean; siteIds?: string[]; model?: string }[] };
       const live = (b.routers ?? []).filter((x) => !x.disabled);
-      dep.routers = live.map((x) => ({ id: x.id, label: x.label || x.host || x.id }));
+      dep.routers = live.map((x) => ({ id: x.id, label: x.label || x.host || x.id, host: x.host,
+        model: x.model, siteIds: x.siteIds ?? [] }));
       // WHICH SITES EACH ROUTER IS IN, so the picker can say which linked site
       // pulls a router in rather than leaving a locked checkbox unexplained.
       cpRouterSites = {};
       for (const x of live) cpRouterSites[x.id] = x.siteIds ?? [];
+      // AND THE SITE NAMES, for the pickers' site search.
+      if (!cpAllSites.length) {
+        const sr = await fetch('/api/sites', { credentials: 'same-origin' });
+        cpAllSites = ((await sr.json()) as { sites?: { id: string; name: string }[] }).sites ?? [];
+      }
     } catch {
       dep.routers = [];
       cpRouterSites = {};
@@ -1054,6 +1016,32 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     drawDeploy();
   }
 
+  /**
+   * The Deploy tab's router picker (`device-picker.ts`), in ORDERED mode: the
+   * first router picked is the canary and goes first; the rest wait for the
+   * operator's OK. Sites are a shortcut that adds their routers as they are now.
+   */
+  let depPicker: Picker | null = null;
+  function depPickerFor(): Picker | null {
+    if (depPicker) return depPicker;
+    const host = el('cfgDepRouters');
+    if (!host) return null;
+    depPicker = mountPicker(host, {
+      items: () => dep.routers,
+      sites: () => cpAllSites,
+      siteMode: 'shortcut',
+      ordered: true,
+      placeholder: 'Search routers or sites',
+      emptyText: 'No routers picked. The first you pick goes first, as the canary; the rest wait for your OK.',
+      onChange: () => {
+        dep.picked = depPicker!.get().items;
+        invalidate();
+        drawDeploy();
+      },
+    });
+    return depPicker;
+  }
+
   function drawDeploy(): void {
     const sel = el('cfgDepTpl') as HTMLSelectElement | null;
     if (sel) {
@@ -1067,8 +1055,14 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         : 'An addition: merged into what each router already has. ') +
         (t.lockClass ? 'It can cut MikroDash off, so each router arms an automatic revert first.' : '');
     }
-    const routers = el('cfgDepRouters');
-    if (routers) routers.innerHTML = routerPicker(dep.routers, dep.picked);
+    // THE SHARED PICKER, kept in step with `dep.picked`: something other than
+    // the picker (a template change, Re-apply from Drift) may have set it.
+    const dp = depPickerFor();
+    if (dp) {
+      const now = dp.get().items;
+      if (now.length !== dep.picked.length || now.some((id, i) => id !== dep.picked[i])) dp.set({ items: dep.picked });
+      else dp.refresh();
+    }
     const picked = dep.picked.map((id) => ({ id, label: labelOf(id) }));
     const values = el('cfgDepValues');
     for (const id of dep.picked) {
@@ -1199,21 +1193,6 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   });
 
   el('cfgDepTpl')?.addEventListener('change', (e) => void pickTemplate((e.target as HTMLSelectElement).value));
-  el('cfgDepRouters')?.addEventListener('change', (e) => {
-    const box = e.target as HTMLInputElement;
-    const id = box.getAttribute('data-dep-router');
-    if (!id) return;
-    dep.picked = box.checked ? [...dep.picked.filter((x) => x !== id), id] : dep.picked.filter((x) => x !== id);
-    invalidate();
-    drawDeploy();
-  });
-  el('cfgDepRouters')?.addEventListener('click', (e) => {
-    const all = (e.target as HTMLElement).closest('[data-dep-all]')?.getAttribute('data-dep-all');
-    if (all === null || all === undefined) return;
-    dep.picked = all === '1' ? dep.routers.map((r) => r.id) : [];
-    invalidate();
-    drawDeploy();
-  });
   el('cfgDepValues')?.addEventListener('input', (e) => {
     const f = e.target as HTMLInputElement;
     const rid = f.getAttribute('data-dep-val');

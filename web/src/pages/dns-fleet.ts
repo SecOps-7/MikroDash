@@ -22,6 +22,7 @@
 // are marked and left alone. Making "make them the same" a one-click action
 // means choosing which router is right, and nothing here knows that.
 
+import { mountPicker, type Picker } from '../device-picker';
 import { fmtTime } from '../timefmt';
 import { esc, el, lsGet, lsSet } from '../dom';
 import { openResource, registerExtra } from '../resource';
@@ -205,23 +206,28 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     // else holds it.
   }
 
+  /**
+   * Which routers the comparison reads (`device-picker.ts`). Remembered per
+   * browser, and every change re-reads the table.
+   */
+  let fleetPicker: Picker | null = null;
   function renderPicker(): void {
     const host = el('dnsFleetPick');
     if (!host) return;
-    if (!fleet.length) {
-      host.innerHTML = '<span class="muted-note">No routers.</span>';
-      return;
+    if (!fleetPicker) {
+      fleetPicker = mountPicker(host, {
+        items: () => fleet.map((r) => ({ id: String(r.id), label: named(String(r.id)).label,
+          host: String(r.host || ''), siteIds: (r as { siteIds?: string[] }).siteIds ?? [] })),
+        placeholder: 'Search routers to compare',
+        emptyText: 'No routers picked. Search to add the routers to compare.',
+        onChange: () => {
+          picked = fleetPicker!.get().items;
+          lsSet(PICK_KEY, picked);
+          load();
+        },
+      });
     }
-    host.innerHTML = fleet.map((r) => {
-      const id = String(r.id);
-      const on = picked.indexOf(id) !== -1;
-      const who = named(id);
-      return '<label class="dns-fleet-router' + (on ? ' is-on' : '') + '"' +
-        (who.host ? ' title="' + esc(who.host) + '"' : '') + '>' +
-        '<input type="checkbox" data-dnsfleet="' + esc(id) + '"' + (on ? ' checked' : '') + '>' +
-        '<span>' + esc(who.label) + '</span>' +
-      '</label>';
-    }).join('');
+    fleetPicker.set({ items: picked });
   }
 
   function renderHead(): void {
@@ -420,26 +426,21 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
       if (ctx.readOnly || scope !== 'fleet' || !rest.length) return '';
       return '<div class="dns-extra">' +
         '<div class="dns-extra-title">Also add it to</div>' +
-        '<div class="dns-extra-pick">' +
-          rest.map((r) => '<label class="dns-fleet-router">' +
-            '<input type="checkbox" data-dnsalso="' + esc(r.id) + '">' +
-            '<span>' + esc(r.label) + '</span>' +
-            (r.host && r.host !== r.label
-              ? '<span class="dns-extra-host">' + esc(r.host) + '</span>' : '') +
-            '</label>').join('') +
-        '</div>' +
+        '<div class="dp" data-dnsalso-host="1"></div>' +
         '<div class="muted-note">Written after this router accepts it, one at a ' +
           'time. A router that already has the record is left alone.</div>' +
       '</div>';
     },
     wire() {
-      el('res_extra')?.querySelectorAll('[data-dnsalso]').forEach((b) => {
-        b.addEventListener('change', () => {
-          const box = b as HTMLInputElement;
-          const id = box.getAttribute('data-dnsalso') || '';
-          alsoIDs = box.checked ? alsoIDs.concat([id]) : alsoIDs.filter((x) => x !== id);
-          box.closest('.dns-fleet-router')?.classList.toggle('is-on', box.checked);
-        });
+      // THE SHARED PICKER over the routers the comparison has picked, less this
+      // one. Mounted fresh each time the dialog renders, and cleared with it.
+      const host = el('res_extra')?.querySelector<HTMLElement>('[data-dnsalso-host]');
+      if (!host) return;
+      const also = mountPicker(host, {
+        items: () => others(),
+        placeholder: 'Search the compared routers',
+        emptyText: 'Only this router.',
+        onChange: () => { alsoIDs = also.get().items; },
       });
     },
     saved(values) {
@@ -482,16 +483,6 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
       sortBy = (th.getAttribute('data-dnssort') as FleetSort) || 'name';
       render();
     }
-  });
-
-  document.addEventListener('change', (e) => {
-    const t = e.target as HTMLInputElement | null;
-    const id = t?.getAttribute?.('data-dnsfleet');
-    if (!id) return;
-    picked = t!.checked ? picked.concat([id]) : picked.filter((x) => x !== id);
-    lsSet(PICK_KEY, picked);
-    renderPicker();
-    load();
   });
 
   socket.on('router:active', (d) => { activeID = (d && d.activeId) || activeID; });

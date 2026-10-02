@@ -817,54 +817,43 @@ export interface SiteMemberDevice {
 }
 
 /**
- * The site form's device list - one checkbox per device in the fleet.
+ * The site form's devices, for the shared picker (`device-picker.ts`).
  *
  * ── "ALSO IN", NOT "CURRENTLY IN" ───────────────────────────────────────────
  *
- * The live comment says why, and the wording is the whole #117 change in three
- * words: ticking a device here ADDS this site, it no longer moves the device out
- * of the ones it already has. Before multi-site the same list said where the
- * device "currently" sat, because putting it here took it out of there.
+ * Adding a device here ADDS this site; it does not move the device out of the
+ * ones it already has (#117). So each device's other sites are its `detail`,
+ * which the search results show and the search matches.
  *
- * ── THE FILTER DROPS SITES THIS CLIENT CANNOT NAME ──────────────────────────
+ * ── THE DETAIL DROPS SITES THIS CLIENT CANNOT NAME ──────────────────────────
  *
- * `_sitesById[id]` is consulted, not just `id !== site.id`. A device may carry a
- * membership whose site this browser has not loaded - it was created by another
- * administrator a moment ago, or removed while this form was open. Rendering
- * `also in undefined` is worse than saying nothing, and saying nothing is what
- * the live code does.
- *
- * `site` is null when ADDING: nothing is ticked, and every membership a device
- * has counts as elsewhere.
+ * A membership whose site this browser has not loaded - created a moment ago
+ * by another administrator, or removed while the form was open - would read
+ * `also in undefined`. Saying nothing is better, and is what the checkbox list
+ * did.
  */
-export function siteMemberRowsHtml(
+export function siteMemberItems(
   devices: SiteMemberDevice[],
   site: { id: string } | null,
   sitesById: Record<string, { name: string }>,
-): string {
-  if (!devices.length) {
-    return '<span style="color:var(--text-muted)">No devices configured yet.</span>';
-  }
+): { id: string; label: string; host?: string; detail?: string }[] {
   return devices.map((r) => {
-    const ids = siteIdsOf(r);
-    const here = !!(site && ids.indexOf(site.id) !== -1);
-    // ONE LOOKUP, not filter-then-map. The live code indexes `_sitesById` twice
-    // and TypeScript is right to object under `noUncheckedIndexedAccess`: the
-    // two lookups are only guaranteed to agree because nothing mutates the map
-    // between them, which is true here and is not a property worth relying on.
     const elsewhere: string[] = [];
-    for (const id of ids) {
+    for (const id of siteIdsOf(r)) {
       if (site && id === site.id) continue;
       const known = sitesById[id];
       if (known) elsewhere.push(known.name);
     }
-    const other = elsewhere.length
-      ? ' <span style="color:var(--text-muted)">- also in ' + esc(elsewhere.join(', ')) + '</span>'
-      : '';
-    return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">'
-      + '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>'
-      + '<span>' + esc(r.label || r.host || '') + other + '</span></label>';
-  }).join('');
+    return {
+      id: r.id, label: r.label || r.host || r.id, host: r.host || undefined,
+      detail: elsewhere.length ? 'also in ' + elsewhere.join(', ') : undefined,
+    };
+  });
+}
+
+/** The devices already in `site`, in fleet order; none when adding. */
+export function siteMembersOf(devices: SiteMemberDevice[], site: { id: string } | null): string[] {
+  return site ? devices.filter((r) => siteIdsOf(r).indexOf(site.id) !== -1).map((r) => r.id) : [];
 }
 
 export function siteTableHtml(sites: SiteView[], counts: Record<string, number>): string {

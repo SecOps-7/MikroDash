@@ -6,7 +6,7 @@ import type { CfgDeployPayload, CfgDeployTarget } from '../gen/payloads';
 import { findingRow, highlight } from './config-management-cards';
 import type { VarDef } from './config-management-editor';
 
-export interface RouterOpt { id: string; label: string }
+export interface RouterOpt { id: string; label: string; host?: string; model?: string; siteIds?: string[] }
 
 export interface Finding { level: string; code: string; line?: number; message: string }
 
@@ -24,22 +24,6 @@ export interface RouterPreview {
 
 /** A finding's key, as the server's cfgdeploy.FindingKey writes it. */
 export const findingKey = (f: Finding): string => f.code + '@' + (f.line ?? 0);
-
-/** The router checklist; the order of picking decides the canary. */
-export function routerPicker(routers: RouterOpt[], picked: string[]): string {
-  if (!routers.length) return '<div class="cfg-meta">No routers are available.</div>';
-  return '<div class="cfg-pick-bar"><button class="cfg-btn" type="button" data-dep-all="1">All routers</button>' +
-    '<button class="cfg-btn" type="button" data-dep-all="0">None</button>' +
-    '<span class="cfg-meta">The first you pick goes first, as the canary; the rest wait for your OK.</span></div>' +
-    '<div class="cfg-pick">' + routers.map((r) => {
-      const at = picked.indexOf(r.id);
-      return '<label class="cfg-pick-item' + (at >= 0 ? ' is-on' : '') + '"><input type="checkbox" data-dep-router="' +
-        esc(r.id) + '"' + (at >= 0 ? ' checked' : '') + '><span class="cfg-pick-name">' + esc(r.label) + '</span>' +
-        (at === 0 ? '<span class="vpn-hs-badge cfg-pill-canary">Canary</span>'
-          : at > 0 ? '<span class="cfg-meta">#' + (at + 1) + '</span>' : '') +
-        '</label>';
-    }).join('') + '</div>';
-}
 
 /** A fresh password for a secret setting: 20 letters and digits from the
  *  browser's CSPRNG. A secret has no default on purpose (one would be the

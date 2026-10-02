@@ -1045,7 +1045,7 @@
         <div class="modal-panel" data-modalpanel="devices">
           <p class="nchan-help modal-panel-note">Which routers this channel is told about. No
             selection means every router, now and in future.</p>
-          <div id="nchanRouters" class="nchan-routers"></div>
+          <div id="nchanRouters" class="dp"></div>
         </div>
         </div>
       </div>
@@ -1308,15 +1308,10 @@
       <span class="rtr-modal-title" id="cpLinksTitle">Where this profile applies</span>
     </div>
     <div class="rtr-modal-body">
-      <div class="ztp-sub">Sites</div>
-      <p class="rtr-note cp-note" style="margin-top:0">Every router in a ticked site gets the account, now and
-        as the site changes. A router that leaves the site has it taken off.</p>
-      <div id="cpSiteList" class="cfg-pick"></div>
-      <div class="ztp-sub" style="margin-top:.9rem">Routers</div>
-      <p class="rtr-note cp-note" style="margin-top:0">Tick a router to put the account on it directly. One
-        covered by a site above is ticked and locked - untick the site to remove it.</p>
-      <div id="cpLinksBody" class="cfg-pick"></div>
-      <div class="cfg-empty" id="cpLinksEmpty" hidden>No routers are available.</div>
+      <p class="rtr-note cp-note" style="margin-top:0">Pick routers, or a site: every router in a picked site gets
+        the account, now and as the site changes, and one that leaves the site has it taken off. Nothing changes
+        until Apply.</p>
+      <div id="cpLinksBody" class="dp"></div>
       <div id="cpLinksError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
     </div>
     <div class="rtr-modal-footer">
@@ -1366,15 +1361,11 @@
       <span class="rtr-modal-title" id="lpDevTitle">Devices</span>
     </div>
     <div class="rtr-modal-body" style="display:block">
-      <div class="ztp-sub">Sites</div>
-      <p class="rtr-note cp-note" style="margin-top:0">Ticking a site ticks every device in it now. It is a
-        shortcut, not a rule: a device that joins the site later is not linked by it.</p>
-      <div id="lpDevSites" class="cfg-pick"></div>
-      <div class="ztp-sub" style="margin-top:.9rem">Devices</div>
       <p class="rtr-note cp-note" style="margin-top:0">Linking creates user mikrodash in group mikrodash on the
         device, signs in with it to prove it works, and only then switches MikroDash over. If it does not work the
-        device is put back as it was.</p>
-      <div id="lpDevList" class="cfg-pick"></div>
+        device is put back as it was. Picking a site adds the devices in it now; one that joins it later is not
+        added.</p>
+      <div id="lpDevList" class="dp"></div>
       <div id="lpDevError" class="rtr-note" style="display:none;color:var(--accent-err)"></div>
     </div>
     <div class="rtr-modal-footer">

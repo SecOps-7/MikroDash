@@ -20,8 +20,9 @@
 
 import { el } from '../dom';
 import { mountCityPicker, type City, type CityPickerState } from './city-picker';
+import { mountPicker, type Picker } from '../device-picker';
 import {
-  siteTableHtml, siteRouterCounts, siteMemberRowsHtml, siteSavePlan, siteDeletePrompt,
+  siteTableHtml, siteRouterCounts, siteMemberItems, siteMembersOf, siteSavePlan, siteDeletePrompt,
   type SiteView, type SiteMemberDevice,
 } from './settings';
 
@@ -152,20 +153,27 @@ function showForm(site: SiteRecord | null): void {
     if (box) box.value = p.text();
   }
 
-  box.innerHTML = siteMemberRowsHtml(fleetOf(), site, sitesById);
+  // THE SHARED PICKER, over the fleet; what is picked is the membership.
+  editingSite = site;
+  if (!memberPicker) {
+    memberPicker = mountPicker(box, {
+      items: () => siteMemberItems(fleetOf(), editingSite, sitesById),
+      placeholder: 'Search devices by name or address',
+      emptyText: 'No devices in this site yet. Search to add some.',
+    });
+  }
+  memberPicker.set({ items: siteMembersOf(fleetOf(), site) });
   if (title) title.textContent = site ? 'Edit Site' : 'Add Site';
   wrap.classList.add('open');
   nameEl.focus();
 }
 
-/** The ticked boxes, in DOM order - which is fleet order, since that is how the
- *  rows were rendered. */
+let memberPicker: Picker | null = null;
+let editingSite: SiteRecord | null = null;
+
+/** The picked devices, in the order they were picked. */
 function checkedRouterIds(): string[] {
-  const box = el('sf_routers');
-  if (!box) return [];
-  return Array.prototype.slice
-    .call(box.querySelectorAll('[data-site-router]:checked'))
-    .map((n: Element) => n.getAttribute('data-site-router') || '');
+  return memberPicker ? memberPicker.get().items : [];
 }
 
 async function save(): Promise<void> {

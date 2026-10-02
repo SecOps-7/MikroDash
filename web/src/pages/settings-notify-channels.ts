@@ -18,6 +18,7 @@
  */
 
 import { el, esc, modalTabs } from '../dom';
+import { mountPicker, type Picker } from '../device-picker';
 
 interface ChannelView {
   id: string;
@@ -50,7 +51,11 @@ let channels: ChannelView[] = [];
 let events: EventRow[] = [];
 let schemes: string[] = [];
 let defaults: string[] = [];
-let routers: Array<{ id: string; label: string }> = [];
+let routers: Array<{ id: string; label: string; host?: string; model?: string; siteIds?: string[] }> = [];
+/** Site names for the scope picker's site shortcut. */
+let siteList: Array<{ id: string; name: string }> = [];
+/** The channel's device scope (`device-picker.ts`). */
+let scopePicker: Picker | null = null;
 /** The channel being edited, or null for a new one. */
 let editing: ChannelView | null = null;
 /** Whether this viewer may own install-wide channels. Told by the server; a
@@ -179,9 +184,14 @@ async function loadEvents(): Promise<void> {
   try {
     const r = await fetch('/api/routers', { credentials: 'same-origin' });
     const j = await r.json();
-    routers = ((j && j.routers) || []).map((x: { id: string; label: string }) =>
-      ({ id: x.id, label: x.label }));
+    routers = ((j && j.routers) || []).map((x: { id: string; label: string; host?: string; model?: string;
+      siteIds?: string[] }) => ({ id: x.id, label: x.label || x.host || x.id, host: x.host, model: x.model,
+      siteIds: x.siteIds ?? [] }));
   } catch { routers = []; }
+  try {
+    const r = await fetch('/api/sites', { credentials: 'same-origin' });
+    siteList = ((await r.json()) as { sites?: Array<{ id: string; name: string }> }).sites ?? [];
+  } catch { siteList = []; }
 }
 
 /**
@@ -450,15 +460,19 @@ function fillModal(c: ChannelView | null): void {
       + 'delivers; the rest are still visible on the Alerts page and in the bell.';
   }
 
-  const scope = new Set(c ? c.routers : []);
+  // THE SHARED PICKER. Nothing picked means every router, now and in future,
+  // and its empty text says so rather than reading as "none".
   const rHost = el('nchanRouters');
-  if (rHost) {
-    rHost.innerHTML = routers.length
-      ? routers.map((rt) =>
-        '<label class="nchan-router"><input type="checkbox" data-nchan-router="' + esc(rt.id) + '"'
-        + (scope.has(rt.id) ? ' checked' : '') + '> ' + esc(rt.label) + '</label>').join('')
-      : '<p class="nchan-help">No routers configured.</p>';
+  if (rHost && !scopePicker) {
+    scopePicker = mountPicker(rHost, {
+      items: () => routers,
+      sites: () => siteList,
+      siteMode: 'shortcut',
+      placeholder: 'Search routers or sites',
+      emptyText: 'No routers picked: this channel covers every router, now and in future.',
+    });
   }
+  scopePicker?.set({ items: c ? c.routers : [] });
 
   applyKind();
   selectTab('channel');
@@ -536,7 +550,7 @@ function bodyFor(): Record<string, unknown> {
     events: checkedValues('data-nchan-event'),
     ifaceTypes,
     tuning,
-    routers: checkedValues('data-nchan-router'),
+    routers: scopePicker ? scopePicker.get().items : [],
   };
   // OWNERSHIP IS ASKED FOR, NOT ASSUMED. Sending "install" unconditionally is
   // what made Add Channel answer 403 for everybody who is not an administrator.
