@@ -320,6 +320,45 @@ Or let MikroDash do all of the above: **Auto Switch to API-SSL** in the device's
 
 </details>
 
+<details>
+<summary><strong>Optional: fill the Top Talkers card (Kid Control)</strong></summary>
+
+<br>
+
+The Dashboard's **Top Talkers** card reads per-device rates from RouterOS Kid Control. RouterOS only tracks devices there once at least one Kid Control profile exists, so on a router without one the card says "No devices".
+
+Create one profile that allows everything:
+
+```routeros
+/ip kid-control add name=monitor mon=0s-1d tue=0s-1d wed=0s-1d thu=0s-1d fri=0s-1d sat=0s-1d sun=0s-1d
+```
+
+Within a few seconds RouterOS starts listing the devices it sees on your LAN. Kid Control only restricts devices assigned to a profile, and none are, so this blocks nothing. The all-day schedule is there in case a device is ever assigned to it: without it, RouterOS defaults to 7h-21h.
+
+Devices found this way have no name. To name them from your DHCP leases (the lease comment if it has one, otherwise the client's hostname), wait about ten seconds and paste:
+
+```routeros
+:foreach l in=[/ip dhcp-server lease find] do={
+  :local mac [/ip dhcp-server lease get $l mac-address]
+  :local nm [/ip dhcp-server lease get $l comment]
+  :if ($nm = "") do={ :set nm [/ip dhcp-server lease get $l host-name] }
+  :local d [/ip kid-control device find where mac-address=$mac]
+  :if ($nm != "" && [:len $d] > 0) do={
+    :if ([/ip kid-control device get $d name] = "") do={
+      :do { /ip kid-control device set $d name=$nm } on-error={
+        /ip kid-control device set $d name=($nm . " (" . [:pick $mac 9 17] . ")")
+      }
+    }
+  }
+}
+```
+
+- Naming a device does not assign it to the profile, so it stays unrestricted.
+- Names must be unique, so a duplicate gets the end of its MAC added, e.g. `Living Room TV (E2:57:BE)`.
+- Only devices that are online now get named. The script only names devices that have no name yet, so it is safe to run again, or on a schedule: save it as a script called `kc-names`, then `/system scheduler add name=kc-names interval=1h on-event=kc-names`.
+
+</details>
+
 ---
 
 ## 🔧 Configuration
