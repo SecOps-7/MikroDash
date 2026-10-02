@@ -224,7 +224,9 @@ type Server struct {
 	credJob *credJob
 	// loginJobs is the last or running job per login profile (loginprof_api.go).
 	loginJobs loginOps
-	credStop  context.CancelFunc
+	// importJobs is the running or last bulk device import (routers_import.go).
+	importJobs importJobs
+	credStop   context.CancelFunc
 	// startedAt is when this process began serving, for /healthz's uptime and
 	// its starting-vs-failing distinction.
 	startedAt time.Time

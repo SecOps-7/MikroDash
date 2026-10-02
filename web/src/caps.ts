@@ -253,6 +253,9 @@ export function applyCaps(c: Caps | null | undefined): void {
   // Pre-existing controls with no data-cap attribute of their own.
   const addRtr = document.getElementById('rtrAddBtn');
   if (addRtr) addRtr.style.display = cur.createRouters ? '' : 'none';
+  // Import is a batch of the same create, so it follows Add exactly.
+  const importRtr = document.getElementById('rtrImportBtn');
+  if (importRtr) importRtr.style.display = cur.createRouters ? '' : 'none';
   const saveSett = document.getElementById('settingsSaveBtn') as HTMLButtonElement | null;
   if (saveSett) {
     saveSett.disabled = !cur.manageSettings;

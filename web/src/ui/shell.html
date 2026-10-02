@@ -1325,6 +1325,37 @@
 
   <!-- The MikroDash login (#143): its password. The account and group are
        fixed, so they are shown, not asked for. -->
+  <!-- Bulk device import from a CSV (#150). The server previews every row and
+       imports only the ready ones; device-import.ts. -->
+  <div class="rtr-modal-bg" id="dimpModal">
+   <div class="rtr-modal dimp-modal">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title">Import devices</span>
+    </div>
+    <div class="rtr-modal-body" style="display:block">
+      <div id="dimpPick">
+        <p class="rtr-note cp-note" style="margin-top:0">One device per row. Only <strong>host</strong> is
+          required, plus a login: a username and password, or a credential profile. A profile with no password
+          signs in with the profile's account, which must already exist on the router. A profile with the
+          router's username and password creates that account. Several sites go in one cell separated by
+          <strong>|</strong>, and missing ones are created. Devices already in MikroDash are skipped.</p>
+        <div class="dimp-actions">
+          <button class="sbtn sbtn-outline" id="dimpTemplate" type="button">Download template</button>
+          <label class="sbtn sbtn-primary dimp-file">Choose CSV file
+            <input id="dimpFile" type="file" accept=".csv,text/csv"></label>
+        </div>
+      </div>
+      <div id="dimpSummary" class="dimp-summary"></div>
+      <div id="dimpError" class="rtr-note" style="color:var(--accent-err)"></div>
+      <div id="dimpBody" class="dimp-body"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="dimpClose">Close</button>
+      <button class="sbtn sbtn-primary" id="dimpGo" disabled>Import</button>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg" id="lpModal">
    <div class="rtr-modal" style="max-width:30rem">
     <div class="rtr-modal-hdr">

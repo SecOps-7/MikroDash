@@ -26,6 +26,7 @@
 
 import { el, esc } from '../dom';
 import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
+import { initDeviceImport } from './device-import';
 
 export interface RouterRow {
   id: string;
@@ -277,6 +278,8 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
     // an add must pass Test before Save is allowed.
     d.openModal(null);
   });
+  // Bulk import from a CSV (#150), the button beside Add.
+  initDeviceImport();
 
   const tbody = el('rtrTbody');
   if (!tbody) return;

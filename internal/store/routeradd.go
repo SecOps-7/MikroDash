@@ -44,20 +44,9 @@ var (
 // The returned record carries the PLAINTEXT password, as the live `add` does;
 // the caller masks it before anything reaches a browser.
 func (s *Store) AddRouter(body map[string]any) (*Router, error) {
-	host := strings.TrimSpace(jsString(body["host"]))
-	if !validHostRe.MatchString(host) {
-		return nil, errors.New("Invalid host")
-	}
-	port := 8729
-	if raw, ok := body["port"]; ok {
-		n, isInt := jsInt(raw)
-		if !isInt {
-			return nil, errors.New("Invalid port")
-		}
-		port = n
-	}
-	if port < 1 || port > 65535 {
-		return nil, errors.New("Invalid port")
+	host, port, err := CheckRouterBody(body)
+	if err != nil {
+		return nil, err
 	}
 
 	existing, _ := s.Routers()
@@ -67,12 +56,6 @@ func (s *Store) AddRouter(body map[string]any) (*Router, error) {
 
 	defaultIf := strings.TrimSpace(orDefault(jsString(body["defaultIf"]), "ether1"))
 	pingTarget := strings.TrimSpace(orDefault(jsString(body["pingTarget"]), "1.1.1.1"))
-	if defaultIf != "" && !validIfRe.MatchString(defaultIf) {
-		return nil, errors.New("Invalid defaultIf")
-	}
-	if pingTarget != "" && net.ParseIP(pingTarget) == nil {
-		return nil, errors.New("Invalid pingTarget — must be a valid IP address")
-	}
 
 	id, err := newUUID()
 	if err != nil {
@@ -184,6 +167,41 @@ func (s *Store) AddRouter(body map[string]any) (*Router, error) {
 		}
 	}
 	return nil, errors.New("store: the new router did not read back")
+}
+
+// CheckRouterBody runs every check AddRouter refuses a body for, in the same
+// order and with the same messages, and returns the host and port it would
+// store. It writes nothing.
+//
+// IT IS AddRouter'S OWN CHECK, not a copy of it. The bulk import previews every
+// row with this before anything is written, and then adds the row through
+// AddRouter, which calls this first: a preview that said "ready" and an add that
+// refused the same row would be two validators that had drifted apart.
+func CheckRouterBody(body map[string]any) (string, int, error) {
+	host := strings.TrimSpace(jsString(body["host"]))
+	if !validHostRe.MatchString(host) {
+		return "", 0, errors.New("Invalid host")
+	}
+	port := 8729
+	if raw, ok := body["port"]; ok {
+		n, isInt := jsInt(raw)
+		if !isInt {
+			return "", 0, errors.New("Invalid port")
+		}
+		port = n
+	}
+	if port < 1 || port > 65535 {
+		return "", 0, errors.New("Invalid port")
+	}
+	defaultIf := strings.TrimSpace(orDefault(jsString(body["defaultIf"]), "ether1"))
+	pingTarget := strings.TrimSpace(orDefault(jsString(body["pingTarget"]), "1.1.1.1"))
+	if defaultIf != "" && !validIfRe.MatchString(defaultIf) {
+		return "", 0, errors.New("Invalid defaultIf")
+	}
+	if pingTarget != "" && net.ParseIP(pingTarget) == nil {
+		return "", 0, errors.New("Invalid pingTarget — must be a valid IP address")
+	}
+	return host, port, nil
 }
 
 // uniqueLabel is `_uniqueLabel`: strip any existing counter, then append the

@@ -29,6 +29,12 @@
               <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Device
             </button>
+            <!-- Bulk import from a CSV (#150): device-import.ts. Shown with Add
+                 Device by caps.ts, since it is a batch of the same create. -->
+            <button class="sbtn sbtn-outline" id="rtrImportBtn" style="padding:.3rem .8rem;font-size:.72rem;margin-left:.4rem">
+              <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              Import
+            </button>
           </div>
           <!-- overflow-x here because .scard is overflow:hidden - without it the
                extra identity columns are clipped on a narrow window, not scrolled. -->

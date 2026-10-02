@@ -85,6 +85,8 @@ func (s *Server) registerRouters(mux *http.ServeMux) {
 	// Giving a router a certificate and moving this install onto API-SSL. A
 	// router write rather than a record edit, like the identity route above.
 	s.registerRouterAPISSL(mux)
+	// Bulk import from a CSV (#150): routers_import.go.
+	s.registerRouterImport(mux, rw)
 }
 
 // routerCreate is `POST /api/routers`.
