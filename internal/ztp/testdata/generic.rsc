@@ -9,11 +9,13 @@
 set [find name="mikrodash-ztp"] disabled=no
 /interface wireguard peers
 :if ([:len [find interface="mikrodash-ztp"]] = 0) do={ add interface="mikrodash-ztp" public-key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE=" endpoint-address="vpn.example.net" endpoint-port=13231 allowed-address="10.249.0.1/32" persistent-keepalive=25s comment="MikroDash ZTP" }
+:do { set [find interface="mikrodash-ztp" comment="MikroDash ZTP"] name="MikroDash" } on-error={}
 /interface wireguard
 :if ([:len [find name="mikrodash-ztp-enrol"]] = 0) do={ add name="mikrodash-ztp-enrol" private-key="BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBE=" comment="MikroDash ZTP" }
 set [find name="mikrodash-ztp-enrol"] disabled=no
 /interface wireguard peers
 :if ([:len [find interface="mikrodash-ztp-enrol"]] = 0) do={ add interface="mikrodash-ztp-enrol" public-key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE=" endpoint-address="vpn.example.net" endpoint-port=13231 allowed-address="10.249.0.1/32" persistent-keepalive=25s comment="MikroDash ZTP" }
+:do { set [find interface="mikrodash-ztp-enrol" comment="MikroDash ZTP"] name="MikroDash enrol" } on-error={}
 /ip address
 :if ([:len [find interface="mikrodash-ztp-enrol"]] = 0) do={ add address=("10.249.255." . [:rndnum from=2 to=254] . "/32") network="10.249.0.1" interface="mikrodash-ztp-enrol" comment="MikroDash ZTP" }
 /ip firewall filter

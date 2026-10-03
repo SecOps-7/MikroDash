@@ -42,6 +42,10 @@ import (
 const (
 	IfaceName  = "mikrodash-ztp"       // the device's own tunnel interface
 	EnrolIface = "mikrodash-ztp-enrol" // a generic script's shared-key interface
+	// The peers' names, which WinBox and the peer list show (RouterOS 7.15+).
+	// They differ because a mass-deployment device holds both peers at once.
+	PeerName      = "MikroDash"
+	EnrolPeerName = "MikroDash enrol"
 	// UserName and GroupName are the API user MikroDash signs in as and its
 	// group: `mikrodash`, the same account a login profile puts on a device and
 	// the README has operators create by hand (store.LoginUserName/
@@ -230,6 +234,14 @@ func apiService(b *strings.Builder, from netip.Addr) {
 		":foreach i in=[find where name=\"api\"] do={ set $i disabled=no address=%s } }\n", a)
 }
 
+// peerName names the peer on iface, so the router lists it as MikroDash rather
+// than RouterOS's own "peer1". The property arrived in RouterOS 7.15, and an
+// older router refuses it, so it is a step of its own that may fail rather than
+// part of the add, which would stop the script.
+func peerName(b *strings.Builder, iface, name string) {
+	fmt.Fprintf(b, ":do { set [find interface=%s comment=%s] name=%s } on-error={}\n", q(iface), q(Comment), q(name))
+}
+
 // tunnel creates the device's tunnel interface, its peer (this MikroDash) and
 // its address. privateKey is a quoted literal, or "" to let RouterOS make one.
 func tunnel(b *strings.Builder, inst Instance, iface, privateKey string, addr netip.Addr) {
@@ -244,6 +256,7 @@ func tunnel(b *strings.Builder, inst Instance, iface, privateKey string, addr ne
 	fmt.Fprintf(b, ":if ([:len [find interface=%s]] = 0) do={ add interface=%s public-key=%s endpoint-address=%s "+
 		"endpoint-port=%d allowed-address=%s persistent-keepalive=25s comment=%s }\n",
 		q(iface), q(iface), q(inst.PublicKey), q(inst.Endpoint), inst.Port, q(inst.Server.String()+"/32"), q(Comment))
+	peerName(b, iface, PeerName)
 	if addr.IsValid() {
 		b.WriteString("/ip address\n")
 		fmt.Fprintf(b, ":if ([:len [find interface=%s]] = 0) do={ add address=%s network=%s interface=%s comment=%s }\n",
@@ -332,6 +345,7 @@ func GenericScript(inst Instance, bt Batch) string {
 	fmt.Fprintf(&b, ":if ([:len [find interface=%s]] = 0) do={ add interface=%s public-key=%s endpoint-address=%s "+
 		"endpoint-port=%d allowed-address=%s persistent-keepalive=25s comment=%s }\n",
 		q(EnrolIface), q(EnrolIface), q(inst.PublicKey), q(inst.Endpoint), inst.Port, q(inst.Server.String()+"/32"), q(Comment))
+	peerName(&b, EnrolIface, EnrolPeerName)
 	b.WriteString("/ip address\n")
 	fmt.Fprintf(&b, ":if ([:len [find interface=%s]] = 0) do={ add address=(%s . [:rndnum from=2 to=254] . \"/32\") "+
 		"network=%s interface=%s comment=%s }\n",

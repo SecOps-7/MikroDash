@@ -110,6 +110,19 @@ func TestTheScriptsKeepWhatWasMeasured(t *testing.T) {
 		if len(adds) == 0 && name != "local.rsc" {
 			t.Errorf("%s creates no tunnel interface", name)
 		}
+		// Every peer is named, or the router lists it as "peer1" (operator,
+		// 2026-10-03). A peer's name is RouterOS 7.15+, so the step that sets
+		// it may fail: on the add it would stop the script on an older router.
+		peers := regexp.MustCompile(`do=\{ add interface=("[^"]*") public-key=`).FindAllStringSubmatch(s, -1)
+		for _, m := range peers {
+			if !regexp.MustCompile(`:do \{ set \[find interface=` + regexp.QuoteMeta(m[1]) +
+				` comment="MikroDash ZTP"\] name="MikroDash[^"]*" \} on-error=\{\}`).MatchString(s) {
+				t.Errorf("%s adds a peer on %s and does not name it, tolerantly", name, m[1])
+			}
+		}
+		if regexp.MustCompile(`add interface=[^\n]* name=`).MatchString(s) {
+			t.Errorf("%s names a peer in its add, which RouterOS before 7.15 refuses", name)
+		}
 		if !strings.Contains(s, "THIS FILE HOLDS A SECRET") {
 			t.Errorf("%s does not say it holds a secret", name)
 		}
