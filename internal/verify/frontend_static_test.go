@@ -160,6 +160,9 @@ func TestTemplateIDsAreBound(t *testing.T) {
 				`|getElementById\('` + q + `'\)` +
 				`|closest\('#` + q + `'\)` +
 				`|renderSortHeader\('` + q + `'` +
+				// modalTabs in web/src/dom.ts wires a tabbed dialog's tabs from
+				// its wrapper's id, as renderSortHeader wires a thead.
+				`|modalTabs\('` + q + `'` +
 				`|querySelector\w*(?:<[^>]*>)?\('#` + q + `'\)`).MatchString(all)
 	}
 

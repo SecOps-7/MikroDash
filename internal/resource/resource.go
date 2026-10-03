@@ -197,6 +197,19 @@ type Field struct {
 	ShowIf      *ShowIf
 	Placeholder string
 	Help        string
+
+	// Tab is the tab of the form this field is drawn on. Empty for every
+	// resource that has no tabs; a resource with any tabbed field gets a tab
+	// strip, in the order its fields first name them. The firewall uses
+	// WinBox's five: a rule has about sixty properties, and one long column of
+	// them is a form nobody can read (the operator's request, 2026-10-03).
+	Tab string
+	// Negatable is a match RouterOS inverts with a leading `!`, drawn as a
+	// "not" toggle beside the box. The value keeps the `!`, so the write path,
+	// history and diffs see the RouterOS spelling; only the form splits it off.
+	// Measured per property from the router's own completion, which offers `!`
+	// exactly where it is accepted (internal/resource/testdata/firewall-properties.json).
+	Negatable bool
 }
 
 // input is the HTML input type for a field, matching TYPES[...].input on the
@@ -440,6 +453,13 @@ type Error struct {
 type Validated struct {
 	Values  map[string]string
 	Editing bool
+	// Stored is the row as the router holds it, in RouterOS names, when the
+	// write path read one. With it, BuildArgs skips a ClearBang clear of a
+	// property the row does not have: the firewall form has fifty clearable
+	// matches, and removing every absent one on each save made a comment edit a
+	// fifty-word command. Nil (an undo, a fleet write) clears as before, which
+	// is longer and equally correct.
+	Stored map[string]string
 }
 
 var ctrl = func(s string) bool {
@@ -680,6 +700,11 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		// action's rename also wrote an empty `memory-stop-on-full`.
 		if v.Editing && f.Clearable && f.Applies(v.Values) {
 			if f.ClearBang {
+				if v.Stored != nil {
+					if _, held := v.Stored[f.ROS]; !held {
+						continue
+					}
+				}
 				args = append(args, "=!"+f.ROS+"=")
 				continue
 			}
@@ -886,7 +911,7 @@ func (r *Resource) Describe() map[string]any {
 			"required": f.Required, "requiredOnCreate": f.RequiredOnCreate,
 			"options": opts, "placeholder": f.Placeholder,
 			"help": f.Help, "showIf": showIf, "min": minv, "max": maxv, "display": f.Display,
-			"createOnly": f.CreateOnly,
+			"createOnly": f.CreateOnly, "tab": f.Tab, "negatable": f.Negatable,
 		})
 	}
 	actions := make([]map[string]any, 0, len(r.Actions))
@@ -3243,62 +3268,6 @@ func (r *Resource) RowValues(row map[string]string) map[string]any {
 // Each group below returns FRESH field values. Two tables sharing one slice
 // would make a later per-table tweak leak sideways.
 
-func fwHead(chains, actions []string) []Field {
-	return []Field{
-		{Name: "chain", ROS: "chain", Label: "Chain", Type: TypeText, Required: true,
-			OptionsFrom: &OptionsFrom{Values: chains}},
-		{Name: "action", ROS: "action", Label: "Action", Type: TypeText, Required: true,
-			OptionsFrom: &OptionsFrom{Values: actions}},
-	}
-}
-
-// fwProtocols is the IPv4 vocabulary; fwProtocols6 the IPv6 one.
-//
-// THE TWO DIFFER BY ONE VALUE AND IT IS NOT COSMETIC. `/ip/firewall` names
-// ICMPv6 `ipv6-icmp`; `/ipv6/firewall` REFUSES that spelling and calls it
-// `icmpv6` — "input does not match any value of protocol", measured on 7.24.1.
-// Reusing one list meant the IPv6 form offered a value its own menu rejects, so
-// picking ICMPv6 there failed at the router. Caught by driving the page, not by
-// any test: the shared helper compiled perfectly.
-var fwProtocols = []string{"tcp", "udp", "icmp", "ipv6-icmp", "gre", "ipsec-esp", "ipsec-ah"}
-var fwProtocols6 = []string{"tcp", "udp", "icmpv6", "gre", "ipsec-esp", "ipsec-ah"}
-
-func fwMatch(protocols []string) []Field {
-	return []Field{
-		{Name: "srcAddress", ROS: "src-address", Label: "Source Address", Type: TypeText,
-			Placeholder: "10.0.0.0/24"},
-		{Name: "dstAddress", ROS: "dst-address", Label: "Destination Address", Type: TypeText},
-		{Name: "protocol", ROS: "protocol", Label: "Protocol", Type: TypeText,
-			OptionsFrom: &OptionsFrom{Values: protocols}},
-		{Name: "srcPort", ROS: "src-port", Label: "Source Port", Type: TypeText},
-		// A port match is a list or a range as often as it is a number, so this
-		// is text: `443`, `80,443` and `1000-2000` are all valid to RouterOS.
-		{Name: "dstPort", ROS: "dst-port", Label: "Destination Port", Type: TypeText,
-			Placeholder: "443, or 1000-2000"},
-		{Name: "inInterface", ROS: "in-interface", Label: "In Interface", Type: TypeText,
-			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
-		{Name: "outInterface", ROS: "out-interface", Label: "Out Interface", Type: TypeText,
-			OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
-	}
-}
-
-func fwTail() []Field {
-	return []Field{
-		{Name: "log", ROS: "log", Label: "Log", Type: TypeBool, Clearable: true},
-		{Name: "logPrefix", ROS: "log-prefix", Label: "Log Prefix", Type: TypeText},
-		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
-		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
-	}
-}
-
-func fwFields(groups ...[]Field) []Field {
-	out := []Field{}
-	for _, g := range groups {
-		out = append(out, g...)
-	}
-	return out
-}
-
 // fwIdentity is a COMPOSITE because a firewall rule has no name and nothing
 // unique about it. See IdentityOf for why that is enough: the row is addressed
 // by its `.id`, and the identity only has to answer "is this still the row I was
@@ -3353,25 +3322,7 @@ var FWFilter = &Resource{
 	Title: "Firewall Filter Rule", Menu: "/ip/firewall/filter",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		fwHead([]string{"input", "forward", "output"},
-			[]string{"accept", "drop", "reject", "tarpit", "log", "passthrough",
-				"fasttrack-connection", "jump", "return",
-				"add-src-to-address-list", "add-dst-to-address-list"}),
-		fwMatch(fwProtocols),
-		[]Field{
-			// A comma list, not one value — `established,related` is the single
-			// most common thing written here.
-			{Name: "connectionState", ROS: "connection-state", Label: "Connection State",
-				Type: TypeText, Placeholder: "established,related"},
-			{Name: "rejectWith", ROS: "reject-with", Label: "Reject With", Type: TypeText,
-				ShowIf: &ShowIf{Field: "action", In: []string{"reject"}},
-				OptionsFrom: &OptionsFrom{Values: []string{
-					"icmp-network-unreachable", "icmp-host-unreachable",
-					"icmp-port-unreachable", "icmp-admin-prohibited", "tcp-reset"}}},
-		},
-		fwTail(),
-	),
+	Fields: fwForm("/ip/firewall/filter"),
 }
 
 var FWNat = &Resource{
@@ -3379,19 +3330,7 @@ var FWNat = &Resource{
 	Title: "Firewall NAT Rule", Menu: "/ip/firewall/nat",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		fwHead([]string{"srcnat", "dstnat"},
-			[]string{"accept", "masquerade", "dst-nat", "src-nat", "redirect", "netmap", "same",
-				"log", "jump", "return", "add-src-to-address-list", "add-dst-to-address-list"}),
-		fwMatch(fwProtocols),
-		[]Field{
-			{Name: "toAddresses", ROS: "to-addresses", Label: "To Addresses", Type: TypeText,
-				ShowIf: &ShowIf{Field: "action", In: []string{"dst-nat", "src-nat", "netmap", "same"}}},
-			{Name: "toPorts", ROS: "to-ports", Label: "To Ports", Type: TypeText,
-				ShowIf: &ShowIf{Field: "action", In: []string{"dst-nat", "redirect", "netmap"}}},
-		},
-		fwTail(),
-	),
+	Fields: fwForm("/ip/firewall/nat"),
 }
 
 var FWMangle = &Resource{
@@ -3399,29 +3338,7 @@ var FWMangle = &Resource{
 	Title: "Firewall Mangle Rule", Menu: "/ip/firewall/mangle",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		fwHead([]string{"prerouting", "input", "forward", "output", "postrouting"},
-			[]string{"accept", "mark-connection", "mark-packet", "mark-routing",
-				"change-mss", "change-ttl", "change-dscp", "route", "log",
-				"passthrough", "jump", "return"}),
-		fwMatch(fwProtocols),
-		[]Field{
-			{Name: "newConnectionMark", ROS: "new-connection-mark", Label: "New Connection Mark",
-				Type: TypeText, Required: true,
-				ShowIf: &ShowIf{Field: "action", In: []string{"mark-connection"}}},
-			{Name: "newPacketMark", ROS: "new-packet-mark", Label: "New Packet Mark",
-				Type: TypeText, Required: true,
-				ShowIf: &ShowIf{Field: "action", In: []string{"mark-packet"}}},
-			{Name: "newRoutingMark", ROS: "new-routing-mark", Label: "New Routing Mark",
-				Type: TypeText, Required: true,
-				ShowIf: &ShowIf{Field: "action", In: []string{"mark-routing"}}},
-			// Marking rules default to passthrough=yes, and turning it off is
-			// how a mangle chain stops after the first match.
-			{Name: "passthrough", ROS: "passthrough", Label: "Passthrough", Type: TypeBool,
-				Clearable: true},
-		},
-		fwTail(),
-	),
+	Fields: fwForm("/ip/firewall/mangle"),
 }
 
 var FWRaw = &Resource{
@@ -3429,15 +3346,7 @@ var FWRaw = &Resource{
 	Title: "Firewall Raw Rule", Menu: "/ip/firewall/raw",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		// NO connection-state anywhere in raw: it runs before connection
-		// tracking, so there is no state to match on yet.
-		fwHead([]string{"prerouting", "output"},
-			[]string{"accept", "drop", "notrack", "log", "jump", "return",
-				"add-src-to-address-list", "add-dst-to-address-list"}),
-		fwMatch(fwProtocols),
-		fwTail(),
-	),
+	Fields: fwForm("/ip/firewall/raw"),
 }
 
 // ── The IPv6 firewall ───────────────────────────────────────────────────────
@@ -3478,28 +3387,7 @@ var FWFilter6 = &Resource{
 	Title: "IPv6 Firewall Filter Rule", Menu: "/ipv6/firewall/filter",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		// No `tarpit`: the IPv4 filter takes it, this one does not.
-		fwHead([]string{"input", "forward", "output"},
-			[]string{"accept", "drop", "reject", "log", "passthrough",
-				"fasttrack-connection", "jump", "return",
-				"add-src-to-address-list", "add-dst-to-address-list"}),
-		fwMatch(fwProtocols6),
-		[]Field{
-			{Name: "connectionState", ROS: "connection-state", Label: "Connection State",
-				Type: TypeText, Placeholder: "established,related"},
-			// SHARES ONLY THREE VALUES WITH IPv4. `icmp-no-route` and
-			// `icmp-address-unreachable` do not exist there, and IPv4's
-			// `icmp-network-unreachable` / `icmp-host-unreachable` do not exist
-			// here.
-			{Name: "rejectWith", ROS: "reject-with", Label: "Reject With", Type: TypeText,
-				ShowIf: &ShowIf{Field: "action", In: []string{"reject"}},
-				OptionsFrom: &OptionsFrom{Values: []string{
-					"icmp-no-route", "icmp-address-unreachable",
-					"icmp-admin-prohibited", "icmp-port-unreachable", "tcp-reset"}}},
-		},
-		fwTail(),
-	),
+	Fields: fwForm("/ipv6/firewall/filter"),
 }
 
 var FWNat6 = &Resource{
@@ -3507,23 +3395,7 @@ var FWNat6 = &Resource{
 	Title: "IPv6 Firewall NAT Rule", Menu: "/ipv6/firewall/nat",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		// No `same`: IPv4 NAT takes it, this one does not.
-		fwHead([]string{"srcnat", "dstnat"},
-			[]string{"accept", "masquerade", "dst-nat", "src-nat", "redirect", "netmap",
-				"log", "passthrough", "jump", "return",
-				"add-src-to-address-list", "add-dst-to-address-list"}),
-		fwMatch(fwProtocols6),
-		[]Field{
-			// `to-address`, SINGULAR. IPv4 NAT calls this `to-addresses`, and the
-			// plural is an "unknown parameter" trap on every IPv6 save.
-			{Name: "toAddress", ROS: "to-address", Label: "To Address", Type: TypeText,
-				ShowIf: &ShowIf{Field: "action", In: []string{"dst-nat", "src-nat", "netmap"}}},
-			{Name: "toPorts", ROS: "to-ports", Label: "To Ports", Type: TypeText,
-				ShowIf: &ShowIf{Field: "action", In: []string{"dst-nat", "redirect", "netmap"}}},
-		},
-		fwTail(),
-	),
+	Fields: fwForm("/ipv6/firewall/nat"),
 }
 
 var FWMangle6 = &Resource{
@@ -3531,29 +3403,7 @@ var FWMangle6 = &Resource{
 	Title: "IPv6 Firewall Mangle Rule", Menu: "/ipv6/firewall/mangle",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		// `change-hop-limit` where IPv4 has `change-ttl` — same idea, different
-		// header field, different name. No `route`, which IPv4 mangle does take.
-		fwHead([]string{"prerouting", "input", "forward", "output", "postrouting"},
-			[]string{"accept", "mark-connection", "mark-packet", "mark-routing",
-				"change-mss", "change-hop-limit", "change-dscp", "log",
-				"passthrough", "jump", "return"}),
-		fwMatch(fwProtocols6),
-		[]Field{
-			{Name: "newConnectionMark", ROS: "new-connection-mark", Label: "New Connection Mark",
-				Type: TypeText, Required: true,
-				ShowIf: &ShowIf{Field: "action", In: []string{"mark-connection"}}},
-			{Name: "newPacketMark", ROS: "new-packet-mark", Label: "New Packet Mark",
-				Type: TypeText, Required: true,
-				ShowIf: &ShowIf{Field: "action", In: []string{"mark-packet"}}},
-			{Name: "newRoutingMark", ROS: "new-routing-mark", Label: "New Routing Mark",
-				Type: TypeText, Required: true,
-				ShowIf: &ShowIf{Field: "action", In: []string{"mark-routing"}}},
-			{Name: "passthrough", ROS: "passthrough", Label: "Passthrough", Type: TypeBool,
-				Clearable: true},
-		},
-		fwTail(),
-	),
+	Fields: fwForm("/ipv6/firewall/mangle"),
 }
 
 var FWRaw6 = &Resource{
@@ -3561,15 +3411,7 @@ var FWRaw6 = &Resource{
 	Title: "IPv6 Firewall Raw Rule", Menu: "/ipv6/firewall/raw",
 	Identity: fwIdentity, Ordered: true, Guard: []string{"fwGuard"},
 	ReadOnlyWhen: fwReadOnly, Actions: fwActions, Check: fwCheck,
-	Fields: fwFields(
-		// The one menu whose action vocabulary is IDENTICAL to its IPv4 twin.
-		// No connection-state here either: raw runs before connection tracking.
-		fwHead([]string{"prerouting", "output"},
-			[]string{"accept", "drop", "notrack", "log", "jump", "return",
-				"add-src-to-address-list", "add-dst-to-address-list"}),
-		fwMatch(fwProtocols6),
-		fwTail(),
-	),
+	Fields: fwForm("/ipv6/firewall/raw"),
 }
 
 // ── Wireless ────────────────────────────────────────────────────────────────

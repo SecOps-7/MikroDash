@@ -357,8 +357,13 @@ func intEq(a *int, b *int) bool {
 func TestPortedFieldsMatchTheirLiveDeclarations(t *testing.T) {
 	src := liveSource(t)
 
+	// NOT THE FIREWALL. Its four IPv4 tables were held here to the Node app's
+	// thirteen to seventeen fields each; since 2026-10-03 every table carries
+	// every property its menu accepts, and is held instead to the ROUTER's own
+	// recording, in both directions (TestFirewallFormsMatchTheRouter). The
+	// Node declarations were the weaker reference: a subset, by design.
 	for _, res := range []*Resource{DNSStatic, Bridge, BridgePort, Vlan, Route, Route6, DHCPLease, WgPeer,
-		FWFilter, FWNat, FWMangle, FWRaw, WifiNet, WlNet, WlSecProfile,
+		WifiNet, WlNet, WlSecProfile,
 		CapsProvisioningRes, CapsConfig, CapsSecurity, CapsChannel, CapsDatapath} {
 		t.Run(res.Key, func(t *testing.T) {
 			body := resourceBody(src, res.Key)
@@ -552,8 +557,13 @@ func TestPortedResourcesKeepTheirPickers(t *testing.T) {
 	}
 	src := string(b)
 
+	// NOT THE FIREWALL. Its four IPv4 tables were held here to the Node app's
+	// thirteen to seventeen fields each; since 2026-10-03 every table carries
+	// every property its menu accepts, and is held instead to the ROUTER's own
+	// recording, in both directions (TestFirewallFormsMatchTheRouter). The
+	// Node declarations were the weaker reference: a subset, by design.
 	for _, res := range []*Resource{DNSStatic, Bridge, BridgePort, Vlan, Route, Route6, DHCPLease, WgPeer,
-		FWFilter, FWNat, FWMangle, FWRaw, WifiNet, WlNet, WlSecProfile,
+		WifiNet, WlNet, WlSecProfile,
 		CapsProvisioningRes, CapsConfig, CapsSecurity, CapsChannel, CapsDatapath} {
 		t.Run(res.Key, func(t *testing.T) {
 			want := optionsFromFor(src, res.Key)

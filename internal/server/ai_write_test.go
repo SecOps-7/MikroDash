@@ -305,13 +305,17 @@ func TestTheWriteToolRefusesBeforeItTouchesAnything(t *testing.T) {
 // permission one. The refusal lists the settable fields, which a viewer without
 // write access must not be shown, so it now comes after it and this runs as an
 // administrator. TestADeniedViewerIsNotShownTheSettableFields is the other side.
+//
+// RE-AIMED (2026-10-03): fwFilter now declares every property its menu has,
+// `srcAddressList` among them, so the invented name is one RouterOS has never
+// had.
 func TestAFieldTheResourceDoesNotHaveIsRefused(t *testing.T) {
 	cn := writerConn(t, resource.FWFilter, resource.IPPool)
-	got := cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","values":{"chain":"input","action":"accept","srcAddressList":"mgmt"}}`))
+	got := cn.runAIWriteTool(writeCall(`{"resource":"fwFilter","values":{"chain":"input","action":"accept","sourceGroup":"mgmt"}}`))
 	if !strings.Contains(got, "nothing was changed") || !strings.Contains(got, "srcAddress") {
 		t.Errorf("an undeclared field produced %q", got)
 	}
-	if strings.Contains(got, "srcAddressList") {
+	if strings.Contains(got, "sourceGroup") {
 		t.Errorf("the invented field name was echoed back: %q", got)
 	}
 	// A Display field is never sent, so naming one is the same silent drop.

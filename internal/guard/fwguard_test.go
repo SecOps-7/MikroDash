@@ -366,3 +366,49 @@ func TestCheckRuleIsFamilyAware(t *testing.T) {
 		}
 	})
 }
+
+// TestANegatedMatchIsReadAsTheRouterReadsIt. The form can set a leading `!`
+// since 2026-10-03. Read literally, `!udp` was "not tcp" and `!ether2` named no
+// interface, so a drop of everything but UDP, or of everything not arriving on
+// ether2, passed as unable to touch MikroDash.
+func TestANegatedMatchIsReadAsTheRouterReadsIt(t *testing.T) {
+	ctx := FWContext{Resolved: true, Addresses: []string{"192.0.2.10"},
+		Interfaces: []string{"ether1"}, APIPort: 8729}
+	drop := func(r FWRule) FWRule { r.Chain, r.Action = "input", "drop"; return r }
+	for _, c := range []struct {
+		name string
+		rule FWRule
+		want bool
+	}{
+		{"control: a bare drop", drop(FWRule{}), true},
+		{"everything but UDP includes TCP", drop(FWRule{Protocol: "!udp"}), true},
+		{"everything but TCP misses the API", drop(FWRule{Protocol: "!tcp"}), false},
+		{"every port but 80 includes ours", drop(FWRule{Protocol: "tcp", DstPort: "!80"}), true},
+		{"every port but ours misses us", drop(FWRule{Protocol: "tcp", DstPort: "!8729"}), false},
+		{"every interface but ether2 includes ether1", drop(FWRule{InInterface: "!ether2"}), true},
+		{"every interface but ours misses us", drop(FWRule{InInterface: "!ether1"}), false},
+		{"control: another interface misses us", drop(FWRule{InInterface: "ether2"}), false},
+	} {
+		if got := MatchesUs(c.rule, ctx); got != c.want {
+			t.Errorf("%s: MatchesUs = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// TestTheWarningNamesWhatItCouldNotEvaluate, and an acknowledgement does not
+// survive an edit to one of those matches.
+func TestTheWarningNamesWhatItCouldNotEvaluate(t *testing.T) {
+	ctx := FWContext{Resolved: true, Addresses: []string{"192.0.2.10"}, APIPort: 8729}
+	rule := FWRule{Chain: "input", Action: "drop", Unmodelled: []string{"Src. Address List: blocked"}}
+	v := CheckRule(ctx, "/ip/firewall/filter", rule, nil, "create")
+	if v.Level != "warn" {
+		t.Fatalf("an unevaluated match must stay loud: %+v", v)
+	}
+	if got, _ := v.Detail["unmodelled"].([]string); len(got) != 1 || got[0] != "Src. Address List: blocked" {
+		t.Errorf("the warning does not name the unevaluated match: %v", v.Detail["unmodelled"])
+	}
+	rule.Unmodelled = []string{"Src. Address List: other"}
+	if w := CheckRule(ctx, "/ip/firewall/filter", rule, nil, "create"); w.Fingerprint == v.Fingerprint {
+		t.Error("an acknowledgement would carry over an edit to an unevaluated match")
+	}
+}

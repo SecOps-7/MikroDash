@@ -415,6 +415,7 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		if name == "" {
 			name = res.IdentityOf(before)
 		}
+		validated.Stored = before
 	}
 	if before != nil && res.ReadOnlyWhen != nil && res.ReadOnlyWhen(before) {
 		cn.recorder().Denied(audit.Event{
@@ -1066,6 +1067,16 @@ func (cn *conn) resPreview(raw json.RawMessage) {
 		cn.resErr(res.Key, "invalid", "", map[string]any{"errors": errs})
 		return
 	}
+	// The row, so the preview leaves out the clears Save will leave out (see
+	// resource.Validated.Stored). A failed read previews every clear, which
+	// is longer and still what an unstored write would send.
+	if req.ID != "" {
+		if rows, err := cn.readRow(res, req.ID); err == nil {
+			if row := find(res, rows, req.ID, req.ExpectedIdentity); row != nil {
+				validated.Stored = row
+			}
+		}
+	}
 	EvResPreview.Send(cn.srv.hub, cn.c, map[string]any{
 		"resource": res.Key,
 		"command":  res.PreviewCommand(validated, req.ID),
@@ -1378,10 +1389,10 @@ func (cn *conn) fwVerdict(res *resource.Resource, action string,
 	// (`Resources.rowValues(resource, before)` at its own fwGuard branch).
 	var beforeRule *guard.FWRule
 	if before != nil {
-		b := fwRuleFrom(histValues(res.RowValues(before)))
+		b := fwRuleFrom(res, histValues(res.RowValues(before)))
 		beforeRule = &b
 	}
-	return guard.CheckRule(ctx, res.Menu, fwRuleFrom(values), beforeRule, action)
+	return guard.CheckRule(ctx, res.Menu, fwRuleFrom(res, values), beforeRule, action)
 }
 
 // wifiVerdict asks the inherited-profile guard about one wireless write.
@@ -2177,8 +2188,8 @@ func routeChangeOf(v map[string]string, base guard.RouteChange) guard.RouteChang
 
 // fwRuleFrom reads a rule in the registry's field names, which is the shape
 // both `values` and `rowValues(before)` arrive in.
-func fwRuleFrom(v map[string]string) guard.FWRule {
-	return guard.FWRule{
+func fwRuleFrom(res *resource.Resource, v map[string]string) guard.FWRule {
+	r := guard.FWRule{
 		Chain: v["chain"], Action: v["action"],
 		SrcAddress: v["srcAddress"], DstAddress: v["dstAddress"],
 		Protocol: v["protocol"], DstPort: v["dstPort"], InInterface: v["inInterface"],
@@ -2186,7 +2197,22 @@ func fwRuleFrom(v map[string]string) guard.FWRule {
 		// a freshly-read row reads "true". Both mean disabled.
 		Disabled: v["disabled"] == "yes" || v["disabled"] == "true",
 	}
+	// Every other MATCH that is set: the form's match tabs, less the fields
+	// above. The Action tab holds what a rule does, not what it matches.
+	for _, f := range res.Fields {
+		if fwModelled[f.Name] || f.Display || (f.Tab != "General" && f.Tab != "Advanced" && f.Tab != "Extra") {
+			continue
+		}
+		if val := strings.TrimSpace(v[f.Name]); val != "" {
+			r.Unmodelled = append(r.Unmodelled, f.Label+": "+val)
+		}
+	}
+	return r
 }
+
+// fwModelled are the fields fwRuleFrom hands the guard by name.
+var fwModelled = map[string]bool{"chain": true, "srcAddress": true, "dstAddress": true,
+	"protocol": true, "dstPort": true, "inInterface": true}
 
 // refreshFor re-reads the collector behind a resource's page, so the table shows
 // what the router did rather than what it was asked to do.

@@ -16,7 +16,7 @@
 // for the same reason. The form's job is to be the shape of the row, not the
 // authority on it.
 
-import { esc, el } from './dom';
+import { esc, el, modalTabs } from './dom';
 import type { Socket } from './socket';
 import type { HandEvents, ResSchema, ResSchemaField } from './events-hand';
 
@@ -209,6 +209,11 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
 
   const lbl = '<label class="sform-label" for="' + id + '">' + esc(f.label) +
     (f.required ? ' <span style="color:var(--accent-err)">*</span>' : '') + '</label>';
+  // A NEGATABLE match carries its `!` in the value, as RouterOS spells it. The
+  // form splits it off into the toggle and readValues puts it back, so the box
+  // and the picker only ever hold the thing being matched.
+  const neg = f.negatable ? splitNegation(value) : null;
+  if (neg) value = neg.value;
   const help = f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' +
     esc(f.help) + '</div>' : '';
   let body: string;
@@ -243,7 +248,33 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
       ' autocomplete="off">';
   }
 
-  return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' + lbl + body + help + '</div>';
+  if (neg) body = negToggle(f, neg.not) + body;
+  return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' + lbl +
+    (neg ? '<div class="res-neg-row">' + body + '</div>' : body) + help + '</div>';
+}
+
+/** A negatable value, with RouterOS's leading `!` split off. */
+export function splitNegation(value: unknown): { not: boolean; value: string } {
+  const s = value === undefined || value === null ? '' : String(value);
+  return s.startsWith('!') ? { not: true, value: s.slice(1) } : { not: false, value: s };
+}
+
+/**
+ * The value a negatable field sends: the box's, with the `!` back on when the
+ * toggle is on. A `!` typed into the box as well is not doubled, and an empty
+ * box sends nothing, whatever the toggle says: `!` alone is not a match.
+ */
+export function joinNegation(not: boolean, typed: string): string {
+  const v = typed.trim().replace(/^!+/, '');
+  if (!v) return '';
+  return not ? '!' + v : typed.trim();
+}
+
+function negToggle(f: SchemaField, on: boolean): string {
+  const id = 'resn_' + f.name;
+  return '<button type="button" class="res-neg' + (on ? ' on' : '') + '" id="' + esc(id) + '"' +
+    ' aria-pressed="' + (on ? 'true' : 'false') + '"' +
+    ' title="Not: match everything except this">!</button>';
 }
 
 /**
@@ -268,6 +299,47 @@ function applyShowIf(schema: Schema): void {
   }
 }
 
+/**
+ * The form's tabs, in the order its fields first name them. A tab holding
+ * only display fields (the firewall's Statistics) is left off a NEW row, which
+ * has nothing to show there.
+ */
+export function formTabs(fields: SchemaField[], editing: boolean): string[] {
+  const out: string[] = [];
+  for (const f of fields) {
+    if (!f.tab || out.indexOf(f.tab) !== -1) continue;
+    if (!editing && fields.every((g) => g.tab !== f.tab || g.display)) continue;
+    out.push(f.tab);
+  }
+  return out;
+}
+
+/**
+ * How many optional fields on each tab hold a value, shown on the tab.
+ *
+ * A setting made in WinBox on a tab nobody opened was the visibility half of
+ * the request (2026-10-03): the count says it is there. Required fields are
+ * left out, being always set, and so is a field its showIf hides.
+ */
+function countTabs(schema: Schema): void {
+  const host = el('res_fields');
+  if (!host) return;
+  const counts: Record<string, number> = {};
+  const values = readValues(schema);
+  for (const f of schema.fields) {
+    if (!f.tab || f.required || f.display) continue;
+    const wrap = host.querySelector<HTMLElement>('[data-res-field="' + f.name + '"]');
+    if (wrap && wrap.style.display === 'none') continue;
+    const v = values[f.name] ?? '';
+    if (v !== '' && v !== 'false') counts[f.tab] = (counts[f.tab] || 0) + 1;
+  }
+  host.querySelectorAll<HTMLElement>('[data-res-count]').forEach((b) => {
+    const n = counts[b.getAttribute('data-res-count') || ''] || 0;
+    b.textContent = n ? String(n) : '';
+    b.style.display = n ? '' : 'none';
+  });
+}
+
 /** How a field renders differs between Add and Edit; `values` says which. */
 function decorate(f: SchemaField, values: Record<string, unknown> | null): SchemaField {
   if (values) return f.createOnly ? { ...f, display: true } : f;
@@ -286,11 +358,34 @@ function buildForm(schema: Schema, values: Record<string, unknown> | null,
   // optional on Edit, so the asterisk appears only when `values` is null. The
   // server refuses it either way - this is the label agreeing with the refusal
   // rather than the operator finding out on save.
-  host.innerHTML = schema.fields
-    .map((f) => fieldHtml(decorate(f, values), values ? values[f.name] : undefined,
-      options ? options[f.name] : undefined))
-    .join('');
+  const draw = (f: SchemaField): string => fieldHtml(decorate(f, values),
+    values ? values[f.name] : undefined, options ? options[f.name] : undefined);
+  const tabs = formTabs(schema.fields, values !== null);
+  host.innerHTML = tabs.length
+    ? '<div class="modal-tabs" id="res_tabs"><div class="stab-bar" role="tablist">' +
+        tabs.map((t) => '<button type="button" class="stab" role="tab" data-modaltab="' + esc(t) + '">' +
+          esc(t) + '<span class="card-badge active-blue res-tab-count" data-res-count="' + esc(t) + '"></span>' +
+          '</button>').join('') +
+      '</div><div class="modal-panels">' +
+        tabs.map((t) => '<div class="modal-panel res-tab-panel" data-modalpanel="' + esc(t) + '">' +
+          schema.fields.filter((f) => f.tab === t).map(draw).join('') + '</div>').join('') +
+      '</div></div>'
+    : schema.fields.map(draw).join('');
+  if (tabs.length) modalTabs('res_tabs', tabs[0]!);
+  // ASSIGNED, not added: #res_fields outlives every form, and a listener added
+  // per open would count the tabs of every schema it had ever shown.
+  host.oninput = tabs.length ? () => countTabs(schema) : null;
+  host.onchange = tabs.length ? () => countTabs(schema) : null;
+  host.querySelectorAll<HTMLButtonElement>('.res-neg').forEach((b) => {
+    b.addEventListener('click', () => {
+      const on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.classList.toggle('on', on);
+      countTabs(schema);
+    });
+  });
   applyShowIf(schema);
+  countTabs(schema);
   // A field that controls another's visibility redraws it as it changes - the
   // DNS type picker is the only one today, but the rule is general.
   const seen = new Set<string>();
@@ -310,6 +405,10 @@ function readValues(schema: Schema): Record<string, string> {
     if (f.input === 'multi') {
       out[f.name] = Array.from(node.querySelectorAll<HTMLInputElement>('input[data-res-multi]'))
         .filter((b) => b.checked).map((b) => b.value).join(',');
+      continue;
+    }
+    if (f.negatable) {
+      out[f.name] = joinNegation(el('resn_' + f.name)?.getAttribute('aria-pressed') === 'true', node.value);
       continue;
     }
     out[f.name] = f.input === 'checkbox'
@@ -475,8 +574,18 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
           esc(str(w.ruleMatch) || '?') + '</code> uses to decide on MikroDash\'s own traffic.',
       };
     }
-    case 'self-lockout':
-      return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
+    case 'self-lockout': {
+      // The matches the check could not evaluate, assumed to match. Named so
+      // the operator can see why a rule scoped to an address list or a time
+      // window still warns, and judge whether it reaches MikroDash at all.
+      const other = Array.isArray(w.unmodelled) ? w.unmodelled.filter((x): x is string => typeof x === 'string') : [];
+      return {
+        headline: cut,
+        why: 'This firewall rule could match MikroDash\'s own traffic to the router.' +
+          (other.length ? ' It also matches on <code>' + other.map(esc).join('</code>, <code>') +
+            '</code>, which this check cannot evaluate, so it may not apply to MikroDash at all.' : ''),
+      };
+    }
     case 'self-throttle': {
       // The cap arrives as the guard's {up, down} pair of raw bits per second,
       // null for a half that is not set.

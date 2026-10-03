@@ -60,6 +60,10 @@ export interface ResSchemaField {
   display: boolean;
   /** Set when a row is made and fixed after it: an edit shows it locked. */
   createOnly: boolean;
+  /** The form tab this field is drawn on; empty when the form has no tabs. */
+  tab: string;
+  /** A match RouterOS inverts with a leading `!`: drawn with a "not" toggle. */
+  negatable: boolean;
 }
 
 /**

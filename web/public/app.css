@@ -3814,3 +3814,22 @@
 .dp-clear { color: var(--text-muted); margin-left: auto; }
 .dp-empty { color: var(--text-muted); font-size: .74rem; padding: .3rem 0; }
 
+
+/* ── A TABBED RESOURCE FORM (the firewall rule) ──────────────────────────────
+   The panels are the dialog-tab idiom above (.modal-panels / .modal-panel),
+   so every tab is as tall as the tallest. The firewall's Advanced tab holds
+   about thirty fields, so a tab is two columns wide, one on a phone.
+   The count beside a tab name is how many settings are made on it: a value set
+   in WinBox on a tab nobody opened is otherwise invisible. */
+.res-tab-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 .8rem; align-content: start; }
+@media (max-width: 600px) { .res-tab-panel { grid-template-columns: minmax(0, 1fr); } }
+.res-tab-count { margin-left: .4rem; }
+/* The "not" toggle: RouterOS's leading `!`, beside the match it inverts. */
+.res-neg-row { display: flex; gap: .3rem; align-items: stretch; }
+.res-neg-row > .sform-input { flex: 1; min-width: 0; }
+.res-neg {
+  flex: 0 0 auto; width: 2rem; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-muted); font-weight: 700; cursor: pointer;
+}
+.res-neg:hover { color: var(--text-main); }
+.res-neg.on { color: var(--accent-err); border-color: var(--accent-err); background: rgba(248, 113, 113, .1); }

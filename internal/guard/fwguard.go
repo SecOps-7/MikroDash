@@ -398,6 +398,13 @@ type FWRule struct {
 	DstPort     string
 	InInterface string
 	Disabled    bool
+	// Unmodelled are the rule's other matches, "Label: value" in form order:
+	// address lists, interface lists, connection state, time windows and the
+	// rest of the firewall form's sixty properties. None is evaluated, so each
+	// is assumed to match, which keeps a blocking rule LOUD; the warning names
+	// them so the operator can see why it may not apply. They are in the
+	// fingerprint, so an acknowledgement cannot outlive an edit to one.
+	Unmodelled []string
 }
 
 // MatchesUs answers: could this rule match the traffic that keeps MikroDash
@@ -411,17 +418,37 @@ func MatchesUs(rule FWRule, ctx FWContext) bool {
 		return false
 	}
 
-	proto := strings.ToLower(strings.TrimSpace(rule.Protocol))
-	if proto != "" && proto != "tcp" {
+	// A LEADING `!` INVERTS EACH OF THE NEXT THREE. The form can set one since
+	// 2026-10-03, and read literally `!udp` is "not tcp" and `!ether2` names no
+	// interface, so a drop of everything but UDP passed as harmless.
+	proto, notProto := negated(rule.Protocol)
+	proto = strings.ToLower(proto)
+	if notProto {
+		if proto == "tcp" {
+			return false // everything but TCP; the API is TCP
+		}
+	} else if proto != "" && proto != "tcp" {
 		return false // the API is TCP
 	}
 
-	if !PortCovers(rule.DstPort, ctx.APIPort) {
+	port, notPort := negated(rule.DstPort)
+	if notPort {
+		if port != "" && PortCovers(port, ctx.APIPort) {
+			return false
+		}
+	} else if !PortCovers(port, ctx.APIPort) {
 		return false
 	}
 
-	inIf := strings.ToLower(strings.TrimSpace(rule.InInterface))
-	if inIf != "" {
+	inIf, notIf := negated(rule.InInterface)
+	inIf = strings.ToLower(inIf)
+	if notIf {
+		for _, i := range ctx.Interfaces {
+			if strings.ToLower(i) == inIf {
+				return false // every interface but the one we arrive on
+			}
+		}
+	} else if inIf != "" {
 		found := false
 		for _, i := range ctx.Interfaces {
 			if strings.ToLower(i) == inIf {
@@ -434,6 +461,15 @@ func MatchesUs(rule FWRule, ctx FWContext) bool {
 		}
 	}
 	return true
+}
+
+// negated splits RouterOS's leading `!` off a match.
+func negated(spec string) (string, bool) {
+	s := strings.TrimSpace(spec)
+	if rest, ok := strings.CutPrefix(s, "!"); ok {
+		return strings.TrimSpace(rest), true
+	}
+	return s, false
 }
 
 // CheckRule is the verdict.
@@ -493,6 +529,7 @@ func CheckRule(ctx FWContext, menu string, values FWRule, before *FWRule, what s
 			"port": ctx.APIPort}
 		d["address"] = firstOrNil(ctx.Addresses)
 		d["interface"] = firstOrNil(ctx.Interfaces)
+		d["unmodelled"] = append([]string{}, rule.Unmodelled...)
 		return d
 	}
 
@@ -534,10 +571,16 @@ func fwFingerprint(what, menu string, rule FWRule, ctx FWContext) string {
 	if addrs == nil {
 		addrs = []string{}
 	}
-	b, _ := json.Marshal([]any{
+	parts := []any{
 		what, menu, rule.Chain, rule.Action,
 		rule.SrcAddress, rule.DstAddress, rule.Protocol, rule.DstPort, rule.InInterface,
 		addrs, ctx.APIPort,
-	})
+	}
+	// Only when there are any, so every fingerprint the original computed is
+	// unchanged.
+	if len(rule.Unmodelled) > 0 {
+		parts = append(parts, rule.Unmodelled)
+	}
+	b, _ := json.Marshal(parts)
 	return string(b)
 }
