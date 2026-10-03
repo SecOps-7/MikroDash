@@ -153,6 +153,8 @@ type Firewall struct {
 	// lastEmit is when a payload last went out, for firewallHeartbeat.
 	lastEmit time.Time
 	now      func() time.Time
+	// filterAt is when the filter table was last read, for FilterRows.
+	filterAt time.Time
 
 	// wantV6 is a LATCH, not a refcount.
 	//
@@ -322,6 +324,7 @@ func (f *Firewall) Tick() {
 		}
 		f.tables[t] = out
 	}
+	f.filterAt = f.now()
 	if !wantV6 {
 		// DELETE rather than assign an empty slice. A stale v6 table must not
 		// outlive the want, and the payload builder turns a missing key into a
@@ -375,6 +378,9 @@ func (f *Firewall) replaceTable(table string, rows []routeros.Reply) {
 		out = append(out, f.processRule(table, r))
 	}
 	f.tables[table] = out
+	if table == "filter" {
+		f.filterAt = f.now()
+	}
 	f.mu.Unlock()
 	f.buildAndEmit()
 }
@@ -648,12 +654,32 @@ func (f *Firewall) Stop() {
 // summary. See internal/collect/queues.go: a reader holding `queues` but not
 // `firewall` learns only that FastTrack is on, which is a fact about the Queues
 // page's own correctness.
-func (f *Firewall) FilterRows() []routeros.Reply {
+//
+// A copy older than maxAge is re-read first, whole rows, as the Filter tab reads
+// it. Nothing else refreshes the filter table unless the Firewall page is open
+// on that tab. A collector that never started still answers nil ("cannot say"):
+// that is Firewall collection switched off, and this must not read for it.
+func (f *Firewall) FilterRows(maxAge time.Duration) []routeros.Reply {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.last == nil {
+	started := f.last != nil
+	stale := f.now().Sub(f.filterAt) >= maxAge
+	f.mu.Unlock()
+	if !started {
 		return nil
 	}
+	if stale {
+		// A failed read keeps the copy held, as pollActive does.
+		rows, err := f.ros.Do(routeros.Cmd{
+			Path: fwMenu("filter") + "/print",
+			Args: []string{"=.proplist=" + fwProplist},
+		})
+		if err == nil {
+			f.replaceTable("filter", rows)
+		}
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	out := make([]routeros.Reply, 0, len(f.last.Filter))
 	for _, r := range f.last.Filter {
 		out = append(out, routeros.Reply{

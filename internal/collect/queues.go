@@ -161,12 +161,23 @@ type queueSample struct {
 	rateUp, rateDown *float64
 }
 
-// FilterRowSource is the firewall collector, borrowed by reference and never
-// fetched. Returning nil means "cannot say", which must degrade the banner
-// rather than blank the page.
+// FilterRowSource is the firewall collector, borrowed by reference. Returning
+// nil means "cannot say", which must degrade the banner rather than blank the
+// page.
+//
+// maxAge is how old a filter table this page will accept. The firewall's copy
+// was served as held, and it is refreshed only while the Firewall page is open
+// on its Filter tab, so a FastTrack rule added or disabled in Winbox never moved
+// the banner (survey, 2026-10-03). The firewall re-reads the table when its copy
+// is older, so an open Firewall page costs nothing extra.
 type FilterRowSource interface {
-	FilterRows() []routeros.Reply
+	FilterRows(maxAge time.Duration) []routeros.Reply
 }
+
+// queuesFasttrackEvery is the slow lane for the FastTrack banner: a firewall
+// rule is configuration, so it is not re-read every queue poll. A duration,
+// not a count of polls, so a short queue interval cannot make it read faster.
+const queuesFasttrackEvery = 60 * time.Second
 
 type Queues struct {
 	tableCore[QueuesPayload]
@@ -498,7 +509,7 @@ func (q *Queues) fasttrack() Fasttrack {
 	if q.firewall == nil {
 		return Fasttrack{State: "unknown"}
 	}
-	rows := q.firewall.FilterRows()
+	rows := q.firewall.FilterRows(queuesFasttrackEvery)
 	if rows == nil {
 		return Fasttrack{State: "unknown"}
 	}
@@ -551,36 +562,44 @@ func (q *Queues) reset() {
 
 // fingerprint decides whether this tick is worth emitting.
 //
-// BYTE COUNTERS ARE EXCLUDED ON PURPOSE: they move every tick on a busy queue,
-// and emitting for that alone would defeat the dirty check. Rates ARE included,
-// rounded to kbit, because they are what changes visibly on screen.
+// The whole payload, less what moves on its own. It was a hand-picked tuple, and
+// this collector has no heartbeat, so an edit to any field left out of it -
+// priority, queue type, burst, a tree's limit-at, a queue moved in the list, an
+// `invalid` flag - was re-read, hashed identically and never sent, whether it
+// was made in Winbox or by MikroDash itself (survey, 2026-10-03). Starting from
+// the payload means a field added later is covered without anyone remembering.
 //
-// `comment` is in both tuples. It was missing upstream, which meant a
-// comment-only edit re-read the router, hashed an identical string and returned
-// without emitting — so an edit that really landed never reached an open page.
-// On a busy router that hid as mere slowness; on an idle one the update never
-// arrived. Every field the page displays belongs here.
+// BYTE COUNTERS ARE EXCLUDED ON PURPOSE: they move every tick on a busy queue,
+// and emitting for that alone would defeat the dirty check. So is the rate
+// window, which moves every tick too. Rates ARE included, rounded to kbit,
+// because they are what changes visibly on screen.
 func (q *Queues) fingerprint(p *QueuesPayload) string {
-	s := make([][]any, 0, len(p.Simple))
+	c := *p
+	c.TS = 0
+	c.Simple = make([]SimpleQueue, 0, len(p.Simple))
 	for _, x := range p.Simple {
-		s = append(s, []any{x.ID, x.Name, x.Target, x.Comment, x.Disabled, x.Dynamic,
-			x.MaxLimit.Up, x.MaxLimit.Down, x.LimitAt.Up, x.LimitAt.Down,
-			kbit(x.RateBps.Up), kbit(x.RateBps.Down)})
+		x.Bytes, x.Packets, x.Dropped, x.QueuedBytes = IntPair{}, IntPair{}, IntPair{}, IntPair{}
+		x.RateBps = RatePair{Up: kbitOf(x.RateBps.Up), Down: kbitOf(x.RateBps.Down)}
+		x.RateWindowMs = nil
+		c.Simple = append(c.Simple, x)
 	}
-	t := make([][]any, 0, len(p.Tree))
+	c.Tree = make([]TreeQueue, 0, len(p.Tree))
 	for _, x := range p.Tree {
-		t = append(t, []any{x.ID, x.Name, x.Parent, x.PacketMark, x.Comment, x.Disabled,
-			x.MaxLimit, kbit(x.RateBps)})
+		x.Bytes, x.Packets, x.Dropped, x.QueuedBytes = nil, nil, nil, nil
+		x.RateBps = kbitOf(x.RateBps)
+		x.RateWindowMs = nil
+		c.Tree = append(c.Tree, x)
 	}
-	b, _ := json.Marshal(map[string]any{"s": s, "t": t, "f": p.Fasttrack, "st": p.Stats})
+	b, _ := json.Marshal(c)
 	return string(b)
 }
 
-func kbit(f *float64) int {
+// kbitOf rounds a rate to kbit, keeping "no measurement" apart from zero.
+func kbitOf(f *float64) *float64 {
 	if f == nil {
-		return 0
+		return nil
 	}
-	return int(math.Round(*f / 1000))
+	return ptrF(math.Round(*f / 1000))
 }
 
 // ForgetRates drops every rate baseline.
