@@ -72,6 +72,24 @@ export function fwIdentity(r: FirewallRule): string {
     r.comment || ''].join('\u0001');
 }
 
+/** A rule with the fields the in-place path rewrites zeroed: what is left needs a redraw. */
+const shapeOf = (r: FirewallRule): string => JSON.stringify({ ...r, packets: 0, bytes: 0, deltaPackets: 0 });
+
+/**
+ * Whether `next` differs from the table on screen in its counters alone, so the
+ * in-place path may patch them.
+ *
+ * It used to ask only whether the ids were the same and in the same order. An
+ * edit keeps the id and the place - a rule changed from accept to drop in
+ * Winbox, a new comment, a rule disabled - so it passed that test and only the
+ * counter cells were rewritten: the row went on showing the old rule until
+ * something else forced a redraw (operator report, 2026-10-03).
+ */
+export function onlyCountersDiffer(drawn: FirewallRule[], next: FirewallRule[]): boolean {
+  if (drawn.length !== next.length) return false;
+  return drawn.every((r, i) => shapeOf(r) === shapeOf(next[i]!));
+}
+
 export function actionBadge(a: string): string {
   // `encrypt`, `discard` and `unreachable` are no firewall action: they are the
   // IPsec policy's and the routing rule's, which the generated pages draw with
@@ -108,6 +126,9 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
   // it - including when the move came from undo rather than the operator's hand.
   let pulse: string | null = null;
   let rafId: number | null = null;
+  // The table renderTab last drew, unfiltered, so the in-place path can tell a
+  // counter tick from an edit. See onlyCountersDiffer.
+  let drawn: FirewallRule[] = [];
 
   const resKeyFor = (f: Fam, t: string): string => FW_RES[f][t] || FW_RES[f].filter!;
   /** What `firewall:tab` carries: one namespace for both families. */
@@ -214,11 +235,8 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
     const rows = firewallTable.querySelectorAll<HTMLElement>('tr[data-rule-id]');
     if (!rows.length) return false;
     if (rows.length !== rules.length) return false; // rule count changed - full re-render
-    let idMatch = true;
-    rows.forEach((row, i) => {
-      if (row.dataset.ruleId !== (rules[i] && rules[i].id)) idMatch = false;
-    });
-    if (!idMatch) return false;
+    // Ids, order and every rendered field: anything but a counter redraws.
+    if (!onlyCountersDiffer(drawn, rules)) return false;
 
     rows.forEach((row, i) => {
       const r = rules[i];
@@ -252,6 +270,7 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
 
   function renderTab(): void {
     const full = rulesFor(tab);
+    drawn = full;
     // Position is the rule's place in the REAL table, not in the filtered view
     // - it is what decides whether the rule ever runs, so a search must not
     // renumber it.

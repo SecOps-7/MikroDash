@@ -1,18 +1,21 @@
 package collect
 
-// Firewall collector — the four tables, and a counter refresh for the one on
-// screen.
+// Firewall collector — the four tables, and a refresh of the one on screen.
 //
 // `/ip/firewall/{filter,nat,mangle,raw}` are read in full at start and after
-// every write. Only the ACTIVE table's counters are refreshed between those,
-// because that is all the page is showing move.
+// every write. Between those, the ACTIVE table is re-read every poll, whole
+// rows and in the router's order, and REPLACES what is held.
 //
-// ── WHAT THE COUNTER REFRESH CANNOT SEE ─────────────────────────────────────
+// ── WHY THE REFRESH READS WHOLE ROWS ────────────────────────────────────────
 //
-// It carries `.id`, `packets` and `bytes` and nothing else, so it cannot report
-// ORDER — and a firewall write can reorder rules, which is the one thing that
-// changes what a rule DOES without changing the rule. Only a full read answers
-// "where is this rule now", which is why RefreshNow does one.
+// It used to carry `.id`, `packets` and `bytes` only, merged onto the rules
+// already held, on the theory that rules change only through MikroDash's own
+// writes (which re-read). They do not: a rule added, deleted, edited or moved
+// in Winbox or the terminal never reached an open page until the router
+// reconnected (operator report, 2026-10-03). The whole row costs the same ONE
+// command per poll, which is the cost this repo counts; only the reply grows.
+// The other three tables are still read only at start and after a write, and
+// the active one is caught up within a poll of its tab being selected.
 //
 // ── DISABLED RULES TRAVEL ───────────────────────────────────────────────────
 //
@@ -200,33 +203,33 @@ func NewFirewall(ros Reader, emit Emit, pollMs int) *Firewall {
 	// then calls retime(), so a cadence closed over the constructor's value made
 	// the Firewall poll slider do nothing at all. Every other collector reads
 	// the interval; this one did not.
-	f.poll = newPollLoop(func() { f.pollCounters() }, f.pollMs.duration)
+	f.poll = newPollLoop(func() { f.pollActive() }, f.pollMs.duration)
 	f.sched = scheduled{
 		loop: f.poll, menu: fwMenu("filter") + "/print",
-		fields: fwCounterFields, cadence: f.pollMs.duration,
-		apply: f.counterApplier("filter"),
+		fields: fwFields, cadence: f.pollMs.duration,
+		apply: f.activeApplier("filter"),
 	}
 	return f
 }
 
-// fwCounterFields is the counter refresh's proplist, as a field list rather than
-// a Cmd because the menu it belongs to is chosen at runtime.
-var fwCounterFields = []string{".id", "packets", "bytes"}
+// fwFields is fwProplist as a field list, for the scheduler: the refresh's menu
+// is chosen at runtime, so it cannot be a Cmd.
+var fwFields = strings.Split(fwProplist, ",")
 
-// counterApplier binds a delivery to the table it was read from.
+// activeApplier binds a delivery to the table it was read from.
 //
 // The table is captured, never re-read. See scheduled.resubscribe for why:
-// `.id` values repeat across menus, so merging one table's counters into
-// another succeeds and quietly reports the wrong numbers.
-func (f *Firewall) counterApplier(table string) func([]routeros.Reply, error) {
+// `.id` values repeat across menus, so one table's rows filed under another
+// would succeed and quietly show the wrong rules.
+func (f *Firewall) activeApplier(table string) func([]routeros.Reply, error) {
 	return func(rows []routeros.Reply, err error) {
 		// Retried on every delivery, and ONLY on this path, because it runs
-		// exactly when somebody is looking -- see pollCounters.
+		// exactly when somebody is looking -- see pollActive.
 		f.ProbeV6()
 		if err != nil {
 			return
 		}
-		f.mergeCounters(table, rows)
+		f.replaceTable(table, rows)
 	}
 }
 
@@ -331,13 +334,12 @@ func (f *Firewall) Tick() {
 	f.buildAndEmit()
 }
 
-// pollCounters refreshes the ACTIVE table's counters only.
+// pollActive re-reads the ACTIVE table, whole rows, and replaces it.
 //
-// This is the `=interval=` stream's poll equivalent: the same three fields, the
-// same merge. Rules that vanished between reads keep their last counters rather
-// than being dropped, because this read is not authoritative about membership —
-// only Tick is.
-func (f *Firewall) pollCounters() {
+// The polled twin of activeApplier: the same fields, the same replace. This
+// read IS authoritative about membership and order for its table, so a rule
+// that vanished on the router vanishes here.
+func (f *Firewall) pollActive() {
 	// Retry the IPv6 probe here, and ONLY here, because this loop runs exactly
 	// when somebody is looking: Resume() starts it, Suspend() stops it. A no-op
 	// once the router has answered. Page focus is the timely attempt; this is
@@ -351,43 +353,28 @@ func (f *Firewall) pollCounters() {
 	if table == "" {
 		return
 	}
+	// Do, not safeGet: a failed read keeps what is held rather than emptying
+	// the table on screen.
 	rows, err := f.ros.Do(routeros.Cmd{
 		Path: fwMenu(table) + "/print",
-		Args: []string{"=.proplist=" + strings.Join(fwCounterFields, ",")},
+		Args: []string{"=.proplist=" + fwProplist},
 	})
 	if err != nil {
 		return
 	}
-	f.mergeCounters(table, rows)
+	f.replaceTable(table, rows)
 }
 
-// mergeCounters folds one counter read into the table it was read from.
-func (f *Firewall) mergeCounters(table string, rows []routeros.Reply) {
-	byID := make(map[string]routeros.Reply, len(rows))
-	for _, r := range rows {
-		if r[".id"] != "" {
-			byID[r[".id"]] = r
-		}
-	}
-
+// replaceTable files one whole read of a table, in the router's order. The
+// counter deltas come from the baselines processRule keeps, as in Tick, and
+// buildAndEmit prunes the baselines of rules that are gone.
+func (f *Firewall) replaceTable(table string, rows []routeros.Reply) {
 	f.mu.Lock()
-	cur := f.tables[table]
-	for i := range cur {
-		r, ok := byID[cur[i].ID]
-		if !ok {
-			continue
-		}
-		packets := pppInt(r["packets"])
-		bytes := pppInt(r["bytes"])
-		delta := 0
-		if prev, ok := f.prevCounts[countKey(table, cur[i].ID)]; ok {
-			if d := packets - prev.packets; d > 0 {
-				delta = d
-			}
-		}
-		f.prevCounts[countKey(table, cur[i].ID)] = fwCount{packets: packets, bytes: bytes}
-		cur[i].Packets, cur[i].Bytes, cur[i].DeltaPackets = packets, bytes, delta
+	out := make([]FirewallRule, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, f.processRule(table, r))
 	}
+	f.tables[table] = out
 	f.mu.Unlock()
 	f.buildAndEmit()
 }
@@ -473,7 +460,7 @@ func orEmpty(r []FirewallRule) []FirewallRule {
 	return r
 }
 
-// SetActiveTable switches which table's counters are refreshed.
+// SetActiveTable switches which table is refreshed.
 func (f *Firewall) SetActiveTable(t string) {
 	switch t {
 	case "filter", "nat", "mangle", "raw",
@@ -491,7 +478,7 @@ func (f *Firewall) SetActiveTable(t string) {
 	// MECHANISM B. The polled path reads `activeTable` inside its own body and
 	// needs nothing here; the scheduled path is subscribed to a specific menu
 	// and has to be moved.
-	f.sched.resubscribe(fwMenu(t)+"/print", f.counterApplier(t))
+	f.sched.resubscribe(fwMenu(t)+"/print", f.activeApplier(t))
 	f.buildAndEmit()
 }
 

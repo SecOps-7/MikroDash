@@ -61,7 +61,7 @@ func TestFastPollCollectorsSplitTheirSlowReads(t *testing.T) {
 		"bandwidth": {"", "reads the same connection table as conns; nothing in it is config"},
 		"ifStatus":  {"ifStatusMetaTarget", "rates every poll; the three metadata menus every 30s"},
 		"ping":      {"", "a =interval= stream, not a poll; there is no second read to pace"},
-		"firewall":  {"", "the rule tables are read on Start and after a write; pollCounters reads only .id,packets,bytes"},
+		"firewall":  {"", "one read per poll, of the table on screen: its rows ARE what the page shows, counters included, and a rule changed in Winbox must appear"},
 		"vlans":     {"vlanConfigEvery", ""},
 		"ppp":       {"pppConfigEvery", ""},
 		"bridges":   {"bridgeConfigEvery", ""},
