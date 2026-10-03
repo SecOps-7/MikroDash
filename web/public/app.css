@@ -3824,6 +3824,14 @@
 .res-tab-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 .8rem; align-content: start; }
 @media (max-width: 600px) { .res-tab-panel { grid-template-columns: minmax(0, 1fr); } }
 .res-tab-count { margin-left: .4rem; }
+/* SIZED TO THE TAB ON SCREEN, unlike the other tabbed dialogs. Their tabs are
+   a few fields each, so one height for all costs nothing; here Advanced holds
+   about thirty fields and Action five, and the shared height left a screen of
+   empty space above the buttons on every short tab (operator, 2026-10-03). */
+.res-tab-panel:not(.active) { display: none; }
+/* The buttons stay in view while a long tab scrolls under them. Solid, since
+   --bg-card is translucent and the fields would show through. */
+#resModal .rtr-modal-footer { position: sticky; bottom: 0; background: var(--bg-deep); z-index: 1; }
 /* The "not" toggle: RouterOS's leading `!`, beside the match it inverts. */
 .res-neg-row { display: flex; gap: .3rem; align-items: stretch; }
 .res-neg-row > .sform-input { flex: 1; min-width: 0; }
