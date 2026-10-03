@@ -1357,6 +1357,10 @@ type Topology struct {
 	mu        sync.Mutex
 	last      *TopologyPayload
 	discovery *TopoDiscovery
+	// configAt is when the discovery settings and VLAN names were last read.
+	// See topoConfigEvery.
+	configAt time.Time
+	now      func() time.Time
 	// docs reads the operator's declared cabling. Nil outside a live session.
 	docs DocSource
 	// v1Absent latches "this router has no /caps-man tree", so a modern-only
@@ -1399,6 +1403,17 @@ const topoPingStep = 3 * time.Second
 // turn the router into a ping generator.
 const topoMaxPingTargets = 24
 
+// topoConfigEvery is the slow lane for the discovery settings and the VLAN
+// names.
+//
+// They were read once per connection, so a change made on the router - a
+// renamed VLAN, discovery turned off on an interface list - never reached the
+// map until it reconnected. They are configuration rather than state, so they
+// are re-read on this lane and not on every poll. A duration, not a count of
+// polls: the poll may be set as low as 5s, and twelve of those would be a
+// minute while two of the default would be one too.
+const topoConfigEvery = 60 * time.Second
+
 // NewTopology builds the collector. `label` names the core node when no system
 // payload is available, matching the original's fallback chain.
 func NewTopology(ros Reader, emit Emit, rates RateSource, routerID, label string, pollMs int) *Topology {
@@ -1408,6 +1423,7 @@ func NewTopology(ros Reader, emit Emit, rates RateSource, routerID, label string
 		vlanNames: map[int]string{},
 		seen:      map[string]*TopoSeen{},
 		ping:      map[string]*TopoPing{},
+		now:       time.Now,
 	}
 	t.loop = newPollLoop(func() { t.Tick() }, func() time.Duration {
 		return t.pollMs.duration()
@@ -1754,12 +1770,16 @@ func (t *Topology) apply(rows []routeros.Reply, err error) {
 	ifaceRadio, capByPrefix, assoc := t.readWifi()
 
 	t.mu.Lock()
-	if t.discovery == nil {
-		t.mu.Unlock()
+	due := t.discovery == nil || t.now().Sub(t.configAt) >= topoConfigEvery
+	t.mu.Unlock()
+	if due {
 		t.readDiscovery()
 		t.readVlans()
 		t.mu.Lock()
+		t.configAt = t.now()
+		t.mu.Unlock()
 	}
+	t.mu.Lock()
 	vlanNames := t.vlanNames
 	discovery := t.discovery
 	t.mu.Unlock()

@@ -33,6 +33,7 @@ package collect
 // rule is how they would.
 
 import (
+	"encoding/json"
 	"sort"
 	"strconv"
 	"strings"
@@ -339,18 +340,21 @@ func (r *RosUsers) build(userRows []routeros.Reply) (*RosUsersPayload, string) {
 		Available: MenuAvailable(r.userAvail),
 		Denied:    r.denied,
 	}
-	var fp strings.Builder
-	for _, u := range users {
-		fp.WriteString(u.Name + "|" + u.Group + "|" + strconv.FormatBool(u.Disabled) + "|" +
-			u.Address + "|" + u.Comment + "|" + u.LastLogin + ";")
-	}
-	fp.WriteString("#")
-	for _, g := range groups {
-		fp.WriteString(g.Name + "|" + strings.Join(g.Granted, "|") + "|" + strconv.Itoa(g.Members) + ";")
-	}
-	fp.WriteString("#")
-	for _, s := range sessions {
-		fp.WriteString(s.Name + "|" + s.Address + "|" + s.Via + "|" + s.When + ";")
-	}
-	return payload, fp.String()
+	return payload, rosUsersFingerprint(payload)
+}
+
+// rosUsersFingerprint is THE WHOLE PAYLOAD but its timestamp.
+//
+// It was a hand-picked string of some user, group and session fields, and this
+// collector has no heartbeat, so an edit to any field left out - a user's expiry
+// or inactivity settings, a group's skin or comment, the password policy - was
+// re-read, hashed identically and never sent: not after a change in Winbox, and
+// not after MikroDash's own write either (survey, 2026-10-03). Nothing in it
+// moves on its own, so hashing all of it costs no extra sends on a quiet router.
+// `TestRosUsersFingerprintCoversEveryRenderedField` reflects over every type.
+func rosUsersFingerprint(p *RosUsersPayload) string {
+	c := *p
+	c.TS = 0
+	b, _ := json.Marshal(c)
+	return string(b)
 }

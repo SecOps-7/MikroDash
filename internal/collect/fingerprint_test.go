@@ -210,3 +210,44 @@ func TestFirewallFingerprintCoversEveryTable(t *testing.T) {
 			"nil=%q true=%q false=%q", fpNil, fpYes, fpNo)
 	}
 }
+
+// TestRosUsersFingerprintCoversEveryRenderedField. The fingerprint was a
+// hand-picked string of six user fields, four group fields and four session
+// fields, and the collector has no heartbeat, so an edit to anything else - a
+// user's expiry or inactivity settings, a group's skin or comment, the whole
+// password policy - was re-read, hashed identically and never sent, whether it
+// was made in Winbox or by MikroDash itself (survey, 2026-10-03).
+func TestRosUsersFingerprintCoversEveryRenderedField(t *testing.T) {
+	// Non-zero starting values. A string slice starts as something other than
+	// what mutate sets it to, or the mutation would be a no-op and read as a gap.
+	fill := func(row any) any {
+		rv := reflect.ValueOf(row).Elem()
+		for i := 0; i < rv.NumField(); i++ {
+			f := rv.Field(i)
+			if f.Kind() == reflect.Slice && f.Type().Elem().Kind() == reflect.String {
+				f.Set(reflect.ValueOf([]string{"start"}))
+				continue
+			}
+			mutate(f)
+		}
+		return row
+	}
+	assertFieldsCovered(t, "RosUser", fill(&RosUser{}), nil, func(r any) string {
+		return rosUsersFingerprint(&RosUsersPayload{Users: []RosUser{*r.(*RosUser)}})
+	})
+	assertFieldsCovered(t, "RosGroup", fill(&RosGroup{}), nil, func(r any) string {
+		return rosUsersFingerprint(&RosUsersPayload{Groups: []RosGroup{*r.(*RosGroup)}})
+	})
+	assertFieldsCovered(t, "RosSession", fill(&RosSession{}), nil, func(r any) string {
+		return rosUsersFingerprint(&RosUsersPayload{Sessions: []RosSession{*r.(*RosSession)}})
+	})
+	assertFieldsCovered(t, "RosPasswordPolicy", fill(&RosPasswordPolicy{}), nil, func(r any) string {
+		return rosUsersFingerprint(&RosUsersPayload{PasswordPolicy: *r.(*RosPasswordPolicy)})
+	})
+	assertFieldsCovered(t, "RosSelf", fill(&RosSelf{}), nil, func(r any) string {
+		return rosUsersFingerprint(&RosUsersPayload{Self: *r.(*RosSelf)})
+	})
+	assertFieldsCovered(t, "RosUsersPayload", fill(&RosUsersPayload{}), map[string]string{
+		"TS": "the time of the reading, not a change",
+	}, func(r any) string { return rosUsersFingerprint(r.(*RosUsersPayload)) })
+}
