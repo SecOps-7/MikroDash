@@ -714,7 +714,10 @@ function actionBar(schema: Schema, avail: string[]): void {
   if (!host) return;
   host.innerHTML = (avail || []).map((k) => {
     const a = (schema.actions || []).find((x) => x.key === k);
-    return a ? '<button class="sbtn sbtn-primary" data-res-actionbtn="' + esc(a.key) + '" ' +
+    // DISABLE IS ORANGE, so it cannot be mistaken for the blue Save beside it
+    // (operator, 2026-10-03): it takes something out of service.
+    const tone = a && a.key === 'disable' ? 'sbtn-warn' : 'sbtn-primary';
+    return a ? '<button class="sbtn ' + tone + '" data-res-actionbtn="' + esc(a.key) + '" ' +
       'style="padding:.3rem .7rem;font-size:.72rem">' + esc(a.label) + '</button>' : '';
   }).join(' ');
 }

@@ -17,7 +17,7 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.rt-entry.ts');
 fs.writeFileSync(ENTRY, "export { formTabs, splitNegation, joinNegation, warningText } from '../web/src/resource.js';\n" +
-  "export { rateBetween } from '../web/src/pages/firewall-stats.js';\n");
+  "export { rateBetween, readingInterval, windowSecsFor } from '../web/src/pages/firewall-stats.js';\n");
 const OUT = path.join(ROOT, 'web', 'dist', '_compare', 'resource-tabs.cjs');
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -27,7 +27,7 @@ fs.rmSync(ENTRY, { force: true });
 
 global.document = { getElementById: () => null, querySelectorAll: () => [], querySelector: () => null, addEventListener: () => {} };
 global.window = { addEventListener: () => {} };
-const { formTabs, splitNegation, joinNegation, warningText, rateBetween } = require(OUT);
+const { formTabs, splitNegation, joinNegation, warningText, rateBetween, readingInterval, windowSecsFor } = require(OUT);
 const say = console.log.bind(console);
 
 const f = (name, tab, display = false) => ({ name, tab, display });
@@ -75,3 +75,16 @@ assert.strictEqual(rateBetween({ t: 1000, bytes: 5000, packets: 50 }, { t: 2000,
 say('ok  a counter that went backwards (reset-counters) starts over rather than going negative');
 assert.strictEqual(rateBetween({ t: 1000, bytes: 1, packets: 1 }, { t: 1000, bytes: 2, packets: 2 }), null);
 say('ok  two readings at one moment give no rate');
+
+// The graph scrolls as the Dashboard's does, with the right edge one reading
+// interval behind now: measured from the readings, not capped at the
+// Dashboard's 2.5 s, or a 10 s poll would leave the line short of the edge.
+assert.strictEqual(readingInterval([0, 10000], 10000), 10000, 'too few gaps: the poll interval');
+assert.strictEqual(readingInterval([], 0), 10000, 'nothing at all: the default poll');
+assert.strictEqual(readingInterval([0, 3000, 6000, 9000, 12000], 10000), 3000, 'measured, not the setting');
+assert.strictEqual(readingInterval([0, 10000, 20000, 30000, 40000], 3000), 10000, 'uncapped: a 10 s poll is 10 s');
+say('ok  the right edge trails now by the measured reading interval');
+assert.strictEqual(windowSecsFor(1000), 60);
+assert.strictEqual(windowSecsFor(10000), 300);
+assert.strictEqual(windowSecsFor(30000), 600);
+say('ok  the window holds about thirty readings, one to ten minutes');
