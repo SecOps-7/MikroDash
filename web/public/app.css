@@ -3841,3 +3841,7 @@
 }
 .res-neg:hover { color: var(--text-main); }
 .res-neg.on { color: var(--accent-err); border-color: var(--accent-err); background: rgba(248, 113, 113, .1); }
+/* An extra drawn inside a tab (the firewall's Statistics graph) spans both of
+   the tab's columns, under its fields. */
+.res-tab-extra { grid-column: 1 / -1; margin-top: .8rem; }
+.fws-chart { height: 180px; margin-top: .6rem; }

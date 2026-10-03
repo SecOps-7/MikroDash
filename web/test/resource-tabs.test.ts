@@ -16,7 +16,8 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.rt-entry.ts');
-fs.writeFileSync(ENTRY, "export { formTabs, splitNegation, joinNegation, warningText } from '../web/src/resource.js';\n");
+fs.writeFileSync(ENTRY, "export { formTabs, splitNegation, joinNegation, warningText } from '../web/src/resource.js';\n" +
+  "export { rateBetween } from '../web/src/pages/firewall-stats.js';\n");
 const OUT = path.join(ROOT, 'web', 'dist', '_compare', 'resource-tabs.cjs');
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -26,7 +27,7 @@ fs.rmSync(ENTRY, { force: true });
 
 global.document = { getElementById: () => null, querySelectorAll: () => [], querySelector: () => null, addEventListener: () => {} };
 global.window = { addEventListener: () => {} };
-const { formTabs, splitNegation, joinNegation, warningText } = require(OUT);
+const { formTabs, splitNegation, joinNegation, warningText, rateBetween } = require(OUT);
 const say = console.log.bind(console);
 
 const f = (name, tab, display = false) => ({ name, tab, display });
@@ -65,3 +66,12 @@ const listed = warningText('self-lockout', { unmodelled: ['Src. Address List: <b
 assert.ok(listed.why.includes('cannot evaluate') && listed.why.includes('Time: 8h-17h'), listed.why);
 assert.ok(!listed.why.includes('<b>'), 'a value from the router is escaped: ' + listed.why);
 say('ok  the lockout warning names the matches it could not evaluate, escaped');
+
+// The Statistics tab's graph: a rate is two readings over the time between them.
+const r = rateBetween({ t: 1000, bytes: 1000, packets: 10 }, { t: 11000, bytes: 126000, packets: 110 });
+assert.deepStrictEqual(r, { t: 11000, bps: 100000, pps: 10 });
+say('ok  125 kB and 100 packets over 10 s is 100 kbit/s and 10 p/s');
+assert.strictEqual(rateBetween({ t: 1000, bytes: 5000, packets: 50 }, { t: 2000, bytes: 10, packets: 1 }), null);
+say('ok  a counter that went backwards (reset-counters) starts over rather than going negative');
+assert.strictEqual(rateBetween({ t: 1000, bytes: 1, packets: 1 }, { t: 1000, bytes: 2, packets: 2 }), null);
+say('ok  two readings at one moment give no rate');

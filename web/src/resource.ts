@@ -63,6 +63,9 @@ export interface ExtraContext {
   readOnly: boolean;
   /** The row's identity - for an interface, its name. Null on an add form. */
   identity: string | null;
+  /** The row's RouterOS id. A firewall rule has no name, so this is the only
+   *  handle on it. Null on an add form. */
+  id: string | null;
 }
 
 export interface ResourceExtra {
@@ -77,6 +80,12 @@ export interface ResourceExtra {
    * server would have answered.
    */
   render(mode: 'add' | 'edit', ctx: ExtraContext): string;
+  /**
+   * The form tab to draw in, when the form has tabs: the firewall's traffic
+   * graph belongs on Statistics, beside the counters. Absent, or a tab this
+   * form does not have, and it draws under the fields as before.
+   */
+  tab?: string;
   /** Wire what `render` just returned. */
   wire?(): void;
   /** The active router accepted a write, with these values. */
@@ -726,10 +735,23 @@ function show(schema: Schema, values: Record<string, unknown> | null,
     const extra = extras.get(schema.key);
     const html = extra
       ? extra.render(row ? 'edit' : 'add',
-        { readOnly, identity: row ? row.identity : null })
+        { readOnly, identity: row ? row.identity : null, id: row ? row.id : null })
       : '';
-    slot.innerHTML = html;
-    slot.style.display = html ? '' : 'none';
+    const panel = extra && extra.tab
+      ? el('res_fields')?.querySelector<HTMLElement>('[data-modalpanel="' + extra.tab + '"]')
+      : null;
+    if (panel && html) {
+      // A div spanning both columns of the tab's grid, after its fields.
+      const box = document.createElement('div');
+      box.className = 'res-tab-extra';
+      box.innerHTML = html;
+      panel.appendChild(box);
+      slot.innerHTML = '';
+      slot.style.display = 'none';
+    } else {
+      slot.innerHTML = html;
+      slot.style.display = html ? '' : 'none';
+    }
     if (html) extra!.wire?.();
   }
   // FROZEN is read-only for editing but not for deleting: an existing row of a

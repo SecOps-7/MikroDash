@@ -31,6 +31,7 @@ import type { Socket } from '../socket';
 // it, and undefined/null means the probe has not run yet and the page must
 // change nothing - "not asked" must never look like "this router has no IPv6".
 import type { FirewallRule, FirewallPayload } from '../gen/payloads';
+import { initFirewallStats, feedFirewallStats } from './firewall-stats';
 
 type Fam = 'ip4' | 'ip6';
 
@@ -367,9 +368,13 @@ export function initFirewallPage(socket: Socket, isVisible: (page: string) => bo
 
   // ── Wiring ────────────────────────────────────────────────────────────────
 
+  // The rule dialog's Statistics tab is fed from this page's own updates.
+  initFirewallStats(() => data);
+
   socket.on('firewall:update', (d) => {
     const wasEmpty = !data.filter;
     data = d;
+    feedFirewallStats(d);
     applyV6Presence(d);
     updateSummary(d);
     // A DRAG IS IN PROGRESS, and these are the very rows being rearranged.
