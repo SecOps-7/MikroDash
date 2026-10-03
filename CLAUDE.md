@@ -60,7 +60,14 @@ the app's data.
 ```bash
 docker images -f dangling=true -q |
   while read id; do [ -z "$(docker ps -aq --filter ancestor=$id)" ] && docker rmi "$id"; done
+docker builder prune -f --max-used-space 3GB
 ```
+
+**The build cache is capped as well.** Every build leaves the old source copy and compile layers in
+the BuildKit cache, and the daemon's own clean-up waits for a large share of the disk. The prune
+removes the least recently used cache beyond 3GB, which still holds a full build, so the next one
+stays fast. It touches build cache only: images and volumes, the named caches above among them,
+are not build cache.
 
 **Read-only tools that run against a real router or a real `/data`.** They are not unit tests, and a
 green suite does not substitute for them.
