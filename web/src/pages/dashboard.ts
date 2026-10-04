@@ -32,7 +32,7 @@ import { renderWirelessCards } from './dashboard-card-wireless';
 import { renderIpUtilCard } from './dashboard-card-iputil';
 import { renderPhysPortsCard } from './dashboard-card-physports';
 import { renderWiredCount } from './dashboard-netflow';
-import { mountNetFlow, netFlowWan, netFlowInterfaces } from './dashboard-card-netflow';
+import { mountNetFlow, netFlowWan, netFlowInterfaces, setNetFlowShown } from './dashboard-card-netflow';
 import { renderRoutingCards, resetRoutingCards } from './dashboard-card-routing';
 import { renderBandwidthCard, setBwRouters, setBwActiveRouter, resetBandwidthCard }
   from './dashboard-card-bandwidth';
@@ -46,7 +46,7 @@ import { renderConnListCards } from './dashboard-card-connlists';
 import { createConnMap } from './dashboard-card-map';
 import { renderConnFlowCard } from './dashboard-card-connflow';
 import { renderStreamHealth, renderWanStatus } from './dashboard-stream-health';
-import { initTraffic, resumeTrafficChart, resetTraffic, resetTrafficOnReconnect } from './dashboard-traffic';
+import { initTraffic, resumeTrafficChart, resetTraffic, resetTrafficOnReconnect, setTrafficShown } from './dashboard-traffic';
 
 // The Connections Map, built once. `worldmap:ready` tells it when the world map
 // module has published its path data - until then a payload is held.
@@ -218,6 +218,16 @@ export function initDashboard(socket: Socket): void {
   });
   // NOT bound to window blur, though the live app was: a window that loses
   // focus while still on screen keeps painting, so there is nothing to catch up.
+
+  // The two drawing loops stop while another page is shown, and start again
+  // when the Dashboard is: see `setTrafficShown` and `setNetFlowShown`. The
+  // first page change fires after this is bound, so a deep link to another
+  // page starts with both stopped.
+  document.addEventListener('mikrodash:pagechange', (e) => {
+    const isShown = (e as CustomEvent).detail === 'dashboard';
+    setTrafficShown(isShown);
+    setNetFlowShown(isShown);
+  });
 }
 
 /** The router-switch half of the card resets. See the header. */

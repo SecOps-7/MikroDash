@@ -285,7 +285,32 @@ export function resumeTrafficChart(): void {
   redrawChart();
 }
 
+// ── THE LOOP STOPS WHILE ANOTHER PAGE IS SHOWN ─────────────────────────────
+//
+// It stopped only for a hidden TAB, so on every other MikroDash page it went on
+// redrawing a chart nobody could see, 30 times a second: measured on 2026-10-04
+// at 80 to 120 ms of every second. Returning to an early `return` would not be
+// enough - a frame callback that does nothing still makes the browser produce a
+// frame every refresh - so the loop stops scheduling itself, the sample handler
+// does not restart it, and coming back to the Dashboard redraws the chart at
+// the current time (exactly as a returning tab does) before restarting it.
+// Samples keep landing in `allPoints` meanwhile, so nothing is lost.
+let shown = true;
+
+/** Called on every page change with whether the Dashboard is the page shown. */
+export function setTrafficShown(isShown: boolean): void {
+  shown = isShown;
+  if (!shown) {
+    if (keepaliveId) cancelAnimationFrame(keepaliveId);
+    keepaliveId = null;
+    return;
+  }
+  resumeTrafficChart();
+  if (!keepaliveId) keepaliveTick();
+}
+
 function keepaliveTick(): void {
+  if (!shown) { keepaliveId = null; return; }
   keepaliveId = requestAnimationFrame(keepaliveTick);
   if (!chart || document.hidden || !lastSampleTs || isRosDisconnected() ||
       document.body.classList.contains('is-disconnected')) return;
@@ -322,7 +347,7 @@ function flushTraffic(): void {
   }
   lastSampleTs = p.ts;
   serverOffset = smoothOffset(serverOffset, p.ts - Date.now());
-  if (!keepaliveId) keepaliveTick();
+  if (!keepaliveId && shown) keepaliveTick();
   if (!chart) return;
   const rx = chart.data.datasets[0]!.data, tx = chart.data.datasets[1]!.data;
   if (needsFullRedraw(rx, p.ts)) { redrawChart(); return; }

@@ -161,6 +161,24 @@ const FRAME_MS = 30;
 let mounted = false;
 let live: ((d: NetFlowUpdate) => void) | null = null;
 
+// ── THE LOOP STOPS WHILE ANOTHER PAGE IS SHOWN ─────────────────────────────
+//
+// It never stopped at all, so it animated the card behind every other page:
+// with the traffic graph's loop, measured on 2026-10-04 at about 380 ms of
+// every 430 the browser spent per second on a page that was not the
+// Dashboard. The loop stops scheduling itself while hidden (an empty frame
+// callback still costs the browser a frame) and `wake` restarts it. Particles
+// in flight freeze where they are; the step limit in `frame` keeps them from
+// jumping on return.
+let onScreen = true;
+let wake: (() => void) | null = null;
+
+/** Called on every page change with whether the Dashboard is the page shown. */
+export function setNetFlowShown(isShown: boolean): void {
+  onScreen = isShown;
+  if (onScreen) wake?.();
+}
+
 /**
  * Feed the card. A NO-OP BEFORE IT IS MOUNTED, and that is the point: the
  * wired count, the wireless count and the WAN IP each arrive from a different
@@ -347,7 +365,15 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
   const shown = { wired: 0, wireless: 0 };
 
   let last = performance.now();
+  let running = true;
+  wake = () => {
+    if (running) return;
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(frame);
+  };
   function frame(t: number): void {
+    if (!onScreen) { running = false; return; }
     requestAnimationFrame(frame);
     if (t - last < FRAME_MS) return;
     const dt = Math.min(.05, (t - last) / 1000);
