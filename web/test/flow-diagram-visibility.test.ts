@@ -42,7 +42,7 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
    '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
   { stdio: 'inherit' });
 
-const IDS = ['netDiagram', 'rosBanner', 'rosBannerText', 'reconnectBanner', 'liveRx', 'liveTx'];
+const IDS = ['netDiagram', 'dc-worldMap', 'rosBanner', 'rosBannerText', 'reconnectBanner', 'liveRx', 'liveTx'];
 
 /**
  * A fresh document AND a fresh module.
@@ -56,6 +56,9 @@ function mount() {
   const moves: string[] = [];
   doc.nodes.netDiagram.pauseAnimations = () => moves.push('pause');
   doc.nodes.netDiagram.unpauseAnimations = () => moves.push('unpause');
+  const map: string[] = [];
+  doc.nodes['dc-worldMap'].pauseAnimations = () => map.push('pause');
+  doc.nodes['dc-worldMap'].unpauseAnimations = () => map.push('unpause');
   doc.hidden = false;
   doc.body = doc.createElement();
   (globalThis as any).document = doc;
@@ -69,7 +72,9 @@ function mount() {
     doc.hidden = hidden;
     doc.dispatchEvent({ type: 'visibilitychange' });
   };
-  return { doc, moves, banners, setHidden };
+  /** What `showPage` in main.ts sends on every page change. */
+  const showPage = (name: string) => doc.dispatchEvent({ type: 'mikrodash:pagechange', detail: name });
+  return { doc, moves, map, banners, setHidden, showPage };
 }
 
 let failed = 0;
@@ -155,6 +160,71 @@ check('hiding the tab pauses', () => {
 
   assert.deepEqual(moves, ['pause'],
     'a hidden tab kept animating - the half that pairs with the resume guard');
+});
+
+// ── LEAVING THE DASHBOARD IS HIDING IT (2026-10-04) ────────────────────────
+//
+// An SVG's animation clock keeps running under `display:none`, so the globe and
+// the world map's arcs animated on every other page: about 18 ms of every
+// second, measured on the Clock page. The page is now part of "on screen".
+say('the dashboard SVGs stop when another page is shown');
+
+check('leaving the Dashboard pauses both, coming back resumes both', () => {
+  const { moves, map, banners, showPage } = mount();
+  banners.onSocketConnect();
+  banners.setRosBanner(true);
+  moves.length = 0; map.length = 0;
+
+  showPage('clock');
+  assert.equal(moves[moves.length - 1], 'pause', 'the globe kept animating on another page');
+  assert.equal(map[map.length - 1], 'pause', 'the world map kept animating on another page');
+
+  showPage('dashboard');
+  assert.equal(moves[moves.length - 1], 'unpause', 'the globe stayed frozen on returning');
+  assert.equal(map[map.length - 1], 'unpause', 'the world map stayed frozen on returning');
+});
+
+check('coming back to the Dashboard during an outage does NOT restart the globe', () => {
+  const { moves, map, banners, showPage } = mount();
+  banners.onSocketConnect();
+  banners.setRosBanner(true);
+  showPage('clock');
+  banners.setRosBanner(false, 'RouterOS not connected');
+  moves.length = 0; map.length = 0;
+
+  showPage('dashboard');
+  assert.ok(!moves.includes('unpause'),
+    'returning to the page restarted the dots over an unreachable router');
+  assert.equal(map[map.length - 1], 'unpause',
+    'the world map keeps moving through an outage, as it always has');
+});
+
+check('a router recovering on another page does not restart the globe there', () => {
+  const { moves, banners, showPage } = mount();
+  banners.onSocketConnect();
+  banners.setRosBanner(false, 'RouterOS not connected');
+  showPage('clock');
+  moves.length = 0;
+
+  banners.setRosBanner(true);
+  banners.onSocketConnect();
+  assert.ok(!moves.includes('unpause'), 'the globe resumed on a page that does not show it');
+
+  showPage('dashboard');
+  assert.equal(moves[moves.length - 1], 'unpause', 'and it must resume once the Dashboard is back');
+});
+
+check('the tab returning on another page does not restart either', () => {
+  const { moves, map, banners, setHidden, showPage } = mount();
+  banners.onSocketConnect();
+  banners.setRosBanner(true);
+  showPage('logs');
+  moves.length = 0; map.length = 0;
+
+  setHidden(true);
+  setHidden(false);
+  assert.ok(!moves.includes('unpause'), 'the globe restarted behind the Logs page');
+  assert.ok(!map.includes('unpause'), 'the world map restarted behind the Logs page');
 });
 
 // ── AND THAT SOMETHING CALLS IT ────────────────────────────────────────────

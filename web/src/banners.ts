@@ -41,6 +41,9 @@ import { el } from './dom.js';
 
 let rosDisconnected = false;
 let socketDown = false;
+// Whether the Dashboard is the page on screen. True until the first page change
+// says otherwise, which `main.ts` sends for the first page too.
+let dashboardShown = true;
 
 interface SvgAnimations extends HTMLElement {
   pauseAnimations?: () => void;
@@ -64,8 +67,29 @@ function pauseDiagram(): void {
  * rule changes.
  */
 function resumeDiagram(): void {
-  if (rosDisconnected || socketDown || document.hidden) return;
+  if (rosDisconnected || socketDown || !onScreen()) return;
   (el('netDiagram') as SvgAnimations | null)?.unpauseAnimations?.();
+}
+
+// ── ON SCREEN MEANS THE TAB AND THE PAGE ───────────────────────────────────
+//
+// An SVG's animation clock keeps ticking while the page holding it is hidden:
+// the CSS animations beside it stop on their own under `display:none`, SMIL
+// does not. Measured on 2026-10-04 on the Clock page, the world map's arcs and
+// the Network Flow globe cost about 18 ms of every second and 120 browser
+// tasks a second, animating for nobody. So leaving the Dashboard pauses them
+// as a hidden tab does.
+const onScreen = (): boolean => !document.hidden && dashboardShown;
+
+/**
+ * The world map's arcs follow the same rule, minus the outage half: they show
+ * where connections go, not data flowing now, and they have always kept moving
+ * through an outage. Paused, not removed, so the card resumes where it was.
+ */
+function syncMap(): void {
+  const map = el('dc-worldMap') as SvgAnimations | null;
+  if (onScreen()) map?.unpauseAnimations?.();
+  else map?.pauseAnimations?.();
 }
 
 /**
@@ -90,6 +114,13 @@ export function initDiagramVisibility(): void {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pauseDiagram();
     else resumeDiagram();
+    syncMap();
+  });
+  document.addEventListener('mikrodash:pagechange', (e) => {
+    dashboardShown = (e as CustomEvent).detail === 'dashboard';
+    if (dashboardShown) resumeDiagram();
+    else pauseDiagram();
+    syncMap();
   });
 }
 
