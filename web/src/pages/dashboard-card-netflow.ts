@@ -52,6 +52,8 @@ const TRAIL = 7, SPACING = 3.2, LANE = 4;
 interface Particle { g: SVGGElement; dots: SVGCircleElement[]; s: number; v: number; hit?: boolean }
 interface Lane {
   key: LinkKey; dir: 1 | -1; path: SVGPathElement; len: number;
+  /** The path's points, sampled once at mount: see `samplePath`. */
+  pts: Float32Array;
   /** The fraction of capacity this lane is carrying, 0..1. */
   load: number;
   acc: number; speed: number; dest: string; parts: Particle[]; pool: Particle[];
@@ -111,6 +113,50 @@ export function loadFraction(bitsPerSec: number | undefined, capacityMbps: numbe
   if (!(bitsPerSec! > 0) || !(capacityMbps > 0)) return 0;
   return clamp(bitsPerSec! / (capacityMbps * 1e6), 0, 1);
 }
+
+// ── THE CURVES ARE SAMPLED ONCE, NOT ASKED EVERY FRAME ─────────────────────
+//
+// `getPointAtLength` is the browser walking the curve, and the loop asked it
+// for every dot of every particle, 60 times a second: measured on 2026-10-04 it
+// was 336 ms of every second the Dashboard was open, nearly half a core, and
+// the single largest cost in the app. The six lanes never change shape, so each
+// is sampled once at mount, about a point per unit of length, and a dot's
+// position is read from the table between its two neighbours. A unit is under a
+// pixel at the card's size, so the straight line between samples is not
+// visible. The samples divide the length EVENLY, end included: whole units with
+// the remainder left over would squeeze the last step, and a dot would stop
+// short of the node it is travelling to.
+
+/** Points spaced evenly along a path, its start and end included. */
+export function samplePath(path: { getPointAtLength(s: number): { x: number; y: number } },
+  len: number): Float32Array {
+  const n = Math.max(1, Math.ceil(len));
+  const pts = new Float32Array((n + 1) * 2);
+  for (let i = 0; i <= n; i++) {
+    const p = path.getPointAtLength(len * i / n);
+    pts[i * 2] = p.x;
+    pts[i * 2 + 1] = p.y;
+  }
+  return pts;
+}
+
+/** The point `s` along a path of length `len` sampled by `samplePath`,
+ *  clamped to its ends. */
+export function pointOn(pts: Float32Array, len: number, s: number): { x: number; y: number } {
+  const last = pts.length / 2 - 1;
+  const at = len > 0 ? clamp(s, 0, len) * last / len : 0;
+  const i = Math.min(last - 1, Math.floor(at));
+  if (i < 0) return { x: pts[0]!, y: pts[1]! };
+  const f = at - i;
+  return {
+    x: pts[i * 2]! + (pts[i * 2 + 2]! - pts[i * 2]!) * f,
+    y: pts[i * 2 + 1]! + (pts[i * 2 + 3]! - pts[i * 2 + 1]!) * f,
+  };
+}
+
+/** The loop draws at most this often: 30 frames a second, as every live graph
+ *  here does. A display refreshing faster gains nothing a dot can show. */
+const FRAME_MS = 30;
 
 let mounted = false;
 let live: ((d: NetFlowUpdate) => void) | null = null;
@@ -267,8 +313,9 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
         d: curve(L.a, L.b, o), fill: 'none', stroke: `url(#${gid})`, 'stroke-width': 1, opacity: .22,
       }, gTracks);
       tracks[key]!.lines.push(path);
+      const len = path.getTotalLength();
       lanes.push({
-        key, dir, path, len: path.getTotalLength(), load: 0, acc: Math.random(), speed: 70,
+        key, dir, path, len, pts: samplePath(path, len), load: 0, acc: Math.random(), speed: 70,
         dest: dir > 0 ? L.ends[1] : L.ends[0], parts: [], pool: [],
       });
       // The upload lane is the paler tint, so the two directions read apart
@@ -301,6 +348,8 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
 
   let last = performance.now();
   function frame(t: number): void {
+    requestAnimationFrame(frame);
+    if (t - last < FRAME_MS) return;
     const dt = Math.min(.05, (t - last) / 1000);
     last = t;
     for (const l of lanes) {
@@ -357,7 +406,7 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
         p.dots.forEach((d, k) => {
           const s = p.s - k * SPACING;
           if (s < 0 || s > l.len) { d.setAttribute('opacity', '0'); return; }
-          const pt = l.path.getPointAtLength(l.dir > 0 ? s : l.len - s);
+          const pt = pointOn(l.pts, l.len, l.dir > 0 ? s : l.len - s);
           const edge = Math.min(1, s / 14, (l.len - s) / 14);
           d.setAttribute('cx', pt.x.toFixed(1));
           d.setAttribute('cy', pt.y.toFixed(1));
@@ -375,7 +424,6 @@ export function mountNetFlow(): { update: (d: NetFlowUpdate) => void } | null {
       const n = pick(CNT_ID[k]);
       if (n) n.textContent = String(Math.round(shown[k]));
     });
-    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
