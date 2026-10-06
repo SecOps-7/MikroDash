@@ -32,6 +32,8 @@ import (
 // The boolean says whether anything moved, so a caller can skip the write and
 // the audit entry rather than recording a move that did not happen.
 func (s *Store) MoveRouter(id string, up bool) (moved bool, err error) {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	if id == "" {
 		return false, fmt.Errorf("store: no router id")
 	}

@@ -43,6 +43,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -62,6 +63,14 @@ const (
 type Store struct {
 	Dir string
 	key []byte
+
+	// routersMu is held across every read-modify-write of routers.json. Each
+	// writer reads the whole file, changes its part and writes it back, so two
+	// at once lose one change: an operator's edit, or a background identity or
+	// location write that skips an unchanged value and is never retried. The
+	// write also goes through one fixed temp file. Reads take no lock: the
+	// rename is atomic, so a reader sees one whole file or the other.
+	routersMu sync.Mutex
 }
 
 // loadOrCreateSecret reads <dir>/.secret, and GENERATES it when it is not there.

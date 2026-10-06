@@ -47,6 +47,8 @@ import (
 // the port coerces. The observable result is identical — same router, same port —
 // and only the JSON type differs.
 func (s *Store) seedLegacyRouters() error {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	routersFile := filepath.Join(s.Dir, "routers.json")
 	if _, err := os.Stat(routersFile); err == nil {
 		return nil // a fleet already exists; this is not an upgrade

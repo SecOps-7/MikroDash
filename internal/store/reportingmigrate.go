@@ -45,6 +45,8 @@ import (
 // `UpdateRouter` follow, because the struct models 16 of the file's 24 fields
 // and re-marshalling it would drop the rest.
 func (s *Store) MigrateReportingDefaults(activeRouterID string) (int, error) {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	path := filepath.Join(s.Dir, "routers.json")
 	raw, missing, err := readIfPresent(path)
 	if err != nil {

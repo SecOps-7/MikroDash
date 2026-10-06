@@ -59,6 +59,8 @@ import (
 // that into a 404 — the caller believed it had a router, and saying so is more
 // useful than an error that reads like a failure to write.
 func (s *Store) RemoveRouter(id string) (bool, error) {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	if id == "" {
 		return false, fmt.Errorf("store: no router id")
 	}
@@ -110,6 +112,8 @@ func (s *Store) RemoveRouter(id string) (bool, error) {
 // patch naming no known router is an error rather than a silent no-op: the
 // caller believed it had a router.
 func (s *Store) UpdateRouter(id string, patch map[string]any) error {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	if id == "" {
 		return fmt.Errorf("store: no router id")
 	}
@@ -398,6 +402,8 @@ func normalizeSiteMirror(rec, patch map[string]any) {
 // cascade with no decision in it — every device carrying the id loses it, and
 // there is no "wanted" set to consult.
 func (s *Store) ClearSite(siteID string) (int, error) {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	if siteID == "" {
 		// The live `clearSite` returns 0 rather than walking the fleet. An empty
 		// id matches no membership, so the only thing a walk could do is cost a

@@ -286,6 +286,8 @@ func cleanSiteIDs(raw any) []string {
 // field this port's struct does not know about survives. See the note at the
 // record's construction.
 func (s *Store) appendRouter(rec map[string]any) error {
+	s.routersMu.Lock()
+	defer s.routersMu.Unlock()
 	path := filepath.Join(s.Dir, "routers.json")
 	raw, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
