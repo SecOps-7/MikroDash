@@ -236,14 +236,14 @@ func TestTheWanAddressReachesEveryDevicesViewer(t *testing.T) {
 // us, then the address and how it was found.
 func TestThePublicIPComesFromTheSystemReading(t *testing.T) {
 	m := fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{}}, nil, nil))
-	if m["publicIp"] != nil || m["publicIpSource"] != nil {
-		t.Errorf("publicIp = %#v / %#v before any is known, want null", m["publicIp"], m["publicIpSource"])
+	if m["publicIp"] != nil {
+		t.Errorf("publicIp = %#v before any is known, want null", m["publicIp"])
 	}
 	ip := "203.0.113.9"
 	m = fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{
-		PublicIP: &ip, PublicIPSource: collect.PublicIPCloud}}, nil, nil))
-	if m["publicIp"] != ip || m["publicIpSource"] != "cloud" {
-		t.Errorf("publicIp = %#v / %#v, want %s from cloud", m["publicIp"], m["publicIpSource"], ip)
+		PublicIP: &ip}}, nil, nil))
+	if m["publicIp"] != ip {
+		t.Errorf("publicIp = %#v, want %s", m["publicIp"], ip)
 	}
 }
 

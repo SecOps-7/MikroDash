@@ -127,10 +127,9 @@ type Row struct {
 	Arch         *string `json:"arch"`
 	Serial       *string `json:"serial"`
 	LicenseLevel *string `json:"licenseLevel"`
-	// PublicIP is the address the router reaches the internet from, and
-	// PublicIPSource how it was found ("cloud" or "wan"); both null until known.
-	PublicIP       *string `json:"publicIp"`
-	PublicIPSource *string `json:"publicIpSource"`
+	// PublicIP is the address the router reaches the internet from, null
+	// until known.
+	PublicIP *string `json:"publicIp"`
 
 	// UpdateAvailable and LatestVersion are the router's own update check (the
 	// system collector asks every 12 hours). NULL until that check has answered,
@@ -208,8 +207,8 @@ func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site) Row {
 		// renders as nothing while claiming to be an answer.
 		r.Arch, r.Serial, r.LicenseLevel = p.Arch, p.Serial, p.LicenseLevel
 		if p.PublicIP != nil {
-			ip, src := *p.PublicIP, p.PublicIPSource
-			r.PublicIP, r.PublicIPSource = &ip, &src
+			ip := *p.PublicIP
+			r.PublicIP = &ip
 		}
 		// ONLY ONCE THE CHECK HAS ANSWERED. A reading with neither a latest
 		// version nor a status has not asked yet, and `false` would claim the

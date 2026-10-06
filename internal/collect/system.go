@@ -91,12 +91,6 @@ const (
 	systemPublicEvery = 10 * time.Minute
 )
 
-// Where a public address came from, as the page names it.
-const (
-	PublicIPCloud = "cloud" // /ip/cloud's public-address: what MikroTik's cloud saw
-	PublicIPWan   = "wan"   // a globally routable address on one of the router's interfaces
-)
-
 // cgnat is RFC 6598 shared address space, which netip does not call private.
 var cgnat = netip.MustParsePrefix("100.64.0.0/10")
 
@@ -120,9 +114,9 @@ func IsPublicIP(s string) bool {
 // when the router sits behind another router, an ONT or carrier NAT. Without
 // it (x86, an unlicensed CHR, the time update off), an interface address
 // counts only when it is itself public, so a private WAN never reads as one.
-func publicIPFrom(cloud, addrs []routeros.Reply) (ip, source string) {
+func publicIPFrom(cloud, addrs []routeros.Reply) string {
 	if len(cloud) > 0 && IsPublicIP(cloud[0]["public-address"]) {
-		return cloud[0]["public-address"], PublicIPCloud
+		return cloud[0]["public-address"]
 	}
 	for _, a := range addrs {
 		if IsPublicIP(a["address"]) {
@@ -130,10 +124,10 @@ func publicIPFrom(cloud, addrs []routeros.Reply) (ip, source string) {
 			if i := strings.IndexByte(s, '/'); i >= 0 {
 				s = s[:i]
 			}
-			return s, PublicIPWan
+			return s
 		}
 	}
-	return "", ""
+	return ""
 }
 
 // SystemPayload is what the dashboard's gauges and the Updates card read.
@@ -174,9 +168,8 @@ type SystemPayload struct {
 	LicenseLevel *string `json:"licenseLevel"`
 
 	// PublicIP is the address the router reaches the internet from, null until
-	// one is known; PublicIPSource says how (PublicIPCloud or PublicIPWan).
-	PublicIP       *string `json:"publicIp"`
-	PublicIPSource string  `json:"publicIpSource"`
+	// one is known. See publicIPFrom.
+	PublicIP *string `json:"publicIp"`
 }
 
 // tempFromHealth is the original's scan: the FIRST health row whose name
@@ -396,9 +389,9 @@ type System struct {
 
 	// The public address and where it came from; see publicIPFrom. It survives
 	// a reconnect, and publicAt is reset so it is read again straight away.
-	publicIP, publicSrc string
-	publicAt            time.Time
-	onPublicIP          func(ip string)
+	publicIP   string
+	publicAt   time.Time
+	onPublicIP func(ip string)
 
 	staticRead  bool      // the serial and licence have been read for this connection
 	firstTick   bool      // one reading has run, so the static read may happen now
@@ -580,7 +573,7 @@ func (s *System) applyResource(rows []routeros.Reply, err error) (*SystemPayload
 	payload := buildSystem(rows[0], s.health, s.update, s.serial, s.license, s.pollMs.ms())
 	if s.publicIP != "" {
 		ip := s.publicIP
-		payload.PublicIP, payload.PublicIPSource = &ip, s.publicSrc
+		payload.PublicIP = &ip
 	}
 	s.mu.Unlock()
 	// The fingerprint is what the ORIGINAL compares, field for field: a gauge
@@ -712,10 +705,10 @@ func (s *System) readPublic() {
 	cloud, cerr := s.ros.Do(systemCloudCmd)
 	var addrs []routeros.Reply
 	var aerr error
-	ip, src := publicIPFrom(cloud, nil)
+	ip := publicIPFrom(cloud, nil)
 	if ip == "" {
 		addrs, aerr = readVia(s.cache, s.ros, ifStatusAddrCmd, s.pollMs.duration())
-		ip, src = publicIPFrom(nil, addrs)
+		ip = publicIPFrom(nil, addrs)
 	}
 	s.mu.Lock()
 	s.publicAt = time.Now()
@@ -724,7 +717,7 @@ func (s *System) readPublic() {
 		return
 	}
 	changed := ip != s.publicIP
-	s.publicIP, s.publicSrc = ip, src
+	s.publicIP = ip
 	fn := s.onPublicIP
 	s.mu.Unlock()
 	if changed && ip != "" && fn != nil {

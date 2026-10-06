@@ -40,21 +40,21 @@ func TestPublicIPFrom(t *testing.T) {
 		{"interface": "ether2", "address": "198.51.100.7/29"},
 	}
 
-	if ip, src := publicIPFrom(cloud, addrs); ip != "203.0.113.9" || src != PublicIPCloud {
-		t.Errorf("with IP Cloud answering: %q from %q, want it from cloud", ip, src)
+	if ip := publicIPFrom(cloud, addrs); ip != "203.0.113.9" {
+		t.Errorf("with IP Cloud answering: %q, want IP Cloud's 203.0.113.9", ip)
 	}
 	// Behind NAT the interfaces know only private and carrier-NAT addresses;
 	// the first PUBLIC one is the answer, without its prefix length.
-	if ip, src := publicIPFrom(nil, addrs); ip != "198.51.100.7" || src != PublicIPWan {
-		t.Errorf("from interfaces: %q from %q, want 198.51.100.7 from wan", ip, src)
+	if ip := publicIPFrom(nil, addrs); ip != "198.51.100.7" {
+		t.Errorf("from interfaces: %q, want 198.51.100.7", ip)
 	}
 	// An empty IP Cloud (the time update off) falls through to the interfaces.
-	if ip, _ := publicIPFrom([]routeros.Reply{{"public-address": ""}}, addrs); ip != "198.51.100.7" {
+	if ip := publicIPFrom([]routeros.Reply{{"public-address": ""}}, addrs); ip != "198.51.100.7" {
 		t.Errorf("an empty IP Cloud answer did not fall through: %q", ip)
 	}
 	// Nothing public anywhere is NO answer, never the private WAN address.
-	if ip, src := publicIPFrom(nil, addrs[:2]); ip != "" || src != "" {
-		t.Errorf("only private addresses gave %q from %q, want nothing", ip, src)
+	if ip := publicIPFrom(nil, addrs[:2]); ip != "" {
+		t.Errorf("only private addresses gave %q, want nothing", ip)
 	}
 }
 
@@ -109,8 +109,8 @@ func TestThePublicAddressReachesThePayloadAndTheHook(t *testing.T) {
 
 	s.Tick()
 	p := s.Last()
-	if p == nil || p.PublicIP == nil || *p.PublicIP != "203.0.113.9" || p.PublicIPSource != PublicIPCloud {
-		t.Fatalf("payload after the first tick: %+v, want 203.0.113.9 from cloud", p)
+	if p == nil || p.PublicIP == nil || *p.PublicIP != "203.0.113.9" {
+		t.Fatalf("payload after the first tick: %+v, want 203.0.113.9", p)
 	}
 	if stub.addrReads != 0 {
 		t.Errorf("read the interface addresses %d time(s) while IP Cloud answered", stub.addrReads)
@@ -137,8 +137,8 @@ func TestThePublicAddressReachesThePayloadAndTheHook(t *testing.T) {
 	stub.fail, stub.cloud, stub.addr = false, "", "198.51.100.7/29"
 	s.readPublic()
 	s.Tick()
-	if p := s.Last(); p.PublicIP == nil || *p.PublicIP != "198.51.100.7" || p.PublicIPSource != PublicIPWan {
-		t.Errorf("payload = %v / %q, want 198.51.100.7 from wan", p.PublicIP, p.PublicIPSource)
+	if p := s.Last(); p.PublicIP == nil || *p.PublicIP != "198.51.100.7" {
+		t.Errorf("payload = %v, want 198.51.100.7", p.PublicIP)
 	}
 	if !reflect.DeepEqual(told, []string{"203.0.113.9", "198.51.100.7"}) {
 		t.Errorf("hook told %v, want the new address too", told)

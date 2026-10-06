@@ -1121,7 +1121,6 @@ export interface RouterStatsRow {
   serial: string | null;
   licenseLevel: string | null;
   publicIp: string | null;
-  publicIpSource: string | null;
   updateAvailable: boolean | null;
   latestVersion: string | null;
   clients: number | null;
@@ -1303,7 +1302,6 @@ export interface SystemPayload {
   serial: string | null;
   licenseLevel: string | null;
   publicIp: string | null;
-  publicIpSource: string;
 }
 
 export interface TalkerDevice {

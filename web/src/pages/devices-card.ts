@@ -221,8 +221,7 @@ export function detailsHtml(r: RouterStatsRow, o: DeviceOverview | undefined, no
     // From the router's IP Cloud when it has one (right behind NAT), otherwise
     // only a public interface address: a private WAN is never shown as one.
     + row('Public IP', r.publicIp
-      ? '<span class="dvm-mono">' + esc(r.publicIp) + '</span> <span class="text-muted">('
-        + (r.publicIpSource === 'cloud' ? 'MikroTik Cloud' : 'WAN address') + ')</span>'
+      ? '<span class="dvm-mono">' + esc(r.publicIp) + '</span>'
       // RouterOS learns it from the cloud time update, which does not run while
       // the NTP client is on (measured on the hAP AC2), or from DDNS.
       : '<span class="text-muted" title="Not known. Turn on IP &gt; Cloud &gt; DDNS on the router: '
