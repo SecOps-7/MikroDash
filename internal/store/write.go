@@ -246,12 +246,17 @@ func looksSealed(v string) bool {
 	return err == nil && len(b) >= 28
 }
 
-// applyPatch merges `patch` into `rec`, one level deep for `backup`.
+// applyPatch merges `patch` into `rec`, one level deep for `backup` and `geo`.
+//
+// `geo` because it holds two writers' halves: the router form saves `place`, and
+// the public-address refresh saves `auto`. Replaced whole, a form save would
+// throw away the learned location, and nothing would learn it again until the
+// router's public address changed.
 func applyPatch(rec, patch map[string]any) {
 	for k, v := range patch {
-		if k == "backup" {
+		if k == "backup" || k == "geo" {
 			if sub, ok := v.(map[string]any); ok {
-				existing, _ := rec["backup"].(map[string]any)
+				existing, _ := rec[k].(map[string]any)
 				if existing == nil {
 					existing = map[string]any{}
 				}
@@ -262,7 +267,7 @@ func applyPatch(rec, patch map[string]any) {
 						existing[sk] = sv
 					}
 				}
-				rec["backup"] = existing
+				rec[k] = existing
 				continue
 			}
 		}

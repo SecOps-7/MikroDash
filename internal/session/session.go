@@ -136,6 +136,10 @@ type Session struct {
 	// identity is the Manager's identity writer, bound to this router; nil when
 	// none is attached. Every System collector built by newSystem carries it.
 	identity collect.IdentityFunc
+	// publicIP is the Manager's public-address writer, bound to this router;
+	// nil when none is attached. Like identity, newSystem gives it to every
+	// System collector.
+	publicIP func(ip string)
 	// wake interrupts the connect loop's retry sleep.
 	//
 	// BUFFERED, AND SENT TO WITHOUT BLOCKING, so a signal raised while the loop
@@ -705,6 +709,9 @@ type Manager struct {
 	// onIdentity writes what a router reports about ITSELF onto its record.
 	// Nil until the server attaches it, and nil is inert. See SetOnIdentity.
 	onIdentity func(routerID string, id collect.Identity)
+	// onPublicIP is told a router's public address when it changes, which is
+	// what places the router on the map. Nil is inert. See SetOnPublicIP.
+	onPublicIP func(routerID, ip string)
 
 	// docs reads the OPERATOR'S own documents for a router — the declared uplink
 	// list, the pinned cabling, the site plan. Nil until the server attaches it,
@@ -794,6 +801,10 @@ func (m *Manager) SetConnTracker(t *connstate.Tracker) { m.conn = t }
 // server's first fleet sync — a writer attached after that reaches none of them.
 func (m *Manager) SetOnIdentity(fn func(routerID string, id collect.Identity)) { m.onIdentity = fn }
 
+// SetOnPublicIP attaches the public-address writer. The same rule as
+// SetOnIdentity: call it before the first session is built.
+func (m *Manager) SetOnPublicIP(fn func(routerID, ip string)) { m.onPublicIP = fn }
+
 // SetDocSource attaches the reader for the operator's own documents.
 //
 // ── ATTACH IT BEFORE THE FIRST SESSION IS BUILT ─────────────────────────────
@@ -861,6 +872,15 @@ func (m *Manager) identityFor(routerID string) collect.IdentityFunc {
 	return func(id collect.Identity) { fn(routerID, id) }
 }
 
+// publicIPFor binds the public-address writer to one router, or returns nil.
+func (m *Manager) publicIPFor(routerID string) func(string) {
+	fn := m.onPublicIP
+	if fn == nil {
+		return nil
+	}
+	return func(ip string) { fn(routerID, ip) }
+}
+
 // newSystem builds a System collector that reports this router's identity.
 //
 // EVERY System collector a session builds comes through here — the running one
@@ -871,6 +891,7 @@ func (m *Manager) identityFor(routerID string) collect.IdentityFunc {
 func (s *Session) newSystem(r collect.Reader, emit collect.Emit) *collect.System {
 	c := collect.NewSystem(r, emit, s.conf().Poll["system"])
 	c.SetOnIdentity(s.identity)
+	c.SetOnPublicIP(s.publicIP)
 	return c
 }
 
@@ -971,6 +992,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		fleet:    &m.fleetStatus,
 		conn:     m.conn,
 		identity: m.identityFor(rec.ID),
+		publicIP: m.publicIPFor(rec.ID),
 		refs:     1,
 		holds:    map[string]bool{},
 		wake:     make(chan struct{}, 1),

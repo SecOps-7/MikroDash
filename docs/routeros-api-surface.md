@@ -72,6 +72,7 @@ the rows, since the generator that once produced them is gone.
 | `/interface/wireless/security-profiles/print` | src/collectors/wifi.js |
 | `/ip/address/print` | src/collectors/dhcpNetworks.js, src/collectors/interfaceStatus.js, src/collectors/wan.js, src/index.js |
 | `/ip/arp/print` | src/collectors/arp.js |
+| `/ip/cloud/print` | internal/collect/system.go (the router's public address, every 10 minutes) |
 | `/ip/dhcp-client/print` | src/collectors/wan.js, src/index.js |
 | `/ip/dhcp-server/lease/print` | src/collectors/dhcpLeases.js |
 | `/ip/dhcp-server/network/print` | src/collectors/dhcpNetworks.js |
@@ -511,6 +512,7 @@ A proplist is the only thing keeping a credential out of a payload - see
 | `=.proplist=name,size` | src/backups/runner.js |
 | `=.proplist=name,type,running` | src/collectors/wan.js |
 | `=.proplist=name,vlan-id` | src/collectors/dhcpLeases.js, src/collectors/topology.js |
+| `=.proplist=public-address` | internal/collect/system.go (IP Cloud: the whole row carries the Back To Home WireGuard private key) |
 | `=.proplist=radio-mac,interface,cap,disabled` | src/collectors/capsman.js, src/collectors/wifi.js |
 | `=.proplist=routerboard,board-name,model,serial-number,firmware-type,current-firmware,upgrade-firmware,minimum-firmware` | src/collectors/packages.js |
 | `=.proplist=serial-number` | src/backups/runner.js, src/index.js |

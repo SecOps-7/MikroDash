@@ -25,6 +25,23 @@ import (
 // the same trap. So the attachment must come before the first sync, and this
 // fails if it does not.
 func TestTheSessionManagersIdentityWriterIsAttached(t *testing.T) {
+	attachedBeforeFirstSync(t, "SetOnIdentity", "persistRouterIdentity",
+		"A router's model, serial and RouterOS version are then written only by the "+
+			"Devices pool, which excludes every router a session holds — so, in practice, never.")
+}
+
+// The public-address writer has the same shape and the same trap: attached
+// after the first sync, every held router takes nil, and no router is ever
+// placed on the map from its public address.
+func TestTheSessionManagersPublicIPWriterIsAttached(t *testing.T) {
+	attachedBeforeFirstSync(t, "SetOnPublicIP", "persistAutoGeo",
+		"No router's public address ever reaches the map's automatic location.")
+}
+
+// attachedBeforeFirstSync holds that server.go calls `method(srv.arg)` before
+// its first syncFleetHolds.
+func attachedBeforeFirstSync(t *testing.T, method, arg, why string) {
+	t.Helper()
 	b, err := os.ReadFile("server.go")
 	if err != nil {
 		t.Fatal(err)
@@ -45,10 +62,10 @@ func TestTheSessionManagersIdentityWriterIsAttached(t *testing.T) {
 			return true
 		}
 		switch sel.Sel.Name {
-		case "SetOnIdentity":
+		case method:
 			// The ARGUMENT matters: `SetOnIdentity(nil)` would satisfy a call check.
 			if len(call.Args) == 1 {
-				if arg, ok := call.Args[0].(*ast.SelectorExpr); ok && arg.Sel.Name == "persistRouterIdentity" {
+				if a, ok := call.Args[0].(*ast.SelectorExpr); ok && a.Sel.Name == arg {
 					attached = call.Pos()
 				}
 			}
@@ -60,17 +77,14 @@ func TestTheSessionManagersIdentityWriterIsAttached(t *testing.T) {
 		return true
 	})
 	if attached == token.NoPos {
-		t.Fatal("server.go never calls sessions.SetOnIdentity(srv.persistRouterIdentity). " +
-			"A router's model, serial and RouterOS version are then written only by the " +
-			"Devices pool, which excludes every router a session holds — so, in practice, never.")
+		t.Fatalf("server.go never calls sessions.%s(srv.%s). %s", method, arg, why)
 	}
 	if firstSync == token.NoPos {
 		t.Fatal("no syncFleetHolds call found in server.go: the ordering half of this check reads nothing")
 	}
 	if attached > firstSync {
-		t.Errorf("SetOnIdentity is attached at %s, after the first syncFleetHolds at %s. "+
+		t.Errorf("%s is attached at %s, after the first syncFleetHolds at %s. "+
 			"Every held session is built by that sync and takes the writer then, so all of "+
-			"them hold nil and no router's version is ever written.",
-			fset.Position(attached), fset.Position(firstSync))
+			"them hold nil.", method, fset.Position(attached), fset.Position(firstSync))
 	}
 }

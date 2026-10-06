@@ -533,6 +533,14 @@ var addedSinceNode = map[string][]addedField{
 		{Spec: "networks[].ap", ProvenBy: "TestBuildWifiViewReadsTheAccessPointFromCap"},
 		{Spec: "radios[].ap", ProvenBy: "TestBuildWifiViewReadsTheAccessPointFromCap"},
 	},
+	// The router's public address and where it came from, added 2026-10-06 for
+	// the Devices modal and the map's automatic location. Read from /ip/cloud,
+	// which no capture here asked for, so the replay carries null; the proof is
+	// a named test.
+	"system": {
+		{Spec: "publicIp", ProvenBy: "TestThePublicAddressReachesThePayloadAndTheHook"},
+		{Spec: "publicIpSource", ProvenBy: "TestThePublicAddressReachesThePayloadAndTheHook"},
+	},
 }
 
 // collectDeclares reports whether this package declares a function by that name.

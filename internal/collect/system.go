@@ -49,6 +49,7 @@ package collect
 import (
 	"log"
 	"math"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,6 +70,10 @@ var (
 	systemLicenseCmd     = routeros.Cmd{Path: "/system/license/print"}
 	systemUpdateCheckCmd = routeros.Cmd{Path: "/system/package/update/check-for-updates"}
 	systemUpdatePrintCmd = routeros.Cmd{Path: "/system/package/update/print"}
+	// ONLY public-address. The whole /ip/cloud row carries the Back To Home
+	// WireGuard client config, private key included (seen on a live router,
+	// 2026-10-06), so this proplist is what keeps a credential off the wire.
+	systemCloudCmd = routeros.Cmd{Path: "/ip/cloud/print", Args: []string{"=.proplist=public-address"}}
 )
 
 const (
@@ -82,7 +87,54 @@ const (
 	// check-for-updates blocks until the update server answers or the router
 	// gives up; /print is local and answers at once.
 	systemCheckTimeout = 15 * time.Second
+	// The public address changes rarely; reading it is two small local prints.
+	systemPublicEvery = 10 * time.Minute
 )
+
+// Where a public address came from, as the page names it.
+const (
+	PublicIPCloud = "cloud" // /ip/cloud's public-address: what MikroTik's cloud saw
+	PublicIPWan   = "wan"   // a globally routable address on one of the router's interfaces
+)
+
+// cgnat is RFC 6598 shared address space, which netip does not call private.
+var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+
+// IsPublicIP reports whether an address is one the internet could route to the
+// router: global unicast, not RFC 1918 or 6598, not loopback or link-local.
+// A prefix length is allowed, as /ip/address reports one.
+func IsPublicIP(s string) bool {
+	if i := strings.IndexByte(s, '/'); i >= 0 {
+		s = s[:i]
+	}
+	a, err := netip.ParseAddr(s)
+	if err != nil {
+		return false
+	}
+	a = a.Unmap()
+	return a.IsGlobalUnicast() && !a.IsPrivate() && !cgnat.Contains(a)
+}
+
+// publicIPFrom is the choice, pure. IP Cloud wins: it is the address the
+// router's own traffic leaves from, which is the one an interface cannot know
+// when the router sits behind another router, an ONT or carrier NAT. Without
+// it (x86, an unlicensed CHR, the time update off), an interface address
+// counts only when it is itself public, so a private WAN never reads as one.
+func publicIPFrom(cloud, addrs []routeros.Reply) (ip, source string) {
+	if len(cloud) > 0 && IsPublicIP(cloud[0]["public-address"]) {
+		return cloud[0]["public-address"], PublicIPCloud
+	}
+	for _, a := range addrs {
+		if IsPublicIP(a["address"]) {
+			s := a["address"]
+			if i := strings.IndexByte(s, '/'); i >= 0 {
+				s = s[:i]
+			}
+			return s, PublicIPWan
+		}
+	}
+	return "", ""
+}
 
 // SystemPayload is what the dashboard's gauges and the Updates card read.
 type SystemPayload struct {
@@ -120,6 +172,11 @@ type SystemPayload struct {
 	Arch         *string `json:"arch"`
 	Serial       *string `json:"serial"`
 	LicenseLevel *string `json:"licenseLevel"`
+
+	// PublicIP is the address the router reaches the internet from, null until
+	// one is known; PublicIPSource says how (PublicIPCloud or PublicIPWan).
+	PublicIP       *string `json:"publicIp"`
+	PublicIPSource string  `json:"publicIpSource"`
 }
 
 // tempFromHealth is the original's scan: the FIRST health row whose name
@@ -337,6 +394,12 @@ type System struct {
 	onIdentity      IdentityFunc
 	lastIdentityKey string
 
+	// The public address and where it came from; see publicIPFrom. It survives
+	// a reconnect, and publicAt is reset so it is read again straight away.
+	publicIP, publicSrc string
+	publicAt            time.Time
+	onPublicIP          func(ip string)
+
 	staticRead  bool      // the serial and licence have been read for this connection
 	firstTick   bool      // one reading has run, so the static read may happen now
 	healthAt    time.Time // when health was last read
@@ -380,6 +443,8 @@ func NewSystem(ros Reader, emit Emit, pollMs int) *System {
 func (s *System) DeferHealth() {
 	s.mu.Lock()
 	s.healthAt = time.Now()
+	// The public address too: two reads the Devices card does not render.
+	s.publicAt = time.Now()
 	s.mu.Unlock()
 }
 
@@ -444,6 +509,7 @@ func (s *System) reset() {
 	s.staticRead, s.firstTick = false, false
 	s.serial, s.license = nil, nil
 	s.healthAt = time.Time{}
+	s.publicAt = time.Time{}
 	s.mu.Unlock()
 }
 
@@ -457,6 +523,7 @@ func (s *System) preRead() {
 	s.mu.Lock()
 	doStatic := s.firstTick && !s.staticRead
 	doHealth := time.Since(s.healthAt) >= systemHealthEvery
+	doPublic := time.Since(s.publicAt) >= systemPublicEvery
 	// ── AND THE UPDATE CHECK, WHOSE RETRY WAS DEAD UNTIL 2026-09-10 ────────
 	//
 	// `checkForUpdates` schedules its own retry: an answer of "finding out
@@ -492,6 +559,9 @@ func (s *System) preRead() {
 	if doHealth {
 		s.readHealth()
 	}
+	if doPublic {
+		s.readPublic()
+	}
 }
 
 // derive is the gauge row, after whatever `preRead` has due.
@@ -508,6 +578,10 @@ func (s *System) applyResource(rows []routeros.Reply, err error) (*SystemPayload
 	s.mu.Lock()
 	s.firstTick = true
 	payload := buildSystem(rows[0], s.health, s.update, s.serial, s.license, s.pollMs.ms())
+	if s.publicIP != "" {
+		ip := s.publicIP
+		payload.PublicIP, payload.PublicIPSource = &ip, s.publicSrc
+	}
 	s.mu.Unlock()
 	// The fingerprint is what the ORIGINAL compares, field for field: a gauge
 	// that has not moved is not worth a frame. Note what is absent from it —
@@ -576,13 +650,18 @@ func (s *System) reportIdentity(payload *SystemPayload) {
 // here too — the point is only that the string differs when a value does, but
 // matching it exactly keeps the two implementations comparable by eye.
 func systemFingerprint(p *SystemPayload) string {
-	temp := "null"
+	temp, public := "null", ""
+	if p.PublicIP != nil {
+		public = *p.PublicIP
+	}
 	if p.TempC != nil {
 		temp = strconv.FormatFloat(*p.TempC, 'f', -1, 64)
 	}
 	return strings.Join([]string{
 		strconv.Itoa(p.CPULoad), strconv.Itoa(p.MemPct), strconv.Itoa(p.HddPct), temp,
 		p.UptimeRaw, strconv.FormatBool(p.UpdateAvailable), p.LatestVersion,
+		// Not in the original, which had no public address: a new one is news.
+		public,
 	}, ",")
 }
 
@@ -622,6 +701,40 @@ func (s *System) readStatic() {
 	s.serial, s.license = serial, license
 	s.mu.Unlock()
 }
+
+// readPublic finds the router's public address. The interface addresses are
+// read only when IP Cloud has none, and through the cache, since the interface
+// status collector reads the same menu.
+//
+// A FAILED READ CHANGES NOTHING. Both erroring is a connection in trouble, not
+// a router that lost its address, and the map must not forget where it is.
+func (s *System) readPublic() {
+	cloud, cerr := s.ros.Do(systemCloudCmd)
+	var addrs []routeros.Reply
+	var aerr error
+	ip, src := publicIPFrom(cloud, nil)
+	if ip == "" {
+		addrs, aerr = readVia(s.cache, s.ros, ifStatusAddrCmd, s.pollMs.duration())
+		ip, src = publicIPFrom(nil, addrs)
+	}
+	s.mu.Lock()
+	s.publicAt = time.Now()
+	if cerr != nil && aerr != nil {
+		s.mu.Unlock()
+		return
+	}
+	changed := ip != s.publicIP
+	s.publicIP, s.publicSrc = ip, src
+	fn := s.onPublicIP
+	s.mu.Unlock()
+	if changed && ip != "" && fn != nil {
+		fn(ip)
+	}
+}
+
+// SetOnPublicIP installs the hook told when the public address changes to a
+// known one: what places the router on the map. Call before Start.
+func (s *System) SetOnPublicIP(fn func(ip string)) { s.onPublicIP = fn }
 
 func (s *System) readHealth() {
 	rows, err := s.ros.Do(systemHealthCmd)

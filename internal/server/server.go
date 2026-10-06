@@ -430,6 +430,8 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// took nil and no version was ever written. See session.Manager.SetOnIdentity;
 	// TestTheSessionManagersIdentityWriterIsAttached holds the ordering.
 	srv.sessions.SetOnIdentity(srv.persistRouterIdentity)
+	// The public address places the router on the map. Same ordering rule.
+	srv.sessions.SetOnPublicIP(srv.persistAutoGeo)
 	// `router:status` beyond a router's own room goes only to the browsers that
 	// may read that router. See Server.sendFleetStatus.
 	srv.sessions.SetFleetStatus(srv.sendFleetStatus)

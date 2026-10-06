@@ -127,6 +127,10 @@ type Row struct {
 	Arch         *string `json:"arch"`
 	Serial       *string `json:"serial"`
 	LicenseLevel *string `json:"licenseLevel"`
+	// PublicIP is the address the router reaches the internet from, and
+	// PublicIPSource how it was found ("cloud" or "wan"); both null until known.
+	PublicIP       *string `json:"publicIp"`
+	PublicIPSource *string `json:"publicIpSource"`
 
 	// UpdateAvailable and LatestVersion are the router's own update check (the
 	// system collector asks every 12 hours). NULL until that check has answered,
@@ -169,11 +173,11 @@ type Site struct {
 // gives 0 for a router the grouped query did not mention — which is exactly
 // what the original's `|| 0` does with an absent key.
 //
-// `maySeeWanIp` is the disclosure gate. `/api/localcc` withholds the WAN address
-// from callers without `system:settings`, and `geoplace.ResolveLocation` returns
-// it rather than omitting it so the decision stays at the boundary that knows
-// who is asking. This is that boundary.
-func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySeeWanIp bool) Row {
+// THE WAN ADDRESS IS NOT GATED HERE. It was withheld from anyone without
+// `system:settings` until 2026-10-06, when the operator decided that anyone
+// who can open the Devices page may see a device's addresses: its public IP is
+// on the same modal.
+func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site) Row {
 	r := Row{
 		ID: in.ID, Label: in.Label, Host: in.Host,
 		IsActive: in.IsActive, Connected: in.Connected, Online: in.Online, Known: in.Known,
@@ -203,6 +207,10 @@ func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySee
 		// caught — but the subtler error is flattening them to `""`, which
 		// renders as nothing while claiming to be an answer.
 		r.Arch, r.Serial, r.LicenseLevel = p.Arch, p.Serial, p.LicenseLevel
+		if p.PublicIP != nil {
+			ip, src := *p.PublicIP, p.PublicIPSource
+			r.PublicIP, r.PublicIPSource = &ip, &src
+		}
 		// ONLY ONCE THE CHECK HAS ANSWERED. A reading with neither a latest
 		// version nor a status has not asked yet, and `false` would claim the
 		// router is up to date.
@@ -277,9 +285,6 @@ func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySee
 	// than reimplementing the priority order — a second implementation is one
 	// that can disagree.
 	if loc := geoplace.ResolveLocation(in.Geo, siteRow); loc != nil {
-		if !maySeeWanIp {
-			loc.WanIP = ""
-		}
 		r.Geo = loc
 	}
 	return r

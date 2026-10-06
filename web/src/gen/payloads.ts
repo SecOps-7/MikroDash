@@ -1120,6 +1120,8 @@ export interface RouterStatsRow {
   arch: string | null;
   serial: string | null;
   licenseLevel: string | null;
+  publicIp: string | null;
+  publicIpSource: string | null;
   updateAvailable: boolean | null;
   latestVersion: string | null;
   clients: number | null;
@@ -1300,6 +1302,8 @@ export interface SystemPayload {
   arch: string | null;
   serial: string | null;
   licenseLevel: string | null;
+  publicIp: string | null;
+  publicIpSource: string;
 }
 
 export interface TalkerDevice {

@@ -101,7 +101,7 @@ func TestABlurFromAConnectionThatNeverFocusedIsHarmless(t *testing.T) {
 
 // TestTheStatsPayloadIsBuiltPerViewer.
 //
-// It carries `visible` and `maySeeWanIp`, both resolved for ONE principal, which
+// It carries `visible`, resolved for ONE principal, which
 // is why it is a Send rather than a Broadcast.
 func TestTheStatsPayloadIsBuiltPerViewer(t *testing.T) {
 	s := devicesServer(t)
@@ -476,41 +476,22 @@ func httpRouterList(t *testing.T, s *Server, sess *Session) []map[string]any {
 	return body.Routers
 }
 
-// TestEveryShapeStripsTheWanAddress.
+// TestEveryShapeShowsTheWanAddressToADevicesViewer. RE-AIMED 2026-10-06: it
+// was `TestEveryShapeStripsTheWanAddress`, holding that `geo.auto.ip` was
+// withheld from anyone without `system:settings`. The operator decided anyone
+// who can see a device may see its addresses (the Devices modal shows its
+// public IP), so both shapes now carry it for a principal without that grant.
 //
-// `geo.auto.ip` is a WAN address. `/api/localcc` withholds it from anyone
-// without `system:settings`, and so does `_routersForSocket` — its comment:
-// "otherwise adding a location would quietly undo an existing disclosure rule".
-//
-// ── THIS TEST USED TO ASSERT THE OPPOSITE FOR THE HTTP HALF ────────────────
-//
-// It was `…AndTheHttpShapeDoesNot`, pinning a live defect this port reproduced
-// deliberately: `GET /api/routers` disclosed the address that three other paths
-// withheld. The note said "the day upstream fixes it the difference fails here
-// rather than drifting", and that is what happened — `a4ac96e`, 2026-08-29,
-// found by this port's own payload diff. The port now serves one shape from one
-// function, so there is no second projection to disagree.
-//
-// The mutation guidance is unchanged and still load-bearing: compare against the
-// SAME principal, never against an `AuthMode: "none"` session, which may save
-// settings and is never stripped either way. The first version of this test did
-// that and a mutation making the paths differ survived it.
-func TestEveryShapeStripsTheWanAddress(t *testing.T) {
+// Still the SAME principal through both paths, socket and HTTP: one shape
+// served from one function, so a second projection cannot disagree.
+func TestEveryShapeShowsTheWanAddressToADevicesViewer(t *testing.T) {
 	s := devicesServerWithFleet(t)
-	// A principal with no session cannot save settings, so it must not see the
-	// address in the socket payload.
 	viewer := &Session{Username: "viewer", AuthMode: "modern"}
 
 	wan := func(list []map[string]any) (found bool) {
 		for _, r := range list {
-			geo, ok := r["geo"].(map[string]any)
-			if !ok {
-				continue
-			}
-			auto, ok := geo["auto"].(map[string]any)
-			if !ok {
-				continue
-			}
+			geo, _ := r["geo"].(map[string]any)
+			auto, _ := geo["auto"].(map[string]any)
 			if _, has := auto["ip"]; has {
 				found = true
 			}
@@ -518,80 +499,16 @@ func TestEveryShapeStripsTheWanAddress(t *testing.T) {
 		return
 	}
 
-	// A FAILURE, not a skip. The fixture is this file's own, so an absent address
-	// means somebody removed it — and the first version of this test DID skip,
-	// silently, which is the failure mode it exists to prevent.
-	unrestricted := s.routerListForSocket(&Session{AuthMode: "none"})
-	if !wan(unrestricted) {
+	// A FAILURE, not a skip: the fixture is this file's own.
+	if !wan(s.routerListForSocket(&Session{AuthMode: "none"})) {
 		t.Fatal("no router in the fixture carries geo.auto.ip, so this test would prove " +
 			"nothing. Put it back in devicesServerWithFleet rather than skipping.")
 	}
-
-	// THE SOCKET SHAPE STRIPS IT from a principal who cannot save settings.
-	if wan(s.routerListForSocket(viewer)) {
-		t.Error("the socket payload disclosed geo.auto.ip to a principal without system:settings")
+	if !wan(s.routerListForSocket(viewer)) {
+		t.Error("the socket payload withheld geo.auto.ip from a Devices viewer")
 	}
-	// AND SO DOES THE HTTP SHAPE, for the SAME principal — the half that changed.
-	// Driven through the real handler rather than the projection function,
-	// because "the projection strips" and "the route calls the projection" are
-	// separate claims and the defect upstream fixed was the second one: the
-	// strip existed and one of four callers did not use it.
-	if wan(httpRouterList(t, s, viewer)) {
-		t.Error("GET /api/routers disclosed geo.auto.ip to a principal without " +
-			"system:settings. That was a live defect this port reproduced on purpose " +
-			"until upstream fixed it in a4ac96e; it must not come back.")
-	}
-	// A principal who CAN save settings keeps it in both shapes.
-	if !wan(s.routerListForSocket(&Session{AuthMode: "none"})) {
-		t.Error("the socket payload stripped the address from a principal entitled to see it")
-	}
-
-	// THE REST OF THE GEO BLOCK SURVIVES. A strip that removed `auto` wholesale,
-	// or the whole `geo`, would take the country and the place name with it — and
-	// the map draws from those.
-	for _, r := range s.routerListForSocket(viewer) {
-		geo, ok := r["geo"].(map[string]any)
-		if !ok {
-			continue
-		}
-		auto, ok := geo["auto"].(map[string]any)
-		if !ok {
-			t.Error("the strip removed geo.auto entirely; only `ip` should go")
-			continue
-		}
-		if auto["cc"] != "DE" {
-			t.Errorf("the strip took geo.auto.cc with it: %+v", auto)
-		}
-		if _, ok := geo["place"]; !ok {
-			t.Error("the strip took geo.place with it")
-		}
-	}
-
-	// AND IT IS A COPY — asserted on `stripWanIP` DIRECTLY, not through the two
-	// list calls.
-	//
-	// Going through them proves nothing today: `store.PublicRouters` re-reads the
-	// file on every call, so each caller gets fresh maps and a delete in place
-	// cannot be observed. A mutation replacing the copy with `delete(auto, "ip")`
-	// survived exactly that check.
-	//
-	// The property is still worth holding: the moment that read is cached, or a
-	// caller passes one slice to two principals, an in-place delete strips the
-	// address for everybody — including someone entitled to see it. So it is
-	// tested where it is true rather than where it happens to be invisible.
-	shared := map[string]any{
-		"id":  "r1",
-		"geo": map[string]any{"auto": map[string]any{"ip": "203.0.113.9", "cc": "DE"}},
-	}
-	stripped := stripWanIP(shared)
-	if _, gone := stripped["geo"].(map[string]any)["auto"].(map[string]any)["ip"]; gone {
-		t.Error("stripWanIP did not remove the address")
-	}
-	orig := shared["geo"].(map[string]any)["auto"].(map[string]any)
-	if _, still := orig["ip"]; !still {
-		t.Error("stripWanIP mutated its ARGUMENT. These records come from a shared read: " +
-			"an in-place delete strips the address for every later caller too, including " +
-			"one entitled to see it.")
+	if !wan(httpRouterList(t, s, viewer)) {
+		t.Error("GET /api/routers withheld geo.auto.ip from a Devices viewer")
 	}
 }
 

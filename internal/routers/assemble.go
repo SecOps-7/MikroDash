@@ -114,9 +114,6 @@ type StatsSources struct {
 
 	OpenAlerts map[string]int
 	Sites      map[string]Site
-	// MaySeeWanIp is `system:settings`, resolved once per build. It withholds the
-	// WAN address from the geo block for anyone without it.
-	MaySeeWanIp bool
 	// Visible is the RBAC-readable set. A NIL map means no restriction — which is
 	// not the same as an EMPTY one, where a principal may read nothing. Getting
 	// those two the same way round is the difference between a locked-down user
@@ -183,7 +180,7 @@ func BuildStats(src StatsSources) []Row {
 			in.Online = v
 		}
 
-		out = append(out, BuildRow(in, src.OpenAlerts, src.Sites, src.MaySeeWanIp))
+		out = append(out, BuildRow(in, src.OpenAlerts, src.Sites))
 	}
 	return out
 }

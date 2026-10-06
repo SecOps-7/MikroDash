@@ -43,7 +43,7 @@ func fields(t *testing.T, r Row) map[string]any {
 // whose system payload has not arrived renders "—"; one genuinely idle renders
 // "0%". Flattening the two reports every unreachable router as a healthy one.
 func TestAnAbsentPayloadSendsNullNotZero(t *testing.T) {
-	m := fields(t, BuildRow(Input{ID: "r-A", Label: "Branch", Host: "10.0.0.2"}, nil, nil, true))
+	m := fields(t, BuildRow(Input{ID: "r-A", Label: "Branch", Host: "10.0.0.2"}, nil, nil))
 
 	for _, k := range []string{
 		"cpu", "uptime", "memPct", "hddPct", "version", "boardName", "arch",
@@ -73,7 +73,7 @@ func TestAnAbsentPayloadSendsNullNotZero(t *testing.T) {
 func TestAGenuineZeroIsReportedAsZero(t *testing.T) {
 	sys := fullSystem()
 	sys.CPULoad, sys.MemPct, sys.HddPct = 0, 0, 0
-	m := fields(t, BuildRow(Input{ID: "r-A", System: sys}, nil, nil, true))
+	m := fields(t, BuildRow(Input{ID: "r-A", System: sys}, nil, nil))
 
 	for _, k := range []string{"cpu", "memPct", "hddPct"} {
 		if m[k] != float64(0) {
@@ -82,7 +82,7 @@ func TestAGenuineZeroIsReportedAsZero(t *testing.T) {
 		}
 	}
 	// A DHCP payload with no leases is likewise 0, not null.
-	m = fields(t, BuildRow(Input{ID: "r-A", DHCPLeases: &collect.LeasesPayload{}}, nil, nil, true))
+	m = fields(t, BuildRow(Input{ID: "r-A", DHCPLeases: &collect.LeasesPayload{}}, nil, nil))
 	if m["clients"] != float64(0) {
 		t.Errorf("clients = %#v for an empty lease list, want 0", m["clients"])
 	}
@@ -95,7 +95,7 @@ func TestAGenuineZeroIsReportedAsZero(t *testing.T) {
 func TestThePayloadsOwnNullsAreCarriedThrough(t *testing.T) {
 	sys := fullSystem()
 	sys.Arch, sys.Serial, sys.LicenseLevel = nil, nil, nil
-	m := fields(t, BuildRow(Input{ID: "r-A", System: sys}, nil, nil, true))
+	m := fields(t, BuildRow(Input{ID: "r-A", System: sys}, nil, nil))
 
 	for _, k := range []string{"arch", "serial", "licenseLevel"} {
 		if v, present := m[k]; !present || v != nil {
@@ -118,17 +118,17 @@ func TestThePayloadsOwnNullsAreCarriedThrough(t *testing.T) {
 // (Replaces `TestOnlyTheDefaultInterfacesRatesAreShown`, deleted 2026-10-01 with
 // the card's WAN RX/TX.)
 func TestTheUpdateVerdictIsNullUntilChecked(t *testing.T) {
-	m := fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24"}}, nil, nil, true))
+	m := fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24"}}, nil, nil))
 	if m["updateAvailable"] != nil || m["latestVersion"] != nil {
 		t.Errorf("unchecked: updateAvailable=%v latestVersion=%v, want both null", m["updateAvailable"], m["latestVersion"])
 	}
 	m = fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24",
-		LatestVersion: "7.24", UpdateStatus: "System is already up to date"}}, nil, nil, true))
+		LatestVersion: "7.24", UpdateStatus: "System is already up to date"}}, nil, nil))
 	if m["updateAvailable"] != false {
 		t.Errorf("checked and current: updateAvailable=%v, want false (not null)", m["updateAvailable"])
 	}
 	m = fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{Version: "7.24",
-		LatestVersion: "7.25", UpdateStatus: "New version is available", UpdateAvailable: true}}, nil, nil, true))
+		LatestVersion: "7.25", UpdateStatus: "New version is available", UpdateAvailable: true}}, nil, nil))
 	if m["updateAvailable"] != true || m["latestVersion"] != "7.25" {
 		t.Errorf("behind: updateAvailable=%v latestVersion=%v, want true and 7.25", m["updateAvailable"], m["latestVersion"])
 	}
@@ -139,14 +139,14 @@ func TestTheUpdateVerdictIsNullUntilChecked(t *testing.T) {
 func TestLastErrorOnlyWhenDisconnected(t *testing.T) {
 	m := fields(t, BuildRow(Input{
 		ID: "r-A", Connected: true, LastError: "dial tcp: connection refused",
-	}, nil, nil, true))
+	}, nil, nil))
 	if m["lastError"] != nil {
 		t.Errorf("lastError = %#v while connected, want null", m["lastError"])
 	}
 
 	m = fields(t, BuildRow(Input{
 		ID: "r-A", Connected: false, LastError: "dial tcp: connection refused",
-	}, nil, nil, true))
+	}, nil, nil))
 	if m["lastError"] != "dial tcp: connection refused" {
 		t.Errorf("lastError = %#v while offline, want the message", m["lastError"])
 	}
@@ -156,13 +156,13 @@ func TestLastErrorOnlyWhenDisconnected(t *testing.T) {
 // still have something wrong on it.
 func TestOpenAlertsAreIndependentOfReachability(t *testing.T) {
 	counts := map[string]int{"r-A": 3}
-	m := fields(t, BuildRow(Input{ID: "r-A", Connected: true}, counts, nil, true))
+	m := fields(t, BuildRow(Input{ID: "r-A", Connected: true}, counts, nil))
 	if m["openAlerts"] != float64(3) {
 		t.Errorf("openAlerts = %#v, want 3", m["openAlerts"])
 	}
 	// A router the grouped query never mentioned reads as 0 through the map,
 	// which is what the original's `|| 0` does with an absent key.
-	m = fields(t, BuildRow(Input{ID: "r-B", Connected: false}, counts, nil, true))
+	m = fields(t, BuildRow(Input{ID: "r-B", Connected: false}, counts, nil))
 	if m["openAlerts"] != float64(0) {
 		t.Errorf("openAlerts = %#v for an unmentioned router, want 0", m["openAlerts"])
 	}
@@ -181,7 +181,7 @@ func siteSet() map[string]Site {
 }
 
 func TestASiteNamesTheRouterAndPlacesItLast(t *testing.T) {
-	m := fields(t, BuildRow(Input{ID: "r-A", SiteIDs: []string{"site-1"}}, nil, siteSet(), true))
+	m := fields(t, BuildRow(Input{ID: "r-A", SiteIDs: []string{"site-1"}}, nil, siteSet()))
 	if m["siteId"] != "site-1" || m["siteName"] != "HQ" {
 		t.Errorf("site = %v / %v", m["siteId"], m["siteName"])
 	}
@@ -195,7 +195,7 @@ func TestASiteNamesTheRouterAndPlacesItLast(t *testing.T) {
 
 	// A router naming a site that no longer exists keeps its id and reports no
 	// name — not a crash, and not a name borrowed from another site.
-	m = fields(t, BuildRow(Input{ID: "r-A", SiteIDs: []string{"site-gone"}}, nil, siteSet(), true))
+	m = fields(t, BuildRow(Input{ID: "r-A", SiteIDs: []string{"site-gone"}}, nil, siteSet()))
 	if m["siteId"] != "site-gone" || m["siteName"] != nil {
 		t.Errorf("a dangling site reference gave %v / %v", m["siteId"], m["siteName"])
 	}
@@ -209,38 +209,41 @@ func TestTheRoutersOwnPlaceBeatsItsSite(t *testing.T) {
 			"name": "Berlin", "region": "BE", "cc": "DE", "lat": 52.52, "lon": 13.4,
 		},
 	}}
-	geo := fields(t, BuildRow(in, nil, siteSet(), true))["geo"].(map[string]any)
+	geo := fields(t, BuildRow(in, nil, siteSet()))["geo"].(map[string]any)
 	if geo["source"] != "manual" || geo["label"] != "Berlin, BE, DE" {
 		t.Errorf("geo = %v, want the router's own place to win", geo)
 	}
 }
 
-// TestTheWanAddressIsWithheldWithoutSystemSettings is a disclosure boundary, not
-// a formatting choice: /api/localcc withholds the WAN address from callers
-// without system:settings, and this payload must not hand it to them by another
-// route.
-func TestTheWanAddressIsWithheldWithoutSystemSettings(t *testing.T) {
+// TestTheWanAddressReachesEveryDevicesViewer. RE-AIMED 2026-10-06: this held
+// the opposite, that the address was withheld without `system:settings`. The
+// operator decided anyone who can open the Devices page may see a device's
+// addresses, so the row has no gate to pass and must carry it whole.
+func TestTheWanAddressReachesEveryDevicesViewer(t *testing.T) {
 	in := Input{ID: "r-A", Geo: map[string]any{
 		"auto": map[string]any{
 			"name": "Hamburg", "region": "HH", "cc": "DE", "lat": 53.55, "lon": 10.0,
 			"ip": "198.51.100.7", "accuracyKm": 5.0,
 		},
 	}}
-
-	geo := fields(t, BuildRow(in, nil, nil, true))["geo"].(map[string]any)
-	if geo["wanIp"] != "198.51.100.7" {
-		t.Errorf("wanIp = %#v for a caller with system:settings, want the address", geo["wanIp"])
+	geo := fields(t, BuildRow(in, nil, nil))["geo"].(map[string]any)
+	if geo["wanIp"] != "198.51.100.7" || geo["source"] != "auto" || geo["lat"] != 53.55 {
+		t.Errorf("geo = %v, want the automatic fix with its address", geo)
 	}
+}
 
-	geo = fields(t, BuildRow(in, nil, nil, false))["geo"].(map[string]any)
-	if geo["wanIp"] != "" {
-		t.Errorf("wanIp = %#v for a caller WITHOUT system:settings — the address "+
-			"leaked through the stats payload", geo["wanIp"])
+// TestThePublicIPComesFromTheSystemReading: null until the router has told
+// us, then the address and how it was found.
+func TestThePublicIPComesFromTheSystemReading(t *testing.T) {
+	m := fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{}}, nil, nil))
+	if m["publicIp"] != nil || m["publicIpSource"] != nil {
+		t.Errorf("publicIp = %#v / %#v before any is known, want null", m["publicIp"], m["publicIpSource"])
 	}
-	// The rest of the fix survives: withholding the address must not unplace
-	// the router.
-	if geo["source"] != "auto" || geo["lat"] != 53.55 {
-		t.Errorf("stripping the address damaged the location: %v", geo)
+	ip := "203.0.113.9"
+	m = fields(t, BuildRow(Input{ID: "r", System: &collect.SystemPayload{
+		PublicIP: &ip, PublicIPSource: collect.PublicIPCloud}}, nil, nil))
+	if m["publicIp"] != ip || m["publicIpSource"] != "cloud" {
+		t.Errorf("publicIp = %#v / %#v, want %s from cloud", m["publicIp"], m["publicIpSource"], ip)
 	}
 }
 

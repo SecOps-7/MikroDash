@@ -147,7 +147,6 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		}
 	}
 
-	out.MaySeeWanIp = s.maySaveSettings(sess)
 	out.Visible = s.visibleRouters(sess)
 	return out
 }
@@ -231,62 +230,15 @@ func (s *Server) routerRecordsFor(sess *Session) []map[string]any {
 	return out
 }
 
-// routerListForSocket is `_routersForSocket`: filtered, and the WAN address
-// removed from anyone without `system:settings`.
+// routerListForSocket is `_routersForSocket`: the routers this principal may
+// read.
+//
+// THE WAN ADDRESS IS NO LONGER STRIPPED. `geo.auto.ip` was removed for anyone
+// without `system:settings` until 2026-10-06, when the operator decided that
+// anyone who can see a device may see its addresses; the Devices modal shows
+// its public IP outright.
 func (s *Server) routerListForSocket(sess *Session) []map[string]any {
-	recs := s.routerRecordsFor(sess)
-	if s.maySaveSettings(sess) {
-		return recs
-	}
-	out := make([]map[string]any, 0, len(recs))
-	for _, r := range recs {
-		out = append(out, stripWanIP(r))
-	}
-	return out
-}
-
-// stripWanIP removes `geo.auto.ip` and nothing else.
-//
-// The live `strip`:
-//
-//	if (!r.geo || !r.geo.auto || r.geo.auto.ip === undefined) return r;
-//	const { ip, ...auto } = r.geo.auto;
-//	return { ...r, geo: { ...r.geo, auto } };
-//
-// A COPY at every level it rewrites, because the record came from a shared read
-// and deleting in place would strip it for the next principal too — including
-// one entitled to see it.
-func stripWanIP(r map[string]any) map[string]any {
-	geo, ok := r["geo"].(map[string]any)
-	if !ok {
-		return r
-	}
-	auto, ok := geo["auto"].(map[string]any)
-	if !ok {
-		return r
-	}
-	if _, has := auto["ip"]; !has {
-		return r
-	}
-	newAuto := make(map[string]any, len(auto))
-	for k, v := range auto {
-		if k == "ip" {
-			continue
-		}
-		newAuto[k] = v
-	}
-	newGeo := make(map[string]any, len(geo))
-	for k, v := range geo {
-		newGeo[k] = v
-	}
-	newGeo["auto"] = newAuto
-
-	out := make(map[string]any, len(r))
-	for k, v := range r {
-		out[k] = v
-	}
-	out["geo"] = newGeo
-	return out
+	return s.routerRecordsFor(sess)
 }
 
 // broadcastRouterList is `_broadcastRoutersList`: one payload PER SOCKET,
@@ -551,8 +503,8 @@ const devicesRefresh = 2 * time.Second
 //
 // `let _routersTimer = null` is declared INSIDE the live connection handler, so
 // each viewer has their own and clearing one cannot silence another. It matters
-// because the payload is built PER PRINCIPAL — `visible` and `maySeeWanIp` are
-// resolved for one viewer — so a shared timer would have to pick whose rows to
+// because the payload is built PER PRINCIPAL — `visible` is resolved for one
+// viewer — so a shared timer would have to pick whose rows to
 // send.
 //
 // A TICKER PLUS A STOP CHANNEL rather than time.AfterFunc: the goroutine has to
@@ -650,8 +602,8 @@ func (cn *conn) devicesBlur() {
 
 // sendRoutersStats builds and sends this viewer's rows.
 //
-// PER SOCKET, not broadcast: the payload carries `visible` and `maySeeWanIp`,
-// both resolved for one principal. Broadcasting one viewer's rows would show
+// PER SOCKET, not broadcast: the payload carries `visible`,
+// resolved for one principal. Broadcasting one viewer's rows would show
 // another viewer routers they may not read.
 func (cn *conn) sendRoutersStats() {
 	EvRoutersStats.Send(cn.srv.hub, cn.c,
