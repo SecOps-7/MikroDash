@@ -2,6 +2,54 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.72] - Import devices from CSV, one MikroDash login, and a complete Firewall rule dialog
+
+### New
+
+- **Import devices from a CSV.** Settings -> Devices -> **Import**: download the template, fill it in,
+  and see every row checked before anything is added. New sites are created for you. Thanks to
+  **@eltionb** for #150.
+- **One password for the account MikroDash signs in with.** Config Management -> Credentials has a
+  pinned **MikroDash login** row: link devices and MikroDash creates or adopts the `mikrodash` account
+  on each one. A password change applies to every linked device or to none. Thanks to **@eltionb**
+  for #143.
+- **Public IP in the device overview**, between Host and Sites, read from the router's IP Cloud (so it
+  is right behind NAT). Routers are now placed on the Devices map by it until you pick a town. Thanks
+  to **@ToniRos** for the idea in #145.
+- **The Firewall rule dialog has every property**, on WinBox's tabs (General, Advanced, Extra, Action,
+  Statistics), for Filter, NAT, Mangle and Raw on IPv4 and IPv6, with a **!** toggle to negate a match.
+  The Statistics tab has a live rate graph.
+- **One device picker everywhere** you choose devices (Credential Profiles, Deploy, sites, notification
+  channels, DNS): search, then pick, with sites as a shortcut.
+- **README: how to fill the Top Talkers card** with a Kid Control profile. Thanks to
+  **@riccardospeggiorin-centropaghe** for #148.
+
+### Changed
+
+- Changes made on the router outside MikroDash (WinBox, the CLI) now show up on an open page: firewall
+  rules, queues and the FastTrack banner, RouterOS users and groups, and Topology's discovery settings
+  and VLAN names.
+- The Dashboard uses far less of your browser's CPU, and its animations and graphs stop while you are
+  on another page.
+- Anyone who can see the Devices page now sees each device's WAN address.
+- Zero-touch provisioning creates the `mikrodash` account (it refuses to touch one it did not make) and
+  names its WireGuard peer **MikroDash** instead of `peer1`.
+- **Disable** buttons are orange.
+
+### Fixed
+
+- Emptying a match in a firewall rule (Source Address and the rest) and saving left the old value on
+  the router.
+- The firewall lockout check misread negated matches, so a rule dropping everything except `!udp`
+  could pass as harmless.
+- Two changes to the device list saved at the same moment could lose one of them.
+
+### Internal
+
+- `govulncheck` runs in `tools/verify.sh` and CI, and fails on a vulnerability the code actually calls.
+- New `/data/login-profiles.json` for the MikroDash login. No database schema change.
+- `DESIGN.md` describes the visual language; `AI_CONTEXT.md` is now `AGENTS.md`.
+
 ## [0.8.71] - A Devices page that shows the fleet at a glance, and Credential Profiles
 
 ### New
