@@ -53,6 +53,11 @@ jobs:
       - name: go test
         run: go test ./...
 
+      # Fails only on a vulnerability this code actually calls, checked against
+      # the live database -- so a new advisory can fail an unchanged commit.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
       - name: Set up Node
         uses: actions/setup-node@v7
         with:

@@ -57,7 +57,7 @@ if [ ! -f go.mod ]; then
   note '  no go.mod — nothing to check'
 elif [ "${1:-}" = '--no-docker' ] || ! command -v docker >/dev/null 2>&1; then
   skipped=$((skipped + 1))
-  note '  NOT checked here: gofmt, go vet, go test (--no-docker, or no docker)'
+  note '  NOT checked here: gofmt, go vet, go test, govulncheck (--no-docker, or no docker)'
   if command -v go >/dev/null 2>&1; then
     if out=$(sh tools/gencheck.sh 2>&1); then
       note "  $(printf '%s\n' "$out" | tail -1)"
@@ -91,13 +91,19 @@ else
       if [ -n "$unformatted" ]; then echo "gofmt: $unformatted"; exit 1; fi
       go vet ./...
       go test ./...
+      go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       sh tools/gencheck.sh' 2>&1)
+  # GOVULNCHECK FAILS ONLY ON A VULNERABILITY THIS CODE CALLS. One that sits in a
+  # required module but is never reached is reported and passes. It runs @latest
+  # against the live vulnerability database, so a new advisory can turn an
+  # unchanged tree red -- that is the point of running it here. Before gencheck,
+  # because the summary below takes gencheck's last line.
   if [ $? -eq 0 ]; then
-    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); $(printf '%s\n' "$out" | tail -1)"
+    note "  gofmt, vet, test, govulncheck ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); $(printf '%s\n' "$out" | tail -1)"
   else
     fail=$((fail + 1))
     note '  FAIL go'
-    printf '%s\n' "$out" | grep -E 'gofmt:|STALE|^Run:|^(FAIL|---|# )|\.go:' | head -8 | sed 's/^/        /'
+    printf '%s\n' "$out" | grep -E 'gofmt:|STALE|^Run:|^(FAIL|---|# )|\.go:|^Vulnerability #|^Your code is affected' | head -8 | sed 's/^/        /'
   fi
 fi
 

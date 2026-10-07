@@ -3,7 +3,9 @@
     "rosetta": {
       "type": "stdio",
       "command": "bunx",
-      "args": ["@tikoci/rosetta"],
+      "args": [
+        "@tikoci/rosetta@latest"
+      ],
       "env": {}
     }
   }

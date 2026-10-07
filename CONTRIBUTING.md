@@ -38,7 +38,7 @@ docker run --rm -v "$PWD":/src -w /src golang:1.27-alpine sh -c "go vet ./... &&
 
 ```sh
 (cd web && npm ci)   # once: TypeScript and esbuild for the frontend checks
-sh tools/verify.sh   # everything: gofmt, vet, go test, generated code, tsc, web tests
+sh tools/verify.sh   # everything: gofmt, vet, go test, govulncheck, generated code, tsc, web tests
 ```
 
 `tools/verify.sh` is the one to run before opening a PR. Its Go half runs in a `golang` container, so it needs Docker; without Docker it says what it skipped, and `go vet ./... && go test ./...` covers the same ground with a local toolchain.
