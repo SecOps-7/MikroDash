@@ -1,4 +1,4 @@
-# AI_CONTEXT.md
+# AGENTS.md
 
 Context for an AI agent working on MikroDash. Written for the Go + TypeScript
 implementation, which replaced the Node one on 2026-08-30.
@@ -8,6 +8,8 @@ the commands, the write guards, the fixture rules and the behavioural guidance,
 and it is the one that outranks this. Two documents making the same claim is how
 one of them goes stale - this project has paid for that repeatedly. Read
 `CLAUDE.md` first; come here for the shapes it does not describe.
+
+Read DESIGN.md before any UI work.
 
 ---
 

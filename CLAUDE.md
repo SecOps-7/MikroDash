@@ -16,6 +16,7 @@ WebSocket.
 | Which RouterOS commands this app uses | `docs/routeros-api-surface.md` - frozen; extend it by hand from the RouterOS docs |
 | What a RouterOS menu *can* hold | **rosetta** (MCP, configured in `.mcp.json`), or `help.mikrotik.com` |
 | What a collector returns | replay a fixture through its `internal/collect` test, rather than reading the collector and guessing |
+| How the UI should look | `DESIGN.md` - read it before any UI work: tokens, colour roles, type, shapes, the shared classes |
 
 Go files here are small and purposeful: read them whole.
 
