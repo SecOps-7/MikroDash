@@ -33,7 +33,10 @@
 // the same way: silently, looking correct, and visible only in the real data.
 package oidc
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Config is one identity provider as the operator entered it.
 //
@@ -135,6 +138,16 @@ func (e *Err) Error() string {
 }
 
 func (e *Err) Unwrap() error { return e.Err }
+
+// IssuerMismatch is why a discovery document was refused when it declares an
+// issuer other than the configured one. Neither value is a secret.
+type IssuerMismatch struct {
+	Declared, Configured string
+}
+
+func (m *IssuerMismatch) Error() string {
+	return fmt.Sprintf("metadata declares %q, configured %q", m.Declared, m.Configured)
+}
 
 // Refuse builds an Err. Every refusal in this package goes through it, so
 // "which codes exist" is answered by reading the constants above rather than by

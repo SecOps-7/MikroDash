@@ -20,6 +20,7 @@ package server
 // secret - the same rule the SMTP channel follows.
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -38,6 +39,7 @@ import (
 	"mikrodash/internal/audit"
 	"mikrodash/internal/branding"
 	"mikrodash/internal/db"
+	"mikrodash/internal/oidc"
 	"mikrodash/internal/safe"
 )
 
@@ -157,6 +159,10 @@ func (s *Server) ssoWrite(w http.ResponseWriter, r *http.Request, sess *Session,
 		writeJSONErr(w, http.StatusBadRequest, safe.Message(err.Error()))
 		return
 	}
+	if msg := s.ssoIssuerMismatch(r.Context(), p.Issuer); msg != "" {
+		writeJSONErr(w, http.StatusBadRequest, msg)
+		return
+	}
 	if err := s.auditDB.UpsertSSOProvider(p); err != nil {
 		log.Printf("[sso] saving %q: %v", logSafe(p.Name), err)
 		writeJSONErr(w, http.StatusInternalServerError, "could not save the provider")
@@ -195,6 +201,42 @@ func (s *Server) ssoWrite(w http.ResponseWriter, r *http.Request, sess *Session,
 	writeJSON(w, s.providerView(saved, s.redirectURIFor(r)))
 }
 
+// ssoIssuerMismatch fetches the provider's discovery document while it is being
+// saved and says, in words for the form, when the document declares an issuer
+// other than the one entered. Empty when they match, and also when the provider
+// cannot be reached: an identity provider that is down or not built yet is no
+// reason to refuse the save, and sign-in reports it the same way it always has.
+//
+// So a trailing slash, a missing tenant id or a typo shows where it was typed
+// instead of as "config" at the first sign-in (issue #159). The comparison is
+// internal/oidc's own, exact, and nothing is cached: the runtime provider is
+// rebuilt from the saved row on the next sign-in.
+func (s *Server) ssoIssuerMismatch(ctx context.Context, issuer string) string {
+	p := oidc.NewProvider(oidc.Config{Issuer: issuer})
+	if s.sso.http != nil {
+		p.HTTP = s.sso.http
+	}
+	_, err := p.Discovery(ctx)
+	var mm *oidc.IssuerMismatch
+	if !errors.As(err, &mm) {
+		if err != nil {
+			log.Printf("[sso] checking %s on save: %v (saved anyway)", logSafe(issuer), err)
+		}
+		return ""
+	}
+	log.Printf("[sso] refused saving: %s", mm.Error())
+	// QUOTED, NOT REDACTED. safe.Message would blank an issuer on a LAN
+	// address, and this is the one string the operator has to copy. It is the
+	// provider's public metadata on an administrator's route; Quote escapes any
+	// control character the network put in it, and the cap bounds the rest.
+	declared := mm.Declared
+	if len(declared) > 512 {
+		declared = declared[:512]
+	}
+	return "The provider publishes its issuer as " + strconv.Quote(declared) +
+		". Enter it exactly like that, including any trailing slash."
+}
+
 // buildProvider validates the body and returns the row to store.
 //
 // PURE APART FROM SEALING: no database, no HTTP. The checks below are the whole
@@ -204,8 +246,13 @@ func (s *Server) buildProvider(id string, prev db.SSOProvider, body providerBody
 
 	p := db.SSOProvider{
 		ID: id, Enabled: body.Enabled,
-		Name:          strings.TrimSpace(body.Name),
-		Issuer:        strings.TrimRight(strings.TrimSpace(body.Issuer), "/"),
+		Name: strings.TrimSpace(body.Name),
+		// EXACTLY AS ENTERED, apart from surrounding whitespace. An id token's
+		// `iss` and the metadata's `issuer` must equal this string (OIDC
+		// Discovery 4.3), and some providers' issuers end in "/": Authentik's
+		// is https://host/application/o/<slug>/. Trimming trailing slashes
+		// here made every such provider refuse at sign-in (issue #159).
+		Issuer:        strings.TrimSpace(body.Issuer),
 		ClientID:      strings.TrimSpace(body.ClientID),
 		Scopes:        strings.TrimSpace(body.Scopes),
 		ClaimUsername: claimOr(body.ClaimUsername, "preferred_username"),

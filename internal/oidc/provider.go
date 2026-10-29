@@ -205,7 +205,12 @@ func (p *Provider) Discovery(ctx context.Context) (*discovery, error) {
 	// case: two tenants of one provider differ only in this string.
 	if doc.Issuer != p.cfg.Issuer {
 		p.discoErrAt = now
-		return nil, Refuse(CodeConfig, "the provider's metadata declares a different issuer")
+		// BOTH VALUES IN THE LOG, which is the whole diagnosis: a trailing slash
+		// or a tenant id is visible at a glance (issue #159). Quoted, because
+		// the declared one comes from the network.
+		mm := &IssuerMismatch{Declared: doc.Issuer, Configured: p.cfg.Issuer}
+		return nil, &Err{Code: CodeConfig,
+			Detail: "the provider's metadata declares a different issuer: " + mm.Error(), Err: mm}
 	}
 	if doc.AuthorizationEndpoint == "" || doc.TokenEndpoint == "" || doc.JWKSURI == "" {
 		p.discoErrAt = now

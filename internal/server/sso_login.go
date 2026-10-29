@@ -65,6 +65,10 @@ type ssoEntry struct {
 
 // ssoState is the runtime half of single sign-on, held by the Server.
 type ssoState struct {
+	// http, when set, is the client every provider fetches with. Nil in
+	// production, where internal/oidc's own client (no redirects, a timeout) is
+	// used; a test points it at a TLS stub.
+	http    *http.Client
 	mu      sync.Mutex
 	byID    map[string]*ssoEntry
 	pending *oidc.Pending
@@ -88,6 +92,9 @@ func (st *ssoState) runtime(row db.SSOProvider, secret string) *oidc.Provider {
 	p := oidc.NewProvider(oidc.Config{
 		Issuer: row.Issuer, ClientID: row.ClientID, ClientSecret: secret,
 	})
+	if st.http != nil {
+		p.HTTP = st.http
+	}
 	st.byID[row.ID] = &ssoEntry{fingerprint: fp, provider: p}
 	return p
 }
