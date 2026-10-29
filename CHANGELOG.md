@@ -2,6 +2,25 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.78] - Single sign-on keeps the issuer exactly as entered
+
+### Fixed
+
+- **An OIDC provider's Issuer URL is saved exactly as entered.** MikroDash removed its trailing
+  slash, so providers whose issuer ends in "/", such as Authentik
+  (`https://host/application/o/<slug>/`) and Auth0, refused every sign-in with "the provider's
+  metadata declares a different issuer". If yours was affected, edit the provider, paste the
+  issuer again with its trailing slash, and save. Reported in
+  [#159](https://github.com/SecOps-7/MikroDash/issues/159), thanks
+  [@zsaat14](https://github.com/zsaat14).
+
+### Changed
+
+- **Saving a provider checks its issuer.** If the provider's published issuer differs from the
+  one entered, the save is refused and the form shows the exact value to use. A provider that
+  cannot be reached yet is still saved.
+- When sign-in is refused for an issuer mismatch, the server log now shows both values.
+
 ## [0.8.77] - A changed WAN interface reaches the dashboard, and quieter CPU and ping alerts
 
 ### Fixed
