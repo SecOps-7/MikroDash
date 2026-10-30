@@ -2010,6 +2010,9 @@ func (s *Session) connectLoop() {
 	// one per recovery. Rule 1 already does this on the way up; `reportedDown` is
 	// the same idea on the way down.
 	reportedDown := false
+	// What an outage writes to the log: the first failure, a change of reason,
+	// one reminder an hour and the recovery, not every attempt. See dialnoise.go.
+	var noise dialNoise
 	first := true
 	for {
 		s.mu.Lock()
@@ -2057,7 +2060,9 @@ func (s *Session) connectLoop() {
 			if n := authBackoff.Failures(); n > 1 {
 				rejected = " (rejected " + strconv.Itoa(n) + " times)"
 			}
-			log.Printf("[session] %s: %v%s; retrying in %s", s.Label, err, rejected, wait)
+			if line := noise.failed(time.Now(), err.Error()); line != "" {
+				log.Printf("[session] %s: %s%s; retrying in %s", s.Label, line, rejected, wait)
+			}
 			if !s.sleepOrWake(wait) {
 				return
 			}
@@ -2076,7 +2081,12 @@ func (s *Session) connectLoop() {
 		// `router:status` on every connect, including the reconnects that write
 		// no row, and a second emit would double every badge update.
 		s.conn.Connected(s.RouterID, time.Now().UnixMilli())
-		log.Printf("[session] %s connected", s.Label)
+		// NO else HERE, for the reason the dial-failure branch above gives.
+		outage := noise.recovered(time.Now())
+		if outage != "" {
+			outage = " " + outage
+		}
+		log.Printf("[session] %s connected%s", s.Label, outage)
 		s.announce()
 
 		if first {
