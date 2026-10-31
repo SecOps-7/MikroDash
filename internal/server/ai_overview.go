@@ -54,11 +54,23 @@ const overviewMinInterval = 60 * time.Second
 // what this card is for; the Dashboard's own cards already show the live numbers.
 const overviewDefaultInterval = 3 * time.Hour
 
-// overviewMaxTokens keeps the answer to a line.
+// ── THE BUDGET IS THE CHAT'S, NOT 120 ───────────────────────────────────────
 //
-// The card has room for one sentence, and asking for more would spend the
-// operator's money producing text the card then truncates.
-const overviewMaxTokens = 120
+// The card asked for at most 120 tokens to keep the answer to a line. A model
+// that reasons before it answers spends that budget thinking: on 2026-10-31 the
+// operator's endpoint returned `finish_reason: "length"` with empty content and
+// `reasoning_tokens: 120` for three of six refreshes, and the card showed a blank
+// line for three hours. The chat page hit the same wall in September, which is
+// why `ReplyTokens` exists. Tokens are billed as used, so a one-line answer costs
+// a line either way; the prompt keeps it to one sentence, and `overviewLineMax`
+// bounds what reaches the card if the model ignores that.
+
+// overviewLineMax is the most of an answer the card shows, in characters.
+const overviewLineMax = 240
+
+// overviewRetryAfter is how soon a failed line is tried again, instead of
+// waiting out the whole interval with nothing on the card.
+const overviewRetryAfter = 5 * time.Minute
 
 // agentFocus starts this viewer's overview feed.
 //
@@ -241,18 +253,25 @@ func (cn *conn) overviewTick() time.Duration {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout())
 	defer cancel()
-	reply, err := aiprovider.Complete(ctx, cfg.Client(), cfg, msgs, overviewMaxTokens)
+	reply, err := aiprovider.Complete(ctx, cfg.Client(), cfg, msgs, cfg.ReplyTokens())
 	if err != nil {
-		// NOT CACHED. A refusal is worth retrying at the next tick rather than
-		// being replayed for three hours after the endpoint recovers.
+		// NOT CACHED. A refusal is worth retrying soon rather than being replayed
+		// for three hours after the endpoint recovers.
 		msg := safe.Message(err.Error())
 		log.Printf("[ai-overview] %s", msg)
 		cn.overviewFail(msg)
-		return interval
+		return overviewRetry(interval)
+	}
+	line, fail := overviewReply(reply)
+	if fail != "" {
+		// AN EMPTY ANSWER IS A FAILURE, not a line: shown, logged, not cached.
+		log.Printf("[ai-overview] %s (finish %q)", fail, reply.Finish)
+		cn.overviewFail(fail)
+		return overviewRetry(interval)
 	}
 	now := time.Now()
 	payload := map[string]any{
-		"text":  reply.Text,
+		"text":  line,
 		"error": "",
 		"model": cfg.Model,
 		"at":    now.UnixMilli(),
@@ -267,6 +286,37 @@ func (cn *conn) overviewTick() time.Duration {
 	sent["color"] = overviewColorOf(settings)
 	EvAIOverview.Send(cn.srv.hub, cn.c, sent)
 	return interval
+}
+
+// overviewReply is the card's line from one answer, or why there is none.
+//
+// The first line only, trimmed and bounded, because the card has room for one.
+// No text at all is a failure: cached as a line, it left the card blank for the
+// whole interval and logged nothing.
+func overviewReply(r aiprovider.Reply) (line, fail string) {
+	line = strings.TrimSpace(r.Text)
+	if i := strings.IndexAny(line, "\r\n"); i >= 0 {
+		line = strings.TrimSpace(line[:i])
+	}
+	if runes := []rune(line); len(runes) > overviewLineMax {
+		line = strings.TrimSpace(string(runes[:overviewLineMax])) + "…"
+	}
+	if line != "" {
+		return line, ""
+	}
+	if r.Finish == "length" {
+		return "", "The model used its whole token budget before writing a line. Raise Max tokens in Settings, AI Agent."
+	}
+	return "", "The model returned no text."
+}
+
+// overviewRetry is when to try again after a failure: soon, or at the interval
+// if that is sooner.
+func overviewRetry(interval time.Duration) time.Duration {
+	if interval < overviewRetryAfter {
+		return interval
+	}
+	return overviewRetryAfter
 }
 
 // overviewDefaultColor is MikroDash blue, `--accent-rx` in the dark theme.
