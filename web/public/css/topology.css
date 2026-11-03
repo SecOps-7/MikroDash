@@ -178,6 +178,29 @@ html[data-theme="light"] .topo-stage{
    side is free, and a stylesheet forcing `middle` would win over it. */
 .wm-client-label{font-family:var(--font-mono);fill:var(--text-muted);
   pointer-events:none}
+.wm-client-label.is-hot{fill:var(--text-main)}
+.wm-client{cursor:pointer}
+.wm-cpin{cursor:move}
+/* A ring in the ground colour keeps a name legible over a line, a dot or a
+   backdrop. Its width is set per label, for the reason the font size is. */
+.wm-obj-label,.wm-obj-sub,.wm-ap-label,.wm-client-label{paint-order:stroke;
+  stroke:var(--bg-deep);stroke-linejoin:round}
+/* A backdrop takes no clicks, so a drag on it pans, until it is being aligned;
+   then the plan above it takes none, so a drag moves the backdrop. */
+.wm-backdrop{pointer-events:none}
+.wm-backdrop.is-sel{pointer-events:auto;cursor:move}
+.wm-backdrop.is-sel .wm-handle{cursor:nwse-resize}
+#wmSvg.wm-aligning #wmObjects,#wmSvg.wm-aligning #wmAps{pointer-events:none}
+.wm-attrib{position:absolute;left:.4rem;bottom:.3rem;padding:0 .3rem;border-radius:4px;
+  font-family:var(--font-ui);font-size:.6rem;color:var(--text-muted);background:var(--bg-card);pointer-events:none}
+.wm-attrib:empty{display:none}
+.wm-card-row{display:flex;justify-content:space-between;gap:.5rem;width:100%;padding:.22rem 0;
+  background:none;border:0;border-bottom:1px solid var(--border);cursor:pointer;text-align:left;
+  font-family:var(--font-mono);font-size:.7rem;color:var(--text-main)}
+.wm-card-row:hover{color:var(--accent-rx)}
+.wm-bd-actions{display:flex;gap:.3rem;flex-wrap:wrap}
+.wm-bd-turn{display:flex;gap:.4rem;align-items:center}
+.wm-bd-turn input[type=number]{width:5.2rem;flex:0 0 auto}
 /* The panel's own controls. The dialog's `sform-input` is reused so a field on
    the map looks like a field anywhere else. */
 .wm-panel-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;color:var(--text-main)}

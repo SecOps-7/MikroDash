@@ -32,22 +32,23 @@
 // The angle is a hash of the MAC in both modes: arbitrary, but STABLE, so a
 // client does not walk around its access point every time the list refreshes.
 //
-// ── RECTANGLES, AND ONE EXCEPTION ───────────────────────────────────────────
+// ── BOXES, AND OUTLINES WHERE A BOX WOULD BE WRONG ──────────────────────────
 //
-// A site plan somebody draws in a minute, not a CAD package: a building is a
-// box, a wall is a thin box, a label is text. The thing being answered is "which
-// building is that AP in and how far is that client".
+// A site plan somebody draws in a minute, not a CAD package: a wall is a thin
+// box, a label is text, and a building is a box unless it is not. The thing
+// being answered is "which building is that AP in and how far is that client".
 //
-// AN AREA IS THE EXCEPTION, because a plot boundary follows a road or a fence
-// and a rectangle says something false about where it ends. It is drawn by
-// clicking its corners, and its vertices can be dragged afterwards.
+// An area always, and a building when it is L-shaped or angled, is an OUTLINE:
+// clicked out corner by corner. Afterwards a corner can be dragged on its own,
+// the whole outline moved, or scaled from its box's corner like a rectangle.
 
-import { esc, el, lsGet, lsSet, svgEl, attr, text } from '../dom';
-import { paletteCss, type PaletteToken } from '../palette';
+import { esc, el, lsGet, lsSet, svgEl, attr, text, pill, bandTone } from '../dom';
+import { paletteCss, paletteColour, monoFont, type PaletteToken, type PillTone } from '../palette';
 import { fieldHtml } from '../form';
 import type { Socket } from '../socket';
 import type { WifiPayload, WirelessPayload, WirelessClient } from '../gen/payloads';
 import { featureOn, onFeatures } from '../caps';
+import { parseTxRate } from './wireless';
 
 // ── the stored document ─────────────────────────────────────────────────────
 //
@@ -78,13 +79,40 @@ interface MapAP {
   floor: number;
 }
 
+/** What is drawn under one floor; floor 0 is the site, under every floor. */
+interface MapBackdrop {
+  floor: number;
+  kind: 'image' | 'tiles';
+  image: string;
+  /** The image's box, or for tiles the canvas point the anchor sits on. */
+  x: number; y: number; w: number; h: number;
+  opacity: number;
+  /** Degrees clockwise, about the image's centre or the map's anchor. */
+  rotation: number;
+  provider: string;
+  url: string;
+  lat: number; lon: number;
+  /** The deepest tile level fetched; 0 is the source's default. */
+  maxZoom: number;
+}
+
+/** A client pinned where it stands, drawn there rather than around its AP. */
+interface MapClient {
+  mac: string;
+  label: string;
+  x: number; y: number;
+  floor: number;
+}
+
 interface WifiMapDoc {
   metresPerUnit: number;
   objects: MapObject[];
   aps: MapAP[];
+  backdrops: MapBackdrop[];
+  clients: MapClient[];
 }
 
-const emptyDoc = (): WifiMapDoc => ({ metresPerUnit: 0, objects: [], aps: [] });
+const emptyDoc = (): WifiMapDoc => ({ metresPerUnit: 0, objects: [], aps: [], backdrops: [], clients: [] });
 
 /** One access point that could be pinned, as the Wifi Networks payload sees it. */
 interface Candidate {
@@ -116,6 +144,123 @@ function metresFromRssi(dbm: number): number {
   return Math.pow(10, (RSSI_AT_1M - dbm) / (10 * PATH_LOSS_N));
 }
 
+/** The edge of the coverage estimate where a client still gets a good link. The
+ *  outer edge is WEAK_DBM. Both are drawn through the same model as the ring. */
+const COVER_GOOD_DBM = -67;
+
+// ── map tiles ───────────────────────────────────────────────────────────────
+//
+// A map backdrop is ordinary XYZ tiles in Web Mercator, fetched by the viewer's
+// browser straight from the provider. One canvas unit is one pixel of a
+// TILE_ZOOM tile (sitedoc.TileZoom), which is what fixes the scale: the server
+// sets `metresPerUnit` from the anchor's latitude, and so does this page the
+// moment a map is placed.
+export const TILE_ZOOM = 19;
+
+interface TileSource { label: string; url: string; maxZoom: number; credit: string }
+
+/** The built-in sources, free to use with their credit shown. A provider whose
+ *  terms want an API key is a custom template the operator brings.
+ *
+ *  ESRI'S DEPTH IS ASKED, NOT ASSUMED: its imagery goes to 19 or deeper in
+ *  cities and stops earlier elsewhere, and a level it has no imagery for comes
+ *  back as a picture saying so. Its tile map service answers which levels have
+ *  imagery at a place (esriDepth below); 17, which it has nearly everywhere, is
+ *  what is drawn until it has answered, and a backdrop's own deepest level
+ *  overrides both. */
+export const TILE_SOURCES: Record<string, TileSource> = {
+  osm: {
+    label: 'OpenStreetMap', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    maxZoom: 19, credit: '© OpenStreetMap contributors',
+  },
+  esri: {
+    label: 'Satellite (Esri World Imagery)',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    maxZoom: 17, credit: 'Imagery © Esri, Maxar, Earthstar Geographics',
+  },
+};
+const CUSTOM_MAX_ZOOM = 20;
+/** A view needing more tiles than this is too far out to read the map anyway. */
+const MAX_TILES = 200;
+
+/** A point's position in pixels of the whole world at TILE_ZOOM. */
+export function worldPx(lat: number, lon: number): MapPoint {
+  const n = 256 * 2 ** TILE_ZOOM;
+  const s = Math.sin(lat * Math.PI / 180);
+  return { x: (lon + 180) / 360 * n, y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n };
+}
+
+/** Metres in one canvas unit at a latitude. Mirrors sitedoc.TileMetresPerUnit. */
+export function tileMetresPerUnit(lat: number): number {
+  return 156543.03392804097 * Math.cos(lat * Math.PI / 180) / 2 ** TILE_ZOOM;
+}
+
+export interface Tile { href: string; x: number; y: number; size: number }
+
+/**
+ * The tiles covering what is on screen, at the zoom level that matches the view.
+ *
+ * A turned map is drawn as tiles square to the map inside a group turned about
+ * the anchor, so a tile's position here is in the map's own frame, and what
+ * must be covered is the screen turned back into it: the box around its four
+ * corners.
+ */
+export function tilesFor(b: MapBackdrop, view: { x: number; y: number; k: number },
+                         width: number, height: number): Tile[] {
+  const src = TILE_SOURCES[b.provider];
+  const url = src ? src.url : b.url;
+  if (!url) return [];
+  const deepest = b.maxZoom || (src ? src.maxZoom : CUSTOM_MAX_ZOOM);
+  const z = Math.max(1, Math.min(deepest, Math.round(TILE_ZOOM + Math.log2(view.k))));
+  const size = 256 * 2 ** (TILE_ZOOM - z);
+  const a = worldPx(b.lat, b.lon);
+  // The screen's corners in world pixels at TILE_ZOOM, turned back by the rotation.
+  const t = -(b.rotation || 0) * Math.PI / 180, cos = Math.cos(t), sin = Math.sin(t);
+  const xs: number[] = [], ys: number[] = [];
+  for (const [sx, sy] of [[0, 0], [width, 0], [0, height], [width, height]] as const) {
+    const cx = (sx - view.x) / view.k - b.x, cy = (sy - view.y) / view.k - b.y;
+    xs.push(a.x + cx * cos - cy * sin);
+    ys.push(a.y + cx * sin + cy * cos);
+  }
+  const last = 2 ** z - 1;
+  const tx0 = Math.max(0, Math.floor(Math.min(...xs) / size));
+  const tx1 = Math.min(last, Math.floor(Math.max(...xs) / size));
+  const ty0 = Math.max(0, Math.floor(Math.min(...ys) / size));
+  const ty1 = Math.min(last, Math.floor(Math.max(...ys) / size));
+  if (tx1 < tx0 || ty1 < ty0 || (tx1 - tx0 + 1) * (ty1 - ty0 + 1) > MAX_TILES) return [];
+  const out: Tile[] = [];
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      out.push({
+        href: url.replace(/\{z\}/g, String(z)).replace(/\{x\}/g, String(tx)).replace(/\{y\}/g, String(ty)),
+        x: b.x + tx * size - a.x, y: b.y + ty * size - a.y, size,
+      });
+    }
+  }
+  return out;
+}
+
+/** The tile at a coordinate, at a zoom level. */
+export function tileAt(lat: number, lon: number, z: number): { x: number; y: number } {
+  const p = worldPx(lat, lon), scale = 2 ** (TILE_ZOOM - z) * 256;
+  return { x: Math.floor(p.x / scale), y: Math.floor(p.y / scale) };
+}
+
+/** Esri's answer to "is there imagery in this tile": `{"data":[1]}` or `[0]`. */
+export function esriTileMapUrl(lat: number, lon: number, z: number): string {
+  const t = tileAt(lat, lon, z);
+  return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap/' +
+    z + '/' + t.y + '/' + t.x + '/1/1';
+}
+
+/** "55.7539, 37.6208" or "55.7539 37.6208", the way a map app copies a point. */
+export function parseLatLon(s: string): { lat: number; lon: number } | null {
+  const m = /^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/.exec(s);
+  if (!m) return null;
+  const lat = Number(m[1]), lon = Number(m[2]);
+  return Math.abs(lat) <= 85 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+}
+
 /** A stable angle for a client, so it does not walk around its AP on a refresh. */
 function angleOf(seed: string): number {
   let h = 0;
@@ -136,6 +281,11 @@ function signalColour(dbm: number): string {
   if (dbm >= -65) return paletteCss('--accent-rx', 0.9);
   if (dbm >= -75) return paletteCss('--accent-warn', 0.9);
   return paletteCss('--accent-err', 0.9);
+}
+
+/** The same bands as a pill tone, for the cards. */
+function signalTone(dbm: number): PillTone {
+  return dbm >= -55 ? 'tx' : dbm >= -65 ? 'rx' : dbm >= -75 ? 'warn' : 'err';
 }
 
 /**
@@ -213,6 +363,9 @@ const LABEL_DEFAULT: LabelFields =
 // THE SIGNAL RING IS THE EXCEPTION and is left alone: its radius is a distance
 // estimate in metres, and a distance that changes when you zoom is not one.
 const FONT = { obj: 13, sub: 10, ap: 10, count: 11, client: 9 };
+/** The width of the ground-coloured outline that keeps a label legible over a
+ *  line, a dot or a backdrop. Scaled with the marks, like the text it rings. */
+const HALO = 3;
 
 // ── weak spots (Settings -> Features) ───────────────────────────────────────
 //
@@ -270,9 +423,12 @@ const LABEL_SPOTS: Array<{ dx: number; dy: number; anchor: Anchor }> = [
 ];
 
 type Mode = 'view' | 'edit';
+type Card = { kind: 'client' | 'ap'; id: string };
 type ClientMode = 'orbit' | 'ring';
 
-interface Sel { kind: 'object' | 'ap'; id: string }
+/** In Edit, what the panel is about. A backdrop's id is its floor, a pinned
+ *  client's its MAC. */
+interface Sel { kind: 'object' | 'ap' | 'backdrop' | 'client'; id: string }
 
 export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boolean): void {
   const stage = el('wmStage');
@@ -280,6 +436,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   if (!stage || !svg) return;
 
   const gViewport = el('wmViewport');
+  const gBackdrop = el('wmBackdrop');
+  const gCover = el('wmCoverLayer');
   const gObjects = el('wmObjects');
   const gMeasure = el('wmMeasureLayer');
   const gDraft = el('wmDraft');
@@ -303,6 +461,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   let pending: 'building' | 'wall' | 'label' | null = null;
   /** The outline being clicked out, when the Area tool is armed. */
   let drawing: MapPoint[] | null = null;
+  /** What the outline being clicked out will be. */
+  let drawKind: 'area' | 'building' = 'area';
 
   let labelFields: LabelFields =
     { ...LABEL_DEFAULT, ...lsGet<Partial<LabelFields>>('mkd_wifi_map_labels', {}) };
@@ -313,6 +473,26 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   /** Clients whose access point is not on the map, from the last render. */
   let unplacedCount = 0;
   let weakClients: Array<{ c: WirelessClient; ap: string }> = [];
+
+  /** The card open in View: a client by MAC, or an access point by pin key. */
+  let card: Card | null = null;
+  let search = '';
+  /** Which of the matches Enter went to last. */
+  let searchAt = -1;
+  let coverage = lsGet('mkd_wifi_map_coverage', false);
+  /** How deep Esri's imagery goes, by place, once asked. */
+  const esriDepth = new Map<string, number>();
+  /** This viewer's choice between the two built-in maps, over the plan's own;
+   *  '' follows the plan. */
+  let mapLook = lsGet('mkd_wifi_map_look', '');
+  /** From the last render: where each client was drawn, each pin's clients, and
+   *  how many labels were left off because every side of their dot was taken. */
+  let drawnAt = new Map<string, MapPoint>();
+  let pinClients = new Map<string, WirelessClient[]>();
+  let hiddenLabels = 0;
+  /** Image elements by URL. A pan redraws the tiles, and handing back the same
+   *  element keeps a loaded tile on screen instead of loading it again. */
+  const images = new Map<string, SVGElement>();
 
   /** What to multiply a drawn size by. 1 when the marks scale with the plan. */
   function mk(): number {
@@ -336,6 +516,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   function applyView(): void {
     attr(gViewport, 'transform',
       'translate(' + view.x.toFixed(1) + ',' + view.y.toFixed(1) + ') scale(' + view.k.toFixed(3) + ')');
+    // The tiles on screen depend on the view, so every pan and zoom asks again.
+    renderBackdrop();
   }
 
   function saveView(): void { lsSet('mkd_wifi_map_view', view); }
@@ -358,6 +540,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     const pts: Array<{ x: number; y: number }> = [];
     doc.objects.forEach((o) => { pts.push({ x: o.x, y: o.y }, { x: o.x + o.w, y: o.y + o.h }); });
     doc.aps.forEach((a) => pts.push({ x: a.x, y: a.y }));
+    doc.clients.forEach((c) => pts.push({ x: c.x, y: c.y }));
     if (!pts.length || !rect.width) return;
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -446,6 +629,128 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     while (g && g.firstChild) g.removeChild(g.firstChild);
   }
 
+  const backdropOf = (f: number): MapBackdrop | undefined => doc.backdrops.find((b) => b.floor === f);
+  const siteMap = (): MapBackdrop | undefined => doc.backdrops.find((b) => b.kind === 'tiles');
+
+  function imageHref(id: string): string {
+    return '/api/router-doc/image?routerId=' + encodeURIComponent(routerID) + '&id=' + encodeURIComponent(id);
+  }
+
+  function image(href: string, x: number, y: number, w: number, h: number): SVGElement {
+    let im = images.get(href);
+    if (!im) {
+      if (images.size > 600) images.clear();
+      im = svgEl('image', { href, preserveAspectRatio: 'none' });
+      images.set(href, im);
+    }
+    attr(im, 'x', x); attr(im, 'y', y); attr(im, 'width', w); attr(im, 'height', h);
+    return im;
+  }
+
+  /**
+   * The deepest Esri level with imagery at the backdrop's anchor. Asked once a
+   * place: up from 17 while the next level has imagery, or down when 17 has
+   * none. Until the answer is in, 17.
+   */
+  function esriDeepest(b: MapBackdrop): number {
+    const key = b.lat.toFixed(4) + ',' + b.lon.toFixed(4);
+    const known = esriDepth.get(key);
+    if (known !== undefined) return known;
+    const start = TILE_SOURCES.esri!.maxZoom;
+    esriDepth.set(key, start);
+    const has = (z: number): Promise<boolean> => fetch(esriTileMapUrl(b.lat, b.lon, z))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { data?: number[] } | null) => !!(d && d.data && d.data[0] === 1));
+    (async () => {
+      let z = start;
+      if (await has(z)) {
+        while (z < 21 && await has(z + 1)) z++;
+      } else {
+        while (z > 10 && !(await has(z - 1))) z--;
+        z = Math.max(10, z - 1);
+      }
+      esriDepth.set(key, z);
+      renderBackdrop();
+    })().catch(() => { /* unanswered: 17 stays */ });
+    return start;
+  }
+
+  /**
+   * The site's backdrop, and over it the shown floor's own, so a storey's plan
+   * keeps its place on the site. In Edit, the one being aligned takes the
+   * pointer and gets an outline; the plan above it stops taking clicks until
+   * Done, or a drag would move a building instead.
+   */
+  function renderBackdrop(): void {
+    if (!gBackdrop) return;
+    const rect = stage!.getBoundingClientRect();
+    const k = mk();
+    const shown = [backdropOf(0), floor ? backdropOf(floor) : undefined]
+      .filter((b): b is MapBackdrop => !!b);
+    const aligning = mode === 'edit' && sel?.kind === 'backdrop';
+    svg!.classList.toggle('wm-aligning', aligning);
+    let credit = '';
+    clear(gBackdrop);
+    shown.forEach((stored) => {
+      let b = stored.kind === 'tiles' && mapLook && TILE_SOURCES[stored.provider]
+        ? { ...stored, provider: mapLook } : stored;
+      if (b.kind === 'tiles' && b.provider === 'esri' && !b.maxZoom) b = { ...b, maxZoom: esriDeepest(b) };
+      const on = aligning && sel!.id === String(b.floor);
+      const pivot = b.kind === 'tiles' ? { x: b.x, y: b.y } : { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+      const g = svgEl('g', { class: 'wm-backdrop' + (on ? ' is-sel' : ''), opacity: b.opacity });
+      if (b.rotation) attr(g, 'transform', 'rotate(' + b.rotation + ' ' + pivot.x + ' ' + pivot.y + ')');
+      if (b.kind === 'tiles') {
+        const src = TILE_SOURCES[b.provider];
+        credit = src ? src.credit : 'Map tiles: ' + (b.url.split('/')[2] || '');
+        // One screen pixel of overlap hides the seams between tiles.
+        tilesFor(b, view, rect.width, rect.height).forEach((t) =>
+          g.appendChild(image(t.href, t.x, t.y, t.size + 1 / view.k, t.size + 1 / view.k)));
+        if (on) {
+          g.appendChild(svgEl('circle', {
+            cx: b.x, cy: b.y, r: 6 * k, style: paint('none', 'var(--accent-warn)'), 'stroke-width': 2 * k,
+          }));
+        }
+      } else {
+        g.appendChild(image(imageHref(b.image), b.x, b.y, b.w, b.h));
+        if (on) {
+          g.appendChild(svgEl('rect', {
+            x: b.x, y: b.y, width: b.w, height: b.h, style: paint('none', 'var(--accent-warn)'),
+            'stroke-width': 1.5 * k, 'stroke-dasharray': (6 * k).toFixed(1) + ' ' + (4 * k).toFixed(1),
+          }));
+          g.appendChild(svgEl('rect', {
+            class: 'wm-handle', 'data-bd-handle': String(b.floor),
+            x: b.x + b.w - 7 * k, y: b.y + b.h - 7 * k, width: 14 * k, height: 14 * k, rx: 2,
+            style: paint('var(--accent-warn)'),
+          }));
+        }
+      }
+      gBackdrop.appendChild(g);
+    });
+    const att = el('wmAttrib');
+    if (att) att.textContent = credit;
+  }
+
+  /** The coverage estimate: two rings per access point, from the distance model. */
+  function renderCoverage(): void {
+    clear(gCover);
+    if (!gCover || mode === 'edit' || !coverage || !(doc.metresPerUnit > 0)) return;
+    const k = mk();
+    doc.aps.forEach((a) => {
+      if (floor !== 0 && a.floor !== floor) return;
+      ([[WEAK_DBM, '--accent-warn', 0.04], [COVER_GOOD_DBM, '--accent-tx', 0.07]] as const).forEach(([dbm, tok, fill]) => {
+        const c = svgEl('circle', {
+          cx: a.x, cy: a.y, r: metresFromRssi(dbm) / doc.metresPerUnit,
+          style: paint(paletteCss(tok, fill), paletteCss(tok, 0.45)),
+          'stroke-width': k, 'stroke-dasharray': (5 * k).toFixed(1) + ' ' + (4 * k).toFixed(1),
+        });
+        const t = svgEl('title');
+        text(t, 'About ' + metresFromRssi(dbm).toFixed(0) + ' m to ' + dbm + ' dBm (an estimate)');
+        c.appendChild(t);
+        gCover.appendChild(c);
+      });
+    });
+  }
+
   function renderMeasure(to?: { x: number; y: number }): void {
     clear(gMeasure);
     if (!gMeasure || !measureFrom || !to) return;
@@ -509,7 +814,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         const t = svgEl('text', {
           x: o.x + 10 * k, y: o.y + (o.kind === 'label' ? 18 : 20) * k,
           class: 'wm-obj-label', style: paint(o.colour ? objectColour(o.colour) : 'var(--text-main)'),
-          'font-size': (FONT.obj * k).toFixed(1) + 'px',
+          'font-size': (FONT.obj * k).toFixed(1) + 'px', 'stroke-width': (HALO * k).toFixed(2),
         });
         text(t, o.label);
         g.appendChild(t);
@@ -517,7 +822,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       if (o.kind === 'building' && o.floors > 1) {
         const t = svgEl('text', {
           x: o.x + 10 * k, y: o.y + (o.label ? 36 : 20) * k, class: 'wm-obj-sub',
-          'font-size': (FONT.sub * k).toFixed(1) + 'px',
+          'font-size': (FONT.sub * k).toFixed(1) + 'px', 'stroke-width': (HALO * k).toFixed(2),
         });
         text(t, o.floors + ' floors');
         g.appendChild(t);
@@ -529,9 +834,9 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
           rx: 10, style: paint('none', 'var(--accent-rx)'), 'stroke-width': k,
           'stroke-dasharray': (4 * k).toFixed(1) + ' ' + (3 * k).toFixed(1),
         }));
-        // A polygon resizes by its CORNERS. One handle in the bottom right would
-        // have to scale the whole outline, which is not what "the fence turns
-        // here" means.
+        // An outline has a handle on every corner, to move that corner, and
+        // the box's corner handle, hollow, to scale the whole outline the way a
+        // rectangle is sized.
         if (o.points.length >= 3) {
           o.points.forEach((q, i) => {
             g.appendChild(svgEl('rect', {
@@ -540,6 +845,11 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
               style: paint('var(--accent-rx)'),
             }));
           });
+          g.appendChild(svgEl('rect', {
+            class: 'wm-handle', 'data-handle': o.id,
+            x: o.x + o.w - 6 * k, y: o.y + o.h - 6 * k, width: 12 * k, height: 12 * k, rx: 2,
+            style: paint(paletteCss('--bg-deep', 0.8), 'var(--accent-rx)'), 'stroke-width': 2 * k,
+          }));
         } else if (o.kind !== 'label') {
           g.appendChild(svgEl('rect', {
             class: 'wm-handle', 'data-handle': o.id,
@@ -573,14 +883,14 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       if (sig) {
         const avg = svgEl('text', {
           x: a.x, y: a.y + 42 * k, class: 'wm-ap-label', style: paint(paletteCss(sig.tone)),
-          'font-size': (FONT.client * k).toFixed(1) + 'px',
+          'font-size': (FONT.client * k).toFixed(1) + 'px', 'stroke-width': (HALO * k).toFixed(2),
         });
         text(avg, 'avg ' + sig.avg + ' dBm' + (sig.weak ? ' · ' + sig.weak + ' weak' : ''));
         g.appendChild(avg);
       }
       const lbl = svgEl('text', {
         x: a.x, y: a.y + 30 * k, class: 'wm-ap-label',
-        'font-size': (FONT.ap * k).toFixed(1) + 'px',
+        'font-size': (FONT.ap * k).toFixed(1) + 'px', 'stroke-width': (HALO * k).toFixed(2),
       });
       text(lbl, a.label || a.ap || a.ifaces[0] || '?');
       g.appendChild(lbl);
@@ -592,7 +902,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         text(c, String(n));
         g.appendChild(c);
       }
-      if (mode === 'edit' && sel?.kind === 'ap' && sel.id === key) {
+      if ((mode === 'edit' && sel?.kind === 'ap' && sel.id === key) ||
+          (mode === 'view' && card?.kind === 'ap' && card.id === key)) {
         g.appendChild(svgEl('circle', {
           cx: a.x, cy: a.y, r: 19 * k, style: paint('none', 'var(--accent-rx)'),
           'stroke-width': k, 'stroke-dasharray': (4 * k).toFixed(1) + ' ' + (3 * k).toFixed(1),
@@ -636,28 +947,62 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
    *
    * The angle nudge keeps the drawing STABLE for a given client list, which is
    * the property the hash was for: the same clients redraw in the same places.
+   *
+   * ── A LABEL WITH NO FREE SIDE IS LEFT OFF ───────────────────────────────
+   *
+   * Drawing it anyway, on the side it overlaps least, is what turned a busy
+   * access point into a block of text nobody could read. The dot stays, and a
+   * click on it opens its card. A client the search found, or whose card is
+   * open, keeps its label wherever it lands.
    */
   function renderClients(groups: Map<string, { pin: MapAP; clients: WirelessClient[] }>): void {
     clear(gClients);
-    if (!gClients || mode === 'edit') return;
+    drawnAt = new Map();
+    hiddenLabels = 0;
+    if (!gClients) return;
+    if (mode === 'edit') { renderPins(); return; }
     const perUnit = doc.metresPerUnit > 0 ? doc.metresPerUnit : 0;
     const ring = clientMode === 'ring' && perUnit > 0;
     const k = mk();
 
-    // Everything a label must keep off: the access points and their names.
+    // Everything a label must keep off: the access points, their names and
+    // averages, and the names written on the plan.
     const taken: Box[] = [];
     doc.aps.forEach((a) => {
       if (floor !== 0 && a.floor !== floor) return;
       taken.push({ x0: a.x - 16 * k, y0: a.y - 16 * k, x1: a.x + 16 * k, y1: a.y + 16 * k });
       const w = ((a.label || a.ap || a.ifaces[0] || '?').length * 5.8 + 6) * k;
-      taken.push({ x0: a.x - w / 2, y0: a.y + 21 * k, x1: a.x + w / 2, y1: a.y + 34 * k });
+      taken.push({ x0: a.x - w / 2, y0: a.y + 21 * k, x1: a.x + w / 2, y1: a.y + 46 * k });
+    });
+    doc.objects.forEach((o) => {
+      if (!o.label) return;
+      const x0 = o.x + 10 * k, base = o.y + (o.kind === 'label' ? 18 : 20) * k;
+      taken.push({ x0, y0: base - FONT.obj * k, x1: x0 + o.label.length * 7.4 * k,
+        y1: base + (o.kind === 'building' && o.floors > 1 ? 18 : 4) * k });
     });
 
-    interface Placed { c: WirelessClient; pin: MapAP; x: number; y: number; lines: string[] }
+    // A pinned client is drawn where it was pinned, connected or not: a camera
+    // that has dropped off is the thing worth seeing. Pinned ones go first, so
+    // the orbiting ones keep off them.
+    interface Placed { c: WirelessClient | null; mac: string; pin: MapAP | null; x: number; y: number;
+      lines: string[]; fixed: boolean }
     const placed: Placed[] = [];
+    const live = new Map((wireless?.clients || []).map((c) => [c.mac.toUpperCase(), c]));
+    const apOf = new Map<string, MapAP>();
+    groups.forEach((grp) => grp.clients.forEach((c) => apOf.set(c.mac.toUpperCase(), grp.pin)));
+    doc.clients.forEach((p) => {
+      if (floor !== 0 && p.floor !== floor) return;
+      const c = live.get(p.mac) || null;
+      placed.push({ c, mac: p.mac, pin: apOf.get(p.mac) || null, x: p.x, y: p.y,
+        lines: c ? clientLines(c) : [p.label || p.mac], fixed: true });
+      drawnAt.set(p.mac, { x: p.x, y: p.y });
+      taken.push({ x0: p.x - 7 * k, y0: p.y - 7 * k, x1: p.x + 7 * k, y1: p.y + 7 * k });
+    });
+    const pinnedMacs = new Set(doc.clients.map((p) => p.mac));
     groups.forEach((grp) => {
       if (floor !== 0 && grp.pin.floor !== floor) return;
       grp.clients.forEach((c, i) => {
+        if (pinnedMacs.has(c.mac.toUpperCase())) return;
         const lines = clientLines(c);
         // A taller label needs a wider ring, or the second row of clients draws
         // through the first row's text.
@@ -676,21 +1021,41 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
           x = grp.pin.x + Math.cos(a) * r;
           y = grp.pin.y + Math.sin(a) * r;
         }
-        placed.push({ c, pin: grp.pin, x, y, lines });
+        placed.push({ c, mac: c.mac.toUpperCase(), pin: grp.pin, x, y, lines, fixed: false });
+        drawnAt.set(c.mac.toUpperCase(), { x, y });
         taken.push({ x0: x - 7 * k, y0: y - 7 * k, x1: x + 7 * k, y1: y + 7 * k });
       });
     });
 
-    placed.forEach(({ c, pin, x, y, lines }) => {
-      const g = svgEl('g', { class: 'wm-client' });
-      g.appendChild(svgEl('line', {
-        x1: pin.x, y1: pin.y, x2: x, y2: y,
-        style: paint('none', paletteCss('--text-muted', 0.25)), 'stroke-width': k,
-      }));
+    placed.forEach(({ c, mac, pin, x, y, lines, fixed }) => {
+      const hot = (card?.kind === 'client' && card.id === mac) || (!!c && matches(c));
+      const g = svgEl('g', { class: 'wm-client', 'data-mac': mac });
+      // The line to its access point, when that is drawn on this floor.
+      if (pin && (floor === 0 || pin.floor === floor)) {
+        g.appendChild(svgEl('line', {
+          x1: pin.x, y1: pin.y, x2: x, y2: y,
+          style: paint('none', paletteCss('--text-muted', 0.25)), 'stroke-width': k,
+        }));
+      }
+      if (hot) {
+        g.appendChild(svgEl('circle', {
+          cx: x, cy: y, r: 10 * k, style: paint('none', 'var(--accent-warn)'), 'stroke-width': 2 * k,
+        }));
+      }
+      if (fixed) {
+        g.appendChild(svgEl('rect', {
+          x: x - 8 * k, y: y - 8 * k, width: 16 * k, height: 16 * k, rx: 2,
+          style: paint('none', paletteCss('--accent-alt', 0.7)), 'stroke-width': k,
+        }));
+      }
       g.appendChild(svgEl('circle', {
-        cx: x, cy: y, r: 5 * k, style: paint(signalColour(c.signal), paletteCss('--bg-deep', 0.7)),
-        'stroke-width': k,
+        cx: x, cy: y, r: 5 * k,
+        style: c ? paint(signalColour(c.signal), paletteCss('--bg-deep', 0.7))
+          : paint(paletteCss('--bg-deep', 0.7), paletteCss('--text-muted', 0.9)),
+        'stroke-width': c ? k : 1.5 * k,
       }));
+      // A wider target than the dot, so a click does not need a steady hand.
+      g.appendChild(svgEl('circle', { cx: x, cy: y, r: 9 * k, style: paint('transparent') }));
 
       if (lines.length) {
         const w = (Math.max(...lines.map((t) => t.length)) * CHAR_W + 4) * k;
@@ -704,26 +1069,66 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
           if (n < bestHits) { bestHits = n; best = { anchor: spot.anchor, dx, dy }; bestBox = box; }
           if (!n) break;
         }
-        if (bestBox) taken.push(bestBox);
-        const t = svgEl('text', {
-          x: x + best.dx, y: y + best.dy, class: 'wm-client-label',
-          'text-anchor': best.anchor, 'font-size': (FONT.client * k).toFixed(1) + 'px',
-        });
-        lines.forEach((line, i) => {
-          const span = svgEl('tspan', { x: x + best.dx, dy: i ? LINE_H * k : 0 });
-          text(span, line);
-          t.appendChild(span);
-        });
-        g.appendChild(t);
+        if (bestHits > 0 && !hot) {
+          hiddenLabels++;
+        } else {
+          if (bestBox) taken.push(bestBox);
+          const t = svgEl('text', {
+            x: x + best.dx, y: y + best.dy, class: 'wm-client-label' + (hot ? ' is-hot' : ''),
+            'text-anchor': best.anchor, 'font-size': (FONT.client * k).toFixed(1) + 'px',
+            'stroke-width': (HALO * k).toFixed(2),
+          });
+          lines.forEach((line, i) => {
+            const span = svgEl('tspan', { x: x + best.dx, dy: i ? LINE_H * k : 0 });
+            text(span, line);
+            t.appendChild(span);
+          });
+          g.appendChild(t);
+        }
       }
 
       const title = svgEl('title');
-      text(title, [c.name || c.mac, c.comment, c.ip, c.mac, c.signal + ' dBm', c.ssid,
-        ring ? '≈' + metresFromRssi(c.signal).toFixed(1) + ' m (estimate)' : '']
-        .filter(Boolean).join(' · '));
+      text(title, c
+        ? [c.name || c.mac, c.comment, c.ip, c.mac, c.signal + ' dBm', c.ssid,
+          ring && !fixed ? '≈' + metresFromRssi(c.signal).toFixed(1) + ' m (estimate)' : '']
+          .filter(Boolean).join(' · ')
+        : (lines[0] || mac) + ' · not connected now');
       g.appendChild(title);
       gClients.appendChild(g);
     });
+  }
+
+  /** The pinned clients in Edit, where they are dragged into place. */
+  function renderPins(): void {
+    const k = mk();
+    doc.clients.forEach((p) => {
+      if (floor !== 0 && p.floor !== floor) return;
+      const g = svgEl('g', { class: 'wm-cpin', 'data-cpin': p.mac });
+      g.appendChild(svgEl('rect', {
+        x: p.x - 7 * k, y: p.y - 7 * k, width: 14 * k, height: 14 * k, rx: 2,
+        style: paint(paletteCss('--accent-alt', 0.3), 'var(--accent-alt)'), 'stroke-width': 1.5 * k,
+      }));
+      if (sel?.kind === 'client' && sel.id === p.mac) {
+        g.appendChild(svgEl('circle', {
+          cx: p.x, cy: p.y, r: 14 * k, style: paint('none', 'var(--accent-rx)'), 'stroke-width': k,
+          'stroke-dasharray': (4 * k).toFixed(1) + ' ' + (3 * k).toFixed(1),
+        }));
+      }
+      const t = svgEl('text', {
+        x: p.x, y: p.y + 20 * k, class: 'wm-ap-label',
+        'font-size': (FONT.client * k).toFixed(1) + 'px', 'stroke-width': (HALO * k).toFixed(2),
+      });
+      text(t, p.label || p.mac);
+      g.appendChild(t);
+      gClients!.appendChild(g);
+    });
+  }
+
+  /** Whether the search box finds this client. Two characters at least, so a
+   *  single keystroke does not light up half the site. */
+  function matches(c: WirelessClient): boolean {
+    if (search.length < 2) return false;
+    return [c.name, c.comment, c.ip, c.mac].some((v) => (v || '').toLowerCase().includes(search));
   }
 
   function render(): void {
@@ -751,8 +1156,10 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       });
     });
     weakClients.sort((a, b) => Number(a.c.signal) - Number(b.c.signal));
+    pinClients = new Map([...groups].map(([key, grp]) => [key, grp.clients]));
 
     renderObjects();
+    renderCoverage();
     renderAps(counts, signal);
     renderClients(groups);
     renderPanel();
@@ -790,7 +1197,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       }
       if (drawing) {
         bits.push(drawing.length < 3
-          ? 'Click each corner of the area. Three at least.'
+          ? 'Click each corner of the ' + (drawKind === 'building' ? 'building' : 'area') + '. Three at least.'
           : drawing.length + ' corners. Click the first one again, double-click ' +
             'or press Enter to close it; Esc throws it away.');
       }
@@ -801,6 +1208,21 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       if (clientMode === 'ring' && doc.metresPerUnit > 0) {
         bits.push('Radius is a distance ESTIMATE from the signal. The direction ' +
           'is arbitrary: a router reports one reading per client, never three.');
+      }
+      if (mode === 'view' && search.length >= 2) {
+        const n = (wireless?.clients || []).filter(matches).length;
+        bits.push(n ? n + ' client' + (n === 1 ? '' : 's') + ' match "' + search + '"; Enter goes to the next'
+          : 'No client matches "' + search + '"');
+      }
+      if (mode === 'view' && hiddenLabels) {
+        bits.push(hiddenLabels + ' label' + (hiddenLabels === 1 ? '' : 's') +
+          ' left off where they would overlap; click a dot for its card');
+      }
+      if (mode === 'view' && coverage) {
+        bits.push(doc.metresPerUnit > 0
+          ? 'Coverage is an ESTIMATE from a typical indoor model: inner ring ' + COVER_GOOD_DBM +
+            ' dBm, outer ' + WEAK_DBM + ' dBm. Walls and floors cut it short.'
+          : 'Coverage needs a scale: measure one in Edit, or place a map.');
       }
       if (featureOn('wifiWeakSpotsEnabled') && weakClients.length) {
         bits.push(weakClients.length + ' below ' + WEAK_DBM + ' dBm: ' + weakClients.slice(0, 5).map((w) =>
@@ -838,14 +1260,22 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     // seconds and a zoom now redraws too; replacing the markup under an open
     // field takes the focus and the half-typed label with it. Same guard the
     // topology map's detail panel carries, for the same reason.
-    if (panel.contains(document.activeElement)) return;
+    //
+    // A FIELD, NOT A BUTTON. A clicked button keeps the focus too, and the
+    // panel it changed - a backdrop placed, a card opened from a list - stayed
+    // as it was until something else took the focus away.
+    const active = document.activeElement;
+    if (active && panel.contains(active) && active.matches('input, textarea, select')) return;
     // `.open` is what slides it in - the panel is parked off-canvas otherwise,
     // which is how the topology map's detail panel works and why this reuses it.
-    panel.classList.toggle('open', mode === 'edit');
     if (mode !== 'edit') {
-      panel.innerHTML = '';
+      const html = cardHtml();
+      panel.classList.toggle('open', !!html);
+      panel.innerHTML = html;
+      wireCard();
       return;
     }
+    panel.classList.add('open');
 
     if (sel?.kind === 'object') {
       const o = doc.objects.find((x) => x.id === sel!.id);
@@ -855,8 +1285,339 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       const a = doc.aps.find((x) => pinKey(x) === sel!.id);
       if (a) { panel.innerHTML = apPanel(a); wireApPanel(a); return; }
     }
+    if (sel?.kind === 'client') {
+      const p = doc.clients.find((x) => x.mac === sel!.id);
+      if (p) { panel.innerHTML = clientPinPanel(p); wireClientPin(p); return; }
+    }
     panel.innerHTML = trayPanel();
     wireTray();
+    wireBackdrop();
+  }
+
+  // ── the cards, in View ────────────────────────────────────────────────────
+
+  function row(k: string, v: string): string {
+    return v ? '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>' : '';
+  }
+
+  function cardHead(title: string, colour: string): string {
+    return '<div class="topo-panel-hdr" style="color:' + colour + '">' +
+      '<span class="topo-panel-name">' + esc(title) + '</span>' +
+      '<button class="topo-panel-close" id="wmCardClose" type="button" aria-label="Close">&times;</button></div>';
+  }
+
+  function cardHtml(): string {
+    if (card?.kind === 'client') {
+      const c = (wireless?.clients || []).find((x) => x.mac.toUpperCase() === card!.id);
+      const fixed = doc.clients.find((x) => x.mac === card!.id);
+      if (!c) {
+        return fixed
+          ? cardHead(fixed.label || fixed.mac, 'var(--text-muted)') +
+            '<div class="topo-badges">' + pill('not connected', 'muted') + pill('pinned', 'alt') + '</div>' +
+            '<dl class="topo-kv">' + row('MAC', fixed.mac) + row('Floor', String(fixed.floor)) + '</dl>'
+          : '';
+      }
+      const key = [...pinClients].find(([, list]) => list.includes(c))?.[0] || '';
+      const pin = doc.aps.find((a) => pinKey(a) === key);
+      return cardHead(c.comment || c.name || c.mac, signalColour(c.signal)) +
+        '<div class="topo-badges">' + pill(c.signal + ' dBm', signalTone(c.signal)) +
+          (c.band ? pill(c.band, bandTone(c.band)) : '') + (c.standard ? pill(c.standard, 'muted') : '') +
+          (fixed ? pill('pinned', 'alt') : '') + '</div>' +
+        '<dl class="topo-kv">' +
+          row('Name', c.name) + row('Comment', c.comment) + row('IP', c.ip) + row('MAC', c.mac) +
+          row('SSID', c.ssid) + row('Access point', pin ? pin.label || pin.ap || key : '') +
+          row('Interface', c.iface) +
+          row('Distance', '≈' + metresFromRssi(c.signal).toFixed(1) + ' m from its AP (an estimate)') +
+          row('Tx / Rx', c.txRate || c.rxRate ? parseTxRate(c.txRate) + ' / ' + parseTxRate(c.rxRate) : '') +
+          row('Uptime', c.uptime) +
+        '</dl>' +
+        '<div class="wm-bd-actions">' +
+          (pin ? '<button class="sbtn sbtn-outline is-sm" type="button" data-card-ap="' + esc(key) +
+            '">Its access point</button>' : '') +
+          (fixed ? '' : '<button class="sbtn sbtn-outline is-sm" type="button" data-card-pin="' + esc(c.mac) +
+            '" title="For a camera, a sensor or anything that does not move: draw it where it stands">Pin to the map</button>') +
+        '</div>';
+    }
+    if (card?.kind === 'ap') {
+      const pin = doc.aps.find((a) => pinKey(a) === card!.id);
+      if (!pin) return '';
+      const clients = (pinClients.get(card.id) || []).slice().sort((a, b) => b.signal - a.signal);
+      const sig = apSignal(clients);
+      const radios = (wifi?.radios || []).filter((r) => (pin.ap ? r.ap === pin.ap : pin.ifaces.includes(r.name)));
+      const nets = (wifi?.networks || []).filter((n) => (pin.ap ? n.ap === pin.ap
+        : pin.ifaces.includes(n.name) || pin.ifaces.includes(n.radio)));
+      const tone: Record<string, PillTone> = { '--accent-err': 'err', '--accent-warn': 'warn', '--accent-ok': 'ok' };
+      return cardHead(pin.label || pin.ap || pin.ifaces[0] || '?', 'var(--accent-rx)') +
+        (pin.ap && pin.ap !== pin.label ? '<div class="wm-panel-sub">' + esc(pin.ap) + '</div>' : '') +
+        '<div class="topo-badges">' + pill(clients.length + ' client' + (clients.length === 1 ? '' : 's'), 'rx') +
+          (sig ? pill('avg ' + sig.avg + ' dBm', tone[sig.tone] || 'muted') +
+            (sig.weak ? pill(sig.weak + ' below ' + WEAK_DBM, 'err') : '') : '') +
+          (pin.floor > 1 ? pill('floor ' + pin.floor, 'muted') : '') + '</div>' +
+        (radios.length ? '<div class="topo-panel-sec">Radios</div><dl class="topo-kv">' +
+          radios.map((r) => row(r.name, [r.band, r.frequency, r.channelWidth].filter(Boolean).join(' · ') +
+            (r.running ? '' : ' · not running'))).join('') + '</dl>' : '') +
+        (nets.length ? '<div class="topo-panel-sec">Networks</div><dl class="topo-kv">' +
+          nets.map((n) => row(n.ssid || n.name, [n.name, n.band, n.clients + ' clients'].filter(Boolean)
+            .join(' · '))).join('') + '</dl>' : '') +
+        '<div class="wm-panel-note">Estimated reach: about ' + metresFromRssi(COVER_GOOD_DBM).toFixed(0) +
+          ' m at ' + COVER_GOOD_DBM + ' dBm and ' + metresFromRssi(WEAK_DBM).toFixed(0) + ' m at ' + WEAK_DBM +
+          ' dBm with nothing in the way; walls take that down.</div>' +
+        (clients.length ? '<div class="topo-panel-sec">Clients</div>' + clients.map((c) =>
+          '<button type="button" class="wm-card-row" data-card-mac="' + esc(c.mac) + '">' +
+            '<span>' + esc(c.comment || c.name || c.mac) + '</span>' +
+            '<span style="color:' + signalColour(c.signal) + '">' + c.signal + ' dBm</span></button>').join('') : '');
+    }
+    return '';
+  }
+
+  function wireCard(): void {
+    el('wmCardClose')?.addEventListener('click', () => { card = null; render(); });
+    el('wmPanel')?.querySelectorAll<HTMLElement>('[data-card-mac]').forEach((b) => {
+      b.addEventListener('click', () => {
+        card = { kind: 'client', id: (b.dataset.cardMac || '').toUpperCase() }; render();
+      });
+    });
+    el('wmPanel')?.querySelectorAll<HTMLElement>('[data-card-ap]').forEach((b) => {
+      b.addEventListener('click', () => { card = { kind: 'ap', id: b.dataset.cardAp || '' }; render(); });
+    });
+    el('wmPanel')?.querySelectorAll<HTMLElement>('[data-card-pin]').forEach((b) => {
+      b.addEventListener('click', () => pinClient(b.dataset.cardPin || ''));
+    });
+  }
+
+  /** Pins a client where it is drawn now and opens it in Edit, to be dragged into place. */
+  function pinClient(macRaw: string): void {
+    const mac = macRaw.toUpperCase();
+    const c = (wireless?.clients || []).find((x) => x.mac.toUpperCase() === mac);
+    if (!c || doc.clients.some((x) => x.mac === mac)) return;
+    const at = drawnAt.get(mac) || centre();
+    const ap = [...pinClients].find(([, list]) => list.includes(c))?.[0];
+    const apPin = ap ? doc.aps.find((a) => pinKey(a) === ap) : undefined;
+    doc.clients.push({ mac, label: c.comment || c.name || mac, x: at.x, y: at.y,
+      floor: apPin ? apPin.floor : floor || 1 });
+    dirty = true;
+    card = null;
+    mode = 'edit';
+    sel = { kind: 'client', id: mac };
+    syncChrome(); render();
+    note('Drag it to where it stands, then Save.');
+  }
+
+  /** Centres the map on the next client the search finds, and opens its card. */
+  function findNext(): void {
+    const hits = (wireless?.clients || []).filter(matches);
+    if (!hits.length) return;
+    searchAt = (searchAt + 1) % hits.length;
+    const c = hits[searchAt]!;
+    if (!drawnAt.has(c.mac.toUpperCase()) && floor !== 0) {
+      floor = 0;
+      syncFloors();
+      render();
+    }
+    const p = drawnAt.get(c.mac.toUpperCase());
+    if (!p) {
+      note((c.comment || c.name || c.mac) + ' is on an access point that is not on the map.');
+      return;
+    }
+    // Left of the middle, because its card is about to cover the right side.
+    const rect = stage!.getBoundingClientRect();
+    view.x = rect.width * 0.4 - p.x * view.k;
+    view.y = rect.height / 2 - p.y * view.k;
+    saveView();
+    card = { kind: 'client', id: c.mac.toUpperCase() };
+    render();
+  }
+
+  // ── the backdrop, in Edit ─────────────────────────────────────────────────
+
+  function backdropSection(): string {
+    const b = backdropOf(floor);
+    const aligning = sel?.kind === 'backdrop';
+    let body: string;
+    if (!b) {
+      body = '<div class="wm-panel-note">' + (floor
+        ? 'A plan of this floor, drawn over the site\'s backdrop while this floor is shown.'
+        : 'A site plan or photo, or a map, drawn under every floor. A map also sets the scale.') + '</div>' +
+        '<div class="wm-bd-actions">' +
+          '<button class="sbtn sbtn-outline is-sm" id="wmfBdUpload" type="button">Upload image</button>' +
+          (floor === 0 ? '<button class="sbtn sbtn-outline is-sm" id="wmfBdMap" type="button">Use a map</button>' : '') +
+        '</div>';
+    } else {
+      const sources: Array<[string, string]> = [
+        ...Object.entries(TILE_SOURCES).map(([key, src]): [string, string] => [key, src.label]),
+        ['custom', 'Custom tile URL'],
+      ];
+      body = (b.kind === 'tiles'
+        ? fields(
+          fieldHtml({ id: 'wmfBdProvider', label: 'Map' },
+            '<select class="sform-input" id="wmfBdProvider">' + sources.map(([key, label]) =>
+              '<option value="' + key + '"' + (key === b.provider ? ' selected' : '') + '>' + esc(label) +
+              '</option>').join('') + '</select>'),
+          b.provider === 'custom'
+            ? fieldHtml({
+              id: 'wmfBdUrl', label: 'Tile URL',
+              help: 'An https template with {z}, {x} and {y}, Web Mercator tiles. Use a source whose terms ' +
+                'allow it: every viewer\'s browser fetches from it.',
+            }, '<input class="sform-input" id="wmfBdUrl" value="' + esc(b.url) +
+              '" placeholder="https://…/{z}/{x}/{y}.png">')
+            : '',
+          fieldHtml({
+            id: 'wmfBdZoom', label: 'Deepest zoom',
+            help: 'Past this level the map is stretched rather than fetched. Default for the ' +
+              'satellite is as deep as Esri has imagery at this place; set a level if it still says "no data".',
+          }, '<select class="sform-input" id="wmfBdZoom"><option value="0"' + (b.maxZoom ? '' : ' selected') +
+            '>Default</option>' + [15, 16, 17, 18, 19, 20, 21].map((z) => '<option value="' + z + '"' +
+            (b.maxZoom === z ? ' selected' : '') + '>' + z + '</option>').join('') + '</select>'),
+          fieldHtml({
+            id: 'wmfBdWhere', label: 'Location',
+            help: 'Coordinates as "55.7539, 37.6208", or an address, looked up at nominatim.openstreetmap.org. ' +
+              'The point is put in the middle of the screen.',
+          }, '<input class="sform-input" id="wmfBdWhere" value="' + b.lat.toFixed(6) + ', ' + b.lon.toFixed(6) + '">'))
+        : '<div class="wm-panel-note">An image, ' + Math.round(b.w) + ' × ' + Math.round(b.h) + ' units.</div>') +
+        fields(
+          fieldHtml({ id: 'wmfBdOpacity', label: 'Opacity' },
+            '<input class="sform-input" id="wmfBdOpacity" type="range" min="0.1" max="1" step="0.05" value="' +
+            String(b.opacity) + '">'),
+          fieldHtml({
+            id: 'wmfBdTurn', label: 'Rotation, degrees',
+            help: 'Turn the ' + (b.kind === 'tiles' ? 'map about its anchor' : 'image about its centre') +
+              ' until the buildings sit square to the plan.',
+          }, '<div class="wm-bd-turn"><input class="sform-input" id="wmfBdTurn" type="range" min="-180" max="180" ' +
+            'step="0.5" value="' + String(b.rotation || 0) + '">' +
+            '<input class="sform-input" id="wmfBdTurnN" type="number" min="-180" max="180" step="0.5" value="' +
+            String(b.rotation || 0) + '" aria-label="Rotation in degrees"></div>'),
+        ) +
+        '<div class="wm-bd-actions">' +
+          '<button class="sbtn sbtn-outline is-sm" id="wmfBdAlign" type="button">' +
+            (aligning ? 'Done' : b.kind === 'image' ? 'Move and size' : 'Move') + '</button>' +
+          (b.kind === 'image' ? '<button class="sbtn sbtn-outline is-sm" id="wmfBdUpload" type="button">Replace</button>' : '') +
+          '<button class="sbtn sbtn-danger is-sm" id="wmfBdRemove" type="button">Remove</button>' +
+        '</div>' +
+        (aligning ? '<div class="wm-panel-note">' + (b.kind === 'image'
+          ? 'Drag the image to move it, and its corner to size it.'
+          : 'Drag the map until the plan sits on it.') + ' The plan takes no clicks until Done.</div>' : '');
+    }
+    return '<div class="wm-panel-title" style="margin-top:.9rem">Backdrop</div>' +
+      '<div class="wm-panel-sub">' + (floor ? 'Floor ' + floor : 'Site, under every floor') + '</div>' + body +
+      '<input type="file" id="wmfBdFile" accept="image/png,image/jpeg" hidden>';
+  }
+
+  function wireBackdrop(): void {
+    const b = backdropOf(floor);
+    const file = el<HTMLInputElement>('wmfBdFile');
+    el('wmfBdUpload')?.addEventListener('click', () => file?.click());
+    file?.addEventListener('change', () => { const f = file.files?.[0]; if (f) upload(f); });
+    el('wmfBdMap')?.addEventListener('click', () => {
+      const where = window.prompt('Where is the site? Coordinates as "55.7539, 37.6208", or an address.', '');
+      if (where) placeMap(where, null);
+    });
+    if (!b) return;
+    el<HTMLSelectElement>('wmfBdProvider')?.addEventListener('change', (e) => {
+      b.provider = (e.target as HTMLSelectElement).value;
+      (e.target as HTMLSelectElement).blur();
+      // The plan's own map is being chosen, so this viewer sees what was chosen.
+      mapLook = '';
+      lsSet('mkd_wifi_map_look', mapLook);
+      dirty = true; syncChrome(); render();
+    });
+    el<HTMLSelectElement>('wmfBdZoom')?.addEventListener('change', (e) => {
+      b.maxZoom = parseInt((e.target as HTMLSelectElement).value, 10) || 0;
+      dirty = true; syncChrome(); renderBackdrop();
+    });
+    el<HTMLInputElement>('wmfBdUrl')?.addEventListener('change', (e) => {
+      b.url = (e.target as HTMLInputElement).value.trim();
+      dirty = true; syncChrome(); render();
+    });
+    el<HTMLInputElement>('wmfBdWhere')?.addEventListener('change', (e) => {
+      placeMap((e.target as HTMLInputElement).value, b);
+    });
+    el<HTMLInputElement>('wmfBdOpacity')?.addEventListener('input', (e) => {
+      b.opacity = parseFloat((e.target as HTMLInputElement).value) || 1;
+      dirty = true; syncChrome(); renderBackdrop();
+    });
+    const turn = (v: string, other: string): void => {
+      b.rotation = Math.max(-180, Math.min(180, parseFloat(v) || 0));
+      const o = el<HTMLInputElement>(other);
+      if (o) o.value = String(b.rotation);
+      dirty = true; syncChrome(); renderBackdrop();
+    };
+    el<HTMLInputElement>('wmfBdTurn')?.addEventListener('input', (e) =>
+      turn((e.target as HTMLInputElement).value, 'wmfBdTurnN'));
+    el<HTMLInputElement>('wmfBdTurnN')?.addEventListener('input', (e) =>
+      turn((e.target as HTMLInputElement).value, 'wmfBdTurn'));
+    el('wmfBdAlign')?.addEventListener('click', () => {
+      sel = sel?.kind === 'backdrop' ? null : { kind: 'backdrop', id: String(floor) };
+      render();
+    });
+    el('wmfBdRemove')?.addEventListener('click', () => {
+      doc.backdrops = doc.backdrops.filter((x) => x !== b);
+      sel = null; dirty = true; syncChrome(); render();
+    });
+  }
+
+  /** Where the screen's middle is, in canvas units. */
+  function centre(): MapPoint {
+    const rect = stage!.getBoundingClientRect();
+    return { x: (rect.width / 2 - view.x) / view.k, y: (rect.height / 2 - view.y) / view.k };
+  }
+
+  function locate(q: string): Promise<{ lat: number; lon: number } | null> {
+    const ll = parseLatLon(q);
+    if (ll || !q.trim()) return Promise.resolve(ll);
+    return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d: Array<{ lat: string; lon: string }>) => (d && d[0]
+        ? { lat: Number(d[0].lat), lon: Number(d[0].lon) } : null))
+      .catch(() => null);
+  }
+
+  /** Puts the place asked for in the middle of the screen, as the map's anchor. */
+  function placeMap(where: string, b: MapBackdrop | null): void {
+    locate(where).then((ll) => {
+      if (!ll) { note('Nothing found for "' + where + '".'); return; }
+      const c = centre();
+      if (!b) {
+        doc.backdrops = doc.backdrops.filter((x) => x.floor !== 0);
+        b = { floor: 0, kind: 'tiles', image: '', x: 0, y: 0, w: 0, h: 0, opacity: 1, rotation: 0,
+          provider: 'osm', url: '', lat: 0, lon: 0, maxZoom: 0 };
+        doc.backdrops.push(b);
+      }
+      Object.assign(b, { lat: ll.lat, lon: ll.lon, x: c.x, y: c.y });
+      // The scale the server sets on save, so the ring and the coverage are
+      // right before then.
+      doc.metresPerUnit = tileMetresPerUnit(ll.lat);
+      dirty = true;
+      syncChrome(); render();
+    });
+  }
+
+  function upload(f: File): void {
+    const target = floor;
+    note('Uploading ' + f.name + '…');
+    fetch('/api/router-doc/image?routerId=' + encodeURIComponent(routerID), {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': f.type || 'application/octet-stream' }, body: f,
+    })
+      .then((r) => r.json().then((d) => (r.ok ? d : Promise.reject(new Error((d && d.error) || r.statusText)))))
+      .then((d: { id: string; w: number; h: number }) => {
+        const old = backdropOf(target);
+        let box: { x: number; y: number; w: number; h: number };
+        if (old && old.kind === 'image') {
+          // A replacement keeps the place and the width the old one was aligned to.
+          box = { x: old.x, y: old.y, w: old.w, h: old.w * d.h / d.w };
+        } else {
+          const k = Math.min(1, 2000 / Math.max(d.w, d.h)), c = centre();
+          box = { x: c.x - d.w * k / 2, y: c.y - d.h * k / 2, w: d.w * k, h: d.h * k };
+        }
+        doc.backdrops = doc.backdrops.filter((x) => x.floor !== target);
+        doc.backdrops.push({ floor: target, kind: 'image', image: d.id, ...box, opacity: old?.opacity || 1,
+          rotation: old && old.kind === 'image' ? old.rotation || 0 : 0, provider: '', url: '', lat: 0, lon: 0,
+          maxZoom: 0 });
+        sel = { kind: 'backdrop', id: String(target) };
+        dirty = true;
+        syncChrome(); render();
+      })
+      .catch((e: Error) => note('Not uploaded: ' + e.message));
   }
 
   function objectPanel(o: MapObject): string {
@@ -888,7 +1649,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       // outside the grid.
       (poly
         ? '<div class="wm-panel-note">' + o.points.length + ' corners. Drag one to ' +
-          'move it; drag the outline to move the whole shape.</div>'
+          'move it, the outline to move the whole shape, or the hollow square at the corner of its ' +
+          'box to scale it.</div>'
         : '') +
       '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfDelete">Delete</button>';
   }
@@ -934,6 +1696,35 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfApDelete">Take off the map</button>';
   }
 
+  function clientPinPanel(p: MapClient): string {
+    return '<div class="wm-panel-title">Pinned client</div>' +
+      '<div class="wm-panel-sub">' + esc(p.mac) + '</div>' +
+      fields(
+        fieldHtml({ id: 'wmfCpLabel', label: 'Label' },
+          '<input class="sform-input" id="wmfCpLabel" value="' + esc(p.label) + '">'),
+        fieldHtml({ id: 'wmfCpFloor', label: 'Floor' },
+          '<input class="sform-input" id="wmfCpFloor" type="number" min="1" max="64" value="' +
+          String(p.floor) + '">'),
+      ) +
+      '<div class="wm-panel-note">Drag it to where it stands. In View it is drawn here, with a line to the ' +
+        'access point it is on, and greyed while it is not connected.</div>' +
+      '<button class="sbtn sbtn-danger wm-panel-btn" id="wmfCpDelete" type="button">Unpin</button>';
+  }
+
+  function wireClientPin(p: MapClient): void {
+    el<HTMLInputElement>('wmfCpLabel')?.addEventListener('change', (e) => {
+      p.label = (e.target as HTMLInputElement).value; dirty = true; syncChrome(); render();
+    });
+    el<HTMLInputElement>('wmfCpFloor')?.addEventListener('change', (e) => {
+      p.floor = Math.max(1, Math.min(64, parseInt((e.target as HTMLInputElement).value, 10) || 1));
+      dirty = true; syncChrome(); render();
+    });
+    el('wmfCpDelete')?.addEventListener('click', () => {
+      doc.clients = doc.clients.filter((x) => x !== p);
+      sel = null; dirty = true; syncChrome(); render();
+    });
+  }
+
   function wireApPanel(a: MapAP): void {
     el<HTMLInputElement>('wmfApLabel')?.addEventListener('change', (e) => {
       a.label = (e.target as HTMLInputElement).value; dirty = true; render();
@@ -961,13 +1752,18 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
           : '<button class="sbtn sbtn-outline is-sm" data-place="' + esc(c.key) + '">Place</button>') +
       '</div>';
     }).join('');
+    const map = !!siteMap();
     return '<div class="wm-panel-title">Site</div>' +
       fields(fieldHtml({
         id: 'wmfScale', label: 'Metres per canvas unit',
-        help: 'Draw a wall you know the length of, read its Width, and divide: ' +
-          '40 m across 160 units is 0.25. Only the Signal ring mode uses it.',
+        help: map
+          ? 'Set by the map. Size the buildings to match it.'
+          : 'Draw a wall you know the length of, read its Width, and divide: ' +
+            '40 m across 160 units is 0.25. The Signal ring and the coverage estimate use it.',
       }, '<input class="sform-input" id="wmfScale" type="number" step="0.01" min="0" value="' +
-        String(doc.metresPerUnit || '') + '" placeholder="e.g. 0.25">')) +
+        String(doc.metresPerUnit ? +doc.metresPerUnit.toFixed(4) : '') + '" placeholder="e.g. 0.25"' +
+        (map ? ' disabled' : '') + '>')) +
+      backdropSection() +
       '<div class="wm-panel-title" style="margin-top:.9rem">Access points</div>' +
       (rows || '<div class="wm-panel-note">No radios reported yet. Open Wifi ' +
         'Networks once so this router has answered.</div>');
@@ -1016,10 +1812,16 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     on('wmLblMac', labelFields.mac);
     on('wmLblSignal', labelFields.signal);
     on('wmFixedSize', fixedSize);
+    on('wmCoverage', coverage);
+    const map = siteMap();
+    const builtIn = !!map && !!TILE_SOURCES[map.provider];
+    on('wmSatellite', builtIn && (mapLook || map!.provider) === 'esri');
+    const sat = el('wmSatellite'); if (sat) sat.style.display = builtIn ? '' : 'none';
     const tools = el('wmEditTools'); if (tools) tools.style.display = mode === 'edit' ? '' : 'none';
     const save = el('wmSaveTools'); if (save) save.style.display = mode === 'edit' ? '' : 'none';
     const cm = el('wmClientModes'); if (cm) cm.style.display = mode === 'edit' ? 'none' : '';
     const lf = el('wmLabelFields'); if (lf) lf.style.display = mode === 'edit' ? 'none' : '';
+    const vt = el('wmViewTools'); if (vt) vt.style.display = mode === 'edit' ? 'none' : '';
     const btn = el('wmSave');
     if (btn) {
       // Unsaved changes promote Save to the primary action; the two variants
@@ -1055,6 +1857,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       metresPerUnit: got.metresPerUnit || 0,
       objects: (got.objects || []).map((o) => ({ ...o, points: o.points || [] })),
       aps: got.aps || [],
+      backdrops: got.backdrops || [],
+      clients: got.clients || [],
     };
   }
 
@@ -1123,6 +1927,77 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       });
   }
 
+  // ── export ────────────────────────────────────────────────────────────────
+  //
+  // The view on screen as a PNG. The drawing is an SVG styled by the page's
+  // stylesheet, and an SVG drawn as an image sees neither the stylesheet nor
+  // anything outside itself: so each element takes its computed style inline,
+  // and each image, a tile or the uploaded plan, is fetched and inlined. A tile
+  // whose provider does not allow that is left out and said so.
+  const EXPORT_STYLE = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-dasharray',
+    'stroke-linejoin', 'stroke-opacity', 'paint-order', 'opacity', 'font-family', 'font-size',
+    'font-weight', 'text-anchor', 'dominant-baseline', 'display', 'visibility'];
+
+  function dataUrl(href: string): Promise<string> {
+    return fetch(href, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((b) => new Promise<string>((ok, fail) => {
+        const fr = new FileReader();
+        fr.onload = () => ok(String(fr.result));
+        fr.onerror = () => fail(fr.error);
+        fr.readAsDataURL(b);
+      }));
+  }
+
+  async function exportPng(): Promise<void> {
+    const rect = svg!.getBoundingClientRect();
+    const clone = svg!.cloneNode(true) as SVGSVGElement;
+    const from = svg!.querySelectorAll('*'), to = clone.querySelectorAll('*');
+    from.forEach((src, i) => {
+      const cs = getComputedStyle(src);
+      (to[i] as Element).setAttribute('style',
+        EXPORT_STYLE.map((p) => p + ':' + cs.getPropertyValue(p)).join(';'));
+    });
+    let missed = 0;
+    await Promise.all(Array.from(clone.querySelectorAll('image')).map((im) =>
+      dataUrl(im.getAttribute('href') || '').then((u) => im.setAttribute('href', u))
+        .catch(() => { im.remove(); missed++; })));
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', String(rect.width));
+    clone.setAttribute('height', String(rect.height));
+    clone.insertBefore(svgEl('rect', { width: '100%', height: '100%', style: 'fill:' + paletteColour('--bg-deep') }),
+      clone.firstChild);
+
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],
+      { type: 'image/svg+xml' }));
+    const img = new Image();
+    await new Promise<void>((ok, fail) => { img.onload = () => ok(); img.onerror = () => fail(); img.src = url; });
+    URL.revokeObjectURL(url);
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    // A map's credit goes with every copy of it.
+    const credit = el('wmAttrib')?.textContent || '';
+    if (credit) {
+      ctx.font = '10px ' + monoFont();
+      ctx.fillStyle = paletteColour('--text-muted');
+      ctx.fillText(credit, 6, rect.height - 6);
+    }
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
+    if (!blob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'wifi-map-' + (routerID || 'site') + (floor ? '-floor-' + floor : '') + '.png';
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    if (missed) note(missed + ' map tile' + (missed === 1 ? ' was' : 's were') + ' left out: the provider does not allow copying them.');
+  }
+
   // ── interaction ───────────────────────────────────────────────────────────
 
   const newID = (): string =>
@@ -1154,7 +2029,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     if (pts.length >= 3) {
       const id = newID();
       doc.objects.push({
-        id, kind: 'area', label: '', ...bounds(pts),
+        id, kind: drawKind, label: '', ...bounds(pts),
         points: pts, floors: 1, colour: '',
       });
       sel = { kind: 'object', id };
@@ -1174,14 +2049,17 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   }
 
   function wire(): void {
-    let drag: { kind: 'object' | 'ap' | 'resize' | 'vertex' | 'pan'; id: string;
+    let drag: { kind: 'object' | 'ap' | 'resize' | 'vertex' | 'pan' | 'backdrop' | 'bdresize' | 'cpin'; id: string;
       px: number; py: number; ox: number; oy: number; vi?: number;
       pts?: MapPoint[] } | null = null;
     let moved = 0;
+    /** What a View click landed on, read when it turns out not to be a pan. */
+    let downOn: Element | null = null;
 
     svg!.addEventListener('pointerdown', (e) => {
       const target = e.target as Element | null;
       moved = 0;
+      downOn = target;
       const p = pt(e);
 
       if (mode === 'edit' && measuring) {
@@ -1230,12 +2108,20 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         return;
       }
 
+      const bdHandle = target?.closest?.('[data-bd-handle]') as SVGElement | null;
+      const bdEl = target?.closest?.('.wm-backdrop.is-sel') as SVGElement | null;
       const handle = target?.closest?.('.wm-handle') as SVGElement | null;
       const vertex = handle?.getAttribute('data-vertex') || '';
       const objEl = target?.closest?.('.wm-obj') as SVGElement | null;
       const apEl = target?.closest?.('.wm-ap') as SVGElement | null;
+      const cpinEl = target?.closest?.('.wm-cpin') as SVGElement | null;
 
-      if (mode === 'edit' && vertex) {
+      const bd = sel?.kind === 'backdrop' ? backdropOf(Number(sel.id)) : undefined;
+      if (mode === 'edit' && bd && bdHandle) {
+        drag = { kind: 'bdresize', id: sel!.id, px: p.x, py: p.y, ox: bd.w, oy: bd.h };
+      } else if (mode === 'edit' && bd && bdEl) {
+        drag = { kind: 'backdrop', id: sel!.id, px: p.x, py: p.y, ox: bd.x, oy: bd.y };
+      } else if (mode === 'edit' && vertex) {
         const [id, idx] = vertex.split(':');
         const o = doc.objects.find((x) => x.id === id);
         const vi = parseInt(idx || '', 10);
@@ -1244,7 +2130,14 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       } else if (mode === 'edit' && handle) {
         const id = handle.getAttribute('data-handle') || '';
         const o = doc.objects.find((x) => x.id === id);
-        if (o) drag = { kind: 'resize', id, px: p.x, py: p.y, ox: o.w, oy: o.h };
+        if (o) {
+          drag = { kind: 'resize', id, px: p.x, py: p.y, ox: o.w, oy: o.h,
+            pts: o.points.map((q) => ({ ...q })) };
+        }
+      } else if (mode === 'edit' && cpinEl) {
+        const id = cpinEl.getAttribute('data-cpin') || '';
+        const c = doc.clients.find((x) => x.mac === id);
+        if (c) { sel = { kind: 'client', id }; drag = { kind: 'cpin', id, px: p.x, py: p.y, ox: c.x, oy: c.y }; }
       } else if (mode === 'edit' && apEl) {
         const id = apEl.getAttribute('data-ap') || '';
         const a = doc.aps.find((x) => pinKey(x) === id);
@@ -1307,17 +2200,56 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       } else if (drag.kind === 'resize') {
         const o = doc.objects.find((x) => x.id === drag!.id);
         if (o) {
-          o.w = Math.max(8, drag.ox + (p.x - drag.px));
-          o.h = Math.max(8, drag.oy + (p.y - drag.py));
+          const w = Math.max(8, drag.ox + (p.x - drag.px)), h = Math.max(8, drag.oy + (p.y - drag.py));
+          if (drag.pts && drag.pts.length >= 3) {
+            // AN OUTLINE SCALES FROM ITS BOX'S CORNER, from the corners it had
+            // when the drag started, so the shape does not drift.
+            const sx = w / Math.max(1, drag.ox), sy = h / Math.max(1, drag.oy);
+            const x0 = o.x, y0 = o.y;
+            o.points = drag.pts.map((q) => ({ x: x0 + (q.x - x0) * sx, y: y0 + (q.y - y0) * sy }));
+            Object.assign(o, bounds(o.points));
+          } else {
+            o.w = w;
+            o.h = h;
+          }
         }
       } else if (drag.kind === 'ap') {
         const a = doc.aps.find((x) => pinKey(x) === drag!.id);
         if (a) { a.x = drag.ox + (p.x - drag.px); a.y = drag.oy + (p.y - drag.py); }
+      } else if (drag.kind === 'cpin') {
+        const c = doc.clients.find((x) => x.mac === drag!.id);
+        if (c) { c.x = drag.ox + (p.x - drag.px); c.y = drag.oy + (p.y - drag.py); }
+      } else if (drag.kind === 'backdrop') {
+        const b = backdropOf(Number(drag.id));
+        if (b) { b.x = drag.ox + (p.x - drag.px); b.y = drag.oy + (p.y - drag.py); }
+      } else if (drag.kind === 'bdresize') {
+        // THE ASPECT IS KEPT: a floor plan stretched one way is a wrong plan.
+        // The pull is measured along the image's own width, which a rotation
+        // has turned away from the screen's.
+        const b = backdropOf(Number(drag.id));
+        if (b) {
+          const t = (b.rotation || 0) * Math.PI / 180;
+          const along = (p.x - drag.px) * Math.cos(t) + (p.y - drag.py) * Math.sin(t);
+          const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+          b.w = Math.max(20, drag.ox + along);
+          b.h = b.w * drag.oy / drag.ox;
+          // A turned image is sized about its centre, which it turns about, or
+          // it would swing away under the pointer; a square one keeps its corner.
+          if (b.rotation) { b.x = cx - b.w / 2; b.y = cy - b.h / 2; }
+        }
       }
-      frame(() => { renderObjects(); renderAps({}, {}); });
+      frame(() => { renderBackdrop(); renderObjects(); renderAps({}, {}); renderClients(new Map()); });
     });
 
     const end = (e: PointerEvent): void => {
+      if (drag && drag.kind === 'pan' && mode === 'view' && moved < 3) {
+        // A click, not a pan: a client or an access point opens its card, and
+        // anywhere else closes it.
+        const c = downOn?.closest?.('.wm-client');
+        const a = downOn?.closest?.('.wm-ap');
+        card = c ? { kind: 'client', id: (c.getAttribute('data-mac') || '').toUpperCase() }
+          : a ? { kind: 'ap', id: a.getAttribute('data-ap') || '' } : null;
+      }
       if (drag && drag.kind === 'pan') {
         saveView();
       } else if (drag && moved >= 3) {
@@ -1371,7 +2303,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       syncChrome(); render();
     });
     el('wmModeEdit')?.addEventListener('click', () => {
-      mode = 'edit'; syncChrome(); render();
+      mode = 'edit'; card = null; syncChrome(); render();
     });
     el('wmClientOrbit')?.addEventListener('click', () => {
       clientMode = 'orbit'; lsSet('mkd_wifi_map_clients', clientMode); syncChrome(); render();
@@ -1395,12 +2327,15 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
       });
     });
 
-    el('wmAddArea')?.addEventListener('click', () => {
-      pending = null;
-      disarm();
-      drawing = [];
-      svg!.classList.add('wm-placing');
-      renderStats();
+    ([['wmAddArea', 'area'], ['wmAddShape', 'building']] as const).forEach(([id, kind]) => {
+      el(id)?.addEventListener('click', () => {
+        pending = null;
+        disarm();
+        drawKind = kind;
+        drawing = [];
+        svg!.classList.add('wm-placing');
+        renderStats();
+      });
     });
 
     // Finishing with the mouse. The click that opens the double has already
@@ -1433,6 +2368,10 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     });
 
     el('wmMeasure')?.addEventListener('click', () => {
+      if (siteMap()) {
+        note('The scale comes from the map. Remove the map to measure one.');
+        return;
+      }
       pending = null;
       disarm();
       measuring = true;
@@ -1442,7 +2381,32 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
 
     el<HTMLSelectElement>('wmFloor')?.addEventListener('change', (e) => {
       floor = parseInt((e.target as HTMLSelectElement).value, 10) || 0;
+      if (sel?.kind === 'backdrop') sel = null;
       render();
+    });
+
+    el<HTMLInputElement>('wmSearch')?.addEventListener('input', (e) => {
+      search = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      searchAt = -1;
+      render();
+    });
+    el<HTMLInputElement>('wmSearch')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); findNext(); }
+    });
+    el('wmSatellite')?.addEventListener('click', () => {
+      const map = siteMap();
+      if (!map) return;
+      mapLook = (mapLook || map.provider) === 'esri' ? 'osm' : 'esri';
+      lsSet('mkd_wifi_map_look', mapLook);
+      syncChrome(); renderBackdrop();
+    });
+    el('wmCoverage')?.addEventListener('click', () => {
+      coverage = !coverage;
+      lsSet('mkd_wifi_map_coverage', coverage);
+      syncChrome(); render();
+    });
+    el('wmExport')?.addEventListener('click', () => {
+      exportPng().catch(() => note('The picture could not be made.'));
     });
 
     el('wmSave')?.addEventListener('click', save);
@@ -1483,6 +2447,8 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     loaded = false;
     dirty = false;
     sel = null;
+    card = null;
+    images.clear();
     disarm();
     routerID = id;
     render();

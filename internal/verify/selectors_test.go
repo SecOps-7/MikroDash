@@ -14,7 +14,7 @@ var selectorTags = map[string]bool{
 	"tr": true, "td": true, "th": true, "thead": true, "tbody": true, "title": true,
 	"path": true, "svg": true, "g": true, "option": true, "input": true, "select": true,
 	"button": true, "a": true, "li": true, "ul": true, "div": true, "span": true,
-	"canvas": true, "form": true, "label": true, "text": true,
+	"canvas": true, "form": true, "label": true, "text": true, "image": true,
 }
 
 type selToken struct{ kind, name string }

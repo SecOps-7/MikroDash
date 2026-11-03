@@ -431,6 +431,7 @@ var buttonComponents = map[string]string{
 	"chip": "the one clickable chip (app.css CHIPS): a filter, a toggle, a picked device", "sec-sev": "a severity filter chip",
 	"apps-seg-btn": "a segmented show filter",
 	"ai-suggest":   "a suggested-question chip", "wm-swatch": "a colour swatch",
+	"wm-card-row": "a client row in the Wi-Fi map's access point card, which opens that client's card",
 	"wl-sort-btn": "a sortable column header", "wl-group-toggle": "a group's disclosure header",
 	"dp-act": "the device picker's own controls", "dp-all": "the device picker's own controls",
 	"dp-clear": "the device picker's own controls", "dp-more": "the device picker's own controls",
