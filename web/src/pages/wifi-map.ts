@@ -1236,7 +1236,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   function renderEmpty(): void {
     const e = el('wmEmpty');
     if (!e) return;
-    const blank = !doc.objects.length && !doc.aps.length;
+    const blank = !doc.objects.length && !doc.aps.length && !doc.backdrops.length && !doc.clients.length;
     e.classList.toggle('show', blank);
     if (blank) {
       e.innerHTML = mode === 'edit'
@@ -2459,7 +2459,7 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
 
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail !== 'wifi-map') return;
-    if (!doc.objects.length && !doc.aps.length) load();
+    if (!dirty && !doc.objects.length && !doc.aps.length) load();
     syncFloors();
     syncChrome();
     render();

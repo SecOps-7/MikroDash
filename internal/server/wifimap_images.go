@@ -17,6 +17,7 @@ package server
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -83,8 +84,13 @@ func (s *Server) mapImageSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, sitedoc.MaxImageBytes))
-	if err != nil {
+	var tooBig *http.MaxBytesError
+	if errors.As(err, &tooBig) {
 		writeJSONErr(w, http.StatusBadRequest, "the image is larger than 12 MB")
+		return
+	}
+	if err != nil {
+		writeJSONErr(w, http.StatusBadRequest, "the upload did not finish")
 		return
 	}
 	img, ext, iw, ih, err := sitedoc.BackdropImage(raw)

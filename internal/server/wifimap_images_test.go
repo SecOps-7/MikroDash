@@ -3,13 +3,17 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"image"
 	"image/png"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"mikrodash/internal/sitedoc"
@@ -17,7 +21,9 @@ import (
 
 // u-1 may draw the Wi-Fi map of r-A and only look at r-B's.
 const mapGrantsDDL = `INSERT INTO role_pages (role_id, page, access)
-  VALUES ('role-w','wifi-map','write'), ('role-r','wifi-map','read');`
+  VALUES ('role-w','wifi-map','write'), ('role-r','wifi-map','read');
+CREATE TABLE router_docs (router_id TEXT NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL,
+  updated_at INTEGER NOT NULL, PRIMARY KEY (router_id, kind));`
 
 func tinyPNG(t *testing.T) []byte {
 	t.Helper()
@@ -96,8 +102,54 @@ func TestABackdropImageFollowsThePlansGrants(t *testing.T) {
 	}
 }
 
-// TestASavedPlanTakesItsUnusedImagesWithIt. A save removes what no plan names,
-// once it is old enough not to be a second editor's fresh upload.
+// TestAnUploadSaysWhyItFailed. Only a body over the limit is called too large:
+// an upload cut off half way is a different thing to tell the operator.
+func TestAnUploadSaysWhyItFailed(t *testing.T) {
+	s := gateServer(t, `{}`, mapGrantsDDL)
+	for _, c := range []struct {
+		name string
+		body io.Reader
+		says string
+	}{
+		{"over the limit", bytes.NewReader(make([]byte, sitedoc.MaxImageBytes+1)), "larger than"},
+		{"cut off", iotest.ErrReader(errors.New("connection reset")), "did not finish"},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/api/router-doc/image?routerId=r-A", c.body)
+		req.Header.Set("Cookie", authed)
+		w := httptest.NewRecorder()
+		s.mapImageSave(w, req)
+		if w.Code != 400 || !strings.Contains(w.Body.String(), c.says) {
+			t.Errorf("%s: answered %d %s, want 400 saying %q", c.name, w.Code, w.Body.String(), c.says)
+		}
+	}
+}
+
+// TestRemovingARouterRemovesItsImages, and leaves the other router's alone.
+func TestRemovingARouterRemovesItsImages(t *testing.T) {
+	s, mux, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	for _, rid := range []string{"r1", "r2"} {
+		dir := s.mapImageDir(rid)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "00000000000000aa.png"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if w := routerDelete(mux, "r1", authed); w.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+	if _, err := os.Stat(s.mapImageDir("r1")); !os.IsNotExist(err) {
+		t.Errorf("the removed router's folder is still there: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(s.mapImageDir("r2"), "00000000000000aa.png")); err != nil {
+		t.Errorf("the other router lost its image: %v", err)
+	}
+}
+
+// TestASavedPlanTakesItsUnusedImagesWithIt. Saving the plan removes what it does
+// not name, once that is old enough not to be a second editor's fresh upload.
+// Through the save handler, so the call to the clean-up is held too.
 func TestASavedPlanTakesItsUnusedImagesWithIt(t *testing.T) {
 	s := gateServer(t, `{}`, mapGrantsDDL)
 	dir := s.mapImageDir("r-A")
@@ -119,9 +171,15 @@ func TestASavedPlanTakesItsUnusedImagesWithIt(t *testing.T) {
 			_ = os.Chtimes(path, old, old)
 		}
 	}
-	s.pruneMapImages("r-A", sitedoc.WifiMap{Backdrops: []sitedoc.MapBackdrop{
-		{Kind: "image", Image: "00000000000000aa.png"},
-	}})
+	body := `{"routerId":"r-A","kind":"wifi-map","doc":{"backdrops":[
+	  {"floor":1,"kind":"image","image":"00000000000000aa.png","w":10,"h":10}]}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/router-doc", strings.NewReader(body))
+	req.Header.Set("Cookie", authed)
+	w := httptest.NewRecorder()
+	s.routerDocSave(w, req)
+	if w.Code != 200 {
+		t.Fatalf("the save answered %d: %s", w.Code, w.Body.String())
+	}
 	for name, kept := range files {
 		_, err := os.Stat(filepath.Join(dir, name))
 		if (err == nil) != kept {
