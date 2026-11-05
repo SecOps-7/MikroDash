@@ -126,6 +126,9 @@ func (s *Server) routerDocSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON500OK(w)
 		return
 	}
+	if plan, ok := doc.(sitedoc.WifiMap); ok {
+		s.pruneMapImages(body.RouterID, plan)
+	}
 	// AUDITED LIKE ANY OTHER WRITE. These documents change what the WAN page
 	// calls an uplink and what the topology claims is plugged into what, so
 	// "who drew this" is a question somebody will ask.

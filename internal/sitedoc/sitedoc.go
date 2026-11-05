@@ -8,8 +8,8 @@
 //	topology-links  the cabling behind a device the discovery protocols cannot
 //	                see through — a SwOS switch forwards no MNDP, so everything
 //	                behind one looks directly attached to the port it arrives on
-//	wifi-map        the site plan: buildings, floors, and where each access
-//	                point physically stands
+//	wifi-map        the site plan: buildings, floors, where each access point
+//	                physically stands, and what is drawn under it
 //
 // ── WHY THE VALIDATORS LIVE HERE AND NOT AT THE ROUTE ───────────────────────
 //
@@ -72,13 +72,17 @@ const (
 	MaxMapObject = 512
 	MaxMapAPs    = 512
 	MaxFloors    = 64
-	// The vertices one drawn area may have. A plot outline traced off a map
+	// The clients pinned where they stand.
+	MaxMapClients = 1024
+	// The vertices one drawn outline may have. A plot outline traced off a map
 	// runs to a dozen or two; this is the point past which somebody is drawing
 	// a circle a click at a time.
 	MaxMapPoints = 128
 	// The longest a name, label or key may be. RouterOS interface names top out
 	// well under this; a label is the operator's own text.
 	MaxName = 128
+	// The longest a tile URL template may be.
+	MaxTileURL = 512
 )
 
 // clampName trims a string and cuts it to MaxName runes.
@@ -203,12 +207,12 @@ type MapPoint struct {
 // MapObject is one thing drawn on the plan: a building, an open area, a wall or
 // a bare label.
 //
-// ── RECTANGLES, AND ONE EXCEPTION ───────────────────────────────────────────
+// ── BOXES, AND OUTLINES WHERE A BOX WOULD BE WRONG ──────────────────────────
 //
-// A building is a box and a wall is a thin box, because that is what they are on
-// a plan drawn in a minute. A PLOT IS NOT: a property boundary follows a road or
-// a river and a rectangle says something false about where it ends. So `area`
-// may carry `Points`, and everything else may not.
+// A wall is a thin box and a label is text. A plot boundary follows a road or a
+// river, and an L-shaped or angled building is not its bounding box, so `area`
+// and `building` may carry `Points`: an outline clicked out corner by corner.
+// Everything else may not.
 //
 // X/Y/W/H STAY THE BOUNDING BOX even for a polygon, and `Clean` recomputes them
 // from the vertices rather than trusting what was sent. Everything that asks
@@ -224,8 +228,8 @@ type MapObject struct {
 	Y float64 `json:"y"`
 	W float64 `json:"w"`
 	H float64 `json:"h"`
-	// Points is the outline, for an `area` that is not a rectangle. Empty means
-	// the bounding box IS the shape.
+	// Points is the outline, for an area or a building that is not a
+	// rectangle. Empty means the bounding box IS the shape.
 	Points []MapPoint `json:"points"`
 	// Floors is how many storeys the object has. BUILDINGS ONLY: a wall, a
 	// label and a plot have one apiece, and a storey count on them fed the floor
@@ -257,9 +261,164 @@ type WifiMap struct {
 	// estimate can be drawn at the right radius. Zero means the operator has not
 	// set a scale, and the map then draws clients at a fixed radius whatever the
 	// display mode says — an estimate with no scale is a number pretending.
-	MetresPerUnit float64     `json:"metresPerUnit"`
-	Objects       []MapObject `json:"objects"`
-	APs           []MapAP     `json:"aps"`
+	MetresPerUnit float64       `json:"metresPerUnit"`
+	Objects       []MapObject   `json:"objects"`
+	APs           []MapAP       `json:"aps"`
+	Backdrops     []MapBackdrop `json:"backdrops"`
+	Clients       []MapClient   `json:"clients"`
+}
+
+// MapClient is a Wi-Fi client pinned where it physically stands: a camera, a
+// sensor, a printer, anything that does not move. It is drawn there instead of
+// around its access point, and drawn greyed while it is not connected, which is
+// the thing worth seeing about a camera.
+type MapClient struct {
+	MAC   string  `json:"mac"`
+	Label string  `json:"label"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Floor int     `json:"floor"`
+}
+
+var macRe = regexp.MustCompile(`^([0-9A-F]{2}:){5}[0-9A-F]{2}$`)
+
+// MapBackdrop is what is drawn under one floor of the plan: an uploaded image,
+// placed and sized by the operator, or map tiles anchored at a coordinate.
+//
+// ── FLOOR 0 IS THE SITE ─────────────────────────────────────────────────────
+//
+// It is drawn under every floor, and a floor's own image is drawn over it, so
+// switching to a storey shows that storey's plan without losing where on the
+// site it is. Map tiles are the site's only: a satellite view of the roof says
+// nothing about the second floor.
+//
+// ── ONE CANVAS UNIT IS ONE PIXEL OF A TileZoom TILE ─────────────────────────
+//
+// That fixes the scale for a map backdrop, so `MetresPerUnit` is computed from
+// the anchor's latitude rather than measured, and the Signal ring and the
+// coverage estimate are right as soon as the map is placed.
+type MapBackdrop struct {
+	Floor int    `json:"floor"`
+	Kind  string `json:"kind"`
+	// Image is the stored file, as ImageIDRe has it. Images only.
+	Image string `json:"image"`
+	// The image's box, or for tiles the canvas point the anchor sits on.
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	W       float64 `json:"w"`
+	H       float64 `json:"h"`
+	Opacity float64 `json:"opacity"`
+	// Rotation turns the backdrop, in degrees clockwise: about the image's
+	// centre, or about the map's anchor. A site seldom runs north-south, and the
+	// plan's buildings are boxes square to the screen.
+	Rotation float64 `json:"rotation"`
+	// Tiles only: osm, esri or custom, the custom URL template, and the
+	// coordinate drawn at X/Y.
+	Provider string  `json:"provider"`
+	URL      string  `json:"url"`
+	Lat      float64 `json:"lat"`
+	Lon      float64 `json:"lon"`
+	// MaxZoom is the deepest tile level fetched; past it the deepest tiles are
+	// stretched. Zero means the provider's default. Satellite imagery is deeper
+	// in some places than in others, and a level with no imagery comes back as a
+	// "no data" picture rather than an error.
+	MaxZoom int `json:"maxZoom"`
+}
+
+// TileZoom is the zoom level whose tile pixel is one canvas unit. At 19 a unit
+// is 0.3 m at the equator and 0.17 m at 55°N, so a building drawn at the default
+// 220 units is 40 to 65 m across.
+const TileZoom = 19
+
+// TileMetresPerUnit is the size of one canvas unit, in metres, at a latitude:
+// Web Mercator's ground resolution at TileZoom.
+func TileMetresPerUnit(lat float64) float64 {
+	return 156543.03392804097 * math.Cos(lat*math.Pi/180) / (1 << TileZoom)
+}
+
+// ImageIDRe is the only shape a stored backdrop image's name may have. It is a
+// file name under the data directory, so nothing else may reach a path.
+var ImageIDRe = regexp.MustCompile(`^[0-9a-f]{16}\.(jpg|png)$`)
+
+var tileProviders = map[string]bool{"osm": true, "esri": true, "custom": true}
+
+// CleanTileURL keeps a custom tile template only if it is an https URL with the
+// three placeholders and nothing that could leave the attribute it is drawn
+// into. Every viewer's browser fetches it, so it is held to that.
+func CleanTileURL(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > MaxTileURL || !strings.HasPrefix(s, "https://") ||
+		strings.ContainsAny(s, " \t\r\n\"'<>\\`") {
+		return ""
+	}
+	rest := s
+	for _, p := range []string{"{z}", "{x}", "{y}"} {
+		if !strings.Contains(rest, p) {
+			return ""
+		}
+		rest = strings.ReplaceAll(rest, p, "")
+	}
+	if strings.ContainsAny(rest, "{}") {
+		return ""
+	}
+	return s
+}
+
+// cleanBackdrops keeps one backdrop per floor, the first one sent.
+func cleanBackdrops(in []MapBackdrop) []MapBackdrop {
+	out := []MapBackdrop{}
+	seen := map[int]bool{}
+	for _, b := range in {
+		if len(out) > MaxFloors || b.Floor < 0 || b.Floor > MaxFloors || seen[b.Floor] {
+			continue
+		}
+		b.X, b.Y = num(b.X, -100000, 100000), num(b.Y, -100000, 100000)
+		b.Opacity = num(b.Opacity, 0, 1)
+		if b.Opacity < 0.1 {
+			b.Opacity = 1
+		}
+		b.Rotation = num(b.Rotation, -180, 180)
+		switch b.Kind {
+		case "image":
+			b.W, b.H = num(b.W, 0, 100000), num(b.H, 0, 100000)
+			if !ImageIDRe.MatchString(b.Image) || b.W < 1 || b.H < 1 {
+				continue
+			}
+			b.Provider, b.URL, b.Lat, b.Lon, b.MaxZoom = "", "", 0, 0, 0
+		case "tiles":
+			if b.Floor != 0 || !tileProviders[b.Provider] {
+				continue
+			}
+			if b.Provider == "custom" {
+				if b.URL = CleanTileURL(b.URL); b.URL == "" {
+					continue
+				}
+			} else {
+				b.URL = ""
+			}
+			b.Lat, b.Lon = num(b.Lat, -85, 85), num(b.Lon, -180, 180)
+			if b.MaxZoom < 0 || b.MaxZoom > 22 {
+				b.MaxZoom = 0
+			}
+			b.Image, b.W, b.H = "", 0, 0
+		default:
+			continue
+		}
+		seen[b.Floor] = true
+		out = append(out, b)
+	}
+	return out
+}
+
+// ImageIDs is every image the plan draws.
+func (m WifiMap) ImageIDs() map[string]bool {
+	out := map[string]bool{}
+	for _, b := range m.Backdrops {
+		if b.Kind == "image" {
+			out[b.Image] = true
+		}
+	}
+	return out
 }
 
 var mapKinds = map[string]bool{"building": true, "area": true, "wall": true, "label": true}
@@ -268,7 +427,7 @@ var mapKinds = map[string]bool{"building": true, "area": true, "wall": true, "la
 // there is enough of it to enclose anything: two vertices are a line, and a line
 // drawn as a filled polygon is an invisible object nobody can select again.
 func cleanPoints(kind string, in []MapPoint) []MapPoint {
-	if kind != "area" || len(in) < 3 {
+	if (kind != "area" && kind != "building") || len(in) < 3 {
 		return nil
 	}
 	out := make([]MapPoint, 0, len(in))
@@ -319,7 +478,7 @@ func mapColour(s string) string {
 
 // CleanWifiMap is total.
 func CleanWifiMap(raw json.RawMessage) WifiMap {
-	out := WifiMap{Objects: []MapObject{}, APs: []MapAP{}}
+	out := WifiMap{Objects: []MapObject{}, APs: []MapAP{}, Backdrops: []MapBackdrop{}, Clients: []MapClient{}}
 	var in WifiMap
 	if len(raw) == 0 || json.Unmarshal(raw, &in) != nil {
 		return out
@@ -377,6 +536,34 @@ func CleanWifiMap(raw json.RawMessage) WifiMap {
 			a.Floor = MaxFloors
 		}
 		out.APs = append(out.APs, a)
+	}
+
+	seen := map[string]bool{}
+	for _, c := range in.Clients {
+		if len(out.Clients) >= MaxMapClients {
+			break
+		}
+		c.MAC = strings.ToUpper(strings.TrimSpace(c.MAC))
+		if !macRe.MatchString(c.MAC) || seen[c.MAC] {
+			continue
+		}
+		seen[c.MAC] = true
+		c.Label = clampName(c.Label)
+		c.X, c.Y = num(c.X, -100000, 100000), num(c.Y, -100000, 100000)
+		if c.Floor < 1 {
+			c.Floor = 1
+		}
+		if c.Floor > MaxFloors {
+			c.Floor = MaxFloors
+		}
+		out.Clients = append(out.Clients, c)
+	}
+
+	out.Backdrops = cleanBackdrops(in.Backdrops)
+	for _, b := range out.Backdrops {
+		if b.Kind == "tiles" {
+			out.MetresPerUnit = TileMetresPerUnit(b.Lat)
+		}
 	}
 	return out
 }

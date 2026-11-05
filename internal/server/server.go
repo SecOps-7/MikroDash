@@ -648,6 +648,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerCities(mux)
 	s.registerLayouts(mux)
 	s.registerRouterDocs(mux)
+	s.registerMapImages(mux)
 	s.registerDNSFleet(mux)
 	s.registerDNSTools(mux)
 	s.registerDNSBulk(mux)

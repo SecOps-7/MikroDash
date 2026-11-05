@@ -48,12 +48,27 @@
           <button class="chip is-on" id="wmFixedSize" type="button"
                   title="Keep names, access points and clients the same size on screen at any zoom">Fixed size</button>
 
+          <!-- Finding a client, the coverage estimate and a picture of the view.
+               View only: in Edit the clients are not drawn. -->
+          <span class="topo-tools" id="wmViewTools" role="group" aria-label="View tools">
+            <input class="sform-input sform-sm" id="wmSearch" type="search" style="width:150px;flex:0 0 auto"
+                   placeholder="Find a client" autocomplete="off" aria-label="Find a client"
+                   title="Name, comment, IP or MAC. Enter goes to the next match.">
+            <button class="chip" id="wmSatellite" type="button" style="display:none"
+                    title="Satellite imagery instead of the street map, for you only">Satellite</button>
+            <button class="chip" id="wmCoverage" type="button"
+                    title="Estimated reach of each access point, from a typical indoor model. Needs a scale.">Coverage</button>
+            <button class="sbtn sbtn-outline is-sm" id="wmExport" type="button" title="Save the view as a PNG">PNG</button>
+          </span>
+
           <select class="sform-input sform-sm" id="wmFloor" style="width:auto" aria-label="Floor" title="Which storey to draw">
             <option value="0">All floors</option>
           </select>
 
           <span class="topo-tools" id="wmEditTools" style="display:none" role="group" aria-label="Drawing tools">
-            <button class="sbtn sbtn-outline is-sm" id="wmAddBuilding" type="button" title="Add a building">+ Building</button>
+            <button class="sbtn sbtn-outline is-sm" id="wmAddBuilding" type="button" title="Add a rectangular building">+ Building</button>
+            <button class="sbtn sbtn-outline is-sm" id="wmAddShape" type="button"
+                    title="A building of any shape: click its corners. Double-click or Enter to close it.">+ Shaped building</button>
             <button class="sbtn sbtn-outline is-sm" id="wmAddArea" type="button"
                     title="Draw an area by clicking its corners. Double-click or Enter to close it.">+ Area</button>
             <button class="sbtn sbtn-outline is-sm" id="wmAddWall" type="button" title="Add a wall or fence">+ Wall</button>
@@ -79,7 +94,9 @@
         <div class="topo-stage" id="wmStage">
           <svg id="wmSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Wi-Fi site map">
             <g id="wmViewport">
+              <g id="wmBackdrop"></g>
               <g id="wmObjects"></g>
+              <g id="wmCoverLayer"></g>
               <g id="wmMeasureLayer"></g>
               <g id="wmDraft"></g>
               <g id="wmAps"></g>
@@ -87,6 +104,7 @@
             </g>
           </svg>
           <div class="topo-empty" id="wmEmpty"></div>
+          <div class="wm-attrib" id="wmAttrib"></div>
           <aside class="topo-panel" id="wmPanel" aria-live="polite"></aside>
         </div>
 
