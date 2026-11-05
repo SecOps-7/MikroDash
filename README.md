@@ -152,7 +152,7 @@ MikroDash has more than fifty pages. Here they are by area (the sidebar can grou
 | Area | Pages |
 |---|---|
 | **Overview** | Dashboard, Devices, Config Management, Network Topology, WAN |
-| **Wireless** | Wifi Networks, Wifi Clients, Wifi Map (draw your site and see clients around each access point), CAPsMAN (both the `wifi` and legacy stacks) |
+| **Wireless** | Wifi Networks, Wifi Clients, Wifi Map (draw your site over a floor plan or map and see clients around each access point), CAPsMAN (both the `wifi` and legacy stacks) |
 | **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, DNS, IP Pools, Interface Lists, ARP |
 | **Routing** | Routing (routes and BGP), Routing Tables, Routing Rules, OSPF, VRRP |
 | **Tunnels** | VPN (an overview of every tunnel technology, with a card per live connection), WireGuard (interfaces and peers, with a client configuration and a scannable QR code), PPP, IPsec, OpenVPN, PPPoE Clients |

@@ -2,6 +2,41 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.79] - Personal notification channels stay off the LAN, and Wi-Fi map backdrops
+
+### Security
+
+- **A user's own notification channel can only reach public addresses.** Any signed-in account,
+  a viewer included, could point a personal webhook channel at loopback, a LAN service or a cloud
+  metadata address, and make the server send a request there with the channel's Test button or
+  an alert. Personal channels and a user's own mail server are now refused anything that is not
+  a public address, checked on the address actually connected to. Install-wide channels, which
+  only an administrator can create, can still reach a self-hosted ntfy, Gotify or mail server on
+  the LAN. Advisory
+  [GHSA-xf3p-2j7c-6hg4](https://github.com/SecOps-7/MikroDash/security/advisories/GHSA-xf3p-2j7c-6hg4),
+  reported by [@carfeii](https://github.com/carfeii), thanks.
+
+### New
+
+- **Wi-Fi map backdrops.** Draw your plan over an uploaded floor plan (PNG or JPEG) or over
+  OpenStreetMap or satellite tiles placed at your site; a map backdrop also sets the scale.
+- **Shaped buildings, pinned clients, and client and access point cards** on the Wi-Fi map, plus
+  client search, a coverage estimate and PNG export. Contributed in
+  [#160](https://github.com/SecOps-7/MikroDash/pull/160), thanks
+  [@vasmarfas](https://github.com/vasmarfas).
+
+### Fixed
+
+- **The Dashboard's Agent Overview card fills reliably.** A model that reasons before answering
+  could run out of its small token budget and leave the card blank for hours. The card now uses
+  the AI Agent's Max tokens setting, shows why when no line comes back, and retries after five
+  minutes.
+
+### Changed
+
+- **An unreachable router no longer floods the log.** Its connection failure is logged once, then
+  once an hour, and its recovery says how long it was down.
+
 ## [0.8.78] - Single sign-on keeps the issuer exactly as entered
 
 ### Fixed
