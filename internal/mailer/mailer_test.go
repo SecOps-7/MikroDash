@@ -453,3 +453,51 @@ func TestACcAddressCannotInjectAHeader(t *testing.T) {
 		t.Error("a Cc address carrying a line break was accepted")
 	}
 }
+
+// TestAPublicOnlyMailServerOnLoopbackIsRefused. A user's own mail server is
+// dialled through internal/netguard (GHSA-xf3p-2j7c-6hg4), so one on this
+// machine is never connected to; the same server without the flag is, which is
+// the control that shows the refusal is the flag's.
+func TestAPublicOnlyMailServerOnLoopbackIsRefused(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	accepted := make(chan struct{}, 2)
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			accepted <- struct{}{}
+			_ = c.Close()
+		}
+	}()
+	host, port, _ := net.SplitHostPort(ln.Addr().String())
+	var p int
+	for _, ch := range port {
+		p = p*10 + int(ch-'0')
+	}
+	cfg := Config{Host: host, Port: p, From: "md@example.com", PublicOnly: true}
+	msg := Message{To: []string{"ops@example.com"}, Subject: "s", Text: "t"}
+
+	err = Send(cfg, msg)
+	if err == nil || !strings.Contains(err.Error(), "not a public address") {
+		t.Fatalf("a loopback mail server was dialled: %v", err)
+	}
+	select {
+	case <-accepted:
+		t.Fatal("the loopback server accepted a connection")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	cfg.PublicOnly = false
+	_ = Send(cfg, msg)
+	select {
+	case <-accepted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("without PublicOnly the server was not dialled either, so the refusal above proves nothing")
+	}
+}

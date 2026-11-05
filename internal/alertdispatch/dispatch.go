@@ -68,6 +68,12 @@ type Recipient struct {
 	// These are CREDENTIALS. A webhook URL carries its token in the path, so
 	// nothing here may log one; `notify.SendURLs` reports only the scheme.
 	URLs []string
+	// Personal is a destination a user typed for themselves: their own channel,
+	// or their own alert settings. It is sent through the public-only client
+	// and mail dial (internal/netguard), so it cannot point the server at the
+	// LAN, loopback or a metadata address (GHSA-xf3p-2j7c-6hg4). The install's
+	// recipients are an administrator's and are not held to it.
+	Personal bool
 }
 
 // Message is what one alert says. Rendered ONCE and fanned out — templates are
@@ -135,10 +141,13 @@ type Dispatcher struct {
 	cooldowns map[string]int64
 	settings  notify.Settings
 	client    notify.Doer
+	// public is the client a Personal recipient is sent through.
+	public notify.Doer
 	// mailFor builds the mail transport for ONE recipient's settings: the
 	// install's own, or a user's with the install's mail server folded in. Per
 	// recipient because the address differs, and nil when there is no mail server.
-	mailFor func(notify.Settings) notify.Mailer
+	// `public` says the recipient is Personal, so its mail server must be public.
+	mailFor func(set notify.Settings, public bool) notify.Mailer
 	now     func() int64
 	// sendFn is the transport, injectable so the tests can assert what WOULD
 	// have gone without a network. It takes the whole RECIPIENT rather than its
@@ -147,24 +156,28 @@ type Dispatcher struct {
 	sendFn func(ctx context.Context, r *Recipient, title, body string) error
 }
 
-func New(enabled bool, settings notify.Settings, client notify.Doer, mailFor func(notify.Settings) notify.Mailer,
-	now func() int64) *Dispatcher {
+func New(enabled bool, settings notify.Settings, client, public notify.Doer,
+	mailFor func(set notify.Settings, public bool) notify.Mailer, now func() int64) *Dispatcher {
 	d := &Dispatcher{
 		enabled: enabled, cooldowns: map[string]int64{}, settings: settings,
-		client: client, mailFor: mailFor, now: now,
+		client: client, public: public, mailFor: mailFor, now: now,
 	}
 	d.sendFn = func(ctx context.Context, r *Recipient, title, body string) error {
 		// A WEBHOOK CHANNEL GOES BY SCHEME. Checked first because such a
 		// recipient has no flat transport settings at all, and `notify.Send`
 		// would find nothing configured and report success having sent nothing.
+		client := d.client
+		if r.Personal {
+			client = d.public
+		}
 		if len(r.URLs) > 0 {
-			return notify.SendURLs(ctx, d.client, r.URLs, title, body)
+			return notify.SendURLs(ctx, client, r.URLs, title, body)
 		}
 		var mail notify.Mailer
 		if d.mailFor != nil {
-			mail = d.mailFor(r.Settings)
+			mail = d.mailFor(r.Settings, r.Personal)
 		}
-		return notify.Send(ctx, d.client, r.Settings, mail, title, body)
+		return notify.Send(ctx, client, r.Settings, mail, title, body)
 	}
 	return d
 }

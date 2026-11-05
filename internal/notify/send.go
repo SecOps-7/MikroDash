@@ -16,6 +16,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"mikrodash/internal/netguard"
 )
 
 // RequestTimeout is the live `req.setTimeout(10000, …)`.
@@ -33,6 +35,15 @@ type Doer interface {
 
 // DefaultClient bounds the whole exchange, not just the connect.
 var DefaultClient = &http.Client{Timeout: RequestTimeout}
+
+// PublicClient is DefaultClient held to public addresses, for a destination a
+// user typed for themselves: a personal channel's URLs, or the ntfy server in
+// their own alert settings. Without it any signed-in account, a viewer
+// included, could make the server post to loopback, the LAN or a cloud metadata
+// address and read the answer's status back (GHSA-xf3p-2j7c-6hg4). An install
+// channel keeps DefaultClient: only an administrator may make one, and a
+// self-hosted ntfy or Gotify on the LAN is what it is for.
+var PublicClient = &http.Client{Timeout: RequestTimeout, Transport: netguard.Transport(10 * time.Second)}
 
 // bodyLimit is how much of an error body is read before giving up on it.
 //

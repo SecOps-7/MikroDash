@@ -451,14 +451,22 @@ func (s *Server) notifyChannelTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A USER'S OWN CHANNEL REACHES PUBLIC ADDRESSES ONLY, here as when it is
+	// sent an alert: a test answering "ok" or an error was how a viewer could
+	// probe the LAN from the server (GHSA-xf3p-2j7c-6hg4). See notify.PublicClient.
+	personal := cur.Owner != db.InstallOwner
+	client := notify.DefaultClient
+	if personal {
+		client = notify.PublicClient
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	if spec.Kind == notify.KindWebhook {
-		err = notify.SendURLs(ctx, notify.DefaultClient, spec.URLs,
+		err = notify.SendURLs(ctx, client, spec.URLs,
 			notify.TestTitle, notify.TestBody)
 	} else {
-		err = notify.Send(ctx, notify.DefaultClient, spec.Settings,
-			s.alertMailer(spec.Settings), notify.TestTitle, notify.TestBody)
+		err = notify.Send(ctx, client, spec.Settings,
+			s.alertMailer(spec.Settings, personal), notify.TestTitle, notify.TestBody)
 	}
 	if err != nil {
 		// `safe.Message`, the rule `testNotification` follows: a provider's

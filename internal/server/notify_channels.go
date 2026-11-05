@@ -152,6 +152,7 @@ func (s *Server) channelRecipients(routerID, event, ifaceType string,
 			URLs:        spec.URLs,
 			Settings:    spec.Settings,
 			CooldownSec: spec.Tuning.CooldownSec,
+			Personal:    r.Owner != db.InstallOwner,
 		})
 	}
 	return out

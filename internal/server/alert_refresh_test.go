@@ -94,10 +94,10 @@ func TestAUserRecipientIsReadLikeItsTestButton(t *testing.T) {
 		t.Errorf("channels %v, want telegram and smtp", ch)
 	}
 
-	if s.alertMailer(got) == nil {
+	if s.alertMailer(got, false) == nil {
 		t.Error("no mailer for settings that name a mail server and an address")
 	}
-	if s.alertMailer(notify.Settings{"smtpTo": "me@example.com"}) != nil {
+	if s.alertMailer(notify.Settings{"smtpTo": "me@example.com"}, false) != nil {
 		t.Error("a mailer was built with no mail server")
 	}
 }

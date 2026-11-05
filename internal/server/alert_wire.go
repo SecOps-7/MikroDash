@@ -130,6 +130,6 @@ func (s *Server) buildAlertDispatch(enabled bool) *alertdispatch.Dispatcher {
 		log.Printf("[alert] dispatch is off; rows are written, nothing is sent " +
 			"(pass -alert-dispatch to send)")
 	}
-	return alertdispatch.New(enabled, notify.Settings(cfg), notify.DefaultClient, s.alertMailer,
+	return alertdispatch.New(enabled, notify.Settings(cfg), notify.DefaultClient, notify.PublicClient, s.alertMailer,
 		func() int64 { return time.Now().UnixMilli() })
 }

@@ -75,7 +75,7 @@ func recoveryServer(d *db.DB, clock *int64) (*Server, *sentTo) {
 	tr := &sentTo{}
 	return &Server{
 		auditDB:  d,
-		dispatch: alertdispatch.New(true, notify.Settings{}, tr, nil, func() int64 { return *clock }),
+		dispatch: alertdispatch.New(true, notify.Settings{}, tr, tr, nil, func() int64 { return *clock }),
 	}, tr
 }
 

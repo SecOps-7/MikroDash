@@ -86,7 +86,7 @@ func TestTheCooldownMatchesLive(t *testing.T) {
 	for _, run := range c.Cooldowns {
 		t.Run(run.Why, func(t *testing.T) {
 			var now int64
-			d := New(true, notify.Settings(run.Settings), nil, nil, func() int64 { return now })
+			d := New(true, notify.Settings(run.Settings), nil, nil, nil, func() int64 { return now })
 			for i, step := range run.Steps {
 				now = step.At
 				var r *Recipient
@@ -120,7 +120,7 @@ func TestTheCooldownMatchesLive(t *testing.T) {
 func TestADisabledDispatcherLeavesNoTrace(t *testing.T) {
 	sent := 0
 	d := New(false, notify.Settings{"telegramEnabled": true, "telegramBotToken": "x",
-		"telegramChatId": "1"}, nil, nil, func() int64 { return realInstant })
+		"telegramChatId": "1"}, nil, nil, nil, func() int64 { return realInstant })
 	d.sendFn = func(context.Context, *Recipient, string, string) error { sent++; return nil }
 
 	r := &Recipient{ID: "_install", Settings: d.settings}
@@ -173,7 +173,7 @@ func TestAnEnabledDispatcherSends(t *testing.T) {
 	var got Message
 	sent := 0
 	s := notify.Settings{"telegramEnabled": true, "telegramBotToken": "x", "telegramChatId": "1"}
-	d := New(true, s, nil, nil, func() int64 { return realInstant })
+	d := New(true, s, nil, nil, nil, func() int64 { return realInstant })
 	d.sendFn = func(_ context.Context, _ *Recipient, title, body string) error {
 		sent++
 		got = Message{Title: title, Body: body}
@@ -198,7 +198,7 @@ func TestAnEnabledDispatcherSends(t *testing.T) {
 // stamp happens before the send.
 func TestATransportFailureIsReportedNotPanicked(t *testing.T) {
 	s := notify.Settings{"telegramEnabled": true, "telegramBotToken": "x", "telegramChatId": "1"}
-	d := New(true, s, nil, nil, func() int64 { return realInstant })
+	d := New(true, s, nil, nil, nil, func() int64 { return realInstant })
 	d.sendFn = func(context.Context, *Recipient, string, string) error {
 		return context.DeadlineExceeded
 	}
@@ -222,7 +222,7 @@ func TestPerUserRecipientsAreGatedOnTheInstallSwitch(t *testing.T) {
 		return []Recipient{{ID: "user:u1"}}, nil
 	}
 
-	off := New(true, notify.Settings{}, nil, nil, func() int64 { return 1 })
+	off := New(true, notify.Settings{}, nil, nil, nil, func() int64 { return 1 })
 	if got := off.Recipients("r-1", perUser); len(got) != 1 || got[0].ID != "_install" {
 		t.Errorf("with the switch absent: %v", got)
 	}
@@ -230,7 +230,7 @@ func TestPerUserRecipientsAreGatedOnTheInstallSwitch(t *testing.T) {
 		t.Error("the per-user lookup ran with the switch off")
 	}
 
-	on := New(true, notify.Settings{"userNotifyEnabled": true}, nil, nil, func() int64 { return 1 })
+	on := New(true, notify.Settings{"userNotifyEnabled": true}, nil, nil, nil, func() int64 { return 1 })
 	got := on.Recipients("r-1", perUser)
 	if len(got) != 2 || got[0].ID != "_install" || got[1].ID != "user:u1" {
 		t.Errorf("with the switch on: %v", got)
@@ -239,7 +239,7 @@ func TestPerUserRecipientsAreGatedOnTheInstallSwitch(t *testing.T) {
 
 // A FAILING per-user lookup must never cost the install its own notification.
 func TestAFailingPerUserLookupKeepsTheInstallRecipient(t *testing.T) {
-	d := New(true, notify.Settings{"userNotifyEnabled": true}, nil, nil, func() int64 { return 1 })
+	d := New(true, notify.Settings{"userNotifyEnabled": true}, nil, nil, nil, func() int64 { return 1 })
 	got := d.Recipients("r-1", func(string) ([]Recipient, error) {
 		return nil, context.DeadlineExceeded
 	})
@@ -259,14 +259,14 @@ func TestAnEmailAlertReachesTheMailer(t *testing.T) {
 		"smtpFrom": "md@example.com", "smtpTo": "ops@example.com"}
 	var builtFor any
 	var got Message
-	mailFor := func(set notify.Settings) notify.Mailer {
+	mailFor := func(set notify.Settings, _ bool) notify.Mailer {
 		builtFor = set["smtpTo"]
 		return func(title, body string) error {
 			got = Message{Title: title, Body: body}
 			return nil
 		}
 	}
-	d := New(true, s, nil, mailFor, func() int64 { return realInstant })
+	d := New(true, s, nil, nil, mailFor, func() int64 { return realInstant })
 	if !d.Deliver(context.Background(), &Recipient{ID: "_install", Settings: s}, "cpu",
 		Message{Title: "T", Body: "B"}) {
 		t.Fatal("an email alert did not send")

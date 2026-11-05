@@ -361,7 +361,7 @@ func (s *Server) perUserRecipients(routerID string) ([]alertdispatch.Recipient, 
 		if err != nil || !ok {
 			continue
 		}
-		out = append(out, alertdispatch.Recipient{ID: "user:" + userID, Settings: set})
+		out = append(out, alertdispatch.Recipient{ID: "user:" + userID, Settings: set, Personal: true})
 	}
 	return out, nil
 }
@@ -389,8 +389,9 @@ func (s *Server) userRecipientSettings(row map[string]any, install notify.Settin
 // email channel failed with "no mailer configured" while the Test button, which
 // builds its own, reported the same settings working. It sends the way that
 // button does, so what the operator tested is what an alert uses.
-func (s *Server) alertMailer(set notify.Settings) notify.Mailer {
+func (s *Server) alertMailer(set notify.Settings, public bool) notify.Mailer {
 	cfg, who := smtpFromSettings(set)
+	cfg.PublicOnly = public
 	if cfg.Host == "" || cfg.From == "" ||
 		len(who.To)+len(who.Cc)+len(who.Bcc) == 0 {
 		return nil

@@ -28,6 +28,8 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+
+	"mikrodash/internal/netguard"
 )
 
 // The three timeouts the live transport sets, and their live names.
@@ -51,6 +53,10 @@ type Config struct {
 	User   string
 	Pass   string
 	From   string
+	// PublicOnly refuses a mail server that is not on a public address, for a
+	// server a user named in their own channel: see internal/netguard. The
+	// install's own mail server is often on the LAN and is not held to it.
+	PublicOnly bool
 }
 
 // Attachment is one file in the message.
@@ -232,7 +238,11 @@ func Send(cfg Config, m Message) error {
 	}
 
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(port))
-	conn, err := net.DialTimeout("tcp", addr, ConnectTimeout)
+	dialer := &net.Dialer{Timeout: ConnectTimeout}
+	if cfg.PublicOnly {
+		dialer = netguard.Dialer(ConnectTimeout)
+	}
+	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
 		return err
 	}

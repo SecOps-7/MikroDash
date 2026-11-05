@@ -31,7 +31,7 @@ package server
 //
 // The source is fetched only from a public address: the dialer refuses a
 // private, loopback, link-local, multicast or unspecified one, carrier-grade
-// NAT, and the other reserved ranges (notPublic), checked on the address it
+// NAT, and the other reserved ranges (internal/netguard), checked on the address it
 // actually connects to, so a redirect or a name that resolves inward is refused
 // the same as a literal address.
 //
@@ -46,19 +46,18 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"mikrodash/internal/audit"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/db"
+	"mikrodash/internal/netguard"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
 	"mikrodash/internal/store"
@@ -77,11 +76,11 @@ var (
 
 // listFetch is the client a list's source is fetched with. Proxy is nil, so
 // the address it dials is the source's own, and that address is what
-// publicOnly checks.
+// netguard.PublicOnly checks.
 var listFetch = &http.Client{
 	Timeout: 30 * time.Second,
 	Transport: &http.Transport{
-		DialContext:         (&net.Dialer{Timeout: 10 * time.Second, Control: publicOnly}).DialContext,
+		DialContext:         netguard.Dialer(10 * time.Second).DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
 	},
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -93,44 +92,6 @@ var listFetch = &http.Client{
 		}
 		return nil
 	},
-}
-
-// notPublic are the ranges that are not the public internet and that the
-// netip predicates do not cover: this network, carrier-grade NAT (Tailscale
-// among it), IETF protocol assignments, the documentation and benchmarking
-// ranges, the reserved block and broadcast, and the IPv6 forms that carry an
-// IPv4 address somewhere else (NAT64, 6to4) or are for documentation.
-var notPublic = func() []netip.Prefix {
-	var out []netip.Prefix
-	for _, p := range []string{"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24",
-		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
-		"64:ff9b::/96", "64:ff9b:1::/48", "2002::/16", "2001:db8::/32"} {
-		out = append(out, netip.MustParsePrefix(p))
-	}
-	return out
-}()
-
-// publicOnly refuses a connection to an address that is not a public one.
-func publicOnly(_, address string, _ syscall.RawConn) error {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return err
-	}
-	ip, err := netip.ParseAddr(host)
-	if err != nil {
-		return err
-	}
-	ip = ip.Unmap()
-	if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
-		return fmt.Errorf("%s is not a public address", ip)
-	}
-	for _, p := range notPublic {
-		if p.Contains(ip) {
-			return fmt.Errorf("%s is not a public address", ip)
-		}
-	}
-	return nil
 }
 
 // listTag is the comment that marks an entry as the list's.

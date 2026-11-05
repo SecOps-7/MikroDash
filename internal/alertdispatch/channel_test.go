@@ -32,7 +32,7 @@ func (r *recorder) Do(req *http.Request) (*http.Response, error) {
 const channelNow int64 = 1_790_000_000_000
 
 func channelDispatcher(c notify.Doer) *Dispatcher {
-	return New(true, notify.Settings{}, c, nil, func() int64 { return channelNow })
+	return New(true, notify.Settings{}, c, c, nil, func() int64 { return channelNow })
 }
 
 // A WEBHOOK RECIPIENT IS DELIVERED BY SCHEME.
@@ -130,5 +130,29 @@ func TestOneBadURLStillDeliversTheRest(t *testing.T) {
 	if len(rec.hosts) != 1 || rec.hosts[0] != "ntfy.example.net" {
 		t.Errorf("posted to %v — the working URL was skipped because another failed",
 			rec.hosts)
+	}
+}
+
+// A PERSONAL RECIPIENT GOES THROUGH THE PUBLIC-ONLY CLIENT (GHSA-xf3p-2j7c-6hg4).
+//
+// A user's own channel names its destination, so it is sent through the client
+// that refuses the LAN; the install's channels keep the ordinary one, which a
+// self-hosted ntfy on the LAN needs. Two recorders tell the two apart.
+func TestAPersonalRecipientIsSentThroughThePublicClient(t *testing.T) {
+	plain, public := &recorder{}, &recorder{}
+	d := New(true, notify.Settings{}, plain, public, nil, func() int64 { return channelNow })
+	for _, r := range []*Recipient{
+		{ID: "chan:mine", URLs: []string{"json://hook.example/mine"}, Personal: true},
+		{ID: "chan:inst", URLs: []string{"json://hook.example/inst"}},
+	} {
+		if !d.Deliver(context.Background(), r, "cpu", Message{Title: "T", Body: "B"}) {
+			t.Fatalf("%s was not delivered", r.ID)
+		}
+	}
+	if len(public.paths) != 1 || public.paths[0] != "/mine" {
+		t.Errorf("the public-only client carried %v, want only the personal channel", public.paths)
+	}
+	if len(plain.paths) != 1 || plain.paths[0] != "/inst" {
+		t.Errorf("the ordinary client carried %v, want only the install's channel", plain.paths)
 	}
 }
