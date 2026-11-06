@@ -42,3 +42,41 @@ func TestTheTransportRefusesALoopbackServer(t *testing.T) {
 		t.Fatalf("a server on loopback was reached: %v", err)
 	}
 }
+
+// TestARouterMayBeOnTheLANButNotOnThisMachine. Private reach, the default for
+// a router (GHSA-mcwr-rm79-fr4h), takes the LAN, Tailscale and the public
+// internet, and refuses loopback, link-local and the cloud metadata address;
+// Public refuses the LAN too; Any takes everything.
+func TestARouterMayBeOnTheLANButNotOnThisMachine(t *testing.T) {
+	lan := []string{"192.168.88.1:8728", "10.0.0.1:8729", "172.16.4.2:8728", "100.101.102.103:8728",
+		"[fd00::1]:8728", "93.184.215.14:8728"}
+	here := []string{"127.0.0.1:8728", "[::1]:8728", "169.254.169.254:80", "169.254.1.1:8728",
+		"[fe80::1]:8728", "0.0.0.0:8728", "224.0.0.1:8728", "255.255.255.255:8728", "[::ffff:127.0.0.1]:8728"}
+	for _, a := range lan {
+		if err := Check(a, Private); err != nil {
+			t.Errorf("private: %s was refused: %v", a, err)
+		}
+	}
+	for _, a := range here {
+		if Check(a, Private) == nil {
+			t.Errorf("private: %s was allowed", a)
+		}
+		if err := Check(a, Any); err != nil {
+			t.Errorf("any: %s was refused: %v", a, err)
+		}
+	}
+	if Check("192.168.88.1:8728", Public) == nil {
+		t.Error("public: a LAN address was allowed")
+	}
+	if err := Check("router.example:8728", Private); err != nil {
+		t.Errorf("a name was refused by Check, which only judges literals: %v", err)
+	}
+	for _, s := range []string{"public", "private", "any"} {
+		if r, err := ParseReach(s); err != nil || r.String() != s {
+			t.Errorf("ParseReach(%q) = %v, %v", s, r, err)
+		}
+	}
+	if _, err := ParseReach("lan"); err == nil {
+		t.Error("an unknown reach was accepted")
+	}
+}

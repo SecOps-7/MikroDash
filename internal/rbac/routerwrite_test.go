@@ -73,3 +73,29 @@ func TestANilBodyIsNotAnError(t *testing.T) {
 		t.Errorf("dropped = %v from a nil body", dropped)
 	}
 }
+
+// TestTheEndpointAndCredentialAreStrippedFromANonAdministrator
+// (GHSA-mcwr-rm79-fr4h). The route refuses a change to these first; the strip
+// is the second layer, so a value the gate misjudges still never reaches the
+// store. An administrator's body is untouched.
+func TestTheEndpointAndCredentialAreStrippedFromANonAdministrator(t *testing.T) {
+	fields := []string{"host", "port", "tls", "tlsInsecure", "username", "password", "loginProfileId"}
+	body := map[string]any{"label": "kept"}
+	for _, k := range fields {
+		body[k] = "x"
+	}
+	StripPrivilegedRouterFields(body, false)
+	for _, k := range fields {
+		if _, ok := body[k]; ok {
+			t.Errorf("%s survived the strip", k)
+		}
+	}
+	if body["label"] != "kept" {
+		t.Error("an ordinary field was stripped")
+	}
+	admin := map[string]any{"host": "x", "password": "x"}
+	StripPrivilegedRouterFields(admin, true)
+	if len(admin) != 2 {
+		t.Errorf("an administrator's fields were stripped: %v", admin)
+	}
+}
