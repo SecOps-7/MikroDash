@@ -64,6 +64,8 @@ import (
 	"unicode/utf8"
 
 	ros "github.com/go-routeros/routeros/v3"
+
+	"mikrodash/internal/netguard"
 )
 
 // Reply is one `!re` sentence: a RouterOS row.
@@ -144,6 +146,31 @@ func DeniedErr(err error) bool {
 	}
 	return deniedText(strings.ToLower(err.Error()))
 }
+
+// ── WHERE A ROUTER MAY BE ────────────────────────────────────────────────────
+//
+// Dial sends the stored RouterOS username and password to whatever host and
+// port the record names, so the address it connects to is checked here, the
+// one place every connection to a router is opened (GHSA-mcwr-rm79-fr4h). The
+// check is a net.Dialer Control hook, so it judges the address after DNS: a
+// name that resolves to loopback is refused as the literal would be.
+//
+// PRIVATE BY DEFAULT. A router a dashboard watches is normally on the LAN, a
+// VPN or Tailscale, and refusing those would break every install. Loopback,
+// link-local (where cloud metadata services answer) and multicast are never a
+// router, and are refused. `-router-addresses` / MIKRODASH_ROUTER_ADDRESSES
+// moves it: `public` for a server that should reach only the internet, `any`
+// for a router reached through a tunnel on this machine.
+
+var dialReach atomic.Int32 // a netguard.Reach; zero would be Public, so it is set below
+
+func init() { dialReach.Store(int32(netguard.Private)) }
+
+// SetDialReach sets how far Dial may connect.
+func SetDialReach(r netguard.Reach) { dialReach.Store(int32(r)) }
+
+// DialReach is how far Dial may connect.
+func DialReach() netguard.Reach { return netguard.Reach(dialReach.Load()) }
 
 // ── THE TUNNEL IS A ROUTE ────────────────────────────────────────────────────
 //
@@ -364,9 +391,16 @@ func Dial(cfg Config) (*Client, error) {
 	if dial == nil {
 		dial = tunnelFor(cfg.Host)
 	}
+	reach := DialReach()
+	// A dialer of our own judges the address it actually connects to; a
+	// supplied one (the tunnel's own IP stack) is handed an address, so that
+	// address is judged before it is. Either way nothing is sent first.
+	netDialer := &net.Dialer{Control: netguard.Control(reach)}
 	switch {
 	case dial != nil:
-		conn, err = dial(dialCtx, "tcp", addr)
+		if err = netguard.Check(addr, reach); err == nil {
+			conn, err = dial(dialCtx, "tcp", addr)
+		}
 		if err == nil && cfg.TLS {
 			tc := tls.Client(conn, &tls.Config{InsecureSkipVerify: cfg.InsecureTLS, ServerName: cfg.Host}) //nolint:gosec // as below
 			if err = tc.HandshakeContext(dialCtx); err != nil {
@@ -378,10 +412,10 @@ func Dial(cfg Config) (*Client, error) {
 		// RouterOS ships a self-signed certificate. InsecureSkipVerify mirrors
 		// the Node deployment's rejectUnauthorized:false rather than inventing a
 		// stricter policy every existing router would fail.
-		conn, err = (&tls.Dialer{Config: &tls.Config{InsecureSkipVerify: cfg.InsecureTLS}}). //nolint:gosec // see above
-													DialContext(dialCtx, "tcp", addr)
+		conn, err = (&tls.Dialer{NetDialer: netDialer, Config: &tls.Config{InsecureSkipVerify: cfg.InsecureTLS}}). //nolint:gosec // see above
+																DialContext(dialCtx, "tcp", addr)
 	default:
-		conn, err = new(net.Dialer).DialContext(dialCtx, "tcp", addr)
+		conn, err = netDialer.DialContext(dialCtx, "tcp", addr)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to router os: %w", err)

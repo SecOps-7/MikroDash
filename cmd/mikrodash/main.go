@@ -17,11 +17,21 @@ import (
 	"mikrodash/internal/asn"
 	"mikrodash/internal/db"
 	"mikrodash/internal/geo"
+	"mikrodash/internal/netguard"
 	"mikrodash/internal/roslimit"
+	"mikrodash/internal/routeros"
 	"mikrodash/internal/server"
 	"mikrodash/internal/store"
 	"mikrodash/internal/trustedproxy"
 )
+
+// envOr is the environment variable, or def when it is unset or blank.
+func envOr(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
 
 func main() {
 	var (
@@ -111,10 +121,28 @@ func main() {
 			"comma-separated IPs or CIDR ranges of reverse proxies whose X-Forwarded-For "+
 				"is believed (e.g. 172.18.0.0/16). Empty trusts none. Also read from "+
 				"MIKRODASH_TRUSTED_PROXIES")
+		// WHERE A ROUTER MAY BE, which the RouterOS dial enforces
+		// (GHSA-mcwr-rm79-fr4h). A deployment fact like the two above, and for
+		// their reason: a Settings field would let a session widen where the
+		// server sends a router's stored password.
+		routerAddresses = flag.String("router-addresses", envOr("MIKRODASH_ROUTER_ADDRESSES", "private"),
+			"which router addresses may be dialled: private (the default: the LAN, VPNs "+
+				"and the internet, never loopback or link-local), public (the internet only), "+
+				"or any (also loopback, for a router reached through a tunnel on this machine). "+
+				"Also read from MIKRODASH_ROUTER_ADDRESSES")
 		geoDir = flag.String("geo", "/app/geo",
 			"geoip-lite's data directory, read for country lookups")
 	)
 	flag.Parse()
+
+	// REFUSED LOUDLY when unreadable, rather than falling back: a typo in a
+	// security setting must not quietly mean the default.
+	reach, err := netguard.ParseReach(strings.TrimSpace(*routerAddresses))
+	if err != nil {
+		log.Fatalf("[mikrodash] -router-addresses: %v", err)
+	}
+	routeros.SetDialReach(reach)
+	log.Printf("[mikrodash] routers may be dialled at %s addresses", reach)
 
 	// A VALUE FOR THE RETIRED -node IS REFUSED, loudly: whoever passed one
 	// expects a proxy that no longer exists.

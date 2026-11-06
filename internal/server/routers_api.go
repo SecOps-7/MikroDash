@@ -302,14 +302,20 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// THE STRIP. See the file header and `rbac.StripPrivilegedRouterFields`.
-	dropped := rbac.StripPrivilegedRouterFields(body, s.mayManagePrincipals(sess))
-
 	before := s.routerRecord(id)
 	if before == nil {
 		writeJSONErr(w, http.StatusNotFound, "Router not found")
 		return
 	}
+	// REFUSED BEFORE THE STRIP, so a change is answered as one: the strip
+	// alone would drop it and answer 200, which reads as saved.
+	if !s.routerEndpointEditAllowed(w, sess, before, body) {
+		return
+	}
+
+	// THE STRIP. See the file header and `rbac.StripPrivilegedRouterFields`.
+	dropped := rbac.StripPrivilegedRouterFields(body, s.mayManagePrincipals(sess))
+
 	if !s.loginProfileEditAllowed(w, sess, before, body) {
 		return
 	}
@@ -687,6 +693,81 @@ func routerAuditView(r *store.Router) map[string]any {
 		"tls": r.TLS, "tlsInsecure": r.TLSInsecure, "username": r.Username,
 		"disabled": r.Disabled, "siteIds": store.RouterSiteIDs(*r),
 	}
+}
+
+// routerEndpointEditAllowed refuses a change to WHERE a device is reached, or
+// to the account MikroDash signs in to it with, by anybody who may not manage
+// principals (GHSA-mcwr-rm79-fr4h).
+//
+// Write access to the Devices page confers `router:manage` on the routers it
+// is scoped to, which is how one device is delegated to a technician. But
+// MikroDash sends the stored username and password to whatever host and port
+// the record names, so a delegate who could edit those could aim the device at
+// a host they run and receive a password no response ever shows them. TLS and
+// its certificate check count too: turning either off hands the password to
+// the path in between. The credential itself is the administrator's for the
+// same reason creating the device is: it decides which account MikroDash acts
+// as on the router.
+//
+// EVERY ROUTER. The rule began in loginProfileEditAllowed, for devices using a
+// shared login profile only, which left the default, a device with its own
+// credential, open. A value equal to the stored one is not a change, because
+// the device dialog sends the whole form.
+func (s *Server) routerEndpointEditAllowed(w http.ResponseWriter, sess *Session,
+	before *store.Router, body map[string]any) bool {
+	if s.mayManagePrincipals(sess) {
+		return true
+	}
+	if field := endpointChange(before, body); field != "" {
+		writeJSONErr(w, http.StatusForbidden, "Only an administrator may change where this "+
+			"device connects or the account it signs in with ("+field+").")
+		return false
+	}
+	return true
+}
+
+// endpointChange names the first connection or credential field the body
+// changes, or "". `password` arrives here only when it is a new one: blank and
+// the mask were removed above as "keep current".
+func endpointChange(before *store.Router, body map[string]any) string {
+	if v, ok := body["host"]; ok && strings.TrimSpace(jsStringOf(v)) != before.Host {
+		return "host"
+	}
+	if v, ok := body["port"]; ok {
+		n, isNum := v.(int)
+		if f, isF := v.(float64); isF {
+			n, isNum = int(f), true
+		}
+		if !isNum || n != before.Port {
+			return "port"
+		}
+	}
+	if v, ok := body["tls"]; ok {
+		if b, isB := v.(bool); !isB || b != before.TLS {
+			return "tls"
+		}
+	}
+	if v, ok := body["tlsInsecure"]; ok {
+		if b, isB := v.(bool); !isB || b != before.TLSInsecure {
+			return "tlsInsecure"
+		}
+	}
+	if v, ok := body["loginProfileId"]; ok && jsStringOf(v) != before.LoginProfileID {
+		return "loginProfileId"
+	}
+	// A DEVICE SIGNING IN WITH A LOGIN PROFILE reads back the profile's
+	// username, and loginProfileEditAllowed discards a posted credential for it
+	// anyway, so only a device's own credential is compared.
+	if before.LoginProfileID != "" {
+		return ""
+	}
+	if v, ok := body["username"]; ok && strings.TrimSpace(jsStringOf(v)) != before.Username {
+		return "username"
+	}
+	if _, ok := body["password"]; ok {
+		return "password"
+	}
+	return ""
 }
 
 // loginProfileEditAllowed applies the two rules a device signing in with a

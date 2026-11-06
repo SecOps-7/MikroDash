@@ -26,24 +26,114 @@ import (
 	"time"
 )
 
-// notPublic are the ranges that are not the public internet and that the
-// netip predicates do not cover: this network, carrier-grade NAT (Tailscale
+// local are the ranges that are never a remote device: loopback, link-local
+// (cloud metadata services among it), multicast and unspecified are matched
+// by the netip predicates below; these are the rest, this network, the
+// reserved block and broadcast.
+var local = prefixes("0.0.0.0/8", "240.0.0.0/4")
+
+// private are the ranges that are not the public internet but can hold a real
+// device: RFC 1918 and ULA (netip's IsPrivate), carrier-grade NAT (Tailscale
 // among it), IETF protocol assignments, the documentation and benchmarking
-// ranges, the reserved block and broadcast, and the IPv6 forms that carry an
-// IPv4 address somewhere else (NAT64, 6to4) or are for documentation.
-var notPublic = func() []netip.Prefix {
-	var out []netip.Prefix
-	for _, p := range []string{"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24",
-		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
-		"64:ff9b::/96", "64:ff9b:1::/48", "2002::/16", "2001:db8::/32"} {
+// ranges, and the IPv6 forms that carry an IPv4 address somewhere else (NAT64,
+// 6to4) or are for documentation.
+var private = prefixes("100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15",
+	"198.51.100.0/24", "203.0.113.0/24", "64:ff9b::/96", "64:ff9b:1::/48", "2002::/16",
+	"2001:db8::/32")
+
+func prefixes(ps ...string) []netip.Prefix {
+	out := make([]netip.Prefix, 0, len(ps))
+	for _, p := range ps {
 		out = append(out, netip.MustParsePrefix(p))
 	}
 	return out
-}()
+}
 
-// PublicOnly refuses a connection to an address that is not a public one. Its
-// signature is net.Dialer's Control.
-func PublicOnly(_, address string, _ syscall.RawConn) error {
+// Reach is how far a connection may go.
+type Reach int
+
+const (
+	// Public is the public internet only.
+	Public Reach = iota
+	// Private adds the private ranges, where a router a dashboard watches
+	// usually is. Loopback, link-local (cloud metadata) and multicast are still
+	// refused.
+	Private
+	// Any is every address: a router reached through a tunnel on this machine.
+	Any
+)
+
+// ParseReach reads "public", "private" or "any".
+func ParseReach(s string) (Reach, error) {
+	switch s {
+	case "public":
+		return Public, nil
+	case "private":
+		return Private, nil
+	case "any":
+		return Any, nil
+	}
+	return Private, fmt.Errorf("%q is not public, private or any", s)
+}
+
+func (r Reach) String() string {
+	return [...]string{"public", "private", "any"}[r]
+}
+
+// Allowed reports whether an address is within reach, and why not.
+func Allowed(ip netip.Addr, reach Reach) error {
+	if reach == Any {
+		return nil
+	}
+	ip = ip.Unmap()
+	isLocal := ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() ||
+		ip == netip.AddrFrom4([4]byte{255, 255, 255, 255})
+	for _, p := range local {
+		isLocal = isLocal || p.Contains(ip)
+	}
+	if isLocal && reach == Public {
+		return fmt.Errorf("%s is not a public address", ip)
+	}
+	if isLocal {
+		return fmt.Errorf("%s is a local address", ip)
+	}
+	if reach == Private {
+		return nil
+	}
+	isPrivate := ip.IsPrivate()
+	for _, p := range private {
+		isPrivate = isPrivate || p.Contains(ip)
+	}
+	if isPrivate {
+		return fmt.Errorf("%s is not a public address", ip)
+	}
+	return nil
+}
+
+// Control returns a net.Dialer Control hook that refuses an address out of
+// reach. It sees the address after DNS, so a name cannot get round it.
+func Control(reach Reach) func(network, address string, c syscall.RawConn) error {
+	return func(_, address string, _ syscall.RawConn) error {
+		return check(address, reach)
+	}
+}
+
+// Check refuses a "host:port" whose host is an IP address out of reach. A
+// host that is a name passes: only a dialer's Control hook sees what it
+// resolves to, so a caller that dials without one must not rely on this.
+func Check(address string, reach Reach) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	if _, err := netip.ParseAddr(host); err != nil {
+		return nil
+	}
+	return check(address, reach)
+}
+
+func check(address string, reach Reach) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
 		return err
@@ -52,17 +142,13 @@ func PublicOnly(_, address string, _ syscall.RawConn) error {
 	if err != nil {
 		return err
 	}
-	ip = ip.Unmap()
-	if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
-		return fmt.Errorf("%s is not a public address", ip)
-	}
-	for _, p := range notPublic {
-		if p.Contains(ip) {
-			return fmt.Errorf("%s is not a public address", ip)
-		}
-	}
-	return nil
+	return Allowed(ip, reach)
+}
+
+// PublicOnly refuses a connection to an address that is not a public one. Its
+// signature is net.Dialer's Control.
+func PublicOnly(network, address string, c syscall.RawConn) error {
+	return Control(Public)(network, address, c)
 }
 
 // Dialer connects only to public addresses.
