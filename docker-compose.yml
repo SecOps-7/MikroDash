@@ -73,6 +73,12 @@ services:
       # Empty trusts nobody, which is right when browsers connect directly.
       # Issue #111.
       - MIKRODASH_TRUSTED_PROXIES=${MIKRODASH_TRUSTED_PROXIES:-}
+      # Which router addresses may be connected to: private (empty means this:
+      # the LAN, VPNs, Tailscale and the internet, never loopback or link-local),
+      # public (the internet only) or any (also loopback, for a tunnel on this
+      # machine). A router's stored password goes to whatever it names, so this
+      # is a deployment setting, not a Settings field. GHSA-mcwr-rm79-fr4h.
+      - MIKRODASH_ROUTER_ADDRESSES=${MIKRODASH_ROUTER_ADDRESSES:-}
       # Command-rate instrument for the collectors rewrite. Empty = off.
       - MIKRODASH_CMD_STATS=${MIKRODASH_CMD_STATS:-}
     # The flags are baked into the image's CMD; they are repeated here so the

@@ -383,6 +383,7 @@ All optional.
 |---|---|
 | `MIKRODASH_ORIGINS` | Hostnames the browser uses to reach MikroDash, comma separated (wildcards like `*.example.com` work). Required behind a reverse proxy; see below. |
 | `MIKRODASH_TRUSTED_PROXIES` | IPs or CIDR ranges of your reverse proxies. Their `X-Forwarded-For` is believed, so the login limit and audit trail see real visitors. Empty trusts none. |
+| `MIKRODASH_ROUTER_ADDRESSES` | Which router addresses MikroDash may connect to: `private` (the default: your LAN, VPNs, Tailscale and the internet, never this machine's loopback or a link-local address such as a cloud metadata service), `public` (the internet only), or `any` (also loopback, for a router reached through a tunnel on this machine). MikroDash refuses to start on any other value. |
 | `FORCE_HTTPS` | `true` marks the session cookie Secure, for use behind a TLS-terminating proxy. Plain `http://` sign-in stops working while it is set. |
 | `DATA_SECRET` | The key for credentials at rest. Overrides the key generated on first run and saved to `/data/.secret`. |
 | `LOG_HISTORY_SIZE` | How many router log lines to keep in memory for the Logs page. |
@@ -407,6 +408,7 @@ The image passes these as its `CMD`; give the container its own `command:` to ov
 | `-no-pool` | off | Do not hold background connections to routers nobody is watching |
 | `-origins` | empty | Same as `MIKRODASH_ORIGINS` |
 | `-trusted-proxies` | empty | Same as `MIKRODASH_TRUSTED_PROXIES` |
+| `-router-addresses` | `private` | Same as `MIKRODASH_ROUTER_ADDRESSES` |
 | `-geo` | `/app/geo` | Directory with the bundled geo-IP database and city list |
 
 The four feature switches are off in the bare binary and on in the image, because each is unsafe to run twice against the same routers: two instances would take every backup twice and send every alert twice. If you run a second instance against the same fleet, turn them off there.
@@ -422,6 +424,7 @@ The four feature switches are off in the bare binary and on in the image, becaus
 MikroDash is built for your **local network**. It serves plain HTTP; terminate TLS at a reverse proxy if you need it.
 
 - **Turn on sign-in.** Settings, Authentication, **Require sign-in**. With it off, anyone who reaches the page can see all of your routers' data (router configuration stays read-only). With it on, access is granted as a role (which pages, read or write) over a scope (everything, a site, or one router).
+- **Where a device is reached is an administrator's.** Write access to the Devices page, granted over one router, lets someone rename that device and tune its alerts, but not change its address, port, TLS settings or the account MikroDash signs in with: MikroDash sends the stored password to wherever the device points. And MikroDash never connects to a router on its own machine's loopback or a link-local address (where cloud metadata services answer) unless `MIKRODASH_ROUTER_ADDRESSES=any` says so.
 - **Zero-touch provisioning opens one UDP port** (13231, WireGuard) while it is switched on. It is the only part of MikroDash meant to face the internet: a router without a valid script cannot complete a handshake with it.
 - **First-run setup needs a code from the log.** Until an account exists, MikroDash prints a one-time setup code to its log, and the setup page will not create the administrator without it, so a stranger who reaches a fresh install cannot claim it.
 - **Never expose it directly to the internet.** For remote access use a VPN, or an authenticating proxy such as Cloudflare Access or Authelia in front of MikroDash with sign-in enabled.
