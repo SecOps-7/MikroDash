@@ -2,6 +2,24 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.80] - A delegated device can no longer be pointed elsewhere
+
+### Security
+
+- **Only an administrator can change where a device is reached, or the account MikroDash signs
+  in to it with.** Someone granted write access to the Devices page for a single router could
+  change that router's address, port or TLS settings, and MikroDash would then send the
+  router's stored RouterOS password to the new address. Such a change is now refused for
+  anyone who is not an administrator; renaming a device and tuning its alerts still work.
+  Advisory
+  [GHSA-mcwr-rm79-fr4h](https://github.com/SecOps-7/MikroDash/security/advisories/GHSA-mcwr-rm79-fr4h),
+  found by [@zohuyhieuzo03](https://github.com/zohuyhieuzo03), thanks.
+- **MikroDash no longer connects to a router on its own machine's loopback or a link-local
+  address**, such as a cloud metadata service. Routers on your LAN, a VPN, Tailscale or the
+  internet are unaffected. The new `MIKRODASH_ROUTER_ADDRESSES` (`-router-addresses`) setting
+  takes `private` (the default), `public` (the internet only) or `any` (also loopback, for a
+  router reached through a tunnel on the same machine).
+
 ## [0.8.79] - Personal notification channels stay off the LAN, and Wi-Fi map backdrops
 
 ### Security
