@@ -66,6 +66,20 @@ type WirelessClient struct {
 	// Source marks a CAPsMAN row. Absent on local clients, because the live
 	// payload omits it there rather than sending an empty string.
 	Source string `json:"source,omitempty"`
+	// MFP is whether the client negotiated management frame protection
+	// (802.11w), from the registration table's `mfp`.
+	//
+	// NULL IS "NOT REPORTED", NOT "OFF". RouterOS added the field in 7.25 ("wifi -
+	// report management frame protection (MFP) usage in registration-table");
+	// confirmed present in the 7.25.1 field list on CHR Test. An older router
+	// says nothing, and reading that as `false` would accuse every client on it
+	// of running unprotected.
+	MFP *bool `json:"mfp"`
+	// EAPIdentity is the identity an enterprise (802.1X) client signed in with,
+	// the registration table's `eap-identity` (7.25: "wifi - show the EAP user
+	// identity in the registration table"). Empty for a PSK client. The legacy
+	// wireless table has carried the same field for longer, under the same name.
+	EAPIdentity string `json:"eapIdentity"`
 }
 
 // WirelessSSID is one broadcast network, aggregated across the interfaces
@@ -197,6 +211,16 @@ func wlBandOf(row routeros.Reply, iface string, capsman bool) string {
 	return ""
 }
 
+// mfpOf reads `mfp`, or nil when the row does not carry it (see MFP).
+func mfpOf(row routeros.Reply) *bool {
+	v, ok := row["mfp"]
+	if !ok || v == "" {
+		return nil
+	}
+	on := boolOf(v)
+	return &on
+}
+
 // parseWirelessClient normalises one registration row.
 //
 // The field names differ per stack — `signal` on modern wifi, `signal-strength`
@@ -221,6 +245,10 @@ func parseWirelessClient(row routeros.Reply, capsman bool, ip, name string, cb C
 		Uptime:   row["uptime"],
 		SSID:     row["ssid"],
 		Name:     name,
+		MFP:      mfpOf(row),
+		// Trimmed: an identity is typed on the client, and a stray space would
+		// otherwise sort it apart from the same account on another device.
+		EAPIdentity: strings.TrimSpace(row["eap-identity"]),
 	}
 	if capsman {
 		c.Source = "capsman"

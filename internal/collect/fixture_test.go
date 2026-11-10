@@ -476,6 +476,12 @@ var addedSinceNode = map[string][]addedField{
 	"wireless": {
 		added("clients[].standard"),
 		{Spec: "clients[].comment", ProvenBy: "TestWirelessClientCarriesTheLeaseComment"},
+		// Management frame protection and the EAP identity, added 2026-11-10 for
+		// the Wireless clients table's Security column. RouterOS 7.25 added both
+		// to the registration table; the AX3 capture is 7.24 and has neither, so
+		// every replayed row carries null and "" and presence proves nothing.
+		{Spec: "clients[].mfp", ProvenBy: "TestAClientCarriesItsMFPAndEAPIdentity"},
+		{Spec: "clients[].eapIdentity", ProvenBy: "TestAClientCarriesItsMFPAndEAPIdentity"},
 	},
 	// The legacy CAPsMAN tree, added 2026-09-13. The Node app read
 	// `/interface/wifi/capsman` and nothing else, so a manager also running

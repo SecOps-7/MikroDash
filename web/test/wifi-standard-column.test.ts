@@ -214,7 +214,9 @@ function boot() {
 
   const ths = doc.nodes['wlThead'].querySelectorAll('th');
   const idx = { band: 2, standard: 3 };
-  assert.strictEqual(ths.length, 7, 'expected 7 header cells, got ' + ths.length);
+  // 8 since the Security column (MFP and EAP identity, RouterOS 7.25) joined
+  // to the right of Standard; Band and Standard keep their places.
+  assert.strictEqual(ths.length, 8, 'expected 8 header cells, got ' + ths.length);
 
   // ── Band ────────────────────────────────────────────────────────────────
   ths[idx.band].click();

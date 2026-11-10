@@ -2014,6 +2014,8 @@ export interface WirelessClient {
   name: string;
   comment: string;
   source?: string;
+  mfp: boolean | null;
+  eapIdentity: string;
 }
 
 export interface WirelessSSID {

@@ -14,7 +14,7 @@
 
 import { netFlowUpdate } from './dashboard-card-netflow';
 import { esc, el, bandBadge, standardBadge, bandRank, ssidColours, installWifiGlobals,
-  renderSortHeader, lsGet, lsSet, type SortState } from '../dom';
+  renderSortHeader, lsGet, lsSet, pill, mutedDash, type SortState } from '../dom';
 import type { Socket } from '../socket';
 import { initFrequencyAnalyser } from './wireless-fa';
 import { initClientFeatures } from './wifi-clients-features';
@@ -84,7 +84,7 @@ function uptimeToSecs(u: string): number {
   return total;
 }
 
-type CmpKey = 'name' | 'signal' | 'txRate' | 'uptime' | 'band' | 'standard' | 'ip';
+type CmpKey = 'name' | 'signal' | 'txRate' | 'uptime' | 'band' | 'standard' | 'security' | 'ip';
 
 /**
  * An address as a sortable number.
@@ -130,6 +130,33 @@ const rankOf = (table: Record<string, number>, v: string): number =>
 /** The operator's label first, then what the device calls itself. */
 const clientTitle = (c: WirelessClient): string => c.comment || c.name || c.mac || '';
 
+/**
+ * Security sorts UNPROTECTED FIRST: a client without management frame
+ * protection, then a protected one, then a router that does not report it.
+ *
+ * `mfp` is RouterOS 7.25 and later. NULL IS "NOT REPORTED", not "off" - an
+ * older router says nothing - so it ranks with the other unknowns, last, rather
+ * than among the clients actually found unprotected. Ties order by the EAP
+ * identity, so one account's devices sit together.
+ */
+const mfpRank = (c: WirelessClient): number => (c.mfp === false ? 0 : c.mfp === true ? 1 : UNKNOWN_LAST);
+
+/** The Security cell: an MFP pill, and the EAP identity an enterprise client
+ *  signed in with. A dash when the router reports neither. */
+function securityCell(c: WirelessClient): string {
+  const mfp = c.mfp === true
+    ? '<span title="Management frame protection (802.11w) in use">' + pill('MFP', 'ok') + '</span>'
+    : c.mfp === false
+      ? '<span title="This client does not use management frame protection (802.11w)">' + pill('No MFP', 'warn') + '</span>'
+      : '';
+  const who = c.eapIdentity
+    ? '<div style="font-size:.62rem;color:var(--text-muted);margin-top:.1rem" title="EAP identity">' +
+      esc(c.eapIdentity) + '</div>'
+    : '';
+  if (!mfp && !who) return mutedDash('Not reported. RouterOS 7.25 and later report management frame protection.');
+  return mfp + who;
+}
+
 const WL_CMP: Record<CmpKey, (a: WirelessClient, b: WirelessClient) => number> = {
   name: (a, b) => clientTitle(a).localeCompare(clientTitle(b)),
   signal: (a, b) => (a.signal || 0) - (b.signal || 0),
@@ -137,6 +164,7 @@ const WL_CMP: Record<CmpKey, (a: WirelessClient, b: WirelessClient) => number> =
   uptime: (a, b) => uptimeToSecs(a.uptime) - uptimeToSecs(b.uptime),
   band: (a, b) => bandRank(a.band) - bandRank(b.band),
   standard: (a, b) => rankOf(WL_STD_RANK, a.standard) - rankOf(WL_STD_RANK, b.standard),
+  security: (a, b) => (mfpRank(a) - mfpRank(b)) || (a.eapIdentity || '').localeCompare(b.eapIdentity || ''),
   ip: (a, b) => ipRank(a.ip) - ipRank(b.ip),
 };
 
@@ -149,6 +177,8 @@ const WL_DEFAULT_DIR: Record<CmpKey, 'asc' | 'desc'> = {
   // generation is to find the clients holding a network back, not to admire the
   // Wi-Fi 7 ones.
   band: 'asc', standard: 'asc',
+  // Ascending: the unprotected clients first, for the same reason.
+  security: 'asc',
   // Ascending, because an address range read low to high is how an operator
   // looks for a device: .10 before .200.
   ip: 'asc',
@@ -264,6 +294,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
         esc(c.iface || '-') + '</td>' +
       '<td>' + bandBadge(c.band) + '</td>' +
       '<td>' + standardBadge(c.standard) + '</td>' +
+      '<td>' + securityCell(c) + '</td>' +
       '<td class="text-end">' +
         signalBars(sig) +
         '<span style="font-size:.68rem;color:var(--text-muted);margin-left:.3rem">' + sig + ' dBm</span>' +
@@ -300,6 +331,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
       { label: 'Interface', cls: 'wl-col-iface' },
       { key: 'band', label: 'Band' },
       { key: 'standard', label: 'Standard' },
+      { key: 'security', label: 'Security' },
       { key: 'signal', label: 'Signal', cls: 'text-end' },
       { key: 'txRate', label: 'TX / RX' },
       { key: 'uptime', label: 'Uptime', cls: 'wl-col-uptime' },
@@ -307,7 +339,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
 
     const rows = sortClients(clients, sort.col, sort.dir);
     if (!rows.length) {
-      wirelessTable.innerHTML = '<tr><td colspan="7" class="empty-state">No wireless clients</td></tr>';
+      wirelessTable.innerHTML = '<tr><td colspan="8" class="empty-state">No wireless clients</td></tr>';
       return;
     }
 
@@ -347,7 +379,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
         const btnId = 'wlGrp' + String(i);
         byBtn[btnId] = { key, shut: !shut };
         const isCapsman = g.clients.some((c) => c.source === 'capsman');
-        html += '<tr class="wl-group-row"><td colspan="7">' +
+        html += '<tr class="wl-group-row"><td colspan="8">' +
           '<button type="button" class="wl-group-toggle" id="' + btnId + '"' +
             ' aria-expanded="' + (shut ? 'false' : 'true') + '">' +
             '<span class="wl-group-caret">' + (shut ? '&#9656;' : '&#9662;') + '</span>' +
