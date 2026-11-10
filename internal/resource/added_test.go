@@ -40,13 +40,14 @@ var addedSinceNode = map[string][]string{
 	//                         be printed. TypeSecret, so it never reaches a form
 	//                         and never appears in a rendered command
 	//   client*               what the router hands the client: address, DNS,
-	//                         endpoint, keepalive, allowed addresses
+	//                         endpoint, keepalive, allowed addresses, and the
+	//                         MTU (7.25+, sent only when filled in)
 	//   responder             7.17+ (is-responder in 7.15-7.16.2). Display only
 	//                         — see the field's own note for why it is not
 	//                         writable
 	"wgPeer": {
 		"name", "privateKey", "clientAddress", "clientDns", "clientEndpoint",
-		"clientKeepalive", "clientAllowedAddress", "responder",
+		"clientKeepalive", "clientAllowedAddress", "clientMtu", "responder",
 	},
 	// A static entry's regexp and address list, added 2026-10-13. Only the
 	// preview gate reads this entry: the form itself left the Node parity gate

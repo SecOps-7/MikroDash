@@ -3189,6 +3189,20 @@ var WgPeer = &Resource{
 			Label: "Client Allowed Addresses", Type: TypeText, Clearable: true,
 			Help: "RouterOS 7.21 and later. What the client routes into the tunnel; " +
 				"older routers always send everything."},
+		// RouterOS 7.25 ("wireguard - add the client-mtu parameter"). Measured on
+		// CHR Test, 7.25.1: an integer, 0..4294967295, absent from print until set.
+		//
+		// SENT ONLY WHEN FILLED IN, so it is deliberately NOT Clearable. A router
+		// before 7.25 does not know the property, and the only way to clear an
+		// integer is the `=!client-mtu=` removal form, which an undo or a fleet
+		// write sends without the stored row that would let BuildArgs skip it
+		// (see Validated.Stored): that would refuse the whole write on a 7.24
+		// router. Blank therefore leaves the router's value as it is. The bounds
+		// are the interface MTU's, not the router's 32-bit range.
+		{Name: "clientMtu", ROS: "client-mtu", Label: "Client MTU", Type: TypeInt,
+			Min: intp(68), Max: intp(65535), Placeholder: "1420",
+			Help: "RouterOS 7.25 and later. The MTU written into the client's configuration. " +
+				"Leave blank to keep the router's value; an older router is never sent it."},
 		// READ-ONLY, and deliberately not writable. `responder` is 7.17+ and was
 		// spelled `is-responder` in 7.15-7.16.2. One writable field cannot cover
 		// both without either trapping on an old router or becoming one-way, and
