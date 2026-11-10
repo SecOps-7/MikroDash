@@ -24,6 +24,9 @@ func TestA725FieldIsSentOnlyWhenFilledIn(t *testing.T) {
 		{WgPeer, "clientMtu", "client-mtu",
 			map[string]string{"interface": "wg0", "publicKey": strings.Repeat("A", 43) + "=", "allowedAddress": "10.0.0.2/32"},
 			"1380", "abc"},
+		{DHCPServer, "ipv6OnlyPreferred", "ipv6-only-preferred",
+			map[string]string{"name": "dhcp1", "interface": "bridge"},
+			"yes", "maybe"},
 	} {
 		for _, editing := range []bool{false, true} {
 			for _, stored := range []map[string]string{nil, {"comment": "x"}} {

@@ -2408,6 +2408,20 @@ var DHCPServer = &Resource{
 		{Name: "addArp", ROS: "add-arp", Label: "Add ARP For Leases", Type: TypeBool, Clearable: true, Default: "no"},
 		{Name: "conflictDetection", ROS: "conflict-detection", Label: "Conflict Detection", Type: TypeBool, Clearable: true,
 			Default: "yes"},
+		// RouterOS 7.25 ("dhcpv4-server - add ipv6-only-preferred parameter to
+		// respect option 108"). The 7.25.1 CHR completes it with yes and no.
+		//
+		// A SELECT WITH A BLANK, NOT A CHECKBOX, AND NO DEFAULT. A checkbox always
+		// has a value, so every save would send it, and a router before 7.25
+		// refuses a write naming a property it does not know: a rename would
+		// fail. Blank is "not sent"; the field is not Clearable for the reason
+		// WgPeer's clientMtu gives. A declared default would be pre-filled from a
+		// 7.24 row and sent back on save, so there is none.
+		{Name: "ipv6OnlyPreferred", ROS: "ipv6-only-preferred", Label: "IPv6-only Preferred", Type: TypeSelect,
+			Options: []string{"yes", "no"},
+			Help: "RouterOS 7.25 and later. Honour DHCP option 108, so a client able to run " +
+				"IPv6-only gives up its IPv4 lease. Leave blank to keep the router's setting; " +
+				"an older router is never sent it."},
 		{Name: "leaseScript", ROS: "lease-script", Label: "Lease Script", Type: TypeCode, Code: true, Clearable: true},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
