@@ -42,6 +42,7 @@ import (
 	"time"
 
 	"mikrodash/internal/audit"
+	"mikrodash/internal/backups"
 	"mikrodash/internal/guard"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
@@ -268,7 +269,8 @@ func (cn *conn) readIdentity() (serial, version string, err error) {
 		return "", "", err
 	}
 	if len(res) > 0 {
-		version = strings.Split(res[0]["version"], " ")[0]
+		// The same split the runner stores and the guard compares, not a copy.
+		version = backups.ShortVersion(res[0]["version"])
 	}
 	return serial, version, nil
 }
