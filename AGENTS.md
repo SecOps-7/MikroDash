@@ -260,10 +260,26 @@ events always carry the full row, so this only affects the initial `/print`.
 
 On the v7 wifi package, including unknown or absent field names in `=.proplist=`
 for `/interface/wifi/registration-table/print` can make RouterOS **filter rows**
-rather than omit those fields per row - requesting `signal` (which is
-`signal-strength` in the new API) may return only clients where it is non-empty.
-**Do not use `=.proplist=` on wireless registration-table calls.** The table is
-small enough that the optimisation is not worth the risk.
+rather than omit those fields per row - asking one stack for the other stack's
+name for the signal (`signal` on the modern menu, `signal-strength` on the legacy
+one) may return only clients where it is non-empty.
+
+**A field list on a registration table names only fields that menu has, and only
+ones every row carries; never a name from the other Wi-Fi stack.** Narrowed from
+"never use a field list" on 2026-11-10, because the lists in use are all real
+names and the failure recorded here was a wrong name, not a list. Checked by
+`TestRegistrationTableFieldListsNameRealFields` against
+`internal/verify/testdata/registration-table-fields.json`: the modern menu's
+fields from the 7.25.1 router's own completion list, the legacy menu's from the
+manual. A name in use but not yet confirmed is recorded there as unverified, with
+what would settle it; today that is the legacy table's `ssid`, which the manual
+does not list.
+
+**A field only some rows carry stays out of a list**: `eap-identity`, `mfp` (7.25+)
+or `dhcp-hostname` would risk dropping the clients without one. The Wireless
+page's client read asks for every field for that reason, and where it shares a
+stream with a listed read the merge drops the list (`mergeTableStream`). Whether
+7.25 still filters rows was not re-measured: CHR Test has no radio.
 
 ### `/queue/*` - units, unlimited, and where statistics come from
 
