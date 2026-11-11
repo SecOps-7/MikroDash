@@ -209,7 +209,19 @@ type Field struct {
 	// it and change nothing, so those declare their default in ClearAs instead.
 	ClearBang bool
 	// Clearable means "send this even when empty, so the operator can empty it".
-	Clearable   bool
+	Clearable bool
+	// ClearIfHeld narrows Clearable: on an edit that carries the stored row, a
+	// blank is sent as a clear only when that row holds the property. For a
+	// property newer than some RouterOS v7 the app still talks to, because a
+	// router refuses a write naming a property it does not have, and a router
+	// that does not have it never lists it. A property it has but leaves out
+	// while empty has nothing to clear, so skipping it is correct there too.
+	// WireGuard's client fields are the case: `client-allowed-address` is 7.21,
+	// and every peer save on a 7.20 router sent it and was refused.
+	//
+	// An edit WITHOUT the stored row (an undo, a fleet write) clears as plain
+	// Clearable does, as before; see Validated.Stored.
+	ClearIfHeld bool
 	Options     []string
 	Min, Max    *int
 	ShowIf      *ShowIf
@@ -720,6 +732,11 @@ func (r *Resource) BuildArgs(v Validated) []string {
 		// hold, so without this every such field was "cleared": a remote log
 		// action's rename also wrote an empty `memory-stop-on-full`.
 		if v.Editing && f.Clearable && f.Applies(v.Values) {
+			if f.ClearIfHeld && v.Stored != nil {
+				if _, held := v.Stored[f.ROS]; !held {
+					continue
+				}
+			}
 			if f.ClearBang {
 				if v.Stored != nil {
 					if _, held := v.Stored[f.ROS]; !held {
@@ -3179,10 +3196,15 @@ var WgPeer = &Resource{
 		{Name: "privateKey", ROS: "private-key", Label: "Client Private Key", Type: TypeSecret,
 			Help: "leave blank to keep the current key; type `auto` to have the router " +
 				"generate one. RouterOS stores this so it can print the client configuration."},
+		//
+		// THE CLIENT FIELDS CLEAR ONLY WHAT THE ROUTER HOLDS (ClearIfHeld). They
+		// arrived over v7 - most by 7.12, `client-allowed-address` in 7.21 - and a
+		// blank one used to be sent as a clear on every save, so a rename on an
+		// older router was refused for a property it did not have.
 		{Name: "clientAddress", ROS: "client-address", Label: "Client Address",
-			Type: TypeText, Clearable: true, Placeholder: "10.0.0.2/32",
+			Type: TypeText, Clearable: true, ClearIfHeld: true, Placeholder: "10.0.0.2/32",
 			Help: "the address the client gives its own tunnel interface"},
-		{Name: "clientDns", ROS: "client-dns", Label: "Client DNS", Type: TypeText, Clearable: true},
+		{Name: "clientDns", ROS: "client-dns", Label: "Client DNS", Type: TypeText, Clearable: true, ClearIfHeld: true},
 		// ── HOST ONLY. THE ROUTER APPENDS THE PORT ITSELF ────────────────
 		//
 		// Measured on a lab CHR (7.24.4): `show-client-config` renders
@@ -3194,13 +3216,13 @@ var WgPeer = &Resource{
 		// The placeholder and help say so, because the field's NAME invites the
 		// mistake and nothing on the router refuses it.
 		{Name: "clientEndpoint", ROS: "client-endpoint", Label: "Client Endpoint",
-			Type: TypeText, Clearable: true, Placeholder: "vpn.example.com",
+			Type: TypeText, Clearable: true, ClearIfHeld: true, Placeholder: "vpn.example.com",
 			Help: "host only — the router appends the interface's listen port. " +
 				"A port here is emitted twice and the client cannot connect."},
 		{Name: "clientKeepalive", ROS: "client-keepalive", Label: "Client Keepalive",
-			Type: TypeText, Clearable: true, Placeholder: "25s"},
+			Type: TypeText, Clearable: true, ClearIfHeld: true, Placeholder: "25s"},
 		{Name: "clientAllowedAddress", ROS: "client-allowed-address",
-			Label: "Client Allowed Addresses", Type: TypeText, Clearable: true,
+			Label: "Client Allowed Addresses", Type: TypeText, Clearable: true, ClearIfHeld: true,
 			Help: "RouterOS 7.21 and later. What the client routes into the tunnel; " +
 				"older routers always send everything."},
 		// RouterOS 7.25 ("wireguard - add the client-mtu parameter"). Measured on

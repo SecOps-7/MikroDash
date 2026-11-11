@@ -74,3 +74,50 @@ func clone(m map[string]string) map[string]string {
 	}
 	return out
 }
+
+// TestAWireGuardClientFieldIsClearedOnlyWhereTheRouterHasIt (ClearIfHeld). A
+// peer save sent every blank client field as a clear, so on a router before
+// 7.21 a rename was refused for `client-allowed-address`, a property it does
+// not have. The rows are the shapes RouterOS returns: measured on CHR Test,
+// 7.25.1, an empty `client-endpoint` and `client-allowed-address` are listed
+// and an empty `client-address`, `client-dns` and `client-keepalive` are not.
+func TestAWireGuardClientFieldIsClearedOnlyWhereTheRouterHasIt(t *testing.T) {
+	base := map[string]string{"interface": "wg0", "publicKey": strings.Repeat("A", 43) + "=",
+		"allowedAddress": "10.0.0.2/32", "comment": "renamed"}
+	args := func(stored map[string]string) []string {
+		v, errs := WgPeer.Validate(clone(base), true)
+		if len(errs) > 0 {
+			t.Fatal(errs)
+		}
+		v.Stored = stored
+		return WgPeer.BuildArgs(v)
+	}
+	has := func(a []string, w string) bool { return slices.Contains(a, w) }
+
+	// A 7.20 router: no client-allowed-address at all, the other two listed.
+	old := args(map[string]string{"client-endpoint": "", "client-listen-port": "0"})
+	if has(old, "=client-allowed-address=") {
+		t.Errorf("a router without client-allowed-address was sent a clear of it: %v", old)
+	}
+	if !has(old, "=client-endpoint=") {
+		t.Errorf("a property the router lists was not cleared: %v", old)
+	}
+
+	// 7.25.1: a client DNS that HAS a value is listed, so blanking it clears it.
+	cur := args(map[string]string{"client-endpoint": "", "client-allowed-address": "", "client-dns": "1.1.1.1"})
+	for _, w := range []string{"=client-dns=", "=client-allowed-address=", "=client-endpoint="} {
+		if !has(cur, w) {
+			t.Errorf("%s was not cleared on a router that holds it: %v", w, cur)
+		}
+	}
+	// ...and one left out because it is empty has nothing to clear.
+	if has(cur, "=client-keepalive=") || has(cur, "=client-address=") {
+		t.Errorf("an empty, unlisted property was cleared: %v", cur)
+	}
+
+	// No stored row (an undo, a fleet write): clears as before, so an undo of a
+	// change that set a client field still takes it back.
+	if a := args(nil); !has(a, "=client-dns=") || !has(a, "=client-allowed-address=") {
+		t.Errorf("without the stored row the clears went missing: %v", a)
+	}
+}
