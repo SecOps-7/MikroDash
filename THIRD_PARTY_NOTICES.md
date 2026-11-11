@@ -74,10 +74,17 @@ THE SOFTWARE.
 
 ## Chart.js - MIT
 
-`web/public/vendor/chart.umd.min.js`, Chart.js v4.4.2, https://www.chartjs.org
+`web/public/vendor/chart.umd.min.js`, Chart.js v4.6.1, https://www.chartjs.org
 
-The vendored file carries only a jsDelivr build banner and no copyright line, so
-this was taken from the project's LICENSE.md:
+The vendored file is the npm package's own `dist/chart.umd.min.js` (integrity
+checked by npm on 2026-11-11), and its header carries:
+
+    Chart.js v4.6.1
+    https://www.chartjs.org
+    (c) 2026 Chart.js Contributors
+    Released under the MIT License
+
+The licence text is the package's LICENSE.md:
 
 ```
 The MIT License (MIT)

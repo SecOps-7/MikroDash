@@ -129,7 +129,7 @@ var directModules = map[string]bool{
 // the build reports these, so the ledger checks them against
 // `THIRD_PARTY_NOTICES.md`, which is the file that has to be right anyway.
 var webLibraries = []Dependency{
-	{Name: "Chart.js", Version: "4.4.2", Licence: "MIT",
+	{Name: "Chart.js", Version: "4.6.1", Licence: "MIT",
 		URL: "https://github.com/chartjs/Chart.js", Kind: KindWeb},
 	{Name: "Tabler", Version: "2.47.0", Licence: "MIT",
 		URL: "https://github.com/tabler/tabler-icons", Kind: KindWeb},
