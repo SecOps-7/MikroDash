@@ -8,7 +8,7 @@ require (
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/go-routeros/routeros/v3 v3.0.1
 	github.com/oschwald/maxminddb-golang/v2 v2.9.0
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2
 	golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee
 	modernc.org/sqlite v1.62.0
 )
