@@ -73,15 +73,18 @@ var moduleLicences = map[string]string{
 	"github.com/oschwald/maxminddb-golang/v2": "ISC",
 	"github.com/remyoudompheng/bigfft":        "BSD-3-Clause",
 	"golang.org/x/crypto":                     "BSD-3-Clause",
-	"golang.org/x/net":                        "BSD-3-Clause",
-	"golang.org/x/sys":                        "BSD-3-Clause",
-	"golang.org/x/time":                       "BSD-3-Clause",
-	"golang.zx2c4.com/wireguard":              "MIT",
-	"gvisor.dev/gvisor":                       "Apache-2.0",
-	"modernc.org/libc":                        "BSD-3-Clause",
-	"modernc.org/mathutil":                    "BSD-3-Clause",
-	"modernc.org/memory":                      "BSD-3-Clause",
-	"modernc.org/sqlite":                      "BSD-3-Clause",
+	// Linked since 2026-11-11, when gvisor moved to its current `go` branch;
+	// read from its LICENSE in the module cache, third clause present.
+	"golang.org/x/exp":           "BSD-3-Clause",
+	"golang.org/x/net":           "BSD-3-Clause",
+	"golang.org/x/sys":           "BSD-3-Clause",
+	"golang.org/x/time":          "BSD-3-Clause",
+	"golang.zx2c4.com/wireguard": "MIT",
+	"gvisor.dev/gvisor":          "Apache-2.0",
+	"modernc.org/libc":           "BSD-3-Clause",
+	"modernc.org/mathutil":       "BSD-3-Clause",
+	"modernc.org/memory":         "BSD-3-Clause",
+	"modernc.org/sqlite":         "BSD-3-Clause",
 }
 
 // directModules is what `go.mod` REQUIRES BY NAME, as opposed to what those
