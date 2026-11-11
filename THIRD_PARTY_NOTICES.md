@@ -33,18 +33,19 @@ It is not duplicated here; that file is the notice.
 
 ## Tabler - MIT
 
-`web/public/vendor/tabler.min.css`, Tabler v1.4.0, https://tabler.io
+`web/public/vendor/tabler.min.css`, Tabler v1.7.4, https://tabler.io
 
-The vendored file's own header carries:
+The vendored file is the npm package `@tabler/core@1.7.4`'s own
+`dist/css/tabler.min.css` (integrity checked by npm on 2026-11-11), and its
+header carries:
 
-    Tabler v1.4.0 (https://tabler.io)
-    Copyright 2018-2025 The Tabler Authors
-    Copyright 2018-2025 codecalm.net Pawel Kuna
+    Tabler v1.7.4 (https://tabler.io)
+    Copyright 2018-2026 The Tabler Authors
+    Copyright 2018-2026 codecalm.net Pawel Kuna
 
-**Upstream's current LICENSE says "2018-2026"**, because it has moved on since
-v1.4.0 was vendored. The range above is the one shipped with the file actually
-redistributed here, which is the one that applies to it. The licence text is
-otherwise unchanged:
+The npm package ships no licence file (its package.json declares MIT), so the
+text is upstream's LICENSE at the `@tabler/core@1.7.4` tag, compared word for
+word on 2026-11-11:
 
 ```
 The MIT License (MIT)
