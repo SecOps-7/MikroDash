@@ -134,7 +134,13 @@ FROM alpine:3.24
 # ntfy, and an image with no roots fails all three at the moment they matter.
 # tzdata: `alertTimestamp` calls time.LoadLocation with the install's display
 # zone, which silently falls back to UTC without the database.
-RUN apk add --no-cache ca-certificates tzdata
+#
+# `apk upgrade` first, because the base image is a snapshot and Alpine patches
+# the 3.24 branch between snapshots: on 2026-11-11 the image still carried zlib
+# 1.3.2-r1 while the branch had 1.4-r0, the fix for CVE-2026-4738. The binary is
+# static and uses none of it; what ships in the image is still scanned and still
+# ours, so every build takes the branch's current packages.
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=build /out/mikrodash /usr/local/bin/mikrodash
 COPY --from=build /src/web/dist  /app/web/dist
