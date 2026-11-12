@@ -141,6 +141,9 @@ var portAddedPrunes = map[string]string{
 	"wifi_samples": "the Wi-Fi client history, an optional feature live never had. It ages on its " +
 		"own setting, a week by default, because a sample a minute per client is the largest table " +
 		"here for its age and only recent history answers its question",
+	"app_usage": "the Apps Usage history (2026-11-12), an optional feature live never had. Hourly " +
+		"byte counts per application are the same kind of series as the traffic rollups, so they " +
+		"age on the same metric policy",
 	"monitor_runs": "when each router was being observed (2026-10-01), so the Devices page's " +
 		"connectivity strip can draw time nobody was watching as not-monitored. Live had no such " +
 		"record. It ages on the connectivity policy because a run only means anything beside the " +
@@ -264,6 +267,9 @@ func TestPruneDeletesOnlyWhatIsOlderThanItsOwnPolicy(t *testing.T) {
 		// Wi-Fi client history ages on its own setting.
 		{"wifi_samples", 400,
 			`INSERT INTO wifi_samples (router_id, ts, mac) VALUES ('r1', ?, '02:00:00:00:00:01')`, nil},
+		// App usage ages on the metric policy, by the hour's start.
+		{"app_usage", 10,
+			`INSERT INTO app_usage (router_id, app, hour, rx_bytes, tx_bytes) VALUES ('r1', 'netflix', ?, 1, 1)`, nil},
 	}
 
 	for _, s := range seeds {
@@ -324,7 +330,7 @@ func openTestDB(t *testing.T) *DB {
 	}
 	// AND THE REAL `monitorRunsDDL`, the constant itself rather than a retyped
 	// copy, for the same reason as the line above.
-	if _, err := h.Exec(historyDDL + monitorRunsDDL + clientWatchDDL); err != nil {
+	if _, err := h.Exec(historyDDL + monitorRunsDDL + clientWatchDDL + appUsageDDL); err != nil {
 		t.Fatal(err)
 	}
 	_ = h.Close()

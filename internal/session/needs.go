@@ -72,6 +72,9 @@ type Reasons struct {
 	// WifiHistory is a router whose Wi-Fi clients are being recorded (Settings
 	// -> Features). Only routers that have shown clients are held for it.
 	WifiHistory bool
+	// AppHistory is a router whose app usage is being recorded (Settings ->
+	// Features, switched on per router on the Apps Usage page).
+	AppHistory bool
 }
 
 // historyFeeds are the two collectors continuous history is written from.
@@ -99,6 +102,10 @@ var watchFeeds = []string{"wireless", "arp"}
 
 // wifiHistoryFeeds is what a Wi-Fi client sample is written from.
 var wifiHistoryFeeds = []string{"wireless"}
+
+// appHistoryFeeds is what app usage is summed from. The apps collector reads
+// the DNS cache itself, so it is the whole of it.
+var appHistoryFeeds = []string{"apps"}
 
 // Needs reports whether a collector should run, given why the session is alive.
 //
@@ -150,6 +157,13 @@ func Needs(key string, why Reasons) bool {
 			}
 		}
 	}
+	if why.AppHistory {
+		for _, k := range appHistoryFeeds {
+			if k == key {
+				return true
+			}
+		}
+	}
 	return false
 }
 
@@ -163,6 +177,7 @@ func (s *Session) reasonsLocked() Reasons {
 		Warm:        s.holds["warm"],
 		Watch:       s.holds["watch"],
 		WifiHistory: s.holds["wifi-history"],
+		AppHistory:  s.holds["app-history"],
 	}
 }
 

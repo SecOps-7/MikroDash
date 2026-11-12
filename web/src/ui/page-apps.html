@@ -7,12 +7,14 @@
             <span id="appsBadge" class="card-badge" title="Apps with traffic">0</span>
             <span id="appsTabs" class="stab-bar rttab-bar" role="tablist">
               <button class="stab active" type="button" role="tab" aria-selected="true" data-appstab="live">Live</button>
-              <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="day">Today</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="day">24 hours</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="week">7 days</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="month">30 days</button>
             </span>
           </div>
           <div class="hdr-actions d-flex align-items-center gap-2">
+            <button class="sbtn sbtn-outline is-sm" id="appsRecord" type="button" style="display:none"
+              title="Keep this router's app usage by the hour">Record this router</button>
             <input id="appsSearch" class="sform-input sform-sm" type="search" placeholder="Search apps"
               aria-label="Search apps" autocomplete="off">
           </div>
@@ -46,6 +48,8 @@
           </div>
 
           <div class="apps-note" id="appsNote" hidden></div>
+
+          <div class="apps-hist" id="appsHistChart" hidden></div>
 
           <div class="data-scroll apps-table-wrap">
             <table class="table table-vcenter mb-0">

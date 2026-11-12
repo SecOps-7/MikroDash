@@ -205,6 +205,12 @@ var pruneRules = []pruneRule{
 
 	// ── WI-FI CLIENT HISTORY, ITS OWN POLICY ────────────────────────────────
 	{"wifi_samples", "ts", PruneDays.WifiDays, true},
+
+	// ── APPS USAGE HISTORY, ON THE METRIC POLICY ────────────────────────────
+	//
+	// Hourly byte counts per application: the same kind of series as the
+	// traffic rollups, so it ages as they do. Keyed on `hour`, its start.
+	{"app_usage", "hour", PruneDays.MetricDays, true},
 }
 
 const msPerDay = 86400000

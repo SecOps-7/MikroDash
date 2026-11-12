@@ -22,7 +22,8 @@
       "watchListEnabled",
       "wifiHistoryEnabled",
       "wifiWeakSpotsEnabled",
-      "capVersionsEnabled"
+      "capVersionsEnabled",
+      "appHistoryEnabled"
     ],
     "checkOn": [
       "pageAudit",

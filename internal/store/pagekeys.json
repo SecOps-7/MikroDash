@@ -38,5 +38,6 @@
   "watchListEnabled",
   "wifiHistoryEnabled",
   "wifiWeakSpotsEnabled",
-  "capVersionsEnabled"
+  "capVersionsEnabled",
+  "appHistoryEnabled"
 ]

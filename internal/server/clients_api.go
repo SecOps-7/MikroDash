@@ -10,7 +10,8 @@ package server
 //	DELETE /api/watch?routerId=&mac=                 stop watching it
 //
 // Both are about one router's clients, so both are gated on the Wifi Clients
-// page for that router: read to look, write to change the watch list.
+// page for that router (routerFeatureGate): read to look, write to change the
+// watch list or the recording.
 
 import (
 	"encoding/json"
@@ -35,9 +36,12 @@ func (s *Server) registerClientFeatures(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/watch", s.watchDelete)
 }
 
-// clientsGate is the gate the four share: nil when it refused, having answered
-// the request itself.
-func (s *Server) clientsGate(w http.ResponseWriter, r *http.Request, feature, routerID, access string) *Session {
+// routerFeatureGate is the gate an optional feature about one router's page
+// shares: the feature on, a signed-in user, a valid router id, and `access` on
+// `page` for that router. Nil when it refused, having answered the request
+// itself. The Wi-Fi features ask for the Wifi Clients page, the Apps Usage
+// history (apps_history.go) for the Apps Usage page.
+func (s *Server) routerFeatureGate(w http.ResponseWriter, r *http.Request, feature, page, routerID, access string) *Session {
 	sess := s.layoutSession(w, r)
 	if sess == nil || !s.featureGate(w, feature) {
 		return nil
@@ -50,7 +54,7 @@ func (s *Server) clientsGate(w http.ResponseWriter, r *http.Request, feature, ro
 		writeJSON400OK(w)
 		return nil
 	}
-	if !permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "wifi-clients", access, routerID)) {
+	if !permitted(s.rbac.CanPage(s.userIDFor(sess.Username), page, access, routerID)) {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
 		return nil
 	}
@@ -60,7 +64,7 @@ func (s *Server) clientsGate(w http.ResponseWriter, r *http.Request, feature, ro
 func (s *Server) wifiHistoryGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	rid := q.Get("routerId")
-	if s.clientsGate(w, r, store.FeatureWifiHistory, rid, "read") == nil {
+	if s.routerFeatureGate(w, r, store.FeatureWifiHistory, "wifi-clients", rid, "read") == nil {
 		return
 	}
 	hours, _ := strconv.Atoi(q.Get("hours"))
@@ -78,7 +82,7 @@ func (s *Server) wifiHistoryGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) wifiHistoryStatus(w http.ResponseWriter, r *http.Request) {
 	rid := r.URL.Query().Get("routerId")
-	if s.clientsGate(w, r, store.FeatureWifiHistory, rid, "read") == nil {
+	if s.routerFeatureGate(w, r, store.FeatureWifiHistory, "wifi-clients", rid, "read") == nil {
 		return
 	}
 	on, err := s.auditDB.WifiHistoryRouters()
@@ -98,7 +102,7 @@ func (s *Server) wifiHistoryRecord(w http.ResponseWriter, r *http.Request) {
 		writeJSON400OK(w)
 		return
 	}
-	sess := s.clientsGate(w, r, store.FeatureWifiHistory, in.RouterID, "write")
+	sess := s.routerFeatureGate(w, r, store.FeatureWifiHistory, "wifi-clients", in.RouterID, "write")
 	if sess == nil {
 		return
 	}
@@ -117,7 +121,7 @@ func (s *Server) wifiHistoryRecord(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) watchGet(w http.ResponseWriter, r *http.Request) {
 	rid := r.URL.Query().Get("routerId")
-	if s.clientsGate(w, r, store.FeatureWatchList, rid, "read") == nil {
+	if s.routerFeatureGate(w, r, store.FeatureWatchList, "wifi-clients", rid, "read") == nil {
 		return
 	}
 	devs, err := s.watchStates(rid)
@@ -134,7 +138,7 @@ func (s *Server) watchSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON400OK(w)
 		return
 	}
-	sess := s.clientsGate(w, r, store.FeatureWatchList, in.RouterID, "write")
+	sess := s.routerFeatureGate(w, r, store.FeatureWatchList, "wifi-clients", in.RouterID, "write")
 	if sess == nil {
 		return
 	}
@@ -156,7 +160,7 @@ func (s *Server) watchSave(w http.ResponseWriter, r *http.Request) {
 func (s *Server) watchDelete(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	rid := q.Get("routerId")
-	sess := s.clientsGate(w, r, store.FeatureWatchList, rid, "write")
+	sess := s.routerFeatureGate(w, r, store.FeatureWatchList, "wifi-clients", rid, "write")
 	if sess == nil {
 		return
 	}

@@ -14,6 +14,7 @@ const (
 	FeatureWifiHistory   = "wifiHistoryEnabled"   // record each Wi-Fi client's signal and AP
 	FeatureWifiWeakSpots = "wifiWeakSpotsEnabled" // colour the Wi-Fi map by client signal
 	FeatureCapVersions   = "capVersionsEnabled"   // CAP versions against the manager's, and upgrade
+	FeatureAppHistory    = "appHistoryEnabled"    // record each app's bytes per hour, per router
 )
 
 // FeatureOn reports whether an optional feature is switched on.

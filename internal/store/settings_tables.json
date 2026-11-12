@@ -114,7 +114,8 @@
     "wifiWeakSpotsEnabled": false,
     "capVersionsEnabled": false,
     "domainRoutingList": "",
-    "dbWifiHistoryRetentionDays": 7
+    "dbWifiHistoryRetentionDays": 7,
+    "appHistoryEnabled": false
   },
   "defaultsOrder": [
     "routerHost",
@@ -230,7 +231,8 @@
     "wifiWeakSpotsEnabled",
     "capVersionsEnabled",
     "domainRoutingList",
-    "dbWifiHistoryRetentionDays"
+    "dbWifiHistoryRetentionDays",
+    "appHistoryEnabled"
   ],
   "encrypted": [
     "routerPass",

@@ -419,3 +419,29 @@ func TestAnOccupiedDemandRoomIsAReasonToRun(t *testing.T) {
 		t.Error("a modal open on r2 let r1's ifStatus run")
 	}
 }
+
+// TestARecordedRouterRunsOnlyTheAppsCollector. A router whose app usage is
+// recorded (Settings -> Features, switched on per router on the Apps Usage
+// page) and that nobody is viewing runs the apps collector and nothing else:
+// it reads the DNS cache itself, and the history is summed from its readings.
+func TestARecordedRouterRunsOnlyTheAppsCollector(t *testing.T) {
+	why := Reasons{AppHistory: true}
+	if !Needs("apps", why) {
+		t.Error("a router recorded for app usage would not run the apps collector, so nothing is written")
+	}
+	for _, k := range []string{"conns", "bandwidth", "dns", "dhcpLeases", "wireless", "traffic", "wan"} {
+		if Needs(k, why) {
+			t.Errorf("%s would run on a router held only for app usage history", k)
+		}
+	}
+	if Needs("apps", Reasons{WifiHistory: true}) {
+		t.Error("the Wi-Fi history hold runs the apps collector; the two are separate choices")
+	}
+	s := &Session{holds: map[string]bool{"app-history": true}}
+	s.mu.Lock()
+	got := s.reasonsLocked()
+	s.mu.Unlock()
+	if !got.AppHistory || got.WifiHistory {
+		t.Errorf("the app-history hold reads as %+v", got)
+	}
+}

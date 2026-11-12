@@ -159,6 +159,8 @@ func (s *Server) holdOne(r store.Router) {
 		// recorded. See featureHoldWanted.
 		{"watch", !r.Disabled && s.featureHoldWanted(store.FeatureWatchList, r.ID)},
 		{"wifi-history", !r.Disabled && s.featureHoldWanted(store.FeatureWifiHistory, r.ID)},
+		// And the apps collector on a router whose app usage is recorded.
+		{"app-history", !r.Disabled && s.featureHoldWanted(store.FeatureAppHistory, r.ID)},
 	} {
 		if !h.want {
 			s.sessions.Drop(r.ID, h.reason)
@@ -209,7 +211,8 @@ func (s *Server) activeRouterID() string {
 // The watch list wants it on a router with a device watched there. The Wi-Fi
 // history wants the Wi-Fi reads on a router it was switched on for, on the
 // Wifi Clients page: recording is a choice per router, and the others are not
-// held on the chance they have clients.
+// held on the chance they have clients. The Apps Usage history wants the apps
+// collector on a router switched on for it on the Apps Usage page, likewise.
 func (s *Server) featureHoldWanted(feature, routerID string) bool {
 	if s.auditDB == nil || !s.featureOn(feature) {
 		return false
@@ -221,11 +224,14 @@ func (s *Server) featureHoldWanted(feature, routerID string) bool {
 	case store.FeatureWifiHistory:
 		recorded, err := s.auditDB.WifiHistoryRouters()
 		return err == nil && recorded[routerID]
+	case store.FeatureAppHistory:
+		recorded, err := s.auditDB.AppHistoryRouters()
+		return err == nil && recorded[routerID]
 	}
 	return false
 }
 
-// syncFeatureHolds re-applies the two feature holds to every router: after a
+// syncFeatureHolds re-applies the three feature holds to every router: after a
 // settings save, a watch list or recording change, and on the feature loop's
 // pass.
 func (s *Server) syncFeatureHolds() {
@@ -236,7 +242,8 @@ func (s *Server) syncFeatureHolds() {
 	for _, r := range all {
 		for _, h := range []struct {
 			reason, feature string
-		}{{"watch", store.FeatureWatchList}, {"wifi-history", store.FeatureWifiHistory}} {
+		}{{"watch", store.FeatureWatchList}, {"wifi-history", store.FeatureWifiHistory},
+			{"app-history", store.FeatureAppHistory}} {
 			if r.Disabled || !s.featureHoldWanted(h.feature, r.ID) {
 				s.sessions.Drop(r.ID, h.reason)
 				continue

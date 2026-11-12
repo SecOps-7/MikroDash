@@ -849,6 +849,8 @@ func TestRemovingARouterPurgesWhatOnlyMadeSenseWithIt(t *testing.T) {
 		"wifi_samples": "router_id", "watch_devices": "router_id", "wifi_history_routers": "router_id",
 		// AND WHICH CHANNELS WERE SENT ITS OPEN ALERTS: they can never recover.
 		"alert_sent": "router_id",
+		// AND ITS APP USAGE HISTORY, and whether it is recorded.
+		"app_usage": "router_id", "app_history_routers": "router_id",
 	} {
 		if n := countRows(t, s, name, table, "r1"); n != 0 {
 			t.Errorf("%s still has %d rows for the removed router", name, n)
@@ -972,6 +974,11 @@ func seedPurgeables(t *testing.T, s *Server) {
 		   alert_type TEXT NOT NULL, subject TEXT NOT NULL DEFAULT '',
 		   channel_id TEXT NOT NULL, sent_at INTEGER NOT NULL,
 		   PRIMARY KEY (router_id, alert_type, subject, channel_id))`,
+		// APP USAGE HISTORY, for the same reason.
+		`CREATE TABLE IF NOT EXISTS app_usage (router_id TEXT NOT NULL, app TEXT NOT NULL,
+		   hour INTEGER NOT NULL, rx_bytes INTEGER NOT NULL DEFAULT 0,
+		   tx_bytes INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (router_id, app, hour))`,
+		`CREATE TABLE IF NOT EXISTS app_history_routers (router_id TEXT PRIMARY KEY)`,
 	}
 	for _, rid := range []string{"r1", "r2"} {
 		stmts = append(stmts,
@@ -980,6 +987,8 @@ func seedPurgeables(t *testing.T, s *Server) {
 			`INSERT INTO wifi_samples (router_id, ts, mac) VALUES ('`+rid+`', 1, '02:00:00:00:00:01')`,
 			`INSERT INTO watch_devices (router_id, mac) VALUES ('`+rid+`', '02:00:00:00:00:01')`,
 			`INSERT INTO wifi_history_routers (router_id) VALUES ('`+rid+`')`,
+			`INSERT INTO app_usage (router_id, app, hour, rx_bytes, tx_bytes) VALUES ('`+rid+`', 'netflix', 0, 1, 2)`,
+			`INSERT INTO app_history_routers (router_id) VALUES ('`+rid+`')`,
 			`INSERT INTO alert_sent (router_id, alert_type, channel_id, sent_at)
 			   VALUES ('`+rid+`', 'high_cpu', 'chan:c1', 1)`,
 			`INSERT INTO ping_samples (router_id, target, loss_pct, ts)

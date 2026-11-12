@@ -164,6 +164,9 @@ type Server struct {
 	dnsBulk dnsBulkJobs
 	// features is the optional features' background loop. See features_loop.go.
 	features *featureLoop
+	// appUsage sums Apps Usage readings into the stored history. See
+	// apps_history.go.
+	appUsage *appUsageRecorder
 	// aiLimit bounds questions to the model, per user per router (#98).
 	//
 	// EVERY ASK IS AN OUTBOUND REQUEST to an endpoint the operator named, which
@@ -443,6 +446,10 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	srv.sessions.SetOnIdentity(srv.persistRouterIdentity)
 	// The public address places the router on the map. Same ordering rule.
 	srv.sessions.SetOnPublicIP(srv.persistAutoGeo)
+	// The Apps Usage history takes every reading of every apps collector. Same
+	// ordering rule: a session binds it when it is built.
+	srv.appUsage = newAppUsageRecorder()
+	srv.sessions.SetOnAppUsage(srv.appUsage.add)
 	// `router:status` beyond a router's own room goes only to the browsers that
 	// may read that router. See Server.sendFleetStatus.
 	srv.sessions.SetFleetStatus(srv.sendFleetStatus)
@@ -655,6 +662,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerDNSFleetSync(mux)
 	s.registerDNSLists(mux)
 	s.registerClientFeatures(mux)
+	s.registerAppHistory(mux)
 	s.registerCapVersions(mux)
 	s.registerTopologyFleet(mux)
 	s.registerAlerts(mux)

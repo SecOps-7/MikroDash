@@ -16,7 +16,8 @@ const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 const ENTRY = path.join(ROOT, 'testdata', '.apps-entry.ts');
-fs.writeFileSync(ENTRY, "export { initAppsPage, APP_CAT_TONE, monogram } from '../web/src/pages/apps.js';\n");
+fs.writeFileSync(ENTRY, "export { initAppsPage, APP_CAT_TONE, monogram, historyView, historyBars } from '../web/src/pages/apps.js';\n" +
+  "export { applyPageVisibility } from '../web/src/caps.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.apps.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -26,7 +27,7 @@ fs.rmSync(ENTRY, { force: true });
 const IDS = ['appsBadge', 'appsTabs', 'appsSearch', 'appsTotal', 'appsTotalRx', 'appsTotalTx', 'appsCount',
   'appsCountFoot', 'appsTop', 'appsTopFoot', 'appsUnnamed', 'appsUnnamedFoot', 'appsRingWrap', 'appsRing',
   'appsRingValue', 'appsRingLabel', 'appsOrbit', 'appsTiles', 'appsNote', 'appsThead', 'appsTable',
-  'appsUnnamedWrap', 'appsUnnamedList', 'appsModal', 'appsModalTitle', 'appsModalBody'];
+  'appsUnnamedWrap', 'appsUnnamedList', 'appsModal', 'appsModalTitle', 'appsModalBody', 'appsRecord', 'appsHistChart'];
 
 function app(over) {
   return Object.assign({ id: 'netflix', name: 'Netflix', category: 'streaming', color: '#E50914', logo: 'mask',
@@ -56,7 +57,7 @@ function boot() {
   global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
   const mod = require(OUT);
   mod.initAppsPage(socket, () => true);
-  return { doc, mod, send: (p) => handlers['apps:update'](p),
+  return { doc, mod, send: (p) => handlers['apps:update'](p), on: (ev, d) => handlers[ev](d),
     restore: () => { global.document = prev.d; global.window = prev.w; } };
 }
 
@@ -118,5 +119,94 @@ function boot() {
   say('ok  categories and tones agree; monograms');
 }
 
-fs.rmSync(OUT, { force: true });
-say('apps-page: all checks passed');
+// ── 5. the stored tabs: Record this router, then the totals in bytes ──────
+//
+// A stored tab draws the same cards, ring, tiles and table from
+// /api/apps/history, in bytes, with a stacked bar per bucket in the apps' own
+// colours. Off, it says how to turn recording on and fetches nothing.
+const HIST = {
+  from: 0, to: 2,
+  apps: [
+    { id: 'netflix', name: 'Netflix', category: 'streaming', color: '#E50914', logo: 'mask', dark: false, rxBytes: 3 * 1073741824, txBytes: 0 },
+    { id: 'teams', name: 'Microsoft Teams', category: 'conferencing', color: '#6264A7', logo: 'image', dark: false, rxBytes: 512 * 1048576, txBytes: 512 * 1048576 },
+  ],
+  buckets: [
+    { ts: 1_800_000_000_000, apps: { netflix: 1073741824 } },
+    { ts: 1_800_086_400_000, apps: { netflix: 2 * 1073741824, teams: 1073741824 } },
+  ],
+};
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const calls = [];
+  let recording = false;
+  global.fetch = (url, init) => {
+    const method = (init && init.method) || 'GET';
+    calls.push(method + ' ' + url);
+    let body = HIST;
+    if (url.includes('/status')) body = { recording };
+    if (url.includes('/record')) { recording = JSON.parse(init.body).on; body = { ok: true, recording }; }
+    return Promise.resolve({ ok: true, statusText: 'OK', json: () => Promise.resolve(body) });
+  };
+  const { doc, mod, send, on, restore } = boot();
+  const clickTab = (t) => doc.nodes['appsTabs'].fire('click', { target: { closest: () => ({ dataset: { appstab: t } }) } });
+  on('router:active', { activeId: 'r1' });
+  send(payload({}));
+
+  // Feature off: the button is hidden, the tab explains, nothing is fetched.
+  clickTab('week');
+  await tick();
+  assert.strictEqual(doc.nodes['appsRecord'].style.display, 'none', 'the button shows with the feature off');
+  assert.ok(/Settings/.test(doc.nodes['appsNote'].textContent) && !doc.nodes['appsNote'].hidden,
+    'a stored tab with the feature off does not say how to turn it on: ' + doc.nodes['appsNote'].textContent);
+  assert.deepStrictEqual(calls, [], 'the feature is off and the page still asked the server: ' + calls);
+
+  // The feature on: the nav sweep is the switch's only path to the page.
+  const pd = global.document;
+  global.document = makeDoc([], { allowUnknown: ['*'] }); // the sweep walks the whole nav; not this page's concern
+  mod.applyPageVisibility({ appHistoryEnabled: true });
+  global.document = pd;
+  await tick(); await tick();
+  assert.strictEqual(doc.nodes['appsRecord'].style.display, '', 'the button is hidden with the feature on');
+  assert.strictEqual(doc.nodes['appsRecord'].textContent, 'Record this router');
+  assert.ok(/not being recorded/.test(doc.nodes['appsNote'].textContent), 'an unrecorded router is not explained: ' +
+    doc.nodes['appsNote'].textContent);
+  assert.ok(!calls.some((c) => c.startsWith('GET /api/apps/history?')), 'an unrecorded router\'s history was fetched');
+
+  // Record: POSTed for this router, then the week is fetched and drawn.
+  doc.nodes['appsRecord'].fire('click');
+  await tick(); await tick(); await tick();
+  assert.ok(calls.includes('POST /api/apps/history/record'), 'the button did not POST: ' + calls);
+  assert.strictEqual(doc.nodes['appsRecord'].textContent, 'Stop recording');
+  assert.ok(calls.includes('GET /api/apps/history?routerId=r1&period=week'), 'the week was not fetched: ' + calls);
+  assert.strictEqual(doc.nodes['appsNote'].hidden, true, 'the note stayed up with recording on');
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '4.0 GB', 'the total is not the stored bytes');
+  assert.strictEqual(doc.nodes['appsCountFoot'].textContent, 'in the last 7 days');
+  assert.strictEqual(doc.nodes['appsUnnamed'].textContent, '-', 'unnamed traffic is not stored, so it is not shown');
+  const tiles = String(doc.nodes['appsTiles'].innerHTML);
+  assert.ok(tiles.includes('3.0 GB') && tiles.includes('75% of recorded'), 'the Netflix tile is not its stored total:\n' + tiles);
+  const table = String(doc.nodes['appsTable'].innerHTML);
+  assert.ok(/apps-rx">512\.0 MB/.test(table) && /<td class="text-end mono">-<\/td>/.test(table),
+    'the table is not in bytes, or claims devices it does not store:\n' + table);
+  const chart = String(doc.nodes['appsHistChart'].innerHTML);
+  assert.strictEqual(doc.nodes['appsHistChart'].hidden, false, 'the bars are hidden on a stored tab');
+  assert.strictEqual((chart.match(/<rect /g) || []).length, 3, 'one segment per app per day with bytes:\n' + chart);
+  assert.ok(chart.includes('fill:#E50914') && chart.includes('fill:#6264A7'), 'a bar is not in its app\'s colour');
+  const hexes = [...new Set(chart.match(/#[0-9A-Fa-f]{3,8}\b/g) || [])];
+  assert.deepStrictEqual(hexes.sort(), ['#6264A7', '#E50914'], 'the chart has a colour that is neither an app\'s nor a token: ' + hexes);
+
+  // Back to Live: the bars go and the live payload is drawn again.
+  clickTab('live');
+  await tick();
+  assert.strictEqual(doc.nodes['appsHistChart'].hidden, true, 'the bars stayed up on Live');
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '50.00 Mbps', 'Live did not go back to the payload');
+  restore();
+
+  // The view itself: shares are of the recorded bytes, sparklines follow the buckets.
+  const v = mod.historyView(HIST, 'week');
+  assert.strictEqual(v.apps[0].share, 75);
+  assert.deepStrictEqual(v.apps[1].spark, [0, 1073741824]);
+  say('ok  the stored tabs: record this router, totals in bytes, bars in brand colours');
+
+  fs.rmSync(OUT, { force: true });
+  say('apps-page: all checks passed');
+})().catch((e) => { console.error(e); process.exitCode = 1; });

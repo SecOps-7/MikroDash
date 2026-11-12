@@ -119,7 +119,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -243,7 +244,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -367,7 +369,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -492,7 +495,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -617,7 +621,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -742,7 +747,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -867,7 +873,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -992,7 +999,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1115,7 +1123,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1238,7 +1247,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1361,7 +1371,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1486,7 +1497,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1609,7 +1621,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1732,7 +1745,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1855,7 +1869,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -1978,7 +1993,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -2102,7 +2118,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -2226,7 +2243,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -2349,7 +2367,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -2472,7 +2491,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -2595,7 +2615,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     },
     {
@@ -2718,7 +2739,8 @@
         "wifiWeakSpotsEnabled": false,
         "capVersionsEnabled": false,
         "domainRoutingList": "",
-        "dbWifiHistoryRetentionDays": 7
+        "dbWifiHistoryRetentionDays": 7,
+        "appHistoryEnabled": false
       }
     }
   ]

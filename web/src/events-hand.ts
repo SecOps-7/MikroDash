@@ -145,7 +145,7 @@ export interface PageSettings {
   dnsBulkEnabled: boolean; dnsCacheEnabled: boolean; dnsFleetSyncEnabled: boolean;
   dnsListsEnabled: boolean; dnsTraceEnabled: boolean; domainRoutingEnabled: boolean;
   watchListEnabled: boolean; wifiHistoryEnabled: boolean; wifiWeakSpotsEnabled: boolean;
-  capVersionsEnabled: boolean;
+  capVersionsEnabled: boolean; appHistoryEnabled: boolean;
 }
 
 export interface HandEvents {

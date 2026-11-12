@@ -77,7 +77,7 @@ export function getVpnDashTopN(): number {
 /** The optional features, Settings -> Features. */
 export type FeatureKey = 'dnsBulkEnabled' | 'dnsCacheEnabled' | 'dnsFleetSyncEnabled' | 'dnsListsEnabled' |
   'dnsTraceEnabled' | 'domainRoutingEnabled' | 'watchListEnabled' | 'wifiHistoryEnabled' |
-  'wifiWeakSpotsEnabled' | 'capVersionsEnabled';
+  'wifiWeakSpotsEnabled' | 'capVersionsEnabled' | 'appHistoryEnabled';
 
 const featureListeners: Array<() => void> = [];
 

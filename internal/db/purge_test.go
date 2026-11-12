@@ -177,6 +177,10 @@ var portAddedRouterPurgeTables = map[string]string{
 	"alert_sent": "which notification channels were sent this router's open alerts (2026-10-22), " +
 		"so a recovery goes only to them. Live had no such record. Its alerts can never recover " +
 		"once the router is gone, so the rows would wait for ever",
+	"app_usage": "the app usage history this router recorded (2026-11-12), an optional feature " +
+		"live never had. Hours of a router that is gone describe nothing anyone can look at",
+	"app_history_routers": "whether this router's app usage is recorded. The choice is about a " +
+		"router, and a router that left the fleet would be held for it for ever",
 }
 
 // TestPortAddedRouterPurgeTablesAreRecorded — BOTH DIRECTIONS.
@@ -255,6 +259,8 @@ var purgeInsert = map[string]string{
 	"wifi_history_routers": `INSERT INTO wifi_history_routers (router_id) VALUES (?)`,
 	"watch_devices":        `INSERT INTO watch_devices (router_id, mac) VALUES (?, '02:00:00:00:00:01')`,
 	"alert_sent":           `INSERT INTO alert_sent (router_id, alert_type, channel_id, sent_at) VALUES (?, 'high_cpu', 'c1', 1)`,
+	"app_usage":            `INSERT INTO app_usage (router_id, app, hour, rx_bytes, tx_bytes) VALUES (?, 'netflix', 0, 1, 2)`,
+	"app_history_routers":  `INSERT INTO app_history_routers (router_id) VALUES (?)`,
 }
 
 func purgeDB(t *testing.T) *DB {
@@ -264,7 +270,7 @@ func purgeDB(t *testing.T) *DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Exec(alertEventsDDL + purgeDDL + monitorRunsDDL + clientWatchDDL + alertSentDDL); err != nil {
+	if _, err := h.Exec(alertEventsDDL + purgeDDL + monitorRunsDDL + clientWatchDDL + alertSentDDL + appUsageDDL); err != nil {
 		t.Fatal(err)
 	}
 	for _, table := range append([]string{"ping_samples", "traffic_samples", "bandwidth_usage",

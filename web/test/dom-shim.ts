@@ -287,6 +287,10 @@ function makeDoc(ids, opts) {
         ? child.outerHTML : (child && child.innerHTML) || '');
       return child;
     };
+    // `remove` exists on every element. The shim keeps no parent pointer, so
+    // detaching is not modelled and it is a no-op: enough for a renderer that
+    // drops a node it built (the Apps ring's arcs) to finish rather than throw.
+    n.remove = () => {};
     n.querySelector = () => null;
     n.getAttribute = () => null;
     // `setAttribute` records rather than throwing: `aria-selected` is set on

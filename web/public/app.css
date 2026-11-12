@@ -3946,4 +3946,11 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .apps-credit{margin-top:1rem}
     .apps-empty{color:var(--text-muted);font-size:.8rem;padding:1rem}
     .apps-modal-sum{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}
+    .apps-hist{margin:0 0 1rem}
+    .apps-hist-chart{display:block;width:100%;height:170px}
+    .apps-hist-grid{stroke:rgb(from var(--border) r g b / .7);stroke-width:1;vector-effect:non-scaling-stroke}
+    .apps-hist-axis{fill:var(--text-muted);font-family:var(--font-mono);font-size:9px}
+    .apps-hist-legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;margin-top:.35rem;font-size:.72rem;color:var(--text-muted)}
+    .apps-hist-key{display:inline-flex;align-items:center;gap:.35rem}
+    .apps-hist-key i{display:inline-block;width:9px;height:9px;border-radius:2px}
     @media (prefers-reduced-motion:reduce){.apps-ring-arc,.apps-tile,.apps-share>span{transition:none}}

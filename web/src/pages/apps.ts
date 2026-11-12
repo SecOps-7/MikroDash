@@ -1,7 +1,13 @@
 // The Apps Usage page: live traffic by application, with each app's logo.
 //
-// One source, `apps:update`, from internal/collect/apps.go. Everything drawn
-// here is that payload; nothing is fetched or inferred in the browser.
+// Two sources. The Live tab is `apps:update`, from internal/collect/apps.go.
+// The 24 hours, 7 days and 30 days tabs are the stored history,
+// GET /api/apps/history (internal/server/apps_history.go): bytes per app per
+// hour, kept for the routers recording is switched on for (Settings ->
+// Features, then "Record this router" here). Both are turned into one view the
+// cards, ring, tiles and table draw, so the two cannot drift apart; only the
+// unit differs (a rate live, bytes stored), and the stored tabs add a stacked
+// bar per hour or day.
 //
 // ── HOW A LOGO IS DRAWN ─────────────────────────────────────────────────────
 //
@@ -20,7 +26,9 @@
 
 import type { Socket } from '../socket';
 import type { AppUsage, AppUsagePayload, AppDevice } from '../gen/payloads';
-import { esc, el, pill, fmtMbps, sparkPoints, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { esc, el, pill, fmtMbps, fmtBytes, sparkPoints, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { featureOn, onFeatures } from '../caps';
+import { fmtMonthDay, fmtTime } from '../timefmt';
 import type { PillTone } from '../palette';
 
 const LOGO_BASE = '/vendor/app-icons/';
@@ -28,6 +36,8 @@ const RING_R = 80;
 const RING_C = 2 * Math.PI * RING_R;
 const RING_SLICES = 8;
 const TILES = 12;
+/** How many apps the stored tabs' bars stack by name; the rest are one grey segment. */
+const BAR_APPS = 8;
 
 /** A category's pill tone. Every category in testdata/apps/catalogue.json has
  *  one; apps-page.test.ts holds the two lists together. */
@@ -68,67 +78,190 @@ export function logoHtml(a: Pick<AppUsage, 'id' | 'name' | 'logo' | 'dark' | 'co
     esc(monogram(a.name)) + '</span>';
 }
 
-const badge = (a: AppUsage, size: 'sm' | 'md' | 'lg'): string =>
+type Brand = Pick<AppUsage, 'id' | 'name' | 'logo' | 'dark' | 'color'>;
+
+const badge = (a: Brand, size: 'sm' | 'md' | 'lg'): string =>
   '<span class="app-badge app-badge-' + size + '" style="--app:' + esc(a.color) + '">' + logoHtml(a, size) + '</span>';
 
-const rates = (rx: number, tx: number): string =>
-  '<span class="apps-rx">&darr; ' + esc(fmtMbps(rx)) + '</span> <span class="apps-tx">&uarr; ' + esc(fmtMbps(tx)) + '</span>';
+const rates = (rx: number, tx: number, fmt: (n: number) => string): string =>
+  '<span class="apps-rx">&darr; ' + esc(fmt(rx)) + '</span> <span class="apps-tx">&uarr; ' + esc(fmt(tx)) + '</span>';
+
+/** One app as the page draws it, live (a rate) or stored (bytes). */
+export interface ViewApp extends Brand {
+  category: string;
+  rx: number; tx: number; total: number; share: number;
+  devices: number; top: string; spark: number[];
+}
+
+/** What the cards, ring, tiles and table draw. `live` is false for the stored
+ *  tabs: there are no devices, no unnamed traffic, and the unit is bytes. */
+export interface AppsView {
+  live: boolean;
+  rx: number; tx: number;
+  unnamed: number;
+  apps: ViewApp[];
+  fmt: (n: number) => string;
+  /** "now", "in the last 24 hours", ... for the labels. */
+  span: string;
+}
+
+/** GET /api/apps/history. */
+export interface AppHistory {
+  apps: Array<Brand & { category: string; rxBytes: number; txBytes: number }>;
+  buckets: Array<{ ts: number; apps: Record<string, number> }>;
+  from: number; to: number;
+}
+
+export type AppsPeriod = 'day' | 'week' | 'month';
+
+const SPAN: Record<AppsPeriod, string> = { day: 'in the last 24 hours', week: 'in the last 7 days', month: 'in the last 30 days' };
+
+export function liveView(p: AppUsagePayload): AppsView {
+  return {
+    live: true, rx: p.rxMbps, tx: p.txMbps, unnamed: p.unnamedMbps, fmt: fmtMbps, span: 'now',
+    apps: p.apps.map((a) => ({ id: a.id, name: a.name, category: a.category, color: a.color, logo: a.logo,
+      dark: a.dark, rx: a.rxMbps, tx: a.txMbps, total: a.totalMbps, share: a.share, devices: a.devices,
+      top: a.top, spark: a.spark })),
+  };
+}
+
+/** The stored totals as a view: each app's share of the recorded bytes, and
+ *  its line across the buckets for the tile's sparkline. Pure. */
+export function historyView(h: AppHistory, period: AppsPeriod): AppsView {
+  let rx = 0, tx = 0;
+  for (const a of h.apps) { rx += a.rxBytes; tx += a.txBytes; }
+  const all = rx + tx;
+  return {
+    live: false, rx, tx, unnamed: 0, fmt: fmtBytes, span: SPAN[period],
+    apps: h.apps.map((a) => {
+      const total = a.rxBytes + a.txBytes;
+      return { id: a.id, name: a.name, category: a.category, color: a.color, logo: a.logo, dark: a.dark,
+        rx: a.rxBytes, tx: a.txBytes, total, share: all > 0 ? (100 * total) / all : 0, devices: 0, top: '',
+        spark: h.buckets.map((b) => b.apps[a.id] || 0) };
+    }),
+  };
+}
+
+/** A stacked bar per bucket, the busiest apps in their brand colours and the
+ *  rest as one grey segment. Axes and grid are theme tokens. */
+export function historyBars(h: AppHistory, period: AppsPeriod): string {
+  if (!h.buckets.length) return '';
+  const W = 720, H = 170, L = 52, B = 18, T = 6;
+  const pw = W - L, ph = H - B - T;
+  const named = h.apps.slice(0, BAR_APPS);
+  const ids = new Set(named.map((a) => a.id));
+  const totals = h.buckets.map((b) => Object.values(b.apps).reduce((s, v) => s + v, 0));
+  const max = Math.max(1, ...totals);
+  const slot = pw / h.buckets.length;
+  const bw = Math.max(1, slot * 0.7);
+  const y = (v: number): number => T + ph - (v / max) * ph;
+  const label = (ts: number): string => period === 'day' ? fmtTime(ts, false) : fmtMonthDay(ts);
+  const every = period === 'month' ? 5 : period === 'day' ? 3 : 1;
+  let out = [0, 0.5, 1].map((f) =>
+    '<line class="apps-hist-grid" x1="' + L + '" x2="' + W + '" y1="' + y(max * f).toFixed(1) + '" y2="' + y(max * f).toFixed(1) + '"/>' +
+    '<text class="apps-hist-axis" x="' + (L - 4) + '" y="' + (y(max * f) + 3).toFixed(1) + '" text-anchor="end">' +
+    esc(f === 0 ? '0' : fmtBytes(Math.round(max * f))) + '</text>').join('');
+  h.buckets.forEach((b, i) => {
+    const x = L + i * slot + (slot - bw) / 2;
+    let acc = 0;
+    const seg = (v: number, colour: string, name: string): void => {
+      if (v <= 0) return;
+      out += '<rect x="' + x.toFixed(1) + '" y="' + y(acc + v).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' +
+        Math.max(0.5, y(acc) - y(acc + v)).toFixed(1) + '" style="fill:' + esc(colour) + '"><title>' +
+        esc(label(b.ts) + ' · ' + name + ': ' + fmtBytes(v)) + '</title></rect>';
+      acc += v;
+    };
+    for (const a of named) seg(b.apps[a.id] || 0, a.color || 'var(--text-muted)', a.name);
+    seg(Object.entries(b.apps).reduce((s, [id, v]) => s + (ids.has(id) ? 0 : v), 0), 'var(--text-muted)', 'other apps');
+    if (i % every === 0) {
+      out += '<text class="apps-hist-axis" x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">' +
+        esc(label(b.ts)) + '</text>';
+    }
+  });
+  const legend = named.map((a) => '<span class="apps-hist-key"><i style="background:' + esc(a.color || 'var(--text-muted)') +
+    '"></i>' + esc(a.name) + '</span>').join('') +
+    (h.apps.length > named.length ? '<span class="apps-hist-key"><i style="background:var(--text-muted)"></i>other apps</span>' : '');
+  return '<svg class="apps-hist-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="App usage by ' +
+    (period === 'day' ? 'hour' : 'day') + '">' + out + '</svg><div class="apps-hist-legend">' + legend + '</div>';
+}
 
 const COLS: SortCol[] = [
   { key: 'name', label: 'App' },
   { key: 'category', label: 'Category' },
   { key: 'devices', label: 'Devices', cls: 'text-end' },
-  { key: 'rxMbps', label: 'Rx', cls: 'text-end' },
-  { key: 'txMbps', label: 'Tx', cls: 'text-end' },
-  { key: 'totalMbps', label: 'Total', cls: 'text-end' },
+  { key: 'rx', label: 'Rx', cls: 'text-end' },
+  { key: 'tx', label: 'Tx', cls: 'text-end' },
+  { key: 'total', label: 'Total', cls: 'text-end' },
   { key: 'share', label: 'Share' },
 ];
 
+function call<T>(url: string, init?: RequestInit): Promise<T> {
+  return fetch(url, { credentials: 'same-origin', ...init }).then((r) =>
+    r.json().then((d) => (r.ok ? d as T : Promise.reject(new Error((d && d.error) || r.statusText)))));
+}
+
 export function initAppsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let last: AppUsagePayload | null = null;
+  let stored: AppHistory | null = null;
   let query = '';
   let openApp = '';
-  const sort: SortState = { col: 'totalMbps', dir: 'desc' };
+  let tab = 'live';
+  let routerId = '';
+  let recording = false;
+  const sort: SortState = { col: 'total', dir: 'desc' };
   const arcs = new Map<string, SVGCircleElement>();
 
   const setText = (id: string, v: string): void => { const n = el(id); if (n) n.textContent = v; };
+  const period = (): AppsPeriod => tab as AppsPeriod;
 
-  function renderCards(p: AppUsagePayload): void {
-    const total = p.rxMbps + p.txMbps;
-    setText('appsTotal', fmtMbps(total));
-    const rx = el('appsTotalRx'); if (rx) rx.innerHTML = '&darr; ' + esc(fmtMbps(p.rxMbps));
-    const tx = el('appsTotalTx'); if (tx) tx.innerHTML = '&uarr; ' + esc(fmtMbps(p.txMbps));
-    const active = p.apps.filter((a) => a.totalMbps > 0).length;
+  /** What the page shows now: the live payload, or the stored tab's totals. */
+  function current(): AppsView | null {
+    if (tab === 'live') return last ? liveView(last) : null;
+    return historyView(stored || { apps: [], buckets: [], from: 0, to: 0 }, period());
+  }
+
+  function renderCards(v: AppsView): void {
+    const total = v.rx + v.tx;
+    setText('appsTotal', v.fmt(total));
+    const rx = el('appsTotalRx'); if (rx) rx.innerHTML = '&darr; ' + esc(v.fmt(v.rx));
+    const tx = el('appsTotalTx'); if (tx) tx.innerHTML = '&uarr; ' + esc(v.fmt(v.tx));
+    const active = v.apps.filter((a) => a.total > 0).length;
     setText('appsCount', String(active));
-    setText('appsCountFoot', p.apps.length > active ? (p.apps.length - active) + ' quiet in the last minutes' : 'active now');
-    const top = p.apps[0];
+    setText('appsCountFoot', !v.live ? v.span : v.apps.length > active ? (v.apps.length - active) + ' quiet in the last minutes' : 'active now');
+    const top = v.apps[0];
     const topEl = el('appsTop');
-    if (topEl) topEl.innerHTML = top && top.totalMbps > 0
+    if (topEl) topEl.innerHTML = top && top.total > 0
       ? '<span class="apps-top">' + badge(top, 'sm') + '<span>' + esc(top.name) + '</span></span>' : '-';
-    setText('appsTopFoot', top && top.totalMbps > 0 ? fmtMbps(top.totalMbps) + ', ' + top.share.toFixed(0) + '% of traffic' : ' ');
-    const unPct = total > 0 ? (100 * p.unnamedMbps) / total : 0;
-    setText('appsUnnamed', total > 0 ? unPct.toFixed(0) + '%' : '-');
-    setText('appsUnnamedFoot', fmtMbps(p.unnamedMbps) + ' not named');
+    setText('appsTopFoot', top && top.total > 0
+      ? v.fmt(top.total) + ', ' + top.share.toFixed(0) + '% of ' + (v.live ? 'traffic' : 'recorded') : ' ');
+    if (v.live) {
+      const unPct = total > 0 ? (100 * v.unnamed) / total : 0;
+      setText('appsUnnamed', total > 0 ? unPct.toFixed(0) + '%' : '-');
+      setText('appsUnnamedFoot', v.fmt(v.unnamed) + ' not named');
+    } else {
+      setText('appsUnnamed', '-');
+      setText('appsUnnamedFoot', 'live only');
+    }
     const b = el('appsBadge');
-    if (b) { b.textContent = String(p.apps.length); b.className = 'card-badge' + (p.apps.length ? ' active-blue' : ''); }
+    if (b) { b.textContent = String(v.apps.length); b.className = 'card-badge' + (v.apps.length ? ' active-blue' : ''); }
   }
 
   /** The ring: one arc per busiest app, then "other apps", then unnamed, each
    *  arc an existing element moved rather than redrawn, so it eases. */
-  function renderRing(p: AppUsagePayload): void {
+  function renderRing(v: AppsView): void {
     const svg = el('appsRing') as unknown as SVGSVGElement | null;
     const orbit = el('appsOrbit');
     if (!svg || !orbit) return;
     if (!svg.querySelector('.apps-ring-track')) {
       svg.innerHTML = '<circle class="apps-ring-track" cx="100" cy="100" r="' + RING_R + '"/>';
     }
-    const total = p.rxMbps + p.txMbps;
-    const live = p.apps.filter((a) => a.totalMbps > 0);
+    const total = v.rx + v.tx;
+    const live = v.apps.filter((a) => a.total > 0);
     const slices: { id: string; colour: string; v: number }[] = live.slice(0, RING_SLICES)
-      .map((a) => ({ id: a.id, colour: a.color, v: a.totalMbps }));
-    const rest = live.slice(RING_SLICES).reduce((s, a) => s + a.totalMbps, 0);
+      .map((a) => ({ id: a.id, colour: a.color || 'var(--text-muted)', v: a.total }));
+    const rest = live.slice(RING_SLICES).reduce((s, a) => s + a.total, 0);
     if (rest > 0) slices.push({ id: '~other', colour: 'var(--text-muted)', v: rest });
-    if (p.unnamedMbps > 0) slices.push({ id: '~unnamed', colour: 'var(--border)', v: p.unnamedMbps });
+    if (v.unnamed > 0) slices.push({ id: '~unnamed', colour: 'var(--border)', v: v.unnamed });
     const gap = slices.length > 1 ? 3 : 0;
     let start = 0;
     const keep = new Set<string>();
@@ -151,105 +284,137 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     for (const [id, c] of arcs) {
       if (!keep.has(id)) { c.remove(); arcs.delete(id); }
     }
-    setText('appsRingValue', fmtMbps(total));
-    setText('appsRingLabel', live.length ? live.length + (live.length === 1 ? ' app' : ' apps') + ' now' : 'all traffic');
+    setText('appsRingValue', v.fmt(total));
+    setText('appsRingLabel', live.length ? live.length + (live.length === 1 ? ' app ' : ' apps ') + (v.live ? 'now' : 'recorded') : 'all traffic');
 
     // The logos of the busiest apps, sitting on the ring at the middle of their
     // arc. Percentages, so the orbit scales with the ring.
     let at = 0;
     orbit.innerHTML = live.slice(0, 6).map((a) => {
-      const len = total > 0 ? a.totalMbps / total : 0;
+      const len = total > 0 ? a.total / total : 0;
       const mid = (at + len / 2) * 2 * Math.PI - Math.PI / 2;
       at += len;
       const x = 50 + 46 * Math.cos(mid);
       const y = 50 + 46 * Math.sin(mid);
       return '<button type="button" class="apps-orbit-item" data-app="' + esc(a.id) + '" style="left:' + x.toFixed(1) +
-        '%;top:' + y.toFixed(1) + '%" title="' + esc(a.name + ': ' + fmtMbps(a.totalMbps)) + '">' + badge(a, 'md') + '</button>';
+        '%;top:' + y.toFixed(1) + '%" title="' + esc(a.name + ': ' + v.fmt(a.total)) + '">' + badge(a, 'md') + '</button>';
     }).join('');
   }
 
-  function renderTiles(p: AppUsagePayload): void {
+  function renderTiles(v: AppsView): void {
     const wrap = el('appsTiles');
     if (!wrap) return;
-    const list = p.apps.slice(0, TILES);
+    const list = v.apps.slice(0, TILES);
     if (!list.length) {
-      wrap.innerHTML = '<div class="apps-empty">No app traffic yet. Apps appear here as devices use them.</div>';
+      wrap.innerHTML = '<div class="apps-empty">' + (v.live ? 'No app traffic yet. Apps appear here as devices use them.'
+        : 'Nothing recorded ' + esc(v.span) + ' yet.') + '</div>';
       return;
     }
     wrap.innerHTML = list.map((a) => {
       const spark = a.spark.length > 1
         ? '<svg class="apps-tile-spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">' +
           '<polyline points="' + sparkPoints(a.spark, 120, 28, 2) + '"/></svg>' : '';
+      const who = !v.live ? a.share.toFixed(0) + '% of recorded'
+        : a.devices ? esc(a.devices + (a.devices === 1 ? ' device' : ' devices')) + (a.top ? ', mostly ' + esc(a.top) : '') : 'quiet';
       // A quiet app (no traffic this reading, still within its sparkline) is
       // dimmed. Inline, so the class stays one literal the button check reads.
       return '<button type="button" class="apps-tile" data-app="' + esc(a.id) +
-        '" style="--app:' + esc(a.color) + (a.totalMbps > 0 ? '' : ';opacity:.55') + '">' +
+        '" style="--app:' + esc(a.color) + (a.total > 0 ? '' : ';opacity:.55') + '">' +
         '<span class="apps-tile-head">' + badge(a, 'lg') +
           '<span class="apps-tile-id"><span class="apps-tile-name">' + esc(a.name) + '</span>' + catPill(a.category) + '</span></span>' +
-        '<span class="apps-tile-rate">' + esc(fmtMbps(a.totalMbps)) + '</span>' +
-        '<span class="apps-tile-sub">' + rates(a.rxMbps, a.txMbps) + '</span>' +
-        '<span class="apps-tile-who">' + (a.devices ? esc(a.devices + (a.devices === 1 ? ' device' : ' devices')) +
-          (a.top ? ', mostly ' + esc(a.top) : '') : 'quiet') + '</span>' +
+        '<span class="apps-tile-rate">' + esc(v.fmt(a.total)) + '</span>' +
+        '<span class="apps-tile-sub">' + rates(a.rx, a.tx, v.fmt) + '</span>' +
+        '<span class="apps-tile-who">' + who + '</span>' +
         spark +
         '<span class="apps-share" aria-hidden="true"><span style="width:' + Math.min(100, a.share).toFixed(1) + '%"></span></span>' +
         '</button>';
     }).join('');
   }
 
-  function renderTable(p: AppUsagePayload): void {
-    renderSortHeader('appsThead', COLS, sort, () => renderTable(p));
+  function renderTable(v: AppsView): void {
+    renderSortHeader('appsThead', COLS, sort, () => renderTable(v));
     const body = el('appsTable');
     if (!body) return;
     const q = query.trim().toLowerCase();
-    const rows = p.apps.filter((a) => !q || a.name.toLowerCase().includes(q) || a.category.includes(q));
+    const rows = v.apps.filter((a) => !q || a.name.toLowerCase().includes(q) || a.category.includes(q));
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty-state">' + (q ? 'No app matches' : 'Waiting for traffic') + '</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" class="empty-state">' +
+        (q ? 'No app matches' : v.live ? 'Waiting for traffic' : 'Nothing recorded yet') + '</td></tr>';
       return;
     }
     body.innerHTML = sortRows(rows, sort.col, sort.dir).map((a) =>
       '<tr class="apps-row" data-app="' + esc(a.id) + '" style="--app:' + esc(a.color) + '">' +
       '<td><span class="apps-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span></td>' +
       '<td>' + catPill(a.category) + '</td>' +
-      '<td class="text-end mono">' + a.devices + '</td>' +
-      '<td class="text-end mono apps-rx">' + esc(fmtMbps(a.rxMbps)) + '</td>' +
-      '<td class="text-end mono apps-tx">' + esc(fmtMbps(a.txMbps)) + '</td>' +
-      '<td class="text-end mono">' + esc(fmtMbps(a.totalMbps)) + '</td>' +
+      '<td class="text-end mono">' + (v.live ? a.devices : '-') + '</td>' +
+      '<td class="text-end mono apps-rx">' + esc(v.fmt(a.rx)) + '</td>' +
+      '<td class="text-end mono apps-tx">' + esc(v.fmt(a.tx)) + '</td>' +
+      '<td class="text-end mono">' + esc(v.fmt(a.total)) + '</td>' +
       '<td><span class="apps-share-cell"><span class="apps-share"><span style="width:' + Math.min(100, a.share).toFixed(1) +
         '%"></span></span><span class="mono">' + a.share.toFixed(1) + '%</span></span></td></tr>').join('');
   }
 
-  function renderUnnamed(p: AppUsagePayload): void {
+  function renderUnnamed(p: AppUsagePayload | null): void {
     const wrap = el('appsUnnamedWrap');
     const list = el('appsUnnamedList');
     if (!wrap || !list) return;
-    wrap.hidden = !p.unnamed.length;
-    list.innerHTML = p.unnamed.map((o) =>
-      '<div class="apps-unnamed-row"><span class="apps-unnamed-org">' + esc(o.org) + '</span>' + rates(o.rxMbps, o.txMbps) + '</div>').join('');
+    wrap.hidden = !p || !p.unnamed.length;
+    list.innerHTML = p ? p.unnamed.map((o) =>
+      '<div class="apps-unnamed-row"><span class="apps-unnamed-org">' + esc(o.org) + '</span>' + rates(o.rxMbps, o.txMbps, fmtMbps) + '</div>').join('') : '';
   }
 
-  function renderNote(p: AppUsagePayload): void {
+  /** The note: the DNS cache's state live; on a stored tab, how to turn
+   *  recording on when it is not. */
+  function renderNote(): void {
     const n = el('appsNote');
     if (!n) return;
     let text = '';
-    if (!p.dnsAt) text = 'Reading the router\'s DNS cache. Until it arrives, apps are named by port and network owner only.';
-    else if (!p.dnsNames) text = 'The router\'s DNS cache is empty, so apps are named by port and network owner only. ' +
-      'Devices on this network are not using the router for DNS, or use their own encrypted DNS.';
+    if (tab !== 'live') {
+      if (!featureOn('appHistoryEnabled')) {
+        text = 'Stored app usage is an optional feature. Switch on "Apps Usage history" in Settings, Features, ' +
+          'then record this router from here.';
+      } else if (!routerId) {
+        text = 'Select a router to see its stored app usage.';
+      } else if (!recording) {
+        text = 'This router is not being recorded. Press "Record this router" to keep its app usage by the hour, ' +
+          'from now on. Only app names and byte counts are stored, never devices or addresses.';
+      }
+    } else if (last && !last.dnsAt) {
+      text = 'Reading the router\'s DNS cache. Until it arrives, apps are named by port and network owner only.';
+    } else if (last && !last.dnsNames) {
+      text = 'The router\'s DNS cache is empty, so apps are named by port and network owner only. ' +
+        'Devices on this network are not using the router for DNS, or use their own encrypted DNS.';
+    }
     n.textContent = text;
     n.hidden = !text;
   }
 
+  function renderBars(): void {
+    const c = el('appsHistChart');
+    if (!c) return;
+    c.hidden = tab === 'live' || !stored || !stored.apps.length;
+    c.innerHTML = c.hidden || !stored ? '' : historyBars(stored, period());
+  }
+
   function renderModal(): void {
-    if (!openApp || !last) return;
-    const a = last.apps.find((x) => x.id === openApp);
+    const v = current();
+    if (!openApp || !v) return;
+    const a = v.apps.find((x) => x.id === openApp);
     const title = el('appsModalTitle');
     const body = el('appsModalBody');
     if (!a || !title || !body) return;
     title.innerHTML = '<span class="apps-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span>';
-    const devs: AppDevice[] = (last.devices && last.devices[a.id]) || [];
-    const via = a.via === 'name' ? 'by DNS name' : a.via === 'port' ? 'by port' : a.via === 'asn' ? 'by network owner' : '';
-    body.innerHTML =
-      '<div class="apps-modal-sum">' + catPill(a.category) + ' <span class="mono">' + esc(fmtMbps(a.totalMbps)) + '</span> ' +
-        rates(a.rxMbps, a.txMbps) + (via ? ' <span class="muted-note">named ' + via + '</span>' : '') + '</div>' +
+    const sum = '<div class="apps-modal-sum">' + catPill(a.category) + ' <span class="mono">' + esc(v.fmt(a.total)) + '</span> ' +
+      rates(a.rx, a.tx, v.fmt);
+    if (!v.live) {
+      body.innerHTML = sum + ' <span class="muted-note">' + esc(v.span) + '</span></div>' +
+        '<div class="empty-state">Devices are not stored. The Live tab shows who is using it now.</div>';
+      return;
+    }
+    const la = last && last.apps.find((x) => x.id === openApp);
+    const devs: AppDevice[] = (last && last.devices && last.devices[a.id]) || [];
+    const via = !la ? '' : la.via === 'name' ? 'by DNS name' : la.via === 'port' ? 'by port' : la.via === 'asn' ? 'by network owner' : '';
+    body.innerHTML = sum + (via ? ' <span class="muted-note">named ' + via + '</span>' : '') + '</div>' +
       (devs.length
         ? '<table class="table table-vcenter mb-0"><thead><tr><th>Device</th><th>Address</th><th class="text-end">Rx</th><th class="text-end">Tx</th></tr></thead><tbody>' +
           devs.map((d) => '<tr><td>' + esc(d.name || '-') + (d.mac ? '<div class="muted-note mono">' + esc(d.mac) + '</div>' : '') + '</td>' +
@@ -259,14 +424,58 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
   }
 
   function render(): void {
-    if (!last || !isVisible('apps')) return;
-    renderCards(last);
-    renderRing(last);
-    renderTiles(last);
-    renderTable(last);
-    renderUnnamed(last);
-    renderNote(last);
+    if (!isVisible('apps')) return;
+    renderNote();
+    renderBars();
+    renderUnnamed(tab === 'live' ? last : null);
+    const v = current();
+    if (!v) return;
+    renderCards(v);
+    renderRing(v);
+    renderTiles(v);
+    renderTable(v);
     renderModal();
+  }
+
+  // ── the stored history ───────────────────────────────────────────────────
+
+  function syncRecord(): void {
+    const b = el('appsRecord');
+    if (!b) return;
+    b.style.display = featureOn('appHistoryEnabled') && routerId ? '' : 'none';
+    b.textContent = recording ? 'Stop recording' : 'Record this router';
+  }
+
+  function loadHistory(): void {
+    stored = null;
+    if (tab === 'live' || !featureOn('appHistoryEnabled') || !routerId || !recording) { render(); return; }
+    const want = tab;
+    const rid = routerId;
+    call<AppHistory>('/api/apps/history?routerId=' + encodeURIComponent(rid) + '&period=' + encodeURIComponent(want))
+      .then((h) => { if (tab === want && routerId === rid) { stored = h; render(); } })
+      .catch((e: Error) => {
+        const n = el('appsNote');
+        if (n && tab === want) { n.textContent = 'The stored usage could not be read: ' + e.message; n.hidden = false; }
+      });
+  }
+
+  function loadRecording(): void {
+    if (!featureOn('appHistoryEnabled') || !routerId) { recording = false; syncRecord(); loadHistory(); return; }
+    const rid = routerId;
+    call<{ recording: boolean }>('/api/apps/history/status?routerId=' + encodeURIComponent(rid))
+      .then((d) => { if (routerId === rid) recording = d.recording; })
+      .catch(() => { recording = false; })
+      .then(() => { syncRecord(); loadHistory(); });
+  }
+
+  function setRecording(on: boolean): void {
+    call<{ recording: boolean }>('/api/apps/history/record', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ routerId, on }) })
+      .then((d) => { recording = d.recording; syncRecord(); loadHistory(); })
+      .catch((e: Error) => {
+        const n = el('appsNote');
+        if (n) { n.textContent = 'Recording was not changed: ' + e.message; n.hidden = false; }
+      });
   }
 
   function open(id: string): void {
@@ -281,12 +490,12 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
   });
   el<HTMLInputElement>('appsSearch')?.addEventListener('input', (e) => {
     query = (e.target as HTMLInputElement).value;
-    if (last) renderTable(last);
+    const v = current();
+    if (v) renderTable(v);
   });
+  el('appsRecord')?.addEventListener('click', () => setRecording(!recording));
 
-  // The tabs. Live is this payload; the other three are stored hourly usage,
-  // which needs recording turned on for the router.
-  let tab = 'live';
+  // The tabs. Live is the payload; the other three are the stored history.
   const tabs = el('appsTabs');
   tabs?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement | null)?.closest?.('[data-appstab]') as HTMLElement | null;
@@ -297,17 +506,22 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       x.classList.toggle('active', on);
       x.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    const n = el('appsNote');
-    if (tab !== 'live' && n) {
-      n.textContent = 'Stored usage needs recording, which is not available yet.';
-      n.hidden = false;
-    } else if (last) {
-      renderNote(last);
-    }
+    loadHistory();
   });
 
   socket.on('apps:update', (p) => { last = p; if (tab === 'live') render(); });
-  document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent).detail === 'apps') render();
+  socket.on('router:active', (d) => { routerId = (d && d.activeId) || routerId; loadRecording(); });
+  socket.on('router:switched', (d) => {
+    routerId = (d && d.activeId) || '';
+    last = null;
+    recording = false;
+    syncRecord();
+    loadRecording();
   });
+  document.addEventListener('mikrodash:pagechange', (e) => {
+    if ((e as CustomEvent).detail !== 'apps') return;
+    if (tab === 'live') render(); else loadRecording();
+  });
+  onFeatures(() => { syncRecord(); loadRecording(); });
+  syncRecord();
 }
