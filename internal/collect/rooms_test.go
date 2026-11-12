@@ -151,7 +151,7 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 			"page-connections", "dash-card-connections",
 			"page-wifi-clients", "page-wifi-map", "dash-card-wireless",
 			"page-network-topology",
-			"page-bandwidth",
+			"page-bandwidth", "page-apps",
 			// The device modal's client count (2026-10-01).
 			"device-peek",
 		}},
@@ -252,7 +252,7 @@ func TestDeclaredRoomKeysMatchesTheSwitch(t *testing.T) {
 // a check that read the list it is checking would prove anything it names.
 func declaredKeys() []string {
 	return []string{
-		"bandwidth", "bridges", "capsman", "conns", "dhcpNetworks", "dns",
+		"apps", "bandwidth", "bridges", "capsman", "conns", "dhcpNetworks", "dns",
 		"firewall", "ifStatus", "logs", "netwatch", "packages", "ping", "ppp",
 		"queues", "rosusers", "routing", "talkers", "topology", "vlans", "vpn",
 		"wan", "wifi", "wireless",
@@ -269,8 +269,9 @@ func TestDeclaredKeysCoverRoomsOf(t *testing.T) {
 		}
 	}
 	// 24 -> 23 on 2026-09-18: `ipAddresses` deleted, its page an area.
-	if got := len(declaredKeys()); got != 23 {
-		t.Errorf("declaredKeys has %d entries, expected 23 — a collector gained or lost "+
+	// 23 -> 24 on 2026-11-12: `apps`, the Apps Usage page.
+	if got := len(declaredKeys()); got != 24 {
+		t.Errorf("declaredKeys has %d entries, expected 24 — a collector gained or lost "+
 			"an audience and one of these lists was not updated", got)
 	}
 }

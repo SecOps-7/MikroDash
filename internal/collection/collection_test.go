@@ -83,8 +83,9 @@ func routerFor(c resolveCase) *Router {
 // So the divergence is named here and checked BOTH ways: an extra key that is
 // not named is a real drift, and a named key that Resolve does not produce is an
 // entry to delete. `areas` is the first: one collector for every generated page,
-// declared in internal/areas, with no live counterpart at all.
-var goOnlyCollectors = map[string]bool{"areas": true}
+// declared in internal/areas, with no live counterpart at all. `apps` is the
+// second: the Apps Usage page (2026-11-12), which the live app never had.
+var goOnlyCollectors = map[string]bool{"areas": true, "apps": true}
 
 func TestResolveMatchesTheLiveModule(t *testing.T) {
 	for _, c := range loadCases(t) {

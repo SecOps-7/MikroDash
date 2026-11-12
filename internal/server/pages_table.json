@@ -252,6 +252,11 @@
       "settingsKey": "pageConnections"
     },
     {
+      "key": "apps",
+      "title": "Apps Usage",
+      "settingsKey": null
+    },
+    {
       "key": "security-scan",
       "title": "Security Scan",
       "settingsKey": null

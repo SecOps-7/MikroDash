@@ -65,6 +65,7 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 		"wifi.go":         "wifi",
 		"wireless.go":     "wireless",
 		"bandwidth.go":    "bandwidth",
+		"apps.go":         "apps",
 		"vlans.go":        "vlans",
 		// The one subscriber with no page and no payload. It reads
 		// `/ip/arp/print` on the scheduler like any other table, and four

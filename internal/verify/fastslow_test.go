@@ -59,6 +59,7 @@ func TestFastPollCollectorsSplitTheirSlowReads(t *testing.T) {
 		"talkers":   {"", "one menu, /ip/kid-control/device, and its per-device rates ARE the payload"},
 		"conns":     {"", "one menu, /ip/firewall/connection, and a connection table is live by definition"},
 		"bandwidth": {"", "reads the same connection table as conns; nothing in it is config"},
+		"apps":      {"appsDNSEvery", "the connection table every poll (the same reading as conns and bandwidth); the DNS cache once a minute, in the background"},
 		"ifStatus":  {"ifStatusMetaTarget", "rates every poll; the three metadata menus every 30s"},
 		"ping":      {"", "a =interval= stream, not a poll; there is no second read to pace"},
 		"firewall":  {"", "one read per poll, of the table on screen: its rows ARE what the page shows, counters included, and a rule changed in Winbox must appear"},

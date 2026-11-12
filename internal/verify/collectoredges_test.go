@@ -57,6 +57,7 @@ func TestCollectorEdgesAreDeclared(t *testing.T) {
 			"wireless":     "lease names, so a client is not shown as a bare MAC",
 			"conns":        "lease names",
 			"bandwidth":    "lease names",
+			"apps":         "lease names, for the devices using each app",
 			"topology":     "lease names, via WithSources",
 		},
 		// ABSENT FROM THE DOCUMENT'S TABLE ALTOGETHER, and found by this test on
@@ -66,12 +67,13 @@ func TestCollectorEdgesAreDeclared(t *testing.T) {
 		"dhcpNetworks": {
 			"conns":     "the LAN ranges the source filter uses",
 			"bandwidth": "the LAN ranges, for the direction split",
+			"apps":      "the LAN ranges: only a local device talking out is app traffic",
 		},
 		"system":   {"topology": "identity and gauges, via WithSources"},
 		"firewall": {"queues": "the FastTrack summary, via FilterRowSource"},
 		// ── THE ONE PRODUCER WITH NO PAYLOAD OF ITS OWN (2026-09-10) ────────
 		//
-		// `arp` emits nothing and has no page. Its ENTIRE output is these four
+		// `arp` emits nothing and has no page. Its ENTIRE output is these five
 		// edges: the router's ARP table is the only place that says which MAC is
 		// behind which IP, and every one of these consumers needs that join to
 		// put a name or an address on a device.
@@ -85,6 +87,7 @@ func TestCollectorEdgesAreDeclared(t *testing.T) {
 		"arp": {
 			"conns":     "IP→MAC, so a lease keyed by the MAC can name an address the lease table does not list",
 			"bandwidth": "IP→MAC, the same chain on the same table",
+			"apps":      "IP→MAC, Bandwidth's chain, to name the devices using each app",
 			"wireless":  "MAC→IP: a registration row carries no address, and this is the `ip` the page renders",
 			"topology":  "MAC→IP, for an MNDP neighbour whose own row has no address - without it there is nothing to ping, so no status",
 		},

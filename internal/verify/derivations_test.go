@@ -45,6 +45,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 		// ── extracted ──
 		"areas.go":       "BuildAreaRows",
 		"bandwidth.go":   "BuildBandwidth",
+		"apps.go":        "BuildApps",
 		"bridges.go":     "BuildBridgeRows",
 		"capsman.go":     "BuildCapsmanView, BuildCapsmanLegacyView",
 		"connections.go": "BuildConns",

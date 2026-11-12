@@ -34,7 +34,7 @@ import (
 var targetKeys = []string{
 	"dns", "areas", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
 	"rosusers", "queues", "firewall", "wifi", "capsman", "netwatch", "ifStatus",
-	"topology", "wireless", "bandwidth", "talkers",
+	"topology", "wireless", "bandwidth", "apps", "talkers",
 	// NOT dormancy-eligible, but the page-focus path resumes them, and
 	// `ResumeCollector` is now the only way it can. They were MISSING from the
 	// first version of this table and the twenty converted call sites in `ws.go`
@@ -238,6 +238,12 @@ func (s *Session) targets() map[string]collectorTarget {
 		}
 		return nil
 	}, s.bandwidth.Suspend, s.bandwidth.Resume, s.bandwidth.Tick)
+	add("apps", func() any {
+		if p := s.apps.Last(); p != nil {
+			return p
+		}
+		return nil
+	}, s.apps.Suspend, s.apps.Resume, s.apps.Tick)
 	add("talkers", func() any {
 		if p := s.talkers.Last(); p != nil {
 			return p

@@ -19,6 +19,7 @@ package collect
 import "mikrodash/internal/hub"
 
 var (
+	EvAppsUpdate      = hub.Declare[AppUsagePayload]("apps:update")
 	EvBandwidthUpdate = hub.Declare[BandwidthPayload]("bandwidth:update")
 	EvBridgesUpdate   = hub.Declare[BridgesPayload]("bridges:update")
 	EvCapsmanUpdate   = hub.Declare[CapsmanPayload]("capsman:update")

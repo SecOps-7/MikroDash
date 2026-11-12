@@ -212,6 +212,7 @@ type Session struct {
 	topology     *collect.Topology
 	wireless     *collect.Wireless
 	bandwidth    *collect.Bandwidth
+	apps         *collect.Apps
 	traffic      *collect.Traffic
 	conns        *collect.Connections
 	// arp has no payload and no page: it is the IP<->MAC join four collectors
@@ -391,6 +392,9 @@ func (s *Session) Logs() *collect.Logs           { return s.logs }
 func (s *Session) Topology() *collect.Topology   { return s.topology }
 func (s *Session) Wireless() *collect.Wireless   { return s.wireless }
 func (s *Session) Bandwidth() *collect.Bandwidth { return s.bandwidth }
+
+// Apps is the Apps Usage collector.
+func (s *Session) Apps() *collect.Apps { return s.apps }
 
 // CollectorEnabled reports whether a collector may run at all. Only the
 // install-wide ping switch (Settings, Ping / Latency) makes this false today:
@@ -957,6 +961,19 @@ func orgLookup() collect.OrgLookup {
 	return db.Lookuper()
 }
 
+// ownerLookup is the AS-number join Apps Usage classifies by: orgLookup's
+// database, answering the number as well as the name.
+func ownerLookup() collect.OwnerLookup {
+	db, ok := asn.Current()
+	if !ok {
+		return nil
+	}
+	return func(ip string) (uint, string, bool) {
+		o, ok := db.Owner(ip)
+		return o.Num, o.Org, ok
+	}
+}
+
 // Acquire returns the session for a router, connecting if this is the first
 // caller. The caller must Release exactly once.
 func (m *Manager) Acquire(routerID string) (*Session, error) {
@@ -1313,6 +1330,10 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		WithGeo(geoLookup()).
 		WithOrg(orgLookup()).
 		WithARP(s.arp)
+	// Apps Usage: the same connection read as the two above, summed by app.
+	s.apps = collect.NewApps(reader{s: s}, emit, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["apps"]).
+		WithOwner(ownerLookup()).
+		WithARP(s.arp)
 	// The default interface is what the WAN badge watches, so it is always in
 	// the stream even when nobody has selected it. Five minutes of history, as
 	// the live app keeps.
@@ -1372,6 +1393,9 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// deliveries -- and `vlans` is mechanism A with a residual half that
 		// reads nothing at all. Every dormancy-eligible collector is now here.
 		s.bandwidth, s.vlans,
+		// Apps Usage reads the same connection menu, so it is a third
+		// delivery of the same reading, not a third read.
+		s.apps,
 		// One collector, every generated page. It subscribes to no menu — see
 		// NewAreas — so it is here for the cache its shared reads go through.
 		s.areas,
@@ -2467,6 +2491,9 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["bandwidth"] {
 				s.bandwidth.Reconnected()
 			}
+			if s.conf().Enabled["apps"] {
+				s.apps.Reconnected()
+			}
 			if s.conf().Enabled["traffic"] {
 				s.traffic.Reconnected()
 			}
@@ -2563,6 +2590,7 @@ func (s *Session) connectLoop() {
 		s.topology.Suspend()
 		s.wireless.Suspend()
 		s.bandwidth.Suspend()
+		s.apps.Suspend()
 		s.traffic.Stop()
 		s.conns.Suspend()
 		if !down {

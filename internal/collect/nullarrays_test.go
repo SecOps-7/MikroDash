@@ -56,6 +56,11 @@ var extraBuilders = map[string]func(Reader) any{
 		c.Tick()
 		return c.Last()
 	},
+	"conns#apps": func(r Reader) any {
+		c := NewApps(r, Emit{}, nil, nil, 30000)
+		c.Tick()
+		return c.Last()
+	},
 	"ifStatus#names": func(r Reader) any {
 		p, _ := ported["ifStatus"](r, Emit{}).(*IfStatusPayload)
 		return NamesOf(p)

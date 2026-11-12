@@ -137,7 +137,10 @@ func TestDemandCoversEveryCollectorTheSwitchboardDid(t *testing.T) {
 	// collector serving many pages, reading only the areas whose rooms are
 	// occupied. `ipAddresses`, which joined on 2026-09-15, left on 2026-09-18:
 	// its page is an area now.
-	want := "areas,arp,ifStatus,logs,netwatch,ping,talkers"
+	//
+	// `apps` joined on 2026-11-12 with the Apps Usage page. New, like `areas`:
+	// the switchboard predates it.
+	want := "apps,areas,arp,ifStatus,logs,netwatch,ping,talkers"
 	if got := strings.Join(newlyGated, ","); got != want {
 		t.Errorf("collectors newly gated by demand = %q, want %q.\nIf that list has "+
 			"changed, a collector has gained or lost coverage and the behaviour change "+

@@ -438,6 +438,8 @@ var buttonComponents = map[string]string{
 	"chip-x": "a picked chip's remove glyph", "cpick-clear": "the location search's Clear, part of its control row",
 	"nchan-gear": "a notification event's settings gear, beside its toggle",
 	"apps-copy":  "a Copy link set inside a credential line", "notif-clear-btn": "the notification panel's Clear link",
+	"apps-tile":       "an app's tile on Apps Usage, which opens the devices using it",
+	"apps-orbit-item": "an app's logo on the Apps Usage share ring, which opens the devices using it",
 }
 
 // buttonIDs are buttons that are components of their own, by id.

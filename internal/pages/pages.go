@@ -188,6 +188,9 @@ var All = []Page{
 	{Key: "wifi-map", Title: "Wifi Map"},
 	{Key: "bandwidth", Title: "Bandwidth", Collector: "bandwidth"},
 	{Key: "connections", Title: "Connections", Collector: "conns"},
+	// Apps Usage (2026-11-12): traffic by application, named from the DNS
+	// cache, ports and network owners. See internal/collect/apps.go.
+	{Key: "apps", Title: "Apps Usage", Collector: "apps"},
 	// The AI Agent (#98). NO COLLECTOR, like dashboard and reports: it is fed by
 	// whatever the viewer may already read, assembled per question, so there is
 	// nothing to switch off that would empty it.

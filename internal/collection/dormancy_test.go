@@ -128,6 +128,9 @@ var addedSinceLive = map[string]string{
 		"are its whole content, and a router with connection tracking disabled returns " +
 		"them empty forever while being polled every three seconds. The live app left " +
 		"this collector unjudgeable; nothing about that was deliberate.",
+	"apps": "2026-11-12. The Apps Usage page, which the live app never had. Its `apps` " +
+		"list is empty on a router with no outside traffic (or connection tracking off), " +
+		"and it sleeps like Bandwidth, its sibling on the same connection read.",
 }
 
 func TestDormancyEligibleMatchesLive(t *testing.T) {

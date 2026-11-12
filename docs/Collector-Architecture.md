@@ -85,7 +85,7 @@ reports nonsense - 0% packet loss for ever, dropped log lines - and nothing fail
 2. `internal/roscache` keeps the **demand set** - who wants which menu.
 3. **One scheduler goroutine per router** decides when each menu is due, reads it
    once, and delivers to every subscriber. Two collectors on one menu with
-   byte-identical proplists cost one read: `conns` and `bandwidth` share
+   byte-identical proplists cost one read: `conns`, `bandwidth` and `apps` share
    `/ip/firewall/connection/print` this way.
 4. `internal/roslimit` caps commands in flight at 8 per router.
 
@@ -469,6 +469,7 @@ the rooms it emits to, and `-` means router-wide or nothing.
 |---|---|---|---|
 | `areas` | the menus of the areas being looked at, `internal/areas` | `BuildAreaRows` | one `page-<area>` per declared area |
 | `arp` | `/ip/arp/print` | `BuildARP` | - (none at all) |
+| `apps` | `/ip/firewall/connection/print` (shared with `conns` and `bandwidth`), `/ip/dns/cache/print` once a minute | `connRates`, `DNSNames`, `BuildApps` (internal/apps names each destination: DNS name, then port, then AS number) | `page-apps` |
 | `bandwidth` | `/ip/firewall/connection/print` | `BuildBandwidth` | `page-bandwidth` |
 | `bridges` | `/interface/bridge/host/print` | `BuildBridgeRows` | `page-bridges` |
 | `capsman` | `/interface/wifi/registration-table/print` | `BuildCapsmanView`, `BuildCapsmanLegacyView` | `page-capsman` |
@@ -518,15 +519,15 @@ the document quietly lying.
 
 | fact | value |
 |---|---|
-| registry rows | 28 |
-| collectors with a Go implementation | 28 |
-| suspendable when idle (`disableable`) | 23 |
-| dormancy-eligible | 19 |
-| gated by demand (`session.TargetKeys`) | 26 |
+| registry rows | 29 |
+| collectors with a Go implementation | 29 |
+| suspendable when idle (`disableable`) | 24 |
+| dormancy-eligible | 20 |
+| gated by demand (`session.TargetKeys`) | 27 |
 | menus enabled for stream delivery | 22 |
-| collectors declaring rooms | 23 |
+| collectors declaring rooms | 24 |
 | `keepAliveFor` entries | 3 |
-| collectors with an extracted derivation | 25 |
+| collectors with an extracted derivation | 26 |
 
 ---
 

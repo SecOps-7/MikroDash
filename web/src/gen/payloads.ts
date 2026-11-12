@@ -81,6 +81,50 @@ export interface AppsPayload {
   message: string;
 }
 
+export interface AppUsage {
+  id: string;
+  name: string;
+  category: string;
+  color: string;
+  logo: string;
+  dark: boolean;
+  rxMbps: number;
+  txMbps: number;
+  totalMbps: number;
+  share: number;
+  devices: number;
+  via: string;
+  spark: number[];
+  top: string;
+}
+
+export interface AppOwner {
+  org: string;
+  rxMbps: number;
+  txMbps: number;
+}
+
+export interface AppDevice {
+  ip: string;
+  name: string;
+  mac: string;
+  rxMbps: number;
+  txMbps: number;
+}
+
+export interface AppUsagePayload {
+  ts: number;
+  pollMs: number;
+  rxMbps: number;
+  txMbps: number;
+  unnamedMbps: number;
+  apps: AppUsage[];
+  unnamed: AppOwner[];
+  devices: Record<string, AppDevice[]> | null;
+  dnsNames: number;
+  dnsAt: number;
+}
+
 export interface AreaRow {
   id: string;
   identity: string;
@@ -2156,6 +2200,7 @@ export interface Events {
   'alert:acked': AlertRow;
   'apps:progress': AppsProgressPayload;
   'apps:state': AppsPayload;
+  'apps:update': AppUsagePayload;
   'area:grouprows': AreaGroupRowsPayload;
   'area:update': AreaPayload;
   'backups:state': StatePayload;

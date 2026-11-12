@@ -25,6 +25,10 @@ import (
 // shape, and a recorded one the stylesheet no longer defines has to go.
 var pillComponents = map[string]string{
 	"card-badge":   "the count pill beside a title: it counts rows, it does not label one",
+	"app-badge":    "an app's logo on Apps Usage: a tile holding the logo, tinted with the brand colour",
+	"app-badge-sm": "an app's logo on Apps Usage, at table size",
+	"app-badge-md": "an app's logo on Apps Usage, round, on the share ring",
+	"app-badge-lg": "an app's logo on Apps Usage, at tile size",
 	"wn-ssid-pill": "a Wi-Fi network's name, a step larger than a label on purpose",
 	"rtr-dd-chips": "the row of router-dropdown site chips",
 	"topo-chip-tx": "the expand count on a topology node, SVG text inside the node's chip",

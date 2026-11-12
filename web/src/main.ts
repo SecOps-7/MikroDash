@@ -51,6 +51,7 @@ import { initWifiMapPage } from './pages/wifi-map';
 import { initNotifications } from './pages/notifications';
 import { initConnectionsPage } from './pages/connections';
 import { initBandwidthPage } from './pages/bandwidth';
+import { initAppsPage } from './pages/apps';
 import { initBackupsPage } from './pages/backups';
 import { initToolsPage } from './pages/tools';
 import { initSecurityScanPage } from './pages/security-scan';
@@ -670,6 +671,7 @@ async function main(): Promise<void> {
   initNotifications(socket, () => activeRouterId);
   initConnectionsPage(socket, pageVisible);
   initBandwidthPage(socket, pageVisible);
+  initAppsPage(socket, pageVisible);
   initBackupsPage(socket, pageVisible);
   initToolsPage(socket, pageVisible, () => activeRouterId);
   initSecurityScanPage(socket, pageVisible);

@@ -63,6 +63,7 @@ var routerWide = Rooms{}
 // is `dash-card-<name>`, and the two name spaces are separate on purpose — a card
 // can outlive the page that owns it.
 var (
+	appsRooms         = Rooms{"page-apps"}
 	bandwidthRooms    = Rooms{"page-bandwidth"}
 	bridgesRooms      = Rooms{"page-bridges"}
 	capsmanRooms      = Rooms{"page-capsman"}
@@ -123,6 +124,8 @@ var (
 // entry, so nil means a collector that was never meant to be guarded.
 func RoomsOf(key string) Rooms {
 	switch key {
+	case "apps":
+		return appsRooms
 	case "bandwidth":
 		return bandwidthRooms
 	case "bridges":
@@ -263,7 +266,7 @@ var keepAliveFor = map[string]Rooms{
 	"ifStatus": union(bridgesRooms, vlansRooms, wanRooms, bandwidthRooms,
 		Rooms{"dash-card-wireless", DevicePeekRoom}),
 	"dhcpLeases": union(dhcpNetworksRooms, connsRooms, connsDetailRooms,
-		wirelessRooms, topologyRooms, bandwidthRooms, Rooms{DevicePeekRoom}),
+		wirelessRooms, topologyRooms, bandwidthRooms, appsRooms, Rooms{DevicePeekRoom}),
 	// ── `arp` HAS NO AUDIENCE AT ALL, NOT EVEN A ROUTER-WIDE ONE ───────────
 	//
 	// It emits nothing. Its whole output is an in-memory IP<->MAC index that
@@ -271,7 +274,7 @@ var keepAliveFor = map[string]Rooms{
 	// the Connections and Bandwidth pages ask it IP→MAC to reach a lease, and
 	// WiFi Clients and Network Topology ask it MAC→IP for an address their own
 	// rows do not carry.
-	"arp": union(connsRooms, connsDetailRooms, bandwidthRooms,
+	"arp": union(connsRooms, connsDetailRooms, bandwidthRooms, appsRooms,
 		wirelessRooms, topologyRooms),
 }
 
@@ -291,7 +294,7 @@ var keepAliveFor = map[string]Rooms{
 // `session.targets()`, and for the same reason.
 func DeclaredRoomKeys() []string {
 	return []string{
-		"bandwidth", "bridges", "capsman", "conns", "dhcpNetworks", "dns",
+		"apps", "bandwidth", "bridges", "capsman", "conns", "dhcpNetworks", "dns",
 		"firewall", "ifStatus", "logs", "netwatch", "packages", "ping", "ppp",
 		"queues", "rosusers", "routing", "talkers", "topology", "vlans", "vpn",
 		"wan", "wifi", "wireless",

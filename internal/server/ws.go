@@ -1317,6 +1317,12 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			collect.EvBandwidthUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
+	case "apps":
+		if last := cn.rsession.Apps().Last(); last != nil {
+			replay := *last
+			replay.TS = time.Now().UnixMilli()
+			collect.EvAppsUpdate.Send(cn.srv.hub, cn.c, replay)
+		}
 	case "wifi-clients":
 		if last := cn.rsession.Wireless().Last(); last != nil {
 			replay := *last

@@ -66,6 +66,7 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "bandwidth",
   "queues",
   "connections",
+  "apps",
   "security-scan",
   "firewall",
   "users",

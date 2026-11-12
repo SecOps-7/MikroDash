@@ -94,6 +94,22 @@
       "sessionProp": "bandwidth"
     },
     {
+      "key": "apps",
+      "label": "Apps Usage",
+      "pollKey": null,
+      "defaultPollMs": 5000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [
+        "conns"
+      ],
+      "emptyKey": [
+        "apps"
+      ],
+      "sessionProp": "apps"
+    },
+    {
       "key": "talkers",
       "label": "Top Talkers",
       "pollKey": "pollTalkers",
