@@ -127,19 +127,31 @@ func Reason() string { return reason }
 // knowing where it lives.
 func Current() (*DB, bool) { return shared, shared != nil }
 
-// Lookup returns the owning organisation and its colour category.
+// Owner is who an address belongs to: the AS number, the organisation's display
+// name and its colour category.
+type Owner struct {
+	Num uint
+	Org string
+	Cat string
+}
+
+// Owner looks an address up.
 //
 // The bool distinguishes "looked up and found nothing" from "not looked up",
 // which is what a null org in the payload means. An address in no AS — unrouted
 // space, or a network this Lite edition does not carry — is a miss, not an
 // organisation with an empty name.
-func (d *DB) Lookup(ip string) (string, string, bool) {
+//
+// THE AS NUMBER IS RETURNED since 2026-11-12. It used to be read and dropped
+// after picking the category; the Apps Usage classifier matches on it (Zoom is
+// AS30103 whatever DB-IP spells the organisation as this month).
+func (d *DB) Owner(ip string) (Owner, bool) {
 	if d == nil || d.r == nil {
-		return "", "", false
+		return Owner{}, false
 	}
 	addr, err := netip.ParseAddr(ip)
 	if err != nil {
-		return "", "", false
+		return Owner{}, false
 	}
 	// NO ZONE HANDLING HERE, and that is measured rather than assumed. The
 	// prefix-walking reader this replaced HAD to strip a zone, because
@@ -149,12 +161,19 @@ func (d *DB) Lookup(ip string) (string, string, bool) {
 	// the library still does it, which is the guard that used to be this code.
 	var rec record
 	if err := d.r.Lookup(addr).Decode(&rec); err != nil {
-		return "", "", false
+		return Owner{}, false
 	}
 	if rec.Org == "" {
-		return "", "", false
+		return Owner{}, false
 	}
-	return Name(rec.Org), Category(rec.Num), true
+	return Owner{Num: rec.Num, Org: Name(rec.Org), Cat: Category(rec.Num)}, true
+}
+
+// Lookup is Owner in the collectors' OrgLookup shape: the organisation and its
+// category. An adapter, not a second lookup.
+func (d *DB) Lookup(ip string) (string, string, bool) {
+	o, ok := d.Owner(ip)
+	return o.Org, o.Cat, ok
 }
 
 // Lookuper adapts a database to the collectors' OrgLookup shape, as

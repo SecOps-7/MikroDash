@@ -192,6 +192,13 @@ func TestAgainstARealDatabase(t *testing.T) {
 	if cat == "" {
 		t.Error("a hit returned an empty category; the page renders a class name")
 	}
+	// THE AS NUMBER COMES BACK, and it is the number, not the category's key
+	// for it: the Apps Usage classifier matches on it.
+	for ip, want := range map[string]uint{"8.8.8.8": 15169, "1.1.1.1": 13335} {
+		if o, ok := db.Owner(ip); !ok || o.Num != want {
+			t.Errorf("Owner(%s) = %+v, %v; want AS%d", ip, o, ok, want)
+		}
+	}
 	// An address in space reserved for documentation belongs to no AS.
 	if org, _, ok := db.Lookup("198.51.100.1"); ok {
 		t.Errorf("TEST-NET-2 resolved to %q; unrouted space must miss", org)
