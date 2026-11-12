@@ -73,7 +73,7 @@ function boot() {
     'Teams, a full-colour logo, was not rendered as an image:\n' + tiles);
   assert.ok(/is-mono"[^>]*>FA</.test(tiles), 'FaceTime, with no logo, did not get its monogram:\n' + tiles);
   assert.ok(/app-logo app-logo-lg is-dark is-mask/.test(tiles), 'Steam\'s black logo was not marked dark:\n' + tiles);
-  assert.ok(tiles.includes('class="apps-rx"') && tiles.includes('class="apps-tx"'), 'Rx and Tx lost their colours:\n' + tiles);
+  assert.ok(tiles.includes('class="au-rx"') && tiles.includes('class="au-tx"'), 'Rx and Tx lost their colours:\n' + tiles);
   assert.ok(/data-app="facetime" style="--app:#00C853;opacity:\.55"/.test(tiles), 'a quiet app was not dimmed:\n' + tiles);
   say('ok  logos: mask, image, monogram and dark all render');
 }
@@ -185,7 +185,7 @@ const HIST = {
   const tiles = String(doc.nodes['appsTiles'].innerHTML);
   assert.ok(tiles.includes('3.0 GB') && tiles.includes('75% of recorded'), 'the Netflix tile is not its stored total:\n' + tiles);
   const table = String(doc.nodes['appsTable'].innerHTML);
-  assert.ok(/apps-rx">512\.0 MB/.test(table) && /<td class="text-end mono">-<\/td>/.test(table),
+  assert.ok(/au-rx">512\.0 MB/.test(table) && /<td class="text-end mono">-<\/td>/.test(table),
     'the table is not in bytes, or claims devices it does not store:\n' + table);
   const chart = String(doc.nodes['appsHistChart'].innerHTML);
   assert.strictEqual(doc.nodes['appsHistChart'].hidden, false, 'the bars are hidden on a stored tab');

@@ -84,7 +84,7 @@ const badge = (a: Brand, size: 'sm' | 'md' | 'lg'): string =>
   '<span class="app-badge app-badge-' + size + '" style="--app:' + esc(a.color) + '">' + logoHtml(a, size) + '</span>';
 
 const rates = (rx: number, tx: number, fmt: (n: number) => string): string =>
-  '<span class="apps-rx">&darr; ' + esc(fmt(rx)) + '</span> <span class="apps-tx">&uarr; ' + esc(fmt(tx)) + '</span>';
+  '<span class="au-rx">&darr; ' + esc(fmt(rx)) + '</span> <span class="au-tx">&uarr; ' + esc(fmt(tx)) + '</span>';
 
 /** One app as the page draws it, live (a rate) or stored (bytes). */
 export interface ViewApp extends Brand {
@@ -158,8 +158,8 @@ export function historyBars(h: AppHistory, period: AppsPeriod): string {
   const label = (ts: number): string => period === 'day' ? fmtTime(ts, false) : fmtMonthDay(ts);
   const every = period === 'month' ? 5 : period === 'day' ? 3 : 1;
   let out = [0, 0.5, 1].map((f) =>
-    '<line class="apps-hist-grid" x1="' + L + '" x2="' + W + '" y1="' + y(max * f).toFixed(1) + '" y2="' + y(max * f).toFixed(1) + '"/>' +
-    '<text class="apps-hist-axis" x="' + (L - 4) + '" y="' + (y(max * f) + 3).toFixed(1) + '" text-anchor="end">' +
+    '<line class="au-hist-grid" x1="' + L + '" x2="' + W + '" y1="' + y(max * f).toFixed(1) + '" y2="' + y(max * f).toFixed(1) + '"/>' +
+    '<text class="au-hist-axis" x="' + (L - 4) + '" y="' + (y(max * f) + 3).toFixed(1) + '" text-anchor="end">' +
     esc(f === 0 ? '0' : fmtBytes(Math.round(max * f))) + '</text>').join('');
   h.buckets.forEach((b, i) => {
     const x = L + i * slot + (slot - bw) / 2;
@@ -174,15 +174,15 @@ export function historyBars(h: AppHistory, period: AppsPeriod): string {
     for (const a of named) seg(b.apps[a.id] || 0, a.color || 'var(--text-muted)', a.name);
     seg(Object.entries(b.apps).reduce((s, [id, v]) => s + (ids.has(id) ? 0 : v), 0), 'var(--text-muted)', 'other apps');
     if (i % every === 0) {
-      out += '<text class="apps-hist-axis" x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">' +
+      out += '<text class="au-hist-axis" x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">' +
         esc(label(b.ts)) + '</text>';
     }
   });
-  const legend = named.map((a) => '<span class="apps-hist-key"><i style="background:' + esc(a.color || 'var(--text-muted)') +
+  const legend = named.map((a) => '<span class="au-hist-key"><i style="background:' + esc(a.color || 'var(--text-muted)') +
     '"></i>' + esc(a.name) + '</span>').join('') +
-    (h.apps.length > named.length ? '<span class="apps-hist-key"><i style="background:var(--text-muted)"></i>other apps</span>' : '');
-  return '<svg class="apps-hist-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="App usage by ' +
-    (period === 'day' ? 'hour' : 'day') + '">' + out + '</svg><div class="apps-hist-legend">' + legend + '</div>';
+    (h.apps.length > named.length ? '<span class="au-hist-key"><i style="background:var(--text-muted)"></i>other apps</span>' : '');
+  return '<svg class="au-hist-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="App usage by ' +
+    (period === 'day' ? 'hour' : 'day') + '">' + out + '</svg><div class="au-hist-legend">' + legend + '</div>';
 }
 
 const COLS: SortCol[] = [
@@ -231,7 +231,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     const top = v.apps[0];
     const topEl = el('appsTop');
     if (topEl) topEl.innerHTML = top && top.total > 0
-      ? '<span class="apps-top">' + badge(top, 'sm') + '<span>' + esc(top.name) + '</span></span>' : '-';
+      ? '<span class="au-top">' + badge(top, 'sm') + '<span>' + esc(top.name) + '</span></span>' : '-';
     setText('appsTopFoot', top && top.total > 0
       ? v.fmt(top.total) + ', ' + top.share.toFixed(0) + '% of ' + (v.live ? 'traffic' : 'recorded') : ' ');
     if (v.live) {
@@ -252,8 +252,8 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     const svg = el('appsRing') as unknown as SVGSVGElement | null;
     const orbit = el('appsOrbit');
     if (!svg || !orbit) return;
-    if (!svg.querySelector('.apps-ring-track')) {
-      svg.innerHTML = '<circle class="apps-ring-track" cx="100" cy="100" r="' + RING_R + '"/>';
+    if (!svg.querySelector('.au-ring-track')) {
+      svg.innerHTML = '<circle class="au-ring-track" cx="100" cy="100" r="' + RING_R + '"/>';
     }
     const total = v.rx + v.tx;
     const live = v.apps.filter((a) => a.total > 0);
@@ -270,7 +270,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       let c = arcs.get(s.id);
       if (!c) {
         c = document.createElementNS('http://www.w3.org/2000/svg', 'circle') as SVGCircleElement;
-        c.setAttribute('class', 'apps-ring-arc');
+        c.setAttribute('class', 'au-ring-arc');
         c.setAttribute('cx', '100'); c.setAttribute('cy', '100'); c.setAttribute('r', String(RING_R));
         svg.appendChild(c);
         arcs.set(s.id, c);
@@ -294,9 +294,12 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       const len = total > 0 ? a.total / total : 0;
       const mid = (at + len / 2) * 2 * Math.PI - Math.PI / 2;
       at += len;
+      // Only an app holding at least 5% of the ring gets a logo on it: smaller
+      // arcs sit too close together, and their logos would stack.
+      if (len < 0.05) return '';
       const x = 50 + 46 * Math.cos(mid);
       const y = 50 + 46 * Math.sin(mid);
-      return '<button type="button" class="apps-orbit-item" data-app="' + esc(a.id) + '" style="left:' + x.toFixed(1) +
+      return '<button type="button" class="au-orbit-item" data-app="' + esc(a.id) + '" style="left:' + x.toFixed(1) +
         '%;top:' + y.toFixed(1) + '%" title="' + esc(a.name + ': ' + v.fmt(a.total)) + '">' + badge(a, 'md') + '</button>';
     }).join('');
   }
@@ -306,27 +309,27 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     if (!wrap) return;
     const list = v.apps.slice(0, TILES);
     if (!list.length) {
-      wrap.innerHTML = '<div class="apps-empty">' + (v.live ? 'No app traffic yet. Apps appear here as devices use them.'
+      wrap.innerHTML = '<div class="au-empty">' + (v.live ? 'No app traffic yet. Apps appear here as devices use them.'
         : 'Nothing recorded ' + esc(v.span) + ' yet.') + '</div>';
       return;
     }
     wrap.innerHTML = list.map((a) => {
       const spark = a.spark.length > 1
-        ? '<svg class="apps-tile-spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">' +
+        ? '<svg class="au-tile-spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">' +
           '<polyline points="' + sparkPoints(a.spark, 120, 28, 2) + '"/></svg>' : '';
       const who = !v.live ? a.share.toFixed(0) + '% of recorded'
         : a.devices ? esc(a.devices + (a.devices === 1 ? ' device' : ' devices')) + (a.top ? ', mostly ' + esc(a.top) : '') : 'quiet';
       // A quiet app (no traffic this reading, still within its sparkline) is
       // dimmed. Inline, so the class stays one literal the button check reads.
-      return '<button type="button" class="apps-tile" data-app="' + esc(a.id) +
+      return '<button type="button" class="au-tile" data-app="' + esc(a.id) +
         '" style="--app:' + esc(a.color) + (a.total > 0 ? '' : ';opacity:.55') + '">' +
-        '<span class="apps-tile-head">' + badge(a, 'lg') +
-          '<span class="apps-tile-id"><span class="apps-tile-name">' + esc(a.name) + '</span>' + catPill(a.category) + '</span></span>' +
-        '<span class="apps-tile-rate">' + esc(v.fmt(a.total)) + '</span>' +
-        '<span class="apps-tile-sub">' + rates(a.rx, a.tx, v.fmt) + '</span>' +
-        '<span class="apps-tile-who">' + who + '</span>' +
+        '<span class="au-tile-head">' + badge(a, 'lg') +
+          '<span class="au-tile-id"><span class="au-tile-name">' + esc(a.name) + '</span>' + catPill(a.category) + '</span></span>' +
+        '<span class="au-tile-rate">' + esc(v.fmt(a.total)) + '</span>' +
+        '<span class="au-tile-sub">' + rates(a.rx, a.tx, v.fmt) + '</span>' +
+        '<span class="au-tile-who">' + who + '</span>' +
         spark +
-        '<span class="apps-share" aria-hidden="true"><span style="width:' + Math.min(100, a.share).toFixed(1) + '%"></span></span>' +
+        '<span class="au-share" aria-hidden="true"><span style="width:' + Math.min(100, a.share).toFixed(1) + '%"></span></span>' +
         '</button>';
     }).join('');
   }
@@ -343,14 +346,14 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       return;
     }
     body.innerHTML = sortRows(rows, sort.col, sort.dir).map((a) =>
-      '<tr class="apps-row" data-app="' + esc(a.id) + '" style="--app:' + esc(a.color) + '">' +
-      '<td><span class="apps-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span></td>' +
+      '<tr class="au-row" data-app="' + esc(a.id) + '" style="--app:' + esc(a.color) + '">' +
+      '<td><span class="au-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span></td>' +
       '<td>' + catPill(a.category) + '</td>' +
       '<td class="text-end mono">' + (v.live ? a.devices : '-') + '</td>' +
-      '<td class="text-end mono apps-rx">' + esc(v.fmt(a.rx)) + '</td>' +
-      '<td class="text-end mono apps-tx">' + esc(v.fmt(a.tx)) + '</td>' +
+      '<td class="text-end mono au-rx">' + esc(v.fmt(a.rx)) + '</td>' +
+      '<td class="text-end mono au-tx">' + esc(v.fmt(a.tx)) + '</td>' +
       '<td class="text-end mono">' + esc(v.fmt(a.total)) + '</td>' +
-      '<td><span class="apps-share-cell"><span class="apps-share"><span style="width:' + Math.min(100, a.share).toFixed(1) +
+      '<td><span class="au-share-cell"><span class="au-share"><span style="width:' + Math.min(100, a.share).toFixed(1) +
         '%"></span></span><span class="mono">' + a.share.toFixed(1) + '%</span></span></td></tr>').join('');
   }
 
@@ -360,7 +363,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     if (!wrap || !list) return;
     wrap.hidden = !p || !p.unnamed.length;
     list.innerHTML = p ? p.unnamed.map((o) =>
-      '<div class="apps-unnamed-row"><span class="apps-unnamed-org">' + esc(o.org) + '</span>' + rates(o.rxMbps, o.txMbps, fmtMbps) + '</div>').join('') : '';
+      '<div class="au-unnamed-row"><span class="au-unnamed-org">' + esc(o.org) + '</span>' + rates(o.rxMbps, o.txMbps, fmtMbps) + '</div>').join('') : '';
   }
 
   /** The note: the DNS cache's state live; on a stored tab, how to turn
@@ -403,8 +406,8 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     const title = el('appsModalTitle');
     const body = el('appsModalBody');
     if (!a || !title || !body) return;
-    title.innerHTML = '<span class="apps-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span>';
-    const sum = '<div class="apps-modal-sum">' + catPill(a.category) + ' <span class="mono">' + esc(v.fmt(a.total)) + '</span> ' +
+    title.innerHTML = '<span class="au-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span>';
+    const sum = '<div class="au-modal-sum">' + catPill(a.category) + ' <span class="mono">' + esc(v.fmt(a.total)) + '</span> ' +
       rates(a.rx, a.tx, v.fmt);
     if (!v.live) {
       body.innerHTML = sum + ' <span class="muted-note">' + esc(v.span) + '</span></div>' +
@@ -418,8 +421,8 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       (devs.length
         ? '<table class="table table-vcenter mb-0"><thead><tr><th>Device</th><th>Address</th><th class="text-end">Rx</th><th class="text-end">Tx</th></tr></thead><tbody>' +
           devs.map((d) => '<tr><td>' + esc(d.name || '-') + (d.mac ? '<div class="muted-note mono">' + esc(d.mac) + '</div>' : '') + '</td>' +
-            '<td class="mono">' + esc(d.ip) + '</td><td class="text-end mono apps-rx">' + esc(fmtMbps(d.rxMbps)) + '</td>' +
-            '<td class="text-end mono apps-tx">' + esc(fmtMbps(d.txMbps)) + '</td></tr>').join('') + '</tbody></table>'
+            '<td class="mono">' + esc(d.ip) + '</td><td class="text-end mono au-rx">' + esc(fmtMbps(d.rxMbps)) + '</td>' +
+            '<td class="text-end mono au-tx">' + esc(fmtMbps(d.txMbps)) + '</td></tr>').join('') + '</tbody></table>'
         : '<div class="empty-state">No device is using it right now.</div>');
   }
 

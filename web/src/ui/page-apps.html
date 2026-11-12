@@ -1,6 +1,6 @@
   <div class="page-view" id="page-apps">
     <div class="container-fluid px-0" style="width:100%">
-      <div class="card apps-main">
+      <div class="card au-main">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <h3 class="card-title mb-0">Apps Usage</h3>
@@ -20,10 +20,10 @@
           </div>
         </div>
         <div class="card-body">
-          <div class="tool-cards apps-cards">
+          <div class="tool-cards au-cards">
             <div class="tool-card"><div class="tool-card-label">Total</div>
               <div class="tool-card-value" id="appsTotal">-</div>
-              <div class="tool-card-foot"><span class="apps-rx" id="appsTotalRx">-</span> <span class="apps-tx" id="appsTotalTx">-</span></div></div>
+              <div class="tool-card-foot"><span class="au-rx" id="appsTotalRx">-</span> <span class="au-tx" id="appsTotalTx">-</span></div></div>
             <div class="tool-card"><div class="tool-card-label">Apps</div>
               <div class="tool-card-value" id="appsCount">-</div>
               <div class="tool-card-foot" id="appsCountFoot">&nbsp;</div></div>
@@ -35,35 +35,35 @@
               <div class="tool-card-foot" id="appsUnnamedFoot">&nbsp;</div></div>
           </div>
 
-          <div class="apps-hero">
-            <div class="apps-ring-wrap" id="appsRingWrap">
-              <svg class="apps-ring" id="appsRing" viewBox="0 0 200 200" aria-hidden="true"></svg>
-              <div class="apps-ring-centre">
-                <div class="apps-ring-value" id="appsRingValue">-</div>
-                <div class="apps-ring-label" id="appsRingLabel">all traffic</div>
+          <div class="au-hero">
+            <div class="au-ring-wrap" id="appsRingWrap">
+              <svg class="au-ring" id="appsRing" viewBox="0 0 200 200" aria-hidden="true"></svg>
+              <div class="au-ring-centre">
+                <div class="au-ring-value" id="appsRingValue">-</div>
+                <div class="au-ring-label" id="appsRingLabel">all traffic</div>
               </div>
-              <div class="apps-orbit" id="appsOrbit"></div>
+              <div class="au-orbit" id="appsOrbit"></div>
             </div>
-            <div class="apps-tiles" id="appsTiles"></div>
+            <div class="au-tiles" id="appsTiles"></div>
           </div>
 
-          <div class="apps-note" id="appsNote" hidden></div>
+          <div class="au-note" id="appsNote" hidden></div>
 
-          <div class="apps-hist" id="appsHistChart" hidden></div>
+          <div class="au-hist" id="appsHistChart" hidden></div>
 
-          <div class="data-scroll apps-table-wrap">
+          <div class="data-scroll au-table-wrap">
             <table class="table table-vcenter mb-0">
               <thead><tr id="appsThead"><th>App</th><th>Category</th><th class="text-end">Devices</th><th class="text-end">Rx</th><th class="text-end">Tx</th><th class="text-end">Total</th><th>Share</th></tr></thead>
               <tbody id="appsTable"><tr><td colspan="7" class="empty-state">Waiting for traffic</td></tr></tbody>
             </table>
           </div>
 
-          <div class="apps-unnamed" id="appsUnnamedWrap" hidden>
-            <div class="apps-section-title">Unnamed traffic, by network owner</div>
-            <div class="apps-unnamed-list" id="appsUnnamedList"></div>
+          <div class="au-unnamed" id="appsUnnamedWrap" hidden>
+            <div class="au-section-title">Unnamed traffic, by network owner</div>
+            <div class="au-unnamed-list" id="appsUnnamedList"></div>
           </div>
 
-          <div class="muted-note apps-credit">
+          <div class="muted-note au-credit">
             Apps are named from the router's DNS cache, then well-known ports, then the network owner.
             Logos are their owners' trademarks. Network owners: <a href="https://db-ip.com" target="_blank" rel="noopener">IP Geolocation by DB-IP</a>.
           </div>
@@ -71,7 +71,7 @@
       </div>
 
       <div class="rtr-modal-bg" id="appsModal">
-        <div class="rtr-modal pmodal apps-modal">
+        <div class="rtr-modal pmodal au-modal">
           <div class="rtr-modal-hdr">
             <span class="rtr-modal-title" id="appsModalTitle">App</span>
             <button class="rtr-modal-close" data-modal-close="appsModal" aria-label="Close">&#10005;</button>
