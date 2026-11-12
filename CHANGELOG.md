@@ -2,6 +2,18 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.82] - Large fleets are fast again
+
+### Fixed
+
+- **With a couple of hundred routers, every page and router switch took tens of seconds.**
+  Working out which routers you may see got slower with the square of the fleet size. Measured
+  at 201 routers: sign-in to the first router shown went from 50 seconds to under 2, a router
+  switch takes about a quarter of a second, and requests went from up to a minute to a
+  hundredth of a second. Who can see what is unchanged. Reported in
+  [#162](https://github.com/SecOps-7/MikroDash/issues/162), thanks
+  [@r00t-droid](https://github.com/r00t-droid).
+
 ## [0.8.81] - Apps Usage, and RouterOS 7.25 fields
 
 ### New
