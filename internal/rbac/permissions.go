@@ -45,7 +45,11 @@ package rbac
 // stays with the caller for the same reason it does there: only the caller knows
 // the mode.
 
-import "sort"
+import (
+	"sort"
+
+	"mikrodash/internal/db"
+)
 
 // GlobalOnly permissions are satisfiable ONLY by a role held at global scope.
 // `can()` consults the global grants for these and ignores the target entirely,
@@ -106,9 +110,20 @@ func known(permission string) bool { return GlobalOnly[permission] || Scoped[per
 // process never sees those mutations because Node makes them. A cache here could
 // serve a revoked grant for as long as it lived.
 func (r *Resolver) roleConfers(roleID, permission string) (bool, error) {
-	role, err := r.db.RoleByID(roleID)
-	if err != nil {
-		return false, err
+	return r.roleConfersCached(roleID, permission, map[string]*db.Role{})
+}
+
+// roleConfersCached is roleConfers with the roles read so far in ONE call, so a
+// question asked across the fleet reads each role once. The cache lives for that
+// call only, which keeps the package's rule: nothing outlives the question.
+func (r *Resolver) roleConfersCached(roleID, permission string, cache map[string]*db.Role) (bool, error) {
+	role, seen := cache[roleID]
+	if !seen {
+		var err error
+		if role, err = r.db.RoleByID(roleID); err != nil {
+			return false, err
+		}
+		cache[roleID] = role
 	}
 	if role == nil {
 		// A grant naming a deleted role confers nothing.
@@ -165,19 +180,7 @@ func (r *Resolver) Can(userID, permission, routerID string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		for _, g := range grants {
-			if g.ScopeType != "global" {
-				continue
-			}
-			ok, err := r.roleConfers(g.RoleID, permission)
-			if err != nil {
-				return false, err
-			}
-			if ok {
-				return true, nil
-			}
-		}
-		return false, nil
+		return r.anyConfers(globalRoleIDs(grants), permission, map[string]*db.Role{})
 	}
 
 	if !Scoped[permission] {
@@ -194,16 +197,7 @@ func (r *Resolver) Can(userID, permission, routerID string) (bool, error) {
 	if sets == nil {
 		return false, nil // the router does not exist
 	}
-	for _, roleID := range sets {
-		ok, err := r.roleConfers(roleID, permission)
-		if err != nil {
-			return false, err
-		}
-		if ok {
-			return true, nil
-		}
-	}
-	return false, nil
+	return r.anyConfers(sets, permission, map[string]*db.Role{})
 }
 
 // EffectiveRouterIDs is every router this user holds `permission` on, sorted.
@@ -215,13 +209,41 @@ func (r *Resolver) Can(userID, permission, routerID string) (bool, error) {
 // An error on ANY router fails the whole call rather than silently dropping that
 // router from the list: a partial allow-list is indistinguishable from a smaller
 // legitimate one, and this list is a permission boundary.
+//
+// ── THE FLEET AND THE GRANTS ONCE, NOT ONCE PER ROUTER ──────────────────────
+//
+// This called `Can` per router, and `Can` reads the fleet and the user's grants
+// to answer for one router: the fleet squared and two queries per router per
+// call. At 200 routers that was tens of seconds for a router list or a switch
+// (issue #162). It now makes `Can`'s decision per router from one fleet read,
+// one grants read and each role read once, the arrangement PageRouterIDs
+// already had. TestEffectiveRouterIDsAgreesWithCan holds the two together.
 func (r *Resolver) EffectiveRouterIDs(userID, permission string) ([]string, error) {
 	out := []string{}
-	if !r.Available() {
+	if !r.Available() || userID == "" || !known(permission) {
 		return out, nil
 	}
-	for _, rt := range r.routers() {
-		ok, err := r.Can(userID, permission, rt.ID)
+	grants, err := r.db.GrantsForUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	cache := map[string]*db.Role{}
+	fleet := r.routers()
+	if GlobalOnly[permission] {
+		// Can ignores the router for a global permission: the answer is the
+		// same for every router, so it is every router or none.
+		ok, err := r.anyConfers(globalRoleIDs(grants), permission, cache)
+		if err != nil || !ok {
+			return out, err
+		}
+		for _, rt := range fleet {
+			out = append(out, rt.ID)
+		}
+		sort.Strings(out)
+		return out, nil
+	}
+	for _, rt := range fleet {
+		ok, err := r.anyConfers(scopedRoles(grants, rt), permission, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -231,6 +253,32 @@ func (r *Resolver) EffectiveRouterIDs(userID, permission string) ([]string, erro
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// anyConfers is whether any of these roles holds `permission`: Can's decision,
+// shared with EffectiveRouterIDs so the two cannot drift.
+func (r *Resolver) anyConfers(roleIDs []string, permission string, cache map[string]*db.Role) (bool, error) {
+	for _, roleID := range roleIDs {
+		ok, err := r.roleConfersCached(roleID, permission, cache)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// globalRoleIDs is the roles a user's global grants confer.
+func globalRoleIDs(grants []db.Grant) []string {
+	out := []string{}
+	for _, g := range grants {
+		if g.ScopeType == "global" {
+			out = append(out, g.RoleID)
+		}
+	}
+	return out
 }
 
 // WriteCapablePages is `Object.keys(Rbac.WRITE_CONFERS)`.

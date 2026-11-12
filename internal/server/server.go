@@ -369,8 +369,10 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		rbac: rbac.New(opts.AuditDB, func() []rbac.Router {
 			// Read per query rather than captured, so a router added or moved
 			// between sites while the process runs is seen on the next
-			// question instead of the next restart.
-			list, _ := st.Routers()
+			// question instead of the next restart. RouterRecords, not
+			// Routers: a permission question needs no credential, and opening
+			// every router's for every question was issue #162.
+			list, _ := st.RouterRecords()
 			out := make([]rbac.Router, 0, len(list))
 			for _, r := range list {
 				out = append(out, rbac.Router{ID: r.ID, SiteIDs: store.RouterSiteIDs(r),

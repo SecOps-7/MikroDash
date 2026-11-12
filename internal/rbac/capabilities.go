@@ -150,13 +150,26 @@ func (r *Resolver) CapabilitiesFor(userID string) (Capabilities, error) {
 	// is idempotent, so the answer is identical either way; only the query count
 	// changes. No test defends it and none should be contrived to — the comment
 	// above says what it buys, and this says what it does not.
-	seen := map[string]bool{}
+	//
+	// AND THE FLEET AND THE GRANTS ARE READ ONCE. This asked roleSetsInScope per
+	// readable router, which reads both to answer for one; session validation
+	// runs this on every request, so at 200 routers each request paid 200 fleet
+	// reads and 200 grant queries, about a quarter of a second (issue #162).
+	// scopedRoles is the same scope rule roleSetsInScope applies.
+	grants, err := r.db.GrantsForUser(userID)
+	if err != nil {
+		return caps, err
+	}
+	isReadable := make(map[string]bool, len(readable))
 	for _, rid := range readable {
-		roles, err := r.roleSetsInScope(userID, rid)
-		if err != nil {
-			return caps, err
+		isReadable[rid] = true
+	}
+	seen := map[string]bool{}
+	for _, rt := range r.routers() {
+		if !isReadable[rt.ID] {
+			continue
 		}
-		for _, roleID := range roles {
+		for _, roleID := range scopedRoles(grants, rt) {
 			seen[roleID] = true
 		}
 	}

@@ -262,6 +262,9 @@ func scopedRoles(grants []db.Grant, router Router) []string {
 // So it is deliberately WEAKER than CanPage and must never be used where a
 // router id is available. It answers "may you use this page at all", not "may
 // you use it here" — and the second is the only one that gates data.
+//
+// Two batch reads, not CanPage per readable router: that was the fleet read
+// once per router (issue #162).
 func (r *Resolver) CanPageAnywhere(userID, page, access string) (bool, error) {
 	if !r.Available() || userID == "" {
 		return false, nil
@@ -270,12 +273,12 @@ func (r *Resolver) CanPageAnywhere(userID, page, access string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	onPage, err := r.PageRouterIDs(userID, page, access)
+	if err != nil {
+		return false, err
+	}
 	for _, rid := range readable {
-		ok, cerr := r.CanPage(userID, page, access, rid)
-		if cerr != nil {
-			return false, cerr
-		}
-		if ok {
+		if onPage[rid] {
 			return true, nil
 		}
 	}

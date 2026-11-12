@@ -613,6 +613,25 @@ type BackupBlock struct {
 // router in the list with an empty password and records the failure, because one
 // router encrypted under an old key must not hide the other five.
 func (s *Store) Routers() ([]Router, []error) {
+	out, problems := s.RouterRecords()
+	return s.openCredentials(out, problems)
+}
+
+// RouterRecords reads the list WITHOUT opening a credential: Password and the
+// backup password are empty, a login profile is not resolved. For the questions
+// that are about who and where (permissions, sites, labels, holds), never for
+// signing in to a router.
+//
+// ── WHY IT EXISTS: A PERMISSION CHECK PAID FOR EVERY ROUTER'S PASSWORD ───────
+//
+// The permission resolver reads the fleet to find a router's sites, and it read
+// it through Routers(), which decrypts every credential and resolves every login
+// profile. "Which routers may this user read" asks that once per router, so one
+// answer cost the fleet squared in decryptions: about 40,000 at 201 routers, and
+// with a browser open it was asked on every router status change. Issue #162
+// measured 36 to 64 seconds for a page request and a router switch at 200
+// routers. A record without its credential is all the question needs.
+func (s *Store) RouterRecords() ([]Router, []error) {
 	b, missing, rerr := readIfPresent(filepath.Join(s.Dir, "routers.json"))
 	if rerr != nil {
 		return nil, []error{rerr}
@@ -659,6 +678,12 @@ func (s *Store) Routers() ([]Router, []error) {
 				"it, the FILE is unchanged. It is repaired permanently by the next write "+
 				"that names the field", err))
 	}
+	return out, problems
+}
+
+// openCredentials decrypts each record's credential and resolves its login
+// profile: the half of Routers that RouterRecords leaves out.
+func (s *Store) openCredentials(out []Router, problems []error) ([]Router, []error) {
 	var profiles map[string]resolvedLogin
 	var profErr error
 	for i := range out {
