@@ -1,13 +1,14 @@
 package db
 
-// The table of the Apps Usage history, an optional feature (Settings ->
-// Features, on by default), migration 38.
+// The table of the Apps Usage history, migration 38. Recorded for every router
+// with Reporting on (internal/server/apps_history.go).
 //
-//	app_usage              bytes each application moved on a router, per hour
+//	app_usage              bytes each application moved on a router, per hour,
+//	                       and the unnamed bytes under apps.UnnamedID
 //
 // Migration 38 also made `app_history_routers`, the routers someone had
-// switched recording on for. Every router is recorded now while the feature is
-// on (the operator, 2026-11-12), so migration 39 drops it
+// switched recording on for. There is no such choice any more (the operator,
+// 2026-11-12: a router's Reporting setting decides), so migration 39 drops it
 // (appHistoryRoutersDropDDL) and a new database never has it.
 //
 // Shared by `freshSchemaDDL` and `portMigrations[38]`, the rule

@@ -16,7 +16,7 @@ const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
 const ENTRY = path.join(ROOT, 'testdata', '.apps-entry.ts');
-fs.writeFileSync(ENTRY, "export { initAppsPage, APP_CAT_TONE, monogram, historyView, historyBars, fillingNote } from '../web/src/pages/apps.js';\n" +
+fs.writeFileSync(ENTRY, "export { initAppsPage, APP_CAT_TONE, monogram, historyView, historyBars, hourSpan } from '../web/src/pages/apps.js';\n" +
   "export { applyPageVisibility } from '../web/src/caps.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.apps.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -105,16 +105,20 @@ function boot() {
   say('ok  the last hour: bytes on the cards, ring and tiles; Last hour first; no owner list');
 }
 
-// ── 2b. the hour still filling says so ─────────────────────────────────────
+// ── 2b. less than an hour measured: shown as it comes in, labelled ─────────
+//
+// The page does not wait for a full hour (the operator, 2026-11-12): whatever
+// has been measured is drawn, and the labels say how long that is.
 {
   const { doc, mod, send, restore } = boot();
   send(payload({ from: 10 * HOUR, to: 10 * HOUR + 12 * 60000 }));
-  assert.strictEqual(doc.nodes['appsNote'].hidden, false, 'a 12-minute window did not say the hour is filling');
-  assert.ok(/still filling: 12 minutes/.test(doc.nodes['appsNote'].textContent), doc.nodes['appsNote'].textContent);
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '50.0 MB', 'a 12-minute window was not drawn');
+  assert.strictEqual(doc.nodes['appsCountFoot'].textContent, 'in the last 12 minutes', doc.nodes['appsCountFoot'].textContent);
+  assert.ok(!/filling/.test(doc.nodes['appsNote'].textContent), 'the page still says it is waiting: ' + doc.nodes['appsNote'].textContent);
   restore();
-  assert.ok(/less than a minute/.test(mod.fillingNote(payload({ from: 0, to: 30000 }))), 'the first minute is not described');
-  assert.strictEqual(mod.fillingNote(payload({})), '', 'a whole hour still reads as filling');
-  say('ok  a filling hour is explained');
+  assert.strictEqual(mod.hourSpan(payload({ from: 0, to: 30000 })), 'in the last minute');
+  assert.strictEqual(mod.hourSpan(payload({})), 'in the last hour');
+  say('ok  less than an hour is drawn, and labelled with the minutes measured');
 }
 
 // ── 3. the table sorts ─────────────────────────────────────────────────────
@@ -143,65 +147,65 @@ function boot() {
   say('ok  categories and tones agree; monograms');
 }
 
-// ── 5. the stored tabs: on by default, no opt-in, totals in bytes ─────────
+// ── 5. the stored tabs: Reporting decides, totals in bytes, unnamed too ────
 //
 // A stored tab draws the same cards, ring, tiles and table from
 // /api/apps/history, with a stacked bar per bucket in the apps' own colours.
-// There is no per-router switch: with the feature on, the history is fetched
-// for whichever router is active. Off, the tab says so and fetches nothing.
+// There is no switch on the page or in Settings: the history is fetched for
+// whichever router is active, and a router with Reporting off says so.
 const HIST = {
-  from: 0, to: 2,
+  from: 0, to: 2, recording: true, unnamedRxBytes: 1073741824, unnamedTxBytes: 0,
   apps: [
     { id: 'netflix', name: 'Netflix', category: 'streaming', color: '#E50914', logo: 'mask', dark: false, rxBytes: 3 * 1073741824, txBytes: 0 },
     { id: 'teams', name: 'Microsoft Teams', category: 'conferencing', color: '#6264A7', logo: 'image', dark: false, rxBytes: 512 * 1048576, txBytes: 512 * 1048576 },
   ],
   buckets: [
-    { ts: 1_800_000_000_000, apps: { netflix: 1073741824 } },
-    { ts: 1_800_086_400_000, apps: { netflix: 2 * 1073741824, teams: 1073741824 } },
+    { ts: 1_800_000_000_000, apps: { netflix: 1073741824 }, unnamed: 0 },
+    { ts: 1_800_086_400_000, apps: { netflix: 2 * 1073741824, teams: 1073741824 }, unnamed: 1073741824 },
   ],
 };
 (async () => {
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const calls = [];
+  let answer = HIST;
   global.fetch = (url, init) => {
     const method = (init && init.method) || 'GET';
     calls.push(method + ' ' + url);
-    return Promise.resolve({ ok: true, statusText: 'OK', json: () => Promise.resolve(HIST) });
+    return Promise.resolve({ ok: true, statusText: 'OK', json: () => Promise.resolve(answer) });
   };
   const { doc, mod, send, on, restore } = boot();
   const clickTab = (t) => doc.nodes['appsTabs'].fire('click', { target: { closest: () => ({ dataset: { appstab: t } }) } });
   on('router:active', { activeId: 'r1' });
   send(payload({}));
 
-  // Switched off: the tab explains, nothing is fetched.
+  // The week is fetched for the active router, with no switch first.
   clickTab('week');
-  await tick();
-  assert.ok(/switched off/.test(doc.nodes['appsNote'].textContent) && !doc.nodes['appsNote'].hidden,
-    'a stored tab with the feature off does not say so: ' + doc.nodes['appsNote'].textContent);
-  assert.deepStrictEqual(calls, [], 'the feature is off and the page still asked the server: ' + calls);
-
-  // On (the default): the week is fetched for the active router, no switch first.
-  const pd = global.document;
-  global.document = makeDoc([], { allowUnknown: ['*'] }); // the sweep walks the whole nav; not this page's concern
-  mod.applyPageVisibility({ appHistoryEnabled: true });
-  global.document = pd;
   await tick(); await tick(); await tick();
   assert.deepStrictEqual(calls, ['GET /api/apps/history?routerId=r1&period=week'], 'the week was not fetched, or something else was: ' + calls);
-  assert.strictEqual(doc.nodes['appsNote'].hidden, true, 'the note stayed up with the feature on');
-  assert.strictEqual(doc.nodes['appsTotal'].textContent, '4.0 GB', 'the total is not the stored bytes');
+  assert.strictEqual(doc.nodes['appsNote'].hidden, true, 'a recorded router shows a note: ' + doc.nodes['appsNote'].textContent);
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '5.0 GB', 'the total is not the stored bytes, unnamed included');
   assert.strictEqual(doc.nodes['appsCountFoot'].textContent, 'in the last 7 days');
-  assert.strictEqual(doc.nodes['appsUnnamed'].textContent, '-', 'unnamed traffic is not stored, so it is not shown');
+  assert.strictEqual(doc.nodes['appsUnnamed'].textContent, '20%', 'the stored unnamed traffic is not on its card');
+  assert.strictEqual(doc.nodes['appsUnnamedFoot'].textContent, '1.0 GB not named');
   const tiles = String(doc.nodes['appsTiles'].innerHTML);
-  assert.ok(tiles.includes('3.0 GB') && tiles.includes('75% of recorded'), 'the Netflix tile is not its stored total:\n' + tiles);
+  assert.ok(tiles.includes('3.0 GB') && tiles.includes('60% of recorded'), 'the Netflix tile is not its stored total:\n' + tiles);
   const table = String(doc.nodes['appsTable'].innerHTML);
   assert.ok(/au-rx">512\.0 MB/.test(table) && /<td class="text-end mono">-<\/td>/.test(table),
     'the table is not in bytes, or claims devices it does not store:\n' + table);
   const chart = String(doc.nodes['appsHistChart'].innerHTML);
   assert.strictEqual(doc.nodes['appsHistChart'].hidden, false, 'the bars are hidden on a stored tab');
-  assert.strictEqual((chart.match(/<rect /g) || []).length, 3, 'one segment per app per day with bytes:\n' + chart);
+  assert.strictEqual((chart.match(/<rect /g) || []).length, 4, 'one segment per app per day with bytes, and the unnamed:\n' + chart);
+  assert.ok(/unnamed: 1\.0 GB/.test(chart), 'the unnamed segment is missing:\n' + chart);
   assert.ok(chart.includes('fill:#E50914') && chart.includes('fill:#6264A7'), 'a bar is not in its app\'s colour');
   const hexes = [...new Set(chart.match(/#[0-9A-Fa-f]{3,8}\b/g) || [])];
   assert.deepStrictEqual(hexes.sort(), ['#6264A7', '#E50914'], 'the chart has a colour that is neither an app\'s nor a token: ' + hexes);
+
+  // A router with Reporting off: the tab says why it is empty.
+  answer = { ...HIST, apps: [], buckets: [], unnamedRxBytes: 0, recording: false };
+  clickTab('month');
+  await tick(); await tick(); await tick();
+  assert.ok(/Reporting/.test(doc.nodes['appsNote'].textContent) && !doc.nodes['appsNote'].hidden,
+    'a router with Reporting off does not say why nothing is stored: ' + doc.nodes['appsNote'].textContent);
 
   // Back to Last hour: the bars go and the payload is drawn again.
   clickTab('hour');
@@ -212,9 +216,9 @@ const HIST = {
 
   // The view itself: shares are of the recorded bytes, sparklines follow the buckets.
   const v = mod.historyView(HIST, 'week');
-  assert.strictEqual(v.apps[0].share, 75);
+  assert.strictEqual(v.apps[0].share, 60);
   assert.deepStrictEqual(v.apps[1].spark, [0, 1073741824]);
-  say('ok  the stored tabs: on by default, no opt-in, totals in bytes, bars in brand colours');
+  say('ok  the stored tabs: no switch, unnamed stored, Reporting off explained, bars in brand colours');
 
   fs.rmSync(OUT, { force: true });
   say('apps-page: all checks passed');

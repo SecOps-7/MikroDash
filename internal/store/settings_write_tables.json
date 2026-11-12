@@ -208,8 +208,7 @@
     "watchListEnabled",
     "wifiHistoryEnabled",
     "wifiWeakSpotsEnabled",
-    "capVersionsEnabled",
-    "appHistoryEnabled"
+    "capVersionsEnabled"
   ],
   "credFields": [
     "aiApiKey"

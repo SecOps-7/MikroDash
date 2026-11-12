@@ -39,8 +39,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "watchListEnabled",
     "wifiHistoryEnabled",
     "wifiWeakSpotsEnabled",
-    "capVersionsEnabled",
-    "appHistoryEnabled"
+    "capVersionsEnabled"
   ],
   "checkOn": [
     "pageAudit",

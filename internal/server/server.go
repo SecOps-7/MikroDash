@@ -449,7 +449,6 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// The Apps Usage history takes every minute every apps collector closes. Same
 	// ordering rule: a session binds it when it is built.
 	srv.appUsage = newAppUsageRecorder()
-	srv.refreshAppRecording()
 	srv.sessions.SetOnAppUsage(srv.appUsage.add)
 	// `router:status` beyond a router's own room goes only to the browsers that
 	// may read that router. See Server.sendFleetStatus.

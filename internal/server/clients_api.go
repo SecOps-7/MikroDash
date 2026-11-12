@@ -37,15 +37,30 @@ func (s *Server) registerClientFeatures(mux *http.ServeMux) {
 }
 
 // routerFeatureGate is the gate an optional feature about one router's page
-// shares: the feature on, a signed-in user, a valid router id, and `access` on
-// `page` for that router. Nil when it refused, having answered the request
-// itself. The Wi-Fi features ask for the Wifi Clients page, the Apps Usage
-// history (apps_history.go) for the Apps Usage page.
+// shares: the feature on, then routerPageCheck. Nil when it refused, having
+// answered the request itself. The Wi-Fi features ask for the Wifi Clients
+// page.
 func (s *Server) routerFeatureGate(w http.ResponseWriter, r *http.Request, feature, page, routerID, access string) *Session {
 	sess := s.layoutSession(w, r)
 	if sess == nil || !s.featureGate(w, feature) {
 		return nil
 	}
+	return s.routerPageCheck(w, sess, page, routerID, access)
+}
+
+// routerPageGate is the same gate for a router's stored data that is not an
+// optional feature: the Apps Usage history (apps_history.go).
+func (s *Server) routerPageGate(w http.ResponseWriter, r *http.Request, page, routerID, access string) *Session {
+	sess := s.layoutSession(w, r)
+	if sess == nil {
+		return nil
+	}
+	return s.routerPageCheck(w, sess, page, routerID, access)
+}
+
+// routerPageCheck: the database open, a valid router id, and `access` on
+// `page` for that router.
+func (s *Server) routerPageCheck(w http.ResponseWriter, sess *Session, page, routerID, access string) *Session {
 	if s.auditDB == nil {
 		writeJSONErr(w, http.StatusServiceUnavailable, "the database is not open")
 		return nil

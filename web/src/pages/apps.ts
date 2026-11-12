@@ -1,15 +1,14 @@
 // The Apps Usage page: traffic by application, with each app's logo.
 //
 // Two sources. The Last hour tab is `apps:update`, from
-// internal/collect/apps.go: the last sixty minutes in bytes, sent once a minute
-// (the page moved with every reading until 2026-11-12, which the operator found
-// too much movement). The 24 hours, 7 days and 30 days tabs are the stored
-// history, GET /api/apps/history (internal/server/apps_history.go): bytes per
-// app per hour, kept for every router while Settings -> Features -> "Apps Usage
-// history" is on, which it is by default. Both are turned into one view the
-// cards, ring, tiles and table draw, so the two cannot drift apart; both are in
-// bytes, the last hour adds devices and unnamed traffic, and the stored tabs
-// add a stacked bar per hour or day.
+// internal/collect/apps.go: the last sixty minutes in bytes, the open minute
+// included, sent with every reading so the page shows bytes as they come in.
+// The 24 hours, 7 days and 30 days tabs are the stored history,
+// GET /api/apps/history (internal/server/apps_history.go): bytes per app per
+// hour, and the unnamed bytes, kept for every router with Reporting on. Both
+// are turned into one view the cards, ring, tiles and table draw, so the two
+// cannot drift apart; both are in bytes, the last hour adds devices, and the
+// stored tabs add a stacked bar per hour or day.
 //
 // ── HOW A LOGO IS DRAWN ─────────────────────────────────────────────────────
 //
@@ -29,7 +28,6 @@
 import type { Socket } from '../socket';
 import type { AppUsage, AppUsagePayload, AppDevice } from '../gen/payloads';
 import { esc, el, pill, fmtBytes, sparkPoints, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
-import { featureOn, onFeatures } from '../caps';
 import { fmtMonthDay, fmtTime } from '../timefmt';
 import type { PillTone } from '../palette';
 
@@ -109,41 +107,44 @@ export interface AppsView {
 /** GET /api/apps/history. */
 export interface AppHistory {
   apps: Array<Brand & { category: string; rxBytes: number; txBytes: number }>;
-  buckets: Array<{ ts: number; apps: Record<string, number> }>;
+  buckets: Array<{ ts: number; apps: Record<string, number>; unnamed: number }>;
+  unnamedRxBytes: number; unnamedTxBytes: number;
   from: number; to: number;
+  /** Whether this router's app usage is being kept: its Reporting setting. */
+  recording: boolean;
 }
 
 export type AppsPeriod = 'day' | 'week' | 'month';
 
 const SPAN: Record<AppsPeriod, string> = { day: 'in the last 24 hours', week: 'in the last 7 days', month: 'in the last 30 days' };
 
+/** What the last hour's figures cover: "in the last hour", or, while less than
+ *  an hour has been measured, the minutes that have. Pure. */
+export function hourSpan(p: AppUsagePayload): string {
+  const mins = Math.floor(Math.max(0, p.to - p.from) / 60000);
+  if (mins >= 59) return 'in the last hour';
+  return mins < 2 ? 'in the last minute' : 'in the last ' + mins + ' minutes';
+}
+
 /** The last hour as a view. Pure. */
 export function hourView(p: AppUsagePayload): AppsView {
   return {
-    hour: true, rx: p.rxBytes, tx: p.txBytes, unnamed: p.unnamedBytes, span: 'in the last hour',
+    hour: true, rx: p.rxBytes, tx: p.txBytes, unnamed: p.unnamedBytes, span: hourSpan(p),
     apps: p.apps.map((a) => ({ id: a.id, name: a.name, category: a.category, color: a.color, logo: a.logo,
       dark: a.dark, rx: a.rxBytes, tx: a.txBytes, total: a.totalBytes, share: a.share, devices: a.devices,
       top: a.top, spark: a.spark })),
   };
 }
 
-/** The note that the hour is still filling, or '' once the payload covers a
- *  whole hour (from the collector's start, or after a gap in its readings). */
-export function fillingNote(p: AppUsagePayload): string {
-  const mins = Math.floor(Math.max(0, p.to - p.from) / 60000);
-  if (mins >= 59) return '';
-  return 'The hour is still filling: ' + (mins < 1 ? 'less than a minute' : mins + (mins === 1 ? ' minute' : ' minutes')) +
-    ' measured so far. The page moves once a minute.';
-}
-
-/** The stored totals as a view: each app's share of the recorded bytes, and
- *  its line across the buckets for the tile's sparkline. Pure. */
+/** The stored totals as a view: each app's share of all the recorded bytes,
+ *  unnamed included as on the last hour, and its line across the buckets for
+ *  the tile's sparkline. Pure. */
 export function historyView(h: AppHistory, period: AppsPeriod): AppsView {
-  let rx = 0, tx = 0;
+  let rx = h.unnamedRxBytes, tx = h.unnamedTxBytes;
   for (const a of h.apps) { rx += a.rxBytes; tx += a.txBytes; }
   const all = rx + tx;
   return {
-    hour: false, rx, tx, unnamed: 0, span: SPAN[period],
+    hour: false, rx, tx, unnamed: h.unnamedRxBytes + h.unnamedTxBytes, span: SPAN[period],
     apps: h.apps.map((a) => {
       const total = a.rxBytes + a.txBytes;
       return { id: a.id, name: a.name, category: a.category, color: a.color, logo: a.logo, dark: a.dark,
@@ -161,7 +162,7 @@ export function historyBars(h: AppHistory, period: AppsPeriod): string {
   const pw = W - L, ph = H - B - T;
   const named = h.apps.slice(0, BAR_APPS);
   const ids = new Set(named.map((a) => a.id));
-  const totals = h.buckets.map((b) => Object.values(b.apps).reduce((s, v) => s + v, 0));
+  const totals = h.buckets.map((b) => Object.values(b.apps).reduce((s, v) => s + v, b.unnamed));
   const max = Math.max(1, ...totals);
   const slot = pw / h.buckets.length;
   const bw = Math.max(1, slot * 0.7);
@@ -184,6 +185,7 @@ export function historyBars(h: AppHistory, period: AppsPeriod): string {
     };
     for (const a of named) seg(b.apps[a.id] || 0, a.color || 'var(--text-muted)', a.name);
     seg(Object.entries(b.apps).reduce((s, [id, v]) => s + (ids.has(id) ? 0 : v), 0), 'var(--text-muted)', 'other apps');
+    seg(b.unnamed, 'var(--border)', 'unnamed');
     if (i % every === 0) {
       out += '<text class="au-hist-axis" x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">' +
         esc(label(b.ts)) + '</text>';
@@ -191,7 +193,8 @@ export function historyBars(h: AppHistory, period: AppsPeriod): string {
   });
   const legend = named.map((a) => '<span class="au-hist-key"><i style="background:' + esc(a.color || 'var(--text-muted)') +
     '"></i>' + esc(a.name) + '</span>').join('') +
-    (h.apps.length > named.length ? '<span class="au-hist-key"><i style="background:var(--text-muted)"></i>other apps</span>' : '');
+    (h.apps.length > named.length ? '<span class="au-hist-key"><i style="background:var(--text-muted)"></i>other apps</span>' : '') +
+    (h.buckets.some((b) => b.unnamed > 0) ? '<span class="au-hist-key"><i style="background:var(--border)"></i>unnamed</span>' : '');
   return '<svg class="au-hist-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="App usage by ' +
     (period === 'day' ? 'hour' : 'day') + '">' + out + '</svg><div class="au-hist-legend">' + legend + '</div>';
 }
@@ -211,6 +214,8 @@ function call<T>(url: string, init?: RequestInit): Promise<T> {
     r.json().then((d) => (r.ok ? d as T : Promise.reject(new Error((d && d.error) || r.statusText)))));
 }
 
+const EMPTY_HISTORY: AppHistory = { apps: [], buckets: [], unnamedRxBytes: 0, unnamedTxBytes: 0, from: 0, to: 0, recording: false };
+
 export function initAppsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let last: AppUsagePayload | null = null;
   let stored: AppHistory | null = null;
@@ -227,7 +232,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
   /** What the page shows now: the last hour, or the stored tab's totals. */
   function current(): AppsView | null {
     if (tab === 'hour') return last ? hourView(last) : null;
-    return historyView(stored || { apps: [], buckets: [], from: 0, to: 0 }, period());
+    return historyView(stored || EMPTY_HISTORY, period());
   }
 
   function renderCards(v: AppsView): void {
@@ -243,14 +248,9 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       ? '<span class="au-top">' + badge(top, 'sm') + '<span>' + esc(top.name) + '</span></span>' : '-';
     setText('appsTopFoot', top
       ? fmtBytes(top.total) + ', ' + top.share.toFixed(0) + '% of ' + (v.hour ? 'traffic' : 'recorded') : ' ');
-    if (v.hour) {
-      const unPct = total > 0 ? (100 * v.unnamed) / total : 0;
-      setText('appsUnnamed', total > 0 ? unPct.toFixed(0) + '%' : '-');
-      setText('appsUnnamedFoot', fmtBytes(v.unnamed) + ' not named');
-    } else {
-      setText('appsUnnamed', '-');
-      setText('appsUnnamedFoot', 'last hour only');
-    }
+    const unPct = total > 0 ? (100 * v.unnamed) / total : 0;
+    setText('appsUnnamed', total > 0 ? unPct.toFixed(0) + '%' : '-');
+    setText('appsUnnamedFoot', fmtBytes(v.unnamed) + ' not named');
     const b = el('appsBadge');
     if (b) { b.textContent = String(v.apps.length); b.className = 'card-badge' + (v.apps.length ? ' active-blue' : ''); }
   }
@@ -363,22 +363,20 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
         '%"></span></span><span class="mono">' + a.share.toFixed(1) + '%</span></span></td></tr>').join('');
   }
 
-  /** The note: on the last hour, whether it is still filling and the DNS
-   *  cache's state; on a stored tab, that the feature is off when it is. */
+  /** The note: on the last hour, the DNS cache's state; on a stored tab, that
+   *  this router is not being recorded when its Reporting is off. */
   function renderNote(): void {
     const n = el('appsNote');
     if (!n) return;
     const parts: string[] = [];
     if (tab !== 'hour') {
-      if (!featureOn('appHistoryEnabled')) {
-        parts.push('Stored app usage is switched off. Switch on "Apps Usage history" in Settings, Features, ' +
-          'to keep every router\'s app usage by the hour.');
-      } else if (!routerId) {
+      if (!routerId) {
         parts.push('Select a router to see its stored app usage.');
+      } else if (stored && !stored.recording) {
+        parts.push('App usage is stored only for routers with Reporting on, and it is off for this router. ' +
+          'Turn on Reporting in the router\'s settings on the Devices page to keep its app usage by the hour.');
       }
     } else if (last) {
-      const fill = fillingNote(last);
-      if (fill) parts.push(fill);
       if (!last.dnsAt) {
         parts.push('Reading the router\'s DNS cache. Until it arrives, apps are named by port and network owner only.');
       } else if (!last.dnsNames) {
@@ -442,7 +440,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
 
   function loadHistory(): void {
     stored = null;
-    if (tab === 'hour' || !featureOn('appHistoryEnabled') || !routerId) { render(); return; }
+    if (tab === 'hour' || !routerId) { render(); return; }
     const want = tab;
     const rid = routerId;
     call<AppHistory>('/api/apps/history?routerId=' + encodeURIComponent(rid) + '&period=' + encodeURIComponent(want))
@@ -494,5 +492,4 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     if ((e as CustomEvent).detail !== 'apps') return;
     if (tab === 'hour') render(); else loadHistory();
   });
-  onFeatures(() => { if (tab !== 'hour') loadHistory(); });
 }

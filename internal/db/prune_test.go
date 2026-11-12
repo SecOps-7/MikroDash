@@ -141,7 +141,7 @@ var portAddedPrunes = map[string]string{
 	"wifi_samples": "the Wi-Fi client history, an optional feature live never had. It ages on its " +
 		"own setting, a week by default, because a sample a minute per client is the largest table " +
 		"here for its age and only recent history answers its question",
-	"app_usage": "the Apps Usage history (2026-11-12), an optional feature live never had. Hourly " +
+	"app_usage": "the Apps Usage history (2026-11-12), recorded with Reporting, which live never had. Hourly " +
 		"byte counts per application are the same kind of series as the traffic rollups, so they " +
 		"age on the same metric policy",
 	"monitor_runs": "when each router was being observed (2026-10-01), so the Devices page's " +

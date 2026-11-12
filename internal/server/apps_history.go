@@ -1,22 +1,24 @@
 package server
 
-// The Apps Usage page's stored history, an optional feature (Settings ->
-// Features), ON BY DEFAULT and recorded for every router while it is on:
+// The Apps Usage page's stored history, recorded for every router with
+// Reporting on (the router's own setting, Devices -> edit -> Monitoring):
 //
 //	GET    /api/apps/history?routerId=&period=day|week|month   per-app totals
 //
 // Gated on the Apps Usage page for that router.
 //
-// ── NO CHOICE PER ROUTER, AND WHAT THAT COSTS ───────────────────────────────
+// ── REPORTING IS THE SWITCH ─────────────────────────────────────────────────
 //
-// Until 2026-11-12 a router was recorded only once someone pressed "Record
-// this router". The operator asked for history on by default, with no opt-in,
-// so while the feature is on every router is held for it (fleet_holds.go,
-// session reason AppHistory). That means the connection table is read for
-// every router continuously, one channel per router (the read Connections and
-// Bandwidth share, so a router whose pages are open pays nothing extra), and
-// the DNS cache once a minute per router. Switching the feature off in
-// Settings -> Features is the off switch, for every router at once.
+// Until 2026-11-12 this was a feature of its own in Settings -> Features, on by
+// default for every router. The operator asked for it to follow Reporting
+// instead, the setting that already decides whether a router's traffic, ping
+// and uptime are written to disk: one switch per router for "keep this
+// router's history". So the session's `history` hold runs the apps collector
+// (session.historyFeeds) and the recorder below keeps the minutes of exactly
+// the routers declareReporting says are on. The cost, per router with
+// Reporting on: its connection table read continuously (the read Connections
+// and Bandwidth share, so a router whose pages are open pays nothing extra)
+// and its DNS cache once a minute.
 //
 // ── WHERE THE BYTES COME FROM ───────────────────────────────────────────────
 //
@@ -25,9 +27,11 @@ package server
 // closes is handed here (OnMinute) and added to its hour: the page and the
 // history sum the same bytes, computed once. The sums are written once a
 // minute from the feature loop, one transaction, added to what the hour
-// already holds.
+// already holds, so the current hour is on the page a minute after it starts.
 //
 // Only the app id and the byte counts are kept. No device, address or DNS name.
+// The traffic no step could name is kept too, as one row per hour under
+// apps.UnnamedID, so the Unnamed card has a figure on the stored tabs.
 
 import (
 	"log"
@@ -40,7 +44,6 @@ import (
 	"mikrodash/internal/apps"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/db"
-	"mikrodash/internal/store"
 )
 
 const hourMs = int64(time.Hour / time.Millisecond)
@@ -56,14 +59,14 @@ type appUsageBytes struct{ rx, tx float64 }
 // flush.
 type appUsageRecorder struct {
 	mu sync.Mutex
-	// on is whether the feature is on. Refreshed by the feature loop and by
-	// every settings save (syncFeatureHolds).
-	on  bool
-	acc map[appUsageKey]*appUsageBytes
+	// reporting is the routers whose minutes are kept: those with Reporting
+	// on, as declareReporting last said.
+	reporting map[string]bool
+	acc       map[appUsageKey]*appUsageBytes
 }
 
 func newAppUsageRecorder() *appUsageRecorder {
-	return &appUsageRecorder{acc: map[appUsageKey]*appUsageBytes{}}
+	return &appUsageRecorder{reporting: map[string]bool{}, acc: map[appUsageKey]*appUsageBytes{}}
 }
 
 // add takes one closed minute of one router. Called on the collector's
@@ -74,13 +77,13 @@ func (r *appUsageRecorder) add(routerID string, m collect.AppMinute) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if !r.on {
+	if !r.reporting[routerID] {
 		return
 	}
 	hour := m.Start - m.Start%hourMs
-	for id, b := range m.Apps {
+	put := func(id string, b collect.AppBytes) {
 		if b.Rx <= 0 && b.Tx <= 0 {
-			continue
+			return
 		}
 		k := appUsageKey{routerID, id, hour}
 		a := r.acc[k]
@@ -91,19 +94,40 @@ func (r *appUsageRecorder) add(routerID string, m collect.AppMinute) {
 		a.rx += max(b.Rx, 0)
 		a.tx += max(b.Tx, 0)
 	}
+	for id, b := range m.Apps {
+		put(id, b)
+	}
+	put(apps.UnnamedID, m.Unnamed)
 }
 
-// setOn switches recording on or off. Off, nothing summed so far is written.
-func (r *appUsageRecorder) setOn(on bool) {
+// setReporting says whether a router's minutes are kept. Off, what was summed
+// for it since the last flush is dropped, as Reporting off writes nothing.
+func (r *appUsageRecorder) setReporting(routerID string, on bool) {
 	if r == nil {
 		return
 	}
 	r.mu.Lock()
-	r.on = on
-	if !on {
-		r.acc = map[appUsageKey]*appUsageBytes{}
+	defer r.mu.Unlock()
+	if on {
+		r.reporting[routerID] = true
+		return
 	}
-	r.mu.Unlock()
+	delete(r.reporting, routerID)
+	for k := range r.acc {
+		if k.router == routerID {
+			delete(r.acc, k)
+		}
+	}
+}
+
+// recording is whether a router's app usage is being kept.
+func (r *appUsageRecorder) recording(routerID string) bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.reporting[routerID]
 }
 
 // take empties the sums into rows.
@@ -123,23 +147,15 @@ func (r *appUsageRecorder) take() []db.AppUsageRow {
 	return rows
 }
 
-// refreshAppRecording tells the recorder whether the feature is on. There is
-// nothing to record into without a database.
-func (s *Server) refreshAppRecording() {
-	if s.appUsage == nil {
-		return
-	}
-	s.appUsage.setOn(s.auditDB != nil && s.store != nil && s.featureOn(store.FeatureAppHistory))
-}
-
 // flushAppUsage writes what the recorder summed since the last flush. Called
-// once a minute by the feature loop.
+// once a minute by the feature loop. Without a database the sums are dropped,
+// so they cannot pile up.
 func (s *Server) flushAppUsage() {
-	s.refreshAppRecording()
+	rows := s.appUsage.take()
 	if s.auditDB == nil {
 		return
 	}
-	if err := s.auditDB.AddAppUsage(s.appUsage.take()); err != nil {
+	if err := s.auditDB.AddAppUsage(rows); err != nil {
 		log.Printf("[app-history] %v", err)
 	}
 }
@@ -163,18 +179,27 @@ type AppHistoryApp struct {
 }
 
 // AppHistoryBucket is one hour (period day) or one day (week, month): each
-// app's bytes, both directions.
+// app's bytes, both directions, and the unnamed bytes beside them.
 type AppHistoryBucket struct {
-	TS   int64            `json:"ts"`
-	Apps map[string]int64 `json:"apps"`
+	TS      int64            `json:"ts"`
+	Apps    map[string]int64 `json:"apps"`
+	Unnamed int64            `json:"unnamed"`
 }
 
 // AppHistory is what GET /api/apps/history answers.
 type AppHistory struct {
 	Apps    []AppHistoryApp    `json:"apps"`
 	Buckets []AppHistoryBucket `json:"buckets"`
-	From    int64              `json:"from"`
-	To      int64              `json:"to"`
+	// The traffic no step could name over the period. Recorded since
+	// 2026-11-12: an hour stored before then counts none.
+	UnnamedRxBytes int64 `json:"unnamedRxBytes"`
+	UnnamedTxBytes int64 `json:"unnamedTxBytes"`
+	From           int64 `json:"from"`
+	To             int64 `json:"to"`
+	// Recording is whether this router's app usage is being kept now, which
+	// is its Reporting setting. Off, the page says so rather than showing an
+	// empty period as if nothing had been used.
+	Recording bool `json:"recording"`
 }
 
 // appHistoryBuckets is where each period's buckets start: the last 24 hours by
@@ -219,6 +244,12 @@ func buildAppHistory(rows []db.AppUsageRow, starts []int64, to int64, cat *apps.
 		if i < 0 || r.Hour > to {
 			continue
 		}
+		if r.App == apps.UnnamedID {
+			out.Buckets[i].Unnamed += r.RxBytes + r.TxBytes
+			out.UnnamedRxBytes += r.RxBytes
+			out.UnnamedTxBytes += r.TxBytes
+			continue
+		}
 		out.Buckets[i].Apps[r.App] += r.RxBytes + r.TxBytes
 		a := totals[r.App]
 		if a == nil {
@@ -249,7 +280,7 @@ func buildAppHistory(rows []db.AppUsageRow, starts []int64, to int64, cat *apps.
 func (s *Server) appHistoryGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	rid := q.Get("routerId")
-	if s.routerFeatureGate(w, r, store.FeatureAppHistory, "apps", rid, "read") == nil {
+	if s.routerPageGate(w, r, "apps", rid, "read") == nil {
 		return
 	}
 	loc, err := time.LoadLocation(s.displayTZ())
@@ -264,5 +295,7 @@ func (s *Server) appHistoryGet(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusInternalServerError, "the history could not be read")
 		return
 	}
-	writeJSON(w, buildAppHistory(rows, starts, to, apps.Default()))
+	h := buildAppHistory(rows, starts, to, apps.Default())
+	h.Recording = s.appUsage.recording(rid)
+	writeJSON(w, h)
 }

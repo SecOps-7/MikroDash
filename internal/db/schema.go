@@ -307,11 +307,11 @@ var portMigrations = map[int][]string{
 	// 37: which channel was sent an alert's breach, so its recovery goes only
 	// there. See alertsent.go.
 	37: {alertSentDDL},
-	// 38: the Apps Usage history, an optional feature (Settings -> Features).
+	// 38: the Apps Usage history, recorded for routers with Reporting on.
 	// See appusage_schema.go.
 	38: {appUsageDDL},
-	// 39: every router's app usage is recorded while the feature is on, with
-	// no choice per router, so the table of that choice goes. See
+	// 39: there is no choice per router of whose app usage is recorded (each
+	// router's Reporting decides), so the table of that choice goes. See
 	// appusage_schema.go.
 	39: {appHistoryRoutersDropDDL},
 }

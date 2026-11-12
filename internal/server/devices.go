@@ -338,19 +338,23 @@ func (s *Server) declareRecordedInterfaces(routerID string, recorded []string) {
 	}
 }
 
-// declareReporting tells the two recorders what this router's reporting setting
+// declareReporting tells the recorders what this router's reporting setting
 // means for them.
 //
-// TWO CONSUMERS, ONE SETTING. The history wire stops writing traffic, ping and
+// THREE CONSUMERS, ONE SETTING. The history wire stops writing traffic, ping and
 // connectivity rows; the alert wire stops writing alert rows and keeps its
-// de-duplication in memory instead, so alerts still notify. Declared together
-// here so the pair cannot drift — a router recording no history but still
-// filing alert rows would be a half-applied setting nobody asked for.
+// de-duplication in memory instead, so alerts still notify; the Apps Usage
+// recorder stops keeping app usage. Declared together here so they cannot
+// drift — a router recording no history but still filing alert rows would be
+// a half-applied setting nobody asked for.
 //
 // Called from BOTH fleet syncs, because either pool may hold a given router.
 func (s *Server) declareReporting(r store.Router) {
 	on := store.ReportingOn(r)
 	s.historyWire.SetReporting(r.ID, on)
+	// And the Apps Usage history, which keeps a router's minutes only while
+	// its Reporting is on (apps_history.go).
+	s.appUsage.setReporting(r.ID, on)
 	if s.alerts != nil {
 		s.alerts.SetPersisting(r.ID, on)
 	}

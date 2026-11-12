@@ -76,6 +76,11 @@ const (
 	ViaASN  = "asn"
 )
 
+// UnnamedID is where the traffic no step could name is stored, beside the
+// apps' own ids (internal/server/apps_history.go). It can never be an app's:
+// cmd/appgen's id rule starts every id with a letter or a digit.
+const UnnamedID = "_unnamed"
+
 // Match is Classify's answer. App is nil when nothing matched.
 type Match struct {
 	App *App

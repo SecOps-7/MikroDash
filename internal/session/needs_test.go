@@ -420,29 +420,23 @@ func TestAnOccupiedDemandRoomIsAReasonToRun(t *testing.T) {
 	}
 }
 
-// TestARecordedRouterRunsOnlyTheAppsCollector. A router whose app usage is
-// recorded (every router while Settings -> Features -> "Apps Usage history" is
-// on, the default) and that nobody is viewing runs the apps collector and
-// nothing else:
-// it reads the DNS cache itself, and the history is summed from its readings.
-func TestARecordedRouterRunsOnlyTheAppsCollector(t *testing.T) {
-	why := Reasons{AppHistory: true}
+// TestAReportingRouterRecordsItsAppUsage. App usage is recorded for exactly
+// the routers with Reporting on (the operator, 2026-11-12): the history hold
+// runs the apps collector beside traffic and ping, it reads the DNS cache
+// itself, and nothing else a page would want comes with it.
+func TestAReportingRouterRecordsItsAppUsage(t *testing.T) {
+	why := Reasons{History: true}
 	if !Needs("apps", why) {
-		t.Error("a router recorded for app usage would not run the apps collector, so nothing is written")
+		t.Error("a router with Reporting on would not run the apps collector, so no app usage is written")
 	}
-	for _, k := range []string{"conns", "bandwidth", "dns", "dhcpLeases", "wireless", "traffic", "wan"} {
+	for _, k := range []string{"conns", "bandwidth", "dns", "dhcpLeases", "wireless", "wan"} {
 		if Needs(k, why) {
-			t.Errorf("%s would run on a router held only for app usage history", k)
+			t.Errorf("%s would run on a router held only for Reporting", k)
 		}
 	}
-	if Needs("apps", Reasons{WifiHistory: true}) {
-		t.Error("the Wi-Fi history hold runs the apps collector; the two are separate choices")
-	}
-	s := &Session{holds: map[string]bool{"app-history": true}}
-	s.mu.Lock()
-	got := s.reasonsLocked()
-	s.mu.Unlock()
-	if !got.AppHistory || got.WifiHistory {
-		t.Errorf("the app-history hold reads as %+v", got)
+	for _, other := range []Reasons{{Alerts: true}, {WifiHistory: true}, {Watch: true}, {Devices: true}, {Warm: true}} {
+		if Needs("apps", other) {
+			t.Errorf("%+v runs the apps collector; only Reporting records app usage", other)
+		}
 	}
 }

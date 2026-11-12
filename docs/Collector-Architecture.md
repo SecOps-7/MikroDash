@@ -295,7 +295,7 @@ reason is a **hold** naming the collectors it needs:
 | hold | why the session exists | what it runs |
 |---|---|---|
 | `alerts` | the rules must be evaluated | `session.AlertFeeds` |
-| `history` | traffic and ping are being recorded | `historyFeeds` |
+| `history` | the router has Reporting on: traffic, ping and app usage are being recorded | `historyFeeds` |
 | `devices` | the Devices page is open: its cards read each router's system reading | `devicesFeeds` (`system` only) |
 | `warm` | **every enabled router**, always: its session is what keeps it observed - a debounced online verdict and a connectivity record - whoever is looking | **nothing** - a connection only |
 

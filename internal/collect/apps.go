@@ -15,23 +15,25 @@ package collect
 // internal/apps', pure. What this adds is the DNS cache join, the summing by
 // application, and the rolling hour.
 //
-// ── THE LAST HOUR, MOVING ONCE A MINUTE ─────────────────────────────────────
+// ── THE LAST HOUR, AS IT COMES IN ───────────────────────────────────────────
 //
-// The page showed each reading's rates and moved with every poll; the operator
-// found that too much movement (2026-11-12) and asked for the last hour. So a
-// reading's rates are held for the time since the previous reading, at most two
-// polls so a gap invents no traffic (appsHeldMs), turned into bytes
-// (mbpsToBytes), and added to the one-minute buckets the reading covers: a
-// reading that spans a minute boundary is split between the minutes by time.
-// A minute closes when a reading falls in a later one. That is the only time
-// `apps:update` is sent, carrying the sixty closed minutes before it, and the
-// only time a minute is handed on (OnMinute) to the stored history, which
-// therefore adds up the same bytes the page shows, computed once. Older minutes
-// are dropped. The window lives in memory and is lost on a restart.
+// The page showed each reading's rates; the operator found that too much
+// movement (2026-11-12) and asked for the last hour, in bytes. So a reading's
+// rates are held for the time since the previous reading, at most two polls so
+// a gap invents no traffic (appsHeldMs), turned into bytes (mbpsToBytes), and
+// added to the one-minute buckets the reading covers: a reading that spans a
+// minute boundary is split between the minutes by time. A minute closes when a
+// reading falls in a later one, and is then handed on (OnMinute) to the stored
+// history, which therefore adds up the same bytes the page shows, computed
+// once. Older minutes are dropped. The window lives in memory and is lost on a
+// restart.
 //
-// Until the first minute closes, the page would have nothing; so the first
-// reading that carries bytes is sent too, as the open minute so far, and the
-// payload's From and To say how much of the hour it covers.
+// `apps:update` is sent with every reading that adds time: the minute still
+// open and the fifty-nine closed before it. Sending only when a minute closed
+// left the page empty for up to a minute and a filling hour looking stalled,
+// and the operator asked for the data as it comes in (2026-11-12); a total of
+// bytes only grows, so this moves far less than the rates did. The payload's
+// From and To say how much of the hour has been measured.
 //
 // ── THE DNS CACHE IS READ, AND NOTHING FROM IT IS KEPT ──────────────────────
 //
@@ -154,10 +156,9 @@ type AppDevice struct {
 // AppUsagePayload is what `apps:update` carries: the last hour, in bytes.
 type AppUsagePayload struct {
 	TS int64 `json:"ts"`
-	// From and To bound the time the figures cover. To is the end of the last
-	// closed minute, From an hour before it or when measuring began, whichever
-	// is later: less than an hour apart, the hour is still filling. While the
-	// first minute fills, To is that minute's latest reading.
+	// From and To bound the time the figures cover. To is the latest reading,
+	// From the start of the hour-long window or when measuring began,
+	// whichever is later: less than an hour apart, the hour is still filling.
 	From int64 `json:"from"`
 	To   int64 `json:"to"`
 	// The whole network's traffic in the window, named or not.
@@ -179,10 +180,12 @@ type AppUsagePayload struct {
 }
 
 // AppMinute is one closed minute of one router's app traffic, in bytes, by app
-// id: what the stored history adds up (internal/server/apps_history.go).
+// id, and the traffic no step could name: what the stored history adds up
+// (internal/server/apps_history.go).
 type AppMinute struct {
-	Start int64
-	Apps  map[string]AppBytes
+	Start   int64
+	Apps    map[string]AppBytes
+	Unnamed AppBytes
 }
 
 // AppBytes is one app's bytes in one minute, each direction.
@@ -216,8 +219,8 @@ type appsSumApp struct {
 // both, so a reading becomes a minute's bytes by one multiplication.
 type appsSum struct {
 	all rxTx
-	// unnamed is the part of `all` no step could name, both directions.
-	unnamed float64
+	// unnamed is the part of `all` no step could name.
+	unnamed rxTx
 	apps    map[string]*appsSumApp
 }
 
@@ -228,7 +231,8 @@ func newAppsSum() *appsSum { return &appsSum{apps: map[string]*appsSumApp{}} }
 func (s *appsSum) addScaled(src *appsSum, k float64) {
 	s.all.rx += src.all.rx * k
 	s.all.tx += src.all.tx * k
-	s.unnamed += src.unnamed * k
+	s.unnamed.rx += src.unnamed.rx * k
+	s.unnamed.tx += src.unnamed.tx * k
 	for id, a := range src.apps {
 		d := s.apps[id]
 		if d == nil {
@@ -286,7 +290,8 @@ func SumApps(in AppsInput) *appsSum {
 			memo[k] = m
 		}
 		if m.App == nil {
-			out.unnamed += r.RxMbps + r.TxMbps
+			out.unnamed.rx += r.RxMbps
+			out.unnamed.tx += r.TxMbps
 			continue
 		}
 		a := out.apps[m.App.ID]
@@ -319,18 +324,15 @@ type appsWindow struct {
 	// open is the minute readings fall in now; every minute before it is
 	// closed, and a closed minute is never added to again.
 	open int64
-	// shown is whether a window has been sent yet.
-	shown bool
 }
 
 func newAppsWindow() *appsWindow { return &appsWindow{minutes: map[int64]*appsSum{}} }
 
 // add folds one reading (rates in Mbps) taken at ts into the minutes it covers.
-// It returns the minutes the reading closed, oldest first, and where the
-// window to send ends: the start of the open minute when a minute closed, the
-// end of the open minute while nothing has been sent and the reading carried
-// time, 0 for nothing to send.
-func (w *appsWindow) add(r *appsSum, ts int64, pollMs int) (closed []AppMinute, end int64) {
+// It returns the minutes the reading closed, oldest first, and whether the
+// window has changed and is to be sent: the reading carried time, or closed a
+// minute.
+func (w *appsWindow) add(r *appsSum, ts int64, pollMs int) (closed []AppMinute, send bool) {
 	held := appsHeldMs(w.prevTS, ts, pollMs)
 	from := ts - held
 	if w.prevTS == 0 || from > w.prevTS {
@@ -367,36 +369,31 @@ func (w *appsWindow) add(r *appsSum, ts int64, pollMs int) (closed []AppMinute, 
 		}
 		sort.Slice(closed, func(i, j int) bool { return closed[i].Start < closed[j].Start })
 		w.open = cur
-		end = cur
 	}
 	for m := range w.minutes {
 		if m < w.open-appsWindowMinutes*appsMinuteMs {
 			delete(w.minutes, m)
 		}
 	}
-	if end == 0 && !w.shown && held > 0 {
-		end = w.open + appsMinuteMs
-	}
-	if end != 0 {
-		w.shown = true
-	}
-	return closed, end
+	return closed, held > 0 || len(closed) > 0
 }
 
 // minute is one bucket as the stored history takes it.
 func (s *appsSum) minute(start int64) AppMinute {
-	out := AppMinute{Start: start, Apps: make(map[string]AppBytes, len(s.apps))}
+	out := AppMinute{Start: start, Apps: make(map[string]AppBytes, len(s.apps)),
+		Unnamed: AppBytes{Rx: s.unnamed.rx, Tx: s.unnamed.tx}}
 	for id, a := range s.apps {
 		out.Apps[id] = AppBytes{Rx: a.rx, Tx: a.tx}
 	}
 	return out
 }
 
-// BuildApps is the window ending at `end` as the page draws it: the sixty
-// minutes before `end`, summed, with each app's bytes per minute. `ts` is the
+// BuildApps is the window as the page draws it: the open minute and the
+// fifty-nine before it, summed, with each app's bytes per minute. `ts` is the
 // reading that sent it, and nameOf names a device by its address. Pure apart
 // from nameOf.
-func BuildApps(w *appsWindow, end, ts int64, nameOf func(ip string) (name, mac string)) *AppUsagePayload {
+func BuildApps(w *appsWindow, ts int64, nameOf func(ip string) (name, mac string)) *AppUsagePayload {
+	end := w.open + appsMinuteMs
 	start := end - appsWindowMinutes*appsMinuteMs
 	sum := newAppsSum()
 	spark := map[string][]float64{}
@@ -418,10 +415,9 @@ func BuildApps(w *appsWindow, end, ts int64, nameOf func(ip string) (name, mac s
 	whole := func(f float64) int64 { return int64(math.Round(f)) }
 	total := sum.all.rx + sum.all.tx
 	// From is when measuring began, if that is within the hour; never after
-	// To, which it would be in the window a gap's first reading closes.
-	to := min(ts, end)
-	out := &AppUsagePayload{TS: ts, From: min(max(start, w.since), to), To: to,
-		RxBytes: whole(sum.all.rx), TxBytes: whole(sum.all.tx), UnnamedBytes: whole(sum.unnamed),
+	// To.
+	out := &AppUsagePayload{TS: ts, From: min(max(start, w.since), ts), To: ts,
+		RxBytes: whole(sum.all.rx), TxBytes: whole(sum.all.tx), UnnamedBytes: whole(sum.unnamed.rx + sum.unnamed.tx),
 		Apps: []AppUsage{}, Devices: map[string][]AppDevice{}}
 
 	for id, a := range sum.apps {
@@ -652,8 +648,7 @@ func (a *Apps) refreshNames() {
 	}()
 }
 
-// build folds one reading into the window, and sends the window when a minute
-// closed (or, once, while the first minute fills).
+// build folds one reading into the window and sends the window.
 func (a *Apps) build(rows []routeros.Reply, now int64) {
 	a.refreshNames()
 	a.dnsMu.Lock()
@@ -663,10 +658,10 @@ func (a *Apps) build(rows []routeros.Reply, now int64) {
 	a.mu.Lock()
 	rates := connRates(a.prev, rows, now)
 	sum := SumApps(AppsInput{Rates: rates, LanCidrs: lanCidrsOf(a.nets), Names: names, Owner: a.owner, Cat: a.cat})
-	closed, end := a.window.add(sum, now, a.pollMs.ms())
+	closed, send := a.window.add(sum, now, a.pollMs.ms())
 	var p *AppUsagePayload
-	if end != 0 {
-		p = BuildApps(a.window, end, now, a.nameOf)
+	if send {
+		p = BuildApps(a.window, now, a.nameOf)
 		p.DNSNames = len(names)
 		if !dnsAt.IsZero() {
 			p.DNSAt = dnsAt.UnixMilli()

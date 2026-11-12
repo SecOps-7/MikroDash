@@ -124,7 +124,8 @@ func (s *Server) holdOne(r store.Router) {
 		{"alerts", r.AlertsEnabled && !r.Disabled},
 		// PER-ROUTER RECORDING. `store.ReportingOn` is the one reader of that
 		// setting; asking the flag directly is how a router whose reporting was
-		// never set silently stopped recording.
+		// never set silently stopped recording. App usage rides on it too
+		// (`historyFeeds` runs the apps collector): see apps_history.go.
 		{"history", store.ReportingOn(r) && !r.Disabled},
 		// ── THE CONNECTION, FOR EVERY ENABLED ROUTER ────────────────────
 		//
@@ -159,11 +160,6 @@ func (s *Server) holdOne(r store.Router) {
 		// recorded. See featureHoldWanted.
 		{"watch", !r.Disabled && s.featureHoldWanted(store.FeatureWatchList, r.ID)},
 		{"wifi-history", !r.Disabled && s.featureHoldWanted(store.FeatureWifiHistory, r.ID)},
-		// And the apps collector on EVERY router while app usage is recorded,
-		// which is the default: no choice per router. One connection-table
-		// channel per router, continuously, and its DNS cache once a minute.
-		// See apps_history.go.
-		{"app-history", !r.Disabled && s.featureHoldWanted(store.FeatureAppHistory, r.ID)},
 	} {
 		if !h.want {
 			s.sessions.Drop(r.ID, h.reason)
@@ -214,9 +210,7 @@ func (s *Server) activeRouterID() string {
 // The watch list wants it on a router with a device watched there. The Wi-Fi
 // history wants the Wi-Fi reads on a router it was switched on for, on the
 // Wifi Clients page: recording is a choice per router, and the others are not
-// held on the chance they have clients. The Apps Usage history wants the apps
-// collector on every router: it has no choice per router (the operator,
-// 2026-11-12), and the feature itself is the off switch.
+// held on the chance they have clients.
 func (s *Server) featureHoldWanted(feature, routerID string) bool {
 	if s.auditDB == nil || !s.featureOn(feature) {
 		return false
@@ -228,19 +222,14 @@ func (s *Server) featureHoldWanted(feature, routerID string) bool {
 	case store.FeatureWifiHistory:
 		recorded, err := s.auditDB.WifiHistoryRouters()
 		return err == nil && recorded[routerID]
-	case store.FeatureAppHistory:
-		return true
 	}
 	return false
 }
 
-// syncFeatureHolds re-applies the three feature holds to every router: after a
+// syncFeatureHolds re-applies the two feature holds to every router: after a
 // settings save, a watch list or recording change, and on the feature loop's
 // pass.
 func (s *Server) syncFeatureHolds() {
-	// The app usage recorder follows the same switch, so a save that turns it
-	// on or off takes effect now rather than at the next flush.
-	s.refreshAppRecording()
 	if !s.holdFleet || s.store == nil || s.sessions == nil {
 		return
 	}
@@ -248,8 +237,7 @@ func (s *Server) syncFeatureHolds() {
 	for _, r := range all {
 		for _, h := range []struct {
 			reason, feature string
-		}{{"watch", store.FeatureWatchList}, {"wifi-history", store.FeatureWifiHistory},
-			{"app-history", store.FeatureAppHistory}} {
+		}{{"watch", store.FeatureWatchList}, {"wifi-history", store.FeatureWifiHistory}} {
 			if r.Disabled || !s.featureHoldWanted(h.feature, r.ID) {
 				s.sessions.Drop(r.ID, h.reason)
 				continue

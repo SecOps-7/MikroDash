@@ -235,7 +235,7 @@ func (s *Session) Diagnostics(now int64) Diagnostics {
 	}
 
 	s.mu.Lock()
-	for _, r := range []string{"alerts", "history", "devices", "warm", "watch", "wifi-history", "app-history"} {
+	for _, r := range []string{"alerts", "history", "devices", "warm", "watch", "wifi-history"} {
 		if s.holds[r] {
 			v.Holds = append(v.Holds, r)
 		}
