@@ -101,6 +101,146 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---
 
+## Apps Usage logos and the brands they name
+
+The logos under `web/public/vendor/app-icons/` name the apps on the Apps Usage
+page. **Each is a trademark of its owner**, shown only to identify that owner's
+service; none implies endorsement. Their artwork comes from the five sets below,
+each under its own licence, chosen per app in `testdata/apps/catalogue.json` and
+written by `cmd/appgen` at the pinned versions recorded there. A Simple Icons
+logo that carries a licence of its own (rather than the project's CC0) is
+refused by the generator.
+
+---
+
+## domain-list-community - MIT
+
+`internal/apps/catalogue_gen.json`: which domains belong to which app, expanded
+from v2fly/domain-list-community at commit
+`2b7ae3222f79e58e323a6b1c30c6618821068963`,
+https://github.com/v2fly/domain-list-community
+
+```
+MIT License
+
+Copyright (c) 2018-2019 V2Ray
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## Simple Icons - CC0-1.0
+
+Most of the Apps Usage logos, and the brand colours, from the npm package
+`simple-icons` 16.37.0 (integrity checked by npm), https://simpleicons.org.
+Released under CC0 1.0 Universal: no rights reserved. Simple Icons' own
+disclaimer applies: the icons depict trademarks, see the section above.
+
+---
+
+## SVG Logos - CC0-1.0
+
+The full-colour logos (Microsoft Teams, Windows, OneDrive, LinkedIn, Slack,
+OpenAI, Adobe, AWS, Azure, Bing, Microsoft, Copilot), from gilbarbara/logos at
+commit `b9edc65f8946027cb5e2fe6c772e914cf3649fba`,
+https://github.com/gilbarbara/logos. Released under CC0 1.0 Universal.
+
+---
+
+## CoreUI Brands - CC0-1.0
+
+Xbox, Amazon, Hulu, Nintendo, Canva, Yahoo, GOG and Tencent, from the npm
+package `@iconify-json/cib` 1.2.3 (CoreUI Brands by creativeLabs Lukasz
+Holeczek, https://github.com/coreui/coreui-icons). Released under CC0 1.0
+Universal.
+
+---
+
+## Arcticons - CC BY-SA 4.0
+
+Prime Video, Disney+, Showmax, DStv, Outlook, Microsoft 365, Temu, Shein,
+Takealot, Speedtest and Webex, from the npm package `@iconify-json/arcticons`
+1.2.60. **Arcticons by Donnnno and the Arcticons contributors**,
+https://github.com/Arcticons-Team/Arcticons, licensed under Creative Commons
+Attribution-ShareAlike 4.0 International,
+https://creativecommons.org/licenses/by-sa/4.0/. Changes: each icon is taken
+from Iconify's packaging and written as a standalone SVG; MikroDash fills it with
+the app's brand colour when drawing it. These eleven files remain under CC BY-SA
+4.0, whatever licence the rest of MikroDash is under.
+
+---
+
+## Lucide - ISC
+
+The generic icons for protocols (SSH, DNS, NTP, Email, IPsec, Remote Desktop),
+from the npm package `@iconify-json/lucide` 1.2.154,
+https://github.com/lucide-icons/lucide:
+
+```
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+---
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
 ## topojson-client - NOT VENDORED
 
 `/vendor/topojson-client.min.js` is loaded by the live app and **is deliberately

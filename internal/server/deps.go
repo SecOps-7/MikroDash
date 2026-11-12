@@ -135,6 +135,20 @@ var webLibraries = []Dependency{
 		URL: "https://github.com/tabler/tabler-icons", Kind: KindWeb},
 	{Name: "world-atlas", Version: "2.0.2", Licence: "ISC",
 		URL: "https://github.com/topojson/world-atlas", Kind: KindWeb},
+	// The Apps Usage catalogue and its logos (cmd/appgen, pinned in
+	// testdata/apps/catalogue.json).
+	{Name: "domain-list-community", Version: "2b7ae32", Licence: "MIT",
+		URL: "https://github.com/v2fly/domain-list-community", Kind: KindWeb},
+	{Name: "Simple Icons", Version: "16.37.0", Licence: "CC0-1.0",
+		URL: "https://github.com/simple-icons/simple-icons", Kind: KindWeb},
+	{Name: "SVG Logos", Version: "b9edc65", Licence: "CC0-1.0",
+		URL: "https://github.com/gilbarbara/logos", Kind: KindWeb},
+	{Name: "CoreUI Brands", Version: "1.2.3", Licence: "CC0-1.0",
+		URL: "https://github.com/coreui/coreui-icons", Kind: KindWeb},
+	{Name: "Arcticons", Version: "1.2.60", Licence: "CC-BY-SA-4.0",
+		URL: "https://github.com/Arcticons-Team/Arcticons", Kind: KindWeb},
+	{Name: "Lucide", Version: "1.2.154", Licence: "ISC",
+		URL: "https://github.com/lucide-icons/lucide", Kind: KindWeb},
 }
 
 // fontLibraries is the vendored font bundle: ONE row, counted rather than named.

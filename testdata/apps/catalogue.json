@@ -1,0 +1,1904 @@
+{
+ "_about": "MikroDash's Apps Usage catalogue, hand-curated. ORDER IS PRIORITY: when one address carries names of two apps, the earlier app wins, so specific apps come before the companies that host them (umbrella entries last). cmd/appgen expands `lists` from v2fly/domain-list-community and takes each `icon` from its source (simple-icons, gilbarbara, or the Iconify packages cib, arcticons and lucide) at the pinned versions below; `domains` are added by hand; `color` overrides the logo source's brand colour or supplies one where there is no logo. Edit this file, then run cmd/appgen.",
+ "sources": {
+  "v2fly": {
+   "repo": "https://github.com/v2fly/domain-list-community",
+   "commit": "2b7ae3222f79e58e323a6b1c30c6618821068963",
+   "licence": "MIT"
+  },
+  "simple-icons": {
+   "package": "simple-icons",
+   "version": "16.37.0",
+   "licence": "CC0-1.0"
+  },
+  "gilbarbara": {
+   "repo": "https://github.com/gilbarbara/logos",
+   "commit": "b9edc65f8946027cb5e2fe6c772e914cf3649fba",
+   "licence": "CC0-1.0"
+  },
+  "cib": {
+   "package": "@iconify-json/cib",
+   "version": "1.2.3",
+   "licence": "CC0-1.0"
+  },
+  "arcticons": {
+   "package": "@iconify-json/arcticons",
+   "version": "1.2.60",
+   "licence": "CC-BY-SA-4.0"
+  },
+  "lucide": {
+   "package": "@iconify-json/lucide",
+   "version": "1.2.154",
+   "licence": "ISC"
+  }
+ },
+ "categories": [
+  "conferencing",
+  "messaging",
+  "streaming",
+  "music",
+  "gaming",
+  "social",
+  "ai",
+  "productivity",
+  "cloud",
+  "updates",
+  "shopping",
+  "search",
+  "vpn",
+  "iot",
+  "cdn",
+  "dns",
+  "other"
+ ],
+ "apps": [
+  {
+   "id": "zoom",
+   "name": "Zoom",
+   "category": "conferencing",
+   "lists": [
+    "zoom"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "zoom"
+   },
+   "asns": [
+    30103
+   ]
+  },
+  {
+   "id": "teams",
+   "name": "Microsoft Teams",
+   "category": "conferencing",
+   "domains": [
+    "teams.microsoft.com",
+    "teams.live.com",
+    "teams.cdn.office.net",
+    "teams.events.data.microsoft.com",
+    "skype.com"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "microsoft-teams"
+   },
+   "color": "#6264A7"
+  },
+  {
+   "id": "webex",
+   "name": "Webex",
+   "category": "conferencing",
+   "lists": [
+    "webex"
+   ],
+   "icon": {
+    "source": "arcticons",
+    "slug": "webex"
+   },
+   "color": "#000000"
+  },
+  {
+   "id": "google-meet",
+   "name": "Google Meet",
+   "category": "conferencing",
+   "domains": [
+    "meet.google.com",
+    "meet.googleapis.com",
+    "meetings.googleapis.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "googlemeet"
+   }
+  },
+  {
+   "id": "facetime",
+   "name": "FaceTime",
+   "category": "conferencing",
+   "domains": [
+    "facetime.apple.com",
+    "identity.apple.com"
+   ],
+   "color": "#00C853"
+  },
+  {
+   "id": "whatsapp",
+   "name": "WhatsApp",
+   "category": "messaging",
+   "lists": [
+    "whatsapp"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "whatsapp"
+   }
+  },
+  {
+   "id": "messenger",
+   "name": "Messenger",
+   "category": "messaging",
+   "lists": [
+    "messenger"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "messenger"
+   }
+  },
+  {
+   "id": "telegram",
+   "name": "Telegram",
+   "category": "messaging",
+   "lists": [
+    "telegram"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "telegram"
+   },
+   "asns": [
+    62041
+   ]
+  },
+  {
+   "id": "signal",
+   "name": "Signal",
+   "category": "messaging",
+   "lists": [
+    "signal"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "signal"
+   }
+  },
+  {
+   "id": "discord",
+   "name": "Discord",
+   "category": "messaging",
+   "lists": [
+    "discord"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "discord"
+   }
+  },
+  {
+   "id": "slack",
+   "name": "Slack",
+   "category": "messaging",
+   "domains": [
+    "slack.com",
+    "slack-edge.com",
+    "slack-msgs.com",
+    "slack-files.com",
+    "slack-imgs.com",
+    "slackb.com"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "slack-icon"
+   },
+   "color": "#4A154B"
+  },
+  {
+   "id": "viber",
+   "name": "Viber",
+   "category": "messaging",
+   "lists": [
+    "viber"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "viber"
+   }
+  },
+  {
+   "id": "line",
+   "name": "LINE",
+   "category": "messaging",
+   "lists": [
+    "line"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "line"
+   }
+  },
+  {
+   "id": "kakaotalk",
+   "name": "KakaoTalk",
+   "category": "messaging",
+   "lists": [
+    "kakao"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "kakaotalk"
+   }
+  },
+  {
+   "id": "netflix",
+   "name": "Netflix",
+   "category": "streaming",
+   "lists": [
+    "netflix"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "netflix"
+   },
+   "asns": [
+    2906,
+    40027
+   ]
+  },
+  {
+   "id": "youtube",
+   "name": "YouTube",
+   "category": "streaming",
+   "lists": [
+    "youtube"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "youtube"
+   }
+  },
+  {
+   "id": "prime-video",
+   "name": "Prime Video",
+   "category": "streaming",
+   "lists": [
+    "primevideo"
+   ],
+   "color": "#00A8E1",
+   "icon": {
+    "source": "arcticons",
+    "slug": "amazon-prime-video"
+   }
+  },
+  {
+   "id": "hulu",
+   "name": "Hulu",
+   "category": "streaming",
+   "lists": [
+    "hulu"
+   ],
+   "color": "#1CE783",
+   "icon": {
+    "source": "cib",
+    "slug": "hulu"
+   }
+  },
+  {
+   "id": "disney-plus",
+   "name": "Disney+",
+   "category": "streaming",
+   "lists": [
+    "disney"
+   ],
+   "color": "#113CCF",
+   "icon": {
+    "source": "arcticons",
+    "slug": "disney"
+   }
+  },
+  {
+   "id": "max",
+   "name": "Max",
+   "category": "streaming",
+   "lists": [
+    "hbo"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "max"
+   }
+  },
+  {
+   "id": "apple-tv",
+   "name": "Apple TV+",
+   "category": "streaming",
+   "lists": [
+    "apple-tvplus"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "appletv"
+   }
+  },
+  {
+   "id": "twitch",
+   "name": "Twitch",
+   "category": "streaming",
+   "lists": [
+    "twitch"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "twitch"
+   }
+  },
+  {
+   "id": "plex",
+   "name": "Plex",
+   "category": "streaming",
+   "lists": [
+    "plex"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "plex"
+   }
+  },
+  {
+   "id": "dazn",
+   "name": "DAZN",
+   "category": "streaming",
+   "lists": [
+    "dazn"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "dazn"
+   }
+  },
+  {
+   "id": "vimeo",
+   "name": "Vimeo",
+   "category": "streaming",
+   "lists": [
+    "vimeo"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "vimeo"
+   }
+  },
+  {
+   "id": "crunchyroll",
+   "name": "Crunchyroll",
+   "category": "streaming",
+   "domains": [
+    "crunchyroll.com",
+    "vrv.co"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "crunchyroll"
+   }
+  },
+  {
+   "id": "paramount-plus",
+   "name": "Paramount+",
+   "category": "streaming",
+   "domains": [
+    "paramountplus.com",
+    "cbsivideo.com",
+    "cbsaavideo.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "paramountplus"
+   }
+  },
+  {
+   "id": "showmax",
+   "name": "Showmax",
+   "category": "streaming",
+   "domains": [
+    "showmax.com",
+    "showmax.io"
+   ],
+   "color": "#E50064",
+   "icon": {
+    "source": "arcticons",
+    "slug": "showmax"
+   }
+  },
+  {
+   "id": "dstv",
+   "name": "DStv",
+   "category": "streaming",
+   "domains": [
+    "dstv.com",
+    "dstv.stream",
+    "dstvo.com",
+    "multichoice.com"
+   ],
+   "color": "#0E8ED8",
+   "icon": {
+    "source": "arcticons",
+    "slug": "dstv"
+   }
+  },
+  {
+   "id": "bilibili",
+   "name": "bilibili",
+   "category": "streaming",
+   "lists": [
+    "bilibili"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "bilibili"
+   }
+  },
+  {
+   "id": "spotify",
+   "name": "Spotify",
+   "category": "music",
+   "lists": [
+    "spotify"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "spotify"
+   }
+  },
+  {
+   "id": "apple-music",
+   "name": "Apple Music",
+   "category": "music",
+   "lists": [
+    "apple-music"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "applemusic"
+   }
+  },
+  {
+   "id": "deezer",
+   "name": "Deezer",
+   "category": "music",
+   "lists": [
+    "deezer"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "deezer"
+   }
+  },
+  {
+   "id": "tidal",
+   "name": "TIDAL",
+   "category": "music",
+   "lists": [
+    "tidal"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "tidal"
+   }
+  },
+  {
+   "id": "soundcloud",
+   "name": "SoundCloud",
+   "category": "music",
+   "lists": [
+    "soundcloud"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "soundcloud"
+   }
+  },
+  {
+   "id": "xbox",
+   "name": "Xbox",
+   "category": "gaming",
+   "lists": [
+    "xbox"
+   ],
+   "color": "#107C10",
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 3074,
+     "to": 3074
+    },
+    {
+     "proto": "tcp",
+     "from": 3074,
+     "to": 3074
+    }
+   ],
+   "icon": {
+    "source": "cib",
+    "slug": "xbox"
+   }
+  },
+  {
+   "id": "playstation",
+   "name": "PlayStation",
+   "category": "gaming",
+   "lists": [
+    "playstation"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "playstation"
+   }
+  },
+  {
+   "id": "steam",
+   "name": "Steam",
+   "category": "gaming",
+   "lists": [
+    "steam"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "steam"
+   },
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 27000,
+     "to": 27050
+    }
+   ]
+  },
+  {
+   "id": "epic-games",
+   "name": "Epic Games",
+   "category": "gaming",
+   "lists": [
+    "epicgames"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "epicgames"
+   }
+  },
+  {
+   "id": "nintendo",
+   "name": "Nintendo",
+   "category": "gaming",
+   "lists": [
+    "nintendo"
+   ],
+   "color": "#E60012",
+   "icon": {
+    "source": "cib",
+    "slug": "nintendo"
+   }
+  },
+  {
+   "id": "battle-net",
+   "name": "Battle.net",
+   "category": "gaming",
+   "lists": [
+    "blizzard"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "battledotnet"
+   }
+  },
+  {
+   "id": "riot-games",
+   "name": "Riot Games",
+   "category": "gaming",
+   "lists": [
+    "riot"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "riotgames"
+   }
+  },
+  {
+   "id": "ea",
+   "name": "EA",
+   "category": "gaming",
+   "lists": [
+    "ea"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "ea"
+   }
+  },
+  {
+   "id": "ubisoft",
+   "name": "Ubisoft",
+   "category": "gaming",
+   "lists": [
+    "ubisoft"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "ubisoft"
+   }
+  },
+  {
+   "id": "roblox",
+   "name": "Roblox",
+   "category": "gaming",
+   "lists": [
+    "roblox"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "roblox"
+   }
+  },
+  {
+   "id": "rockstar",
+   "name": "Rockstar Games",
+   "category": "gaming",
+   "lists": [
+    "rockstar"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "rockstargames"
+   }
+  },
+  {
+   "id": "gog",
+   "name": "GOG",
+   "category": "gaming",
+   "lists": [
+    "gog"
+   ],
+   "color": "#86328A",
+   "icon": {
+    "source": "cib",
+    "slug": "gog-com"
+   }
+  },
+  {
+   "id": "geforce-now",
+   "name": "GeForce NOW",
+   "category": "gaming",
+   "domains": [
+    "play.geforcenow.com",
+    "geforcenow.com",
+    "nvidiagrid.net"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "nvidia"
+   }
+  },
+  {
+   "id": "instagram",
+   "name": "Instagram",
+   "category": "social",
+   "lists": [
+    "instagram"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "instagram"
+   }
+  },
+  {
+   "id": "threads",
+   "name": "Threads",
+   "category": "social",
+   "lists": [
+    "threads"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "threads"
+   }
+  },
+  {
+   "id": "facebook",
+   "name": "Facebook",
+   "category": "social",
+   "lists": [
+    "facebook"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "facebook"
+   }
+  },
+  {
+   "id": "tiktok",
+   "name": "TikTok",
+   "category": "social",
+   "lists": [
+    "tiktok"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "tiktok"
+   }
+  },
+  {
+   "id": "x",
+   "name": "X",
+   "category": "social",
+   "lists": [
+    "x",
+    "twitter"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "x"
+   }
+  },
+  {
+   "id": "snapchat",
+   "name": "Snapchat",
+   "category": "social",
+   "domains": [
+    "snapchat.com",
+    "snap.com",
+    "sc-cdn.net",
+    "snapkit.com",
+    "snapads.com",
+    "sc-static.net",
+    "feelinsonice.appspot.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "snapchat"
+   }
+  },
+  {
+   "id": "reddit",
+   "name": "Reddit",
+   "category": "social",
+   "lists": [
+    "reddit"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "reddit"
+   }
+  },
+  {
+   "id": "pinterest",
+   "name": "Pinterest",
+   "category": "social",
+   "lists": [
+    "pinterest"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "pinterest"
+   }
+  },
+  {
+   "id": "linkedin",
+   "name": "LinkedIn",
+   "category": "social",
+   "lists": [
+    "linkedin"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "linkedin-icon"
+   },
+   "color": "#0A66C2"
+  },
+  {
+   "id": "tumblr",
+   "name": "Tumblr",
+   "category": "social",
+   "domains": [
+    "tumblr.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "tumblr"
+   }
+  },
+  {
+   "id": "bluesky",
+   "name": "Bluesky",
+   "category": "social",
+   "domains": [
+    "bsky.app",
+    "bsky.social",
+    "bsky.network"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "bluesky"
+   }
+  },
+  {
+   "id": "quora",
+   "name": "Quora",
+   "category": "social",
+   "lists": [
+    "quora"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "quora"
+   }
+  },
+  {
+   "id": "medium",
+   "name": "Medium",
+   "category": "social",
+   "lists": [
+    "medium"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "medium"
+   }
+  },
+  {
+   "id": "chatgpt",
+   "name": "ChatGPT",
+   "category": "ai",
+   "lists": [
+    "openai"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "openai-icon"
+   },
+   "color": "#10A37F"
+  },
+  {
+   "id": "claude",
+   "name": "Claude",
+   "category": "ai",
+   "lists": [
+    "anthropic"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "claude"
+   }
+  },
+  {
+   "id": "gemini",
+   "name": "Gemini",
+   "category": "ai",
+   "domains": [
+    "gemini.google.com",
+    "bard.google.com",
+    "generativelanguage.googleapis.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "googlegemini"
+   }
+  },
+  {
+   "id": "copilot",
+   "name": "Microsoft Copilot",
+   "category": "ai",
+   "domains": [
+    "copilot.microsoft.com",
+    "sydney.bing.com"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "microsoft-copilot-icon"
+   },
+   "color": "#0078D4"
+  },
+  {
+   "id": "outlook",
+   "name": "Outlook",
+   "category": "productivity",
+   "domains": [
+    "outlook.office365.com",
+    "outlook.office.com",
+    "outlook.live.com",
+    "outlook.com",
+    "hotmail.com"
+   ],
+   "color": "#0078D4",
+   "icon": {
+    "source": "arcticons",
+    "slug": "microsoft-outlook"
+   }
+  },
+  {
+   "id": "onedrive",
+   "name": "OneDrive",
+   "category": "cloud",
+   "lists": [
+    "onedrive"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "microsoft-onedrive"
+   },
+   "color": "#0078D4"
+  },
+  {
+   "id": "office",
+   "name": "Microsoft 365",
+   "category": "productivity",
+   "domains": [
+    "office.com",
+    "office.net",
+    "office365.com",
+    "sharepoint.com",
+    "onenote.com",
+    "microsoft365.com",
+    "officeapps.live.com"
+   ],
+   "color": "#D83B01",
+   "icon": {
+    "source": "arcticons",
+    "slug": "microsoft-365"
+   }
+  },
+  {
+   "id": "gmail",
+   "name": "Gmail",
+   "category": "productivity",
+   "domains": [
+    "mail.google.com",
+    "gmail.com",
+    "inbox.google.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "gmail"
+   }
+  },
+  {
+   "id": "google-drive",
+   "name": "Google Drive",
+   "category": "cloud",
+   "domains": [
+    "drive.google.com",
+    "docs.google.com",
+    "sheets.google.com",
+    "slides.google.com",
+    "drive.googleapis.com",
+    "docs.googleusercontent.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "googledrive"
+   }
+  },
+  {
+   "id": "notion",
+   "name": "Notion",
+   "category": "productivity",
+   "lists": [
+    "notion"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "notion"
+   }
+  },
+  {
+   "id": "atlassian",
+   "name": "Atlassian",
+   "category": "productivity",
+   "lists": [
+    "atlassian"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "atlassian"
+   }
+  },
+  {
+   "id": "github",
+   "name": "GitHub",
+   "category": "productivity",
+   "lists": [
+    "github"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "github"
+   },
+   "asns": [
+    36459
+   ]
+  },
+  {
+   "id": "gitlab",
+   "name": "GitLab",
+   "category": "productivity",
+   "lists": [
+    "gitlab"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "gitlab"
+   }
+  },
+  {
+   "id": "figma",
+   "name": "Figma",
+   "category": "productivity",
+   "lists": [
+    "figma"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "figma"
+   }
+  },
+  {
+   "id": "canva",
+   "name": "Canva",
+   "category": "productivity",
+   "lists": [
+    "canva"
+   ],
+   "color": "#00C4CC",
+   "icon": {
+    "source": "cib",
+    "slug": "canva"
+   }
+  },
+  {
+   "id": "adobe",
+   "name": "Adobe",
+   "category": "productivity",
+   "lists": [
+    "adobe"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "adobe"
+   },
+   "color": "#FF0000"
+  },
+  {
+   "id": "zoho",
+   "name": "Zoho",
+   "category": "productivity",
+   "lists": [
+    "zoho"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "zoho"
+   }
+  },
+  {
+   "id": "icloud",
+   "name": "iCloud",
+   "category": "cloud",
+   "lists": [
+    "icloud"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "icloud"
+   }
+  },
+  {
+   "id": "dropbox",
+   "name": "Dropbox",
+   "category": "cloud",
+   "lists": [
+    "dropbox"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "dropbox"
+   }
+  },
+  {
+   "id": "mega",
+   "name": "MEGA",
+   "category": "cloud",
+   "lists": [
+    "mega"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "mega"
+   }
+  },
+  {
+   "id": "aws",
+   "name": "Amazon Web Services",
+   "category": "cloud",
+   "lists": [
+    "aws"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "aws"
+   },
+   "color": "#FF9900"
+  },
+  {
+   "id": "azure",
+   "name": "Microsoft Azure",
+   "category": "cloud",
+   "lists": [
+    "azure"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "microsoft-azure"
+   },
+   "color": "#0078D4"
+  },
+  {
+   "id": "docker-hub",
+   "name": "Docker Hub",
+   "category": "cloud",
+   "lists": [
+    "docker"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "docker"
+   }
+  },
+  {
+   "id": "windows-update",
+   "name": "Windows Update",
+   "category": "updates",
+   "domains": [
+    "windowsupdate.com",
+    "update.microsoft.com",
+    "delivery.mp.microsoft.com",
+    "dl.delivery.mp.microsoft.com",
+    "download.windowsupdate.com",
+    "tlu.dl.delivery.mp.microsoft.com"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "microsoft-windows-icon"
+   },
+   "color": "#0078D4"
+  },
+  {
+   "id": "apple-updates",
+   "name": "Apple Software Update",
+   "category": "updates",
+   "domains": [
+    "swcdn.apple.com",
+    "swdist.apple.com",
+    "swscan.apple.com",
+    "updates.cdn-apple.com",
+    "mesu.apple.com",
+    "osrecovery.apple.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "apple"
+   }
+  },
+  {
+   "id": "app-store",
+   "name": "App Store",
+   "category": "updates",
+   "lists": [
+    "itunes"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "appstore"
+   }
+  },
+  {
+   "id": "google-play",
+   "name": "Google Play",
+   "category": "updates",
+   "lists": [
+    "google-play"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "googleplay"
+   }
+  },
+  {
+   "id": "ubuntu",
+   "name": "Ubuntu",
+   "category": "updates",
+   "lists": [
+    "ubuntu"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "ubuntu"
+   }
+  },
+  {
+   "id": "mikrotik",
+   "name": "MikroTik",
+   "category": "updates",
+   "lists": [
+    "mikrotik"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "mikrotik"
+   }
+  },
+  {
+   "id": "ebay",
+   "name": "eBay",
+   "category": "shopping",
+   "lists": [
+    "ebay"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "ebay"
+   }
+  },
+  {
+   "id": "aliexpress",
+   "name": "AliExpress",
+   "category": "shopping",
+   "domains": [
+    "aliexpress.com",
+    "aliexpress.us",
+    "alicdn.com",
+    "aliexpress-media.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "aliexpress"
+   }
+  },
+  {
+   "id": "temu",
+   "name": "Temu",
+   "category": "shopping",
+   "domains": [
+    "temu.com",
+    "kwcdn.com"
+   ],
+   "color": "#FB7701",
+   "icon": {
+    "source": "arcticons",
+    "slug": "temu"
+   }
+  },
+  {
+   "id": "shein",
+   "name": "SHEIN",
+   "category": "shopping",
+   "domains": [
+    "shein.com",
+    "ltwebstatic.com",
+    "shein.co.uk"
+   ],
+   "color": "#222222",
+   "icon": {
+    "source": "arcticons",
+    "slug": "shein"
+   }
+  },
+  {
+   "id": "takealot",
+   "name": "Takealot",
+   "category": "shopping",
+   "domains": [
+    "takealot.com",
+    "takealot.co.za"
+   ],
+   "color": "#0B79BF",
+   "icon": {
+    "source": "arcticons",
+    "slug": "takealot"
+   }
+  },
+  {
+   "id": "paypal",
+   "name": "PayPal",
+   "category": "shopping",
+   "lists": [
+    "paypal"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "paypal"
+   }
+  },
+  {
+   "id": "bing",
+   "name": "Bing",
+   "category": "search",
+   "lists": [
+    "bing"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "bing"
+   },
+   "color": "#258FFA"
+  },
+  {
+   "id": "duckduckgo",
+   "name": "DuckDuckGo",
+   "category": "search",
+   "lists": [
+    "duckduckgo"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "duckduckgo"
+   }
+  },
+  {
+   "id": "yahoo",
+   "name": "Yahoo",
+   "category": "search",
+   "lists": [
+    "yahoo"
+   ],
+   "color": "#6001D2",
+   "icon": {
+    "source": "cib",
+    "slug": "yahoo"
+   }
+  },
+  {
+   "id": "wikipedia",
+   "name": "Wikipedia",
+   "category": "search",
+   "lists": [
+    "wikimedia"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "wikipedia"
+   }
+  },
+  {
+   "id": "tailscale",
+   "name": "Tailscale",
+   "category": "vpn",
+   "lists": [
+    "tailscale"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "tailscale"
+   }
+  },
+  {
+   "id": "nordvpn",
+   "name": "NordVPN",
+   "category": "vpn",
+   "lists": [
+    "nordvpn"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "nordvpn"
+   }
+  },
+  {
+   "id": "proton",
+   "name": "Proton",
+   "category": "vpn",
+   "lists": [
+    "protonmail"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "proton"
+   }
+  },
+  {
+   "id": "zerotier",
+   "name": "ZeroTier",
+   "category": "vpn",
+   "domains": [
+    "zerotier.com",
+    "my.zerotier.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "zerotier"
+   }
+  },
+  {
+   "id": "wireguard",
+   "name": "WireGuard",
+   "category": "vpn",
+   "icon": {
+    "source": "simple-icons",
+    "slug": "wireguard"
+   },
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 51820,
+     "to": 51820
+    }
+   ]
+  },
+  {
+   "id": "openvpn",
+   "name": "OpenVPN",
+   "category": "vpn",
+   "domains": [
+    "openvpn.net"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "openvpn"
+   },
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 1194,
+     "to": 1194
+    },
+    {
+     "proto": "tcp",
+     "from": 1194,
+     "to": 1194
+    }
+   ]
+  },
+  {
+   "id": "ipsec",
+   "name": "IPsec VPN",
+   "category": "vpn",
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 500,
+     "to": 500
+    },
+    {
+     "proto": "udp",
+     "from": 4500,
+     "to": 4500
+    }
+   ],
+   "color": "#64748B",
+   "icon": {
+    "source": "lucide",
+    "slug": "shield-lock"
+   }
+  },
+  {
+   "id": "rdp",
+   "name": "Remote Desktop",
+   "category": "vpn",
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 3389,
+     "to": 3389
+    },
+    {
+     "proto": "udp",
+     "from": 3389,
+     "to": 3389
+    }
+   ],
+   "color": "#2B7CD3",
+   "icon": {
+    "source": "lucide",
+    "slug": "monitor-smartphone"
+   }
+  },
+  {
+   "id": "ssh",
+   "name": "SSH",
+   "category": "vpn",
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 22,
+     "to": 22
+    }
+   ],
+   "color": "#94A3B8",
+   "icon": {
+    "source": "lucide",
+    "slug": "terminal"
+   }
+  },
+  {
+   "id": "tesla",
+   "name": "Tesla",
+   "category": "iot",
+   "lists": [
+    "tesla"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "tesla"
+   }
+  },
+  {
+   "id": "xiaomi",
+   "name": "Xiaomi",
+   "category": "iot",
+   "lists": [
+    "xiaomi"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "xiaomi"
+   }
+  },
+  {
+   "id": "samsung",
+   "name": "Samsung",
+   "category": "iot",
+   "lists": [
+    "samsung"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "samsung"
+   }
+  },
+  {
+   "id": "ubiquiti",
+   "name": "Ubiquiti",
+   "category": "iot",
+   "lists": [
+    "ubiquiti"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "ubiquiti"
+   }
+  },
+  {
+   "id": "ring",
+   "name": "Ring",
+   "category": "iot",
+   "domains": [
+    "ring.com",
+    "ring.devices.a2z.com"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "ring"
+   }
+  },
+  {
+   "id": "sonos",
+   "name": "Sonos",
+   "category": "iot",
+   "domains": [
+    "sonos.com",
+    "sonos.radio"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "sonos"
+   }
+  },
+  {
+   "id": "speedtest",
+   "name": "Speedtest",
+   "category": "other",
+   "lists": [
+    "speedtest"
+   ],
+   "domains": [
+    "ookla.com",
+    "speedtest.net"
+   ],
+   "color": "#141526",
+   "icon": {
+    "source": "arcticons",
+    "slug": "speedtest"
+   }
+  },
+  {
+   "id": "cloudflare",
+   "name": "Cloudflare",
+   "category": "cdn",
+   "lists": [
+    "cloudflare"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "cloudflare"
+   },
+   "asns": [
+    13335
+   ]
+  },
+  {
+   "id": "akamai",
+   "name": "Akamai",
+   "category": "cdn",
+   "lists": [
+    "akamai"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "akamai"
+   },
+   "asns": [
+    20940,
+    63949,
+    16625
+   ]
+  },
+  {
+   "id": "fastly",
+   "name": "Fastly",
+   "category": "cdn",
+   "lists": [
+    "fastly"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "fastly"
+   },
+   "asns": [
+    54113
+   ]
+  },
+  {
+   "id": "dns",
+   "name": "DNS",
+   "category": "dns",
+   "asns": [
+    19281,
+    36692,
+    34939,
+    212772,
+    398962
+   ],
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 53,
+     "to": 53
+    },
+    {
+     "proto": "tcp",
+     "from": 53,
+     "to": 53
+    },
+    {
+     "proto": "tcp",
+     "from": 853,
+     "to": 853
+    }
+   ],
+   "color": "#F59E0B",
+   "icon": {
+    "source": "lucide",
+    "slug": "globe"
+   }
+  },
+  {
+   "id": "ntp",
+   "name": "Time (NTP)",
+   "category": "dns",
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 123,
+     "to": 123
+    }
+   ],
+   "color": "#14B8A6",
+   "icon": {
+    "source": "lucide",
+    "slug": "clock"
+   }
+  },
+  {
+   "id": "email",
+   "name": "Email (SMTP/IMAP)",
+   "category": "productivity",
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 25,
+     "to": 25
+    },
+    {
+     "proto": "tcp",
+     "from": 465,
+     "to": 465
+    },
+    {
+     "proto": "tcp",
+     "from": 587,
+     "to": 587
+    },
+    {
+     "proto": "tcp",
+     "from": 993,
+     "to": 993
+    },
+    {
+     "proto": "tcp",
+     "from": 995,
+     "to": 995
+    }
+   ],
+   "color": "#6366F1",
+   "icon": {
+    "source": "lucide",
+    "slug": "mail"
+   }
+  },
+  {
+   "id": "meta",
+   "name": "Meta",
+   "category": "social",
+   "icon": {
+    "source": "simple-icons",
+    "slug": "meta"
+   },
+   "umbrella": true,
+   "asns": [
+    32934
+   ]
+  },
+  {
+   "id": "microsoft",
+   "name": "Microsoft",
+   "category": "cloud",
+   "lists": [
+    "microsoft"
+   ],
+   "icon": {
+    "source": "gilbarbara",
+    "slug": "microsoft-icon"
+   },
+   "color": "#0078D4",
+   "asns": [
+    8075,
+    8068
+   ],
+   "umbrella": true
+  },
+  {
+   "id": "google",
+   "name": "Google",
+   "category": "cloud",
+   "lists": [
+    "google"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "google"
+   },
+   "asns": [
+    15169,
+    396982,
+    139070
+   ],
+   "umbrella": true
+  },
+  {
+   "id": "apple",
+   "name": "Apple",
+   "category": "cloud",
+   "lists": [
+    "apple"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "apple"
+   },
+   "asns": [
+    714
+   ],
+   "umbrella": true
+  },
+  {
+   "id": "amazon",
+   "name": "Amazon",
+   "category": "shopping",
+   "lists": [
+    "amazon"
+   ],
+   "color": "#FF9900",
+   "asns": [
+    16509,
+    14618
+   ],
+   "umbrella": true,
+   "icon": {
+    "source": "cib",
+    "slug": "amazon"
+   }
+  },
+  {
+   "id": "tencent",
+   "name": "Tencent",
+   "category": "cloud",
+   "lists": [
+    "tencent"
+   ],
+   "umbrella": true,
+   "color": "#0052D9",
+   "icon": {
+    "source": "cib",
+    "slug": "tencent-qq"
+   }
+  },
+  {
+   "id": "bytedance",
+   "name": "ByteDance",
+   "category": "social",
+   "lists": [
+    "bytedance"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "bytedance"
+   },
+   "umbrella": true
+  },
+  {
+   "id": "alibaba",
+   "name": "Alibaba",
+   "category": "shopping",
+   "lists": [
+    "alibaba"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "alibabadotcom"
+   },
+   "umbrella": true
+  },
+  {
+   "id": "nvidia",
+   "name": "NVIDIA",
+   "category": "gaming",
+   "lists": [
+    "nvidia"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "nvidia"
+   },
+   "umbrella": true
+  },
+  {
+   "id": "sony",
+   "name": "Sony",
+   "category": "gaming",
+   "lists": [
+    "sony"
+   ],
+   "icon": {
+    "source": "simple-icons",
+    "slug": "sony"
+   },
+   "umbrella": true
+  }
+ ]
+}
