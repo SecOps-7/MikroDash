@@ -88,9 +88,9 @@ export interface AppUsage {
   color: string;
   logo: string;
   dark: boolean;
-  rxMbps: number;
-  txMbps: number;
-  totalMbps: number;
+  rxBytes: number;
+  txBytes: number;
+  totalBytes: number;
   share: number;
   devices: number;
   via: string;
@@ -98,28 +98,22 @@ export interface AppUsage {
   top: string;
 }
 
-export interface AppOwner {
-  org: string;
-  rxMbps: number;
-  txMbps: number;
-}
-
 export interface AppDevice {
   ip: string;
   name: string;
   mac: string;
-  rxMbps: number;
-  txMbps: number;
+  rxBytes: number;
+  txBytes: number;
 }
 
 export interface AppUsagePayload {
   ts: number;
-  pollMs: number;
-  rxMbps: number;
-  txMbps: number;
-  unnamedMbps: number;
+  from: number;
+  to: number;
+  rxBytes: number;
+  txBytes: number;
+  unnamedBytes: number;
   apps: AppUsage[];
-  unnamed: AppOwner[];
   devices: Record<string, AppDevice[]> | null;
   dnsNames: number;
   dnsAt: number;

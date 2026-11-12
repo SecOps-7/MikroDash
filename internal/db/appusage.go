@@ -60,32 +60,3 @@ func (d *DB) AppUsage(routerID string, from, to int64) ([]AppUsageRow, error) {
 	}
 	return out, rows.Err()
 }
-
-// AppHistoryRouters is the routers whose app usage is recorded, which are kept
-// reading their connections while nobody watches.
-func (d *DB) AppHistoryRouters() (map[string]bool, error) {
-	rows, err := d.sql.Query(`SELECT router_id FROM app_history_routers`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[string]bool{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out[id] = true
-	}
-	return out, rows.Err()
-}
-
-// SetAppHistory switches the recording of a router's app usage on or off.
-func (d *DB) SetAppHistory(routerID string, on bool) error {
-	q := `DELETE FROM app_history_routers WHERE router_id = ?`
-	if on {
-		q = `INSERT OR IGNORE INTO app_history_routers (router_id) VALUES (?)`
-	}
-	_, err := d.sql.Exec(q, routerID)
-	return err
-}

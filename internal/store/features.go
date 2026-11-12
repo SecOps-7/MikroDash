@@ -1,8 +1,11 @@
 package store
 
 // The optional features, Settings -> Features. Each is off until the operator
-// switches it on: off, its controls are not drawn, its endpoints answer 403 and
-// nothing of it runs in the background or reads a router.
+// switches it on, but one: the Apps Usage history is ON by default (the
+// operator, 2026-11-12; `appHistoryEnabled: true` in settings_tables.json), and
+// its switch is the way to turn it off. Off, a feature's controls are not
+// drawn, its endpoints answer 403 and nothing of it runs in the background or
+// reads a router.
 const (
 	FeatureDNSBulk       = "dnsBulkEnabled"       // select many static entries; export them
 	FeatureDNSCache      = "dnsCacheEnabled"      // browse the resolver's cache on demand
@@ -14,7 +17,7 @@ const (
 	FeatureWifiHistory   = "wifiHistoryEnabled"   // record each Wi-Fi client's signal and AP
 	FeatureWifiWeakSpots = "wifiWeakSpotsEnabled" // colour the Wi-Fi map by client signal
 	FeatureCapVersions   = "capVersionsEnabled"   // CAP versions against the manager's, and upgrade
-	FeatureAppHistory    = "appHistoryEnabled"    // record each app's bytes per hour, per router
+	FeatureAppHistory    = "appHistoryEnabled"    // record each app's bytes per hour, every router; on by default
 )
 
 // FeatureOn reports whether an optional feature is switched on.

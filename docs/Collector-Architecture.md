@@ -469,7 +469,7 @@ the rooms it emits to, and `-` means router-wide or nothing.
 |---|---|---|---|
 | `areas` | the menus of the areas being looked at, `internal/areas` | `BuildAreaRows` | one `page-<area>` per declared area |
 | `arp` | `/ip/arp/print` | `BuildARP` | - (none at all) |
-| `apps` | `/ip/firewall/connection/print` (shared with `conns` and `bandwidth`), `/ip/dns/cache/print` once a minute | `connRates`, `DNSNames`, `BuildApps` (internal/apps names each destination: DNS name, then port, then AS number) | `page-apps` |
+| `apps` | `/ip/firewall/connection/print` (shared with `conns` and `bandwidth`), `/ip/dns/cache/print` once a minute | `connRates`, `DNSNames`, `SumApps`, `BuildApps` (internal/apps names each destination: DNS name, then port, then AS number; each reading is held as bytes in one-minute buckets, and the last hour is sent once a minute) | `page-apps` |
 | `bandwidth` | `/ip/firewall/connection/print` | `BuildBandwidth` | `page-bandwidth` |
 | `bridges` | `/interface/bridge/host/print` | `BuildBridgeRows` | `page-bridges` |
 | `capsman` | `/interface/wifi/registration-table/print` | `BuildCapsmanView`, `BuildCapsmanLegacyView` | `page-capsman` |

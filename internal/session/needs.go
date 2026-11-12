@@ -72,8 +72,12 @@ type Reasons struct {
 	// WifiHistory is a router whose Wi-Fi clients are being recorded (Settings
 	// -> Features). Only routers that have shown clients are held for it.
 	WifiHistory bool
-	// AppHistory is a router whose app usage is being recorded (Settings ->
-	// Features, switched on per router on the Apps Usage page).
+	// AppHistory is a router whose app usage is being recorded: EVERY router
+	// while Settings -> Features -> "Apps Usage history" is on, which it is by
+	// default. There is no choice per router (the operator, 2026-11-12). The
+	// cost: the connection table is read for every router continuously, one
+	// channel per router (the read Connections and Bandwidth share), and the
+	// DNS cache once a minute per router.
 	AppHistory bool
 }
 

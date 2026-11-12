@@ -421,8 +421,9 @@ func TestAnOccupiedDemandRoomIsAReasonToRun(t *testing.T) {
 }
 
 // TestARecordedRouterRunsOnlyTheAppsCollector. A router whose app usage is
-// recorded (Settings -> Features, switched on per router on the Apps Usage
-// page) and that nobody is viewing runs the apps collector and nothing else:
+// recorded (every router while Settings -> Features -> "Apps Usage history" is
+// on, the default) and that nobody is viewing runs the apps collector and
+// nothing else:
 // it reads the DNS cache itself, and the history is summed from its readings.
 func TestARecordedRouterRunsOnlyTheAppsCollector(t *testing.T) {
 	why := Reasons{AppHistory: true}

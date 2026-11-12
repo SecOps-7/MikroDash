@@ -446,9 +446,10 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	srv.sessions.SetOnIdentity(srv.persistRouterIdentity)
 	// The public address places the router on the map. Same ordering rule.
 	srv.sessions.SetOnPublicIP(srv.persistAutoGeo)
-	// The Apps Usage history takes every reading of every apps collector. Same
+	// The Apps Usage history takes every minute every apps collector closes. Same
 	// ordering rule: a session binds it when it is built.
 	srv.appUsage = newAppUsageRecorder()
+	srv.refreshAppRecording()
 	srv.sessions.SetOnAppUsage(srv.appUsage.add)
 	// `router:status` beyond a router's own room goes only to the browsers that
 	// may read that router. See Server.sendFleetStatus.

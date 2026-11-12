@@ -3938,11 +3938,6 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-row{cursor:pointer}
     .au-note{margin:.2rem 0 .8rem;padding:.5rem .7rem;border:1px solid rgb(from var(--accent-warn) r g b / .35);
       background:rgb(from var(--accent-warn) r g b / .08);border-radius:6px;color:var(--text-main);font-size:.78rem}
-    .au-unnamed{margin-top:1rem}
-    .au-section-title{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.4rem}
-    .au-unnamed-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.3rem .9rem}
-    .au-unnamed-row{display:flex;justify-content:space-between;gap:.5rem;font-size:.75rem;font-family:var(--font-mono)}
-    .au-unnamed-org{color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-ui)}
     .au-credit{margin-top:1rem}
     .au-empty{color:var(--text-muted);font-size:.8rem;padding:1rem}
     .au-modal-sum{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}

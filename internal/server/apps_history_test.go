@@ -11,84 +11,63 @@ import (
 	"mikrodash/internal/apps"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/db"
+	"mikrodash/internal/store"
 )
 
-// TestAReadingIsHeldForTheTimeSinceTheLastOne. One reading's rate covers the
-// time since the router's previous reading, so 8 Mbps for 5 s is 5 MB, and
-// both directions are converted on their own.
-func TestAReadingIsHeldForTheTimeSinceTheLastOne(t *testing.T) {
-	if got := appReadingSeconds(10_000, 15_000, 5000); got != 5 {
-		t.Errorf("a reading 5 s after the last is held for %v s, want 5", got)
-	}
-	if got := mbpsToBytes(8, 5); got != 5_000_000 {
-		t.Errorf("8 Mbps for 5 s is %v bytes, want 5,000,000", got)
-	}
-	if got := mbpsToBytes(-1, 5); got != 0 {
-		t.Errorf("a negative rate made %v bytes", got)
-	}
-	for _, c := range []struct {
-		name     string
-		prev, ts int64
-		pollMs   int
-		want     float64
-	}{
-		{"the first reading of a router", 0, 15_000, 5000, 0},
-		{"a clock that went backwards", 20_000, 15_000, 5000, 0},
-		{"a reading after a gap is capped at two polls", 10_000, 310_000, 5000, 10},
-		{"exactly two polls is not cut", 10_000, 20_000, 5000, 10},
-		{"no poll period reads as the 5 s default", 10_000, 110_000, 0, 10},
-	} {
-		if got := appReadingSeconds(c.prev, c.ts, c.pollMs); got != c.want {
-			t.Errorf("%s: held for %v s, want %v", c.name, got, c.want)
-		}
-	}
+func appMinute(start int64, apps map[string]collect.AppBytes) collect.AppMinute {
+	return collect.AppMinute{Start: start, Apps: apps}
 }
 
-func appReading(ts int64, apps ...collect.AppUsage) *collect.AppUsagePayload {
-	return &collect.AppUsagePayload{TS: ts, PollMs: 5000, Apps: apps}
-}
-
-// TestTheRecorderSumsOnlyTheRoutersItRecords. Readings of a router that is not
-// recorded are not kept, the first reading after recording starts is not held
-// for the time before it, bytes go to the hour the reading falls in, and a gap
-// adds no more than two polls' worth.
-func TestTheRecorderSumsOnlyTheRoutersItRecords(t *testing.T) {
+// TestTheRecorderAddsEachClosedMinuteToItsHour. The collector hands over each
+// minute it closes, already in bytes; the recorder adds it to the hour the
+// minute starts in, for every router, while the feature is on. Off, nothing is
+// kept, and what was summed before it went off is not written.
+func TestTheRecorderAddsEachClosedMinuteToItsHour(t *testing.T) {
 	r := newAppUsageRecorder()
 	const h = 1_800_000_000_000 - 1_800_000_000_000%hourMs
-	nf := func(rx, tx float64) collect.AppUsage { return collect.AppUsage{ID: "netflix", RxMbps: rx, TxMbps: tx} }
+	nf := func(rx, tx float64) map[string]collect.AppBytes {
+		return map[string]collect.AppBytes{"netflix": {Rx: rx, Tx: tx}, "quiet": {}}
+	}
 
-	r.add("r1", appReading(h+1000, nf(8, 8)))
-	r.add("r2", appReading(h+1000, nf(8, 8)))
-	r.setOn(map[string]bool{"r1": true})
-	r.add("r1", appReading(h+6000, nf(8, 0.8)))   // 5 s
-	r.add("r2", appReading(h+6000, nf(8, 0.8)))   // not recorded
-	r.add("r1", appReading(h+606_000, nf(16, 0))) // 600 s gap: held for 10 s
-	r.add("r1", appReading(h+hourMs+1000, nf(8, 0)))
+	r.add("r1", appMinute(h, nf(1, 1))) // the feature is not on yet
+	r.setOn(true)
+	r.add("r1", appMinute(h, nf(5_000_000, 500_000)))
+	r.add("r2", appMinute(h+59*60_000, nf(7, 0)))
+	r.add("r1", appMinute(h+59*60_000, nf(20_000_000, 0)))
+	r.add("r1", appMinute(h+hourMs, nf(10_000_000, 0)))
 
-	rows := r.take()
-	got := map[int64]db.AppUsageRow{}
-	for _, row := range rows {
-		if row.RouterID != "r1" || row.App != "netflix" {
-			t.Fatalf("a row for %s/%s; only r1 is recorded: %+v", row.RouterID, row.App, rows)
+	type at struct {
+		router string
+		hour   int64
+	}
+	got := map[at]db.AppUsageRow{}
+	for _, row := range r.take() {
+		if row.App != "netflix" {
+			t.Fatalf("a row for %s, which moved nothing", row.App)
 		}
-		got[row.Hour] = row
+		got[at{row.RouterID, row.Hour}] = row
 	}
-	if want := (db.AppUsageRow{RouterID: "r1", App: "netflix", Hour: h, RxBytes: 5_000_000 + 20_000_000, TxBytes: 500_000}); got[h] != want {
-		t.Errorf("the first hour holds %+v, want %+v", got[h], want)
+	if want := (db.AppUsageRow{RouterID: "r1", App: "netflix", Hour: h, RxBytes: 25_000_000, TxBytes: 500_000}); got[at{"r1", h}] != want {
+		t.Errorf("r1's first hour holds %+v, want %+v", got[at{"r1", h}], want)
 	}
-	// The next hour's reading came 3,395 s after the last: two polls, 10 s.
-	if want := (db.AppUsageRow{RouterID: "r1", App: "netflix", Hour: h + hourMs, RxBytes: 10_000_000}); got[h+hourMs] != want {
-		t.Errorf("the second hour holds %+v, want %+v", got[h+hourMs], want)
+	if want := (db.AppUsageRow{RouterID: "r1", App: "netflix", Hour: h + hourMs, RxBytes: 10_000_000}); got[at{"r1", h + hourMs}] != want {
+		t.Errorf("r1's second hour holds %+v, want %+v", got[at{"r1", h + hourMs}], want)
+	}
+	if want := (db.AppUsageRow{RouterID: "r2", App: "netflix", Hour: h, RxBytes: 7}); got[at{"r2", h}] != want {
+		t.Errorf("r2, which nobody switched on, holds %+v, want %+v: every router is recorded", got[at{"r2", h}], want)
+	}
+	if len(got) != 3 {
+		t.Errorf("rows %v, want three", got)
 	}
 	if len(r.take()) != 0 {
 		t.Error("a second take returned the same bytes again")
 	}
 
-	// Switched off between readings and the flush: nothing is written for it.
-	r.add("r1", appReading(h+hourMs+6000, nf(8, 0)))
-	r.setOn(map[string]bool{})
+	// Switched off between a minute and the flush: nothing is written.
+	r.add("r1", appMinute(h+hourMs+60_000, nf(8, 0)))
+	r.setOn(false)
 	if rows := r.take(); len(rows) != 0 {
-		t.Errorf("a router switched off still had %v written", rows)
+		t.Errorf("the feature was switched off and %v was still written", rows)
 	}
 }
 
@@ -146,60 +125,38 @@ func TestTheHistoryIsBucketedByHourOrDay(t *testing.T) {
 
 const appHistoryGateDDL = `
 CREATE TABLE app_usage (router_id TEXT NOT NULL, app TEXT NOT NULL, hour INTEGER NOT NULL,
-  rx_bytes INTEGER NOT NULL DEFAULT 0, tx_bytes INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (router_id, app, hour));
-CREATE TABLE app_history_routers (router_id TEXT PRIMARY KEY);`
+  rx_bytes INTEGER NOT NULL DEFAULT 0, tx_bytes INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (router_id, app, hour));`
 
-// TestTheAppHistoryChoiceFollowsItsGates. Asking whether a router is recorded,
-// switching it and reading it need the feature, a signed-in user and the Apps
-// Usage page on that router (write to switch), before anything is read or
-// written; with them, the switch is saved and read back.
-func TestTheAppHistoryChoiceFollowsItsGates(t *testing.T) {
+// TestTheAppHistoryFollowsItsGates. Reading the history needs the feature, a
+// signed-in user and the Apps Usage page on that router. The feature is on by
+// default, so settings that never mention it read it as on; it is off only
+// when switched off.
+func TestTheAppHistoryFollowsItsGates(t *testing.T) {
 	grant := appHistoryGateDDL + `
 INSERT INTO role_pages (role_id, page, access) VALUES ('role-w','apps','write'), ('role-r','apps','read');`
-	on := `{"appHistoryEnabled":true}`
+	off := `{"appHistoryEnabled":false}`
 	for _, c := range []struct {
-		name, settings, extra, method, url, body string
-		signedIn                                 bool
-		want                                     int
+		name, settings, extra, url string
+		signedIn                   bool
+		want                       int
 	}{
-		{"status, signed out", on, grant, "GET", "/api/apps/history/status?routerId=r-A", "", false, 401},
-		{"status, switched off", `{}`, grant, "GET", "/api/apps/history/status?routerId=r-A", "", true, 403},
-		{"status, the Wi-Fi feature is not this one", `{"wifiHistoryEnabled":true}`, grant, "GET", "/api/apps/history/status?routerId=r-A", "", true, 403},
-		{"status, bad router id", on, grant, "GET", "/api/apps/history/status?routerId=../x", "", true, 400},
-		{"status, no Apps Usage grant", on, appHistoryGateDDL, "GET", "/api/apps/history/status?routerId=r-A", "", true, 403},
-		{"status, granted", on, grant, "GET", "/api/apps/history/status?routerId=r-A", "", true, 200},
-		{"history, no Apps Usage grant", on, appHistoryGateDDL, "GET", "/api/apps/history?routerId=r-A&period=week", "", true, 403},
-		{"history, granted", on, grant, "GET", "/api/apps/history?routerId=r-B&period=week", "", true, 200},
-		{"record, signed out", on, grant, "POST", "/api/apps/history/record", `{"routerId":"r-A","on":true}`, false, 401},
-		{"record, switched off", `{}`, grant, "POST", "/api/apps/history/record", `{"routerId":"r-A","on":true}`, true, 403},
-		{"record, read only on the router", on, grant, "POST", "/api/apps/history/record", `{"routerId":"r-B","on":true}`, true, 403},
-		{"record, no Apps Usage grant", on, appHistoryGateDDL, "POST", "/api/apps/history/record", `{"routerId":"r-A","on":true}`, true, 403},
-		{"record, granted", on, grant, "POST", "/api/apps/history/record", `{"routerId":"r-A","on":true}`, true, 200},
+		{"signed out", `{}`, grant, "/api/apps/history?routerId=r-A&period=week", false, 401},
+		{"switched off", off, grant, "/api/apps/history?routerId=r-A&period=week", true, 403},
+		{"bad router id", `{}`, grant, "/api/apps/history?routerId=../x&period=week", true, 400},
+		{"no Apps Usage grant", `{}`, appHistoryGateDDL, "/api/apps/history?routerId=r-A&period=week", true, 403},
+		{"granted, on by default", `{}`, grant, "/api/apps/history?routerId=r-B&period=week", true, 200},
 	} {
 		s := gateServer(t, c.settings, c.extra)
-		req := httptest.NewRequest(c.method, c.url, strings.NewReader(c.body))
+		req := httptest.NewRequest("GET", c.url, nil)
 		if c.signedIn {
 			req.Header.Set("Cookie", authed)
 		}
 		w := httptest.NewRecorder()
-		h := s.appHistoryStatus
-		if c.method == "POST" {
-			h = s.appHistoryRecord
-		} else if strings.HasPrefix(c.url, "/api/apps/history?") {
-			h = s.appHistoryGet
-		}
-		h(w, req)
+		s.appHistoryGet(w, req)
 		if w.Code != c.want {
 			t.Errorf("%s: answered %d (%s), want %d", c.name, w.Code, strings.TrimSpace(w.Body.String()), c.want)
 		}
-		recorded, _ := s.auditDB.AppHistoryRouters()
-		if c.want != 200 && len(recorded) != 0 {
-			t.Errorf("%s: a refused request switched recording on: %v", c.name, recorded)
-		}
-		if c.name == "record, granted" && !recorded["r-A"] {
-			t.Errorf("%s: answered %d and r-A is not recorded: %v", c.name, w.Code, recorded)
-		}
-		if c.name == "history, granted" {
+		if c.want == 200 {
 			var got AppHistory
 			if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || len(got.Buckets) != 7 || got.Apps == nil {
 				t.Errorf("%s: %v %s", c.name, err, w.Body.String())
@@ -208,14 +165,47 @@ INSERT INTO role_pages (role_id, page, access) VALUES ('role-w','apps','write'),
 	}
 }
 
+// TestEveryRouterIsHeldForAppHistoryByDefault. No opt-in: with settings that
+// never mention the feature, every router is held for it and the recorder
+// keeps what it is given; switched off, no router is held and nothing is kept.
+// Without a database there is nowhere to record, so nothing is held either.
+func TestEveryRouterIsHeldForAppHistoryByDefault(t *testing.T) {
+	minute := appMinute(0, map[string]collect.AppBytes{"netflix": {Rx: 1000}})
+	for _, c := range []struct {
+		name, settings string
+		want           bool
+	}{
+		{"settings that never mention it", `{}`, true},
+		{"switched on", `{"appHistoryEnabled":true}`, true},
+		{"switched off", `{"appHistoryEnabled":false}`, false},
+	} {
+		s := gateServer(t, c.settings, appHistoryGateDDL)
+		for _, rid := range []string{"r-A", "r-B", "a-router-nobody-chose"} {
+			if got := s.featureHoldWanted(store.FeatureAppHistory, rid); got != c.want {
+				t.Errorf("%s: %s held for app history = %v, want %v", c.name, rid, got, c.want)
+			}
+		}
+		s.appUsage = newAppUsageRecorder()
+		s.syncFeatureHolds()
+		s.appUsage.add("r-A", minute)
+		if got := len(s.appUsage.take()) == 1; got != c.want {
+			t.Errorf("%s: the recorder kept a minute = %v, want %v", c.name, got, c.want)
+		}
+	}
+	s := gateServer(t, `{}`, appHistoryGateDDL)
+	s.auditDB = nil
+	if s.featureHoldWanted(store.FeatureAppHistory, "r-A") {
+		t.Error("a server with no database holds routers for a history it cannot write")
+	}
+}
+
 // TestAppUsageRoundsToWholeBytes guards the one float-to-int step: a sum is
 // rounded, not truncated.
 func TestAppUsageRoundsToWholeBytes(t *testing.T) {
 	r := newAppUsageRecorder()
-	r.setOn(map[string]bool{"r1": true})
-	r.add("r1", appReading(1000))
-	r.add("r1", appReading(1001, collect.AppUsage{ID: "x", RxMbps: 0.0000799})) // 0.00999 bytes in 1 ms
-	r.add("r1", appReading(2001, collect.AppUsage{ID: "x", RxMbps: 0.0000075})) // 0.9375 bytes in 1 s
+	r.setOn(true)
+	r.add("r1", appMinute(0, map[string]collect.AppBytes{"x": {Rx: 0.00999}}))
+	r.add("r1", appMinute(60_000, map[string]collect.AppBytes{"x": {Rx: 0.9375}}))
 	rows := r.take()
 	if len(rows) != 1 || rows[0].RxBytes != int64(math.Round(0.00999+0.9375)) {
 		t.Errorf("rows %+v, want 1 byte", rows)

@@ -5,7 +5,7 @@ package server
 // turning one off stops it at the next minute without a restart.
 //
 //	Wi-Fi client history   the wireless payload a session already holds, written
-//	Apps Usage history     the bytes summed from each apps reading, written
+//	Apps Usage history     the bytes of each minute the apps collectors close, written
 //	watch list             presence in Wi-Fi and ARP, judged against a grace
 //	domain routing         the list, its mangle rules and their routes, read
 //	domain lists           a list whose interval has passed, synced
@@ -130,8 +130,8 @@ func (s *Server) featureTick(ctx context.Context, now time.Time) {
 	if store.FeatureOn(cfg, store.FeatureWifiHistory) && s.auditDB != nil {
 		s.recordWifi(live, now)
 	}
-	// The Apps Usage history is summed per reading (apps_history.go); this is
-	// its once-a-minute write, and where it learns which routers it records.
+	// The Apps Usage history is summed per closed minute (apps_history.go);
+	// this is its once-a-minute write, and where it learns whether it is on.
 	s.flushAppUsage()
 	if store.FeatureOn(cfg, store.FeatureWatchList) && s.auditDB != nil {
 		s.features.watchQuiet = false

@@ -80,9 +80,8 @@ var routerDataTablesPortAdded = []string{
 	"watch_devices",
 	// Which channels were sent its open alerts (alertsent.go).
 	"alert_sent",
-	// Its app usage history, and whether it is recorded (appusage_schema.go).
+	// Its app usage history (appusage_schema.go).
 	"app_usage",
-	"app_history_routers",
 }
 
 // routerPurgeExcluded is what a router purge must NEVER touch, with the reason.

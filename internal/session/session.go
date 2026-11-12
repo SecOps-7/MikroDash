@@ -721,9 +721,9 @@ type Manager struct {
 	// onPublicIP is told a router's public address when it changes, which is
 	// what places the router on the map. Nil is inert. See SetOnPublicIP.
 	onPublicIP func(routerID, ip string)
-	// onAppUsage is given every Apps Usage reading, for the stored history.
-	// Nil is inert. See SetOnAppUsage.
-	onAppUsage func(routerID string, p *collect.AppUsagePayload)
+	// onAppUsage is given every minute an Apps Usage window closes, for the
+	// stored history. Nil is inert. See SetOnAppUsage.
+	onAppUsage func(routerID string, m collect.AppMinute)
 
 	// docs reads the OPERATOR'S own documents for a router — the declared uplink
 	// list, the pinned cabling, the site plan. Nil until the server attaches it,
@@ -848,10 +848,11 @@ func (m *Manager) SetOnIdentity(fn func(routerID string, id collect.Identity)) {
 // SetOnIdentity: call it before the first session is built.
 func (m *Manager) SetOnPublicIP(fn func(routerID, ip string)) { m.onPublicIP = fn }
 
-// SetOnAppUsage attaches the Apps Usage history recorder, given every reading
-// of every router's apps collector; it decides itself which routers it keeps.
-// The same rule as SetOnIdentity: call it before the first session is built.
-func (m *Manager) SetOnAppUsage(fn func(routerID string, p *collect.AppUsagePayload)) {
+// SetOnAppUsage attaches the Apps Usage history recorder, given every minute
+// every router's apps collector closes; it decides itself whether it keeps
+// them. The same rule as SetOnIdentity: call it before the first session is
+// built.
+func (m *Manager) SetOnAppUsage(fn func(routerID string, m collect.AppMinute)) {
 	m.onAppUsage = fn
 }
 
@@ -932,12 +933,12 @@ func (m *Manager) publicIPFor(routerID string) func(string) {
 }
 
 // appUsageFor binds the app usage recorder to one router, or returns nil.
-func (m *Manager) appUsageFor(routerID string) func(*collect.AppUsagePayload) {
+func (m *Manager) appUsageFor(routerID string) func(collect.AppMinute) {
 	fn := m.onAppUsage
 	if fn == nil {
 		return nil
 	}
-	return func(p *collect.AppUsagePayload) { fn(routerID, p) }
+	return func(am collect.AppMinute) { fn(routerID, am) }
 }
 
 // newSystem builds a System collector that reports this router's identity.
@@ -1353,9 +1354,9 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	s.apps = collect.NewApps(reader{s: s}, emit, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["apps"]).
 		WithOwner(ownerLookup()).
 		WithARP(s.arp).
-		// Every reading, emitted or not, to the stored history, which keeps
-		// only the routers recording (internal/server/apps_history.go).
-		OnBuild(m.appUsageFor(s.RouterID))
+		// Every closed minute to the stored history, which keeps them while
+		// the feature is on (internal/server/apps_history.go).
+		OnMinute(m.appUsageFor(s.RouterID))
 	// The default interface is what the WAN badge watches, so it is always in
 	// the stream even when nobody has selected it. Five minutes of history, as
 	// the live app keeps.

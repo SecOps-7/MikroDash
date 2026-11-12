@@ -159,7 +159,10 @@ func (s *Server) holdOne(r store.Router) {
 		// recorded. See featureHoldWanted.
 		{"watch", !r.Disabled && s.featureHoldWanted(store.FeatureWatchList, r.ID)},
 		{"wifi-history", !r.Disabled && s.featureHoldWanted(store.FeatureWifiHistory, r.ID)},
-		// And the apps collector on a router whose app usage is recorded.
+		// And the apps collector on EVERY router while app usage is recorded,
+		// which is the default: no choice per router. One connection-table
+		// channel per router, continuously, and its DNS cache once a minute.
+		// See apps_history.go.
 		{"app-history", !r.Disabled && s.featureHoldWanted(store.FeatureAppHistory, r.ID)},
 	} {
 		if !h.want {
@@ -212,7 +215,8 @@ func (s *Server) activeRouterID() string {
 // history wants the Wi-Fi reads on a router it was switched on for, on the
 // Wifi Clients page: recording is a choice per router, and the others are not
 // held on the chance they have clients. The Apps Usage history wants the apps
-// collector on a router switched on for it on the Apps Usage page, likewise.
+// collector on every router: it has no choice per router (the operator,
+// 2026-11-12), and the feature itself is the off switch.
 func (s *Server) featureHoldWanted(feature, routerID string) bool {
 	if s.auditDB == nil || !s.featureOn(feature) {
 		return false
@@ -225,8 +229,7 @@ func (s *Server) featureHoldWanted(feature, routerID string) bool {
 		recorded, err := s.auditDB.WifiHistoryRouters()
 		return err == nil && recorded[routerID]
 	case store.FeatureAppHistory:
-		recorded, err := s.auditDB.AppHistoryRouters()
-		return err == nil && recorded[routerID]
+		return true
 	}
 	return false
 }
@@ -235,6 +238,9 @@ func (s *Server) featureHoldWanted(feature, routerID string) bool {
 // settings save, a watch list or recording change, and on the feature loop's
 // pass.
 func (s *Server) syncFeatureHolds() {
+	// The app usage recorder follows the same switch, so a save that turns it
+	// on or off takes effect now rather than at the next flush.
+	s.refreshAppRecording()
 	if !s.holdFleet || s.store == nil || s.sessions == nil {
 		return
 	}

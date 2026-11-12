@@ -1,10 +1,14 @@
 package db
 
-// The tables of the Apps Usage history, an optional feature (Settings ->
-// Features), migration 38.
+// The table of the Apps Usage history, an optional feature (Settings ->
+// Features, on by default), migration 38.
 //
 //	app_usage              bytes each application moved on a router, per hour
-//	app_history_routers    the routers whose app usage is recorded
+//
+// Migration 38 also made `app_history_routers`, the routers someone had
+// switched recording on for. Every router is recorded now while the feature is
+// on (the operator, 2026-11-12), so migration 39 drops it
+// (appHistoryRoutersDropDDL) and a new database never has it.
 //
 // Shared by `freshSchemaDDL` and `portMigrations[38]`, the rule
 // monitorruns_schema.go gives: a new database and a migrated one must not be
@@ -16,8 +20,8 @@ package db
 // address and no name the DNS cache gave is stored: the live page reads the
 // cache on the condition that nothing from it is kept (internal/collect/apps.go).
 //
-// Both belong to a router and go with it (purge.go); `app_usage` ages out on
-// the metric retention (prune.go).
+// It belongs to a router and goes with it (purge.go), and ages out on the
+// metric retention (prune.go).
 const appUsageDDL = `
 CREATE TABLE IF NOT EXISTS app_usage (
           router_id TEXT    NOT NULL,
@@ -27,9 +31,10 @@ CREATE TABLE IF NOT EXISTS app_usage (
           tx_bytes  INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (router_id, app, hour)
         );
-CREATE TABLE IF NOT EXISTS app_history_routers (
-          router_id TEXT PRIMARY KEY
-        );
 CREATE INDEX IF NOT EXISTS idx_app_usage_router_hour ON app_usage(router_id, hour);
 CREATE INDEX IF NOT EXISTS idx_app_usage_hour ON app_usage(hour);
 `
+
+// appHistoryRoutersDropDDL is migration 39: the per-router opt-in is gone.
+// IF EXISTS, so a database created without it replays it harmlessly.
+const appHistoryRoutersDropDDL = `DROP TABLE IF EXISTS app_history_routers`

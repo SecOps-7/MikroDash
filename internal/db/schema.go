@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 38
+const schemaVersion = 39
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -310,6 +310,10 @@ var portMigrations = map[int][]string{
 	// 38: the Apps Usage history, an optional feature (Settings -> Features).
 	// See appusage_schema.go.
 	38: {appUsageDDL},
+	// 39: every router's app usage is recorded while the feature is on, with
+	// no choice per router, so the table of that choice goes. See
+	// appusage_schema.go.
+	39: {appHistoryRoutersDropDDL},
 }
 
 // createSchema builds a new database at `path`.

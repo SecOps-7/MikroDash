@@ -6,15 +6,13 @@
             <h3 class="card-title mb-0">Apps Usage</h3>
             <span id="appsBadge" class="card-badge" title="Apps with traffic">0</span>
             <span id="appsTabs" class="stab-bar rttab-bar" role="tablist">
-              <button class="stab active" type="button" role="tab" aria-selected="true" data-appstab="live">Live</button>
+              <button class="stab active" type="button" role="tab" aria-selected="true" data-appstab="hour">Last hour</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="day">24 hours</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="week">7 days</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="month">30 days</button>
             </span>
           </div>
           <div class="hdr-actions d-flex align-items-center gap-2">
-            <button class="sbtn sbtn-outline is-sm" id="appsRecord" type="button" style="display:none"
-              title="Keep this router's app usage by the hour">Record this router</button>
             <input id="appsSearch" class="sform-input sform-sm" type="search" placeholder="Search apps"
               aria-label="Search apps" autocomplete="off">
           </div>
@@ -56,11 +54,6 @@
               <thead><tr id="appsThead"><th>App</th><th>Category</th><th class="text-end">Devices</th><th class="text-end">Rx</th><th class="text-end">Tx</th><th class="text-end">Total</th><th>Share</th></tr></thead>
               <tbody id="appsTable"><tr><td colspan="7" class="empty-state">Waiting for traffic</td></tr></tbody>
             </table>
-          </div>
-
-          <div class="au-unnamed" id="appsUnnamedWrap" hidden>
-            <div class="au-section-title">Unnamed traffic, by network owner</div>
-            <div class="au-unnamed-list" id="appsUnnamedList"></div>
           </div>
 
           <div class="muted-note au-credit">

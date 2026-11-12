@@ -57,8 +57,11 @@ var extraBuilders = map[string]func(Reader) any{
 		return c.Last()
 	},
 	"conns#apps": func(r Reader) any {
+		// Two readings: the window is first sent by the reading that holds time.
 		c := NewApps(r, Emit{}, nil, nil, 30000)
-		c.Tick()
+		rows, _ := r.Do(appsConnCmd)
+		c.build(rows, 1_800_000_000_000)
+		c.build(rows, 1_800_000_005_000)
 		return c.Last()
 	},
 	"ifStatus#names": func(r Reader) any {

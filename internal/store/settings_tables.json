@@ -115,7 +115,7 @@
     "capVersionsEnabled": false,
     "domainRoutingList": "",
     "dbWifiHistoryRetentionDays": 7,
-    "appHistoryEnabled": false
+    "appHistoryEnabled": true
   },
   "defaultsOrder": [
     "routerHost",
