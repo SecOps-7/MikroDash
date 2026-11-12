@@ -2,6 +2,38 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.81] - Apps Usage, and RouterOS 7.25 fields
+
+### New
+
+- **Apps Usage** (Traffic -> Apps Usage): which apps are using your network, such as Netflix,
+  Zoom, Teams, Xbox or Cloudflare, each with its logo. About 130 apps are known. Shows the last
+  hour as it comes in, with the devices behind each app, plus 24 hours, 7 days and 30 days.
+- **App usage history follows Reporting.** A router with Reporting on (Devices, edit the router,
+  Monitoring) keeps its app usage by the hour, unnamed traffic included. Only app names and byte
+  counts are stored, never devices, addresses or the names devices looked up.
+- **Wi-Fi Clients: a Security column** showing whether each client uses management frame
+  protection (MFP) and the identity an enterprise client signed in with (RouterOS 7.25).
+- **WireGuard peers: Client MTU**, the MTU written into a client's configuration (RouterOS 7.25).
+- **DHCP servers: IPv6-only Preferred**, which honours DHCP option 108 (RouterOS 7.25).
+
+### Fixed
+
+- **A WireGuard peer could not be saved on a router older than RouterOS 7.21**, not even renamed:
+  every save sent client fields that router does not have.
+
+### Security
+
+- **Dependency and image updates:** Go 1.27.4, golang.org/x/net 0.62.0 and x/crypto (no path from
+  MikroDash's code to the advisories, govulncheck now finds none), wireguard-go with an overflow
+  fix, SQLite 3.54.1, and the image's Alpine packages upgraded at build time (zlib CVE-2026-4738).
+
+### Internal
+
+- **Also updated:** Chart.js 4.6.1, Tabler CSS 1.7.4, maxminddb-golang 2.9.0 and the zero-touch
+  provisioning network stack. Checked against RouterOS 7.25.1, whose version string no longer
+  carries a channel label.
+
 ## [0.8.80] - A delegated device can no longer be pointed elsewhere
 
 ### Security
