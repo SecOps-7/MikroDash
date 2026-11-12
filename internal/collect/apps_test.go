@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"strconv"
 	"testing"
 
 	"mikrodash/internal/apps"
@@ -104,5 +105,45 @@ func TestAppsSumByAppAndKeepQuietOnesForAWhile(t *testing.T) {
 	p = BuildApps(spark, in)
 	if len(p.Apps) != 0 || len(spark) != 0 {
 		t.Errorf("after %d quiet readings the apps are still listed: %+v", appsSparkLen, p.Apps)
+	}
+}
+
+// TestDNSNamesIsBoundedAgainstAFloodedCache: a device controls what its own
+// domain puts in the router's cache. Ten thousand CNAMEs for one target, which
+// has three address records, must not cost ten thousand names per address.
+func TestDNSNamesIsBoundedAgainstAFloodedCache(t *testing.T) {
+	var rows []routeros.Reply
+	for i := 0; i < 10000; i++ {
+		rows = append(rows, routeros.Reply{"name": "n" + strconv.Itoa(i) + ".example", "type": "CNAME", "data": "target.example."})
+	}
+	for _, ip := range []string{"198.51.100.1", "198.51.100.2", "198.51.100.3"} {
+		rows = append(rows, routeros.Reply{"name": "target.example", "type": "A", "data": ip},
+			routeros.Reply{"name": "target.example", "type": "A", "data": ip})
+	}
+	// Below the cap, the same address recorded twice still carries each name once.
+	small := DNSNames([]routeros.Reply{
+		{"name": "a.example", "type": "CNAME", "data": "b.example."},
+		{"name": "b.example", "type": "A", "data": "203.0.113.7"},
+		{"name": "b.example", "type": "A", "data": "203.0.113.7"},
+	})
+	if n := small["203.0.113.7"]; len(n) != 2 {
+		t.Errorf("one address recorded twice carries %v, want b.example and a.example once each", n)
+	}
+
+	got := DNSNames(rows)
+	for ip, names := range got {
+		if len(names) > dnsNamesPerAddr {
+			t.Errorf("%s carries %d names, cap %d", ip, len(names), dnsNamesPerAddr)
+		}
+		seen := map[string]bool{}
+		for _, n := range names {
+			if seen[n] {
+				t.Errorf("%s carries %s twice", ip, n)
+			}
+			seen[n] = true
+		}
+		if !seen["target.example"] {
+			t.Errorf("%s lost the name of its own record", ip)
+		}
 	}
 }

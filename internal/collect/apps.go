@@ -349,6 +349,16 @@ func canonIP(s string) string {
 // following CNAMEs back to the name a device asked for: `apps.mikrotik.com` is
 // a CNAME for `global-balancer-e.mikrotik.com`, whose address therefore carries
 // both names. Pure.
+//
+// ── BOUNDED, BECAUSE A DEVICE CHOOSES WHAT IS IN THE CACHE ──────────────────
+//
+// Any device on the network can make the router cache records from a domain it
+// controls, including thousands of CNAMEs pointing at one name. Unbounded,
+// that fan-in would be walked again for every address record of the target and
+// every name kept, once a minute. So: at most dnsAliasesPerTarget aliases are
+// remembered per name, at most dnsNamesPerAddr names per address (one set per
+// address, shared across all of its records), and dnsNamesBudget names in all.
+// Classification needs one name that matches; a handful is plenty.
 func DNSNames(rows []routeros.Reply) map[string][]string {
 	norm := func(s string) string { return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(s)), ".") }
 	aliasesOf := map[string][]string{} // target -> names that are CNAMEs for it
@@ -365,23 +375,32 @@ func DNSNames(rows []routeros.Reply) map[string][]string {
 		switch r["type"] {
 		case "CNAME":
 			t := norm(data)
-			aliasesOf[t] = append(aliasesOf[t], name)
+			if len(aliasesOf[t]) < dnsAliasesPerTarget {
+				aliasesOf[t] = append(aliasesOf[t], name)
+			}
 		case "A", "AAAA":
 			addrs = append(addrs, addr{name, canonIP(data)})
 		}
 	}
 	out := map[string][]string{}
+	seenFor := map[string]map[string]bool{}
+	budget := dnsNamesBudget
 	for _, a := range addrs {
-		seen := map[string]bool{}
+		seen := seenFor[a.ip]
+		if seen == nil {
+			seen = map[string]bool{}
+			seenFor[a.ip] = seen
+		}
 		queue := []string{a.name}
 		for depth := 0; len(queue) > 0 && depth < 16; depth++ {
 			var next []string
 			for _, n := range queue {
-				if seen[n] {
+				if seen[n] || len(out[a.ip]) >= dnsNamesPerAddr || budget <= 0 {
 					continue
 				}
 				seen[n] = true
 				out[a.ip] = append(out[a.ip], n)
+				budget--
 				next = append(next, aliasesOf[n]...)
 			}
 			queue = next
@@ -389,6 +408,12 @@ func DNSNames(rows []routeros.Reply) map[string][]string {
 	}
 	return out
 }
+
+const (
+	dnsAliasesPerTarget = 64
+	dnsNamesPerAddr     = 32
+	dnsNamesBudget      = 200000
+)
 
 // ── THE COLLECTOR ───────────────────────────────────────────────────────────
 
