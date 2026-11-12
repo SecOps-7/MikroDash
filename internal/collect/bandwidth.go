@@ -184,7 +184,6 @@ type BandwidthInput struct {
 func BuildBandwidth(prev map[string]bwPrev, in BandwidthInput) *BandwidthPayload {
 	srcMap := map[string]*bwSrc{}
 	srcOrder := []string{}
-	seen := map[string]bool{}
 
 	// The LAN filter falls back to RFC 1918 only when the DHCP networks are not
 	// known yet. `isLan` on the destination deliberately does NOT fall back —
@@ -195,74 +194,36 @@ func BuildBandwidth(prev map[string]bwPrev, in BandwidthInput) *BandwidthPayload
 		activeCidrs = bandwidthRFC1918
 	}
 
-	for _, c := range in.Rows {
-		id := c[".id"]
-		if id == "" {
+	// The per-connection rates, and the bookkeeping of `prev`, are connRates'
+	// (shared with the Apps Usage collector). What is left here is the summing
+	// by device and the choice of each device's busiest destination.
+	for _, r := range connRates(prev, in.Rows, in.Now) {
+		if !guard.InCIDRs(r.Src, activeCidrs) {
 			continue
 		}
-		seen[id] = true
-
-		src := extractAddress(firstNonEmptyStr(c["src-address"], c["src"]))
-		dst := extractAddress(firstNonEmptyStr(c["dst-address"], c["dst"]))
-		proto := strings.ToLower(firstNonEmptyStr(c["protocol"], c["ip-protocol"]))
 		iface := ""
 		if in.IfaceOf != nil {
-			iface = in.IfaceOf(src)
-		}
-		origBytes := bwInt(c["orig-bytes"])
-		replBytes := bwInt(c["repl-bytes"])
-
-		if src == "" || dst == "" {
-			continue
+			iface = in.IfaceOf(r.Src)
 		}
 
-		var rxMbps, txMbps float64
-		if p, ok := prev[id]; ok && in.Now > p.TS {
-			dt := in.Now - p.TS
-			// orig is src->dst, which is TX from the source's point of view;
-			// repl is the return path, which is RX.
-			origDelta := origBytes - p.OrigBytes
-			replDelta := replBytes - p.ReplBytes
-			// A NEGATIVE delta is a counter reset or a reused id, not traffic.
-			if origDelta >= 0 && replDelta >= 0 {
-				txMbps = bwBpsToMbps(origDelta, dt)
-				rxMbps = bwBpsToMbps(replDelta, dt)
-			}
-		}
-		// Recorded for EVERY connection, including ones the LAN filter is about
-		// to drop: the filter decides what is shown, not what is measured.
-		prev[id] = bwPrev{OrigBytes: origBytes, ReplBytes: replBytes, TS: in.Now}
-
-		if !guard.InCIDRs(src, activeCidrs) {
-			continue
-		}
-
-		entry := srcMap[src]
+		entry := srcMap[r.Src]
 		if entry == nil {
 			entry = &bwSrc{dsts: map[string]*bwDst{}}
-			srcMap[src] = entry
-			srcOrder = append(srcOrder, src)
+			srcMap[r.Src] = entry
+			srcOrder = append(srcOrder, r.Src)
 		}
-		entry.RxMbps += rxMbps
-		entry.TxMbps += txMbps
+		entry.RxMbps += r.RxMbps
+		entry.TxMbps += r.TxMbps
 
-		dstKey := dst + "|" + proto
+		dstKey := r.Dst + "|" + r.Proto
 		d := entry.dsts[dstKey]
 		if d == nil {
-			d = &bwDst{Proto: proto, Iface: iface, DstIP: dst}
+			d = &bwDst{Proto: r.Proto, Iface: iface, DstIP: r.Dst}
 			entry.dsts[dstKey] = d
 			entry.dstOrder = append(entry.dstOrder, dstKey)
 		}
-		d.RxMbps += rxMbps
-		d.TxMbps += txMbps
-	}
-
-	// Prune connection ids that are gone, so the map tracks the table rather
-	// than everything the table has ever held.
-	for id := range prev {
-		if !seen[id] {
-			delete(prev, id)
-		}
+		d.RxMbps += r.RxMbps
+		d.TxMbps += r.TxMbps
 	}
 
 	devices := make([]BandwidthDevice, 0, len(srcOrder))
