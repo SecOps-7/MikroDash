@@ -7,16 +7,24 @@ package collect
 //	/caps-man/registration-table            clients on CAPsMAN-managed radios
 //	/interface/wifi|wireless/print          the SSIDs this router BROADCASTS
 //
-// THREE STACKS, ONE LATCHED MODE. A router answers exactly one of the first two,
-// and CAPsMAN can run alongside either. The mode is latched on the first stack
-// that answers so the port does not ask a router every tick about a menu it has
-// already said it does not have.
+// EVERY LOCAL STACK THE ROUTER HAS IS READ, NOT THE FIRST ONE THAT ANSWERS.
+// Since RouterOS 7.13 WiFi CAPsMAN "comes with the system package" (MikroTik's
+// Packages page), so `/interface/wifi` answers on EVERY router, empty on a board
+// whose radios run the legacy `wireless` package. Probing the modern menu first
+// and latching on the first menu that did not refuse therefore latched "wifi" on
+// every legacy AP and never read its clients (issue #164; the Node collector
+// fell through on an empty answer, and the Go port lost that at the cutover). A
+// legacy board can also be a WiFi CAPsMAN manager, so both stacks can carry
+// clients at once. What is latched is ABSENCE: a menu the router says it does
+// not have is not asked again on this connection (wlAbsent). CAPsMAN v1 runs
+// alongside either and is read on its own.
 //
 // THE SSID LIST IS READ FROM THE INTERFACES, NOT FROM THE CLIENTS. An SSID with
 // nobody on it is still an SSID, and the registration table only knows about
 // networks somebody happens to be using.
 
 import (
+	"errors"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +47,63 @@ var (
 	wlIfaceWifiCmd = routeros.Cmd{Path: "/interface/wifi/print"}
 	wlIfaceLegacy  = routeros.Cmd{Path: "/interface/wireless/print"}
 )
+
+// wlLocalStacks are the two local wireless stacks. Both are read on every
+// router that has them; modeNow says which one is the board's own.
+var wlLocalStacks = []struct {
+	mode       string
+	reg, iface routeros.Cmd
+}{
+	{"wireless", wlRegLegacyCmd, wlIfaceLegacy},
+	{"wifi", wlRegWifiCmd, wlIfaceWifiCmd},
+}
+
+// errWlAbsent is what wlAbsent answers for a menu it has already been refused.
+// It reads as an absent menu to isAbsentMenu, because that is what it reports.
+var errWlAbsent = errors.New("no such command prefix (refused earlier on this connection)")
+
+// wlAbsent remembers which wireless menus this router has said it does not
+// have, so each is asked ONCE per connection. Reset on reconnect: a package is
+// installed or removed across a reboot, and the router that comes back may run
+// a different stack.
+//
+// ABSENCE IS LATCHED AND EMPTINESS IS NOT. An empty answer comes from a menu
+// that exists, and on RouterOS 7.13+ `/interface/wifi` always does.
+type wlAbsent struct {
+	mu   sync.Mutex
+	gone map[string]bool
+}
+
+func (a *wlAbsent) read(c *roscache.Cache, ros Reader, cmd routeros.Cmd, ttl time.Duration) ([]routeros.Reply, error) {
+	a.mu.Lock()
+	gone := a.gone[cmd.Path]
+	a.mu.Unlock()
+	if gone {
+		return nil, errWlAbsent
+	}
+	rows, err := readVia(c, ros, cmd, ttl)
+	if isAbsentMenu(err) {
+		a.mu.Lock()
+		if a.gone == nil {
+			a.gone = map[string]bool{}
+		}
+		a.gone[cmd.Path] = true
+		a.mu.Unlock()
+	}
+	return rows, err
+}
+
+func (a *wlAbsent) has(path string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.gone[path]
+}
+
+func (a *wlAbsent) reset() {
+	a.mu.Lock()
+	a.gone = nil
+	a.mu.Unlock()
+}
 
 // WirelessClient is one associated station.
 type WirelessClient struct {
@@ -413,9 +478,15 @@ type Wireless struct {
 	// session, which is every test. See collect/cache.go.
 	cache *roscache.Cache
 
-	mu     sync.Mutex
-	mode   string // wifi | wireless | none, latched on the first stack that answers
+	mu sync.Mutex
+	// mode is the payload's, and picks the menu the subscription follows. See
+	// modeNow.
+	mode   string
 	capsOK bool
+	absent wlAbsent
+	// legacyRadios is whether the last good interface read listed legacy
+	// `wireless` interfaces. See modeNow.
+	legacyRadios bool
 	// probedCaps is false until one tick has completed — see Tick, where the
 	// first payload deliberately carries no CAPsMAN answer.
 	probedCaps       bool
@@ -423,11 +494,6 @@ type Wireless struct {
 	managedElsewhere int
 	last             *WirelessPayload
 	lastFp           string
-
-	// ssidEndpoint latches the interface menu that answered. An empty string
-	// means "not probed yet"; `wlNoStack` means neither exists here, and the
-	// collector stops asking.
-	ssidEndpoint string
 
 	// scanIfaces is the Frequency Analyser's interface catalogue.
 	//
@@ -455,8 +521,6 @@ type Wireless struct {
 	sched scheduled
 }
 
-const wlNoStack = "-"
-
 func NewWireless(ros Reader, emit Emit, leases LeaseSource, pollMs int) *Wireless {
 	w := &Wireless{
 		ros: ros, emit: emit, leases: leases,
@@ -467,9 +531,9 @@ func NewWireless(ros Reader, emit Emit, leases LeaseSource, pollMs int) *Wireles
 		return w.pollMs.duration()
 	})
 	// MECHANISM B. The registration table it wants depends on which stack the
-	// router runs, and that is latched by the first Tick -- see alignSubscription.
-	// The modern menu is the starting guess because it is the probe order's first
-	// for the same reason: on RouterOS 7.2x every board in this fleet answered it.
+	// router runs, which the first Tick settles -- see alignSubscription. The
+	// modern menu is the starting guess: every RouterOS 7.13+ router has it, and
+	// on most boards in the field it is the one with the clients.
 	//
 	// fields nil: the registration table has no proplist of its own; both stacks
 	// are read whole because the field NAMES differ between them.
@@ -484,18 +548,17 @@ func NewWireless(ros Reader, emit Emit, leases LeaseSource, pollMs int) *Wireles
 //
 // The delivered rows are not used: Tick re-reads the same menu through the
 // cache, which the scheduler has just refreshed, so it costs nothing and the
-// probe-and-latch rules stay in ONE place instead of being restated here.
+// which-stacks rules stay in ONE place instead of being restated here.
 func (w *Wireless) applyTick([]routeros.Reply, error) { w.Tick() }
 
 // alignSubscription points the subscription at the stack this router has.
 //
-// Without it a legacy router would have the scheduler reading
-// `/interface/wifi/registration-table` forever, once per poll, and getting a
-// refusal every time.
+// On a legacy board the subscription follows the legacy table, which holds its
+// own radios' clients; the modern table there is empty unless the board is also
+// a WiFi CAPsMAN manager, and Tick still reads it through the cache either way.
 //
-// A latched "none" keeps the modern menu: both are absent, Tick re-probes both
-// anyway, and inventing a third answer here would only make the demand set
-// disagree with what is actually read.
+// "none" keeps the modern menu: both are absent, and inventing a third answer
+// here would only make the demand set disagree with what is actually read.
 func (w *Wireless) alignSubscription(mode string) {
 	menu := wlRegWifiCmd
 	if mode == "wireless" {
@@ -524,12 +587,13 @@ func (w *Wireless) Stop() { w.sched.end() }
 func (w *Wireless) Reconnected() {
 	w.sched.end()
 	w.mu.Lock()
-	w.mode, w.ssidEndpoint, w.capsOK = "", "", false
+	w.mode, w.capsOK, w.legacyRadios = "", false, false
 	w.probedCaps = false
 	w.ssids = []WirelessSSID{}
 	w.managedElsewhere = 0
 	w.lastFp = ""
 	w.mu.Unlock()
+	w.absent.reset()
 	// The live `_reset` clears the PTR cache on a reconnect, and the reason is
 	// the router may have come back after a DHCP sweep — addresses move, and a
 	// name cached against the old one names the wrong device.
@@ -708,11 +772,6 @@ func (w *Wireless) Tick() {
 	clients := []WirelessClient{}
 	seen := map[string]bool{}
 
-	// The local stack, latched on whichever answers.
-	w.mu.Lock()
-	mode := w.mode
-	w.mu.Unlock()
-
 	add := func(rows []routeros.Reply, capsman bool, bands map[string]CapsBand) {
 		for _, row := range rows {
 			if !isWirelessRow(row) {
@@ -738,28 +797,12 @@ func (w *Wireless) Tick() {
 		}
 	}
 
-	switch mode {
-	case "wifi":
-		rows, err := readVia(w.cache, w.ros, wlRegWifiCmd, w.pollMs.duration())
-		if err == nil {
+	// Every local stack this router has (see the header). Which one names the
+	// mode is decided below from the interface lists, not from which table
+	// answered first.
+	for _, s := range wlLocalStacks {
+		if rows, err := w.absent.read(w.cache, w.ros, s.reg, w.pollMs.duration()); err == nil {
 			add(rows, false, nil)
-		}
-	case "wireless":
-		rows, err := readVia(w.cache, w.ros, wlRegLegacyCmd, w.pollMs.duration())
-		if err == nil {
-			add(rows, false, nil)
-		}
-	default:
-		// Probe. The modern stack first: on RouterOS 7.2x every board in this
-		// fleet answered it, including one still on 802.11ac.
-		if rows, err := readVia(w.cache, w.ros, wlRegWifiCmd, w.pollMs.duration()); err == nil {
-			mode = "wifi"
-			add(rows, false, nil)
-		} else if rows, err := readVia(w.cache, w.ros, wlRegLegacyCmd, w.pollMs.duration()); err == nil {
-			mode = "wireless"
-			add(rows, false, nil)
-		} else {
-			mode = "none"
 		}
 	}
 
@@ -793,6 +836,7 @@ func (w *Wireless) Tick() {
 	}
 
 	w.refreshSSIDs()
+	mode := w.modeNow()
 
 	// Strongest signal first, which is the order the page renders.
 	sort.SliceStable(clients, func(i, j int) bool { return clients[i].Signal > clients[j].Signal })
@@ -850,62 +894,68 @@ func (w *Wireless) capsV1Bands() map[string]CapsBand {
 	return CapsLegacyBands(ifaces, configs, channels)
 }
 
-// refreshSSIDs re-reads the broadcast networks.
+// modeNow names the stack this router's own radios run.
+//
+// FROM THE INTERFACE LISTS, NOT FROM WHICH TABLE ANSWERED. On RouterOS 7.13+
+// both menus can answer, so answering says nothing; a legacy board is the one
+// whose legacy menu lists radios. Otherwise the modern menu, which every 7.13+
+// router has, and the legacy one alone only on an older router. Stable while
+// clients come and go, so the subscription does not move with them.
+func (w *Wireless) modeNow() string {
+	w.mu.Lock()
+	legacy := w.legacyRadios
+	w.mu.Unlock()
+	switch {
+	case legacy:
+		return "wireless"
+	case !w.absent.has(wlRegWifiCmd.Path):
+		return "wifi"
+	case !w.absent.has(wlRegLegacyCmd.Path):
+		return "wireless"
+	}
+	return "none"
+}
+
+// refreshSSIDs re-reads the broadcast networks, from every local stack's
+// interface menu: a board running both lists its own legacy radios under one
+// and a WiFi CAPsMAN manager's under the other.
 //
 // FAILURE IS SILENT and leaves the previous list in place: a card that empties
-// itself on one bad poll is worse than a card that is briefly stale. Only when
-// NOTHING has ever answered does it latch "no stack here" and stop asking.
+// itself on one bad poll is worse than a card that is briefly stale. Only a
+// router that has refused both menus gets an empty list, because that is what
+// it has.
 func (w *Wireless) refreshSSIDs() {
-	w.mu.Lock()
-	endpoint := w.ssidEndpoint
-	w.mu.Unlock()
-	if endpoint == wlNoStack {
-		return
-	}
-
-	order := []routeros.Cmd{wlIfaceWifiCmd, wlIfaceLegacy}
-	if endpoint == wlIfaceWifiCmd.Path {
-		order = []routeros.Cmd{wlIfaceWifiCmd}
-	} else if endpoint == wlIfaceLegacy.Path {
-		order = []routeros.Cmd{wlIfaceLegacy}
-	}
-
-	// THROUGH THE CACHE. This collector asks for EVERY field, so it is the one
-	// that widens each of these menus' union to the whole row — see roscache's
-	// note on widening. That was the operator's call on 2026-09-08: one fewer
-	// command per sweep is worth a fatter reply for the other three consumers,
-	// because concurrent channels are the bottleneck and bytes are not.
-	//
-	// The loop dispatches across BOTH stacks from one call site, which is why
-	// /interface/wifi/print and /interface/wireless/print cannot be routed in
-	// separate commits.
-	for _, cmd := range order {
-		rows, err := readVia(w.cache, w.ros, cmd, w.pollMs.duration())
-		if err != nil {
+	var rows []routeros.Reply
+	var cat []wifiscan.Catalogue
+	legacy := false
+	for _, s := range wlLocalStacks {
+		// THROUGH THE CACHE. This collector asks for EVERY field, so it is the
+		// one that widens each of these menus' union to the whole row - see
+		// roscache's note on widening. That was the operator's call on
+		// 2026-09-08: one fewer command per sweep is worth a fatter reply for the
+		// other three consumers, because concurrent channels are the bottleneck
+		// and bytes are not.
+		r, err := w.absent.read(w.cache, w.ros, s.iface, w.pollMs.duration())
+		if isAbsentMenu(err) {
 			continue
 		}
-		ssids, managed := parseWirelessSSIDs(rows)
+		if err != nil {
+			return
+		}
+		rows = append(rows, r...)
+		legacy = legacy || (s.mode == "wireless" && len(r) > 0)
 		// The same rows, read a second way. `ParseCatalogue` returns nothing for
-		// the legacy menu — live's refusal, not an oversight: the legacy scan
+		// the legacy menu - live's refusal, not an oversight: the legacy scan
 		// command differs and there is no device here to verify it against, so
 		// the dialog offers nothing rather than a picker that cannot work.
-		cat := wifiscan.ParseCatalogue(replies(rows), cmd.Path)
-		w.mu.Lock()
-		w.ssidEndpoint = cmd.Path
-		w.ssids = ssids
-		w.managedElsewhere = managed
-		w.scanIfaces = cat
-		w.mu.Unlock()
-		return
+		cat = append(cat, wifiscan.ParseCatalogue(replies(r), s.iface.Path)...)
 	}
-
+	ssids, managed := parseWirelessSSIDs(rows)
 	w.mu.Lock()
-	if w.ssidEndpoint == "" {
-		w.ssidEndpoint = wlNoStack
-		w.ssids = []WirelessSSID{}
-		w.managedElsewhere = 0
-		w.scanIfaces = nil
-	}
+	w.ssids = ssids
+	w.managedElsewhere = managed
+	w.scanIfaces = cat
+	w.legacyRadios = legacy
 	w.mu.Unlock()
 }
 

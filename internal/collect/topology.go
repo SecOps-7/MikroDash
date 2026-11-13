@@ -1354,6 +1354,10 @@ type Topology struct {
 	// session, which is every test. See collect/cache.go.
 	cache *roscache.Cache
 
+	// wlAbsent is the local wireless menus this router has refused; see
+	// readWifi.
+	wlAbsent wlAbsent
+
 	mu        sync.Mutex
 	last      *TopologyPayload
 	discovery *TopoDiscovery
@@ -1687,6 +1691,7 @@ func (t *Topology) Reconnected() {
 	// came back may have gained the package this latch says it does not have.
 	t.v1Absent = false
 	t.mu.Unlock()
+	t.wlAbsent.reset()
 	if !t.sched.scheduling() {
 		t.Tick()
 	}
@@ -1938,26 +1943,37 @@ func (t *Topology) readHosts() ([]hostEntry, map[string][]int) {
 // readWifi resolves radios, managed CAPs and associations.
 //
 // Everything here is BEST EFFORT: a router with no wireless, or a user without
-// the policy, yields wired-only attribution rather than an error. The legacy
-// stack is tried only when the modern menu is absent, matching the original.
+// the policy, yields wired-only attribution rather than an error.
+//
+// BOTH LOCAL STACKS ARE READ, not the first that answers. `/interface/wifi`
+// answers on every RouterOS 7.13+ router, empty on a legacy-wireless board, so
+// "legacy only when the modern menu is absent" never reached a legacy AP's
+// clients (issue #164, the same cause as the Wifi Clients page). A refused menu
+// is not asked again on this connection.
 func (t *Topology) readWifi() (map[string]string, map[string]string, map[string]TopoAssoc) {
 	ifaceRadio := map[string]string{}
 	capByPrefix := map[string]string{}
 	assoc := map[string]TopoAssoc{}
 
 	// THROUGH THE CACHE: capsman, wifi and wireless read these same four menus.
-	ifaces, err := readVia(t.cache, t.ros, topoWifiCmd, t.pollMs.duration())
-	legacy := false
-	var reg []routeros.Reply
-	if err == nil {
-		reg, _ = readVia(t.cache, t.ros, topoRegCmd, t.pollMs.duration())
-	} else {
-		ifaces, err = readVia(t.cache, t.ros, topoWlCmd, t.pollMs.duration())
+	ttl := t.pollMs.duration()
+	var ifaces, reg []routeros.Reply
+	answered, modern := false, false
+	for _, s := range []struct{ ifaces, reg routeros.Cmd }{
+		{topoWifiCmd, topoRegCmd}, {topoWlCmd, topoWlRegCmd},
+	} {
+		rows, err := t.wlAbsent.read(t.cache, t.ros, s.ifaces, ttl)
 		if err != nil {
-			return ifaceRadio, capByPrefix, assoc
+			continue
 		}
-		legacy = true
-		reg, _ = readVia(t.cache, t.ros, topoWlRegCmd, t.pollMs.duration())
+		answered = true
+		modern = modern || s.ifaces.Path == topoWifiCmd.Path
+		ifaces = append(ifaces, rows...)
+		r, _ := t.wlAbsent.read(t.cache, t.ros, s.reg, ttl)
+		reg = append(reg, r...)
+	}
+	if !answered {
+		return ifaceRadio, capByPrefix, assoc
 	}
 
 	// radio-mac per interface, FOLLOWING master-interface for virtual APs: a
@@ -1994,7 +2010,8 @@ func (t *Topology) readWifi() (map[string]string, map[string]string, map[string]
 		ifaceRadio[name] = radioOf(name, 0)
 	}
 
-	if !legacy {
+	// A WiFi CAPsMAN manager's remote CAPs, wherever the modern menu exists.
+	if modern {
 		// THROUGH THE CACHE: capsman reads this menu too, with no proplist, so
 		// the union widens to the whole row here as it does on the wifi menus.
 		// Same trade, same reason, same decision.
@@ -2031,10 +2048,9 @@ func (t *Topology) readWifi() (map[string]string, map[string]string, map[string]
 //
 // ── WHY IT IS A SEPARATE READ AND NOT A THIRD BRANCH ────────────────────────
 //
-// The modern and legacy LOCAL stacks are alternatives — a router has one — so
-// `readWifi` picks between them. `/caps-man` is neither: it runs ALONGSIDE
-// whichever one the manager itself has, and its interfaces appear in no local
-// wireless menu at all. So this adds to the maps rather than choosing.
+// `readWifi` reads the modern and legacy LOCAL stacks. `/caps-man` is neither:
+// it runs ALONGSIDE the manager's own stack, and its interfaces appear in no
+// local wireless menu at all. So this adds to the maps.
 //
 // ── WHAT IT FIXES ──────────────────────────────────────────────────────────
 //

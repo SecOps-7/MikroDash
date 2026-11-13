@@ -3,10 +3,13 @@ package collect
 // Wifi collector — whichever wireless stack this router has, plus what a legacy
 // CAPsMAN manager presents on top of it.
 //
-// A router runs EITHER `/interface/wifi` (modern) or `/interface/wireless`
-// (legacy), never both, and which one is not knowable without asking. The stack
-// is probed once and latched, and RESET on reconnect, because a package can be
-// installed and the router rebooted underneath us.
+// A router's radios run EITHER `/interface/wifi` (modern) or
+// `/interface/wireless` (legacy), and which one is not knowable without asking.
+// Since RouterOS 7.13 the modern MENU answers everywhere (WiFi CAPsMAN is in the
+// system package), empty on a legacy board, which is why `load` does not latch
+// on an empty first answer. The stack is probed once and latched, and RESET on
+// reconnect, because a package can be installed and the router rebooted
+// underneath us.
 //
 // `/caps-man` is a THIRD source and not a third stack: its interfaces are remote
 // CAPs' radios, presented on the manager, and they appear in neither local menu.
