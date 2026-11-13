@@ -79,11 +79,15 @@ type Attachment struct {
 // envelope, so everyone can see who else was copied. An operator choosing
 // between the two is choosing exactly that.
 type Message struct {
-	To          []string
-	Cc          []string
-	Bcc         []string
-	Subject     string
-	Text        string
+	To      []string
+	Cc      []string
+	Bcc     []string
+	Subject string
+	Text    string
+	// HTML is an optional second rendering of Text. When set, the body is
+	// multipart/alternative, the text FIRST: a client shows the last part it
+	// can render, so one that cannot render HTML still has the whole message.
+	HTML        string
 	Attachments []Attachment
 }
 
@@ -158,17 +162,15 @@ func Compose(from string, m Message, boundary string) ([]byte, error) {
 	h.WriteString("MIME-Version: 1.0\r\n")
 
 	if len(m.Attachments) == 0 {
-		h.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
-		h.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
-		h.WriteString(wrap76(base64.StdEncoding.EncodeToString([]byte(m.Text))))
+		writeBody(&h, m, boundary)
 		return []byte(h.String()), nil
 	}
 
 	h.WriteString("Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n")
 	h.WriteString("--" + boundary + "\r\n")
-	h.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
-	h.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
-	h.WriteString(wrap76(base64.StdEncoding.EncodeToString([]byte(m.Text))))
+	// The body is the first part: the text, or the text and its HTML as one
+	// nested alternative, under a boundary of its own.
+	writeBody(&h, m, "alt-"+boundary)
 	h.WriteString("\r\n")
 
 	for _, a := range m.Attachments {
@@ -188,6 +190,28 @@ func Compose(from string, m Message, boundary string) ([]byte, error) {
 	}
 	h.WriteString("--" + boundary + "--\r\n")
 	return []byte(h.String()), nil
+}
+
+// writeBody writes the message body with its own headers: one text/plain part,
+// or, with HTML, a multipart/alternative of the text and then the HTML.
+// Both are base64, as the text always was, so no line of either can be read
+// as a header or a boundary however it was written.
+func writeBody(h *strings.Builder, m Message, boundary string) {
+	part := func(ct, body string) {
+		h.WriteString("Content-Type: " + ct + "; charset=utf-8\r\n")
+		h.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+		h.WriteString(wrap76(base64.StdEncoding.EncodeToString([]byte(body))))
+	}
+	if m.HTML == "" {
+		part("text/plain", m.Text)
+		return
+	}
+	h.WriteString("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n\r\n")
+	h.WriteString("--" + boundary + "\r\n")
+	part("text/plain", m.Text)
+	h.WriteString("\r\n--" + boundary + "\r\n")
+	part("text/html", m.HTML)
+	h.WriteString("\r\n--" + boundary + "--\r\n")
 }
 
 // sanitiseFilename removes what cannot appear inside a quoted parameter.

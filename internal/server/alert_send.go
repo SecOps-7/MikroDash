@@ -8,6 +8,7 @@ import (
 
 	"mikrodash/internal/alert"
 	"mikrodash/internal/alertdispatch"
+	"mikrodash/internal/alertmail"
 	"mikrodash/internal/mailer"
 	"mikrodash/internal/notify"
 )
@@ -58,6 +59,7 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 		}
 	}
 	stamp := s.alertTimestamp()
+	brand := s.branding().DisplayName()
 	var settings notify.Settings
 	if s.store != nil {
 		if cfg, err := s.store.Settings(); err == nil {
@@ -85,7 +87,7 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 		if f.Silent {
 			continue
 		}
-		msg := alertdispatch.Build(settings, routerLabel, stamp, f)
+		msg := alertdispatch.Build(settings, routerLabel, stamp, brand, f)
 		key := cooldownKey(f)
 		for i := range recipients {
 			// AN ESCALATION IS FOR CHANNELS. These recipients have no threshold
@@ -396,10 +398,22 @@ func (s *Server) alertMailer(set notify.Settings, public bool) notify.Mailer {
 		len(who.To)+len(who.Cc)+len(who.Bcc) == 0 {
 		return nil
 	}
-	return func(title, text string) error {
-		who.Subject, who.Text = title, text
+	return func(title, text, html string) error {
+		who.Subject, who.Text, who.HTML = title, text, html
 		return mailer.Send(cfg, who)
 	}
+}
+
+// testCardHTML is the Test button's email card: the test message drawn as an
+// alert would be, so testing a mail channel shows what its alerts look like.
+// Empty when it cannot be drawn, which sends the test as text.
+func (s *Server) testCardHTML() string {
+	html, err := alertmail.HTML(alertmail.Card{Test: true, Event: notify.TestTitle,
+		Message: notify.TestBody, When: s.alertTimestamp(), Brand: s.branding().DisplayName()})
+	if err != nil {
+		log.Printf("[test-notification] email card: %v", err)
+	}
+	return html
 }
 
 // routerLabelFor names the router in the notification body.

@@ -93,15 +93,15 @@ func (s *Server) testNotification(w http.ResponseWriter, r *http.Request) {
 			// THE TEST REACHES EVERYONE THE CHANNEL WOULD, To, Cc and Bcc alike.
 			// A test that only mailed To would report a channel working while
 			// half its recipients never receive anything from it.
-			mail = func(title, text string) error {
-				who.Subject, who.Text = title, text
+			mail = func(title, text, html string) error {
+				who.Subject, who.Text, who.HTML = title, text, html
 				return mailer.Send(cfg, who)
 			}
 		}
 	}
 
 	if err := notify.TestChannel(r.Context(), notify.DefaultClient,
-		settings, notify.Channel(channel), mail); err != nil {
+		settings, notify.Channel(channel), mail, s.testCardHTML()); err != nil {
 		// LOGGED WITHOUT THE CREDENTIALS. The live route logs `e.message`; the
 		// same sanitiser is applied here as well as on the response, because a
 		// transport error can carry the host, the account or the token and this

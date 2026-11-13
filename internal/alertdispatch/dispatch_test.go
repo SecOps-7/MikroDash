@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"mikrodash/internal/alert"
@@ -64,7 +65,7 @@ func TestTheMessageMatchesLive(t *testing.T) {
 		t.Run(m.Why, func(t *testing.T) {
 			detail, _ := m.Vars["detail"].(string)
 			subject, _ := m.Vars["subject"].(string)
-			got := Build(notify.Settings(m.Settings), "Test Router", "12:34:56",
+			got := Build(notify.Settings(m.Settings), "Test Router", "12:34:56", "",
 				alert.Fired{AlertType: m.AlertType, Detail: detail, Subject: subject, Up: m.IsUp})
 			if got.Title != m.Title {
 				t.Errorf("title = %q, live = %q", got.Title, m.Title)
@@ -121,7 +122,7 @@ func TestADisabledDispatcherLeavesNoTrace(t *testing.T) {
 	sent := 0
 	d := New(false, notify.Settings{"telegramEnabled": true, "telegramBotToken": "x",
 		"telegramChatId": "1"}, nil, nil, nil, func() int64 { return realInstant })
-	d.sendFn = func(context.Context, *Recipient, string, string) error { sent++; return nil }
+	d.sendFn = func(context.Context, *Recipient, Message) error { sent++; return nil }
 
 	r := &Recipient{ID: "_install", Settings: d.settings}
 	for i := 0; i < 3; i++ {
@@ -174,7 +175,8 @@ func TestAnEnabledDispatcherSends(t *testing.T) {
 	sent := 0
 	s := notify.Settings{"telegramEnabled": true, "telegramBotToken": "x", "telegramChatId": "1"}
 	d := New(true, s, nil, nil, nil, func() int64 { return realInstant })
-	d.sendFn = func(_ context.Context, _ *Recipient, title, body string) error {
+	d.sendFn = func(_ context.Context, _ *Recipient, m Message) error {
+		title, body := m.Title, m.Body
 		sent++
 		got = Message{Title: title, Body: body}
 		return nil
@@ -199,7 +201,7 @@ func TestAnEnabledDispatcherSends(t *testing.T) {
 func TestATransportFailureIsReportedNotPanicked(t *testing.T) {
 	s := notify.Settings{"telegramEnabled": true, "telegramBotToken": "x", "telegramChatId": "1"}
 	d := New(true, s, nil, nil, nil, func() int64 { return realInstant })
-	d.sendFn = func(context.Context, *Recipient, string, string) error {
+	d.sendFn = func(context.Context, *Recipient, Message) error {
 		return context.DeadlineExceeded
 	}
 	if d.Deliver(context.Background(), &Recipient{ID: "_install", Settings: s}, "cpu", Message{}) {
@@ -261,20 +263,43 @@ func TestAnEmailAlertReachesTheMailer(t *testing.T) {
 	var got Message
 	mailFor := func(set notify.Settings, _ bool) notify.Mailer {
 		builtFor = set["smtpTo"]
-		return func(title, body string) error {
-			got = Message{Title: title, Body: body}
+		return func(title, body, html string) error {
+			got = Message{Title: title, Body: body, HTML: html}
 			return nil
 		}
 	}
 	d := New(true, s, nil, nil, mailFor, func() int64 { return realInstant })
 	if !d.Deliver(context.Background(), &Recipient{ID: "_install", Settings: s}, "cpu",
-		Message{Title: "T", Body: "B"}) {
+		Message{Title: "T", Body: "B", HTML: "<p>card</p>"}) {
 		t.Fatal("an email alert did not send")
 	}
 	if builtFor != "ops@example.com" {
 		t.Errorf("the mailer was built for %v, not the recipient's settings", builtFor)
 	}
-	if got.Title != "T" || got.Body != "B" {
-		t.Errorf("the mailer received %+v", got)
+	if got.Title != "T" || got.Body != "B" || got.HTML != "<p>card</p>" {
+		t.Errorf("the mailer received %+v, want the text and its card", got)
+	}
+}
+
+// TestTheEmailCardCarriesTheAlert. Build draws the card beside the text: the
+// band follows the direction, the headline is the operator's own rendered
+// message, and a router name is escaped, never markup (#163).
+func TestTheEmailCardCarriesTheAlert(t *testing.T) {
+	s := notify.Settings{"notifBody": "Body for {{routerName}}"}
+	m := Build(s, `<b>Edge</b>`, "12:34:56", "Acme NOC", alert.Fired{AlertType: "Interface Down", Detail: "ether1"})
+	for _, want := range []string{">Alert</td>", "Body for &lt;b&gt;Edge&lt;/b&gt;", ">&lt;b&gt;Edge&lt;/b&gt;</td>", ">12:34:56</td>", "Sent by Acme NOC"} {
+		if !strings.Contains(m.HTML, want) {
+			t.Errorf("the card lacks %q", want)
+		}
+	}
+	if strings.Contains(m.HTML, "<b>Edge</b>") {
+		t.Error("the router name reached the card as markup")
+	}
+	if m.Body != "Body for <b>Edge</b>" {
+		t.Errorf("the text part changed: %q", m.Body)
+	}
+	up := Build(s, "Edge", "12:35:00", "", alert.Fired{AlertType: "Interface Up", Up: true})
+	if !strings.Contains(up.HTML, ">Resolved</td>") || !strings.Contains(up.HTML, "Sent by MikroDash") {
+		t.Error("a recovery is not drawn as Resolved, or the default brand is missing")
 	}
 }

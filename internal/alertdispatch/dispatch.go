@@ -30,6 +30,7 @@ import (
 	"sync"
 
 	"mikrodash/internal/alert"
+	"mikrodash/internal/alertmail"
 	"mikrodash/internal/notify"
 )
 
@@ -82,6 +83,10 @@ type Recipient struct {
 type Message struct {
 	Title string
 	Body  string
+	// HTML is the same alert drawn as an email card (internal/alertmail): only
+	// an email channel sends it, beside Body. Empty when it could not be drawn,
+	// which sends the text alone rather than no email.
+	HTML string
 }
 
 // Build assembles the message for one fired alert.
@@ -102,7 +107,9 @@ type Message struct {
 //
 // `notifBodyUp` for a resolution, then `notifBody`, then a built-in. A port
 // collapsing them sends a warning glyph for a recovery.
-func Build(s notify.Settings, routerName, timestamp string, f alert.Fired) Message {
+//
+// `brand` is the install's name for the email card's footer.
+func Build(s notify.Settings, routerName, timestamp, brand string, f alert.Fired) Message {
 	vars := map[string]any{
 		"routerName": routerName,
 		"timestamp":  timestamp,
@@ -131,7 +138,17 @@ func Build(s notify.Settings, routerName, timestamp string, f alert.Fired) Messa
 			tpl = "⚠️ {{alertType}} on {{routerName}}: {{detail}}"
 		}
 	}
-	return Message{Title: alert.Render(title, vars), Body: alert.Render(tpl, vars)}
+	m := Message{Title: alert.Render(title, vars), Body: alert.Render(tpl, vars)}
+	// The card's headline is the operator's own message; the rows beneath it are
+	// the facts the templates draw from. A render failure is logged and the
+	// email goes as text: a missing card must never cost the alert.
+	html, err := alertmail.HTML(alertmail.Card{Up: f.Up, Event: alert.LabelFor(f.AlertType),
+		Message: m.Body, Router: routerName, When: timestamp, Brand: brand})
+	if err != nil {
+		log.Printf("[alert] email card: %v", err)
+	}
+	m.HTML = html
+	return m
 }
 
 // Dispatcher holds the cooldowns.
@@ -153,7 +170,7 @@ type Dispatcher struct {
 	// have gone without a network. It takes the whole RECIPIENT rather than its
 	// settings, because a webhook channel carries its destinations in `URLs`
 	// and there is nothing in `notify.Settings` to put them in.
-	sendFn func(ctx context.Context, r *Recipient, title, body string) error
+	sendFn func(ctx context.Context, r *Recipient, m Message) error
 }
 
 func New(enabled bool, settings notify.Settings, client, public notify.Doer,
@@ -162,7 +179,7 @@ func New(enabled bool, settings notify.Settings, client, public notify.Doer,
 		enabled: enabled, cooldowns: map[string]int64{}, settings: settings,
 		client: client, public: public, mailFor: mailFor, now: now,
 	}
-	d.sendFn = func(ctx context.Context, r *Recipient, title, body string) error {
+	d.sendFn = func(ctx context.Context, r *Recipient, m Message) error {
 		// A WEBHOOK CHANNEL GOES BY SCHEME. Checked first because such a
 		// recipient has no flat transport settings at all, and `notify.Send`
 		// would find nothing configured and report success having sent nothing.
@@ -171,13 +188,13 @@ func New(enabled bool, settings notify.Settings, client, public notify.Doer,
 			client = d.public
 		}
 		if len(r.URLs) > 0 {
-			return notify.SendURLs(ctx, client, r.URLs, title, body)
+			return notify.SendURLs(ctx, client, r.URLs, m.Title, m.Body)
 		}
 		var mail notify.Mailer
 		if d.mailFor != nil {
 			mail = d.mailFor(r.Settings, r.Personal)
 		}
-		return notify.Send(ctx, client, r.Settings, mail, title, body)
+		return notify.Send(ctx, client, r.Settings, mail, m.Title, m.Body, m.HTML)
 	}
 	return d
 }
@@ -302,7 +319,7 @@ func (d *Dispatcher) Claim(r *Recipient, subjectKey string) bool {
 
 // Send delivers one message that Claim has already allowed.
 func (d *Dispatcher) Send(ctx context.Context, r *Recipient, subjectKey string, m Message) bool {
-	if err := d.sendFn(ctx, r, m.Title, m.Body); err != nil {
+	if err := d.sendFn(ctx, r, m); err != nil {
 		// LOGGED AND SWALLOWED, per recipient. The live `.catch` does the same:
 		// one unreachable destination must not stop the others, and it must not
 		// stop the alert row that has already been filed.

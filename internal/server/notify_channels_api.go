@@ -466,7 +466,7 @@ func (s *Server) notifyChannelTest(w http.ResponseWriter, r *http.Request) {
 			notify.TestTitle, notify.TestBody)
 	} else {
 		err = notify.Send(ctx, client, spec.Settings,
-			s.alertMailer(spec.Settings, personal), notify.TestTitle, notify.TestBody)
+			s.alertMailer(spec.Settings, personal), notify.TestTitle, notify.TestBody, s.testCardHTML())
 	}
 	if err != nil {
 		// `safe.Message`, the rule `testNotification` follows: a provider's

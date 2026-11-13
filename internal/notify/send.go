@@ -96,8 +96,10 @@ func Post(ctx context.Context, c Doer, r Request) error {
 	return fmt.Errorf("HTTP %d%s", resp.StatusCode, Reason(string(raw)))
 }
 
-// Mailer sends one email. Satisfied by internal/mailer.
-type Mailer func(title, body string) error
+// Mailer sends one email. Satisfied by internal/mailer. `html` is the same
+// message drawn as an HTML card (internal/alertmail), sent beside the text as
+// multipart/alternative; empty sends the text alone.
+type Mailer func(title, body, html string) error
 
 // Send delivers to every configured channel and COLLECTS the failures.
 //
@@ -107,7 +109,9 @@ type Mailer func(title, body string) error
 //
 // The order is the live one — Telegram, Pushbullet, SMTP, ntfy — and it is
 // visible in the joined message, so it is not free to change.
-func Send(ctx context.Context, c Doer, s Settings, mail Mailer, title, body string) error {
+//
+// `html` reaches the email channel only; every other channel is text.
+func Send(ctx context.Context, c Doer, s Settings, mail Mailer, title, body, html string) error {
 	var errs []string
 	try := func(name string, fn func() error) {
 		if err := fn(); err != nil {
@@ -132,7 +136,7 @@ func Send(ctx context.Context, c Doer, s Settings, mail Mailer, title, body stri
 			if mail == nil {
 				return errors.New("no mailer configured")
 			}
-			return mail(title, body)
+			return mail(title, body, html)
 		})
 	}
 	if truthy(s["ntfyEnabled"]) && str("ntfyUrl") != "" {
@@ -192,8 +196,10 @@ func Precondition(s Settings, ch Channel) string {
 	return ""
 }
 
-// TestChannel sends one channel's test notification.
-func TestChannel(ctx context.Context, c Doer, s Settings, ch Channel, mail Mailer) error {
+// TestChannel sends one channel's test notification. `html` is the test drawn
+// as an alert email's card, so the Test button shows what an alert will look
+// like; only the email channel uses it.
+func TestChannel(ctx context.Context, c Doer, s Settings, ch Channel, mail Mailer, html string) error {
 	if msg := Precondition(s, ch); msg != "" {
 		return errors.New(msg)
 	}
@@ -207,7 +213,7 @@ func TestChannel(ctx context.Context, c Doer, s Settings, ch Channel, mail Maile
 		if mail == nil {
 			return errors.New("no mailer configured")
 		}
-		return mail(TestTitle, TestBody)
+		return mail(TestTitle, TestBody, html)
 	case Ntfy:
 		r, err := NtfyRequest(str("ntfyUrl"), str("ntfyToken"), TestTitle, TestBody)
 		if err != nil {

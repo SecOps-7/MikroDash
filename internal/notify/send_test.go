@@ -186,13 +186,27 @@ func TestSendCollectsEveryFailureAndKeepsGoing(t *testing.T) {
 
 	// Every HTTP channel fails; the mailer succeeds and MUST still be called.
 	d := &stubDoer{status: 403, body: `{"description":"nope"}`}
-	mailed := false
-	err := Send(context.Background(), d, s, func(string, string) error { mailed = true; return nil }, "T", "B")
+	mailed, mailedHTML := false, ""
+	err := Send(context.Background(), d, s, func(_, _, html string) error { mailed, mailedHTML = true, html; return nil }, "T", "B", "<p>H</p>")
 	if err == nil {
 		t.Fatal("three failing channels produced no error")
 	}
 	if !mailed {
 		t.Error("email was never attempted -- a failing channel stopped the others")
+	}
+	// The card goes to email, and to email alone: no HTTP channel carries it.
+	if mailedHTML != "<p>H</p>" {
+		t.Errorf("the mailer was given html %q, want the card", mailedHTML)
+	}
+	for _, req := range d.seen {
+		raw := ""
+		if req.Body != nil {
+			b, _ := io.ReadAll(req.Body)
+			raw = string(b)
+		}
+		if strings.Contains(raw+req.URL.String(), "H</p>") {
+			t.Errorf("an HTTP channel was sent the email card: %s", req.URL)
+		}
 	}
 	if len(d.seen) != 3 {
 		t.Errorf("%d HTTP requests, want 3 (telegram, pushbullet, ntfy)", len(d.seen))
@@ -240,7 +254,7 @@ func TestSendSkipsChannelsThatAreNotFullyConfigured(t *testing.T) {
 		{"telegramBotToken": "t", "telegramChatId": "c"},   // not enabled
 	} {
 		d := &stubDoer{status: 200}
-		if err := Send(context.Background(), d, s, nil, "T", "B"); err != nil {
+		if err := Send(context.Background(), d, s, nil, "T", "B", ""); err != nil {
 			t.Errorf("%v: %v", s, err)
 		}
 		if len(d.seen) != 0 {
@@ -251,14 +265,14 @@ func TestSendSkipsChannelsThatAreNotFullyConfigured(t *testing.T) {
 
 func TestTestChannelRefusesBeforeSending(t *testing.T) {
 	d := &stubDoer{status: 200}
-	err := TestChannel(context.Background(), d, Settings{}, Telegram, nil)
+	err := TestChannel(context.Background(), d, Settings{}, Telegram, nil, "")
 	if err == nil || err.Error() != "Telegram Bot Token is not configured" {
 		t.Errorf("err = %v", err)
 	}
 	if len(d.seen) != 0 {
 		t.Error("a channel with no credentials was still contacted")
 	}
-	if err := TestChannel(context.Background(), d, Settings{}, Channel("nonsense"), nil); err == nil {
+	if err := TestChannel(context.Background(), d, Settings{}, Channel("nonsense"), nil, ""); err == nil {
 		t.Error("an unknown channel was accepted")
 	}
 }

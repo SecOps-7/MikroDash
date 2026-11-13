@@ -2,9 +2,14 @@ package mailer
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"errors"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net"
+	"net/mail"
 	"strings"
 	"testing"
 	"time"
@@ -499,5 +504,73 @@ func TestAPublicOnlyMailServerOnLoopbackIsRefused(t *testing.T) {
 	case <-accepted:
 	case <-time.After(2 * time.Second):
 		t.Fatal("without PublicOnly the server was not dialled either, so the refusal above proves nothing")
+	}
+}
+
+// TestAnHTMLBodyIsAnAlternativeToTheText. With HTML the body is
+// multipart/alternative, the text first and the HTML second, read back by
+// Go's own MIME parser rather than by matching strings; with attachments too,
+// that alternative is the first part of the mixed message. An HTML body that
+// contains the boundary cannot end its part, because both parts are base64.
+func TestAnHTMLBodyIsAnAlternativeToTheText(t *testing.T) {
+	const b = "BOUNDARY"
+	html := "<p>Interface Down</p>\r\n--" + b + "--\r\n--alt-" + b + "\r\n"
+	parts := func(t *testing.T, ct string, body io.Reader) [][2]string {
+		t.Helper()
+		mt, params, err := mime.ParseMediaType(ct)
+		if err != nil || !strings.HasPrefix(mt, "multipart/") {
+			t.Fatalf("content type %q: %v", ct, err)
+		}
+		var out [][2]string
+		r := multipart.NewReader(body, params["boundary"])
+		for {
+			p, err := r.NextPart()
+			if err == io.EOF {
+				return out
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, _ := io.ReadAll(p)
+			if p.Header.Get("Content-Transfer-Encoding") == "base64" {
+				raw, _ = base64.StdEncoding.DecodeString(strings.ReplaceAll(string(raw), "\r\n", ""))
+			}
+			out = append(out, [2]string{p.Header.Get("Content-Type"), string(raw)})
+		}
+	}
+
+	raw, err := Compose("a@example.com", Message{To: []string{"b@example.com"}, Subject: "s", Text: "plain", HTML: html}, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := mail.ReadMessage(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := parts(t, msg.Header.Get("Content-Type"), msg.Body)
+	if len(got) != 2 || !strings.HasPrefix(got[0][0], "text/plain") || got[0][1] != "plain" ||
+		!strings.HasPrefix(got[1][0], "text/html") || got[1][1] != html {
+		t.Fatalf("parts = %q, want the text then the HTML, whole", got)
+	}
+
+	raw, err = Compose("a@example.com", Message{To: []string{"b@example.com"}, Subject: "s", Text: "plain", HTML: html,
+		Attachments: []Attachment{{Filename: "r.pdf", ContentType: "application/pdf", Content: []byte("%PDF")}}}, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, _ = mail.ReadMessage(bytes.NewReader(raw))
+	mixed := parts(t, msg.Header.Get("Content-Type"), msg.Body)
+	if len(mixed) != 2 || !strings.HasPrefix(mixed[0][0], "multipart/alternative") || mixed[1][1] != "%PDF" {
+		t.Fatalf("mixed parts = %q, want the alternative then the attachment", mixed)
+	}
+	inner := parts(t, mixed[0][0], strings.NewReader(mixed[0][1]))
+	if len(inner) != 2 || inner[0][1] != "plain" || inner[1][1] != html {
+		t.Fatalf("the nested alternative = %q", inner)
+	}
+
+	// No HTML: exactly the old single text part.
+	raw, _ = Compose("a@example.com", Message{To: []string{"b@example.com"}, Subject: "s", Text: "plain"}, b)
+	if !strings.Contains(string(raw), "Content-Type: text/plain; charset=utf-8\r\n") || strings.Contains(string(raw), "multipart") {
+		t.Errorf("a text-only message changed shape:\n%s", raw)
 	}
 }
