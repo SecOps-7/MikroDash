@@ -107,10 +107,74 @@ function sortValue(r: RouterStatsRow, key: string): unknown {
   return (r as unknown as Record<string, unknown>)[key];
 }
 
+/**
+ * The page's order: one state for every view (issue #163).
+ *
+ * The cards drew in the order routers.json holds them, which is the order set
+ * with the arrows in Settings -> Devices, while the List view sorted by name.
+ * With 200 routers the cards were in no useful order at all. Now the Sort
+ * dropdown and the List headers set this one state and every view draws by it;
+ * the Settings order is the main router selector's alone (the operator,
+ * 2026-11-13). Name A to Z unless this browser chose otherwise.
+ */
 let rtlSort: { key: string; dir: number } = { key: 'label', dir: 1 };
 
 /** Exposed so the gate can drive a column; the live page keeps it in a var. */
 export function setSort(key: string, dir: number): void { rtlSort = { key, dir }; }
+export function getSort(): { key: string; dir: number } { return { ...rtlSort }; }
+
+const SORT_KEY = 'mikrodash_routers_sort';
+
+/**
+ * The rows in the page's order. Text compares naturally (Router 2 before
+ * Router 10), anything else numerically with no reading last whichever way it
+ * points, and a tie falls back to the name so equal rows do not sit in file
+ * order. Pure apart from the overview lookup two columns need.
+ */
+export function sortRtrRows(rows: RouterStatsRow[]): RouterStatsRow[] {
+  const col = RTL_COLS[rtlSort.key] || {};
+  const byName = (a: RouterStatsRow, b: RouterStatsRow): number =>
+    String(a.label || '').localeCompare(String(b.label || ''), undefined, { numeric: true, sensitivity: 'base' });
+  return (rows || []).slice().sort((a, b) => {
+    const av = sortValue(a, rtlSort.key);
+    const bv = sortValue(b, rtlSort.key);
+    let c = 0;
+    if (col.str) {
+      c = String(av == null ? '' : av).localeCompare(
+        String(bv == null ? '' : bv), undefined,
+        { numeric: true, sensitivity: 'base' }) * rtlSort.dir;
+    } else if (av == null || bv == null) {
+      // NULL LAST REGARDLESS OF DIRECTION: "no reading" is not a low reading.
+      c = av == null && bv == null ? 0 : av == null ? 1 : -1;
+    } else {
+      c = (Number(av) - Number(bv)) * rtlSort.dir;
+    }
+    return c || (rtlSort.key === 'label' ? 0 : byName(a, b));
+  });
+}
+
+/** The Sort dropdown shows the current order, or "Sorted by a column" when a
+ *  List header chose one the dropdown does not offer. */
+function syncSortSelect(): void {
+  const sel = el<HTMLSelectElement>('routersSort');
+  if (!sel) return;
+  const v = rtlSort.key + ':' + rtlSort.dir;
+  sel.value = Array.from(sel.options).some((o) => o.value === v) ? v : '';
+}
+
+/** Take a sort from the dropdown's or storage's "key:dir"; false when it is
+ *  not one this page can sort by. */
+function applySortValue(v: string): boolean {
+  const [key = '', d = ''] = String(v || '').split(':');
+  const dir = d === '-1' ? -1 : d === '1' ? 1 : 0;
+  if (!RTL_COLS[key] || !dir) return false;
+  rtlSort = { key, dir };
+  return true;
+}
+
+function saveSort(): void {
+  try { localStorage.setItem(SORT_KEY, rtlSort.key + ':' + rtlSort.dir); } catch { /* site data blocked */ }
+}
 
 /**
  * Click a column header.
@@ -119,15 +183,17 @@ export function setSort(key: string, dir: number): void { rtlSort = { key, dir }
  * interesting router is the one with the most of something. Clicking the column
  * already sorted reverses it instead of resetting the direction.
  *
- * Re-renders the LIST directly from the rows already held rather than going
- * through `renderRoutersStats`, exactly as the original does - so a sort does
- * not re-run the search or redraw the summary.
+ * Re-renders through `renderRoutersStats`, so the search and the site filter
+ * still apply. It re-rendered the list from every row held, which dropped a
+ * search or a site the moment a header was clicked.
  */
 export function sortBy(key: string): void {
   if (!RTL_COLS[key]) return;
   if (rtlSort.key === key) rtlSort.dir *= -1;
   else rtlSort = { key, dir: RTL_COLS[key].str ? 1 : -1 };
-  renderRoutersList(lastRtrRows);
+  syncSortSelect();
+  saveSort();
+  renderRoutersStats(null);
 }
 
 /** Exposed for the view switcher and for tests; the live page keeps it in a var. */
@@ -336,24 +402,8 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
 function renderRoutersList(rows: RouterStatsRow[]): void {
   const body = el('routersListBody');
   if (!body) return;
-  // Already filtered by the caller; sorting is all that is left to do here.
+  // Already filtered and sorted by the caller (sortRtrRows).
   const list = (rows || []).slice();
-
-  const col = RTL_COLS[rtlSort.key] || {};
-  list.sort((a, b) => {
-    const av = sortValue(a, rtlSort.key);
-    const bv = sortValue(b, rtlSort.key);
-    if (col.str) {
-      return String(av == null ? '' : av).localeCompare(
-        String(bv == null ? '' : bv), undefined,
-        { numeric: true, sensitivity: 'base' }) * rtlSort.dir;
-    }
-    // NULL LAST REGARDLESS OF DIRECTION: "no reading" is not a low reading.
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    return ((av as number) - (bv as number)) * rtlSort.dir;
-  });
 
   if (!list.length) {
     body.innerHTML = '<tr><td colspan="9" class="tbl-empty">'
@@ -602,7 +652,8 @@ export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
     : siteIdsOf(r).indexOf(site) !== -1));
 
   const q = rtrQuery();
-  const visible = q ? pool.filter((r) => rtrMatches(r, q)) : pool;
+  // ONE ORDER FOR EVERY VIEW: the grid, the list and the map's tray.
+  const visible = sortRtrRows(q ? pool.filter((r) => rtrMatches(r, q)) : pool);
 
   const shown = el('routersShown');
   if (shown) {
@@ -815,6 +866,19 @@ export function mountRouters(socket: Socket): void {
   // listener at all, which is half of why selecting a site did nothing.
   const siteSel = el<HTMLSelectElement>('routersSiteFilter');
   if (siteSel) siteSel.addEventListener('change', () => renderRoutersStats(null));
+
+  // The page's order. Restored before the first render, so the cards never
+  // flash in file order.
+  try { applySortValue(localStorage.getItem(SORT_KEY) || ''); } catch { /* site data blocked */ }
+  syncSortSelect();
+  const sortSel = el<HTMLSelectElement>('routersSort');
+  if (sortSel) {
+    sortSel.addEventListener('change', () => {
+      if (!applySortValue(sortSel.value)) return;
+      saveSort();
+      renderRoutersStats(null);
+    });
+  }
 
   const sel = el<HTMLSelectElement>('routersView');
   if (sel) {

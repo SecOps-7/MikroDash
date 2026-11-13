@@ -61,6 +61,17 @@
         <select id="routersSiteFilter" class="sform-input sform-sm" title="Filter by site - a device may belong to more than one" style="width:auto;min-width:150px">
           <option value="">All Sites</option>
         </select>
+        <!-- The page's own order, for every view (issue #163). The order set in
+             Settings -> Devices is the main router selector's, not this page's. -->
+        <select id="routersSort" class="sform-input sform-sm" title="Sort the devices" style="width:auto;min-width:150px">
+          <option value="label:1">Name A to Z</option>
+          <option value="label:-1">Name Z to A</option>
+          <option value="online:1">Offline first</option>
+          <option value="openAlerts:-1">Most alerts</option>
+          <option value="boardName:1">Model</option>
+          <option value="version:-1">RouterOS, newest first</option>
+          <option value="" hidden>Sorted by a column</option>
+        </select>
         <input id="routersSearch" type="search" class="sform-input sform-sm"
                placeholder="Search devices…"
                title="Matches name, host, model, RouterOS version and site. Also understands online, offline and alerting."
