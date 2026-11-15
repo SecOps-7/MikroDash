@@ -2,6 +2,29 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.83] - Device sorting, HTML alert emails, and legacy Wi-Fi clients
+
+### New
+
+- **Devices: a Sort dropdown** beside the site filter, A to Z by name by default, with Z to A,
+  offline first, most alerts, model and RouterOS. It applies to the cards, the list and the map,
+  and your choice is remembered. The order set in Settings, Devices still decides the main router
+  selector. Suggested in [#163](https://github.com/SecOps-7/MikroDash/issues/163), thanks
+  [@r00t-droid](https://github.com/r00t-droid).
+- **Alert emails are an HTML card**: red for an alert, green when it recovers, with what happened,
+  on which router and when. The plain text from your message templates is still sent beside it,
+  and the Test button sends the same card. Suggested in
+  [#163](https://github.com/SecOps-7/MikroDash/issues/163), thanks
+  [@r00t-droid](https://github.com/r00t-droid).
+
+### Fixed
+
+- **Wifi Clients was empty on access points running the legacy `wireless` package** (since
+  0.8.0). Their clients, their SSID list and their place on the Topology map are back. A legacy
+  router that is also a WiFi CAPsMAN manager now lists both sets of clients. Reported in
+  [#164](https://github.com/SecOps-7/MikroDash/issues/164), thanks
+  [@kissandr](https://github.com/kissandr).
+
 ## [0.8.82] - Large fleets are fast again
 
 ### Fixed
