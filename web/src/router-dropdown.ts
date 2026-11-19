@@ -27,6 +27,8 @@ import { esc, el, lsGet, lsSet, SITE_UNASSIGNED } from './dom';
 
 export interface DropdownRouter {
   id: string;
+  /** "swos" for a SwOS switch, which this selector never lists. */
+  kind?: string;
   label?: string;
   host?: string;
   disabled?: boolean;
@@ -106,12 +108,27 @@ export function rtrLabel(r: DropdownRouter): string {
 }
 
 /**
+ * The router selector lists ROUTERS ONLY, never a SwOS switch (#142).
+ *
+ * The operator: the drop-down "will always only list routers, not switches,
+ * since this is a router first application. Switches are an addition to
+ * routers and the routers will be what runs the network." Recorded in
+ * docs/DECISIONS.md. The server already leaves switches out of every router
+ * list it sends; this is the last line, applied where both the desktop
+ * dropdown and the mobile select read their list, so no source can put one
+ * here.
+ */
+export function routersOnly<T extends { id: string; kind?: string }>(rows: readonly T[]): T[] {
+  return rows.filter((r) => r.kind !== 'swos');
+}
+
+/**
  * The mobile router select's options. ESCAPED like the dropdown: a label is
  * whatever the operator typed, and the select was built by string concatenation
  * with neither the label nor the id escaped.
  */
-export function selectOptionsHtml(routers: readonly { id: string; label?: string; name?: string }[]): string {
-  return routers.map((r) =>
+export function selectOptionsHtml(routers: readonly { id: string; label?: string; name?: string; kind?: string }[]): string {
+  return routersOnly(routers).map((r) =>
     '<option value="' + esc(r.id) + '">' + esc(r.label || r.name || r.id) + '</option>').join('');
 }
 
@@ -363,7 +380,7 @@ export function overlayOnStatus(s: SwitchOverlay, connected: boolean): SwitchOve
  * router, never what switching means.
  */
 export function wireRouterDropdown(
-  getRouters: () => readonly DropdownRouter[],
+  getRoutersIn: () => readonly DropdownRouter[],
   getActiveId: () => string,
   getStatus: () => Record<string, boolean | undefined>,
   onChoose: (id: string) => void,
@@ -377,6 +394,8 @@ export function wireRouterDropdown(
   const btn = el('routerSelectBtn');
   const label = el('routerSelectLabel');
   const panel = el('routerDropdown');
+  // ROUTERS ONLY, whatever the caller hands over (docs/DECISIONS.md).
+  const getRouters = (): readonly DropdownRouter[] => routersOnly(getRoutersIn());
   const list = el('routerDropdownList');
   const chipBar = el('routerDropdownChips');
   const search = el<HTMLInputElement>('routerDropdownSearch');

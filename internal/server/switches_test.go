@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -210,5 +212,69 @@ func TestADelegateCannotMoveASwitchsEndpoint(t *testing.T) {
 	stripSwitchPrivileged(admin, true)
 	if admin["scheme"] != "https" {
 		t.Error("an administrator's scheme was stripped")
+	}
+}
+
+// TestTheRouterSelectorNeverReceivesASwitch pins docs/DECISIONS.md: the
+// selector lists routers only. Its sources are GET /api/routers (also what a
+// reconnect re-fetches) and the routers:update event (sent on every change and
+// on a connect, always from routerListForSocket). Checked after a switch is
+// added and after it is edited, and the event's every send is held to that one
+// builder, so a new send cannot bypass the filter.
+func TestTheRouterSelectorNeverReceivesASwitch(t *testing.T) {
+	sess := &Session{AuthMode: "none", Username: "admin"}
+	s, mux, dir := routersServer(t, sess, "")
+	if w := routerPost(mux, `{"kind":"swos","host":"198.51.100.20","label":"Core switch"}`, authed); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	swID := switchByLabel(t, dir, "Core switch")["id"].(string)
+	check := func(when string) {
+		t.Helper()
+		for _, r := range s.routerListForSocket(sess) {
+			if r["id"] == swID || r["kind"] == store.KindSwOS {
+				t.Errorf("%s: the routers:update payload carries the switch", when)
+			}
+		}
+		req := httptest.NewRequest("GET", "/api/routers", nil)
+		req.Header.Set("Cookie", authed)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		var out struct {
+			Routers []map[string]any `json:"routers"`
+		}
+		_ = json.Unmarshal(w.Body.Bytes(), &out)
+		if len(out.Routers) == 0 {
+			t.Fatalf("%s: no routers listed at all; the check would pass against nothing", when)
+		}
+		for _, r := range out.Routers {
+			if r["id"] == swID || r["kind"] == store.KindSwOS {
+				t.Errorf("%s: GET /api/routers lists the switch among the routers", when)
+			}
+		}
+	}
+	check("after adding a switch")
+	if w := routerPut(mux, swID, `{"label":"Core switch 2","disabled":false}`, authed); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	check("after editing a switch")
+
+	// Every send of routers:update builds its list with routerListForSocket,
+	// or sends an empty one.
+	src := ""
+	for _, f := range []string{"devices.go", "routers_api.go", "switches.go", "ws.go", "server.go"} {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		src += string(b)
+	}
+	sends := regexp.MustCompile(`EvRoutersUpdate\.\w+\([^\n]*`).FindAllString(src, -1)
+	if len(sends) == 0 {
+		t.Fatal("no send of routers:update found; this check reads nothing")
+	}
+	for _, line := range sends {
+		if !strings.Contains(line, "routerListForSocket(") && !strings.Contains(line, "[]map[string]any{}") {
+			t.Errorf("a routers:update send does not use routerListForSocket: %s", line)
+		}
 	}
 }

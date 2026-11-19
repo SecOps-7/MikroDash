@@ -2,7 +2,7 @@
 
 import { el } from './dom';
 import { installFetchGuard, verifySessionAfterFailure } from './fetch-guard';
-import { overlayOnStatus, overlayOnSwitch, selectOptionsHtml, wireRouterDropdown } from './router-dropdown';
+import { overlayOnStatus, overlayOnSwitch, routersOnly, selectOptionsHtml, wireRouterDropdown } from './router-dropdown';
 import { initUpgrade } from './pages/upgrade';
 import { Socket, type AllEvents } from './socket';
 import { initAppearance, wireAppearance } from './appearance';
@@ -184,6 +184,8 @@ interface RouterRow extends StoredRouter {
   id: string;
   name?: string;
   disabled?: boolean;
+  /** "swos" for a SwOS switch: never in this list (docs/DECISIONS.md). */
+  kind?: string;
 }
 
 /** The router list, already filtered to this principal's grants by `/api/routers`. */
@@ -206,7 +208,9 @@ async function loadRouters(): Promise<RouterRow[]> {
   // alone: everything else here treats `routers` as routers.
   switchRows = (body && Array.isArray(body.switches) ? body.switches : []) as RouterRow[];
   setKnownSwitches(switchRows as never);
-  return (body.routers || body || []) as RouterRow[];
+  // ROUTERS ONLY (docs/DECISIONS.md): the selector, and everything else that
+  // reads `routers`, never holds a switch, whatever the server sent.
+  return routersOnly((body.routers || body || []) as RouterRow[]);
 }
 
 /**
