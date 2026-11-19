@@ -10,6 +10,7 @@
 // on every connect, not per page: membership is per connection, and a
 // reconnect starts in no rooms.
 
+import { chooseDeviceType } from './switch-form';
 import { copyText, el, esc } from '../dom';
 import type { Socket } from '../socket';
 import type { ZTPDeviceView, ZTPPayload } from '../gen/payloads';
@@ -401,7 +402,9 @@ export function mountZtp(socket: Socket): void {
   // Relative times ("expires in 3 days") move while nothing else does.
   setInterval(renderSection, 60e3);
 
-  el('ztpAddBtn')?.addEventListener('click', openAddDevice);
+  // A type choice first (#142): a RouterOS router goes on to the provisioning
+  // script as before, a SwOS switch to the switch form.
+  el('ztpAddBtn')?.addEventListener('click', () => chooseDeviceType(openAddDevice));
   el('ztpSection')?.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest?.('[data-ztp-act]') as HTMLElement | null;
     const d = b && ztpState()?.devices.find((x) => x.id === b.dataset.ztpId);

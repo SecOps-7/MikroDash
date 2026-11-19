@@ -466,6 +466,21 @@
     /* Same opt-out as pmodal: the base .rtr-modal-body is a two-column grid
        for the router form, and the analyzer stacks full-width sections. */
     .rtr-modal.fa-modal>.rtr-modal-body{display:block}
+    /* SwOS (#142): the device-type chooser and the switch form, one column. */
+    .rtr-modal.sw-modal{width:min(560px,94vw)}
+    .rtr-modal.dtype-modal{width:min(440px,94vw)}
+    .rtr-modal.sw-modal>.rtr-modal-body,.rtr-modal.dtype-modal>.rtr-modal-body{display:block}
+    .dtype-opt{display:flex;flex-direction:column;gap:.2rem;width:100%;text-align:left;
+      padding:.75rem .9rem;margin:0 0 .6rem;border:1px solid var(--border);border-radius:8px;
+      background:var(--bg-card);color:var(--text-main);font:inherit;cursor:pointer}
+    .dtype-opt:hover,.dtype-opt:focus-visible{border-color:var(--accent-rx)}
+    .dtype-name{font-weight:600;font-size:.82rem;display:flex;align-items:center;gap:.4rem}
+    .dtype-help{font-size:.72rem;color:var(--text-muted)}
+    .sw-preview{font-size:.72rem;color:var(--text-muted);line-height:1.45;margin:0 0 .6rem;
+      padding:.55rem .7rem;border:1px solid var(--border);border-radius:6px}
+    .sw-result{font-size:.74rem;margin-top:.6rem;min-height:1.1rem}
+    .sw-result.is-ok{color:var(--accent-ok)}
+    .sw-result.is-err{color:var(--accent-err)}
     /* The account modal is not a form like the four above - it holds five
        unrelated sections, and stacking them made a tall narrow ribbon that had
        to be scrolled past to reach anything. It takes the width instead and

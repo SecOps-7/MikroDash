@@ -27,6 +27,7 @@
 import { el, esc } from '../dom';
 import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
 import { initDeviceImport } from './device-import';
+import { chooseDeviceType, initSwitchForm, openSwitchForm, type SwitchFormRow } from './switch-form';
 
 export interface RouterRow {
   id: string;
@@ -41,6 +42,18 @@ export interface RouterRow {
   disabled?: boolean;
   siteId?: string | null;
   siteIds?: string[];
+  // A SwOS switch's record (#142): `kind` is "swos", the rest is its form's.
+  kind?: string;
+  scheme?: string;
+  port?: number | string;
+  username?: string;
+  alertsEnabled?: boolean;
+  reportingEnabled?: boolean;
+}
+
+/** Whether a row is a SwOS switch rather than a RouterOS router. */
+export function isSwitchRow(r: RouterRow): boolean {
+  return r.kind === 'swos';
 }
 
 export interface SiteName { name?: string }
@@ -49,7 +62,8 @@ export interface SiteName { name?: string }
 // TEN: the order column, then Site as its own column between Name and Status.
 // The empty-state colspan reads this and the header in page-settings.html must
 // agree.
-export const ROUTER_TABLE_COLUMNS = 10;
+// ELEVEN since the Type column (#142), between Name and Site.
+export const ROUTER_TABLE_COLUMNS = 11;
 
 /**
  * One row.
@@ -68,7 +82,8 @@ export function renderRouterRow(
   primaryId = '',
   pos: { index: number; total: number } = { index: 0, total: 1 },
 ): string {
-  const isActive = r.id === activeId;
+  const isSwitch = isSwitchRow(r);
+  const isActive = !isSwitch && r.id === activeId;
   // ── ACTIVE AND PRIMARY ARE DIFFERENT FACTS ────────────────────────────
   //
   // ACTIVE is what THIS browser is looking at right now: client-side, changes
@@ -76,7 +91,7 @@ export function renderRouterRow(
   // choice of which router a fresh session opens on: server-side, the same for
   // everyone. They coincide most of the time, which is exactly why they were
   // one badge and why the one badge was wrong.
-  const isPrimary = !!primaryId && r.id === primaryId;
+  const isPrimary = !isSwitch && !!primaryId && r.id === primaryId;
   const activeBadge = isActive ? '<span class="pill pill-rx">Active</span>' : '';
   const primaryBadge = isPrimary ? '<span class="pill pill-warn" style="margin-right:.25rem" title="Loaded when you sign in">Primary</span>' : '';
   // ── MOVE ARROWS, NOT SORTING ──────────────────────────────────────────
@@ -89,10 +104,14 @@ export function renderRouterRow(
     '<button class="sbtn sbtn-ghost is-sm rtr-move" data-rtr-id="' + esc(r.id) + '"'
     + ' data-rtr-action="move" data-rtr-dir="' + dir + '"'
     + (off ? ' disabled' : '') + ' title="Move ' + dir + '">' + glyph + '</button>';
-  const orderCell = '<td class="rtr-order">'
+  // A switch has no place in the router selector, so no order to move.
+  const orderCell = isSwitch ? '<td class="rtr-order"></td>' : '<td class="rtr-order">'
     + arrow('up', '&#9650;', pos.index === 0)
     + arrow('down', '&#9660;', pos.index >= pos.total - 1)
     + '</td>';
+  const typeCell = isSwitch
+    ? '<span class="pill pill-alt" title="SwOS switch, monitoring only (preview)">SwOS</span>'
+    : '<span class="pill pill-rx">RouterOS</span>';
   // A router that came in by zero-touch provisioning says so, and how.
   const ztp = ztpDeviceForRouter(r.id);
   const ztpBadge = ztp ? '<span class="pill pill-alt" style="margin-left:.3rem" title="Added by zero-touch provisioning (' +
@@ -102,10 +121,10 @@ export function renderRouterRow(
     + (isActive ? ' disabled title="Cannot disable the active router"' : '')
     + ' data-rtr-id="' + esc(r.id) + '" data-rtr-action="toggle">'
     + (r.disabled ? 'Enable' : 'Disable') + '</button>';
-  const tlsBadge = r.tls
+  const tlsBadge = isSwitch ? '<span style="color:var(--text-muted)">-</span>' : r.tls
     ? '<span class="pill pill-tx">TLS</span>'
     : '<span class="pill pill-warn">Unencrypted</span>';
-  const certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
+  const certNote = !isSwitch && r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
   const connState = status[r.id];
   const badgeCls = connState === true ? 'pill-ok' : connState === false ? 'pill-err' : 'pill-muted';
   const badgeTxt = connState === true ? 'Online' : connState === false ? 'Offline' : '-';
@@ -139,6 +158,7 @@ export function renderRouterRow(
   return '<tr' + (r.disabled ? ' style="opacity:.55"' : '') + '>' +
     orderCell +
     '<td><div style="font-weight:600;font-size:.76rem">' + esc(r.label) + ztpBadge + '</div>' + primaryBadge + activeBadge + '</td>' +
+    '<td>' + typeCell + '</td>' +
     '<td>' + siteCell + '</td>' +
     '<td>' + statusCell + '</td>' +
     '<td><span class="rtr-host">' + esc(r.host) + '</span></td>' +
@@ -163,19 +183,27 @@ export function renderRouterTable(
   status: Record<string, boolean | undefined>,
   sitesById: Record<string, SiteName>,
   primaryId = '',
+  switches: RouterRow[] = [],
 ): string {
-  if (!routers.length) {
+  if (!routers.length && !switches.length) {
     return '<tr><td class="tbl-empty" colspan="' + ROUTER_TABLE_COLUMNS + '">No routers configured. Click Add Router to get started.</td></tr>';
   }
   // The position is passed IN rather than worked out per row, because the ends
   // of the list are what decide which arrow is disabled and only the caller
   // knows how long the list is.
+  //
+  // ONE TABLE FOR BOTH KINDS (#142): the routers in their order, then the SwOS
+  // switches, each row saying which it is in the Type column.
   return routers.map((r, i) =>
     renderRouterRow(r, activeId, status, sitesById, primaryId, { index: i, total: routers.length }))
-    .join('');
+    .join('') + switches.map((r) => renderRouterRow(r, activeId, status, sitesById, primaryId)).join('');
 }
 
 /** The delete confirmation, which names what is about to be destroyed. */
+export function deleteSwitchPrompt(label: string): string {
+  return 'Delete switch "' + label + '"?\n\nIts traffic history, alerts and connectivity events will be permanently deleted. Nothing on the switch itself is changed.\n\nThis cannot be undone.';
+}
+
 export function deleteRouterPrompt(label: string): string {
   return 'Delete router "' + label + '"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.';
 }
@@ -233,6 +261,9 @@ export interface RouterTableDeps {
   status: () => Record<string, boolean | undefined>;
   sitesById: () => Record<string, SiteName>;
   openModal: (r: RouterRow | null) => void;
+  // The SwOS switches (#142), listed after the routers. Optional, so a caller
+  // with no switch list renders the routers alone.
+  switches?: () => RouterRow[];
 }
 
 let deps: RouterTableDeps | null = null;
@@ -242,7 +273,7 @@ export function renderRoutersInto(): void {
   const tbody = el('rtrTbody');
   if (!tbody || !deps) return;
   tbody.innerHTML = renderRouterTable(deps.routers(), deps.activeId(), deps.status(),
-    deps.sitesById(), deps.primaryId());
+    deps.sitesById(), deps.primaryId(), deps.switches?.() ?? []);
 }
 
 export function initSettingsRoutersTable(d: RouterTableDeps): void {
@@ -272,11 +303,15 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
   // BOUND BEFORE THE `rtrTbody` GUARD BELOW, deliberately: Add does not need the
   // table, and the early return would otherwise take the button with it on any
   // markup where the tbody is absent.
+  initSwitchForm();
   el('rtrAddBtn')?.addEventListener('click', () => {
+    // A TYPE CHOICE FIRST (#142): a RouterOS router goes on to the router
+    // modal, a SwOS switch to the switch form.
+    //
     // NULL IS THE ADD FORM. `router-modal.ts` branches on exactly this: an edit
     // calls `gate.pass()` because its stored credentials already worked, while
     // an add must pass Test before Save is allowed.
-    d.openModal(null);
+    chooseDeviceType(() => d.openModal(null));
   });
   // Bulk import from a CSV (#150), the button beside Add.
   initDeviceImport();
@@ -308,6 +343,11 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
       return;
     }
 
+    const sw = (d.switches?.() ?? []).find((x) => x.id === id);
+    if (action === 'edit' && sw) {
+      openSwitchForm(sw as SwitchFormRow);
+      return;
+    }
     if (action === 'edit') {
       const r = d.routers().find((x) => x.id === id);
       // NO FALLBACK to opening an empty modal. `openModal(null)` is the ADD
@@ -318,7 +358,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
     }
 
     if (action === 'toggle') {
-      const rr = d.routers().find((x) => x.id === id);
+      const rr = d.routers().find((x) => x.id === id) ?? sw;
       if (!rr) return;
       // The CURRENT value is read here, not carried in the markup: the row could
       // have been repainted by a `routers:update` between render and click.
@@ -336,7 +376,7 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
 
     if (action === 'delete') {
       const label = btn.dataset.rtrLabel || id;
-      if (!confirm(deleteRouterPrompt(label))) return;
+      if (!confirm(sw ? deleteSwitchPrompt(label) : deleteRouterPrompt(label))) return;
       fetch('/api/routers/' + encodeURIComponent(id), {
         method: 'DELETE',
         credentials: 'same-origin',

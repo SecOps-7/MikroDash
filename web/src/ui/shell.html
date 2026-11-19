@@ -597,6 +597,89 @@
     </div>
   </div>
 
+  <!-- Add a device: which kind (#142). Opened by Settings > Devices > Add and by
+       the Devices page's Add device; a RouterOS router goes on to the flow that
+       button always opened, a SwOS switch to the switch form below. -->
+  <div class="rtr-modal-bg" id="devTypeBg" role="dialog" aria-modal="true" aria-labelledby="devTypeTitle">
+    <div class="rtr-modal dtype-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title" id="devTypeTitle">Add a device</span>
+        <button class="rtr-modal-close" id="devTypeCloseBtn" type="button">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+        <button type="button" class="dtype-opt" data-devtype="routeros">
+          <span class="dtype-name">RouterOS router</span>
+          <span class="dtype-help">A router, CAP or CRS running RouterOS, read over its API.</span>
+        </button>
+        <button type="button" class="dtype-opt" data-devtype="swos">
+          <span class="dtype-name">SwOS switch <span class="pill pill-warn">Preview</span></span>
+          <span class="dtype-help">A switch running SwOS or SwOS Lite, read through its web page. Monitoring only.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SwOS switch: add and edit (#142). Monitoring only, and says so. -->
+  <div class="rtr-modal-bg" id="swModalBg" role="dialog" aria-modal="true" aria-labelledby="swModalTitle">
+    <div class="rtr-modal sw-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title" id="swModalTitle">Add SwOS switch</span>
+        <button class="rtr-modal-close" id="swModalCloseBtn" type="button">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+        <input type="hidden" id="swModalId">
+        <div class="sw-preview"><span class="pill pill-warn">Preview</span> Monitoring only: MikroDash reads the switch's own web page and never changes anything on it. SwOS has one admin login, so that is what MikroDash stores, sealed the way a router's password is. Keep the switch's management on a trusted network or VLAN.</div>
+        <div class="rtr-sec">Switch</div>
+        <div class="ff-grid">
+          <div class="ff ff-full">
+            <label class="sform-label" for="swModalLabel">Display Name</label>
+            <input class="sform-input" id="swModalLabel" type="text" placeholder="e.g. Core switch">
+          </div>
+          <div class="ff">
+            <label class="sform-label" for="swModalHost">Address</label>
+            <input class="sform-input" id="swModalHost" type="text" placeholder="192.168.88.1" autocomplete="off">
+          </div>
+          <div class="ff">
+            <label class="sform-label" for="swModalScheme">Web page</label>
+            <select class="sform-input" id="swModalScheme"><option value="http">HTTP</option><option value="https">HTTPS</option></select>
+          </div>
+          <div class="ff">
+            <label class="sform-label" for="swModalPort">Port</label>
+            <input class="sform-input" id="swModalPort" type="number" min="1" max="65535" placeholder="80">
+          </div>
+          <div class="ff">
+            <label class="sform-label" for="swModalUser">Username</label>
+            <input class="sform-input" id="swModalUser" type="text" value="admin" autocomplete="off">
+          </div>
+          <div class="ff ff-full">
+            <label class="sform-label" for="swModalPass">Password</label>
+            <input class="sform-input" id="swModalPass" type="password" autocomplete="new-password">
+            <div class="ff-help" id="swModalPassHelp"></div>
+          </div>
+        </div>
+        <div class="rtr-sec">Monitoring</div>
+        <div class="ff-grid ff-one">
+          <div class="ff">
+            <label class="sform-label" for="swModalAlerts">Alert Monitoring</label>
+            <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="swModalAlerts"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <div class="ff-help">Alert when the switch goes offline or a port goes down.</div>
+          </div>
+          <div class="ff">
+            <label class="sform-label" for="swModalReporting">Reporting</label>
+            <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="swModalReporting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <div class="ff-help">Record each port's traffic and the switch's uptime so they appear in Reports.</div>
+          </div>
+        </div>
+        <div class="sw-result" id="swModalResult" role="status"></div>
+      </div>
+      <div class="rtr-modal-footer">
+        <button class="sbtn sbtn-ghost" id="swModalTestBtn" type="button">Test Connection</button>
+        <button class="sbtn sbtn-ghost" id="swModalCancelBtn" type="button">Cancel</button>
+        <button class="sbtn sbtn-primary" id="swModalSaveBtn" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="rtr-modal-bg" id="rtrModalBg">
     <div class="rtr-modal">
       <div class="rtr-modal-hdr">

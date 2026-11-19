@@ -192,11 +192,17 @@ interface RouterRow extends StoredRouter {
 // device you add" was the one you got at every sign-in, whatever you chose.
 let primaryRouterId = '';
 
+/** The SwOS switches the last /api/routers listed (#142). */
+let switchRows: RouterRow[] = [];
+
 async function loadRouters(): Promise<RouterRow[]> {
   const res = await fetch('/api/routers', { credentials: 'same-origin' });
   if (!res.ok) throw new Error('cannot list routers: ' + res.status);
   const body = await res.json();
   primaryRouterId = (body && typeof body.activeId === 'string') ? body.activeId : '';
+  // SwOS switches arrive beside the routers (#142) and go to the Settings table
+  // alone: everything else here treats `routers` as routers.
+  switchRows = (body && Array.isArray(body.switches) ? body.switches : []) as RouterRow[];
   return (body.routers || body || []) as RouterRow[];
 }
 
@@ -929,6 +935,7 @@ async function main(): Promise<void> {
     status: () => routerStatus,
     sitesById: () => sitesById,
     openModal: (r) => routerModal.open(r as never),
+    switches: () => switchRows,
   });
 
   const dropdown = wireRouterDropdown(

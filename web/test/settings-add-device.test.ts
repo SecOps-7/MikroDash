@@ -15,6 +15,10 @@
  *
  * Two properties, and the second is the one that would otherwise rot:
  *
+ *   0. (#142) Add asks WHICH KIND first: a RouterOS router goes on to the
+ *      router modal exactly as before, a SwOS switch to the switch form. Both
+ *      properties below are checked through that choice.
+ *
  *   1. clicking Add calls the opener with NULL, which is what `router-modal.ts`
  *      reads as "this is an add, make them Test before Save". Passing a router
  *      here would silently turn Add into Edit.
@@ -43,7 +47,18 @@ function makeEl(id) {
     fire: (ev, arg) => (listeners[ev] || []).forEach((fn) => fn(arg)),
     bound: (ev) => (listeners[ev] || []).length,
     closest: () => null,
+    classList: {
+      on: new Set(),
+      add(c) { this.on.add(c); },
+      remove(c) { this.on.delete(c); },
+      contains(c) { return this.on.has(c); },
+    },
   };
+}
+
+/** Picks a kind in the type chooser, as a click on one of its options. */
+function choose(els, kind) {
+  els.devTypeBg.fire('click', { target: { closest: () => ({ dataset: { devtype: kind } }) } });
 }
 
 const OUT = path.join(ROOT, 'web', 'dist', '_compare', 'port-settings-add-device.cjs');
@@ -55,7 +70,7 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 
 /** Mount the real table module. `withTbody` false omits the table entirely. */
 function mount(withTbody) {
-  const els = { rtrAddBtn: makeEl('rtrAddBtn') };
+  const els = { rtrAddBtn: makeEl('rtrAddBtn'), devTypeBg: makeEl('devTypeBg'), swModalBg: makeEl('swModalBg') };
   if (withTbody) els.rtrTbody = makeEl('rtrTbody');
   global.document = {
     getElementById: (id) => els[id] || null,
@@ -93,9 +108,25 @@ check('the button is bound at all', () => {
     + 'the first router on a new install does nothing at all');
 });
 
-check('clicking it opens the ADD form, not an edit', () => {
+check('clicking it asks which kind of device first', () => {
   const { els, opened } = mount(true);
   els.rtrAddBtn.fire('click', {});
+  assert.ok(els.devTypeBg.classList.contains('open'), 'the type chooser did not open');
+  assert.equal(opened.length, 0, 'the router form opened before a kind was chosen');
+});
+
+check('a SwOS switch opens the switch form, not the router modal', () => {
+  const { els, opened } = mount(true);
+  els.rtrAddBtn.fire('click', {});
+  choose(els, 'swos');
+  assert.ok(els.swModalBg.classList.contains('open'), 'the switch form did not open');
+  assert.equal(opened.length, 0, 'the router modal opened for a switch');
+});
+
+check('a RouterOS router opens the ADD form, not an edit', () => {
+  const { els, opened } = mount(true);
+  els.rtrAddBtn.fire('click', {});
+  choose(els, 'routeros');
   assert.equal(opened.length, 1, 'the opener was not called');
   assert.strictEqual(opened[0], null,
     'the opener got ' + JSON.stringify(opened[0]) + ' instead of null; '
@@ -109,6 +140,7 @@ check('it still works when the table markup is absent', () => {
     'the binding was skipped because #rtrTbody is missing; Add does not use the '
     + 'table, so it must be registered before that early return');
   els.rtrAddBtn.fire('click', {});
+  choose(els, 'routeros');
   assert.strictEqual(opened[0], null);
 });
 
