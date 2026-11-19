@@ -47,6 +47,10 @@ func (s *Server) connVerdict(routerID string, up bool) {
 	}
 	r, label, ok := s.sessions.AlertRouter(routerID)
 	if !ok {
+		// A SwOS switch is not a session; the poller knows it (#142).
+		r, label, ok = s.switchAlertRouter(routerID)
+	}
+	if !ok {
 		// Nothing holds this router any more — it was removed, or the fleet
 		// holds are off under `-no-pool`. The verdict still reached the badge
 		// and the history row; there is simply nobody to address an alert to.

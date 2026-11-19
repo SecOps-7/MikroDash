@@ -145,6 +145,12 @@ func (s *Server) routerCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if jsStringOf(body["kind"]) == store.KindSwOS {
+		s.switchCreate(w, r, sess, body)
+		return
+	}
+	delete(body, "kind")
+
 	rec, err := s.store.AddRouter(body)
 	if err != nil {
 		// A validator's refusal — a bad host, port, interface or ping target.
@@ -206,7 +212,11 @@ func (s *Server) routersList(w http.ResponseWriter, r *http.Request) {
 	}
 	// `activeId`, not `activeRouterId` — the live route renames it on the way
 	// out and `main.ts` reads the short name.
-	writeJSON(w, map[string]any{"routers": s.routerListForSocket(sess), "activeId": active})
+	// `switches` beside the routers (#142): only the Settings devices table
+	// reads it, so the selector and every page that takes an entry of
+	// `routers` for a router never meets a switch.
+	writeJSON(w, map[string]any{"routers": s.routerListForSocket(sess), "activeId": active,
+		"switches": s.switchListFor(sess)})
 }
 
 // jsStringOf is `String(x || ”)` for a decoded JSON value.
@@ -247,6 +257,13 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 	if body == nil {
 		body = map[string]any{}
 	}
+	// A SwOS switch is edited through its own allow-list (#142). A router's
+	// body may not carry `kind`: it would turn the record into a switch.
+	if s.isSwitch(id) {
+		s.switchUpdate(w, r, sess, id, body)
+		return
+	}
+	delete(body, "kind")
 
 	// ── TYPED FIRST, AND BOTH REASONS MATTER ──────────────────────────────
 	//
@@ -477,7 +494,8 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wasActive := s.isActiveRouter(id)
-	before := s.routerRecord(id)
+	// Either kind: a switch is deleted through this route too (#142).
+	before := s.deviceRecord(id)
 	name := id
 	if before != nil {
 		name = firstNonEmpty(before.Label, before.Host)

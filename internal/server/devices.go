@@ -86,6 +86,9 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 		}
 		out.Routers = append(out.Routers, routers.StatsRouter{
 			ID: r.ID, Label: r.Label, Host: r.Host, Disabled: r.Disabled,
+			// Empty for every record here: Routers() leaves switches out, and
+			// they get their own rows below (#142).
+			Kind:    r.Kind,
 			SiteIDs: store.RouterSiteIDs(r),
 			// The profile's name, resolved by `Routers()`; "" for an own login.
 			LoginProfile: r.LoginProfileName,
@@ -104,6 +107,27 @@ func (s *Server) buildStatsSources(sess *Session, activeID string) routers.Stats
 			// the other.
 			Geo: decodeGeo(r.Geo),
 		})
+	}
+
+	// SwOS switches (#142): a row each, read from the switch poller.
+	// ONE read of the file, no credential opened: the #162 lesson.
+	devs, _ := s.store.Devices()
+	var sws []store.Router
+	for _, d := range devs {
+		if !store.IsSwitch(d) {
+			continue
+		}
+		sws = append(sws, d)
+		if up, known := s.connTrack.Online(d.ID); known {
+			out.Online[d.ID] = up
+		}
+		out.Routers = append(out.Routers, routers.StatsRouter{
+			ID: d.ID, Label: d.Label, Host: d.Host, Disabled: d.Disabled,
+			SiteIDs: store.RouterSiteIDs(d), Geo: decodeGeo(d.Geo), Kind: store.KindSwOS,
+		})
+	}
+	if len(sws) > 0 {
+		out.Switches = s.switchStats(sws)
 	}
 
 	// EVERY SESSION, which since 2026-10-01 means every enabled router: each is

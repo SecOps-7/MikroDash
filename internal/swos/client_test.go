@@ -175,3 +175,23 @@ func TestTheClientKeepsToTheAddressRule(t *testing.T) {
 		t.Error("a scheme other than http or https was accepted")
 	}
 }
+
+func TestARouterOSIndexPageIsRecognised(t *testing.T) {
+	for body, want := range map[string]bool{
+		"<!doctype html><html><title>RouterOS router configuration page</title>": true,
+		"<html><title>CSS610</title>":                                            false,
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "" {
+				t.Error("a credential was sent to the index page")
+			}
+			_, _ = w.Write([]byte(body))
+		}))
+		u, _ := url.Parse(srv.URL)
+		port, _ := strconv.Atoi(u.Port())
+		if got := LooksLikeRouterOS(context.Background(), "http", u.Hostname(), port, netguard.Any); got != want {
+			t.Errorf("%q: %v, want %v", body, got, want)
+		}
+		srv.Close()
+	}
+}

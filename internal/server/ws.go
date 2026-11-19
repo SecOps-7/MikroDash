@@ -114,9 +114,12 @@ type conn struct {
 
 	// peekID is the router this socket's device modal is streaming, if any;
 	// see peek.go. Loop-owned, like the router state.
-	peekID    string
-	peekStop  chan struct{}
-	peekSince int64
+	peekID string
+	// peekSwitch is whether peekID is a SwOS switch, whose live data comes
+	// from the switch poller rather than a session room (#142).
+	peekSwitch bool
+	peekStop   chan struct{}
+	peekSince  int64
 	// peekClients fingerprints the client list last sent, so it is resent only
 	// when it changes.
 	peekClients string

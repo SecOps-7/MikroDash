@@ -117,6 +117,13 @@ type Row struct {
 	// so a router with nothing open reports 0 rather than null. Independent of
 	// `connected` — a router can be reachable and still have something wrong.
 	OpenAlerts int `json:"openAlerts"`
+	// Kind is "swos" for a SwOS switch (#142) and "routeros" for a router. A
+	// switch row leaves the router-only fields null (CPU, memory, disk,
+	// update, licence, clients) and fills PortsUp, PortsTotal and Hosts.
+	Kind       string `json:"kind"`
+	PortsUp    *int   `json:"portsUp"`
+	PortsTotal *int   `json:"portsTotal"`
+	Hosts      *int   `json:"hosts"`
 
 	CPU          *int    `json:"cpu"`
 	Uptime       *string `json:"uptime"`
@@ -178,7 +185,8 @@ type Site struct {
 // on the same modal.
 func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site) Row {
 	r := Row{
-		ID: in.ID, Label: in.Label, Host: in.Host,
+		Kind: "routeros",
+		ID:   in.ID, Label: in.Label, Host: in.Host,
 		IsActive: in.IsActive, Connected: in.Connected, Online: in.Online, Known: in.Known,
 		OpenAlerts: openAlerts[in.ID],
 	}

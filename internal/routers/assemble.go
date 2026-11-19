@@ -1,5 +1,7 @@
 package routers
 
+import "fmt"
+
 // Assembling the whole `routers:stats` payload — the port of
 // `_buildRoutersStats` (`src/index.js`).
 //
@@ -65,6 +67,20 @@ type StatsRouter struct {
 	Geo     map[string]any
 	// LoginProfile names the login profile the device signs in with, or "".
 	LoginProfile string
+	// Kind is "swos" for a SwOS switch (#142), "" for a router.
+	Kind string
+}
+
+// SwitchStats is what the switch poller knows about one switch: the row's
+// source, as MainSession is a router's.
+type SwitchStats struct {
+	Known, Connected bool
+	LastError        string
+	Model, Version   string
+	UptimeSec        *uint64
+	PortsUp          int
+	PortsTotal       int
+	Hosts            *int
 }
 
 // MainSession is what a router's session knows. Since 2026-10-01 every enabled
@@ -119,6 +135,9 @@ type StatsSources struct {
 	// those two the same way round is the difference between a locked-down user
 	// seeing the whole fleet and an unrestricted one seeing none of it.
 	Visible map[string]bool
+	// Switches is the poller's state per SwOS switch; a switch absent from it
+	// has not been read yet.
+	Switches map[string]SwitchStats
 }
 
 // The original's last fallback when neither the router nor the settings names an
@@ -137,6 +156,11 @@ func BuildStats(src StatsSources) []Row {
 			continue
 		}
 		if src.Visible != nil && !src.Visible[r.ID] {
+			continue
+		}
+
+		if r.Kind == "swos" {
+			out = append(out, switchRow(r, src))
 			continue
 		}
 
@@ -183,6 +207,65 @@ func BuildStats(src StatsSources) []Row {
 		out = append(out, BuildRow(in, src.OpenAlerts, src.Sites))
 	}
 	return out
+}
+
+// switchRow is a SwOS switch's row. It is built through BuildRow, so sites,
+// alerts and the location resolve as a router's do; what a switch has no
+// answer for (CPU, memory, disk, update, licence, DHCP clients) stays null.
+func switchRow(r StatsRouter, src StatsSources) Row {
+	in := Input{
+		ID: r.ID, Label: r.Label, Host: r.Host,
+		SiteIDs: r.SiteIDs, Geo: r.Geo,
+	}
+	sw, read := src.Switches[r.ID]
+	if read {
+		in.Known, in.Connected, in.LastError = sw.Known, sw.Connected, sw.LastError
+	}
+	in.Online = in.Connected
+	if v, ok := src.Online[r.ID]; ok {
+		in.Online = v
+	}
+	row := BuildRow(in, src.OpenAlerts, src.Sites)
+	row.Kind = "swos"
+	if read {
+		if sw.Model != "" {
+			m := sw.Model
+			row.BoardName = &m
+		}
+		if sw.Version != "" {
+			v := sw.Version
+			row.Version = &v
+		}
+		if sw.UptimeSec != nil {
+			u := FormatUptime(*sw.UptimeSec)
+			row.Uptime = &u
+		}
+		if sw.PortsTotal > 0 {
+			up, total := sw.PortsUp, sw.PortsTotal
+			row.PortsUp, row.PortsTotal = &up, &total
+		}
+		row.Hosts = sw.Hosts
+	}
+	return row
+}
+
+// FormatUptime writes seconds the way RouterOS writes an uptime ("3d4h5m6s"),
+// so a switch's card reads like a router's.
+func FormatUptime(sec uint64) string {
+	w, sec := sec/604800, sec%604800
+	d, sec := sec/86400, sec%86400
+	h, sec := sec/3600, sec%3600
+	m, sec := sec/60, sec%60
+	out := ""
+	for _, part := range []struct {
+		n    uint64
+		unit string
+	}{{w, "w"}, {d, "d"}, {h, "h"}, {m, "m"}} {
+		if part.n > 0 || out != "" {
+			out += fmt.Sprintf("%d%s", part.n, part.unit)
+		}
+	}
+	return out + fmt.Sprintf("%ds", sec)
 }
 
 // DefaultIfFor is `r.defaultIf || cfg.defaultIf || 'ether1'` — the router's

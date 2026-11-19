@@ -244,3 +244,28 @@ func parseChallenge(h string) *challenge {
 	}
 	return ch
 }
+
+// LooksLikeRouterOS reads a device's web index page, WITHOUT credentials, and
+// says whether it is RouterOS's: the probe's way to tell an operator who typed
+// a router's address into the switch form to add it as a router instead.
+//
+// Measured on CHR Test (RouterOS 7.24.1): `/sys.b` answers 404 with an HTML
+// body, and `/` is a page titled "RouterOS". A function, not a Client method:
+// it sends no login, and the client's method set stays the two reads.
+func LooksLikeRouterOS(ctx context.Context, scheme, host string, port int, reach netguard.Reach) bool {
+	c, err := New(scheme, host, port, "", "", reach)
+	if err != nil {
+		return false
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/", nil)
+	if err != nil {
+		return false
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return false
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 16<<10))
+	return strings.Contains(strings.ToLower(string(b)), "<title>routeros")
+}

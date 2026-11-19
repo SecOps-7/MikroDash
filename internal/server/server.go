@@ -20,6 +20,7 @@ import (
 	"mikrodash/internal/alertdispatch"
 	"mikrodash/internal/alertwire"
 	"mikrodash/internal/geo"
+	"mikrodash/internal/switchpoll"
 	"mikrodash/internal/websession"
 	"net/http"
 	"net/netip"
@@ -224,6 +225,9 @@ type Server struct {
 	// connTrack is the fleet's connectivity debounce: who is OFFLINE, as
 	// opposed to whose socket is shut this instant. See internal/connstate.
 	connTrack *connstate.Tracker
+	// switchPoll reads every enabled SwOS switch (#142); built on first sync.
+	switchPoll *switchpoll.Poller
+	switchOnce sync.Once
 	// connTick drives that debounce. See connstate.Tracker.TickAll.
 	connTick *time.Ticker
 	connStop chan struct{}
@@ -371,8 +375,10 @@ func New(st *store.Store, opts Options) (*Server, error) {
 			// between sites while the process runs is seen on the next
 			// question instead of the next restart. RouterRecords, not
 			// Routers: a permission question needs no credential, and opening
-			// every router's for every question was issue #162.
-			list, _ := st.RouterRecords()
+			// every router's for every question was issue #162. Devices, not
+			// RouterRecords: a SwOS switch is granted and site-scoped as a
+			// router is (#142).
+			list, _ := st.Devices()
 			out := make([]rbac.Router, 0, len(list))
 			for _, r := range list {
 				out = append(out, rbac.Router{ID: r.ID, SiteIDs: store.RouterSiteIDs(r),
@@ -669,6 +675,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerTopologyFleet(mux)
 	s.registerAlerts(mux)
 	s.registerRouters(mux)
+	s.registerSwitches(mux)
 	s.registerRouterTest(mux)
 	s.registerSites(mux)
 	s.registerNotifyChannels(mux)
@@ -860,6 +867,9 @@ func (s *Server) startConnTicker() {
 }
 
 func (s *Server) Shutdown() {
+	if s.switchPoll != nil {
+		s.switchPoll.Stop()
+	}
 	// STOPPED FIRST, and this is the sibling of the retention sweep below: a
 	// ticker assigned and never stopped outlives the server, which is harmless
 	// at process exit and a goroutine leak in every test that builds one.

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"mikrodash/internal/collect"
+	"mikrodash/internal/swos"
 )
 
 // The device modal's live frame: one router's readings, built from whatever its
@@ -78,6 +79,39 @@ type Live struct {
 	ClientsAllowed bool         `json:"clientsAllowed"`
 	ClientsSent    bool         `json:"clientsSent"`
 	Clients        []LiveClient `json:"clients"`
+	// Kind is "routeros" or "swos" (#142). A switch's frame leaves the router
+	// fields empty and carries Switch instead.
+	Kind   string      `json:"kind"`
+	Switch *SwitchLive `json:"switch"`
+}
+
+// SwitchLive is a SwOS switch's modal frame: its identity and every port with
+// its rates, error counts, SFP module and PoE output.
+type SwitchLive struct {
+	Model     string           `json:"model"`
+	Version   string           `json:"version"`
+	Scheme    string           `json:"scheme"`
+	UptimeSec *uint64          `json:"uptimeSec"`
+	TempC     *int             `json:"tempC"`
+	Hosts     *int             `json:"hosts"`
+	LastError string           `json:"lastError"`
+	Ports     []SwitchPortLive `json:"ports"`
+}
+
+// SwitchPortLive is one switch port. Rates are bits per second, null until a
+// reading has them; the error counts are the switch's running totals.
+type SwitchPortLive struct {
+	Name       string    `json:"name"`
+	Up         bool      `json:"up"`
+	Enabled    bool      `json:"enabled"`
+	Speed      string    `json:"speed"`
+	FullDuplex bool      `json:"fullDuplex"`
+	RxBps      *float64  `json:"rxBps"`
+	TxBps      *float64  `json:"txBps"`
+	RxErrors   uint64    `json:"rxErrors"`
+	TxErrors   uint64    `json:"txErrors"`
+	SFP        *swos.SFP `json:"sfp"`
+	PoE        *swos.PoE `json:"poe"`
 }
 
 // LiveClient is one active lease, as the modal's Clients tab lists it.
@@ -134,7 +168,7 @@ var physicalTypes = map[string]bool{"ether": true, "sfp": true, "sfp-sfpplus": t
 
 // BuildLive builds one frame.
 func BuildLive(in LiveInput) Live {
-	out := Live{RouterID: in.RouterID, Connected: in.Connected, WanIf: in.WanIf,
+	out := Live{Kind: "routeros", RouterID: in.RouterID, Connected: in.Connected, WanIf: in.WanIf,
 		Points: []collect.TrafficPoint{}, Ports: []LivePort{}, Clients: []LiveClient{},
 		ClientsAllowed: in.ClientsAllowed}
 	if p := in.System; p != nil {

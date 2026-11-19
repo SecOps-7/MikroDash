@@ -65,6 +65,10 @@ import (
 // tracked, because a second record of who is watching what drifts from the
 // first.
 func (s *Server) syncFleetHolds() {
+	// SwOS switches first, and regardless of the router holds: the poller is
+	// the only thing that reads a switch, so without it a switch would show
+	// nothing at all (#142).
+	s.syncSwitches()
 	if !s.holdFleet || s.store == nil {
 		return
 	}

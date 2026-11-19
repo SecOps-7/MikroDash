@@ -57,9 +57,17 @@ func (cn *conn) peek(id string) {
 	cn.peekID = id
 	cn.peekSince = 0
 	cn.peekClients = "\x00" // matches no list, so the first frame carries one
-	cn.srv.hub.Join(cn.c, session.RoomFor(id, collect.DevicePeekRoom))
-	if rs := cn.peekSession(); rs != nil {
-		cn.srv.applyDemand(rs, id)
+	// A SwOS switch has no session: the peek is the poller's fast cadence.
+	cn.peekSwitch = cn.srv.isSwitch(id)
+	if cn.peekSwitch {
+		if p := cn.srv.switchPoller(); p != nil {
+			p.Peek(id, true)
+		}
+	} else {
+		cn.srv.hub.Join(cn.c, session.RoomFor(id, collect.DevicePeekRoom))
+		if rs := cn.peekSession(); rs != nil {
+			cn.srv.applyDemand(rs, id)
+		}
 	}
 	stop := make(chan struct{})
 	cn.peekStop = stop
@@ -89,6 +97,13 @@ func (cn *conn) unpeek() {
 	close(cn.peekStop)
 	cn.peekStop = nil
 	cn.peekID = ""
+	if cn.peekSwitch {
+		cn.peekSwitch = false
+		if p := cn.srv.switchPoller(); p != nil {
+			p.Peek(id, false)
+		}
+		return
+	}
 	cn.srv.hub.Leave(cn.c, session.RoomFor(id, collect.DevicePeekRoom))
 	// LEAVE, THEN ASK, as `releaseRouter` does: this socket is no longer its
 	// own audience, so demand sees only the other viewers.
@@ -117,6 +132,10 @@ func (cn *conn) sendLive() {
 	}
 	if !cn.mayPeek(id) {
 		cn.unpeek()
+		return
+	}
+	if cn.peekSwitch {
+		EvDeviceLive.Send(cn.srv.hub, cn.c, cn.srv.switchLive(id))
 		return
 	}
 	in := routers.LiveInput{RouterID: id, SinceTS: cn.peekSince}

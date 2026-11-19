@@ -589,6 +589,48 @@ export interface LiveClient {
   vlanId: string;
 }
 
+export interface SFP {
+  vendor: string;
+  part: string;
+  serial: string;
+  type: string;
+  tempC: number | null;
+  txDbm: number | null;
+  rxDbm: number | null;
+}
+
+export interface PoE {
+  status: string;
+  currentMa: number;
+  voltageV: number;
+  powerW: number;
+}
+
+export interface SwitchPortLive {
+  name: string;
+  up: boolean;
+  enabled: boolean;
+  speed: string;
+  fullDuplex: boolean;
+  rxBps: number | null;
+  txBps: number | null;
+  rxErrors: number;
+  txErrors: number;
+  sfp: SFP | null;
+  poe: PoE | null;
+}
+
+export interface SwitchLive {
+  model: string;
+  version: string;
+  scheme: string;
+  uptimeSec: number | null;
+  tempC: number | null;
+  hosts: number | null;
+  lastError: string;
+  ports: SwitchPortLive[];
+}
+
 export interface Live {
   routerId: string;
   connected: boolean;
@@ -605,6 +647,8 @@ export interface Live {
   clientsAllowed: boolean;
   clientsSent: boolean;
   clients: LiveClient[];
+  kind: string;
+  switch: SwitchLive | null;
 }
 
 export interface MenuLoad {
@@ -1209,6 +1253,10 @@ export interface RouterStatsRow {
   lastError: string | null;
   loginProfile: string | null;
   openAlerts: number;
+  kind: string;
+  portsUp: number | null;
+  portsTotal: number | null;
+  hosts: number | null;
   cpu: number | null;
   uptime: string | null;
   memPct: number | null;
