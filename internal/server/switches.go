@@ -291,9 +291,7 @@ func (s *Server) switchUpdate(w http.ResponseWriter, r *http.Request, sess *Sess
 			delete(body, k)
 		}
 	}
-	// The same strip a router edit gets: without administration, the endpoint,
-	// the credential and the sites stay as they are.
-	rbac.StripPrivilegedRouterFields(body, s.mayManagePrincipals(sess))
+	stripSwitchPrivileged(body, s.mayManagePrincipals(sess))
 	_, h := body["host"]
 	_, p := body["port"]
 	_, sc := body["scheme"]
@@ -382,11 +380,7 @@ func (s *Server) switchProbe(w http.ResponseWriter, r *http.Request) {
 	pass := jsStringOf(body["password"])
 	if (pass == "" || store.IsMasked(body["password"])) && id != "" {
 		list, _ := s.store.Switches()
-		for _, sw := range list {
-			if sw.ID == id {
-				pass = sw.Password
-			}
-		}
+		pass = storedSwitchPassword(list, id, host, port, scheme, user)
 	}
 	c, err := swos.New(scheme, host, port, user, pass, routeros.DialReach())
 	if err != nil {
@@ -416,6 +410,36 @@ func (s *Server) switchProbe(w http.ResponseWriter, r *http.Request) {
 	sw := swos.BuildSwitch(family, sys, swos.Value{}, swos.Value{}, swos.Value{})
 	writeJSON(w, map[string]any{"ok": true, "model": sw.Model, "version": sw.Version,
 		"identity": sw.Identity, "family": string(family)})
+}
+
+// stripSwitchPrivileged is the strip a router edit gets, plus `scheme`: without
+// administration, a switch's endpoint, credential and sites stay as they are.
+// `scheme` is part of the endpoint, and a delegate who could move it from
+// https to http could expose the login exchange; it is not a router field, so
+// it is stripped here rather than added to the router list.
+func stripSwitchPrivileged(body map[string]any, mayManagePrincipals bool) {
+	rbac.StripPrivilegedRouterFields(body, mayManagePrincipals)
+	if !mayManagePrincipals {
+		delete(body, "scheme")
+	}
+}
+
+// storedSwitchPassword is the stored password for a probe that left the box
+// blank, and ONLY when the probe points at the address and login it is stored
+// with. Otherwise somebody allowed to edit one switch could aim the probe at a
+// host of their own and receive that switch's admin login: the rule the
+// router connection test follows (storedPasswordFor).
+func storedSwitchPassword(list []store.Switch, id, host string, port int, scheme, user string) string {
+	for _, sw := range list {
+		if sw.ID != id {
+			continue
+		}
+		if !strings.EqualFold(sw.Host, host) || sw.Port != port || sw.Scheme != scheme || sw.Username != user {
+			return ""
+		}
+		return sw.Password
+	}
+	return ""
 }
 
 func orStr(s, def string) string {

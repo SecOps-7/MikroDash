@@ -171,3 +171,44 @@ func TestTheProbeIsForAdministrators(t *testing.T) {
 		t.Errorf("a non-administrator probed a new switch: %v", got)
 	}
 }
+
+// TestTheProbeNeverSendsAStoredPasswordElsewhere: a blank password reuses the
+// stored one only for the address and login it is stored with.
+func TestTheProbeNeverSendsAStoredPasswordElsewhere(t *testing.T) {
+	list := []store.Switch{{ID: "s1", Host: "198.51.100.20", Port: 80, Scheme: "http", Username: "admin", Password: "stored"}}
+	if got := storedSwitchPassword(list, "s1", "198.51.100.20", 80, "http", "admin"); got != "stored" {
+		t.Errorf("the switch's own endpoint: %q", got)
+	}
+	for _, c := range []struct {
+		host, scheme, user string
+		port               int
+	}{
+		{"203.0.113.9", "http", "admin", 80},
+		{"198.51.100.20", "http", "admin", 8080},
+		{"198.51.100.20", "https", "admin", 80},
+		{"198.51.100.20", "http", "other", 80},
+	} {
+		if got := storedSwitchPassword(list, "s1", c.host, c.port, c.scheme, c.user); got != "" {
+			t.Errorf("%+v received the stored password", c)
+		}
+	}
+}
+
+// TestADelegateCannotMoveASwitchsEndpoint, scheme included.
+func TestADelegateCannotMoveASwitchsEndpoint(t *testing.T) {
+	body := map[string]any{"label": "x", "host": "203.0.113.9", "port": 8080, "scheme": "http", "password": "p"}
+	stripSwitchPrivileged(body, false)
+	for _, k := range []string{"host", "port", "scheme", "password"} {
+		if _, ok := body[k]; ok {
+			t.Errorf("%s survived a delegate's edit", k)
+		}
+	}
+	if body["label"] != "x" {
+		t.Error("the label was stripped too")
+	}
+	admin := map[string]any{"scheme": "https"}
+	stripSwitchPrivileged(admin, true)
+	if admin["scheme"] != "https" {
+		t.Error("an administrator's scheme was stripped")
+	}
+}
