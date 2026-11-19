@@ -160,3 +160,18 @@ func TestBuildPortsSeesAResetAndFallsBackToDeltas(t *testing.T) {
 		t.Error("an uptime that grew was read as a reboot")
 	}
 }
+
+// TestHostileIndexesDoNotPanic: an enum or offset far out of range, as a
+// broken or hostile reply could send, is "no value", never a panic.
+func TestHostileIndexesDoNotPanic(t *testing.T) {
+	sys, _ := Parse([]byte("{i06:'322e3231',i07:'43535336313030'}"))
+	link, _ := Parse([]byte("{i0a:['7031','7032'],i06:0x03,i08:[0xffffffffffffffff,0x8000000000000000]}"))
+	poe, _ := Parse([]byte("{i04:[0xffffffffffffffff,0x8000000000000000]}"))
+	sfp, _ := Parse([]byte("{i01:['41'],i02:['42']}"))
+	full, _ := Parse([]byte("{nm:['7031'],prt:0x01,lnk:0x01,spd:[0xffffffffffffffff],sfpo:0xffffffffffffffff}"))
+	sw := BuildSwitch(SchemeLite, sys, link, sfp, poe)
+	if sw.Ports[0].Speed != "" || sw.Ports[0].PoE != nil || sw.Ports[1].PoE != nil {
+		t.Errorf("out-of-range values were read as values: %+v", sw.Ports)
+	}
+	_ = BuildSwitch(SchemeSwOS, sys, full, sfp, Value{})
+}

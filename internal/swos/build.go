@@ -122,6 +122,10 @@ func macOf(v Value) string {
 
 // BuildSwitch assembles a switch from its pages. sfp and poe may be the zero
 // Value when the switch has no such page.
+//
+// EVERY INDEX TAKEN FROM THE WIRE IS COMPARED UNSIGNED. A reply is untrusted,
+// and a 64-bit value converted to int first can come out negative, pass a
+// `< len` test and panic the poller.
 func BuildSwitch(s Scheme, sys, link, sfp, poe Value) Switch {
 	k := schemes[s]
 	out := Switch{
@@ -170,7 +174,7 @@ func BuildSwitch(s Scheme, sys, link, sfp, poe Value) Switch {
 		}
 		// An out-of-range speed index means "no value": a link-down port
 		// reports 7 against a seven-entry list.
-		if i < len(spd) && p.Up && int(spd[i]) < len(k.speeds) {
+		if i < len(spd) && p.Up && spd[i] < uint64(len(k.speeds)) {
 			p.Speed = k.speeds[spd[i]]
 		}
 		out.Ports = append(out.Ports, p)
@@ -190,7 +194,7 @@ func addSFP(out *Switch, k keys, link, sfp Value) {
 	}
 	first := len(out.Ports) - n
 	if k.sfpOffset != "" {
-		if off, ok := num(link, k.sfpOffset); ok {
+		if off, ok := num(link, k.sfpOffset); ok && off < 64 {
 			first = int(off)
 		}
 	}
@@ -239,7 +243,7 @@ func addPoE(out *Switch, k keys, poe Value) {
 		return 0
 	}
 	for i := 0; i < len(st) && i < len(out.Ports); i++ {
-		if st[i] == 0 || int(st[i]) >= len(poeStates) {
+		if st[i] == 0 || st[i] >= uint64(len(poeStates)) {
 			continue // no PoE on this port
 		}
 		out.Ports[i].PoE = &PoE{
