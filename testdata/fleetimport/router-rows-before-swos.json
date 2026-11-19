@@ -1,0 +1,285 @@
+{
+  "rows": [
+    {
+      "verdict": {
+        "line": 2,
+        "label": "Edge",
+        "host": "198.51.100.1",
+        "port": 8729,
+        "status": "ready",
+        "reason": "",
+        "mode": "plain",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": {
+        "host": "198.51.100.1",
+        "label": "Edge",
+        "password": "p",
+        "siteIds": [],
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin"
+      }
+    },
+    {
+      "verdict": {
+        "line": 3,
+        "label": "198.51.100.2",
+        "host": "198.51.100.2",
+        "port": 8729,
+        "status": "ready",
+        "reason": "",
+        "mode": "plain",
+        "profile": "",
+        "sites": [
+          "Office",
+          "branch"
+        ],
+        "newSites": [
+          "branch"
+        ]
+      },
+      "body": {
+        "host": "198.51.100.2",
+        "password": "p",
+        "port": 8729,
+        "siteIds": [
+          "s1",
+          "new-branch"
+        ],
+        "tls": true,
+        "tlsInsecure": true,
+        "username": "u"
+      }
+    },
+    {
+      "verdict": {
+        "line": 4,
+        "label": "198.51.100.3",
+        "host": "198.51.100.3",
+        "port": 8728,
+        "status": "ready",
+        "reason": "",
+        "mode": "plain",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": {
+        "defaultIf": "ether2",
+        "host": "198.51.100.3",
+        "password": "p",
+        "pingTarget": "9.9.9.9",
+        "port": 8728,
+        "siteIds": [],
+        "tls": false,
+        "tlsInsecure": false,
+        "username": "u"
+      }
+    },
+    {
+      "verdict": {
+        "line": 5,
+        "label": "198.51.100.4",
+        "host": "198.51.100.4",
+        "port": 8729,
+        "status": "ready",
+        "reason": "",
+        "mode": "verify",
+        "profile": "Fleet",
+        "sites": [],
+        "newSites": []
+      },
+      "body": {
+        "host": "198.51.100.4",
+        "siteIds": [],
+        "tls": true,
+        "tlsInsecure": false
+      }
+    },
+    {
+      "verdict": {
+        "line": 6,
+        "label": "198.51.100.5",
+        "host": "198.51.100.5",
+        "port": 8729,
+        "status": "ready",
+        "reason": "",
+        "mode": "link",
+        "profile": "Fleet",
+        "sites": [],
+        "newSites": []
+      },
+      "body": {
+        "host": "198.51.100.5",
+        "password": "old",
+        "siteIds": [],
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin"
+      }
+    },
+    {
+      "verdict": {
+        "line": 7,
+        "label": "198.51.100.6",
+        "host": "198.51.100.6",
+        "port": 8729,
+        "status": "error",
+        "reason": "Give the password for \"admin\", or leave both empty to sign in with the profile",
+        "mode": "",
+        "profile": "Fleet",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 8,
+        "label": "198.51.100.7",
+        "host": "198.51.100.7",
+        "port": 8729,
+        "status": "error",
+        "reason": "No login: give a username and password, or a credential profile",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 9,
+        "label": "198.51.100.8",
+        "host": "198.51.100.8",
+        "port": 0,
+        "status": "error",
+        "reason": "Invalid port \"abc\"",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 10,
+        "label": "198.51.100.9",
+        "host": "198.51.100.9",
+        "port": 0,
+        "status": "error",
+        "reason": "tls must be yes or no, not \"maybe\"",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 11,
+        "label": "198.51.100.1",
+        "host": "198.51.100.1",
+        "port": 8729,
+        "status": "duplicate",
+        "reason": "Already in MikroDash, or earlier in this file",
+        "mode": "plain",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 12,
+        "label": "198.51.100.10",
+        "host": "198.51.100.10",
+        "port": 8729,
+        "status": "error",
+        "reason": "Site name \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\" is longer than 64 characters",
+        "mode": "plain",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 13,
+        "label": "bad host!",
+        "host": "bad host!",
+        "port": 0,
+        "status": "error",
+        "reason": "Invalid host",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 14,
+        "label": "",
+        "host": "",
+        "port": 0,
+        "status": "error",
+        "reason": "host is required",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 15,
+        "label": "198.51.100.11",
+        "host": "198.51.100.11",
+        "port": 8729,
+        "status": "error",
+        "reason": "No credential profile named \"Nope\"",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    },
+    {
+      "verdict": {
+        "line": 16,
+        "label": "198.51.100.12",
+        "host": "198.51.100.12",
+        "port": 0,
+        "status": "error",
+        "reason": "Invalid port",
+        "mode": "",
+        "profile": "",
+        "sites": [],
+        "newSites": []
+      },
+      "body": null
+    }
+  ],
+  "totals": {
+    "rows": null,
+    "newSites": [
+      "branch"
+    ],
+    "ready": 5,
+    "duplicates": 1,
+    "errors": 9,
+    "accounts": 1
+  }
+}

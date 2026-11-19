@@ -50,6 +50,20 @@ type Row struct {
 	Sites       string `json:"sites"`
 	Uplink      string `json:"uplinkInterface"`
 	PingTarget  string `json:"pingTarget"`
+	// Type is "routeros" or "swos" (#142). EMPTY IS ROUTEROS, so every CSV
+	// written before switches existed imports exactly as it did.
+	Type string `json:"type"`
+	// Scheme is a SwOS switch's web page, "http" (the default) or "https".
+	Scheme string `json:"scheme"`
+}
+
+// routerOnly and switchOnly are the columns that mean something for one kind
+// only. Filled in on a row of the other kind, the row is wrong rather than
+// quietly ignored: the operator meant something by it.
+var routerOnly = []struct{ col string }{{"tls"}, {"tls_insecure"}, {"credential_profile"}, {"uplink_interface"}, {"ping_target"}}
+
+func routerOnlyCells(r Row) []string {
+	return []string{r.TLS, r.TLSInsecure, r.Profile, r.Uplink, r.PingTarget}
 }
 
 // The three ways a row signs in.
@@ -77,6 +91,8 @@ type Verdict struct {
 	Profile  string   `json:"profile"`
 	Sites    []string `json:"sites"`
 	NewSites []string `json:"newSites"`
+	// Kind is "routeros" or "swos": what the import adds the row as.
+	Kind string `json:"kind"`
 
 	profileID string
 	body      map[string]any
@@ -180,13 +196,24 @@ func (v Verdict) Body(byName map[string]string) map[string]any {
 func planRow(row Row, profiles []Named, siteByName map[string]string) Verdict {
 	host := strings.TrimSpace(row.Host)
 	v := Verdict{Line: row.Line, Host: host, Label: firstNonEmpty(strings.TrimSpace(row.Name), host),
-		Sites: []string{}, NewSites: []string{}}
+		Sites: []string{}, NewSites: []string{}, Kind: "routeros"}
 	fail := func(format string, a ...any) Verdict {
 		v.Status, v.Reason, v.body = "error", fmt.Sprintf(format, a...), nil
 		return v
 	}
 	if host == "" {
 		return fail("host is required")
+	}
+	switch kind := strings.ToLower(strings.TrimSpace(row.Type)); kind {
+	case "", "routeros":
+		if strings.TrimSpace(row.Scheme) != "" {
+			return fail("scheme is a SwOS switch setting; leave it empty on a RouterOS row")
+		}
+	case store.KindSwOS:
+		v.Kind = store.KindSwOS
+		return planSwitchRow(v, row, siteByName)
+	default:
+		return fail("type must be routeros or swos, not %q", strings.TrimSpace(row.Type))
 	}
 
 	body := map[string]any{"host": host}
@@ -246,7 +273,57 @@ func planRow(row Row, profiles []Named, siteByName map[string]string) Verdict {
 		body["username"], body["password"] = user, pass
 	}
 
-	// ── sites ───────────────────────────────────────────────────────────
+	if !addSites(&v, row, siteByName) {
+		return v
+	}
+	v.Status, v.body = "ready", body
+	return v
+}
+
+// planSwitchRow is a SwOS switch row (#142): host, name, port, scheme,
+// username, password and sites. A router-only column filled in makes it wrong.
+// The checks are AddSwitch's own, store.CheckSwitchBody.
+func planSwitchRow(v Verdict, row Row, siteByName map[string]string) Verdict {
+	fail := func(format string, a ...any) Verdict {
+		v.Status, v.Reason, v.body = "error", fmt.Sprintf(format, a...), nil
+		return v
+	}
+	for i, cell := range routerOnlyCells(row) {
+		if strings.TrimSpace(cell) != "" {
+			return fail("%s is a RouterOS setting; leave it empty on a SwOS switch row", routerOnly[i].col)
+		}
+	}
+	body := map[string]any{"kind": store.KindSwOS, "host": v.Host}
+	if n := strings.TrimSpace(row.Name); n != "" {
+		body["label"] = n
+	}
+	if p := strings.TrimSpace(row.Port); p != "" {
+		body["port"] = p
+	}
+	if sc := strings.TrimSpace(row.Scheme); sc != "" {
+		body["scheme"] = sc
+	}
+	_, port, scheme, err := store.CheckSwitchBody(body)
+	if err != nil {
+		return fail("%s", err.Error())
+	}
+	v.Port = port
+	body["port"], body["scheme"] = port, scheme
+	// SwOS ships with `admin` and an EMPTY password, so an empty password is
+	// a real login here rather than a missing one.
+	body["username"] = firstNonEmpty(strings.TrimSpace(row.Username), "admin")
+	body["password"] = row.Password
+	v.Mode = ModePlain
+	if !addSites(&v, row, siteByName) {
+		return v
+	}
+	v.Status, v.body = "ready", body
+	return v
+}
+
+// addSites resolves a row's site list onto the verdict; false (with the
+// verdict marked wrong) for a name too long to be a site.
+func addSites(v *Verdict, row Row, siteByName map[string]string) bool {
 	seen := map[string]bool{}
 	for _, raw := range strings.Split(row.Sites, "|") {
 		n := strings.TrimSpace(raw)
@@ -254,7 +331,8 @@ func planRow(row Row, profiles []Named, siteByName map[string]string) Verdict {
 			continue
 		}
 		if len(n) > sites.NameMax {
-			return fail("Site name %q is longer than %d characters", n, sites.NameMax)
+			v.Status, v.Reason, v.body = "error", fmt.Sprintf("Site name %q is longer than %d characters", n, sites.NameMax), nil
+			return false
 		}
 		seen[strings.ToLower(n)] = true
 		if existing, ok := siteByName[strings.ToLower(n)]; ok {
@@ -264,9 +342,7 @@ func planRow(row Row, profiles []Named, siteByName map[string]string) Verdict {
 			v.NewSites = append(v.NewSites, n)
 		}
 	}
-
-	v.Status, v.body = "ready", body
-	return v
+	return true
 }
 
 // findProfile matches exactly first, then ignoring case if that is unambiguous.

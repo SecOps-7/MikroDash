@@ -144,7 +144,8 @@ func (s *Server) importRows(w http.ResponseWriter, r *http.Request) ([]fleetimpo
 // importFleet is what a plan is checked against, read now.
 func (s *Server) importFleet() fleetimport.Fleet {
 	var f fleetimport.Fleet
-	routers, _ := s.store.Routers()
+	// Devices: a SwOS switch already added is a duplicate too (#142).
+	routers, _ := s.store.Devices()
 	for _, rt := range routers {
 		f.Endpoints = append(f.Endpoints, fleetimport.Endpoint{Host: rt.Host, Port: rt.Port})
 	}
@@ -389,6 +390,19 @@ func (s *Server) importOne(v fleetimport.Verdict, siteIDs, siteErr map[string]st
 			return "failed", fmt.Sprintf("The credential profile %q is gone", v.Profile), ""
 		}
 		profile = p
+	}
+
+	if v.Kind == store.KindSwOS {
+		sw, err := s.store.AddSwitch(body)
+		if err != nil {
+			return "failed", safe.Message(err.Error()), ""
+		}
+		rec.Record(audit.Event{
+			Action: "router.create", TargetType: "router", TargetID: sw.ID,
+			TargetName: firstNonEmpty(sw.Label, sw.Host), RouterID: sw.ID,
+			After: map[string]any{"via": "import"}, Note: "SwOS switch",
+		})
+		return "added", "SwOS switch (monitoring only)", sw.ID
 	}
 
 	rt, err := s.store.AddRouter(body)

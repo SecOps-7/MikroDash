@@ -26,6 +26,7 @@ var devicesCallers = map[string]string{
 	"internal/server/devices.go":          "the Devices page's switch rows, read once per build",
 	"internal/server/devices_overview.go": "the connectivity strip, which a switch has as a router does",
 	"internal/server/switches.go":         "deviceRecord: one record of either kind, for the switch routes and delete",
+	"internal/server/routers_import.go":   "the bulk import's duplicate check covers switches too",
 }
 
 func TestEveryDevicesCallerIsRecorded(t *testing.T) {

@@ -33,6 +33,10 @@ export interface ImportRow {
   sites: string;
   uplinkInterface: string;
   pingTarget: string;
+  // #142: "routeros" or "swos"; empty is RouterOS, so an older file imports as
+  // it always did. `scheme` is a switch's web page (http or https).
+  type: string;
+  scheme: string;
 }
 
 type Field = Exclude<keyof ImportRow, 'line'>;
@@ -51,15 +55,21 @@ const HEADER_FIELDS: Record<string, Field> = {
   uplink_interface: 'uplinkInterface', uplink: 'uplinkInterface', uplink_port: 'uplinkInterface',
   default_interface: 'uplinkInterface',
   ping_target: 'pingTarget',
+  type: 'type', kind: 'type', device_type: 'type',
+  scheme: 'scheme',
 };
 
-export const TEMPLATE_HEADERS = ['host', 'name', 'port', 'tls', 'tls_insecure', 'username', 'password',
-  'credential_profile', 'sites', 'uplink_interface', 'ping_target'];
+export const TEMPLATE_HEADERS = ['type', 'host', 'name', 'port', 'tls', 'tls_insecure', 'username', 'password',
+  'credential_profile', 'sites', 'uplink_interface', 'ping_target', 'scheme'];
 
-/** The downloadable template: the header and two example rows to replace. */
+/**
+ * The downloadable template: the header and one example row of each kind to
+ * replace (#142). A SwOS switch row leaves the RouterOS columns empty, and a
+ * router row leaves `scheme` empty; the server marks either mix wrong.
+ */
 export const TEMPLATE = TEMPLATE_HEADERS.join(',') + '\r\n'
-  + '192.0.2.10,Branch office,8729,yes,yes,admin,change-me,,Branch|North,ether1,1.1.1.1\r\n'
-  + '192.0.2.11,Warehouse,,,,,,MikroDash login,Warehouse,,\r\n';
+  + 'routeros,192.0.2.10,Branch office,8729,yes,yes,admin,change-me,,Branch|North,ether1,1.1.1.1,\r\n'
+  + 'swos,192.0.2.20,Core switch,,,,admin,change-me,,Branch,,,http\r\n';
 
 /** The separator the header line uses: `;` if it has more of those than commas. */
 export function detectDelimiter(text: string): string {
@@ -132,7 +142,7 @@ export function readRows(text: string): ReadResult {
   table.slice(1).forEach((cells, i) => {
     if (cells.every((c) => c.trim() === '')) return;
     const r: ImportRow = { line: i + 2, host: '', name: '', port: '', tls: '', tlsInsecure: '', username: '',
-      password: '', credentialProfile: '', sites: '', uplinkInterface: '', pingTarget: '' };
+      password: '', credentialProfile: '', sites: '', uplinkInterface: '', pingTarget: '', type: '', scheme: '' };
     cells.forEach((c, j) => {
       const f = fields[j];
       if (f && r[f] === '') r[f] = c;

@@ -7,7 +7,7 @@
  *   - Headers match ignoring case, spaces and dashes, with aliases; unknown
  *     columns are reported, not silently dropped; blank rows are skipped and
  *     `line` is the row's place in the file.
- *   - The template reads back to its own two rows.
+ *   - The template reads back to its own two rows, one of each kind (#142).
  *   - Everything drawn is escaped.
  */
 
@@ -64,8 +64,11 @@ const D = require(OUT);
   assert.deepStrictEqual(r.ignored, [], 'every template column is one the reader knows');
   assert.strictEqual(r.rows.length, 2);
   assert.strictEqual(r.rows[0].sites, 'Branch|North');
-  assert.strictEqual(r.rows[1].credentialProfile, 'MikroDash login');
-  assert.strictEqual(r.rows[1].password, '', 'the profile example signs in with the profile');
+  // #142: one example row of each kind.
+  assert.strictEqual(r.rows[0].type, 'routeros');
+  assert.strictEqual(r.rows[1].type, 'swos');
+  assert.strictEqual(r.rows[1].scheme, 'http');
+  assert.strictEqual(r.rows[1].tls, '', 'the switch example leaves the RouterOS columns empty');
   say('ok  the template reads back to its own rows');
 }
 
