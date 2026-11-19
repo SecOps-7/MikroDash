@@ -78,6 +78,13 @@ func TestCitedPathsExist(t *testing.T) {
 		if strings.HasPrefix(rel, ".serena/") {
 			return false
 		}
+		// `.temp/` is the operator's scratch, gitignored for the same reason:
+		// plans and notes there cite other projects' paths (a SwOS plan citing
+		// python-switchos's `docs/protocol.md`), and none of it exists on a
+		// clone. Found 2026-11-19 when such a plan failed this check locally.
+		if strings.HasPrefix(rel, ".temp/") {
+			return false
+		}
 		// `Changes.md` IS EXCLUDED, and the JavaScript original excluded it for
 		// the same reason: it is GITIGNORED and transient, reset to a bare
 		// header after every push, and on a fresh clone it does not exist at
