@@ -2,6 +2,9 @@
 // the cabling picker. Split out of topology.ts; it reads and writes the page's
 // shared state (TopoState) and reaches the rest of the page through `deps`.
 
+import { looksLikeSwOS, switchForNeighbor } from '../swos-switches';
+import { openSwitchForm } from './switch-form';
+import { openDeviceModal } from './devices-modal';
 import { esc, el as byId, fmtMbps } from '../dom';
 import type { TopoClient } from '../gen/payloads';
 import { glyph, TYPE_LABEL } from './topology';
@@ -256,6 +259,29 @@ export function topoPanel(st: TopoState, deps: {
       '</dl>' +
       // The core has nothing to hang off, so it gets no picker.
       (n.kind === 'neighbor' ? pinPicker(n.key) : '');
+
+    // ── A SwOS SWITCH (#142) ────────────────────────────────────────────
+    //
+    // A neighbour that IS a stored switch opens it on the Devices page; one
+    // that looks like SwOS and is not stored can be added, its address filled
+    // in. See swos-switches.ts for why the look is a heuristic.
+    if (n.kind === 'neighbor') {
+      const known = switchForNeighbor(n.mac, n.ip);
+      const btn = known
+        ? '<button class="sbtn sbtn-ghost is-sm" type="button" id="topoSwOpen">Open in Devices</button>'
+        : looksLikeSwOS(n.platform, n.version)
+          ? '<button class="sbtn sbtn-ghost is-sm" type="button" id="topoSwAdd">Add to MikroDash</button>'
+          : '';
+      if (btn) {
+        panel.insertAdjacentHTML('beforeend', '<div class="topo-panel-sec">SwOS switch</div><div class="topo-sw-act">' + btn + '</div>');
+        byId('topoSwOpen')?.addEventListener('click', () => {
+          (document.querySelector('.nav-item[data-page="devices"]') as HTMLElement | null)?.click();
+          if (known) openDeviceModal(known.id);
+        });
+        byId('topoSwAdd')?.addEventListener('click', () =>
+          openSwitchForm(null, { host: n.ip || '', label: n.identity || '' }));
+      }
+    }
 
     panel.className = 'topo-panel open';
     closeBtn();

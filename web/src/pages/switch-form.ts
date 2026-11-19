@@ -101,15 +101,18 @@ function setSaveEnabled(): void {
   if (save) save.disabled = !editingId && !tested;
 }
 
-/** Opens the form: `null` adds a switch, a row edits it. */
-export function openSwitchForm(row: SwitchFormRow | null): void {
+/**
+ * Opens the form: `null` adds a switch, a row edits it. `prefill` seeds a new
+ * switch's address and name, as the topology panel does for a neighbour.
+ */
+export function openSwitchForm(row: SwitchFormRow | null, prefill?: { host?: string; label?: string }): void {
   editingId = row ? row.id : '';
   tested = false;
   const set = (id: string, v: string) => { const i = el<HTMLInputElement>(id); if (i) i.value = v; };
   const tick = (id: string, v: boolean) => { const i = el<HTMLInputElement>(id); if (i) i.checked = v; };
   set('swModalId', editingId);
-  set('swModalLabel', row?.label ?? '');
-  set('swModalHost', row?.host ?? '');
+  set('swModalLabel', row?.label ?? prefill?.label ?? '');
+  set('swModalHost', row?.host ?? prefill?.host ?? '');
   set('swModalScheme', row?.scheme === 'https' ? 'https' : 'http');
   set('swModalPort', row?.port ? String(row.port) : '');
   set('swModalUser', row?.username ?? 'admin');

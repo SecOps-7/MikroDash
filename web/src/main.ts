@@ -75,6 +75,7 @@ import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } 
 import { initRouterModal } from './pages/router-modal';
 import { mountDeviceModal } from './pages/devices-modal';
 import { openSwitchForm } from './pages/switch-form';
+import { setKnownSwitches } from './swos-switches';
 import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { initAbout } from './pages/about';
@@ -204,6 +205,7 @@ async function loadRouters(): Promise<RouterRow[]> {
   // SwOS switches arrive beside the routers (#142) and go to the Settings table
   // alone: everything else here treats `routers` as routers.
   switchRows = (body && Array.isArray(body.switches) ? body.switches : []) as RouterRow[];
+  setKnownSwitches(switchRows as never);
   return (body.routers || body || []) as RouterRow[];
 }
 
