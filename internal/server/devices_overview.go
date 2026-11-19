@@ -101,7 +101,9 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 	// endpoint, all four strips ended "unmonitored" with all four runs open.
 	openNow := s.coverage.OpenRouters()
 
-	all, _ := s.store.Routers()
+	// Devices, not Routers: a SwOS switch's connectivity strip is drawn the same
+	// way (#142). It has no backups, so its row carries none.
+	all, _ := s.store.Devices()
 	out := []DeviceOverview{}
 	for _, rt := range all {
 		if rt.Disabled || (only != "" && rt.ID != only) {

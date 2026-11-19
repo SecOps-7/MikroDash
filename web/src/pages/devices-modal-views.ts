@@ -34,7 +34,8 @@ export function headerHtml(r: RouterStatsRow, canEdit: boolean): string {
     + '<div class="dvm-sub"><span class="dvm-mono">' + esc(r.host) + '</span>'
     + sites.map((s) => pill(s, 'muted')).join('') + '</div></div></div>'
     + '<div class="dvm-actions">'
-    + (r.isActive ? '' : '<button type="button" class="sbtn sbtn-primary" data-dvm="dashboard">Open dashboard</button>')
+    // A SwOS switch has no dashboard to open (#142).
+    + (r.isActive || r.kind === 'swos' ? '' : '<button type="button" class="sbtn sbtn-primary" data-dvm="dashboard">Open dashboard</button>')
     + (canEdit ? '<button type="button" class="sbtn sbtn-ghost" data-dvm="edit">Edit</button>' : '')
     + '<button type="button" class="rtr-modal-close" data-modal-close="deviceModal" aria-label="Close">&#10005;</button>'
     + '</div>';

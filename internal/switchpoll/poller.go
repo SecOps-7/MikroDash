@@ -150,6 +150,17 @@ func (p *Poller) Sync(list []store.Switch) {
 // Stop ends every worker.
 func (p *Poller) Stop() { p.Sync(nil) }
 
+// IDs is every switch being polled.
+func (p *Poller) IDs() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make([]string, 0, len(p.w))
+	for id := range p.w {
+		out = append(out, id)
+	}
+	return out
+}
+
 // Has is whether a switch is being polled.
 func (p *Poller) Has(id string) bool {
 	p.mu.Lock()

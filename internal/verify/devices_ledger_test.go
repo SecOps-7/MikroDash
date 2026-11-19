@@ -19,12 +19,13 @@ import (
 // treats every entry as a router. Both directions fail: an unlisted caller,
 // and a listed one that no longer calls it.
 var devicesCallers = map[string]string{
-	"internal/store/store.go":     "RouterRecords is Devices with switches filtered out",
-	"internal/store/routeradd.go": "a router's label is unique across both kinds",
-	"internal/store/switches.go":  "Switches and AddSwitch: the switch subset, and label uniqueness",
-	"internal/server/server.go":   "the RBAC resolver's fleet: a switch is granted and site-scoped as a router is",
-	"internal/server/devices.go":  "the Devices page's switch rows, read once per build",
-	"internal/server/switches.go": "deviceRecord: one record of either kind, for the switch routes and delete",
+	"internal/store/store.go":             "RouterRecords is Devices with switches filtered out",
+	"internal/store/routeradd.go":         "a router's label is unique across both kinds",
+	"internal/store/switches.go":          "Switches and AddSwitch: the switch subset, and label uniqueness",
+	"internal/server/server.go":           "the RBAC resolver's fleet: a switch is granted and site-scoped as a router is",
+	"internal/server/devices.go":          "the Devices page's switch rows, read once per build",
+	"internal/server/devices_overview.go": "the connectivity strip, which a switch has as a router does",
+	"internal/server/switches.go":         "deviceRecord: one record of either kind, for the switch routes and delete",
 }
 
 func TestEveryDevicesCallerIsRecorded(t *testing.T) {

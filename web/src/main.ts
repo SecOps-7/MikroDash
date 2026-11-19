@@ -74,6 +74,7 @@ import { initSettingsSave } from './pages/settings-save';
 import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } from './pages/settings-routers';
 import { initRouterModal } from './pages/router-modal';
 import { mountDeviceModal } from './pages/devices-modal';
+import { openSwitchForm } from './pages/switch-form';
 import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
 import { initAbout } from './pages/about';
@@ -831,6 +832,9 @@ async function main(): Promise<void> {
     },
     canEdit: settingsAllowed,
     edit: (id) => {
+      // A SwOS switch is edited in its own form (#142).
+      const sw = switchRows.find((x) => x.id === id);
+      if (sw) { openSwitchForm(sw as never); return; }
       const r = routers.find((x) => x.id === id);
       if (r) routerModal.open(r as never);
     },

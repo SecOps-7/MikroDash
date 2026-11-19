@@ -471,7 +471,7 @@
     .rtr-modal.dtype-modal{width:min(440px,94vw)}
     .rtr-modal.sw-modal>.rtr-modal-body,.rtr-modal.dtype-modal>.rtr-modal-body{display:block}
     .dtype-opt{display:flex;flex-direction:column;gap:.2rem;width:100%;text-align:left;
-      padding:.75rem .9rem;margin:0 0 .6rem;border:1px solid var(--border);border-radius:8px;
+      padding:.75rem .9rem;margin:0 0 .6rem;border:1px solid var(--border);border-radius:6px;
       background:var(--bg-card);color:var(--text-main);font:inherit;cursor:pointer}
     .dtype-opt:hover,.dtype-opt:focus-visible{border-color:var(--accent-rx)}
     .dtype-name{font-weight:600;font-size:.82rem;display:flex;align-items:center;gap:.4rem}

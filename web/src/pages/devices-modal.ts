@@ -28,6 +28,7 @@ import {
   portsSectionHtml, resourcesHtml, usageHeadHtml, type ClientRow, type Range,
 } from './devices-modal-views';
 import { pushWanPoints, startWanChart, stopWanChart, wanPoints } from './devices-modal-chart';
+import { switchPortsHtml, switchSummaryHtml } from './devices-modal-switch';
 import { lastRows, onOpenDevice, overviewOf } from './routers';
 
 export interface DeviceModalDeps {
@@ -89,12 +90,15 @@ function paint(): void {
     set('dvmDetails', detailsHtml(r, overviewOf(st.id), now));
   }
   set('dvmConn', connectivityHtml(st.overview, st.range));
-  const pts = wanPoints();
-  set('dvmUsage', usageHeadHtml(st.live, pts[pts.length - 1]));
+  // A SwOS switch (#142): its own summary and port table where a router shows
+  // resources and ports, and no WAN chart.
+  const isSwitch = r?.kind === 'swos' || st.live?.kind === 'swos';
+  const pts = isSwitch ? [] : wanPoints();
+  set('dvmUsage', isSwitch ? '' : usageHeadHtml(st.live, pts[pts.length - 1]));
   const wrap = el('dvmChartWrap');
   if (wrap) wrap.hidden = !pts.length;
-  set('dvmRes', resourcesHtml(st.live));
-  set('dvmPorts', portsSectionHtml(st.live));
+  set('dvmRes', isSwitch ? switchSummaryHtml(st.live) : resourcesHtml(st.live));
+  set('dvmPorts', isSwitch ? switchPortsHtml(st.live) : portsSectionHtml(st.live));
   set('dvmAlerts', alertsHtml(st.alerts));
   paintTabs();
 }

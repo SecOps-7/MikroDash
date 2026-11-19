@@ -131,16 +131,26 @@ export function deviceCardHtml(
       + (r.loginProfile ? ' <span class="dv-why-via">(login profile ' + esc(r.loginProfile) + ')</span>' : '')
       + '</div>' : '';
   const up = uptimeText(r.uptime);
+  // A SwOS switch (#142): its firmware is SwOS, it has ports and a MAC table
+  // where a router has updates and backups, and it is a preview.
+  const isSwitch = r.kind === 'swos';
+  const kindPill = isSwitch
+    ? '<span class="pill pill-alt" title="SwOS switch: monitoring only, a preview">SwOS</span>' : '';
+  const switchFacts = isSwitch
+    ? (r.portsTotal != null ? '<span class="dv-ports">' + r.portsUp + '/' + r.portsTotal + ' ports up</span>' : '')
+      + (r.hosts != null ? ' <span class="dv-ports text-muted">' + r.hosts + ' MACs</span>' : '')
+    : '';
 
   let foot = '';
   if (compact) {
     foot = up ? '<div class="dv-foot"><div class="dv-foot-row"><span class="dv-up">Up ' + esc(up) + '</span></div></div>' : '';
   } else {
-    const model = [r.boardName || '', r.version ? 'RouterOS ' + r.version : ''].filter(Boolean).join(' · ');
+    const model = [r.boardName || '', r.version ? (isSwitch ? 'SwOS ' : 'RouterOS ') + r.version : ''].filter(Boolean).join(' · ');
     foot = '<div class="dv-foot">'
-      + '<div class="dv-foot-row"><span class="dv-model">' + (model ? esc(model) : '&nbsp;') + '</span>' + updatePill(r) + '</div>'
+      + '<div class="dv-foot-row"><span class="dv-model">' + (model ? esc(model) : '&nbsp;') + '</span>'
+      + (isSwitch ? switchFacts : updatePill(r)) + '</div>'
       + '<div class="dv-foot-row"><span class="dv-up">' + (up ? 'Up ' + esc(up) : '&nbsp;') + '</span>'
-      + backupHtml(o, now) + '</div>'
+      + (isSwitch ? '' : backupHtml(o, now)) + '</div>'
       + '</div>';
   }
 
@@ -153,7 +163,7 @@ export function deviceCardHtml(
     + '<div class="dv-head">'
     + '<span class="dv-dot" aria-hidden="true"></span>'
     + '<div class="dv-id"><div class="dv-name"><strong>' + esc(r.label) + '</strong>'
-    + (r.isActive ? '<span class="dv-active">active</span>' : '') + '</div>'
+    + (r.isActive ? '<span class="dv-active">active</span>' : '') + kindPill + '</div>'
     + (sub.length && !compact ? '<div class="dv-sub">' + esc(sub.join(' · ')) + '</div>' : '')
     + '</div>'
     + '<div class="dv-badges">' + alerts + '<span class="dv-status">' + STATE_TEXT[st] + '</span></div>'
@@ -190,6 +200,7 @@ function row(k: string, v: string): string {
 
 export function detailsHtml(r: RouterStatsRow, o: DeviceOverview | undefined, now: number): string {
   const dash = '<span class="text-muted">-</span>';
+  if (r.kind === 'swos') return switchDetailsHtml(r, now);
   const ros = r.version
     ? esc(r.version) + (r.updateAvailable === true
       ? ' <span class="dv-update pill pill-alt">' + esc('Update' + (r.latestVersion ? ' to ' + r.latestVersion : '')) + '</span>'
@@ -230,6 +241,30 @@ export function detailsHtml(r: RouterStatsRow, o: DeviceOverview | undefined, no
       + esc(r.loginProfile) + '</span>') : '')
     + row('Sites', sites.length ? sites.map((s) => pill(s, 'muted')).join(' ') : dash)
     + row('Backup', backup)
+    + row('Open alerts', r.openAlerts > 0
+      ? '<span class="dv-alerts">' + r.openAlerts + '</span>' : '<span class="text-muted">None</span>')
+    + '</dl>';
+}
+
+/**
+ * The rail for a SwOS switch (#142): what a switch can say about itself. No
+ * architecture, licence, public IP, login profile or backup: a switch has
+ * none of them, and a dash in each would read as "not known yet".
+ */
+export function switchDetailsHtml(r: RouterStatsRow, now: number): string {
+  const dash = '<span class="text-muted">-</span>';
+  const up = uptimeMs(r.uptime);
+  const sites = (r.siteNames || []).filter(Boolean);
+  return '<dl class="dvm-details">'
+    + row('Type', '<span class="pill pill-alt">SwOS switch</span> <span class="text-muted">monitoring only</span>')
+    + row('Model', r.boardName ? esc(r.boardName) : dash)
+    + row('Firmware', r.version ? esc('SwOS ' + r.version) : dash)
+    + row('Uptime', r.uptime ? esc(uptimeText(r.uptime)) : dash)
+    + row('Last boot', up != null ? esc(fmtTs(now - up, false)) : dash)
+    + row('Host', '<span class="dvm-mono">' + esc(r.host) + '</span>')
+    + row('Ports', r.portsTotal != null ? esc(r.portsUp + ' of ' + r.portsTotal + ' up') : dash)
+    + row('MAC table', r.hosts != null ? esc(String(r.hosts)) : dash)
+    + row('Sites', sites.length ? sites.map((s) => pill(s, 'muted')).join(' ') : dash)
     + row('Open alerts', r.openAlerts > 0
       ? '<span class="dv-alerts">' + r.openAlerts + '</span>' : '<span class="text-muted">None</span>')
     + '</dl>';

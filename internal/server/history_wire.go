@@ -64,5 +64,13 @@ func (s *Server) coveredRouters() map[string]bool {
 			out[id] = true
 		}
 	}
+	// A SwOS switch is watched by its poller, not a session (#142).
+	if p := s.switchPoller(); p != nil {
+		for _, id := range p.IDs() {
+			if _, known := s.connTrack.Online(id); known {
+				out[id] = true
+			}
+		}
+	}
 	return out
 }
