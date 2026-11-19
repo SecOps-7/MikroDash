@@ -33,7 +33,10 @@ import (
 )
 
 func (s *Server) registerSwitches(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/switches/probe", s.switchProbe)
+	// TEN A MINUTE, as `POST /api/routers/test`: each probe opens a connection
+	// to a caller-chosen host, so an ungated one is a port scanner.
+	lim := newRateLimiter(10, time.Minute).limit
+	mux.HandleFunc("POST /api/switches/probe", lim(s.switchProbe))
 }
 
 // switchPoller builds the poller on first use; nil without a store.
@@ -353,9 +356,11 @@ func (s *Server) switchUpdate(w http.ResponseWriter, r *http.Request, sess *Sess
 // model-name check: a CRS booted into SwOS is a switch here (the operator,
 // 2026-11-19).
 //
-// Gated like the forms that use it: administration for a new switch, or
-// `router:manage` on the switch being edited. An edit may leave the password
-// blank, and then the stored one is used, never sent back.
+// GLOBAL ADMINISTRATOR, as `POST /api/routers/test`. The host is the caller's
+// text, so the probe reaches wherever it is pointed (within the dial reach);
+// a delegate may not move a switch's endpoint, so has nothing to probe, and
+// an edit saves without one. An edit may leave the password blank, and then
+// the stored one is used, only at the endpoint it is stored with.
 func (s *Server) switchProbe(w http.ResponseWriter, r *http.Request) {
 	sess, ok := s.routerWriteSession(w, r)
 	if !ok {
@@ -366,9 +371,13 @@ func (s *Server) switchProbe(w http.ResponseWriter, r *http.Request) {
 	if body == nil {
 		body = map[string]any{}
 	}
+	if !s.mayManagePrincipals(sess) {
+		writeJSONErr(w, http.StatusForbidden, "Administrator access required")
+		return
+	}
 	id := strings.TrimSpace(jsStringOf(body["id"]))
-	if id == "" && !s.mayManagePrincipals(sess) || id != "" && (!s.isSwitch(id) || !s.mayManageRouter(sess, id)) {
-		writeJSONErr(w, http.StatusForbidden, "Not permitted")
+	if id != "" && !s.isSwitch(id) {
+		writeJSONErr(w, http.StatusBadRequest, "No such switch")
 		return
 	}
 	host, port, scheme, err := store.CheckSwitchBody(body)

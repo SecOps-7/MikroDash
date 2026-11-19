@@ -172,6 +172,25 @@ func TestTheProbeIsForAdministrators(t *testing.T) {
 	if got := probe(`{"host":"198.51.100.20"}`); got["status"] != float64(http.StatusForbidden) {
 		t.Errorf("a non-administrator probed a new switch: %v", got)
 	}
+	// An edit is no exception: the probe dials whatever host the body names,
+	// and only an administrator may point the server at a host.
+	if got := probe(`{"id":"s1","host":"203.0.113.9"}`); got["status"] != float64(http.StatusForbidden) {
+		t.Errorf("a non-administrator probed with a switch id: %v", got)
+	}
+}
+
+// TestTheProbeIsRateLimited: ten a minute, as POST /api/routers/test, because
+// each probe opens a connection to a host the caller chose.
+func TestTheProbeIsRateLimited(t *testing.T) {
+	_, probe := probeServer(t, &Session{AuthMode: "local", Username: "viewer"})
+	for i := 0; i < 10; i++ {
+		if got := probe(`{"host":"198.51.100.20"}`); got["status"] == float64(http.StatusTooManyRequests) {
+			t.Fatalf("request %d was refused as over the limit", i+1)
+		}
+	}
+	if got := probe(`{"host":"198.51.100.20"}`); got["status"] != float64(http.StatusTooManyRequests) {
+		t.Errorf("the eleventh probe in a minute was not refused: %v", got)
+	}
 }
 
 // TestTheProbeNeverSendsAStoredPasswordElsewhere: a blank password reuses the
