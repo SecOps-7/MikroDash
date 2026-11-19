@@ -338,6 +338,75 @@ credentials could run.
 
 ---
 
+## mikromcp - MIT
+
+`testdata/fixtures/swos/lite-css610-2.21/` and `swos-css318-2.19/`: SwOS web
+API captures from a CSS610-8P-2S+ (SwOS Lite 2.21) and a CSS318-16G-2S+ (SwOS
+2.19), sanitised by their author, from AliKarami/mikromcp `test/fixtures/` at
+commit `153c32a520ebd4f67772d6e791a558b401938643`,
+https://github.com/AliKarami/mikromcp. Its SwOS client informed how
+`internal/swos` signs requests; no code was copied.
+
+```
+MIT License
+
+Copyright (c) 2026 Ali Karami
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## python-switchos - MIT
+
+`testdata/fixtures/swos/pyswitchos-css610-2.21/`: SwOS Lite `link.b` and
+`sys.b` samples, and the protocol and field documentation `internal/swos`
+follows (key names per firmware family, rate scales, units), from
+probert94/python-switchos at commit `7101c0a65258932f7150bcc5ef8ea11d5e2f32ff`,
+https://github.com/probert94/python-switchos. No code was copied.
+
+```
+MIT License
+
+Copyright (c) 2025 Robert Pattis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
 ## go-routeros - MIT
 
 `third_party/go-routeros/`, github.com/go-routeros/routeros v3.0.1,
