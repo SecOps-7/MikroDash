@@ -408,7 +408,16 @@ func VerifyPassword(u User, candidate string) bool {
 // ── routers.json ─────────────────────────────────────────────────────────────
 
 type Router struct {
-	ID          string `json:"id"`
+	ID string `json:"id"`
+	// Kind is "swos" for a SwOS switch (#142) and absent for a RouterOS router.
+	// A switch is not a router: `RouterRecords` and `Routers` leave it out, so
+	// every existing reader stays switch-free without being edited; `Devices`
+	// and `Switches` are the readers that see one. See switches.go.
+	Kind string `json:"kind"`
+	// Scheme and MAC are a switch's: its web page's scheme (http or https) and
+	// the MAC it reported, which topology matches a neighbour against.
+	Scheme      string `json:"scheme"`
+	MAC         string `json:"mac"`
 	Label       string `json:"label"`
 	Host        string `json:"host"`
 	Port        int    `json:"port"`
@@ -632,6 +641,25 @@ func (s *Store) Routers() ([]Router, []error) {
 // measured 36 to 64 seconds for a page request and a router switch at 200
 // routers. A record without its credential is all the question needs.
 func (s *Store) RouterRecords() ([]Router, []error) {
+	all, problems := s.Devices()
+	out := all[:0:0]
+	for _, r := range all {
+		if !IsSwitch(r) {
+			out = append(out, r)
+		}
+	}
+	if all == nil {
+		out = nil
+	}
+	return out, problems
+}
+
+// Devices reads EVERY record in routers.json, routers and SwOS switches alike,
+// without opening a credential. For the questions that cover both kinds: who
+// may see a device, which sites it is in, the Devices page. Never for signing
+// in to anything; a router's credential comes from Routers, a switch's from
+// Switches.
+func (s *Store) Devices() ([]Router, []error) {
 	b, missing, rerr := readIfPresent(filepath.Join(s.Dir, "routers.json"))
 	if rerr != nil {
 		return nil, []error{rerr}

@@ -73,6 +73,11 @@ func (s *Store) PublicRouters() ([]map[string]any, error) {
 
 	out := make([]map[string]any, 0, len(raw))
 	for _, r := range raw {
+		// SwOS switches are listed by PublicSwitches: this list feeds the router
+		// selector and every page that treats an entry as a router (#142).
+		if r["kind"] == KindSwOS {
+			continue
+		}
 		out = append(out, s.PublicRouter(r))
 	}
 	return out, nil

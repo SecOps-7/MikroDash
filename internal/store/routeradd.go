@@ -49,7 +49,10 @@ func (s *Store) AddRouter(body map[string]any) (*Router, error) {
 		return nil, err
 	}
 
-	existing, _ := s.Routers()
+	// Labels are unique across BOTH kinds: a router and a switch share the
+	// Devices page and the Settings table, where two "Office" rows could not be
+	// told apart.
+	existing, _ := s.Devices()
 
 	label := cleanLabel(firstNonEmpty(jsString(body["label"]), host, "New Router"))
 	label = uniqueLabel(label, existing)
