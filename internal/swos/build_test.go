@@ -62,6 +62,12 @@ func TestALiteSwitchIsBuiltFromItsCaptures(t *testing.T) {
 	if sfp1.SFP == nil || sfp1.SFP.TempC != nil || sfp1.SFP.TxDbm != nil {
 		t.Errorf("SFP+1: %+v", sfp1.SFP)
 	}
+	// The faceplate: ports 1-8 copper, 9 and 10 the SFP+ cages.
+	for i, p := range sw.Ports {
+		if p.Cage != (i >= 8) {
+			t.Errorf("port %d cage %v", i+1, p.Cage)
+		}
+	}
 	if p := sw.Ports[2].PoE; p == nil || p.Status != "powered on" || p.CurrentMA != 301 || p.VoltageV != 27.4 || p.PowerW != 8.2 {
 		t.Errorf("port 3 PoE: %+v", p)
 	}
@@ -88,6 +94,13 @@ func TestAFullSwOSSwitchIsBuiltFromItsCaptures(t *testing.T) {
 	for _, p := range sw.Ports {
 		if p.Up {
 			up++
+		}
+	}
+	// link.b says 2 SFP cages from port index 16: the last two, even with no
+	// sfp.b read.
+	for i, p := range sw.Ports {
+		if p.Cage != (i >= 16) {
+			t.Errorf("port %d cage %v", i+1, p.Cage)
 		}
 	}
 	// lnk 0x0001c045: ports 1, 3, 7, 15, 16 and 17.

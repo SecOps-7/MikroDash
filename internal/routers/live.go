@@ -101,17 +101,19 @@ type SwitchLive struct {
 // SwitchPortLive is one switch port. Rates are bits per second, null until a
 // reading has them; the error counts are the switch's running totals.
 type SwitchPortLive struct {
-	Name       string    `json:"name"`
-	Up         bool      `json:"up"`
-	Enabled    bool      `json:"enabled"`
-	Speed      string    `json:"speed"`
-	FullDuplex bool      `json:"fullDuplex"`
-	RxBps      *float64  `json:"rxBps"`
-	TxBps      *float64  `json:"txBps"`
-	RxErrors   uint64    `json:"rxErrors"`
-	TxErrors   uint64    `json:"txErrors"`
-	SFP        *swos.SFP `json:"sfp"`
-	PoE        *swos.PoE `json:"poe"`
+	Name       string `json:"name"`
+	Up         bool   `json:"up"`
+	Enabled    bool   `json:"enabled"`
+	Speed      string `json:"speed"`
+	FullDuplex bool   `json:"fullDuplex"`
+	// Cage is an SFP cage rather than a copper jack; see swos.Port.
+	Cage     bool      `json:"cage"`
+	RxBps    *float64  `json:"rxBps"`
+	TxBps    *float64  `json:"txBps"`
+	RxErrors uint64    `json:"rxErrors"`
+	TxErrors uint64    `json:"txErrors"`
+	SFP      *swos.SFP `json:"sfp"`
+	PoE      *swos.PoE `json:"poe"`
 }
 
 // LiveClient is one active lease, as the modal's Clients tab lists it.

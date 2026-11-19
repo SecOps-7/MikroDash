@@ -209,7 +209,7 @@ func (s *Server) switchLive(id string) routers.Live {
 		live.Model, live.Version, live.Scheme, live.UptimeSec, live.TempC = sw.Model, sw.Version, string(sw.Scheme), &up, sw.TempC
 		for i, p := range sw.Ports {
 			lp := routers.SwitchPortLive{Name: p.Name, Up: p.Up, Enabled: p.Enabled, Speed: p.Speed,
-				FullDuplex: p.FullDuplex, SFP: p.SFP, PoE: p.PoE}
+				FullDuplex: p.FullDuplex, Cage: p.Cage, SFP: p.SFP, PoE: p.PoE}
 			if i < len(st.Rates) {
 				rx, tx := st.Rates[i].RxBps, st.Rates[i].TxBps
 				lp.RxBps, lp.TxBps = &rx, &tx

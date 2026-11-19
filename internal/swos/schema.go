@@ -35,7 +35,10 @@ type keys struct {
 	// portCount is the link.b key holding the port count; empty means the
 	// length of the names array (Lite compiles its layout into the build).
 	portCount, sfpOffset string
-	speeds               []string
+	// sfpCount is the link.b key holding the number of SFP cages (full SwOS);
+	// empty means the number of entries sfp.b lists (Lite).
+	sfpCount string
+	speeds   []string
 	// stats.b / !stats.b
 	statsPage            string
 	rxRate, txRate       string
@@ -55,7 +58,7 @@ var schemes = map[Scheme]keys{
 		uptime: "upt", uptimeDiv: 100,
 		board: "brd", version: "ver", identity: "id", serial: "sid", mac: "mac", ip: "cip", temp: "temp",
 		names: "nm", enabled: "en", link: "lnk", speed: "spd", duplex: "dpx",
-		portCount: "prt", sfpOffset: "sfpo",
+		portCount: "prt", sfpOffset: "sfpo", sfpCount: "sfp",
 		speeds:    []string{"10M", "100M", "1G", "10G", "5G", "2.5G", "40G"},
 		statsPage: "stats.b", rxRate: "rrb", txRate: "trb", rateScale: 0.01,
 		rxBytes: "rb", rxBytesHi: "rbh", txBytes: "tb", txBytesHi: "tbh",
@@ -82,7 +85,7 @@ var schemes = map[Scheme]keys{
 		uptime: "upt", uptimeDiv: 100,
 		board: "brd", version: "ver", identity: "id", serial: "sid", mac: "mac", ip: "cip", temp: "temp",
 		names: "nm", enabled: "en", link: "lnk", speed: "spd", duplex: "dpx",
-		portCount: "prt", sfpOffset: "sfpo",
+		portCount: "prt", sfpOffset: "sfpo", sfpCount: "sfp",
 		speeds:    []string{"10M", "100M", "1G"},
 		statsPage: "!stats.b", rxRate: "rrb", txRate: "trb", rateScale: 0.08,
 		rxBytes: "rb", rxBytesHi: "rbh", txBytes: "tb", txBytesHi: "tbh",

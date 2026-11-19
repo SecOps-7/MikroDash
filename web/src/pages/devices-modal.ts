@@ -28,7 +28,7 @@ import {
   portsSectionHtml, resourcesHtml, usageHeadHtml, type ClientRow, type Range,
 } from './devices-modal-views';
 import { pushWanPoints, startWanChart, stopWanChart, wanPoints } from './devices-modal-chart';
-import { switchPortsHtml, switchSummaryHtml } from './devices-modal-switch';
+import { switchFaceplateHtml, switchPortsHtml, switchSummaryHtml } from './devices-modal-switch';
 import { lastRows, onOpenDevice, overviewOf } from './routers';
 
 export interface DeviceModalDeps {
@@ -99,6 +99,10 @@ function paint(): void {
   if (wrap) wrap.hidden = !pts.length;
   set('dvmRes', isSwitch ? switchSummaryHtml(st.live) : resourcesHtml(st.live));
   set('dvmPorts', isSwitch ? switchPortsHtml(st.live) : portsSectionHtml(st.live));
+  // The switch's faceplate card, above the pair; a router has none.
+  const face = el('dvmSwPorts');
+  if (face) face.hidden = !isSwitch;
+  set('dvmSwPorts', isSwitch ? switchFaceplateHtml(st.live) : '');
   set('dvmAlerts', alertsHtml(st.alerts));
   paintTabs();
 }

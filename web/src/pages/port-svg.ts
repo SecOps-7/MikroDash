@@ -52,3 +52,27 @@ export function portSvg(sz: number): string {
     '<circle class="port-led" cx="' + ledX + '" cy="' + ledY + '" r="' + ledR + '"/>' +
   '</svg>';
 }
+
+/**
+ * An SFP cage, front view, for the SwOS switch faceplate (#142): a wide, low
+ * housing with the module slot and the same LED. It carries the RJ-45
+ * drawing's classes (`if-port-svg`, `port-body`, `port-led`), so a cage takes
+ * the up, down and disabled colours from the same rules.
+ */
+export function sfpSvg(sz: number): string {
+  const w = Math.round(sz * 1.25), h = Math.round(sz * 0.8);
+  const rx = Math.max(2, Math.round(sz * 0.07));
+  const sx = Math.round(w * 0.12), sw = w - sx * 2;
+  const sy = Math.round(h * 0.34), sh = Math.round(h * 0.4);
+  const ledR = Math.max(2, Math.round(sz * 0.07));
+  return '<svg class="if-port-svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h +
+    '" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect class="port-body" x="0.5" y="0.5" width="' + (w - 1) + '" height="' + (h - 1) + '" rx="' + rx +
+      '" stroke-width="1.5" fill-opacity="1"/>' +
+    '<rect x="' + sx + '" y="' + sy + '" width="' + sw + '" height="' + sh +
+      '" rx="1.5" style="fill:' + paletteCss('--bg-deep', 0.6) + ';stroke:' + paletteCss('--border', 0.25) +
+      '" stroke-width="0.8"/>' +
+    '<circle class="port-led" cx="' + (w - Math.round(sz * 0.14)) + '" cy="' + Math.round(sz * 0.13) +
+      '" r="' + ledR + '"/>' +
+  '</svg>';
+}

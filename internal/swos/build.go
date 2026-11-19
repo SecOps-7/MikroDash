@@ -30,8 +30,12 @@ type Port struct {
 	Up         bool   `json:"up"`
 	Speed      string `json:"speed"`
 	FullDuplex bool   `json:"fullDuplex"`
-	SFP        *SFP   `json:"sfp,omitempty"`
-	PoE        *PoE   `json:"poe,omitempty"`
+	// Cage is whether the port is an SFP cage rather than a copper jack, from
+	// the switch's own layout (link.b's sfp and sfpo on full SwOS, sfp.b's
+	// cage count on Lite), so the modal can draw the faceplate as it is.
+	Cage bool `json:"cage"`
+	SFP  *SFP `json:"sfp,omitempty"`
+	PoE  *PoE `json:"poe,omitempty"`
 }
 
 // SFP is the module in an SFP cage.
@@ -180,9 +184,39 @@ func BuildSwitch(s Scheme, sys, link, sfp, poe Value) Switch {
 		out.Ports = append(out.Ports, p)
 	}
 
+	if first, n := cageRange(k, link, sfp, len(out.Ports)); n > 0 {
+		for i := first; i < first+n && i < len(out.Ports); i++ {
+			if i >= 0 {
+				out.Ports[i].Cage = true
+			}
+		}
+	}
 	addSFP(&out, k, link, sfp)
 	addPoE(&out, k, poe)
 	return out
+}
+
+// cageRange is which ports are SFP cages: the first index and how many. Full
+// SwOS says so in link.b (`sfp` cages from `sfpo`, which defaults to the end);
+// Lite lists one sfp.b entry per cage, and its cages are the last ports.
+func cageRange(k keys, link, sfp Value, ports int) (int, int) {
+	n := 0
+	if k.sfpCount != "" {
+		if c, ok := num(link, k.sfpCount); ok && c < 64 {
+			n = int(c)
+		}
+	}
+	if n == 0 {
+		v, _ := sfp.Get(k.sfpVendor)
+		n = len(v.Items)
+	}
+	first := ports - n
+	if k.sfpOffset != "" {
+		if off, ok := num(link, k.sfpOffset); ok && off < 64 {
+			first = int(off)
+		}
+	}
+	return first, n
 }
 
 func addSFP(out *Switch, k keys, link, sfp Value) {

@@ -612,6 +612,7 @@ export interface SwitchPortLive {
   enabled: boolean;
   speed: string;
   fullDuplex: boolean;
+  cage: boolean;
   rxBps: number | null;
   txBps: number | null;
   rxErrors: number;

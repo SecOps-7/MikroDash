@@ -481,6 +481,11 @@
     .sw-result{font-size:.74rem;margin-top:.6rem;min-height:1.1rem}
     .sw-result.is-ok{color:var(--accent-ok)}
     .sw-result.is-err{color:var(--accent-err)}
+    /* The switch faceplate (#142): blocks of one medium side by side, each one
+       row or two stacked rows, as the front panel has them. */
+    .swp-panel{display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;align-items:center;justify-content:center;padding:.3rem 0 .2rem}
+    .swp-group{display:flex;flex-direction:column;gap:.45rem}
+    .swp-row{display:flex;gap:.45rem}
     /* The account modal is not a form like the four above - it holds five
        unrelated sections, and stacking them made a tall narrow ribbon that had
        to be scrolled past to reach anything. It takes the width instead and
