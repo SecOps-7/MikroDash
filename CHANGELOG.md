@@ -2,6 +2,29 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.84] - SwOS switches (preview)
+
+### New
+
+- **MikroTik SwOS switches, as a preview (monitoring only).** Add a switch from
+  the Devices page or Settings, Devices (Add now asks whether it is a RouterOS
+  router or a SwOS switch). MikroDash reads the switch's own web page and never
+  changes anything on it. Works with SwOS and SwOS Lite, CSS and CRS models.
+  - The Devices page shows each switch's ports, traffic, errors, PoE and SFP
+    modules, and a Ports card draws the front panel as the switch has it.
+  - Switches raise offline, recovery and port down and up alerts and keep
+    connectivity history as routers do, and their traffic is recorded when
+    Reporting is on.
+  - Settings, Devices lists routers and switches in one table with a Type
+    column, and the CSV import takes a `type` column (old files import as
+    before).
+  - The router selector always lists routers only.
+  - Requested in [#142](https://github.com/SecOps-7/MikroDash/issues/142),
+    thanks [@eltionb](https://github.com/eltionb). Built from captures shared
+    by [mikromcp](https://github.com/AliKarami/mikromcp) and the protocol notes
+    of [python-switchos](https://github.com/probert94/python-switchos); not yet
+    confirmed on a real switch, which is why it is a preview.
+
 ## [0.8.83] - Device sorting, HTML alert emails, and legacy Wi-Fi clients
 
 ### New
