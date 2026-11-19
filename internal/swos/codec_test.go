@@ -83,13 +83,19 @@ func TestTheCodecReadsWhatItShould(t *testing.T) {
 	}
 }
 
+// TestMalformedBlobsAreRefused, including nesting deeper than any real blob:
+// a reply is untrusted, and the parser recurses.
 func TestMalformedBlobsAreRefused(t *testing.T) {
 	for _, bad := range []string{
 		"", "{", "{a:}", "{a:0x}", "{a:'abc'}", "{a:'zz'}", "{a:0x01,a:0x02}",
 		"{a:12}", "[0x01,]", "{a:0x01}x", "{:0x01}", "{a 0x01}",
+		strings.Repeat("[", 17) + strings.Repeat("]", 17),
 	} {
 		if _, err := Parse([]byte(bad)); err == nil {
-			t.Errorf("%q was accepted", bad)
+			t.Errorf("%.40q was accepted", bad)
 		}
+	}
+	if _, err := Parse([]byte(strings.Repeat("[", 16) + strings.Repeat("]", 16))); err != nil {
+		t.Errorf("nesting at the limit was refused: %v", err)
 	}
 }

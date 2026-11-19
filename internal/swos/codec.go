@@ -127,9 +127,15 @@ func Parse(b []byte) (Value, error) {
 }
 
 type parser struct {
-	b []byte
-	i int
+	b     []byte
+	i     int
+	depth int
 }
+
+// maxDepth bounds nesting. Real blobs go three deep (a list of objects holding
+// arrays); a reply is untrusted input, and recursion it could deepen at will
+// is a way to exhaust the stack.
+const maxDepth = 16
 
 func (p *parser) fail(what string) error {
 	return fmt.Errorf("swos: %s at byte %d", what, p.i)
@@ -149,6 +155,9 @@ func (p *parser) space() {
 func (p *parser) value() (Value, error) {
 	if p.i >= len(p.b) {
 		return Value{}, p.fail("unexpected end")
+	}
+	if p.depth >= maxDepth {
+		return Value{}, p.fail("nested too deeply")
 	}
 	switch c := p.b[p.i]; {
 	case c == '{':
@@ -203,6 +212,8 @@ func (p *parser) str() (Value, error) {
 
 func (p *parser) array() (Value, error) {
 	p.i++
+	p.depth++
+	defer func() { p.depth-- }()
 	v := Value{Kind: Arr, Items: []Value{}}
 	p.space()
 	if p.i < len(p.b) && p.b[p.i] == ']' {
@@ -234,6 +245,8 @@ func (p *parser) array() (Value, error) {
 
 func (p *parser) object() (Value, error) {
 	p.i++
+	p.depth++
+	defer func() { p.depth-- }()
 	v := Value{Kind: Obj, Keys: []string{}, Fields: map[string]Value{}}
 	p.space()
 	if p.i < len(p.b) && p.b[p.i] == '}' {
