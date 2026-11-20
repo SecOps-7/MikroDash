@@ -80,13 +80,16 @@ export interface Page {
   title: string;
   /** URL segment. Equal to the key for all but the dashboard, served at /home. */
   path: string;
+  /** May a share link show this page (Settings > Shared links)? The server
+   *  decides; this only fills the form's page list. */
+  shareable: boolean;
 }
 
 export const PAGES: readonly Page[] = [
 `)
 	for _, p := range pages.All {
-		fmt.Fprintf(&b, "  { key: %s, title: %s, path: %s },\n",
-			strconv.Quote(p.Key), strconv.Quote(p.Title), strconv.Quote(p.URL()))
+		fmt.Fprintf(&b, "  { key: %s, title: %s, path: %s, shareable: %t },\n",
+			strconv.Quote(p.Key), strconv.Quote(p.Title), strconv.Quote(p.URL()), p.Share == pages.Shareable)
 	}
 	b.WriteString(`];
 

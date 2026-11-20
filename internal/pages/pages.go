@@ -78,6 +78,41 @@ type Page struct {
 	// a general key-to-slug mapping was rejected, because a table everything
 	// must consult is a table everything can disagree with.
 	Path string
+	// Share is whether a global administrator may make a share link to this
+	// page (Settings > Shared links): a token-protected, read-only view for
+	// somebody with no account.
+	//
+	// ── EXPLICIT FOR EVERY PAGE, AND NEVER A DEFAULT ────────────────────────
+	//
+	// The zero value is ShareUndecided, and a test fails on it, so a page added
+	// later is not shareable by accident and not unshareable by accident: its
+	// author decides. The decisions are the operator's rulings of 2026-11-20,
+	// and `TestTheShareListsAreTheRulings` holds them to two literal lists.
+	Share ShareDecision
+}
+
+// ShareDecision is a page's answer to "may it be shared?". See Page.Share.
+type ShareDecision int
+
+const (
+	// ShareUndecided is the zero value, and a failing test.
+	ShareUndecided ShareDecision = iota
+	// Shareable pages may be the subject of a share link.
+	Shareable
+	// NotShareable pages may not: settings, administration, tools, the
+	// terminal, the AI assistant, and the pages the operator ruled out.
+	NotShareable
+)
+
+// IsShareable reports whether a share link may show this page. An unknown key
+// is not shareable.
+func IsShareable(key string) bool {
+	for _, p := range All {
+		if p.Key == key {
+			return p.Share == Shareable
+		}
+	}
+	return false
 }
 
 // All is every page with a renderer behind it, in nav order.
@@ -85,59 +120,59 @@ type Page struct {
 // ORDER MATTERS: cmd/webbuild composes the markup in this order, and the digit
 // shortcuts address the first nine.
 var All = []Page{
-	{Key: "dashboard", Title: "Dashboard", Path: "home"},
-	{Key: "dns", Title: "DNS", Collector: "dns"},
-	{Key: "bridges", Title: "Bridges", Collector: "bridges"},
-	{Key: "vlans", Title: "VLANs", Collector: "vlans"},
-	{Key: "wan", Title: "WAN", Collector: "wan"},
-	{Key: "packages", Title: "Packages", Collector: "packages"},
-	{Key: "routing", Title: "Routing", Collector: "routing"},
+	{Key: "dashboard", Title: "Dashboard", Path: "home", Share: Shareable},
+	{Key: "dns", Title: "DNS", Collector: "dns", Share: Shareable},
+	{Key: "bridges", Title: "Bridges", Collector: "bridges", Share: Shareable},
+	{Key: "vlans", Title: "VLANs", Collector: "vlans", Share: Shareable},
+	{Key: "wan", Title: "WAN", Collector: "wan", Share: Shareable},
+	{Key: "packages", Title: "Packages", Collector: "packages", Share: Shareable},
+	{Key: "routing", Title: "Routing", Collector: "routing", Share: Shareable},
 	// The NetWatch page (#97). Its collector also feeds the Dashboard card.
-	{Key: "netwatch", Title: "NetWatch", Collector: "netwatch"},
+	{Key: "netwatch", Title: "NetWatch", Collector: "netwatch", Share: Shareable},
 	// dhcp's owner is NOT disableable, so this page can never be emptied by
 	// turning a collector off. Deliberate: `conns` and `bandwidth` both read
 	// dhcpNetworks for LAN classification, so it is not the operator's to switch
 	// off. Said here so nobody "fixes" the asymmetry.
-	{Key: "dhcp", Title: "DHCP", Collector: "dhcpNetworks"},
-	{Key: "ppp", Title: "PPP", Collector: "ppp"},
-	{Key: "vpn", Title: "VPN", Collector: "vpn"},
-	{Key: "users", Title: "Users", Collector: "rosusers"},
-	{Key: "queues", Title: "Queues", Collector: "queues"},
+	{Key: "dhcp", Title: "DHCP", Collector: "dhcpNetworks", Share: Shareable},
+	{Key: "ppp", Title: "PPP", Collector: "ppp", Share: Shareable},
+	{Key: "vpn", Title: "VPN", Collector: "vpn", Share: Shareable},
+	{Key: "users", Title: "Users", Collector: "rosusers", Share: NotShareable},
+	{Key: "queues", Title: "Queues", Collector: "queues", Share: Shareable},
 	// The Security Scan (2026-09-19): no collector. It reads its menus once, on
 	// demand, through secscan:run (internal/server/secscan.go).
-	{Key: "security-scan", Title: "Security Scan"},
-	{Key: "firewall", Title: "Firewall", Collector: "firewall"},
-	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi"},
-	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman"},
-	{Key: "interfaces", Title: "Interfaces", Collector: "ifStatus"},
+	{Key: "security-scan", Title: "Security Scan", Share: Shareable},
+	{Key: "firewall", Title: "Firewall", Collector: "firewall", Share: Shareable},
+	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi", Share: Shareable},
+	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman", Share: Shareable},
+	{Key: "interfaces", Title: "Interfaces", Collector: "ifStatus", Share: Shareable},
 	// The IP Addresses page (#97): both families, fed by its own collector.
-	{Key: "ip-addresses", Title: "IP Addresses", Collector: "areas"},
+	{Key: "ip-addresses", Title: "IP Addresses", Collector: "areas", Share: Shareable},
 	// A GENERATED page: internal/areas declares it, and the shared `areas`
 	// collector fills it. Its Collector is that one, not a collector of its own.
-	{Key: "ip-pools", Title: "IP Pools", Collector: "areas"},
-	{Key: "arp", Title: "ARP", Collector: "areas"},
-	{Key: "address-lists", Title: "Address Lists", Collector: "areas"},
-	{Key: "interface-lists", Title: "Interface Lists", Collector: "areas"},
-	{Key: "ip-services", Title: "Services", Collector: "areas"},
-	{Key: "certificates", Title: "Certificates", Collector: "areas"},
-	{Key: "scripts", Title: "Scripts", Collector: "areas"},
-	{Key: "scheduler", Title: "Scheduler", Collector: "areas"},
-	{Key: "ntp-client", Title: "NTP Client", Collector: "areas"},
-	{Key: "clock", Title: "Clock", Collector: "areas"},
-	{Key: "logging", Title: "Logging", Collector: "areas"},
-	{Key: "snmp", Title: "SNMP", Collector: "areas"},
-	{Key: "files", Title: "Files", Collector: "areas"},
-	{Key: "routing-tables", Title: "Routing Tables", Collector: "areas"},
-	{Key: "routing-rules", Title: "Routing Rules", Collector: "areas"},
-	{Key: "ospf", Title: "OSPF", Collector: "areas"},
-	{Key: "ipsec", Title: "IPsec", Collector: "areas"},
-	{Key: "openvpn", Title: "OpenVPN", Collector: "areas"},
-	{Key: "wireguard", Title: "WireGuard", Collector: "areas"},
-	{Key: "vrrp", Title: "VRRP", Collector: "areas"},
-	{Key: "pppoe-clients", Title: "PPPoE Clients", Collector: "areas"},
-	{Key: "dhcp-clients", Title: "DHCP Clients", Collector: "areas"},
-	{Key: "dhcp-servers", Title: "DHCP Servers", Collector: "areas"},
-	{Key: "containers", Title: "Containers", Collector: "areas"},
+	{Key: "ip-pools", Title: "IP Pools", Collector: "areas", Share: Shareable},
+	{Key: "arp", Title: "ARP", Collector: "areas", Share: Shareable},
+	{Key: "address-lists", Title: "Address Lists", Collector: "areas", Share: Shareable},
+	{Key: "interface-lists", Title: "Interface Lists", Collector: "areas", Share: Shareable},
+	{Key: "ip-services", Title: "Services", Collector: "areas", Share: Shareable},
+	{Key: "certificates", Title: "Certificates", Collector: "areas", Share: Shareable},
+	{Key: "scripts", Title: "Scripts", Collector: "areas", Share: NotShareable},
+	{Key: "scheduler", Title: "Scheduler", Collector: "areas", Share: NotShareable},
+	{Key: "ntp-client", Title: "NTP Client", Collector: "areas", Share: Shareable},
+	{Key: "clock", Title: "Clock", Collector: "areas", Share: Shareable},
+	{Key: "logging", Title: "Logging", Collector: "areas", Share: Shareable},
+	{Key: "snmp", Title: "SNMP", Collector: "areas", Share: Shareable},
+	{Key: "files", Title: "Files", Collector: "areas", Share: NotShareable},
+	{Key: "routing-tables", Title: "Routing Tables", Collector: "areas", Share: Shareable},
+	{Key: "routing-rules", Title: "Routing Rules", Collector: "areas", Share: Shareable},
+	{Key: "ospf", Title: "OSPF", Collector: "areas", Share: Shareable},
+	{Key: "ipsec", Title: "IPsec", Collector: "areas", Share: Shareable},
+	{Key: "openvpn", Title: "OpenVPN", Collector: "areas", Share: Shareable},
+	{Key: "wireguard", Title: "WireGuard", Collector: "areas", Share: Shareable},
+	{Key: "vrrp", Title: "VRRP", Collector: "areas", Share: Shareable},
+	{Key: "pppoe-clients", Title: "PPPoE Clients", Collector: "areas", Share: Shareable},
+	{Key: "dhcp-clients", Title: "DHCP Clients", Collector: "areas", Share: Shareable},
+	{Key: "dhcp-servers", Title: "DHCP Servers", Collector: "areas", Share: Shareable},
+	{Key: "containers", Title: "Containers", Collector: "areas", Share: NotShareable},
 	// ── THE TOOLS: ONE PAGE EACH, UNDER ONE NAV CATEGORY ────────────────────
 	//
 	// These were four tabs on a single `tools` page until 2026-09-27. Tools is a
@@ -155,10 +190,10 @@ var All = []Page{
 	// NO COLLECTOR, all four: nothing runs until a tool is started, so there is
 	// nothing to switch off, and hiding one is a permission rather than a load
 	// question.
-	{Key: "tools-ping", Title: "Ping"},
-	{Key: "tools-traceroute", Title: "Traceroute"},
-	{Key: "tools-torch", Title: "Torch"},
-	{Key: "tools-btest", Title: "Bandwidth Test"},
+	{Key: "tools-ping", Title: "Ping", Share: NotShareable},
+	{Key: "tools-traceroute", Title: "Traceroute", Share: NotShareable},
+	{Key: "tools-torch", Title: "Torch", Share: NotShareable},
+	{Key: "tools-btest", Title: "Bandwidth Test", Share: NotShareable},
 	// The Packet Sniffer (2026-09-27). A fifth page rather than a tab on one of
 	// the four, for the reason the split was made: it is its own grant, and
 	// "may capture packets" is a far bigger thing to hand out than "may ping".
@@ -166,7 +201,7 @@ var All = []Page{
 	// NO COLLECTOR either, and one gate this app does not own: /system/device-mode
 	// carries a `sniffer` flag, and a device whose flag is false refuses the tool
 	// whatever the grants say. See internal/server/sniffer.go.
-	{Key: "tools-sniffer", Title: "Packet Sniffer"},
+	{Key: "tools-sniffer", Title: "Packet Sniffer", Share: NotShareable},
 	// The Terminal page. NO COLLECTOR, for the same reason Tools has none: nothing
 	// runs until an operator types a line.
 	//
@@ -175,34 +210,34 @@ var All = []Page{
 	// registry nor internal/rawcmd sees it and no guard can be consulted. What
 	// gates it instead is in internal/server/terminal.go, which is the file to read
 	// before changing anything here.
-	{Key: "terminal", Title: "Terminal"},
-	{Key: "logs", Title: "Logs", Collector: "logs"},
-	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
-	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},
+	{Key: "terminal", Title: "Terminal", Share: NotShareable},
+	{Key: "logs", Title: "Logs", Collector: "logs", Share: Shareable},
+	{Key: "network-topology", Title: "Network Topology", Collector: "topology", Share: Shareable},
+	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless", Share: Shareable},
 	// NO OWNER, and that is the honest answer rather than a gap. This page draws
 	// what the operator placed on a plan and hangs live clients off it, so it is
 	// fed by `wifi` (which network is on which access point) and by `wireless`
 	// (who is connected), and it exists for neither — turning either off costs it
 	// half its content rather than emptying it. See internal/pages' note on
 	// Collector, and internal/collect/rooms.go for the two declarations.
-	{Key: "wifi-map", Title: "Wifi Map"},
-	{Key: "bandwidth", Title: "Bandwidth", Collector: "bandwidth"},
-	{Key: "connections", Title: "Connections", Collector: "conns"},
+	{Key: "wifi-map", Title: "Wifi Map", Share: Shareable},
+	{Key: "bandwidth", Title: "Bandwidth", Collector: "bandwidth", Share: Shareable},
+	{Key: "connections", Title: "Connections", Collector: "conns", Share: Shareable},
 	// Apps Usage (2026-11-12): traffic by application, named from the DNS
 	// cache, ports and network owners. See internal/collect/apps.go.
-	{Key: "apps", Title: "Apps Usage", Collector: "apps"},
+	{Key: "apps", Title: "Apps Usage", Collector: "apps", Share: Shareable},
 	// The AI Agent (#98). NO COLLECTOR, like dashboard and reports: it is fed by
 	// whatever the viewer may already read, assembled per question, so there is
 	// nothing to switch off that would empty it.
-	{Key: "ai-agent", Title: "AI Agent"},
-	{Key: "reports", Title: "Reports"},
-	{Key: "audit-trail", Title: "Audit Trail"},
-	{Key: "backups", Title: "Backups"},
-	{Key: "devices", Title: "Devices"},
+	{Key: "ai-agent", Title: "AI Agent", Share: NotShareable},
+	{Key: "reports", Title: "Reports", Share: NotShareable},
+	{Key: "audit-trail", Title: "Audit Trail", Share: NotShareable},
+	{Key: "backups", Title: "Backups", Share: NotShareable},
+	{Key: "devices", Title: "Devices", Share: Shareable},
 	// Config Management. NO COLLECTOR: templates, runs and drift are read on
 	// demand, and a deploy's progress arrives on its own event.
-	{Key: "config-management", Title: "Config Management"},
-	{Key: "settings", Title: "Settings"},
+	{Key: "config-management", Title: "Config Management", Share: NotShareable},
+	{Key: "settings", Title: "Settings", Share: NotShareable},
 }
 
 // Renamed maps a page key this app USED to use to the key it uses now.
