@@ -15,77 +15,104 @@ type memSink struct{ rows []DBEvent }
 
 func (m *memSink) InsertAuditEvent(e DBEvent) error { m.rows = append(m.rows, e); return nil }
 
-func TestOneDeniedRowPerActionPerMinute(t *testing.T) {
+var (
+	anon  = Actor{Name: "anonymous", IP: "198.51.100.7"}
+	alice = Actor{ID: "u-1", Name: "alice", IP: "198.51.100.7"} // same address, behind one proxy
+)
+
+func TestOneDeniedRowPerActionAndTargetPerMinute(t *testing.T) {
 	c := &fakeClock{t: time.Unix(1_800_000_000, 0)}
-	l := NewDeniedLimiter(c.now)
-	if ok, n := l.Allow("198.51.100.7", "DELETE /api/routers/{id}"); !ok || n != 0 {
-		t.Fatalf("the first refusal was not allowed: %v %d", ok, n)
+	var sums []DeniedSummary
+	l := NewDeniedLimiter(c.now, func(s DeniedSummary) { sums = append(sums, s) })
+	if !l.Allow(anon, "DELETE /api/routers/{id}", "/api/routers/a") {
+		t.Fatal("the first refusal was not allowed")
 	}
 	for i := 0; i < 5; i++ {
-		if ok, _ := l.Allow("198.51.100.7", "DELETE /api/routers/{id}"); ok {
-			t.Fatalf("repeat %d of the same action in one minute was allowed", i+1)
+		if l.Allow(anon, "DELETE /api/routers/{id}", "/api/routers/a") {
+			t.Fatalf("repeat %d of the same action and target was allowed", i+1)
 		}
 	}
-	// Another action from the same address is its own row, and reports the
-	// five that were counted.
-	ok, n := l.Allow("198.51.100.7", "POST /api/users")
-	if !ok || n != 5 {
-		t.Fatalf("another action: allowed %v, suppressed %d, want true and 5", ok, n)
+	// Another target of the same action is its own row.
+	if !l.Allow(anon, "DELETE /api/routers/{id}", "/api/routers/b") {
+		t.Error("a refusal on another target was suppressed")
 	}
-	// Another address has its own budget.
-	if ok, n := l.Allow("198.51.100.8", "DELETE /api/routers/{id}"); !ok || n != 0 {
-		t.Errorf("another address shared the budget: %v %d", ok, n)
+	// Another actor at the SAME address has its own budget.
+	if !l.Allow(alice, "DELETE /api/routers/{id}", "/api/routers/a") {
+		t.Error("an anonymous flood used up a signed-in user's budget at the same address")
+	}
+	if len(sums) != 0 {
+		t.Fatalf("a summary before the window closed: %+v", sums)
+	}
+	c.t = c.t.Add(deniedWindow)
+	l.Flush(false)
+	if len(sums) != 1 || sums[0].Actor != anon || sums[0].Counts["DELETE /api/routers/{id}"] != 5 {
+		t.Fatalf("summary after the window: %+v, want anonymous with 5 counted", sums)
+	}
+	if !strings.Contains(sums[0].Note(), "5 refused attempts not recorded one by one: DELETE /api/routers/{id} x5") {
+		t.Errorf("summary note: %q", sums[0].Note())
 	}
 }
 
-func TestThirtyDeniedRowsPerAddressPerMinute(t *testing.T) {
+func TestThirtyDeniedRowsPerActorPerMinute(t *testing.T) {
 	c := &fakeClock{t: time.Unix(1_800_000_000, 0)}
-	l := NewDeniedLimiter(c.now)
+	var sums []DeniedSummary
+	l := NewDeniedLimiter(c.now, func(s DeniedSummary) { sums = append(sums, s) })
 	for i := 0; i < 30; i++ {
-		if ok, _ := l.Allow("198.51.100.7", "action-"+strconv.Itoa(i)); !ok {
+		if !l.Allow(anon, "action-"+strconv.Itoa(i), "") {
 			t.Fatalf("row %d of 30 was refused", i+1)
 		}
 	}
 	for i := 30; i < 500; i++ {
-		if ok, _ := l.Allow("198.51.100.7", "action-"+strconv.Itoa(i)); ok {
+		if l.Allow(anon, "action-"+strconv.Itoa(i), "") {
 			t.Fatalf("row %d was allowed past the cap of 30", i+1)
 		}
 	}
-	// The next window: allowed again, and it reports what the last one counted.
+	// The actor's next refusal, a minute on, closes the window: the summary
+	// comes out then, and the new window allows again.
 	c.t = c.t.Add(deniedWindow)
-	ok, n := l.Allow("198.51.100.7", "action-0")
-	if !ok || n != 470 {
-		t.Fatalf("after the window: allowed %v, suppressed %d, want true and 470", ok, n)
+	if !l.Allow(anon, "action-0", "") {
+		t.Fatal("refused in the next window")
 	}
-	if ok, n := l.Allow("198.51.100.7", "action-1"); !ok || n != 0 {
-		t.Errorf("the count was reported twice: %v %d", ok, n)
+	if len(sums) != 1 || sums[0].Total() != 470 {
+		t.Fatalf("summary: %+v, want one with 470 counted", sums)
 	}
 }
 
-func TestTheLimiterHoldsABoundedNumberOfAddresses(t *testing.T) {
+func TestNothingCountedIsLost(t *testing.T) {
 	c := &fakeClock{t: time.Unix(1_800_000_000, 0)}
-	l := NewDeniedLimiter(c.now)
-	for i := 0; i < maxDeniedAddrs*2; i++ {
+	total := 0
+	l := NewDeniedLimiter(c.now, func(s DeniedSummary) { total += s.Total() })
+	// Fill past the bound with actors that each have something counted.
+	for i := 0; i < maxDeniedKeys+100; i++ {
 		c.t = c.t.Add(time.Millisecond)
-		l.Allow("10.0."+strconv.Itoa(i/256)+"."+strconv.Itoa(i%256), "x")
+		a := Actor{Name: "anonymous", IP: "10.0." + strconv.Itoa(i/256) + "." + strconv.Itoa(i%256)}
+		l.Allow(a, "x", "")
+		l.Allow(a, "x", "") // counted
 	}
-	if n := l.tracked(); n > maxDeniedAddrs {
-		t.Errorf("%d addresses tracked, the bound is %d", n, maxDeniedAddrs)
+	if n := l.tracked(); n > maxDeniedKeys {
+		t.Errorf("%d pairs tracked, the bound is %d", n, maxDeniedKeys)
+	}
+	// Shutdown flushes the rest.
+	l.Flush(true)
+	if total != maxDeniedKeys+100 {
+		t.Errorf("summaries account for %d counted refusals, want %d: eviction or flush dropped some",
+			total, maxDeniedKeys+100)
 	}
 	var nilLimiter *DeniedLimiter
-	if ok, _ := nilLimiter.Allow("a", "b"); !ok {
+	if !nilLimiter.Allow(anon, "b", "") {
 		t.Error("a nil limiter refused")
 	}
+	nilLimiter.Flush(true)
 }
 
 func TestDeniedThroughTheLimiter(t *testing.T) {
 	c := &fakeClock{t: time.Unix(1_800_000_000, 0)}
 	sink := &memSink{}
 	marks := 0
-	rec := New(sink, Actor{Name: "anonymous", IP: "198.51.100.7"}, func() int64 { return 1 }).
-		WithDeniedLimit(NewDeniedLimiter(c.now)).OnDenied(func() { marks++ })
+	l := NewDeniedLimiter(c.now, func(s DeniedSummary) { WriteDeniedSummary(sink, s, func() int64 { return 2 }) })
+	rec := New(sink, anon, func() int64 { return 1 }).WithDeniedLimit(l).OnDenied(func() { marks++ })
 	for i := 0; i < 3; i++ {
-		rec.Denied(Event{Action: "DELETE /api/routers/{id}", Note: "HTTP 403"})
+		rec.Denied(Event{Action: "DELETE /api/routers/{id}", TargetID: "/api/routers/a", Note: "HTTP 403"})
 	}
 	if len(sink.rows) != 1 {
 		t.Fatalf("%d rows written for three identical refusals in a minute, want 1", len(sink.rows))
@@ -93,12 +120,14 @@ func TestDeniedThroughTheLimiter(t *testing.T) {
 	if marks != 3 {
 		t.Errorf("OnDenied ran %d times, want 3: a counted refusal is still handled", marks)
 	}
-	if sink.rows[0].Outcome != "denied" {
-		t.Errorf("outcome %q", sink.rows[0].Outcome)
+	l.Flush(true)
+	if len(sink.rows) != 2 {
+		t.Fatalf("%d rows after the flush, want the refusal and one summary", len(sink.rows))
 	}
-	rec.Denied(Event{Action: "POST /api/users", Note: "HTTP 401"})
-	if len(sink.rows) != 2 || !strings.Contains(sink.rows[1].Detail, "and 2 more refused") {
-		t.Errorf("the next row does not report the two counted: %+v", sink.rows)
+	sum := sink.rows[1]
+	if sum.Action != DeniedSummaryAction || sum.Outcome != "denied" || sum.ActorName != "anonymous" ||
+		!strings.Contains(sum.Detail, "2 refused attempts not recorded one by one") {
+		t.Errorf("summary row: %+v", sum)
 	}
 	// Without a limiter every refusal is written, as before.
 	plain := &memSink{}

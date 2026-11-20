@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"mikrodash/internal/audit"
 	"mikrodash/internal/ztp"
@@ -131,4 +132,36 @@ func (w *statusWriter) Flush() { _ = http.NewResponseController(w.ResponseWriter
 
 func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return http.NewResponseController(w.ResponseWriter).Hijack()
+}
+
+// startDeniedLimit builds the server's DeniedLimiter, writing each summary of
+// counted refusals as a row for its actor, and flushes closed windows once a
+// minute so a summary does not wait for that actor's next refusal. Shutdown
+// stops the ticker and flushes everything still counted.
+func (s *Server) startDeniedLimit() {
+	s.deniedLimit = audit.NewDeniedLimiter(time.Now, func(sum audit.DeniedSummary) {
+		var sink audit.Sink
+		if s.auditDB != nil {
+			sink = auditSink{s.auditDB}
+		}
+		audit.WriteDeniedSummary(sink, sum, nowMillis)
+	})
+	tick := time.NewTicker(time.Minute)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-tick.C:
+				s.deniedLimit.Flush(false)
+			case <-done:
+				return
+			}
+		}
+	}()
+	limit := s.deniedLimit
+	s.deniedStop = func() {
+		tick.Stop()
+		close(done)
+		limit.Flush(true)
+	}
 }

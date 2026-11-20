@@ -310,13 +310,17 @@ func TestARefusedReadIsNotRecorded(t *testing.T) {
 	}
 }
 
-// TestAFloodIsCountedNotWritten: 500 refusals from one address in a minute
-// are one row, and the next row (another route, or the next minute) says how
-// many were counted. Another address is unaffected.
+// TestAFloodIsCountedNotWritten: a flood of refusals from one actor is one
+// row per action and target, and the rest are reported in one summary row for
+// that actor when the minute closes. Another actor is unaffected.
 func TestAFloodIsCountedNotWritten(t *testing.T) {
 	srv, h := deniedServer(t)
 	clock := time.Unix(1_800_000_000, 0)
-	srv.deniedLimit = audit.NewDeniedLimiter(func() time.Time { return clock })
+	var limit *audit.DeniedLimiter
+	limit = audit.NewDeniedLimiter(func() time.Time { return clock }, func(sum audit.DeniedSummary) {
+		audit.WriteDeniedSummary(auditSink{srv.auditDB}, sum, nowMillis)
+	})
+	srv.deniedLimit = limit
 	// The router routes have their own request limiter (60 a minute, on the
 	// real clock): past it they answer 429, which is not a refusal and is not
 	// counted. So the refusals actually made are counted here.
@@ -333,44 +337,70 @@ func TestAFloodIsCountedNotWritten(t *testing.T) {
 	if rows := deniedRowsFrom(t, srv, "10.6.6.6"); len(rows) != 1 {
 		t.Fatalf("%d refusals in a minute left %d rows, want 1", refused, len(rows))
 	}
-	// The next minute, a route outside that request limiter's group.
 	clock = clock.Add(time.Minute)
-	if w := serveWithin(t, h, requestForRoute("POST /api/users", "10.6.6.6")); w.Code != http.StatusUnauthorized && w.Code != http.StatusForbidden {
-		t.Fatalf("control: POST /api/users answered %d to no session", w.Code)
-	}
+	limit.Flush(false)
 	rows := deniedRowsFrom(t, srv, "10.6.6.6")
 	if len(rows) != 2 {
-		t.Fatalf("the next minute left %d rows in all, want 2", len(rows))
+		t.Fatalf("after the minute: %d rows, want the refusal and its summary", len(rows))
 	}
-	want := "and " + strconv.Itoa(refused-1) + " more refused"
+	want := strconv.Itoa(refused-1) + " refused attempts not recorded one by one: DELETE /api/routers/{id} x" + strconv.Itoa(refused-1)
 	found := false
 	for _, r := range rows {
-		if r.Detail != nil && strings.Contains(*r.Detail, want) {
+		if r.Action == audit.DeniedSummaryAction && r.ActorName == "anonymous" && r.Detail != nil && strings.Contains(*r.Detail, want) {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("no row reports the counted refusals (%q)", want)
-	}
-	serveWithin(t, h, requestForRoute("DELETE /api/routers/{id}", "10.6.6.7"))
-	if rows := deniedRowsFrom(t, srv, "10.6.6.7"); len(rows) != 1 {
-		t.Errorf("another address left %d rows, want 1", len(rows))
+		t.Errorf("no summary row for the anonymous actor reports %q", want)
 	}
 }
 
-// TestTheSocketAndHTTPShareOneBudget: refusals recorded on the socket count
-// against the same address's budget as HTTP ones.
-func TestTheSocketAndHTTPShareOneBudget(t *testing.T) {
+// TestOneActorHasOneBudgetAcrossTheSocketAndHTTP: refusals one actor makes on
+// the socket and over HTTP count against the same budget.
+func TestOneActorHasOneBudgetAcrossTheSocketAndHTTP(t *testing.T) {
 	srv, h := deniedServer(t)
-	cn := &conn{srv: srv, clientIP: "10.5.5.5", sess: &Session{Username: "bob"}}
+	srv.auth = authFor("tok", &Session{Username: "bob"})
+	cn := &conn{srv: srv, clientIP: "10.5.5.5", sess: &Session{Username: "bob"}, userID: srv.userIDFor("bob")}
+	if cn.userID == "" {
+		t.Fatal("control: bob has no user id in the fixture")
+	}
 	for i := 0; i < 30; i++ {
 		cn.recorder().Denied(audit.Event{Action: "socket-action-" + strconv.Itoa(i)})
 	}
 	if rows := deniedRowsFrom(t, srv, "10.5.5.5"); len(rows) != 30 {
 		t.Fatalf("control: 30 distinct socket refusals left %d rows", len(rows))
 	}
-	serveWithin(t, h, requestForRoute("DELETE /api/routers/{id}", "10.5.5.5"))
+	req := requestForRoute("POST /api/users", "10.5.5.5")
+	req.Header.Set("Cookie", "mikrodash_sid=tok")
+	if w := serveWithin(t, h, req); w.Code != http.StatusForbidden {
+		t.Fatalf("control: bob's POST /api/users answered %d, want 403", w.Code)
+	}
 	if rows := deniedRowsFrom(t, srv, "10.5.5.5"); len(rows) != 30 {
-		t.Errorf("an HTTP refusal past the shared cap of 30 was written (%d rows)", len(rows))
+		t.Errorf("bob's HTTP refusal past his shared cap of 30 was written (%d rows)", len(rows))
+	}
+}
+
+// TestAnAnonymousFloodCannotHideASignedInUsersRefusal: behind one address
+// (a proxy MikroDash does not trust), an anonymous flood uses up only the
+// anonymous budget; a signed-in user's refusal from the same address is still
+// written.
+func TestAnAnonymousFloodCannotHideASignedInUsersRefusal(t *testing.T) {
+	srv, h := deniedServer(t)
+	for i := 0; i < 50; i++ {
+		serveWithin(t, h, requestForRoute("POST /api/users", "10.4.4.4"))
+	}
+	before := len(deniedRowsFrom(t, srv, "10.4.4.4"))
+	srv.auth = authFor("tok", &Session{Username: "bob"})
+	req := requestForRoute("POST /api/users", "10.4.4.4")
+	req.Header.Set("Cookie", "mikrodash_sid=tok")
+	if w := serveWithin(t, h, req); w.Code != http.StatusForbidden {
+		t.Fatalf("control: bob's POST answered %d, want 403", w.Code)
+	}
+	rows := deniedRowsFrom(t, srv, "10.4.4.4")
+	if len(rows) != before+1 {
+		t.Fatalf("bob's refusal after an anonymous flood: %d rows, want %d", len(rows), before+1)
+	}
+	if rows[0].ActorName != "bob" {
+		t.Errorf("the newest row is %q's, want bob's", rows[0].ActorName)
 	}
 }

@@ -180,6 +180,8 @@ type Server struct {
 	// builds may write (audit.DeniedLimiter; docs/DECISIONS.md, 2026-11-20).
 	// Nil, as in a test that builds a Server by hand, means no cap.
 	deniedLimit *audit.DeniedLimiter
+	// deniedStop ends the minute flush of deniedLimit (startDeniedLimit).
+	deniedStop func()
 	// overviewLines is the last Agent Overview line per user per router, so a
 	// return to the Dashboard within the interval re-shows it rather than paying
 	// for another. See `overviewTick`.
@@ -398,7 +400,6 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		jobLimit:       newJobLimiter(),
 		dnsBulk:        dnsBulkJobs{jobs: map[string]*DNSBulkJob{}, busy: map[string]bool{}},
 		aiLimit:        newRateLimiter(20, time.Minute),
-		deniedLimit:    audit.NewDeniedLimiter(time.Now),
 	}
 	// Installed AFTER construction because it closes over the server. It is the
 	// whole of authentication.
@@ -595,6 +596,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// router's session that dials before this is up simply retries, as every
 	// session does on a failed dial.
 	srv.ztpSync()
+	srv.startDeniedLimit()
 	return srv, nil
 }
 
@@ -915,6 +917,10 @@ func (s *Server) Shutdown() {
 	}
 	// AND THE RECONCILER, for that same reason: its loop holds a ticker and
 	// would outlive every Server a test builds.
+	if s.deniedStop != nil {
+		s.deniedStop()
+		s.deniedStop = nil
+	}
 	if s.credStop != nil {
 		s.credStop()
 		s.credStop = nil

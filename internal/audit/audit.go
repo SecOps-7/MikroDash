@@ -304,8 +304,9 @@ func New(sink Sink, actor Actor, now func() int64) *Recorder {
 func (r *Recorder) Record(ev Event) { r.write(ev) }
 
 // Denied records a refusal, which is the reason Outcome exists. With a
-// DeniedLimiter attached it may be counted rather than written (see
-// denied_limit.go); a written row then reports how many were counted.
+// DeniedLimiter attached it may be counted rather than written; the counted
+// ones are reported in a summary row for the same actor when the window
+// closes (see denied_limit.go).
 func (r *Recorder) Denied(ev Event) {
 	if r == nil {
 		return
@@ -314,19 +315,22 @@ func (r *Recorder) Denied(ev Event) {
 		defer r.onDenied()
 	}
 	ev.Outcome = "denied"
-	if r.limit != nil {
-		ok, n := r.limit.Allow(r.Actor.IP, ev.Action)
-		if !ok {
-			return
-		}
-		if n > 0 {
-			if ev.Note != "" {
-				ev.Note += "; "
-			}
-			ev.Note += suppressedNote(n)
-		}
+	if r.limit != nil && !r.limit.Allow(r.Actor, ev.Action, ev.TargetID) {
+		return
 	}
 	r.write(ev)
+}
+
+// DeniedSummaryAction is the action of the row that reports refusals a
+// DeniedLimiter counted and did not write one by one.
+const DeniedSummaryAction = "audit.denied.summary"
+
+// WriteDeniedSummary writes the summary row for one actor's counted refusals.
+func WriteDeniedSummary(sink Sink, s DeniedSummary, now func() int64) {
+	New(sink, s.Actor, now).write(Event{
+		Action: DeniedSummaryAction, Outcome: "denied", Note: s.Note(),
+		Extra: []KV{{Key: "since", Value: s.Since.UnixMilli()}, {Key: "until", Value: s.Until.UnixMilli()}},
+	})
 }
 func (r *Recorder) Failed(ev Event) { ev.Outcome = "failed"; r.write(ev) }
 

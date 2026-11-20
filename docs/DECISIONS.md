@@ -31,17 +31,25 @@ suppressed rows, not written row by row.
   and ZTP enrolment keep their own records (`deniedAuditExempt`, each entry
   with its reason).
 - One `audit.DeniedLimiter` per server, attached to every recorder the
-  server builds (HTTP, socket, and later share links): per client address,
-  1 row per action and 30 rows a minute, the rest counted and reported on
-  the next row ("and N more refused in the last minute"), memory bounded.
+  server builds (HTTP, socket, and later share links). Its budget is per
+  ACTOR AT AN ADDRESS (user id or name, plus client address), so behind a
+  proxy MikroDash does not trust an anonymous flood cannot use up a
+  signed-in user's budget. Per pair and minute: 1 row per action and target,
+  30 rows overall. The rest are counted per action and written as ONE
+  summary row for that actor (`audit.denied.summary`) when the window closes:
+  on the actor's next refusal, the server's minute flush, eviction under
+  memory pressure, or shutdown. Nothing counted is dropped unreported.
 - Tests: `TestEveryRefusedWriteLeavesOneRow` (every write route read from
   the source, anonymous and signed in without grants, one row per refusal),
   `TestAnAnonymousWriteIsRefusedOrPublic` (the public writes listed, both
   ways), `TestTheExemptionsNameRealRoutes`, `TestARefusedReadIsNotRecorded`,
-  `TestAFloodIsCountedNotWritten`, `TestTheSocketAndHTTPShareOneBudget`
+  `TestAFloodIsCountedNotWritten`,
+  `TestOneActorHasOneBudgetAcrossTheSocketAndHTTP`,
+  `TestAnAnonymousFloodCannotHideASignedInUsersRefusal`
   (`internal/server/denied_audit_test.go`), and the limiter's own tests in
   `internal/audit/denied_limit_test.go`. Mutation-checked: removing the
-  middleware, the dedupe mark or the limiter each fails a test.
+  middleware, the dedupe mark or the limiter, keying by address alone,
+  evicting without a summary, or not flushing at shutdown each fails a test.
 
 ## Sign-in is always required (#165, 2026-11-20)
 
