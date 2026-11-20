@@ -58,6 +58,17 @@ func (d *DB) RenamePageGrants() (int, error) {
 		if _, err := d.sql.Exec(`DELETE FROM role_pages WHERE page = ?`, old); err != nil {
 			return moved, err
 		}
+		// SHARE LINKS NAME PAGES TOO, as a link's subject and as a slideshow's
+		// slides. A renamed key moves with them, or the link would name a page
+		// that no longer exists and be refused as unshareable.
+		for _, q := range []string{
+			"UPDATE share_links SET page = ? WHERE page = ?",
+			"UPDATE share_link_slides SET page = ? WHERE page = ?",
+		} {
+			if _, err := d.sql.Exec(q, pages.Renamed[old], old); err != nil {
+				return moved, err
+			}
+		}
 	}
 	return moved, nil
 }

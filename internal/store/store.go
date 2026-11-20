@@ -33,6 +33,7 @@ import (
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -808,4 +809,16 @@ func RouterSiteIDs(r Router) []string {
 		return []string{r.SiteID}
 	}
 	return nil
+}
+
+// DeriveKey returns a 32-byte key for one purpose, derived from the store's
+// key: HMAC-SHA256(key, "mikrodash/"+purpose). Each purpose gets an
+// independent key, the store's own key (the one that seals credentials) is
+// never handed out, and the result is stable across restarts for as long as
+// the secret is. Share links sign their view tickets with
+// DeriveKey("share-ticket-v1").
+func (s *Store) DeriveKey(purpose string) []byte {
+	m := hmac.New(sha256.New, s.key)
+	m.Write([]byte("mikrodash/" + purpose))
+	return m.Sum(nil)
 }

@@ -193,6 +193,11 @@ var pruneRules = []pruneRule{
 	// its minutes deleted before anything summarised them, losing the window
 	// rather than compacting it.
 	{"traffic_hourly", "ts", PruneDays.MetricDays, true},
+	// Share links (#165 follow-up): a link 90 days past its revocation or its
+	// expiry. An active never-expiring link has neither column set, so no
+	// rule can match it.
+	{"share_links", "revoked_at", shareLinkRetention, true},
+	{"share_links", "expires_at", shareLinkRetention, true},
 	{"bandwidth_hourly", "ts", PruneDays.MetricDays, true},
 
 	// ── MONITORING COVERAGE (2026-10-01), ON THE CONNECTIVITY POLICY ─────────
@@ -259,3 +264,7 @@ func (d *DB) PruneLogged(p PruneDays, now int64) int {
 	}
 	return n
 }
+
+// shareLinkRetention is fixed: a revoked or expired link is kept 90 days so
+// the Shared links tab still shows what was shared and when, then removed.
+func shareLinkRetention(PruneDays) int { return 90 }

@@ -130,6 +130,9 @@ func TestThePruneMappingMatchesLive(t *testing.T) {
 // comparison above — and a flag that excused a rule from scrutiny AND recorded
 // it would be a way to add a DELETE that nothing checks.
 var portAddedPrunes = map[string]string{
+	"share_links": "share links (#165 follow-up), which live never had: a link 90 days past its " +
+		"revocation or its expiry. Two rules, one per column; an active never-expiring link has " +
+		"neither set and is never pruned",
 	"ai_messages": "the assistant's conversation history (#98). Live had no assistant, so the " +
 		"recording holds nothing to compare against. It ages faster than everything else here " +
 		"because a transcript is personal rather than operational: it is what somebody asked " +
@@ -330,7 +333,7 @@ func openTestDB(t *testing.T) *DB {
 	}
 	// AND THE REAL `monitorRunsDDL`, the constant itself rather than a retyped
 	// copy, for the same reason as the line above.
-	if _, err := h.Exec(historyDDL + monitorRunsDDL + clientWatchDDL + appUsageDDL); err != nil {
+	if _, err := h.Exec(historyDDL + monitorRunsDDL + clientWatchDDL + appUsageDDL + shareLinksDDL); err != nil {
 		t.Fatal(err)
 	}
 	_ = h.Close()

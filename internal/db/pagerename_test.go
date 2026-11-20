@@ -160,3 +160,30 @@ func TestRenamePageGrantsOnNilDB(t *testing.T) {
 		t.Errorf("nil DB returned (%d, %v)", n, err)
 	}
 }
+
+// TestARenamedPageMovesInShareLinks: a share link and a slideshow's slides
+// name pages too, and a renamed key moves with them, or the link would name a
+// page that no longer exists and be refused as unshareable.
+func TestARenamedPageMovesInShareLinks(t *testing.T) {
+	d := roleDB(t)
+	if err := d.InsertShareLink(ShareLink{ID: "l1", TokenHash: []byte("h1"), Label: "x", Kind: "page",
+		Page: "wireless", RouterID: "r1", CreatedBy: "u-1", CreatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.InsertShareLink(ShareLink{ID: "l2", TokenHash: []byte("h2"), Label: "y", Kind: "slideshow",
+		CreatedBy: "u-1", CreatedAt: 1, Slides: []ShareSlide{{Page: "topology", RouterID: "r1"},
+			{Page: "logs", RouterID: "r1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.RenamePageGrants(); err != nil {
+		t.Fatal(err)
+	}
+	l1, _ := d.ShareLinkByID("l1")
+	l2, _ := d.ShareLinkByID("l2")
+	if l1 == nil || l1.Page != "wifi-clients" {
+		t.Errorf("the link's page was not renamed: %+v", l1)
+	}
+	if l2 == nil || l2.Slides[0].Page != "network-topology" || l2.Slides[1].Page != "logs" {
+		t.Errorf("the slides were not renamed (or a current key moved): %+v", l2)
+	}
+}

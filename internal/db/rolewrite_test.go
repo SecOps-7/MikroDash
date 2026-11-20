@@ -24,7 +24,7 @@ CREATE TABLE role_pages (
   page    TEXT NOT NULL,
   access  TEXT NOT NULL,
   PRIMARY KEY (role_id, page));
-`); err != nil {
+` + shareLinksDDL); err != nil {
 		t.Fatal(err)
 	}
 	_ = h.Close()

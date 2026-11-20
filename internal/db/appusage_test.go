@@ -33,7 +33,7 @@ func TestMigrationThirtyEightAddsTheAppUsageTable(t *testing.T) {
 	if _, err := d.Migrate(); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	if v, _ := d.SchemaVersion(); v != 39 {
+	if v, _ := d.SchemaVersion(); v != schemaVersion {
 		t.Errorf("schema is v%d after Migrate, want 39", v)
 	}
 
@@ -99,7 +99,7 @@ func TestMigrationThirtyNineDropsThePerRouterOptIn(t *testing.T) {
 	if tableExists(t, d, "app_history_routers") {
 		t.Error("app_history_routers survived migration 39")
 	}
-	if v, _ := d.SchemaVersion(); v != 39 {
+	if v, _ := d.SchemaVersion(); v != schemaVersion {
 		t.Errorf("schema is v%d after Migrate, want 39", v)
 	}
 	// Replayed over a database that no longer has it: harmless.
