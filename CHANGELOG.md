@@ -2,6 +2,14 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.85] - Switch probe limited to administrators
+
+### Fixed
+
+- **The SwOS switch connection test is for administrators only, ten a minute**,
+  the same rule as the router connection test. Before, a user allowed to manage
+  one switch could point it at any address on the network.
+
 ## [0.8.84] - SwOS switches (preview)
 
 ### New
