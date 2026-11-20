@@ -7,6 +7,19 @@ All notable changes to MikroDash will be documented in this file.
 Changes on `main` that are in the `:latest` image but not yet in a numbered
 release.
 
+### New
+
+- **Shared links: read-only views for people without an account.** Made in
+  Settings, Shared links, by a global administrator only. A link shows one
+  page, a slideshow of pages across routers, one Dashboard card, or a sensor
+  feed for Home Assistant. Each link has an expiry (or Never), a viewer cap,
+  an optional address list and the sites allowed to embed it, and can be
+  edited or revoked at any time. Asked for in
+  [#165](https://github.com/SecOps-7/MikroDash/issues/165), thanks
+  [@PhillipSlabbert](https://github.com/PhillipSlabbert).
+- **Refused changes are in the audit trail.** An attempt to change something
+  without permission leaves a row, rate limited so a flood cannot bury it.
+
 ### Changed
 
 - **Sign-in is always required.** The Require sign-in switch is gone from

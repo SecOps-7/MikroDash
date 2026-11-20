@@ -20,7 +20,7 @@ const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.share-shell-entry.ts');
 fs.writeFileSync(ENTRY,
   "export * from '../web/src/share-logic.js';\n" +
-  "export { subjectOf, statusPill, formWarnings } from '../web/src/pages/settings-shares.js';\n");
+  "export { subjectOf, statusPill, formWarnings, shownOnce } from '../web/src/pages/settings-shares.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.share-shell-port.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -79,5 +79,9 @@ assert.doesNotMatch(w('https://md.example.com', ['https://ha.example.com'], '7d'
 assert.match(w('https://md.example.com', [], 'never', false, []), /never expires/);
 assert.match(w('https://md.example.com', [], '7d', true, ['198.51.100.7']), /does not trust/);
 assert.strictEqual(w('https://md.example.com', [], '7d', true, []), '', 'a warning with nothing to warn about');
+
+assert.strictEqual(m.shownOnce('page', 'http://md:3081/s/abc'), 'http://md:3081/s/abc');
+assert.strictEqual(m.shownOnce('feed', 'http://md:3081/s/abc'), 'http://md:3081/share/api/feed\nAuthorization: Bearer abc',
+  'a feed was shown as a page link, which would put its token in a URL');
 
 say('share shell: stepping, timing, theme, motion, and the Settings tab\'s words and warnings hold');

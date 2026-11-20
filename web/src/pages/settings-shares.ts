@@ -368,6 +368,18 @@ export function bodyFromForm(): Record<string, unknown> {
   return body;
 }
 
+/**
+ * What the result box shows, once: the link for a page, slideshow or card;
+ * for a sensor feed, the address Home Assistant polls and the header that
+ * carries the token, since a feed's token never goes in a URL.
+ */
+export function shownOnce(kind: string, url: string): string {
+  if (kind !== 'feed') return url;
+  const i = url.lastIndexOf('/s/');
+  if (i < 0) return url;
+  return url.slice(0, i) + '/share/api/feed\nAuthorization: Bearer ' + url.slice(i + 3);
+}
+
 async function save(): Promise<void> {
   showError('');
   const body = bodyFromForm();
@@ -397,7 +409,7 @@ async function save(): Promise<void> {
   }
   if (!editing && d.url) {
     const code = el('sh_url');
-    if (code) code.textContent = d.url;
+    if (code) code.textContent = shownOnce(String(body.kind), d.url);
     const result = el('sh_result');
     if (result) result.hidden = false;
     const btn = el('sh_save') as HTMLButtonElement | null;

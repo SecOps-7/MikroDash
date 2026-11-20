@@ -431,7 +431,8 @@ MikroDash is built for your **local network**. It serves plain HTTP; terminate T
 - **Credentials at rest** are encrypted with AES-256-GCM; user passwords are hashed with scrypt. Keep the `/data` volume, and `/data/.secret` in particular, private.
 - **Single sign-on is OpenID Connect**, with PKCE, a nonce, and the ID token checked against the provider's own key set. An account whose username collides with a local one is refused rather than merged, and a person whose claims map to no role cannot sign in at all.
 - **The backup migration export is off by default**, and stores that device's passwords and keys on the server when you turn it on. Encrypted at rest, which protects a copy of the volume - not somebody who already has `/data`.
-- **Sign-in is rate limited** per client, and every change is recorded in the audit trail.
+- **Shared links are read-only and made only by a global administrator**, in Settings, Shared links. A link shows one page, a slideshow, one Dashboard card or a sensor feed to anyone who has it, with no account and no way to change anything. It ends when revoked, when it expires, or when its creator stops being an administrator, and it can be limited to addresses and to the sites allowed to frame it. Treat a link like a password: anyone holding it can view.
+- **Sign-in is rate limited** per client, and every change, and every refused change, is recorded in the audit trail.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
@@ -455,6 +456,34 @@ environment:
 ```
 
 Alternatively, have the proxy preserve the original `Host` header (`proxy_set_header Host $host;` in Nginx). `X-Forwarded-Host` is deliberately not trusted, since any client can send one.
+
+</details>
+
+<details>
+<summary><strong>Shared links and Home Assistant</strong></summary>
+
+<br>
+
+Make a link in **Settings, Shared links** (global administrators only). The address is shown once; copy it then.
+
+- **A page, a slideshow or a card in a Home Assistant dashboard:** add the Home Assistant address (for example `http://192.168.1.20:8123`) under **Allowed embedding sites**. The view then defaults to Embed, which drops the title strip. In Home Assistant add a **Webpage** card with the link as its URL. A wildcard such as `https://*.example.com` is allowed for https sites; a bare `*` is not.
+- **https and http do not mix.** An https Home Assistant cannot frame an http MikroDash. Put MikroDash behind the same https proxy, or reach both over http on your LAN, and set **Link address** to the address Home Assistant uses.
+- **An address list sees the viewer's device**, not Home Assistant, for an embedded page. Behind a proxy, set `MIKRODASH_TRUSTED_PROXIES` first or every viewer looks like the proxy.
+- **A sensor feed** gives Home Assistant values (online, uptime, version, model, CPU, memory, temperature, interfaces, open alerts, Wi-Fi clients) as JSON. MikroDash opens no router channel for it: a value it does not already hold, or one older than five minutes, is `null`. The token goes in a header, never the URL, and the feed answers six polls a minute:
+
+```yaml
+rest:
+  - resource: http://192.168.1.10:3081/share/api/feed
+    headers:
+      Authorization: !secret mikrodash_feed   # "Bearer <the token from the link>"
+    scan_interval: 30
+    sensor:
+      - name: Router CPU
+        value_template: "{{ value_json.cpu }}"
+        unit_of_measurement: "%"
+      - name: Router online
+        value_template: "{{ value_json.online }}"
+```
 
 </details>
 

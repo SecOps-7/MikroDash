@@ -4,6 +4,43 @@ Product decisions the code must keep, each with who made it, why, and what
 holds it. A decision recorded here is a rule: changing it is a new decision,
 not a refactor.
 
+## A share link is not a sign-in (#165, 2026-11-20)
+
+**Decision (the operator):** people without an account can be given a
+read-only view through a share link: one page, a slideshow, one Dashboard
+card, or a sensor feed for Home Assistant. Links are made only in Settings >
+Shared links, only by a global administrator. A link may never expire
+(Never is a choice, with a warning). Every page is shareable except
+administration, Scripts, Scheduler, Containers, Files, Router Users and
+Reports; the tools and the terminal are not pages a share can show. A link
+ends when it is revoked, when it expires, when its creator is deleted or
+stops being a global administrator, or when a router it shows is deleted.
+Each link has a viewer cap (default 5; the highest allowed is 25, which is
+still an open question), an optional address allow-list, and optional sites
+allowed to frame it.
+
+**What it means:** a share never builds a session and never reaches an
+`/api/` route. The token opens `/s/<token>`, and only its hash is stored. The
+page is handed a view ticket (HMAC over the link id, ten minutes), which the
+share socket and the ticket renewal accept and nothing else does. Every use
+re-checks the link. The socket is fixed to the link's router and page, joins
+only that page's room (a card link, only its card's), hears from the
+router-wide room only the top-bar data, and accepts no write. A refusal looks
+the same whatever its reason; only the audit trail says why.
+
+**How it is held:**
+
+- `internal/sharelink` (pure rules) and `internal/server/share_api.go`,
+  `share_view.go`, `share_ws.go`.
+- Tests: `TestAShareOpensNothingElse` (a share credential sent to every other
+  route changes no answer), `TestOnlyAGlobalAdministratorManagesShareLinks`,
+  `TestEveryRefusalLooksTheSame`, `TestFramingFollowsTheLink`,
+  `TestALinkDiesWithItsCreatorsAdministration`, `TestADeletedRouterRevokesItsLinks`,
+  `TestAWriteRevokesWithoutWaitingForAUse`, `TestAShareHearsOnlyItsSubject`,
+  `TestAnEditClosesTheLiveViewAndTheCapHolds`, `TestTheFeedTakesItsTokenInAHeaderOnly`,
+  `TestEveryCardIsFedOrRecorded`, `TestTheShareListsAreTheRulings`, and in the
+  browser `web/test/share-shell.test.ts`.
+
 ## Refused write attempts are recorded in the audit trail (#165, 2026-11-20)
 
 **Decision (the operator):** a write that MikroDash refuses (no session, or
@@ -64,8 +101,8 @@ setting. A settings.json that still says `"authMode":"none"` is read and
 ignored (`store.Merge` drops a key that is not a default), and nothing is
 granted by it. An install with no account still reaches first-run setup, which
 needs the setup code from the log. Read-only access for people without an
-account, if it comes, is a separate feature (shareable view-only links, being
-planned), not a way round sign-in.
+account is a separate feature (share links, recorded above), not a way round
+sign-in.
 
 **How it is held:**
 
