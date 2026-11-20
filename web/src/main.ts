@@ -78,6 +78,7 @@ import { openSwitchForm } from './pages/switch-form';
 import { setKnownSwitches } from './swos-switches';
 import { initNotifyChannels } from './pages/settings-notify-channels';
 import { initNotifTestButtons } from './pages/settings-notif-test';
+import { initSharesTab } from './pages/settings-shares';
 import { initAbout } from './pages/about';
 import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
 import { initDashboard, resetSysMeta, setConnRouter, setBwRouters, setBwActiveRouter, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard, switchSecScoreCard } from './pages/dashboard';
@@ -867,6 +868,7 @@ async function main(): Promise<void> {
   // the tabs are addressed by class (`.stab`), not by id. Found by opening the
   // page and clicking.
   mountSettingsTabs();
+  initSharesTab();
 
   // The live `loadSettings`: one fetch, then the form and the poll card from the
   // same payload. Called on every visit rather than once, matching the live

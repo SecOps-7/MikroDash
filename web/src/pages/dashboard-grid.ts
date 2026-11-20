@@ -33,14 +33,23 @@ import { createGridEditor, type GridEditor } from './dashboard-grid-edit';
 import { createGridDrag } from './dashboard-grid-drag';
 import { createGridResize } from './dashboard-grid-resize';
 import { applyLayout, loadLayout, mergeLayoutFromServer, syncDashRooms } from './dashboard-grid-store';
+import { mergeLayout } from './dashboard-grid-layout';
+import type { GridCard } from '../gen/grid-tables';
 
-export function initDashboardGrid(): GridEditor | null {
+/**
+ * `fixed`, when given, is the layout to show instead of this browser's saved
+ * one: a share link's snapshot (internal/server/share_view.go). It is merged
+ * against the card catalogue like a saved layout, and it is never written to
+ * this browser's storage, so a share opened in a browser that also signs in
+ * leaves that account's layout alone.
+ */
+export function initDashboardGrid(fixed?: readonly GridCard[] | null): GridEditor | null {
   const gridRoot = el('dash-grid-root');
   // The Dashboard's markup is not on the page - nothing to wire. Returns rather
   // than throwing: the same guard the live `init` uses.
   if (!gridRoot) return null;
 
-  const editor = createGridEditor(loadLayout());
+  const editor = createGridEditor(fixed ? mergeLayout(fixed) : loadLayout());
   const drag = createGridDrag(editor);
   const resize = createGridResize(editor);
 
@@ -130,11 +139,15 @@ export function initDashboardGrid(): GridEditor | null {
   // The server's copy, which is what carries a layout between browsers. It
   // arrives AFTER the local one has already painted, so a slow request costs
   // nothing and a failed one leaves the local layout alone.
-  void mergeLayoutFromServer().then((merged) => {
-    if (!merged) return;
-    editor.setLayout(merged);
-    applyLayout(merged);
-  });
+  //
+  // Not for a fixed layout: a share has no account to fetch a layout for.
+  if (!fixed) {
+    void mergeLayoutFromServer().then((merged) => {
+      if (!merged) return;
+      editor.setLayout(merged);
+      applyLayout(merged);
+    });
+  }
 
   return editor;
 }

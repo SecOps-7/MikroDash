@@ -39,7 +39,12 @@ export class Socket {
   private closed = false;
   private timer: number | undefined;
 
-  constructor(private url: string) {
+  /**
+   * `protocols`, when given, is asked on every (re)connect: a share view
+   * offers its current view ticket as a WebSocket subprotocol, and the ticket
+   * is renewed while the page lives, so a reconnect must use the newest one.
+   */
+  constructor(private url: string, private protocols?: () => string[]) {
     this.connect();
     // A tab that was in the background for an hour comes back with a socket the
     // browser quietly killed. Reconnecting on visibility beats waiting for the
@@ -131,7 +136,7 @@ export class Socket {
 
   private connect(): void {
     if (this.closed || this.ws?.readyState === WebSocket.CONNECTING) return;
-    const ws = new WebSocket(this.url);
+    const ws = this.protocols ? new WebSocket(this.url, this.protocols()) : new WebSocket(this.url);
     this.ws = ws;
 
     let opened = false;

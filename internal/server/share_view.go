@@ -324,16 +324,17 @@ func (s *Server) shareOpen(w http.ResponseWriter, r *http.Request) {
 // the script element it sits in.
 func (s *Server) shareShell(cfg shareConfig) []byte {
 	b, _ := json.Marshal(cfg)
-	inline := []byte(`<script id="share-config" type="application/json">` + string(b) + `</script>`)
 	var shell []byte
 	if s.webDir != "" {
 		shell, _ = os.ReadFile(filepath.Join(s.webDir, "share.html"))
 	}
 	if len(shell) == 0 || !bytes.Contains(shell, []byte("<!--SHARE-CONFIG-->")) {
-		return append([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>`+
-			html.EscapeString(cfg.Label)+`</title></head><body>`), append(inline, []byte(`</body></html>`)...)...)
+		return []byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>` +
+			html.EscapeString(cfg.Label) + `</title></head><body><script id="share-config" type="application/json">` +
+			string(b) + `</script></body></html>`)
 	}
-	return bytes.Replace(shell, []byte("<!--SHARE-CONFIG-->"), inline, 1)
+	// The marker sits inside share.html's own #share-config element.
+	return bytes.Replace(shell, []byte("<!--SHARE-CONFIG-->"), b, 1)
 }
 
 // shareAsset serves one built file of the share shell.

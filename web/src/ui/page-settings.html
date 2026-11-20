@@ -16,6 +16,9 @@
         <button class="stab" data-tab="auth">Authentication</button>
         <button class="stab" data-tab="ai">AI Agent</button>
         <button class="stab" data-tab="provisioning">Provisioning</button>
+        <!-- Global administrators only (system:principals): hidden by caps for
+             everyone else, and the API refuses them whatever this shows. -->
+        <button class="stab" data-tab="shares" data-cap="managePrincipals">Shared links</button>
         <button class="stab" data-tab="features">Features</button>
         <button class="stab" data-tab="about">About</button>
       </div>
@@ -1542,6 +1545,215 @@
               <tbody id="ztpBatchBody"><tr><td colspan="4" class="ztp-help">No generic scripts yet.</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- ── Shared links: read-only links to a page, a slideshow, a Dashboard
+           card or a sensor feed, for somebody with no account. THE ONLY PLACE
+           A LINK IS MADE: no page has a Share button. See
+           internal/server/share_api.go and docs/DECISIONS.md. -->
+      <div class="stab-panel" id="stab-shares">
+        <div class="scard scard-wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+            <span class="scard-title">Shared links</span>
+            <span class="card-badge active-blue" id="shareLinksCount">0</span>
+            <span class="share-never-note" id="shareNeverNote"></span>
+            <div class="hdr-actions"><button class="sbtn sbtn-primary is-sm" type="button" id="shareNewBtn">+ New shared link</button></div>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">
+              A shared link shows one page, a slideshow, one Dashboard card or a sensor feed to anyone who
+              has the link, with no account and no way to change anything. Revoke a link to end it at once.
+            </p>
+            <div class="tbl-wrap">
+              <table class="rtr-list share-table">
+                <thead><tr id="shareThead"></tr></thead>
+                <tbody id="shareTbody"><tr><td class="tbl-empty" colspan="11">Loading&#8230;</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="rtr-modal-bg" id="shareFormWrap">
+         <div class="rtr-modal pmodal" style="max-width:44rem">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title" id="sh_title">New shared link</span>
+            <button class="rtr-modal-close" data-modal-close="shareFormWrap" aria-label="Close">&#10005;</button>
+          </div>
+          <div class="rtr-modal-body">
+            <input type="hidden" id="sh_id">
+            <div class="ff-grid">
+              <div class="ff">
+                <label class="sform-label" for="sh_kind">Kind</label>
+                <select id="sh_kind" class="sform-input">
+                  <option value="page">Single page</option>
+                  <option value="slideshow">Slideshow</option>
+                  <option value="card">Dashboard card</option>
+                  <option value="feed">Sensor feed</option>
+                </select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff">
+                <label class="sform-label" for="sh_label">Label</label>
+                <input type="text" id="sh_label" class="sform-input" maxlength="80" placeholder="Lobby wall screen" autocomplete="off">
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="page">
+                <label class="sform-label" for="sh_page">Page</label>
+                <select id="sh_page" class="sform-input"></select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="page card feed">
+                <label class="sform-label" for="sh_router">Router</label>
+                <select id="sh_router" class="sform-input"></select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="card">
+                <label class="sform-label" for="sh_card">Card</label>
+                <select id="sh_card" class="sform-input"></select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="page" id="sh_layoutRow">
+                <label class="sform-label" for="sh_layout">Dashboard layout</label>
+                <select id="sh_layout" class="sform-input">
+                  <option value="" id="sh_layoutKeep">Keep the layout saved in the link</option>
+                  <option value="mine">My saved layout</option>
+                  <option value="default">The default layout</option>
+                </select>
+                <div class="ff-help">Copied into the link when it is saved.</div>
+              </div>
+              <div class="ff ff-full" data-share-for="feed">
+                <label class="sform-label">Values</label>
+                <div class="ff-multi share-checks" id="sh_values"></div>
+                <div class="ff-help">Read from what MikroDash already holds; a value it does not hold is null.</div>
+              </div>
+              <div class="ff ff-full" data-share-for="feed">
+                <label class="sform-label" for="sh_ifaces">Interfaces</label>
+                <input type="text" id="sh_ifaces" class="sform-input" placeholder="ether1, wlan1" autocomplete="off">
+                <div class="ff-help">For the interfaces value, comma separated.</div>
+              </div>
+              <div class="ff ff-full" data-share-for="slideshow">
+                <label class="sform-label">Slides</label>
+                <div class="share-slides-box">
+                  <table class="rtr-list share-slides">
+                    <thead><tr><th>#</th><th>Page</th><th>Router</th><th>Seconds</th><th></th></tr></thead>
+                    <tbody id="sh_slides"></tbody>
+                  </table>
+                  <button class="sbtn sbtn-outline is-sm" type="button" id="sh_addSlide">+ Add slide</button>
+                </div>
+                <div class="ff-help" id="sh_slidesHelp"></div>
+              </div>
+              <div class="ff" data-share-for="slideshow">
+                <label class="sform-label" for="sh_defaultSecs">Seconds per slide</label>
+                <input type="number" id="sh_defaultSecs" class="sform-input" min="10" max="3600" value="30">
+                <div class="ff-help">10 seconds to an hour.</div>
+              </div>
+              <div class="ff" data-share-for="slideshow">
+                <label class="sform-label" for="sh_transition">Transition</label>
+                <select id="sh_transition" class="sform-input">
+                  <option value="none">None</option><option value="fade">Fade</option><option value="slide">Slide</option>
+                </select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="slideshow">
+                <label class="sform-label" for="sh_speed">Speed</label>
+                <select id="sh_speed" class="sform-input">
+                  <option value="fast">Fast</option><option value="normal" selected>Normal</option><option value="slow">Slow</option>
+                </select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="slideshow">
+                <label class="sform-label" for="sh_atEnd">At the end</label>
+                <select id="sh_atEnd" class="sform-input">
+                  <option value="loop">Loop</option><option value="stop">Stop on the last slide</option>
+                </select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="slideshow">
+                <label class="sform-label" for="sh_offline">Offline routers</label>
+                <select id="sh_offline" class="sform-input">
+                  <option value="skip">Skip their slides</option><option value="notice">Show a notice</option>
+                </select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="slideshow">
+                <label class="sform-label" for="sh_warmUp">Warm-up seconds</label>
+                <input type="number" id="sh_warmUp" class="sform-input" min="0" max="10" value="0">
+                <div class="ff-help">Start the next slide's data early. 0 is off.</div>
+              </div>
+              <div class="ff ff-full" data-share-for="slideshow">
+                <label class="sform-label">Show</label>
+                <div class="ff-multi share-checks">
+                  <label><input type="checkbox" id="sh_pause" checked> Pause on hover or tap</label>
+                  <label><input type="checkbox" id="sh_titleBar" checked> Title bar</label>
+                  <label><input type="checkbox" id="sh_progress" checked> Progress</label>
+                  <label><input type="checkbox" id="sh_controls"> Previous and next controls</label>
+                </div>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff">
+                <label class="sform-label" for="sh_expiry">Expires</label>
+                <select id="sh_expiry" class="sform-input">
+                  <option value="1d">In 1 day</option><option value="7d" selected>In 7 days</option>
+                  <option value="30d">In 30 days</option><option value="90d">In 90 days</option>
+                  <option value="date">On a date</option><option value="never">Never</option>
+                  <option value="keep">Keep the current expiry</option>
+                </select>
+                <div class="ff-help" id="sh_expiryHelp"></div>
+              </div>
+              <div class="ff" id="sh_dateRow">
+                <label class="sform-label" for="sh_date">Expiry date</label>
+                <input type="date" id="sh_date" class="sform-input">
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="page slideshow card">
+                <label class="sform-label" for="sh_theme">Theme</label>
+                <select id="sh_theme" class="sform-input">
+                  <option value="follow">Follow the browser</option><option value="light">Light</option><option value="dark">Dark</option>
+                </select>
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" data-share-for="page slideshow card">
+                <label class="sform-label" for="sh_view">View</label>
+                <select id="sh_view" class="sform-input">
+                  <option value="full">Full</option><option value="embed">Embed</option>
+                </select>
+                <div class="ff-help">Embed drops the title strip, for a frame on another site.</div>
+              </div>
+              <div class="ff" data-share-for="page slideshow card">
+                <label class="sform-label" for="sh_cap">Viewers at once</label>
+                <input type="number" id="sh_cap" class="sform-input" min="1" value="5">
+                <div class="ff-help" id="sh_capHelp"></div>
+              </div>
+              <div class="ff ff-full">
+                <label class="sform-label" for="sh_addrs">Allowed addresses</label>
+                <input type="text" id="sh_addrs" class="sform-input" placeholder="Any address" autocomplete="off">
+                <div class="ff-help" id="sh_addrsHelp"></div>
+              </div>
+              <div class="ff ff-full" data-share-for="page slideshow card">
+                <label class="sform-label" for="sh_origins">Allowed embedding sites</label>
+                <input type="text" id="sh_origins" class="sform-input" placeholder="https://ha.example.com" autocomplete="off">
+                <div class="ff-help">Sites that may show this link in a frame, comma separated; one leading wildcard is allowed (https://*.example.com). Empty means no site may frame it.</div>
+              </div>
+              <div class="ff ff-full">
+                <label class="sform-label" for="sh_base">Link address</label>
+                <input type="text" id="sh_base" class="sform-input" autocomplete="off">
+                <div class="ff-help" id="sh_baseHelp">The address viewers will use to reach MikroDash.</div>
+              </div>
+            </div>
+            <div class="share-warn" id="sh_warn" hidden></div>
+            <div class="login-error" id="sh_error" hidden></div>
+            <div class="share-result" id="sh_result" hidden>
+              <p>This link will not be shown again. Anyone with it can view this until it expires or is revoked.</p>
+              <div class="share-url"><code id="sh_url"></code><button class="sbtn sbtn-outline is-sm" type="button" id="sh_copy">Copy</button></div>
+            </div>
+          </div>
+          <div class="rtr-modal-footer">
+            <button class="sbtn sbtn-outline" type="button" data-modal-close="shareFormWrap" id="sh_cancel">Cancel</button>
+            <button class="sbtn sbtn-primary" type="button" id="sh_save">Create link</button>
+          </div>
+         </div>
         </div>
       </div>
 

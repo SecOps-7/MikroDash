@@ -1,0 +1,23 @@
+<!-- The share link's document (internal/server/share_view.go serves it at
+     /s/<token>). cmd/webbuild puts every SHAREABLE page's markup where the
+     PAGES marker is, and nothing else of the app: no nav, no router
+     selector, no account chip. The server inlines the link's config where the
+     SHARE-CONFIG marker is. web/src/entry/share.ts drives it. -->
+<div class="share-root" id="shareRoot">
+  <header class="share-strip" id="shareStrip">
+    <span class="share-strip-title" id="shareTitle">MikroDash</span>
+    <span class="share-strip-router" id="shareRouter"></span>
+    <span class="share-strip-spacer"></span>
+    <span class="pill pill-warn" id="sharePaused" hidden>Paused</span>
+    <span class="share-strip-count" id="shareCount" hidden></span>
+    <span class="share-strip-note">Shared view, read-only<span id="shareExpiry"></span></span>
+  </header>
+  <div class="share-progress" id="shareProgress" hidden><div class="share-progress-bar" id="shareProgressBar"></div></div>
+  <main class="share-stage" id="shareStage">
+<!--PAGES-->
+  </main>
+  <button type="button" class="share-ctl share-ctl-prev" id="sharePrev" aria-label="Previous slide" hidden>&#8249;</button>
+  <button type="button" class="share-ctl share-ctl-next" id="shareNext" aria-label="Next slide" hidden>&#8250;</button>
+  <div class="share-notice" id="shareNotice" hidden><p id="shareNoticeText"></p></div>
+</div>
+<script id="share-config" type="application/json"><!--SHARE-CONFIG--></script>

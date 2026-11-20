@@ -27,6 +27,7 @@
  */
 
 import { el, esc, pill } from '../dom';
+import { loadShares } from './settings-shares';
 import { loadAbout } from './about';
 // `siteIdsOf` is the ARRAY-WINS-OUTRIGHT rule, ported once in `routers.ts` and
 // reused rather than restated: a second copy here would drift, and the half that
@@ -221,7 +222,7 @@ export function populateSettings(data: SettingsPayload): void {
  * both write through their own controls, and a Save button that applied to
  * nothing would be a button that looks broken.
  */
-const NO_SAVE_TABS = ['routers', 'about'];
+const NO_SAVE_TABS = ['routers', 'about', 'shares'];
 
 let aboutFetched = false;
 
@@ -264,6 +265,8 @@ export function activateSettingsTab(tabName: string): void {
   // is a module's worth of rendering rather than a line, and `loadAbout` has its
   // own once-per-lifetime latch.
   if (tabName === 'about') loadAbout();
+  // Shared links are listed fresh on every visit: viewers come and go.
+  if (tabName === 'shares') void loadShares();
 }
 
 /**

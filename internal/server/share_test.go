@@ -484,3 +484,43 @@ func waitFor(t *testing.T, cond func() bool) {
 	}
 	t.Fatal("condition not met within 2s")
 }
+
+// TestWarmUpJoinsOnlyTheNextSlideAhead: share:warm joins the next slide's
+// room early, on the same router, and nothing else.
+func TestWarmUpJoinsOnlyTheNextSlideAhead(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	_, token := createLink(t, h, `{"kind":"slideshow","label":"Wall","options":{"warmUpSecs":5},"slides":[
+		{"page":"dns","routerId":"r1"},{"page":"interfaces","routerId":"r1"},{"page":"logs","routerId":"r1"}]}`)
+	c, err := shareDial(t, ts.URL, token, h)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.CloseNow()
+	send := func(event string, i int) {
+		b, _ := json.Marshal(map[string]any{"event": event, "data": i})
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := c.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	room := func(p string) int { return srv.hub.Occupants("router-r1-page-" + p) }
+	send("share:slide", 0)
+	waitFor(t, func() bool { return room("dns") == 1 })
+	send("share:warm", 2) // not the next slide
+	// Absence cannot be waited for, and any other frame would move the
+	// rooms; so a plain wait, ample for one frame on a local socket.
+	time.Sleep(300 * time.Millisecond)
+	if room("logs") != 0 {
+		t.Error("a slide two ahead was warmed")
+	}
+	send("share:warm", 1)
+	waitFor(t, func() bool { return room("interfaces") == 1 })
+	send("share:slide", 1)
+	waitFor(t, func() bool { return room("dns") == 0 })
+	if room("interfaces") != 1 {
+		t.Errorf("the warmed slide's room after it was shown: %d occupants", room("interfaces"))
+	}
+}

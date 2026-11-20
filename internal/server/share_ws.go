@@ -16,8 +16,8 @@ package server
 // ── WHAT IT ACCEPTS ─────────────────────────────────────────────────────────
 //
 // Read-only by construction: the only inbound events handled are Dashboard-
-// card focus for shareable cards, `share:slide` (an index into the server's
-// own slide list) and keepalive. Every other event is ignored; no write
+// card focus for shareable cards, `share:slide` and `share:warm` (indexes
+// into the server's own slide list) and keepalive. Every other event is ignored; no write
 // handler exists here at all.
 //
 // ── RE-CHECKED WHILE IT LIVES ───────────────────────────────────────────────
@@ -69,6 +69,7 @@ type shareConn struct {
 	page     string
 	routerID string
 	rs       *session.Session
+	warm     string // the room joined ahead of the next slide, if any
 	closed   bool
 	once     sync.Once
 
@@ -200,7 +201,12 @@ func (sc *shareConn) show(routerID, page string) {
 	}
 	sc.view.Store(&shareView{routerID: routerID, page: page})
 	sc.page = page
-	s.hub.Join(cn.c, "router-"+routerID+"-page-"+page)
+	room := "router-" + routerID + "-page-" + page
+	if sc.warm != "" && sc.warm != room {
+		s.hub.Leave(cn.c, sc.warm)
+	}
+	sc.warm = ""
+	s.hub.Join(cn.c, room)
 	cn.resumePage(page)
 	EvRouterSwitched.Send(s.hub, cn.c, map[string]any{"activeId": routerID})
 }
@@ -355,6 +361,34 @@ func (sc *shareConn) goSlide(i int) {
 	sc.show(sl.RouterID, sl.Page)
 }
 
+// warmSlide joins slide i's page room ahead of its turn, so its collectors
+// are running when it appears: the link's warm-up option. Only when the link
+// has warm-up on, only for the slide after the one on screen, only on the
+// same router (a second router would need a second session held), and only
+// one room ahead; the room is left when another page is shown.
+func (sc *shareConn) warmSlide(i int) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	l := sc.link
+	if sc.closed || sc.rs == nil || sharelink.Kind(l.Kind) != sharelink.KindSlideshow ||
+		len(l.Slides) == 0 || i < 0 || i >= len(l.Slides) || i != (sc.slide+1)%len(l.Slides) {
+		return
+	}
+	var o sharelink.Options
+	_ = json.Unmarshal([]byte(l.Options), &o)
+	sl := l.Slides[i]
+	if o.WarmUpSecs <= 0 || sl.RouterID != sc.routerID || sl.Page == sc.page || !pages.IsShareable(sl.Page) {
+		return
+	}
+	room := "router-" + sc.routerID + "-page-" + sl.Page
+	if sc.warm != "" && sc.warm != room {
+		sc.srv.hub.Leave(sc.inner.c, sc.warm)
+	}
+	sc.warm = room
+	sc.srv.hub.Join(sc.inner.c, room)
+	sc.srv.applyDemand(sc.rs, sc.routerID)
+}
+
 type shareInbound struct {
 	Event string          `json:"event"`
 	Data  json.RawMessage `json:"data"`
@@ -384,6 +418,11 @@ func (sc *shareConn) read(ctx context.Context) {
 			var i int
 			if json.Unmarshal(in.Data, &i) == nil {
 				sc.goSlide(i)
+			}
+		case "share:warm":
+			var i int
+			if json.Unmarshal(in.Data, &i) == nil {
+				sc.warmSlide(i)
 			}
 		default:
 			// page:focus for the link's own page (already shown), keepalive,
@@ -460,7 +499,7 @@ func (sc *shareConn) releaseLocked() {
 	s.applyDemand(sc.rs, sc.routerID)
 	s.sessions.Release(sc.routerID)
 	cn.setRouter("", nil)
-	sc.rs, sc.routerID, sc.page = nil, "", ""
+	sc.rs, sc.routerID, sc.page, sc.warm = nil, "", "", ""
 }
 
 func (sc *shareConn) close() {

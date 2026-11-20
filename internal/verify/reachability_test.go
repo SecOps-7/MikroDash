@@ -100,7 +100,7 @@ func TestEveryModuleIsReachable(t *testing.T) {
 	if len(entries) == 0 {
 		// Fall back to the known roots rather than silently declaring every
 		// module unreachable.
-		for _, name := range []string{"main.ts", "entry/login.ts", "entry/preflight.ts"} {
+		for _, name := range []string{"main.ts", "entry/login.ts", "entry/preflight.ts", "entry/share.ts"} {
 			if p := filepath.Join(srcDir, name); src[p] != "" {
 				entries = append(entries, p)
 			}

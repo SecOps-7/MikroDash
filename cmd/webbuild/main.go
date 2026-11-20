@@ -92,6 +92,41 @@ const tail = `
 // index.html is ASSEMBLED rather than authored: the shell and each page body
 // are authored in web/src/ui/, one page-<key>.html per page, and composed here
 // so there is one copy of each.
+// shareTail loads the share shell instead of the app.
+const shareTail = `
+<script src="/vendor/chart.umd.min.js"></script>
+<script src="/share.js"></script>
+</body>
+</html>
+`
+
+// composeShareHTML is the share link's document: the share frame
+// (ui/share.html) holding the markup of every SHAREABLE page and of no
+// other. A page an administrator cannot share is not in the document a
+// visitor receives at all.
+func composeShareHTML(ui string) (string, error) {
+	frameB, err := os.ReadFile(filepath.Join(ui, "share.html"))
+	if err != nil {
+		return "", fmt.Errorf("reading the share frame: %w", err)
+	}
+	frame := string(frameB)
+	if !strings.Contains(frame, "<!--PAGES-->") || !strings.Contains(frame, "<!--SHARE-CONFIG-->") {
+		return "", fmt.Errorf("the share frame needs both the <!--PAGES--> and <!--SHARE-CONFIG--> markers")
+	}
+	var bodies []string
+	for _, p := range PAGES {
+		if !pages.IsShareable(p) {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(ui, "page-"+p+".html"))
+		if err != nil {
+			return "", fmt.Errorf("no markup for shareable page %q: %w", p, err)
+		}
+		bodies = append(bodies, string(b))
+	}
+	return head + strings.Replace(frame, "<!--PAGES-->", strings.Join(bodies, "\n"), 1) + shareTail, nil
+}
+
 func composeHTML(ui string) (string, error) {
 	shellB, err := os.ReadFile(filepath.Join(ui, "shell.html"))
 	if err != nil {
@@ -160,6 +195,10 @@ func appOpts(here, dist string) api.BuildOptions {
 var classic = []struct{ src, out string }{
 	{"entry/login.ts", "login.js"},
 	{"entry/preflight.ts", "preflight.js"},
+	// The share link's shell: served to a browser with NO SESSION, at
+	// /s/<token>. It bundles the shareable pages' modules and nothing of the
+	// app's sign-in, settings or administration.
+	{"entry/share.ts", "share.js"},
 }
 
 func classicOpts(here, dist string) []api.BuildOptions {
@@ -229,6 +268,15 @@ func main() {
 	}
 	if err := copyFile(filepath.Join(here, "public", "app.css"), filepath.Join(dist, "app.css")); err != nil {
 		fmt.Fprintln(os.Stderr, "webbuild: copying app.css:", err)
+		os.Exit(1)
+	}
+	share, err := composeShareHTML(ui)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "webbuild:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dist, "share.html"), []byte(share), 0o644); err != nil {
+		fmt.Fprintln(os.Stderr, "webbuild:", err)
 		os.Exit(1)
 	}
 	// login.html is markup in web/src/ui like the page bodies. It ships to dist

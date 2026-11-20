@@ -3969,3 +3969,68 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-hist-key{display:inline-flex;align-items:center;gap:.35rem}
     .au-hist-key i{display:inline-block;width:9px;height:9px;border-radius:2px}
     @media (prefers-reduced-motion:reduce){.au-ring-arc,.au-tile,.au-share>span{transition:none}}
+
+/* ── Share links: the kiosk frame (web/src/ui/share.html) ──────────────────
+   A share view has no nav, no topbar and no account chip; the page fills the
+   window under a slim strip. Embed drops the strip, the padding and the page
+   background so a card sits on the host's own (Home Assistant). Card links
+   show one Dashboard card, filling the frame. */
+.share-view body { background: var(--bg-deep); overflow: auto; }
+.share-root { min-height: 100vh; display: flex; flex-direction: column; }
+.share-strip {
+  display: flex; align-items: center; gap: 10px; padding: 6px 16px;
+  border-bottom: 1px solid var(--border); background: var(--bg-card);
+  font: 500 13px var(--font-ui); color: var(--text-main);
+}
+.share-strip-hidden { display: none; }
+.share-strip-title { font-weight: 600; }
+.share-strip-router { color: var(--text-muted); }
+.share-strip-spacer { flex: 1; }
+.share-strip-note, .share-strip-count { color: var(--text-muted); font-size: 12px; }
+.share-progress { height: 2px; background: var(--border); }
+.share-progress-bar { height: 100%; width: 0; background: var(--accent-rx); transition: width .25s linear; }
+.share-stage { flex: 1; padding: 16px; position: relative; }
+.share-stage .page-view { display: none; }
+.share-stage .page-view.active { display: block; }
+.share-anim-fade .page-view.active { transition: opacity var(--share-fade, 600ms) ease; }
+.share-anim-fade.share-leaving .page-view.active { opacity: 0; }
+.share-anim-slide .page-view.active { transition: transform var(--share-fade, 600ms) ease, opacity var(--share-fade, 600ms) ease; }
+.share-anim-slide.share-leaving .page-view.active { transform: translateX(-24px); opacity: 0; }
+.share-ctl {
+  position: fixed; top: 50%; transform: translateY(-50%); z-index: 20;
+  width: 40px; height: 64px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-main); font-size: 28px; line-height: 1; opacity: .7;
+}
+.share-ctl:hover { opacity: 1; }
+.share-ctl-prev { left: 8px; }
+.share-ctl-next { right: 8px; }
+.share-notice {
+  position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: var(--bg-deep); color: var(--text-main);
+}
+.share-notice p { max-width: 28rem; text-align: center; line-height: 1.5; padding: 0 16px; font: 15px var(--font-ui); }
+.share-notice[hidden], .share-ctl[hidden], #sharePaused[hidden], .share-progress[hidden], .share-strip-count[hidden] { display: none; }
+/* Read-only: what a share must not offer is not drawn. */
+.share-view .hdr-actions, .share-view #dashEditBtn, .share-view #dashAddPanel,
+.share-view .dash-remove-btn, .share-view .dash-drag-handle, .share-view .dash-resize,
+.share-view [data-cap] { display: none !important; }
+.share-embed body, .share-embed .share-root { background: transparent; }
+.share-embed .share-strip, .share-embed .share-progress { display: none; }
+.share-embed .share-stage { padding: 0; }
+.share-card .share-stage { padding: 8px; }
+@media (max-width: 640px) {
+  .share-strip { flex-wrap: wrap; }
+  .share-stage { padding: 8px; }
+}
+/* Settings > Shared links. Status and kind are .pill with a tone (settings-shares.ts). */
+.share-never-note { font-size: .72rem; color: var(--accent-warn); margin-left: .4rem; }
+.share-row-warn { font-size: .7rem; color: var(--accent-warn); margin-top: .2rem; }
+.share-acts { white-space: nowrap; text-align: right; }
+.share-checks { display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: .78rem; }
+.share-checks label { display: inline-flex; align-items: center; gap: .35rem; }
+.share-warn { margin-top: .6rem; padding: .45rem .65rem; border-radius: 6px; font-size: .76rem;
+  color: var(--accent-warn); border: 1px solid rgb(from var(--accent-warn) r g b / .3); background: rgb(from var(--accent-warn) r g b / .08); }
+.share-warn[hidden], .share-result[hidden], #sh_error[hidden] { display: none; }
+.share-result { margin-top: .7rem; font-size: .78rem; }
+.share-url { display: flex; gap: .5rem; align-items: center; margin-top: .4rem; }
+.share-url code { flex: 1; overflow-wrap: anywhere; padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 6px; }
