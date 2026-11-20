@@ -31,6 +31,12 @@ import (
 
 // eventsUnconsumed: emitted by the server, deliberately nobody listens.
 var eventsUnconsumed = map[string]string{
+	// TEMPORARY, AND THE LEDGER ENFORCES IT: the share shell
+	// (web/src/entry/share.ts) is the listener for both, and it is built in
+	// the next share-links commit. Once it listens, these entries fail this
+	// test until they are removed.
+	"share:end":    "a share link's viewer ended (revoked, expired, refused): the share shell listens, next commit",
+	"share:reload": "a share link was edited and its viewer should reload: the share shell listens, next commit",
 	"packages:applying": "vestigial in the live app too - it was emitted and nothing listened. " +
 		"Reproduced rather than dropped, so a future reader finds this note instead of " +
 		"'fixing' a consumer into existence.",

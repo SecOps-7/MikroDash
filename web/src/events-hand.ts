@@ -273,6 +273,10 @@ export interface HandEvents {
   'rosusers:error': { code: string; name?: string; message?: string; minLength?: number };
   'rosusers:ok': { action: string; name: string };
   'router:active': { activeId: string };
+  // A share link's viewer (internal/server/share_ws.go): the link ended, or
+  // was edited and the screen reloads. Only the share shell receives these.
+  'share:end': { ended: boolean };
+  'share:reload': { reload: boolean };
   'router:disabled': { routerId: string };
   // `reason` is "" rather than null when there is no error, and absent from
   // the pooled-status path.

@@ -2353,6 +2353,8 @@ export type HandEventName =
   | 'session:expired'
   | 'settings:pages'
   | 'setup:required'
+  | 'share:end'
+  | 'share:reload'
   | 'stream:health'
   | 'wan:caps'
   | 'wan:error'

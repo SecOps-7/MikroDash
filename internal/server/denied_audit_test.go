@@ -150,7 +150,10 @@ func writeRoutes(t *testing.T) []string {
 }
 
 func requestForRoute(pattern, addr string) *http.Request {
-	method, path, _ := strings.Cut(pattern, " ")
+	method, path, found := strings.Cut(pattern, " ")
+	if !found || strings.HasPrefix(pattern, "/") {
+		method, path = http.MethodGet, pattern
+	}
 	path = strings.ReplaceAll(path, "{$}", "")
 	path = regexp.MustCompile(`\{[^}]+\}`).ReplaceAllString(path, "x1")
 	req := httptest.NewRequest(method, path, strings.NewReader("{}"))

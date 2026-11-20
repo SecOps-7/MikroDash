@@ -182,6 +182,12 @@ type Server struct {
 	deniedLimit *audit.DeniedLimiter
 	// deniedStop ends the minute flush of deniedLimit (startDeniedLimit).
 	deniedStop func()
+	// Share links: the live viewers of each link, the key that signs view
+	// tickets (store.DeriveKey("share-ticket-v1")) and where the built
+	// share shell lives. See share_api.go, share_view.go, share_ws.go.
+	shareLive shareViewers
+	shareKey  []byte
+	webDir    string
 	// overviewLines is the last Agent Overview line per user per router, so a
 	// return to the Dashboard within the interval re-shows it rather than paying
 	// for another. See `overviewTick`.
@@ -596,6 +602,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// router's session that dials before this is up simply retries, as every
 	// session does on a failed dial.
 	srv.ztpSync()
+	srv.shareKey, srv.webDir = st.DeriveKey("share-ticket-v1"), opts.WebDir
 	srv.startDeniedLimit()
 	return srv, nil
 }
@@ -748,6 +755,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("/login", s.distFile("/login.html"))
 	mux.Handle("/login.js", s.distFile("/login.js"))
 	mux.Handle("/preflight.js", s.distFile("/preflight.js"))
+	// Share links: Settings > Shared links (global administrators) and the
+	// share views themselves (a token, never a session).
+	s.registerShareAPI(mux)
+	s.registerShareView(mux)
 	// Refused writes are recorded once, whichever route refused them: see
 	// denied_audit.go.
 	return logRequests(s.deniedAudit(mux))
@@ -980,7 +991,13 @@ func logRequests(next http.Handler) http.Handler {
 			return
 		}
 		if path.Ext(r.URL.Path) == "" || strings.HasPrefix(r.URL.Path, "/api") {
-			log.Printf("[http] %s %s", r.Method, r.URL.Path)
+			// A share link's token is in its path, and the token IS the
+			// secret: it never reaches a log line.
+			shown := r.URL.Path
+			if strings.HasPrefix(shown, "/s/") {
+				shown = "/s/…"
+			}
+			log.Printf("[http] %s %s", r.Method, shown)
 		}
 		next.ServeHTTP(w, r)
 	})

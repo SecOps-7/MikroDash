@@ -40,6 +40,8 @@ var deniedAuditExempt = map[string]string{
 		"(auth.login, outcome denied) under its own rate limit",
 	"POST " + ztp.LANPath: "an enrolment refusal is recorded by the enrolment " +
 		"route itself (ztp.enrol.denied), with the device it names",
+	"POST /share/api/ticket": "a refused share-ticket renewal is recorded by the share " +
+		"routes themselves (share.denied), with the link and the reason",
 }
 
 type deniedMarkKey struct{}

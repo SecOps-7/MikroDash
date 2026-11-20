@@ -52,6 +52,19 @@ type Client struct {
 	// mutex `deliver` takes. See deliver: without it, a frame delivered to a
 	// client that has just been removed panics and takes the PROCESS down.
 	closed bool
+	// roomOnly marks a client that receives ONLY what is sent to rooms it has
+	// joined or to it directly: never a hub-wide broadcast. A share link's
+	// viewer (internal/server/share_ws.go) is one, so the app-wide events
+	// (router lists, settings, permissions, sites) never reach somebody with
+	// no account.
+	roomOnly bool
+}
+
+// NewRoomOnlyClient is NewClient for a client that hub-wide broadcasts skip.
+func NewRoomOnlyClient(id string, queue int) *Client {
+	c := NewClient(id, queue)
+	c.roomOnly = true
+	return c
 }
 
 func NewClient(id string, queue int) *Client {
@@ -260,6 +273,9 @@ func (h *Hub) broadcastAll(event string, payload any) {
 	h.mu.RLock()
 	members := make([]*Client, 0, len(h.clients))
 	for c := range h.clients {
+		if c.roomOnly {
+			continue
+		}
 		members = append(members, c)
 	}
 	h.mu.RUnlock()
