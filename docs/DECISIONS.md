@@ -15,9 +15,8 @@ administration, Scripts, Scheduler, Containers, Files, Router Users and
 Reports; the tools and the terminal are not pages a share can show. A link
 ends when it is revoked, when it expires, when its creator is deleted or
 stops being a global administrator, or when a router it shows is deleted.
-Each link has a viewer cap (default 5; the highest allowed is 25, which is
-still an open question), an optional address allow-list, and optional sites
-allowed to frame it.
+Each link has a viewer cap (default 5, at most 25), an optional address
+allow-list, and optional sites allowed to frame it.
 
 **What it means:** a share never builds a session and never reaches an
 `/api/` route. The token opens `/s/<token>`, and only its hash is stored. The
@@ -27,6 +26,28 @@ re-checks the link. The socket is fixed to the link's router and page, joins
 only that page's room (a card link, only its card's), hears from the
 router-wide room only the top-bar data, and accepts no write. A refusal looks
 the same whatever its reason; only the audit trail says why.
+
+**The four answers (the operator, 2026-11-20):**
+
+1. **The highest viewer cap is 25.** `sharelink.MaxViewerCap`; decided, no
+   longer open.
+2. **A card link receives only the data its card shows**, never the whole
+   feed its card is drawn from: a Top Ports link does not receive the
+   Connections data. Every frame bound for a card link is cut down to the
+   fields its card reads (`sharelink.CardDataOf`), and an event the card
+   does not read is not sent.
+3. **Shared pages get their REST reads** through `GET /share/api/<route>`,
+   from an explicit per-page allow list (`shareReads` in
+   `internal/server/share_read.go`). GET only. Each read is checked against
+   the link on every request (revoked, expired, creator, routers, address)
+   and is answered only for a viewer whose socket is open, which holds it to
+   the viewer cap; the page and router come from that socket, never the
+   request. Nothing on the list holds a secret or a credential, reads the
+   router on demand, or names another router. Anything else gets the one
+   refusal.
+4. **A share view never uses a signed-in session in the same browser.** No
+   share route reads a cookie, and the share shell sends every request
+   without credentials and nothing but GET.
 
 **How it is held:**
 
@@ -40,6 +61,14 @@ the same whatever its reason; only the audit trail says why.
   `TestAnEditClosesTheLiveViewAndTheCapHolds`, `TestTheFeedTakesItsTokenInAHeaderOnly`,
   `TestEveryCardIsFedOrRecorded`, `TestTheShareListsAreTheRulings`, and in the
   browser `web/test/share-shell.test.ts`.
+- For the four answers: `TestEveryCardLinkReceivesOnlyItsCardsFields` (every
+  shareable card, its real Go payloads with every field filled: nothing
+  outside its list reaches the socket, everything on it does) and
+  `TestACardLinksSocketSendsOnlyItsCardsData`; `TestTheShareReadListIsTheAllowList`
+  (fails on an empty list and on an entry that is not a real GET route) and
+  `TestAShareReadIsAnsweredOnlyOnItsListForAnOpenView` (any route not on the
+  list, another page's read, a view with no open socket, a revoked link);
+  `TestASignedInSessionOpensNoShareRoute` and `web/test/share-fetch.test.ts`.
 
 ## Refused write attempts are recorded in the audit trail (#165, 2026-11-20)
 
