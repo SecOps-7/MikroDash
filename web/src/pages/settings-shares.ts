@@ -9,7 +9,7 @@
 // exists outside the browser that asked: the server keeps only its hash. The
 // result box says so, and nothing here stores it.
 
-import { el, esc, sortRows, renderSortHeader, type SortState } from '../dom';
+import { el, esc, sortRows, renderSortHeader, copyText, type SortState } from '../dom';
 import { fmtTs } from '../timefmt';
 
 interface Opt { key: string; label: string }
@@ -474,9 +474,15 @@ export function initSharesTab(): void {
     renumberSlides();
   });
   el('sh_save')?.addEventListener('click', () => { void save(); });
+  // copyText, NOT navigator.clipboard: on plain http over the LAN the
+  // clipboard API does not exist and a bare call copies nothing (dom.ts).
   el('sh_copy')?.addEventListener('click', () => {
-    const text = el('sh_url')?.textContent || '';
-    void navigator.clipboard?.writeText(text).catch(() => {});
+    const btn = el('sh_copy');
+    copyText(el('sh_url')?.textContent || '', (ok) => {
+      if (!btn) return;
+      btn.textContent = ok ? 'Copied' : 'Select and copy';
+      window.setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
   });
   el('shareTbody')?.addEventListener('click', (e) => {
     const t = e.target as HTMLElement | null;
