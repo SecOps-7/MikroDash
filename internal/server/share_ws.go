@@ -31,7 +31,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -59,6 +58,7 @@ type shareConn struct {
 	srv    *Server
 	ws     *websocket.Conn
 	linkID string
+	viewer string // the ticket's viewer id: share read routes answer only an open socket's
 	ip     string
 	inner  *conn // no session: see the file header
 	cancel context.CancelFunc
@@ -82,10 +82,9 @@ type shareConn struct {
 
 // shareView is what a share's socket is showing, for the hub's filter.
 type shareView struct {
-	routerID   string
-	page       string   // the page shown; "" for a card link
-	card       bool     // a card link
-	dashEvents []string // a card link: the events it takes from the Dashboard's room
+	routerID string
+	page     string             // the page shown; "" for a card link
+	card     sharelink.CardData // a card link: its events and the fields of each
 }
 
 // shareChrome are the router-wide events a share receives: the top-bar data
@@ -101,24 +100,48 @@ var shareChrome = map[string]bool{
 // router-wide DHCP lease list; no other share receives it.
 var shareLeasesPages = map[string]bool{"dashboard": true, "dhcp": true, "connections": true}
 
-// accepts is the hub's filter for this share (hub.NewRoomOnlyClient): of
-// what is broadcast to the router-wide room, only the top-bar data and, for
-// the pages that use it, the lease list; and a card link takes from the
-// Dashboard's page room only its own card's events. Every other room it is
-// in was joined for its subject.
-func (sc *shareConn) accepts(room, event string) bool {
+// shareControl are the events a card link receives whole: they say which
+// router is shown and that the view ended or changed, and carry no data.
+var shareControl = map[string]bool{
+	"share:end": true, "share:reload": true, "router:active": true, "router:switched": true,
+}
+
+// filter is the hub's filter for this share (hub.NewRoomOnlyClient), and
+// sees every frame bound for it.
+//
+// A page or slideshow view: of what is broadcast to the router-wide room,
+// only the top-bar data and, for the pages that use it, the lease list.
+// Every other room it is in was joined for its subject, and what is sent to
+// it directly is the replay of that subject.
+//
+// A card link: only its card's events, each cut down to the fields its card
+// reads (sharelink.CardDataOf, the operator's ruling of 2026-11-20), from
+// whatever room or direct send it comes; an event the card does not read is
+// not sent at all.
+func (sc *shareConn) filter(room, event string, payload any) (any, bool) {
 	v := sc.view.Load()
 	if v == nil {
-		return false
+		return nil, shareControl[event]
 	}
-	wide := "router-" + v.routerID
-	switch room {
-	case wide:
-		return shareChrome[event] || (event == "leases:list" && !v.card && shareLeasesPages[v.page])
-	case wide + "-page-dashboard":
-		return !v.card || slices.Contains(v.dashEvents, event)
+	if v.card != nil {
+		if shareControl[event] {
+			return nil, true
+		}
+		paths, ok := v.card[event]
+		if !ok {
+			return nil, false
+		}
+		out, err := sharelink.Project(paths, payload)
+		if err != nil {
+			log.Printf("[share] %s: cannot project %s: %v", sc.linkID, event, err)
+			return nil, false
+		}
+		return out, true
 	}
-	return true
+	if room == "router-"+v.routerID {
+		return nil, shareChrome[event] || (event == "leases:list" && shareLeasesPages[v.page])
+	}
+	return nil, true
 }
 
 // shareTicketFrom reads the ticket a share view offers as a subprotocol.
@@ -135,7 +158,7 @@ func shareTicketFrom(r *http.Request) string {
 }
 
 func (s *Server) handleShareWS(w http.ResponseWriter, r *http.Request) {
-	l, reason := s.shareFromTicket(shareTicketFrom(r), r)
+	l, tk, reason := s.shareFromTicket(shareTicketFrom(r), r)
 	if l == nil || !sharelink.Kind(l.Kind).Viewable() {
 		s.shareDenied(r, "", reason)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -151,8 +174,8 @@ func (s *Server) handleShareWS(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.SetReadLimit(1 << 14)
 	ctx, cancel := context.WithCancel(context.Background())
-	sc := &shareConn{srv: s, ws: ws, linkID: l.ID, ip: clientIPOf(r), cancel: cancel, link: *l, slide: -1}
-	client := hub.NewRoomOnlyClient("share-"+itoa(connSeq.Add(1)), sendQueue, sc.accepts)
+	sc := &shareConn{srv: s, ws: ws, linkID: l.ID, viewer: tk.Viewer, ip: clientIPOf(r), cancel: cancel, link: *l, slide: -1}
+	client := hub.NewRoomOnlyClient("share-"+itoa(connSeq.Add(1)), sendQueue, sc.filter)
 	sc.inner = &conn{c: client, ws: ws, srv: s, clientIP: sc.ip}
 	viewers := l.ViewerCap
 	if viewers <= 0 {
@@ -212,61 +235,38 @@ func (sc *shareConn) show(routerID, page string) {
 }
 
 // showCard shows one Dashboard card and nothing else of the Dashboard: the
-// card's own room, or only its own events from the Dashboard's room, and the
-// top-bar data. See sharelink.CardFeed.
+// rooms its data arrives in, every frame cut down to its fields by filter.
+// See sharelink.CardFeed and sharelink.CardDataOf.
 func (sc *shareConn) showCard(routerID, cardID string) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	feed, ok := sharelink.CardFeedOf(cardID)
-	if sc.closed || !ok {
+	data, hasData := sharelink.CardDataOf(cardID)
+	if sc.closed || !ok || !hasData {
 		return
 	}
-	v := &shareView{routerID: routerID, card: true, dashEvents: feed.DashEvents}
-	if !sc.enterRouterLocked(routerID, v) {
+	if !sc.enterRouterLocked(routerID, &shareView{routerID: routerID, card: data}) {
 		return
 	}
 	s := sc.srv
 	cn := sc.inner
-	if feed.Room != "" {
-		s.hub.Join(cn.c, dashCardRoomFor(routerID, feed.Room))
+	for _, room := range feed.Rooms {
+		s.hub.Join(cn.c, dashCardRoomFor(routerID, room))
 	}
-	if len(feed.DashEvents) > 0 {
+	if feed.Dash {
 		s.hub.Join(cn.c, "router-"+routerID+"-page-dashboard")
 	}
-	// Demand follows the rooms just joined. The replay is the card's own
-	// payload only, never the Dashboard's whole set.
 	s.applyDemand(sc.rs, routerID)
-	if feed.Room != "" {
-		if src := dashCardPage(feed.Room); src != "dashboard" {
+	// The replays a page focus gives, through the filter like everything else.
+	for _, room := range feed.Rooms {
+		if src := dashCardPage(room); src != "dashboard" {
 			cn.resumePage(src)
 		}
 	}
-	for _, ev := range feed.DashEvents {
-		sc.replayDashEventLocked(ev)
+	if feed.Dash {
+		cn.resumePage("dashboard")
 	}
 	EvRouterSwitched.Send(s.hub, cn.c, map[string]any{"activeId": routerID})
-}
-
-// replayDashEventLocked sends the last payload of one Dashboard-room event.
-func (sc *shareConn) replayDashEventLocked(event string) {
-	s, rs, c := sc.srv, sc.rs, sc.inner.c
-	switch event {
-	case "netwatch:update":
-		if last := rs.Netwatch().Last(); last != nil {
-			collect.EvNetwatchUpdate.Send(s.hub, c, *last)
-		}
-	case "talkers:update":
-		if last := rs.Talkers().Last(); last != nil {
-			collect.EvTalkersUpdate.Send(s.hub, c, *last)
-		}
-	case "ping:update":
-		if p := rs.Ping(); p != nil {
-			if last := p.Last(); last != nil {
-				collect.EvPingUpdate.Send(s.hub, c, *last)
-			}
-		}
-	}
-	// routing:update has no cached payload to replay; it arrives on its poll.
 }
 
 // enterRouterLocked moves the viewer to a router: the router-wide room

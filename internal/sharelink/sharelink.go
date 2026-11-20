@@ -53,10 +53,8 @@ func (k Kind) Viewable() bool { return k == KindPage || k == KindSlideshow || k 
 const (
 	// DefaultViewerCap is the operator's ruling of 2026-11-20.
 	DefaultViewerCap = 5
-	// MaxViewerCap is the highest cap an administrator may set.
-	//
-	// OPEN QUESTION FOR THE OPERATOR: 25 was proposed and has not been
-	// decided. It is one constant so the answer is one edit.
+	// MaxViewerCap is the highest cap an administrator may set: 25, the
+	// operator's ruling of 2026-11-20 (docs/DECISIONS.md).
 	MaxViewerCap = 25
 
 	// Slideshow limits (the operator's ruling of 2026-11-20).
@@ -114,52 +112,72 @@ func SameHash(a, b []byte) bool { return len(a) == len(b) && subtle.ConstantTime
 
 // ── The view ticket ─────────────────────────────────────────────────────────
 //
-// A ticket proves only WHICH link a share view was opened through, for a short
-// time. It never short-cuts a check: every request still re-checks the link.
-// Format: base64url("<linkID>|<unix expiry>") + "." + base64url(HMAC-SHA256).
+// A ticket proves only WHICH link a share view was opened through, and WHICH
+// view it is, for a short time. It never short-cuts a check: every request
+// still re-checks the link. The viewer is a random id minted when /s/<token>
+// is served and kept through renewals: the share socket records it, and a
+// share read route answers only a viewer whose socket is open, which is how a
+// REST read is held to the viewer cap the socket enforces.
+// Format: base64url("<linkID>|<viewer>|<unix expiry>") + "." + base64url(HMAC-SHA256).
 
-// SignTicket returns a ticket for linkID valid until exp.
-func SignTicket(key []byte, linkID string, exp time.Time) string {
-	body := linkID + "|" + strconv.FormatInt(exp.Unix(), 10)
+// Ticket is what a verified ticket says.
+type Ticket struct {
+	LinkID string
+	Viewer string
+	Exp    time.Time
+}
+
+// NewViewer mints a viewer id.
+func NewViewer() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("sharelink: no randomness: " + err.Error())
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// SignTicket returns a ticket for one viewer of linkID, valid until exp.
+func SignTicket(key []byte, linkID, viewer string, exp time.Time) string {
+	body := linkID + "|" + viewer + "|" + strconv.FormatInt(exp.Unix(), 10)
 	m := hmac.New(sha256.New, key)
 	m.Write([]byte(body))
 	return base64.RawURLEncoding.EncodeToString([]byte(body)) + "." +
 		base64.RawURLEncoding.EncodeToString(m.Sum(nil))
 }
 
-// VerifyTicket returns the link id a ticket names, if its signature is good and
-// it has not lapsed.
-func VerifyTicket(key []byte, ticket string, now time.Time) (linkID string, exp time.Time, ok bool) {
+// VerifyTicket returns what a ticket says, if its signature is good and it
+// has not lapsed.
+func VerifyTicket(key []byte, ticket string, now time.Time) (Ticket, bool) {
 	if len(key) == 0 || len(ticket) > 512 {
-		return "", time.Time{}, false
+		return Ticket{}, false
 	}
 	bodyB64, sigB64, found := strings.Cut(ticket, ".")
 	if !found {
-		return "", time.Time{}, false
+		return Ticket{}, false
 	}
 	body, err1 := base64.RawURLEncoding.DecodeString(bodyB64)
 	sig, err2 := base64.RawURLEncoding.DecodeString(sigB64)
 	if err1 != nil || err2 != nil {
-		return "", time.Time{}, false
+		return Ticket{}, false
 	}
 	m := hmac.New(sha256.New, key)
 	m.Write(body)
 	if !hmac.Equal(sig, m.Sum(nil)) {
-		return "", time.Time{}, false
+		return Ticket{}, false
 	}
-	id, expS, found := strings.Cut(string(body), "|")
-	if !found || id == "" {
-		return "", time.Time{}, false
+	parts := strings.Split(string(body), "|")
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" {
+		return Ticket{}, false
 	}
-	unix, err := strconv.ParseInt(expS, 10, 64)
+	unix, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		return "", time.Time{}, false
+		return Ticket{}, false
 	}
-	exp = time.Unix(unix, 0)
+	exp := time.Unix(unix, 0)
 	if !now.Before(exp) {
-		return "", time.Time{}, false
+		return Ticket{}, false
 	}
-	return id, exp, true
+	return Ticket{LinkID: parts[0], Viewer: parts[1], Exp: exp}, true
 }
 
 // ── Embedding origins ───────────────────────────────────────────────────────

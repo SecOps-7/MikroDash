@@ -32,28 +32,35 @@ func TestATokenIsRandomAndOnlyItsHashIsKept(t *testing.T) {
 func TestATicketNamesItsLinkUntilItLapses(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 	now := time.Unix(1_800_000_000, 0)
-	tk := SignTicket(key, "link-1", now.Add(TicketTTL))
-	id, exp, ok := VerifyTicket(key, tk, now)
-	if !ok || id != "link-1" || !exp.Equal(now.Add(TicketTTL)) {
-		t.Fatalf("a fresh ticket: %q %v %v", id, exp, ok)
+	viewer := NewViewer()
+	tk := SignTicket(key, "link-1", viewer, now.Add(TicketTTL))
+	got, ok := VerifyTicket(key, tk, now)
+	if !ok || got.LinkID != "link-1" || got.Viewer != viewer || !got.Exp.Equal(now.Add(TicketTTL)) {
+		t.Fatalf("a fresh ticket: %+v %v", got, ok)
 	}
-	if _, _, ok := VerifyTicket(key, tk, now.Add(TicketTTL)); ok {
+	if NewViewer() == viewer {
+		t.Error("two viewers got one id")
+	}
+	if _, ok := VerifyTicket(key, tk, now.Add(TicketTTL)); ok {
 		t.Error("a lapsed ticket was accepted")
 	}
-	if _, _, ok := VerifyTicket([]byte("another key, 32 bytes long......"), tk, now); ok {
+	if _, ok := VerifyTicket([]byte("another key, 32 bytes long......"), tk, now); ok {
 		t.Error("a ticket signed with another key was accepted")
 	}
-	if _, _, ok := VerifyTicket(nil, tk, now); ok {
+	if _, ok := VerifyTicket(nil, tk, now); ok {
 		t.Error("no key accepted a ticket")
 	}
-	// An altered body (another link id) with the old signature.
+	// An altered body (another link, or another viewer) with the old signature.
 	_, sig, _ := strings.Cut(tk, ".")
-	forged := strings.Split(SignTicket(key, "link-2", now.Add(TicketTTL)), ".")[0] + "." + sig
-	if _, _, ok := VerifyTicket(key, forged, now); ok {
-		t.Error("a ticket with another link's body and this one's signature was accepted")
+	for _, other := range []string{SignTicket(key, "link-2", viewer, now.Add(TicketTTL)),
+		SignTicket(key, "link-1", NewViewer(), now.Add(TicketTTL))} {
+		forged := strings.Split(other, ".")[0] + "." + sig
+		if _, ok := VerifyTicket(key, forged, now); ok {
+			t.Error("a ticket with another body and this one's signature was accepted")
+		}
 	}
 	for _, bad := range []string{"", ".", "abc", tk + "x", strings.Repeat("a", 600)} {
-		if _, _, ok := VerifyTicket(key, bad, now); ok {
+		if _, ok := VerifyTicket(key, bad, now); ok {
 			t.Errorf("%q was accepted", bad)
 		}
 	}
@@ -363,13 +370,23 @@ func TestEveryCardIsFedOrRecorded(t *testing.T) {
 		if fed == refused {
 			t.Errorf("%s: fed %v, recorded as not shareable %v; exactly one must hold", c.ID, fed, refused)
 		}
-		if fed && cardFeeds[c.ID].Room != "" {
+		for _, room := range cardFeeds[c.ID].Rooms {
 			found := false
 			for _, o := range dashcards.All {
-				found = found || o.Room == cardFeeds[c.ID].Room
+				found = found || o.Room == room
 			}
 			if !found {
-				t.Errorf("%s is fed from room %q, which no card names", c.ID, cardFeeds[c.ID].Room)
+				t.Errorf("%s is fed from room %q, which no card names", c.ID, room)
+			}
+		}
+		if _, has := cardData[c.ID]; has != fed {
+			t.Errorf("%s: fed %v but has a field list %v; a fed card needs one, and only a fed card", c.ID, fed, has)
+		}
+		for event, paths := range cardData[c.ID] {
+			for _, p := range paths {
+				if _, err := parsePath(p); err != nil {
+					t.Errorf("%s %s: %v", c.ID, event, err)
+				}
 			}
 		}
 	}

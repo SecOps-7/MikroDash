@@ -130,7 +130,16 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
 		return
 	}
-	rng, ok := ifaceHistoryRanges[q.Get("range")]
+	s.serveInterfaceHistory(w, q.Get("range"), routerID, iface, s.mayManageRouter(sess, routerID))
+}
+
+// serveInterfaceHistory answers an interface history request whose caller
+// has already been allowed to read this router's interfaces: a signed-in
+// viewer (interfaceHistory) or a share link's viewer (share_read.go).
+// manage is whether the caller may change what is recorded; a share never may.
+func (s *Server) serveInterfaceHistory(w http.ResponseWriter, rangeKey, routerID, iface string, manage bool) {
+	var err error
+	rng, ok := ifaceHistoryRanges[rangeKey]
 	if !ok {
 		// NOT a default. An unknown range is the caller asking for something
 		// that does not exist, and answering with an hour would draw a chart
@@ -143,7 +152,7 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 	from, to := now.Add(-rng.Span).UnixMilli(), now.UnixMilli()
 
 	if rng.Live {
-		s.writeLiveHistory(w, sess, routerID, iface, from)
+		s.writeLiveHistory(w, manage, routerID, iface, from)
 		return
 	}
 	if s.auditDB == nil {
@@ -191,7 +200,7 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 			out.Recorded = true
 		}
 	}
-	if s.mayManageRouter(sess, routerID) {
+	if manage {
 		out.MayRecord = true
 		out.RecordedIfaces = stored
 		if out.RecordedIfaces == nil {
@@ -217,7 +226,7 @@ func (s *Server) interfaceHistory(w http.ResponseWriter, r *http.Request) {
 // database for a summary of the last sixty seconds would answer from minute
 // rows that exist only for recorded interfaces — a second, coarser number
 // under a chart drawn from a finer one.
-func (s *Server) writeLiveHistory(w http.ResponseWriter, sess *Session, routerID, iface string,
+func (s *Server) writeLiveHistory(w http.ResponseWriter, manage bool, routerID, iface string,
 	from int64) {
 	var pts []collect.TrafficPoint
 	if live := s.sessions.Live()[routerID]; live != nil {
@@ -246,7 +255,7 @@ func (s *Server) writeLiveHistory(w http.ResponseWriter, sess *Session, routerID
 			out.Recorded = true
 		}
 	}
-	if s.mayManageRouter(sess, routerID) {
+	if manage {
 		out.MayRecord = true
 		out.RecordedIfaces = stored
 		if out.RecordedIfaces == nil {

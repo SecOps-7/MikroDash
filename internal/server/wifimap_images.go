@@ -51,14 +51,21 @@ func (s *Server) mapImageGet(w http.ResponseWriter, r *http.Request) {
 	if s.mayUseDoc(w, r, sitedoc.KindWifiMap, rid, "read") == nil {
 		return
 	}
+	s.serveMapImage(w, rid, id)
+}
+
+// serveMapImage writes one uploaded floor plan of a router, for a caller
+// already allowed to read that router's Wi-Fi map (mapImageGet, or a share
+// link's viewer in share_read.go).
+func (s *Server) serveMapImage(w http.ResponseWriter, rid, id string) {
 	dir := s.mapImageDir(rid)
 	if dir == "" || !sitedoc.ImageIDRe.MatchString(id) {
-		http.NotFound(w, r)
+		http.Error(w, "404 page not found", http.StatusNotFound)
 		return
 	}
 	raw, err := os.ReadFile(filepath.Join(dir, id))
 	if err != nil {
-		http.NotFound(w, r)
+		http.Error(w, "404 page not found", http.StatusNotFound)
 		return
 	}
 	ct := "image/png"

@@ -17,6 +17,7 @@ import (
 	"github.com/coder/websocket"
 
 	"mikrodash/internal/db"
+	"mikrodash/internal/pages"
 	"mikrodash/internal/sharelink"
 	"mikrodash/internal/store"
 )
@@ -396,7 +397,7 @@ func TestAWriteRevokesWithoutWaitingForAUse(t *testing.T) {
 // TestAShareHearsOnlyItsSubject: the hub filter a share's client carries.
 func TestAShareHearsOnlyItsSubject(t *testing.T) {
 	sc := &shareConn{}
-	if sc.accepts("router-r1-page-dns", "dns:update") {
+	if _, ok := sc.filter("router-r1-page-dns", "dns:update", 1); ok {
 		t.Error("a share showing nothing yet accepted a frame")
 	}
 	sc.view.Store(&shareView{routerID: "r1", page: "dns"})
@@ -411,19 +412,64 @@ func TestAShareHearsOnlyItsSubject(t *testing.T) {
 		{"router-r1", "router:disabled", false},
 		{"router-r1", "leases:list", false}, // the DNS page does not name devices from leases
 		{"router-r1-page-dns", "dns:update", true},
+		{"", "dns:update", true}, // the replay of its own page
 	} {
-		if got := sc.accepts(c.room, c.event); got != c.want {
-			t.Errorf("page dns: %s %s = %v, want %v", c.room, c.event, got, c.want)
+		if _, got := sc.filter(c.room, c.event, 1); got != c.want {
+			t.Errorf("page dns: %q %s = %v, want %v", c.room, c.event, got, c.want)
 		}
 	}
 	sc.view.Store(&shareView{routerID: "r1", page: "dhcp"})
-	if !sc.accepts("router-r1", "leases:list") {
+	if _, ok := sc.filter("router-r1", "leases:list", 1); !ok {
 		t.Error("the DHCP page did not receive the lease list")
 	}
-	sc.view.Store(&shareView{routerID: "r1", card: true, dashEvents: []string{"ping:update"}})
-	if !sc.accepts("router-r1-page-dashboard", "ping:update") || sc.accepts("router-r1-page-dashboard", "talkers:update") ||
-		sc.accepts("router-r1", "leases:list") {
-		t.Error("a Ping card link took more than its own card's events")
+}
+
+// TestACardLinksSocketSendsOnlyItsCardsData: for every shareable card, the
+// socket filter drops every event the card does not read, from any room or a
+// direct send, and sends each one it does read exactly as its fields project
+// (sharelink.TestEveryCardLinkReceivesOnlyItsCardsFields holds the fields).
+func TestACardLinksSocketSendsOnlyItsCardsData(t *testing.T) {
+	events := []string{"system:update", "conn:update", "traffic:update", "traffic:history", "ifstatus:update",
+		"ifstatus:names", "wireless:update", "lan:overview", "lan:wan", "vpn:update", "firewall:update",
+		"logs:history", "logs:new", "wan:update", "wan:status", "ping:update", "ping:history",
+		"talkers:update", "netwatch:update", "routing:update", "stream:health", "leases:list",
+		"router:status", "alerts:acked", "dns:update"}
+	payload := map[string]any{"secret": "s", "total": 3, "cpuLoad": 1, "rx_mbps": 2,
+		"interfaces": []any{map[string]any{"name": "ether1", "type": "ether", "mac": "m"}}}
+	cards := 0
+	for _, c := range sharelink.ShareableCards() {
+		data, _ := sharelink.CardDataOf(c.ID)
+		cards++
+		sc := &shareConn{}
+		sc.view.Store(&shareView{routerID: "r1", card: data})
+		for _, ev := range events {
+			for _, room := range []string{"", "router-r1", "router-r1-page-dashboard", "router-r1-dash-card-connections"} {
+				out, ok := sc.filter(room, ev, payload)
+				paths, reads := data[ev]
+				if ok != reads {
+					t.Errorf("%s: %s via %q passed %v, want %v", c.ID, ev, room, ok, reads)
+					continue
+				}
+				if !ok {
+					continue
+				}
+				want, _ := sharelink.Project(paths, payload)
+				if got, _ := json.Marshal(out); string(got) != string(want) {
+					t.Errorf("%s: %s sent %s, want its projection %s", c.ID, ev, got, want)
+				}
+				if strings.Contains(string(want), "secret") {
+					t.Errorf("%s: %s carried a field no card reads", c.ID, ev)
+				}
+			}
+		}
+		for _, ctl := range []string{"share:end", "share:reload", "router:active", "router:switched"} {
+			if out, ok := sc.filter("", ctl, payload); !ok || out != nil {
+				t.Errorf("%s: control event %s was not sent whole", c.ID, ctl)
+			}
+		}
+	}
+	if cards < 20 {
+		t.Fatalf("only %d cards", cards)
 	}
 }
 
@@ -523,5 +569,125 @@ func TestWarmUpJoinsOnlyTheNextSlideAhead(t *testing.T) {
 	waitFor(t, func() bool { return room("dns") == 0 })
 	if room("interfaces") != 1 {
 		t.Errorf("the warmed slide's room after it was shown: %d occupants", room("interfaces"))
+	}
+}
+
+// TestTheShareReadListIsTheAllowList: the read routes are an explicit list,
+// not empty, each a real GET route of the app, each for shareable pages, and
+// a router-doc entry names the kinds its page reads.
+func TestTheShareReadListIsTheAllowList(t *testing.T) {
+	if len(shareReads) == 0 {
+		t.Fatal("the share read allow list is empty")
+	}
+	routes := map[string]bool{}
+	for _, p := range routesFromSource(t) {
+		routes[p] = true
+	}
+	for _, rd := range shareReads {
+		if !routes["GET "+rd.Path] {
+			t.Errorf("%s is on the share read list but is not a GET route of the app", rd.Path)
+		}
+		if len(rd.Pages) == 0 || rd.serve == nil {
+			t.Errorf("%s names no page or no handler", rd.Path)
+		}
+		for _, p := range rd.Pages {
+			if !pages.IsShareable(p) {
+				t.Errorf("%s is listed for %s, which is not shareable", rd.Path, p)
+			}
+		}
+		if rd.Path == "/api/router-doc" && len(rd.Kinds) == 0 {
+			t.Errorf("a router-doc entry for %v names no kinds: every document would be readable", rd.Pages)
+		}
+	}
+}
+
+// openShareView opens a link's page and its socket, and returns the ticket.
+func openShareView(t *testing.T, ts *httptest.Server, h http.Handler, token string) (*websocket.Conn, string) {
+	t.Helper()
+	tk := ticketOf(t, shareReq(h, "GET", "/s/"+token, "", "", "", nil).Body.String())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(ts.URL, "http")+"/share/ws",
+		&websocket.DialOptions{Subprotocols: []string{shareSubprotocol, tk}})
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	return c, tk
+}
+
+func TestAShareReadIsAnsweredOnlyOnItsListForAnOpenView(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	id, token := createLink(t, h, `{"kind":"page","label":"Map","page":"wifi-map","routerId":"r1"}`)
+	c, tk := openShareView(t, ts, h, token)
+	defer c.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	auth := map[string]string{"Authorization": "Share " + tk}
+
+	// On the list for this page, and the router is the socket's, whatever the query says.
+	w := shareReq(h, "GET", "/share/api/router-doc?kind=wifi-map&routerId=r2", "", "", "", auth)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"routerId":"r1"`) {
+		t.Fatalf("an allowed read: %d %s", w.Code, w.Body.String())
+	}
+	refused := shareReq(h, "GET", "/s/"+strings.Repeat("A", 43), "", "", "10.60.0.1", nil).Body.String()
+	for why, path := range map[string]string{
+		"not on any list":          "/share/api/routers",
+		"another page's read":      "/share/api/apps/history",
+		"another kind of document": "/share/api/router-doc?kind=wan-uplinks",
+		"an administrative read":   "/share/api/users",
+	} {
+		w := shareReq(h, "GET", path, "", "", "", auth)
+		if w.Code != 404 || w.Body.String() != refused {
+			t.Errorf("%s (%s): %d, want the one refusal", why, path, w.Code)
+		}
+	}
+	if w := shareReq(h, "POST", "/share/api/router-doc?kind=wifi-map", "{}", "", "", auth); w.Code == 200 {
+		t.Error("a POST to a share read was answered")
+	}
+	// A ticket whose view has no open socket: past the cap, or never connected.
+	other := ticketOf(t, shareReq(h, "GET", "/s/"+token, "", "", "", nil).Body.String())
+	if w := shareReq(h, "GET", "/share/api/router-doc?kind=wifi-map", "", "", "", map[string]string{"Authorization": "Share " + other}); w.Code != 404 {
+		t.Errorf("a read for a view with no open socket: %d", w.Code)
+	}
+	shareReq(h, "POST", "/api/share-links/"+id+"/revoke", "", "admin", "", nil)
+	if w := shareReq(h, "GET", "/share/api/router-doc?kind=wifi-map", "", "", "", auth); w.Code != 404 {
+		t.Errorf("a revoked link's read: %d", w.Code)
+	}
+}
+
+// TestASignedInSessionOpensNoShareRoute: a share never uses a session. An
+// administrator's cookie, with no ticket, opens no share route; with a
+// ticket, the cookie changes nothing.
+func TestASignedInSessionOpensNoShareRoute(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	id, token := createLink(t, h, `{"kind":"page","label":"Map","page":"wifi-map","routerId":"r1"}`)
+	for _, path := range []string{"/share/api/router-doc?kind=wifi-map", "/share/api/feed"} {
+		if w := shareReq(h, "GET", path, "", "admin", "", nil); w.Code == 200 {
+			t.Errorf("%s answered an administrator's cookie with no ticket", path)
+		}
+	}
+	if w := shareReq(h, "POST", "/share/api/ticket", "", "admin", "", nil); w.Code != 401 {
+		t.Errorf("a ticket was issued for a cookie: %d", w.Code)
+	}
+	req := httptest.NewRequest("GET", "/share/ws", nil)
+	req.Header.Set("Cookie", "mikrodash_sid=admin")
+	req.RemoteAddr = "10.20.0.1:1"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != 401 {
+		t.Errorf("the share socket accepted a cookie with no ticket: %d", w.Code)
+	}
+	// With a ticket, a cookie alongside changes no answer.
+	c, tk := openShareView(t, ts, h, token)
+	defer c.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	auth := map[string]string{"Authorization": "Share " + tk}
+	a := shareReq(h, "GET", "/share/api/apps/history", "", "", "", auth)
+	b := shareReq(h, "GET", "/share/api/apps/history", "", "admin", "", auth)
+	if a.Code != 404 || b.Code != a.Code || b.Body.String() != a.Body.String() {
+		t.Errorf("a cookie changed a share read's answer: %d then %d", a.Code, b.Code)
 	}
 }

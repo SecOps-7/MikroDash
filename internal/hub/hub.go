@@ -58,28 +58,61 @@ type Client struct {
 	// (router lists, settings, permissions, sites) never reach somebody with
 	// no account.
 	roomOnly bool
-	// accept, when set, decides which room broadcasts reach a room-only
-	// client: it is asked with the room and the event, and a false drops the
-	// frame for this client alone. A share viewer sits in its router's
-	// router-wide room for the top-bar data, and must not receive what else is
-	// sent there (alert acknowledgements, collection settings, a router being
-	// disabled). A direct send is never filtered: it was addressed to this
-	// client on purpose.
-	accept func(room, event string) bool
+	// filter, when set, sees every frame bound for a room-only client, from
+	// a room (room names it) or sent to it directly (room ""), and decides
+	// what it receives: false drops the frame for this client alone, and a
+	// non-nil value is sent in place of the payload. A share link's viewer
+	// uses it to hear only its own subject, and a card link to receive only
+	// its card's fields (internal/server/share_ws.go).
+	filter func(room, event string, payload any) (any, bool)
 }
 
 // NewRoomOnlyClient is NewClient for a client that hub-wide broadcasts skip,
-// and whose room broadcasts pass accept (nil accepts everything).
-func NewRoomOnlyClient(id string, queue int, accept func(room, event string) bool) *Client {
+// and whose every frame passes filter (nil passes everything unchanged).
+func NewRoomOnlyClient(id string, queue int, filter func(room, event string, payload any) (any, bool)) *Client {
 	c := NewClient(id, queue)
 	c.roomOnly = true
-	c.accept = accept
+	c.filter = filter
 	return c
 }
 
-// accepts reports whether a broadcast to room reaches this client.
-func (c *Client) accepts(room, event string) bool {
-	return c.accept == nil || c.accept(room, event)
+// sendTo delivers one event to each target, each through its own filter.
+// The unfiltered frame is marshalled once, and only when someone takes it.
+func sendTo(targets []target, event string, payload any) {
+	var shared []byte
+	for _, t := range targets {
+		c := t.c
+		if c.filter != nil {
+			out, ok := c.filter(t.room, event, payload)
+			if !ok {
+				continue
+			}
+			if out != nil {
+				b, err := json.Marshal(Envelope{Event: event, Data: out})
+				if err != nil {
+					log.Printf("[hub] cannot marshal %s for %s: %v", event, c.ID, err)
+					continue
+				}
+				c.deliver(b)
+				continue
+			}
+		}
+		if shared == nil {
+			b, err := json.Marshal(Envelope{Event: event, Data: payload})
+			if err != nil {
+				log.Printf("[hub] cannot marshal %s: %v", event, err)
+				return
+			}
+			shared = b
+		}
+		c.deliver(shared)
+	}
+}
+
+// target is one client and the room a frame reaches it through.
+type target struct {
+	c    *Client
+	room string
 }
 
 func NewClient(id string, queue int) *Client {
@@ -255,24 +288,12 @@ func (h *Hub) Occupants(room string) int {
 // broadcast sends one event to everybody in a room.
 func (h *Hub) broadcast(room, event string, payload any) {
 	h.mu.RLock()
-	members := make([]*Client, 0, len(h.rooms[room]))
+	members := make([]target, 0, len(h.rooms[room]))
 	for c := range h.rooms[room] {
-		if c.accepts(room, event) {
-			members = append(members, c)
-		}
+		members = append(members, target{c, room})
 	}
 	h.mu.RUnlock()
-	if len(members) == 0 {
-		return // nobody watching; do not pay for the marshal
-	}
-	b, err := json.Marshal(Envelope{Event: event, Data: payload})
-	if err != nil {
-		log.Printf("[hub] cannot marshal %s: %v", event, err)
-		return
-	}
-	for _, c := range members {
-		c.deliver(b)
-	}
+	sendTo(members, event, payload)
 }
 
 // broadcastAll sends one event to EVERY connected client, in no room at all.
@@ -288,25 +309,15 @@ func (h *Hub) broadcast(room, event string, payload any) {
 // permitted to see. Reach for `Broadcast` unless the fact really is global.
 func (h *Hub) broadcastAll(event string, payload any) {
 	h.mu.RLock()
-	members := make([]*Client, 0, len(h.clients))
+	members := make([]target, 0, len(h.clients))
 	for c := range h.clients {
 		if c.roomOnly {
 			continue
 		}
-		members = append(members, c)
+		members = append(members, target{c, ""})
 	}
 	h.mu.RUnlock()
-	if len(members) == 0 {
-		return // nobody connected; do not pay for the marshal
-	}
-	b, err := json.Marshal(Envelope{Event: event, Data: payload})
-	if err != nil {
-		log.Printf("[hub] cannot marshal %s: %v", event, err)
-		return
-	}
-	for _, c := range members {
-		c.deliver(b)
-	}
+	sendTo(members, event, payload)
 }
 
 // broadcastExcept sends one event to everybody in a room APART FROM one client.
@@ -319,24 +330,14 @@ func (h *Hub) broadcastAll(event string, payload any) {
 // what the live app relies on.
 func (h *Hub) broadcastExcept(room string, except *Client, event string, payload any) {
 	h.mu.RLock()
-	members := make([]*Client, 0, len(h.rooms[room]))
+	members := make([]target, 0, len(h.rooms[room]))
 	for c := range h.rooms[room] {
-		if c != except && c.accepts(room, event) {
-			members = append(members, c)
+		if c != except {
+			members = append(members, target{c, room})
 		}
 	}
 	h.mu.RUnlock()
-	if len(members) == 0 {
-		return // nobody else watching; do not pay for the marshal
-	}
-	b, err := json.Marshal(Envelope{Event: event, Data: payload})
-	if err != nil {
-		log.Printf("[hub] cannot marshal %s: %v", event, err)
-		return
-	}
-	for _, c := range members {
-		c.deliver(b)
-	}
+	sendTo(members, event, payload)
 }
 
 // broadcastRooms sends one event to the UNION of several rooms, once per
@@ -350,36 +351,21 @@ func (h *Hub) broadcastExcept(room string, except *Client, event string, payload
 func (h *Hub) broadcastRooms(rooms []string, event string, payload any) {
 	h.mu.RLock()
 	seen := map[*Client]bool{}
-	members := make([]*Client, 0)
+	members := make([]target, 0)
 	for _, room := range rooms {
 		for c := range h.rooms[room] {
-			if !seen[c] && c.accepts(room, event) {
+			if !seen[c] {
 				seen[c] = true
-				members = append(members, c)
+				members = append(members, target{c, room})
 			}
 		}
 	}
 	h.mu.RUnlock()
-	if len(members) == 0 {
-		return // nobody watching; do not pay for the marshal
-	}
-	b, err := json.Marshal(Envelope{Event: event, Data: payload})
-	if err != nil {
-		log.Printf("[hub] cannot marshal %s: %v", event, err)
-		return
-	}
-	for _, c := range members {
-		c.deliver(b)
-	}
+	sendTo(members, event, payload)
 }
 
 // send delivers one event to one client — the reply to something it asked for,
 // and the replay of a last payload when it opens a page.
 func (h *Hub) send(c *Client, event string, payload any) {
-	b, err := json.Marshal(Envelope{Event: event, Data: payload})
-	if err != nil {
-		log.Printf("[hub] cannot marshal %s: %v", event, err)
-		return
-	}
-	c.deliver(b)
+	sendTo([]target{{c, ""}}, event, payload)
 }

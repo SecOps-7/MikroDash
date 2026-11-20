@@ -73,6 +73,18 @@ func (v *shareViewers) remove(id string, c *shareConn) {
 	}
 }
 
+// byViewer is the open socket of one viewer of a link, or nil.
+func (v *shareViewers) byViewer(id, viewer string) *shareConn {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	for c := range v.conns[id] {
+		if c.viewer == viewer {
+			return c
+		}
+	}
+	return nil
+}
+
 func (v *shareViewers) count(id string) int {
 	v.mu.Lock()
 	defer v.mu.Unlock()

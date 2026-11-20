@@ -51,6 +51,8 @@ func (s *Server) registerShareView(mux *http.ServeMux) {
 	mux.HandleFunc("GET /share/ws", sockets(s.handleShareWS))
 	mux.HandleFunc("POST /share/api/ticket", s.shareTicketRenew)
 	mux.HandleFunc("GET /share/api/feed", s.shareFeed)
+	// The read routes a shared page makes: an allow list, see share_read.go.
+	mux.HandleFunc("GET /share/api/{route...}", s.shareReadRoute)
 	mux.Handle("GET /share.js", s.shareAsset("share.js"))
 	// The app's stylesheet, which /app.css serves only to a signed-in browser.
 	mux.Handle("GET /share.css", s.shareAsset("app.css"))
@@ -186,13 +188,15 @@ func (s *Server) sweepShareLinks() {
 	}
 }
 
-// shareFromTicket resolves a view ticket to a link that may be used now.
-func (s *Server) shareFromTicket(ticket string, r *http.Request) (*db.ShareLink, string) {
-	id, _, ok := sharelink.VerifyTicket(s.shareKey, ticket, time.Now())
+// shareFromTicket resolves a view ticket to a link that may be used now, and
+// says which viewer the ticket was issued to.
+func (s *Server) shareFromTicket(ticket string, r *http.Request) (*db.ShareLink, sharelink.Ticket, string) {
+	tk, ok := sharelink.VerifyTicket(s.shareKey, ticket, time.Now())
 	if !ok {
-		return nil, "ticket"
+		return nil, tk, "ticket"
 	}
-	return s.shareLinkCheck(id, clientIPOf(r))
+	l, reason := s.shareLinkCheck(tk.LinkID, clientIPOf(r))
+	return l, tk, reason
 }
 
 // shareDenied records a refused share request, through the shared limiter.
@@ -244,6 +248,9 @@ type shareConfig struct {
 	Slides    []shareSlideView  `json:"slides"`
 	ExpiresAt *int64            `json:"expiresAt"`
 	Full      bool              `json:"full"` // the viewer cap is reached
+	// Reads are the /api/ paths the link's pages may read through
+	// /share/api (share_read.go); the shell answers every other one itself.
+	Reads []string `json:"reads"`
 }
 
 type shareSlideView struct {
@@ -298,7 +305,7 @@ func (s *Server) shareOpen(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	exp := now.Add(sharelink.TicketTTL)
 	cfg := shareConfig{
-		Ticket: sharelink.SignTicket(s.shareKey, l.ID, exp), TicketExp: exp.UnixMilli(),
+		Ticket: sharelink.SignTicket(s.shareKey, l.ID, sharelink.NewViewer(), exp), TicketExp: exp.UnixMilli(),
 		Kind: l.Kind, Label: l.Label, Page: l.Page, Router: s.shareRouterLabel(l.RouterID),
 		Layout: rawOrNil(l.Layout), ExpiresAt: l.ExpiresAt, Slides: []shareSlideView{},
 	}
@@ -312,6 +319,14 @@ func (s *Server) shareOpen(w http.ResponseWriter, r *http.Request) {
 		cfg.Slides = append(cfg.Slides, shareSlideView{Page: sl.Page, Router: s.shareRouterLabel(sl.RouterID),
 			Secs: sl.Seconds, Shareable: pages.IsShareable(sl.Page), Layout: rawOrNil(sl.Layout)})
 	}
+	shown := []string{l.Page}
+	for _, sl := range l.Slides {
+		shown = append(shown, sl.Page)
+	}
+	if sharelink.Kind(l.Kind) == sharelink.KindCard {
+		shown = nil // a card is fed by its socket alone
+	}
+	cfg.Reads = shareReadsFor(shown)
 	_ = s.auditDB.TouchShareLink(l.ID, now.UnixMilli())
 	s.shareAudit(audit.New(auditSink{s.auditDB}, audit.Actor{Name: "share:" + l.Label,
 		IP: audit.NormalizeIP(clientIPOf(r))}, nowMillis), "share.open", *l, "a new viewer")
@@ -369,7 +384,7 @@ var shareRenewals = newRateLimiter(4, time.Minute)
 func (s *Server) shareTicketRenew(w http.ResponseWriter, r *http.Request) {
 	shareHeaders(w)
 	setShareFraming(w, nil)
-	l, reason := s.shareFromTicket(shareAuthTicket(r), r)
+	l, tk, reason := s.shareFromTicket(shareAuthTicket(r), r)
 	if l == nil {
 		s.shareDenied(r, "", reason)
 		writeJSONErr(w, http.StatusUnauthorized, "not valid")
@@ -380,7 +395,7 @@ func (s *Server) shareTicketRenew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	exp := time.Now().Add(sharelink.TicketTTL)
-	writeJSON(w, map[string]any{"ok": true, "ticket": sharelink.SignTicket(s.shareKey, l.ID, exp),
+	writeJSON(w, map[string]any{"ok": true, "ticket": sharelink.SignTicket(s.shareKey, l.ID, tk.Viewer, exp),
 		"ticketExp": exp.UnixMilli()})
 }
 

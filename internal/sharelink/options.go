@@ -214,12 +214,14 @@ func CardShareable(id string) bool {
 }
 
 // CardFeed is where a card's data arrives, which is all a card link's viewer
-// is let into: the card room it joins (a dashcards Room key), and the events
-// it accepts from the Dashboard's page room. A card with neither is painted
-// from the router-wide top-bar data and the traffic rooms alone.
+// is let into: the card rooms it joins (dashcards Room keys), and whether it
+// needs the Dashboard's page room (Ping, Top Talkers, NetWatch, Routes and BGP
+// are fed there). What it RECEIVES from those rooms is cut down to its card's
+// fields by cardData (carddata.go); a card with no room is painted from the
+// router-wide and traffic data alone.
 type CardFeed struct {
-	Room       string
-	DashEvents []string
+	Rooms []string
+	Dash  bool
 }
 
 // cardFeeds is every card a link may show, by what feeds it. Several cards
@@ -229,31 +231,31 @@ type CardFeed struct {
 // A CARD MISSING HERE CANNOT BE SHARED, and cardsNotShareable says why for
 // each: the four it names are filled per viewer from that viewer's grants,
 // and a share has no viewer. TestEveryCardIsFedOrRecorded holds both lists
-// against dashcards.All in both directions.
+// against dashcards.All in both directions, and against cardData.
 var cardFeeds = map[string]CardFeed{
 	"card-traffic":      {},
 	"card-system":       {},
 	"dc-card-bw":        {},
-	"card-connections":  {Room: "connections"},
-	"dc-card-destcc":    {Room: "connections"},
-	"dc-card-topcc":     {Room: "connections"},
-	"dc-card-flow":      {Room: "connections"},
-	"dc-card-topports":  {Room: "connections"},
-	"dc-card-netflow":   {Room: "wireless"},
-	"dc-card-signal":    {Room: "wireless"},
-	"dc-card-band":      {Room: "wireless"},
-	"card-network":      {Room: "dhcp"},
-	"dc-card-iputil":    {Room: "dhcp"},
-	"card-wireguard":    {Room: "vpn"},
-	"dc-card-physports": {Room: "interfaces"},
-	"dc-card-fwaction":  {Room: "firewall"},
-	"dc-card-logs":      {Room: "logs"},
-	"dc-card-wanflow":   {Room: "wan"},
-	"dc-card-ping":      {DashEvents: []string{"ping:update"}},
-	"card-toptalkers":   {DashEvents: []string{"talkers:update"}},
-	"dc-card-netwatch":  {DashEvents: []string{"netwatch:update"}},
-	"dc-card-routes":    {DashEvents: []string{"routing:update"}},
-	"dc-card-bgp":       {DashEvents: []string{"routing:update"}},
+	"card-connections":  {Rooms: []string{"connections"}},
+	"dc-card-destcc":    {Rooms: []string{"connections"}},
+	"dc-card-topcc":     {Rooms: []string{"connections"}},
+	"dc-card-flow":      {Rooms: []string{"connections"}},
+	"dc-card-topports":  {Rooms: []string{"connections"}},
+	"dc-card-netflow":   {Rooms: []string{"wireless", "interfaces"}},
+	"dc-card-signal":    {Rooms: []string{"wireless"}},
+	"dc-card-band":      {Rooms: []string{"wireless"}},
+	"card-network":      {Rooms: []string{"dhcp"}},
+	"dc-card-iputil":    {Rooms: []string{"dhcp"}},
+	"card-wireguard":    {Rooms: []string{"vpn"}},
+	"dc-card-physports": {Rooms: []string{"interfaces"}},
+	"dc-card-fwaction":  {Rooms: []string{"firewall"}},
+	"dc-card-logs":      {Rooms: []string{"logs"}},
+	"dc-card-wanflow":   {Rooms: []string{"wan"}},
+	"dc-card-ping":      {Dash: true},
+	"card-toptalkers":   {Dash: true},
+	"dc-card-netwatch":  {Dash: true},
+	"dc-card-routes":    {Dash: true},
+	"dc-card-bgp":       {Dash: true},
 }
 
 // cardsNotShareable are the cards no link may show, and why.
