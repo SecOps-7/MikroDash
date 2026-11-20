@@ -691,3 +691,33 @@ func TestASignedInSessionOpensNoShareRoute(t *testing.T) {
 		t.Errorf("a cookie changed a share read's answer: %d then %d", a.Code, b.Code)
 	}
 }
+
+// TestAShareReadsItsOwnRoutersCountry: the local country a shared page reads
+// is the SHARED router's, never the install's active router (which the link
+// may not show), and the WAN address is never sent.
+func TestAShareReadsItsOwnRoutersCountry(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	routers := `[
+  {"id":"r1","label":"Edge","host":"198.51.100.1","port":8728,"username":"u","password":"",
+   "geo":{"place":{"name":"Marl","region":"North Rhine-Westphalia","cc":"DE","lat":51.6567,"lon":7.09038}}},
+  {"id":"r2","label":"Branch","host":"198.51.100.2","port":8728,"username":"u","password":"",
+   "geo":{"place":{"name":"Lyon","region":"Auvergne-Rhone-Alpes","cc":"FR","lat":45.764,"lon":4.8357}}}]`
+	for name, body := range map[string]string{"routers.json": routers, "settings.json": `{"activeRouterId":"r2"}`} {
+		if err := os.WriteFile(filepath.Join(srv.store.Dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if cc := srv.activeRouterPlaceCC(); cc != "FR" {
+		t.Fatalf("control: the active router's country is %q, want FR", cc)
+	}
+	id, token := createLink(t, h, `{"kind":"page","label":"Conns","page":"connections","routerId":"r1"}`)
+	c, tk := openShareView(t, ts, h, token)
+	defer c.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	w := shareReq(h, "GET", "/share/api/localcc", "", "", "", map[string]string{"Authorization": "Share " + tk})
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"cc":"DE"`) || !strings.Contains(w.Body.String(), `"wanIp":""`) {
+		t.Errorf("a share of r1 read %d %s; want r1's country (DE) and no WAN address", w.Code, w.Body.String())
+	}
+}

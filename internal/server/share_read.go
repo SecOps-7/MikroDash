@@ -154,9 +154,15 @@ func (s *Server) shareInterfaceHistory(w http.ResponseWriter, q url.Values, _ *d
 	s.serveInterfaceHistory(w, q.Get("range"), rid, iface, false)
 }
 
-func (s *Server) shareLocalCC(w http.ResponseWriter, _ url.Values, _ *db.ShareLink, _ string) {
-	// The country, never the WAN address: a share is not an administrator.
-	writeJSON(w, localCCPayload(s.activeWanIP(), false, countryOf, s.activeRouterPlaceCC()))
+// shareLocalCC is the local country OF THE SHARED ROUTER, never the
+// install's active one (which may be a router the link does not show), and
+// never the WAN address: a share is not an administrator.
+func (s *Server) shareLocalCC(w http.ResponseWriter, _ url.Values, _ *db.ShareLink, rid string) {
+	placeCC := ""
+	if loc := s.routerPlace(rid); loc != nil {
+		placeCC = loc.CC
+	}
+	writeJSON(w, localCCPayload(s.wanIPOf(rid), false, countryOf, placeCC))
 }
 
 func (s *Server) shareWifiHistory(w http.ResponseWriter, q url.Values, _ *db.ShareLink, rid string) {
