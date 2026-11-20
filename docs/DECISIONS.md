@@ -4,6 +4,30 @@ Product decisions the code must keep, each with who made it, why, and what
 holds it. A decision recorded here is a rule: changing it is a new decision,
 not a refactor.
 
+## Refused write attempts are recorded in the audit trail (#165, 2026-11-20)
+
+**Decision (the operator):** a write that MikroDash refuses (no session, or
+no permission) is recorded in the audit trail as a denied attempt, rate-limited
+so that a client cannot flood the trail.
+
+**Why it was raised:** removing sign-in off (#165) showed that most HTTP
+write routes answer 401 or 403 before anything is recorded. For example, a
+refused `DELETE /api/routers/<id>` left no row, and the test that claimed it
+did only passed through sign-in off. About twenty socket handlers already
+record their own refusals; the HTTP routes mostly did not.
+
+**What it means:** every refused POST, PUT, PATCH or DELETE leaves one
+`denied` row naming the route, the actor (or "anonymous") and the client
+address. Refused reads are not recorded. Failed sign-ins keep their own record
+and limit. A flood from one address is capped and summarised as a count of
+suppressed rows, not written row by row.
+
+**Status: decided, not built.** The proposal (a middleware round the mux for
+the HTTP half, one limiter in `internal/audit` shared by every denied row, and
+a ledger test over every registered write route) is in the #165 share-links
+plan. When it is built, this entry gains its "How it is held" list, naming
+the tests, as the entries below do.
+
 ## Sign-in is always required (#165, 2026-11-20)
 
 **Decision (the operator):** MikroDash always requires sign-in. Running it
