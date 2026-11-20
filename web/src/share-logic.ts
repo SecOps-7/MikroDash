@@ -43,6 +43,7 @@ export interface ShareConfig {
   slides: ShareSlide[];
   expiresAt: number | null;
   full: boolean;
+  reads?: string[];
 }
 
 export const DEFAULT_SLIDE_SECS = 30;

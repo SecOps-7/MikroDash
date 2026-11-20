@@ -19,6 +19,7 @@
 // to MikroDash lends this page nothing of that account.
 
 import { Socket } from '../socket';
+import { shareFetch } from '../share-fetch';
 import { el } from '../dom';
 import { pageTitle } from '../gen/pages';
 import { DEFAULT_LAYOUT, type GridCard } from '../gen/grid-tables';
@@ -68,21 +69,6 @@ function readConfig(): ShareConfig | null {
   }
 }
 
-/** Every fetch from this document: no credentials, and nothing but GET and the ticket renewal. */
-function lockFetch(): void {
-  const real = window.fetch.bind(window);
-  window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const method = (init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const renewal = url.endsWith('/share/api/ticket') && method === 'POST';
-    if (method !== 'GET' && !renewal) {
-      return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'read-only' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }));
-    }
-    return real(input, { ...init, credentials: 'omit' });
-  };
-}
-
 function setTheme(option: string | undefined): void {
   const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   const apply = (): void => {
@@ -120,7 +106,8 @@ function boot(): void {
     notice(INVALID);
     return;
   }
-  lockFetch();
+  let ticket = cfg.ticket;
+  window.fetch = shareFetch(window.fetch.bind(window), cfg.reads || [], () => ticket, location.origin);
   setTheme(cfg.options.theme);
   const root = document.documentElement;
   root.classList.add('share-view');
@@ -140,7 +127,6 @@ function boot(): void {
     return;
   }
 
-  let ticket = cfg.ticket;
   const renew = (exp: number): void => {
     window.setTimeout(() => {
       void fetch('/share/api/ticket', { method: 'POST', headers: { Authorization: 'Share ' + ticket } })
@@ -230,9 +216,13 @@ function boot(): void {
   });
   socket.on('share:reload', () => { location.reload(); });
 
+  // Shown once the socket is open: a page's REST reads are answered only
+  // for an open view (share_read.go).
   if (cfg.kind !== 'slideshow') {
-    showPage(cfg.kind === 'card' ? 'dashboard' : cfg.page, cfg.router);
-    socket.on('connect', () => { if (current) socket.emit('page:focus', current); });
+    socket.on('connect', () => {
+      if (current) socket.emit('page:focus', current);
+      else showPage(cfg.kind === 'card' ? 'dashboard' : cfg.page, cfg.router);
+    });
     return;
   }
 
@@ -377,11 +367,12 @@ function boot(): void {
     });
   }
 
-  // On every (re)connect the server is told which slide is on screen.
+  // On every (re)connect the server is told which slide is on screen; the
+  // first connect starts the show.
   socket.on('connect', () => {
     if (idx >= 0) socket.emit('share:slide', idx);
+    else go(nextSlide(-1, slides, skip));
   });
-  go(nextSlide(-1, slides, skip));
 }
 
 boot();
