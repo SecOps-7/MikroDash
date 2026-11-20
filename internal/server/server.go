@@ -19,6 +19,7 @@ import (
 	"log"
 	"mikrodash/internal/alertdispatch"
 	"mikrodash/internal/alertwire"
+	"mikrodash/internal/audit"
 	"mikrodash/internal/geo"
 	"mikrodash/internal/switchpoll"
 	"mikrodash/internal/websession"
@@ -175,6 +176,10 @@ type Server struct {
 	// frame is cheaper to send than an HTTP request, so the need is greater
 	// here, not smaller.
 	aiLimit *rateLimiter
+	// deniedLimit caps the refused-attempt rows every recorder this server
+	// builds may write (audit.DeniedLimiter; docs/DECISIONS.md, 2026-11-20).
+	// Nil, as in a test that builds a Server by hand, means no cap.
+	deniedLimit *audit.DeniedLimiter
 	// overviewLines is the last Agent Overview line per user per router, so a
 	// return to the Dashboard within the interval re-shows it rather than paying
 	// for another. See `overviewTick`.
@@ -393,6 +398,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		jobLimit:       newJobLimiter(),
 		dnsBulk:        dnsBulkJobs{jobs: map[string]*DNSBulkJob{}, busy: map[string]bool{}},
 		aiLimit:        newRateLimiter(20, time.Minute),
+		deniedLimit:    audit.NewDeniedLimiter(time.Now),
 	}
 	// Installed AFTER construction because it closes over the server. It is the
 	// whole of authentication.
@@ -740,7 +746,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("/login", s.distFile("/login.html"))
 	mux.Handle("/login.js", s.distFile("/login.js"))
 	mux.Handle("/preflight.js", s.distFile("/preflight.js"))
-	return logRequests(mux)
+	// Refused writes are recorded once, whichever route refused them: see
+	// denied_audit.go.
+	return logRequests(s.deniedAudit(mux))
 }
 
 // spa serves the built frontend, falling back to index.html so an extensionless

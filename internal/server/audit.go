@@ -64,7 +64,8 @@ func (cn *conn) recorder() *audit.Recorder {
 	// THE USER ID, as httpRecorder records it: audit_events.actor_id holds the
 	// id and actor_name the username. "" here left every write made from a page,
 	// which all go over the socket, with actor_id NULL.
-	return audit.New(sink, audit.ForUser(cn.userID, name, cn.clientIP), nowMillis)
+	return audit.New(sink, audit.ForUser(cn.userID, name, cn.clientIP), nowMillis).
+		WithDeniedLimit(cn.srv.deniedLimit)
 }
 
 // httpRecorder is the same recorder for an HTTP request rather than a socket.
@@ -82,7 +83,10 @@ func (s *Server) httpRecorder(r *http.Request, sess *Session) *audit.Recorder {
 	if sess != nil {
 		name = sess.Username
 	}
-	return audit.New(sink, audit.ForUser(s.userIDFor(name), name, clientIPOf(r)), nowMillis)
+	rec := audit.New(sink, audit.ForUser(s.userIDFor(name), name, clientIPOf(r)), nowMillis)
+	// The refused-write middleware's marker, when the request passed through
+	// it: a handler that records its own refusal is not recorded twice.
+	return rec.WithDeniedLimit(s.deniedLimit).OnDenied(deniedMarkOf(r))
 }
 
 // nowMillis is Date.now(): epoch MILLISECONDS, which is what every ts in this

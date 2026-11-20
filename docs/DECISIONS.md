@@ -22,11 +22,26 @@ address. Refused reads are not recorded. Failed sign-ins keep their own record
 and limit. A flood from one address is capped and summarised as a count of
 suppressed rows, not written row by row.
 
-**Status: decided, not built.** The proposal (a middleware round the mux for
-the HTTP half, one limiter in `internal/audit` shared by every denied row, and
-a ledger test over every registered write route) is in the #165 share-links
-plan. When it is built, this entry gains its "How it is held" list, naming
-the tests, as the entries below do.
+**How it is held:**
+
+- `deniedAudit` (`internal/server/denied_audit.go`) wraps the whole mux: a
+  POST, PUT, PATCH or DELETE that ends in 401 or 403 leaves one `denied` row
+  (action: the route pattern), unless its handler already recorded the
+  refusal through `httpRecorder`, which marks the request. Failed sign-ins
+  and ZTP enrolment keep their own records (`deniedAuditExempt`, each entry
+  with its reason).
+- One `audit.DeniedLimiter` per server, attached to every recorder the
+  server builds (HTTP, socket, and later share links): per client address,
+  1 row per action and 30 rows a minute, the rest counted and reported on
+  the next row ("and N more refused in the last minute"), memory bounded.
+- Tests: `TestEveryRefusedWriteLeavesOneRow` (every write route read from
+  the source, anonymous and signed in without grants, one row per refusal),
+  `TestAnAnonymousWriteIsRefusedOrPublic` (the public writes listed, both
+  ways), `TestTheExemptionsNameRealRoutes`, `TestARefusedReadIsNotRecorded`,
+  `TestAFloodIsCountedNotWritten`, `TestTheSocketAndHTTPShareOneBudget`
+  (`internal/server/denied_audit_test.go`), and the limiter's own tests in
+  `internal/audit/denied_limit_test.go`. Mutation-checked: removing the
+  middleware, the dedupe mark or the limiter each fails a test.
 
 ## Sign-in is always required (#165, 2026-11-20)
 

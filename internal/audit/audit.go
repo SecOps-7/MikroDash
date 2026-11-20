@@ -270,6 +270,28 @@ type Recorder struct {
 	Actor Actor
 	sink  Sink
 	now   func() int64
+	// limit, when set, caps the denied rows this recorder writes (see
+	// DeniedLimiter); onDenied is told whenever a refusal has been handled,
+	// written or counted, so the refused-write middleware does not record the
+	// same refusal a second time.
+	limit    *DeniedLimiter
+	onDenied func()
+}
+
+// WithDeniedLimit attaches the shared limiter for denied rows.
+func (r *Recorder) WithDeniedLimit(l *DeniedLimiter) *Recorder {
+	if r != nil {
+		r.limit = l
+	}
+	return r
+}
+
+// OnDenied registers a callback run whenever Denied handles a refusal.
+func (r *Recorder) OnDenied(fn func()) *Recorder {
+	if r != nil {
+		r.onDenied = fn
+	}
+	return r
 }
 
 // New returns a recorder for an actor. A nil sink is legal and records nothing —
@@ -281,8 +303,31 @@ func New(sink Sink, actor Actor, now func() int64) *Recorder {
 
 func (r *Recorder) Record(ev Event) { r.write(ev) }
 
-// Denied is sugar for the refusal case, which is the reason Outcome exists.
-func (r *Recorder) Denied(ev Event) { ev.Outcome = "denied"; r.write(ev) }
+// Denied records a refusal, which is the reason Outcome exists. With a
+// DeniedLimiter attached it may be counted rather than written (see
+// denied_limit.go); a written row then reports how many were counted.
+func (r *Recorder) Denied(ev Event) {
+	if r == nil {
+		return
+	}
+	if r.onDenied != nil {
+		defer r.onDenied()
+	}
+	ev.Outcome = "denied"
+	if r.limit != nil {
+		ok, n := r.limit.Allow(r.Actor.IP, ev.Action)
+		if !ok {
+			return
+		}
+		if n > 0 {
+			if ev.Note != "" {
+				ev.Note += "; "
+			}
+			ev.Note += suppressedNote(n)
+		}
+	}
+	r.write(ev)
+}
 func (r *Recorder) Failed(ev Event) { ev.Outcome = "failed"; r.write(ev) }
 
 // write never returns an error and never panics: a failed audit must not break
