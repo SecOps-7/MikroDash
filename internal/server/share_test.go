@@ -250,7 +250,8 @@ func TestAShareOpensNothingElse(t *testing.T) {
 	_, feed := createLink(t, h, `{"kind":"feed","label":"HA","routerId":"r1","options":{"values":["cpu"]}}`)
 	tk := ticketOf(t, shareReq(h, "GET", "/s/"+token, "", "", "", nil).Body.String())
 	own := map[string]bool{"GET /s/{token}": true, "GET /share/ws": true,
-		"POST /share/api/ticket": true, "GET /share/api/feed": true, "GET /share.js": true}
+		"POST /share/api/ticket": true, "GET /share/api/feed": true, "GET /share.js": true,
+		"GET /share.css": true}
 	checked := 0
 	for i, pattern := range routesFromSource(t) {
 		if own[pattern] {

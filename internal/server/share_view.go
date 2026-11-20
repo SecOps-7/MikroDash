@@ -52,6 +52,8 @@ func (s *Server) registerShareView(mux *http.ServeMux) {
 	mux.HandleFunc("POST /share/api/ticket", s.shareTicketRenew)
 	mux.HandleFunc("GET /share/api/feed", s.shareFeed)
 	mux.Handle("GET /share.js", s.shareAsset("share.js"))
+	// The app's stylesheet, which /app.css serves only to a signed-in browser.
+	mux.Handle("GET /share.css", s.shareAsset("app.css"))
 }
 
 // frameAncestorsAllower is implemented by a response writer that enforces a

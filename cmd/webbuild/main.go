@@ -124,7 +124,13 @@ func composeShareHTML(ui string) (string, error) {
 		}
 		bodies = append(bodies, string(b))
 	}
-	return head + strings.Replace(frame, "<!--PAGES-->", strings.Join(bodies, "\n"), 1) + shareTail, nil
+	// /app.css answers only a signed-in browser; a share has no session, so
+	// its document loads the same built file as /share.css, a share route.
+	shareHead := strings.Replace(head, `href="/app.css"`, `href="/share.css"`, 1)
+	if shareHead == head {
+		return "", fmt.Errorf("the head no longer links /app.css; the share document cannot be styled")
+	}
+	return shareHead + strings.Replace(frame, "<!--PAGES-->", strings.Join(bodies, "\n"), 1) + shareTail, nil
 }
 
 func composeHTML(ui string) (string, error) {

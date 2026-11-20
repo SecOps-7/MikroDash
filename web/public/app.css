@@ -3975,8 +3975,8 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
    window under a slim strip. Embed drops the strip, the padding and the page
    background so a card sits on the host's own (Home Assistant). Card links
    show one Dashboard card, filling the frame. */
-.share-view body { background: var(--bg-deep); overflow: auto; }
-.share-root { min-height: 100vh; display: flex; flex-direction: column; }
+.share-view body { display: block; height: auto; background: var(--bg-deep); overflow: auto; }
+.share-root { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
 .share-strip {
   display: flex; align-items: center; gap: 10px; padding: 6px 16px;
   border-bottom: 1px solid var(--border); background: var(--bg-card);

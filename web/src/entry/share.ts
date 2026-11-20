@@ -21,7 +21,7 @@
 import { Socket } from '../socket';
 import { el } from '../dom';
 import { pageTitle } from '../gen/pages';
-import type { GridCard } from '../gen/grid-tables';
+import { DEFAULT_LAYOUT, type GridCard } from '../gen/grid-tables';
 import { applyCaps } from '../caps';
 import {
   type ShareConfig, type ShareSlide, nextSlide, prevSlide, slideSecs, themeFor, transitionMs,
@@ -169,8 +169,12 @@ function boot(): void {
   // The page modules, as the app mounts them. Each renders only while its
   // page is the visible one, so mounting all of them costs nothing on screen.
   const fixed = cfg.kind === 'slideshow' ? null : layoutOf(cfg.layout);
+  // A card link: every card in the catalogue, only the shared one visible.
+  // mergeLayout fills a card missing from a layout with its default, which is
+  // visible, so a one-entry layout would draw the whole Dashboard.
   const cardLayout = cfg.kind === 'card' && cfg.options.card
-    ? [{ id: cfg.options.card, x: 1, y: 1, w: 24, h: 8, visible: true } as GridCard]
+    ? DEFAULT_LAYOUT.map((c) => (c.id === cfg.options.card
+      ? { ...c, x: 1, y: 1, w: 24, visible: true } : { ...c, visible: false }))
     : null;
   initDashboard(socket);
   initIpTip();

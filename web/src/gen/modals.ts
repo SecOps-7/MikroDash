@@ -37,5 +37,6 @@ export const CLOSABLE_MODALS: readonly string[] = [
   "siteFormWrap",
   "ssoFormWrap",
   "userFormWrap",
-  "wanWarnWrap"
+  "wanWarnWrap",
+  "shareFormWrap"
 ];

@@ -22,6 +22,7 @@
     "siteFormWrap",
     "ssoFormWrap",
     "userFormWrap",
-    "wanWarnWrap"
+    "wanWarnWrap",
+    "shareFormWrap"
   ]
 }
