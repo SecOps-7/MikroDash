@@ -165,7 +165,7 @@ func (s *Server) ztpApply() {
 		s.ztp.eng, s.ztp.key, s.ztp.port, s.ztp.plan, s.ztp.enrol = eng, z.key, z.port, plan, l
 		routeros.SetTunnel(plan.Prefix, eng.DialContext)
 		go func() {
-			srv := &http.Server{Handler: http.HandlerFunc(s.ztpTunnelEnrol), ReadHeaderTimeout: 10 * time.Second}
+			srv := &http.Server{Handler: frameGuard(http.HandlerFunc(s.ztpTunnelEnrol)), ReadHeaderTimeout: 10 * time.Second}
 			_ = srv.Serve(l)
 		}()
 		log.Printf("[ztp] tunnel up on UDP %d, %s", z.port, plan.Server())

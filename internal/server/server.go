@@ -740,7 +740,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("/login", s.distFile("/login.html"))
 	mux.Handle("/login.js", s.distFile("/login.js"))
 	mux.Handle("/preflight.js", s.distFile("/preflight.js"))
-	return logRequests(mux)
+	// OUTERMOST, so no response from any route leaves without the framing
+	// headers: see frameguard.go.
+	return frameGuard(logRequests(mux))
 }
 
 // spa serves the built frontend, falling back to index.html so an extensionless
