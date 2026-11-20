@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -468,8 +469,8 @@ func TestACardLinksSocketSendsOnlyItsCardsData(t *testing.T) {
 			}
 		}
 	}
-	if cards < 20 {
-		t.Fatalf("only %d cards", cards)
+	if cards == 0 {
+		t.Fatal("no shareable cards")
 	}
 }
 
@@ -498,7 +499,7 @@ func TestAnEditClosesTheLiveViewAndTheCapHolds(t *testing.T) {
 	srv, h := shareServer(t)
 	ts := httptest.NewServer(h)
 	defer ts.Close()
-	id, token := createLink(t, h, `{"kind":"page","label":"Lobby","page":"dns","routerId":"r1","viewerCap":1}`)
+	id, token := createLink(t, h, `{"kind":"page","label":"Lobby","page":"bandwidth","routerId":"r1","viewerCap":1}`)
 	first, err := shareDial(t, ts.URL, token, h)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
@@ -539,7 +540,7 @@ func TestWarmUpJoinsOnlyTheNextSlideAhead(t *testing.T) {
 	ts := httptest.NewServer(h)
 	defer ts.Close()
 	_, token := createLink(t, h, `{"kind":"slideshow","label":"Wall","options":{"warmUpSecs":5},"slides":[
-		{"page":"dns","routerId":"r1"},{"page":"interfaces","routerId":"r1"},{"page":"logs","routerId":"r1"}]}`)
+		{"page":"bandwidth","routerId":"r1"},{"page":"interfaces","routerId":"r1"},{"page":"wifi-clients","routerId":"r1"}]}`)
 	c, err := shareDial(t, ts.URL, token, h)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
@@ -555,18 +556,18 @@ func TestWarmUpJoinsOnlyTheNextSlideAhead(t *testing.T) {
 	}
 	room := func(p string) int { return srv.hub.Occupants("router-r1-page-" + p) }
 	send("share:slide", 0)
-	waitFor(t, func() bool { return room("dns") == 1 })
+	waitFor(t, func() bool { return room("bandwidth") == 1 })
 	send("share:warm", 2) // not the next slide
 	// Absence cannot be waited for, and any other frame would move the
 	// rooms; so a plain wait, ample for one frame on a local socket.
 	time.Sleep(300 * time.Millisecond)
-	if room("logs") != 0 {
+	if room("wifi-clients") != 0 {
 		t.Error("a slide two ahead was warmed")
 	}
 	send("share:warm", 1)
 	waitFor(t, func() bool { return room("interfaces") == 1 })
 	send("share:slide", 1)
-	waitFor(t, func() bool { return room("dns") == 0 })
+	waitFor(t, func() bool { return room("bandwidth") == 0 })
 	if room("interfaces") != 1 {
 		t.Errorf("the warmed slide's room after it was shown: %d occupants", room("interfaces"))
 	}
@@ -619,21 +620,21 @@ func TestAShareReadIsAnsweredOnlyOnItsListForAnOpenView(t *testing.T) {
 	srv, h := shareServer(t)
 	ts := httptest.NewServer(h)
 	defer ts.Close()
-	id, token := createLink(t, h, `{"kind":"page","label":"Map","page":"wifi-map","routerId":"r1"}`)
+	id, token := createLink(t, h, `{"kind":"page","label":"Topology","page":"network-topology","routerId":"r1"}`)
 	c, tk := openShareView(t, ts, h, token)
 	defer c.CloseNow()
 	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
 	auth := map[string]string{"Authorization": "Share " + tk}
 
 	// On the list for this page, and the router is the socket's, whatever the query says.
-	w := shareReq(h, "GET", "/share/api/router-doc?kind=wifi-map&routerId=r2", "", "", "", auth)
+	w := shareReq(h, "GET", "/share/api/router-doc?kind=topology-links&routerId=r2", "", "", "", auth)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"routerId":"r1"`) {
 		t.Fatalf("an allowed read: %d %s", w.Code, w.Body.String())
 	}
 	refused := shareReq(h, "GET", "/s/"+strings.Repeat("A", 43), "", "", "10.60.0.1", nil).Body.String()
 	for why, path := range map[string]string{
 		"not on any list":          "/share/api/routers",
-		"another page's read":      "/share/api/apps/history",
+		"another page's read":      "/share/api/interfaces/history?interface=ether1&range=1h",
 		"another kind of document": "/share/api/router-doc?kind=wan-uplinks",
 		"an administrative read":   "/share/api/users",
 	} {
@@ -642,16 +643,16 @@ func TestAShareReadIsAnsweredOnlyOnItsListForAnOpenView(t *testing.T) {
 			t.Errorf("%s (%s): %d, want the one refusal", why, path, w.Code)
 		}
 	}
-	if w := shareReq(h, "POST", "/share/api/router-doc?kind=wifi-map", "{}", "", "", auth); w.Code == 200 {
+	if w := shareReq(h, "POST", "/share/api/router-doc?kind=topology-links", "{}", "", "", auth); w.Code == 200 {
 		t.Error("a POST to a share read was answered")
 	}
 	// A ticket whose view has no open socket: past the cap, or never connected.
 	other := ticketOf(t, shareReq(h, "GET", "/s/"+token, "", "", "", nil).Body.String())
-	if w := shareReq(h, "GET", "/share/api/router-doc?kind=wifi-map", "", "", "", map[string]string{"Authorization": "Share " + other}); w.Code != 404 {
+	if w := shareReq(h, "GET", "/share/api/router-doc?kind=topology-links", "", "", "", map[string]string{"Authorization": "Share " + other}); w.Code != 404 {
 		t.Errorf("a read for a view with no open socket: %d", w.Code)
 	}
 	shareReq(h, "POST", "/api/share-links/"+id+"/revoke", "", "admin", "", nil)
-	if w := shareReq(h, "GET", "/share/api/router-doc?kind=wifi-map", "", "", "", auth); w.Code != 404 {
+	if w := shareReq(h, "GET", "/share/api/router-doc?kind=topology-links", "", "", "", auth); w.Code != 404 {
 		t.Errorf("a revoked link's read: %d", w.Code)
 	}
 }
@@ -663,8 +664,8 @@ func TestASignedInSessionOpensNoShareRoute(t *testing.T) {
 	srv, h := shareServer(t)
 	ts := httptest.NewServer(h)
 	defer ts.Close()
-	id, token := createLink(t, h, `{"kind":"page","label":"Map","page":"wifi-map","routerId":"r1"}`)
-	for _, path := range []string{"/share/api/router-doc?kind=wifi-map", "/share/api/feed"} {
+	id, token := createLink(t, h, `{"kind":"page","label":"Topology","page":"network-topology","routerId":"r1"}`)
+	for _, path := range []string{"/share/api/router-doc?kind=topology-links", "/share/api/feed"} {
 		if w := shareReq(h, "GET", path, "", "admin", "", nil); w.Code == 200 {
 			t.Errorf("%s answered an administrator's cookie with no ticket", path)
 		}
@@ -685,8 +686,8 @@ func TestASignedInSessionOpensNoShareRoute(t *testing.T) {
 	defer c.CloseNow()
 	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
 	auth := map[string]string{"Authorization": "Share " + tk}
-	a := shareReq(h, "GET", "/share/api/apps/history", "", "", "", auth)
-	b := shareReq(h, "GET", "/share/api/apps/history", "", "admin", "", auth)
+	a := shareReq(h, "GET", "/share/api/wifi/history", "", "", "", auth)
+	b := shareReq(h, "GET", "/share/api/wifi/history", "", "admin", "", auth)
 	if a.Code != 404 || b.Code != a.Code || b.Body.String() != a.Body.String() {
 		t.Errorf("a cookie changed a share read's answer: %d then %d", a.Code, b.Code)
 	}
@@ -712,12 +713,77 @@ func TestAShareReadsItsOwnRoutersCountry(t *testing.T) {
 	if cc := srv.activeRouterPlaceCC(); cc != "FR" {
 		t.Fatalf("control: the active router's country is %q, want FR", cc)
 	}
-	id, token := createLink(t, h, `{"kind":"page","label":"Conns","page":"connections","routerId":"r1"}`)
+	id, token := createLink(t, h, `{"kind":"page","label":"Home","page":"dashboard","routerId":"r1"}`)
 	c, tk := openShareView(t, ts, h, token)
 	defer c.CloseNow()
 	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
 	w := shareReq(h, "GET", "/share/api/localcc", "", "", "", map[string]string{"Authorization": "Share " + tk})
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"cc":"DE"`) || !strings.Contains(w.Body.String(), `"wanIp":""`) {
 		t.Errorf("a share of r1 read %d %s; want r1's country (DE) and no WAN address", w.Code, w.Body.String())
+	}
+}
+
+// TestALinkWhosePageIsNoLongerSharedIsRefusedNotRevoked: the operator widens
+// and narrows the shared pages. A link to a page he stops sharing is refused
+// while that lasts, and works again, the same link, when he shares it again.
+func TestALinkWhosePageIsNoLongerSharedIsRefusedNotRevoked(t *testing.T) {
+	srv, h := shareServer(t)
+	id, token := createLink(t, h, `{"kind":"page","label":"Ifaces","page":"interfaces","routerId":"r1"}`)
+	if w := shareReq(h, "GET", "/s/"+token, "", "", "", nil); w.Code != 200 {
+		t.Fatalf("control: %d", w.Code)
+	}
+	i := slices.IndexFunc(pages.All, func(p pages.Page) bool { return p.Key == "interfaces" })
+	pages.All[i].Share = pages.NotShareable
+	if w := shareReq(h, "GET", "/s/"+token, "", "", "", nil); w.Code != 404 {
+		t.Errorf("a link to a page no longer shared opened: %d", w.Code)
+	}
+	if l, _ := srv.auditDB.ShareLinkByID(id); l == nil || l.RevokedAt != nil {
+		t.Fatalf("the link was revoked; it must only be refused: %+v", l)
+	}
+	list := shareReq(h, "GET", "/api/share-links", "", "admin", "", nil).Body.String()
+	if !strings.Contains(list, "refused until it is") {
+		t.Error("Settings does not say why the link is refused")
+	}
+	pages.All[i].Share = pages.Shareable
+	if w := shareReq(h, "GET", "/s/"+token, "", "", "", nil); w.Code != 200 {
+		t.Errorf("the same link did not work again once its page was shared again: %d", w.Code)
+	}
+}
+
+// TestASharedDevicesPageShowsOnlyItsRouter: the Devices page, shared, gets
+// its two-second stats frame and its overview for the shared router only,
+// never the rest of the fleet.
+func TestASharedDevicesPageShowsOnlyItsRouter(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	id, token := createLink(t, h, `{"kind":"page","label":"Devices","page":"devices","routerId":"r1"}`)
+	c, tk := openShareView(t, ts, h, token)
+	defer c.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	var rows []map[string]any
+	for rows == nil {
+		_, b, err := c.Read(ctx)
+		if err != nil {
+			t.Fatalf("no routers:stats frame arrived: %v", err)
+		}
+		var f struct {
+			Event string           `json:"event"`
+			Data  []map[string]any `json:"data"`
+		}
+		if json.Unmarshal(b, &f) == nil && f.Event == "routers:stats" {
+			rows = f.Data
+		}
+	}
+	if len(rows) != 1 || rows[0]["id"] != "r1" {
+		t.Errorf("the stats frame carried %d rows (%v); want only r1", len(rows), rows)
+	}
+	w := shareReq(h, "GET", "/share/api/devices/overview", "", "", "", map[string]string{"Authorization": "Share " + tk})
+	var ov []map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &ov)
+	if w.Code != 200 || len(ov) != 1 || ov[0]["routerId"] != "r1" || ov[0]["backup"] != nil {
+		t.Errorf("the overview: %d %s; want r1's strip only, without its backups", w.Code, w.Body.String())
 	}
 }

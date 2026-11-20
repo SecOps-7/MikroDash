@@ -26,7 +26,7 @@ import { DEFAULT_LAYOUT, type GridCard } from '../gen/grid-tables';
 import { applyCaps } from '../caps';
 import {
   type ShareConfig, type ShareSlide, nextSlide, prevSlide, slideSecs, themeFor, transitionMs,
-  onByDefault, expiryNote, renewInMs,
+  onByDefault, expiryNote, renewInMs, sharedDashboardLayout,
 } from '../share-logic';
 import { initDashboard } from '../pages/dashboard';
 import { initDashboardGrid } from '../pages/dashboard-grid';
@@ -56,6 +56,7 @@ import { initConnectionsPage } from '../pages/connections';
 import { initBandwidthPage } from '../pages/bandwidth';
 import { initAppsPage } from '../pages/apps';
 import { initSecurityScanPage } from '../pages/security-scan';
+import { mountRouters } from '../pages/routers';
 
 const INVALID = 'This shared link is no longer valid. Ask whoever shared it for a new one.';
 
@@ -162,34 +163,44 @@ function boot(): void {
     ? DEFAULT_LAYOUT.map((c) => (c.id === cfg.options.card
       ? { ...c, x: 1, y: 1, w: 24, visible: true } : { ...c, visible: false }))
     : null;
-  initDashboard(socket);
+  // Each page module is mounted only when its page's markup is in this
+  // document, which holds the SHAREABLE pages only (cmd/webbuild): un-sharing
+  // a page removes its markup, and its module must not run against nothing.
+  // Sharing a page again needs no change here.
+  const mount = (page: string, init: () => void): void => {
+    if (!document.getElementById('page-' + page)) return;
+    try { init(); } catch (e) { console.error('[share] mounting', page, e); }
+  };
+  mount('dashboard', () => initDashboard(socket));
   initIpTip();
-  initDashboardGrid(cardLayout || fixed || []);
-  initDnsPage(socket, pageVisible);
-  initBridgesPage(socket, pageVisible);
-  initVlansPage(socket, pageVisible);
-  initWanPage(socket, pageVisible);
-  initPackagesPage(socket, pageVisible);
-  initRoutingPage(socket, pageVisible);
-  initNetwatchPage(socket, pageVisible);
-  initDhcpPage(socket, pageVisible);
-  initPppPage(socket, pageVisible);
-  initVpnPage(socket, pageVisible);
-  initQueuesPage(socket, pageVisible);
-  initFirewallPage(socket, pageVisible);
-  initWifiPage(socket, pageVisible);
-  initCapsmanPage(socket, pageVisible);
-  initInterfacesPage(socket, pageVisible);
-  initWireguardPeers(socket);
-  initAreaPages(socket, pageVisible);
-  initLogsPage(socket, pageVisible);
-  initTopologyPage(socket, pageVisible);
-  initWirelessPage(socket, pageVisible);
-  initWifiMapPage(socket, pageVisible);
-  initConnectionsPage(socket, pageVisible);
-  initBandwidthPage(socket, pageVisible);
-  initAppsPage(socket, pageVisible);
-  initSecurityScanPage(socket, pageVisible);
+  mount('dashboard', () => initDashboardGrid(cardLayout || sharedDashboardLayout(DEFAULT_LAYOUT, fixed, cfg.cards || [])));
+  mount('dns', () => initDnsPage(socket, pageVisible));
+  mount('bridges', () => initBridgesPage(socket, pageVisible));
+  mount('vlans', () => initVlansPage(socket, pageVisible));
+  mount('wan', () => initWanPage(socket, pageVisible));
+  mount('packages', () => initPackagesPage(socket, pageVisible));
+  mount('routing', () => initRoutingPage(socket, pageVisible));
+  mount('netwatch', () => initNetwatchPage(socket, pageVisible));
+  mount('dhcp', () => initDhcpPage(socket, pageVisible));
+  mount('ppp', () => initPppPage(socket, pageVisible));
+  mount('vpn', () => initVpnPage(socket, pageVisible));
+  mount('queues', () => initQueuesPage(socket, pageVisible));
+  mount('firewall', () => initFirewallPage(socket, pageVisible));
+  mount('wifi-networks', () => initWifiPage(socket, pageVisible));
+  mount('capsman', () => initCapsmanPage(socket, pageVisible));
+  mount('interfaces', () => initInterfacesPage(socket, pageVisible));
+  mount('wireguard', () => initWireguardPeers(socket));
+  // The generated pages: initAreaPages finds its own markup per area.
+  try { initAreaPages(socket, pageVisible); } catch (e) { console.error('[share] mounting the generated pages', e); }
+  mount('logs', () => initLogsPage(socket, pageVisible));
+  mount('network-topology', () => initTopologyPage(socket, pageVisible));
+  mount('wifi-clients', () => initWirelessPage(socket, pageVisible));
+  mount('wifi-map', () => initWifiMapPage(socket, pageVisible));
+  mount('connections', () => initConnectionsPage(socket, pageVisible));
+  mount('bandwidth', () => initBandwidthPage(socket, pageVisible));
+  mount('apps', () => initAppsPage(socket, pageVisible));
+  mount('security-scan', () => initSecurityScanPage(socket, pageVisible));
+  mount('devices', () => mountRouters(socket));
 
   const reduced = !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fadeMs = transitionMs(cfg.options, reduced);

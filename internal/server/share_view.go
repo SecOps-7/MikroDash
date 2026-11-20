@@ -146,10 +146,45 @@ func (s *Server) shareCheckLink(l *db.ShareLink, ip string) (*db.ShareLink, stri
 	default:
 		return nil, reason
 	}
+	if !shareSubjectShareable(*l) {
+		return nil, "not-shareable"
+	}
 	if !sharelink.AddressAllowed(l.AllowedCIDRs, ip) {
 		return nil, "address"
 	}
 	return l, ""
+}
+
+// shareSubjectShareable reports whether what a link shows may still be
+// shared: its page, its card, at least one of its slides, or at least one of
+// its feed's values. The operator widens and narrows the shared pages
+// (internal/pages); a link whose subject he has since stopped sharing is
+// refused while that lasts, NOT revoked, so it works again if he shares the
+// page again. Settings > Shared links says so on the link.
+func shareSubjectShareable(l db.ShareLink) bool {
+	switch sharelink.Kind(l.Kind) {
+	case sharelink.KindPage:
+		return pages.IsShareable(l.Page)
+	case sharelink.KindCard:
+		return sharelink.CardShareable(shareCardOf(l))
+	case sharelink.KindSlideshow:
+		for _, sl := range l.Slides {
+			if pages.IsShareable(sl.Page) {
+				return true
+			}
+		}
+		return false
+	case sharelink.KindFeed:
+		var o sharelink.Options
+		_ = json.Unmarshal([]byte(l.Options), &o)
+		for _, v := range o.Values {
+			if sharelink.FeedValueAllowed(v) {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 // shareAutoRevoke revokes a link for a reason no administrator chose, records
@@ -251,6 +286,9 @@ type shareConfig struct {
 	// Reads are the /api/ paths the link's pages may read through
 	// /share/api (share_read.go); the shell answers every other one itself.
 	Reads []string `json:"reads"`
+	// Cards are the Dashboard cards a shared Dashboard may draw: those whose
+	// data comes only from shared pages. The server feeds no other card.
+	Cards []string `json:"cards"`
 }
 
 type shareSlideView struct {
@@ -327,6 +365,10 @@ func (s *Server) shareOpen(w http.ResponseWriter, r *http.Request) {
 		shown = nil // a card is fed by its socket alone
 	}
 	cfg.Reads = shareReadsFor(shown)
+	cfg.Cards = []string{}
+	for _, c := range sharelink.ShareableCards() {
+		cfg.Cards = append(cfg.Cards, c.ID)
+	}
 	_ = s.auditDB.TouchShareLink(l.ID, now.UnixMilli())
 	s.shareAudit(audit.New(auditSink{s.auditDB}, audit.Actor{Name: "share:" + l.Label,
 		IP: audit.NormalizeIP(clientIPOf(r))}, nowMillis), "share.open", *l, "a new viewer")
@@ -482,7 +524,10 @@ func (s *Server) noteFeedPoll(l db.ShareLink, r *http.Request, now time.Time) {
 func (s *Server) feedValues(routerID string, opts sharelink.Options, now time.Time) map[string]any {
 	want := map[string]bool{}
 	for _, v := range opts.Values {
-		want[v] = true
+		// A value whose page is no longer shared is left out, not nulled.
+		if sharelink.FeedValueAllowed(v) {
+			want[v] = true
+		}
 	}
 	out := map[string]any{"updated_at": now.UnixMilli()}
 	fresh := func(ts int64) bool { return ts > 0 && now.Sub(time.UnixMilli(ts)) <= feedStale }

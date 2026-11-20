@@ -192,12 +192,13 @@ func CheckSlides(slides []Slide) error {
 
 // ── Dashboard cards ─────────────────────────────────────────────────────────
 
-// CardShareable reports whether a Dashboard card may be shared on its own: it
-// must exist, and the page it belongs to (the Dashboard, unless the card names
-// another) must be shareable. That leaves out the Agent Overview, whose page,
-// the AI assistant, is not.
+// CardShareable reports whether a Dashboard card may be shared, on its own or
+// on a shared Dashboard: it must be fed (cardFeeds), the page it belongs to
+// (the Dashboard, unless the card names another) must be shareable, and so
+// must every page whose room feeds it.
 func CardShareable(id string) bool {
-	if _, ok := cardFeeds[id]; !ok {
+	feed, ok := cardFeeds[id]
+	if !ok {
 		return false
 	}
 	for _, c := range dashcards.All {
@@ -208,7 +209,18 @@ func CardShareable(id string) bool {
 		if page == "" {
 			page = "dashboard"
 		}
-		return pages.IsShareable(page)
+		if !pages.IsShareable(page) {
+			return false
+		}
+		// AND every page its data is borrowed from: Top Ports draws on the
+		// Connections room, IP Utilisation on DHCP's. A card is no wider than
+		// the pages the operator chose to share.
+		for _, room := range feed.Rooms {
+			if !pages.IsShareable(dashcards.PageFor(room)) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }

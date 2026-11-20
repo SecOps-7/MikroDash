@@ -492,7 +492,13 @@ func (s *Server) shareView(l db.ShareLink) map[string]any {
 		}
 	}
 	if l.Kind != string(sharelink.KindSlideshow) && l.Page != "" && !pages.IsShareable(l.Page) {
-		warnings = append(warnings, "its page ("+l.Page+") is no longer shareable; the link shows nothing")
+		warnings = append(warnings, "its page ("+l.Page+") is not shared any more; the link is refused until it is")
+	}
+	if l.Kind == string(sharelink.KindCard) && !sharelink.CardShareable(opts.Card) {
+		warnings = append(warnings, "its card is not shared any more; the link is refused until it is")
+	}
+	if l.Kind == string(sharelink.KindSlideshow) && !shareSubjectShareable(l) {
+		warnings = append(warnings, "none of its slides is shared any more; the link is refused until one is")
 	}
 	return map[string]any{
 		"id": l.ID, "label": l.Label, "kind": l.Kind, "page": l.Page, "routerId": l.RouterID,

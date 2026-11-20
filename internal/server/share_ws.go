@@ -43,6 +43,7 @@ import (
 	"mikrodash/internal/db"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/pages"
+	"mikrodash/internal/routers"
 	"mikrodash/internal/session"
 	"mikrodash/internal/sharelink"
 )
@@ -69,7 +70,8 @@ type shareConn struct {
 	page     string
 	routerID string
 	rs       *session.Session
-	warm     string // the room joined ahead of the next slide, if any
+	warm     string        // the room joined ahead of the next slide, if any
+	devStop  chan struct{} // the Devices page's stats timer, while it is shown
 	closed   bool
 	once     sync.Once
 
@@ -224,6 +226,7 @@ func (sc *shareConn) show(routerID, page string) {
 	}
 	sc.view.Store(&shareView{routerID: routerID, page: page})
 	sc.page = page
+	sc.devicesTimerLocked(page == "devices")
 	room := "router-" + routerID + "-page-" + page
 	if sc.warm != "" && sc.warm != room {
 		s.hub.Leave(cn.c, sc.warm)
@@ -499,6 +502,7 @@ func (sc *shareConn) releaseLocked() {
 	s.applyDemand(sc.rs, sc.routerID)
 	s.sessions.Release(sc.routerID)
 	cn.setRouter("", nil)
+	sc.devicesTimerLocked(false)
 	sc.rs, sc.routerID, sc.page, sc.warm = nil, "", "", ""
 }
 
@@ -513,4 +517,54 @@ func (sc *shareConn) close() {
 		sc.cancel()
 		_ = sc.ws.Close(websocket.StatusNormalClosure, "")
 	})
+}
+
+// devicesTimerLocked runs the Devices page's two-second stats frame while a
+// share shows that page, and stops it otherwise. A signed-in viewer gets the
+// frame from its own timer (conn.sendRoutersStats); a share gets ONE row, its
+// router's, never the fleet's. It holds no fleet-wide Devices hold either:
+// the share's own session for its router keeps that row's readings current.
+func (sc *shareConn) devicesTimerLocked(on bool) {
+	if !on {
+		if sc.devStop != nil {
+			close(sc.devStop)
+			sc.devStop = nil
+		}
+		return
+	}
+	if sc.devStop != nil {
+		return
+	}
+	stop := make(chan struct{})
+	sc.devStop = stop
+	send := func() {
+		sc.mu.Lock()
+		rid := sc.routerID
+		sc.mu.Unlock()
+		if rid == "" {
+			return
+		}
+		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid))
+	}
+	go func() {
+		send()
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-t.C:
+				send()
+			}
+		}
+	}()
+}
+
+// shareStatsRows is the Devices page's row for one router only: BuildStats
+// drops every row Visible does not name (TestASharedDevicesPageShowsOnlyItsRouter).
+func shareStatsRows(s *Server, routerID string) []routers.Row {
+	src := s.buildStatsSources(nil, routerID)
+	src.Visible = map[string]bool{routerID: true}
+	return routers.BuildStats(src)
 }

@@ -5,34 +5,44 @@ import (
 	"testing"
 )
 
-// The operator's rulings of 2026-11-20, as two literal lists. Writing them out
-// here, rather than deriving them from the flags, is the point: the test holds
-// the flags to the rulings, so a flag flipped by accident fails.
+// The operator's rulings of 2026-11-20, as three literal lists. Writing them
+// out here, rather than deriving them from the flags, is the point: the test
+// holds the flags to the rulings, so a flag flipped by accident fails.
+//
+// He first ruled every page shareable but administration and tools, then
+// narrowed it to the six pages first proposed, to widen from there one page
+// at a time. Sharing another page is moving its key from rulingNotYet to
+// rulingShareable and flipping its flag. A page in rulingNever never moves.
 var (
 	rulingShareable = []string{
-		"address-lists", "apps", "arp", "bandwidth", "bridges", "capsman", "certificates",
-		"clock", "connections", "dashboard", "devices", "dhcp", "dhcp-clients",
-		"dhcp-servers", "dns", "firewall", "interface-lists", "interfaces", "ip-addresses",
-		"ip-pools", "ip-services", "ipsec", "logging", "logs", "netwatch",
-		"network-topology", "ntp-client", "openvpn", "ospf", "packages", "ppp",
-		"pppoe-clients", "queues", "routing", "routing-rules", "routing-tables",
-		"security-scan", "snmp", "vlans", "vpn", "vrrp", "wan", "wifi-clients",
-		"wifi-map", "wifi-networks", "wireguard",
+		"bandwidth", "dashboard", "devices", "interfaces", "network-topology", "wifi-clients",
 	}
-	rulingNotShareable = []string{
+	// Not chosen yet: shareable when the operator says so.
+	rulingNotYet = []string{
+		"address-lists", "apps", "arp", "bridges", "capsman", "certificates",
+		"clock", "connections", "dhcp", "dhcp-clients", "dhcp-servers", "dns", "firewall",
+		"interface-lists", "ip-addresses", "ip-pools", "ip-services", "ipsec", "logging",
+		"logs", "netwatch", "ntp-client", "openvpn", "ospf", "packages", "ppp",
+		"pppoe-clients", "queues", "routing", "routing-rules", "routing-tables",
+		"security-scan", "snmp", "vlans", "vpn", "vrrp", "wan", "wifi-map",
+		"wifi-networks", "wireguard",
+	}
+	// Never: administration, credentials, tools that act on the router.
+	rulingNever = []string{
 		"settings", "backups", "audit-trail", "config-management", "users", "reports",
 		"scripts", "scheduler", "containers", "files", "terminal", "tools-ping",
 		"tools-traceroute", "tools-torch", "tools-btest", "tools-sniffer", "ai-agent",
 	}
+	rulingNotShareable = append(append([]string{}, rulingNotYet...), rulingNever...)
 )
 
 // TestTheShareListsAreTheRulings fails both ways: a page with no decision, a
 // page in neither list or in both, a flag that disagrees with its list, and a
 // listed key that no longer names a page.
 func TestTheShareListsAreTheRulings(t *testing.T) {
-	if len(rulingShareable) != 46 || len(rulingNotShareable) != 17 {
-		t.Fatalf("the lists hold %d and %d keys; the rulings are 46 and 17",
-			len(rulingShareable), len(rulingNotShareable))
+	if len(rulingShareable) != 6 || len(rulingNotYet) != 40 || len(rulingNever) != 17 {
+		t.Fatalf("the lists hold %d, %d and %d keys; the rulings are 6, 40 and 17",
+			len(rulingShareable), len(rulingNotYet), len(rulingNever))
 	}
 	want := map[string]ShareDecision{}
 	for _, k := range rulingShareable {

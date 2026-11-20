@@ -73,21 +73,33 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[devices] overview backup scope: %v", berr)
 		backupsOK = map[string]bool{} // an error is not a permission
 	}
+	out, status, msg := s.deviceOverviewRows(from, to, func(id string) bool {
+		return (only == "" || id == only) && (visible == nil || visible[id])
+	}, backupsOK)
+	if status != 0 {
+		writeJSONErr(w, status, msg)
+		return
+	}
+	writeJSON(w, out)
+}
 
+// deviceOverviewRows is the overview of the devices keep admits, each row's
+// backup only where backupsOK allows it (key "" for every router). The
+// Devices page (devicesOverview) and a share of it (share_read.go) both use
+// it. A non-zero status is a failure, to be answered with msg.
+func (s *Server) deviceOverviewRows(from, to int64, keep func(string) bool,
+	backupsOK map[string]bool) ([]DeviceOverview, int, string) {
 	before, err := s.auditDB.ConnStatesAt(from)
 	if err != nil {
-		writeJSONErr(w, http.StatusInternalServerError, "could not read connectivity")
-		return
+		return nil, http.StatusInternalServerError, "could not read connectivity"
 	}
 	events, err := s.auditDB.ConnEventsIn(from, to)
 	if err != nil {
-		writeJSONErr(w, http.StatusInternalServerError, "could not read connectivity")
-		return
+		return nil, http.StatusInternalServerError, "could not read connectivity"
 	}
 	runs, err := s.auditDB.MonitorRunsIn(from, to)
 	if err != nil {
-		writeJSONErr(w, http.StatusInternalServerError, "could not read monitoring coverage")
-		return
+		return nil, http.StatusInternalServerError, "could not read monitoring coverage"
 	}
 	backups, err := s.auditDB.BackupOverview()
 	if err != nil {
@@ -106,10 +118,7 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 	all, _ := s.store.Devices()
 	out := []DeviceOverview{}
 	for _, rt := range all {
-		if rt.Disabled || (only != "" && rt.ID != only) {
-			continue
-		}
-		if visible != nil && !visible[rt.ID] {
+		if rt.Disabled || !keep(rt.ID) {
 			continue
 		}
 		in := history.SpanInput{From: from, To: to, Events: events[rt.ID]}
@@ -134,7 +143,7 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, row)
 	}
-	writeJSON(w, out)
+	return out, 0, ""
 }
 
 // overviewWindow reads `from`/`to` (epoch ms), defaulting to the last 24 hours

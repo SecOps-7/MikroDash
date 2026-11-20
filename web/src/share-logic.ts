@@ -44,6 +44,22 @@ export interface ShareConfig {
   expiresAt: number | null;
   full: boolean;
   reads?: string[];
+  cards?: string[];
+}
+
+/**
+ * A shared Dashboard's layout: the link's own (or the default), with every
+ * card the server will not feed hidden, so no empty card is drawn.
+ */
+export function sharedDashboardLayout<C extends { id: string; visible: boolean }>(
+  defaults: readonly C[], saved: readonly C[] | null, allowed: readonly string[],
+): C[] {
+  const ok = new Set(allowed);
+  return defaults.map((d) => {
+    const s = saved?.find((x) => x.id === d.id);
+    const c = s ? { ...d, ...s } : { ...d };
+    return { ...c, visible: c.visible && ok.has(c.id) };
+  });
 }
 
 export const DEFAULT_SLIDE_SECS = 30;

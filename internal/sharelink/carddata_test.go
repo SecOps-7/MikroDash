@@ -247,8 +247,8 @@ func TestEveryCardLinkReceivesOnlyItsCardsFields(t *testing.T) {
 			}
 		}
 	}
-	if cards < 20 {
-		t.Fatalf("only %d cards checked", cards)
+	if cards != len(rulingCards) {
+		t.Fatalf("%d cards checked, %d shareable by the rulings", cards, len(rulingCards))
 	}
 }
 
@@ -282,5 +282,30 @@ func TestTheProjectorKeepsOnlyWhatItIsAsked(t *testing.T) {
 	}
 	if _, err := Project([]string{"a[k"}, src); err == nil {
 		t.Error("a malformed path was accepted")
+	}
+}
+
+// rulingCards are the cards shareable under the operator's page rulings of
+// 2026-11-20 (Dashboard, Interfaces, Bandwidth, Wi-Fi Clients, Network
+// Topology, Devices): the Dashboard's own cards, and the cards whose data
+// comes from the Interfaces and Wi-Fi Clients pages. A card that borrows a
+// page not shared (Connections, DHCP, VPN, Firewall, Logs, WAN) is not.
+var rulingCards = []string{
+	"card-system", "card-toptalkers", "card-traffic", "dc-card-band", "dc-card-bgp", "dc-card-bw",
+	"dc-card-netflow", "dc-card-netwatch", "dc-card-physports", "dc-card-ping", "dc-card-routes",
+	"dc-card-signal",
+}
+
+func TestTheShareableCardsFollowTheSharedPages(t *testing.T) {
+	var got []string
+	for _, c := range ShareableCards() {
+		got = append(got, c.ID)
+	}
+	sort.Strings(got)
+	if strings.Join(got, " ") != strings.Join(rulingCards, " ") {
+		t.Errorf("shareable cards:\n got %v\nwant %v", got, rulingCards)
+	}
+	if CardShareable("dc-card-topports") || CardShareable("dc-card-iputil") {
+		t.Error("a card borrowing a page that is not shared is shareable")
 	}
 }
