@@ -795,3 +795,48 @@ func TestASharedDevicesPageShowsOnlyItsRouter(t *testing.T) {
 		t.Errorf("the overview: %d %s; want r1's strip only, without its backups", w.Code, w.Body.String())
 	}
 }
+
+// TestASharedSecurityScanReadsAndNeverRuns: the shared Security Scan page
+// gets its router's last report; a share asking for a scan starts none, and
+// asking from another page gets nothing.
+func TestASharedSecurityScanReadsAndNeverRuns(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	id, token := createLink(t, h, `{"kind":"page","label":"Scan","page":"security-scan","routerId":"r1"}`)
+	c, _ := openShareView(t, ts, h, token)
+	defer c.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	send := func(event string) {
+		b, _ := json.Marshal(map[string]any{"event": event, "data": map[string]any{}})
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := c.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send("secscan:run")
+	send("secscan:get")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for {
+		_, b, err := c.Read(ctx)
+		if err != nil {
+			t.Fatalf("no secscan:result arrived: %v", err)
+		}
+		var f struct {
+			Event string         `json:"event"`
+			Data  map[string]any `json:"data"`
+		}
+		if json.Unmarshal(b, &f) != nil || f.Event != "secscan:result" {
+			continue
+		}
+		if f.Data["routerId"] != "r1" || f.Data["running"] == true || f.Data["code"] == "denied" {
+			t.Errorf("the shared report: %v; want r1's, not running, not denied", f.Data)
+		}
+		break
+	}
+	if _, _, running := srv.secScans.get("r1"); running {
+		t.Error("a share started a scan")
+	}
+}

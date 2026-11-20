@@ -51,16 +51,19 @@ type shareRead struct {
 var shareReads = []shareRead{
 	{Path: "/api/devices/overview", Pages: []string{"devices"}, serve: (*Server).shareDevicesOverview},
 	{Path: "/api/interfaces/history", Pages: []string{"interfaces"}, serve: (*Server).shareInterfaceHistory},
-	{Path: "/api/localcc", Pages: []string{"dashboard"}, serve: (*Server).shareLocalCC},
+	{Path: "/api/localcc", Pages: []string{"connections", "dashboard"}, serve: (*Server).shareLocalCC},
 	{Path: "/api/wifi/history", Pages: []string{"wifi-clients"}, serve: (*Server).shareWifiHistory},
 	{Path: "/api/wifi/history/status", Pages: []string{"wifi-clients"}, serve: (*Server).shareWifiHistoryStatus},
 	{Path: "/api/router-doc", Pages: []string{"network-topology"}, Kinds: []string{sitedoc.KindTopologyLinks}, serve: (*Server).shareRouterDoc},
+	{Path: "/api/router-doc", Pages: []string{"wan"}, Kinds: []string{sitedoc.KindWANUplinks}, serve: (*Server).shareRouterDoc},
 	{Path: "/api/topology-layout", Pages: []string{"network-topology"}, serve: (*Server).shareTopologyLayout},
 	// Built for pages not shared yet (the operator's ruling of 2026-11-20
 	// narrowed sharing to six pages): add the entry back when its page is.
-	//   /api/apps/history (apps), /api/localcc (connections),
-	//   /api/router-doc kind wifi-map and /api/router-doc/image (wifi-map),
-	//   /api/router-doc kind wan-uplinks (wan).
+	//   /api/apps/history (apps),
+	//   /api/router-doc kind wifi-map and /api/router-doc/image (wifi-map).
+	// Left off on purpose for a shared page: /api/dns/cache and /api/dns/trace
+	// (DNS: they read the router on demand, and the cache shows what people
+	// visited).
 }
 
 // shareReadsFor are the paths a page may read, for the shell's config: the

@@ -17,7 +17,8 @@ package server
 //
 // Read-only by construction: the only inbound events handled are Dashboard-
 // card focus for shareable cards, `share:slide` and `share:warm` (indexes
-// into the server's own slide list) and keepalive. Every other event is ignored; no write
+// into the server's own slide list), `secscan:get` (the last report, on the
+// Security Scan page) and keepalive. Every other event is ignored; no write
 // handler exists here at all.
 //
 // ── RE-CHECKED WHILE IT LIVES ───────────────────────────────────────────────
@@ -44,6 +45,7 @@ import (
 	"mikrodash/internal/hub"
 	"mikrodash/internal/pages"
 	"mikrodash/internal/routers"
+	"mikrodash/internal/secscan"
 	"mikrodash/internal/session"
 	"mikrodash/internal/sharelink"
 )
@@ -422,6 +424,8 @@ func (sc *shareConn) read(ctx context.Context) {
 			if json.Unmarshal(in.Data, &i) == nil {
 				sc.goSlide(i)
 			}
+		case "secscan:get":
+			sc.secScanGet()
 		case "share:warm":
 			var i int
 			if json.Unmarshal(in.Data, &i) == nil {
@@ -580,4 +584,28 @@ func shareStatsRows(s *Server, routerID string) []routers.Row {
 		r.SiteIDs, r.SiteNames, r.SiteID, r.SiteName, r.Geo = []string{}, []string{}, nil, nil, nil
 	}
 	return rows
+}
+
+// secScanGet answers the Security Scan page's `secscan:get` for a share: the
+// shared router's last report, and only while that page is on screen. A
+// share can read a report; it can never start a scan (no `secscan:run`
+// handler exists here).
+func (sc *shareConn) secScanGet() {
+	sc.mu.Lock()
+	rid, page, live := sc.routerID, sc.page, sc.rs != nil
+	sc.mu.Unlock()
+	if page != "security-scan" {
+		return
+	}
+	out := SecScanPayload{RouterID: rid, Total: len(secscan.Menus())}
+	if !live {
+		out.Code = "unavailable"
+	} else {
+		e, ok, running := sc.srv.secScans.get(rid)
+		if ok {
+			out.Report, out.ScannedAt = e.report, e.at.UnixMilli()
+		}
+		out.Running = running
+	}
+	EvSecScanResult.Send(sc.srv.hub, sc.inner.c, out)
 }

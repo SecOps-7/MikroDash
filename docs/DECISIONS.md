@@ -12,21 +12,21 @@ card, or a sensor feed for Home Assistant. Links are made only in Settings >
 Shared links, only by a global administrator. A link may never expire
 (Never is a choice, with a warning).
 
-**Which pages (the operator, 2026-11-20, narrowing his earlier ruling):**
-six pages are shared, the ones first proposed: Dashboard, Interfaces,
-Bandwidth, Wi-Fi Clients, Network Topology and Devices (the shared router's
-row only). He first ruled every page shareable but administration and tools,
-then narrowed it to these six, to add pages one at a time from there. Every
-other page is not shareable until he chooses it; administration, Router
-Users, Reports, Scripts, Scheduler, Containers, Files, the tools, the
-terminal and the AI assistant never are. A Dashboard card is shareable only
-when every page its data comes from is. A link whose page is no longer
-shared is refused, not revoked, and works again if the page is shared
-again. A link
-ends when it is revoked, when it expires, when its creator is deleted or
-stops being a global administrator, or when a router it shows is deleted.
-Each link has a viewer cap (default 5, at most 25), an optional address
-allow-list, and optional sites allowed to frame it.
+**Which pages (the operator, 2026-11-20):** the developer decides, in code
+(the `Share` flag of each page in `internal/pages/pages.go`); no setting,
+toggle or environment variable changes it, and an administrator only picks
+which of those pages a link shows. Sixteen pages are shared: the six first
+proposed (Dashboard, Interfaces, Bandwidth, Wi-Fi Clients, Network Topology,
+Devices, the shared router's row only), and every page a Dashboard card
+draws from (Connections, DHCP, VPN, Firewall, Logs, WAN, NetWatch, Routing,
+Security Scan, DNS). He first ruled every page shareable but administration
+and tools, narrowed it to the six, then added the card pages; others are
+added from there. Administration, Router Users, Reports, Scripts, Scheduler,
+Containers, Files, the tools, the terminal and the AI assistant are never
+shareable. A Dashboard card is shareable only when every page its data
+comes from is. A link whose page is no longer shared is refused, not
+revoked, and works again if the page is shared again. A shared Security
+Scan shows the last report and can never start a scan.
 
 **What it means:** a share never builds a session and never reaches an
 `/api/` route. The token opens `/s/<token>`, and only its hash is stored. The

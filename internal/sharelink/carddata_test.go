@@ -286,14 +286,14 @@ func TestTheProjectorKeepsOnlyWhatItIsAsked(t *testing.T) {
 }
 
 // rulingCards are the cards shareable under the operator's page rulings of
-// 2026-11-20 (Dashboard, Interfaces, Bandwidth, Wi-Fi Clients, Network
-// Topology, Devices): the Dashboard's own cards, and the cards whose data
-// comes from the Interfaces and Wi-Fi Clients pages. A card that borrows a
-// page not shared (Connections, DHCP, VPN, Firewall, Logs, WAN) is not.
+// 2026-11-20: every page a Dashboard card draws from is shared, so every fed
+// card is. The four per-viewer cards (cardsNotShareable) never are.
 var rulingCards = []string{
-	"card-system", "card-toptalkers", "card-traffic", "dc-card-band", "dc-card-bgp", "dc-card-bw",
-	"dc-card-netflow", "dc-card-netwatch", "dc-card-physports", "dc-card-ping", "dc-card-routes",
-	"dc-card-signal",
+	"card-connections", "card-network", "card-system", "card-toptalkers", "card-traffic",
+	"card-wireguard", "dc-card-band", "dc-card-bgp", "dc-card-bw", "dc-card-destcc", "dc-card-flow",
+	"dc-card-fwaction", "dc-card-iputil", "dc-card-logs", "dc-card-netflow", "dc-card-netwatch",
+	"dc-card-physports", "dc-card-ping", "dc-card-routes", "dc-card-signal", "dc-card-topcc",
+	"dc-card-topports", "dc-card-wanflow",
 }
 
 func TestTheShareableCardsFollowTheSharedPages(t *testing.T) {
@@ -305,7 +305,9 @@ func TestTheShareableCardsFollowTheSharedPages(t *testing.T) {
 	if strings.Join(got, " ") != strings.Join(rulingCards, " ") {
 		t.Errorf("shareable cards:\n got %v\nwant %v", got, rulingCards)
 	}
-	if CardShareable("dc-card-topports") || CardShareable("dc-card-iputil") {
-		t.Error("a card borrowing a page that is not shared is shareable")
+	for _, id := range []string{"dc-card-agent", "dc-card-secscore", "dc-card-domainroute", "dc-card-diagnostics"} {
+		if CardShareable(id) {
+			t.Errorf("%s is filled per viewer and is shareable", id)
+		}
 	}
 }

@@ -86,8 +86,11 @@ type Page struct {
 	//
 	// The zero value is ShareUndecided, and a test fails on it, so a page added
 	// later is not shareable by accident and not unshareable by accident: its
-	// author decides. The decisions are the operator's rulings of 2026-11-20:
-	// six pages are shared and every other page waits until he chooses it.
+	// author decides. THE DEVELOPER DECIDES, IN CODE: no setting, toggle or
+	// environment variable changes it, and an administrator only picks which
+	// of these pages a link shows. The decisions are the operator's rulings
+	// of 2026-11-20: the six first proposed, then every page a Dashboard card
+	// draws from; every other page waits until he chooses it.
 	// `TestTheShareListsAreTheRulings` holds them to three literal lists.
 	Share ShareDecision
 }
@@ -123,27 +126,27 @@ func IsShareable(key string) bool {
 // shortcuts address the first nine.
 var All = []Page{
 	{Key: "dashboard", Title: "Dashboard", Path: "home", Share: Shareable},
-	{Key: "dns", Title: "DNS", Collector: "dns", Share: NotShareable},
+	{Key: "dns", Title: "DNS", Collector: "dns", Share: Shareable},
 	{Key: "bridges", Title: "Bridges", Collector: "bridges", Share: NotShareable},
 	{Key: "vlans", Title: "VLANs", Collector: "vlans", Share: NotShareable},
-	{Key: "wan", Title: "WAN", Collector: "wan", Share: NotShareable},
+	{Key: "wan", Title: "WAN", Collector: "wan", Share: Shareable},
 	{Key: "packages", Title: "Packages", Collector: "packages", Share: NotShareable},
-	{Key: "routing", Title: "Routing", Collector: "routing", Share: NotShareable},
+	{Key: "routing", Title: "Routing", Collector: "routing", Share: Shareable},
 	// The NetWatch page (#97). Its collector also feeds the Dashboard card.
-	{Key: "netwatch", Title: "NetWatch", Collector: "netwatch", Share: NotShareable},
+	{Key: "netwatch", Title: "NetWatch", Collector: "netwatch", Share: Shareable},
 	// dhcp's owner is NOT disableable, so this page can never be emptied by
 	// turning a collector off. Deliberate: `conns` and `bandwidth` both read
 	// dhcpNetworks for LAN classification, so it is not the operator's to switch
 	// off. Said here so nobody "fixes" the asymmetry.
-	{Key: "dhcp", Title: "DHCP", Collector: "dhcpNetworks", Share: NotShareable},
+	{Key: "dhcp", Title: "DHCP", Collector: "dhcpNetworks", Share: Shareable},
 	{Key: "ppp", Title: "PPP", Collector: "ppp", Share: NotShareable},
-	{Key: "vpn", Title: "VPN", Collector: "vpn", Share: NotShareable},
+	{Key: "vpn", Title: "VPN", Collector: "vpn", Share: Shareable},
 	{Key: "users", Title: "Users", Collector: "rosusers", Share: NotShareable},
 	{Key: "queues", Title: "Queues", Collector: "queues", Share: NotShareable},
 	// The Security Scan (2026-09-19): no collector. It reads its menus once, on
 	// demand, through secscan:run (internal/server/secscan.go).
-	{Key: "security-scan", Title: "Security Scan", Share: NotShareable},
-	{Key: "firewall", Title: "Firewall", Collector: "firewall", Share: NotShareable},
+	{Key: "security-scan", Title: "Security Scan", Share: Shareable},
+	{Key: "firewall", Title: "Firewall", Collector: "firewall", Share: Shareable},
 	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi", Share: NotShareable},
 	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman", Share: NotShareable},
 	{Key: "interfaces", Title: "Interfaces", Collector: "ifStatus", Share: Shareable},
@@ -213,7 +216,7 @@ var All = []Page{
 	// gates it instead is in internal/server/terminal.go, which is the file to read
 	// before changing anything here.
 	{Key: "terminal", Title: "Terminal", Share: NotShareable},
-	{Key: "logs", Title: "Logs", Collector: "logs", Share: NotShareable},
+	{Key: "logs", Title: "Logs", Collector: "logs", Share: Shareable},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology", Share: Shareable},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless", Share: Shareable},
 	// NO OWNER, and that is the honest answer rather than a gap. This page draws
@@ -224,7 +227,7 @@ var All = []Page{
 	// Collector, and internal/collect/rooms.go for the two declarations.
 	{Key: "wifi-map", Title: "Wifi Map", Share: NotShareable},
 	{Key: "bandwidth", Title: "Bandwidth", Collector: "bandwidth", Share: Shareable},
-	{Key: "connections", Title: "Connections", Collector: "conns", Share: NotShareable},
+	{Key: "connections", Title: "Connections", Collector: "conns", Share: Shareable},
 	// Apps Usage (2026-11-12): traffic by application, named from the DNS
 	// cache, ports and network owners. See internal/collect/apps.go.
 	{Key: "apps", Title: "Apps Usage", Collector: "apps", Share: NotShareable},
