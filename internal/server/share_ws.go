@@ -31,8 +31,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -69,6 +71,53 @@ type shareConn struct {
 	rs       *session.Session
 	closed   bool
 	once     sync.Once
+
+	// view is what the hub's filter reads (see accepts). It is an atomic, not
+	// a field under mu, because the hub asks while holding its own lock, and
+	// show holds mu while it joins rooms: one lock order each way would be a
+	// deadlock.
+	view atomic.Pointer[shareView]
+}
+
+// shareView is what a share's socket is showing, for the hub's filter.
+type shareView struct {
+	routerID   string
+	page       string   // the page shown; "" for a card link
+	card       bool     // a card link
+	dashEvents []string // a card link: the events it takes from the Dashboard's room
+}
+
+// shareChrome are the router-wide events a share receives: the top-bar data
+// every page draws on. Everything else sent router-wide (alert
+// acknowledgements, collection settings, a router disabled or switched) is
+// for signed-in viewers only.
+var shareChrome = map[string]bool{
+	"system:update": true, "ifstatus:names": true, "wan:status": true,
+	"router:status": true, "stream:health": true, "lan:wan": true,
+}
+
+// shareLeasesPages are the pages whose module names devices from the
+// router-wide DHCP lease list; no other share receives it.
+var shareLeasesPages = map[string]bool{"dashboard": true, "dhcp": true, "connections": true}
+
+// accepts is the hub's filter for this share (hub.NewRoomOnlyClient): of
+// what is broadcast to the router-wide room, only the top-bar data and, for
+// the pages that use it, the lease list; and a card link takes from the
+// Dashboard's page room only its own card's events. Every other room it is
+// in was joined for its subject.
+func (sc *shareConn) accepts(room, event string) bool {
+	v := sc.view.Load()
+	if v == nil {
+		return false
+	}
+	wide := "router-" + v.routerID
+	switch room {
+	case wide:
+		return shareChrome[event] || (event == "leases:list" && !v.card && shareLeasesPages[v.page])
+	case wide + "-page-dashboard":
+		return !v.card || slices.Contains(v.dashEvents, event)
+	}
+	return true
 }
 
 // shareTicketFrom reads the ticket a share view offers as a subprotocol.
@@ -101,8 +150,8 @@ func (s *Server) handleShareWS(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.SetReadLimit(1 << 14)
 	ctx, cancel := context.WithCancel(context.Background())
-	client := hub.NewRoomOnlyClient("share-"+itoa(connSeq.Add(1)), sendQueue)
 	sc := &shareConn{srv: s, ws: ws, linkID: l.ID, ip: clientIPOf(r), cancel: cancel, link: *l, slide: -1}
+	client := hub.NewRoomOnlyClient("share-"+itoa(connSeq.Add(1)), sendQueue, sc.accepts)
 	sc.inner = &conn{c: client, ws: ws, srv: s, clientIP: sc.ip}
 	viewers := l.ViewerCap
 	if viewers <= 0 {
@@ -122,7 +171,7 @@ func (s *Server) handleShareWS(w http.ResponseWriter, r *http.Request) {
 	case sharelink.KindPage:
 		sc.show(l.RouterID, l.Page)
 	case sharelink.KindCard:
-		sc.show(l.RouterID, "dashboard")
+		sc.showCard(l.RouterID, shareCardOf(*l))
 	case sharelink.KindSlideshow:
 		// The shell asks for slide 0 once it is ready.
 	}
@@ -142,36 +191,107 @@ func (sc *shareConn) show(routerID, page string) {
 	s := sc.srv
 	cn := sc.inner
 	if routerID != sc.routerID {
-		sc.releaseLocked()
-		rs, err := s.sessions.Acquire(routerID)
-		if err != nil {
-			log.Printf("[share] %s: router %s: %v", sc.linkID, routerID, err)
+		if !sc.enterRouterLocked(routerID, &shareView{routerID: routerID, page: page}) {
 			return
 		}
-		sc.routerID, sc.rs = routerID, rs
-		cn.setRouter(routerID, rs)
-		s.hub.Join(cn.c, "router-"+routerID)
-		EvRouterActive.Send(s.hub, cn.c, map[string]any{"activeId": routerID})
-		session.EvRouterStatus.Send(s.hub, cn.c,
-			session.StatusFrame(s.connTrack, routerID, rs.Connected(), rs.LastError()))
-		if last := rs.IfStatus().Last(); last != nil {
-			collect.EvIfstatusNames.Send(s.hub, cn.c, *collect.NamesOf(last))
-		}
-		if last := rs.System().Last(); last != nil {
-			collect.EvSystemUpdate.Send(s.hub, cn.c, *last)
-		}
-		if last := rs.Traffic().LastWan(); last != nil {
-			collect.EvWanStatus.Send(s.hub, cn.c, *last)
-		}
-		cn.trafficSelectDefault(defaultIfFor(rs))
 	} else if sc.page != "" && sc.page != page {
 		s.hub.Leave(cn.c, "router-"+routerID+"-page-"+sc.page)
 		sc.leaveCardsLocked()
 	}
+	sc.view.Store(&shareView{routerID: routerID, page: page})
 	sc.page = page
 	s.hub.Join(cn.c, "router-"+routerID+"-page-"+page)
 	cn.resumePage(page)
 	EvRouterSwitched.Send(s.hub, cn.c, map[string]any{"activeId": routerID})
+}
+
+// showCard shows one Dashboard card and nothing else of the Dashboard: the
+// card's own room, or only its own events from the Dashboard's room, and the
+// top-bar data. See sharelink.CardFeed.
+func (sc *shareConn) showCard(routerID, cardID string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	feed, ok := sharelink.CardFeedOf(cardID)
+	if sc.closed || !ok {
+		return
+	}
+	v := &shareView{routerID: routerID, card: true, dashEvents: feed.DashEvents}
+	if !sc.enterRouterLocked(routerID, v) {
+		return
+	}
+	s := sc.srv
+	cn := sc.inner
+	if feed.Room != "" {
+		s.hub.Join(cn.c, dashCardRoomFor(routerID, feed.Room))
+	}
+	if len(feed.DashEvents) > 0 {
+		s.hub.Join(cn.c, "router-"+routerID+"-page-dashboard")
+	}
+	// Demand follows the rooms just joined. The replay is the card's own
+	// payload only, never the Dashboard's whole set.
+	s.applyDemand(sc.rs, routerID)
+	if feed.Room != "" {
+		if src := dashCardPage(feed.Room); src != "dashboard" {
+			cn.resumePage(src)
+		}
+	}
+	for _, ev := range feed.DashEvents {
+		sc.replayDashEventLocked(ev)
+	}
+	EvRouterSwitched.Send(s.hub, cn.c, map[string]any{"activeId": routerID})
+}
+
+// replayDashEventLocked sends the last payload of one Dashboard-room event.
+func (sc *shareConn) replayDashEventLocked(event string) {
+	s, rs, c := sc.srv, sc.rs, sc.inner.c
+	switch event {
+	case "netwatch:update":
+		if last := rs.Netwatch().Last(); last != nil {
+			collect.EvNetwatchUpdate.Send(s.hub, c, *last)
+		}
+	case "talkers:update":
+		if last := rs.Talkers().Last(); last != nil {
+			collect.EvTalkersUpdate.Send(s.hub, c, *last)
+		}
+	case "ping:update":
+		if p := rs.Ping(); p != nil {
+			if last := p.Last(); last != nil {
+				collect.EvPingUpdate.Send(s.hub, c, *last)
+			}
+		}
+	}
+	// routing:update has no cached payload to replay; it arrives on its poll.
+}
+
+// enterRouterLocked moves the viewer to a router: the router-wide room
+// (filtered, see accepts) and the top-bar replay a signed-in viewer gets.
+func (sc *shareConn) enterRouterLocked(routerID string, v *shareView) bool {
+	s := sc.srv
+	cn := sc.inner
+	sc.releaseLocked()
+	rs, err := s.sessions.Acquire(routerID)
+	if err != nil {
+		log.Printf("[share] %s: router %s: %v", sc.linkID, routerID, err)
+		return false
+	}
+	sc.view.Store(v)
+	sc.routerID, sc.rs = routerID, rs
+	cn.setRouter(routerID, rs)
+	s.hub.Join(cn.c, "router-"+routerID)
+	EvRouterActive.Send(s.hub, cn.c, map[string]any{"activeId": routerID})
+	session.EvRouterStatus.Send(s.hub, cn.c,
+		session.StatusFrame(s.connTrack, routerID, rs.Connected(), rs.LastError()))
+	if last := rs.IfStatus().Last(); last != nil {
+		collect.EvIfstatusNames.Send(s.hub, cn.c, *collect.NamesOf(last))
+	}
+	if last := rs.System().Last(); last != nil {
+		collect.EvSystemUpdate.Send(s.hub, cn.c, *last)
+	}
+	if last := rs.Traffic().LastWan(); last != nil {
+		collect.EvWanStatus.Send(s.hub, cn.c, *last)
+	}
+	cn.trafficSelectDefault(defaultIfFor(rs))
+	return true
 }
 
 // shareCardRoom reports whether a share may focus a Dashboard card's room:
@@ -192,16 +312,7 @@ func (sc *shareConn) focusCard(key string) {
 		return
 	}
 	if sharelink.Kind(sc.link.Kind) == sharelink.KindCard {
-		// A card link focuses its own card only.
-		own := ""
-		for _, c := range dashcards.All {
-			if c.ID == shareCardOf(sc.link) {
-				own = c.Room
-			}
-		}
-		if key != own {
-			return
-		}
+		return // a card link's one room was joined by showCard
 	}
 	src := dashCardPage(key)
 	if !pages.IsShareable(src) {
@@ -325,9 +436,16 @@ func (sc *shareConn) end() {
 	})
 }
 
-// reload tells the screen to reload: its link was edited.
+// reload tells the screen to reload, and closes the socket: its link was
+// edited, and the rooms this socket is in were chosen for the old link. The
+// screen reconnects with a ticket and is shown the edited link from scratch;
+// a client that ignores the event keeps nothing of the old subject.
 func (sc *shareConn) reload() {
 	EvShareReload.Send(sc.srv.hub, sc.inner.c, map[string]any{"reload": true})
+	time.AfterFunc(200*time.Millisecond, func() {
+		_ = sc.ws.Close(4002, "edited")
+		sc.cancel()
+	})
 }
 
 func (sc *shareConn) releaseLocked() {

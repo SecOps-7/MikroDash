@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/coder/websocket"
 
 	"mikrodash/internal/db"
 	"mikrodash/internal/sharelink"
@@ -386,4 +390,97 @@ func TestAWriteRevokesWithoutWaitingForAUse(t *testing.T) {
 	if l, _ := srv.auditDB.ShareLinkByID(onR1); l == nil || l.RevokeReason != sharelink.ReasonCreatorNotAdmin {
 		t.Errorf("a permission change did not revoke the link of a creator who lost administration: %+v", l)
 	}
+}
+
+// TestAShareHearsOnlyItsSubject: the hub filter a share's client carries.
+func TestAShareHearsOnlyItsSubject(t *testing.T) {
+	sc := &shareConn{}
+	if sc.accepts("router-r1-page-dns", "dns:update") {
+		t.Error("a share showing nothing yet accepted a frame")
+	}
+	sc.view.Store(&shareView{routerID: "r1", page: "dns"})
+	for _, c := range []struct {
+		room, event string
+		want        bool
+	}{
+		{"router-r1", "system:update", true},
+		{"router-r1", "router:status", true},
+		{"router-r1", "alerts:acked", false},
+		{"router-r1", "collection:config", false},
+		{"router-r1", "router:disabled", false},
+		{"router-r1", "leases:list", false}, // the DNS page does not name devices from leases
+		{"router-r1-page-dns", "dns:update", true},
+	} {
+		if got := sc.accepts(c.room, c.event); got != c.want {
+			t.Errorf("page dns: %s %s = %v, want %v", c.room, c.event, got, c.want)
+		}
+	}
+	sc.view.Store(&shareView{routerID: "r1", page: "dhcp"})
+	if !sc.accepts("router-r1", "leases:list") {
+		t.Error("the DHCP page did not receive the lease list")
+	}
+	sc.view.Store(&shareView{routerID: "r1", card: true, dashEvents: []string{"ping:update"}})
+	if !sc.accepts("router-r1-page-dashboard", "ping:update") || sc.accepts("router-r1-page-dashboard", "talkers:update") ||
+		sc.accepts("router-r1", "leases:list") {
+		t.Error("a Ping card link took more than its own card's events")
+	}
+}
+
+func shareDial(t *testing.T, base, token string, h http.Handler) (*websocket.Conn, error) {
+	t.Helper()
+	tk := ticketOf(t, shareReq(h, "GET", "/s/"+token, "", "", "", nil).Body.String())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(base, "http")+"/share/ws",
+		&websocket.DialOptions{Subprotocols: []string{shareSubprotocol, tk}})
+	return c, err
+}
+
+// readUntilClose reads frames until the socket closes, and returns the close code.
+func readUntilClose(c *websocket.Conn, within time.Duration) websocket.StatusCode {
+	ctx, cancel := context.WithTimeout(context.Background(), within)
+	defer cancel()
+	for {
+		if _, _, err := c.Read(ctx); err != nil {
+			return websocket.CloseStatus(err)
+		}
+	}
+}
+
+func TestAnEditClosesTheLiveViewAndTheCapHolds(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	id, token := createLink(t, h, `{"kind":"page","label":"Lobby","page":"dns","routerId":"r1","viewerCap":1}`)
+	first, err := shareDial(t, ts.URL, token, h)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer first.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	second, err := shareDial(t, ts.URL, token, h)
+	if err != nil {
+		t.Fatalf("second dial: %v", err)
+	}
+	if code := readUntilClose(second, 3*time.Second); code != 4003 {
+		t.Errorf("a viewer past the cap closed with %d, want 4003", code)
+	}
+	edit := `{"kind":"page","label":"Lobby","page":"interfaces","routerId":"r2","viewerCap":1,"keepExpiry":true}`
+	if w := shareReq(h, "PUT", "/api/share-links/"+id, edit, "admin", "", nil); w.Code != 200 {
+		t.Fatalf("edit: %d %s", w.Code, w.Body.String())
+	}
+	if code := readUntilClose(first, 3*time.Second); code != 4002 {
+		t.Errorf("the live view of an edited link closed with %d, want 4002", code)
+	}
+}
+
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	for i := 0; i < 100; i++ {
+		if cond() {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("condition not met within 2s")
 }

@@ -1,6 +1,7 @@
 package sharelink
 
 import (
+	"mikrodash/internal/dashcards"
 	"strings"
 	"testing"
 	"time"
@@ -346,6 +347,43 @@ func TestTheViewerCapAndLabel(t *testing.T) {
 	for _, bad := range []string{"", "   ", strings.Repeat("x", MaxLabel+1), "two\nlines"} {
 		if _, err := CheckLabel(bad); err == nil {
 			t.Errorf("label %q accepted", bad)
+		}
+	}
+}
+
+// TestEveryCardIsFedOrRecorded: every Dashboard card is either fed in
+// cardFeeds or recorded in cardsNotShareable, never both, and neither list
+// names a card that does not exist.
+func TestEveryCardIsFedOrRecorded(t *testing.T) {
+	known := map[string]bool{}
+	for _, c := range dashcards.All {
+		known[c.ID] = true
+		_, fed := cardFeeds[c.ID]
+		_, refused := cardsNotShareable[c.ID]
+		if fed == refused {
+			t.Errorf("%s: fed %v, recorded as not shareable %v; exactly one must hold", c.ID, fed, refused)
+		}
+		if fed && cardFeeds[c.ID].Room != "" {
+			found := false
+			for _, o := range dashcards.All {
+				found = found || o.Room == cardFeeds[c.ID].Room
+			}
+			if !found {
+				t.Errorf("%s is fed from room %q, which no card names", c.ID, cardFeeds[c.ID].Room)
+			}
+		}
+	}
+	for id := range cardFeeds {
+		if !known[id] {
+			t.Errorf("cardFeeds names %s, which is not a card", id)
+		}
+	}
+	for id := range cardsNotShareable {
+		if !known[id] {
+			t.Errorf("cardsNotShareable names %s, which is not a card", id)
+		}
+		if CardShareable(id) {
+			t.Errorf("%s is recorded as not shareable and is shareable", id)
 		}
 	}
 }

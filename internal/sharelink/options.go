@@ -197,6 +197,9 @@ func CheckSlides(slides []Slide) error {
 // another) must be shareable. That leaves out the Agent Overview, whose page,
 // the AI assistant, is not.
 func CardShareable(id string) bool {
+	if _, ok := cardFeeds[id]; !ok {
+		return false
+	}
 	for _, c := range dashcards.All {
 		if c.ID != id {
 			continue
@@ -208,6 +211,66 @@ func CardShareable(id string) bool {
 		return pages.IsShareable(page)
 	}
 	return false
+}
+
+// CardFeed is where a card's data arrives, which is all a card link's viewer
+// is let into: the card room it joins (a dashcards Room key), and the events
+// it accepts from the Dashboard's page room. A card with neither is painted
+// from the router-wide top-bar data and the traffic rooms alone.
+type CardFeed struct {
+	Room       string
+	DashEvents []string
+}
+
+// cardFeeds is every card a link may show, by what feeds it. Several cards
+// draw on another card's room (Top Ports and Top Countries on Connections,
+// Signal Health on Wireless): the room is the one their data arrives in.
+//
+// A CARD MISSING HERE CANNOT BE SHARED, and cardsNotShareable says why for
+// each: the four it names are filled per viewer from that viewer's grants,
+// and a share has no viewer. TestEveryCardIsFedOrRecorded holds both lists
+// against dashcards.All in both directions.
+var cardFeeds = map[string]CardFeed{
+	"card-traffic":      {},
+	"card-system":       {},
+	"dc-card-bw":        {},
+	"card-connections":  {Room: "connections"},
+	"dc-card-destcc":    {Room: "connections"},
+	"dc-card-topcc":     {Room: "connections"},
+	"dc-card-flow":      {Room: "connections"},
+	"dc-card-topports":  {Room: "connections"},
+	"dc-card-netflow":   {Room: "wireless"},
+	"dc-card-signal":    {Room: "wireless"},
+	"dc-card-band":      {Room: "wireless"},
+	"card-network":      {Room: "dhcp"},
+	"dc-card-iputil":    {Room: "dhcp"},
+	"card-wireguard":    {Room: "vpn"},
+	"dc-card-physports": {Room: "interfaces"},
+	"dc-card-fwaction":  {Room: "firewall"},
+	"dc-card-logs":      {Room: "logs"},
+	"dc-card-wanflow":   {Room: "wan"},
+	"dc-card-ping":      {DashEvents: []string{"ping:update"}},
+	"card-toptalkers":   {DashEvents: []string{"talkers:update"}},
+	"dc-card-netwatch":  {DashEvents: []string{"netwatch:update"}},
+	"dc-card-routes":    {DashEvents: []string{"routing:update"}},
+	"dc-card-bgp":       {DashEvents: []string{"routing:update"}},
+}
+
+// cardsNotShareable are the cards no link may show, and why.
+var cardsNotShareable = map[string]string{
+	"dc-card-diagnostics": "reports on this MikroDash process, sent per viewer",
+	"dc-card-agent":       "the AI assistant's page is not shareable, and its text is built per viewer",
+	"dc-card-secscore":    "filled per viewer from the scans that viewer may read",
+	"dc-card-domainroute": "filled per viewer from what that viewer's grants allow",
+}
+
+// CardFeedOf is a shareable card's feed.
+func CardFeedOf(id string) (CardFeed, bool) {
+	if !CardShareable(id) {
+		return CardFeed{}, false
+	}
+	f, ok := cardFeeds[id]
+	return f, ok
 }
 
 // ShareableCards is every card CardShareable allows, in Dashboard order.

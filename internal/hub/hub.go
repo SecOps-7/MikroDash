@@ -58,13 +58,28 @@ type Client struct {
 	// (router lists, settings, permissions, sites) never reach somebody with
 	// no account.
 	roomOnly bool
+	// accept, when set, decides which room broadcasts reach a room-only
+	// client: it is asked with the room and the event, and a false drops the
+	// frame for this client alone. A share viewer sits in its router's
+	// router-wide room for the top-bar data, and must not receive what else is
+	// sent there (alert acknowledgements, collection settings, a router being
+	// disabled). A direct send is never filtered: it was addressed to this
+	// client on purpose.
+	accept func(room, event string) bool
 }
 
-// NewRoomOnlyClient is NewClient for a client that hub-wide broadcasts skip.
-func NewRoomOnlyClient(id string, queue int) *Client {
+// NewRoomOnlyClient is NewClient for a client that hub-wide broadcasts skip,
+// and whose room broadcasts pass accept (nil accepts everything).
+func NewRoomOnlyClient(id string, queue int, accept func(room, event string) bool) *Client {
 	c := NewClient(id, queue)
 	c.roomOnly = true
+	c.accept = accept
 	return c
+}
+
+// accepts reports whether a broadcast to room reaches this client.
+func (c *Client) accepts(room, event string) bool {
+	return c.accept == nil || c.accept(room, event)
 }
 
 func NewClient(id string, queue int) *Client {
@@ -242,7 +257,9 @@ func (h *Hub) broadcast(room, event string, payload any) {
 	h.mu.RLock()
 	members := make([]*Client, 0, len(h.rooms[room]))
 	for c := range h.rooms[room] {
-		members = append(members, c)
+		if c.accepts(room, event) {
+			members = append(members, c)
+		}
 	}
 	h.mu.RUnlock()
 	if len(members) == 0 {
@@ -304,7 +321,7 @@ func (h *Hub) broadcastExcept(room string, except *Client, event string, payload
 	h.mu.RLock()
 	members := make([]*Client, 0, len(h.rooms[room]))
 	for c := range h.rooms[room] {
-		if c != except {
+		if c != except && c.accepts(room, event) {
 			members = append(members, c)
 		}
 	}
@@ -336,7 +353,7 @@ func (h *Hub) broadcastRooms(rooms []string, event string, payload any) {
 	members := make([]*Client, 0)
 	for _, room := range rooms {
 		for c := range h.rooms[room] {
-			if !seen[c] {
+			if !seen[c] && c.accepts(room, event) {
 				seen[c] = true
 				members = append(members, c)
 			}
