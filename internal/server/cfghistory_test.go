@@ -36,7 +36,7 @@ func TestTheRunLedgerNamesWhoAndCountsRouters(t *testing.T) {
 	if err := s.auditDB.CreateCfgRun(run, targets); err != nil {
 		t.Fatal(err)
 	}
-	sess := &Session{Username: "someone", AuthMode: "modern"}
+	sess := &Session{Username: "someone"}
 
 	w := httptest.NewRecorder()
 	s.cfgRuns(w, httptest.NewRequest(http.MethodGet, "/api/config/runs", nil), sess)

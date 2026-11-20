@@ -27,12 +27,10 @@
  * THROTTLED, because one denied page can fire several requests at once and each
  * must not trigger its own re-resolve.
  *
- * ── ONLY IN MODERN AUTH MODE ────────────────────────────────────────────────
+ * ── ALWAYS ──────────────────────────────────────────────────────────────────
  *
- * With `authMode: none` there is no login page to send anybody to, and a
- * redirect would be a loop. `_authMode` is assigned from `/api/auth/status` by
- * `caps.ts`; until it arrives it is undefined, which is not `'modern'`, so the
- * guard stays out of the way during the first moments of a page load.
+ * Sign-in is always required (#165). The app's pages are served only to a
+ * signed-in browser, so a 401 from inside one means the session has gone.
  */
 
 const REFRESH_THROTTLE_MS = 3000;
@@ -53,10 +51,9 @@ export function installFetchGuard(refreshCaps: () => void): void {
   let lastRefresh = 0;
   globalThis.fetch = function guarded(...args: Parameters<typeof fetch>) {
     return original.apply(globalThis, args).then((res) => {
-      const mode = (globalThis as unknown as { _authMode?: string })._authMode;
-      if (res.status === 401 && mode === 'modern') {
+      if (res.status === 401) {
         window.location.href = '/login';
-      } else if (res.status === 403 && mode === 'modern') {
+      } else if (res.status === 403) {
         const now = Date.now();
         if (now - lastRefresh > REFRESH_THROTTLE_MS) {
           lastRefresh = now;
@@ -95,8 +92,6 @@ export function installFetchGuard(refreshCaps: () => void): void {
  * request.
  */
 export function verifySessionAfterFailure(): void {
-  const mode = (globalThis as unknown as { _authMode?: string })._authMode;
-  if (mode !== 'modern') return;
   const now = Date.now();
   if (now - lastVerify < VERIFY_THROTTLE_MS) return;
   lastVerify = now;

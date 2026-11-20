@@ -154,9 +154,6 @@ func (s *Server) mayReadReports(sess *Session, routerID string) bool {
 	if sess == nil {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if !sess.CanPage("reports", "read", routerID) {
 		return false
 	}
@@ -178,9 +175,6 @@ func (s *Server) mayReadReports(sess *Session, routerID string) bool {
 func (s *Server) mayWriteReports(sess *Session, routerID string) bool {
 	if sess == nil {
 		return false
-	}
-	if sess.AuthMode == "none" {
-		return true
 	}
 	if !sess.CanPage("reports", "write", routerID) {
 		return false

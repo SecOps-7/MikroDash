@@ -55,7 +55,9 @@ func storedPassword(t *testing.T, s *Server, id string) string {
 
 // TestABlankPasswordBoxKeepsTheStoredCredential is the reported bug.
 func TestABlankPasswordBoxKeepsTheStoredCredential(t *testing.T) {
-	s, mux, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := routersServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 	if err := s.store.SetRouterPassword("r1", "correct-horse"); err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +78,9 @@ func TestABlankPasswordBoxKeepsTheStoredCredential(t *testing.T) {
 // for a router that has one, so a client echoing what it was given must not
 // overwrite anything either.
 func TestTheMaskKeepsTheStoredCredential(t *testing.T) {
-	s, mux, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := routersServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 	if err := s.store.SetRouterPassword("r1", "correct-horse"); err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +100,9 @@ func TestTheMaskKeepsTheStoredCredential(t *testing.T) {
 // or the fix above becomes "the password can never be changed". And it must
 // reach disk sealed — writing it in clear was the second half of the same bug.
 func TestATypedPasswordIsSealedAndNeverStoredInClear(t *testing.T) {
-	s, mux, dir := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := routersServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 	if err := s.store.SetRouterPassword("r1", "old-one"); err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +131,7 @@ func TestATypedPasswordIsSealedAndNeverStoredInClear(t *testing.T) {
 // comment since it was written that assembling this patch by hand is the hazard;
 // six call sites relied on that comment, and the seventh is the one that broke.
 func TestTheStoreRefusesAnUnsealedPasswordPatch(t *testing.T) {
-	s, _, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	s, _, _ := routersServer(t, &Session{Username: "admin"}, "")
 	if err := s.store.SetRouterPassword("r1", "correct-horse"); err != nil {
 		t.Fatal(err)
 	}

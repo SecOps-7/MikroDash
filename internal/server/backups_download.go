@@ -68,9 +68,6 @@ func (s *Server) mayDownloadBackup(sess *Session, routerID string) bool {
 	if sess == nil {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if !sess.CanPage("backups", "write", routerID) {
 		return false
 	}

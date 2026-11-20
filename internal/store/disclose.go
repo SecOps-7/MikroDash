@@ -44,16 +44,9 @@ const Mask = "••••••••"
 
 // ViewerFields is what a non-administrator may read.
 //
-// ── `authMode` IS IN THE LIST, AND THE LIVE COMMENT IS MISLEADING ──────────
-//
-// That comment says the subset "excludes router connection details, auth config,
-// and notification-channel targets". `authMode` is auth config by any reading,
-// and it is in the list anyway — the browser needs it to know whether to offer a
-// login form at all. A port written from the COMMENT rather than from the LIST
-// would drop it and break the login page for exactly the users this subset is
-// for. Copied from the list.
+// `authMode` left this list with the setting itself: sign-in is always
+// required (#165), so there is no switch for the login page to consult.
 var ViewerFields = []string{
-	"authMode",
 	"pingTarget",
 	"topN", "topTalkersN", "vpnDashTopN", "maxConns", "historyMinutes",
 	// THE TWO ALERT THRESHOLDS LEFT THIS LIST WITH THE SETTINGS THEMSELVES.

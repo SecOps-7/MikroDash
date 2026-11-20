@@ -4,9 +4,8 @@ package server
 //
 // ── THE GATE IS TWO LAYERS, AND BOTH ARE NEEDED ─────────────────────────────
 //
-//  1. A profile is a fleet-wide credential, so changing one needs a SIGNED-IN
-//     global administrator — `cfgWrite`, which asks `cfgMayChange`, not
-//     `isGlobalAdmin`, which answers true with sign-in switched off.
+//  1. A profile is a fleet-wide credential, so changing one needs a signed-in
+//     global administrator: `cfgWrite`, which asks `cfgMayChange`.
 //  2. Linking is a write to ONE router, so it is checked per router against the
 //     same permission that lets somebody create a RouterOS user from the Router
 //     Users page: `users` / `write`. A router the caller cannot see is DROPPED

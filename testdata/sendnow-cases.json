@@ -4,7 +4,6 @@
   {
    "name": "no creator on a modern install",
    "createdBy": null,
-   "modern": true,
    "canRead": false,
    "out": {
     "ok": false,
@@ -12,18 +11,8 @@
    }
   },
   {
-   "name": "no creator on a legacy install",
-   "createdBy": null,
-   "modern": false,
-   "canRead": false,
-   "out": {
-    "ok": true
-   }
-  },
-  {
    "name": "no creator, empty string, modern",
    "createdBy": "",
-   "modern": true,
    "canRead": true,
    "out": {
     "ok": false,
@@ -33,7 +22,6 @@
   {
    "name": "creator still has access",
    "createdBy": "alice",
-   "modern": true,
    "canRead": true,
    "out": {
     "ok": true
@@ -42,17 +30,6 @@
   {
    "name": "creator lost access",
    "createdBy": "alice",
-   "modern": true,
-   "canRead": false,
-   "out": {
-    "ok": false,
-    "reason": "creator no longer has report access to this router"
-   }
-  },
-  {
-   "name": "creator lost access on a legacy install",
-   "createdBy": "alice",
-   "modern": false,
    "canRead": false,
    "out": {
     "ok": false,

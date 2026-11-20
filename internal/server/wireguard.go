@@ -75,9 +75,6 @@ func (s *Server) mayRevealWgConfig(sess *Session, routerID string) bool {
 	if s.auditDB == nil {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return false
-	}
 	if !sess.CanPage("wireguard", "write", routerID) {
 		return false
 	}

@@ -140,17 +140,14 @@ func TestOnlyTrueAndTheStringTrueAreTrue(t *testing.T) {
 	}
 }
 
-func TestAuthModeIsAWhitelist(t *testing.T) {
-	for _, ok := range []string{"none", "modern"} {
-		up, _ := SettingsUpdate(map[string]any{"authMode": ok})
-		if up["authMode"] != ok {
-			t.Errorf("%q was refused", ok)
-		}
-	}
-	for _, bad := range []string{"", "None", "MODERN", "ldap", "true"} {
-		up, _ := SettingsUpdate(map[string]any{"authMode": bad})
+// TestAuthModeIsNoLongerASetting: the Require sign-in switch is gone (#165).
+// A save carrying `authMode`, from an old page or a hand-made request, stores
+// nothing, whatever the value, so no request can switch sign-in off.
+func TestAuthModeIsNoLongerASetting(t *testing.T) {
+	for _, v := range []any{"none", "modern", "", false, "false"} {
+		up, _ := SettingsUpdate(map[string]any{"authMode": v})
 		if _, present := up["authMode"]; present {
-			t.Errorf("%q was accepted as an auth mode", bad)
+			t.Errorf("authMode %#v was accepted into a save", v)
 		}
 	}
 }
@@ -371,23 +368,16 @@ func TestTheFormsSaveCannotClearSmtpUserOrOpenTheDoor(t *testing.T) {
 		}
 	})
 
-	t.Run("authMode none is accepted, so the browser must never send it blind",
+	t.Run("authMode is never accepted, so no save can switch sign-in off",
 		func(t *testing.T) {
-			// This is not a wish, it is the hazard written down. The server takes
-			// `none` without argument, and once the mode is none `maySaveSettings`
-			// returns true for everyone. The guard has to live in the browser: the
-			// sign-in box is populated from `authModeOf` before anything collects
-			// it, so the value posted is the one the operator can see.
-			updates, _ := SettingsUpdate(map[string]any{"authMode": "none"})
-			if updates["authMode"] != "none" {
-				t.Fatalf("authMode = %v; the whitelist changed and the browser-side "+
-					"reasoning about it needs revisiting", updates["authMode"])
-			}
-			// And a value outside the whitelist is refused rather than stored.
-			bad, _ := SettingsUpdate(map[string]any{"authMode": "off"})
-			if _, ok := bad["authMode"]; ok {
-				t.Errorf("authMode = %v was accepted; only none and modern are valid",
-					bad["authMode"])
+			// It was the hazard written down: the server took `none`, and once the
+			// mode was none every visitor could save. Sign-in is always required
+			// now (#165), and a save carrying the key stores nothing.
+			for _, v := range []string{"none", "modern", "off"} {
+				up, _ := SettingsUpdate(map[string]any{"authMode": v})
+				if _, ok := up["authMode"]; ok {
+					t.Errorf("authMode = %q was accepted into a save", v)
+				}
 			}
 		})
 }

@@ -125,17 +125,13 @@
       "body": {
         "authMode": "modern"
       },
-      "updates": {
-        "authMode": "modern"
-      }
+      "updates": {}
     },
     "authModeNone": {
       "body": {
         "authMode": "none"
       },
-      "updates": {
-        "authMode": "none"
-      }
+      "updates": {}
     },
     "authModeInvalid": {
       "body": {
@@ -474,7 +470,6 @@
         "notASetting": "x"
       },
       "updates": {
-        "authMode": "none",
         "topN": 30,
         "pingTarget": "host",
         "rosDebug": true,

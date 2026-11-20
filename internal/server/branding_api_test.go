@@ -52,7 +52,7 @@ func squarePNG(t *testing.T, px int) []byte {
 
 // THE LOGIN PAGE READS THE BRANDING BEFORE ANYBODY SIGNS IN.
 func TestTheBrandingIsReadableWithoutASession(t *testing.T) {
-	_, mux, _ := brandingServer(t, &Session{AuthMode: "none", Username: "admin"})
+	_, mux, _ := brandingServer(t, &Session{Username: "admin"})
 	w := brandingDo(mux, "GET", "/api/branding", "", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /api/branding without a session answered %d", w.Code)
@@ -65,7 +65,7 @@ func TestTheBrandingIsReadableWithoutASession(t *testing.T) {
 
 // ONLY AN ADMINISTRATOR MAY CHANGE IT, AND A REFUSAL WRITES NOTHING.
 func TestOnlyAnAdministratorMayChangeTheBranding(t *testing.T) {
-	_, mux, dir := brandingServer(t, &Session{AuthMode: "modern", Username: "viewer"})
+	_, mux, dir := brandingServer(t, &Session{Username: "viewer"})
 	body := []byte(`{"name":"Hijacked","font":""}`)
 	if w := brandingDo(mux, "PUT", "/api/branding", "", body); w.Code != http.StatusUnauthorized {
 		t.Errorf("an anonymous save answered %d, want 401", w.Code)
@@ -85,7 +85,9 @@ func TestOnlyAnAdministratorMayChangeTheBranding(t *testing.T) {
 }
 
 func TestAnAdministratorSavesANameAndFont(t *testing.T) {
-	s, mux, dir := brandingServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := brandingServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := brandingDo(mux, "PUT", "/api/branding", authed, []byte(`{"name":"  Acme Networks ","font":"inter"}`))
 	if w.Code != http.StatusOK {
 		t.Fatalf("the save answered %d: %s", w.Code, w.Body.String())
@@ -118,7 +120,9 @@ func TestAnAdministratorSavesANameAndFont(t *testing.T) {
 }
 
 func TestAnIconIsStoredServedAndReset(t *testing.T) {
-	s, mux, dir := brandingServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := brandingServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	if w := brandingDo(mux, "POST", "/api/branding/icon", authed,
 		[]byte("<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>")); w.Code != http.StatusBadRequest {

@@ -109,7 +109,7 @@ const caps = (): Caps => ((globalThis as unknown as { _caps?: Caps })._caps) || 
  * May this viewer manage principals?
  *
  * UNDEFINED WHILE THE CAPS FETCH IS IN FLIGHT, and that is deliberate rather
- * than a missing default. `applyAuthModeVisibility` treats unknown as NO - "the
+ * than a missing default. `applyPrincipalsVisibility` treats unknown as NO - "the
  * flash is absence rather than exposure" - so collapsing it to `false` here
  * would be the same answer today and would quietly remove the distinction the
  * moment somebody wrote a caller that wanted to WAIT for it.
@@ -326,11 +326,6 @@ export function initCaps(navHost: NavHost): void {
   void fetch('/api/auth/status')
     .then((r) => r.json())
     .then((d) => {
-      (globalThis as unknown as { _authMode?: string })._authMode = d.authMode || 'modern';
-      // Now that the mode is known for certain, re-run the parts of the chrome
-      // that depend on it.
-      applyPageVisibility();
-      if (d.authMode !== 'modern') return;
       if (d.session) {
         const nameEl = document.getElementById('authUsername');
         if (nameEl) nameEl.textContent = d.session.username;

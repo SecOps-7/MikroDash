@@ -401,9 +401,9 @@ func NormalizeIP(ip string) string { return strings.TrimPrefix(ip, "::ffff:") }
 
 // ForUser is the actor for an authenticated session.
 //
-// `authMode: 'none'` installs have no session at all, so there is no name to
-// record; 'local' is the fallback the purge log line already uses — the action
-// still happened and still belongs in the trail.
+// An action with no username (a background job, not a person) is recorded as
+// 'local', the fallback the purge log line already uses: the action still
+// happened and still belongs in the trail.
 func ForUser(userID, username, ip string) Actor {
 	if username == "" {
 		username = "local"

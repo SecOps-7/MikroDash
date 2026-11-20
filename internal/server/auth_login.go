@@ -208,8 +208,9 @@ func logSafe(s string) string {
 
 // authStatus is `GET /api/auth/status` when Go is the authority.
 //
-// The SHAPE IS NODE'S, exactly: the login page reads `authMode` and `firstRun`
-// before it will show a form, and the SPA reads `session` for its first paint.
+// The login page reads `firstRun` before it will show a form, and the SPA reads
+// `session` for its first paint. There is no `authMode`: sign-in is always
+// required (#165), and a stored setting must never be echoed as if it counted.
 // A port that answered a tidier object would leave the login page blank with
 // nothing in the console to explain it.
 func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +223,6 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		// `firstRun` is "there are no users yet", which is what puts the setup
 		// wizard on screen instead of the login form.
 		"firstRun": len(users) == 0,
-		"authMode": "modern",
 		"session":  nil,
 	}
 	token := websession.ParseCookieHeader(r.Header.Get("Cookie"))[websession.CookieName]
@@ -268,7 +268,6 @@ func (s *Server) localSession(token string) (*Session, bool) {
 	return &Session{
 		Username: sess.Username,
 		Role:     sess.Role,
-		AuthMode: "modern",
 		Pages:    caps.Pages,
 		Readable: caps.Readable,
 	}, true

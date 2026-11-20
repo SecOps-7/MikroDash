@@ -38,7 +38,7 @@ func (cn *conn) mayPeek(id string) bool {
 	if sess == nil || id == "" {
 		return false
 	}
-	if sess.AuthMode != "none" && !sessionHasPage(sess, "devices") {
+	if !sessionHasPage(sess, "devices") {
 		return false
 	}
 	visible := cn.srv.visibleRouters(sess)

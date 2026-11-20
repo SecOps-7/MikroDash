@@ -219,13 +219,13 @@ check('a typed credential is sent verbatim', () => {
 // `populateSettings` blanks on load - so the mask is never in the box, and the
 // rule that replaces this one is 'a blank credential is OMITTED' above.
 
-check('authMode follows the sign-in toggle, both ways', () => {
-  const on = mount();
-  on.els.s_authEnabled.checked = true;
-  assert.strictEqual(on.page.collectSettingsForm(POLL).authMode, 'modern');
-  const off = mount();
-  off.els.s_authEnabled.checked = false;
-  assert.strictEqual(off.page.collectSettingsForm(POLL).authMode, 'none');
+// Sign-in is always required (#165): the Require sign-in switch is gone from
+// the markup, and no Save sends `authMode`, whatever the page holds.
+check('the form never sends authMode, and the sign-in switch is gone', () => {
+  const { els, page } = mount();
+  assert.ok(!('s_authEnabled' in els), 'the Require sign-in switch is back in page-settings.html');
+  assert.ok(!('authMode' in page.collectSettingsForm(POLL)),
+    'a Save sent authMode; sign-in is not a setting any more');
 });
 
 check('a missing element contributes no key', () => {

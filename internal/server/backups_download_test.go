@@ -26,10 +26,14 @@ import (
 	"mikrodash/internal/db"
 )
 
-// dlServer builds a server with one stored pair on r1, and returns the mux, the
-// row id and the directory holding the files.
+// dlServer builds a server with one stored pair on r1, as seen by a signed-in
+// global administrator, and returns the server, the mux and the row id.
 func dlServer(t *testing.T) (*Server, *http.ServeMux, int64) {
-	return dlServerAs(t, &Session{AuthMode: "none", Username: "admin"})
+	t.Helper()
+	admin := &Session{Username: "admin"}
+	s, mux, id := dlServerAs(t, admin)
+	signedInAdmin(t, s, admin)
+	return s, mux, id
 }
 
 func dlServerAs(t *testing.T, sess *Session) (*Server, *http.ServeMux, int64) {
@@ -186,7 +190,7 @@ func TestAMissingFileIsNotA200(t *testing.T) {
 
 func TestAReadOnlyPrincipalCannotDownloadABackup(t *testing.T) {
 	_, mux, id := dlServerAs(t, &Session{
-		AuthMode: "modern", Username: "carol",
+		Username: "carol",
 		Pages:    map[string]string{"backups": "read"},
 		Readable: []string{"r1"},
 	})
@@ -204,7 +208,7 @@ func TestAReadOnlyPrincipalCannotDownloadABackup(t *testing.T) {
 // The other direction, or the case above passes by refusing everybody.
 func TestAWritePrincipalCanDownloadABackup(t *testing.T) {
 	_, mux, id := dlServerAs(t, &Session{
-		AuthMode: "modern", Username: "carol",
+		Username: "carol",
 		Pages:    map[string]string{"backups": "write"},
 		Readable: []string{"r1"},
 	})

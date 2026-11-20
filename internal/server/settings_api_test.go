@@ -64,19 +64,31 @@ func getSettings(t *testing.T, s *Server, sess *Session) map[string]any {
 	return out
 }
 
-// TestAuthModeNoneSeesEverything — one local operator with full reach, the same
-// short circuit rbac.js makes.
-func TestAuthModeNoneSeesEverything(t *testing.T) {
-	s := settingsServer(t, `{"topN":25}`)
-	if !s.maySeeAllSettings(&Session{AuthMode: "none"}) {
-		t.Fatal("auth mode none was refused the administrator payload")
+// TestAStoredSignInOffGrantsNothing: an install whose settings.json still says
+// `"authMode":"none"` (the retired Require sign-in switch, #165) is not opened
+// by it. The session is an ordinary one with no grants, so it gets the viewer
+// payload, and the retired key is not echoed to anyone as if it still counted.
+func TestAStoredSignInOffGrantsNothing(t *testing.T) {
+	s := settingsServer(t, `{"authMode":"none","topN":25,"routerHost":"198.51.100.1"}`)
+	sess := &Session{Username: "someone"}
+	if s.maySeeAllSettings(sess) {
+		t.Fatal("a stored authMode none granted the administrator payload")
 	}
-	got := getSettings(t, s, &Session{AuthMode: "none"})
-	if _, ok := got["routerHost"]; !ok {
-		t.Error("the administrator payload is missing routerHost")
+	got := getSettings(t, s, sess)
+	if _, ok := got["routerHost"]; ok {
+		t.Error("a stored authMode none disclosed routerHost")
+	}
+	if v, ok := got["authMode"]; ok {
+		t.Errorf("the retired authMode is still sent: %#v", v)
 	}
 	if got["topN"] != float64(25) {
-		t.Errorf("topN = %#v, want the stored 25", got["topN"])
+		t.Errorf("topN = %#v, want the stored 25: the rest of the file must still load", got["topN"])
+	}
+	// Nor to an administrator, whose payload is every setting there is.
+	admin := &Session{}
+	signedInAdmin(t, s, admin)
+	if v, ok := getSettings(t, s, admin)["authMode"]; ok {
+		t.Errorf("the administrator payload still carries the retired authMode: %#v", v)
 	}
 }
 
@@ -85,7 +97,7 @@ func TestAuthModeNoneSeesEverything(t *testing.T) {
 // a working dashboard, rather than the administrator's.
 func TestWithoutTheResolverTheViewerPayloadIsServed(t *testing.T) {
 	s := settingsServer(t, `{"topN":25,"routerHost":"198.51.100.1"}`)
-	sess := &Session{AuthMode: "modern", Username: "someone"}
+	sess := &Session{Username: "someone"}
 	if s.maySeeAllSettings(sess) {
 		t.Fatal("a server with no RBAC resolver granted the administrator payload")
 	}
@@ -98,7 +110,8 @@ func TestWithoutTheResolverTheViewerPayloadIsServed(t *testing.T) {
 		}
 	}
 	// AND IT IS STILL USABLE: the fields a dashboard needs are there.
-	for _, want := range []string{"authMode", "pingTarget", "topN", "displayTimezone"} {
+	// `authMode` left this list with the Require sign-in switch (#165).
+	for _, want := range []string{"pingTarget", "topN", "displayTimezone"} {
 		if _, present := got[want]; !present {
 			t.Errorf("the viewer payload is missing %q, which a rendering page reads", want)
 		}
@@ -109,7 +122,9 @@ func TestWithoutTheResolverTheViewerPayloadIsServed(t *testing.T) {
 // and starts from the defaults, so a fresh install must not answer 500.
 func TestAMissingSettingsFileServesDefaults(t *testing.T) {
 	s := settingsServer(t, "")
-	got := getSettings(t, s, &Session{AuthMode: "none"})
+	admin := &Session{}
+	signedInAdmin(t, s, admin)
+	got := getSettings(t, s, admin)
 	if len(got) < 100 {
 		t.Fatalf("a missing settings.json produced %d keys; the defaults are ~113", len(got))
 	}
@@ -134,7 +149,9 @@ func TestTheHandlerNeverSendsACredential(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := getSettings(t, s, &Session{AuthMode: "none"})
+	admin := &Session{}
+	signedInAdmin(t, s, admin)
+	got := getSettings(t, s, admin)
 	if got["aiApiKey"] != store.Mask {
 		t.Errorf("aiApiKey = %#v, want the mask", got["aiApiKey"])
 	}

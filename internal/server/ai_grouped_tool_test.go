@@ -10,12 +10,12 @@ import (
 	"mikrodash/internal/session"
 )
 
-// groupedToolConn is a viewer with sign-in off (so every page reads) on a router
-// whose every command is recorded and answered by `answer`.
+// groupedToolConn is a viewer who reads every page (readerOf) on a router whose
+// every command is recorded and answered by `answer`.
 func groupedToolConn(t *testing.T, answer func(routeros.Cmd) []routeros.Reply) (*conn, *[]routeros.Cmd) {
 	t.Helper()
 	sent := &[]routeros.Cmd{}
-	cn := &conn{srv: &Server{hub: hub.New()}, sess: &Session{AuthMode: "none"}, routerID: "r-A"}
+	cn := &conn{srv: &Server{hub: hub.New()}, sess: readerOf("r-A"), routerID: "r-A"}
 	cn.rsession = session.NewForTestWithExec(cn.srv.hub, "r-A", func(cmd routeros.Cmd) ([]routeros.Reply, error) {
 		*sent = append(*sent, cmd)
 		return answer(cmd), nil

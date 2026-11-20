@@ -63,7 +63,7 @@ function makeEl(id) {
 }
 
 const IDS = ['userTbody', 'groupTbody', 'roleTbody', 'ptabBtn-users', 'ptab-users',
-  'principalsCard', 'principalsGraph', 'authModeWrap', 'sf_error',
+  'principalsCard', 'principalsGraph', 'sf_error',
   // ── THE THREE FORMS, added 2026-08-28 when their write paths were wired ──
   //
   // `element-coverage-audit` is what asked for these: the card touched twenty
@@ -145,7 +145,6 @@ function mount(opts) {
   mod.initPrincipalsCard({
     routers: () => [{ id: 'r1', label: 'One' }],
     mayManage: () => o.mayManage,
-    authMode: () => o.authMode || 'modern',
   });
   return { doc, order, mod };
 }

@@ -326,7 +326,7 @@ func TestSetupTakesOnlyWhatTheRouterOffered(t *testing.T) {
 // ONLY A GLOBAL ADMINISTRATOR MANAGES APPS: an app is new code on the router.
 // A session with sign-in off is not one (the control is a real administrator).
 func TestOnlyAGlobalAdminManagesApps(t *testing.T) {
-	if (&conn{srv: &Server{}, sess: &Session{AuthMode: "none", Username: "whoever"}}).mayManageApps() {
+	if (&conn{srv: &Server{}, sess: &Session{Username: "whoever"}}).mayManageApps() {
 		t.Error("a session with sign-in off may manage apps")
 	}
 	admin := func(access string) *conn {
@@ -361,7 +361,7 @@ func TestOnlyAGlobalAdminManagesApps(t *testing.T) {
 	if err := cn.srv.auditDB.UpsertGrant(db.GrantSpec{PrincipalType: "user", PrincipalID: opID, RoleID: role.ID, ScopeType: "global"}); err != nil {
 		t.Fatal(err)
 	}
-	cn.sess = &Session{Username: "op", AuthMode: "modern", Readable: []string{"r1"}, Pages: map[string]string{"containers": "write"}}
+	cn.sess = &Session{Username: "op", Readable: []string{"r1"}, Pages: map[string]string{"containers": "write"}}
 	cn.userID = opID
 	if !cn.canPage("containers", "write") {
 		t.Fatal("the operator has no write on Containers: the next check would pass for the wrong reason")

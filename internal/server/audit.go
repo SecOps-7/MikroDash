@@ -205,17 +205,6 @@ func (cn *conn) canPageIn(sc connScope, page, access string) bool {
 	if sc.sess == nil {
 		return false
 	}
-	// 'none' auth mode has no identity and every request is implicitly admin.
-	// rbac.js keeps exactly one copy of this short circuit; so does the port.
-	//
-	// ── EXCEPT A ROUTER WRITE, WHICH NEEDS SIGN-IN (#97) ─────────────────────
-	//
-	// With sign-in off, anyone who can reach the page would change the router
-	// with no identity to audit. Viewing stays open, as the setting promises;
-	// changing router configuration needs an account.
-	if sc.sess.AuthMode == "none" {
-		return access != "write"
-	}
 	if !sc.sess.CanPage(page, access, sc.routerID) {
 		return false
 	}

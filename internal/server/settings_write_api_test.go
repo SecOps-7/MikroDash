@@ -122,7 +122,9 @@ func auditActions(t *testing.T, s *Server) map[string]string {
 
 // TestASaveWritesOnlyWhatValidated.
 func TestASaveWritesOnlyWhatValidated(t *testing.T) {
-	_, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := settingsWriteServer(t, adminSess, "")
+	signedInAdmin(t, adminSrv, adminSess)
 
 	// topN 30 is valid; maxConns 999 is out of range and must be REFUSED, not
 	// clamped; `notASetting` is unknown and dropped.
@@ -164,8 +166,10 @@ func TestASaveWritesOnlyWhatValidated(t *testing.T) {
 // the one settings write that replaces the entire file. The live comment says
 // exactly that.
 func TestTheResetBranchIsAuditedSeparately(t *testing.T) {
-	s, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"},
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := settingsWriteServer(t, adminSess,
 		`{"topN":42,"pageWifi":false}`)
+	signedInAdmin(t, s, adminSess)
 
 	// The reset has its OWN broadcast, and nothing watched it until a mutation
 	// deleting that line survived the whole suite. It is a separate emit site
@@ -231,7 +235,7 @@ func TestTheResetBranchIsAuditedSeparately(t *testing.T) {
 // allowed.
 func TestASignedInNonAdministratorIsRefused(t *testing.T) {
 	_, mux, dir := settingsWriteServer(t,
-		&Session{AuthMode: "modern", Username: "viewer"}, `{"topN":25}`)
+		&Session{Username: "viewer"}, `{"topN":25}`)
 	before := readSettingsFile(t, dir)
 
 	w := settingsPost(mux, `{"topN":50}`, authed)
@@ -253,8 +257,10 @@ func TestASignedInNonAdministratorIsRefused(t *testing.T) {
 // is safe because `audit.Diff` walks `after`'s keys — a partial update must not
 // report every untouched field as removed.
 func TestTheAuditRowNamesTheChangedFieldsOnly(t *testing.T) {
-	s, mux, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"},
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := settingsWriteServer(t, adminSess,
 		`{"topN":25,"pageWifi":true,"historyMinutes":60}`)
+	signedInAdmin(t, s, adminSess)
 
 	if w := settingsPost(mux, `{"topN":30}`, authed); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -282,7 +288,9 @@ func TestTheAuditRowNamesTheChangedFieldsOnly(t *testing.T) {
 // withdrawn short of age-based retention. A token written into it is written for
 // good.
 func TestACredentialValueNeverReachesTheTrail(t *testing.T) {
-	s, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := settingsWriteServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 
 	// `aiApiKey`: aiApiKey left the settings page with its transport.
 	const secret = "REDACTED-smtp-password-value"
@@ -324,8 +332,10 @@ func TestACredentialValueNeverReachesTheTrail(t *testing.T) {
 func TestAnUnreadableCredentialSurvivesAnUnrelatedSave(t *testing.T) {
 	// Not valid ciphertext under this .secret, which is the whole point.
 	const opaque = "NOT-DECRYPTABLE-CIPHERTEXT"
-	_, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"},
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := settingsWriteServer(t, adminSess,
 		`{"topN":25,"aiApiKey":"`+opaque+`"}`)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	// Believability: the store really cannot read it, or `kept` would be empty
 	// and this test would pass for the wrong reason.
@@ -359,18 +369,28 @@ func TestOnlyAGlobalAdministratorMaySave(t *testing.T) {
 	if s.maySaveSettings(nil) {
 		t.Error("a nil session was permitted")
 	}
-	if !s.maySaveSettings(&Session{AuthMode: "none"}) {
-		t.Error("auth mode none was refused -- there is no identity to grant anything to")
+	// What sign-in off used to hand every visitor (#165): no identity, and so
+	// no right to rewrite the fleet's settings.
+	if s.maySaveSettings(&Session{}) {
+		t.Error("a session with no identity was permitted to save settings")
 	}
-	if s.maySaveSettings(&Session{AuthMode: "modern", Username: "bob"}) {
+	if s.maySaveSettings(&Session{Username: "bob"}) {
 		t.Error("a missing RBAC resolver PERMITTED a settings write -- rewriting the " +
 			"fleet's configuration is not in the class of things that fail open")
+	}
+	// The control: a real global administrator may, so the refusals above are
+	// the gate and not a gate that refuses everyone.
+	admin := &Session{}
+	withStore, _, _ := settingsWriteServer(t, admin, `{}`)
+	signedInAdmin(t, withStore, admin)
+	if !withStore.maySaveSettings(admin) {
+		t.Error("a signed-in global administrator was refused")
 	}
 }
 
 // TestAnAnonymousCallerCannotSave, through the mux.
 func TestAnAnonymousCallerCannotSave(t *testing.T) {
-	_, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none"}, `{"topN":25}`)
+	_, mux, dir := settingsWriteServer(t, &Session{}, `{"topN":25}`)
 	before := readSettingsFile(t, dir)
 
 	if w := settingsPost(mux, `{"topN":50}`, ""); w.Code != http.StatusUnauthorized {
@@ -387,8 +407,10 @@ func TestAnAnonymousCallerCannotSave(t *testing.T) {
 // `req.body || {}` on the live side: an unreadable body is an empty one, which
 // validates to no updates. It is not an error.
 func TestABodyThatIsNotJSONSavesNothing(t *testing.T) {
-	_, mux, dir := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"},
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := settingsWriteServer(t, adminSess,
 		`{"topN":25}`)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	w := settingsPost(mux, `not json at all`, authed)
 	if w.Code != http.StatusOK {
@@ -405,7 +427,9 @@ func TestABodyThatIsNotJSONSavesNothing(t *testing.T) {
 // `io.emit`, not a room: which pages a browser may draw is a fleet-wide fact, so
 // a viewer looking at any router — or at none — has to hear about it.
 func TestTheSaveBroadcastsPageSettingsToEveryone(t *testing.T) {
-	s, mux, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := settingsWriteServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 
 	// Deliberately in DIFFERENT rooms, and one in no room at all.
 	watchers := map[string]*hub.Client{
@@ -458,7 +482,7 @@ func TestTheSaveBroadcastsPageSettingsToEveryone(t *testing.T) {
 func TestThePageSettingsPayloadCarriesEveryKeyEvenWhenTheFileDoesNot(t *testing.T) {
 	// A settings.json with ONE key in it. Everything else must come from the
 	// defaults, which is exactly what the raw read failed to do.
-	s, _, _ := settingsWriteServer(t, &Session{AuthMode: "none"}, `{"vpnDashTopN":77}`)
+	s, _, _ := settingsWriteServer(t, &Session{}, `{"vpnDashTopN":77}`)
 
 	// THROUGH `sendPageSettings`, the function ws.go actually calls — not through
 	// `mergedSettings`, which is where the first draft of this test looked.

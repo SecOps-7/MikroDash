@@ -36,7 +36,9 @@ import (
 // assertion that it did would now be asserting that a constant changed. The
 // dispatcher half below is what remains, and it is the half that was broken.
 func TestASettingsSaveReachesTheAlerts(t *testing.T) {
-	s, mux, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, `{}`)
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := settingsWriteServer(t, adminSess, `{}`)
+	signedInAdmin(t, s, adminSess)
 	s.alerts = s.buildAlertWire()
 	s.dispatch = s.buildAlertDispatch(true)
 	r := alert.Router{ID: "r-1", AlertsEnabled: true}
@@ -127,7 +129,7 @@ func TestAnEmailAlertDialsTheMailServer(t *testing.T) {
 	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port
-	s, _, _ := settingsWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, `{}`)
+	s, _, _ := settingsWriteServer(t, &Session{Username: "admin"}, `{}`)
 	s.dispatch = s.buildAlertDispatch(true)
 
 	// The recipient `channelRecipients` would build for an SMTP channel.

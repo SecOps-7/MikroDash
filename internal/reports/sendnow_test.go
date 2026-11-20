@@ -10,7 +10,6 @@ type sendNowCorpus struct {
 	MayStillSend []struct {
 		Name      string `json:"name"`
 		CreatedBy string `json:"createdBy"`
-		Modern    bool   `json:"modern"`
 		CanRead   bool   `json:"canRead"`
 		Out       struct {
 			OK     bool   `json:"ok"`
@@ -47,7 +46,7 @@ func TestMayStillSendMatchesLive(t *testing.T) {
 	c := loadSendNowCorpus(t)
 	refused := 0
 	for _, tc := range c.MayStillSend {
-		got := MayStillSend(tc.CreatedBy, tc.Modern, tc.CanRead)
+		got := MayStillSend(tc.CreatedBy, tc.CanRead)
 		if got.OK != tc.Out.OK {
 			t.Errorf("%s: ok=%v, live=%v", tc.Name, got.OK, tc.Out.OK)
 		}
@@ -68,11 +67,13 @@ func TestMayStillSendMatchesLive(t *testing.T) {
 	}
 	// And the decisive one, stated directly rather than left to a case name: a
 	// named creator who cannot read the router must never be allowed to send.
-	if v := MayStillSend("alice", true, false); v.OK {
+	if v := MayStillSend("alice", false); v.OK {
 		t.Error("a creator who lost access may still send")
 	}
-	if v := MayStillSend("alice", false, false); v.OK {
-		t.Error("a creator who lost access may still send on a legacy install")
+	// No creator is refused whatever the router says: sign-in is always
+	// required (#165), so there is no install without one to excuse it.
+	if v := MayStillSend("", true); v.OK {
+		t.Error("a schedule with no creator may still send")
 	}
 }
 

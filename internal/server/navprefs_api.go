@@ -11,8 +11,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-
-	"mikrodash/internal/db"
 )
 
 // ── THE CATEGORY ALLOW-LIST IS GONE, AND SO IS WHAT IT GUARDED ─────────────
@@ -148,16 +146,15 @@ func writeJSON400OK(w http.ResponseWriter) {
 // `webUserID` in `account_api.go` already did for the session store — the two
 // now agree, as they always should have.
 //
-// ── THE SHARED ROW IS SIGN-IN-OFF'S, AND NOBODY ELSE'S ──────────────────────
+// ── NOBODY WRITES THE SHARED ROW ────────────────────────────────────────────
 //
-// With no session, or sign-in off, there is no identity and the shared row is
-// the answer. A SIGNED-IN user whose record is gone (deleted while the session
-// lived) answers "" — they used to be handed the shared row, so their next save
-// overwrote every sign-in-off viewer's layout. A write answers 401 on "", and a
-// read treats it as "nothing saved".
+// No session, or a signed-in user whose record is gone (deleted while the
+// session lived), answers "": a write answers 401 on it, and a read treats it
+// as "nothing saved". The shared row was sign-in-off's, which no longer exists
+// (#165); it is only read now, as the fallback for a user with no row yet.
 func (s *Server) layoutUser(sess *Session) string {
-	if sess == nil || sess.AuthMode == "none" {
-		return db.SharedLayoutUser
+	if sess == nil {
+		return ""
 	}
 	return s.userIDFor(sess.Username)
 }

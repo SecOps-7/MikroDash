@@ -4,11 +4,10 @@ package server
 //
 // ── WHO MAY DO WHAT ─────────────────────────────────────────────────────────
 //
-// Reading the library needs a global administrator. Changing it needs a
-// SIGNED-IN one (codeAllowed's rule): a template is text a router will run, so
-// editing one is writing code an administrator deploys later, and
-// isGlobalAdmin answers true with sign-in switched off. A refused write is
-// audited; a refused read is not, as for every other GET here.
+// Reading the library needs a global administrator, and so does changing it
+// (codeAllowed's rule): a template is text a router will run, so editing one
+// is writing code an administrator deploys later. A refused write is audited;
+// a refused read is not, as for every other GET here.
 //
 // ── A TEMPLATE IS CHECKED WHEN IT IS SAVED ──────────────────────────────────
 //
@@ -131,9 +130,9 @@ func (s *Server) cfgWrite(action string, h func(http.ResponseWriter, *http.Reque
 }
 
 // cfgMayChange is codeAllowed for an HTTP session: signed in, and a global
-// administrator. Sign-in switched off answers no, whatever isGlobalAdmin says.
+// administrator.
 func cfgMayChange(sess *Session, admin bool) bool {
-	return sess != nil && sess.AuthMode != "none" && admin
+	return sess != nil && admin
 }
 
 // cfgTemplateIn is what the editor sends.

@@ -65,7 +65,7 @@ func cfgJobServer(t *testing.T, n int) (*Server, []string) {
 
 func TestADeployStartsOnlyAsItWasConfirmed(t *testing.T) {
 	s, ids := cfgJobServer(t, 3)
-	sess := &Session{Username: "someone", AuthMode: "modern"}
+	sess := &Session{Username: "someone"}
 	targets := []cfgTargetIn{{RouterID: ids[1], Hash: "h1"}, {RouterID: ids[0], Hash: "h0"}}
 	in := cfgStartIn{TemplateID: "canned:dns-and-time", Targets: targets}
 
@@ -115,7 +115,7 @@ func TestARecordedRunKeepsNoSecret(t *testing.T) {
 	}
 	defer d.Close()
 	s := &Server{auditDB: d}
-	sess := Session{Username: "someone", AuthMode: "modern"}
+	sess := Session{Username: "someone"}
 	run := &cfgRun{id: "run-1", tplID: "canned:snmp-v3", tplName: "SNMPv3", kind: "fragment", revision: 3, actor: sess,
 		state: db.CfgRunCanary, t: mustTemplate(t, "/snmp\nset contact={{contact}}\n/snmp community\nadd name=x authentication-password={{pw}}"),
 		defs: cfgtplVars{{Name: "contact", Type: "text"}, {Name: "pw", Type: "secret"}}.defs(),

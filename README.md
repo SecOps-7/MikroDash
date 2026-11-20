@@ -171,12 +171,11 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 
 - **Lockout guards.** Changing or removing the address, interface, service, route, firewall rule, certificate or account MikroDash itself connects through is refused or raises a warning first, because nothing in the app could undo it.
 - **Secrets are never read back.** WiFi passphrases, PPP and OpenVPN passwords, IPsec pre-shared keys and SNMP passwords are not requested from the router at all, so no page can display one. A blank password field means "keep the current one".
-- **One deliberate exception, and it is audited.** A WireGuard peer's client configuration contains that peer's private key, which is the point of it. It is fetched by a one-shot request rather than carried on the socket, needs write access to the WireGuard page on that router, is refused outright when sign-in is off or no audit database exists, and writes a row naming who revealed it before the router is asked. The key itself never enters that row.
+- **One deliberate exception, and it is audited.** A WireGuard peer's client configuration contains that peer's private key, which is the point of it. It is fetched by a one-shot request rather than carried on the socket, needs write access to the WireGuard page on that router, is refused outright when no audit database exists, and writes a row naming who revealed it before the router is asked. The key itself never enters that row.
 - **Code is for global administrators.** What a script, scheduler task, VRRP script or container image runs is RouterOS code, so changing it needs a global administrator.
 - **Reboots ask for the router's name.** Rebooting, applying package changes, upgrading RouterOS or restoring a backup requires the router's name typed back.
 - **Files that would act are refused.** A file created or downloaded to the router may not be named to run on arrival (`*.auto.*`) or to install at the next reboot (`.npk`). A file's contents are read only when you ask, capped, with credential values hidden.
 - **Config Management deploys carefully.** A syntax check before anything runs, a restore point per router, a canary router whose name you type before the rest, an automatic revert if a change cuts MikroDash off, and a fresh login to prove it did not.
-- **No sign-in, no writes.** With sign-in turned off, every configuration page is read-only.
 
 </details>
 
@@ -424,11 +423,11 @@ The four feature switches are off in the bare binary and on in the image, becaus
 
 MikroDash is built for your **local network**. It serves plain HTTP; terminate TLS at a reverse proxy if you need it.
 
-- **Turn on sign-in.** Settings, Authentication, **Require sign-in**. With it off, anyone who reaches the page can see all of your routers' data (router configuration stays read-only). With it on, access is granted as a role (which pages, read or write) over a scope (everything, a site, or one router).
+- **Sign-in is always required.** There is no way to open MikroDash without an account: a dashboard that can change routers is not left open to whoever reaches it. Access is granted as a role (which pages, read or write) over a scope (everything, a site, or one router).
 - **Where a device is reached is an administrator's.** Write access to the Devices page, granted over one router, lets someone rename that device and tune its alerts, but not change its address, port, TLS settings or the account MikroDash signs in with: MikroDash sends the stored password to wherever the device points. And MikroDash never connects to a router on its own machine's loopback or a link-local address (where cloud metadata services answer) unless `MIKRODASH_ROUTER_ADDRESSES=any` says so.
 - **Zero-touch provisioning opens one UDP port** (13231, WireGuard) while it is switched on. It is the only part of MikroDash meant to face the internet: a router without a valid script cannot complete a handshake with it.
 - **First-run setup needs a code from the log.** Until an account exists, MikroDash prints a one-time setup code to its log, and the setup page will not create the administrator without it, so a stranger who reaches a fresh install cannot claim it.
-- **Never expose it directly to the internet.** For remote access use a VPN, or an authenticating proxy such as Cloudflare Access or Authelia in front of MikroDash with sign-in enabled.
+- **Never expose it directly to the internet.** For remote access use a VPN, or an authenticating proxy such as Cloudflare Access or Authelia in front of MikroDash.
 - **Credentials at rest** are encrypted with AES-256-GCM; user passwords are hashed with scrypt. Keep the `/data` volume, and `/data/.secret` in particular, private.
 - **Single sign-on is OpenID Connect**, with PKCE, a nonce, and the ID token checked against the provider's own key set. An account whose username collides with a local one is refused rather than merged, and a person whose claims map to no role cannot sign in at all.
 - **The backup migration export is off by default**, and stores that device's passwords and keys on the server when you turn it on. Encrypted at rest, which protects a copy of the volume - not somebody who already has `/data`.
@@ -464,7 +463,7 @@ Alternatively, have the proxy preserve the original `Host` header (`proxy_set_he
 
 <br>
 
-MikroDash does not ship `cloudflared`, but it runs well beside Cloudflare's own container. This puts the login page on the internet, so first make sure sign-in is required, put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) in front of the hostname, and use strong passwords.
+MikroDash does not ship `cloudflared`, but it runs well beside Cloudflare's own container. This puts the login page on the internet, so put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) in front of the hostname, and use strong passwords.
 
 1. In the Cloudflare dashboard (Zero Trust, Networks, Tunnels), create a tunnel and copy its token. Add one public hostname, for example `dash.example.com`, pointing at `http://mikrodash:3081`.
 2. Add the sidecar and put the token in `.env` as `TUNNEL_TOKEN=...`:

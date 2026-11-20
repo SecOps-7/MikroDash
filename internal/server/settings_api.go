@@ -138,11 +138,6 @@ func pageSettingsFor(s store.Settings) store.Settings {
 // administrator's: the reduced view is the safe answer to "I do not know who
 // this is", and it still renders a working dashboard.
 func (s *Server) maySeeAllSettings(sess *Session) bool {
-	if sess.AuthMode == "none" {
-		// One local operator with full reach, the same short circuit rbac.js
-		// makes and that auditScope documents.
-		return true
-	}
 	if s.rbac == nil {
 		return false
 	}

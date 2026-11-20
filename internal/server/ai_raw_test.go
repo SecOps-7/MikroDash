@@ -84,7 +84,7 @@ func TestTheGateRefusesBeforeTheParserSeesAnything(t *testing.T) {
 // nobody can be held to is one nobody should be able to send (#97's rule for
 // router writes).
 func TestSignInOffIsNotAnAdministrator(t *testing.T) {
-	cn := &conn{srv: &Server{}, sess: &Session{AuthMode: "none", Username: "whoever"}}
+	cn := &conn{srv: &Server{}, sess: &Session{Username: "whoever"}}
 	if got := cn.runAIRawCommandTool(rawCall(`{"command":"/ip/address/print"}`)); !strings.Contains(got, "not available") {
 		t.Errorf("a session with sign-in off produced %q", got)
 	}
@@ -305,10 +305,10 @@ func rawAdminConn(t *testing.T, allow bool) *conn {
 
 	s := &Server{store: st, auditDB: database, hub: hub.New()}
 	s.rbac = rbac.New(database, func() []rbac.Router { return nil })
-	if !s.isGlobalAdmin(&Session{Username: "boss", AuthMode: "modern"}) {
+	if !s.isGlobalAdmin(&Session{Username: "boss"}) {
 		t.Fatal("the fixture's administrator is not one — this test would pass for the wrong reason")
 	}
-	return &conn{srv: s, sess: &Session{Username: "boss", AuthMode: "modern"}}
+	return &conn{srv: s, sess: &Session{Username: "boss"}}
 }
 
 // TestAnAdministratorWithTheSettingOffIsRefusedBeforeParsing.
@@ -422,7 +422,7 @@ func TestRawOutputMasksSecrets(t *testing.T) {
 func TestTheRawToolsAreAdvertisedBehindTheirGate(t *testing.T) {
 	for _, cn := range []*conn{
 		{srv: &Server{}},
-		{srv: &Server{}, sess: &Session{AuthMode: "none", Username: "whoever"}},
+		{srv: &Server{}, sess: &Session{Username: "whoever"}},
 	} {
 		if _, note := cn.rawGateNote(); note == "" {
 			t.Errorf("session %+v passed the standing gates", cn.sess)

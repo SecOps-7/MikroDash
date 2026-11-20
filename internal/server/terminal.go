@@ -266,8 +266,6 @@ type termState struct {
 //
 // What that one check already carries, from canPageIn:
 //
-//	sign-in switched off      write is refused outright, so a command nobody
-//	                          can be held to is one nobody can send
 //	RBAC unavailable          write fails CLOSED
 //	no audit database         write is refused: no trail, no writes
 //	the coarse page union     ANDed with the resolver, never substituted

@@ -54,7 +54,7 @@ func TestTheSecurityToolScansFreshAndTellsTheCard(t *testing.T) {
 	h.Add(card)
 	h.Join(card, secScoreRoom("r-A"))
 	var reads atomic.Int32
-	cn := &conn{srv: &Server{hub: h}, sess: &Session{AuthMode: "none"}, routerID: "r-A",
+	cn := &conn{srv: &Server{hub: h}, sess: readerOf("r-A"), routerID: "r-A",
 		rsession: scanRouter(h, "r-A", &reads)}
 	menus := int32(len(secscan.Menus()))
 
@@ -90,7 +90,7 @@ func TestTheSecurityToolWaitsForARunningScan(t *testing.T) {
 	t.Cleanup(func() { secScanPoll = old })
 	h := hub.New()
 	var reads atomic.Int32
-	cn := &conn{srv: &Server{hub: h}, sess: &Session{AuthMode: "none"}, routerID: "r-A",
+	cn := &conn{srv: &Server{hub: h}, sess: readerOf("r-A"), routerID: "r-A",
 		rsession: scanRouter(h, "r-A", &reads)}
 	st := &cn.srv.secScans
 	st.end("r-A", &secscan.Report{Score: 10}, time.Now().Add(-time.Hour)) // an old report
@@ -125,7 +125,7 @@ func TestTheCardScansOnlyWhenThereIsNoReport(t *testing.T) {
 	me := hub.NewClient("me", 256)
 	h.Add(me)
 	var reads atomic.Int32
-	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{AuthMode: "none"}, routerID: "r-A",
+	cn := &conn{srv: &Server{hub: h}, c: me, sess: readerOf("r-A"), routerID: "r-A",
 		rsession: scanRouter(h, "r-A", &reads)}
 
 	cn.secScoreFocus()

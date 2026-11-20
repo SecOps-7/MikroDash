@@ -197,21 +197,6 @@ export function populateSettings(data: SettingsPayload): void {
     updateAiPromptCount(p);
   }
 
-  // ── THE SIGN-IN TOGGLE, WHICH NOTHING SET UNTIL 0.8.15 ───────────────────
-  //
-  // `s_authEnabled` has no `checked` attribute, so an unpopulated box reads OFF
-  // on every load whatever the install actually does. That was merely a wrong
-  // label while nothing collected the form; the moment a Save button exists it
-  // becomes an install-wide open-access switch, because the collector would post
-  // `authMode: 'none'` from a control the operator never touched - and once the
-  // mode is `none`, `maySaveSettings` returns true for everyone.
-  //
-  // `authModeOf` was written for exactly this line and was never called, the
-  // same shape as the Save button itself. ABSENT MEANS MODERN there, so a fresh
-  // install ticks the box rather than offering to switch sign-in off.
-  const auth = el<HTMLInputElement>('s_authEnabled');
-  if (auth) auth.checked = authModeOf(data) !== 'none';
-
   // The credentials that are never pre-filled. The MASK is a presence signal,
   // not a value: the input stays empty and the placeholder carries the meaning,
   // so an operator who saves without touching the field sends nothing at all.
@@ -225,19 +210,6 @@ export function populateSettings(data: SettingsPayload): void {
   // The preset buttons describe the checkboxes above them, so they can only be
   // marked once those hold real values. This is that moment.
   setViewPresetUI(detectViewPreset());
-}
-
-/**
- * The auth toggle, which is a toggle over a two-valued string.
- *
- * ANYTHING THAT IS NOT THE LITERAL 'none' COUNTS AS ON, matching the server's
- * `_authMode()`. The live comment gives the reason: a stored `''` or a legacy
- * `'basic'` must not read as "authentication disabled" - which is what a plain
- * `mode === 'modern'` test would do, silently turning the login off on screen
- * for an install that still requires it.
- */
-export function authModeOf(data: SettingsPayload): 'none' | 'modern' {
-  return data.authMode === 'none' ? 'none' : 'modern';
 }
 
 // ── the tab shell ───────────────────────────────────────────────────────────
@@ -437,9 +409,9 @@ export function mountPrincipalTabs(): void {
   });
 }
 
-// ── auth mode and who may see the principals card ───────────────────────────
+// ── who may see the principals card ─────────────────────────────────────────
 
-/** What `applyAuthModeVisibility` needs from the rest of the page. */
+/** What `applyPrincipalsVisibility` needs from the rest of the page. */
 export interface AuthVisibilityDeps {
   /** `window._caps.managePrincipals`, or undefined while the caps fetch is in flight. */
   mayManage: boolean | undefined;
@@ -454,14 +426,13 @@ export interface AuthVisibilityDeps {
 }
 
 /**
- * Show the right half of the Authentication tab for the current auth mode.
+ * Show Access Management to those who may manage principals.
  *
- * ── AUTH MODE ALONE IS NOT ENOUGH, AND THAT IS THE POINT ───────────────────
- *
- * An operator is in `modern` mode and must still not see user management, so the
- * card is gated on the CAPABILITY as well. `applyCaps()` writes the same
- * element's display from a separate fetch, so whichever resolves last wins -
- * including the ordering that would leave the card on screen.
+ * Sign-in is always required (#165), so the CAPABILITY is the whole question:
+ * a signed-in operator must still not see user management. `applyCaps()`
+ * writes the same element's display from a separate fetch, so whichever
+ * resolves last wins - including the ordering that would leave the card on
+ * screen.
  *
  * ── UNKNOWN CAPS COUNT AS NO ───────────────────────────────────────────────
  *
@@ -470,15 +441,10 @@ export interface AuthVisibilityDeps {
  * exposure". A port that treated undefined as permissive would show the principal
  * graph for as long as a slow fetch took, to someone who may never be allowed it.
  */
-export function applyAuthModeVisibility(mode: string, deps: AuthVisibilityDeps): void {
-  const noneWarn = document.getElementById('authNoneWarn') as HTMLElement | null;
-  const modernFields = document.getElementById('modernAuthFields') as HTMLElement | null;
+export function applyPrincipalsVisibility(deps: AuthVisibilityDeps): void {
   const usersTabBtn = document.getElementById('ptabBtn-users') as HTMLElement | null;
   const usersPanel = document.getElementById('ptab-users') as HTMLElement | null;
   const userCard = document.getElementById('principalsCard') as HTMLElement | null;
-
-  if (noneWarn) noneWarn.style.display = mode === 'none' ? '' : 'none';
-  if (modernFields) modernFields.style.display = mode === 'modern' ? '' : 'none';
 
   const mayManage = !!deps.mayManage;
   if (userCard) userCard.style.display = mayManage ? '' : 'none';
@@ -486,9 +452,9 @@ export function applyAuthModeVisibility(mode: string, deps: AuthVisibilityDeps):
   // and the sizer returns early on that.
   if (mayManage) deps.sizeCard();
 
-  // The Users tab is hidden outside modern mode, AND the selection is moved off
-  // it if it was showing: an empty tab that cannot be populated reads as a bug.
-  const usersUsable = mode === 'modern' && mayManage;
+  // The Users tab is hidden without the capability, AND the selection is moved
+  // off it if it was showing: an empty tab that cannot be populated reads as a bug.
+  const usersUsable = mayManage;
   if (usersTabBtn) usersTabBtn.style.display = usersUsable ? '' : 'none';
   if (!usersUsable && usersPanel && usersPanel.classList.contains('active')) {
     const first = document.querySelector('.ptab:not([style*="display: none"])') as HTMLElement | null;
@@ -502,8 +468,6 @@ export function applyAuthModeVisibility(mode: string, deps: AuthVisibilityDeps):
   if (mayManage) {
     void deps.loadRoles().then(() => {
       if (usersUsable) deps.loadUsers();
-      // NOT gated on `usersUsable`: SSO providers are configurable whatever the
-      // auth mode, and a provider cannot be edited from a tab that never loaded.
       deps.loadSSO();
     });
   }
@@ -538,7 +502,7 @@ export interface PrincipalLookups {
  * "unknown role" IS A REAL ANSWER, not a defensive fallback: a grant naming a
  * deleted role confers nothing, and rbac.js resolves it the same way. It is also
  * what appears when the roles have not loaded yet, which is why
- * `applyAuthModeVisibility` chains the loads rather than firing both.
+ * `applyPrincipalsVisibility` chains the loads rather than firing both.
  */
 export function roleName(g: GrantView, look: PrincipalLookups): string {
   const r = (look.roles || []).find((x) => x.id === g.role_id);

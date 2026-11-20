@@ -281,17 +281,13 @@ const aiHistoryTurns = 10
 //
 // `layoutUser` falls back to `_shared` for a username with no record, which is
 // right for a preference and wrong here: a shared transcript would hand one
-// person's questions to whoever asked next. The one exception is authMode
-// "none", where there IS only one identity and nobody else to hand it to.
+// person's questions to whoever asked next.
 func (cn *conn) aiHistoryUser() string { return cn.aiHistoryUserFor(cn.sess) }
 
 // aiHistoryUserFor is aiHistoryUser for a snapshot's session.
 func (cn *conn) aiHistoryUserFor(sess *Session) string {
 	if sess == nil {
 		return ""
-	}
-	if sess.AuthMode == "none" {
-		return db.SharedLayoutUser
 	}
 	return cn.srv.userIDFor(sess.Username)
 }

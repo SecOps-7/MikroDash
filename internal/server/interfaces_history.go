@@ -293,9 +293,6 @@ func (s *Server) mayReadInterfaces(sess *Session, routerID string) bool {
 	if sess == nil {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if !sess.CanPage("interfaces", "read", routerID) {
 		return false
 	}

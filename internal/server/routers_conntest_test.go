@@ -38,10 +38,9 @@ import (
 // shared fixture deliberately lacks — every test there is about fields, and this
 // file is about the secret.
 //
-// The session's AuthMode decides the gate: `mayManagePrincipals` returns true
-// for "none" and otherwise asks RBAC, and `routerRbacDDL` grants alice nothing
-// global. So "none" is the administrator here and "" is the non-administrator,
-// which is what the 403 test relies on.
+// The session alone grants nothing: `mayManagePrincipals` asks RBAC. A test
+// that needs an administrator makes alice one with `signedInAdmin`; the 403
+// test leaves her without a grant.
 func connTestServer(t *testing.T, sess *Session) (*Server, *http.ServeMux) {
 	t.Helper()
 	s, mux, dir := routersServer(t, sess, "")
@@ -84,7 +83,7 @@ func connTestPost(mux *http.ServeMux, body, cookie string) *httptest.ResponseRec
 // travels. The two that match change neither: a stray space, and a port written
 // as a numeric string.
 func TestTheStoredPasswordIsReusedOnlyForItsOwnEndpoint(t *testing.T) {
-	s, _ := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	s, _ := connTestServer(t, &Session{Username: "alice"})
 
 	stored := func(mut func(*routers.Endpoint)) string {
 		e := routers.Endpoint{Host: "198.51.100.1", Port: 8729, Username: "u",
@@ -136,7 +135,7 @@ func TestTheStoredPasswordIsReusedOnlyForItsOwnEndpoint(t *testing.T) {
 // its endpoint" would enumerate the fleet for an attacker who already got past
 // the admin gate, which is the threat model this route is written for.
 func TestAnUnknownIdYieldsNothingAndSaysNothing(t *testing.T) {
-	s, _ := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	s, _ := connTestServer(t, &Session{Username: "alice"})
 	e := routers.Endpoint{Host: "198.51.100.1", Port: 8729, Username: "u", TLS: true}
 	if got := s.storedPasswordFor("no-such-router", &e); got != "" {
 		t.Errorf("an unknown id returned %q", got)
@@ -149,7 +148,7 @@ func TestAnUnknownIdYieldsNothingAndSaysNothing(t *testing.T) {
 // ── The route ───────────────────────────────────────────────────────────────
 
 func TestTheTestRouteRequiresAnAdministrator(t *testing.T) {
-	// AuthMode "" sends `mayManagePrincipals` to RBAC, and `routerRbacDDL` grants
+	// `mayManagePrincipals` asks RBAC, and `routerRbacDDL` grants
 	// alice only `devices:write` on r1 — never `system:principals`, which is
 	// global-only. There is no router to scope to here (the device may not exist
 	// yet), so anything less than global admin grants administration by another
@@ -167,7 +166,9 @@ func TestTheTestRouteRequiresAnAdministrator(t *testing.T) {
 // TestAMissingHostIsA400 — and it is checked BEFORE anything dials, so a body
 // with no host cannot open a socket.
 func TestAMissingHostIsA400(t *testing.T) {
-	_, mux := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	admin := &Session{Username: "alice"}
+	adminSrv, mux := connTestServer(t, admin)
+	signedInAdmin(t, adminSrv, admin)
 
 	for _, body := range []string{`{}`, `{"host":""}`, `{"host":"   "}`, `not json`} {
 		w := connTestPost(mux, body, "mikrodash_sid=tok")
@@ -190,7 +191,9 @@ func TestAMissingHostIsA400(t *testing.T) {
 // text inline — a 4xx or 5xx makes the browser's error handling swallow it, and
 // the text is the entire value of the button.
 func TestARefusedConnectionAnswers200WithTheSentence(t *testing.T) {
-	_, mux := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	admin := &Session{Username: "alice"}
+	adminSrv, mux := connTestServer(t, admin)
+	signedInAdmin(t, adminSrv, admin)
 
 	// A port nothing is listening on: opened, its number taken, then closed.
 	// Hard-coding one would pass until the day something happened to be there.
@@ -233,7 +236,7 @@ func TestTheMaskIsNotTreatedAsAPassword(t *testing.T) {
 	if store.Mask == "" {
 		t.Fatal("store.Mask is empty; this test would pass vacuously")
 	}
-	s, _ := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	s, _ := connTestServer(t, &Session{Username: "alice"})
 	e := routers.Endpoint{Host: "198.51.100.1", Port: 8729, Username: "u",
 		TLS: true, Insecure: false}
 
@@ -340,7 +343,9 @@ func TestTheDialAndTheMatchUseOneCoercion(t *testing.T) {
 // deterministic rather than hopeful: the dial completes, the login read blocks
 // for ever, and the only thing that can finish the request is the wall clock.
 func TestTheWallClockTimeoutSendsItsOwnSentence(t *testing.T) {
-	_, mux := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	admin := &Session{Username: "alice"}
+	adminSrv, mux := connTestServer(t, admin)
+	signedInAdmin(t, adminSrv, admin)
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -459,7 +464,9 @@ func TestThePasswordIsDecryptedOnlyAfterTheMatch(t *testing.T) {
 // "first record does not look like a TLS handshake", which is precisely the
 // condition the branch's first arm exists to explain.
 func TestTheCoercedTlsFlagReachesTheClassifier(t *testing.T) {
-	_, mux := connTestServer(t, &Session{Username: "alice", AuthMode: "none"})
+	admin := &Session{Username: "alice"}
+	adminSrv, mux := connTestServer(t, admin)
+	signedInAdmin(t, adminSrv, admin)
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

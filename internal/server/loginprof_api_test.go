@@ -16,7 +16,7 @@ import (
 // router edit at all.
 func TestAProfileDeviceKeepsItsEndpointFromNonAdmins(t *testing.T) {
 	s := &Server{}
-	nonAdmin := &Session{AuthMode: "password", Username: "ops"}
+	nonAdmin := &Session{Username: "ops"}
 	on := &store.Router{ID: "r1", Host: "198.51.100.1", Port: 8729, TLS: true,
 		LoginProfileID: "p1", LoginProfileName: "Fleet"}
 

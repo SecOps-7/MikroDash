@@ -12,8 +12,7 @@ package server
 //
 // So the controls are not the registry's. They are, per call and all three:
 //
-//	a SIGNED-IN GLOBAL ADMINISTRATOR   not merely someone who may write a page,
-//	                                   and not "sign-in is off, so everyone is"
+//	a SIGNED-IN GLOBAL ADMINISTRATOR   not merely someone who may write a page
 //	the aiAllowRawCommands SETTING     default false; see store.AIAllowRawCommands
 //	the ROUTER'S NAME TYPED BACK       every command, read or write, whatever
 //	                                   aiConfirmWrites says
@@ -83,12 +82,10 @@ func (cn *conn) rawCommandGate(action string) (store.Settings, string) {
 // asks it on every question, and the executor through rawCommandGate on every
 // call, so what is advertised and what is refused cannot disagree.
 //
-// SIGNED IN, and a global administrator. `isGlobalAdmin` answers true when
-// sign-in is switched off entirely; that is right for reading the principal
-// graph and wrong here, for the reason #97 gives about router writes: a
-// command nobody can be held to is one nobody should be able to send.
+// SIGNED IN, and a global administrator: a command nobody can be held to is
+// one nobody should be able to send (#97).
 func (cn *conn) rawGateNote() (store.Settings, string) {
-	if cn.sess == nil || cn.sess.AuthMode == "none" || !cn.srv.isGlobalAdmin(cn.sess) {
+	if cn.sess == nil || !cn.srv.isGlobalAdmin(cn.sess) {
 		return nil, "not a signed-in global administrator"
 	}
 	settings, err := cn.srv.mergedSettings()

@@ -315,7 +315,7 @@ func gateServerWith(t *testing.T, settings, extra, routers string) *Server {
 	t.Cleanup(func() { database.Close() })
 	resolver := rbac.New(database, func() []rbac.Router { return []rbac.Router{{ID: "r-A"}, {ID: "r-B"}} })
 	return &Server{store: st, rbac: resolver, auditDB: database,
-		auth: authFor("tok", &Session{Username: "someone", AuthMode: "modern"})}
+		auth: authFor("tok", &Session{Username: "someone"})}
 }
 
 func gateCall(s *Server, h func(http.ResponseWriter, *http.Request), url string, signedIn bool) *httptest.ResponseRecorder {
@@ -367,7 +367,7 @@ func TestTheDNSToolsRefuseBeforeTheyReachARouter(t *testing.T) {
 // TestTheTraceIsCutToTheViewersPages. The access handed to the chain is what
 // the viewer's grants on that router say, page by page.
 func TestTheTraceIsCutToTheViewersPages(t *testing.T) {
-	sess := &Session{Username: "someone", AuthMode: "modern"}
+	sess := &Session{Username: "someone"}
 	dnsOnly := gateServer(t, `{}`, "")
 	if got := dnsOnly.traceAccessFor(sess, "r-A"); got != (traceAccess{}) {
 		t.Errorf("a DNS-only user got %+v", got)

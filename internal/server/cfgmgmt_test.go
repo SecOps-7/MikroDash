@@ -65,13 +65,15 @@ func TestAFindingDoesNotStopASave(t *testing.T) {
 // Sign-in off makes everybody a global administrator for READING; a template
 // is code, so changing one needs somebody who actually signed in.
 func TestOnlyASignedInAdminChangesTemplates(t *testing.T) {
-	if cfgMayChange(&Session{AuthMode: "none"}, true) {
-		t.Error("sign-in off may change templates")
+	// What sign-in off used to be (#165): no identity, so not an administrator,
+	// asked the way the handler asks.
+	if noOne := (&Session{}); cfgMayChange(noOne, (&Server{}).isGlobalAdmin(noOne)) {
+		t.Error("a session with no identity may change templates")
 	}
-	if cfgMayChange(&Session{AuthMode: "modern", Username: "op"}, false) {
+	if cfgMayChange(&Session{Username: "op"}, false) {
 		t.Error("a non-administrator may change templates")
 	}
-	if !cfgMayChange(&Session{AuthMode: "modern", Username: "admin"}, true) {
+	if !cfgMayChange(&Session{Username: "admin"}, true) {
 		t.Error("a signed-in administrator may not change templates")
 	}
 	if cfgMayChange(nil, true) {

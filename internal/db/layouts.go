@@ -12,9 +12,10 @@ import (
 	"time"
 )
 
-// SharedLayoutUser is `SHARED_LAYOUT_USER` — the stand-in identity for authMode
-// 'none', where there is no user to key on. It also stands in for the old
-// unsuffixed `dashboard-layout.json`, which is why the value is not arbitrary.
+// SharedLayoutUser is `SHARED_LAYOUT_USER`: the row read as the fallback for a
+// user with no layout of their own. It stood in for sign-in-off's single
+// identity, which no longer exists (#165), and for the old unsuffixed
+// `dashboard-layout.json`, which is why the value is not arbitrary.
 const SharedLayoutUser = "_shared"
 
 // LayoutUser is `_layoutUser(req)`: the signed-in user, or the shared identity.

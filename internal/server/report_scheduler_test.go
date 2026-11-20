@@ -70,14 +70,10 @@ func TestADailyScheduleSendsOncePerDayOnItsOwn(t *testing.T) {
 	}
 }
 
-// TestNoSessionIsTheStrictAuthAnswer. A scheduled run has no session. Reading
-// that as "not modern" was the PERMISSIVE answer, which keeps a creator-less
-// schedule mailing; the tick takes the strict one, and records its source.
-func TestNoSessionIsTheStrictAuthAnswer(t *testing.T) {
-	if !isModernSession(nil) {
-		t.Error("a scheduled run (no session) is treated as sign-in off")
-	}
-	if runSource(nil) != "schedule" || runSource(&Session{AuthMode: "modern"}) != "manual" {
+// TestARunRecordsItsSource. A scheduled run has no session and is recorded as
+// "schedule"; "Send now" carries one and is "manual".
+func TestARunRecordsItsSource(t *testing.T) {
+	if runSource(nil) != "schedule" || runSource(&Session{Username: "alice"}) != "manual" {
 		t.Error("runs are recorded under the wrong source")
 	}
 }

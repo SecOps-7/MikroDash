@@ -32,15 +32,11 @@ const (
 //
 // `createdBy` empty covers both a missing column and an empty one: the live test
 // is `!schedule.created_by`, and an empty string is falsy.
-func MayStillSend(createdBy string, isModern, canRead bool) SendVerdict {
+func MayStillSend(createdBy string, canRead bool) SendVerdict {
 	if createdBy == "" {
-		// Refused only on an install that HAS authentication. On one without it
-		// there is nobody to attribute a schedule to, and refusing would break
-		// every schedule that already exists.
-		if isModern {
-			return SendVerdict{OK: false, Reason: ReasonPreAuth}
-		}
-		return SendVerdict{OK: true}
+		// Nobody to hold to it. Sign-in is always required (#165), so a schedule
+		// without a creator predates authentication and is refused.
+		return SendVerdict{OK: false, Reason: ReasonPreAuth}
 	}
 	if canRead {
 		return SendVerdict{OK: true}

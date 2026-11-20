@@ -53,7 +53,9 @@ func activeID(t *testing.T, s *Server) string {
 }
 
 func TestActivateRecordsTheChoice(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := activateServer(t, adminSess, "r-one")
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/routers/r-two/activate", "", authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -83,7 +85,9 @@ func TestActivateRecordsTheChoice(t *testing.T) {
 // arrive back where it started would show a switching overlay and a full
 // reconnect for a button press that changed nothing.
 func TestActivatingTheCurrentRouterChangesNothing(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := activateServer(t, adminSess, "r-one")
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/routers/r-one/activate", "", authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -115,7 +119,9 @@ func TestActivatingTheCurrentRouterChangesNothing(t *testing.T) {
 // AN UNKNOWN ROUTER IS REFUSED — a deliberate divergence from the live route,
 // which accepts the id and fails asynchronously after answering ok.
 func TestActivatingAnUnknownRouterIs404(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := activateServer(t, adminSess, "r-one")
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/routers/r-nope/activate", "", authed)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status %d, want 404 — %s", w.Code, w.Body.String())
@@ -126,7 +132,9 @@ func TestActivatingAnUnknownRouterIs404(t *testing.T) {
 }
 
 func TestActivateIsAudited(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := activateServer(t, adminSess, "r-one")
+	signedInAdmin(t, s, adminSess)
 	if w := doJSON(mux, "POST", "/api/routers/r-two/activate", "", authed); w.Code != 200 {
 		t.Fatalf("status %d", w.Code)
 	}
@@ -150,7 +158,7 @@ func TestActivateIsAudited(t *testing.T) {
 }
 
 func TestActivateRequiresAGlobalAdmin(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "modern", Username: "nobody"}, "r-one")
+	s, mux, _ := activateServer(t, &Session{Username: "nobody"}, "r-one")
 	w := doJSON(mux, "POST", "/api/routers/r-two/activate", "", authed)
 	if w.Code != http.StatusForbidden {
 		t.Errorf("status %d, want 403 — %s", w.Code, w.Body.String())
@@ -161,7 +169,7 @@ func TestActivateRequiresAGlobalAdmin(t *testing.T) {
 }
 
 func TestActivateRequiresASession(t *testing.T) {
-	_, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	_, mux, _ := activateServer(t, &Session{Username: "admin"}, "r-one")
 	if w := doJSON(mux, "POST", "/api/routers/r-two/activate", "", ""); w.Code != http.StatusUnauthorized {
 		t.Errorf("status %d, want 401", w.Code)
 	}
@@ -169,7 +177,9 @@ func TestActivateRequiresASession(t *testing.T) {
 
 // WITH NO ACTIVE ROUTER AT ALL — the first-run case this route exists for.
 func TestActivatingOnAFreshInstall(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := activateServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/routers/r-one/activate", "", authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -183,7 +193,9 @@ func TestActivatingOnAFreshInstall(t *testing.T) {
 // an unrelated setting is not dropped — an activation that reset the operator's
 // thresholds would be a very expensive way to switch routers.
 func TestActivateLeavesOtherSettingsAlone(t *testing.T) {
-	s, mux, dir := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := activateServer(t, adminSess, "r-one")
+	signedInAdmin(t, s, adminSess)
 	const seeded = `{"activeRouterId":"r-one","topN":55,"notifTitle":"Mine",` +
 		`"somethingFuture":"keep me"}`
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(seeded), 0o600); err != nil {
@@ -262,14 +274,16 @@ func followFrames(c *hub.Client) []string {
 }
 
 func TestOnlyTheOldDefaultsPermittedFollowersAreTold(t *testing.T) {
-	s, mux, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "r-one")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := activateServer(t, adminSess, "r-one")
+	signedInAdmin(t, s, adminSess)
 
 	mk := func(name, router string, readable ...string) *conn {
 		c := hub.NewClient(name, 8)
 		s.hub.Add(c)
 		s.hub.Join(c, "router-"+router)
 		s.hub.Join(c, "router-"+router+"-page-dashboard")
-		cn := &conn{srv: s, c: c, sess: &Session{AuthMode: "modern", Readable: readable}, routerID: router}
+		cn := &conn{srv: s, c: c, sess: &Session{Readable: readable}, routerID: router}
 		s.connsMu.Lock()
 		s.conns[c] = cn
 		s.connsMu.Unlock()
@@ -319,10 +333,10 @@ func TestOnlyTheOldDefaultsPermittedFollowersAreTold(t *testing.T) {
 // that treated that as a wildcard would reach every connection that has not
 // picked a router yet, whose routerID is "" too.
 func TestAnEmptyFromTellsNobody(t *testing.T) {
-	s, _, _ := activateServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	s, _, _ := activateServer(t, &Session{Username: "admin"}, "")
 	fresh := hub.NewClient("fresh", 8)
 	s.hub.Add(fresh)
-	blank := &conn{srv: s, c: fresh, sess: &Session{AuthMode: "modern", Readable: []string{"r-one"}}, routerID: ""}
+	blank := &conn{srv: s, c: fresh, sess: &Session{Readable: []string{"r-one"}}, routerID: ""}
 	s.connsMu.Lock()
 	s.conns[fresh] = blank
 	s.connsMu.Unlock()

@@ -297,9 +297,6 @@ func (s *Server) visibleRouters(sess *Session) map[string]bool {
 	if sess == nil {
 		return map[string]bool{} // no session, no routers
 	}
-	if sess.AuthMode == "none" {
-		return nil
-	}
 	if s.rbac == nil || !s.rbac.Available() {
 		return nil // the documented install-wide gap, reported at startup
 	}

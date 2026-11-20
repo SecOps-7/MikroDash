@@ -33,7 +33,7 @@ import (
 // `selectRouter` — and this is that, for pages.
 
 // focusConn is the smallest connection that can answer the question: a hub, a
-// client, and a session that permits everything.
+// client, and a session that reads every page on both routers (readerOf).
 func focusConn(t *testing.T) (*conn, *hub.Client, *hub.Hub) {
 	t.Helper()
 	h := hub.New()
@@ -42,7 +42,7 @@ func focusConn(t *testing.T) (*conn, *hub.Client, *hub.Hub) {
 	return &conn{
 		c:    cl,
 		srv:  &Server{hub: h},
-		sess: &Session{AuthMode: "none", Username: "admin"},
+		sess: readerOf("r1", "r2"),
 	}, cl, h
 }
 
@@ -88,12 +88,14 @@ func TestTheOrdinaryOrderStillJoinsImmediately(t *testing.T) {
 
 // TestARouterSwitchRejoinsThePageAgainstTheNewRouter. The rooms are per router,
 // so the replay is not only about the startup race — it is what carries the
-// operator's current page across a switch.
+// operator's current page across a switch. (`wifi-clients`, the live key: this
+// test named `wireless`, renamed on 2026-09-01, and passed only because sign-in
+// off let any key through.)
 func TestARouterSwitchRejoinsThePageAgainstTheNewRouter(t *testing.T) {
 	cn, cl, h := focusConn(t)
 	cn.routerID = "r1"
-	cn.pageFocus("wireless")
-	if !inRoom(cl, "router-r1-page-wireless") {
+	cn.pageFocus("wifi-clients")
+	if !inRoom(cl, "router-r1-page-wifi-clients") {
 		t.Fatal("the first join did not happen")
 	}
 
@@ -104,10 +106,10 @@ func TestARouterSwitchRejoinsThePageAgainstTheNewRouter(t *testing.T) {
 	cn.routerID = "r2"
 	cn.rejoinPage()
 
-	if !inRoom(cl, "router-r2-page-wireless") {
+	if !inRoom(cl, "router-r2-page-wifi-clients") {
 		t.Errorf("the page was not rejoined against the new router: %v", cl.Rooms())
 	}
-	if inRoom(cl, "router-r1-page-wireless") {
+	if inRoom(cl, "router-r1-page-wifi-clients") {
 		t.Errorf("still in the OLD router's page room: %v", cl.Rooms())
 	}
 }
@@ -117,12 +119,17 @@ func TestARouterSwitchRejoinsThePageAgainstTheNewRouter(t *testing.T) {
 func TestABlurIsNotReplayed(t *testing.T) {
 	cn, cl, _ := focusConn(t)
 	cn.routerID = "r1"
-	cn.pageFocus("wireless")
-	cn.pageBlur("wireless")
+	cn.pageFocus("wifi-clients")
+	// The control: the focus joined, so the refusal below is the blur's doing
+	// and not a page this session could never join.
+	if !inRoom(cl, "router-r1-page-wifi-clients") {
+		t.Fatal("the focus did not join; the check below would pass for nothing")
+	}
+	cn.pageBlur("wifi-clients")
 
 	cn.routerID = "r2"
 	cn.rejoinPage()
-	if inRoom(cl, "router-r2-page-wireless") {
+	if inRoom(cl, "router-r2-page-wifi-clients") {
 		t.Errorf("a page the viewer had left was rejoined: %v", cl.Rooms())
 	}
 }
@@ -134,7 +141,7 @@ func TestABlurForAnotherPageLeavesTheHeldOneAlone(t *testing.T) {
 	cn, cl, h := focusConn(t)
 	cn.routerID = "r1"
 	cn.pageFocus("dashboard")
-	cn.pageBlur("wireless") // some other page's blur, arriving late
+	cn.pageBlur("wifi-clients") // some other page's blur, arriving late
 
 	for _, room := range cl.Rooms() {
 		h.Leave(cl, room)

@@ -6,7 +6,6 @@
   ],
   "viewerFields": [
     "activeRouterId",
-    "authMode",
     "displayTimezone",
     "historyMinutes",
     "maxConns",
@@ -54,7 +53,6 @@
         "routerUser": "admin",
         "routerPass": "",
         "defaultIf": "ether1",
-        "authMode": "modern",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "1.1.1.1",
         "pollConns": 5000,
@@ -128,7 +126,6 @@
         "displayTimezone": ""
       },
       "viewer": {
-        "authMode": "modern",
         "pingTarget": "1.1.1.1",
         "topN": 5,
         "topTalkersN": 5,
@@ -179,7 +176,6 @@
         "routerUser": "admin",
         "routerPass": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
         "defaultIf": "ether1",
-        "authMode": "modern",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "1.1.1.1",
         "pollConns": 5000,
@@ -253,7 +249,6 @@
         "displayTimezone": ""
       },
       "viewer": {
-        "authMode": "modern",
         "pingTarget": "1.1.1.1",
         "topN": 5,
         "topTalkersN": 5,
@@ -304,7 +299,6 @@
         "routerUser": "admin",
         "routerPass": "",
         "defaultIf": "ether1",
-        "authMode": "modern",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "1.1.1.1",
         "pollConns": 5000,
@@ -378,7 +372,6 @@
         "displayTimezone": ""
       },
       "viewer": {
-        "authMode": "modern",
         "pingTarget": "1.1.1.1",
         "topN": 5,
         "topTalkersN": 5,
@@ -429,7 +422,6 @@
         "routerUser": "admin",
         "routerPass": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
         "defaultIf": "ether1",
-        "authMode": "modern",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "1.1.1.1",
         "pollConns": 5000,
@@ -503,7 +495,6 @@
         "displayTimezone": ""
       },
       "viewer": {
-        "authMode": "modern",
         "pingTarget": "1.1.1.1",
         "topN": 5,
         "topTalkersN": 5,
@@ -558,7 +549,6 @@
         "routerUser": "not-a-real-user",
         "routerPass": "",
         "defaultIf": "ether1",
-        "authMode": "local",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "1.1.1.1",
         "pollConns": 5000,
@@ -632,7 +622,6 @@
         "displayTimezone": ""
       },
       "viewer": {
-        "authMode": "local",
         "pingTarget": "1.1.1.1",
         "topN": 5,
         "topTalkersN": 5,
@@ -691,7 +680,6 @@
         "routerUser": "admin",
         "routerPass": "",
         "defaultIf": "ether1",
-        "authMode": "modern",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "198.51.100.9",
         "pollConns": 5000,
@@ -765,7 +753,6 @@
         "displayTimezone": "Europe/Berlin"
       },
       "viewer": {
-        "authMode": "modern",
         "pingTarget": "198.51.100.9",
         "topN": 25,
         "topTalkersN": 5,
@@ -816,7 +803,6 @@
         "routerUser": "admin",
         "routerPass": "",
         "defaultIf": "ether1",
-        "authMode": "modern",
         "sessionTimeoutMs": 3600000,
         "pingTarget": "1.1.1.1",
         "pollConns": 5000,
@@ -890,7 +876,6 @@
         "displayTimezone": ""
       },
       "viewer": {
-        "authMode": "modern",
         "pingTarget": "1.1.1.1",
         "topN": 5,
         "topTalkersN": 5,

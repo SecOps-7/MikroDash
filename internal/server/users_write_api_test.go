@@ -180,7 +180,9 @@ func TestUserCreateValidatesBeforeWriting(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.why, func(t *testing.T) {
-			_, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+			adminSess := &Session{Username: "alice"}
+			adminSrv, mux, dir := usersWriteServer(t, adminSess, seedUsersJSON)
+			signedInAdmin(t, adminSrv, adminSess)
 			w := doJSON(mux, "POST", "/api/users", c.body, authed)
 			if w.Code != c.want {
 				t.Errorf("status %d, want %d — body %s", w.Code, c.want, w.Body.String())
@@ -214,7 +216,9 @@ func TestUserCreateProjectsGrantsOnlyWhenTheLegacyFieldsAreSent(t *testing.T) {
 		{"allowedRouterIds sent — projected", `{"username":"carol","password":"longenough","allowedRouterIds":[]}`, true},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+			adminSess := &Session{Username: "alice"}
+			s, mux, _ := usersWriteServer(t, adminSess, seedUsersJSON)
+			signedInAdmin(t, s, adminSess)
 			w := doJSON(mux, "POST", "/api/users", c.body, authed)
 			if w.Code != 200 {
 				t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -242,7 +246,9 @@ func TestUserCreateProjectsGrantsOnlyWhenTheLegacyFieldsAreSent(t *testing.T) {
 }
 
 func TestUserCreateNeverReturnsTheCredential(t *testing.T) {
-	_, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	adminSrv, mux, _ := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "POST", "/api/users", `{"username":"carol","password":"longenough"}`, authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -293,7 +299,9 @@ func TestUserUpdateStatuses(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.why, func(t *testing.T) {
-			_, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+			adminSess := &Session{Username: "alice"}
+			adminSrv, mux, dir := usersWriteServer(t, adminSess, seedUsersJSON)
+			signedInAdmin(t, adminSrv, adminSess)
 			w := doJSON(mux, "PUT", "/api/users/"+c.id, c.body, authed)
 			if w.Code != c.want {
 				t.Errorf("status %d, want %d — %s", w.Code, c.want, w.Body.String())
@@ -320,7 +328,9 @@ func TestUserUpdateStatuses(t *testing.T) {
 // The seed gives u-1 two grants and u-2 one. Renaming u-2 must leave its grant
 // exactly where it was.
 func TestARenameDoesNotDestroyGrants(t *testing.T) {
-	s, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	s, mux, _ := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, s, adminSess)
 	before := grantCount(t, s, "u-2")
 	if before == 0 {
 		t.Fatal("the fixture gives u-2 no grants, so this test cannot observe them being lost")
@@ -341,7 +351,9 @@ func TestARenameDoesNotDestroyGrants(t *testing.T) {
 // ── DELETE /api/users/:id ──────────────────────────────────────────────────
 
 func TestUserDeleteRefusesYourOwnAccount(t *testing.T) {
-	s, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "alice"}, seedUsersJSON)
+	alice := &Session{Username: "alice"}
+	s, mux, dir := usersWriteServer(t, alice, seedUsersJSON)
+	signedInAdmin(t, s, alice)
 	// `userIDFor` resolves the session's username to an id; alice is u-1.
 	if got := s.userIDFor("alice"); got != "u-1" {
 		t.Fatalf("the fixture does not resolve alice to u-1 (got %q), so this test would pass "+
@@ -365,7 +377,9 @@ func TestUserDeleteRefusesYourOwnAccount(t *testing.T) {
 }
 
 func TestUserDeleteRemovesTheAccountAndItsRows(t *testing.T) {
-	s, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	s, mux, dir := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, s, adminSess)
 
 	// A notification config and a layout, so the cascade has something to clear.
 	if err := s.auditDB.SetLayout("u-2", "dashboard", map[string]any{"cards": []any{}}); err != nil {
@@ -399,7 +413,9 @@ func TestUserDeleteRemovesTheAccountAndItsRows(t *testing.T) {
 }
 
 func TestUserDeleteUnknownIdIs404(t *testing.T) {
-	_, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	adminSrv, mux, _ := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "DELETE", "/api/users/u-nope", "", authed)
 	if w.Code != 404 {
 		t.Errorf("status %d, want 404 — %s", w.Code, w.Body.String())
@@ -422,7 +438,7 @@ func TestUserWriteRoutesRequireGlobalAdmin(t *testing.T) {
 		t.Run(c.method, func(t *testing.T) {
 			// `AuthMode: "modern"` with no rbac resolver: `isGlobalAdmin` returns
 			// false, which is the fail-closed answer.
-			_, mux, dir := usersWriteServer(t, &Session{AuthMode: "modern", Username: "nobody"},
+			_, mux, dir := usersWriteServer(t, &Session{Username: "nobody"},
 				seedUsersJSON)
 			w := doJSON(mux, c.method, c.path, c.body, authed)
 			if w.Code != http.StatusForbidden {
@@ -436,7 +452,7 @@ func TestUserWriteRoutesRequireGlobalAdmin(t *testing.T) {
 }
 
 func TestUserWriteRoutesRequireASession(t *testing.T) {
-	_, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	_, mux, _ := usersWriteServer(t, &Session{Username: "admin"}, seedUsersJSON)
 	w := doJSON(mux, "POST", "/api/users", `{"username":"carol","password":"longenough"}`, "")
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status %d, want 401 — %s", w.Code, w.Body.String())
@@ -455,7 +471,9 @@ func TestUserWriteRoutesRequireASession(t *testing.T) {
 // else, so neither the own-account rule nor a second admin can account for the
 // refusal.
 func TestUserDeleteRefusesTheLastAdministrator(t *testing.T) {
-	s, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	s, mux, dir := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, s, adminSess)
 
 	// Leave u-2 as the ONLY global administrator.
 	if _, err := s.auditDB.DeleteGrantsForPrincipal("user", "u-1"); err != nil {
@@ -508,7 +526,9 @@ func TestUserDeleteRefusesTheLastAdministrator(t *testing.T) {
 // DIFFERENT hole from the delete route's — nobody is removed, and the account
 // still exists; it simply stops conferring administration.
 func TestUserUpdateRefusesDemotingTheLastAdministrator(t *testing.T) {
-	s, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	s, mux, _ := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, s, adminSess)
 
 	// Leave u-2 as the ONLY global administrator.
 	if _, err := s.auditDB.DeleteGrantsForPrincipal("user", "u-1"); err != nil {
@@ -566,7 +586,9 @@ func TestUserUpdateRefusesDemotingTheLastAdministrator(t *testing.T) {
 // Found by mutation: swapping the projection probe for a delete probe survived
 // the suite until this existed.
 func TestUserUpdateAllowsRegrantingTheLastAdministrator(t *testing.T) {
-	s, mux, _ := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+	adminSess := &Session{Username: "alice"}
+	s, mux, _ := usersWriteServer(t, adminSess, seedUsersJSON)
+	signedInAdmin(t, s, adminSess)
 
 	// u-1, NOT u-2, and the difference is the whole test. u-2 carries
 	// `allowedRouterIds: ["r1"]`, so projecting `role: admin` over it builds a
@@ -624,7 +646,7 @@ func TestARefusedUsernameDoesNotRenameTheAccount(t *testing.T) {
 		{"a bool", `{"username":true}`},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			_, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "admin"}, seedUsersJSON)
+			_, mux, dir := usersWriteServer(t, &Session{Username: "admin"}, seedUsersJSON)
 
 			before := usernameOf(t, dir, "u-2")
 			if before == "" {
@@ -669,7 +691,9 @@ func usernameOf(t *testing.T, dir, id string) string {
 // herself and be authorised as alice. A rename also skipped the taken check,
 // which is how two such names come to exist (review loop, Medium 1).
 func TestOneUsernameRuleEverywhere(t *testing.T) {
-	s, mux, dir := usersWriteServer(t, &Session{AuthMode: "none", Username: "alice"}, seedUsersJSON)
+	alice := &Session{Username: "alice"}
+	s, mux, dir := usersWriteServer(t, alice, seedUsersJSON)
+	signedInAdmin(t, s, alice)
 
 	if id := s.userIDFor("Alice"); id != "" {
 		t.Errorf(`userIDFor("Alice") = %q; login would refuse that name, so no id may answer for it`, id)

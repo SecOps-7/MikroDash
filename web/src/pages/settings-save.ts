@@ -169,16 +169,6 @@ export function collectSettingsForm(
     out[key] = input.value;
   }
 
-  // ── THE ONE ID THAT IS NOT `s_<key>` ──────────────────────────────────────
-  //
-  // The control is `s_authEnabled`; the setting is `authMode`, a two-valued
-  // string. `populateSettings` sets the box from `authModeOf(data)` - it did not
-  // until 0.8.15, and collecting an unpopulated box would have posted
-  // `authMode: 'none'` and switched sign-in off for the whole install on the
-  // first Save from any tab.
-  const auth = el<HTMLInputElement>('s_authEnabled');
-  if (auth) out.authMode = auth.checked ? 'modern' : 'none';
-
   // ── THE POLL SLIDERS ──────────────────────────────────────────────────────
   //
   // Built at runtime into `#pollSlidersWrap`, so they are absent from the form

@@ -633,9 +633,6 @@ func (s *Server) mayManageRouter(sess *Session, routerID string) bool {
 	if sess == nil || routerID == "" {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if s.rbac == nil || !s.rbac.Available() {
 		return false // editing a router is not in the class of things that fail open
 	}
@@ -651,9 +648,6 @@ func (s *Server) mayManageRouter(sess *Session, routerID string) bool {
 func (s *Server) mayManagePrincipals(sess *Session) bool {
 	if sess == nil {
 		return false
-	}
-	if sess.AuthMode == "none" {
-		return true
 	}
 	if s.rbac == nil || !s.rbac.Available() {
 		return false

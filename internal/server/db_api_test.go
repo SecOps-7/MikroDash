@@ -59,12 +59,23 @@ INSERT INTO traffic_hourly (router_id, ts) VALUES ('rtr-1', 1699827200000);
 func dbAdminServer(t *testing.T, sess *Session) (*Server, *http.ServeMux, string) {
 	t.Helper()
 	s, mux, dir := usersWriteServer(t, sess, seedUsersJSON, dbAdminDDL)
+	// The two routers the history rows above belong to. A permission is
+	// granted on a router the store holds, so without them even an
+	// administrator could neither count nor purge their rows.
+	if err := os.WriteFile(filepath.Join(dir, "routers.json"), []byte(`[
+  {"id":"rtr-1","label":"One","host":"198.51.100.1","port":8728,"username":"u","password":""},
+  {"id":"rtr-2","label":"Two","host":"198.51.100.2","port":8728,"username":"u","password":""}
+]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	s.registerDBAdmin(mux)
 	return s, mux, dir
 }
 
 func TestDBStatsReportsTheHistory(t *testing.T) {
-	_, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := dbAdminServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "GET", "/api/db/stats", "", authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -141,7 +152,9 @@ func TestPurgeRefusalsMatchTheLiveRoute(t *testing.T) {
 		{"an empty string age is zero, not NaN", `{"olderThanDays":"","dryRun":true}`, 200, ""},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux, _ := dbAdminServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			before := historyRowCount(t, s)
 			w := doJSON(mux, "POST", "/api/db/purge", c.body, authed)
 			if w.Code != c.want {
@@ -182,7 +195,9 @@ func TestTheDryRunPreviewMatchesTheDelete(t *testing.T) {
 		`{"routerId":"rtr-2","olderThanDays":0,"types":["events"]}`,
 	} {
 		t.Run(body, func(t *testing.T) {
-			_, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			adminSrv, mux, _ := dbAdminServer(t, adminSess)
+			signedInAdmin(t, adminSrv, adminSess)
 
 			dry := doJSON(mux, "POST", "/api/db/purge",
 				body[:len(body)-1]+`,"dryRun":true}`, authed)
@@ -237,12 +252,21 @@ func TestTheDryRunPreviewMatchesTheDelete(t *testing.T) {
 // because it fails for a different reason: it catches a route reporting numbers
 // it did not take from `before`.
 func TestAPurgeThatMatchedNothingDoesNotVacuum(t *testing.T) {
-	s, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := dbAdminServer(t, adminSess)
+	// A router that exists and has no history: a purge needs a router the
+	// administrator holds a permission on, and this one matches no rows.
+	if err := os.WriteFile(filepath.Join(dir, "routers.json"), []byte(`[
+  {"id":"rtr-empty","label":"Empty","host":"198.51.100.3","port":8728,"username":"u","password":""}
+]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	signedInAdmin(t, s, adminSess)
 	if n := s.auditDB.VacuumCountForTest(); n != 0 {
 		t.Fatalf("the fixture had already vacuumed %d time(s)", n)
 	}
 
-	w := doJSON(mux, "POST", "/api/db/purge", `{"routerId":"rtr-nope","olderThanDays":0}`, authed)
+	w := doJSON(mux, "POST", "/api/db/purge", `{"routerId":"rtr-empty","olderThanDays":0}`, authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
@@ -268,7 +292,9 @@ func TestAPurgeThatMatchedNothingDoesNotVacuum(t *testing.T) {
 // And the other direction, so the pair cannot both be satisfied by a route that
 // never vacuums at all — which is what a one-sided assertion above would allow.
 func TestAPurgeThatDeletedRowsDoesVacuum(t *testing.T) {
-	s, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := dbAdminServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/db/purge", `{"olderThanDays":0}`, authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -285,7 +311,9 @@ func TestAPurgeThatDeletedRowsDoesVacuum(t *testing.T) {
 // and is told nothing matched — a silent no-op on the one screen where a silent
 // no-op is worst.
 func TestAWhitespaceRouterIdMeansAllRouters(t *testing.T) {
-	_, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := dbAdminServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "POST", "/api/db/purge", `{"routerId":"   ","olderThanDays":0,"dryRun":true}`, authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -318,7 +346,9 @@ func TestAWhitespaceRouterIdMeansAllRouters(t *testing.T) {
 
 // TestThePurgeIsAudited — and the row outlives the purge it describes.
 func TestThePurgeIsAudited(t *testing.T) {
-	s, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := dbAdminServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/db/purge", `{"olderThanDays":0}`, authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -355,7 +385,7 @@ func TestDBRoutesRequireGlobalAdmin(t *testing.T) {
 		{"POST", "/api/db/purge", `{"olderThanDays":0}`},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
-			s, mux, _ := dbAdminServer(t, &Session{AuthMode: "modern", Username: "nobody"})
+			s, mux, _ := dbAdminServer(t, &Session{Username: "nobody"})
 			before := historyRowCount(t, s)
 			w := doJSON(mux, c.method, c.path, c.body, authed)
 			if w.Code != http.StatusForbidden {
@@ -369,7 +399,7 @@ func TestDBRoutesRequireGlobalAdmin(t *testing.T) {
 }
 
 func TestDBRoutesRequireASession(t *testing.T) {
-	_, mux, _ := dbAdminServer(t, &Session{AuthMode: "none", Username: "admin"})
+	_, mux, _ := dbAdminServer(t, &Session{Username: "admin"})
 	w := doJSON(mux, "GET", "/api/db/stats", "", "")
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status %d, want 401 — %s", w.Code, w.Body.String())
@@ -416,7 +446,7 @@ func TestPurgeOptsMatchTheLiveRoute(t *testing.T) {
 			refused, len(corpus.Options))
 	}
 
-	sess := &Session{AuthMode: "none", Username: "admin"}
+	sess := &Session{Username: "admin"}
 	replayed := 0
 	for _, c := range corpus.Options {
 		// ONLY THE CASES THIS HARNESS CAN DRIVE. A case whose permissions decide

@@ -55,7 +55,7 @@ func (s *Server) devicesOverview(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusUnauthorized, "not signed in")
 		return
 	}
-	if sess.AuthMode != "none" && !sessionHasPage(sess, "devices") {
+	if !sessionHasPage(sess, "devices") {
 		writeJSONErr(w, http.StatusForbidden, "no access to the Devices page")
 		return
 	}
@@ -156,12 +156,9 @@ func overviewWindow(r *http.Request, now int64) (int64, int64) {
 }
 
 // backupsReadable is the routers on which this viewer may read backups, for the
-// whole fleet in one resolution. The key "" means "every router": an install
-// with sign-in off, or RBAC not yet available (the documented gap).
+// whole fleet in one resolution. The key "" means "every router": RBAC not yet
+// available (the documented gap).
 func (s *Server) backupsReadable(sess *Session) (map[string]bool, error) {
-	if sess.AuthMode == "none" {
-		return map[string]bool{"": true}, nil
-	}
 	if !sessionHasPage(sess, "backups") {
 		return map[string]bool{}, nil
 	}

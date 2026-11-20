@@ -241,7 +241,7 @@ const authed = "mikrodash_sid=tok"
 
 // TestBothRoutesAreRegistered.
 func TestBothRoutesAreRegistered(t *testing.T) {
-	_, mux, _ := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, _ := alertServer(t, &Session{})
 	for _, tc := range []struct{ method, path string }{
 		{"POST", "/api/alerts/7/ack"},
 		{"POST", "/api/alerts/clear-all"},
@@ -263,7 +263,7 @@ func TestBothRoutesAreRegistered(t *testing.T) {
 
 // TestAnAnonymousCallerIsRefused. Neither route is reachable without a session.
 func TestAnAnonymousCallerIsRefused(t *testing.T) {
-	_, mux, ids := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, ids := alertServer(t, &Session{})
 	for _, tc := range []struct{ path, body string }{
 		{"/api/alerts/" + itoa64(ids["open-a"]) + "/ack", ""},
 		{"/api/alerts/clear-all", `{"routerId":"r1"}`},
@@ -276,7 +276,7 @@ func TestAnAnonymousCallerIsRefused(t *testing.T) {
 
 // TestAckAcknowledgesAndBroadcasts.
 func TestAckAcknowledgesAndBroadcasts(t *testing.T) {
-	s, mux, ids := alertServer(t, &Session{AuthMode: "none", Username: "alice"})
+	s, mux, ids := alertServer(t, &Session{Username: "alice"})
 
 	w := alertPost(mux, "/api/alerts/"+itoa64(ids["open-a"])+"/ack", "", authed)
 	if w.Code != http.StatusOK {
@@ -328,7 +328,7 @@ func TestAckAcknowledgesAndBroadcasts(t *testing.T) {
 // `_r.label || _r.host`: a router nobody named renders as its address rather
 // than as an empty name in the bell.
 func TestAnUnlabelledRouterShowsItsHost(t *testing.T) {
-	s, _, _ := alertServer(t, &Session{AuthMode: "none"})
+	s, _, _ := alertServer(t, &Session{})
 	if got := s.routerNames("r2")["r2"]; got != "198.51.100.2" {
 		t.Errorf("routerNames(r2) = %q, want the host", got)
 	}
@@ -343,7 +343,7 @@ func TestAnUnlabelledRouterShowsItsHost(t *testing.T) {
 // TestAckRejectsABadId. Zero, negative and trailing garbage never reach the
 // store: the live route runs `parseInt` then `Number.isFinite(id) && id > 0`.
 func TestAckRejectsABadId(t *testing.T) {
-	_, mux, _ := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, _ := alertServer(t, &Session{})
 	for _, id := range []string{"0", "-1", "abc", "1x", ""} {
 		w := alertPost(mux, "/api/alerts/"+id+"/ack", "", authed)
 		if id == "" {
@@ -366,7 +366,7 @@ func TestAckRejectsABadId(t *testing.T) {
 
 // TestAckOnAnUnknownAlertIs404.
 func TestAckOnAnUnknownAlertIs404(t *testing.T) {
-	_, mux, ids := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, ids := alertServer(t, &Session{})
 	var max int64
 	for _, v := range ids {
 		if v > max {
@@ -388,7 +388,7 @@ func TestAckOnAnUnknownAlertIs404(t *testing.T) {
 // still an attempt, and the trail is the only place it appears. So a caller
 // cannot make a write vanish from the audit by racing it.
 func TestBothWritesAreRecorded(t *testing.T) {
-	s, mux, ids := alertServer(t, &Session{AuthMode: "none", Username: "alice"})
+	s, mux, ids := alertServer(t, &Session{Username: "alice"})
 
 	if w := alertPost(mux, "/api/alerts/"+itoa64(ids["open-a"])+"/ack", "", authed); w.Code != 200 {
 		t.Fatalf("ack: %d %s", w.Code, w.Body.String())
@@ -433,7 +433,7 @@ func TestBothWritesAreRecorded(t *testing.T) {
 // The router id is the ONLY thing scoping this write, so a route that dropped it
 // would clear the whole fleet from one button.
 func TestClearAllResolvesOnlyItsOwnRouter(t *testing.T) {
-	s, mux, _ := alertServer(t, &Session{AuthMode: "none", Username: "eve"})
+	s, mux, _ := alertServer(t, &Session{Username: "eve"})
 
 	w := alertPost(mux, "/api/alerts/clear-all", `{"routerId":"r1"}`, authed)
 	if w.Code != http.StatusOK {
@@ -475,7 +475,7 @@ func TestClearAllResolvesOnlyItsOwnRouter(t *testing.T) {
 // is refused before RBAC or the store sees it — and an ABSENT one is refused the
 // same way, because `String((req.body && req.body.routerId) || ”)` gives "".
 func TestClearAllRejectsARouterIdItCannotTrust(t *testing.T) {
-	_, mux, _ := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, _ := alertServer(t, &Session{})
 	for _, body := range []string{
 		`{}`, `{"routerId":""}`, `{"routerId":"../r1"}`, `{"routerId":"r1 r2"}`,
 		`{"routerId":"r1'"}`, `{"routerId":null}`, ``, `not json`,
@@ -497,7 +497,7 @@ func TestClearAllRejectsARouterIdItCannotTrust(t *testing.T) {
 // TestTheLimiterIsRegistered — 120/minute, on the MUX rather than on a limiter
 // this test built.
 func TestTheLimiterIsRegistered(t *testing.T) {
-	_, mux, _ := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, _ := alertServer(t, &Session{})
 	last := 0
 	for i := 1; i <= 130; i++ {
 		last = alertPost(mux, "/api/alerts/clear-all", `{"routerId":"r1"}`, authed).Code
@@ -517,12 +517,12 @@ func TestMayAckShortCircuits(t *testing.T) {
 	if s.mayAck(nil, "r1") {
 		t.Error("a nil session was permitted")
 	}
-	if !s.mayAck(&Session{AuthMode: "none"}, "r1") {
+	if !s.mayAck(&Session{}, "r1") {
 		t.Error("auth mode none was refused -- there is no identity to grant anything to")
 	}
 	// No resolver: the documented install-wide gap, reported at startup. A silent
 	// refusal here would lock every operator out of their own bell.
-	if !s.mayAck(&Session{AuthMode: "modern", Username: "bob"}, "r1") {
+	if !s.mayAck(&Session{Username: "bob"}, "r1") {
 		t.Error("a missing RBAC resolver became a per-request refusal")
 	}
 }
@@ -604,7 +604,7 @@ const breakTheRoleGraph = `DROP TABLE role_pages`
 // only.
 func scopedAlertServer(t *testing.T) (*Server, *http.ServeMux, map[string]int64, string) {
 	t.Helper()
-	s, mux, ids, dir := alertServerIn(t, &Session{AuthMode: "modern", Username: "carol"})
+	s, mux, ids, dir := alertServerIn(t, &Session{Username: "carol"})
 
 	if err := execOn(t, dir, alertRbacDDL); err != nil {
 		t.Fatalf("rbac schema: %v", err)
@@ -685,7 +685,7 @@ func TestAResolverErrorIsNotAPermission(t *testing.T) {
 	if err := execOn(t, dir, breakTheRoleGraph); err != nil {
 		t.Fatal(err)
 	}
-	if s.mayAck(&Session{AuthMode: "modern", Username: "carol"}, "r1") {
+	if s.mayAck(&Session{Username: "carol"}, "r1") {
 		t.Error("a resolver error granted the permission")
 	}
 }
@@ -696,7 +696,7 @@ func TestAResolverErrorIsNotAPermission(t *testing.T) {
 // but "everyone on that router" is not "everyone". A broadcast to the wrong room
 // tells browsers watching a different router to mark an alert they cannot see.
 func TestAckBroadcastsToItsOwnRouterOnly(t *testing.T) {
-	s, mux, ids := alertServer(t, &Session{AuthMode: "none", Username: "alice"})
+	s, mux, ids := alertServer(t, &Session{Username: "alice"})
 
 	watcher := hub.NewClient("w1", 8)
 	other := hub.NewClient("w2", 8)
@@ -730,7 +730,7 @@ func TestAckBroadcastsToItsOwnRouterOnly(t *testing.T) {
 // an `alerts:cleared-all` with no ids is indistinguishable at the receiver from
 // one whose ids it does not hold.
 func TestClearAllIsSilentWhenNothingChanged(t *testing.T) {
-	s, mux, _ := alertServer(t, &Session{AuthMode: "none", Username: "eve"})
+	s, mux, _ := alertServer(t, &Session{Username: "eve"})
 
 	watcher := hub.NewClient("w1", 8)
 	s.hub.Add(watcher)
@@ -764,7 +764,7 @@ func TestClearAllIsSilentWhenNothingChanged(t *testing.T) {
 // trail. (The 404 AFTER the write is a different case and IS recorded: by then
 // the caller has passed the scope check on a real router.)
 func TestAnUnknownAlertRecordsNothing(t *testing.T) {
-	s, mux, ids := alertServer(t, &Session{AuthMode: "none", Username: "alice"})
+	s, mux, ids := alertServer(t, &Session{Username: "alice"})
 	var max int64
 	for _, v := range ids {
 		if v > max {
@@ -791,7 +791,7 @@ func TestAnUnknownAlertRecordsNothing(t *testing.T) {
 // answer 401 with TWO JSON objects concatenated — which still reads as 401 to a
 // status check, and breaks any client that parses the body.
 func TestARefusedRequestAnswersOnce(t *testing.T) {
-	_, mux, ids := alertServer(t, &Session{AuthMode: "none"})
+	_, mux, ids := alertServer(t, &Session{})
 	w := alertPost(mux, "/api/alerts/"+itoa64(ids["open-a"])+"/ack", "", "")
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status %d", w.Code)
@@ -814,7 +814,7 @@ func TestARefusedRequestAnswersOnce(t *testing.T) {
 // broadcasting it would reset the panel of everybody else already on that
 // router, discarding any alert they had acknowledged since their own connect.
 func TestSendOpenAlertsCarriesBothFeeds(t *testing.T) {
-	s, _, _, dir := alertServerIn(t, &Session{AuthMode: "none"})
+	s, _, _, dir := alertServerIn(t, &Session{})
 
 	// ── THE FIXTURE IS BUILT FOR THE THINGS THAT CAN GO WRONG ────────────────
 	//
@@ -842,7 +842,7 @@ func TestSendOpenAlertsCarriesBothFeeds(t *testing.T) {
 	s.hub.Join(me, "router-r2")
 	s.hub.Join(other, "router-r2")
 
-	cn := &conn{srv: s, c: me, sess: &Session{AuthMode: "none"}}
+	cn := &conn{srv: s, c: me, sess: &Session{}}
 	cn.sendOpenAlerts("r2")
 
 	select {
@@ -927,7 +927,7 @@ func TestSendOpenAlertsCarriesBothFeeds(t *testing.T) {
 // Two properties, two fixtures. The limit needs more rows than the cap; the
 // window needs fewer, so the old row is visible when it should not be.
 func TestTheRecentWindowIsTwentyFourHours(t *testing.T) {
-	s, _, _, dir := alertServerIn(t, &Session{AuthMode: "none"})
+	s, _, _, dir := alertServerIn(t, &Session{})
 
 	now := time.Now().UnixMilli()
 	day := int64(24 * 3600 * 1000)
@@ -940,7 +940,7 @@ func TestTheRecentWindowIsTwentyFourHours(t *testing.T) {
 
 	me := hub.NewClient("me", 8)
 	s.hub.Add(me)
-	cn := &conn{srv: s, c: me, sess: &Session{AuthMode: "none"}}
+	cn := &conn{srv: s, c: me, sess: &Session{}}
 	cn.sendOpenAlerts("r2")
 
 	var env struct {
@@ -1036,12 +1036,12 @@ func TestTheConnectEmitNamesTheRouterBeingJoined(t *testing.T) {
 // it would turn a cosmetic problem into an unusable app, which is why the live
 // side wraps this in try/catch and warns.
 func TestSendOpenAlertsSurvivesAnUnreadableTable(t *testing.T) {
-	s, _, _ := alertServer(t, &Session{AuthMode: "none"})
+	s, _, _ := alertServer(t, &Session{})
 	me := hub.NewClient("me", 8)
 	s.hub.Add(me)
 
 	// No store at all is the same shape as an unopenable one.
-	cn := &conn{srv: &Server{hub: s.hub}, c: me, sess: &Session{AuthMode: "none"}}
+	cn := &conn{srv: &Server{hub: s.hub}, c: me, sess: &Session{}}
 	cn.sendOpenAlerts("r1") // must not panic
 
 	select {

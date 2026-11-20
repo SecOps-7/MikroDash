@@ -117,7 +117,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 	if row.CreatedBy != nil {
 		createdBy = *row.CreatedBy
 	}
-	if v := reports.MayStillSend(createdBy, isModernSession(sess), s.creatorMayRead(createdBy, row.RouterID)); !v.OK {
+	if v := reports.MayStillSend(createdBy, s.creatorMayRead(createdBy, row.RouterID)); !v.OK {
 		return s.disableAndSkip(&res, row, v.Reason)
 	}
 
@@ -406,16 +406,6 @@ func (s *Server) routerExists(routerID string) (string, bool) {
 		}
 	}
 	return routerID, false
-}
-
-// isModernSession is the live `_authMode() === 'modern'`.
-//
-// A manual "Send now" carries a session. The scheduled tick has none, and it
-// answers TRUE: every session this process mints is modern (localSession), so
-// the install is, and true is also the STRICT answer, the one that disables a
-// schedule with no creator rather than letting it keep mailing.
-func isModernSession(sess *Session) bool {
-	return sess == nil || sess.AuthMode == "modern"
 }
 
 // runSource is how a run is recorded: "manual" for "Send now", the column's

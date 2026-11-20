@@ -85,8 +85,7 @@ func connFor(t *testing.T, resolver *rbac.Resolver, routerID string) *conn {
 		// and these cases are about the grant graph, not about that.
 		srv: &Server{rbac: resolver, auditDB: rbacTestDB(t)},
 		sess: &Session{
-			Username: "someone", AuthMode: "modern",
-			Pages:    map[string]string{"dns": "write"},
+			Username: "someone", Pages: map[string]string{"dns": "write"},
 			Readable: []string{"r-A", "r-B"},
 		},
 		routerID: routerID,
@@ -133,25 +132,20 @@ func TestCanPageRespectsReadableRouters(t *testing.T) {
 	}
 }
 
-// TestAuthModeNoneShortCircuits mirrors rbac.js's `if (!_isModern()) return true`
-// FOR READS. In 'none' mode there is no identity, no grant graph and no user id,
-// so gating a read on any of them would lock out an install that has deliberately
-// disabled auth.
-//
-// A ROUTER WRITE IS REFUSED THERE (#97). With no identity it could not be
-// attributed, and anyone reaching the page could change the router. This test
-// asserted the opposite until then; the contract changed on purpose.
-func TestAuthModeNoneShortCircuits(t *testing.T) {
+// TestNoIdentityReadsNothing is what sign-in-off's session looked like (no
+// pages, no routers, no user id), and it used to short-circuit to "read
+// anything". Sign-in is always required now (#165): such a session is no one,
+// and the gate answers no to a read as well as a write.
+func TestNoIdentityReadsNothing(t *testing.T) {
 	cn := connFor(t, testResolver(t), "r-B")
-	cn.sess.AuthMode = "none"
 	cn.sess.Pages = map[string]string{}
 	cn.sess.Readable = nil
 	cn.userID = ""
-	if !cn.canPage("dns", "read") {
-		t.Error("'none' auth mode gated a read; viewing stays open without sign-in")
+	if cn.canPage("dns", "read") {
+		t.Error("a session with no identity and no grants was allowed a read")
 	}
 	if cn.canPage("dns", "write") {
-		t.Error("'none' auth mode allowed a router write; writes need sign-in")
+		t.Error("a session with no identity and no grants was allowed a write")
 	}
 }
 
@@ -167,8 +161,7 @@ func TestUnavailableResolverFallsBackToTheUnion(t *testing.T) {
 	cn := &conn{
 		srv: &Server{}, // no resolver
 		sess: &Session{
-			Username: "someone", AuthMode: "modern",
-			Pages:    map[string]string{"dns": "write"},
+			Username: "someone", Pages: map[string]string{"dns": "write"},
 			Readable: []string{"r-B"},
 		},
 		routerID: "r-B",

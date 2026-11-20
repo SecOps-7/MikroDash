@@ -215,7 +215,6 @@
   ],
   "specialCases": [
     "hiddenAreas",
-    "authMode",
     "customPollProfile",
     "displayTimezone",
     "notifBody",

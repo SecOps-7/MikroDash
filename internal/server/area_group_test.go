@@ -151,7 +151,7 @@ func TestARouterSwitchDuringAGroupReadIsSurvived(t *testing.T) {
 		<-release
 		return []routeros.Reply{{".id": "*1", "list": "blocklist", "address": "198.51.100.7"}}, nil
 	})
-	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{AuthMode: "none"}, routerID: "r-A", rsession: rs}
+	cn := &conn{srv: &Server{hub: h}, c: me, sess: readerOf("r-A"), routerID: "r-A", rsession: rs}
 
 	// THE WINDOW: the worker has started but not yet asked the router. It is
 	// held there on the group cache's lock (taken before the read), the switch

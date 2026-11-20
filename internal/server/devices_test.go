@@ -31,7 +31,7 @@ func devicesServer(t *testing.T) *Server {
 func devicesConn(s *Server, id string) *conn {
 	c := hub.NewClient(id, 8)
 	s.hub.Add(c)
-	return &conn{srv: s, c: c, sess: &Session{AuthMode: "none"}}
+	return &conn{srv: s, c: c, sess: &Session{}}
 }
 
 // TestThePoolResumesOnTheFirstWatcherAndSuspendsOnTheLast.
@@ -109,7 +109,7 @@ func TestTheStatsPayloadIsBuiltPerViewer(t *testing.T) {
 	// AuthMode "none" is unrestricted: nil, NOT an empty map. Empty would mean
 	// "may read nothing", and getting these the same way round is the difference
 	// between a locked-down user seeing everything and an admin seeing nothing.
-	if v := s.visibleRouters(&Session{AuthMode: "none"}); v != nil {
+	if v := s.visibleRouters(&Session{}); v != nil {
 		t.Errorf("auth mode none produced %v, want nil for unrestricted", v)
 	}
 	// No session at all is the opposite answer.
@@ -120,7 +120,7 @@ func TestTheStatsPayloadIsBuiltPerViewer(t *testing.T) {
 		t.Errorf("a nil session produced %v", v)
 	}
 	// A modern session with no resolver takes the documented install-wide gap.
-	if v := s.visibleRouters(&Session{AuthMode: "modern", Username: "x"}); v != nil {
+	if v := s.visibleRouters(&Session{Username: "x"}); v != nil {
 		t.Errorf("a missing resolver produced %v, want nil (the reported gap)", v)
 	}
 }
@@ -131,7 +131,7 @@ func TestTheStatsPayloadIsBuiltPerViewer(t *testing.T) {
 // Devices page on a fresh install must render an empty fleet rather than panic.
 func TestBuildStatsSourcesSurvivesAnEmptyServer(t *testing.T) {
 	s := devicesServer(t)
-	src := s.buildStatsSources(&Session{AuthMode: "none"}, "")
+	src := s.buildStatsSources(&Session{}, "")
 
 	if src.Main == nil || src.OpenAlerts == nil || src.Sites == nil {
 		t.Fatalf("a nil map reached BuildStats: %+v", src)
@@ -148,7 +148,7 @@ func TestBuildStatsSourcesSurvivesAnEmptyServer(t *testing.T) {
 // `Main`, and warm holds put every enabled router there. It is the router this
 // connection has selected, and nothing else.
 func TestTheStatsMarkOnlyTheViewersRouterActive(t *testing.T) {
-	sess := &Session{AuthMode: "none"}
+	sess := &Session{}
 	s, _, _ := routersServer(t, sess, "")
 	rows := routers.BuildStats(s.buildStatsSources(sess, "r2"))
 	if len(rows) != 2 {
@@ -331,7 +331,7 @@ func TestAnRBACErrorIsNotAPermission(t *testing.T) {
 		t.Fatal("breaking the graph produced no error, so this test cannot tell an " +
 			"error from an empty permission set")
 	}
-	v := s.visibleRouters(&Session{AuthMode: "modern", Username: "carol"})
+	v := s.visibleRouters(&Session{Username: "carol"})
 	if v == nil {
 		t.Error("an RBAC error produced nil -- which means UNRESTRICTED, so a broken " +
 			"query would show the whole fleet to someone who may read none of it")
@@ -351,7 +351,7 @@ func TestTheRouterListIsFilteredPerPrincipal(t *testing.T) {
 
 	// Unrestricted: everything, including the DISABLED one — the dropdown shows
 	// it so an operator can re-enable it.
-	all := s.routerListForSocket(&Session{AuthMode: "none"})
+	all := s.routerListForSocket(&Session{})
 	if len(all) != 3 {
 		t.Fatalf("an unrestricted principal saw %d routers, want 3", len(all))
 	}
@@ -386,7 +386,7 @@ func TestTheRouterListIsFilteredPerPrincipal(t *testing.T) {
 // absence, it is that the value is never a real one.
 func TestThePasswordIsMaskedNeverReal(t *testing.T) {
 	s := devicesServerWithFleet(t)
-	list := s.routerListForSocket(&Session{AuthMode: "none"})
+	list := s.routerListForSocket(&Session{})
 	if len(list) == 0 {
 		t.Fatal("the list is empty, so the checks below prove nothing")
 	}
@@ -422,7 +422,7 @@ func TestThePasswordIsMaskedNeverReal(t *testing.T) {
 // somebody reintroduces a field list.
 func TestTheFieldsTheLivePayloadCarriesAreAllThere(t *testing.T) {
 	s := devicesServerWithFleet(t)
-	list := s.routerListForSocket(&Session{AuthMode: "none"})
+	list := s.routerListForSocket(&Session{})
 	if len(list) == 0 {
 		t.Fatal("the list is empty")
 	}
@@ -486,7 +486,7 @@ func httpRouterList(t *testing.T, s *Server, sess *Session) []map[string]any {
 // served from one function, so a second projection cannot disagree.
 func TestEveryShapeShowsTheWanAddressToADevicesViewer(t *testing.T) {
 	s := devicesServerWithFleet(t)
-	viewer := &Session{Username: "viewer", AuthMode: "modern"}
+	viewer := &Session{Username: "viewer"}
 
 	wan := func(list []map[string]any) (found bool) {
 		for _, r := range list {
@@ -500,7 +500,7 @@ func TestEveryShapeShowsTheWanAddressToADevicesViewer(t *testing.T) {
 	}
 
 	// A FAILURE, not a skip: the fixture is this file's own.
-	if !wan(s.routerListForSocket(&Session{AuthMode: "none"})) {
+	if !wan(s.routerListForSocket(&Session{})) {
 		t.Fatal("no router in the fixture carries geo.auto.ip, so this test would prove " +
 			"nothing. Put it back in devicesServerWithFleet rather than skipping.")
 	}

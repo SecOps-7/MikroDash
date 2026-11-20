@@ -4,7 +4,7 @@
  * ── EVERY DECISION IS SOMEWHERE ELSE, AS WITH THE SITES CARD ────────────────
  *
  * `userRowHtml`, `groupTableHtml`, `roleTableHtml`, `accessSummary`,
- * `sizePrincipalsCard`, `mountPrincipalTabs` and `applyAuthModeVisibility` all
+ * `sizePrincipalsCard`, `mountPrincipalTabs` and `applyPrincipalsVisibility` all
  * live in `settings.ts` and are gated against the live implementations by
  * `access-summary-check`, `principals-card-check` and `auth-visibility-check`.
  * What is here is the fetches, the caches and the listeners.
@@ -14,22 +14,22 @@
  * ROLES BEFORE USERS AND GROUPS. A grant row names its role by looking it up,
  * and `roleName` answers "unknown role" for one it cannot find - which is a REAL
  * answer for a deleted role and a WRONG one for a role that simply has not
- * arrived. `applyAuthModeVisibility` takes `loadRoles` as a promise and
+ * arrived. `applyPrincipalsVisibility` takes `loadRoles` as a promise and
  * `loadUsers` as a plain call for exactly this reason, and
  * `auth-visibility-check` gates the ordering with a deliberate delay, because
  * with an instant `loadRoles` the chained and the concurrent versions look
  * identical.
  *
- * ── AND THE CARD IS GATED ON A CAPABILITY, NOT ONLY ON AUTH MODE ────────────
+ * ── AND THE CARD IS GATED ON A CAPABILITY ───────────────────────────────────
  *
- * `applyAuthModeVisibility` owns that rule; this file only supplies it. Unknown
- * caps count as NO: the flash is absence rather than exposure.
+ * `applyPrincipalsVisibility` owns that rule; this file only supplies it.
+ * Unknown caps count as NO: the flash is absence rather than exposure.
  */
 
 import { el, esc } from '../dom';
 import {
   userRowHtml, groupTableHtml, roleTableHtml, sizePrincipalsCard, mountPrincipalTabs,
-  applyAuthModeVisibility, rolePageRowHtml, grantEditorHtml,
+  applyPrincipalsVisibility, rolePageRowHtml, grantEditorHtml,
   type UserView, type GroupView, type RoleView, type PrincipalLookups,
   type EditableGrant, type GrantView,
 } from './settings';
@@ -48,13 +48,11 @@ interface Deps {
   routers: () => { id: string; label?: string; host?: string }[];
   /** `window._caps.managePrincipals`, or undefined while the fetch is in flight. */
   mayManage: () => boolean | undefined;
-  authMode: () => string;
 }
 
 let deps: Deps = {
   routers: () => [],
   mayManage: () => undefined,
-  authMode: () => 'none',
 };
 
 let roles: RoleView[] = [];
@@ -533,7 +531,7 @@ export function initPrincipalsCard(d: Deps): void {
   // loadRoles has run, and a value captured at mount would be the empty array.
   initSSOCard(allRoles);
 
-  applyAuthModeVisibility(d.authMode(), {
+  applyPrincipalsVisibility({
     mayManage: d.mayManage(),
     loadRoles,
     loadUsers: () => { void loadUsers(); void loadGroups(); },
@@ -641,9 +639,9 @@ async function remove(url: string, reload: () => Promise<void>): Promise<void> {
   await reload();
 }
 
-/** Re-apply when the caps or the auth mode arrive after mount. */
+/** Re-apply when the caps arrive after mount. */
 export function refreshPrincipalsVisibility(): void {
-  applyAuthModeVisibility(deps.authMode(), {
+  applyPrincipalsVisibility({
     mayManage: deps.mayManage(),
     loadRoles,
     loadUsers: () => { void loadUsers(); void loadGroups(); },

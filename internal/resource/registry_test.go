@@ -19,10 +19,8 @@ import (
 //	rbac.CanPage      `r.pages[page]` is false   → deny, before the builtin
 //	                  short circuit, so not even an administrator gets through
 //
-// So a `Page` naming a renamed key does not degrade — it denies everyone with an
-// identity, and only `AuthMode: "none"` (which short-circuits to true) still
-// works. That is the worst possible shape for a bug: it behaves perfectly on the
-// install with authentication switched off, which is where most testing happens.
+// So a `Page` naming a renamed key does not degrade: it denies everyone, and
+// nothing logs or errors.
 //
 // IT HAD ALREADY HAPPENED. `wifiNet`, `wlNet` and `wlSecProfile` declared
 // `Page: "wifi"` after the 2026-09-01 rename moved that key to `wifi-networks`.
@@ -55,8 +53,7 @@ func TestEveryResourcePageIsALivePageKey(t *testing.T) {
 		}
 		t.Errorf("resource %q declares Page %q, which is not a live page key%s.\n"+
 			"Both permission gates deny an unknown page before consulting any "+
-			"role, so this resource is unreachable for every principal except "+
-			"AuthMode \"none\".", r.Key, r.Page, msg)
+			"role, so this resource is unreachable for every principal.", r.Key, r.Page, msg)
 	}
 }
 

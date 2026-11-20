@@ -1865,11 +1865,9 @@ func serviceDecision(tls bool, self []string, resolved bool, action string,
 }
 
 // codeAllowed is whether this session may change RouterOS code or run it: a
-// SIGNED-IN global administrator, the raw-command gate's first condition.
-// `isGlobalAdmin` answers true with sign-in switched off, which is right for
-// reading the principal graph and wrong here, as rawCommandGate says.
+// signed-in global administrator, the raw-command gate's first condition.
 func (cn *conn) codeAllowed() bool {
-	return cn.sess != nil && cn.sess.AuthMode != "none" && cn.srv.isGlobalAdmin(cn.sess)
+	return cn.sess != nil && cn.srv.isGlobalAdmin(cn.sess)
 }
 
 // codeDecision is the codeGate verdict: a write that CHANGES a Code field, or

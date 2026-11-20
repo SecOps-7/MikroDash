@@ -98,7 +98,9 @@ func siteIDsOf(t *testing.T, dir, id string) []string {
 
 // TestASaveAddsAndDetachesInOneRequest.
 func TestASaveAddsAndDetachesInOneRequest(t *testing.T) {
-	_, mux, dir := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	// Believability: r1 is IN site-a and r2 is not, so the assertions below
 	// distinguish a working route from one that wrote nothing.
@@ -132,7 +134,9 @@ func TestASaveAddsAndDetachesInOneRequest(t *testing.T) {
 // than through the pure function, because the route is what writes the file and
 // a patch that replaced `siteIds` wholesale would still pass the unit test.
 func TestJoiningASiteKeepsTheOthers(t *testing.T) {
-	_, mux, dir := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	if w := sitePut(mux, "site-b", `{"routerIds":["r1"]}`, authed); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -150,7 +154,9 @@ func TestJoiningASiteKeepsTheOthers(t *testing.T) {
 // exists, so without the lookup a typo'd id would walk the fleet, find nobody
 // who should be there... and detach every device that carries it, reporting 200.
 func TestAnUnknownSiteDetachesNothing(t *testing.T) {
-	_, mux, dir := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	// `site-a` HAS a member, so an unguarded route has something to destroy.
 	w := sitePut(mux, "site-a-typo", `{"routerIds":[]}`, authed)
@@ -167,7 +173,9 @@ func TestAnUnknownSiteDetachesNothing(t *testing.T) {
 // Collapsing the two would tell an operator their site id was wrong when the
 // database is unreadable -- and they would go and check the id.
 func TestABrokenStoreIsNotReportedAsAMissingSite(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	// Believability: the same request works before the store is broken.
 	if w := sitePut(mux, "site-a", `{"routerIds":["r1"]}`, authed); w.Code != 200 {
@@ -188,7 +196,9 @@ func TestABrokenStoreIsNotReportedAsAMissingSite(t *testing.T) {
 // a missing field cannot default to it: a client that forgot the key would empty
 // the site and be told it worked.
 func TestRouterIdsMustBeAnArray(t *testing.T) {
-	_, mux, dir := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	for _, body := range []string{`{}`, `{"routerIds":null}`, `{"routerIds":"r1"}`, ``} {
 		w := sitePut(mux, "site-a", body, authed)
@@ -235,7 +245,7 @@ func TestOnlyAnAdministratorMaySetSiteMembership(t *testing.T) {
 
 // TestAnAnonymousRequestIsRefused.
 func TestAnAnonymousRequestIsRefused(t *testing.T) {
-	_, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	_, mux, _ := sitesServer(t, &Session{Username: "admin"})
 	if w := sitePut(mux, "site-a", `{"routerIds":[]}`, ""); w.Code != 401 {
 		t.Errorf("status %d, want 401", w.Code)
 	}
@@ -246,7 +256,9 @@ func TestAnAnonymousRequestIsRefused(t *testing.T) {
 // A membership change alters who can reach a device, so it is precisely the kind
 // of write that has to be attributable. The row is per DEVICE, not per request.
 func TestEveryChangedDeviceGetsAnAuditRow(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	if w := sitePut(mux, "site-a", `{"routerIds":["r2"]}`, authed); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -275,7 +287,9 @@ func TestEveryChangedDeviceGetsAnAuditRow(t *testing.T) {
 // changes, and a `perms:changed` broadcast on a save that changed nothing makes
 // every connected client refetch its permissions for no reason.
 func TestANoOpSaveWritesNothingAtAll(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	c := hub.NewClient("c", 8)
 	s.hub.Add(c)
 
@@ -321,7 +335,9 @@ func TestANoOpSaveWritesNothingAtAll(t *testing.T) {
 // would hold for a route that never broadcast at all, and a membership change
 // leaves every browser's cached authorization view stale.
 func TestARealChangeDoesBroadcastPermsChanged(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	c := hub.NewClient("c", 8)
 	s.hub.Add(c) // in NO room: perms:changed is fleet-wide
 

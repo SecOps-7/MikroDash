@@ -46,7 +46,7 @@ func decodeSites(t *testing.T, w *httptest.ResponseRecorder) []db.Site {
 }
 
 func TestListSitesReturnsThemInNameOrder(t *testing.T) {
-	_, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	_, mux, _ := sitesServer(t, &Session{Username: "admin"})
 
 	got := decodeSites(t, siteReq(mux, "GET", "/api/sites", "", authed))
 	if len(got) != 2 {
@@ -94,7 +94,9 @@ func TestListSitesNeedsOnlyASession(t *testing.T) {
 }
 
 func TestCreateSiteWritesAndBroadcasts(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	c := hub.NewClient("c", 8)
 	s.hub.Add(c)
 
@@ -125,7 +127,9 @@ func TestCreateSiteWritesAndBroadcasts(t *testing.T) {
 
 // TestCreateRefusesADuplicateNameWith409.
 func TestCreateRefusesADuplicateNameWith409(t *testing.T) {
-	_, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	// CASE-INSENSITIVELY: the column is UNIQUE COLLATE NOCASE, because these are
 	// human labels and two differing only in case are a mistake.
@@ -144,7 +148,9 @@ func TestCreateRefusesADuplicateNameWith409(t *testing.T) {
 
 // TestABadBodyIs400AndWritesNothing.
 func TestABadBodyIs400AndWritesNothing(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	for _, body := range []string{
 		`{}`, `{"name":""}`, `{"name":"   "}`,
@@ -166,7 +172,9 @@ func TestABadBodyIs400AndWritesNothing(t *testing.T) {
 // The route's half of the absent-versus-null rule. `site-b` carries a full
 // location; renaming it must not blank the pin.
 func TestARenameLeavesTheLocationAlone(t *testing.T) {
-	_, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	w := siteReq(mux, "PUT", "/api/sites/site-b", `{"name":"Annexe 2"}`, authed)
 	if w.Code != 200 {
@@ -192,7 +200,9 @@ func TestARenameLeavesTheLocationAlone(t *testing.T) {
 
 // TestAnExplicitNullPlaceClearsTheLocation. The other side of the same rule.
 func TestAnExplicitNullPlaceClearsTheLocation(t *testing.T) {
-	_, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	if w := siteReq(mux, "PUT", "/api/sites/site-b", `{"place":null}`, authed); w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -213,7 +223,9 @@ func TestAnExplicitNullPlaceClearsTheLocation(t *testing.T) {
 }
 
 func TestUpdatingAnUnknownSiteIs404(t *testing.T) {
-	_, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	if w := siteReq(mux, "PUT", "/api/sites/nope", `{"name":"X"}`, authed); w.Code != 404 {
 		t.Errorf("status %d, want 404", w.Code)
 	}
@@ -228,7 +240,9 @@ func TestUpdatingAnUnknownSiteIs404(t *testing.T) {
 // unreachable to a site-scoped grant, so the detach has to happen and has to
 // happen BEFORE the row goes -- afterwards the site is not there to name.
 func TestDeletingASiteDetachesItsDevicesFirst(t *testing.T) {
-	s, mux, dir := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	c := hub.NewClient("c", 8)
 	s.hub.Add(c)
 
@@ -266,7 +280,9 @@ func TestDeletingASiteDetachesItsDevicesFirst(t *testing.T) {
 // A grant naming a removed site is a permission with no visible subject: it
 // appears in no principal's summary and cannot be revoked through the UI.
 func TestDeletingASiteRemovesItsGrants(t *testing.T) {
-	s, mux, _ := sitesServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := sitesServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	if err := execOn(t, routerDBDir[s], `
 	  -- A TEXT uuid id, matching the live schema; see internal/db/principals.go.
 	  -- The roles table exists so grants.role_id can carry its REAL foreign key:

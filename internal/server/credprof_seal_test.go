@@ -27,7 +27,7 @@ import (
 // The mechanism generalises past this feature: a round trip through ONE
 // implementation agrees with itself whatever it wrote.
 func TestACredentialProfilePasswordSurvivesTheRoundTrip(t *testing.T) {
-	s, _, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	s, _, _ := routersServer(t, &Session{Username: "admin"}, "")
 
 	// ── EVERY CHARACTER JSON WOULD TOUCH ─────────────────────────────────────
 	//
@@ -75,7 +75,7 @@ func TestACredentialProfilePasswordSurvivesTheRoundTrip(t *testing.T) {
 // really does change a bare string — so the assertion above is about a real
 // difference rather than a distinction with no consequence.
 func TestTheOldSealingWouldHaveBeenCaught(t *testing.T) {
-	s, _, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	s, _, _ := routersServer(t, &Session{Username: "admin"}, "")
 
 	const pw = "Liv3-T3st-Pass"
 	sealed, err := s.sealChannelConfig(pw)

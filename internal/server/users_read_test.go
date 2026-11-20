@@ -143,7 +143,9 @@ func getUsers(mux *http.ServeMux, cookie string) *httptest.ResponseRecorder {
 }
 
 func TestUsersReadStripsAndJoinsGrants(t *testing.T) {
-	_, mux, _ := usersServer(t, &Session{AuthMode: "none", Username: "admin"}, usersFixture)
+	adminSess := &Session{Username: "alice"}
+	adminSrv, mux, _ := usersServer(t, adminSess, usersFixture)
+	signedInAdmin(t, adminSrv, adminSess)
 
 	w := getUsers(mux, authed)
 	if w.Code != 200 {
@@ -200,23 +202,26 @@ func TestUsersReadStripsAndJoinsGrants(t *testing.T) {
 // `users.json` failing to parse must not read as "this install has no users".
 // The Users card would show an empty table with nothing to say why, and an
 // administrator would reasonably conclude their accounts were gone.
+//
+// With the file unreadable nobody can be identified as an administrator (the
+// account is looked up in it), so the request is refused before the list is
+// read. It was a 500 while sign-in off answered "administrator" without the
+// file (#165); either way, never a list.
 func TestABrokenUsersFileIsAnErrorNotAnEmptyList(t *testing.T) {
-	_, mux, _ := usersServer(t, &Session{AuthMode: "none"}, `{"not":"an array"}`)
+	_, mux, _ := usersServer(t, &Session{Username: "alice"}, `{"not":"an array"}`)
 
 	w := getUsers(mux, authed)
-	if w.Code != 500 {
-		t.Errorf("status %d, want 500: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusForbidden {
+		t.Errorf("status %d, want 403: %s", w.Code, w.Body.String())
 	}
 	if strings.Contains(w.Body.String(), `"users":[]`) {
 		t.Error("a broken file was served as an empty user list")
 	}
 }
 
-// TestOnlyAnAdministratorReadsTheUserList, under a REAL resolver — `AuthMode:
-// "none"` short-circuits `isGlobalAdmin` to true, which is this port's recurring
-// blind spot.
+// TestOnlyAnAdministratorReadsTheUserList, under a REAL resolver.
 func TestOnlyAnAdministratorReadsTheUserList(t *testing.T) {
-	s, mux, dir := usersServer(t, &Session{AuthMode: "modern", Username: "carol"}, usersFixture)
+	s, mux, dir := usersServer(t, &Session{Username: "carol"}, usersFixture)
 	// NOT `routerRbacDDL`: that creates its own `grants`, and this server already
 	// has one. Only the parts it does not.
 	if err := execOn(t, routerDBDirOf(t, s), `
@@ -249,7 +254,7 @@ func TestOnlyAnAdministratorReadsTheUserList(t *testing.T) {
 	if s.userIDFor("carol") != "u-1" {
 		t.Fatalf("userIDFor(carol) = %q", s.userIDFor("carol"))
 	}
-	if s.isGlobalAdmin(&Session{AuthMode: "modern", Username: "carol"}) {
+	if s.isGlobalAdmin(&Session{Username: "carol"}) {
 		t.Fatal("carol IS an administrator, so this test proves nothing")
 	}
 

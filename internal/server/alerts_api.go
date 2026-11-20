@@ -199,18 +199,13 @@ func (s *Server) alertSession(w http.ResponseWriter, r *http.Request) (*Session,
 
 // mayAck is `Rbac.can(req.authSession, 'router:ack', routerId)`.
 //
-// The three short circuits are the ones every permission check in this package
-// takes, and they are here rather than folded into `rbac.Can` for the reason the
-// live `rbac.js` keeps its own: `authMode: none` has no identity to grant
-// anything to, and an RBAC resolver that could not open its tables is an
-// install-wide condition reported at startup — turning it into a silent refusal
-// would lock every operator out of their own bell.
+// The short circuits are here rather than folded into `rbac.Can`: an RBAC
+// resolver that could not open its tables is an install-wide condition
+// reported at startup, and turning it into a silent refusal would lock every
+// operator out of their own bell.
 func (s *Server) mayAck(sess *Session, routerID string) bool {
 	if sess == nil {
 		return false
-	}
-	if sess.AuthMode == "none" {
-		return true
 	}
 	if s.rbac == nil || !s.rbac.Available() {
 		return true // the documented gap, reported at startup

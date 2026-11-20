@@ -149,9 +149,6 @@ func (s *Server) principalsGuard(h func(http.ResponseWriter, *http.Request, *Ses
 }
 
 func (s *Server) isGlobalAdmin(sess *Session) bool {
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if s.rbac == nil {
 		return false
 	}

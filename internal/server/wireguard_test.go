@@ -111,15 +111,6 @@ func TestRevealingAConfigNeedsWriteOnTheWireguardPage(t *testing.T) {
 		t.Error("READ on the page revealed a private key; the operator chose write")
 	}
 
-	// SIGN-IN OFF cannot pass a write check: there would be no identity to put
-	// in the audit row, and a key revealed to nobody in particular is worse
-	// than one not revealed.
-	srv, sess = build("write")
-	sess.AuthMode = "none"
-	if srv.mayRevealWgConfig(sess, "r1") {
-		t.Error("a session with sign-in off revealed a private key")
-	}
-
 	// NO AUDIT DATABASE, NO REVEAL. Nothing may hand out a key on an install
 	// that cannot record who asked for it.
 	srv, sess = build("write")

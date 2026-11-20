@@ -62,7 +62,9 @@ func TestGroupCreate(t *testing.T) {
 		{"a body that is not JSON", `nope`, 400},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux := groupsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := groupsWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			w := doJSON(mux, "POST", "/api/groups", c.body, authed)
 			if w.Code != c.want {
 				t.Fatalf("status %d, want %d — %s", w.Code, c.want, w.Body.String())
@@ -83,7 +85,9 @@ func TestGroupCreate(t *testing.T) {
 }
 
 func TestGroupCreateWritesItsMembership(t *testing.T) {
-	s, mux := groupsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := groupsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/groups", `{"name":"Support","memberUserIds":["u-1","u-2"]}`, authed)
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -127,7 +131,9 @@ func TestGroupMembershipIsArrayGuarded(t *testing.T) {
 		{"an explicit empty array on a harmless group", `{"memberUserIds":[]}`, 0},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux := groupsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := groupsWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			target := "g-1"
 			if c.want == 0 {
 				// g-2 holds no grants, so emptying it orphans nobody.
@@ -153,7 +159,9 @@ func TestGroupMembershipIsArrayGuarded(t *testing.T) {
 
 // TestEmptyingTheAdminGroupIsRefused — the least obvious orphan path.
 func TestEmptyingTheAdminGroupIsRefused(t *testing.T) {
-	s, mux := groupsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := groupsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	// Leave the GROUP as the only source of administration.
 	if _, err := s.auditDB.DeleteGrantsForPrincipal("user", "u-1"); err != nil {
@@ -204,7 +212,9 @@ func TestEmptyingTheAdminGroupIsRefused(t *testing.T) {
 
 // TestDeletingTheAdminGroupIsRefused — the blunter path to the same place.
 func TestDeletingTheAdminGroupIsRefused(t *testing.T) {
-	s, mux := groupsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := groupsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	for _, u := range []string{"u-1", "u-2"} {
 		if _, err := s.auditDB.DeleteGrantsForPrincipal("user", u); err != nil {
 			t.Fatal(err)
@@ -246,7 +256,9 @@ func TestGroupUpdateAndDeleteStatuses(t *testing.T) {
 		{"delete an unknown group", "DELETE", "g-nope", "", 404},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			_, mux := groupsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			adminSrv, mux := groupsWriteServer(t, adminSess)
+			signedInAdmin(t, adminSrv, adminSess)
 			w := doJSON(mux, c.method, "/api/groups/"+c.id, c.bd, authed)
 			if w.Code != c.want {
 				t.Errorf("status %d, want %d — %s", w.Code, c.want, w.Body.String())
@@ -266,7 +278,7 @@ func TestGroupWriteRoutesRequireGlobalAdmin(t *testing.T) {
 		{"DELETE", "/api/groups/g-2", ""},
 	} {
 		t.Run(c.method, func(t *testing.T) {
-			s, mux := groupsWriteServer(t, &Session{AuthMode: "modern", Username: "nobody"})
+			s, mux := groupsWriteServer(t, &Session{Username: "nobody"})
 			w := doJSON(mux, c.method, c.path, c.body, authed)
 			if w.Code != http.StatusForbidden {
 				t.Errorf("status %d, want 403 — %s", w.Code, w.Body.String())

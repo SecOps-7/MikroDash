@@ -53,7 +53,7 @@ func (r *identityRouter) written() []string {
 
 func identityFixture(router *identityRouter) (*Server, *Session, *session.Session, *http.Request) {
 	s := &Server{writeLimit: newWriteLimiter()}
-	sess := &Session{Username: "someone", AuthMode: "modern"}
+	sess := &Session{Username: "someone"}
 	sn := session.NewForTestWithExec(hub.New(), "r-A", router.exec)
 	return s, sess, sn, httptest.NewRequest(http.MethodPut, "/api/routers/r-A/identity", nil)
 }
@@ -127,19 +127,19 @@ func TestAnIdentityThatCanNeverBeANameIsRefused(t *testing.T) {
 	}
 }
 
-// WITH SIGN-IN OFF, `mayManageRouter` says yes, and a router write must still be
-// refused, as it is on the socket.
+// A session with no grants (what sign-in off used to hand every visitor, #165)
+// may not rename a router: `mayManageRouter` answers no, and nothing is sent.
 func TestARouterIdentityWriteNeedsSignIn(t *testing.T) {
 	s := alertSettingsServer(t, `{}`)
-	auth := authFor("tok", &Session{Username: "someone", AuthMode: "none"})
+	auth := authFor("tok", &Session{Username: "someone"})
 	s.auth = auth
 	req := httptest.NewRequest(http.MethodPut, "/api/routers/r-A/identity", strings.NewReader(`{"name":"office-gw"}`))
 	req.SetPathValue("id", "r-A")
 	req.Header.Set("Cookie", authed)
 	w := httptest.NewRecorder()
 	s.routerIdentitySet(w, req)
-	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "sign-in") {
-		t.Errorf("with sign-in off the identity write answered %d %s, want 403 naming sign-in",
+	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "Not permitted") {
+		t.Errorf("a session with no grants: the identity write answered %d %s, want 403 Not permitted",
 			w.Code, w.Body.String())
 	}
 }

@@ -21,16 +21,18 @@ import (
 	"strings"
 )
 
-// Session is the browser's identity: who, in which auth mode, and what they may see.
+// Session is the browser's identity: who, and what they may see.
+//
+// ── THERE IS NO SESSION WITHOUT SIGN-IN ─────────────────────────────────────
+//
+// MikroDash always requires sign-in (the operator's ruling of 2026-11-20,
+// docs/DECISIONS.md, #165). The "Require sign-in" switch and its `authMode:
+// "none"` are gone: a dashboard that can change routers is not opened to
+// whoever reaches the page. A settings file that still says "none" is read and
+// ignored. Every Session is a signed-in user, resolved by `localSession`.
 type Session struct {
 	Username string
 	Role     string
-	// AuthMode is "modern" or "none". In 'none' mode there is no identity and
-	// every request is implicitly admin — rbac.js's `if (!_isModern()) return true`
-	// is the ONLY copy of that short circuit there, and this is the only copy
-	// here, for the same reason: three places to forget it independently is how
-	// it got centralised in the first place.
-	AuthMode string
 	// Pages maps a page key to "read" or "write", unioned across readable
 	// routers. See the file header.
 	Pages map[string]string

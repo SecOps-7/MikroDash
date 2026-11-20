@@ -55,7 +55,9 @@ func TestADelegatesOrdinaryEditStillApplies(t *testing.T) {
 // TestAnAdministratorMayStillMoveADevice: the refusal is the delegate's, not
 // everybody's. Control for the test above it.
 func TestAnAdministratorMayStillMoveADevice(t *testing.T) {
-	_, mux, dir := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := routersServer(t, adminSess, "")
+	signedInAdmin(t, adminSrv, adminSess)
 	w := routerPut(mux, "r1", `{"host":"203.0.113.9","port":8729,"tls":true}`, authed)
 	if w.Code != http.StatusOK {
 		t.Fatalf("answered %d %s", w.Code, w.Body.String())

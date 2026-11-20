@@ -75,9 +75,9 @@ func TestTheTerminalIsGatedByThePermissionMatrixAndNothingElse(t *testing.T) {
 		// mode, which is what stops a command nobody can be held to. The old
 		// gate spelled this out by hand; it is the matrix's property now, and
 		// pinned here so a change to that path is noticed on this page.
-		"sign-in off": {srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "none"}},
+		"sign-in off": {srv: &Server{hub: hub.New()}, sess: &Session{Username: "x"}},
 		// SIGNED IN, NO GRANT, and no RBAC resolver behind it: fails closed.
-		"no grant": {srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "modern"}},
+		"no grant": {srv: &Server{hub: hub.New()}, sess: &Session{Username: "x"}},
 	}
 	for name, cn := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestTheTerminalIsGatedByThePermissionMatrixAndNothingElse(t *testing.T) {
 // A viewer who may not use the page learns that and nothing else. The audit row
 // carries the reason, which is the half nobody outside can read.
 func TestTheRefusalDoesNotSayWhyItRefused(t *testing.T) {
-	cn := &conn{srv: &Server{hub: hub.New()}, sess: &Session{Username: "x", AuthMode: "none"}}
+	cn := &conn{srv: &Server{hub: hub.New()}, sess: &Session{Username: "x"}}
 	note := cn.terminalGateNote(cn.scope())
 	if note == "" {
 		t.Fatal("this viewer was not refused, so there is nothing to compare")

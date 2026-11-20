@@ -17,7 +17,7 @@ func TestTheAssistantUndoesOnlyItsOwnNewestChange(t *testing.T) {
 	h := hub.New()
 	me := hub.NewClient("me", 64)
 	h.Add(me)
-	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{AuthMode: "none"}, routerID: "r-A"}
+	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{}, routerID: "r-A"}
 	res := resource.DNSStatic
 
 	if out := cn.proposeAIUndo(res); !strings.Contains(out, "no change") {

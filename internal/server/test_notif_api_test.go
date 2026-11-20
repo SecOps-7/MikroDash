@@ -24,25 +24,29 @@ func testNotifServer(t *testing.T, sess *Session) (*Server, *http.ServeMux) {
 
 func TestTestNotificationRefusals(t *testing.T) {
 	for _, c := range []struct {
-		why  string
-		sess *Session
-		body string
-		want int
-		msg  string
+		why   string
+		sess  *Session
+		admin bool // a signed-in global administrator, via signedInAdmin
+		body  string
+		want  int
+		msg   string
 	}{
-		{"no channel", &Session{AuthMode: "none", Username: "admin"}, `{}`,
+		{"no channel", &Session{Username: "admin"}, true, `{}`,
 			400, "channel is required"},
-		{"an empty channel", &Session{AuthMode: "none", Username: "admin"},
+		{"an empty channel", &Session{Username: "admin"}, true,
 			`{"channel":""}`, 400, "channel is required"},
-		{"a channel that is not a string", &Session{AuthMode: "none", Username: "admin"},
+		{"a channel that is not a string", &Session{Username: "admin"}, true,
 			`{"channel":42}`, 400, "channel is required"},
-		{"a malformed body", &Session{AuthMode: "none", Username: "admin"},
+		{"a malformed body", &Session{Username: "admin"}, true,
 			`{not json`, 400, "malformed body"},
-		{"not an admin", &Session{AuthMode: "modern", Username: "nobody"},
+		{"not an admin", &Session{Username: "nobody"}, false,
 			`{"channel":"telegram"}`, 403, "Administrator access required"},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			_, mux := testNotifServer(t, c.sess)
+			s, mux := testNotifServer(t, c.sess)
+			if c.admin {
+				signedInAdmin(t, s, c.sess)
+			}
 			w := doJSON(mux, "POST", "/api/settings/test-notification", c.body, authed)
 			if w.Code != c.want {
 				t.Fatalf("status %d, want %d — %s", w.Code, c.want, w.Body.String())
@@ -55,7 +59,7 @@ func TestTestNotificationRefusals(t *testing.T) {
 }
 
 func TestTestNotificationRequiresASession(t *testing.T) {
-	_, mux := testNotifServer(t, &Session{AuthMode: "none", Username: "admin"})
+	_, mux := testNotifServer(t, &Session{Username: "admin"})
 	w := doJSON(mux, "POST", "/api/settings/test-notification", `{"channel":"telegram"}`, "")
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status %d, want 401 — %s", w.Code, w.Body.String())
@@ -67,7 +71,9 @@ func TestTestNotificationRequiresASession(t *testing.T) {
 func TestAnUnconfiguredChannelIsRefusedBeforeSending(t *testing.T) {
 	for _, ch := range []string{"telegram", "pushbullet", "smtp", "ntfy"} {
 		t.Run(ch, func(t *testing.T) {
-			_, mux := testNotifServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			adminSrv, mux := testNotifServer(t, adminSess)
+			signedInAdmin(t, adminSrv, adminSess)
 			w := doJSON(mux, "POST", "/api/settings/test-notification",
 				`{"channel":"`+ch+`"}`, authed)
 			if w.Code != http.StatusInternalServerError {
@@ -91,7 +97,9 @@ func TestAnUnconfiguredChannelIsRefusedBeforeSending(t *testing.T) {
 }
 
 func TestAnUnknownChannelIsRefused(t *testing.T) {
-	_, mux := testNotifServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux := testNotifServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "POST", "/api/settings/test-notification",
 		`{"channel":"carrier-pigeon"}`, authed)
 	if w.Code != http.StatusInternalServerError {
@@ -106,7 +114,7 @@ func TestAnUnknownChannelIsRefused(t *testing.T) {
 // the one settings route that makes an outbound connection to an address the
 // caller supplied.
 func TestTheTestRouteIsRateLimited(t *testing.T) {
-	_, mux := testNotifServer(t, &Session{AuthMode: "none", Username: "admin"})
+	_, mux := testNotifServer(t, &Session{Username: "admin"})
 	limited := false
 	for i := 0; i < 12; i++ {
 		w := doJSON(mux, "POST", "/api/settings/test-notification", `{}`, authed)
@@ -136,7 +144,9 @@ func TestTheTestRouteIsRateLimited(t *testing.T) {
 // with no packet leaving the machine — and the error still names the host, which
 // is what the sanitiser has to redact.
 func TestTheFailureBodyIsSanitised(t *testing.T) {
-	_, mux := testNotifServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux := testNotifServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "POST", "/api/settings/test-notification",
 		`{"channel":"ntfy","ntfyUrl":"http://ntfy-host.invalid:8080/secret-topic","ntfyToken":"tk_synthetic"}`,
 		authed)

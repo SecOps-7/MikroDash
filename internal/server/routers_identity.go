@@ -14,8 +14,7 @@ package server
 // ── A ROUTER WRITE, SO THE #97 CONTRACT APPLIES ─────────────────────────────
 //
 // Permission is the dialog's own: router:manage on this device. On top of it,
-// as every router write does, the change is refused with sign-in off or with no
-// audit database, counts against the per-user per-router allowance, runs in the
+// as every router write does, the change is refused with no audit database, counts against the per-user per-router allowance, runs in the
 // router's write queue, and is read back before success is reported. A change
 // the read-back cannot confirm says so rather than claiming success.
 
@@ -124,13 +123,6 @@ func (s *Server) routerIdentitySet(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.mayManageRouter(sess, id) {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
-		return
-	}
-	// FAIL CLOSED, as the socket's write path does (#97). `mayManageRouter`
-	// answers yes with sign-in off, which is right for editing MikroDash's own
-	// record and wrong for writing to a router.
-	if sess.AuthMode == "none" {
-		writeJSONErr(w, http.StatusForbidden, "Router changes need sign-in to be turned on")
 		return
 	}
 	if s.auditDB == nil {

@@ -97,7 +97,9 @@ func TestGrantCreateValidatesInOrder(t *testing.T) {
 			`{"principalType":"group","principalId":"g-nope","roleId":"readonly","scopeType":"site","scopeId":"site-nope"}`, 404, "No such site"},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := grantsWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			before := grantRowCount(t, s)
 			w := doJSON(mux, "POST", "/api/grants", c.body, authed)
 			if w.Code != c.want {
@@ -134,7 +136,9 @@ func TestTheLegacyRoleNamesMapOntoIdsThatAreNotTheirNames(t *testing.T) {
 		{"viewer", "readonly"},
 	} {
 		t.Run(c.sent, func(t *testing.T) {
-			s, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := grantsWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			// BELIEVABILITY: a role whose id IS the sent name must exist for
 			// `viewer`, or the mutation this test kills would have been caught by
 			// the status alone and the case proves nothing.
@@ -177,7 +181,7 @@ func TestTheLegacyRoleNamesMapOntoIdsThatAreNotTheirNames(t *testing.T) {
 // Written after that mutant survived. `TestGrantCreateReturnsTheRow` could not
 // see it, because the principal there holds exactly one grant.
 func TestFindGrantMatchesOnScopeTypeAsWellAsId(t *testing.T) {
-	s, _ := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	s, _ := grantsWriteServer(t, &Session{Username: "admin"})
 
 	// The SAME scope id under two different scope types. Written straight through
 	// the store: the create route would refuse the router one, because the
@@ -220,7 +224,9 @@ func grantRowCount(t *testing.T, s *Server) int {
 // Access Management card renders from this response, and a null `grant` would
 // leave the new row invisible until a reload.
 func TestGrantCreateReturnsTheRow(t *testing.T) {
-	_, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux := grantsWriteServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "POST", "/api/grants",
 		`{"principalType":"user","principalId":"u-1","roleId":"operator","scopeType":"site","scopeId":"site-1"}`,
 		authed)
@@ -253,7 +259,9 @@ func TestGrantCreateReturnsTheRow(t *testing.T) {
 // UNIQUE index, so a NULL scope_id would let one principal hold two global
 // grants and the constraint would silently never fire.
 func TestAGlobalGrantStoresAnEmptyScopeId(t *testing.T) {
-	s, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := grantsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	// A scopeId sent ALONGSIDE a global scope must be discarded, not stored.
 	w := doJSON(mux, "POST", "/api/grants",
 		`{"principalType":"user","principalId":"u-1","roleId":"readonly","scopeType":"global","scopeId":"site-1"}`,
@@ -273,7 +281,9 @@ func TestAGlobalGrantStoresAnEmptyScopeId(t *testing.T) {
 
 // TestGrantCreateIsAnUpsert — the same principal and scope twice REPLACES.
 func TestGrantCreateIsAnUpsert(t *testing.T) {
-	s, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := grantsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	before := grantRowCount(t, s)
 	for _, roleID := range []string{"readonly", "operator"} {
 		w := doJSON(mux, "POST", "/api/grants",
@@ -295,7 +305,9 @@ func TestGrantCreateIsAnUpsert(t *testing.T) {
 // ── DELETE ─────────────────────────────────────────────────────────────────
 
 func TestGrantDeleteRemovesTheRow(t *testing.T) {
-	s, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := grantsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	// A grant that confers nothing, so the orphan probe has no opinion.
 	if err := s.auditDB.UpsertGrant(db.GrantSpec{
 		PrincipalType: "user", PrincipalID: "u-1", RoleID: "readonly",
@@ -318,7 +330,9 @@ func TestGrantDeleteRemovesTheRow(t *testing.T) {
 }
 
 func TestGrantDeleteUnknownIdIs404(t *testing.T) {
-	_, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux := grantsWriteServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "DELETE", "/api/grants/nosuchgrant", "", authed)
 	if w.Code != 404 {
 		t.Errorf("status %d, want 404 — %s", w.Code, w.Body.String())
@@ -327,7 +341,9 @@ func TestGrantDeleteUnknownIdIs404(t *testing.T) {
 
 // TestDeletingTheLastAdminGrantIsRefused — the most direct orphan path there is.
 func TestDeletingTheLastAdminGrantIsRefused(t *testing.T) {
-	s, mux := grantsWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := grantsWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	// Leave u-1's global administrator grant as the only source of
 	// administration. BOTH of the others have to go: `usersWriteDDL` gives u-2 a
@@ -371,7 +387,7 @@ func TestGrantWriteRoutesRequireGlobalAdmin(t *testing.T) {
 		{"DELETE", "/api/grants/anything", ""},
 	} {
 		t.Run(c.method, func(t *testing.T) {
-			s, mux := grantsWriteServer(t, &Session{AuthMode: "modern", Username: "nobody"})
+			s, mux := grantsWriteServer(t, &Session{Username: "nobody"})
 			before := grantRowCount(t, s)
 			w := doJSON(mux, c.method, c.path, c.body, authed)
 			if w.Code != http.StatusForbidden {

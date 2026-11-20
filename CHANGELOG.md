@@ -2,6 +2,21 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [Unreleased]
+
+Changes on `main` that are in the `:latest` image but not yet in a numbered
+release.
+
+### Changed
+
+- **Sign-in is always required.** The Require sign-in switch is gone from
+  Settings, Authentication: a dashboard that can change routers should not be
+  open to anyone who reaches it. An install that had switched it off now asks
+  for a login like any other, and a fresh install still goes to first-run
+  setup. Raised in [#165](https://github.com/SecOps-7/MikroDash/issues/165),
+  where the switch was found to have had no effect since 0.8.0, thanks
+  [@PhillipSlabbert](https://github.com/PhillipSlabbert).
+
 ## [0.8.85] - Switch probe limited to administrators
 
 ### Fixed

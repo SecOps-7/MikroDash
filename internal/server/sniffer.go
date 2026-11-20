@@ -441,9 +441,6 @@ func (s *Server) mayExportCapture(sess *Session, routerID string) bool {
 	if sess == nil {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if !sess.CanPage("tools-sniffer", "write", routerID) {
 		return false
 	}

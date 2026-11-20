@@ -66,7 +66,7 @@ func waitImport(t *testing.T, mux *http.ServeMux) importJob {
 }
 
 func TestOnlyAnAdministratorMayImport(t *testing.T) {
-	_, mux := importServer(t, &Session{AuthMode: "password", Username: "ops"})
+	_, mux := importServer(t, &Session{Username: "ops"})
 	for _, c := range []struct{ method, path string }{
 		{"POST", "/api/routers/bulk/check"}, {"POST", "/api/routers/bulk"}, {"GET", "/api/routers/bulk"},
 	} {
@@ -77,7 +77,9 @@ func TestOnlyAnAdministratorMayImport(t *testing.T) {
 }
 
 func TestThePreviewWritesNothingAndEchoesNoPassword(t *testing.T) {
-	s, mux := importServer(t, &Session{AuthMode: "none"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := importServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := importCall(mux, "POST", "/api/routers/bulk/check",
 		`{"rows":[{"line":2,"host":"192.0.2.9","username":"admin","password":"s3cret-in-a-sheet","sites":"North"}]}`)
 	if w.Code != 200 || strings.Contains(w.Body.String(), "s3cret") {
@@ -92,7 +94,9 @@ func TestThePreviewWritesNothingAndEchoesNoPassword(t *testing.T) {
 }
 
 func TestAnImportAddsReadyRowsAndCreatesTheirSites(t *testing.T) {
-	s, mux := importServer(t, &Session{AuthMode: "none"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := importServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := importCall(mux, "POST", "/api/routers/bulk", `{"rows":[
 		{"line":2,"host":"192.0.2.9","name":"Branch","username":"admin","password":"pw","sites":"North|Depot"},
 		{"line":3,"host":"198.51.100.1","username":"admin","password":"pw"},
@@ -130,7 +134,9 @@ func TestAnImportAddsReadyRowsAndCreatesTheirSites(t *testing.T) {
 // TEST-NET: a sign-in there would hang until the timeout, so the time bound is
 // the proof that none was attempted.
 func TestAProfileRowIsAddedWithoutSigningIn(t *testing.T) {
-	s, mux := importServer(t, &Session{AuthMode: "none"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := importServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	p, err := s.store.AddLoginProfile("MikroDash login", "a-long-enough-password")
 	if err != nil {
 		t.Fatal(err)
@@ -160,7 +166,9 @@ func TestAProfileRowIsAddedWithoutSigningIn(t *testing.T) {
 // call). 192.0.2.81 is TEST-NET: a link attempted inside the import would hang
 // there, so the time bound is the proof it was not.
 func TestALinkRowIsAddedAndLinkedAfterTheImport(t *testing.T) {
-	s, mux := importServer(t, &Session{AuthMode: "none"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := importServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	s.sessions = session.NewManager(s.store, s.hub)
 	p, err := s.store.AddLoginProfile("MikroDash login", "a-long-enough-password")
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 // and says why rather than looking like a permission problem.
 func TestAFleetDNSCopyNeedsAnAuditTrail(t *testing.T) {
 	s := alertSettingsServer(t, `{}`)
-	auth := authFor("tok", &Session{Username: "someone", AuthMode: "modern"})
+	auth := authFor("tok", &Session{Username: "someone"})
 	s.auth = auth
 
 	body := `{"routerIds":["r-A"],"values":{"name":"probe.lan","type":"A","address":"192.0.2.10"}}`

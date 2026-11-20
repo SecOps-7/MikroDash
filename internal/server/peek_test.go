@@ -45,7 +45,7 @@ func drainLive(t *testing.T, c *hub.Client) []string {
 // device-peek room and sends a frame at once; a second peek MOVES it; closing
 // leaves; every close is idempotent.
 func TestAPeekJoinsMovesAndLeavesItsRoom(t *testing.T) {
-	cn, h, me := peekConn(&Session{AuthMode: "none"})
+	cn, h, me := peekConn(readerOf("r1", "r2"))
 	cn.peek("r1")
 	if h.Occupants(peekRoom("r1")) != 1 {
 		t.Fatal("a peek did not join the router's device-peek room")
@@ -67,13 +67,13 @@ func TestAPeekJoinsMovesAndLeavesItsRoom(t *testing.T) {
 // A VIEWER WITHOUT THE DEVICES PAGE CANNOT PEEK. The modal's live data is the
 // Devices page's, and the gate is the overview endpoint's.
 func TestAPeekNeedsTheDevicesPage(t *testing.T) {
-	cn, h, me := peekConn(&Session{AuthMode: "password", Pages: map[string]string{"dashboard": "read"}})
+	cn, h, me := peekConn(&Session{Pages: map[string]string{"dashboard": "read"}})
 	cn.peek("r1")
 	if h.Occupants(peekRoom("r1")) != 0 || len(drainLive(t, me)) != 0 {
 		t.Error("a viewer without the Devices page was given a peek")
 	}
 	// THE CONTROL: the same viewer with the page gets one.
-	cn.sess = &Session{AuthMode: "password", Pages: map[string]string{"devices": "read"}}
+	cn.sess = &Session{Pages: map[string]string{"devices": "read"}}
 	cn.peek("r1")
 	if h.Occupants(peekRoom("r1")) != 1 {
 		t.Error("control: a viewer with the Devices page could not peek")
@@ -84,7 +84,7 @@ func TestAPeekNeedsTheDevicesPage(t *testing.T) {
 // selected router put this socket in, and the device modal's room is not one of
 // them: the modal is about a router the socket has NOT selected.
 func TestLeavingTheRouterKeepsThePeek(t *testing.T) {
-	cn, h, _ := peekConn(&Session{AuthMode: "none"})
+	cn, h, _ := peekConn(readerOf("r1", "r9"))
 	page := "router-r9-page-dashboard"
 	h.Join(cn.c, page)
 	cn.peek("r1")
@@ -140,12 +140,13 @@ func TestTheModalsClientsNeedDHCPRead(t *testing.T) {
 			}
 		}
 	}
-	if frameAllows(&Session{AuthMode: "password", Readable: []string{"r1"},
+	if frameAllows(&Session{Readable: []string{"r1"},
 		Pages: map[string]string{"devices": "read"}}) {
 		t.Error("a viewer with the Devices page and no DHCP read was offered the client list")
 	}
-	// THE CONTROL: sign-in off reads everything, so the list is offered.
-	if !frameAllows(&Session{AuthMode: "none"}) {
-		t.Error("control: with sign-in off the client list was withheld")
+	// THE CONTROL: the same viewer with DHCP read as well is offered the list.
+	if !frameAllows(&Session{Readable: []string{"r1"},
+		Pages: map[string]string{"devices": "read", "dhcp": "read"}}) {
+		t.Error("control: a viewer with the Devices page and DHCP read was refused the client list")
 	}
 }

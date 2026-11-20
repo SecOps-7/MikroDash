@@ -800,14 +800,8 @@
             <!-- Two columns: the card spans the full grid width, so stacking two
                  short controls left a lot of empty space to their right. -->
             <div class="ff-grid">
+              <!-- Sign-in is always required (#165); there is no switch for it. -->
               <div class="ff">
-                <label class="sform-label" for="s_authEnabled">Require sign-in</label>
-                <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_authEnabled" aria-label="Require sign-in"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Off means no login at all: anyone who can reach this page can see every router. Changing router configuration needs sign-in, so write pages are read-only while this is off. Only sensible on a trusted network.</div>
-              </div>
-              <!-- Modern auth fields: shown by applyAuthModeVisibility, which
-                   sets display on the whole field. -->
-              <div class="ff" id="modernAuthFields" style="display:none">
                 <label class="sform-label" for="s_sessionTimeoutMs">Session Timeout</label>
                 <select class="sform-input" id="s_sessionTimeoutMs" aria-label="Session timeout">
                   <option value="3600000">1 hour</option>
@@ -818,13 +812,6 @@
                 </select>
                 <div class="ff-help">Sessions are cleared on server restart. Signing in again is all that is needed.</div>
               </div>
-            </div>
-
-            <!-- Warning: open access. Full width beneath both columns - it is the
-                 loudest thing on the card when it shows, and must not be a
-                 narrow strip beside the toggle. -->
-            <div id="authNoneWarn" style="display:none;background:rgb(from var(--accent-warn) r g b / .1);border:1px solid rgb(from var(--accent-warn) r g b / .25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn)">
-              ⚠ Dashboard is publicly accessible - anyone on the network can view it.
             </div>
           </div>
         </div>

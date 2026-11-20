@@ -236,7 +236,7 @@ func (s *Server) purgeOpts(body map[string]any, sess *Session) (db.PurgeOpts, st
 	}
 
 	// ── THE SCOPE ───────────────────────────────────────────────────────
-	if sess != nil && sess.AuthMode != "none" && s.rbac != nil {
+	if sess != nil && s.rbac != nil {
 		uid := s.userIDFor(sess.Username)
 		perm, scope, refusal := "system:db", "", "Select a router — your account cannot purge all routers"
 		if routerID != "" {

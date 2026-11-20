@@ -19,12 +19,19 @@ import (
 // refusing outright.
 func TestOnlyAGlobalAdminSeesThePrincipalGraph(t *testing.T) {
 	s := &Server{}
-	if s.isGlobalAdmin(&Session{AuthMode: "modern", Username: "someone"}) {
+	if s.isGlobalAdmin(&Session{Username: "someone"}) {
 		t.Error("a server with no RBAC resolver granted the principal graph")
 	}
-	// One local operator with full reach, the same short circuit rbac.js makes.
-	if !s.isGlobalAdmin(&Session{AuthMode: "none"}) {
-		t.Error("auth mode none was refused")
+	// What sign-in off used to be (#165): no identity, so no principal graph.
+	if s.isGlobalAdmin(&Session{}) {
+		t.Error("a session with no identity was treated as a global administrator")
+	}
+	// The control: a real global administrator is one.
+	admin := &Session{}
+	withStore := settingsServer(t, "")
+	signedInAdmin(t, withStore, admin)
+	if !withStore.isGlobalAdmin(admin) {
+		t.Error("a signed-in global administrator was refused the principal graph")
 	}
 }
 

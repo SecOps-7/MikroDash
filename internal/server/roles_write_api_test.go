@@ -79,7 +79,9 @@ func TestRoleCreate(t *testing.T) {
 		{"pages that are not an array", `{"name":"Helpdesk","pages":"read"}`, 400},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := rolesWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			w := doJSON(mux, "POST", "/api/roles", c.body, authed)
 			if w.Code != c.want {
 				t.Fatalf("status %d, want %d — %s", w.Code, c.want, w.Body.String())
@@ -110,7 +112,9 @@ func TestRoleCreate(t *testing.T) {
 
 func TestRoleCreateWritesItsPages(t *testing.T) {
 	page := firstKnownPage(t)
-	s, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := rolesWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	w := doJSON(mux, "POST", "/api/roles",
 		`{"name":"Helpdesk","pages":[{"page":"`+page+`","access":"write"}]}`, authed)
 	if w.Code != 200 {
@@ -151,7 +155,9 @@ func TestTheBuiltinRoleIsRefused(t *testing.T) {
 		{"DELETE", "", "cannot be deleted"},
 	} {
 		t.Run(c.method, func(t *testing.T) {
-			s, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := rolesWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			w := doJSON(mux, c.method, "/api/roles/administrator", c.body, authed)
 			if w.Code != 400 {
 				t.Fatalf("status %d, want 400 — %s", w.Code, w.Body.String())
@@ -179,7 +185,9 @@ func TestTheBuiltinRoleIsRefused(t *testing.T) {
 // never have worked — not a validation error suggesting that fixing the body
 // would help. The live route checks `existing.builtin` before `_parseName`.
 func TestTheBuiltinRefusalComesBeforeTheBodyIsParsed(t *testing.T) {
-	_, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux := rolesWriteServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	w := doJSON(mux, "PUT", "/api/roles/administrator", `{"name":""}`, authed)
 	if w.Code != 400 {
 		t.Fatalf("status %d, want 400 — %s", w.Code, w.Body.String())
@@ -195,7 +203,9 @@ func TestTheBuiltinRefusalComesBeforeTheBodyIsParsed(t *testing.T) {
 // The foreign key would refuse it anyway; saying HOW MANY grants block it is
 // more useful than surfacing a constraint error. The count is singular-aware.
 func TestDeletingAnAssignedRoleReportsTheCount(t *testing.T) {
-	s, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := rolesWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 
 	// ONE grant on the custom role, so the singular form is exercised.
 	if err := s.auditDB.UpsertGrant(dbGrantSpecForTest("u-1", "r-custom")); err != nil {
@@ -227,7 +237,9 @@ func TestDeletingAnAssignedRoleReportsTheCount(t *testing.T) {
 }
 
 func TestDeletingAnAssignedRoleIsPluralForTwo(t *testing.T) {
-	s, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := rolesWriteServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	for _, u := range []string{"u-1", "u-2"} {
 		g := dbGrantSpecForTest(u, "r-custom")
 		g.ScopeType, g.ScopeID = "router", "rtr-"+u
@@ -259,7 +271,9 @@ func TestRoleUpdateAndDeleteStatuses(t *testing.T) {
 		{"delete an unknown role", "DELETE", "r-nope", "", 404},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			_, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			adminSrv, mux := rolesWriteServer(t, adminSess)
+			signedInAdmin(t, adminSrv, adminSess)
 			w := doJSON(mux, c.method, "/api/roles/"+c.id, c.bd, authed)
 			if w.Code != c.want {
 				t.Errorf("status %d, want %d — %s", w.Code, c.want, w.Body.String())
@@ -284,7 +298,9 @@ func TestRoleUpdateReplacesThePageMatrix(t *testing.T) {
 		{"a new matrix replaces them", `{"pages":[{"page":"` + page + `","access":"write"}]}`, 1},
 	} {
 		t.Run(c.why, func(t *testing.T) {
-			s, mux := rolesWriteServer(t, &Session{AuthMode: "none", Username: "admin"})
+			adminSess := &Session{Username: "admin"}
+			s, mux := rolesWriteServer(t, adminSess)
+			signedInAdmin(t, s, adminSess)
 			before, err := s.auditDB.RolePages("r-custom")
 			if err != nil {
 				t.Fatal(err)
@@ -316,7 +332,7 @@ func TestRoleWriteRoutesRequireGlobalAdmin(t *testing.T) {
 		{"DELETE", "/api/roles/r-unused", ""},
 	} {
 		t.Run(c.method, func(t *testing.T) {
-			s, mux := rolesWriteServer(t, &Session{AuthMode: "modern", Username: "nobody"})
+			s, mux := rolesWriteServer(t, &Session{Username: "nobody"})
 			w := doJSON(mux, c.method, c.path, c.body, authed)
 			if w.Code != http.StatusForbidden {
 				t.Errorf("status %d, want 403 — %s", w.Code, w.Body.String())

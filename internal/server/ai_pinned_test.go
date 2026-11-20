@@ -27,7 +27,7 @@ func TestAToolReadsThePinnedRouterNotTheCurrentOne(t *testing.T) {
 	h := hub.New()
 	var sent []string
 	a, b := recordingSession(h, "r-A", &sent), recordingSession(h, "r-B", &sent)
-	cn := &conn{srv: &Server{hub: h}, sess: &Session{AuthMode: "none"}, routerID: "r-A", rsession: a}
+	cn := &conn{srv: &Server{hub: h}, sess: readerOf("r-A", "r-B"), routerID: "r-A", rsession: a}
 	sc := cn.scope()
 	cn.setRouter("r-B", b) // the operator switched mid-answer
 
@@ -43,7 +43,7 @@ func TestAWriteToolRefusesAfterTheRouterMoved(t *testing.T) {
 	h.Add(me)
 	var sent []string
 	a, b := recordingSession(h, "r-A", &sent), recordingSession(h, "r-B", &sent)
-	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{AuthMode: "none"}, routerID: "r-A", rsession: a}
+	cn := &conn{srv: &Server{hub: h}, c: me, sess: &Session{}, routerID: "r-A", rsession: a}
 	sc := cn.scope()
 	cn.setRouter("r-B", b)
 

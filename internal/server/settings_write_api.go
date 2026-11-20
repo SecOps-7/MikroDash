@@ -163,9 +163,6 @@ func (s *Server) maySaveSettings(sess *Session) bool {
 	if sess == nil {
 		return false
 	}
-	if sess.AuthMode == "none" {
-		return true
-	}
 	if s.rbac == nil || !s.rbac.Available() {
 		return false
 	}

@@ -69,23 +69,6 @@ var auditOutcomes = map[string]bool{"ok": true, "denied": true, "failed": true}
 // all, so the caller answers 500 rather than serving a trail whose filtering
 // could not be computed.
 func (s *Server) auditScope(sess *Session) (includeApp bool, routerIDs []string, err error) {
-	if sess.AuthMode == "none" {
-		// One local operator with full reach, matching rbac.js's single copy of
-		// this short circuit. Every router, and the app scope too.
-		//
-		// The problem list is DISCARDED, as it is where server.go builds the
-		// rbac resolver's router list. Those are per-router credential-decrypt
-		// failures, and such a router stays in the list with an empty password:
-		// one router encrypted under an old key must not hide the other five,
-		// and a credential is not consulted to decide what a trail may show.
-		list, _ := s.store.Routers()
-		ids := make([]string, 0, len(list))
-		for _, r := range list {
-			ids = append(ids, r.ID)
-		}
-		return true, ids, nil
-	}
-
 	uid := s.userIDFor(sess.Username)
 	// NO "resolver unavailable" FALLBACK HERE, unlike reports.go's documented
 	// gap. The resolver reads the same database the trail lives in, so an

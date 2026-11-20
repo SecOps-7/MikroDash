@@ -124,7 +124,6 @@ export const SPECIAL_CASES: readonly string[] = [
   "aiOverviewTextColor",
   "aiSystemPrompt",
   "aiTlsPin",
-  "authMode",
   "customPollProfile",
   "displayTimezone",
   "hiddenAreas",

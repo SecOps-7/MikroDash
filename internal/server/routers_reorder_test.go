@@ -48,7 +48,9 @@ func fleetOrder(t *testing.T, dir string) string {
 }
 
 func TestAMoveReordersTheFleet(t *testing.T) {
-	s, mux, dir := reorderServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux, dir := reorderServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	_ = s
 	w := doJSON(mux, "POST", "/api/routers/r-two/move?dir=up", "", authed)
 	if w.Code != 200 {
@@ -72,7 +74,9 @@ func TestAMoveReordersTheFleet(t *testing.T) {
 // than a mistake. It must not be an error - a browser would have to ignore it -
 // and it must not rewrite the file or tell every other session to refresh.
 func TestMovingPastTheEndSucceedsAndChangesNothing(t *testing.T) {
-	_, mux, dir := reorderServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := reorderServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	before := fleetOrder(t, dir)
 	w := doJSON(mux, "POST", "/api/routers/r-one/move?dir=up", "", authed)
 	if w.Code != 200 {
@@ -94,7 +98,7 @@ func TestMovingPastTheEndSucceedsAndChangesNothing(t *testing.T) {
 // other session's picker shows, so it is the install's decision. Same reasoning
 // `routerActivate` records.
 func TestOnlyAGlobalAdminMayReorder(t *testing.T) {
-	_, mux, dir := reorderServer(t, &Session{AuthMode: "local", Username: "viewer"})
+	_, mux, dir := reorderServer(t, &Session{Username: "viewer"})
 	before := fleetOrder(t, dir)
 	w := doJSON(mux, "POST", "/api/routers/r-two/move?dir=up", "", authed)
 	if w.Code != 403 {
@@ -106,7 +110,9 @@ func TestOnlyAGlobalAdminMayReorder(t *testing.T) {
 }
 
 func TestAMoveNeedsARealRouterAndADirection(t *testing.T) {
-	_, mux, dir := reorderServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := reorderServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	before := fleetOrder(t, dir)
 
 	// A direction that is neither is refused rather than guessed: defaulting to

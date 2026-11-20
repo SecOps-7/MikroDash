@@ -8,9 +8,9 @@
  *
  * ---- THE DEFECT ------------------------------------------------------------
  *
- * `public/app.js` wraps `window.fetch` as the FIRST thing it does: a 401 in
- * modern auth mode redirects to `/login`, a 403 re-resolves permissions. This
- * port had no equivalent at all.
+ * `public/app.js` wraps `window.fetch` as the FIRST thing it does: a 401
+ * redirects to `/login`, a 403 re-resolves permissions. This port had no
+ * equivalent at all.
  *
  * What that cost, reported by the operator on 2026-08-28: with the SPA already
  * open, the server restarted, every in-memory session died, and every request
@@ -23,12 +23,12 @@
  * ---- WHAT THIS PINS --------------------------------------------------------
  *
  * The behaviour, by DRIVING the wrapper - a source check would only prove the
- * file exists. Four cases, and the two that are easy to get wrong are the ones
- * that must NOT redirect:
+ * file exists:
  *
- *   401 + modern  -> /login
- *   403 + modern  -> refreshCaps, throttled
- *   401 + none    -> nothing (there is no login page to send anyone to)
+ *   401           -> /login, ALWAYS: sign-in is always required (#165), so a
+ *                    stale `_authMode` of "none" left by an older page must
+ *                    not hold the guard back
+ *   403           -> refreshCaps, throttled
  *   200           -> nothing, and the response is passed through unchanged
  *
  * Plus the ORDER, which is the half a behaviour test cannot see: the guard must
@@ -95,11 +95,12 @@ function run(status, mode) {
       + 'permitted", and a redirect would misreport that as a session problem.');
   }
 
-  // AUTH MODE none: there is no login page, and a redirect would loop.
-  const none401 = await run(401, 'none');
-  if (none401.redirects.length) {
-    problems.push('401 redirected with authMode "none", where there is no login page to send '
-      + 'anybody to and the redirect would loop');
+  // Sign-in is always required (#165): a leftover `_authMode` of "none" (an old
+  // page, a stale global) must not stop a dead session reaching the login page.
+  const stale401 = await run(401, 'none');
+  if (stale401.redirects[0] !== '/login') {
+    problems.push('a 401 did not redirect while a stale _authMode said "none"; sign-in is '
+      + 'always required, so nothing may hold the guard back');
   }
 
   const ok = await run(200, 'modern');
@@ -186,9 +187,10 @@ function run(status, mode) {
       + 'the SERVER is unreachable, which is what the reconnect banner is for.');
   }
 
-  const noneMode = await verify({ session: null }, 'none');
-  if (noneMode.redirects.length || noneMode.calls) {
-    problems.push('the session check ran with authMode "none", where there is no login page');
+  const stale = await verify({ session: null }, 'none');
+  if (stale.redirects[0] !== '/login') {
+    problems.push('a refused handshake with no session did not redirect while a stale '
+      + '_authMode said "none"; sign-in is always required');
   }
 
   fs.rmSync(OUT, { force: true });
@@ -197,6 +199,6 @@ function run(status, mode) {
     for (const p of problems) console.error('  - ' + p);
     process.exit(1);
   }
-  console.log('fetch-guard-check: 401 redirects, 403 re-resolves once, authMode none is left '
-    + 'alone, 200 passes through, and the guard is installed before anything fetches');
+  console.log('fetch-guard-check: 401 redirects whatever a stale auth mode says, 403 re-resolves '
+    + 'once, 200 passes through, and the guard is installed before anything fetches');
 })();

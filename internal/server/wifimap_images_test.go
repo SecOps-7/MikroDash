@@ -126,7 +126,9 @@ func TestAnUploadSaysWhyItFailed(t *testing.T) {
 
 // TestRemovingARouterRemovesItsImages, and leaves the other router's alone.
 func TestRemovingARouterRemovesItsImages(t *testing.T) {
-	s, mux, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	s, mux, _ := routersServer(t, adminSess, "")
+	signedInAdmin(t, s, adminSess)
 	for _, rid := range []string{"r1", "r2"} {
 		dir := s.mapImageDir(rid)
 		if err := os.MkdirAll(dir, 0o755); err != nil {

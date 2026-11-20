@@ -27,7 +27,9 @@ func switchByLabel(t *testing.T, dir, label string) map[string]any {
 }
 
 func TestASwitchIsCreatedThroughTheRouterRoute(t *testing.T) {
-	_, mux, dir := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := routersServer(t, adminSess, "")
+	signedInAdmin(t, adminSrv, adminSess)
 	w := routerPost(mux, `{"kind":"swos","host":"198.51.100.20","label":"Core switch","username":"admin","password":"sw-secret","tls":true,"defaultIf":"ether9"}`, authed)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
@@ -49,7 +51,9 @@ func TestASwitchIsCreatedThroughTheRouterRoute(t *testing.T) {
 }
 
 func TestTheRouterListKeepsSwitchesApart(t *testing.T) {
-	_, mux, _ := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, _ := routersServer(t, adminSess, "")
+	signedInAdmin(t, adminSrv, adminSess)
 	if w := routerPost(mux, `{"kind":"swos","host":"198.51.100.20","label":"Core switch"}`, authed); w.Code != http.StatusOK {
 		t.Fatal(w.Body.String())
 	}
@@ -75,7 +79,9 @@ func TestTheRouterListKeepsSwitchesApart(t *testing.T) {
 }
 
 func TestASwitchEditKeepsItsKind(t *testing.T) {
-	_, mux, dir := routersServer(t, &Session{AuthMode: "none", Username: "admin"}, "")
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux, dir := routersServer(t, adminSess, "")
+	signedInAdmin(t, adminSrv, adminSess)
 	if w := routerPost(mux, `{"kind":"swos","host":"198.51.100.20","label":"Core switch"}`, authed); w.Code != http.StatusOK {
 		t.Fatal(w.Body.String())
 	}
@@ -101,14 +107,14 @@ func TestASwitchEditKeepsItsKind(t *testing.T) {
 	}
 }
 
-func probeServer(t *testing.T, sess *Session) (*http.ServeMux, func(body string) map[string]any) {
+func probeServer(t *testing.T, sess *Session) (*Server, *http.ServeMux, func(body string) map[string]any) {
 	t.Helper()
 	s, mux, _ := routersServer(t, sess, "")
 	s.registerSwitches(mux)
 	prev := routeros.DialReach()
 	routeros.SetDialReach(netguard.Any) // the fakes listen on loopback
 	t.Cleanup(func() { routeros.SetDialReach(prev) })
-	return mux, func(body string) map[string]any {
+	return s, mux, func(body string) map[string]any {
 		req := httptest.NewRequest("POST", "/api/switches/probe", strings.NewReader(body))
 		req.Header.Set("Cookie", authed)
 		w := httptest.NewRecorder()
@@ -129,7 +135,9 @@ func fakeDevice(t *testing.T, h http.HandlerFunc) (string, string) {
 }
 
 func TestTheProbeAcceptsSwOSAndTurnsAwayRouterOS(t *testing.T) {
-	_, probe := probeServer(t, &Session{AuthMode: "none", Username: "admin"})
+	admin := &Session{Username: "admin"}
+	adminSrv, _, probe := probeServer(t, admin)
+	signedInAdmin(t, adminSrv, admin)
 
 	host, port := fakeDevice(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/sys.b" {
@@ -168,7 +176,7 @@ func TestTheProbeAcceptsSwOSAndTurnsAwayRouterOS(t *testing.T) {
 }
 
 func TestTheProbeIsForAdministrators(t *testing.T) {
-	_, probe := probeServer(t, &Session{AuthMode: "local", Username: "viewer"})
+	_, _, probe := probeServer(t, &Session{Username: "viewer"})
 	if got := probe(`{"host":"198.51.100.20"}`); got["status"] != float64(http.StatusForbidden) {
 		t.Errorf("a non-administrator probed a new switch: %v", got)
 	}
@@ -182,7 +190,7 @@ func TestTheProbeIsForAdministrators(t *testing.T) {
 // TestTheProbeIsRateLimited: ten a minute, as POST /api/routers/test, because
 // each probe opens a connection to a host the caller chose.
 func TestTheProbeIsRateLimited(t *testing.T) {
-	_, probe := probeServer(t, &Session{AuthMode: "local", Username: "viewer"})
+	_, _, probe := probeServer(t, &Session{Username: "viewer"})
 	for i := 0; i < 10; i++ {
 		if got := probe(`{"host":"198.51.100.20"}`); got["status"] == float64(http.StatusTooManyRequests) {
 			t.Fatalf("request %d was refused as over the limit", i+1)
@@ -241,8 +249,9 @@ func TestADelegateCannotMoveASwitchsEndpoint(t *testing.T) {
 // added and after it is edited, and the event's every send is held to that one
 // builder, so a new send cannot bypass the filter.
 func TestTheRouterSelectorNeverReceivesASwitch(t *testing.T) {
-	sess := &Session{AuthMode: "none", Username: "admin"}
+	sess := &Session{Username: "admin"}
 	s, mux, dir := routersServer(t, sess, "")
+	signedInAdmin(t, s, sess)
 	if w := routerPost(mux, `{"kind":"swos","host":"198.51.100.20","label":"Core switch"}`, authed); w.Code != http.StatusOK {
 		t.Fatal(w.Body.String())
 	}

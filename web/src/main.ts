@@ -792,14 +792,12 @@ async function main(): Promise<void> {
   // it renders a pill per site and had no way of knowing the names had arrived.
   initSitesCard(() => routers, () => renderRoutersInto());
 
-  // Access Management, on the same page. The two accessors are THUNKS because
-  // both arrive after mount: `_caps` from its own fetch and `_authMode` from
-  // /api/auth/status, and whichever lands last must find a live reader rather
-  // than a value captured here.
+  // Access Management, on the same page. The accessors are THUNKS because
+  // `_caps` arrives after mount from its own fetch, and must find a live
+  // reader rather than a value captured here.
   initPrincipalsCard({
     routers: () => routers,
     mayManage: mayManagePrincipals,
-    authMode: () => (globalThis as unknown as { _authMode?: string })._authMode || 'none',
   });
 
   // Data Cleanup, the dialog the same page's Data Retention card opens. It takes

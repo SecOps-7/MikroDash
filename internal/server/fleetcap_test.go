@@ -119,7 +119,7 @@ func fleetCapServer(t *testing.T, n int) (*Server, []string) {
 func TestRoutersPastTheCapAreReportedRatherThanDropped(t *testing.T) {
 	const n = fleetMaxRouters + 4
 	s, ids := fleetCapServer(t, n)
-	sess := &Session{Username: "someone", AuthMode: "modern"}
+	sess := &Session{Username: "someone"}
 
 	kept, over := s.fleetTargets(sess, ids, "dns", "read")
 

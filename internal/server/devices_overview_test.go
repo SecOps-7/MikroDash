@@ -42,7 +42,9 @@ func getOverview(t *testing.T, mux *http.ServeMux, query string) (int, []DeviceO
 // seeded router was up at 1 and watched from 1 to 2, so a window [1,1000] is one
 // millisecond up and the rest NOT MONITORED - never inferred green.
 func TestTheOverviewDrawsEachDevicesStrip(t *testing.T) {
-	_, mux := overviewServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	adminSrv, mux := overviewServer(t, adminSess)
+	signedInAdmin(t, adminSrv, adminSess)
 	code, rows := getOverview(t, mux, "?from=1&to=1000")
 	if code != http.StatusOK {
 		t.Fatalf("status %d", code)
@@ -73,7 +75,7 @@ func TestTheOverviewDrawsEachDevicesStrip(t *testing.T) {
 // but the backup is backup data. A viewer with the Devices page and not Backups
 // gets the strip and a NULL backup; the control grants Backups and gets it.
 func TestTheBackupFieldNeedsBackupsRead(t *testing.T) {
-	_, mux := overviewServer(t, &Session{AuthMode: "modern", Username: "v",
+	_, mux := overviewServer(t, &Session{Username: "v",
 		Pages: map[string]string{"devices": "read"}})
 	code, rows := getOverview(t, mux, "?from=1&to=1000")
 	if code != http.StatusOK || len(rows) == 0 {
@@ -89,7 +91,7 @@ func TestTheBackupFieldNeedsBackupsRead(t *testing.T) {
 	}
 
 	// THE CONTROL: the same viewer with Backups read sees it.
-	_, mux = overviewServer(t, &Session{AuthMode: "modern", Username: "v",
+	_, mux = overviewServer(t, &Session{Username: "v",
 		Pages: map[string]string{"devices": "read", "backups": "read"}})
 	if _, rows := getOverview(t, mux, "?from=1&to=1000"); len(rows) == 0 || rows[0].Backup == nil {
 		t.Errorf("a viewer WITH Backups read got no backup: %+v", rows)
@@ -99,7 +101,7 @@ func TestTheBackupFieldNeedsBackupsRead(t *testing.T) {
 // TestTheOverviewRefusesWithoutTheDevicesPage — the page's own gate, before any
 // router-level question.
 func TestTheOverviewRefusesWithoutTheDevicesPage(t *testing.T) {
-	_, mux := overviewServer(t, &Session{AuthMode: "modern", Username: "v",
+	_, mux := overviewServer(t, &Session{Username: "v",
 		Pages: map[string]string{"backups": "read"}})
 	if code, _ := getOverview(t, mux, ""); code != http.StatusForbidden {
 		t.Errorf("status %d without the Devices page, want 403", code)
@@ -137,7 +139,9 @@ func msStr(v int64) string {
 // strip ended in a grey "not monitored" tail. A run open NOW reaches the end of
 // the window; the control is r2, whose run is not open and keeps its tail.
 func TestAnOpenRunReachesTheEndOfTheWindow(t *testing.T) {
-	s, mux := overviewServer(t, &Session{AuthMode: "none", Username: "admin"})
+	adminSess := &Session{Username: "admin"}
+	s, mux := overviewServer(t, adminSess)
+	signedInAdmin(t, s, adminSess)
 	s.coverage = historywire.NewCoverage(true, s.auditDB)
 	s.coverage.Update(map[string]bool{"r1": true}, 2)
 

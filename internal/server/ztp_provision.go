@@ -50,7 +50,7 @@ func (s *Server) ztpActor(userID string) (*Session, bool) {
 	}
 	for _, u := range users {
 		if u.ID == userID {
-			return &Session{Username: u.Username, AuthMode: "modern"}, true
+			return &Session{Username: u.Username}, true
 		}
 	}
 	return nil, false

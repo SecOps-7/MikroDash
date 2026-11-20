@@ -125,13 +125,6 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 		}
 	}
 
-	// authMode is a whitelist of two.
-	if raw, ok := body["authMode"]; ok {
-		if s := asString(raw); s == "none" || s == "modern" {
-			updates["authMode"] = s
-		}
-	}
-
 	// sessionTimeoutMs: zero means NEVER and must not be clamped to a minimum,
 	// so the accepted set is {0} plus one hour to one day.
 	if raw, ok := body["sessionTimeoutMs"]; ok {
