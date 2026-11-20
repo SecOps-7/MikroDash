@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"time"
 
+	"mikrodash/internal/apps"
 	"mikrodash/internal/db"
 	"mikrodash/internal/sitedoc"
 	"mikrodash/internal/store"
@@ -49,6 +50,7 @@ type shareRead struct {
 // shareReads is the allow list. TestTheShareReadListIsTheAllowList holds it:
 // not empty, every path a real GET route of the app, every page shareable.
 var shareReads = []shareRead{
+	{Path: "/api/apps/history", Pages: []string{"apps"}, serve: (*Server).shareAppHistory},
 	{Path: "/api/devices/overview", Pages: []string{"devices"}, serve: (*Server).shareDevicesOverview},
 	{Path: "/api/interfaces/history", Pages: []string{"interfaces"}, serve: (*Server).shareInterfaceHistory},
 	{Path: "/api/localcc", Pages: []string{"connections", "dashboard"}, serve: (*Server).shareLocalCC},
@@ -59,11 +61,10 @@ var shareReads = []shareRead{
 	{Path: "/api/topology-layout", Pages: []string{"network-topology"}, serve: (*Server).shareTopologyLayout},
 	// Built for pages not shared yet (the operator's ruling of 2026-11-20
 	// narrowed sharing to six pages): add the entry back when its page is.
-	//   /api/apps/history (apps),
 	//   /api/router-doc kind wifi-map and /api/router-doc/image (wifi-map).
-	// Left off on purpose for a shared page: /api/dns/cache and /api/dns/trace
-	// (DNS: they read the router on demand, and the cache shows what people
-	// visited).
+	// Left off on purpose, should DNS be shared again: /api/dns/cache and
+	// /api/dns/trace (they read the router on demand, and the cache shows
+	// what people visited).
 }
 
 // shareReadsFor are the paths a page may read, for the shell's config: the
@@ -223,4 +224,23 @@ func (s *Server) shareDevicesOverview(w http.ResponseWriter, q url.Values, _ *db
 		return
 	}
 	writeJSON(w, out)
+}
+
+// shareAppHistory is the shared router's per-app usage history.
+func (s *Server) shareAppHistory(w http.ResponseWriter, q url.Values, _ *db.ShareLink, rid string) {
+	loc, err := time.LoadLocation(s.displayTZ())
+	if err != nil {
+		loc = time.UTC
+	}
+	now := time.Now()
+	starts := appHistoryBuckets(q.Get("period"), now, loc)
+	to := now.UnixMilli()
+	rows, err := s.auditDB.AppUsage(rid, starts[0], to)
+	if err != nil {
+		writeJSONErr(w, http.StatusInternalServerError, "the history could not be read")
+		return
+	}
+	h := buildAppHistory(rows, starts, to, apps.Default())
+	h.Recording = s.appUsage.recording(rid)
+	writeJSON(w, h)
 }

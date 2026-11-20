@@ -11,26 +11,24 @@ import (
 //
 // He first ruled every page shareable but administration and tools, then
 // narrowed it to the six pages first proposed, then added every page a
-// Dashboard card draws from. The developer decides this, in code; nothing in
+// Dashboard card draws from, then took DNS out and added Wi-Fi Networks and
+// Apps Usage. The developer decides this, in code; nothing in
 // the app lets a user change it. Sharing another page is moving its key from rulingNotYet to
 // rulingShareable and flipping its flag. A page in rulingNever never moves.
 var (
 	rulingShareable = []string{
-		// The six first proposed.
-		"bandwidth", "dashboard", "devices", "interfaces", "network-topology", "wifi-clients",
-		// Every page a Dashboard card draws from (2026-11-20).
-		"connections", "dhcp", "dns", "firewall", "logs", "netwatch", "routing",
-		"security-scan", "vpn", "wan",
+		"apps", "bandwidth", "connections", "dashboard", "devices", "dhcp", "firewall",
+		"interfaces", "logs", "netwatch", "network-topology", "routing", "security-scan",
+		"vpn", "wan", "wifi-clients", "wifi-networks",
 	}
 	// Not chosen yet: shareable when the operator says so.
 	rulingNotYet = []string{
-		"address-lists", "apps", "arp", "bridges", "capsman", "certificates",
-		"clock", "dhcp-clients", "dhcp-servers",
+		"address-lists", "arp", "bridges", "capsman", "certificates",
+		"clock", "dhcp-clients", "dhcp-servers", "dns",
 		"interface-lists", "ip-addresses", "ip-pools", "ip-services", "ipsec", "logging",
 		"ntp-client", "openvpn", "ospf", "packages", "ppp",
 		"pppoe-clients", "queues", "routing-rules", "routing-tables",
-		"snmp", "vlans", "vrrp", "wifi-map",
-		"wifi-networks", "wireguard",
+		"snmp", "vlans", "vrrp", "wifi-map", "wireguard",
 	}
 	// Never: administration, credentials, tools that act on the router.
 	rulingNever = []string{
@@ -45,8 +43,8 @@ var (
 // page in neither list or in both, a flag that disagrees with its list, and a
 // listed key that no longer names a page.
 func TestTheShareListsAreTheRulings(t *testing.T) {
-	if len(rulingShareable) != 16 || len(rulingNotYet) != 30 || len(rulingNever) != 17 {
-		t.Fatalf("the lists hold %d, %d and %d keys; the rulings are 16, 30 and 17",
+	if len(rulingShareable) != 17 || len(rulingNotYet) != 29 || len(rulingNever) != 17 {
+		t.Fatalf("the lists hold %d, %d and %d keys; the rulings are 17, 29 and 17",
 			len(rulingShareable), len(rulingNotYet), len(rulingNever))
 	}
 	want := map[string]ShareDecision{}

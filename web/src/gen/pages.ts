@@ -22,7 +22,7 @@ export interface Page {
 
 export const PAGES: readonly Page[] = [
   { key: "dashboard", title: "Dashboard", path: "home", shareable: true },
-  { key: "dns", title: "DNS", path: "dns", shareable: true },
+  { key: "dns", title: "DNS", path: "dns", shareable: false },
   { key: "bridges", title: "Bridges", path: "bridges", shareable: false },
   { key: "vlans", title: "VLANs", path: "vlans", shareable: false },
   { key: "wan", title: "WAN", path: "wan", shareable: true },
@@ -36,7 +36,7 @@ export const PAGES: readonly Page[] = [
   { key: "queues", title: "Queues", path: "queues", shareable: false },
   { key: "security-scan", title: "Security Scan", path: "security-scan", shareable: true },
   { key: "firewall", title: "Firewall", path: "firewall", shareable: true },
-  { key: "wifi-networks", title: "Wifi Networks", path: "wifi-networks", shareable: false },
+  { key: "wifi-networks", title: "Wifi Networks", path: "wifi-networks", shareable: true },
   { key: "capsman", title: "CAPsMAN", path: "capsman", shareable: false },
   { key: "interfaces", title: "Interfaces", path: "interfaces", shareable: true },
   { key: "ip-addresses", title: "IP Addresses", path: "ip-addresses", shareable: false },
@@ -76,7 +76,7 @@ export const PAGES: readonly Page[] = [
   { key: "wifi-map", title: "Wifi Map", path: "wifi-map", shareable: false },
   { key: "bandwidth", title: "Bandwidth", path: "bandwidth", shareable: true },
   { key: "connections", title: "Connections", path: "connections", shareable: true },
-  { key: "apps", title: "Apps Usage", path: "apps", shareable: false },
+  { key: "apps", title: "Apps Usage", path: "apps", shareable: true },
   { key: "ai-agent", title: "AI Agent", path: "ai-agent", shareable: false },
   { key: "reports", title: "Reports", path: "reports", shareable: false },
   { key: "audit-trail", title: "Audit Trail", path: "audit-trail", shareable: false },

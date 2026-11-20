@@ -89,8 +89,8 @@ type Page struct {
 	// author decides. THE DEVELOPER DECIDES, IN CODE: no setting, toggle or
 	// environment variable changes it, and an administrator only picks which
 	// of these pages a link shows. The decisions are the operator's rulings
-	// of 2026-11-20: the six first proposed, then every page a Dashboard card
-	// draws from; every other page waits until he chooses it.
+	// of 2026-11-20, held as literal lists by the test; every other page waits
+	// until he chooses it.
 	// `TestTheShareListsAreTheRulings` holds them to three literal lists.
 	Share ShareDecision
 }
@@ -126,7 +126,7 @@ func IsShareable(key string) bool {
 // shortcuts address the first nine.
 var All = []Page{
 	{Key: "dashboard", Title: "Dashboard", Path: "home", Share: Shareable},
-	{Key: "dns", Title: "DNS", Collector: "dns", Share: Shareable},
+	{Key: "dns", Title: "DNS", Collector: "dns", Share: NotShareable},
 	{Key: "bridges", Title: "Bridges", Collector: "bridges", Share: NotShareable},
 	{Key: "vlans", Title: "VLANs", Collector: "vlans", Share: NotShareable},
 	{Key: "wan", Title: "WAN", Collector: "wan", Share: Shareable},
@@ -147,7 +147,7 @@ var All = []Page{
 	// demand, through secscan:run (internal/server/secscan.go).
 	{Key: "security-scan", Title: "Security Scan", Share: Shareable},
 	{Key: "firewall", Title: "Firewall", Collector: "firewall", Share: Shareable},
-	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi", Share: NotShareable},
+	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi", Share: Shareable},
 	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman", Share: NotShareable},
 	{Key: "interfaces", Title: "Interfaces", Collector: "ifStatus", Share: Shareable},
 	// The IP Addresses page (#97): both families, fed by its own collector.
@@ -230,7 +230,7 @@ var All = []Page{
 	{Key: "connections", Title: "Connections", Collector: "conns", Share: Shareable},
 	// Apps Usage (2026-11-12): traffic by application, named from the DNS
 	// cache, ports and network owners. See internal/collect/apps.go.
-	{Key: "apps", Title: "Apps Usage", Collector: "apps", Share: NotShareable},
+	{Key: "apps", Title: "Apps Usage", Collector: "apps", Share: Shareable},
 	// The AI Agent (#98). NO COLLECTOR, like dashboard and reports: it is fed by
 	// whatever the viewer may already read, assembled per question, so there is
 	// nothing to switch off that would empty it.

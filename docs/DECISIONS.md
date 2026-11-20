@@ -15,13 +15,13 @@ Shared links, only by a global administrator. A link may never expire
 **Which pages (the operator, 2026-11-20):** the developer decides, in code
 (the `Share` flag of each page in `internal/pages/pages.go`); no setting,
 toggle or environment variable changes it, and an administrator only picks
-which of those pages a link shows. Sixteen pages are shared: the six first
-proposed (Dashboard, Interfaces, Bandwidth, Wi-Fi Clients, Network Topology,
-Devices, the shared router's row only), and every page a Dashboard card
-draws from (Connections, DHCP, VPN, Firewall, Logs, WAN, NetWatch, Routing,
-Security Scan, DNS). He first ruled every page shareable but administration
-and tools, narrowed it to the six, then added the card pages; others are
-added from there. Administration, Router Users, Reports, Scripts, Scheduler,
+which of those pages a link shows. Seventeen pages are shared: Dashboard,
+Interfaces, Bandwidth, Wi-Fi Clients, Wi-Fi Networks, Network Topology,
+Devices (the shared router's row only), Apps Usage, Connections, DHCP, VPN,
+Firewall, Logs, WAN, NetWatch, Routing and Security Scan. He first ruled
+every page shareable but administration and tools, narrowed it to six,
+added every page a Dashboard card draws from, then took DNS out and added
+Wi-Fi Networks and Apps Usage; others are added from there. Administration, Router Users, Reports, Scripts, Scheduler,
 Containers, Files, the tools, the terminal and the AI assistant are never
 shareable. A Dashboard card is shareable only when every page its data
 comes from is. A link whose page is no longer shared is refused, not
