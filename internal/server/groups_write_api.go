@@ -253,4 +253,7 @@ func (s *Server) groupDelete(w http.ResponseWriter, r *http.Request, sess *Sessi
 // gains its invalidation here rather than at fourteen call sites.
 func (s *Server) bumpPermissions() {
 	EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
+	// A share link lives only while its creator is a global administrator: a
+	// grant, group or role change may have ended that.
+	s.sweepShareLinks()
 }

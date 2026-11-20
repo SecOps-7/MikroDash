@@ -573,6 +573,8 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	s.broadcastRouterList()
 	s.syncFleetHolds()
+	// Every share link showing this router is revoked now, not at its next use.
+	s.sweepShareLinks()
 	writeJSON(w, map[string]any{"ok": true})
 }
 

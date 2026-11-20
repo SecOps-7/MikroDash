@@ -417,6 +417,9 @@ func (s *Server) userDelete(w http.ResponseWriter, r *http.Request, sess *Sessio
 		Action: "user.delete", TargetType: "user", TargetID: id, TargetName: name,
 		Note: "grants, layouts and notification config removed with the account",
 	})
+	// The account's share links die with it. Deferred so the sweep sees the
+	// grant cascade below as well.
+	defer s.sweepShareLinks()
 
 	// ── THE CASCADE THAT SQLITE CANNOT DO FOR US ────────────────────────
 	//

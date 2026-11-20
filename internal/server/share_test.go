@@ -364,3 +364,26 @@ func TestAnEditKeepsTheTokenAndIsRechecked(t *testing.T) {
 		t.Errorf("an active link was deleted: %d", w.Code)
 	}
 }
+
+// TestAWriteRevokesWithoutWaitingForAUse: the write-time sweep. Deleting a
+// router through its route, and a permission change, revoke the links they
+// end before anybody opens them.
+func TestAWriteRevokesWithoutWaitingForAUse(t *testing.T) {
+	srv, h := shareServer(t)
+	onR2, _ := createLink(t, h, `{"kind":"page","label":"Branch","page":"dashboard","routerId":"r2"}`)
+	onR1, _ := createLink(t, h, pageLink)
+	if w := shareReq(h, "DELETE", "/api/routers/r2", "", "admin", "", nil); w.Code != 200 {
+		t.Fatalf("delete router: %d %s", w.Code, w.Body.String())
+	}
+	if l, _ := srv.auditDB.ShareLinkByID(onR2); l == nil || l.RevokeReason != sharelink.ReasonRouterDeleted {
+		t.Errorf("the deleted router's link was not revoked by the delete: %+v", l)
+	}
+	if l, _ := srv.auditDB.ShareLinkByID(onR1); l == nil || l.RevokedAt != nil {
+		t.Fatalf("control: the other router's link was revoked too: %+v", l)
+	}
+	srv.rbac = nil
+	srv.bumpPermissions()
+	if l, _ := srv.auditDB.ShareLinkByID(onR1); l == nil || l.RevokeReason != sharelink.ReasonCreatorNotAdmin {
+		t.Errorf("a permission change did not revoke the link of a creator who lost administration: %+v", l)
+	}
+}

@@ -160,6 +160,30 @@ func (s *Server) shareAutoRevoke(l db.ShareLink, reason string) {
 		"revoked automatically: "+reason)
 }
 
+// sweepShareLinks is the write-time half of auto-revocation: after a write
+// that can end a link's validity (a user deleted, a grant, group or role
+// changed, a router deleted), every active link is checked, and one whose
+// creator is gone or no longer a global administrator, or that shows a
+// deleted router, is revoked and its viewers ended. The at-use check in
+// shareCheckLink catches anything a sweep did not run for.
+func (s *Server) sweepShareLinks() {
+	if s.auditDB == nil {
+		return
+	}
+	links, err := s.auditDB.ShareLinks()
+	if err != nil {
+		return
+	}
+	for i := range links {
+		l := links[i]
+		if l.RevokedAt != nil {
+			continue
+		}
+		// The address check plays no part in a sweep: "" is not a visitor.
+		s.shareCheckLink(&l, "")
+	}
+}
+
 // shareFromTicket resolves a view ticket to a link that may be used now.
 func (s *Server) shareFromTicket(ticket string, r *http.Request) (*db.ShareLink, string) {
 	id, _, ok := sharelink.VerifyTicket(s.shareKey, ticket, time.Now())
