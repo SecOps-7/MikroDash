@@ -4017,6 +4017,9 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
 .share-embed body, .share-embed .share-root { background: transparent; }
 .share-embed .share-strip, .share-embed .share-progress { display: none; }
 .share-embed .share-stage { padding: 0; }
+/* A card link is the card alone: no title, router or "read-only" strip above
+   it (the operator, 2026-11-20). Page and slideshow links keep theirs. */
+.share-card .share-strip { display: none; }
 .share-card .share-stage { padding: 8px; }
 @media (max-width: 640px) {
   .share-strip { flex-wrap: wrap; }
