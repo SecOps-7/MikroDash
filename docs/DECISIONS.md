@@ -10,9 +10,19 @@ not a refactor.
 read-only view through a share link: one page, a slideshow, one Dashboard
 card, or a sensor feed for Home Assistant. Links are made only in Settings >
 Shared links, only by a global administrator. A link may never expire
-(Never is a choice, with a warning). Every page is shareable except
-administration, Scripts, Scheduler, Containers, Files, Router Users and
-Reports; the tools and the terminal are not pages a share can show. A link
+(Never is a choice, with a warning).
+
+**Which pages (the operator, 2026-11-20, narrowing his earlier ruling):**
+six pages are shared, the ones first proposed: Dashboard, Interfaces,
+Bandwidth, Wi-Fi Clients, Network Topology and Devices (the shared router's
+row only). He first ruled every page shareable but administration and tools,
+then narrowed it to these six, to add pages one at a time from there. Every
+other page is not shareable until he chooses it; administration, Router
+Users, Reports, Scripts, Scheduler, Containers, Files, the tools, the
+terminal and the AI assistant never are. A Dashboard card is shareable only
+when every page its data comes from is. A link whose page is no longer
+shared is refused, not revoked, and works again if the page is shared
+again. A link
 ends when it is revoked, when it expires, when its creator is deleted or
 stops being a global administrator, or when a router it shows is deleted.
 Each link has a viewer cap (default 5, at most 25), an optional address
@@ -59,7 +69,10 @@ the same whatever its reason; only the audit trail says why.
   `TestALinkDiesWithItsCreatorsAdministration`, `TestADeletedRouterRevokesItsLinks`,
   `TestAWriteRevokesWithoutWaitingForAUse`, `TestAShareHearsOnlyItsSubject`,
   `TestAnEditClosesTheLiveViewAndTheCapHolds`, `TestTheFeedTakesItsTokenInAHeaderOnly`,
-  `TestEveryCardIsFedOrRecorded`, `TestTheShareListsAreTheRulings`, and in the
+  `TestEveryCardIsFedOrRecorded`, `TestTheShareListsAreTheRulings` (three
+  lists: shared, not yet chosen, never), `TestTheShareableCardsFollowTheSharedPages`,
+  `TestALinkWhosePageIsNoLongerSharedIsRefusedNotRevoked`,
+  `TestASharedDevicesPageShowsOnlyItsRouter`, and in the
   browser `web/test/share-shell.test.ts`.
 - For the four answers: `TestEveryCardLinkReceivesOnlyItsCardsFields` (every
   shareable card, its real Go payloads with every field filled: nothing
