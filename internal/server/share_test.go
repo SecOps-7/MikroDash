@@ -778,7 +778,15 @@ func TestASharedDevicesPageShowsOnlyItsRouter(t *testing.T) {
 		}
 	}
 	if len(rows) != 1 || rows[0]["id"] != "r1" {
-		t.Errorf("the stats frame carried %d rows (%v); want only r1", len(rows), rows)
+		t.Fatalf("the stats frame carried %d rows (%v); want only r1", len(rows), rows)
+	}
+	for _, k := range []string{"host", "publicIp", "serial", "lastError", "loginProfile", "siteId", "siteName", "geo"} {
+		if v := rows[0][k]; v != nil && v != "" {
+			t.Errorf("the shared row carries %s (%v): where a router is reached is never shared", k, v)
+		}
+	}
+	if rows[0]["label"] != "Edge" {
+		t.Errorf("control: the shared row lost its name: %v", rows[0]["label"])
 	}
 	w := shareReq(h, "GET", "/share/api/devices/overview", "", "", "", map[string]string{"Authorization": "Share " + tk})
 	var ov []map[string]any

@@ -563,8 +563,21 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 
 // shareStatsRows is the Devices page's row for one router only: BuildStats
 // drops every row Visible does not name (TestASharedDevicesPageShowsOnlyItsRouter).
+//
+// THE ROW IS CUT DOWN for a share. A signed-in viewer sees where a router is
+// reached and how MikroDash signs in to it; a share link can reach anyone,
+// so the management address, the public address, the serial, the last error
+// (which names addresses and reasons), the login profile, and the sites and
+// location are never sent. The card keeps its name, state, readings, model,
+// version and alert count.
 func shareStatsRows(s *Server, routerID string) []routers.Row {
 	src := s.buildStatsSources(nil, routerID)
 	src.Visible = map[string]bool{routerID: true}
-	return routers.BuildStats(src)
+	rows := routers.BuildStats(src)
+	for i := range rows {
+		r := &rows[i]
+		r.Host, r.PublicIP, r.Serial, r.LastError, r.LoginProfile = "", nil, nil, nil, nil
+		r.SiteIDs, r.SiteNames, r.SiteID, r.SiteName, r.Geo = []string{}, []string{}, nil, nil, nil
+	}
+	return rows
 }
