@@ -114,6 +114,9 @@ function boot(): void {
   root.classList.add('share-view');
   if (cfg.options.view === 'embed') root.classList.add('share-embed');
   if (cfg.kind === 'card') root.classList.add('share-card');
+  // Only a slideshow has a strip (and only with its Title bar option on): a
+  // page or card link is the page or card alone (the operator, 2026-11-20).
+  if (cfg.kind !== 'slideshow') el('shareStrip')?.classList.add('share-strip-hidden');
   // Every capability off: the controls a share must not offer are hidden the
   // way a read-only account's are. The server would refuse them anyway.
   applyCaps({ pages: {}, manageSettings: false, managePrincipals: false, createRouters: false });
