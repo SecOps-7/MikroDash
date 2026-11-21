@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -158,7 +159,7 @@ func TestACreateIsCheckedAgainstTheRules(t *testing.T) {
 		"an allow-all range":  `{"kind":"page","label":"x","page":"dashboard","routerId":"r1","allowedAddresses":["0.0.0.0/0"]}`,
 		"a cap over the max":  `{"kind":"page","label":"x","page":"dashboard","routerId":"r1","viewerCap":26}`,
 		"one slide":           `{"kind":"slideshow","label":"x","slides":[{"page":"dashboard","routerId":"r1"}]}`,
-		"the agent card":      `{"kind":"card","label":"x","routerId":"r1","options":{"card":"dc-card-agent"}}`,
+		"a per-viewer card":   `{"kind":"card","label":"x","routerId":"r1","options":{"card":"dc-card-secscore"}}`,
 		"a feed with origins": `{"kind":"feed","label":"x","routerId":"r1","options":{"values":["cpu"]},"frameOrigins":["https://ha.example.com"]}`,
 		"no label":            `{"kind":"page","label":" ","page":"dashboard","routerId":"r1"}`,
 	} {
@@ -838,5 +839,79 @@ func TestASharedSecurityScanReadsAndNeverRuns(t *testing.T) {
 	}
 	if _, _, running := srv.secScans.get("r1"); running {
 		t.Error("a share started a scan")
+	}
+}
+
+// TestASharedDashboardsAgentLine: the Agent Overview on a shared Dashboard
+// gets a line written for the share, without the model's name; a second
+// viewer of the link is answered from the cache (one billable request, not
+// two); a share on any other page starts nothing.
+func TestASharedDashboardsAgentLine(t *testing.T) {
+	var asked atomic.Int32
+	ai := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"Edge is up and quiet"},"finish_reason":"stop"}]}`))
+	}))
+	defer ai.Close()
+	srv, h := shareServer(t)
+	if err := os.WriteFile(filepath.Join(srv.store.Dir, "settings.json"), []byte(`{"aiEnabled":true,"aiBaseUrl":"`+
+		ai.URL+`","aiModel":"secret-model","aiOverviewEnabled":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	focus := func(c *websocket.Conn) {
+		b, _ := json.Marshal(map[string]any{"event": "dashcard:focus", "data": "agent"})
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := c.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	line := func(c *websocket.Conn) map[string]any {
+		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+		defer cancel()
+		for {
+			_, b, err := c.Read(ctx)
+			if err != nil {
+				t.Fatalf("no ai:overview arrived: %v", err)
+			}
+			var f struct {
+				Event string         `json:"event"`
+				Data  map[string]any `json:"data"`
+			}
+			if json.Unmarshal(b, &f) == nil && f.Event == "ai:overview" {
+				return f.Data
+			}
+		}
+	}
+	id, token := createLink(t, h, `{"kind":"page","label":"Home","page":"dashboard","routerId":"r1"}`)
+	a, _ := openShareView(t, ts, h, token)
+	defer a.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	focus(a)
+	got := line(a)
+	if got["text"] != "Edge is up and quiet" || got["model"] != nil {
+		t.Errorf("the shared line: %v; want the text and no model name", got)
+	}
+	b, _ := openShareView(t, ts, h, token)
+	defer b.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 2 })
+	focus(b)
+	if again := line(b); again["text"] != "Edge is up and quiet" {
+		t.Errorf("the second viewer's line: %v", again)
+	}
+	if n := asked.Load(); n != 1 {
+		t.Errorf("%d requests to the model for one link; the second viewer must be answered from the cache", n)
+	}
+	// A share on another page: focusing the card starts nothing.
+	_, other := createLink(t, h, `{"kind":"page","label":"Ifaces","page":"interfaces","routerId":"r1"}`)
+	c, _ := openShareView(t, ts, h, other)
+	defer c.CloseNow()
+	focus(c)
+	time.Sleep(500 * time.Millisecond)
+	if n := asked.Load(); n != 1 {
+		t.Errorf("a share of the Interfaces page asked the model (%d requests)", n)
 	}
 }

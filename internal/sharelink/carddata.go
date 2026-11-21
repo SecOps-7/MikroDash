@@ -127,7 +127,8 @@ var cardData = map[string]CardData{
 		"routing:update": {"routeCounts.connect", "routeCounts.static", "routeCounts.dynamic", "routeCounts.bgp",
 			"routeCounts.ospf", "routeCounts.total"},
 	},
-	"dc-card-bgp": {"routing:update": {"summary.total", "summary.established", "summary.down"}},
+	"dc-card-bgp":   {"routing:update": {"summary.total", "summary.established", "summary.down"}},
+	"dc-card-agent": {"ai:overview": {"text", "error", "at", "color"}},
 }
 
 // CardDataOf is what a shareable card's link may receive.

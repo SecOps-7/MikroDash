@@ -37,6 +37,7 @@ import (
 	"mikrodash/internal/aicontext"
 	"mikrodash/internal/aiprovider"
 	"mikrodash/internal/safe"
+	"mikrodash/internal/session"
 	"mikrodash/internal/store"
 )
 
@@ -218,15 +219,37 @@ func (cn *conn) overviewTick() time.Duration {
 		return interval
 	}
 
-	prompt := overviewPrompt(settings)
-	cfg := aiConfigFor(nil, settings)
 	key := cn.aiHistoryUserFor(sc.sess)
-	// Swapped before any early return below it could be skipped by, and after the
-	// returns above, which are all reasons no request could be made anyway.
-	forced := cn.agentForce.Swap(false)
 	if key != "" {
 		key += "|" + sc.routerID
-		if e, ok := cn.srv.overviewCached(key); ok && !forced && e.prompt == prompt && e.model == cfg.Model {
+	}
+	// Swapped before the write, after the returns above, which are all reasons
+	// no request could be made anyway.
+	forced := cn.agentForce.Swap(false)
+	return cn.srv.overviewWrite(settings, interval, key, forced, sc.rs,
+		func(page string) bool { return cn.canPageIn(sc, page, "read") },
+		func(p map[string]any) { EvAIOverview.Send(cn.srv.hub, cn.c, p) },
+		cn.overviewFail)
+}
+
+// overviewWrite sends one line, asking the model only when none is fresh in
+// the cache under key ("" caches nothing), and returns how long until the
+// next is due. may decides which pages' observations the model is given: a
+// signed-in viewer's grants, or a share link's shared pages
+// (share_agent.go). fail is told why a line could not be written.
+//
+// ── THE CACHE IS PER VIEWER (OR LINK), PER ROUTER, AND ON THE SERVER ────────
+//
+// Per viewer because the line is built from what that viewer may see; per
+// router because it describes one device; and on the server because the
+// socket is not the thing that lasts. Reloading the page is a new socket, and
+// a cache on the connection would pay for a fresh line on every reload.
+func (s *Server) overviewWrite(settings store.Settings, interval time.Duration, key string, forced bool,
+	rs *session.Session, may func(page string) bool, send func(map[string]any), fail func(string)) time.Duration {
+	prompt := overviewPrompt(settings)
+	cfg := aiConfigFor(nil, settings)
+	if key != "" {
+		if e, ok := s.overviewCached(key); ok && !forced && e.prompt == prompt && e.model == cfg.Model {
 			if age := time.Since(e.at); age < interval {
 				// A COPY WITH TODAY'S COLOUR. The colour is not part of what the
 				// model wrote, so a change in Settings shows on the next visit
@@ -236,15 +259,13 @@ func (cn *conn) overviewTick() time.Duration {
 					out[k] = v
 				}
 				out["color"] = overviewColorOf(settings)
-				EvAIOverview.Send(cn.srv.hub, cn.c, out)
+				send(out)
 				return interval - age
 			}
 		}
 	}
 
-	items := aicontext.Build(snapshotOf(sc.rs), time.Now().UnixMilli(), func(page string) bool {
-		return cn.canPageIn(sc, page, "read")
-	})
+	items := aicontext.Build(snapshotOf(rs), time.Now().UnixMilli(), may)
 	msgs := []aiprovider.ChatMessage{
 		{Role: "system", Content: prompt},
 		{Role: "system", Content: aicontext.Render(items)},
@@ -259,14 +280,14 @@ func (cn *conn) overviewTick() time.Duration {
 		// for three hours after the endpoint recovers.
 		msg := safe.Message(err.Error())
 		log.Printf("[ai-overview] %s", msg)
-		cn.overviewFail(msg)
+		fail(msg)
 		return overviewRetry(interval)
 	}
-	line, fail := overviewReply(reply)
-	if fail != "" {
+	line, why := overviewReply(reply)
+	if why != "" {
 		// AN EMPTY ANSWER IS A FAILURE, not a line: shown, logged, not cached.
-		log.Printf("[ai-overview] %s (finish %q)", fail, reply.Finish)
-		cn.overviewFail(fail)
+		log.Printf("[ai-overview] %s (finish %q)", why, reply.Finish)
+		fail(why)
 		return overviewRetry(interval)
 	}
 	now := time.Now()
@@ -277,14 +298,14 @@ func (cn *conn) overviewTick() time.Duration {
 		"at":    now.UnixMilli(),
 	}
 	if key != "" {
-		cn.srv.overviewStore(key, overviewEntry{payload: payload, at: now, prompt: prompt, model: cfg.Model})
+		s.overviewStore(key, overviewEntry{payload: payload, at: now, prompt: prompt, model: cfg.Model})
 	}
 	sent := make(map[string]any, len(payload)+1)
 	for k, v := range payload {
 		sent[k] = v
 	}
 	sent["color"] = overviewColorOf(settings)
-	EvAIOverview.Send(cn.srv.hub, cn.c, sent)
+	send(sent)
 	return interval
 }
 

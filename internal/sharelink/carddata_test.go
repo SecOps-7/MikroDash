@@ -25,6 +25,7 @@ var cardEventTypes = map[string]any{
 	"netwatch:update": collect.NetwatchPayload{}, "routing:update": collect.RoutingPayload{},
 	"stream:health": map[string]any{"collector": "traffic", "degraded": true, "restarts": 2, "ts": 1, "detail": "x"},
 	"lan:wan":       map[string]any{"ts": 1, "wanIp": "198.51.100.7"},
+	"ai:overview":   map[string]any{"text": "x", "error": "", "model": "m", "at": 1, "color": "#38bdf8"},
 	"ping:history": map[string]any{"target": "x", "minRtt": 1, "maxRtt": 2, "pollMs": 5,
 		"history": []any{map[string]any{"rtt": 1, "loss": 0, "ts": 1, "seq": 9}}},
 }
@@ -285,12 +286,14 @@ func TestTheProjectorKeepsOnlyWhatItIsAsked(t *testing.T) {
 	}
 }
 
-// rulingCards are the cards shareable under the operator's page rulings of
+// rulingCards are the cards shareable under the operator's rulings of
 // 2026-11-20: every page a Dashboard card draws from is shared, so every fed
-// card is. The four per-viewer cards (cardsNotShareable) never are.
+// card is, and the Agent Overview is shared with the Dashboard (its line is
+// written from the shared pages only; the AI Agent page itself never is).
+// The three other per-viewer cards (cardsNotShareable) never are.
 var rulingCards = []string{
 	"card-connections", "card-network", "card-system", "card-toptalkers", "card-traffic",
-	"card-wireguard", "dc-card-band", "dc-card-bgp", "dc-card-bw", "dc-card-destcc", "dc-card-flow",
+	"card-wireguard", "dc-card-agent", "dc-card-band", "dc-card-bgp", "dc-card-bw", "dc-card-destcc", "dc-card-flow",
 	"dc-card-fwaction", "dc-card-iputil", "dc-card-logs", "dc-card-netflow", "dc-card-netwatch",
 	"dc-card-physports", "dc-card-ping", "dc-card-routes", "dc-card-signal", "dc-card-topcc",
 	"dc-card-topports", "dc-card-wanflow",
@@ -305,7 +308,7 @@ func TestTheShareableCardsFollowTheSharedPages(t *testing.T) {
 	if strings.Join(got, " ") != strings.Join(rulingCards, " ") {
 		t.Errorf("shareable cards:\n got %v\nwant %v", got, rulingCards)
 	}
-	for _, id := range []string{"dc-card-agent", "dc-card-secscore", "dc-card-domainroute", "dc-card-diagnostics"} {
+	for _, id := range []string{"dc-card-secscore", "dc-card-domainroute", "dc-card-diagnostics"} {
 		if CardShareable(id) {
 			t.Errorf("%s is filled per viewer and is shareable", id)
 		}

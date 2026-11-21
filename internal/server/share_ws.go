@@ -66,16 +66,17 @@ type shareConn struct {
 	inner  *conn // no session: see the file header
 	cancel context.CancelFunc
 
-	mu       sync.Mutex
-	link     db.ShareLink
-	slide    int // the current slide of a slideshow
-	page     string
-	routerID string
-	rs       *session.Session
-	warm     string        // the room joined ahead of the next slide, if any
-	devStop  chan struct{} // the Devices page's stats timer, while it is shown
-	closed   bool
-	once     sync.Once
+	mu        sync.Mutex
+	link      db.ShareLink
+	slide     int // the current slide of a slideshow
+	page      string
+	routerID  string
+	rs        *session.Session
+	warm      string        // the room joined ahead of the next slide, if any
+	devStop   chan struct{} // the Devices page's stats timer, while it is shown
+	agentStop chan struct{} // the Agent Overview line, while its card is shown (share_agent.go)
+	closed    bool
+	once      sync.Once
 
 	// view is what the hub's filter reads (see accepts). It is an atomic, not
 	// a field under mu, because the hub asks while holding its own lock, and
@@ -229,6 +230,9 @@ func (sc *shareConn) show(routerID, page string) {
 	sc.view.Store(&shareView{routerID: routerID, page: page})
 	sc.page = page
 	sc.devicesTimerLocked(page == "devices")
+	if page != "dashboard" {
+		sc.agentLineLocked(false)
+	}
 	room := "router-" + routerID + "-page-" + page
 	if sc.warm != "" && sc.warm != room {
 		s.hub.Leave(cn.c, sc.warm)
@@ -260,6 +264,9 @@ func (sc *shareConn) showCard(routerID, cardID string) {
 	}
 	if feed.Dash {
 		s.hub.Join(cn.c, "router-"+routerID+"-page-dashboard")
+	}
+	if feed.AILine {
+		sc.agentLineLocked(true)
 	}
 	s.applyDemand(sc.rs, routerID)
 	// The replays a page focus gives, through the filter like everything else.
@@ -319,6 +326,15 @@ func shareCardRoom(key string) bool {
 func (sc *shareConn) focusCard(key string) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
+	if key == "agent" {
+		// The Agent Overview has no room a share joins and borrows from a page
+		// a share never replays (the AI assistant): its line is written for the
+		// share (share_agent.go), and only while the Dashboard is shown.
+		if !sc.closed && sc.page == "dashboard" && sc.rs != nil && sharelink.CardShareable("dc-card-agent") {
+			sc.agentLineLocked(true)
+		}
+		return
+	}
 	if sc.closed || sc.page != "dashboard" || sc.rs == nil || !shareCardRoom(key) {
 		return
 	}
@@ -507,6 +523,7 @@ func (sc *shareConn) releaseLocked() {
 	s.sessions.Release(sc.routerID)
 	cn.setRouter("", nil)
 	sc.devicesTimerLocked(false)
+	sc.agentLineLocked(false)
 	sc.rs, sc.routerID, sc.page, sc.warm = nil, "", "", ""
 }
 

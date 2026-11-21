@@ -26,7 +26,15 @@ Containers, Files, the tools, the terminal and the AI assistant are never
 shareable. A Dashboard card is shareable only when every page its data
 comes from is. A link whose page is no longer shared is refused, not
 revoked, and works again if the page is shared again. A shared Security
-Scan shows the last report and can never start a scan.
+Scan shows the last report and can never start a scan. The Agent Overview
+card is shared with the Dashboard (on a shared Dashboard and as a card link)
+while the AI Agent page never is: its line is written for the share from the
+shared pages' observations only, cached per link and router for the
+configured interval, never refreshed on a share's request, and sent without
+the model's name or any error text (`internal/server/share_agent.go`,
+`TestASharedDashboardsAgentLine`). A page or card link shows no strip of
+title, router or "read-only" text; only a slideshow does, and only with its
+Title bar option on.
 
 **What it means:** a share never builds a session and never reaches an
 `/api/` route. The token opens `/s/<token>`, and only its hash is stored. The

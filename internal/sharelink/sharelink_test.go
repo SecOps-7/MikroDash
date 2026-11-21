@@ -2,6 +2,7 @@ package sharelink
 
 import (
 	"mikrodash/internal/dashcards"
+	"mikrodash/internal/pages"
 	"strings"
 	"testing"
 	"time"
@@ -258,20 +259,17 @@ func TestSlideshowLimits(t *testing.T) {
 }
 
 func TestCardsAndFeedValues(t *testing.T) {
-	if CardShareable("dc-card-agent") {
-		t.Error("the Agent Overview card is shareable; its page (the AI assistant) is not")
+	// The operator's ruling of 2026-11-20: the Agent Overview card is shared
+	// with the Dashboard, while its own page, the AI assistant, never is.
+	if !CardShareable("dc-card-agent") || pages.IsShareable("ai-agent") {
+		t.Error("the Agent Overview card must be shareable and the AI Agent page must not")
 	}
 	if !CardShareable("card-traffic") || !CardShareable("dc-card-bw") || CardShareable("no-such-card") {
 		t.Error("card shareability is wrong")
 	}
-	for _, c := range ShareableCards() {
-		if c.ID == "dc-card-agent" {
-			t.Error("ShareableCards lists the Agent Overview")
-		}
-	}
-	o := Options{Card: "dc-card-agent"}
+	o := Options{Card: "dc-card-secscore"}
 	if err := o.Normalize(KindCard, false); err == nil {
-		t.Error("a card link to the Agent Overview was accepted")
+		t.Error("a card link to a per-viewer card (Security Score) was accepted")
 	}
 	for _, v := range FeedValues {
 		if !FeedValueAllowed(v.Key) {

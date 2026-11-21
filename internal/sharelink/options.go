@@ -206,6 +206,9 @@ func CardShareable(id string) bool {
 			continue
 		}
 		page := c.Page
+		if feed.Page != "" {
+			page = feed.Page
+		}
 		if page == "" {
 			page = "dashboard"
 		}
@@ -234,6 +237,14 @@ func CardShareable(id string) bool {
 type CardFeed struct {
 	Rooms []string
 	Dash  bool
+	// Page, when set, is the page whose sharing decides this card's, in place
+	// of the card's own: the Agent Overview belongs to the AI Agent page,
+	// which is never shared, but a share writes its line from the shared
+	// pages only (internal/server/share_agent.go), so the Dashboard decides.
+	Page string
+	// AILine: the card is the server's AI status line, written for the share
+	// rather than fed from a room.
+	AILine bool
 }
 
 // cardFeeds is every card a link may show, by what feeds it. Several cards
@@ -268,12 +279,12 @@ var cardFeeds = map[string]CardFeed{
 	"dc-card-netwatch":  {Dash: true},
 	"dc-card-routes":    {Dash: true},
 	"dc-card-bgp":       {Dash: true},
+	"dc-card-agent":     {Page: "dashboard", AILine: true},
 }
 
 // cardsNotShareable are the cards no link may show, and why.
 var cardsNotShareable = map[string]string{
 	"dc-card-diagnostics": "reports on this MikroDash process, sent per viewer",
-	"dc-card-agent":       "the AI assistant's page is not shareable, and its text is built per viewer",
 	"dc-card-secscore":    "filled per viewer from the scans that viewer may read",
 	"dc-card-domainroute": "filled per viewer from what that viewer's grants allow",
 }

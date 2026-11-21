@@ -54,8 +54,9 @@ func TestAFailureIsRetriedSoon(t *testing.T) {
 	}
 }
 
-// overviewTick asks with the chat's budget and goes through overviewReply, or the
-// helpers above are not what the card does.
+// overviewWrite, the one line writer (the signed-in card's and a share's),
+// asks with the chat's budget and goes through overviewReply, or the helpers
+// above are not what the card does.
 func TestTheCardAsksWithTheChatsBudgetAndChecksTheAnswer(t *testing.T) {
 	f, err := parser.ParseFile(token.NewFileSet(), "ai_overview.go", nil, 0)
 	if err != nil {
@@ -64,7 +65,7 @@ func TestTheCardAsksWithTheChatsBudgetAndChecksTheAnswer(t *testing.T) {
 	budget, checked, retried := false, false, false
 	for _, d := range f.Decls {
 		fn, ok := d.(*ast.FuncDecl)
-		if !ok || fn.Name.Name != "overviewTick" {
+		if !ok || fn.Name.Name != "overviewWrite" {
 			continue
 		}
 		ast.Inspect(fn.Body, func(n ast.Node) bool {
@@ -93,12 +94,12 @@ func TestTheCardAsksWithTheChatsBudgetAndChecksTheAnswer(t *testing.T) {
 		})
 	}
 	if !budget {
-		t.Error("overviewTick does not ask with cfg.ReplyTokens(), so a model that reasons first spends the budget thinking")
+		t.Error("overviewWrite does not ask with cfg.ReplyTokens(), so a model that reasons first spends the budget thinking")
 	}
 	if !checked {
-		t.Error("overviewTick does not pass the answer through overviewReply, so a blank answer is cached as a line")
+		t.Error("overviewWrite does not pass the answer through overviewReply, so a blank answer is cached as a line")
 	}
 	if !retried {
-		t.Error("overviewTick does not retry a failure soon, so the card stays empty for the whole interval")
+		t.Error("overviewWrite does not retry a failure soon, so the card stays empty for the whole interval")
 	}
 }
