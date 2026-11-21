@@ -18,7 +18,7 @@ import { badge, hourSpan, paintRing, ringSlices } from './apps';
 
 /** One list row's height in pixels, as app.css sets it: the list shows as
  *  many rows as fit. */
-const ROW_PX = 30;
+const ROW_PX = 34;
 
 /** The card's span label: "last hour", or the minutes measured so far. Pure. */
 export function cardSpan(p: AppUsagePayload): string {
@@ -34,9 +34,9 @@ export function appsCardRows(p: AppUsagePayload, rows: number): string {
     return '<li class="au-card-row" title="' + esc(a.name + ': ' + fmtBytes(a.totalBytes) + ', ' + share.toFixed(0) + '%') + '">' +
       badge(a, 'sm') +
       '<span class="au-card-name">' + esc(a.name) + '</span>' +
+      '<span class="au-card-bytes">' + esc(fmtBytes(a.totalBytes)) + '</span>' +
       '<span class="au-card-bar" style="--app:' + esc(a.color || 'var(--text-muted)') + '"><span style="width:' +
       share.toFixed(1) + '%"></span></span>' +
-      '<span class="au-card-bytes">' + esc(fmtBytes(a.totalBytes)) + '</span>' +
       '</li>';
   }).join('');
 }

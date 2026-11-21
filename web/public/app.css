@@ -3932,8 +3932,9 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .app-logo-lg.is-mono{font-size:.9rem}
     .app-logo.is-mono.is-dark{color:var(--text-main)}
     /* The Dashboard card (pages/dashboard-card-apps.ts): the ring beside the
-       busiest apps; a narrow card keeps the list alone. A row is 30px tall, the
-       height the module divides by to know how many fit. */
+       busiest apps; a narrow card keeps the list alone. A row is 34px tall (name
+       and bytes, the share bar under them), the height the module divides by
+       to know how many fit. */
     .au-card .card-header{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
     .au-card-span{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
     .au-card-body{display:flex;gap:1rem;align-items:center;min-height:0;container-type:inline-size}
@@ -3946,9 +3947,10 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-card-totals{display:flex;flex-wrap:wrap;gap:.25rem .75rem;font-family:var(--font-mono);font-size:.74rem;font-variant-numeric:tabular-nums}
     .au-card-unnamed{color:var(--text-muted)}
     .au-card-list{list-style:none;margin:0;padding:0;flex:1 1 auto;min-height:0;overflow:hidden}
-    .au-card-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(40px,30%) auto;align-items:center;gap:.5rem;height:30px}
+    .au-card-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;grid-template-rows:auto 4px;column-gap:.5rem;row-gap:3px;align-content:center;height:34px}
+    .au-card-row > .app-badge{grid-row:1 / span 2}
     .au-card-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--text-main)}
-    .au-card-bar{height:6px;border-radius:2px;background:rgb(from var(--border) r g b / .5);overflow:hidden}
+    .au-card-bar{grid-column:2 / span 2;height:4px;border-radius:2px;background:rgb(from var(--border) r g b / .5);overflow:hidden}
     .au-card-bar > span{display:block;height:100%;border-radius:2px;background:var(--app);transition:width .8s cubic-bezier(.2,.7,.3,1)}
     .au-card-bytes{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right}
     .au-card-empty{font-size:.8rem;color:var(--text-muted);padding:.5rem 0}
