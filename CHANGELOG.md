@@ -2,6 +2,17 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [Unreleased]
+
+Changes on `main` that are in the `:latest` image but not yet in a numbered
+release.
+
+### New
+
+- **An Apps Usage card for the Dashboard.** The last hour from the Apps Usage
+  page: a ring of each app's share with the total, and the busiest apps with
+  their logos, share and bytes. Add it from Edit, Add Card.
+
 ## [0.8.86] - Shared links
 
 ### New
