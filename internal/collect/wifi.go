@@ -390,6 +390,7 @@ func (w *Wifi) load() {
 	capsNets, capsRadios := w.readLegacyCaps()
 
 	var lastErr error
+	var firstEmpty *wifiView
 	for _, which := range order {
 		var view wifiView
 		var err error
@@ -410,7 +411,24 @@ func (w *Wifi) load() {
 		// other stack has not been tried yet.
 		if len(view.networks) == 0 && which == order[0] {
 			lastErr = nil
+			v := view
+			firstEmpty = &v
 			continue
+		}
+		// ── BOTH MENUS ANSWERED, BOTH EMPTY: KEEP THE FIRST (#166) ──────────
+		//
+		// Latching the SECOND here flipped the stack on every load: the order
+		// comes from the previous latch, so the empty second answer was the
+		// other stack each time. The Security Profiles card, shown only for
+		// the legacy stack, appeared and disappeared with it, and each flip
+		// moved the subscription to the other menu (alignSubscription), which
+		// the scheduler then read on its next tick, so the flip ran about once
+		// a second instead of once a cadence. The first in the order is the
+		// stack already latched, or modern wifi on a first load, so the answer
+		// is stable. Reported on an RB5009 (issue #166); reproduced by
+		// TestBothEmptyStacksDoNotAlternate.
+		if len(view.networks) == 0 && firstEmpty != nil {
+			which, view = order[0], *firstEmpty
 		}
 		w.mu.Lock()
 		w.stack = which
