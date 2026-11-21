@@ -2,10 +2,7 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [Unreleased]
-
-Changes on `main` that are in the `:latest` image but not yet in a numbered
-release.
+## [0.8.86] - Shared links
 
 ### New
 
@@ -38,6 +35,12 @@ release.
   user into clicking something. If you were embedding MikroDash in another
   dashboard with an iframe, that stops working; a supported, view-only way to
   embed is a shared link (above).
+- **The Security Profiles section on Wi-Fi Networks no longer flickers.** On
+  a router with both the newer wifi menu and the legacy wireless menu present
+  but no interfaces in either, the page switched between the two every
+  second. Reported in
+  [#166](https://github.com/SecOps-7/MikroDash/issues/166), thanks
+  [@oykawa](https://github.com/oykawa).
 
 ## [0.8.85] - Switch probe limited to administrators
 
