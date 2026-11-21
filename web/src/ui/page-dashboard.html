@@ -515,6 +515,38 @@
         </div>
       </div>
 
+      <!-- dc-card-apps: Apps Usage ──────────────────────────────────────────
+           The Apps Usage page's last hour (pages/dashboard-card-apps.ts): the
+           page's ring with the hour's total, and the busiest apps with their
+           logos, share bars and bytes. Fed by apps:update through the
+           dash-card-apps room. -->
+      <div id="dc-card-apps" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-apps" type="button" title="Remove card">&#x2715;</button>
+        <div class="card au-card">
+          <div class="card-header">
+            <h3 class="card-title mb-0">Apps Usage</h3>
+            <span class="au-card-span" id="dcAppsSpan"></span>
+          </div>
+          <div class="card-body au-card-body">
+            <div class="au-card-ring">
+              <svg id="dcAppsRing" class="au-ring" viewBox="0 0 200 200" role="img"
+                   aria-label="Each app's share of the last hour's traffic"></svg>
+              <div class="au-ring-centre">
+                <span class="au-ring-value" id="dcAppsTotal">-</span>
+                <span class="au-ring-label">total</span>
+              </div>
+            </div>
+            <div class="au-card-side">
+              <div class="au-card-totals" id="dcAppsTotals"></div>
+              <ol class="au-card-list" id="dcAppsList"><li class="au-card-empty">Waiting for the first reading.</li></ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- dc-card-secscore: Security Score ─────────────────────────────────
            The Security Scan page's score card on the Dashboard: the same ring and
            grade, the issues by severity, the report's age and a Rescan. Fed by

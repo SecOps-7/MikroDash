@@ -80,7 +80,8 @@ export function logoHtml(a: Pick<AppUsage, 'id' | 'name' | 'logo' | 'dark' | 'co
 
 type Brand = Pick<AppUsage, 'id' | 'name' | 'logo' | 'dark' | 'color'>;
 
-const badge = (a: Brand, size: 'sm' | 'md' | 'lg'): string =>
+/** An app's logo on its brand-tinted tile. */
+export const badge = (a: Brand, size: 'sm' | 'md' | 'lg'): string =>
   '<span class="app-badge app-badge-' + size + '" style="--app:' + esc(a.color) + '">' + logoHtml(a, size) + '</span>';
 
 const rates = (rx: number, tx: number): string =>
@@ -216,6 +217,57 @@ function call<T>(url: string, init?: RequestInit): Promise<T> {
 
 const EMPTY_HISTORY: AppHistory = { apps: [], buckets: [], unnamedRxBytes: 0, unnamedTxBytes: 0, from: 0, to: 0, recording: false };
 
+/** One arc of the ring. */
+export interface RingSlice { id: string; colour: string; v: number }
+
+/** The ring's arcs: the busiest apps in their brand colours, then the rest as
+ *  "other apps", then the traffic no step could name. Pure. */
+export function ringSlices(list: ReadonlyArray<{ id: string; color: string; total: number }>, unnamed: number,
+  max: number = RING_SLICES): RingSlice[] {
+  const slices: RingSlice[] = list.slice(0, max)
+    .map((a) => ({ id: a.id, colour: a.color || 'var(--text-muted)', v: a.total }));
+  const rest = list.slice(max).reduce((s, a) => s + a.total, 0);
+  if (rest > 0) slices.push({ id: '~other', colour: 'var(--text-muted)', v: rest });
+  if (unnamed > 0) slices.push({ id: '~unnamed', colour: 'var(--border)', v: unnamed });
+  return slices;
+}
+
+/** Draws the ring's arcs into an svg (viewBox 0 0 200 200), each arc an
+ *  existing element moved rather than redrawn, so it eases. `arcs` is the
+ *  caller's, one per ring: the Apps Usage page and its Dashboard card. */
+export function paintRing(svg: SVGSVGElement, arcs: Map<string, SVGCircleElement>, slices: RingSlice[], total: number): void {
+  // A document that cannot build SVG nodes (the test harness's DOM) gets no
+  // arcs rather than a throw partway through the caller's render, as the
+  // Network Flow card does.
+  if (typeof document.createElementNS !== 'function' || typeof svg.querySelector !== 'function') return;
+  if (!svg.querySelector('.au-ring-track')) {
+    svg.innerHTML = '<circle class="au-ring-track" cx="100" cy="100" r="' + RING_R + '"/>';
+    arcs.clear();
+  }
+  const gap = slices.length > 1 ? 3 : 0;
+  let start = 0;
+  const keep = new Set<string>();
+  for (const s of slices) {
+    const len = total > 0 ? (s.v / total) * RING_C : 0;
+    let c = arcs.get(s.id);
+    if (!c) {
+      c = document.createElementNS('http://www.w3.org/2000/svg', 'circle') as SVGCircleElement;
+      c.setAttribute('class', 'au-ring-arc');
+      c.setAttribute('cx', '100'); c.setAttribute('cy', '100'); c.setAttribute('r', String(RING_R));
+      svg.appendChild(c);
+      arcs.set(s.id, c);
+    }
+    c.style.stroke = s.colour;
+    c.style.strokeDasharray = Math.max(0, len - gap).toFixed(2) + ' ' + RING_C.toFixed(2);
+    c.style.strokeDashoffset = (-start).toFixed(2);
+    keep.add(s.id);
+    start += len;
+  }
+  for (const [id, c] of arcs) {
+    if (!keep.has(id)) { c.remove(); arcs.delete(id); }
+  }
+}
+
 export function initAppsPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let last: AppUsagePayload | null = null;
   let stored: AppHistory | null = null;
@@ -255,43 +307,13 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     if (b) { b.textContent = String(v.apps.length); b.className = 'card-badge' + (v.apps.length ? ' active-blue' : ''); }
   }
 
-  /** The ring: one arc per busiest app, then "other apps", then unnamed, each
-   *  arc an existing element moved rather than redrawn, so it eases. */
+  /** The ring, then the logos of the busiest apps sitting on it. */
   function renderRing(v: AppsView): void {
     const svg = el('appsRing') as unknown as SVGSVGElement | null;
     const orbit = el('appsOrbit');
     if (!svg || !orbit) return;
-    if (!svg.querySelector('.au-ring-track')) {
-      svg.innerHTML = '<circle class="au-ring-track" cx="100" cy="100" r="' + RING_R + '"/>';
-    }
     const total = v.rx + v.tx;
-    const slices: { id: string; colour: string; v: number }[] = v.apps.slice(0, RING_SLICES)
-      .map((a) => ({ id: a.id, colour: a.color || 'var(--text-muted)', v: a.total }));
-    const rest = v.apps.slice(RING_SLICES).reduce((s, a) => s + a.total, 0);
-    if (rest > 0) slices.push({ id: '~other', colour: 'var(--text-muted)', v: rest });
-    if (v.unnamed > 0) slices.push({ id: '~unnamed', colour: 'var(--border)', v: v.unnamed });
-    const gap = slices.length > 1 ? 3 : 0;
-    let start = 0;
-    const keep = new Set<string>();
-    for (const s of slices) {
-      const len = total > 0 ? (s.v / total) * RING_C : 0;
-      let c = arcs.get(s.id);
-      if (!c) {
-        c = document.createElementNS('http://www.w3.org/2000/svg', 'circle') as SVGCircleElement;
-        c.setAttribute('class', 'au-ring-arc');
-        c.setAttribute('cx', '100'); c.setAttribute('cy', '100'); c.setAttribute('r', String(RING_R));
-        svg.appendChild(c);
-        arcs.set(s.id, c);
-      }
-      c.style.stroke = s.colour;
-      c.style.strokeDasharray = Math.max(0, len - gap).toFixed(2) + ' ' + RING_C.toFixed(2);
-      c.style.strokeDashoffset = (-start).toFixed(2);
-      keep.add(s.id);
-      start += len;
-    }
-    for (const [id, c] of arcs) {
-      if (!keep.has(id)) { c.remove(); arcs.delete(id); }
-    }
+    paintRing(svg, arcs, ringSlices(v.apps, v.unnamed), total);
     setText('appsRingValue', fmtBytes(total));
     const n = v.apps.length;
     setText('appsRingLabel', n ? n + (n === 1 ? ' app ' : ' apps ') + (v.hour ? 'this hour' : 'recorded') : 'all traffic');

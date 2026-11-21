@@ -3931,6 +3931,27 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .app-logo-md.is-mono{font-size:.8rem}
     .app-logo-lg.is-mono{font-size:.9rem}
     .app-logo.is-mono.is-dark{color:var(--text-main)}
+    /* The Dashboard card (pages/dashboard-card-apps.ts): the ring beside the
+       busiest apps; a narrow card keeps the list alone. A row is 30px tall, the
+       height the module divides by to know how many fit. */
+    .au-card .card-header{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+    .au-card-span{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
+    .au-card-body{display:flex;gap:1rem;align-items:center;min-height:0;container-type:inline-size}
+    .au-card-ring{position:relative;flex:0 0 auto;width:min(42%,190px);aspect-ratio:1;align-self:center}
+    .au-card-ring .au-ring circle{stroke-width:16}
+    .au-card-ring .au-ring-value{font-size:1.05rem}
+    .au-card-ring .au-ring-label{font-size:.58rem}
+    @container (max-width:340px){.au-card-ring{display:none}}
+    .au-card-side{flex:1 1 auto;min-width:0;align-self:stretch;display:flex;flex-direction:column;gap:.35rem}
+    .au-card-totals{display:flex;flex-wrap:wrap;gap:.25rem .75rem;font-family:var(--font-mono);font-size:.74rem;font-variant-numeric:tabular-nums}
+    .au-card-unnamed{color:var(--text-muted)}
+    .au-card-list{list-style:none;margin:0;padding:0;flex:1 1 auto;min-height:0;overflow:hidden}
+    .au-card-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(40px,30%) auto;align-items:center;gap:.5rem;height:30px}
+    .au-card-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--text-main)}
+    .au-card-bar{height:6px;border-radius:2px;background:rgb(from var(--border) r g b / .5);overflow:hidden}
+    .au-card-bar > span{display:block;height:100%;border-radius:2px;background:var(--app);transition:width .8s cubic-bezier(.2,.7,.3,1)}
+    .au-card-bytes{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right}
+    .au-card-empty{font-size:.8rem;color:var(--text-muted);padding:.5rem 0}
     .au-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.6rem}
     .au-tile{position:relative;display:flex;flex-direction:column;gap:.2rem;text-align:left;background:var(--bg-card);border:1px solid var(--border);
       border-radius:10px;padding:.7rem .75rem .95rem;overflow:hidden;cursor:pointer;color:inherit;font-family:var(--font-ui);

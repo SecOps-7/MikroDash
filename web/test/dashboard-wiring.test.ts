@@ -97,6 +97,9 @@ const CARDS = {
   // WAN Flow: the WAN page's Sankey on the Dashboard, fed by the WAN collector
   // through the card's own room, and cleared on a router switch.
   'dashboard-card-wanflow': { event: 'wan:update', also: ['router:switched'] },
+  // Apps Usage: the Apps Usage page's last hour, fed through the card's own
+  // room and cleared on a router switch.
+  'dashboard-card-apps': { event: 'apps:update', also: ['router:switched'] },
   'dashboard-card-connlists': 'conn:update',
   'dashboard-card-logs': { event: 'logs:new', also: ['logs:history'] },
   // Shares traffic:update with the chart, and owns two more events of its own.
@@ -321,6 +324,10 @@ const PROBE = {
     wans: [{ name: 'ether1', type: 'ether', isTunnel: false, state: 'internet', manual: false, since: '', running: true,
       address: '', isPublic: null, gateway: '', routeDistance: '1', routeActive: true, hasDefaultRoute: true,
       rxMbps: 1, txMbps: 1, rxBytes: null, txBytes: null, dhcp: null }] },
+  // One app, the smallest hour the card draws a row from.
+  'apps:update': { ts: 2, from: 1, to: 2, rxBytes: 2000, txBytes: 1000, unnamedBytes: 0, dnsNames: 0, dnsAt: 0,
+    devices: {}, apps: [{ id: 'zoom', name: 'Zoom', category: 'conferencing', color: '#0b5cff', logo: 'mask', dark: false,
+      rxBytes: 2000, txBytes: 1000, totalBytes: 3000, share: 100, devices: 1, via: 'name', spark: [], top: '' }] },
   'secscore:state': { routerId: '', has: true, score: 72, issues: 3, critical: 0, high: 1, medium: 2, low: 0,
     passed: 30, checks: 46, scannedAt: 1, running: false, done: 0, total: 37, code: '', message: '' },
   'dnsrouting:state': { routerId: '', list: 'to_vpn', feeding: 2, entries: 3, ok: true, why: '', error: '', ts: 1,

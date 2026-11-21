@@ -151,7 +151,7 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 			"page-connections", "dash-card-connections",
 			"page-wifi-clients", "page-wifi-map", "dash-card-wireless",
 			"page-network-topology",
-			"page-bandwidth", "page-apps",
+			"page-bandwidth", "page-apps", "dash-card-apps",
 			// The device modal's client count (2026-10-01).
 			"device-peek",
 		}},

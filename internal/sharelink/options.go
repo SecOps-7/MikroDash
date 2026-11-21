@@ -274,6 +274,7 @@ var cardFeeds = map[string]CardFeed{
 	"dc-card-fwaction":  {Rooms: []string{"firewall"}},
 	"dc-card-logs":      {Rooms: []string{"logs"}},
 	"dc-card-wanflow":   {Rooms: []string{"wan"}},
+	"dc-card-apps":      {Rooms: []string{"apps"}},
 	"dc-card-ping":      {Dash: true},
 	"card-toptalkers":   {Dash: true},
 	"dc-card-netwatch":  {Dash: true},

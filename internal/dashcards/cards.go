@@ -153,6 +153,13 @@ var All = []Card{
 	// sent only to a viewer granted them (internal/server/dnsrouting_api.go).
 	{ID: "dc-card-domainroute", Label: "Domain Routing", Room: "domainroute", Page: "dns",
 		X: 1, Y: 1, W: 8, H: 6},
+	// Apps Usage: the Apps Usage page's last hour (the operator, 2026-11-21):
+	// a ring of each app's share, the busiest apps with their logos, and the
+	// hour's totals. Fed by the Apps collector's `apps:update`, the same
+	// payload the page's Last hour tab draws, and gated on the Apps Usage
+	// page, whose data it is. While it is on a Dashboard the collector runs,
+	// with its once-a-minute DNS cache read, so it waits in the Add panel.
+	{ID: "dc-card-apps", Label: "Apps Usage", Room: "apps", Page: "apps", X: 1, Y: 1, W: 8, H: 6},
 }
 
 // PageFor is the page a card room borrows its data from, and therefore the

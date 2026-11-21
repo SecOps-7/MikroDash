@@ -115,6 +115,10 @@ var cardData = map[string]CardData{
 	"dc-card-wanflow": {
 		"wan:update": {"wans[].name", "wans[].rxMbps", "wans[].txMbps", "wans[].routeActive", "ratesAvailable"},
 	},
+	"dc-card-apps": {
+		"apps:update": {"from", "to", "rxBytes", "txBytes", "unnamedBytes", "apps[].id", "apps[].name",
+			"apps[].color", "apps[].logo", "apps[].dark", "apps[].totalBytes", "apps[].share"},
+	},
 	"dc-card-ping": {
 		"ping:update":  {"permissionDenied", "target", "ts", "rtt", "loss", "minRtt", "maxRtt"},
 		"ping:history": {"history[].rtt", "history[].loss", "history[].ts", "target", "minRtt", "maxRtt"},

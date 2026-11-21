@@ -21,6 +21,7 @@ var cardEventTypes = map[string]any{
 	"lan:overview":    collect.LanPayload{}, "vpn:update": collect.VPNPayload{},
 	"firewall:update": collect.FirewallPayload{}, "logs:history": []collect.LogEntry{},
 	"logs:new": collect.LogEntry{}, "wan:update": collect.WANPayload{},
+	"apps:update": collect.AppUsagePayload{},
 	"ping:update": collect.PingPayload{}, "talkers:update": collect.TalkersPayload{},
 	"netwatch:update": collect.NetwatchPayload{}, "routing:update": collect.RoutingPayload{},
 	"stream:health": map[string]any{"collector": "traffic", "degraded": true, "restarts": 2, "ts": 1, "detail": "x"},
@@ -293,7 +294,7 @@ func TestTheProjectorKeepsOnlyWhatItIsAsked(t *testing.T) {
 // The three other per-viewer cards (cardsNotShareable) never are.
 var rulingCards = []string{
 	"card-connections", "card-network", "card-system", "card-toptalkers", "card-traffic",
-	"card-wireguard", "dc-card-agent", "dc-card-band", "dc-card-bgp", "dc-card-bw", "dc-card-destcc", "dc-card-flow",
+	"card-wireguard", "dc-card-agent", "dc-card-apps", "dc-card-band", "dc-card-bgp", "dc-card-bw", "dc-card-destcc", "dc-card-flow",
 	"dc-card-fwaction", "dc-card-iputil", "dc-card-logs", "dc-card-netflow", "dc-card-netwatch",
 	"dc-card-physports", "dc-card-ping", "dc-card-routes", "dc-card-signal", "dc-card-topcc",
 	"dc-card-topports", "dc-card-wanflow",

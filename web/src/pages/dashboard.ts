@@ -43,6 +43,7 @@ import { renderAgentCard, initAgentRefresh } from './dashboard-card-agent';
 import { initSecScoreCard, switchSecScoreCard } from './dashboard-card-secscore';
 import { initDomainRouteCard } from './dashboard-card-domainroute';
 import { initWanFlowCard } from './dashboard-card-wanflow';
+import { initAppsCard } from './dashboard-card-apps';
 import { renderConnListCards } from './dashboard-card-connlists';
 import { createConnMap } from './dashboard-card-map';
 import { renderConnFlowCard } from './dashboard-card-connflow';
@@ -132,6 +133,7 @@ export function initDashboard(socket: Socket): void {
   initSecScoreCard(socket);
   initDomainRouteCard(socket);
   initWanFlowCard(socket);
+  initAppsCard(socket);
   socket.on('stream:health', (d) => renderStreamHealth(d));
   socket.on('wan:status', (d) => renderWanStatus(d));
   socket.on('logs:history', (d) => onLogsHistory(d));

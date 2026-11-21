@@ -63,7 +63,8 @@ var routerWide = Rooms{}
 // is `dash-card-<name>`, and the two name spaces are separate on purpose — a card
 // can outlive the page that owns it.
 var (
-	appsRooms         = Rooms{"page-apps"}
+	// AND THE APPS USAGE CARD, which draws the same last hour on the Dashboard.
+	appsRooms         = Rooms{"page-apps", "dash-card-apps"}
 	bandwidthRooms    = Rooms{"page-bandwidth"}
 	bridgesRooms      = Rooms{"page-bridges"}
 	capsmanRooms      = Rooms{"page-capsman"}
