@@ -22,9 +22,9 @@ package server
 // A share document may be framed only by the origins its link lists
 // (frame-ancestors); otherwise it says 'none' and X-Frame-Options DENY.
 // setShareFraming also offers the value to a wrapping writer that implements
-// AllowFrameAncestors, which is how the app-wide framing guard (a separate
-// change, fix/frame-guard) is to let a share response through while every
-// other response keeps 'none'.
+// AllowFrameAncestors, which is how the app-wide framing guard
+// (frameguard.go) lets a share response through while every other response
+// keeps 'none'.
 
 import (
 	"bytes"
@@ -59,8 +59,8 @@ func (s *Server) registerShareView(mux *http.ServeMux) {
 }
 
 // frameAncestorsAllower is implemented by a response writer that enforces a
-// framing policy of its own (fix/frame-guard's writer, once merged): it lets
-// a share response carry its link's frame-ancestors.
+// framing policy of its own (frameguard.go's writer): it lets a share
+// response carry its link's frame-ancestors.
 type frameAncestorsAllower interface {
 	AllowFrameAncestors(policy string)
 }

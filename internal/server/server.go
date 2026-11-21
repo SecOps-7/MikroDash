@@ -607,8 +607,16 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	return srv, nil
 }
 
-// Handler builds the mux.
+// Handler builds the mux and wraps it: the framing guard OUTERMOST, so no
+// response from any route leaves without the framing headers (frameguard.go),
+// then the request log, then the refused-write audit, which records a refused
+// write once, whichever route refused it (denied_audit.go).
 func (s *Server) Handler() http.Handler {
+	return frameGuard(logRequests(s.deniedAudit(s.routes())))
+}
+
+// routes registers every route on a new mux.
+func (s *Server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/ws", s.handleWS)
@@ -759,9 +767,7 @@ func (s *Server) Handler() http.Handler {
 	// share views themselves (a token, never a session).
 	s.registerShareAPI(mux)
 	s.registerShareView(mux)
-	// Refused writes are recorded once, whichever route refused them: see
-	// denied_audit.go.
-	return logRequests(s.deniedAudit(mux))
+	return mux
 }
 
 // spa serves the built frontend, falling back to index.html so an extensionless

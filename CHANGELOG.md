@@ -30,6 +30,15 @@ release.
   where the switch was found to have had no effect since 0.8.0, thanks
   [@PhillipSlabbert](https://github.com/PhillipSlabbert).
 
+### Fixed
+
+- **MikroDash can no longer be shown inside another website's frame.** Every
+  page, the login page included, now tells the browser never to display it in
+  a frame, so a hostile page cannot overlay MikroDash and trick a signed-in
+  user into clicking something. If you were embedding MikroDash in another
+  dashboard with an iframe, that stops working; a supported, view-only way to
+  embed is a shared link (above).
+
 ## [0.8.85] - Switch probe limited to administrators
 
 ### Fixed
