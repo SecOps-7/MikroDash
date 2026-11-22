@@ -124,12 +124,12 @@ func stall(t *testing.T, tr *Traffic, want int) int {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if st, ok := tr.cache.StreamStats(monitorTrafficMenu); ok && st.Restarts >= want {
+		if st, ok := tr.cache.StreamStats(monitorTrafficMenu, trafficChannel); ok && st.Restarts >= want {
 			return st.Restarts
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
-	st, _ := tr.cache.StreamStats(monitorTrafficMenu)
+	st, _ := tr.cache.StreamStats(monitorTrafficMenu, trafficChannel)
 	t.Fatalf("the shared channel restarted %d times in 3s, want %d — the fill's "+
 		"watchdog is not recovering a silent channel", st.Restarts, want)
 	return 0

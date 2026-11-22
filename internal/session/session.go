@@ -524,6 +524,39 @@ func (r reader) Stream(cmd routeros.Cmd, onRow func(routeros.Reply)) (func(), er
 	}, nil
 }
 
+// StreamUntilDone is the collectors' Stream, plus notification that the ROUTER
+// ended the stream (routeros.Client.StreamUntilDone): `roscache` reopens a fill
+// at once when it is told (roscache.DoneStreamer), rather than after ten
+// seconds of silence. Counted exactly as Stream is; the held channel is
+// released when the stream ends by itself or when stop() returns, whichever is
+// first.
+func (r reader) StreamUntilDone(cmd routeros.Cmd, onRow func(routeros.Reply), onDone func(error)) (func(), error) {
+	r.s.mu.Lock()
+	c := r.s.client
+	r.s.mu.Unlock()
+	if c == nil {
+		return nil, errNotConnected
+	}
+	roslimit.Note(r.s.RouterID, cmd.Path, SourceCollectors)
+	var once sync.Once
+	opened := roslimit.StreamOpened(r.s.RouterID)
+	release := func() { once.Do(opened) }
+	stop, err := c.StreamUntilDone(cmd, onRow, func(err error) {
+		release()
+		if onDone != nil {
+			onDone(err)
+		}
+	})
+	if err != nil {
+		release()
+		return nil, err
+	}
+	return func() {
+		stop()
+		release()
+	}, nil
+}
+
 // StreamUntilDone is Stream plus notification that the stream ENDED BY ITSELF,
 // and how: see (*routeros.Client).StreamUntilDone.
 //

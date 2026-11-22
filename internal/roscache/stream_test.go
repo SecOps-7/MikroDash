@@ -338,7 +338,7 @@ func TestAnUnkeyableRowIsCountedNotDropped(t *testing.T) {
 	}
 	// AND IT IS VISIBLE FROM OUTSIDE. The bridge host table streamed with
 	// every row unkeyed (its proplist had no `.id`) and nothing could see it.
-	if st, ok := c.StreamStats("/interface/monitor-traffic"); !ok || st.Unkeyed != 1 {
+	if st, ok := c.StreamStats("/interface/monitor-traffic", ""); !ok || st.Unkeyed != 1 {
 		t.Errorf("StreamStats.Unkeyed = %d (ok=%v), want 1", st.Unkeyed, ok)
 	}
 	if rows, _ := c.Get("/interface/monitor-traffic", nil, time.Second); len(rows) != 1 {
@@ -995,7 +995,7 @@ func TestARowHookIsNotCalledUnderTheFillLock(t *testing.T) {
 	done := make(chan bool, 1)
 	rel := joinIfaces(t, c, "ether1", 1, func(routeros.Reply) {
 		// StreamStats takes f.mu. Under the fill's lock this deadlocks.
-		_, ok := c.StreamStats("/interface/monitor-traffic")
+		_, ok := c.StreamStats("/interface/monitor-traffic", "")
 		done <- ok
 	})
 	defer rel()

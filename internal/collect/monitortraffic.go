@@ -106,13 +106,29 @@ func mergeMonitorTraffic(cmds []routeros.Cmd) routeros.Cmd {
 	return monitorTrafficCmd(names, best)
 }
 
+// trafficChannel is the Dashboard chart's own channel on this menu.
+//
+// ── WHY THE CHART NO LONGER SHARES (the operator, 2026-11-22) ───────────────
+//
+// One merged channel carried every interface `ifStatus` watches and the ones
+// the chart shows. RouterOS ENDS a monitor-traffic stream when an interface it
+// names is removed (`!trap`, then `!done`; measured on CHR Test, 7.24.1), and a
+// CAPsMAN cAP's interfaces are removed every time it rejoins: on the operator's
+// hAP ax^3 that was every two to five minutes, and the chart lost 13-16 s each
+// time for an interface it was not even showing. On its own channel the chart
+// stream names only the chart's interfaces, so only one of THEM vanishing can
+// end it. The price is one more held channel per router while the chart is
+// watched or recorded; the operator chose it.
+const trafficChannel = "traffic"
+
 // joinMonitorTraffic is the one call both collectors make.
 //
 // `onRow` is nil for a holder that reads the snapshot and non-nil for one that
-// needs every packet. Everything else is identical, which is the point: two
-// holders differing only in what they asked to carry cannot disagree about how
-// the channel is opened.
-func joinMonitorTraffic(c *roscache.Cache, names []string, sec int,
+// needs every packet. `channel` is "" for the menu's shared channel (ifStatus)
+// and trafficChannel for the chart's own. Everything else is identical, which
+// is the point: two holders differing only in what they asked to carry cannot
+// disagree about how a channel is opened.
+func joinMonitorTraffic(c *roscache.Cache, channel string, names []string, sec int,
 	onRow func(routeros.Reply)) (func(), error) {
 	if sec < 1 {
 		sec = 1
@@ -122,6 +138,7 @@ func joinMonitorTraffic(c *roscache.Cache, names []string, sec int,
 	}
 	return c.JoinStream(roscache.Join{
 		Menu:     monitorTrafficMenu,
+		Channel:  channel,
 		Cmd:      monitorTrafficCmd(names, sec),
 		KeyOf:    keyByIfaceName,
 		Boundary: time.Duration(sec) * time.Second,

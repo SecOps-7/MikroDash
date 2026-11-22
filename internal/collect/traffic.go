@@ -584,7 +584,7 @@ func (t *Traffic) syncStream() {
 	// ONE SECOND, ALWAYS, and it is this holder that asks for it: the chart draws
 	// a point a second and is the holder with resolution to lose. The merge takes
 	// the finest interval any holder wants.
-	stop, err := joinMonitorTraffic(t.cache, names, 1, t.onPacket)
+	stop, err := joinMonitorTraffic(t.cache, trafficChannel, names, 1, t.onPacket)
 	if err != nil {
 		return
 	}
@@ -649,7 +649,7 @@ func (t *Traffic) watchdogTick() {
 		return
 	}
 
-	st, ok := t.cache.StreamStats(monitorTrafficMenu)
+	st, ok := t.cache.StreamStats(monitorTrafficMenu, trafficChannel)
 	if !ok {
 		// The fill went away under us — another holder released last, or the
 		// cache was rebuilt. Rejoining is the same action as a failed open.

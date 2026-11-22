@@ -179,9 +179,19 @@ holders' fields (none, if any holder reads every field) and the finest interval,
 with `.id` always in the proplist, because RouterOS sends it only when asked and a
 fill keys its rows by it. That is what lets `wireless` and `capsman` read one Wi-Fi
 registration channel, and `ppp` and `vpn` one `/ppp/active`, whichever starts
-first. `/interface/monitor-traffic` has its own rule: `ifStatus` wants a snapshot,
-`traffic` wants every packet, and they hold **one channel** between them, at no more
-than five seconds, the longest interval that menu accepts.
+first. `/interface/monitor-traffic` has its own rule: `ifStatus` holds a merged
+channel of every enabled interface for its snapshot, at no more than five seconds,
+the longest interval that menu accepts, and `traffic` holds a **separate channel**
+(`Join.Channel`) of only the chart's interfaces at one second. RouterOS ends a
+monitor-traffic stream when an interface it names is removed, which a CAPsMAN cAP's
+interfaces are each time it rejoins, so on the shared channel the chart lost its
+stream for an interface it was not even showing. A separate channel neither merges
+with the menu's holders nor answers its reads.
+
+**A stream the router ends is reopened at once.** A reader that can report it
+(`roscache.DoneStreamer`, the session's `StreamUntilDone`) lets a fill reopen within
+half a second, backing off while it keeps ending, instead of waiting out the silence
+window; silence stays the backstop for a channel that goes quiet without ending.
 
 ### The stream/poll duality
 

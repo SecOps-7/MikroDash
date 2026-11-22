@@ -942,7 +942,7 @@ func (s *IfStatus) syncRateChannel(names []string) {
 		old()
 	}
 
-	stop, err := joinMonitorTraffic(s.cache, names, int(s.pollMs.duration()/time.Second), nil)
+	stop, err := joinMonitorTraffic(s.cache, "", names, int(s.pollMs.duration()/time.Second), nil)
 	if err != nil {
 		return // measuring, which is what `rates` already does
 	}

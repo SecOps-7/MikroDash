@@ -66,6 +66,33 @@ type Streamer interface {
 	Stream(routeros.Cmd, func(routeros.Reply)) (func(), error)
 }
 
+// DoneStreamer is a Streamer that also says when the ROUTER ended a stream,
+// which `onDone` reports exactly once and never for a stream stop() ended
+// (routeros.Client.StreamUntilDone).
+//
+// ── WHY A FILL WANTS TO KNOW (the operator, 2026-11-22) ─────────────────────
+//
+// An `=interval=` print runs until stopped, unless the router ends it. And it
+// does: `/interface/monitor-traffic` naming an interface that is removed
+// answers `!trap` then `!done` (measured on CHR Test, 7.24.1), which is what
+// happens to a CAPsMAN cAP's interfaces every time the cAP rejoins. Without
+// this the only way to notice was silence, ten seconds of it checked every
+// five, and the Dashboard chart showed a 13-16 s hole each time. A fill whose
+// reader is a DoneStreamer reopens at once (endedReopen) instead; silence stays
+// the backstop for a channel that goes quiet without ending.
+type DoneStreamer interface {
+	StreamUntilDone(routeros.Cmd, func(routeros.Reply), func(error)) (func(), error)
+}
+
+// endedReopen is the wait before reopening a stream the router ended, doubled
+// for every further end that comes within endedQuick of opening (an interface
+// still missing makes the reopen fail at once), up to the fill's staleness
+// window. A stream that ran longer than endedQuick starts again at the base.
+const (
+	endedReopen = 500 * time.Millisecond
+	endedQuick  = 5 * time.Second
+)
+
 // unrollable are the menus a rolling map would silently corrupt. Keyed by menu
 // path, valued by the reason, so a refusal can say why.
 //
@@ -228,6 +255,9 @@ type streamFill struct {
 	// gen counts successful opens, so the watchdog can tell whether the
 	// channel it judged dead is still the one open when it gets openMu.
 	gen int
+	// quickEnds is how many times in a row the router ended the stream soon
+	// after it opened, for the reopen's back-off. See endedReopen.
+	quickEnds int
 }
 
 // Join is one holder's claim on a SHARED stream-filled menu.
@@ -255,7 +285,15 @@ type streamFill struct {
 // the caller and identical for every holder of one menu — turns the set into
 // the command the channel is opened with.
 type Join struct {
-	Menu     string
+	Menu string
+	// Channel names a SEPARATE channel on the same menu, "" for the menu's own.
+	// Holders join, share and release by menu and channel together, so a
+	// holder on its own channel neither merges with the menu's holders nor is
+	// affected by what they ask for: `traffic` holds the Dashboard chart's
+	// interfaces on one, so an interface `ifStatus` watches vanishing cannot
+	// end the chart's stream (the operator, 2026-11-22). `Get`, `Streaming` and
+	// `StreamSnapshot` read the menu's own channel only.
+	Channel  string
 	Cmd      routeros.Cmd
 	KeyOf    func(routeros.Reply) string
 	Boundary time.Duration
@@ -306,32 +344,36 @@ func (c *Cache) JoinStream(j Join) (func(), error) {
 	// one goroutine is a deadlock rather than a re-entrant read.
 	check, stale := c.streamTimings()
 
+	key := fillKey(j.Menu, j.Channel)
 	c.mu.Lock()
 	if c.fills == nil {
 		c.fills = map[string]*streamFill{}
 	}
-	f, existing := c.fills[j.Menu]
+	f, existing := c.fills[key]
 	if existing && !f.shared {
 		c.mu.Unlock()
 		return nil, fmt.Errorf("roscache: %s already has an owner and declared no "+
 			"merge rule, so it is single-owner; both holders must supply a Merge to "+
-			"share it", j.Menu)
+			"share it", key)
 	}
 	if existing && j.Merge == nil {
 		c.mu.Unlock()
 		return nil, fmt.Errorf("roscache: %s is shared and this holder declared no "+
 			"merge rule; every holder of one menu must agree how the command is built",
-			j.Menu)
+			key)
 	}
 	if !existing {
 		f = newFill(j.Cmd, j.KeyOf, j.Boundary, check, stale)
 		f.shared = j.Merge != nil
 		f.holders = map[int]Join{}
 		f.done = make(chan struct{})
-		// A FINISHED ROUND IS HANDED OVER AT ONCE. See streamFill.onPublish.
-		menu := j.Menu
-		f.onPublish = func() { c.deliverStreamed(menu) }
-		c.fills[j.Menu] = f
+		// A FINISHED ROUND IS HANDED OVER AT ONCE. See streamFill.onPublish. A
+		// separate channel is nobody's read, so it delivers nothing.
+		if j.Channel == "" {
+			menu := j.Menu
+			f.onPublish = func() { c.deliverStreamed(menu) }
+		}
+		c.fills[key] = f
 	}
 	f.mu.Lock()
 	f.nextID++
@@ -352,7 +394,7 @@ func (c *Cache) JoinStream(j Join) (func(), error) {
 		last := len(f.holders) == 0
 		f.mu.Unlock()
 		if last {
-			delete(c.fills, j.Menu)
+			delete(c.fills, key)
 		}
 		c.mu.Unlock()
 		if last {
@@ -366,12 +408,21 @@ func (c *Cache) JoinStream(j Join) (func(), error) {
 
 	var once sync.Once
 	return func() {
-		once.Do(func() { c.releaseHolder(j.Menu, f, id, s) })
+		once.Do(func() { c.releaseHolder(key, f, id, s) })
 	}, nil
 }
 
+// fillKey is where a channel is kept: the menu, or the menu and a separate
+// channel's name. A '#' is never part of a RouterOS menu path.
+func fillKey(menu, channel string) string {
+	if channel == "" {
+		return menu
+	}
+	return menu + "#" + channel
+}
+
 // releaseHolder drops one holder, narrowing or closing the channel.
-func (c *Cache) releaseHolder(menu string, f *streamFill, id int, s Streamer) {
+func (c *Cache) releaseHolder(key string, f *streamFill, id int, s Streamer) {
 	c.mu.Lock()
 	f.mu.Lock()
 	delete(f.holders, id)
@@ -382,7 +433,7 @@ func (c *Cache) releaseHolder(menu string, f *streamFill, id int, s Streamer) {
 	}
 	f.mu.Unlock()
 	if last {
-		delete(c.fills, menu)
+		delete(c.fills, key)
 	}
 	c.mu.Unlock()
 
@@ -518,9 +569,10 @@ type StreamStats struct {
 	Unkeyed int
 }
 
-// StreamStats reports one menu's fill, and whether there is one.
-func (c *Cache) StreamStats(menu string) (StreamStats, bool) {
-	f := c.fillFor(menu)
+// StreamStats reports one channel's fill, and whether there is one: the menu's
+// own channel, or the separate one a Join named (Join.Channel).
+func (c *Cache) StreamStats(menu, channel string) (StreamStats, bool) {
+	f := c.fillFor(fillKey(menu, channel))
 	if f == nil {
 		return StreamStats{}, false
 	}
@@ -592,7 +644,20 @@ func (c *Cache) streamTimings() (check, stale time.Duration) {
 
 // open starts the channel. The caller holds no lock.
 func (f *streamFill) open(s Streamer) error {
-	stop, err := s.Stream(f.cmd, f.absorb)
+	// The generation this open will be, known BEFORE it opens: the router can
+	// end the stream (an interface already gone) before Stream returns. Opens
+	// are serialised by openMu, so nothing else moves gen meanwhile.
+	f.mu.Lock()
+	gen := f.gen + 1
+	cmd := f.cmd
+	f.mu.Unlock()
+	var stop func()
+	var err error
+	if ds, ok := s.(DoneStreamer); ok {
+		stop, err = ds.StreamUntilDone(cmd, f.absorb, func(error) { go f.ended(s, gen) })
+	} else {
+		stop, err = s.Stream(cmd, f.absorb)
+	}
 	if err != nil {
 		return err
 	}
@@ -604,9 +669,53 @@ func (f *streamFill) open(s Streamer) error {
 	}
 	f.stop, f.lastRow = stop, time.Now()
 	f.openedAt = f.lastRow
-	f.gen++
+	f.gen = gen
 	f.mu.Unlock()
 	return nil
+}
+
+// ended reopens a stream the router ended, after a back-off (endedReopen).
+// Only if the stream that ended is still the one open: a join, a release or
+// the watchdog may have replaced it since, or the fill been closed.
+func (f *streamFill) ended(s Streamer, gen int) {
+	f.mu.Lock()
+	if f.closed || (f.gen != gen && f.gen != gen-1) {
+		f.mu.Unlock()
+		return
+	}
+	if !f.openedAt.IsZero() && time.Since(f.openedAt) > endedQuick {
+		f.quickEnds = 0
+	}
+	wait := endedReopen << min(f.quickEnds, 8)
+	if wait > f.stale {
+		wait = f.stale
+	}
+	f.quickEnds++
+	done := f.done
+	f.mu.Unlock()
+	t := time.NewTimer(wait)
+	defer t.Stop()
+	select {
+	case <-t.C:
+	case <-done:
+		return
+	}
+	f.openMu.Lock()
+	defer f.openMu.Unlock()
+	f.mu.Lock()
+	// gen-1: the router ended it before open() recorded it, and nothing has
+	// opened since. Anything newer is a stream somebody else opened.
+	if f.closed || (f.gen != gen && !(f.gen == gen-1 && f.stop == nil)) {
+		f.mu.Unlock()
+		return
+	}
+	f.stop = nil
+	// Counted with the watchdog's restarts: `traffic` reports the count on the
+	// Dashboard card, and a stream the router keeps ending is the same news.
+	f.restarts++
+	f.lastRow = time.Now()
+	f.mu.Unlock()
+	_ = f.open(s)
 }
 
 // absorb folds one pushed row into the round being received.
@@ -1027,9 +1136,17 @@ func (c *Cache) Streaming(menu string) bool {
 func (c *Cache) StreamedMenus() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	// The MENUS, once each: a separate channel on a menu is that menu streamed.
+	seen := map[string]bool{}
 	out := make([]string, 0, len(c.fills))
-	for m := range c.fills {
-		out = append(out, m)
+	for _, f := range c.fills {
+		f.mu.Lock()
+		m := f.cmd.Path
+		f.mu.Unlock()
+		if !seen[m] {
+			seen[m] = true
+			out = append(out, m)
+		}
 	}
 	sort.Strings(out)
 	return out

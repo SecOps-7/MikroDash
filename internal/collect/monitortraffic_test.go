@@ -94,10 +94,13 @@ func TestMergeMonitorTrafficIsOrderIndependent(t *testing.T) {
 // five seconds would have drawn a fifth of the points with every test green.
 func TestTheChartAsksForOneSecond(t *testing.T) {
 	src := mustReadSource(t, "traffic.go")
-	if !strings.Contains(src, "joinMonitorTraffic(t.cache, names, 1, t.onPacket)") {
-		t.Error("traffic no longer joins the shared channel at one second. It is the " +
-			"holder that sets the merged cadence, and the chart draws a point per " +
-			"second; a coarser interval looks like a quiet network, not like a bug.")
+	// ON ITS OWN CHANNEL since 2026-11-22 (trafficChannel): an interface
+	// ifStatus watches vanishing must not end the chart's stream.
+	if !strings.Contains(src, "joinMonitorTraffic(t.cache, trafficChannel, names, 1, t.onPacket)") {
+		t.Error("traffic no longer joins its own channel at one second. The chart " +
+			"draws a point per second, so a coarser interval looks like a quiet " +
+			"network, not like a bug; and on the shared channel an interface it does " +
+			"not show vanishing ends its stream.")
 	}
 }
 
