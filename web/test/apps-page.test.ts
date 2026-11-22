@@ -29,7 +29,7 @@ const IDS = ['appsBadge', 'appsTabs', 'appsSearch', 'appsTotal', 'appsTotalRx', 
   'appsRingValue', 'appsRingLabel', 'appsOrbit', 'appsTiles', 'appsNote', 'appsThead', 'appsTable',
   'appsModal', 'appsModalTitle', 'appsModalBody', 'appsHistChart',
   // #167: the view switch, the client picker, the Unnamed card and dialog, Manage apps.
-  'appsView', 'appsClient', 'appsUsageBody', 'appsUnnamedCard', 'appsManage', 'appsManageTab', 'appsManageSearch',
+  'appsView', 'appsClient', 'appsUsageBody', 'appsUnnamedCard', 'appsManage', 'appsManageBtn', 'appsManageSearch',
   'appsRuleFields', 'appsRuleSave', 'appsCategorySave', 'appsUnnamedTable', 'appsUnnamedSearch', 'appsUnnamedAssign',
   'appsManageThead', 'appsManageTable', 'appsCategoryTable'];
 
@@ -103,9 +103,11 @@ function boot() {
   restore();
   const html = fs.readFileSync(path.join(ROOT, 'web', 'src', 'ui', 'page-apps.html'), 'utf8');
   const tabs = [...html.matchAll(/data-appstab="([a-z]+)"/g)].map((m) => m[1]);
-  // Manage apps (#167) comes last, and is shown only to an administrator.
-  assert.deepStrictEqual(tabs, ['hour', 'day', 'week', 'month', 'manage'], 'Last hour is not the first tab: ' + tabs);
-  assert.ok(/data-appstab="manage" id="appsManageTab" hidden/.test(html), 'Manage apps is not hidden until the catalogue says so');
+  assert.deepStrictEqual(tabs, ['hour', 'day', 'week', 'month'], 'Last hour is not the first tab: ' + tabs);
+  // Manage apps (#167) is a header button opening a dialog, hidden until the
+  // catalogue says this viewer may edit.
+  assert.ok(/class="sbtn[^"]*" id="appsManageBtn" hidden/.test(html), 'Manage apps is not a hidden header button');
+  assert.ok(/id="appsManageModal"/.test(html), 'Manage apps has no dialog');
   assert.ok(/class="stab active"[^>]*data-appstab="hour">Last hour</.test(html), 'Last hour is not the default tab');
   assert.ok(!/appsUnnamedWrap|appsUnnamedList|appsRecord/.test(html), 'the owner list or the record button is back in the markup');
   say('ok  the last hour: bytes on the cards, ring and tiles; Last hour first; no owner list');
@@ -235,6 +237,7 @@ const HIST = {
   assert.ok(cats.includes('data-cat="streaming"') && cats.includes('data-cat="conferencing"') && !cats.includes('data-app="netflix"'),
     'the Categories view does not list categories:\n' + cats);
   assert.ok(/data-cat="conferencing"[\s\S]*?4\.0 MB/.test(cats), 'a category is not its apps summed:\n' + cats);
+  assert.ok(/data-cat="conferencing"[^>]*style="--app:var\(--accent-rx\)"/.test(cats), 'a category row gives its share bar no colour:\n' + cats);
   pickView('apps');
   assert.ok(String(doc.nodes['appsTable'].innerHTML).includes('data-app="netflix"'), 'Applications did not come back');
 

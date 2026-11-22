@@ -4000,11 +4000,15 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-unnamed-card:hover,.au-unnamed-card:focus-visible{border-color:var(--accent-rx)}
     .au-cat-row .au-cat-caret{display:inline-block;width:.8rem;color:var(--text-muted)}
     .au-actions{white-space:nowrap}
-    .au-manage-bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem}
-    .au-manage-bar .sform-input{flex:1 1 220px;max-width:320px}
+    .au-manage-bar{margin-bottom:.6rem}
+    .au-manage-bar>.ff{flex:1 1 14rem;max-width:22rem}
+    .rtr-modal.au-manage-modal{width:min(900px,96vw)}
+    .rtr-modal.au-manage-modal>.rtr-modal-body{display:block}
+    /* The header stays one line wide enough to hold it; a narrow screen wraps. */
+    .au-hdr-actions{flex-wrap:nowrap}
+    @media (max-width:1100px){.au-hdr-actions{flex-wrap:wrap}}
     .au-unnamed-bar{margin-bottom:.6rem}
     .au-unnamed-bar>.ff{flex:1 1 14rem;max-width:22rem}
-    .au-manage-actions{display:inline-flex;align-items:center;gap:.4rem}
     .au-manage-note,.au-unnamed-note{margin:0 0 .7rem}
     .au-manage-h{margin:1.2rem 0 .5rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
     .rtr-modal.au-unnamed-modal{width:min(1100px,96vw)}

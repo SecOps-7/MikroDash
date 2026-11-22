@@ -10,10 +10,9 @@
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="day">24 hours</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="week">7 days</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="month">30 days</button>
-              <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="manage" id="appsManageTab" hidden>Manage apps</button>
             </span>
           </div>
-          <div class="hdr-actions d-flex align-items-center gap-2 flex-wrap">
+          <div class="hdr-actions au-hdr-actions d-flex align-items-center gap-2">
             <span class="au-view" id="appsView" role="group" aria-label="View by">
               <button type="button" class="chip is-on" data-appsview="apps" aria-pressed="true">Applications</button>
               <button type="button" class="chip" data-appsview="categories" aria-pressed="false">Categories</button>
@@ -24,6 +23,8 @@
             </select>
             <input id="appsSearch" class="sform-input sform-sm au-search" type="search" placeholder="Search apps"
               aria-label="Search apps" autocomplete="off">
+            <button type="button" class="sbtn sbtn-outline is-sm" id="appsManageBtn" hidden
+              title="Your own apps, and domains, networks or ports added to built-in ones">Manage apps</button>
           </div>
         </div>
         <div class="card-body" id="appsUsageBody">
@@ -72,15 +73,34 @@
           </div>
         </div>
 
-        <div class="card-body au-manage" id="appsManage" hidden>
-          <div class="au-manage-bar">
-            <input id="appsManageSearch" class="sform-input sform-sm" type="search" placeholder="Search apps"
-              aria-label="Search apps" autocomplete="off">
-            <span class="au-manage-actions">
-              <button type="button" class="sbtn sbtn-outline is-sm" id="appsNewCategory">New category</button>
-              <button type="button" class="sbtn sbtn-primary is-sm" id="appsNewApp">New app</button>
-            </span>
+      </div>
+
+      <div class="rtr-modal-bg" id="appsModal">
+        <div class="rtr-modal pmodal au-modal">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title" id="appsModalTitle">App</span>
+            <button class="rtr-modal-close" data-modal-close="appsModal" aria-label="Close">&#10005;</button>
           </div>
+          <div class="rtr-modal-body" id="appsModalBody"></div>
+        </div>
+      </div>
+
+      <div class="rtr-modal-bg" id="appsManageModal">
+        <div class="rtr-modal au-manage-modal">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title">Manage apps</span>
+            <button class="rtr-modal-close" data-modal-close="appsManageModal" aria-label="Close">&#10005;</button>
+          </div>
+          <div class="rtr-modal-body au-manage" id="appsManage">
+            <div class="ff-inline au-manage-bar">
+              <div class="ff">
+                <label class="sform-label" for="appsManageSearch">Search</label>
+                <input id="appsManageSearch" class="sform-input" type="search" placeholder="apps" autocomplete="off">
+                <div class="ff-help"></div>
+              </div>
+              <button type="button" class="sbtn sbtn-outline" id="appsNewCategory">New category</button>
+              <button type="button" class="sbtn sbtn-primary" id="appsNewApp">New app</button>
+            </div>
           <div class="muted-note au-manage-note">
             Your rules come first: a domain, network or port you add is checked before the built-in catalogue's, on every router.
             They name traffic from the moment they are saved; usage already counted keeps the app it was counted under.
@@ -98,16 +118,7 @@
               <tbody id="appsCategoryTable"></tbody>
             </table>
           </div>
-        </div>
-      </div>
-
-      <div class="rtr-modal-bg" id="appsModal">
-        <div class="rtr-modal pmodal au-modal">
-          <div class="rtr-modal-hdr">
-            <span class="rtr-modal-title" id="appsModalTitle">App</span>
-            <button class="rtr-modal-close" data-modal-close="appsModal" aria-label="Close">&#10005;</button>
           </div>
-          <div class="rtr-modal-body" id="appsModalBody"></div>
         </div>
       </div>
 

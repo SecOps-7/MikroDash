@@ -15,7 +15,7 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.apps-rules-entry.ts');
-fs.writeFileSync(ENTRY, "export { categoryRows, catLabel, catTone, setAppCategories } from '../web/src/pages/apps.js';\n" +
+fs.writeFileSync(ENTRY, "export { categoryRows, catLabel, catTone, setAppCategories, pctLabel } from '../web/src/pages/apps.js';\n" +
   "export { parseDomains, parseASNs, parsePorts, ruleText, ruleSummary } from '../web/src/pages/apps-manage.js';\n" +
   "export { prefillFrom } from '../web/src/pages/apps-unnamed.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.apps-rules.cjs');
@@ -53,6 +53,12 @@ assert.equal(rows[1].share, 15, 'a share is of all traffic, unnamed included');
 assert.deepEqual(rows[1].apps.map((a: { id: string }) => a.id), ['a', 'c'], 'its apps, busiest first');
 assert.equal(rows.reduce((s: number, r: { total: number }) => s + r.total, 0), 600, 'the categories add up to the apps');
 
+// A share label: a little unnamed traffic is "<1%", never "0%".
+assert.equal(m.pctLabel(924450, 261357300), '<1%', 'traffic too small to round is not 0%');
+assert.equal(m.pctLabel(0, 100), '0%');
+assert.equal(m.pctLabel(26, 100), '26%');
+assert.equal(m.pctLabel(5, 0), '0%');
+
 // The editor's boxes.
 assert.deepEqual(m.parseDomains(' *.Example.com \n\nexact.example.net, other.example'), [
   { domain: 'example.com', subdomains: true }, { domain: 'exact.example.net', subdomains: false },
@@ -68,7 +74,7 @@ const text = m.ruleText(rule);
 assert.deepEqual(m.parseDomains(text.domains), rule.domains, 'domains round-trip');
 assert.deepEqual(m.parseASNs(text.asns), rule.asns, 'networks round-trip');
 assert.deepEqual(m.parsePorts(text.ports), rule.ports, 'ports round-trip');
-assert.equal(m.ruleSummary({ ...rule, id: 'x', builtin: false, name: 'x', color: '', icon: '', category: '' }),
+assert.equal(m.ruleSummary({ ...rule, id: 'x', name: 'x', color: '', icon: '', category: '' }),
   '2 domains, 1 network, 2 ports');
 assert.equal(m.ruleSummary(null), '');
 

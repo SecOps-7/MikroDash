@@ -1,10 +1,11 @@
-// The Apps Usage page's Manage apps tab (#167): the administrators' own apps,
-// their additions to built-in apps, and their categories.
+// The Apps Usage page's Manage apps dialog (#167), opened from the header:
+// the administrators' own apps, their additions to built-in apps, and their
+// categories.
 //
 // The rules are internal/apps/rules.go's and are kept by
 // internal/server/apps_rules.go; this module lists them, edits one at a time
-// and asks the server to judge it before it is saved. The tab is shown only to
-// a global administrator (the catalogue's `canEdit`): every write needs one.
+// and asks the server to judge it before it is saved. The button is shown only
+// to a global administrator (the catalogue's `canEdit`): every write needs one.
 //
 // ── THE EDITOR PREVIEWS AS IT IS TYPED ──────────────────────────────────────
 //
@@ -16,7 +17,7 @@
 
 import { esc, el, pill, renderSortHeader, sortRows, fmtBytes, type SortCol, type SortState } from '../dom';
 import { fieldHtml } from '../form';
-import type { PillTone } from '../palette';
+import { paletteColour, type PillTone } from '../palette';
 import { badge, catLabel, catPill, CAT_TONES, type CategoryInfo } from './apps';
 
 export interface DomainRule { domain: string; subdomains: boolean }
@@ -123,11 +124,19 @@ function send<T>(url: string, method: string, body?: unknown): Promise<T> {
     : Promise.reject(Object.assign(new Error((d && d.error) || r.statusText), { data: d })))));
 }
 
+/** A new app's colour: the theme's blue, as the #rrggbb a colour input takes. */
+function defaultColour(): string {
+  const m = /(\d+)\D+(\d+)\D+(\d+)/.exec(paletteColour('--accent-rx'));
+  return m ? '#' + [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('') : '';
+}
+
 const kindOf = (a: CatalogueApp): string => (a.custom ? 'custom' : a.rule ? 'built-in + rules' : 'built-in');
 const kindTone = (a: CatalogueApp): PillTone => (a.custom ? 'alt' : a.rule ? 'rx' : 'muted');
 
 export interface AppsManage {
   setCatalogue(c: AppCatalogue): void;
+  /** Opens the dialog. */
+  open(): void;
   /** Opens the editor on an app (null: a new one), with the picked networks
    *  and ports added to what it already has. */
   openEditor(id: string | null, prefill?: RulePrefill): void;
@@ -178,7 +187,6 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
 
   // ── the app editor ───────────────────────────────────────────────────────
 
-  const val = (id: string): string => (el<HTMLInputElement>(id)?.value ?? '');
 
   function categoryOptions(selected: string, builtin: boolean): string {
     const first = builtin ? '<option value="">Keep the catalogue\'s</option>' : '<option value="">Uncategorized</option>';
@@ -191,7 +199,7 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
     const builtin = !!app && !app.custom;
     editing = { id: app ? app.id : null, builtin };
     const rule: AppRule = app?.rule ? { ...app.rule } : {
-      id: app?.id || '', builtin, name: app?.custom ? app.name : '', color: app?.custom ? app.color : '#3b82f6',
+      id: app?.id || '', builtin, name: app?.custom ? app.name : '', color: app?.custom ? app.color : defaultColour(),
       icon: app?.custom ? app.icon : '', category: app?.custom ? app.category : '', domains: [], asns: [], ports: [],
     };
     if (prefill) {
@@ -212,7 +220,7 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
         fieldHtml({ id: 'arName', label: 'Name', required: true, help: 'As the page shows it.' },
           '<input class="sform-input" id="arName" maxlength="40" value="' + esc(rule.name) + '">') +
         fieldHtml({ id: 'arColor', label: 'Colour', help: 'Its tile, its slice of the ring, its letters or logo.' },
-          '<input class="sform-input" id="arColor" type="color" value="' + esc(rule.color || '#3b82f6') + '">') +
+          '<input class="sform-input" id="arColor" type="color" value="' + esc(rule.color || defaultColour()) + '">') +
         fieldHtml({ id: 'arIcon', label: 'Logo', help: 'A logo from the built-in apps, or its initials.' },
           '<select class="sform-input" id="arIcon"><option value="">Initials</option>' +
           logos.map((a) => '<option value="' + esc(a.id) + '"' + (a.id === rule.icon ? ' selected' : '') + '>' + esc(a.name) +
@@ -239,13 +247,13 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
 
   /** The editor's rule, or an error naming what cannot be read. */
   function formRule(): AppRule | string {
-    const asns = parseASNs(val('arAsns'));
+    const asns = parseASNs((el<HTMLInputElement>('arAsns')?.value ?? ''));
     if (typeof asns === 'string') return asns;
-    const ports = parsePorts(val('arPorts'));
+    const ports = parsePorts((el<HTMLInputElement>('arPorts')?.value ?? ''));
     if (typeof ports === 'string') return ports;
     return {
-      id: editing.id || '', builtin: editing.builtin, name: val('arName'), color: val('arColor'), icon: val('arIcon'),
-      category: val('arCategory'), domains: parseDomains(val('arDomains')), asns, ports,
+      id: editing.id || '', builtin: editing.builtin, name: (el<HTMLInputElement>('arName')?.value ?? ''), color: (el<HTMLInputElement>('arColor')?.value ?? ''), icon: (el<HTMLInputElement>('arIcon')?.value ?? ''),
+      category: (el<HTMLInputElement>('arCategory')?.value ?? ''), domains: parseDomains((el<HTMLInputElement>('arDomains')?.value ?? '')), asns, ports,
     };
   }
 
@@ -327,7 +335,7 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
   }
 
   function saveCategory(): void {
-    send('/api/apps/categories', 'POST', { category: { id: editingCat || '', name: val('acName'), tone: val('acTone') } })
+    send('/api/apps/categories', 'POST', { category: { id: editingCat || '', name: (el<HTMLInputElement>('acName')?.value ?? ''), tone: (el<HTMLInputElement>('acTone')?.value ?? '') } })
       .then(() => { el('appsCategoryModal')?.classList.remove('open'); o.onChanged(); })
       .catch((e: Error) => setErr('appsCategoryErr', e.message));
   }
@@ -359,6 +367,7 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
 
   return {
     setCatalogue(c: AppCatalogue): void { cat = c; render(); },
+    open(): void { render(); el('appsManageModal')?.classList.add('open'); },
     openEditor,
   };
 }

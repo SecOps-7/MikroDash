@@ -14,7 +14,7 @@
 import { el, esc, fmtBytes } from '../dom';
 import type { Socket } from '../socket';
 import type { AppUsagePayload } from '../gen/payloads';
-import { badge, hourSpan, paintRing, ringSlices } from './apps';
+import { badge, hourSpan, paintRing, pctLabel, ringSlices } from './apps';
 
 /** One list row's height in pixels, as app.css sets it: the list shows as
  *  many rows as fit. */
@@ -61,7 +61,7 @@ export function initAppsCard(socket: Socket): void {
     if (totals) {
       totals.innerHTML = '<span class="au-rx">&darr; ' + esc(fmtBytes(p.rxBytes)) + '</span>' +
         '<span class="au-tx">&uarr; ' + esc(fmtBytes(p.txBytes)) + '</span>' +
-        (total > 0 ? '<span class="au-card-unnamed">' + ((100 * p.unnamedBytes) / total).toFixed(0) + '% unnamed</span>' : '');
+        (total > 0 ? '<span class="au-card-unnamed">' + pctLabel(p.unnamedBytes, total) + ' unnamed</span>' : '');
     }
     const list = el('dcAppsList');
     if (list) {

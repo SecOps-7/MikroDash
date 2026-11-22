@@ -36,7 +36,8 @@
 //     keep no clients, so it does not reach them.
 //   - The Unnamed card opens the last hour's unnamed traffic in detail
 //     (apps-unnamed.ts).
-//   - A Manage apps tab for a global administrator (apps-manage.ts).
+//   - A Manage apps button for a global administrator, opening a dialog of
+//     their own apps and their additions to built-in ones (apps-manage.ts).
 
 import type { Socket } from '../socket';
 import type { AppUsage, AppUsagePayload, AppDevice } from '../gen/payloads';
@@ -354,6 +355,14 @@ export function paintRing(svg: SVGSVGElement, arcs: Map<string, SVGCircleElement
   }
 }
 
+/** A part of a total as a whole percentage, except that a part too small to
+ *  round to 1% reads "<1%", never "0%" for traffic that is there. Pure. */
+export function pctLabel(part: number, total: number): string {
+  if (total <= 0 || part <= 0) return '0%';
+  const pct = (100 * part) / total;
+  return pct < 1 ? '<1%' : Math.round(pct) + '%';
+}
+
 /** A category's colour, for the ring and its tile: the pill tone's token. */
 const toneColour = (t: PillTone): string => 'var(' + TONE_TOKEN[t] + ')';
 
@@ -409,8 +418,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       ? '<span class="au-top">' + badge(top, 'sm') + '<span>' + esc(top.name) + '</span></span>' : '-';
     setText('appsTopFoot', top
       ? fmtBytes(top.total) + ', ' + top.share.toFixed(0) + '% of ' + (v.hour ? 'traffic' : 'recorded') : ' ');
-    const unPct = total > 0 ? (100 * v.unnamed) / total : 0;
-    setText('appsUnnamed', total > 0 ? unPct.toFixed(0) + '%' : '-');
+    setText('appsUnnamed', total > 0 ? pctLabel(v.unnamed, total) : '-');
     setText('appsUnnamedFoot', fmtBytes(v.unnamed) + ' not named');
     const b = el('appsBadge');
     if (b) { b.textContent = String(v.apps.length); b.className = 'card-badge' + (v.apps.length ? ' active-blue' : ''); }
@@ -526,7 +534,8 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       }
       body.innerHTML = sortRows(rows, catSort.col, catSort.dir).map((c) => {
         const open = openCats.has(c.id);
-        return '<tr class="au-row au-cat-row" data-cat="' + esc(c.id) + '" aria-expanded="' + open + '">' +
+        return '<tr class="au-row au-cat-row" data-cat="' + esc(c.id) + '" aria-expanded="' + open +
+          '" style="--app:' + toneColour(c.tone) + '">' +
           '<td><span class="au-cat-caret" aria-hidden="true">' + (open ? '&#9662;' : '&#9656;') + '</span> ' + catPill(c.id) + '</td>' +
           '<td class="text-end mono">' + c.count + '</td>' +
           '<td class="text-end mono au-rx">' + esc(fmtBytes(c.rx)) + '</td>' +
@@ -613,18 +622,11 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
         : '<div class="empty-state">No device used it in the last hour.</div>');
   }
 
-  /** The header's controls follow the tab: Manage apps hides the view switch,
-   *  the client and the search; the stored tabs disable the client. */
+  /** The header's controls: the stored tabs disable the client. */
   function renderChrome(): void {
-    const managing = tab === 'manage';
-    const usage = el('appsUsageBody');
-    const man = el('appsManage');
-    if (usage) usage.hidden = managing;
-    if (man) man.hidden = !managing;
-    for (const id of ['appsView', 'appsSearch']) { const n = el(id); if (n) n.hidden = managing; }
     const sel = el<HTMLSelectElement>('appsClient');
     if (sel) {
-      sel.hidden = managing || !clientsReadable;
+      sel.hidden = !clientsReadable;
       sel.disabled = tab !== 'hour';
       sel.classList.toggle('active', !!client);
     }
@@ -638,7 +640,6 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
   function render(): void {
     if (!isVisible('apps')) return;
     renderChrome();
-    if (tab === 'manage') return;
     renderNote();
     renderBars();
     const v = current();
@@ -662,8 +663,8 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
         if (rid !== routerId) return;
         catalogue = c;
         setAppCategories(c.categories);
-        const t = el('appsManageTab');
-        if (t) t.hidden = !c.canEdit;
+        const b = el('appsManageBtn');
+        if (b) b.hidden = !c.canEdit;
         manage.setCatalogue(c);
         render();
       })
@@ -709,7 +710,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
 
   function loadHistory(): void {
     stored = null;
-    if (tab === 'hour' || tab === 'manage' || !routerId) { render(); return; }
+    if (tab === 'hour' || !routerId) { render(); return; }
     const want = tab;
     const rid = routerId;
     call<AppHistory>('/api/apps/history?routerId=' + encodeURIComponent(rid) + '&period=' + encodeURIComponent(want))
@@ -742,6 +743,7 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
     if (t && t.dataset.app) open(t.dataset.app);
   });
   el('appsUnnamedCard')?.addEventListener('click', () => unnamed.open());
+  el('appsManageBtn')?.addEventListener('click', () => manage.open());
   el<HTMLInputElement>('appsSearch')?.addEventListener('input', (e) => {
     query = (e.target as HTMLInputElement).value;
     const v = current();
@@ -776,7 +778,6 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
       x.classList.toggle('active', on);
       x.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    if (tab === 'manage') loadCatalogue();
     loadHistory();
   });
 
