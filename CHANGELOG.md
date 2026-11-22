@@ -2,25 +2,31 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [Unreleased]
-
-Changes on `main` that are in the `:latest` image but not yet in a numbered
-release.
+## [0.8.87] - Apps Usage: your own apps and the Unnamed traffic
 
 ### New
 
 - **An Apps Usage card for the Dashboard.** The last hour from the Apps Usage
   page: a ring of each app's share with the total, and the busiest apps with
   their logos, share and bytes. Add it from Edit, Add Card.
-- **Apps Usage: your own apps, the Unnamed traffic in detail, a client filter
-  and categories.** Click the Unnamed card to see where unnamed traffic went in
-  the last hour (client, destination, port, network owner and why it was not
-  named; no DNS names), and assign it to an app. A Manage apps tab lets a global
-  administrator add apps, add domains, networks or ports to built-in apps, and
-  make categories, with conflicts shown before saving. A client picker narrows
-  the last hour to one device, and a Categories view sums usage by category.
-  Rules apply to every router, to traffic from the moment they are saved.
-  Asked for in #167.
+- **Apps Usage: the Unnamed traffic in detail.** Click the Unnamed card to see
+  where unnamed traffic went in the last hour: client, destination, port,
+  network owner and why it was not named. No DNS names are shown.
+- **Apps Usage: your own apps.** Manage apps, in the page header, lets a global
+  administrator add apps and categories, and add domains, networks or ports to
+  built-in apps, with conflicts shown before saving. Rows picked in the Unnamed
+  detail can be assigned to an app in one step. Rules apply to every router,
+  to traffic from the moment they are saved.
+- **Apps Usage: a client filter and a Categories view.** Narrow the last hour
+  to one device, or sum usage by category and open each one onto its apps.
+- Asked for in [#167](https://github.com/SecOps-7/MikroDash/issues/167),
+  thanks [@wweziz000](https://github.com/wweziz000).
+
+### Changed
+
+- **More apps are recognised:** Plex by its server port, Proton and Claude by
+  their own networks, MikroTik by Winbox and the API ports, and Windows Update
+  by its peer-to-peer delivery port.
 
 ## [0.8.86] - Shared links
 
