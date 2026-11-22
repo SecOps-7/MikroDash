@@ -1,5 +1,5 @@
 {
- "catalogueSha256": "6d28afc513e7e84a4c714c68ace5d2b501daad734175b9c867361a52f65c9978",
+ "catalogueSha256": "9840af64325c219d57797c6de198dca69fdf6a5353d4faee5caee7b1e6a0e44d",
  "sources": {
   "arcticons": {
    "licence": "CC-BY-SA-4.0",
@@ -3066,7 +3066,9 @@
     "=http-intake.logs.us5.datadoghq.com",
     "=o1158394.ingest.us.sentry.io"
    ],
-   "asns": [],
+   "asns": [
+    399358
+   ],
    "ports": [],
    "umbrella": false
   },
@@ -4088,7 +4090,13 @@
     "tlu.dl.delivery.mp.microsoft.com"
    ],
    "asns": [],
-   "ports": [],
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 7680,
+     "to": 7680
+    }
+   ],
    "umbrella": false
   },
   {

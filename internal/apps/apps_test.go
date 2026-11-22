@@ -74,8 +74,9 @@ func TestTheCatalogueIsWhole(t *testing.T) {
 }
 
 // Found in a live router's Unnamed detail (2026-11-22): Plex servers on their
-// own port, Proton's own network, and MikroTik's management ports (Winbox,
-// the API and API-SSL).
+// own port, Proton's own network, MikroTik's management ports (Winbox, the
+// API and API-SSL), Anthropic's network for Claude, and Windows Update's
+// Delivery Optimization peers on 7680.
 func TestUnnamedTrafficFoundLiveIsNamed(t *testing.T) {
 	for _, c := range []struct {
 		asn   uint
@@ -87,6 +88,8 @@ func TestUnnamedTrafficFoundLiveIsNamed(t *testing.T) {
 		{62371, "tcp", 443, "proton"},
 		{0, "tcp", 8291, "mikrotik"},
 		{0, "tcp", 8729, "mikrotik"},
+		{399358, "tcp", 443, "claude"},
+		{0, "tcp", 7680, "windows-update"},
 	} {
 		if m := Default().Classify(nil, c.asn, c.proto, c.port); m.App == nil || m.App.ID != c.want {
 			t.Errorf("AS%d %s/%d: %+v, want %s", c.asn, c.proto, c.port, m.App, c.want)

@@ -882,7 +882,10 @@
    "icon": {
     "source": "simple-icons",
     "slug": "claude"
-   }
+   },
+   "asns": [
+    399358
+   ]
   },
   {
    "id": "gemini",
@@ -1183,7 +1186,14 @@
     "source": "gilbarbara",
     "slug": "microsoft-windows-icon"
    },
-   "color": "#0078D4"
+   "color": "#0078D4",
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 7680,
+     "to": 7680
+    }
+   ]
   },
   {
    "id": "apple-updates",
