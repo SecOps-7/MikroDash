@@ -169,47 +169,32 @@ export function rightBufferFor(points: readonly TrafficPoint[]): number {
 }
 
 /**
- * The points the BANDWIDTH chart seeds from, which are NOT the points the
- * dashboard chart seeds from.
+ * The points a chart is REBUILT from: everything from the axis's left edge,
+ * and the keepalive's slack beyond it.
  *
- * The two live functions genuinely differ and the difference is exactly this
- * slack. `windowedPoints()` (app.js:774) filters at `ts >= cutoff`;
- * `_syncBwChart` (app.js:6950) walks back to `cutoff - 3000` and keeps three
- * seconds more.
+ * ── THE GAP AT THE LEFT EDGE (the operator, 2026-11-22) ─────────────────────
  *
- * That is not an inconsistency to tidy away. The keepalive prunes at
- * `viewLeft - 3000` on BOTH charts, so seeding with the same slack hands the
- * bandwidth chart exactly the set its own keepalive would retain - no point is
- * drawn on the seeding frame and dropped on the next. Reusing `windowedPoints`
- * here would look correct, pass any test written from the dashboard's
- * behaviour, and show up as a one-frame flicker at the left edge that nobody
- * would trace back to a shared helper.
+ * A rebuild used to keep only the points INSIDE the window (`windowedPoints`),
+ * with the cut taken on the BROWSER's clock (`Date.now()`) while the axis was
+ * placed on the SERVER's (`Date.now() + serverOffset`). So the point just off
+ * the left edge was dropped, the line began at the first point inside, and an
+ * empty strip sat at the left edge until it scrolled out - widened by however
+ * far the browser's clock ran ahead of the server's. Measured on the hAP ax^3:
+ * 17 rebuilds in 120 s, every one leaving a strip of 266 to 967 ms, and no
+ * strip at any other time.
+ *
+ * Taking the cut from the axis window itself puts both on one clock, and the
+ * slack is the keepalive's own (`pruneAndMax`), so a rebuild holds exactly the
+ * points the next frame would keep: the line reaches the edge from the first
+ * frame, and no point is drawn once and dropped the frame after.
+ *
+ * The Bandwidth page had kept the slack all along (it seeded with
+ * `bandwidthSeedPoints`) but still cut on the browser's clock; it uses this too.
  */
-export function bandwidthSeedPoints(
-  points: readonly TrafficPoint[], nowMs: number, windowSecs: number, rightBufferMs: number,
-): TrafficPoint[] {
-  const cutoff = nowMs - (windowSecs * 1000) - rightBufferMs - KEEPALIVE_SLACK_MS;
-  // A FILTER, and it became one on 2026-08-25 when the live side fixed its
-  // second copy.
-  //
-  // This walked backwards from the newest point and stopped at the first one
-  // older than the cutoff - the same answer on a monotonic buffer and cheaper,
-  // but ONE out-of-order sample (an NTP correction on a router with a drifted
-  // RTC) truncated everything before it. The live repo had fixed that in
-  // `windowedPoints` after this port reported it, and `_syncBwChart` still
-  // carried the old shape, so the two copies of one rule disagreed. This port
-  // REPRODUCED the quirk rather than tidying it, and reported the second copy as
-  // ToDo #24.
-  //
-  // #24 is fixed now, and the gate said so: `bandwidth-chart-check` went red
-  // within minutes of the edit landing in the live working tree - which is the
-  // outcome the note that used to sit here predicted, in as many words.
-  //
-  // The THREE-SECOND SLACK STAYS, and the live fix kept it too, folded into the
-  // cutoff rather than into the comparison. It is not part of the bug: the
-  // keepalive prunes at `viewLeft - 3000`, so seeding with that slack hands this
-  // chart exactly the set its own keepalive would retain. Dropping it would show
-  // as a one-frame flicker at the left edge that nobody would trace back here.
+export function seedPoints(points: readonly TrafficPoint[], viewLeft: number): TrafficPoint[] {
+  // A FILTER, not a walk back from the newest point: one out-of-order sample
+  // (an NTP step on the server) must not truncate everything before it.
+  const cutoff = viewLeft - KEEPALIVE_SLACK_MS;
   return points.filter((p) => p.ts >= cutoff);
 }
 
@@ -294,5 +279,17 @@ export function smoothMax(current: number, target: number): number {
  * also forces the rebuild - there is nothing to append to.
  */
 export function needsFullRedraw(rx: readonly XYPoint[], sampleTs: number): boolean {
-  return !rx.length || sampleTs - rx[rx.length - 1]!.x > 2000;
+  return !rx.length || sampleTs - rx[rx.length - 1]!.x > REDRAW_GAP_MS;
 }
+
+/**
+ * How far past the last drawn point a sample must land to count as a break.
+ *
+ * It was 2,000 ms, which a router in stream mode crosses in ordinary running:
+ * the hAP ax^3 sent samples 2.0 to 2.8 s apart twelve times in 90 s
+ * (2026-11-22), and each one rebuilt the chart from scratch. A hidden tab, a
+ * page change or a router going away is a gap of many seconds; 5 s tells the
+ * two apart. Appending across a gap shorter than that draws the same line a
+ * rebuild would, because the buffer holds the same points.
+ */
+export const REDRAW_GAP_MS = 5000;

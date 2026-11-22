@@ -38,7 +38,7 @@ import { isRosDisconnected } from '../banners';
 import {
   MAX_CLIENT_POINTS, RIGHT_BUFFER_MS, rightBufferFor, easeBuffer, anchorMs, axisWindow,
   needsFullRedraw, pruneAndMax,
-  pushSample, smoothMax, smoothOffset, windowedPoints,
+  pushSample, seedPoints, smoothMax, smoothOffset,
   type XYPoint,
 } from './dashboard-traffic-buffer';
 import type { TrafficHistory, TrafficPoint, TrafficSample } from '../gen/payloads';
@@ -257,7 +257,10 @@ export function redrawChart(): void {
   // mode does not deliver on a metronome, and a fixed gap leaves the line short
   // of the right edge whenever one arrives late. See rightBufferFor.
   const rb = rightBufferFor(allPoints);
-  const pts = windowedPoints(allPoints, Date.now(), windowSecs, rb);
+  // The axis first, then the points from its left edge: one clock for both,
+  // and the keepalive's slack kept. See seedPoints.
+  const win = axisWindow(anchorMs(lastSampleTs, serverOffset, Date.now(), allPoints), windowSecs, rb);
+  const pts = seedPoints(allPoints, win.min);
   if (!chart) makeChartObj();
   if (!chart) return;
   chart.data.datasets[0]!.data = pts.map((p) => ({ x: p.ts, y: p.rx_mbps }));
@@ -276,8 +279,6 @@ export function redrawChart(): void {
   // is a discontinuity already - a new interface, a new router, a new window -
   // so easing the edge across it would animate a change the data did not make.
   rbCurrent = rb;
-  const anchor = anchorMs(lastSampleTs, serverOffset, Date.now(), pts);
-  const win = axisWindow(anchor, windowSecs, rb);
   chart.options.scales.x.min = win.min;
   chart.options.scales.x.max = win.max;
   chart.update('none');

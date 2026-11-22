@@ -12,7 +12,7 @@
 import { fmtTime } from '../timefmt';
 import { esc, el, fmtMbps, debounce, svcBadge, iso2Flag, protoPill } from '../dom';
 import {
-  RIGHT_BUFFER_MS, rightBufferFor, anchorMs, axisWindow, bandwidthSeedPoints, needsFullRedraw,
+  RIGHT_BUFFER_MS, rightBufferFor, anchorMs, axisWindow, needsFullRedraw, seedPoints,
   pruneAndMax, smoothMax, type XYPoint,
 } from './dashboard-traffic-buffer';
 import type { BandwidthDevice, TrafficPoint } from '../gen/payloads';
@@ -103,10 +103,9 @@ export function splitRate(mbps: unknown): { num: string; unit: string } {
  * a canvas or a Chart.js.
  *
  * The arithmetic is the dashboard chart's, deliberately: same max, same anchor
- * formula, same axis window. The ONE difference is which points it seeds from,
- * and that difference is real - see `bandwidthSeedPoints`, which keeps three
- * seconds more than the dashboard's `windowedPoints` so the first frame agrees
- * with what this chart's own keepalive will retain.
+ * formula, same axis window, and the same points: both seed from `seedPoints`,
+ * the axis's left edge plus the keepalive's slack, so the first frame agrees
+ * with what the keepalive retains.
  *
  * The anchor uses the SHARED clock rather than a local one. That is what stops
  * the seeding frame painting at a different X than the keepalive continues from,
@@ -118,7 +117,10 @@ export function bwSyncState(
   clock: { lastSampleTs: number; serverOffset: number; windowSecs: number },
   rightBufferMs: number,
 ): { rx: XYPoint[]; tx: XYPoint[]; yMax: number; xMin: number; xMax: number } {
-  const pts = bandwidthSeedPoints(points, nowMs, clock.windowSecs, rightBufferMs);
+  // The axis first, then the points from its left edge on the same clock, with
+  // the keepalive's slack: see seedPoints.
+  const win = axisWindow(anchorMs(clock.lastSampleTs, clock.serverOffset, nowMs, points), clock.windowSecs, rightBufferMs);
+  const pts = seedPoints(points, win.min);
   const rx = pts.map((p) => ({ x: p.ts, y: p.rx_mbps }));
   const tx = pts.map((p) => ({ x: p.ts, y: p.tx_mbps }));
   let dMax = 0;
@@ -130,8 +132,6 @@ export function bwSyncState(
   // zero, where noise would look like saturation. Unlike the keepalive this
   // SNAPS rather than easing - a redraw is a new view, not a continuation.
   const yMax = dMax || 1;
-  const anchor = anchorMs(clock.lastSampleTs, clock.serverOffset, nowMs, pts);
-  const win = axisWindow(anchor, clock.windowSecs, rightBufferMs);
   return { rx, tx, yMax, xMin: win.min, xMax: win.max };
 }
 

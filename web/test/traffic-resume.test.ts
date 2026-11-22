@@ -32,7 +32,7 @@ const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 const ENTRY = path.join(ROOT, 'testdata', '.traffic-resume-entry.ts');
 fs.writeFileSync(ENTRY,
   "export { onTrafficHistory, noteTrafficUpdate, resumeTrafficChart, sharedClock, sharedPoints } from '../web/src/pages/dashboard-traffic.js';\n" +
-  "export { RIGHT_BUFFER_MS, rightBufferFor } from '../web/src/pages/dashboard-traffic-buffer.js';\n" +
+  "export { RIGHT_BUFFER_MS, rightBufferFor, seedPoints, needsFullRedraw, KEEPALIVE_SLACK_MS, REDRAW_GAP_MS } from '../web/src/pages/dashboard-traffic-buffer.js';\n" +
   "export { fmtMbps } from '../web/src/dom.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.traffic-resume.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
@@ -175,6 +175,48 @@ const canvas = els.get('trafficChart');
     frames.clear();
   }
   say('ok  resume does nothing while the socket is down or the page is still hidden');
+}
+
+// ── 4. a rebuild reaches the left edge (the operator, 2026-11-22) ──────────
+//
+// A rebuild kept only the points inside the window, cut on the browser's clock,
+// so the line began short of the left edge: a strip measured at 266 to 967 ms
+// after every rebuild on the hAP ax^3. It now keeps the axis's left edge on the
+// server's clock plus the keepalive's slack, so the first point drawn is at or
+// left of the edge.
+{
+  drain();
+  // Two minutes of history, a point a second, ending now; then a rebuild.
+  const pts = [];
+  for (let i = 120; i >= 0; i--) pts.push({ ts: clock - i * 1000, rx_mbps: 1, tx_mbps: 1 });
+  m.onTrafficHistory({ ifName: 'ether1', points: pts });
+  for (const label of ['the history', 'a resume']) {
+    if (label === 'a resume') { clock += 400; m.resumeTrafficChart(); }
+    const c = charts[charts.length - 1];
+    const first = c.data.datasets[0].data[0];
+    const min = c.options.scales.x.min;
+    assert.ok(first.x <= min, label + ': the line starts ' + (first.x - min) + ' ms right of the left edge');
+    assert.ok(first.x >= min - m.KEEPALIVE_SLACK_MS - 1000,
+      label + ': kept a point the keepalive would drop at once (' + (min - first.x) + ' ms left of the edge)');
+  }
+
+  // The cut is the axis's, whatever the browser's clock says: with the server
+  // four seconds behind the browser, the first point is still at the edge.
+  const cut = m.seedPoints(pts, clock - 60_000 - 4000);
+  assert.ok(cut[0].ts <= clock - 64_000, 'seedPoints did not keep the point left of the edge');
+  assert.ok(cut[0].ts >= clock - 64_000 - m.KEEPALIVE_SLACK_MS, 'seedPoints kept more than the slack');
+  // One out-of-order sample does not truncate what came before it.
+  const shuffled = [...pts.slice(0, 100), { ts: clock - 200_000, rx_mbps: 0, tx_mbps: 0 }, ...pts.slice(100)];
+  assert.strictEqual(m.seedPoints(shuffled, clock - 10_000).length, m.seedPoints(pts, clock - 10_000).length,
+    'an out-of-order sample cut the points after it');
+
+  // A late sample in stream mode (2.0 to 2.8 s measured) is appended, not a
+  // reason to rebuild; a real break still is.
+  const drawn = [{ x: clock, y: 1 }];
+  assert.strictEqual(m.needsFullRedraw(drawn, clock + 2800), false, 'a sample 2.8 s late forced a rebuild');
+  assert.strictEqual(m.needsFullRedraw(drawn, clock + m.REDRAW_GAP_MS + 1), true, 'a real break did not rebuild');
+  assert.strictEqual(m.needsFullRedraw([], clock), true, 'an empty chart did not rebuild');
+  say('ok  a rebuild reaches the left edge on the server clock, and a late sample does not rebuild');
 }
 
 say('traffic-resume: all checks passed');

@@ -21,7 +21,7 @@ import { fmtMbps } from '../dom';
 import type { TrafficPoint } from '../gen/payloads';
 import {
   RIGHT_BUFFER_MS, anchorMs, axisWindow, easeBuffer, needsFullRedraw, pruneAndMax,
-  rightBufferFor, smoothMax, smoothOffset, windowedPoints, type XYPoint,
+  rightBufferFor, seedPoints, smoothMax, smoothOffset, type XYPoint,
 } from './dashboard-traffic-buffer';
 import { trafficTickPlugin, paintTrafficChart, type TrafficPaint } from './dashboard-traffic';
 import { onPaletteChange, monoFont } from '../palette';
@@ -113,7 +113,9 @@ function config(nowMs: number): unknown {
 function redraw(): void {
   if (!chart) return;
   const rb = rightBufferFor(points);
-  const pts = windowedPoints(points, Date.now(), WAN_WINDOW_SECS, rb);
+  // The axis first, then the points from its left edge, as the Dashboard does.
+  const win = axisWindow(anchorMs(lastSampleTs, serverOffset, Date.now(), points), WAN_WINDOW_SECS, rb);
+  const pts = seedPoints(points, win.min);
   chart.data.datasets[0]!.data = pts.map((p) => ({ x: p.ts, y: p.rx_mbps }));
   chart.data.datasets[1]!.data = pts.map((p) => ({ x: p.ts, y: p.tx_mbps }));
   let max = 0;
@@ -121,7 +123,6 @@ function redraw(): void {
   yCurrent = max || 1;
   chart.options.scales.y.max = yCurrent;
   rbCurrent = rb;
-  const win = axisWindow(anchorMs(lastSampleTs, serverOffset, Date.now(), pts), WAN_WINDOW_SECS, rb);
   chart.options.scales.x.min = win.min;
   chart.options.scales.x.max = win.max;
   chart.update('none');
