@@ -10,14 +10,23 @@
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="day">24 hours</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="week">7 days</button>
               <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="month">30 days</button>
+              <button class="stab" type="button" role="tab" aria-selected="false" data-appstab="manage" id="appsManageTab" hidden>Manage apps</button>
             </span>
           </div>
-          <div class="hdr-actions d-flex align-items-center gap-2">
-            <input id="appsSearch" class="sform-input sform-sm" type="search" placeholder="Search apps"
+          <div class="hdr-actions d-flex align-items-center gap-2 flex-wrap">
+            <span class="au-view" id="appsView" role="group" aria-label="View by">
+              <button type="button" class="chip is-on" data-appsview="apps" aria-pressed="true">Applications</button>
+              <button type="button" class="chip" data-appsview="categories" aria-pressed="false">Categories</button>
+            </span>
+            <select id="appsClient" class="sform-input sform-sm au-client" aria-label="Client"
+              title="Show one client's traffic. The last hour only: stored usage keeps no clients.">
+              <option value="">All clients</option>
+            </select>
+            <input id="appsSearch" class="sform-input sform-sm au-search" type="search" placeholder="Search apps"
               aria-label="Search apps" autocomplete="off">
           </div>
         </div>
-        <div class="card-body">
+        <div class="card-body" id="appsUsageBody">
           <div class="tool-cards au-cards">
             <div class="tool-card"><div class="tool-card-label">Total</div>
               <div class="tool-card-value" id="appsTotal">-</div>
@@ -28,9 +37,10 @@
             <div class="tool-card tool-card-text"><div class="tool-card-label">Top app</div>
               <div class="tool-card-value" id="appsTop">-</div>
               <div class="tool-card-foot" id="appsTopFoot">&nbsp;</div></div>
-            <div class="tool-card"><div class="tool-card-label">Unnamed</div>
+            <button type="button" class="tool-card au-unnamed-card" id="appsUnnamedCard"
+              title="Where the traffic no app was found for went"><div class="tool-card-label">Unnamed</div>
               <div class="tool-card-value" id="appsUnnamed">-</div>
-              <div class="tool-card-foot" id="appsUnnamedFoot">&nbsp;</div></div>
+              <div class="tool-card-foot" id="appsUnnamedFoot">&nbsp;</div></button>
           </div>
 
           <div class="au-hero">
@@ -57,8 +67,36 @@
           </div>
 
           <div class="muted-note au-credit">
-            Apps are named from the router's DNS cache, then well-known ports, then the network owner.
+            Apps are named from your own rules, then the router's DNS cache, well-known ports and the network owner.
             Logos are their owners' trademarks. Network owners: <a href="https://db-ip.com" target="_blank" rel="noopener">IP Geolocation by DB-IP</a>.
+          </div>
+        </div>
+
+        <div class="card-body au-manage" id="appsManage" hidden>
+          <div class="au-manage-bar">
+            <input id="appsManageSearch" class="sform-input sform-sm" type="search" placeholder="Search apps"
+              aria-label="Search apps" autocomplete="off">
+            <span class="au-manage-actions">
+              <button type="button" class="sbtn sbtn-outline is-sm" id="appsNewCategory">New category</button>
+              <button type="button" class="sbtn sbtn-primary is-sm" id="appsNewApp">New app</button>
+            </span>
+          </div>
+          <div class="muted-note au-manage-note">
+            Your rules come first: a domain, network or port you add is checked before the built-in catalogue's, on every router.
+            They name traffic from the moment they are saved; usage already counted keeps the app it was counted under.
+          </div>
+          <div class="data-scroll au-table-wrap">
+            <table class="table table-vcenter mb-0">
+              <thead><tr id="appsManageThead"></tr></thead>
+              <tbody id="appsManageTable"><tr><td colspan="6" class="empty-state">Loading</td></tr></tbody>
+            </table>
+          </div>
+          <h4 class="au-manage-h">Categories</h4>
+          <div class="data-scroll au-table-wrap">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th>Category</th><th class="text-end">Apps</th><th></th></tr></thead>
+              <tbody id="appsCategoryTable"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -70,6 +108,72 @@
             <button class="rtr-modal-close" data-modal-close="appsModal" aria-label="Close">&#10005;</button>
           </div>
           <div class="rtr-modal-body" id="appsModalBody"></div>
+        </div>
+      </div>
+
+      <div class="rtr-modal-bg" id="appsUnnamedModal">
+        <div class="rtr-modal au-unnamed-modal">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title" id="appsUnnamedTitle">Unnamed traffic</span>
+            <button class="rtr-modal-close" data-modal-close="appsUnnamedModal" aria-label="Close">&#10005;</button>
+          </div>
+          <div class="rtr-modal-body">
+            <div class="ff-inline au-unnamed-bar">
+              <div class="ff">
+                <label class="sform-label" for="appsUnnamedSearch">Search</label>
+                <input id="appsUnnamedSearch" class="sform-input" type="search" placeholder="client, address, owner" autocomplete="off">
+                <div class="ff-help"></div>
+              </div>
+              <div class="ff" id="appsUnnamedTargetField" hidden>
+                <label class="sform-label" for="appsUnnamedTarget">Assign the picked rows</label>
+                <select id="appsUnnamedTarget" class="sform-input"></select>
+                <div class="ff-help"></div>
+              </div>
+              <button type="button" class="sbtn sbtn-primary" id="appsUnnamedAssign" hidden disabled>Assign</button>
+            </div>
+            <div class="muted-note au-unnamed-note" id="appsUnnamedNote"></div>
+            <div class="data-scroll au-unnamed-wrap">
+              <table class="table table-vcenter mb-0">
+                <thead><tr id="appsUnnamedThead"></tr></thead>
+                <tbody id="appsUnnamedTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rtr-modal-bg" id="appsRuleModal">
+        <div class="rtr-modal au-rule-modal">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title" id="appsRuleTitle">New app</span>
+            <button class="rtr-modal-close" data-modal-close="appsRuleModal" aria-label="Close">&#10005;</button>
+          </div>
+          <div class="rtr-modal-body">
+            <div class="ff-grid" id="appsRuleFields"></div>
+            <div class="au-rule-preview" id="appsRulePreview"></div>
+          </div>
+          <div class="rtr-modal-footer">
+            <span class="au-rule-err" id="appsRuleErr" role="alert"></span>
+            <button type="button" class="sbtn sbtn-outline" data-modal-close="appsRuleModal">Cancel</button>
+            <button type="button" class="sbtn sbtn-primary" id="appsRuleSave">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rtr-modal-bg" id="appsCategoryModal">
+        <div class="rtr-modal pmodal">
+          <div class="rtr-modal-hdr">
+            <span class="rtr-modal-title" id="appsCategoryTitle">New category</span>
+            <button class="rtr-modal-close" data-modal-close="appsCategoryModal" aria-label="Close">&#10005;</button>
+          </div>
+          <div class="rtr-modal-body">
+            <div class="ff-grid" id="appsCategoryFields"></div>
+          </div>
+          <div class="rtr-modal-footer">
+            <span class="au-rule-err" id="appsCategoryErr" role="alert"></span>
+            <button type="button" class="sbtn sbtn-outline" data-modal-close="appsCategoryModal">Cancel</button>
+            <button type="button" class="sbtn sbtn-primary" id="appsCategorySave">Save</button>
+          </div>
         </div>
       </div>
     </div>

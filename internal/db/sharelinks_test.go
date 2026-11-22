@@ -24,8 +24,8 @@ func TestMigrationFortyAddsTheShareLinkTables(t *testing.T) {
 	if _, err := d.Migrate(); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	if v, _ := d.SchemaVersion(); v != schemaVersion || schemaVersion != 40 {
-		t.Errorf("schema is v%d after Migrate (constant %d), want 40", v, schemaVersion)
+	if v, _ := d.SchemaVersion(); v != schemaVersion || schemaVersion < 40 {
+		t.Errorf("schema is v%d after Migrate (constant %d), want the current version, at least 40", v, schemaVersion)
 	}
 	if links, err := d.ShareLinks(); err != nil || len(links) != 0 {
 		t.Errorf("after the migration: %v %v", links, err)

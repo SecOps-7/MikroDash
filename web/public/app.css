@@ -3991,6 +3991,29 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-hist-legend{display:flex;flex-wrap:wrap;gap:.3rem .9rem;margin-top:.35rem;font-size:.72rem;color:var(--text-muted)}
     .au-hist-key{display:inline-flex;align-items:center;gap:.35rem}
     .au-hist-key i{display:inline-block;width:9px;height:9px;border-radius:2px}
+    /* #167: the view switch, the client picker, the Unnamed detail and Manage apps. */
+    .au-view{display:inline-flex;gap:.3rem}
+    .au-client{max-width:220px}
+    .au-search{width:170px}
+    .au-unnamed-card{display:block;width:100%;text-align:left;font-family:inherit;color:inherit;cursor:pointer;
+      transition:border-color .2s}
+    .au-unnamed-card:hover,.au-unnamed-card:focus-visible{border-color:var(--accent-rx)}
+    .au-cat-row .au-cat-caret{display:inline-block;width:.8rem;color:var(--text-muted)}
+    .au-actions{white-space:nowrap}
+    .au-manage-bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem}
+    .au-manage-bar .sform-input{flex:1 1 220px;max-width:320px}
+    .au-unnamed-bar{margin-bottom:.6rem}
+    .au-unnamed-bar>.ff{flex:1 1 14rem;max-width:22rem}
+    .au-manage-actions{display:inline-flex;align-items:center;gap:.4rem}
+    .au-manage-note,.au-unnamed-note{margin:0 0 .7rem}
+    .au-manage-h{margin:1.2rem 0 .5rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+    .rtr-modal.au-unnamed-modal{width:min(1100px,96vw)}
+    .rtr-modal.au-unnamed-modal>.rtr-modal-body,.rtr-modal.au-rule-modal>.rtr-modal-body{display:block}
+    .au-unnamed-wrap{max-height:60vh;overflow:auto}
+    .rtr-modal.au-rule-modal{width:min(760px,94vw)}
+    .au-rule-preview{margin-top:.6rem;font-size:.78rem}
+    .au-conflicts{list-style:none;margin:0 0 .5rem;padding:0;display:flex;flex-direction:column;gap:.3rem}
+    .au-rule-err{flex:1 1 auto;color:var(--accent-err);font-size:.78rem}
     @media (prefers-reduced-motion:reduce){.au-ring-arc,.au-tile,.au-share>span{transition:none}}
 
 /* ── Share links: the kiosk frame (web/src/ui/share.html) ──────────────────

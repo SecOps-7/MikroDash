@@ -27,7 +27,11 @@ fs.rmSync(ENTRY, { force: true });
 const IDS = ['appsBadge', 'appsTabs', 'appsSearch', 'appsTotal', 'appsTotalRx', 'appsTotalTx', 'appsCount',
   'appsCountFoot', 'appsTop', 'appsTopFoot', 'appsUnnamed', 'appsUnnamedFoot', 'appsRingWrap', 'appsRing',
   'appsRingValue', 'appsRingLabel', 'appsOrbit', 'appsTiles', 'appsNote', 'appsThead', 'appsTable',
-  'appsModal', 'appsModalTitle', 'appsModalBody', 'appsHistChart'];
+  'appsModal', 'appsModalTitle', 'appsModalBody', 'appsHistChart',
+  // #167: the view switch, the client picker, the Unnamed card and dialog, Manage apps.
+  'appsView', 'appsClient', 'appsUsageBody', 'appsUnnamedCard', 'appsManage', 'appsManageTab', 'appsManageSearch',
+  'appsRuleFields', 'appsRuleSave', 'appsCategorySave', 'appsUnnamedTable', 'appsUnnamedSearch', 'appsUnnamedAssign',
+  'appsManageThead', 'appsManageTable', 'appsCategoryTable'];
 
 const MB = 1048576;
 const HOUR = 3600000;
@@ -99,7 +103,9 @@ function boot() {
   restore();
   const html = fs.readFileSync(path.join(ROOT, 'web', 'src', 'ui', 'page-apps.html'), 'utf8');
   const tabs = [...html.matchAll(/data-appstab="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepStrictEqual(tabs, ['hour', 'day', 'week', 'month'], 'Last hour is not the first tab: ' + tabs);
+  // Manage apps (#167) comes last, and is shown only to an administrator.
+  assert.deepStrictEqual(tabs, ['hour', 'day', 'week', 'month', 'manage'], 'Last hour is not the first tab: ' + tabs);
+  assert.ok(/data-appstab="manage" id="appsManageTab" hidden/.test(html), 'Manage apps is not hidden until the catalogue says so');
   assert.ok(/class="stab active"[^>]*data-appstab="hour">Last hour</.test(html), 'Last hour is not the default tab');
   assert.ok(!/appsUnnamedWrap|appsUnnamedList|appsRecord/.test(html), 'the owner list or the record button is back in the markup');
   say('ok  the last hour: bytes on the cards, ring and tiles; Last hour first; no owner list');
@@ -168,8 +174,15 @@ const HIST = {
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const calls = [];
   let answer = HIST;
+  const catalogueCalls = [];
   global.fetch = (url, init) => {
     const method = (init && init.method) || 'GET';
+    // The catalogue (#167: category names, the Manage apps tab) is read beside
+    // the history; it is answered here and kept out of the history's calls.
+    if (String(url).startsWith('/api/apps/catalogue')) {
+      catalogueCalls.push(url);
+      return Promise.resolve({ ok: true, statusText: 'OK', json: () => Promise.resolve({ apps: [], categories: [], canEdit: false }) });
+    }
     calls.push(method + ' ' + url);
     return Promise.resolve({ ok: true, statusText: 'OK', json: () => Promise.resolve(answer) });
   };
@@ -182,6 +195,7 @@ const HIST = {
   clickTab('week');
   await tick(); await tick(); await tick();
   assert.deepStrictEqual(calls, ['GET /api/apps/history?routerId=r1&period=week'], 'the week was not fetched, or something else was: ' + calls);
+  assert.deepStrictEqual(catalogueCalls, ['/api/apps/catalogue?routerId=r1'], 'the catalogue is read once for the router: ' + catalogueCalls);
   assert.strictEqual(doc.nodes['appsNote'].hidden, true, 'a recorded router shows a note: ' + doc.nodes['appsNote'].textContent);
   assert.strictEqual(doc.nodes['appsTotal'].textContent, '5.0 GB', 'the total is not the stored bytes, unnamed included');
   assert.strictEqual(doc.nodes['appsCountFoot'].textContent, 'in the last 7 days');
@@ -212,6 +226,36 @@ const HIST = {
   await tick();
   assert.strictEqual(doc.nodes['appsHistChart'].hidden, true, 'the bars stayed up on Last hour');
   assert.strictEqual(doc.nodes['appsTotal'].textContent, '50.0 MB', 'Last hour did not go back to the payload');
+
+  // #167, by category: the table's rows are the categories, with their apps'
+  // bytes summed.
+  const pickView = (v) => doc.nodes['appsView'].fire('click', { target: { closest: () => ({ dataset: { appsview: v } }) } });
+  pickView('categories');
+  const cats = String(doc.nodes['appsTable'].innerHTML);
+  assert.ok(cats.includes('data-cat="streaming"') && cats.includes('data-cat="conferencing"') && !cats.includes('data-app="netflix"'),
+    'the Categories view does not list categories:\n' + cats);
+  assert.ok(/data-cat="conferencing"[\s\S]*?4\.0 MB/.test(cats), 'a category is not its apps summed:\n' + cats);
+  pickView('apps');
+  assert.ok(String(doc.nodes['appsTable'].innerHTML).includes('data-app="netflix"'), 'Applications did not come back');
+
+  // #167, one client: its hour is fetched, drawn, and fetched again at the
+  // next reading.
+  const live = () => calls.filter((c) => c.startsWith('GET /api/apps/live'));
+  answer = { payload: payload({ rxBytes: MB, txBytes: 0, unnamedBytes: 0,
+    apps: [app({ rxBytes: MB, txBytes: 0, totalBytes: MB, share: 100 })] }) };
+  doc.nodes['appsClient'].value = '192.168.88.10';
+  doc.nodes['appsClient'].fire('change', {});
+  await tick(); await tick(); await tick();
+  assert.deepStrictEqual(live(), ['GET /api/apps/live?routerId=r1&client=192.168.88.10'], 'the client was not fetched: ' + calls);
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '1.0 MB', 'the page does not show the client\'s hour');
+  send(payload({}));
+  await tick(); await tick(); await tick();
+  assert.strictEqual(live().length, 2, 'a new reading did not fetch the client again');
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '1.0 MB', 'a reading for every client replaced the client\'s view');
+  doc.nodes['appsClient'].value = '';
+  doc.nodes['appsClient'].fire('change', {});
+  assert.strictEqual(doc.nodes['appsTotal'].textContent, '50.0 MB', 'All clients did not come back');
+  say('ok  by category, and one client\'s hour fetched at every reading');
   restore();
 
   // The view itself: shares are of the recorded bytes, sparklines follow the buckets.

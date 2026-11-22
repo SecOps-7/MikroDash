@@ -45,6 +45,19 @@ package collect
 // read. No name is emitted, logged or stored; the payload carries app ids and
 // byte counts.
 //
+// ── UNNAMED, IN DETAIL, AND ONE CLIENT AT A TIME (#167) ─────────────────────
+//
+// Beside the totals, each minute keeps the traffic no step could name by
+// client, destination address, protocol and port, with the destination's
+// network owner and why it went unnamed: the cache held no name for the
+// address, or it held names nothing knows. Still no DNS name: the reason says
+// a name existed, never which. Each minute keeps at most appsUnnamedPerMinute
+// of these rows; the rest still count in the totals, and the detail says it is
+// partial. Each minute also keeps every client's unnamed bytes, so one client's
+// view (BuildAppsFor) adds up exactly: its apps, from the per-app devices the
+// drill-down already kept, plus its unnamed bytes. All of it is the last hour
+// in memory, gone on a restart, and none of it is stored.
+//
 // ── WHAT IT CANNOT SEE ──────────────────────────────────────────────────────
 //
 // A device that resolves through its own encrypted DNS never asks the router,
@@ -91,6 +104,22 @@ const (
 	appsWindowMinutes = 60
 	// appsDevicesPerApp caps the drill-down list per app.
 	appsDevicesPerApp = 25
+	// appsUnnamedPerMinute caps the unnamed detail one minute keeps.
+	appsUnnamedPerMinute = 2000
+	// appsUnnamedRows caps the unnamed detail one answer lists.
+	appsUnnamedRows = 200
+	// appsClientsMax caps the client picker's list.
+	appsClientsMax = 500
+)
+
+// Why traffic went unnamed.
+const (
+	// UnnamedNoName: the DNS cache held no name for the address, and neither
+	// its port nor its network owner named an app.
+	UnnamedNoName = "no-name"
+	// UnnamedUnknownName: the cache held names for it, and no app in the
+	// catalogue or the rules claims any of them.
+	UnnamedUnknownName = "unknown-name"
 )
 
 // appsHeldMs is how long one reading's rate is held for: the time since the
@@ -125,6 +154,10 @@ type AppUsage struct {
 	Color    string `json:"color"`
 	Logo     string `json:"logo"`
 	Dark     bool   `json:"dark"`
+	// Icon is the logo file when it is not the app's id; Custom marks an
+	// administrator's app (internal/apps/rules.go).
+	Icon   string `json:"icon"`
+	Custom bool   `json:"custom"`
 	// RxBytes is what the network's devices downloaded from the app, TxBytes
 	// what they sent it.
 	RxBytes    int64 `json:"rxBytes"`
@@ -179,6 +212,50 @@ type AppUsagePayload struct {
 	DNSAt    int64 `json:"dnsAt"`
 }
 
+// AppClient is one client (a LAN address) with traffic in the window, for the
+// client filter.
+type AppClient struct {
+	IP    string `json:"ip"`
+	Name  string `json:"name"`
+	MAC   string `json:"mac"`
+	Bytes int64  `json:"bytes"`
+}
+
+// AppUnnamedRow is one client's unnamed traffic to one destination over the
+// window.
+type AppUnnamedRow struct {
+	Dst   string `json:"dst"`
+	Proto string `json:"proto"`
+	Port  string `json:"port"`
+	// ASN and Owner are the destination's network owner; 0 and "" unknown.
+	ASN   uint   `json:"asn"`
+	Owner string `json:"owner"`
+	// Reason is UnnamedNoName or UnnamedUnknownName.
+	Reason     string `json:"reason"`
+	Client     string `json:"client"`
+	ClientName string `json:"clientName"`
+	ClientMAC  string `json:"clientMac"`
+	RxBytes    int64  `json:"rxBytes"`
+	TxBytes    int64  `json:"txBytes"`
+}
+
+// AppUnnamed is the last hour's unnamed traffic in detail.
+type AppUnnamed struct {
+	From int64 `json:"from"`
+	To   int64 `json:"to"`
+	// Rows, busiest first, at most appsUnnamedRows; Total is how many there
+	// were before the cut.
+	Rows  []AppUnnamedRow `json:"rows"`
+	Total int             `json:"total"`
+	// RxBytes and TxBytes are all the unnamed traffic in the view, listed or
+	// not.
+	RxBytes int64 `json:"rxBytes"`
+	TxBytes int64 `json:"txBytes"`
+	// Partial: a minute had more destinations than it keeps, so the rows miss
+	// some that the totals count.
+	Partial bool `json:"partial"`
+}
+
 // AppMinute is one closed minute of one router's app traffic, in bytes, by app
 // id, and the traffic no step could name: what the stored history adds up
 // (internal/server/apps_history.go).
@@ -207,6 +284,17 @@ type AppsInput struct {
 
 type rxTx struct{ rx, tx float64 }
 
+// unnamedKey is one client's traffic to one destination.
+type unnamedKey struct{ src, dst, proto, port string }
+
+// unnamedRow is that traffic, and what is known about its destination.
+type unnamedRow struct {
+	rxTx
+	asn    uint
+	owner  string
+	reason string
+}
+
 type appsSumApp struct {
 	app *apps.App
 	rxTx
@@ -222,17 +310,67 @@ type appsSum struct {
 	// unnamed is the part of `all` no step could name.
 	unnamed rxTx
 	apps    map[string]*appsSumApp
+	// unnamedBy is the unnamed traffic by client and destination, at most
+	// appsUnnamedPerMinute rows; partial says some did not fit.
+	unnamedBy map[unnamedKey]*unnamedRow
+	partial   bool
+	// unnamedOf is every client's unnamed traffic, never cut.
+	unnamedOf map[string]*rxTx
 }
 
-func newAppsSum() *appsSum { return &appsSum{apps: map[string]*appsSumApp{}} }
+func newAppsSum() *appsSum {
+	return &appsSum{apps: map[string]*appsSumApp{}, unnamedBy: map[unnamedKey]*unnamedRow{}, unnamedOf: map[string]*rxTx{}}
+}
+
+// addUnnamed adds one client's unnamed traffic to one destination: to the
+// client's total, always, and to the detail while it has room.
+func (s *appsSum) addUnnamed(k unnamedKey, v rxTx, asn uint, owner, reason string) {
+	s.addClientUnnamed(k.src, v)
+	s.addRow(k, v, asn, owner, reason)
+}
+
+func (s *appsSum) addClientUnnamed(ip string, v rxTx) {
+	c := s.unnamedOf[ip]
+	if c == nil {
+		c = &rxTx{}
+		s.unnamedOf[ip] = c
+	}
+	c.rx += v.rx
+	c.tx += v.tx
+}
+
+func (s *appsSum) addRow(k unnamedKey, v rxTx, asn uint, owner, reason string) {
+	r := s.unnamedBy[k]
+	if r == nil {
+		if len(s.unnamedBy) >= appsUnnamedPerMinute {
+			s.partial = true
+			return
+		}
+		r = &unnamedRow{asn: asn, owner: owner, reason: reason}
+		s.unnamedBy[k] = r
+	}
+	r.rx += v.rx
+	r.tx += v.tx
+}
 
 // addScaled adds `src` times k to s. For a reading into a minute, k is the
 // bytes one Mbps moves in the part of the reading that falls in that minute.
-func (s *appsSum) addScaled(src *appsSum, k float64) {
+// `detail` carries the unnamed rows too: a minute keeps them, a sum built only
+// to be drawn does not need them.
+func (s *appsSum) addScaled(src *appsSum, k float64, detail bool) {
 	s.all.rx += src.all.rx * k
 	s.all.tx += src.all.tx * k
 	s.unnamed.rx += src.unnamed.rx * k
 	s.unnamed.tx += src.unnamed.tx * k
+	if detail {
+		s.partial = s.partial || src.partial
+		for key, r := range src.unnamedBy {
+			s.addRow(key, rxTx{r.rx * k, r.tx * k}, r.asn, r.owner, r.reason)
+		}
+	}
+	for ip, v := range src.unnamedOf {
+		s.addClientUnnamed(ip, rxTx{v.rx * k, v.tx * k})
+	}
 	for id, a := range src.apps {
 		d := s.apps[id]
 		if d == nil {
@@ -264,7 +402,13 @@ func SumApps(in AppsInput) *appsSum {
 	}
 	out := newAppsSum()
 	type key struct{ dst, proto, port string }
-	memo := map[key]apps.Match{}
+	type verdict struct {
+		m      apps.Match
+		asn    uint
+		owner  string
+		reason string
+	}
+	memo := map[key]verdict{}
 
 	for _, r := range in.Rates {
 		if !guard.InCIDRs(r.Src, cidrs) || guard.InCIDRs(r.Dst, cidrs) {
@@ -275,23 +419,29 @@ func SumApps(in AppsInput) *appsSum {
 		out.all.rx += r.RxMbps
 		out.all.tx += r.TxMbps
 		k := key{r.Dst, r.Proto, r.DstPort}
-		m, seen := memo[k]
+		v, seen := memo[k]
 		if !seen {
-			var asn uint
 			if in.Owner != nil {
-				if n, _, ok := in.Owner(r.Dst); ok {
-					asn = n
+				if n, org, ok := in.Owner(r.Dst); ok {
+					v.asn, v.owner = n, org
 				}
 			}
 			port, _ := strconv.Atoi(r.DstPort)
+			names := in.Names[canonIP(r.Dst)]
 			if in.Cat != nil {
-				m = in.Cat.Classify(in.Names[canonIP(r.Dst)], asn, r.Proto, port)
+				v.m = in.Cat.Classify(names, v.asn, r.Proto, port)
 			}
-			memo[k] = m
+			v.reason = UnnamedNoName
+			if len(names) > 0 {
+				v.reason = UnnamedUnknownName
+			}
+			memo[k] = v
 		}
+		m := v.m
 		if m.App == nil {
 			out.unnamed.rx += r.RxMbps
 			out.unnamed.tx += r.TxMbps
+			out.addUnnamed(unnamedKey{r.Src, r.Dst, r.Proto, r.DstPort}, rxTx{r.RxMbps, r.TxMbps}, v.asn, v.owner, v.reason)
 			continue
 		}
 		a := out.apps[m.App.ID]
@@ -355,7 +505,7 @@ func (w *appsWindow) add(r *appsSum, ts int64, pollMs int) (closed []AppMinute, 
 					b = newAppsSum()
 					w.minutes[m] = b
 				}
-				b.addScaled(r, mbpsToBytes(1, float64(e-t)/1000))
+				b.addScaled(r, mbpsToBytes(1, float64(e-t)/1000), true)
 			}
 			t = e
 		}
@@ -388,20 +538,57 @@ func (s *appsSum) minute(start int64) AppMinute {
 	return out
 }
 
+// span is the window the page shows: the open minute and the fifty-nine
+// before it.
+func (w *appsWindow) span() (start, end int64) {
+	end = w.open + appsMinuteMs
+	return end - appsWindowMinutes*appsMinuteMs, end
+}
+
+// only is the part of a minute one client made: its share of each app (the
+// per-app devices) and its unnamed bytes. The unnamed rows are not carried;
+// BuildUnnamed filters those itself. Pure.
+func (s *appsSum) only(ip string) *appsSum {
+	out := newAppsSum()
+	if u := s.unnamedOf[ip]; u != nil {
+		out.unnamed = *u
+		out.unnamedOf[ip] = &rxTx{u.rx, u.tx}
+	}
+	out.all = out.unnamed
+	for id, a := range s.apps {
+		d := a.devices[ip]
+		if d == nil {
+			continue
+		}
+		out.apps[id] = &appsSumApp{app: a.app, rxTx: *d, via: a.via, devices: map[string]*rxTx{ip: {d.rx, d.tx}}}
+		out.all.rx += d.rx
+		out.all.tx += d.tx
+	}
+	return out
+}
+
 // BuildApps is the window as the page draws it: the open minute and the
 // fifty-nine before it, summed, with each app's bytes per minute. `ts` is the
 // reading that sent it, and nameOf names a device by its address. Pure apart
 // from nameOf.
 func BuildApps(w *appsWindow, ts int64, nameOf func(ip string) (name, mac string)) *AppUsagePayload {
-	end := w.open + appsMinuteMs
-	start := end - appsWindowMinutes*appsMinuteMs
+	return BuildAppsFor(w, ts, nameOf, "")
+}
+
+// BuildAppsFor is BuildApps for one client, by its address: every figure, the
+// shares and the unnamed bytes are that client's alone. "" is every client.
+func BuildAppsFor(w *appsWindow, ts int64, nameOf func(ip string) (name, mac string), client string) *AppUsagePayload {
+	start, end := w.span()
 	sum := newAppsSum()
 	spark := map[string][]float64{}
 	for m, b := range w.minutes {
 		if m < start || m >= end {
 			continue
 		}
-		sum.addScaled(b, 1)
+		if client != "" {
+			b = b.only(client)
+		}
+		sum.addScaled(b, 1, false)
 		i := (m - start) / appsMinuteMs
 		for id, a := range b.apps {
 			line := spark[id]
@@ -426,8 +613,8 @@ func BuildApps(w *appsWindow, ts int64, nameOf func(ip string) (name, mac string
 		}
 		app := a.app
 		u := AppUsage{ID: id, Name: app.Name, Category: app.Category, Color: app.Color, Logo: app.Logo,
-			Dark: app.Dark, RxBytes: whole(a.rx), TxBytes: whole(a.tx), TotalBytes: whole(a.rx + a.tx),
-			Devices: len(a.devices), Spark: make([]int64, appsWindowMinutes)}
+			Dark: app.Dark, Icon: app.Icon, Custom: app.Custom, RxBytes: whole(a.rx), TxBytes: whole(a.tx),
+			TotalBytes: whole(a.rx + a.tx), Devices: len(a.devices), Spark: make([]int64, appsWindowMinutes)}
 		for i, v := range spark[id] {
 			u.Spark[i] = whole(v)
 		}
@@ -470,6 +657,134 @@ func BuildApps(w *appsWindow, ts int64, nameOf func(ip string) (name, mac string
 		}
 		return out.Apps[i].Name < out.Apps[j].Name
 	})
+	return out
+}
+
+// AppClients is every client with traffic in the window, busiest first, at
+// most appsClientsMax: the client filter's choices. Pure apart from nameOf.
+func AppClients(w *appsWindow, nameOf func(ip string) (name, mac string)) []AppClient {
+	start, end := w.span()
+	by := map[string]float64{}
+	for m, b := range w.minutes {
+		if m < start || m >= end {
+			continue
+		}
+		for _, a := range b.apps {
+			for ip, d := range a.devices {
+				by[ip] += d.rx + d.tx
+			}
+		}
+		for ip, u := range b.unnamedOf {
+			by[ip] += u.rx + u.tx
+		}
+	}
+	out := make([]AppClient, 0, len(by))
+	for ip, v := range by {
+		if b := int64(math.Round(v)); b > 0 {
+			out = append(out, AppClient{IP: ip, Bytes: b})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Bytes != out[j].Bytes {
+			return out[i].Bytes > out[j].Bytes
+		}
+		return out[i].IP < out[j].IP
+	})
+	if len(out) > appsClientsMax {
+		out = out[:appsClientsMax]
+	}
+	if nameOf != nil {
+		for i := range out {
+			out[i].Name, out[i].MAC = nameOf(out[i].IP)
+		}
+	}
+	return out
+}
+
+// unnamedRows is the window's unnamed detail summed across its minutes, and
+// whether any minute was cut.
+func (w *appsWindow) unnamedRows() (map[unnamedKey]*unnamedRow, bool) {
+	start, end := w.span()
+	sum := newAppsSum()
+	for m, b := range w.minutes {
+		if m >= start && m < end {
+			sum.partial = sum.partial || b.partial
+			for k, r := range b.unnamedBy {
+				x := sum.unnamedBy[k]
+				if x == nil {
+					x = &unnamedRow{asn: r.asn, owner: r.owner, reason: r.reason}
+					sum.unnamedBy[k] = x
+				}
+				x.rx += r.rx
+				x.tx += r.tx
+			}
+		}
+	}
+	return sum.unnamedBy, sum.partial
+}
+
+// BuildUnnamed is the last hour's unnamed traffic by client and destination,
+// busiest first, for every client or one. Pure apart from nameOf.
+func BuildUnnamed(w *appsWindow, ts int64, nameOf func(ip string) (name, mac string), client string) AppUnnamed {
+	start, end := w.span()
+	out := AppUnnamed{From: min(max(start, w.since), ts), To: ts, Rows: []AppUnnamedRow{}}
+	var rx, tx float64
+	for m, b := range w.minutes {
+		if m < start || m >= end {
+			continue
+		}
+		if client == "" {
+			rx += b.unnamed.rx
+			tx += b.unnamed.tx
+		} else if u := b.unnamedOf[client]; u != nil {
+			rx += u.rx
+			tx += u.tx
+		}
+	}
+	out.RxBytes, out.TxBytes = int64(math.Round(rx)), int64(math.Round(tx))
+	rows, partial := w.unnamedRows()
+	out.Partial = partial
+	type kv struct {
+		k unnamedKey
+		r *unnamedRow
+	}
+	list := make([]kv, 0, len(rows))
+	for k, r := range rows {
+		if (client == "" || k.src == client) && math.Round(r.rx+r.tx) > 0 {
+			list = append(list, kv{k, r})
+		}
+	}
+	sort.Slice(list, func(i, j int) bool {
+		x, y := list[i].r.rx+list[i].r.tx, list[j].r.rx+list[j].r.tx
+		if x != y {
+			return x > y
+		}
+		if list[i].k.dst != list[j].k.dst {
+			return list[i].k.dst < list[j].k.dst
+		}
+		if list[i].k.src != list[j].k.src {
+			return list[i].k.src < list[j].k.src
+		}
+		return list[i].k.port < list[j].k.port
+	})
+	out.Total = len(list)
+	if len(list) > appsUnnamedRows {
+		list = list[:appsUnnamedRows]
+	}
+	names := map[string][2]string{}
+	for _, e := range list {
+		row := AppUnnamedRow{Dst: e.k.dst, Proto: e.k.proto, Port: e.k.port, ASN: e.r.asn, Owner: e.r.owner,
+			Reason: e.r.reason, Client: e.k.src, RxBytes: int64(math.Round(e.r.rx)), TxBytes: int64(math.Round(e.r.tx))}
+		if nameOf != nil {
+			n, ok := names[e.k.src]
+			if !ok {
+				n[0], n[1] = nameOf(e.k.src)
+				names[e.k.src] = n
+			}
+			row.ClientName, row.ClientMAC = n[0], n[1]
+		}
+		out.Rows = append(out.Rows, row)
+	}
 	return out
 }
 
@@ -562,6 +877,9 @@ type Apps struct {
 	nets   NetworkSource
 	arp    ARPByIP
 	owner  OwnerLookup
+	// cat is the catalogue to name apps with; nil is apps.Current(), the
+	// built-in one with the administrators' rules, read at every reading so a
+	// rule saved now names the next one.
 	cat    *apps.Catalogue
 	cache  *roscache.Cache
 	pollMs *pollInterval
@@ -584,7 +902,7 @@ type Apps struct {
 // NewApps builds the collector. Its poll period follows Bandwidth's range.
 func NewApps(ros Reader, emit Emit, leases LeaseSource, nets NetworkSource, pollMs int) *Apps {
 	a := &Apps{
-		ros: ros, emit: emit, leases: leases, nets: nets, cat: apps.Default(),
+		ros: ros, emit: emit, leases: leases, nets: nets,
 		pollMs: newPollInterval(clampPoll(pollMs, 5000, 1000, 60000)),
 		prev:   map[string]bwPrev{}, window: newAppsWindow(),
 		names: map[string][]string{},
@@ -657,7 +975,11 @@ func (a *Apps) build(rows []routeros.Reply, now int64) {
 
 	a.mu.Lock()
 	rates := connRates(a.prev, rows, now)
-	sum := SumApps(AppsInput{Rates: rates, LanCidrs: lanCidrsOf(a.nets), Names: names, Owner: a.owner, Cat: a.cat})
+	cat := a.cat
+	if cat == nil {
+		cat = apps.Current()
+	}
+	sum := SumApps(AppsInput{Rates: rates, LanCidrs: lanCidrsOf(a.nets), Names: names, Owner: a.owner, Cat: cat})
 	closed, send := a.window.add(sum, now, a.pollMs.ms())
 	var p *AppUsagePayload
 	if send {
@@ -727,6 +1049,59 @@ func (a *Apps) Last() *AppUsagePayload {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.last
+}
+
+// LiveFor is the last hour as Last sends it, for one client ("" is every
+// client): the client filter's view. Nil before the first reading.
+func (a *Apps) LiveFor(client string) *AppUsagePayload {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.last == nil || client == "" {
+		return a.last
+	}
+	p := BuildAppsFor(a.window, a.last.TS, a.nameOf, client)
+	p.DNSNames, p.DNSAt = a.last.DNSNames, a.last.DNSAt
+	return p
+}
+
+// Clients is the clients with traffic in the last hour, for the filter.
+func (a *Apps) Clients() []AppClient {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return AppClients(a.window, a.nameOf)
+}
+
+// Unnamed is the last hour's unnamed traffic in detail, for every client or
+// one.
+func (a *Apps) Unnamed(client string) AppUnnamed {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	ts := a.window.prevTS
+	return BuildUnnamed(a.window, ts, a.nameOf, client)
+}
+
+// Preview is how much of the last hour's unnamed traffic a rule would have
+// named: the destinations (address, protocol, port) and their bytes. It asks
+// the DNS cache's names in memory and says only how many matched, never which.
+func (a *Apps) Preview(r apps.Rule) (dests int, bytes int64) {
+	a.dnsMu.Lock()
+	names := a.names
+	a.dnsMu.Unlock()
+	a.mu.Lock()
+	rows, _ := a.window.unnamedRows()
+	a.mu.Unlock()
+	type dest struct{ dst, proto, port string }
+	seen := map[dest]bool{}
+	var b float64
+	for k, row := range rows {
+		port, _ := strconv.Atoi(k.port)
+		if !r.Matches(names[canonIP(k.dst)], row.asn, k.proto, port) {
+			continue
+		}
+		seen[dest{k.dst, k.proto, k.port}] = true
+		b += row.rx + row.tx
+	}
+	return len(seen), int64(math.Round(b))
 }
 
 func (a *Apps) Suspend() { a.sched.end() }

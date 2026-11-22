@@ -144,7 +144,8 @@ bytes; the envelope is `iv‖tag‖ciphertext` while Go's `Open` wants `cipherte
 **Database identity columns have no blanket rule.** `grants.principal_id`, `audit_events.actor_id`,
 `user_layouts.user_id`, `report_schedules.created_by`, `cfg_templates.created_by` and
 `cfg_runs.created_by`, `ztp_devices.created_by`, `ztp_batches.created_by` and
-`sso_identities.user_id`, `share_links.created_by` and `share_links.revoked_by` (empty when
+`sso_identities.user_id`, `app_rules.created_by`, `app_rules.updated_by` and
+`app_categories.created_by`, `share_links.created_by` and `share_links.revoked_by` (empty when
 revoked automatically) hold the user ID; `alert_events.acknowledged_by` and
 `audit_events.actor_name` hold the username. A writer reaching for the other one is invisible to a
 round-trip test, because one implementation agrees with itself whatever it wrote - read the real
@@ -330,7 +331,7 @@ move together:
 | | |
 |---|---|
 | `internal/verify/` | 115 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every font family that ships is credited in the OFL notice, counted truthfully and offered by the branding picker, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `docs/Collector-Architecture.md` describes the collector layer the code has, that every path writing a RouterOS account names the lockout guard, that every registration-table field list names only fields that menu has, that every caller of `store.Devices()` (the one fleet reader that includes SwOS switches) is recorded, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 121 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `web/test/` | 122 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

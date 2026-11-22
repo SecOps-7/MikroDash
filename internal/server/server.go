@@ -470,6 +470,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// The Apps Usage history takes every minute every apps collector closes. Same
 	// ordering rule: a session binds it when it is built.
 	srv.appUsage = newAppUsageRecorder()
+	// The administrators' custom apps and rules (#167), before any session
+	// names its first app.
+	srv.loadAppRules()
 	srv.sessions.SetOnAppUsage(srv.appUsage.add)
 	// `router:status` beyond a router's own room goes only to the browsers that
 	// may read that router. See Server.sendFleetStatus.
@@ -694,6 +697,7 @@ func (s *Server) routes() *http.ServeMux {
 	s.registerDNSLists(mux)
 	s.registerClientFeatures(mux)
 	s.registerAppHistory(mux)
+	s.registerAppRules(mux)
 	s.registerCapVersions(mux)
 	s.registerTopologyFleet(mux)
 	s.registerAlerts(mux)

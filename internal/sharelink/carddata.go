@@ -117,7 +117,7 @@ var cardData = map[string]CardData{
 	},
 	"dc-card-apps": {
 		"apps:update": {"from", "to", "rxBytes", "txBytes", "unnamedBytes", "apps[].id", "apps[].name",
-			"apps[].color", "apps[].logo", "apps[].dark", "apps[].totalBytes", "apps[].share"},
+			"apps[].color", "apps[].logo", "apps[].dark", "apps[].icon", "apps[].totalBytes", "apps[].share"},
 	},
 	"dc-card-ping": {
 		"ping:update":  {"permissionDenied", "target", "ts", "rtt", "loss", "minRtt", "maxRtt"},

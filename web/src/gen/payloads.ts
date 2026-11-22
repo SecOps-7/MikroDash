@@ -88,6 +88,8 @@ export interface AppUsage {
   color: string;
   logo: string;
   dark: boolean;
+  icon: string;
+  custom: boolean;
   rxBytes: number;
   txBytes: number;
   totalBytes: number;
