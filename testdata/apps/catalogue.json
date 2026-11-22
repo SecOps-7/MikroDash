@@ -351,7 +351,14 @@
    "icon": {
     "source": "simple-icons",
     "slug": "plex"
-   }
+   },
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 32400,
+     "to": 32400
+    }
+   ]
   },
   {
    "id": "dazn",
@@ -1241,7 +1248,19 @@
    "icon": {
     "source": "simple-icons",
     "slug": "mikrotik"
-   }
+   },
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 8291,
+     "to": 8291
+    },
+    {
+     "proto": "tcp",
+     "from": 8728,
+     "to": 8729
+    }
+   ]
   },
   {
    "id": "ebay",
@@ -1409,7 +1428,10 @@
    "icon": {
     "source": "simple-icons",
     "slug": "proton"
-   }
+   },
+   "asns": [
+    62371
+   ]
   },
   {
    "id": "zerotier",

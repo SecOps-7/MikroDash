@@ -1,5 +1,5 @@
 {
- "catalogueSha256": "ad200a1135e81501271701bd591dbee3a59e43bb76cd97352c08b1a621c64f2a",
+ "catalogueSha256": "6d28afc513e7e84a4c714c68ace5d2b501daad734175b9c867361a52f65c9978",
  "sources": {
   "arcticons": {
    "licence": "CC-BY-SA-4.0",
@@ -1109,7 +1109,13 @@
     "plexapp.com"
    ],
    "asns": [],
-   "ports": [],
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 32400,
+     "to": 32400
+    }
+   ],
    "umbrella": false
   },
   {
@@ -4266,7 +4272,18 @@
     "routerboard.com"
    ],
    "asns": [],
-   "ports": [],
+   "ports": [
+    {
+     "proto": "tcp",
+     "from": 8291,
+     "to": 8291
+    },
+    {
+     "proto": "tcp",
+     "from": 8728,
+     "to": 8729
+    }
+   ],
    "umbrella": false
   },
   {
@@ -5343,7 +5360,9 @@
     "protonvpn.com",
     "protonweb.com"
    ],
-   "asns": [],
+   "asns": [
+    62371
+   ],
    "ports": [],
    "umbrella": false
   },
