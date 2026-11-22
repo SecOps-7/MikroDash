@@ -502,7 +502,9 @@ export function initAppsPage(socket: Socket, isVisible: (page: string) => boolea
   function appRow(a: ViewApp, v: AppsView, child: boolean): string {
     return '<tr class="au-row' + (child ? ' tbl-indent' : '') + '" data-app="' + esc(a.id) + '" style="--app:' + esc(a.color) + '">' +
       '<td><span class="au-name">' + badge(a, 'sm') + '<span>' + esc(a.name) + '</span></span></td>' +
-      (child ? '<td class="text-end mono">' + (v.hour ? a.devices : '-') + '</td>'
+      // Under a category, the second column is the category's app count:
+      // an app's own row leaves it empty.
+      (child ? '<td></td>'
         : '<td>' + catPill(a.category) + '</td><td class="text-end mono">' + (v.hour ? a.devices : '-') + '</td>') +
       '<td class="text-end mono au-rx">' + esc(fmtBytes(a.rx)) + '</td>' +
       '<td class="text-end mono au-tx">' + esc(fmtBytes(a.tx)) + '</td>' +

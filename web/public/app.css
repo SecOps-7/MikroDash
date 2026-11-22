@@ -3993,7 +3993,8 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-hist-key i{display:inline-block;width:9px;height:9px;border-radius:2px}
     /* #167: the view switch, the client picker, the Unnamed detail and Manage apps. */
     .au-view{display:inline-flex;gap:.3rem}
-    .au-client{max-width:240px}
+    .au-client{max-width:220px}
+    .au-search{width:170px}
     .au-unnamed-card{display:block;width:100%;text-align:left;font-family:inherit;color:inherit;cursor:pointer;
       transition:border-color .2s}
     .au-unnamed-card:hover,.au-unnamed-card:focus-visible{border-color:var(--accent-rx)}
