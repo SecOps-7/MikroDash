@@ -2,6 +2,17 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [Unreleased]
+
+Changes on `main` that are in the `:latest` image but not yet in a numbered
+release.
+
+### Changed
+
+- **Local discovery is named on Apps Usage.** The network's own discovery
+  traffic (mDNS, LLMNR, SSDP and WS-Discovery) shows as one app instead of
+  unnamed traffic.
+
 ## [0.8.87] - Apps Usage: your own apps and the Unnamed traffic
 
 ### New
