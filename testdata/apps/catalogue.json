@@ -1747,6 +1747,38 @@
    }
   },
   {
+   "id": "local-discovery",
+   "name": "Local discovery",
+   "category": "dns",
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 5353,
+     "to": 5353
+    },
+    {
+     "proto": "udp",
+     "from": 5355,
+     "to": 5355
+    },
+    {
+     "proto": "udp",
+     "from": 1900,
+     "to": 1900
+    },
+    {
+     "proto": "udp",
+     "from": 3702,
+     "to": 3702
+    }
+   ],
+   "color": "#0EA5E9",
+   "icon": {
+    "source": "lucide",
+    "slug": "radar"
+   }
+  },
+  {
    "id": "email",
    "name": "Email (SMTP/IMAP)",
    "category": "productivity",

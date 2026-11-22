@@ -1,5 +1,5 @@
 {
- "catalogueSha256": "9840af64325c219d57797c6de198dca69fdf6a5353d4faee5caee7b1e6a0e44d",
+ "catalogueSha256": "80c364993844be21dfd0fe8269fbab8278a943221e36fe4f8d652ff19fcd3cc9",
  "sources": {
   "arcticons": {
    "licence": "CC-BY-SA-4.0",
@@ -5974,6 +5974,39 @@
      "proto": "udp",
      "from": 123,
      "to": 123
+    }
+   ],
+   "umbrella": false
+  },
+  {
+   "id": "local-discovery",
+   "name": "Local discovery",
+   "category": "dns",
+   "color": "#0EA5E9",
+   "logo": "mask",
+   "dark": false,
+   "domains": [],
+   "asns": [],
+   "ports": [
+    {
+     "proto": "udp",
+     "from": 5353,
+     "to": 5353
+    },
+    {
+     "proto": "udp",
+     "from": 5355,
+     "to": 5355
+    },
+    {
+     "proto": "udp",
+     "from": 1900,
+     "to": 1900
+    },
+    {
+     "proto": "udp",
+     "from": 3702,
+     "to": 3702
     }
    ],
    "umbrella": false
