@@ -12,6 +12,15 @@ release.
 - **An Apps Usage card for the Dashboard.** The last hour from the Apps Usage
   page: a ring of each app's share with the total, and the busiest apps with
   their logos, share and bytes. Add it from Edit, Add Card.
+- **Apps Usage: your own apps, the Unnamed traffic in detail, a client filter
+  and categories.** Click the Unnamed card to see where unnamed traffic went in
+  the last hour (client, destination, port, network owner and why it was not
+  named; no DNS names), and assign it to an app. A Manage apps tab lets a global
+  administrator add apps, add domains, networks or ports to built-in apps, and
+  make categories, with conflicts shown before saving. A client picker narrows
+  the last hour to one device, and a Categories view sums usage by category.
+  Rules apply to every router, to traffic from the moment they are saved.
+  Asked for in #167.
 
 ## [0.8.86] - Shared links
 
