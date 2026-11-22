@@ -492,7 +492,7 @@ func (s *Server) appCategorySave(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := apps.CheckCategory(body.Category, apps.Default().Categories(), cats)
 	if err != nil {
-		writeJSONErr(w, http.StatusBadRequest, err.Error())
+		writeJSONErrFrom(w, http.StatusBadRequest, err)
 		return
 	}
 	if err := s.auditDB.PutAppCategory(c.ID, c.Name, c.Tone, s.userIDFor(sess.Username), time.Now().UnixMilli()); err != nil {

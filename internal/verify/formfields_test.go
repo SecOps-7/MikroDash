@@ -440,6 +440,7 @@ var buttonComponents = map[string]string{
 	"apps-copy":  "a Copy link set inside a credential line", "notif-clear-btn": "the notification panel's Clear link",
 	"au-tile":       "an app's tile on Apps Usage, which opens the devices using it",
 	"au-orbit-item": "an app's logo on the Apps Usage share ring, which opens the devices using it",
+	"au-unnamed-card": "the Apps Usage Unnamed stat card, which opens the last hour's unnamed traffic in detail (#167)",
 	"dtype-opt":     "an option card in the Add a device chooser: RouterOS router or SwOS switch (#142)",
 }
 
