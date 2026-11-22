@@ -38,6 +38,7 @@ import (
 	"math"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -174,6 +175,8 @@ type AppHistoryApp struct {
 	Color    string `json:"color"`
 	Logo     string `json:"logo"`
 	Dark     bool   `json:"dark"`
+	Icon     string `json:"icon"`
+	Custom   bool   `json:"custom"`
 	RxBytes  int64  `json:"rxBytes"`
 	TxBytes  int64  `json:"txBytes"`
 }
@@ -229,6 +232,10 @@ func appHistoryBuckets(period string, now time.Time, loc *time.Location) []int64
 
 // buildAppHistory sums hourly rows into the buckets and the per-app totals,
 // busiest app first. Pure apart from the catalogue it names apps from.
+//
+// A custom app's id the catalogue no longer has (deleted, #167) is counted
+// as unnamed: deleting one folds its stored hours into the unnamed rows, and
+// this covers the minutes summed in memory and written after the fold.
 func buildAppHistory(rows []db.AppUsageRow, starts []int64, to int64, cat *apps.Catalogue) AppHistory {
 	out := AppHistory{Apps: []AppHistoryApp{}, Buckets: make([]AppHistoryBucket, len(starts)), To: to}
 	if len(starts) > 0 {
@@ -244,7 +251,7 @@ func buildAppHistory(rows []db.AppUsageRow, starts []int64, to int64, cat *apps.
 		if i < 0 || r.Hour > to {
 			continue
 		}
-		if r.App == apps.UnnamedID {
+		if r.App == apps.UnnamedID || (strings.HasPrefix(r.App, apps.CustomPrefix) && !known(cat, r.App)) {
 			out.Buckets[i].Unnamed += r.RxBytes + r.TxBytes
 			out.UnnamedRxBytes += r.RxBytes
 			out.UnnamedTxBytes += r.TxBytes
@@ -257,6 +264,7 @@ func buildAppHistory(rows []db.AppUsageRow, starts []int64, to int64, cat *apps.
 			if cat != nil {
 				if app, ok := cat.App(r.App); ok {
 					a.Name, a.Category, a.Color, a.Logo, a.Dark = app.Name, app.Category, app.Color, app.Logo, app.Dark
+					a.Icon, a.Custom = app.Icon, app.Custom
 				}
 			}
 			totals[r.App] = a
@@ -295,7 +303,16 @@ func (s *Server) appHistoryGet(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusInternalServerError, "the history could not be read")
 		return
 	}
-	h := buildAppHistory(rows, starts, to, apps.Default())
+	h := buildAppHistory(rows, starts, to, apps.Current())
 	h.Recording = s.appUsage.recording(rid)
 	writeJSON(w, h)
+}
+
+// known is whether the catalogue has an app with this id.
+func known(cat *apps.Catalogue, id string) bool {
+	if cat == nil {
+		return false
+	}
+	_, ok := cat.App(id)
+	return ok
 }

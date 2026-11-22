@@ -26,13 +26,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+
+	"mikrodash/internal/apps"
 )
 
 const (
@@ -224,7 +224,7 @@ func build(cat catalogue, hash, v2flyDir, siDir, gbDir, ijDir string) (bundle, m
 			return bundle{}, nil, fmt.Errorf("%s: no colour: give it one, or a simple-icons logo", a.ID)
 		}
 		out.Color = strings.ToUpper(colour)
-		out.Dark = tooDark(out.Color)
+		out.Dark = apps.TooDark(out.Color)
 		b.Apps = append(b.Apps, out)
 	}
 	return b, icons, nil
@@ -407,25 +407,6 @@ func simpleIconColours(siDir string) (map[string]string, error) {
 	return out, nil
 }
 
-// tooDark is true when a colour would vanish on the dark theme's surfaces: a
-// WCAG relative luminance below 0.07. Apple's, X's and TikTok's black, for
-// example; Netflix red and Steam navy-blue stay in colour.
-func tooDark(hexColour string) bool {
-	h := strings.TrimPrefix(hexColour, "#")
-	if len(h) != 6 {
-		return false
-	}
-	ch := func(i int) float64 {
-		v, _ := strconv.ParseUint(h[i:i+2], 16, 8)
-		c := float64(v) / 255
-		if c <= 0.03928 {
-			return c / 12.92
-		}
-		return math.Pow((c+0.055)/1.055, 2.4)
-	}
-	return 0.2126*ch(0)+0.7152*ch(2)+0.0722*ch(4) < 0.07
-}
-
 func dedupe(in []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(in))
@@ -546,7 +527,7 @@ func checkOutputs(cat catalogue, hash string) error {
 		if !colourRule.MatchString(a.Color) {
 			return fmt.Errorf("%s: colour %q", a.ID, a.Color)
 		}
-		if a.Dark != tooDark(a.Color) {
+		if a.Dark != apps.TooDark(a.Color) {
 			return fmt.Errorf("%s: dark=%v disagrees with its colour %s", a.ID, a.Dark, a.Color)
 		}
 		if len(a.Domains) == 0 && len(a.ASNs) == 0 && len(a.Ports) == 0 {

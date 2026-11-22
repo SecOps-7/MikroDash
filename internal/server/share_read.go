@@ -51,6 +51,7 @@ type shareRead struct {
 // not empty, every path a real GET route of the app, every page shareable.
 var shareReads = []shareRead{
 	{Path: "/api/apps/history", Pages: []string{"apps"}, serve: (*Server).shareAppHistory},
+	{Path: "/api/apps/categories", Pages: []string{"apps"}, serve: (*Server).shareAppCategories},
 	{Path: "/api/devices/overview", Pages: []string{"devices"}, serve: (*Server).shareDevicesOverview},
 	{Path: "/api/interfaces/history", Pages: []string{"interfaces"}, serve: (*Server).shareInterfaceHistory},
 	{Path: "/api/localcc", Pages: []string{"connections", "dashboard"}, serve: (*Server).shareLocalCC},
@@ -226,6 +227,17 @@ func (s *Server) shareDevicesOverview(w http.ResponseWriter, q url.Values, _ *db
 	writeJSON(w, out)
 }
 
+// shareAppCategories is the category names a shared Apps Usage page labels
+// its custom categories with. The rules themselves are not shared.
+func (s *Server) shareAppCategories(w http.ResponseWriter, _ url.Values, _ *db.ShareLink, _ string) {
+	_, cats, err := s.appRuleState()
+	if err != nil {
+		writeJSONErrFrom(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, map[string]any{"categories": categoryViews(apps.Current(), cats)})
+}
+
 // shareAppHistory is the shared router's per-app usage history.
 func (s *Server) shareAppHistory(w http.ResponseWriter, q url.Values, _ *db.ShareLink, rid string) {
 	loc, err := time.LoadLocation(s.displayTZ())
@@ -240,7 +252,7 @@ func (s *Server) shareAppHistory(w http.ResponseWriter, q url.Values, _ *db.Shar
 		writeJSONErr(w, http.StatusInternalServerError, "the history could not be read")
 		return
 	}
-	h := buildAppHistory(rows, starts, to, apps.Default())
+	h := buildAppHistory(rows, starts, to, apps.Current())
 	h.Recording = s.appUsage.recording(rid)
 	writeJSON(w, h)
 }
