@@ -178,7 +178,14 @@ export function createGridEditor(
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'chip';
-        chip.innerHTML = '<span>+</span>' + (CARD_LABELS[c.id] || c.id);
+        // Built as nodes, not markup: the label is text, and the id it falls
+        // back to came out of stored JSON (CodeQL js/xss-through-dom, #181).
+        const plus = document.createElement('span');
+        plus.textContent = '+';
+        const label = document.createElement('span');
+        label.textContent = CARD_LABELS[c.id] || c.id;
+        chip.appendChild(plus);
+        chip.appendChild(label);
         chip.addEventListener('click', () => addCard(c.id));
         chips.appendChild(chip);
       }
