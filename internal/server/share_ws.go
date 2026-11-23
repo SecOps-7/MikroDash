@@ -574,16 +574,18 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 	}
 	stop := make(chan struct{})
 	sc.devStop = stop
-	s.devicesMu.Lock()
-	s.devicesWatchers[sc.inner.c] = true
-	s.devicesMu.Unlock()
-	geo := sc.devicesMapLocked()
-	go func() {
-		s.syncFleetHolds()
-		if s.sessions != nil {
-			s.sessions.PrimeStats()
-		}
-	}()
+	fleet, geo := sc.devicesOptsLocked()
+	if fleet {
+		s.devicesMu.Lock()
+		s.devicesWatchers[sc.inner.c] = true
+		s.devicesMu.Unlock()
+		go func() {
+			s.syncFleetHolds()
+			if s.sessions != nil {
+				s.sessions.PrimeStats()
+			}
+		}()
+	}
 	send := func() {
 		sc.mu.Lock()
 		rid := sc.routerID
@@ -591,7 +593,7 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 		if rid == "" {
 			return
 		}
-		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid, geo))
+		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid, fleet, geo))
 	}
 	go func() {
 		send()
@@ -608,16 +610,22 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 	}()
 }
 
-// devicesMapLocked is whether this link shows the Devices page as a map, the
-// one view that needs each device's location.
-func (sc *shareConn) devicesMapLocked() bool {
+// devicesOptsLocked is whether this link's Devices page lists every device
+// (a page link carrying a view: sharelink.Options.ForPage), and whether it is
+// the map, the one view that needs each device's location. A slideshow slide
+// or a link made before 2026-11-23 lists its one router.
+func (sc *shareConn) devicesOptsLocked() (fleet, geo bool) {
+	if sharelink.Kind(sc.link.Kind) != sharelink.KindPage {
+		return false, false
+	}
 	var o sharelink.Options
 	_ = json.Unmarshal([]byte(sc.link.Options), &o)
-	return sharelink.Kind(sc.link.Kind) == sharelink.KindPage && o.DevicesView == "map"
+	return o.FleetDevices(), o.FleetDevices() && o.DevicesView == "map"
 }
 
 // shareStatsRows is the Devices page's rows for a share: every device in the
-// fleet (TestASharedDevicesPageShowsEveryDevice).
+// fleet for a link that opted in (TestASharedDevicesPageShowsEveryDevice), its
+// one router otherwise (TestAnOlderDevicesLinkKeepsItsRouter).
 //
 // THE ROWS ARE CUT DOWN for a share. A signed-in viewer sees where a router is
 // reached and how MikroDash signs in to it; a share link can reach anyone, so
@@ -627,9 +635,12 @@ func (sc *shareConn) devicesMapLocked() bool {
 // view that cannot be drawn without it; the administrator chose that view
 // knowing it shows where each device is. The card keeps its name, state,
 // readings, model, version and alert count.
-func shareStatsRows(s *Server, routerID string, geo bool) []routers.Row {
+func shareStatsRows(s *Server, routerID string, fleet, geo bool) []routers.Row {
 	src := s.buildStatsSources(nil, routerID)
-	src.Visible = nil
+	src.Visible = map[string]bool{routerID: true}
+	if fleet {
+		src.Visible = nil
+	}
 	rows := routers.BuildStats(src)
 	for i := range rows {
 		r := &rows[i]

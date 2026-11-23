@@ -814,6 +814,53 @@ func TestASharedDevicesPageShowsEveryDevice(t *testing.T) {
 	waitFor(t, func() bool { return !srv.devicesWatched() })
 }
 
+// TestAnOlderDevicesLinkKeepsItsRouter: a Devices link made before the view
+// option existed (no devicesView stored) was made when a shared Devices page
+// meant its one router, and keeps meaning that: it does not widen to the fleet
+// without anyone choosing it, until it is edited and saved again.
+func TestAnOlderDevicesLinkKeepsItsRouter(t *testing.T) {
+	srv, h := shareServer(t)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	id, token := createLink(t, h, `{"kind":"page","label":"Old","page":"devices","routerId":"r1"}`)
+	l, _ := srv.auditDB.ShareLinkByID(id)
+	l.Options = strings.Replace(l.Options, `"devicesView":"comfortable"`, `"x":0`, 1)
+	if err := srv.auditDB.UpdateShareLink(*l); err != nil {
+		t.Fatal(err)
+	}
+	c, tk := openShareView(t, ts, h, token)
+	defer c.CloseNow()
+	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	var rows []map[string]any
+	for rows == nil {
+		_, b, err := c.Read(ctx)
+		if err != nil {
+			t.Fatalf("no routers:stats frame arrived: %v", err)
+		}
+		var f struct {
+			Event string           `json:"event"`
+			Data  []map[string]any `json:"data"`
+		}
+		if json.Unmarshal(b, &f) == nil && f.Event == "routers:stats" {
+			rows = f.Data
+		}
+	}
+	if len(rows) != 1 || rows[0]["id"] != "r1" {
+		t.Errorf("an older link's frame carried %d rows (%v); want only r1", len(rows), rows)
+	}
+	if srv.devicesWatched() {
+		t.Error("an older link holds the whole fleet's Devices collectors")
+	}
+	w := shareReq(h, "GET", "/share/api/devices/overview", "", "", "", map[string]string{"Authorization": "Share " + tk})
+	var ov []map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &ov)
+	if len(ov) != 1 || ov[0]["routerId"] != "r1" {
+		t.Errorf("an older link's overview: %s; want r1 only", w.Body.String())
+	}
+}
+
 // TestADevicesLinkTakesAView: a Devices link's view is one of the page's
 // four, refused otherwise, and cleared on a link to any other page.
 func TestADevicesLinkTakesAView(t *testing.T) {

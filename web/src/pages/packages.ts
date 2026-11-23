@@ -6,12 +6,13 @@
 // built around that: pending changes lead, every one has an Undo, and the reboot
 // is a separate button.
 //
-// THE TYPED CONFIRMATION IS THE LIVE APP'S, NOT AN ADDITION. `window.prompt`
-// asking for the router name back is what the live page does, and it is
-// reproduced exactly - cancel behaviour included, since a null return is
-// silent. It is what makes "the wrong router" a hard mistake rather than an easy
-// one.
+// A REBOOT IS CONFIRMED IN A DIALOG (confirm.ts), naming the router. It asked
+// for the router's name to be typed back until 2026-11-23, when the operator
+// found that too slow for long names. The page still sends the name with the
+// action and the server checks it, so a page showing a stale router cannot
+// reboot the one now selected.
 
+import { confirmAction } from '../confirm';
 import { esc, el, renderSortHeader, sortMul, debounce, fmtBytes, pill, type SortCol, type SortState, kv } from '../dom';
 import type { Socket } from '../socket';
 import type { Package, Firmware, Update, PackagesPayload } from '../gen/payloads';
@@ -280,14 +281,14 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       up.addEventListener('click', () => {
         if (!caps.permitted) return;
         const name = caps.routerName || '';
-        // Typed confirmation, as Apply uses: this reboots a production router,
-        // and the name is what makes the wrong router a hard mistake to make.
-        const typed = window.prompt(
-          'This writes the RouterBOOT firmware and REBOOTS the router.\n\n' +
-          'Type the router name to confirm: ' + name);
-        if (typed === null) return;
-        setStatus('Upgrading RouterBOOT - the router will reboot');
-        socket.emit('packages:fwupgrade', { confirm: typed });
+        // Confirmed, then sent WITH THE ROUTER'S NAME, which the server checks:
+        // see confirm.ts for why the name is no longer typed.
+        void confirmAction({ title: 'Upgrade RouterBOOT?', message: 'This writes the RouterBOOT firmware and reboots the router.',
+          subject: name, confirmLabel: 'Upgrade and reboot', danger: true }).then((yes) => {
+          if (!yes) return;
+          setStatus('Upgrading RouterBOOT - the router will reboot');
+          socket.emit('packages:fwupgrade', { confirm: name });
+        });
       });
     }
     const auto = el<HTMLInputElement>('pkgAutoUpgrade');
@@ -401,12 +402,12 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     reboot.addEventListener('click', () => {
       if (!caps.permitted) { setStatus('You do not have write access to this router'); return; }
       const name = caps.routerName || '';
-      const typed = window.prompt(
-        'This REBOOTS the router. It will be unreachable for a minute or two.\n\n' +
-        'Type the router name to confirm: ' + name);
-      if (typed === null) return;
-      setStatus('Rebooting…');
-      socket.emit('packages:reboot', { confirm: typed });
+      void confirmAction({ title: 'Reboot the router?', message: 'It will be unreachable for a minute or two.',
+        subject: name, confirmLabel: 'Reboot', danger: true }).then((yes) => {
+        if (!yes) return;
+        setStatus('Rebooting…');
+        socket.emit('packages:reboot', { confirm: name });
+      });
     });
   }
 
@@ -415,14 +416,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     apply.addEventListener('click', () => {
       if (!caps.permitted) return;
       const name = caps.routerName || '';
-      // Typed confirmation, not an "are you sure": this reboots a production
-      // router, and the name is what makes "the wrong router" a hard mistake to
-      // make rather than an easy one.
-      const typed = window.prompt(
-        'This applies all scheduled package changes and REBOOTS the router.\n\n' +
-        'Type the router name to confirm: ' + name);
-      if (typed === null) return;
-      socket.emit('packages:apply', { confirm: typed });
+      void confirmAction({ title: 'Apply the package changes?', message: 'This applies every scheduled change and reboots the router.',
+        subject: name, confirmLabel: 'Apply and reboot', danger: true }).then((yes) => {
+        if (yes) socket.emit('packages:apply', { confirm: name });
+      });
     });
   }
 }

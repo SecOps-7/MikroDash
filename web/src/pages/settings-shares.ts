@@ -68,7 +68,9 @@ export function subjectOf(l: ShareLinkView, o: ShareOptionsResp | null): string 
   const router = labelOf(o?.routers, l.routerId);
   if (l.kind === 'card') return labelOf(o?.cards, l.options.card || '') + ' on ' + router;
   if (l.kind === 'feed') return (l.options.values || []).length + ' values from ' + router;
-  if (l.page === 'devices') return 'Devices (every device, ' + (l.options.devicesView || 'comfortable') + ')';
+  // A Devices link with a view lists every device; one made before views
+  // existed still shows its one router until it is saved again.
+  if (l.page === 'devices' && l.options.devicesView) return 'Devices (every device, ' + l.options.devicesView + ')';
   return labelOf(o?.pages, l.page) + ' on ' + router;
 }
 

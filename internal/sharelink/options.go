@@ -154,6 +154,12 @@ func (o *Options) Normalize(kind Kind, hasOrigins bool) error {
 
 // ForPage applies the options that belong to one page: a Devices link gets
 // its view (default comfortable), any other page has it cleared.
+//
+// THE VIEW IS ALSO THE FLEET OPT-IN. A Devices link lists every device only
+// when it carries a view (FleetDevices). Every link made or saved since
+// 2026-11-23 has one; a link made before then was made when a shared Devices
+// page meant its one router, and keeps meaning that until somebody edits it,
+// rather than widening without anyone choosing it.
 func (o *Options) ForPage(page string) error {
 	if page != "devices" {
 		o.DevicesView = ""
@@ -161,6 +167,9 @@ func (o *Options) ForPage(page string) error {
 	}
 	return oneOf("devices view", &o.DevicesView, "comfortable", "comfortable", "compact", "list", "map")
 }
+
+// FleetDevices is whether a Devices link lists every device: see ForPage.
+func (o Options) FleetDevices() bool { return o.DevicesView != "" }
 
 func oneOf(what string, v *string, def string, allowed ...string) error {
 	if *v == "" {

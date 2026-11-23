@@ -32,6 +32,7 @@ import (
 
 	"mikrodash/internal/apps"
 	"mikrodash/internal/db"
+	"mikrodash/internal/sharelink"
 	"mikrodash/internal/sitedoc"
 	"mikrodash/internal/store"
 )
@@ -216,12 +217,18 @@ func (s *Server) shareTopologyLayout(w http.ResponseWriter, _ url.Values, l *db.
 
 // shareDevicesOverview is the shared router's connectivity strip, never the
 // fleet's, and without its backups (the Backups page is never shared).
-func (s *Server) shareDevicesOverview(w http.ResponseWriter, q url.Values, _ *db.ShareLink, rid string) {
+func (s *Server) shareDevicesOverview(w http.ResponseWriter, q url.Values, l *db.ShareLink, rid string) {
 	req := &http.Request{URL: &url.URL{RawQuery: q.Encode()}}
 	from, to := overviewWindow(req, time.Now().UnixMilli())
-	// EVERY DEVICE, as the shared page lists every device (the operator,
-	// 2026-11-23); no backup status, which is not the share's to show.
-	out, status, msg := s.deviceOverviewRows(from, to, func(string) bool { return true }, map[string]bool{})
+	// EVERY DEVICE for a link that opted in, as its page lists every device (the
+	// operator, 2026-11-23; sharelink.Options.ForPage); its one router
+	// otherwise. No backup status, which is not the share's to show.
+	var o sharelink.Options
+	fleet := false
+	if l != nil && sharelink.Kind(l.Kind) == sharelink.KindPage && json.Unmarshal([]byte(l.Options), &o) == nil {
+		fleet = o.FleetDevices()
+	}
+	out, status, msg := s.deviceOverviewRows(from, to, func(id string) bool { return fleet || id == rid }, map[string]bool{})
 	if status != 0 {
 		writeJSONErr(w, status, msg)
 		return
