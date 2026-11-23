@@ -31,7 +31,9 @@ import type { UpdInfo } from './dashboard-system';
 
 /** What the dialog says when the router refuses. */
 export function upgradeErrorText(code: string | undefined, routerName: string): string {
-  if (code === 'confirm-mismatch') return 'That is not this router’s name. Type "' + routerName + '".';
+  // The page sends the name of the router it was opened for; a mismatch is a
+  // dialog left open across a router switch.
+  if (code === 'confirm-mismatch') return 'This dialog was opened for another router than ' + routerName + '. Close it and open it again.';
   if (code === 'nothing-to-update') return 'This router is already on the newest version it knows about.';
   if (code === 'denied') return 'You do not have permission to update this router.';
   if (code === 'router-write-policy') return 'The RouterOS user MikroDash connects with lacks the write policy.';
@@ -54,7 +56,7 @@ export function updateSlotHtml(permitted: boolean, latest: string): string {
 /**
  * What the dialog looks like at each point in the upgrade.
  *
- *   idle       nothing sent yet, the operator can still type and confirm
+ *   idle       nothing sent yet, the operator can still confirm or cancel
  *   issuing    the command is on its way to the router
  *   rebooting  the router accepted it and is going down
  *
@@ -70,10 +72,9 @@ export interface UpdView {
   goDisabled: boolean;
   goText: string;
   goIsHtml: boolean;
-  confirmDisabled: boolean;
   // NULL MEANS "LEAVE IT ALONE", and that is the original's behaviour rather
-  // than a convenience. `issuing` writes ONLY the go button and
-  // `confirm.disabled`; it does not touch Cancel or the pending box, which keep
+  // than a convenience. `issuing` writes ONLY the go button; it does not touch
+  // Cancel or the pending box, which keep
   // whatever `idle` left there. Expressing that as absolute values - "Cancel",
   // hidden - looks identical in every real sequence, because `idle` always runs
   // first, and diverges the moment it does not.
@@ -81,7 +82,6 @@ export interface UpdView {
   // The gate caught exactly that: it drives `updState('issuing')` on untouched
   // elements, where the live app leaves them empty and a forcing port does not.
   cancelText: string | null;
-  confirmHidden: boolean | null;
   pendingText: string | null;
   pendingHidden: boolean | null;
 }
@@ -90,8 +90,7 @@ export function updView(state: 'idle' | 'issuing' | 'rebooting'): UpdView {
   if (state === 'idle') {
     return {
       goDisabled: false, goText: 'Update & Reboot', goIsHtml: false,
-      confirmDisabled: false,
-      cancelText: 'Cancel', confirmHidden: false,
+      cancelText: 'Cancel',
       pendingText: '', pendingHidden: true,
     };
   }
@@ -100,20 +99,17 @@ export function updView(state: 'idle' | 'issuing' | 'rebooting'): UpdView {
       goDisabled: true,
       goText: '<span class="sbtn-spin"></span>Issuing&hellip;',
       goIsHtml: true,
-      confirmDisabled: true,
       // Untouched - see the interface.
-      cancelText: null, confirmHidden: null, pendingText: null, pendingHidden: null,
+      cancelText: null, pendingText: null, pendingHidden: null,
     };
   }
   return {
     goDisabled: true,
     goText: '<span class="sbtn-spin"></span>Rebooting&hellip;',
     goIsHtml: true,
-    confirmDisabled: true,
     // Once the command is out there is nothing left to confirm, and "Cancel"
     // would imply the upgrade could still be called off. It cannot.
     cancelText: 'Close',
-    confirmHidden: true,
     pendingText: 'The router is downloading the packages and restarting. It will be unreachable '
       + 'for a minute or two, and MikroDash reconnects on its own. This closes when it is back.',
     pendingHidden: false,
@@ -163,11 +159,6 @@ export function initUpgrade(socket: Socket): void {
     if (v.goIsHtml) go.innerHTML = v.goText; else go.textContent = v.goText;
     const cancel = el('upd_cancel');
     if (cancel && v.cancelText !== null) cancel.textContent = v.cancelText;
-    const confirm = el<HTMLInputElement>('upd_confirm');
-    if (confirm) {
-      confirm.disabled = v.confirmDisabled;
-      if (v.confirmHidden !== null) confirm.style.display = v.confirmHidden ? 'none' : '';
-    }
     const pending = el('upd_pending');
     if (pending && v.pendingText !== null) pending.textContent = v.pendingText;
     if (pending && v.pendingHidden !== null) pending.style.display = v.pendingHidden ? 'none' : '';
@@ -188,6 +179,8 @@ export function initUpgrade(socket: Socket): void {
 
   // The version the open dialog is about, and the test every reply must pass.
   let notesFor = '';
+  /** The router the open dialog was opened for; sent as the confirmation. */
+  let confirmFor = '';
 
   // The router the accepted upgrade went to, whether it has been seen going
   // down since, and the timer that closes the dialog once it has STAYED up.
@@ -241,8 +234,11 @@ export function initUpgrade(socket: Socket): void {
       if (notesFor) socket.emit('packages:notes', { version: notesFor });
       else setNotes('Release notes unavailable', true);
 
-      const confirm = el<HTMLInputElement>('upd_confirm');
-      if (confirm) { confirm.value = ''; confirm.placeholder = caps.routerName || ''; }
+      // The dialog IS the confirmation (the operator, 2026-11-23: typing a long
+      // router name took too long). It names the router, and Update & Reboot
+      // sends that name, which the server checks against the router selected.
+      set('upd_router', caps.routerName || '-');
+      confirmFor = caps.routerName || '';
       const err = el('upd_error');
       if (err) err.style.display = 'none';
       // A FRESH DIALOG waits for nothing: an upgrade still rebooting from before
@@ -259,7 +255,7 @@ export function initUpgrade(socket: Socket): void {
       const err = el('upd_error');
       if (err) err.style.display = 'none';
       apply('issuing');
-      socket.emit('packages:upgrade', { confirm: el<HTMLInputElement>('upd_confirm')?.value || '' });
+      socket.emit('packages:upgrade', { confirm: confirmFor });
     }
   });
 

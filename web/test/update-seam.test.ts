@@ -60,14 +60,14 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 fs.rmSync(ENTRY, { force: true });
 
 const IDS = ['rosUpdateRow', 'sysUpdateAction', 'sysUpdateBtn', 'updModal',
-  'upd_from', 'upd_to', 'upd_channel', 'upd_confirm', 'upd_error', 'upd_go',
+  'upd_from', 'upd_to', 'upd_channel', 'upd_router', 'upd_error', 'upd_go',
   'upd_cancel', 'upd_state', 'upd_note'];
 
 // ── WHAT THIS GATE COVERS ───────────────────────────────────────────────────
 //
 // A SUBSET of IDS, not IDS itself. The shim provides thirteen so the page can
 // run; this gate ASSERTS on five and presses one. Claiming the rest would tell
-// `element-coverage-audit` that `#upd_confirm` and `#upd_go` are covered when
+// `element-coverage-audit` that `#upd_router` and `#upd_go` are covered when
 // nothing here looks at them - and that audit is what decides where the next
 // gate goes, so an overstatement there costs more than the silence it replaces.
 const COVERS = ['rosUpdateRow', 'updModal', 'upd_from', 'upd_to', 'upd_channel', 'sysUpdateBtn',

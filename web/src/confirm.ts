@@ -32,8 +32,8 @@ export function confirmAction(o: ConfirmOpts): Promise<boolean> {
     const bg = document.createElement('div');
     bg.className = 'rtr-modal-bg open';
     bg.innerHTML =
-      '<div class="rtr-modal pmodal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">' +
-        '<div class="rtr-modal-hdr"><span class="rtr-modal-title" id="confirmTitle">' + esc(o.title) + '</span>' +
+      '<div class="rtr-modal pmodal" role="alertdialog" aria-modal="true" aria-label="' + esc(o.title) + '">' +
+        '<div class="rtr-modal-hdr"><span class="rtr-modal-title">' + esc(o.title) + '</span>' +
           '<button class="rtr-modal-close" type="button" data-answer="no" aria-label="Close">&#10005;</button></div>' +
         '<div class="rtr-modal-body"><p class="confirm-msg">' + esc(o.message) + '</p>' +
           (o.subject ? '<p class="confirm-subject">' + esc(o.subject) + '</p>' : '') + '</div>' +

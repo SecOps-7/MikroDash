@@ -766,9 +766,8 @@ func TestASharedDevicesPageShowsEveryDevice(t *testing.T) {
 	c, tk := openShareView(t, ts, h, token)
 	defer c.CloseNow()
 	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
-	if !srv.devicesWatched() {
-		t.Error("the shared Devices page does not count as watching it, so the fleet's readings would go stale")
-	}
+	// The page is shown just after the view is counted, so this is waited for.
+	waitFor(t, func() bool { return srv.devicesWatched() })
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 	var rows []map[string]any

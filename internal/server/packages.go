@@ -8,10 +8,11 @@ package server
 // whole file — three ordinary writes and one that is gated twice.
 //
 // ON THE SECOND GATE. `packages:apply` reboots a production router, and the
-// browser has to send the router's own NAME back before it will run. That is not
-// an "are you sure": a misclick cannot produce a router's name, and neither can
-// a click on the router you thought you were looking at. Reproduced from the
-// live app exactly, and the operator confirmed the button ships as-is.
+// browser has to send the router's own NAME back before it will run. The page
+// asks in an "are you sure" dialog naming the router and sends the name itself
+// (the operator, 2026-11-23: typing a long name took too long), so the check
+// now catches a page left open on one router acting on another, the router
+// selected having changed underneath it.
 //
 // ON THE MISSING SECOND PERMISSION, BECAUSE ITS ABSENCE IS DELIBERATE. Node gates
 // each of these on `_pageAllowed(socket,'packages',<access>)` AND
