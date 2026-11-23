@@ -141,7 +141,7 @@
               <div class="ff">
                 <label class="sform-label" for="s_rosDebug">Debug Logging</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Verbose logging to the container console, for troubleshooting connection or wireless client issues. Takes effect immediately.</div>
+                <div class="ff-help">Verbose logs in the container console, for troubleshooting. Applies immediately.</div>
               </div>
             </div>
           </div>
@@ -152,7 +152,7 @@
             <span class="scard-title">Data Retention</span>
           </div>
           <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.</p>
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">How long history is kept. Older rows are pruned daily.</p>
             <div class="ff-grid">
               <div class="ff">
                 <label class="sform-label" for="s_dbRetentionDays">Metrics retention (days)</label>
@@ -276,7 +276,7 @@
             <button class="rtr-modal-close" data-modal-close="dbcModal" aria-label="Close">&#10005;</button>
           </div>
           <div class="rtr-modal-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history on demand. The retention limits prune automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.</p>
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history now. The database is compacted afterwards to free the space.</p>
             <div class="dbc-stats" id="dbcStats">
               <div class="dbc-stat"><span class="dbc-stat-label">Database size</span><span class="dbc-stat-value" id="dbcSize">-</span></div>
               <div class="dbc-stat"><span class="dbc-stat-label">Stored rows</span><span class="dbc-stat-value" id="dbcRows">-</span></div>
@@ -341,16 +341,14 @@
             </div>
           </div>
           <div class="scard-body">
-            <p class="nchan-intro">Configure notification channels to receive alerts about your
-              routers. Supports SMTP email and webhook URLs (Telegram, Discord, Slack, ntfy, Gotify,
-              Pushover, Pushbullet, and anything else through an Apprise server).</p>
+            <p class="nchan-intro">Send alerts by email or webhook: Telegram, Discord, Slack, ntfy, Gotify, Pushover, Pushbullet
+              or anything Apprise supports.</p>
             <!-- IT NAMED A CARD THAT NO LONGER EXISTS. This said "Alert Types
                  above decides which alerts MikroDash raises", which was true
                  while there were two lists. There is one now: the install-wide
                  gate went when alert types moved onto the channel, so what is
                  left to say is what the channel decides. -->
-            <p class="nchan-note">MikroDash records every alert. Each channel chooses which of them
-              it delivers, and which routers it covers.</p>
+            <p class="nchan-note">Every alert is recorded; each channel picks which alerts and routers it delivers.</p>
             <div id="nchanGrid" class="apps-grid"></div>
             <!-- ── NOTHING HERE DECIDES WHERE REPORTS GO ────────────────────
                  There was a select under the grid, then a tick on one SMTP card,
@@ -446,9 +444,8 @@
                   <code>{{bgpPeer}}</code>
                   <code>{{timestamp}}</code>
                 </div>
-                <p class="msg-vars-note">A variable that does not apply to an alert renders as empty.
-                  <code>{{comment}}</code> is the comment set on the router for whatever the alert is
-                  about - an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
+                <p class="msg-vars-note">A variable that does not apply renders empty. <code>{{comment}}</code> is the
+                  router's comment on what the alert is about.</p>
               </aside>
             </div>
           </div>
@@ -589,7 +586,7 @@
               <div class="ff">
                 <label class="sform-label" for="navGrouped">Group the sidebar into categories</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="navGrouped" class="nav-grouped-input"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Collapses the 23 pages into Network, Wireless, IP Services, Tunnels, Traffic, Security and System. Turn it off for one flat list.</div>
+                <div class="ff-help">Groups the pages into categories. Turn it off for one flat list.</div>
               </div>
             </div>
           </div>
@@ -604,7 +601,7 @@
                  settings.json rather than in it, and this card saves through its
                  own routes, so Save Settings must not collect these controls.
                  See web/src/pages/branding-settings.ts. -->
-            <p class="brand-hint" style="margin-top:0">Rename this install and give it its own icon. Shown in the top left, the browser tab, the login page, PDF reports and report emails.</p>
+            <p class="brand-hint" style="margin-top:0">Rename this install and set its icon, shown across the app, the login page and reports.</p>
             <div class="brand-preview" aria-hidden="true">
               <img id="brandPreviewIcon" src="/logo.png" alt="">
               <span class="brand-preview-name" id="brandPreviewName">Mikro<span>Dash</span></span>
@@ -636,7 +633,7 @@
                   <button type="button" class="sbtn sbtn-ghost" id="brandIconPick">Upload Icon…</button>
                   <button type="button" class="sbtn sbtn-ghost" id="brandIconReset" disabled>Use Default Icon</button>
                 </div>
-                <div class="ff-help">PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.</div>
+                <div class="ff-help">Square PNG or JPEG, 64 to 512 px, up to 512 KB. A transparent PNG looks best.</div>
               </div>
             </div>
             <div class="brand-status" id="brandStatus" role="status" aria-live="polite"></div>
@@ -740,7 +737,7 @@
             <span class="scard-title">Visible Pages</span>
           </div>
           <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible. A preset ticks a whole set at once; each user still only sees pages their role allows.</p>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings always stay, and roles still decide who sees what.</p>
             <div class="ff-grid">
               <div class="ff ff-full">
                 <label class="sform-label">Preset</label>
@@ -842,7 +839,7 @@
 
           <div class="ptab-panel" id="ptab-sites" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A site groups devices by location. Since #117 a device may belong to several sites, or none - assign them in the device's settings.</span>
+              <span class="ptab-desc">A site groups devices by location. A device can be in several sites, or none.</span>
               <button class="sbtn sbtn-primary is-sm" id="addSiteBtn" style="flex-shrink:0">+ Add Site</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="siteTable">
@@ -896,12 +893,12 @@
                     <button type="button" class="cpick-clear" id="sf_placeClear" title="Clear this site's location">Clear</button>
                   </div>
                   <div class="cpick-list" id="sf_placeList" role="listbox" hidden></div>
-                  <div class="ff-help">Optional. Devices whose PRIMARY site is this one, and which have no location of their own, are shown here on the map.</div>
+                  <div class="ff-help">Optional. Shown on the map for this site's devices that have no location of their own.</div>
                 </div>
                 <div class="ff ff-full">
                   <label class="sform-label">Devices at this site</label>
                   <div id="sf_routers" class="dp"></div>
-                  <div class="ff-help">Ticking a device adds this site to it. It keeps any other sites it is already in, and unticking removes only this one.</div>
+                  <div class="ff-help">Ticking adds a device to this site; any other sites it is in are kept.</div>
                 </div>
               </div>
               <div class="login-error" id="sf_error" style="display:none;background:rgb(from var(--accent-err) r g b / .1);border:1px solid rgb(from var(--accent-err) r g b / .25);border-radius:6px;color:var(--accent-err);font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
@@ -916,7 +913,7 @@
 
           <div class="ptab-panel" id="ptab-groups" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A group collects users so a role can be granted to all of them at once - for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.</span>
+              <span class="ptab-desc">Grant a role to many users at once. Members get the group's access on top of their own.</span>
               <button class="sbtn sbtn-primary is-sm" id="addGroupBtn" style="flex-shrink:0">+ Add Group</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="groupTable">
@@ -975,7 +972,7 @@
 
           <div class="ptab-panel" id="ptab-roles" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope - the role says <em>what</em>, the scope says <em>which devices</em>. Administrator is built in and always sees everything.</span>
+              <span class="ptab-desc">A role decides which pages someone sees, on the devices its scope covers. Administrator sees everything.</span>
               <button class="sbtn sbtn-primary is-sm" id="addRoleBtn" style="flex-shrink:0">+ Add Role</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="roleTable">
@@ -1049,7 +1046,7 @@
                API behind the same `system:principals` gate for that reason. -->
           <div class="ptab-panel" id="ptab-sso" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">Let people sign in with an existing account - Entra ID, Okta, Keycloak, anything that speaks OpenID Connect. The provider decides who gets in and which role they arrive with. <strong>The password form never goes away</strong>, so the local administrator is always a way back in.</span>
+              <span class="ptab-desc">Sign in with Entra ID, Okta, Keycloak or any OpenID Connect provider. <strong>The password form always stays</strong> as a way back in.</span>
               <button class="sbtn sbtn-primary is-sm" id="addSsoBtn" style="flex-shrink:0">+ Add provider</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="ssoTable">
@@ -1131,12 +1128,12 @@
                            whoever could set Host would choose where the
                            authorization code is delivered. -->
                       <input class="sform-input" id="so_redirectUri" type="text" readonly spellcheck="false">
-                      <div class="ff-help">Add this exact URI to the application's allowed callback URLs. It must match byte for byte.</div>
+                      <div class="ff-help">Add this exact URI to the provider's allowed callback URLs.</div>
                     </div>
                     <div class="ff ff-full">
                       <label class="sform-label" for="so_scopes">Scopes</label>
                       <input class="sform-input" id="so_scopes" type="text" autocomplete="off" spellcheck="false" placeholder="openid profile email">
-                      <div class="ff-help"><code>openid</code> is added whether or not you type it - without it the provider returns no ID token at all.</div>
+                      <div class="ff-help"><code>openid</code> is always added.</div>
                     </div>
                   </div>
 
@@ -1173,7 +1170,7 @@
                         <button type="button" class="sbtn sbtn-outline" id="so_iconClear" style="display:none">Remove</button>
                         <span id="so_iconNote" style="font-size:.68rem;color:var(--text-muted)"></span>
                       </div>
-                      <div class="ff-help">Optional. A mark beside the label on the sign-in button. Square PNG or JPEG, 64 to 512 px.</div>
+                      <div class="ff-help">Optional. Shown beside the label on the sign-in button. Square PNG or JPEG, 64 to 512 px.</div>
                     </div>
                   </div>
                 </div>
@@ -1189,14 +1186,14 @@
                     <div class="ff ff-full">
                       <label class="sform-label" for="so_claimRoles">Roles claim</label>
                       <input class="sform-input" id="so_claimRoles" type="text" autocomplete="off" spellcheck="false" placeholder="groups">
-                      <div class="ff-help">On Entra ID, prefer <code>roles</code> (app roles) over <code>groups</code>: groups are capped at 200 in a token, and past that the claim is left out entirely.</div>
+                      <div class="ff-help">On Entra ID, use <code>roles</code>: <code>groups</code> is dropped from a token above 200 groups.</div>
                     </div>
                   </div>
                   <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:.9rem 0 .5rem">Mappings</div>
-                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin:0 0 .5rem">The first match wins. Somebody matching none of these cannot sign in, and loses any access they had.</p>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin:0 0 .5rem">The first match wins. Anyone matching none cannot sign in.</p>
                   <div id="so_mapRows"></div>
                   <button type="button" class="sbtn sbtn-outline" id="so_addMap" style="margin-top:.5rem">+ Add mapping</button>
-                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin-top:.7rem">The role is re-evaluated on <strong>every</strong> sign-in, so a role changed here by hand is overwritten the next time that person signs in. Change it at the provider.</p>
+                  <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0;line-height:1.5" style="margin-top:.7rem">Roles are set again at <strong>every</strong> sign-in, so change them at the provider.</p>
                 </div>
 
                 </div>
@@ -1215,7 +1212,7 @@
                auth mode: in 'none' mode there are no accounts to manage. -->
           <div class="ptab-panel active" id="ptab-users" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">Each user signs in with their own account. Access comes from the roles granted to them here, and from any group they belong to.</span>
+              <span class="ptab-desc">Access comes from each user's roles and from their groups.</span>
               <button class="sbtn sbtn-primary is-sm" id="addUserBtn" style="flex-shrink:0">+ Add User</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="userTable">
@@ -1287,11 +1284,8 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">
-              Connects to any OpenAI-compatible endpoint: a hosted provider, a gateway, or a
-              model running on your own hardware. <strong>A hosted endpoint sends router
-              names, addresses and network shape to that provider.</strong> A local one
-              (Ollama, LM Studio, vLLM, LiteLLM) sends nothing outside your network.
-              The AI Agent page appears once this is switched on and an endpoint and model are set.
+              Any OpenAI-compatible endpoint, hosted or on your own hardware. <strong>A hosted one receives
+              router names, addresses and network shape</strong>; a local one keeps it all on your network.
             </p>
             <!-- THE SWITCH IS A FIELD, first in the form. It was a bare switch
                  in the card header with no label of its own. -->
@@ -1324,7 +1318,7 @@
               <div class="ff">
                 <label class="sform-label" for="s_aiMaxTokens">Token budget</label>
                 <input type="number" id="s_aiMaxTokens" class="sform-input" min="1024" max="65536" step="1024" placeholder="8192" autocomplete="off">
-                <div class="ff-help">The most the model may write in one reply, its reasoning included. A reasoning model that runs out writes nothing; raise it if answers come back cut off.</div>
+                <div class="ff-help">The most the model may write in one reply. Raise it if answers come back cut off.</div>
               </div>
               <div class="ff ff-full">
                 <label class="sform-label" for="s_aiHeaders">Extra headers</label>
@@ -1334,10 +1328,8 @@
               <div class="ff ff-full">
                 <label class="sform-label" for="s_aiTlsPin">Trusted certificate (SHA-256)</label>
                 <input type="text" id="s_aiTlsPin" class="sform-input" placeholder="Empty: the endpoint's certificate must be publicly trusted" autocomplete="off" spellcheck="false">
-                <div class="ff-help">For an endpoint on your own network with a self-signed certificate. Press
-                  <strong>Test Connection</strong>: if the certificate is not trusted, it is shown with a
-                  <strong>Trust</strong> button that fills this in, then save. Only that exact certificate is
-                  accepted afterwards.</div>
+                <div class="ff-help">For a self-signed endpoint: press <strong>Test Connection</strong>, then
+                  <strong>Trust</strong>, to accept only that certificate.</div>
               </div>
             </div>
             <!-- Test Connection sits with the connection settings it tests, under the
@@ -1353,19 +1345,14 @@
               <div class="ff">
                 <label class="sform-label" for="s_aiConfirmWrites">Ask me before the assistant changes anything</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_aiConfirmWrites"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">The assistant can only change things you are allowed to change yourself, and
-                  every change goes through the same checks, confirmation and audit trail as the
-                  forms. <strong>Turning this off lets it apply ordinary changes without
-                  asking.</strong> A change that could cut MikroDash off from the router is always
-                  put to you, whatever this is set to.</div>
+                <div class="ff-help"><strong>Off lets it make ordinary changes without asking.</strong> A change that
+                  could cut MikroDash off from the router always asks.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_aiAllowRawCommands">Let the assistant run raw RouterOS commands</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_aiAllowRawCommands"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">For what no page covers. Offered only to signed-in global administrators, and
-                  <strong>every command, even a read, is shown to you and runs only when you type the
-                  router's name</strong>. Raw commands skip MikroDash's own checks, read-back and
-                  undo, so leave this off unless you need it.</div>
+                <div class="ff-help">Administrators only. <strong>Each command runs only when you type the router's
+                  name</strong>, and skips MikroDash's own checks and undo.</div>
               </div>
             </div>
           </div>
@@ -1387,12 +1374,8 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">
-              Who the assistant is and how it behaves. Edit it to change its tone, to tell it
-              about your network, or to give it standing instructions.
-              <strong>MikroDash&rsquo;s own safety rules are always applied on top of this and
-              cannot be edited here</strong>, so the assistant still refuses to follow
-              instructions found in router data, and still cannot run commands or reach any
-              device other than the one selected.
+              The assistant's tone, what it knows about your network, and standing instructions.
+              <strong>MikroDash&rsquo;s safety rules always apply on top.</strong>
             </p>
             <div class="ff-grid ff-one">
               <div class="ff">
@@ -1430,10 +1413,8 @@
               </div>
             </div>
             <p style="font-size:.7rem;color:var(--text-muted);margin:0 0 .8rem">
-              Off by default. The card asks the model only while it is on your Dashboard and
-              the Dashboard is open, and by default at most once every 3 hours (10800
-              seconds); coming back sooner shows the last line again rather than asking. On a
-              hosted endpoint every refresh is billable, including the refresh icon on the card.
+              Asks the model only while the card is on an open Dashboard, at most once per refresh
+              interval. On a hosted endpoint each refresh is billed.
             </p>
             <div class="ff-grid">
               <div class="ff">
@@ -1445,8 +1426,7 @@
                 <label class="sform-label" for="s_aiOverviewPrompt">Overview prompt</label>
                 <textarea id="s_aiOverviewPrompt" class="sform-input" rows="7" maxlength="500"
                           autocomplete="off" spellcheck="false"></textarea>
-                <div class="ff-help"><span class="ff-count" id="aiOverviewPromptCount">0 / 500</span>What the card is asked to write. Leave it empty to use the built-in prompt;
-                  MikroDash&rsquo;s safety rules are always applied on top.</div>
+                <div class="ff-help"><span class="ff-count" id="aiOverviewPromptCount">0 / 500</span>Empty uses the built-in prompt. MikroDash&rsquo;s safety rules always apply.</div>
               </div>
             </div>
             <!-- Reset sits under the box it resets. It writes the box only; the
@@ -1467,11 +1447,8 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">
-              New routers run a short script and call home to this MikroDash, then join the fleet on
-              their own. A remote router dials in over a WireGuard tunnel built into MikroDash, so it
-              can sit behind NAT anywhere. <strong>This opens one UDP port</strong>, which must be
-              published from the container and reachable from the internet; it stays closed while this
-              is off. Routers on your own network need no tunnel.
+              New routers run a short script, call home and join the fleet. Remote ones dial in over WireGuard,
+              which <strong>opens one UDP port</strong> while this is on.
             </p>
             <div class="ztp-status" id="ztpStatusLine"></div>
             <!-- THE SWITCH IS A FIELD, first in the form, as on the AI Agent
@@ -1508,8 +1485,7 @@
               <dt>Instance</dt><dd><code id="ztpInstanceId">-</code></dd>
               <dt>Public key</dt><dd><code id="ztpPublicKey">-</code></dd>
             </dl>
-            <p class="ztp-help">Every script carries this instance's key, so a router can only ever call
-              home to this MikroDash.</p>
+            <p class="ztp-help">Scripts carry this instance's key, so routers can only call home here.</p>
           </div>
         </div>
         <div class="scard">
@@ -1518,9 +1494,8 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">
-              One script for many routers, for a rollout. Each router that runs it appears on the Devices
-              page as <strong>Not yet provisioned</strong>, and joins the fleet when you onboard it. It
-              needs provisioning switched on and the address above.
+              One script for many routers. Each one appears on Devices as <strong>Not yet provisioned</strong>
+              until you onboard it.
             </p>
             <div class="ff-grid">
               <div class="ff">
@@ -1563,8 +1538,7 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.6rem">
-              A shared link shows one page, a slideshow, one Dashboard card or a sensor feed to anyone who
-              has the link, with no account and no way to change anything. Revoke a link to end it at once.
+              A read-only view for anyone with the link, no account needed. Revoke it to end it at once.
             </p>
             <div class="tbl-wrap">
               <table class="rtr-list share-table">
@@ -1734,7 +1708,7 @@
               <div class="ff ff-full" data-share-for="page slideshow card">
                 <label class="sform-label" for="sh_origins">Allowed embedding sites</label>
                 <input type="text" id="sh_origins" class="sform-input" placeholder="https://ha.example.com" autocomplete="off">
-                <div class="ff-help">Sites that may show this link in a frame, comma separated; one leading wildcard is allowed (https://*.example.com). Empty means no site may frame it.</div>
+                <div class="ff-help">Comma separated; one leading wildcard allowed (https://*.example.com). Empty: no site may frame it.</div>
               </div>
               <div class="ff ff-full">
                 <label class="sform-label" for="sh_base">Link address</label>
@@ -1770,27 +1744,27 @@
               <div class="ff">
                 <label class="sform-label" for="s_dnsBulkEnabled">Bulk edit and export</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_dnsBulkEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Tick static entries on the DNS page to change their address list, forwarder or state, or remove them, in one job paced by the write limit; export the table as a RouterOS script or CSV.</div>
+                <div class="ff-help">Edit or remove ticked static DNS entries in one job, and export them as a script or CSV.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_dnsCacheEnabled">DNS cache browser</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_dnsCacheEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Administrators: a Cache card on the DNS page that reads the resolver&#39;s cache when you press Read, searchable. The cache lists every name the network has looked up, so DNS read access alone does not open it. Nothing is read in the background.</div>
+                <div class="ff-help">Admins only: a searchable Cache card on the DNS page, read only when you press Read.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_dnsTraceEnabled">Domain route trace</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_dnsTraceEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Why a domain does or does not take its route: the static entry that catches it, what it resolved to, whether the address reached the list, and the mangle rule and route behind it.</div>
+                <div class="ff-help">Shows why a domain does or does not take its route, step by step.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_dnsFleetSyncEnabled">Fleet sync to a reference router</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_dnsFleetSyncEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">In the fleet comparison, make the other routers&#39; static entries match one router: add and change, and remove only if you choose to, after the counts are shown. Dynamic entries are never touched.</div>
+                <div class="ff-help">Copy one router's static DNS entries to others after a preview. Dynamic entries are left alone.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_dnsListsEnabled">Domain list subscriptions</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_dnsListsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Administrators: keep FWD entries in step with a list of domains, pasted or fetched from a public URL, on the routers you pick. Only entries the list created are changed, and a fetch that comes back empty or under half its last size changes nothing on its own.</div>
+                <div class="ff-help">Admins only: keep FWD entries in sync with a pasted or fetched domain list on chosen routers.</div>
               </div>
             </div>
           </div>
@@ -1805,7 +1779,7 @@
               <div class="ff">
                 <label class="sform-label" for="s_domainRoutingEnabled">Domain routing card</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_domainRoutingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">A Dashboard card for the address list your FWD entries feed: its size, the mangle rules that use it and the route they mark for, with an alert when that route stays down for three minutes. Only routers whose static entries feed the list are read, a few filtered prints a minute.</div>
+                <div class="ff-help">A Dashboard card for the address list your FWD entries feed, with an alert if its route goes down.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_domainRoutingList">Address list to watch</label>
@@ -1815,12 +1789,12 @@
               <div class="ff">
                 <label class="sform-label" for="s_watchListEnabled">Watch list</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_watchListEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Alert when a device you mark as watched is gone from Wi-Fi and from the router&#39;s ARP table for longer than its grace time. Those two are read on a router only while a device on it is watched.</div>
+                <div class="ff-help">Alert when a watched device has been off Wi-Fi and ARP for longer than its grace time.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_wifiHistoryEnabled">Wi-Fi client history</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_wifiHistoryEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Record each Wi-Fi client&#39;s signal and access point once a minute, so a client&#39;s name on Wifi Clients opens its history. Recording is switched on per router, on that page; only those routers have their Wi-Fi clients read while nobody has them open.</div>
+                <div class="ff-help">Record each client's signal and access point every minute. Turn it on per router on Wifi Clients.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_dbWifiHistoryRetentionDays">Keep Wi-Fi history (days)</label>
@@ -1830,12 +1804,12 @@
               <div class="ff">
                 <label class="sform-label" for="s_wifiWeakSpotsEnabled">Wi-Fi map weak spots</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_wifiWeakSpotsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Colour each access point on the Wi-Fi map by its clients&#39; average signal and list the clients below -75 dBm. Reads nothing new.</div>
+                <div class="ff-help">Colour access points by their clients' average signal and list clients below -75 dBm.</div>
               </div>
               <div class="ff">
                 <label class="sform-label" for="s_capVersionsEnabled">CAP versions</label>
                 <label class="ff-toggle"><span class="ff-toggle-state"></span><span class="stoggle-switch"><input type="checkbox" id="s_capVersionsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-                <div class="ff-help">Compare every CAP&#39;s RouterOS version with the manager&#39;s on the CAPsMAN page, and upgrade the ones behind from the manager.</div>
+                <div class="ff-help">Compare each CAP's RouterOS version with the manager's, and upgrade the ones behind.</div>
               </div>
             </div>
           </div>

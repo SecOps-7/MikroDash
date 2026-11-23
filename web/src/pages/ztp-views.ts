@@ -130,10 +130,8 @@ export function whereStep(mode: string, s: ZTPStatus): string {
     '<span class="ztp-choice-title">' + title + '</span><span class="ztp-choice-text">' + lines + '</span>' +
     (off ? '<span class="ztp-choice-off">' + esc(off) + '</span>' : '') + '</label>';
   return '<p class="ztp-lead">Where will this router be?</p><div class="ztp-choices">' +
-    card('remote', 'Remote', 'Anywhere with internet access, behind NAT included. It dials this MikroDash over an ' +
-      'encrypted WireGuard tunnel, and is managed through it.', blocked) +
-    card('local', 'Local', 'On a network this MikroDash can reach directly. No tunnel: it calls home over your LAN ' +
-      'and is managed at its own address.') + '</div>';
+    card('remote', 'Remote', 'Anywhere with internet, behind NAT too. It connects over a WireGuard tunnel.', blocked) +
+    card('local', 'Local', 'On a network this MikroDash can reach directly. No tunnel needed.') + '</div>';
 }
 
 export interface DeviceForm { label: string; serial: string; siteIds: string[]; days: number; lanUrl: string }
@@ -163,9 +161,8 @@ export function deviceStep(f: DeviceForm, mode: string, sites: SiteOpt[], facts?
   // than through fieldHtml, which escapes help as text. Same three children.
   const serial = '<div class="ff"><label class="sform-label" for="ztpSerial">Serial number</label>' +
     '<input id="ztpSerial" class="sform-input" maxlength="64" autocomplete="off" value="' + esc(f.serial) +
-    '" placeholder="HF1234567AB"><div class="ff-help">Optional. When given, only the router with this serial can ' +
-    'use the script. On the router: <code>/system routerboard print</code>, or on a CHR ' +
-    '<code>/system license print</code>.</div></div>';
+    '" placeholder="HF1234567AB"><div class="ff-help">Optional. Only this router can then use the script ' +
+    '(<code>/system routerboard print</code>).</div></div>';
   return known + '<div class="ff-grid">' +
     fieldHtml({ id: 'ztpLabel', label: 'Name', required: true },
       '<input id="ztpLabel" class="sform-input" maxlength="64" autocomplete="off" value="' + esc(f.label) +
@@ -230,8 +227,7 @@ export interface CredOpt { id: string; name: string; username: string; isDefault
 export function credPick(creds: CredOpt[], chosen: string): string {
   if (!creds.length) return '';
   return fieldHtml({ id: 'ztpCred', label: 'Credential',
-    help: 'A credential profile, created on the device once it arrives. It is a login for people; ' +
-      'MikroDash keeps signing in as itself.' },
+    help: 'A login for people, created on the device when it arrives. MikroDash keeps its own.' },
   '<select id="ztpCred" class="sform-input"><option value="">None: no extra account</option>' +
     creds.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === chosen ? ' selected' : '') + '>' +
       esc(c.name) + ' (' + esc(c.username) + ')' + (c.isDefault ? ' - default' : '') +
@@ -243,8 +239,7 @@ export function configStep(templates: TemplateOpt[], chosen: string, tpl: OpenTe
   values: Record<string, string>, acked: Set<string>, reveal: boolean,
   creds: CredOpt[] = [], cred = ''): string {
   const pick = fieldHtml({ id: 'ztpTpl', label: 'Apply on arrival',
-    help: 'A Config Management template that adds configuration. It is previewed on the router itself when it ' +
-      'arrives, and deployed with a restore point and the auto-revert, as any deploy is.' },
+    help: 'A Config Management template, deployed on arrival with a restore point and auto-revert.' },
   '<select id="ztpTpl" class="sform-input"><option value="">Nothing: just add it to the fleet</option>' +
     templates.map((t) => '<option value="' + esc(t.id) + '"' + (t.id === chosen ? ' selected' : '') + '>' +
       esc(t.name) + (t.canned ? ' (built in)' : '') + '</option>').join('') + '</select>');

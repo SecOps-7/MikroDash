@@ -447,8 +447,7 @@ function fillModal(c: ChannelView | null): void {
   }
   const note = el('nchanEventNote');
   if (note) {
-    note.textContent = 'MikroDash records every alert. Choose which of them this channel '
-      + 'delivers; the rest are still visible on the Alerts page and in the bell.';
+    note.textContent = 'Choose which alerts this channel sends. All of them stay on the Alerts page.';
   }
 
   // THE SHARED PICKER. Nothing picked means every router, now and in future,
