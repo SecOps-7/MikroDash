@@ -2,16 +2,41 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [Unreleased]
+## [0.8.88] - The right version, shared Devices pages and simpler confirmations
 
-Changes on `main` that are in the `:latest` image but not yet in a numbered
-release.
+### New
+
+- **A shared Devices page shows every device.** A link to the Devices page
+  lists the whole fleet with every detail, in the view the link sets:
+  comfortable, compact, list or map. Links made before this keep showing their
+  one router until they are edited and saved.
+- **Visible Pages lists every page,** including Apps Usage, Security Scan, the
+  tools, Terminal, the AI Agent, Reports and Config Management.
 
 ### Changed
 
+- **The Home, Standard and Advanced presets are redefined.** Home is for a home
+  router: Wi-Fi, connected devices, usage, apps, internet status and updates.
+  Standard adds the technical pages and diagnostic tools. Advanced is every
+  page.
+- **Updates, firmware and reboots ask "Are you sure?"** in a small dialog
+  naming the router, instead of asking you to type its name.
+- **Shorter descriptions in Settings.**
 - **Local discovery is named on Apps Usage.** The network's own discovery
   traffic (mDNS, LLMNR, SSDP and WS-Discovery) shows as one app instead of
   unnamed traffic.
+
+### Fixed
+
+- **The app reports the version it is.** 0.8.86 and 0.8.87 said they were
+  0.8.85, and offered an update to themselves. Reported in
+  [#168](https://github.com/SecOps-7/MikroDash/issues/168), thanks
+  [@H3LLMANBR](https://github.com/H3LLMANBR).
+- **The Dashboard traffic graph no longer leaves gaps.** The line reaches the
+  left edge after a redraw, and no longer drops out for 13 to 16 seconds when a
+  CAPsMAN access point rejoins.
+- **The Dashboard's Add card panel** builds its buttons as plain text
+  (a code scanning finding).
 
 ## [0.8.87] - Apps Usage: your own apps and the Unnamed traffic
 
