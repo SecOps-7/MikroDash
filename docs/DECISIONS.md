@@ -17,7 +17,7 @@ Shared links, only by a global administrator. A link may never expire
 toggle or environment variable changes it, and an administrator only picks
 which of those pages a link shows. Seventeen pages are shared: Dashboard,
 Interfaces, Bandwidth, Wi-Fi Clients, Wi-Fi Networks, Network Topology,
-Devices (every device, in the view the link sets, without where each is reached; the operator, 2026-11-23), Apps Usage, Connections, DHCP, VPN,
+Devices (every device and every attribute, in the view the link sets; the operator, 2026-11-23), Apps Usage, Connections, DHCP, VPN,
 Firewall, Logs, WAN, NetWatch, Routing and Security Scan. He first ruled
 every page shareable but administration and tools, narrowed it to six,
 added every page a Dashboard card draws from, then took DNS out and added

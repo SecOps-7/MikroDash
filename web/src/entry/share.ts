@@ -205,17 +205,14 @@ function boot(): void {
   mount('apps', () => initAppsPage(socket, pageVisible));
   mount('security-scan', () => initSecurityScanPage(socket, pageVisible));
   // EVERY DEVICE, in the view the link sets (the operator, 2026-11-23). The
-  // switcher and the site filter are hidden: the view is the link's choice, and
-  // a share is sent no sites. Applied after mountRouters, which first restores
-  // this browser's own choice from storage.
+  // view switcher is hidden: the view is the link's choice. Applied after
+  // mountRouters, which first restores this browser's own choice from storage.
   mount('devices', () => {
     mountRouters(socket);
     initRoutersMap();
     applyView(cfg.options.devicesView || 'comfortable');
-    for (const id of ['routersView', 'routersSiteFilter']) {
-      const n = el(id);
-      if (n) n.hidden = true;
-    }
+    const viewSel = el('routersView');
+    if (viewSel) viewSel.hidden = true;
   });
 
   const reduced = !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

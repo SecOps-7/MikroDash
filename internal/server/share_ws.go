@@ -574,7 +574,7 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 	}
 	stop := make(chan struct{})
 	sc.devStop = stop
-	fleet, geo := sc.devicesOptsLocked()
+	fleet := sc.devicesFleetLocked()
 	if fleet {
 		s.devicesMu.Lock()
 		s.devicesWatchers[sc.inner.c] = true
@@ -593,7 +593,7 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 		if rid == "" {
 			return
 		}
-		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid, fleet, geo))
+		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid, fleet))
 	}
 	go func() {
 		send()
@@ -610,47 +610,33 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 	}()
 }
 
-// devicesOptsLocked is whether this link's Devices page lists every device
-// (a page link carrying a view: sharelink.Options.ForPage), and whether it is
-// the map, the one view that needs each device's location. A slideshow slide
+// devicesFleetLocked is whether this link's Devices page lists every device
+// (a page link carrying a view: sharelink.Options.ForPage). A slideshow slide
 // or a link made before 2026-11-23 lists its one router.
-func (sc *shareConn) devicesOptsLocked() (fleet, geo bool) {
+func (sc *shareConn) devicesFleetLocked() bool {
 	if sharelink.Kind(sc.link.Kind) != sharelink.KindPage {
-		return false, false
+		return false
 	}
 	var o sharelink.Options
 	_ = json.Unmarshal([]byte(sc.link.Options), &o)
-	return o.FleetDevices(), o.FleetDevices() && o.DevicesView == "map"
+	return o.FleetDevices()
 }
 
 // shareStatsRows is the Devices page's rows for a share: every device in the
 // fleet for a link that opted in (TestASharedDevicesPageShowsEveryDevice), its
 // one router otherwise (TestAnOlderDevicesLinkKeepsItsRouter).
 //
-// THE ROWS ARE CUT DOWN for a share. A signed-in viewer sees where a router is
-// reached and how MikroDash signs in to it; a share link can reach anyone, so
-// the management address, the public address, the serial, the last error
-// (which names addresses and reasons), the login profile and the sites are
-// never sent. The location is sent only to a link whose view is the map, the
-// view that cannot be drawn without it; the administrator chose that view
-// knowing it shows where each device is. The card keeps its name, state,
-// readings, model, version and alert count.
-func shareStatsRows(s *Server, routerID string, fleet, geo bool) []routers.Row {
+// NOTHING IS HIDDEN (the operator, 2026-11-23): a shared Devices page shows
+// every attribute the signed-in page does, the management and public address,
+// serial, last error, login profile name, sites and location included. Anyone
+// holding the link sees them; no credential is in a row.
+func shareStatsRows(s *Server, routerID string, fleet bool) []routers.Row {
 	src := s.buildStatsSources(nil, routerID)
 	src.Visible = map[string]bool{routerID: true}
 	if fleet {
 		src.Visible = nil
 	}
-	rows := routers.BuildStats(src)
-	for i := range rows {
-		r := &rows[i]
-		r.Host, r.PublicIP, r.Serial, r.LastError, r.LoginProfile = "", nil, nil, nil, nil
-		r.SiteIDs, r.SiteNames, r.SiteID, r.SiteName = []string{}, []string{}, nil, nil
-		if !geo {
-			r.Geo = nil
-		}
-	}
-	return rows
+	return routers.BuildStats(src)
 }
 
 // secScanGet answers the Security Scan page's `secscan:get` for a share: the

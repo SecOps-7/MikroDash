@@ -222,13 +222,13 @@ func (s *Server) shareDevicesOverview(w http.ResponseWriter, q url.Values, l *db
 	from, to := overviewWindow(req, time.Now().UnixMilli())
 	// EVERY DEVICE for a link that opted in, as its page lists every device (the
 	// operator, 2026-11-23; sharelink.Options.ForPage); its one router
-	// otherwise. No backup status, which is not the share's to show.
+	// otherwise. Backup status included: a shared Devices page hides nothing.
 	var o sharelink.Options
 	fleet := false
 	if l != nil && sharelink.Kind(l.Kind) == sharelink.KindPage && json.Unmarshal([]byte(l.Options), &o) == nil {
 		fleet = o.FleetDevices()
 	}
-	out, status, msg := s.deviceOverviewRows(from, to, func(id string) bool { return fleet || id == rid }, map[string]bool{})
+	out, status, msg := s.deviceOverviewRows(from, to, func(id string) bool { return fleet || id == rid }, map[string]bool{"": true})
 	if status != 0 {
 		writeJSONErr(w, status, msg)
 		return

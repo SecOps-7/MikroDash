@@ -753,8 +753,8 @@ func TestALinkWhosePageIsNoLongerSharedIsRefusedNotRevoked(t *testing.T) {
 
 // TestASharedDevicesPageShowsEveryDevice: the Devices page, shared, lists
 // the whole fleet, as the page does (the operator, 2026-11-23): every router
-// and switch in its two-second stats frame and in its overview, with where
-// each is reached left out, and its location only for a map view.
+// and switch in its two-second stats frame and in its overview, and nothing
+// hidden from a row: the management address is there as on the signed-in page.
 func TestASharedDevicesPageShowsEveryDevice(t *testing.T) {
 	srv, h := shareServer(t)
 	ts := httptest.NewServer(h)
@@ -787,10 +787,8 @@ func TestASharedDevicesPageShowsEveryDevice(t *testing.T) {
 	ids := map[any]bool{}
 	for _, r := range rows {
 		ids[r["id"]] = true
-		for _, k := range []string{"host", "publicIp", "serial", "lastError", "loginProfile", "siteId", "siteName", "geo"} {
-			if v := r[k]; v != nil && v != "" {
-				t.Errorf("the shared row %v carries %s (%v): where a device is reached is never shared", r["id"], k, v)
-			}
+		if r["id"] == "r1" && r["host"] != "198.51.100.1" {
+			t.Errorf("the shared row hides r1's address (%v): a shared Devices page hides nothing", r["host"])
 		}
 	}
 	if !ids["r1"] || !ids["r2"] || !ids["s1"] {
@@ -802,9 +800,6 @@ func TestASharedDevicesPageShowsEveryDevice(t *testing.T) {
 	seen := map[any]bool{}
 	for _, r := range ov {
 		seen[r["routerId"]] = true
-		if r["backup"] != nil {
-			t.Errorf("the overview shares %v's backups", r["routerId"])
-		}
 	}
 	if w.Code != 200 || !seen["r1"] || !seen["r2"] {
 		t.Errorf("the overview: %d %s; want every router's strip", w.Code, w.Body.String())
