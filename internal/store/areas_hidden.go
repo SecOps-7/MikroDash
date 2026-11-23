@@ -12,11 +12,19 @@ package store
 //
 // A MISSING KEY MEANS NOTHING IS HIDDEN, which is the right default: a page the
 // operator has never heard of should appear, not be silently absent.
+//
+// ── AND THE HAND-BUILT PAGES WITH NO SWITCH OF THEIR OWN (2026-11-23) ───────
+//
+// Apps Usage, Security Scan, the tools, Terminal, the AI Agent, Reports and
+// Config Management had no Visible Pages box at all (the operator found them
+// missing). They are hidden through this same list rather than a key each, so
+// it names any page except Dashboard and Settings, which are always shown.
 
 import (
 	"sort"
 
 	"mikrodash/internal/areas"
+	"mikrodash/internal/pages"
 )
 
 // CleanHiddenAreas normalises what a browser submitted: strings only, each one a
@@ -28,6 +36,11 @@ func CleanHiddenAreas(raw any) []string {
 	known := map[string]bool{}
 	for _, k := range areas.Keys() {
 		known[k] = true
+	}
+	for _, k := range pages.Keys() {
+		if k != "dashboard" && k != "settings" {
+			known[k] = true
+		}
 	}
 	seen := map[string]bool{}
 	out := []string{}

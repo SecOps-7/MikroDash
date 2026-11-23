@@ -25,7 +25,8 @@ fs.writeFileSync(ENTRY,
   "export { presetTiers } from '../web/src/presets.js';\n" +
   "export { mountViewPresets, detectViewPreset } from '../web/src/pages/settings.js';\n" +
   "export { AREAS } from '../web/src/gen/areas.js';\n" +
-  "export { PAGE_NAV_MAP, VIEW_PRESETS } from '../web/src/gen/view-presets.js';\n");
+  "export { PAGE_NAV_MAP } from '../web/src/gen/view-presets.js';\n" +
+  "export { ALL_NAV_PAGES } from '../web/src/gen/page-keys.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.presets.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -36,29 +37,28 @@ const mod = require(OUT);
 // ── THE TIERS ───────────────────────────────────────────────────────────────
 const t = mod.presetTiers();
 const has = (list, k) => list.includes(k);
-const STANDARD_NEW = ['tools-ping', 'tools-traceroute', 'tools-torch', 'tools-btest', 'ip-addresses', 'address-lists', 'interface-lists', 'ip-pools', 'dhcp-servers'];
-
-assert.deepStrictEqual([...t.home].sort(), [...mod.VIEW_PRESETS.home].sort(), 'Home changed; the operator kept it as it was');
-for (const k of STANDARD_NEW) assert.ok(has(t.standard, k), 'Standard lacks ' + k);
-for (const k of mod.VIEW_PRESETS.standard) assert.ok(has(t.standard, k), 'Standard lost ' + k);
-// The control: the Advanced-only pages are NOT in Standard.
-// `tools-sniffer` is in this list and its four siblings are in STANDARD_NEW
-// above, which is the whole point of listing it: a capture is the traffic
-// itself rather than a probe, so the preset that only chooses a nav layout does
-// not hand it out.
-for (const k of ['ospf', 'containers', 'ipsec', 'ai-agent', 'routing-rules', 'tools-sniffer']) {
-  assert.ok(!has(t.standard, k), k + ' is in Standard; the operator put it in Advanced');
+// THE THREE PRESETS AS THE OPERATOR DEFINED THEM (2026-11-23): Home for a home
+// router and a user who is not a network engineer, Standard the middle ground,
+// Advanced every page.
+const HOME = ['wifi-networks', 'wifi-clients', 'wifi-map', 'dhcp', 'bandwidth', 'apps', 'wan', 'packages'];
+assert.deepStrictEqual([...t.home].sort(), [...HOME].sort(), 'Home is not the home-router set');
+for (const k of ['interfaces', 'connections', 'firewall', 'dns', 'logs', 'security-scan', 'tools-ping', 'tools-btest',
+  'ip-addresses', 'address-lists', 'dhcp-servers']) {
+  assert.ok(has(t.standard, k), 'Standard lacks ' + k);
+  assert.ok(!has(t.home, k), k + ' is in Home, which is for a home user');
+}
+for (const k of ['ospf', 'containers', 'ipsec', 'ai-agent', 'terminal', 'tools-sniffer', 'routing', 'users', 'config-management']) {
+  assert.ok(!has(t.standard, k), k + ' is in Standard; it is Advanced');
   assert.ok(has(t.advanced, k), k + ' is not in Advanced');
 }
-// Advanced is every page a preset can name: all hand-built toggles, every
-// generated page, the five tool pages and the AI Agent.
-for (const a of mod.AREAS) assert.ok(has(t.advanced, a.key), 'Advanced lacks the generated page ' + a.key);
-for (const sKey of Object.keys(mod.PAGE_NAV_MAP)) assert.ok(has(t.advanced, mod.PAGE_NAV_MAP[sKey]), 'Advanced lost ' + sKey);
+// ADVANCED IS EVERY PAGE but Dashboard and Settings, which no preset turns off.
+const every = new Set([...mod.ALL_NAV_PAGES, ...mod.AREAS.map((a) => a.key)]);
+every.delete('dashboard'); every.delete('settings');
+assert.deepStrictEqual([...t.advanced].sort(), [...every].sort(), 'Advanced is not every page');
 for (const k of t.home) assert.ok(has(t.standard, k), 'Home has ' + k + ' and Standard does not');
 for (const k of t.standard) assert.ok(has(t.advanced, k), 'Standard has ' + k + ' and Advanced does not');
-say('ok  Home unchanged; Standard adds the six; Advanced is every page; each tier contains the one below');
+say('ok  Home is the home-router set; Standard the middle; Advanced every page; each tier contains the one below');
 
-// ── VISIBLE PAGES: A PRESET SETS THE GENERATED TOGGLES, AND IS RECOGNISED ────
 const navIds = Object.keys(mod.PAGE_NAV_MAP).map((k) => 's_' + k);
 const doc = makeDoc(['viewPresetWrap', ...navIds], { allowUnknown: ['.view-preset-btn'], query: { 'input[data-area-toggle]': mod.AREAS.map((a) => a.key) },
 });

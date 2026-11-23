@@ -27,29 +27,5 @@
     "pageDevices": "devices",
     "pageAudit": "audit-trail",
     "pageBackups": "backups"
-  },
-  "presets": {
-    "home": [
-      "wifi-networks",
-      "wifi-clients",
-      "interfaces",
-      "dhcp",
-      "connections",
-      "bandwidth"
-    ],
-    "standard": [
-      "wifi-networks",
-      "wifi-clients",
-      "interfaces",
-      "dhcp",
-      "connections",
-      "bandwidth",
-      "network-topology",
-      "dns",
-      "vlans",
-      "vpn",
-      "firewall",
-      "logs"
-    ]
   }
 }

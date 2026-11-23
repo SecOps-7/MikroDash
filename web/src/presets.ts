@@ -1,69 +1,89 @@
 // THE THREE PRESETS - Home, Standard, Advanced - ONCE.
 //
 // Settings → Visible Pages applies and detects them, and a role's page matrix
-// applies them. They were built in three places from the frozen VIEW_PRESETS and
-// PAGE_NAV_MAP, which name only the hand-built pages that have a Visible Pages
-// toggle. So every generated page, Tools and the AI Agent were in no preset:
-// Advanced left them untouched on Visible Pages, and a role given Advanced got
-// no access to any of them (found 2026-09-18).
+// applies them.
+//
+// ── WHAT EACH ONE IS FOR (the operator, 2026-11-23) ─────────────────────────
+//
+//   Home       a home router, for somebody who is not a network engineer: their
+//              Wi-Fi, who is connected, how much is used and by what, whether the
+//              internet is up, and updates.
+//   Standard   the middle: what a technical user looks at, with the diagnostic
+//              tools, but not the pages that only matter to a network engineer
+//              or that run anything typed (Terminal, the AI Agent).
+//   Advanced   every page.
 //
 // ── WHERE A PAGE'S TIER COMES FROM ───────────────────────────────────────────
 //
-// - a hand-built page with a toggle: the frozen VIEW_PRESETS, and Advanced for
-//   the rest of PAGE_NAV_MAP, as before;
-// - a generated page: its `tier`, declared beside it in internal/areas;
-// - a hand-built page with NO toggle: HAND_TIERS below. They matter to roles,
-//   which grant every page, and not to Visible Pages, which has no box for them.
+// - a hand-built page: PAGE_TIERS below, one table for all of them. The two
+//   frozen lists read out of the Node app (VIEW_PRESETS) were replaced by it;
+// - a generated page: its `tier`, declared beside it in internal/areas.
 //
-// A tier includes the tiers below it: Standard is Home and more.
+// A page in neither is Advanced, so a page added to the nav joins Advanced by
+// existing. A tier includes the tiers below it: Standard is Home and more.
 
-import { PAGE_NAV_MAP, VIEW_PRESETS } from './gen/view-presets';
+import { PAGE_NAV_MAP } from './gen/view-presets';
 import { AREAS } from './gen/areas';
+import { ALL_NAV_PAGES } from './gen/page-keys';
 
 export type Tier = 'home' | 'standard' | 'advanced';
 
 const RANK: Record<Tier, number> = { home: 0, standard: 1, advanced: 2 };
 
-/** Hand-built pages with no Visible Pages toggle, placed by the operator. */
-const HAND_TIERS: Record<string, Tier> = {
-  // The four diagnostics, one page each since 2026-09-27. They were one `tools`
-  // entry at Standard; four entries at Standard keep every preset offering
-  // exactly what it offered before the split.
+/** Every hand-built page below Advanced. Dashboard and Settings are always shown. */
+export const PAGE_TIERS: Readonly<Record<string, Tier>> = {
+  'wifi-networks': 'home',
+  'wifi-clients': 'home',
+  'wifi-map': 'home',
+  dhcp: 'home',
+  bandwidth: 'home',
+  apps: 'home',
+  wan: 'home',
+  packages: 'home',
+
+  interfaces: 'standard',
+  connections: 'standard',
+  'network-topology': 'standard',
+  devices: 'standard',
+  dns: 'standard',
+  vlans: 'standard',
+  vpn: 'standard',
+  firewall: 'standard',
+  logs: 'standard',
+  netwatch: 'standard',
+  'security-scan': 'standard',
+  queues: 'standard',
+  backups: 'standard',
+  reports: 'standard',
+  // The four diagnostics probe: they send packets or watch a counter. The
+  // Packet Sniffer captures the traffic itself, so it is Advanced, with the
+  // Terminal, which runs whatever is typed, and the AI Agent.
   'tools-ping': 'standard',
   'tools-traceroute': 'standard',
   'tools-torch': 'standard',
   'tools-btest': 'standard',
-  // ── AND THE PACKET SNIFFER AT ADVANCED, WHICH THE OTHER FOUR ARE NOT ──────
-  //
-  // The four diagnostics probe: they send packets, or watch a counter, and the
-  // most they learn about somebody else's traffic is which addresses are busy.
-  // A capture is the traffic itself, headers and payload, exported as a file
-  // that opens in Wireshark - so a preset called Standard, which an operator
-  // picks to choose a NAV LAYOUT, should not be what hands that out. Advanced
-  // is where the Terminal sits and for the same reason. Its own grant still
-  // applies on top, and so does the device's own sniffer flag.
-  'tools-sniffer': 'advanced',
-  'ai-agent': 'advanced',
-  // Advanced, and never below it: the Terminal runs whatever is typed, and a
-  // preset called Standard should not switch that on for somebody who chose a
-  // nav layout. Its own gates still apply on top.
-  terminal: 'advanced',
 };
 
-function upTo(tier: Tier): string[] {
-  return [
-    ...AREAS.filter((a) => RANK[a.tier] <= RANK[tier]).map((a) => a.key),
-    ...Object.keys(HAND_TIERS).filter((k) => RANK[HAND_TIERS[k]!] <= RANK[tier]),
-  ];
+/** The pages a preset never turns off, whatever the tier. */
+const ALWAYS = new Set(['dashboard', 'settings']);
+
+function tierOf(page: string): Tier {
+  const area = AREAS.find((a) => a.key === page);
+  if (area) return area.tier;
+  return PAGE_TIERS[page] || 'advanced';
+}
+
+/** Every page a preset decides: the hand-built nav pages and the generated ones. */
+function allPages(): string[] {
+  const set = new Set<string>([...ALL_NAV_PAGES, ...Object.values(PAGE_NAV_MAP), ...AREAS.map((a) => a.key)]);
+  return [...set].filter((k) => !ALWAYS.has(k));
 }
 
 /** The page keys each preset turns on. */
 export function presetTiers(): Record<Tier, string[]> {
-  return {
-    home: [...(VIEW_PRESETS.home as string[]), ...upTo('home')],
-    standard: [...(VIEW_PRESETS.standard as string[]), ...upTo('standard')],
-    advanced: [...Object.keys(PAGE_NAV_MAP).map((k) => PAGE_NAV_MAP[k] as string), ...upTo('advanced')],
-  };
+  const pages = allPages();
+  const upTo = (t: Tier): string[] => pages.filter((k) => RANK[tierOf(k)] <= RANK[t]);
+  return { home: upTo('home'), standard: upTo('standard'), advanced: upTo('advanced') };
 }
 
 /**

@@ -38,6 +38,8 @@ import { siteIdsOf } from './routers';
 import { PAGE_NAV_MAP, VIEW_PRESET_KEY } from '../gen/view-presets';
 import { presetTiers, presetToggles } from '../presets';
 import { AREAS } from '../gen/areas';
+import { ALL_NAV_PAGES } from '../gen/page-keys';
+import { pageTitle } from '../gen/pages';
 import {
   FORM_FIELDS, VALUE_DEFAULTS, PLACEHOLDER_CREDENTIALS,
   type ValueDefault,
@@ -98,8 +100,15 @@ function valueFor(raw: unknown, rule: ValueDefault | undefined): string {
  */
 function renderAreaToggles(hidden: readonly string[]): void {
   const grid = el('visiblePagesGrid');
-  if (!grid || AREAS.length === 0) return;
-  for (const area of AREAS) {
+  if (!grid) return;
+  // THE HAND-BUILT PAGES WITH NO SWITCH OF THEIR OWN go in the same list (the
+  // operator, 2026-11-23: they were missing from this card). Dashboard and
+  // Settings are always shown.
+  const mapped = new Set(Object.values(PAGE_NAV_MAP));
+  const unswitched = ALL_NAV_PAGES
+    .filter((k) => k !== 'dashboard' && k !== 'settings' && !mapped.has(k))
+    .map((k) => ({ key: k, title: pageTitle(k) || k }));
+  for (const area of [...unswitched, ...AREAS]) {
     const id = 'sarea_' + area.key;
     let box = el<HTMLInputElement>(id);
     if (!box) {

@@ -12,14 +12,6 @@ const body = `// GENERATED from testdata/view-presets.json - do not edit.
 /** settings key -> page key. \`pageWifi\` is the checkbox; \`wifi\` is what a preset names. */
 export const PAGE_NAV_MAP: Record<string, string> = ${JSON.stringify(d.navMap, null, 2)};
 
-/**
- * The two EXPLICIT presets. \`advanced\` is absent on purpose - it is derived from
- * PAGE_NAV_MAP at use, exactly as the original derives it, "so a page added to
- * the nav joins Advanced by existing". A frozen list here would drop the next
- * page added from the preset, silently.
- */
-export const VIEW_PRESETS: Record<string, string[]> = ${JSON.stringify(d.presets, null, 2)};
-
 /** Where the chosen preset is remembered. */
 export const VIEW_PRESET_KEY = ${JSON.stringify(d.storageKey)};
 `;

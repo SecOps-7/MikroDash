@@ -80,3 +80,19 @@ func keysOf(s Settings) []string {
 	}
 	return out
 }
+
+// TestAHandBuiltPageCanBeHidden: the hand-built pages with no switch of their
+// own (Terminal, Apps Usage, the tools...) are hidden through the same list
+// (2026-11-23); Dashboard and Settings, always shown, are dropped from it.
+func TestAHandBuiltPageCanBeHidden(t *testing.T) {
+	got := CleanHiddenAreas([]any{"terminal", "apps", "dashboard", "settings", "tools-sniffer", "no-such-page"})
+	want := []string{"apps", "terminal", "tools-sniffer"}
+	if len(got) != len(want) {
+		t.Fatalf("CleanHiddenAreas = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("CleanHiddenAreas = %v, want %v", got, want)
+		}
+	}
+}
