@@ -219,7 +219,9 @@ func (s *Server) shareTopologyLayout(w http.ResponseWriter, _ url.Values, l *db.
 func (s *Server) shareDevicesOverview(w http.ResponseWriter, q url.Values, _ *db.ShareLink, rid string) {
 	req := &http.Request{URL: &url.URL{RawQuery: q.Encode()}}
 	from, to := overviewWindow(req, time.Now().UnixMilli())
-	out, status, msg := s.deviceOverviewRows(from, to, func(id string) bool { return id == rid }, map[string]bool{})
+	// EVERY DEVICE, as the shared page lists every device (the operator,
+	// 2026-11-23); no backup status, which is not the share's to show.
+	out, status, msg := s.deviceOverviewRows(from, to, func(string) bool { return true }, map[string]bool{})
 	if status != 0 {
 		writeJSONErr(w, status, msg)
 		return

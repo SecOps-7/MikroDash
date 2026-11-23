@@ -35,6 +35,11 @@ type Options struct {
 	// Dashboard card.
 	Card string `json:"card,omitempty"`
 
+	// DevicesView is how a shared Devices page shows the fleet: "comfortable"
+	// (default), "compact", "list" or "map". Set only on a link to the Devices
+	// page; see ForPage. Not `view`, which is the full/embed choice above.
+	DevicesView string `json:"devicesView,omitempty"`
+
 	// Sensor feed.
 	Values     []string `json:"values,omitempty"`
 	Interfaces []string `json:"interfaces,omitempty"`
@@ -145,6 +150,16 @@ func (o *Options) Normalize(kind Kind, hasOrigins bool) error {
 		}
 	}
 	return nil
+}
+
+// ForPage applies the options that belong to one page: a Devices link gets
+// its view (default comfortable), any other page has it cleared.
+func (o *Options) ForPage(page string) error {
+	if page != "devices" {
+		o.DevicesView = ""
+		return nil
+	}
+	return oneOf("devices view", &o.DevicesView, "comfortable", "comfortable", "compact", "list", "map")
 }
 
 func oneOf(what string, v *string, def string, allowed ...string) error {

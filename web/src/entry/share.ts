@@ -56,7 +56,8 @@ import { initConnectionsPage } from '../pages/connections';
 import { initBandwidthPage } from '../pages/bandwidth';
 import { initAppsPage } from '../pages/apps';
 import { initSecurityScanPage } from '../pages/security-scan';
-import { mountRouters } from '../pages/routers';
+import { applyView, mountRouters } from '../pages/routers';
+import { initRoutersMap } from '../pages/routers-map';
 
 const INVALID = 'This shared link is no longer valid. Ask whoever shared it for a new one.';
 
@@ -203,7 +204,19 @@ function boot(): void {
   mount('bandwidth', () => initBandwidthPage(socket, pageVisible));
   mount('apps', () => initAppsPage(socket, pageVisible));
   mount('security-scan', () => initSecurityScanPage(socket, pageVisible));
-  mount('devices', () => mountRouters(socket));
+  // EVERY DEVICE, in the view the link sets (the operator, 2026-11-23). The
+  // switcher and the site filter are hidden: the view is the link's choice, and
+  // a share is sent no sites. Applied after mountRouters, which first restores
+  // this browser's own choice from storage.
+  mount('devices', () => {
+    mountRouters(socket);
+    initRoutersMap();
+    applyView(cfg.options.devicesView || 'comfortable');
+    for (const id of ['routersView', 'routersSiteFilter']) {
+      const n = el(id);
+      if (n) n.hidden = true;
+    }
+  });
 
   const reduced = !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fadeMs = transitionMs(cfg.options, reduced);

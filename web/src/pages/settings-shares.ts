@@ -28,6 +28,7 @@ interface LinkOptions {
   theme?: string; view?: string; defaultSecs?: number; transition?: string; speed?: string;
   atEnd?: string; pauseOnHover?: boolean; titleBar?: boolean; progress?: boolean; controls?: boolean;
   offline?: string; warmUpSecs?: number; card?: string; values?: string[]; interfaces?: string[];
+  devicesView?: string;
 }
 
 /** One link as GET /api/share-links lists it (shareView in Go). */
@@ -67,6 +68,7 @@ export function subjectOf(l: ShareLinkView, o: ShareOptionsResp | null): string 
   const router = labelOf(o?.routers, l.routerId);
   if (l.kind === 'card') return labelOf(o?.cards, l.options.card || '') + ' on ' + router;
   if (l.kind === 'feed') return (l.options.values || []).length + ' values from ' + router;
+  if (l.page === 'devices') return 'Devices (every device, ' + (l.options.devicesView || 'comfortable') + ')';
   return labelOf(o?.pages, l.page) + ' on ' + router;
 }
 
@@ -170,10 +172,18 @@ function setKind(kind: string): void {
   if (capHelp && opts) capHelp.textContent = 'Up to ' + opts.maxViewerCap + '.';
 }
 
+/** The rows that belong to one page: the Dashboard's layout, and the
+ *  Devices page's view. A Devices link lists every device, so its router is
+ *  only where the link connects, and the help says so. */
 function syncLayoutRow(): void {
-  const row = el('sh_layoutRow');
   const kind = select('sh_kind')?.value;
-  if (row) row.style.display = kind === 'page' && select('sh_page')?.value === 'dashboard' ? '' : 'none';
+  const page = select('sh_page')?.value;
+  const row = el('sh_layoutRow');
+  if (row) row.style.display = kind === 'page' && page === 'dashboard' ? '' : 'none';
+  const dv = el('sh_devicesViewRow');
+  if (dv) dv.style.display = kind === 'page' && page === 'devices' ? '' : 'none';
+  const help = el('sh_routerHelp');
+  if (help) help.textContent = kind === 'page' && page === 'devices' ? 'The page lists every device.' : '';
 }
 
 function slideRowHtml(s: SlideRow): string {
@@ -304,6 +314,7 @@ function openForm(link: ShareLinkView | null): void {
   set('sh_date', '');
   set('sh_theme', o.theme || 'follow');
   set('sh_view', o.view || 'full');
+  set('sh_devicesView', o.devicesView || 'comfortable');
   set('sh_cap', String(link?.viewerCap || opts.defaultViewerCap));
   const cap = input('sh_cap');
   if (cap) cap.max = String(opts.maxViewerCap);
@@ -344,6 +355,7 @@ export function bodyFromForm(): Record<string, unknown> {
     });
   }
   if (kind === 'card') options.card = select('sh_card')?.value;
+  if (kind === 'page' && select('sh_page')?.value === 'devices') options.devicesView = select('sh_devicesView')?.value;
   if (kind === 'feed') {
     options.values = Array.from(el('sh_values')?.querySelectorAll<HTMLInputElement>('input:checked') || []).map((c) => c.value);
     options.interfaces = list('sh_ifaces');

@@ -542,14 +542,30 @@ func (sc *shareConn) close() {
 
 // devicesTimerLocked runs the Devices page's two-second stats frame while a
 // share shows that page, and stops it otherwise. A signed-in viewer gets the
-// frame from its own timer (conn.sendRoutersStats); a share gets ONE row, its
-// router's, never the fleet's. It holds no fleet-wide Devices hold either:
-// the share's own session for its router keeps that row's readings current.
+// frame from its own timer (conn.sendRoutersStats); a share gets its own,
+// cut down (shareStatsRows).
+//
+// ── EVERY DEVICE, AND KEPT CURRENT (the operator, 2026-11-23) ───────────────
+//
+// A shared Devices page showed only the link's router. It lists the whole fleet
+// now, so while it is open the share counts as somebody watching the Devices
+// page: it joins `devicesWatchers`, and `syncFleetHolds` runs every router's
+// Devices collectors exactly as for a signed-in viewer. It leaves the set when
+// the page goes, and the hold goes with the last watcher.
 func (sc *shareConn) devicesTimerLocked(on bool) {
+	s := sc.srv
 	if !on {
 		if sc.devStop != nil {
 			close(sc.devStop)
 			sc.devStop = nil
+			s.devicesMu.Lock()
+			_, had := s.devicesWatchers[sc.inner.c]
+			delete(s.devicesWatchers, sc.inner.c)
+			last := had && len(s.devicesWatchers) == 0
+			s.devicesMu.Unlock()
+			if last {
+				go s.syncFleetHolds()
+			}
 		}
 		return
 	}
@@ -558,6 +574,16 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 	}
 	stop := make(chan struct{})
 	sc.devStop = stop
+	s.devicesMu.Lock()
+	s.devicesWatchers[sc.inner.c] = true
+	s.devicesMu.Unlock()
+	geo := sc.devicesMapLocked()
+	go func() {
+		s.syncFleetHolds()
+		if s.sessions != nil {
+			s.sessions.PrimeStats()
+		}
+	}()
 	send := func() {
 		sc.mu.Lock()
 		rid := sc.routerID
@@ -565,7 +591,7 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 		if rid == "" {
 			return
 		}
-		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid))
+		EvRoutersStats.Send(sc.srv.hub, sc.inner.c, shareStatsRows(sc.srv, rid, geo))
 	}
 	go func() {
 		send()
@@ -582,23 +608,36 @@ func (sc *shareConn) devicesTimerLocked(on bool) {
 	}()
 }
 
-// shareStatsRows is the Devices page's row for one router only: BuildStats
-// drops every row Visible does not name (TestASharedDevicesPageShowsOnlyItsRouter).
+// devicesMapLocked is whether this link shows the Devices page as a map, the
+// one view that needs each device's location.
+func (sc *shareConn) devicesMapLocked() bool {
+	var o sharelink.Options
+	_ = json.Unmarshal([]byte(sc.link.Options), &o)
+	return sharelink.Kind(sc.link.Kind) == sharelink.KindPage && o.DevicesView == "map"
+}
+
+// shareStatsRows is the Devices page's rows for a share: every device in the
+// fleet (TestASharedDevicesPageShowsEveryDevice).
 //
-// THE ROW IS CUT DOWN for a share. A signed-in viewer sees where a router is
-// reached and how MikroDash signs in to it; a share link can reach anyone,
-// so the management address, the public address, the serial, the last error
-// (which names addresses and reasons), the login profile, and the sites and
-// location are never sent. The card keeps its name, state, readings, model,
-// version and alert count.
-func shareStatsRows(s *Server, routerID string) []routers.Row {
+// THE ROWS ARE CUT DOWN for a share. A signed-in viewer sees where a router is
+// reached and how MikroDash signs in to it; a share link can reach anyone, so
+// the management address, the public address, the serial, the last error
+// (which names addresses and reasons), the login profile and the sites are
+// never sent. The location is sent only to a link whose view is the map, the
+// view that cannot be drawn without it; the administrator chose that view
+// knowing it shows where each device is. The card keeps its name, state,
+// readings, model, version and alert count.
+func shareStatsRows(s *Server, routerID string, geo bool) []routers.Row {
 	src := s.buildStatsSources(nil, routerID)
-	src.Visible = map[string]bool{routerID: true}
+	src.Visible = nil
 	rows := routers.BuildStats(src)
 	for i := range rows {
 		r := &rows[i]
 		r.Host, r.PublicIP, r.Serial, r.LastError, r.LoginProfile = "", nil, nil, nil, nil
-		r.SiteIDs, r.SiteNames, r.SiteID, r.SiteName, r.Geo = []string{}, []string{}, nil, nil, nil
+		r.SiteIDs, r.SiteNames, r.SiteID, r.SiteName = []string{}, []string{}, nil, nil
+		if !geo {
+			r.Geo = nil
+		}
 	}
 	return rows
 }

@@ -1581,7 +1581,7 @@
               <div class="ff" data-share-for="page card feed">
                 <label class="sform-label" for="sh_router">Router</label>
                 <select id="sh_router" class="sform-input"></select>
-                <div class="ff-help"></div>
+                <div class="ff-help" id="sh_routerHelp"></div>
               </div>
               <div class="ff" data-share-for="card">
                 <label class="sform-label" for="sh_card">Card</label>
@@ -1596,6 +1596,16 @@
                   <option value="default">The default layout</option>
                 </select>
                 <div class="ff-help">Copied into the link when it is saved.</div>
+              </div>
+              <div class="ff" data-share-for="page" id="sh_devicesViewRow">
+                <label class="sform-label" for="sh_devicesView">Devices view</label>
+                <select id="sh_devicesView" class="sform-input">
+                  <option value="comfortable">Comfortable</option>
+                  <option value="compact">Compact</option>
+                  <option value="list">List</option>
+                  <option value="map">Map</option>
+                </select>
+                <div class="ff-help">How every device is shown. The map shows where each one is.</div>
               </div>
               <div class="ff ff-full" data-share-for="feed">
                 <label class="sform-label">Values</label>

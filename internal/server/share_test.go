@@ -751,17 +751,24 @@ func TestALinkWhosePageIsNoLongerSharedIsRefusedNotRevoked(t *testing.T) {
 	}
 }
 
-// TestASharedDevicesPageShowsOnlyItsRouter: the Devices page, shared, gets
-// its two-second stats frame and its overview for the shared router only,
-// never the rest of the fleet.
-func TestASharedDevicesPageShowsOnlyItsRouter(t *testing.T) {
+// TestASharedDevicesPageShowsEveryDevice: the Devices page, shared, lists
+// the whole fleet, as the page does (the operator, 2026-11-23): every router
+// and switch in its two-second stats frame and in its overview, with where
+// each is reached left out, and its location only for a map view.
+func TestASharedDevicesPageShowsEveryDevice(t *testing.T) {
 	srv, h := shareServer(t)
 	ts := httptest.NewServer(h)
 	defer ts.Close()
 	id, token := createLink(t, h, `{"kind":"page","label":"Devices","page":"devices","routerId":"r1"}`)
+	if l, _ := srv.auditDB.ShareLinkByID(id); l == nil || !strings.Contains(l.Options, `"devicesView":"comfortable"`) {
+		t.Errorf("a Devices link was not given the default view: %+v", l)
+	}
 	c, tk := openShareView(t, ts, h, token)
 	defer c.CloseNow()
 	waitFor(t, func() bool { return srv.shareLive.count(id) == 1 })
+	if !srv.devicesWatched() {
+		t.Error("the shared Devices page does not count as watching it, so the fleet's readings would go stale")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 	var rows []map[string]any
@@ -778,22 +785,49 @@ func TestASharedDevicesPageShowsOnlyItsRouter(t *testing.T) {
 			rows = f.Data
 		}
 	}
-	if len(rows) != 1 || rows[0]["id"] != "r1" {
-		t.Fatalf("the stats frame carried %d rows (%v); want only r1", len(rows), rows)
-	}
-	for _, k := range []string{"host", "publicIp", "serial", "lastError", "loginProfile", "siteId", "siteName", "geo"} {
-		if v := rows[0][k]; v != nil && v != "" {
-			t.Errorf("the shared row carries %s (%v): where a router is reached is never shared", k, v)
+	ids := map[any]bool{}
+	for _, r := range rows {
+		ids[r["id"]] = true
+		for _, k := range []string{"host", "publicIp", "serial", "lastError", "loginProfile", "siteId", "siteName", "geo"} {
+			if v := r[k]; v != nil && v != "" {
+				t.Errorf("the shared row %v carries %s (%v): where a device is reached is never shared", r["id"], k, v)
+			}
 		}
 	}
-	if rows[0]["label"] != "Edge" {
-		t.Errorf("control: the shared row lost its name: %v", rows[0]["label"])
+	if !ids["r1"] || !ids["r2"] || !ids["s1"] {
+		t.Fatalf("the stats frame carried %v; want every device: r1, r2 and the switch s1", ids)
 	}
 	w := shareReq(h, "GET", "/share/api/devices/overview", "", "", "", map[string]string{"Authorization": "Share " + tk})
 	var ov []map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &ov)
-	if w.Code != 200 || len(ov) != 1 || ov[0]["routerId"] != "r1" || ov[0]["backup"] != nil {
-		t.Errorf("the overview: %d %s; want r1's strip only, without its backups", w.Code, w.Body.String())
+	seen := map[any]bool{}
+	for _, r := range ov {
+		seen[r["routerId"]] = true
+		if r["backup"] != nil {
+			t.Errorf("the overview shares %v's backups", r["routerId"])
+		}
+	}
+	if w.Code != 200 || !seen["r1"] || !seen["r2"] {
+		t.Errorf("the overview: %d %s; want every router's strip", w.Code, w.Body.String())
+	}
+	c.CloseNow()
+	waitFor(t, func() bool { return !srv.devicesWatched() })
+}
+
+// TestADevicesLinkTakesAView: a Devices link's view is one of the page's
+// four, refused otherwise, and cleared on a link to any other page.
+func TestADevicesLinkTakesAView(t *testing.T) {
+	srv, h := shareServer(t)
+	id, _ := createLink(t, h, `{"kind":"page","label":"Map","page":"devices","routerId":"r1","options":{"devicesView":"map"}}`)
+	if l, _ := srv.auditDB.ShareLinkByID(id); l == nil || !strings.Contains(l.Options, `"devicesView":"map"`) {
+		t.Errorf("the map view was not kept: %+v", l)
+	}
+	if w := shareReq(h, "POST", "/api/share-links", `{"kind":"page","label":"Bad","page":"devices","routerId":"r1","options":{"devicesView":"grid"}}`, "admin", "", nil); w.Code != 400 {
+		t.Errorf("an unknown view was accepted: %d %s", w.Code, w.Body.String())
+	}
+	id, _ = createLink(t, h, `{"kind":"page","label":"Logs","page":"logs","routerId":"r1","options":{"devicesView":"map"}}`)
+	if l, _ := srv.auditDB.ShareLinkByID(id); l == nil || strings.Contains(l.Options, "devicesView") {
+		t.Errorf("a Logs link kept a Devices view: %+v", l)
 	}
 }
 

@@ -28,6 +28,8 @@ export interface ShareOptions {
   offline?: string;
   warmUpSecs?: number;
   card?: string;
+  /** A Devices link's view: comfortable, compact, list or map. */
+  devicesView?: string;
 }
 
 /** The whole inlined config (shareConfig in Go). */

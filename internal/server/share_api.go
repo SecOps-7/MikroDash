@@ -212,6 +212,9 @@ func (s *Server) buildShareLink(b shareBody, sess *Session, now time.Time) (db.S
 			return l, errors.New("choose a router")
 		}
 		l.Page, l.RouterID = page, b.RouterID
+		if err := opts.ForPage(page); err != nil {
+			return l, err
+		}
 		if page == "dashboard" {
 			l.Layout = s.shareLayout(b.Layout, sess)
 		}
@@ -221,6 +224,7 @@ func (s *Server) buildShareLink(b shareBody, sess *Session, now time.Time) (db.S
 		}
 		l.RouterID = b.RouterID
 	case sharelink.KindSlideshow:
+		opts.DevicesView = ""
 		if err := sharelink.CheckSlides(b.Slides); err != nil {
 			return l, err
 		}
