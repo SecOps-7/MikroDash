@@ -429,7 +429,9 @@ func TestEveryLiveToolHasAReader(t *testing.T) {
 			continue
 		}
 		named[tl.Collector] = true
-		if _, ok := liveToolReaders[tl.Collector]; !ok {
+		_, plain := liveToolReaders[tl.Collector]
+		_, withServer := liveServerReaders[tl.Collector]
+		if !plain && !withServer {
 			t.Errorf("live tool %q reads collector %q and nothing on the server answers it",
 				tl.Name, tl.Collector)
 		}
@@ -437,6 +439,14 @@ func TestEveryLiveToolHasAReader(t *testing.T) {
 	for key := range liveToolReaders {
 		if !named[key] {
 			t.Errorf("a reader exists for collector %q but no tool names it", key)
+		}
+	}
+	for key := range liveServerReaders {
+		if !named[key] {
+			t.Errorf("a server reader exists for collector %q but no tool names it", key)
+		}
+		if _, dup := liveToolReaders[key]; dup {
+			t.Errorf("collector %q has a reader in both maps; one would never run", key)
 		}
 	}
 	if len(named) == 0 {

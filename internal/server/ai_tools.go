@@ -107,6 +107,12 @@ func (cn *conn) runAITool(sc connScope, tc aiprovider.ToolCall) string {
 	// A LIVE TOOL reads a collector's measurements rather than a menu's rows.
 	// Checked after the permission, which applies to both kinds identically.
 	if t.Collector != "" {
+		if read, ok := liveServerReaders[t.Collector]; ok {
+			if sc.rs == nil {
+				return "No device is selected, so nothing was read."
+			}
+			return read(cn.srv, sc.rs, t)
+		}
 		return runLiveTool(sc.rs, t)
 	}
 	// A DIAGNOSTIC runs on the router, with the model's arguments, through the

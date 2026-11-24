@@ -15,6 +15,13 @@
       "page": "address-lists"
     },
     {
+      "name": "list_app_usage",
+      "access": "read",
+      "resource": "",
+      "collector": "apps",
+      "page": "apps"
+    },
+    {
       "name": "list_arp",
       "access": "read",
       "resource": "arp",

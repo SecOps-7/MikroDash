@@ -338,6 +338,25 @@ func liveTools() []Tool {
 		Page:       "bandwidth",
 		Access:     AccessRead,
 	}, {
+		// Apps Usage (the operator, 2026-11-24). The last hour from the apps
+		// collector, which reads /ip/firewall/connection and names each
+		// destination from /ip/dns/cache, port and network owner; and the stored
+		// totals, for a router with Reporting on. No destinations and no DNS
+		// names: the page keeps those for itself.
+		Name: namePrefix + "app_usage",
+		Description: "Read only. Which applications (Netflix, Zoom, Steam, YouTube...) used the " +
+			"network, measured from /ip/firewall/connection and named from /ip/dns/cache, port and " +
+			"network owner: for the last hour, each app's download, upload, total and share with " +
+			"its busiest devices, and how much traffic could not be named; and, when the router " +
+			"keeps history, each app's totals over the last 24 hours, 7 days and 30 days. Use it " +
+			"for questions about which apps or services use the internet, who uses an app, or " +
+			"how usage changed over days.",
+		Parameters: noArgs(),
+		Collector:  "apps",
+		Freshness:  FreshLive,
+		Page:       "apps",
+		Access:     AccessRead,
+	}, {
 		Name: namePrefix + "topology",
 		Description: "Read only. Describe the network around the router, discovered from " +
 			"/ip/neighbor (MNDP, LLDP and CDP): the router itself, each neighbouring device " +
