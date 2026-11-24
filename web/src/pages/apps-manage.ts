@@ -16,6 +16,7 @@
 // the DNS names behind them stay on the server.
 
 import { esc, el, pill, renderSortHeader, sortRows, fmtBytes, type SortCol, type SortState } from '../dom';
+import { confirmAction, notice } from '../confirm';
 import { fieldHtml } from '../form';
 import { paletteColour, type PillTone } from '../palette';
 import { badge, catLabel, catPill, CAT_TONES, type CategoryInfo } from './apps';
@@ -306,12 +307,16 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
   function remove(id: string): void {
     const a = appById(id);
     if (!a) return;
-    const msg = a.custom
-      ? 'Delete "' + a.name + '"? Its traffic goes back to unnamed, and its stored usage is counted as unnamed.'
-      : 'Remove your rules for "' + a.name + '"? The built-in catalogue names it again.';
-    if (!window.confirm(msg)) return;
-    send('/api/apps/rules/' + encodeURIComponent(id), 'DELETE').then(() => o.onChanged())
-      .catch((e: Error) => window.alert(e.message));
+    void confirmAction(a.custom
+      ? { title: 'Delete the app?', subject: a.name, confirmLabel: 'Delete', danger: true,
+        message: 'Its traffic goes back to unnamed, and its stored usage is counted as unnamed.' }
+      : { title: 'Remove your rules?', subject: a.name, confirmLabel: 'Remove', danger: true,
+        message: 'Remove your rules for this app? The built-in catalogue names it again.' })
+      .then((yes) => {
+        if (!yes) return;
+        send('/api/apps/rules/' + encodeURIComponent(id), 'DELETE').then(() => o.onChanged())
+          .catch((e: Error) => void notice('Could not remove', e.message));
+      });
   }
 
   // ── the category editor ──────────────────────────────────────────────────
@@ -342,9 +347,13 @@ export function initAppsManage(o: { routerId: () => string; onChanged: () => voi
 
   function removeCategory(id: string): void {
     const c = cat.categories.find((x) => x.id === id);
-    if (!c || !window.confirm('Delete the category "' + c.name + '"?')) return;
-    send('/api/apps/categories/' + encodeURIComponent(id), 'DELETE').then(() => o.onChanged())
-      .catch((e: Error) => window.alert(e.message));
+    if (!c) return;
+    void confirmAction({ title: 'Delete the category?', message: 'This category is deleted.',
+      subject: c.name, confirmLabel: 'Delete', danger: true }).then((yes) => {
+      if (!yes) return;
+      send('/api/apps/categories/' + encodeURIComponent(id), 'DELETE').then(() => o.onChanged())
+        .catch((e: Error) => void notice('Could not delete', e.message));
+    });
   }
 
   // ── wiring ───────────────────────────────────────────────────────────────

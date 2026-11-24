@@ -71,7 +71,7 @@ function mount() {
     querySelectorAll: () => [], querySelector: () => null,
     addEventListener: () => {}, createElement: () => makeEl(''),
   };
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = (url, init) => {
     calls.push({ url, method: (init && init.method) || 'GET',
       body: init && init.body ? JSON.parse(init.body) : null });

@@ -133,7 +133,7 @@ function mount() {
     addEventListener: () => {},
     createElement: () => makeEl(''),
   };
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = (url) => {
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, cities: [] }) });
   };

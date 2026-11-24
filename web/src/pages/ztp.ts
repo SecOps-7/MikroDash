@@ -12,6 +12,7 @@
 
 import { chooseDeviceType } from './switch-form';
 import { copyText, el, esc } from '../dom';
+import { confirmAction } from '../confirm';
 import type { Socket } from '../socket';
 import type { ZTPDeviceView, ZTPPayload } from '../gen/payloads';
 import { onZtpState, setZtpState, ztpState } from '../ztp-state';
@@ -312,19 +313,25 @@ async function act(action: string, d: ZTPDeviceView): Promise<void> {
         openOnboard(d);
         return;
       case 'reject':
-        if (!confirm('Reject ' + name + '?\n\nIts tunnel is closed and it can no longer reach this MikroDash.')) return;
+        if (!(await confirmAction({ title: 'Reject the device?',
+          message: 'Its tunnel is closed and it can no longer reach this MikroDash.',
+          subject: name, confirmLabel: 'Reject', danger: true }))) return;
         await api('POST', base + '/reject');
         return;
       case 'retry':
         await api('POST', base + '/retry');
         return;
       case 'delete':
-        if (!confirm('Remove ' + name + ' from provisioning?' + (d.state === 'awaiting'
-          ? '\n\nIts script stops working.' : ''))) return;
+        if (!(await confirmAction({ title: 'Remove from provisioning?',
+          message: 'Remove this device from provisioning?' + (d.state === 'awaiting'
+            ? ' Its script stops working.' : ''),
+          subject: name, confirmLabel: 'Remove', danger: true }))) return;
         await api('DELETE', base);
         return;
       case 'regenerate': {
-        if (!confirm('Make a new script for ' + name + '?\n\nThe old one stops working.')) return;
+        if (!(await confirmAction({ title: 'Make a new script?',
+          message: 'Make a new script for this device? The old one stops working.',
+          subject: name, confirmLabel: 'Make new script', danger: true }))) return;
         const r = await api<V.ScriptResult>('POST', base + '/regenerate', {});
         showScript('New script for ' + name, r, 'Run it on ' + name + '.');
         return;
@@ -367,11 +374,13 @@ function mountSettings(): void {
         'to be onboarded.');
     }, (e) => { if (msg) msg.textContent = errText(e); });
   });
-  el('ztpBatchBody')?.addEventListener('click', (e) => {
+  el('ztpBatchBody')?.addEventListener('click', async (e) => {
     const b = (e.target as HTMLElement).closest?.('[data-ztp-revoke]') as HTMLElement | null;
     if (!b) return;
-    if (!confirm('Revoke this generic script?\n\nRouters that have not called home yet can no longer use it. ' +
-      'Devices it already brought in are not affected.')) return;
+    if (!(await confirmAction({ title: 'Revoke the generic script?',
+      message: 'Routers that have not called home yet can no longer use it. ' +
+        'Devices it already brought in are not affected.',
+      confirmLabel: 'Revoke', danger: true }))) return;
     void api('POST', '/api/ztp/batches/' + encodeURIComponent(b.dataset.ztpRevoke ?? '') + '/revoke')
       .catch((err) => { const m = el('ztpBatchMsg'); if (m) m.textContent = errText(err); });
   });

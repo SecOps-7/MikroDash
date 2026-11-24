@@ -85,7 +85,7 @@ function boot(rows, summary) {
   const prevDoc = global.document;
   const prevWin = global.window;
   global.document = doc;
-  global.window = { addEventListener: () => {}, setTimeout, clearTimeout, confirm: () => true };
+  global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
   const { initBackupsPage } = require(OUT);
   initBackupsPage(socket, () => true);
   handlers['backups:state']({

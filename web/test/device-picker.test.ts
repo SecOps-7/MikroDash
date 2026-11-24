@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
+import { installDialogs } from './dialog-shim';
 
 const say = console.log.bind(console);
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
@@ -82,7 +83,9 @@ const cfg = (extra) => Object.assign({ items: () => fleet, sites: () => sites },
 }
 
 // ── the controller: Add all asks above 10 ───────────────────────────────────
-{
+// ASYNC, because the question is the app's own dialog and its answer arrives
+// after the click rather than inside it.
+(async () => {
   const handlers = {};
   const host = {
     innerHTML: '',
@@ -92,7 +95,12 @@ const cfg = (extra) => Object.assign({ items: () => fleet, sites: () => sites },
   };
   const asked = [];
   let answer = false;
-  global.window = { confirm: (m) => { asked.push(m); return answer; } };
+  // Add all asks through the app's own dialog (web/src/confirm.ts), answered
+  // here as the stubbed window.confirm used to be. The answer arrives on a
+  // microtask, as a click would, so each check below waits for it first.
+  global.document = {};
+  installDialogs(global.document, (d) => { asked.push(d.text); return answer; });
+  const answered = () => new Promise((r) => setImmediate(r));
   const pk = P.mountPicker(host, cfg());
   const click = (data) => (handlers.click || []).forEach((fn) => fn({
     preventDefault() {},
@@ -102,25 +110,29 @@ const cfg = (extra) => Object.assign({ items: () => fleet, sites: () => sites },
 
   type('edge-1');                     // Edge-1, Edge-10..19, Edge-100..119: 31 matches
   click({ dpAll: '1' });
+  await answered();
   assert.strictEqual(asked.length, 1, 'adding 31 at once did not ask');
   assert.strictEqual(pk.get().items.length, 0, 'a declined Add all added anyway');
   answer = true;
   click({ dpAll: '1' });
+  await answered();
   assert.strictEqual(pk.get().items.length, 31);
 
   pk.set({ items: [] });
   asked.length = 0;
   type('edge-11');                    // Edge-11 and Edge-110..119: 11 matches
   click({ dpAll: '1' });
+  await answered();
   assert.strictEqual(asked.length, 1, '11 matches did not ask (the threshold is "above 10")');
   // THE BOUNDARY: exactly ten is not "above 10".
   const ten = P.mountPicker(Object.assign({}, host, { addEventListener: (ev, fn) => {
     (handlers['ten-' + ev] = handlers['ten-' + ev] || []).push(fn); } }), cfg({ items: () => fleet.slice(0, 10) }));
   asked.length = 0;
   (handlers['ten-click'] || []).forEach((fn) => fn({ preventDefault() {}, target: { closest: () => ({ dataset: { dpAll: '1' } }) } }));
+  await answered();
   assert.strictEqual(asked.length, 0, 'adding exactly ten asked');
   assert.strictEqual(ten.get().items.length, 10);
   say('ok  Add all asks above 10, honours a no, and does not ask for 10 or fewer');
-}
-fs.rmSync(OUT, { force: true });
-say('device-picker: all checks passed');
+  fs.rmSync(OUT, { force: true });
+  say('device-picker: all checks passed');
+})().catch((e) => { console.error(e); process.exit(1); });

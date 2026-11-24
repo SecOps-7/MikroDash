@@ -465,7 +465,7 @@ Alternatively, have the proxy preserve the original `Host` header (`proxy_set_he
 
 <br>
 
-Make a link in **Settings, Shared links** (global administrators only). The address is shown once; copy it then.
+Make a link in **Settings, Shared links** (global administrators only). Copy its address then, or later with **Copy link** in the list.
 
 - **A page, a slideshow or a card in a Home Assistant dashboard:** add the Home Assistant address (for example `http://192.168.1.20:8123`) under **Allowed embedding sites**. The view then defaults to Embed, which drops the title strip. In Home Assistant add a **Webpage** card with the link as its URL. A wildcard such as `https://*.example.com` is allowed for https sites; a bare `*` is not.
 - **https and http do not mix.** An https Home Assistant cannot frame an http MikroDash. Put MikroDash behind the same https proxy, or reach both over http on your LAN, and set **Link address** to the address Home Assistant uses.

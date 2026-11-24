@@ -43,6 +43,7 @@
 // the whole outline moved, or scaled from its box's corner like a rectangle.
 
 import { esc, el, lsGet, lsSet, svgEl, attr, text, pill, bandTone } from '../dom';
+import { askText } from '../confirm';
 import { paletteCss, paletteColour, monoFont, type PaletteToken, type PillTone } from '../palette';
 import { fieldHtml } from '../form';
 import type { Socket } from '../socket';
@@ -1508,8 +1509,9 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     el('wmfBdUpload')?.addEventListener('click', () => file?.click());
     file?.addEventListener('change', () => { const f = file.files?.[0]; if (f) upload(f); });
     el('wmfBdMap')?.addEventListener('click', () => {
-      const where = window.prompt('Where is the site? Coordinates as "55.7539, 37.6208", or an address.', '');
-      if (where) placeMap(where, null);
+      void askText({ title: 'Place the site on a map', message: 'Where is the site? Coordinates as "55.7539, 37.6208", or an address.',
+        label: 'Coordinates or address', value: '', confirmLabel: 'Place' })
+        .then((where) => { if (where) placeMap(where, null); });
     });
     if (!b) return;
     el<HTMLSelectElement>('wmfBdProvider')?.addEventListener('change', (e) => {
@@ -2075,14 +2077,18 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         svg!.classList.remove('wm-placing');
         // A ZERO-LENGTH MEASUREMENT IS A MISCLICK, not a scale of infinity.
         if (units < 2) { render(); return; }
-        const said = window.prompt('How many metres is that?', '');
-        const metres = parseFloat(said || '');
-        if (Number.isFinite(metres) && metres > 0) {
-          doc.metresPerUnit = metres / units;
-          dirty = true;
-        }
-        syncChrome();
-        render();
+        // The plan measured; another plan loaded while the dialog was open is not scaled by it.
+        const measured = doc;
+        void askText({ title: 'Set the scale', message: 'How many metres is that?', label: 'Metres', value: '',
+          confirmLabel: 'Set scale' }).then((said) => {
+          const metres = parseFloat(said || '');
+          if (doc === measured && Number.isFinite(metres) && metres > 0) {
+            doc.metresPerUnit = metres / units;
+            dirty = true;
+          }
+          syncChrome();
+          render();
+        });
         return;
       }
 

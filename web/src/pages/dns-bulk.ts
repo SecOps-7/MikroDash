@@ -10,6 +10,7 @@
 // `followJob` is shared: the fleet sync follows its jobs with it.
 
 import { esc, el } from '../dom';
+import { confirmAction } from '../confirm';
 import { featureOn, onFeatures } from '../caps';
 import type { DNSStaticEntry } from '../gen/payloads';
 
@@ -218,9 +219,11 @@ export function initDnsBulk(activeRouter: () => string, rerender: () => void): D
   });
   el('dnsBulkEnable')?.addEventListener('click', () => patch({ disabled: false }, chosen(), 'enable'));
   el('dnsBulkDisable')?.addEventListener('click', () => patch({ disabled: true }, chosen(), 'disable'));
-  el('dnsBulkRemove')?.addEventListener('click', () => {
+  el('dnsBulkRemove')?.addEventListener('click', async () => {
     const rows = chosen();
-    if (!rows.length || !window.confirm('Remove ' + rows.length + ' static DNS entries from this router?')) return;
+    if (!rows.length || !(await confirmAction({ title: 'Remove the DNS entries?',
+      message: 'Remove ' + rows.length + ' static DNS entries from this router?',
+      confirmLabel: 'Remove', danger: true }))) return;
     submit({ label: 'remove ' + rows.length + ' entries', remove: rows.map((e) => e.id) });
   });
   el('dnsBulkClear')?.addEventListener('click', () => { picked.clear(); syncBar(); rerender(); });

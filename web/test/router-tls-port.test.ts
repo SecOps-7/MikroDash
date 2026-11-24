@@ -73,7 +73,7 @@ function mount() {
     addEventListener: () => {},
     createElement: () => makeEl(''),
   };
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
 
   delete require.cache[require.resolve(OUT)];

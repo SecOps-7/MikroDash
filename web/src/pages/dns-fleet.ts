@@ -25,6 +25,7 @@
 import { mountPicker, type Picker } from '../device-picker';
 import { fmtTime } from '../timefmt';
 import { esc, el, lsGet, lsSet } from '../dom';
+import { confirmAction } from '../confirm';
 import { openResource, registerExtra } from '../resource';
 import type { Socket } from '../socket';
 import type { RouterRecord } from '../events-hand';
@@ -614,12 +615,14 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     notice = 'planning…';
     render();
     ask(true)
-      .then((plans) => {
+      .then(async (plans) => {
         const todo = plans.filter((p) => p.add + p.change + p.remove > 0);
         if (!todo.length) { notice = 'every router already matches ' + named(refId).label; return; }
         const lines = plans.map((p) => p.label + ': ' + (p.code || 'add ' + p.add + ', change ' + p.change +
           (removeExtra ? ', remove ' + p.remove : '')));
-        if (!window.confirm('Make these routers match ' + named(refId).label + '?\n\n' + lines.join('\n'))) {
+        if (!(await confirmAction({ title: 'Make these routers match?',
+          message: 'Make these routers match the reference?\n' + lines.join('\n'),
+          subject: named(refId).label, confirmLabel: 'Sync' }))) {
           notice = '';
           return;
         }
@@ -634,7 +637,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
   });
   onFeatures(syncTools);
 
-  el('dnsFleetSyncAll')?.addEventListener('click', () => {
+  el('dnsFleetSyncAll')?.addEventListener('click', async () => {
     // EVERY MISSING PAIR, ONE RECORD AT A TIME. The server is idempotent - a
     // record already present answers `already-present` rather than adding a
     // second - so a second press is safe.
@@ -645,8 +648,10 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     // `rate-limited` is left out of the rest of the run, and the note counts.
     const work = rows.filter((r) => r.missing.length && r.source);
     if (!work.length || busy) return;
-    if (!window.confirm('Copy ' + work.length + ' record' + (work.length === 1 ? '' : 's') +
-      ' to every router that is missing it?')) return;
+    if (!(await confirmAction({ title: 'Copy the missing records?',
+      message: 'Copy ' + work.length + ' record' + (work.length === 1 ? '' : 's') +
+        ' to every router that is missing it?', confirmLabel: 'Copy' }))) return;
+    if (busy) return;
     busy = 'all';
     notice = 'copying…';
     render();

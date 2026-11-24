@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 41
+const schemaVersion = 42
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -320,6 +320,12 @@ var portMigrations = map[int][]string{
 	// The Apps Usage page's custom apps, rules and categories (#167). See
 	// apprules.go.
 	41: {appRulesDDL},
+	// 42: a link's token, sealed, and its address, so Settings can copy a link
+	// again. Replays safely: see 33. See sharelinks.go.
+	42: {
+		`ALTER TABLE share_links ADD COLUMN token_enc TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE share_links ADD COLUMN base_url TEXT NOT NULL DEFAULT ''`,
+	},
 }
 
 // createSchema builds a new database at `path`.

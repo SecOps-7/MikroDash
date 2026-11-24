@@ -5,6 +5,7 @@
 import type { Socket } from '../socket';
 import type { Cap } from '../gen/payloads';
 import { esc, el, pill } from '../dom';
+import { confirmAction } from '../confirm';
 import { featureOn, onFeatures } from '../caps';
 
 const PRE_RANK: Record<string, number> = { alpha: 1, beta: 2, rc: 3 };
@@ -51,8 +52,10 @@ export function initCapVersions(socket: Socket, rerender: () => void): CapVersio
       .then(rerender);
   }
 
-  function upgrade(identity: string, legacy: boolean): void {
-    if (!window.confirm('Upgrade ' + identity + ' from the manager? The CAP reboots and its clients drop.')) return;
+  async function upgrade(identity: string, legacy: boolean): Promise<void> {
+    if (!(await confirmAction({ title: 'Upgrade the CAP?',
+      message: 'Upgrade this CAP from the manager? The CAP reboots and its clients drop.',
+      subject: identity, confirmLabel: 'Upgrade', danger: true }))) return;
     note[identity] = 'asking…';
     rerender();
     fetch('/api/capsman/upgrade', {
@@ -71,7 +74,7 @@ export function initCapVersions(socket: Socket, rerender: () => void): CapVersio
     const b = (ev.target as HTMLElement).closest?.('[data-capupgrade]') as HTMLElement | null;
     if (!b) return;
     ev.stopPropagation();
-    upgrade(b.getAttribute('data-capupgrade') || '', b.getAttribute('data-legacy') === '1');
+    void upgrade(b.getAttribute('data-capupgrade') || '', b.getAttribute('data-legacy') === '1');
   }, true);
 
   socket.on('router:active', (d) => { if (d && d.activeId && d.activeId !== routerId) { routerId = d.activeId; load(); } });

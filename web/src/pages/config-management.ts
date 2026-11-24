@@ -5,6 +5,7 @@
 // The markup is built by config-management-cards.ts and -editor.ts.
 
 import { el, esc, renderSortHeader, sortRows, type SortState } from '../dom';
+import { confirmAction, notice } from '../confirm';
 import type { Socket } from '../socket';
 import type { CfgDeployPayload, Hunk } from '../gen/payloads';
 import {
@@ -215,18 +216,19 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       await load();
       await openEditor(r.id);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'The copy could not be made');
+      void notice('Could not customise', e instanceof Error ? e.message : 'The copy could not be made');
     }
   }
 
   // ── The Editor ───────────────────────────────────────────────────────────
 
-  function leaveDraft(): boolean {
-    return !dirty || window.confirm('Leave this template without saving your changes?');
+  async function leaveDraft(): Promise<boolean> {
+    return !dirty || confirmAction({ title: 'Leave without saving?',
+      message: 'Leave this template without saving your changes?', confirmLabel: 'Leave', danger: true });
   }
 
   async function openEditor(id: string | null): Promise<void> {
-    if (draft && !leaveDraft()) return;
+    if (draft && !(await leaveDraft())) return;
     if (id === null) {
       draft = { id: null, revision: 0, kind: 'fragment', name: '', description: '',
         body: '# What this template does, in a line or two.\n/ip dns\nset servers={{dns_servers}}\n',
@@ -237,7 +239,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
         draft = { id: r.id, revision: r.revision, kind: r.kind, name: r.name, description: r.description,
           body: r.body, vars: varsOf(r.variables) };
       } catch (e) {
-        window.alert(e instanceof Error ? e.message : 'The template could not be opened');
+        void notice('Could not open', e instanceof Error ? e.message : 'The template could not be opened');
         return;
       }
     }
@@ -247,8 +249,8 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     scheduleCheck(0);
   }
 
-  function closeEditor(): void {
-    if (!leaveDraft()) return;
+  async function closeEditor(): Promise<void> {
+    if (!(await leaveDraft())) return;
     draft = null;
     dirty = false;
     drawEditor();
@@ -369,20 +371,22 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   }
 
   async function remove(): Promise<void> {
-    if (!draft?.id || !window.confirm('Delete "' + draft.name + '"? Its deploy history is kept.')) return;
+    const id = draft?.id;
+    if (!draft || !id || !(await confirmAction({ title: 'Delete the template?', message: 'Its deploy history is kept.',
+      subject: draft.name, confirmLabel: 'Delete', danger: true }))) return;
     try {
-      await api('templates/' + encodeURIComponent(draft.id), { method: 'DELETE' });
+      await api('templates/' + encodeURIComponent(id), { method: 'DELETE' });
       draft = null;
       dirty = false;
       drawEditor();
       void load();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'The template could not be deleted');
+      void notice('Could not delete', e instanceof Error ? e.message : 'The template could not be deleted');
     }
   }
 
   async function openCapture(): Promise<void> {
-    if (draft && !leaveDraft()) return;
+    if (draft && !(await leaveDraft())) return;
     draft = null;
     dirty = false;
     show('editor');
@@ -419,7 +423,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
       await load();
       await openEditor(r.id);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'The capture failed');
+      void notice('Capture failed', e instanceof Error ? e.message : 'The capture failed');
     } finally {
       if (go) {
         go.disabled = false;
@@ -661,16 +665,17 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const p = cps.find((x) => x.id === id);
     if (!p) return;
     const msg = p.links > 0
-      ? `Delete "${p.name}"?\n\nThe account "${p.username}" will be removed from `
+      ? `The account "${p.username}" will be removed from `
         + `${p.links} router${p.links === 1 ? '' : 's'} first. The profile goes when they have `
         + 'all confirmed, so a router that is switched off holds it open.'
-      : `Delete "${p.name}"?\n\nIt is not on any router, so nothing is changed on a device.`;
-    if (!window.confirm(msg)) return;
+      : 'It is not on any router, so nothing is changed on a device.';
+    if (!(await confirmAction({ title: 'Delete the login profile?', message: msg, subject: p.name,
+      confirmLabel: 'Delete', danger: true }))) return;
     try {
       await credApi('profiles/' + id, { method: 'DELETE' });
       await loadCredentials();
     } catch (err) {
-      window.alert(err instanceof ApiError ? err.message : 'The profile could not be deleted');
+      void notice('Could not delete', err instanceof ApiError ? err.message : 'The profile could not be deleted');
     }
   }
 
@@ -948,7 +953,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   });
   el('cfgEdSave')?.addEventListener('click', () => void save());
   el('cfgEdDelete')?.addEventListener('click', () => void remove());
-  el('cfgEdClose')?.addEventListener('click', closeEditor);
+  el('cfgEdClose')?.addEventListener('click', () => void closeEditor());
 
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail !== 'config-management') {
@@ -1144,8 +1149,9 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     let id = dep.tplId;
     try {
       if (t?.canned) {
-        if (!window.confirm('Canned templates cannot be changed. Save these settings in a new custom copy of "' +
-          t.name + '"?')) return;
+        if (!(await confirmAction({ title: 'Save in a custom copy?',
+          message: 'Canned templates cannot be changed. Save these settings in a new custom copy of this template?',
+          subject: t.name, confirmLabel: 'Save copy' }))) return;
         id = (await api<{ id: string }>('templates/' + encodeURIComponent(id) + '/clone', { method: 'POST' })).id;
       }
       const d = await fetchTemplate(id);
@@ -1227,9 +1233,9 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   el('cfgRollout')?.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     if (t.closest('#cfgDepCancel')) {
-      if (window.confirm('Stop the deploy before its next router? A router being changed is finished first.')) {
-        socket.emit('cfgdeploy:cancel', {});
-      }
+      void confirmAction({ title: 'Stop the deploy?',
+        message: 'Stop the deploy before its next router? A router being changed is finished first.',
+        confirmLabel: 'Stop', danger: true }).then((yes) => { if (yes) socket.emit('cfgdeploy:cancel', {}); });
     } else if (t.closest('#cfgDepContinue')) {
       socket.emit('cfgdeploy:continue', { confirm: (el('cfgDepCount') as HTMLInputElement | null)?.value ?? '' });
     }
@@ -1330,8 +1336,9 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     const key = driftKey(row);
     const c = checks[key];
     if (c?.state !== 'done') return;
-    if (!window.confirm('Make what ' + row.routerLabel + ' holds now the baseline for ' + row.templateName +
-      '? Later checks compare against it.')) return;
+    if (!(await confirmAction({ title: 'Accept the drift?',
+      message: 'Make what ' + row.routerLabel + ' holds now the baseline for ' + row.templateName +
+        '? Later checks compare against it.', confirmLabel: 'Accept' }))) return;
     try {
       await api('drift/accept', json({ templateId: row.templateId, routerId: row.routerId, fingerprint: c.fingerprint }));
       checks[key] = { ...c, drifted: false, hunks: [] };

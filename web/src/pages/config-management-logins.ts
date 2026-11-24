@@ -24,6 +24,7 @@
  */
 
 import { el, esc } from '../dom';
+import { confirmAction } from '../confirm';
 import { mountPicker, type Picker } from '../device-picker';
 
 export interface LoginOpResult { state: string; message: string }
@@ -280,12 +281,13 @@ export function mountLoginProfiles(redraw: (row: string) => void): { load: () =>
     const ids = linkTargets(picker?.get().items ?? [], devices, devFor);
     const p = list.find((x) => x.id === devFor);
     if (!ids.length || !p) return;
-    const msg = `Link ${ids.length} device(s) to "${p.name}"?\n\nOn each one this creates user mikrodash in group `
+    const forId = devFor;
+    const msg = `Link ${ids.length} device(s) to this profile? On each one this creates user mikrodash in group `
       + 'mikrodash (every permission, if the group is new) with the profile\'s password, checks it signs in, and switches MikroDash '
       + 'over. A device where that fails is put back as it was.';
-    if (!window.confirm(msg)) return;
+    if (!(await confirmAction({ title: 'Link the devices?', message: msg, subject: p.name, confirmLabel: 'Link' }))) return;
     try {
-      await lpApi('/' + devFor + '/devices', send('POST', { routerIds: ids }));
+      await lpApi('/' + forId + '/devices', send('POST', { routerIds: ids }));
       picker?.set({ items: [], sites: [] });
       await load();
     } catch (e) {

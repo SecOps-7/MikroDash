@@ -22,6 +22,7 @@
 // The picker holds a selection. Each caller decides what Apply does with it,
 // exactly as the checkbox lists did.
 
+import { confirmAction } from './confirm';
 import { esc } from './dom';
 
 export interface PickItem {
@@ -279,15 +280,17 @@ export function mountPicker(host: HTMLElement, cfg: PickerConfig): Picker {
     }
     const ids = siteMembers(cfg, st, id);
     const name = (cfg.sites?.() ?? []).find((s) => s.id === id)?.name ?? id;
-    if (ids.length > limit && !window.confirm(`Add the ${ids.length} devices in ${name}?`)) return;
-    addItems(ids);
+    if (ids.length <= limit) { addItems(ids); return; }
+    void confirmAction({ title: 'Add a whole site?', message: `Add the ${ids.length} devices in this site?`,
+      subject: name, confirmLabel: 'Add' }).then((yes) => { if (yes) addItems(ids); });
   }
   function addAll(): void {
     const names = siteNameMap(cfg);
     const taken = new Set([...st.items, ...(cfg.fixed?.() ?? []), ...coveredBySites(cfg, st)]);
     const ids = cfg.items().filter((it) => !taken.has(it.id) && matches(it, st.q, names)).map((it) => it.id);
-    if (ids.length > limit && !window.confirm(`Add all ${ids.length} matching devices?`)) return;
-    addItems(ids);
+    if (ids.length <= limit) { addItems(ids); return; }
+    void confirmAction({ title: 'Add every match?', message: `Add all ${ids.length} matching devices?`,
+      confirmLabel: 'Add' }).then((yes) => { if (yes) addItems(ids); });
   }
   function pickActive(): void {
     const r = results(cfg, st);

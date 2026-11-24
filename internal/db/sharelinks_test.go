@@ -192,3 +192,22 @@ func TestShareLinkRetention(t *testing.T) {
 		}
 	}
 }
+
+// Migration 42: a link's sealed token and address are kept, and a link made
+// before reads as empty rather than failing.
+func TestALinksSecretIsKept(t *testing.T) {
+	d := openTest(t, t.TempDir())
+	l := sampleLink("l-42", "hash-42")
+	if err := d.InsertShareLink(l); err != nil {
+		t.Fatal(err)
+	}
+	if enc, base, err := d.ShareLinkSecret("l-42"); err != nil || enc != "" || base != "" {
+		t.Errorf("a link made without one: %q %q %v", enc, base, err)
+	}
+	if err := d.SetShareLinkSecret("l-42", "sealed", "https://dash.example"); err != nil {
+		t.Fatal(err)
+	}
+	if enc, base, err := d.ShareLinkSecret("l-42"); err != nil || enc != "sealed" || base != "https://dash.example" {
+		t.Errorf("kept: %q %q %v", enc, base, err)
+	}
+}

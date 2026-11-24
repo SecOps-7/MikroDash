@@ -228,7 +228,7 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   'cpApply', 'cpLinksError'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]', '#cpPolicies [data-cp-policy]'] });
 global.document = doc;
-global.window = { addEventListener: () => {}, setTimeout, clearTimeout, alert: () => {} };
+global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
 const fetched = [];
 global.fetch = async (url) => {
   fetched.push(url);

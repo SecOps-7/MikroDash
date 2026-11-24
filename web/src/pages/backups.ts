@@ -28,6 +28,7 @@ import type { Socket } from '../socket';
 import type { StatePayload } from '../gen/payloads';
 import type { HandEvents } from '../events-hand';
 import { hunksHTML } from '../diffview';
+import { askText, confirmAction } from '../confirm';
 
 /** Every outcome the runner can record. An unknown one still renders. */
 const OUTCOME: Record<string, { label: string; tone: PillTone }> = {
@@ -327,11 +328,17 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
       : 'Delete these ' + ids.length + ' restore points?';
     // BOTH HALVES GO - the files and the row listing them - so say so, and say
     // where the record does survive rather than implying nothing is kept.
-    if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\n' +
-      'and cannot be recovered. The Audit page keeps the record.')) return;
-    socket.emit('backups:delete', { ids });
-    picked.clear();
-    syncBulk();
+    void confirmAction({
+      title: ids.length === 1 ? 'Delete the restore point?' : 'Delete the restore points?',
+      message: msg + ' The stored files and their history rows are removed, ' +
+        'and cannot be recovered. The Audit page keeps the record.',
+      confirmLabel: 'Delete', danger: true,
+    }).then((yes) => {
+      if (!yes) return;
+      socket.emit('backups:delete', { ids });
+      picked.clear();
+      syncBulk();
+    });
   }
 
   function restoreSelected(): void {
@@ -352,20 +359,21 @@ export function initBackupsPage(socket: Socket, isVisible: (page: string) => boo
     if (!state) return;
     const lines = [
       'Restore ' + state.label + ' from this backup?',
-      '',
       'This REPLACES the entire configuration and reboots the router.',
       'Everything configured since this backup is lost.',
-      '',
       'The API user MikroDash connects as is part of what gets replaced - if',
       'that user did not exist when this backup was taken, MikroDash will lose',
       'access to this router.',
     ];
-    if (versionNote) lines.push('', versionNote);
-    lines.push('', 'Type the router name to confirm:');
-    const answer = window.prompt(lines.join('\n'), '');
-    if (answer === null) return;
-    socket.emit('backups:restore', { id, confirm: answer, acceptVersion: !!acceptVersion });
-    pendingRestore = id;
+    if (versionNote) lines.push(versionNote);
+    void askText({
+      title: 'Restore the router?', message: lines.join(' '),
+      label: 'Type the router name to confirm', value: '', confirmLabel: 'Restore',
+    }).then((answer) => {
+      if (answer === null) return;
+      socket.emit('backups:restore', { id, confirm: answer, acceptVersion: !!acceptVersion });
+      pendingRestore = id;
+    });
   }
 
   function renderDiff(d: HandEvents['backups:diff']): void {

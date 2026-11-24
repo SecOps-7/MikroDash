@@ -35,6 +35,7 @@ func (s *Server) registerShareAPI(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+shareLinksPrefix, s.principalsGuard(s.shareCreate))
 	mux.HandleFunc("PUT "+shareLinksPrefix+"/{id}", s.principalsGuard(s.shareUpdate))
 	mux.HandleFunc("POST "+shareLinksPrefix+"/{id}/revoke", s.principalsGuard(s.shareRevoke))
+	mux.HandleFunc("POST "+shareLinksPrefix+"/{id}/url", s.principalsGuard(s.shareURL))
 	mux.HandleFunc("DELETE "+shareLinksPrefix+"/{id}", s.principalsGuard(s.shareDelete))
 }
 
@@ -347,13 +348,21 @@ func (s *Server) shareCreate(w http.ResponseWriter, r *http.Request, sess *Sessi
 		writeJSONErr(w, http.StatusInternalServerError, "could not save the link")
 		return
 	}
+	// KEPT SEALED, so Settings can copy the link again (migration 42). A
+	// failure costs only that: the link works, and is shown now as before.
+	if sealed, err := s.store.Encrypt(token); err != nil {
+		log.Printf("[share] seal: %v", err)
+	} else if err := s.auditDB.SetShareLinkSecret(id, sealed, base); err != nil {
+		log.Printf("[share] keep: %v", err)
+	}
 	s.shareAudit(s.httpRecorder(r, sess), "share.create", l,
 		l.Kind+" "+shareSubject(l)+", "+describeExpiry(l.ExpiresAt),
 		audit.KV{Key: "allowedAddresses", Value: l.AllowedCIDRs},
 		audit.KV{Key: "frameOrigins", Value: l.FrameOrigins})
 	writeJSON(w, map[string]any{
 		"ok": true, "link": s.shareView(l),
-		// SHOWN ONCE. Only the hash is stored; nothing can show it again.
+		// Kept sealed beside the hash, so a global administrator can copy it
+		// again from Settings (shareURL); a lookup is still by the hash.
 		"url":          base + "/s/" + token,
 		"mixedContent": sharelink.MixedContent(base, l.FrameOrigins),
 	})
@@ -410,6 +419,37 @@ func (s *Server) shareUpdate(w http.ResponseWriter, r *http.Request, sess *Sessi
 			"; after: "+shareSubject(next)+", "+describeExpiry(next.ExpiresAt))
 	s.reloadShare(id)
 	writeJSON(w, map[string]any{"ok": true, "link": s.shareView(next)})
+}
+
+// shareURL shows an active link's address again (the operator, 2026-11-24: "go
+// back to a link and copy it again later"). A POST, not a GET, so the address
+// never sits in a cache or a prefetch, and audited, as a reading of a secret.
+// Global administrators only, as every share route is; a revoked or expired
+// link has nothing worth copying, and a link made before tokens were kept has
+// nothing to show.
+func (s *Server) shareURL(w http.ResponseWriter, r *http.Request, sess *Session) {
+	id := r.PathValue("id")
+	cur, err := s.auditDB.ShareLinkByID(id)
+	if err != nil || cur == nil {
+		writeJSONErr(w, http.StatusNotFound, "no such link")
+		return
+	}
+	if v := s.shareView(*cur); v["status"] != "active" {
+		writeJSONErr(w, http.StatusConflict, "the link is "+v["status"].(string)+", so there is nothing to copy")
+		return
+	}
+	sealed, base, err := s.auditDB.ShareLinkSecret(id)
+	if err != nil || sealed == "" {
+		writeJSONErr(w, http.StatusConflict, "this link was made before links were kept, so it cannot be shown again; make a new one")
+		return
+	}
+	token, err := s.store.Decrypt(sealed)
+	if err != nil || !sharelink.WellFormedToken(token) {
+		writeJSONErr(w, http.StatusInternalServerError, "the link could not be read")
+		return
+	}
+	s.shareAudit(s.httpRecorder(r, sess), "share.copy", *cur, cur.Kind+" "+shareSubject(*cur))
+	writeJSON(w, map[string]any{"ok": true, "url": base + "/s/" + token})
 }
 
 func (s *Server) shareRevoke(w http.ResponseWriter, r *http.Request, sess *Session) {
@@ -512,6 +552,7 @@ func (s *Server) shareView(l db.ShareLink) map[string]any {
 		"createdAt": l.CreatedAt, "expiresAt": l.ExpiresAt, "revokedAt": l.RevokedAt,
 		"revokeReason": l.RevokeReason, "lastUsedAt": l.LastUsedAt, "useCount": l.UseCount,
 		"status": status, "neverExpires": l.ExpiresAt == nil, "hasLayout": l.Layout != "",
+		"copyable": l.Copyable && status == "active",
 		"warnings": warnings,
 	}
 }

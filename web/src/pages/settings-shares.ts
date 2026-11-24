@@ -11,6 +11,7 @@
 
 import { el, esc, sortRows, renderSortHeader, copyText, type SortState } from '../dom';
 import { fmtTs } from '../timefmt';
+import { confirmAction, notice, showCopyable } from '../confirm';
 
 interface Opt { key: string; label: string }
 
@@ -39,6 +40,8 @@ export interface ShareLinkView {
   createdBy: string; createdAt: number; expiresAt: number | null; revokedAt: number | null;
   revokeReason: string; lastUsedAt: number | null; useCount: number;
   status: string; neverExpires: boolean; warnings: string[];
+  /** The address can be shown again: an active link made since tokens are kept. */
+  copyable: boolean;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -128,7 +131,8 @@ function render(): void {
       ? '<div class="share-row-warn">' + l.warnings.map((w) => esc(w)).join('<br>') + '</div>' : '';
     const viewers = l.kind === 'feed' ? '-' : l.viewersNow + ' of ' + (l.viewerCap || opts?.defaultViewerCap || 5);
     const acts = live
-      ? '<button class="sbtn sbtn-outline is-sm" data-share-edit="' + esc(l.id) + '">Edit</button> ' +
+      ? (l.copyable ? '<button class="sbtn sbtn-outline is-sm" data-share-copy="' + esc(l.id) + '">Copy link</button> ' : '') +
+        '<button class="sbtn sbtn-outline is-sm" data-share-edit="' + esc(l.id) + '">Edit</button> ' +
         '<button class="sbtn sbtn-outline is-sm sbtn-danger" data-share-revoke="' + esc(l.id) + '">Revoke</button>'
       : '<button class="sbtn sbtn-outline is-sm" data-share-delete="' + esc(l.id) + '">Delete</button>';
     return '<tr><td>' + esc(l.label) + warn + '</td><td>' + kindPill(l.kind) + '</td><td>' + esc(l.subject) +
@@ -276,6 +280,7 @@ function openForm(link: ShareLinkView | null): void {
   if (result) result.hidden = true;
   const save = el('sh_save') as HTMLButtonElement | null;
   if (save) { save.hidden = false; save.textContent = link ? 'Save changes' : 'Create link'; }
+  setCloseLabel(false);
   const t = el('sh_title');
   if (t) t.textContent = link ? 'Edit shared link' : 'New shared link';
   fillSelect('sh_page', opts.pages, 'Choose a page');
@@ -400,10 +405,11 @@ async function save(): Promise<void> {
   const extending = editing && body.expiry && ((body.expiry as { choice: string }).choice === 'never' ||
     (editing.expiresAt !== null && (body.expiry as { choice: string }).choice !== 'keep'));
   if ((!editing && (body.expiry as { choice: string })?.choice === 'never') || extending) {
-    const msg = (body.expiry as { choice: string }).choice === 'never'
-      ? 'This link will never expire. It keeps working until it is revoked. Continue?'
-      : 'This changes when the link expires. Continue?';
-    if (!window.confirm(msg)) return;
+    const never = (body.expiry as { choice: string }).choice === 'never';
+    const yes = await confirmAction(never
+      ? { title: 'Never expire?', message: 'This link will never expire. It keeps working until it is revoked.', confirmLabel: 'Continue' }
+      : { title: 'Change the expiry?', message: 'This changes when the link expires.', confirmLabel: 'Continue' });
+    if (!yes) return;
   }
   const url = editing ? '/api/share-links/' + encodeURIComponent(editing.id) : '/api/share-links';
   let d: { ok?: boolean; error?: string; url?: string; mixedContent?: boolean } = {};
@@ -428,18 +434,49 @@ async function save(): Promise<void> {
     if (result) result.hidden = false;
     const btn = el('sh_save') as HTMLButtonElement | null;
     if (btn) btn.hidden = true;
+    setCloseLabel(true);
   } else {
     el('shareFormWrap')?.classList.remove('open');
   }
   await loadShares();
 }
 
+/** Once a link is made, the footer's Cancel would read as cancelling it: it
+ *  becomes Done, the main button, and goes back to Cancel for the next form. */
+function setCloseLabel(done: boolean): void {
+  const b = el('sh_cancel');
+  if (!b) return;
+  b.textContent = done ? 'Done' : 'Cancel';
+  b.classList.toggle('sbtn-primary', done);
+  b.classList.toggle('sbtn-outline', !done);
+}
+
+/** Shows an active link's address again (POST /api/share-links/{id}/url). */
+async function copyAgain(id: string): Promise<void> {
+  const l = links.find((x) => x.id === id);
+  let d: { ok?: boolean; error?: string; url?: string } = {};
+  try {
+    const r = await fetch('/api/share-links/' + encodeURIComponent(id) + '/url', {
+      method: 'POST', credentials: 'same-origin',
+    });
+    d = await r.json().catch(() => ({}));
+  } catch { /* reported below */ }
+  if (!d.ok || !d.url) {
+    await notice('Copy link', d.error || 'The link could not be read.');
+    return;
+  }
+  await showCopyable(l?.label || 'Shared link',
+    'Anyone with this link can view it until it expires or is revoked.', shownOnce(l?.kind || '', d.url));
+}
+
 async function act(id: string, how: 'revoke' | 'delete'): Promise<void> {
   const l = links.find((x) => x.id === id);
-  const q = how === 'revoke'
-    ? 'Revoke "' + (l?.label || id) + '"? Anyone viewing it is cut off at once, and it cannot be turned back on.'
-    : 'Delete "' + (l?.label || id) + '"? Its row goes; the audit trail keeps what it did.';
-  if (!window.confirm(q)) return;
+  const yes = await confirmAction(how === 'revoke'
+    ? { title: 'Revoke the link?', message: 'Anyone viewing it is cut off at once, and it cannot be turned back on.',
+      subject: l?.label || id, confirmLabel: 'Revoke', danger: true }
+    : { title: 'Delete the link?', message: 'Its row goes; the audit trail keeps what it did.',
+      subject: l?.label || id, confirmLabel: 'Delete', danger: true });
+  if (!yes) return;
   await fetch('/api/share-links/' + encodeURIComponent(id) + (how === 'revoke' ? '/revoke' : ''), {
     method: how === 'revoke' ? 'POST' : 'DELETE', credentials: 'same-origin',
   }).catch(() => null);
@@ -503,6 +540,8 @@ export function initSharesTab(): void {
     const ed = t?.closest<HTMLElement>('[data-share-edit]');
     const rv = t?.closest<HTMLElement>('[data-share-revoke]');
     const dl = t?.closest<HTMLElement>('[data-share-delete]');
+    const cp = t?.closest<HTMLElement>('[data-share-copy]');
+    if (cp) void copyAgain(cp.dataset.shareCopy || '');
     if (ed) openForm(links.find((l) => l.id === ed.dataset.shareEdit) || null);
     if (rv) void act(rv.dataset.shareRevoke || '', 'revoke');
     if (dl) void act(dl.dataset.shareDelete || '', 'delete');

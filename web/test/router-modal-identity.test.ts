@@ -62,7 +62,7 @@ const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) =
     querySelector: () => null, querySelectorAll: () => [], addEventListener: () => {},
     createElement: () => makeEl(''),
   };
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = (url) => {
     if (url === '/api/routers/r1/identity') {
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ available: true, name: 'office-gw' }) });

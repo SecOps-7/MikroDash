@@ -4,10 +4,11 @@ package db
 // (or a slideshow, a Dashboard card, a sensor feed) for somebody with no
 // account. The rules live in internal/sharelink; this file stores them.
 //
-// ── ONLY THE TOKEN'S HASH ───────────────────────────────────────────────────
+// ── THE TOKEN'S HASH, AND THE TOKEN SEALED ──────────────────────────────────
 //
-// `token_hash` is SHA-256 of the token, which is shown once when the link is
-// made and never stored. A lookup is by hash.
+// `token_hash` is SHA-256 of the token, and a lookup is by hash. Since
+// migration 42 the token is also kept sealed (`token_enc`, AES-256-GCM under
+// the install's key) so Settings can copy a link again; see SetShareLinkSecret.
 //
 // ── IDENTITY COLUMNS ────────────────────────────────────────────────────────
 //
@@ -41,7 +42,9 @@ CREATE TABLE IF NOT EXISTS share_links (
   revoked_by    TEXT,
   revoke_reason TEXT,
   last_used_at  INTEGER,
-  use_count     INTEGER NOT NULL DEFAULT 0
+  use_count     INTEGER NOT NULL DEFAULT 0,
+  token_enc     TEXT NOT NULL DEFAULT '',
+  base_url      TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS share_links_router ON share_links(router_id);
 CREATE INDEX IF NOT EXISTS share_links_creator ON share_links(created_by);
@@ -87,6 +90,9 @@ type ShareLink struct {
 	LastUsedAt   *int64
 	UseCount     int64
 	Slides       []ShareSlide
+	// Copyable: the token is kept sealed (migration 42), so the link's address
+	// can be shown again. Read only; SetShareLinkSecret writes it.
+	Copyable bool
 }
 
 // RouterIDs is every router the link shows.
@@ -136,6 +142,27 @@ func capValue(n int) any {
 	return nil
 }
 
+// ── THE TOKEN, SEALED, SO A LINK CAN BE COPIED AGAIN (migration 42) ─────────
+//
+// `token_enc` is the token sealed with the install's AES-256-GCM key (the
+// store's Encrypt, the one router passwords use) and `base_url` the address it
+// was made for, so Settings can show a link's address again (the operator,
+// 2026-11-24). A lookup is still by `token_hash`; the sealed token is read only
+// to show it to a global administrator. Empty on a link made before.
+
+// SetShareLinkSecret stores a link's sealed token and the address it was made for.
+func (d *DB) SetShareLinkSecret(id, tokenEnc, baseURL string) error {
+	_, err := d.sql.Exec(`UPDATE share_links SET token_enc = ?, base_url = ? WHERE id = ?`, tokenEnc, baseURL, id)
+	return err
+}
+
+// ShareLinkSecret is a link's sealed token and address; both empty for a link
+// made before they were kept.
+func (d *DB) ShareLinkSecret(id string) (tokenEnc, baseURL string, err error) {
+	err = d.sql.QueryRow(`SELECT token_enc, base_url FROM share_links WHERE id = ?`, id).Scan(&tokenEnc, &baseURL)
+	return tokenEnc, baseURL, err
+}
+
 // InsertShareLink stores a new link and its slides in one transaction.
 func (d *DB) InsertShareLink(l ShareLink) error {
 	if d == nil || d.sql == nil {
@@ -177,7 +204,7 @@ func insertSlides(tx *sql.Tx, id string, slides []ShareSlide) error {
 const shareLinkCols = `id, token_hash, label, kind, COALESCE(page,''), COALESCE(router_id,''),
   COALESCE(layout,''), options, frame_origins, COALESCE(viewer_cap,0), allowed_cidrs, created_by,
   created_at, expires_at, revoked_at, COALESCE(revoked_by,''), COALESCE(revoke_reason,''),
-  last_used_at, use_count`
+  last_used_at, use_count, token_enc <> ''`
 
 func scanShareLink(row interface{ Scan(...any) error }) (ShareLink, error) {
 	var l ShareLink
@@ -185,7 +212,7 @@ func scanShareLink(row interface{ Scan(...any) error }) (ShareLink, error) {
 	var exp, rev, used sql.NullInt64
 	if err := row.Scan(&l.ID, &l.TokenHash, &l.Label, &l.Kind, &l.Page, &l.RouterID, &l.Layout,
 		&l.Options, &origins, &l.ViewerCap, &cidrs, &l.CreatedBy, &l.CreatedAt, &exp, &rev,
-		&l.RevokedBy, &l.RevokeReason, &used, &l.UseCount); err != nil {
+		&l.RevokedBy, &l.RevokeReason, &used, &l.UseCount, &l.Copyable); err != nil {
 		return ShareLink{}, err
 	}
 	l.FrameOrigins, l.AllowedCIDRs = parseList(origins), parseList(cidrs)

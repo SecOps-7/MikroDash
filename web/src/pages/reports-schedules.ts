@@ -48,6 +48,7 @@
 
 import { fmtTs } from '../timefmt';
 import { esc, el, fmtBytes } from '../dom';
+import { confirmAction } from '../confirm';
 
 export interface ScheduleRun {
   ran_at: number;
@@ -296,7 +297,7 @@ function renderChannelPicker(chosen: string): void {
  * waiting on.
  */
 export function wireScheduleActions(): void {
-  el('rptSchedTbody')?.addEventListener('click', (e) => {
+  el('rptSchedTbody')?.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement | null;
 
     // Remove, checked first because it is the destructive one and must not fall
@@ -315,9 +316,11 @@ export function wireScheduleActions(): void {
       // cannot load without a router - and pinned as a difference in
       // a Node-era check (since deleted) rather than quietly diverging.
       if (!row || !router?.value) return;
-      if (!window.confirm('Remove the scheduled report "' + row.name + '"?')) return;
+      const routerId = router.value;
+      if (!(await confirmAction({ title: 'Remove the scheduled report?', message: 'This scheduled report stops being sent.',
+        subject: row.name, confirmLabel: 'Remove', danger: true }))) return;
       void fetch(API + '/' + encodeURIComponent(id) + '?routerId=' +
-        encodeURIComponent(router.value), { method: 'DELETE', credentials: 'same-origin' })
+        encodeURIComponent(routerId), { method: 'DELETE', credentials: 'same-origin' })
         // RELOADS ONLY ON SUCCESS, which is the live app's shape. An earlier
         // version of this reloaded on failure too and claimed that matched the
         // original - it does not. The live app does that for SEND NOW; its

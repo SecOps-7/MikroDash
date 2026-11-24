@@ -93,7 +93,7 @@ function mount(schedules, channels = CHANNELS) {
   const clickOn = (sel) => (docListeners.click || []).forEach((fn) => fn({
     target: { closest: (q) => (q === sel ? { getAttribute: () => null } : null) },
   }));
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = (url, opts) => {
     const u = String(url);
     if (opts && opts.method && opts.method !== 'GET') {

@@ -38,6 +38,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
+import { installDialogs } from './dialog-shim';
 
 const ROOT = process.env.MIKRODASH_ROOT || path.join(__dirname, '..', '..');
 
@@ -135,7 +136,10 @@ async function mount(opts) {
   const confirms = [];
 
   global.document = doc;
-  global.window = { confirm: (m) => { confirms.push(m); return o.confirm !== false; } };
+  global.window = {};
+  // The delete asks through the app's own dialog (web/src/confirm.ts), answered
+  // here as the stubbed window.confirm used to be; `confirms` keeps its text.
+  installDialogs(doc, (d) => { confirms.push(d.text); return o.confirm !== false; });
   global.fetch = (url, init) => {
     calls.push({
       url,

@@ -18,6 +18,7 @@
  */
 
 import { el, esc, modalTabs } from '../dom';
+import { confirmAction } from '../confirm';
 import { fieldHtml, toggleHtml } from '../form';
 import { mountPicker, type Picker } from '../device-picker';
 
@@ -628,7 +629,8 @@ async function test(id: string, btn?: HTMLButtonElement): Promise<void> {
 }
 
 async function remove(c: ChannelView): Promise<void> {
-  if (!window.confirm('Delete the channel "' + c.name + '"?')) return;
+  if (!(await confirmAction({ title: 'Delete the channel?', message: 'This notification channel is deleted.',
+    subject: c.name, confirmLabel: 'Delete', danger: true }))) return;
   try {
     await fetch('/api/notify-channels/' + encodeURIComponent(c.id),
       { method: 'DELETE', credentials: 'same-origin' });

@@ -7,6 +7,7 @@
 // half its last size - is offered here only after the preview has said so.
 
 import { esc, el, pill, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { confirmAction } from '../confirm';
 import { featureOn, onFeatures } from '../caps';
 import { fieldHtml, toggleHtml } from '../form';
 import { mountPicker, type Picker } from '../device-picker';
@@ -190,7 +191,7 @@ export function initDnsLists(): void {
 
   el('dnsListAdd')?.addEventListener('click', () => openEditor(null));
 
-  card?.addEventListener('click', (ev) => {
+  card?.addEventListener('click', async (ev) => {
     const b = (ev.target as HTMLElement).closest?.('[data-dnslist]') as HTMLElement | null;
     if (!b) return;
     const id = Number(b.getAttribute('data-id'));
@@ -199,11 +200,15 @@ export function initDnsLists(): void {
     switch (b.getAttribute('data-dnslist')) {
       case 'edit': openEditor(l); break;
       case 'delete': {
-        if (!window.confirm('Forget the list ' + l.name + '?')) return;
+        if (!(await confirmAction({ title: 'Forget the list?', message: 'This DNS list is forgotten.',
+          subject: l.name, confirmLabel: 'Forget', danger: true }))) return;
         // Two questions, because the answers are not the same size: forgetting a
         // list is one row, taking its entries off the routers is a job per router.
-        const entries = window.confirm('Also remove the entries ' + l.name + ' made from its routers?\n\n' +
-          'OK removes them first, and forgets the list once every router has. Cancel leaves them where they are.');
+        const entries = await confirmAction({ title: 'Also remove its entries?',
+          message: 'Also remove the entries this list made from its routers? ' +
+            'Remove entries removes them first, and forgets the list once every router has. ' +
+            'Cancel leaves them where they are.',
+          subject: l.name, confirmLabel: 'Remove entries', danger: true });
         call('/api/dns/lists?id=' + id + (entries ? '&entries=1' : ''), { method: 'DELETE' })
           .then(() => { if (entries) note('removing the entries of ' + l.name + ' first'); load(); })
           .catch((e: Error) => note(e.message));
@@ -214,15 +219,16 @@ export function initDnsLists(): void {
         const andSync = b.getAttribute('data-dnslist') === 'sync';
         note('reading the list and the routers…');
         call<Preview>('/api/dns/lists/preview?id=' + id, { method: 'POST' })
-          .then((d) => {
+          .then(async (d) => {
             const plan = d.routers.map((p) => p.label + (p.error ? ' ' + p.error
               : ' +' + p.add + ' ~' + p.change + ' -' + p.remove +
                 (p.skipped ? ' (' + p.skipped + ' held by other entries)' : ''))).join(' · ');
             note(l.name + ': ' + d.domains + ' domains · ' + plan);
             if (!andSync) return;
             if (d.domains === 0) { note(l.name + ': ' + d.refused); return; }
-            if (d.refused && !window.confirm(d.refused[0]!.toUpperCase() + d.refused.slice(1) + '.\n\n' + plan +
-              '\n\nSync it anyway?')) return;
+            if (d.refused && !(await confirmAction({ title: 'Sync it anyway?',
+              message: d.refused[0]!.toUpperCase() + d.refused.slice(1) + '. ' + plan,
+              subject: l.name, confirmLabel: 'Sync anyway', danger: true }))) return;
             sync(l, d.refused !== '');
           })
           .catch((e: Error) => note('preview failed: ' + e.message));

@@ -112,7 +112,7 @@ function mount(opts) {
   const calls = [];
 
   global.document = doc;
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = (url, init) => {
     calls.push({ url, method: (init && init.method) || 'GET',
       body: init && init.body ? JSON.parse(init.body) : null });

@@ -13,6 +13,7 @@
 // editor (apps-manage.ts), for a new app or one that exists.
 
 import { esc, el, pill, protoPill, fmtBytes, renderSortHeader, sortRows, type SortCol, type SortState } from '../dom';
+import { notice } from '../confirm';
 import type { AppsManage, PortRule, RulePrefill } from './apps-manage';
 
 /** One row of GET /api/apps/unnamed. */
@@ -161,7 +162,7 @@ export function initAppsUnnamed(o: {
     const rows = (detail?.rows || []).filter((r) => picked.has(rowKey(r)));
     const p = prefillFrom(rows);
     if (!p.asns.length && !p.ports.length) {
-      window.alert('None of the picked rows has a known network owner or a port other than 80 or 443, so there is nothing to name them by. ' +
+      void notice('Nothing to name them by', 'None of the picked rows has a known network owner or a port other than 80 or 443, so there is nothing to name them by. ' +
         'Add the app\'s domains in Manage apps instead.');
       return;
     }

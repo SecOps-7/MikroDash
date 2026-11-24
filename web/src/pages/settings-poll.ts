@@ -23,6 +23,7 @@
  */
 
 import { el, pill } from '../dom';
+import { confirmAction } from '../confirm';
 import { fieldHtml } from '../form';
 import { POLL_SLIDERS, POLL_PROFILES, POLL_PROFILE_KEY, type PollSlider } from '../gen/poll-tables';
 
@@ -324,8 +325,10 @@ export function initPollAndBanner(reloadSettings: () => void): void {
 
   const resetBtn = el<HTMLButtonElement>('settingsResetBtn');
   if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
+    resetBtn.addEventListener('click', async () => {
+      if (!(await confirmAction({ title: 'Reset all settings?',
+        message: 'Reset all settings to defaults? This cannot be undone.',
+        confirmLabel: 'Reset', danger: true }))) return;
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

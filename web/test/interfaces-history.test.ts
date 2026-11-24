@@ -136,7 +136,7 @@ function open(reply, readOnly, identity, rangeKey) {
     addEventListener: () => {},
     createElement: () => makeEl(''),
   };
-  global.window = { confirm: () => true };
+  global.window = {};
   // A REAL STORE, shared by every `open` in this file, because a browser's is.
   //
   // The panel no longer reads or writes it - `deliverRow` picks a range by

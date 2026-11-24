@@ -93,7 +93,7 @@ function mount(providers, baseUrlSet = true, before) {
     addEventListener: () => {},
     createElement: () => makeEl(''),
   };
-  global.window = { confirm: () => true };
+  global.window = {};
   global.fetch = (url, opts) => {
     const u = String(url);
     if (opts && opts.method && opts.method !== 'GET') {

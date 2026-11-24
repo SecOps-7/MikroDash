@@ -4004,7 +4004,7 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
     .au-manage-bar>.ff{flex:1 1 14rem;max-width:22rem}
     .rtr-modal.au-manage-modal{width:min(900px,96vw)}
     .upd-router{text-align:center;font-size:.8rem;color:var(--text-muted);margin-bottom:.4rem}
-    .confirm-msg{margin:0 0 .5rem}
+    .confirm-msg{margin:0 0 .5rem;white-space:pre-line}
     .confirm-subject{margin:0;font-weight:600;color:var(--text-main);font-family:var(--font-mono)}
     .rtr-modal.au-manage-modal>.rtr-modal-body{display:block}
     /* The header stays one line wide enough to hold it; a narrow screen wraps. */

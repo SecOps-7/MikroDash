@@ -25,6 +25,7 @@
  */
 
 import { el, esc } from '../dom';
+import { confirmAction, notice } from '../confirm';
 import { onZtpState, ztpDeviceForRouter } from '../ztp-state';
 import { initDeviceImport } from './device-import';
 import { chooseDeviceType, initSwitchForm, openSwitchForm, type SwitchFormRow } from './switch-form';
@@ -369,21 +370,27 @@ export function initSettingsRoutersTable(d: RouterTableDeps): void {
         body: JSON.stringify({ disabled: !rr.disabled }),
       })
         .then((res) => res.json())
-        .then((j) => { if (!j.ok) alert(j.error || 'Toggle failed'); })
-        .catch(() => alert('Network error'));
+        .then((j) => { if (!j.ok) void notice('Toggle failed', j.error || 'Toggle failed'); })
+        .catch(() => void notice('Toggle failed', 'Network error'));
       return;
     }
 
     if (action === 'delete') {
       const label = btn.dataset.rtrLabel || id;
-      if (!confirm(sw ? deleteSwitchPrompt(label) : deleteRouterPrompt(label))) return;
-      fetch('/api/routers/' + encodeURIComponent(id), {
-        method: 'DELETE',
-        credentials: 'same-origin',
-      })
-        .then((r) => r.json())
-        .then((r) => { if (!r.ok) alert('Delete failed: ' + (r.error || 'Unknown error')); })
-        .catch((e) => alert('Request failed: ' + e));
+      void confirmAction({
+        title: sw ? 'Delete the switch?' : 'Delete the router?',
+        message: (sw ? deleteSwitchPrompt(label) : deleteRouterPrompt(label)).replace(/\s*\n+\s*/g, ' '),
+        confirmLabel: 'Delete', danger: true,
+      }).then((yes) => {
+        if (!yes) return;
+        fetch('/api/routers/' + encodeURIComponent(id), {
+          method: 'DELETE',
+          credentials: 'same-origin',
+        })
+          .then((r) => r.json())
+          .then((r) => { if (!r.ok) void notice('Delete failed', 'Delete failed: ' + (r.error || 'Unknown error')); })
+          .catch((e) => void notice('Delete failed', 'Request failed: ' + e));
+      });
     }
   });
 

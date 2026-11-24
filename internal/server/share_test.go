@@ -117,7 +117,8 @@ func TestOnlyAGlobalAdministratorManagesShareLinks(t *testing.T) {
 	_, h := shareServer(t)
 	routes := [][2]string{{"GET", "/api/share-links"}, {"GET", "/api/share-links/options"},
 		{"POST", "/api/share-links"}, {"PUT", "/api/share-links/x1"},
-		{"POST", "/api/share-links/x1/revoke"}, {"DELETE", "/api/share-links/x1"}}
+		{"POST", "/api/share-links/x1/revoke"}, {"DELETE", "/api/share-links/x1"},
+		{"POST", "/api/share-links/x1/url"}}
 	for _, r := range routes {
 		if w := shareReq(h, r[0], r[1], pageLink, "", "", nil); w.Code != 401 {
 			t.Errorf("%s %s with no session: %d, want 401", r[0], r[1], w.Code)
@@ -131,15 +132,22 @@ func TestOnlyAGlobalAdministratorManagesShareLinks(t *testing.T) {
 	}
 }
 
-func TestATokenIsShownOnceAndOnlyItsHashIsStored(t *testing.T) {
+// Re-aimed 2026-11-24 (was TestATokenIsShownOnceAndOnlyItsHashIsStored): the
+// token is now kept so Settings can copy a link again, but only SEALED, and the
+// list still never carries it. The copy route is the one way back to it.
+func TestATokenIsStoredOnlyHashedAndSealed(t *testing.T) {
 	srv, h := shareServer(t)
 	id, token := createLink(t, h, pageLink)
 	if !sharelink.WellFormedToken(token) {
 		t.Fatalf("token %q", token)
 	}
 	l, _ := srv.auditDB.ShareLinkByID(id)
-	if l == nil || !bytes.Equal(l.TokenHash, sharelink.HashToken(token)) || l.CreatedBy != "u-1" {
+	if l == nil || !bytes.Equal(l.TokenHash, sharelink.HashToken(token)) || l.CreatedBy != "u-1" || !l.Copyable {
 		t.Fatalf("stored: %+v", l)
+	}
+	sealed, base, err := srv.auditDB.ShareLinkSecret(id)
+	if err != nil || sealed == "" || strings.Contains(sealed, token) || base == "" {
+		t.Errorf("kept %q for %q (%v); want the token sealed, never plain", sealed, base, err)
 	}
 	list := shareReq(h, "GET", "/api/share-links", "", "admin", "", nil).Body.String()
 	if strings.Contains(list, token) || strings.Contains(strings.ToLower(list), "tokenhash") {
@@ -988,5 +996,35 @@ func TestASharedDashboardsAgentLine(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	if n := asked.Load(); n != 1 {
 		t.Errorf("a share of the Interfaces page asked the model (%d requests)", n)
+	}
+}
+
+// A link's address can be copied again while it is active, and not after.
+func TestALinkCanBeCopiedAgainWhileActive(t *testing.T) {
+	srv, h := shareServer(t)
+	id, token := createLink(t, h, pageLink)
+	w := shareReq(h, "POST", "/api/share-links/"+id+"/url", "", "admin", "", nil)
+	var out struct {
+		URL string `json:"url"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &out)
+	if w.Code != 200 || !strings.HasSuffix(out.URL, "/s/"+token) {
+		t.Fatalf("copy: %d %s, want the address ending in the token", w.Code, w.Body.String())
+	}
+	list := shareReq(h, "GET", "/api/share-links", "", "admin", "", nil).Body.String()
+	if !strings.Contains(list, `"copyable":true`) {
+		t.Errorf("the list does not offer the copy: %s", list)
+	}
+	// A link made before tokens were kept has nothing to show.
+	if err := srv.auditDB.SetShareLinkSecret(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if w := shareReq(h, "POST", "/api/share-links/"+id+"/url", "", "admin", "", nil); w.Code != 409 {
+		t.Errorf("a link with nothing kept: %d, want 409", w.Code)
+	}
+	id2, _ := createLink(t, h, pageLink)
+	shareReq(h, "POST", "/api/share-links/"+id2+"/revoke", "", "admin", "", nil)
+	if w := shareReq(h, "POST", "/api/share-links/"+id2+"/url", "", "admin", "", nil); w.Code != 409 || strings.Contains(w.Body.String(), "/s/") {
+		t.Errorf("a revoked link: %d %s, want 409 and no address", w.Code, w.Body.String())
 	}
 }

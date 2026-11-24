@@ -39,6 +39,7 @@
 
 import { esc, el, renderSortHeader, sortMul, resRow, pill, type SortCol, type SortState, mutedDash } from '../dom';
 import { mountAdds, mountRows } from '../resource';
+import { confirmAction } from '../confirm';
 import type { Socket } from '../socket';
 import type { RosUsersPayload } from '../gen/payloads';
 
@@ -333,15 +334,16 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
 
   // ── Ending a session ──────────────────────────────────────────────────────
 
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', async (e) => {
     const b = (e.target as HTMLElement | null)?.closest?.('.ru-act');
     if (!b) return;
     const act = b.getAttribute('data-act') || '';
     const id = b.getAttribute('data-id') || '';
     const name = b.getAttribute('data-name') || '';
     if (act !== 'session-remove') return;
-    if (!window.confirm('End "' + name +
-        '"\u2019s session?\n\nThey will be disconnected from the router immediately.')) return;
+    if (!(await confirmAction({ title: 'End the session?',
+      message: 'They will be disconnected from the router immediately.',
+      subject: name, confirmLabel: 'End session', danger: true }))) return;
     busy = busyKey(act, id);
     render();
     socket.emit('rossession:remove', { id, expectedName: name });

@@ -19,6 +19,7 @@
  */
 
 import { el } from '../dom';
+import { confirmAction } from '../confirm';
 import { mountCityPicker, type City, type CityPickerState } from './city-picker';
 import { mountPicker, type Picker } from '../device-picker';
 import {
@@ -232,7 +233,8 @@ async function save(): Promise<void> {
 }
 
 async function remove(id: string, name: string, count: number): Promise<void> {
-  if (!window.confirm(siteDeletePrompt(name, count))) return;
+  if (!(await confirmAction({ title: 'Delete the site?', message: siteDeletePrompt(name, count).replace(/\s*\n+\s*/g, ' '),
+    confirmLabel: 'Delete', danger: true }))) return;
   try {
     await fetch('/api/sites/' + encodeURIComponent(id), {
       method: 'DELETE', credentials: 'same-origin',
