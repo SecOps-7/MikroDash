@@ -18,7 +18,7 @@
 
 import { el, iso2Flag, lsGet, lsSet, renderSortHeader, sortRows, type SortState } from '../dom';
 import type { Socket } from '../socket';
-import { CC_NAMES } from './connections-map';
+import { CC_NAMES, type FlowDir } from './connections-map';
 import {
   createWorldMap, attachMapZoom, bindZoomButtons, bindMapTooltip, bindMapFullscreen, type WorldMap,
 } from './connections-worldmap';
@@ -107,14 +107,47 @@ export function initConnectionsPage(socket: Socket, isVisible: (page: string) =>
     if (sub) sub.textContent = text;
   }
 
+  // ── FLOW DIRECTION ──────────────────────────────────────────────────────
+  //
+  // The map's dots are not a measurement of bytes. The connection table has no
+  // per-country Rx/Tx split, so the dropdown chooses which way the comets run
+  // along the lines that are already there:
+  //
+  //   Rx    toward this router's country, drawn green
+  //   Tx    away from it, drawn red
+  //   Both  one of each, which is the default
+  //
+  // Remembered like the tab (`lsGet`/`lsSet`), so a reload does not put the
+  // dots back. An unknown stored value falls through to Both rather than
+  // leaving the select and the map disagreeing. `redrawMap` always forwards
+  // `flowDir`, including a country filter: filtering which countries are drawn
+  // must not drop the direction the viewer just chose.
+  const FLOW_KEY = 'mikrodash_conn_flow';
+  function readFlow(): FlowDir {
+    const v = lsGet<string>(FLOW_KEY, 'both');
+    return v === 'rx' || v === 'tx' || v === 'both' ? v : 'both';
+  }
+  let flowDir: FlowDir = readFlow();
+
   function redrawMap(): void {
     if (!map) return;
-    if (selectedCC) map.select(selectedCC, counts, localCC);
+    if (selectedCC) map.select(selectedCC, counts, localCC, flowDir);
     else {
       map.highlight(counts);
-      map.arcs(counts, localCC);
+      map.arcs(counts, localCC, flowDir);
     }
     map.labels(counts);
+  }
+
+  const flowSel = el<HTMLSelectElement>('connFlowDir');
+  if (flowSel) {
+    flowSel.value = flowDir;
+    flowSel.addEventListener('change', () => {
+      const v = flowSel.value;
+      flowDir = v === 'rx' || v === 'tx' ? v : 'both';
+      lsSet(FLOW_KEY, flowDir);
+      redrawMap();
+    });
   }
 
   /** `cc -> row`, kept across ticks so a row survives a redraw. See ToDo #18. */

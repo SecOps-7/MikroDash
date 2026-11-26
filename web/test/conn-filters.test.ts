@@ -106,7 +106,9 @@ execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
 fs.rmSync(ENTRY, { force: true });
 
 const IDS = ['connMapList', 'connMapSub', 'connPortList', 'connMapBadge', 'connFilterLabel',
-  'connSrcFilter', 'worldMap', 'worldMapWrap', 'mapTooltip', 'sankeySvg', 'sankeyEmpty',
+  'connSrcFilter', 'connFlowDir', 'worldMap', 'worldMapWrap', 'mapTooltip', 'sankeySvg', 'sankeyEmpty',
+  // connFlowDir is the map's Rx / Tx / Both select. The page reads it at
+  // init, so leaving it out of this list makes the mount report an unknown id.
   'connTotal', 'mapZoomIn', 'mapZoomOut', 'mapZoomReset', 'mapFullscreenBtn', 'mapFsOverlay',
   'mapFsClose', 'connTabs', 'connListSearch', 'connListPager', 'connPanelMap', 'connPanelList',
   'connListHead', 'connListBody', 'connListStatus'];
