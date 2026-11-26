@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -183,5 +184,73 @@ func init() {
 	// Keep the regexp honest about the escaped form it must NOT match.
 	if unescaped.MatchString(`add x="t\"; /user remove [find]"`) {
 		panic("unescaped matches an escaped quote")
+	}
+}
+
+// EVERY VALUE LEAVES AS A JSON STRING, never a bare number. One
+// `:serialize to=json` of the whole body wrote any value that READS as a number
+// as a JSON number: a serial whose digits read as scientific notation overflowed
+// to `inf`, not JSON at all, and the server's json.Decode refused the body with
+// 400 — the device never enrolled (measured on live hardware; see jsonValue).
+// An identity an operator set to "12345" was the same defect without the
+// overflow. Each value must pass through the escaper instead, so none can read
+// as a number.
+func TestTheEnrolmentSendsEveryValueAsAJSONString(t *testing.T) {
+	// Each enrolment body and the expressions it wraps, in order, so a field
+	// dropped, emitted raw or wrapped twice — password, public key, a literal —
+	// cannot hide behind a name the loop does not check or behind a count.
+	enrols := map[string]struct {
+		s     string
+		exprs []string
+	}{
+		"remote enrolment": {remoteEnrol(inst, Remote{Token: "tok-remote", PrivateKey: fakeKey2,
+			Address: netip.MustParseAddr("10.249.1.7"), Expires: expires}),
+			[]string{`"inst-0123"`, `"tok-remote"`, "$id", "$model", "$version", "$identity", "$pw"}},
+		"local enrolment": {localEnrol(inst, Local{Token: "tok-local", Password: "pw-FakeFakeFake",
+			From: netip.MustParseAddr("192.0.2.10"), URL: "http://192.0.2.10:3081", Expires: expires}),
+			[]string{`"inst-0123"`, `"tok-local"`, "$id", "$model", "$version", "$identity"}},
+		"generic enrolment": {genericEnrol(inst, Batch{Token: "tok-batch", PrivateKey: fakeKey2,
+			Enrolment: netip.MustParsePrefix("10.249.255.0/24"), Expires: expires}),
+			[]string{`"inst-0123"`, `"tok-batch"`, "$id", "$model", "$version", "$identity", "$pw", "$key"}},
+	}
+	wholeSerialize := func(s string) bool { return strings.Contains(s, ":local body [:serialize") }
+	escaperApplied := func(s string) bool {
+		return strings.Contains(s, `("Q" . $1)`) && strings.Contains(s, "[$esc ")
+	}
+	wrappedValue := regexp.MustCompile(`\[\$esc ([^\]]+)\]`)
+	for name, e := range enrols {
+		s := e.s
+		// The escaper is defined, and it is the prefix that does the work.
+		if !strings.Contains(s, ":local esc do={") {
+			t.Errorf("%s does not define the enrolment value escaper", name)
+		}
+		if !strings.Contains(s, `("Q" . $1)`) {
+			t.Errorf("%s's escaper does not prefix a value, which is what keeps a serial that reads as a number a string", name)
+		}
+		// Every value — the literals, the ones the router reads, the password and
+		// the public key — goes through the escaper, in this order.
+		var got []string
+		for _, m := range wrappedValue.FindAllStringSubmatch(s, -1) {
+			got = append(got, m[1])
+		}
+		if !slices.Equal(got, e.exprs) {
+			t.Errorf("%s wraps %q, want %q", name, got, e.exprs)
+		}
+		// The body is not one whole-value serialize, the shape that regressed.
+		if wholeSerialize(s) {
+			t.Errorf("%s serializes the whole body, which writes a numeric-looking value as a JSON number", name)
+		}
+	}
+	// The control, both ways: the same two reads give opposite answers on known
+	// inputs, so a pass above means the predicates are discriminating, not
+	// matching a string written to agree with them.
+	regressed := `:local body [:serialize to=json value={"serial"=$id;"identity"=$identity}]`
+	guarded := `:local esc do={ :local w [:serialize to=json value={"v"=("Q" . $1)}]` +
+		`; :return [:pick $w ([:find $w "Q"] + 1) ([:len $w] - 2)] }\n:local body ("{\"serial\":\"" . [$esc $id] . "\"}")`
+	if !wholeSerialize(regressed) || wholeSerialize(guarded) {
+		t.Error("wholeSerialize does not separate the regressed whole-value body from a guarded one")
+	}
+	if escaperApplied(regressed) || !escaperApplied(guarded) {
+		t.Error("escaperApplied does not separate a guarded body from the regressed whole-value one")
 	}
 }

@@ -26,9 +26,12 @@ import (
 //     system-id: a CHR has no routerboard at all (z1);
 //   - the WireGuard interface is given NO listen port: a port another interface
 //     holds makes RouterOS create it disabled and silent (z8);
-//   - the enrolment body is `:serialize to=json`, not concatenation (z9), and
-//     is POSTed with `/tool/fetch … output=user as-value`, which hands the reply
-//     back and raises a catchable error on an HTTP refusal (z3);
+//   - each enrolment body value goes through `:serialize to=json` on its own,
+//     which escapes it as a JSON string (measured by z9; see jsonValue) rather
+//     than one serialize of the whole value, which would write a serial that
+//     reads as a number as `inf` instead of a string. The body is POSTed with
+//     `/tool/fetch … output=user as-value`, which hands the reply back and
+//     raises a catchable error on an HTTP refusal (z3);
 //   - the enrolment runs from a stored script and a scheduler that remove
 //     themselves once it succeeds (z7, z9), so a router that boots before the
 //     tunnel is up simply tries again a minute later;
@@ -152,6 +155,81 @@ func identify(b *strings.Builder) {
 	b.WriteString(":local model [/system resource get board-name]\n")
 	b.WriteString(":local version [/system resource get version]\n")
 	b.WriteString(":local identity [/system identity get name]\n")
+}
+
+// jsonValue is the escaper every enrolment body field passes through. It emits
+// a RouterOS routine, held in `esc`, that yields its argument as the inside of a
+// JSON string (escaped, unquoted). It routes the value through `:serialize
+// to=json`, which escapes a string's quotes and backslashes — the guarantee z9
+// chose serialize for — but one value at a time and prefixed with a letter. The
+// prefix is the fix: `:serialize` writes any value that READS as a number as a
+// JSON number, and a MikroTik serial whose digits read as scientific notation
+// (digits, an `E`, more digits) overflows to inf, which is not JSON at all; the
+// server's json.Decode then fails and enrolment is refused with 400. A value that
+// is simply all digits (a serial, or an identity an operator set to "12345") is
+// the same bug without the overflow: a bare JSON number where a string is
+// required. The letter keeps every value non-numeric, so serialize quotes and
+// escapes it, and the wrapper is picked away, leaving the escaped body.
+//
+// The cut starts after the prefix, found with `:find "Q"`: the first Q in the
+// serialized text is always the sentinel, because the only key is the fixed "v".
+// So no left-hand offset is assumed — a form that spaced its output would move
+// the Q and the find follows it. Only the two-byte `"}` tail is assumed; a change
+// there leaves the value invalid JSON, a loud 400, never a value that still
+// carries the sentinel. `options=json.no-string-conversion` would keep every
+// string a string in one call, but it arrived in RouterOS 7.17 and the bootstrap
+// must keep working on the versions it already supports (`:serialize` is 7.13+).
+//
+// Both facts are measured on live hardware. `cmd/ztpprobe` z9 records the
+// coercion; the guard was measured on AP3 (RouterOS 7.24.3) by running the
+// enrolment script this file emits with its POST diverted to `/system/note`,
+// which returned the exact serial, an empty value and one carrying a quote and
+// a backslash. `cmd/ztpprobe` z10 imports the generated bootstrap end to end.
+const jsonValue = `:local esc do={ :local w [:serialize to=json value={"v"=("Q" . $1)}]; :return [:pick $w ([:find $w "Q"] + 1) ([:len $w] - 2)] }`
+
+// jsonField is one enrolment body field: the JSON key and the RouterOS expression
+// for its value — a $variable for something the router reads at enrolment, or a
+// quoted literal for something MikroDash already holds (its instance id, a token).
+type jsonField struct{ key, expr string }
+
+// deviceFields are the values the router reads about itself, common to every
+// enrolment. Each generator prepends its instance/token and, where it applies,
+// appends the password and its public key.
+var deviceFields = []jsonField{
+	{"serial", "$id"}, {"model", "$model"}, {"version", "$version"}, {"identity", "$identity"},
+}
+
+// bodyFields is every enrolment body field in order: the instance and token
+// MikroDash holds, the values the router reads about itself, then whatever the
+// generator adds (the password, its public key).
+func bodyFields(inst Instance, token string, extra ...jsonField) []jsonField {
+	fields := []jsonField{{"instance", q(inst.ID)}, {"token", q(token)}}
+	fields = append(fields, deviceFields...)
+	return append(fields, extra...)
+}
+
+// jsonBody writes jsonValue and the enrolment body built from it, fields in JSON
+// key order. Every value, literal or variable, goes through esc, so none can be
+// written as a JSON number or leave its JSON string.
+//
+// The literals between values carry only the JSON keys (chosen here, never
+// operator text) and the fixed `{}:,"` of the object; the one character they can
+// need escaping for is the double quote, so ReplaceAll of `"` is the whole job on
+// them. This is not a second string-escaping mechanism alongside QuoteROS: the
+// values — the only parts carrying a value from anywhere — are escaped by esc →
+// `:serialize`, exactly as QuoteROS escapes the rest of the script. QuoteROS
+// cannot stand in here because it hex-escapes `{ } [ ] $`, which must stay literal
+// code in a concatenation rather than become inert text.
+func jsonBody(b *strings.Builder, fields ...jsonField) {
+	var body strings.Builder
+	for i, f := range fields {
+		content := `","` + f.key + `":"`
+		if i == 0 {
+			content = `{"` + f.key + `":"`
+		}
+		body.WriteString(`"` + strings.ReplaceAll(content, `"`, `\"`) + `" . [$esc ` + f.expr + `] . `)
+	}
+	fmt.Fprintf(b, "%s\n:local body (%s\"\\\"}\")\n", jsonValue, body.String())
 }
 
 // finish is the enrolment's success path: log, then remove the scheduler and
@@ -288,8 +366,7 @@ func remoteEnrol(inst Instance, d Remote) string {
 	fmt.Fprintf(&s, ":local url %s\n", q("http://"+inst.Server.String()+EnrolPath))
 	fmt.Fprintf(&s, ":local pw [:rndstr length=32 from=%s]\n", q(passwordAlphabet))
 	identify(&s)
-	fmt.Fprintf(&s, ":local body [:serialize to=json value={\"instance\"=%s;\"token\"=%s;\"serial\"=$id;\"model\"=$model;"+
-		"\"version\"=$version;\"identity\"=$identity;\"password\"=$pw}]\n", q(inst.ID), q(d.Token))
+	jsonBody(&s, bodyFields(inst, d.Token, jsonField{"password", "$pw"})...)
 	s.WriteString(":onerror e in={\n")
 	// THE PASSWORD IS SET ONLY ONCE THE ENROLMENT IS ACCEPTED, so a refused
 	// attempt never leaves the router with a password MikroDash does not have.
@@ -317,8 +394,7 @@ func localEnrol(inst Instance, d Local) string {
 	var s strings.Builder
 	fmt.Fprintf(&s, ":local url %s\n", q(strings.TrimRight(d.URL, "/")+LANPath))
 	identify(&s)
-	fmt.Fprintf(&s, ":local body [:serialize to=json value={\"instance\"=%s;\"token\"=%s;\"serial\"=$id;\"model\"=$model;"+
-		"\"version\"=$version;\"identity\"=$identity}]\n", q(inst.ID), q(d.Token))
+	jsonBody(&s, bodyFields(inst, d.Token)...)
 	s.WriteString(":onerror e in={\n")
 	finish(&s, "")
 	return s.String()
@@ -365,8 +441,7 @@ func genericEnrol(inst Instance, bt Batch) string {
 	fmt.Fprintf(&s, ":local pw [:rndstr length=32 from=%s]\n", q(passwordAlphabet))
 	identify(&s)
 	fmt.Fprintf(&s, ":local key [/interface wireguard get [find name=%s] public-key]\n", q(IfaceName))
-	fmt.Fprintf(&s, ":local body [:serialize to=json value={\"instance\"=%s;\"token\"=%s;\"serial\"=$id;\"model\"=$model;"+
-		"\"version\"=$version;\"identity\"=$identity;\"password\"=$pw;\"publicKey\"=$key}]\n", q(inst.ID), q(bt.Token))
+	jsonBody(&s, bodyFields(inst, bt.Token, jsonField{"password", "$pw"}, jsonField{"publicKey", "$key"})...)
 	s.WriteString(":onerror e in={\n")
 	// ON ACCEPTANCE: the password, then the address MikroDash gave this key,
 	// then the shared interface goes (its address and peer with it).

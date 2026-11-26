@@ -523,6 +523,13 @@ func z9ScriptParts(p *probe) {
 	fmt.Fprintln(os.Stderr, "Z9 script parts: serialize, a stored script, self-removal")
 	p.note("z9 serialize", p.script("z9a", `:local id "AB12\"x"; :local m {"token"="t0k";"serial"=$id;"n"=3}; `+
 		`:put [:serialize to=json value=$m]`))
+	// The coercion the enrolment body must survive: a serial whose digits read as
+	// scientific notation is written as a number and overflows to inf, so a whole
+	// body serialize is not JSON. The guard in ztp.jsonValue prefixes a letter to
+	// keep every value a string; the shipped guard is exercised end to end by z10,
+	// which runs the real generated bootstrap.
+	p.note("z9 serialize coerces a numeric serial", p.script("z9d",
+		`:local id "123E4567890"; :put [:serialize to=json value={"serial"=$id}]`))
 	// A script stored over the API with a multi-line source, run by a scheduler
 	// by name, that removes its scheduler and then itself.
 	src := ":global mdprobeRan \"yes\"\n" +
