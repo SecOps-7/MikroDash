@@ -2,6 +2,49 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.89] - CAPsMAN datapaths save, ZTP enrols every serial, and the app's own dialogs
+
+### New
+
+- **Copy a shared link again later.** Settings, Shared links, Copy link shows
+  the address of any link made from now on, in case you lost it. A new link
+  ends with a proper Done button.
+- **The AI Agent knows which apps use your network.** Ask it what is using the
+  bandwidth and it reads Apps Usage: the last hour, and 24 hours, 7 days and
+  30 days for routers with Reporting on.
+
+### Changed
+
+- **Every confirmation and prompt is MikroDash's own dialog,** themed like the
+  rest of the app, instead of the browser's pop-up.
+- **Forms offer every value the router accepts.** CAPsMAN configuration mode
+  gains station-pseudobridge and provisioning action use-network-config, the
+  legacy wireless form gains the WDS, pseudobridge-clone, nstreme-dual and
+  alignment modes, and the band, channel width and authentication lists are
+  complete. A row set to one of these could not be saved before.
+
+### Fixed
+
+- **CAPsMAN datapath profiles save again.** The form sent a setting the
+  `wifi` datapath menu does not have, so the router refused every add and
+  edit. Traffic Processing now offers the router's own three values.
+- **Zero-touch provisioning enrols routers whose serial looks like a
+  number,** such as one with an `E` between digits, and routers whose identity
+  is all digits. Before, the router could not enrol. Thanks
+  [@tamisoft](https://github.com/tamisoft) for the fix
+  ([#170](https://github.com/SecOps-7/MikroDash/pull/170)).
+- **The template editor shows an error as text.** A refused check's line
+  number could reach the page as markup (a code scanning finding).
+
+### Internal
+
+- **The write forms are checked against what the router accepts,** recorded
+  read-only off a lab router by the new `cmd/menurecord` and committed, so the
+  tests need no router. The frozen copy of the old Node app's form
+  declarations is retired.
+- **GitHub's language bar counts the tools, test recordings and built
+  frontend** again; only the vendored Chart.js is left out.
+
 ## [0.8.88] - The right version, shared Devices pages and simpler confirmations
 
 ### New
