@@ -167,6 +167,68 @@ export function makeArcD(x1: number, y1: number, x2: number, y2: number): string
 }
 
 /**
+ * Which way the Connections map's comets travel.
+ *
+ * The line itself is always drawn from this router's country outward. The
+ * choice only decides which dots run along it:
+ *
+ *   `tx`   one dot, leaving the router (outgoing)
+ *   `rx`   one dot, returning to the router (incoming)
+ *   `both` one of each, on the same line
+ *
+ * Colour is not decided here. `rx` and `tx` become the CSS classes
+ * `.map-comet.rx` and `.map-comet.tx`, and the stylesheet paints those green
+ * and red. This map is the exception: everywhere else Rx is blue and Tx is
+ * green.
+ */
+export type FlowDir = 'rx' | 'tx' | 'both';
+
+/**
+ * The same curve, traced from the far end back to the start.
+ *
+ * `makeArcD` returns `M x1,y1 Q cx,cy x2,y2`, with the router at the start and
+ * the remote country at the end. A quadratic reversed is that same control
+ * point with the endpoints swapped (`M x2,y2 Q cx,cy x1,y1`), so the line stays
+ * where it was drawn and only the comet's direction changes. Drawing a second
+ * arc with the points swapped would bow the other way on some bearings — the
+ * upward-normal rule in `makeArcD` is not symmetric — and the return trip
+ * would leave the line it is meant to follow.
+ *
+ * Anything that is not one of these arcs is returned unchanged, so a path this
+ * did not build cannot be silently rewritten into a different shape.
+ */
+export function reverseArcD(d: string): string {
+  const m = /^M(-?[\d.]+),(-?[\d.]+) Q(-?[\d.]+),(-?[\d.]+) (-?[\d.]+),(-?[\d.]+)$/.exec(d);
+  if (!m) return d;
+  // Groups: 1,2 start (router). 3,4 control point, kept. 5,6 end (remote).
+  return 'M' + m[5] + ',' + m[6] + ' Q' + m[3] + ',' + m[4] + ' ' + m[1] + ',' + m[2];
+}
+
+/**
+ * One comet on a link.
+ *
+ * `dir` is the CSS class (`rx` or `tx`) and therefore the colour. `path` is
+ * what SVG `animateMotion` follows: the outward arc for Tx, the reversed arc
+ * for Rx.
+ */
+export interface FlowMotion { dir: 'rx' | 'tx'; path: string }
+
+/**
+ * The comets one link draws for a direction choice.
+ *
+ * The visible line is always the outward arc. Tx follows it. Rx follows
+ * `reverseArcD` of it, back toward the router. Both returns Tx first and Rx
+ * second, so the two dots are siblings on one group rather than two lines.
+ */
+export function flowMotions(dir: FlowDir, forward: string): FlowMotion[] {
+  const tx: FlowMotion = { dir: 'tx', path: forward };
+  const rx: FlowMotion = { dir: 'rx', path: reverseArcD(forward) };
+  if (dir === 'rx') return [rx];
+  if (dir === 'tx') return [tx];
+  return [tx, rx];
+}
+
+/**
  * A country's centre on the map.
  *
  * The hand-picked centroid wins where there is one: a geometric centre puts

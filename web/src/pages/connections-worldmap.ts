@@ -13,7 +13,7 @@
 // every page load of an app whose other pages never show a map, so it is a
 // static file (web/public/vendor/world-atlas) fetched when the map opens.
 
-import { CC_NAMES, NUM_TO_ISO2, centroidOf, coordsToD, makeArcD } from './connections-map';
+import { CC_NAMES, NUM_TO_ISO2, centroidOf, coordsToD, flowMotions, makeArcD, type FlowDir } from './connections-map';
 import { esc, iso2Flag } from '../dom';
 import type { ConnCountryProto } from '../gen/payloads';
 
@@ -146,12 +146,18 @@ function svgEl(tag: string, attrs?: Record<string, string | number>): SVGElement
 export interface WorldMap {
   /** Colour the countries by connection count. */
   highlight: (counts: Record<string, number>) => void;
-  /** Draw an arc from this router's country to each of these. */
-  arcs: (counts: Record<string, number>, localCC: string) => void;
+  /**
+   * Draw an arc from this router's country to each of these.
+   *
+   * `dir` chooses the comets, not the line. The line is always router to
+   * remote. Rx runs a dot back along it, Tx runs one outward, Both runs both.
+   * See `flowMotions`.
+   */
+  arcs: (counts: Record<string, number>, localCC: string, dir: FlowDir) => void;
   /** Put the count above each country. */
   labels: (counts: Record<string, number>) => void;
   /** Pick one country out and dim the rest, or clear with null. */
-  select: (cc: string | null, counts: Record<string, number>, localCC: string) => void;
+  select: (cc: string | null, counts: Record<string, number>, localCC: string, dir: FlowDir) => void;
   centroids: Record<string, [number, number]>;
   /** Whether a country path was drawn for this code. Used by the tooltip. */
   hasCountry: (cc: string) => boolean;
@@ -233,7 +239,7 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
         });
       }
     },
-    arcs(counts, localCC) {
+    arcs(counts, localCC, dir) {
       const src = centroids[localCC];
       for (const cc of Object.keys(arcEls)) {
         if (!counts[cc]) {
@@ -250,26 +256,46 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
         const hot = counts[cc]! >= max * 0.5;
         const d = makeArcD(src[0], src[1], dst[0], dst[1]);
 
-        // ONLY REBUILD WHEN THE GEOMETRY MOVED. Recreating an arc restarts its
-        // comet, and a map where every dot jumps back to the start on each poll
-        // reads as broken rather than live.
+        // ONLY REBUILD WHEN THE GEOMETRY OR THE DIRECTION MOVED. Recreating an
+        // arc restarts its comet, and a map where every dot jumps back to the
+        // start on each poll reads as broken rather than live. Comparing the
+        // path alone would ignore the dropdown: the line does not move when the
+        // viewer picks Rx or Tx, so the comets would keep the old direction
+        // until some country shifted. `data-flow` is that direction, stored on
+        // the group so the next poll can tell a real change from a repeat.
+        // Changing it is the one time the restart is the point.
         const existing = arcEls[cc];
-        if (existing && existing.querySelector('path')?.getAttribute('d') === d) continue;
+        if (existing && existing.getAttribute('data-flow') === dir &&
+          existing.querySelector('path')?.getAttribute('d') === d) continue;
         existing?.parentNode?.removeChild(existing);
 
-        const g = svgEl('g');
-        g.appendChild(svgEl('path', { d, class: 'map-arc' + (hot ? ' hot' : '') }));
+        // The group's class is the direction (`rx`, `tx` or `both`) plus `hot`
+        // for a country with at least half the busiest count. Colour lives in
+        // the stylesheet: green for Rx, red for Tx, a neutral stroke for Both
+        // because one line cannot be two colours. `hot` here is busyness, not
+        // a third direction.
+        const g = svgEl('g', { 'data-flow': dir });
+        g.appendChild(svgEl('path', { d, class: 'map-arc ' + dir + (hot ? ' hot' : '') }));
         // The comet's duration is JITTERED and its start is negative, so arcs
         // drawn in the same frame do not pulse in lockstep - which would read as
-        // one animation rather than many links.
-        const base = hot ? 1.4 : 2.2;
-        const dur = Math.max(0.8, base + (Math.random() * 0.6 - 0.3)).toFixed(2) + 's';
-        const circle = svgEl('circle', { r: hot ? 3 : 2, class: 'map-comet' + (hot ? ' hot' : '') });
-        circle.appendChild(svgEl('animateMotion', {
-          dur, repeatCount: 'indefinite',
-          begin: '-' + (Math.random() * base).toFixed(2) + 's', path: d,
-        }));
-        g.appendChild(circle);
+        // one animation rather than many links. Both draws two circles; each
+        // gets its own jitter, so the inbound and outbound dots do not sit on
+        // top of each other.
+        // Tx follows the arc away from the router. Rx follows the same curve
+        // back toward it. The class on the circle (`rx` or `tx`) is what the
+        // stylesheet colours.
+        for (const motion of flowMotions(dir, d)) {
+          const base = hot ? 1.4 : 2.2;
+          const dur = Math.max(0.8, base + (Math.random() * 0.6 - 0.3)).toFixed(2) + 's';
+          const circle = svgEl('circle', {
+            r: hot ? 3 : 2, class: 'map-comet ' + motion.dir + (hot ? ' hot' : ''),
+          });
+          circle.appendChild(svgEl('animateMotion', {
+            dur, repeatCount: 'indefinite',
+            begin: '-' + (Math.random() * base).toFixed(2) + 's', path: motion.path,
+          }));
+          g.appendChild(circle);
+        }
         arcLayer.appendChild(g);
         arcEls[cc] = g;
       }
@@ -294,17 +320,20 @@ export function createWorldMap(svg: SVGElement, onReady: () => void): WorldMap {
         el.textContent = String(counts[cc]);
       }
     },
-    select(cc, counts, localCC) {
+    // `dir` is forwarded into every arcs() call. A country filter redraws one
+    // line, and dropping the direction there would put that one line back to
+    // whatever the default comet used to be.
+    select(cc, counts, localCC, dir) {
       if (!cc) {
         map.highlight(counts);
-        map.arcs(counts, localCC);
+        map.arcs(counts, localCC, dir);
         return;
       }
       for (const c of Object.keys(pathEls)) {
         pathEls[c]!.classList.remove('active', 'hot');
         if (c === cc) pathEls[c]!.classList.add('hot');
       }
-      map.arcs({ [cc]: counts[cc] || 0 }, localCC);
+      map.arcs({ [cc]: counts[cc] || 0 }, localCC, dir);
     },
   };
 
@@ -425,19 +454,22 @@ export function attachMapZoom(
     zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - rect.left, e.clientY - rect.top);
   };
   const onDown = (e: PointerEvent): void => {
-    // ── A PRESS ON THE MAP'S OWN BUTTONS IS NOT THE START OF A PAN ────────
+    // ── A PRESS ON THE MAP'S OWN CONTROLS IS NOT THE START OF A PAN ────────
     //
-    // The zoom controls sit INSIDE the wrapper this listens on, so without this
-    // pressing Zoom In while zoomed began a drag: the click still worked, and
-    // any mouse movement before releasing then panned the map. The live app
-    // refuses the same way and says why - "don't swallow their events"
-    // (`../MikroDash/public/app.js:4467`).
+    // The zoom buttons and the flow-direction select sit INSIDE the wrapper this
+    // listens on, so without this pressing one while zoomed began a drag: the
+    // click still worked, and any mouse movement before releasing then panned
+    // the map. The live app refuses the buttons the same way and says why -
+    // "don't swallow their events" (`../MikroDash/public/app.js:4467`).
     //
     // Found on 2026-08-25 by the map-zoom check, which had to give its
     // event target a `tagName` and a `closest` before the live slice would run
     // at all - the guard was invisible until the shim was real enough to reach it.
     const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'BUTTON' || (t.closest && t.closest('button')))) return;
+    // The flow-direction select sits in the same wrapper. A press on it is
+    // choosing Rx or Tx, not the start of a pan.
+    if (t && (t.tagName === 'BUTTON' || t.tagName === 'SELECT' || t.tagName === 'OPTION' ||
+      (t.closest && (t.closest('button') || t.closest('select'))))) return;
     if (scale <= 1) return;
     dragging = true;
     sx = e.clientX; sy = e.clientY; dtx = tx; dty = ty;

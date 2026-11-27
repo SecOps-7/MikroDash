@@ -36,6 +36,17 @@
           <div id="worldMapWrap" style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgb(from var(--accent-rx) r g b / .03);cursor:grab;user-select:none">
             <svg id="worldMap" viewBox="0 0 1000 500" style="width:100%;display:block;touch-action:none"></svg>
             <div class="map-tooltip" id="mapTooltip"></div>
+            <!-- Flow direction for the comets on the lines below. Rx runs each
+                 dot back toward this router's country (green). Tx runs it
+                 outward (red). Both draws one of each. The page remembers the
+                 choice and passes it into every redraw, including a country
+                 filter. It sits in the map panel, so the List tab does not
+                 show it. -->
+            <select id="connFlowDir" class="sform-input sform-sm map-flow-dir" title="Rx travels toward this router (green). Tx travels away from it (red)." aria-label="Flow direction">
+              <option value="rx">Rx</option>
+              <option value="tx">Tx</option>
+              <option value="both" selected>Both</option>
+            </select>
             <div style="position:absolute;bottom:.5rem;right:.5rem;display:flex;flex-direction:column;gap:3px;z-index:2">
               <button id="mapZoomReset" class="icon-btn" type="button" title="Reset zoom">&#8634;</button>
               <button id="mapZoomIn" class="icon-btn" type="button" title="Zoom in">+</button>

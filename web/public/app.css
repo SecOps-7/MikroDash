@@ -1639,11 +1639,40 @@
     .conn-port-count{color:var(--text-main);font-weight:600;font-size:.65rem;width:32px;text-align:right;flex-shrink:0}
     /* Map tooltip */
     .map-tooltip{position:absolute;pointer-events:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.3rem .55rem;font-family:var(--font-mono);font-size:.68rem;color:var(--text-main);white-space:nowrap;display:none;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)}
-    /* Arc lines */
+    /* Arc lines.
+       The bare .map-arc / .map-comet rules are the dashboard card's: one
+       outward comet, still the usual Rx blue. The Connections map adds a
+       direction class and is the exception to the app-wide colours, on
+       purpose: the viewer asked for inbound green and outbound red on this
+       map only.
+         .rx   incoming, toward the router. Green, via --accent-tx (the
+               palette's green), not --accent-rx, which is blue.
+         .tx   outgoing, away from the router. Red, via --accent-err, not
+               --accent-tx, which is the green this map gives to Rx.
+         .both one line carrying both dots. A single stroke cannot be two
+               colours, so the line is a neutral grey and the dots carry
+               green and red.
+       .hot on these classes must list the colour again. The older
+       .map-comet.hot rule turns a busy dot white, and a white dot would
+       erase the direction. The longer selector wins, so a busy link stays
+       green or red and only grows a stronger glow.
+       .map-flow-dir is the Rx / Tx / Both select, pinned to the map's
+       top-left so it does not cover the zoom buttons. */
     .map-arc{fill:none;stroke:rgb(from var(--accent-rx) r g b / .2);stroke-width:.8}
     .map-arc.hot{stroke:rgb(from var(--accent-rx) r g b / .35);stroke-width:1.2}
+    .map-arc.rx{stroke:rgb(from var(--accent-tx) r g b / .4)}
+    .map-arc.tx{stroke:rgb(from var(--accent-err) r g b / .4)}
+    .map-arc.both{stroke:rgb(from var(--text-muted) r g b / .45)}
+    .map-arc.rx.hot{stroke:rgb(from var(--accent-tx) r g b / .7);stroke-width:1.2}
+    .map-arc.tx.hot{stroke:rgb(from var(--accent-err) r g b / .7);stroke-width:1.2}
+    .map-arc.both.hot{stroke:rgb(from var(--text-muted) r g b / .7);stroke-width:1.2}
     .map-comet{fill:rgb(from var(--accent-rx) r g b / .9);filter:drop-shadow(0 0 3px rgb(from var(--accent-rx) r g b / .9))}
     .map-comet.hot{fill:#fff;filter:drop-shadow(0 0 5px var(--accent-rx))}
+    .map-comet.rx{fill:rgb(from var(--accent-tx) r g b / .95);filter:drop-shadow(0 0 3px rgb(from var(--accent-tx) r g b / .9))}
+    .map-comet.tx{fill:rgb(from var(--accent-err) r g b / .95);filter:drop-shadow(0 0 3px rgb(from var(--accent-err) r g b / .9))}
+    .map-comet.rx.hot{fill:var(--accent-tx);filter:drop-shadow(0 0 5px var(--accent-tx))}
+    .map-comet.tx.hot{fill:var(--accent-err);filter:drop-shadow(0 0 5px var(--accent-err))}
+    .map-flow-dir{position:absolute;top:.5rem;left:.5rem;z-index:3;width:auto;min-width:5.5rem;cursor:pointer}
     /* Map count labels */
     .map-label{font-family:var(--font-mono);font-size:9px;fill:var(--accent-pink);text-anchor:middle;pointer-events:none;font-weight:700;text-shadow:0 0 4px rgb(from var(--accent-pink) r g b / .6)}
     .conn-bottom-grid{display:grid;grid-template-columns:1fr;gap:.75rem;margin-top:.75rem}
