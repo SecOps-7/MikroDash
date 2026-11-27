@@ -364,6 +364,14 @@ var correctedSinceNode = map[string]string{
 	// The router's three values (on-cap, on-capsman, on-capsman-secure), not
 	// Node's on-capsman and local-forwarding.
 	"capsDatapath.trafficProcessing": "options",
+	// Lists Node truncated, completed to the router's values: recorded off the
+	// lab CHR (testdata/menu-properties.json) or, for the legacy wireless menu,
+	// MikroTik's command tree (testdata/wireless-properties.json).
+	"wifiNet.authTypes": "options", "wifiNet.band": "options", "wifiNet.width": "options",
+	"wlNet.mode": "options", "wlNet.band": "options", "wlNet.channelWidth": "options",
+	"capsProvisioning.supportedBands": "options", "capsProvisioning.action": "options",
+	"capsConfig.mode": "options", "capsSecurity.authenticationTypes": "options",
+	"capsChannel.band": "options", "capsChannel.width": "options",
 }
 
 // TestPortedFieldsMatchTheirLiveDeclarations is the widened gate: every
