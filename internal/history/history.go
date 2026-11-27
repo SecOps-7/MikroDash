@@ -28,9 +28,9 @@
 // None of that is here, because nothing that reaches it is ported: no resource
 // declares `Ordered`, and neither `res:action` nor a move path exists on this
 // side. Writing it now would be untestable code guarding a case that cannot
-// occur. It lands with the firewall, the first ordered resource in the queue —
-// and `TestPortedFieldsMatchTheirLiveDeclarations` now compares `Ordered`
-// against the live declaration, so that port cannot quietly skip it.
+// occur. It lands with the firewall, the first ordered resource in the queue,
+// and the resource contract table (internal/resource/contract_test.go) pins
+// which forms are `Ordered`, so a port cannot quietly drop it.
 package history
 
 import "strings"

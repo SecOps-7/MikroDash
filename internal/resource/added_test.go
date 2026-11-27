@@ -7,27 +7,23 @@ import "testing"
 //
 // ── WHY A LEDGER AND NOT A REWRITTEN RECORDING ─────────────────────────────
 //
-// Two frozen recordings pin this package against the app it was ported from:
-// `src/routeros/resources.js` (the field declarations, read by
-// `options_test.go`) and `testdata/res-preview-cases.json` (the RouterOS
-// command a write renders, replayed by `preview_test.go`). NEITHER CAN BE
-// REGENERATED — the generator drove the live Node module and that module is
-// gone — so editing one by hand converts it from "the port matches what
-// shipped" into "the port matches what somebody typed", which is the whole
-// value of both files.
+// `testdata/res-preview-cases.json` pins this package against the app it was
+// ported from: the RouterOS command a write renders, replayed by
+// `preview_test.go`. IT CANNOT BE REGENERATED (the generator drove the live Node
+// module and that module is gone), so editing it by hand would convert it from
+// "the port matches what shipped" into "the port matches what somebody typed",
+// which is the whole value of the file.
 //
-// So an addition is RECORDED here, once, and both gates read it: the field is
-// excused from the count and its argument is stripped before the command is
-// compared. Everything the Node app did declare must still match exactly.
-// `internal/collect/fixture_test.go` carries the same idiom for the payload
-// goldens, and its header explains the reasoning at length.
+// So an addition is RECORDED here, once: its argument is stripped before the
+// command is compared. Everything the Node app did render must still match
+// exactly. `internal/collect/fixture_test.go` carries the same idiom for the
+// payload goldens, and its header explains the reasoning at length.
 //
-// ── AND IT FAILS IN BOTH DIRECTIONS ────────────────────────────────────────
+// The field declarations themselves are no longer held to Node: since
+// 2026-11-27 the forms are held to the router (menus_test.go).
 //
-// An unrecorded addition fails the gates. A recorded name that is NOT a field
-// of that resource, or that the Node source DOES declare, fails below — so the
-// list cannot outlive the change it describes and cannot excuse a field that
-// was always there.
+// An unrecorded addition fails the preview gate, and a recorded name that is
+// NOT a field of that resource fails below.
 var addedSinceNode = map[string][]string{
 	// The WireGuard peer grew its client-side half on 2026-09-20, when the peers
 	// moved to their own page and a peer's configuration became something this
@@ -49,10 +45,9 @@ var addedSinceNode = map[string][]string{
 		"name", "privateKey", "clientAddress", "clientDns", "clientEndpoint",
 		"clientKeepalive", "clientAllowedAddress", "clientMtu", "responder",
 	},
-	// A static entry's regexp and address list, added 2026-10-13. Only the
-	// preview gate reads this entry: the form itself left the Node parity gate
-	// for the manual's property list (TestDNSFormsCoverTheManual). Both clear
-	// with `=!<prop>=` on an edit, which the preview's strip matches.
+	// A static entry's regexp and address list, added 2026-10-13. The form is
+	// held to the manual's property list (TestDNSFormsCoverTheManual). Both
+	// clear with `=!<prop>=` on an edit, which the preview's strip matches.
 	"dnsStatic": {"regexp", "addressList"},
 }
 
@@ -61,10 +56,7 @@ func addedFor(key string) []string { return addedSinceNode[key] }
 
 // TestAddedSinceNodeNamesRealFields is the ledger's own check: every recorded
 // name must be a field this port actually declares. A typo would otherwise
-// silently widen the allowance the two parity gates give.
-//
-// The other direction — a recorded name the Node source also declares — is
-// checked in options_test.go, where the Node declarations are parsed.
+// silently widen the allowance the preview gate gives.
 func TestAddedSinceNodeNamesRealFields(t *testing.T) {
 	if len(addedSinceNode) == 0 {
 		t.Skip("nothing recorded")

@@ -348,10 +348,9 @@ type Resource struct {
 	// the only way to know: the package list would say the package is installed
 	// without saying THIS API user can reach the menu.
 	//
-	// Both are zero for every resource ported so far, and neither is read by
-	// anything here yet. They exist so `TestPortedFieldsMatchTheirLiveDeclarations`
-	// can compare them against the live declaration — porting `fwFilter` or
-	// `veth` without handling them would otherwise ship a silent `false`.
+	// Both reach the browser on res:schema. A form that lost either would ship
+	// a silent zero, so the contract table (contract_test.go) pins them for the
+	// router-held forms.
 	Ordered      bool
 	RequiresMenu string
 

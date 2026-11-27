@@ -57,8 +57,8 @@ func TestPreviewCommandMatchesTheLiveModule(t *testing.T) {
 			}
 			// Driven from the LIVE side's validated values, so a difference in
 			// the command cannot be blamed on a different `validate`. That is a
-			// deliberate narrowing: `options_test.go` compares the schemas, and
-			// this compares only the rendering.
+			// deliberate narrowing: menus_test.go holds the schemas to the
+			// router, and this compares only the rendering.
 			got := r.PreviewCommand(Validated{Values: c.Validated, Editing: c.Editing}, id)
 			// Strip what this port adds beyond the Node module, and record
 			// that it really was there. See added_test.go.
