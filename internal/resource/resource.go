@@ -4131,10 +4131,14 @@ var CapsDatapath = &Resource{
 			Min: intp(1), Max: intp(4094)},
 		{Name: "clientIsolation", ROS: "client-isolation", Label: "Client Isolation",
 			Type: TypeBool, Clearable: true},
-		{Name: "localForwarding", ROS: "local-forwarding", Label: "Local Forwarding",
-			Type: TypeBool, Clearable: true},
+		// NO local-forwarding: that is the legacy /caps-man/datapath's property,
+		// and /interface/wifi/datapath has never had it (RouterOS 7.25.2 CHR,
+		// /console/inspect; rosetta 7.9 to 7.26beta4). Sent as `=no` on every
+		// save, it made the router refuse every datapath write. Traffic
+		// Processing is the wifi menu's way to say where traffic is forwarded,
+		// and these are its three values (7.21+).
 		{Name: "trafficProcessing", ROS: "traffic-processing", Label: "Traffic Processing",
-			Type: TypeSelect, Options: []string{"on-capsman", "local-forwarding"}},
+			Type: TypeSelect, Options: []string{"on-cap", "on-capsman", "on-capsman-secure"}},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
 	},

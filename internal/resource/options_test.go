@@ -352,6 +352,20 @@ func intEq(a *int, b *int) bool {
 	return *a == *b
 }
 
+// correctedSinceNode names the Node declarations this port has CORRECTED against
+// the router, per resource.field: a field dropped because its menu does not have
+// it, or a static option list replaced by the router's. The gate excuses exactly
+// these and fails on an entry that no longer differs from the recording, so the
+// list cannot outlive the difference it records.
+var correctedSinceNode = map[string]string{
+	// /interface/wifi/datapath has never had local-forwarding (that is the legacy
+	// /caps-man/datapath's), so every save that sent it was refused.
+	"capsDatapath.localForwarding": "removed",
+	// The router's three values (on-cap, on-capsman, on-capsman-secure), not
+	// Node's on-capsman and local-forwarding.
+	"capsDatapath.trafficProcessing": "options",
+}
+
 // TestPortedFieldsMatchTheirLiveDeclarations is the widened gate: every
 // attribute of every field of every ported resource.
 func TestPortedFieldsMatchTheirLiveDeclarations(t *testing.T) {
@@ -392,8 +406,17 @@ func TestPortedFieldsMatchTheirLiveDeclarations(t *testing.T) {
 				byName[f.Name] = f
 			}
 
+			removed := 0
 			for _, lf := range live {
+				fix := correctedSinceNode[res.Key+"."+lf.Name]
 				gf, ok := byName[lf.Name]
+				if fix == "removed" {
+					if ok {
+						t.Errorf("correctedSinceNode records %s.%s as removed, and it is still a field here", res.Key, lf.Name)
+					}
+					removed++
+					continue
+				}
 				if !ok {
 					t.Errorf("%s.%s is declared live and missing here", res.Key, lf.Name)
 					continue
@@ -415,7 +438,11 @@ func TestPortedFieldsMatchTheirLiveDeclarations(t *testing.T) {
 				if gf.OptionsFrom != nil && len(gf.OptionsFrom.Values) > 0 {
 					gotVals = gf.OptionsFrom.Values
 				}
-				if strings.Join(lf.OptionValues, "|") != strings.Join(gotVals, "|") {
+				if same := strings.Join(lf.OptionValues, "|") == strings.Join(gotVals, "|"); fix == "options" {
+					if same {
+						t.Errorf("correctedSinceNode records %s.%s's options as corrected, and they match Node's", res.Key, lf.Name)
+					}
+				} else if !same {
 					t.Errorf("%s.%s option values: live=%v port=%v",
 						res.Key, lf.Name, lf.OptionValues, gotVals)
 				}
@@ -449,9 +476,9 @@ func TestPortedFieldsMatchTheirLiveDeclarations(t *testing.T) {
 					}
 				}
 			}
-			if len(res.Fields) != len(live)+len(added) {
-				t.Errorf("%s has %d fields here and %d live (%d recorded as added since)",
-					res.Key, len(res.Fields), len(live), len(added))
+			if len(res.Fields) != len(live)+len(added)-removed {
+				t.Errorf("%s has %d fields here and %d live (%d recorded as added since, %d as removed)",
+					res.Key, len(res.Fields), len(live), len(added), removed)
 			}
 
 			// ACTIONS. A resource that quietly lost one would still pass every

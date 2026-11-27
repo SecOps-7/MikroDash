@@ -961,7 +961,7 @@ func (c *Capsman) loadConfig() {
 		sec := c.read(wifiSecurityCmd, nil)
 		chn := c.read(wifiChannelCmd, nil)
 		dpt := c.read(routeros.Cmd{Path: "/interface/wifi/datapath/print", Args: []string{
-			"=.proplist=.id,name,bridge,vlan-id,client-isolation,local-forwarding," +
+			"=.proplist=.id,name,bridge,vlan-id,client-isolation," +
 				"traffic-processing,disabled,comment"}}, nil)
 
 		// The `/caps-man` tree, on the same cadence. GATED ON ONE PROBE: the
@@ -1241,8 +1241,9 @@ func (c *Capsman) projectProfiles() CapsProfiles {
 	for _, r := range c.profiles["datapath"] {
 		out.Datapath = append(out.Datapath, CapsDatapathProfile{
 			ID: r[".id"], Name: r["name"], Bridge: r["bridge"], VlanID: r["vlan-id"],
+			// No LocalForwarding: the wifi datapath has no such property; only
+			// the legacy /caps-man one does.
 			ClientIsolation:   rosTruthyC(r["client-isolation"]),
-			LocalForwarding:   rosTruthyC(r["local-forwarding"]),
 			TrafficProcessing: r["traffic-processing"], Comment: r["comment"],
 			Disabled: rosTruthyC(r["disabled"]),
 		})
