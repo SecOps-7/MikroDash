@@ -1,40 +1,17 @@
 # What the language bar should say
 #
-# MikroDash is a Go binary serving a TypeScript frontend.
+# MikroDash is a Go binary serving a TypeScript frontend, and GitHub measures
+# everything in the tree except the one third-party file below.
 #
-# This file used to explain away 4.1 MB of JavaScript: a 136-gate verification
-# harness that compared the app against a frozen recording of the Node
-# implementation it replaced. That harness was retired on 2026-09-01 -- the checks
-# worth keeping became Go tests in `internal/verify/` and TypeScript tests in
-# `web/test/` -- so there is very little left to explain.
-#
-# What remains is 15 tracked .js files, 136 KB in total:
-#
-#   tools/        capture and generation utilities. `capture-fixtures.js` reads a
-#                 live router, `make-golden.js` builds the collector goldens Go
-#                 tests replay, and the `*-ts.js` transforms regenerate
-#                 `web/src/gen/` from committed tables.
-#   web/test/     the frontend's own tests, plus the runner. JavaScript-hosted
-#                 because testing TypeScript needs a JavaScript runtime.
-#   vendor        chart.umd.min.js, third-party, self-hosted because this project
-#                 serves no CDN assets.
+# This file used to hide more. tools/ was marked vendored, and testdata/,
+# internal/*/testdata/ and web/dist/ were marked generated, so GitHub left them
+# out of the language bar. They are this project's own work (capture and
+# generation utilities, recordings the tests replay, the built frontend), so
+# since 2026-11-27 they are measured like the rest.
 #
 # The runtime image contains no node or npm binary and no JavaScript except the
 # compiled frontend bundle, which is built from TypeScript.
-#
-# NOTE THIS IS PRESENTATION, NOT REMOVAL. Everything below is still in the tree,
-# still maintained, and still runs.
 
-# ── The verification harness ──────────────────────────────────────────────
-tools/**            linguist-vendored
-
-# ── Genuinely third-party, vendored to avoid a CDN ────────────────────────
+# Genuinely third-party, vendored to avoid a CDN: Chart.js, self-hosted because
+# this project serves no CDN assets.
 web/public/vendor/** linguist-vendored
-
-# ── Recordings and build output, not hand-written source ──────────────────
-#
-# `internal/resource/testdata/live-resources.js` is a frozen oracle a Go test
-# replays; `web/dist/` is build output.
-testdata/**         linguist-generated
-internal/*/testdata/** linguist-generated
-web/dist/**         linguist-generated
