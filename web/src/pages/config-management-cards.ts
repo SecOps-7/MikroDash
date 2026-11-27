@@ -167,7 +167,7 @@ const LEVEL_TONE: Record<string, PillTone> = { refuse: 'err', ack: 'warn', warn:
 /** One finding: its level as a pill, its line, and what it means. */
 export function findingRow(f: TemplateDetail['findings'][number]): string {
   return '<li class="cfg-finding cfg-lvl-' + esc(f.level) + '"><span class="pill pill-' + (LEVEL_TONE[f.level] ?? 'muted') + '">' +
-    esc(LEVEL_LABEL[f.level] ?? f.level) + '</span>' + (f.line ? '<span class="cfg-meta">line ' + f.line + '</span>' : '') +
+    esc(LEVEL_LABEL[f.level] ?? f.level) + '</span>' + (f.line ? '<span class="cfg-meta">line ' + esc(f.line) + '</span>' : '') +
     '<span class="cfg-finding-msg">' + esc(f.message) + '</span></li>';
 }
 

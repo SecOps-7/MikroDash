@@ -55,6 +55,22 @@ export function editorLayer(body: string): string {
 }
 
 /** Line numbers for the gutter, the refused line marked. */
+/** A line number from the server: a positive whole number, or 0 for none.
+ *  Anything else (a string, a fraction, markup) is not a line. */
+export function lineNumber(v: unknown): number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0;
+}
+
+/**
+ * The editor's status line. The text is the server's or an exception's message
+ * and is escaped; the line pill is this code's own markup around a checked
+ * number. Code scanning alert #182: the line went into the markup unescaped.
+ */
+export function statusHtml(text: string, line: unknown = 0): string {
+  const n = lineNumber(line);
+  return (n ? '<span class="pill pill-err">line ' + esc(n) + '</span>' : '') + esc(text);
+}
+
 export function gutter(body: string, badLine: number): string {
   const n = Math.max(1, body.split('\n').length);
   const out: string[] = [];

@@ -9,7 +9,9 @@
  *   - the external generator is last, opens in a new tab, and carries
  *     `noopener noreferrer`, so the site it opens cannot reach back;
  *   - a placeholder is coloured as one, and its text still escaped;
- *   - the page fetches nothing until it is the page being shown.
+ *   - the page fetches nothing until it is the page being shown;
+ *   - the editor's status shows the server's error as text: neither its
+ *     message nor its line number becomes markup (code scanning alert #182).
  */
 
 import fs from 'node:fs';
@@ -174,6 +176,23 @@ assert.ok(!secret.includes('hunter2') && /data-var-field="default"[^>]*disabled/
 const form = editor.captureForm([{ id: 'r1', label: '<b>edge</b>' }], ['/ip/dns']);
 assert.ok(!form.includes('<b>edge') && form.includes('&lt;b&gt;edge'), 'a router label reached the markup unescaped');
 
+// ── THE STATUS LINE IS TEXT, WHATEVER THE SERVER SENDS (alert #182) ───────────
+{
+  const hostile = '<img src=x onerror=alert(1)>';
+  const st = editor.statusHtml(hostile, '<img src=y onerror=alert(2)>');
+  assert.ok(!st.includes('<img'), 'an error message or line reached the status line as markup: ' + st);
+  assert.ok(st.includes('&lt;img src=x'), 'the error message is not shown as text');
+  assert.ok(!st.includes('pill'), 'a line that is not a number drew a line pill');
+  // CONTROL: a real line still gets its pill, so the check above can tell.
+  assert.ok(editor.statusHtml('bad', 4).includes('<span class="pill pill-err">line 4</span>'), 'a real line lost its pill');
+  for (const v of ['3', 2.5, -1, 0, null, '<b>1</b>']) {
+    assert.strictEqual(editor.lineNumber(v), 0, 'not a line number, read as one: ' + JSON.stringify(v));
+  }
+  assert.strictEqual(editor.lineNumber(7), 7);
+  const fr = cards.findingRow({ level: 'warn', code: 'x', line: '<img src=z onerror=alert(3)>', message: 'm' });
+  assert.ok(!fr.includes('<img'), 'a finding\'s line reached the markup unescaped: ' + fr);
+}
+
 // ── THE DEPLOY TAB WILL NOT START UNTIL EVERY ROUTER IS READY ────────────────
 const ack = { level: 'ack', code: 'lockout-firewall', line: 13, message: 'm' };
 const ok = { routerId: 'r1', hash: 'h1', findings: [ack] };
@@ -225,7 +244,9 @@ const doc = makeDoc(['cfgTabs', 'cfgBadge', 'cfgStats', 'cfgCats', 'cfgSearch', 
   'lpCancel', 'lpSave', 'lpDevClose', 'lpDevApply', 'lpDevList',
   'lpOwnCancel', 'lpOwnSave',
   'cpLinksClose', 'cpLinksBody', 'cpDefault',
-  'cpApply', 'cpLinksError'],
+  'cpApply', 'cpLinksError',
+  // The editor, opened below to check its status line.
+  'cfgEd', 'cfgEdEmpty', 'cfgEdMeta', 'cfgEdGutter', 'cfgEdHl', 'cfgEdStatus', 'cfgEdChecks', 'cfgEdServerVars'],
   { allowUnknown: ['#cfgTabs [data-cfgtab]', '#cpPolicies [data-cp-policy]'] });
 global.document = doc;
 global.window = { addEventListener: () => {}, setTimeout, clearTimeout };
@@ -253,5 +274,22 @@ assert.deepStrictEqual(sent, [['cfgdeploy:watch', {}]], 'opening the page did no
   await new Promise((r) => setTimeout(r, 10));
   assert.strictEqual(doc.nodes.cfgBadge.textContent, '1', 'the count pill does not count the library');
   assert.ok(String(doc.nodes.cfgLibrary.innerHTML).includes('data-cfg-id="canned:home-firewall"'), 'the library was not drawn');
+
+  // THE REAL PAGE, REFUSED WITH MARKUP (alert #182): a new template is checked
+  // at once, and the server's refusal carries markup in its error and its line.
+  global.fetch = async (url) => {
+    fetched.push(url);
+    if (String(url).endsWith('/check')) {
+      return { ok: false, status: 400, json: async () => ({ ok: false,
+        error: '<img src=x onerror=alert(1)>', line: '<img src=y onerror=alert(2)>' }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ ok: true, templates: [], lockClass: {}, canned: [] }) };
+  };
+  doc.nodes.cfgNew.fire('click');
+  await new Promise((r) => setTimeout(r, 30));
+  assert.ok(fetched.some((u) => String(u).endsWith('/check')), 'the editor never checked the template, so the status was not exercised');
+  const status = String(doc.nodes.cfgEdStatus.innerHTML);
+  assert.ok(status.includes('&lt;img src=x'), 'the refusal is not shown in the status line: ' + status);
+  assert.ok(!status.includes('<img'), 'the server\'s error reached the status line as markup: ' + status);
   console.log('config-management: all checks passed');
 })();

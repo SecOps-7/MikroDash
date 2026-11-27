@@ -12,7 +12,8 @@ import {
   categoryBar, drawerBody, findingRow, libraryGrid, statStrip, type LibTemplate, type TemplateDetail,
 } from './config-management-cards';
 import {
-  HIGHLIGHT_LIMIT, captureForm, editorLayer, gutter, serverVarRows, syncVars, varRow, type VarDef,
+  HIGHLIGHT_LIMIT, captureForm, editorLayer, gutter, lineNumber, serverVarRows, statusHtml, syncVars, varRow,
+  type VarDef,
 } from './config-management-editor';
 import {
   DRIFT_COLS, HISTORY_COLS, driftKey, driftRows, historyRows, sortable, type DriftCheck, type DriftRow, type RunDetail,
@@ -80,9 +81,11 @@ class ApiError extends Error {
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch('/api/config/' + path, { credentials: 'same-origin', ...init });
-  const body = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string; line?: number };
+  const body = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string; line?: unknown };
   if (!r.ok || body.ok === false) {
-    throw new ApiError(body.error || 'The request failed (' + r.status + ')', r.status, body.line ?? 0);
+    // The line is the server's, so it is checked here rather than trusted:
+    // anything but a positive whole number is no line at all.
+    throw new ApiError(String(body.error || 'The request failed (' + r.status + ')'), r.status, lineNumber(body.line));
   }
   return body;
 }
@@ -300,11 +303,13 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     if (sv) sv.innerHTML = serverVarRows(serverVars.filter((n) => draft?.body.includes('{{' + n + '}}')));
   }
 
-  function setStatus(cls: string, html: string): void {
+  // TEXT IN, NEVER MARKUP: the status shows the server's error, and statusHtml
+  // escapes it. The only markup is its own line pill.
+  function setStatus(cls: string, text: string, line = 0): void {
     const s = el('cfgEdStatus');
     if (!s) return;
     s.className = 'cfg-ed-status ' + cls;
-    s.innerHTML = html;
+    s.innerHTML = statusHtml(text, line);
   }
 
   /** The declarations to send: unused ones dropped, as a save would refuse them. */
@@ -327,8 +332,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     // The last checks were of text that no longer reads; do not let them stand.
     const checks = el('cfgEdChecks');
     if (checks) checks.innerHTML = '<div class="cfg-meta">Fix the refused line to see the checks.</div>';
-    setStatus('is-bad', (line ? '<span class="pill pill-err">line ' + line + '</span>' : '') +
-      esc(e instanceof Error ? e.message : 'The template could not be checked'));
+    setStatus('is-bad', e instanceof Error ? e.message : 'The template could not be checked', line);
   }
 
   async function check(): Promise<void> {
