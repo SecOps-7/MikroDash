@@ -41,7 +41,8 @@
 //
 // The two legacy wireless forms are not here: the lab CHR carries the wireless
 // package disabled, and enabling it is a write and a reboot. They are held to
-// testdata/wireless-properties.json, taken from MikroTik's own command tree.
+// internal/resource/testdata/wireless-properties.json, taken from MikroTik's
+// own command tree.
 package main
 
 import (

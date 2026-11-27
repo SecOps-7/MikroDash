@@ -52,7 +52,7 @@ It **discovers** what to check rather than working from a list, so a new check r
 
 Package tests use the standard library `testing` package only.
 
-**No test needs a router.** `go test ./...` and `sh tools/verify.sh` pass for anyone, with no router and no network, and nothing in them skips for want of one. Where a check is held to what RouterOS accepts, it reads a recording committed under `testdata/`: the write forms in `internal/resource/` are held to `testdata/menu-properties.json` (made by `cmd/menurecord`, read-only, off a lab router) and `testdata/wireless-properties.json` (MikroTik's command tree), as the firewall forms are to `firewall-properties.json`. A router is needed only to refresh a recording, which is a deliberate change reviewed like any other. Live checks against a lab router are separate from the suite and still expected before a change that writes to routers ships.
+**No test needs a router.** `go test ./...` and `sh tools/verify.sh` pass for anyone, with no router and no network, and nothing in them skips for want of one. Where a check is held to what RouterOS accepts, it reads a recording committed under `testdata/`: the write forms in `internal/resource/` are held to `internal/resource/testdata/menu-properties.json` (made by `cmd/menurecord`, read-only, off a lab router) and `internal/resource/testdata/wireless-properties.json` (MikroTik's command tree), as the firewall forms are to `firewall-properties.json`. A router is needed only to refresh a recording, which is a deliberate change reviewed like any other. Live checks against a lab router are separate from the suite and still expected before a change that writes to routers ships.
 
 ## Project Conventions
 
