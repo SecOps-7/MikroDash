@@ -160,8 +160,8 @@ func identify(b *strings.Builder) {
 // jsonValue is the escaper every enrolment body field passes through. It emits
 // a RouterOS routine, held in `esc`, that yields its argument as the inside of a
 // JSON string (escaped, unquoted). It routes the value through `:serialize
-// to=json`, which escapes a string's quotes and backslashes — the guarantee z9
-// chose serialize for — but one value at a time and prefixed with a letter. The
+// to=json`, which escapes a string's quotes and backslashes (the guarantee z9
+// chose serialize for), but one value at a time and prefixed with a letter. The
 // prefix is the fix: `:serialize` writes any value that READS as a number as a
 // JSON number, and a MikroTik serial whose digits read as scientific notation
 // (digits, an `E`, more digits) overflows to inf, which is not JSON at all; the
@@ -173,7 +173,7 @@ func identify(b *strings.Builder) {
 //
 // The cut starts after the prefix, found with `:find "Q"`: the first Q in the
 // serialized text is always the sentinel, because the only key is the fixed "v".
-// So no left-hand offset is assumed — a form that spaced its output would move
+// So no left-hand offset is assumed: a form that spaced its output would move
 // the Q and the find follows it. Only the two-byte `"}` tail is assumed; a change
 // there leaves the value invalid JSON, a loud 400, never a value that still
 // carries the sentinel. `options=json.no-string-conversion` would keep every
@@ -188,7 +188,7 @@ func identify(b *strings.Builder) {
 const jsonValue = `:local esc do={ :local w [:serialize to=json value={"v"=("Q" . $1)}]; :return [:pick $w ([:find $w "Q"] + 1) ([:len $w] - 2)] }`
 
 // jsonField is one enrolment body field: the JSON key and the RouterOS expression
-// for its value — a $variable for something the router reads at enrolment, or a
+// for its value: a $variable for something the router reads at enrolment, or a
 // quoted literal for something MikroDash already holds (its instance id, a token).
 type jsonField struct{ key, expr string }
 
@@ -216,7 +216,7 @@ func bodyFields(inst Instance, token string, extra ...jsonField) []jsonField {
 // operator text) and the fixed `{}:,"` of the object; the one character they can
 // need escaping for is the double quote, so ReplaceAll of `"` is the whole job on
 // them. This is not a second string-escaping mechanism alongside QuoteROS: the
-// values — the only parts carrying a value from anywhere — are escaped by esc →
+// values (the only parts carrying a value from anywhere) are escaped by esc →
 // `:serialize`, exactly as QuoteROS escapes the rest of the script. QuoteROS
 // cannot stand in here because it hex-escapes `{ } [ ] $`, which must stay literal
 // code in a concatenation rather than become inert text.

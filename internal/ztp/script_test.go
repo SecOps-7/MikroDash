@@ -191,13 +191,13 @@ func init() {
 // `:serialize to=json` of the whole body wrote any value that READS as a number
 // as a JSON number: a serial whose digits read as scientific notation overflowed
 // to `inf`, not JSON at all, and the server's json.Decode refused the body with
-// 400 — the device never enrolled (measured on live hardware; see jsonValue).
+// 400, and the device never enrolled (measured on live hardware; see jsonValue).
 // An identity an operator set to "12345" was the same defect without the
 // overflow. Each value must pass through the escaper instead, so none can read
 // as a number.
 func TestTheEnrolmentSendsEveryValueAsAJSONString(t *testing.T) {
 	// Each enrolment body and the expressions it wraps, in order, so a field
-	// dropped, emitted raw or wrapped twice — password, public key, a literal —
+	// dropped, emitted raw or wrapped twice (password, public key, a literal)
 	// cannot hide behind a name the loop does not check or behind a count.
 	enrols := map[string]struct {
 		s     string
@@ -227,8 +227,8 @@ func TestTheEnrolmentSendsEveryValueAsAJSONString(t *testing.T) {
 		if !strings.Contains(s, `("Q" . $1)`) {
 			t.Errorf("%s's escaper does not prefix a value, which is what keeps a serial that reads as a number a string", name)
 		}
-		// Every value — the literals, the ones the router reads, the password and
-		// the public key — goes through the escaper, in this order.
+		// Every value (the literals, the ones the router reads, the password and
+		// the public key) goes through the escaper, in this order.
 		var got []string
 		for _, m := range wrappedValue.FindAllStringSubmatch(s, -1) {
 			got = append(got, m[1])
